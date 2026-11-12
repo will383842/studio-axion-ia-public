@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { BadgeDoublon } from "@/components/ciblage/BadgeDoublon";
+import { PastilleEtapeEcrire } from "@/components/ecrire/PastilleEtapeEcrire";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
@@ -29,7 +31,7 @@ export interface ProprietesListeSujets {
   favoris?: string[];
   piliers: { id: string; nom: string }[];
   series: { id: string; nom: string }[];
-  sansSujet: { id: string; titre: string }[];
+  sansSujet: { id: string; titre: string; doublon?: boolean }[];
 }
 
 /** Liste « Scripts » (B.6.2-B.6.4) : rangée de 5 logos et bouton Format visibles ; le reste dans « Plus de filtres ». */
@@ -68,9 +70,9 @@ export function ListeSujets(p: ProprietesListeSujets) {
                   type="button"
                   aria-pressed={actif}
                   onClick={() => appliquer({ ...filtres, reseau: actif ? undefined : r })}
-                  className={cn("grid size-11 place-items-center rounded-xl transition-colors", actif ? "bg-orange-doux ring-2 ring-orange" : "hover:bg-surface-2")}
+                  className={cn("grid size-11 place-items-center rounded-xl transition-colors", actif ? "bg-surface-2 ring-2 ring-texte" : "hover:bg-surface-2")}
                 >
-                  <LogoReseau reseau={r} taille="md" className={cn(actif && "border-orange text-orange-vif")} />
+                  <LogoReseau reseau={r} taille="md" className={cn(actif && "border-texte text-texte")} />
                 </button>
               );
             })}
@@ -80,7 +82,7 @@ export function ListeSujets(p: ProprietesListeSujets) {
             onClick={() => setFeuilleFormat(true)}
             className={cn(
               "inline-flex min-h-11 max-w-[6rem] shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold",
-              formatActif ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte",
+              formatActif ? "border-texte bg-texte text-fond" : "border-trait bg-surface-1 text-texte",
             )}
           >
             <Icone nom="grille" size={16} className="shrink-0" />
@@ -135,7 +137,7 @@ export function ListeSujets(p: ProprietesListeSujets) {
                     </span>
                   </div>
                   <p className="mb-4 line-clamp-2 text-[15px] leading-snug text-texte-doux">{s.titre}</p>
-                  {s.grille.length ? <MiniGrille lignes={s.grille} reseauActif={filtres.reseau} /> : <p className="text-sm text-ambre">En écriture</p>}
+                  {s.grille.length ? <MiniGrille lignes={s.grille} reseauActif={filtres.reseau} /> : <PastilleEtapeEcrire etape="ecriture" />}
                 </Carte>
               </Link>
             </li>
@@ -166,15 +168,16 @@ export function ListeSujets(p: ProprietesListeSujets) {
 
       {p.sansSujet.length > 0 && !filtre && (
         // Les scripts existants sont visibles d'emblée, jamais repliés.
-        <section aria-labelledby="titre-sans-sujet" className="rounded-carte border border-trait bg-surface-1 px-4">
+        <section aria-labelledby="titre-sans-sujet" className="mt-4 rounded-carte border border-trait bg-surface-1 px-4 shadow-carte">
           <h2 id="titre-sans-sujet" className="flex min-h-12 items-center text-sm font-semibold text-texte-doux">
             Scripts sans sujet · {p.sansSujet.length}
           </h2>
           <ul className="pb-2">
             {p.sansSujet.map((t) => (
               <li key={t.id}>
-                <Link href={`/scripts/${t.id}`} className="flex min-h-11 items-center justify-between gap-2 text-sm text-texte hover:text-orange-vif">
+                <Link href={`/scripts/${t.id}`} className="flex min-h-11 items-center justify-between gap-2 text-sm text-texte hover:underline">
                   <span className="truncate">{t.titre}</span>
+                  {t.doublon && <BadgeDoublon className="ml-auto" />}
                   <Icone nom="chevron-droite" size={14} className="shrink-0 text-texte-faible" />
                 </Link>
               </li>
@@ -226,7 +229,7 @@ export function BoutonPlusDeFiltres() {
           router.replace(`${chemin}?${p.toString()}`, { scroll: false });
         }}
       />
-      {nombre > 0 && <span className="pointer-events-none absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-orange text-[11px] font-bold text-sur-orange">{nombre}</span>}
+      {nombre > 0 && <span className="pointer-events-none absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-texte text-[11px] font-bold text-fond">{nombre}</span>}
     </span>
   );
 }
@@ -277,10 +280,10 @@ export function FeuilleFormat({
                     aria-pressed={actif === f.id}
                     className={cn(
                       "flex min-h-16 w-full flex-col items-start justify-between rounded-champ border p-3 text-left transition-colors",
-                      actif === f.id ? "border-orange bg-orange-doux" : "border-trait bg-surface-2 hover:border-trait-fort",
+                      actif === f.id ? "border-texte bg-surface-1 ring-1 ring-texte" : "border-trait bg-surface-2 hover:border-trait-fort",
                     )}
                   >
-                    <span className="font-titre text-xs text-orange-vif">{f.code}</span>
+                    <span className="font-titre text-xs text-texte-faible">{f.code}</span>
                     <span className="flex w-full items-baseline justify-between gap-1">
                       <span className="truncate text-sm font-semibold text-texte">{f.nom}</span>
                       <span className="text-xs tabular-nums text-texte-faible">{f.nombre}</span>
@@ -377,7 +380,7 @@ function FeuillePlusDeFiltres({
         )}
         <Link href="/videos/a-ranger" className="flex min-h-12 items-center justify-between rounded-carte border border-trait bg-surface-2 px-4 text-sm font-semibold text-texte hover:border-trait-fort">
           <span className="flex items-center gap-2">
-            <Icone nom="archive" size={16} className="text-orange-vif" />À ranger
+            <Icone nom="archive" size={16} className="text-texte-faible" />À ranger
           </span>
           <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
         </Link>

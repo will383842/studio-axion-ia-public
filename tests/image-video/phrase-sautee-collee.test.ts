@@ -8,11 +8,13 @@
  * Correctif : la fenêtre s'élargit de l'erreur d'horodatage sans entrer dans un mot gardé ; un retrait voulu accepte la
  * traîne du mot sauté (son qui précède le silence), jamais l'attaque du mot gardé.
  */
+import { REGLES_SCENE_IV } from "@/moteurs/montage-image-video/regles-scene";
 import { describe, expect, it } from "vitest";
 import type { MotHorodate } from "@/domaine/types";
 import { REGLES_COUPES_IV, coupesEnPleinSon, paroleRetireeIV, phrasesSauteesSansSilenceIV, placerCoupesIV, type MesureSonIV } from "@/moteurs/montage-image-video/assemblage";
 import { RECETTE_VOIX_IV } from "@/moteurs/montage-image-video/assemblage";
 import { planRaccordVoix, type Silence } from "@/moteurs/montage-image-video/emprunts";
+import { ecransDuScript } from "@/moteurs/montage-image-video/script-colle";
 
 const f = 0.02;
 const DUREE = 90;
@@ -157,5 +159,94 @@ describe("témoins : ce qui doit rester refusé ou inchangé", () => {
     };
     const { plan: p } = placerCoupesIV(plan, { corps: mots }, { corps: sil }, { corps: DUREE }, REGLES_COUPES_IV, { mesures: { corps: mesureDe(sil, { ...TRAINE, [fen(82.06)]: -50 }) }, retraitsVoulus: RETRAIT, garderPausesSansSilence: true });
     expect(p.morceaux.filter((y) => !y.silence)[1].debutSec).toBeLessThanOrEqual(82.08 + 1e-6);
+  });
+});
+
+describe("script collé : la phrase-choc finale reste dite mot pour mot et fait 8 mots au plus", () => {
+  const mots = (t: string) => t.split(/\s+/).filter(Boolean);
+  const bout = (e: string[][]) => e.map((x) => x.join(" ")).join(" ");
+  const SCRIPT = "Vous gérez une petite entreprise et vous perdez du temps sur des tâches répétitives ? Réservez un appel, nous regardons ensemble ce qui peut être automatisé chez vous. Merci pour votre attention aujourd'hui. Un deux trois quatre cinq six sept huit neuf dix onze douze.";
+
+  it("sans ponctuation utile : les 8 derniers mots, tous les mots du script gardés", () => {
+    const e = ecransDuScript(SCRIPT);
+    expect(mots(bout(e))).toEqual(mots(SCRIPT));
+    expect(mots(e.at(-1)!.join(" ")).length).toBeLessThanOrEqual(8);
+  });
+
+  it("fin déjà courte après découpage : la phrase se coupe en amont, mots identiques", () => {
+    const t = "Un deux trois quatre cinq six. Vous perdez du temps chaque jour, alors que tout peut être fait pour vous sans effort ni attente, très vite et bien.";
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("très vite et bien.");
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  const SIX = "Un deux trois quatre cinq six. Sept huit neuf dix onze douze. Le client attend. Vous gagnez du temps. Votre équipe respire. ";
+
+  it("script de 6 phrases ou plus finissant par une phrase de 9 à 16 mots avec une virgule : coupée à la virgule, mots identiques", () => {
+    const t = `${SIX}Vous perdez du temps chaque jour, alors que tout est fait pour vous.`;
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("alors que tout est fait pour vous.");
+    expect(e.at(-2)!.join(" ")).toBe("Vous perdez du temps chaque jour,");
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("garde le PREMIER signe dont la suite fait 8 mots ou moins (fin la plus longue possible)", () => {
+    const t = `${SIX}Vous perdez du temps, chaque jour, tout est fait pour vous.`;
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("chaque jour, tout est fait pour vous.");
+    expect(mots(e.at(-1)!.join(" ")).length).toBeLessThanOrEqual(8);
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("une fin qui dépasserait signesMax caractères (texte affiché tronqué) est coupée plus loin, mots intacts", () => {
+    const t = `${SIX}Vous perdez du temps, alors qu'automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement.`;
+    const e = ecransDuScript(t);
+    const fin = e.at(-1)!.join(" ");
+    expect(fin.length).toBeLessThanOrEqual(REGLES_SCENE_IV.signesMax);
+    expect(fin.length).toBeGreaterThan(0);
+    expect(t.endsWith(fin)).toBe(true);
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("une fin de 5 mots de plus de signesMax caractères est coupée plus tôt ou gardée sans troncature à l'écran", () => {
+    const longs = "automatiquement institutionnalisation extraordinairement incompréhensiblement anticonstitutionnellement";
+    const t = `${SIX}Vous perdez du temps ${longs}.`;
+    const e = ecransDuScript(t);
+    const fin = e.at(-1)!.join(" ");
+    expect(fin.length).toBeGreaterThan(0);
+    expect(fin.length <= REGLES_SCENE_IV.signesMax || mots(fin).length === 1).toBe(true);
+    expect(t.endsWith(fin)).toBe(true);
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("un dernier mot de plus de 80 caractères (adresse web) : le dernier écran n'est jamais vide, mots identiques", () => {
+    const url = `https://www.exemple-de-site-tres-long.fr/${"a".repeat(60)}/page`;
+    expect(url.length).toBeGreaterThan(80);
+    const t = `${SIX}Un deux trois quatre cinq six sept huit ${url}`;
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.some((j) => /[\p{L}\p{N}]/u.test(j))).toBe(true);
+    expect(mots(e.at(-1)!.join(" ")).length).toBeGreaterThan(0);
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("au-delà de 60 écrans après la coupe, deux écrans du corps sont fondus : 60 écrans, tête et fin intactes, mots identiques", () => {
+    const court = Array.from({ length: 59 }, (_, i) => `Écran numéro ${i + 1}.`).join(" ");
+    const t = `${court} Vous perdez du temps chaque jour, alors que tout est fait pour vous.`;
+    const e = ecransDuScript(t);
+    expect(e).toHaveLength(60);
+    expect(e[0]!.join(" ")).toBe("Écran numéro 1.");
+    expect(e.at(-1)!.join(" ")).toBe("alors que tout est fait pour vous.");
+    expect(mots(bout(e))).toEqual(mots(t));
+  });
+
+  it("script sans aucun mot : aucun écran, pas d'erreur", () => {
+    expect(ecransDuScript("   ")).toEqual([]);
+  });
+
+  it("une phrase finale de 8 mots ou moins reste telle quelle ; la tête est le résultat", () => {
+    const t = "Un deux trois quatre cinq six sept. Huit neuf dix onze douze treize. Le client attend. Vous gagnez du temps. Votre client a toujours une réponse.";
+    const e = ecransDuScript(t);
+    expect(e.at(-1)!.join(" ")).toBe("Votre client a toujours une réponse.");
+    expect(mots(bout(e))).toEqual(mots(t));
   });
 });

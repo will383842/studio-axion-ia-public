@@ -1,3 +1,4 @@
+import type { Ciblage, MarqueAncien, TypeAutomatisation } from "./ciblage/types";
 /**
  * Modèle de données complet du Studio (PLAN B.7 + AVENANT 2 : AV2.2, AV2.3, AV2.4).
  *
@@ -595,6 +596,11 @@ export interface Script extends EntiteBase {
   versionFormat: number;
   sujet: string;
   cible?: string;
+  /** Ciblage structuré (lot A) : facultatif. */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
+  ancien?: MarqueAncien;
+  doublonsPossibles?: Id[];
   ton?: string;
   /** Tu ou vous (B.0 §15). Absent : la valeur de « Ma façon de parler ». */
   adresse?: Adresse;
@@ -734,6 +740,8 @@ export interface StylesChoisis {
 
 export interface Video extends EntiteBase {
   titre: string;
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
   sujet?: string;
   formatId: string;
   versionFormat: number;
@@ -769,6 +777,8 @@ export interface Video extends EntiteBase {
   /** Version courante choisie (VersionVideo.id). */
   versionChoisieId?: Id;
   miniatureChoisieId?: Id;
+  /** Titre de la vignette (3 à 5 mots) et mot mis en valeur : FIXÉS par Williams (`fixee`) ou proposés à la création. */
+  couvertureVignette?: { texte: string; motCle: string; fixee: boolean };
   modeleId?: Id;
   serieId?: Id;
   /** Équipe 7 : numéro d'épisode dans `serieId` (une vidéo d'un sujet en série prend celui du sujet). */
@@ -939,6 +949,8 @@ export interface Miniature extends EntiteBase {
   /** Instant de la vidéo retenu (la plus nette des 5 images) et mise en page (0, 1, 2) : pour refaire l'image. */
   instantSec?: number;
   variante?: number;
+  /** Marqueur de gabarit : absent ou « axion-v2 » (carte-titre) = ancienne, qu'« Refaire les vignettes » remplace sans l'effacer ; « image-video-v3 » = vraie image du début de la vidéo. */
+  gabarit?: "axion-v2" | "image-video-v3" | "image-video-v3b";
 }
 
 /**
@@ -1002,7 +1014,7 @@ export interface SegmentSousTitres {
 
 /** Lot M2 (ajout pur) : styles retenus par Will (Karaoké et Minimal en base, Impact et Bandeau en accents). */
 export type GabaritSousTitres = "karaoke" | "minimal" | "impact" | "bandeau";
-export type BaseSousTitres = Extract<GabaritSousTitres, "karaoke" | "minimal">;
+export type BaseSousTitres = GabaritSousTitres;
 export type StyleGroupeSousTitres = "base" | "impact" | "bandeau";
 export type PositionGroupeSousTitres = "auto" | "haut" | "milieu" | "bas";
 /** Intensité du mélange, par vidéo : base seule, défaut, ou accents fréquents. */
@@ -1096,7 +1108,7 @@ export interface KitPublication extends Horodate {
 }
 
 export type StatutPublication = "brouillon" | "programmee" | "publiee" | "echec";
-export type ViaPublication = "buffer" | "manuel" | "simulation";
+export type ViaPublication = "buffer" | "zernio" | "manuel" | "simulation";
 
 export interface StatsPublication {
   vues: number;
@@ -1114,7 +1126,9 @@ export interface StatsPublication {
 }
 
 export interface Publication extends EntiteBase {
-  videoId: Id;
+  /** Source de la publication : exactement un des deux (`videoId` ou `visuelId`). Lire via `sourceDe`. */
+  videoId?: Id;
+  visuelId?: Id;
   sortieId?: Id;
   reseau: IdReseau;
   statut: StatutPublication;
@@ -1131,7 +1145,7 @@ export interface Publication extends EntiteBase {
   /** Lien suivi propre à la version (B.5.5). */
   lienSuivi?: string;
   /** Relevés successifs (ajout seul) ; `stats` = copie du dernier. */
-  releves?: { le: DateIso; jour: number; source: "saisie" | "buffer" | "api"; valeurs: StatsPublication; definitions: Record<string, string> }[];
+  releves?: { le: DateIso; jour: number; source: "saisie" | "buffer" | "zernio" | "api"; valeurs: StatsPublication; definitions: Record<string, string> }[];
   retention?: { seconde: number; part: number }[];
   /* --- Lot R1, Buffer réel (ajouts purs) --- */
   /**
@@ -1153,6 +1167,90 @@ export interface Publication extends EntiteBase {
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
   votreMarque?: boolean;
+  /* --- L1-03 (ajouts purs, facultatifs ; `idExterne` est réutilisé, `StatsPublication` n'est pas redéclaré) --- */
+  /** Date de la publication chez le diffuseur, telle que relue. */
+  dateExterne?: DateIso;
+  /** Date demandée pour la publication. */
+  dateVoulue?: DateIso;
+  /** Repère posé par l'usine pour retrouver cette publication. */
+  repereUsine?: string;
+  /** Signature posée par l'usine sur ce qu'elle a envoyé. */
+  signatureUsine?: string;
+  /* --- CAL-15 (ajouts purs, tous facultatifs : aucun ne bloque un ajout) --- */
+  /** Pilier éditorial (liste à fixer avant la V2 : texte libre d'ici là). */
+  pilier?: string;
+  sujet?: string;
+  angle?: string;
+  campagne?: string;
+  motCle?: string;
+}
+
+/** CAL-15 · état de l'indicateur d'équilibre de la semaine : replié par défaut. */
+export interface EquilibreSemaineEtat {
+  deplie: boolean;
+}
+export const EQUILIBRE_SEMAINE_PAR_DEFAUT: Readonly<EquilibreSemaineEtat> = Object.freeze({ deplie: false });
+/** Un clic déplie l'indicateur, le suivant le replie ; l'état reçu n'est pas modifié. */
+export function basculerEquilibreSemaine(etat: EquilibreSemaineEtat): EquilibreSemaineEtat {
+  return { deplie: !etat.deplie };
+}
+
+/** Sortie d'un visuel (image fixe) : type séparé de `Sortie`, qui reste celle d'une vidéo. */
+export interface SortieVisuel extends EntiteBase {
+  visuelId: Id;
+  ratio: Ratio;
+  reseau?: IdReseau;
+  fichierId: Id;
+}
+
+/** Source d'une publication : une vidéo ou un visuel (jamais les deux, jamais aucun). */
+export type SourcePublication = { famille: "video"; videoId: Id } | { famille: "visuel"; visuelId: Id };
+
+/** Fonction pure : lit la source d'une publication. Lève si l'invariant « exactement un des deux » est rompu. */
+export function sourceDe(p: Pick<Publication, "videoId" | "visuelId">): SourcePublication {
+  if (p.videoId && !p.visuelId) return { famille: "video", videoId: p.videoId };
+  if (p.visuelId && !p.videoId) return { famille: "visuel", visuelId: p.visuelId };
+  throw new Error("Publication sans source unique : il faut exactement un identifiant de vidéo ou de visuel.");
+}
+
+/** Identifiant de la vidéo d'une publication, ou `undefined` si sa source est un visuel (passe par `sourceDe`). */
+export function videoIdDe(p: Pick<Publication, "videoId" | "visuelId">): Id | undefined {
+  const s = sourceDe(p);
+  return s.famille === "video" ? s.videoId : undefined;
+}
+
+const lignesSignalees = new Set<string>();
+
+/**
+ * Lecture TOLÉRANTE de la source d'une publication, pour les filtres `lister(...)` : ne lève jamais.
+ * Une ligne mal formée (ni vidéo ni visuel, les deux, identifiant vide) rend `undefined` : elle est ignorée
+ * et signalée une fois dans le journal serveur, au lieu de faire tomber tout l'écran.
+ */
+export function sourceSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): SourcePublication | undefined {
+  try {
+    return sourceDe(p);
+  } catch {
+    const cle = String(p.id ?? "?");
+    if (!lignesSignalees.has(cle)) {
+      lignesSignalees.add(cle);
+      console.warn(`[studio] Publication ${cle} ignorée : source mal formée (il faut exactement une vidéo ou un visuel).`);
+    }
+    return undefined;
+  }
+}
+
+/** Deux publications ont la même source : même famille ET même identifiant (un visuel sans vidéo n'égale jamais une autre). */
+export function memeSource(a: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }, b: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): boolean {
+  const sa = sourceSure(a);
+  const sb = sourceSure(b);
+  if (!sa || !sb || sa.famille !== sb.famille) return false;
+  return sa.famille === "video" ? sa.videoId === (sb as { videoId: Id }).videoId : sa.visuelId === (sb as { visuelId: Id }).visuelId;
+}
+
+/** Vidéo d'une publication, sans jamais lever : `undefined` pour un visuel ou une ligne mal formée (filtres). */
+export function videoIdSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?: Id }): Id | undefined {
+  const s = sourceSure(p);
+  return s?.famille === "video" ? s.videoId : undefined;
 }
 
 export type EtatEnvoiBuffer = "en-cours" | "envoye" | "a-verifier" | "refuse" | "absent";
@@ -2086,6 +2184,8 @@ export interface ScriptMaitre extends EntiteBase {
     adresseParDefaut: Adresse;
     modeParDefaut?: ModeDiction;
     cible?: string;
+    ciblage?: Ciblage;
+    typeAutomatisation?: TypeAutomatisation;
     pilier?: string;
     motCle?: { forme: string; source: "creator-search-insights" | "search-console" | "hypothese" };
     serieId?: Id;

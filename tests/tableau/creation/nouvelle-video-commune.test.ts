@@ -40,10 +40,23 @@ const vers = async (formatId: string, sp: { brouillon?: string } = {}) => {
 };
 
 describe("Nouvelle vidéo commune et tableau animé", () => {
-  it("la grille propose le tableau animé, mais le lien de sa carte passe par la redirection du tableau", async () => {
+  // 12/11 (décision de Williams, refonte R4) : « L'erreur corrigée » est seule, la carte « Tableau animé » à quatre recettes disparaît de Nouvelle vidéo.
+  it("la grille propose « L'erreur corrigée » (ex-tableau animé), mais le lien de sa carte passe par la redirection du tableau", async () => {
     const html = renderToStaticMarkup(await PageNouvelle());
-    expect(html).toContain("Tableau animé");
+    expect(html).toContain("L&#x27;erreur corrigée");
+    expect(html).not.toContain("Tableau animé");
+    expect(html).toContain('href="/tableau/nouvelle"');
     expect(html).toContain('href="/nouvelle/facecam"');
+  });
+
+  it("un modèle du tableau animé ne remet pas le nom « Tableau animé » dans le carrousel des modèles", async () => {
+    const { depots } = await import("@/services/_commun");
+    const modele = (await depots().modeles.obtenir("mod-1"))!;
+    await depots().modeles.enregistrer({ ...modele, id: "mod-ta", nom: "Erreur du jour", formatId: "tableau-anime" });
+    const html = renderToStaticMarkup(await PageNouvelle());
+    expect(html).toContain("Erreur du jour");
+    expect(html).toContain("modele=mod-ta");
+    expect(html).not.toContain("Tableau animé");
   });
 
   it("/nouvelle/tableau-anime renvoie vers /tableau/nouvelle (brouillon conservé)", async () => {

@@ -1,0 +1,369 @@
+/**
+ * Cadrage du moteur en 4:5 : la toile et la caméra du moteur sont calculées pour 1350 px de haut (comme le rendu, qui
+ * recalcule en 1350), plus pour 1920 : un bloc posé pour 1920 tombait sous le fondu bas (blocs coupés, écrans vides,
+ * sous-titre masqué). Le 9:16 ne change pas. Aucun appel, aucune date, aucun hasard.
+ */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { boiteALEcran, cameraA, emprise, etatDansCadre, trajectoireCamera } from "@/briques/schema-motion/camera";
+import { disposerToile, VARIANTES_DISPOSITION, VARIANTES_DISPOSITION_4X5 } from "@/briques/schema-motion/disposition";
+import { CADRES_IV, type CodeVariante, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
+import { controlerCadrage, disposerEtCadrer, ECRAN_IV, type CadrageCamera, type ProprietesSceneIV, type SchemaEntree } from "@/briques/schema-motion";
+import type { CarteImage } from "@/domaine/image-video/carte";
+import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
+import { idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
+import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
+import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
+import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
+import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
+import { ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "@/moteurs/montage-image-video/adaptation-scene";
+import { cadrageToile, mettreEnSceneIV, type BlocRenduIV, type EntreeMiseEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
+import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
+import { cadrageDeToile, calculerScene, cameraPosee, noeudCourant, opaciteCadre } from "../../studio-rendu/compositions/image-video/plan";
+import { motsSimules } from "./mots-simules";
+
+const DOSSIER = join(process.cwd(), "tests/image-video/fixtures/cartes");
+const lire = (nom: string): CarteImage => JSON.parse(readFileSync(join(DOSSIER, `${nom}.json`), "utf8"));
+const CARTES = ["A", "B", "C", "D", "E", "F", "faux-16-noeuds"] as const;
+const IMAGES = { A: "essai-a", B: "essai-b", C: "essai-c", D: "essai-d", E: "essai-e", F: "essai-f" } as const;
+const VALIDES: BruitageValideIV[] = SONS_BANQUE.map((s) => ({ elementId: idElementBruitage(s), declencheur: s.declencheur, variante: s.variante, dureeSec: s.dureeSec }));
+const H45 = CADRES_IV["4:5"].hauteur;
+/** Bas de la zone où un bloc lisible tient (fondu bas du 4:5) : 1015 px. */
+const BAS_LISIBLE = Math.round(CADRES_IV["4:5"].sousTitres.haut - 0.02 * H45 + 0.0001);
+
+/** Scène comme dans `cadrage.test.ts`, à la hauteur donnée, avec ou sans en-tête. */
+function sceneDe(carte: CarteImage, hauteur: number, avecEntete: boolean): ProprietesSceneIV {
+  const mots = motsSimules(carte);
+  const dureeSec = mots[mots.length - 1].t + 3;
+  const decision = carte.noeuds.find((n) => n.role === "decision");
+  const motDecision = decision ? mots.find((m) => m.noeud === decision.id) : undefined;
+  return {
+    largeur: 1080,
+    hauteur,
+    fps: 25,
+    dureeSec,
+    fond: "ivoire",
+    marque: "axion-ia.com",
+    schema: carte as unknown as SchemaEntree,
+    mots,
+    separations: motDecision ? [{ noeud: motDecision.noeud, t: motDecision.t + 1.5 }] : [],
+    coches: [],
+    ...(avecEntete ? { entetes: [{ debut: 0, fin: dureeSec, etiquette: "Situation type", titre: "Un *titre.*" }] } : {}),
+  };
+}
+
+const sansDebord = (c: CadrageCamera) => ({ ...c, debord: undefined });
+
+describe("4:5 : le cadrage de la toile du moteur est celui du rendu", () => {
+  for (const nom of CARTES) {
+    for (const avecEntete of [true, false]) {
+      it(`carte ${nom} ${avecEntete ? "avec" : "sans"} en-tête : cadrageToile = cadrageDeToile, même variante, même trajectoire`, () => {
+        const p = sceneDe(lire(nom), H45, avecEntete);
+        const rendu = calculerScene(p);
+        const moteur = disposerEtCadrer(p.schema, rendu.mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+        expect(moteur.variante).toBe(rendu.variante);
+        expect(moteur.trajectoire).toEqual(rendu.trajectoire);
+        const toile = rendu.toile;
+        const a = cadrageToile(p, toile);
+        const b = cadrageDeToile(toile, p);
+        expect(sansDebord(a)).toEqual(sansDebord(b));
+        for (const x of toile.boites) expect((a.debord as (id: string) => unknown)(x.id)).toEqual((b.debord as (id: string) => unknown)(x.id));
+      });
+    }
+  }
+
+  it("le cadre 4:5 est celui des fractions de 1920 (k = 1350 / 1920), pas celui du 9:16", () => {
+    const p = sceneDe(lire("C"), H45, true);
+    const c = cadrageToile(p);
+    const k = H45 / ECRAN_IV.hauteur;
+    expect(c.cadre!.bas).toBeCloseTo(c.bande!.bas, 9);
+    expect(c.cadre!.bas).toBeLessThan(k);
+    expect(cadrageToile({ ...p, hauteur: ECRAN_IV.hauteur }).cadre).toEqual({ haut: 0.275, bas: 1 });
+  });
+});
+
+describe("4:5 : séquence CAM-B sans bloc lisible sous le fondu bas", () => {
+  const entree = (nom: keyof typeof IMAGES): EntreeMiseEnSceneIV => {
+    const carte = lire(nom);
+    const fiche = FICHES_SIMULEES[IMAGES[nom]];
+    const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+    return { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
+  };
+  const recette = (camera: CodeVariante<"camera">): RecetteVarieteIV => ({ ...RECETTE_REFERENCE_IV, camera });
+
+  // D n'a aucune séquence de toile ; F (16 mots en rafale à 12,9 s) est trop dense pour tenir : voir le filet ci-dessous.
+  for (const nom of ["C", "E"] as const) {
+    it(`carte ${nom} : toile calculée pour 1350 px et aucun bloc lisible sous ${BAS_LISIBLE} px à l'écran`, () => {
+      const { ligne } = mettreEnSceneIV({ ...entree(nom), variete: recette("CAM-B"), format: "4:5" });
+      const toiles = ligne.blocs.filter((b): b is Extract<BlocRenduIV, { sorte: "toile" }> => b.sorte === "toile");
+      expect(toiles.length).toBeGreaterThan(0);
+      for (const b of toiles) {
+        expect(b.proprietes.hauteur).toBe(H45);
+        for (const mot of b.proprietes.mots) {
+          const pose = cameraA(b.trajectoire, mot.t);
+          const x = b.toile.boites.find((y) => y.id === mot.noeud)!;
+          const e = boiteALEcran(x, pose);
+          // L'écran de 1350 px montre le haut des 1920 de référence : le bloc parlé finit au-dessus de la ligne.
+          expect(e.y + e.hauteur, `${nom} ${b.id} ${mot.noeud}`).toBeLessThanOrEqual(BAS_LISIBLE + 1e-6);
+        }
+      }
+    });
+  }
+});
+
+describe("4:5 : le vrai défaut de la carte F reste une remarque (zéro blocage)", () => {
+  it("F en 4:5 : Q15 voit le défaut, mais le filet garde la vidéo (aucun refus)", () => {
+    const carte = lire("F");
+    const fiche = FICHES_SIMULEES[IMAGES.F];
+    for (const fin of planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins) {
+      const entree: EntreeMiseEnSceneIV = { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
+      const issue = mettreEnSceneAvecFiletIV((adaptes) => mettreEnSceneIV({ ...entree, format: "4:5", fiche: ficheAdapteeIV(fiche, adaptes) }), [], `F ${fin.id}`, fiche);
+      expect(issue.refus, fin.id).toEqual([]);
+      // Le défaut n'est pas caché : la remarque Q15 est bien dans le rapport de la vidéo gardée.
+      const q15 = issue.resultat.rapport.lignes.find((l) => l.code === "Q15");
+      expect(q15?.ok, fin.id).toBe(false);
+      expect(q15?.details.join(" "), fin.id).toContain("séquence b05");
+    }
+  });
+});
+
+describe("4:5 : le filet cache le bloc coupé de la carte F (sans refuser la vidéo)", () => {
+  it("F en 4:5, séquence b05 : à chaque instant où Q15 voit un bloc coupé, le bloc est en fondu puis caché (sauf le bloc parlé, toujours plein)", () => {
+    const carte = lire("F");
+    const fiche = FICHES_SIMULEES[IMAGES.F];
+    const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+    const entree: EntreeMiseEnSceneIV = { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
+    const { ligne } = mettreEnSceneIV({ ...entree, format: "4:5" });
+    const b05 = ligne.blocs.find((b): b is Extract<BlocRenduIV, { sorte: "toile" }> => b.sorte === "toile" && b.id === "b05")!;
+    const scene = calculerScene(b05.proprietes);
+    expect(scene.trajectoire).toEqual(b05.trajectoire);
+    const defauts = controlerCadrage(scene.toile, scene.trajectoire, scene.mots, scene.cadrage);
+    expect(defauts.length).toBeGreaterThan(0);
+    let caches = 0;
+    for (const d of defauts) {
+      const o = opaciteCadre(scene, scene.trajectoire.images, d.id, d.t);
+      if (noeudCourant(scene, d.t) === d.id) {
+        // Le bloc parlé reste plein tant qu'il est le courant et que la caméra est posée autour de l'instant ; s'il part
+        // (mot suivant, panoramique), il s'efface avec les autres.
+        const fenetre = [-0.15, -0.1, -0.05, 0, 0.05, 0.1, 0.15].map((r) => d.t + r);
+        const tenue = fenetre.every((x) => noeudCourant(scene, x) === d.id && cameraPosee(scene.trajectoire.images, x));
+        if (tenue) expect(o, `${d.id} ${d.t}`).toBe(1);
+        // Non tenu : le bloc parlé n'est jamais plein (0 si la caméra est en route à cet instant, sinon en fondu).
+        else if (!cameraPosee(scene.trajectoire.images, d.t)) expect(o, `${d.id} ${d.t}`).toBe(0);
+        else expect(o, `${d.id} ${d.t}`).toBeLessThan(1);
+      } else {
+        // Le bloc est tout à fait caché à chaque instant où il est coupé (le fondu vient avant la coupe et après elle).
+        expect(o, `${d.id} ${d.t}`).toBe(0);
+        const tard = d.t + 0.15;
+        const b = scene.parId.get(d.id);
+        const toujours = !!b && [0, 0.05, 0.1, 0.15].every((r) => etatDansCadre(emprise(b, scene.cadrage), cameraA(scene.trajectoire, tard - r), scene.cadrage) === "coupe");
+        if (toujours && noeudCourant(scene, tard) !== d.id) {
+          expect(opaciteCadre(scene, scene.trajectoire.images, d.id, tard), `${d.id} ${tard}`).toBe(0);
+          caches++;
+        }
+      }
+    }
+    expect(caches).toBeGreaterThan(0);
+  });
+});
+
+/** Schéma type : une entrée, une rangée de deux nœuds (téléphone / e-mail), puis un nœud au détail long. */
+const SCHEMA_PAIRE: SchemaEntree = {
+  noeuds: [
+    { id: "n01", libelle: "Un client vous écrit", detail: "Il veut un rendez-vous", role: "source", couleur: "noir", ordre: 1 },
+    { id: "n02", libelle: "Demande par téléphone", detail: "Réponse immédiate à l'appel", role: "etape", couleur: "noir", ordre: 2 },
+    { id: "n03", libelle: "Demande par e-mail", detail: "Réponse écrite dans la journée", role: "etape", couleur: "noir", ordre: 3 },
+    { id: "n04", libelle: "Réponse sous une heure", detail: "L'agenda se remplit seul, sans relance ni oubli, avec rappel", role: "resultat", couleur: "orange", ordre: 4 },
+  ],
+  liens: [
+    { id: "l1", de: "n01", vers: "n02", couleur: "noir" },
+    { id: "l2", de: "n01", vers: "n03", couleur: "noir" },
+    { id: "l3", de: "n02", vers: "n04", couleur: "noir" },
+    { id: "l4", de: "n03", vers: "n04", couleur: "noir" },
+  ],
+  groupes: [],
+};
+
+describe("4:5 : cadre court, disposition large", () => {
+  const mots = [
+    { noeud: "n01", t: 1 },
+    { noeud: "n02", t: 4 },
+    { noeud: "n03", t: 7 },
+    { noeud: "n04", t: 10 },
+  ];
+  const scene = (hauteur: number): ProprietesSceneIV => ({
+    largeur: 1080,
+    hauteur,
+    fps: 25,
+    dureeSec: 13,
+    fond: "ivoire",
+    marque: "axion-ia.com",
+    schema: SCHEMA_PAIRE,
+    mots,
+    separations: [],
+    coches: [],
+    entetes: [{ debut: 0, fin: 13, etiquette: "Situation type", titre: "Un *titre.*" }],
+  });
+
+  it("la paire téléphone / e-mail tient : variante large, 0 défaut, aucune alerte « trop grand »", () => {
+    const p = scene(H45);
+    const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    expect(r.variante).toBe("large");
+    expect(r.defauts).toEqual([]);
+    expect(r.trajectoire.alertes.filter((a) => a.includes("trop grand") || a.includes("aucun cadrage"))).toEqual([]);
+  });
+
+  it("le moteur (cadrageToile) et le rendu (cadrageDeToile) choisissent la même variante et la même trajectoire", () => {
+    const p = scene(H45);
+    const rendu = calculerScene(p);
+    const moteur = disposerEtCadrer(p.schema, rendu.mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    expect(moteur.variante).toBe("large");
+    expect(rendu.variante).toBe(moteur.variante);
+    expect(rendu.trajectoire).toEqual(moteur.trajectoire);
+  });
+
+  it("en 9:16 (cadre non court) la liste des variantes reste celle de toujours : jamais « large »", () => {
+    const p = scene(ECRAN_IV.hauteur);
+    const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    expect(r.variante).not.toBe("large");
+  });
+});
+
+describe("4:5 : aucune variante propre", () => {
+  const long = "Un libellé démesuré qui occupe toute la largeur du cadre et dépasse largement ce que le cadre court peut montrer sans rien couper ni réduire";
+  const schema: SchemaEntree = {
+    noeuds: [
+      { id: "n01", libelle: long, detail: long + " " + long, role: "source", couleur: "noir", ordre: 1 },
+      { id: "n02", libelle: long, detail: long + " " + long, role: "etape", couleur: "noir", ordre: 2 },
+      { id: "n03", libelle: long, detail: long + " " + long, role: "resultat", couleur: "orange", ordre: 3 },
+    ],
+    liens: [
+      { id: "l1", de: "n01", vers: "n02", couleur: "noir" },
+      { id: "l2", de: "n02", vers: "n03", couleur: "noir" },
+    ],
+    groupes: [],
+  };
+  const mots = [
+    { noeud: "n01", t: 1 },
+    { noeud: "n02", t: 4 },
+    { noeud: "n03", t: 7 },
+  ];
+  const p: ProprietesSceneIV = { largeur: 1080, hauteur: H45, fps: 25, dureeSec: 10, fond: "ivoire", marque: "axion-ia.com", schema, mots, separations: [], coches: [], entetes: [] };
+  const mal = (r: { defauts: unknown[]; trajectoire: { alertes: string[] } }) => r.defauts.length + r.trajectoire.alertes.filter((a) => a.includes("trop grand") || a.includes("aucun cadrage")).length;
+
+  it("la variante rendue est celle qui a le moins de défauts, sans erreur", () => {
+    const r = disposerEtCadrer(p.schema, mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+    const essais = VARIANTES_DISPOSITION_4X5.filter((v) => v !== "branche-centree").map((v) => {
+      const toile = disposerToile(p.schema, v);
+      const cadrage = cadrageToile(p, toile);
+      const trajectoire = trajectoireCamera(toile, mots, p.dureeSec, cadrage);
+      return { defauts: controlerCadrage(toile, trajectoire, mots, cadrage), trajectoire };
+    });
+    expect(Math.min(...essais.map(mal))).toBeGreaterThan(0);
+    expect(mal(r)).toBeLessThanOrEqual(Math.min(...essais.map(mal)));
+    expect(r.toile.boites.length).toBe(3);
+  });
+});
+
+describe("4:5 : carte F, variante « etroite » (trois cartes dites à moins d'une demi-seconde)", () => {
+  /** Toile b05 (l'avant / après) de la carte F, à l'état rendu, dans le format donné. */
+  const toileF = (format: "4:5" | "9:16") => {
+    const carte = lire("F");
+    const fiche = FICHES_SIMULEES[IMAGES.F];
+    const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes(format === "4:5" ? "linkedin" : "youtube-shorts"))!;
+    const { ligne } = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, ...(format === "4:5" ? { format } : {}) });
+    const b = ligne.blocs.find((x): x is Extract<BlocRenduIV, { sorte: "toile" }> => x.sorte === "toile" && x.id === "b05")!;
+    const s = calculerScene(b.proprietes);
+    return { b, s, defauts: controlerCadrage(s.toile, s.trajectoire, s.mots, s.cadrage) };
+  };
+  const f45 = toileF("4:5");
+  const f916 = toileF("9:16");
+
+  it("F en 4:5 : les deux cartes « CRM » et « Compta » ne sont plus côte à côte (elles ne tenaient pas ensemble dans 1080 px), plus d'alerte « aucun cadrage »", () => {
+    const { s, b, defauts } = f45;
+    expect(s.variante).toBe("etroite");
+    const [n08, n09] = ["n08", "n09"].map((id) => s.toile.boites.find((x) => x.id === id)!);
+    expect(Math.abs(n08.y - n09.y)).toBeGreaterThan(Math.min(n08.hauteur, n09.hauteur) / 2);
+    expect(s.trajectoire.alertes.filter((a) => a.includes("aucun cadrage") || a.includes("trop grand"))).toEqual([]);
+    // Avant (variante « large ») : 10 défauts de cadrage ; il en reste 4 (trois mots à 12,9 s, cadre lisible de 564 px), jamais un refus.
+    expect(defauts.length).toBeLessThanOrEqual(4);
+    const large = disposerToile(b.proprietes.schema, "large");
+    const cadrage = cadrageDeToile(large, b.proprietes);
+    const tr = trajectoireCamera(large, s.mots, b.proprietes.dureeSec, cadrage);
+    expect(controlerCadrage(large, tr, s.mots, cadrage).length).toBeGreaterThan(defauts.length);
+  });
+
+  it("le texte reste à la même taille qu'en 9:16 (la variante ne réduit aucune police) et chaque carte (≤ 1000 px) tient dans l'écran de 1080 px", () => {
+    const { s, b } = f45;
+    const plus = f916;
+    const tailles = (t: typeof s.toile) => new Set(t.boites.flatMap((x) => x.textes.map((y) => `${y.role}:${y.taille}`)));
+    expect(tailles(s.toile)).toEqual(tailles(plus.s.toile));
+    for (const x of s.toile.boites) {
+      expect(x.x, x.id).toBeGreaterThanOrEqual(0);
+      // La toile est plus large que l'écran (la caméra la parcourt) : c'est la largeur de chaque carte qui doit tenir dans l'écran.
+      expect(x.largeur, x.id).toBeLessThanOrEqual(1000);
+      expect(x.largeur, x.id).toBeLessThan(ECRAN_IV.largeur);
+    }
+    expect(b.proprietes.hauteur).toBe(H45);
+  });
+
+  it("9:16 inchangé : liste des variantes de toujours, F b05 garde « serree », et seule la carte F choisit « etroite » en 4:5", () => {
+    expect(VARIANTES_DISPOSITION).toEqual(["normale", "serree", "branche-centree"]);
+    expect(f916.s.variante).toBe("serree");
+    for (const nom of ["A", "B", "C", "D", "E"] as const) {
+      const carte = lire(nom);
+      const fiche = FICHES_SIMULEES[IMAGES[nom]];
+      const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("linkedin"))!;
+      const { ligne } = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, format: "4:5" });
+      for (const b of ligne.blocs.filter((x): x is Extract<BlocRenduIV, { sorte: "toile" }> => x.sorte === "toile")) expect(calculerScene(b.proprietes).variante, `${nom} ${b.id}`).not.toBe("etroite");
+    }
+  });
+});
+
+describe("4:5 : disposerEtCadrer garde la première variante quand « large » et « etroite » donnent la même disposition", () => {
+  it("carte A, cadre court sans issue : « large » (avant « etroite » dans la liste) est retenue, jamais « etroite »", () => {
+    const carte = lire("A");
+    const mots = motsSimules(carte);
+    const dureeSec = mots[mots.length - 1].t + 3;
+    expect(disposerToile(carte as unknown as SchemaEntree, "etroite")).toEqual(disposerToile(carte as unknown as SchemaEntree, "large"));
+    expect(VARIANTES_DISPOSITION_4X5.indexOf("large")).toBeLessThan(VARIANTES_DISPOSITION_4X5.indexOf("etroite"));
+    const r = disposerEtCadrer(carte as unknown as SchemaEntree, mots, dureeSec, () => ({ cadre: { haut: 0, bas: 0.5 } }));
+    expect(r.defauts.length).toBeGreaterThan(0); // aucune variante propre : le choix est « la moins mauvaise, à égalité la première »
+    expect(r.variante).toBe("large");
+  });
+});
+
+describe("9:16 : rien ne change", () => {
+  it("cadrageToile sans hauteur ou à 1920 donne le cadrage de toujours (cadre 0,275 → 1, bande jusqu'au bas de la zone utile)", () => {
+    for (const nom of CARTES) {
+      const p = sceneDe(lire(nom), ECRAN_IV.hauteur, true);
+      const sans = { ...p, hauteur: undefined };
+      const a = cadrageToile(sans);
+      expect(sansDebord(cadrageToile(p))).toEqual(sansDebord(a));
+      expect(a.cadre).toEqual({ haut: 0.275, bas: 1 });
+      const rendu = calculerScene(p);
+      const moteur = disposerEtCadrer(p.schema, rendu.mots, p.dureeSec, (toile) => cadrageToile(p, toile));
+      expect(moteur.trajectoire).toEqual(rendu.trajectoire);
+    }
+  });
+
+  it("propriétés et trajectoires 9:16 des 6 cartes : empreinte figée (avant le correctif)", () => {
+    const empreinte = createHash("sha256");
+    for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
+      for (const camera of ["CAM-B", "CAM-C"] as const) {
+        const { ligne } = mettreEnSceneIV({ ...entree9(nom), variete: { ...RECETTE_REFERENCE_IV, camera } });
+        empreinte.update(JSON.stringify(ligne.blocs.map((b) => (b.sorte === "toile" ? [b.proprietes, b.trajectoire, b.cadrage] : null))));
+      }
+    }
+    expect(empreinte.digest("hex")).toBe("d1639f0cddecd2b233a1133015d81bc9ed7a21d7bb45564133dcd8e0cdd24ae0");
+  });
+
+  function entree9(nom: keyof typeof IMAGES): EntreeMiseEnSceneIV {
+    const carte = lire(nom);
+    const fiche = FICHES_SIMULEES[IMAGES[nom]];
+    const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+    return { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
+  }
+});

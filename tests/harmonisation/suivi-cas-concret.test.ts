@@ -37,7 +37,7 @@ describe("SuiviCasConcret · socle des suivis", () => {
     expect(t).toContain("Vous pouvez fermer.");
     expect(t.indexOf("Arrêter")).toBeGreaterThan(-1);
     expect(t.indexOf("Arrêter")).toBeLessThan(t.indexOf("Annuler cette vidéo"));
-    expect(t).toMatch(/Déjà payé : 12,34/);
+    expect(t).not.toMatch(/Déjà payé|12,34|€/);
     expect(t).not.toMatch(/dépensé/);
     expect(t.match(/Votre vidéo se fabrique/g)).toHaveLength(1);
   });

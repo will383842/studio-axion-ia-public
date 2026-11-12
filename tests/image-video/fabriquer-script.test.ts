@@ -78,15 +78,27 @@ describe("lanceur : portes de Will, reprise sans repayer, vidéo prête", () => 
     expect(etat.etape).toBe("prete");
   });
 
-  it("plafond trop bas : arrêt net (code 4), aucun appel", async () => {
+  it("plafond trop bas : repère seulement, la fabrication continue (code 5), Will prévenu au journal", async () => {
     const dossier = mkdtempSync(join(tmpdir(), "iv-lanceur-"));
     const image = join(dossier, "image.png");
     writeFileSync(image, pngSimule(1080, 1350));
     const m = monde();
     const lignes: string[] = [];
     const code = await lancer(lireArguments(["--image", image, "--plafond", "0,05", "--dossier", dossier]), { ecrire: (l) => lignes.push(l), branchements: async () => ({ outils: outilsSimules(carteFixe("C"), m) }) });
+    expect(code).toBe(5);
+    expect(m.appelsClaude.length).toBeGreaterThan(0);
+    const etat = JSON.parse(readFileSync(join(dossier, "etat.json"), "utf8"));
+    expect(etat.journal.join("\n")).toMatch(/Avertissement : Cette vidéo dépasse son prix annoncé/);
+  });
+
+  it("crédit refusé : sort toujours en code 4, aucun appel", async () => {
+    const dossier = mkdtempSync(join(tmpdir(), "iv-lanceur-"));
+    const image = join(dossier, "image.png");
+    writeFileSync(image, pngSimule(1080, 1350));
+    const m = monde();
+    const lignes: string[] = [];
+    const code = await lancer(lireArguments(["--image", image, "--plafond", "2", "--dossier", dossier]), { ecrire: (l) => lignes.push(l), branchements: async () => ({ outils: outilsSimules(carteFixe("C"), m, { refuserDepense: () => "Crédit insuffisant." }) }) });
     expect(code).toBe(4);
-    expect(lignes.join("\n")).toMatch(/Plafond de cette vidéo atteint/);
     expect(m.appelsClaude).toEqual([]);
   });
 });

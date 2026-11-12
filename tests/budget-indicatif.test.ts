@@ -66,24 +66,25 @@ afterEach(() => {
   credits.injecterLecteursPourEssai(null);
 });
 
-const notesBudget = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget");
+const notesBudget = async () => (await depots().notifications.lister()).filter((x) => x.type === "credit");
 
 describe("l'interrupteur budget.mode", () => {
-  it("dans les tests, le défaut du code est « bloquant » (variable de vitest) ; le réglage en base l'emporte", async () => {
-    expect(await modeBudgetMod.modeBudget()).toBe("bloquant");
-    await ecrireParametre("budget.mode", "indicatif");
+  it("toujours « indicatif » (décision du 08/11/2026) : ni la variable de vitest, ni le réglage en base ne rétablissent « bloquant »", async () => {
+    expect(await modeBudgetMod.modeBudget()).toBe("indicatif");
+    await ecrireParametre("budget.mode", "bloquant");
     expect(await modeBudgetMod.modeBudget()).toBe("indicatif");
     expect(await modeBudgetMod.budgetIndicatif()).toBe(true);
     await ecrireParametre("budget.mode", "n'importe quoi");
-    expect(await modeBudgetMod.modeBudget()).toBe("bloquant"); // illisible : le défaut du code
+    expect(await modeBudgetMod.modeBudget()).toBe("indicatif");
   });
 });
 
-describe("mode bloquant : comportement actuel inchangé", () => {
-  it("le dépassement du mois refuse toujours (BUDGET_DEPASSE)", async () => {
+describe("réglage « bloquant » sans effet", () => {
+  it("même avec budget.mode = « bloquant », le dépassement du mois ne refuse plus (pas de BUDGET_DEPASSE), Will est prévenu", async () => {
     await ecrireParametre("budget.mode", "bloquant");
     await credits.verifierEtReserver(estimation(90), true, "Cette vidéo", demande());
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect((await notesBudget()).filter((x) => /indicatif/i.test(x.titre))).toHaveLength(1);
   });
 });
 
@@ -127,7 +128,7 @@ describe("mode indicatif : le plafond du mois ne refuse plus", () => {
     await expect(credits.verifierBudgetEtCredits({ lignes: [voix], total: eur(200) }, true, "Cette vidéo")).rejects.toMatchObject({ code: "CREDIT_INSUFFISANT" });
   });
 
-  it("un solde seulement « suivi » (deviné : recharges déclarées moins dépenses, ex. fal.ai) n'oppose plus rien ; en bloquant il oppose toujours", async () => {
+  it("un solde seulement « suivi » (deviné : recharges déclarées moins dépenses, ex. fal.ai) n'oppose plus rien, même avec le réglage « bloquant »", async () => {
     await ecrireParametre("budget.mensuel", eur(1_000_000));
     // Lecteur « suivi » (comme fal.ai) rangé sous un fournisseur payant sans réglage de simulation.
     const suivi: LecteurCredit = { fournisseur: "heygen", nom: "Suivi", mode: "suivi", urlRecharge: "https://exemple.invalid", variableCle: "X_KEY", async testerConnexion() { return { ok: true, finCle: "…0000", message: "ok", testeLe: new Date().toISOString() }; } };
@@ -138,7 +139,7 @@ describe("mode indicatif : le plafond du mois ne refuse plus", () => {
     const est = { lignes: [voix], total: eur(200) };
     await expect(credits.verifierBudgetEtCredits(est, true, "Cette vidéo")).resolves.toBeUndefined();
     await ecrireParametre("budget.mode", "bloquant");
-    await expect(credits.verifierBudgetEtCredits(est, true, "Cette vidéo")).rejects.toMatchObject({ code: "CREDIT_INSUFFISANT" });
+    await expect(credits.verifierBudgetEtCredits(est, true, "Cette vidéo")).resolves.toBeUndefined();
   });
 });
 
@@ -148,17 +149,20 @@ describe("confirmation de prix au-dessus du seuil", () => {
     await ecrireParametre("budget.seuilConfirmation", eur(1000));
   });
 
-  it("indicatif : un lancement fait à la main par Will au-dessus du seuil exige TOUJOURS la confirmation", async () => {
+  it("indicatif : un lancement de Will au-dessus du seuil part sans confirmation (le prix ne bloque jamais), même avec le réglage « bloquant »", async () => {
     await ecrireParametre("budget.mode", "indicatif");
-    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo")).resolves.toBeUndefined();
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), 2000, "Cette vidéo")).resolves.toBeUndefined();
+    await ecrireParametre("budget.mode", "bloquant");
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo")).resolves.toBeUndefined();
     await expect(credits.verifierBudgetEtCredits(estimation(2000), 2000, "Cette vidéo")).resolves.toBeUndefined();
   });
 
-  it("indicatif : un lancement AUTOMATIQUE (relance) ne l'exige plus ; en bloquant, il l'exige encore", async () => {
+  it("indicatif : un lancement AUTOMATIQUE (relance) ne l'exige plus, même avec le réglage « bloquant »", async () => {
     await ecrireParametre("budget.mode", "indicatif");
     await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette relance", { automatique: true })).resolves.toBeUndefined();
     await ecrireParametre("budget.mode", "bloquant");
-    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette relance", { automatique: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette relance", { automatique: true })).resolves.toBeUndefined();
   });
 
   it("l'Usine garde sa confirmation même en automatique et en indicatif", async () => {

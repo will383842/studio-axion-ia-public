@@ -53,12 +53,13 @@ describe("aperçu de fabrication selon budget.mode", () => {
     return videos.creerBrouillon("avocat", { scriptId });
   }
 
-  it("bloquant : budget du mois trop bas → depasse = true", async () => {
+  it("réglage « bloquant » sans effet : budget du mois trop bas → depasse = false, simple repère ambre, aucune confirmation", async () => {
     await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre("budget.mensuel", centimes(1));
     const a = await fabrication.apercuFabrication(await brouillon());
-    expect(a.budget.depasse).toBe(true);
-    expect(a.budget.depasseIndicatif).toBe(false);
+    expect(a.budget.depasse).toBe(false);
+    expect(a.budget.depasseIndicatif).toBe(true);
+    expect(a.budget.confirmationRequise).toBe(false);
   });
 
   it("indicatif : même situation → plus de blocage, mais un repère ambre", async () => {

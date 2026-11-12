@@ -58,7 +58,7 @@ describe("générateur éteint", () => {
 });
 
 describe("sujet : texte d'exemple", () => {
-  it("le formulaire dit que le texte est un exemple de simulation", () => {
-    expect(rendu()).toContain("exemple de simulation");
+  it("le formulaire dit que le texte est un exemple d'essai", () => {
+    expect(rendu()).toContain("exemple d&#x27;essai");
   });
 });

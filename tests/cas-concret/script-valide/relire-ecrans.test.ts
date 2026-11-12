@@ -103,12 +103,13 @@ describe("feuille « Votre vidéo » : un script validé se relit avant le lance
   it("le pied propose « Relire le script » au lieu de lancer directement", () => {
     const t = texte(renderToStaticMarkup(createElement(PiedVotreVideo, { montant: 60, refus: null, desactive: false, onFabriquer: async () => undefined, onRelire: () => undefined })));
     expect(t).toContain("Relire le script");
-    expect(t).not.toContain("Fabriquer la vidéo");
+    expect(t).not.toContain("Fabriquer");
   });
 
-  it("sans script validé : le bouton « Fabriquer la vidéo » reste", () => {
+  it("sans script validé : le bouton « Fabriquer » reste", () => {
     const t = texte(renderToStaticMarkup(createElement(PiedVotreVideo, { montant: 60, refus: null, desactive: false, onFabriquer: async () => undefined })));
-    expect(t).toContain("Fabriquer la vidéo");
+    // Libellé unique « Fabriquer » : maquette M3 et décision du fondateur du 12/11.
+    expect(t).toContain("Fabriquer");
   });
 
   it("le contenu annonce la relecture du script validé", () => {
@@ -117,11 +118,12 @@ describe("feuille « Votre vidéo » : un script validé se relit avant le lance
     expect(t).toContain("Vous le relirez, et pourrez le modifier, avant le lancement.");
   });
 
-  it("l'écran de relecture : le script du cas sur l'écran commun, avec le prix et un retour", () => {
+  it("l'écran de relecture : le script du cas sur l'écran commun, sans prix et avec un retour", () => {
     const html = renderToStaticMarkup(createElement(RelireAvantLancement, { cas: vue, montant: 94, controler: rien, lancer: ok, onRetour: () => undefined }));
     const t = texte(html);
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(apercu.length);
-    expect(t).toContain("Lancer la vidéo (≈ 0,94 €)");
+    expect(t).toContain("Lancer la vidéo");
+    expect(t).not.toContain("€");
     expect(t).toContain("Retour");
     expect(t).toContain("Nos collaborateurs, on les recrute en");
   });

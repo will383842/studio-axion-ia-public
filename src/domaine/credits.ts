@@ -213,7 +213,7 @@ export function messageAlerteCredit(a: { nom: string; fournisseur: string; cle: 
     a.cle === "une-video" ? `${a.nom} : plus qu'${idFournisseur(a.fournisseur) === "anthropic" ? "un script" : "une vidéo"}`
     : a.cle === "10-videos" ? `${a.nom} : ${reste ?? "crédit bientôt épuisé"}`
     : `${a.nom} : crédit sous ${a.cle} %${reste ? ` · ${reste}` : ""}`;
-  return { titre, message: `Il reste ${a.disponibleTexte}${reste ? ` (${reste})` : ""}. Rechargez votre compte ${a.nom}.` };
+  return { titre, message: `${reste ? `Il reste ${reste}.` : `Le crédit ${a.nom} baisse.`} Rechargez votre compte ${a.nom}.` };
 }
 
 /**
@@ -230,7 +230,8 @@ export function messageComptesEpuises(comptes: number): string {
 export function messageEpuise(a: { nom: string; fournisseur: string; disponibleTexte: string | null; restantes: number | null; comptes?: number }): { titre: string; message: string } {
   // Comptes Claude d'abonnement tous épuisés : un forfait se renouvelle, il ne se recharge pas.
   if (a.comptes !== undefined && idFournisseur(a.fournisseur) === "anthropic") return { titre: "Comptes Claude épuisés", message: `${messageComptesEpuises(a.comptes)} L'écriture reprendra au renouvellement : touchez « Reprendre » sur l'écriture.` };
-  const solde = a.disponibleTexte ? `Solde ${a.disponibleTexte}${a.restantes !== null ? `, ${texteRestants(a.fournisseur, a.restantes)}` : ""}. ` : "";
+  // Aucun montant montré : la limite se dit en quantités (règle « aucun prix dans le studio »).
+  const solde = a.restantes !== null ? `Il reste ${texteRestants(a.fournisseur, a.restantes)}. ` : "";
   // Une écriture Claude ne repart pas seule après la recharge (« Reprendre ») ; les vidéos, si.
   const suite = idFournisseur(a.fournisseur) === "anthropic" ? ". Après la recharge, touchez « Reprendre » sur l'écriture." : " : la fabrication reprendra toute seule, rien n'est repayé.";
   return { titre: `Crédit ${a.nom} épuisé`, message: `${solde}Rechargez votre compte ${a.nom}${suite}` };

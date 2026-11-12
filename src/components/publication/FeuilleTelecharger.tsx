@@ -12,9 +12,8 @@ import { notifier } from "@/components/ui/Toast";
 import type { Ratio } from "@/domaine/types";
 import { nomFichier } from "@/domaine/derivations-generateur";
 import { cn } from "@/lib/cn";
-import { centimes, formaterMontant } from "@/lib/montants";
 import { useVideo } from "./ContexteVideo";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { formateurNombre } from "@/lib/intl";
 
 const ASPECT: Record<Ratio, string> = { "9:16": "aspect-[9/16]", "1:1": "aspect-square", "4:5": "aspect-[4/5]", "16:9": "aspect-video" };
@@ -44,9 +43,8 @@ export function FeuilleTelecharger() {
         {sorties.map((s) => (
           <li key={s.id}>
             <a
-              href={s.url}
-              download={nom(s.ratio, "mp4")}
-              className="group flex min-h-20 items-center gap-4 rounded-2xl border border-trait bg-surface-2 p-3 pr-4 transition-colors hover:border-orange"
+              href={`/api/telechargements/video?video=${encodeURIComponent(videoId)}&ratio=${encodeURIComponent(s.ratio)}`}
+              className="group flex min-h-20 items-center gap-4 rounded-2xl border border-trait bg-surface-2 p-3 pr-4 transition-colors hover:border-accent"
             >
               <span className={cn("relative w-12 shrink-0 overflow-hidden rounded-lg border border-trait-fort bg-fond", ASPECT[s.ratio])}>
                 {s.vignette && <Image src={s.vignette} alt="" fill sizes="48px" className="object-cover" />}
@@ -57,7 +55,7 @@ export function FeuilleTelecharger() {
                   {USAGE[s.ratio]} · {s.resolution} · {taille(s.taille)}
                 </span>
               </span>
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-orange text-sur-orange shadow-orange transition-transform group-hover:scale-105">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-accent text-sur-accent transition-transform group-hover:scale-105">
                 <Icone nom="telecharger" size={19} />
               </span>
             </a>
@@ -95,7 +93,7 @@ export function FeuilleTelecharger() {
                   res = await avecConfirmationPrix(res, (accord) => reexporterAction(videoId, r, accord));
                   setEnCours(null);
                   if (!res.ok) {
-                    notifier.erreur(res.message);
+                    notifier.erreur(messageSansMontant(res.message));
                     return;
                   }
                   if (fabricationSimulee) notifier.essai(`le ${r} est préparé avec la vidéo de démonstration`);
@@ -106,7 +104,7 @@ export function FeuilleTelecharger() {
               >
                 <FormeRatio ratio={r} />
                 {r}
-                {coutsFormats[r] !== undefined && <span className="font-normal text-texte-doux">{coutsFormats[r] === 0 ? "gratuit" : `≈ ${formaterMontant(centimes(coutsFormats[r]))}`}</span>}
+                {coutsFormats[r] === 0 && <span className="font-normal text-texte-doux">gratuit</span>}
               </Bouton>
             ))}
           </div>

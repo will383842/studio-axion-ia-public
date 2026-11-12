@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { sessionApi } from "@/services/auth";
 import { PHRASES_IV, reessayerImageVideo, releverPlafondImageVideo, vueImageVideo } from "@/services/image-video-ecran";
+import { avecAccordAutomatique } from "@/services/mode-budget";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +41,12 @@ export async function POST(requete: NextRequest, ctx: RouteContext<"/api/image-v
   const accord = typeof corps.accord === "number" && Number.isFinite(corps.accord) ? corps.accord : undefined;
   try {
     if (corps.plafond !== undefined) {
-      const issue = await releverPlafondImageVideo(decodeURIComponent(videoId), { montantCentimes: Number(corps.plafond), accordCentimes: accord, reprendre: corps.reprendre === true });
+      const id = decodeURIComponent(videoId);
+      const issue = await avecAccordAutomatique((a) => releverPlafondImageVideo(id, { montantCentimes: Number(corps.plafond), accordCentimes: a ?? accord, reprendre: corps.reprendre === true }), accord, { videoId: id });
       return NextResponse.json({ issue }, { headers: { "Cache-Control": "no-store" } });
     }
-    const issue = await reessayerImageVideo(decodeURIComponent(videoId), accord);
+    const id = decodeURIComponent(videoId);
+    const issue = await avecAccordAutomatique((a) => reessayerImageVideo(id, a ?? accord), accord, { videoId: id });
     return NextResponse.json({ issue }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[image-video] reprise", e);

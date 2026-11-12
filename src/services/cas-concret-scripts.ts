@@ -162,7 +162,8 @@ export async function apercuScriptCasConcret(videoId: Id): Promise<ApercuScriptC
   await exigerSession();
   try {
     return apercuDuTravail(await travailDeLaVideo(videoId));
-  } catch {
+  } catch (erreur) {
+    console.error("[studio] aperçu du script du cas concret illisible", videoId, erreur);
     return null;
   }
 }
@@ -334,6 +335,8 @@ export const PHRASE_SCRIPT_CHANGE = "Le script a changé depuis votre relecture 
 export async function refusScriptRelu(cas: CasConcret, empreinteRecue: string | undefined | null): Promise<string | null> {
   const script = await scriptValideCourant(cas);
   if (!script) return null;
+  // 11/11/2026 : le script de Will fait foi, il est déjà relu par lui : aucun écran « Relire » pour un script fourni.
+  if (script.fourni) return null;
   if (!empreinteRecue) return PHRASE_SCRIPT_NON_RELU;
   return empreinteScriptValide(script) === empreinteRecue ? null : PHRASE_SCRIPT_CHANGE;
 }

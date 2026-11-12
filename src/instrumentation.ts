@@ -67,6 +67,25 @@ export async function register() {
     void import("@/services/boucle-generation").then((m) => m.arreterBoucleGeneration());
     void import("@/services/veille").then((m) => m.arreterVeille());
   };
+  // Lot 4c : branchement du parcours de conversation (vérification de configuration SANS réseau, aucun interrupteur allumé).
+  // Hors du bloc DATABASE_URL ; un échec ne bloque jamais le démarrage (code seulement dans le journal, jamais de valeur).
+  try {
+    const { brancherParcoursZernio } = await import("@/services/branchements-zernio");
+    brancherParcoursZernio();
+  } catch {
+    console.error("[studio] branchement du parcours de conversation en échec (code BRANCHEMENT_ECHEC)");
+  }
+  // KB-01 : la source d'idées du comité suit le réglage « comite.source_usine.actif » (éteint par défaut ; aucun appel ici).
+  try {
+    const { brancherIdeesUsine } = await import("@/services/branchement-idees-usine");
+    brancherIdeesUsine();
+  } catch {
+    console.error("[studio] branchement des idées de l'usine en échec (code BRANCHEMENT_IDEES_ECHEC)");
+  }
+  // Compte retiré de la liste pendant l'arrêt : ses lignes GUIDE actives passent en pause automatique dès le démarrage.
+  void import("@/services/mots-service")
+    .then((m) => m.pauserGuidesHorsListe(process.env))
+    .catch(() => console.error("[studio] pause des guides hors liste en échec (code PAUSE_HORS_LISTE_ECHEC)"));
   const { demarrerBoucleUnique } = await import("@/services/boucle");
   const fabrication = process.env.STUDIO_BOUCLE !== "0"; // « 0 » : coupure de secours (variable d'environnement)
   if ((await demarrerBoucleUnique({ boucleFabrication: fabrication, avecLeVerrou: lancerAvecLeVerrou, surPerte: arreterSansLeVerrou })) && fabrication) {

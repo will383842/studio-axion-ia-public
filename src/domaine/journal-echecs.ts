@@ -1,0 +1,143 @@
+/**
+ * JOURNAL DURABLE DES ÉCHECS (GV-EC-01a) — partie pure (aucun accès aux dépôts).
+ * Chaque échec d'un travail laisse une ligne qui ne s'efface jamais, même après « Réessayer » (les moteurs vident
+ * `travail.erreur` à la relance). La ligne est portée par un événement du journal existant (type `echec-detail`).
+ */
+import { CODES_ATTENTE_VALIDATION } from "./sujets-traites";
+import type { Evenement } from "./types";
+
+/** Type de l'événement qui porte la ligne dans le dépôt `evenements`. */
+export const TYPE_EVENEMENT_ECHEC = "echec-detail";
+
+/** Longueur maximale du détail technique gardé. */
+export const LONGUEUR_MAX_DETAIL = 500;
+
+export type FamilleEchec = "attente-validation" | "fournisseur" | "entree-a-corriger" | "controle" | "reglage" | "panne" | "autre";
+
+export interface LigneEchec {
+  date: string;
+  videoId: string;
+  travailId: string;
+  /** Identifiant du format (`formatId` de la commande). */
+  generateur: string;
+  moteur: string;
+  /** Nom de l'étape en échec. */
+  etape: string;
+  code: string;
+  famille: FamilleEchec;
+  /** La phrase montrée à l'utilisateur. */
+  phrase: string;
+  /** Détail technique nettoyé (jamais de clé ni de jeton). */
+  detail: string;
+  /** Numéro d'essai (`tentatives` du travail au moment de l'échec). */
+  essai: number;
+}
+
+/** Événement du journal d'activité qui porte une ligne d'échec (champ supplémentaire typé ici, pas dans `types.ts`). */
+export interface EvenementEchec extends Evenement {
+  echec: LigneEchec;
+}
+
+/** Identifiant stable de l'événement : rejouer l'écriture du même échec n'ajoute rien. */
+export function identifiantEchec(travailId: string, tentatives: number): string {
+  return `ev-echec-${travailId}-${tentatives}`;
+}
+
+/** Famille d'un code d'erreur de travail (étiquette seulement : aucun comportement n'en dépend ici). */
+export function familleDe(code: string): FamilleEchec {
+  if (CODES_ATTENTE_VALIDATION.includes(code)) return "attente-validation";
+  if (code.startsWith("FOURNISSEUR_")) return "fournisseur";
+  if (code.startsWith("IV_IMAGE") || code === "IV_TYPE_A_CHOISIR") return "entree-a-corriger";
+  if (/^(BUDGET_|CONFIRMATION_|CREDIT_|CAS_TRAITE|CAS_RETIRE|SUJET_|PAS_EN_ECHEC)/.test(code)) return "controle";
+  if (/^(REGLAGE|CLE_|CONFIG|SANS_CLE)/.test(code) || /_NON_CONFIGURE$/.test(code)) return "reglage";
+  if (/^(PANNE|ERREUR_INTERNE|EXPORT_|MONTAGE_|RENDU_|FFMPEG|INTERNE)/.test(code)) return "panne";
+  return "autre";
+}
+
+const DEVISE = String.raw`(?:(?:US|CA|AU|NZ|HK|[ACRS])?\$|[€£¥]|(?:EUR|USD|GBP|CAD|CHF|JPY|euros?|dollars?|cr[ée]dits?)(?!\p{L}))`;
+/** Nombre avec décimales, ou avec milliers séparés par une espace (« 1 234,56 »), puis un suffixe k/M facultatif (« 12k »). */
+const NOMBRE = String.raw`(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)*|\d+(?:[.,]\d+)*)(?:[kM](?!\p{L}))?`;
+/** Un code HTTP à 3 chiffres juste avant « credits » dans un message d'erreur n'est pas un montant. */
+const CODE_HTTP_AVANT_CREDITS = String.raw`(?!(?<=\b(?:error|erreur|http|status|statut|code)\s?[:=]?\s?)\d{3}\s?cr[ée]dits?(?!\p{L}))`;
+/** Un nombre avec une devise : « 12.50 USD », « 3,20 € », « $5 », « 40 crédits », « 12k€ ». */
+const MONTANT = new RegExp(String.raw`(?<![\p{L}0-9.,])${CODE_HTTP_AVANT_CREDITS}(?:${DEVISE}\s?${NOMBRE}|${NOMBRE}\s?${DEVISE})`, "giu");
+/** Une durée ou un décompte (« 82,667 s », « 12 tests ») n'est pas un montant, même après une clé comme « total ». */
+const UNITE_NON_MONETAIRE = String.raw`(?!\s?(?:ms|s|sec|min|h|tests?|mots?|images?|fichiers?|vid[ée]os?|lignes?|[ée]tapes?|octets?|Ko|Mo|Go)(?![\p{L}0-9]))`;
+/** Valeur d'une clé d'argent (forme JSON ou « clé=valeur »), quelle que soit la devise : « "amount": 1250 », « solde=3,5 ». */
+const CLE_MONTANT = new RegExp(String.raw`(?<![A-Za-z0-9])(["']?(?:[A-Za-z0-9]+[_-])*(?:amount|balance|price|cost|total|credits?|montant|solde|prix)(?:[_-][A-Za-z0-9]+)*["']?\s*[:=]\s*)(["']?)${NOMBRE}(?!\/|\d|[.,]\d)${UNITE_NON_MONETAIRE}(?:\s?${DEVISE})?\2`, "giu");
+
+/**
+ * Détail technique prêt à garder : 500 caractères au plus, et tout ce qui ressemble à une clé, un jeton ou un mot de
+ * passe est retiré (remplacé par « [retiré] »).
+ */
+export function nettoyerDetail(texte: string | null | undefined): string {
+  if (!texte) return "";
+  const retire = "[retiré]";
+  const net = String(texte)
+    // en-têtes et valeurs nommées : Authorization: Bearer xxx, api_key=xxx, "token":"xxx", password: xxx…
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, `Bearer ${retire}`)
+    .replace(/(?<![A-Za-z0-9])(["']?(?:[A-Za-z0-9]+[_-])*(?:api[_-]?key|apikey|secret|token|passw(?:or)?d|mot[_-]?de[_-]?passe|authorization|cle|key)(?:[_-][A-Za-z0-9]+)*["']?\s*[:=]\s*)(["']?)[^\s"',;&]+\2/gi, `$1${retire}`)
+    // clés en camelCase sans séparateur (accessToken=…, clientSecret: "…", apiKey=…) : sensible à la casse
+    .replace(/(?<![A-Za-z0-9])(["']?[a-z][A-Za-z0-9]*(?:ApiKey|Secret|Token|Password|Passwd|Key)["']?\s*[:=]\s*)(["']?)[^\s"',;&]+\2/g, `$1${retire}`)
+    // préfixes de clés connus
+    .replace(/\b(?:sk|pk|rk|xox[abprs]|ghp|gho|ghs|github_pat|AKIA|AIza)[-_A-Za-z0-9]{8,}/g, retire)
+    // jeton signé (JWT)
+    .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, retire)
+    // toute longue suite opaque (hexadécimal, base64) de 24 caractères ou plus
+    .replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (m) => (/[0-9]/.test(m) || /[A-Z]/.test(m) ? retire : m))
+    // montants d'argent : nombre collé à un symbole ou à un code de devise, avant ou après (les nombres seuls restent)
+    .replace(CLE_MONTANT, "$1$2[montant masqué]$2")
+    .replace(MONTANT, "[montant masqué]");
+  return net.slice(0, LONGUEUR_MAX_DETAIL);
+}
+
+/** Décompte des échecs sur une période. Les attentes de validation sont à part : elles ne sont pas des échecs. */
+export interface CompteEchecs {
+  /** Nombre d'échecs (attentes de validation exclues). */
+  total: number;
+  /** Nombre de pauses « à valider » (jamais dans le total). */
+  attentes: number;
+  parFamille: Record<string, number>;
+  parGenerateur: Record<string, number>;
+  parEtape: Record<string, number>;
+  parCode: Record<string, number>;
+}
+
+export interface BilanEchecs {
+  jours7: CompteEchecs;
+  jours30: CompteEchecs;
+}
+
+const JOUR_MS_ECHEC = 86_400_000;
+
+function compteurVide(): CompteEchecs {
+  return { total: 0, attentes: 0, parFamille: {}, parGenerateur: {}, parEtape: {}, parCode: {} };
+}
+
+function ajouter(table: Record<string, number>, cle: string): void {
+  table[cle] = (table[cle] ?? 0) + 1;
+}
+
+/** Compte les échecs des 7 et des 30 derniers jours (fonction pure). Une date illisible est ignorée. */
+export function compterEchecs(lignes: readonly LigneEchec[], maintenant: Date | string): BilanEchecs {
+  const ref = new Date(maintenant).getTime();
+  const bilan: BilanEchecs = { jours7: compteurVide(), jours30: compteurVide() };
+  for (const l of lignes) {
+    const t = new Date(l.date).getTime();
+    if (Number.isNaN(t) || Number.isNaN(ref)) continue;
+    const age = ref - t;
+    for (const [jours, c] of [[7, bilan.jours7], [30, bilan.jours30]] as const) {
+      if (age > jours * JOUR_MS_ECHEC) continue;
+      if (l.famille === "attente-validation") {
+        c.attentes += 1;
+        continue;
+      }
+      c.total += 1;
+      ajouter(c.parFamille, l.famille);
+      ajouter(c.parGenerateur, l.generateur);
+      ajouter(c.parEtape, l.etape);
+      ajouter(c.parCode, l.code);
+    }
+  }
+  return bilan;
+}

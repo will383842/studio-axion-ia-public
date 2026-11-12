@@ -13,7 +13,7 @@ import { LOT_MAX_IV } from "@/domaine/image-video/lot";
 import { PLAFONDS_IV, RESEAUX_IV, RESEAUX_IV_HISTORIQUE, type ReseauIV } from "@/domaine/image-video/plafonds";
 import { verdictSurMesureAncienne } from "@/briques/voix-maitre/reference";
 import type { Offre } from "@/formats/cas-concret/cas";
-import { AXES_VARIETE, type AxeVariete, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
+import { AXES_VARIETE, codeDe, type AxeVariete, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { EtapeChaineIV, EtatFabricationIV, FormuleATrancherIV, LivraisonReseauIV, PrixIV } from "@/moteurs/montage-image-video/fabrication";
 import { COUPE_EN_PLEIN_SON_IV, SUITE_REFUS_WAV_IV } from "@/moteurs/montage-image-video/phrases-assemblage";
 import { texteDeFinIV } from "@/moteurs/montage-image-video/texte-fin";
@@ -310,7 +310,8 @@ export const formulesNonTranchees = (formules: readonly FormuleATrancherIV[], m:
 
 /** « environ 1,05 €, au plus 2,20 € ». */
 export function phrasePrix(p: Pick<PrixIV, "habituelCentimes" | "auPlusCentimes">): string {
-  return p.auPlusCentimes > p.habituelCentimes ? `environ ${euros(p.habituelCentimes)}, au plus ${euros(p.auPlusCentimes)}` : `environ ${euros(p.habituelCentimes)}`;
+  void p; // Règle de Williams : aucun montant à l'écran.
+  return "";
 }
 
 // ─── Écran 4 · Fabrication ───────────────────────────────────────────────────────────────────────────────────────────
@@ -406,7 +407,7 @@ function detailsSecours(etat: Pick<EtatFabricationIV, "refus" | "voix"> & Partia
   if (s.relire.length) {
     const n = s.nbLectures;
     details.push(
-      `Relecture de la seule fin pour ${s.reseauxRelire.join(", ")} : « Refaire cette partie » la relit à l'identique (${n} lecture${n > 1 ? "s" : ""} payée${n > 1 ? "s" : ""} au plus${n > 1 ? " avec les fins de secours déjà prévues" : ""}, environ ${euros(s.coutMaxCentimes)}) ; le corps et les autres fins déjà payés sont gardés. Si elle ne ressemble toujours pas à la référence, la vidéo s'arrête pour de bon.`,
+      `Relecture de la seule fin pour ${s.reseauxRelire.join(", ")} : « Refaire cette partie » la relit à l'identique (${n} lecture${n > 1 ? "s" : ""} payée${n > 1 ? "s" : ""} au plus${n > 1 ? " avec les fins de secours déjà prévues" : ""}) ; le corps et les autres fins déjà payés sont gardés. Si elle ne ressemble toujours pas à la référence, la vidéo s'arrête pour de bon.`,
     );
   }
   for (const r of s.replis) details.push(`${r} Aucune lecture : le son déjà payé et validé est repris.`);
@@ -444,6 +445,10 @@ const NOMS_AXES: Readonly<Record<AxeVariete, string>> = {
   fin: "Fin",
   matiere: "Matière",
   sousTitres: "Sous-titres",
+  fond: "Fond",
+  rail: "Repères d'étapes",
+  objets: "Objets",
+  entete: "Titres",
 };
 
 /** Libellé de chaque variante (doc 72) : jamais le code à l'écran. */
@@ -491,6 +496,25 @@ export const LIBELLES_VARIANTES: Readonly<Record<string, string>> = {
   "SOU-A": "Calmes",
   "SOU-B": "Équilibrés",
   "SOU-C": "Appuyés",
+  "SOU-D": "Discrets",
+  "SOU-E": "En grand",
+  "FON-A": "Fond d'aujourd'hui",
+  "FON-B": "Fond quadrillé",
+  "FON-C": "Fond en dégradé",
+  "FON-D": "Fond à motifs",
+  "FON-E": "Fond sombre",
+  "RAI-A": "Repères d'aujourd'hui",
+  "RAI-B": "Repères en points",
+  "RAI-C": "Repères en icônes",
+  "RAI-D": "Repères en segments",
+  "OBJ-A": "Objets d'aujourd'hui",
+  "OBJ-B": "Objets en boîte claire",
+  "OBJ-C": "Objets en notification",
+  "OBJ-D": "Objets en fiche",
+  "ENT-A": "Titres d'aujourd'hui",
+  "ENT-B": "Titres sur bandeau",
+  "ENT-C": "Titres soulignés",
+  "ENT-D": "Titres en étiquette",
 };
 export const libelleVariante = (code: string): string => LIBELLES_VARIANTES[code] ?? "Variante";
 
@@ -509,16 +533,16 @@ export interface LigneVarieteIV {
 /** La recette de la vidéo, axe par axe (PUR) : `possibles` = les variantes que l'image permet (moteur). */
 export function lignesVarieteIV(recette: RecetteVarieteIV, possibles: Readonly<Record<AxeVariete, readonly string[]>>, changes: Partial<RecetteVarieteIV> = {}): LigneVarieteIV[] {
   return AXES_VARIETE.map((axe) => {
-    const code = changes[axe] ?? recette[axe];
+    const code = changes[axe] ?? codeDe(recette, axe);
     const modifiable = axe !== "recit";
-    const codes = modifiable ? [...new Set([recette[axe], ...possibles[axe]])] : [recette[axe]];
+    const codes = modifiable ? [...new Set([codeDe(recette, axe), ...possibles[axe]])] : [codeDe(recette, axe)];
     return { axe, nom: NOMS_AXES[axe], code, libelle: libelleVariante(code), choix: codes.length > 1 ? codes.map((c) => ({ code: c, libelle: libelleVariante(c) })) : [], modifiable };
   });
 }
 
 /** Changements de Will à envoyer avec le script (seulement ce qui diffère de la recette tirée). PUR. */
 export function changementsVarieteIV(recette: RecetteVarieteIV, changes: Partial<RecetteVarieteIV>): Partial<RecetteVarieteIV> | undefined {
-  const d = Object.fromEntries(AXES_VARIETE.filter((a) => a !== "recit" && changes[a] !== undefined && changes[a] !== recette[a]).map((a) => [a, changes[a]]));
+  const d = Object.fromEntries(AXES_VARIETE.filter((a) => a !== "recit" && changes[a] !== undefined && changes[a] !== codeDe(recette, a)).map((a) => [a, changes[a]]));
   return Object.keys(d).length ? (d as Partial<RecetteVarieteIV>) : undefined;
 }
 
@@ -590,7 +614,7 @@ export function barreDe(etat: Pick<EtatFabricationIV, "etape" | "refus">): Ecran
 }
 
 export const ETAPES_ECRANS: readonly { ecran: EcranIV | "depot"; nom: string }[] = [
-  { ecran: "depot", nom: "L'image" },
+  { ecran: "depot", nom: "Le départ" },
   { ecran: "carte", nom: "Ce que j'ai compris" },
   { ecran: "script", nom: "Le script" },
   { ecran: "fabrication", nom: "Fabrication" },
@@ -607,7 +631,7 @@ export function garderLeLot<T>(fichiers: readonly T[]): { gardes: T[]; phrase?: 
 }
 
 /** Texte du bouton du lot : le nombre de vidéos et le prix total « au plus ». */
-export const libelleBoutonLot = (n: number, parVideoCentimes: number): string => `Fabriquer les ${n} vidéos · au plus ${euros(n * parVideoCentimes)}`;
+export const libelleBoutonLot = (n: number, parVideoCentimes: number): string => `Fabriquer les ${n} vidéos`;
 
 /** La phrase unique sous le bouton du lot. */
-export const messageDuLot = (n: number): string => `Au plus ce prix pour les ${n} vidéos. Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.`;
+export const messageDuLot = (n: number): string => `Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.`;

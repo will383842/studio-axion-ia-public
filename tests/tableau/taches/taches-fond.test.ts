@@ -5,7 +5,7 @@
  *  - l'état avance étape par étape (accroches, écriture, relecture), gardé après chaque appel ;
  *  - reprise après une interruption (redémarrage pendant un appel) : les appels déjà payés ne sont JAMAIS repayés ;
  *  - erreur → trace, message en français, journal du serveur, « Reprendre » ;
- *  - plafond de l'écriture : couvre les quatre appels ; dépassé → refus expliqué, aucune exception ; une nouvelle
+ *  - plafond de l'écriture : couvre les quatre appels ; dépassé → signalé au journal, l'écriture continue (lot H) ; une nouvelle
  *    écriture de la même vidéo a sa propre enveloppe ;
  *  - un brouillon payé sans résultat (comme `v-ab6eb972eb39`) : « Écriture interrompue », « Reprendre » relance ;
  *  - les brouillons récents, le suivi à l'écran, les actions courtes refusées pendant une tâche, la boucle de fond.
@@ -263,9 +263,8 @@ describe("reprise après interruption, sans repayer", () => {
     expect(html).toMatch(/Reprendre\s*<\/button>/);
     expect(html).not.toContain("Un souci est survenu");
 
-    // « Reprendre » : le prix est confirmé à nouveau ; les deux appels faits sont rejoués, seule la relecture part.
-    expect(await reprendreTacheTableauAction(r.videoId)).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
-    expect(await reprendreTacheTableauAction(r.videoId, await prix())).toMatchObject({ ok: true, donnees: { statut: "en-cours" } });
+    // « Reprendre » : plus de confirmation de prix (lot H) ; les deux appels faits sont rejoués, seule la relecture part.
+    expect(await reprendreTacheTableauAction(r.videoId)).toMatchObject({ ok: true, donnees: { statut: "en-cours" } });
     await creation.travaillerTachesTableau({ client: apres.client });
     expect(apres.passes).toEqual(["relecture"]);
     expect(pas.passes).toEqual(["angle", "ecriture", "relecture"]);
@@ -403,16 +402,21 @@ describe("plafond de l'écriture", () => {
     expect((await brouillon(r.videoId)).tache).toMatchObject({ statut: "terminee" });
   });
 
-  it("dépassé : refus expliqué en clair (aucune exception, aucun appel), trace close, « Reprendre » proposé", async () => {
-    const appels = await brancherClaude([]);
+  // Lot H (décision de Williams, 08/11) : le plafond de l'écriture ne bloque plus ; le dépassement est signalé au journal.
+  it("dépassé : l'écriture part quand même (aucune exception, aucun refus), dépassement signalé au journal, trace livrée", async () => {
+    const appels = await brancherClaude([
+      { texte: JSON.stringify(ANGLE), entree: 3_000, sortie: 4_000 },
+      { texte: JSON.stringify(ecritureModele()), entree: 9_000, sortie: 9_000 },
+      { texte: JSON.stringify(relecture(ecritureModele())), entree: 9_000, sortie: 12_000 },
+    ]);
     await ecrireParametre("tableau.plafondScriptUsd", 0);
     const r = await creation.ecrireScriptTableau(DEMANDE, { accord: await prix() });
     if (r.statut !== "en-cours") throw new Error(JSON.stringify(r));
     await creation.travaillerTachesTableau();
-    expect(appels).toHaveLength(0);
-    const t = (await brouillon(r.videoId)).tache!;
-    expect(t).toMatchObject({ statut: "erreur", message: expect.stringMatching(/^Plafond de cette vidéo atteint .* rien n'a été payé\.$/) });
-    expect(await depots().tracesScriptsTableau.obtenir(r.traceId)).toMatchObject({ issue: "refuse", motifs: [expect.stringMatching(/Plafond de cette vidéo atteint/)] });
+    expect(appels).toHaveLength(3);
+    expect((await brouillon(r.videoId)).tache).toMatchObject({ statut: "terminee" });
+    expect(await depots().tracesScriptsTableau.obtenir(r.traceId)).toMatchObject({ issue: "livre" });
+    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(video\)/.test(e.message))).toBe(true);
   });
 });
 
@@ -518,7 +522,8 @@ describe("brouillon payé sans résultat gardé (comme v-ab6eb972eb39 en product
     expect(ecran.brouillon!.demandeConnue).toEqual({ serie: "automatisations", sujet: DEMANDE.sujet, reseau: "courts", fin: { type: "diagnostic" } });
     const html = renderToStaticMarkup(createElement(NouvelleVideoTableau, { ecran }));
     expect(html).toContain("Écriture interrompue");
-    expect(html).toMatch(/3 appels à Claude \(0,42\s€\)/);
+    expect(html).toMatch(/3 appels à Claude n(?:'|&#x27;)ont pas laissé/);
+    expect(html).not.toMatch(/€/);
     expect(html).toContain("Reprendre l&#x27;écriture");
     expect(html).toContain("environ 3 minutes");
     expect(ecran.recents).toEqual([expect.objectContaining({ videoId, etat: "Écriture interrompue" })]);

@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "note": "Valeurs 100 % fictives. Référence du Studio : à copier telle quelle (contrat croisé, SHA-256 inscrit dans les tests des deux dépôts). Durée du lien : 48 h.",
+  "secret": "fixture-v2-secret-fictif-example-test-0123456789",
+  "maintenant_ms": 1794398400000,
+  "donnees": {
+    "conv": "c1_AbCdEf0123456789_-xyZQ",
+    "mot": "GUIDE",
+    "reseau": "instagram",
+    "guide": "guide-ia",
+    "compte": "page_principale",
+    "post_ref": "17900000000000001",
+    "version_m1": "mp-m1-v3"
+  },
+  "jeton": "eyJ2IjoxLCJjb252IjoiYzFfQWJDZEVmMDEyMzQ1Njc4OV8teHlaUSIsIm1vdCI6IkdVSURFIiwicmVzZWF1IjoiaW5zdGFncmFtIiwiZ3VpZGUiOiJndWlkZS1pYSIsImNvbXB0ZSI6InBhZ2VfcHJpbmNpcGFsZSIsInBvc3RfcmVmIjoiMTc5MDAwMDAwMDAwMDAwMDEiLCJ2ZXJzaW9uX20xIjoibXAtbTEtdjMiLCJleHAiOjE3OTQ1NzEyMDB9.d7RGW0-Ep_4tivuSFFRzfw4Gj7wnTwqWptuX3GqM6ns",
+  "lien": "https://axion-ia.com/guide-reseau?j=eyJ2IjoxLCJjb252IjoiYzFfQWJDZEVmMDEyMzQ1Njc4OV8teHlaUSIsIm1vdCI6IkdVSURFIiwicmVzZWF1IjoiaW5zdGFncmFtIiwiZ3VpZGUiOiJndWlkZS1pYSIsImNvbXB0ZSI6InBhZ2VfcHJpbmNpcGFsZSIsInBvc3RfcmVmIjoiMTc5MDAwMDAwMDAwMDAwMDEiLCJ2ZXJzaW9uX20xIjoibXAtbTEtdjMiLCJleHAiOjE3OTQ1NzEyMDB9.d7RGW0-Ep_4tivuSFFRzfw4Gj7wnTwqWptuX3GqM6ns",
+  "longueur_lien": 340,
+  "empreinte": "289ccaa99343ed187825c78ee7817971840fabbf7c0aed556d63aa09448df682",
+  "vecteur_calcul_conv": {
+    "secret_empreinte": "calcul-secret-fictif-example-test-0123456789",
+    "cle_idempotence": "run_example_0001:msg_example_0001",
+    "conv_attendu": "c1_MHGM9ODduVyY4Zo0j4dJQ-"
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { TYPES_AUTOMATISATION, type Ciblage, type TypeAutomatisation } from "@/domaine/ciblage/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
@@ -21,6 +22,7 @@ import { cocherVerificationAction, programmerSujetAction, verificationsAvantProg
 import type { VerificationsVersion } from "@/services/publications";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { BoutonCopier } from "@/components/ui/BoutonCopier";
+import { PastilleEtapeEcrire } from "@/components/ecrire/PastilleEtapeEcrire";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
@@ -40,7 +42,7 @@ import { BoutonVideoHeygen } from "./VideoHeygen";
 import { BoutonMonterPrise, BoutonSecondeOuverture, CarteFabriquerLesN, EtatFabricationVersion, type EtatFabricationAffiche, type PlanFabricationAffiche } from "./FabricationReseaux";
 import { MiniGrille } from "./MiniGrille";
 import { MatieresSansAccord, SaisieMatiereSujet, type MatiereSansAccord } from "./SaisieMatiereSujet";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { formateurDate } from "@/lib/intl";
 
 export interface VersionAffichee {
@@ -115,7 +117,6 @@ interface ContexteFiche {
   retourVideo?: string;
 }
 const Fiche = createContext<ContexteFiche>({ prix: null, ecritureSimulee: true });
-const auPlus = (prix: string | undefined) => (prix ? `au plus ${prix}` : "prix calculé au lancement");
 
 function duree(sec: number): string {
   return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
@@ -165,6 +166,9 @@ export function FicheSujet(p: {
   retourVideo?: string;
   /** E2E-2 données n° 4 : matières de ce sujet qui attendent un accord (elles ne sont pas citées sans lui). */
   sansAccord?: MatiereSansAccord[];
+  /** Cible et type d'automatisation du sujet (absents : « cible à préciser », jamais bloquant). */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -198,7 +202,7 @@ export function FicheSujet(p: {
     demarrer(async () => {
       const r = await f();
       if (!r.ok) {
-        notifier.erreur(r.message ?? "Impossible pour l'instant.");
+        notifier.erreur(messageSansMontant(r.message ?? "Impossible pour l'instant."));
         return;
       }
       if (succes) notifier.succes(succes);
@@ -210,10 +214,10 @@ export function FicheSujet(p: {
     demarrer(async () => {
       const r = await ajouterDeclinaisonAction(p.id, { reseaux: p.reseauxSujet, ...options });
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
-      if (!r.donnees.ecrit) notifier.erreur(r.donnees.message ?? "Il manque une matière.");
+      if (!r.donnees.ecrit) notifier.erreur(messageSansMontant(r.donnees.message ?? "Il manque une matière."));
       // L'écriture se fait ensuite dans la boucle : rien n'est « écrit » à ce moment (vérification E2E n° 1, problème n° 1).
       else if (contexte.ecritureSimulee) notifier.essai(`${libelle} : écriture lancée, rien n'est payé`);
       else notifier.succes(`${libelle} : écriture lancée`);
@@ -238,6 +242,24 @@ export function FicheSujet(p: {
       {p.manque && !p.archive && <CarteArretAjout id={p.id} manque={p.manque} sansAccord={p.sansAccord ?? []} />}
       {p.arret && !p.archive && <CartePanneAjout id={p.id} message={p.arret} supplement={p.arretSupplement ?? undefined} />}
 
+      <p className="px-1 text-sm text-texte-doux" data-ciblage>
+        {p.ciblage ? (
+          <>
+            Cible : <span className="font-semibold text-texte">{p.ciblage.libelle}</span>
+          </>
+        ) : (
+          <span className="font-semibold text-ambre">Cible à préciser</span>
+        )}
+        {" · "}
+        Type : <span className="font-semibold text-texte">{TYPES_AUTOMATISATION.find((t) => t.id === p.typeAutomatisation)?.libelle ?? "À classer"}</span>
+        {!p.archive && !p.lignes.length && (
+          <>
+            {" · "}
+            <PastilleEtapeEcrire etape="ecriture" />
+          </>
+        )}
+      </p>
+
       {/* La grille, puis les onglets réseaux */}
       <Carte>
         <MiniGrille lignes={p.lignes} reseauActif={p.reseauActif} />
@@ -254,8 +276,8 @@ export function FicheSujet(p: {
         {RESEAUX_DECLINAISON.map((r) => {
           const actif = p.reseauActif === r;
           return (
-            <Link key={r} href={`/ecrire/sujets/${p.id}?reseau=${r}`} scroll={false} aria-current={actif ? "page" : undefined} className={cn("grid size-11 place-items-center rounded-xl", actif && "bg-orange-doux ring-2 ring-orange")}>
-              <LogoReseau reseau={r} className={cn(actif && "border-orange text-orange-vif")} />
+            <Link key={r} href={`/ecrire/sujets/${p.id}?reseau=${r}`} scroll={false} aria-current={actif ? "page" : undefined} className={cn("grid size-11 place-items-center rounded-xl", actif && "bg-accent-doux ring-2 ring-accent")}>
+              <LogoReseau reseau={r} className={cn(actif && "border-accent text-accent")} />
             </Link>
           );
         })}
@@ -370,13 +392,12 @@ export function FicheSujet(p: {
             <PastilleEssai className="ml-auto" />
           </h2>
           <div className="flex flex-wrap gap-2">
-            {p.ajouts.jeLis && <BoutonAjout icone="texte" libelle="Je lis" prix={auPlus(p.prixAjouts?.supplement)} disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, mode: "teleprompteur" }, "« Je lis »")} />}
-            {p.ajouts.tu && <BoutonAjout icone="personne" libelle="Tu" prix={auPlus(p.prixAjouts?.adresse)} disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, adresse: "tu" }, "« Tu »")} />}
-            {p.ajouts.autresFormats.length > 0 && <BoutonAjout icone="grille" libelle="Autre format" prix={auPlus(p.prixAjouts?.supplement)} disabled={enCours} onClick={() => setFeuille("format")} />}
-            <Link href="/ecrire/matieres?ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
-              <Icone nom="micro" size={16} className="text-orange-vif" />
+            {p.ajouts.jeLis && <BoutonAjout icone="texte" libelle="Je lis" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, mode: "teleprompteur" }, "« Je lis »")} />}
+            {p.ajouts.tu && <BoutonAjout icone="personne" libelle="Tu" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, adresse: "tu" }, "« Tu »")} />}
+            {p.ajouts.autresFormats.length > 0 && <BoutonAjout icone="grille" libelle="Autre format" disabled={enCours} onClick={() => setFeuille("format")} />}
+            <Link href="/ecrire?onglet=matieres&ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
+              <Icone nom="micro" size={16} className="text-accent" />
               Matière
-              <span className="font-medium text-texte-faible">· 0 €</span>
             </Link>
           </div>
         </section>
@@ -429,6 +450,12 @@ export function FicheSujet(p: {
         </div>
       </details>
 
+      <details className="group rounded-carte border border-trait bg-surface-1 px-4 py-2" data-plus>
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-texte">
+          Plus
+          <Icone nom="chevron-bas" size={16} className="transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-3 pb-2">
       <div className="grid grid-cols-2 gap-2">
         <Bouton variante="secondaire" icone="calendrier" onClick={() => setFeuille("ordre")}>
           Ordre J à J+4
@@ -451,6 +478,8 @@ export function FicheSujet(p: {
           Archiver le sujet
         </button>
       )}
+        </div>
+      </details>
 
       {/* Placés AVANT la barre collée : sous elle, ils seraient cachés à l'écran (mobile). */}
       {aValider.length > 0 && limiteEnAttente && <p className="text-center text-xs text-ambre">Validez la limite ci-dessus.</p>}
@@ -487,10 +516,9 @@ export function FicheSujet(p: {
                 onClick={() => ajouter({ formatId: f.id, mode: f.modeParDefaut }, f.nom)}
                 className="flex min-h-14 w-full items-center gap-3 rounded-champ border border-trait bg-surface-2 px-4 text-left hover:border-trait-fort"
               >
-                <Icone nom={f.icone} size={18} className="text-orange-vif" />
+                <Icone nom={f.icone} size={18} className="text-accent" />
                 <span className="flex-1 font-semibold text-texte">{f.nom}</span>
                 {f.moteurAVenir && <span className="text-xs text-texte-faible">moteur à venir</span>}
-                <span className="text-sm tabular-nums text-texte-doux">{auPlus(p.prixAjouts?.supplement)}</span>
               </button>
             </li>
           ))}
@@ -513,7 +541,7 @@ function LienVideoVersion({ videoId, fabrication }: { videoId: string; fabricati
   return (
     <Link
       href={`/videos/${videoId}`}
-      className={cn("ml-12 mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold underline-offset-4 hover:underline", attend ? "text-texte-doux" : "text-orange-vif")}
+      className={cn("ml-12 mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold underline-offset-4 hover:underline", attend ? "text-texte-doux" : "text-accent")}
     >
       <Icone nom={attend ? "horloge" : "film"} size={14} className={cn(attend && "animate-pulse")} />
       {attend ? "Vidéo en fabrication" : "Voir la vidéo"}
@@ -522,7 +550,7 @@ function LienVideoVersion({ videoId, fabrication }: { videoId: string; fabricati
   );
 }
 
-function BoutonAjout({ icone, libelle, prix, onClick, disabled }: { icone: NomIcone; libelle: string; prix: string; onClick: () => void; disabled?: boolean }) {
+function BoutonAjout({ icone, libelle, onClick, disabled }: { icone: NomIcone; libelle: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -530,9 +558,8 @@ function BoutonAjout({ icone, libelle, prix, onClick, disabled }: { icone: NomIc
       onClick={onClick}
       className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 text-sm font-semibold text-texte hover:border-trait-fort hover:bg-surface-2 disabled:opacity-50"
     >
-      <Icone nom={icone} size={16} className="text-orange-vif" />
+      <Icone nom={icone} size={16} className="text-accent" />
       {libelle}
-      <span className="font-medium tabular-nums text-texte-faible">· {prix}</span>
     </button>
   );
 }
@@ -581,7 +608,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
               </li>
             ))}
             {v.trame.chiffres.map((c) => (
-              <li key={c} className="rounded-full border-2 border-orange px-3 py-1 font-bold text-orange-vif">
+              <li key={c} className="rounded-full border-2 border-accent px-3 py-1 font-bold text-accent">
                 {c}
               </li>
             ))}
@@ -609,7 +636,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
       <div className="flex flex-wrap gap-2">
         {/* B1 : sujet écrit depuis « Nouvelle vidéo » : le texte de CETTE version revient dans la vidéo, mot pour mot. */}
         {lienVideo && v.etat !== "a-completer" && (
-          <Bouton asChild icone="film">
+          <Bouton asChild variante="contour-orange" icone="film">
             <Link href={lienVideo}>Utiliser dans ma vidéo</Link>
           </Bouton>
         )}
@@ -631,9 +658,8 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
             href={`/ecrire/sujets/${sujetId}/relire?version=${v.id}&but=modifier`}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort"
           >
-            <Icone nom="ecrire" size={15} className="text-orange-vif" />
+            <Icone nom="ecrire" size={15} className="text-accent" />
             Relire et modifier
-            <span className="font-medium tabular-nums text-texte-faible">· 0 €</span>
           </Link>
         )}
         {/* Une version « je lis » se filme (« Filmer ici », « Monter ma prise ») : jamais de fabrication par le double. */}
@@ -643,7 +669,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
           <p className="w-full text-xs text-texte-faible">
             {v.retouchesRestantes > 0
               ? `${v.retouchesRestantes} retouche${v.retouchesRestantes > 1 ? "s" : ""} payante${v.retouchesRestantes > 1 ? "s" : ""} possible${v.retouchesRestantes > 1 ? "s" : ""} sur cette version.`
-              : "Plus de retouche payante sur cette version : relisez et modifiez le script à la main (0 €)."}
+              : "Plus de retouche payante sur cette version : relisez et modifiez le script à la main."}
           </p>
         )}
         {v.aUneVersionAvant && (
@@ -682,12 +708,10 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
 }
 
 function BoutonRetouche({ libelle, icone, onClick, disabled }: { libelle: string; icone: NomIcone; onClick: () => void; disabled?: boolean }) {
-  const { prix } = useContext(Fiche);
   return (
     <button type="button" disabled={disabled} onClick={onClick} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort disabled:opacity-50">
-      <Icone nom={icone} size={15} className="text-orange-vif" />
+      <Icone nom={icone} size={15} className="text-accent" />
       {libelle}
-      <span className="font-medium tabular-nums text-texte-faible">· {auPlus(prix?.retouche)}</span>
     </button>
   );
 }
@@ -696,7 +720,7 @@ function BoutonRetouche({ libelle, icone, onClick, disabled }: { libelle: string
  * « Fabriquer » (intérim G4) : feuille du prix (B.6.6), puis « Relire le script » : la fabrication ne part JAMAIS sans
  * cette relecture (le serveur exige le repère « script relu ») ; l'écran de relecture lance après la confirmation du prix.
  */
-function BoutonFabriquer({ sujetId, varianteId, formatId, prix }: { sujetId: string; varianteId: string; formatId?: string; prix?: { centimes: number; texte: string; avatarParle?: string } }) {
+function BoutonFabriquer({ sujetId, varianteId, formatId, prix: fab }: { sujetId: string; varianteId: string; formatId?: string; prix?: { centimes: number; texte: string; avatarParle?: string } }) {
   const [ouverte, setOuverte] = useState(false);
   const [resume, setResume] = useState<ResumeDepense | null>(null);
   return (
@@ -707,49 +731,19 @@ function BoutonFabriquer({ sujetId, varianteId, formatId, prix }: { sujetId: str
         onClick={() => {
           setOuverte(true);
           // Vérification E2E n° 1, n° 3 : prix, total du jour et budget restant AVANT le toucher qui lance (lecture seule).
-          if (prix) void resumeDepenseAction(prix.centimes, formatId ? [formatId] : undefined).then((r) => setResume(r.ok ? r.donnees : null));
+          if (fab) void resumeDepenseAction(fab.centimes, formatId ? [formatId] : undefined).then((r) => setResume(r.ok ? r.donnees : null));
         }}
       >
         Fabriquer
       </Bouton>
       <FeuilleBas ouverte={ouverte} onOuverteChange={setOuverte} titre="Fabriquer cette version">
         <p className="mb-4 text-[15px] text-texte-doux">
-          {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix. Le coût réel s'affiche ensuite sur la vidéo."}
+          {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix."}
         </p>
-        <dl className="mb-4 space-y-1.5 rounded-champ bg-surface-2 p-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-texte-doux">Prix</dt>
-            <dd className="flex items-center gap-2 font-semibold tabular-nums text-texte">
-              {resume?.prix ?? prix?.texte ?? "calculé au lancement"}
-              {resume?.essai && <PastilleEssai />}
-            </dd>
-          </div>
-          {resume && (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Aujourd&apos;hui</dt>
-                <dd className="tabular-nums text-texte">
-                  {resume.jourAvant} → {resume.jourApres}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Budget du mois restant</dt>
-                <dd className="tabular-nums text-texte">{resume.budgetRestant}</dd>
-              </div>
-              {resume.credits.map((c) => (
-                <div key={c.nom} className="flex items-center justify-between gap-2">
-                  <dt className="text-texte-doux">Crédit {c.nom}</dt>
-                  <dd className="tabular-nums text-texte">{c.disponible}</dd>
-                </div>
-              ))}
-            </>
-          )}
-        </dl>
-        {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{resume.messageEssai}</p>}
-        {prix?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{prix.avatarParle}</p>}
-        {resume?.auDelaDuRepere && <p className="mb-3 text-sm font-semibold text-ambre">Au-dessus de votre repère de confirmation.</p>}
+        {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{messageSansMontant(resume.messageEssai)}</p>}
+        {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{messageSansMontant(fab.avatarParle)}</p>}
         <Bouton asChild taille="lg" pleineLargeur icone="ecrire">
-          <Link href={`/ecrire/sujets/${sujetId}/relire?version=${varianteId}${prix ? `&prix=${prix.centimes}` : ""}`}>Relire le script</Link>
+          <Link href={`/ecrire/sujets/${sujetId}/relire?version=${varianteId}${fab ? `&prix=${fab.centimes}` : ""}`}>Relire le script</Link>
         </Bouton>
         <p className="mt-2 text-center text-xs text-texte-faible">La vidéo part après votre relecture.</p>
       </FeuilleBas>
@@ -791,7 +785,7 @@ function BoutonCorrigerLimite({ onCorriger }: { onCorriger: (texte: string) => v
           autoFocus
           placeholder="Sauf si…"
           aria-label="La limite"
-          className="block w-full resize-none rounded-champ border border-trait bg-surface-1 p-3 text-base text-texte outline-none focus:border-orange"
+          className="block w-full resize-none rounded-champ border border-trait bg-surface-1 p-3 text-base text-texte outline-none focus:border-accent"
         />
       </FeuilleBas>
     </>
@@ -834,7 +828,7 @@ function FeuilleOrdre({
           onClick={() =>
             demarrer(async () => {
               const r = await enregistrerOrdrePublicationAction(ordre);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
               else {
                 notifier.succes("Ordre gardé pour les prochains sujets");
                 onOuverteChange(false);
@@ -849,7 +843,7 @@ function FeuilleOrdre({
       <ol className="space-y-2">
         {creneaux.map((c, i) => (
           <li key={c.reseau} className="flex min-h-14 items-center gap-3 rounded-champ border border-trait bg-surface-2 px-3">
-            <span className="w-10 font-titre text-sm text-orange-vif">J+{c.rang}</span>
+            <span className="w-10 font-titre text-sm text-accent">J+{c.rang}</span>
             <LogoReseau reseau={c.reseau} />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold text-texte">{obtenirReseau(c.reseau).nom}</span>
@@ -897,7 +891,7 @@ function CarteArretAjout({ id, manque, sansAccord }: { id: string; manque: { lib
 }
 
 /** E2E-2 argent n° 2 : un ajout arrêté sur une panne de Claude ; rien n'est perdu, la reprise est un toucher. */
-function CartePanneAjout({ id, message, supplement }: { id: string; message: string; supplement?: string }) {
+function CartePanneAjout({ id, message }: { id: string; message: string; supplement?: string }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   return (
@@ -906,7 +900,7 @@ function CartePanneAjout({ id, message, supplement }: { id: string; message: str
         <Icone nom="attention" size={14} />
         L&apos;ajout s&apos;est arrêté
       </p>
-      <p className="text-[15px] text-texte">{message}</p>
+      <p className="text-[15px] text-texte">{messageSansMontant(message)}</p>
       <p className="mt-1 text-sm text-texte-faible">Ce qui est déjà écrit est gardé ; les autres sujets continuent.</p>
       <Bouton
         className="mt-3"
@@ -918,13 +912,13 @@ function CartePanneAjout({ id, message, supplement }: { id: string; message: str
             // Relecture finale G1 : le supplément possible passe par la feuille « Confirmer ce prix ».
             const r = await avecConfirmationPrix(await reprendreEcritureArreteeAction(id), (accord) => reprendreEcritureArreteeAction(id, accord));
             if (!r.ok) {
-              if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+              if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
             } else notifier.succes("L'écriture reprend");
             router.refresh();
           })
         }
       >
-        {supplement ? `Reprendre l'écriture (jusqu'à ${supplement} de plus)` : "Reprendre l'écriture"}
+        Reprendre l'écriture
       </Bouton>
     </Carte>
   );
@@ -955,9 +949,6 @@ function CarteManque({ id, idee, manque, sansAccord }: { id: string; idee: strin
           </div>
         )}
         {!horsDomaine && <SaisieMatiereSujet id={id} libelleBouton="Ajouter et écrire" messageSucces={ecritureSimulee ? "texte d'essai, rien n'est payé" : "écriture lancée"} essai={ecritureSimulee} />}
-        <p className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-sauge-doux px-3 py-1 text-xs font-bold text-sauge">
-          <Icone nom="euro" size={12} />0 € dépensé
-        </p>
       </Carte>
       <Bouton
         variante={horsDomaine ? "secondaire" : "fantome"}
@@ -971,7 +962,7 @@ function CarteManque({ id, idee, manque, sansAccord }: { id: string; idee: strin
             const r = await garderEnIdeeAction(idee, id);
             if (!r.ok) {
               setGarde(false);
-              notifier.erreur(r.message);
+              notifier.erreur(messageSansMontant(r.message));
               return;
             }
             notifier.succes("Gardé dans vos idées");
@@ -1018,7 +1009,7 @@ export function VerificationsDeLaVersion({ v, onCocher }: { v: VerificationsVers
         </>
       )}
       {v.licenceBloque && <p className="text-[13px] text-ambre">Une licence bloque cette vidéo : voyez « Droits » sur la vidéo.</p>}
-      <Link href={`/videos/${v.videoId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif underline-offset-4 hover:underline">
+      <Link href={`/videos/${v.videoId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent underline-offset-4 hover:underline">
         Voir la vidéo
         <Icone nom="fleche-droite" size={14} />
       </Link>
@@ -1053,7 +1044,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
     setVerifs((x) => x?.map((y) => (y.videoId === v.videoId ? { ...y, manquantes: y.manquantes.filter((m) => m.cle !== cle) } : y)) ?? null);
     void cocherVerificationAction(sujetId, v.videoId, cle, true).then((r) => {
       if (r.ok) return;
-      notifier.erreur(r.message);
+      notifier.erreur(messageSansMontant(r.message));
       setVerifs((x) => x?.map((y) => (y.videoId === v.videoId ? v : y)) ?? null);
     });
   }
@@ -1061,7 +1052,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
     demarrer(async () => {
       const r = await programmerSujetAction(sujetId);
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       const { programmees, ignorees, simulation } = r.donnees;
@@ -1070,7 +1061,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
         else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Buffer`, "Relisez et programmez dans Buffer.");
         else notifier.succes(`${programmees.length} version${programmees.length > 1 ? "s" : ""} programmée${programmees.length > 1 ? "s" : ""}`);
       }
-      if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${ignorees[0].message}`);
+      if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${messageSansMontant(ignorees[0].message)}`);
       onOuverteChange(false);
       router.refresh();
     });
@@ -1095,7 +1086,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       )}
       {!programmation.envoiSimule && programmation.modeBuffer === "brouillon" && (
         <p className="mb-4 flex items-center gap-2 rounded-2xl border border-trait bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
-          <Icone nom="envoyer" size={16} className="shrink-0 text-orange-vif" />
+          <Icone nom="envoyer" size={16} className="shrink-0 text-accent" />
           Chaque version part en brouillon dans Buffer, avec sa date : vous la programmez dans Buffer.
         </p>
       )}
@@ -1105,7 +1096,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
           return (
             <li key={c.code} className="rounded-champ border border-trait bg-surface-2 px-3">
               <div className="flex min-h-14 items-center gap-3">
-                <span className="w-10 font-titre text-sm text-orange-vif">J+{c.rang}</span>
+                <span className="w-10 font-titre text-sm text-accent">J+{c.rang}</span>
                 <LogoReseau reseau={c.reseau} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-xs text-texte-doux">{c.code}</span>

@@ -103,7 +103,7 @@ describe("B1 · « Une idée » › « Écrire le texte » passe par le vrai gé
     expect(t.formatId).toBe("avocat");
     expect(texteDesBlocs(t.blocs)).toBe(texteDesBlocs(assemblerBlocs(script, v)));
     expect(t.sujet.length).toBeGreaterThan(3);
-  });
+  }, 30_000); // vraie boucle de génération : ~6 s sur un poste ordinaire, au-delà des 5 s par défaut de vitest
 
   it("écrans : l'assistant n'appelle plus `generer` ; l'idée part vers l'écran Sujet et revient avec la version", () => {
     const etape = src("src/assistant/etapes/Script.tsx");
@@ -180,7 +180,8 @@ describe("B9 · B11 · B16", () => {
 
   it("B11 : plus aucun prix écrit en dur, ils sont calculés (plafond × taux du réglage)", async () => {
     for (const f of ["src/components/generateur/EcranSujet.tsx", "src/components/generateur/FicheSujet.tsx"]) expect(src(f)).not.toMatch(/\d,\d\d €/);
-    expect(src("src/app/(studio)/ecrire/atelier/page.tsx")).toMatch(/prixLancement\(\)/);
+    // Décision du fondateur : aucun prix dans le Studio, la page Atelier n'appelle plus `prixLancement` ni n'écrit de montant ; le service garde le calcul.
+    expect(src("src/app/(studio)/ecrire/atelier/page.tsx")).not.toMatch(/prixLancement\(\)|\d,\d\d €/);
     await ecrireParametre("taux.usdEur", 0.5);
     expect((await bg.prixLancement()).centimes).toBe(75);
     expect((await bg.prixRetouche()).centimes).toBe((await bg.prixLancement(true)).centimes);

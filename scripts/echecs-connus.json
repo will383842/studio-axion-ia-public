@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "note": "Échecs déjà présents sur master, tolérés par la CI des nouveaux tests. Un échec absent d'ici est rouge. Ne jamais y ajouter un échec nouveau : le corriger.",
+  "echecs": [
+    {
+      "fichier": "tests/e2e-verif1-g-liens.test.ts",
+      "nom": "agent g — liens internes toute adresse interne mène à une page qui existe",
+      "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
+    },
+    {
+      "fichier": "tests/e2e-verif1-g-liens.test.ts",
+      "nom": "agent g — liens internes /ecrire?onglet= et /videos?vue= : la page lit cette valeur",
+      "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
+    },
+    {
+      "fichier": "tests/r0-connexions.test.ts",
+      "nom": "R0 — catalogue des services prévus (intégration des lots R1 à R8) chaque type décrit ses implémentations prévues sous leur identifiant exact",
+      "note": "déjà rouge sur master le 12/11 (le catalogue de publication contient maintenant zernio en plus de buffer) ; à aligner par la session qui porte Zernio, sans lien avec la refonte"
+    }
+  ]
+}

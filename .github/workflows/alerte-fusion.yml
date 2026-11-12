@@ -1,0 +1,37 @@
+# ALERTE DE FUSION [L0-17] : quand le contrôle « verifier » est VERT sur une PR, un commentaire unique le dit au fondateur
+# (GitHub le prévient par e-mail et dans l'application). Aucune fusion, aucun label, aucun secret (jeton automatique du dépôt),
+# aucun code de la PR n'est exécuté ici. Rien n'est posté si « verifier » est rouge, ou si la PR est en brouillon.
+name: alerte-fusion
+
+on:
+  workflow_run:
+    workflows: ["verifier"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  alerte:
+    name: alerter quand une PR verte attend
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const marque = "<!-- alerte-fusion -->";
+            const sha = context.payload.workflow_run.head_sha;
+            for (const pr of context.payload.workflow_run.pull_requests ?? []) {
+              const { data: p } = await github.rest.pulls.get({ ...context.repo, pull_number: pr.number });
+              if (p.state !== "open" || p.draft || p.head.sha !== sha) continue;
+              const { data: coms } = await github.rest.issues.listComments({ ...context.repo, issue_number: pr.number, per_page: 100 });
+              if (coms.some((c) => c.body.includes(`${marque}${sha}`))) continue;
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: pr.number,
+                body: `${marque}${sha}\n✅ Le contrôle « verifier » est vert sur ${sha.slice(0, 7)} : cette PR attend la décision du fondateur (relecture, puis fusion par lui seul).`,
+              });
+            }

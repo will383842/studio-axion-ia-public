@@ -17,6 +17,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Carte } from "@/components/ui/Carte";
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { Icone } from "@/components/ui/Icone";
 import { BarreProgression } from "@/components/ui/ProgressionEtapes";
 import { ZoneDepot } from "@/components/ui/ZoneDepot";
@@ -232,14 +233,14 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
             )}
             {phraseOrientation(p) && (
               <p className="flex items-center gap-2 text-sm text-texte-doux">
-                <Icone nom="ecran-partage" size={16} className="shrink-0 text-orange-vif" />
+                <Icone nom="ecran-partage" size={16} className="shrink-0 text-accent" />
                 {phraseOrientation(p)}
               </p>
             )}
             {tropCourte(p) && <p className="text-sm font-semibold text-brique">Cette vidéo est trop courte (moins de 5 secondes) : retirez-la.</p>}
             {p.refusSujet && (
               <section aria-label="Vidéo déjà traitée" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-                <p className="font-semibold">{p.erreur}</p>
+                <p className="font-semibold">{messageSansMontant(p.erreur ?? "")}</p>
                 <ul className="space-y-1 text-sm">
                   {p.refusSujet.precedents.slice(0, 5).map((pr) => (
                     <li key={pr.videoId ?? pr.sujetId ?? pr.lien}>
@@ -262,7 +263,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
             )}
             {p.erreur && !p.refusSujet && (
               <div role="alert" className="space-y-2 rounded-2xl bg-brique-doux px-4 py-3">
-                <p className="text-[15px] font-semibold text-brique">{p.erreur}</p>
+                <p className="text-[15px] font-semibold text-brique">{messageSansMontant(p.erreur ?? "")}</p>
                 {p.etape === "arretee" && p.reprenable && (
                   <Bouton variante="secondaire" icone="reessayer" onClick={() => modifier(p.id, { etape: "a-envoyer", erreur: undefined })}>
                     Reprendre l&apos;envoi
@@ -271,7 +272,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
               </div>
             )}
             <div className="space-y-2">
-              <button type="button" className="flex items-center gap-1.5 text-sm font-semibold text-orange-vif" aria-expanded={p.texteOuvert} onClick={() => modifier(p.id, { texteOuvert: !p.texteOuvert })}>
+              <button type="button" className="flex items-center gap-1.5 text-sm font-semibold text-accent" aria-expanded={p.texteOuvert} onClick={() => modifier(p.id, { texteOuvert: !p.texteOuvert })}>
                 <Icone nom="chevron-bas" size={16} className={p.texteOuvert ? "rotate-180" : undefined} />
                 {p.texte.trim() ? "Ce que vous dites (ajouté)" : "Ajouter ce que vous dites (facultatif)"}
               </button>
@@ -306,11 +307,11 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
       <FeuilleScriptsValides ouverte={scriptPour !== null} onOuverteChange={(v) => !v && setScriptPour(null)} onChoisir={reprendreScript} />
 
       {!accordDejaDonne && (
-        <CaseACocher libelle="J'accepte l'essai réel de ce format" detail="Format en essai, visible seulement par vous : les vidéos sont vraiment fabriquées (sans prix)." coche={accord} onChange={setAccord} />
+        <CaseACocher libelle="J'accepte l'essai réel de ce format" detail="Format en essai, visible seulement par vous : les vidéos sont vraiment fabriquées." coche={accord} onChange={setAccord} />
       )}
       {refus && (
         <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">
-          {refus}
+          {messageSansMontant(refus)}
         </p>
       )}
       <EstimationCout prises={aEstimer} />

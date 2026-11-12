@@ -7,11 +7,12 @@
  * le TITRE d'ouverture (`ENCADRE_OUVERTURE_AVOCAT`), la voix et son nettoyage (`nettoyage.ts`, `report.ts`) et les
  * règles du format (`formats/avocat`). Valeurs réglées sur les captures des lots M4 et M4b.
  */
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { TAILLE_SOUS_TITRES_REFERENCE_PX, type DecorScene, type GeometrieIncrustations, type RecetteComposition, type ReductionLarge } from "@/briques/composition";
 import { ENCADRE_OUVERTURE_AVOCAT, RECETTE_MONTAGE_AVOCAT } from "@/formats/avocat";
 
 /** Décor de repli (aucun décor choisi, ou Look réaliste encore simulé) : N1, noir brun et lueur orange. */
-export const DECOR_REPLI_AVOCAT: DecorScene = { teinte: "#110A05", teinteLumiere: "#C65A2E", directionLumiere: "face", flouPx: 0, clair: false };
+export const DECOR_REPLI_AVOCAT: DecorScene = { teinte: PALETTE.noir, teinteLumiere: PALETTE.terracotta, directionLumiere: "face", flouPx: 0, clair: false };
 
 /** Plan « large » hors 9:16 : 4:5 ≈ 85 %, 1:1 ≈ 72 % de la hauteur (B.7, réglé sur capture au lot M4). */
 export const REDUCTION_LARGE_AVOCAT: ReductionLarge = { "9:16": 1, "4:5": 0.85, "1:1": 0.72 };

@@ -406,12 +406,11 @@ describe("Ma vidéo HeyGen — petits défauts (relecture exactitude 3042b94)", 
     expect(await prisesDe(r.videoId)).toHaveLength(1);
   });
 
-  it("ROUGE n° 5 — vidéo bien plus longue que le texte de la version : refus clair AVANT tout téléchargement", async () => {
+  it("LOT A (08/11/2026) — vidéo bien plus longue que le texte de la version : la durée est celle de Will, elle est rattachée, avec une remarque au journal", async () => {
     const v = await versionLibre();
     h.videos = [{ ...terminee, duration: 600 }];
-    await expect(service.rattacherVideoHeygen(v.id, "vid_001")).rejects.toMatchObject({ code: "VIDEO_TROP_LONGUE", message: "Cette vidéo est bien plus longue que le texte de cette version. Vérifiez que c'est la bonne." });
-    expect(h.requetes.some((r) => r.url.startsWith("files2.heygen.ai"))).toBe(false);
-    expect(await depots().rushs.lister((x) => x.motsCles.includes("heygen:vid_001"))).toEqual([]);
+    await expect(service.rattacherVideoHeygen(v.id, "vid_001")).resolves.toBeTruthy();
+    expect((await depots().evenements.lister()).some((e) => /À vérifier ·.*bien plus longue que le texte/.test(e.message))).toBe(true);
   });
 
   it("ROUGE n° 8 — version qui n'est pas « je lis » : refus clair côté serveur, aucun appel", async () => {

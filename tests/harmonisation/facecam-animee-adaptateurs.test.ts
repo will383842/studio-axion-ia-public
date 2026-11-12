@@ -2,7 +2,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { phrasePaye } from "@/components/formats/facecam-animee/cout";
 import { versRecentsFacecamAnimee } from "@/components/formats/facecam-animee/vues-gabarit";
 
 const lire = (c: string) => readFileSync(join(process.cwd(), c), "utf8");
@@ -11,7 +10,8 @@ const base = { videoId: "v 1", titre: "Prise 1", statut: "en-cours", payeCentime
 describe("versRecentsFacecamAnimee", () => {
   it("lien vers la vidéo, détail = phrase « Déjà payé », état lisible de l'étape", () => {
     const [r] = versRecentsFacecamAnimee([{ ...base, etape: "coupes" }]);
-    expect(r).toMatchObject({ id: "v 1", href: "/videos/v%201", titre: "Prise 1", etat: "les coupes", detail: phrasePaye(120) });
+    expect(r).toMatchObject({ id: "v 1", href: "/videos/v%201", titre: "Prise 1", etat: "les coupes" });
+    expect(r?.detail).toBeUndefined();
   });
 
   it("la phrase du travail passe avant l'étape, l'étape avant le statut", () => {
@@ -40,11 +40,12 @@ describe("face caméra animée · page et dépôt", () => {
     expect(depot).toMatch(/const pret = pretesALancer\(prises\) && accord/);
   });
 
-  it("restent à leur place : coût, script validé, accord d'essai, déjà payé", () => {
+  it("restent à leur place : script validé, accord d'essai, déjà payé ; le coût n'est plus affiché", () => {
     expect(depot).toMatch(/<EstimationCout/);
+    expect(lire("src/components/formats/facecam-animee/EstimationCout.tsx")).not.toMatch(/lignesCout|Coût|€/);
     expect(depot).toContain("Utiliser un script validé");
     expect(depot).toMatch(/<FeuilleScriptsValides/);
     expect(depot).toContain("J'accepte l'essai réel");
-    expect(lire("src/components/formats/facecam-animee/vues-gabarit.ts")).toMatch(/phrasePaye/);
+    expect(lire("src/components/formats/facecam-animee/vues-gabarit.ts")).not.toMatch(/phrasePaye/);
   });
 });

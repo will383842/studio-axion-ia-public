@@ -32,8 +32,14 @@ export interface FinTable {
   validee: boolean;
   /** Limite la ligne à certains réseaux de son groupe (Facebook et Instagram partagent un groupe, pas l'endroit du lien). Absent : tout le groupe. */
   reseaux?: readonly ReseauFin[];
+  /**
+   * Les 12 mots de la phrase dite se comptent PAR PHRASE (coupée sur « . ? ! : ; … »), sans compter la ponctuation seule :
+   * une fin à deux phrases (« Réservez un appel : on … ») n'est pas refusée parce que leur somme dépasse 12. Réservé aux
+   * lignes qui le demandent ; toutes les autres gardent le compte de la phrase entière.
+   */
+  parPhrase?: true;
   /** Trace de la validation par Will : qui, quand, d'après quoi. */
-  validation?: { par: "will"; le: string; source: string };
+  validation?: { par: "will" | "proposition"; le: string; source: string };
 }
 
 /** Fin choisie, prête pour la composition (emplacement du mot rempli). */

@@ -224,7 +224,7 @@ describe("M4b : calques image dans FFmpeg (graphe PUR)", () => {
     const args = argumentsImageFfmpeg(p, { grainPct: 4, grainTaillePx: 2, vignettePct: 8 }, { decor: "decor-pret.png", doubles: { principal: { fichier: "double.webm", video: true } }, accessoire: { fichier: "accessoire.png", x: 700, y: 560, largeur: 260, hauteur: 1380 }, illustrations: { 2: { fichier: "illu-02.jpg", video: false } }, luts: [{ fichier: "lut.cube", plages: [[0, 10]] }], son: "son.wav" }, 10, "master.mov");
     const texte = args.join(" ");
     expect(texte).toContain("-c:v libvpx-vp9 -i double.webm");
-    expect(texte).toContain("lutrgb=r=198:g=90:b=46");
+    expect(texte).toContain("lutrgb=r=217:g=119:b=87");
     expect(texte).toContain("overlay=x=700:y=560:format=gbrp");
     expect(texte).toContain(`concat=n=${morceaux(p.plans, p.images, 25).length}:v=1:a=0`);
     expect(texte).toContain("lut3d=file=lut.cube:interp=tetrahedral");

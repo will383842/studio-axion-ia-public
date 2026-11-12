@@ -337,7 +337,7 @@ describe("règles de Will dans les consignes", () => {
       expect(c).toContain("vient de sortir");
       expect(c).toContain("nouvelle fonctionnalité");
       expect(c).toContain("vient d'annoncer");
-      expect(c).toMatch(/TPE, PME, ETI ou grand groupe/);
+      expect(c).toMatch(/un métier, un secteur, ou une taille : TPE, PME, ETI/);
       expect(c).toContain("ce n'est pas X, c'est Y");
       expect(c).toContain("superlatif");
       for (const interdit of ["aucun gain garanti", "chiffre sans source", "faux client"]) expect(c).toContain(interdit);

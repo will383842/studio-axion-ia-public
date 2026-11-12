@@ -54,7 +54,7 @@ export function EcranLut({ luts, formats, ajouterAuDepart }: { luts: VueLut[]; f
                 className="peer absolute inset-0 size-full cursor-ew-resize touch-pan-y opacity-0"
               />
               {/* Le curseur est invisible : l'aperçu s'entoure quand il a le focus clavier. touch-pan-y laisse la page défiler au doigt. */}
-              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-carte peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-orange-vif" />
+              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-carte peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent" />
             </div>
             <Curseur libelle="Intensité" valeur={intensite} onChange={(v) => setIntensites((x) => ({ ...x, [lut.id]: v }))} unite=" %" />
             {modifiee && (
@@ -69,7 +69,7 @@ export function EcranLut({ luts, formats, ajouterAuDepart }: { luts: VueLut[]; f
             )}
           </div>
 
-          <div className="space-y-5 rounded-carte border border-trait bg-surface-1 p-4">
+          <div className="space-y-5 rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-titre text-xl text-texte">{lut.nom}</p>
@@ -96,7 +96,7 @@ export function EcranLut({ luts, formats, ajouterAuDepart }: { luts: VueLut[]; f
                   type="button"
                   aria-pressed={actif}
                   onClick={() => setChoisieId(l.id)}
-                  className={cn("group block w-full overflow-hidden rounded-carte border text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5", actif ? "border-orange shadow-orange" : "border-trait hover:border-trait-fort")}
+                  className={cn("group block w-full overflow-hidden rounded-carte border text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5", actif ? "border-texte" : "border-trait hover:border-trait-fort")}
                 >
                   <div className="relative aspect-video bg-surface-2">
                     {(l.apres ?? l.avant) && <Image src={(l.apres ?? l.avant)!} alt="" fill sizes="(max-width: 640px) 50vw, 260px" className={cn("object-cover", !l.apres && "contrast-125 saturate-150 sepia-[.2]")} />}
@@ -110,7 +110,7 @@ export function EcranLut({ luts, formats, ajouterAuDepart }: { luts: VueLut[]; f
                       </>
                     )}
                     {l.formatsParDefaut.length > 0 && (
-                      <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-orange text-sur-orange" title="Par défaut d'un format">
+                      <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-texte text-fond" title="Par défaut d'un format">
                         <Icone nom="etoile" size={14} fill="currentColor" />
                       </span>
                     )}
@@ -201,8 +201,8 @@ function FeuilleImportLut({ ouverte, onOuverteChange, onImportee }: { ouverte: b
           </motion.div>
         )}
         {verif?.ok && verif.avertissement && (
-          <p className="flex items-start gap-2 rounded-carte border border-orange/30 bg-orange-doux px-4 py-3 text-sm text-texte">
-            <Icone nom="attention" size={18} className="mt-0.5 shrink-0 text-orange-vif" />
+          <p className="flex items-start gap-2 rounded-carte border border-ambre/40 bg-ambre-doux px-4 py-3 text-sm text-texte">
+            <Icone nom="attention" size={18} className="mt-0.5 shrink-0 text-ambre" />
             {verif.avertissement}
           </p>
         )}

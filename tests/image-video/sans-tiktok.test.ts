@@ -40,7 +40,7 @@ describe("(a) le dépôt Image → vidéo ne propose plus TikTok", () => {
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants: { 1: 120, 2: 180, 3: 240, 4: 300 } })));
     expect(html).not.toMatch(/tiktok/i);
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
-    expect(html).toMatch(/au plus 3,00\s?€/);
+    expect(html).not.toMatch(/au plus|€/);
   });
 
   it("le prix « au plus » du dépôt baisse avec quatre réseaux (le moteur réserve le même prix)", () => {
@@ -92,7 +92,7 @@ describe("(b) une ancienne demande ou vidéo avec « tiktok » reste lisible", (
     ]);
     expect(cartes.map((c) => c.nom)).toEqual(["TikTok", "LinkedIn", "Facebook"]);
     expect(cartes[0].fichierCle).toBe("final/tt.mp4");
-    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videos: cartes.map((c) => ({ ...c, url: `https://exemple/${c.fichierCle}` })), verdict: "" as never })));
+    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: cartes.map((c) => ({ ...c, url: `https://exemple/${c.fichierCle}` })), verdict: "" as never })));
     expect(html).toContain("TikTok");
     expect(html).toContain("Télécharger");
   });

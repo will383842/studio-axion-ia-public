@@ -199,8 +199,8 @@ describe("X10 · (c) la voix d'une fin est refusée après que le corps est acce
   });
 });
 
-describe("X10 · (d) le contrôle final d'une sortie échoue, les autres passent", () => {
-  it("« La vérification » en échec avec la phrase du contrôle ; toutes les autres étapes faites ; rien en cours", async () => {
+describe("X10 · (d) le contrôle final d'une sortie échoue, les autres passent (LOT A 08/11/2026 : livrée avec réserves)", () => {
+  it("la vidéo est LIVRÉE (terminée) avec la liste « à vérifier », jamais jetée ni en échec ; toutes les étapes sont faites", async () => {
     const ref = await temoin();
     const cible = sansEssai(ref.compositions[1]);
     const b = banc();
@@ -208,10 +208,14 @@ describe("X10 · (d) le contrôle final d'une sortie échoue, les autres passent
     s.panne.rater = (d) => (sansEssai(d.idRendu) === cible ? { statut: "termine", sortieCle: d.sortie.cle, mesures: { ...MESURES_CONFORMES, largeur: 720, dureeSec: (d.parametres as { dureeSec: number }).dureeSec } } : null);
     const c = b.commande();
     const fin = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-x10-d")));
-    echecClair(fin.travail, "controle", /La vérification bloque la livraison/);
-    expect(terminees(fin.travail)).toEqual(["ecriture", "fiche", "captures", "voix", "calage", "ecrans", "montage"]);
-    expect(fin.travail.erreur?.messagePourWill).toMatch(/720 sur 1920/);
-    expect(fin.resultat).toBeUndefined();
+    expect(fin.travail.statut).toBe("termine");
+    expect(fin.travail.erreur).toBeUndefined();
+    expect(terminees(fin.travail)).toEqual(["ecriture", "fiche", "captures", "voix", "calage", "ecrans", "montage", "controle"]);
+    expect(fin.resultat).toBeDefined();
+    const aVerifier = fin.resultat!.noteQualite.alertes.filter((a) => a.message.startsWith("À vérifier"));
+    expect(aVerifier.length).toBeGreaterThan(0);
+    expect(aVerifier.every((a) => a.gravite === "attention")).toBe(true);
+    expect(aVerifier.map((a) => a.message).join(" ")).toMatch(/720 sur 1920/);
   });
 });
 

@@ -132,12 +132,32 @@ export function FormulaireScriptFourni({ casId, titre, texteDepart, origine, per
                   {r.ligne && (
                     <>
                       {" "}
-                      <button type="button" onClick={() => allerALaLigne(r.ligne!)} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-orange-vif underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
+                      <button type="button" onClick={() => allerALaLigne(r.ligne!)} className="inline-flex min-h-11 items-center rounded-sm font-semibold text-texte underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
                         Aller à la ligne {r.ligne}
                       </button>
                     </>
                   )}
                 </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {verif?.apercu.ok && verif.apercu.avertissements.length > 0 && (
+          <div role="alert" className="space-y-2 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3">
+            <p className="text-[15px] font-semibold text-texte">Attention, à vérifier avant de publier :</p>
+            <ul className="space-y-1 p-0">
+              {verif.apercu.avertissements.map((m) => (
+                <li key={m} className="list-none text-[15px] text-texte">{m}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {verif?.apercu.ok && verif.apercu.remarques.length > 0 && (
+          <div role="status" className="space-y-1 rounded-2xl border border-trait bg-surface-2 px-4 py-3">
+            <p className="text-[15px] font-semibold text-texte">Remarques (votre script passe tel quel) :</p>
+            <ul className="space-y-1 p-0">
+              {verif.apercu.remarques.map((m) => (
+                <li key={m} className="list-none text-[15px] text-texte-doux">{m}</li>
               ))}
             </ul>
           </div>

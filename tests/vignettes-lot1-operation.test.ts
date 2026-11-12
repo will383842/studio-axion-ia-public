@@ -9,7 +9,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { creerOperationMiniature, OCTETS_MAX_MINIATURE } from "../studio-rendu/src/operations/miniature";
+import { creerOperationMiniature, filtreFondFidele, OCTETS_MAX_MINIATURE } from "../studio-rendu/src/operations/miniature";
 import type { DemandeRendu } from "../studio-rendu/src/contrat";
 
 const ffmpegPresent = spawnSync("ffmpeg", ["-version"]).status === 0;
@@ -140,5 +140,89 @@ describe.skipIf(!ffmpegPresent)("vignettes lot 1 · opération miniature", { tim
   it("ratio 4:5 ou 1:1 refusé en axion-v2", async () => {
     const { op } = essai();
     await expect(op(demande({ gabarit: "axion-v2", instantSec: 2, dureeSec: 4, ratio: "4:5", couverture: "X" }), contexte())).rejects.toThrow(/16:9|9:16/);
+  });
+  it("« image-video-v3 » sans titre : la vraie image du début, aucun rendu de titre, JPEG à la bonne taille", async () => {
+    const { op, vus } = essai();
+    recus.delete("/depot/v.jpg");
+    const r = await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "", motCle: "" }), contexte());
+    expect(vus).toEqual([]);
+    expect(r.mesures?.instant).toBeLessThanOrEqual(3);
+    expect(r.mesures?.instantMs).toBe(Math.round(r.mesures!.instant * 1000));
+    expect(r.mesures?.candidats).toBeLessThanOrEqual(13);
+    expect(r.mesures?.fondPropre).toBeUndefined();
+    const jpeg = recus.get("/depot/v.jpg")!;
+    expect(jpeg.length).toBeLessThanOrEqual(OCTETS_MAX_MINIATURE);
+    const sonde = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", "-"], { input: jpeg });
+    expect(sonde.stdout.toString().trim()).toBe("1080,1920");
+  });
+
+  it.each([
+    ["9:16", "1080,1920", 1080, 1920],
+    ["1:1", "1080,1080", 1080, 1080],
+    ["4:5", "1080,1350", 1080, 1350],
+    ["16:9", "1280,720", 1280, 720],
+    ["3:2", "1080,1920", 1080, 1920],
+  ])("« image-video-v3 » ratio %s : JPEG %s, mesures cohérentes, aucun rognage vers 9:16", async (ratio, taille, l, h) => {
+    const { op } = essai();
+    recus.delete("/depot/v.jpg");
+    const r = await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio, couverture: "", motCle: "" }), contexte());
+    expect(r.mesures).toMatchObject({ largeur: l, hauteur: h });
+    const sonde = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", "-"], { input: recus.get("/depot/v.jpg")! });
+    expect(sonde.stdout.toString().trim()).toBe(taille);
+  });
+
+  it.each(["1:1", "4:5"])("« image-video-v3 » %s avec un titre : la composition reçoit ce ratio", async (ratio) => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio, couverture: "Vos devis", motCle: "devis" }), contexte());
+    expect(vus[0].proprietes).toMatchObject({ ratio });
+  });
+
+  it("filtreFondFidele : simple mise à l'échelle, sans recadrage", () => {
+    for (const [l, h] of [[1080, 1080], [1080, 1350], [1080, 1920]]) {
+      const f = filtreFondFidele(l, h);
+      expect(f).toContain(`scale=${l}:${h}`);
+      expect(f).not.toMatch(/crop|force_original_aspect_ratio/);
+    }
+  });
+
+  it("« image-video-v3 » avec un titre saisi : le titre est posé sur cette image", async () => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse", motCle: "devis" }), contexte());
+    expect(vus).toHaveLength(1);
+    expect(vus[0].id).toBe("VignetteAxion");
+    expect(vus[0].proprietes).toMatchObject({ couverture: "Vos devis sans réponse", image: expect.stringMatching(/\/fond\.png$/) });
+  });
+
+  it("« image-video-v3 », réglage éteint (pas de titreCentre), 9:16, titre saisi : la mise demandée reste, comme avant GV-VG-04", async () => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse", mise: "m1" }), contexte());
+    expect(vus[0].proprietes).toMatchObject({ mise: "m1" });
+    const b = essai();
+    await b.op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse" }), contexte());
+    expect(b.vus[0].proprietes).toMatchObject({ mise: "m1" }); // mise par défaut de proprietesVignette, comme sur gv/LOT-2
+  });
+
+  it("« image-video-v3 » réglage allumé (titreCentre) avec un titre en 9:16 : mise m2 forcée (bande centrale) ; en 16:9 la mise demandée reste", async () => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse", mise: "m1", titreCentre: true }), contexte());
+    expect(vus[0].proprietes).toMatchObject({ mise: "m2" });
+    const b = essai();
+    await b.op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "16:9", couverture: "Vos devis sans réponse", mise: "m1", titreCentre: true }), contexte());
+    expect(b.vus[0].proprietes).toMatchObject({ mise: "m1" });
+  });
+
+  it("« image-video-v3 » : au plus 13 images extraites, aucune comparaison ne fait échouer", async () => {
+    const { op } = essai();
+    const ctx = contexte();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "" }), ctx);
+    expect(readdirSync(ctx.dossier).filter((f) => f.startsWith("debut-")).length).toBeLessThanOrEqual(13);
+  });
+
+  it("« image-video-v3 » sans vidéo lisible : carte de la charte, dernier recours", async () => {
+    const { op, vus } = essai();
+    const r = await op(demande({ gabarit: "image-video-v3", fondPropre: true, ratio: "9:16", couverture: "Vos devis sans réponse" }, {}), contexte());
+    expect(vus[0].id).toBe("VignetteAxion");
+    expect(vus[0].proprietes.image).toBeUndefined();
+    expect(r.mesures?.fondPropre).toBe(1);
   });
 });

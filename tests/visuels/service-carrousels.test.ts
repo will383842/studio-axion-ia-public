@@ -6,7 +6,7 @@ import type { Porte, RapportPorte } from "@/domaine/visuels/contrats";
 import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import type { ResultatRendu } from "@/visuels/services/rendu";
-import { creerDepuisSujet, deposerSession, ErreurVisuel, lancerRendu, masquerSecrets, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { creerDepuisSujet, deposerSession, ErreurVisuel, lancerRendu, masquerSecrets, preparerPourReseaux, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { MODELE_PAQUET } from "@/visuels/texte/aide-format";
 
 const SPEC = { version: "carrousel/1", alt: "Carrousel inventé", pages: [{ type: "T01", titre: "Titre inventé" }, { type: "T21" }] } as CarrouselSpecType;
@@ -538,5 +538,74 @@ describe("corrections de relecture (V3-C)", () => {
     liberer();
     await expect(p).resolves.toMatchObject({ id: v.id });
     expect(await m.depot.obtenir(v.id)).toMatchObject({ statut: "brouillon" });
+  });
+});
+
+describe("preparerPourReseaux (L2-05)", () => {
+  const page = (i: number) => ({ index: i, x1: { cle: `k/m${i}.jpg`, mesures: {} } });
+  const meta = { cadre: "meta" as const, empreinte: "a".repeat(64), pages: [page(0), page(1)], pdfCle: null, vignetteCle: "k/m0.jpg", reseaux: ["instagram" as const] };
+  const linkedin = { cadre: "linkedin" as const, empreinte: "b".repeat(64), pages: [{ ...page(0), x2: page(0).x1 }], pdfCle: "k/doc.pdf", vignetteCle: "k/m0.jpg", reseaux: ["linkedin" as const] };
+
+  it("Instagram : N JPEG, aucun PDF ; Visuel.reseaux et versions renseignés", async () => {
+    const m = monter();
+    const id = await amener(m, "valide");
+    const rr = vi.fn(async () => [meta]);
+    m.deps.rendreReseaux = rr;
+    await preparerPourReseaux(id, ["instagram"], m.deps);
+    expect(rr).toHaveBeenCalledWith(SPEC, ["instagram"]);
+    const v = (await m.depot.obtenir(id))!;
+    expect(v.reseaux).toEqual(["instagram"]);
+    expect(v.versions).toHaveLength(1);
+    expect(v.versions![0].pages).toHaveLength(2);
+    expect(v.versions![0].pdfCle).toBeNull();
+    expect(v.statut).toBe("valide");
+  });
+
+  it("LinkedIn : un PDF ; un PDF absent est refusé et rien n'est gardé", async () => {
+    const m = monter();
+    const id = await amener(m, "valide");
+    m.deps.rendreReseaux = async () => [linkedin];
+    await preparerPourReseaux(id, ["linkedin"], m.deps);
+    expect((await m.depot.obtenir(id))!.versions![0].pdfCle).toBe("k/doc.pdf");
+    const m2 = monter();
+    const id2 = await amener(m2, "valide");
+    m2.deps.rendreReseaux = async () => [{ ...linkedin, pdfCle: null }];
+    await expect(preparerPourReseaux(id2, ["linkedin"], m2.deps)).rejects.toThrow();
+    expect((await m2.depot.obtenir(id2))!.versions).toBeUndefined();
+  });
+
+  it("fiche non validée : refusée, aucun rendu", async () => {
+    for (const statut of ["ecrit", "a_valider", "brouillon", "bloque", "refuse"] as const) {
+      const m = monter();
+      const id = await amener(m, statut);
+      const rr = vi.fn(async () => [meta]);
+      m.deps.rendreReseaux = rr;
+      expect(await code(preparerPourReseaux(id, ["instagram"], m.deps)), statut).toBe("TRANSITION_REFUSEE");
+      expect(rr).not.toHaveBeenCalled();
+    }
+  });
+
+  it("générateur éteint : phrase d'arrêt, aucun rendu", async () => {
+    const m = monter();
+    const id = await amener(m, "valide");
+    const rr = vi.fn(async () => [meta]);
+    m.deps.rendreReseaux = rr;
+    m.eteindre();
+    expect(await code(preparerPourReseaux(id, ["instagram"], m.deps))).toBe("GENERATEUR_ETEINT");
+    await expect(preparerPourReseaux(id, ["instagram"], m.deps)).rejects.toThrow("Le générateur est éteint (Réglages › Carrousels)");
+    expect(rr).not.toHaveBeenCalled();
+  });
+
+  it("réseaux vides ou inconnus, corbeille, introuvable : refusés", async () => {
+    const m = monter();
+    const id = await amener(m, "valide");
+    m.deps.rendreReseaux = async () => [meta];
+    expect(await code(preparerPourReseaux(id, [], m.deps))).toBe("TRANSITION_REFUSEE");
+    expect(await code(preparerPourReseaux(id, ["tiktok" as never], m.deps))).toBe("TRANSITION_REFUSEE");
+    expect(await code(preparerPourReseaux("vis_absent", ["instagram"], m.deps))).toBe("INTROUVABLE");
+    const m2 = monter();
+    m2.deps.rendreReseaux = async () => [meta];
+    const c = await amener(m2, "valide", { corbeilleLe: m2.deps.maintenant() });
+    expect(await code(preparerPourReseaux(c, ["instagram"], m2.deps))).toBe("TRANSITION_REFUSEE");
   });
 });

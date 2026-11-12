@@ -1,7 +1,7 @@
 # Plan détaillé du LOT 1 des vignettes : le socle v2 dans le studio
 
 *17/10/2026. Conception (Opus). Exécution : Sonnet, à la lettre, une étape = un commit, test rouge d'abord.*
-*Décision de Will (17/10, 23 h) : « OK pour les vignettes » : la v2 est validée et le lot 1 a son feu vert.*
+*Décision du dirigeant (17/10, 23 h) : « OK pour les vignettes » : la v2 est validée et le lot 1 a son feu vert.*
 
 À lire avant de commencer : `AGENTS.md`, `docs/REGLES-ROUTINES.md`, `docs/vignettes/PLAN-VIGNETTES.md` (section V2),
 `docs/vignettes/v2/gabarit/socle.css` et `socle.js` (la **référence visuelle**, à transposer, pas à copier tels quels).
@@ -12,7 +12,7 @@
 
 Le lot 1 ajoute au conteneur de rendu une composition `VignetteAxion` (socle v2 : liseré, carré « A », titre
 Montserrat ExtraBold sur 2 lignes avec un mot sur pavé orange, 2 ambiances, 3 mises en page, version Instagram sans
-visage), branchée sur l'opération `miniature` existante **derrière un réglage éteint**. Rien ne change pour Will tant
+visage), branchée sur l'opération `miniature` existante **derrière un réglage éteint**. Rien ne change pour le dirigeant tant
 que ce réglage n'est pas allumé (par lui, pas par la routine).
 
 ---
@@ -63,7 +63,7 @@ que ce réglage n'est pas allumé (par lui, pas par la routine).
 | 6 | Choix de la meilleure image (yeux ouverts, bouche fermée) et **détourage** sur le serveur | Dépendances lourdes, voir (d) |
 
 Hors périmètre aussi : 4:5, 1:1 et affiche (rognages, lot 5), trios A/B **de texte** (lot 5 ; le lot 1 fait le trio de
-**composition** : m1/m2/m3, même titre, même ambiance), photos de Will en production (voir e).
+**composition** : m1/m2/m3, même titre, même ambiance), photos du dirigeant en production (voir e).
 
 ---
 
@@ -136,9 +136,8 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
   - jamais plus de 2 lignes ; taille finale ≥ 85 % de la taille de la mise, sinon `trop: true` ;
   - pour chaque mise × ratio : le titre tient dans la zone sûre (9:16 : y 420 → 1500, x + largeur ≤ 940) ; en 16:9,
     aucun élément ne touche le coin 140×60 en bas à droite ; le titre ne recouvre pas le carré « A » ;
-  - `placerSujet` : avec la boîte visage de `docs/vignettes/v2/images/cadrages.js` (facecam), m1 donne un visage de
-    hauteur 560 px (16:9) centré en (960, 330) à 1 px près (mêmes chiffres que `g-facecam.js`). `cadrages.js` est un
-    script de navigateur : le test lit le fichier et fait `JSON.parse` du texte après `window.CADRAGES =` (sans le `;` final) ;
+  - `placerSujet` : avec une boîte visage d'essai écrite dans le test, m1 donne un visage de hauteur
+    `MISES["16:9"].m1.sujet.hv` centré en (`cx`, `cy`) à 1 px près (valeurs lues dans `MISES`, pas recopiées) ;
   - les 3 mises d'un même ratio diffèrent (position du titre ou du sujet) : jamais deux identiques.
 - Commit : « Vignettes lot 1 · titre sur 2 lignes et 3 mises en page ».
 
@@ -215,7 +214,7 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
   le jour où une image détourée sera fournie (lot 6), et sert à l'essai de l'étape 7 avec une image détourée du dépôt.
 - Aucune ligne ajoutée aux Dockerfile, aucune dépendance npm ou pip, aucune hausse de `mem_limit`.
 
-**Proposition pour le lot 6 (à confirmer par Will, voir f) :**
+**Proposition pour le lot 6 (à confirmer par le dirigeant, voir f) :**
 1. **Choisir l'image** (yeux ouverts, bouche fermée) : dans `studio-aligneur`, en réutilisant la piste `/visages`
    déjà calculée pour les vidéos face caméra (points du visage par image : clignement et ouverture de bouche se
    calculent sur ces points, **sans relire la vidéo**). Le studio passe ensuite 1 à 3 instants à `studio-rendu`.
@@ -233,11 +232,11 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
 
 ---
 
-## (e) Les photos de Will
+## (e) Les photos du dirigeant
 
-- Dépôt : `docs/vignettes/photos-will/` (11 photos). Règle écrite dans leur `LISEZMOI.md` : **vignettes 16:9 et 9:16
+- Dépôt : les portraits du dirigeant (fichiers gardés hors dépôt). Règle écrite à leur côté : **vignettes 16:9 et 9:16
   seulement, jamais Instagram**, ne pas copier ailleurs.
-- **Lot 1 : aucune photo de Will en production.** Elles ne sont ni envoyées au stockage, ni copiées dans une image
+- **Lot 1 : aucune photo du dirigeant en production.** Elles ne sont ni envoyées au stockage, ni copiées dans une image
   Docker (le Dockerfile de `studio-rendu` ne copie pas `docs/` : vérifié), ni utilisées par l'essai de l'étape 7
   (qui prend les images de test du dépôt).
 - La règle « jamais Instagram » est **déjà tenue par construction** au lot 1 : la variante Instagram refuse toute
@@ -246,20 +245,14 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
 - Rappel utile : Buffer n'envoie **aucune** miniature (`src/fournisseurs/publication/buffer.ts` : l'API refuse
   `thumbnailUrl` sur une vidéo). Le risque « photo sur Instagram » viendrait d'un téléchargement manuel : le lot 5
   rangera la sortie Instagram à part dans la fiche.
-- Tri à faire avant tout usage (relevé visuel du 17/10) :
-  - **à écarter** : `williams-jullin-3-personnes.png` et `chatgpt-image-11-janv-2026-08-46-152.png` (deux autres
-    personnes et un **logo Apple** visible sur l'ordinateur : interdit « aucun logo ») ;
-  - `williams-jullin-autre-marque-500kb.jpg` : image propre, mais le nom du fichier cite une autre marque → renommer s'il
-    sert ;
-  - fonds simples, faciles à détourer : `williams-d-econtract-e.png`, `chatgpt-image-11-janv-2026-08-28-50-2.png`
-    (fond blanc), `williams-jullin-autre-marque-500kb.jpg`, `williams-jullin-bureau.png`.
+- Tri à faire avant tout usage (relevé visuel du 17/10) : les portraits du dirigeant (fichiers gardés hors dépôt).
 - Où elles entreraient (lot 6, après décision) : en **image de secours** quand aucune image de la vidéo ne passe le
   contrôle (aucun visage, yeux fermés partout), pour les générateurs à visage seulement, détourées une fois pour
   toutes, rangées dans « Mes images » du studio avec une étiquette `jamais-instagram`.
 
 ---
 
-## (f) Risques, et ce qui demande une décision de Will
+## (f) Risques, et ce qui demande une décision du dirigeant
 
 ### Risques
 
@@ -273,7 +266,7 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
 | Conflit avec la PR #334 | Diff de 3 à 6 lignes dans `services/miniatures.ts` ; à signaler dans la PR |
 | Mots interdits | Garde `interditsVignette` avant tout envoi ; « faites-le vous-même » ajouté **pour les vignettes seulement** (la liste des écrivains n'est pas touchée) |
 
-### Décisions de Will (aucune ne bloque le lot 1)
+### Décisions du dirigeant (aucune ne bloque le lot 1)
 
 1. **Allumer** le réglage `miniature.gabarit = "axion-v2"` après avoir vu les 3 rendus de l'étape 7 (ou attendre le
    lot 3, quand chaque générateur aura son objet signature). Proposition : attendre le lot 3.

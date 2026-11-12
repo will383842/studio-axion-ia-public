@@ -70,14 +70,14 @@ export function CarteCommande({ palette, duree, decl, commandes = ["/relance", "
           return (
             <div key={k} style={{ position: "absolute", left: 38 + col * 430, top: 34 + lig * 112, width: 408, height: 92, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 16, padding: "0 22px", background: k === 0 ? ACCENT_1 : BLANC, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 12, boxShadow: "5px 6px 0 0 " + ENCRE, transform: `scale(${(0.3 + 0.7 * entree) * (1 - sortie)})` }}>
               <Ico nom="eclair" taille={44} fond={k === 0 ? BLANC : ACCENT_1} />
-              <div style={styleInter(36, 700)}>{c}</div>
+              <div style={styleInter(36, 700, { color: k === 0 ? BLANC : ENCRE })}>{c}</div>
             </div>
           );
         })}
         {/* bulles de conversation */}
         {i >= iE && (
           <div style={{ position: "absolute", right: 38, top: 34, transform: `translateY(${(1 - ressort("GLISSE", i - iE)) * (yChamp - 34)}px) scale(${0.6 + 0.4 * ressort("POP", i - iE)})`, transformOrigin: "100% 100%" }}>
-            <div style={{ boxSizing: "border-box", background: ACCENT_1, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 22, boxShadow: "5px 6px 0 0 " + ENCRE, padding: "14px 28px", ...styleInter(38, 700) }}>{commande}</div>
+            <div style={{ boxSizing: "border-box", background: ACCENT_1, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 22, boxShadow: "5px 6px 0 0 " + ENCRE, padding: "14px 28px", ...styleInter(38, 700, { color: BLANC }) }}>{commande}</div>
           </div>
         )}
         {i >= iR && (
@@ -95,7 +95,7 @@ export function CarteCommande({ palette, duree, decl, commandes = ["/relance", "
         {menuVisible && (
           <div style={{ position: "absolute", left: 38, width: 520, bottom: H - yChamp + 10, transform: `scaleY(${1 - menu})`, transformOrigin: "50% 100%", boxSizing: "border-box", background: BLANC, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 12, overflow: "hidden" }}>
             {[commande, "/devis", "/rdv"].map((c, k) => (
-              <div key={k} style={{ height: 56, display: "flex", alignItems: "center", padding: "0 22px", background: k === 0 && i >= finFrappe ? ACCENT_1 : BLANC, ...styleInter(32, 700) }}>
+              <div key={k} style={{ height: 56, display: "flex", alignItems: "center", padding: "0 22px", background: k === 0 && i >= finFrappe ? ACCENT_1 : BLANC, ...styleInter(32, 700, { color: k === 0 && i >= finFrappe ? BLANC : ENCRE }) }}>
                 {c}
               </div>
             ))}
@@ -103,7 +103,7 @@ export function CarteCommande({ palette, duree, decl, commandes = ["/relance", "
         )}
         {/* champ de saisie + bouton d'envoi */}
         <div style={{ position: "absolute", left: 38, right: 38, top: yChamp, height: 84, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", background: BLANC, border: `${TRAIT.FIN}px solid ${ENCRE}`, borderRadius: 12, padding: "0 12px 0 24px" }}>
-          <div style={styleInter(texteChamp || i >= iT ? 38 : 28, texteChamp ? 700 : 600, { color: texteChamp ? ENCRE : COULEURS.GRIS })}>
+          <div style={styleInter(texteChamp || i >= iT ? 38 : 28, texteChamp ? 700 : 600, { color: texteChamp ? ENCRE : COULEURS.TEXTE_SECONDAIRE })}>
             {texteChamp || (i >= iT && i < iE ? "" : "Tapez une commande…")}
             {i >= iT && i < iE && <Curseur i={i} corps={38} />}
           </div>

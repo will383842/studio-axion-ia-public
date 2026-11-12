@@ -41,7 +41,7 @@ const MDP = "chaine-centrale-sujets-traites";
 const IDEE = "Le diagnostic fuite";
 const RESEAUX: ReseauDeclinaison[] = ["tiktok"];
 type Brief = Parameters<typeof gen.creerSujet>[0];
-const brief = (idee = IDEE, formatId = "avocat", extra: Partial<Brief> = {}): Brief => ({ idee, reseaux: RESEAUX, formatId, ...extra });
+const brief = (idee = IDEE, formatId = "avocat", extra: Partial<Brief> = {}): Brief => ({ idee, reseaux: RESEAUX, formatId, ciblage: { niveau: "metier", libelle: "Avocat", origine: "saisie" }, ...extra });
 
 const nombres = async () => ({
   sujets: await depots().scriptsMaitres.compter(),
@@ -195,7 +195,7 @@ describe("réglage `sujets.garde`", () => {
 
 describe("sujet venu de l'Usine : clé `usine:<cas d'usage>`", () => {
   const origine = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, typeContenu: "video" as const });
-  const idee = (cas: string, casUsage: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage });
+  const idee = (cas: string, casUsage: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage, format: "avocat" });
 
   it("même cas d'usage, autres mots : identique (clé exacte) ; refus AVANT d'écrire la moindre matière", async () => {
     await sujetTraite("Un texte sans rapport avec la suite", "avocat", { origineUsine: origine("cas-fuite") });
@@ -219,7 +219,7 @@ describe("sujet venu de l'Usine : clé `usine:<cas d'usage>`", () => {
 
 describe("Usine : deux cas d'usage distincts sur la même douleur ne sont pas « proches »", () => {
   const origine = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, typeContenu: "video" as const });
-  const idee = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage: "Un diagnostic avant chaque devis" });
+  const idee = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage: "Un diagnostic avant chaque devis", format: "avocat" });
 
   it("cas-a numéroté ; cas-b (même texte) libre ; cas-a de nouveau : refusé et sorti de la réserve", async () => {
     await sujetTraite("Des fuites partout Un diagnostic avant chaque devis", "avocat", { origineUsine: origine("cas-a") });
@@ -242,7 +242,7 @@ describe("deux demandes simultanées sur la même idée", () => {
     for (const m of SUJETS_BANC.flatMap((x) => x.matieres)) await depots().matieres.enregistrer(m);
     for (const p of SUJETS_BANC.flatMap((x) => x.preuves)) await depots().preuves.enregistrer(p);
     const sujet = SUJETS_BANC[0]!;
-    const demande = () => actions.creerSujetAction({ idee: sujet.idee, reseaux: sujet.reseaux, formatId: "avocat", pilier: sujet.pilier.id, mode: "teleprompteur" });
+    const demande = () => actions.creerSujetAction({ idee: sujet.idee, reseaux: sujet.reseaux, formatId: "avocat", pilier: sujet.pilier.id, mode: "teleprompteur", ciblage: { niveau: "metier", libelle: "Avocat", origine: "saisie" } });
     const [a, b] = await Promise.all([demande(), demande()]);
     const refuses = [a, b].filter((r) => r.ok && "statut" in r.donnees);
     const partis = [a, b].filter((r) => r.ok && "id" in r.donnees);

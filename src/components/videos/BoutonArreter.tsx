@@ -6,14 +6,12 @@ import { arreterFabricationAction } from "@/app/(studio)/videos/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { notifier } from "@/components/ui/Toast";
-import { LIBELLES_ARGENT } from "@/domaine/libelles";
 import type { Montant } from "@/domaine/types";
-import { formaterMontant } from "@/lib/montants";
 
 /** Phrase de confirmation après l'arrêt : sans `depense` (format sans prix), aucun montant n'est jamais dit. */
 export function phraseArret(depense: Montant | undefined, centimesPayes: number): string | undefined {
   if (!depense) return undefined;
-  return centimesPayes ? `${formaterMontant({ centimes: centimesPayes, devise: "EUR" })} payés pour les étapes faites.` : "Rien n'a été payé.";
+  return centimesPayes ? "Les étapes déjà faites sont gardées." : "Rien n'a été payé.";
 }
 
 /**
@@ -62,14 +60,7 @@ export function BoutonArreter({ travailId, videoId, depense, compact, descriptio
           </div>
         }
       >
-        {depense ? (
-          <p className="flex items-baseline justify-between rounded-carte border border-trait bg-surface-2 px-4 py-3 text-sm">
-            <span className="text-texte-doux">{LIBELLES_ARGENT.dejaPaye}</span>
-            <span className="font-titre text-lg tabular-nums text-texte">{formaterMontant(depense)}</span>
-          </p>
-        ) : (
-          <span />
-        )}
+        <span />
       </FeuilleBas>
     </>
   );

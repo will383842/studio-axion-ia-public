@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CommandeFabrication, SegmentSousTitres } from "@/domaine/types";
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { decorsCatalogue } from "@/donnees/decors-catalogue";
 import { ACCESSOIRE_MICRO, HABILLAGE_AVOCAT, PROFIL_SON_AVOCAT, STYLE_SOUS_TITRES_AVOCAT } from "@/donnees/elements-avocat";
 import { formatAvocat, RECETTE_MONTAGE_AVOCAT } from "@/formats/avocat";
@@ -177,12 +178,12 @@ describe("encadré de titre (B.2) et incrustations (B.2, B.7)", () => {
     expect(r.incrustations).toHaveLength(1);
     const inc = r.incrustations[0];
     expect(inc.deSec).toBe(3);
-    expect(inc.couleur).toBe("#34C26B");
+    expect(inc.couleur).toBe("#D97757");
     expect(inc.centreYPx).toBeGreaterThanOrEqual(0.52 * 1920);
     expect(inc.centreYPx + inc.taillePx / 2).toBeLessThanOrEqual(0.7 * 1920);
     const faux = placerIncrustations([{ ...PLANS[3], texte: "Il a gagné 300 €.", segmentId: "x", incrustation: { type: "montant", texte: "3 000 €", sens: "perte" } }], "9:16", reseaux, { geometrie: GEOMETRIE_INCRUSTATIONS_AVOCAT });
     expect(faux.alertes.map((a) => a.code)).toEqual(["montant"]);
-    expect(faux.incrustations[0].couleur).toBe("#E5484D");
+    expect(faux.incrustations[0].couleur).toBe("#B8341C");
   });
 });
 
@@ -193,7 +194,7 @@ describe("décor (méthode hybride) et contour", () => {
     expect(n1.entrees.decor).toBe("/demo/decors/fond-1-halo-orange.jpg");
     const r1 = decor("decor-r1-bureau-bois");
     const look = decorScene(commande({ styles: { ...commande().styles, decor: { id: r1.id, nom: r1.nom, valeur: r1.valeur as never } } }));
-    expect(look.decor.teinte).toBe("#110A05");
+    expect(look.decor.teinte).toBe("#141413");
     expect(look.alertes.map((a) => a.gravite)).toEqual(["info", "attention"]);
     const photo = decorScene(commande({ styles: { ...commande().styles, decor: { id: "decor-n1-halo-orange", nom: "Photo", valeur: { ...(decor("decor-n1-halo-orange").valeur as never as object), methode: "photo-incrustee", profondeurFlou: 0 } as never } } }));
     expect(photo.decor.flouPx).toBeGreaterThanOrEqual(12);
@@ -209,7 +210,7 @@ describe("paramètres complets d'un format", () => {
     expect(p.image.plans.map((x) => x.type)).toEqual(["double", "double", "illustration", "double", "double"]);
     expect(p.image.plans[2].illustration).toEqual({ url: "entree:illu-3", video: false });
     expect(p.image.accessoire).toMatchObject({ x: 0.78, y: 0.3, largeurPct: 22, flouPx: 3 });
-    expect(p.image.contour).toEqual({ couleur: "#C65A2E", cote: "gauche" });
+    expect(p.image.contour).toEqual({ couleur: PALETTE.orange, cote: "gauche" });
     expect(p.entrees).toMatchObject({ decor: "/demo/decors/fond-1-halo-orange.jpg", "illu-3": "/demo/illustrations/illu-02.jpg", voix: "studio/dev/audio.wav" });
     expect(p.couleurs.luts.map((l) => [l.intensite, l.plages])).toEqual([[0.7, [[0, 4], [6, 9]]], [0.7, [[4, 6]]]]);
     expect(p.couleurs).toMatchObject({ grainPct: 4, grainTaillePx: 2, vignettePct: 8 });

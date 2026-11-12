@@ -42,7 +42,7 @@ import { creerNotification } from "./notifications";
 import { libererLot, rendreAuLot, reserverLot, transfererDuLot } from "./credits";
 import type { SourcesSujets } from "./sujets-traites";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, messageAuDelaDuBudgetIndicatif, origineDeLaVideo } from "./mode-budget";
+import { accordAutomatique, avecAccordAutomatique, budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude, origineDeLaVideo } from "./mode-budget";
 import { candidatImageIV, deposerImageVideo, PARAM_ACCORD_ESSAI_IV, PHRASES_IV, prixDuDepot, type DependancesEcranIV } from "./image-video-ecran";
 import { phraseImagesSautees } from "@/components/formats/image-video/sujet-deja-traite";
 
@@ -93,7 +93,6 @@ function lignesUneVideo(reseaux: readonly ReseauIV[], taux: number): LigneCout[]
   return estimerImageVideo(commande).lignes;
 }
 
-const eurosTexte = (centimes: number) => `${(centimes / 100).toFixed(2).replace(".", ",")} €`;
 
 // ─── Dépôt ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -285,9 +284,12 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   const taux = await (dep.taux ?? tauxParDefaut)();
   const prixParVideo = prixDuDepot(reseaux, taux);
   const total = prixDuLotIV(nLot, prixParVideo);
-  const accord = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
+  // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord pour tout le lot ; bloquant : l'accord reçu, tel quel.
+  const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
+  const accordAuto = await accordAutomatique(accordBrut ?? false, total, { signaler: accordBrut === undefined || accordBrut < total });
+  const accord = typeof accordAuto === "number" ? accordAuto : undefined;
   if (accord === undefined || accord < total) {
-    return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos coûte au plus ${eurosTexte(total)}. Confirmez ce prix pour lancer.`, ...(sautees.length ? { sautees } : {}) };
+    return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos est payant. Confirmez pour lancer.`, ...(sautees.length ? { sautees } : {}) };
   }
 
   return verrouDepot(async () => {
@@ -346,7 +348,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
       videos,
       statut: "en-cours",
       pannesDeSuite: 0,
-      journal: [`Lot de ${nLot} images déposé : au plus ${eurosTexte(total)}.`, ...(phraseSautees ? [phraseSautees] : [])],
+      journal: [`Lot de ${nLot} images déposé.`, ...(phraseSautees ? [phraseSautees] : [])],
     };
     await sousVerrou(() => ecrireLotIV(lot));
     await journaliser("video", `Lot d'images déposé : ${nLot} vidéos${sautees.length ? ` (${sautees.length} déjà traitée${sautees.length > 1 ? "s" : ""}, sautée${sautees.length > 1 ? "s" : ""})` : ""}`).catch(() => undefined);
@@ -357,7 +359,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
 // ─── Séquenceur ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Le travail le plus récent d'une vidéo. */
-async function dernierTravail(videoId: Id): Promise<Travail | null> {
+export async function dernierTravail(videoId: Id): Promise<Travail | null> {
   const liste = await depots().travaux.lister((t) => t.cibleId === videoId);
   return liste.sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0] ?? null;
 }
@@ -409,7 +411,7 @@ async function recalculerStatuts(lot: LotIV): Promise<LotIV> {
  * Statut d'une vidéo d'après son dernier travail. Un travail refusé par le moteur AVANT tout pas de la machine
  * (`travailRefuse` : en échec, sans état) est un arrêt, pas un brouillon : sinon la vidéo serait relancée à chaque tour.
  */
-function issueDuTravail(travail: Travail) {
+export function issueDuTravail(travail: Travail) {
   const e = etatDe(travail);
   if (e) return statutDepuisEtatIV(e, travail.statut);
   if (travail.statut === "echec") {
@@ -470,11 +472,11 @@ async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void>
       const e = etatDe(await dernierTravail(v.videoId));
       if (e) engage += engageCentimes(e);
     }
-    // Mode indicatif : le prix accordé du lot est un repère (Will est prévenu) ; la pause vient à 5 × ce prix (arrêt de sécurité).
+    // Mode indicatif : le prix accordé du lot est un repère (Will est prévenu), le lot continue : plus aucun arrêt de sécurité à 5 × ce prix.
     // Un lot dont une vidéo a été commandée par l'Usine reste BLOQUANT (le lot lui-même n'est déposé que par Will, session présente).
     const indicatif = await budgetIndicatifPour(await origineDuLotIV(apres));
-    if (indicatif && engage + apres.prixParVideoCentimes > apres.plafondCentimes && engage + apres.prixParVideoCentimes <= apres.plafondCentimes * FACTEUR_SECURITE_BUDGET) {
-      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatif(eurosTexte(apres.plafondCentimes))}`, id);
+    if (indicatif && engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
+      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatifClaude()}`, id);
     } else if (engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
       await sousVerrou(async () => {
         const lu = await lireLotIV(id);
@@ -626,7 +628,7 @@ export async function refaireVideoDuLot(lotId: string, rang: number, d: DemandeR
   if (v.statut !== "mise-de-cote" && v.statut !== "faite") return { statut: "refusee", phrase: PHRASES_LOT_IV.rienARefaire };
   const ancienne = await depots().videos.obtenir(v.videoId);
   const entrees = (ancienne?.entrees?.imageVideo ?? {}) as { largeur?: number; hauteur?: number };
-  const issue = await deposerImageVideo({ fichierId: v.fichierId, reseaux: lot.reseaux, ...(lot.offre ? { offre: lot.offre } : {}), largeur: Number(entrees.largeur ?? 0), hauteur: Number(entrees.hauteur ?? 0), accordCentimes: d.accordCentimes }, { ...dep, sansControleSujet: true });
+  const issue = await avecAccordAutomatique((a) => deposerImageVideo({ fichierId: v.fichierId, reseaux: lot.reseaux, ...(lot.offre ? { offre: lot.offre } : {}), largeur: Number(entrees.largeur ?? 0), hauteur: Number(entrees.hauteur ?? 0), accordCentimes: a ?? d.accordCentimes }, { ...dep, sansControleSujet: true }), typeof d.accordCentimes === "number" ? d.accordCentimes : undefined);
   if (issue.statut !== "lancee") return issue;
   await sousVerrou(async () => {
     const lu = await lireLotIV(lotId);

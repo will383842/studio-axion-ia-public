@@ -49,7 +49,7 @@ export function BlocLicence({ id, type, licence, etat, modifiable }: { id: strin
 
   if (edition) {
     return (
-      <div className="grid gap-4 rounded-carte border border-orange/40 bg-surface-2 p-4">
+      <div className="grid gap-4 rounded-carte border border-trait-fort bg-surface-2 p-4">
         <SelecteurPastilles
           libelle="Licence"
           options={TYPES.map((t) => ({ valeur: t, libelle: LICENCES[t] }))}

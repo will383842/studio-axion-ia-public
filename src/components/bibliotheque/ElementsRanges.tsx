@@ -31,7 +31,7 @@ export function ElementsRanges({
   }
 
   return (
-    <details className="group mt-6 rounded-carte border border-trait bg-surface-1">
+    <details className="group mt-6 rounded-carte border border-trait bg-surface-1 shadow-carte">
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-sm font-semibold text-texte-doux">
         <Icone nom="archive" size={16} />
         {LIBELLES_RETRAIT.liste} ({elements.length})

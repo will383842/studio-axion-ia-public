@@ -4,7 +4,7 @@ import React from "react";
  * CHI-D géant, CHI-E en objets), dans le cadre du format. Sans données (aperçu) : le fond de la charte et la marque.
  */
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { Entete } from "../../Entete";
 import type { ProprietesEcranVariete } from "../CompositionVariete";
 import { CorpsChiffres } from "./corps";
@@ -17,7 +17,7 @@ export function EcranChiffres(p: ProprietesEcranVariete) {
   if (!d || !Array.isArray(d.chiffres) || !d.chiffres.length) {
     return (
       <AbsoluteFill>
-        <Fond fond="ivoire" largeur={p.largeur} hauteur={p.hauteur} />
+        <FondIV fond="ivoire" largeur={p.largeur} hauteur={p.hauteur} />
         <Entete entete={null} ecoule={0} sortie={0} fond="ivoire" marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
       </AbsoluteFill>
     );

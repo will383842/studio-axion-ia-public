@@ -21,9 +21,10 @@ export interface OptionsClientSite {
   delaiMs?: number;
 }
 
-export function creerFournisseurSiteHttp(o: OptionsClientSite): FournisseurSite {
+/** Transport HTTP seul (utilisé aussi par l'appel signé du parcours « mot → e-mail → guide », qui fige ses propres octets). */
+export function creerTransportHttp(o: Pick<OptionsClientSite, "url" | "fetch" | "delaiMs">): TransportSite {
   const base = o.url.replace(/\/+$/, "");
-  const transport: TransportSite = async (r): Promise<ReponseSite> => {
+  return async (r): Promise<ReponseSite> => {
     const reponse = await o.fetch(`${base}${r.chemin}`, {
       method: r.methode,
       headers: { ...r.entetes, ...(r.corps ? { "content-type": "application/json" } : {}), accept: "application/json" },
@@ -41,6 +42,10 @@ export function creerFournisseurSiteHttp(o: OptionsClientSite): FournisseurSite 
     }
     return { statut: reponse.status, corps };
   };
+}
+
+export function creerFournisseurSiteHttp(o: OptionsClientSite): FournisseurSite {
+  const transport = creerTransportHttp(o);
   return fournisseurSiteDepuisTransport({ id: "http", nom: "Le site de l'entreprise", reelPrevu: "Le site de l'entreprise", mode: "reel", secret: o.secret, transport, maintenant: o.maintenant ?? (() => Date.now()) });
 }
 

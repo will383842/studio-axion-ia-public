@@ -14,11 +14,16 @@ import { motsBalises } from "../ecrans-motion";
 import { COULEURS_DUO, TAILLES_DUO } from "../habillage/charte-duo";
 import {
   ECRAN_IV,
+  DECALAGE_REFERENCE_4X5_PX,
+  formatDeHauteurIV,
   MESURES_TOILE,
+  MISE_EN_PAGE_IV,
   MOTS_MAX_ENSEMBLE,
   nombreDeMots,
   PLANCHER_IV,
   VITESSE_FRAPPE,
+  ZONE_CONTENU_IV,
+  ZONE_UTILE_IV,
   type CouleurSchema,
   type EnteteSceneIV,
   type SchemaEntree,
@@ -621,6 +626,8 @@ export type TexteAjuste = {
   lignes: string[][];
   /** Phrase pour Will si le texte ne tient pas au plancher ; `null` sinon. */
   alerte: string | null;
+  /** Mot(s) abrégé(s) faute de place (libellé de la vue d'ensemble) : texte d'avant et d'après, en capitales. */
+  abrege?: { avant: string; apres: string }[];
 };
 
 export type OptionsAjuster = {
@@ -986,7 +993,8 @@ export function planBandeau(chiffres: readonly ChiffreBandeau[], t: number) {
       hauteur: rang,
       chiffre,
       legende,
-      texte: chiffreCompte(c.texte.toUpperCase(), progres(t, c.t, 0.7)),
+      // Le chiffre claque tel quel : un compteur montre une valeur intermédiaire (« 44 » pour « 45 ») que la relecture lit comme fausse.
+      texte: c.texte.toUpperCase(),
       claque,
       legendeEntree: progres(t, c.t + 0.15, 0.35),
       orange: i === 0,
@@ -1307,14 +1315,61 @@ export function planSources(p: { sources: readonly SourceIV[]; cible: { icone: s
 /* K19 · Phrase-choc                                                    */
 /* ------------------------------------------------------------------ */
 
-const OPTIONS_PHRASE_CHOC = { largeur: W - 2 * MARGE_IV, tailleMax: 0.1 * H, signe: SIGNES.anton, lignesMax: 4, hauteurMax: 0.36 * H, plusGrand: true };
+const OPTIONS_PHRASE_CHOC = { largeur: W - 2 * MARGE_IV, tailleMax: 0.1 * H, lignesMax: 4, hauteurMax: 0.36 * H };
+/** Marge de chaque mot rendu (`margin: 0 0.12em`, PhraseChoc.tsx) : deux fois 0,12 em par mot. */
+const MARGE_MOT_PHRASE_CHOC = 0.24;
+/** Place gardée sous le texte pour la marque (px de référence). */
+export const RESERVE_MARQUE_PHRASE_CHOC = 110;
+
+/** Zone verticale (px de l'écran de référence 1080 × 1920) où la phrase-choc et sa marque doivent tenir. */
+export type ZonePhraseChoc = { haut: number; bas: number };
+
+/** Zone de la phrase-choc d'un cadre de hauteur donnée : 9:16 du haut du contenu à la zone utile, 4:5 la zone de contenu du cadre remontée du décalage de référence (≈ 180 à 1075, au-dessus des sous-titres). */
+export function zonePhraseChocIV(hauteur: number): ZonePhraseChoc {
+  if (formatDeHauteurIV(hauteur) === "4:5") {
+    const { zoneContenu, hauteur: h45 } = MISE_EN_PAGE_IV["4:5"];
+    return { haut: zoneContenu.haut * h45 + DECALAGE_REFERENCE_4X5_PX, bas: zoneContenu.bas * h45 + DECALAGE_REFERENCE_4X5_PX };
+  }
+  return { haut: ZONE_CONTENU_IV.haut * H, bas: ZONE_UTILE_IV.bas * H };
+}
+
+/** Hauteur maximale du texte d'une phrase-choc : 36 % de la hauteur, et la zone moins la place de la marque. */
+const hauteurMaxPhraseChoc = (zone?: ZonePhraseChoc) => Math.min(OPTIONS_PHRASE_CHOC.hauteurMax, zone ? zone.bas - zone.haut - RESERVE_MARQUE_PHRASE_CHOC : Infinity);
+
+/** Largeur réelle (px) d'une ligne de phrase-choc à la taille `taille` : chasse d'Anton par mot + marges des mots. */
+export function largeurLignePhraseChoc(mots: readonly string[], taille: number): number {
+  return mots.reduce((s, m) => s + largeurAnton(m.replace(/\*/g, ""), taille) + MARGE_MOT_PHRASE_CHOC * taille, 0);
+}
+
+/** Taille qui tient dans la largeur, la hauteur et le plafond pour ces lignes (chasse réelle d'Anton). */
+function taillePhraseChoc(lignes: readonly (readonly string[])[], hauteurMax: number): number {
+  const large = Math.max(...lignes.map((l) => largeurLignePhraseChoc(l, 1)));
+  return Math.min(OPTIONS_PHRASE_CHOC.tailleMax, hauteurMax / (lignes.length * INTERLIGNE_IV), OPTIONS_PHRASE_CHOC.largeur / large);
+}
+
+/** La coupe de 1 à 4 lignes qui donne la plus grande taille ; sous le plancher : plancher, 4 lignes et une alerte. */
+function ajusterPhraseChoc(mots: readonly string[], hauteurMax: number): TexteAjuste {
+  if (mots.length === 0) return { taille: PLANCHER_PX, lignes: [], alerte: null };
+  let meilleur: TexteAjuste | null = null;
+  for (let n = 1; n <= Math.min(OPTIONS_PHRASE_CHOC.lignesMax, mots.length); n++) {
+    const lignes = couperEquilibre(mots, n);
+    const taille = taillePhraseChoc(lignes, hauteurMax);
+    if (taille < PLANCHER_PX - 1e-9) continue;
+    if (!meilleur || taille > meilleur.taille + 1e-9) meilleur = { taille, lignes, alerte: null };
+  }
+  if (meilleur) return meilleur;
+  const texte = mots.join(" ").replace(/\*/g, "");
+  return { taille: PLANCHER_PX, lignes: couperEquilibre(mots, Math.min(OPTIONS_PHRASE_CHOC.lignesMax, mots.length)), alerte: `« ${texte} » ne tient pas sur ${OPTIONS_PHRASE_CHOC.lignesMax} lignes au plancher de lisibilité : à raccourcir.` };
+}
 
 /**
  * Lignes de la phrase-choc : la coupe la plus grande (4 lignes au plus), sauf si une coupe qui fait commencer chaque
  * proposition (après « . , ; : ! ? ») sur une nouvelle ligne garde au moins 60 % de cette taille — elle se lit mieux.
+ * `zone` (px de référence) borne la hauteur : le texte plus 110 px pour la marque tient entre `haut` et `bas`.
  */
-export function coupePhraseChoc(mots: readonly string[]): TexteAjuste {
-  const libre = ajusterTexte(mots.join(" "), OPTIONS_PHRASE_CHOC);
+export function coupePhraseChoc(mots: readonly string[], zone?: ZonePhraseChoc): TexteAjuste {
+  const hauteurMax = hauteurMaxPhraseChoc(zone);
+  const libre = ajusterPhraseChoc(mots, hauteurMax);
   const propositions: string[][] = [];
   for (const m of mots) {
     if (propositions.length === 0 || /[.,;:!?]$/.test(propositions[propositions.length - 1].slice(-1)[0] ?? "")) propositions.push([]);
@@ -1326,8 +1381,7 @@ export function coupePhraseChoc(mots: readonly string[]): TexteAjuste {
   const repartir = (i: number, reste: number, parts: number[]) => {
     if (i === propositions.length) {
       const lignes = propositions.flatMap((pr, k) => couperEquilibre(pr, parts[k]));
-      const plusLongue = Math.max(...lignes.map(signesDe));
-      const taille = Math.min(OPTIONS_PHRASE_CHOC.tailleMax, OPTIONS_PHRASE_CHOC.hauteurMax / (lignes.length * INTERLIGNE_IV), OPTIONS_PHRASE_CHOC.largeur / (plusLongue * OPTIONS_PHRASE_CHOC.signe));
+      const taille = taillePhraseChoc(lignes, hauteurMax);
       if (!meilleur || taille > meilleur.taille + 1e-9) meilleur = { taille, lignes, alerte: null };
       return;
     }
@@ -1342,9 +1396,9 @@ export function coupePhraseChoc(mots: readonly string[]): TexteAjuste {
  * Phrase-choc mot à mot (`*mot*` = l'accent orange) : chaque mot entre à son heure (`heures[i]`, sinon `debut` + i × pas),
  * le dernier s'allume (lueur), puis la marque apparaît. Lignes équilibrées, le plus grand possible, 4 lignes au plus.
  */
-export function planPhraseChoc(p: { phrase: string; debut: number; heures?: readonly number[] }, t: number) {
+export function planPhraseChoc(p: { phrase: string; debut: number; heures?: readonly number[]; zone?: ZonePhraseChoc }, t: number) {
   const mots = motsBalises(p.phrase);
-  const ajuste = coupePhraseChoc(mots.map((m) => m.mot.toUpperCase()));
+  const ajuste = coupePhraseChoc(mots.map((m) => m.mot.toUpperCase()), p.zone);
   const heure = (i: number) => p.heures?.[i] ?? p.debut + i * 0.32;
   let k = 0;
   const lignes = ajuste.lignes.map((l) =>
@@ -1373,7 +1427,14 @@ export type ChiffreEnsemblePlan = { texte: string; x: number; y: number; largeur
 /** Un bloc de la vue d'ensemble : pastille en forme de carte, icône lue sur l'image, LIBELLÉ COURT lisible. */
 export type BlocEnsemble = ZoneIV & { id: string; couleur: CouleurSchema; allume: boolean; icone?: string; libelle: TexteAjuste; badge: number };
 
-export type FlecheEnsemble = { id: string; de: { x: number; y: number }; vers: { x: number; y: number }; couleur: CouleurSchema; extremites: [string, string] };
+/**
+ * `via` : la flèche saute une rangée dont un bloc est sur son passage ; elle descend alors dans l'écart sous son départ,
+ * longe ces blocs à l'abscisse `x`, et rejoint son arrivée par l'écart au-dessus (jamais un trait qui traverse un bloc).
+ */
+export type FlecheEnsemble = { id: string; de: { x: number; y: number }; vers: { x: number; y: number }; couleur: CouleurSchema; extremites: [string, string]; via?: { x: number; yHaut: number; yBas: number } };
+
+/** Marge (px) entre un trait contourné et le flanc du bloc qu'il longe. */
+export const MARGE_CONTOURNEMENT = 16;
 
 export type PlanEnsemble = {
   zone: ZoneIV;
@@ -1382,11 +1443,13 @@ export type PlanEnsemble = {
   /** Rang d'apparition de chaque bloc (ordre de lecture). */
   rang: Map<string, number>;
   chiffres: ChiffreEnsemblePlan[];
+  /** Écart posé entre deux rangées (px, ≥ 16) : le rendu doit doser ombre, halo et grossissement pour que les blocs ne se mordent pas. */
+  ecart: number;
   alertes: string[];
 };
 
 /** Mots outils sur lesquels une coupe ne s'arrête pas. */
-const MOTS_OUTILS = new Set(["le", "la", "les", "l'", "un", "une", "des", "de", "du", "d'", "à", "au", "aux", "en", "et", "ou", "sur", "pour", "par", "avec", "sans", "dans"]);
+const MOTS_OUTILS = new Set(["le", "la", "les", "l'", "un", "une", "des", "de", "du", "d'", "à", "au", "aux", "en", "et", "ou", "sur", "pour", "par", "avec", "sans", "dans", "entre", "chez", "vers", "sous", "depuis", "contre", "avant", "après", "apres", "selon", "que", "qui"]);
 
 /** Mots de fin sans valeur pour un libellé court (« Ticket clôturé auto » → « Ticket clôturé »). */
 const MOTS_DE_FIN = new Set(["auto", "automatique", "automatiquement", "entrant", "entrante"]);
@@ -1406,10 +1469,10 @@ export function libelleCourt(n: Pick<SchemaEntree["noeuds"][number], "libelle" |
   if (unites.length > unitesMax) {
     unites = unites.slice(0, Math.max(1, unitesMax));
     // « IA trie la demande » → « IA trie » ; « Message client entrant — 23h14 » → « Message client ».
-    const finInutile = (u: string) => MOTS_OUTILS.has(u.toLowerCase()) || MOTS_DE_FIN.has(u.toLowerCase()) || /^[—–-]$/u.test(u);
+    const finInutile = (u: string) => MOTS_OUTILS.has(u.toLowerCase()) || MOTS_DE_FIN.has(u.toLowerCase()) || /^[—–+&·\/-]$/u.test(u);
     while (unites.length > 1 && finInutile(unites[unites.length - 1])) unites = unites.slice(0, -1);
   }
-  texte = unites.join(" ").replace(/\s+[—–-]$/u, "");
+  texte = unites.join(" ").replace(/\s+[—–+&·\/-]$/u, "");
   return texte.charAt(0).toUpperCase() + texte.slice(1);
 }
 
@@ -1421,8 +1484,23 @@ export function unitesDeSens(texte: string): string[] {
   return res;
 }
 
-/** Libellé en Anton capitales dans `largeur` : la plus grande taille ≤ `tailleMax` sur 1 ligne, sinon 2 ; jamais sous le plancher. */
-function ajusterAnton(texte: string, largeur: number, tailleMax: number): TexteAjuste {
+/** Voyelles (capitales) pour choisir une coupe d'abréviation après une consonne suivie d'une voyelle. */
+const VOYELLES_ABREGE = "AEIOUYÀÂÄÉÈÊËÎÏÔÖÙÛÜŸ";
+
+/** Plus long préfixe (au moins 4 lettres) + « . » du mot qui tient dans la ligne ; coupe de syllabe préférée. `null` si aucun ne tient. */
+function abregerMot(mot: string, tient: (essai: string) => boolean): string | null {
+  const lettres = [...mot];
+  const tenants: number[] = [];
+  for (let k = lettres.length - 1; k >= 4; k--) if (tient(`${lettres.slice(0, k).join("")}.`)) tenants.push(k);
+  if (!tenants.length) return null;
+  const syllabe = tenants.find((k) => !VOYELLES_ABREGE.includes(lettres[k - 1]) && VOYELLES_ABREGE.includes(lettres[k]));
+  const k = syllabe ?? tenants[0];
+  return `${lettres.slice(0, k).join("")}.`;
+}
+
+/** Libellé en Anton capitales dans `largeur` : la plus grande taille ≤ `tailleMax` sur 1 ligne, sinon 2 ; jamais sous le plancher.
+ *  Si même 2 lignes ne tiennent pas au plancher et que `abreger` est vrai, le mot trop large est abrégé (« AUTOLIQ. »), jamais de texte hors du bloc. */
+function ajusterAnton(texte: string, largeur: number, tailleMax: number, abreger: boolean = false): TexteAjuste {
   const mots = texte.toUpperCase().split(/\s+/).filter(Boolean);
   for (let n = 1; n <= Math.min(2, mots.length); n++) {
     const lignes = couperEquilibre(mots, n);
@@ -1430,7 +1508,44 @@ function ajusterAnton(texte: string, largeur: number, tailleMax: number): TexteA
     const taille = Math.min(tailleMax, largeur / plusLongue);
     if (taille >= PLANCHER_PX - 1e-9) return { taille, lignes, alerte: null };
   }
+  if (abreger) {
+    const tientLigne = (l: readonly string[]) => largeurAnton(l.join(" "), PLANCHER_PX) <= largeur + 1e-9;
+    const essayer = (liste: string[]): string[][] | null => {
+      const lignes = couperEquilibre(liste, Math.min(2, liste.length)).map((l) => [...l]);
+      for (const ligne of lignes) {
+        while (!tientLigne(ligne)) {
+          let i = -1;
+          ligne.forEach((m, j) => {
+            if (!m.endsWith(".") && (i < 0 || largeurAnton(m, 1) > largeurAnton(ligne[i], 1))) i = j;
+          });
+          if (i < 0) return null;
+          const court = abregerMot(ligne[i], (essai) => tientLigne(ligne.map((m, j) => (j === i ? essai : m))));
+          if (!court) return null;
+          ligne[i] = court;
+        }
+      }
+      return lignes;
+    };
+    for (let liste = [...mots]; liste.length; liste = liste.slice(0, -1)) {
+      const lignes = essayer(liste);
+      if (lignes) return { taille: PLANCHER_PX, lignes, alerte: null, abrege: [{ avant: mots.join(" "), apres: lignes.map((l) => l.join(" ")).join(" ") }] };
+    }
+  }
   return { taille: PLANCHER_PX, lignes: couperEquilibre(mots, Math.min(2, mots.length)), alerte: `Libellé « ${texte} » trop long pour son bloc au plancher de lisibilité : à raccourcir.` };
+}
+
+/**
+ * Défauts GÉOMÉTRIQUES de la vue d'ensemble : un libellé dont une ligne dépasse la largeur utile de son bloc (bloc moins ses marges
+ * de 12 px de chaque côté et la pastille d'icône) serait dessiné hors de la pastille. Une phrase par bloc ; vide = conforme.
+ */
+export function debordementsEnsemble(plan: PlanEnsemble): string[] {
+  const defauts: string[] = [];
+  for (const b of plan.blocs) {
+    const dispo = b.largeur - 2 * PAD_BLOC.x - (b.badge ? b.badge + ECART_BADGE : 0);
+    const pire = Math.max(0, ...b.libelle.lignes.map((l) => largeurAnton(l.join(" ").replace(/\*/g, ""), b.libelle.taille)));
+    if (pire > dispo + 0.5) defauts.push(`Libellé de ${b.id} : ${Math.round(pire)} px pour ${Math.round(dispo)} px de place dans son bloc, il déborde.`);
+  }
+  return defauts;
 }
 
 const PAD_BLOC = Object.freeze({ x: 12, y: 8 });
@@ -1516,7 +1631,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     const badge = iconeDe(id) && avecIcones ? BADGE_BLOC : 0;
     // L'icône reste tant que le libellé tient avec elle (2 lignes au plus) ; sinon elle s'efface, le libellé d'abord.
     const avec = badge ? ajusterAnton(texte, interieur - badge - ECART_BADGE, tailleMax) : null;
-    const libelle = avec && !avec.alerte ? avec : ajusterAnton(texte, interieur, tailleMax);
+    const libelle = avec && !avec.alerte ? avec : ajusterAnton(texte, interieur, tailleMax, true);
     return { libelle, badge: avec && !avec.alerte ? badge : 0, hauteur: Math.max(libelle.lignes.length * libelle.taille * INTERLIGNE_BLOC, avec && !avec.alerte ? badge : 0) + 2 * padY };
   };
 
@@ -1557,10 +1672,11 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return { mesures, rangees, total, taillePart };
   };
 
-  // La plus grande taille (pas de 2 px, ≥ plancher) dont les rangées, avec un écart minimal de 12 px, tiennent. Si le
-  // plancher ne suffit pas (zone utile basse, sous-titres remontés), la vue se SERRE : marges des blocs, écart et parts
-  // réduits, jamais les libellés (toujours au plancher ou au-dessus).
-  let ECART_MIN = 12;
+  // La plus grande taille (pas de 2 px, ≥ plancher) dont les rangées, avec un écart minimal de 16 px, tiennent. Si le
+  // plancher ne suffit pas (zone utile basse, sous-titres remontés), la vue se SERRE : marges des blocs et parts
+  // réduits (l'écart reste ≥ 16 px), jamais les libellés (toujours au plancher ou au-dessus).
+  // 25/10/2026 (v-0339175a9f88, D3, compositions-iv/11) : écart minimal 16 px, y compris vue serrée (12, puis 6 avant : les blocs se mordaient).
+  const ECART_MIN = 16;
   let tailleMax = 0.036 * H;
   let c = construire(tailleMax);
   const tropHaut = () => c.total + (c.rangees.length - 1) * ECART_MIN > zone.hauteur;
@@ -1581,10 +1697,17 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     return meilleur?.ids ?? null;
   };
   while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
+  // D3 (25/10/2026, v-0339175a9f88) : ordre des remèdes quand l'écart de 16 px ne tient pas : 1) vue serrée (marges des blocs réduites,
+  // chiffres-clés GARDÉS, libellés intacts), 2) retrait des chiffres-clés (alerte), 3) paires, 4) vue réduite. L'écart ne descend jamais sous 16 px.
   if (tropHaut()) {
     serre = true;
     padY = PAD_BLOC_SERRE.y;
-    ECART_MIN = 6;
+    tailleMax = 0.036 * H;
+    c = construire(tailleMax);
+    while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
+  }
+  if (tropHaut() && autres.length) {
+    while (autres.length) alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
     tailleMax = 0.036 * H;
     c = construire(tailleMax);
     while (tailleMax - 2 >= PLANCHER_PX && tropHaut()) c = construire((tailleMax -= 2));
@@ -1602,7 +1725,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
   // utiles où un libellé de 3 mots prend 2 lignes au plancher) : tout au plancher, les chiffres-clés à la taille des
   // libellés ; puis, rangée par rangée, les libellés sur 2 lignes perdent leur dernière unité de sens (« Envoyé équipe
   // concernée » → « Envoyé équipe ») jusqu'à tenir sur une ligne, la rangée qui perd le moins d'abord ; en tout dernier
-  // recours, les chiffres-clés qui ne tiennent plus sont retirés (le dernier d'abord), jamais un bloc ni le plancher.
+  // recours, les chiffres-clés qui ne tiennent plus sont retirés (le dernier d'abord), jamais un bloc ni le plancher. Chaque libellé raccourci est signalé par une alerte.
   if (tropHaut()) {
     reduite = true;
     avecIcones = iconesTiennent();
@@ -1617,6 +1740,8 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
       alertes.push(`« ${autres.pop()} » : chiffre-clé retiré de la vue d'ensemble (place) ; il reste montré quand il est dit.`);
       c = construire(tailleMax);
     }
+    // D3 : un libellé raccourci par la vue réduite le dit (jamais de coupe silencieuse).
+    for (const id of unitesMax.keys()) if (texteDe(id) !== libelleCourt(parId.get(id)!)) alertes.push(`Libellé de ${id} raccourci (vue réduite, place) : « ${libelleCourt(parId.get(id)!)} » → « ${texteDe(id)} ».`);
   }
   // Une seule taille de libellé pour tous les blocs (la plus petite trouvée) : la vue se lit d'un bloc.
   c = construire(Math.max(PLANCHER_PX, Math.min(...[...c.mesures.values()].map((m) => m.libelle.taille))));
@@ -1634,6 +1759,7 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     const nd = parId.get(id)!;
     const m = c.mesures.get(id)!;
     if (m.libelle.alerte) alertes.push(m.libelle.alerte);
+    for (const a of m.libelle.abrege ?? []) alertes.push(`Libellé de ${id} abrégé (place) : « ${a.avant} » → « ${a.apres} ».`);
     blocs.push({ id, x, y: yRangee, largeur, hauteur: hRangee, couleur: nd.couleur, allume: allumes.has(id), icone: m.badge ? nd.icone : undefined, libelle: m.libelle, badge: m.badge });
   };
   for (const r of c.rangees) {
@@ -1679,9 +1805,46 @@ export function planEnsemble(schema: SchemaEntree, options: OptionsPlanEnsemble 
     } else fleches.push({ id: l.id, de: bas(a), vers: haut(b), couleur: l.couleur, extremites: [l.de, l.vers] });
   }
 
+  // Un trait vertical ne traverse jamais un bloc : si une rangée intermédiaire en pose un sur son passage, il passe à côté.
+  for (const f of fleches) {
+    const via = contournement(f, [...blocs, ...chiffres], ecart);
+    if (via) f.via = via;
+  }
+
   for (const ch of chiffres) if (nombreDeMots(ch.texte) > MOTS_MAX_ENSEMBLE) alertes.push(`« ${ch.texte} » : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
   for (const b of blocs) if (unitesDeSens(texteDe(b.id)).length > MOTS_MAX_ENSEMBLE) alertes.push(`Libellé de ${b.id} : plus de ${MOTS_MAX_ENSEMBLE} mots.`);
-  return { zone, blocs, fleches, rang, chiffres, alertes: [...new Set(alertes)] };
+  return { zone, blocs, fleches, rang, chiffres, ecart, alertes: [...new Set(alertes)] };
+}
+
+/**
+ * Contournement (PUR) d'une flèche de la vue d'ensemble qui descendrait sur un bloc ou une pastille d'une rangée
+ * intermédiaire : abscisse à droite de ces blocs, sinon à gauche, dans l'écran et sans toucher d'autre bloc de l'intervalle ;
+ * `undefined` si rien ne gêne (ou si aucun côté n'est libre : le trait reste droit).
+ */
+export function contournement(f: Pick<FlecheEnsemble, "de" | "vers">, obstacles: readonly ZoneIV[], ecart: number): FlecheEnsemble["via"] {
+  if (f.vers.y <= f.de.y) return undefined;
+  const m = MARGE_CONTOURNEMENT;
+  const g = Math.min(f.de.x, f.vers.x) - m;
+  const d = Math.max(f.de.x, f.vers.x) + m;
+  const entre = obstacles.filter((o) => o.y >= f.de.y - 1e-6 && o.y + o.hauteur <= f.vers.y + 1e-6);
+  const gene = entre.filter((o) => o.x < d && o.x + o.largeur > g);
+  if (gene.length === 0) return undefined;
+  const droite = Math.max(...gene.map((o) => o.x + o.largeur)) + m;
+  const gauche = Math.min(...gene.map((o) => o.x)) - m;
+  const libre = (x: number) => x >= m && x <= ECRAN_IV.largeur - m && !entre.some((o) => o.x < x + m && o.x + o.largeur > x - m);
+  const x = [droite, gauche].find(libre);
+  if (x === undefined) return undefined;
+  const demi = Math.max(8, ecart) / 2;
+  return { x, yHaut: f.de.y + demi, yBas: f.vers.y - demi };
+}
+
+/**
+ * Flèche qui saute une rangée : elle descend tout droit jusqu'au milieu de l'écart sous son départ (`via.yHaut`), longe
+ * l'écart à cette hauteur (jamais contre le bloc ni dans son ombre) jusqu'à `via.x`, descend le long des blocs, puis
+ * rejoint l'écart au-dessus de son but (`via.yBas`) et remonte tout droit jusqu'au bord du bloc d'arrivée.
+ */
+export function cheminContourne(de: { x: number; y: number }, vers: { x: number; y: number }, via: { x: number; yHaut: number; yBas: number }): string {
+  return `M ${de.x} ${de.y} L ${de.x} ${via.yHaut} L ${via.x} ${via.yHaut} L ${via.x} ${via.yBas} L ${vers.x} ${via.yBas} L ${vers.x} ${vers.y}`;
 }
 
 type GroupeEntreeIV = SchemaEntree["groupes"][number];

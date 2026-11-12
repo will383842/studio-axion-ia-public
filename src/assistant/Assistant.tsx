@@ -6,6 +6,7 @@ import type { OrigineBrouillon } from "@/app/(studio)/nouvelle/[format]/actions"
 import { creerBrouillonAction, enregistrerBrouillonAction } from "@/app/(studio)/nouvelle/[format]/actions";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
 import { Bouton } from "@/components/ui/Bouton";
+import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { notifier } from "@/components/ui/Toast";
 import type { DonneesBrouillon } from "@/services/videos";
@@ -268,7 +269,7 @@ function EtatEnregistrement({ enregistrement, enregistreLe }: { enregistrement: 
 /** Étape repliée en une ligne (AV2.4-5) : tout a une valeur par défaut. */
 function EtapeRepliee({ icone, titre, resume, onModifier }: { icone: (typeof META_ETAPES)[CleEtape]["icone"]; titre: string; resume: string; onModifier: () => void }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cn("flex min-h-16 items-center gap-3 rounded-carte border border-trait bg-surface-1 p-3 pl-4")}>
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><Carte className="flex min-h-16 items-center gap-3 p-3 pl-4">
       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sauge-doux text-sauge">
         <Icone nom="coche" size={18} strokeWidth={2.6} />
       </span>
@@ -282,6 +283,6 @@ function EtapeRepliee({ icone, titre, resume, onModifier }: { icone: (typeof MET
       <Bouton variante="fantome" icone="ecrire" onClick={onModifier}>
         Modifier
       </Bouton>
-    </motion.div>
+    </Carte></motion.div>
   );
 }

@@ -11,21 +11,37 @@ import type { FicheImage } from "@/domaine/image-video/fiche";
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { ChoixFormule } from "@/moteurs/montage-image-video/regles";
 import { essayer, type Resultat } from "@/services/_commun";
+import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptImageVideo } from "@/services/image-video-scripts";
 import { arreterLotImageVideo, deposerLotImageVideo, refaireVideoDuLot, reprendreLotImageVideo, type DemandeLotIV, type IssueLotIV } from "@/services/image-video-lot";
+import { deposerScriptImageVideo, deposerTexteImageVideo, type DemandeDepotScriptIV, type DemandeDepotTexteIV, type IssueDepotTexteIV } from "@/services/image-video-texte";
 import { deposerImageVideo, validerCarteEtReprendre, validerScriptEtReprendre, type DemandeDepotIV, type IssueDepotIV, type IssueRepriseIV } from "@/services/image-video-ecran";
 
 /** Écran 1 · « Lancer » : l'image déposée, les réseaux, l'offre et le montant confirmé. */
 export async function deposerImageVideoAction(demande: DemandeDepotIV): Promise<Resultat<IssueDepotIV>> {
-  const r = await essayer(() => deposerImageVideo(demande));
+  const r = await essayer(() => avecAccordAutomatique((a) => deposerImageVideo({ ...demande, accordCentimes: a ?? demande.accordCentimes }), typeof demande.accordCentimes === "number" ? demande.accordCentimes : undefined));
+  if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
+  return r;
+}
+
+/** Écran 1 · mode texte : « Décrivez-la avec vos mots » ; mêmes réseaux, même prix confirmé, aucune image. */
+export async function deposerTexteImageVideoAction(demande: DemandeDepotTexteIV): Promise<Resultat<IssueDepotTexteIV>> {
+  const r = await essayer(() => deposerTexteImageVideo(demande));
+  if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
+  return r;
+}
+
+/** Écran 1 · mode script complet : « Coller mon script complet » ; mêmes réseaux, même prix confirmé, aucune écriture par l'IA. */
+export async function deposerScriptImageVideoAction(demande: DemandeDepotScriptIV): Promise<Resultat<IssueDepotTexteIV>> {
+  const r = await essayer(() => deposerScriptImageVideo(demande));
   if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
   return r;
 }
 
 /** Écran 2 · « Valider la carte » : la carte corrigée (ou rien : la carte proposée), puis la suite. */
 export async function validerCarteImageVideoAction(videoId: string, carte?: CarteImage): Promise<Resultat<IssueRepriseIV>> {
-  const r = await essayer(() => validerCarteEtReprendre(videoId, carte));
+  const r = await essayer(() => avecAccordAutomatique(() => validerCarteEtReprendre(videoId, carte), undefined, { videoId }));
   if (r.ok) revalidatePath(`/image-video/${videoId}`);
   return r;
 }
@@ -33,10 +49,10 @@ export async function validerCarteImageVideoAction(videoId: string, carte?: Cart
 /** Écran 3 · « Valider et fabriquer » : le script (modifié ou non), les choix sur les formules, le prix confirmé. */
 export async function validerScriptImageVideoAction(
   videoId: string,
-  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV> },
+  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean },
   accord?: AccordPrix,
 ): Promise<Resultat<IssueRepriseIV>> {
-  const r = await essayer(() => validerScriptEtReprendre(videoId, decision, accord));
+  const r = await essayer(() => avecAccordAutomatique((a) => validerScriptEtReprendre(videoId, decision, a ?? accord), typeof accord === "number" ? accord : undefined, { videoId }));
   if (r.ok) revalidatePath(`/image-video/${videoId}`);
   return r;
 }

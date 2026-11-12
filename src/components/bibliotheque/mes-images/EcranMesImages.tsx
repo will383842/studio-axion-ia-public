@@ -74,8 +74,8 @@ export function EcranMesImages({ images, ranges, ajouterAuDepart }: { images: Vu
             </span>
             <span className="block text-xs text-texte-faible">Inutilisées tant que vous n&apos;avez pas validé</span>
           </span>
-          <span className="text-sm font-semibold text-orange-vif">Valider</span>
-          <Icone nom="chevron-droite" size={16} className="text-orange-vif" />
+          <span className="text-sm font-semibold text-texte">Valider</span>
+          <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
         </button>
       )}
 
@@ -95,7 +95,7 @@ export function EcranMesImages({ images, ranges, ajouterAuDepart }: { images: Vu
                 type="button"
                 aria-pressed={motCle === m}
                 onClick={() => setMotCle((x) => (x === m ? null : m))}
-                className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-sm transition-colors", motCle === m ? "border-orange text-orange-vif" : "border-trait text-texte-doux hover:text-texte")}
+                className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-sm transition-colors", motCle === m ? "border-texte text-texte" : "border-trait text-texte-doux hover:text-texte")}
               >
                 <Icone nom="diese" size={13} />
                 {m}
@@ -211,7 +211,7 @@ export function EcranMesImages({ images, ranges, ajouterAuDepart }: { images: Vu
 
 function Puce({ actif, onClick, libelle, n }: { actif: boolean; onClick: () => void; libelle: string; n: number }) {
   return (
-    <button type="button" aria-pressed={actif} onClick={onClick} className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors", actif ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte-doux hover:text-texte")}>
+    <button type="button" aria-pressed={actif} onClick={onClick} className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors", actif ? "bg-texte text-fond" : "bg-surface-2 text-texte-doux hover:text-texte")}>
       {libelle}
       <span className="tabular-nums opacity-70">{n}</span>
     </button>

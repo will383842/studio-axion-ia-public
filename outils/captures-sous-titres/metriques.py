@@ -1,6 +1,6 @@
 """
 Métriques des polices des sous-titres (lot M2) : chasse de chaque caractère, en unités de la police.
-- Montserrat variable → instance statique « Montserrat Black » (graisse 900), plus légère pour le navigateur.
+- Manrope variable (charte Axion 2026, police unique) → instances statiques « Manrope Medium » (500) et « Manrope ExtraBold » (800).
 - Écrit src/briques/sous-titres/metriques.ts (généré : ne pas modifier à la main).
 Usage (depuis la racine du dépôt) : python outils/captures-sous-titres/metriques.py
 """
@@ -9,19 +9,19 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 DOSSIER = "src/briques/sous-titres/polices"
-vf = os.path.join(DOSSIER, "Montserrat-VF.ttf")
-noir = os.path.join(DOSSIER, "Montserrat-Black.ttf")
-if os.path.exists(vf):
-    f = TTFont(vf)
-    inst = instancer.instantiateVariableFont(f, {"wght": 900})
-    for n in inst["name"].names:
-        if n.nameID in (1, 4, 16):
-            n.string = "Montserrat Black"
-    inst.save(noir)
-    os.remove(vf)
+vf = os.path.join(DOSSIER, "Manrope-Variable.ttf")
+INSTANCES = {"Manrope Medium": ("Manrope-Medium.ttf", 500), "Manrope ExtraBold": ("Manrope-ExtraBold.ttf", 800)}
+for nom, (fichier, graisse) in INSTANCES.items():
+    chemin = os.path.join(DOSSIER, fichier)
+    if not os.path.exists(chemin):
+        inst = instancer.instantiateVariableFont(TTFont(vf), {"wght": graisse})
+        for n in inst["name"].names:
+            if n.nameID in (1, 4, 16):
+                n.string = nom
+        inst.save(chemin)
 
 CARACTERES = "".join(chr(c) for c in range(32, 127)) + "  «»…’‘“”–—€°%ÀÂÄÆÇÈÉÊËÎÏÔŒÙÛÜŸàâäæçèéêëîïôœùûüÿ"
-POLICES = {"Poppins ExtraBold": "Poppins-ExtraBold.ttf", "Poppins Medium": "Poppins-Medium.ttf", "Montserrat Black": "Montserrat-Black.ttf"}
+POLICES = {nom: fichier for nom, (fichier, _g) in INSTANCES.items()}
 sortie = {}
 for nom, fichier in POLICES.items():
     t = TTFont(os.path.join(DOSSIER, fichier))

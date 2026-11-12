@@ -17,7 +17,8 @@ export default defineConfig({
     // permis comme le serait le point d'accès R2 du compte.
     // STUDIO_BUDGET_MODE_DEFAUT=bloquant : les tests d'argent existants décrivent le mode bloquant ; ceux du mode
     // indicatif (tests/budget-indicatif.test.ts) posent eux-mêmes le réglage `budget.mode`.
-    env: { STUDIO_RENDU_ESSAI: "1", STUDIO_RENDU_HOTES: "r2,r2.exemple", STUDIO_BUDGET_MODE_DEFAUT: "bloquant" },
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    env: { STUDIO_EMPREINTE_SECRET: "secret-fictif-de-test-empreinte-0123456789", STUDIO_RENDU_ESSAI: "1", STUDIO_RENDU_HOTES: "r2,r2.exemple", STUDIO_BUDGET_MODE_DEFAUT: "bloquant" },
+    setupFiles: ["./tests/helpers/reseau-interdit.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
   },
 });

@@ -96,7 +96,7 @@ describe("garde-fous du code de la fin", () => {
       const code = sansCommentaires(readFileSync(join(DOSSIER, f), "utf8"));
       expect(code, f).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\(|fontFamily:\s*(?:["']|`(?!"\$\{))/);
     }
-    expect(COULEURS_VIDEO.page).toBe("#E9DCC8");
+    expect(COULEURS_VIDEO.page).toBe("#FAF9F5");
   });
 
   it("ni son, ni sous-titres, ni hasard, ni horloge, ni alias « @/ »", () => {

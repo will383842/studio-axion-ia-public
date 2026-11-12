@@ -117,7 +117,7 @@ describe("feuille « Votre vidéo »", () => {
       ),
     );
 
-  it("liste les étapes, les faits et leur source, les réseaux, le mot, « Avec le mot » et un montant en euros", () => {
+  it("liste les étapes, les faits et leur source, les réseaux, le mot, « Avec le mot » et le bouton Fabriquer, sans montant", () => {
     const cas = parId("recrutement-apporteurs");
     const t = rendre(cas);
     for (const e of cas.etapes) expect(t).toContain(e);
@@ -125,7 +125,9 @@ describe("feuille « Votre vidéo »", () => {
     for (const r of ["Facebook", "Instagram", "TikTok", "LinkedIn"]) expect(t).toContain(r);
     expect(t).toContain("Le mot à commenter");
     expect(t).toContain("Avec le mot");
-    expect(t).toMatch(/Fabriquer la vidéo.*0,60\s*€/);
+    // Règle du fondateur (12/11) : aucun prix ni montant affiché dans le Studio.
+    expect(t).toContain("Fabriquer");
+    expect(t).not.toMatch(/€/);
     sansMotTechnique(t);
   });
 
@@ -146,11 +148,12 @@ describe("aucun réseau coché", () => {
   it("K3 · sans prix d'avance (cas du stock hors des 20) : jamais « 0,00 € », bouton inactif jusqu'au retour de l'estimation", () => {
     const html = renderToStaticMarkup(createElement(PiedVotreVideo, { montant: null, refus: null, desactive: false, onFabriquer: async () => undefined }));
     const t = texte(html);
-    expect(t).toContain("Calcul du prix");
+    expect(t).toContain("Préparation…");
+    expect(t).not.toMatch(/prix|€/i);
     expect(t).not.toMatch(/0,00/);
     expect(html).toMatch(/<button[^>]*disabled/);
     const avecPrix = texte(renderToStaticMarkup(createElement(PiedVotreVideo, { montant: 60, refus: null, desactive: false, onFabriquer: async () => undefined })));
-    expect(avecPrix).not.toContain("Calcul du prix");
+    expect(avecPrix).not.toContain("Préparation…");
   });
 
   it("X1 · voix pas prête : la feuille dit quoi faire, avec un lien, AVANT le clic ; le bouton est inactif", () => {

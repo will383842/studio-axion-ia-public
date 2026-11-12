@@ -80,7 +80,7 @@ describe("sous-titres (décision de Will : oui)", () => {
     expect(c.briques["sous-titres"]).toBe(true);
     expect(c.styles.sousTitres?.id).toBe("st-avocat-v1");
     expect(c.sousTitres?.base).toBe("karaoke");
-    expect(c.styles.sousTitres?.valeur).toMatchObject({ gabarit: "karaoke", police: "Poppins ExtraBold", positionPct: 76 });
+    expect(c.styles.sousTitres?.valeur).toMatchObject({ gabarit: "karaoke", police: "Manrope ExtraBold", positionPct: 76 });
     expect(c.styles.sousTitres?.valeur?.pastille).toBeUndefined();
     expect(c.styles.sousTitres?.nom).toBe("Avocat");
     // Les anciens styles écrits au crayon restent sans sous-titres.
@@ -119,7 +119,7 @@ describe("sous-titres (décision de Will : oui)", () => {
         const demi = (el.taillePx * 1.1) / 2 + (el.gabarit.contourPx * e) / 2;
         expect(el.yPx - demi, `« ${s.mots.map((m) => m.mot).join(" ")} »`).toBeGreaterThanOrEqual(zone.y - 1);
         expect(el.yPx + demi).toBeLessThanOrEqual(b.y + b.hauteur + 1);
-        expect(el.police).toBe("Poppins ExtraBold");
+        expect(el.police).toBe("Manrope ExtraBold");
         // Karaoké central : le mot dit à l'orange de la marque, les mots déjà dits en crème.
         expect(el.mots[0].couleur).toBe(COULEURS_REPLI.accent);
       }

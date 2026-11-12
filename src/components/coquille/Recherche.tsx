@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
+import { pagesTrouvees } from "./pages-recherche";
 import type { ElementTrouve, ResultatRecherche } from "@/services/vues";
 
 /** Deux caractères, ou un seul chiffre (numéro de sujet, lot G1b). */
@@ -35,7 +37,14 @@ export function repondAuRaccourci(variante: "icone" | "champ", grandEcran: boole
  * Recherche globale (AV2.1) : loupe dans l'en-tête. Feuille plein écran sur mobile,
  * centrée sur ordinateur. Raccourci clavier « / » ou Ctrl+K.
  */
-export function Recherche({ variante = "icone" }: { variante?: "icone" | "champ" }) {
+export function Recherche({ variante = "icone", aPublier = false, surLeSite = false }: { variante?: "icone" | "champ"; aPublier?: boolean; surLeSite?: boolean }) {
+  const router = useRouter();
+  // « ⌘ K » sur Mac, « Ctrl K » ailleurs : calculé après le montage pour ne pas décaler l'hydratation.
+  const touche = useSyncExternalStore(
+    () => () => {},
+    () => (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? "⌘ K" : "Ctrl K"),
+    () => "Ctrl K",
+  );
   const [ouverte, setOuverte] = useState(false);
   const [q, setQ] = useState("");
   const [resultats, setRes] = useState<ResultatRecherche | null>(null);
@@ -89,7 +98,9 @@ export function Recherche({ variante = "icone" }: { variante?: "icone" | "champ"
   }, [q]);
 
   const res = !assezLong(q) ? null : resultats;
-  const total = res ? GROUPES.reduce((n, g) => n + (res[g.cle]?.length ?? 0), 0) : 0;
+  // Pages du studio : locales, instantanées, en tête (08/11). Entrée ouvre la première.
+  const pages = pagesTrouvees(q, { aPublier, surLeSite });
+  const total = pages.length + (res ? GROUPES.reduce((n, g) => n + (res[g.cle]?.length ?? 0), 0) : 0);
 
   return (
     <>
@@ -101,7 +112,7 @@ export function Recherche({ variante = "icone" }: { variante?: "icone" | "champ"
         >
           <Icone nom="loupe" size={18} />
           <span className="flex-1 text-left">Rechercher</span>
-          <kbd className="rounded-md border border-trait px-1.5 py-0.5 text-[11px] font-semibold">Ctrl K</kbd>
+          <kbd className="rounded-md border border-trait px-1.5 py-0.5 text-[11px] font-semibold">{touche}</kbd>
         </button>
       ) : (
         <button type="button" onClick={() => setOuverte(true)} aria-label="Rechercher" className="grid size-11 place-items-center rounded-full text-texte-doux hover:bg-surface-2 hover:text-texte">
@@ -117,11 +128,38 @@ export function Recherche({ variante = "icone" }: { variante?: "icone" | "champ"
             ref={champ}
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && pages.length > 0 && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                setOuverte(false);
+                router.push(pages[0].href);
+              }
+            }}
             placeholder="Vidéos, scripts, idées…"
             className="min-w-0 flex-1 bg-transparent text-lg text-texte outline-none placeholder:text-texte-faible"
           />
         </label>
         <div className="mt-5 space-y-6">
+          {assezLong(q) && pages.length > 0 && (
+            <section>
+              <h3 className="mb-2 font-texte text-xs font-bold uppercase tracking-wider text-texte-faible">Pages</h3>
+              <ul className="space-y-1">
+                {pages.map((p) => (
+                  <li key={p.href}>
+                    <Link href={p.href} onClick={() => setOuverte(false)} className="flex min-h-14 items-center gap-3 rounded-2xl px-2 hover:bg-surface-2">
+                      <span className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2 text-texte-doux">
+                        <Icone nom={p.icone} size={18} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold text-texte">{p.libelle}</span>
+                      </span>
+                      <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {res && total === 0 && <p className="py-10 text-center text-texte-doux">Rien trouvé pour « {q} ».</p>}
           {res &&
             GROUPES.filter((g) => (res[g.cle]?.length ?? 0)).map((g) => (
@@ -145,7 +183,7 @@ export function Recherche({ variante = "icone" }: { variante?: "icone" | "champ"
                 </ul>
               </section>
             ))}
-          {!res && <p className="py-10 text-center text-sm text-texte-faible">Tapez au moins deux lettres.</p>}
+          {!assezLong(q) && <p className="py-10 text-center text-sm text-texte-faible">Tapez au moins deux lettres.</p>}
         </div>
       </FeuilleBas>
     </>

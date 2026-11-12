@@ -10,10 +10,12 @@
 import "server-only";
 import type { CommandeFabrication, LigneCout, Montant, Notification, Plan, Ratio, Sortie, SuiteFabrication, Travail, VersionVideo, Video } from "@/domaine/types";
 import { TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
+import { familleDe } from "@/domaine/journal-echecs";
 import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, depenseDesEtapes, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
 import { phraseLisible } from "@/lib/erreur-lisible";
+import { phraseDEchec } from "@/domaine/phrase-echec";
 import { nouvelId } from "@/lib/ids";
 import { additionner } from "@/lib/montants";
 import { commandeEnEssai, moteurDeCommande } from "@/moteurs";
@@ -24,10 +26,11 @@ import { depots, ecrireParametre, filtreExemples, horodatage, journaliser, lireP
 import { exigerSession } from "./auth";
 import { preparerReglagesMoteur } from "./cas-concret-reglages";
 import { envoyerAlerteBudget, ligneSimulee } from "./couts";
-import { deduireDejaPaye, estCreditInsuffisant, fournisseurDeLErreur, libererReservation, nomFournisseur, reactiverSelonOrigine, RELANCE_ATTENTE_CREDIT_MS, signalerAttenteCredit, soldeLuChezLeFournisseur } from "./credits";
+import { deduireDejaPaye, estCreditInsuffisant, fournisseurDeLErreur, libererReservation, nomFournisseur, reactiverReservations, reactiverSelonOrigine, RELANCE_ATTENTE_CREDIT_MS, signalerAttenteCredit, soldeLuChezLeFournisseur } from "./credits";
 import { urlFichier } from "./fichiers";
 import { rangDeLaVideo } from "./illustrations";
 import { creerNotification } from "./notifications";
+import { consignerEchec } from "./journal-echecs";
 import { synchroniserApresFabrication } from "./generateur";
 import type { VueTravail } from "./vues";
 import type { AccordPrix } from "@/domaine/accord";
@@ -493,6 +496,22 @@ function seulementReprogramme(actuel: Travail | null, lu: Travail): actuel is Tr
   return sans(actuel) === sans(lu);
 }
 
+/** GV-EC-01b : le travail s'est arrêté pour attendre la validation de Williams (liste fermée de `sujets-traites.ts`). */
+function enAttenteDeValidation(t: Pick<Travail, "erreur">): boolean {
+  return !!t.erreur && familleDe(t.erreur.code) === "attente-validation";
+}
+
+/**
+ * GV-EC-01e : la reprise d'une attente de validation est REFUSÉE (cas retiré ou déjà traité) : la réservation gardée ne
+ * servira plus, elle est rendue au moment du refus (une fois ; idempotent). Une seule écriture : rien à séparer. Si le
+ * refus tombe un jour (cas rétabli), la reprise réactive la réservation (`reactiverReservations`). Sans effet pour un
+ * vrai échec (sa réservation est déjà rendue).
+ */
+export async function libererSiAttenteRefusee(travailId: string): Promise<void> {
+  const t = await depots().travaux.obtenir(travailId);
+  if (t && t.statut === "echec" && enAttenteDeValidation(t)) await libererReservation(travailId, "liberee");
+}
+
 /**
  * Temps 3 — SOUS le verrou : écrit ce que le moteur a renvoyé, SEULEMENT si le travail n'a pas changé depuis la lecture
  * (un « Arrêter » pendant le tour n'est jamais écrasé). Renvoie les suites à exécuter hors verrou.
@@ -523,15 +542,26 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
   // Un format ajouté ne touche ni le statut de la vidéo ni sa version : elle reste prête (et publiée).
   const reexport = t.type === "reexport";
   if (travail.statut === "echec" && t.statut !== "echec") {
-    await libererReservation(t.id, "liberee");
+    // GV-EC-01b : une attente de validation n'est pas un échec : la réservation est GARDÉE (elle sert à la reprise).
+    const attente = enAttenteDeValidation(travail);
+    if (!attente) await libererReservation(t.id, "liberee");
     // E2E-1 n° 3 : les étapes déjà payées (la voix lue…) sont enregistrées, comme à « Arrêter ».
     await enregistrerDepensePayee(travail, await lignesPayeesDuTravail(lu.moteur, travail, lu.commande), { versionAussi: !reexport });
     if (!reexport) {
       await d.videos.modifier(travail.cibleId, { statut: "echec" });
       if (t.versionId && (await d.versions.obtenir(t.versionId))) await d.versions.modifier(t.versionId, { statut: "echec" });
     }
-    await notifier({ type: "echec", titre: "Une étape n'a pas abouti", message: travail.erreur?.messagePourWill, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
-    await journaliser("echec", `Étape en échec : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    if (attente) {
+      // Phrases fixes, sans montant : la vidéo dit seulement qu'elle est à relire.
+      const carte = /CARTE/.test(travail.erreur?.code ?? "");
+      await notifier({ type: "info", titre: carte ? "Une carte attend votre validation" : "Un script attend votre relecture", message: "Ouvrez la vidéo pour la valider : la fabrication reprendra ensuite.", lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
+      await journaliser("attente", `En attente de validation : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    } else {
+      await notifier({ type: "echec", titre: "Une étape n'a pas abouti", message: travail.erreur?.messagePourWill, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
+      await journaliser("echec", `Étape en échec : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    }
+    // La ligne durable est écrite dans les deux cas ; pour une attente elle porte la famille `attente-validation`.
+    await consignerEchec(travail, lu.commande);
   } else if (travail.statut === "en_cours" && t.statut === "en_file" && !reexport) {
     await d.videos.modifier(travail.cibleId, { statut: "en_fabrication" });
   }
@@ -616,7 +646,7 @@ export async function ecrirePanne(lu: InstantaneTravail, erreur: unknown, instan
     const erreurTravail = {
       code: definitive ? "FOURNISSEUR_REFUS" : "FOURNISSEUR_INDISPONIBLE",
       reessayable: true,
-      messagePourWill: definitive ? (pourWill ?? "Un outil a refusé cette étape. Vous pouvez réessayer.") : "Un outil est resté indisponible pendant 24 h. Vous pouvez réessayer.",
+      messagePourWill: (definitive && pourWill) || phraseDEchec({ outil: nomFournisseur(fournisseurDeLErreur(erreur, t.fournisseurUtilise)), message, definitive }),
       detailTechnique: message,
     };
     const travail: Travail = {
@@ -639,6 +669,7 @@ export async function ecrirePanne(lu: InstantaneTravail, erreur: unknown, instan
     // Le message du fournisseur (souvent technique) va en console serveur ; le Journal garde la phrase pour Will.
     console.warn(`[travaux] ${t.id} abandonné : ${message.slice(0, 300)}`);
     await journaliser("echec", erreurTravail.messagePourWill, { type: "video", id: t.cibleId });
+    await consignerEchec(travail, lu.commande);
     return { ecrit: true };
   }
   const entreEnAttente = !!suite.reprise?.attenteDepuis && !t.reprise?.attenteDepuis;
@@ -708,13 +739,14 @@ export function allegerTravail(t: Travail): Travail {
   return { ...t, parametres: reste } as Travail;
 }
 
-/** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
-export async function listerTravaux(options: { inclureTermines?: boolean } = {}): Promise<VueTravail[]> {
+/** Le filtre de listerTravaux, en y ajoutant (ou non) la cible : actifs + en échec + terminés (récents, ou tous). */
+async function lireTravauxAffiches(options: { inclureTermines?: boolean }, cibleId?: string): Promise<VueTravail[]> {
   const limite = Date.now() - 2 * 60 * 1000;
   // « Afficher les exemples » désactivé : les travaux des vidéos d'exemple sont masqués aussi.
   const exemples = await filtreExemples<Travail>();
   const travaux = await depots().travaux.lister(
     (t) =>
+      (cibleId === undefined || t.cibleId === cibleId) &&
       exemples(t) &&
       (t.statut === "en_cours" ||
         t.statut === "en_file" ||
@@ -724,7 +756,38 @@ export async function listerTravaux(options: { inclureTermines?: boolean } = {})
   );
   travaux.sort((a, b) => b.creeLe.localeCompare(a.creeLe));
   const places = await placesDansLaFile();
-  return Promise.all(travaux.map((t) => versVue(t, places.get(t.id))));
+  // Accueil seulement : pas d'échec périmé (vidéo archivée, prête, absente, ou travail plus récent). Rien n'est effacé.
+  const affiches = cibleId === undefined ? await sansEchecsPerimes(travaux) : travaux;
+  return Promise.all(affiches.map((t) => versVue(t, places.get(t.id))));
+}
+
+async function sansEchecsPerimes(travaux: Travail[]): Promise<Travail[]> {
+  const echecs = travaux.filter((t) => t.statut === "echec");
+  if (!echecs.length) return travaux;
+  const d = depots();
+  // Lecture limitée aux vidéos des échecs affichés (pas toutes les vidéos ni tous les travaux).
+  const cibles = new Set(echecs.map((t) => t.cibleId).filter((id): id is string => typeof id === "string"));
+  const videos = new Map<string, Video | null | undefined>(await Promise.all([...cibles].map(async (id) => [id, await d.videos.obtenir(id)] as const)));
+  // Le travail le plus récent de chaque vidéo, tous statuts confondus (un ancien terminé compte aussi), SAUF les ré-exports de
+  // format : ils n'effacent pas un échec de fabrication ou de retouche.
+  const dernier = new Map<string, string>();
+  for (const x of await d.travaux.lister((t) => cibles.has(t.cibleId) && t.type !== "reexport", (t) => ({ id: t.id, cibleId: t.cibleId, creeLe: t.creeLe }) as Travail)) {
+    if ((dernier.get(x.cibleId) ?? "") < x.creeLe) dernier.set(x.cibleId, x.creeLe);
+  }
+  return travaux.filter((t) => travailAfficheALAccueil(t, videos.get(t.cibleId), (dernier.get(t.cibleId) ?? "") > t.creeLe));
+}
+
+/** Travaux à afficher : actifs + en échec + terminés depuis moins de 2 minutes. N'avance rien (la boucle de fond s'en charge). */
+export async function listerTravaux(options: { inclureTermines?: boolean } = {}): Promise<VueTravail[]> {
+  return lireTravauxAffiches(options);
+}
+
+/**
+ * Les travaux d'UNE vidéo (même filtre que `listerTravaux({ inclureTermines: true })`, restreint à `cibleId`) : la fiche
+ * d'une vidéo n'a pas besoin de recopier ceux de tout le studio (lot P, 08/11).
+ */
+export async function travauxDeLaCible(cibleId: string): Promise<VueTravail[]> {
+  return lireTravauxAffiches({ inclureTermines: true }, cibleId);
 }
 
 export async function obtenirTravail(id: string): Promise<VueTravail | null> {
@@ -795,20 +858,41 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   if (videoAvant && versionAvant && !videoAvant.estDemo && !videoAvant.sourceVideoId && !videoAvant.typeDerive && !TRAVAUX_SUR_VIDEO_FINIE.includes(avant.type)) {
     const { refusCasDejaTraite } = await import("./cas-concret-traites");
     const phrase = await refusCasDejaTraite(versionAvant.commande.entrees, avant.cibleId);
-    if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+    if (phrase) {
+      await libererSiAttenteRefusee(id);
+      throw new ErreurStudio("CAS_TRAITE", phrase);
+    }
     // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (rien n'est dépensé).
     const retire = await (await import("./cas-concret-retires")).refusCasRetire(versionAvant.commande.entrees);
-    if (retire) throw new ErreurStudio("CAS_RETIRE", retire);
+    if (retire) {
+      await libererSiAttenteRefusee(id);
+      throw new ErreurStudio("CAS_RETIRE", retire);
+    }
   }
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du
   // double a été confirmé au lancement : seul le seuil habituel redemande une confirmation.
-  const relance = await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, (reactiver) =>
+  const lancer = (reactiver: () => Promise<void>, exigerReservationActive = false) =>
     sousVerrou(async () => {
       const d = depots();
       const t = await d.travaux.obtenir(id);
       if (!t) throw new ErreurStudio("INTROUVABLE", "Ce travail n'existe plus.");
       if (t.statut !== "echec") throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail n'est pas en échec.");
+      // GV-EC-01f : une attente de validation ne repart pas si elle a été remplacée (un autre travail plus récent, en file
+      // ou en cours, sur la même vidéo) ou si sa vidéo est à la corbeille : rien n'est réactivé.
+      if (enAttenteDeValidation(t)) {
+        const autres = await d.travaux.lister((x) => x.cibleId === t.cibleId && x.id !== t.id);
+        // GV-EC-01g : seule une FABRICATION plus récente remplace pour de bon (réservation rendue avant le refus, idempotent) ;
+        // un autre travail en file ou en cours (tout type) est un refus TEMPORAIRE (réservation gardée) ; un réexport ou une
+        // retouche terminé ou en échec ne bloque pas.
+        if (autres.some((x) => x.type === "fabrication" && x.creeLe > t.creeLe)) {
+          await libererReservation(t.id, "liberee");
+          throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a été remplacé. Rouvrez la page.");
+        }
+        if (autres.some((x) => x.statut === "en_cours" || x.statut === "en_file")) throw new ErreurStudio("PAS_EN_ECHEC", "Un autre travail de cette vidéo est en cours. Réessayez quand il sera fini.");
+        const v = await d.videos.obtenir(t.cibleId);
+        if (v?.corbeilleLe) throw new ErreurStudio("PAS_EN_ECHEC", "Cette vidéo est dans la corbeille. Restaurez-la d'abord.");
+      }
       // Relancé entre-temps ailleurs (autre onglet) puis de nouveau en échec : le contrôle fait plus haut ne vaut plus.
       if (avant.tentatives !== t.tentatives || avant.versionId !== t.versionId) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a changé. Rouvrez la page puis réessayez.");
       const version = t.versionId ? await d.versions.obtenir(t.versionId) : null;
@@ -820,6 +904,10 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
         const { RETOUCHE_PAS_DISPONIBLE } = await import("./fabrication");
         throw new ErreurStudio("RETOUCHE_INDISPONIBLE", RETOUCHE_PAS_DISPONIBLE);
       }
+      // GV-EC-01i : voie (b) — la réservation active lue avant le verrou est relue ici ; si elle a été rendue entre-temps
+      // (corbeille puis restauration), rien n'est réactivé sans contrôle de budget.
+      if (exigerReservationActive && (await d.reservations.compter((x) => x.travailId === id && x.statut === "active")) === 0) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a changé. Rouvrez la page puis réessayez.");
+      await consignerEchec(t, version?.commande ?? { formatId: "" });
       const r: Travail = { ...(await moteur.reessayer(t)), reprise: undefined };
       await reactiver();
       await d.travaux.enregistrer(r);
@@ -829,8 +917,17 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
       }
       await journaliser("fabrication", "Étape relancée", { type: "video", id: t.cibleId });
       return r;
-    }),
-  );
+    });
+  // GV-EC-01b : la reprise d'une ATTENTE DE VALIDATION ne repasse par aucun contrôle de budget ni de quota (commande de
+  // Williams comme commande de l'usine) : la réservation a été gardée, il n'y a rien à revérifier. Un vrai échec garde
+  // son contrôle d'avant.
+  // GV-EC-01h : seule une réservation restée ACTIVE sans interruption est reprise sans contrôle. Si toutes ont été rendues
+  // entre-temps (vidéo à la corbeille puis restaurée), c'est un nouvel engagement : il passe par le contrôle selon l'origine
+  // (Studio : jamais refusé pour un montant ; usine : refusé en cas de dépassement). Un refus laisse l'attente intacte.
+  const reservationActive = enAttenteDeValidation(avant) && (await depots().reservations.compter((r) => r.travailId === id && r.statut === "active")) > 0;
+  const relance = reservationActive
+    ? await lancer(() => reactiverReservations(id), true)
+    : await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, lancer);
   return versVue(relance);
 }
 
@@ -921,4 +1018,17 @@ export function avecDelai<T>(promesse: Promise<T>, ms: number): Promise<T> {
     minuterie = setTimeout(() => rejeter(Object.assign(new Error(`Délai de ${Math.round(ms / 1000)} s dépassé`), { reessayable: true, delaiDepasse: true })), ms);
   });
   return Promise.race([promesse, delai]).finally(() => clearTimeout(minuterie));
+}
+
+/**
+ * Accueil seulement : faut-il montrer ce travail ? Un travail actif (en cours, en file) ou terminé se montre toujours.
+ * Un travail EN ÉCHEC se masque (sans rien effacer) quand sa vidéo est absente ou archivée (ou prête, pour une fabrication seulement), ou qu'un travail plus
+ * récent existe pour la même vidéo. `video` : `undefined` = introuvable. PUR.
+ */
+export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, video: Pick<Video, "statut"> | null | undefined, plusRecent: boolean): boolean {
+  if (t.statut !== "echec") return true;
+  if (!video || video.statut === "archivee") return false;
+  // Vidéo prête : seul un échec de FABRICATION est périmé (la vidéo existe). Une retouche ou un recalque en échec reste visible.
+  if (video.statut === "prete" && t.type === "fabrication") return false;
+  return !plusRecent;
 }

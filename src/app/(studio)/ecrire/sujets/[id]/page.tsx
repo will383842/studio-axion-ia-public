@@ -4,6 +4,7 @@ import { formatsEcrivables, lignesAffichees, nomFormat } from "@/components/gene
 import { FicheSujet, type VersionAffichee } from "@/components/generateur/FicheSujet";
 import { lettresLigne } from "@/components/generateur/MiniGrille";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { Pastille } from "@/components/ui/Pastille";
 import { messageAttenteEcritureParDefaut } from "@/domaine/credits";
 import { lireFiltres, ordreValide } from "@/domaine/classement-generateur";
@@ -12,8 +13,8 @@ import type { ReseauDeclinaison } from "@/domaine/types";
 import { lireParametre } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { obtenirSujet } from "@/services/generateur";
-import { assurerBoucleGeneration, chaineDeLEcriture, ecritureArretee, estCorpsCourt, etatEcriture, matieresSansAccord, prixLancement, prixRetouche } from "@/services/boucle-generation";
-import { claudeBranche, taux } from "@/services/generation-claude";
+import { assurerBoucleGeneration, ecritureArretee, estCorpsCourt, etatEcriture, matieresSansAccord } from "@/services/boucle-generation";
+import { claudeBranche } from "@/services/generation-claude";
 import { retourValide } from "@/domaine/retour-video";
 import { programmationsDuSujet, retouchesRestantes } from "@/services/generateur-ecran";
 import { assemblerBlocs } from "@/domaine/derivations-generateur";
@@ -23,8 +24,6 @@ import { EcritureEnCours } from "@/components/generateur/EcritureEnCours";
 import { pageSuivie, planProgrammerSujet } from "@/services/mesures";
 import { lienDeVersion } from "@/domaine/mesures";
 import { etatFabricationSujet, planFabricationSujet, propositionsFabrication } from "@/services/fabrication-reseaux";
-import { formaterMontant } from "@/lib/montants";
-import { phraseAvatarParle } from "@/domaine/double-reel";
 import { partPayee } from "@/services/generateur-depenses";
 import { decisionJeLis } from "@/services/reglages";
 import { formateurDate } from "@/lib/intl";
@@ -48,15 +47,14 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
   const ecrit = vue.versions.length > 0;
   // E2E-2 argent n° 2 : une écriture arrêtée sur une panne le dit, avec « Reprendre l'écriture ».
   const arret = await ecritureArretee(id);
-  if (ecriture && !ecrit && ecriture.statut && (["en-cours", "en-pause", "en-attente-credit", "plafond-atteint", "bloquee-modele"].includes(ecriture.statut) || (ecriture.statut === "echec" && !!arret)) && !(ecriture.statut === "en-pause" && !ecriture.pause)) {
+  if (ecriture && !ecrit && ecriture.statut && (ecriture.statut !== "terminee" && (ecriture.statut !== "echec" || !!arret)) && !(ecriture.statut === "en-pause" && !ecriture.pause)) {
     const messages: Record<string, string> = {
       "en-attente-credit": ecriture.preteAReprendre ? "Prête à reprendre. Rien ne repart sans vous." : (ecriture.messageAttente ?? messageAttenteEcritureParDefaut(!!ecriture.abonnements)),
-      "plafond-atteint": "Plafond du sujet atteint : ce qui est écrit est gardé.",
       "bloquee-modele": "Le modèle d'écriture a changé : mise à jour nécessaire.",
     };
     return (
-      <div className="mx-auto max-w-2xl">
-        <EnTetePage retour={retourVideo ? { href: retourVideo, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }} surTitre={m.numero !== undefined ? `n° ${m.numero}` : "Sujet"} titre={m.brief.idee} className="mb-4 [&_h1]:break-words" />
+      <ConteneurPage largeur="lecture">
+        <EnTetePage retour={retourVideo ? { href: retourVideo, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }} surTitre={m.numero !== undefined ? `n° ${m.numero}` : "Sujet"} titre={m.brief.idee} className="[&_h1]:break-words" />
         <EcritureEnCours
           id={id}
           etat={{
@@ -64,8 +62,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             etape: ecriture.etape,
             libelle: ecriture.libelle,
             etapes: ecriture.etapes,
-            // B11 : le taux du réglage, plus écrit en dur.
-            utiliseEur: formaterMontant({ centimes: Math.ceil(ecriture.utiliseUsd * (await taux()) * 100), devise: "EUR" }),
+            utiliseEur: "", // Règle de Williams : aucun montant affiché.
             medianeMin: ecriture.medianeSec !== null ? Math.max(1, Math.round(ecriture.medianeSec / 60)) : null,
             pause: ecriture.pause?.raison,
             angles: ecriture.angles,
@@ -74,14 +71,14 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             essai: ecriture.essai,
             abonnements: ecriture.abonnements,
             aucunCompte: ecriture.aucunCompte,
-            supplement: ecriture.statut === "echec" && arret?.supplement ? formaterMontant(arret.supplement) : undefined,
-            // Garde-fous budget (15/10) : « Reprendre (≈ X €) », seul geste qui relance une écriture en attente ou au plafond ;
+            
+            // Garde-fous budget (15/10) : « Reprendre », seul geste qui relance une écriture en attente ou au plafond ;
             // si elle ne peut pas partir, le bouton dit pourquoi (correctif après relecture).
-            reprise: ecriture.reprise ? (ecriture.reprise.possible ? { possible: true, prix: formaterMontant({ centimes: ecriture.reprise.centimesEur, devise: "EUR" }), centimes: ecriture.reprise.centimesEur } : { possible: false, raison: ecriture.reprise.raison ?? "" }) : undefined,
+            reprise: ecriture.reprise ? (ecriture.reprise.possible ? { possible: true, prix: "", centimes: ecriture.reprise.centimesEur } : { possible: false, raison: ecriture.reprise.raison ?? "" }) : undefined,
             bloque: ecriture.statut === "echec" ? arret?.bloque : undefined,
           }}
         />
-      </div>
+      </ConteneurPage>
     );
   }
   const lignes = lignesAffichees(vue.grille);
@@ -89,9 +86,9 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
   const fabricationDe = (varianteId: string): Pick<VersionAffichee, "fabrication" | "secondeOuverture" | "avatarParleSecondeOuverture" | "aMonter" | "prixMonter" | "essaiMonter"> => {
     const e = etatsFab.find((x) => x.varianteId === varianteId && x.role !== "seconde-ouverture");
     return {
-      ...(e ? { fabrication: { videoId: e.videoId, attendMere: e.attendMere, attendConfirmation: e.attendConfirmation, attendCredit: e.attendCredit, raisonAttente: e.raisonAttente, coutComplet: e.coutComplet ? formaterMontant(e.coutComplet) : undefined, avatarParle: e.avatarParle ? phraseAvatarParle(e.avatarParle) : undefined, dureeReelleSec: e.dureeReelleSec, points: e.pointsSurVideo, enCours: e.statut === "en_file" || e.statut === "en_fabrication" } } : {}),
-      ...(propositions.secondeOuverture?.varianteId === varianteId ? { secondeOuverture: formaterMontant(propositions.secondeOuverture.prix), avatarParleSecondeOuverture: propositions.secondeOuverture.avatarParle ? phraseAvatarParle(propositions.secondeOuverture.avatarParle) : undefined } : {}),
-      ...(propositions.aMonter.includes(varianteId) ? { aMonter: true, prixMonter: propositions.prixMonter[varianteId] ? formaterMontant(propositions.prixMonter[varianteId]) : undefined, essaiMonter: jeLisEssai.has(vue.versions.find((x) => x.variante.id === varianteId)?.variante.formatId ?? "") } : {}),
+      ...(e ? { fabrication: { videoId: e.videoId, attendMere: e.attendMere, attendConfirmation: e.attendConfirmation, attendCredit: e.attendCredit, raisonAttente: e.raisonAttente, avatarParle: e.avatarParle ? "Votre avatar parle dans cette vidéo." : undefined, dureeReelleSec: e.dureeReelleSec, points: e.pointsSurVideo, enCours: e.statut === "en_file" || e.statut === "en_fabrication" } } : {}),
+      ...(propositions.secondeOuverture?.varianteId === varianteId ? { secondeOuverture: "oui", avatarParleSecondeOuverture: propositions.secondeOuverture.avatarParle ? "Votre avatar parle dans cette vidéo." : undefined } : {}),
+      ...(propositions.aMonter.includes(varianteId) ? { aMonter: true, prixMonter: propositions.prixMonter[varianteId] ? "oui" : undefined, essaiMonter: jeLisEssai.has(vue.versions.find((x) => x.variante.id === varianteId)?.variante.formatId ?? "") } : {}),
     };
   };
   const formatsDesVersions = [...new Set(vue.versions.map((x) => x.variante.formatId))];
@@ -164,7 +161,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
       phrases: script ? assemblerBlocs(script, v).flatMap((b) => b.segments.map((g) => ({ id: g.id, texte: g.texte }))).filter((g) => g.texte.trim()) : [],
       programmee: prog ? `${prog.statut === "publiee" ? "Publiée" : "Programmée"}${prog.statut === "essai" ? " (essai)" : ""} : ${jourCourt(prog.date)}` : undefined,
       formatId: v.formatId,
-      prixFabrication: cout ? { centimes: cout.cout.centimes, texte: formaterMontant(cout.cout), avatarParle: cout.avatarParle ? phraseAvatarParle(cout.avatarParle) : undefined } : undefined,
+      prixFabrication: cout ? { centimes: cout.cout.centimes, texte: "", avatarParle: cout.avatarParle ? "Votre avatar parle dans cette vidéo." : undefined } : undefined,
       ...fabricationDe(v.id),
     };
   });
@@ -177,14 +174,14 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
   const etat = ETATS_SUJET_GENERATEUR[vue.etat]?.libelle ?? vue.etat;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage
         retour={retourVideo ? { href: retourVideo, libelle: "Ma vidéo" } : { href: "/ecrire", libelle: "Écrire" }}
         surTitre={
           m.numero !== undefined ? (
             <span className="flex flex-wrap items-center gap-2">
               {formatsDuSujet.map((f) => (
-                <Pastille key={f} ton="orange" taille="md">
+                <Pastille key={f} ton="encre" taille="md">
                   {nomFormat(f)}
                 </Pastille>
               ))}
@@ -206,6 +203,8 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
         id={id}
         numero={m.numero}
         idee={m.brief.idee}
+        ciblage={m.brief.ciblage}
+        typeAutomatisation={m.brief.typeAutomatisation}
         etat={etat}
         archive={!!m.archiveLe}
         manque={m.numero === undefined || m.manque ? (m.manque ? { libelle: MANQUES_GENERATEUR[m.manque.type] ?? "Il manque une matière", ceQuIlFaudrait: m.manque.ceQuIlFaudrait, horsDomaine: m.manque.type === "HORS_DOMAINE" } : null) : null}
@@ -230,9 +229,9 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
         ouvrirProgrammation={sp.programmer === "1"}
         versionOuverteInitiale={sp.v}
         arret={arret && ecrit ? arret.message : null}
-        arretSupplement={arret?.supplement && ecrit ? formaterMontant(arret.supplement) : null}
+        arretSupplement={null}
         sansAccord={await matieresSansAccord(id)}
-        prixAjouts={{ supplement: formaterMontant(await prixLancement(true, await chaineDeLEcriture(m.brief.modeChoix))), adresse: formaterMontant(await prixLancement("adresse", await chaineDeLEcriture(m.brief.modeChoix))), retouche: formaterMontant(await prixRetouche()) }}
+        prixAjouts={{ supplement: "", adresse: "", retouche: "" }}
         ecritureSimulee={!(await claudeBranche())}
         retourVideo={retourVideo}
         fabricationN={
@@ -240,17 +239,17 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             ? {
                 formatId: planN.formatId,
                 mere: { code: planN.mere.code, reseau: planN.mere.reseau, dureeSec: planN.mere.dureeSec },
-                versions: planN.versions.map((x) => ({ varianteId: x.varianteId, code: x.code, reseau: x.reseau, role: x.role, prix: formaterMontant(x.cout), dejaVideo: !!x.videoId })),
-                total: formaterMontant(planN.total),
+                versions: planN.versions.map((x) => ({ varianteId: x.varianteId, code: x.code, reseau: x.reseau, role: x.role, prix: "", dejaVideo: !!x.videoId })),
+                total: "",
                 totalCentimes: planN.total.centimes,
-                sansDeclinaison: formaterMontant(planN.sansDeclinaison),
+                sansDeclinaison: "",
                 surMere: planN.surMere,
-                avatarParle: planN.avatarParle ? phraseAvatarParle(planN.avatarParle, planN.versions.filter((x) => !x.videoId).length) : undefined,
+                avatarParle: planN.avatarParle ? (planN.versions.filter((x) => !x.videoId).length > 1 ? "Votre avatar parle dans ces vidéos." : "Votre avatar parle dans cette vidéo.") : undefined,
                 essai: doubleSimule,
               }
             : null
         }
       />
-    </div>
+    </ConteneurPage>
   );
 }

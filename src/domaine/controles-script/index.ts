@@ -14,6 +14,7 @@ import { c1, c1bis, c1ter, c2, c10bisC75, c15, c16bis, c17, c18c19, c31, c32, c5
 import { c13, c14, c34, c35, c36, c41, c48, c64, c70, c72 } from "./publication";
 import { c10, c11, c12, c20, c21, c22, c23c26, c28c29, c3, c30, c33, c38, c39, c45bis, c46, c6, c63, c7, c73c74, c8 } from "./structure";
 import { c77, c78, c79, c81, c82, c83, c94 } from "./probleme";
+import { c100c101c102 } from "./ciblage";
 import { c95 } from "./positionnement";
 import { c96, c97, c98, c99 } from "./recette";
 import { c89a91, c92, c93 } from "./retention";
@@ -37,6 +38,9 @@ export { problemeAbstrait, c80SerieDouleur, tempsDuRecit, raconteUnClient } from
 export * from "./serie";
 export { noterVersion, voyant, LEVIERS } from "./note";
 export { bandeMots } from "./retention";
+// L3-09 : `texte-post` (contrôleur du texte d'un post et de son commentaire) n'est PAS réexporté ici : il lit la liste unique
+// des interdits, qui lit elle-même ce dossier (montage-cas-concret/regles → ici). Le réexporter ferait un cycle d'import ;
+// on l'importe donc par son chemin : "@/domaine/controles-script/texte-post".
 
 /** Version des contrôles (enregistrée sur `ResultatControles.versionControles`). */
 export const VERSION_CONTROLES = 1;
@@ -46,7 +50,7 @@ type Controle = (e: EntreeControle, a: Analyse, col: Collecte) => void;
 /** Tous les contrôles d'une version, dans l'ordre de B.7.2. */
 export const CONTROLES_VERSION: readonly Controle[] = [
   c1, c1bis, c1ter, c2, c3, c3bis, c4, c5, c5bis, c6, c7, c8, c9, c10, c10bisC75, c11, c12, c13, c14, c15, c16, c16bis, c17, c18c19, c20, c21, c22, c23c26, c24c25, c27,
-  c28c29, c30, c31, c32, c33, c34, c35, c36, c37, c38, c39, c40, c41, c42, c45bis, c46, c48, c50c51c65, c54aC60, c63, c64, c68, c70, c72, c73c74, c76, c77, c78, c79, c81, c82, c83, c89a91, c92, c93, c94, c95, c96, c97, c98, c99,
+  c28c29, c30, c31, c32, c33, c34, c35, c36, c37, c38, c39, c40, c41, c42, c45bis, c46, c48, c50c51c65, c54aC60, c63, c64, c68, c70, c72, c73c74, c76, c77, c78, c79, c81, c82, c83, c89a91, c92, c93, c94, c95, c96, c97, c98, c99, c100c101c102,
 ];
 
 /**

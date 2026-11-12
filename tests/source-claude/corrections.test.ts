@@ -125,7 +125,7 @@ describe("1. Claude CHOISI (épuisé ou non) : jamais de texte d'essai à la pla
     expect(e.cles).toEqual([]);
   });
 
-  it("relance d'une étape d'écriture du cas concret, tout épuisé : le prix est annoncé et l'accord demandé", async () => {
+  it("relance d'une étape d'écriture du cas concret, tout épuisé : aucun accord de prix demandé (08/11/2026), la relance part", async () => {
     const e = espion({ A1: [OK] });
     injecter(e.fetch);
     await epuiserTous();
@@ -142,7 +142,8 @@ describe("1. Claude CHOISI (épuisé ou non) : jamais de texte d'essai à la pla
     const etapes = (await depots().travaux.obtenir(t!.id))!.etapes;
     expect(etapes.some((x) => x.cle === "ecriture" && x.statut === "echec")).toBe(true);
     const issue = await relance.relancerEtapeCasConcret(t!.id);
-    expect(issue.statut).toBe("accord-requis");
+    expect(issue.statut).not.toBe("accord-requis");
+    expect(issue.statut).toBe("relancee");
   });
 });
 

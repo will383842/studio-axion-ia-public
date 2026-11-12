@@ -24,10 +24,10 @@ export const evenements = (p: Pick<EquationProps, "instants" | "sortie">): numbe
 };
 
 function Signe({ signe, i, palette, sortie }: { signe: string; i: number; palette: Palette; sortie: number }) {
-  const { ACCENT_1 } = accents(palette);
+  const { ACCENT_SOMBRE } = accents(palette);
   return (
     <Anim etat={entreePop(i, { nom: "CLAQUE", incl: -4, sortie, depart: 0.2 })} style={{ position: "absolute", left: -84, top: "50%", marginTop: -34 }}>
-      <div style={{ boxSizing: "border-box", width: 68, height: 68, borderRadius: 999, background: COULEURS.ENCRE, border: `5px solid ${COULEURS.ENCRE}`, boxShadow: ombreEncre("S"), color: ACCENT_1, fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: 52, lineHeight: "56px", textAlign: "center" }}>{signe}</div>
+      <div style={{ boxSizing: "border-box", width: 68, height: 68, borderRadius: 999, background: COULEURS.ENCRE, border: `5px solid ${COULEURS.ENCRE}`, boxShadow: ombreEncre("S"), color: ACCENT_SOMBRE, fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: 52, lineHeight: "56px", textAlign: "center" }}>{signe}</div>
     </Anim>
   );
 }

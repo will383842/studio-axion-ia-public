@@ -106,7 +106,7 @@ describe("X12 · l'écriture refusée deux fois", () => {
     const phrase = arret.travail.erreur?.messagePourWill ?? "";
     expect(phrase).toContain("L'étape « L'écriture » n'a pas abouti.");
     expect(phrase).toContain("Vous pouvez réessayer cette étape seule.");
-    expect(phrase).toMatch(/« Reprendre » relit d'abord les réponses déjà payées avec les règles du jour ; si elles restent refusées, un nouvel essai d'écriture coûte environ \d+,\d\d\s€\./);
+    expect(phrase).toMatch(/« Reprendre » relit d'abord les réponses déjà payées avec les règles du jour ; si elles restent refusées, il lance un seul nouvel essai d'écriture\.$/);
     expect(arret.travail.erreur?.reessayable).toBe(true);
   });
 

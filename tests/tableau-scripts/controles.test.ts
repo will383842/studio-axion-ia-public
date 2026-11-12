@@ -149,11 +149,11 @@ describe("durée", () => {
     expect(d).toMatchObject([{ code: "duree-reseau", eliminatoire: false }]);
     expect(d[0].message).toMatch(/remarque/);
   });
-  it("au-delà du plafond du découpage (90 s), toujours éliminatoire, même à moins de 10 % de la borne du réseau", () => {
+  it("au-delà du plafond du découpage (180 s), toujours éliminatoire, même à moins de 10 % de la borne du réseau", () => {
     for (const r of ["linkedin", "youtube"] as const) {
-      const d = controlerDuree(environ(95), r);
+      const d = controlerDuree(environ(190), r);
       expect(d).toMatchObject([{ code: "duree-reseau", eliminatoire: true }]);
-      expect(d[0].message).toMatch(/plafond de 90 s/);
+      expect(d[0].message).toMatch(/plafond de 180 s/);
       expect(d[0].message).toMatch(/raccourcissez le texte dit d'environ \d+ caractères/);
     }
   });

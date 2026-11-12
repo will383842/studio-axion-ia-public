@@ -65,7 +65,7 @@ export function FilEtape(props: PropsFilEtape) {
     const nombre = k + 1;
     return (
       <div key={k} style={{ width: 88, height: 88, boxSizing: "border-box", border: `${TRAIT.FIN}px solid ${E}`, borderRadius: RAYON.TUILE, background: fond, display: "flex", alignItems: "center", justifyContent: "center",
-        transform: `scale(${(vis ? (0.3 + 0.7 * p) * claque : 0).toFixed(3)})`, boxShadow: actif && i >= iA ? ombre("S") : "none", fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 44, color: E, position: "relative" }}>
+        transform: `scale(${(vis ? (0.3 + 0.7 * p) * claque : 0).toFixed(3)})`, boxShadow: actif && i >= iA ? ombre("S") : "none", fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 44, color: actif && courbe(i, iA, 3) >= 0.5 ? COULEURS.BLANC : E, position: "relative" }}>
         {passe && i >= iC + 2 ? <div style={{ transform: `scale(${(i >= iC + 6 ? 1 + 0.12 * (1 - ressort("CLAQUE", i - (iC + 6))) : 1).toFixed(3)})` }}><Coche taille={52} p={courbe(i, iC + 2, 4)} couleur={COULEURS.BLANC} /></div> : <span style={{ opacity: passe ? 0 : 1 }}>{nombre}</span>}
       </div>
     );

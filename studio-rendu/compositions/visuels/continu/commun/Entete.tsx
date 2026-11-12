@@ -11,7 +11,7 @@ export function Entete({ index, rubrique, sombre }: { index: number; rubrique?: 
     <div data-entete="" style={{ position: "absolute", left: index * LARGEUR_PAGE + MARGE_SURE, top: ENTETE.haut, width: LARGEUR_PAGE - 2 * MARGE_SURE, height: ENTETE.hauteur, display: "flex", justifyContent: "space-between", alignItems: "center", color: sombre ? C.creme : C.encre, zIndex: 10 }}>
       {rubrique ? (
         <span style={{ display: "inline-flex", gap: 12, alignItems: "center", ...police(700, TAILLES_CONTINU.chip, 1, POLICE_TEXTE), letterSpacing: "0.09em", textTransform: "uppercase", padding: "15px 24px", borderRadius: 999, background: sombre ? alpha(C.creme, 0.12) : alpha(C.encre, 0.075), whiteSpace: "nowrap" }}>
-          <i style={{ width: 12, height: 12, borderRadius: "50%", background: C.orange, display: "block" }} />
+          <i style={{ width: 12, height: 12, borderRadius: "50%", background: sombre ? C.accentSombre : C.accentClair, display: "block" }} />
           {rubrique}
         </span>
       ) : (

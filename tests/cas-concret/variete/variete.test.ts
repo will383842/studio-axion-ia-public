@@ -10,6 +10,8 @@ import {
   contraintesNonTenues,
   differences,
   DIMENSIONS_ACTIVES,
+  DIMENSIONS_HABILLAGE,
+  VARIANTES_RENDUES,
   MISES_EN_PAGE,
   entreeHistorique,
   graineDe,
@@ -244,7 +246,7 @@ describe("L2 · variante n° 0 = v4 et déclinaison par écran", () => {
   });
 
   it("L3c : seules les dimensions actives passent aux propriétés des écrans ; la v4 n'en passe aucune", () => {
-    expect(DIMENSIONS_ACTIVES).toEqual(["fondFort", "groupeParticules", "densiteParticules", "barres", "miseEnPage", "fondAlterne", "raccordEntree", "raccordSortie", "animObjet"]);
+    expect(DIMENSIONS_ACTIVES).toEqual(["fondFort", "groupeParticules", "densiteParticules", "barres", "miseEnPage", "fondAlterne", "raccordEntree", "raccordSortie", "animObjet", "entree", "sortie", "camera", "transition", "motParMot"]);
     // Tirage v4 : aucun jeu sur aucun écran (propriétés et empreintes de la v4).
     const v4 = mettre(TIRAGE_V4, ECRANS);
     for (const e of ECRANS) expect(jeuDeLEcran(v4, e.id)).toBeUndefined();
@@ -260,7 +262,16 @@ describe("L2 · variante n° 0 = v4 et déclinaison par écran", () => {
       for (const e of ECRANS) {
         const jeu = jeuDeLEcran(mise, e.id);
         // L6 : une mise en page de L2 (jamais rendue) ne passe pas.
-        const attendu = Object.fromEntries(DIMENSIONS_ACTIVES.filter((d) => mise.ecrans[e.id]![d] !== undefined && !(d === "miseEnPage" && (MISES_EN_PAGE as readonly string[]).includes(mise.ecrans[e.id]![d] as string))).map((d) => [d, mise.ecrans[e.id]![d]]));
+        // Habillage : valeurs v4 jamais posées ; seules les variantes rendues (VARIANTES_RENDUES) passent, et seulement sur un tirage `habille`.
+        const v4 = ["fondu-recul-v4", "aucune-v4", "aucun", "v4"];
+        const attendu = Object.fromEntries(
+          DIMENSIONS_ACTIVES.filter((d) => {
+            const v = mise.ecrans[e.id]![d];
+            if (v === undefined || (d === "miseEnPage" && (MISES_EN_PAGE as readonly string[]).includes(v as string))) return false;
+            if (DIMENSIONS_HABILLAGE.includes(d)) return mise.tirage.habille === true && !v4.includes(v as string) && (VARIANTES_RENDUES[d] ?? []).includes(v as string);
+            return true;
+          }).map((d) => [d, mise.ecrans[e.id]![d]]),
+        );
         expect(jeu ?? {}).toEqual(attendu);
       }
     }

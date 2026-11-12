@@ -8,9 +8,10 @@ import { reessayerTravailAction } from "@/app/(studio)/actions";
 import { useNotificationsTelephone } from "@/components/coquille/EnregistrementPwa";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
 import { versSuiviFabrication } from "@/components/creation/vues-travail";
+import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
-import { EnTetePage } from "@/components/ui/EnTetePage";
+import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { Squelette } from "@/components/ui/Squelette";
@@ -20,9 +21,8 @@ import { BoutonArreter } from "@/components/videos/BoutonArreter";
 import { travailAffiche, useTravaux } from "@/hooks/useTravaux";
 import { formatSansPrix } from "@/formats";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import type { ProprietesEtape } from "./types";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 
 /**
  * Étape « fabrication » — PLEIN ÉCRAN : progression en direct (useTravaux, toutes les 2 s),
@@ -73,19 +73,23 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
                 </motion.span>
               ) : (
                 <motion.span key="encours" className="relative grid size-28 place-items-center">
-                  <motion.span className="absolute inset-0 rounded-full border-4 border-orange/20 border-t-orange" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }} />
-                  <span className="grid size-20 place-items-center rounded-full bg-orange text-sur-orange shadow-orange">
+                  <motion.span className="absolute inset-0 rounded-full border-4 border-accent/20 border-t-accent" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }} />
+                  <span className="grid size-20 place-items-center rounded-full bg-accent text-sur-accent">
                     <Icone nom="clap" size={34} />
                   </span>
                 </motion.span>
               )}
             </AnimatePresence>
           </div>
-          <EnTetePage
-            className="mb-0 items-center text-center sm:flex-col sm:items-center sm:justify-center"
-            titre={termine ? "Votre vidéo est prête" : echec ? "Une étape a coincé" : arretee ? "Fabrication arrêtée" : "Je fabrique votre vidéo"}
-            sousTitre={termine ? "Elle vous attend dans Mes vidéos." : echec || arretee ? "Rien n'est perdu." : t?.boucleActive ? "Vous pouvez fermer : on vous prévient." : "Quelques minutes de patience."}
-          />
+          <div className="text-center">
+            {/* « Vous pouvez fermer » n'est promis que si la boucle de fabrication tourne ; sinon, on demande seulement de patienter. */}
+            <EnTeteSuivi
+              etat={termine ? "prete" : echec ? "coincee" : arretee ? "arretee" : "en-cours"}
+              sansTemps
+              titre={arretee && !termine && !echec ? "Fabrication arrêtée" : undefined}
+              phrase={!termine && !echec && !arretee && !t?.boucleActive ? "Quelques minutes de patience." : undefined}
+            />
+          </div>
           {actif && t?.boucleActive && telephone.etat === "a-activer" && (
             <Bouton
               variante="fantome"
@@ -103,7 +107,6 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
         {t ? (
           <SuiviFabrication
             vue={versSuiviFabrication(t)}
-            pied={!sansPrix && t.depense.centimes > 0 ? <>{formaterMontant(t.depense)} dépensés</> : undefined}
             actions={
               actif ? (
                 <>
@@ -120,7 +123,7 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
               let r = await reessayerTravailAction(t.id);
               r = await avecConfirmationPrix(r, (accord) => reessayerTravailAction(t.id, accord));
               setReessai(false);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
             }}
           />
         ) : charge ? (
@@ -169,7 +172,7 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
  */
 export function SansSuivi({ videoId }: { videoId?: string }) {
   return (
-    <div className="rounded-carte border border-trait bg-surface-1 p-4 text-center">
+    <Carte className="text-center">
       <p className="text-[15px] text-texte">Le suivi de cette fabrication n&apos;est plus affiché ici.</p>
       <p className="mt-1 text-sm text-texte-doux">Votre vidéo vous attend dans Mes vidéos, prête ou en cours.</p>
       {videoId && (
@@ -177,6 +180,6 @@ export function SansSuivi({ videoId }: { videoId?: string }) {
           <Link href={`/videos/${videoId}`}>Voir ma vidéo</Link>
         </Bouton>
       )}
-    </div>
+    </Carte>
   );
 }

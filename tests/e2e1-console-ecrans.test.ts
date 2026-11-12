@@ -68,7 +68,8 @@ describe("n° 5 — « Corriger » dans Coût ouvre la bonne feuille", () => {
   it("en compact, Corriger passe par ouvrirFeuille (l'étape « script » n'existe pas en Rapide)", () => {
     expect(apercu).toMatch(/ouvrirFeuille \? ouvrirFeuille\(FEUILLE_DE_L_ETAPE\[cible\] \?\? "script"\) : allerA\(cible\)/);
     expect(apercu).toMatch(/script: "script", distribution: "plateau", reglages: "style"/);
-    expect(express).toMatch(/<EtapeApercu \{\.\.\.props\} compacte ouvrirFeuille=\{ouvrirFeuille\} \/>/);
+    // Aucun montant dans l'interface : l'écran Rapide n'ouvre plus la feuille de l'aperçu chiffré.
+    expect(express).not.toMatch(/<EtapeApercu\b/);
   });
 });
 
@@ -182,12 +183,17 @@ describe("n° 19 — Personnages : le même chiffre partout", () => {
 });
 
 describe("n° 21 — Réglages : pastilles et titres portent les mêmes noms", () => {
-  it("chaque pastille porte le titre de sa carte", () => {
-    const pastilles = [...reglages.matchAll(/\{ id: "([^"]+)", libelle: "([^"]+)"/g)].map((m) => ({ id: m[1], libelle: m[2] }));
-    expect(pastilles.length).toBeGreaterThan(5);
+  // Depuis #257, les pastilles (rangée de liens) et les titres de rubrique viennent tous deux de `rubriques.ts`.
+  const rubriques = lire("src/app/(studio)/reglages/rubriques.ts");
+  it("chaque pastille porte le titre de sa rubrique", () => {
+    const pastilles = [...rubriques.matchAll(/\{ id: "([^"]+)", libelle: "([^"]+)"/g)].map((m) => ({ id: m[1], libelle: m[2] }));
+    expect(pastilles.length).toBeGreaterThan(3);
+    // la rangée de liens et le titre h2 lisent le même libellé
+    expect(reglages).toMatch(/RUBRIQUES\.map\(\(r\) => \(\s*<a[^>]*href=\{`#\$\{r\.id\}`\}[\s\S]*?\{r\.libelle\}/);
+    expect(reglages).toMatch(/<h2 id=\{`\$\{r\.id\}-rubrique`\}[^>]*>\s*\{r\.libelle\}/);
     for (const p of pastilles) {
-      const carte = new RegExp(`id="${p.id}" icone="[^"]+" titre="([^"]+)"`).exec(reglages);
-      expect(carte?.[1], p.id).toBe(p.libelle);
+      if (p.id === "avance") expect(reglages, p.id).toMatch(/id="avance-rubrique"[^>]*>\s*\{RUBRIQUES\.find\(\(r\) => r\.id === "avance"\)!\.libelle\}/);
+      else expect(reglages, p.id).toContain(`<Rubrique id="${p.id}">`);
     }
   });
 });

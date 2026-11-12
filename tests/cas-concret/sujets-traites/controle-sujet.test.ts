@@ -119,14 +119,14 @@ describe("les trois choix", () => {
     expect(await scripts.historiqueScriptsValides(CAS)).toEqual([]);
   });
 
-  it("« Nouvel angle » coûte l'écriture : l'accord du script rejoué ne suffit pas, le prix est redemandé", async () => {
+  it("« Nouvel angle » coûte l'écriture : l'accord du script rejoué n'arrête rien, la fabrication part", async () => {
     await depots().videos.enregistrer(video("v-prete"));
     const refus = await service.preparerEtLancer(demande(), { lancer });
     if (refus.statut !== "sujet-deja-traite") throw new Error(JSON.stringify(refus));
     const rejoue = await service.estimerCas(CAS, RESEAUX, false);
     const r = await service.preparerEtLancer(demande({ accordCentimes: rejoue.centimes, sujet: { choix: "nouvel-angle", jeton: refus.jeton } }), { lancer });
-    expect(r.statut).toBe("accord-requis");
-    if (r.statut === "accord-requis") expect(r.centimes).toBeGreaterThan(rejoue.centimes);
+    // 08/11/2026 : l'écriture coûte plus cher que le script rejoué, mais aucune confirmation de prix n'est exigée.
+    expect(r.statut).toBe("lancee");
   });
 
   it("jeton périmé : refus de nouveau (jetonPerime), rien d'enregistré", async () => {

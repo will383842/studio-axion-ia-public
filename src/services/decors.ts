@@ -37,6 +37,7 @@ import {
 } from "@/domaine/decors";
 import { TARIFS_FABRICATION_USD } from "@/domaine/illustrations";
 import type { AngleVisage, DateIso, ElementBibliotheque, Fichier, Id, Montant, ValeurDecor } from "@/domaine/types";
+import { PALETTE } from "@/briques/charte/axion-2026";
 import { descriptionEnCatalogue } from "@/donnees/decors-catalogue";
 import { DECORS_DANS_HEYGEN, LOOKS_HEYGEN_PAR_LE_STUDIO } from "@/fournisseurs/heygen/rendus";
 import { etatConnexion, resoudreFournisseur } from "@/fournisseurs";
@@ -45,11 +46,13 @@ import { RECETTE_COMPOSITION_AVOCAT } from "@/moteurs/montage-avocat/recette-com
 import { nouvelId } from "@/lib/ids";
 import { centimes, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import type { OrigineLancement } from "./budget-mensuel";
+import { avecOrigineFournisseur } from "./plafond-fournisseur";
 import { depots, ecrireParametre, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre, maintenant, ressourceActive } from "./_commun";
 import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
 import { doublesDeBasePourLooks, enregistrerLookGenere } from "./personnages";
 import { accordDonne, type AccordPrix } from "@/domaine/accord";
+import { budgetIndicatifPour } from "./mode-budget";
 
 /** Double simulé seul (fond transparent), posé par l'écran sur une photo qui n'a pas encore sa vignette. */
 export const SILHOUETTE_DOUBLE = "/demo/decors/silhouette.png";
@@ -295,8 +298,8 @@ async function creerPropositionsDuLot(lot: LotDecors, reel: boolean): Promise<Id
         methode: "photo-incrustee",
         // Une photo réelle est toujours floutée (profondeur de champ) : 14 px à 1080 de large.
         profondeurFlou: 14,
-        teinte: clair ? "#E9E1D4" : "#1A120B",
-        teinteLumiere: clair ? "#F2D6A8" : "#D69650",
+        teinte: clair ? PALETTE.gris : PALETTE.noir,
+        teinteLumiere: clair ? PALETTE.gris : PALETTE.orange,
         directionLumiere: clair ? "gauche" : "droite",
         positionSujet: 0.5,
         clair,
@@ -413,7 +416,7 @@ const PHOTOS_EN_PREPARATION = "Les photos sont encore en préparation. Rouvrez �
  */
 export async function demanderDecor(texte: string, options: { confirme: AccordPrix; origine?: OrigineLancement }): Promise<{ propositionIds: Id[]; cout: Montant; essai: boolean }> {
   await exigerSession();
-  if (!accordDonne(options.confirme)) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
+  if (!accordDonne(options.confirme) && !(await budgetIndicatifPour(options.origine))) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
   const phrase = texte.trim().slice(0, 200);
   const requetes = requetesPropositions(phrase);
   if (!requetes.length || requetes.length !== PROPOSITIONS_PAR_DEMANDE) throw new ErreurStudio("INCOMPRIS", "Décrivez un lieu (« un bureau avec une bibliothèque »), sans personne.");
@@ -467,7 +470,9 @@ export async function demanderDecor(texte: string, options: { confirme: AccordPr
   let depenseEcrite = false;
   try {
     await sauver();
-    await Promise.all(
+    // L2-13 : l'origine du lancement suit jusqu'au fournisseur (quota de quantité et plafond technique : « usine » seulement).
+    await avecOrigineFournisseur("usine" === options.origine ? "usine" : "studio", () =>
+      Promise.all(
       lot.demandes.map(async (dem) => {
         try {
           dem.idDemande = (await fabrication.soumettre({ genre: "image", requete: dem.requete, ratio: "9:16", cleIdempotence: `${lotId}-${dem.i}` })).idDemande;
@@ -477,6 +482,7 @@ export async function demanderDecor(texte: string, options: { confirme: AccordPr
         }
         await sauver();
       }),
+      ),
     );
     await sauver();
     // Dépense comptée DÈS la soumission (ce qui est parti est payé), au tarif relevé.
@@ -642,7 +648,7 @@ export async function preparerLookDecor(decorId: Id, options: { confirme: Accord
   if (!bases.length) throw new ErreurStudio("DOUBLE_MANQUANT", "Votre double n'existe pas encore : le décor sera fabriqué dès qu'il sera prêt.");
   const manquants = bases.filter((b) => !e.valeur.lookIdParAngle?.[b.angle]);
   if (!manquants.length) return { crees: [], reutilise: true, essai: f.mode !== "reel" };
-  if (!accordDonne(options.confirme)) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
+  if (!accordDonne(options.confirme) && !(await budgetIndicatifPour(options.origine))) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
   const descriptionEn = descriptionEnCatalogue(e.valeur.catalogue?.code) ?? sujetDecorEn(e.valeur.description ?? e.nom);
   const lookIdParAngle = { ...(e.valeur.lookIdParAngle ?? {}) };
   const crees: AngleVisage[] = [];
@@ -777,7 +783,7 @@ export async function estimerDecorDepuisDescription(phrase: string, options: { d
 export async function creerDecorDepuisDescription(phrase: string, options: { confirme: AccordPrix; deuxAngles?: boolean }): Promise<{ decorId: Id; crees: AngleVisage[]; essai: boolean }> {
   const est = await estimerDecorDepuisDescription(phrase, options);
   if (est.bloque) throw new ErreurStudio(est.bloque === DECORS_DANS_HEYGEN ? "DECOR_DANS_HEYGEN" : "BLOQUE", est.bloque);
-  if (!accordDonne(options.confirme)) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
+  if (!accordDonne(options.confirme) && !(await budgetIndicatifPour())) throw new ErreurStudio("CONFIRMATION", "Confirmez d'abord le coût affiché.");
   const d = depots();
   const texte = String(phrase).trim();
   const element: ElementBibliotheque & { valeur: ValeurDecor } = {
@@ -788,7 +794,7 @@ export async function creerDecorDepuisDescription(phrase: string, options: { con
     licence: { type: "generee-ia", usageCommercial: true, reseaux: [], source: "HeyGen (look de votre avatar)" },
     formatsParDefaut: [],
     marqueId: "marque-axion",
-    valeur: { type: "decor", mode: "image", methode: "look-heygen", profondeurFlou: 0, teinte: "#1A120B", directionLumiere: "gauche", positionSujet: 0.5, description: texte, statut: "a_verifier", demande: { texte, le: maintenant() } },
+    valeur: { type: "decor", mode: "image", methode: "look-heygen", profondeurFlou: 0, teinte: PALETTE.noir, directionLumiere: "gauche", positionSujet: 0.5, description: texte, statut: "a_verifier", demande: { texte, le: maintenant() } },
     ...horodatage(),
   };
   await d.elements.enregistrer(element);

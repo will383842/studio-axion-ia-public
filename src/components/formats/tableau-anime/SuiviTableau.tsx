@@ -16,7 +16,7 @@ import { useState, useTransition } from "react";
 import { passerDevantAction } from "@/app/(studio)/videos/actions";
 import { relancerTableauAction, rouvrirFicheTableauAction } from "@/app/(studio)/tableau/nouvelle/actions";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { phrasePanneAction } from "@/components/ui/phrasesAction";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
@@ -55,12 +55,12 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
     });
   }
 
-  async function relancer(montant?: number, message?: string) {
+  async function relancer(montant?: number, message?: string, dejaRelance = false) {
     setPhrase(null);
     let accord: number | undefined;
     if (typeof montant === "number") {
-      const a = await confirmerPrix({ message: message ?? "La voix de cette vidéo est la seule dépense (l'écriture et le découpage sont gardés).", montant });
-      if (typeof a !== "number") return setPhrase("Rien n'est relancé tant que le prix n'est pas confirmé.");
+      const a = await confirmerPrix({ message: message ?? "Seule la voix de cette vidéo est refaite (l'écriture et le découpage sont gardés).", montant });
+      if (typeof a !== "number") return setPhrase("Relance non lancée : réessayez quand vous voulez.");
       accord = a;
     }
     demarrer(async () => {
@@ -68,8 +68,12 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
       if (!r) return setPhrase(injoignable);
       if (!r.ok) return setPhrase(r.message);
       if (r.donnees.statut === "refusee") return setPhrase(r.donnees.phrase);
-      if (r.donnees.statut === "accord-requis") return void relancer(r.donnees.centimes, r.donnees.phrase);
-      notifier.succes(r.donnees.phrase);
+      if (r.donnees.statut === "accord-requis") {
+        // UNE seule relance automatique, jamais de boucle.
+        if (dejaRelance) return setPhrase("La relance n'a pas abouti, réessayez.");
+        return void relancer(r.donnees.centimes, r.donnees.phrase, true);
+      }
+      notifier.succes(messageSansMontant(r.donnees.phrase));
       // Relance d'un autre travail (arrêt à la relecture) : la page suit le nouveau ; sinon le suivi repart d'ici.
       if (r.donnees.travailId !== t.id) router.refresh();
       else {
@@ -84,7 +88,7 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
     passerDevant(async () => {
       try {
         const r = await passerDevantAction(t.id);
-        if (!r.ok) notifier.erreur(r.message);
+        if (!r.ok) notifier.erreur(messageSansMontant(r.message));
         else {
           router.refresh();
           void actualiser();
@@ -129,7 +133,7 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
       />
       {phrase && (
         <p role="alert" className="mt-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-          {phrase}
+          {messageSansMontant(phrase)}
         </p>
       )}
     </>

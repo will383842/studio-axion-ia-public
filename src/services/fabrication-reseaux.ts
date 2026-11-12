@@ -741,7 +741,7 @@ export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: 
   const d = depots();
   const m = await d.scriptsMaitres.obtenir(scriptMaitreId);
   if (!m || m.archiveLe) throw new ErreurStudio("INTROUVABLE", "Ce sujet n'existe plus.");
-  if (m.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) throw new ErreurStudio("LIMITE_A_VALIDER", "Validez d'abord la limite proposée (un toucher).");
+  if (m.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) await journaliser("generateur", "Remarque : la limite proposée par la machine n'est pas validée ; la fabrication continue (le script de Williams fait foi).");
   // CORRECTEUR 1 — B6 : la confirmation est celle du TOTAL que Will a vu sur la feuille (lot compris), envoyé par
   // l'écran. Un total confirmé plus bas que le prix d'aujourd'hui ne vaut pas confirmation.
   // Seconde relecture (R2) : c'est le MONTANT confirmé qui suit (la mère et chaque version), plus un simple `true`.

@@ -123,7 +123,7 @@ describe("un refus par famille de contrôle", () => {
   });
 
   it("fichier exporté : volume hors cible, crête trop haute ou durée trop longue bloquent", async () => {
-    const r = await controlerVideoTableau(entree(copie(ficheErreurCorrigee), { mesures: { ...MESURES_BONNES, lufs: -20, creteVraieDbtp: 0, dureeSec: 95 } }), RELECTURE_RAS);
+    const r = await controlerVideoTableau(entree(copie(ficheErreurCorrigee), { mesures: { ...MESURES_BONNES, lufs: -20, creteVraieDbtp: 0, dureeSec: 200 } }), RELECTURE_RAS);
     expect(r.verdict).toBe("bloque");
     expect(famillesEchouees(r)).toEqual(["fichier"]);
     expect(r.bloquants.map((l) => l.libelle).sort()).toEqual(["Crête du son", "Durée", "Volume du son"]);
@@ -170,5 +170,5 @@ describe("variété levée par un motif", () => {
 });
 
 function seuilsParDefaut() {
-  return { volumeCible: -14, volumeTolerance: 1, creteMax: -1.5, dureeMaxSec: 90, tailleTexteMin: 0.03, contrasteTexteMin: 7, contrasteMarqueMin: 3, accrocheMotsMax: 8, bandeSousTitres: 0.14 };
+  return { volumeCible: -14, volumeTolerance: 1, creteMax: -1.5, dureeMaxSec: 180, tailleTexteMin: 0.03, contrasteTexteMin: 7, contrasteMarqueMin: 3, accrocheMotsMax: 8, bandeSousTitres: 0.14 };
 }

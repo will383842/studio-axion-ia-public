@@ -220,9 +220,15 @@ async function videoLancee(): Promise<{ videoId: string; travail: Travail }> {
   void _s;
   for (const p of regles.preuves) await depots().preuves.enregistrer(p as never);
   for (const m of regles.matieres) await depots().matieres.enregistrer(m as never);
-  const prix = await creation.decouperScriptTableau(donnees, { relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES });
+  // Même sujet à chaque essai : dès la 2e vidéo, le contrôle « sujet déjà traité » (lot L4) refuse ; « Refaire quand même » avec son jeton.
+  let sujet: { choix: "refaire"; jeton: string } | undefined;
+  let prix = await creation.decouperScriptTableau(donnees, { relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES });
+  if (prix.statut === "sujet-deja-traite") {
+    sujet = { choix: "refaire", jeton: prix.jeton };
+    prix = await creation.decouperScriptTableau(donnees, { relu: repereTexte(donnees.texte), sujet }, { aujourdhui: AUJOURDHUI_EXEMPLES });
+  }
   if (prix.statut !== "accord-requis") throw new Error("prix du découpage attendu");
-  const r = await creation.decouperScriptTableau(donnees, { accord: prix.centimes, relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES });
+  const r = await creation.decouperScriptTableau(donnees, { accord: prix.centimes, relu: repereTexte(donnees.texte), sujet }, { aujourdhui: AUJOURDHUI_EXEMPLES });
   if (r.statut !== "en-cours") throw new Error("découpage attendu");
   await creation.travaillerTachesTableau({ appeler, aujourdhui: AUJOURDHUI_EXEMPLES });
   await creation.cocherDejaVuTableau(r.videoId, true, { aujourdhui: AUJOURDHUI_EXEMPLES });

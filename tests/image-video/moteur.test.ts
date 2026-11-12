@@ -33,7 +33,7 @@ import { CODE_CARTE_A_VALIDER, CODE_SCRIPT_A_VALIDER, creerMoteurMontageImageVid
 import { formatGenerateur, listerFormats } from "@/formats";
 import { codeDuFormat } from "@/formats/registre-codes";
 import { idMoteurDeCommande, moteurExiste, obtenirMoteur } from "@/moteurs";
-import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
+import { LECTURE_VIDE, lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
 import { carteFixe, demandeEssai, IMAGES, MESURE_REFERENCE, monde, outilsSimules, type Monde, type OptionsMonde } from "./doubles-fabrication";
 import { verdictSurMesureAncienne, VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
 import { REFERENCE_V4_IV } from "@/domaine/image-video/reference-voix";
@@ -57,6 +57,18 @@ vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
   };
 });
 
+/**
+ * 26/10/2026 : `planDesFinsIV` pose les fins « accroche + appel + lien » (LinkedIn non muet). Les chaînes de secours de
+ * Facebook, d'Instagram et de Shorts ont été construites sur l'ancien plan (fin « diagnostic », LinkedIn muet), qui reste
+ * GARDÉ dans l'état des vidéos faites ou arrêtées avant : le bloc « reprise après erreur » le rejoue (`planDesFinsAvant`).
+ */
+const reglageFins = vi.hoisted(() => ({ avant: false }));
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  const { planDesFinsAvant } = await import("./plan-des-fins-avant");
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV(d)) };
+});
+
 vi.setConfig({ testTimeout: 120_000 });
 
 /* ------------------------------------------------------------------ */
@@ -72,7 +84,10 @@ const decisionScript = (e: EtatFabricationIV, plus: Partial<DecisionScriptIV> = 
 });
 
 /** Jusqu'à la vidéo prête : carte validée telle quelle, script validé (formules gardées). */
-async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promise<{ etat: EtatFabricationIV; arrets: string[] }> {
+// Ces tests suivent le parcours où la fin de secours attend « Refaire cette partie » (`secoursAutomatique: false`) ; le
+// parcours automatique est dans `voix-reparation-automatique.test.ts`.
+async function jusquAuBout(e0: EtatFabricationIV, o0: OutilsFabricationIV, plus: { auto?: boolean } = {}): Promise<{ etat: EtatFabricationIV; arrets: string[] }> {
+  const o: OutilsFabricationIV = plus.auto ? o0 : { ...o0, secoursAutomatique: false };
   const arrets: string[] = [];
   let e = await avancerJusquAArretIV(e0, o);
   for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee"; i++) {
@@ -91,7 +106,7 @@ async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promi
 function demarrer(nom: (typeof IMAGES)[number], o: OptionsMonde = {}, plus: Parameters<typeof demandeEssai>[1] = {}) {
   const carte = carteFixe(nom);
   const m = monde();
-  return { carte, m, o: outilsSimules(carte, m, o), e: etatInitialIV(demandeEssai(carte, plus)) };
+  return { carte, m, o: outilsSimules(carte, m, o), e: etatInitialIV(demandeEssai(carte, { ...(reglageFins.avant ? { appelCommentaire: "question-puis-fin" as const } : {}), ...plus })) };
 }
 
 /** Chaque appel payant (Claude, HeyGen) est précédé, dans l'ordre, d'une réservation. */
@@ -153,17 +168,17 @@ describe("bout en bout en simulation, avec les arrêts « carte » et « script 
   }
 
   for (const [nom, defaut] of Object.entries(REFUS_Q21) as [(typeof IMAGES)[number], RegExp][]) {
-    it(`${nom} : refusée par la mise en page (Q21) avant toute écoute ou relecture, chaque appel payant réservé, plafond tenu`, async () => {
+    // 25/10/2026 : la mise en page (Q21) n'est plus qu'une remarque ; la vidéo sort prête, écoute et relecture faites.
+    it(`${nom} : prête avec une remarque de mise en page (Q21), chaque appel payant réservé, plafond tenu`, async () => {
       const { m, o, e } = demarrer(nom);
       const { etat, arrets } = await jusquAuBout(e, o);
       expect(arrets).toEqual(["carte", "script"]);
-      expect(etat.etape).toBe("refusee");
-      expect(etat.refus?.code).toBe("IV_CONTROLES");
-      const phrases = etat.refus?.phrases ?? [];
-      expect(phrases.some((p) => defaut.test(p))).toBe(true);
-      // Les seuls défauts constatés sont de mise en page ; le reste attend l'écoute (non lancée : rien de payé pour rien).
-      expect(phrases.filter((p) => !/\(non vérifié\)/.test(p) && !/Mise en page/.test(p))).toEqual([]);
-      expect(m.ordre.filter((x) => x === "transcription" || /relecture/.test(x))).toEqual([]);
+      expect(etat.refus).toBeUndefined();
+      expect(etat.etape).toBe("prete");
+      const mentions = etat.controles?.verdict.mentions ?? [];
+      expect(mentions.some((p) => defaut.test(p))).toBe(true);
+      expect(mentions.some((p) => /Mise en page/.test(p))).toBe(true);
+      expect(m.appelsClaude.some((a) => a.role === "relecture-finale-iv")).toBe(true);
       chaqueAppelReserve(m);
       expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
     });
@@ -237,12 +252,16 @@ describe("porte « carte » : obligatoire pour les 10 premières, puis selon le 
     expect(JSON.stringify(await avancerIV(apres, o))).toBe(JSON.stringify(apres));
   });
 
-  it("refus : carte corrigée avec un défaut bloquant, ou décision sur une autre proposition ; rien n'est gardé", async () => {
+  it("carte corrigée avec un bloc sans flèche : reliée seule ; décision sur une autre proposition : refus, rien n'est gardé", async () => {
     const { o, e } = demarrer("C");
     const arret = await avancerJusquAArretIV(e, o);
     const carte = arret.propositionCarte!.carte;
-    const cassee = { ...carte, liens: [...carte.liens, { ...carte.liens[0], id: "l99", vers: "n99" }] };
-    expect(() => validerCarteIV(arret, decisionCarte(arret, cassee))).toThrow(ErreurDecisionIV);
+    // R5 : un bloc posé sans aucune flèche ne bloque plus : le code le relie à son voisin et le dit.
+    const orpheline = { ...carte, noeuds: [...carte.noeuds, { ...carte.noeuds[0]!, id: "n99", libelle: "Bloc perdu", ordre: 99 }] };
+    const validee = validerCarteIV(arret, decisionCarte(arret, orpheline));
+    expect(validee.etape).toBe("ecriture");
+    expect(validee.carte!.carte.liens.some((l) => l.vers === "n99" || l.de === "n99")).toBe(true);
+    expect(validee.journal.join(" ")).toMatch(/Carte (réparée|adaptée)/);
     expect(() => validerCarteIV(arret, { proposition: "autre", le: "x" })).toThrow(/a changé/);
     expect(arret.etape).toBe("carte-a-valider");
   });
@@ -267,18 +286,30 @@ describe("porte « carte » : obligatoire pour les 10 premières, puis selon le 
     expect((await avancerIV(arret, bonne)).etape).toBe("ecriture");
   });
 
-  it("type inconnu des deux lectures : refus « choisissez-le », puis le type imposé par Will reprend les lectures payées", async () => {
+  it("ancien état « type à choisir » (IV_TYPE_A_CHOISIR) : le type imposé par Will reprend les lectures payées, 0 appel", async () => {
     const carte = carteFixe("C");
     const inconnue = { ...lectureDeCarte(carte), type: "inconnu" as const };
-    const { m, o, e } = demarrer("C", { lectures: { a: inconnue, b: inconnue } });
-    const refus = await avancerJusquAArretIV(e, o);
-    expect(refus.refus).toMatchObject({ code: "IV_TYPE_A_CHOISIR", etape: "lecture" });
-    expect(refus.lectures?.a).toBeDefined();
-    const appels = m.appelsClaude.length;
-    const apres = await avancerJusquAArretIV(imposerTypeIV(refus, "embranchement"), o);
+    const { m, o, e } = demarrer("C", { lectures: { a: LECTURE_VIDE, b: LECTURE_VIDE } });
+    const ancien = structuredClone(e);
+    ancien.etape = "refusee";
+    ancien.refus = { etape: "lecture", code: "IV_TYPE_A_CHOISIR", message: "Je ne reconnais pas ce type d'image : choisissez-le", reessayable: false };
+    ancien.lectures = { a: inconnue, b: inconnue };
+    const apres = await avancerJusquAArretIV(imposerTypeIV(ancien, "embranchement"), o);
+    expect(apres.lectures).toBeUndefined();
     expect(apres.etape).toBe("carte-a-valider");
     expect(apres.propositionCarte?.carte.types).toEqual(["embranchement"]);
-    expect(m.appelsClaude.length).toBe(appels);
+    expect(m.appelsClaude.length).toBe(0);
+  });
+
+  it("type inconnu des deux lectures : plus de refus (R1), le code déduit le type et le dit", async () => {
+    const carte = carteFixe("C");
+    const inconnue = { ...lectureDeCarte(carte), type: "inconnu" as const };
+    const { o, e } = demarrer("C", { lectures: { a: inconnue, b: inconnue } });
+    const apres = await avancerJusquAArretIV(e, o);
+    expect(apres.refus).toBeUndefined();
+    expect(apres.etape).toBe("carte-a-valider");
+    expect(apres.propositionCarte?.carte.types).toEqual(carte.types);
+    expect(apres.propositionCarte?.carte.adaptations?.some((x) => /type déduit/.test(x))).toBe(true);
   });
 });
 
@@ -326,7 +357,8 @@ describe("porte « script » : rien de plus n'est payé avant la validation", ()
     const { o, m, e } = await auScript();
     const v = validerScriptIV(e, decisionScript(e));
     expect(v.etape).toBe("voix");
-    expect(v.plan?.fins.find((f) => f.reseaux.includes("linkedin"))?.muet).toBe(true);
+    // 26/10/2026 : LinkedIn dit la fin comme les autres (même fichier que Facebook).
+    expect(v.plan?.fins.find((f) => f.reseaux.includes("linkedin"))).toMatchObject({ muet: false, reseaux: ["linkedin", "facebook"] });
     await avancerIV(v, o);
     expect(m.lus.length).toBe(1);
   });
@@ -340,9 +372,11 @@ describe("reprise après erreur, sans repayer", () => {
   // Voix payée en segments séparés (« voix-iv/1 ») : corps puis une lecture par fin, secours et replis.
   beforeAll(() => {
     reglageVoix.lectureUnique = false;
+    reglageFins.avant = true;
   });
   afterAll(() => {
     reglageVoix.lectureUnique = true;
+    reglageFins.avant = false;
   });
 
   it("15/10 · arrêt Q16 « part de parole −14 % » sur l'ancienne mesure (v-dd3049053f88) : « Refaire cette partie » re-mesure, aucune voix relue ni réservée", async () => {
@@ -422,6 +456,38 @@ describe("reprise après erreur, sans repayer", () => {
       expect(rendu.piste.mots.map((x) => x.mot).join(" ")).toMatch(/Le lien est dans le premier commentaire\.?$/);
       expect(fin.etat.livraison?.find((l) => l.reseau === "facebook")?.premierCommentaire).toBeTruthy();
       expect(fin.etat.journal.join(" ")).toMatch(/Fin de secours pour facebook/);
+    });
+
+    it("fin de secours à lire posée AUTOMATIQUEMENT : même réservation, comptée dans les 3 réparations, vidéo prête sans « Refaire »", async () => {
+      const ref: { m?: Monde } = {};
+      const d = demarrer("C", { mesureVoix: () => (ref.m!.lus.at(-1)!.endsWith(FIN_FB) ? HORS_REFERENCE : MESURE_REFERENCE) });
+      ref.m = d.m;
+      const { etat } = await jusquAuBout(d.e, d.o, { auto: true });
+      expect(etat.refus).toBeUndefined();
+      expect(etat.etape).toBe("prete");
+      // Fin habituelle lue 2 fois (relance de ressemblance), puis UNE lecture de secours, réservée comme les autres.
+      expect(d.m.lus.filter((t) => t.endsWith(FIN_FB))).toHaveLength(2);
+      const secours = d.m.lus.filter((t) => t.endsWith(SECOURS));
+      expect(secours).toHaveLength(1);
+      expect(etat.voix?.reparations).toBe(1);
+      const voix = etat.caisse.reservations.filter((r) => r.etape === "voix");
+      expect(new Set(voix.map((r) => r.cle)).size).toBe(voix.length);
+      expect(voix).toHaveLength(d.m.lus.length);
+      expect(voix.at(-1)!.cle).toMatch(/iv-voix-fin-facebook-[0-9a-f]{10}-\d+$/);
+      expect(etat.journal.join(" ")).toMatch(/Lecture de secours posée automatiquement \(1\/3\)/);
+      expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
+    });
+
+    it("fin habituelle ET fin de secours hors référence : les réservations de la voix restent à 1 + 3 au plus, un texte neuf ne contourne pas le plafond", async () => {
+      const ref: { m?: Monde } = {};
+      const d = demarrer("C", { mesureVoix: () => (ref.m!.lus.at(-1)!.endsWith(FIN_FB) || ref.m!.lus.at(-1)!.endsWith(SECOURS) ? HORS_REFERENCE : MESURE_REFERENCE) });
+      ref.m = d.m;
+      const { etat } = await jusquAuBout(d.e, d.o, { auto: true });
+      const voix = etat.caisse.reservations.filter((r) => r.etape === "voix");
+      // Premières lectures du plan de départ (corps + fins lues à part), puis 3 lectures de plus au plus.
+      expect(voix.length - (1 + etat.voix!.segments.fins.length)).toBeLessThanOrEqual(3);
+      expect(d.m.lus.length).toBe(voix.length);
+      expect(engageCentimes(etat)).toBeLessThanOrEqual(etat.caisse.plafondCentimes);
     });
 
     /** Enveloppe la lecture simulée : un « euh » est inséré (après le 2ᵉ mot) quand le texte finit par `fin`. */
@@ -777,17 +843,12 @@ describe("reprise après erreur, sans repayer", () => {
         expect(b.m.lus.filter((t) => t.endsWith(IG_S))).toHaveLength(2);
       });
 
-      it("(d) plafond trop bas pour la relecture : refus « budget » réessayable, rien n'est lu ; une fois le plafond relevé, UNE seule lecture", async () => {
+      it("(d) plafond trop bas pour la relecture : le prix ne bloque plus, UNE seule lecture neuve, la vidéo va au bout", async () => {
         const b = monter({ [IG]: "hors", [IG_S]: ["hors", "ok"] });
         const e2 = await reprendre(b, await partir(b));
         const lus = b.m.lus.length;
         const e3 = await reprendre(b, e2, { plafondCentimes: engageCentimes(e2) });
-        expect(e3.etape).toBe("refusee");
-        expect(e3.refus).toMatchObject({ etape: "voix", reessayable: true });
-        expect(e3.refus!.code).toMatch(/IV_PLAFOND|IV_BUDGET/);
-        expect(b.m.lus).toHaveLength(lus);
-        const e4 = await reprendre(b, e3, { plafondCentimes: engageCentimes(e3) + 500 });
-        expect(e4.etape).toBe("prete");
+        expect(e3.etape).toBe("prete");
         expect(b.m.lus).toHaveLength(lus + 1);
         expect(b.m.lus.at(-1)).toMatch(/Vous trouverez le lien juste en haut de mon profil\.$/);
       });
@@ -880,18 +941,14 @@ describe("reprise après erreur, sans repayer", () => {
     });
   });
 
-  it("panne de HeyGen sur une fin : refus réessayable ; la reprise ne relit pas le corps payé", async () => {
+  it("panne de HeyGen sur une fin : relancée seule, le corps payé n'est pas relu", async () => {
     const { m, o, e } = demarrer("C", { pannesVoix: [2] });
     const { etat } = await jusquAuBout(e, o);
-    expect(etat.etape).toBe("refusee");
-    expect(etat.refus).toMatchObject({ etape: "voix", code: "IV_PANNE", reessayable: true });
-    const corps = m.lus.length;
-    expect(corps).toBe(1);
-    const fin = await jusquAuBout(reprendreIV(etat), o);
-    expect(fin.etat.etape).toBe("prete");
-    // Le corps n'est jamais relu : seules les fins sont lues après la reprise.
+    expect(etat.etape).toBe("prete");
+    // Le corps n'est jamais relu : seules les fins sont lues après la relance automatique (même tentative).
     expect(m.lus.filter((t) => t === m.lus[0]).length).toBe(1);
-    expect(fin.etat.tentatives.voix).toBe(2);
+    expect(etat.tentatives.voix).toBe(1);
+    expect(etat.journal.some((l) => /panne passagère, un nouvel essai automatique de la voix/.test(l))).toBe(true);
   });
 
   it("rendu en cours : attente, rien n'est perdu ni compté deux fois, le pas suivant reprend", async () => {
@@ -916,7 +973,8 @@ describe("reprise après erreur, sans repayer", () => {
     const m = monde();
     const base = outilsSimules(carte, m);
     let vide = true;
-    const o: OutilsFabricationIV = { ...base, ecriture: { appeler: async (role, entree) => (vide ? { ok: true, simule: true, texte: "" } : base.ecriture.appeler(role, entree)) } };
+    // Relance automatique coupée : on compte ici les seuls appels d'écriture du moteur et de la reprise de Will.
+    const o: OutilsFabricationIV = { ...base, relancesAuto: false, ecriture: { appeler: async (role, entree) => (vide ? { ok: true, simule: true, texte: "" } : base.ecriture.appeler(role, entree)) } };
     let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte)), o);
     e = await avancerJusquAArretIV(validerCarteIV(e, decisionCarte(e)), o);
     expect(e.refus).toMatchObject({ etape: "ecriture", code: "IV_ECRITURE", reessayable: true });
@@ -950,48 +1008,24 @@ async function auScriptDe(x: ReturnType<typeof demarrer>): Promise<EtatFabricati
 /* Plafond par vidéo et budget                                           */
 /* ------------------------------------------------------------------ */
 
-describe("plafond par vidéo : arrêt net, jamais dépassé", () => {
-  it("plafond trop bas pour la lecture : aucun appel, refus « plafond »", async () => {
+describe("plafond par vidéo : un avertissement, jamais un arrêt tant que le crédit réel suffit", () => {
+  it("plafond trop bas pour la lecture : la lecture part, avertissement au journal", async () => {
     const { m, o, e } = demarrer("C", {}, { plafondCentimes: 10 });
     const apres = await avancerJusquAArretIV(e, o);
-    expect(apres.refus).toMatchObject({ code: "IV_PLAFOND", etape: "lecture" });
-    expect(apres.refus?.message).toMatch(/Plafond de cette vidéo atteint \(0,10 €/);
-    expect(m.appelsClaude).toEqual([]);
-    expect(m.depenses).toEqual([]);
+    expect(apres.refus).toBeUndefined();
+    expect(m.appelsClaude.length).toBeGreaterThan(0);
+    expect(apres.journal.some((l) => /Avertissement : Cette vidéo dépasse son prix annoncé/.test(l))).toBe(true);
   });
 
-  it("plafond atteint à la voix : aucune lecture HeyGen ; relevé par Will, la fabrication reprend sans rien repayer", async () => {
-    // Depuis #248, l'écriture réserve plus : le plafond bas se pose une fois le script écrit, comme le ferait Will.
+  it("plafond atteint à la voix : la voix est lue quand même, la vidéo va au bout sans rien repayer", async () => {
     const x = demarrer("C", {}, { plafondCentimes: 500 });
     let e = await auScriptDe(x);
     e = reprendreIV(e, { plafondCentimes: engageCentimes(e) });
-    expect(e.etape).toBe("script-a-valider");
-    e = await avancerJusquAArretIV(validerScriptIV(e, decisionScript(e)), x.o);
-    expect(e.refus).toMatchObject({ code: "IV_PLAFOND", etape: "voix", reessayable: true });
-    expect(x.m.lus).toEqual([]);
-    const appels = x.m.appelsClaude.length;
-    const fin = await jusquAuBout(reprendreIV(e, { plafondCentimes: 500 }), x.o);
+    const fin = await jusquAuBout(validerScriptIV(e, decisionScript(e)), x.o);
     expect(fin.etat.etape).toBe("prete");
-    // Lecture et écriture ne sont jamais refaites ; seule la relecture finale appelle Claude ensuite.
-    expect(x.m.appelsClaude.slice(appels).every((a) => a.role === "relecture-finale-iv")).toBe(true);
-  });
-
-  it("plafond atteint au milieu de la voix : le corps payé est gardé, jamais relu", async () => {
-    const x = demarrer("C", {}, { plafondCentimes: 500 });
-    let e = await auScriptDe(x);
-    e = validerScriptIV(e, decisionScript(e));
-    // Un pas : le corps est lu (et payé).
-    e = await avancerIV(e, x.o);
-    expect(x.m.lus.length).toBe(1);
-    // Will baisse le plafond à ce qui est déjà engagé : la première fin ne peut plus être réservée.
-    e = reprendreIV(e, { plafondCentimes: engageCentimes(e) });
-    e = await avancerJusquAArretIV(e, x.o);
-    expect(e.refus?.code).toBe("IV_PLAFOND");
-    expect(x.m.lus.length).toBe(1);
-    expect(engageCentimes(e)).toBeLessThanOrEqual(e.caisse.plafondCentimes);
-    const fin = await jusquAuBout(reprendreIV(e, { plafondCentimes: 500 }), x.o);
-    expect(fin.etat.etape).toBe("prete");
-    expect(x.m.lus.filter((t) => t === x.m.lus[0]).length).toBe(1);
+    expect(x.m.lus.length).toBeGreaterThan(0);
+    expect(engageCentimes(fin.etat)).toBeGreaterThan(fin.etat.caisse.plafondCentimes);
+    expect(fin.etat.journal.some((l) => /Avertissement/.test(l))).toBe(true);
   });
 
   it("budget du studio refusé (crédit) : refus « budget », rien n'est lu", async () => {
@@ -1047,7 +1081,8 @@ function commande(carte: CarteImage, plus: Record<string, unknown> = {}): Comman
     styles: {},
     briques: {},
     entrees: { imageVideo: { imageCle: carte.image.cle, empreinte: carte.image.empreinte, plafondCentimes: 500, codeSuivi: "essai", accordEssaiReel: true, ...plus } },
-    reglages: {},
+    // Ces tests décrivent les portes de Will : réglage « en cas de doute » (le défaut est « automatique », voir mode-automatique.test.ts).
+    reglages: { validationCarte: "si-doute" },
     plans: [],
     prononciations: [],
     mentionIA: { incrustee: false, position: "haut-droite", dureeSec: 0, texte: "", dansLegende: false },
@@ -1128,7 +1163,7 @@ describe("fiche du format « image-video » (code IV)", () => {
   it("masquée, code IV, sans musique, 9:16, moteur montage-image-video, réglages par défaut", () => {
     expect(formatImageVideo).toMatchObject({ id: "image-video", statut: "masque", codeClassement: "IV", musique: "interdite", moteur: "montage-image-video", ratios: ["9:16"] });
     expect(formatImageVideo.reseauxConseilles).toEqual(["youtube-shorts", "linkedin", "instagram", "facebook"]);
-    expect(schemaReglagesImageVideo.parse({})).toEqual({ decoupage: "chapitres", appelCommentaire: "question-puis-fin", validationCarte: "si-doute", bruitages: "discrets" });
+    expect(schemaReglagesImageVideo.parse({})).toEqual({ decoupage: "chapitres", appelCommentaire: "fin-seule", validationCarte: "automatique", bruitages: "discrets" });
     expect(schemaReglagesImageVideo.safeParse({ decoupage: "deux-videos" }).success).toBe(false);
     expect(schemaReglagesImageVideo.safeParse({ bruitages: "forts" }).success).toBe(false);
   });

@@ -12,15 +12,15 @@ import { Easing, interpolate, spring } from "remotion";
 export const FPS = 30;
 
 export const C = Object.freeze({
-  ivoire: "#E9DCC8",
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
-  sable: "#BFA88B",
-  sableProfond: "#94806A",
-  orange: "#B44F29",
-  orangeProfond: "#934122",
-  encre: "#110A05",
-  encreDouce: "#45392D",
+  ivoire: "#FAF9F5",
+  ivoireCreux: "#E8E6DC",
+  sableClair: "#E8E6DC",
+  sable: "#E8E6DC",
+  sableProfond: "#5E5D59",
+  orange: "#B23F16",
+  orangeProfond: "#B23F16", // ESCALADE D5 : le survol n'est pas confirmé, le rôle reste en terracotta
+  encre: "#141413",
+  encreDouce: "#5E5D59",
 } as const);
 
 /** Ressorts du standard (§ B.4). Dépassements théoriques : à confirmer à l'œil sur la planche. */

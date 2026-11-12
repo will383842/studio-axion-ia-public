@@ -13,11 +13,11 @@ export function ObjetProvisoire({ boite, fond, capture }: ProprietesObjet) {
     const bord = Math.max(4, boite.largeur * 0.03);
     return (
       <div style={{ width: boite.largeur, height: boite.hauteur, borderRadius: rayon, background: COULEURS_DUO.encre, padding: bord, boxSizing: "border-box", boxShadow: `0 ${boite.hauteur * 0.06}px ${boite.hauteur * 0.13}px ${c.ombre}` }}>
-        <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: rayon - bord, overflow: "hidden", background: COULEURS_DUO.blanc }}>
+        <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: rayon - bord, overflow: "hidden", background: COULEURS_DUO.carte }}>
           {capture.sorte === "video" ? null : <Img src={capture.src} style={{ position: "absolute", left: 0, top: 0, width: "100%" }} />}
         </div>
       </div>
     );
   }
-  return <div style={{ width: boite.largeur, height: boite.hauteur, borderRadius: rayon, background: COULEURS_DUO.blanc, boxShadow: `0 ${boite.hauteur * 0.06}px ${boite.hauteur * 0.13}px ${c.ombre}` }} />;
+  return <div style={{ width: boite.largeur, height: boite.hauteur, borderRadius: rayon, background: COULEURS_DUO.carte, boxShadow: `0 ${boite.hauteur * 0.06}px ${boite.hauteur * 0.13}px ${c.ombre}` }} />;
 }

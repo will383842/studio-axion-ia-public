@@ -36,9 +36,9 @@ describe("contrôle de l'image finale — mesures du fichier exporté", () => {
     expect(controleImageFigee(BONNES)).toMatchObject({ etat: "non-fait", raison: "Images figées non mesurées sur le fichier exporté." });
   });
 
-  it("durée : réussie jusqu'à 90 s, échouée au-delà", () => {
-    expect(controleDuree(BONNES)).toMatchObject({ etat: "reussi", raison: "Durée de 62,4 s, dans la limite de 90 s." });
-    expect(controleDuree({ ...BONNES, dureeSec: 91.2 })).toMatchObject({ etat: "echoue", raison: "Durée de 91,2 s, au-delà de la limite de 90 s." });
+  it("durée : réussie jusqu'à 180 s, échouée au-delà", () => {
+    expect(controleDuree(BONNES)).toMatchObject({ etat: "reussi", raison: "Durée de 62,4 s, dans la limite de 180 s." });
+    expect(controleDuree({ ...BONNES, dureeSec: 181.2 })).toMatchObject({ etat: "echoue", raison: "Durée de 181,2 s, au-delà de la limite de 180 s." });
   });
 
   it("note de qualité : indicative, réussie au-dessus du seuil, échouée dessous", () => {

@@ -29,10 +29,11 @@ import {
 } from "@/app/(studio)/tableau/nouvelle/actions";
 import { BoutonImporterTexte } from "@/assistant/express/BoutonImporterTexte";
 import { RelireScript } from "@/components/script/RelireScript";
+import { BarreEtapesCommune } from "@/components/ui/BarreEtapesCommune";
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
@@ -45,7 +46,6 @@ import { partiesAccordees, partiesDuScript } from "@/domaine/scripts-tableau";
 import { evaluerQualite } from "@/domaine/qualite-script";
 import { depuisLignesTableau } from "@/domaine/qualite-script/adaptateurs/tableau";
 import { RECETTE_TABLEAU } from "@/domaine/qualite-script/recettes/tableau";
-import { formaterMontant } from "@/lib/montants";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { CorrectionScene, DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
 import { importantsDeLaScene } from "./importants";
@@ -56,13 +56,20 @@ import { FicheScenesTableau } from "./FicheScenes";
 import { SuiviTacheTableau } from "./SuiviTacheTableau";
 import { refusDecoupagePerime } from "./vue";
 
-const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
 /** La saisie de l'écran : les mots de la douleur sont tapés séparés par des virgules (le serveur les remet en liste). */
 type Saisie = Omit<DonneesScriptTableau, "structure" | "finId" | "motsDouleur"> & { structure?: DonneesScriptTableau["structure"]; finId: string; motsDouleur: string };
 
 /** Ce que l'écran remplit depuis des choix enregistrés ou proposés par le générateur. */
 const saisieDe = (d: DonneesScriptTableau): Saisie => ({ ...d, finId: d.finId ?? "", mot: d.mot ?? "", motsDouleur: (d.motsDouleur ?? []).join(", ") });
+
+/** Les quatre étapes de la barre (maquette M3, décision du 12/11) : Le texte, Les scènes, Relire, Fabrication. */
+const ETAPES_TABLEAU = [
+  { cle: "texte", libelle: "Le texte" },
+  { cle: "scenes", libelle: "Les scènes" },
+  { cle: "relire", libelle: "Relire" },
+  { cle: "fabrication", libelle: "Fabrication" },
+];
 
 /** Socle qualité commun, en OBSERVATION : pastilles « info » sous le texte relu, sans appel, sans effet sur les contrôles. */
 const observerTexte = (lignes: LigneScript[]) => evaluerQualite(depuisLignesTableau(lignes), RECETTE_TABLEAU).pastilles;
@@ -150,6 +157,10 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   const fin = ecran.fins.find((f) => f.id === saisie.finId);
   /** Le texte dit se relit tant qu'aucune fiche n'existe (ensuite, c'est la fiche, sauf texte modifié à redécouper). */
   const relireTexte = relecture && (!b?.fiche || relireApresFiche);
+  /** Étape courante de la barre : le texte tant qu'il n'y a pas de fiche ou que le texte modifié se relit ; les scènes pendant un découpage ou une correction de la fiche ; sinon la relecture avant fabrication. */
+  const etapeCourante = !b?.fiche ? (b?.tache?.type === "decoupage" && (b.tache.statut === "en-attente" || b.tache.statut === "en-cours") ? 1 : 0) : relireApresFiche ? 0 : corriger ? 1 : 2;
+  const barreEtapes = <BarreEtapesCommune etapes={ETAPES_TABLEAU} courante={etapeCourante} />;
+
   /** Une tâche de fond tourne : les boutons qui lancent ou modifient attendent (le serveur refuse aussi). */
   const occupe = b?.tache?.statut === "en-attente" || b?.tache?.statut === "en-cours";
   const injoignable = "Le studio ne répond pas pour l'instant. Rien n'est perdu : réessayez dans un instant.";
@@ -347,6 +358,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
 
   if (!chemin) {
     return (
+      <div className="space-y-4">
+      {barreEtapes}
       <section aria-label="Pour commencer" className="grid gap-3 sm:grid-cols-2">
         <Bouton variante="secondaire" icone="ecrire" taille="lg" pleineLargeur onClick={() => { setOrigine((o) => origineApresSaisie(o, "bouton", saisie.texte, referenceClaude)); setChemin("texte"); }}>
           J&apos;ai déjà mon texte
@@ -355,12 +368,14 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
           Écrire le script pour moi
         </Bouton>
       </section>
+      </div>
     );
   }
 
   if (chemin === "ecrire") {
     return (
       <div className="space-y-4">
+        {barreEtapes}
         <div className="flex justify-end">
           <Bouton variante="fantome" onClick={() => { setOrigine((o) => origineApresSaisie(o, "bouton", saisie.texte, referenceClaude)); setChemin("texte"); }}>
             J&apos;ai déjà mon texte
@@ -370,7 +385,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         <EcrireScriptTableau ecran={ecran} onUtiliser={utiliser} onCorriger={corrigerALaMain} occupe={occupe} />
         {phrase && (
           <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase}
+            {messageSansMontant(phrase)}
           </p>
         )}
       </div>
@@ -379,6 +394,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
 
   return (
     <div className="space-y-8">
+      {barreEtapes}
       {suivi}
       {!b?.fiche && (
         <div className="flex justify-end">
@@ -435,7 +451,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
               prixCentimes={ecran.coutDecoupageCentimes}
               debit={debitDe(depart.texte)}
               texteLibre
-              libelleLancer={`Découper en scènes (≈ ${euros(ecran.coutDecoupageCentimes)} au plus)`}
+              libelleLancer={"Découper en scènes"}
               iconeLancer="ciseaux"
               bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : null}
               surChangement={suivreTexte}
@@ -450,7 +466,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         {b?.fiche ? (
           !relireTexte && (
             <Bouton icone="ciseaux" chargement={enCours && !corriger} disabled={occupe} onClick={decouperANouveauOuRelire} pleineLargeur>
-              Découper à nouveau (≈ {euros(ecran.coutDecoupageCentimes)} au plus)
+              Découper à nouveau
             </Bouton>
           )
         ) : (
@@ -463,7 +479,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         <p className="text-sm text-texte-doux">Durée du découpage : {DUREE_DECOUPAGE_TEXTE}.</p>
         {refusSujet && refusSujet.cle === cleSaisie(saisie) && (
           <section aria-label="Sujet déjà traité" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : refusSujet.refus.phrase}</p>
+            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : messageSansMontant(refusSujet.refus.phrase)}</p>
             <ul className="space-y-1 text-sm">
               {refusSujet.refus.precedents.slice(0, 5).map((p) => (
                 <li key={p.videoId ?? p.sujetId ?? p.lien}>
@@ -498,11 +514,11 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         )}
         {(phrase || refus) && (
           <div role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase && <p>{phrase}</p>}
+            {phrase && <p>{messageSansMontant(phrase)}</p>}
             {refus && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-texte-doux">
                 {refus.slice(0, 6).map((x, i) => (
-                  <li key={i}>{x}</li>
+                  <li key={i}>{messageSansMontant(x)}</li>
                 ))}
               </ul>
             )}
@@ -620,7 +636,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
             prixCentimes={b.voix === "reutilisee" ? 0 : b.coutVoixCentimes}
             prixDejaPaye={b.voix === "reutilisee"}
             debit={debitDe(b.donnees.texte)}
-            libelleLancer={b.voix === "reutilisee" ? "Fabriquer la vidéo (voix déjà payée)" : `Fabriquer la vidéo (≈ ${euros(b.coutVoixCentimes)})`}
+            libelleLancer={b.voix === "reutilisee" ? "Fabriquer (voix déjà faite)" : "Fabriquer"}
             bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : !dejaVu ? RAISON_CASE_DEJA_VU : b.raisonFabriquerCase ? null : b.raisonFabriquer}
           />
         </section>

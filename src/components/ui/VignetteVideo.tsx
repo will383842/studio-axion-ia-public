@@ -28,7 +28,7 @@ export function VignetteVideo({
   src: string | null;
   titre: string;
   ratio?: Ratio;
-  /** Ratio réel de l'image : si son orientation diffère du cadre, elle est montrée ENTIÈRE sur un fond flou. */
+  /** Ratio réel de l'image : s'il diffère du cadre, elle est montrée ENTIÈRE (jamais rognée) sur le fond uni de la charte. */
   ratioImage?: Ratio;
   dureeSec?: number;
   /** Durée estimée (pas encore mesurée sur la vidéo montée) : « ≈ 1:53 ». */
@@ -44,15 +44,11 @@ export function VignetteVideo({
   prioritaire?: boolean;
   tailles?: string;
 }) {
-  const paysage = (r: Ratio) => r === "16:9";
-  const entiere = !!ratioImage && paysage(ratioImage) !== paysage(ratio);
+  const entiere = !!ratioImage && ratioImage !== ratio;
   return (
     <div className={cn("group relative isolate w-full overflow-hidden rounded-carte border border-trait bg-surface-2", ASPECT[ratio], className)}>
       {src && entiere ? (
-        <>
-          <Image src={src} alt="" aria-hidden fill sizes="64px" className="scale-125 object-cover opacity-60 blur-xl" />
-          <Image src={src} alt={titre} fill sizes={tailles} priority={prioritaire} className="object-contain transition-transform duration-500 ease-studio group-hover:scale-[1.03]" />
-        </>
+        <Image src={src} alt={titre} fill sizes={tailles} priority={prioritaire} className="object-contain transition-transform duration-500 ease-studio group-hover:scale-[1.03]" />
       ) : src ? (
         <Image src={src} alt={titre} fill sizes={tailles} priority={prioritaire} className="object-cover transition-transform duration-500 ease-studio group-hover:scale-[1.03]" />
       ) : (
@@ -66,8 +62,8 @@ export function VignetteVideo({
         <span className="absolute bottom-2 right-2 rounded-md bg-fond/75 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-texte backdrop-blur">{dureeEnviron ? `≈ ${chrono(dureeSec)}` : chrono(dureeSec)}</span>
       )}
       {lecture && progression === undefined && (
-        <span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-fond/60 text-texte backdrop-blur transition-transform group-hover:scale-110">
-          <Icone nom="lecture" size={20} className="translate-x-0.5" fill="currentColor" />
+        <span className="absolute bottom-2 left-2 grid size-9 place-items-center rounded-full bg-fond/70 text-texte backdrop-blur transition-transform group-hover:scale-110">
+          <Icone nom="lecture" size={16} className="translate-x-0.5" fill="currentColor" />
         </span>
       )}
       {progression !== undefined && (

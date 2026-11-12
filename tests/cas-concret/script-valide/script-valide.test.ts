@@ -16,7 +16,7 @@ import { ErreurFabricationCasConcret, fabriquerCasConcret } from "@/moteurs/mont
 import { texteDuCorps } from "@/moteurs/montage-cas-concret/fiche";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import { TOURNURES_APPEL, validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
-import { ficheDuScriptValide, PHRASE_SCRIPT_VALIDE_REFUSE, scriptValideDuCatalogue, type ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
+import { ficheDuScriptValide, scriptValideDuCatalogue, type ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
 import { doubles, type Doubles } from "../fabriquer/doubles";
 
 const FIXE = { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const };
@@ -130,27 +130,26 @@ describe("V4-3 · fabrication avec un script validé", () => {
     expect(x.fiche.ecrans.map((e) => [e.type, e.texteDit])).toEqual(y.fiche.ecrans.map((e) => [e.type, e.texteDit]));
   });
 
-  it("un script validé refusé par les contrôles arrête la fabrication avant toute voix, avec une phrase claire, sans réparation", async () => {
+  it("LOT A : un script validé qui enfreint une règle de contenu (chiffre douteux) est fabriqué quand même, avec un AVERTISSEMENT très visible", async () => {
     const abime: ScriptValide = structuredClone(script);
     const resultat = abime.ecrans.findIndex((e) => e.type === "resultat");
     abime.ecrans[resultat] = { ...abime.ecrans[resultat], texteDit: "Résultat : dix heures gagnées, à chaque recrutement. Et" };
     const d = doubles();
     d.options.scriptValide = abime;
-    const err = await echec(d);
-    expect(err.etape).toBe("fiche");
-    expect(err.raisons[0]).toBe(PHRASE_SCRIPT_VALIDE_REFUSE);
-    expect(err.raisons.slice(1).join(" ")).toContain("nombres des faits");
-    expect(d.lus).toEqual([]);
+    const r = await fabriquerCasConcret(d.options);
+    expect(r.avertissementsScript.join(" ")).toContain("nombres des faits");
+    expect(r.remarquesScript.join(" ")).toContain("nombres des faits");
     expect(d.appelsEcriture()).toBe(0);
+    expect(d.lus.length).toBeGreaterThan(0);
   });
 
-  it("un script validé pour une autre version du cas est refusé (à faire revalider)", async () => {
+  it("LOT A : un script validé pour une autre version du cas est REJOUÉ tel quel, avec une remarque sur l'écart", async () => {
     const d = doubles();
     d.options.scriptValide = { ...script, versionCas: cas.version + 1 };
-    const err = await echec(d);
-    expect(err.etape).toBe("fiche");
-    expect(err.raisons.join(" ")).toContain("version");
-    expect(d.lus).toEqual([]);
+    const r = await fabriquerCasConcret(d.options);
+    expect(r.remarquesScript.join(" ")).toMatch(/version/);
+    expect(d.appelsEcriture()).toBe(0);
+    expect(d.lus.length).toBeGreaterThan(0);
   });
 
   it("un script validé d'un autre cas est refusé", async () => {

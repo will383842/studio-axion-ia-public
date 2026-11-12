@@ -10,7 +10,9 @@ import { memoireCentraleApplicable, type MemoireCentrale } from "@/domaine/ecrit
 import type { OrigineScript } from "@/domaine/ecriture-commune/ressemblance";
 import { PHRASES_BANQUE_FINS } from "@/briques/fins/banque";
 import { lireParametre } from "./_commun";
-import { memoireEcriture, noterScriptCentral, scriptsCentraux } from "./memoire-ecriture";
+import { alertePost, formatPostApplicable } from "@/domaine/ecriture-commune/memoire-posts";
+import type { Reprise } from "@/domaine/proximite-textes";
+import { memoireEcriture, noterPost, noterScriptCentral, postsMemorises, scriptsCentraux } from "./memoire-ecriture";
 
 export const REGLAGE_MEMOIRE_CENTRALE = "ecriture.memoireCentrale";
 
@@ -46,5 +48,28 @@ export async function enregistrerScriptCentral(entree: { texte: string; formatId
     await noterScriptCentral({ texte: entree.texte, formatId: entree.formatId, appels: entree.appels });
   } catch (erreur) {
     console.error("[studio] mémoire centrale : script non enregistré, l'écriture continue", erreur);
+  }
+}
+
+/** Enregistre un post ou commentaire (réglage allumé seulement, fenêtre de 60, ajout sous verrou). Silencieux en cas d'échec. */
+export async function enregistrerPost(entree: { texte: string; formatId: string; origine?: OrigineScript }): Promise<void> {
+  try {
+    if (!entree.texte.trim() || !formatPostApplicable(entree.formatId, entree.origine) || !(await memoireCentraleAllumee())) return;
+    await noterPost({ texte: entree.texte, formatId: entree.formatId });
+  } catch (erreur) {
+    console.error("[studio] mémoire des posts : texte non enregistré", erreur);
+  }
+}
+
+/** Alerte si 6 mots ou plus sont repris d'un post ou commentaire récent. Le texte est rendu tel quel ; coupé ou en échec : aucune alerte. */
+export async function controlerPost(entree: { texte: string; formatId: string; origine?: OrigineScript }): Promise<{ texte: string; alerte: boolean; reprises: Reprise[] }> {
+  const rien = { texte: entree.texte, alerte: false, reprises: [] as Reprise[] };
+  try {
+    if (!formatPostApplicable(entree.formatId, entree.origine) || !(await memoireCentraleAllumee())) return rien;
+    const r = alertePost(entree.texte, (await postsMemorises()).map((x) => x.texte));
+    return { texte: entree.texte, ...r };
+  } catch (erreur) {
+    console.error("[studio] mémoire des posts illisible, le texte reste inchangé", erreur);
+    return rien;
   }
 }

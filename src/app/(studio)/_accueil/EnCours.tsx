@@ -11,6 +11,7 @@ import { Icone } from "@/components/ui/Icone";
 import { notifier } from "@/components/ui/Toast";
 import { useTravaux } from "@/hooks/useTravaux";
 import { cn } from "@/lib/cn";
+import { CODES_ATTENTE_VALIDATION } from "@/domaine/sujets-traites";
 import type { VueTravail } from "@/services/vues";
 import { reessayerTravailAction } from "../actions";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
@@ -51,7 +52,9 @@ export function EnCours({ initial }: { initial: VueTravail[] }) {
       <ul className="space-y-2">
         {travaux.map((t) => {
           const reparti = repartis.has(t.id);
-          const echec = t.statut === "echec" && !reparti;
+          // Un script ou une carte qui attend la relecture de Will n'est pas une panne : « À relire », sans rouge.
+          const aRelire = t.statut === "echec" && !reparti && CODES_ATTENTE_VALIDATION.includes(t.etapes.find((e) => e.statut === "echec")?.erreur?.code ?? t.erreur?.code ?? "");
+          const echec = t.statut === "echec" && !reparti && !aRelire;
           const etape = t.etapes.find((e) => e.statut === "en_cours") ?? t.etapes.find((e) => e.statut === "echec");
           return (
             <li key={t.id} className={cn("flex items-center gap-3 rounded-carte border bg-surface-1 p-3", echec ? "border-brique/40" : "border-trait")}>
@@ -64,8 +67,8 @@ export function EnCours({ initial }: { initial: VueTravail[] }) {
                   {t.videoTitre ?? t.titre}
                 </Link>
                 <p className={cn("mb-2 flex items-center gap-1.5 text-sm", echec ? "text-brique" : "text-texte-doux")}>
-                  {echec ? <Icone nom="attention" size={14} className="shrink-0" /> : t.statut === "termine" ? <Icone nom="valide" size={14} className="shrink-0 text-sauge" /> : <Icone nom="chargement" size={14} className="shrink-0 animate-spin" />}
-                  <span className="min-w-0 truncate">{echec ? `${etape?.nom ?? "Une étape"} n'a pas abouti` : reparti && t.statut === "echec" ? "C'est reparti…" : t.statut === "termine" ? "Prête" : `${etape?.nom ?? "En attente"} · encore ${resteLisible(t.resteSec)}`}</span>
+                  {echec ? <Icone nom="attention" size={14} className="shrink-0" /> : aRelire ? <Icone nom="attention" size={14} className="shrink-0 text-texte-doux" /> : t.statut === "termine" ? <Icone nom="valide" size={14} className="shrink-0 text-sauge" /> : <Icone nom="chargement" size={14} className="shrink-0 animate-spin" />}
+                  <span className="min-w-0 truncate">{echec ? `${etape?.nom ?? "Une étape"} n'a pas abouti` : aRelire ? "À relire" : reparti && t.statut === "echec" ? "C'est reparti…" : t.statut === "termine" ? "Prête" : `${etape?.nom ?? "En attente"} · encore ${resteLisible(t.resteSec)}`}</span>
                 </p>
                 <BarreProgression valeur={t.progression} libelle={`Avancement de « ${t.videoTitre ?? t.titre} »`} ton={echec ? "brique" : t.statut === "termine" ? "sauge" : "orange"} />
               </div>
@@ -92,6 +95,8 @@ export function EnCours({ initial }: { initial: VueTravail[] }) {
                 </Bouton>
                 {t.type === "fabrication" && <BoutonAnnuler videoId={t.cibleId} compact />}
                 </>
+              ) : aRelire ? (
+                <Link href={t.lien} className="inline-flex min-h-11 shrink-0 items-center px-2 text-sm font-semibold text-texte underline underline-offset-2">Relire</Link>
               ) : (
                 <span className="w-16 shrink-0 whitespace-nowrap text-right font-titre text-lg tabular-nums text-texte">{t.progression}&nbsp;%</span>
               )}

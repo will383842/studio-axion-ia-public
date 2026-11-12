@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Seance } from "@/components/tournage/Seance";
 import { EnTetePage } from "@/components/ui/EnTetePage";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { exigerSession } from "@/services/auth";
 import { vueSeance } from "@/services/tournage";
 
@@ -16,9 +17,9 @@ export default async function PageSeance({ params }: { params: Promise<{ id: str
   if (!vue) notFound();
   const n = vue.seance.varianteIds.length;
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage retour={{ href: "/ecrire/tournage", libelle: "Tournage" }} titre="Séance" sousTitre={`${n} version${n > 1 ? "s" : ""}`} className="mb-4" />
+    <ConteneurPage largeur="lecture">
+      <EnTetePage retour={{ href: "/ecrire/tournage", libelle: "Tournage" }} titre="Séance" sousTitre={`${n} version${n > 1 ? "s" : ""}`} />
       <Seance seanceId={vue.seance.id} groupes={vue.groupes} prochaineId={vue.prochaineId} />
-    </div>
+    </ConteneurPage>
   );
 }

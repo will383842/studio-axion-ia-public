@@ -11,7 +11,7 @@ import { couleurTrait, type CheminFleche, type EtatFleche } from "./plan";
 /** Épaisseur du trait (pixels de toile). */
 export const EPAISSEUR_FLECHE = 9;
 
-export function FlecheCourbe({ id, chemin, couleur, style = "plein", etat, etiquette }: { id: string; chemin: CheminFleche; couleur: CouleurSchema; style?: StyleLien; etat: EtatFleche; etiquette?: string }) {
+export function FlecheCourbe({ id, chemin, couleur, style = "plein", etat, etiquette, opaciteEtiquette = 1 }: { id: string; chemin: CheminFleche; couleur: CouleurSchema; style?: StyleLien; etat: EtatFleche; etiquette?: string; opaciteEtiquette?: number }) {
   if (etat.trace <= 0) return null;
   const c = couleurTrait(couleur);
   const L = chemin.longueur;
@@ -38,7 +38,7 @@ export function FlecheCourbe({ id, chemin, couleur, style = "plein", etat, etiqu
       ) : null}
       {etiquette && etat.pointe > 0 ? (
         <foreignObject x={chemin.milieu[0] - 400} y={chemin.milieu[1] - 60} width={800} height={120}>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", opacity: etat.pointe }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", opacity: etat.pointe * opaciteEtiquette }}>
             <span style={{ background: COULEURS_DUO.ivoire, padding: "6px 22px", borderRadius: 999, fontFamily: famille("inter-gras"), fontWeight: graisse("inter-gras"), fontSize: TAILLE_DETAIL_IV * ECRAN_IV.hauteur, color: COULEURS_DUO.encre, whiteSpace: "nowrap" }}>
               {etiquette}
             </span>

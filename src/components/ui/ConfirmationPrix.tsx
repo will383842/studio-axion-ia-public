@@ -2,15 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import type { AccordPrix } from "@/domaine/accord";
-import { formaterMontant } from "@/lib/montants";
 import { Bouton } from "./Bouton";
 import { FeuilleBas } from "./FeuilleBas";
-import { Icone } from "./Icone";
 
 /**
- * Feuille « Confirmer ce prix » (relecture paquet 4, exactitude D2) : remplace `window.confirm`. Elle montre le MONTANT
- * renvoyé par le serveur avec `CONFIRMATION_REQUISE`, et rend ce montant à l'appelant, qui le renvoie au serveur : un
- * prix du jour plus haut est refusé (Will revoit le nouveau prix). Sans montant (simple question), elle rend `true`.
+ * Feuille « Confirmer » (remplace `window.confirm`) : réservée aux simples questions SANS montant (elle rend `true`).
+ * Un montant renvoyé par le serveur avec `CONFIRMATION_REQUISE` est accepté tout de suite par `confirmerPrix`, qui le rend
+ * à l'appelant pour qu'il le renvoie au serveur ; aucun montant n'est affiché.
  * À placer une fois (layout racine) : `<HoteConfirmationPrix />`.
  */
 interface Demande {
@@ -32,12 +30,26 @@ function abonner(f: () => void) {
   return () => void abonnes.delete(f);
 }
 
-/** Ouvre la feuille ; renvoie le montant confirmé (centimes), `true` sans montant, ou `null` si Will renonce. */
+/**
+ * Règle du 25/10/2026 : le prix ne bloque jamais et personne ne le valide à la main. Un montant connu est rendu tout de
+ * suite (accepté), sans ouvrir la feuille. Sans montant, la feuille s'ouvre ; elle rend `true`, ou `null` si Will renonce.
+ */
 export function confirmerPrix(r: { message: string; montant?: number }): Promise<number | true | null> {
+  if (typeof r.montant === "number" && Number.isFinite(r.montant)) return Promise.resolve(r.montant);
   return new Promise((resoudre) => {
     courante?.resoudre(null);
     publier({ message: r.message, montant: typeof r.montant === "number" && Number.isFinite(r.montant) ? r.montant : undefined, resoudre });
   });
+}
+
+// Symboles écrits en code (u20ac = euro, x24 = dollar) : le fichier lui-même ne porte aucun symbole d'argent.
+const SYM = "[\\u20ac\\x24]";
+const UNITE = "(?:\\u20ac|\\x24|euros?|dollars?|EUR|USD|cents?)";
+const MONTANT_DANS_TEXTE = new RegExp(`(?:(?:environ|au plus|jusqu['\u2019]\u00e0|pr\u00e8s de|autour de)\\s+)?(?:${SYM}\\s*\\d[\\d.,]*|\\d[\\d\\s\\u00a0\\u202f.,]*\\s*${UNITE}(?![\\p{L}]))`, "giu");
+
+/** Règle du fondateur : aucun montant à l'écran. Un prix glissé dans un message du serveur est remplacé par « ce coût ». */
+export function messageSansMontant(message: string): string {
+  return message.replace(MONTANT_DANS_TEXTE, "ce coût").replace(new RegExp(`${SYM}|\\b(?:euros?|dollars?)\\b`, "gi"), "").replace(/\(\s*(?:≈|~)?\s*ce coût\s*\)/g, "").replace(/\s{2,}/g, " ").trim();
 }
 
 export function HoteConfirmationPrix() {
@@ -46,7 +58,6 @@ export function HoteConfirmationPrix() {
     () => courante,
     () => null,
   );
-  const prix = d?.montant !== undefined ? formaterMontant({ centimes: d.montant, devise: "EUR" }) : null;
   const fermer = (accord: number | true | null) => {
     if (!d) return;
     publier(null);
@@ -56,11 +67,11 @@ export function HoteConfirmationPrix() {
     <FeuilleBas
       ouverte={!!d}
       onOuverteChange={(v) => !v && fermer(null)}
-      titre={prix ? "Confirmer ce prix" : "Confirmer"}
+      titre="Confirmer"
       pied={
         <div className="flex flex-col gap-2">
           <Bouton pleineLargeur taille="lg" icone="coche" onClick={() => fermer(d?.montant ?? true)}>
-            {prix ? `Confirmer ${prix}` : "Confirmer"}
+            Confirmer
           </Bouton>
           <Bouton pleineLargeur variante="fantome" onClick={() => fermer(null)}>
             Annuler
@@ -69,16 +80,7 @@ export function HoteConfirmationPrix() {
       }
     >
       <div className="flex flex-col items-center gap-3 py-2 text-center">
-        {prix && (
-          <>
-            <span className="grid size-12 place-items-center rounded-2xl bg-orange-doux text-orange-vif">
-              <Icone nom="euro" size={22} />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-texte-faible">Au plus</span>
-            <span className="font-titre text-4xl tabular-nums leading-none text-texte">{prix}</span>
-          </>
-        )}
-        {d?.message && <p className="max-w-sm text-sm text-texte-doux">{d.message}</p>}
+        {d?.message && <p className="max-w-sm text-sm text-texte-doux">{messageSansMontant(d.message)}</p>}
       </div>
     </FeuilleBas>
   );

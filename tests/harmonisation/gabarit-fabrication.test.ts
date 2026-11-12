@@ -191,9 +191,9 @@ describe("argent : cinq façons de le dire → une", () => {
 
   it("EncartCout : les quatre libellés", () => {
     expect(LIBELLES_ARGENT).toEqual({ estime: "Coût estimé", auPlus: "Au plus", dejaPaye: "Déjà payé", essai: "Essai, pas payé" });
-    expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "estime", montant: m })))).toMatch(/Coût estimé.*1,20/);
-    expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "auPlus", montant: m })))).toMatch(/Au plus.*1,20/);
-    expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "dejaPaye", montant: m })))).toMatch(/Déjà payé.*1,20/);
+    expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "estime", montant: m })))).toMatch(/^$/);
+    expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "auPlus", montant: m })))).toMatch(/^$/);
+    expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "dejaPaye", montant: m })))).toMatch(/^$/);
     expect(texte(renderToStaticMarkup(createElement(EncartCout, { nature: "essai" })))).toContain("Essai, pas payé");
   });
 
@@ -210,9 +210,9 @@ describe("argent : cinq façons de le dire → une", () => {
   it("libelleFabriquer", () => {
     const libelleFabriquer = (p: Parameters<typeof libelleFabriquerBrut>[0]) => libelleFabriquerBrut(p).replace(/\s/g, " ");
     expect(libelleFabriquer({ sansPrix: true, essai: false })).toBe("Fabriquer");
-    expect(libelleFabriquer({ montant: m, sansPrix: false, essai: false })).toBe("Fabriquer · 1,20 €");
-    expect(libelleFabriquer({ montant: m, n: 3, sansPrix: false, essai: false })).toBe("Fabriquer 3 vidéos · 1,20 €");
-    expect(libelleFabriquer({ montant: m, dureeSec: 90, sansPrix: false, essai: true })).toBe("Fabriquer · 2 min · 1,20 € (essai)");
+    expect(libelleFabriquer({ montant: m, sansPrix: false, essai: false })).toBe("Fabriquer");
+    expect(libelleFabriquer({ montant: m, n: 3, sansPrix: false, essai: false })).toBe("Fabriquer 3 vidéos");
+    expect(libelleFabriquer({ montant: m, dureeSec: 90, sansPrix: false, essai: true })).toBe("Fabriquer · 2 min (essai)");
   });
 });
 

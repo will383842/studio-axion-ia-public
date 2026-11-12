@@ -12,8 +12,8 @@
  *    gardée est celle de la lecture A (ou celle qui existe). Un bloc ou une flèche vu par une seule lecture est gardé
  *    avec une ALERTE ; un chiffre écrit dans une seule lecture porte `lu: "une-seule"`. Une photo de personnes vue par
  *    l'une des deux lectures est marquée (jamais reprise).
- * 4. Refus en une phrase : moins de 3 textes lus, type reconnu par aucune lecture (« Je ne reconnais pas ce type
- *    d'image : choisissez-le » ; Will peut imposer le type), titre ou phrase de fin introuvables.
+ * 4. Refus en une phrase : moins de 3 textes lus, aucun bloc lu. Le type reconnu par aucune lecture est déduit par le code
+ *    (Will peut l'imposer) ; un titre ou une phrase du bas absents sont déduits, avec une alerte (jamais de refus).
  * 5. Carte complétée par le code (`completerCarte`, L1 : chiffres, formules, cohérence, type), puis contrôlée
  *    (`controlerCarte`) ; le contrôle est rendu avec la carte, jamais caché.
  *
@@ -21,8 +21,11 @@
  */
 import { createHash } from "node:crypto";
 import {
+  chiffresDeLaCarte,
+  coherenceDe,
   completerCarte,
   controlerCarte,
+  formulesDeLaCarte,
   estAutomatisation,
   offreDeduite,
   schemaCarteImage,
@@ -37,6 +40,8 @@ import {
   type TypeImage,
 } from "@/domaine/image-video/carte";
 import { chiffresDe, cleChiffre } from "@/domaine/image-video/chiffres";
+import { LIMITES_CARTE, normaliserCarteBrute, phraseAdaptation, refusTropChargee } from "@/domaine/image-video/normalisation";
+import { reparerEtSignaler } from "@/domaine/image-video/reparation";
 import { pireCasRole, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 import type { Offre } from "../emprunts";
 import { roleLectureImage, schemaLectureImage, variableLecture, type GroupeLu, type LectureImage, type LienLu, type NoeudLu, type SensLecture } from "./consigne";
@@ -85,7 +90,7 @@ export interface EntreeLecture {
   offre?: Offre;
 }
 
-export type MotifRefusLecture = "format" | "trop-petite" | "conversion" | "budget" | "appel" | "illisible" | "sans-texte" | "type-inconnu" | "incomplete";
+export type MotifRefusLecture = "format" | "trop-petite" | "conversion" | "budget" | "appel" | "illisible" | "sans-texte" | "type-inconnu" | "incomplete" | "trop-chargee";
 
 export type ResultatLecture =
   | { ok: true; carte: CarteImage; controle: ControleCarte; appels: number; simule: boolean; coutUsd?: number }
@@ -461,19 +466,61 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
 
   const f = fusionnerLectures(a, b);
   if (textesLus(f.brouillon) < TEXTES_MIN) return refus("sans-texte", "Je ne lis presque aucun texte sur cette image (moins de 3) : déposez une image plus nette, avec son texte.");
-  if (!entree.typeImpose && a.type === "inconnu" && b.type === "inconnu") return refus("type-inconnu", PHRASE_TYPE_INCONNU, { choisirType: true });
-  if (!f.brouillon.titre || !f.brouillon.phraseChoc || !f.brouillon.noeuds.length) {
-    return refus("incomplete", "Je ne trouve pas le titre, les blocs ou la phrase du bas de l'image : vérifiez qu'elle est entière.");
+  if (!f.brouillon.noeuds.length) {
+    return refus("incomplete", "Je ne trouve aucun bloc dans l'image : vérifiez qu'elle est entière.");
   }
+  // Zéro blocage : un titre ou une phrase du bas manquants sont déduits par le code (jamais vides, jamais un texte déjà
+  // utilisé si un autre existe, de préférence sans chiffre : l'inventaire des chiffres ne doit pas être dupliqué), et
+  // dits dans les alertes, placées en tête pour survivre à la coupe à 60.
+  const deductions: string[] = [];
+  const parOrdre = [...f.brouillon.noeuds].sort((x, y) => x.ordre - y.ordre || x.id.localeCompare(y.id));
+  const choisir = (candidats: string[], deja: string[]): string => {
+    const textes = candidats.map(net).filter(Boolean);
+    const neufs = textes.filter((t) => !deja.includes(t));
+    return neufs.find((t) => !chiffresDe(t).length) ?? neufs[0] ?? textes[0] ?? "";
+  };
+  if (!f.brouillon.titre) {
+    const sousTitre = net(f.brouillon.sousTitre ?? "");
+    const deNoeuds = parOrdre.flatMap((n) => [n.libelle, n.detail ?? "", ...(n.sousElements ?? [])]);
+    if (sousTitre) {
+      f.brouillon.titre = sousTitre;
+      delete f.brouillon.sousTitre;
+    } else {
+      f.brouillon.titre = choisir(deNoeuds, []) || "Image sans titre";
+    }
+    deductions.push(`Titre non lu : j'ai pris ${sousTitre ? "le sous-titre" : "le premier bloc"} (« ${f.brouillon.titre} »).`);
+  }
+  if (!f.brouillon.phraseChoc) {
+    const dernierBloc = parOrdre.length ? [parOrdre[parOrdre.length - 1]!.libelle, parOrdre[parOrdre.length - 1]!.detail ?? ""] : [];
+    const source = [
+      f.brouillon.signature ?? "",
+      ...[...f.brouillon.pied].reverse(),
+      ...dernierBloc,
+    ];
+    const reprise = choisir(source, [net(f.brouillon.titre)]);
+    f.brouillon.phraseChoc = reprise || f.brouillon.titre;
+    deductions.push(`Phrase du bas non lue : j'ai pris ${reprise ? "un texte déjà lu en bas de l'image" : "le titre"} (« ${f.brouillon.phraseChoc} »).`);
+  }
+  f.alertes.unshift(...deductions);
 
-  const brouillon: BrouillonCarte = {
+  const brouillon0: BrouillonCarte = {
     ...f.brouillon,
     image: { cle: entree.source.cle, empreinte: entree.source.empreinte ?? empreinteDe(entree.source.octets), largeur: prep.largeur, hauteur: prep.hauteur, orientation: prep.orientation },
     lecture: { ecarts: f.ecarts.slice(0, 60), alertes: f.alertes.slice(0, 60) },
     ...(entree.offre ? { offre: entree.offre } : {}),
   };
+  // R1 : le code RÉPARE ce qui dépasse le schéma (avec une adaptation écrite) avant de le contrôler ; seule une image
+  // trop chargée est refusée, avec ce qu'il faut faire.
+  const norm = normaliserCarteBrute(brouillon0);
+  if (norm.tropChargee) return refus("trop-chargee", norm.tropChargee.message);
+  const brouillon = norm.carte;
+  const adaptations = norm.adaptations;
   let carte: CarteImage;
   try {
+    const nbChiffres = chiffresDeLaCarte(brouillon).length;
+    if (nbChiffres > LIMITES_CARTE.chiffres) return refus("trop-chargee", refusTropChargee("chiffres", nbChiffres, LIMITES_CARTE.chiffres).message);
+    const enBandeau = chiffresDeLaCarte(brouillon).filter((c) => c.dansBandeau).length;
+    if (enBandeau > 12) adaptations.push({ code: "bandeau-chiffres-coupes", avant: String(enBandeau), apres: "12", raison: `${enBandeau} chiffres dans le bandeau : les 12 premiers gardés pour le bandeau (tous restent lus dans les blocs)` });
     const premiere = completerCarte(brouillon);
     // Concordance des chiffres : écrit dans les deux lectures, ou dans une seule (alerte de `controlerCarte`).
     const dansA = chiffresLus(a);
@@ -483,10 +530,22 @@ export async function lireImage(entree: EntreeLecture, outils: OutilsLecture, le
     if (entree.typeImpose) {
       const types: [TypeImage] = [entree.typeImpose];
       carte = schemaCarteImage.parse({ ...carte, types, offre: entree.offre ?? offreDeduite(types), automatisation: estAutomatisation(types) });
+    } else if (a.type === "inconnu" && b.type === "inconnu") {
+      adaptations.push({ code: "type-deduit", avant: "inconnu", apres: carte.types.join(" + "), raison: `type déduit par le code (${carte.types.join(" + ")}) : aucune des deux lectures ne l'a reconnu` });
     }
+    // Calculs et formules coupés au maximum du schéma par `completerCarte` : on le dit. (Au-delà de 40 formules, les
+    // suivantes ne sont pas demandées à Will à la porte « carte » ; le script les contrôle de nouveau à sa propre porte.)
+    const calculs = coherenceDe(brouillon).length;
+    if (calculs > LIMITES_CARTE.calculs) adaptations.push({ code: "calculs-coupes", avant: String(calculs), apres: String(LIMITES_CARTE.calculs), raison: `${calculs} calculs à vérifier : les ${LIMITES_CARTE.calculs} premiers gardés` });
+    const formules = formulesDeLaCarte(brouillon).length;
+    if (formules > LIMITES_CARTE.formules) adaptations.push({ code: "formules-coupees", avant: String(formules), apres: String(LIMITES_CARTE.formules), raison: `${formules} formules très affirmatives : les ${LIMITES_CARTE.formules} premières gardées` });
+    if (adaptations.length) carte = schemaCarteImage.parse({ ...carte, adaptations: adaptations.map(phraseAdaptation).slice(0, 60) });
   } catch {
-    return refus("illisible", "La lecture de l'image a donné une carte incohérente : relancez la lecture, ou corrigez la carte à la main.");
+    // Dernier filet : une carte qui échoue encore au schéma (cas non prévu par la normalisation) ne doit pas boucler.
+    return refus("illisible", "La lecture de l'image a donné une carte que je ne sais pas réparer. Réessayer relit l'image (nouvelle lecture, comptée dans le prix) ; si cela recommence, déposez-la de nouveau, plus nette ou découpée en deux.");
   }
+  // R2 : une carte incohérente ne bloque pas la vidéo, le code la répare seul (les réparations sont dites dans `carte.adaptations`).
+  carte = reparerEtSignaler(carte, { typeChoisi: !!entree.typeImpose }).carte;
   return { ok: true, carte, controle: controlerCarte(carte), appels: compte.appels, simule, ...(coutUsd !== undefined ? { coutUsd } : {}) };
 }
 

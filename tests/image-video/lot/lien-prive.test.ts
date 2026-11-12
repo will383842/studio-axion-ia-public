@@ -30,10 +30,12 @@ const LIEN = { videoId: "v1", titre: "Chatbot 24h/24", partages: [] };
 const CARTE = { reseau: "tiktok", nom: "TikTok", ton: "vert", phrase: "Prête.", url: "https://stockage.test/a.mp4" } as never;
 
 describe("le bouton « Lien privé »", () => {
-  it("est dans « Vos vidéos » (Image → vidéo) en tête de section, quand le lien est fourni", () => {
-    const html = renderToStaticMarkup(createElement(VosVideos, { videos: [CARTE], lienPrive: LIEN }));
+  // 08/11 (Williams) : « la vidéo d'abord » — le lecteur passe en premier, « Lien privé » juste dessous.
+  it("est dans « Vos vidéos » (Image → vidéo) juste sous le lecteur, quand le lien est fourni", () => {
+    const html = renderToStaticMarkup(createElement(VosVideos, { videoId: "v1", videos: [CARTE], lienPrive: LIEN }));
     expect(texte(html)).toContain("Lien privé");
-    expect(html.indexOf("Lien privé")).toBeLessThan(html.indexOf("TikTok"));
+    expect(html.indexOf("<video")).toBeGreaterThan(-1);
+    expect(html.indexOf("Lien privé")).toBeGreaterThan(html.indexOf("<video"));
   });
 
   it("n'y est pas sans le lien fourni (écran inchangé)", () => {

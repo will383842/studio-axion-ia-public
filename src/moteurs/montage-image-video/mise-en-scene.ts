@@ -13,10 +13,11 @@
  *  - sous-titres mot à mot dans la bande de la mise en page (#224) ; bruitages posés par L4 sur les changements visibles ;
  *  - rythme : un trou de plus de 2,4 s est relancé par un VRAI changement (bascule de fond d'un écran v4, vue
  *    d'ensemble sur une toile) ; un en-tête ou un texte de comblement ne compte jamais ;
- *  - segment de fin du réseau (question de commentaire puis fin de la banque ; rien sur LinkedIn).
+ *  - segment de fin du réseau (question de commentaire quand la fin en porte une, puis la fin de la banque ; rien seulement dans le plan d'une vidéo d'avant le 26/10/2026, LinkedIn muet).
  * Puis les contrôles BLOQUANTS (`controles-scene.ts`) : une ligne de temps qui ne les passe pas est refusée, avec une
  * phrase pour Will. Rien n'est tiré au hasard : mêmes entrées = même ligne de temps.
  */
+import { sceneApresGarde } from "@/domaine/image-video/analyste/garde-additionneur";
 import type { BruitagePlace } from "@/briques/intensite/types";
 import type { EcranCale } from "@/briques/ecrans-motion/types";
 import {
@@ -24,6 +25,7 @@ import {
   BAS_ENTETE_IV,
   ZONE_UTILE_IV,
   ECRAN_IV,
+  miseEnPageDeHauteurIV,
   VITESSE_FRAPPE,
   disposerEtCadrer,
   type BoiteNoeud,
@@ -37,6 +39,7 @@ import {
   type TrajectoireCamera,
 } from "@/briques/schema-motion";
 import { MARGE_CADRE, type EtiquetteToile } from "@/briques/schema-motion/camera";
+import { planEnsemble } from "@/briques/schema-motion/plan-objets";
 import { CADRES_IV, type BlocVarieteDonnees, type FormatIV, type RecetteVarieteIV, type VarieteBlocIV } from "@/briques/schema-motion/variete";
 import { TAILLE_LIBELLE_IV } from "@/briques/schema-motion/lisibilite";
 import { proposerMicroObjet, type NomMicroObjet } from "@/briques/schema-motion/micro-objets";
@@ -51,10 +54,13 @@ import { calerFiche, cleMot, type CalageIV, type MotCale } from "./calage";
 import { ecranV4Tient } from "./ecrans-v4";
 import { cleChiffre, clesDeLaCarte, clesDuTexte, controlerMiseEnSceneIV, instantsVisibles, type RapportMiseEnSceneIV } from "./controles-scene";
 import type { FinIV } from "./fins";
+import type { StyleChoisiIV } from "./sous-titres-varies";
+import { legendeDuChiffre } from "./legende-chiffre";
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
 import { sousTitresIV, type MotFort, type SousTitresIV } from "./sous-titres";
 import { appliquerVarieteIV, type RepliVarieteIV } from "./variete";
+import { afficheIV, type AfficheIV } from "./variete/axes/ouverture";
 
 /* ------------------------------------------------------------------ */
 /* Réglages                                                              */
@@ -94,6 +100,8 @@ export interface EntreeMiseEnSceneIV {
   format?: FormatIV;
   /** Graine de la vidéo (son identifiant) : variante de départ des bruitages (lot TIR) ; absente : départ à 0. */
   graine?: string;
+  /** GV-ST-03c : style de sous-titres choisi (celui de la demande) ; absent : charte duo, mesure d'avant. */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 /** Ce que montre un plan : le composant qui le rend. */
@@ -199,7 +207,7 @@ export interface LigneDeTempsIV {
   sousTitres: SousTitresIV;
   repere: RepereIV | null;
   bruitages: BruitagePlace[];
-  /** Segment de fin : début, question dite ou non, version muette (LinkedIn). */
+  /** Segment de fin : début, question dite ou non, version muette (plan d'avant le 26/10/2026 : LinkedIn seul). */
   segmentFin: { debut: number; question: boolean; muet: boolean };
   /** Clés des chiffres de la carte (Q12/Q13) et chiffres dits avec leur heure. */
   chiffresDits: { cle: string; brut: string; t: number; ecran: string }[];
@@ -212,6 +220,11 @@ export interface LigneDeTempsIV {
    * fin (`queue-fin.ts`), dans le dernier bloc : la queue exigée par Q19 n'est plus une image figée hors voix (Q24).
    */
   queue?: QueueFinIV;
+  /**
+   * Affiche de la première image (aperçu des réseaux) : l'accroche écrite en entier, posée par-dessus le premier bloc
+   * pendant `images` image(s) seulement (`variete/axes/ouverture.ts`). Absente si l'accroche n'a aucun texte.
+   */
+  affiche?: AfficheIV;
 }
 
 export interface ResultatMiseEnSceneIV {
@@ -227,6 +240,9 @@ export interface ResultatMiseEnSceneIV {
 /* ------------------------------------------------------------------ */
 
 const arrondi = (x: number) => Math.round(x * 1000) / 1000;
+
+/** Une nuée paraît au plus tard 2 s après le début de son écran (issue 119). */
+export const APPARITION_NUEE_MAX_SEC = 2;
 const sansBalises = (t: string) => t.replace(/\*/g, "");
 
 /** Mots vides : jamais un mot qui « nomme ». */
@@ -501,15 +517,19 @@ interface EcranPlace {
  */
 const MOMENTS_SANS_RELANCE = new Set<string>(["dossiers", "sources", "recherche"]);
 
-function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
+export function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheImage {
   const sansBenefice = (e: EcranFiche) => {
     const noeuds = e.refs.map((r) => carte.noeuds.find((n) => n.id === r)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
     return SCENES_BENEFICES.has(e.scene) && noeuds.length > 0 && !noeuds.some((n) => n.role === "benefice");
   };
+  // 25/10 (v-b54bb4798246) : une scène « micro-objet » / « carte-bénéfice » sans bloc cité mais avec du texte d'écran restait vide 5,3 s.
   const momentVide = (e: EcranFiche) =>
-    MOMENTS_SANS_RELANCE.has(e.scene) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
-  if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e))) return fiche;
-  return { ...fiche, ecrans: fiche.ecrans.map((e) => (sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
+    (MOMENTS_SANS_RELANCE.has(e.scene) || SCENES_BENEFICES.has(e.scene)) && e.textesEcran.length > 0 && !e.refs.some((r) => carte.noeuds.some((n) => n.id === r && !n.photoPersonnes));
+  // R5 : un calcul faux ne finit jamais en « additionneur », un entonnoir qui croît jamais en « entonnoir » (retombent sur la toile).
+  const gardee = (e: EcranFiche): EcranFiche["scene"] => sceneApresGarde(e.scene, carte, [e.texteDit, ...e.textesEcran]);
+  const aGarder = (e: EcranFiche) => gardee(e) !== e.scene;
+  if (!fiche.ecrans.some((e) => sansBenefice(e) || momentVide(e) || aGarder(e))) return fiche;
+  return { ...fiche, ecrans: fiche.ecrans.map((e) => (aGarder(e) ? { ...e, scene: gardee(e) } : sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
 }
 
 /** Met en scène une version. Rend toujours la ligne de temps et le rapport des contrôles (`ok` = aucun bloquant). */
@@ -563,7 +583,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
   for (let tour = 0; tour <= 40; tour++) {
     plans = construirePlans(places, carte, dureeSec, debutFin, finPlans);
     const caches = new Set<string>();
-    blocs = construireBlocs(places, plans, carte, dureeSec, debutFin, finPlans, finEls, caches);
+    blocs = construireBlocs(places, plans, carte, dureeSec, debutFin, finPlans, finEls, caches, format);
     if (entree.variete) {
       ({ blocs, replis } = appliquerVarieteIV({ blocs, plans, recette: entree.variete, format, carte, fiche, chiffresDits: chiffresDitsDesEcrans(), reseaux: entree.reseaux, replis: [], mots: calage.voix }));
     }
@@ -584,6 +604,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
   const chiffresDits = chiffresDitsDesEcrans();
   // 12. Queue de fin : du dernier mot des sous-titres (ce qui « parle » pour l'image figée) à la fin de la vidéo.
   const queue = queueDeFinIV(Math.max(0, ...sousTitres.groupes.flatMap((g) => g.mots.map((m) => m.finSec))), dureeSec);
+  const affiche = afficheIV(carte, fiche);
   const ligne: LigneDeTempsIV = {
     version: entree.fin?.id ?? "corps",
     reseaux: [...entree.reseaux],
@@ -603,8 +624,9 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
     partCalee: calage.partCalee,
     ...(entree.variete ? { variete: { recette: entree.variete, format, replis } } : {}),
     ...(queue ? { queue } : {}),
+    ...(affiche ? { affiche } : {}),
   };
-  const rapport = controlerMiseEnSceneIV(ligne, { carte, fiche, reseaux: entree.reseaux, bruitages: poses, voix: calage.voix });
+  const rapport = controlerMiseEnSceneIV(ligne, { carte, fiche, reseaux: entree.reseaux, bruitages: poses, voix: calage.voix, ...(entree.styleSousTitres ? { styleSousTitres: entree.styleSousTitres } : {}) });
   return { ok: rapport.bloquants.length === 0, ligne, rapport, phrases: rapport.bloquants.map((b) => b.phrase) };
 }
 
@@ -656,10 +678,35 @@ function poserTexte(c: Ctx, texte: string, toutesCles: Set<string>, apres = 0): 
   return { t: heureMot(c, rang), texte, chiffres: cles, couverts: [...new Set(couverts)].sort((x, y) => x - y) };
 }
 
-/** Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier. */
-function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>): TextePose[] {
-  const morceaux = texte.split(/\s+·\s+/);
+/**
+ * Parties d'un texte « A · B · C » révélées l'une après l'autre (au moins 0,6 s d'écart), sinon le texte entier.
+ * `refs` non vide (titre d'en-tête) : une liste « A, B, C » se révèle de même, au bloc dont le libellé est dit (30/10), mais
+ * la coupe à la virgule n'a lieu que si chaque morceau nomme un bloc DISTINCT de l'écran ; sinon c'est une phrase
+ * (« Le *devis* part, le client signe ») et seul « · » coupe. La virgule décimale (« 2,5 ») ne coupe jamais.
+ */
+function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>, refs: readonly NoeudCarte[] = []): TextePose[] {
   const entier = poserTexte(c, texte, toutesCles);
+  const decoupe = (virgules: boolean) => {
+    const coupes = texte.split(virgules ? /(\s+·\s+|,\s+)/ : /(\s+·\s+)/);
+    const morceaux: string[] = [];
+    const liens: string[] = [];
+    coupes.forEach((x, i) => {
+      if (i % 2 === 0) {
+        if (!x.trim()) return; // morceau vide (virgule finale) : retiré avec son séparateur
+        if (morceaux.length) liens.push(coupes[i - 1]!);
+        morceaux.push(x);
+      }
+    });
+    return { morceaux, liens };
+  };
+  let { morceaux, liens } = decoupe(refs.length > 0);
+  if (refs.length > 0 && /,\s+/.test(texte)) {
+    const ids = morceaux.map((m) => refDuTexte(m, refs));
+    if (ids.some((id) => !id) || new Set(ids).size < ids.length) ({ morceaux, liens } = decoupe(false));
+  }
+  // Un morceau qui ouvre un « * » sans le fermer : la coupe casserait l'emphase.
+  if (morceaux.some((m) => (m.match(/\*/g)?.length ?? 0) % 2)) return [entier];
+  const jusquA = (k: number) => morceaux.slice(0, k + 1).map((m, i) => (i ? liens[i - 1] : "") + m).join("");
   if (morceaux.length < 2) return [entier];
   const poses = morceaux.map((m) => poserTexte(c, m, toutesCles));
   // Un morceau que rien ne nomme apparaît avec le précédent.
@@ -670,7 +717,7 @@ function partiesDe(c: Ctx, texte: string, toutesCles: Set<string>): TextePose[] 
   // Révélation cumulée : chaque étape montre les morceaux déjà dits.
   const res: TextePose[] = [];
   poses.forEach((p, k) => {
-    const cumul = morceaux.slice(0, k + 1).join(" · ");
+    const cumul = jusquA(k);
     if (res.length && res[res.length - 1].t === p.t) res[res.length - 1] = { ...p, texte: cumul, chiffres: clesDuTexte(cumul), couverts: [...res[res.length - 1].couverts, ...p.couverts] };
     else res.push({ ...p, texte: cumul, chiffres: clesDuTexte(cumul), couverts: [...(res.at(-1)?.couverts ?? []), ...p.couverts] });
   });
@@ -709,15 +756,24 @@ function elementsDe(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>, c
   else if (sorte === "recap") {
     const ids = noeudsRefs.filter((n) => n.role === "benefice");
     els.push(nouvelEl(c, "recap", "objet", c.debut, { texte: ids.map((n) => n.libelle).join(" · "), ref: ids[0]?.id }));
-  } else els.push(...elementsMoment(c, carte, noeudsRefs, clesCarte, dits, etat));
+  } else els.push(...elementsMomentAvecRappel(c, carte, noeudsRefs, clesCarte, dits, etat));
 
   // En-têtes (toile, objets, moments) : l'étiquette et le titre de la fiche. Au début de l'écran, sauf si son chiffre
   // dit n'est montré par rien d'autre sur son mot (il apparaît alors avec lui, Q13).
-  if (!SANS_ENTETE.has(e.scene) && sorte !== "recap" && e.textesEcran.length) enTetes(c, carte, toutesCles, els);
+  if (!SANS_ENTETE.has(e.scene) && sorte !== "recap" && e.textesEcran.length) enTetes(c, carte, toutesCles, noeudsRefs, els);
   return trier(els);
 }
 
-function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]): void {
+/**
+ * Étiquette tirée d'une ligne « X · Y » : seulement X. L'étiquette est une ligne d'interlettrage large qui ne tient pas sur
+ * une ligne avec la paire entière : elle passait à la ligne et recouvrait le titre (« OUI · Autoliquidation » sur « VALIDÉ … »).
+ * Y reste dit et montré par le bloc qu'il nomme.
+ */
+function etiquetteDePaire(texte: string): string {
+  return sansBalises(texte.split(/\s+·\s+/)[0]!);
+}
+
+function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, noeudsRefs: readonly NoeudCarte[], els: El[]): void {
   const lignes = c.e.textesEcran;
   const titre = lignes.find((t) => t.includes("*")) ?? lignes[0];
   const autre = lignes.find((t) => t !== titre);
@@ -726,7 +782,8 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   const groupe = c.e.refs.map((r) => carte.noeuds.find((n) => n.id === r)?.groupe).find((g) => g);
   const titreGroupe = carte.groupes.find((g) => g.id === groupe)?.titre;
   const etiquette = autre && /situation type|exemple/i.test(autre) ? sansBalises(autre) : (titreGroupe ?? etiquetteDeRepli(carte, c.e.scene));
-  const parties = partiesDe(c, titre, toutesCles);
+  const debutParties = els.length;
+  const parties = partiesDe(c, titre, toutesCles, noeudsRefs);
   const montreAilleurs = (k: string) => {
     const d = c.chiffres.find((x) => x.cle === k);
     return !d || els.some((x) => x.chiffres.includes(k) && Math.abs(x.t - heureMot(c, d.rang)) <= R.chiffreApres - 0.05);
@@ -740,13 +797,24 @@ function enTetes(c: Ctx, carte: CarteImage, toutesCles: Set<string>, els: El[]):
   if (autre && !/situation type|exemple/i.test(autre)) {
     const p = poserTexte(c, autre, toutesCles);
     const dernier = els.filter((x) => x.role === "entete").at(-1)!;
+    // 25/10 (v-b54bb4798246) : une ligne qui porte un chiffre de la carte dit plus tard (« J+30 ») ne se replie plus en étiquette SANS ses chiffres : elle se pose en en-tête sur son mot.
+    const aMontrer = p.couverts.length > 0 && p.chiffres.some((x) => toutesCles.has(x) && !montreAilleurs(x));
     if (p.couverts.length && p.t - dernier.t >= 1.2) els.push(nouvelEl(c, "entete", p.chiffres.length ? "chiffre" : "objet", p.t, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: true }));
+    else if (aMontrer) {
+      const avant = els.some((x) => x.role === "entete" && x.t < p.t - 1e-9);
+      if (!avant) for (const x of els) if (x.role === "entete") x.coupe = true;
+      // 25/10 (zéro blocage) : l'en-tête précédent reste lisible au moins 0,6 s (l'idéal est 1,2 s, mais le chiffre doit rester montré dans la fenêtre de Q13) :
+      // on pose le nouveau à max(son mot, dernier + 0,6), sans sortir de la fenêtre de Q13 de ses chiffres à montrer ; si elle est déjà dépassée, il reste sur son mot.
+      const fenetre = Math.min(...p.chiffres.filter((x) => toutesCles.has(x) && !montreAilleurs(x)).map((x) => { const d = c.chiffres.find((y) => y.cle === x); return d ? heureMot(c, d.rang) + R.chiffreApres - 0.05 : Infinity; }));
+      const tPose = Math.max(p.t, Math.min(arrondi(dernier.t + 0.6), fenetre));
+      els.push(nouvelEl(c, "entete", "chiffre", tPose, { texte: `${etiquette}|${autre}`, chiffres: p.chiffres, couverts: p.couverts, coupe: avant }));
+    }
     // 25/10 : la seconde ligne ne passe en étiquette que si elle PRÉCÈDE le titre ; après lui, « 20 % — Limite atteinte » au-dessus de
     // « 80 % — Réponse connue » se contredisait.
     // Après le titre, nommée trop tôt pour relancer, sans chiffre à montrer sur son mot : elle relance l'en-tête 1,2 s après le dernier, s'il reste de la place avant la fin de l'écran.
     else if (lignes.indexOf(autre) > lignes.indexOf(titre)) {
       if (p.couverts.length && !p.chiffres.length && dernier.t + 1.2 < c.fin - 0.3) els.push(nouvelEl(c, "entete", "objet", arrondi(dernier.t + 1.2), { texte: `${etiquette}|${autre}`, chiffres: [], couverts: p.couverts, coupe: true }));
-    } else dernier.texte = `${sansBalises(autre)}|${dernier.texte!.split("|")[1]}`;
+    } else for (const x of els.slice(debutParties)) if (x.role === "entete") x.texte = `${etiquetteDePaire(autre)}|${x.texte!.split("|")[1]}`;
   }
 }
 
@@ -771,10 +839,10 @@ function elementsToile(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>
   for (const n of noeudsRefs) {
     if (els.some((x) => x.ref === n.id)) continue;
     if (etat.montres.has(n.id)) {
-      // Déjà posé : la caméra y revient s'il est nommé (ou retour au nœud de décision quand l'écran cite une de ses flèches).
+      // Déjà posé : la caméra y revient au mot qui le nomme (à défaut, au mot 0).
       const k = rangQuiNomme(c, n.libelle);
-      const retour = n.role === "decision" && e.refs.some((r) => carte.liens.some((l) => l.id === r && l.de === n.id));
-      if (k !== null || retour) els.push(nouvelEl(c, "mention", "noeud", heureMot(c, k ?? 0), { ref: n.id, visible: false }));
+      // Grands vides (issue 119) : cité mais jamais nommé, il reçoit quand même sa mention au mot 0 (la caméra a une trajectoire).
+      els.push(nouvelEl(c, "mention", "noeud", heureMot(c, k ?? 0), { ref: n.id, visible: false }));
       continue;
     }
     const cles = clesDuNoeud(n, carte, clesCarte);
@@ -1099,6 +1167,26 @@ function ecransADessiner(places: EcranPlace[], parId: Map<string, NoeudCarte>): 
   return res;
 }
 
+/**
+ * Grands vides (issue 119) : un moment dont les blocs cités ont tous DÉJÀ été montrés ailleurs (`etat.montres`) ne posait
+ * aucun contenu, il ne restait que l'en-tête. Il les reprend alors, sans tenir compte de `montres`, comme un rappel posé
+ * au début de l'écran (les éléments qui portent un chiffre gardent l'heure de leur mot : Q13). L'état réel n'est pas touché.
+ */
+function elementsMomentAvecRappel(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte: Map<string, string>, dits: Ctx["chiffres"], etat: EtatScene): El[] {
+  const pose = elementsMoment(c, carte, refs, clesCarte, dits, etat);
+  if (!refs.length || pose.some((x) => x.visible && !x.remplissage && x.role !== "entete" && x.role !== "mention")) return pose;
+  const rappel = elementsMoment(c, carte, refs, clesCarte, dits, { ...etat, montres: new Set<string>(), cartes: [] });
+  if (!rappel.length) return pose;
+  const t0 = Math.min(...rappel.map((x) => x.t));
+  const decale = (x: El): El => {
+    // Toujours suffixé : un élément rappelé ne prend jamais l'identifiant (donc la place) d'un élément posé.
+    if (x.chiffres.length || x.t <= c.debut) return { ...x, id: `${x.id}-rappel` };
+    const t = arrondi(x.t - (t0 - c.debut));
+    return { ...x, t, id: `${x.id}-rappel${Math.round(t * 1000)}` };
+  };
+  return trier([...pose, ...rappel.map(decale)]);
+}
+
 /** Moments de L9a : bénéfices, bandeau, recherche, alerte, e-mail, dossiers, sources, phrase-choc. */
 function elementsMoment(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte: Map<string, string>, dits: Ctx["chiffres"], etat: EtatScene): El[] {
   const e = c.e;
@@ -1280,6 +1368,16 @@ function elementsMoment(c: Ctx, carte: CarteImage, refs: NoeudCarte[], clesCarte
 /* 3. Insertions                                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Chiffres-clés RÉELLEMENT posés par la vue d'ensemble (25/10/2026, D3, compositions-iv/12) : quand la rangée ne tient pas avec 16 px entre
+ * rangées, `planEnsemble` retire les chiffres-clés ; l'écran ne doit déclarer comme montrés que ceux qu'il pose (ils restent montrés quand ils sont dits).
+ */
+function chiffresPoses(carte: CarteImage, chiffresCles: string[], allumes: string[]): string[] {
+  if (!chiffresCles.length) return chiffresCles;
+  const poses = new Set(planEnsemble(schemaDeLaCarte(carte), { allumes, chiffresCles }).chiffres.map((x) => x.texte));
+  return chiffresCles.filter((t) => poses.has(t));
+}
+
 function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, clesCarte: Map<string, string>): void {
   const branches = carte.groupes.filter((g) => g.sorte === "branche");
   const dansBranche = new Set(branches.flatMap((g) => g.noeuds));
@@ -1290,9 +1388,10 @@ function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, cle
   places.forEach((p, i) => {
     if (!aEnsemble(i)) return;
     const cles = p.c.chiffres.map((x) => x.cle);
-    const chiffresCles = [...new Set(carte.chiffres.filter((ch) => cles.includes(clesCarte.get(ch.id)!)).map((ch) => ch.brut))].slice(0, 3);
+    const allumesEcran = p.c.e.refs.filter((r) => carte.noeuds.some((n) => n.id === r));
+    const chiffresCles = chiffresPoses(carte, [...new Set(carte.chiffres.filter((ch) => cles.includes(clesCarte.get(ch.id)!)).map((ch) => ch.brut))].slice(0, 3), allumesEcran);
     const duree = Math.min(R.ensemble, Math.max(R.ensembleMin, p.c.fin - p.c.debut - 0.6));
-    p.insertion = { debut: p.c.debut, fin: arrondi(p.c.debut + duree), sorte: "ensemble", chiffresCles, allumes: p.c.e.refs.filter((r) => carte.noeuds.some((n) => n.id === r)) };
+    p.insertion = { debut: p.c.debut, fin: arrondi(p.c.debut + duree), sorte: "ensemble", chiffresCles, allumes: allumesEcran };
     decaler(p, p.insertion.fin, chiffresCles);
   });
   // Ouverture de chaque chapitre.
@@ -1309,7 +1408,7 @@ function inserer(places: EcranPlace[], carte: CarteImage, fiche: FicheImage, cle
       if (p.c.e.refs.some((r) => dansBranche.has(r))) dernier = i;
     });
     const deja = places.some((p, i) => i > dernier && aEnsemble(i));
-    if (dernier >= 0 && dernier + 1 < places.length && !deja) poserInsertion(places, dernier + 1, "ensemble", parts.slice(0, 3), []);
+    if (dernier >= 0 && dernier + 1 < places.length && !deja) poserInsertion(places, dernier + 1, "ensemble", chiffresPoses(carte, parts.slice(0, 3), []), []);
   }
   // Bénéfices : récapitulatif après la dernière carte, si la fiche n'en a pas.
   if (carte.types[0] === "benefices" && !places.some((p) => p.sorte === "recap")) {
@@ -1463,7 +1562,10 @@ function couperLigne(p: EcranPlace, trou: { a: number; b: number }, milieu: numb
       if (k === null) continue;
       apres = k;
       const t = heureMot(c, k);
-      if (j > 0 && t > trou.a + 0.5 && t < trou.b - 0.5 && (!meilleur || Math.abs(t - milieu) < Math.abs(meilleur.t - milieu))) meilleur = { j, t };
+      // Écrans de FIN seulement (le corps des vidéos garde sa règle d'avant) : jamais de coupe juste après un mot de liaison
+      // (« … ce qu'on | peut automatiser »), le début resterait seul à l'écran, coupé.
+      const debutPropre = j > 0 && (p.sorte !== "fin" || !FINS_INTERDITES.test(sansBalises(mots[j - 1]).replace(/[.,!?:;…]+$/u, "")));
+      if (debutPropre && t > trou.a + 0.5 && t < trou.b - 0.5 && (!meilleur || Math.abs(t - milieu) < Math.abs(meilleur.t - milieu))) meilleur = { j, t };
     }
     if (!meilleur) continue;
     const debutTexte = equilibrer(mots.slice(0, meilleur.j).join(" "), titre);
@@ -1506,12 +1608,20 @@ const ESSAI_ECRAN = { id: "essai", debutMs: 0, finMs: 3000, evenements: [] } as 
 const ROLES_LIGNE: ReadonlySet<RoleEl> = new Set<RoleEl>(["ligne", "question", "appel"]);
 
 /** Contenu d'un écran v4 d'émotion (accroche, chiffre, titre) qui montre ces lignes : seule règle, lue par `blocsEcran`. */
-function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: string[]): EcranCale {
+export function contenuEmotion(scene: string, base: Omit<EcranCale, "type">, lignes: string[]): EcranCale {
   const orange = lignes.find((t) => t.includes("*"));
   const lu = scene === "chiffre" && orange ? chiffresDuTexte(sansBalises(orange))[0] : undefined;
   if (lu && lu.valeur !== null && orange) {
     const ligne = sansBalises(orange).trim();
     const apresChiffre = (x: string) => x.replace(/^\s*[\d\s,.:h]+/u, "").trim();
+    // Ligne qui finit par le nombre (« Relance à *3 jours* ») : `lu.brut` porte déjà l'unité (« 3 jours »), l'unité est ce qui reste du brut
+    // une fois le nombre ôté ; la légende est ce qui se lit avant. Chiffre au milieu : l'ancien chemin, sortie inchangée.
+    const enFin = !/^\s*\d/u.test(ligne) && lu.unite !== "heure" && ligne.trimEnd().endsWith(lu.brut);
+    if (enFin) {
+      const unite = lu.brut.replace(/^[\d\s\u00a0\u202f,.]+/u, "").trim();
+      const legende = legendeDuChiffre(ligne, lu.brut);
+      return { ...base, type: "chiffre", nombre: lu.valeur, unite, pastilles: [...(legende ? [legende] : []), ...lignes.filter((x) => x !== orange).map(sansBalises)], compteur: true } as EcranCale;
+    }
     // Heure (« 23h14 ») : la ligne se lit comme avant. Sinon l'unité s'arrête au tiret de séparation (« *80%* — Réponse connue » donne
     // « % ») et ce qui suit le tiret devient la première pastille (« Réponse connue »), sans tiret : l'unité n'est plus toute la fin de ligne.
     const [unitePartie, ...suite] = lu.unite === "heure" ? [apresChiffre(ligne)] : apresChiffre(ligne).split(/\s+[—–-]\s+/u);
@@ -1601,7 +1711,7 @@ function repartirEcran(p: EcranPlace): void {
 /* ------------------------------------------------------------------ */
 
 /**
- * Segment de fin d'un réseau (jamais sur LinkedIn) : la question de commentaire (texte d'écran de la fiche quand la
+ * Segment de fin d'un réseau (LinkedIn compris ; sauf dans le plan d'une vidéo d'avant le 26/10/2026) : la question de commentaire (texte d'écran de la fiche quand la
  * question est celle de l'image), puis chaque phrase de la banque, chacune sur son écran v4 sombre.
  */
 function segmentFin(fin: NonNullable<EntreeMiseEnSceneIV["fin"]>, fiche: FicheImage, calage: CalageIV, debutFin: number, dureeSec: number, els: El[], plans: PlanIV[]): void {
@@ -1834,7 +1944,7 @@ function lignesVisibles(els: readonly El[], a: number, b: number): El[] {
 /* ------------------------------------------------------------------ */
 
 /** `caches` reçoit les éléments qu'aucun bloc ne montre (étape d'une ligne révélée remplacée dans le même plan). */
-function construireBlocs(places: EcranPlace[], plans: PlanIV[], carte: CarteImage, dureeSec: number, debutFin: number, finPlans: PlanIV[], finEls: El[], caches: Set<string>): BlocRenduIV[] {
+function construireBlocs(places: EcranPlace[], plans: PlanIV[], carte: CarteImage, dureeSec: number, debutFin: number, finPlans: PlanIV[], finEls: El[], caches: Set<string>, format: FormatIV): BlocRenduIV[] {
   const blocs: BlocRenduIV[] = [];
   const schema = schemaDeLaCarte(carte);
   const dejaPoses = new Set<string>();
@@ -1862,7 +1972,7 @@ function construireBlocs(places: EcranPlace[], plans: PlanIV[], carte: CarteImag
     if (g === "toile") {
       const suivant = places[j + 1];
       const ensembleApres = suivant?.insertion?.sorte === "ensemble" && suivant.sorte !== "toile" ? suivant.insertion : null;
-      blocs.push(blocToile(nomBloc(), lot, schema, carte, debut, ensembleApres ? ensembleApres.fin : fin, ensembleApres, dejaPoses));
+      blocs.push(blocToile(nomBloc(), lot, schema, carte, debut, ensembleApres ? ensembleApres.fin : fin, ensembleApres, dejaPoses, format));
     } else if (g === "objets") blocs.push(blocObjets(nomBloc(), lot, carte, debut, fin));
     else if (g === "moments") blocs.push(blocMoments(nomBloc(), lot, carte, debut, fin, schema));
     else for (const b of blocsEcran(p, debut, fin, plans, caches)) blocs.push({ ...b, id: nomBloc() });
@@ -1936,6 +2046,7 @@ function blocToile(
   fin: number,
   ensembleApres: EcranPlace["insertion"] | null,
   dejaPoses: Set<string>,
+  format: FormatIV,
 ): BlocRenduIV {
   const rel = (t: number) => arrondi(Math.max(0, t - debut));
   const els = lot.flatMap((p) => p.els);
@@ -1954,7 +2065,7 @@ function blocToile(
   const dejaVus = [...dejaPoses].filter((n) => schema.noeuds.some((x) => x.id === n) && !mots.some((m) => m.noeud === n)).sort();
   const proprietes: ProprietesToileIV = {
     largeur: ECRAN_IV.largeur,
-    hauteur: ECRAN_IV.hauteur,
+    hauteur: CADRES_IV[format].hauteur,
     fps: R.fps,
     dureeSec,
     fond,
@@ -2016,7 +2127,7 @@ export const CADRAGE_TOILE_IV = Object.freeze({
   pastille: { padX: 34, padHaut: 6, padBas: 2, signe: 0.6 },
 });
 
-export function cadrageToile(p: Pick<ProprietesSceneIV, "schema" | "coches" | "entetes" | "separations" | "coupeFranche">, toile?: DispositionToile): CadrageCamera {
+export function cadrageToile(p: Pick<ProprietesSceneIV, "schema" | "coches" | "entetes" | "separations" | "coupeFranche"> & { hauteur?: number }, toile?: DispositionToile): CadrageCamera {
   const K = CADRAGE_TOILE_IV;
   const icones = new Set(p.schema.noeuds.filter((n) => n.icone).map((n) => n.id));
   const coches = new Set((p.coches ?? []).map((c) => c.noeud));
@@ -2024,12 +2135,22 @@ export function cadrageToile(p: Pick<ProprietesSceneIV, "schema" | "coches" | "e
   const debordCoche = K.rayonPastille - 14;
   const marge = (MARGE_CADRE * ECRAN_IV.largeur) / ECRAN_IV.hauteur;
   const avecEntete = (p.entetes ?? []).length > 0;
-  return {
+  const base = {
     zoomPrefere: K.zoomPrefere,
-    debord: (id) => ({ gauche: icones.has(id) ? debordIcone : 0, droite: coches.has(id) ? debordCoche : 0, haut: coches.has(id) ? debordCoche : 0, bas: 0 }),
+    debord: (id: string) => ({ gauche: icones.has(id) ? debordIcone : 0, droite: coches.has(id) ? debordCoche : 0, haut: coches.has(id) ? debordCoche : 0, bas: 0 }),
     apparition: K.apparition,
     etiquettes: toile ? pastillesDePart(toile, p) : [],
     ...(p.coupeFranche ? { coupeFranche: true } : {}),
+  };
+  const m = miseEnPageDeHauteurIV(p.hauteur ?? ECRAN_IV.hauteur);
+  if (m.format === "4:5") {
+    // Comme `cadrageScene` (plan.ts, L7) : bandes de la mise en page du 4:5 ramenées en fractions de 1920 (k = 1350 / 1920).
+    const k = m.hauteur / ECRAN_IV.hauteur;
+    const haut = avecEntete ? (m.entete.bas + 0.03) * k : 0;
+    return { ...base, bande: { haut: avecEntete ? haut + marge : m.zoneContenu.haut * k, bas: m.zoneUtile.bas * k }, cadre: { haut, bas: m.zoneUtile.bas * k } };
+  }
+  return {
+    ...base,
     ...(avecEntete ? { bande: { haut: K.hautCadre + marge, bas: K.basBande }, cadre: { haut: K.hautCadre, bas: 1 } } : {}),
   };
 }
@@ -2113,7 +2234,8 @@ function blocObjets(id: string, lot: EcranPlace[], carte: CarteImage, debut: num
     } else if (scene === "nuee") {
       const source = sourceEnNombre(carte);
       const coches = els.filter((x) => x.role === "coche-nuee").map((x) => x.t);
-      // La nuée apparaît sur le mot qui la dit (la source, ou sa quantité : « 20 »), s'il tombe avant la première coche.
+      // La nuée apparaît sur le mot qui la dit (la source, ou sa quantité : « 20 »), s'il tombe avant la première coche, et au plus
+      // tard 2 s après le début de l'écran (issue 119) : sinon seul l'en-tête est visible tant que le mot n'est pas dit.
       const quantite = source?.quantite ?? 2;
       const dite = els.find((x) => (x.ref === source?.id || (x.role === "accent" && x.chiffres.some((k) => k.split("|")[0] === String(quantite)))) && x.t < (coches[0] ?? b));
       const distinctions = els.filter((x) => x.role === "distinction").map((x) => rel(x.t));
@@ -2125,7 +2247,7 @@ function blocObjets(id: string, lot: EcranPlace[], carte: CarteImage, debut: num
           quantite,
           cochees: coches.length,
           icone: (source?.icone && iconeDe(source.icone)) || "document",
-          apparition: rel(dite?.t ?? a),
+          apparition: rel(dite ? Math.min(dite.t, a + APPARITION_NUEE_MAX_SEC) : a),
           debutCoches: rel(coches[0] ?? a),
           finCoches: rel(coches[coches.length - 1] ?? a),
           ...(distinctions.length ? { distinctions } : {}),
@@ -2224,7 +2346,8 @@ function blocMoments(id: string, lot: EcranPlace[], carte: CarteImage, debut: nu
       sorte: "bandeau",
       etiquette: "Résultat",
       chiffres: els.filter((x) => x.role === "bandeau").map((x) => {
-        const legende = carte.bandeau.find((b) => b.includes(x.texte ?? "\u0000"))?.replace(x.texte ?? "", "").replace(/^[\s=·:]+|[\s=·:]+$/g, "").trim();
+        const phrase = carte.bandeau.find((b) => b.includes(x.texte ?? "\u0000"));
+        const legende = phrase === undefined ? undefined : legendeDuChiffre(phrase, x.texte ?? "").replace(/^[\s=·:]+|[\s=·:]+$/g, "").trim();
         return { texte: x.texte ?? "", ...(legende ? { legende } : {}), t: rel(x.t) };
       }),
     };

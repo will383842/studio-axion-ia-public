@@ -139,6 +139,10 @@ export const NIVEAUX: Readonly<Record<string, Ligne>> = {
   C97: l("alerte", "info"),
   C98: l("alerte", "info"),
   C99: l("alerte", "info"),
+  /* Lot C1 : ciblage (cible nommée dans les 5 premières secondes, bénéfice clair). Jamais bloquants, jamais garde-fous. */
+  C100: l("alerte", "info"),
+  C101: l("alerte", "info"),
+  C102: l("info", "info"),
 };
 
 /**

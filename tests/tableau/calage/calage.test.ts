@@ -141,12 +141,12 @@ describe("refus", () => {
     expect(refuse(caler(f, dits))[0]).toMatch(/^Le mot dit n° 4 .* a des heures incohérentes/);
   });
 
-  it("une fiche calée qui ne passe plus la validation (voix trop lente : plus de 90 s)", () => {
+  it("une fiche calée qui ne passe plus la validation (voix trop lente : plus de 180 s)", () => {
     const f = ficheErreurCorrigee;
-    const r = caler(f, motsFabriques(f, { parMotMs: 2500 }));
+    const r = caler(f, motsFabriques(f, { parMotMs: 5000 }));
     expect(r.ok).toBe(false);
     if (r.ok) return;
-    expect(r.validation?.map((p) => p.regle)).toContain("durée de 90 secondes au plus");
+    expect(r.validation?.map((p) => p.regle)).toContain("durée de 180 secondes au plus");
   });
 });
 
