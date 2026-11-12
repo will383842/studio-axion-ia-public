@@ -21,7 +21,6 @@ import { BoutonArreter } from "@/components/videos/BoutonArreter";
 import { travailAffiche, useTravaux } from "@/hooks/useTravaux";
 import { formatSansPrix } from "@/formats";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import type { ProprietesEtape } from "./types";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
 
@@ -104,7 +103,6 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
         {t ? (
           <SuiviFabrication
             vue={versSuiviFabrication(t)}
-            pied={!sansPrix && t.depense.centimes > 0 ? <>{formaterMontant(t.depense)} dépensés</> : undefined}
             actions={
               actif ? (
                 <>

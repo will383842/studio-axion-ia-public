@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import { MESSAGE_AUCUN_COMPTE_CLAUDE } from "@/domaine/credits";
 import type { EtapeTravail, Montant, StatutEtape } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import { Bouton } from "./Bouton";
 import { Icone, type NomIcone } from "./Icone";
 
@@ -114,7 +113,6 @@ export function ProgressionEtapes({
         </span>
         <span className="flex min-w-0 flex-col items-end gap-0.5 text-right">
           {temps && <span className="text-sm tabular-nums text-texte-doux">{temps}</span>}
-          {suivi?.depense && suivi.depense.centimes > 0 && <span className="text-xs tabular-nums text-texte-faible">{formaterMontant(suivi.depense)} dépensés</span>}
         </span>
       </div>
       <BarreProgression valeur={progression} ton={echec ? "brique" : progression >= 100 ? "sauge" : "orange"} />
