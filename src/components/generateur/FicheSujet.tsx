@@ -22,6 +22,7 @@ import { cocherVerificationAction, programmerSujetAction, verificationsAvantProg
 import type { VerificationsVersion } from "@/services/publications";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { BoutonCopier } from "@/components/ui/BoutonCopier";
+import { PastilleEtapeEcrire } from "@/components/ecrire/PastilleEtapeEcrire";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
@@ -251,6 +252,8 @@ export function FicheSujet(p: {
         )}
         {" · "}
         Type : <span className="font-semibold text-texte">{TYPES_AUTOMATISATION.find((t) => t.id === p.typeAutomatisation)?.libelle ?? "À classer"}</span>
+        {" · "}
+        <PastilleEtapeEcrire etape={p.archive ? "rangee" : !p.lignes.length ? "ecriture" : p.manque || p.arret ? "a-refaire" : "a-filmer"} />
       </p>
 
       {/* La grille, puis les onglets réseaux */}
@@ -269,8 +272,8 @@ export function FicheSujet(p: {
         {RESEAUX_DECLINAISON.map((r) => {
           const actif = p.reseauActif === r;
           return (
-            <Link key={r} href={`/ecrire/sujets/${p.id}?reseau=${r}`} scroll={false} aria-current={actif ? "page" : undefined} className={cn("grid size-11 place-items-center rounded-xl", actif && "bg-orange-doux ring-2 ring-orange")}>
-              <LogoReseau reseau={r} className={cn(actif && "border-orange text-orange-vif")} />
+            <Link key={r} href={`/ecrire/sujets/${p.id}?reseau=${r}`} scroll={false} aria-current={actif ? "page" : undefined} className={cn("grid size-11 place-items-center rounded-xl", actif && "bg-accent-doux ring-2 ring-accent")}>
+              <LogoReseau reseau={r} className={cn(actif && "border-accent text-accent")} />
             </Link>
           );
         })}
@@ -388,8 +391,8 @@ export function FicheSujet(p: {
             {p.ajouts.jeLis && <BoutonAjout icone="texte" libelle="Je lis" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, mode: "teleprompteur" }, "« Je lis »")} />}
             {p.ajouts.tu && <BoutonAjout icone="personne" libelle="Tu" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, adresse: "tu" }, "« Tu »")} />}
             {p.ajouts.autresFormats.length > 0 && <BoutonAjout icone="grille" libelle="Autre format" disabled={enCours} onClick={() => setFeuille("format")} />}
-            <Link href="/ecrire/matieres?ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
-              <Icone nom="micro" size={16} className="text-orange-vif" />
+            <Link href="/ecrire?onglet=matieres&ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
+              <Icone nom="micro" size={16} className="text-accent" />
               Matière
             </Link>
           </div>
@@ -443,6 +446,9 @@ export function FicheSujet(p: {
         </div>
       </details>
 
+      <details className="group rounded-carte border border-trait bg-surface-1 px-4 py-2" data-plus>
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-texte">Plus</summary>
+        <div className="space-y-3 pb-2">
       <div className="grid grid-cols-2 gap-2">
         <Bouton variante="secondaire" icone="calendrier" onClick={() => setFeuille("ordre")}>
           Ordre J à J+4
@@ -465,6 +471,8 @@ export function FicheSujet(p: {
           Archiver le sujet
         </button>
       )}
+        </div>
+      </details>
 
       {/* Placés AVANT la barre collée : sous elle, ils seraient cachés à l'écran (mobile). */}
       {aValider.length > 0 && limiteEnAttente && <p className="text-center text-xs text-ambre">Validez la limite ci-dessus.</p>}
@@ -501,7 +509,7 @@ export function FicheSujet(p: {
                 onClick={() => ajouter({ formatId: f.id, mode: f.modeParDefaut }, f.nom)}
                 className="flex min-h-14 w-full items-center gap-3 rounded-champ border border-trait bg-surface-2 px-4 text-left hover:border-trait-fort"
               >
-                <Icone nom={f.icone} size={18} className="text-orange-vif" />
+                <Icone nom={f.icone} size={18} className="text-accent" />
                 <span className="flex-1 font-semibold text-texte">{f.nom}</span>
                 {f.moteurAVenir && <span className="text-xs text-texte-faible">moteur à venir</span>}
               </button>
@@ -526,7 +534,7 @@ function LienVideoVersion({ videoId, fabrication }: { videoId: string; fabricati
   return (
     <Link
       href={`/videos/${videoId}`}
-      className={cn("ml-12 mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold underline-offset-4 hover:underline", attend ? "text-texte-doux" : "text-orange-vif")}
+      className={cn("ml-12 mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold underline-offset-4 hover:underline", attend ? "text-texte-doux" : "text-accent")}
     >
       <Icone nom={attend ? "horloge" : "film"} size={14} className={cn(attend && "animate-pulse")} />
       {attend ? "Vidéo en fabrication" : "Voir la vidéo"}
@@ -543,7 +551,7 @@ function BoutonAjout({ icone, libelle, onClick, disabled }: { icone: NomIcone; l
       onClick={onClick}
       className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 text-sm font-semibold text-texte hover:border-trait-fort hover:bg-surface-2 disabled:opacity-50"
     >
-      <Icone nom={icone} size={16} className="text-orange-vif" />
+      <Icone nom={icone} size={16} className="text-accent" />
       {libelle}
     </button>
   );
@@ -593,7 +601,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
               </li>
             ))}
             {v.trame.chiffres.map((c) => (
-              <li key={c} className="rounded-full border-2 border-orange px-3 py-1 font-bold text-orange-vif">
+              <li key={c} className="rounded-full border-2 border-accent px-3 py-1 font-bold text-accent">
                 {c}
               </li>
             ))}
@@ -621,7 +629,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
       <div className="flex flex-wrap gap-2">
         {/* B1 : sujet écrit depuis « Nouvelle vidéo » : le texte de CETTE version revient dans la vidéo, mot pour mot. */}
         {lienVideo && v.etat !== "a-completer" && (
-          <Bouton asChild icone="film">
+          <Bouton asChild variante="contour-orange" icone="film">
             <Link href={lienVideo}>Utiliser dans ma vidéo</Link>
           </Bouton>
         )}
@@ -643,7 +651,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
             href={`/ecrire/sujets/${sujetId}/relire?version=${v.id}&but=modifier`}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort"
           >
-            <Icone nom="ecrire" size={15} className="text-orange-vif" />
+            <Icone nom="ecrire" size={15} className="text-accent" />
             Relire et modifier
           </Link>
         )}
@@ -695,7 +703,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
 function BoutonRetouche({ libelle, icone, onClick, disabled }: { libelle: string; icone: NomIcone; onClick: () => void; disabled?: boolean }) {
   return (
     <button type="button" disabled={disabled} onClick={onClick} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort disabled:opacity-50">
-      <Icone nom={icone} size={15} className="text-orange-vif" />
+      <Icone nom={icone} size={15} className="text-accent" />
       {libelle}
     </button>
   );
@@ -770,7 +778,7 @@ function BoutonCorrigerLimite({ onCorriger }: { onCorriger: (texte: string) => v
           autoFocus
           placeholder="Sauf si…"
           aria-label="La limite"
-          className="block w-full resize-none rounded-champ border border-trait bg-surface-1 p-3 text-base text-texte outline-none focus:border-orange"
+          className="block w-full resize-none rounded-champ border border-trait bg-surface-1 p-3 text-base text-texte outline-none focus:border-accent"
         />
       </FeuilleBas>
     </>
@@ -828,7 +836,7 @@ function FeuilleOrdre({
       <ol className="space-y-2">
         {creneaux.map((c, i) => (
           <li key={c.reseau} className="flex min-h-14 items-center gap-3 rounded-champ border border-trait bg-surface-2 px-3">
-            <span className="w-10 font-titre text-sm text-orange-vif">J+{c.rang}</span>
+            <span className="w-10 font-titre text-sm text-accent">J+{c.rang}</span>
             <LogoReseau reseau={c.reseau} />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold text-texte">{obtenirReseau(c.reseau).nom}</span>
@@ -994,7 +1002,7 @@ export function VerificationsDeLaVersion({ v, onCocher }: { v: VerificationsVers
         </>
       )}
       {v.licenceBloque && <p className="text-[13px] text-ambre">Une licence bloque cette vidéo : voyez « Droits » sur la vidéo.</p>}
-      <Link href={`/videos/${v.videoId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif underline-offset-4 hover:underline">
+      <Link href={`/videos/${v.videoId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent underline-offset-4 hover:underline">
         Voir la vidéo
         <Icone nom="fleche-droite" size={14} />
       </Link>
@@ -1071,7 +1079,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       )}
       {!programmation.envoiSimule && programmation.modeBuffer === "brouillon" && (
         <p className="mb-4 flex items-center gap-2 rounded-2xl border border-trait bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
-          <Icone nom="envoyer" size={16} className="shrink-0 text-orange-vif" />
+          <Icone nom="envoyer" size={16} className="shrink-0 text-accent" />
           Chaque version part en brouillon dans Buffer, avec sa date : vous la programmez dans Buffer.
         </p>
       )}
@@ -1081,7 +1089,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
           return (
             <li key={c.code} className="rounded-champ border border-trait bg-surface-2 px-3">
               <div className="flex min-h-14 items-center gap-3">
-                <span className="w-10 font-titre text-sm text-orange-vif">J+{c.rang}</span>
+                <span className="w-10 font-titre text-sm text-accent">J+{c.rang}</span>
                 <LogoReseau reseau={c.reseau} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-xs text-texte-doux">{c.code}</span>

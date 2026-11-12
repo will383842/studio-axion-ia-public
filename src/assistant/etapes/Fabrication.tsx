@@ -8,9 +8,9 @@ import { reessayerTravailAction } from "@/app/(studio)/actions";
 import { useNotificationsTelephone } from "@/components/coquille/EnregistrementPwa";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
 import { versSuiviFabrication } from "@/components/creation/vues-travail";
+import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
-import { EnTetePage } from "@/components/ui/EnTetePage";
 import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
@@ -73,19 +73,17 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
                 </motion.span>
               ) : (
                 <motion.span key="encours" className="relative grid size-28 place-items-center">
-                  <motion.span className="absolute inset-0 rounded-full border-4 border-orange/20 border-t-orange" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }} />
-                  <span className="grid size-20 place-items-center rounded-full bg-orange text-sur-orange shadow-orange">
+                  <motion.span className="absolute inset-0 rounded-full border-4 border-accent/20 border-t-accent" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }} />
+                  <span className="grid size-20 place-items-center rounded-full bg-accent text-sur-accent">
                     <Icone nom="clap" size={34} />
                   </span>
                 </motion.span>
               )}
             </AnimatePresence>
           </div>
-          <EnTetePage
-            className="mb-0 items-center text-center sm:flex-col sm:items-center sm:justify-center"
-            titre={termine ? "Votre vidéo est prête" : echec ? "Une étape a coincé" : arretee ? "Fabrication arrêtée" : "Je fabrique votre vidéo"}
-            sousTitre={termine ? "Elle vous attend dans Mes vidéos." : echec || arretee ? "Rien n'est perdu." : t?.boucleActive ? "Vous pouvez fermer : on vous prévient." : "Quelques minutes de patience."}
-          />
+          <div className="text-center">
+            <EnTeteSuivi etat={termine ? "prete" : echec ? "coincee" : arretee ? "arretee" : "en-cours"} sansTemps />
+          </div>
           {actif && t?.boucleActive && telephone.etat === "a-activer" && (
             <Bouton
               variante="fantome"
