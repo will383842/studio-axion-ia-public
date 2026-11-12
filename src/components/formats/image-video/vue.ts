@@ -310,7 +310,8 @@ export const formulesNonTranchees = (formules: readonly FormuleATrancherIV[], m:
 
 /** « environ 1,05 €, au plus 2,20 € ». */
 export function phrasePrix(p: Pick<PrixIV, "habituelCentimes" | "auPlusCentimes">): string {
-  return p.auPlusCentimes > p.habituelCentimes ? `environ ${euros(p.habituelCentimes)}, au plus ${euros(p.auPlusCentimes)}` : `environ ${euros(p.habituelCentimes)}`;
+  void p; // Règle de Williams : aucun montant à l'écran.
+  return "";
 }
 
 // ─── Écran 4 · Fabrication ───────────────────────────────────────────────────────────────────────────────────────────
@@ -406,7 +407,7 @@ function detailsSecours(etat: Pick<EtatFabricationIV, "refus" | "voix"> & Partia
   if (s.relire.length) {
     const n = s.nbLectures;
     details.push(
-      `Relecture de la seule fin pour ${s.reseauxRelire.join(", ")} : « Refaire cette partie » la relit à l'identique (${n} lecture${n > 1 ? "s" : ""} payée${n > 1 ? "s" : ""} au plus${n > 1 ? " avec les fins de secours déjà prévues" : ""}, environ ${euros(s.coutMaxCentimes)}) ; le corps et les autres fins déjà payés sont gardés. Si elle ne ressemble toujours pas à la référence, la vidéo s'arrête pour de bon.`,
+      `Relecture de la seule fin pour ${s.reseauxRelire.join(", ")} : « Refaire cette partie » la relit à l'identique (${n} lecture${n > 1 ? "s" : ""} payée${n > 1 ? "s" : ""} au plus${n > 1 ? " avec les fins de secours déjà prévues" : ""}) ; le corps et les autres fins déjà payés sont gardés. Si elle ne ressemble toujours pas à la référence, la vidéo s'arrête pour de bon.`,
     );
   }
   for (const r of s.replis) details.push(`${r} Aucune lecture : le son déjà payé et validé est repris.`);
@@ -630,7 +631,7 @@ export function garderLeLot<T>(fichiers: readonly T[]): { gardes: T[]; phrase?: 
 }
 
 /** Texte du bouton du lot : le nombre de vidéos et le prix total « au plus ». */
-export const libelleBoutonLot = (n: number, parVideoCentimes: number): string => `Fabriquer les ${n} vidéos · au plus ${euros(n * parVideoCentimes)}`;
+export const libelleBoutonLot = (n: number, parVideoCentimes: number): string => `Fabriquer les ${n} vidéos`;
 
 /** La phrase unique sous le bouton du lot. */
-export const messageDuLot = (n: number): string => `Au plus ce prix pour les ${n} vidéos. Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.`;
+export const messageDuLot = (n: number): string => `Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.`;

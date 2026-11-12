@@ -18,7 +18,8 @@ describe("BandeauGenerateur", () => {
     (id) => {
       const f = listerFormats({ inclureMasques: true, inclureReservesAWill: true }).find((x) => x.id === id)!;
       const html = rendre(id);
-      expect(html).toContain(nomCourtFormat(f));
+      // Le rendu HTML échappe l'apostrophe (« d'outil » devient « d&#x27;outil »).
+      expect(html).toContain(nomCourtFormat(f).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;"));
       expect(html).toContain(`href="${adresseCreationFormat(f)}"`);
       expect(html.includes("Essai")).toBe(formatEnEssai(f));
     },
@@ -63,8 +64,12 @@ describe("fiche /videos/[id] : un seul nom de générateur, en haut", () => {
     expect(lire("src/components/videos/EnTeteVideo.tsx")).not.toContain("/formats/");
   });
   it("le bandeau est placé avant la grille (lecteur), à côté de « Mes vidéos »", () => {
-    const src = lire("src/app/(studio)/videos/[id]/page.tsx");
-    expect(src.indexOf("<BandeauGenerateur")).toBeGreaterThan(-1);
-    expect(src.indexOf("<BandeauGenerateur")).toBeLessThan(src.indexOf("lg:grid-cols-[minmax(0,420px)"));
+    const page = lire("src/app/(studio)/videos/[id]/page.tsx");
+    expect(page.indexOf("<GabaritFicheVideo")).toBeGreaterThan(-1);
+    expect(page.indexOf("retour={")).toBeGreaterThan(-1);
+    expect(page.indexOf("bandeau={<BandeauGenerateur")).toBeGreaterThan(page.indexOf("retour={"));
+    const gabarit = lire("src/components/fabrication/GabaritFicheVideo.tsx");
+    expect(gabarit).toContain('z === "retour" || z === "bandeau"');
+    expect(gabarit.indexOf("haut")).toBeLessThan(gabarit.indexOf("lg:grid-cols-[minmax(0,420px)"));
   });
 });

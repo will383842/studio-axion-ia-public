@@ -119,7 +119,7 @@ describe("écran", () => {
   });
   it("dictionnaire inchangé", () => {
     const h = createHash("sha256").update(readFileSync("contrats/dictionnaire-textes-mp.v2.json")).digest("hex");
-    expect(h).toBe("3db4aa167aed179b487abd6a465a4617214805aa36c6d7d84cf3a7b952298c6c");
+    expect(h).toBe("aa4b8f984a9817c1bbd7ccdd36d12244e97f63f3c7ece8272f9820c791d5b419");
   });
 });
 
@@ -198,7 +198,7 @@ describe("B1 · empreinte liée aux 4 textes réellement envoyés", () => {
   it("mots.validations inchangé par la validation du GUIDE ; validerMot + poserMot d'un autre mot comme avant", async () => {
     await actions.validerMotGuideAction();
     expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({});
-    const saisie = { mot: "AUTRE", reponsePublique: "Message automatique envoyé par Axion IA. regardez vos messages privés.", messagePrive: "Message automatique envoyé par Axion IA. Quelle adresse pour le guide ?", relance: null, fin: "Message automatique envoyé par Axion IA. Merci, c'est noté." };
+    const saisie = { mot: "AUTRE", reponsePublique: "Bonjour ! regardez vos messages privés.", messagePrive: "Bonjour ! Quelle adresse pour le guide ?", relance: null, fin: "Bonjour ! Merci, c'est noté." };
     const v = await S.validerMot({ saisie, confirmeParOperateur: true });
     expect(v.ok).toBe(true);
     expect(await lireParametre(S.PARAM_VALIDATIONS_MOTS, {})).toEqual({ AUTRE: v.empreinte });

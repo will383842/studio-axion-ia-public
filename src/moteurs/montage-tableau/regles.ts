@@ -103,6 +103,9 @@ export const PHRASES_APPEL: readonly string[] = [
   "inscrivez-vous",
   "enregistrez cette video",
   "envoyez cette video",
+  "reservez un appel",
+  "reserver un appel",
+  "reservez votre appel",
 ];
 /** Mots de temps refusés dans les textes (règle 13) : aucun contrôle du studio ne les porte, déclarés ici. */
 export const MOTS_TEMPS_INTERDITS: readonly string[] = ["demain"];

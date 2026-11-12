@@ -2,8 +2,7 @@
 
 /**
  * CARTE « OPTION PAYANTE » (lot J, décision de Will du 09/10). Petite carte, 390 px de large au plus, deux boutons.
- * Le SEUL endroit du face caméra où un montant apparaît : « Option payante — environ X € pris sur vos crédits
- * <outil>. [Confirmer] [Annuler] ». Utilisée dans le fil du monteur, sur « Votre vidéo » et dans Réglages.
+ * « Option payante — pris sur vos crédits <outil>. [Confirmer] [Annuler] » ; aucun montant affiché. Utilisée dans le fil du monteur, sur « Votre vidéo » et dans Réglages.
  */
 import { useState, useTransition } from "react";
 import { annulerOptionPayanteAction, confirmerOptionPayanteAction } from "@/app/(studio)/videos/actions-options-payantes";
