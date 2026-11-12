@@ -6,4 +6,5 @@
 - tsc : 147 erreurs, comme master (0 nouvelle). eslint : aucune erreur. tests/aucun-prix-affiche : 1 échec déjà présent sur master (Credits), hors fichiers touchés.
 - Reste : l'hôte doit passer « proposer » à AjouterEntree (action serveur avec la porte de dépense, hors fichiers autorisés) et enregistrer texte et commentaire retenus après validation ; le type « video » est fixé dans AjouterEntree (carrousel/infographie : prop à ajouter avec le branchement).
 - Rien n'est publié : la proposition est à relire et valider par le fondateur.
+- CORRECTIF (relecture z4) : le contrôle PV est refait à chaque modification du texte (ProposerTexte) ; AjouterEntree branche onChange, garde le texte retenu à l'ajout (champ « textes » de l'entrée), prend le type en prop (« video » par défaut) ; hôte AjouterEntreeProposant + action actions/proposer.ts qui passent réellement « proposer » ; 13 essais passés ; tsc 146 erreurs avant et après ; eslint propre. Rien ne se publie.
 contrôle anti-fuite : vide

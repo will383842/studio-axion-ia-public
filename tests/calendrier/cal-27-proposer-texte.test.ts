@@ -4,11 +4,14 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
+const ajouterEntreeFactice = vi.hoisted(() => vi.fn(async () => ({ ok: false as const, message: "doublure" })));
+vi.mock("@/app/(studio)/calendrier/actions/ajouter", () => ({ ajouterEntree: ajouterEntreeFactice }));
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("../aides/crochets-factices")).crochets }));
 const { monter, trouver, texteDe, attendre } = await import("../aides/crochets-factices");
 const { proposerTexteImporte } = await import("@/services/texte-post");
 const { ProposerTexte } = await import("@/components/calendrier/ProposerTexte");
 const { AjouterEntree } = await import("@/components/calendrier/AjouterEntree");
+const { AjouterEntreeProposant } = await import("@/components/calendrier/AjouterEntreeProposant");
 
 const DESCRIPTION = "Une courte vidéo qui montre comment préparer votre devis en trois étapes simples.";
 const RESEAUX = ["linkedin", "instagram", "tiktok"] as const;
@@ -110,5 +113,51 @@ describe("ajout manuel", () => {
   it("avec un proposeur, le bouton apparaît dans le formulaire", () => {
     const m = monter(AjouterEntree, { jour: "2026-12-10", compteCible: "compte-fictif", proposer: proposerTexteImporte });
     expect(trouver(m.rendre(), (e) => e.type === ProposerTexte)).toHaveLength(1);
+  });
+
+  it("l'hôte passe réellement l'action `proposer` (une fonction) à l'ajout", () => {
+    const rendu = AjouterEntreeProposant({ jour: "2026-12-10", compteCible: "compte-fictif" }) as { type: unknown; props: Record<string, unknown> };
+    expect(rendu.type).toBe(AjouterEntree);
+    expect(typeof rendu.props.proposer).toBe("function");
+  });
+
+  it("le type choisi par l'hôte n'est pas figé à « video »", () => {
+    const m = monter(AjouterEntree, { jour: "2026-12-10", compteCible: "compte-fictif", proposer: proposerTexteImporte, type: "carrousel" as const });
+    expect(trouver(m.rendre(), (e) => e.type === ProposerTexte)[0]!.props.type).toBe("carrousel");
+    const v = monter(AjouterEntree, { jour: "2026-12-10", compteCible: "compte-fictif", proposer: proposerTexteImporte });
+    expect(trouver(v.rendre(), (e) => e.type === ProposerTexte)[0]!.props.type).toBe("video");
+  });
+
+  it("onChange est branché : le texte retouché dans la proposition remonte dans l'ajout et part avec lui", async () => {
+    const m = monter(AjouterEntree, { jour: "2026-12-10", compteCible: "compte-fictif", proposer: proposerTexteImporte });
+    const surChange = trouver(m.rendre(), (e) => e.type === ProposerTexte)[0]!.props.onChange as (v: unknown) => void;
+    expect(typeof surChange).toBe("function");
+    surChange({ linkedin: { texte: "Ma version.", premierCommentaire: "Mon commentaire." } });
+    const formulaire = trouver(m.rendre(), (e) => e.type === "form")[0]!;
+    (formulaire.props.onSubmit as (e: unknown) => void)({ preventDefault: () => undefined });
+    await attendre();
+    expect(ajouterEntreeFactice).toHaveBeenCalledTimes(1);
+    const saisie = (ajouterEntreeFactice.mock.calls[0] as unknown as [{ textes?: Record<string, unknown> }])[0];
+    expect(saisie.textes).toEqual({ linkedin: { texte: "Ma version.", premierCommentaire: "Mon commentaire." } });
+  });
+});
+
+describe("composant : le contrôle est refait après toute modification (critère 2)", () => {
+  const champsTexte = (m: ReturnType<typeof monter>) => trouver(m.rendre(), (e) => e.type === "textarea");
+  const alertes = (m: ReturnType<typeof monter>) => trouver(m.rendre(), (e) => e.props.role === "alert").map((e) => texteDe(e.props.children as never)).join(" ");
+
+  it("un chiffre inventé ou un tutoiement écrit à la main est signalé, et le signal disparaît quand le texte est corrigé", async () => {
+    const m = monter(ProposerTexte, { type: "video" as const, reseaux: ["linkedin" as const], proposer: (d: Parameters<typeof proposerTexteImporte>[0]) => proposerTexteImporte({ ...d, simulation: true }) });
+    (trouver(m.rendre(), (e) => e.type === "input")[0]!.props.onChange as (e: unknown) => void)({ target: { value: DESCRIPTION } });
+    (trouver(m.rendre(), (e) => e.type === "button")[0]!.props.onClick as () => void)();
+    await attendre();
+    expect(alertes(m)).toBe("");
+    const ecrire = (v: string) => (champsTexte(m)[0]!.props.onChange as (e: unknown) => void)({ target: { value: v } });
+    ecrire("Gagnez 40 % de temps sur vos devis.");
+    expect(alertes(m)).toMatch(/PV-03/);
+    ecrire("Tu prépares ton devis en trois étapes simples.");
+    expect(alertes(m)).toMatch(/PV-04/);
+    ecrire("Vous préparez votre devis en trois étapes simples.");
+    expect(alertes(m)).toBe("");
   });
 });
