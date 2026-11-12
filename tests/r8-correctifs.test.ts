@@ -299,8 +299,8 @@ describe("n° 2 — prix de 45 s : le second angle compte quand deux avatars son
     const c = await fabrication.construireCommande(VIDEO);
     expect(c.moteurId).toBe("montage-avocat");
     expect(secondesAnnonceesDouble({ ...c, dureeCibleSec: 45 })).toBe(45 + 11);
-    // Le journal de l'allumage annonce ce prix-là.
-    expect((await reglages.listerJournal(5)).find((e) => /montage réel/.test(e.message))!.message).toContain(formaterMontant(f.prix.total));
+    // Le journal de l'allumage ne montre aucun montant (règle « aucun prix dans le studio »).
+    expect((await reglages.listerJournal(5)).find((e) => /montage réel/.test(e.message))!.message).not.toMatch(/€|\$/);
   });
 
   it("un seul avatar prêt : un seul angle, pas de ligne de second angle", async () => {

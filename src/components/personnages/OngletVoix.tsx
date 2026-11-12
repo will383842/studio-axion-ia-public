@@ -49,7 +49,7 @@ const TEXTE_ESSAI = "Bonjour, ici Axion-IA. Voici comment l'IA peut vous faire g
 const PHRASES_TEST = [
   { libelle: "Sons proches", texte: "Un bon PV, puis un pépin : voilà comment tout commence." },
   { libelle: "Montant", texte: "Cette amende de 135 euros peut être contestée sous 45 jours." },
-  { libelle: "Nom propre", texte: "Williams Jullin, d'Axion-IA, vous explique tout cela simplement." },
+  { libelle: "Nom propre", texte: "Williams ici, d'Axion-IA, vous explique tout cela simplement." },
 ];
 
 /**

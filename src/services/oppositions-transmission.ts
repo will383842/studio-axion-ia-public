@@ -14,7 +14,7 @@
 import "server-only";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { cleIdempotenceOpaque, lireClesEmpreinte, type CleEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
-import { ATTENTES_INTROUVABLE_MS, ATTENTES_PANNE_LECTURE_MS, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
+import { ATTENTES_INTROUVABLE_MS, ATTENTES_PANNE_LECTURE_MS, voiesOpposition, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
 import type { PortInboxZernio } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
@@ -24,6 +24,16 @@ import { empreintesOpposees, marquerTransmiseParEmpreinte } from "./oppositions-
 import { transportDuSite } from "./parcours-mot";
 
 export const PARAM_OPPOSITIONS_FILE = "parcours.oppositions.file";
+/**
+ * File des « stop » de personnes qui ont reçu le lien de la page (Z3b) : leur adresse est peut-être chez le site, pas au Studio.
+ * Une entrée par personne, JAMAIS retirée ; ni adresse, ni identifiant brut (`refLienConv` est un HMAC opaque).
+ */
+export const PARAM_OPPOSITIONS_PAGE = "parcours.oppositions.page";
+/** Interrupteur de la transmission par référence de conversation (éteint par défaut : les entrées restent « attente_route »). */
+export const VARIABLE_OPPOSITIONS_PAR_REF = "OPPOSITIONS_PAR_REF_ENABLED";
+/** Route PROPOSÉE du site (à confirmer par le site) : opposition par référence de conversation. */
+export const CHEMIN_OPPOSITIONS_PAGE = "/api/interne/oppositions-page-guide";
+const oppositionsParRefActives = (env: Record<string, string | undefined>): boolean => /^(1|true|oui)$/i.test(env[VARIABLE_OPPOSITIONS_PAR_REF]?.trim() ?? "");
 /**
  * Mêmes valeurs que `parcours-conversation.ts` (figées par un test) : pas d'import, ce service est importé PAR lui (aucun cycle) et
  * un test de garde interdit à tout autre fichier de src d'importer le parcours.
@@ -56,6 +66,19 @@ export interface EntreeOpposition {
   lectures: number;
 }
 type File = Record<string, EntreeOpposition>;
+export type EtatOppositionPage = "attente_route" | "a_transmettre" | "transmise" | "refusee";
+/** AUCUNE adresse, aucun identifiant brut. */
+export interface EntreeOppositionPage {
+  cleIdempotence: string;
+  refLienConv: string;
+  reseau: "instagram" | "facebook";
+  creeLe: string;
+  etat: EtatOppositionPage;
+  essais: number;
+  prochainEssaiLe: number | null;
+  dernierCode: string | null;
+}
+type FilePage = Record<string, EntreeOppositionPage>;
 
 /* --- État processus (alertes, rattrapage) ----------------------------------------------------------------------- */
 interface EtatProcessus {
@@ -100,8 +123,10 @@ async function fixer(cle: string, patch: Partial<EntreeOpposition>): Promise<voi
  * Met le « stop » d'une personne en file de transmission. IDEMPOTENTE (une entrée par personne ; la clé d'idempotence est calculée
  * UNE fois puis stockée) et sans effet si l'adresse n'a jamais été transmise au site (`occurredAt` null).
  */
-export async function mettreEnFileOpposition(cle: string, conv: Pick<Conversation, "occurredAt" | "reseau">, cles: CleEmpreinte, maintenantMs?: number): Promise<void> {
-  if (conv.occurredAt === null || conv.occurredAt === undefined) return;
+export async function mettreEnFileOpposition(cle: string, conv: Pick<Conversation, "occurredAt" | "reseau" | "refLienConv">, cles: CleEmpreinte, maintenantMs?: number): Promise<void> {
+  const voies = voiesOpposition(conv);
+  if (voies.page) await mettreEnFileOppositionPage(cle, conv, cles, maintenantMs ?? Date.now());
+  if (!voies.adresse) return;
   const cleIdempotence = cleIdempotenceOpaque(cles, "opposition", cle);
   const now = maintenantMs ?? Date.now();
   await sousVerrou(async () => {
@@ -109,6 +134,18 @@ export async function mettreEnFileOpposition(cle: string, conv: Pick<Conversatio
     if (f[cle]) return;
     const entree: EntreeOpposition = { cleIdempotence, reseau: conv.reseau, creeLe: iso(now), essais: 0, prochainEssaiLe: null, etat: "a_transmettre", dernierCode: null, depuis: iso(now), lectures: 0 };
     await ecrireParametre(PARAM_OPPOSITIONS_FILE, { ...f, [cle]: entree });
+  });
+}
+
+const lireFilePage = (): Promise<FilePage> => lireParametre<FilePage>(PARAM_OPPOSITIONS_PAGE, {});
+
+/** Voie « page » : une entrée par personne (clé de conversation), sous verrou, idempotente ; la clé d'idempotence est calculée UNE fois puis stockée. */
+async function mettreEnFileOppositionPage(cle: string, conv: Pick<Conversation, "reseau" | "refLienConv">, cles: CleEmpreinte, now: number): Promise<void> {
+  await sousVerrou(async () => {
+    const f = await lireFilePage();
+    if (f[cle]) return;
+    const entree: EntreeOppositionPage = { cleIdempotence: cleIdempotenceOpaque(cles, "opposition", `page:${cle}`), refLienConv: conv.refLienConv as string, reseau: conv.reseau, creeLe: iso(now), etat: "attente_route", essais: 0, prochainEssaiLe: null, dernierCode: null };
+    await ecrireParametre(PARAM_OPPOSITIONS_PAGE, { ...f, [cle]: entree });
   });
 }
 
@@ -125,9 +162,11 @@ export async function rattraperOppositions(o: { env?: Env; maintenantMs?: number
   if (!k.ok) return 0;
   const conversations = await lireParametre<Record<string, Conversation>>(PARAM_CONVERSATIONS, {});
   const f = await lireFile();
+  const fp = await lireFilePage();
   let ajoutees = 0;
   for (const [cle, c] of Object.entries(conversations)) {
-    if (typeof c.occurredAt !== "string" || f[cle]) continue;
+    const voies = voiesOpposition(c);
+    if (!((voies.adresse && !f[cle]) || (voies.page && !fp[cle]))) continue;
     const auRegistre = await empreintesOpposees([cle, ...(c.alias ?? [])], { env });
     if (!auRegistre && c.etat !== "oppose") continue;
     await mettreEnFileOpposition(cle, c, k.courante, now);
@@ -154,6 +193,12 @@ export async function transmettreOppositions(o: { port: PortInboxZernio; env?: E
     } catch {
       await journaliser("parcours_conversation", "Rattrapage des oppositions impossible (registre illisible) : nouvel essai plus tard.").catch(() => undefined);
     }
+  }
+  try {
+    await transmettrePage(o.port, env, now);
+  } catch {
+    // La voie « page » ne doit jamais bloquer l'ancienne file par adresse : un code seulement, nouvel essai au passage suivant.
+    await journaliser("parcours_conversation", "File des oppositions de la page illisible : nouvel essai plus tard ; la file par adresse continue.").catch(() => undefined);
   }
   const attentes = Object.values(await lireFile()).filter((e) => e.etat === "a_transmettre" && now - Date.parse(e.creeLe) > ALERTE_ATTENTE_MS);
   if (attentes.length > 0) await alerter("attente_6h", "Une opposition (« stop ») attend depuis plus de 6 h d'être transmise au site. Elle reste gardée et sera réessayée ; vérifier le site et l'Inbox Zernio.", now);
@@ -263,4 +308,72 @@ async function traiterEntree(cle: string, port: PortInboxZernio, env: Env, now: 
   else if (statut === 503) await alerter("opp_503", "Le site n'accepte pas les oppositions (« stop ») : OPPOSITIONS_RESEAU_ENABLED éteint côté site. Elles sont gardées et réessayées.", now);
   await journaliser("parcours_conversation", `Opposition : a_transmettre (${code}).`);
   return false;
+}
+
+/**
+ * Voie « page » (Z3b). Interrupteur éteint : les entrées restent « attente_route » et la cloche prévient (au plus une alerte par heure, un NOMBRE seulement).
+ * Allumé : elles partent au site par référence de conversation, mêmes octets à chaque essai ; 200/409 → transmise, 422 → refusee + alerte,
+ * tout le reste (0, 401, 404, 429, 5xx) → réessai SANS FIN. Aucune entrée n'est jamais retirée. Transmises même si le parcours est éteint.
+ */
+async function transmettrePage(_port: PortInboxZernio, env: Env, now: number): Promise<void> {
+  if (!oppositionsParRefActives(env)) {
+    const n = Object.values(await lireFilePage()).filter((e) => e.etat === "attente_route" || e.etat === "a_transmettre").length;
+    if (n > 0) await alerter("page_attente_route", `Des personnes qui avaient reçu le lien de la page ont écrit « stop » (${n} en attente). Le site ne peut pas encore le recevoir : elles sont gardées, rien n'est perdu.`, now);
+    return;
+  }
+  const dues = await sousVerrou(async () => {
+    const f = await lireFilePage();
+    const cles = Object.keys(f)
+      .filter((c) => (f[c].etat === "attente_route" || f[c].etat === "a_transmettre") && (f[c].prochainEssaiLe === null || f[c].prochainEssaiLe <= now))
+      .sort((a, b) => f[a].creeLe.localeCompare(f[b].creeLe))
+      .slice(0, PLAFOND_PASSAGE);
+    if (cles.length > 0) await ecrireParametre(PARAM_OPPOSITIONS_PAGE, { ...f, ...Object.fromEntries(cles.map((c) => [c, { ...f[c], etat: "a_transmettre" as const, prochainEssaiLe: now + BAIL_MS }])) });
+    return cles;
+  });
+  for (const cle of dues) {
+    try {
+      await traiterEntreePage(cle, env, now);
+    } catch {
+      await fixerPage(cle, { prochainEssaiLe: now + ATTENTES_SITE_MS[0], dernierCode: "erreur_interne" }).catch(() => undefined);
+    }
+  }
+}
+
+async function fixerPage(cle: string, patch: Partial<EntreeOppositionPage>): Promise<void> {
+  await sousVerrou(async () => {
+    const f = await lireFilePage();
+    if (f[cle]) await ecrireParametre(PARAM_OPPOSITIONS_PAGE, { ...f, [cle]: { ...f[cle], ...patch } });
+  });
+}
+
+async function traiterEntreePage(cle: string, env: Env, now: number): Promise<void> {
+  const e = (await lireFilePage())[cle];
+  if (!e || e.etat !== "a_transmettre") return;
+  const retarder = (code: string): Promise<void> => fixerPage(cle, { essais: e.essais + 1, prochainEssaiLe: now + delaiSite(e.essais), dernierCode: code });
+  const site = transportDuSite(env);
+  if (!site) {
+    await retarder("site_non_relie");
+    await alerter("site_non_relie", "Le site n'est pas relié (adresse ou secret du site absent) : les oppositions (« stop ») attendent. Vérifier la configuration du site.", now);
+    return;
+  }
+  const corps = JSON.stringify({ schemaVersion: 1, cleIdempotence: e.cleIdempotence, conv: e.refLienConv, reseau: e.reseau, occurredAt: e.creeLe });
+  const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin: CHEMIN_OPPOSITIONS_PAGE, corps, horodatageSec: Math.floor(Date.now() / 1000) });
+  let statut = 0;
+  try {
+    statut = (await site.transport({ methode: "POST", chemin: CHEMIN_OPPOSITIONS_PAGE, corps, entetes })).statut;
+  } catch {
+    statut = 0;
+  }
+  const code = String(statut);
+  if ((statut >= 200 && statut < 300) || statut === 409) {
+    await fixerPage(cle, { etat: "transmise", prochainEssaiLe: null, dernierCode: code });
+    await journaliser("parcours_conversation", `Opposition (page) : transmise (${code}).`);
+  } else if (statut === 422) {
+    await fixerPage(cle, { etat: "refusee", prochainEssaiLe: null, dernierCode: code });
+    await alerter("page_refusee", "Le site a refusé une opposition (« stop ») par référence de conversation : corps invalide (code 422). L'entrée est gardée ; à traiter à la main.", now);
+    await journaliser("parcours_conversation", `Opposition (page) : refusee (${code}).`);
+  } else {
+    await retarder(code);
+    await journaliser("parcours_conversation", `Opposition (page) : a_transmettre (${code}).`);
+  }
 }

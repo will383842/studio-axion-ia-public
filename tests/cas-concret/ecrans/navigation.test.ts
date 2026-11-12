@@ -11,7 +11,7 @@ const cas = (statut: F["statut"]): F => ({ id: "cas-concret", statut });
 const avocat: F = { id: "avocat", statut: "actif" };
 
 // Menu en sections (Mes contenus · Publier · Mes ressources), pied « Réglages » ; Veille et Outils motion passent par la recherche et la Bibliothèque.
-const LIBELLES = ["Accueil", "Nouvelle vidéo", "Mes vidéos", "Carrousels", "Écrire", "Calendrier", "Réponses automatiques", "Résultats", "Personnages", "Bibliothèque", "Mes modèles", "Réglages"];
+const LIBELLES = ["Accueil", "Nouvelle vidéo", "Mes vidéos", "Carrousels", "Tous mes contenus", "Écrire", "Calendrier", "Réponses automatiques", "Résultats", "Personnages", "Bibliothèque", "Mes modèles", "Réglages"];
 const INTERDITS = ["/tableau/nouvelle", "/cas-concret", "/image-video", "/face-camera-animee"];
 
 describe("navigationLaterale", () => {

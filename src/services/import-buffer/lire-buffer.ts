@@ -33,7 +33,7 @@ export function creerClientLecture(cle: string, options: { appeler?: Fetch; url?
         if (r.raison === "reseau") throw new ErreurLectureBuffer("indisponible", "Buffer ne répond pas.");
         if (r.raison === "illisible") throw new ErreurLectureBuffer("illisible", "Buffer : réponse illisible.");
         if (r.status === 401 || r.status === 403) throw new ErreurLectureBuffer("refuse", "Buffer refuse la clé du serveur.");
-        throw new ErreurLectureBuffer("indisponible", `Buffer indisponible (HTTP ${r.status}).`);
+        throw new ErreurLectureBuffer("indisponible", "Buffer ne répond pas pour l'instant.");
       }
       const corps = objet(r.corps);
       const erreurs = Array.isArray(corps?.errors) ? corps.errors : [];

@@ -330,7 +330,7 @@ export function EcranSujet({
           </Bouton>
         ) : (
           <Bouton icone="ecrire" taille="lg" disabled={!boutonSujetActif(pret, refus, ciblage)} chargement={envoi} onClick={() => ecrire()}>
-            Écrire · au plus {prix}
+            Écrire
           </Bouton>
         )}
       </BarreActionCollee>
