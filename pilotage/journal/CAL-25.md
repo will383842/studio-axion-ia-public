@@ -24,3 +24,4 @@ contrôle anti-fuite : vide
 - Fichier de test ajouté hors liste, nécessaire à l'avis : tests/calendrier/cal-25-formulaire.test.tsx. Master fusionné. Aucune couleur ajoutée.
 - Tests (calendrier, calendrier-ajout-manuel, rc-32, couleurs) : 463 passés, 0 échoué. tsc : 147 erreurs, aucune nouvelle (master : 149 sur le même arbre).
 contrôle anti-fuite : vide
+- CORRECTIF eslint : react/no-unescaped-entities dans DepotMedia.tsx (apostrophes lignes 68-69 remplacées par &apos;), sans changement de comportement. Tests cal-25 passés ; tsc : aucune erreur nouvelle.
