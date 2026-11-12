@@ -6,7 +6,7 @@
  * (`interditsDuPost`, portée « post », L3-04). S'y ajoute un seul contrôle propre : un commentaire porte un seul appel.
  *
  * Niveaux : « bloquant » est limité au FORMAT TECHNIQUE (une longueur que le réseau refuse). Un défaut de style
- * (appels multiples) ou un mot interdit avertit seulement quand l'auteur est le fondateur (`auteur: "fondateur"`) : un
+ * (appels multiples) ou un mot interdit avertit seulement quand l'auteur est une personne (toute valeur du type `Auteur` autre que « machine ») : un
  * ajout manuel n'est jamais bloqué. Pour un texte écrit par la machine, les trois défauts sont bloquants.
  * Le contrôleur ne cite aucun montant et ne porte aucune consigne d'un outil d'envoi.
  * Tout changement de texte d'une publication programmée repasse par `controlerTextePost` (CAL-23).
@@ -14,12 +14,12 @@
 import { obtenirReseau } from "@/reseaux";
 import { verifierLimitesTexte } from "@/reseaux/ecriture";
 import { interditsDuPost, type ZonePost } from "@/domaine/qualite-script/regles/interdits";
-import type { NiveauControle } from "./types";
+import type { Auteur, NiveauControle } from "./types";
 import { normaliser, phrasesDe } from "./texte";
 
 export type ReseauTextePost = Parameters<typeof verifierLimitesTexte>[0];
-/** Qui a écrit le texte : la machine (règles dures) ou le fondateur (ajout manuel). */
-export type AuteurTextePost = "machine" | "fondateur";
+/** Qui a écrit le texte : le type `Auteur` existant (la machine, ou une personne pour un ajout manuel). */
+export type AuteurTextePost = Auteur;
 export type CodeTextePost = "texte-trop-long" | "commentaire-trop-long" | "appels-multiples" | "interdit";
 
 export interface EntreeTextePost {
@@ -30,7 +30,7 @@ export interface EntreeTextePost {
   legende?: string | null;
   /** Le premier commentaire. */
   commentaire?: string | null;
-  /** Défaut : « machine » (règles dures). « fondateur » : un ajout manuel, bloqué sur le format technique seulement. */
+  /** Défaut : « machine » (règles dures). Toute autre valeur du type `Auteur` : un ajout manuel, bloqué sur le format technique seulement. */
   auteur?: AuteurTextePost;
 }
 
@@ -54,7 +54,7 @@ export function compterAppels(texte: string): number {
 }
 
 export function controlerTextePost(e: EntreeTextePost): ResultatTextePost {
-  const manuel = e.auteur === "fondateur";
+  const manuel = e.auteur !== undefined && e.auteur !== "machine";
   const violations: ViolationTextePost[] = [];
   const niveauStyle: NiveauControle = manuel ? "alerte" : "bloquant";
 
