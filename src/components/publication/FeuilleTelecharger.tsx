@@ -44,7 +44,7 @@ export function FeuilleTelecharger() {
           <li key={s.id}>
             <a
               href={`/api/telechargements/video?video=${encodeURIComponent(videoId)}&ratio=${encodeURIComponent(s.ratio)}`}
-              className="group flex min-h-20 items-center gap-4 rounded-2xl border border-trait bg-surface-2 p-3 pr-4 transition-colors hover:border-orange"
+              className="group flex min-h-20 items-center gap-4 rounded-2xl border border-trait bg-surface-2 p-3 pr-4 transition-colors hover:border-accent"
             >
               <span className={cn("relative w-12 shrink-0 overflow-hidden rounded-lg border border-trait-fort bg-fond", ASPECT[s.ratio])}>
                 {s.vignette && <Image src={s.vignette} alt="" fill sizes="48px" className="object-cover" />}
@@ -55,7 +55,7 @@ export function FeuilleTelecharger() {
                   {USAGE[s.ratio]} · {s.resolution} · {taille(s.taille)}
                 </span>
               </span>
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-orange text-sur-orange shadow-orange transition-transform group-hover:scale-105">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-accent text-sur-accent transition-transform group-hover:scale-105">
                 <Icone nom="telecharger" size={19} />
               </span>
             </a>
