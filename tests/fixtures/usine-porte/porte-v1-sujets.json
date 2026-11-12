@@ -1,0 +1,70 @@
+{
+  "valides": [
+    { "nom": "minimale", "corps": { "n": 1, "type_contenu": "video", "reseaux": ["instagram"] } },
+    { "nom": "complete", "corps": { "n": 5, "type_contenu": "carrousel", "reseaux": ["instagram", "linkedin"], "metiers": ["compta.metier-fictif"], "tailles": ["TPE"], "services": ["formation"], "graine": 42 } }
+  ],
+  "invalides": [
+    { "nom": "n a zero", "corps": { "n": 0, "type_contenu": "video", "reseaux": ["instagram"] } },
+    { "nom": "n a vingt et un", "corps": { "n": 21, "type_contenu": "video", "reseaux": ["instagram"] } },
+    { "nom": "champ en trop", "corps": { "n": 1, "type_contenu": "video", "reseaux": ["instagram"], "etat": "programmee" } },
+    { "nom": "reseaux vide", "corps": { "n": 1, "type_contenu": "video", "reseaux": [] } },
+    { "nom": "type inconnu", "corps": { "n": 1, "type_contenu": "podcast", "reseaux": ["instagram"] } }
+  ],
+  "reponse": {
+    "demandees": 1,
+    "lignes": [
+      {
+        "rang": 1,
+        "signature": "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue",
+        "parts": { "metier": "compta.cabinet-fictif", "taille": "TPE", "service": "formation", "douleur": "d-retards", "cas_usage": "cas-fictif-01", "actualite": null, "format": "video-court", "structure": "scène vécue" },
+        "type_contenu": "video",
+        "reseaux": ["instagram"],
+        "metier": { "code": "compta.cabinet-fictif", "libelle": "Cabinet comptable (fictif)", "secteur": "services" },
+        "taille": { "code": "TPE", "libelle": "Petite structure" },
+        "service": { "code": "formation", "libelle": "Formation" },
+        "douleur": { "code": "d-retards", "dite": "Les relances partent trop tard.", "scene_avant": "Un lundi, la pile de factures attend." },
+        "cas_usage": { "code": "cas-fictif-01", "titre": "Relances triées", "probleme": "Tri à la main.", "ce_que_ca_change": "Le tri se fait seul." },
+        "sujet": null,
+        "actualite": null,
+        "format": { "code": "video-court", "libelle": "Vidéo courte" },
+        "accroche": { "code": "acc-01", "famille": "scène vécue", "modele": "Un lundi matin…", "exemple": "Un lundi matin, la pile de factures attend." },
+        "fins": { "instagram": { "appel": "appel-fictif", "type": "mot", "objectif": "échange", "dit": "Dites-le en commentaire.", "ecran": "Écrivez le mot", "mot": "EXEMPLE" } }
+      },
+      {
+        "rang": 2,
+        "signature": "compta.cabinet-fictif|TPE|formation|||actu-fictive-01|video-court|scène vécue",
+        "parts": { "metier": "compta.cabinet-fictif", "taille": "TPE", "service": "formation", "douleur": null, "cas_usage": null, "actualite": "actu-fictive-01", "format": "video-court", "structure": "scène vécue" },
+        "type_contenu": "video",
+        "reseaux": ["instagram"],
+        "metier": { "code": "compta.cabinet-fictif", "libelle": "Cabinet comptable (fictif)", "secteur": "services" },
+        "taille": { "code": "TPE", "libelle": "Petite structure" },
+        "service": { "code": "formation", "libelle": "Formation" },
+        "douleur": null,
+        "cas_usage": null,
+        "sujet": null,
+        "actualite": { "code": "actu-fictive-01", "titre": "Nouvelle règle fictive de facturation", "ce_qui_change": "Les factures changent de forme." },
+        "format": { "code": "video-court", "libelle": "Vidéo courte" },
+        "accroche": { "code": "acc-01", "famille": "scène vécue", "modele": "Un lundi matin…", "exemple": "Un lundi matin, la règle change." },
+        "fins": { "instagram": { "appel": "appel-fictif", "type": "mot", "objectif": "échange", "dit": "Dites-le en commentaire.", "ecran": "Écrivez le mot", "mot": "EXEMPLE" } }
+      },
+      {
+        "rang": 3,
+        "signature": "compta.cabinet-fictif|TPE|formation|d-retards||sujet-fictif-01|video-court|scène vécue",
+        "parts": { "metier": "compta.cabinet-fictif", "taille": "TPE", "service": "formation", "douleur": "d-retards", "cas_usage": null, "actualite": null, "format": "video-court", "structure": "scène vécue" },
+        "type_contenu": "video",
+        "reseaux": ["instagram"],
+        "metier": { "code": "compta.cabinet-fictif", "libelle": "Cabinet comptable (fictif)", "secteur": "services" },
+        "taille": { "code": "TPE", "libelle": "Petite structure" },
+        "service": { "code": "formation", "libelle": "Formation" },
+        "douleur": { "code": "d-retards", "dite": "Les relances partent trop tard.", "scene_avant": "Un lundi, la pile de factures attend." },
+        "cas_usage": null,
+        "sujet": { "code": "sujet-fictif-01", "titre": "Sujet fictif de relances" },
+        "actualite": null,
+        "format": { "code": "video-court", "libelle": "Vidéo courte" },
+        "accroche": { "code": "acc-01", "famille": "scène vécue", "modele": "Un lundi matin…", "exemple": "Un lundi matin, la pile de factures attend." },
+        "fins": {}
+      }
+    ],
+    "pourquoi": []
+  }
+}
