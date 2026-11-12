@@ -10,6 +10,7 @@ import type { IdReseau } from "@/domaine/types";
 import { exigerSession } from "@/services/auth";
 import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut, creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
+import { validerProposition } from "@/domaine/plan-editorial/statuts";
 import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
 
@@ -59,6 +60,8 @@ async function verifierVoisinage(saisie: SaisieEntree, instant: string): Promise
   for (const c of await depotsPlan().creneaux.lister()) {
     const inst = c.heuresParReseau[saisie.reseau];
     if (!inst) continue;
+    // Un créneau archivé ou en échec n'occupe plus la place : pas d'avertissement.
+    if (c.statut === "archive" || c.statut === "echec") continue;
     const p = enParis(inst);
     // Pilier et cible distincts : seules l'écart et le quota nous intéressent ici.
     if (fenetre.has(p.jour)) posts.push({ id: c.id, reseau: saisie.reseau, ...p, pilier: c.id, cible: c.id });
@@ -120,13 +123,17 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
 
 /** Geste du fondateur : « propose » → « valide ». Ne programme ni ne publie : la reprise par le diffuseur se fait ailleurs. */
 export async function validerEntree(id: string): Promise<Resultat<CreneauPlan>> {
-  await exigerSession();
+  const session = await exigerSession();
   return essayer(async () => {
     const d = depotsPlan();
     const c = await d.creneaux.obtenir(id);
     if (!c) throw new Error(`Créneau introuvable : ${id}`);
     if (c.statut === "valide") return c;
     if (c.statut === "propose") await changerStatut(d, id, "a_valider", "studio", maintenant());
-    return changerStatut(d, id, "valide", "studio", maintenant());
+    // Validation tracée (date et auteur) : seule voie permise depuis « a_valider » (règle du domaine).
+    const a = (await d.creneaux.obtenir(id))!;
+    const r = validerProposition(a, "studio", maintenant(), session.id);
+    if (!r.ok) throw new Error(r.raison);
+    return d.creneaux.enregistrer(r.creneau);
   });
 }
