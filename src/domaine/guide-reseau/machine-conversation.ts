@@ -72,6 +72,8 @@ export interface Conversation {
   derniereActiviteLe?: string | null;
   /** Identifiant OPAQUE de ce dernier message de la personne (jamais d'identifiant de conversation brut). */
   idMessageDernier?: string | null;
+  /** Posé quand la personne s'est opposée ailleurs (autre réseau, registre) et que le site l'a constaté : facultatif, absent par défaut, sans effet sur les transitions. */
+  opposeeParSite?: boolean;
   /** Empreintes SHA-256 (hex) des jetons des liens réellement ENVOYÉS dans M1 v3 : la `ref` d'une confirmation du site en est une. Jamais le jeton, jamais le lien. */
   empreintesLien?: string[];
   /** Merci après la page : « en_vol » écrit AVANT l'envoi, jamais effacé. Une autre confirmation de la même personne ne déclenche pas un 2e merci. */
