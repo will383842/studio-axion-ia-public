@@ -7,6 +7,7 @@
  */
 import "server-only";
 import { peutAnnuler } from "@/domaine/corbeille";
+import { familleDe } from "@/domaine/journal-echecs";
 import type { Id, Video } from "@/domaine/types";
 import { depots, ErreurStudio, filtreExemples } from "./_commun";
 import { exigerSession } from "./auth";
@@ -21,9 +22,18 @@ export const DELAI_NETTOYAGE_MS = 86_400_000;
 export const PLAFOND_NETTOYAGE = 50;
 const NON_TERMINEES = new Set<Video["statut"]>(["brouillon", "echec", "annulee"]);
 
+/**
+ * GV-EC-01e : les vidéos dont un travail attend la validation de Williams (statut « echec », code de famille
+ * « attente-validation »). Jugé sur ce STATUT, pas sur l'âge : une telle vidéo n'est jamais proposée au nettoyage.
+ */
+async function videosEnAttenteDeValidation(): Promise<Set<Id>> {
+  const travaux = await depots().travaux.lister((t) => t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation");
+  return new Set(travaux.map((t) => t.cibleId));
+}
+
 /** Non terminée ET sans version finie : une retouche ratée ou arrêtée sur une vidéo finie ne la rend pas nettoyable. */
-const aNettoyer = (v: Video, maintenantMs: number) =>
-  NON_TERMINEES.has(v.statut) && peutAnnuler(v) && !v.corbeilleLe && maintenantMs - Date.parse(v.modifieLe) >= DELAI_NETTOYAGE_MS;
+const aNettoyer = (v: Video, maintenantMs: number, enAttente: Set<Id>) =>
+  !enAttente.has(v.id) && NON_TERMINEES.has(v.statut) && peutAnnuler(v) && !v.corbeilleLe && maintenantMs - Date.parse(v.modifieLe) >= DELAI_NETTOYAGE_MS;
 
 /**
  * « Annuler cette vidéo » : la met à la corbeille. Pour une fabrication en cours, `travailId` est le travail à arrêter
@@ -60,7 +70,8 @@ export async function listerANettoyer(): Promise<VueVideoCarte[]> {
   await exigerSession();
   const exemples = await filtreExemples<Video>();
   const maintenantMs = Date.now();
-  const liste = await depots().videos.lister((v) => exemples(v) && aNettoyer(v, maintenantMs));
+  const enAttente = await videosEnAttenteDeValidation();
+  const liste = await depots().videos.lister((v) => exemples(v) && aNettoyer(v, maintenantMs, enAttente));
   liste.sort((a, b) => a.modifieLe.localeCompare(b.modifieLe));
   return Promise.all(liste.slice(0, PLAFOND_NETTOYAGE).map(versCarte));
 }
@@ -74,7 +85,8 @@ export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refuse
   const d = depots();
   const maintenantMs = Date.now();
   const lues = (await Promise.all([...new Set(ids)].map((id) => d.videos.obtenir(id)))).filter((v): v is Video => !!v);
-  const eligibles = lues.filter((v) => aNettoyer(v, maintenantMs)).slice(0, PLAFOND_NETTOYAGE);
+  const enAttente = await videosEnAttenteDeValidation();
+  const eligibles = lues.filter((v) => aNettoyer(v, maintenantMs, enAttente)).slice(0, PLAFOND_NETTOYAGE);
   let mises = 0;
   let refusees = 0;
   let brouillonsBuffer = 0;
@@ -84,7 +96,7 @@ export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refuse
   for (const v of eligibles) {
     try {
       // Garde rejouée sous le verrou : devenue prête (ou retouchée) entre la relecture et la corbeille, la vidéo est ignorée.
-      const r = await mettreALaCorbeille([v.id], (x) => aNettoyer(x, maintenantMs));
+      const r = await mettreALaCorbeille([v.id], (x) => aNettoyer(x, maintenantMs, enAttente));
       mises += r.mises;
       brouillonsBuffer += r.brouillonsBuffer;
       pagesRetirees += r.pagesRetirees;
