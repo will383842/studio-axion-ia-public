@@ -86,6 +86,20 @@ describe("L2-06 · typographie française et mesure réelle", () => {
     const v = m.textes.find((t) => t.zone === "bloc 1 valeur");
     expect(v?.lignes).toEqual(["42\u00a0%"]);
   });
+  it("les mots à trait d'union ne sont jamais recollés avec une espace", () => {
+    const s = avec("Auto-entrepreneur", "Un rendez-vous chaque mois, c'est-à-dire « régulier » ?", "42\u00a0%");
+    const sTitre = InfographieSpec.parse({ version: "infographie/1", alt: "x", titre: "Le porte-parole du sous-traitant", blocs: [{ titre: "A", texte: "ok", valeur: "1" }, { titre: "B", texte: "ok", valeur: "1" }] });
+    let vuPorteParole = false;
+    for (const g of GABARITS_INFOGRAPHIE) for (const r of RATIOS) for (const sp of [s, sTitre]) {
+      let m;
+      try { m = miseEnPageInfographie(g, r, sp); } catch (e) { expect(e).toBeInstanceOf(ErreurDebordementInfographie); continue; }
+      for (const t of m.textes) for (const l of t.lignes) {
+        expect(l, `${g} ${r} ${t.zone}`).not.toMatch(/[-\u2010] /);
+        if (l.includes("porte-parole")) vuPorteParole = true;
+      }
+    }
+    expect(vuPorteParole).toBe(true);
+  });
   it("un mot à lettres larges est refusé ou posé plus petit, et chaque ligne tient dans sa boîte", () => {
     const m = miseEnPageInfographie("chiffres-cles", "1:1", avec("Accompagnement", "ok", "1"));
     const t = m.textes.find((x) => x.zone === "bloc 1 titre");
