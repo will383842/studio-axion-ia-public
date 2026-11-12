@@ -81,7 +81,7 @@ export interface EtatChaineV4 {
   /** Prise horizontale : colonne 9:16 gardée (pixels de la prise) et visage dans cette colonne (fractions). */
   cadrage?: RecadrageV4;
   coupes?: { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[] };
-  realisation?: { version: "complete" | "simple"; essais: number; erreurs?: string[]; avertissements: number; phrase?: string; plan: PlanFacecamAnimee };
+  realisation?: { version: "complete" | "simple"; essais: number; erreurs?: string[]; avertissements: number; phrase?: string; plan: PlanFacecamAnimee; /** GV-MD-03 : plan tel qu'Opus l'a rendu, gardé pour comparer quand le calage au mot est actif. */ planAvantCalage?: PlanFacecamAnimee };
   /**
    * Étape « videos » (18/10) : fichiers préparés pour les plaquettes à vidéo, plaquettes RETIRÉES faute de vidéo littérale, manques,
    * dépense Claude du contrôle visuel (dollars) et résultat des contrôles du plan APRÈS retrait (rapport : rien n'est assoupli).
@@ -101,6 +101,8 @@ export interface EtatChaineV4 {
 export interface OutilsChaineV4 {
   /** Lot R2 : plan de scènes pour les scènes d'interface, de chiffres et d'accents. Absent (par défaut) : rendu inchangé. `appeler` absent : pièces du stock seulement. */
   planScenes?: { appeler?: AppelClaude };
+  /** GV-MD-03 : calage des animations sur le début du mot dit. ÉTEINT par défaut (absent ou faux : plan d'Opus inchangé, rendu des vidéos existantes identique). */
+  calageAuMot?: boolean;
   /** Transcription horodatée au mot de la prise brute (temps de la prise). Lève `EnCoursChaineV4` tant qu'elle n'est pas finie. */
   transcrire(d: { priseCle: string; appelId: string }): Promise<{ mots: MotHorodate[]; dureeSec: number; largeurSource?: number; hauteurSource?: number }>;
   /**
@@ -241,6 +243,64 @@ export function couperPriseV4(e: { mots: MotHorodate[]; dureeSec: number; texteV
   return { gardes: gardes.map((g) => ({ debutSec: g.debutSec, finSec: g.finSec })), dureeSec: r3(cumul), mots: montes };
 }
 
+/** GV-MD-03 : avance d'une animation sur le début du mot qu'elle illustre (s), comme les autres générateurs. */
+export const AVANCE_CALAGE_MOT_V4 = 0.15;
+/** GV-MD-03 : fenêtre (s) dans laquelle un élément sans `motIndex` se cale sur le mot le plus proche de son début. */
+export const FENETRE_CALAGE_MOT_V4 = 0.8;
+
+/**
+ * GV-MD-03 : étape PURE de recalage des plaquettes v4 sur le mot dit, après la réponse d'Opus et avant le rendu.
+ * Avec `motIndex` : début = début du mot − 0,15 s. Sans : mot le plus proche du début demandé (fenêtre 0,8 s), même avance ; hors fenêtre :
+ * seconde demandée gardée. La durée de l'élément est conservée (tout l'élément glisse). Jamais de chevauchement : si l'élément recalé
+ * recouvre le précédent (déjà recalé) ou le suivant (à sa place d'origine), il garde sa place d'origine. Un glissement qui sortirait
+ * une ligne ou un instant daté de l'élément, ou de la vidéo, est refusé. Ne modifie pas le plan reçu.
+ */
+export function recalerPlanAuMotV4(plan: PlanFacecamAnimee, mots: readonly MotTranscrit[]): PlanFacecamAnimee {
+  const elements = plan.elementsV4;
+  if (!elements?.length || !mots.length) return plan;
+  const ordre = elements.map((_e, k) => k).sort((x, y) => elements[x].debut - elements[y].debut || elements[x].fin - elements[y].fin);
+  const arrondi = (x: number) => Math.round(x * 1000) / 1000;
+  const nouveaux = elements.map((e) => ({ ...e }));
+  const deplace = new Set<number>();
+  ordre.forEach((idx) => {
+    const e = elements[idx];
+    const cible = (() => {
+      const m = e.motIndex !== undefined ? mots[e.motIndex] : undefined;
+      if (m) return m;
+      let meilleur: MotTranscrit | undefined;
+      for (const w of mots) if (Math.abs(w.a - e.debut) <= FENETRE_CALAGE_MOT_V4 && (!meilleur || Math.abs(w.a - e.debut) < Math.abs(meilleur.a - e.debut))) meilleur = w;
+      return meilleur;
+    })();
+    if (!cible) return;
+    const debut = arrondi(Math.max(0, cible.a - AVANCE_CALAGE_MOT_V4));
+    const fin = arrondi(e.fin + (debut - e.debut));
+    const datees = [...(e.instants ?? []), ...(e.lignes ?? []).map((l) => l.a)];
+    if (Math.abs(debut - e.debut) < 1e-9 || fin > plan.duree || !datees.every((t) => t >= debut && t <= fin)) return;
+    nouveaux[idx].debut = debut;
+    nouveaux[idx].fin = fin;
+    deplace.add(idx);
+  });
+  // Jamais de chevauchement créé : à chaque recouvrement, le second (sinon le premier) retrouve sa place d'origine.
+  for (let k = 1; k < ordre.length; ) {
+    const [i, j] = [ordre[k - 1], ordre[k]];
+    const chevauche = nouveaux[j].debut < nouveaux[i].fin - 1e-9 && !(elements[j].debut < elements[i].fin - 1e-9 && !deplace.has(i) && !deplace.has(j));
+    const restaurable = deplace.has(j) ? j : deplace.has(i) ? i : -1;
+    if (chevauche && restaurable >= 0) {
+      nouveaux[restaurable] = { ...elements[restaurable] };
+      deplace.delete(restaurable);
+      k = Math.max(1, k - 1);
+    } else k++;
+  }
+  return { ...plan, elementsV4: nouveaux };
+}
+
+/** GV-MD-03 : le plan à garder dans l'état. Réglage éteint (défaut) : plan d'Opus tel quel. Allumé : plan recalé + ancien plan gardé pour comparer. */
+function planCaleV4(plan: PlanFacecamAnimee, mots: readonly MotTranscrit[] | undefined, actif: boolean | undefined): { plan: PlanFacecamAnimee; planAvantCalage?: PlanFacecamAnimee } {
+  if (!actif || !mots?.length) return { plan };
+  const cale = recalerPlanAuMotV4(plan, mots);
+  return cale === plan ? { plan } : { plan: cale, planAvantCalage: plan };
+}
+
 /** Entrée du réalisateur pour la prise montée (sans écran de fin : la v4 se termine sur la dernière plaquette). PUR. */
 export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes" | "cadrage">, options: { plafondAtteint?: boolean; historique?: HistoriqueVideo[] } = {}): EntreeRealisateur {
   const c = etat.coupes;
@@ -312,12 +372,12 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         if (r.version !== "complete" || !r.rendable || !r.plan.elementsV4?.length) {
           throw new ErreurChaineV4(phraseRepliEchecV4(repli.retirees), true, (r.erreurs ?? []).slice(0, 5).join(" | "), etat);
         }
-        return { ...etat, etape: "videos", repliSansVideo: { ...repli, fait: true, essais: r.essais }, realisation: { version: r.version, essais: (etat.realisation?.essais ?? 0) + r.essais, avertissements: r.avertissements.length, phrase: phraseRepliOkV4(repli.retirees), plan: r.plan } };
+        return { ...etat, etape: "videos", repliSansVideo: { ...repli, fait: true, essais: r.essais }, realisation: { version: r.version, essais: (etat.realisation?.essais ?? 0) + r.essais, avertissements: r.avertissements.length, phrase: phraseRepliOkV4(repli.retirees), ...planCaleV4(r.plan, etat.coupes?.mots, outils.calageAuMot) } };
       }
       if (!r.rendable || !r.plan.elementsV4?.length) {
         throw new ErreurChaineV4("La mise en scène n'a pas passé les contrôles : la vidéo n'est pas fabriquée. Réessayez.", true, (r.erreurs ?? []).slice(0, 5).join(" | "));
       }
-      return { ...etat, etape: "videos", realisation: { version: r.version, essais: r.essais, ...(r.erreurs?.length ? { erreurs: r.erreurs.slice(0, 20) } : {}), avertissements: r.avertissements.length, ...(r.phrase ? { phrase: r.phrase } : {}), plan: r.plan } };
+      return { ...etat, etape: "videos", realisation: { version: r.version, essais: r.essais, ...(r.erreurs?.length ? { erreurs: r.erreurs.slice(0, 20) } : {}), avertissements: r.avertissements.length, ...(r.phrase ? { phrase: r.phrase } : {}), ...planCaleV4(r.plan, etat.coupes?.mots, outils.calageAuMot) } };
     }
     case "videos": {
       if (!etat.realisation || !etat.coupes) return { ...etat, etape: etat.coupes ? "mise-en-scene" : "coupes" };
