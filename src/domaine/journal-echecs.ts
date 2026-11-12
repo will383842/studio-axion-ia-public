@@ -54,6 +54,11 @@ export function familleDe(code: string): FamilleEchec {
   return "autre";
 }
 
+const DEVISE = String.raw`(?:[€$£]|(?:EUR|USD|GBP|euros?|dollars?|cr[ée]dits?)(?![A-Za-z]))`;
+const NOMBRE = String.raw`\d+(?:[.,]\d+)*`;
+/** Un nombre avec une devise : « 12.50 USD », « 3,20 € », « $5 », « 40 crédits ». */
+const MONTANT = new RegExp(String.raw`(?<![A-Za-z0-9.,])(?:${DEVISE}\s?${NOMBRE}|${NOMBRE}\s?${DEVISE})`, "gi");
+
 /**
  * Détail technique prêt à garder : 500 caractères au plus, et tout ce qui ressemble à une clé, un jeton ou un mot de
  * passe est retiré (remplacé par « [retiré] »).
@@ -72,6 +77,59 @@ export function nettoyerDetail(texte: string | null | undefined): string {
     // jeton signé (JWT)
     .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, retire)
     // toute longue suite opaque (hexadécimal, base64) de 24 caractères ou plus
-    .replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (m) => (/[0-9]/.test(m) || /[A-Z]/.test(m) ? retire : m));
+    .replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (m) => (/[0-9]/.test(m) || /[A-Z]/.test(m) ? retire : m))
+    // montants d'argent : nombre collé à un symbole ou à un code de devise, avant ou après (les nombres seuls restent)
+    .replace(MONTANT, "[montant masqué]");
   return net.slice(0, LONGUEUR_MAX_DETAIL);
+}
+
+/** Décompte des échecs sur une période. Les attentes de validation sont à part : elles ne sont pas des échecs. */
+export interface CompteEchecs {
+  /** Nombre d'échecs (attentes de validation exclues). */
+  total: number;
+  /** Nombre de pauses « à valider » (jamais dans le total). */
+  attentes: number;
+  parFamille: Record<string, number>;
+  parGenerateur: Record<string, number>;
+  parEtape: Record<string, number>;
+  parCode: Record<string, number>;
+}
+
+export interface BilanEchecs {
+  jours7: CompteEchecs;
+  jours30: CompteEchecs;
+}
+
+const JOUR_MS_ECHEC = 86_400_000;
+
+function compteurVide(): CompteEchecs {
+  return { total: 0, attentes: 0, parFamille: {}, parGenerateur: {}, parEtape: {}, parCode: {} };
+}
+
+function ajouter(table: Record<string, number>, cle: string): void {
+  table[cle] = (table[cle] ?? 0) + 1;
+}
+
+/** Compte les échecs des 7 et des 30 derniers jours (fonction pure). Une date illisible est ignorée. */
+export function compterEchecs(lignes: readonly LigneEchec[], maintenant: Date | string): BilanEchecs {
+  const ref = new Date(maintenant).getTime();
+  const bilan: BilanEchecs = { jours7: compteurVide(), jours30: compteurVide() };
+  for (const l of lignes) {
+    const t = new Date(l.date).getTime();
+    if (Number.isNaN(t) || Number.isNaN(ref)) continue;
+    const age = ref - t;
+    for (const [jours, c] of [[7, bilan.jours7], [30, bilan.jours30]] as const) {
+      if (age > jours * JOUR_MS_ECHEC) continue;
+      if (l.famille === "attente-validation") {
+        c.attentes += 1;
+        continue;
+      }
+      c.total += 1;
+      ajouter(c.parFamille, l.famille);
+      ajouter(c.parGenerateur, l.generateur);
+      ajouter(c.parEtape, l.etape);
+      ajouter(c.parCode, l.code);
+    }
+  }
+  return bilan;
 }
