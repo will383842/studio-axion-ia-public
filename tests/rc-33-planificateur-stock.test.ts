@@ -103,6 +103,11 @@ describe("RC-33 planificateur du stock", () => {
     expect(source(r, "m2")?.creneauId).toBe("c2");
   });
 
+  it("une date choisie sans créneau libre ce jour-là est quand même gardée à son jour", () => {
+    const r = planifierStock({ stock: [msg("fixe", { dateChoisie: "2026-12-20" })], sujets: [], creneaux: QUATRE });
+    expect(source(r, "fixe")).toEqual({ id: "fixe", origine: "stock", reseau: "linkedin", jour: "2026-12-20", epingle: true });
+  });
+
   it("une date choisie illisible n'est pas une date : alerte, le message est placé normalement", () => {
     const r = planifierStock({ stock: [msg("m1", { dateChoisie: "31/02/2026" })], sujets: [], creneaux: QUATRE });
     expect(r.alertes).toContainEqual(expect.objectContaining({ id: "m1", code: "date-illisible" }));
