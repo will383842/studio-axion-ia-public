@@ -7,17 +7,16 @@ export function Toasts() {
   return (
     <Toaster
       position="top-center"
-      theme="dark"
       offset={16}
       mobileOffset={{ top: 12, left: 16, right: 16 }}
       toastOptions={{
         classNames: {
-          toast: "!rounded-2xl !border !border-trait !bg-surface-2 !text-texte !shadow-carte !font-texte",
-          description: "!text-texte-doux",
-          actionButton: "!bg-orange !text-sur-orange !rounded-full !font-semibold",
-          success: "[&_[data-icon]]:!text-sauge",
-          error: "[&_[data-icon]]:!text-brique",
-          warning: "[&_[data-icon]]:!text-ambre",
+          toast: "!rounded-carte !border !border-toast !bg-toast !text-toast-texte !shadow-carte !font-texte",
+          description: "!text-toast-texte/80",
+          actionButton: "!bg-orange !text-sur-orange !rounded-champ !font-semibold",
+          success: "[&_[data-icon]]:!text-toast-accent",
+          error: "[&_[data-icon]]:!text-toast-accent",
+          warning: "[&_[data-icon]]:!text-toast-accent",
         },
       }}
     />
