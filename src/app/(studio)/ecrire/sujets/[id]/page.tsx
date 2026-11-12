@@ -24,7 +24,6 @@ import { EcritureEnCours } from "@/components/generateur/EcritureEnCours";
 import { pageSuivie, planProgrammerSujet } from "@/services/mesures";
 import { lienDeVersion } from "@/domaine/mesures";
 import { etatFabricationSujet, planFabricationSujet, propositionsFabrication } from "@/services/fabrication-reseaux";
-import { phraseAvatarParle } from "@/domaine/double-reel";
 import { partPayee } from "@/services/generateur-depenses";
 import { decisionJeLis } from "@/services/reglages";
 import { formateurDate } from "@/lib/intl";
@@ -73,7 +72,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             abonnements: ecriture.abonnements,
             aucunCompte: ecriture.aucunCompte,
             
-            // Garde-fous budget (15/10) : « Reprendre (≈ X €) », seul geste qui relance une écriture en attente ou au plafond ;
+            // Garde-fous budget (15/10) : « Reprendre », seul geste qui relance une écriture en attente ou au plafond ;
             // si elle ne peut pas partir, le bouton dit pourquoi (correctif après relecture).
             reprise: ecriture.reprise ? (ecriture.reprise.possible ? { possible: true, prix: "", centimes: ecriture.reprise.centimesEur } : { possible: false, raison: ecriture.reprise.raison ?? "" }) : undefined,
             bloque: ecriture.statut === "echec" ? arret?.bloque : undefined,
@@ -87,8 +86,8 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
   const fabricationDe = (varianteId: string): Pick<VersionAffichee, "fabrication" | "secondeOuverture" | "avatarParleSecondeOuverture" | "aMonter" | "prixMonter" | "essaiMonter"> => {
     const e = etatsFab.find((x) => x.varianteId === varianteId && x.role !== "seconde-ouverture");
     return {
-      ...(e ? { fabrication: { videoId: e.videoId, attendMere: e.attendMere, attendConfirmation: e.attendConfirmation, attendCredit: e.attendCredit, raisonAttente: e.raisonAttente, avatarParle: e.avatarParle ? phraseAvatarParle(e.avatarParle) : undefined, dureeReelleSec: e.dureeReelleSec, points: e.pointsSurVideo, enCours: e.statut === "en_file" || e.statut === "en_fabrication" } } : {}),
-      ...(propositions.secondeOuverture?.varianteId === varianteId ? { secondeOuverture: "oui", avatarParleSecondeOuverture: propositions.secondeOuverture.avatarParle ? phraseAvatarParle(propositions.secondeOuverture.avatarParle) : undefined } : {}),
+      ...(e ? { fabrication: { videoId: e.videoId, attendMere: e.attendMere, attendConfirmation: e.attendConfirmation, attendCredit: e.attendCredit, raisonAttente: e.raisonAttente, avatarParle: e.avatarParle ? "Votre avatar parle dans cette vidéo." : undefined, dureeReelleSec: e.dureeReelleSec, points: e.pointsSurVideo, enCours: e.statut === "en_file" || e.statut === "en_fabrication" } } : {}),
+      ...(propositions.secondeOuverture?.varianteId === varianteId ? { secondeOuverture: "oui", avatarParleSecondeOuverture: propositions.secondeOuverture.avatarParle ? "Votre avatar parle dans cette vidéo." : undefined } : {}),
       ...(propositions.aMonter.includes(varianteId) ? { aMonter: true, prixMonter: propositions.prixMonter[varianteId] ? "oui" : undefined, essaiMonter: jeLisEssai.has(vue.versions.find((x) => x.variante.id === varianteId)?.variante.formatId ?? "") } : {}),
     };
   };
@@ -162,7 +161,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
       phrases: script ? assemblerBlocs(script, v).flatMap((b) => b.segments.map((g) => ({ id: g.id, texte: g.texte }))).filter((g) => g.texte.trim()) : [],
       programmee: prog ? `${prog.statut === "publiee" ? "Publiée" : "Programmée"}${prog.statut === "essai" ? " (essai)" : ""} : ${jourCourt(prog.date)}` : undefined,
       formatId: v.formatId,
-      prixFabrication: cout ? { centimes: cout.cout.centimes, texte: "", avatarParle: cout.avatarParle ? phraseAvatarParle(cout.avatarParle) : undefined } : undefined,
+      prixFabrication: cout ? { centimes: cout.cout.centimes, texte: "", avatarParle: cout.avatarParle ? "Votre avatar parle dans cette vidéo." : undefined } : undefined,
       ...fabricationDe(v.id),
     };
   });
@@ -245,7 +244,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
                 totalCentimes: planN.total.centimes,
                 sansDeclinaison: "",
                 surMere: planN.surMere,
-                avatarParle: planN.avatarParle ? phraseAvatarParle(planN.avatarParle, planN.versions.filter((x) => !x.videoId).length) : undefined,
+                avatarParle: planN.avatarParle ? (planN.versions.filter((x) => !x.videoId).length > 1 ? "Votre avatar parle dans ces vidéos." : "Votre avatar parle dans cette vidéo.") : undefined,
                 essai: doubleSimule,
               }
             : null
