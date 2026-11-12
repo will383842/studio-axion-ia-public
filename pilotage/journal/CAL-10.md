@@ -1,0 +1,41 @@
+# CAL-10 : cycle de vie des statuts du calendrier (FAIT, à relire, 12/11/2026)
+- Fait : table unique TRANSITIONS_CYCLE (9 états dont Refusée, Manquée) dans statuts.ts, TRANSITIONS en découle ; jourParis/estPasse/etatInterne (heure de Paris) ; table unique des libellés LIBELLES_ETAT lue par PastilleStatutPlan (elle n'en garde aucune, réexports seulement) ; boutonsTiroir ; FicheEntree : prop selonStatut ; actions/statuts.ts : refuserEntree, renvoyerEntreeCorrigee (session, verrou serveur). Test autorisé d'office : tests/calendrier/cal-10-statuts.test.ts.
+- Critères tenus (test, lignes) : passages permis dans une seule table, tout autre refusé 32-70 ; boutons selon le statut, passé et publié verrouillés 161-221 et 247-263 ; horloge de Paris aux changements d'heure (29/03 et 25/10/2026, secondes limites) 94-125 ; table unique état interne → libellé, Échec diffuseur = « À corriger » 127-159.
+- CORRECTIFS tenus : libellés du bouton principal de la maquette, publication verrouillée sans bouton principal 163-182, 197-217 ; pastille sans table propre, statut inconnu jamais « Brouillon » 137-153, 87 ; actions dans leur fichier, actions.ts intact 223-280 ; FicheEntree non réécrite (une prop) 197-221. C9 (validée → Programmé/Brouillon) : validerEntree de L7-11 pose « valide » (affiché Brouillon), la programmation relève du diffuseur, non touchée. Maquette : 5 libellés repris tels quels, rien de plus.
+- Tests : cal-10 39 passés, 0 échoué (rouge avant : import absent). Dossiers voisins (68 fichiers) : 1079 passés, 5 échoués ; les mêmes 5 échecs sur master sans mes changements (aucun-prix-affiche, e2e-verif1-g-liens ×3, image-video/carte) plus 3 fichiers qui ne se chargent pas (cas-concret/l7a-l6, facecam-animee ×2). Suite complète non lancée.
+- Douteux : tons de « Refusée » (contour) et « Manquée » (brique) et libellé « Archivée » inventés, absents de la maquette ; à confirmer. Sans table fournie, une pastille ne connaît que les six états (test L4-03 conservé) : l'hôte passe LIBELLES_ETAT pour Refusée/Manquée.
+- Reste : brancher dans la page les gestes secondaires, refuserEntree et renvoyerEntreeCorrigee ; « Valider et programmer » et « Modifier le texte » (retrait de programmation) attendent le diffuseur (CAL-23, zone Zernio, non touchée).
+- PILOTAGE : types.ts non modifiable ici, donc Refusée = archive + refuseLe et Manquée = état lu, pas de statut enregistré.
+- contrôle anti-fuite : vide
+
+## Corrections après relecture (n2, 12/11/2026)
+- Constat 1 (à corriger, « Valider et programmer » / « Corriger et renvoyer » enregistraient le texte) : corrigé. Nouvelle prop `surPrincipal` ; pour À valider et À corriger le bouton principal est `type="button"` branché sur le rappel de l'hôte ; l'enregistrement du texte reste un bouton à part « Enregistrer le texte ». Tenu : tests/calendrier/cal-10-statuts.test.ts:222-231 (le clic appelle le rappel, aucun submit portant ce libellé), :232-234.
+- Constat 2 (à corriger, « Modifier le texte » bouton mort) : corrigé. Sans rappel de l'hôte, aucun de ces trois boutons n'est rendu ; avec rappel, `type="button"` branché dessus. Tenu : cal-10-statuts.test.ts:235-243 et :222-231. Rouge avant (8 échecs), vert après.
+- Remarque tons « Refusée » (contour) / « Manquée » (brique) : reporté, le fondateur doit trancher (déjà douteux plus haut), table non modifiée.
+- Remarque envoi : rien à corriger. Aucun statut ne promet d'envoi, rien n'ouvre l'envoi.
+- Non fait, signalé : « Accepter l'idée » reste un submit (hors constat). L'hôte doit encore brancher `surPrincipal` (validation, renvoyerEntreeCorrigee) : PILOTAGE.
+- Tests : cal-10 47 passés, 0 échoué ; tests/calendrier 296 passés ; calendrier-*.test + rc-36 193 passés ; master fusionné sans conflit.
+- contrôle anti-fuite : vide
+
+## Corrections après relecture (q1, 12/11/2026)
+- Constat « Accepter l'idée » (à corriger) : corrigé. « idee » ajouté à `principalEstGeste` (FicheEntree.tsx) : bouton `type="button"` branché sur `surPrincipal` (validerEntree côté hôte) ; « Enregistrer le texte » reste à part. « idee » ajouté aux trois `it.each` du test. Rouge avant (2 échecs), vert après.
+- Défaut de même genre, revue de TOUS les boutons : nouveau tableau (statut de départ, bouton, statut d'arrivée) dans cal-10-statuts.test.ts (describe « tableau »), 14 départs dont tous les statuts à venir et passés ; chaque bouton est joué contre les vraies actions (validerEntree, renvoyerEntreeCorrigee, enregistrerFicheEntreeAction), dépôts en mémoire. Résultat : seul « Accepter l'idée » était faux ; les autres boutons arrivent où leur libellé l'annonce (Idée/À valider → valide ; À corriger → valide ; enregistrer → statut inchangé, sauf Brouillon validé → À valider). Publié, passé, archivé : aucun bouton. Aucun départ n'arrive à programmé ni publié (testé). « Modifier le texte » (Programmé) : geste de l'hôte, aucun changement de statut, attend le diffuseur.
+- Remarque envoi : rien à corriger, aucun statut ne promet d'envoi, rien n'ouvre l'envoi. Remarque tons Refusée/Manquée : reportée (fondateur).
+- PILOTAGE : aucune page ne passe encore `selonStatut` ni `surPrincipal`.
+- Tests : cal-10 67 passés, 0 échoué ; calendrier + calendrier-*.test + rc-36 + maquettes : 17 fichiers, 325 passés, 0 échoué. master fusionné sans conflit.
+- contrôle anti-fuite : vide
+
+## Corrections après relecture (s1, CORRECTIF du 12/11/2026, 16 h)
+- Constat 1 (à corriger, une entrée Manquée passait à « valide ») : corrigé. Nouvelle action `accepterEntree(id)` dans actions/statuts.ts (session, verrou du passé et du publié, même validation tracée que validerEntree) ; refus sans écriture avec la phrase « L'heure est passée : déplacez la publication avant de la valider » (ErreurStudio, donc lisible à l'écran). Le tableau la branche à la place de validerEntree pour « Accepter l'idée » et « Valider et programmer ». Le bouton « Déplacer au… » reste proposé à une entrée Manquée (boutonsTiroir). Tenu : cal-10-statuts.test.ts, describe « entrée passée (Manquée) » (deux boutons, limite de minuit à Paris, statuts refusés, sans session) et lignes JOUR_MEME du tableau. Rouge avant (9 échecs), vert après. Test existant des gestes secondaires mis à jour pour « Déplacer au… » (pas affaibli).
+- Constat 2 (à corriger, 6 erreurs tsc) : corrigé. `lignes` typé par un seul tuple (bouton string | null, type "button" | "submit" | null), bouton absent signalé par une erreur explicite. tsc : 147 erreurs, comme master, aucune dans les fichiers de la fiche.
+- Remarques : gestes secondaires jamais rendus et libellé « Valider et programmer » : reportés (PILOTAGE, au fondateur). validerEntree (L7-11, hors liste) non touchée.
+- Tests : tests/calendrier + calendrier-*.test + rc-36 : 19 fichiers, 393 passés, 0 échoué. master fusionné sans conflit.
+- contrôle anti-fuite : vide
+
+## Corrections après relecture (u1, 12/11/2026) — CORRECTIF du 12/11, 17 h
+- (1) Le jour même, une heure passée ne peut ni être acceptée ni validée : accepterEntree compare heuresParReseau à l'instant présent (heurePassee, statuts.ts ; strictement avant = passée, heure pile = ouverte, heure illisible = passée, une heure passée sur un réseau suffit) ; même phrase, aucune écriture. Corrigé, tests/calendrier/cal-10-statuts.test.ts (blocs « le jour même, heure passée » et « limite exacte »), rouges d'abord.
+- Ligne du tableau JOUR_MEME inversée (Accepter l'idée → propose ; Valider et programmer → a_valider). Corrigé.
+- (2) rc-37-vues-filtres.test.tsx:139 : remis au vert SANS toucher ce test. La pastille exporte LIBELLES_ETAT comme vue des six états affichés, tirée de la table unique de statuts.ts (mêmes objets) ; la table complète reste dans statuts.ts. Ma ligne 145 du test cal-10 vérifie désormais cette dérivation (clés = ETATS_CALENDRIER, mêmes objets) au lieu de l'identité.
+- Remarques non traitées (hors fichiers autorisés ou PILOTAGE) : validerEntree (ajouter.ts) sans verrou du passé ; « Déplacer au… » absent de FicheEntree ; écriture partielle a_valider avant validerProposition ; ces points restent PILOTAGE.
+- master fusionné. Tests (calendrier, calendrier-*, rc-3*, visuels, plan-editorial) : 2143 passés, 0 échoué ; rc-37 : vert. tsc : 147 erreurs, comme master (0 nouvelle). Aucune couleur ajoutée.
+contrôle anti-fuite : vide
