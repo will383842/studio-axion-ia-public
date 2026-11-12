@@ -119,6 +119,8 @@ describe("R4 · une vraie vidéo ne reçoit jamais une miniature de démonstrati
 
   it("couverture du générateur trop longue : bornée à 5 mots dès sa lecture (même sur la vignette réelle)", { timeout: 120_000 }, async () => {
     const [id] = await videosFabriquees();
+    // Depuis le 09/11 le défaut est l'image de la vidéo, sans titre : la couverture du générateur n'est lue qu'avec la carte-titre (réglage de secours).
+    await (await import("@/services/_commun")).ecrireParametre("miniature.gabarit", "axion-v2");
     const v = (await depots().videos.obtenir(id))!;
     await depots().variantes.enregistrer({ id: "var-long", couverture: { texte: "Votre employeur peut-il vraiment lire tous vos mails privés", motCle: "mails" }, publication: {} } as never);
     await depots().videos.modifier(id, { varianteId: "var-long" });

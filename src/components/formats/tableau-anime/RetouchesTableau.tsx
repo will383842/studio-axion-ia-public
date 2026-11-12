@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { retoucherTableauAction } from "@/app/(studio)/videos/actions-tableau";
 import { Bouton } from "@/components/ui/Bouton";
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { Dialogue } from "@/components/ui/Dialogue";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
@@ -93,7 +94,7 @@ export function RetouchesTableau({ videoId, retouches, choix, coutCentimes, poss
           {prix !== null && <p className="text-[15px] font-semibold text-texte">La voix est refaite.</p>}
           {refus && (
             <p role="alert" className="text-[15px] text-brique">
-              {refus}
+              {messageSansMontant(refus)}
             </p>
           )}
         </div>

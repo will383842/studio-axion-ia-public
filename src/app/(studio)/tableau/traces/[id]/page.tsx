@@ -5,7 +5,7 @@ import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 
-export const metadata: Metadata = { title: "Détail de l'écriture · Tableau animé" };
+export const metadata: Metadata = { title: "Détail de l'écriture · L'erreur corrigée" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const ISSUES: Record<string, string> = { livre: "script livré", refuse: "script refusé", "en-cours": "écriture en cours", erreur: "arrêtée sur une erreur", interrompu: "interrompue" };
 
 export default async function PageTraceScript({ params }: { params: Promise<{ id: string }> }) {
-  if (!creationTableauVisible()) return <EtatVide icone="pinceau" titre="Pas encore ouvert" phrase="Le tableau animé arrive bientôt." />;
+  if (!creationTableauVisible()) return <EtatVide icone="pinceau" titre="Pas encore ouvert" phrase="L'erreur corrigée arrive bientôt." />;
   const { id } = await params;
   const t = await lireTraceScriptTableau(decodeURIComponent(id));
   if (!t) return <EtatVide icone="pinceau" titre="Trace introuvable" phrase="Cette trace n'existe pas." />;

@@ -52,7 +52,7 @@ export function CadreApercu({
 }) {
   const deborde = zones && texteDeborde(texteEcran, ratio);
   return (
-    <motion.div layout transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className={cn("theme-sombre relative mx-auto overflow-hidden rounded-[20px] border border-trait bg-surface-2 shadow-carte", ASPECT[ratio], LARGEUR[ratio], className)}>
+    <motion.div layout transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className={cn("theme-sombre relative mx-auto overflow-hidden rounded-[20px] border border-trait bg-ecran shadow-carte", ASPECT[ratio], LARGEUR[ratio], className)}>
       <AnimatePresence initial={false}>
         <motion.div key={cle} initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.28 }} className="@container absolute inset-0">
           {image ? (
