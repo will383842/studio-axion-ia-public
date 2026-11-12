@@ -155,7 +155,22 @@ jobs:
           FILTRES: ${{ needs.zones.outputs.tests }}
         run: |
           # $FILTRES est volontairement non guillemeté : une liste de morceaux de chemin séparés par des espaces.
-          pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile=rapport-vitest.json \n            --exclude '**/node_modules/**' \n            --exclude 'tests/cas-concret/variete/variete.test.ts' \n            --exclude 'tests/cas-concret/variete/l6.test.ts' \n            --exclude 'tests/cas-concret/variete/maquettes-par-canal.test.ts' \n            --exclude 'tests/cas-concret/variete/part-v4-centree.test.ts' \n            --exclude 'tests/cas-concret/variete/structure-chaine.test.ts' \n            --exclude 'tests/cas-concret/variete/fiche-et-chaine.test.ts' \n            --exclude 'tests/cas-concret/variete/habillage.test.ts' \n            --exclude 'tests/cas-concret/ecriture/ecriture.test.ts' \n            --exclude 'tests/cas-concret/suivi/suivi.test.ts' \n            --exclude 'tests/cas-concret/suivi/numero-suivi-unique.test.ts' \n            --exclude 'tests/cas-concret/sujets-traites/controle-sujet.test.ts' \n            --exclude 'tests/cas-concret/variete-scripts/**' --exclude 'tests/cas-concret/script-valide/**' \n            --exclude 'tests/cas-concret/x4/**' \n            $FILTRES || true
+          pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile=rapport-vitest.json \
+            --exclude '**/node_modules/**' \
+            --exclude 'tests/cas-concret/variete/variete.test.ts' \
+            --exclude 'tests/cas-concret/variete/l6.test.ts' \
+            --exclude 'tests/cas-concret/variete/maquettes-par-canal.test.ts' \
+            --exclude 'tests/cas-concret/variete/part-v4-centree.test.ts' \
+            --exclude 'tests/cas-concret/variete/structure-chaine.test.ts' \
+            --exclude 'tests/cas-concret/variete/fiche-et-chaine.test.ts' \
+            --exclude 'tests/cas-concret/variete/habillage.test.ts' \
+            --exclude 'tests/cas-concret/ecriture/ecriture.test.ts' \
+            --exclude 'tests/cas-concret/suivi/suivi.test.ts' \
+            --exclude 'tests/cas-concret/suivi/numero-suivi-unique.test.ts' \
+            --exclude 'tests/cas-concret/sujets-traites/controle-sujet.test.ts' \
+            --exclude 'tests/cas-concret/variete-scripts/**' --exclude 'tests/cas-concret/script-valide/**' \
+            --exclude 'tests/cas-concret/x4/**' \
+            $FILTRES || true
           # Résumé lisible sans ouvrir les journaux : tests lancés, échecs, 30 premiers fichiers en échec.
           node -e '
             const r = JSON.parse(require("fs").readFileSync("rapport-vitest.json", "utf8"));
