@@ -359,7 +359,7 @@ export async function personneOpposeePartout(
   const toucher = (k: string): boolean => {
     if (touchees.has(k)) return false;
     touchees.add(k);
-    if (k.includes("|")) racines.add(racineDe(k));
+    racines.add(racineDe(k));
     return true;
   };
   const passer = (): boolean => {
