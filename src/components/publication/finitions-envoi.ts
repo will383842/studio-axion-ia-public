@@ -3,7 +3,6 @@
  * et la vidéo suivante à traiter. Pure mise en forme : aucune règle d'envoi ici.
  */
 import { LIBELLES_ENVOI, NOMS_OUTILS_PUBLICATION } from "@/domaine/libelles";
-import { FIN_BUFFER_ISO } from "@/domaine/outil-publication";
 import type { IdReseau } from "@/domaine/types";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
 import type { LigneAPublier } from "@/services/a-publier";
@@ -53,12 +52,9 @@ export function videoSuivante(lignes: LigneAPublier[], actuelle: string, reseau:
 export type OutilAffiche = keyof typeof NOMS_OUTILS_PUBLICATION;
 export type EtatEnvoi = "brouillon" | "programmee" | "publiee" | "echec";
 
-/** Date de fin du choix de Buffer, « 20/11 », lue sur l'unique source (heure de Paris). */
-export const FIN_BUFFER = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Paris" }).format(new Date(FIN_BUFFER_ISO));
-
 /** Nom de l'outil, tel que le catalogue le donne. */
 export function nomOutil(outil: OutilAffiche | undefined): string {
-  return NOMS_OUTILS_PUBLICATION[outil ?? "buffer"];
+  return NOMS_OUTILS_PUBLICATION[outil ?? "zernio"];
 }
 
 /** « Mettre en brouillon » ou « Programmer » : le nom de l'outil vient du catalogue, jamais du texte du bouton. */
