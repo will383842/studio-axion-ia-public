@@ -30,8 +30,8 @@ export interface ProfilSortie {
 }
 
 /**
- * Durée vidéo Facebook : décision écrite du fondateur, « appliquer 90 s en attendant la vérification de la règle
- * officielle ». Elle l'emporte sur le registre (180 s) et sur la table d'écriture (aucune durée). À revérifier (L8-01).
+ * Durée vidéo Facebook : durée retenue en attendant la vérification de la règle officielle. Elle l'emporte sur le
+ * registre (180 s) et sur la table d'écriture (aucune durée). À revérifier (L8-01).
  */
 const DUREE_VIDEO_FACEBOOK_DECISION_SEC = 90;
 
@@ -66,7 +66,7 @@ export function profilSortie(reseau: IdReseau, type: TypeContenu): ProfilSortie 
       ...(facebook ? { dureeReelMaxSec: REEL_FACEBOOK_DUREE_SEC.max } : {}),
       niveauPreuve: facebook ? "decision-en-attente" : "table-registre",
       aReverifier: facebook,
-      source: facebook ? "décision écrite (90 s) en attente de vérification ; le registre dit 180 s, le Reel est dans le code d'envoi" : "registre des réseaux",
+      source: facebook ? "durée retenue (90 s) en attente de vérification ; le registre dit 180 s, le Reel est dans le code d'envoi" : "registre des réseaux",
     };
   }
   if (type === "image") {

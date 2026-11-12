@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { REEL_FACEBOOK_DUREE_SEC } from "@/fournisseurs/publication/zernio-corps";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
@@ -58,5 +59,13 @@ describe("profils de sortie", () => {
   it("les carrousels des trois réseaux de documents sont en 4:5", () => {
     for (const id of ["linkedin", "instagram", "facebook"] as const) expect(profilSortie(id, "carrousel").ratios).toEqual(["4:5"]);
     expect(profilSortie("youtube", "carrousel").pris).toBe(false);
+  });
+});
+
+describe("profils de sortie : source sans citation", () => {
+  it("le code ne recopie aucune phrase entre guillemets français", () => {
+    const code = readFileSync(new URL("./profils-sortie.ts", import.meta.url), "utf8");
+    expect(code).not.toMatch(/[«»]/);
+    expect(code).not.toMatch(/décision écrite/i);
   });
 });
