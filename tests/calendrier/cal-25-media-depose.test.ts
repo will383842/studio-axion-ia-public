@@ -143,7 +143,7 @@ describe("medias-deposes : après validation", () => {
   it("le fichier d'une autre entrée n'est jamais publié par ce créneau", async () => {
     const m = monde({ statut: "valide" });
     await svc.enregistrerDepot(depot(), m.deps as never);
-    m.creneaux.set("c2", { ...(m.creneaux.get("c1") as object), id: "c2" });
+    m.creneaux.set("c2", { id: "c2", jourVise: "2026-12-11", heuresParReseau: {}, compteCible: "compte-fictif", statut: "valide", decalages: 0, ...horo });
     expect((await svc.lienPublicPourDiffuseur("f1", "c2", m.deps as never)).ok).toBe(false);
   });
   it("le serveur téléverse le fichier privé chez le diffuseur, après validation seulement", async () => {

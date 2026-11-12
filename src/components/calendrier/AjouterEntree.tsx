@@ -7,6 +7,7 @@
 import { useRef, useState } from "react";
 import { ajouterEntree, type ResultatAjout } from "@/app/(studio)/calendrier/actions/ajouter";
 import type { IdReseau } from "@/domaine/types";
+import { DepotMedia } from "./DepotMedia";
 
 export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour: string; compteCible: string; reseau?: IdReseau }) {
   const cle = useRef(crypto.randomUUID());
@@ -41,6 +42,7 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour
       <p>Ajouter le {jour}</p>
       <label>Heure (Paris) <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} /></label>
       <label>Vidéo <input type="text" value={mediaId} onChange={(e) => setMediaId(e.target.value)} /></label>
+      <DepotMedia reseau={reseau} onMedia={() => undefined} />
       <button type="submit" disabled={enCours}>Ajouter</button>
       {retour?.ok === false && retour.aConfirmer && (
         <p role="alert">{retour.avertissement} <button type="button" disabled={enCours} onClick={() => void envoyer(retour.aConfirmer)}>Ajouter quand même</button></p>
