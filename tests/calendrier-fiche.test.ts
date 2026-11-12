@@ -20,8 +20,10 @@ vi.mock("next/cache", () => ({ revalidatePath: (chemin: string) => void revalida
 const { depots, reinitialiserDepots } = await import("@/donnees/memoire");
 const { signerJeton, DUREE_COURTE_SEC } = await import("@/lib/jeton-session");
 const { enregistrerFicheEntreeAction, lireFicheEntreeAction } = await import("../src/app/(studio)/calendrier/actions");
+const actionsCalendrier = await import("../src/app/(studio)/calendrier/actions");
+const stockage = await import("@/services/calendrier-fiche");
 const fiche = await import("@/components/calendrier/FicheEntree");
-const { FicheEntree, LONGUEUR_MAX_PREMIER_COMMENTAIRE, LONGUEUR_MAX_TEXTE, lireCleFiche, phraseEtat, saisieDepuisFormulaire, verifierSaisie, verrouFiche } = fiche;
+const { FicheEntree, LONGUEUR_MAX_PREMIER_COMMENTAIRE, LONGUEUR_MAX_TEXTE, adresseFiche, cleDepuisAdresse, lireCleFiche, phraseEtat, saisieDepuisFormulaire, verifierSaisie, verrouFiche } = fiche;
 type EntreeFiche = import("@/components/calendrier/FicheEntree").EntreeFiche;
 type CreneauEditorial = import("@/domaine/plan-editorial/types").CreneauEditorial;
 type Publication = import("@/domaine/types").Publication;
@@ -379,6 +381,73 @@ describe("saisie vide, illisible ou hors limite", () => {
   });
 });
 
+describe("découpage : le stockage du texte sort d'actions.ts (CORRECTIF A et B)", () => {
+  beforeEach(() => ouvrirSession());
+
+  it("actions.ts ne garde que les deux actions de la fiche", () => {
+    expect(Object.keys(actionsCalendrier).sort()).toEqual(["enregistrerFicheEntreeAction", "lireFicheEntreeAction"]);
+  });
+
+  it("le texte et le premier commentaire d'un créneau se lisent par le service, sans passer par une action", async () => {
+    await creneau("c1");
+    const cle = lireCleFiche("creneau:c1|linkedin");
+    expect(cle).not.toBeNull();
+    expect(await stockage.lireStockageFiche(cle!)).toEqual({ texte: undefined, premierCommentaire: undefined });
+    await enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Texte du créneau.", premierCommentaire: "Et chez vous ?" });
+    expect(await stockage.lireStockageFiche(cle!)).toEqual({ texte: "Texte du créneau.", premierCommentaire: "Et chez vous ?" });
+  });
+
+  it("le service écrit, l'action relit : un seul stockage", async () => {
+    await creneau("c1");
+    const cle = lireCleFiche("creneau:c1|linkedin")!;
+    await stockage.ecrireStockageFiche(cle, { texte: "Écrit par le service.", premierCommentaire: "Commentaire du service." });
+    expect(await lireFicheEntreeAction("creneau:c1|linkedin")).toMatchObject({ ok: true, donnees: { texte: "Écrit par le service.", premierCommentaire: "Commentaire du service." } });
+  });
+
+  it("une valeur illisible dans le stockage ne rend rien", async () => {
+    const cle = lireCleFiche("creneau:c1|linkedin")!;
+    const m = new Date().toISOString();
+    await depots().parametres.enregistrer({ id: "calendrier.fiche.creneau:c1|linkedin", valeur: ["x"], creeLe: m, modifieLe: m });
+    expect(await stockage.lireStockageFiche(cle)).toEqual({ texte: undefined, premierCommentaire: undefined });
+  });
+});
+
+describe("fiche d'un carrousel programmé : identifiant avec « : » (CORRECTIF D)", () => {
+  const ID = "pub_envoi:vis-1:linkedin:v0";
+  beforeEach(() => ouvrirSession());
+
+  it("la clé d'une carte dont l'identifiant contient « : » se lit au dernier « | »", () => {
+    expect(lireCleFiche(`publication:${ID}|linkedin`)).toEqual({ cle: `publication:${ID}|linkedin`, origine: "publication", id: ID, reseau: "linkedin" });
+    expect(lireCleFiche("creneau:a:b|youtube-shorts")).toMatchObject({ origine: "creneau", id: "a:b", reseau: "youtube-shorts" });
+    for (const cle of ["publication:|linkedin", "publication:|x|linkedin", `publication:${"a:".repeat(101)}|linkedin`, "publication:a b:c|linkedin", "publication:a:b", "publication:a|b|linkedin"]) expect([cle, lireCleFiche(cle)]).toEqual([cle, null]);
+  });
+
+  it("encodée dans l'adresse, la clé se décode à la lecture, et rien d'autre n'est accepté", () => {
+    const cle = `publication:${ID}|linkedin`;
+    const adresse = adresseFiche(cle);
+    expect(adresse).not.toContain(":");
+    expect(adresse).not.toContain("|");
+    expect(cleDepuisAdresse(adresse)).toEqual(lireCleFiche(cle));
+    expect(cleDepuisAdresse(cle)).toEqual(lireCleFiche(cle));
+    for (const mauvaise of ["", "%E0%A4%A", "%00", null, undefined, 4]) expect([mauvaise, cleDepuisAdresse(mauvaise)]).toEqual([mauvaise, null]);
+  });
+
+  it("la fiche d'une publication programmée par programmerVisuel s'ouvre et se modifie", async () => {
+    await publication(ID, { statut: "echec", visuelId: "vis-1", videoId: undefined, texte: "Texte du carrousel." });
+    const cle = `publication:${ID}|linkedin`;
+    expect(await lireFicheEntreeAction(cle)).toMatchObject({ ok: true, donnees: { cle, type: "carrousel", texte: "Texte du carrousel." } });
+    const lue = cleDepuisAdresse(adresseFiche(cle));
+    expect(lue?.id).toBe(ID);
+    expect(await enregistrerFicheEntreeAction(cle, { texte: "Texte revu.", premierCommentaire: "Et chez vous ?" })).toMatchObject({ ok: true, donnees: { modifie: true } });
+    expect(await lireFicheEntreeAction(cle)).toMatchObject({ ok: true, donnees: { texte: "Texte revu.", premierCommentaire: "Et chez vous ?" } });
+  });
+
+  it("un identifiant avec « : » est introuvable s'il n'existe pas, et ne mélange pas deux entrées", async () => {
+    await publication("a", { statut: "echec" });
+    expect(await lireFicheEntreeAction("publication:a:b|linkedin")).toMatchObject({ ok: false, code: "FICHE_INTROUVABLE" });
+  });
+});
+
 describe("règles pures de la fiche", () => {
   it("lireCleFiche : la clé d'une carte, rien d'autre", () => {
     expect(lireCleFiche("creneau:c1|linkedin")).toEqual({ cle: "creneau:c1|linkedin", origine: "creneau", id: "c1", reseau: "linkedin" });
@@ -508,15 +577,15 @@ describe("composant FicheEntree", () => {
     expect(lisible(h)).toContain("Réponses aux commentaires : toujours à la main sur TikTok.");
   });
 
-  it("LinkedIn et Facebook : le premier commentaire part avec la publication ; Instagram : à poser à la main", () => {
-    expect(lisible(rendre())).toContain("Il part avec la publication.");
+  it("LinkedIn et Facebook : « Enregistré dans le calendrier. » sans promesse d'envoi ; Instagram : à poser à la main", () => {
+    expect(lisible(rendre())).toContain("Enregistré dans le calendrier.");
     expect(lisible(rendre())).toContain("Réponses aux commentaires : toujours à la main sur LinkedIn.");
     const fb = lisible(rendre({ entree: { ...base, reseau: "facebook" } }));
-    expect(fb).toContain("Il part avec la publication.");
+    expect(fb).toContain("Enregistré dans le calendrier.");
     expect(fb).not.toContain("Réponses aux commentaires");
     const ig = lisible(rendre({ entree: { ...base, reseau: "instagram" } }));
     expect(ig).toContain("À poser à la main sur Instagram, juste après la publication.");
-    expect(ig).not.toContain("Il part avec la publication.");
+    expect(ig).not.toContain("Enregistré dans le calendrier.");
   });
 
   it("texte vide : la fiche dit ce qui manque ; un message fourni et une erreur s'affichent", () => {
@@ -558,6 +627,17 @@ describe("composant FicheEntree", () => {
     expect(h).toContain("Dupliquer");
     // Verrouillée, la fiche garde ces emplacements (« Voir sur le réseau », « Dupliquer »).
     expect(rendre({ entree: { ...base, etat: "publie" }, children: createElement("a", { href: "#" }, "Voir sur le réseau") })).toContain("Voir sur le réseau");
+  });
+
+  it("les autres actions sont DANS le formulaire quand la fiche se modifie : jamais de <form> à eux, des boutons en type=\"button\" ou en formAction", () => {
+    const h = rendre({ children: createElement("button", { type: "button" }, "Dupliquer") });
+    const formulaire = /<form[\s\S]*<\/form>/.exec(h)?.[0] ?? "";
+    expect(formulaire).toContain("Dupliquer");
+    expect(formulaire.match(/<form/g)).toHaveLength(1);
+    // Verrouillée, la fiche n'a plus de formulaire : les emplacements restent, sans <form>.
+    const verrouillee = rendre({ entree: { ...base, etat: "publie" }, children: createElement("button", { type: "button" }, "Dupliquer") });
+    expect(verrouillee).not.toContain("<form");
+    expect(verrouillee).toContain("Dupliquer");
   });
 
   it("le libellé du bouton principal se fournit de l'extérieur ; vide, il n'y a pas de bouton", () => {
