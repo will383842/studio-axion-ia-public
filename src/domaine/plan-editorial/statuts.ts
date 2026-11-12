@@ -31,18 +31,25 @@ export function transitionner(c: CreneauEditorial, vers: StatutPlan, auteur: Aut
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const INSTANT_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z$/;
 
+/** Vrai si la chaîne AAAA-MM-JJ désigne un jour qui existe au calendrier. */
+function jourExiste(jour: string): boolean {
+  if (!JOUR.test(jour)) return false;
+  const [a, m, j] = jour.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, j)).toISOString().slice(0, 10) === jour;
+}
+
 /** Liste des erreurs (vide = créneau valide). */
 export function validerCreneau(c: CreneauEditorial): string[] {
   const e: string[] = [];
   if (!c.id) e.push("Identifiant manquant.");
-  if (!JOUR.test(c.jourVise) || Number.isNaN(Date.parse(c.jourVise))) e.push("Jour visé invalide (AAAA-MM-JJ).");
+  if (!jourExiste(c.jourVise)) e.push("Jour visé invalide (AAAA-MM-JJ).");
   if (!c.compteCible) e.push("Compte cible manquant.");
   if (c.videoId && c.visuelId) e.push("Une vidéo et un visuel ensemble sont refusés : choisir l'un des deux.");
   if (!STATUTS_PLAN.includes(c.statut)) e.push("Statut inconnu.");
   if (!Number.isInteger(c.decalages) || c.decalages < 0) e.push("Le nombre de décalages doit être un entier positif ou nul.");
   for (const [reseau, h] of Object.entries(c.heuresParReseau)) {
     if (!IDS_RESEAUX_PLAN.includes(reseau as never)) e.push(`Réseau inconnu : ${reseau}.`);
-    else if (!h || !INSTANT_UTC.test(h) || Number.isNaN(Date.parse(h))) e.push(`Heure invalide pour ${reseau} (ISO en UTC attendu).`);
+    else if (!h || !INSTANT_UTC.test(h) || !jourExiste(h.slice(0, 10)) || Number.isNaN(Date.parse(h))) e.push(`Heure invalide pour ${reseau} (ISO en UTC attendu).`);
   }
   return e;
 }
@@ -50,6 +57,12 @@ export function validerCreneau(c: CreneauEditorial): string[] {
 /** Ajoute un décalage (copie). */
 export function enregistrerDecalage(c: CreneauEditorial): CreneauEditorial {
   return { ...c, decalages: c.decalages + 1 };
+}
+
+/** Garde de mise à jour : le nombre de décalages ne baisse jamais. */
+export function verifierMiseAJour(ancien: CreneauEditorial, nouveau: CreneauEditorial): { ok: true } | { ok: false; raison: string } {
+  if (nouveau.decalages < ancien.decalages) return { ok: false, raison: `Les décalages ne peuvent pas baisser (${ancien.decalages} → ${nouveau.decalages}).` };
+  return { ok: true };
 }
 
 /** Fusion de deux compteurs : le plus grand l'emporte, jamais de baisse. */

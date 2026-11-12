@@ -238,12 +238,12 @@ describe("R1b — écrans", () => {
     const cases = casesEnvoi([{ reseau: "linkedin", nom: "LinkedIn" }], {
       linkedin: {
         choix: [
-          { id: "a", nom: "Jean Exemple", genre: "profile" },
-          { id: "b", nom: "Jean Exemple", genre: "page" },
+          { id: "a", nom: "Williams", genre: "profile" },
+          { id: "b", nom: "Williams", genre: "page" },
         ],
       },
     });
-    expect(cases.map((c) => c.libelle)).toEqual(["LinkedIn · Jean Exemple (Profil)", "LinkedIn · Jean Exemple (Page)"]);
+    expect(cases.map((c) => c.libelle)).toEqual(["LinkedIn · Williams (Profil)", "LinkedIn · Williams (Page)"]);
   });
 
   it("la feuille d'envoi passe les comptes cochés et ne coche jamais d'office un compte non choisi", async () => {
