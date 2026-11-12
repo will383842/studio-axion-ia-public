@@ -8,7 +8,7 @@
  *    dépenser. Sans budget reçu pour le mois de Paris en cours, aucune fabrication commandée par l'Usine ne part.
  *  - La garde dure est `controlerBudgetDuMois`, appelée par le passage commun (`verifierBudgetEtCredits`, sous le verrou
  *    des crédits) : dépensé du mois + engagé (pire cas des travaux en cours, hors ce travail s'il reprend) + ce
- *    lancement > plafond → refus avant toute réservation, et alerte à Will (cloche, une fois par jour et par motif).
+ *    lancement > plafond → alerte au fondateur (cloche, une fois par jour et par motif) et ligne de journal, sans refus (L2-13).
  *  - Réglage illisible (absent de forme, négatif, non entier, texte) → refus : jamais « pas de plafond ».
  */
 import "server-only";
@@ -119,18 +119,6 @@ export async function verifierPlafondCommande(plafondCents: unknown): Promise<nu
 /** D'où vient le lancement : Will dans le studio (par défaut, inchangé) ou une commande de l'Usine. */
 export type OrigineLancement = "studio" | "usine";
 
-type MotifRefus = "plafond" | "usine-atteint" | "usine-absent";
-const ALERTES: Record<MotifRefus, { titre: string; message: string }> = {
-  plafond: { titre: "Fabrication refusée : plafond du mois atteint", message: "Rien n'est parti. Réglages > Budget pour relever le plafond." },
-  "usine-atteint": { titre: "Commande de l'Usine refusée : budget du mois atteint", message: "Rien n'est parti. Le budget se règle dans l'Usine, sous le plafond du studio." },
-  "usine-absent": { titre: "Commande de l'Usine refusée : aucun budget reçu pour ce mois", message: "Rien n'est parti. Réglez le budget du mois dans l'Usine." },
-};
-
-/** Alerte à Will (cloche + file d'envoi), une fois par jour et par motif. Une panne de l'alerte ne change jamais le refus. */
-async function alerterRefus(motif: MotifRefus): Promise<void> {
-  await alerterUneFoisParJour(motif, ALERTES[motif]);
-}
-
 /**
  * MODE INDICATIF : un seuil dépassé ne refuse plus, il PRÉVIENT. Journal à chaque dépassement ; cloche une seule fois par
  * jour et par motif, ou par vidéo/sujet si `sujet` est donné (clé `budget.refus.<jour>.<motif>[-<sujet>]`). Une panne de l'alerte ne change jamais la suite : la fabrication continue.
@@ -177,10 +165,11 @@ async function alerterUneFoisParJour(motif: string, texte: { titre: string; mess
 /**
  * Contrôle du mois, appelé SOUS le verrou des crédits avant toute réservation. `besoinCentimes` est arrondi au centime
  * supérieur (pire cas). `travailId` : un travail qui reprend ne compte pas deux fois son propre engagement.
- * Codes : `BUDGET_ILLISIBLE`, `BUDGET_DEPASSE` (plafond du studio), `BUDGET_USINE_ABSENT`, `BUDGET_MENSUEL_ATTEINT`.
+ * Codes : `BUDGET_ILLISIBLE` seulement (estimation ou plafond illisible). Un montant dépassé alerte et journalise, il ne refuse plus (L2-13).
  */
 export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id } = {}): Promise<void> {
-  // Mode indicatif (commande de Will seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
+  // L2-13 (critère 5) : un montant n'est plus un motif de refus, pour aucune origine. Le dépassement alerte (cloche) et se
+  // journalise ; l'Usine est bornée par des QUANTITÉS (quota et plafond technique du fournisseur), ailleurs.
   const indicatif = await budgetIndicatifPour(options.origine);
   let plafond: number;
   try {
@@ -197,21 +186,16 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
   const propre = options.travailId ? await engagementDuTravail(options.travailId) : 0;
   const utilise = vue.depense.centimes + vue.engage.centimes - propre;
   if (utilise + besoin > plafond) {
-    if (indicatif) {
-      await signalerDepassementIndicatif("mois", "Budget indicatif du mois dépassé", "Rien n'est arrêté : la fabrication continue. Réglages > Budget pour ajuster le repère du mois.");
-      return;
-    }
-    await alerterRefus("plafond");
-    throw new ErreurStudio("BUDGET_DEPASSE", "Le budget du mois serait dépassé. Augmentez-le dans Réglages.");
+    await signalerDepassementIndicatif("mois", "Budget indicatif du mois dépassé", "Rien n'est arrêté : la fabrication continue. Réglages > Budget pour ajuster le repère du mois.");
+    return;
   }
   if (options.origine !== "usine") return;
   const usine = await lireBudgetUsine();
   if (!usine) {
-    await alerterRefus("usine-absent");
-    throw new ErreurStudio("BUDGET_USINE_ABSENT", "Aucun budget du mois reçu de l'Usine : rien ne part.");
+    await signalerDepassementIndicatif("usine-absent", "Aucun budget du mois reçu de l'Usine", "Rien n'est arrêté : le quota de quantité de l'Usine reste le garde-fou. Réglez le budget du mois dans l'Usine.");
+    return;
   }
   if (utilise + besoin > usine.budget_mensuel_cents) {
-    await alerterRefus("usine-atteint");
-    throw new ErreurStudio("BUDGET_MENSUEL_ATTEINT", "Le budget du mois réglé dans l'Usine serait dépassé : rien ne part.");
+    await signalerDepassementIndicatif("usine-atteint", "Budget du mois de l'Usine atteint", "Rien n'est arrêté : le quota de quantité de l'Usine reste le garde-fou. Le budget se règle dans l'Usine, sous le plafond du studio.");
   }
 }
