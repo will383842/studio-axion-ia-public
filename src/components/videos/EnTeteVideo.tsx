@@ -13,7 +13,7 @@ import {
   mettreALaCorbeilleAction,
   viderCorbeilleAction,
 } from "@/app/(studio)/videos/actions";
-import { useVideo } from "@/components/publication/ContexteVideo";
+import { useVideo, useVideoFacultatif } from "@/components/publication/ContexteVideo";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
@@ -22,6 +22,7 @@ import { Menu } from "@/components/ui/Menu";
 import { Pastille } from "@/components/ui/Pastille";
 import { PastilleEtat } from "@/components/ui/PastilleEtat";
 import { PastilleFamille, PastilleStatut } from "@/components/ui/PastilleStatut";
+import { STATUTS_USINE } from "@/components/ui/statuts-usine";
 import { notifier } from "@/components/ui/Toast";
 import { messageCorbeille, noteRestauration } from "@/domaine/corbeille";
 import { ETAPES_EDITORIALES, LIBELLES_RETRAIT } from "@/domaine/libelles";
@@ -77,6 +78,8 @@ export function EnTeteVideo({
   const prete = statut === "prete";
   const confirmation = useConfirmationArchivage();
   const suppression = useConfirmationSuppression();
+  // La barre du bas ne porte le bouton orange (Publier) que si la vidéo est publiable : sinon « Valider » reste le seul.
+  const publiable = useVideoFacultatif()?.publiable ?? false;
 
   function executer(action: () => Promise<{ ok: boolean; message?: string }>, succes: string, apres?: () => void) {
     demarrer(async () => {
@@ -115,7 +118,7 @@ export function EnTeteVideo({
             type="button"
             onClick={() => setFeuille("etape")}
             className="inline-flex min-h-11 items-center rounded-full focus-visible:outline-2"
-            aria-label={`${ETAPES_EDITORIALES[etapeEditoriale].libelle}, changer l'étape`}
+            aria-label={`${STATUTS_USINE[statutUsineDeEtape(etapeEditoriale)].libelle}, changer l'étape`}
           >
             <PastilleStatut statut={statutUsineDeEtape(etapeEditoriale)} />
           </button>
@@ -176,7 +179,7 @@ export function EnTeteVideo({
 
       {(prete || actions) && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <BoutonValider videoId={videoId} prete={prete} etape={etapeEditoriale} variante={actions ? "secondaire" : "principal"} />
+          <BoutonValider videoId={videoId} prete={prete} etape={etapeEditoriale} variante={actions && publiable ? "secondaire" : "principal"} sansPastilleEtape />
           {actions}
         </div>
       )}

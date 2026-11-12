@@ -17,7 +17,7 @@ import type { EtapeEditoriale } from "@/domaine/types";
  *  - pas prête : rien.
  * Le bouton n'est grisé que pendant l'envoi.
  */
-export function BoutonValider({ videoId, prete, etape, variante = "principal" }: { videoId: string; prete: boolean; etape?: EtapeEditoriale; /** « secondaire » quand la barre du bas porte déjà le seul bouton orange. */ variante?: "principal" | "secondaire" }) {
+export function BoutonValider({ videoId, prete, etape, variante = "principal", sansPastilleEtape = false }: { videoId: string; prete: boolean; etape?: EtapeEditoriale; /** « secondaire » quand la barre du bas porte déjà le seul bouton orange. */ variante?: "principal" | "secondaire"; /** L'en-tête de la fiche montre déjà le statut (9 statuts de l'usine) : pas de pastille en double. */ sansPastilleEtape?: boolean }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   if (!prete) return null;
@@ -40,11 +40,11 @@ export function BoutonValider({ videoId, prete, etape, variante = "principal" }:
     });
   }
 
-  if (etape === "programmee" || etape === "publiee") return <PastilleEtape etape={etape} />;
+  if (etape === "programmee" || etape === "publiee") return sansPastilleEtape ? null : <PastilleEtape etape={etape} />;
   if (etape === "validee") {
     return (
       <span className="inline-flex flex-wrap items-center gap-2">
-        <PastilleEtape etape="validee" />
+        {!sansPastilleEtape && <PastilleEtape etape="validee" />}
         <Bouton variante="fantome" taille="md" disabled={enCours} onClick={() => changer("a_relire", "Remise à relire")}>
           Remettre à relire
         </Bouton>

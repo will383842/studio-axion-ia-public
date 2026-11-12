@@ -15,7 +15,7 @@ export function statutUsineDeEtape(etape: EtapeEditoriale): StatutUsine {
   }
 }
 
-/** Statut technique d'une vidéo vers l'un des 9 statuts ; « archivée » n'en fait pas partie (null). */
+/** Statut technique d'une vidéo vers l'un des 9 statuts ; « archivée » et « arrêtée » (annulee) n'en font pas partie (null : pastille d'origine). */
 export function statutUsineDeVideo(statut: StatutVideo): StatutUsine | null {
   switch (statut) {
     case "brouillon":
@@ -29,7 +29,6 @@ export function statutUsineDeVideo(statut: StatutVideo): StatutUsine | null {
     case "echec":
       return "corriger";
     case "annulee":
-      return "refuse";
     case "archivee":
       return null;
   }
