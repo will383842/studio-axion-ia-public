@@ -321,7 +321,7 @@ export function boutonsTiroir(etat: string, jour: string, maintenant: Date | str
   if (affiche !== null && !Object.hasOwn(LIBELLES_ETAT, affiche)) return verrou("inconnu");
   const aujourdhui = jourDeReference(maintenant);
   if (aujourdhui === null || !jourExiste(jour)) return verrou("illisible");
-  if (jour < aujourdhui) return verrou("passee", [dupliquer]);
+  if (jour < aujourdhui) return verrou("passee", affiche === "manquee" ? ["Déplacer au…", dupliquer] : [dupliquer]);
   if (affiche === null || affiche === "refusee" || affiche === "archive") return verrou("archivee");
   return {
     principal: BOUTON_PRINCIPAL[affiche] ?? null,

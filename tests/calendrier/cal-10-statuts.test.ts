@@ -20,8 +20,7 @@ import * as statuts from "@/domaine/plan-editorial/statuts";
 import * as pastille from "@/components/calendrier/PastilleStatutPlan";
 import { FicheEntree, type EntreeFiche } from "@/components/calendrier/FicheEntree";
 import { enregistrerFicheEntreeAction } from "@/app/(studio)/calendrier/actions";
-import { validerEntree } from "@/app/(studio)/calendrier/actions/ajouter";
-import { refuserEntree, renvoyerEntreeCorrigee } from "@/app/(studio)/calendrier/actions/statuts";
+import { accepterEntree, refuserEntree, renvoyerEntreeCorrigee } from "@/app/(studio)/calendrier/actions/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 
 const { TRANSITIONS_CYCLE, ETATS_INTERNES, passageAutorise, jourParis, estPasse, etatInterne, libelleStatut, boutonsTiroir, LIBELLES_ETAT } = statuts;
@@ -191,7 +190,7 @@ describe("boutons du tiroir selon l'état", () => {
     expect(boutonsTiroir("brouillon", demain, AUJ).secondaires).toEqual(["Dupliquer vers un autre réseau", "Retirer du calendrier"]);
     expect(boutonsTiroir("idee", demain, AUJ).secondaires).toEqual(["Dupliquer vers un autre réseau", "Refuser l'idée"]);
     expect(boutonsTiroir("publie", demain, AUJ).secondaires).toEqual(["Voir sur le réseau", "Dupliquer vers un autre réseau"]);
-    expect(boutonsTiroir("manquee", "2026-11-19", AUJ).secondaires).toEqual(["Dupliquer vers un autre réseau"]);
+    expect(boutonsTiroir("manquee", "2026-11-19", AUJ).secondaires).toEqual(["Déplacer au…", "Dupliquer vers un autre réseau"]);
     expect(boutonsTiroir("brouillon", "2026-11-19", AUJ).secondaires).toEqual(["Dupliquer vers un autre réseau"]);
   });
 });
@@ -340,6 +339,7 @@ describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
 
   const FUTUR = "2026-11-21";
   const PASSE = "2026-11-19";
+  const JOUR_MEME = "2026-11-20";
   // [statut enregistré, jour, bouton (type), statut enregistré d'arrivée]
   const TABLEAU: ReadonlyArray<readonly [string, string, ReadonlyArray<readonly [string, "button" | "submit", string]>]> = [
     ["propose", FUTUR, [["Accepter l'idée", "button", "valide"], ["Enregistrer le texte", "submit", "propose"]]],
@@ -349,6 +349,9 @@ describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
     ["echec", FUTUR, [["Corriger et renvoyer", "button", "valide"], ["Enregistrer le texte", "submit", "echec"]]],
     ["publie", FUTUR, []],
     ["archive", FUTUR, []],
+    // Le jour même reste ouvert : les boutons agissent.
+    ["propose", JOUR_MEME, [["Accepter l'idée", "button", "valide"], ["Enregistrer le texte", "submit", "propose"]]],
+    ["a_valider", JOUR_MEME, [["Valider et programmer", "button", "valide"], ["Enregistrer le texte", "submit", "a_valider"]]],
     ["propose", PASSE, []],
     ["a_valider", PASSE, []],
     ["valide", PASSE, []],
@@ -357,7 +360,10 @@ describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
     ["publie", PASSE, []],
     ["archive", PASSE, []],
   ];
-  const lignes = TABLEAU.flatMap(([depart, jour, bs]) => (bs.length ? bs.map(([b, t, arrivee]) => [depart, jour, b, t, arrivee] as const) : [[depart, jour, null, null, depart] as const]));
+  type Ligne = readonly [depart: string, jour: string, bouton: string | null, type: "button" | "submit" | null, arrivee: string];
+  const lignes: Ligne[] = TABLEAU.flatMap(([depart, jour, bs]): Ligne[] =>
+    bs.length ? bs.map(([b, t, arrivee]): Ligne => [depart, jour, b, t, arrivee]) : [[depart, jour, null, null, depart]],
+  );
 
   beforeEach(() => {
     reinitialiserDepots();
@@ -373,7 +379,7 @@ describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
     const etat = (statuts.STATUTS_VERS_ETAT as Record<string, string | null>)[depart] ?? interne;
     const geste = vi.fn(async () => {
       // Hôte : chaque geste du bouton principal est relié à l'action réelle de son état.
-      if (etat === "idee" || etat === "a_valider") await validerEntree("c1");
+      if (etat === "idee" || etat === "a_valider") await accepterEntree("c1");
       else if (etat === "a_corriger") await renvoyerEntreeCorrigee("c1");
       // Programmé : « Modifier le texte » attend le diffuseur (non touché) : aucun changement de statut ici.
     });
@@ -391,12 +397,66 @@ describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
       return;
     }
 
-    const noeud = parcourir(fiche).find((b) => texteDe(b) === bouton.replace(/[^\p{L}' ]/gu, ""))!;
+    const noeud = parcourir(fiche).find((b) => texteDe(b) === bouton.replace(/[^\p{L}' ]/gu, ""));
+    if (!noeud) throw new Error(`Bouton absent : ${bouton}`);
     expect(noeud.props?.type).toBe(type);
     if (type === "button") await (noeud.props?.onClick as () => Promise<void>)();
     else await action();
     expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(arrivee);
     // Aucun statut d'avant ne mène à l'envoi.
     if (!["programme", "publie"].includes(depart)) expect(["programme", "publie"]).not.toContain(arrivee);
+  });
+});
+
+/** CORRECTIF 12/11 16 h : une entrée dont l'heure est passée (Manquée) ne passe pas à « valide » par les deux boutons. */
+describe("entrée passée (Manquée) : « Accepter l'idée » et « Valider et programmer » refusés", () => {
+  const PHRASE = "L'heure est passée : déplacez la publication avant de la valider";
+  beforeEach(() => {
+    reinitialiserDepots();
+    session.refuser = false;
+    vi.useFakeTimers({ now: AUJ });
+  });
+  it.each([
+    ["Accepter l'idée", "propose"],
+    ["Valider et programmer", "a_valider"],
+  ] as const)("%s (départ %s, jour passé) : refus avec la phrase claire, aucune écriture", async (_bouton, depart) => {
+    const d = reinitialiserDepots();
+    await d.creneauxEditoriaux.enregistrer(creneau({ statut: depart, jourVise: "2026-11-19", heuresParReseau: { linkedin: "2026-11-19T08:00:00.000Z" } }));
+    expect(etatInterne((await d.creneauxEditoriaux.obtenir("c1"))!, AUJ)).toBe("manquee");
+    const r = await accepterEntree("c1");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toBe(PHRASE);
+    expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(depart);
+  });
+  it("à la limite exacte : le jour même (minuit passé à Paris) reste ouvert, la veille à 23 h 59 Paris est refusée", async () => {
+    const d = reinitialiserDepots();
+    await d.creneauxEditoriaux.enregistrer(creneau({ statut: "propose", jourVise: "2026-11-20", heuresParReseau: { linkedin: "2026-11-20T08:00:00.000Z" } }));
+    vi.setSystemTime(new Date("2026-11-19T23:30:00Z")); // 00 h 30 le 20/11 à Paris
+    expect((await accepterEntree("c1")).ok).toBe(true);
+    await d.creneauxEditoriaux.enregistrer(creneau({ id: "c2", statut: "a_valider", jourVise: "2026-11-20", heuresParReseau: { linkedin: "2026-11-20T08:00:00.000Z" } }));
+    vi.setSystemTime(new Date("2026-11-20T23:00:00Z")); // 00 h le 21/11 à Paris
+    const r = await accepterEntree("c2");
+    expect(r.ok).toBe(false);
+    expect((await d.creneauxEditoriaux.obtenir("c2"))?.statut).toBe("a_valider");
+  });
+  it("entrée absente, déjà publiée, programmée, en échec, refusée : refus sans écriture ; sans session : refus", async () => {
+    const d = reinitialiserDepots();
+    for (const [id, statut] of [["p1", "publie"], ["p2", "programme"], ["p3", "echec"], ["p4", "archive"]] as const) {
+      await d.creneauxEditoriaux.enregistrer(creneau({ id, statut, jourVise: "2026-11-25", heuresParReseau: { linkedin: "2026-11-25T08:00:00.000Z" } }));
+      expect((await accepterEntree(id)).ok).toBe(false);
+      expect((await d.creneauxEditoriaux.obtenir(id))?.statut).toBe(statut);
+    }
+    expect((await accepterEntree("absent")).ok).toBe(false);
+    expect((await accepterEntree("")).ok).toBe(false);
+    session.refuser = true;
+    await d.creneauxEditoriaux.enregistrer(creneau({ id: "s1", statut: "propose", jourVise: "2026-11-25" }));
+    await expect(accepterEntree("s1")).rejects.toThrow();
+    expect((await d.creneauxEditoriaux.obtenir("s1"))?.statut).toBe("propose");
+  });
+  it("le bouton « Déplacer au… » reste proposé à une entrée Manquée ; il ne l'est pas à une publication publiée", () => {
+    const b = boutonsTiroir("manquee", "2026-11-19", AUJ);
+    expect(b.principal).toBeNull();
+    expect(b.secondaires).toContain("Déplacer au…");
+    expect(boutonsTiroir("publie", "2026-11-19", AUJ).secondaires).not.toContain("Déplacer au…");
   });
 });
