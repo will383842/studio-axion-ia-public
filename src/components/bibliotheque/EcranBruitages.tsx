@@ -90,7 +90,7 @@ export function EcranBruitages({ banque }: { banque: Banque }) {
                     <button
                       type="button"
                       onClick={() => changer(s, valide ? "a_verifier" : "validee")}
-                      className={cn("min-h-11 rounded-full px-3 text-xs font-semibold", valide ? "text-texte-faible hover:text-texte" : "bg-orange text-sur-orange")}
+                      className={cn("min-h-11 rounded-full px-3 text-xs font-semibold", valide ? "text-texte-faible hover:text-texte" : "bg-accent text-sur-accent")}
                     >
                       {valide ? "Retirer" : "Valider"}
                     </button>
