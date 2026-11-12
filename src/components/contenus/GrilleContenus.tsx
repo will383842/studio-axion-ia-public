@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { EtatVide } from "@/components/ui/EtatVide";
+import { LISERE_FAMILLE } from "@/components/ui/Carte";
+import { PastilleFamille } from "@/components/ui/PastilleStatut";
 import { PastillesReseaux } from "@/components/videos/PastillesReseaux";
 import { filtrerContenus, paginerContenus, type ContenuBibliotheque, type FiltresContenus as Filtres, type PageContenus } from "@/domaine/filtres-contenus";
-import { LIBELLES_TYPE_CONTENU, libelleStatutCommun } from "@/domaine/taxonomie-contenu";
+import { libelleStatutCommun } from "@/domaine/taxonomie-contenu";
 import { urlSure } from "@/domaine/visuels/depot";
 import { lienContenus, type FiltresLus, type ParametresContenus } from "./FiltresContenus";
 
@@ -17,12 +19,15 @@ export function adresseContenu(c: Pick<ContenuBibliotheque, "id" | "type">): str
   return `${c.type === "video" ? "/videos" : "/carrousels"}/${encodeURIComponent(c.id)}`;
 }
 
+/** L'image se range avec les infographies (jeton de famille). */
+const FAMILLE_DU_TYPE = { video: "video", carrousel: "carrousel", image: "infographie" } as const;
+
 function Carte({ c }: { c: ContenuBibliotheque }) {
   const vignette = urlSure(c.vignetteUrl);
   return (
     <Link
       href={adresseContenu(c)}
-      className="flex h-full min-h-24 flex-col gap-3 rounded-carte border border-trait bg-surface-1 p-3 transition-colors hover:border-trait-fort hover:bg-surface-2"
+      className={`flex h-full min-h-24 flex-col gap-3 rounded-carte border border-trait bg-surface-1 p-3 transition-colors ${LISERE_FAMILLE[FAMILLE_DU_TYPE[c.type]]} hover:border-trait-fort hover:bg-surface-2`}
     >
       <div className="aspect-[4/5] w-full overflow-hidden rounded-xl bg-surface-2">
         {vignette ? (
@@ -33,9 +38,10 @@ function Carte({ c }: { c: ContenuBibliotheque }) {
         )}
       </div>
       <div className="min-w-0">
+        <PastilleFamille famille={FAMILLE_DU_TYPE[c.type]} className="mb-1.5" />
         <h3 className="truncate text-[15px] font-semibold text-texte">{c.titre}</h3>
         <p className="mt-0.5 text-sm text-texte-doux">
-          {LIBELLES_TYPE_CONTENU[c.type]} · {libelleStatutCommun(c.statut)}
+          {libelleStatutCommun(c.statut)}
         </p>
       </div>
       <div className="mt-auto">
@@ -48,7 +54,7 @@ function Carte({ c }: { c: ContenuBibliotheque }) {
 /** La grille des contenus de la page courante, avec la pagination (liens qui gardent les filtres). Composant serveur. */
 export function GrilleContenus({ vue, params, filtres }: { vue: PageContenus; params: ParametresContenus; filtres: Filtres }) {
   if (vue.total === 0) {
-    const filtre = !!(filtres.type || filtres.reseau || filtres.statut);
+    const filtre = !!(filtres.type || filtres.reseau || filtres.statut || filtres.format);
     return (
       <EtatVide
         compact
@@ -57,7 +63,7 @@ export function GrilleContenus({ vue, params, filtres }: { vue: PageContenus; pa
         phrase={filtre ? "Rien ne correspond à ces choix." : "Ici, vous verrez vos vidéos, images et carrousels dès qu'il y en aura."}
         action={
           filtre ? (
-            <Link href="/contenus" className="text-sm font-semibold text-orange-vif">
+            <Link href="/contenus" className="text-sm font-semibold text-accent">
               Tout afficher
             </Link>
           ) : undefined
@@ -79,7 +85,7 @@ export function GrilleContenus({ vue, params, filtres }: { vue: PageContenus; pa
       {vue.pages > 1 && (
         <nav aria-label="Pages" className="flex items-center justify-between gap-3 text-sm">
           {vue.page > 1 ? (
-            <Link href={vers(vue.page - 1)} className="font-semibold text-orange-vif">
+            <Link href={vers(vue.page - 1)} className="font-semibold text-accent">
               Page précédente
             </Link>
           ) : (
@@ -89,7 +95,7 @@ export function GrilleContenus({ vue, params, filtres }: { vue: PageContenus; pa
             Page {vue.page} sur {vue.pages}
           </span>
           {vue.page < vue.pages ? (
-            <Link href={vers(vue.page + 1)} className="font-semibold text-orange-vif">
+            <Link href={vers(vue.page + 1)} className="font-semibold text-accent">
               Page suivante
             </Link>
           ) : (

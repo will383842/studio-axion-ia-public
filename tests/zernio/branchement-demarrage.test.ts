@@ -2,6 +2,7 @@
  * LOT 4c · branchement du parcours de conversation au démarrage et dans la boucle. Valeurs fictives, aucun réseau.
  * Le test qui échoue si le branchement manque : (a) statique et (b) exécution de `register()`.
  */
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -189,7 +190,7 @@ describe("passageParcoursZernio", () => {
     const requete = vi.fn(async () => ({ statut: 200, corps: {}, entetes: {} }));
     const port = creerPortInboxZernio({ client: { requete } as never, comptesPermis: [], comptesLecture: ["ig_1"] });
     // Le client réel refuse (liste fermée absente) ; ici le faux client doit au moins recevoir une liste vide.
-    await port.envoyerMessage({ idCompte: "ig_1", idConversation: "cv", texte: "Bonjour", cle: "k" } as never);
+    await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "ig_1", idConversation: "cv", texte: "Bonjour", cle: "k" } as never);
     const req = requete.mock.calls[0] as unknown as [{ comptesPermis: string[] }];
     expect(req[0].comptesPermis).toEqual([]);
   });

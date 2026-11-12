@@ -348,7 +348,7 @@ function GuideCreation({ className }: { className?: string }) {
     <ol aria-label="Créer ce personnage" className={cn("grid gap-2 sm:grid-cols-3", className)}>
       {ETAPES_CREATION.map((e, i) => (
         <li key={e.titre} className="flex items-center gap-3 rounded-carte border border-trait bg-surface-1 p-3">
-          <span className="relative grid size-11 shrink-0 place-items-center rounded-xl bg-orange-doux text-orange-vif">
+          <span className="relative grid size-11 shrink-0 place-items-center rounded-xl bg-accent-doux text-accent">
             <Icone nom={e.icone} size={19} />
             <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-surface-2 font-titre text-[10px] tabular-nums text-texte-doux">{i + 1}</span>
           </span>

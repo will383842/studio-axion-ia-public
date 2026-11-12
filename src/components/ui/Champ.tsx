@@ -32,7 +32,7 @@ export const Champ = forwardRef<HTMLInputElement, ProprietesChamp>(function Cham
       </label>
       <div
         className={cn(
-          "flex items-center gap-2 rounded-champ border bg-surface-1 px-3.5 transition-colors focus-within:border-orange",
+          "flex items-center gap-2 rounded-champ border bg-surface-1 px-3.5 transition-colors focus-within:border-accent",
           grand ? "min-h-14" : "min-h-12",
           erreur ? "border-brique" : "border-trait hover:border-trait-fort",
         )}

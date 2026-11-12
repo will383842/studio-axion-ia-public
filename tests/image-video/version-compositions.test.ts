@@ -15,7 +15,9 @@ describe("version des compositions de rendu", () => {
 
   it("entre dans l'identifiant de rendu (sinon une correction d'affichage n'est jamais rendue de nouveau)", () => {
     const code = readFileSync(join(__dirname, "../../src/moteurs/montage-image-video/fabrication.ts"), "utf8");
-    expect(code).toMatch(/iv-rendu-\$\{empreinteDe\(\[v\.id, empreinteDe\(ligne\), mixage\.id, VERSION_COMPOSITIONS_IV\]\)\}/);
+    // GV-ST-03d : le calcul vit dans `idRenduSansStyleIV(versionId, ligne, mixageId)` (mêmes ingrédients, même ordre).
+    expect(code).toMatch(/iv-rendu-\$\{empreinteDe\(\[versionId, empreinteDe\(ligne\), mixageId, VERSION_COMPOSITIONS_IV\]\)\}/);
+    expect(code).toMatch(/idRenduSansStyleIV\(v\.id, ligne, mixage\.id\)/);
   });
 
   it("entre aussi dans la clé de chaque scène de toile (sinon l'ancienne scène, dessinée avant la correction, est réutilisée)", () => {
