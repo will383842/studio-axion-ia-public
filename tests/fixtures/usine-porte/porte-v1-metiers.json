@@ -1,0 +1,6 @@
+{
+  "reponse": [
+    { "code": "compta.cabinet-fictif", "libelle": "Cabinet comptable (fictif)", "secteur": { "code": "services", "libelle": "Services" }, "allume": true, "cas_sources": 3 },
+    { "code": "compta.metier-fictif", "libelle": null, "secteur": { "code": null, "libelle": null }, "allume": false, "cas_sources": 0 }
+  ]
+}
