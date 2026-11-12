@@ -54,10 +54,17 @@ export function familleDe(code: string): FamilleEchec {
   return "autre";
 }
 
-const DEVISE = String.raw`(?:[€$£]|(?:EUR|USD|GBP|euros?|dollars?|cr[ée]dits?)(?![A-Za-z]))`;
-const NOMBRE = String.raw`\d+(?:[.,]\d+)*`;
-/** Un nombre avec une devise : « 12.50 USD », « 3,20 € », « $5 », « 40 crédits ». */
-const MONTANT = new RegExp(String.raw`(?<![A-Za-z0-9.,])(?:${DEVISE}\s?${NOMBRE}|${NOMBRE}\s?${DEVISE})`, "gi");
+const DEVISE = String.raw`(?:(?:US|CA|AU|NZ|HK|[ACRS])?\$|[€£¥]|(?:EUR|USD|GBP|CAD|CHF|JPY|euros?|dollars?|cr[ée]dits?)(?!\p{L}))`;
+/** Nombre avec décimales, ou avec milliers séparés par une espace (« 1 234,56 »), puis un suffixe k/M facultatif (« 12k »). */
+const NOMBRE = String.raw`(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)*|\d+(?:[.,]\d+)*)(?:[kM](?!\p{L}))?`;
+/** Un code HTTP à 3 chiffres juste avant « credits » dans un message d'erreur n'est pas un montant. */
+const CODE_HTTP_AVANT_CREDITS = String.raw`(?!(?<=\b(?:error|erreur|http|status|statut|code)\s?[:=]?\s?)\d{3}\s?cr[ée]dits?(?!\p{L}))`;
+/** Un nombre avec une devise : « 12.50 USD », « 3,20 € », « $5 », « 40 crédits », « 12k€ ». */
+const MONTANT = new RegExp(String.raw`(?<![\p{L}0-9.,])${CODE_HTTP_AVANT_CREDITS}(?:${DEVISE}\s?${NOMBRE}|${NOMBRE}\s?${DEVISE})`, "giu");
+/** Une durée ou un décompte (« 82,667 s », « 12 tests ») n'est pas un montant, même après une clé comme « total ». */
+const UNITE_NON_MONETAIRE = String.raw`(?!\s?(?:ms|s|sec|min|h|tests?|mots?|images?|fichiers?|vid[ée]os?|lignes?|[ée]tapes?|octets?|Ko|Mo|Go)(?![\p{L}0-9]))`;
+/** Valeur d'une clé d'argent (forme JSON ou « clé=valeur »), quelle que soit la devise : « "amount": 1250 », « solde=3,5 ». */
+const CLE_MONTANT = new RegExp(String.raw`(?<![A-Za-z0-9])(["']?(?:[A-Za-z0-9]+[_-])*(?:amount|balance|price|cost|total|credits?|montant|solde|prix)(?:[_-][A-Za-z0-9]+)*["']?\s*[:=]\s*)(["']?)${NOMBRE}(?!\/|\d|[.,]\d)${UNITE_NON_MONETAIRE}(?:\s?${DEVISE})?\2`, "giu");
 
 /**
  * Détail technique prêt à garder : 500 caractères au plus, et tout ce qui ressemble à une clé, un jeton ou un mot de
@@ -79,6 +86,7 @@ export function nettoyerDetail(texte: string | null | undefined): string {
     // toute longue suite opaque (hexadécimal, base64) de 24 caractères ou plus
     .replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (m) => (/[0-9]/.test(m) || /[A-Z]/.test(m) ? retire : m))
     // montants d'argent : nombre collé à un symbole ou à un code de devise, avant ou après (les nombres seuls restent)
+    .replace(CLE_MONTANT, "$1$2[montant masqué]$2")
     .replace(MONTANT, "[montant masqué]");
   return net.slice(0, LONGUEUR_MAX_DETAIL);
 }

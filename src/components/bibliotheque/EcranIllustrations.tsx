@@ -89,7 +89,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
                   <span className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
                     {e.etatLicence === "expiree" && <Pastille ton="brique" icone="attention">Expirée</Pastille>}
                     {e.etatLicence === "a-verifier" && <Pastille ton="ambre" icone="attention">À vérifier</Pastille>}
-                    {e.licence.type === "generee-ia" && <Pastille ton="orange">IA</Pastille>}
+                    {e.licence.type === "generee-ia" && <Pastille ton="contour">IA</Pastille>}
                   </span>
                   {e.type === "illustration-video" && (
                     <span className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-fond/70 text-texte">
@@ -201,7 +201,7 @@ function FeuilleAjoutIllustrations({ ouverte, onOuverteChange, motsClesConnus }:
           />
           <div className="mt-2 flex flex-wrap gap-2">
             {mots.map((m) => (
-              <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-orange-doux px-3 text-sm font-semibold text-orange-vif">
+              <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-accent-doux px-3 text-sm font-semibold text-accent">
                 {m}
                 <Icone nom="fermer" size={13} />
               </button>

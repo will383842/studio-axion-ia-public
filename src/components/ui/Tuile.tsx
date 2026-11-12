@@ -13,7 +13,7 @@ export function Tuile({ href, icone, libelle, compteur, onClick, className }: { 
         className,
       )}
     >
-      <span className="grid size-10 place-items-center rounded-xl bg-orange-doux text-orange-vif transition-transform duration-200 group-hover:scale-105">
+      <span className="grid size-10 place-items-center rounded-xl bg-accent-doux text-accent transition-transform duration-200 group-hover:scale-105">
         <Icone nom={icone} size={20} />
       </span>
       <span className="flex items-end justify-between gap-2">

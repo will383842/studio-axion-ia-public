@@ -42,7 +42,7 @@ export function Coquille({ formats, nonLues, surLeSite = false, aPublier = false
           {children}
         </main>
       </div>
-      <OngletsBas actionDeconnexion={deconnexionAction} surLeSite={surLeSite} aPublier={aPublier} />
+      <OngletsBas formats={formats} actionDeconnexion={deconnexionAction} surLeSite={surLeSite} aPublier={aPublier} />
     </div>
   );
 }
