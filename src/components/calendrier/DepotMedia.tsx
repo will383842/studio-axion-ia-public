@@ -65,8 +65,8 @@ export function DepotMedia({ reseau, onMedia }: { reseau: IdReseau; onMedia: (f:
   return (
     <div>
       <label>Choisir un fichier (vidéo, PDF, image) <input type="file" accept="video/mp4,application/pdf,image/png,image/jpeg" onChange={(e) => choisir(e.target.files?.[0])} /></label>
-      <p>Le fichier reste privé : il ne partira pas tant que vous n'avez pas validé la publication.</p>
-      {choisi?.formatRefuse && <p role="alert">{choisi.formatRefuse} L'ajout reste possible : la publication sera un brouillon à compléter.</p>}
+      <p>Le fichier reste privé : il ne partira pas tant que vous n&apos;avez pas validé la publication.</p>
+      {choisi?.formatRefuse && <p role="alert">{choisi.formatRefuse} L&apos;ajout reste possible : la publication sera un brouillon à compléter.</p>}
       {choisi && !choisi.formatRefuse && <p role="status">{choisi.nom} : format accepté pour ce réseau.</p>}
     </div>
   );
