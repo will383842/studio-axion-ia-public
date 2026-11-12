@@ -51,10 +51,27 @@ describe("ajouter une entrée à la main", () => {
     const r = await ajouterEntree({ ...base, jour: "2027-03-28", heure: "02:30", cle: "k7" });
     expect(r).toMatchObject({ ok: true });
     expect(r.ok && r.avertissement).toMatch(/n'existe pas/);
-    const h = await ajouterEntree({ ...base, jour: "2026-12-30", heure: "09:00", cle: "k8" });
-    expect(h.ok).toBe(true);
     const l = await d.creneauxEditoriaux.lister((c) => c.id.endsWith("k7"));
     expect(l[0].heuresParReseau.linkedin).toBe("2027-03-28T01:30:00.000Z");
+  });
+  it("heure d'hiver : 02:30 le 25/10/2026 existe deux fois, la 1re occurrence (heure d'été) est retenue", async () => {
+    const h = await ajouterEntree({ ...base, jour: "2026-10-25", heure: "02:30", cle: "k8", confirmerPasse: true });
+    expect(h.ok).toBe(true);
+    const l = await d.creneauxEditoriaux.lister((c) => c.id.endsWith("k8"));
+    expect(l[0].heuresParReseau.linkedin).toBe("2026-10-25T00:30:00.000Z");
+  });
+  it("même clé mais autre heure, autre jour, autre réseau ou autre vidéo : erreur, pas un faux succès", async () => {
+    expect((await ajouterEntree({ ...base, heure: "09:00", cle: "k10" })).ok).toBe(true);
+    expect(await ajouterEntree({ ...base, heure: "10:00", cle: "k10" })).toMatchObject({ ok: false });
+    expect(await ajouterEntree({ ...base, jour: "2026-12-04", cle: "k10" })).toMatchObject({ ok: false });
+    expect(await ajouterEntree({ ...base, reseau: "tiktok", cle: "k10" })).toMatchObject({ ok: false });
+    expect(await ajouterEntree({ ...base, videoId: "v2", cle: "k10" })).toMatchObject({ ok: false });
+    expect(await ajouterEntree({ ...base, heure: "09:00", cle: "k10" })).toMatchObject({ ok: true });
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(1);
+  });
+  it("un jour impossible dans le passé est refusé sur le format, sans demande de confirmation", async () => {
+    expect(await ajouterEntree({ ...base, jour: "2026-02-30", cle: "k11" })).toEqual({ ok: false, message: "Jour invalide (AAAA-MM-JJ attendu)." });
+    expect(await ajouterEntree({ ...base, jour: "2026-02-30", cle: "k11", confirmerPasse: true })).toMatchObject({ ok: false });
   });
 });
 

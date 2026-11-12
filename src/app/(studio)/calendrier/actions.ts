@@ -34,6 +34,11 @@ export type ResultatAjout =
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
+function jourExiste(j: string): boolean {
+  const [a, m, d] = j.split("-").map(Number);
+  const t = new Date(Date.UTC(a, m - 1, d));
+  return t.getUTCFullYear() === a && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+}
 const CLE = /^[A-Za-z0-9_-]{1,64}$/;
 
 function depotsPlan(): DepotsPlan {
@@ -44,7 +49,7 @@ function depotsPlan(): DepotsPlan {
 export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout> {
   await exigerSession();
   const heure = saisie.heure ?? "09:00";
-  if (!JOUR.test(saisie.jour) || Number.isNaN(Date.parse(saisie.jour))) return { ok: false, message: "Jour invalide (AAAA-MM-JJ attendu)." };
+  if (!JOUR.test(saisie.jour) || !jourExiste(saisie.jour)) return { ok: false, message: "Jour invalide (AAAA-MM-JJ attendu)." };
   if (!HEURE.test(heure)) return { ok: false, message: "Heure invalide (HH:MM attendu)." };
   if (!CLE.test(saisie.cle ?? "")) return { ok: false, message: "Clé de formulaire invalide." };
   const { instant, avertissement } = resoudreHeureParis(saisie.jour, heure);
@@ -52,8 +57,21 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
     return { ok: false, aConfirmer: "passe", avertissement: "Cette date est passée : confirmer pour l'ajouter quand même.", message: "Date dans le passé : à confirmer." };
   }
   try {
+    const id = `manuel-${saisie.cle}`;
+    const existant = await depotsPlan().creneaux.obtenir(id);
+    if (existant) {
+      const memeContenu =
+        existant.jourVise === saisie.jour &&
+        existant.compteCible === saisie.compteCible &&
+        existant.heuresParReseau[saisie.reseau] === instant &&
+        Object.keys(existant.heuresParReseau).length === 1 &&
+        (existant.videoId ?? undefined) === (saisie.videoId || undefined) &&
+        (existant.visuelId ?? undefined) === (saisie.visuelId || undefined);
+      if (!memeContenu) return { ok: false, message: "Ce formulaire a déjà créé une entrée différente : rouvrez-le pour en ajouter une autre." };
+      return { ok: true, donnees: existant, ...(avertissement ? { avertissement } : {}) };
+    }
     const c = await creerCreneau(depotsPlan(), {
-      id: `manuel-${saisie.cle}`,
+      id,
       jourVise: saisie.jour,
       heuresParReseau: { [saisie.reseau]: instant },
       compteCible: saisie.compteCible,

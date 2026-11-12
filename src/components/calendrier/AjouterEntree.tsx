@@ -19,7 +19,10 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour
     if (enCours) return;
     setEnCours(true);
     try {
-      setRetour(await ajouterEntree({ jour, heure, compteCible, reseau, videoId: mediaId || undefined, cle: cle.current, confirmerPasse }));
+      const r = await ajouterEntree({ jour, heure, compteCible, reseau, videoId: mediaId || undefined, cle: cle.current, confirmerPasse });
+      setRetour(r);
+      // Succès : nouvelle clé, pour qu'un 2e ajout depuis ce formulaire crée bien un 2e créneau.
+      if (r.ok) cle.current = crypto.randomUUID();
     } finally {
       setEnCours(false);
     }
