@@ -5,7 +5,10 @@
  */
 import { PALETTE } from "../../../../../src/briques/charte/axion-2026";
 import { largeurMot, motsInsecables } from "../../../../../src/briques/visuels/largeur-mot";
-import type { InfographieSpecType } from "../../../../../src/domaine/visuels/schema-infographie";
+
+/** Ce dont la mise en page a besoin d'un bloc et d'un spec (structurel : le spec zod d'infographie y satisfait, et les paramètres restent typés même si le module du schéma n'est pas résolu). */
+interface BlocMisEnPage { readonly titre: string; readonly texte: string; readonly valeur?: string }
+interface SpecMisEnPage { readonly titre: string; readonly blocs: readonly BlocMisEnPage[] }
 
 export type Gabarit = "chiffres-cles" | "etapes" | "comparaison";
 export type RatioInfographie = "1:1" | "9:16";
@@ -75,10 +78,10 @@ const dedans = (b: Forme, p: number): Forme => ({ x: b.x + p, y: b.y + p, largeu
 const part = (b: Forme, y0: number, h: number): Forme => ({ ...b, y: b.y + y0, hauteur: h });
 
 /** Mise en page d'un spec dans un gabarit et un ratio. Lève `ErreurDebordementInfographie` ou une `Error` claire si le spec ne convient pas au gabarit. */
-export function miseEnPageInfographie(gabarit: Gabarit, ratio: RatioInfographie, spec: InfographieSpecType): MiseEnPage {
+export function miseEnPageInfographie(gabarit: Gabarit, ratio: RatioInfographie, spec: SpecMisEnPage): MiseEnPage {
   const { largeur, hauteur } = FORMATS_INFOGRAPHIE[ratio];
   const n = spec.blocs.length;
-  if (gabarit === "chiffres-cles" && spec.blocs.some((b) => !b.valeur)) throw new Error("Le gabarit chiffres clés demande une valeur dans chaque bloc");
+  if (gabarit === "chiffres-cles" && spec.blocs.some((b: BlocMisEnPage) => !b.valeur)) throw new Error("Le gabarit chiffres clés demande une valeur dans chaque bloc");
   if (gabarit === "comparaison" && n !== 2) throw new Error("Le gabarit comparaison demande exactement deux blocs");
   const formes: Forme[] = [];
   const textes: TexteMis[] = [];
@@ -90,7 +93,7 @@ export function miseEnPageInfographie(gabarit: Gabarit, ratio: RatioInfographie,
 
   if (gabarit === "etapes") {
     const h = (zone.hauteur - ECART * (n - 1)) / n;
-    spec.blocs.forEach((b, i) => {
+    spec.blocs.forEach((b: BlocMisEnPage, i: number) => {
       const y = zone.y + i * (h + ECART);
       const disque = Math.min(96, h);
       formes.push({ x: zone.x, y, largeur: disque, hauteur: disque, fond: PALETTE.noir });
@@ -105,7 +108,7 @@ export function miseEnPageInfographie(gabarit: Gabarit, ratio: RatioInfographie,
     const lignes = Math.ceil(n / colonnes);
     const lc = (zone.largeur - ECART * (colonnes - 1)) / colonnes;
     const hc = (zone.hauteur - ECART * (lignes - 1)) / lignes;
-    spec.blocs.forEach((b, i) => {
+    spec.blocs.forEach((b: BlocMisEnPage, i: number) => {
       const sombre = gabarit === "comparaison" && i === 1;
       const fondCarte = sombre ? PALETTE.noir : PALETTE.blanc;
       const carte: Forme = { x: zone.x + (i % colonnes) * (lc + ECART), y: zone.y + Math.floor(i / colonnes) * (hc + ECART), largeur: lc, hauteur: hc, fond: fondCarte };
