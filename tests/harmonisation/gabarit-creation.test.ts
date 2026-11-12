@@ -47,7 +47,8 @@ function ecartsAFaire(aFaire: string[], registre: string[]): string[] {
 }
 
 /** Écrans pas encore passés dans le gabarit. À retirer d'ici, un par un, à la fin de chaque lot. */
-export const A_FAIRE: string[] = ["cas-concret"];
+/** Refonte R6, maquette M3 (Cas concret) : la page « Choisir un cas » passe dans le gabarit, avec la barre d'étapes commune. */
+export const A_FAIRE: string[] = [];
 
 const dossierPage = (e: EcranCreation) => join("src/app/(studio)", e.page.replace(/\/page\.tsx$/, ""));
 const sourcePage = (e: EcranCreation) => lire(join("src/app/(studio)", e.page));
