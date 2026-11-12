@@ -1,7 +1,7 @@
 /**
  * Réglage « Plusieurs mots pour une même personne » du parcours viral. ÉTEINT PAR DÉFAUT et sans aucun effet aujourd'hui :
  * aucun code de production ne le lit. Il reste éteint tant que l'essai Facebook n'est pas validé.
- * Échec FERMÉ : lecture impossible, valeur absente ou mal formée => éteint. Seuls `true`, `1` et `"oui"` allument.
+ * Échec FERMÉ : lecture impossible, valeur absente ou mal formée => éteint. Seule la valeur `true` allume.
  */
 import "server-only";
 import { lireParametre } from "./_commun";
@@ -13,7 +13,7 @@ interface Options {
   lire?: () => Promise<unknown>;
 }
 
-const estVraie = (v: unknown): boolean => v === true || v === 1 || v === "oui";
+const estVraie = (v: unknown): boolean => v === true;
 
 export async function motsMultiplesActifs(options?: Options): Promise<boolean> {
   try {
