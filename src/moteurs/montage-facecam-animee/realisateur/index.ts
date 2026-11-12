@@ -54,6 +54,9 @@ export const ESSAIS_MAX_REALISATEUR = 3;
 export const PHRASE_REALISATEUR_REFUSE = "La mise en scène proposée par Claude n'a pas passé les contrôles après 3 essais : j'ai fait une mise en scène simple (version simple). Vous pouvez relancer pour retenter la version complète.";
 export const PHRASE_REALISATEUR_PANNE = "Claude n'a pas pu faire la mise en scène : j'ai fait une mise en scène simple (version simple). Réessayez dans un instant pour la version complète.";
 
+/** Phrase pour Will quand le plan gardé ressemble aux vidéos récentes (règle D17 devenue avertissement). */
+export const PHRASE_REPETITION_GARDEE = "Mise en scène gardée : elle ressemble aux vidéos récentes (ouverture ou plaquettes déjà vues) malgré les essais.";
+
 /** Sortie demandée à Claude : le plan SANS ce que remplit le code. Zooms en objets (les tuples passent mal en sortie structurée). */
 export const schemaSortieRealisateur = z.object({
   cartes: z.array(schemaCarte),
@@ -264,6 +267,14 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
   let message = repli ? messageAvecErreurs(base, [...repli.erreurs], { cartes: [], fenetres: [], calques: [], zooms: [], elementsV4: repli.elementsPrecedents }) : base;
   let erreurs: string[] = [];
   let planRefuse: unknown;
+  let gardeRepetition: { plan: PlanFacecamAnimee; v: ReturnType<typeof verifierPlan> } | undefined;
+  /** Le plan refusé seulement pour D17 (répétition), rendu tel quel avec un avertissement, plutôt que la version simple. */
+  const planRepetitionGarde = (essais: number): ResultatRealisateur | undefined =>
+    gardeRepetition && {
+      plan: gardeRepetition.plan, version: "complete", essais, rendable: true, mesures: gardeRepetition.v.mesures,
+      avertissements: [...gardeRepetition.v.avertissements, ...gardeRepetition.v.erreurs.map((e) => `Plan gardé malgré : ${e}`)],
+      phrase: PHRASE_REPETITION_GARDEE,
+    };
   let essais = 0;
   const essaisMax = repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR;
   while (essais < essaisMax) {
@@ -278,7 +289,7 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
       r = { ok: false, message: "Claude n'a pas répondu." };
     }
     // Panne (plafond franchi entre-temps, crédit, réseau) : pas de nouvel essai, la version simple tout de suite.
-    if (!r.ok) return versionSimple(entree, essais, PHRASE_REALISATEUR_PANNE, [`Claude indisponible : ${r.message}`]);
+    if (!r.ok) return planRepetitionGarde(essais) ?? versionSimple(entree, essais, PHRASE_REALISATEUR_PANNE, [`Claude indisponible : ${r.message}`]);
     const lu = r.erreur ? null : schemaSortieRealisateur.safeParse(r.donnees);
     if (!lu) {
       erreurs = [r.erreur!];
@@ -297,11 +308,14 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
         elementsV4: s.elementsV4 ?? [],
         motsForts: (s.motsForts ?? []).map(nettoyer).filter(Boolean),
       });
-      // Anti-répétition (D17) : bloquante aux essais 1 à N-1 ; au DERNIER essai elle devient un avertissement et le meilleur plan passe (jamais d'échec pour cette raison).
-      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}), ...(essais >= essaisMax ? { repetitionEnAvertissement: true } : {}) });
+      // Anti-répétition (D17) : bloquante au SEUL premier essai (comme D14 et D2a, une vidéo ordinaire ne paie pas 3 appels) ; dès le 2ᵉ essai elle devient
+      // un avertissement et le plan passe (jamais d'échec pour cette raison). Avec un seul essai prévu, elle n'est jamais bloquante.
+      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}), ...(essais >= Math.min(2, essaisMax) ? { repetitionEnAvertissement: true } : {}) });
+      // Un plan refusé UNIQUEMENT pour D17 est mis de côté : si les essais suivants échouent (panne, réponse illisible), il vaut mieux que la version simple.
+      if (!gardeRepetition && v.erreurs.length && v.rendable && v.erreurs.every((e) => e.startsWith("D17"))) gardeRepetition = { plan, v };
       if (!v.erreurs.length) {
         const repetee = v.avertissements.some((a) => a.startsWith("D17"));
-        return { plan, version: "complete", essais, avertissements: v.avertissements, mesures: v.mesures, rendable: v.rendable, ...(repetee ? { phrase: "Mise en scène gardée : elle ressemble aux vidéos récentes (ouverture ou plaquettes déjà vues) malgré les essais." } : {}) };
+        return { plan, version: "complete", essais, avertissements: v.avertissements, mesures: v.mesures, rendable: v.rendable, ...(repetee ? { phrase: PHRASE_REPETITION_GARDEE } : {}) };
       }
       // Dès le 2ᵉ essai (une vidéo ordinaire ne paie pas 3 appels) : si les seules erreurs sont D14 (plafond d'une plaquette) ou D2a (emplacements), le plan d'Opus
       // est GARDÉ, avec un avertissement et une phrase pour Will, plutôt que remplacé par le repli simple (ces règles ne bloquent pas le rendu).
@@ -314,5 +328,5 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
     }
     message = messageAvecErreurs(base, erreurs, planRefuse);
   }
-  return versionSimple(entree, essais, PHRASE_REALISATEUR_REFUSE, erreurs);
+  return planRepetitionGarde(essais) ?? versionSimple(entree, essais, PHRASE_REALISATEUR_REFUSE, erreurs);
 }
