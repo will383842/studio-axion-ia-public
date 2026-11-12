@@ -67,9 +67,11 @@ describe("E2E-1 n° 24 · ESSAI sur les prix de « Fabriquer les N »", () => {
     const page = lire("src/app/(studio)/videos/[id]/page.tsx");
     // E2E-2 argent n° 6 et 7 : la règle vit dans `domaine/cout-video.ts` (payé sans ESSAI, part simulée avec ESSAI ;
     // estimation marquée ESSAI si la fabrication est simulée), testée dans e2e2-console-mineurs.
-    expect(page).toMatch(/chiffresCoutVideo\(\{ \.\.\.couts, coutEstime: v\.coutEstime, fabricationSimulee, estDemo: v\.estDemo \}\)/);
+    // Décision du fondateur : aucun prix dans le Studio ; la fiche n'appelle plus `chiffresCoutVideo` (liste de coûts vide).
+    expect(page).not.toContain("chiffresCoutVideo");
+    expect(page).toContain("const chiffresCout: ChiffreVideo[] = [];");
     expect(lire("src/domaine/cout-video.ts")).toMatch(/essai: p\.fabricationSimulee && !p\.estDemo/);
-    expect(page).toMatch(/c\.essai && <PastilleEssai/);
+    expect(lire("src/components/fabrication/ChiffresVideo.tsx")).toMatch(/c\.essai && <PastilleEssai/);
   });
 });
 
