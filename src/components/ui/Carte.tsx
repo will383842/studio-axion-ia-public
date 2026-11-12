@@ -1,5 +1,13 @@
 import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
+import type { FamilleContenu } from "./statuts-usine";
+
+/** Liseré de gauche de la carte de contenu (maquette M0) : un jeton de famille, jamais une couleur écrite. */
+export const LISERE_FAMILLE: Record<FamilleContenu, string> = {
+  video: "border-l-[5px] border-l-fam-video",
+  carrousel: "border-l-[5px] border-l-fam-carrousel",
+  infographie: "border-l-[5px] border-l-fam-infographie",
+};
 
 export interface ProprietesCarte extends HTMLAttributes<HTMLElement> {
   /** Survol et curseur (carte cliquable). */
@@ -8,15 +16,18 @@ export interface ProprietesCarte extends HTMLAttributes<HTMLElement> {
   lueur?: boolean;
   /** Supprime le rembourrage (vignette pleine largeur). */
   sansMarge?: boolean;
+  /** Carte de contenu : liseré de 5 px à la couleur de la famille (le nom de la famille s'écrit dans la carte). */
+  famille?: FamilleContenu;
   as?: "div" | "section" | "article" | "li";
 }
 
 /** Carte : surface, rayon 16 px, trait fin, ombre douce. */
-export function Carte({ interactive, lueur, sansMarge, as: Balise = "div", className, children, ...props }: ProprietesCarte) {
+export function Carte({ interactive, famille, lueur, sansMarge, as: Balise = "div", className, children, ...props }: ProprietesCarte) {
   return (
     <Balise
       className={cn(
         "relative isolate overflow-hidden rounded-carte border border-trait bg-surface-1 shadow-carte",
+        famille && LISERE_FAMILLE[famille],
         !sansMarge && "p-4 sm:p-5",
         interactive &&
           "cursor-pointer transition-[border-color,transform,background-color] duration-200 ease-studio hover:-translate-y-0.5 hover:border-trait-fort hover:bg-surface-2",
