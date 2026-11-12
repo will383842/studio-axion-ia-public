@@ -81,6 +81,32 @@ describe("polices des carrousels (M1-02, passées à Manrope par L2-02)", () => 
     expect(readFileSync(SOURCE, "utf8")).not.toMatch(/unicodeRange|PLAGE_ESPACE_FINE/);
   });
 
+  it("correction opus-v1-w1 : toute chaîne de TEXTES_FIXES, TEXTES_FIXES_L9 et TEXTES_FIXES_L11 existe dans la cmap de Manrope (page T22 comprise)", async () => {
+    const { TEXTES_FIXES, TEXTES_FIXES_L9, TEXTES_FIXES_L11 } = await import("../../src/briques/visuels/textes-fixes");
+    const cmap = codesCmap(readFileSync(new URL("Manrope-Variable.ttf", DOSSIER_POLICES)));
+    const chaines: [string, string][] = [];
+    const parcourir = (nom: string, v: unknown) => {
+      if (typeof v === "string") chaines.push([nom, v]);
+      else if (Array.isArray(v)) v.forEach((x, i) => parcourir(`${nom}[${i}]`, x));
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) parcourir(`${nom}.${k}`, x);
+    };
+    parcourir("TEXTES_FIXES", TEXTES_FIXES);
+    parcourir("TEXTES_FIXES_L9", TEXTES_FIXES_L9);
+    parcourir("TEXTES_FIXES_L11", TEXTES_FIXES_L11);
+    expect(chaines.length).toBeGreaterThan(10);
+    expect(chaines.map(([n]) => n)).toContain("TEXTES_FIXES_L9.t22Bascule");
+    for (const [nom, t] of chaines) {
+      for (const c of t) {
+        const code = c.codePointAt(0)!;
+        if (code > 0x7f) expect(cmap.has(code), `${nom} : U+${code.toString(16).toUpperCase()}`).toBe(true);
+      }
+    }
+  });
+  it("correction opus-v1-w1 : T21 passe son texte par pourManrope (jamais typographieFrancaise seule)", () => {
+    const t21 = readFileSync(new URL("../../studio-rendu/compositions/visuels/pages/T21.tsx", import.meta.url), "utf8");
+    expect(t21).toContain("pourManrope");
+    expect(t21).not.toMatch(/\btypographieFrancaise\b/);
+  });
   it("l'attente est exposée, une erreur de chargement fait échouer le rendu, et les bornes de 5 s ont disparu", () => {
     const src = readFileSync(SOURCE, "utf8");
     expect(src).toContain("export function policeTitrePrete");
