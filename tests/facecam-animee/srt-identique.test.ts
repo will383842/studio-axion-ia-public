@@ -27,7 +27,7 @@ const DUREE = 10.1;
  */
 const remotionDisponible = (() => {
   try {
-    createRequire(`${process.cwd()}/studio-rendu/package.json`).resolve("remotion");
+    createRequire(new URL("../../studio-rendu/package.json", import.meta.url)).resolve("remotion");
     return true;
   } catch {
     return false;
