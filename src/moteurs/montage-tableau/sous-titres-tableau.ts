@@ -283,7 +283,7 @@ export function sousTitresDynamiquesTableau(segments: readonly SegmentSousTitres
   const melange = melanger(marques, { intensite: o.intensite ?? "equilibre", ...(o.coupesSec?.length ? { coupesSec: o.coupesSec } : {}), ...(o.dureeSec !== undefined ? { dureeSec: o.dureeSec } : {}) });
   const base = styleDeBase(o.st.gabarit);
   return melange.map((s, i) => {
-    const importance = !s.verrouille && chiffres.has(i) && s.style === "base" ? 3 : s.importance;
+    const importance = !s.verrouille && (chiffres.has(i) || s.mots.some((m) => m.enValeur)) && s.style === "base" ? 3 : s.importance;
     const garde = (s.style === "impact" && o.st.accents.impact) || (s.style === "bandeau" && o.st.accents.bandeau);
     const style: StyleGroupeSousTitres = garde ? s.style! : base;
     const inclinaison = style === "impact" && garde ? Math.max(-INCLINAISON_MAX_TABLEAU, Math.min(INCLINAISON_MAX_TABLEAU, s.inclinaison ?? 0)) : 0;

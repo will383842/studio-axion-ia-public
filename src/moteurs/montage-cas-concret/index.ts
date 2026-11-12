@@ -692,6 +692,9 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
       ...(commande.distribution[0]?.personnageId ? { personnageId: commande.distribution[0].personnageId } : {}),
       prononciations: commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation })),
+      // GV-ST-02 : le style de sous-titres choisi (ou étoilé) fait loi ; absent : « Charte duo » comme la v4.
+      ...(commande.styles.sousTitres ? { styleSousTitres: commande.styles.sousTitres } : {}),
+      ...(commande.styles.sousTitres && commande.sousTitres?.base ? { baseSousTitres: commande.sousTitres.base } : {}),
       // X2 : l'âge d'un appel détaché se compte à l'heure du passage.
       horlogeAppels: () => maintenant,
       // Un fournisseur fait attendre : on rend la main, le prochain `avancer` reprend au même endroit.
