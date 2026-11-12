@@ -23,6 +23,7 @@ import { CLE_CODES_SUPPRIMES } from "./partages";
 import { tacheDe, tachesEnCours } from "./tableau-taches";
 import { cleFicheScenes } from "@/briques/fiche-scenes/cle";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
+import { familleDe } from "@/domaine/journal-echecs";
 import { cleDeCetteVideo, cleProtegee, dossierPropreValide, prefixesDeVideo } from "@/domaine/dossiers-video";
 
 
@@ -489,7 +490,37 @@ export async function appliquerSuppression(video: Video): Promise<string[]> {
   // Un cas concret fini reste « traité » après sa suppression (manuelle ou purge de la corbeille) : inscrit AVANT d'effacer.
   // Ne bloque jamais la suppression.
   await (await import("./cas-concret-traites")).noterAvantSuppression(video);
-  await appliquerLot(plan.lot);
+  // GV-EC-01c/01d : un travail en attente de validation de Williams GARDE sa réservation (GV-EC-01b) ; sa vidéo part, la
+  // réservation doit être rendue (sinon elle reste bloquée pour toujours). Relevé AVANT l'effacement des travaux.
+  const enAttente = await depots().travaux.lister((t) => t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation" && plan.lot.supprimer.some((s) => s.collection === "travaux" && s.id === t.id));
+  // Rendue AVANT l'effacement : si la libération échoue, rien n'est effacé (la réservation n'est jamais perdue). Si le lot
+  // échoue ensuite, la réservation est rétablie (`reactiverReservations`, la même qu'une reprise) puis l'erreur remonte.
+  // Idempotent : seules les réservations encore actives sont libérées.
+  if (enAttente.length) {
+    const { libererReservation, reactiverReservations } = await import("./credits");
+    const liberes: string[] = [];
+    try {
+      for (const t of enAttente) {
+        // GV-EC-01f : seules les réservations encore ACTIVES sont rendues (et rétablies au retour arrière) ; une réservation
+        // déjà rendue (corbeille, refus de reprise, ancien travail remplacé) n'est jamais réactivée.
+        if ((await depots().reservations.compter((r) => r.travailId === t.id && r.statut === "active")) === 0) continue;
+        liberes.push(t.id);
+        await libererReservation(t.id, "liberee");
+      }
+      await appliquerLot(plan.lot);
+    } catch (e) {
+      for (const id of liberes) {
+        try {
+          await reactiverReservations(id);
+        } catch (e2) {
+          console.error("[suppression] réservation non rétablie (une reprise la réactive)", id, e2);
+        }
+      }
+      throw e;
+    }
+  } else {
+    await appliquerLot(plan.lot);
+  }
   try {
     await oublierBailExpire(`lanceur-image-video:${video.id}`);
   } catch (e) {
