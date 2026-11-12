@@ -1,7 +1,9 @@
 /**
  * Note : jsdom n'est pas installé (et on n'en ajoute pas) : le rendu est serveur seulement (renderToStaticMarkup).
  *
- * Menu : titres de groupe FIXES (plus de sections repliables), gabarit compact aligné sur le CRM Pro,
+ * 12/11 (refonte R2, barre à 7 rubriques dont 3 pliables, décision de Williams) : les titres de groupe fixes laissent la place à des
+ * rubriques pliables (aria-expanded) ; le gabarit compact et les autres règles restent.
+ * Menu : gabarit compact aligné sur le CRM Pro,
  * bouton de repli accessible, OngletsBas (mobile) sans aria-current sur un bouton.
  */
 import { readFileSync } from "node:fs";
@@ -19,17 +21,21 @@ const html = renderToStaticMarkup(createElement(BarreLaterale, { formats: [], ac
 const lire = (p: string) => readFileSync(p, "utf8");
 const sourceBarre = lire("src/components/coquille/BarreLaterale.tsx");
 
-describe("titres de groupe fixes", () => {
-  it("trois titres h2 non cliquables : Mes contenus, Publier, Mes ressources", () => {
-    for (const t of ["Mes contenus", "Publier", "Mes ressources"]) expect(html).toMatch(new RegExp(`<h2[^>]*>${t}</h2>`));
-    expect(html).not.toMatch(/<button[^>]*>\s*<span[^>]*>(Mes contenus|Publier|Mes ressources)/);
+describe("rubriques pliables", () => {
+  it("deux rubriques pliables ici (Mes contenus, Ressources) avec aria-expanded ; « Publier » n'a qu'une sous-rubrique visible : lien direct vers /mots, sans pli ; plus de titres h2 de groupe", () => {
+    for (const t of ["Mes contenus", "Ressources"]) expect(html).toMatch(new RegExp(`<a[^>]*aria-expanded="(true|false)"[^>]*>(?:(?!</a>)[\\s\\S])*${t}`));
+    expect(html).toMatch(/<a[^>]*href="\/mots"[^>]*>(?:(?!<\/a>)[\s\S])*Publier/);
+    expect(html).not.toMatch(/<a[^>]*aria-expanded[^>]*href="\/mots"/);
+    expect(html.match(/<h2/g)).toHaveLength(1); // seul « Compte » (pied), réservé aux lecteurs d'écran
     expect(html).not.toContain("aria-disabled");
   });
-  it("plus aucun mécanisme de section repliable dans le code", () => {
+
+  it("plus aucun ancien mécanisme de section repliable ni de liste de formats dans le code", () => {
     for (const mot of ["SectionPliable", "lireSectionRepliee", "CLE_SECTION", "sectionOuverte", "SousListeFormats"]) expect(sourceBarre).not.toContain(mot);
   });
-  it("chaque liste est reliée à son titre (aria-labelledby)", () => {
+  it("chaque liste reliée à un titre (aria-labelledby) ou à sa rubrique (aria-controls) existe", () => {
     for (const m of html.matchAll(/<ul[^>]*aria-labelledby="([^"]+)"/g)) expect(html).toContain(`id="${m[1]}"`);
+    for (const m of html.matchAll(/aria-controls="([^"]+)"/g)) expect(html).toContain(`id="${m[1]}"`);
   });
   it("un seul <nav aria-label=\"Menu principal\"> ; « Nouvelle vidéo » est hors du <nav>", () => {
     expect(html.match(/<nav/g)).toHaveLength(1);
@@ -37,8 +43,8 @@ describe("titres de groupe fixes", () => {
     expect(html).toContain('aria-label="Menu principal"');
     expect(html.indexOf('href="/nouvelle"')).toBeLessThan(html.indexOf("<nav"));
   });
-  it("« Mes vidéos » est allumé sur /cas-concret, une seule ligne porte aria-current", () => {
-    expect(html.match(/<a[^>]*href="\/videos"[^>]*>/)?.[0]).toContain('aria-current="page"');
+  it("« Vidéos » est allumé sur /cas-concret (rubrique « Mes contenus » ouverte d'elle-même), une seule ligne porte aria-current", () => {
+    expect(html.match(/<a[^>]*aria-current="page"[^>]*>/)?.[0]).toContain('href="/videos"');
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
   });
 });
@@ -72,11 +78,11 @@ describe("barre latérale compacte (bureau)", () => {
     expect(reglages).toContain("font-medium");
     expect(html).toMatch(/<button[^>]*font-medium[^>]*>(?:<svg|<span)[\s\S]*?Me déconnecter/);
   });
-  it("titres de groupe : majuscules, graisse 600 au plus, espacement léger", () => {
-    const h2 = html.match(/<h2[^>]*>Mes contenus<\/h2>/)?.[0] ?? "";
-    expect(h2).toContain("uppercase");
-    expect(h2).toContain("font-semibold");
-    expect(h2).toContain("tracking-wide");
+  it("en-têtes de rubrique pliable : 14 px, graisse 500, comme les autres entrées (jamais en gras)", () => {
+    const entete = html.match(/<a[^>]*aria-expanded[^>]*>/)?.[0] ?? "";
+    expect(entete).toContain("text-sm");
+    expect(entete).toContain("font-medium");
+    expect(entete).not.toContain("font-semibold");
   });
   it("la barre n'emploie ni font-bold/extrabold sur les items, ni Archivo (font-titre), ni la taille sur mesure 13 px des sous-items", () => {
     for (const f of ["src/components/coquille/BarreLaterale.tsx", "src/components/coquille/OngletsBas.tsx"]) {

@@ -8,13 +8,15 @@ import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { Tuile } from "@/components/ui/Tuile";
 import { cn } from "@/lib/cn";
-import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile } from "./navigation";
+import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile, type FormatNavigation } from "./navigation";
 
 /** Onglets du bas (mobile < 1024 px) : Accueil · Vidéos · ➕ · Écrire · Plus. */
-export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = false }: { actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
+export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false, aPublier = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
   const chemin = usePathname();
   const [plus, setPlus] = useState(false);
   const [creer, setCreer] = useState(false);
+  // Feuille « Créer » : les formats actifs (hors essais réservés), chacun vers son écran de création.
+  const formatsActifs = formats.filter((f) => f.statut === "actif" && !f.essai);
   const plusActif = tuilesPlusMobile(surLeSite, aPublier).some((t) => estActif(chemin, t));
 
   return (
@@ -67,6 +69,9 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
       <FeuilleBas ouverte={creer} onOuverteChange={setCreer} titre="Créer">
         <div className="grid grid-cols-2 gap-3">
           <Tuile href="/nouvelle" icone="clap" libelle="Nouvelle vidéo" onClick={() => setCreer(false)} />
+          {formatsActifs.map((f) => (
+            <Tuile key={f.id} href={f.adresseCreation ?? `/nouvelle/${f.id}`} icone={f.icone} libelle={f.nom} onClick={() => setCreer(false)} />
+          ))}
           <Tuile href="/ecrire/atelier" icone="ecrire" libelle="Nouveau sujet" onClick={() => setCreer(false)} />
           <Tuile href="/ecrire/matieres?ajout=matiere" icone="micro" libelle="+ Matière" onClick={() => setCreer(false)} />
           <Tuile href="/ecrire/matieres?ajout=preuve" icone="certifie" libelle="+ Preuve" onClick={() => setCreer(false)} />

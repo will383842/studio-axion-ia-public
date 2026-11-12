@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { Logo } from "./Logo";
-import { ACTION_CREER, estActif, NAV_PIED, sectionsLaterales, type EntreeNavigation, type FormatNavigation } from "./navigation";
+import { ACTION_CREER, cibleRubrique, estPliable, hrefCourant, NAV_PIED, rubriqueDeLaPage, rubriquesLaterales, type EntreeNavigation, type FormatNavigation, type RubriqueNavigation } from "./navigation";
 
 const CLE = "studio.barreRepliee";
 const EVENEMENT = "studio:barre";
+/** Rubriques ouvertes ou fermées à la main : {"contenus": true, "publier": false}. */
+const CLE_RUBRIQUES = "studio.rubriquesOuvertes";
 
 function lireRepliee(): boolean {
   try {
@@ -17,6 +19,23 @@ function lireRepliee(): boolean {
   } catch {
     return false;
   }
+}
+
+function lireRubriques(): string {
+  try {
+    return localStorage.getItem(CLE_RUBRIQUES) ?? "{}";
+  } catch {
+    return "{}";
+  }
+}
+
+function ecrireRubriques(valeur: Record<string, boolean>) {
+  try {
+    localStorage.setItem(CLE_RUBRIQUES, JSON.stringify(valeur));
+  } catch {
+    /* stockage indisponible : l'état ne sera pas mémorisé */
+  }
+  window.dispatchEvent(new Event(EVENEMENT));
 }
 
 function abonner(rappel: () => void) {
@@ -28,51 +47,181 @@ function abonner(rappel: () => void) {
   };
 }
 
-/** Infobulle de la barre repliée : visible au survol ET au focus clavier (le nom accessible vient de l'aria-label du lien). */
-function Infobulle({ texte }: { texte: string }) {
-  return (
-    <span
-      aria-hidden
-      className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-surface-2 px-2 py-1 text-xs font-medium text-texte opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-    >
-      {texte}
-    </span>
-  );
+const CLASSE_LIGNE = "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 font-medium transition-colors";
+const classeEtat = (actif: boolean) => (actif ? "bg-surface-2 text-texte" : "text-texte-doux hover:bg-surface-2/70 hover:text-texte");
+
+/** Barre orange à gauche de l'entrée de la page en cours. */
+function Repere() {
+  return <span aria-hidden className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-orange" />;
 }
 
-/** Une ligne du menu (14 px, graisse 500, y compris l'entrée active). `petit` = pied (12 px). */
-function LigneEntree({ e, chemin, repliee, petit = false }: { e: EntreeNavigation; chemin: string; repliee: boolean; petit?: boolean }) {
-  const actif = estActif(chemin, e);
+/**
+ * Une entrée simple (14 px, graisse 500, y compris l'entrée active). `petit` = pied (12 px).
+ * Barre repliée : l'icône avec un petit mot dessous.
+ */
+function LigneEntree({ e, libelle = e.libelle, icone = e.icone, court, actif, repliee, petit = false }: { e: EntreeNavigation; libelle?: string; icone?: EntreeNavigation["icone"]; court?: string; actif: boolean; repliee: boolean; petit?: boolean }) {
   return (
     <Link
       href={e.href}
-      aria-label={repliee ? e.libelle : undefined}
-      title={repliee ? e.libelle : undefined}
+      aria-label={repliee ? libelle : undefined}
       aria-current={actif ? "page" : undefined}
-      className={cn(
-        "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 font-medium transition-colors",
-        petit ? "text-xs leading-4" : "text-sm leading-5",
-        repliee && "justify-center",
-        actif ? "bg-surface-2 text-texte" : "text-texte-doux hover:bg-surface-2/70 hover:text-texte",
-      )}
+      className={cn(CLASSE_LIGNE, petit ? "text-xs leading-4" : "text-sm leading-5", repliee && "flex-col justify-center gap-0.5 px-0", classeEtat(actif))}
     >
-      {actif && <span aria-hidden className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-orange" />}
-      <Icone nom={e.icone} size={petit ? 16 : 18} className="shrink-0" />
-      {!repliee && <span className="truncate">{e.libelle}</span>}
-      {repliee && <Infobulle texte={e.libelle} />}
+      {actif && <Repere />}
+      <Icone nom={icone} size={petit ? 16 : 18} className="shrink-0" />
+      {repliee ? <span aria-hidden className="max-w-full truncate text-[10px] font-semibold leading-3">{court ?? libelle}</span> : <span className="truncate">{libelle}</span>}
     </Link>
   );
 }
 
-/** Barre latérale (ordinateur ≥ 1024 px) : 264 px, repliable à 72 px. Groupes à titres fixes ; le pied (réglages) ne défile pas. */
+/** Sous-rubrique d'une rubrique pliable (barre dépliée ou petit menu flottant). */
+function LigneSousRubrique({ e, courant, apresClic }: { e: EntreeNavigation; courant: string | null; apresClic?: () => void }) {
+  const actif = e.href === courant;
+  return (
+    <Link
+      href={e.href}
+      onClick={apresClic}
+      aria-current={actif ? "page" : undefined}
+      className={cn(CLASSE_LIGNE, "py-1.5 pl-9 text-sm leading-5", classeEtat(actif))}
+    >
+      {actif && <Repere />}
+      <span className="truncate">{e.libelle}</span>
+    </Link>
+  );
+}
+
+/** Rubrique pliable, barre dépliée : un clic l'ouvre ET mène à sa première sous-rubrique ; un clic sur une rubrique ouverte la ferme. */
+function RubriquePliable({ r, courant, ouverte, bascule }: { r: RubriqueNavigation; courant: string | null; ouverte: boolean; bascule: (ouvrir: boolean) => void }) {
+  const idListe = `${useId()}-sous`;
+  const dedans = !ouverte && r.enfants!.some((e) => e.href === courant);
+  return (
+    <>
+      <Link
+        href={cibleRubrique(r).href}
+        aria-expanded={ouverte}
+        aria-controls={idListe}
+        onClick={(ev) => {
+          if (ouverte) {
+            ev.preventDefault();
+            bascule(false);
+          } else bascule(true);
+        }}
+        className={cn(CLASSE_LIGNE, "text-sm leading-5", classeEtat(dedans))}
+      >
+        {dedans && <Repere />}
+        <Icone nom={r.icone} size={18} className="shrink-0" />
+        <span className="truncate">{r.libelle}</span>
+        <Icone nom="chevron-droite" size={14} className={cn("ml-auto shrink-0 transition-transform", ouverte && "rotate-90")} />
+      </Link>
+      <ul id={idListe} hidden={!ouverte} className="mt-0.5 space-y-0.5">
+        {r.enfants!.map((e) => (
+          <li key={e.href}>
+            <LigneSousRubrique e={e} courant={courant} />
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Rubrique pliable, barre repliée : un clic ouvre un petit menu flottant à droite de la barre (Échap ou clic à côté le ferme). */
+function RubriqueFlottante({ r, courant, ouverte, ouvrir, fermer }: { r: RubriqueNavigation; courant: string | null; ouverte: boolean; ouvrir: (haut: number) => void; fermer: () => void }) {
+  const idListe = `${useId()}-flottant`;
+  const [haut, setHaut] = useState(8);
+  const dedans = r.enfants!.some((e) => e.href === courant);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={r.libelle}
+        aria-expanded={ouverte}
+        aria-haspopup="true"
+        aria-controls={idListe}
+        onClick={(ev) => {
+          if (ouverte) return fermer();
+          const h = Math.max(8, Math.min(ev.currentTarget.getBoundingClientRect().top, window.innerHeight - 230));
+          setHaut(h);
+          ouvrir(h);
+        }}
+        className={cn(CLASSE_LIGNE, "w-full flex-col justify-center gap-0.5 px-0 text-sm leading-5", classeEtat(dedans || ouverte))}
+      >
+        {dedans && <Repere />}
+        <Icone nom={r.icone} size={18} className="shrink-0" />
+        <span aria-hidden className="max-w-full truncate text-[10px] font-semibold leading-3">
+          {r.court ?? r.libelle}
+        </span>
+      </button>
+      {ouverte && (
+        <ul id={idListe} data-flottant style={{ top: haut }} className="fixed left-[calc(var(--largeur-barre-repliee)+4px)] z-50 min-w-48 space-y-0.5 rounded-lg border border-trait bg-fond p-2 shadow-lg">
+          <li aria-hidden className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-texte-faible">
+            {r.libelle}
+          </li>
+          {r.enfants!.map((e) => (
+            <li key={e.href}>
+              <LigneSousRubrique e={e} courant={courant} apresClic={fermer} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** Barre latérale (ordinateur ≥ 1024 px) : 264 px, repliable à 72 px. Sept rubriques dont trois pliables ; le pied (réglages) ne défile pas. */
 export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
   const chemin = usePathname();
   const idBase = useId();
   const idNav = `${idBase}-menu`;
   const repliee = useSyncExternalStore(abonner, lireRepliee, () => false);
+  const brut = useSyncExternalStore(abonner, lireRubriques, () => "{}");
+  const gardees = useMemo<Record<string, boolean>>(() => {
+    try {
+      const v: unknown = JSON.parse(brut);
+      return v && typeof v === "object" ? (v as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
+  }, [brut]);
+  const [flotteBrute, setFlotteBrute] = useState<{ id: string; chemin: string } | null>(null);
+  // Le petit menu flottant ne vaut que pour la page et l'état de la barre où il s'est ouvert.
+  const flotte = repliee && flotteBrute?.chemin === chemin ? flotteBrute.id : null;
+  const setFlotte = (id: string | null) => setFlotteBrute(id ? { id, chemin } : null);
+
+  const courant = hrefCourant(chemin, surLeSite, aPublier);
+  const rubriqueDeLaPageId = rubriqueDeLaPage(chemin, surLeSite, aPublier);
+
   useEffect(() => {
     document.documentElement.style.setProperty("--largeur-barre-courante", repliee ? "var(--largeur-barre-repliee)" : "var(--largeur-barre)");
   }, [repliee]);
+
+  // Une rubrique s'ouvre toute seule quand on arrive sur l'une de ses pages (et c'est gardé).
+  useEffect(() => {
+    if (rubriqueDeLaPageId) {
+      let actuel: Record<string, boolean> = {};
+      try {
+        actuel = JSON.parse(lireRubriques());
+      } catch {
+        /* état illisible : on repart de zéro */
+      }
+      if (actuel[rubriqueDeLaPageId] !== true) ecrireRubriques({ ...actuel, [rubriqueDeLaPageId]: true });
+    }
+  }, [rubriqueDeLaPageId, chemin]);
+
+  // Petit menu flottant : se ferme avec Échap, au clic à côté, et quand la page change.
+  useEffect(() => {
+    if (!flotte) return;
+    const surTouche = (ev: KeyboardEvent) => ev.key === "Escape" && setFlotteBrute(null);
+    const surClic = (ev: MouseEvent) => {
+      if (!(ev.target instanceof Element) || !ev.target.closest("[aria-haspopup='true'], [data-flottant]")) setFlotteBrute(null);
+    };
+    document.addEventListener("keydown", surTouche);
+    document.addEventListener("mousedown", surClic);
+    return () => {
+      document.removeEventListener("keydown", surTouche);
+      document.removeEventListener("mousedown", surClic);
+    };
+  }, [flotte]);
+
   function basculer() {
     try {
       localStorage.setItem(CLE, repliee ? "0" : "1");
@@ -82,6 +231,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
     window.dispatchEvent(new Event(EVENEMENT));
   }
 
+  const rubriques = rubriquesLaterales(surLeSite, aPublier);
   const creerActif = chemin === ACTION_CREER.href || chemin.startsWith(ACTION_CREER.href + "/");
   const libelleRepli = repliee ? "Déplier le menu" : "Replier le menu";
 
@@ -108,7 +258,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
         </button>
       )}
 
-      {/* Action principale : bouton plein sous le logo, hors du menu. */}
+      {/* Action principale : bouton plein sous le logo, hors du menu (la règle « contour » viendra en R3). */}
       <div className="shrink-0 px-3 pb-2">
         <Link
           href={ACTION_CREER.href}
@@ -116,36 +266,44 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
           aria-current={creerActif ? "page" : undefined}
           className={cn(
             "group relative flex items-center gap-2 rounded-lg bg-orange px-2 py-2 text-sm font-medium leading-5 text-sur-orange shadow-orange transition-colors hover:bg-orange-vif",
-            repliee && "justify-center",
+            repliee && "flex-col justify-center gap-0.5 px-0",
           )}
         >
           <Icone nom={ACTION_CREER.icone} size={18} className="shrink-0" />
-          {!repliee && <span className="truncate">{ACTION_CREER.libelle}</span>}
-          {repliee && <Infobulle texte={ACTION_CREER.libelle} />}
+          {repliee ? (
+            <span aria-hidden className="text-[10px] font-semibold leading-3">
+              Créer
+            </span>
+          ) : (
+            <span className="truncate">{ACTION_CREER.libelle}</span>
+          )}
         </Link>
       </div>
 
       <nav id={idNav} aria-label="Menu principal" className="flex min-h-0 flex-1 flex-col">
         <div className="sans-barre flex-1 overflow-y-auto px-3 pb-4">
-          {sectionsLaterales(surLeSite, aPublier).map((s, i) => {
-            const idTitre = `${idBase}-groupe-${i}`;
-            return (
-              <div key={s.titre ?? `tete-${i}`} className={cn(i > 0 && (repliee ? "mt-3 border-t border-trait pt-3" : "mt-4"))}>
-                {s.titre && (
-                  <h2 id={idTitre} className={repliee ? "sr-only" : "px-2 pb-1 text-[13px] font-semibold uppercase leading-[18px] tracking-wide text-texte-faible"}>
-                    {s.titre}
-                  </h2>
-                )}
-                <ul className="space-y-0.5" aria-labelledby={s.titre ? idTitre : undefined}>
-                  {s.entrees.map((e) => (
-                    <li key={e.href}>
-                      <LigneEntree e={e} chemin={chemin} repliee={repliee} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+          <ul className="space-y-0.5">
+            {rubriques.map((r) => {
+              if (!estPliable(r)) {
+                const cible = cibleRubrique(r);
+                return (
+                  <li key={r.id}>
+                    <LigneEntree e={cible} libelle={r.libelle} icone={r.icone} court={r.court} actif={cible.href === courant} repliee={repliee} />
+                  </li>
+                );
+              }
+              const ouverte = gardees[r.id] ?? rubriqueDeLaPageId === r.id;
+              return (
+                <li key={r.id} data-rubrique={r.id}>
+                  {repliee ? (
+                    <RubriqueFlottante r={r} courant={courant} ouverte={flotte === r.id} ouvrir={() => setFlotte(r.id)} fermer={() => setFlotte(null)} />
+                  ) : (
+                    <RubriquePliable r={r} courant={courant} ouverte={ouverte} bascule={(ouvrir) => ecrireRubriques({ ...gardees, [r.id]: ouvrir })} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
         <div className="shrink-0 border-t border-trait px-3 py-2">
@@ -155,7 +313,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
           <ul className="space-y-0.5" aria-labelledby={`${idBase}-compte`}>
             {NAV_PIED.map((e) => (
               <li key={e.href}>
-                <LigneEntree e={e} chemin={chemin} repliee={repliee} petit />
+                <LigneEntree e={e} actif={e.href === courant} repliee={repliee} petit />
               </li>
             ))}
           </ul>
@@ -166,11 +324,16 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
         <button
           type="submit"
           aria-label={repliee ? "Me déconnecter" : undefined}
-          className={cn("group relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium leading-4 text-texte-faible hover:bg-surface-2/70 hover:text-texte", repliee && "justify-center")}
+          className={cn("group relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium leading-4 text-texte-faible hover:bg-surface-2/70 hover:text-texte", repliee && "flex-col justify-center gap-0.5 px-0")}
         >
           <Icone nom="deconnexion" size={16} />
-          {!repliee && "Me déconnecter"}
-          {repliee && <Infobulle texte="Me déconnecter" />}
+          {repliee ? (
+            <span aria-hidden className="text-[10px] font-semibold leading-3">
+              Sortir
+            </span>
+          ) : (
+            "Me déconnecter"
+          )}
         </button>
       </form>
     </div>
