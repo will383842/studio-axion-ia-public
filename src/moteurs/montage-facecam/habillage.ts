@@ -19,7 +19,7 @@
 import { PALETTE } from "@/briques/charte/axion-2026";
 import type { EntreeComposition, RecetteComposition } from "@/briques/composition";
 import { TAILLE_SOUS_TITRES_REFERENCE_PX } from "@/briques/composition";
-import { dispositionQuiTient, GROUPEMENT_FACECAM, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
+import { dispositionQuiTient, GROUPEMENT_FACECAM, type MemoireCartesAuto, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
 import { calerCarteTous, miseEnPage, preparerCarteTous, type CarteMotionTous, type CodeSurMesure, type ParametresRenduCarte, type StyleMotion } from "@/briques/motion";
 import { grouperMots, recalerSurCoupes } from "@/briques/sous-titres/groupement";
 import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
@@ -69,6 +69,8 @@ export interface EntreeHabillageFacecam {
   dureeSec: number;
   /** Mots de la vidéo montée (temps du montage). */
   mots: MotHorodate[];
+  /** GV-MD-05a : mémoire des cartes figée sur la vidéo (absente : aucune). */
+  memoireCartes?: MemoireCartesAuto;
   /** Raccords du montage (s) : les groupes de sous-titres s'y calent. */
   coupesSec?: number[];
   /** Visage médian dans la piste montée (% de la hauteur) : yeux et bouche. */
@@ -117,7 +119,7 @@ export interface HabillageFacecam {
  * Cartes à poser : celles du monteur, puis les cartes automatiques (gestes de Will appliqués) qui ne les chevauchent
  * pas, par ordre d'apparition. Mêmes cartes, mêmes instants dans tous les formats.
  */
-export function cartesAPoser(e: Pick<EntreeHabillageFacecam, "mots" | "dureeSec" | "cartes" | "cartesAuto" | "cartesAutoRetirees">): { posees: CartePosee[]; cartesAuto: CarteAutoVue[] } {
+export function cartesAPoser(e: Pick<EntreeHabillageFacecam, "mots" | "dureeSec" | "cartes" | "cartesAuto" | "cartesAutoRetirees" | "memoireCartes">): { posees: CartePosee[]; cartesAuto: CarteAutoVue[] } {
   const r = cartesPosees(e);
   return { posees: r.posees, cartesAuto: r.vues };
 }
@@ -180,10 +182,10 @@ export function corrigerMots(mots: MotHorodate[], corrections: { ancien: string;
  * aussi les cartes automatiques posées (`auto`, livrées au monteur du chat) et la vue de chacune (`vues`, fiche
  * « Cartes et effets »). Mêmes cartes, mêmes instants dans tous les formats (`declinaisons.ts`).
  */
-export function cartesPosees(e: Pick<EntreeHabillageFacecam, "cartes" | "cartesAutoRetirees" | "cartesAuto" | "occupes" | "mots" | "dureeSec">): { posees: CartePosee[]; auto: CarteAutoFacecam[]; vues: CarteAutoVue[] } {
+export function cartesPosees(e: Pick<EntreeHabillageFacecam, "cartes" | "cartesAutoRetirees" | "cartesAuto" | "occupes" | "mots" | "dureeSec" | "memoireCartes">): { posees: CartePosee[]; auto: CarteAutoFacecam[]; vues: CarteAutoVue[] } {
   const monteur = e.cartes ?? [];
   // V6 P0 n° 9 : ni sur une carte du monteur, ni sur un passage occupé (effet spécial en plein écran).
-  const r = cartesAutoDeLaVideo(e.mots, e.dureeSec, e.cartesAuto ?? [], [...monteur, ...(e.occupes ?? [])], e.cartesAutoRetirees ?? []);
+  const r = cartesAutoDeLaVideo(e.mots, e.dureeSec, e.cartesAuto ?? [], [...monteur, ...(e.occupes ?? [])], e.cartesAutoRetirees ?? [], e.memoireCartes ?? {});
   const posees: CartePosee[] = [...monteur, ...r.posees].sort((a, b) => a.debutSec - b.debutSec);
   const auto: CarteAutoFacecam[] = r.vues.filter((v) => v.etat === "posee").map((v) => ({ id: v.idStable, debutSec: v.debutSec, finSec: v.finSec, modele: v.modele, texte: texteCarteMotion(v.carte) }));
   return { posees, auto, vues: r.vues };
