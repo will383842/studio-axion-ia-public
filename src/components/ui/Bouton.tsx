@@ -1,19 +1,26 @@
+"use client";
+
 import { Slot } from "radix-ui";
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { declarerBoutonPrincipal } from "@/lib/ecran-principal";
 import { Icone, type NomIcone } from "./Icone";
 import { PastilleEssai } from "./PastilleEssai";
 
-export type VarianteBouton = "principal" | "secondaire" | "fantome" | "contour" | "danger";
+export type VarianteBouton = "principal" | "secondaire" | "discret" | "fantome" | "contour" | "danger";
 export type TailleBouton = "md" | "lg" | "xl";
 
-const VARIANTES: Record<VarianteBouton, string> = {
+/** Variantes de la maquette M0 : un seul `principal` (orange plein) par écran ; `fantome` est l'ancien nom de `discret`. */
+const DISCRET = "bg-transparent text-accent hover:bg-accent-doux";
+export const VARIANTES_BOUTON: Record<VarianteBouton, string> = {
   principal: "bg-orange text-sur-orange shadow-orange hover:bg-orange-vif active:brightness-95",
   secondaire: "bg-surface-1 text-texte hover:bg-surface-2 border border-trait-fort",
-  fantome: "bg-transparent text-texte-doux hover:bg-surface-2 hover:text-texte",
-  contour: "bg-transparent text-texte border border-trait-fort hover:border-orange hover:text-orange-vif",
-  danger: "bg-brique-doux text-brique border border-brique/30 hover:bg-brique hover:text-sur-orange",
+  discret: DISCRET,
+  fantome: DISCRET,
+  contour: "bg-surface-1 text-orange-vif border-2 border-orange hover:bg-surface-2",
+  danger: "bg-surface-1 text-brique border border-brique hover:bg-brique-doux",
 };
+const VARIANTES = VARIANTES_BOUTON;
 
 const TAILLES: Record<TailleBouton, string> = {
   md: "min-h-11 px-4 text-sm gap-2",
@@ -30,6 +37,8 @@ export interface ProprietesBouton extends ButtonHTMLAttributes<HTMLButtonElement
   /** Action d'un fournisseur simulé : affiche la pastille ambre « Essai » (AV2.4-4). */
   essai?: boolean;
   pleineLargeur?: boolean;
+  /** Ne compte pas ce bouton principal dans la règle « un seul orange plein » (bouton caché ou secondaire de fait). */
+  sansDecompte?: boolean;
   /** Rend l'enfant (ex. <Link>) avec le style du bouton ; les icônes sont injectées dans l'enfant. */
   asChild?: boolean;
   children?: ReactNode;
@@ -37,12 +46,14 @@ export interface ProprietesBouton extends ButtonHTMLAttributes<HTMLButtonElement
 
 /** Bouton en pastille. Toujours ≥ 44 px de haut. Une seule variante « principal » par écran. */
 export const Bouton = forwardRef<HTMLButtonElement, ProprietesBouton>(function Bouton(
-  { variante = "principal", taille = "md", icone, iconeDroite, chargement, essai, pleineLargeur, asChild, className, children, disabled, type, ...props },
+  { variante = "principal", taille = "md", icone, iconeDroite, chargement, essai, pleineLargeur, asChild, sansDecompte, className, children, disabled, type, ...props },
   ref,
 ) {
+  const compte = variante === "principal" && !disabled && !chargement && !sansDecompte;
+  useEffect(() => (compte ? declarerBoutonPrincipal() : undefined), [compte]);
   const tailleIcone = taille === "xl" ? 20 : 18;
   const classes = cn(
-    "relative inline-flex select-none items-center justify-center rounded-full font-semibold transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-studio active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45",
+    "relative inline-flex select-none items-center justify-center rounded-full font-semibold transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-studio active:scale-[0.98] disabled:pointer-events-none disabled:border-surface-3 disabled:bg-surface-3 disabled:text-texte-faible disabled:shadow-none disabled:opacity-100",
     VARIANTES[variante],
     TAILLES[taille],
     pleineLargeur && "w-full",
