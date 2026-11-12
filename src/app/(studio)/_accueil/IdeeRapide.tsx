@@ -8,7 +8,7 @@ import { notifier } from "@/components/ui/Toast";
 import { ajouterIdeeAction } from "../actions";
 
 /** Champ « Une idée ? » de l'accueil : ajout en une ligne, puis un lien vers le carnet. */
-export function IdeeRapide() {
+export function IdeeRapide({ autoFocus = false, onEnregistre }: { autoFocus?: boolean; /** Appelée après l'enregistrement réussi (la fenêtre « Noter une idée » s'en sert pour se fermer). */ onEnregistre?: () => void } = {}) {
   const id = useId();
   const [texte, setTexte] = useState("");
   const [notee, setNotee] = useState(false);
@@ -24,7 +24,8 @@ export function IdeeRapide() {
             if (r.ok) {
               setTexte("");
               setNotee(true);
-              notifier.succes("Idée notée");
+              notifier.succes(onEnregistre ? "Idée rangée dans Écrire" : "Idée notée");
+              onEnregistre?.();
             } else notifier.erreur(r.message);
           });
         }}
@@ -41,6 +42,7 @@ export function IdeeRapide() {
             setTexte(e.target.value);
             setNotee(false);
           }}
+          autoFocus={autoFocus}
           placeholder="Une idée ?"
           maxLength={200}
           enterKeyHint="send"

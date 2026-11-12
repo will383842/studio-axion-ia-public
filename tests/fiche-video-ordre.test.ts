@@ -51,7 +51,9 @@ describe("page : l'ordre des zones et la liste des onglets", () => {
     expect(haut).toContain('libelle: "Durée"');
     expect(haut).toContain('libelle: "Vues"');
     expect(haut).not.toContain("chiffresCoutVideo");
-    expect(page).toContain("chiffresCoutVideo({ ...couts, coutEstime: v.coutEstime, fabricationSimulee, estDemo: v.estDemo })");
+    // Décision du fondateur : aucun prix dans le Studio ; les coûts ne sont plus calculés, la liste passée à l'onglet est vide.
+    expect(page).not.toContain("chiffresCoutVideo");
+    expect(page).toContain("const chiffresCout: ChiffreVideo[] = [];");
     expect(page).toMatch(/<OngletDetails\b[^>]*couts=\{chiffresCout\}/);
     expect(page).toContain("reseauxDeLaVideo(");
     expect(page).toMatch(/<SujetReplie\b/);

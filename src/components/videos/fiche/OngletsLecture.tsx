@@ -56,7 +56,7 @@ export function OngletScript({ script, formatId }: { script: Script | null; form
           );
         })}
       </ol>
-      <Link href={`/scripts/${script.id}`} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-sm font-semibold text-orange-vif hover:underline">
+      <Link href={`/scripts/${script.id}`} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-sm font-semibold text-accent hover:underline">
         <Icone nom="ecrire" size={16} />
         Ouvrir dans l&apos;atelier
       </Link>
@@ -106,7 +106,7 @@ export function OngletReglages({ commande, mentionIA, dureeLibelle, ratios }: { 
   const tuiles: { libelle: string; icone: NomIcone; valeur: string | null | undefined; detail?: string }[] = [
     { libelle: "Durée", icone: "horloge", valeur: dureeLibelle },
     { libelle: "Formats", icone: "grille", valeur: ratios.join(" · ") },
-    { libelle: "LUT", icone: "contraste", valeur: s?.lut === null ? null : s?.lut?.nom, detail: s?.lut ? `${s.lut.intensite} %` : undefined },
+    { libelle: "Rendu des couleurs", icone: "contraste", valeur: s?.lut === null ? null : s?.lut?.nom, detail: s?.lut ? `${s.lut.intensite} %` : undefined },
     { libelle: "Sous-titres", icone: "sous-titres", valeur: s?.sousTitres === null ? null : s?.sousTitres?.nom },
     { libelle: "Montage", icone: "ciseaux", valeur: s?.styleMontage?.nom },
     { libelle: "Son", icone: "son", valeur: s?.profilSon === null ? null : s?.profilSon?.nom },
@@ -130,7 +130,7 @@ export function OngletReglages({ commande, mentionIA, dureeLibelle, ratios }: { 
               {t.libelle}
             </p>
             <p className="mt-1 truncate text-sm font-semibold text-texte">{t.valeur === null ? "Coupé" : (t.valeur ?? "Par défaut")}</p>
-            {t.detail && <p className="text-xs tabular-nums text-orange-vif">{t.detail}</p>}
+            {t.detail && <p className="text-xs tabular-nums text-accent">{t.detail}</p>}
           </li>
         ))}
       </ul>
@@ -144,7 +144,7 @@ export function OngletReglages({ commande, mentionIA, dureeLibelle, ratios }: { 
         </div>
       )}
       <div className="flex items-center gap-3 rounded-2xl border border-trait bg-surface-1 p-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-orange-doux text-orange-vif">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-doux text-accent">
           <Icone nom="etincelles" size={17} />
         </span>
         <span className="min-w-0 flex-1">
@@ -229,7 +229,7 @@ export function OngletHistorique({ versions, publications, versionCouranteId }: 
       cle: v.id,
       contenu: (
         <>
-          <span className={cn("grid size-10 shrink-0 place-items-center rounded-full font-titre text-sm", v.id === versionCouranteId ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte-doux")}>V{v.numero}</span>
+          <span className={cn("grid size-10 shrink-0 place-items-center rounded-full font-titre text-sm", v.id === versionCouranteId ? "bg-accent text-sur-accent" : "bg-surface-2 text-texte-doux")}>V{v.numero}</span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-texte">{v.noteRetouche ?? (v.numero === 1 ? "Première version" : "Nouvelle version")}</span>
             <span className="text-xs text-texte-faible">

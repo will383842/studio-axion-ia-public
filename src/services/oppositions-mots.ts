@@ -5,6 +5,7 @@
 import "server-only";
 import { candidatsEmpreinte, contientEnTempsConstant, empreinteHeritee, empreintePersonne, ErreurEmpreinteIndisponible, ErreurIdentifiantInvalide, lireClesEmpreinte, type EspacePersonne, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { emettreJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
+import { racineDe } from "@/domaine/guide-reseau/cles-parcours";
 import { ETATS_EN_COURS } from "@/domaine/guide-reseau/etats-parcours";
 import { ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 
@@ -349,22 +350,44 @@ export async function personneOpposeePartout(
     return l as string[];
   };
   const touchees = new Set<string>();
-  for (const k of Object.keys(conv))
-    if (candidats.has(k) || propres(k).some((x) => candidats.has(x)))
-      touchees.add(k);
-  for (const [a, cible] of Object.entries(alias)) {
-    // Entrée mal formée : erreur FERMÉE, qu'elle concerne cette personne ou non (jamais ignorée en silence).
+  // Entrée mal formée de la table : erreur FERMÉE, qu'elle concerne cette personne ou non (jamais ignorée en silence).
+  for (const cible of Object.values(alias))
     if (typeof cible !== "string")
       throw new ErreurOppositionIllisible("conversations");
+  // Racines de dossier atteintes par une clé touchée (fermeture : une racine touchée touche tous ses voisins `racine|…`).
+  const racines = new Set<string>();
+  const toucher = (k: string): boolean => {
+    if (touchees.has(k)) return false;
+    touchees.add(k);
+    racines.add(racineDe(k));
+    return true;
+  };
+  const passer = (): boolean => {
+    let grandi = false;
+    for (const k of Object.keys(conv))
+      if (
+        candidats.has(k) ||
+        candidats.has(racineDe(k)) ||
+        racines.has(racineDe(k)) ||
+        propres(k).some((x) => candidats.has(x))
+      )
+        grandi = toucher(k) || grandi;
+    return grandi;
+  };
+  passer();
+  for (const [a, cible] of Object.entries(alias)) {
     if (!candidats.has(a)) continue;
     // Alias vers une conversation absente : ignoré, mais la cible reste un candidat (une opposition inscrite sous elle compte).
-    candidats.add(cible);
-    if (Object.hasOwn(conv, cible)) touchees.add(cible);
+    candidats.add(cible as string);
   }
+  // Point fixe borné : chaque tour ajoute au moins une clé touchée, sinon on s'arrête.
+  for (let tour = 0; tour <= Object.keys(conv).length + 1; tour++)
+    if (!passer()) break;
   let etat = false;
   let doute = false;
   for (const k of touchees) {
     candidats.add(k);
+    candidats.add(racineDe(k));
     for (const x of propres(k)) candidats.add(x);
     for (const [a, cible] of Object.entries(alias))
       if (cible === k) candidats.add(a);

@@ -44,7 +44,9 @@ import type { TransportSite } from "@/fournisseurs/site/types";
 import { nouvelId } from "@/lib/ids";
 import { ErreurOppositionIllisible, personneOpposeePartout } from "./oppositions-mots";
 import { cleIdempotenceOpaque, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
-import { depots, horodatage, journaliser, maintenant, sousVerrou } from "./_commun";
+import { depots, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { motsMultiplesActifs } from "./parcours-mots-multiples";
+import { MOTS_DECLENCHEURS_CONNUS } from "@/domaine/guide-reseau/crochet-zernio";
 
 /**
  * ⛔ `PARCOURS_MOT_ENABLED` reste ÉTEINT (valeur par défaut : absent) tant que l'ESSAI RÉEL du webhook Zernio n'a pas eu lieu
@@ -136,7 +138,8 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     const cles = k.ok ? { cleIdempotenceGuide: cleIdempotenceOpaque(k.courante, "guide", evt.idRun), cleIdempotenceOpposition: cleIdempotenceOpaque(k.courante, "opposition", evt.idRun) } : {};
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: evt.type, charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, ...cles, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null } };
   } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
-    const c = lireEvenementCommentaire(enveloppe);
+    // Réglage éteint : exactement comme avant (liste par défaut, aucune lecture du registre). Allumé : mots actifs du registre + GUIDE.
+    const c = (await motsMultiplesActifs()) ? lireEvenementCommentaire(enveloppe, await motsActifsDuRegistre()) : lireEvenementCommentaire(enveloppe);
     // Rien à déposer : pas de mot seul, une réponse (sauf une opposition, mot ou phrase de listes fermées, jamais le texte brut), ou notre propre réponse publique. Aucun traitement métier ici.
     if (!c || c.proprio || c.motSeul === null || (c.estReponse && !estMotOpposition(c.motSeul)) || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.commentaire", charge: { ...c, etat: "a_faire" } };
@@ -365,4 +368,20 @@ async function tenter(ev: EvenementFournisseur, lire: LecteurRuns, site: { trans
     await journaliser("parcours_mot", `ALERTE : le site refuse la signature (401) pour l'événement ${ev.idEvenement}. Vérifier ${VARIABLE_SECRET_SITE_GUIDES} (= GUIDES_RESEAU_HMAC_SECRET côté site) et l'horloge. Aucun secret n'est journalisé.`);
   }
   return { issue, code: c.genre === "termine" ? "200" : c.code };
+}
+
+/** Mots dont une ligne du registre est `actif`, plus la liste par défaut. Registre illisible : liste par défaut (jamais plus large). */
+async function motsActifsDuRegistre(): Promise<readonly string[]> {
+  try {
+    const registre = await lireParametre<unknown>("mots.registre", {});
+    if (!registre || typeof registre !== "object" || Array.isArray(registre)) return MOTS_DECLENCHEURS_CONNUS;
+    const mots = new Set<string>(MOTS_DECLENCHEURS_CONNUS);
+    for (const l of Object.values(registre as Record<string, unknown>)) {
+      const o = l as { mot?: unknown; etat?: unknown } | null;
+      if (o && typeof o === "object" && o.etat === "actif" && typeof o.mot === "string" && o.mot !== "STOP" && o.mot.length > 0) mots.add(o.mot);
+    }
+    return [...mots];
+  } catch {
+    return MOTS_DECLENCHEURS_CONNUS;
+  }
 }
