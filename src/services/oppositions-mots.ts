@@ -342,18 +342,23 @@ export async function personneOpposeePartout(
   const propres = (k: string): string[] => {
     const e = conv[k];
     const l = estObjet(e) ? e.alias : undefined;
-    return Array.isArray(l)
-      ? l.filter((x): x is string => typeof x === "string")
-      : [];
+    if (l === undefined) return [];
+    // Liste d'alias mal formée : erreur FERMÉE (jamais ignorée en silence).
+    if (!Array.isArray(l) || l.some((x) => typeof x !== "string"))
+      throw new ErreurOppositionIllisible("conversations");
+    return l as string[];
   };
   const touchees = new Set<string>();
   for (const k of Object.keys(conv))
     if (candidats.has(k) || propres(k).some((x) => candidats.has(x)))
       touchees.add(k);
   for (const [a, cible] of Object.entries(alias)) {
-    if (!candidats.has(a)) continue;
+    // Entrée mal formée : erreur FERMÉE, qu'elle concerne cette personne ou non (jamais ignorée en silence).
     if (typeof cible !== "string")
       throw new ErreurOppositionIllisible("conversations");
+    if (!candidats.has(a)) continue;
+    // Alias vers une conversation absente : ignoré, mais la cible reste un candidat (une opposition inscrite sous elle compte).
+    candidats.add(cible);
     if (Object.hasOwn(conv, cible)) touchees.add(cible);
   }
   let etat = false;
