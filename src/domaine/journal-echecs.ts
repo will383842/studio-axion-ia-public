@@ -54,6 +54,11 @@ export function familleDe(code: string): FamilleEchec {
   return "autre";
 }
 
+const DEVISE = String.raw`(?:[€$£]|(?:EUR|USD|GBP|euros?|dollars?|cr[ée]dits?)(?![A-Za-z]))`;
+const NOMBRE = String.raw`\d+(?:[.,]\d+)*`;
+/** Un nombre avec une devise : « 12.50 USD », « 3,20 € », « $5 », « 40 crédits ». */
+const MONTANT = new RegExp(String.raw`(?<![A-Za-z0-9.,])(?:${DEVISE}\s?${NOMBRE}|${NOMBRE}\s?${DEVISE})`, "gi");
+
 /**
  * Détail technique prêt à garder : 500 caractères au plus, et tout ce qui ressemble à une clé, un jeton ou un mot de
  * passe est retiré (remplacé par « [retiré] »).
@@ -72,7 +77,9 @@ export function nettoyerDetail(texte: string | null | undefined): string {
     // jeton signé (JWT)
     .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, retire)
     // toute longue suite opaque (hexadécimal, base64) de 24 caractères ou plus
-    .replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (m) => (/[0-9]/.test(m) || /[A-Z]/.test(m) ? retire : m));
+    .replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (m) => (/[0-9]/.test(m) || /[A-Z]/.test(m) ? retire : m))
+    // montants d'argent : nombre collé à un symbole ou à un code de devise, avant ou après (les nombres seuls restent)
+    .replace(MONTANT, "[montant masqué]");
   return net.slice(0, LONGUEUR_MAX_DETAIL);
 }
 
