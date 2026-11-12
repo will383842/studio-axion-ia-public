@@ -86,6 +86,8 @@ export interface EtatChaine {
   version: string;
   /** GV-MD-05b : historique des cartes figé au premier habillage ; une reprise ou une retouche refait le même choix. */
   memoireCartes?: MemoireCartesAuto;
+  /** GV-N2 : mots colorés validés à l'origine, posés par une retouche ; présents (même vides), ils remplacent le calcul depuis le script. */
+  emphaseValidee?: string[];
   travaux: Partial<Record<CleTravailChaine, SuiviTravail>>;
   coupes?: {
     mode: "texte" | "libre";
@@ -907,7 +909,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       // GV-MD-05b : historique des cartes lu UNE fois, figé dans l'état ; une lecture en panne ou une mémoire vide ne fige rien.
       const memoire = entrees.memoireCartes ?? etat.memoireCartes ?? (deps.memoireCartes ? await deps.memoireCartes().catch(() => undefined) : undefined);
       if (memoire && !entrees.memoireCartes && !etat.memoireCartes) etat.memoireCartes = memoire;
-      const emphase = emphaseDuScript(c);
+      const emphase = etat.emphaseValidee ?? emphaseDuScript(c);
       const h: HabillageFacecam = habillageFacecam({
         pisteMonteeCle: montage?.fichierCle ?? cle("montage.mov"),
         dureeSec,
