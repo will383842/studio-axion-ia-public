@@ -32,7 +32,7 @@ import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publicat
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { formulationsValidees, lireGardes, PARAM_VALIDATION_MERCI, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
-import { enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee, personneOpposeePartout } from "./oppositions-mots";
+import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee, personneOpposeePartout } from "./oppositions-mots";
 import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -185,21 +185,24 @@ const formesConversation = (cles: ClesOk, idBrut: string): string[] => [cles.cou
  * Une seule fonction du registre (`personneOpposeePartout`) : registre ET états de conversation, dans tous les espaces d'empreinte
  * (instagram, facebook…), avec la clé, les alias et les identifiants bruts de l'événement. Rend le jeton « non opposée » à passer au
  * port d'envoi, ou `null` : la personne est opposée quelque part, RIEN ne part, la conversation passe à « oppose » (données gardées,
- * rien supprimé) et le « stop » est mis en file pour le site. Vérification IMPOSSIBLE (lecture, clés, registre) : l'erreur est
+ * rien supprimé) (le « stop » est mis en file par l'appelant ou par la réconciliation). Vérification IMPOSSIBLE (lecture, clés, registre) : l'erreur est
  * PROPAGÉE (fermé) ; le passage reporte l'événement (`registre_illisible`) et on réessaiera. Jamais « non opposée » par défaut.
  * Un simple doute (M2 seulement) bloque l'envoi sans passer la conversation à « oppose ».
  */
 async function verifierPartout(env: Env, cle: string, charge: Record<string, unknown> | null, now: number, opts: { m2?: boolean } = {}): Promise<JetonNonOpposee | null> {
   const e = await lireEtat(cle);
   if (e?.etat === "oppose") return null;
+  // Relecture historique (clé + alias) d'abord : même résultat que la vérification unique, sur un sous-ensemble ; garde les contrôles existants.
+  if (await empreintesOpposees([cle, ...(e?.alias ?? [])], { env })) {
+    if (e) await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
+    return null;
+  }
   const c = charge ?? {};
   const bruts = [c.idAuteur, c.idExpediteur, c.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
   const v = await personneOpposeePartout({ idsBruts: bruts, empreintes: [cle, ...(e?.alias ?? [])] }, { env, douteBloque: opts.m2 === true });
   if (!v.opposee) return v.jeton;
   if (v.source !== "doute" && e) {
     await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
-    const k = lireClesEmpreinte(env);
-    if (k.ok) await mettreEnFileOpposition(cle, e, k.courante, now);
   }
   return null;
 }
@@ -743,7 +746,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   if (!(await verifierPartout(env, cle, ev.charge, now))) {
-    // Personne opposée (registre, autre réseau ou état) : la vérification passe l'état à « oppose » et met le « stop » en file.
+    // Personne opposée (registre, autre réseau ou état) : la vérification passe l'état à « oppose » ; le « stop » est mis en file ici.
+    await mettreEnFileOpposition(cle, etat, cles.courante, now);
     await clore(ev, "silence", "opposee");
     return "traite";
   }
