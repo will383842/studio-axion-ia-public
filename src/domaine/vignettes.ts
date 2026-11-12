@@ -2,6 +2,7 @@
  * VIGNETTES AXION V2 (lot 1), côté studio. PUR.
  * Ici : la garde du texte de couverture, la rotation des ambiances et des mises en page, la famille des générateurs.
  */
+import type { Miniature } from "@/domaine/types";
 import { interditsDans } from "@/domaine/qualite-script";
 import { interditsTousEcrivains } from "@/domaine/qualite-script/regles/interdits";
 import { normaliser } from "@/domaine/controles-script/texte";
@@ -17,6 +18,12 @@ export function estImageVideo(g: string | undefined): boolean {
 }
 /** Instant de la première image demandée au serveur (il choisit ensuite la première bonne image des 2 premières secondes). */
 export const INSTANT_PREMIERE_IMAGE_SEC = 0.05;
+/** Réglage (éteint par défaut) : poser un titre court sur la couverture de l'image de la vidéo. Allumé seulement quand Williams a dit oui. */
+export const REGLAGE_TITRE_COUVERTURE = "couverture.titreParDefaut" as const;
+/** Instant de la couverture en millisecondes (pour l'équipe qui publie) ; undefined s'il n'est pas connu. */
+export function instantCouvertureMs(m: Pick<Miniature, "instantSec">): number | undefined {
+  return m.instantSec === undefined || !Number.isFinite(m.instantSec) ? undefined : Math.round(m.instantSec * 1000);
+}
 export type GabaritMiniature = (typeof GABARITS_MINIATURE)[number];
 
 /** Motifs propres aux vignettes (la liste des écrivains n'est pas touchée), sur le texte normalisé. */

@@ -17,7 +17,7 @@
  * tiré du contenu d'origine) rangé dans `entrees.facecamMonteur.cartesAutoRetirees` : les deux gestes s'additionnent.
  */
 import { carteDepuisTextesTous, CONVENTION_TEXTES_TOUS, lireValeur, type CarteMotionTous, type IdModeleMotionTous } from "@/briques/motion";
-import { planifierCartesAuto, type MotCarte } from "@/briques/habillage-facecam";
+import { planifierCartesAuto, type MemoireCartesAuto, type MotCarte } from "@/briques/habillage-facecam";
 import type { CartePosee } from "./habillage";
 
 /** Geste de Will sur une carte automatique, gardé dans les entrées (temps de la PRISE : stable après une coupe). */
@@ -239,11 +239,11 @@ const chevauche = (a: { debutSec: number; finSec: number }, b: { debutSec: numbe
  * (`occupees`, temps du montage). Rend les cartes à poser (habillage) et la vue de chacune (fiche « Cartes »).
  * Une carte déplacée par Will passe avant les autres cartes automatiques (celle qu'elle recouvre est masquée).
  */
-export function cartesAutoDeLaVideo(mots: MotCarte[], dureeSec: number, ajustements: AjustementCarteAutoMonte[] = [], occupees: { debutSec: number; finSec: number }[] = [], retireesChat: string[] = []): { posees: CartePosee[]; vues: CarteAutoVue[] } {
+export function cartesAutoDeLaVideo(mots: MotCarte[], dureeSec: number, ajustements: AjustementCarteAutoMonte[] = [], occupees: { debutSec: number; finSec: number }[] = [], retireesChat: string[] = [], memoire: MemoireCartesAuto = {}): { posees: CartePosee[]; vues: CarteAutoVue[] } {
   const parCle = new Map(ajustements.map((a) => [a.cle, a]));
   const retirees = new Set(retireesChat);
   const vus = new Set<string>();
-  const candidates = planifierCartesAuto(mots, dureeSec).map((p, i) => {
+  const candidates = planifierCartesAuto(mots, dureeSec, {}, memoire).map((p, i) => {
     const cle = cleCarteAuto(p.carte);
     const idStable = idCarteAuto(p.carte);
     // Vérif V1 : deux cartes identiques ne sont posées qu'une fois (la seconde est masquée).

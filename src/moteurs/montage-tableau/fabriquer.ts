@@ -465,6 +465,8 @@ export interface SortieFaite {
   controleFichier: ControleSortie;
   /** Alertes de la sortie (un bruitage introuvable retiré, par exemple) ; absent : aucune. */
   alertes?: AlerteQualite[];
+  /** Groupes de sous-titres donnés à la composition (le .srt les reprend tels quels) ; absent : journal d'avant. */
+  sousTitres?: SegmentSousTitres[];
 }
 
 /** Compte rendu d'un lancement. */
@@ -1312,7 +1314,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         }
         const faite = etat[format.ratio] as Extract<EtatComposition, { phase: "faite" }>;
         dire(`  Montage (${format.libelle}) : vidéo déposée.`);
-        return { sortieCle: faite.sortieCle, masterCle: faite.masterCle, vignetteCle: faite.vignetteCle, mesures: faite.mesures ?? {}, alertes: faite.alertes };
+        return { sortieCle: faite.sortieCle, masterCle: faite.masterCle, vignetteCle: faite.vignetteCle, mesures: faite.mesures ?? {}, alertes: faite.alertes, sousTitres: base.segments };
       },
       store,
       nomEtape,
@@ -1373,6 +1375,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       ...(typeof tailleOctets === "number" && tailleOctets > 0 ? { tailleOctets } : {}),
       controles,
       controleFichier,
+      ...(composition.sousTitres?.length ? { sousTitres: composition.sousTitres } : {}),
     };
   }
 }

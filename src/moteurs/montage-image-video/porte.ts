@@ -57,6 +57,8 @@ export interface VerdictPorteIV {
   phrase: string;
   /** Une phrase par défaut bloquant (vide si prête). */
   phrases: string[];
+  /** Seulement si refusée : « faute » (une ligne bloquante échouée, ou un défaut général) ; « non-fait » (toutes les lignes qui bloquent n'ont pas pu être vérifiées : panne d'outil, mesure absente) → reprise possible sans rien repayer. */
+  nature?: "faute" | "non-fait";
   /** Mentions orange, non bloquantes (« un peu longue », hors charte, calculs de l'image, débit). */
   mentions: string[];
   /** Défauts de la vidéo entière (réseau sans version, version manquante…). */
@@ -174,8 +176,10 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     ...e.versions.flatMap((v) => (relues.get(v.version)?.indications ?? []).map((i) => `${nomReseaux(v.reseaux)} · ${i}`)),
   ];
   const ok = phrases.length === 0;
+  const faute = generaux.length > 0 || jugees.some((j) => j.lignes.some((l) => bloque(l) && l.etat !== "non-fait"));
   return {
     ok,
+    ...(ok ? {} : { nature: faute ? ("faute" as const) : ("non-fait" as const) }),
     statut: ok ? "prete" : "refusee",
     phrase: ok
       ? `La vidéo est prête pour ${nomReseaux(verdicts.map((x) => x.reseau))}${mentions.length ? ` (${mentions.length} remarque${mentions.length > 1 ? "s" : ""} sans gravité)` : ""}.`
