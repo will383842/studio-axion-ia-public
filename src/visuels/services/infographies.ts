@@ -2,13 +2,15 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { PROFILS_RESEAUX, type Reseau } from "@/briques/visuels/reseaux";
 import type { InfographieSpecType } from "@/domaine/visuels/schema-infographie";
-import type { LigneCout } from "@/domaine/types";
+import type { Fichier, LigneCout } from "@/domaine/types";
+import type { DemandeDepotIV, IssueDepotIV } from "@/services/image-video-ecran";
 import { executerRendu } from "@/fournisseurs/rendu/attente";
 import { identifiantSur, segmentStockage } from "@/fournisseurs/rendu/commun";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { libererReservation, reserverCredits } from "@/services/credits";
 import { exigerGenerateurAllume } from "../interrupteur";
 import {
+  FORMATS_INFOGRAPHIE,
   ID_COMPOSITION_INFOGRAPHIE,
   miseEnPageInfographie,
   type Gabarit,
@@ -96,4 +98,64 @@ export async function produireInfographie(demande: DemandeInfographie, deps: Dep
     await liberer(travailId, "liberee");
     throw e;
   }
+}
+
+/* ---- Pont vers « Image → vidéo » (L7-34) ---------------------------------------------------------------------------------- */
+
+/**
+ * Le fichier d'entrée d'« Image → vidéo » pour une infographie DÉJÀ rendue : la clé de stockage du rendu, rien n'est rendu de nouveau.
+ * La taille est inconnue ici (0) ; le contrôle de poids du dépôt la laisse passer, l'image rendue étant celle du studio.
+ */
+export function fichierImageVideo(rendu: InfographieRendue, maintenant: () => string = () => new Date().toISOString()): Fichier {
+  const { largeur, hauteur } = FORMATS_INFOGRAPHIE[rendu.ratio];
+  const date = maintenant();
+  return {
+    id: `inf-${rendu.empreinte.slice(0, 32)}`,
+    cleStockage: rendu.cle,
+    nom: `infographie-${rendu.reseau}.jpg`,
+    mime: "image/jpeg",
+    taille: 0,
+    largeur,
+    hauteur,
+    origine: "fabrication",
+    statut: "pret",
+    creeLe: date,
+    modifieLe: date,
+  };
+}
+
+export interface OptionsPontImageVideo {
+  /** Réseaux de la vidéo (ceux du format « Image → vidéo »). */
+  reseaux: string[];
+  offre?: string;
+  titre?: string;
+  /** Montant déjà confirmé à l'écran (centimes) : transmis tel quel, jamais décidé ici. */
+  accordCentimes?: number;
+}
+
+/**
+ * Un clic = une vidéo : le dépôt reçoit le fichier de l'infographie rendue. Deux clics en même temps sur la même infographie et les
+ * mêmes réseaux partagent un seul dépôt ; une fois fini (refus compris), un nouveau clic reste possible. Aucun rendu n'est soumis.
+ */
+export function creerPontImageVideo(deposer: (demande: DemandeDepotIV, fichier: Fichier) => Promise<IssueDepotIV>) {
+  const enCours = new Map<string, Promise<IssueDepotIV>>();
+  return (rendu: InfographieRendue, options: OptionsPontImageVideo): Promise<IssueDepotIV> => {
+    if (!rendu.cle) return Promise.reject(new Error("Cette infographie n'a pas encore d'image"));
+    const cle = `${rendu.empreinte}|${[...options.reseaux].sort().join(",")}`;
+    const deja = enCours.get(cle);
+    if (deja) return deja;
+    const fichier = fichierImageVideo(rendu);
+    const demande: DemandeDepotIV = {
+      fichierId: fichier.id,
+      reseaux: options.reseaux,
+      largeur: fichier.largeur!,
+      hauteur: fichier.hauteur!,
+      ...(options.offre ? { offre: options.offre } : {}),
+      ...(options.titre ? { titre: options.titre } : {}),
+      ...(typeof options.accordCentimes === "number" ? { accordCentimes: options.accordCentimes } : {}),
+    };
+    const p = deposer(demande, fichier).finally(() => enCours.delete(cle));
+    enCours.set(cle, p);
+    return p;
+  };
 }
