@@ -11,7 +11,8 @@ import type { MotifRefus, Visuel } from "@/domaine/visuels/visuel";
 import type { Depot } from "@/domaine/depots";
 import { phrasesPaquetSession } from "../texte/phrases-paquet";
 import type { ResultatRendu } from "./rendu";
-import type { VersionReseau } from "./rendu-reseaux";
+import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
+import { versionsPourStockage, type VersionReseau } from "./rendu-reseaux";
 
 /**
  * Service des carrousels (V3-C) : cycle de vie d'un visuel, de la demande à la validation. TOUT est injecté (dépôt, texte,
@@ -232,6 +233,32 @@ export async function deposerSession(contenu: string, deps: DependancesCarrousel
   return demarrer({ type: "session" }, { type: "paquet-session", contenu }, "Carrousel depuis une session", createHash("sha256").update(contenu).digest("hex"), deps);
 }
 
+/**
+ * « Préparer pour les réseaux » (L2-05) : fiche VALIDÉE seulement. Instagram/Facebook = N JPEG sans PDF ; LinkedIn = UN document PDF.
+ * Renseigne `reseaux` et `versions` ; le statut ne bouge pas. Générateur éteint ou fiche non validée : refus avant tout rendu.
+ */
+export async function preparerPourReseaux(id: string, reseaux: readonly Reseau[], deps: DependancesCarrousels): Promise<void> {
+  await exigerAllume(deps);
+  const demandes = [...new Set(reseaux)];
+  if (demandes.length === 0 || demandes.some((r) => !Object.hasOwn(PROFILS_RESEAUX, r))) throw refus("TRANSITION_REFUSEE", "Choisissez au moins un réseau parmi LinkedIn, Instagram et Facebook");
+  const verifier = (v: Visuel): CarrouselSpecType => {
+    if (v.corbeilleLe) throw refus("TRANSITION_REFUSEE", "Ce carrousel est à la corbeille : restaurez-le d'abord");
+    if (v.statut !== "valide" && v.statut !== "programme") throw refus("TRANSITION_REFUSEE", "Validez d'abord ce carrousel : seule une fiche validée se prépare pour les réseaux");
+    if (!v.spec) throw refus("TRANSITION_REFUSEE", "Ce carrousel n'a pas de texte à préparer");
+    return v.spec;
+  };
+  const spec = verifier(await lireVisuel(id, deps));
+  const versions = await deps.rendreReseaux(spec, demandes);
+  for (const v of versions) {
+    // Contrat : LinkedIn = un PDF ; Meta (Instagram, Facebook) = des images seules.
+    if (v.cadre === "linkedin" ? !v.pdfCle : v.pdfCle !== null) throw new Error("Le rendu pour les réseaux ne respecte pas le format attendu");
+  }
+  await deps.verrou(async () => {
+    verifier(await lireVisuel(id, deps));
+    await deps.depot.modifier(id, { reseaux: demandes, versions: versionsPourStockage(versions), modifieLe: deps.maintenant() });
+  });
+}
+
 const PHRASE_ECHEC_FIXE = "Le rendu a échoué : réessayez avec « Relancer le rendu »";
 /** Phrases écrites par le rendu pour l'équipe ; tout autre message (adresse, chemin, pile) n'est jamais recopié. */
 const PHRASES_CONNUES = [/^Le serveur du studio n'a pas fini à temps\.$/];
@@ -324,7 +351,12 @@ export async function lancerRendu(id: string, deps: DependancesCarrousels): Prom
 }
 
 export async function valider(id: string, deps: DependancesCarrousels): Promise<void> {
-  await deps.verrou(() => transiter(id, "valide", { valideLe: deps.maintenant() }, deps));
+  await deps.verrou(async () => {
+    // Seul « à valider » se valide : depuis « programmé », la table permet de revenir à « validé » (déprogrammer), mais ce n'est pas cette action.
+    const v = await lireVisuel(id, deps);
+    if (v.statut !== "a_valider") throw refus("TRANSITION_REFUSEE", `Un carrousel « ${LIBELLES_STATUT[v.statut]} » ne se valide pas`);
+    await transiter(id, "valide", { valideLe: deps.maintenant() }, deps);
+  });
 }
 
 /** `page` est en base 0, comme `pages[].index` de la fiche : un entier de 0 à nombre de pages - 1. */
