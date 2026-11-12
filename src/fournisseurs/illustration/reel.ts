@@ -44,10 +44,10 @@ function versResultat(c: CandidatBanque): ResultatBanque {
   };
 }
 
-export function creerFournisseurIllustrationReel(cles: ClesIllustration, options: { deposer?: Deposer; tauxUsdEur?: number; plafondUsdCentimes?: number; depenseDeja?: OptionsFal["depenseDeja"]; journal?: OptionsFal["journal"] } = {}): FournisseurIllustrationEtendu {
+export function creerFournisseurIllustrationReel(cles: ClesIllustration, options: { deposer?: Deposer; tauxUsdEur?: number; plafondUsdCentimes?: number; auDepassementDuPlafond?: OptionsFal["auDepassementDuPlafond"]; reserverQuota?: OptionsFal["reserverQuota"]; depenseDeja?: OptionsFal["depenseDeja"]; journal?: OptionsFal["journal"] } = {}): FournisseurIllustrationEtendu {
   const deposer = options.deposer ?? depotParDefaut(stockageEnvironnement);
   const taux = options.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT;
-  const fabrication = cles.fal ? creerFabricationFal({ cle: cles.fal, deposer, tauxUsdEur: taux, plafondUsdCentimes: options.plafondUsdCentimes, depenseDeja: options.depenseDeja, journal: options.journal }) : undefined;
+  const fabrication = cles.fal ? creerFabricationFal({ cle: cles.fal, deposer, tauxUsdEur: taux, plafondUsdCentimes: options.plafondUsdCentimes, auDepassementDuPlafond: options.auDepassementDuPlafond, reserverQuota: options.reserverQuota, depenseDeja: options.depenseDeja, journal: options.journal }) : undefined;
   const sources = [cles.pexels && "Pexels", cles.pixabay && "Pixabay", cles.fal && "fal.ai"].filter(Boolean).join(", ");
 
   return {
