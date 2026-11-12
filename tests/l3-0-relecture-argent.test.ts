@@ -89,9 +89,6 @@ async function nouvelleGeneration(): Promise<GenerationScript> {
   return g;
 }
 
-/** L2-13 (critère 5) : un budget d'argent n'est plus un refus ; il alerte (cloche) et se journalise (type « budget »). */
-const lignesBudget = async () => (await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message.startsWith("Budget indicatif dépassé")).map((e) => e.message);
-
 /** Pire cas de l'écriture en centimes d'euro, et un budget de l'Usine où UNE écriture tient mais pas l'écriture + 11 centimes. */
 async function budgetOuUneSeuleTient() {
   const t = await gc.taux();
@@ -103,16 +100,13 @@ async function budgetOuUneSeuleTient() {
 }
 
 describe("A. l'écriture commandée par l'Usine compte dans le budget du mois", () => {
-  it("écriture en vol : une fabrication de l'Usine qui ferait dépasser le budget n'est plus refusée : alerte (cloche) + journal « usine-atteint »", async () => {
+  it("écriture en vol : une fabrication de l'Usine qui ferait dépasser le budget est refusée (BUDGET_MENSUEL_ATTEINT)", async () => {
     const claude = await brancherClaudeEnVol();
     const { fabrication } = await budgetOuUneSeuleTient();
     const g = await nouvelleGeneration();
     const ecriture = gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" });
     await vi.waitFor(() => expect(claude.appels()).toBe(1));
-    expect(await lignesBudget()).toHaveLength(0);
-    await expect(credits.reserverPourUsine(estimation(fabrication), true, "Cette vidéo", demande())).resolves.toBeUndefined();
-    expect((await lignesBudget()).some((m) => m.includes("(usine-atteint)"))).toBe(true);
-    expect((await depots().notifications.lister()).length).toBeGreaterThan(0);
+    await expect(credits.reserverPourUsine(estimation(fabrication), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
     claude.liberer();
     expect(await ecriture).toMatchObject({ ok: true, simule: false });
   });
@@ -129,22 +123,23 @@ describe("A. l'écriture commandée par l'Usine compte dans le budget du mois", 
     await expect(credits.reserverPourUsine(estimation(fabrication), true, "Cette vidéo", demande())).resolves.toBeUndefined();
   });
 
-  it("course : une écriture et une fabrication de l'Usine lancées ENSEMBLE passent toutes deux, le dépassement est alerté et journalisé", async () => {
+  it("course : une écriture et une fabrication de l'Usine lancées ENSEMBLE ne passent pas toutes deux", async () => {
     const claude = await brancherClaudeEnVol();
     const { fabrication } = await budgetOuUneSeuleTient();
     const g = await nouvelleGeneration();
     const ecriture = gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" });
-    const issueFab = await credits.reserverPourUsine(estimation(fabrication), true, "Cette vidéo", demande()).then(
+    const fab = credits.reserverPourUsine(estimation(fabrication), true, "Cette vidéo", demande()).then(
       () => "passe",
       (e: { code?: string }) => e.code,
     );
+    // L'écriture n'a pas appelé Claude : son refus (budget-usine) ne laisse pas l'appel en vol.
+    const issueFab = await fab;
     claude.liberer();
     const issueEcriture = await ecriture;
-    expect(issueFab).toBe("passe");
-    expect(issueEcriture).toMatchObject({ ok: true, simule: false });
-    // les deux comptent dans le budget : une des deux a dépassé, l'alerte et la ligne de journal existent
-    expect((await lignesBudget()).some((m) => m.includes("(usine-atteint)"))).toBe(true);
-    expect((await depots().notifications.lister()).length).toBeGreaterThan(0);
+    const passes = [issueFab === "passe", issueEcriture.ok === true].filter(Boolean).length;
+    expect(passes).toBe(1);
+    if (issueFab !== "passe") expect(issueFab).toBe("BUDGET_MENSUEL_ATTEINT");
+    else expect(issueEcriture).toMatchObject({ ok: false, arret: "budget-usine" });
   });
 
   it("défaut manuel inchangé : sans origine, l'écriture part sans budget de l'Usine et s'engage aussi", async () => {
@@ -205,12 +200,9 @@ describe("B. `origine` sur les sites de dépense restants", () => {
   });
 
   it("l'aiguillage : « usine » exige le budget de l'Usine, sans origine la dépense manuelle est inchangée", async () => {
-    await expect(credits.verifierEtReserverSelonOrigine("usine", estimation(10), true, "Cette vidéo", demande())).resolves.toBeUndefined();
-    expect((await lignesBudget()).filter((m) => m.includes("(usine-absent)"))).toHaveLength(1);
+    await expect(credits.verifierEtReserverSelonOrigine("usine", estimation(10), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
     await expect(credits.verifierEtReserverSelonOrigine(undefined, estimation(10), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     await expect(credits.verifierEtReserverSelonOrigine("studio", estimation(10), true, "Cette vidéo", demande())).resolves.toBeUndefined();
-    // seul l'appel « usine » a laissé une trace : les deux autres n'ajoutent rien
-    expect((await lignesBudget()).filter((m) => m.includes("(usine-absent)"))).toHaveLength(1);
   });
 });
 
