@@ -4,6 +4,7 @@
  * ouverture, aucune signature ; une formulation non validée ou retirée ne part jamais ; un « stop » l'emporte toujours.
  * Données 100 % fictives ; port et site FAUX ; le VRAI constructeur de corps d'envoi sert à chaque texte envoyé.
  */
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -98,7 +99,7 @@ describe("1 · dictionnaire", () => {
     expect(GROUPES_MP["adresse-refusee"]).toEqual([...V_AR]);
     for (const g of Object.values(GROUPES_MP)) for (const v of g) expect(brut(v) && (brut(v) as { statut?: string }).statut, v).toBe("actif");
     const d = JSON.parse(readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url), "utf8"));
-    expect(d.version).toBe(4); // série 5 : 13 formulations ajoutées (version 3 → 4)
+    expect(d.version).toBe(5); // série 5 : 13 formulations (3 → 4), série 6 : 12 de plus (4 → 5)
     expect(d).not.toHaveProperty("mention_ouverture");
   });
   it("aucune entrée supprimée : les anciens textes restent, marqués « retire »", () => {
@@ -196,7 +197,7 @@ describe("3 · 1 000 caractères", () => {
   it("le constructeur d'envoi (POST réel) refuse un texte privé hors dictionnaire sans appel réseau", async () => {
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
     const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
-    expect((await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "c1", texte: "x".repeat(1001), cle: "k" })).statut).toBe("refuse");
+    expect((await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "c1", texte: "x".repeat(1001), cle: "k" })).statut).toBe("refuse");
     expect(faux.appels).toHaveLength(0);
   });
 });
@@ -245,14 +246,14 @@ describe("5 · formulation figée dans l'état, M1 avec lien", () => {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "m" } }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
       const lien = lienSigne(v);
-      const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: rendreM1(v, lien), cle: `k-${v}` });
+      const res = await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: rendreM1(v, lien), cle: `k-${v}` });
       expect(res.statut, v).toBe("envoye");
       expect(faux.appels.filter((a) => a.methode === "POST"), v).toHaveLength(1);
     }
     for (const v of ["mp-adresse-refusee-v2", "mp-m1-v2-a"]) {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
-      const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: rendreTexteMp(v as never, { mot: "GUIDE", titre: TITRE, lien: lienSigne("mp-m1-v4-1") })!, cle: "k" });
+      const res = await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: rendreTexteMp(v as never, { mot: "GUIDE", titre: TITRE, lien: lienSigne("mp-m1-v4-1") })!, cle: "k" });
       expect(res.statut, v).toBe("refuse");
       expect(faux.appels, v).toHaveLength(0);
     }
@@ -303,7 +304,7 @@ describe("6 · adresse refusée : figée AVANT le POST, rejeu identique, un seul
     for (const v of V_AR) {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "m" } }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
-      expect((await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: brut(v).texte, cle: v })).statut, v).toBe("envoye");
+      expect((await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: brut(v).texte, cle: v })).statut, v).toBe("envoye");
       expect(faux.appels.filter((a) => a.methode === "POST"), v).toHaveLength(1);
     }
   });
@@ -543,10 +544,10 @@ describe("10 · écran /mots", () => {
     const html = rendu(vue);
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
     for (const t of [...M1_VALIDES, ...AR_VALIDES]) expect(html, t.slice(0, 30)).toContain(esc(t));
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13);
-    expect(html.match(/Non validée/g)).toHaveLength(7 + 13);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12);
+    expect(html.match(/Non validée/g)).toHaveLength(7 + 13 + 12);
     const html2 = rendu(vue2);
     expect(html2.match(/Validée/g)).toHaveLength(1);
-    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13);
+    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13 + 12);
   });
 });
