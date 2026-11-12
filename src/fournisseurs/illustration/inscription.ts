@@ -8,30 +8,7 @@
  */
 import type { FournisseurIllustration } from "../types";
 import type { TraceDemandeFal } from "./fal";
-import { ErreurIllustration } from "./depot";
 import { clesDepuisEnv, creerFournisseurIllustrationReel } from "./reel";
-import type { FabricationParEtapes } from "./types";
-
-/**
- * L2-13 : quota de QUANTITÉ de l'usine avant toute soumission (origine « usine » seulement ; le fondateur n'est jamais
- * bloqué). Quota atteint : refus sans aucun envoi, sans montant. Si l'envoi échoue sans être parti, l'unité est rendue.
- */
-function avecQuotaUsine(f: FabricationParEtapes): FabricationParEtapes {
-  return {
-    ...f,
-    async soumettre(d) {
-      const { reserverQuota } = await import("@/services/plafond-fournisseur");
-      const reservation = await reserverQuota("fal", d.genre, d.cleIdempotence);
-      if (!reservation) throw new ErreurIllustration({ code: "quota", reessayable: false, message: "Limite de fabrication automatique atteinte : rien n'est envoyé." });
-      try {
-        return await f.soumettre(d);
-      } catch (e) {
-        if (!(e as { soumissionIncertaine?: boolean }).soumissionIncertaine) await reservation.liberer();
-        throw e;
-      }
-    },
-  };
-}
 
 export function illustrationsReelles(env: Record<string, string | undefined> = process.env): Record<string, FournisseurIllustration> {
   const cles = clesDepuisEnv(env);
@@ -46,6 +23,8 @@ export function illustrationsReelles(env: Record<string, string | undefined> = p
   };
   // L2-13 : `FAL_PLAFOND_USD` reste une constante technique du serveur ; au-delà, seul l'appel de l'usine est refusé.
   const auDepassementDuPlafond = async () => (await import("@/services/plafond-fournisseur")).decisionAuDepassementTechnique("fal");
-  const reel = creerFournisseurIllustrationReel(cles, { plafondUsdCentimes: Number.isFinite(plafond) && plafond > 0 ? plafond * 100 : undefined, auDepassementDuPlafond, depenseDeja, journal });
-  return { reel: reel.fabrication ? { ...reel, fabrication: avecQuotaUsine(reel.fabrication) } : reel };
+  // L2-13 : quota de QUANTITÉ de l'usine, posé dans la fabrication elle-même : soumettre, generer et animer le traversent.
+  const reserverQuota = async (genre: "image" | "clip", cleIdempotence: string) => (await import("@/services/plafond-fournisseur")).reserverQuota("fal", genre, cleIdempotence);
+  const reel = creerFournisseurIllustrationReel(cles, { plafondUsdCentimes: Number.isFinite(plafond) && plafond > 0 ? plafond * 100 : undefined, auDepassementDuPlafond, reserverQuota, depenseDeja, journal });
+  return { reel };
 }
