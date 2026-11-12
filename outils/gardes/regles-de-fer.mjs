@@ -111,7 +111,9 @@ const MONTANT = /\d[\d  .,]*\s?(?:€|\$|EUR\b|USD\b|euros?\b|dollars?\b)|(?:€
 // porte que le symbole (symbole sur la ligne suivante) ; formateurs de montant du Studio (src/lib/montants.ts) et
 // composants de coût ou de budget ; devise désignée dans un format monétaire.
 const SYMBOLE_EURO = new RegExp(SYMBOLE);
-const SYMBOLE_APRES_EXPRESSION = /\}\s*(?:&nbsp;|&#160;|\s)*(?:EUR\b|USD\b|euros?\b|\$(?=[`'"<\s]|$))/i;
+const SYMBOLE_APRES_EXPRESSION = /\}\s*(?:&nbsp;|&#160;|\s)*(?:EUR\b|USD\b|euros?\b|dollars?\b|\$(?=[`'"<\s]|$))/i;
+// Unité ou symbole SEUL (chaîne, élément, ligne) : « $ », « euros », « dollars », "EUR", "USD" (relecture opus-v1-y1).
+const UNITE_SEULE = /['"`]\s*(?:\$|euros|dollars)\s*['"`]|>\s*(?:\$|euros|dollars)\s*<|['"`](?:EUR|USD)['"`]|^\s*(?:&nbsp;|\s)*(?:euros|dollars)\s*(?:<\/\w+>\s*)*[.,;)]*\s*$/i;
 const DOLLAR_AVANT_EXPRESSION = /\$\s?§\{|\$\s?\{/;
 const FORMATEUR_MONTANT = /\b(?:formaterMontant|usdVersEur|centimesAuSuperieur|centimesDuPlafond)\b|\beuros\(|\bEncartCout\b|\bJaugeBudget\b|lib\/montants/;
 const FORMAT_MONNAIE = /style\s*:\s*['"`]currency['"`]|\bcurrency\s*:|\bdevise\s*:\s*['"`]?(?:EUR|USD)/i;
@@ -119,7 +121,7 @@ const FORMAT_MONNAIE = /style\s*:\s*['"`]currency['"`]|\bcurrency\s*:|\bdevise\s
 // d'interpolation sont neutralisées d'abord pour qu'un « $ » collé à une accolade ne passe pas pour un dollar.
 const estMontant = (l) => {
   const n = l.replaceAll("${", "§{");
-  return MONTANT.test(n) || SYMBOLE_EURO.test(n) || SYMBOLE_APRES_EXPRESSION.test(n) || /\$\s?§\{/.test(n) || FORMATEUR_MONTANT.test(n) || FORMAT_MONNAIE.test(n);
+  return MONTANT.test(n) || SYMBOLE_EURO.test(n) || SYMBOLE_APRES_EXPRESSION.test(n) || /\$\s?§\{/.test(n) || FORMATEUR_MONTANT.test(n) || FORMAT_MONNAIE.test(n) || UNITE_SEULE.test(n);
 };
 const BUFFER_DATE = /(?:\b18\/11\b|\b20\/11\b|2026-11-18|2026-11-20|\b(?:18|20)\s+novembre\b)/i;
 // Dépôt visé par une commande : refusé sauf le dépôt du workflow lui-même (${{ github.repository }}).

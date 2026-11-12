@@ -184,3 +184,32 @@ describe("dépôt réel (git ls-files, sans réseau)", () => {
     expect(sortie.defauts).toEqual([]);
   }, 120000);
 });
+
+describe("correction après relecture opus-v1-y1 : trous « dollars » et mots seuls (constat 1)", () => {
+  const DOLLARS = ["dol", "lars"].join("");
+  const EUROS = MOT;
+  const c = (contenu: string) => regles([{ chemin: "src/components/x.tsx", contenu }]);
+  const formes: [string, string][] = [
+    ["{n} dollars", "<p>{n} " + DOLLARS + "</p>"],
+    ["`${n} dollars`", "const t = `${n} " + DOLLARS + "`;"],
+    ["'$' + n", "const t = '" + USD + "' + n;"],
+    ["{'$'}{n}", "<p>{'" + USD + "'}{n}</p>"],
+    ["<span>$</span>{n}", "<p><span>" + USD + "</span>{n}</p>"],
+    ["tarif + ' euros'", "const t = tarif + ' " + EUROS + "';"],
+    ["tarif + \" dollars\"", "const t = tarif + \" " + DOLLARS + "\";"],
+    ["{n} puis euros à la ligne suivante", "<p>\n{n}\n" + EUROS + "\n</p>"],
+    ["{n} puis dollars à la ligne suivante", "<p>{n}\n  " + DOLLARS + "</p>"],
+    ["<Prix unite=\"EUR\" />", "<Prix valeur={n} unite=\"EUR\" />"],
+    ["<Prix unite=\"USD\" />", "<Prix valeur={n} unite=\"USD\" />"],
+    ["<b>euros</b>", "<p><b>" + EUROS + "</b>{n}</p>"],
+  ];
+  for (const [nom, contenu] of formes) {
+    it("rouge : " + nom, () => { expect(c(contenu)).toContain("montant"); });
+  }
+  it("vert : texte ordinaire sans montant", () => {
+    expect(c("<p>{nombre} messages et " + "un euro" + "-système</p>")).not.toContain("montant");
+    expect(c("const t = `Bonjour ${nom}`;")).not.toContain("montant");
+    expect(c("const dollarsPerdus = 0;")).not.toContain("montant");
+    expect(c("<p>Les " + DOLLARS + " ne s'affichent pas ici</p>")).not.toContain("montant");
+  });
+});
