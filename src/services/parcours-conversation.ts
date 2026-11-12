@@ -32,7 +32,7 @@ import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publicat
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { formulationsValidees, lireGardes, PARAM_VALIDATION_MERCI, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
-import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee, personneOpposeePartout } from "./oppositions-mots";
+import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposeePartout } from "./oppositions-mots";
 import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -174,7 +174,16 @@ async function ecrireEtat(cle: string, f: (e: Conversation | undefined) => Conve
     return suivant;
   });
 }
-const patcher = (cle: string, patch: Partial<Conversation>) => ecrireEtat(cle, (e) => (e ? { ...e, ...patch } : undefined));
+/** Fusionne sous verrou. Un état `oppose` n'est JAMAIS rétrogradé : un « stop » écrit entre la vérification et l'envoi survit (seul un patch `oppose` change l'état d'une personne opposée). */
+const patcher = (cle: string, patch: Partial<Conversation>) =>
+  ecrireEtat(cle, (e) => {
+    if (!e) return undefined;
+    // Un patch qui voudrait quitter « oppose » est écrit SANS son champ `etat`.
+    const garde = e.etat === "oppose" && patch.etat !== undefined && patch.etat !== "oppose";
+    const suite: Partial<Conversation> = { ...patch };
+    if (garde) delete suite.etat;
+    return { ...e, ...suite };
+  });
 
 type ClesOk = Extract<EtatCles, { ok: true }>;
 /** Formes d'un identifiant brut sous TOUTES les clés connues, la courante en premier. Jamais la forme héritée (les conversations n'en ont jamais eu). */
@@ -1095,9 +1104,11 @@ export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number 
     const ids = [ch.idAuteur, ch.idExpediteur, ch.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
     for (const id of ids) {
       if (formesConversation(cles, id).some((f) => clesOpposees.has(f))) return true;
-      if (await personneOpposee(id, ESPACE_CONVERSATION, { env })) return true;
     }
-    return false;
+    // Tous espaces d'empreinte (registre ET états de conversation), identifiants bruts + empreintes ; doute = opposée ; erreur = PROPAGÉE (fermé : on ne réduit pas).
+    if (ids.length === 0) return false;
+    const v = await personneOpposeePartout({ idsBruts: ids, empreintes: ids.flatMap((id) => formesConversation(cles, id)) }, { env, douteBloque: true });
+    return v.opposee;
   };
   const iso = new Date(now).toISOString();
   const evenements = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && reductible(e, { idsMessagesProteges: proteges }, now));
@@ -1310,7 +1321,14 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
         await journaliser("parcours_conversation", "Merci : confirmation_illisible (ignorée, sans accusé).");
         continue;
       }
-      const issue = await traiterConfirmation(r, d, env, k, now);
+      let issue: "envoye" | "fait" | "garde";
+      try {
+        issue = await traiterConfirmation(r, d, env, k, now);
+      } catch {
+        // Vérification impossible (registre illisible…) : ce merci n'est PAS envoyé (fermé), les autres continuent ; le site le re-proposera.
+        await journaliser("parcours_conversation", "Merci : verification_impossible (non envoyé, sans accusé).");
+        continue;
+      }
       if (issue === "garde") return rapport; // la garde a bloqué : ni envoi ni accusé, le site re-proposera
       if (issue === "envoye") rapport.envoyes++;
     }

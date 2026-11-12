@@ -4,6 +4,7 @@
  * ouverture, aucune signature ; une formulation non validée ou retirée ne part jamais ; un « stop » l'emporte toujours.
  * Données 100 % fictives ; port et site FAUX ; le VRAI constructeur de corps d'envoi sert à chaque texte envoyé.
  */
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -196,7 +197,7 @@ describe("3 · 1 000 caractères", () => {
   it("le constructeur d'envoi (POST réel) refuse un texte privé hors dictionnaire sans appel réseau", async () => {
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
     const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
-    expect((await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "c1", texte: "x".repeat(1001), cle: "k" })).statut).toBe("refuse");
+    expect((await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "c1", texte: "x".repeat(1001), cle: "k" })).statut).toBe("refuse");
     expect(faux.appels).toHaveLength(0);
   });
 });
@@ -245,14 +246,14 @@ describe("5 · formulation figée dans l'état, M1 avec lien", () => {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "m" } }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
       const lien = lienSigne(v);
-      const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: rendreM1(v, lien), cle: `k-${v}` });
+      const res = await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: rendreM1(v, lien), cle: `k-${v}` });
       expect(res.statut, v).toBe("envoye");
       expect(faux.appels.filter((a) => a.methode === "POST"), v).toHaveLength(1);
     }
     for (const v of ["mp-adresse-refusee-v2", "mp-m1-v2-a"]) {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
-      const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: rendreTexteMp(v as never, { mot: "GUIDE", titre: TITRE, lien: lienSigne("mp-m1-v4-1") })!, cle: "k" });
+      const res = await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: rendreTexteMp(v as never, { mot: "GUIDE", titre: TITRE, lien: lienSigne("mp-m1-v4-1") })!, cle: "k" });
       expect(res.statut, v).toBe("refuse");
       expect(faux.appels, v).toHaveLength(0);
     }
@@ -303,7 +304,7 @@ describe("6 · adresse refusée : figée AVANT le POST, rejeu identique, un seul
     for (const v of V_AR) {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "m" } }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
-      expect((await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: brut(v).texte, cle: v })).statut, v).toBe("envoye");
+      expect((await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: brut(v).texte, cle: v })).statut, v).toBe("envoye");
       expect(faux.appels.filter((a) => a.methode === "POST"), v).toHaveLength(1);
     }
   });
