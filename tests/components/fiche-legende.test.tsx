@@ -104,7 +104,7 @@ describe("FicheLegende", () => {
   it("aucun libellé interdit, aucun prix, aucun jargon", async () => {
     const { FicheLegende } = await import("@/components/visuels-texte/FicheLegende");
     const html = renderToStaticMarkup(<FicheLegende id={ID} reseau="instagram" texte="" erreur="TROP_LONG" enregistrer={async () => {}} reecrire={async () => {}} />);
-    const visible = html.replace(/<[^>]+>/g, " ");
+    const visible = html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<[^>]+>/g, " ");
     expect(interditsPost(visible)).toEqual([]);
     expect(visible).not.toMatch(/€|\$|prix|tarif|\bIA\b|prompt/i);
   });
