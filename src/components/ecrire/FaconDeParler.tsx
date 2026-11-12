@@ -62,7 +62,7 @@ function Pastilles({ titre, icone, ton, mots, onChange, placeholder }: { titre: 
             onBlur={ajouter}
             placeholder={placeholder}
             enterKeyHint="done"
-            className="min-h-11 w-full rounded-full border border-dashed border-trait-fort bg-transparent px-3.5 text-[16px] text-texte outline-none placeholder:text-texte-faible focus:border-orange"
+            className="min-h-11 w-full rounded-full border border-dashed border-trait-fort bg-transparent px-3.5 text-[16px] text-texte outline-none placeholder:text-texte-faible focus:border-accent"
           />
         </li>
       </ul>

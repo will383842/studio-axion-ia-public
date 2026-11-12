@@ -19,7 +19,9 @@ describe("Réglages : rubriques", () => {
     const places = RUBRIQUES.map((r) => PAGE.indexOf(`id="${r.id}"`));
     expect(places.every((p) => p > 0)).toBe(true);
     expect([...places].sort((a, b) => a - b)).toEqual(places);
-    expect(PAGE).toContain("<details");
+    // Maquette M6 et décision de Williams du 12/11 : les cartes sont pliables (le pli est dans CartePliante) ; Avancé n'a plus de pli global.
+    expect(readFileSync("src/components/reglages/CartePliante.tsx", "utf8")).toContain("<details");
+    expect(PAGE).toContain("CartePliante");
   });
 
   it("aucun libellé visible interdit : rubriques et titres de cartes", () => {
@@ -35,5 +37,16 @@ describe("Réglages : rubriques", () => {
     expect(carrousels).not.toMatch(/API payante|simulation|0 \$/);
     const drive = readFileSync("src/app/(studio)/reglages/google-drive/page.tsx", "utf8");
     expect(drive).toContain('titre="Importer depuis Google Drive"');
+  });
+});
+
+describe("Réglages : maquette M6 (12/11)", () => {
+  it("contrôle de production, veille et aide du chat sont dans Avancé, la base de connaissances reste à part, Migration sans lien", () => {
+    const avance = PAGE.slice(PAGE.indexOf('id="avance"'));
+    for (const id of ["controle-production", "outils", "aide-chat", "entretien"]) expect(avance, id).toContain(`id="${id}"`);
+    expect(PAGE).toContain('href="/reglages/base-connaissances"');
+    expect(PAGE).not.toMatch(/href="\/reglages\/migration/);
+    expect(PAGE).toContain('id="migration"');
+    expect(PAGE).toContain('id="credits-claude"');
   });
 });

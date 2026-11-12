@@ -58,6 +58,8 @@ export async function alerterJetonsZernio(comptes: readonly CompteZernio[], inst
 }
 
 export const INTERVALLE_SYNCHRO_ZERNIO_MS = 15 * 60_000;
+/** L0-11 · écart toléré entre la date du Studio et celle du diffuseur : au-delà (strictement), la date du Studio fait foi. */
+export const ECART_DATE_TOLERE_MS = 60_000;
 const LECTURES_PAR_TOUR = 50;
 
 /** Relu à CHAQUE requête (jamais mis en cache) : l'arrêt agit tout de suite. */
@@ -147,6 +149,9 @@ export interface EtatLuZernio {
   /** Statut Zernio « partial » sans verdict pour ce compte, ou « cancelled ». */
   note?: "partielle" | "annulee";
 }
+
+/** L0-11 · heure de Paris (jamais UTC) pour toute date montrée dans le Studio. */
+const heureParis = (ms: number): string => new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(ms).replace(",", " à");
 
 const idCompte = (pf: PlateformePostZernio): string => (typeof pf.accountId === "string" ? pf.accountId : pf.accountId._id);
 
@@ -249,10 +254,29 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
     if (etat.statut === "echec") changement.erreur = etat.erreur;
     if (etat.statut === "publiee" && p.erreur) changement.erreur = undefined;
-    if (post.scheduledFor && etat.statut === "programmee") changement.date = post.scheduledFor;
-    if (!(await ecrireSiInchange(p, changement)) || etat.statut === p.statut) continue;
-    r.changees++;
+    // L0-11 : la date du Studio fait foi, la synchro ne l'écrase jamais. Celle du diffuseur est rangée dans `dateExterne`.
+    let ecartDate: { studio: number; diffuseur: number } | null = null;
+    if (etat.statut === "programmee") {
+      const diffuseur = typeof post.scheduledFor === "string" ? Date.parse(post.scheduledFor) : NaN;
+      const studio = Date.parse(p.date);
+      if (Number.isFinite(diffuseur)) {
+        const ecarte = Number.isFinite(studio) && Math.abs(diffuseur - studio) > ECART_DATE_TOLERE_MS;
+        if (ecarte && p.dateExterne !== post.scheduledFor) {
+          changement.dateExterne = post.scheduledFor;
+          ecartDate = { studio, diffuseur };
+        } else if (!ecarte && Number.isFinite(studio) && p.dateExterne) changement.dateExterne = undefined; // écart résorbé
+      }
+    }
+    if (!(await ecrireSiInchange(p, changement))) continue;
     const nom = obtenirReseau(p.reseau).nom;
+    if (ecartDate) {
+      // Cloche seulement (jamais de push ni d'e-mail) : une fois par date relue chez le diffuseur.
+      const phrase = `${nom} : la date du Studio (${heureParis(ecartDate.studio)}) est gardée ; le diffuseur indique ${heureParis(ecartDate.diffuseur)}. Corrigez-la dans le Studio ou chez le diffuseur.`;
+      await journaliser("publication", phrase, entite);
+      await creerNotification({ type: "echec", titre: "Date différente chez le diffuseur", message: phrase, lien, estDemo: p.estDemo }, { cloche: true });
+    }
+    if (etat.statut === p.statut) continue;
+    r.changees++;
     if (etat.statut === "publiee") {
       if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);

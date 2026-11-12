@@ -12,12 +12,9 @@ const cheminRemotion = (() => {
     return "remotion";
   }
 })();
-vi.mock("../../studio-rendu/compositions/commune/polices/InterDisplay-Black.ttf", () => ({ default: "inter-display-black.ttf" }));
-vi.mock("../../studio-rendu/compositions/commune/polices/Inter-Medium.ttf", () => ({ default: "inter-medium.ttf" }));
-vi.mock("../../studio-rendu/compositions/commune/polices/Inter-SemiBold.ttf", () => ({ default: "inter-semibold.ttf" }));
-vi.mock("../../studio-rendu/compositions/commune/polices/Inter-Bold.ttf", () => ({ default: "inter-bold.ttf" }));
+vi.mock("../../studio-rendu/compositions/commune/polices/Manrope-Variable.ttf", () => ({ default: "manrope-variable.ttf" }));
 
-describe("police des titres (Inter Display Black) : comportement sans navigateur", () => {
+describe("police des titres (Manrope) : comportement sans navigateur", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.doMock(cheminRemotion, () => remotion);
@@ -31,7 +28,7 @@ describe("police des titres (Inter Display Black) : comportement sans navigateur
   it("un FontFace qui rejette : le rejet se propage et cancelRender est appelé une seule fois", async () => {
     vi.stubGlobal("FontFace", class { load() { return Promise.reject(new Error("404")); } });
     const { policeTitrePrete } = await import("../../studio-rendu/compositions/visuels/polices");
-    await expect(policeTitrePrete()).rejects.toThrow(/Police Inter Display Black illisible : 404/);
+    await expect(policeTitrePrete()).rejects.toThrow(/Police Manrope illisible : 404/);
     await expect(policeTitrePrete()).rejects.toThrow(/illisible/);
     expect(remotion.cancelRender).toHaveBeenCalledTimes(1);
     expect(remotion.continueRender).not.toHaveBeenCalled();
@@ -42,27 +39,28 @@ describe("police des titres (Inter Display Black) : comportement sans navigateur
     const { policeTitrePrete } = await import("../../studio-rendu/compositions/visuels/polices");
     await policeTitrePrete();
     expect(remotion.continueRender).toHaveBeenCalledWith(7);
-    expect(remotion.delayRender).toHaveBeenCalledWith("Police Inter Display Black", { timeoutInMilliseconds: 30_000 });
+    expect(remotion.delayRender).toHaveBeenCalledWith("Police Manrope", { timeoutInMilliseconds: 30_000 });
     expect(DELAI_DELAYRENDER_MS).toBe(30_000);
     expect(DELAI_DELAYRENDER_MS).toBeGreaterThan(DELAI_POLICE_MS);
   });
 
-  it("Inter : un FontFace qui rejette fait échouer le rendu une seule fois, même avec trois graisses", async () => {
+  it("texte courant : un FontFace qui rejette fait échouer le rendu une seule fois, même si titres et texte sont demandés", async () => {
     vi.stubGlobal("FontFace", class { load() { return Promise.reject(new Error("404")); } });
-    const { policeInterPrete } = await import("../../studio-rendu/compositions/visuels/polices");
-    await expect(policeInterPrete()).rejects.toThrow(/Police Inter illisible : 404/);
-    await expect(policeInterPrete()).rejects.toThrow(/illisible/);
+    const { policeInterPrete, policeTitrePrete } = await import("../../studio-rendu/compositions/visuels/polices");
+    await expect(policeTitrePrete()).rejects.toThrow(/illisible/);
+    await expect(policeInterPrete()).rejects.toThrow(/Police Manrope illisible : 404/);
     expect(remotion.cancelRender).toHaveBeenCalledTimes(1);
     expect(remotion.continueRender).not.toHaveBeenCalled();
   });
 
-  it("Inter : les trois graisses chargées (plus l'espace fine insécable du Bold), continueRender une fois, delayRender explicite de 30 s", async () => {
-    const graisses: string[] = [];
-    vi.stubGlobal("FontFace", class { constructor(_f: string, _u: string, d: { weight: string; unicodeRange?: string }) { graisses.push(d.unicodeRange ? `${d.weight} ${d.unicodeRange}` : d.weight); } load() { return Promise.resolve(this); } });
-    const { policeInterPrete } = await import("../../studio-rendu/compositions/visuels/polices");
+  it("texte courant : une seule face variable (200 à 800), sans face de repli, continueRender une fois, delayRender explicite de 30 s", async () => {
+    const faces: string[] = [];
+    vi.stubGlobal("FontFace", class { constructor(_f: string, _u: string, d: { weight: string; unicodeRange?: string }) { faces.push(d.unicodeRange ? `${d.weight} ${d.unicodeRange}` : d.weight); } load() { return Promise.resolve(this); } });
+    const { policeInterPrete, policeTitrePrete } = await import("../../studio-rendu/compositions/visuels/polices");
     await policeInterPrete();
-    expect(graisses.sort()).toEqual(["500", "600", "700", "700 U+202F"]);
+    await policeTitrePrete();
+    expect(faces).toEqual(["200 800"]);
     expect(remotion.continueRender).toHaveBeenCalledTimes(1);
-    expect(remotion.delayRender).toHaveBeenCalledWith("Police Inter", { timeoutInMilliseconds: 30_000 });
+    expect(remotion.delayRender).toHaveBeenCalledWith("Police Manrope", { timeoutInMilliseconds: 30_000 });
   });
 });

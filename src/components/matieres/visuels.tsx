@@ -45,7 +45,7 @@ export function ChoixType({ valeur, onChange, compact, className = "-mx-5 px-5" 
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-full border font-semibold transition-colors",
               compact ? "min-h-10 px-3 text-[13px]" : "min-h-11 px-3.5 text-sm",
-              actif ? "border-orange bg-orange text-sur-orange" : "border-trait bg-surface-1 text-texte hover:bg-surface-2",
+              actif ? "border-accent bg-accent text-sur-accent" : "border-trait bg-surface-1 text-texte hover:bg-surface-2",
             )}
           >
             <Icone nom={ICONE_MATIERE[t]} size={15} />

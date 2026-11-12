@@ -2,12 +2,11 @@ import Link from "next/link";
 import { CarteBrouillon } from "@/components/creation/CarteBrouillon";
 import { Apparition } from "@/components/ui/Apparition";
 import { Carrousel } from "@/components/ui/Carrousel";
-import { EnTeteSection } from "@/components/ui/EnTetePage";
+import { EnTetePage, EnTeteSection } from "@/components/ui/EnTetePage";
+import { Bouton } from "@/components/ui/Bouton";
 import { EtatVide } from "@/components/ui/EtatVide";
-import { Section } from "@/components/ui/Section";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { CarteVideo } from "@/components/videos/CarteVideo";
-import { listerFormatsActifs } from "@/formats";
 import { cn } from "@/lib/cn";
 import { dateLongue } from "@/lib/dates";
 import { resumeAccueil } from "@/services/accueil";
@@ -17,8 +16,7 @@ import { BandeauCredits } from "./_accueil/BandeauCredits";
 import { CarteCredits } from "./_accueil/CarteCredits";
 import { CarteCreditClaude } from "./_accueil/CarteCreditClaude";
 import { EnCours } from "./_accueil/EnCours";
-import { IdeeRapide } from "./_accueil/IdeeRapide";
-import { TuilesEcrire } from "./_accueil/TuilesEcrire";
+import { NoterIdee } from "./_accueil/NoterIdee";
 import { compteursGenerateur } from "@/services/generateur";
 import { compterMesuresASaisir } from "@/services/mesures";
 import { exigerSession } from "@/services/auth";
@@ -35,7 +33,7 @@ function salutation(): string {
 
 /**
  * ACCUEIL (B.8 #2 + AV2.4-3) — niveau de finition 1.
- * Mobile : une colonne, la grande carte « Nouvelle vidéo » d'abord. Ordinateur : la vie des vidéos à gauche, le jour et les réglages à droite.
+ * Refonte R4 (maquette M1, décision de Williams du 12/11) : trois blocs, « À faire maintenant », « En cours », « Dernières vidéos ». « Écrire » et « Votre studio » ne sont plus des blocs : leurs alertes passent dans « À faire maintenant ».
  */
 export default async function PageAccueil() {
   await exigerSession();
@@ -43,193 +41,175 @@ export default async function PageAccueil() {
       console.error("[accueil] crédit Claude restant illisible", e);
       return null;
     })]);
-  const actifs = listerFormatsActifs();
   const aujourdhui: { libelle: string; nombre: number; icone: NomIcone; href: string }[] = [
     // « Vidéos » : les tuiles d'Écrire comptent des SCRIPTS sous les mêmes mots (E2E-1 n° 8).
     { libelle: "Vidéos à relire", nombre: r.aujourdhui.nbARelire, icone: "oeil", href: "/videos?etape=a_relire" },
     { libelle: "Vidéos à programmer", nombre: r.aujourdhui.nbAProgrammer, icone: "calendrier", href: "/calendrier" },
     { libelle: "Publiées aujourd'hui", nombre: r.aujourdhui.publicationsDuJour.length, icone: "megaphone", href: "/calendrier" },
   ];
-  const pret: { libelle: string; ok: boolean; icone: NomIcone; href: string }[] = [
-    { libelle: "Visage", ok: r.pret.visage, icone: "visage", href: "/personnages" },
-    { libelle: "Voix", ok: r.pret.voix, icone: "micro", href: "/personnages" },
-    { libelle: "LUT", ok: r.pret.lut, icone: "contraste", href: "/bibliotheque/lut" },
-    { libelle: "Logo", ok: r.pret.logo, icone: "certifie", href: "/bibliotheque/logo" },
+  // Ce qui manque pour une vraie vidéo (avant : le bloc « Votre studio »). 12/11 : « LUT » devient « Rendu des couleurs ».
+  const manques = [
+    { libelle: "Visage", ok: r.pret.visage, href: "/personnages" },
+    { libelle: "Voix", ok: r.pret.voix, href: "/personnages" },
+    { libelle: "Rendu des couleurs", ok: r.pret.lut, href: "/bibliotheque/lut" },
+    { libelle: "Logo", ok: r.pret.logo, href: "/bibliotheque/logo" },
+  ].filter((p) => !p.ok);
+  // Les anciennes tuiles d'Écrire deviennent des lignes d'action, seulement quand il y a quelque chose à faire (maquette M1, 12/11).
+  const lignes: { cle: string; href: string; message: string; ton?: "brique" | "ambre" }[] = [
+    ...r.alertes.map((al) => ({ cle: al.id, href: al.lien, message: al.message, ton: al.ton })),
+    ...(ecrire.aRelire > 0 ? [{ cle: "scripts-a-relire", href: "/ecrire?etat=a-relire", message: `${ecrire.aRelire} ${ecrire.aRelire === 1 ? "script à relire" : "scripts à relire"}` }] : []),
+    ...(ecrire.manqueMatiere > 0 ? [{ cle: "manque-matiere", href: "/ecrire?etat=il-manque-une-matiere", message: `Il manque une matière (${ecrire.manqueMatiere})`, ton: "ambre" as const }] : []),
+    ...(ecrire.pretAFabriquer > 0 ? [{ cle: "pret-a-fabriquer", href: "/ecrire?etat=pret-a-fabriquer", message: `Prêt à fabriquer (${ecrire.pretAFabriquer})` }] : []),
+    ...(ecrire.aProgrammer > 0 ? [{ cle: "scripts-a-programmer", href: "/ecrire?etat=a-programmer", message: `Scripts à programmer (${ecrire.aProgrammer})` }] : []),
+    ...(ecrire.aRanger > 0 ? [{ cle: "a-ranger", href: "/videos/a-ranger", message: `À ranger (${ecrire.aRanger})` }] : []),
+    ...(mesuresASaisir > 0 ? [{ cle: "mesures", href: "/mesures", message: mesuresASaisir === 1 ? "1 mesure à saisir" : `${mesuresASaisir} mesures à saisir` }] : []),
+    ...manques.map((m) => ({ cle: `manque-${m.libelle}`, href: m.href, message: `Il manque : ${m.libelle.toLowerCase()}` })),
   ];
-  const nbPret = pret.filter((p) => p.ok).length;
+  const visibles = lignes.slice(0, 3);
+  const repliees = lignes.slice(3);
+  // « Rien ne vous attend » n'apparaît jamais au-dessus d'une tuile « Aujourd'hui » non vide.
+  const nbAttente = lignes.length + facecamAEnvoyer.length + (r.aujourdhui.nbARelire > 0 ? 1 : 0) + (r.aujourdhui.nbAProgrammer > 0 ? 1 : 0);
+  const nbFab = r.enCours.length;
+  const fab = nbFab === 1 ? "une vidéo est en fabrication" : `${nbFab} vidéos sont en fabrication`;
+  const phrase =
+    nbAttente > 0
+      ? `${nbAttente === 1 ? "Une chose vous attend" : `${nbAttente} choses vous attendent`}${nbFab > 0 ? ` et ${fab}` : ""}.`
+      : nbFab > 0
+        ? `Rien ne vous attend, ${fab}.`
+        : "Rien ne vous attend. C'est le bon moment pour lancer une vidéo.";
 
   return (
-    <div className="space-y-8">
-      <Apparition>
-        <p className="text-sm font-semibold capitalize text-texte-faible">{dateLongue(new Date().toISOString())}</p>
-        <h1 className="mt-1 text-[32px] leading-tight text-texte sm:text-4xl">{salutation()}</h1>
-      </Apparition>
+    <div>
+      <EnTetePage
+        surTitre={<span className="capitalize">{dateLongue(new Date().toISOString())}</span>}
+        titre={salutation()}
+        sousTitre={phrase}
+        actions={
+          <>
+            <NoterIdee />
+            <Bouton variante="secondaire" icone="calendrier" asChild>
+              <Link href="/calendrier">Voir le calendrier</Link>
+            </Bouton>
+          </>
+        }
+      />
 
-      <BandeauCredits cartes={credits.cartes} />
+      <div className="space-y-10">
+        <section aria-labelledby="titre-a-faire">
+          <h2 id="titre-a-faire" className="mb-3 text-lg text-texte">
+            À faire maintenant
+          </h2>
+          <div className="space-y-4">
+            <BandeauCredits cartes={credits.cartes} />
 
-      <Apparition index={1}>
-        {/* Le seul bouton terracotta plein de l'écran : le rond « + ». */}
-        <Link
-          href="/nouvelle"
-          className="group relative isolate block overflow-hidden rounded-[24px] border border-trait bg-surface-1 p-6 shadow-carte transition-transform duration-300 ease-studio hover:-translate-y-0.5 sm:p-8"
-        >
-          <div className="flex items-end justify-between gap-4">
-            <div className="min-w-0">
-              {/* Vérif V3 : 40 px fixes ne tenaient pas à 390 px (« NOUVELL / E ») ; la taille suit la largeur. */}
-              <p className="titre-affiche text-[clamp(28px,9vw,40px)] text-texte sm:text-6xl">
-                Nouvelle
-                <br />
-                <span>vidéo</span>
-              </p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {actifs.map((f) => (
-                  <span key={f.id} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-semibold text-texte-doux">
-                    <Icone nom={f.icone} size={13} className="text-texte-faible" />
-                    {f.nom}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <span className="grid size-16 shrink-0 place-items-center rounded-full bg-orange text-sur-orange shadow-orange transition-transform duration-300 group-hover:rotate-90 sm:size-20">
-              <Icone nom="plus" size={32} strokeWidth={2.4} />
-            </span>
+            {/* Plan facecam v4 (lot D) : envoi en pause et vidéos face caméra à envoyer (rien sinon). */}
+            <RappelsEnvoi aEnvoyer={facecamAEnvoyer} />
+
+            <ul className="space-y-2">
+              {visibles.map((l) => (
+                <li key={l.cle}>
+                  <LigneAction href={l.href} ton={l.ton} message={l.message} />
+                </li>
+              ))}
+            </ul>
+            {repliees.length > 0 && (
+              <details className="group">
+                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte">
+                  <span className="group-open:hidden">{repliees.length === 1 ? "Voir l'autre chose à faire" : `Voir les ${repliees.length} autres choses à faire`}</span>
+                  <span className="hidden group-open:inline">Montrer seulement les 3 premières</span>
+                </summary>
+                <ul className="mt-2 space-y-2">
+                  {repliees.map((l) => (
+                    <li key={l.cle}>
+                      <LigneAction href={l.href} ton={l.ton} message={l.message} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            <Aujourdhui elements={aujourdhui} />
           </div>
-        </Link>
-      </Apparition>
+        </section>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-        <div className="min-w-0 space-y-8">
-          <Section id="a-faire" titre="À faire maintenant" sansCarte>
-            <div className="space-y-4">
-              {/* Plan facecam v4 (lot D) : envoi en pause et vidéos face caméra à envoyer (rien sinon). */}
-              <RappelsEnvoi aEnvoyer={facecamAEnvoyer} />
+        <section aria-label="En cours">
+          {nbFab > 0 ? (
+            // Le titre et son compteur vivent DANS la liste en direct : ils suivent les fabrications (E2E-1 n° 26).
+            <EnCours initial={r.enCours} />
+          ) : (
+            <>
+              <EnTeteSection titre="En cours" />
+              <p className="text-[15px] text-texte-doux">Aucune vidéo en fabrication. Dès que vous en lancez une, vous suivez son avancement ici.</p>
+            </>
+          )}
+        </section>
 
-              {r.alertes.length > 0 && (
-                <ul className="space-y-2">
-                  {r.alertes.map((a, i) => (
-                    <li key={a.id}>
-                      <Apparition index={i + 2}>
-                        <Link
-                          href={a.lien}
-                          className={cn(
-                            "flex min-h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-colors",
-                            a.ton === "brique" ? "border-brique/30 bg-brique-doux text-brique hover:border-brique/60" : "border-ambre/30 bg-ambre-doux text-ambre hover:border-ambre/60",
-                          )}
-                        >
-                          <Icone nom="attention" size={18} className="shrink-0" />
-                          <span className="flex-1">{a.message}</span>
-                          <Icone nom="chevron-droite" size={16} className="shrink-0" />
-                        </Link>
-                      </Apparition>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {r.enCours.length > 0 && (
-                // Le titre et son compteur vivent DANS la liste en direct : ils suivent les fabrications (E2E-1 n° 26).
-                <EnCours initial={r.enCours} />
-              )}
-
-              <Aujourdhui elements={aujourdhui} />
-            </div>
-          </Section>
-
-          {/* Générateur de scripts (lot G1b) : les vues rapides d'Écrire, puis l'idée rapide. */}
-          <Section id="ecrire" titre="Écrire" sansCarte action={<LienToutVoir href="/ecrire" />}>
-            <div className="space-y-4">
-              <TuilesEcrire c={{ ...ecrire, mesuresASaisir }} />
-              <IdeeRapide />
-            </div>
-          </Section>
-
-          <Section id="vos-videos" titre="Vos vidéos" sansCarte>
-            <div className="space-y-6">
-              {r.brouillons.length > 0 && (
-                <div>
-                  <EnTeteSection niveau={3} titre="Brouillons" compteur={r.brouillons.length} lien={{ href: "/videos?vue=brouillons" }} />
-                  <Carrousel libelle="Brouillons" largeurElement="w-[46%] sm:w-52">
-                    {r.brouillons.map((v) => (
-                      <CarteBrouillon key={v.id} video={v} />
-                    ))}
-                  </Carrousel>
-                </div>
-              )}
-
+        <section aria-label="Dernières vidéos">
+          <div className="space-y-6">
+            {r.brouillons.length > 0 && (
               <div>
-                <EnTeteSection niveau={3} titre="Dernières vidéos" lien={r.dernieres.length ? { href: "/videos" } : undefined} />
-                {r.dernieres.length ? (
-                  <Carrousel libelle="Dernières vidéos" largeurElement="w-[44%] sm:w-48">
-                    {r.dernieres.map((v, i) => (
-                      <CarteVideo key={v.id} video={v} ratioForce="9:16" prioritaire={i < 2} />
-                    ))}
-                  </Carrousel>
-                ) : (
-                  <EtatVide compact icone="film" titre="Aucune vidéo pour l'instant" phrase="La première est à cinq touches d'ici." />
-                )}
-              </div>
-            </div>
-          </Section>
-        </div>
-
-        <aside aria-label="En un coup d'œil">
-          <Section id="votre-studio" titre="Votre studio">
-            <div className="divide-y divide-trait [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
-              <div>
-                <div className="mb-4 flex items-baseline justify-between">
-                  <p className="text-sm font-semibold text-texte-doux">Prêt pour une vraie vidéo ?</p>
-                  <span className={cn("font-titre text-lg tabular-nums", nbPret === pret.length ? "text-sauge" : "text-texte")}>
-                    {nbPret}/{pret.length}
-                  </span>
-                </div>
-                <ul className="grid grid-cols-4 gap-2">
-                  {pret.map((p) => (
-                    <li key={p.libelle}>
-                      <Link href={p.href} className="group flex flex-col items-center gap-2 rounded-xl py-1">
-                        <span
-                          className={cn(
-                            "relative grid size-12 place-items-center rounded-full transition-transform duration-200 group-hover:scale-105",
-                            p.ok ? "bg-sauge-doux text-sauge" : "border border-dashed border-trait-fort bg-surface-2 text-texte-faible",
-                          )}
-                        >
-                          <Icone nom={p.icone} size={19} />
-                          <span className={cn("absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full ring-2 ring-surface-1", p.ok ? "bg-sauge text-fond" : "bg-surface-3 text-texte-doux")}>
-                            <Icone nom={p.ok ? "coche" : "plus"} size={11} strokeWidth={3} />
-                          </span>
-                        </span>
-                        <span className="text-xs font-semibold text-texte-doux group-hover:text-texte">{p.libelle}</span>
-                      </Link>
-                    </li>
+                <EnTeteSection niveau={3} titre="Brouillons" compteur={r.brouillons.length} lien={{ href: "/videos?vue=brouillons" }} />
+                <Carrousel libelle="Brouillons" largeurElement="w-[46%] sm:w-52">
+                  {r.brouillons.map((v) => (
+                    <CarteBrouillon key={v.id} video={v} />
                   ))}
-                </ul>
+                </Carrousel>
               </div>
+            )}
 
-              {/* Crédit Claude restant (estimé) : affichage seulement ; l'Accueil ne casse jamais s'il manque. */}
-              {creditClaude && <CarteCreditClaude vue={creditClaude} />}
-
-              {/* Lot « crédits » (02/10) : solde des services payants reliés, et départ des brouillons « dès que possible ». */}
-              <CarteCredits cartes={credits.cartes} brouillonsPrets={credits.brouillonsPrets} />
+            <div>
+              <EnTeteSection titre="Dernières vidéos" lien={r.dernieres.length ? { href: "/videos", libelle: "Voir toutes les vidéos" } : undefined} />
+              {r.dernieres.length ? (
+                <Carrousel libelle="Dernières vidéos" largeurElement="w-[44%] sm:w-48">
+                  {r.dernieres.map((v, i) => (
+                    <CarteVideo key={v.id} video={v} ratioForce="9:16" prioritaire={i < 2} />
+                  ))}
+                </Carrousel>
+              ) : (
+                <EtatVide compact icone="film" titre="Aucune vidéo pour l'instant" phrase="La première est à cinq touches d'ici." />
+              )}
             </div>
-          </Section>
-        </aside>
+          </div>
+        </section>
+
+        {/* Crédit Claude restant et soldes des services reliés : affichage seulement ; l'Accueil ne casse jamais s'ils manquent. */}
+        <section aria-labelledby="titre-credits" className="space-y-4">
+          <h2 id="titre-credits" className="text-lg text-texte">
+            Crédits
+          </h2>
+          {creditClaude && <CarteCreditClaude vue={creditClaude} />}
+          <CarteCredits cartes={credits.cartes} brouillonsPrets={credits.brouillonsPrets} />
+        </section>
       </div>
     </div>
   );
 }
 
-function LienToutVoir({ href }: { href: string }) {
+/** Une ligne d'action de « À faire maintenant » : la phrase dit quoi faire, la couleur ne fait que l'appuyer. */
+function LigneAction({ href, message, ton }: { href: string; message: string; ton?: "brique" | "ambre" }) {
   return (
-    <Link href={href} className="-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 text-sm font-semibold text-texte-doux hover:text-texte">
-      Tout voir
-      <Icone nom="chevron-droite" size={14} />
-    </Link>
+    <Apparition>
+      <Link
+        href={href}
+        className={cn(
+          "flex min-h-12 items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-colors",
+          ton === "brique" && "border-brique/30 bg-brique-doux text-brique hover:border-brique/60",
+          ton === "ambre" && "border-ambre/30 bg-ambre-doux text-ambre hover:border-ambre/60",
+          !ton && "border-trait bg-surface-1 text-texte hover:border-trait-fort",
+        )}
+      >
+        <Icone nom="attention" size={18} className="shrink-0" />
+        <span className="flex-1">{message}</span>
+        <Icone nom="chevron-droite" size={16} className="shrink-0" />
+      </Link>
+    </Apparition>
   );
 }
 
 function Aujourdhui({ elements }: { elements: { libelle: string; nombre: number; icone: NomIcone; href: string }[] }) {
   return (
     <>
-      <EnTeteSection titre="Aujourd'hui" />
+      <EnTeteSection niveau={3} titre="Aujourd'hui" />
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {elements.map((a) => (
           <Link
