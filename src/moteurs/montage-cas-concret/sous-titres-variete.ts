@@ -22,6 +22,13 @@ import { centreSousTitresPleineImagePct } from "./zone-objets";
 export type TirageSousTitres = Tirage["sousTitres"];
 
 /**
+ * GV-ST-02 : la variante de sous-titres tirée par vidéo est SUPPRIMÉE par défaut (le style choisi dans la Bibliothèque
+ * fait loi ; sans choix, « Charte duo » v4 identique d'une vidéo à l'autre). Le code du tirage reste, derrière cette
+ * constante. La mise en valeur des mots importants (`emphase`) n'en dépend pas.
+ */
+export const VARIANTE_PAR_VIDEO = false as boolean;
+
+/**
  * Réglages par intensité tirée (le format emploie « Équilibré » : Impact ≥ 6 s, un bandeau / 15 s, souligné 1 sur 5).
  * Calme : moins d'accents (un seul bandeau par tranche de 40 s) ; vif : un peu plus (souligné 1 sur 3, plancher de la
  * brique ; jamais sous les planchers : Impact ≥ 4 s, un bandeau / 10 s au plus).
@@ -51,17 +58,18 @@ export function centreSousTitresHautPct(hauteur = 1920): number {
 
 /** Centre des sous-titres (% de la hauteur) selon le tirage : la v4 (`centreSousTitresPleineImagePct`) ou « haute ». */
 export function centreSousTitresCasConcret(t?: TirageSousTitres | null): number {
-  return t?.hauteur === "haute" ? centreSousTitresHautPct() : centreSousTitresPleineImagePct();
+  return VARIANTE_PAR_VIDEO && t?.hauteur === "haute" ? centreSousTitresHautPct() : centreSousTitresPleineImagePct();
 }
 
 /** Champ à ajouter au style des sous-titres : `{ surlignage }` pour l'accent « surlignage », sinon rien. */
 export function surlignageCasConcret(t?: TirageSousTitres | null): { surlignage?: SurlignageSousTitres } {
+  if (!VARIANTE_PAR_VIDEO) return {};
   return t?.accent === "surlignage" ? { surlignage: SURLIGNAGE_CAS_CONCRET } : {};
 }
 
 /** Variation du mélange (sens du premier Impact, réglages) ; `{}` quand inclinaison et intensité sont celles de la v4. */
 export function variationSousTitresCasConcret(t?: TirageSousTitres | null): { variation?: VariationSousTitres } {
-  if (!t) return {};
+  if (!VARIANTE_PAR_VIDEO || !t) return {};
   const variation: VariationSousTitres = {
     ...(t.inclinaison === "inverse" ? { sensPremierImpact: -1 as const } : {}),
     ...(t.intensite === "calme" || t.intensite === "vif" ? { reglages: { ...REGLAGES_SOUS_TITRES_CAS_CONCRET[t.intensite] } } : {}),
