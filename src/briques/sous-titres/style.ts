@@ -123,13 +123,13 @@ export const BASES: readonly BaseSousTitres[] = ["karaoke", "minimal"];
 
 /**
  * Gabarit d'un élément de Bibliothèque. Un élément d'avant le lot M2 (sans `gabarit`) est lu sans être réécrit :
- * karaoké pour l'ancien « surlignage » et le style avocat, Impact pour « pop » en majuscules, Minimal pour le reste.
+ * karaoké pour l'ancien « surlignage », « pop » et le style avocat, Minimal pour le reste. Impact et Bandeau ne viennent jamais que d'un `gabarit` écrit.
  */
 export function gabaritDe(valeur: StyleBibliothequeRendu | null | undefined): GabaritSousTitres {
   if (!valeur) return "karaoke";
   if (valeur.gabarit) return valeur.gabarit;
   if (valeur.animation === "surlignage" || valeur.animation === "mot-par-mot") return "karaoke";
-  if (valeur.animation === "pop") return valeur.casse === "majuscules" ? "impact" : "karaoke";
+  if (valeur.animation === "pop") return "karaoke";
   return valeur.position === "bas" ? "minimal" : "karaoke";
 }
 

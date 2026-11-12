@@ -88,3 +88,14 @@ describe("groupes verrouillés", () => {
     expect(m.filter((x, i) => i !== 2).every((x) => x.style === "impact")).toBe(true);
   });
 });
+
+describe("GV-ST-08c : seul un gabarit écrit explicitement donne Impact ou Bandeau comme base", () => {
+  it("« Axion pop » (sans gabarit, pop, majuscules) : base karaoké, comme avant GV-ST-08a", () => {
+    const axionPop = { type: "style-sous-titres", police: "Archivo Black", tailleRelative: 1, motsParLigne: 3, casse: "majuscules", animation: "pop", couleurAccent: "orange", position: "centre" } as never;
+    expect(baseRetenue(undefined, axionPop)).toBe("karaoke");
+  });
+  it("un style avec gabarit « impact » écrit : base impact (inchangé)", () => {
+    const impact = { type: "style-sous-titres", police: "Archivo Black", tailleRelative: 1, motsParLigne: 3, casse: "majuscules", animation: "pop", couleurAccent: "orange", position: "centre", gabarit: "impact" } as never;
+    expect(baseRetenue(undefined, impact)).toBe("impact");
+  });
+});
