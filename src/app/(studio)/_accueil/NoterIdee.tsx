@@ -14,7 +14,7 @@ export function NoterIdee() {
         Noter une idée
       </Bouton>
       <Dialogue ouvert={ouvert} onOuvertChange={setOuvert} titre="Une idée ?" description="Elle sera rangée dans Écrire, pour plus tard.">
-        <IdeeRapide />
+        <IdeeRapide autoFocus onEnregistre={() => setOuvert(false)} />
       </Dialogue>
     </>
   );
