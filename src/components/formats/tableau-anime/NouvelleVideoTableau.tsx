@@ -32,7 +32,7 @@ import { RelireScript } from "@/components/script/RelireScript";
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
@@ -368,7 +368,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         <EcrireScriptTableau ecran={ecran} onUtiliser={utiliser} onCorriger={corrigerALaMain} occupe={occupe} />
         {phrase && (
           <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase}
+            {messageSansMontant(phrase)}
           </p>
         )}
       </div>
@@ -461,7 +461,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         <p className="text-sm text-texte-doux">Durée du découpage : {DUREE_DECOUPAGE_TEXTE}.</p>
         {refusSujet && refusSujet.cle === cleSaisie(saisie) && (
           <section aria-label="Sujet déjà traité" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : refusSujet.refus.phrase}</p>
+            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : messageSansMontant(refusSujet.refus.phrase)}</p>
             <ul className="space-y-1 text-sm">
               {refusSujet.refus.precedents.slice(0, 5).map((p) => (
                 <li key={p.videoId ?? p.sujetId ?? p.lien}>
@@ -496,11 +496,11 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         )}
         {(phrase || refus) && (
           <div role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase && <p>{phrase}</p>}
+            {phrase && <p>{messageSansMontant(phrase)}</p>}
             {refus && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-texte-doux">
                 {refus.slice(0, 6).map((x, i) => (
-                  <li key={i}>{x}</li>
+                  <li key={i}>{messageSansMontant(x)}</li>
                 ))}
               </ul>
             )}
