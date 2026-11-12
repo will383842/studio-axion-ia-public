@@ -8,7 +8,8 @@ import { Bouton } from "@/components/ui/Bouton";
 import type { IdReseau } from "@/domaine/types";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { cleJour } from "@/lib/dates";
-import { changerStatut, creerCreneau } from "@/services/plan-editorial";
+import { validerProposition } from "@/domaine/plan-editorial/statuts";
+import { changerStatut, creerCreneau, type CreneauPlan } from "@/services/plan-editorial";
 import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 
 /** Heure de publication (Paris) par réseau : fixe, le fondateur peut décaler ensuite depuis le calendrier. */
@@ -22,6 +23,20 @@ export const jourDeParis = (instant: string): string => cleJour(instant);
 /** Jour proposé par défaut : demain, à l'heure de Paris. */
 export function jourParDefautParis(instant: string): string {
   return ajouterJoursParis(jourDeParis(instant), 1);
+}
+
+/**
+ * Amène le créneau à « valide » avec la trace du fondateur (CAL-14 : « a_valider » → « valide » ne passe plus par un
+ * simple changement de statut). Reprend un créneau resté « propose » ou « a_valider » par un clic interrompu ; un
+ * créneau déjà « valide » ou au-delà n'est pas touché (la passerelle décide).
+ */
+async function validerParLeFondateur(d: DepotsPasserelle, creneauId: string, maintenant: string): Promise<void> {
+  if ((await d.creneaux.obtenir(creneauId))?.statut === "propose") await changerStatut(d, creneauId, "a_valider", "studio", maintenant);
+  const c = await d.creneaux.obtenir(creneauId);
+  if (c?.statut !== "a_valider") return;
+  const v = validerProposition(c, "studio", maintenant, "fondateur");
+  if (!v.ok) throw new Error(v.raison);
+  await d.creneaux.enregistrer(v.creneau as CreneauPlan);
 }
 
 /**
@@ -47,9 +62,8 @@ export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, 
     const passes = v.reseaux.filter((r) => Date.parse(heuresParReseau[r]!) <= Date.parse(maintenant));
     if (passes.length > 0) throw new Error(`Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
     await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_CIBLE, visuelId: v.id }, maintenant);
-    await changerStatut(d, creneauId, "a_valider", "studio", maintenant);
-    await changerStatut(d, creneauId, "valide", "studio", maintenant);
   }
+  await validerParLeFondateur(d, creneauId, maintenant);
   await programmerVisuel(d, creneauId, maintenant);
   return { creneauId };
 }
