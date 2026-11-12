@@ -1,8 +1,9 @@
 /**
  * CAL-16 · Contrôleur de diversité du calendrier (PUR, sans IA, sans appel réel).
  * - même format plus de N jours de suite sur un réseau : alerte (N = 2 par défaut) ;
- * - deux publications au sujet trop proche : alerte (le sujet se lit via l'empreinte L3-11 ; la signature
- *   posée par l'usine est lue telle quelle, rien n'est recalculé ici pour elle).
+ * - SUJET : si les deux créneaux portent une signature posée par l'usine, alerte « sujet-repete » si et seulement si
+ *   les signatures sont égales (lecture seule, aucun calcul) ;
+ * - TEXTE : deux textes trop proches (mots seuls, signature de l'usine exclue du calcul) : alerte « texte-proche ».
  * Une alerte ne bloque JAMAIS un ajout manuel : `bloquant` vaut toujours false.
  */
 import { empreinte } from "@/domaine/proximite/empreinte";
@@ -26,16 +27,17 @@ export const SEUILS_DIVERSITE: Readonly<SeuilsDiversite> = {
 export interface ElementDiversite {
   id: string;
   reseau: string;
-  /** Date civile « AAAA-MM-JJ » (les heures ne comptent pas). */
+  /** Date civile « AAAA-MM-JJ » à l'heure de Paris (les heures ne comptent pas) ; aucune conversion ici : c'est à l'appelant. */
   jour: string;
   formatId: string;
+  /** Texte comparé pour la proximité (sujet, ou corps du texte si l'écran le fournit). */
   sujet?: string;
-  /** Signature posée par l'usine : lue telle quelle. */
+  /** Signature posée par l'usine : lue telle quelle, comparée par égalité, jamais recalculée. */
   signatureUsine?: string;
 }
 
 export interface AlerteDiversite {
-  type: "format-repete" | "texte-proche";
+  type: "format-repete" | "texte-proche" | "sujet-repete";
   reseau?: string;
   ids: string[];
   message: string;
@@ -93,11 +95,28 @@ function alertesFormat(items: readonly ElementDiversite[], max: number): AlerteD
   return sortie;
 }
 
+/** Sujet : deux signatures de l'usine égales dans la fenêtre = même sujet. Aucun calcul sur les mots. */
+function alertesSujet(items: readonly ElementDiversite[], fenetre: number): AlerteDiversite[] {
+  const sortie: AlerteDiversite[] = [];
+  const pret = items
+    .map((it) => ({ it, n: numeroJour(it.jour), sig: it.signatureUsine?.trim() }))
+    .filter((x): x is { it: ElementDiversite; n: number; sig: string } => x.n !== null && !!x.sig);
+  for (let i = 0; i < pret.length; i++) {
+    for (let j = i + 1; j < pret.length; j++) {
+      const a = pret[i];
+      const b = pret[j];
+      if (Math.abs(a.n - b.n) > fenetre || a.sig !== b.sig) continue;
+      sortie.push({ type: "sujet-repete", ids: [a.it.id, b.it.id], message: "Ces deux publications portent le même sujet (signature de l'usine)." });
+    }
+  }
+  return sortie;
+}
+
 function alertesTexte(items: readonly ElementDiversite[], seuil: number, fenetre: number): AlerteDiversite[] {
   const sortie: AlerteDiversite[] = [];
   const pret = items
-    .map((it) => ({ it, n: numeroJour(it.jour), e: empreinte({ sujet: it.sujet ?? "", signatureUsine: it.signatureUsine }) }))
-    .filter((x) => x.n !== null && (x.e.axes.length > 0 || x.e.signature));
+    .map((it) => ({ it, n: numeroJour(it.jour), e: empreinte({ sujet: it.sujet ?? "" }) }))
+    .filter((x) => x.n !== null && x.e.axes.length > 0);
   for (let i = 0; i < pret.length; i++) {
     for (let j = i + 1; j < pret.length; j++) {
       const a = pret[i];
@@ -116,14 +135,23 @@ function alertesTexte(items: readonly ElementDiversite[], seuil: number, fenetre
   return sortie;
 }
 
+/** Seuil réglable : une valeur qui n'est pas un nombre fini ≥ `min` retombe sur le défaut (jamais d'alertes partout ni nulle part). */
+function nombreOuDefaut(v: unknown, defaut: number, min: number): number {
+  return typeof v === "number" && Number.isFinite(v) && v >= min ? v : defaut;
+}
+
 /** Contrôle une liste de créneaux. Ne modifie pas l'entrée ; les dates invalides sont ignorées. */
 export function controlerDiversite(
   items: readonly ElementDiversite[],
   seuils: Partial<SeuilsDiversite> = {},
 ): ResultatDiversite {
-  const s = { ...SEUILS_DIVERSITE, ...seuils };
+  const s = {
+    joursMaxMemeFormat: nombreOuDefaut(seuils.joursMaxMemeFormat, SEUILS_DIVERSITE.joursMaxMemeFormat, 1),
+    seuilProximite: nombreOuDefaut(seuils.seuilProximite, SEUILS_DIVERSITE.seuilProximite, 0),
+    fenetreJoursTexte: nombreOuDefaut(seuils.fenetreJoursTexte, SEUILS_DIVERSITE.fenetreJoursTexte, 0),
+  };
   return {
-    alertes: [...alertesFormat(items, s.joursMaxMemeFormat), ...alertesTexte(items, s.seuilProximite, s.fenetreJoursTexte)],
+    alertes: [...alertesFormat(items, s.joursMaxMemeFormat), ...alertesSujet(items, s.fenetreJoursTexte), ...alertesTexte(items, s.seuilProximite, s.fenetreJoursTexte)],
     bloquant: false,
   };
 }
