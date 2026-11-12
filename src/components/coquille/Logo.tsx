@@ -7,7 +7,7 @@ export function Logo({ replie, taille = "md", className }: { replie?: boolean; t
       <span
         aria-hidden
         className={cn(
-          "relative grid shrink-0 place-items-center rounded-xl bg-orange font-titre text-sur-orange shadow-orange",
+          "relative grid shrink-0 place-items-center rounded-xl bg-accent font-titre text-sur-accent",
           taille === "lg" ? "size-14 rounded-2xl text-2xl" : "size-9 text-base",
         )}
       >

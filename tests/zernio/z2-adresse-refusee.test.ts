@@ -3,6 +3,7 @@
  * Jamais deux messages, rien si la personne est opposée, plafond respecté, interrupteur éteint = comportement inchangé,
  * aucune adresse dans les journaux. Données 100 % fictives (example.test) ; port et site FAUX.
  */
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
@@ -171,7 +172,7 @@ describe("VRAI constructeur de corps d'envoi (zernio-inbox-corps), sans faux ser
   it("un texte hors dictionnaire est refusé par le vrai constructeur (preuve que le test peut rougir)", async () => {
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
     const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
-    const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: "Bonjour, texte inconnu du dictionnaire.", cle: "k" });
+    const res = await reel.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idConversation: "conv-1", texte: "Bonjour, texte inconnu du dictionnaire.", cle: "k" });
     expect(res.statut).toBe("refuse");
     expect(faux.appels).toHaveLength(0);
   });
