@@ -26,9 +26,8 @@ import { ProgressionEtapes } from "@/components/ui/ProgressionEtapes";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
 import { BoutonArreter } from "@/components/videos/BoutonArreter";
-import { ACTIONS_FABRICATION, LIBELLES_ARGENT } from "@/domaine/libelles";
+import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import { useTravaux } from "@/hooks/useTravaux";
-import { formaterMontant } from "@/lib/montants";
 import type { VueTravail } from "@/services/vues";
 import { etapeARelire, vientDePasserARelire } from "./a-relire";
 import { ADRESSE_RELANCE, PHRASES_ECRAN_RELANCE, lireIssue, phraseRelancee } from "./relance";
@@ -148,11 +147,6 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
         compacte={compacte}
         {...(aRelire ? { aRelire } : {})}
       />
-      {t.depense.centimes > 0 && (
-        <p className="flex justify-end text-xs tabular-nums text-texte-faible">
-          {LIBELLES_ARGENT.dejaPaye} : {formaterMontant(t.depense)}
-        </p>
-      )}
       <ActionsSuivi
         etat={etat}
         arreter={actif ? <BoutonArreter travailId={t.id} videoId={t.cibleId} depense={t.depense} compact={compacte} /> : undefined}

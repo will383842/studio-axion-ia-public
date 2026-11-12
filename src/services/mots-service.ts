@@ -32,13 +32,17 @@ export const PARAM_VALIDATIONS_MOTS = "mots.validations";
 export const PARAM_VALIDATION_GUIDE_PARCOURS = "mots.validation.guide-parcours";
 /** Validation (écran /mots) du texte brouillon « adresse refusée » : { empreinte } = sha256(version + "\n" + texte). */
 export const PARAM_VALIDATION_ADRESSE_REFUSEE = "parcours.validation.adresse_refusee";
+/** Validation (écran /mots) du texte du merci après la page : { empreinte } = sha256("mp-merci-v1" + "\n" + texte brut). Aucun écrivain pour l'instant (bouton à ajouter, décision de l'opérateur). */
+export const PARAM_VALIDATION_MERCI = "parcours.validation.merci";
+/** Validation (écran /mots) du texte « 1er message avec lien » : { empreinte } = sha256("mp-m1-v3" + "\n" + texte brut avec ses marqueurs). */
+export const PARAM_VALIDATION_M1_LIEN = "parcours.validation.m1_lien";
 export { PARAM_OPPOSITIONS_MOTS };
 export const DOSSIER_MOTS = "mots";
 /** Plafond INTERNE absolu : jamais plus de 600 messages par heure et par compte, quel que soit le réglage. */
 export const PLAFOND_HEURE_COMPTE_MAX = 600;
 export const PLAFOND_JOUR_MOT_DEFAUT = 100;
 export const ERREURS_CONSECUTIVES_MAX = 5;
-export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // À CONFIRMER avec le site (route absente du contrat 04) : corps strict, adresse OBLIGATOIRE ; le Studio la relit chez Zernio, en mémoire seulement
+export const CHEMIN_OPPOSITIONS_SITE = "/api/interne/oppositions-reseau"; // Route existante côté site (créée par la PR 1872 du site, vérifiée dans son dépôt) : corps strict, adresse OBLIGATOIRE ; le Studio la relit chez Zernio, en mémoire seulement
 
 /** Interrupteur du module : éteint par défaut (seules les valeurs exactes « 1 » ou « true » l'allument). */
 export function motsActif(env: Record<string, string | undefined> = process.env): boolean {

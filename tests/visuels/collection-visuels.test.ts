@@ -39,10 +39,10 @@ describe("collection visuels", () => {
     expect(await depots().visuels.compter()).toBe(1);
   });
 
-  it("ajout seulement : les collections de master restent dans l'ordre, visuels en dernier", () => {
+  it("ajout seulement : les collections de master restent dans l'ordre, visuels puis les ajouts des fiches L0-07 et L1-06", () => {
     const src = readFileSync("src/donnees/postgres/index.ts", "utf8");
     const bloc = src.slice(src.indexOf("const COLLECTIONS"), src.indexOf("];", src.indexOf("const COLLECTIONS")));
     const noms = [...bloc.replace(/\/\/.*$/gm, "").matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]);
-    expect(noms).toEqual([...COLLECTIONS_MASTER, "visuels"]);
+    expect(noms).toEqual([...COLLECTIONS_MASTER, "visuels", "envoisPlanifies", "creneauxEditoriaux", "journalDecalages"]);
   });
 });

@@ -266,7 +266,8 @@ describe("l'écran : le même « Relire le script » avant le découpage et avan
     const vu = texte(html);
     expect(html).toContain('aria-label="Relire le script"');
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)?.length).toBe(lignesDuTexteTableau(donnees.texte).length);
-    expect(vu).toMatch(/Découper en scènes \(≈ [\d,]+ € au plus\)/);
+    expect(vu).toContain("Découper en scènes");
+    expect(vu).not.toMatch(/€/);
     expect(vu).toContain("Tout réécrire");
     expect(vu).toContain("Texte libre");
     expect(vu).not.toContain("Lancer la vidéo");
@@ -281,7 +282,8 @@ describe("l'écran : le même « Relire le script » avant le découpage et avan
     expect(html.match(/aria-label="Relire le script"/g)).toHaveLength(1);
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(f.scenes.length);
     expect(vu).toContain(`Page ${f.scenes[0].page}`);
-    expect(vu).toMatch(/Fabriquer la vidéo \(≈ [\d,]+ €\)/);
+    expect(vu).toContain("Fabriquer la vidéo");
+    expect(vu).not.toMatch(/€/);
     expect(vu).toContain("Autres corrections");
     expect(vu).not.toContain("Découper en scènes");
   });
