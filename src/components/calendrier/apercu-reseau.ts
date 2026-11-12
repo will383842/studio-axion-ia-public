@@ -6,7 +6,7 @@
 import type { TableLibelles } from "./PastilleStatutPlan";
 import { etatDepuisStatut } from "./PastilleStatutPlan";
 import { TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, trierEntrees, type TypeContenu } from "./CarteEntreeCalendrier";
-import { PHRASES_VERROU, phraseEtat, sansPremierCommentaire, verrouFiche, type EntreeFiche, type RaisonVerrou } from "./FicheEntree";
+import { PHRASES_VERROU, lireCleFiche, phraseEtat, sansPremierCommentaire, verrouFiche, type EntreeFiche, type RaisonVerrou } from "./FicheEntree";
 import { cleJour, heure as heureDeParis } from "@/lib/dates";
 import { RESEAUX } from "@/reseaux";
 
@@ -61,8 +61,13 @@ export interface ApercuReseau {
   campagne: string | null;
   phraseEtat: string;
   verrou: RaisonVerrou | null;
+  /** Faux : la date ne se change pas d'ici (publication reçue de sa vidéo) ; le champ est éteint d'emblée. */
+  deplacable: boolean;
   phraseVerrou: string | null;
 }
+
+/** Phrase montrée d'emblée quand la date ne se change pas depuis l'aperçu. */
+export const PHRASE_DEPUIS_LA_VIDEO = "Cette publication se déplace depuis sa vidéo : ouvrez-la pour changer sa date.";
 
 const MOT_DIESE = /(?<![\p{L}\p{N}_&#])#([\p{L}\p{N}_]{2,40})/gu;
 
@@ -93,6 +98,7 @@ export function apercuReseau(entree: EntreeApercu, aujourdhui: string): ApercuRe
   const jourDit = jourOk ? JOUR_DIT.format(new Date(`${entree.jour}T12:00:00Z`)) : "";
   const dateDite = !jourOk ? "Date illisible" : heure ? `${jourDit} à ${heure}, heure de Paris` : jourDit;
   const verrou = verrouFiche(entree, aujourdhui);
+  const deplacable = lireCleFiche(entree.cle)?.origine === "creneau";
   const texte = typeof entree.texte === "string" ? entree.texte : "";
   const commentaire = typeof entree.premierCommentaire === "string" ? entree.premierCommentaire.trim() : "";
   const sans = sansPremierCommentaire(entree.reseau);
@@ -114,7 +120,8 @@ export function apercuReseau(entree: EntreeApercu, aujourdhui: string): ApercuRe
     campagne: entree.campagne?.trim() ? entree.campagne.trim() : null,
     phraseEtat: entree.etat === "essai" ? "Essai : rien n'est parti vers le réseau." : phraseEtat(entree),
     verrou,
-    phraseVerrou: verrou ? PHRASES_VERROU[verrou] : null,
+    deplacable,
+    phraseVerrou: verrou ? PHRASES_VERROU[verrou] : deplacable ? null : PHRASE_DEPUIS_LA_VIDEO,
   };
 }
 

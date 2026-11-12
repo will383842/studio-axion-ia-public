@@ -17,7 +17,7 @@ import { RESEAUX_CALENDRIER } from "./BarreFiltres";
 import { MonogrammeReseau, TYPES_CONTENU, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
-import { LIBELLES_ESSAI, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ESSAI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import type { IdReseau } from "@/domaine/types";
 
@@ -149,7 +149,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
           type="date"
           value={entree.jour}
           min={aujourdhui}
-          disabled={a.verrou !== null}
+          disabled={a.verrou !== null || !a.deplacable}
           onChange={(e) => {
             if (e.target.value) onChangerDate(e.target.value);
           }}
@@ -221,7 +221,7 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
     if (verrou) return refuser(PHRASES_VERROU[verrou]);
     if (jour < aujourdhui) return refuser("Impossible : ce jour est passé.");
     const cle = lireCleFiche(courante.cle);
-    if (!cle || cle.origine !== "creneau") return refuser("Cette publication se déplace depuis sa vidéo : ouvrez-la pour changer sa date.");
+    if (!cle || cle.origine !== "creneau") return refuser(PHRASE_DEPUIS_LA_VIDEO);
     if (enCours.current) return;
     enCours.current = true;
     const avant = deplacements[courante.cle];

@@ -220,6 +220,16 @@ describe("ApercuPublication (le panneau)", () => {
       expect(lisible(h)).toContain(phrase);
     }
   });
+  it("correction relecture : une entrée « publication: » a le champ « Déplacer au » éteint d'emblée, avec la phrase, sans attendre un refus", () => {
+    const h = html({ entree: entree({ cle: "publication:p1|linkedin" }) });
+    expect(h).toMatch(/<input[^>]*type="date"[^>]*\sdisabled=""/);
+    expect(lisible(h)).toContain("Cette publication se déplace depuis sa vidéo : ouvrez-la pour changer sa date.");
+    expect(lisible(h)).not.toContain("L'heure ne change pas.");
+    expect(html({ entree: entree({ cle: "creneau:c1|linkedin" }) })).not.toMatch(/<input[^>]*type="date"[^>]*\sdisabled=""/);
+  });
+  it("correction relecture : une clé illisible n'ouvre pas le champ non plus", () => {
+    expect(html({ entree: entree({ cle: "n'importe quoi" }) })).toMatch(/<input[^>]*type="date"[^>]*\sdisabled=""/);
+  });
   it("les trois gestes sont nommés : Précédente, Suivante, Fermer ; chacun appelle son geste", () => {
     const p = base();
     const arbre = ApercuPublication(p) as ReactNode;
