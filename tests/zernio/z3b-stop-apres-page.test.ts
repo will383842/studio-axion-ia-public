@@ -10,8 +10,13 @@ import { signatureValide } from "@/fournisseurs/site/signature";
 import type { RequeteSignee } from "@/fournisseurs/site/types";
 import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import { voiesOpposition } from "@/domaine/guide-reseau/machine-conversation";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
+vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => {
+  const r = await orig<Record<string, unknown>>();
+  const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+  return { ...r, siteAccepteVersionM1: (v: string) => VERSIONS_SITE_TEST.has(v) };
+});
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const C = await import("@/services/parcours-conversation");
@@ -27,7 +32,6 @@ const ENV_LIEN = { ...ENV, PARCOURS_LIEN_GUIDE: "1", GUIDES_RESEAU_LIEN_SECRET: 
 const ENV_REF = { ...ENV_LIEN, OPPOSITIONS_PAR_REF_ENABLED: "1" };
 const A = "auteur-fictif-400";
 const CHEMIN_PAGE = "/api/interne/oppositions-page-guide";
-const empreinteV3 = () => { const b = TEXTES_MP["mp-m1-v3"]; return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"); };
 
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
@@ -73,7 +77,7 @@ beforeEach(async () => {
   });
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
-  await Com.ecrireParametre("parcours.validation.m1_lien", { empreinte: empreinteV3() });
+  await validerFormulationsAuParcours(["mp-m1-v4-1"]);
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -242,7 +246,7 @@ describe("partie 2 (côté Studio) : OPPOSITIONS_PAR_REF_ENABLED, éteint par d�
       C.reinitialiserParcoursConversation();
       await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
       await validerGuideAuParcours();
-      await Com.ecrireParametre("parcours.validation.m1_lien", { empreinte: empreinteV3() });
+      await validerFormulationsAuParcours(["mp-m1-v4-1"]);
       await stopApresLien();
       statutPage = code;
       await transmettre(ENV_REF, T0 + 1000);

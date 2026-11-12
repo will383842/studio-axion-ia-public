@@ -9,7 +9,7 @@ import { AVANCE_HORLOGE_MAX_MS, FENETRE_ENVOI_MS, activiteRetenue, dansFenetreEn
 import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -22,10 +22,8 @@ const Opp = await import("@/services/oppositions-mots");
 const H = 3600_000;
 const HORS = 23 * H + 1000;
 const PARAM_COMPTEURS = "parcours.conversations.compteurs";
-const PARAM_VALIDATION = "parcours.validation.adresse_refusee";
 const A = "auteur-fictif-400";
 const iso = (ms: number): string => new Date(ms).toISOString();
-const empreinteTexte = () => { const b = TEXTES_MP["mp-adresse-refusee-v2"]; return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"); };
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
 const passer = (ms: number, p = port.port) => C.traiterConversations({ port: p, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: ms });
@@ -44,7 +42,7 @@ beforeEach(async () => {
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
-  await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: empreinteTexte() });
+  await validerFormulationsAuParcours(["mp-adresse-refusee-v3-1"]);
   await deposerCommentaire(depots, {});
   await passer(T0); // M1 envoyé : la personne est en attente de son adresse
 });
@@ -167,7 +165,7 @@ describe("dans la fenêtre : comportement d'avant, avec le VRAI constructeur de 
     await deposerMessage(depots, { idMessage: "msg-ar-in", occurredAt: iso(T0) });
     await passer(T0 + 22 * H, p.port);
     expect(posts(p)).toHaveLength(1);
-    expect((posts(p)[0].json as { message: string }).message).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect((posts(p)[0].json as { message: string }).message).toBe(TEXTES_MP["mp-adresse-refusee-v3-1"].texte);
   });
 });
 

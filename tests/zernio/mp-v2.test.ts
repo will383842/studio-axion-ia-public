@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { corpsDemandeGuide, runValide, signatureZernio, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
-import { MENTION_OUVERTURE, TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import type { RequeteSignee } from "@/fournisseurs/site/types";
 import { SchemaDemandeGuideReseau } from "./aides/contrat-site-guides-reseau";
 
@@ -22,14 +22,15 @@ const Opp = await import("@/services/oppositions-mots");
 
 const J = (...p: string[]) => p.join("");
 const MENTION = "Message automatique envoyé par Axion IA.";
-const IDS = ["mp-m1-v2", "mp-m1-v3", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-merci-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
-/** Le merci et mp-m1-v3 sont des messages PERSONNELS, sans la mention d'ouverture : ils ont leurs propres contrôles plus bas. */
-const PRIVES = IDS.filter((i) => !i.startsWith("mp-pub") && i !== "mp-merci-v1" && i !== "mp-m1-v3");
+const IDS = ["mp-m1-v2", "mp-m1-v3", "mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4", "mp-adresse-refusee-v3-1", "mp-adresse-refusee-v3-2", "mp-adresse-refusee-v3-3", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-merci-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1"] as const;
+/** Anciens textes (encore au dictionnaire, statut « actif » ou « retire ») qui portent la mention d'ouverture. Les nouveaux n'en portent aucune. */
+const AVEC_MENTION = ["mp-m1-v2", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-lien-v2"] as const;
 
 describe("textes v2 : registre versionné", () => {
-  it("la mention d'ouverture est exacte et chaque message privé commence par elle", () => {
-    expect(MENTION_OUVERTURE).toBe(MENTION);
-    for (const id of PRIVES) expect(TEXTES_MP[id].texte.startsWith(`${MENTION} `), id).toBe(true);
+  it("les anciens textes gardés (actifs jusqu'au lot B, ou retirés) portent encore la mention ; elle n'est plus au dictionnaire", () => {
+    for (const id of AVEC_MENTION) expect(TEXTES_MP[id].texte.startsWith(`${MENTION} `), id).toBe(true);
+    for (const id of IDS) if (!(AVEC_MENTION as readonly string[]).includes(id)) expect(TEXTES_MP[id as keyof typeof TEXTES_MP].texte, id).not.toMatch(/message automatique/i);
+    expect(JSON.parse(readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url), "utf8"))).not.toHaveProperty("mention_ouverture");
   });
   it("le merci ne porte PAS la mention d'ouverture (ton personnel, sans signature)", () => {
     expect(TEXTES_MP["mp-merci-v1"].texte).not.toMatch(/message automatique/i);
@@ -62,7 +63,7 @@ describe("textes v2 : registre versionné", () => {
   });
   it("le dictionnaire de textes est une copie à empreinte figée", () => {
     const brut = readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url));
-    expect(createHash("sha256").update(brut).digest("hex")).toBe("c10cd9e9e6a2127a2a0ebf3c1acae6cc018748cf076df02de2a3f33e530896b1");
+    expect(createHash("sha256").update(brut).digest("hex")).toBe("75778d612ef21a5340a89d6b290923a1adebc803c5810cf603162e7abe5f805c");
     const d = JSON.parse(brut.toString("utf8")) as { textes: Record<string, { texte: string }> };
     for (const id of IDS) expect(d.textes[id].texte).toBe(TEXTES_MP[id].texte);
     expect(JSON.stringify(d)).not.toMatch(/\bstop\b/i);
@@ -74,13 +75,19 @@ describe("textes v2 : registre versionné", () => {
 });
 
 describe("contrôle de sortie v2", () => {
-  const base = { mot: "GUIDE", reponsePublique: TEXTES_MP["mp-pub-igfb-v1"].texte, messagePrive: TEXTES_MP["mp-m1-v2"].texte, relance: null, fin: TEXTES_MP["mp-recu-v2"].texte, etat: "brouillon" as const, empreinteValidee: null };
-  it("les textes v2 passent le contrôle (réponse publique sans mention, messages privés avec)", () => {
+  const base = { mot: "GUIDE", reponsePublique: TEXTES_MP["mp-pub-igfb-v1"].texte, messagePrive: TEXTES_MP["mp-merci-v1"].texte, relance: null, fin: TEXTES_MP["mp-adresse-refusee-v3-1"].texte, etat: "brouillon" as const, empreinteValidee: null };
+  it("les nouveaux textes passent le contrôle ; les anciens textes à mention sont refusés comme texte de mot", () => {
     expect(C.controlerTextesMot(base)).toEqual([]);
+    expect(C.controlerTextesMot({ ...base, messagePrive: TEXTES_MP["mp-m1-v2"].texte }).map((r) => r.code)).toContain("mention_automatique");
   });
-  it("un message privé sans la mention d'ouverture est refusé", () => {
-    expect(C.controlerTexteSortant("message_prive", "Bonjour, votre adresse ?").map((r) => r.code)).toContain("mention_absente");
-    expect(C.controlerTexteSortant("message_prive", "Réponse automatique. Votre adresse ?").map((r) => r.code)).toContain("mention_absente");
+  it("une mention « Message automatique » en ouverture est refusée, dans chaque section ; une signature en fin aussi", () => {
+    for (const s of T.SECTIONS) {
+      expect(C.controlerTexteSortant(s, `${MENTION} Votre adresse ?`).map((r) => r.code), s).toContain("mention_automatique");
+      expect(C.controlerTexteSortant(s, "message  AUTOMATIQUE, votre adresse ?").map((r) => r.code), s).toContain("mention_automatique");
+      for (const sig of ["Merci pour votre message. L'équipe Axion IA", "Merci pour votre message. Cordialement", "Merci pour votre message. Cordialement Axion IA", "Merci pour votre message. Message automatique envoyé par Axion IA", "Merci pour votre message. Axion IA.", "Merci, Axion IA", "Merci pour votre message.\nAxion IA", "Merci pour votre message — Axion IA"]) expect(C.controlerTexteSortant(s, sig).map((r) => r.code), `${s} ${sig}`).toContain("signature");
+    }
+    expect(C.controlerTexteSortant("message_prive", "Bonjour, votre adresse ?")).toEqual([]);
+    expect(C.controlerTexteSortant("message_prive", "Votre guide est prêt, proposé par Axion IA").map((r) => r.code)).not.toContain("signature");
   });
   it("toute mention STOP et toute question d'accord sont refusées, dans chaque section", () => {
     for (const s of T.SECTIONS) {
@@ -153,7 +160,7 @@ describe("« stop » / « arrêtez » écrit par la personne", () => {
     expect(JSON.stringify(w)).not.toMatch(/"texte"/);
   });
   it("le graphe d'un mot ne contient aucune relance ni question d'accord, et l'opposée reste en silence", () => {
-    const t = T.validerTextes(T.textesDepuisSaisie({ mot: "GUIDE", reponsePublique: TEXTES_MP["mp-pub-igfb-v1"].texte, messagePrive: TEXTES_MP["mp-m1-v2"].texte, relance: null, fin: TEXTES_MP["mp-recu-v2"].texte }));
+    const t = T.validerTextes(T.textesDepuisSaisie({ mot: "GUIDE", reponsePublique: TEXTES_MP["mp-pub-igfb-v1"].texte, messagePrive: TEXTES_MP["mp-merci-v1"].texte, relance: null, fin: TEXTES_MP["mp-adresse-refusee-v3-1"].texte }));
     const g = G.construireGrapheMot(t);
     expect(g.ok && g.workflow.siPersonneOpposee).toBe("silence");
     expect(g.ok && g.workflow.etapes.some((x) => x.type === "relancer")).toBe(false);
