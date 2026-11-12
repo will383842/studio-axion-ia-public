@@ -145,7 +145,7 @@ export function creerToileContinue(deps: DependancesToile): Operation {
     const mesure = extraireMesureToile(lignes, nonce);
     if (!mesure) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: "Mesure absente : la toile n'a pas rapporté sa mesure (rendu refusé)" });
     if (taille.largeur !== n * LARGEUR_PAGE) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: `Toile de ${taille.largeur} px au lieu de ${n * LARGEUR_PAGE}` });
-    const hauteurAttendue = HAUTEURS[valides.toile.format];
+    const hauteurAttendue: number = HAUTEURS[valides.toile.format as keyof typeof HAUTEURS];
     if (taille.hauteur !== hauteurAttendue) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: `Toile de ${taille.hauteur} px de haut au lieu de ${hauteurAttendue}` });
     if (mesure.largeur !== taille.largeur || mesure.hauteur !== taille.hauteur) throw new ErreurRendu({ code: "inconnu", reessayable: false, message: `Mesure de ${mesure.largeur} × ${mesure.hauteur} px contraire au rendu de ${taille.largeur} × ${taille.hauteur} px` });
 
