@@ -11,9 +11,8 @@ import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { versSuiviFabrication } from "@/components/creation/vues-travail";
 import { phrasePanneAction } from "@/components/ui/phrasesAction";
 import { notifier } from "@/components/ui/Toast";
-import { ACTIONS_FABRICATION, LIBELLES_ARGENT } from "@/domaine/libelles";
+import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import { useTravaux } from "@/hooks/useTravaux";
-import { formaterMontant } from "@/lib/montants";
 import type { VueTravail } from "@/services/vues";
 import { BoutonAnnuler } from "./BoutonAnnuler";
 import { BoutonArreter } from "./BoutonArreter";
@@ -45,7 +44,6 @@ export function SuiviTravail({ initial, compacte, sansPrix }: { initial: VueTrav
       {vue.etat !== "prete" && <EnTeteSuivi etat={vue.etat} sansTemps />}
       <SuiviFabrication
         vue={vue}
-        pied={!sansPrix && t.depense.centimes > 0 ? <>{LIBELLES_ARGENT.dejaPaye} : {formaterMontant(t.depense)}</> : undefined}
         compacte={compacte}
         actions={
           <ActionsSuivi
