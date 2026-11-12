@@ -71,6 +71,11 @@ export interface OptionsFal {
   /** Plafond de dépense fal.ai, en centimes de dollar (garde-fou). */
   plafondUsdCentimes?: number;
   /**
+   * L2-13 : décision quand le plafond technique est dépassé. Absente : « refuser » (comme avant). Le fournisseur inscrit
+   * y branche l'origine de l'appel : l'usine est refusée, le fondateur passe avec une alerte.
+   */
+  auDepassementDuPlafond?: () => Promise<"refuser" | "laisser">;
+  /**
    * CORRECTEUR 1 — B3 : ce qui est DÉJÀ dépensé chez fal.ai, lu EN BASE (dépenses du mois + demandes gardées par les
    * travaux en cours), et les demandes que la base connaît déjà. Le plafond tient donc après un redémarrage. Absent
    * (essais) : le compteur de ce processus seul.
@@ -160,7 +165,7 @@ export function creerFabricationFal(o: OptionsFal): FabricationParEtapes & { dep
       const prix = d.genre === "image" ? TARIFS_FABRICATION_USD.image : coutClipUsd(d.dureeSec);
       const reservation = ++numeroReserve;
       await sousControle(async () => {
-        if (o.plafondUsdCentimes !== undefined && (await dejaDepense()) + prix > o.plafondUsdCentimes) {
+        if (o.plafondUsdCentimes !== undefined && (await dejaDepense()) + prix > o.plafondUsdCentimes && (o.auDepassementDuPlafond ? await o.auDepassementDuPlafond() : "refuser") === "refuser") {
           // E2E-1 n° 9 (03/10) : plafond du studio (`FAL_PLAFOND_USD`), pas le crédit fal.ai : une recharge n'y change rien.
           throw new ErreurIllustration({ code: "refuse", reessayable: false, message: "Plafond de dépense des illustrations du studio atteint (réglé sur le serveur) : ce plan garde votre double." });
         }

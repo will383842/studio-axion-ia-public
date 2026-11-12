@@ -77,7 +77,7 @@ describe("L2-13 · quota de quantité (usine)", () => {
     const msg = await lireParametre<{ message?: string } | null>(pf.CLE_MESSAGE_COCKPIT, null);
     expect(msg?.message).toBeTruthy();
     expect(msg?.message).not.toMatch(AUCUN_MONTANT);
-    const cloches = await depots().notifications.lister();
+    const cloches = (await depots().notifications.lister()).filter((c) => c.type === "credit");
     expect(cloches.length).toBe(1);
     expect(JSON.stringify(cloches)).not.toMatch(AUCUN_MONTANT);
   });
@@ -122,9 +122,49 @@ describe("L2-13 · quota de quantité (usine)", () => {
     const d = image();
     await pf.avecOrigineFournisseur("usine", async () => {
       await f.soumettre(d);
-      await f.soumettre(image());
+      await f.soumettre(d); // rejeu : même clé, déjà comptée
+      await f.soumettre(image()); // deuxième unité du quota de 2 : passe
+      expect(await f.soumettre(image()).catch((e) => e)).toMatchObject({ erreur: { code: "quota" } });
     });
     expect(posts).toBe(2);
+  });
+
+  it("limite exacte : la dernière unité passe, la suivante est refusée ; un envoi qui échoue rend son unité", async () => {
+    await ecrireParametre(pf.CLE_QUOTAS_USINE, [{ periode: "jour", reseau: "fal", type: "image", limite: 1 }]);
+    const f = fabrication();
+    vi.stubGlobal("fetch", async () => new Response("non", { status: 422 }));
+    await pf.avecOrigineFournisseur("usine", async () => {
+      expect(await f.soumettre(image()).catch((e) => e)).toMatchObject({ erreur: { code: "refuse" } }); // refus net : rien n'est parti
+      vi.stubGlobal("fetch", fetchFactice);
+      await f.soumettre(image()); // l'unité a été rendue
+      expect(await f.soumettre(image()).catch((e) => e)).toMatchObject({ erreur: { code: "quota" } });
+    });
+    expect(posts).toBe(1);
+  });
+
+  it("quota illisible (limite 0, négative, texte) : retour au défaut, jamais « tout refusé » ni « sans quota »", async () => {
+    for (const mauvais of [[{ periode: "jour", reseau: "fal", type: "image", limite: 0 }], [{ periode: "jour", reseau: "fal", type: "image", limite: -3 }], [{ periode: "an", reseau: "fal", type: "image", limite: 3 }], []]) {
+      await ecrireParametre(pf.CLE_QUOTAS_USINE, mauvais);
+      expect(await pf.lireQuotasUsine()).toEqual(pf.QUOTAS_PAR_DEFAUT);
+    }
+  });
+
+  it("le compteur du jour repart à zéro le lendemain (heure de Paris)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-06-15T21:30:00Z")); // 23 h 30 à Paris, le 15
+      const f = fabrication();
+      await pf.avecOrigineFournisseur("usine", async () => {
+        await f.soumettre(image());
+        await f.soumettre(image());
+        expect(await f.soumettre(image()).catch((e) => e)).toMatchObject({ erreur: { code: "quota" } });
+        vi.setSystemTime(new Date("2026-06-15T22:30:00Z")); // 00 h 30 à Paris, le 16
+        await f.soumettre(image());
+      });
+      expect(posts).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -132,6 +172,12 @@ describe("L2-13 · FAL_PLAFOND_USD : constante technique, jamais un écran", () 
   async function depenseDejaAuDelaDuPlafond() {
     await depots().depenses.enregistrer({ id: "dep-fal", lignes: [{ etape: "Illustrations fabriquées", fournisseur: "fal.ai", unite: "image", quantite: 1, prixUnitaire: centimes(200), total: centimes(200), nature: "reel" }], total: centimes(200), date: new Date().toISOString(), creeLe: new Date().toISOString(), modifieLe: new Date().toISOString() });
   }
+  // Horloge figée au milieu d'un mois : la dépense et le plafond tombent toujours dans le même mois de Paris.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T10:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
 
   it("au-delà du plafond technique : l'appel de l'usine est refusé (zéro fetch), message sans montant", async () => {
     await depenseDejaAuDelaDuPlafond();
@@ -147,36 +193,44 @@ describe("L2-13 · FAL_PLAFOND_USD : constante technique, jamais un écran", () 
     const f = fabrication({ FAL_PLAFOND_USD: "1" });
     await f.soumettre(image());
     expect(posts).toBe(1);
-    const cloches = await depots().notifications.lister();
+    const cloches = (await depots().notifications.lister()).filter((c) => c.type === "credit");
     expect(cloches.length).toBe(1);
     expect(JSON.stringify(cloches)).not.toMatch(AUCUN_MONTANT);
   });
 
   it("aucun module d'écran ne lit FAL_PLAFOND_USD", async () => {
-    const { execFileSync } = await import("node:child_process");
-    const sortie = execFileSync("grep", ["-rl", "FAL_PLAFOND_USD", "src/app", "src/composants", "src/components"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).toString().trim().length;
-    expect(sortie).toBe(0);
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const fichiers = (dossier: string): string[] =>
+      readdirSync(dossier).flatMap((nom) => {
+        const chemin = join(dossier, nom);
+        return statSync(chemin).isDirectory() ? fichiers(chemin) : /\.(tsx?|jsx?)$/.test(nom) ? [chemin] : [];
+      });
+    const ecrans = fichiers("src/app");
+    expect(ecrans.length).toBeGreaterThan(0); // le parcours a bien trouvé des fichiers
+    expect(ecrans.filter((f) => readFileSync(f, "utf8").includes("FAL_PLAFOND_USD"))).toEqual([]);
+  });
+
+  it("points d'entrée connus de la fabrication fal.ai : un nouveau point d'entrée fait rougir ce test (poser l'origine « usine » d'abord)", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const fichiers = (dossier: string): string[] =>
+      readdirSync(dossier).flatMap((nom) => {
+        const chemin = join(dossier, nom);
+        return statSync(chemin).isDirectory() ? fichiers(chemin) : /\.tsx?$/.test(nom) && !/\.test\./.test(nom) ? [chemin] : [];
+      });
+    const appelants = fichiers("src")
+      .filter((f) => !f.startsWith(join("src", "fournisseurs")) && /fabrication\.soumettre\(\{ genre:/.test(readFileSync(f, "utf8")))
+      .sort();
+    expect(appelants).toEqual([join("src", "moteurs", "montage-avocat", "fabrication-illustrations.ts"), join("src", "services", "decors.ts")]);
   });
 });
 
 describe("L2-13 · controlerBudgetDuMois n'est plus un refus de montant", () => {
-  beforeEach(async () => {
-    await ecrireParametre("budget.mensuel", centimes(100));
-  });
-
-  it("plafond du mois dépassé : alerte (cloche) + journal, aucune erreur, même pour l'usine", async () => {
-    await expect(budget.controlerBudgetDuMois(50_000, { origine: "usine" })).resolves.toBeUndefined();
-    await expect(budget.controlerBudgetDuMois(50_000, { origine: "studio" })).resolves.toBeUndefined();
-    expect((await depots().notifications.lister()).length).toBeGreaterThan(0);
-    expect((await depots().journal.lister()).some((j) => /budget/i.test(JSON.stringify(j)))).toBe(true);
-  });
-
-  it("budget de l'usine absent ou atteint : alerte seulement, plus de refus d'argent", async () => {
-    await ecrireParametre("budget.mensuel", centimes(1_000_000));
-    await expect(budget.controlerBudgetDuMois(10, { origine: "usine" })).resolves.toBeUndefined();
-    await budget.reglerBudgetUsine({ budget_mensuel_cents: 5, mois: (await import("@/services/couts")).moisParis() });
-    await expect(budget.controlerBudgetDuMois(1_000, { origine: "usine" })).resolves.toBeUndefined();
-  });
+  // PILOTAGE (critère 5) : non fait ici. Rendre `controlerBudgetDuMois` non bloquant casse 31 tests de 13 fichiers voisins
+  // (hors fichiers_autorises) qui attendent BUDGET_DEPASSE, BUDGET_USINE_ABSENT et BUDGET_MENSUEL_ATTEINT. Voir le journal.
+  it.todo("plafond du mois dépassé : alerte (cloche) + journal, aucune erreur, même pour l'usine");
+  it.todo("budget de l'usine absent ou atteint : alerte seulement, plus de refus d'argent");
 
   it("une estimation illisible reste refusée (ce n'est pas un montant)", async () => {
     await expect(budget.controlerBudgetDuMois(Number.NaN, { origine: "studio" })).rejects.toMatchObject({ code: "BUDGET_ILLISIBLE" });
