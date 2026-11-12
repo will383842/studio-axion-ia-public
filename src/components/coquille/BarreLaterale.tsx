@@ -88,7 +88,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
   return (
     <div
       className={cn(
-        "theme-sombre fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-trait bg-fond transition-[width] duration-300 ease-studio lg:flex",
+        "theme-barre fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-trait bg-fond transition-[width] duration-300 ease-studio lg:flex",
         repliee ? "w-[var(--largeur-barre-repliee)]" : "w-[var(--largeur-barre)]",
       )}
     >
