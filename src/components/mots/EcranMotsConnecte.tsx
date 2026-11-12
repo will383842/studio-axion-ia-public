@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { activerMotLocalAction, mettreEnPauseAction, mettreEnPauseLocalAction, reactiverAction, refermerDisjoncteurAction, reglerPlafondsAction, validerMotGuideAction, validerAdresseRefuseeAction } from "@/app/(studio)/mots/actions";
+import { activerMotLocalAction, mettreEnPauseAction, mettreEnPauseLocalAction, reactiverAction, refermerDisjoncteurAction, reglerPlafondsAction, validerMotGuideAction, validerFormulationAction } from "@/app/(studio)/mots/actions";
 import type { VueMots } from "@/services/mots-service";
 import type { EtatBranchement } from "@/services/branchements-zernio";
 import { EcranMots, type ServicesMots } from "./EcranMots";
@@ -15,7 +15,7 @@ export const SERVICES_MOTS: ServicesMots = {
   refermerDisjoncteur: refermerDisjoncteurAction,
   reglerPlafonds: reglerPlafondsAction,
   validerGuide: validerMotGuideAction,
-  validerAdresseRefusee: validerAdresseRefuseeAction,
+  validerFormulation: validerFormulationAction,
 };
 
 export function EcranMotsConnecte({ vue, branchement, comptes }: { vue: VueMots; comptes: readonly string[]; branchement: EtatBranchement | null }) {

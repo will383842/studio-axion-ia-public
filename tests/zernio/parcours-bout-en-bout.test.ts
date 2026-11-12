@@ -3,10 +3,9 @@
  * rejeu du même événement → reprise après panne. Aucun code de production touché. Port et site FAUX, données 100 % fictives.
  * Ce qui n'est pas encore dans master (fenêtre de 24 h, merci, lien allumé) est écrit en `it.todo`.
  */
-import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -20,8 +19,6 @@ const H = 3600_000;
 const HEURE = Math.floor(T0 / H) * H;
 const A = "auteur-fictif-400";
 const PARAM_COMPTEURS = "parcours.conversations.compteurs";
-const PARAM_VALIDATION = "parcours.validation.adresse_refusee";
-const empreinteAdresseRefusee = () => { const b = TEXTES_MP["mp-adresse-refusee-v2"]; return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"); };
 
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
@@ -47,7 +44,7 @@ beforeEach(async () => {
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
-  await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: empreinteAdresseRefusee() });
+  await validerFormulationsAuParcours();
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -79,7 +76,7 @@ describe("1 · conversation complète", () => {
     await deposerMessage(depots, { idMessage: "msg-r1" });
     await passer(T0 + 1000);
     expect(port.envoyes).toHaveLength(1);
-    expect(port.envoyes[0].texte).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect(port.envoyes[0].texte).toBe(TEXTES_MP["mp-adresse-refusee-v3-1"].texte);
     await deposerMessage(depots, { idMessage: "msg-r2" });
     await passer(T0 + 2000);
     expect(port.envoyes).toHaveLength(1);
