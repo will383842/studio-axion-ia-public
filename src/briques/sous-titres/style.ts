@@ -5,7 +5,7 @@
  */
 import { PALETTE } from "../charte/axion-2026";
 import type { NomPolice } from "./mesure";
-import type { BaseRendu as BaseSousTitres, GabaritRendu as GabaritSousTitres, MarqueRendu, SegmentRendu, StyleBibliothequeRendu } from "./types-rendu";
+import type { GabaritRendu as BaseSousTitres, GabaritRendu as GabaritSousTitres, MarqueRendu, SegmentRendu, StyleBibliothequeRendu } from "./types-rendu";
 
 export type AnimationGabarit = "karaoke" | "fondu" | "rebond" | "nette";
 
@@ -133,9 +133,9 @@ export function gabaritDe(valeur: StyleBibliothequeRendu | null | undefined): Ga
   return valeur.position === "bas" ? "minimal" : "karaoke";
 }
 
-/** Base d'une vidéo depuis un gabarit : Impact et Bandeau ne sont que des accents. */
+/** Base d'une vidéo depuis un gabarit : le gabarit lui-même (Impact et Bandeau sont de vrais styles de base). */
 export function baseDe(gabarit: GabaritSousTitres): BaseSousTitres {
-  return gabarit === "minimal" ? "minimal" : "karaoke";
+  return gabarit;
 }
 
 /** Facteur de taille (3 niveaux) : normal ×1, grand ×1,3, très grand ×1,8 (Impact). */
