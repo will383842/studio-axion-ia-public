@@ -6,3 +6,10 @@ Test rouge vérifié avant le code (10 échecs sur 12). Tests : fiche 12 passés
 Reste / douteux : les formats n'écrivent pas de mots-dièse eux-mêmes aujourd'hui (champ `motsDiese` ou `hashtags` repris s'il existe, rien n'est deviné) ; eslint signale une apostrophe non échappée ligne 344 de la page, déjà là avant.
 Test autorisé d'office : non utilisé (le chemin de test figure dans la fiche). Aucun envoi réel (doublure de simulation).
 contrôle anti-fuite : vide
+
+## Corrections après relecture
+- Corrigé (à corriger) : la voie d'envoi direct (Zernio, `envoyerReel`) contournait le refus TEXTES_MANQUANTS. Le contrôle est maintenant une garde commune `refuserSiTextesManquants` (publications.ts), appelée par `envoyerVersBufferInterne` ET par `envoyerReelInterne` : toutes les voies d'envoi sont couvertes. a-publier-zernio.ts non touché. Tenu : kit-cc-iv.test.ts, bloc « toutes les voies d'envoi » (zernio, buffer, image → vidéo en blanc, format ordinaire inchangé). Test rouge vérifié avant le code (3 échecs), vert après.
+- Remarque 2 (projetMontage vs travail.parametres) : conforme au code réel, à confirmer par le concepteur, rien changé.
+- Remarque 3 (mots-dièse vides en pratique) : déjà dit plus haut, rien changé.
+- Tests : fiche 16 passés, 0 échoué. Voisins (ecriture-post, a-publier*, premier-commentaire, publication*) : 245 tests, 243 passés, 2 échoués (r2-textes-publication, les mêmes 2 sur master).
+- contrôle anti-fuite : vide

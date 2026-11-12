@@ -653,6 +653,13 @@ export async function envoyerVersBuffer(
   }
 }
 
+/** KIT-CC-IV : cas concret et image → vidéo n'envoient que les textes rangés dans leur version, jamais un texte d'essai. Garde commune à TOUTES les voies d'envoi (Buffer, Zernio). */
+async function refuserSiTextesManquants(videoId: Id, kitVue: VueKit, reseaux: IdReseau[]): Promise<void> {
+  if (!(await formatSansRedacteur(videoId))) return;
+  const sans = [...new Set(reseaux)].filter((r) => !kitVue.reseaux.find((x) => x.reseau === r)?.texte.trim());
+  if (sans.length) throw new ErreurStudio("TEXTES_MANQUANTS", `Le texte de cette vidéo manque pour ${sans.map((r) => obtenirReseau(r).nom).join(", ")} : il est écrit avec la vidéo, rien n'est envoyé sans lui.`);
+}
+
 async function envoyerVersBufferInterne(
   videoId: string,
   reseaux: IdReseau[],
@@ -677,11 +684,7 @@ async function envoyerVersBufferInterne(
   if (reseauVersion && !options.autreReseauConfirme && reseaux.some((r) => r !== reseauVersion)) {
     throw new ErreurStudio("RESEAU_DIFFERENT", `Cette vidéo a été écrite pour ${obtenirReseau(reseauVersion).nom}. Confirmez pour l'envoyer ailleurs.`);
   }
-  // KIT-CC-IV : cas concret et image → vidéo n'envoient que les textes rangés dans leur version, jamais un texte d'essai.
-  if (await formatSansRedacteur(videoId)) {
-    const sans = [...new Set(reseaux)].filter((r) => !kitVue.reseaux.find((x) => x.reseau === r)?.texte.trim());
-    if (sans.length) throw new ErreurStudio("TEXTES_MANQUANTS", `Le texte de cette vidéo manque pour ${sans.map((r) => obtenirReseau(r).nom).join(", ")} : il est écrit avec la vidéo, rien n'est envoyé sans lui.`);
-  }
+  await refuserSiTextesManquants(videoId, kitVue, reseaux);
   if (!kitVue.publiable) throw new ErreurStudio("AVANT_DE_PUBLIER", phraseVerifications(kitVue));
   const service = await fournisseur("publication");
   // Z2-E : l'outil de chaque réseau (réglage « publication.routage », défaut Buffer). Sans clé de l'outil choisi : refus, jamais l'autre.
@@ -896,6 +899,8 @@ function journaliserRefusEnvoi(action: string, contenuId: string, reseaux: IdRes
 async function envoyerReelInterne(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean, extras: ExtrasEnvoiReel = {}) {
   const d = depots();
   const videoId = kitVue.videoId;
+  // KIT-CC-IV : le refus « textes manquants » couvre aussi l'envoi direct (Zernio) : rien ne part sans le texte de la version.
+  await refuserSiTextesManquants(videoId, kitVue, reseaux);
   // Phrases neutres : le nom de Buffer ne s'écrit que pour Buffer ; ailleurs « l'outil de publication ».
   const lui = outil === "buffer" ? "Buffer" : "l'outil de publication";
   const mode: ModeEnvoiPublication = outil === "buffer" ? await lireModeBuffer() : "brouillon";
