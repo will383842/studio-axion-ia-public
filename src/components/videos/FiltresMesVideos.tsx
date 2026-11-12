@@ -13,7 +13,7 @@ function Puce({ href, actif, children }: { href: string; actif: boolean; childre
       aria-current={actif ? "true" : undefined}
       className={cn(
         "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors",
-        actif ? "border-orange/40 bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
+        actif ? "border-accent bg-accent-doux text-accent" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
       )}
     >
       {children}

@@ -7,6 +7,7 @@
  */
 import type { EnvoiPlanifie } from "./envoi-planifie";
 import type { CreneauEditorial } from "./plan-editorial/types";
+import type { MessageStock } from "./stock-messages";
 import type { EvenementTrace } from "./tracabilite-tableau";
 import type { Visuel } from "./visuels/visuel";
 import type {
@@ -180,4 +181,6 @@ export interface Depots {
   /** Plan éditorial (L1-06) : les créneaux, et le journal de leurs décalages (ajout seul). */
   creneauxEditoriaux: Depot<CreneauEditorial>;
   journalDecalages: DepotAjoutSeul<JournalDecalage>;
+  /** Stock de messages (STK-01) : archivage sans suppression (`archiveLe`). */
+  stockMessages: Depot<MessageStock>;
 }

@@ -11,7 +11,7 @@
  *    double non ancré en bas, décor à vérifier, LUT sans fichier).
  */
 import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types";
-import { donneesCalque } from "@/briques/sous-titres";
+import { baseRetenue, controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
 import { positionsVerticales } from "@/briques/sous-titres/largeur";
 import type { BandeFondSousTitres, DonneesCalque } from "@/briques/sous-titres/scene";
 import { sousTitresSurDecor } from "@/domaine/decors";
@@ -314,7 +314,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
 
   // --- Texte : sous-titres (M2), encadré, incrustations ---
   const style = c.styles.sousTitres?.valeur;
-  const base = c.sousTitres?.base ?? (style?.gabarit === "minimal" ? "minimal" : "karaoke");
+  const base = baseRetenue(c.sousTitres?.base, style);
   // Style « Encre » (tableau animé) : l'encre sur la page claire se lit sans ombre ni bandeau. Absent : inchangé.
   const encre = style?.encre;
   const regle = encre ? { mode: "normal" as const, facteurOmbre: 1 } : sousTitresSurDecor(c.styles.decor?.valeur);
@@ -377,6 +377,15 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   // E2E-1 n° 12 : l'objet incrusté (logo d'appel) se pose sous les sous-titres RÉELLEMENT dessinés, avec un écart
   // visible constant, et garde la même taille d'un réseau à l'autre.
   const calqueFinal = sousTitres;
+  // Contrôle central des sous-titres : des remarques seulement (jamais bloquant), sans effet sur les paramètres de rendu.
+  if (calqueFinal) {
+  try {
+    const occupe = encadreActif && instantsEncadre ? [{ debutSec: instantsEncadre.de, finSec: instantsEncadre.a, zone: "haut" as const }] : [];
+    for (const a of controlerSousTitres(calqueFinal, { texte: c.script.texteComplet, occupe })) {
+      if (!alertes.some((x) => x.code === a.code && x.message === a.message)) alertes.push(a);
+    }
+  } catch { /* contrôle informatif : ne bloque jamais la composition */ }
+  }
   const incrustations = recalerObjets(inc.incrustations, ratio, reseauxCalques, { geometrie: recette.incrustations, basSousTitres: calqueFinal ? (de, a) => basSousTitres(calqueFinal, de, a, fps) : undefined });
   const texte: ProprietesTexteComposition = { ratio, largeur, hauteur, fps, images, encadre, incrustations, sousTitres };
   // G6 : la commande annonce l'union des zones des réseaux cochés ; la géométrie calculée doit la respecter.

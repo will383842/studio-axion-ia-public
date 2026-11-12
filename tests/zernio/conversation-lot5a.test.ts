@@ -1,4 +1,5 @@
 /** Lot 5a · correctifs de la relecture de la PR #199 (M1, m1, m2, m3, m5). Données 100 % fictives (example.test) ; port et site FAUX. */
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { doitExpirer, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
 import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
@@ -279,11 +280,11 @@ describe("port · comptesLecture", () => {
     expect(await p.lireMessage({ idCompte: AUTRE, idConversation: "c", idMessage: "0123456789abcdef01234567", occurredAt: "2026-11-08T07:13:06.886Z" })).toMatchObject({ texte: "bonjour" });
     const lus = f.faux.appels.length;
     expect(lus).toBe(1);
-    const e = await p.envoyerMessage({ idCompte: AUTRE, idConversation: "c", texte: "x", cle: "k" });
+    const e = await p.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: AUTRE, idConversation: "c", texte: "x", cle: "k" });
     expect(e.statut).not.toBe("envoye");
-    const r = await p.repondreEnPrive({ idCompte: AUTRE, idPost: "p", idCommentaire: "c", texte: "x" });
+    const r = await p.repondreEnPrive({ nonOpposee: emettreJetonNonOpposee(), idCompte: AUTRE, idPost: "p", idCommentaire: "c", texte: "x" });
     expect(r.statut).not.toBe("envoye");
-    const pub = await p.repondreCommentaire({ idCompte: AUTRE, idPost: "p", idCommentaire: "c", texte: "x", cle: "k" });
+    const pub = await p.repondreCommentaire({ nonOpposee: emettreJetonNonOpposee(), idCompte: AUTRE, idPost: "p", idCommentaire: "c", texte: "x", cle: "k" });
     expect(pub.statut).not.toBe("envoye");
     expect(f.faux.appels).toHaveLength(lus);
   });

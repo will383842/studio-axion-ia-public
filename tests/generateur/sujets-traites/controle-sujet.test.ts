@@ -195,7 +195,7 @@ describe("réglage `sujets.garde`", () => {
 
 describe("sujet venu de l'Usine : clé `usine:<cas d'usage>`", () => {
   const origine = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, typeContenu: "video" as const });
-  const idee = (cas: string, casUsage: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage });
+  const idee = (cas: string, casUsage: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage, format: "avocat" });
 
   it("même cas d'usage, autres mots : identique (clé exacte) ; refus AVANT d'écrire la moindre matière", async () => {
     await sujetTraite("Un texte sans rapport avec la suite", "avocat", { origineUsine: origine("cas-fuite") });
@@ -219,7 +219,7 @@ describe("sujet venu de l'Usine : clé `usine:<cas d'usage>`", () => {
 
 describe("Usine : deux cas d'usage distincts sur la même douleur ne sont pas « proches »", () => {
   const origine = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, typeContenu: "video" as const });
-  const idee = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage: "Un diagnostic avant chaque devis" });
+  const idee = (cas: string) => ({ signature: `sig-${cas}`, parts: { cas_usage: cas }, metier: "Plombier", taille: "TPE", douleur: "Des fuites partout", casUsage: "Un diagnostic avant chaque devis", format: "avocat" });
 
   it("cas-a numéroté ; cas-b (même texte) libre ; cas-a de nouveau : refusé et sorti de la réserve", async () => {
     await sujetTraite("Des fuites partout Un diagnostic avant chaque devis", "avocat", { origineUsine: origine("cas-a") });

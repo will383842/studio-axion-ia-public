@@ -91,11 +91,12 @@ describe("L1-06 dépôts du calendrier", () => {
 
   it("suppression d'une vidéo : une décision écrite pour chacune des deux collections (constat de relecture)", () => {
     expect(Object.keys(TRAITEMENT_SUPPRESSION).sort()).toEqual(Object.keys(depots()).sort());
-    expect(TRAITEMENT_SUPPRESSION.creneauxEditoriaux).toBe("garde-publiees");
+    expect(TRAITEMENT_SUPPRESSION.creneauxEditoriaux).toBe("detache"); // CORRECTIF STK-01 : détaché, plus effacé
     expect(TRAITEMENT_SUPPRESSION.journalDecalages).toBe("sans-lien");
     const g = GARDES_APRES_SUPPRESSION.find((x) => x.collection === "creneauxEditoriaux");
     expect(g?.correspond({ ...creneau })).toBe(false);
     expect(g?.correspond({ ...creneau, statut: "publie" })).toBe(true);
+    expect(g?.correspond({ ...creneau, statut: "archive" })).toBe(true);
   });
 
   it("journal des décalages : ajout seul (type restreint, ni modifier ni supprimer)", async () => {
