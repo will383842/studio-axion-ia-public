@@ -7,7 +7,7 @@
  */
 import { useState } from "react";
 import type { IdReseau } from "@/domaine/types";
-import type { DemandeTexteImporte, ResultatProposition, TypeImporte } from "@/services/texte-post";
+import { controlerTexteSaisi, type DemandeTexteImporte, type ResultatProposition, type TypeImporte } from "@/services/texte-post";
 
 export interface TexteReseau {
   texte: string;
@@ -31,7 +31,8 @@ export function ProposerTexte({ type, reseaux, proposer, texteDesPages, onChange
   const [valeurs, setValeurs] = useState<Record<string, TexteReseau>>({});
   const [enCours, setEnCours] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [controle, setControle] = useState<Record<string, string[]>>({});
+  // Mots-dièse et titre de la proposition : le contrôle se refait à chaque rendu, sur le texte tel qu'il est maintenant.
+  const [proposition, setProposition] = useState<Record<string, { motsDiese: string[]; titreDocument?: string }>>({});
 
   function majeur(suivant: Record<string, TexteReseau>) {
     setValeurs(suivant);
@@ -49,12 +50,12 @@ export function ProposerTexte({ type, reseaux, proposer, texteDesPages, onChange
         return;
       }
       const suivant: Record<string, TexteReseau> = {};
-      const echecs: Record<string, string[]> = {};
+      const meta: Record<string, { motsDiese: string[]; titreDocument?: string }> = {};
       for (const p of r.propositions) {
         suivant[p.reseau] = { texte: p.texte, premierCommentaire: p.premierCommentaire ?? "" };
-        echecs[p.reseau] = p.controle;
+        meta[p.reseau] = { motsDiese: p.motsDiese, ...(p.titreDocument ? { titreDocument: p.titreDocument } : {}) };
       }
-      setControle(echecs);
+      setProposition(meta);
       majeur(suivant);
       setMessage(r.essai ? "Texte d'essai : le Studio est en simulation, ce texte n'est pas écrit par l'assistant. À relire et modifier." : "Proposition à relire et modifier : rien n'est envoyé sans votre validation.");
     } catch {
@@ -75,13 +76,14 @@ export function ProposerTexte({ type, reseaux, proposer, texteDesPages, onChange
       {message && <p role="status">{message}</p>}
       {reseaux.map((reseau) => {
         const v = valeurs[reseau] ?? { texte: "", premierCommentaire: "" };
+        const echecs = v.texte.trim() ? controlerTexteSaisi({ reseau, texte: v.texte, ...proposition[reseau], description, ...(texteDesPages ? { texteDesPages } : {}) }) : [];
         return (
           <div key={reseau}>
             <label>
               Texte du post ({reseau})
               <textarea value={v.texte} onChange={(e) => majeur({ ...valeurs, [reseau]: { ...v, texte: e.target.value } })} />
             </label>
-            {(controle[reseau] ?? []).length > 0 && <p role="alert">À corriger avant la validation : {(controle[reseau] ?? []).join(" ; ")}.</p>}
+            {echecs.length > 0 && <p role="alert">À corriger avant la validation : {echecs.join(" ; ")}.</p>}
             {reseau === "tiktok" ? (
               <p>Pas de premier commentaire sur TikTok.</p>
             ) : (
