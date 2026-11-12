@@ -102,6 +102,54 @@ describe("infographie : s'agrandit", () => {
   });
 });
 
+describe("infographie : fenêtre accessible au clavier", () => {
+  const ouvrir = () => {
+    const m = monter(ApercuMedia, { type: "infographie" as const, url: "https://stockage.exemple/i.png" });
+    const agrandir = trouver(m.rendre(), (e) => e.type === "button" && /agrandir/i.test(texteDe(e.props.children as never)))[0]!;
+    const declencheur = (agrandir.props as { ref: { current: unknown } }).ref;
+    const focusDeclencheur = vi.fn();
+    declencheur.current = { focus: focusDeclencheur };
+    clic(m, /agrandir/i);
+    return { m, focusDeclencheur };
+  };
+  const fermer = (m: ReturnType<typeof monter>) => trouver(m.rendre(), (e) => e.type === "button" && /fermer/i.test(texteDe(e.props.children as never)))[0]!;
+
+  it("à l'ouverture, le focus entre dans la fenêtre (sur « Fermer »)", () => {
+    const { m } = ouvrir();
+    const focus = vi.fn();
+    (fermer(m).props as { ref: (el: unknown) => void }).ref({ focus });
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("Échap ferme et le focus revient au bouton déclencheur ; « Fermer » aussi", () => {
+    const a = ouvrir();
+    const dlg = trouver(a.m.rendre(), (e) => e.props.role === "dialog")[0]!;
+    (dlg.props.onKeyDown as (e: unknown) => void)({ key: "Escape", preventDefault: () => undefined });
+    expect(trouver(a.m.rendre(), (e) => e.props.role === "dialog")).toHaveLength(0);
+    expect(a.focusDeclencheur).toHaveBeenCalledTimes(1);
+
+    const b = ouvrir();
+    (fermer(b.m).props.onClick as () => void)();
+    expect(b.focusDeclencheur).toHaveBeenCalledTimes(1);
+  });
+
+  it("la touche Tab ne fait pas sortir le focus de la fenêtre", () => {
+    const { m } = ouvrir();
+    const dlg = trouver(m.rendre(), (e) => e.props.role === "dialog")[0]!;
+    const preventDefault = vi.fn();
+    (dlg.props.onKeyDown as (e: unknown) => void)({ key: "Tab", preventDefault });
+    expect(preventDefault).toHaveBeenCalled();
+    expect(trouver(m.rendre(), (e) => e.props.role === "dialog")).toHaveLength(1);
+  });
+
+  it("tous les boutons font au moins 44 px de haut et de large", () => {
+    const { m } = ouvrir();
+    const boutons = [...trouver(m.rendre(), (e) => e.type === "button"), ...trouver(monter(ApercuMedia, { type: "carrousel" as const, pages: PAGES }).rendre(), (e) => e.type === "button")];
+    expect(boutons.length).toBeGreaterThanOrEqual(3);
+    for (const b of boutons) expect(String(b.props.className)).toMatch(/min-h-\[44px\][^"]*min-w-\[44px\]/);
+  });
+});
+
 describe("règles de la maison", () => {
   it("vouvoiement, aucun prix affiché", () => {
     for (const type of ["video", "carrousel", "infographie"] as const) {

@@ -4,4 +4,5 @@
 - tsc : 147 erreurs, comme master (0 nouvelle). eslint : 0 erreur ; 3 avertissements @next/next/no-img-element dans ApercuMedia (pas d'eslint-disable posé ; master en a un dans ApercuPublication).
 - Reste : brancher ApercuMedia dans ApercuPublication et fournir les liens (hors fichiers autorisés, ApercuPublication non touché) ; appeler rendrePagesPdf à l'import CAL-25 avec un vrai moteur de rendu (non fourni, aucune dépendance ajoutée) ; page /calendrier non touchée.
 - Rien n'est publié.
+- CORRECTIF (relecture z4) : ApercuMedia, le focus entre dans la fenêtre à l'ouverture (sur « Fermer »), Échap ferme, le focus revient au bouton déclencheur, Tab ne sort pas de la fenêtre ; boutons de 44 px au moins ; 20 essais passés ; tsc 146 erreurs avant et après ; eslint 0 erreur (3 avertissements img déjà présents).
 contrôle anti-fuite : vide
