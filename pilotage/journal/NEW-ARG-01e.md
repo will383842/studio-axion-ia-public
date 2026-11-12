@@ -1,0 +1,6 @@
+# NEW-ARG-01e : aucun montant à l'écran, lot e (final)
+- Fait : cout.ts ne formate plus aucun montant (phrases sans chiffre ; les calculs du serveur et `estimationDuLot` sont intacts). reprise.ts, SuiviLot.tsx, Fabrication.tsx et DepotPrise.tsx passent tout texte venu du serveur par `messageSansMontant` (aide de NEW-ARG-01) ; un montant connu reste accepté tout de suite, aucune commande n'est bloquée. CoutVoix.tsx ne rendait déjà rien : seul le commentaire est corrigé.
+- Fichiers : les 6 de la fiche, tests/sans-prix/new-arg-01e.test.tsx (nouveau), ce journal. Signature de ConfirmationPrix inchangée.
+- Test rouge d'abord : 5 échecs sur 8 avant le code, 8 verts après.
+- Tests : nouveau test, new-arg-01, couleurs-theme-seulement : 61 passés. tsc : aucune erreur nouvelle dans les fichiers touchés. eslint : aucune erreur nouvelle (l'erreur restante est dans AdapteAutomatiquement.tsx, hors lot).
+- PILOTAGE : tests/facecam-animee/cout-honnete.test.ts (hors liste, non modifié) attend encore `eurosFA`, `dollarsFA` et des « € » : il échoue désormais (2 tests + erreurs de types) et doit être mis à jour ou retiré par une fiche qui l'autorise. Échecs sans lien déjà présents avant : essai-reel, lot-i, mots-interdits-ecran, rangee-pastilles-mots (8 tests).
