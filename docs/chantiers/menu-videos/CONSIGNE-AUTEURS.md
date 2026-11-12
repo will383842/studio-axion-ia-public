@@ -1,10 +1,10 @@
 # Consigne commune des auteurs — studio (08/11/2026)
 
-Dépôt : `C:\Users\Will\Documents\Projets\studio-axion-ia-public` (branche principale `master`, remote GitHub `will383842/studio-axion-ia-public`).
+Dépôt : `<dossier du projet>` (branche principale `master`, remote GitHub `will383842/studio-axion-ia-public`).
 NE TRAVAILLE JAMAIS dans ce dossier directement (une autre branche y est en cours). Crée TA copie :
 
 ```
-cd C:/Users/Will/Documents/Projets/studio-axion-ia-public
+cd <dossier du projet>
 git fetch -q origin
 git worktree add ../wt-<lot> -b <branche> <base>      # base indiquée dans ta mission
 cd ../wt-<lot> && pnpm install --frozen-lockfile --prefer-offline
