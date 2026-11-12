@@ -23,6 +23,7 @@ import { exigerSession } from "./auth";
 import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-generation";
 import { resumeBudget } from "./couts";
 import { claudeBranche, depenseGenerationUsd, ecritureEnEssai, engageClaudeDuMoisCentimes, plafondChaineUsd, plafondMensuelClaudeUsd, taux } from "./generation-claude";
+import { signalerDepassementIndicatif } from "./budget-mensuel";
 import { ajouterIdee } from "./idees";
 import { accordAutomatique, budgetIndicatif } from "./mode-budget";
 import { depots, ErreurStudio, ecrireParametre, journaliser, lireParametre, maintenant } from "./_commun";
@@ -211,6 +212,12 @@ async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | unde
   if (plan.essai || plan.partiront === 0) return;
   const { seuilConfirmation } = await resumeBudget();
   if (plan.totalPartant.centimes <= seuilConfirmation.centimes) return;
+  // L2-13c : le fondateur n'est jamais refusé pour un montant. Au-dessus du seuil, la série part ; une alerte (journal + cloche,
+  // une fois par jour) le dit SANS aucun montant. Seul le mode bloquant (qui n'existe plus) garde la confirmation ci-dessous.
+  if (await budgetIndicatif()) {
+    await signalerDepassementIndicatif("serie-seuil", "Série au-dessus du seuil habituel (elle part)", "Rien n'est arrêté : la série part sans confirmation. Réglages > Budget pour ajuster le repère.");
+    return;
+  }
   // Seconde relecture (R4) : la taille du plan vu est EXIGÉE dès qu'il y a une confirmation (absente = refus).
   const memeTaille = partirontConfirme === plan.partiront;
   // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu est rendu inchangé.
