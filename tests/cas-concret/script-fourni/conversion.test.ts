@@ -58,6 +58,12 @@ const refusDe = (texte: string, options?: { motsInterdits?: string[] }) => {
   return r.ok ? [] : r.refus.map((x) => x.message);
 };
 
+/** 08/11/2026 : ce qui n'est plus un refus devient une remarque ou un avertissement ; le script passe (ok = true). */
+const notesDe = (texte: string, options?: { motsInterdits?: string[] }) => {
+  const r = controlerTexteFourni(texte, LT02, options);
+  return r.ok ? { ok: true as const, remarques: r.remarques, avertissements: r.avertissements } : { ok: false as const, remarques: [] as string[], avertissements: [] as string[], refus: r.refus.map((x) => x.message) };
+};
+
 describe("un script d'un cas du stock", () => {
   it("le texte tiré du gabarit est conforme", () => {
     expect(refusDe(BASE)).toEqual([]);
@@ -94,39 +100,50 @@ describe("un script d'un cas du stock", () => {
 });
 
 describe("refus, en « Ligne N : … » avec le geste à faire", () => {
-  it("accroche de 10 mots (R03) : le sujet à dire", () => {
+  it("LOT A · accroche de 9 mots (R03) : une REMARQUE, le script passe ; à 10 mots, l'écran ne la porte plus (limite technique, dite en clair)", () => {
     const l = lignesBase();
+    l[0] = "[accroche] Vos demandes de prix arrivent sans le poids exact.";
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.remarques).toContain("Ligne 1 : l'accroche compte 9 mots ; l'habitude est de 8 au plus.");
     l[0] = "[accroche] Vos demandes de prix arrivent sans le poids du colis.";
-    const r = refusDe(l.join("\n"));
-    expect(r[0]).toBe(`Ligne 1 : l'accroche compte 10 mots ; de 2 à 8 mots. Dites le sujet de la vidéo, par exemple « ${LT02.recit!.sujet} ».`);
+    const t = notesDe(l.join("\n"));
+    expect(t.ok).toBe(false);
+    expect((t as { refus: string[] }).refus[0]).toBe("Ligne 1 : l'accroche compte 10 mots ; l'écran d'accroche en tient 9 au plus. Gardez l'idée, coupez le reste.");
   });
 
-  it("accroche qui ne dit pas le sujet (R03) : la phrase à dire", () => {
+  it("LOT A · accroche qui ne dit pas le sujet (R03) : une REMARQUE avec la phrase à dire, le script passe", () => {
     const l = lignesBase();
     l[0] = "[accroche] Bonjour à tous ici.";
-    const r = refusDe(l.join("\n"));
-    expect(r.some((m) => m.startsWith("Ligne 1 : ") && m.includes(`La première phrase dit le sujet : « ${LT02.recit!.sujet} », en 8 mots au plus.`))).toBe(true);
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.remarques.some((m) => m.startsWith("Ligne 1 : ") && m.includes(`La première phrase dit le sujet : « ${LT02.recit!.sujet} », en 8 mots au plus.`))).toBe(true);
   });
 
-  it("ligne trop longue (R05) : coupez en deux", () => {
+  it("LOT A · ligne trop longue (R05) : une REMARQUE « coupez en deux », le script passe", () => {
     const l = lignesBase();
     const i = l.findIndex((x) => x.startsWith("[étape 2]"));
     l[i] = "[étape 2] " + Array.from({ length: 20 }, () => "mot").join(" ") + " fin.";
-    const r = refusDe(l.join("\n"));
-    expect(r.some((m) => m.startsWith(`Ligne ${i + 1} : `) && m.endsWith("Coupez cette phrase en deux lignes."))).toBe(true);
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.remarques.some((m) => m.startsWith(`Ligne ${i + 1} : `) && m.endsWith("Coupez cette phrase en deux lignes."))).toBe(true);
   });
 
-  it("neuf lignes seulement (R20) : « Il faut de 12 à 26 lignes »", () => {
+  it("LOT A · neuf lignes seulement (R20) : une REMARQUE sur le nombre de lignes quand la fiche tient, sinon seul le format technique refuse", () => {
     const l = lignesBase();
-    const r = refusDe([l[0], ...l.slice(1, 7), l[l.length - 2], l[l.length - 1]].join("\n"));
-    expect(r.some((m) => m.includes("Il faut de 12 à 26 lignes"))).toBe(true);
+    const r = notesDe([l[0], ...l.slice(1, 7), l[l.length - 2], l[l.length - 1]].join("\n"));
+    const dit = [...r.remarques, ...(r.ok ? [] : (r as { refus: string[] }).refus)].join(" ");
+    expect(dit).toMatch(/lignes/);
+    expect(dit).not.toContain("Il faut de 12 à 26 lignes");
   });
 
-  it("un nombre qui ne vient d'aucun fait (R12)", () => {
+  it("LOT A · un nombre qui ne vient d'aucun fait (R12) : un AVERTISSEMENT très visible, le script passe", () => {
     const l = lignesBase();
     const i = l.findIndex((x) => x.startsWith("[étape 1]"));
     l[i] = l[i].replace(/\.$/, "") + " en 42 jours.";
-    expect(refusDe(l.join("\n")).some((m) => m.startsWith(`Ligne ${i + 1} : `) && m.includes("Ce nombre ne vient d'aucun fait du cas : retirez-le."))).toBe(true);
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.some((m) => m.startsWith(`Ligne ${i + 1} : `) && m.includes("Ce nombre ne vient d'aucun fait du cas : retirez-le."))).toBe(true);
   });
 
   it("un appel dans le corps (R18) : la fin est ajoutée toute seule", () => {
@@ -136,14 +153,18 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
     expect(refusDe(l.join("\n")).some((m) => m.includes("La fin (lien, mot à commenter, diagnostic) est ajoutée toute seule selon le réseau : retirez-la."))).toBe(true);
   });
 
-  it("un tutoiement (R11) et un mot interdit de Will (R10)", () => {
+  it("LOT A · un tutoiement (R11) est une REMARQUE ; un mot interdit de Will (R10) un AVERTISSEMENT ; le script passe dans les deux cas", () => {
     const l = lignesBase();
     const i = l.findIndex((x) => x.startsWith("[étape 1]"));
     const tut = [...l];
     tut[i] = "[étape 1] Tu reçois la demande et tu la ranges.";
-    expect(refusDe(tut.join("\n")).some((m) => m.startsWith(`Ligne ${i + 1} : `))).toBe(true);
+    const rt = notesDe(tut.join("\n"));
+    expect(rt.ok).toBe(true);
+    expect(rt.remarques.some((m) => m.startsWith(`Ligne ${i + 1} : `))).toBe(true);
     const mot = l[i].replace(/^\[étape 1\]\s*/, "").split(/\s+/).find((m) => m.length > 5)!.replace(/[^\p{L}]/gu, "");
-    expect(refusDe(l.join("\n"), { motsInterdits: [mot] }).some((m) => m.startsWith(`Ligne ${i + 1} : `))).toBe(true);
+    const rm = notesDe(l.join("\n"), { motsInterdits: [mot] });
+    expect(rm.ok).toBe(true);
+    expect(rm.avertissements.some((m) => m.startsWith(`Ligne ${i + 1} : `))).toBe(true);
   });
 
   it("une question sans « ? »", () => {
@@ -158,10 +179,11 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
     expect(r.some((m) => m.includes(`Dites mot pour mot « ${LT02.resteHumain} », après l'étape ${LT02.resteHumainApresEtape}.`))).toBe(true);
   });
 
-  it("trop court avec la fin la plus courte (R21) : « ajoutez une phrase »", () => {
+  it("LOT A · trop court avec la fin la plus courte (R21) : une REMARQUE de durée, le script passe", () => {
     const l = lignesBase().map((x) => (/^\[(étape|détail|humain)/.test(x) ? x.replace(/^(\[[^\]]+\]).*$/, (_, e) => (e.startsWith("[humain") ? x : `${e} Quatre mots dits ici.`)) : x));
-    const r = refusDe(l.join("\n"));
-    expect(r.some((m) => /^Durée : avec la fin la plus courte la vidéo ferait environ [\d,]+ s, il en faut au moins 35 : ajoutez une phrase\.$/.test(m))).toBe(true);
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.remarques.some((m) => /^Durée : avec la fin la plus courte la vidéo ferait environ [\d,]+ s ; l'habitude est d'au moins 35 s\.$/.test(m))).toBe(true);
   });
 
   it("une étiquette inconnue, une ligne trop longue, trop de lignes, un texte trop long", () => {

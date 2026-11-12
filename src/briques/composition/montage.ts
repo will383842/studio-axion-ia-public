@@ -41,7 +41,7 @@ export interface BaseComposition {
    * Facecam lot E (ajout pur) : champs face caméra de l'entrée de la composition (piste pré-cadrée 10 bits, écrans
    * partagés, cartes plein écran, ligne des sous-titres, Look des B-roll), posés tels quels. Absent : rien ne change.
    */
-  supplements?: Pick<EntreeComposition, "sourcePreCadree" | "source10bits" | "ecransPartages" | "positionSousTitresPct" | "cartesPleinEcran" | "lookBroll" | "echelleSousTitres" | "textesAffiches" | "controleCouleurs" | "instantsBords" | "passagesClairs">;
+  supplements?: Pick<EntreeComposition, "sourcePreCadree" | "source10bits" | "ecransPartages" | "positionSousTitresPct" | "cartesPleinEcran" | "lookBroll" | "echelleSousTitres" | "textesAffiches" | "controleCouleurs" | "instantsBords" | "passagesClairs" | "planScenes">;
   /** Facecam lot G (ajout pur) : mises en page (côté, vignette), posées telles quelles. Absent : rien ne change. */
   supplementsMiseEnPage?: Pick<EntreeComposition, "misesEnPage">;
   /**

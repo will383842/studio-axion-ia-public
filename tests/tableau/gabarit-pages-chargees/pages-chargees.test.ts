@@ -140,12 +140,6 @@ describe("rien d'autre ne casse", () => {
     it(`fiche réelle « ${nom} » : acceptée, ses quatre sorties lisibles`, () => {
       const f = ficheReference2(nom);
       const v = validerFicheTableau(f, contexteDe(f));
-      // Lot B2b : la fiche réelle « habitude-equipe » (1 670 caractères dits, enregistrée le 12/10) dépasse la limite de 90 s au
-      // débit de la voix à 165 mots/min (1 520 caractères) : elle est désormais REFUSÉE, et seulement pour sa durée.
-      if (nom === "habitude-equipe") {
-        expect(v.ok ? [] : v.problemes.map((p) => p.message.replace(/^.*?règle « ([^»]*) ».*$/, "$1"))).toEqual(["durée de 90 secondes au plus"]);
-        return;
-      }
       expect(v.ok ? [] : v.problemes.map((p) => p.message)).toEqual([]);
       for (const r of quatreSorties(f)) {
         expect(r.refus, `${nom} · ${r.format}`).toBeUndefined();

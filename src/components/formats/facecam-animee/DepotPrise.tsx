@@ -306,7 +306,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
       <FeuilleScriptsValides ouverte={scriptPour !== null} onOuverteChange={(v) => !v && setScriptPour(null)} onChoisir={reprendreScript} />
 
       {!accordDejaDonne && (
-        <CaseACocher libelle="J'accepte l'essai réel de ce format" detail="Format en essai, visible seulement par vous : les vidéos sont vraiment fabriquées (sans prix)." coche={accord} onChange={setAccord} />
+        <CaseACocher libelle="J'accepte l'essai réel de ce format" detail="Format en essai, visible seulement par vous : les vidéos sont vraiment fabriquées." coche={accord} onChange={setAccord} />
       )}
       {refus && (
         <p role="alert" className="rounded-2xl bg-brique-doux px-4 py-3 text-[15px] font-semibold text-brique">

@@ -103,7 +103,7 @@ describe("B1 · « Une idée » › « Écrire le texte » passe par le vrai gé
     expect(t.formatId).toBe("avocat");
     expect(texteDesBlocs(t.blocs)).toBe(texteDesBlocs(assemblerBlocs(script, v)));
     expect(t.sujet.length).toBeGreaterThan(3);
-  });
+  }, 30_000); // vraie boucle de génération : ~6 s sur un poste ordinaire, au-delà des 5 s par défaut de vitest
 
   it("écrans : l'assistant n'appelle plus `generer` ; l'idée part vers l'écran Sujet et revient avec la version", () => {
     const etape = src("src/assistant/etapes/Script.tsx");

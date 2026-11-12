@@ -5,7 +5,6 @@
  */
 import "server-only";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre, sousVerrou } from "./_commun";
-import { formaterUsd } from "@/domaine/plafond-sujet";
 import { exigerSession } from "./auth";
 import { PARAM_PLAFOND_SUJET, plafondChaineUsd } from "./generation-claude";
 
@@ -14,8 +13,6 @@ export const BORNES_PLAFOND_SUJET_CENTIMES = Object.freeze({ min: 50, max: 500 }
 
 const estPlafondValable = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= BORNES_PLAFOND_SUJET_CENTIMES.min && v <= BORNES_PLAFOND_SUJET_CENTIMES.max;
 
-/** « 1,50 $ » depuis des centimes entiers. */
-export const formaterDollars = (centimes: number): string => `${Math.floor(centimes / 100)},${String(centimes % 100).padStart(2, "0")} $`;
 
 export interface PlafondSujetLu {
   /** Plafond RÉELLEMENT appliqué (dollars), exactement ce que lit `plafondChaineUsd`. */
@@ -40,13 +37,13 @@ export async function lirePlafondSujet(): Promise<PlafondSujetLu> {
 export async function definirPlafondSujet(centimes: unknown): Promise<number> {
   await exigerSession();
   if (!estPlafondValable(centimes)) {
-    throw new ErreurStudio("PLAFOND_INVALIDE", `Indiquez un plafond entre ${formaterDollars(BORNES_PLAFOND_SUJET_CENTIMES.min)} et ${formaterDollars(BORNES_PLAFOND_SUJET_CENTIMES.max)}.`);
+    throw new ErreurStudio("PLAFOND_INVALIDE", `Indiquez un plafond dans la plage permise par le réglage.`);
   }
   return sousVerrou(async () => {
     const avant = await lirePlafondSujet();
     if (avant.reglee && Math.abs(avant.usd * 100 - centimes) < 1e-6) return centimes;
     await ecrireParametre(PARAM_PLAFOND_SUJET, centimes / 100);
-    await journaliser("budget", `Plafond d'un sujet (Écrire) : ${formaterUsd(avant.usd)} → ${formaterUsd(centimes / 100)}`);
+    await journaliser("budget", `Plafond d'un sujet (Écrire) modifié`);
     return centimes;
   });
 }

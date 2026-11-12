@@ -223,6 +223,37 @@ export async function refaireMiniaturesAction(videoId: string): Promise<Resultat
   });
 }
 
+/** Titre de la vignette (3 à 5 mots) et mot à mettre en valeur : fixés par Williams, l'image choisie est refaite. */
+export async function fixerCouvertureVignetteAction(videoId: string, texte: string, motCle: string): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    const { fixerCouvertureVignette } = await import("@/services/videos");
+    await fixerCouvertureVignette(videoId, texte, motCle);
+    rafraichir(videoId);
+    return undefined;
+  });
+}
+
+/** « Refaire les vignettes » d'une vidéo : de nouvelles miniatures, les anciennes sont gardées. */
+export async function refaireVignettesAction(videoId: string): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    const { refaireVignettes } = await import("@/services/miniatures");
+    await refaireVignettes(videoId);
+    rafraichir(videoId);
+    return undefined;
+  });
+}
+
+/** « Refaire les vignettes » de toutes les vidéos qui n'ont pas encore la vignette Axion (20 à la fois, rien n'est effacé). */
+export async function refaireToutesLesVignettesAction(): Promise<Resultat<{ videos: number; erreurs: number; restantes: number }>> {
+  await exigerSession();
+  return essayer(async () => {
+    const { refaireToutesLesVignettes } = await import("@/services/miniatures");
+    return refaireToutesLesVignettes();
+  });
+}
+
 export async function corrigerMotAction(videoId: string, segmentId: string, indexMot: number, mot: string): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {
@@ -349,15 +380,20 @@ export async function envoyerVersBufferAction(
   autreReseauConfirme = false,
   /** Lot R1b : comptes Buffer cochés, par réseau (réseaux à plusieurs comptes). */
   comptes: Partial<Record<IdReseau, string[]>> = {},
-): Promise<Resultat<{ simulation: boolean; nombre: number; mode?: ModeEnvoiPublication; problemes: string[] }>> {
+  /** Premier commentaire modifié à l'écran, par réseau (sinon : celui que la vidéo porte déjà). */
+  premiersCommentaires: Partial<Record<IdReseau, string>> = {},
+  /** Page « À publier » : le premier commentaire de la vidéo est montré à l'écran, donc il peut partir. */
+  avecPremierCommentaire = false,
+): Promise<Resultat<{ simulation: boolean; nombre: number; mode?: ModeEnvoiPublication; problemes: string[]; commentairesALaMain: IdReseau[] }>> {
   await exigerSession();
   return essayer(async () => {
-    const r = await envoyerVersBuffer(videoId, reseaux, dateIso, { autreReseauConfirme, comptes });
+    const r = await envoyerVersBuffer(videoId, reseaux, dateIso, { autreReseauConfirme, comptes, premiersCommentaires, avecPremierCommentaire });
     rafraichir(videoId);
     revalidatePath("/calendrier");
+    revalidatePath("/a-publier");
     // Lot R1 : seuls les envois que Buffer a CONFIRMÉS sont comptés ; le reste est dit (à vérifier, refusé).
     const confirmes = r.simulation ? r.publications.length : r.publications.filter((p) => p.etatEnvoi === "envoye").length;
-    return { simulation: r.simulation, nombre: confirmes, mode: r.mode, problemes: (r.problemes ?? []).map((p) => p.message) };
+    return { simulation: r.simulation, nombre: confirmes, mode: r.mode, problemes: (r.problemes ?? []).map((p) => p.message), commentairesALaMain: r.commentairesALaMain ?? [] };
   });
 }
 

@@ -17,7 +17,7 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import { PLAFONDS_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import type { MotHorodate } from "@/domaine/types";
-import { bloque, CODES_CONTROLE_IV, controlerVersionIV, LIBELLES_CONTROLE_IV, scriptDeLaVersion, type ContexteControlesIV, type LigneControleIV, type MesuresDeLaPorteIV, type VersionAControlerIV } from "./controles";
+import { bloque, CODES_CONTROLE_IV, CONTROLES_INDICATIFS, controlerVersionIV, LIBELLES_CONTROLE_IV, scriptDeLaVersion, type ContexteControlesIV, type LigneControleIV, type MesuresDeLaPorteIV, type VersionAControlerIV } from "./controles";
 import { ecouterVersionIV, type EcouteVersionIV, type OutilsEcouteIV } from "./ecoute";
 import type { PlanDesFinsIV } from "./fins";
 import { instantsClesIV, relireVersionIV, type InstantCleIV, type OutilsRelectureIV, type RelectureFinale } from "./relecture-finale";
@@ -57,6 +57,8 @@ export interface VerdictPorteIV {
   phrase: string;
   /** Une phrase par défaut bloquant (vide si prête). */
   phrases: string[];
+  /** Seulement si refusée : « faute » (une ligne bloquante échouée, ou un défaut général) ; « non-fait » (toutes les lignes qui bloquent n'ont pas pu être vérifiées : panne d'outil, mesure absente) → reprise possible sans rien repayer. */
+  nature?: "faute" | "non-fait";
   /** Mentions orange, non bloquantes (« un peu longue », hors charte, calculs de l'image, débit). */
   mentions: string[];
   /** Défauts de la vidéo entière (réseau sans version, version manquante…). */
@@ -72,7 +74,7 @@ export interface VerdictPorteIV {
 const nomReseaux = (r: readonly ReseauIV[]) => r.map((x) => PLAFONDS_IV[x].nom).join(", ");
 
 /** Verdict des plafonds de chaque réseau demandé, lu sur les durées MESURÉES (fichier final) de ses versions. */
-export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: readonly VersionAControlerIV[]): { verdicts: VerdictReseauIV[]; manques: string[] } {
+export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: readonly VersionAControlerIV[], scriptColle = false): { verdicts: VerdictReseauIV[]; manques: string[] } {
   const verdicts: VerdictReseauIV[] = [];
   const manques: string[] = [];
   for (const r of RESEAUX_IV.filter((x) => reseaux.includes(x))) {
@@ -82,7 +84,7 @@ export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: reado
       continue;
     }
     const courte = versions.find((v) => v.courte && v.reseaux.includes(r));
-    verdicts.push(verdictReseau(r, longue.ligne.dureeSec, courte ? courte.ligne.dureeSec : null));
+    verdicts.push(verdictReseau(r, longue.ligne.dureeSec, courte ? courte.ligne.dureeSec : null, scriptColle));
   }
   return { verdicts, manques };
 }
@@ -92,24 +94,26 @@ export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: reado
  * remontent.
  */
 export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise<VerdictPorteIV> {
-  const ctx: ContexteControlesIV = { carte: e.carte, ficheValidee: e.fiche, ...(e.regles ? { regles: e.regles } : {}), voix: e.voix, publication: e.publication, liens: e.liens };
+  const ctx: ContexteControlesIV = { carte: e.carte, ficheValidee: e.fiche, ...(e.regles ? { regles: e.regles } : {}), voix: e.voix, publication: e.publication, liens: e.liens, ...(e.appelCommentaire ? { appelCommentaire: e.appelCommentaire } : {}), ...(e.scriptColle ? { scriptColle: true } : {}) };
   const generaux: string[] = [];
   if (!e.reseaux.length) generaux.push("aucun réseau demandé : la vidéo n'a nulle part où partir.");
   if (!e.versions.length) generaux.push("aucune version de la vidéo n'a été fournie aux contrôles.");
-  for (const s of e.plan.sansFin) if (s.reseaux.some((r) => e.reseaux.includes(r))) generaux.push(`${nomReseaux(s.reseaux)} : ${s.raison}`);
+  // Réseau sans fin : remarque (la vidéo sort sans question de commentaire), jamais un blocage.
+  const remarquesGenerales: string[] = [];
+  for (const s of e.plan.sansFin) if (s.reseaux.some((r) => e.reseaux.includes(r))) remarquesGenerales.push(`${nomReseaux(s.reseaux)} : ${s.raison}`);
   const vus = new Set<string>();
   for (const v of e.versions) {
     if (vus.has(v.version)) generaux.push(`la version ${v.version} est fournie deux fois.`);
     vus.add(v.version);
   }
-  const { verdicts, manques } = plafondsDesReseaux(e.reseaux, e.versions);
+  const { verdicts, manques } = plafondsDesReseaux(e.reseaux, e.versions, e.scriptColle === true);
   generaux.push(...manques);
 
   // 1. Sans dépense : instants clés, mise en page (Q21, mesurée par les contrôles), et toutes les lignes qui ne dépendent pas de l'écoute.
   const instants = new Map(e.versions.map((v) => [v.version, instantsClesIV(v.ligne, e.carte)]));
   const mesures = (v: VersionAControlerIV, plus: Partial<MesuresDeLaPorteIV> = {}): MesuresDeLaPorteIV => ({ plafonds: verdicts.filter((x) => v.reseaux.includes(x.reseau)), ...plus });
   const dejaRefusee = (lignes: readonly LigneControleIV[]) => lignes.some((l) => bloque(l) && !(l.etat === "non-fait" && CODES_APRES_ECOUTE.has(l.code)));
-  const refusAvant = generaux.length > 0 || verdicts.some((x) => x.bloquant) || e.versions.some((v) => dejaRefusee(controlerVersionIV(v, ctx, mesures(v))));
+  const refusAvant = generaux.length > 0 || e.versions.some((v) => dejaRefusee(controlerVersionIV(v, ctx, mesures(v))));
 
   // 2. Écoute de chaque version (réservée), seulement si rien n'est déjà refusé ; reprise sans repayer sinon.
   const transcriptions: Record<string, MotHorodate[]> = { ...(e.deja?.transcriptions ?? {}) };
@@ -134,11 +138,13 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const refusEcoute = refusAvant || e.versions.some((v) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => bloque(l) && l.code !== "Q26"));
 
   // 3. Relecture des images finales (réservée), seulement si tout le reste passe.
+  // Rendu suspect : le fichier final a une anomalie de mesure d'image (noir, figé, largeur, hauteur) ou une ligne Q24 bloquante, jamais un volume ni une crête ; sans aucune image lue, la vidéo n'est alors pas livrée.
+  const renduSuspect = (v: VersionAControlerIV) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => l.code === "Q24" && l.etat !== "reussi" && (bloque(l) || l.details.some((d) => /image noire|largeur|hauteur/.test(d))));
   const relectures: Record<string, RelectureFinale> = { ...(e.deja?.relectures ?? {}) };
   const relues = new Map<string, Awaited<ReturnType<typeof relireVersionIV>>>();
   for (const v of e.versions) {
     const r = await relireVersionIV(
-      { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcoute },
+      { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcoute, renduSuspect: renduSuspect(v) },
       o,
     );
     appelsPayes += r.appels;
@@ -149,27 +155,31 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   // 4. Lignes finales, sur TOUTES les versions.
   const jugees: VersionJugeeIV[] = e.versions.map((v) => {
     const r = relues.get(v.version)!;
-    const lignes = controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version), relecture: { q26: r.q26, indications: r.indications } }));
+    const lignes = controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version), relecture: { q26: r.q26, indications: r.indications, remarques: r.remarques } }));
     // Garde-fou : un contrôle absent bloque (jamais sauté en silence).
     for (const code of CODES_CONTROLE_IV) {
-      if (!lignes.some((l) => l.code === code)) lignes.push({ code, version: v.version, reseaux: [...v.reseaux], etat: "non-fait", bloquant: true, phrase: `${LIBELLES_CONTROLE_IV[code]} (non vérifié) : contrôle absent.`, details: ["contrôle absent."] });
+      if (!lignes.some((l) => l.code === code)) lignes.push({ code, version: v.version, reseaux: [...v.reseaux], etat: "non-fait", bloquant: !CONTROLES_INDICATIFS.has(code), phrase: `${LIBELLES_CONTROLE_IV[code]} (non vérifié) : contrôle absent.`, details: ["contrôle absent."] });
     }
     return { version: v.version, reseaux: [...v.reseaux], courte: v.courte, ok: !lignes.some(bloque), instants: instants.get(v.version)!, lignes };
   });
 
   const phrases = [
     ...generaux.map((g) => g.charAt(0).toUpperCase() + g.slice(1)),
-    ...verdicts.filter((x) => x.bloquant).map((x) => x.phrase ?? `${x.nom} : non livrée.`),
     ...jugees.flatMap((j) => j.lignes.filter(bloque).map((l) => `${nomReseaux(j.reseaux)}${j.courte ? " (version courte)" : ""} · ${l.phrase}`)),
   ];
   const mentions = [
+    ...remarquesGenerales.map((g) => g.charAt(0).toUpperCase() + g.slice(1)),
     ...verdicts.filter((x) => x.verdict === "mention").map((x) => `${x.nom} : ${x.phrase}`),
+    // Plafond de durée dépassé : remarque (la vidéo sort, Will décide de la publier ou de la raccourcir).
+    ...verdicts.filter((x) => x.bloquant).map((x) => x.phrase ?? `${x.nom} : non livrée.`),
     ...jugees.flatMap((j) => j.lignes.filter((l) => !l.bloquant && l.etat !== "reussi").map((l) => `${nomReseaux(j.reseaux)} · ${l.phrase}`)),
     ...e.versions.flatMap((v) => (relues.get(v.version)?.indications ?? []).map((i) => `${nomReseaux(v.reseaux)} · ${i}`)),
   ];
   const ok = phrases.length === 0;
+  const faute = generaux.length > 0 || jugees.some((j) => j.lignes.some((l) => bloque(l) && l.etat !== "non-fait"));
   return {
     ok,
+    ...(ok ? {} : { nature: faute ? ("faute" as const) : ("non-fait" as const) }),
     statut: ok ? "prete" : "refusee",
     phrase: ok
       ? `La vidéo est prête pour ${nomReseaux(verdicts.map((x) => x.reseau))}${mentions.length ? ` (${mentions.length} remarque${mentions.length > 1 ? "s" : ""} sans gravité)` : ""}.`

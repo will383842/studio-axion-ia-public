@@ -4,8 +4,9 @@
  *  - l'Usine envoie un budget du mois TOUJOURS sous ce plafond (`reglerBudgetUsine`, seul endroit d'écriture) ;
  *  - `plafond_cents` d'une commande est borné par le plafond d'UN SUJET du studio (L3-0, détail dans l3-0-prerequis-argent) ;
  *  - sans budget reçu pour le mois, aucune fabrication commandée par l'Usine ne part ; la commande de Will n'est pas touchée ;
- *  - au passage commun (`verifierEtReserver`) : dépassement → refus AVANT toute réservation, et alerte à Will ;
- *  - réglage illisible → refus ; sommes en centimes entiers ; reprise du même travail sans double comptage.
+ *  - au passage commun (`verifierEtReserver`), commande de Will : dépassement → SIGNALÉ seulement (décision du 08/11/2026 :
+ *    aucun budget ne bloque), la réservation et l'engagement sont posés, Will est prévenu une fois par jour ;
+ *  - réglage illisible → prévient, ne refuse plus ; sommes en centimes entiers ; reprise du même travail sans double comptage.
  * Dépôts en mémoire, lecteurs de solde vides, aucune clé, aucun réseau, 0 €.
  */
 import { hash } from "@node-rs/argon2";
@@ -54,28 +55,34 @@ afterEach(() => {
 });
 
 const notificationsBudget = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget");
+/** Cloche du dépassement indicatif (la fabrication continue) : une par jour et par motif. */
+const clochesIndicatif = async () => (await depots().notifications.lister()).filter((x) => x.type === "credit" && /indicatif/i.test(x.titre));
 
 describe("plafond du mois du studio (commande de Will)", () => {
-  it("plafond de test à 100 centimes : exactement au plafond passe, le 2e lancement est refusé avant toute réservation", async () => {
+  it("plafond de test à 100 centimes : exactement au plafond passe ; le 2e lancement passe aussi (signalé), son engagement est posé", async () => {
     await credits.verifierEtReserver(estimation(100), true, "Cette vidéo", demande());
+    expect(await clochesIndicatif()).toHaveLength(0);
     const d2 = demande();
-    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", d2)).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect(await depots().reservations.compter((r) => r.travailId === d2.travailId)).toBe(0);
-    expect(await lireParametre(`budget.engage.${d2.travailId}`, null)).toBeNull();
+    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", d2)).resolves.toBeUndefined();
+    expect(await lireParametre(`budget.engage.${d2.travailId}`, null)).not.toBeNull();
+    expect((await couts.resumeBudget()).engage.centimes).toBe(101);
+    expect(await clochesIndicatif()).toHaveLength(1);
   });
 
-  it("dépassement : refus ET alerte à Will (notification « budget »), une seule fois par jour", async () => {
+  it("dépassement : aucun refus, alerte à Will une seule fois par jour (même avec le réglage « bloquant »)", async () => {
+    await ecrireParametre("budget.mode", "bloquant");
     await credits.verifierEtReserver(estimation(90), true, "Cette vidéo", demande());
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    const notes = await notificationsBudget();
-    expect(notes.filter((x) => x.titre.includes("refusée"))).toHaveLength(1);
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await clochesIndicatif()).toHaveLength(1);
+    expect((await notificationsBudget()).filter((x) => x.titre.includes("refusée"))).toHaveLength(0);
   });
 
-  it("deux lancements simultanés sur le même disponible : un seul passe (verrou)", async () => {
+  it("deux lancements simultanés sur le même disponible : les deux passent, chacun compté (verrou : aucun engagement perdu), un seul signalé", async () => {
     const r = await Promise.allSettled([credits.verifierEtReserver(estimation(60), true, "A", demande()), credits.verifierEtReserver(estimation(60), true, "B", demande())]);
-    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
-    expect(r.filter((x) => x.status === "rejected")).toHaveLength(1);
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(2);
+    expect((await couts.resumeBudget()).engage.centimes).toBe(120);
+    expect(await clochesIndicatif()).toHaveLength(1);
   });
 
   it("reprise du MÊME travail : son engagement ne compte pas deux fois", async () => {
@@ -91,11 +98,11 @@ describe("plafond du mois du studio (commande de Will)", () => {
     ["non entier", eur(10.5)],
     ["texte", { centimes: "100", devise: "EUR" }],
     ["NaN", { centimes: Number.NaN, devise: "EUR" }],
-  ])("réglage du plafond illisible (%s) → refus, rien de réservé", async (_nom, valeur) => {
+  ])("réglage du plafond illisible (%s) → aucun refus, Will est prévenu", async (_nom, valeur) => {
     await ecrireParametre("budget.mensuel", valeur);
     const d = demande();
-    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", d)).rejects.toMatchObject({ code: "BUDGET_ILLISIBLE" });
-    expect(await depots().reservations.compter((r) => r.travailId === d.travailId)).toBe(0);
+    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", d)).resolves.toBeUndefined();
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /illisible/i.test(x.titre))).toHaveLength(1);
   });
 
   it("Will ne peut pas écrire un plafond qui ne soit pas un entier de centimes ≥ 0", async () => {
@@ -106,25 +113,29 @@ describe("plafond du mois du studio (commande de Will)", () => {
   });
 
   it("aucun flottant dans la somme : des lignes en fractions de centime sont comptées au centime supérieur", async () => {
-    // 100,2 c au plafond de 100 c : refusé (101 c au pire), jamais « arrondi à 100 ».
-    await expect(credits.verifierEtReserver({ lignes: [ligne(33.4), ligne(33.4), ligne(33.4)], total: eur(100.2) }, true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    await ecrireParametre("budget.mensuel", eur(101));
-    await credits.verifierEtReserver({ lignes: [ligne(33.4), ligne(33.4), ligne(33.4)], total: eur(100.2) }, true, "Cette vidéo", demande());
+    // 100,2 c au plafond de 100 c : compté 101 c au pire, jamais « arrondi à 100 » : le dépassement est signalé (pas de refus).
+    await expect(credits.verifierEtReserver({ lignes: [ligne(33.4), ligne(33.4), ligne(33.4)], total: eur(100.2) }, true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await clochesIndicatif()).toHaveLength(1);
     const vue = await couts.resumeBudget();
     expect(Number.isInteger(vue.engage.centimes)).toBe(true);
     expect(Number.isInteger(vue.restant.centimes)).toBe(true);
     expect(vue.engage.centimes).toBe(101);
-    // 100,2 c → 101 c engagés (pire cas) : plus rien ne passe sous 101 c.
-    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    expect(vue.restant.centimes).toBe(0);
   });
 
   it("bornes du mois à Paris : une dépense du 31 octobre 23 h 30 UTC compte en novembre", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-31T22:30:00Z")); // 23 h 30 à Paris (heure d'hiver) : encore octobre
     await depots().depenses.enregistrer({ id: "dep-oct", date: new Date().toISOString(), lignes: [], total: eur(80), creeLe: new Date().toISOString(), modifieLe: new Date().toISOString() });
-    await expect(credits.verifierEtReserver(estimation(30), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    expect((await couts.resumeBudget()).depense.centimes).toBe(80);
+    // 80 + 30 > 100 en octobre : signalé (plus de refus).
+    await expect(credits.verifierEtReserver(estimation(30), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await clochesIndicatif()).toHaveLength(1);
     vi.setSystemTime(new Date("2026-10-31T23:30:00Z")); // 0 h 30 à Paris : novembre, le compteur repart
+    expect((await couts.resumeBudget()).depense.centimes).toBe(0);
     await credits.verifierEtReserver(estimation(30), true, "Cette vidéo", demande());
+    // Sous le plafond de novembre : aucune nouvelle alerte.
+    expect(await clochesIndicatif()).toHaveLength(1);
   });
 });
 

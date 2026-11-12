@@ -1,0 +1,288 @@
+<title>Calendrier du Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Maquette sur fond clair (demande du fondateur). Une couleur = un réseau. L'orange = la seule action principale. */
+:root{--fond:#f4efe7;--s1:#fbf8f3;--s2:#ffffff;--s3:#ece5d9;--trait:#e2d9cb;--trait2:#cbbfae;--texte:#1d1915;--doux:#5a5148;--faible:#6f655b;--orange:#b4512a;--sur:#fff6ec;--vert:#2f6b3a;--vertf:#e3f0e2;--ambre:#8a5a00;--ambref:#fbecc8;--rouge:#b0361f;--rougef:#f9e0da;--gris:#5a5148;--grisf:#ece5d9;--aujf:#fff3e6;
+--LI:#0a66c2;--IG:#d6336c;--FB:#3b5bdb;--TT:#0b8f8a;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--texte);font:14px/1.45 Manrope,system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.t{font-family:"Archivo Black","Arial Black",sans-serif;font-weight:400}
+.maq{background:var(--ambref);color:var(--ambre);font-size:12px;font-weight:700;padding:5px 16px;text-align:center}
+.app{display:grid;grid-template-columns:196px minmax(0,1fr);min-height:calc(100vh - 28px)}
+.menu{background:var(--s1);border-right:1px solid var(--trait);padding:14px 10px}
+.menu b.logo{display:block;padding:4px 8px 12px;font-size:16px}
+.menu .sec{margin:12px 8px 2px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faible)}
+.menu span{display:block;padding:6px 8px;border-radius:8px;color:var(--doux)}
+.menu span.cur{background:var(--s3);color:var(--texte);font-weight:800}
+main{min-width:0;padding:16px 20px 30px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.haut{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+h1{margin:0 8px 0 0;font-size:22px}
+.btn{border:1px solid var(--trait2);background:var(--s2);border-radius:10px;padding:7px 12px;font-weight:700;min-height:38px}
+.btn:hover{background:var(--s3)}
+.btn.pri{background:var(--orange);border-color:var(--orange);color:var(--sur)}
+.btn.pri:hover{filter:brightness(1.08);background:var(--orange)}
+.periode{font-weight:800;min-width:210px;text-align:center}
+.seg{display:inline-flex;border:1px solid var(--trait2);border-radius:10px;overflow:hidden;background:var(--s2)}
+.seg button{border:0;background:none;padding:7px 12px;font-weight:700;min-height:36px;color:var(--doux)}
+.seg button[aria-pressed="true"]{background:var(--texte);color:#fff}
+.pousse{margin-left:auto}
+.phrase{border:0;background:none;padding:2px 0;color:var(--doux);text-decoration:underline;text-underline-offset:3px;margin-bottom:8px}
+.res{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
+.pas{border:1.5px solid var(--c);background:var(--s2);border-radius:999px;padding:4px 11px 4px 5px;font-weight:700;display:inline-flex;gap:6px;align-items:center;min-height:34px}
+.pas[aria-pressed="false"]{opacity:.45;border-style:dashed}
+.lg{width:22px;height:22px;border-radius:6px;background:var(--c);color:#fff;display:inline-grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+.LI{--c:var(--LI)}.IG{--c:var(--IG)}.FB{--c:var(--FB)}.TT{--c:var(--TT)}
+.corps{display:grid;grid-template-columns:minmax(0,1fr) 232px;gap:14px;align-items:start}
+.wrap{overflow-x:auto;padding-bottom:4px}
+.grille{display:grid;grid-template-columns:104px repeat(7,minmax(108px,1fr));gap:5px;min-width:880px}
+.tj{border:0;background:none;text-align:left;padding:4px 6px;border-radius:8px;font-weight:700;color:var(--doux);text-transform:capitalize}
+.tj b{color:var(--texte);font-size:16px}
+.tj:hover{background:var(--s3)}
+.tj.auj{background:var(--orange);color:var(--sur)}.tj.auj b{color:var(--sur)}
+.nr{display:flex;gap:7px;align-items:center;font-weight:800;padding:8px 4px;position:sticky;left:0;background:var(--fond);z-index:1}
+.case{background:var(--s1);border:1px solid var(--trait);border-radius:11px;padding:4px;min-height:74px;min-width:0;display:flex;flex-direction:column;gap:4px;position:relative}
+.case.auj{background:var(--aujf);border-color:#e7c7a4}
+.case.passe{background:repeating-linear-gradient(135deg,var(--s3),var(--s3) 6px,var(--fond) 6px,var(--fond) 12px);opacity:.8}
+.case.ok{outline:2px dashed var(--orange);outline-offset:-2px;background:#fff}
+.case.non{opacity:.35}
+.ajout{border:1.5px dashed var(--trait2);background:none;border-radius:9px;color:var(--faible);font-weight:700;font-size:12px;padding:5px;min-height:30px;margin-top:auto}
+.ajout:hover{border-color:var(--orange);color:var(--orange)}
+.ajout.attendu{border-color:var(--c);color:var(--c);min-height:56px}
+.carte{display:block;width:100%;text-align:left;border:1px solid color-mix(in srgb,var(--c) 30%,#fff);border-left:5px solid var(--c);background:color-mix(in srgb,var(--c) 8%,#fff);border-radius:9px;padding:5px 6px;box-shadow:0 1px 2px rgb(60 40 20/.08)}
+.carte[draggable="true"]{cursor:grab}
+.carte:hover{box-shadow:0 3px 10px rgb(60 40 20/.18)}
+.carte.idee{border-style:dashed;background:#fff}
+.carte.drag{opacity:.4}
+.l1{display:flex;gap:6px;align-items:center}
+.l1 .lg{width:18px;height:18px;font-size:9px;border-radius:5px}
+.hh{font-weight:800}
+.ty{font-size:12px;color:var(--doux);font-weight:600;margin:1px 0 3px}
+.et{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
+.e-brouillon{background:var(--grisf);color:var(--gris)}.e-valider{background:var(--ambref);color:var(--ambre)}.e-programme{background:var(--vertf);color:var(--vert)}.e-publie{background:#fff;color:var(--gris);border:1px solid var(--trait2)}.e-corriger{background:var(--rougef);color:var(--rouge)}.e-idee{background:#fff;color:var(--gris);border:1px dashed var(--gris)}.e-sans{background:var(--grisf);color:var(--gris)}
+.cad{font-size:11px;margin-left:auto;color:var(--faible)}
+.titre1{font-size:12px;color:var(--doux);margin-top:3px}
+/* Panneau de droite */
+.cote{display:flex;flex-direction:column;gap:12px}
+.bloc{background:var(--s1);border:1px solid var(--trait);border-radius:12px;padding:10px}
+.bloc h2{margin:0 0 2px;font-size:14px}
+.bloc p{margin:0 0 8px;color:var(--faible);font-size:12px}
+.afaire{display:flex;justify-content:space-between;gap:8px;width:100%;border:0;border-top:1px solid var(--trait);background:none;padding:7px 2px;text-align:left;font-weight:600}
+.afaire:hover{color:var(--orange)}
+.afaire b{min-width:22px;text-align:center;border-radius:999px;padding:0 6px}
+.texte{display:block;width:100%;text-align:left;border:1px solid var(--trait2);background:#fff;border-radius:9px;padding:6px 8px;font-size:12px;margin-top:6px;cursor:grab}
+.legende{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;margin-top:12px;color:var(--doux);font-size:12px}
+.vide{background:var(--s1);border:1px dashed var(--trait2);border-radius:12px;padding:22px;text-align:center;color:var(--doux);margin-top:8px}
+/* Mois */
+.mois{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.mois .e{font-size:11px;font-weight:700;color:var(--faible);text-transform:uppercase;padding:2px 4px}
+.cj{background:var(--s1);border:1px solid var(--trait);border-radius:10px;min-height:78px;padding:6px;text-align:left}
+.cj:hover{border-color:var(--orange)}
+.cj.hors{opacity:.4}
+.cj.auj{background:var(--aujf);border-color:var(--orange)}
+.cpt{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.cpt i{font-style:normal;font-size:11px;font-weight:800;color:#fff;background:var(--c);border-radius:6px;padding:0 5px}
+/* Jour */
+.heures{display:grid;grid-template-columns:60px minmax(0,1fr);gap:6px 10px;max-width:640px}
+.heures .h{font-weight:800;color:var(--doux);padding-top:8px}
+.heures .carte{margin-bottom:5px}
+/* Tiroir et fenêtres */
+.voile{position:fixed;inset:0;background:rgb(40 30 20/.35);z-index:40;display:none}
+.voile.on{display:block}
+.tiroir{position:fixed;top:0;bottom:0;right:0;width:min(440px,100%);background:var(--s2);border-left:1px solid var(--trait);z-index:50;padding:16px;overflow:auto;transform:translateX(105%);transition:transform .2s;visibility:hidden;box-shadow:-12px 0 40px rgb(40 30 20/.15)}
+.tiroir.on{transform:none;visibility:visible}
+.tiroir h2{margin:8px 0 2px;font-size:18px}
+.dit{border-radius:10px;padding:8px 10px;font-weight:700;margin:8px 0}
+.visuel{height:160px;border-radius:10px;background:var(--s3);display:grid;place-items:center;color:var(--doux);font-weight:700;text-align:center;margin:8px 0;border:1px solid var(--trait)}
+.petit{color:var(--faible);font-size:12px}
+.act{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.act .btn.pri{flex:1 1 100%}
+textarea,input[type=text],input[type=date],input[type=time],select{width:100%;border:1px solid var(--trait2);border-radius:9px;padding:8px;background:#fff}
+.fen{position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:16px}
+.fen.on{display:grid}
+.fen form{background:var(--s2);border-radius:14px;padding:18px;width:min(460px,100%);box-shadow:0 20px 60px rgb(40 30 20/.3);max-height:92vh;overflow:auto}
+.fen label{display:block;font-weight:700;margin:10px 0 4px}
+.choix{display:flex;gap:6px;flex-wrap:wrap}
+.choix label{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--trait2);border-radius:9px;padding:6px 10px;margin:0;font-weight:600;min-height:38px}
+.pop{position:absolute;z-index:30;background:var(--s2);border:1px solid var(--trait2);border-radius:12px;padding:12px;box-shadow:0 12px 30px rgb(40 30 20/.2);width:260px;display:none}
+.pop.on{display:block}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--texte);color:#fff;border-radius:12px;padding:10px 14px;z-index:70;display:none;gap:12px;align-items:center;max-width:92vw}
+.toast.on{display:flex}
+.toast button{border:0;background:none;color:#ffd9a8;font-weight:800;text-decoration:underline}
+@media (max-width:1100px){.corps{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}.menu{display:none}.periode{min-width:0}
+ .tiroir{top:auto;left:0;width:100%;max-height:90vh;border-left:0;border-radius:18px 18px 0 0;transform:translateY(105%);padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
+@media (prefers-reduced-motion:reduce){.tiroir{transition:none}}
+</style>
+
+<div class="maq">Maquette fictive : rien n'est branché, rien ne part. Vous pouvez glisser, ajouter, valider : tout s'efface au rechargement.</div>
+<div class="app">
+  <nav class="menu" aria-label="Menu du Studio (non branché)"><b class="logo t">Studio</b><span>Accueil</span><div class="sec">Contenus</div><span>Mes vidéos</span><span>Carrousels</span><span>Écrire</span><div class="sec">Publier</div><span class="cur">Calendrier</span><span>À traiter</span><span>Mesures</span><div class="sec">Studio</div><span>Réglages</span></nav>
+  <main>
+    <div class="haut">
+      <h1 class="t">Calendrier</h1>
+      <button class="btn" id="prec" aria-label="Période précédente">←</button>
+      <span class="periode" id="periode"></span>
+      <button class="btn" id="suiv" aria-label="Période suivante">→</button>
+      <button class="btn" id="auj">Aujourd'hui</button>
+      <div class="seg" id="segv" role="group" aria-label="Affichage"><button data-v="sem" aria-pressed="true">Semaine</button><button data-v="mois" aria-pressed="false">Mois</button></div>
+      <span style="position:relative"><button class="btn" id="bfiltre">Filtrer</button><div class="pop" id="pop"></div></span>
+      <button class="btn pri pousse" id="bajout">+ Ajouter</button>
+    </div>
+    <button class="phrase" id="phrase"></button>
+    <div class="res" id="res"></div>
+    <div class="corps">
+      <div><div id="vue"></div>
+        <div class="legende" id="legende"></div></div>
+      <aside class="cote">
+        <div class="bloc"><h2>À faire</h2><p>Un clic ouvre la bonne publication.</p><div id="afaire"></div></div>
+        <div class="bloc"><h2>À placer</h2><p>Contenus prêts, sans date. Glissez-les sur un jour.</p><div id="aplacer"></div></div>
+        <div class="bloc"><h2>Mes textes</h2><p>Votre stock. Glissez un texte sur un jour.</p><div id="textes"></div></div>
+      </aside>
+    </div>
+  </main>
+</div>
+<div class="voile" id="voile"></div>
+<aside class="tiroir" id="tiroir" role="dialog" aria-modal="true" aria-labelledby="d-t" aria-hidden="true"></aside>
+<div class="fen" id="fen" role="dialog" aria-modal="true" aria-labelledby="f-t"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-t"></span><button id="toast-a">Annuler</button></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RES={LI:['LinkedIn','in'],IG:['Instagram','IG'],FB:['Facebook','f'],TT:['TikTok','TT']};
+const TYP={V:'Vidéo',C:'Carrousel',I:'Infographie'};
+const ET={brouillon:'Brouillon',valider:'À valider',programme:'Programmé',publie:'Publié',corriger:'À corriger',idee:'Idée de l\'IA'};
+const BASE=new Date(2026,10,9,12);            // lundi 9 novembre 2026
+const AUJ=2;                                   // mercredi 11 novembre
+const dateJ=j=>{const d=new Date(BASE);d.setDate(d.getDate()+j);return d;};
+const fJ=new Intl.DateTimeFormat('fr-FR',{weekday:'short'}),fL=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}),fM=new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}),fC=new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'long'});
+const iso=j=>{const d=dateJ(j);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const jDe=s=>Math.round((new Date(s+'T12:00')-BASE)/864e5);
+const TX=["Deux entreprises, même métier : l'une répond en deux heures, l'autre en trois jours.","Les sept fuites de temps dans une PME. Combien en avez-vous ?","Ce que nous refusons de faire quand nous accompagnons une équipe.","Votre première automatisation en quarante-cinq minutes.","Le devis qui part tout seul : démonstration en direct.","Avant et après : le tri des e-mails d'une agence."];
+let P=[],n=0;const add=o=>{const p={id:++n,x:TX[n%6],h:'09:00',e:'programme',...o};P.push(p);return p;};
+for(let j=0;j<7;j++){const pub=j<AUJ?'publie':null;
+ if(j<5&&j!==4)add({j,r:'LI',t:j%2?'V':'C',h:j%2?'12:15':'07:30',e:pub||(j===2?'valider':'programme')});
+ add({j,r:'IG',t:'V',h:'09:45',e:pub||(j===3?'brouillon':'programme'),m:j===3?'Il manque le premier commentaire.':''});
+ if(j%2===0&&j<6)add({j,r:'IG',t:'I',h:'16:15',e:pub||(j===2?'valider':'programme')});
+ if(j<5&&j!==3)add({j,r:'FB',t:j%2?'I':'V',h:'11:30',e:j===1?'corriger':(pub||'programme'),m:j===1?'Le réseau a refusé le fichier : format non pris en charge.':''});
+ if(j===0||j===2||j===4)add({j,r:'TT',t:'V',h:'19:00',e:pub||'brouillon',m:j>=AUJ?'Il manque le texte.':''});}
+add({j:5,r:'IG',t:'V',h:'10:00',e:'idee',why:'Samedi sans Instagram ; sujet non traité depuis trois semaines.'});
+let RESERVE=[{id:'s1',r:'LI',t:'C',x:'Sept fuites de temps (carrousel validé)'},{id:'s2',r:'IG',t:'V',x:'Démonstration du devis automatique'},{id:'s3',r:'FB',t:'I',x:'Avant et après : le tri des e-mails'}];
+const TEXTES=["Trois questions à poser avant d'automatiser quoi que ce soit.","Le client qui ne rappelait jamais : comment nous l'avons retrouvé."];
+const ATTENDU={LI:j=>(((j%7)+7)%7)<5,IG:()=>true,FB:j=>(((j%7)+7)%7)<5,TT:()=>false};
+let vue='sem',sem=0,mo=0,jour=AUJ,ON={LI:true,IG:true,FB:true,TT:true},F={t:new Set(),e:new Set()},cur=null,drag=null,annuler=null,tm=null;
+const verrou=p=>p.e==='publie'||p.j<AUJ;
+const vis=()=>P.filter(p=>ON[p.r]&&(!F.t.size||F.t.has(p.t))&&(!F.e.size||F.e.has(p.e))).sort((a,b)=>a.j-b.j||a.h.localeCompare(b.h));
+const lg=r=>`<span class="lg ${r}" aria-hidden="true">${RES[r][1]}</span>`;
+function carteH(p,avecTitre){const d=!verrou(p);return `<button class="carte ${p.r}${p.e==='idee'?' idee':''}" data-id="${p.id}" ${d?'draggable="true"':''} aria-label="${RES[p.r][0]}, ${TYP[p.t]}, ${p.h}, ${ET[p.e]}"><span class="l1">${lg(p.r)}<span class="hh">${p.h}</span>${verrou(p)?'<span class="cad" title="Verrouillée">🔒</span>':''}</span><div class="ty">${TYP[p.t]}</div><span class="et e-${p.e}">${ET[p.e]}</span>${avecTitre?`<div class="titre1">${esc(p.x)}</div>`:''}</button>`;}
+function rend(){
+ const j0=sem*7;
+ $('#periode').textContent=vue==='mois'?fM.format(new Date(2026,10+mo,1)):vue==='jour'?fL.format(dateJ(jour)):`Semaine du ${fC.format(dateJ(j0)).replace(/ \D+$/,dateJ(j0).getMonth()===dateJ(j0+6).getMonth()?'':'$&')} au ${fC.format(dateJ(j0+6))}`;
+ document.querySelectorAll('#segv button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===vue||(vue==='jour'&&b.dataset.v==='sem')));
+ const ta=P.filter(p=>p.j===AUJ&&p.e!=='idee');$('#phrase').textContent=`Aujourd'hui, ${fL.format(dateJ(AUJ))} : ${ta.length} publications, dont ${ta.filter(p=>p.e==='valider').length} à valider. Voir la journée`;
+ $('#res').innerHTML=Object.keys(RES).map(r=>`<button class="pas ${r}" data-r="${r}" aria-pressed="${ON[r]}">${lg(r)}${RES[r][0]}</button>`).join('')+((F.t.size+F.e.size)?`<button class="btn" id="efface">Effacer les filtres (${F.t.size+F.e.size})</button>`:'');
+ const v=$('#vue');
+ if(vue==='sem')v.innerHTML=semaineH(j0);else if(vue==='mois')v.innerHTML=moisH();else v.innerHTML=jourH();
+ const L=P,nb=e=>L.filter(p=>p.e===e&&p.j>=AUJ-1).length;
+ const AF=[['corriger','À corriger',nb('corriger'),'e-corriger'],['valider','À valider',nb('valider'),'e-valider'],['brouillon','Brouillons à compléter',nb('brouillon'),'e-brouillon'],['idee','Idées de l\'IA (bientôt)',nb('idee'),'e-idee']];
+ $('#afaire').innerHTML=AF.map(([e,l,c,k])=>`<button class="afaire" data-e="${e}" ${c?'':'disabled'}><span>${l}</span><b class="${k}">${c}</b></button>`).join('');
+ $('#aplacer').innerHTML=RESERVE.length?RESERVE.map(s=>`<button class="carte ${s.r}" draggable="true" data-s="${s.id}" style="margin-top:6px"><span class="l1">${lg(s.r)}<span class="hh">${TYP[s.t]}</span></span><div class="titre1">${esc(s.x)}</div></button>`).join(''):'<p>Rien à placer. Ajoutez une publication ou importez un fichier.</p>';
+ $('#textes').innerHTML=TEXTES.map((t,i)=>`<button class="texte" draggable="true" data-x="${i}">${esc(t)}</button>`).join('');
+ $('#legende').innerHTML='<b>Légende</b>'+Object.keys(RES).map(r=>`<span>${lg(r)} ${RES[r][0]}</span>`).join('')+Object.keys(ET).map(e=>`<span class="et e-${e}">${ET[e]}</span>`).join('')+'<span>🔒 déjà partie ou passée</span><span>Case en pointillé coloré = créneau attendu, encore vide</span>';
+}
+function semaineH(j0){const L=vis();const rs=Object.keys(RES).filter(r=>ON[r]);if(!rs.length)return '<div class="vide">Aucun réseau affiché. Rallumez un réseau ci-dessus.</div>';
+ let h='<div class="wrap"><div class="grille"><div></div>';for(let c=0;c<7;c++){const j=j0+c;h+=`<button class="tj${j===AUJ?' auj':''}" data-jour="${j}" title="Ouvrir la journée">${fJ.format(dateJ(j))} <b>${dateJ(j).getDate()}</b></button>`;}
+ for(const r of rs){h+=`<div class="nr ${r}">${lg(r)}${RES[r][0]}</div>`;for(let c=0;c<7;c++){const j=j0+c,ps=L.filter(p=>p.r===r&&p.j===j),passe=j<AUJ;
+  const att=!passe&&ATTENDU[r](j)&&!P.some(p=>p.r===r&&p.j===j&&p.e!=='idee');
+  h+=`<div class="case ${r}${j===AUJ?' auj':''}${passe?' passe':''}" data-j="${j}" data-r="${r}">${ps.map(p=>carteH(p)).join('')}${passe?'':`<button class="ajout${att&&!ps.length?' attendu':''}" data-add="${j}|${r}" aria-label="Ajouter sur ${RES[r][0]}, ${fL.format(dateJ(j))}">${att&&!ps.length?'Créneau vide<br>+ Ajouter':'+'}</button>`}</div>`;}}
+ h+='</div></div>';
+ if(!L.some(p=>p.j>=j0&&p.j<j0+7))h+=`<div class="vide">${(F.t.size+F.e.size)?'Aucune publication avec ces filtres.':j0+6<AUJ?'Semaine terminée : consultation seule.':'Rien de prévu cette semaine. Cliquez sur « + » dans un jour pour ajouter une publication.'}</div>`;
+ return h;}
+function moisH(){const prem=new Date(2026,10+mo,1,12),dec=(prem.getDay()+6)%7,nbj=new Date(2026,11+mo,0).getDate(),rg=Math.ceil((dec+nbj)/7),L=vis();
+ let h='<div class="mois">'+['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'].map(d=>`<div class="e">${d}</div>`).join('');
+ for(let i=0;i<rg*7;i++){const d=new Date(prem);d.setDate(1-dec+i);const j=Math.round((d-BASE)/864e5),hors=d.getMonth()!==prem.getMonth();const ps=L.filter(p=>p.j===j&&p.e!=='idee');
+  h+=`<button class="cj${hors?' hors':''}${j===AUJ?' auj':''}" data-jour="${j}" aria-label="${fL.format(d)}, ${ps.length} publications"><b>${d.getDate()}</b><div class="cpt">${Object.keys(RES).map(r=>{const c=ps.filter(p=>p.r===r).length;return c?`<i class="${r}">${RES[r][1]} ${c}</i>`:'';}).join('')}</div></button>`;}
+ return h+'</div><p class="petit">Chaque pastille donne le nombre de publications d\'un réseau. Cliquez sur un jour pour l\'ouvrir.</p>';}
+function jourH(){const L=vis().filter(p=>p.j===jour);let h=`<button class="btn" id="retour">← Retour à la semaine</button> ${jour>=AUJ?`<button class="btn" data-add="${jour}|">+ Ajouter ce jour-là</button>`:''}<div style="height:10px"></div>`;
+ if(!L.length)return h+`<div class="vide">${jour<AUJ?'Journée passée, rien n\'avait été publié.':'Rien de prévu ce jour. Ajoutez une publication.'}</div>`;
+ h+='<div class="heures">';for(const hh of [...new Set(L.map(p=>p.h))]){h+=`<div class="h">${hh}</div><div>${L.filter(p=>p.h===hh).map(p=>carteH(p,true)).join('')}</div>`;}return h+'</div>';}
+/* ---- Annuler ---- */
+function toast(t,undo){$('#toast-t').textContent=t;$('#toast-a').style.display=undo?'':'none';annuler=undo;$('#toast').classList.add('on');clearTimeout(tm);tm=setTimeout(()=>$('#toast').classList.remove('on'),10000);}
+$('#toast-a').onclick=()=>{if(annuler){annuler();annuler=null;$('#toast').classList.remove('on');rend();}};
+/* ---- Glisser-déposer ---- */
+document.addEventListener('dragstart',e=>{const c=e.target.closest('[draggable="true"]');if(!c)return;drag=c.dataset.id?{k:'pub',p:P.find(p=>p.id==c.dataset.id)}:c.dataset.s?{k:'res',s:RESERVE.find(s=>s.id===c.dataset.s)}:{k:'txt',x:TEXTES[+c.dataset.x]};c.classList.add('drag');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','x');
+ document.querySelectorAll('.case').forEach(k=>{const okJ=+k.dataset.j>=AUJ,r=drag.k==='pub'?drag.p.r:drag.k==='res'?drag.s.r:null;k.classList.add(okJ&&(!r||r===k.dataset.r)?'ok':'non');});});
+document.addEventListener('dragend',()=>{document.querySelectorAll('.drag').forEach(c=>c.classList.remove('drag'));document.querySelectorAll('.case').forEach(k=>k.classList.remove('ok','non'));drag=null;});
+document.addEventListener('dragover',e=>{const k=e.target.closest('.case.ok');if(k)e.preventDefault();});
+document.addEventListener('drop',e=>{const k=e.target.closest('.case');if(!k||!drag)return;e.preventDefault();const j=+k.dataset.j,r=k.dataset.r;
+ if(j<AUJ)return toast('Impossible : ce jour est passé.');
+ if(drag.k==='pub'){const p=drag.p;if(p.r!==r)return toast('Pour un autre réseau, ouvrez la publication et choisissez « Dupliquer ».');const av=p.j;if(av===j)return;p.j=j;toast(`Déplacée au ${fL.format(dateJ(j))}, ${p.h}.`,()=>{p.j=av;});}
+ else if(drag.k==='res'){const s=drag.s;if(s.r!==r)return toast(`Ce contenu est prévu pour ${RES[s.r][0]}.`);const p=add({j,r,t:s.t,h:'09:00',e:'valider',x:s.x});RESERVE=RESERVE.filter(x=>x!==s);toast(`Placée le ${fL.format(dateJ(j))}. Elle ne partira qu'après votre validation.`,()=>{P=P.filter(x=>x!==p);RESERVE.push(s);});}
+ else{ouvrirAjout(j,r,drag.x);return;}
+ rend();});
+/* ---- Clics ---- */
+document.addEventListener('click',e=>{const t=e.target;let b;
+ if((b=t.closest('[data-id]')))return ouvrir(+b.dataset.id);
+ if((b=t.closest('[data-add]'))){const [j,r]=b.dataset.add.split('|');return ouvrirAjout(+j,r||null);}
+ if((b=t.closest('[data-jour]'))){jour=+b.dataset.jour;sem=Math.floor(jour/7);vue='jour';return rend();}
+ if((b=t.closest('.pas'))){ON[b.dataset.r]=!ON[b.dataset.r];return rend();}
+ if((b=t.closest('[data-e]'))){const p=P.filter(p=>p.e===b.dataset.e&&p.j>=AUJ-1).sort((a,c)=>a.j-c.j)[0];if(p){sem=Math.floor(p.j/7);if(vue!=='sem')vue='sem';rend();ouvrir(p.id);}return;}
+ if(t.closest('[data-s]'))return toast('Glissez ce contenu sur un jour du calendrier.');
+ if((b=t.closest('[data-x]')))return ouvrirAjout(AUJ,null,TEXTES[+b.dataset.x]);
+ if(t.id==='efface'){F.t.clear();F.e.clear();return rend();}
+ if(t.id==='retour'){vue='sem';return rend();}
+ if(!t.closest('#pop')&&t.id!=='bfiltre')$('#pop').classList.remove('on');});
+$('#prec').onclick=()=>{vue==='mois'?mo--:vue==='jour'?(jour--,sem=Math.floor(jour/7)):sem--;rend();};
+$('#suiv').onclick=()=>{vue==='mois'?mo++:vue==='jour'?(jour++,sem=Math.floor(jour/7)):sem++;rend();};
+$('#auj').onclick=()=>{sem=0;mo=0;jour=AUJ;rend();};
+$('#phrase').onclick=()=>{jour=AUJ;sem=0;vue='jour';rend();};
+document.querySelectorAll('#segv button').forEach(b=>b.onclick=()=>{vue=b.dataset.v;if(vue==='mois'){const d=dateJ(sem*7+3);mo=(d.getFullYear()-2026)*12+d.getMonth()-10;}rend();});
+$('#bajout').onclick=()=>ouvrirAjout(vue==='jour'&&jour>=AUJ?jour:AUJ,null);
+$('#bfiltre').onclick=()=>{const p=$('#pop');p.innerHTML='<b>Type</b><div class="choix" style="margin:6px 0 10px">'+Object.keys(TYP).map(t=>`<label><input type="checkbox" data-ft="${t}" ${F.t.has(t)?'checked':''}>${TYP[t]}</label>`).join('')+'</div><b>État</b><div class="choix" style="margin-top:6px">'+Object.keys(ET).map(e=>`<label><input type="checkbox" data-fe="${e}" ${F.e.has(e)?'checked':''}>${ET[e]}</label>`).join('')+'</div>';p.classList.toggle('on');};
+$('#pop').addEventListener('change',e=>{const i=e.target;const s=i.dataset.ft?F.t:F.e,v=i.dataset.ft||i.dataset.fe;i.checked?s.add(v):s.delete(v);rend();});
+/* ---- Aperçu ---- */
+function ouvrir(id){const p=P.find(x=>x.id===id);if(!p)return;cur=id;const v=verrou(p);
+ const dit=p.e==='programme'?[`Partira seule ${fL.format(dateJ(p.j))} à ${p.h}.`,'e-programme']:p.e==='publie'?['Déjà publiée. Elle n\'est plus modifiable.','e-publie']:p.e==='corriger'?['Le réseau l\'a refusée. Rien n\'est parti.','e-corriger']:p.e==='idee'?['Idée de l\'IA. Elle ne partira jamais sans vous.','e-idee']:['Ne partira pas tant que vous n\'avez pas validé.',p.e==='valider'?'e-valider':'e-brouillon'];
+ const princ=v?null:{brouillon:'Compléter le texte',valider:'Valider et programmer',programme:'Modifier le texte',corriger:'Corriger et renvoyer',idee:'Accepter l\'idée'}[p.e];
+ const manuel=p.r==='LI'||p.r==='TT';
+ $('#tiroir').className='tiroir on '+p.r;$('#tiroir').setAttribute('aria-hidden','false');$('#voile').classList.add('on');
+ $('#tiroir').innerHTML=`<div class="act" style="margin:0"><button class="btn" id="t-pr">← Précédente</button><button class="btn" id="t-su">Suivante →</button><button class="btn" id="t-fe" style="margin-left:auto">Fermer</button></div>
+ <h2 class="t" id="d-t">${lg(p.r)} ${RES[p.r][0]} · ${TYP[p.t]}</h2><div class="petit">${fL.format(dateJ(p.j))} 2026 à ${p.h}, heure de Paris</div>
+ <div class="dit ${dit[1]}">${ET[p.e]} : ${dit[0]}</div>${p.m?`<div class="dit e-${p.e==='corriger'?'corriger':'valider'}">${esc(p.m)}</div>`:''}${p.why?`<div class="petit">Pourquoi ici : ${esc(p.why)}</div>`:''}
+ <div class="visuel"><div>${p.t==='V'?'Vidéo':p.t==='C'?'Carrousel, 8 pages':'Infographie'}<br><button class="btn" id="t-voir">${p.t==='V'?'▶ Lire la vidéo':p.t==='C'?'Feuilleter les pages':'Ouvrir en grand'}</button></div></div>
+ <label class="petit" for="t-x">Texte de la publication</label><textarea id="t-x" rows="3" ${v?'readonly':''}>${esc(p.x)}</textarea>
+ <div class="petit" style="margin-top:8px">Premier commentaire : ${p.r==='TT'?'aucun sur TikTok.':'« Combien de temps pour répondre à un devis chez vous ? »'}</div>
+ <div class="petit" style="margin-top:4px">Réponses aux commentaires : ${manuel?'toujours à la main sur '+RES[p.r][0]+'.':'réponse automatique au mot-clé (bientôt).'}</div>
+ <div class="act">${princ?`<button class="btn pri" id="t-pri">${princ}</button>`:''}${v?'<button class="btn" id="t-rs">Voir sur le réseau</button>':`<label class="petit" style="flex:1 1 100%">Déplacer au <input type="date" id="t-d" value="${iso(p.j)}" min="${iso(AUJ)}"> à <input type="time" id="t-h" value="${p.h}"></label>`}<button class="btn" id="t-dup">Dupliquer vers un autre réseau</button>${v?'':`<button class="btn" id="t-ret">${p.e==='idee'?'Refuser l\'idée':'Retirer du calendrier'}</button>`}</div>`;
+ const T=id=>$('#'+id);
+ T('t-fe').onclick=fermer;T('t-fe').focus();
+ const L=vis(),k=L.findIndex(x=>x.id===id);T('t-pr').onclick=()=>L.length&&ouvrir(L[(k+L.length-1)%L.length].id);T('t-su').onclick=()=>L.length&&ouvrir(L[(k+1)%L.length].id);
+ T('t-voir').onclick=()=>toast('Maquette : ici s\'ouvre le lecteur, sans quitter le calendrier.');
+ if(T('t-x'))T('t-x').onchange=()=>{p.x=T('t-x').value;};
+ if(T('t-pri'))T('t-pri').onclick=()=>{const av=p.e;if(p.e==='valider'||p.e==='corriger'){p.e='programme';p.m='';toast(`Programmée : elle partira seule ${fL.format(dateJ(p.j))} à ${p.h}.`,()=>{p.e=av;});}else if(p.e==='idee'){p.e='valider';toast('Idée acceptée. Il reste à la valider.',()=>{p.e=av;});}else if(p.e==='brouillon'){p.x=T('t-x').value;p.e='valider';p.m='';toast('Complétée. Il reste à la valider.',()=>{p.e=av;});}else{T('t-x').focus();return;}rend();ouvrir(id);};
+ if(T('t-d')){const dep=()=>{const nj=jDe(T('t-d').value),nh=T('t-h').value||p.h;if(isNaN(nj)||nj<AUJ)return toast('Impossible : ce jour est passé.');const a=[p.j,p.h];p.j=nj;p.h=nh;sem=Math.floor(nj/7);toast(`Déplacée au ${fL.format(dateJ(nj))}, ${nh}.`,()=>{[p.j,p.h]=a;});rend();ouvrir(id);};T('t-d').onchange=dep;T('t-h').onchange=dep;}
+ T('t-dup').onclick=()=>{const autre=Object.keys(RES).filter(r=>r!==p.r)[0];const q=add({j:Math.max(p.j,AUJ),r:autre,t:p.t,h:p.h,e:'brouillon',x:p.x,m:'Texte à adapter pour ce réseau.'});toast(`Copie créée en brouillon sur ${RES[autre][0]}.`,()=>{P=P.filter(x=>x!==q);});rend();};
+ if(T('t-ret'))T('t-ret').onclick=()=>{P=P.filter(x=>x!==p);const s={id:'s'+p.id,r:p.r,t:p.t,x:p.x};if(p.e!=='idee')RESERVE.push(s);toast(p.e==='idee'?'Idée refusée.':'Retirée. Elle est revenue dans « À placer ».',()=>{P.push(p);RESERVE=RESERVE.filter(x=>x!==s);});fermer();rend();};
+ if(T('t-rs'))T('t-rs').onclick=()=>toast('Maquette : ici s\'ouvre la publication sur le réseau.');}
+function fermer(){$('#tiroir').classList.remove('on');$('#tiroir').setAttribute('aria-hidden','true');$('#voile').classList.remove('on');cur=null;}
+$('#voile').onclick=()=>{fermer();fermerAjout();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){fermer();fermerAjout();$('#pop').classList.remove('on');}});
+/* ---- Ajouter ---- */
+function ouvrirAjout(j,r,texte){if(j<AUJ)j=AUJ;$('#voile').classList.add('on');$('#fen').classList.add('on');
+ $('#fen').innerHTML=`<form id="fa"><h2 class="t" id="f-t" style="margin:0">Ajouter une publication</h2><p class="petit" style="margin:4px 0 0">Elle arrive « À valider ». Rien ne part sans votre validation.</p>
+ <label>1. Sur quels réseaux ?</label><div class="choix">${Object.keys(RES).map(k=>`<label><input type="checkbox" name="r" value="${k}" ${(!r&&k==='LI')||r===k?'checked':''}>${lg(k)}${RES[k][0]}</label>`).join('')}</div>
+ <label>2. Quel type ?</label><div class="choix">${Object.keys(TYP).map((k,i)=>`<label><input type="radio" name="t" value="${k}" ${i?'':'checked'}>${TYP[k]}</label>`).join('')}</div>
+ <label for="f-x">3. Le contenu</label><textarea id="f-x" rows="3" placeholder="Collez votre texte ici">${esc(texte||'')}</textarea><div class="act" style="margin-top:6px"><button type="button" class="btn" id="f-fic">Choisir un fichier (vidéo, PDF, image)</button><button type="button" class="btn" id="f-ia">Proposer un texte et un premier commentaire</button></div><p class="petit" id="f-pc" style="margin:6px 0 0"></p>
+ <label>4. Quand ?</label><div style="display:flex;gap:8px"><input type="date" id="f-d" value="${iso(j)}" min="${iso(AUJ)}"><input type="time" id="f-h" value="09:00"></div>
+ <div class="act"><button class="btn pri" type="submit">Ajouter au calendrier</button><button class="btn" type="button" id="f-an">Annuler</button></div></form>`;
+ $('#f-an').onclick=fermerAjout;$('#f-fic').onclick=()=>{$('#f-fic').textContent='Maquette : fichier fictif joint ✓';};$('#f-ia').onclick=()=>{$('#f-x').value='Trois e-mails sur quatre peuvent se trier sans vous. Voici comment une agence a récupéré une heure par jour.';$('#f-pc').textContent='Premier commentaire proposé : « Et chez vous, combien de temps passez-vous à trier vos e-mails ? » Vous pouvez tout modifier.';};$('#f-x').focus();
+ $('#fa').onsubmit=e=>{e.preventDefault();const rs=[...document.querySelectorAll('#fa [name=r]:checked')].map(i=>i.value);if(!rs.length)return toast('Choisissez au moins un réseau.');const nj=jDe($('#f-d').value);if(isNaN(nj)||nj<AUJ)return toast('Impossible : ce jour est passé.');const t=document.querySelector('#fa [name=t]:checked').value,x=$('#f-x').value.trim();
+  const nv=rs.map(k=>add({j:nj,r:k,t,h:$('#f-h').value||'09:00',e:x?'valider':'brouillon',x:x||'(texte à écrire)',m:x?'':'Il manque le texte.'}));sem=Math.floor(nj/7);if(vue==='mois')vue='sem';fermerAjout();toast(`${nv.length>1?nv.length+' publications ajoutées':'Publication ajoutée'} le ${fL.format(dateJ(nj))}.`,()=>{P=P.filter(p=>!nv.includes(p));});rend();};}
+function fermerAjout(){$('#fen').classList.remove('on');if(!cur)$('#voile').classList.remove('on');}
+if(matchMedia('(max-width:860px)').matches){vue='jour';}
+rend();
+</script>

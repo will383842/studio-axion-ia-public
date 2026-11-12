@@ -7,21 +7,19 @@
 import type { NomPolice } from "@/briques/sous-titres";
 
 const FICHIERS: Record<NomPolice, { url: string; poids: string }> = {
-  "Poppins ExtraBold": { url: new URL("../../briques/sous-titres/polices/Poppins-ExtraBold.ttf", import.meta.url).href, poids: "800" },
-  "Poppins Medium": { url: new URL("../../briques/sous-titres/polices/Poppins-Medium.ttf", import.meta.url).href, poids: "500" },
-  "Montserrat Black": { url: new URL("../../briques/sous-titres/polices/Montserrat-Black.ttf", import.meta.url).href, poids: "900" },
+  "Manrope ExtraBold": { url: new URL("../../briques/sous-titres/polices/Manrope-ExtraBold.ttf", import.meta.url).href, poids: "800" },
+  "Manrope Medium": { url: new URL("../../briques/sous-titres/polices/Manrope-Medium.ttf", import.meta.url).href, poids: "500" },
 };
 
 /** Nom CSS de chaque police (une famille par fichier : aucune synthèse de graisse). */
 export const FAMILLES_SOUS_TITRES: Record<NomPolice, string> = {
-  "Poppins ExtraBold": '"Axion Poppins ExtraBold", sans-serif',
-  "Poppins Medium": '"Axion Poppins Medium", sans-serif',
-  "Montserrat Black": '"Axion Montserrat Black", sans-serif',
+  "Manrope ExtraBold": '"Axion Manrope ExtraBold", sans-serif',
+  "Manrope Medium": '"Axion Manrope Medium", sans-serif',
 };
 
 let chargement: Promise<void> | null = null;
 
-/** Charge les trois polices une fois par page (navigateur seulement). */
+/** Charge les deux graisses de Manrope une fois par page (navigateur seulement). */
 export function chargerPolicesSousTitres(): Promise<void> {
   if (typeof document === "undefined" || typeof FontFace === "undefined") return Promise.resolve();
   chargement ??= Promise.all(

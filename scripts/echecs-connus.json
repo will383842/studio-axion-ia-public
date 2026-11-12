@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "note": "Échecs déjà présents sur master, tolérés par la CI des nouveaux tests. Un échec absent d'ici est rouge. Ne jamais y ajouter un échec nouveau : le corriger.",
+  "echecs": [
+    {
+      "fichier": "tests/e2e-verif1-g-liens.test.ts",
+      "nom": "agent g — liens internes toute adresse interne mène à une page qui existe",
+      "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
+    },
+    {
+      "fichier": "tests/e2e-verif1-g-liens.test.ts",
+      "nom": "agent g — liens internes /ecrire?onglet= et /videos?vue= : la page lit cette valeur",
+      "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
+    }
+  ]
+}

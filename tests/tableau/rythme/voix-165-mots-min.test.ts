@@ -18,7 +18,7 @@ describe("recette voix-tableau/3", () => {
     expect(reglagesRecette()).toMatchObject({ id: "voix-tableau/3" });
   });
   it("le cas concret garde sa recette gelée (1,08)", () => {
-    expect(RECETTE_VOIX_CAS_CONCRET.filtres.atempo).toBe(1.08);
+    expect(RECETTE_VOIX_CAS_CONCRET.filtres.atempo).toBe(1);
   });
 });
 

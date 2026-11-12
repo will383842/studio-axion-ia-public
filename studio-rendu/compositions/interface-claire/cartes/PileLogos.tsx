@@ -243,9 +243,9 @@ export function PileLogos(p: PileLogosProps) {
           }}
         >
           <Reflet rayon={8} retrait={10} />
-          <Icone nom="cadenas" taille={W * 0.04} couleur={N3.orangeChaud} epaisseur={2.4} />
+          <Icone nom="cadenas" taille={W * 0.04} couleur={N3.orangeSurNoir} epaisseur={2.4} />
           <span style={{ ...styleCorps(Math.round(W * 0.03), N3.ivoire), flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.cadenas.texte ?? "La suite en privé"}</span>
-          <div style={{ width: W * 0.014, height: W * 0.014, borderRadius: "50%", background: N3.orange, boxShadow: `0 0 0 ${Math.round(W * 0.006 * respire(t, 1.1))}px ${ivoireA(0.16)}` }} />
+          <div style={{ width: W * 0.014, height: W * 0.014, borderRadius: "50%", background: N3.orangeSurNoir, boxShadow: `0 0 0 ${Math.round(W * 0.006 * respire(t, 1.1))}px ${ivoireA(0.16)}` }} />
         </div>
       ) : null}
     </div>

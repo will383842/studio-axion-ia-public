@@ -20,9 +20,8 @@ export function CarteBrouillon({ video }: { video: VueVideoCarte }) {
       href={`/nouvelle/${video.format.id}?brouillon=${video.id}`}
       className="group relative isolate flex h-full min-h-40 flex-col overflow-hidden rounded-carte border border-trait bg-surface-1 p-3.5 transition-[border-color,transform] duration-200 ease-studio hover:-translate-y-0.5 hover:border-trait-fort"
     >
-      <span aria-hidden className="absolute -right-8 -top-8 -z-10 size-24 rounded-full bg-orange/10 blur-2xl transition-transform duration-500 group-hover:scale-150" />
       <span className="flex items-center gap-1.5 text-xs font-semibold text-texte-faible">
-        <span className="grid size-7 place-items-center rounded-full bg-surface-2 text-orange-vif">
+        <span className="grid size-7 place-items-center rounded-full bg-surface-2 text-texte-faible">
           <Icone nom={video.format.icone} size={14} />
         </span>
         <span className="truncate"><IlYA iso={video.modifieLe} /></span>
@@ -31,12 +30,12 @@ export function CarteBrouillon({ video }: { video: VueVideoCarte }) {
       <span className="mt-auto pt-3">
         <span className="flex gap-1" aria-hidden>
           {etapes.map((e, i) => (
-            <span key={e} className={i <= position ? "h-1 flex-1 rounded-full bg-orange" : "h-1 flex-1 rounded-full bg-surface-3"} />
+            <span key={e} className={i <= position ? "h-1 flex-1 rounded-full bg-texte" : "h-1 flex-1 rounded-full bg-surface-3"} />
           ))}
         </span>
         <span className="mt-2 flex items-center justify-between text-xs font-semibold">
           <span className="text-texte-doux">{META_ETAPES[cle].court}</span>
-          <span className="flex items-center gap-1 text-orange-vif">
+          <span className="flex items-center gap-1 text-texte">
             Reprendre
             <Icone nom="fleche-droite" size={13} className="transition-transform group-hover:translate-x-0.5" />
           </span>

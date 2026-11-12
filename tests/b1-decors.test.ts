@@ -258,7 +258,7 @@ describe("brique `composition` : Look réel = décor DANS la vidéo", () => {
     const n3 = valeur("decor-n3-lumiere-doree");
     const p = brique.proprietesVignetteDecor({ decor: brique.decorDepuisValeur(n3, true, RECETTE_COMPOSITION_AVOCAT.decorRepli), double: brique.doubleVignette(true) });
     expect(p).toMatchObject({ ratio: "9:16", largeur: 1080, hauteur: 1920, images: 1, decor: { image: "entree:decor", flouPx: 0 }, doubles: { principal: { type: "image", url: "entree:double-principal" } } });
-    expect(p.contour).toEqual({ couleur: "#D69650", cote: "gauche" });
+    expect(p.contour).toEqual({ couleur: "#D97757", cote: "gauche" });
     const photo = brique.decorDepuisValeur({ type: "decor", mode: "image", methode: "photo-incrustee", profondeurFlou: 0, directionLumiere: "droite", positionSujet: 0.5 }, true, RECETTE_COMPOSITION_AVOCAT.decorRepli);
     expect(photo.flouPx).toBe(12);
     const parametres = brique.parametresVignetteDecor(p);

@@ -1,24 +1,15 @@
 /**
  * SOCLE DES VIGNETTES AXION V2 (lot 1) — PUR, sans React. Référence visuelle : `docs/vignettes/v2/gabarit/socle.css`.
  * Invariable pour les 12 générateurs : lisere, carré « A », signature (9:16), titre sur 2 lignes, un pavé, 2 ambiances.
- * Les couleurs viennent de la charte vidéo et des jetons de miniature ; seuls le dégradé ivoire et le fond encre
- * éclairci sont nommés ici.
+ * Charte du 07/11 : ivoire, noir, terracotta, Manrope. Les couleurs viennent UNIQUEMENT des jetons de `charte-video`.
  */
 import { COULEURS_VIDEO } from "../../../../src/briques/habillage/charte-video";
-import { COULEURS_MINIATURE } from "../miniature-mise-en-page";
 
-export type RatioVignette = "16:9" | "9:16";
+export type RatioVignette = "16:9" | "9:16" | "1:1" | "4:5";
 export type AmbianceVignette = "encre" | "ivoire";
 export type MiseVignette = "m1" | "m2" | "m3";
 export const AMBIANCES_VIGNETTE = ["encre", "ivoire"] as const;
 export const MISES_VIGNETTE = ["m1", "m2", "m3"] as const;
-
-/** Ivoire lumineux des titres sur encre et du A du carré (socle.css `--ivoire-vif`). */
-const IVOIRE_VIF = "#F4EBDD";
-/** Dégradé du fond ivoire (socle.css) : haut, milieu, bas. */
-const DEGRADE_IVOIRE = Object.freeze({ haut: "#F6E9D6", milieu: "#F1E2CC", bas: "#E4CDAE" });
-/** Centre éclairci du fond encre (socle.css). */
-const ENCRE_CLAIRE = "#1d110a";
 
 export interface AmbianceDef {
   fond: string;
@@ -30,28 +21,31 @@ export interface AmbianceDef {
   contour: string;
   /** Teinte du voile sous le titre (R, G, B). */
   voile: string;
-  centre?: string;
-  degrade?: typeof DEGRADE_IVOIRE;
 }
 
 export const AMBIANCES: Readonly<Record<AmbianceVignette, AmbianceDef>> = Object.freeze({
   encre: Object.freeze({
-    fond: COULEURS_VIDEO.ecriture, texte: IVOIRE_VIF, pave: COULEURS_MINIATURE.orangeVif, paveTexte: COULEURS_VIDEO.ecriture,
-    lisere: COULEURS_MINIATURE.orangeVif, contour: "#120B07", voile: "17,10,5", centre: ENCRE_CLAIRE,
+    fond: COULEURS_VIDEO.ecriture, texte: COULEURS_VIDEO.page, pave: COULEURS_VIDEO.soulignement, paveTexte: COULEURS_VIDEO.page,
+    lisere: COULEURS_VIDEO.soulignement, contour: COULEURS_VIDEO.ecriture, voile: "20,20,19",
   }),
   ivoire: Object.freeze({
-    fond: COULEURS_VIDEO.page, texte: COULEURS_VIDEO.ecriture, pave: COULEURS_VIDEO.soulignement, paveTexte: IVOIRE_VIF,
-    lisere: COULEURS_VIDEO.soulignement, contour: DEGRADE_IVOIRE.milieu, voile: "241,226,204", degrade: DEGRADE_IVOIRE,
+    fond: COULEURS_VIDEO.page, texte: COULEURS_VIDEO.ecriture, pave: COULEURS_VIDEO.soulignement, paveTexte: COULEURS_VIDEO.page,
+    lisere: COULEURS_VIDEO.soulignement, contour: COULEURS_VIDEO.page, voile: "250,249,245",
   }),
 });
 
-export const ORANGE_VIF = COULEURS_MINIATURE.orangeVif;
-export const IVOIRE_CARRE = IVOIRE_VIF;
+/** Terracotta de la charte (marques, pavé du mot-clé, liseré, carré) et ivoire du « A ». */
+export const ORANGE_VIF = COULEURS_VIDEO.soulignement;
+export const IVOIRE_CARRE = COULEURS_VIDEO.page;
+/** Terracotta en rgba (halo discret) : dérivé du jeton, jamais un autre orange. */
+export const TERRACOTTA_RGB = "178,63,22";
 
 export function dimensionsVignette(ratio: RatioVignette): { largeur: number; hauteur: number } {
   if (ratio === "16:9") return { largeur: 1280, hauteur: 720 };
   if (ratio === "9:16") return { largeur: 1080, hauteur: 1920 };
-  throw new Error(`Ratio de vignette refusé : ${String(ratio)} (16:9 ou 9:16 seulement).`);
+  if (ratio === "1:1") return { largeur: 1080, hauteur: 1080 };
+  if (ratio === "4:5") return { largeur: 1080, hauteur: 1350 };
+  throw new Error(`Ratio de vignette refusé : ${String(ratio)} (16:9, 9:16, 1:1 ou 4:5).`);
 }
 
 export interface Reperes {
@@ -64,6 +58,8 @@ export interface Reperes {
 export const REPERES: Readonly<Record<RatioVignette, Reperes>> = Object.freeze({
   "16:9": Object.freeze({ lisere: 16, carre: Object.freeze({ x: 44, y: 36, taille: 62 }), signature: null }),
   "9:16": Object.freeze({ lisere: 22, carre: Object.freeze({ x: 84, y: 456, taille: 86 }), signature: Object.freeze({ x: 190, y: 484 }) }),
+  "4:5": Object.freeze({ lisere: 22, carre: Object.freeze({ x: 84, y: 84, taille: 86 }), signature: Object.freeze({ x: 190, y: 112 }) }),
+  "1:1": Object.freeze({ lisere: 22, carre: Object.freeze({ x: 84, y: 84, taille: 86 }), signature: Object.freeze({ x: 190, y: 112 }) }),
 });
 
 export const ZONES_SURES = Object.freeze({

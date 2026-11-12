@@ -5,26 +5,23 @@
  */
 import { continueRender, delayRender } from "remotion";
 import type { NomPolice } from "../../../src/briques/sous-titres/mesure";
-import montserratBlack from "../../../src/briques/sous-titres/polices/Montserrat-Black.ttf";
-import poppinsExtraBold from "../../../src/briques/sous-titres/polices/Poppins-ExtraBold.ttf";
-import poppinsMedium from "../../../src/briques/sous-titres/polices/Poppins-Medium.ttf";
+import manropeExtraBold from "../../../src/briques/sous-titres/polices/Manrope-ExtraBold.ttf";
+import manropeMedium from "../../../src/briques/sous-titres/polices/Manrope-Medium.ttf";
 
 /** Nom CSS de chaque police dans le rendu (une famille par fichier : aucune synthèse de graisse). */
 export const FAMILLES: Record<NomPolice, string> = {
-  "Poppins ExtraBold": "Axion Poppins ExtraBold",
-  "Poppins Medium": "Axion Poppins Medium",
-  "Montserrat Black": "Axion Montserrat Black",
+  "Manrope ExtraBold": "Axion Manrope ExtraBold",
+  "Manrope Medium": "Axion Manrope Medium",
 };
 
 const FICHIERS: Record<NomPolice, string> = {
-  "Poppins ExtraBold": poppinsExtraBold,
-  "Poppins Medium": poppinsMedium,
-  "Montserrat Black": montserratBlack,
+  "Manrope ExtraBold": manropeExtraBold,
+  "Manrope Medium": manropeMedium,
 };
 
 let chargement: Promise<void> | null = null;
 
-/** Charge les trois polices une fois par page de rendu. */
+/** Charge les deux graisses de Manrope une fois par page de rendu. */
 export function chargerPolices(): void {
   if (chargement || typeof document === "undefined") return;
   const attente = delayRender("Polices des sous-titres");

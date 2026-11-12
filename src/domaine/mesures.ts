@@ -12,7 +12,7 @@ import { planifierPublications, type CreneauPropose } from "./classement-generat
 import type { EtatReseau } from "./derivations-generateur";
 import type { Publication, ReseauDeclinaison, StatsPublication } from "./types";
 import { JOUR_MS } from "@/lib/dates";
-import { formateurDate } from "@/lib/intl";
+import { instantParis as instantParisHorloge } from "@/lib/horloge-paris";
 
 /* ------------------------------------------------------------------ */
 /* Échéances J+3 et J+7                                                */
@@ -102,7 +102,7 @@ export const PAGE_SUIVIE_PAR_DEFAUT = "https://axion-ia.com/fr/diagnostic";
 /* Lien suivi unique (ADR 0002) : le SEUL constructeur du studio        */
 /* ------------------------------------------------------------------ */
 
-export const NATURES_LIEN = ["message", "profil", "video"] as const;
+export const NATURES_LIEN = ["message", "profil", "video", "post"] as const;
 export type NatureLien = (typeof NATURES_LIEN)[number];
 export const ACTIVITES_LIEN = ["clients", "apporteurs", "formateurs"] as const;
 export type ActiviteLien = (typeof ACTIVITES_LIEN)[number];
@@ -134,10 +134,10 @@ export class ErreurLienSuivi extends Error {
 }
 
 export interface EntreeLienSuivi {
-  /** `video` (lien d'une vidéo), `message` (réponse à un mot), `profil` (bio, chaîne). `post` est réservé. */
+  /** `video` (lien d'une vidéo), `message` (réponse à un mot), `profil` (bio, chaîne). `post` (visuel ou publication, `utm_medium=post`) : code de version, comme la vidéo. */
   typeLien: string;
   reseau: string;
-  /** `video` : code de version (`0042-TB-IG`, jamais modifié) ; `message` et `profil` : code du mot (`mot-guide`). */
+  /** `video` et `post` : code de version (`0042-TB-IG`, `0042-VS-LI`, jamais modifié) ; `message` et `profil` : code du mot (`mot-guide`). */
   code: string;
   activite: string;
   /** Chemin d'une page permise (`/fr/appel`, `/fr/guide-ia`, `/fr/diagnostic`), sans requête ni ancre. */
@@ -151,7 +151,6 @@ export interface EntreeLienSuivi {
  */
 export function construireLienSuivi(entree: EntreeLienSuivi): string {
   const nature = entree.typeLien.toLowerCase();
-  if (nature === "post") throw new ErreurLienSuivi("nature_reservee", "Un lien de publication sans vidéo est réservé : aucun code n'existe encore pour ces contenus.");
   if (!(NATURES_LIEN as readonly string[]).includes(nature)) throw new ErreurLienSuivi("nature_inconnue", `Nature de lien inconnue : « ${entree.typeLien} ».`);
   const reseau = entree.reseau.toLowerCase();
   if (!(RESEAUX_LIEN as readonly string[]).includes(reseau)) throw new ErreurLienSuivi("reseau_inconnu", `Réseau inconnu : « ${entree.reseau} ».`);
@@ -163,8 +162,8 @@ export function construireLienSuivi(entree: EntreeLienSuivi): string {
   if (!(PAGES_LIEN as readonly string[]).includes(entree.page)) throw new ErreurLienSuivi("page_interdite", `Page non permise : « ${entree.page} ».`);
   if (!/^[A-Za-z0-9-]+$/.test(entree.code)) throw new ErreurLienSuivi("caractere_interdit", "Le code ne contient que des lettres, des chiffres et des tirets.");
   if (entree.code.length > LONGUEUR_MAX_LIEN) throw new ErreurLienSuivi("trop_long", `Le code dépasse ${LONGUEUR_MAX_LIEN} signes.`);
-  if (nature === "video" && !CODE_VERSION.test(entree.code)) throw new ErreurLienSuivi("code_version_attendu", "Un lien de vidéo porte le code de version (« 0042-TB-IG »).");
-  if (nature !== "video" && !CODE_MOT.test(entree.code)) throw new ErreurLienSuivi("code_mot_attendu", "Un message ou un profil porte le code du mot (« mot-guide »).");
+  if ((nature === "video" || nature === "post") && !CODE_VERSION.test(entree.code)) throw new ErreurLienSuivi("code_version_attendu", "Un lien de vidéo, de visuel ou de post porte le code de version (« 0042-TB-IG », « 0042-VS-LI »).");
+  if (nature !== "video" && nature !== "post" && !CODE_MOT.test(entree.code)) throw new ErreurLienSuivi("code_mot_attendu", "Un message ou un profil porte le code du mot (« mot-guide »).");
   const parametres = [`utm_source=${reseau}`, `utm_medium=${nature}`, `utm_campaign=${entree.code}`, `utm_content=${activite}`];
   if (entree.page === "/fr/appel") parametres.push(`depuis=${nature}-${reseau}`);
   return `https://axion-ia.com${entree.page}?${parametres.join("&")}`;
@@ -237,19 +236,8 @@ export function versionsAProgrammer(versions: readonly VersionProgrammable[], op
 /** Heure proposée quand Will n'en a pas réglé pour ce réseau (celle de « Demain 9 h » de la feuille Buffer). */
 export const HEURE_PAR_DEFAUT = "09:00";
 
-/** « 2026-10-06 » + « 09:00 » à l'heure de Paris → instant ISO (gère l'heure d'été). */
-export function instantParis(jour: string, heure: string): string {
-  const [a, m, j] = jour.split("-").map(Number);
-  const [h, mi] = heure.split(":").map(Number);
-  const suppose = Date.UTC(a, m - 1, j, h, mi);
-  const parties = Object.fromEntries(
-    formateurDate("en-GB", { timeZone: "Europe/Paris", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
-      .formatToParts(new Date(suppose))
-      .map((p) => [p.type, p.value]),
-  );
-  const vuAParis = Date.UTC(Number(parties.year), Number(parties.month) - 1, Number(parties.day), Number(parties.hour), Number(parties.minute));
-  return new Date(suppose - (vuAParis - suppose)).toISOString();
-}
+/** « 2026-10-06 » + « 09:00 » à l'heure de Paris → instant ISO (gère l'heure d'été) : délègue à l'horloge Paris. */
+export const instantParis = instantParisHorloge;
 
 export interface CreneauVersion extends CreneauPropose {
   varianteId: string;

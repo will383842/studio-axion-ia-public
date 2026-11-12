@@ -18,7 +18,7 @@ export function FormulaireCorrection({ videoId, texte }: { videoId: string; text
     <div className="space-y-3">
       <ZoneTexte
         libelle="Le texte du document"
-        aide="Les titres commencent par # ou ##. Aucun prix, aucun chiffre sans source, aucun client nommé."
+        aide="Les titres commencent par # ou ##. Aucun montant, aucun chiffre sans source, aucun client nommé."
         value={valeur}
         longueurMax={BUDGET_DEUX_PAGES}
         onChange={(e) => {

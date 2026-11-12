@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { listerElements } from "@/services/bibliotheque";
 import { Vitrine } from "./Vitrine";
+import { VitrineSocle } from "./VitrineSocle";
 import { exigerSession } from "@/services/auth";
 
 export const metadata: Metadata = { title: "Composants" };
@@ -16,6 +17,7 @@ export default async function PageStyleguide() {
   return (
     <div>
       <EnTetePage titre="Composants" sousTitre="Le système de design « Studio »." />
+      <VitrineSocle />
       <Vitrine elements={elements} />
     </div>
   );

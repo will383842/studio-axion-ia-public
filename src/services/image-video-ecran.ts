@@ -25,11 +25,12 @@ import type { FicheImage } from "@/domaine/image-video/fiche";
 import { PHRASE_TIKTOK_RETIRE_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import { depenseDesEtapes } from "@/domaine/suivi";
 import { cleFichierRef, clesFichier, type CandidatSujet, type Confirmation, type NiveauSujet, type Precedent, type Suggestion } from "@/domaine/sujets-traites";
-import type { BlocScript, CommandeFabrication, Distribution, Fichier, Id, Montant, Travail } from "@/domaine/types";
+import type { BlocScript, CommandeFabrication, Distribution, EtapeEditoriale, Fichier, Id, Montant, Travail } from "@/domaine/types";
+import { phrasesAdaptees } from "@/components/formats/image-video/AdapteAutomatiquement";
 import { OFFRES, type Offre } from "@/formats/cas-concret/cas";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { additionner, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
-import { CLE_LANCEUR_IV, engageCentimes, euros, estimerImageVideo, plafondProposeIV, releverPlafondIV, type EtatFabricationIV, type FormuleATrancherIV, type PrixIV } from "@/moteurs/montage-image-video";
+import { CLE_LANCEUR_IV, engageCentimes, estimerImageVideo, plafondProposeIV, releverPlafondIV, type EtatFabricationIV, type FormuleATrancherIV, type PrixIV } from "@/moteurs/montage-image-video";
 import { avecVersionsPrudentes, type ChoixFormule } from "@/domaine/image-video/versions-prudentes";
 // Ré-export : la fonction vit désormais dans le domaine (pure, utilisable côté client).
 export { avecVersionsPrudentes, cleFormule } from "@/domaine/image-video/versions-prudentes";
@@ -68,7 +69,7 @@ export const PHRASES_IV = Object.freeze({
   lanceur: "Cette vidéo est fabriquée par le lanceur, hors du studio : relancez le lanceur (la même commande) pour reprendre. Rien de déjà payé n'est refait.",
   plafondEnCours: "La fabrication avance : relevez le plafond quand elle est arrêtée.",
   plafondLanceur: "Cette vidéo est fabriquée par le lanceur, hors du studio : son plafond se règle au lancement.",
-  plafondMontant: "Indiquez un montant en euros.",
+  plafondMontant: "Indiquez un montant valide.",
   plafondChange: "La vidéo a changé entre-temps : rechargez la page.",
 });
 
@@ -81,9 +82,14 @@ export const PARAM_RELIRE_SCRIPT_IV = "imageVideo.relireScript";
 // ─── Prix du dépôt ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Prix au pire de la vidéo, affiché sur le bouton du dépôt (même calcul que le moteur au lancement). PUR. */
-export function prixDuDepot(reseaux: readonly ReseauIV[], tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT): number {
-  const commande = { entrees: { imageVideo: { reseaux: [...reseaux] } }, tauxUsdEur, dureeCibleSec: 50 } as unknown as CommandeFabrication;
+export function prixDuDepot(reseaux: readonly ReseauIV[], tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT, dureeCibleSec = 50): number {
+  const commande = { entrees: { imageVideo: { reseaux: [...reseaux] } }, tauxUsdEur, dureeCibleSec } as unknown as CommandeFabrication;
   return estimerImageVideo(commande).total.centimes;
+}
+
+/** Mode script : durée cible = mots / 3,3 (débit de la voix), bornée à 180 s. Sans script : 50 s. PUR. */
+export function dureeCibleDuScript(nbMots: number): number {
+  return Math.min(180, Math.max(1, Math.ceil(nbMots / 3.3)));
 }
 
 // ─── Écran 1 · Déposer ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -259,7 +265,7 @@ export async function deposerImageVideo(d: DemandeDepotIV, dep: DependancesEcran
     }
     const accord = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
     // Accord absent ou plus bas que le prix : rien n'est créé, le prix est redemandé.
-    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Confirmez ce prix pour lancer.` };
+    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo est payante. Confirmez pour lancer.` };
     const accordEssaiReel = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_IV, false)))();
     const titre = (d.titre?.trim() || fichier.nom.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[-_]+/g, " ").trim() || "Image → vidéo").slice(0, 80);
     const entrees = {
@@ -327,6 +333,17 @@ async function lancerParDefaut(videoId: Id, accord: AccordPrix | undefined, mont
   return lancerAvecAccord(videoId, accord, montant);
 }
 
+/** Titre court de l'écran (40 caractères au plus), coupé sur un mot et fini par « … ». PUR. */
+export function titreCourt(titre: string, max = 40): string {
+  const t = titre.normalize("NFC").replace(/\s+/g, " ").trim();
+  if (!t) return "Image → vidéo";
+  const signes = Array.from(t); // points de code : jamais une paire de substitution coupée
+  if (signes.length <= max) return t;
+  const coupe = signes.slice(0, max - 1).join("");
+  const surUnMot = signes[max - 1] === " " ? coupe : coupe.replace(/\s+\S*$/, "");
+  return `${(surUnMot || coupe).trimEnd()}…`;
+}
+
 // ─── Écrans 2 à 5 · la vue ───────────────────────────────────────────────────────────────────────────────────────────
 
 export interface VueImageVideo {
@@ -356,6 +373,14 @@ export interface VueImageVideo {
   };
   fabrication: VueFabrication;
   videos?: (CarteReseauIV & { url?: string | null; urlFil?: string | null })[];
+  /** Étape éditoriale de la vidéo (bouton « Valider » de « Vos vidéos »). */
+  etapeEditoriale?: EtapeEditoriale;
+  /** La vidéo est prête (statut « prete ») : « Valider » n'a de sens qu'alors. */
+  prete?: boolean;
+  /** Le texte collé par Will (mode texte), replié sur « Vos vidéos ». */
+  texteOrigine?: string;
+  /** Ce que le studio a adapté tout seul, replié sur « Vos vidéos ». */
+  adapte?: string[];
   verdict?: { ok: boolean; phrase: string; mentions: string[] };
   /** La fabrication avance seule (l'écran se relit). */
   enCours: boolean;
@@ -369,7 +394,7 @@ export interface VueImageVideo {
 
 /** Ce que la vue lit du studio (doubles dans les tests). */
 export interface DependancesVueIV {
-  video?: (videoId: Id) => Promise<{ id: Id; titre: string; formatId: string; entrees?: Record<string, unknown> } | null>;
+  video?: (videoId: Id) => Promise<{ id: Id; titre: string; formatId: string; entrees?: Record<string, unknown>; statut?: string; etapeEditoriale?: EtapeEditoriale } | null>;
   travail?: (videoId: Id) => Promise<Travail | null>;
   url?: (cle: string) => Promise<string | null>;
   relireScript?: () => Promise<boolean>;
@@ -393,7 +418,7 @@ async function urlParDefaut(cle: string): Promise<string | null> {
 }
 
 /** Vue PURE (hors lecture du studio) : l'écran et ce qu'il montre, d'après le travail et son état. */
-export function construireVueImageVideo(video: { id: Id; titre: string }, travail: Travail | null, imageUrl: string | null): VueImageVideo {
+export function construireVueImageVideo(video: { id: Id; titre: string; entrees?: Record<string, unknown>; statut?: string; etapeEditoriale?: EtapeEditoriale }, travail: Travail | null, imageUrl: string | null): VueImageVideo {
   const etat = etatDe(travail);
   const enCours = travail?.statut === "en_cours" || travail?.statut === "en_file";
   const arretee = travail?.statut === "annule";
@@ -438,7 +463,15 @@ export function construireVueImageVideo(video: { id: Id; titre: string }, travai
   }
   if (etat.miseDeCote) vue.miseDeCote = `Mise de côté : ${etat.miseDeCote.motif}`;
   if (etat.controles?.verdict) vue.verdict = { ok: etat.controles.verdict.ok, phrase: etat.controles.verdict.phrase, mentions: [...etat.controles.verdict.mentions] };
-  if (etat.livraison?.length) vue.videos = cartesReseaux(etat.livraison);
+  if (etat.livraison?.length) {
+    vue.videos = cartesReseaux(etat.livraison);
+    vue.prete = video.statut === "prete";
+    if (video.etapeEditoriale) vue.etapeEditoriale = video.etapeEditoriale;
+    const origine = objet(objet(video.entrees).imageVideo).texte;
+    if (typeof origine === "string" && origine.trim()) vue.texteOrigine = origine.trim();
+    const adapte = phrasesAdaptees(etat.carte?.carte ?? etat.propositionCarte?.carte);
+    if (adapte.length) vue.adapte = adapte;
+  }
   return vue;
 }
 
@@ -483,7 +516,7 @@ export type IssueRepriseIV = { statut: "reprise" } | { statut: "accord-requis"; 
 export interface DependancesGestesIV {
   travail?: (videoId: Id) => Promise<Travail | null>;
   validerCarte?: (videoId: Id, e: { carte?: CarteImage }) => Promise<unknown>;
-  validerScript?: (videoId: Id, e: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV> }, accord?: AccordPrix) => Promise<unknown>;
+  validerScript?: (videoId: Id, e: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean }, accord?: AccordPrix) => Promise<unknown>;
   reessayer?: (travailId: Id, accord?: AccordPrix) => Promise<unknown>;
 }
 
@@ -531,7 +564,7 @@ export async function validerCarteEtReprendre(videoId: Id, carte: CarteImage | u
 /** « Valider et fabriquer » (écran 3) : `accord` = le prix affiché et confirmé. */
 export async function validerScriptEtReprendre(
   videoId: Id,
-  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV> },
+  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean },
   accord: AccordPrix | undefined,
   dep: DependancesGestesIV = {},
 ): Promise<IssueRepriseIV> {
@@ -607,10 +640,10 @@ export async function releverPlafondImageVideo(videoId: Id, d: DemandeRelevePlaf
   if (travail.statut === "en_cours" || travail.statut === "en_file") return { statut: "refusee", phrase: PHRASES_IV.plafondEnCours };
   const engage = engageCentimes(etat);
   const actuel = etat.caisse.plafondCentimes;
-  if (nouveau < engage) return { statut: "refusee", phrase: `Le plafond ne peut pas descendre sous ce qui est déjà engagé (${euros(engage)}).` };
-  if (nouveau <= actuel) return { statut: "refusee", phrase: `Le nouveau plafond doit dépasser le plafond actuel (${euros(actuel)}).` };
+  if (nouveau < engage) return { statut: "refusee", phrase: `Le plafond ne peut pas descendre sous ce qui est déjà engagé.` };
+  if (nouveau <= actuel) return { statut: "refusee", phrase: `Le nouveau plafond doit dépasser le plafond actuel.` };
   // Confirmation explicite du montant, comme « Confirmer ce prix » : un autre montant (ou aucun) est redemandé.
-  if (d.accordCentimes !== nouveau) return { statut: "accord-requis", centimes: nouveau, phrase: `Le plafond de cette vidéo passera de ${euros(actuel)} à ${euros(nouveau)}. Confirmez ce montant.` };
+  if (d.accordCentimes !== nouveau) return { statut: "accord-requis", centimes: nouveau, phrase: `Le plafond de cette vidéo va être relevé. Confirmez pour continuer.` };
   // Relecture et écriture SOUS le verrou de la boucle (comme `reessayerTravail`) : un « Refaire cette partie » passé
   // entre-temps (voix peut-être déjà payée) n'est jamais écrasé par la lecture d'avant ; rien n'est écrit, Will recharge.
   const ecrit = await sousVerrou(async () => {
@@ -622,7 +655,7 @@ export async function releverPlafondImageVideo(videoId: Id, d: DemandeRelevePlaf
     const apres = releverPlafondIV(etatFrais, nouveau);
     await (dep.enregistrerTravail ?? ((t: Travail) => depots().travaux.enregistrer(t)))({ ...frais, parametres: { ...frais.parametres, imageVideo: apres }, modifieLe: new Date().toISOString() });
     await (dep.porterPlafond ?? porterPlafondParDefaut)(videoId, frais.versionId, nouveau);
-    await journaliser("video", `Image → vidéo : plafond relevé de ${euros(actuel)} à ${euros(nouveau)}`, { type: "video", id: videoId }).catch(() => undefined);
+    await journaliser("video", `Image → vidéo : plafond relevé`, { type: "video", id: videoId }).catch(() => undefined);
     return true;
   });
   if (!ecrit) return { statut: "refusee", phrase: PHRASES_IV.plafondChange };

@@ -12,7 +12,7 @@ import { OFFRES, type Offre } from "../../formats/cas-concret/cas";
 import { chiffresDe, cleChiffre, UNITES_CHIFFRE } from "./chiffres";
 import { typesDeLaCarte } from "./complexite";
 import { formulesAbsoluesDe } from "./formules";
-import { iconeDe } from "./icones";
+import { iconeDe, iconeOuRepli } from "./icones";
 
 export const VERSION_CARTE_IMAGE = "carte-image/1";
 
@@ -86,6 +86,8 @@ export const schemaLienCarte = z.strictObject({
   part: z.number().min(0).max(100).optional(),
   couleur: z.enum(COULEURS_IMAGE),
   style: z.enum(["plein", "pointille"]),
+  /** Vrai → flèche NON dessinée sur l'image, déduite par le code de la mise en page (bloc suivant dans sa branche) : à vérifier. */
+  deduit: z.boolean().optional(),
 });
 
 export const schemaGroupeCarte = z.strictObject({
@@ -151,6 +153,8 @@ export const schemaCarteImage = z.strictObject({
     alertes: z.array(z.string().min(1).max(300)).max(60),
   }),
   validation: z.strictObject({ par: z.enum(["will", "reglage"]), le: z.string().min(1).max(40), empreinteCarte: z.string().min(1).max(128) }).optional(),
+  /** R1 : réparations faites par le code à la lecture (« Adapté automatiquement : … »). Absent = rien adapté (cartes anciennes). */
+  adaptations: z.array(z.string().min(1).max(300)).max(60).optional(),
 });
 
 export type CarteImage = z.infer<typeof schemaCarteImage>;
@@ -205,7 +209,7 @@ export function textesDeLaCarte(carte: Pick<CarteImage, "titre" | "sousTitre" | 
 /**
  * Inventaire des chiffres recalculé par le code : un chiffre par occurrence, ids « c01 », « c02 »… dans l'ordre des
  * textes. `aDire` et `lu` sont repris de l'inventaire précédent quand le même chiffre (même écriture, même endroit) y
- * était (choix de Will, concordance des lectures) ; sinon `aDire: true`, `lu: "les-deux"`.
+ * était (choix de Will, concordance des lectures) ; sinon `aDire: true`, `lu: "les-deux"` ; sauf « 1 rappel » (un nombre 1 sans unité : « un » est un article, le script le dit sans le chiffre), affiché seulement.
  */
 export function chiffresDeLaCarte(carte: Pick<CarteImage, "titre" | "sousTitre" | "phraseChoc" | "signature" | "noeuds" | "liens" | "bandeau" | "pied"> & { chiffres?: ChiffreCarte[] }): ChiffreCarte[] {
   const precedents = carte.chiffres ?? [];
@@ -216,7 +220,7 @@ export function chiffresDeLaCarte(carte: Pick<CarteImage, "titre" | "sousTitre" 
       const avant = precedents.find(
         (p) => cleChiffre(p.brut) === cleChiffre(c.brut) && p.dansNoeud === t.dansNoeud && p.dansLien === t.dansLien && !!p.dansBandeau === !!t.dansBandeau,
       );
-      const chiffre: ChiffreCarte = { id: `c${String(res.length + 1).padStart(2, "0")}`, brut: c.brut, valeur: c.valeur, unite: c.unite, aDire: avant?.aDire ?? true, lu: avant?.lu ?? "les-deux" };
+      const chiffre: ChiffreCarte = { id: `c${String(res.length + 1).padStart(2, "0")}`, brut: c.brut, valeur: c.valeur, unite: c.unite, aDire: avant?.aDire ?? !(c.valeur === 1 && c.unite === "nombre"), lu: avant?.lu ?? "les-deux" };
       if (t.dansNoeud) chiffre.dansNoeud = t.dansNoeud;
       if (t.dansLien) chiffre.dansLien = t.dansLien;
       if (t.dansBandeau) chiffre.dansBandeau = true;
@@ -323,7 +327,7 @@ export interface ControleCarte {
 }
 
 /** Nombre de cycles indépendants trouvés par un parcours en profondeur (arêtes de retour). */
-function cycles(noeuds: readonly string[], liens: readonly LienCarte[]): number {
+export function cycles(noeuds: readonly string[], liens: readonly LienCarte[]): number {
   const suivants = new Map<string, string[]>(noeuds.map((n) => [n, []]));
   for (const l of liens) suivants.get(l.de)?.push(l.vers);
   for (const v of suivants.values()) v.sort();
@@ -339,6 +343,27 @@ function cycles(noeuds: readonly string[], liens: readonly LienCarte[]): number 
   };
   for (const n of [...noeuds].sort()) if (!etat.has(n)) visiter(n);
   return retours;
+}
+
+/**
+ * Ce que le type exige de la carte, en une phrase d'erreur ; `null` si la carte le satisfait. Source UNIQUE pour
+ * `controlerCarte` et pour la réparation (`reparation.ts`). Un lien déduit (non dessiné sur l'image) ne satisfait
+ * jamais seul une exigence de forme.
+ */
+export function exigenceDuType(carte: CarteImage, type: TypeImage): string | null {
+  const sortants = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit).length;
+  if (type === "embranchement" && !carte.noeuds.some((n) => sortants(n.id) >= 2)) return "Un embranchement demande un bloc d'où partent au moins deux chemins.";
+  if (type === "entonnoir") {
+    const entree = carte.noeuds.some((n) => (n.quantite ?? 0) >= 2 && sortants(n.id) >= 1);
+    // Tout bloc d'où partent au moins deux chemins peut être le filtre : il suffit qu'UN d'eux ait deux sorties
+    // chiffrées (jamais « le premier de la liste », qui ferait dépendre le verdict de l'ordre reçu).
+    const sortiesChiffrees = (id: string) => carte.liens.filter((l) => l.de === id && !l.deduit && carte.chiffres.some((c) => c.dansNoeud === l.vers || c.dansLien === l.id)).length;
+    if (!entree || !carte.noeuds.some((n) => sortiesChiffrees(n.id) >= 2)) return "Un entonnoir demande des objets en nombre à l'entrée et deux sorties chiffrées.";
+  }
+  if (type === "avant-apres" && !(carte.groupes.some((g) => g.sorte === "avant") && carte.groupes.some((g) => g.sorte === "apres"))) {
+    return "Un avant / après demande un groupe « avant » et un groupe « après ».";
+  }
+  return null;
 }
 
 /**
@@ -368,20 +393,9 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
   }
   if (cycles(ids, carte.liens) > 1) erreurs.push("Le schéma tourne en rond plus d'une fois.");
 
-  const sortants = (id: string) => carte.liens.filter((l) => l.de === id).length;
-  if (carte.types.includes("embranchement") && !carte.noeuds.some((n) => sortants(n.id) >= 2)) {
-    erreurs.push("Un embranchement demande un bloc d'où partent au moins deux chemins.");
-  }
-  if (carte.types.includes("entonnoir")) {
-    const entree = carte.noeuds.some((n) => (n.quantite ?? 0) >= 2 && sortants(n.id) >= 1);
-    // Tout bloc d'où partent au moins deux chemins peut être le filtre : il suffit qu'UN d'eux ait deux sorties
-    // chiffrées (jamais « le premier de la liste », qui ferait dépendre le verdict de l'ordre reçu).
-    const sortiesChiffrees = (id: string) => carte.liens.filter((l) => l.de === id && carte.chiffres.some((c) => c.dansNoeud === l.vers || c.dansLien === l.id)).length;
-    const filtre = carte.noeuds.some((n) => sortiesChiffrees(n.id) >= 2);
-    if (!entree || !filtre) erreurs.push("Un entonnoir demande des objets en nombre à l'entrée et deux sorties chiffrées.");
-  }
-  if (carte.types.includes("avant-apres") && !(carte.groupes.some((g) => g.sorte === "avant") && carte.groupes.some((g) => g.sorte === "apres"))) {
-    erreurs.push("Un avant / après demande un groupe « avant » et un groupe « après ».");
+  for (const t of ["embranchement", "entonnoir", "avant-apres"] as const) {
+    const manque = carte.types.includes(t) ? exigenceDuType(carte, t) : null;
+    if (manque) erreurs.push(manque);
   }
 
   const attendus = chiffresDeLaCarte(carte);
@@ -393,13 +407,50 @@ export function controlerCarte(carte: CarteImage): ControleCarte {
   for (const c of carte.chiffres) if (c.lu === "une-seule") alertes.push(`Le chiffre « ${c.brut} » n'a été lu qu'une fois : vérifiez-le.`);
 
   for (const n of carte.noeuds) {
-    if (n.icone && iconeDe(n.icone) === null) alertes.push(`Icône inconnue pour « ${n.libelle} » : choisissez-en une.`);
     if (n.photoPersonnes) alertes.push(`« ${n.libelle} » est une photo de personnes : elle ne sera pas reprise, seul son contenu sera redessiné.`);
+  }
+  for (const l of carte.liens) {
+    if (l.deduit) alertes.push(`Lien déduit de la mise en page, à vérifier : ${l.vers} suit ${l.de} dans sa branche (aucune flèche n'est dessinée sur l'image).`);
   }
   for (const c of coherenceDe(carte)) if (!c.ok) alertes.push(`Calcul à vérifier sur l'image : ${c.calcul}.`);
   for (const f of formulesDeLaCarte(carte)) if (!f.choixWill) alertes.push(`Formule très affirmative : « ${f.texte} ». Version prudente proposée.`);
 
   return { ok: erreurs.length === 0, erreurs, alertes };
+}
+
+// ─── Blocs sans flèche posés dans une branche ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Un bloc sans aucune flèche (pastille sous une branche) que la carte range dans UNE branche est relié au bloc qui le
+ * précède dans cette même branche (ordre de lecture), lien marqué `deduit`. Seulement si c'est sans ambiguïté : une seule
+ * branche, un seul prédécesseur d'ordre strictement inférieur et déjà relié, aucun autre bloc de la branche au même ordre.
+ * Sinon le bloc reste isolé (blocage de `controlerCarte`). Le lien n'a ni étiquette ni part : aucun texte ni chiffre ajouté.
+ */
+export function reparerOrphelinsDeBranche(carte: CarteImage): { carte: CarteImage; deduits: LienCarte[] } {
+  if (carte.types[0] === "benefices" || carte.types[0] === "tableau-de-bord") return { carte, deduits: [] };
+  const relies = new Set(carte.liens.flatMap((l) => [l.de, l.vers]));
+  const parId = new Map(carte.noeuds.map((n) => [n.id, n]));
+  const idsLiens = new Set(carte.liens.map((l) => l.id));
+  const isoles = carte.noeuds.filter((n) => !relies.has(n.id) && !n.photoPersonnes).sort((a, b) => a.ordre - b.ordre || (a.id < b.id ? -1 : 1));
+  const deduits: LienCarte[] = [];
+  for (const o of isoles) {
+    const groupes = carte.groupes.filter((g) => g.noeuds.includes(o.id));
+    if (groupes.length !== 1 || groupes[0]!.sorte !== "branche" || (o.groupe && o.groupe !== groupes[0]!.id)) continue;
+    const autres = groupes[0]!.noeuds.filter((id) => id !== o.id).map((id) => parId.get(id)).filter((n): n is NoeudCarte => !!n && !n.photoPersonnes);
+    if (autres.some((n) => n.ordre === o.ordre)) continue;
+    const avant = autres.filter((n) => n.ordre < o.ordre);
+    if (avant.length === 0) continue;
+    const dernierOrdre = Math.max(...avant.map((n) => n.ordre));
+    const dernier = avant.filter((n) => n.ordre === dernierOrdre);
+    if (dernier.length !== 1 || !relies.has(dernier[0]!.id)) continue;
+    const idLien = `d-${dernier[0]!.id}-${o.id}`.slice(0, 40);
+    if (idsLiens.has(idLien)) continue;
+    const lien: LienCarte = { id: idLien, de: dernier[0]!.id, vers: o.id, couleur: "noir", style: "plein", deduit: true };
+    idsLiens.add(idLien);
+    relies.add(o.id);
+    deduits.push(lien);
+  }
+  return deduits.length === 0 ? { carte, deduits } : { carte: { ...carte, liens: [...carte.liens, ...deduits] }, deduits };
 }
 
 // ─── Carte complétée par le code ─────────────────────────────────────────────────────────────────────────────────────
@@ -417,12 +468,16 @@ export function completerCarte(brouillon: BrouillonCarte): CarteImage {
   const types = typesDeLaCarte({ ...brouillon, chiffres });
   return schemaCarteImage.parse({
     ...brouillon,
+    // Une icône que la table ne connaît pas est remplacée d'office (mots-clés proches, sinon icône neutre) : ni remarque ni question.
+    noeuds: brouillon.noeuds.map((n) => (n.icone && iconeDe(n.icone) === null ? { ...n, icone: iconeOuRepli(n.icone, n.libelle) } : n)),
     types,
     offre: brouillon.offre ?? offreDeduite(types),
     automatisation: brouillon.automatisation ?? estAutomatisation(types),
     chiffres,
-    bandeauChiffres: chiffres.filter((c) => c.dansBandeau).map((c) => c.id),
-    formulesAbsolues: formulesDeLaCarte(brouillon),
-    coherence: coherenceDe(brouillon),
+    // R1 : au-delà de 12 chiffres au bandeau, la liste est coupée (jamais un refus de schéma).
+    bandeauChiffres: chiffres.filter((c) => c.dansBandeau).map((c) => c.id).slice(0, 12),
+    // R1 : au-delà du maximum du schéma, la liste est coupée (jamais un refus).
+    formulesAbsolues: formulesDeLaCarte(brouillon).slice(0, 40),
+    coherence: coherenceDe(brouillon).slice(0, 20),
   });
 }

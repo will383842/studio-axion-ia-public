@@ -21,7 +21,7 @@ import { POLICE_MOTION, VERSION_CHARTE_MOTION } from "../../../src/briques/motio
 describe("charte-video/1", () => {
   it("est versionnée et reprend les valeurs décidées par Will", () => {
     expect(VERSION_CHARTE_VIDEO).toBe("charte-video/1");
-    expect(COULEURS_VIDEO).toEqual({ page: "#E9DCC8", ecriture: "#110A05", soulignement: "#B44F29", sable: "#BFA88B" });
+    expect(COULEURS_VIDEO).toEqual({ page: "#FAF9F5", ecriture: "#141413", soulignement: "#B23F16", sable: "#E8E6DC" });
   });
 
   it("est figée (objets gelés)", () => {
@@ -45,7 +45,7 @@ describe("charte-video/1", () => {
   it("la fonction de contraste est exacte", () => {
     expect(rapportContraste("#000000", "#FFFFFF")).toBeCloseTo(21, 5);
     expect(rapportContraste("#FFF", "#fff")).toBeCloseTo(1, 5);
-    expect(rapportContraste("#E9DCC8", "#110A05")).toBeCloseTo(rapportContraste("#110A05", "#E9DCC8"), 10);
+    expect(rapportContraste("#FAF9F5", "#141413")).toBeCloseTo(rapportContraste("#141413", "#FAF9F5"), 10);
     expect(versRvb("#abc")).toEqual([170, 187, 204]);
     expect(() => versRvb("orange")).toThrow();
   });

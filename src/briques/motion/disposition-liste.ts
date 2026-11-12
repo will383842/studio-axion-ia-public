@@ -4,7 +4,7 @@
  * le 3e point de la liste numérotée et « Les chiffres qui arrivent trop tard ». Le bloc était centré à taille fixe :
  * ce qui ne tenait pas débordait en haut et en bas.
  *
- * `disposerListe` calcule, AVANT le rendu et avec la chasse réelle de Poppins (`mesure.ts`), la boîte de chaque élément
+ * `disposerListe` calcule, AVANT le rendu et avec la chasse réelle de Manrope (`mesure.ts`), la boîte de chaque élément
  * et choisit la première mise en page qui tient dans la zone sûre : taille d'origine, puis espacements et pastilles
  * resserrés, texte réduit (jamais sous le plancher de 3 % de la hauteur), puis deux colonnes (seulement si chaque mot
  * tient dans sa colonne). Rien ne tient (6 longs points) : `tient` est faux, le moteur pose la carte en plein écran.

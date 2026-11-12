@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { deposerFichierAction } from "@/app/(studio)/nouvelle/[format]/actions";
 import { envoyerFichiers } from "@/lib/envoi-multipart";
+import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { Portrait } from "@/components/ui/Portrait";
@@ -48,10 +49,10 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
 
   if (format.personnages.max === 0) {
     return (
-      <div className="flex min-h-16 items-center gap-3 rounded-carte border border-trait bg-surface-1 p-4 text-texte-doux">
+      <Carte className="flex min-h-16 items-center gap-3 text-texte-doux">
         <Icone nom="info" size={18} />
         Ce format se passe de visage.
-      </div>
+      </Carte>
     );
   }
 
@@ -93,7 +94,7 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
         }
         return (
           <section key={i} className="space-y-5">
-            {slots.length > 1 && <h2 className="font-texte text-xs font-bold uppercase tracking-wider text-orange-vif">{slot.role}</h2>}
+            {slots.length > 1 && <h2 className="font-titre text-base font-semibold text-texte">{slot.role}</h2>}
 
             <div role="radiogroup" aria-label={`Qui joue : ${slot.role}`} className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
               {contexte.personnages.map((p, n) => {
@@ -112,7 +113,7 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
                     onClick={() => (raison ? notifier.info(raison, "Complétez sa fiche dans Personnages.") : choisirPersonnage(i, p))}
                     className={cn(
                       "relative flex w-[132px] shrink-0 flex-col items-center gap-2 rounded-carte border p-3 text-center transition-colors duration-200 disabled:cursor-not-allowed",
-                      actif ? "border-orange bg-surface-2 shadow-orange" : "border-trait bg-surface-1 hover:border-trait-fort",
+                      actif ? "border-texte bg-surface-2 shadow-carte" : "border-trait bg-surface-1 hover:border-trait-fort",
                       raison && "opacity-60",
                     )}
                   >
@@ -123,10 +124,10 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
                         {raison}
                       </Pastille>
                     ) : (
-                      <Pastille ton={actif ? "orange" : "neutre"}>{NATURES[p.personnage.nature]}</Pastille>
+                      <Pastille ton={actif ? "encre" : "neutre"}>{NATURES[p.personnage.nature]}</Pastille>
                     )}
                     {actif && (
-                      <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-orange text-sur-orange">
+                      <span className="absolute right-2 top-2 grid size-6 place-items-center rounded-full bg-texte text-fond">
                         <Icone nom="coche" size={13} strokeWidth={3} />
                       </span>
                     )}
@@ -174,10 +175,10 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
                         onClick={() => changer(i, { visageId: v.id })}
                         className={cn(
                           "group relative overflow-hidden rounded-carte border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                          actif ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort",
+                          actif ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort",
                         )}
                       >
-                        <span className="relative block aspect-[4/5] bg-surface-2">
+                        <span className="theme-sombre relative block aspect-[4/5] bg-surface-2">
                           {v.vignette ? (
                             <Image src={v.vignette} alt="" fill sizes="(max-width: 640px) 50vw, 200px" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                           ) : (
@@ -187,7 +188,7 @@ export function EtapeDistribution({ formatId, brouillon, modifier, contexte, com
                           )}
                           <span aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-fond/90 to-transparent" />
                           {actif && (
-                            <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-orange text-sur-orange">
+                            <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-texte text-fond">
                               <Icone nom="coche" size={15} strokeWidth={3} />
                             </span>
                           )}
@@ -319,7 +320,7 @@ function PlateauCompact({
                 role="radio"
                 aria-checked={actif}
                 onClick={() => choisir(t.id, postureChoisie)}
-                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-orange ring-2 ring-orange/40" : "border-trait hover:border-trait-fort")}
+                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border text-left transition-colors", actif ? "border-texte ring-2 ring-texte/30" : "border-trait hover:border-trait-fort")}
               >
                 <span className="relative block aspect-[4/5] bg-surface-2">
                   {t.vignette ? <Image src={t.vignette} alt="" fill sizes="96px" className="object-cover" /> : <Icone nom="visage" size={22} className="absolute inset-0 m-auto text-texte-faible" />}
@@ -348,7 +349,7 @@ function PlateauCompact({
               onClick={() => choisir(tenueChoisie, p.posture)}
               className={cn(
                 "flex min-h-12 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition-colors",
-                actif ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte hover:border-trait-fort",
+                actif ? "border-texte bg-texte text-fond" : "border-trait bg-surface-1 text-texte hover:border-trait-fort",
               )}
             >
               {actif && <Icone nom="coche" size={15} strokeWidth={3} />}
@@ -417,7 +418,7 @@ export function ChoixVoix({ brouillon, modifier, contexte }: Pick<ProprietesEtap
         const actif = v.id === slot.voixId;
         const echantillon = contexte.express?.plateau.echantillonsVoix[v.id];
         return (
-          <li key={v.id} className={cn("flex min-h-16 items-center gap-3 rounded-carte border p-3", actif ? "border-orange bg-surface-2" : "border-trait bg-surface-1")}>
+          <li key={v.id} className={cn("flex min-h-16 items-center gap-3 rounded-carte border p-3", actif ? "border-texte bg-surface-2" : "border-trait bg-surface-1")}>
             <button
               type="button"
               role="radio"
@@ -425,7 +426,7 @@ export function ChoixVoix({ brouillon, modifier, contexte }: Pick<ProprietesEtap
               onClick={() => modifier({ distribution: brouillon.distribution.map((d, i) => (i === 0 ? { ...d, voixId: v.id } : d)) })}
               className="flex min-w-0 flex-1 items-center gap-3 text-left"
             >
-              <span className={cn("grid size-11 shrink-0 place-items-center rounded-full", actif ? "bg-orange text-sur-orange" : "bg-orange-doux text-orange-vif")}>
+              <span className={cn("grid size-11 shrink-0 place-items-center rounded-full", actif ? "bg-texte text-fond" : "bg-surface-2 text-texte-faible")}>
                 <Icone nom={actif ? "coche" : "micro"} size={18} />
               </span>
               <span className="min-w-0">
@@ -452,7 +453,7 @@ function BoutonEcoute({ src, nom }: { src: string; nom: string }) {
         type="button"
         aria-label={lecture ? `Arrêter l'écoute de « ${nom} »` : `Écouter « ${nom} »`}
         onClick={() => (audio.current?.paused ? void audio.current.play() : audio.current?.pause())}
-        className="grid size-11 shrink-0 place-items-center rounded-full border border-trait bg-surface-2 text-texte transition-colors hover:border-orange"
+        className="grid size-11 shrink-0 place-items-center rounded-full border border-trait bg-surface-2 text-texte transition-colors hover:border-trait-fort"
       >
         <Icone nom={lecture ? "volume" : "lecture"} size={18} />
       </button>

@@ -13,16 +13,19 @@
  */
 import "server-only";
 import { detecterSujetSensible } from "@/domaine/classement-generateur";
+import { ciblageSaisieValide, typeAutomatisationValide } from "@/domaine/ciblage/saisie";
+import type { Ciblage, TypeAutomatisation } from "@/domaine/ciblage/types";
 import { MAX_IDEES_SERIE } from "@/domaine/serie-idees";
 import type { Adresse, Id, ModeDiction, Montant, ObjectifSujet, ReseauDeclinaison } from "@/domaine/types";
-import { centimes, formaterMontant } from "@/lib/montants";
+import { centimes } from "@/lib/montants";
 import { nouvelId } from "@/lib/ids";
 import { exigerSession } from "./auth";
 import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-generation";
 import { resumeBudget } from "./couts";
 import { claudeBranche, depenseGenerationUsd, ecritureEnEssai, engageClaudeDuMoisCentimes, plafondChaineUsd, plafondMensuelClaudeUsd, taux } from "./generation-claude";
+import { signalerDepassementIndicatif } from "./budget-mensuel";
 import { ajouterIdee } from "./idees";
-import { budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif } from "./mode-budget";
 import { depots, ErreurStudio, ecrireParametre, journaliser, lireParametre, maintenant } from "./_commun";
 
 /** Au plus 20 idées d'un geste. */
@@ -36,6 +39,9 @@ export interface ReglagesSerie {
   objectif: ObjectifSujet;
   /** Intégration paquet 4 (équipe 7) : série TikTok choisie dans l'atelier ; chaque idée partie en devient un épisode, dans l'ordre. */
   serieId?: Id;
+  /** Une cible pour tout le lot (exigée par l'action, facultative ici). */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
 }
 
 export interface PlanSerie {
@@ -136,7 +142,7 @@ function unParUn<T>(f: () => Promise<T>): Promise<T> {
 function reglagesPropres(r: ReglagesSerie): ReglagesSerie {
   if (!Array.isArray(r?.reseaux) || !r.reseaux.length) throw new ErreurStudio("SANS_RESEAU", "Choisissez au moins un réseau.");
   if (!r.formatId) throw new ErreurStudio("FORMAT", "Choisissez un format.");
-  return { reseaux: [...r.reseaux], formatId: String(r.formatId), adresse: r.adresse === "tu" ? "tu" : "vous", mode: r.mode, objectif: r.objectif, ...(typeof r.serieId === "string" && r.serieId ? { serieId: r.serieId } : {}) };
+  return { reseaux: [...r.reseaux], formatId: String(r.formatId), adresse: r.adresse === "tu" ? "tu" : "vous", mode: r.mode, objectif: r.objectif, ...(typeof r.serieId === "string" && r.serieId ? { serieId: r.serieId } : {}), ...(ciblageSaisieValide(r.ciblage) ? { ciblage: ciblageSaisieValide(r.ciblage) } : {}), ...(typeAutomatisationValide(r.typeAutomatisation) ? { typeAutomatisation: typeAutomatisationValide(r.typeAutomatisation) } : {}) };
 }
 
 /**
@@ -180,7 +186,7 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
         continue;
       }
       try {
-        const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId });
+        const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId, ciblage: r.ciblage, typeAutomatisation: r.typeAutomatisation });
         if (x.ideeId) await d.idees.modifier(x.ideeId, { scriptMaitreId: lance.scriptMaitreId });
         elements.push({ texte: x.texte, ideeId: x.ideeId, scriptMaitreId: lance.scriptMaitreId, sort: "parti" });
       } catch (e) {
@@ -206,10 +212,19 @@ async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | unde
   if (plan.essai || plan.partiront === 0) return;
   const { seuilConfirmation } = await resumeBudget();
   if (plan.totalPartant.centimes <= seuilConfirmation.centimes) return;
+  // L2-13c : le fondateur n'est jamais refusé pour un montant. Au-dessus du seuil, la série part ; une alerte (journal + cloche,
+  // une fois par jour) le dit SANS aucun montant. Seul le mode bloquant (qui n'existe plus) garde la confirmation ci-dessous.
+  if (await budgetIndicatif()) {
+    await signalerDepassementIndicatif("serie-seuil", "Série au-dessus du seuil habituel (elle part)", "Rien n'est arrêté : la série part sans confirmation. Réglages > Budget pour ajuster le repère.");
+    return;
+  }
   // Seconde relecture (R4) : la taille du plan vu est EXIGÉE dès qu'il y a une confirmation (absente = refus).
   const memeTaille = partirontConfirme === plan.partiront;
-  const confirme = memeTaille && typeof totalConfirme === "number" && Number.isFinite(totalConfirme) && totalConfirme >= plan.totalPartant.centimes;
-  if (!confirme) throw new ErreurStudio("CONFIRMATION_REQUISE", `Ces ${plan.partiront} écritures coûtent au plus ${formaterMontant(plan.totalPartant)}, plus que d'habitude. Confirmez ce prix pour continuer.`, plan.totalPartant.centimes);
+  // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu est rendu inchangé.
+  const vu = memeTaille && typeof totalConfirme === "number" && Number.isFinite(totalConfirme) ? totalConfirme : false;
+  const accord = await accordAutomatique(vu, plan.totalPartant.centimes, { signaler: vu === false || vu < plan.totalPartant.centimes });
+  const confirme = typeof accord === "number" && Number.isFinite(accord) && accord >= plan.totalPartant.centimes;
+  if (!confirme) throw new ErreurStudio("CONFIRMATION_REQUISE", `Ces ${plan.partiront} écritures coûtent plus que d'habitude. Confirmez pour continuer.`, plan.totalPartant.centimes);
 }
 
 /* ------------------------------------------------------------------ */

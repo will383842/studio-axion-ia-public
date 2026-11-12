@@ -27,8 +27,8 @@
  *
  * ⚠ DÉBIT NON MESURÉ : 16,9 caractères/s (= 2,75 × 6,15) est une CIBLE, pas une mesure. Le débit réel de `voix-tableau/3`
  * est À MESURER sur la 1re vraie vidéo produite avec cette recette, puis ajouté à `MESURES_CALAGE` (avec
- * `ATEMPO_DES_MESURES` mis à jour) et l'estimateur recalé si l'écart dépasse 10 %. Au plafond de 90 s, la limite
- * (1 520 caractères dits) vaut ce que vaut cette cible.
+ * `ATEMPO_DES_MESURES` mis à jour) et l'estimateur recalé si l'écart dépasse 10 %. Au plafond de 180 s, la limite
+ * (3 041 caractères dits) vaut ce que vaut cette cible.
  */
 import { CARACTERES_PAR_MOT_FR, DEBIT_CIBLE_MOTS_PAR_SEC, plafondMotsParSec } from "./debit-voix";
 
@@ -61,7 +61,9 @@ export const CARACTERES_PAR_SECONDE_ATEMPO_108 = 20.5;
 export const ATEMPO_DES_MESURES = 1.08;
 
 /** Plafond de durée d'une vidéo du tableau (règle 14 du découpage ; aucune fourchette du générateur ne le dépasse). */
-export const DUREE_MAX_TABLEAU_SEC = 90;
+export const DUREE_MAX_TABLEAU_SEC = 180;
+/** Tolérance sur la durée du fichier final (débit non mesuré) ; reprise par le contrôle du fichier et par la règle 14 pour un texte de Williams. */
+export const TOLERANCE_DUREE_REFERENCE = 1.05;
 
 /** Début de la vidéo où la douleur doit être dite, écrite et soulignée (règles 10 et 17 du découpage). */
 export const DEBUT_DOULEUR_SEC = 3;
@@ -99,8 +101,8 @@ export function caracteresEnTrop(texte: string, plafondSec: number, caracteresPa
 
 /**
  * LA borne de longueur du texte dit (constat du 12/10, essai réel n° 3 : l'écran affichait « 1670 / 1600 » pour un
- * script que le générateur venait d'accepter) : les caractères dits en `DUREE_MAX_TABLEAU_SEC` à ce débit, soit 1 520 au débit cible de 16,9 caractères/s.
- * 1 520 est la valeur VOULUE, figée en constante explicite : 90 × 16,9 vaut 1 521 sur le papier, mais en virgule flottante JS donne 1520,9999999999998 (`Math.floor` : 1 520). Un test garde l'accord avec `caracteresEn(DUREE_MAX_TABLEAU_SEC)` ; toute comparaison de longueur (écran, durée, découpage) passe par cette constante, jamais par une durée en secondes.
+ * script que le générateur venait d'accepter) : les caractères dits en `DUREE_MAX_TABLEAU_SEC` à ce débit, soit 3 041 au débit cible de 16,9 caractères/s.
+ * 3 041 est la valeur VOULUE, figée en constante explicite : 180 × 16,9 vaut 3 042 sur le papier, mais en virgule flottante JS donne 3041,9999999999995 (`Math.floor` : 3 041). Un test garde l'accord avec `caracteresEn(DUREE_MAX_TABLEAU_SEC)` ; toute comparaison de longueur (écran, durée, découpage) passe par cette constante, jamais par une durée en secondes.
  * Compteur de l'écran, saisie, prix annoncé du découpage, générateur et découpage la lisent tous ici ; aucune autre.
  */
-export const CARACTERES_DITS_MAX_TABLEAU = 1520;
+export const CARACTERES_DITS_MAX_TABLEAU = 3041;

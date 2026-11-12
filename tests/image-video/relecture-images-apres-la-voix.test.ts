@@ -20,6 +20,12 @@ const PAS_UN_ELEMENT = new Set(["scene", "fond", "camera"]);
 const TOL = 0.002;
 /** Instant attendu au plus tôt : dernière heure + délai, jamais au-delà de la fin de l'écran − 0,05 s. */
 const auPlusTot = (derniere: number, delai: number, finEcran: number) => Math.min(derniere + delai, finEcran - 0.05) - TOL;
+/** Recette avec transitions TRA-C (sortie + entrée, 0,4 s) sur chaque bloc : les fenêtres de balayage existent dans la ligne. */
+const avecTransitions = (l: LigneDeTempsIV): LigneDeTempsIV => ({
+  ...l,
+  blocs: l.blocs.map((b) => ({ ...b, variete: { recette: {}, format: "9:16", donnees: { transitions: { duree: 0.4, sortie: { code: "TRA-C" }, entree: { code: "TRA-C" } } } } }) as never),
+});
+const dansFenetre = (l: LigneDeTempsIV, t: number) => l.blocs.some((b) => (t >= b.fin - 0.4 - 1e-9 && t < b.fin - 1e-9) || (t >= b.debut - 1e-9 && t < b.debut + 0.4 - 1e-9));
 const planDe = (l: Pick<LigneDeTempsIV, "plans">, t: number) => l.plans.find((x) => t >= x.debut - 1e-9 && t < x.fin - 1e-9);
 
 describe("relecture finale · instants des images après la voix (images A à F, voix simulée)", () => {
@@ -31,9 +37,10 @@ describe("relecture finale · instants des images après la voix (images A à F,
       let verifies = 0;
       for (const fin of plan.fins) {
         const voix = pisteSimulee(fiche, fin.muet ? null : fin);
-        const ligne = mettreEnSceneIV({ carte, fiche, voix, fin: fin.muet ? null : fin, reseaux: fin.reseaux, bruitagesValides: BRUITAGES_V4_IV }).ligne;
+        const ligne = avecTransitions(mettreEnSceneIV({ carte, fiche, voix, fin: fin.muet ? null : fin, reseaux: fin.reseaux, bruitagesValides: BRUITAGES_V4_IV }).ligne);
         for (const i of instantsClesIV(ligne, carte)) {
           const p = planDe(ligne, i.instantSec);
+          expect(dansFenetre(ligne, i.instantSec), `${nom} ${fin.id} ${i.nom} à ${i.instantSec} s dans une fenêtre TRA-C`).toBe(false);
           expect(p, `${nom} ${fin.id} ${i.nom}`).toBeDefined();
           expect(i.instantSec).toBeLessThanOrEqual(p!.fin - 0.05 + 1e-6);
           const dans = (t: number) => t >= p!.debut - 1e-6 && t < p!.fin - 1e-6;
@@ -79,6 +86,36 @@ describe("relecture finale · instants des images après la voix (images A à F,
       expect(verifies).toBeGreaterThan(0);
     });
   }
+
+  it("bloc apparu dans la fenêtre de sortie TRA-C de son bloc : instant ≥ plancher et avant le départ caméra, ou pas d'instant (jamais avant l'apparition)", () => {
+    const mk = (camera?: number, fin = 4) => ({
+      plans: [
+        { id: "p1", debut: 0, fin, scene: "titre", sorte: "emotion", fond: "sombre", textes: [], coupe: "ecran", partie: "resultat", marque: "x", ecran: "e1" },
+        { id: "p2", debut: fin, fin: 8, scene: "titre", sorte: "emotion", fond: "sombre", textes: [], coupe: "ecran", partie: "resultat", marque: "x", ecran: "e2" },
+      ],
+      evenements: [
+        { id: "x", genre: "objet", instantSec: 3.7, visible: true, ref: "n1", ecran: "e1", plan: "p1", chiffres: [] },
+        ...(camera !== undefined ? [{ id: "c", genre: "camera", instantSec: camera, visible: true, ref: "n2", ecran: "e1", plan: "p1", chiffres: [] }] : []),
+      ],
+      dureeSec: 12,
+      segmentFin: { debut: 11, question: false, muet: true },
+      blocs: [{ id: "b1", sorte: "moments", moments: [], debut: 0, fin: 4, variete: { recette: {}, format: "9:16", donnees: { transitions: { duree: 0.4, sortie: { code: "TRA-C" } } } } }],
+    } as unknown as Parameters<typeof instantsClesIV>[0]);
+    const carte = { noeuds: [{ id: "n1", libelle: "Bloc" }] } as unknown as Parameters<typeof instantsClesIV>[1];
+    for (const l of [mk(), mk(3.9), mk(undefined, 4.3)]) {
+      const b = instantsClesIV(l, carte).find((i) => i.sorte === "bloc");
+      if (b) {
+        const p = planDe(l, b.instantSec)!;
+        expect(b.instantSec).toBeGreaterThanOrEqual(Math.min(3.7 + 0.3, p.fin - 0.05) - TOL); // plancher
+        expect(b.instantSec).toBeGreaterThanOrEqual(3.7); // jamais avant l'apparition
+        expect(p.id).toBe("p1"); // même écran
+        expect(b.instantSec).toBeLessThanOrEqual(p.fin - 0.05 + TOL);
+        expect(b.instantSec >= 3.6 - 1e-9 && b.instantSec < 4 - 1e-9).toBe(false); // hors fenêtre de sortie
+      }
+    }
+    // Écran de 4 s, sortie TRA-C : plancher 4,0 hors écran (fin − 0,05 = 3,95 dans la fenêtre) et rien après sur le même écran → pas d'instant.
+    expect(instantsClesIV(mk(), carte).filter((i) => i.sorte === "bloc")).toEqual([]);
+  });
 
   it("phrase-choc sur 2 écrans : l'image du 2e écran est prise après le dernier mot, dit dans ce 2e écran", () => {
     const plan = (id: string, debut: number, fin: number) => ({ id, debut, fin, scene: "phrase-choc", sorte: "moment", fond: "sombre", textes: ["x"], coupe: "sous-plan", partie: "resultat", marque: "axion-ia.com" });

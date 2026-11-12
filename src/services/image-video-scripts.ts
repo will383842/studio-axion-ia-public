@@ -22,6 +22,7 @@ import { CLE_LANCEUR_IV, ErreurDecisionIV, validerScriptIV, type PropositionScri
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { ChoixFormule } from "@/moteurs/montage-image-video/regles";
 import { ErreurStudio, journaliser } from "./_commun";
+import { accordAutomatique } from "./mode-budget";
 import { exigerSession } from "./auth";
 import { etatDuTravail, garderDecision, travailImageVideo } from "./image-video-carte";
 
@@ -46,7 +47,7 @@ export async function controlerScriptImageVideo(videoId: Id, entree: ScriptACont
 /** « Valider et fabriquer » (voir l'en-tête). */
 export async function validerScriptImageVideo(
   videoId: Id,
-  entree: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV> } = {},
+  entree: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean } = {},
   accord?: AccordPrix,
 ): Promise<{ modifie: boolean; lanceur: boolean }> {
   await exigerSession();
@@ -55,10 +56,13 @@ export async function validerScriptImageVideo(
   if (!etat?.propositionScript || etat.etape !== "script-a-valider") throw new ErreurStudio("SCRIPT_PAS_A_VALIDER", "Aucun script n'attend votre validation pour cette vidéo.");
   const lanceur = travail?.parametres?.[CLE_LANCEUR_IV] === true;
   const montant = prixAffiche(etat.propositionScript);
-  const accordCentimes = typeof accord === "number" && Number.isFinite(accord) ? accord : undefined;
+  // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, le lanceur n'attend plus un prix confirmé à la main.
+  const accordBrut = typeof accord === "number" && Number.isFinite(accord) ? accord : undefined;
+  const auto = lanceur ? await accordAutomatique(accordBrut ?? false, montant, { videoId, signaler: accordBrut === undefined || accordBrut < montant }) : accordBrut;
+  const accordCentimes = typeof auto === "number" ? auto : undefined;
   if (lanceur && (accordCentimes === undefined || accordCentimes < montant)) {
     // Pas « CONFIRMATION_REQUISE » : la reprise par « Réessayer » ne garderait pas la décision ; Will valide de nouveau.
-    throw new ErreurStudio("ACCORD_PRIX_REQUIS", `Rien n'est payé : la suite coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Validez de nouveau en confirmant ce prix.`, montant);
+    throw new ErreurStudio("ACCORD_PRIX_REQUIS", `Rien n'est payé : la suite est payante. Validez de nouveau en confirmant.`, montant);
   }
   const decision = {
     proposition: etat.propositionScript.empreinte,
@@ -66,6 +70,7 @@ export async function validerScriptImageVideo(
     choixFormules: entree.choixFormules ?? {},
     ajoutsWill: entree.ajoutsWill ?? [],
     ...(entree.variete ? { variete: entree.variete } : {}),
+    ...(entree.formeAcceptee === true ? { formeAcceptee: true } : {}),
     ...(lanceur ? { accordCentimes } : {}),
   };
   try {

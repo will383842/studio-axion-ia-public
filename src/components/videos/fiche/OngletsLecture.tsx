@@ -18,7 +18,6 @@ import { trouverFormat } from "@/formats";
 import { BORDURES_BLOC, TEXTES_BLOC } from "@/formats/presentation";
 import { cn } from "@/lib/cn";
 import { dateCourte, heure } from "@/lib/dates";
-import { formaterMontant } from "@/lib/montants";
 import { obtenirReseau } from "@/reseaux";
 import type { VueDistribution } from "@/services/vues";
 import { NOMS_NIVEAUX } from "@/components/intensite/CourbeIntensite";
@@ -238,7 +237,6 @@ export function OngletHistorique({ versions, publications, versionCouranteId }: 
               {v.id === versionCouranteId ? " · celle-ci" : ""}
             </span>
           </span>
-          {v.coutReel && <span className="text-sm tabular-nums text-texte-doux">{formaterMontant(v.coutReel)}</span>}
         </>
       ),
     })),

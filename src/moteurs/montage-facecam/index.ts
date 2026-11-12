@@ -24,6 +24,7 @@ import { etapesSelonChaine, resultatChaine } from "./etapes-chaine";
 import { cartesDesPassages } from "./raccords";
 import { effetsDesEntrees, etapesRetouche, etatPourRetouche, lireReprise, partiesARefaire, signatureMontage } from "./retouche";
 import { lireEntreesFacecam } from "@/domaine/facecam";
+import { RETOUCHE_PAS_DISPONIBLE } from "@/domaine/voix-phrases";
 import type { PassageMonteur } from "./monteur/appliquer";
 import { avancerReexportFacecam, completerAvecDeclinaisons, estimationNouveauFormat, etatRepriseFormats } from "./declinaisons";
 
@@ -318,7 +319,7 @@ export function creerMoteurMontageFacecam(dependances: DependancesMoteurFacecam 
 
     refusRetouche(commande) {
       if (chaineDe(commande)) return null;
-      return { code: "RETOUCHE_INDISPONIBLE", message: "La retouche d'un passage n'est pas encore disponible pour cette vidéo. Votre vidéo reste telle quelle." };
+      return { code: "RETOUCHE_INDISPONIBLE", message: RETOUCHE_PAS_DISPONIBLE };
     },
 
     async retoucher({ commande, contexte, planIds, parent }) {

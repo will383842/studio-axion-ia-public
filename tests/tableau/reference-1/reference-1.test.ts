@@ -65,13 +65,6 @@ describe("les fiches réelles et le témoin, au style « reference/1 » : accept
     it(`${nom} : la relecture d'avant la fabrication dit « Tout est bon »`, async () => {
       const choisirFin = choisirFinTableau({}, { sorties: SORTIES, mot: motDe(f) });
       const r = await relireFicheTableau({ fiche: f, contexte: contexteDe(f), dejaVu: coche, sorties: SORTIES, choisirFin });
-      // Lot B2b : la fiche réelle « habitude-equipe » (1 670 caractères dits, enregistrée le 12/10) dépasse la limite de 90 s au
-      // débit de la voix à 165 mots/min (1 520 caractères) : elle est désormais REFUSÉE, et seulement pour sa durée.
-      if (nom === "habitude-equipe") {
-        expect(r.ok).toBe(false);
-        expect(r.points.map((p) => p.message.replace(/^Règle « ([^»]*) ».*$/, "$1"))).toEqual(["durée de 90 secondes au plus"]);
-        return;
-      }
       expect(r.points.map((p) => p.message)).toEqual([]);
       expect(r.ok).toBe(true);
     });

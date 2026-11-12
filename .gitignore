@@ -52,3 +52,9 @@ next-env.d.ts
 
 # banc d'écriture (tests/banc-ecriture/banc-ecriture.ts) : textes et clé produits à la main, jamais versionnés
 /sorties/
+
+# IMP-3 : listes de retrait, journaux et clés de l'import Buffer (identifiants réels) : jamais versionnés
+retraits-buffer-*.csv
+*.jsonl
+cles-imp*.json
+journal-import*.json

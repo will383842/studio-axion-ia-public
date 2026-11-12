@@ -10,13 +10,16 @@ import type { BlocVarieteDonnees, VarieteBlocIV } from "../../../../src/briques/
 import { chargerPoliceAnton, chargerPoliceTitre } from "../../commune/polices";
 import type { ChangementRepere } from "../plan-objets";
 import { decalageReferenceIV } from "../mise-en-page";
+import { Affiche } from "../Affiche";
 import { QueueFin } from "../QueueFin";
 import { RepereChapitre } from "../RepereChapitre";
+import { boiteRepere45, boiteSurtitreChiffres, decalageRepereSurtitre } from "./repere-place";
 import { EcranCamera } from "./camera/ecran";
 import { EcranChiffres } from "./chiffres/ecran";
 import { ContexteVariete } from "./ContexteVariete";
 import { EcranFin } from "./fin/ecran";
 import { HabillageVariete } from "./HabillageVariete";
+import type { AfficheIV } from "./ouverture/donnees";
 import { EcranOuverture } from "./ouverture/ecran";
 import { EcranTexte } from "./texte/ecran";
 
@@ -35,6 +38,8 @@ export type ProprietesEcranVariete = {
   repere?: { changements: ChangementRepere[]; total: number; prefixe?: string } | null;
   /** Queue animée quand le bloc finit la vidéo (trait de fin, `QueueFin`). */
   queue?: QueueFinIV | null;
+  /** Affiche de la première image (aperçu des réseaux), seulement sur le premier bloc de la version. */
+  affiche?: AfficheIV | null;
 };
 
 /** Fond de l'écran d'un axe (pour les couleurs du repère) : lu dans ses données, nuit par défaut. */
@@ -46,9 +51,15 @@ function fondDuBloc(bloc: BlocVarieteDonnees): "ivoire" | "sombre" {
 function Repere({ p }: { p: ProprietesEcranVariete }) {
   const t = useCurrentFrame() / p.fps;
   if (!p.repere) return null;
+  // 4:5 : le repère ne recouvre jamais le surtitre de l'écran « chiffres » (décalé à droite, sinon effacé sur cet écran).
+  const d = p.bloc.axe === "chiffres" ? (p.bloc.donnees as { etiquette?: string; code?: string } | null) : null;
+  const dx = decalageRepereSurtitre(boiteRepere45(p.repere.changements, p.repere.total, t, p.repere.prefixe), boiteSurtitreChiffres(p.hauteur, d?.etiquette, p.bloc.code));
+  if (dx === null) return null;
   return (
     <AbsoluteFill style={{ transform: `${decalageReferenceIV(p.hauteur)} scale(${p.largeur / 1080})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
-      <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={fondDuBloc(p.bloc)} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, transform: dx ? `translateX(${dx}px)` : undefined }}>
+        <RepereChapitre changements={p.repere.changements} total={p.repere.total} prefixe={p.repere.prefixe} t={t} fond={fondDuBloc(p.bloc)} />
+      </div>
     </AbsoluteFill>
   );
 }
@@ -96,6 +107,7 @@ export function SceneVarieteIV(p: ProprietesEcranVariete) {
           <EcranDeLAxe {...p} />
           <Repere p={p} />
           <Queue p={p} />
+          <Affiche affiche={p.affiche} largeur={p.largeur} hauteur={p.hauteur} />
         </AbsoluteFill>
       </HabillageVariete>
     </ContexteVariete>

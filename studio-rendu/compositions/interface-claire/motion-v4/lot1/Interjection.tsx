@@ -14,7 +14,7 @@ export const evenements = (p: Pick<InterjectionProps, "sortie"> = {}): number[] 
 
 export function Interjection({ palette, texte = "REGARDEZ.", sortie = 24, decalage = 0, muet }: InterjectionProps) {
   const i = useCurrentFrame();
-  const { ACCENT_1 } = accents(palette);
+  const { ACCENT_1, ACCENT_SOMBRE } = accents(palette);
   const corps = Math.min(84, Math.floor((0.62 * W - 40) / (texte.length * 0.79)));
   const etat = entreePop(i, { incl: -3, nom: "CLAQUE", sortie, nSortie: 3 });
   const dx = secousse(i - 6, 0.006 * W * 1.6);
@@ -22,7 +22,7 @@ export function Interjection({ palette, texte = "REGARDEZ.", sortie = 24, decala
   return (
     <>
       <Anim etat={etat} origine="50% 100%" style={{ position: "absolute", left: W * (0.5 + decalage) + dx, bottom: 1920 - (BAS_M1 + 8), transform: "translateX(-50%)" }}>
-        <Plaque fond={COULEURS.ENCRE} texte={ACCENT_1} corps={corps} interl={0.01} padV={0.2} padH={0.36} style={{ position: "relative" }}>
+        <Plaque fond={COULEURS.ENCRE} texte={ACCENT_SOMBRE} corps={corps} interl={0.01} padV={0.2} padH={0.36} style={{ position: "relative" }}>
           {texte}
           <span style={{ position: "absolute", left: 0.36 * corps, bottom: 0.1 * corps, width: `calc((100% - ${0.72 * corps}px) * ${trace})`, height: 8, background: ACCENT_1 }} />
         </Plaque>

@@ -24,7 +24,7 @@ export function FormatsParDefaut({ elementId, type, actifs, formats, className }
   return (
     <div className={className}>
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-texte-doux">
-        <Icone nom="etoile" size={14} className="text-orange-vif" />
+        <Icone nom="etoile" size={14} className="text-texte-faible" />
         Par défaut pour
       </p>
       <div className="flex flex-wrap gap-2">
@@ -39,7 +39,7 @@ export function FormatsParDefaut({ elementId, type, actifs, formats, className }
               onClick={() => changer(f.id)}
               className={cn(
                 "flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-200",
-                actif ? "border-orange bg-orange text-sur-orange" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
+                actif ? "border-texte bg-texte text-fond" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
               )}
             >
               {actif && <Icone nom="etoile" size={13} fill="currentColor" />}

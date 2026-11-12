@@ -31,11 +31,11 @@ export const CONTRASTE_MIN_SOUS_TITRES = 4.5;
 /**
  * Style « Encre » des anciens styles du tableau (essai réel du 11/10 : le « Minimal » crème à ombre sombre était presque
  * illisible sur la page ivoire). Gabarit Minimal (groupes, fondu), écriture de la charte sur la page, ni contour ni
- * ombre, police de la charte (Inter Bold). Le « Minimal » des autres formats n'est pas touché.
+ * ombre, police de la charte (Manrope Bold). Le « Minimal » des autres formats n'est pas touché.
  */
 export const STYLE_SOUS_TITRES_ENCRE: ValeurStyleSousTitres = Object.freeze({
   ...STYLE_SOUS_TITRES_MINIMAL,
-  police: "Inter Bold",
+  police: "Manrope Bold",
   contourPx: 0,
   ombrePx: 0,
   encre: Object.freeze({ texte: COULEURS_VIDEO.ecriture, page: COULEURS_VIDEO.page }),
@@ -202,7 +202,7 @@ export function sousTitresTableau(o: { fiche: Pick<FicheTableau, "habillage" | "
   const accents = { impact: contraste(c.texte, teinte) >= CONTRASTE_MIN_SOUS_TITRES, bandeau: contraste(c.contour, c.texte) >= CONTRASTE_MIN_SOUS_TITRES };
   return {
     style: { id: source.id, nom: source.nom, valeur },
-    base: baseDe(gabaritStyle),
+    base: baseDe(source.valeur),
     gabarit: gabaritStyle,
     decor,
     contraste: mesure,
@@ -283,7 +283,7 @@ export function sousTitresDynamiquesTableau(segments: readonly SegmentSousTitres
   const melange = melanger(marques, { intensite: o.intensite ?? "equilibre", ...(o.coupesSec?.length ? { coupesSec: o.coupesSec } : {}), ...(o.dureeSec !== undefined ? { dureeSec: o.dureeSec } : {}) });
   const base = styleDeBase(o.st.gabarit);
   return melange.map((s, i) => {
-    const importance = !s.verrouille && chiffres.has(i) && s.style === "base" ? 3 : s.importance;
+    const importance = !s.verrouille && (chiffres.has(i) || s.mots.some((m) => m.enValeur)) && s.style === "base" ? 3 : s.importance;
     const garde = (s.style === "impact" && o.st.accents.impact) || (s.style === "bandeau" && o.st.accents.bandeau);
     const style: StyleGroupeSousTitres = garde ? s.style! : base;
     const inclinaison = style === "impact" && garde ? Math.max(-INCLINAISON_MAX_TABLEAU, Math.min(INCLINAISON_MAX_TABLEAU, s.inclinaison ?? 0)) : 0;

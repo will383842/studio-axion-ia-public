@@ -144,26 +144,23 @@ describe("X12 · refus du serveur : toujours une phrase", () => {
     expect(await relance.relancerEtapeCasConcret("trav-inconnu", undefined, SANS_CLAUDE)).toEqual({ statut: "refusee", phrase: relance.PHRASES_RELANCE.introuvable });
   });
 
-  it("budget du mois atteint : la phrase du budget, rien n'est réactivé", async () => {
+  it("budget du mois atteint : plus aucun refus, la relance part et le travail est réactivé", async () => {
     // V4-3 : « recrutement-apporteurs » a un script validé (aucune écriture à payer) et la voix d'essai est gratuite :
     // son prix est nul. Un cas sans script validé (vidéo d'essai) garde un prix à confronter au budget.
     const t = await arreter(await lancerUneVideo({ casId: "rappels-rendez-vous", essai: true }), MOTIFS.find((m) => m.etape === "voix")!);
     await ecrireParametre("budget.mensuel", { centimes: 0, devise: "EUR" });
     const r = await relance.relancerEtapeCasConcret(t.id, undefined, SANS_CLAUDE);
-    expect(r.statut).toBe("refusee");
-    expect(r.statut === "refusee" && r.phrase).toMatch(/budget du mois/i);
-    expect((await depots().travaux.obtenir(t.id))?.statut).toBe("echec");
+    // 08/11/2026 : le budget du mois n'est plus qu'un repère, il ne refuse plus : la relance part, le travail est réactivé.
+    expect(r).toEqual({ statut: "relancee", travailId: t.id });
+    expect((await depots().travaux.obtenir(t.id))?.statut).not.toBe("echec");
   });
 
-  it("écriture arrêtée, Claude réel : le prix d'un nouvel essai est annoncé AVANT, puis la relance part avec l'accord", async () => {
+  it("écriture arrêtée, Claude réel : aucun prix à confirmer pour un nouvel essai, la relance part directement", async () => {
     const t = await arreter(await lancerUneVideo(), MOTIFS[0]);
     const r = await relance.relancerEtapeCasConcret(t.id, undefined, { claudeActif: async () => true });
-    expect(r.statut).toBe("accord-requis");
-    if (r.statut !== "accord-requis") return;
-    expect(r.centimes).toBeGreaterThan(0);
-    expect(r.phrase).toMatch(/^Les réponses déjà payées sont relues d'abord\. Si l'écriture précédente ne peut pas être reprise, un nouvel essai coûte environ \d+,\d\d\s€\.$/);
-    expect((await depots().travaux.obtenir(t.id))?.statut).toBe("echec");
-    expect(await relance.relancerEtapeCasConcret(t.id, r.centimes, { claudeActif: async () => true })).toEqual({ statut: "relancee", travailId: t.id });
+    // 08/11/2026 : plus de prix à confirmer avant un nouvel essai : la relance part directement.
+    expect(r).toEqual({ statut: "relancee", travailId: t.id });
+    expect((await depots().travaux.obtenir(t.id))?.statut).not.toBe("echec");
   });
 
   it("travail créé AVANT la mise en ligne (journal d'ancienne forme, sans compteur de reprises) : accepté, l'écriture repart en reprise", async () => {

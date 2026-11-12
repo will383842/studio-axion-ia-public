@@ -3,6 +3,8 @@ import type { Id } from "../types";
 import type { RapportPorte } from "./contrats";
 import type { CarrouselSpecType } from "./types";
 import type { StatutVisuel } from "./statuts";
+import type { Reseau } from "../../briques/visuels/reseaux";
+import type { VersionStockee } from "./depot";
 import type { ToileSpecType } from "./continu/schema-toile";
 
 export type ModeTexte = "simulation" | "session" | "api";
@@ -20,7 +22,13 @@ export interface RenduVisuel {
 export interface Visuel {
   /** "vis_" + crypto.randomUUID() */
   id: Id;
-  famille: "carrousel" | "carrousel-continu";
+  famille: "carrousel" | "carrousel-continu" | "infographie";
+  /** Réseaux visés (L1-02) ; absent sur un ancien visuel. */
+  reseaux?: Reseau[];
+  /** Sous-type libre du classement (L1-02), 40 signes au plus ; absent sur un ancien visuel. */
+  sousType?: string;
+  /** Versions rendues par cadre, gardées avec le visuel (L1-02) : un rendu déjà fait n'est pas refait. */
+  versions?: VersionStockee[];
   /** 120 caractères au plus. */
   titre: string;
   /** `intention` (L12, facultative) : choisit la trame du carrousel ; absente, rien ne change. */
@@ -44,6 +52,7 @@ export interface Visuel {
   valideLe?: string;
   corbeilleLe?: string;
   statutAvantCorbeille?: StatutVisuel;
+  /** Aucun prix dans le Studio : toujours 0. */
   coutCentimes: 0;
   creeLe: string;
   modifieLe: string;

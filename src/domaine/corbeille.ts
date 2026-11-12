@@ -16,7 +16,7 @@ export function phraseSuppressionDans(jours: number): string {
 /** Message après « Mettre à la corbeille » : restaurable 30 jours, et les brouillons laissés dans Buffer. */
 export function messageCorbeille(mises: number, brouillonsBuffer: number, pagesRetirees = 0): string {
   const base = `${mises > 1 ? `${mises} vidéos mises à la corbeille` : "Vidéo mise à la corbeille"}. Restaurable pendant ${JOURS_CORBEILLE} jours.`;
-  const buffer = brouillonsBuffer ? ` ${brouillonsBuffer} brouillon${brouillonsBuffer > 1 ? "s restent" : " reste"} dans Buffer : à supprimer dans Buffer.` : "";
+  const buffer = brouillonsBuffer ? ` ${brouillonsBuffer} brouillon${brouillonsBuffer > 1 ? "s restent" : " reste"} dans Buffer ou Zernio : à supprimer dans l'outil concerné.` : "";
   const site = pagesRetirees ? ` ${pagesRetirees > 1 ? `${pagesRetirees} pages du site sont retirées` : "La page du site est retirée"} : à republier après la restauration.` : "";
   return `${base}${buffer}${site}`;
 }

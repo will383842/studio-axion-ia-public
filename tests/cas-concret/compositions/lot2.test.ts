@@ -90,7 +90,7 @@ describe("liste-taches (objet)", () => {
     expect(fin.rangs.map((r) => r.opacite)).toEqual([1, 1, 1]);
     expect(fin.rangs[2].separateur).toBeNull();
     expect(fin.rangs[0].separateur).not.toBeNull();
-    expect(fin.fiche.couleur).toBe(COULEURS_DUO.blanc);
+    expect(fin.fiche.couleur).toBe(COULEURS_DUO.carte);
   });
 });
 

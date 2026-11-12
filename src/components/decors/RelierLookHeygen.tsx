@@ -43,7 +43,7 @@ export function RelierLookHeygen({ decorId, looksRelies, onRelie }: { decorId: s
   return (
     <section aria-label="Look HeyGen" className="grid gap-3 rounded-xl bg-surface-2 px-3 py-3">
       <p className="text-sm text-texte-doux">
-        {looksRelies.length ? "Votre avatar parle sur le look relié, avec son décor. Même prix à la seconde." : "Faites ce décor dans l'application HeyGen avec votre avatar, puis reliez-le ici. Rien n'est payé."}
+        {looksRelies.length ? "Votre avatar parle sur le look relié, avec son décor." : "Faites ce décor dans l'application HeyGen avec votre avatar, puis reliez-le ici. Rien n'est payé."}
       </p>
       {!liste ? (
         <Bouton pleineLargeur variante="secondaire" icone="visage" chargement={enCours} onClick={ouvrir}>

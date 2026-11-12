@@ -13,7 +13,7 @@ import { essai, type ResultatEssai } from "./propriete";
 
 /** Graines tirées par fiche et par style. */
 export const GRAINES = [1, 2, 3];
-export const CALAGE_CONTENU = /^calage · Scène \S+ · règle « (durée de 90 secondes au plus|du rythme : un événement visuel toutes les 4 secondes) »/;
+export const CALAGE_CONTENU = /^calage · Scène \S+ · règle « (durée de 180 secondes au plus|du rythme : un événement visuel toutes les 4 secondes) »/;
 
 export function verifierPropriete(part: number, parts: number): void {
   const fiches = fichesBanc().filter((_, i) => i % parts === part);

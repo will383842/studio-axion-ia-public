@@ -47,7 +47,7 @@ export const VERSION_BRIQUE_SOUS_TITRES = "m2-1";
 type Egaux<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 const verifierTypes: [
   Egaux<SegmentSousTitres, SegmentRendu>,
-  Egaux<BaseSousTitres, BaseRendu>,
+  Egaux<BaseSousTitres, GabaritRendu>,
   Egaux<GabaritSousTitres, GabaritRendu>,
   ValeurStyleSousTitres extends StyleBibliothequeRendu ? true : false,
 ] = [true, true, true, true];
@@ -85,7 +85,7 @@ export type StyleSousTitresVarie = ValeurStyleSousTitres & { surlignage?: Surlig
 
 /** Base retenue : celle de la vidéo, sinon celle du style de la Bibliothèque, sinon Karaoké. */
 export function baseRetenue(base: BaseSousTitres | undefined, style: ValeurStyleSousTitres | null | undefined): BaseSousTitres {
-  return base ?? baseDe(gabaritDe(style));
+  return base ?? baseDe(style);
 }
 
 /** Options de groupement du style de base : gabarit, puis réglages de l'élément de la Bibliothèque. */
@@ -148,7 +148,9 @@ export function fabriquerSousTitres(demande: DemandeSousTitres): SegmentSousTitr
   if (demande.coupesSec?.length) segments = recalerSurCoupes(segments, demande.coupesSec, { dureeMinSec: options.dureeMinSec });
   if (demande.style?.modeEmphase === "groupe") segments = emphaseParGroupe(segments);
   if (demande.anciens?.length) segments = reporterVerrouilles(demande.anciens, segments);
+  const baseVideo = baseRetenue(demande.base, demande.style);
   return melanger(segments, {
+    ...(baseVideo === "impact" || baseVideo === "bandeau" ? { base: baseVideo } : {}),
     intensite: demande.intensite ?? "equilibre",
     coupesSec: demande.coupesSec,
     motsTitre: demande.motsTitre,
@@ -184,7 +186,8 @@ export function donneesCalque(entree: {
     largeur,
     hauteur,
     segments: sansChevauchement(entree.segments),
-    base: entree.base,
+    // GV-ST-08a : `BaseRendu` (types-rendu.ts, hors liste) n'admet encore que karaoke/minimal ; à élargir par GV-ST-08b.
+    base: entree.base as BaseRendu,
     couleurs: entree.couleurs ?? couleursDepuisMarque(entree.marque, entree.style?.jetonEmphase ?? "orange-vif"),
     largeurMaxPx: entree.style?.largeurMaxPct ? Math.floor((entree.style.largeurMaxPct / 100) * largeur) : largeurLibrePx(ratio, reseaux),
     positions: positionsDuStyle(ratio, reseaux, entree.style),
@@ -197,9 +200,12 @@ export function donneesCalque(entree: {
   };
 }
 
+/** Débit de voix estimé (mots/s), utilisé seulement quand la durée réelle d'une phrase manque. */
+export const DEBIT_VOIX_ESTIME_MOTS_PAR_SEC = 4.4;
+
 /**
  * Contrôles des sous-titres (B.5) : débordement de la zone libre (mesure réelle de chaque groupe à sa taille de
- * rendu), phrase trop dense pour être lue (> 5,5 mots/s), chevauchement avec l'encadré de titre. Jamais bloquant.
+ * rendu), phrase trop dense pour être lue (seuil `SEUIL_MOTS_PAR_SECONDE` de `src/domaine/lecture.ts` ; le débit de voix estimé ne sert qu'à estimer une durée manquante), chevauchement avec l'encadré de titre. Jamais bloquant.
  */
 export function controlerSousTitres(donnees: DonneesCalque, options: { texte?: string; occupe?: ContexteMelange["occupe"] } = {}): AlerteQualite[] {
   const alertes: AlerteQualite[] = [];
@@ -210,7 +216,7 @@ export function controlerSousTitres(donnees: DonneesCalque, options: { texte?: s
   if (debordants.length) alertes.push({ code: "debordement-sous-titres", gravite: "attention", message: `${debordants.length} groupe(s) dépasse(nt) la zone libre.` });
   if (options.texte) {
     const mots = donnees.segments.flatMap((s) => s.mots);
-    const denses = phrasesTropDenses(options.texte, 4.4, dureesDesPhrases(mots));
+    const denses = phrasesTropDenses(options.texte, DEBIT_VOIX_ESTIME_MOTS_PAR_SEC, dureesDesPhrases(mots));
     if (denses.length) alertes.push({ code: "vitesse-lecture", gravite: "info", message: `${denses.length} phrase(s) trop dense(s) pour être lue(s).` });
   }
   const chevauche = donnees.segments.filter((s) => (options.occupe ?? []).some((o) => o.debutSec < s.finSec && o.finSec > s.debutSec && ((o.zone === "haut" && s.position === "haut") || (o.zone === "bas" && s.position === "bas"))));

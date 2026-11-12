@@ -11,7 +11,6 @@
 import "server-only";
 import type { Id } from "@/domaine/types";
 import { estCasStock } from "@/formats/cas-concret/catalogue";
-import { formaterMontant } from "@/lib/montants";
 import { casDesEntrees, coutNouvelEssaiEcritureCentimes, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { depots, ErreurStudio } from "./_commun";
 import { exigerSession } from "./auth";
@@ -20,7 +19,8 @@ import { PHRASE_RELANCE_CAS_RETIRE } from "@/domaine/cas-retires";
 import { PHRASE_RELANCE_CAS_TRAITE, TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
 import { lireCasRetires } from "./cas-concret-retires";
 import { estCasTraite } from "./cas-concret-traites";
-import { reessayerTravail } from "./travaux";
+import { libererSiAttenteRefusee, reessayerTravail } from "./travaux";
+import { avecAccordAutomatique } from "./mode-budget";
 
 export type IssueRelanceCasConcret = { statut: "relancee"; travailId: Id } | { statut: "accord-requis"; centimes: number; phrase: string } | { statut: "refusee"; phrase: string };
 
@@ -38,7 +38,7 @@ export const PHRASES_RELANCE = {
 
 /** Annonce d'une écriture arrêtée : ce que fait la relance, et le prix au plus d'un nouvel essai. PUR. */
 export function annonceEcriture(centimes: number): string {
-  return `Les réponses déjà payées sont relues d'abord. Si l'écriture précédente ne peut pas être reprise, un nouvel essai coûte environ ${formaterMontant({ centimes, devise: "EUR" })}.`;
+  return `Les réponses déjà payées sont relues d'abord. Si l'écriture précédente ne peut pas être reprise, un nouvel essai est payant.`;
 }
 
 /**
@@ -46,6 +46,14 @@ export function annonceEcriture(centimes: number): string {
  * simple question. Voir l'en-tête.
  */
 export async function relancerEtapeCasConcret(travailId: Id, accord?: number | true, dep: { claudeActif?: () => Promise<boolean>; stockMetiersAllume?: () => Promise<boolean> } = {}): Promise<IssueRelanceCasConcret> {
+  await exigerSession();
+  // Règle « le prix ne bloque jamais » : en mode indicatif, un accord-requis est relancé UNE fois avec le prix du jour ;
+  // bloquant (et Usine) : l'issue d'avant, telle quelle.
+  const videoId = (await depots().travaux.obtenir(travailId))?.cibleId;
+  return avecAccordAutomatique((a) => relancerEtapeSansAuto(travailId, a ?? accord, dep), undefined, videoId ? { videoId } : {});
+}
+
+async function relancerEtapeSansAuto(travailId: Id, accord: number | true | undefined, dep: { claudeActif?: () => Promise<boolean>; stockMetiersAllume?: () => Promise<boolean> }): Promise<IssueRelanceCasConcret> {
   await exigerSession();
   const d = depots();
   const t = await d.travaux.obtenir(travailId);
@@ -61,13 +69,22 @@ export async function relancerEtapeCasConcret(travailId: Id, accord?: number | t
   const casDeLaVideo = entreesCas && entreesCas.porte !== "porte-b" ? (entreesCas.casId ?? "") : "";
   if (casDeLaVideo && estCasStock(casDeLaVideo)) {
     const allume = await (dep.stockMetiersAllume ?? (() => reglageAllume(REGLAGES_CAS_CONCRET.stockMetiers)))().catch(() => false);
-    if (!allume) return { statut: "refusee", phrase: PHRASES_RELANCE.casIndisponible };
+    if (!allume) {
+      await libererSiAttenteRefusee(travailId);
+      return { statut: "refusee", phrase: PHRASES_RELANCE.casIndisponible };
+    }
   }
   // Cas déjà traité par une AUTRE vidéo : la panne de celle-ci ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
-  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await estCasTraite(casDeLaVideo, { saufVideoId: t.cibleId }).catch(() => false))) return { statut: "refusee", phrase: PHRASES_RELANCE.dejaTraite };
+  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await estCasTraite(casDeLaVideo, { saufVideoId: t.cibleId }).catch(() => false))) {
+    await libererSiAttenteRefusee(travailId);
+    return { statut: "refusee", phrase: PHRASES_RELANCE.dejaTraite };
+  }
   // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (refus net, avant tout prix, rien n'est dépensé).
   // Réglage illisible : on REFUSE (plus prudent qu'un lancement payant d'un cas peut-être retiré).
-  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await lireCasRetires().then((r) => r.has(casDeLaVideo)).catch(() => true))) return { statut: "refusee", phrase: PHRASES_RELANCE.casRetire };
+  if (casDeLaVideo && !TRAVAUX_SUR_VIDEO_FINIE.includes(t.type) && (await lireCasRetires().then((r) => r.has(casDeLaVideo)).catch(() => true))) {
+    await libererSiAttenteRefusee(travailId);
+    return { statut: "refusee", phrase: PHRASES_RELANCE.casRetire };
+  }
   const enEchec = t.etapes.filter((e) => e.statut === "echec");
   const erreur = enEchec[0]?.erreur ?? t.erreur;
   if (erreur?.reessayable === false) return { statut: "refusee", phrase: PHRASES_RELANCE.sansReessai };

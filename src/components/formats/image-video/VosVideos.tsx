@@ -1,82 +1,52 @@
 /**
- * ÉCRAN 5 · VOS VIDÉOS (lot L16, plan § 8). Une carte par réseau : la vidéo, le verdict en une phrase (vert, orange
- * « un peu longue » ou « version courte », rouge si le réseau n'est pas livré), le texte de publication et le premier
- * commentaire à copier, l'endroit où poser le lien, le téléchargement. Publication par téléchargement seulement :
- * aucun bouton de programmation (deux défauts Buffer sont encore ouverts). Facebook a deux fichiers (lot F45) : le Reel
- * en 9:16 et la vidéo du fil en 4:5, chacun avec son lecteur et son téléchargement ; LinkedIn est en 4:5 (décision de Will du 24/10, qui remplace celle du 19/10).
+ * ÉCRAN 5 · VOS VIDÉOS (lot L16, refait au lot I le 08/11, Williams). UN seul grand lecteur, une puce par réseau dessous
+ * (`LecteurParReseau`), les actions du réseau choisi (Valider, Télécharger, Copier le texte). Le verdict de contrôle ne
+ * s'affiche que s'il signale un souci (en remarque, jamais bloquant). Le texte d'origine et ce que le studio a adapté
+ * sont repliés. Publication par téléchargement seulement : aucun bouton de programmation (le fichier enregistré est le
+ * 9:16 commun). Facebook a deux fichiers (lot F45) : le Reel 9:16 et la vidéo du fil 4:5, deux puces ; LinkedIn est en 4:5
+ * (décision de Will du 24/10, qui remplace celle du 19/10).
  */
 import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { BoutonLienPrive, type LienPriveVideo } from "@/components/partage/BoutonLienPrive";
-import { Bouton } from "@/components/ui/Bouton";
-import { BoutonCopier } from "@/components/ui/BoutonCopier";
 import { Carte } from "@/components/ui/Carte";
-import { LecteurVideo } from "@/components/ui/LecteurVideo";
-import { LogoReseau } from "@/components/ui/LogoReseau";
-import { Pastille } from "@/components/ui/Pastille";
-import type { CarteReseauIV } from "./vue";
+import type { EtapeEditoriale } from "@/domaine/types";
+import { LecteurParReseau, type VideoAffichee } from "./LecteurParReseau";
 
-const TON = { vert: "sauge", orange: "ambre", rouge: "brique" } as const;
-
-type VideoAffichee = CarteReseauIV & { url?: string | null; urlFil?: string | null };
-
-function CarteVideo({ v }: { v: VideoAffichee }) {
+function Replie({ titre, children }: { titre: string; children: React.ReactNode }) {
   return (
-    <Carte as="li" className="list-none space-y-3">
-      <div className="flex items-center gap-3">
-        <LogoReseau reseau={v.reseau} taille="md" />
-        <span className="text-[17px] font-semibold text-texte">{v.nom}</span>
-        {v.duree && <span className="text-sm text-texte-doux">{v.duree}</span>}
-      </div>
-      <Pastille ton={TON[v.ton]} taille="md" className="whitespace-normal">
-        {v.phrase}
-      </Pastille>
-      {v.url && <LecteurVideo src={v.url} ratio={v.format ?? "9:16"} titre={v.fil ? `${v.nom} · Reel` : v.nom} />}
-      {v.titre && <p className="text-[15px] font-semibold text-texte">{v.titre}</p>}
-      {v.texte && <p className="line-clamp-4 whitespace-pre-line text-sm text-texte-doux">{v.texte}</p>}
-      <div className="flex flex-wrap gap-2">
-        {v.url && (
-          <Bouton asChild variante="secondaire" icone="telecharger">
-            <a href={v.url} download>
-              Télécharger
-            </a>
-          </Bouton>
-        )}
-        {v.texte && <BoutonCopier texte={v.texte} libelle="Copier le texte" />}
-        {v.premierCommentaire && <BoutonCopier texte={v.premierCommentaire} libelle="Copier le commentaire" />}
-        {v.lien && <BoutonCopier texte={v.lien} libelle="Copier le lien" />}
-      </div>
-      {v.consigneLien && <p className="text-sm text-texte-doux">Le lien : {v.consigneLien}</p>}
-      {v.fil && (
-        <div className="space-y-3 border-t border-trait pt-3">
-          <p className="text-[15px] font-semibold text-texte">
-            Fil d&apos;actualité{v.fil.duree && <span className="ml-2 text-sm font-normal text-texte-doux">{v.fil.duree}</span>}
-          </p>
-          {v.urlFil && <LecteurVideo src={v.urlFil} ratio="4:5" titre={`${v.nom} · fil`} />}
-          <div className="flex flex-wrap gap-2">
-            {v.urlFil && (
-              <Bouton asChild variante="secondaire" icone="telecharger">
-                <a href={v.urlFil} download>
-                  Télécharger le fil
-                </a>
-              </Bouton>
-            )}
-            {v.fil.texte && <BoutonCopier texte={v.fil.texte} libelle="Copier le texte du fil" />}
-          </div>
-          {v.fil.consigneLien && <p className="text-sm text-texte-doux">Le lien : {v.fil.consigneLien}</p>}
-        </div>
-      )}
-    </Carte>
+    <details className="rounded-2xl border border-trait bg-surface-1 px-4 py-3">
+      <summary className="cursor-pointer text-[15px] font-semibold text-texte">{titre}</summary>
+      <div className="mt-2">{children}</div>
+    </details>
   );
 }
 
-export function VosVideos({ videos, verdict, lienPrive }: { videos: VideoAffichee[]; verdict?: { ok: boolean; phrase: string; mentions: string[] }; lienPrive?: LienPriveVideo }) {
+export function VosVideos({
+  videoId,
+  videos,
+  verdict,
+  lienPrive,
+  prete = true,
+  etape,
+  texteOrigine,
+  adapte,
+}: {
+  videoId: string;
+  videos: VideoAffichee[];
+  verdict?: { ok: boolean; phrase: string; mentions: string[] };
+  lienPrive?: LienPriveVideo;
+  prete?: boolean;
+  etape?: EtapeEditoriale;
+  texteOrigine?: string;
+  adapte?: readonly string[];
+}) {
   return (
     <section aria-label="Vos vidéos" className="space-y-4">
       {(!verdict || verdict.ok) && <EnTeteSuivi etat="prete" />}
-      {lienPrive && <BoutonLienPrive {...lienPrive} />}
-      {verdict && (
-        <Carte lueur={verdict.ok} className={verdict.ok ? undefined : "border-brique"}>
-          <p className={verdict.ok ? "text-[15px] font-semibold text-sauge" : "text-[15px] font-semibold text-brique"}>{verdict.phrase}</p>
+      <LecteurParReseau videoId={videoId} videos={videos} prete={prete} etape={etape} />
+      {verdict && !verdict.ok && (
+        <Carte className="border-brique">
+          <p className="text-[15px] font-semibold text-brique">{verdict.phrase}</p>
           {verdict.mentions.length > 0 && (
             <ul className="mt-1 space-y-1 text-sm text-texte-doux">
               {verdict.mentions.map((m) => (
@@ -86,11 +56,21 @@ export function VosVideos({ videos, verdict, lienPrive }: { videos: VideoAffiche
           )}
         </Carte>
       )}
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {videos.map((v) => (
-          <CarteVideo key={v.reseau} v={v} />
-        ))}
-      </ul>
+      {lienPrive && <BoutonLienPrive {...lienPrive} />}
+      {texteOrigine && (
+        <Replie titre="Le texte d'origine">
+          <p className="whitespace-pre-line text-sm text-texte-doux">{texteOrigine}</p>
+        </Replie>
+      )}
+      {adapte && adapte.length > 0 && (
+        <Replie titre="Ce que le studio a adapté">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-texte-doux">
+            {adapte.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </Replie>
+      )}
     </section>
   );
 }

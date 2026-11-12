@@ -10,9 +10,11 @@ import { Icone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import { texteRestant, type TonJauge } from "@/domaine/credits";
+import { LIBELLES_NIVEAU, LIBELLES_NIVEAU_FORFAIT, niveauCredit } from "@/domaine/niveau-credit";
 import { dateCourte, heure } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import type { CarteCredit } from "@/services/credits";
+import { eurosVersDollars, lireSaisieEuros } from "./montants-euros";
 
 const COULEURS: Record<TonJauge, { barre: string; texte: string }> = {
   vert: { barre: "bg-sauge", texte: "text-sauge" },
@@ -43,7 +45,7 @@ export function etiquetteSolde(c: Pick<CarteCredit, "mode" | "nom" | "luLe">): s
  * Réglages > CRÉDITS (lot « crédits », 02/10) : une carte par service payant. Solde étiqueté « lu » (avec l'heure) ou
  * « suivi », jauge, « ≈ N vidéos », consommé ce mois, Recharger (page du service) et « J'ai rechargé ».
  */
-export function Credits({ cartes }: { cartes: CarteCredit[] }) {
+export function Credits({ cartes, tauxUsdEur }: { cartes: CarteCredit[]; tauxUsdEur?: number }) {
   const router = useRouter();
   const [recharge, setRecharge] = useState<CarteCredit | null>(null);
   const [montant, setMontant] = useState("");
@@ -71,7 +73,7 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
               )}
             </div>
 
-            <p className={cn("mt-3 font-titre text-3xl tabular-nums leading-none", c.disponibleTexte ? COULEURS[c.ton].texte : "text-texte-faible")}>{c.disponibleTexte ?? "—"}</p>
+            <p className={cn("mt-3 font-titre text-2xl leading-none", c.disponibleTexte ? COULEURS[c.ton].texte : "text-texte-faible")}>{c.cleRefusee ? "Clé refusée" : (c.abonnements ? LIBELLES_NIVEAU_FORFAIT : LIBELLES_NIVEAU)[niveauCredit({ ...c, soldeConnu: c.disponibleTexte !== null })]}</p>
             {c.disponibleTexte === null && (
               <p className="mt-1 text-sm text-texte-faible">
                 {c.nom === "Claude"
@@ -90,14 +92,7 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
                   <dd className="font-semibold tabular-nums text-texte">{c.videosRestantes === null ? "Après la 1ʳᵉ vidéo" : texteRestant(c.fournisseur, c.videosRestantes)}</dd>
                 </div>
               )}
-              <div>
-                <dt className="text-xs text-texte-faible">Ce mois</dt>
-                <dd className="font-semibold tabular-nums text-texte">
-                  {c.consommeMoisTexte} <span className="font-normal text-texte-faible">/ {c.plafondMoisTexte}</span>
-                </dd>
-              </div>
             </dl>
-            {c.reserveTexte && <p className="mt-2 text-xs text-texte-faible">{c.reserveTexte} réservés pour les vidéos en cours.</p>}
             {c.enAttente > 0 && (
               <p className="mt-2 flex items-center gap-2 rounded-xl bg-brique-doux px-3 py-2 text-sm text-texte">
                 <Icone nom="sablier" size={15} className="shrink-0 text-brique" />
@@ -107,7 +102,7 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
             {c.expirations.map((e) => (
               <p key={e.expireLe} className="mt-2 flex items-center gap-2 rounded-xl bg-ambre-doux px-3 py-2 text-sm text-texte">
                 <Icone nom="horloge" size={15} className="shrink-0 text-ambre" />
-                {e.montantTexte} expirent le {dateCourte(e.expireLe)}.
+                Des crédits expirent le {dateCourte(e.expireLe)}.
               </p>
             ))}
 
@@ -151,11 +146,12 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
             taille="lg"
             pleineLargeur
             chargement={enCours}
-            disabled={!(Number.parseFloat(montant.replace(",", ".")) > 0)}
+            disabled={!(lireSaisieEuros(montant) > 0)}
             onClick={() =>
               recharge &&
               demarrer(async () => {
-                const dollars = Number.parseFloat(montant.replace(",", ".").replace(/\s/g, ""));
+                // Saisie en euros ; l'action et le stockage restent en dollars.
+                const dollars = eurosVersDollars(lireSaisieEuros(montant), tauxUsdEur);
                 const r = await declarerRechargeAction(recharge.fournisseur, dollars);
                 if (!r.ok) {
                   notifier.erreur(r.message);
@@ -171,7 +167,7 @@ export function Credits({ cartes }: { cartes: CarteCredit[] }) {
           </Bouton>
         }
       >
-        <Champ libelle="Montant ($)" inputMode="decimal" grand autoFocus value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="20" suffixe="$" />
+        <Champ libelle="Montant" inputMode="decimal" grand autoFocus value={montant} onChange={(e) => setMontant(e.target.value)} />
       </FeuilleBas>
     </div>
   );

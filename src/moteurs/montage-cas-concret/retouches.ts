@@ -22,10 +22,11 @@ import { z } from "zod";
 import { jsonCanonique, texteObligatoire } from "@/briques/fiche-scenes";
 import type { FinTable } from "@/briques/fins";
 import type { ContexteAxion } from "@/domaine/types";
+import { joindrePhrasesPourVoix } from "@/domaine/voix-phrases";
 import type { ReseauCas } from "@/formats/cas-concret";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { regrouperFins } from "./etapes";
-import { cadreDeFicheEcrans, cleMot, idEcranAttendu, motsLus, texteDuCorps, type CadreEcrans, type Ecran, type EcranCorps, type FicheEcrans, type PlanDesFins } from "./fiche";
+import { cadreDeFicheEcrans, cleMot, idEcranAttendu, motsLus, texteDuCorps, texteDuCorpsPourVoix, type CadreEcrans, type Ecran, type EcranCorps, type FicheEcrans, type PlanDesFins } from "./fiche";
 import { motValide, planDesFins } from "./fins";
 import { ETAPES, MOTS_INTERDITS_FORMAT, nombresDe, tempsEcrans, validerFicheEcrans, type TempsEcran } from "./regles";
 
@@ -321,7 +322,8 @@ function planDe(reglages: ReglagesFins, contexte: ContexteRetoucheCasConcret): P
   return regrouperFins(planDesFins({ reseaux: [...contexte.reseaux], offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot, motSur: [...(contexte.motSur ?? [])], table: contexte.table }));
 }
 
-export const texteDeFin = (f: PlanDesFins["fins"][number]) => f.ecrans.map((e) => e.texteDit.trim()).join(" ");
+/** Le texte de la fin tel qu'il part à la voix (un point à la fin de chaque écran : lot E). */
+export const texteDeFin = (f: PlanDesFins["fins"][number]) => joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit));
 
 /**
  * Empreinte de chaque écran rendu (ce qu'il montre, cadre, heures estimées de l'écran et de ses apparitions), nommé comme
@@ -390,8 +392,8 @@ export function apercuRetoucheCasConcret(fiche: FicheEcrans, operations: unknown
 
   // Voix : seul ce qui n'est pas déjà lu est relu.
   const lire = contexte.lire ?? ((t: string) => t);
-  const gardee = contexte.voixGardee === undefined ? { corps: lire(texteDuCorps(depart.fiche)), fins: planAvant.fins.map((f) => lire(texteDeFin(f))) } : (contexte.voixGardee ?? { fins: [] });
-  const corps = lire(texteDuCorps(validation.fiche));
+  const gardee = contexte.voixGardee === undefined ? { corps: lire(texteDuCorpsPourVoix(depart.fiche)), fins: planAvant.fins.map((f) => lire(texteDeFin(f))) } : (contexte.voixGardee ?? { fins: [] });
+  const corps = lire(texteDuCorpsPourVoix(validation.fiche));
   const corpsRelu = corps !== gardee.corps;
   const finsRelues = plan.fins.filter((f) => !gardee.fins.includes(lire(texteDeFin(f))));
   const textesARelire = [...(corpsRelu ? [corps] : []), ...finsRelues.map((f) => lire(texteDeFin(f)))];

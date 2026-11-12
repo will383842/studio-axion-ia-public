@@ -43,6 +43,8 @@ import {
   type EtatSujet,
   type LigneGrille,
 } from "@/domaine/derivations-generateur";
+import { deduireCiblage } from "@/domaine/ciblage/controles";
+import type { Ciblage, TypeAutomatisation } from "@/domaine/ciblage/types";
 import { accordRequis, decouperTexteWill, estTexteColle, matierePourSujet } from "@/domaine/matieres";
 import { formatGenerateur, type FormatGenerateur } from "@/formats";
 import { simulerCorps, simulerVersion, type EntreeSimulation } from "@/generateur/simulation";
@@ -143,6 +145,9 @@ export interface BriefSujet {
   motCle?: string;
   pilier?: string;
   cible?: string;
+  /** Cible choisie à l'écran (obligatoire à l'écran et dans l'action serveur, jamais ici : son absence est une remarque). */
+  ciblage?: Ciblage;
+  typeAutomatisation?: TypeAutomatisation;
   matiereIdsImposees?: Id[];
   ideeId?: Id;
   sujetSensible?: ScriptMaitre["brief"]["sujetSensible"];
@@ -197,6 +202,8 @@ export async function creerSujet(brief: BriefSujet, options: OptionsControleSuje
   imposees.unshift(...idsWill);
   // « Refaire cette structure » n'existe que réglage `generateur.apprentissage` allumé : sinon la demande est ignorée.
   const refaire = await apprentissageActif();
+  // Cible : celle de l'écran, sinon déduite de la phrase libre ; sans cible, une remarque (jamais une erreur : une vidéo n'est jamais bloquée).
+  const ciblage = brief.ciblage ?? (brief.cible ? deduireCiblage(brief.cible) ?? undefined : undefined);
   const m: ScriptMaitre = {
     id: nouvelId("suj"),
     version: 1,
@@ -212,6 +219,8 @@ export async function creerSujet(brief: BriefSujet, options: OptionsControleSuje
       adresseParDefaut: brief.adresse ?? "vous",
       modeParDefaut: brief.mode,
       cible: brief.cible,
+      ...(ciblage ? { ciblage } : {}),
+      ...(brief.typeAutomatisation ? { typeAutomatisation: brief.typeAutomatisation } : {}),
       pilier: brief.pilier,
       motCle: brief.motCle ? { forme: brief.motCle, source: "hypothese" } : undefined,
       ideeId: brief.ideeId,
@@ -231,6 +240,7 @@ export async function creerSujet(brief: BriefSujet, options: OptionsControleSuje
   };
   await d.scriptsMaitres.enregistrer(m);
   await journaliser("sujet", `Sujet créé : « ${m.brief.idee} »`, { type: "sujet", id: m.id });
+  if (!ciblage) await journaliser("sujet", "Remarque : cible à préciser", { type: "sujet", id: m.id });
   if (brief.serieId) {
     // INTÉGRATION FINALE (décision du 04/10) : le sujet est rangé dans la série, mais son numéro d'ÉPISODE n'est pris
     // qu'au départ réel de l'écriture (`attribuerNumero`) : une idée arrêtée à 0 € ne fait sauter aucun épisode.
@@ -349,6 +359,8 @@ export async function ecrireSujetSimule(
       versionFormat: format.version,
       sujet: m.brief.idee,
       cible: m.brief.cible,
+      ...(m.brief.ciblage ? { ciblage: m.brief.ciblage } : {}),
+      ...(m.brief.typeAutomatisation ? { typeAutomatisation: m.brief.typeAutomatisation } : {}),
       adresse,
       version: 1,
       blocs,

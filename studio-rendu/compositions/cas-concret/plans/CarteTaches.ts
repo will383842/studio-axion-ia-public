@@ -57,7 +57,7 @@ function planCarteTachesV4(p: ProprietesObjet, image: number | undefined, orange
   return {
     boite: { x: 0, y: 0, largeur: w, hauteur: h },
     rayon: Math.min(w, h) * 0.08,
-    fiche: COULEURS_DUO.blanc,
+    fiche: COULEURS_DUO.carte,
     ombre: c.ombre,
     police: { famille: famille("inter-gras"), graisse: graisse("inter-gras"), couleur: COULEURS_DUO.encre },
     titre,

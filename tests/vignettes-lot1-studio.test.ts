@@ -72,7 +72,7 @@ describe("vignettes lot 1 · garde du texte de couverture", () => {
   });
 
   // Relecture : une espace insécable, fine ou un caractère invisible ne doit pas faire passer un interdit (rendu identique).
-  it.each(["Aucun gain\u00a0garanti", "AUCUN\u202fGAIN GARANTI", "Aucun gain\tgaranti", "GRE\u200bNOBLE", "Gre\u00adnoble"])("refuse aussi « %s » (espaces et invisibles)", (texte) => {
+  it.each(["Aucun gain\u00a0garanti", "AUCUN\u202fGAIN GARANTI", "Aucun gain\tgaranti", "VILLE\u200bEXEMPLE", "Ville\u00adexemple"])("refuse aussi « %s » (espaces et invisibles)", (texte) => {
     expect(interditsVignette(texte).length).toBeGreaterThan(0);
   });
 
@@ -183,11 +183,11 @@ describe("vignettes lot 1 · chemin complet du studio derrière le réglage", ()
     return (await d.videos.obtenir(v.id))!;
   }
 
-  it("réglage absent : demandes sans « gabarit » (aucun changement)", { timeout: 60_000 }, async () => {
+  it("réglage absent : l'image de la vidéo (image-video-v3), une seule demande, sans titre", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0] }]);
-    expect(recues).toHaveLength(3);
-    for (const d of recues) expect(d.parametres).not.toHaveProperty("gabarit");
+    expect(recues).toHaveLength(1);
+    for (const d of recues) expect(d.parametres).toMatchObject({ gabarit: "image-video-v3", couverture: "" });
   });
 
   it("réglage « axion-v2 » posé dans le test seulement : 3 demandes m1, m2, m3, générateur = formatId de la vidéo", { timeout: 60_000 }, async () => {
@@ -200,10 +200,18 @@ describe("vignettes lot 1 · chemin complet du studio derrière le réglage", ()
     expect(new Set(recues.map((d) => d.parametres.ambiance)).size).toBe(1);
   });
 
-  it("réglage invalide : retombe sur r4", { timeout: 60_000 }, async () => {
+  it("réglage invalide : l'image de la vidéo", { timeout: 60_000 }, async () => {
     await ecrireParametre("miniature.gabarit", "inconnu");
     const v = await vraieVideo();
     await travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0] }]);
+    for (const d of recues) expect(d.parametres).toMatchObject({ gabarit: "image-video-v3" });
+  });
+
+  it("réglage « r4 » explicite (secours) : demandes sans « gabarit »", { timeout: 60_000 }, async () => {
+    await ecrireParametre("miniature.gabarit", "r4");
+    const v = await vraieVideo();
+    await travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0] }]);
+    expect(recues).toHaveLength(3);
     for (const d of recues) expect(d.parametres).not.toHaveProperty("gabarit");
   });
 });

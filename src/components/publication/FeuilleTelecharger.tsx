@@ -12,7 +12,6 @@ import { notifier } from "@/components/ui/Toast";
 import type { Ratio } from "@/domaine/types";
 import { nomFichier } from "@/domaine/derivations-generateur";
 import { cn } from "@/lib/cn";
-import { centimes, formaterMontant } from "@/lib/montants";
 import { useVideo } from "./ContexteVideo";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
 import { formateurNombre } from "@/lib/intl";
@@ -44,8 +43,7 @@ export function FeuilleTelecharger() {
         {sorties.map((s) => (
           <li key={s.id}>
             <a
-              href={s.url}
-              download={nom(s.ratio, "mp4")}
+              href={`/api/telechargements/video?video=${encodeURIComponent(videoId)}&ratio=${encodeURIComponent(s.ratio)}`}
               className="group flex min-h-20 items-center gap-4 rounded-2xl border border-trait bg-surface-2 p-3 pr-4 transition-colors hover:border-orange"
             >
               <span className={cn("relative w-12 shrink-0 overflow-hidden rounded-lg border border-trait-fort bg-fond", ASPECT[s.ratio])}>
@@ -106,7 +104,7 @@ export function FeuilleTelecharger() {
               >
                 <FormeRatio ratio={r} />
                 {r}
-                {coutsFormats[r] !== undefined && <span className="font-normal text-texte-doux">{coutsFormats[r] === 0 ? "gratuit" : `≈ ${formaterMontant(centimes(coutsFormats[r]))}`}</span>}
+                {coutsFormats[r] === 0 && <span className="font-normal text-texte-doux">gratuit</span>}
               </Bouton>
             ))}
           </div>

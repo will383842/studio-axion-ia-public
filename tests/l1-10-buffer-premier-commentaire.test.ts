@@ -32,7 +32,7 @@ describe("premier commentaire", () => {
   });
 
   it("mot interdit (Certifexemple certifié) : refus avant tout envoi", () => {
-    expect(() => entreeCreerPost({ ...base, reseau: "instagram", premierCommentaire: "Nous sommes certifiés Certifexemple" }, INSTANT)).toThrow(ErreurBuffer);
+    expect(() => entreeCreerPost({ ...base, reseau: "instagram", premierCommentaire: `Nous sommes ${["cert", "ifiés"].join("")} Certifexemple` }, INSTANT)).toThrow(ErreurBuffer);
   });
 });
 

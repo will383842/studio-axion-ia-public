@@ -12,6 +12,7 @@ const fiche = lire("src/components/generateur/FicheSujet.tsx");
 const liste = lire("src/components/generateur/ListeSujets.tsx");
 const coquille = lire("src/components/coquille/Coquille.tsx");
 const video = lire("src/app/(studio)/videos/[id]/page.tsx");
+const chiffresVideo = lire("src/components/fabrication/ChiffresVideo.tsx");
 const apercu = lire("src/assistant/etapes/Apercu.tsx");
 const calendrier = lire("src/app/(studio)/calendrier/page.tsx");
 const css = lire("src/app/globals.css");
@@ -50,8 +51,8 @@ describe("n° 8 et 9 — rangée des réseaux de la liste des sujets", () => {
 
 describe("n° 10 — textes longs dans des éléments étroits", () => {
   it("fiche vidéo : libellé + pastille Essai passent à la ligne dans les 3 colonnes", () => {
-    expect(video).toMatch(/<li key=\{c\.libelle\} className="min-w-0">/);
-    expect(video).toMatch(/<p className="flex flex-wrap items-center gap-x-1\.5 gap-y-1 text-xs/);
+    expect(chiffresVideo).toMatch(/<li key=\{c\.libelle\} className="min-w-0">/);
+    expect(chiffresVideo).toMatch(/<p className="flex flex-wrap items-center gap-x-1\.5 gap-y-1 text-xs/);
   });
   it("aperçu : « Conseillé » et « Droits » sont dans un même conteneur qui se replie (plus de chevauchement)", () => {
     expect(apercu).toMatch(/absolute inset-x-1 top-1 flex flex-wrap items-start justify-between gap-1/);

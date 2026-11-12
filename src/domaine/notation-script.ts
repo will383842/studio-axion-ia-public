@@ -10,6 +10,7 @@
  */
 import { analyserAdresse } from "./adresse";
 import { compterMots } from "./derivations";
+import { mesuresRythme, SEUIL_ECART_TYPE_RYTHME } from "./controles-script/style";
 import { phrasesDe, phrasesTropDenses, type PhraseDense } from "./lecture";
 import type { Adresse, BlocScript, TypeAccroche } from "./types";
 
@@ -132,7 +133,7 @@ function noteDuree(mots: number, ctx: ContexteNotation): number {
 /**
  * Note détaillée d'un script. `critereIds` : les critères de la recette (un critère inconnu reçoit `parDefaut`).
  */
-export function noterScriptDetaille(blocs: BlocScript[], critereIds: string[], ctx: ContexteNotation, parDefaut: (id: string) => number = () => 75): NoteDetaillee {
+export function noterScriptDetaille(blocs: BlocScript[], critereIds: string[], ctx: ContexteNotation, parDefaut: (id: string) => number | null = () => 75): NoteDetaillee {
   const tout = blocs.flatMap((b) => b.segments.map((s) => s.texte)).join(" ");
   const mots = compterMots(tout);
   const phrases = phrasesDe(tout);
@@ -142,7 +143,7 @@ export function noterScriptDetaille(blocs: BlocScript[], critereIds: string[], c
   const preuve = texteBloc(blocs, "preuve");
   const appel = texteBloc(blocs, "appel") || texteBloc(blocs, "fin");
   const boucle = texteBloc(blocs, "boucle");
-  const calculs: Record<string, () => number> = {
+  const calculs: Record<string, () => number | null> = {
     accroche: () => noterAccroche(accroche, ctx, promesse).note,
     promesse: () => {
       if (!promesse) return 30;
@@ -166,6 +167,12 @@ export function noterScriptDetaille(blocs: BlocScript[], critereIds: string[], c
       return verbes <= 1 ? 92 : Math.max(40, 92 - 18 * (verbes - 1));
     },
     duree: () => noteDuree(mots, ctx),
+    // Rythme réel : écart-type des longueurs de phrases comparé au seuil du contrôle C9 (pas de calcul sous 3 phrases).
+    rythme: () => {
+      const m = mesuresRythme(tout);
+      if (m.phrases < 3) return null;
+      return Math.round(40 + 60 * Math.min(1, m.ecartType / SEUIL_ECART_TYPE_RYTHME));
+    },
     oralite: () => {
       const longs = tout.split(/\s+/).filter((m) => m.replace(/[^\p{L}]/gu, "").length > 13).length;
       const ecrit = (tout.match(MARQUES_ECRIT) ?? []).length;
@@ -178,7 +185,11 @@ export function noterScriptDetaille(blocs: BlocScript[], critereIds: string[], c
     },
   };
   const criteres: Record<string, number> = {};
-  for (const id of critereIds) criteres[id] = calculs[id] ? calculs[id]() : parDefaut(id);
+  for (const id of critereIds) {
+    // Un critère non calculable (texte trop court pour le rythme, critère d'un autre format) sort de la moyenne.
+    const v = calculs[id] ? calculs[id]() : parDefaut(id);
+    if (v !== null && Number.isFinite(v)) criteres[id] = v;
+  }
   const valeurs = Object.values(criteres);
   const globale = valeurs.length ? Math.round(valeurs.reduce((s, v) => s + v, 0) / valeurs.length) : 0;
   const aRenforcer = Object.entries(criteres)

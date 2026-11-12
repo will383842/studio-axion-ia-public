@@ -96,6 +96,11 @@ services:
       STUDIO_RENDU_CLE: ${STUDIO_RENDU_CLE:-}
       USINE_URL: ${USINE_URL:-}
       USINE_PORTE_SECRET: ${USINE_PORTE_SECRET:-}
+      # Porte v2 (usine -> studio, /api/usine/*) : secret DIFFERENT de USINE_PORTE_SECRET, 32 caractères au moins, sinon la porte répond 404.
+      # Le précédent n'est rempli que pendant une rotation, avec son échéance (date ISO avec Z ou décalage horaire, 24 h au plus dans le futur) ; sans échéance valide il est ignoré.
+      STUDIO_PORTE_SECRET: ${STUDIO_PORTE_SECRET:-}
+      STUDIO_PORTE_SECRET_PRECEDENT: ${STUDIO_PORTE_SECRET_PRECEDENT:-}
+      STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A: ${STUDIO_PORTE_SECRET_PRECEDENT_JUSQU_A:-}
       # Vidéos sur le site (lots S3-S4) : vides = le site factice. Le vrai client n'est jamais choisi par défaut.
       SITE_VIDEOS_URL: ${SITE_VIDEOS_URL:-}
       SITE_VIDEOS_SECRET: ${SITE_VIDEOS_SECRET:-}
@@ -129,14 +134,39 @@ services:
       STUDIO_TABLEAU_GARDE_MIN: ${STUDIO_TABLEAU_GARDE_MIN:-}
       # Plafond de dépense fal.ai du processus, en dollars (facultatif ; vide = pas de plafond propre, le budget du studio reste).
       FAL_PLAFOND_USD: ${FAL_PLAFOND_USD:-}
-      # --- Mesures (lot G7, « Mettre à jour les mesures ») : LECTURE SEULE. Vide = mode essai, rien n'est lu. ---
+      # --- Mesures (lot G7, « Mettre à jour les mesures ») : lecture seule, sauf Buffer (voir plus bas). Vide = mode essai, rien n'est lu. ---
       # Plausible : clé de LECTURE des statistiques (visites par lien suivi). Adresse et site : défauts du code si vides
       # (https://plausible.axion-ia.com, axion-ia.com).
       PLAUSIBLE_KEY: ${PLAUSIBLE_KEY:-}
       PLAUSIBLE_URL: ${PLAUSIBLE_URL:-}
       PLAUSIBLE_SITE: ${PLAUSIBLE_SITE:-}
-      # Buffer : lecture des statistiques des publications (jamais de publication). Vide = saisie à la main.
+      # Buffer : clé d'accès. Elle sert à lire les statistiques et à PUBLIER en brouillon (jamais publié tout seul : tout reste en brouillon dans Buffer tant que le réglage ne passe pas à « Programmer »). Vide : essai, rien n'est envoyé, statistiques saisies à la main.
       BUFFER_API_KEY: ${BUFFER_API_KEY:-}
+      # Zernio : clé d'accès (lecture-écriture, un seul profil). Sans clé : aucun envoi par Zernio, tout reste par Buffer.
+      ZERNIO_API_KEY: ${ZERNIO_API_KEY:-}
+      # Parcours « mot en commentaire → e-mail → guide » : INERTE tant que les interrupteurs sont vides. Les secrets se posent sur le serveur par saisie masquée, jamais dans un dépôt.
+      ZERNIO_WEBHOOK_SECRET: ${ZERNIO_WEBHOOK_SECRET:-}
+      SITE_GUIDES_RESEAU_SECRET: ${SITE_GUIDES_RESEAU_SECRET:-}
+      PARCOURS_MOT_ENABLED: ${PARCOURS_MOT_ENABLED:-}
+      MOTS_ENABLED: ${MOTS_ENABLED:-}
+      A_TRAITER_ENABLED: ${A_TRAITER_ENABLED:-}
+      # Parcours « conversation » : INERTE tant que l'interrupteur est vide. Empreinte des personnes : secret de 32 caractères au moins, posé sur le serveur par saisie masquée ; les anciens (3 au plus, séparés par des virgules) ne servent qu'à reconnaître.
+      PARCOURS_CONVERSATION_ENABLED: ${PARCOURS_CONVERSATION_ENABLED:-}
+      # Comptes autorisés à ENVOYER (identifiants Zernio séparés par des virgules ; seuls les comptes Instagram et Facebook reliés comptent) et titre exact du guide inséré dans les messages. Vides = aucun envoi.
+      PARCOURS_CONVERSATION_COMPTES: ${PARCOURS_CONVERSATION_COMPTES:-}
+      PARCOURS_CONVERSATION_TITRE_GUIDE: ${PARCOURS_CONVERSATION_TITRE_GUIDE:-}
+      STUDIO_EMPREINTE_SECRET: ${STUDIO_EMPREINTE_SECRET:-}
+      STUDIO_EMPREINTE_SECRET_ANCIEN: ${STUDIO_EMPREINTE_SECRET_ANCIEN:-}
+      # Lien de la page guide dans le 1er message privé : INERTE tant que l'interrupteur est vide. Le secret du lien doit avoir la même valeur que GUIDES_RESEAU_LIEN_SECRET côté site (posé par saisie masquée, jamais dans un dépôt). Comptes : « idCompteZernio=nom_court » séparés par des virgules.
+      PARCOURS_LIEN_GUIDE: ${PARCOURS_LIEN_GUIDE:-}
+      GUIDES_RESEAU_LIEN_SECRET: ${GUIDES_RESEAU_LIEN_SECRET:-}
+      LIEN_GUIDE_COMPTES: ${LIEN_GUIDE_COMPTES:-}
+      # Message de remerciement après la page guide, et réduction des identifiants bruts après clôture : INERTES tant que vides.
+      PARCOURS_MERCI_ENABLED: ${PARCOURS_MERCI_ENABLED:-}
+      PARCOURS_REDUCTION_IDS: ${PARCOURS_REDUCTION_IDS:-}
+      # Origine v3 des commentaires : éteinte (vide) ; préfixes de NOS comptes pour la garde post_url (vide = origine v3 refusée, corps v1).
+      ORIGINE_V3_ENABLED: ${ORIGINE_V3_ENABLED:-}
+      ORIGINE_V3_PREFIXES_COMPTES: ${ORIGINE_V3_PREFIXES_COMPTES:-}
       # Adresse publique du studio dans les e-mails de secours (vide = https://studio.axion-ia.com).
       STUDIO_ADRESSE: ${STUDIO_ADRESSE:-}
       # Point d'envoi ZeptoMail des e-mails de secours (vide = https://api.zeptomail.eu/v1.1/email).

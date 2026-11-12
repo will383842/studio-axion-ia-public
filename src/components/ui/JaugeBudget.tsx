@@ -1,6 +1,5 @@
 import type { Montant } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 
 /** Jauge du budget du mois : anneau + gros chiffre. Ambre ≥ 80 %, brique ≥ 100 %. */
 export function JaugeBudget({ depense, budget, compacte, className }: { depense: Montant; budget: Montant; compacte?: boolean; className?: string }) {
@@ -27,8 +26,8 @@ export function JaugeBudget({ depense, budget, compacte, className }: { depense:
         <span className={cn("absolute inset-0 grid place-items-center font-titre tabular-nums text-texte", compacte ? "text-sm" : "text-lg")}>{pct}%</span>
       </div>
       <div className="min-w-0">
-        <p className={cn("font-titre tabular-nums text-texte", compacte ? "text-xl" : "text-3xl")}>{formaterMontant(depense, { court: true })}</p>
-        <p className="text-sm text-texte-doux">sur {formaterMontant(budget, { court: true })} ce mois</p>
+        <p className={cn("font-titre tabular-nums text-texte", compacte ? "text-xl" : "text-3xl")}>{pct} %</p>
+        <p className="text-sm text-texte-doux">du budget du mois</p>
       </div>
     </div>
   );

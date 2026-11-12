@@ -157,8 +157,8 @@ describe("le cas réel du 12/10", () => {
     const [ecrit] = regleDouleurEnTete(fiche, contexte);
     expect(ecrit.detail).toBe("aucun mot de la douleur n'est écrit dans la première scène : écrivez dans une de ses lignes un des mots « dix-neuf heures », « passée », « journée ».");
     expect(regleGesteFortDouleur(fiche, contexte)[0].detail).toContain("entourez ou barrez, au début de la première scène, une ligne qui écrit un des mots « dix-neuf heures », « passée », « journée »");
-    // Trop long (estimation à débit injecté plus lent) : le nombre de caractères à retirer.
-    const [duree] = regleDureeMaximale(fiche, { ...contexte, caracteresParSeconde: 15 });
+    // Trop long (estimation à débit injecté plus lent, 5 car/s : le plafond est passé à 180 s) : le nombre de caractères à retirer.
+    const [duree] = regleDureeMaximale(fiche, { ...contexte, caracteresParSeconde: 5 });
     expect(duree.detail).toMatch(/raccourcissez le texte dit d'au moins \d+ caractères \(environ \d+ mots\)\.$/);
   });
 });

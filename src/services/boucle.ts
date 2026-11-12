@@ -39,12 +39,14 @@ import { depots, ecrireParametre, horodatage, journaliser, lireParametre, mainte
 import { ligneSimulee } from "./couts";
 import { surveillerCredits } from "./credits";
 import { synchroniserEtatsBuffer } from "./buffer";
+import { synchroniserEtatsZernio } from "./zernio";
 import { diffuserNotifications } from "./notifications";
 // Facecam lot E : raccords de la chaîne vidéo (agent monteur, Décor IA, relecture), posés au chargement.
 import "./facecam-branchements";
 import "./avocat-branchements";
 import "./tableau-branchements";
 import "./cas-concret-branchements";
+import "./tutoriel-branchements";
 import "./image-video";
 import "./facecam-animee";
 import { avecDelai, ecrireAvancement, ecrireAvancementTardif, ecrirePanne, executerSuites, lireTravauxAAvancer, rattraperFinitions, type ChoixMoteur, type SuiteFabrication } from "./travaux";
@@ -224,6 +226,8 @@ export interface OptionsTour {
   delai?: (t: Travail) => number;
   /** Lecture des états Buffer (injection pour les tests ; défaut : `synchroniserEtatsBuffer`). */
   synchroBuffer?: () => Promise<unknown>;
+  /** Lecture des états Zernio (injection pour les tests ; défaut : `synchroniserEtatsZernio`). */
+  synchroZernio?: () => Promise<unknown>;
 }
 
 /** Le contenu d'un tour (sans le drapeau). `choisirMoteur`, `delai`, `synchroBuffer` : injection pour les tests. */
@@ -300,6 +304,12 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   // Lot R1 : états des publications Buffer (au plus toutes les 15 min ; lectures HORS verrou, jamais un envoi).
   // Audit D, B9 : HORS du tour (jusqu'à 50 lectures de 30 s) ; une seule synchronisation à la fois.
   void lancerAnnexe("synchronisation Buffer", options.synchroBuffer ?? (() => synchroniserEtatsBuffer()), 0);
+  void lancerAnnexe("synchronisation Zernio", options.synchroZernio ?? (() => synchroniserEtatsZernio()), 0);
+  // Parcours « mot → e-mail → guide » (PV-2) : outbox du crochet Zernio → site. Éteint par défaut : aucun appel sortant.
+  void lancerAnnexe("parcours mot → guide", async () => (await import("./parcours-mot")).traiterOutboxZernio(), 0);
+  // Parcours de conversation (lot 4c) : commentaire GUIDE → message privé → adresse ; « stop » transmis au site. Éteint : retour immédiat
+  // (aucun import du port, aucune écriture). HORS du tour ; une erreur est journalisée et ne casse jamais le tour.
+  void lancerAnnexe("parcours de conversation", async () => (await import("./branchements-zernio")).passageParcoursZernio(), 0);
   // Tableau animé : écriture du script et découpage en scènes (plusieurs minutes) HORS du tour, une seule fois à la fois.
   void lancerAnnexe("tâches du tableau animé", async () => (await import("./tableau-creation")).travaillerTachesTableau(), 0);
   // Comité éditorial des idées (éteint par défaut, réglage `idees.comite`) : lot groupé à moitié prix, HORS du tour.

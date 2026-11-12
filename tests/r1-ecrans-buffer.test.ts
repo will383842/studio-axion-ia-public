@@ -35,11 +35,21 @@ const rendre = (v: VueBuffer) => renderToStaticMarkup(createElement(BlocBuffer, 
 const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
 
 describe("R1 — bloc Buffer (Réglages)", () => {
+  // Décision de Williams du 08/11 : jamais « Zernio », « Buffer » ni « API » dans un libellé visible des Réglages.
+  it("aucun libellé du bloc ne nomme l'outil ni « API » (décision de Williams du 08/11)", () => {
+    // Le problème d'un compte vient du domaine (message partagé avec « À publier ») : hors du périmètre de ce contrôle.
+    const reseaux = vue().reseaux.map((r) => ({ ...r, probleme: undefined }));
+    for (const v of [vue({ reseaux }), vue({ reseaux, relie: false, clePresente: false }), vue({ reseaux, relie: false, clePresente: true })]) {
+      expect(texte(rendre(v))).not.toMatch(/zernio|buffer|\bapi\b/i);
+    }
+  });
+
+  // Libellés mis à jour selon la décision de Williams du 08/11 : jamais « Buffer », « Zernio » ni « API » dans un libellé visible.
   it("relié, brouillon par défaut : la phrase, le choix du mode, les comptes, les problèmes, le choix LinkedIn", () => {
     const t = texte(rendre(vue()));
     expect(t).toContain("Relié");
-    expect(t).toContain("Les vidéos arrivent en brouillon dans Buffer : vous les relisez et les programmez dans Buffer.");
-    expect(t).toContain("Brouillon dans Buffer");
+    expect(t).toContain("Les vidéos arrivent en brouillon dans l'outil de programmation : vous les relisez et les programmez là-bas.");
+    expect(t).toContain("Brouillon dans l'outil");
     expect(t).toContain("Programmer directement");
     expect(t).toContain("Axion IA");
     expect(t).toContain("Aucun compte TikTok n'est relié dans Buffer.");
@@ -54,7 +64,7 @@ describe("R1 — bloc Buffer (Réglages)", () => {
   it("sans clé : « À relier », « il manque la clé Buffer » (jamais un nom de réglage ni une valeur) ; clé posée mais non choisie : « Essai »", () => {
     const sans = texte(rendre(vue({ relie: false, clePresente: false })));
     expect(sans).toContain("À relier");
-    expect(sans).toContain("Il manque la clé Buffer sur le serveur.");
+    expect(sans).toContain("Il manque la clé de l'outil de programmation sur le serveur.");
     expect(sans).not.toMatch(/BUFFER_API_KEY|\b[A-Z][A-Z0-9_]{3,}\b/);
     expect(texte(rendre(vue({ relie: false, clePresente: true })))).toContain("Essai");
     expect(rendre(vue())).not.toContain(CLE);

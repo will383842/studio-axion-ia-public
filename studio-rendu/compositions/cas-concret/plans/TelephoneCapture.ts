@@ -136,7 +136,7 @@ function planTelephoneCaptureV4(p: ContexteObjet) {
   const diametre = 110 * (ecran.largeur / 442);
   return {
     ...cadre,
-    fondEcran: c && c.sorte === "image" ? COULEURS_DUO.nuit : COULEURS_DUO.blanc,
+    fondEcran: c && c.sorte === "image" ? COULEURS_DUO.nuit : COULEURS_DUO.carte,
     capture,
     onde: {
       x: ecran.largeur * POINT_TOUCHE.x,

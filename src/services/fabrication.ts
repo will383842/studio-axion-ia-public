@@ -28,11 +28,13 @@ import type {
 } from "@/domaine/types";
 import { centimesBloquants } from "@/domaine/credits";
 import { motsSousTitres, plansDepuisScript, texteScript } from "@/domaine/derivations";
+import { decorParDefaut } from "@/domaine/decors";
 import { baseRetenue, fabriquerSousTitres } from "@/briques/sous-titres";
 import { resoudreVisagesParAngle, visagePourFormat } from "@/domaine/distribution";
 import { prononciationsActives } from "@/domaine/prononciations";
 import { empreinteDesBlocs, relectureAExiger } from "@/domaine/relecture-assistant";
-import { accordDuFormat, briquesEffectives, dureeVideo, migrerReglages, musiqueRetenue, debitLecture, nomCourtFormat, obtenirFormat, scriptAJour, trouverFormat, validerReglages } from "@/formats";
+import { renduCouleurDe } from "@/briques/charte/rendu-couleur";
+import { accordDuFormat, briquesEffectives, dureeVideo, migrerReglages, musiqueRetenue, styleParDefautRetenu, debitLecture, nomCourtFormat, obtenirFormat, scriptAJour, trouverFormat, validerReglages } from "@/formats";
 import { repartitionDepuisReglages } from "@/formats/communs";
 import type { DefinitionFormat } from "@/formats/types";
 import { resoudreFournisseur } from "@/fournisseurs";
@@ -48,7 +50,7 @@ import { doubleDejaRenduDepuis, partDoubleReel } from "@/domaine/double-reel";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { nouvelId } from "@/lib/ids";
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
-import { additionner, centimes, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { additionner, centimes, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { depots, ressourceActive, ErreurStudio, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { prochainNumeroSuivi } from "@/donnees/memoire";
 import { NUMERO_DEMO_MIN } from "./generateur";
@@ -57,8 +59,9 @@ import { preparerReglagesMoteur } from "./cas-concret-reglages";
 import { avecSerieALEcran } from "./series";
 import { complementsGenerateur, type TexteRelu } from "./fabrication-reseaux";
 import { ligneSimulee, resumeBudget } from "./couts";
+import { familleDe } from "@/domaine/journal-echecs";
 import { depenserSelonOrigine, libererReservation, verifierEtReserverSelonOrigine } from "./credits";
-import { budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif, budgetIndicatifPour } from "./mode-budget";
 import { reglageIntensite } from "@/briques/intensite/reglage";
 import { bruitagesDeLaCommande } from "./bruitages";
 import { appliquerProduitsDuMoteur } from "./travaux";
@@ -89,29 +92,32 @@ function styleResolu<V extends ValeurElement>(e: ElementBibliotheque | null | un
 
 async function stylesResolus(video: Video, format: DefinitionFormat): Promise<StylesResolus> {
   const d = depots();
-  const def = format.stylesParDefaut;
+  // Rendu de couleur : UNE table (GV-LU-01). Ordre : choix de la vidéo > étoile > table.
+  const rendu = renduCouleurDe(format.id);
+  const formatLut = { ...format, stylesParDefaut: { ...format.stylesParDefaut, lut: rendu.lut ?? undefined } };
   // Ancien champ `fondId` (vidéos d'avant la fusion fond → décor) : lu tant que la migration ne l'a pas renommé.
   const ancienFond = (video.styles as { fondId?: string }).fondId;
-  // Priorité : choix de la vidéo > défaut du format (le plan et le visage priment au montage).
+  // Priorité : choix de la vidéo > style étoilé dans la Bibliothèque > défaut du code (le plan et le visage priment au montage).
+  const tous = await d.elements.lister();
   const ids = {
-    lut: video.styles.lutId ?? def.lut,
-    sousTitres: video.styles.sousTitresId ?? def.sousTitres,
-    habillage: video.styles.habillageId ?? def.habillage,
-    styleMontage: video.styles.styleMontageId ?? def.styleMontage,
-    profilSon: video.styles.profilSonId ?? def.profilSon,
-    decor: video.styles.decorId ?? ancienFond ?? def.decor,
+    lut: styleParDefautRetenu(formatLut, "lut", video.styles.lutId, tous),
+    sousTitres: styleParDefautRetenu(format, "sousTitres", video.styles.sousTitresId, tous),
+    habillage: styleParDefautRetenu(format, "habillage", video.styles.habillageId, tous),
+    styleMontage: styleParDefautRetenu(format, "styleMontage", video.styles.styleMontageId, tous),
+    profilSon: styleParDefautRetenu(format, "profilSon", video.styles.profilSonId, tous),
+    // Décor : N1 Halo orange prime sur l'étoile pour l'avocat (règle existante `decorParDefaut`).
+    decor: video.styles.decorId ?? ancienFond ?? decorParDefaut(format.id, tous, styleParDefautRetenu(format, "decor", undefined, tous)),
   };
   const obtenir = async (id?: string) => (id ? await d.elements.obtenir(id) : null);
   const resoudre = async <V extends ValeurElement>(id?: string) => (id ? styleResolu<V>(await obtenir(id), id) : undefined);
   // UNE règle de musique, la même que l'écran Style ; jamais de musique si le format l'interdit (avocat).
-  const elementsMusique = await d.elements.lister((e) => e.type === "musique");
-  const musique = musiqueRetenue(format, video.styles.musiqueId, elementsMusique);
+  const musique = musiqueRetenue(format, video.styles.musiqueId);
   const lut = ids.lut && ids.lut !== LUT_AUCUNE ? await obtenir(ids.lut) : null;
   return {
     lut: ids.lut
       ? {
           ...(ids.lut === LUT_AUCUNE ? { id: LUT_AUCUNE, nom: "Sans LUT" } : styleResolu<Extract<ValeurElement, { type: "lut" }>>(lut, ids.lut)),
-          intensite: video.styles.intensiteLut ?? def.intensiteLut ?? 70,
+          intensite: video.styles.intensiteLut ?? rendu.intensite,
           cible: video.styles.cibleLut ?? ["personnage", "illustrations", "rushs", "decor", "accessoire"],
           // Priorité plan > vidéo > visage > format (lot M4) : le moteur sait si la LUT vient de la vidéo.
           origine: video.styles.lutId ? ("video" as const) : ("format" as const),
@@ -575,7 +581,7 @@ export async function apercuFabrication(videoId: Id): Promise<ApercuFabrication>
     estimation,
     // Lot R7 : le double réel exige toujours la confirmation de son prix (même règle que `verifierBudgetEtCredits`).
     // Lot R8 : une vidéo montée pour de vrai par l'interrupteur montre et fait confirmer son prix à chaque lancement.
-    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: bloquant > b.seuilConfirmation.centimes || !!partDoubleReel(estimation.lignes) || montageReel, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
+    budget: { restant: b.restant, depasse: restantApres < 0 && !indicatif, indicatif, depasseIndicatif: restantApres < 0 && indicatif, bloquant: { centimes: bloquant, devise: "EUR" }, confirmationRequise: false, seuil: b.seuilConfirmation, double: partDoubleReel(estimation.lignes), montageReel },
     etapes: moteur.etapes(commande).map((e) => ({ cle: e.cle, nom: e.nom, icone: e.icone })),
     essaiGratuit: commandeEnEssai(commande) && !montageReel && !partDoubleReel(estimation.lignes) && estimation.lignes.every((l) => ligneSimulee(l) || l.total.centimes <= 0),
     ...(textesReseaux ? { textesReseaux } : {}),
@@ -839,6 +845,9 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   // Lot R7d : un montage réel ne part jamais avec le double d'essai (refus clair, avant toute réservation).
   const refus = moteur.refusAuLancement?.(commande);
   if (refus) throw new ErreurStudio(refus.code, refus.message);
+  // Vérification GRATUITE du double / look de décor / voix HeyGen, avant toute estimation et réservation.
+  const aVerifier = moteur.heygenAVerifier?.(commande);
+  if (aVerifier) await (await import("./verification-heygen")).verifierHeygenAvantPaiement(aVerifier);
   // Lot R2 : les textes des réseaux (Claude, à la fin) sont comptés dans le total engagé, sans jamais bloquer le lancement.
   const { textesReseaux: _textes, ...estimation } = await avecTextesDesReseaux(videoId, await moteur.estimer(commande), commande);
   void _textes;
@@ -850,10 +859,12 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   if (await montageReelDeLaCommande(commande)) {
     // Paquet 4 (D2) : l'accord porte le montant vu ; un prix du jour plus haut redemande l'accord.
     // Seconde relecture (R2) : au-delà du seuil, seul le MONTANT vu couvre ce prix (`true` ne suffit plus).
-    if (!accordCouvre(accordPropre(options.confirme), estimation.total.centimes, (await resumeBudget()).seuilConfirmation.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera montée pour de vrai : ${formaterMontant(estimation.total)}. Confirmez pour continuer.`, estimation.total.centimes);
+    // Règle « le prix ne bloque jamais » : en mode indicatif (commande de l'utilisateur), le prix du jour vaut accord.
+    const accordMontage = await accordAutomatique(accordPropre(options.confirme), estimation.total.centimes, { origine: options.origine, videoId, signaler: !accordCouvre(accordPropre(options.confirme), estimation.total.centimes, 0) });
+    if (!accordCouvre(accordMontage, estimation.total.centimes, (await resumeBudget()).seuilConfirmation.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera montée pour de vrai (payant). Confirmez pour continuer.`, estimation.total.centimes);
     // Correcteur R8 n° 1 : un accord donné plus tôt pour un autre moteur (l'essai) ne vaut pas pour le montage réel.
-    if (options.confirmationDifferee && options.confirmationDifferee.moteurId !== commande.moteurId) {
-      throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera maintenant montée pour de vrai : ${formaterMontant(estimation.total)}. Ouvrez-la pour voir ce prix et confirmer.`, estimation.total.centimes);
+    if (options.confirmationDifferee && options.confirmationDifferee.moteurId !== commande.moteurId && !(await budgetIndicatifPour(options.origine))) {
+      throw new ErreurStudio("CONFIRMATION_REQUISE", `Cette vidéo sera maintenant montée pour de vrai (payant). Ouvrez-la pour confirmer.`, estimation.total.centimes);
     }
   }
   const travailId = nouvelId("trav");
@@ -862,12 +873,26 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   // L3-01 : l'origine est FIGÉE dans la commande (retouches, formats et relances la relisent) ; « usine » → `reserverPourUsine`.
   if (options.origine) commande.origine = options.origine;
   await verifierEtReserverSelonOrigine(commande.origine, estimation, accordDuFormat(commande.formatId, options.confirme), "Cette vidéo", { videoId, travailId });
+  let lance: { travailId: Id; versionId: Id };
   try {
-    return await creerFabrication(video, commande, moteur, estimation, travailId);
+    lance = await creerFabrication(video, commande, moteur, estimation, travailId);
   } catch (e) {
     await libererReservation(travailId, "liberee");
     throw e;
   }
+  // GV-EC-01e : le nouveau travail est parti ; un ancien travail de cette vidéo qui attendait la validation (réservation
+  // gardée par GV-EC-01b) ne repartira plus tel quel : sa réservation est rendue (une fois ; idempotent). Après le lancement
+  // et non avant : si le lancement échoue, l'ancien garde la sienne. L'ancien travail reste « echec » (aucun statut nouveau).
+  for (const ancien of await d.travaux.lister((t) => t.cibleId === videoId && t.id !== travailId && t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation")) {
+    // GV-EC-01f : le nouveau travail est déjà parti ; une panne ici ne doit pas faire croire à un échec (la suppression
+    // ou la corbeille rendent cette réservation plus tard). Journalisé sans montant.
+    try {
+      await libererReservation(ancien.id, "liberee");
+    } catch (e) {
+      console.error("[fabrication] réservation de l'ancien travail non rendue (rattrapée plus tard)", ancien.id, e instanceof Error ? e.name : "erreur");
+    }
+  }
+  return lance;
 }
 
 /** L0a : format dont le moteur rend lui-même les sous-titres du texte dit (aucun sous-titre « de lancement »). */
@@ -1062,7 +1087,7 @@ export async function parentDeLaVersion(version: VersionVideo): Promise<ParentRe
 }
 
 /** CORRECTEUR 1 — B1 : phrase montrée à Will quand la retouche d'un passage n'existe pas encore pour cette vidéo. */
-export const RETOUCHE_PAS_DISPONIBLE = "La retouche d'un passage n'est pas encore disponible pour cette vidéo. Votre vidéo reste telle quelle.";
+export const RETOUCHE_PAS_DISPONIBLE = "Refaire une seule phrase n'est pas possible pour ce format : pour ce changement, il faut refaire la vidéo. Votre vidéo reste telle quelle."; // même texte que `domaine/voix-phrases` (tests/lot-e le vérifie) ; littéral ici pour la garde écran
 
 /** Retouche ciblée d'un ou plusieurs plans : nouvelle version, seuls ces plans sont repayés. Le moteur de la version fait foi. */
 /**

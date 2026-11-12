@@ -93,7 +93,7 @@ export function RelireVersions({ sujetId, varianteId, lignes, debit, formatId, b
       debit={debit}
       texteLibre
       observation={observation}
-      action={but === "modifier" ? { libelle: "Enregistrer · 0 €", icone: "coche" } : undefined}
+      action={but === "modifier" ? { libelle: "Enregistrer", icone: "coche" } : undefined}
       apresLancement={() => {
         router.push(suite.current);
         router.refresh();

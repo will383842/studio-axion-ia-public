@@ -165,6 +165,13 @@ describe("mise en page, dans les quatre sorties", () => {
 });
 
 describe("animation (heures d'une voix réaliste)", () => {
+  it("page d'appel facultative : sans la page appel-plein, signalée par défaut, tolérée avec l'option", () => {
+    const sansAppel = proprietesDe().map((p) => ({ ...p, page: { ...p.page, elements: p.page.elements.filter((e) => e.gabarit?.sorte !== "appel-plein") } }));
+    const fautes = (c: ReturnType<typeof controlerAnimation3>, lib: string[]) => c.filter((x) => lib.includes(x.libelle)).flatMap((x) => x.fautes.map((f) => f.message));
+    expect(fautes(controlerAnimation3(sansAppel), ["Appel lisible"]).join(" ")).toContain("aucune page d'appel plein cadre");
+    expect(fautes(controlerAnimation3(sansAppel, { pageAppelFacultative: true }), ["Appel lisible", "Appel à l'heure et animé"])).toEqual([]);
+  });
+
   it("contrôles : accroche pleine à 0 s, blocs écrits à l'heure, aucune page vide, appel lisible ≥ 2,5 s — dans les quatre sorties", () => {
     for (const format of IDS_FORMATS_SORTIE) {
       const c = controlerAnimation3(proprietesDe(format));

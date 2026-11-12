@@ -24,8 +24,8 @@ export function PX({ pages }: ProprietesParcours) {
     <>
       <svg data-decor="" width={largeur} height={1350} viewBox={`0 0 ${largeur} 1350`} style={{ position: "absolute", left: 0, top: 0 }} aria-hidden>
         <path d={ROUTE} fill="none" stroke={C.encre} strokeOpacity={0.07} strokeWidth={64} strokeLinecap="round" />
-        <path d={ROUTE} fill="none" stroke={C.orange} strokeWidth={20} strokeLinecap="round" />
-        {BOUTS.map(([x, y]) => <circle key={x} cx={x} cy={y} r={22} fill={C.orange} />)}
+        <path d={ROUTE} fill="none" stroke={C.accentClair} strokeWidth={20} strokeLinecap="round" />
+        {BOUTS.map(([x, y]) => <circle key={x} cx={x} cy={y} r={22} fill={C.accentClair} />)}
       </svg>
       {ETAPES.map((e, j) => (
         <Pose key={e.icone} x={e.x - 54} y={e.y - 54}>
@@ -34,7 +34,7 @@ export function PX({ pages }: ProprietesParcours) {
       ))}
       {pages.map((p, j) => (
         <Carte key={String(p.type)} variante={j === 1 ? "pl" : ""} style={{ position: "absolute", left: j * LARGEUR_PAGE + 80, top: ETAPES[j].carte, width: 920, padding: "34px 40px", display: "flex", gap: 34, alignItems: "center" }}>
-          <span style={{ ...police(800, 110, 1, POLICE_TITRE), color: C.orange, width: 70, flex: "none" }}>{j + 1}</span>
+          <span style={{ ...police(800, 110, 1, POLICE_TITRE), color: C.accentClair, width: 70, flex: "none" }}>{j + 1}</span>
           <div>
             <b style={{ ...police(800, 54, 1, POLICE_TITRE), letterSpacing: "-0.035em", display: "block", color: C.encre }}>{String(p.titre)}</b>
             <Texte taille={31} style={{ marginTop: 12, color: alpha(C.encre, 0.78) }}>{String(p.texte)}</Texte>

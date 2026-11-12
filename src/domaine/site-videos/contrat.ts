@@ -82,9 +82,12 @@ export function corpsPasseport(e: EntreeCorpsPasseport): CorpsPasseport {
   };
 }
 
-/** Chaîne signée de chaque appel (§ 7.2) : `<horodatage>.<nonce>.<MÉTHODE>.<chemin>.<sha256 hex du corps>`. */
+/**
+ * Chaîne signée de chaque appel, forme « v1 » du site (`src/server/videos/signature.ts` du dépôt du site) :
+ * `v1\n<horodatage>\n<nonce>\n<MÉTHODE>\n<chemin>\n<sha256 hex du corps>` (sauts de ligne, méthode en majuscules).
+ */
 export function chaineASigner(e: { horodatage: string; nonce: string; methode: string; chemin: string; sha256Corps: string }): string {
-  return `${e.horodatage}.${e.nonce}.${e.methode}.${e.chemin}.${e.sha256Corps}`;
+  return ["v1", e.horodatage, e.nonce, e.methode.toUpperCase(), e.chemin, e.sha256Corps].join("\n");
 }
 
 /* ------------------------------------------------------------------ */

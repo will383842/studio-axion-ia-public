@@ -251,7 +251,7 @@ describe("pré-vol bloquant", () => {
     await depots().recharges.enregistrer({ id: "r1", fournisseur: "anthropic", centimes: 5000, devise: "USD", date: new Date().toISOString(), creeLe: "", modifieLe: "" });
     const erreur = await credits.verifierBudgetEtCredits({ lignes: [voix10k, script], total: centimes(290) }, true, "Cette vidéo").catch((e) => e);
     expect(erreur).toMatchObject({ code: "CREDIT_INSUFFISANT" });
-    expect(erreur.message).toMatch(/^Crédit HeyGen insuffisant : il reste 2,10\s\$, cette vidéo demande ≈ 3,60\s\$\.$/);
+    expect(erreur.message).toMatch(/^Crédit HeyGen insuffisant pour cette vidéo : rechargez le compte HeyGen, puis relancez\.$/);
     expect(heygen.lectures).toBe(1); // une lecture gratuite du solde, rien d'autre
     expect(reseauClaude.n).toBe(0);
   });
@@ -264,7 +264,7 @@ describe("pré-vol bloquant", () => {
     // Claude (1,20 $ demandés, 1,00 $ déclaré) ne pèse pas : le refus vient de HeyGen seul.
     await expect(credits.verifierBudgetEtCredits({ lignes: [voix10k, script], total: centimes(290) }, true, "Cette retouche")).rejects.toMatchObject({
       code: "CREDIT_INSUFFISANT",
-      message: expect.stringMatching(/^Crédit HeyGen insuffisant : il reste 2,10\s\$, cette retouche demande ≈ 3,60\s\$\.$/),
+      message: expect.stringMatching(/^Crédit HeyGen insuffisant pour cette retouche : rechargez le compte HeyGen, puis relancez\.$/),
     });
     expect(reseauClaude.n).toBe(0);
   });
@@ -282,8 +282,10 @@ describe("pré-vol bloquant", () => {
     expect(await depots().notifications.trouver((n) => n.type === "credit" && n.titre === "Clé HeyGen refusée")).toBeTruthy();
   });
 
-  it("le budget du mois reste vérifié en premier, à l'identique", async () => {
-    await expect(credits.verifierBudgetEtCredits({ lignes: [], total: centimes(10_000_000) }, true, "Cette vidéo")).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+  it("le budget du mois n'arrête plus rien (08/11/2026) : dépassé, il prévient seulement, même avec le réglage « bloquant »", async () => {
+    await (await import("@/services/_commun")).ecrireParametre("budget.mode", "bloquant");
+    await expect(credits.verifierBudgetEtCredits({ lignes: [], total: centimes(10_000_000) }, true, "Cette vidéo")).resolves.toBeUndefined();
+    expect((await depots().notifications.lister()).filter((n) => n.type === "credit" && /indicatif/i.test(n.titre))).toHaveLength(1);
   });
 });
 

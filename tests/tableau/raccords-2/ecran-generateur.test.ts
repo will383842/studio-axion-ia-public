@@ -1,6 +1,6 @@
 /**
  * ÉCRAN « NOUVELLE VIDÉO · TABLEAU ANIMÉ » (11/10) : les deux chemins (« J'ai déjà mon texte », « Écrire le script pour
- * moi ») ; l'écriture refusée par le serveur sans confirmation du coût ; le résultat (accroches, script, note, points à
+ * moi ») ; le service annonce le coût, l'action ne demande plus de confirmation (lot H) ; le résultat (accroches, script, note, points à
  * préparer, refus) ; une autre accroche relance l'écriture seule ; « Utiliser ce script » remplit le texte ; à la
  * fabrication, les réseaux deviennent les sorties, le mot à commenter et la trace du script sont transmis ; les
  * raccords posent la fin de chaque sortie avec le mot, et la trace écrite par la fabrication arrive en base ; la page
@@ -118,7 +118,7 @@ async function ecrireEtAttendre(demande: unknown, options: Parameters<typeof cre
 }
 
 describe("« Écrire le script pour moi » : le service", () => {
-  it("refusé sans confirmation du coût : rien n'est écrit, aucun appel, aucun brouillon", async () => {
+  it("service sans montant : coût annoncé, rien n'est écrit ; l'action (écran) ne demande plus de confirmation, elle va jusqu'à Claude", async () => {
     const { client, requetes } = clientSimule([ANGLE, ecritureModele(), relecture(ecritureModele())]);
     const cout = await prix();
     expect(cout).toBeGreaterThan(0);
@@ -126,8 +126,9 @@ describe("« Écrire le script pour moi » : le service", () => {
       const r = await creation.ecrireScriptTableau(DEMANDE, { accord }, { client });
       expect(r).toMatchObject({ statut: "accord-requis", centimes: cout });
     }
-    // Par l'action aussi (le chemin de l'écran) : sans montant, rien ne part.
-    expect(await ecrireScriptTableauAction(DEMANDE)).toMatchObject({ ok: true, donnees: { statut: "accord-requis" } });
+    // Par l'action (le chemin de l'écran) : lot H, plus de confirmation de prix, l'accord est donné d'office ; ici Claude
+    // n'est pas relié (aucun client), donc refus clair, rien n'est écrit ni payé.
+    expect(await ecrireScriptTableauAction(DEMANDE)).toMatchObject({ ok: true, donnees: { statut: "refusee", phrase: expect.stringMatching(/pas relié/) } });
     expect(requetes).toHaveLength(0);
     expect(await depots().videos.compter((v) => v.formatId === "tableau-anime")).toBe(0);
     expect(await depots().tracesScriptsTableau.compter()).toBe(0);
@@ -233,7 +234,7 @@ describe("l'écran : deux chemins", () => {
     expect(html).toMatch(/Note : \d+ sur 10/);
     expect(html).toContain("À préparer avant de publier");
     expect(html).toContain("Utiliser ce script");
-    expect(html).toMatch(/au plus\)/);
+    expect(html).not.toMatch(/au plus\)|\d\s*€/);
   });
 });
 

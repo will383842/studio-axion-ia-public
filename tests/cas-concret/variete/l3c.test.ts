@@ -1,6 +1,6 @@
 /**
  * L3c · fond fort, particules, lueur et barres proportionnelles : variations déterministes selon le tirage ; sans jeu
- * (ou tirage v4) : plans, fond et déclinaison IDENTIQUES à la v4 (empreintes épinglées depuis origin/master) ; jamais
+ * (ou tirage v4) : plans, fond et déclinaison IDENTIQUES à la v4 (empreintes épinglées depuis origin/master, re-épinglées au lot L0 (PR 280) : seules les valeurs de COULEURS_DUO changent ; preuve : rejeu à palette master, 0 écart sur 144) ; jamais
  * de chiffre inventé (les textes des barres restent ceux de la fiche, seule leur longueur suit les nombres écrits).
  */
 import { createHash } from "node:crypto";
@@ -58,7 +58,8 @@ describe("L3c · la mise (variete.ts)", () => {
       );
       return { ...m, ecrans };
     });
-    expect(empreinte(mises)).toBe("9d6f9d17cbb83aa2");
+    // Empreinte mise à jour par le lot « variantes visibles » : poids de tirage rééquilibrés (sortie, mot par mot, fond fort), maquette d'ouverture et maquettes rares, pas de sortie sur le dernier écran, `habille`.
+    expect(empreinte(mises)).toBe("271b09a100358c6b");
   });
 
   it("particules recopiées du tirage sur chaque écran, seulement hors v4 ; barres proportionnelles sur le résultat dès que le tirage n'est pas la v4", () => {

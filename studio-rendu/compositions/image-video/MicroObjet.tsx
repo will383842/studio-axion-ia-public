@@ -14,9 +14,9 @@ import type { Fond as NomFond } from "../../../src/briques/ecrans-motion";
 import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { MICRO_OBJETS, microObjet, type NomMicroObjet } from "../../../src/briques/schema-motion/micro-objets";
 import { chargerPoliceAnton, chargerPoliceTitre } from "../commune/polices";
-import { Fond } from "../cas-concret/socle/Fond";
+import { FondIV } from "./variete/fond/FondVarie";
 import { couleursDuFond, doux, famille, graisse, progres, teinte } from "../cas-concret/plans/commun";
-import { Entete } from "./Entete";
+import { EnteteVarie } from "./variete/entete/EnteteVarie";
 import { TemoinSousTitres } from "./TemoinSousTitres";
 import { beneficesGalerie, COMPOSITIONS_MICRO_OBJETS, metaGalerieMicro, planBanqueMicro, planListeMicro, proprietesGalerieMicro, RYTHME_GALERIE_MICRO, type ProprietesGalerieMicro } from "./donnees-galerie-micro";
 import type { ProprietesMicroObjet } from "./micro-objets/commun";
@@ -86,11 +86,11 @@ export function GalerieMicroObjets(p: ProprietesGalerieMicro) {
       : { debut: 0, fin: 99, etiquette: p.liste === "A" ? "Formation Axion-IA" : "Vous gagnez. Concrètement.", titre: "Ce que vous *gagnez*" };
   return (
     <AbsoluteFill>
-      <Fond fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
+      <FondIV fond={p.fond} largeur={p.largeur} hauteur={p.hauteur} />
       <AbsoluteFill style={{ transform: `scale(${p.largeur / 1080})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
         {p.liste === "banque" ? <GrilleBanque t={t} fond={p.fond} /> : <ListeBenefices liste={p.liste} t={t} fond={p.fond} />}
       </AbsoluteFill>
-      <Entete entete={entete} ecoule={t} sortie={0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
+      <EnteteVarie entete={entete} ecoule={t} sortie={0} fond={p.fond} marque={p.marque} largeur={p.largeur} hauteur={p.hauteur} />
       <AbsoluteFill style={{ transform: `scale(${p.largeur / 1080})`, transformOrigin: "0 0", width: 1080, height: 1920 }}>
         <TemoinSousTitres texte={entete.titre} fond={p.fond} />
       </AbsoluteFill>

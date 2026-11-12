@@ -71,7 +71,7 @@ export function CarteBenefice({ benefice, entree, sortie = 0, fond, microObjet }
         </div>
         {p.ligne ? (
           <div style={{ marginTop: 30 }}>
-            <Lignes texte={p.ligne} couleur={sombre ? COULEURS_DUO.grisClair : COULEURS_DUO.gris} police="inter-gras" />
+            <Lignes texte={p.ligne} couleur={sombre ? COULEURS_DUO.grisClair : COULEURS_DUO.encre} police="inter-gras" />
           </div>
         ) : null}
       </div>

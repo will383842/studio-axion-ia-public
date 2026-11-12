@@ -41,7 +41,8 @@ describe("récit visible", () => {
     const t = texte(feuille(vueAvec));
     for (const x of ["De quoi parle la vidéo", avecRecit.recit!.sujet, "La scène", avecRecit.recit!.scene, "L'exemple suivi", avecRecit.recit!.exemple, PHRASE_TEXTE_ECRIT_AU_LANCEMENT]) expect(t).toContain(x);
     expect(t.indexOf("De quoi parle la vidéo")).toBeLessThan(t.indexOf("Les étapes"));
-    expect(PHRASE_TEXTE_ECRIT_AU_LANCEMENT).toBe("Le texte exact dit dans la vidéo est écrit au lancement (compris dans le prix affiché, ≈ 0,5 €) puis relu par vous avant la voix.");
+    expect(PHRASE_TEXTE_ECRIT_AU_LANCEMENT).toBe("Le texte exact dit dans la vidéo est écrit au lancement puis relu par vous avant la voix.");
+    expect(PHRASE_TEXTE_ECRIT_AU_LANCEMENT).not.toMatch(/prix|€/i);
   });
 
   it("la feuille d'un cas sans récit ne change pas : aucun bloc, aucune phrase", () => {

@@ -40,10 +40,12 @@ export function creerFournisseurMiniatureStudioRendu(deps: DependancesMiniature)
       if (!source) return [];
       const n = Math.min(nombre, source.instantsSec.length, source.depots.length);
       // 5 mots au plus sur l'image, quelle que soit la provenance (générateur, titre, saisie) : même règle partout.
-      const texte = couvertureDepuisTitre(couverture?.texte ?? titre);
-      const v2 = source.gabarit === "axion-v2";
+      const v3 = source.gabarit === "image-video-v3";
+      // Image de la vidéo : AUCUN titre sauf celui saisi par Williams (jamais le titre de la vidéo en repli).
+      const texte = v3 ? (couverture?.texte?.trim() ? couvertureDepuisTitre(couverture.texte) : "") : couvertureDepuisTitre(couverture?.texte ?? titre);
+      const v2 = source.gabarit === "axion-v2" || v3;
       // Vignette v2 : un titre qui contient un interdit ne part jamais (journal sans le titre).
-      if (v2 && interditsVignette(texte).length) {
+      if (v2 && texte && interditsVignette(texte).length) {
         console.warn("[rendu] vignette refusée : le titre contient un mot interdit");
         return [];
       }
@@ -59,11 +61,12 @@ export function creerFournisseurMiniatureStudioRendu(deps: DependancesMiniature)
               idRendu: `miniature-${identifiantSur(videoId)}-${d.i + 1}-${marque}`,
               operation: "miniature",
               file: "courte",
-              entrees: { video: source.url },
+              entrees: source.fondPropre ? {} : { video: source.url },
               sortie: d.sortie,
               parametres: {
                 instantSec: d.instant, dureeSec: source.dureeSec, ratio: source.ratio, couverture: texte, motCle: couverture?.motCle ?? "", variante: d.variante,
-                ...(v2 ? { gabarit: "axion-v2", ambiance, mise: mises[d.variante % mises.length], generateur: source.formatId ?? "" } : {}),
+                ...(couverture?.titreCentre === true ? { titreCentre: true } : {}),
+                ...(v2 ? { gabarit: v3 ? "image-video-v3" : "axion-v2", ...(source.fondPropre ? { fondPropre: true } : {}), ambiance, mise: mises[d.variante % mises.length], generateur: source.formatId ?? "" } : {}),
               },
             },
             { delaiMs: deps.delaiMs ?? 120_000, essais: ESSAIS_MINIATURE, attendre: deps.attendre, maintenant: deps.maintenant },
@@ -73,7 +76,7 @@ export function creerFournisseurMiniatureStudioRendu(deps: DependancesMiniature)
       const propositions: PropositionMiniature[] = [];
       faites.forEach((r, k) => {
         const d = demandes[k];
-        if (r.status === "fulfilled") propositions.push({ fichierCle: d.sortie.cle, titre: texte, incrustee: !!texte, instantSec: r.value.mesures?.instant ?? d.instant, variante: d.variante, ...(v2 ? { ambiance, mise: mises[d.variante % mises.length] } : {}) });
+        if (r.status === "fulfilled") propositions.push({ fichierCle: d.sortie.cle, titre: texte, incrustee: !!texte, instantSec: r.value.mesures?.instant ?? d.instant, variante: d.variante, ...(v3 ? { gabarit: "image-video-v3" as const } : {}), ...(v2 ? { ambiance, mise: mises[d.variante % mises.length] } : {}) });
       });
       return propositions;
     },

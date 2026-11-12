@@ -119,7 +119,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
             <BoutonIcone
               icone="etoile"
               libelle={script.favori ? "Retirer des favoris" : "Ajouter aux favoris"}
-              className={script.favori ? "text-orange-vif [&_svg]:fill-current" : undefined}
+              className={script.favori ? "text-accent [&_svg]:fill-current" : undefined}
               onClick={() => void simple(basculerFavoriAction, script.favori ? "Retiré des favoris" : "Ajouté aux favoris")}
             />
             <Menu
@@ -163,7 +163,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
               const courante = v.id === script.id;
               const comparee = v.id === comparerAvec;
               return courante ? (
-                <span key={v.id} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-orange px-4 text-sm font-semibold text-sur-orange">
+                <span key={v.id} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-sur-accent">
                   v{i + 1}
                   <span className="text-xs">{dateCourte(v.creeLe)}</span>
                 </span>
@@ -175,7 +175,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
                   aria-pressed={comparee}
                   className={cn(
                     "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors",
-                    comparee ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte-doux hover:text-texte",
+                    comparee ? "border-accent bg-accent-doux text-accent" : "border-trait bg-surface-1 text-texte-doux hover:text-texte",
                   )}
                 >
                   <Icone nom="calques" size={14} />v{i + 1}
@@ -197,7 +197,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
                 <Link href={`/ecrire/sujets/${script.scriptMaitreId}`}>Retoucher avec Claude, depuis le sujet</Link>
               </Bouton>
             ) : (
-              <p className="text-sm text-texte-faible">Corrigez le texte à la main (0 €), ou écrivez un nouveau sujet dans « Écrire ».</p>
+              <p className="text-sm text-texte-faible">Corrigez le texte à la main, ou écrivez un nouveau sujet dans « Écrire ».</p>
             ))}
           <EditeurBlocs
             formatId={script.formatId}
@@ -218,7 +218,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
           {autre && (
             <motion.aside key={autre.id} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} className="min-w-0 space-y-4 rounded-[20px] border border-dashed border-trait-fort p-3 lg:sticky lg:top-6 lg:self-start">
               <div className="flex items-center gap-2 px-1">
-                <Icone nom="calques" size={16} className="text-orange-vif" />
+                <Icone nom="calques" size={16} className="text-accent" />
                 <span className="text-sm font-semibold text-texte">Version {versions.findIndex((v) => v.id === autre.id) + 1}</span>
                 {autre.notes && <span className="font-titre text-lg tabular-nums text-texte-doux">{autre.notes.globale}</span>}
                 <Bouton asChild variante="fantome" className="ml-auto">

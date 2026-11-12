@@ -32,7 +32,7 @@ export function evenementsComparaison(decl: number[], duree: number): number[] {
 
 export function CarteComparaison({ palette, duree, decl, gauche = "UNE AGENCE", droite = "VOS AGENTS", lignes = ["MOIS 1", "MOIS 2", "MOIS 3"], resultat = "1 HEURE", avecSons = true, titre = "AGENCE OU AGENTS", pastille = "COMPARAISON" }: PropsCarteComparaison) {
   const i = useCurrentFrame();
-  const { ACCENT_1 } = accents(palette);
+  const { ACCENT_1, ACCENT_SOMBRE } = accents(palette);
   const [iG, iV, iD] = decl;
   const largeurCol = 392;
   const xDroite = 914 - 38 - largeurCol;
@@ -86,7 +86,7 @@ export function CarteComparaison({ palette, duree, decl, gauche = "UNE AGENCE", 
         )}
         {/* rond VS */}
         {i >= iV && (
-          <div style={{ position: "absolute", left: 457 + secousse(i - iV - 4, 9), top: 223, width: 112, height: 112, transform: `translate(-50%, -50%) scale(${0.3 + 0.7 * rond + (i - iV < 5 ? 0.25 * (1 - (i - iV) / 5) : 0)})`, boxSizing: "border-box", borderRadius: "50%", background: ENCRE, color: ACCENT_1, display: "flex", alignItems: "center", justifyContent: "center", border: `${TRAIT.MOYEN}px solid ${ENCRE}`, boxShadow: `${LISERE}, 5px 6px 0 0 ${ENCRE}`, ...styleMontserrat(44) }}><svg width={64} height={64} viewBox="0 0 64 64" style={{ display: "block" }}><path d="M36 4 L12 36 H30 L26 60 L52 26 H34 Z" fill={ACCENT_1} stroke={ACCENT_1} strokeWidth={4} strokeLinejoin="round" /></svg></div>
+          <div style={{ position: "absolute", left: 457 + secousse(i - iV - 4, 9), top: 223, width: 112, height: 112, transform: `translate(-50%, -50%) scale(${0.3 + 0.7 * rond + (i - iV < 5 ? 0.25 * (1 - (i - iV) / 5) : 0)})`, boxSizing: "border-box", borderRadius: "50%", background: ENCRE, color: ACCENT_SOMBRE, display: "flex", alignItems: "center", justifyContent: "center", border: `${TRAIT.MOYEN}px solid ${ENCRE}`, boxShadow: `${LISERE}, 5px 6px 0 0 ${ENCRE}`, ...styleMontserrat(44) }}><svg width={64} height={64} viewBox="0 0 64 64" style={{ display: "block" }}><path d="M36 4 L12 36 H30 L26 60 L52 26 H34 Z" fill={ACCENT_SOMBRE} stroke={ACCENT_SOMBRE} strokeWidth={4} strokeLinejoin="round" /></svg></div>
         )}
       </CoqueCarte>
       <Sons actif={avecSons && i < duree} liste={sons} />

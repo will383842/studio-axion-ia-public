@@ -14,7 +14,7 @@ import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { LecteurVideo } from "@/components/ui/LecteurVideo";
 import { notifier } from "@/components/ui/Toast";
 import type { Ratio, SegmentSousTitres } from "@/domaine/types";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 
 type Maquette =
   | { genre: "navigateur"; plans: PlanMaquette[]; sousTitres: SegmentSousTitres[]; audioUrl: string; dureeSec: number; ratio: Ratio }
@@ -31,10 +31,10 @@ export function VoirLesPlans({ enregistrer, desactive }: { enregistrer: () => Pr
       if (!id) return;
       let r = await maquetteAction(id);
       r = await avecConfirmationPrix(r, (accord) => maquetteAction(id, accord));
-      if (!r.ok) return notifier.erreur(r.message);
+      if (!r.ok) return notifier.erreur(messageSansMontant(r.message));
       if (r.donnees.audioUrl) {
         const p = await plansMaquetteAction(r.donnees.versionId);
-        if (!p.ok) return notifier.erreur(p.message);
+        if (!p.ok) return notifier.erreur(messageSansMontant(p.message));
         setMaquette({ genre: "navigateur", plans: p.donnees.plans, sousTitres: p.donnees.sousTitres, audioUrl: r.donnees.audioUrl, dureeSec: r.donnees.dureeSec, ratio: r.donnees.ratio });
       } else if (r.donnees.url) {
         setMaquette({ genre: "fichier", url: r.donnees.url, vignette: r.donnees.vignette, ratio: r.donnees.ratio });

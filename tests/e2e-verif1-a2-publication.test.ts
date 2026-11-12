@@ -277,7 +277,7 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     for (const e of recu) {
       expect(e.saveToDraft).toBe(true);
       expect(e.mode).not.toBe("shareNow");
-      expect(e.assets[0].video.url).toMatch(/^https:\/\/.*r2\.cloudflarestorage\.com\/.*studio\/videos\/v-15\//);
+      expect(e.assets[0].video.url).toMatch(/^https:\/\/[^/]+\/api\/media-buffer\/[^/]+\/video\.mp4$/);
       // En-tête de série en première ligne, sur tous les réseaux.
       expect(e.text.split("\n")[0]).toBe(`${SERIE} · ép. 2`);
       expect(motsDieseDe(e.text).some((m) => /fyp|viral|pourtoi|foryou/i.test(m))).toBe(false);

@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Bouton, FeuilleBas, notifier, Pastille } from "@/components/ui";
-import { formaterMontant } from "@/lib/montants";
 import type { EstimationLook, VueDecor } from "@/services/decors";
 import { estimerLookAction, mettreEnAvantAction, preparerLookAction, rangerDecorAction, validerDecorAction } from "./actions";
 import { RelierLookHeygen } from "./RelierLookHeygen";
@@ -65,13 +64,10 @@ export function FeuilleDecor({ decor, silhouette, onFermer }: { decor: VueDecor 
               ) : look ? (
                 <>
                   Fabriqué avec votre double, dans la pièce ({look.angles.map((a) => ANGLES[a]).join(" et ")}). Puis réutilisé gratuitement.
-                  <span className="mt-1 block font-semibold text-texte">
-                    {formaterMontant(look.cout)}
-                    {look.essai ? " · essai" : ""}
-                  </span>
+                  {look.essai && <span className="mt-1 block font-semibold text-texte">Essai</span>}
                 </>
               ) : (
-                "Calcul du coût…"
+                "Préparation…"
               )}
             </div>
           )}
@@ -91,7 +87,7 @@ export function FeuilleDecor({ decor, silhouette, onFermer }: { decor: VueDecor 
           <div className="space-y-2">
             {d.etat === "look-a-creer" && look && !look.bloque && (
               <Bouton pleineLargeur taille="lg" icone="etincelles" essai={look.essai} chargement={enCours} onClick={() => agir(() => preparerLookAction(d.id, true), "Décor en fabrication : à vérifier sur capture")}>
-                Fabriquer · {formaterMontant(look.cout)}
+                Fabriquer
               </Bouton>
             )}
             {d.etat === "look-a-verifier" && (

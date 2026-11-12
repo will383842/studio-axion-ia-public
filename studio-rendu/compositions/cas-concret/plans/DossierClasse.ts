@@ -42,13 +42,13 @@ function planDossierV4(p: ContexteObjet) {
     feuille: {
       boite: b(80, 0, 440, 560),
       rayon: 22 * k,
-      fond: COULEURS_DUO.blanc,
+      fond: COULEURS_DUO.carte,
       decalageY: descente * DESCENTE * k,
       marge: { x: 36 * k, y: 40 * k },
       lignes: LIGNES_FEUILLE.map((pct, i) => ({ largeurPct: pct, hauteur: 18 * k, ecart: 26 * k, rayon: 9 * k, couleur: i ? teinte(COULEURS_DUO.grisClair, 0.6) : COULEURS_DUO.orange })),
     },
     avant: { boite: b(0, h0 + 210, 600, 430), rayon: 36 * k, haut: COULEURS_DUO.orangeVif, bas: COULEURS_DUO.orange, ombre: teinte(COULEURS_DUO.nuit, 0.25) },
-    coche: { boite: b(210, h0 + 330, 180, 180), fond: COULEURS_DUO.blanc, trait: COULEURS_DUO.vert, epaisseur: 22 * k, depart, ...planSurgir(progres(p.t - depart, 0.05, 0.3)) },
+    coche: { boite: b(210, h0 + 330, 180, 180), fond: COULEURS_DUO.carte, trait: COULEURS_DUO.vert, epaisseur: 22 * k, depart, ...planSurgir(progres(p.t - depart, 0.05, 0.3)) },
   };
 }
 

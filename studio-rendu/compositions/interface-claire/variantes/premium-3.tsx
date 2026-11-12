@@ -9,31 +9,35 @@ import React from "react";
  */
 import type { CSSProperties, ReactNode } from "react";
 import { Easing, interpolate } from "remotion";
-import { GEOMETRIE, POLICES } from "../charte";
+import { avecOpacite, PALETTE } from "../../../../src/briques/charte/axion-2026";
+import { COULEURS, GEOMETRIE, POLICES } from "../charte";
 import { animationCarte } from "../cadrage";
 import { Icone } from "../elements";
+import { MELANGES } from "./premium-1";
 
 /* ------------------------------------------------------------------ Couleurs : les 12 jetons ------------------------------------------------------------------ */
 
 /** Les 4 couleurs de la charte et leurs mélanges calculés (§ 2.4). Aucune autre teinte. */
 export const N3 = Object.freeze({
-  ivoire: "#E9DCC8",
-  ivoireCreux: "#DECFB9",
-  sableClair: "#D4C2AA",
-  sable: "#BFA88B",
-  sableProfond: "#94806A",
-  filet: "#CBBFAD",
-  orangeVoile: "#DEC0A8",
-  orange: "#B44F29",
-  orangeChaud: "#BC6441",
-  orangeProfond: "#934122",
-  encreDouce: "#45392D",
-  encre: "#110A05",
+  ivoire: COULEURS.ivoire,
+  ivoireCreux: MELANGES.ivoireCreux,
+  sableClair: MELANGES.sableClair,
+  sable: COULEURS.sable,
+  sableProfond: MELANGES.sableProfond,
+  filet: MELANGES.filet,
+  orangeVoile: MELANGES.orangeVoile,
+  orange: COULEURS.orange,
+  orangeChaud: MELANGES.orangeChaud,
+  orangeProfond: MELANGES.orangeProfond,
+  /** Sur fonds encre seulement. */
+  orangeSurNoir: MELANGES.orangeSurNoir,
+  encreDouce: MELANGES.encreDouce,
+  encre: COULEURS.encre,
 } as const);
 
-/** Encre (17, 10, 5) ou ivoire (233, 220, 200) avec transparence : ombres, reflets, voiles. */
-export const encreA = (a: number) => `rgba(17, 10, 5, ${a})`;
-export const ivoireA = (a: number) => `rgba(233, 220, 200, ${a})`;
+/** Encre (noir de la palette) ou ivoire (ivoire de la palette) avec transparence : ombres, reflets, voiles. */
+export const encreA = (a: number) => avecOpacite(PALETTE.noir, a);
+export const ivoireA = (a: number) => avecOpacite(PALETTE.ivoire, a);
 
 /** Dégradés verticaux entre jetons voisins. */
 export const DEGRADE = Object.freeze({

@@ -3,8 +3,9 @@
  * Un style est une DONNÉE : un seul moteur de rendu (`scene.ts`) les dessine tous, dans Remotion comme dans le
  * navigateur. PUR, imports de types seulement : importable par Remotion (`studio-rendu/compositions/sous-titres`).
  */
+import { PALETTE } from "../charte/axion-2026";
 import type { NomPolice } from "./mesure";
-import type { BaseRendu as BaseSousTitres, GabaritRendu as GabaritSousTitres, MarqueRendu, SegmentRendu, StyleBibliothequeRendu } from "./types-rendu";
+import type { GabaritRendu as BaseSousTitres, GabaritRendu as GabaritSousTitres, MarqueRendu, SegmentRendu, StyleBibliothequeRendu } from "./types-rendu";
 
 export type AnimationGabarit = "karaoke" | "fondu" | "rebond" | "nette";
 
@@ -43,7 +44,7 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
   karaoke: {
     id: "karaoke",
     nom: "Karaoké",
-    police: "Poppins ExtraBold",
+    police: "Manrope ExtraBold",
     poids: 800,
     taillePx: 70,
     casse: "normale",
@@ -63,7 +64,7 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
   minimal: {
     id: "minimal",
     nom: "Minimal",
-    police: "Poppins Medium",
+    police: "Manrope Medium",
     poids: 500,
     taillePx: 60,
     casse: "normale",
@@ -81,7 +82,7 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
   impact: {
     id: "impact",
     nom: "Impact",
-    police: "Montserrat Black",
+    police: "Manrope ExtraBold",
     poids: 900,
     // × 1,8 (très grand) : ≈ 126 px, comme la maquette (118-140 px).
     taillePx: 70,
@@ -100,7 +101,7 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
   bandeau: {
     id: "bandeau",
     nom: "Bandeau",
-    police: "Poppins ExtraBold",
+    police: "Manrope ExtraBold",
     poids: 800,
     taillePx: 62,
     casse: "majuscules",
@@ -132,9 +133,15 @@ export function gabaritDe(valeur: StyleBibliothequeRendu | null | undefined): Ga
   return valeur.position === "bas" ? "minimal" : "karaoke";
 }
 
-/** Base d'une vidéo depuis un gabarit : Impact et Bandeau ne sont que des accents. */
-export function baseDe(gabarit: GabaritSousTitres): BaseSousTitres {
-  return gabarit === "minimal" ? "minimal" : "karaoke";
+/**
+ * Base d'une vidéo. Donné un gabarit écrit : le gabarit lui-même (Impact et Bandeau sont de vrais styles de base).
+ * Donné un élément de Bibliothèque : Impact et Bandeau ne sont la base que si `gabarit` est écrit explicitement ;
+ * sans `gabarit`, la base est celle d'avant GV-ST-08a (Minimal ou Karaoké), même pour « pop » en majuscules.
+ */
+export function baseDe(source: GabaritSousTitres | StyleBibliothequeRendu | null | undefined): BaseSousTitres {
+  if (typeof source === "string") return source;
+  if (source?.gabarit) return source.gabarit;
+  return gabaritDe(source) === "minimal" ? "minimal" : "karaoke";
 }
 
 /** Facteur de taille (3 niveaux) : normal ×1, grand ×1,3, très grand ×1,8 (Impact). */
@@ -154,7 +161,7 @@ export interface CouleursSousTitres {
 }
 
 /** Valeurs de repli = celles des jetons de `app/globals.css` (et de la marque Axion). */
-export const COULEURS_REPLI: CouleursSousTitres = { texte: "#F3EDE4", accent: "#E07040", contour: "#16120F" };
+export const COULEURS_REPLI: CouleursSousTitres = { texte: PALETTE.ivoire, accent: PALETTE.orange, contour: PALETTE.noir };
 
 function jeton(marque: MarqueRendu | null | undefined, nom: string): string | undefined {
   const cible = nom.replace(/^--/, "");

@@ -192,7 +192,7 @@ function CarteOutil({ o }: { o: OutilAffiche }) {
     <article
       className={cn(
         "flex h-full flex-col gap-3 rounded-carte border bg-surface-1 p-4 shadow-carte",
-        o.etat === "attention" ? "border-brique/50" : o.etat === "nouveaute" ? "border-orange/40" : "border-trait",
+        o.etat === "attention" ? "border-brique/50" : o.etat === "nouveaute" ? "border-texte/30" : "border-trait",
       )}
     >
       <header className="flex items-start gap-3">
@@ -318,7 +318,7 @@ function FeuilleNouveaute({ n, onFermer }: { n: NouveauteAffichee | null; onFerm
           {n.tacheCreeeLe && <p className="text-sm text-texte-doux">À essayer depuis le {dateAvecAnnee(n.tacheCreeeLe)}, sur le banc d&apos;essai d&apos;abord.</p>}
           <p className="text-xs text-texte-faible">Rien n&apos;est mis à jour sans votre accord.</p>
           {n.lien && (
-            <a href={n.lien} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif hover:underline">
+            <a href={n.lien} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-texte underline hover:underline">
               Voir la source <Icone nom="lien" size={14} />
             </a>
           )}

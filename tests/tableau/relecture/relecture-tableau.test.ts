@@ -91,7 +91,7 @@ describe("contrôles en direct du texte relu", () => {
   it("texte à la main (décision du 18/10) : mots interdits sans blocage ni avis ; seul le plafond de durée du tableau bloque", () => {
     const lignes = lignesDuTexteTableau("Voici un conseil simple. Nos formations sont les meilleures.");
     expect(pastillesTexteTableau(lignes)).toEqual([]);
-    const trop = lignesDuTexteTableau("Une phrase assez longue pour le test de durée. ".repeat(40));
+    const trop = lignesDuTexteTableau("Une phrase assez longue pour le test de durée. ".repeat(70));
     expect(pastillesTexteTableau(trop).some((p) => p.niveau === "bloquant" && p.code === "duree-plafond" && !p.ligneId)).toBe(true);
   });
 });

@@ -7,6 +7,7 @@
  * format n'est connu ici : la recette du format arrive dans les propriétés (`reductionLarge`…).
  */
 import type { CSSProperties } from "react";
+import { CalquePlanScenes } from "../plan-scenes/CalquePlanScenes";
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import { boiteAccessoire, entreeEcranPartage, geometrieEcranPartage, margeFlou, planAuTemps, SOURCE_DOUBLE, transformation, type ProprietesImageComposition, type SourceDouble } from "../../../src/briques/composition/scene";
 import { ContenuAccessoire } from "./Accessoire";
@@ -60,7 +61,18 @@ function AccessoireDansLeCadre({ p, echelleBoite, k }: { p: ProprietesImageCompo
   );
 }
 
+/** Lot R2 : le calque « plan de scènes » (réglage allumé) se pose par-dessus l'image ; sans lui, l'arbre rendu est celui d'avant. */
 export function ImageComposee(p: ProprietesImageComposition) {
+  if (!p.planScenes) return <ImageComposeeExistante {...p} />;
+  return (
+    <AbsoluteFill>
+      <ImageComposeeExistante {...p} />
+      <CalquePlanScenes plan={p.planScenes} />
+    </AbsoluteFill>
+  );
+}
+
+function ImageComposeeExistante(p: ProprietesImageComposition) {
   const image = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = image / fps;

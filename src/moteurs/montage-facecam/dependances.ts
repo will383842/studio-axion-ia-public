@@ -13,6 +13,7 @@ import { resoudreFournisseur } from "@/fournisseurs";
 import { fournisseurFacecam } from "@/fournisseurs/facecam";
 import { obtenirServiceRendu, renduSimule } from "@/fournisseurs/rendu/client";
 import type { OutilsMontage } from "@/briques/composition/montage";
+import type { MemoireCartesAuto } from "@/briques/habillage-facecam";
 import type { DependancesChaine } from "./chaine";
 import { GLOSSAIRE_FACECAM } from "./glossaire";
 import { RECETTE_COMPOSITION_FACECAM } from "./habillage";
@@ -33,12 +34,16 @@ export interface ServicesFacecam {
   relire?: (c: CommandeFabrication, contexte?: ContexteRelecture) => Promise<void>;
   /** Mission H : multicaméra (brique commune, `passeMulticameraFacecam`) ; rend `null` quand l'option est coupée. */
   multicamera?: (c: CommandeFabrication, travailId: string) => DependancesChaine["multicamera"];
+  /** Lot R2 : option « plan de scènes » (réglage `planScenes.facecam`, éteint par défaut) ; rend les options si allumé, sinon rien. */
+  planScenes?: DependancesChaine["planScenes"];
   /** Lot I : image de contrôle (JPEG sur R2) décodée en RVB pour la lumière de l'objet 3D ; null : repli. */
   lireImageRvb?: DependancesChaine["lireImageRvb"];
   /** Lot G : relecture CIBLÉE de la vidéo finie (images extraites, 1 appel, 1 correction convertie en entrées). */
   relecture?: (c: CommandeFabrication, travailId: string) => DependancesChaine["relire"];
   /** Lot K : effets réalistes par IA (`passeEffetsRealistesFacecam`) : jamais sans confirmation valide de la version. */
   effetsRealistes?: (c: CommandeFabrication, travailId: string) => DependancesChaine["effetsRealistes"];
+  /** GV-MD-05b : historique des cartes des 5 dernières vidéos (lecture de la base seulement), lu une fois au premier habillage. */
+  memoireCartes?: (c: CommandeFabrication) => Promise<MemoireCartesAuto>;
 }
 
 /** Ce que la relecture Claude reçoit à la fin de la chaîne (Lot I : une image au milieu de chaque effet). */
@@ -100,6 +105,7 @@ export function dependancesChaineParDefaut(c: Pick<CommandeFabrication, "entrees
   const effetsRealistes = services.effetsRealistes?.(commande, travailId); // Lot K
   // Mission H : multicaméra, seulement si l'habillage est réel (la passe rend `null` quand l'option est coupée).
   const multicamera = habillage ? services.multicamera?.(commande, travailId) : undefined;
+  const planScenes = habillage ? services.planScenes : undefined;
   const stockage = resoudreFournisseur("stockage");
   const urlLecture = async (cle: string) => (stockage.urlLectureDuree ? stockage.urlLectureDuree(cle, DUREE_LECTURE_SEC) : stockage.urlLecture(cle));
   return {
@@ -132,6 +138,8 @@ export function dependancesChaineParDefaut(c: Pick<CommandeFabrication, "entrees
     ...(effetsRealistes ? { effetsRealistes } : {}),
     ...(habillage ? { habillage } : {}),
     ...(multicamera ? { multicamera } : {}),
+    ...(planScenes ? { planScenes } : {}),
+    ...(habillage && services.memoireCartes ? { memoireCartes: () => services.memoireCartes!(commande) } : {}),
     ...(services.lireImageRvb ? { lireImageRvb: services.lireImageRvb } : {}), // Lot I
   };
 }

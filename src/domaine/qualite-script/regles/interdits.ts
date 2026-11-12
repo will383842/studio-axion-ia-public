@@ -20,6 +20,12 @@
  *  LG-04 chiffre sans source (quand l'écrivain dit quelles lignes sont sourcées).
  *  LG-05 « machine(s) » dans TOUS les formats, en OBSERVATION seulement (info) : ne change aucun
  *        verdict existant (LG-01 reste celui des formats qui l'interdisent déjà).
+ *  PORTÉE « post » (L3-04, N-28) : ce qui part avec une publication (texte, légende, premier commentaire) est contrôlé
+ *        par la liste unique : chaque entrée commune aux quatre écrivains porte un test `post`, lu sur le texte mis à plat
+ *        (casse, accents, caractères invisibles, mots collés, espaces insécables) ; s'y ajoute la liste de l'envoi
+ *        (`fournisseurs/publication/mots-interdits-envoi.ts`, mots assemblés, jamais en clair), dont les libellés sont
+ *        rendus tels quels. Donc portée « post » = liste d'envoi + entrées communes (dont tous les écrivains).
+ *        « certificat » reste autorisé.
  */
 import { raconteUnClient } from "@/domaine/controles-script/probleme";
 import { INTERDITS_PERMANENTS } from "@/domaine/controles-script/style";
@@ -27,6 +33,7 @@ import { contientExpression, normaliser, texteCompare } from "@/domaine/controle
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { MOTS_INTERDITS } from "@/domaine/scripts-tableau-controles";
 import { appliquerInterdits } from "@/domaine/voix";
+import { motsInterditsEnvoiZernio } from "@/fournisseurs/publication/mots-interdits-envoi";
 import { MOTS_INTERDITS_FORMAT } from "@/moteurs/montage-cas-concret/regles";
 import type { Contexte, EcrivainInterdits, ResultatRegle } from "../types";
 import { NOMBRE, norm, resultat } from "./outils";
@@ -72,6 +79,8 @@ export interface InterditPermanent {
   portee: EcrivainInterdits[];
   /** Le test de chaque écrivain, tel qu'il l'applique aujourd'hui. */
   tests: Partial<Record<EcrivainInterdits, (texte: string) => boolean>>;
+  /** Portée « post » (L3-04) : présent pour les entrées communes aux quatre écrivains ; lit le texte mis à plat. */
+  post?: (texte: string) => boolean;
 }
 
 const cleDe = (libelle: string) => texteCompare(libelle.replace(/[«»]/g, ""));
@@ -95,7 +104,25 @@ function construire(): InterditPermanent[] {
     e.tests[b.ecrivain] ??= b.test;
     parCle.set(cle, e);
   }
-  return [...parCle.values()];
+  const entrees = [...parCle.values()];
+  for (const e of entrees) {
+    if (e.portee.length !== 4) continue;
+    const t = e.tests.ecrire;
+    if (t) e.post = (texte) => lecturesPost(texte).some((l) => t(l));
+  }
+  return entrees;
+}
+
+// Mise à plat du texte d'un post (même principe que l'envoi) : compatibilité (ligatures), sans invisibles (\p{Cf}, trait
+// d'union conditionnel), insécables gardées ou supprimées, mots collés en camelCase coupés ou non.
+const INVISIBLES_POST = /[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]|\p{Cf}/gu;
+const INSECABLES_POST = /[\u00A0\u2007\u2009\u200A\u202F]/g;
+function aplatirPost(t: string, insecableSupprimee: boolean, separerCamel: boolean): string {
+  const plat = t.replace(INSECABLES_POST, insecableSupprimee ? "" : " ").normalize("NFKD").replace(INVISIBLES_POST, "").replace(/[\u0300-\u036F]/g, "");
+  return separerCamel ? plat.replace(/([a-z])([A-Z])/g, "$1 $2") : plat;
+}
+function lecturesPost(texte: string): string[] {
+  return [aplatirPost(texte, false, true), aplatirPost(texte, true, true), aplatirPost(texte, true, false)];
 }
 
 /** LA LISTE UNIQUE (calculée une fois). */
@@ -158,4 +185,47 @@ export function reglesInterdits(c: Contexte): ResultatRegle[] {
 /** L'entrée du mot « Certifexemple » seul (portée image → vidéo) : lue par les contrôles « Sur le site » (S2), jamais recopiée. */
 export function interditCertificationSeule(): InterditPermanent | undefined {
   return LISTE_INTERDITS.find((i) => i.cle === cleDe("Certifexemple"));
+}
+
+/** Les zones d'un post contrôlées par la portée « post » (le texte, la légende, le premier commentaire). */
+export const ZONES_POST = ["texte", "legende", "premier-commentaire"] as const;
+export type ZonePost = (typeof ZONES_POST)[number];
+
+export interface InterditPost {
+  libelle: string;
+  portee: "post";
+  /** D'où vient l'entrée. */
+  source: string;
+}
+
+/**
+ * Les interdits de la portée « post » portés par la liste unique : ses entrées communes (mêmes libellés que
+ * `LISTE_INTERDITS`). La liste de l'envoi s'y ajoute : ses libellés sont ceux de `motsInterditsEnvoiZernio`.
+ */
+export const INTERDITS_POST: readonly InterditPost[] = LISTE_INTERDITS.filter((i) => i.post).map((i) => ({
+  libelle: i.libelle,
+  portee: "post" as const,
+  source: i.sources.join(" + "),
+}));
+
+/** Les libellés des interdits trouvés dans un texte de post (sans doublon, même expression comptée une fois). PUR. */
+export function interditsPost(texte: string): string[] {
+  const trouves = [...motsInterditsEnvoiZernio(texte), ...LISTE_INTERDITS.filter((i) => i.post?.(texte)).map((i) => i.libelle)];
+  const vus = new Set<string>();
+  return trouves.filter((l) => {
+    const c = cleDe(l);
+    if (vus.has(c)) return false;
+    vus.add(c);
+    return true;
+  });
+}
+
+/** Les interdits d'un post entier, avec leur zone : texte, légende et premier commentaire (N-28). PUR. */
+export function interditsDuPost(post: { texte: string; legende?: string | null; premierCommentaire?: string | null }): { zone: ZonePost; libelle: string }[] {
+  const zones: [ZonePost, string | null | undefined][] = [
+    ["texte", post.texte],
+    ["legende", post.legende],
+    ["premier-commentaire", post.premierCommentaire],
+  ];
+  return zones.flatMap(([zone, t]) => (t ? interditsPost(t).map((libelle) => ({ zone, libelle })) : []));
 }

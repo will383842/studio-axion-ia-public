@@ -86,7 +86,7 @@ export function M03EtapePleinCadre({ t, calque }: { t: number; calque?: ReactNod
       <ObjetPose objet="rapport" fond="sombre" textes={["Article · 1 200 mots", "Rédaction"]} x={120} y={250} largeur={840} hauteur={900} t={t} rotY={-14} rotX={8} />
       <EtiquetteMaquette texte="Étape 02" fond="sombre" x={0} y={1210} largeur={1080} />
       <Affiche lignes={["L'*écriture*"]} fond="sombre" x={0} y={1262} largeur={1080} taille={190} ecoule={t - 0.3} lueur />
-      <Pilule x={318} y={1478} fond={C.blanc} couleur={C.encre} taille={36} style={{ opacity: c01((t - 0.9) * 3) }}>
+      <Pilule x={318} y={1478} fond={C.carte} couleur={C.encre} taille={36} style={{ opacity: c01((t - 0.9) * 3) }}>
         900 à 1 300 mots
       </Pilule>
     </Cadre>
@@ -134,7 +134,7 @@ export function M05ListePile({ t }: { t: number }) {
               width: 840,
               height: 170,
               borderRadius: 34,
-              background: C.blanc,
+              background: C.carte,
               boxShadow: `0 26px 50px ${teinte(C.nuit, 0.6)}, 0 4px 0 ${teinte(C.grisClair, 0.7)}`,
               opacity: s.opacite,
               transform: `translateY(${(1 - doux(x)) * -80}px) rotate(${rot}deg) scale(${0.9 + 0.1 * rebond(x)})`,
@@ -188,7 +188,7 @@ export function M07Barres({ t }: { t: number }) {
       <EtiquetteMaquette texte="Résultat" fond="ivoire" x={MARGE_PX} y={300} largeur={900} alignement="left" />
       <Affiche lignes={["Le blog", "*grandit.*"]} fond="ivoire" x={MARGE_PX - 4} y={350} largeur={960} taille={190} alignement="left" ecoule={t} />
       {/* Avant */}
-      <div style={{ position: "absolute", left: MARGE_PX, top: 820, ...INTER, fontSize: 40, color: C.gris, letterSpacing: "0.04em" }}>AVANT · À LA MAIN</div>
+      <div style={{ position: "absolute", left: MARGE_PX, top: 820, ...INTER, fontSize: 40, color: C.encre, letterSpacing: "0.04em" }}>AVANT · À LA MAIN</div>
       <div style={{ position: "absolute", left: MARGE_PX, top: 880, width: piste, height: 120, borderRadius: 26, background: teinte(C.encre, 0.06) }} />
       <div style={{ position: "absolute", left: MARGE_PX, top: 880, width: Math.max(28, piste * avant * xA), height: 120, borderRadius: 14, background: C.encre }} />
       <div style={{ position: "absolute", left: MARGE_PX + 60, top: 868, ...ANTON, fontSize: 120, lineHeight: 1.1, color: C.encre }}>
@@ -212,7 +212,7 @@ function Rangee({ t, debut, children }: { t: number; debut: number; children: Re
   const x = progres(t, debut, 0.45);
   return <div style={{ opacity: c01(x * 2.5), transform: `translateY(${(1 - doux(x)) * 60}px) scale(${0.94 + 0.06 * rebond(x)})`, marginBottom: 30 }}>{children}</div>;
 }
-const CARTE_RANGEE = { background: C.blanc, borderRadius: 34, padding: "30px 32px", display: "flex", alignItems: "center", gap: 26, boxShadow: `0 18px 40px ${teinte(C.nuit, 0.22)}` } as const;
+const CARTE_RANGEE = { background: C.carte, borderRadius: 34, padding: "30px 32px", display: "flex", alignItems: "center", gap: 26, boxShadow: `0 18px 40px ${teinte(C.nuit, 0.22)}` } as const;
 
 export function M08ObjetCompose({ t }: { t: number }) {
   const remplissage = doux(progres(t, 1.6, 0.8));
@@ -229,7 +229,7 @@ export function M08ObjetCompose({ t }: { t: number }) {
             <div style={CARTE_RANGEE}>
               <div style={{ width: 84, height: 84, borderRadius: 24, background: C.orange, display: "flex", alignItems: "center", justifyContent: "center", ...ANTON, fontSize: 52, color: C.blanc }}>A</div>
               <div style={{ ...INTER, color: C.encre }}>
-                <div style={{ fontSize: 26, color: C.gris }}>Blog · maintenant</div>
+                <div style={{ fontSize: 26, color: C.encre }}>Blog · maintenant</div>
                 <div style={{ fontSize: 38 }}>Nouvel article en ligne</div>
               </div>
             </div>
@@ -246,7 +246,7 @@ export function M08ObjetCompose({ t }: { t: number }) {
             <div style={{ ...CARTE_RANGEE, flexDirection: "column", alignItems: "stretch", gap: 18 }}>
               <div style={{ display: "flex", justifyContent: "space-between", ...INTER, fontSize: 32, color: C.encre }}>
                 <span>8 h</span>
-                <span style={{ color: C.gris }}>Publication</span>
+                <span style={{ color: C.encre }}>Publication</span>
                 <span>22 h</span>
               </div>
               <div style={{ height: 30, borderRadius: 15, background: C.ivoire }}>
@@ -358,7 +358,7 @@ export function M13Comparatif({ t }: { t: number }) {
         return (
           <div key={i} style={{ position: "absolute", left: MARGE_PX, top: 700 + i * 180, width: 952, height: 150, opacity: c01(x * 2.5), transform: `translateY(${(1 - doux(x)) * 40}px)` }}>
             <div style={{ position: "absolute", left: 0, top: 0, width: 440, height: 150, borderRadius: 28, background: teinte(C.ivoire, 0.06), border: `2px solid ${teinte(C.grisClair, 0.25)}`, display: "flex", alignItems: "center", padding: "0 28px", ...INTER, fontSize: 36, color: C.grisClair, textDecoration: "line-through", textDecorationColor: teinte(C.grisClair, 0.6) }}>{r.avant}</div>
-            <div style={{ position: "absolute", left: 492, top: 0, width: 460, height: 150, borderRadius: 28, background: C.blanc, display: "flex", alignItems: "center", gap: 20, padding: "0 26px", ...INTER, fontSize: 38, color: C.encre, boxShadow: `0 20px 50px ${teinte(C.nuit, 0.6)}` }}>
+            <div style={{ position: "absolute", left: 492, top: 0, width: 460, height: 150, borderRadius: 28, background: C.carte, display: "flex", alignItems: "center", gap: 20, padding: "0 26px", ...INTER, fontSize: 38, color: C.encre, boxShadow: `0 20px 50px ${teinte(C.nuit, 0.6)}` }}>
               <div style={{ width: 46, height: 46, borderRadius: 23, background: C.vert, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ width: 12, height: 22, borderRight: `6px solid ${C.blanc}`, borderBottom: `6px solid ${C.blanc}`, transform: "rotate(45deg) translate(-2px, -2px)" }} />
               </div>
@@ -394,7 +394,7 @@ export function M14Journee({ t }: { t: number }) {
             <div style={{ position: "absolute", left: MARGE_PX, top: y0 + i * pasY - 30, width: 150, textAlign: "right", ...ANTON, fontSize: 60, lineHeight: 1, color: allume ? C.encre : C.grisClair }}>{h} h</div>
             <div style={{ position: "absolute", left: 238, top: y0 + i * pasY - 10, width: 32, height: 32, borderRadius: 16, background: allume ? C.orange : C.ivoire, border: `5px solid ${allume ? C.orange : C.grisClair}`, transform: `scale(${allume ? s.echelle : 1})` }} />
             {article ? (
-              <div style={{ position: "absolute", left: 310, top: y0 + i * pasY - 46, width: 640, height: 92, borderRadius: 24, background: C.blanc, boxShadow: `0 14px 34px ${teinte(C.encre, 0.12)}`, display: "flex", alignItems: "center", gap: 20, padding: "0 26px", ...INTER, fontSize: 34, color: C.encre, opacity: s.opacite, transform: `translateX(${(1 - s.echelle) * 80}px)` }}>
+              <div style={{ position: "absolute", left: 310, top: y0 + i * pasY - 46, width: 640, height: 92, borderRadius: 24, background: C.carte, boxShadow: `0 14px 34px ${teinte(C.encre, 0.12)}`, display: "flex", alignItems: "center", gap: 20, padding: "0 26px", ...INTER, fontSize: 34, color: C.encre, opacity: s.opacite, transform: `translateX(${(1 - s.echelle) * 80}px)` }}>
                 <div style={{ width: 16, height: 52, borderRadius: 8, background: C.orange }} />
                 Article publié
               </div>
@@ -432,7 +432,7 @@ export function M15Jauge({ t, calque }: { t: number; calque?: ReactNode }) {
       })}
       <div style={{ position: "absolute", left: 0, width: 1080, top: cy - 200, textAlign: "center", ...ANTON, fontSize: 300, lineHeight: 1, color: C.ivoire }}>100</div>
       <div style={{ position: "absolute", left: 0, width: 1080, top: cy + 110, textAlign: "center", ...INTER, fontSize: 40, color: C.grisClair }}>note maximale</div>
-      <Pilule x={300} y={cy + 230} fond={C.blanc} couleur={C.encre} taille={36}>
+      <Pilule x={300} y={cy + 230} fond={C.carte} couleur={C.encre} taille={36}>
         Sous 75 : <span style={{ color: C.orange }}>réécrit</span>
       </Pilule>
     </Cadre>

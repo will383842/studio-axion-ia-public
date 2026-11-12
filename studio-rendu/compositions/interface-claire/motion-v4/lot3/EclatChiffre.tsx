@@ -71,8 +71,8 @@ export function EclatChiffre(props: PropsEclatChiffre) {
   for (let k = 0; k < 12; k += 2) sons.push(<Son key={`t${k}`} i0={1 + k} fichier={k % 4 ? "tick_002" : "tick_001"} volume={0.4} />);
   sons.push(<Son key="e" i0={iC} fichier="eclats" volume={0.5} />);
   const chiffreStyle = {
-    fontFamily: MONTSERRAT, fontWeight: 900, fontSize: taille, lineHeight: 1, color: E, fontVariantNumeric: "tabular-nums" as const, whiteSpace: "nowrap" as const,
-    ...contourTexte(taille, COULEURS.BLANC, 0.05), filter: `drop-shadow(11px 12px 0 ${E})`,
+    fontFamily: MONTSERRAT, fontWeight: 900, fontSize: taille, lineHeight: 1, color: COULEURS.BLANC, fontVariantNumeric: "tabular-nums" as const, whiteSpace: "nowrap" as const,
+    ...contourTexte(taille, E, 0.05), filter: `drop-shadow(11px 12px 0 ${E})`,
   };
   return (
     <>

@@ -40,7 +40,7 @@ import { ErreurRenduDefinitifIV, RenduEnCoursIV, VERSION_COMPOSITIONS_IV, type D
 import type { BlocRenduIV, LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { LIGNES_MAX_ECRAN_IV, proprietesEcranIV916 } from "@/moteurs/montage-image-video/ecrans-v4";
 import { BANDE_SOUS_TITRES_IV, ECRAN_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, type FormatEcranIV } from "@/briques/schema-motion/types";
-import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV } from "@/moteurs/montage-image-video/sous-titres-varies";
+import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV, styleRetenuIV, surlignageSousTitresIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { figeHorsVoixMaxSec, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -122,12 +122,19 @@ export interface SceneIV {
  * Le bloc qui finit la vidéo reçoit la queue animée de la ligne (`queue`, ramenée au début du bloc) : sa composition
  * dessine le trait de fin ; un écran v4 passe alors par `ImageVideoEcranFin`.
  */
-export function parametresDuBloc(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "largeur" | "hauteur" | "fps" | "repere"> & Partial<Pick<LigneDeTempsIV, "dureeSec" | "queue">>): SceneIV["parametres"] {
+export function parametresDuBloc(b: BlocRenduIV, ligne: Pick<LigneDeTempsIV, "largeur" | "hauteur" | "fps" | "repere"> & Partial<Pick<LigneDeTempsIV, "dureeSec" | "queue" | "affiche">>, premier = false): SceneIV["parametres"] {
   const p = parametresSansVariete(b, ligne);
   const avecVariete = b.variete ? { ...p, proprietes: { ...p.proprietes, variete: b.variete } } : p;
   const q = queueDuBloc(b, ligne);
-  if (!q) return avecVariete;
-  return { ...avecVariete, ...(b.sorte === "ecran" ? { composition: COMPOSITIONS_RENDU_IV.ecranFin } : {}), proprietes: { ...avecVariete.proprietes, queue: q } };
+  // Affiche : seulement le PREMIER bloc de la ligne (sa première image montre l'accroche écrite en entier).
+  const a = premier && ligne.affiche ? ligne.affiche : null;
+  if (!q && !a) return avecVariete;
+  // Un écran v4 passe par `ImageVideoEcranFin` dès qu'il porte une queue ou une affiche (même écran, calques par-dessus).
+  return {
+    ...avecVariete,
+    ...(b.sorte === "ecran" ? { composition: COMPOSITIONS_RENDU_IV.ecranFin } : {}),
+    proprietes: { ...avecVariete.proprietes, ...(q ? { queue: q } : {}), ...(a ? { affiche: a } : {}) },
+  };
 }
 
 /** Queue animée d'un bloc (secondes depuis son début) : seulement le bloc qui finit la vidéo et contient la queue. */
@@ -182,8 +189,8 @@ function proprietesEcran4x5(ecran: Extract<BlocRenduIV, { sorte: "ecran" }>["ecr
 
 /** Les scènes d'une version (PUR) : une par bloc, clé par empreinte (même bloc = même fichier, rendu une seule fois). */
 export function scenesDeLaLigne(ligne: LigneDeTempsIV, o: { env: string; videoId: string }): SceneIV[] {
-  return ligne.blocs.map((b) => {
-    const parametres = parametresDuBloc(b, ligne);
+  return ligne.blocs.map((b, rang) => {
+    const parametres = parametresDuBloc(b, ligne, rang === 0);
     // Version de la clé : "/2" (18/10/2026) = fond ivoire des vues d'ensemble, pastille « 80 % » de REC-B (nouvelle place),
     // chute de l'alerte. Sans ce changement, une vidéo refaite réutiliserait ses anciennes scènes de toile (clé identique).
     // 23/10/2026 : VERSION_COMPOSITIONS_IV y entre aussi : une correction de studio-rendu/compositions/image-video (bulle du récit,
@@ -209,7 +216,12 @@ export { LIGNES_MAX_ECRAN_IV };
  * découpe déjà un écran trop chargé avec la même règle.
  */
 export function ecransIrrendables(scenes: readonly SceneIV[]): string[] {
-  const phrases: string[] = [];
+  return ecransIrrendablesDetail(scenes).map((x) => x.phrase);
+}
+
+/** Les mêmes écrans irrendables avec l'identifiant de leur scène (bloc de la ligne de temps) : sert à les passer en texte seul. PUR. */
+export function ecransIrrendablesDetail(scenes: readonly SceneIV[]): { id: string; phrase: string }[] {
+  const irrendables: { id: string; phrase: string }[] = [];
   let rang = 0;
   for (const s of scenes) {
     if (s.sorte !== "ecran") continue;
@@ -217,12 +229,14 @@ export function ecransIrrendables(scenes: readonly SceneIV[]): string[] {
     const p = s.parametres.proprietes as unknown as ProprietesEcran;
     const lignes = "lignes" in p && Array.isArray(p.lignes) ? p.lignes.length : 0;
     const max = LIGNES_MAX_ECRAN_IV[p.type];
-    const defauts = controlerProprietes(p);
-    if (max !== undefined && lignes > max) phrases.push(`écran n° ${rang} : ${lignes} lignes de texte, ${max} au plus pour ce genre d'écran.`);
-    else if (defauts.length) phrases.push(`écran n° ${rang} : un texte ne tient pas à sa place.`);
+    // Un chiffre sans unité (« au lieu de 45 ») a sa boîte d'unité vide : le composant ne dessine rien, ce n'est pas un écran irrendable
+    // (27/10/2026, vidéo v-218d8e98ceef arrêtée en IV_PANNE pour « texte vide (unite) »).
+    const defauts = controlerProprietes(p).filter((d) => !/· texte vide \(unite\)\./.test(d));
+    if (max !== undefined && lignes > max) irrendables.push({ id: s.id, phrase: `écran n° ${rang} : ${lignes} lignes de texte, ${max} au plus pour ce genre d'écran.` });
+    else if (defauts.length) irrendables.push({ id: s.id, phrase: `écran n° ${rang} : un texte ne tient pas à sa place.` });
     if (defauts.length || (max !== undefined && lignes > max)) console.warn(`[image-video] écran ${s.id} irrendable : ${[`${p.type} de ${lignes} ligne(s)`, ...defauts].join(" ; ")}`);
   }
-  return phrases;
+  return irrendables;
 }
 
 /** Une version dite pour Will : « pour TikTok, YouTube Shorts ». */
@@ -272,9 +286,10 @@ export class ErreurRenduIV extends Error {
 }
 
 /** Commande minimale de la composition finale d'une version (PUR). */
-export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" | "mixage" | "piste">, scenes: readonly ScenePosee[], sons: readonly SonValideIV[]): CommandeFabrication {
+export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[], sons: readonly SonValideIV[]): CommandeFabrication {
   const format = ratioDeLaLigneIV(d.ligne);
-  const style = { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_IV, ...(format === "4:5" ? { positionPct: CENTRE_SOUS_TITRES_IV_4X5_PCT } : {}) } };
+  const retenu = styleRetenuIV(d.styleSousTitres, format);
+  const style = d.styleSousTitres?.valeur ? { id: d.styleSousTitres.id, nom: d.styleSousTitres.nom, valeur: { ...retenu.valeur, ...surlignageSousTitresIV(d.ligne) } } : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_IV, ...(format === "4:5" ? { positionPct: CENTRE_SOUS_TITRES_IV_4X5_PCT } : {}), ...surlignageSousTitresIV(d.ligne) } };
   const c = commandeMinimale({
     moteurId: MOTEUR_IV,
     formatId: FORMAT_IV,
@@ -292,11 +307,11 @@ export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" 
 }
 
 /** Base de la composition finale : scènes bout à bout, voix seule, bruitages, sous-titres VARIÉS dans la bande (PUR). */
-export function baseDuMontageIV(d: Pick<DemandeRenduIV, "ligne" | "mixage" | "piste">, scenes: readonly ScenePosee[]): BaseComposition {
+export function baseDuMontageIV(d: Pick<DemandeRenduIV, "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[]): BaseComposition {
   const clairs = passagesIvoireIV(d.ligne);
   return {
     plans: plansDesScenes(scenes),
-    segments: sousTitresVariesIV(d.ligne),
+    segments: sousTitresVariesIV(d.ligne, d.styleSousTitres),
     dureeSec: d.ligne.dureeSec,
     mots: d.piste.mots.map((m) => ({ ...m })),
     audioCle: d.mixage.voix.cle,
@@ -329,8 +344,8 @@ export async function rendreVersionIV(d: DemandeRenduIV, o: OutilsRenduIV): Prom
   const quoi = pourQui(d.reseaux);
   const scenes = scenesDeLaLigne(d.ligne, { env: o.env, videoId: d.videoId });
   // 0. Un écran que la composition ne sait pas montrer : refus AVANT tout envoi (relancer donnerait le même refus).
-  const irrendables = ecransIrrendables(scenes);
-  if (irrendables.length) throw new ErreurRenduDefinitifIV(PHRASES_RENDU_IV.irrendable(quoi, irrendables.length), irrendables);
+  const irrendables = ecransIrrendablesDetail(scenes);
+  if (irrendables.length) throw new ErreurRenduDefinitifIV(PHRASES_RENDU_IV.irrendable(quoi, irrendables.length), irrendables.map((x) => x.phrase), irrendables.map((x) => x.id));
 
   // 1. Scènes : déposées → faites ; sinon relues (soumises si le serveur ne les connaît pas).
   let faites = 0;

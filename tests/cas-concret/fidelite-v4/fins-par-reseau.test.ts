@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ErreurFabricationCasConcret, fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
+import { fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
 import { doubles } from "../fabriquer/doubles";
 
 /** WAV PCM 16 bits mono. */
@@ -115,7 +115,7 @@ describe("V4-2 · le contrôle de la fin de la voix, sortie par sortie", () => {
     expect(cr.fins).toHaveLength(3);
   });
 
-  it("la voix coupée sur la SEULE sortie LinkedIn : cette sortie est refusée, nommée, à l'étape voix ; rien n'est rendu", async () => {
+  it("LOT A : la voix coupée sur la SEULE sortie LinkedIn : cette sortie est nommée « à vérifier », la vidéo est faite", async () => {
     const d = doubles();
     const entiere = voixEntiere();
     // Les assemblages de la recette suivent l'ordre du plan : Facebook, Instagram + TikTok, LinkedIn (les copies WAV des
@@ -124,16 +124,10 @@ describe("V4-2 · le contrôle de la fin de la voix, sortie par sortie", () => {
       const i = d.assemblages.filter((a) => a.recette).findIndex((a) => a.sortieCle === cle);
       return i < 0 ? null : i === 2 ? COUPEE : entiere;
     };
-    const err = await fabriquerCasConcret(d.options).then(
-      () => null,
-      (e: unknown) => e,
-    );
-    expect(err).toBeInstanceOf(ErreurFabricationCasConcret);
-    const e = err as ErreurFabricationCasConcret;
-    expect(e.etape).toBe("voix");
-    expect(e.raisons).toHaveLength(1);
-    expect(e.raisons[0]).toMatch(/^Voix de la fin pour LinkedIn · .*coupée net.*Relancez la voix\.$/);
-    expect(e.raisons[0]).not.toMatch(/Facebook|Instagram|TikTok/);
-    expect(d.ecransSoumis()).toHaveLength(0);
+    const r = await fabriquerCasConcret(d.options);
+    expect(r.reservesVoix).toHaveLength(1);
+    expect(r.reservesVoix[0]).toMatch(/^Voix de la fin pour LinkedIn · .*coupée net/);
+    expect(r.reservesVoix[0]).not.toMatch(/Facebook|Instagram|TikTok/);
+    expect(d.ecransSoumis().length).toBeGreaterThan(0);
   });
 });

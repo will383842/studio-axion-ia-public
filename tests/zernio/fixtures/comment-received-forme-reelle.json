@@ -1,0 +1,15 @@
+{
+  "id": "evt_fictif_com_0001",
+  "event": "comment.received",
+  "timestamp": "2026-10-18T10:00:00.000Z",
+  "account": { "accountId": "compte-fictif-100", "platform": "instagram", "username": "compte-exemple" },
+  "post": { "id": "", "platformPostId": "post-plateforme-fictif-200" },
+  "comment": {
+    "id": "com-fictif-300",
+    "postId": "",
+    "platformPostId": "post-plateforme-fictif-200",
+    "text": "GUIDE",
+    "parentId": null,
+    "author": { "id": "auteur-fictif-400", "name": "Personne Fictive", "isOwnAccount": false }
+  }
+}

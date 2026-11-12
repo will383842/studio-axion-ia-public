@@ -119,7 +119,7 @@ describe("lien « Mon script »", () => {
 
 describe("formulaire « Mon script »", () => {
   const props = { casId: "cas-test", titre: "Cas de test", texteDepart: "[accroche] Bonjour ici.\n[question] Et vous ?", origine: "gabarit" as const, perime: false, courantFourni: false };
-  const apercuOk = { ok: true, apercu: [{ rang: 1, type: "accroche", nom: "Accroche", forme: "accroche", nomForme: "Accroche", texteDit: "Bonjour ici.", affiches: ["Bonjour ici"] }], dureeSec: { min: 44, max: 51 }, refus: [] };
+  const apercuOk = { ok: true, apercu: [{ rang: 1, type: "accroche", nom: "Accroche", forme: "accroche", nomForme: "Accroche", texteDit: "Bonjour ici.", affiches: ["Bonjour ici"] }], dureeSec: { min: 44, max: 51 }, refus: [], remarques: [] as string[], avertissements: [] as string[] };
 
   it("rendu initial : aide, compteur, textarea de 16 px, « Enregistrer » inactif tant que rien n'est vérifié", () => {
     const h = renderToStaticMarkup(createElement(FormulaireScriptFourni, props));
@@ -158,8 +158,19 @@ describe("formulaire « Mon script »", () => {
     expect(actions.push).toHaveBeenCalledWith("/cas-concret");
   });
 
+  it("LOT A : remarques et avertissements s'affichent, l'enregistrement reste possible (le script de Will fait foi)", async () => {
+    actions.controler.mockResolvedValue({ ok: true, donnees: { ...apercuOk, remarques: ["Le script compte 11 lignes ; l'habitude est de 12 à 26 (une ligne = un écran)."], avertissements: ["Ligne 4 : « machine » est un mot à éviter."] } });
+    const apres = await cliquer(FormulaireScriptFourni as never, props as never, "Vérifier");
+    const t = texteDe(apres);
+    expect(t).toContain("Attention, à vérifier avant de publier :");
+    expect(t).toContain("« machine » est un mot à éviter.");
+    expect(t).toContain("Remarques (votre script passe tel quel) :");
+    expect(t).toContain("Le script compte 11 lignes");
+    expect(bouton(apres, "Enregistrer mon script")!.props.disabled).toBe(false);
+  });
+
   it("un refus : les lignes en alerte avec « Aller à la ligne N » ; Enregistrer reste inactif", async () => {
-    actions.controler.mockResolvedValue({ ok: true, donnees: { ok: false, apercu: [], refus: [{ ligne: 3, message: "Ligne 3 : phrase trop longue. Coupez cette phrase en deux lignes." }, { message: "Durée : ajoutez une phrase." }] } });
+    actions.controler.mockResolvedValue({ ok: true, donnees: { ok: false, apercu: [], remarques: [], avertissements: [], refus: [{ ligne: 3, message: "Ligne 3 : phrase trop longue. Coupez cette phrase en deux lignes." }, { message: "Durée : ajoutez une phrase." }] } });
     const apres = await cliquer(FormulaireScriptFourni as never, props as never, "Vérifier");
     const t = texteDe(apres);
     expect(t).toContain("Ce script ne passe pas encore :");

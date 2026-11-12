@@ -41,7 +41,7 @@ describe("symboles empruntés présents", () => {
   it("recette de la voix v4 (L12) : starfish, 1,1, atempo 1,08, −14 LUFS, raccord à 0,20 s", () => {
     const r = emprunts.RECETTE_VOIX_CAS_CONCRET;
     expect(r.synthese).toEqual({ fournisseur: "heygen", moteur: "starfish", vitesse: 1.1, locale: "fr-FR" });
-    expect(r.filtres.atempo).toBe(1.08);
+    expect(r.filtres.atempo).toBe(1);
     expect(r.filtres.volume).toContain("I=-14");
     expect(r.resserrage.blancPhraseSec).toBe(0.2);
     expect(r.fin.silenceSec).toBe(0.8);

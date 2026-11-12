@@ -1,8 +1,8 @@
-import { OngletsLiens } from "@/components/ui/Onglets";
+import { OngletsLiens, type OngletLien } from "@/components/ui/Onglets";
 import { listerFormats, listerFormatsNavigation, nomCourtFormat, statutNavigation } from "@/formats";
 
 /**
- * Onglets de Mes vidéos (AV2.1) : Toutes · Brouillons · un onglet par format (générés du registre) · Archivées.
+ * Onglets de Mes vidéos (AV2.1) : Toutes · Brouillons · formats ayant des vidéos ; le reste dans « Plus ».
  * `actif` : « toutes », « brouillons », « autres », « archivees » ou l'id d'un format.
  */
 export function OngletsMesVideos({
@@ -34,24 +34,24 @@ export function OngletsMesVideos({
     ...navigation.filter((f) => statutNavigation(f) === "actif" || (compteParFormat[f.id] ?? 0) > 0 || f.id === actif),
     ...listerFormats({ inclureMasques: true }).filter((f) => !dansNavigation.has(f.id) && ((compteParFormat[f.id] ?? 0) > 0 || f.id === actif)),
   ];
-  return (
-    <OngletsLiens
-      libelle="Rangement de mes vidéos"
-      className={className}
-      onglets={[
-        { href: "/videos", libelle: "Toutes", icone: "grille", compteur: nbToutes, actif: actif === "toutes" },
-        ...(nbBrouillons || actif === "brouillons" ? [{ href: "/videos?vue=brouillons", libelle: "Brouillons", icone: "ecrire" as const, compteur: nbBrouillons, actif: actif === "brouillons" }] : []),
-        ...formats.map((f) => ({
-          href: `/formats/${f.id}`,
-          libelle: nomCourtFormat(f),
-          icone: f.icone,
-          compteur: compteParFormat[f.id] ?? 0,
-          actif: f.id === actif,
-        })),
-        ...(nbAutres || actif === "autres" ? [{ href: "/videos?vue=autres", libelle: "Autres", icone: "grille" as const, compteur: nbAutres, actif: actif === "autres" }] : []),
-        ...(nbArchivees || actif === "archivees" ? [{ href: "/videos?vue=archivees", libelle: "Archivées", icone: "archive" as const, compteur: nbArchivees, actif: actif === "archivees" }] : []),
-        ...(nbCorbeille || actif === "corbeille" ? [{ href: "/videos?vue=corbeille", libelle: "Corbeille", icone: "corbeille" as const, compteur: nbCorbeille, actif: actif === "corbeille" }] : []),
-      ]}
-    />
-  );
+  // Onglets utiles : Toutes, Brouillons, les formats qui ont des vidéos. Le reste (formats vides, Autres, Archivées, Corbeille) est dans « Plus ».
+  const ongletFormat = (f: (typeof formats)[number]): OngletLien => ({
+    href: `/formats/${f.id}`,
+    libelle: nomCourtFormat(f),
+    icone: f.icone,
+    compteur: compteParFormat[f.id] ?? 0,
+    actif: f.id === actif,
+  });
+  const principaux: OngletLien[] = [
+    { href: "/videos", libelle: "Toutes", icone: "grille", compteur: nbToutes, actif: actif === "toutes" },
+    ...(nbBrouillons || actif === "brouillons" ? [{ href: "/videos?vue=brouillons", libelle: "Brouillons", icone: "ecrire" as const, compteur: nbBrouillons, actif: actif === "brouillons" }] : []),
+    ...formats.filter((f) => (compteParFormat[f.id] ?? 0) > 0).map(ongletFormat),
+  ];
+  const plus: OngletLien[] = [
+    ...formats.filter((f) => (compteParFormat[f.id] ?? 0) === 0).map(ongletFormat),
+    ...(nbAutres || actif === "autres" ? [{ href: "/videos?vue=autres", libelle: "Autres", icone: "grille" as const, compteur: nbAutres, actif: actif === "autres" }] : []),
+    ...(nbArchivees || actif === "archivees" ? [{ href: "/videos?vue=archivees", libelle: "Archivées", icone: "archive" as const, compteur: nbArchivees, actif: actif === "archivees" }] : []),
+    ...(nbCorbeille || actif === "corbeille" ? [{ href: "/videos?vue=corbeille", libelle: "Corbeille", icone: "corbeille" as const, compteur: nbCorbeille, actif: actif === "corbeille" }] : []),
+  ];
+  return <OngletsLiens libelle="Rangement de mes vidéos" className={className} onglets={principaux} plus={plus} />;
 }

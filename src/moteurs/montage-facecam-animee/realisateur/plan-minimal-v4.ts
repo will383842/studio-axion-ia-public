@@ -144,12 +144,14 @@ function contenu(id: string, f: Fenetre, mots: readonly MotTranscrit[]): Omit<El
  * Le plan v4 minimal : plaquettes de 0 à `horizon` (début de l'écran de fin), sans trou. Rend [] si la vidéo est trop courte ou muette :
  * `verifierPlan` le refuse alors (aucune plaquette) et la vidéo n'est pas rendue.
  */
-export function planMinimalV4(entree: { mots: readonly MotTranscrit[]; horizon: number; graine?: number }): ElementV4Plan[] {
+export function planMinimalV4(entree: { mots: readonly MotTranscrit[]; horizon: number; graine?: number; eviterOuvertures?: readonly string[] }): ElementV4Plan[] {
   const mots = [...entree.mots].sort((x, y) => x.a - y.a);
   const horizon = entree.horizon;
   const elements: ElementV4Plan[] = [];
   const usages = new Map<string, number>();
   const graine = Math.abs(Math.trunc(entree.graine ?? 0));
+  // Anti-répétition : la plaquette d'ouverture ne reprend pas celle des dernières vidéos (si une autre est possible).
+  const eviter = new Set(entree.eviterOuvertures ?? []);
   let curseur = 0;
   let etape = 0;
   let prochainCoup = COUP_PREMIER_SEC;
@@ -176,7 +178,8 @@ export function planMinimalV4(entree: { mots: readonly MotTranscrit[]; horizon: 
     const usee = (id: string) => (usages.get(id) ?? 0) >= (ficheV4(id) ? plafondParVideoV4(ficheV4(id)!, horizon) : 3);
     // Dans chaque emplacement, la moins utilisée d'abord (variété, règle H10).
     const tous = voulus.flatMap((e) => decaler(ROTATION_PLAN_MINIMAL_V4[e], graine).sort((x, y) => (usages.get(x) ?? 0) - (usages.get(y) ?? 0)));
-    const candidats = [...tous.filter((id) => !usee(id)), ...tous.filter(usee)];
+    const ordre = [...tous.filter((id) => !usee(id)), ...tous.filter(usee)];
+    const candidats = !elements.length && eviter.size ? [...ordre.filter((id) => !eviter.has(id)), ...ordre.filter((id) => eviter.has(id))] : ordre;
     let pose = false;
     for (const id of candidats) {
       if (!autorise(id)) continue;

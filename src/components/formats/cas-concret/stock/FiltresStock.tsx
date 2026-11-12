@@ -8,7 +8,7 @@ import type { FiltresStock as Filtres } from "@/services/cas-concret-stock-synth
 import type { GroupeFiltre } from "./filtres-stock";
 
 const BASE = "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[14px] transition-colors";
-const ACTIVE = "border-orange bg-orange text-sur-orange";
+const ACTIVE = "border-texte bg-texte text-fond";
 const REPOS = "border-trait bg-surface-2 text-texte hover:border-trait-fort";
 
 export function FiltresStock({ groupes, actuels, hrefDe, onChange }: { groupes: readonly GroupeFiltre[]; actuels: Filtres; hrefDe?: (f: Filtres) => string; onChange?: (f: Filtres) => void }) {

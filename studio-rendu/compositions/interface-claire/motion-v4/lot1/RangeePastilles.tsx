@@ -75,7 +75,7 @@ export function RangeePastilles({ palette, titre, contenus, nb, actives = [22], 
             return (
               <Anim key={k} etat={etat}>
                 <Tuile taille={taille} fond={fond} style={{ width: largeurs[k] }}>
-                  {typeof c === "string" ? <span style={{ fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: corps, textTransform: "uppercase", color: COULEURS.ENCRE, lineHeight: 1 }}>{c}</span> : <Picto nom={c.picto} taille={62} fond={ACCENT_1} />}
+                  {typeof c === "string" ? <span style={{ fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: corps, textTransform: "uppercase", color: actives[k] !== undefined ? melange(COULEURS.ENCRE, COULEURS.BLANC, courbe(i, actives[k], 3)) : COULEURS.ENCRE, lineHeight: 1 }}>{c}</span> : <Picto nom={c.picto} taille={62} fond={ACCENT_1} />}
                 </Tuile>
               </Anim>
             );

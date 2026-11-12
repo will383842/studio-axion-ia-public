@@ -143,12 +143,12 @@ describe("largeur depuis les zones protégées (B.5)", () => {
     expect(p.basPct).toBeLessThan(70);
   });
 
-  it("mesure réelle : chasse lue dans la police (écart < 3 % avec le rendu de Pillow)", () => {
-    // Références mesurées avec Pillow sur les mêmes fichiers de police (outils/captures-sous-titres).
+  it("mesure réelle : chasse lue dans la police (écart < 3 % avec la chasse du fichier Manrope)", () => {
+    // Références : somme des chasses (hmtx) lues avec fontTools dans les fichiers Manrope de `polices/` (charte 2026).
     const somme = (mots: string[], police: Parameters<typeof largeurMot>[1], t: number) => mots.reduce((s, m) => s + largeurMot(m, police, t), 0);
-    expect(Math.abs(somme(["Lors", "d'un", "contrôle"], "Poppins ExtraBold", 70) - 620) / 620).toBeLessThan(0.03);
-    expect(Math.abs(somme(["67", "000", "€"], "Montserrat Black", 126) - 529) / 529).toBeLessThan(0.03);
-    expect(Math.abs(somme(["il", "a", "gagné", "35", "heures"], "Poppins Medium", 60) - 551) / 551).toBeLessThan(0.03);
+    expect(Math.abs(somme(["Lors", "d'un", "contrôle"], "Manrope ExtraBold", 70) - 597.31) / 597.31).toBeLessThan(0.03);
+    expect(Math.abs(somme(["67", "000", "€"], "Manrope ExtraBold", 126) - 489.13) / 489.13).toBeLessThan(0.03);
+    expect(Math.abs(somme(["il", "a", "gagné", "35", "heures"], "Manrope Medium", 60) - 507.3) / 507.3).toBeLessThan(0.03);
   });
 
   it("aucun groupe ne dépasse la zone libre combinée (mesure réelle), même avec des mots longs", () => {

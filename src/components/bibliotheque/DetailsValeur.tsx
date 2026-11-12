@@ -23,7 +23,7 @@ function Barre({ libelle, pct }: { libelle: string; pct: number }) {
         <span className="tabular-nums text-texte">{Math.round(pct)}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-        <div className="h-full rounded-full bg-orange" style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
       </div>
     </div>
   );
@@ -31,7 +31,7 @@ function Barre({ libelle, pct }: { libelle: string; pct: number }) {
 
 function Drapeau({ actif, libelle, icone }: { actif: boolean; libelle: string; icone: NomIcone }) {
   return (
-    <span className={cn("flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm font-semibold", actif ? "bg-orange-doux text-orange-vif" : "bg-surface-2 text-texte-faible line-through")}>
+    <span className={cn("flex min-h-11 items-center gap-2 rounded-2xl px-3 text-sm font-semibold", actif ? "bg-surface-3 text-texte" : "bg-surface-2 text-texte-faible line-through")}>
       <Icone nom={icone} size={16} />
       {libelle}
     </span>
@@ -73,7 +73,7 @@ export function DetailsValeur({ valeur, vignette }: { valeur: ValeurElement; vig
     case "police":
       return (
         <div className="rounded-2xl bg-surface-2 p-4">
-          <p className={cn("text-5xl text-texte", valeur.famille === "Archivo Black" ? "font-titre" : "font-texte font-bold")} style={valeur.famille !== "Archivo Black" && valeur.famille !== "Manrope" ? { fontFamily: valeur.famille } : undefined}>
+          <p className={cn("text-5xl text-texte", valeur.famille === "Archivo Black" ? "font-archivo" : "font-texte font-bold")} style={valeur.famille !== "Archivo Black" && valeur.famille !== "Manrope" ? { fontFamily: valeur.famille } : undefined}>
             Aa Bb 123
           </p>
           <p className="mt-2 text-sm text-texte-faible">{valeur.usage === "titre" ? "Pour les titres" : "Pour le texte"}</p>
@@ -128,7 +128,7 @@ export function DetailsValeur({ valeur, vignette }: { valeur: ValeurElement; vig
             <Chiffre valeur={valeur.transitions} libelle="transitions" />
           </div>
           {valeur.bruitagesTransitions && (
-            <Pastille ton="orange" icone="volume" taille="md">
+            <Pastille ton="neutre" icone="volume" taille="md">
               Bruitages aux transitions
             </Pastille>
           )}

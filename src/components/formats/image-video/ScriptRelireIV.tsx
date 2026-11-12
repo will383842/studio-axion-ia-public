@@ -22,7 +22,7 @@ import type { FormuleATrancherIV, PrixIV } from "@/moteurs/montage-image-video/f
 import { RecetteVariete } from "./RecetteVariete";
 import { jusquALaReprise } from "./reprise";
 import { lignesRelireIV, modificationsDesLignesIV, observerIV } from "./relire";
-import { changementsVarieteIV, euros, formulesNonTranchees, lignesVarieteIV, scriptValideParWill } from "./vue";
+import { changementsVarieteIV, lignesVarieteIV, scriptValideParWill } from "./vue";
 
 const VERIFICATION_INDISPONIBLE: PastilleControle[] = [{ niveau: "alerte", texte: "Vérification indisponible. Elle sera refaite à la validation." }];
 
@@ -47,12 +47,14 @@ export function ScriptRelireIV({
   const [autreAccroche, setAutreAccroche] = useState(false);
   const [choix, setChoix] = useState<Record<string, "garder" | "reformuler">>({});
   const [changes, setChanges] = useState<Partial<RecetteVarieteIV>>({});
+  const [formeAcceptee, setFormeAcceptee] = useState(false);
   const montant = Math.max(prix.auPlusCentimes, prix.habituelCentimes);
   // La fiche relue part de l'accroche choisie : changer d'accroche repart du texte proposé (l'écran se recrée).
   const base = useMemo(() => (autreAccroche ? (scriptValideParWill(fiche, [], { ecrans: {}, formules: {}, autreAccroche: true }).fiche ?? fiche) : fiche), [fiche, autreAccroche]);
   const depart = useMemo(() => lignesRelireIV(base, avecQuestion), [base, avecQuestion]);
-  const ouvertes = formulesNonTranchees(formules, { formules: choix });
   const [a, b] = fiche.accroches;
+  // Le serveur ignore « tel quel » si le script est modifié, si une formule n'est pas « garder » ou si l'autre accroche est choisie. Les textes retouchés ne sont connus qu'à l'envoi (drapeau alors retiré).
+  const toutesGardees = Object.values(choix).every((c) => c === "garder");
 
   const decisionDe = useCallback(
     (s: ScriptRelu) => scriptValideParWill(fiche, formules, { ...modificationsDesLignesIV(depart, s.lignes), formules: choix, ...(autreAccroche ? { autreAccroche } : {}) }),
@@ -69,17 +71,19 @@ export function ScriptRelireIV({
   );
 
   const lancer = useCallback(
-    async (s: ScriptRelu, accord: number | true): Promise<ResultatLancement> => {
-      if (typeof accord !== "number") return { ok: false, message: "Le prix n'a pas été confirmé. Rien n'a été payé." };
+    async (s: ScriptRelu): Promise<ResultatLancement> => {
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
-      const r = await validerScriptImageVideoAction(videoId, { ...decisionDe(s), ...(choixVariete ? { variete: choixVariete } : {}) }, accord);
+      // Le script de Williams fait foi : une phrase non tranchée est gardée telle quelle (simple remarque).
+      const decision = decisionDe(s);
+      const choixFormules = { ...Object.fromEntries(formules.map((f) => [f.cle, "garder" as const])), ...decision.choixFormules };
+      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}), ...(formeAcceptee && aTrancher.length > 0 && !decision.fiche && !autreAccroche && toutesGardees ? { formeAcceptee: true } : {}) }, montant);
       if (!r.ok) return { ok: false, message: r.message };
       const fin = await jusquALaReprise(videoId, r.donnees);
       if (fin) return { ok: false, message: fin };
       notifier.succes("Script validé : la vidéo se fabrique");
       return { ok: true };
     },
-    [videoId, decisionDe, variete, changes],
+    [videoId, decisionDe, variete, changes, formules, montant, formeAcceptee, aTrancher.length, autreAccroche, toutesGardees],
   );
 
   return (
@@ -103,10 +107,9 @@ export function ScriptRelireIV({
         lignes={depart}
         controler={controler}
         lancer={lancer}
-        prixCentimes={montant}
-        libelleLancer={`Valider et fabriquer (au plus ${euros(montant)})`}
+        libelleLancer="Valider et fabriquer"
         iconeLancer="film"
-        bloque={ouvertes.length ? `Tranchez d'abord ${ouvertes.length > 1 ? `les ${ouvertes.length} phrases trop affirmatives` : "la phrase trop affirmative"}.` : null}
+        bloque={null}
         observation={observerIV(base, avecQuestion)}
         apresLancement={() => router.refresh()}
       />
@@ -140,6 +143,13 @@ export function ScriptRelireIV({
             <li key={t}>{t}</li>
           ))}
         </ul>
+      )}
+
+      {aTrancher.length > 0 && !autreAccroche && toutesGardees && (
+        <label className="flex items-start gap-2 text-sm text-texte">
+          <input type="checkbox" className="mt-1 size-4" checked={formeAcceptee} onChange={(ev) => setFormeAcceptee(ev.target.checked)} />
+          <span>Je valide ce script tel quel malgré ces points de forme. Un chiffre ou un nom inventé, un mot interdit ou une durée trop longue restent bloquants.</span>
+        </label>
       )}
     </section>
   );

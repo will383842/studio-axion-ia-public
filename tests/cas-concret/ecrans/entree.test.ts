@@ -146,11 +146,12 @@ describe("aucun réseau coché", () => {
   it("K3 · sans prix d'avance (cas du stock hors des 20) : jamais « 0,00 € », bouton inactif jusqu'au retour de l'estimation", () => {
     const html = renderToStaticMarkup(createElement(PiedVotreVideo, { montant: null, refus: null, desactive: false, onFabriquer: async () => undefined }));
     const t = texte(html);
-    expect(t).toContain("Calcul du prix");
+    expect(t).toContain("Préparation…");
+    expect(t).not.toMatch(/prix|€/i);
     expect(t).not.toMatch(/0,00/);
     expect(html).toMatch(/<button[^>]*disabled/);
     const avecPrix = texte(renderToStaticMarkup(createElement(PiedVotreVideo, { montant: 60, refus: null, desactive: false, onFabriquer: async () => undefined })));
-    expect(avecPrix).not.toContain("Calcul du prix");
+    expect(avecPrix).not.toContain("Préparation…");
   });
 
   it("X1 · voix pas prête : la feuille dit quoi faire, avec un lien, AVANT le clic ; le bouton est inactif", () => {

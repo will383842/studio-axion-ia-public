@@ -21,9 +21,9 @@ export function ChoixAjout({ types }: { types: { type: string; nom: string; icon
               key={t.type}
               href={`/bibliotheque/${t.type}?ajouter=1`}
               onClick={() => setOuverte(false)}
-              className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-carte border border-trait bg-surface-2 p-2 text-center transition-colors hover:border-orange/60"
+              className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-carte border border-trait bg-surface-2 p-2 text-center transition-colors hover:border-trait-fort"
             >
-              <span className="grid size-10 place-items-center rounded-xl bg-orange-doux text-orange-vif">
+              <span className="grid size-10 place-items-center rounded-xl bg-surface-3 text-texte-faible">
                 <Icone nom={t.icone} size={20} />
               </span>
               <span className="text-sm font-semibold leading-tight text-texte">{t.nom}</span>

@@ -88,7 +88,7 @@ const decoderXml = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").
 
 export function creerStockageR2(config: ConfigR2, dependances: { fetch?: Fetch; maintenant?: () => Date } = {}): StockageFichiers {
   const identifiants: IdentifiantsS3 = { cleAcces: config.cleAcces, secret: config.secret, region: "auto" };
-  const appeler: Fetch = dependances.fetch ?? fetch;
+  const appeler: Fetch = dependances.fetch ?? ((...a) => fetch(...a));
   const date = () => (dependances.maintenant ?? (() => new Date()))();
   const chemin = (cle: string) => `/${config.seau}/${cle.replace(/^\/+/, "")}`;
   const signer = (methode: "GET" | "PUT" | "POST" | "HEAD" | "DELETE", cle: string, expireSec: number, parametres?: Record<string, string>) =>
@@ -147,6 +147,16 @@ export function creerStockageR2(config: ConfigR2, dependances: { fetch?: Fetch; 
         return { ok: true, ...(r.headers.get("content-length") !== null && Number.isSafeInteger(taille) && taille >= 0 ? { taille } : {}) };
       } catch {
         return { ok: false };
+      }
+    },
+    async tailleObjet(cleStockage) {
+      try {
+        const r = await requete(signer("HEAD", cleStockage, 300), { method: "HEAD" });
+        const brut = r.headers.get("content-length");
+        const taille = brut === null ? NaN : Number(brut);
+        return Number.isSafeInteger(taille) && taille >= 0 ? taille : null;
+      } catch {
+        return null;
       }
     },
     async lireDebut(cleStockage, octets) {

@@ -14,7 +14,7 @@ import React from "react";
  * centre et l'icône suit à +40 ms. `cocheA` : les nœuds passent en coche en cascade de 50 ms. N3 : un point lumineux
  * descend le rail en continu.
  */
-import { COULEURS, POLICES } from "../charte";
+import { POLICES } from "../charte";
 import { Icone } from "../elements";
 import { bosse, degradeEncre, degradeOrange, fondu, glisse, ivoireA, largeurCorps, largeurTitre, microOmbre, NUANCES, pose, Reflet, styleCorps, styleHeros, styleTitre, tailleQuiTient, TYPO } from "../variantes/premium-1";
 
@@ -192,7 +192,7 @@ function BadgeFrise({ t, a, texte, W, u, y, e }: { t: number; a: number; texte: 
         }}
       >
         <Reflet rayon={h / 2} />
-        <Icone nom="horloge" taille={icone} couleur={COULEURS.orange} epaisseur={2.4} />
+        <Icone nom="horloge" taille={icone} couleur={NUANCES.orangeSurNoir} epaisseur={2.4} />
         <span style={styleTitre(tailleTexte, NUANCES.ivoire)}>{texte}</span>
       </div>
     </div>

@@ -35,6 +35,8 @@ import { etape18Calage } from "./migrations/etape-18-calage";
 import { etape19Generateur } from "./migrations/etape-19-generateur";
 import { etape20Exemples } from "./migrations/etape-20-exemples";
 import { etape21SourceAxion } from "./migrations/etape-21-source-axion";
+import { etape22Ciblage } from "./migrations/etape-22-ciblage";
+import { etape23PlanEditorial } from "./migrations/etape-23-plan-editorial";
 
 export const VERSION_MIGRATION_MOTEUR_AVOCAT = 1;
 
@@ -287,6 +289,10 @@ export async function migrerDonnees(d: Depots, maintenant: string = new Date().t
     ["exemples", etape20Exemples],
     // 21 : Source axion-ia.com (03/10) — pages clés du site suivies au départ.
     ["source-axion", etape21SourceAxion],
+    // 22 : ciblage des scripts (09/11) — anciens scripts marqués, hors-sujet, doublons signalés.
+    ["ciblage", etape22Ciblage],
+    // 23 : plan éditorial (L1-07) — chaque publication existante reçoit un créneau, publications intactes.
+    ["plan-editorial", etape23PlanEditorial],
   ] as const) {
     const resume = await etape(d, maintenant);
     if (!resume) continue;
@@ -308,7 +314,7 @@ export async function migrerDonnees(d: Depots, maintenant: string = new Date().t
   return rapport;
 }
 
-const LIBELLES_ETAPES: Record<string, string> = { "mes-images": "Mes images", "decors-realistes": "décors", bruitages: "bruitages", credits: "crédits", calage: "calage", "source-axion": "votre site" };
+const LIBELLES_ETAPES: Record<string, string> = { "mes-images": "Mes images", "decors-realistes": "décors", bruitages: "bruitages", credits: "crédits", calage: "calage", "source-axion": "votre site", ciblage: "ciblage des scripts", "plan-editorial": "plan éditorial" };
 
 /** Étapes qui écrivent déjà leur événement « migration » elles-mêmes. */
 const ETAPES_AVEC_EVENEMENT = new Set<string>(["prononciations", "veille", "exemples"]);

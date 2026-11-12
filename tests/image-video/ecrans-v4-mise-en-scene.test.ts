@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
 import { avancerJusquAArretIV, attendWillIV, etatInitialIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
-import { FINS_INTERDITES, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
+import { contenuEmotion, FINS_INTERDITES, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { ecransIrrendables, scenesDeLaLigne } from "@/services/image-video-rendu";
 import { carteFixe, demandeEssai, IMAGES, monde, outilsSimules } from "./doubles-fabrication";
 
@@ -64,4 +64,20 @@ describe("écrans v4 de la mise en scène : jamais plus que ce que la compositio
       }
     });
   }
+});
+
+describe("contenuEmotion : chiffre en fin de ligne", () => {
+  const base = { id: "essai", debutMs: 0, finMs: 3000, evenements: [], fond: "" } as never;
+  it("« Relance à *3 jours* » : l'unité est « jours », la légende « Relance »", () => {
+    const e = contenuEmotion("chiffre", base, ["Relance à *3 jours*"]) as unknown as { nombre: number; unite: string; pastilles: string[] };
+    expect(e.nombre).toBe(3);
+    expect(e.unite).toBe("jours");
+    expect(e.pastilles[0]).toBe("Relance");
+  });
+  it("« Gain de *30 %* par mois » : le pourcent reste", () => {
+    const e = contenuEmotion("chiffre", base, ["Gain de *30 %* par mois"]) as unknown as { unite: string; pastilles: string[] };
+    expect(e.unite).toContain("%");
+    // Chiffre au milieu : l'ancien chemin, sortie inchangée (le « % » reste dans l'unité, rien n'est perdu).
+    expect(e.unite).toBe("Gain de 30 % par mois");
+  });
 });

@@ -9,7 +9,6 @@ import { notifier } from "@/components/ui/Toast";
 import { messageCorbeille } from "@/domaine/corbeille";
 import { ANNULER_VIDEO } from "@/domaine/libelles";
 import type { Montant } from "@/domaine/types";
-import { formaterMontant } from "@/lib/montants";
 
 /**
  * « Annuler cette vidéo » : LE bouton unique de tous les suivis et listes (même libellé, même promesse). Il met la vidéo
@@ -61,14 +60,14 @@ export function BoutonAnnuler({
                   }
                   setOuverte(false);
                   const { mises, centimes, brouillonsBuffer, pagesRetirees, refus } = r.donnees;
-                  const montant = depense && centimes ? ` (${formaterMontant({ centimes, devise: "EUR" })} payés)` : "";
+                  const montant = "";
                   if (!mises) {
                     // Fabrication arrêtée, mais la corbeille a refusé : on le dit, la vidéo reste là.
                     notifier.erreur(`Fabrication arrêtée${montant}, la vidéo n'a pas pu aller à la corbeille : ${refus ?? "elle n'a pas pu être mise de côté."}`);
                     router.refresh();
                     return;
                   }
-                  const paye = centimes ? ` ${formaterMontant({ centimes, devise: "EUR" })} payés pour les étapes faites.` : "";
+                  const paye = centimes ? " Les étapes déjà faites sont gardées." : "";
                   notifier.succes("Vidéo annulée", `${messageCorbeille(mises, brouillonsBuffer, pagesRetirees)}${depense ? paye : ""}`);
                   if (apres) router.push(apres);
                   else router.refresh();
@@ -83,14 +82,7 @@ export function BoutonAnnuler({
           </div>
         }
       >
-        {depense ? (
-          <p className="flex items-baseline justify-between rounded-carte border border-trait bg-surface-2 px-4 py-3 text-sm">
-            <span className="text-texte-doux">Déjà dépensé</span>
-            <span className="font-titre text-lg tabular-nums text-texte">{formaterMontant(depense)}</span>
-          </p>
-        ) : (
-          <span />
-        )}
+        <span />
       </FeuilleBas>
     </>
   );

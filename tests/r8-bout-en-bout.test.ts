@@ -277,7 +277,7 @@ async function parcours() {
     const decision = decisionLancement({ coutCentimes: apercu.estimation.total.centimes, seuilCentimes: apercu.budget.seuil.centimes, resteCentimes: apercu.budget.restant.centimes, aVerifier: [], montageReel: apercu.budget.montageReel, double: !!apercu.budget.double, manques: [...manques], essaiGratuit: apercu.essaiGratuit, manquesAcceptes: true });
     expect(["confirmer", "completer", "budget"]).toContain(decision.genre);
   }
-  await expect(fabrication.lancerFabrication(VIDEO)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: `Cette vidéo sera montée pour de vrai : ${formaterMontant(apercu.estimation.total)}. Confirmez pour continuer.` });
+  await expect(fabrication.lancerFabrication(VIDEO)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: "Cette vidéo sera montée pour de vrai (payant). Confirmez pour continuer." });
   const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO, { confirme: true });
   const version = (await depots().versions.obtenir(versionId))!;
   expect(version.commande.moteurId).toBe("montage-avocat");

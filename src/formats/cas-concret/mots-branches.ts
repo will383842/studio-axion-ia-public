@@ -10,8 +10,8 @@
  * remplacer le réglage sans autre changement (même forme de lecteur, `LecteurMotsBranches`).
  *
  * X7 · CONTRAT FIGÉ AVEC L'USINE (12/10/2026) : une ligne `{ mot: "GUIDE", reseau: "instagram" | "facebook",
- * compte?: "williamsjullin", etat: "non_branche" | "branche", le: "AAAA-MM-JJ" }`. `compte` est l'identifiant public du
- * compte sur le réseau, en minuscules (Will a deux comptes Facebook). Une ligne sans `compte` vaut pour tous les comptes
+ * compte?: "exemple", etat: "non_branche" | "branche", le: "AAAA-MM-JJ" }`. `compte` est l'identifiant public du
+ * compte sur le réseau, en minuscules (le dirigeant a deux comptes Facebook). Une ligne sans `compte` vaut pour tous les comptes
  * du réseau ; une ligne avec `compte` l'emporte, pour ce compte, sur la ligne sans compte. Le réglage accepte ces lignes
  * (un tableau) comme l'ancienne forme (mot → réseau → état, lue comme des lignes sans compte).
  * Tant que le studio ne sait pas à quel compte une sortie est destinée, il lit la ligne sans compte (à défaut : non
@@ -30,7 +30,7 @@ export type EtatBranchement = { etat: "non_branche"; le?: string } | { etat: "br
 
 /**
  * Pour un mot (forme écrite, en capitales) : l'état par réseau (clé « instagram », tous les comptes) ou par compte
- * (clé « instagram@williamsjullin »).
+ * (clé « instagram@exemple »).
  */
 export type ReglageMotsBranches = Readonly<Record<string, Readonly<Record<string, EtatBranchement>>>>;
 
