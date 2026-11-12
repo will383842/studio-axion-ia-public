@@ -9,7 +9,7 @@ process.env.STUDIO_ADRESSE = "https://studio.essai.example";
 const { verifierFormat, ratioDe, LIMITES_FORMAT } = await import("@/domaine/calendrier/formats-media");
 const svc = await import("@/services/medias-deposes");
 const { AjouterEntree } = await import("@/components/calendrier/AjouterEntree");
-const { DepotMedia } = await import("@/components/calendrier/DepotMedia");
+const { DepotMedia, envoyerFichierChoisi } = await import("@/components/calendrier/DepotMedia");
 
 const Mo = 1024 * 1024;
 const SHA = "a".repeat(64);
@@ -134,15 +134,17 @@ describe("medias-deposes : après validation", () => {
       await svc.enregistrerDepot(depot(), m.deps as never);
       expect((await svc.lienPublicPourDiffuseur("f1", "c1", m.deps as never)).ok).toBe(false);
     }
-    const m = monde({ statut: "valide" });
+    const m = monde();
     await svc.enregistrerDepot(depot(), m.deps as never);
+    (m.creneaux.get("c1") as { statut: string }).statut = "valide"; // validation du fondateur, APRÈS le dépôt
     const r = await svc.lienPublicPourDiffuseur("f1", "c1", m.deps as never);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.url).toMatch(/^https:\/\/studio\.essai\.example\/api\/medias-publics\/[^/]+\/video\.mp4$/);
   });
   it("le fichier d'une autre entrée n'est jamais publié par ce créneau", async () => {
-    const m = monde({ statut: "valide" });
+    const m = monde();
     await svc.enregistrerDepot(depot(), m.deps as never);
+    (m.creneaux.get("c1") as { statut: string }).statut = "valide";
     m.creneaux.set("c2", { id: "c2", jourVise: "2026-12-11", heuresParReseau: {}, compteCible: "compte-fictif", statut: "valide", decalages: 0, ...horo });
     expect((await svc.lienPublicPourDiffuseur("f1", "c2", m.deps as never)).ok).toBe(false);
   });
@@ -151,18 +153,86 @@ describe("medias-deposes : après validation", () => {
     await svc.enregistrerDepot(depot(), p.deps as never);
     expect((await svc.televerserChezDiffuseur("f1", "c1", p.deps as never)).ok).toBe(false);
     expect(p.deps.diffuseur.televerser).not.toHaveBeenCalled();
-    const v = monde({ statut: "valide" });
+    const v = monde();
     await svc.enregistrerDepot(depot(), v.deps as never);
+    (v.creneaux.get("c1") as { statut: string }).statut = "valide";
     const r = await svc.televerserChezDiffuseur("f1", "c1", v.deps as never);
     expect(r).toMatchObject({ ok: true, idDiffuseur: "media-fictif-1" });
     expect(v.televerse).toHaveLength(1);
     expect(v.televerse[0]).toMatchObject({ nom: "demo.mp4", mime: "video/mp4", taille: 5 * Mo });
   });
   it("panne du diffuseur : échec clair, rien de faux enregistré", async () => {
-    const v = monde({ statut: "valide" });
+    const v = monde();
     await svc.enregistrerDepot(depot(), v.deps as never);
+    (v.creneaux.get("c1") as { statut: string }).statut = "valide";
     v.deps.diffuseur.televerser.mockRejectedValueOnce(new Error("hors ligne"));
     expect((await svc.televerserChezDiffuseur("f1", "c1", v.deps as never)).ok).toBe(false);
+  });
+});
+
+describe("medias-deposes : un dépôt ramène l'entrée en brouillon (relecture u1)", () => {
+  it("dépôt sur une entrée valide ou programmée : elle repasse à « a_valider », le fondateur doit revalider, rien ne part", async () => {
+    for (const statut of ["valide", "programme"] as const) {
+      const m = monde({ statut });
+      const r = await svc.enregistrerDepot(depot(), m.deps as never);
+      expect(r.ok).toBe(true);
+      expect(m.creneaux.get("c1")).toMatchObject({ statut: "a_valider", videoId: "f1" });
+      expect((await svc.televerserChezDiffuseur("f1", "c1", m.deps as never)).ok).toBe(false);
+      expect(m.deps.diffuseur.televerser).not.toHaveBeenCalled();
+    }
+  });
+  it("dépôt sur une entrée déjà publiée : refusé, rien n'est rattaché", async () => {
+    const m = monde({ statut: "publie" });
+    const r = await svc.enregistrerDepot(depot(), m.deps as never);
+    expect(r.ok).toBe(false);
+    expect(m.creneaux.get("c1")).toMatchObject({ statut: "publie" });
+    expect(m.creneaux.get("c1")).not.toHaveProperty("videoId");
+  });
+  it("entrée « propose » ou « a_valider » : le statut ne bouge pas", async () => {
+    for (const statut of ["propose", "a_valider"] as const) {
+      const m = monde({ statut });
+      await svc.enregistrerDepot(depot(), m.deps as never);
+      expect(m.creneaux.get("c1")).toMatchObject({ statut });
+    }
+  });
+  it("format refusé : jamais téléversé chez le diffuseur, même sur une entrée validée (lien refusé aussi)", async () => {
+    const m = monde();
+    await svc.enregistrerDepot(depot({ reseau: "instagram", mime: "application/pdf", cle: "studio/dev/entree/c1/f1.pdf", nom: "a.pdf" }), m.deps as never);
+    (m.creneaux.get("c1") as { statut: string; reseau?: string; heuresParReseau: Record<string, string> }).statut = "programme";
+    (m.creneaux.get("c1") as { heuresParReseau: Record<string, string> }).heuresParReseau = { instagram: "2026-12-10T08:00:00.000Z" };
+    const r = await svc.televerserChezDiffuseur("f1", "c1", m.deps as never);
+    expect(r).toMatchObject({ ok: false, raison: expect.stringMatching(/Instagram/) });
+    expect(m.deps.diffuseur.televerser).not.toHaveBeenCalled();
+    expect(await svc.lienPublicPourDiffuseur("f1", "c1", m.deps as never)).toMatchObject({ ok: false });
+  });
+});
+
+describe("formulaire : le fichier choisi est réellement envoyé", () => {
+  const fichier = (nom: string, type: string, taille = 1000) => ({ name: nom, type, size: taille }) as unknown as File;
+  it("fichier accepté : envoyé une fois, vers l'entrée du formulaire, et rattaché (vidéo ou visuel)", async () => {
+    const envoyer = vi.fn(async () => ({ fichierId: "fAbc", simulation: false }));
+    const v = await envoyerFichierChoisi(fichier("a.mp4", "video/mp4"), "linkedin", "manuel-k1", envoyer as never);
+    expect(envoyer).toHaveBeenCalledTimes(1);
+    expect(envoyer).toHaveBeenCalledWith(expect.anything(), { typeEntite: "entree", entiteId: "manuel-k1" });
+    expect(v).toEqual({ ok: true, videoId: "fAbc" });
+    const i = await envoyerFichierChoisi(fichier("a.png", "image/png"), "linkedin", "manuel-k1", envoyer as never);
+    expect(i).toEqual({ ok: true, visuelId: "fAbc" });
+  });
+  it("format refusé par le réseau : jamais envoyé, l'ajout reste possible sans fichier", async () => {
+    const envoyer = vi.fn(async () => ({ fichierId: "fAbc", simulation: false }));
+    const r = await envoyerFichierChoisi(fichier("a.pdf", "application/pdf"), "instagram", "manuel-k1", envoyer as never);
+    expect(envoyer).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ ok: true, refuse: expect.stringMatching(/Instagram/) });
+  });
+  it("envoi en échec : l'ajout n'a pas lieu avec un faux fichier, message clair", async () => {
+    const envoyer = vi.fn(async () => { throw new Error("hors ligne"); });
+    const r = await envoyerFichierChoisi(fichier("a.mp4", "video/mp4"), "linkedin", "manuel-k1", envoyer as never);
+    expect(r).toMatchObject({ ok: false, message: expect.stringMatching(/pas pu être envoyé/) });
+  });
+  it("aucun fichier choisi : rien n'est envoyé", async () => {
+    const envoyer = vi.fn();
+    expect(await envoyerFichierChoisi(null, "linkedin", "manuel-k1", envoyer as never)).toEqual({ ok: true });
+    expect(envoyer).not.toHaveBeenCalled();
   });
 });
 
