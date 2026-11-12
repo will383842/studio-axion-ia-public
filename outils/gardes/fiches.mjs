@@ -289,6 +289,10 @@ const ecrireLots = (racine, lots, externes, retenues) => {
 };
 const lireJson = (p, defaut) => (fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8")) : defaut);
 
+/**
+ * @param {string[]} argv
+ * @param {{log:(...a:any[])=>unknown,error:(...a:any[])=>unknown}} [sortie]
+ */
 export function principal(argv, sortie = console) {
   const arg = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
   const racine = arg("--racine") ?? "pilotage";
