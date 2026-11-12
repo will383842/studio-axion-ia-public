@@ -248,9 +248,9 @@ describe("L2-13 · controlerBudgetDuMois n'est plus un refus de montant", () => 
   // Critère 5 (CORRECTIF du 12/11) : le montant n'est plus un motif de refus ; seul le quota et le plafond technique (fal) refusent l'usine.
   const evenementsBudget = async () => (await depots().evenements.lister()).filter((e) => e.type === "budget").map((e) => e.message);
   const cloches = async () => (await depots().notifications.lister()).map((n) => `${n.titre} ${n.message}`);
-  it.each(["studio", "usine"] as const)("plafond du mois dépassé (%s) : alerte (cloche) + ligne de journal, aucune erreur, sans montant", async (origine) => {
+  it("plafond du mois dépassé (studio) : alerte (cloche) + ligne de journal, aucune erreur, sans montant", async () => {
     await ecrireParametre("budget.mensuel", centimes(100));
-    await expect(budget.controlerBudgetDuMois(500, { origine })).resolves.toBeUndefined();
+    await expect(budget.controlerBudgetDuMois(500, { origine: "studio" })).resolves.toBeUndefined();
     const lignes = await evenementsBudget();
     expect(lignes.some((l) => /dépassé \(mois\)/.test(l))).toBe(true);
     const c = await cloches();
@@ -258,20 +258,21 @@ describe("L2-13 · controlerBudgetDuMois n'est plus un refus de montant", () => 
     for (const t of [...lignes, ...c]) expect(t).not.toMatch(AUCUN_MONTANT);
   });
 
-  it("budget de l'usine absent : alerte + journal, aucune erreur (le quota de quantité reste le garde-fou)", async () => {
-    await expect(budget.controlerBudgetDuMois(10, { origine: "usine" })).resolves.toBeUndefined();
-    expect((await evenementsBudget()).some((l) => /usine-absent/.test(l))).toBe(true);
-    expect((await cloches()).length).toBeGreaterThan(0);
+  it("plafond du mois dépassé (usine) : refusée (BUDGET_DEPASSE), le refus de l'usine reste entier", async () => {
+    await ecrireParametre("budget.mensuel", centimes(100));
+    await expect(budget.controlerBudgetDuMois(500, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
   });
 
-  it("budget de l'usine atteint : alerte + journal, aucune erreur ; un lancement du studio n'est pas concerné", async () => {
+  it("budget de l'usine absent : l'usine est refusée (BUDGET_USINE_ABSENT), le studio passe sans refus", async () => {
+    await expect(budget.controlerBudgetDuMois(10, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(budget.controlerBudgetDuMois(10, { origine: "studio" })).resolves.toBeUndefined();
+  });
+
+  it("budget de l'usine atteint : l'usine est refusée (BUDGET_MENSUEL_ATTEINT) ; un lancement du studio n'est pas concerné", async () => {
     const { moisParis } = await import("@/services/couts");
     await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 50, mois: moisParis(), le: new Date().toISOString() });
-    await expect(budget.controlerBudgetDuMois(100, { origine: "usine" })).resolves.toBeUndefined();
-    expect((await evenementsBudget()).some((l) => /usine-atteint/.test(l))).toBe(true);
-    const avant = (await evenementsBudget()).filter((l) => /usine-atteint/.test(l)).length;
+    await expect(budget.controlerBudgetDuMois(100, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
     await expect(budget.controlerBudgetDuMois(100, { origine: "studio" })).resolves.toBeUndefined();
-    expect((await evenementsBudget()).filter((l) => /usine-atteint/.test(l)).length).toBe(avant);
   });
 
   it("le refus de l'usine reste entier au-delà du quota et du plafond technique, même budget d'argent ignoré", async () => {
