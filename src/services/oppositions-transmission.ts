@@ -12,6 +12,7 @@
  *  - journal et alertes : des codes seulement, jamais d'adresse, de corps d'appel, d'empreinte ni de clé ; aucun `catch` n'en journalise.
  */
 import "server-only";
+import { aliasDe, racineDe } from "@/domaine/guide-reseau/cles-parcours";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { cleIdempotenceOpaque, lireClesEmpreinte, type CleEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { ATTENTES_INTROUVABLE_MS, ATTENTES_PANNE_LECTURE_MS, voiesOpposition, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
@@ -161,14 +162,42 @@ export async function rattraperOppositions(o: { env?: Env; maintenantMs?: number
   const k = lireClesEmpreinte(env);
   if (!k.ok) return 0;
   const conversations = await lireParametre<Record<string, Conversation>>(PARAM_CONVERSATIONS, {});
+  const tableAlias = await lireParametre<Record<string, string>>(`${PARAM_CONVERSATIONS}.alias`, {});
   const f = await lireFile();
   const fp = await lireFilePage();
+  // Précalcul UNIQUE : racine -> (opposée dans l'état ?, empreintes à chercher au registre). Tout le dossier compte :
+  // racine, alias de la racine, clé et alias propres de chaque enregistrement, et entrées de la table qui pointent vers eux.
+  const parRacine = new Map<string, { oppose: boolean; empreintes: Set<string> }>();
+  const entree = (r: string) => {
+    let e = parRacine.get(r);
+    if (!e) {
+      e = { oppose: false, empreintes: new Set([r]) };
+      parRacine.set(r, e);
+    }
+    return e;
+  };
+  const tableParCible = new Map<string, string[]>();
+  for (const [a, cible] of Object.entries(tableAlias)) tableParCible.set(cible, [...(tableParCible.get(cible) ?? []), a]);
+  for (const r of new Set(Object.keys(conversations).map(racineDe))) entree(r);
+  for (const r of parRacine.keys()) {
+    const e = parRacine.get(r)!;
+    for (const a of aliasDe(r, conversations, tableAlias)) e.empreintes.add(a);
+  }
+  for (const [cle, c] of Object.entries(conversations)) {
+    const e = entree(racineDe(cle));
+    if (c.etat === "oppose") e.oppose = true;
+    e.empreintes.add(cle);
+    for (const a of c.alias ?? []) e.empreintes.add(a);
+    for (const a of tableParCible.get(cle) ?? []) e.empreintes.add(a);
+  }
   let ajoutees = 0;
   for (const [cle, c] of Object.entries(conversations)) {
     const voies = voiesOpposition(c);
     if (!((voies.adresse && !f[cle]) || (voies.page && !fp[cle]))) continue;
-    const auRegistre = await empreintesOpposees([cle, ...(c.alias ?? [])], { env });
-    if (!auRegistre && c.etat !== "oppose") continue;
+    const racine = racineDe(cle);
+    const d = entree(racine);
+    const auRegistre = await empreintesOpposees([...d.empreintes], { env });
+    if (!auRegistre && !d.oppose) continue;
     await mettreEnFileOpposition(cle, c, k.courante, now);
     ajoutees++;
   }

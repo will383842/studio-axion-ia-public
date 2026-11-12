@@ -100,7 +100,7 @@ export function DemanderModification({ videoId, historique: initial, possible, e
   return (
     <section aria-label="Demander une modification" className="rounded-carte border border-trait bg-surface-1 p-4">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-texte-doux">
-        <Icone nom="etincelles" size={16} className="text-orange-vif" />
+        <Icone nom="etincelles" size={16} className="text-accent" />
         Demander une modification
       </h3>
 
@@ -108,7 +108,7 @@ export function DemanderModification({ videoId, historique: initial, possible, e
         <ol className="mb-4 space-y-3">
           {historique.map((p) => (
             <li key={p.id} className="space-y-2">
-              <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-orange-doux px-3 py-2 text-[15px] text-texte">{p.demande}</p>
+              <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-accent-doux px-3 py-2 text-[15px] text-texte">{p.demande}</p>
               <div className={cn("max-w-[92%] rounded-2xl rounded-bl-md border px-3 py-2.5", p.statut === "hors-capacite" ? "border-ambre/40 bg-ambre-doux" : "border-trait bg-surface-2")}>
                 <p className="text-[15px] text-texte">{p.resume}</p>
                 {p.plansTouches.length > 0 && (

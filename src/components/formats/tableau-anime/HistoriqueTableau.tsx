@@ -11,6 +11,7 @@ import { noterPublicationAction, telechargerHistoriqueAction } from "@/app/(stud
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { notifier } from "@/components/ui/Toast";
 import type { VueHistorique } from "@/services/tableau-tracabilite";
 
@@ -32,7 +33,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
     demarrer(async () => {
       const r = await telechargerHistoriqueAction(videoId, "csv");
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       const url = URL.createObjectURL(new Blob([r.donnees.contenu], { type: r.donnees.type }));
@@ -48,7 +49,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
     demarrer(async () => {
       const r = await noterPublicationAction(videoId, reseau, date, lien);
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       notifier.succes("Publication notée");
@@ -75,7 +76,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
           {vue.lignes.map((l) => (
             <li key={l.id} className="min-w-0 border-l-2 border-trait pl-3">
               <p className="text-[15px] text-texte">
-                {l.phrase}
+                {messageSansMontant(l.phrase)}
                 {l.lien && (
                   <>
                     {" · "}

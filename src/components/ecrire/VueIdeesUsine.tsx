@@ -75,7 +75,7 @@ export function VueIdeesUsine({ filtres, onFiltres, metiers, idees, enCours, ecr
           <span
             key={t.id}
             aria-disabled={!t.actif}
-            className={cn("inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold", t.actif ? "border-orange bg-orange text-sur-orange" : "border-trait text-texte-faible opacity-50")}
+            className={cn("inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold", t.actif ? "border-accent bg-accent text-sur-accent" : "border-trait text-texte-faible opacity-50")}
           >
             {t.libelle}
             {!t.actif && <span className="text-[11px] font-medium">bientôt</span>}
@@ -96,7 +96,7 @@ export function VueIdeesUsine({ filtres, onFiltres, metiers, idees, enCours, ecr
         <label htmlFor="usine-metier" className="mb-2 block text-sm font-semibold text-texte-doux">
           Métier
         </label>
-        <div className="flex min-h-11 items-center gap-2 rounded-full border border-trait bg-surface-2 px-4 focus-within:border-orange">
+        <div className="flex min-h-11 items-center gap-2 rounded-full border border-trait bg-surface-2 px-4 focus-within:border-accent">
           <Icone nom="loupe" size={16} className="shrink-0 text-texte-faible" />
           <input id="usine-metier" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Chercher" className="min-w-0 flex-1 bg-transparent text-[16px] text-texte outline-none placeholder:text-texte-faible" />
         </div>
@@ -110,7 +110,7 @@ export function VueIdeesUsine({ filtres, onFiltres, metiers, idees, enCours, ecr
                   type="button"
                   aria-pressed={actif}
                   onClick={() => onFiltres({ ...filtres, metiers: actif ? filtres.metiers.filter((x) => x !== m.code) : [...filtres.metiers, m.code] })}
-                  className={cn("min-h-9 rounded-full border px-3 text-[13px] font-semibold transition-colors", actif ? "border-orange bg-orange text-sur-orange" : "border-trait bg-surface-1 text-texte hover:border-trait-fort")}
+                  className={cn("min-h-9 rounded-full border px-3 text-[13px] font-semibold transition-colors", actif ? "border-accent bg-accent text-sur-accent" : "border-trait bg-surface-1 text-texte hover:border-trait-fort")}
                 >
                   {m.libelle}
                 </button>

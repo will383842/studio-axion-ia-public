@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import { Apparition } from "@/components/ui/Apparition";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
-import { CarteSection } from "@/components/reglages/CarteSection";
+import { CartePliante } from "@/components/reglages/CartePliante";
+import { RefaireToutesLesVignettes } from "@/components/videos/RefaireToutesLesVignettes";
+import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
 import { BlocBuffer } from "@/components/reglages/BlocBuffer";
 import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier";
 import { pageAPublierAllumee } from "@/services/a-publier";
@@ -142,87 +144,187 @@ export default async function PageReglages() {
       <div className="max-w-3xl space-y-14">
         <Rubrique id="compte">
           <Apparition>
-            <CarteSection id="securite" icone="cadenas" titre="Sécurité">
+            <CartePliante id="securite" icone="cadenas" titre="Sécurité" resume="Mot de passe et appareils connectés" ouverte>
               <ChangerMotDePasse enMemoire={infos.enMemoire} />
               <div className="my-4 h-px bg-trait" />
               <h3 className="mb-1 text-[15px] font-semibold text-texte">Appareils connectés · {sessions.length}</h3>
-              <ListeAppareils appareils={sessions.map((s) => ({ id: s.id, appareil: s.appareil, derniereActivite: s.derniereActivite, courante: s.courante, resterConnecte: s.resterConnecte }))} />
-            </CarteSection>
+              <ListeAppareils
+                appareils={sessions.map((s) => ({
+                  id: s.id,
+                  appareil: s.appareil,
+                  derniereActivite: s.derniereActivite,
+                  courante: s.courante,
+                  resterConnecte: s.resterConnecte,
+                }))}
+              />
+            </CartePliante>
           </Apparition>
           <Apparition index={1}>
-            <CarteSection id="notifications" icone="cloche" titre="Notifications">
+            <CartePliante id="notifications" icone="cloche" titre="Notifications" resume="Ce qui vous prévient, par la cloche" ouverte>
               <ReglagesNotifications initiales={reglages.notifications} serveur={reglages.notificationsServeur} />
-            </CarteSection>
+            </CartePliante>
           </Apparition>
         </Rubrique>
 
         <Rubrique id="videos">
           {/* Lot R7e : votre avatar parle dans le studio (éteint par défaut, allumé par Will seulement). */}
           <Apparition>
-            <CarteSection id="avatar" icone="video" titre="Votre avatar">
+            <CartePliante id="avatar" icone="video" titre="Votre avatar" resume="Votre avatar parle dans le studio" ouverte>
               <ReglageDouble initial={double} />
-            </CarteSection>
+            </CartePliante>
           </Apparition>
           {/* Plan facecam v4 (lot D) : total du mois et plafond, « Mes habitudes ». */}
           {avecMonteur && (
             <Apparition index={1}>
-              <CarteSection id="mon-monteur" icone="etincelles" titre="Mes habitudes de montage">
+              <CartePliante id="mon-monteur" icone="etincelles" titre="Mes habitudes de montage" resume="Les habitudes appliquées aux prochaines vidéos">
                 <MonMonteur vue={monteur} />
-              </CarteSection>
+              </CartePliante>
             </Apparition>
           )}
           {/* Plan facecam v4 (lot E1) : l'option « décor » (même clé de réglage), coupée par défaut, sans aucun prix. */}
           {avecMonteur && decorIa && (
             <Apparition index={2}>
-              <CarteSection id="decor-ia" icone="image" titre="Décor des vidéos">
+              <CartePliante id="decor-ia" icone="image" titre="Décor des vidéos" resume="Décor des vidéos, coupé tant que vous ne l'allumez pas">
                 <DecorIa initial={decorIa} retire={optionRetiree("decor-ia")} />
-              </CarteSection>
+              </CartePliante>
             </Apparition>
           )}
+          <Apparition index={3}>
+            <CartePliante id="carrousels" icone="images" titre="Carrousels et infographies" resume="Allumez un générateur seulement quand vous voulez l'utiliser.">
+              <Link href="/reglages/carrousels" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:underline">
+                <span className="flex-1">
+                  Ouvrir les réglages des carrousels
+                  <span className="block text-sm font-normal text-texte-doux">Un interrupteur par générateur, tous éteints par défaut.</span>
+                </span>
+                <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
+              </Link>
+            </CartePliante>
+          </Apparition>
         </Rubrique>
 
         <Rubrique id="publication">
           <Apparition>
-            <CarteSection id="reseaux" icone="megaphone" titre="Mes réseaux">
+            <CartePliante id="reseaux" icone="megaphone" titre="Mes réseaux" resume="Les réseaux proposés par défaut, les mots-dièse" ouverte>
               <ReglagesReseaux initiaux={reglages.reseauxParDefaut} />
               {/* Équipe 7 : la famille de mots-dièse de chaque réseau (TikTok préremplie). */}
               <VosHashtags initiales={reglages.hashtags} />
               <InterrupteurAPublier key={String(aPublierAllumee)} initial={aPublierAllumee} />
-            </CarteSection>
+            </CartePliante>
           </Apparition>
           <Apparition index={1}>
-            <CarteSection id="mention-ia" icone="etincelles" titre="Mention IA">
+            <CartePliante id="mention-ia" icone="etincelles" titre="Mention IA" resume="Mention facultative sur vos contenus">
               <ReglagesMentionIA initiale={reglages.mentionIA} />
-            </CarteSection>
+            </CartePliante>
           </Apparition>
           {/* NAV D1 : écran des comptes de publication (routage, « Tout arrêter »), lu en base ; session exigée par chaque action. */}
           <Apparition index={2}>
-            <CarteSection id="comptes-publication" icone="prise" titre="Vos comptes de publication">
+            <CartePliante id="comptes-publication" icone="prise" titre="Vos comptes de publication" resume="Les comptes par lesquels vos contenus partent" ouverte>
+              {/* Ancre de « Voir la migration » (BlocZernio) : la page Migration n'est plus dans la navigation. */}
+              <span id="migration" className="block scroll-mt-24" />
               <ConnexionsZernioReglages />
-            </CarteSection>
+            </CartePliante>
+          </Apparition>
+          {/* Cadence : la page garde son contenu, la carte y mène. */}
+          <Apparition index={3}>
+            <CartePliante id="cadence" icone="horloge" titre="Cadence de publication" resume="Le calendrier vous prévient, il ne bloque jamais.">
+              <Link href="/reglages/cadence" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:underline">
+                <span className="flex-1">
+                  Régler les heures et le nombre de publications par jour
+                  <span className="block text-sm font-normal text-texte-doux">Heures proposées, publications par jour, écart entre deux.</span>
+                </span>
+                <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
+              </Link>
+            </CartePliante>
           </Apparition>
           {/* Lot R1 : envoi programmé, lu en base, aucun appel au service à l'affichage. */}
-          <Apparition index={3}>
-            <CarteSection id="envoi-programme" icone="envoyer" titre="Envoi programmé">
+          <Apparition index={4}>
+            <CartePliante id="envoi-programme" icone="envoyer" titre="Envoi programmé" resume="Comment les vidéos partent">
               <BlocBuffer vue={buffer} />
-            </CarteSection>
+            </CartePliante>
           </Apparition>
           {/* Vidéos sur le site (lot S1) : un interrupteur par type de vidéo, tous éteints. */}
-          <Apparition index={4}>
-            <CarteSection id="sur-le-site" icone="film" titre="Sur le site">
+          <Apparition index={5}>
+            <CartePliante id="sur-le-site" icone="film" titre="Sur le site" resume="Les types de vidéo qui peuvent aller sur votre site">
               <SurLeSite lignes={lignesSite} />
-            </CarteSection>
+            </CartePliante>
           </Apparition>
         </Rubrique>
 
         <Rubrique id="services">
           {/* Un seul endroit, dans cet ordre : Connexions, puis Crédits (consigne crédits, 02/10). */}
           <Apparition>
-            <CarteSection id="connexions" icone="prise" titre="Connexions">
-              <Connexions connexions={connexions.map((c) => ({ type: c.type, etat: c.etat, options: c.options, montageReelPour: c.montageReelPour, jeLis: c.jeLis, calageRelie: c.calageRelie, montageReel: c.montageReel }))} cles={cles} />
-              <section aria-label="Contrôle de production" className="mt-4 text-sm">
-                <h3 className="font-medium">Contrôle de production (lecture seule)</h3>
-                <ul className="mt-2 space-y-1">
+            <CartePliante id="connexions" icone="prise" titre="Connexions" resume="Les services reliés et leur état" ouverte>
+              <Connexions
+                connexions={connexions.map((c) => ({
+                  type: c.type,
+                  etat: c.etat,
+                  options: c.options,
+                  montageReelPour: c.montageReelPour,
+                  jeLis: c.jeLis,
+                  calageRelie: c.calageRelie,
+                  montageReel: c.montageReel,
+                }))}
+                cles={cles}
+              />
+            </CartePliante>
+          </Apparition>
+          <Apparition index={1}>
+            <CartePliante id="credits" icone="jauge" titre="Crédits" resume="Ce qu'il reste chez chaque service" ouverte>
+              <Credits cartes={credits} tauxUsdEur={tauxUsdEur} />
+              {creditClaude && (
+                <div id="credits-claude" className="scroll-mt-24">
+                  <CreditClaude vue={creditClaude} tauxUsdEur={tauxUsdEur} />
+                </div>
+              )}
+            </CartePliante>
+          </Apparition>
+          <Apparition index={2}>
+            <CartePliante id="options-payantes" icone="curseurs" titre="Options supplémentaires" resume="Un geste pour couper les options supplémentaires">
+              {/* Vérif V4 : un seul geste pour qu'aucune option supplémentaire ne soit proposée ni ne parte. */}
+              <OptionsPayantes initial={coupees} />
+            </CartePliante>
+          </Apparition>
+          {/* Lot E2 : import des vidéos depuis le Google Drive de Will (lecture seule). */}
+          <Apparition index={3}>
+            <CartePliante id="google-drive" icone="prise" titre="Importer depuis Google Drive" resume="Importer une vidéo depuis votre Drive">
+              <Link href="/reglages/google-drive" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:text-orange-vif">
+                <Icone nom="prise" size={18} className="text-texte-doux" />
+                <span className="flex-1">Choisir une vidéo dans votre Drive</span>
+                <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
+              </Link>
+            </CartePliante>
+          </Apparition>
+          {/* Source axion-ia.com (03/10) : le site lu chaque jour, ses pages photographiées. */}
+          <Apparition index={4}>
+            <CartePliante id="votre-site" icone="lien" titre="Votre site" resume="Lu chaque jour">
+              <VotreSite vue={site} />
+            </CartePliante>
+          </Apparition>
+          {/* Reste en ligne à part (décision de Williams, 12/11) : ce n'est pas un réglage de plus. */}
+          <Link href="/reglages/base-connaissances" className="flex min-h-14 items-center gap-3 rounded-carte border border-trait bg-surface-1 px-4 py-3 text-texte shadow-carte hover:border-trait-fort">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-texte-faible">
+              <Icone nom="livre" size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-lg">Base de connaissances</span>
+              <span className="block text-sm text-texte-doux">Les fiches que le Studio consulte pour écrire</span>
+            </span>
+            <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
+          </Link>
+        </Rubrique>
+
+        {/* Avancé : rare ou technique, tout est replié (maquette M6) : les cartes se déplient une à une. */}
+        <section id="avance" aria-labelledby="avance-rubrique" className="scroll-mt-28 space-y-6">
+          <div>
+            <h2 id="avance-rubrique" className="border-b border-trait pb-2 text-xl text-texte">
+              {RUBRIQUES.find((r) => r.id === "avance")!.libelle}
+            </h2>
+            <p className="mt-2 text-sm text-texte-doux">Rarement utile. Tout est replié : ouvrez seulement ce dont vous avez besoin.</p>
+          </div>
+          <div className="space-y-4">
+            <CartePliante id="controle-production" icone="valide" titre="Contrôle de production" resume="Lecture seule : les clés posées et les interrupteurs de production">
+              <section aria-label="Contrôle de production" className="text-sm">
+                <ul className="space-y-1">
                   {production.cles.map((c) => (
                     <li key={c.variable}>
                       {c.libelle} : {c.posee ? "clé posée" : "clé absente"}
@@ -235,116 +337,88 @@ export default async function PageReglages() {
                   ))}
                 </ul>
               </section>
-            </CarteSection>
-          </Apparition>
-          <Apparition index={1}>
-            <CarteSection id="credits" icone="jauge" titre="Crédits">
-              <Credits cartes={credits} tauxUsdEur={tauxUsdEur} />
-              {creditClaude && <CreditClaude vue={creditClaude} tauxUsdEur={tauxUsdEur} />}
-            </CarteSection>
-          </Apparition>
-          <Apparition index={2}>
-            <CarteSection id="options-payantes" icone="curseurs" titre="Options supplémentaires">
-              {/* Vérif V4 : un seul geste pour qu'aucune option supplémentaire ne soit proposée ni ne parte. */}
-              <OptionsPayantes initial={coupees} />
-            </CarteSection>
-          </Apparition>
-          {/* Lot E2 : import des vidéos depuis le Google Drive de Will (lecture seule). */}
-          <Apparition index={3}>
-            <CarteSection id="google-drive" icone="prise" titre="Importer depuis Google Drive">
-              <Link href="/reglages/google-drive" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:text-orange-vif">
-                <Icone nom="prise" size={18} className="text-texte-doux" />
-                <span className="flex-1">Choisir une vidéo dans votre Drive</span>
+            </CartePliante>
+            <CartePliante id="ecriture" icone="ecrire" titre="Écriture des scripts" resume="Chaîne d'écriture, sujets déjà traités">
+              <ChoixChaineEcriture key={chaine} initiale={chaine} tauxUsdEur={tauxUsdEur} />
+              <div className="my-4 h-px bg-trait" />
+              <GardeSujetsReglage key={gardeSujets} garde={gardeSujets} />
+              <div className="my-4 h-px bg-trait" />
+              <InterrupteursEcriture key={JSON.stringify(interrupteursEcriture)} etat={interrupteursEcriture} adaptationsBranchees={ADAPTATIONS_BRANCHEES} />
+            </CartePliante>
+            <CartePliante id="exemples" icone="film" titre="Contenus d'exemple" resume="Masqués, jamais supprimés">
+              <InterrupteurExemples initial={reglages.afficherExemples} />
+            </CartePliante>
+            <CartePliante id="journal" icone="document" titre="Journal" resume="Les 12 dernières actions sur votre compte">
+              {journal.length ? (
+                <ol className="-my-1 divide-y divide-trait">
+                  {journal.map((e) => (
+                    <li key={e.id} className="flex min-h-12 items-center gap-3 py-2">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-texte-faible">
+                        <Icone nom={ICONES_JOURNAL[e.type] ?? "info"} size={15} />
+                      </span>
+                      <span className="min-w-0 flex-1 text-sm text-texte">{e.message}</span>
+                      <span className="shrink-0 text-xs text-texte-faible">{ilYA(e.date)}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-sm text-texte-faible">Rien pour l&apos;instant.</p>
+              )}
+            </CartePliante>
+            <CartePliante id="a-propos" icone="info" titre="À propos" resume="Application, version, données">
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-xs text-texte-faible">Application</dt>
+                  <dd className="font-semibold text-texte">{infos.application}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-texte-faible">Version</dt>
+                  <dd className="font-semibold tabular-nums text-texte">{infos.version}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-texte-faible">Données</dt>
+                  <dd className="font-semibold text-texte">{infos.donnees}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-texte-faible">Exemples</dt>
+                  <dd className="font-semibold text-texte">{reglages.afficherExemples ? "Affichés" : "Masqués"}</dd>
+                </div>
+              </dl>
+            </CartePliante>
+            {/* Veille des outils (lot B2) : bilan des cartes, la page « Veille » pour le détail. */}
+            <Apparition>
+              <CartePliante id="outils" icone="tendance" titre="Veille des outils" resume="Les nouveautés de vos outils. Rien ne change sans vous.">
+                <div className="flex flex-wrap items-center gap-2">
+                  {(["attention", "nouveaute", "a-jour", "injoignable"] as const).map((e) =>
+                    veille[e] ? (
+                      <Pastille key={e} ton={ETATS_VEILLE[e].tonalite} icone={ETATS_VEILLE[e].icone} taille="md">
+                        {compteEtatVeille(e, veille[e])}
+                      </Pastille>
+                    ) : null,
+                  )}
+                </div>
+                <Link href="/veille" className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif hover:underline">
+                  {veille.ouvertes ? `${veille.ouvertes} nouveauté${veille.ouvertes > 1 ? "s" : ""} à regarder` : "Ouvrir la veille"}
+                  <Icone nom="chevron-droite" size={16} />
+                </Link>
+              </CartePliante>
+            </Apparition>
+            <CartePliante id="aide-chat" icone="idee" titre="Aide du chat" resume="Ce que vous pouvez demander, en mots simples">
+              <Link href="/aide-chat" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:underline">
+                <span className="flex-1">
+                  Ouvrir l&apos;aide du chat de retouche
+                  <span className="block text-sm font-normal text-texte-doux">La liste des demandes que le chat comprend, avec des exemples.</span>
+                </span>
                 <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
               </Link>
-            </CarteSection>
-          </Apparition>
-          {/* Source axion-ia.com (03/10) : le site lu chaque jour, ses pages photographiées. */}
-          <Apparition index={4}>
-            <CarteSection id="votre-site" icone="lien" titre="Votre site">
-              <VotreSite vue={site} />
-            </CarteSection>
-          </Apparition>
-          {/* Veille des outils (lot B2) : bilan des cartes, la page « Veille » pour le détail. */}
-          <Apparition index={5}>
-            <CarteSection id="outils" icone="tendance" titre="Outils">
-              <div className="flex flex-wrap items-center gap-2">
-                {(["attention", "nouveaute", "a-jour", "injoignable"] as const).map((e) =>
-                  veille[e] ? (
-                    <Pastille key={e} ton={ETATS_VEILLE[e].tonalite} icone={ETATS_VEILLE[e].icone} taille="md">
-                      {compteEtatVeille(e, veille[e])}
-                    </Pastille>
-                  ) : null,
-                )}
+            </CartePliante>
+            <CartePliante id="entretien" icone="film" titre="Entretien des vidéos" resume="Les deux boutons d'entretien de « Mes vidéos », ici aussi">
+              <div className="flex flex-wrap items-start gap-3">
+                <RefaireToutesLesVignettes />
+                <NettoyerNonTerminees />
               </div>
-              <Link href="/veille" className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif hover:underline">
-                {veille.ouvertes ? `${veille.ouvertes} nouveauté${veille.ouvertes > 1 ? "s" : ""} à regarder` : "Ouvrir la veille"}
-                <Icone nom="chevron-droite" size={16} />
-              </Link>
-            </CarteSection>
-          </Apparition>
-        </Rubrique>
-
-        {/* Avancé : rare ou technique, replié. */}
-        <section id="avance" aria-labelledby="avance-rubrique" className="scroll-mt-28">
-          <details className="rounded-carte border border-trait bg-surface-1">
-            <summary className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-3">
-              <h2 id="avance-rubrique" className="flex-1 text-xl text-texte">
-                {RUBRIQUES.find((r) => r.id === "avance")!.libelle}
-              </h2>
-              <span className="text-sm font-semibold text-texte-faible">Rarement utile</span>
-            </summary>
-            <div className="space-y-10 border-t border-trait p-4 sm:p-5">
-              {/* Choix de la chaîne qui écrit les prochains scripts (courte ou équipe). */}
-              <CarteSection id="ecriture" icone="ecrire" titre="Écriture des scripts">
-                <ChoixChaineEcriture key={chaine} initiale={chaine} tauxUsdEur={tauxUsdEur} />
-                <div className="my-4 h-px bg-trait" />
-                <GardeSujetsReglage key={gardeSujets} garde={gardeSujets} />
-                <div className="my-4 h-px bg-trait" />
-                <InterrupteursEcriture key={JSON.stringify(interrupteursEcriture)} etat={interrupteursEcriture} adaptationsBranchees={ADAPTATIONS_BRANCHEES} />
-              </CarteSection>
-              <CarteSection id="exemples" icone="film" titre="Contenus d'exemple">
-                <InterrupteurExemples initial={reglages.afficherExemples} />
-              </CarteSection>
-              <CarteSection id="journal" icone="document" titre="Journal">
-                {journal.length ? (
-                  <ol className="-my-1 divide-y divide-trait">
-                    {journal.map((e) => (
-                      <li key={e.id} className="flex min-h-12 items-center gap-3 py-2">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-texte-faible">
-                          <Icone nom={ICONES_JOURNAL[e.type] ?? "info"} size={15} />
-                        </span>
-                        <span className="min-w-0 flex-1 text-sm text-texte">{e.message}</span>
-                        <span className="shrink-0 text-xs text-texte-faible">{ilYA(e.date)}</span>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-sm text-texte-faible">Rien pour l&apos;instant.</p>
-                )}
-              </CarteSection>
-              <CarteSection id="a-propos" icone="info" titre="À propos">
-                <dl className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <dt className="text-xs text-texte-faible">Application</dt>
-                    <dd className="font-semibold text-texte">{infos.application}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-texte-faible">Version</dt>
-                    <dd className="font-semibold tabular-nums text-texte">{infos.version}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-texte-faible">Données</dt>
-                    <dd className="font-semibold text-texte">{infos.donnees}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-texte-faible">Exemples</dt>
-                    <dd className="font-semibold text-texte">{reglages.afficherExemples ? "Affichés" : "Masqués"}</dd>
-                  </div>
-                </dl>
-              </CarteSection>
-            </div>
-          </details>
+            </CartePliante>
+          </div>
         </section>
       </div>
     </div>
