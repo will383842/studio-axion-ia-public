@@ -62,5 +62,12 @@ jobs:
             --exclude='*.test.ts' --exclude='*.test.tsx' \
             ./ "$CTX/"
           echo "CTX=$CTX" >> "$GITHUB_ENV"
+      # Cache de compilation Next (12/11/2026) : accélère le build, ne change jamais son résultat (clé = lockfile + sources).
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/contexte-docker/.next/cache
+          key: next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            next-cache-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: pnpm build
         run: cd "$CTX" && pnpm build

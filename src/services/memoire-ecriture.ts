@@ -15,7 +15,8 @@ import { listerFormats } from "@/formats";
 import { nomsDuSocle } from "@/generateur/contexte";
 import { texteDitDe } from "@/domaine/scripts-tableau-controles";
 import type { Id, ReseauDeclinaison } from "@/domaine/types";
-import { depots, ecrireParametre, lireParametre } from "./_commun";
+import { creerVerrou, depots, ecrireParametre, lireParametre } from "./_commun";
+import { ajouterEntree, type EntreePost } from "@/domaine/ecriture-commune/memoire-posts";
 
 export const CLE_TIRAGES_COMMUNS = "ecriture.tiragesCommuns";
 /** Lignes gardées au plus dans les tirages communs. */
@@ -191,4 +192,28 @@ export async function tirerFormeCommune(entree: { role: RoleForme; reseau: Resea
   const forme = tirerForme(entree.role, entree.reseau, recents, entree.graine);
   await noterTirageCommun({ role: entree.role, formeId: forme.id, formatId: entree.formatId });
   return forme;
+}
+
+/* ---- Posts et commentaires (L3-13) ---- */
+export const CLE_POSTS_MEMOIRE = "ecriture.memoirePosts";
+const verrouPosts = creerVerrou();
+
+const estEntreePost = (x: unknown): x is EntreePost => !!x && typeof x === "object" && typeof (x as EntreePost).texte === "string" && !!(x as EntreePost).texte.trim() && typeof (x as EntreePost).formatId === "string";
+
+/** Posts et commentaires mémorisés (60 au plus, du plus ancien au plus récent) ; illisible : vide. */
+export async function postsMemorises(): Promise<EntreePost[]> {
+  try {
+    const v = await lireParametre<unknown>(CLE_POSTS_MEMOIRE, []);
+    return (Array.isArray(v) ? v.filter(estEntreePost) : []).slice(-FENETRE_VERSIONS_MEMOIRE);
+  } catch {
+    return [];
+  }
+}
+
+/** Ajout ATOMIQUE (lecture + écriture sous verrou) : deux ajouts simultanés gardent leurs deux entrées. Lève si la base refuse. */
+export async function noterPost(x: { texte: string; formatId: string; date?: string }): Promise<void> {
+  await verrouPosts(async () => {
+    const liste = await postsMemorises();
+    await ecrireParametre(CLE_POSTS_MEMOIRE, ajouterEntree(liste, { texte: x.texte, formatId: x.formatId, date: x.date ?? new Date().toISOString() }));
+  });
 }

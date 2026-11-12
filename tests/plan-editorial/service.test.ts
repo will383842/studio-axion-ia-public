@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Depot, JournalDecalage } from "@/domaine/depots";
+import { validerProposition } from "@/domaine/plan-editorial/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import {
   annuler, changerStatut, creerCreneau, decaler, identifiantsProgrammation, lirePeriode, peutProgrammer,
@@ -69,7 +70,12 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
   it("décaler un créneau publié lève une erreur et n'écrit rien", async () => {
     const d = depots();
     await creerCreneau(d, base("c1"), T0);
-    for (const s of ["a_valider", "valide", "programme", "publie"] as const) await changerStatut(d, "c1", s, "studio", T0);
+    await changerStatut(d, "c1", "a_valider", "studio", T0);
+    // a_valider → valide ne passe plus par changerStatut (CAL-14) : la validation du fondateur laisse sa trace.
+    const v = validerProposition((await d.creneaux.obtenir("c1")) as CreneauPlan, "studio", T0, "fondateur");
+    if (!v.ok) throw new Error(v.raison);
+    await d.creneaux.enregistrer(v.creneau as CreneauPlan);
+    for (const s of ["programme", "publie"] as const) await changerStatut(d, "c1", s, "studio", T0);
     await expect(decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k" }, T0)).rejects.toThrow(/publi/);
     expect(await d.journal.lister()).toHaveLength(0);
   });
