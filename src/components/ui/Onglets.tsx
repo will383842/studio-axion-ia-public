@@ -67,7 +67,7 @@ export function Onglets({
         <Tabs.Content
           key={o.valeur}
           value={o.valeur}
-          className="mt-4 rounded-carte focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-vif"
+          className="mt-4 rounded-carte focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
         >
           {o.contenu}
         </Tabs.Content>

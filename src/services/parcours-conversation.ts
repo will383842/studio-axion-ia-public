@@ -32,7 +32,8 @@ import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publicat
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { formulationsValidees, lireGardes, PARAM_VALIDATION_MERCI, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
-import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
+import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposeePartout } from "./oppositions-mots";
+import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { CHEMIN_DEMANDES_GUIDE, transportDuSite } from "./parcours-mot";
@@ -173,23 +174,46 @@ async function ecrireEtat(cle: string, f: (e: Conversation | undefined) => Conve
     return suivant;
   });
 }
-const patcher = (cle: string, patch: Partial<Conversation>) => ecrireEtat(cle, (e) => (e ? { ...e, ...patch } : undefined));
+/** Fusionne sous verrou. Un état `oppose` n'est JAMAIS rétrogradé : un « stop » écrit entre la vérification et l'envoi survit (seul un patch `oppose` change l'état d'une personne opposée). */
+const patcher = (cle: string, patch: Partial<Conversation>) =>
+  ecrireEtat(cle, (e) => {
+    if (!e) return undefined;
+    // Un patch qui voudrait quitter « oppose » est écrit SANS son champ `etat`.
+    const garde = e.etat === "oppose" && patch.etat !== undefined && patch.etat !== "oppose";
+    const suite: Partial<Conversation> = { ...patch };
+    if (garde) delete suite.etat;
+    return { ...e, ...suite };
+  });
 
 type ClesOk = Extract<EtatCles, { ok: true }>;
 /** Formes d'un identifiant brut sous TOUTES les clés connues, la courante en premier. Jamais la forme héritée (les conversations n'en ont jamais eu). */
 const formesConversation = (cles: ClesOk, idBrut: string): string[] => [cles.courante, ...cles.anciennes].map((c) => empreintePersonne(c, ESPACE_CONVERSATION, idBrut));
 
 /**
- * R5 : vérification JUSTE AVANT chaque envoi (réponse publique, M1, M2, appel au site, accusé). L'état est relu et le registre
- * interrogé avec la clé et tous les alias : une opposition arrivée entre-temps arrête l'envoi. Registre illisible : l'erreur est
- * levée (le passage reporte l'événement d'une minute, `registre_illisible`) ; jamais « non opposée » par défaut.
+ * MG-STOP01 / S2 : vérification UNIQUE « stop partout », JUSTE AVANT chaque envoi (réponse publique, M1, M2, appel au site, accusé…).
+ * Une seule fonction du registre (`personneOpposeePartout`) : registre ET états de conversation, dans tous les espaces d'empreinte
+ * (instagram, facebook…), avec la clé, les alias et les identifiants bruts de l'événement. Rend le jeton « non opposée » à passer au
+ * port d'envoi, ou `null` : la personne est opposée quelque part, RIEN ne part, la conversation passe à « oppose » (données gardées,
+ * rien supprimé) (le « stop » est mis en file par l'appelant ou par la réconciliation). Vérification IMPOSSIBLE (lecture, clés, registre) : l'erreur est
+ * PROPAGÉE (fermé) ; le passage reporte l'événement (`registre_illisible`) et on réessaiera. Jamais « non opposée » par défaut.
+ * Un simple doute (M2 seulement) bloque l'envoi sans passer la conversation à « oppose ».
  */
-async function opposeeAvantEnvoi(cle: string, env: Env, opts: { m2?: boolean } = {}): Promise<boolean> {
+async function verifierPartout(env: Env, cle: string, charge: Record<string, unknown> | null, now: number, opts: { m2?: boolean } = {}): Promise<JetonNonOpposee | null> {
   const e = await lireEtat(cle);
-  if (e?.etat === "oppose") return true;
-  // Un doute posé entre la lecture et l'envoi bloque M2 (pas la demande de guide : une adresse explicite reste servie).
-  if (opts.m2 && e?.douteOpposition === true) return true;
-  return empreintesOpposees([cle, ...(e?.alias ?? [])], { env });
+  if (e?.etat === "oppose") return null;
+  // Relecture historique (clé + alias) d'abord : même résultat que la vérification unique, sur un sous-ensemble ; garde les contrôles existants.
+  if (await empreintesOpposees([cle, ...(e?.alias ?? [])], { env })) {
+    if (e) await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
+    return null;
+  }
+  const c = charge ?? {};
+  const bruts = [c.idAuteur, c.idExpediteur, c.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
+  const v = await personneOpposeePartout({ idsBruts: bruts, empreintes: [cle, ...(e?.alias ?? [])] }, { env, douteBloque: opts.m2 === true });
+  if (!v.opposee) return v.jeton;
+  if (v.source !== "doute" && e) {
+    await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
+  }
+  return null;
 }
 
 /**
@@ -364,7 +388,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
-  if (await personneOpposee(idAuteur, ESPACE_CONVERSATION, { env })) {
+  if (!(await verifierPartout(env, cle, ev.charge, now))) {
     await clore(ev, "silence", "opposee");
     return "traite";
   }
@@ -528,12 +552,13 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     if (texte === null) {
       await patcher(cle, { etat: "pub_ok", dernierCode: "texte_incomplet" });
     } else {
-      if (await opposeeAvantEnvoi(cle, env)) {
+      const nonOpposee = await verifierPartout(env, cle, ev.charge, now);
+      if (!nonOpposee) {
         await clore(ev, "silence", "opposee");
         return "traite";
       }
       if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque";
-      const res = await appeler(() => d.port.repondreCommentaire({ idCompte, idPost, idCommentaire: e!.idCommentaire, texte, cle: e!.idCommentaire }));
+      const res = await appeler(() => d.port.repondreCommentaire({ idCompte, idPost, idCommentaire: e!.idCommentaire, texte, cle: e!.idCommentaire, nonOpposee }));
       const s = transition(e, { t: "public", res });
       await reagir(s, now);
       if (s.action === "bloquer") {
@@ -566,7 +591,8 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "m1_refuse", "texte_incomplet");
     return "traite";
   }
-  if (await opposeeAvantEnvoi(cle, env)) {
+  const nonOpposeeM1 = await verifierPartout(env, cle, ev.charge, now);
+  if (!nonOpposeeM1) {
     await clore(ev, "silence", "opposee");
     return "traite";
   }
@@ -580,7 +606,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
-    res = await appeler(() => d.port.repondreEnPrive({ idCompte, idPost, idCommentaire: e!.idCommentaire, texte: texteM1 }));
+    res = await appeler(() => d.port.repondreEnPrive({ idCompte, idPost, idCommentaire: e!.idCommentaire, texte: texteM1, nonOpposee: nonOpposeeM1 }));
   } finally {
     processus().enVol.delete(cle);
   }
@@ -728,10 +754,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "silence", s0.raison ?? null);
     return "traite";
   }
-  if (await personneOpposee(idExpediteur, ESPACE_CONVERSATION, { env })) {
-    // Personne déjà opposée (registre) : même garantie, puis l'état passe à « oppose » si besoin.
+  if (!(await verifierPartout(env, cle, ev.charge, now))) {
+    // Personne opposée (registre, autre réseau ou état) : la vérification passe l'état à « oppose » ; le « stop » est mis en file ici.
     await mettreEnFileOpposition(cle, etat, cles.courante, now);
-    if (etat.etat !== "oppose") await patcher(cle, { etat: "oppose", prochainEssaiLe: null });
     await clore(ev, "silence", "opposee");
     return "traite";
   }
@@ -812,7 +837,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "ignore", "texte_incomplet");
       return "traite";
     }
-    if (await opposeeAvantEnvoi(cle, env, { m2: true })) {
+    const nonOpposeeM2 = await verifierPartout(env, cle, ev.charge, now, { m2: true });
+    if (!nonOpposeeM2) {
       await clore(ev, "silence", "opposee");
       return "traite";
     }
@@ -825,7 +851,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
     if (m2.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, "adresse-non-reconnue": m2.formulation } });
-    const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
+    const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage, nonOpposee: nonOpposeeM2 }));
     const sm = transition(etat, { t: "m1", res, maintenantMs: now });
     await reagir(sm, now);
     // M2 compté dès qu'il est parti ou d'issue inconnue (jamais deux fois) ; un refus net ne compte pas.
@@ -845,7 +871,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     if (!site) await alerter("site_non_relie", "Le site des guides n'est pas relié (adresse ou secret absent) : les demandes de guide attendent. Vérifier la configuration du site.", now);
     return "bloque";
   }
-  if (await opposeeAvantEnvoi(cle, env)) {
+  if (!(await verifierPartout(env, cle, ev.charge, now))) {
     await clore(ev, "silence", "opposee");
     return "traite";
   }
@@ -927,7 +953,10 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     await patcher(cle, { adresseRefuseeEnAttente: true });
     return "bloque";
   }
-  await patcher(cle, { ...(s.patch ?? {}), ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
+  // Une personne passée à « oppose » pendant ce traitement (vérification « stop partout ») le reste : l'état du site ne l'écrase jamais.
+  const patchSite: Partial<Conversation> = { ...(s.patch ?? {}) };
+  if (patchSite.etat !== undefined && (await lireEtat(cle))?.etat === "oppose") delete patchSite.etat;
+  await patcher(cle, { ...patchSite, ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
   if (s.action === "site_reessai") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "reessai", code === "409_en_cours" ? { enCours: Number(c.enCours ?? 0) + 1 } : {});
     return "traite";
@@ -945,7 +974,8 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
 /** Z2 : message unique « vérifiez votre adresse ». « bloque » = plafond atteint (l'événement est reporté, rien n'est consommé). */
 async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
   if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
-  if (await opposeeAvantEnvoi(cle, env)) return "fait";
+  const nonOpposeeAdresse = await verifierPartout(env, cle, ev.charge, now);
+  if (!nonOpposeeAdresse) return "fait";
   if (await horsFenetre(cle, now)) {
     // Fenêtre de 24 h de Meta : le message ne partira plus jamais (l'état passe ensuite à site_refuse).
     await patcher(cle, { adresseRefuseeEnvoyee: true, dernierCode: "hors_fenetre" });
@@ -969,7 +999,7 @@ async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversat
   if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
   // Formulation figée et message marqués AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
   await patcher(cle, { adresseRefuseeEnvoyee: true, formulations: { ...etatCourant.formulations, "adresse-refusee": choix.version } });
-  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: choix.texte, cle: idMessage }));
+  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: choix.texte, cle: idMessage, nonOpposee: nonOpposeeAdresse }));
   await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
   return "fait";
 }
@@ -979,7 +1009,8 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
   const texte = recu.texte;
   let code: string | null = "texte_incomplet";
   if (texte !== null) {
-    if (await opposeeAvantEnvoi(cle, env)) {
+    const nonOpposeeRecu = await verifierPartout(env, cle, ev.charge, now);
+    if (!nonOpposeeRecu) {
       await clore(ev, "silence", "opposee");
       return "traite";
     }
@@ -992,7 +1023,7 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
     if (recu.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, recu: recu.formulation } });
-    const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
+    const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage, nonOpposee: nonOpposeeRecu }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);
   }
@@ -1073,9 +1104,11 @@ export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number 
     const ids = [ch.idAuteur, ch.idExpediteur, ch.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
     for (const id of ids) {
       if (formesConversation(cles, id).some((f) => clesOpposees.has(f))) return true;
-      if (await personneOpposee(id, ESPACE_CONVERSATION, { env })) return true;
     }
-    return false;
+    // Tous espaces d'empreinte (registre ET états de conversation), identifiants bruts + empreintes ; doute = opposée ; erreur = PROPAGÉE (fermé : on ne réduit pas).
+    if (ids.length === 0) return false;
+    const v = await personneOpposeePartout({ idsBruts: ids, empreintes: ids.flatMap((id) => formesConversation(cles, id)) }, { env, douteBloque: true });
+    return v.opposee;
   };
   const iso = new Date(now).toISOString();
   const evenements = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && reductible(e, { idsMessagesProteges: proteges }, now));
@@ -1288,7 +1321,14 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
         await journaliser("parcours_conversation", "Merci : confirmation_illisible (ignorée, sans accusé).");
         continue;
       }
-      const issue = await traiterConfirmation(r, d, env, k, now);
+      let issue: "envoye" | "fait" | "garde";
+      try {
+        issue = await traiterConfirmation(r, d, env, k, now);
+      } catch {
+        // Vérification impossible (registre illisible…) : ce merci n'est PAS envoyé (fermé), les autres continuent ; le site le re-proposera.
+        await journaliser("parcours_conversation", "Merci : verification_impossible (non envoyé, sans accusé).");
+        continue;
+      }
       if (issue === "garde") return rapport; // la garde a bloqué : ni envoi ni accusé, le site re-proposera
       if (issue === "envoye") rapport.envoyes++;
     }
@@ -1320,7 +1360,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   if (!conv) return (await terminer("non_envoye", "conversation_inconnue", null), "fait");
   const { cle } = conv;
   // d. Opposition relue (état, registre, clé et alias).
-  if (await opposeeAvantEnvoi(cle, env)) {
+  if (!(await verifierPartout(env, cle, await chargeDuDernierMessage(conv.etat), now))) {
     await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
     return (await terminer("non_envoye", "oppose", cle), "fait");
   }
@@ -1369,7 +1409,8 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   p_enVol(ref, true);
   try {
     // j. RELIRE L'OPPOSITION une dernière fois, juste avant le réseau.
-    if (await opposeeAvantEnvoi(cle, env)) {
+    const nonOpposeeMerci = await verifierPartout(env, cle, await chargeDuDernierMessage(conv.etat), now);
+    if (!nonOpposeeMerci) {
       await rendrePlaceEnvoi(conv.etat.idCompte, now);
       await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
       await finirMerci(ref, cle, "non_envoye", "oppose", null);
@@ -1377,7 +1418,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
       return "fait";
     }
     // k. Envoi : clé d'idempotence par CONVERSATION (un rejeu chez Zernio ne double pas).
-    const res = await appeler(() => d.port.envoyerMessage({ idCompte: conv.etat.idCompte, idConversation, texte, cle: `merci:${conv.etat.refLienConv ?? cle}` }));
+    const res = await appeler(() => d.port.envoyerMessage({ idCompte: conv.etat.idCompte, idConversation, texte, cle: `merci:${conv.etat.refLienConv ?? cle}`, nonOpposee: nonOpposeeMerci }));
     await reagir(transition(conv.etat, { t: "m1", res, maintenantMs: now }), now);
     // l. Issue : envoyé | à vérifier (jamais renvoyé) | tout le reste = non envoyé avec le code (D4 : aucun nouvel essai).
     if (res.statut === "envoye") await finirMerci(ref, cle, "envoye", "envoye", new Date(now).toISOString());
@@ -1415,8 +1456,13 @@ async function marquerFenetreFermee(cle: string, now: number): Promise<void> {
 }
 
 /** Identifiant brut de conversation Zernio, relu EN MÉMOIRE dans l'événement du dernier message de la personne (jamais gardé dans l'état). */
-async function idConversationDuDernierMessage(e: Conversation): Promise<string | null> {
+/** Charge de l'événement du dernier message de la personne (identifiants bruts pour la vérification « stop partout »), sinon null. */
+async function chargeDuDernierMessage(e: Conversation): Promise<Record<string, unknown> | null> {
   if (!e.idMessageDernier) return null;
   const ev = (await depots().evenementsFournisseurs.lister((x) => x.type === TYPE_MESSAGE && x.charge.idMessage === e.idMessageDernier))[0];
-  return typeof ev?.charge.idConversation === "string" && ev.charge.idConversation ? ev.charge.idConversation : null;
+  return ev ? ev.charge : null;
+}
+async function idConversationDuDernierMessage(e: Conversation): Promise<string | null> {
+  const c = await chargeDuDernierMessage(e);
+  return typeof c?.idConversation === "string" && c.idConversation ? c.idConversation : null;
 }
