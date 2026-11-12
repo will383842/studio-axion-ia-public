@@ -24,15 +24,18 @@ export function decouperEnBlocs(texte: string): string[] {
   return blocs;
 }
 
-/** Signature d'un bloc (espaces normalisés, casse conservée) : sert à repérer les doublons sans exposer le texte. */
+/**
+ * Signature d'un bloc pour repérer les doublons exacts : le texte lui-même, normalisé (fins de ligne Windows
+ * ramenées à LF, espaces de fin de ligne retirés, bords rognés). Les sauts de ligne sont conservés (la mise en
+ * page d'un post compte) et il n'y a aucun hachage, donc aucune collision possible entre deux textes différents.
+ */
 export function signatureBloc(texte: string): string {
-  const n = texte.replace(/\s+/g, " ").trim();
-  let h = 0x811c9dc5;
-  for (let i = 0; i < n.length; i++) {
-    h ^= n.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return `${n.length.toString(16)}-${h.toString(16).padStart(8, "0")}`;
+  return texte
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/\s+$/, ""))
+    .join("\n")
+    .trim();
 }
 
 export interface DoublonLot {
