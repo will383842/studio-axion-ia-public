@@ -29,7 +29,7 @@ describe("écran de choix et stock", () => {
     expect(h).toContain("Filtres du stock");
     expect(h).toContain("Proposez-moi un cas restant");
     expect(h.indexOf("Filtres du stock")).toBeLessThan(h.indexOf("<ul"));
-    expect(h).not.toContain("Fabriquer la vidéo");
+    expect(h).not.toMatch(/Fabriquer(?! un essai)/); // le bouton « Fabriquer » (M3) n'y est pas ; « Fabriquer un essai » reste permis
     expect(h).not.toMatch(/<form/);
     expect(h).toContain('aria-pressed="false"');
   });

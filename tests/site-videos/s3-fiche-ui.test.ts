@@ -121,11 +121,13 @@ describe("S3.4 feuille de relecture", () => {
     expect(rendre()).toContain("Aucun client nommé, aucun logo");
   });
 
-  it("« Réécrire avec Claude (≈ x €) » seulement si le réglage est allumé (un prix est donné)", () => {
+  it("« Réécrire avec Claude » seulement si le réglage est allumé, sans aucun prix affiché", () => {
     expect(rendre()).not.toContain("Réécrire avec Claude");
     const h = rendre(entreeOk(), { prix: { centimes: 12, devise: "EUR" } });
-    expect(h).toContain("Réécrire avec Claude (≈");
-    expect(h).toContain("0,12");
+    // Décision du fondateur : aucun prix dans le Studio ; le bouton reste, sans montant.
+    expect(h).toContain("Réécrire avec Claude");
+    expect(h).not.toContain("≈");
+    expect(h).not.toContain("0,12");
   });
 
   it("montre les champs retouchables : titre, résumé, À retenir, questions, rubrique, chapitres, version", () => {
