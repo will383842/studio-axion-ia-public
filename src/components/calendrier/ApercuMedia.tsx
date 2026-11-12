@@ -5,7 +5,7 @@
  * image chargée à la fois), une infographie s'ouvre en grand sans quitter la page. Le type se lit par une icône ET un
  * libellé, jamais par la couleur seule. Ne publie rien. Couleurs : jetons du thème seulement.
  */
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Icone } from "@/components/ui/Icone";
 import { TYPES_CONTENU } from "./CarteEntreeCalendrier";
 
@@ -18,11 +18,13 @@ export interface ProprietesApercuMedia {
   pages?: readonly string[];
 }
 
-const BOUTON = "min-h-[38px] rounded-[10px] border border-trait-fort bg-surface-2 px-3 py-1.5 text-sm font-bold text-texte hover:bg-surface-3 disabled:opacity-50";
+const BOUTON = "min-h-[44px] min-w-[44px] rounded-[10px] border border-trait-fort bg-surface-2 px-3 py-1.5 text-sm font-bold text-texte hover:bg-surface-3 disabled:opacity-50";
 
 export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuMedia): ReactNode {
   const [page, setPage] = useState(0);
   const [grand, setGrand] = useState(false);
+  // Le bouton qui a ouvert la fenêtre : le focus y revient à la fermeture.
+  const declencheur = useRef<HTMLButtonElement | null>(null);
   const t = TYPES_CONTENU[type];
   const total = pages.length;
   const courante = Math.min(page, Math.max(0, total - 1));
@@ -43,6 +45,11 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
       e.preventDefault();
       aller(courante - 1);
     }
+  };
+
+  const fermer = () => {
+    setGrand(false);
+    declencheur.current?.focus();
   };
 
   if (type === "video") {
@@ -86,7 +93,7 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
       {url ? (
         <>
           <img src={url} alt="Infographie de la publication" className="max-h-[60vh] w-full rounded-[10px] bg-voile object-contain" />
-          <button type="button" className={BOUTON} onClick={() => setGrand(true)}>Agrandir l&apos;infographie</button>
+          <button type="button" ref={declencheur} className={BOUTON} onClick={() => setGrand(true)}>Agrandir l&apos;infographie</button>
           {grand && (
             <div
               role="dialog"
@@ -96,11 +103,14 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   e.preventDefault();
-                  setGrand(false);
+                  fermer();
+                } else if (e.key === "Tab") {
+                  // Fenêtre modale : « Fermer » est son seul élément à focus, le focus ne sort pas vers la page.
+                  e.preventDefault();
                 }
               }}
             >
-              <button type="button" className={BOUTON} onClick={() => setGrand(false)}>Fermer</button>
+              <button type="button" ref={(el) => el?.focus()} className={BOUTON} onClick={fermer}>Fermer</button>
               <img src={url} alt="Infographie en taille réelle" className="mx-auto h-auto max-w-none" />
             </div>
           )}
