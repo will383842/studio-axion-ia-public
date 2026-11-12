@@ -17,6 +17,7 @@ import { CarteCredits } from "./_accueil/CarteCredits";
 import { CarteCreditClaude } from "./_accueil/CarteCreditClaude";
 import { EnCours } from "./_accueil/EnCours";
 import { NoterIdee } from "./_accueil/NoterIdee";
+import { compteursGenerateur } from "@/services/generateur";
 import { compterMesuresASaisir } from "@/services/mesures";
 import { exigerSession } from "@/services/auth";
 import { RappelsEnvoi } from "@/components/facecam/RappelsEnvoi";
@@ -36,7 +37,7 @@ function salutation(): string {
  */
 export default async function PageAccueil() {
   await exigerSession();
-  const [r, credits, mesuresASaisir, facecamAEnvoyer, creditClaude] = await Promise.all([resumeAccueil(), resumeCreditsAccueil(), compterMesuresASaisir(), versionsFacecamAEnvoyer(), vueCreditClaude().catch((e) => {
+  const [r, credits, ecrire, mesuresASaisir, facecamAEnvoyer, creditClaude] = await Promise.all([resumeAccueil(), resumeCreditsAccueil(), compteursGenerateur(), compterMesuresASaisir(), versionsFacecamAEnvoyer(), vueCreditClaude().catch((e) => {
       console.error("[accueil] crédit Claude restant illisible", e);
       return null;
     })]);
@@ -53,7 +54,21 @@ export default async function PageAccueil() {
     { libelle: "Rendu des couleurs", ok: r.pret.lut, href: "/bibliotheque/lut" },
     { libelle: "Logo", ok: r.pret.logo, href: "/bibliotheque/logo" },
   ].filter((p) => !p.ok);
-  const nbAttente = r.alertes.length + facecamAEnvoyer.length + (mesuresASaisir > 0 ? 1 : 0) + (manques.length > 0 ? 1 : 0);
+  // Les anciennes tuiles d'Écrire deviennent des lignes d'action, seulement quand il y a quelque chose à faire (maquette M1, 12/11).
+  const lignes: { cle: string; href: string; message: string; ton?: "brique" | "ambre" }[] = [
+    ...r.alertes.map((al) => ({ cle: al.id, href: al.lien, message: al.message, ton: al.ton })),
+    ...(ecrire.aRelire > 0 ? [{ cle: "scripts-a-relire", href: "/ecrire?etat=a-relire", message: `${ecrire.aRelire} ${ecrire.aRelire === 1 ? "script à relire" : "scripts à relire"}` }] : []),
+    ...(ecrire.manqueMatiere > 0 ? [{ cle: "manque-matiere", href: "/ecrire?etat=il-manque-une-matiere", message: `Il manque une matière (${ecrire.manqueMatiere})`, ton: "ambre" as const }] : []),
+    ...(ecrire.pretAFabriquer > 0 ? [{ cle: "pret-a-fabriquer", href: "/ecrire?etat=pret-a-fabriquer", message: `Prêt à fabriquer (${ecrire.pretAFabriquer})` }] : []),
+    ...(ecrire.aProgrammer > 0 ? [{ cle: "scripts-a-programmer", href: "/ecrire?etat=a-programmer", message: `Scripts à programmer (${ecrire.aProgrammer})` }] : []),
+    ...(ecrire.aRanger > 0 ? [{ cle: "a-ranger", href: "/videos/a-ranger", message: `À ranger (${ecrire.aRanger})` }] : []),
+    ...(mesuresASaisir > 0 ? [{ cle: "mesures", href: "/mesures", message: mesuresASaisir === 1 ? "1 mesure à saisir" : `${mesuresASaisir} mesures à saisir` }] : []),
+    ...manques.map((m) => ({ cle: `manque-${m.libelle}`, href: m.href, message: `Il manque : ${m.libelle.toLowerCase()}` })),
+  ];
+  const visibles = lignes.slice(0, 3);
+  const repliees = lignes.slice(3);
+  // « Rien ne vous attend » n'apparaît jamais au-dessus d'une tuile « Aujourd'hui » non vide.
+  const nbAttente = lignes.length + facecamAEnvoyer.length + (r.aujourdhui.nbARelire > 0 ? 1 : 0) + (r.aujourdhui.nbAProgrammer > 0 ? 1 : 0);
   const nbFab = r.enCours.length;
   const fab = nbFab === 1 ? "une vidéo est en fabrication" : `${nbFab} vidéos sont en fabrication`;
   const phrase =
@@ -91,28 +106,29 @@ export default async function PageAccueil() {
             <RappelsEnvoi aEnvoyer={facecamAEnvoyer} />
 
             <ul className="space-y-2">
-              {r.alertes.map((a) => (
-                <li key={a.id}>
-                  <LigneAction href={a.lien} ton={a.ton} message={a.message} />
+              {visibles.map((l) => (
+                <li key={l.cle}>
+                  <LigneAction href={l.href} ton={l.ton} message={l.message} />
                 </li>
               ))}
-              {mesuresASaisir > 0 && (
-                <li>
-                  <LigneAction href="/mesures" message={mesuresASaisir === 1 ? "1 mesure à saisir" : `${mesuresASaisir} mesures à saisir`} />
-                </li>
-              )}
-              {manques.length > 0 && (
-                <li>
-                  <LigneAction href={manques[0].href} message={`Il manque pour une vraie vidéo : ${manques.map((m) => m.libelle.toLowerCase()).join(", ")}`} />
-                </li>
-              )}
             </ul>
+            {repliees.length > 0 && (
+              <details className="group">
+                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-full px-3 text-sm font-semibold text-texte-doux hover:text-texte">
+                  <span className="group-open:hidden">{repliees.length === 1 ? "Voir l'autre chose à faire" : `Voir les ${repliees.length} autres choses à faire`}</span>
+                  <span className="hidden group-open:inline">Montrer seulement les 3 premières</span>
+                </summary>
+                <ul className="mt-2 space-y-2">
+                  {repliees.map((l) => (
+                    <li key={l.cle}>
+                      <LigneAction href={l.href} ton={l.ton} message={l.message} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
 
             <Aujourdhui elements={aujourdhui} />
-
-            {/* Crédit Claude restant et soldes des services reliés : affichage seulement ; l'Accueil ne casse jamais s'ils manquent. */}
-            {creditClaude && <CarteCreditClaude vue={creditClaude} />}
-            <CarteCredits cartes={credits.cartes} brouillonsPrets={credits.brouillonsPrets} />
           </div>
         </section>
 
@@ -154,6 +170,15 @@ export default async function PageAccueil() {
               )}
             </div>
           </div>
+        </section>
+
+        {/* Crédit Claude restant et soldes des services reliés : affichage seulement ; l'Accueil ne casse jamais s'ils manquent. */}
+        <section aria-labelledby="titre-credits" className="space-y-4">
+          <h2 id="titre-credits" className="text-lg text-texte">
+            Crédits
+          </h2>
+          {creditClaude && <CarteCreditClaude vue={creditClaude} />}
+          <CarteCredits cartes={credits.cartes} brouillonsPrets={credits.brouillonsPrets} />
         </section>
       </div>
     </div>
