@@ -5,11 +5,11 @@
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import type { Depot, JournalDecalage } from "@/domaine/depots";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import type { Depot, DepotAjoutSeul, JournalDecalage } from "@/domaine/depots";
 import type { Publication } from "@/domaine/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
-import type { CreneauPlan } from "@/services/plan-editorial";
+import type { CreneauPlan, DepotsPlan } from "@/services/plan-editorial";
 import type { DepotsPasserelle } from "@/services/plan-vers-publication";
 import { BoutonProgrammerVisuel, jourDeParis, jourParDefautParis, programmerEnUnClic } from "@/components/visuels/BoutonProgrammerVisuel";
 
@@ -104,9 +104,23 @@ describe("heure de Paris (frontière de minuit et créneaux déjà passés)", ()
     await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T07:30:00.000Z")).rejects.toThrow(/déjà passée/i);
     await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T07:29:00.000Z")).resolves.toBeDefined();
   });
+  it("créneau déjà existant recliqué après son heure : refusé, aucune Publication « programmée » dans le passé", async () => {
+    const d = await monter();
+    await programmerEnUnClic(d, "vis_1", "2026-11-25", T0);
+    const avant = await d.publications.lister();
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T20:00:00.000Z")).rejects.toThrow(/déjà passée/i);
+    expect(await d.publications.lister()).toEqual(avant);
+  });
   it("jour proposé par défaut : demain à Paris, pas demain en UTC", () => {
     expect(jourParDefautParis("2026-11-24T23:30:00.000Z")).toBe("2026-11-26");
     expect(jourParDefautParis("2026-11-25T10:00:00.000Z")).toBe("2026-11-26");
+  });
+});
+
+describe("journal des décalages en ajout seul (typage)", () => {
+  it("le journal du plan est un dépôt en ajout seul : le dépôt réel du Studio s'y branche sans conversion", () => {
+    expectTypeOf<DepotsPlan["journal"]>().toEqualTypeOf<DepotAjoutSeul<JournalDecalage>>();
+    expectTypeOf<DepotAjoutSeul<JournalDecalage>>().toMatchTypeOf<DepotsPasserelle["journal"]>();
   });
 });
 
