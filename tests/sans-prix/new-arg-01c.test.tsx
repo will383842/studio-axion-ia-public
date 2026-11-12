@@ -24,6 +24,10 @@ describe("aucun montant à l'écran (lot c)", () => {
       expect(nus, nom).toEqual([]);
     }
   });
+  it("Express : aucun r.message brut renvoyé à la relecture", () => {
+    const bruts = EXPRESS.split("\n").filter((l) => /return \{ ok: false[^}]*message: r\.message/.test(l));
+    expect(bruts).toEqual([]);
+  });
   it("le lancement avec voyant n'affiche aucun montant lui-même", () => {
     expect(VOYANT).not.toMatch(/€|formaterMontant|formaterDollars/);
   });
