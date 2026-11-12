@@ -33,6 +33,7 @@ const { injecterClientZernio, synchroniserEtatsZernio } = await import("@/servic
 // Précondition L7-08 : l'envoi du calendrier a son propre réglage, fermé par défaut ; ce fichier teste l'envoi, il l'ouvre.
 const { ecrireParametre: ecrireReglageCalendrier } = await import("@/services/_commun");
 const { PARAM_ENVOI_CALENDRIER } = await import("@/services/zernio");
+const { REGLAGE_EDITORIALE_ACTIVE } = await import("@/services/promotion-envois");
 
 const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
@@ -87,6 +88,7 @@ beforeEach(async () => {
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
   await ecrireReglageCalendrier(PARAM_ENVOI_CALENDRIER, true);
+  await ecrireReglageCalendrier(REGLAGE_EDITORIALE_ACTIVE, true);
   reinitialiserRequete();
   injecterClientZernio(null);
   process.env.ZERNIO_API_KEY = CLE_FICTIVE;
