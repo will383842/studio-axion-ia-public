@@ -87,11 +87,18 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     await creerCreneau(d, base("c2"), T0);
     expect((await decaler(d, "c2", { nouveauJour: "2026-11-26", raison: "r", cle: "k2" }, T0)).aRenvoyer).toBeFalsy();
   });
-  it("correction relecture : décaler un créneau programme ou en échec est refusé, sans écriture", async () => {
-    for (const fin of [["a_valider", "valide", "programme"], ["a_valider", "valide", "programme", "echec"]] as const) {
+  it("correction relecture : décaler un créneau en échec est refusé, sans écriture", async () => {
+    for (const fin of [["a_valider", "valide", "programme", "echec"]] as const) {
       const d = depots();
       await creerCreneau(d, base("c1"), T0);
-      for (const s of fin) await changerStatut(d, "c1", s, "studio", T0);
+      for (const s of fin) {
+        if (s === "valide") {
+          // a_valider → valide ne passe plus par changerStatut (CAL-14) : validerProposition, comme plus haut.
+          const v = validerProposition((await d.creneaux.obtenir("c1")) as CreneauPlan, "studio", T0, "fondateur");
+          if (!v.ok) throw new Error(v.raison);
+          await d.creneaux.enregistrer(v.creneau as CreneauPlan);
+        } else await changerStatut(d, "c1", s, "studio", T0);
+      }
       await expect(decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k" }, T0)).rejects.toThrow(/programm|échec|echec/i);
       expect(await d.journal.lister()).toHaveLength(0);
       expect((await d.creneaux.obtenir("c1"))?.decalages).toBe(0);
@@ -140,6 +147,27 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     expect(lignes).toHaveLength(1);
     expect(lignes[0]).toMatchObject({ ancienJour: "2026-11-25", nouveauJour: "2026-11-27", raison: "r" });
   });
+  it("correction relecture opus-v1-c2 : après un aller-retour de jour, seul le rejeu de la ligne non appliquée (rang) change le créneau", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    await decaler(d, "c1", { nouveauJour: "2026-11-25", raison: "r", cle: "k2" }, T0);
+    // k3 : la ligne est écrite, le créneau est en panne
+    const vrai = d.creneaux.enregistrer.bind(d.creneaux);
+    let panne = true;
+    d.creneaux.enregistrer = async (e) => { if (panne) throw new Error("panne"); return vrai(e); };
+    await expect(decaler(d, "c1", { nouveauJour: "2026-11-29", raison: "r", cle: "k3" }, T0)).rejects.toThrow(/panne/);
+    panne = false;
+    // rejeu de k1 (déjà appliquée, le créneau est revenu à son ancien jour 25) : rien ne change
+    const apresK1 = await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    expect(apresK1.jourVise).toBe("2026-11-25");
+    expect(apresK1.decalages).toBe(2);
+    // rejeu de k3 : la ligne en attente s'applique
+    const apresK3 = await decaler(d, "c1", { nouveauJour: "2026-11-29", raison: "r", cle: "k3" }, T0);
+    expect(apresK3.jourVise).toBe("2026-11-29");
+    expect(apresK3.decalages).toBe(3);
+    expect(await d.journal.lister()).toHaveLength(3);
+  });
   it("correction relecture v1-w1 : le rejeu ne dépend pas de l'ordre de lecture du journal (k1 → 27, k2 → 25, journal inversé, rejeu de k1)", async () => {
     const d = depots();
     await creerCreneau(d, base("c1"), T0);
@@ -151,6 +179,20 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     expect(rejeu.jourVise).toBe("2026-11-25");
     expect(rejeu.decalages).toBe(2);
     expect((await d.creneaux.obtenir("c1"))?.jourVise).toBe("2026-11-25");
+    expect(await d.journal.lister()).toHaveLength(2);
+  });
+  it("correction relecture opus-v1-g1 : une clé qui est le préfixe d'une autre (a et a#1) n'est pas confondue avec elle", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    const premier = await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "a#1" }, T0);
+    expect(premier.jourVise).toBe("2026-11-27");
+    const second = await decaler(d, "c1", { nouveauJour: "2026-11-29", raison: "r", cle: "a" }, T0);
+    expect(second.jourVise).toBe("2026-11-29");
+    expect(second.decalages).toBe(2);
+    expect(await d.journal.lister()).toHaveLength(2);
+    const rejeu = await decaler(d, "c1", { nouveauJour: "2026-11-30", raison: "r", cle: "a" }, T0);
+    expect(rejeu.jourVise).toBe("2026-11-29");
+    expect(rejeu.decalages).toBe(2);
     expect(await d.journal.lister()).toHaveLength(2);
   });
   it("correction relecture v1-w1 : une nouvelle clé est refusée tant qu'une ligne du créneau n'a pas été appliquée", async () => {
