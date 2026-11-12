@@ -9,6 +9,9 @@ export type StatutPlan = "propose" | "a_valider" | "valide" | "programme" | "pub
 /** Qui écrit : l'usine ne produit que des propositions ; le Studio (le fondateur) décide et publie. */
 export type AuteurPlan = "usine" | "studio";
 
+/** Origine d'une entrée du calendrier : une seule définition. « vous » = le fondateur ; « usine » = proposée par l'usine (le stratège vit dans l'usine). */
+export type OrigineEntree = "vous" | "usine";
+
 export interface CreneauEditorial {
   id: string;
   /** Jour visé, AAAA-MM-JJ (jour de Paris). */
@@ -26,6 +29,14 @@ export interface CreneauEditorial {
   statut: StatutPlan;
   /** Nombre de décalages subis ; ne diminue jamais. */
   decalages: number;
+  /** Origine de l'entrée (facultative pour les entrées existantes). */
+  origine?: OrigineEntree;
+  /** Validation par le fondateur (instant ISO UTC, auteur) : seule porte vers « valide ». */
+  valideeLe?: string;
+  valideePar?: string;
+  /** Refus : l'entrée est archivée, jamais supprimée. Le motif est facultatif. */
+  refuseLe?: string;
+  motifRefus?: string;
 }
 
 export type ResultatTransition = { ok: true; creneau: CreneauEditorial } | { ok: false; raison: string };
