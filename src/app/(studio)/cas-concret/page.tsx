@@ -62,9 +62,9 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
   const synthese = { aFaire: nombres["a-faire"], faits: nombres["deja-faits"], valides: valides.length };
   return (
     <GabaritCreation
-      largeur="large"
+      largeur="etroite"
       entete={{ titre: "Cas concret", sousTitre: "Une automatisation montrée étape par étape. Choisissez le cas à raconter." }}
-      etapes={{ etapes: ETAPES_CAS_CONCRET, courante: 0 }}
+      etapes={onglet === "a-faire" ? { etapes: ETAPES_CAS_CONCRET, courante: 0 } : undefined}
     >
       <OngletsCasConcret actif={onglet} nombres={nombres} synthese={synthese} />
       <section id={ID_PANNEAU_CAS} aria-labelledby={idOnglet(onglet)} className="mt-6">
