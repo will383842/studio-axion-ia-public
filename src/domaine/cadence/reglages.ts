@@ -4,6 +4,8 @@
  * rien ne bloque jamais ce que le fondateur planifie à la main.
  */
 import type { IdReseau } from "@/domaine/types";
+import { modePremierCommentaire, type ModePremierCommentaire } from "@/domaine/ecriture-post/commentaire";
+import { obtenirReseau } from "@/reseaux";
 
 export const RESEAUX_CADENCE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
 const NOMS: Record<IdReseau, string> = {
@@ -29,9 +31,35 @@ export interface ObjectifCadence {
   quantite: number;
   periode: "jour" | "semaine";
 }
+/** Une règle de réseau : sa valeur, la date où elle a été vérifiée (null : jamais) et d'où elle vient. */
+export interface ValeurRegle<T> {
+  valeur: T;
+  /** « AAAA-MM-JJ », ou null tant que la règle n'a pas été vérifiée. */
+  verifieLe: string | null;
+  source: string;
+}
+/** Premier commentaire : part tout seul, part après votre accord, ou à copier à la main. */
+export type EtatPremierCommentaire = ModePremierCommentaire;
+export const ETATS_PREMIER_COMMENTAIRE: readonly EtatPremierCommentaire[] = ["auto", "a-confirmer", "a-la-main"];
+export const LIBELLES_PREMIER_COMMENTAIRE: Record<EtatPremierCommentaire, string> = {
+  auto: "Part tout seul avec la publication",
+  "a-confirmer": "Part avec la publication, après votre accord",
+  "a-la-main": "À copier et coller à la main",
+};
+export interface ReglesReseau {
+  /** Longueur maximale du texte, en signes. */
+  texteMax: ValeurRegle<number>;
+  /** Nombre maximal de mots-dièse. */
+  motsDieseMax: ValeurRegle<number>;
+  premierCommentaire: ValeurRegle<EtatPremierCommentaire>;
+  /** Nombre de PDF d'un carrousel : LinkedIn seulement. */
+  pdfCarrousel?: ValeurRegle<number>;
+}
 export interface ReglagesCadence {
   reseaux: Record<IdReseau, CadenceReseau>;
   objectifs: Record<TypeContenuCadence, ObjectifCadence>;
+  /** Règles par réseau, modifiables dans Réglages. */
+  regles: Record<IdReseau, ReglesReseau>;
 }
 export interface AlerteObjectif {
   type: TypeContenuCadence;
@@ -42,6 +70,36 @@ export interface AlerteObjectif {
 export const CLE_REGLAGES_CADENCE = "cadence.reglages";
 
 const un = (heures: string[], quotaParJour: number, ecartMinMinutes: number): CadenceReseau => ({ heures, quotaParJour, ecartMinMinutes });
+
+/** Date du relevé des règles des réseaux (fiche L8-01). */
+const RELEVE_L8_01 = "2026-11-12";
+const SOURCE_RELEVE = "Relevé des règles des réseaux (L8-01)";
+const SOURCE_REGISTRE = "Valeur de départ du studio, pas encore vérifiée auprès du réseau";
+
+function reglesDeDepart(id: IdReseau): ReglesReseau {
+  const legende = obtenirReseau(id).legende;
+  const texteSource = id === "tiktok";
+  const commentaireSource = id === "linkedin" || id === "instagram" || id === "facebook" || id === "tiktok";
+  const regles: ReglesReseau = {
+    texteMax: texteSource
+      ? { valeur: legende.longueurMax, verifieLe: RELEVE_L8_01, source: `${SOURCE_RELEVE} : titre de vidéo de 2200 signes au plus (source secondaire)` }
+      : { valeur: legende.longueurMax, verifieLe: null, source: SOURCE_REGISTRE },
+    motsDieseMax: { valeur: legende.motsDieseMax, verifieLe: null, source: SOURCE_REGISTRE },
+    premierCommentaire: {
+      valeur: modePremierCommentaire(id).mode,
+      verifieLe: commentaireSource ? RELEVE_L8_01 : null,
+      source: commentaireSource ? `${SOURCE_RELEVE} : ${id === "tiktok" ? "pas de premier commentaire envoyé avec la publication" : "le premier commentaire peut partir avec la publication"}` : SOURCE_REGISTRE,
+    },
+  };
+  if (id === "linkedin") regles.pdfCarrousel = { valeur: 1, verifieLe: RELEVE_L8_01, source: `${SOURCE_RELEVE} : un seul PDF par carrousel (source officielle)` };
+  return regles;
+}
+const reglesParReseau = (): Record<IdReseau, ReglesReseau> => {
+  const out = {} as Record<IdReseau, ReglesReseau>;
+  for (const id of RESEAUX_CADENCE) out[id] = reglesDeDepart(id);
+  return out;
+};
+
 export const REGLAGES_CADENCE_DEFAUT: ReglagesCadence = {
   reseaux: {
     linkedin: un(["08:00", "18:00"], 1, 240),
@@ -56,6 +114,7 @@ export const REGLAGES_CADENCE_DEFAUT: ReglagesCadence = {
     carrousel: { quantite: 1, periode: "semaine" },
     infographie: { quantite: 2, periode: "semaine" },
   },
+  regles: reglesParReseau(),
 };
 
 const HEURE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -71,6 +130,20 @@ export function lireHeure(saisie: unknown): string | null {
   const h = `${m[1].padStart(2, "0")}:${m[2] ?? "00"}`;
   return HEURE.test(h) ? h : null;
 }
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Une règle lue : valeur lisible gardée (avec sa source et sa date), sinon la valeur de départ. */
+function lireRegle<T>(brut: unknown, defaut: ValeurRegle<T>, lire: (v: unknown) => T | undefined): ValeurRegle<T> {
+  const x = objet(brut);
+  const valeur = lire(x.valeur);
+  if (valeur === undefined) return defaut;
+  const source = typeof x.source === "string" && x.source.trim() ? x.source.trim().slice(0, 200) : defaut.source;
+  const verifieLe = x.verifieLe === null ? null : typeof x.verifieLe === "string" && DATE.test(x.verifieLe) ? x.verifieLe : defaut.verifieLe;
+  return { valeur, source, verifieLe };
+}
+const nombreEntre = (min: number, max: number) => (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : undefined;
+const etatLu = (v: unknown): EtatPremierCommentaire | undefined => ETATS_PREMIER_COMMENTAIRE.find((e) => e === v);
 
 /** Réglages sûrs à partir de n'importe quelle valeur lue : l'invalide retombe sur la valeur de départ. */
 export function normaliserReglagesCadence(brut: unknown): ReglagesCadence {
@@ -91,7 +164,19 @@ export function normaliserReglagesCadence(brut: unknown): ReglagesCadence {
     const x = objet(o[t]);
     objectifs[t] = { quantite: entier(x.quantite, d.quantite, 50), periode: x.periode === "jour" || x.periode === "semaine" ? x.periode : d.periode };
   }
-  return { reseaux, objectifs };
+  const regles = {} as Record<IdReseau, ReglesReseau>;
+  const rg = objet(objet(brut).regles);
+  for (const id of RESEAUX_CADENCE) {
+    const d = REGLAGES_CADENCE_DEFAUT.regles[id];
+    const x = objet(rg[id]);
+    regles[id] = {
+      texteMax: lireRegle(x.texteMax, d.texteMax, nombreEntre(1, 100000)),
+      motsDieseMax: lireRegle(x.motsDieseMax, d.motsDieseMax, nombreEntre(0, 100)),
+      premierCommentaire: lireRegle(x.premierCommentaire, d.premierCommentaire, etatLu),
+      ...(d.pdfCarrousel ? { pdfCarrousel: lireRegle(x.pdfCarrousel, d.pdfCarrousel, nombreEntre(0, 10)) } : {}),
+    };
+  }
+  return { reseaux, objectifs, regles };
 }
 
 const minutes = (h: string): number => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
@@ -147,6 +232,35 @@ export function alertesObjectifs(objectifs: ReglagesCadence["objectifs"], produi
     if (o.quantite > 0 && (produits[t] ?? 0) < o.quantite) {
       out.push({ type: t, bloquant: false, message: `${LIBELLES[t]} : ${produits[t] ?? 0} sur ${o.quantite} par ${o.periode}.` });
     }
+  }
+  return out;
+}
+
+const MOT_DIESE = /#[\p{L}\p{N}_]+/gu;
+export interface EntreeControleRegles {
+  texte: string;
+  /** Texte du premier commentaire, s'il y en a un. */
+  premierCommentaire?: string;
+  /** Nombre de PDF joints au carrousel. */
+  nbPdf?: number;
+}
+
+/**
+ * Contrôle du texte d'un réseau selon les règles réglées dans Réglages (donc sans redéploiement). Phrases simples, la
+ * liste vide veut dire « rien à signaler ». N'empêche jamais d'enregistrer ni de programmer.
+ */
+export function controlerTexteSelonRegles(reglages: ReglagesCadence, reseau: IdReseau, e: EntreeControleRegles): string[] {
+  const r = reglages.regles[reseau];
+  const nom = NOMS[reseau];
+  const out: string[] = [];
+  if (e.texte.length > r.texteMax.valeur) out.push(`${nom} : texte trop long (${e.texte.length} signes, ${r.texteMax.valeur} au plus).`);
+  const n = e.texte.match(MOT_DIESE)?.length ?? 0;
+  if (n > r.motsDieseMax.valeur) out.push(`${nom} : ${n} mots-dièse, ${r.motsDieseMax.valeur} au plus.`);
+  if (r.pdfCarrousel && e.nbPdf !== undefined && e.nbPdf > r.pdfCarrousel.valeur) {
+    out.push(`${nom} : ${e.nbPdf} PDF joints, ${r.pdfCarrousel.valeur} au plus pour un carrousel.`);
+  }
+  if (r.premierCommentaire.valeur === "a-la-main" && e.premierCommentaire?.trim()) {
+    out.push(`${nom} : le premier commentaire ne part pas tout seul, pensez à le copier et le coller à la main.`);
   }
   return out;
 }
