@@ -17,6 +17,7 @@ import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
 import { controlerMiseEnSceneIV } from "@/moteurs/montage-image-video/controles-scene";
 import { demandeDeLaCommande } from "@/moteurs/montage-image-video";
+import { entreesMiseEnSceneIV, idRenduAvecStyleIV, type EtatFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { codeSousTitresIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV, styleRetenuIV, VARIANTE_PAR_VERSION, type StyleChoisiIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
@@ -173,5 +174,53 @@ describe("GV-ST-03c · la mise en scène transmet le style au contrôle", () => 
 
   it("sans style : mêmes détails qu'avant", () => {
     expect(q22(undefined).details).toEqual(controlerMiseEnSceneIV(mettreEnSceneIV(entree).ligne, { carte, fiche, reseaux: fin.reseaux, voix: entree.voix.mots, bruitages: { ok: true, bruitages: mettreEnSceneIV(entree).ligne.bruitages, rapport: { changementsSansSon: [] } } as never }).lignes.find((l) => l.code === "Q22")!.details);
+  });
+});
+
+/** GV-ST-03e : l'état minimal que lit `sceneDe` (travail réel rejoué, comme recit-bulle-sans-collision). */
+const FX = JSON.parse(readFileSync(join(process.cwd(), "tests/image-video/fixtures/recit-c-bulle.json"), "utf8")) as { videoId: string; reseaux: string[]; carte: unknown; fiche: unknown; fins: unknown[]; recette: unknown; pistes: unknown[] };
+const etatAvec = (styleSousTitres?: StyleChoisiIV) =>
+  ({
+    script: { fiche: FX.fiche },
+    plan: { fins: FX.fins, sansFin: [], reduites: [] },
+    carte: { carte: FX.carte },
+    pistes: FX.pistes,
+    courtes: [],
+    variete: { recette: FX.recette },
+    demande: { videoId: FX.videoId, reseaux: FX.reseaux, ...(styleSousTitres ? { styleSousTitres } : {}) },
+  }) as unknown as EtatFabricationIV;
+
+describe("GV-ST-03e · la mise en scène reçoit le style choisi", () => {
+  it("avec un style choisi : l'entrée de chaque version porte le style", () => {
+    const entrees = entreesMiseEnSceneIV(etatAvec(KARAOKE));
+    expect(entrees.length).toBeGreaterThan(0);
+    for (const x of entrees) expect(x.entree.styleSousTitres).toEqual(KARAOKE);
+  });
+  it("sans style (ou style sans valeur) : entrée strictement identique à celle d'avant, aucune clé en plus", () => {
+    const sans = entreesMiseEnSceneIV(etatAvec());
+    for (const x of sans) expect("styleSousTitres" in x.entree).toBe(false);
+    const sansValeur = entreesMiseEnSceneIV(etatAvec({ id: "x", nom: "sans valeur" }));
+    for (const [i, x] of sansValeur.entries()) {
+      expect("styleSousTitres" in x.entree).toBe(false);
+      expect(JSON.stringify(x.entree)).toBe(JSON.stringify(sans[i].entree));
+    }
+  });
+  it("la ligne de temps (donc les empreintes de scène) ne change pas avec le style", () => {
+    const a = entreesMiseEnSceneIV(etatAvec()).map((x) => JSON.stringify(mettreEnSceneIV(x.entree).ligne));
+    const b = entreesMiseEnSceneIV(etatAvec(KARAOKE)).map((x) => JSON.stringify(mettreEnSceneIV(x.entree).ligne));
+    expect(b).toEqual(a);
+  });
+});
+
+describe("GV-ST-03e · identifiant de rendu avec style : seule la valeur compte", () => {
+  const base = "iv-rendu-abc";
+  it("même valeur, nom et id différents : même identifiant", () => {
+    expect(idRenduAvecStyleIV(base, KARAOKE)).toBe(idRenduAvecStyleIV(base, { ...KARAOKE, id: "autre-id", nom: "Renommé" }));
+  });
+  it("valeurs différentes : identifiants différents", () => {
+    expect(idRenduAvecStyleIV(base, KARAOKE)).not.toBe(idRenduAvecStyleIV(base, { ...KARAOKE, valeur: { ...KARAOKE.valeur!, positionPct: 60 } }));
+  });
+  it("garde le préfixe de l'identifiant sans style", () => {
+    expect(idRenduAvecStyleIV(base, KARAOKE).startsWith(`${base}-`)).toBe(true);
   });
 });
