@@ -30,9 +30,8 @@ const MDP = "l3-0-prerequis-argent";
 const eur = (c: number) => ({ centimes: c, devise: "EUR" as const });
 const ligne = (c: number): LigneCout => ({ etape: "Voix", fournisseur: "simulation", unite: "forfait", quantite: 1, prixUnitaire: eur(c), total: eur(c), nature: "estime" });
 const estimation = (c: number) => ({ lignes: [ligne(c)], total: eur(c) });
-/** L2-13 (critère 5) : un budget d'argent n'est plus un refus ; il alerte (cloche) et se journalise. */
+/** L2-13 (critère 5) : pour l'origine Studio, un montant n'est plus un refus ; il alerte (cloche) et se journalise. */
 const lignesBudget = async () => (await depots().evenements.lister()).filter((e) => e.type === "budget").map((e) => e.message);
-const aAlerte = async (motif: string) => (await lignesBudget()).some((m) => m.includes(`(${motif})`)) && (await depots().notifications.lister()).length > 0;
 let n = 0;
 const demande = () => ({ videoId: `v-l30-${++n}`, travailId: `trv-l30-${n}` });
 
@@ -58,26 +57,22 @@ afterEach(() => {
 });
 
 describe("1. reserverPourUsine : le chemin unique d'une dépense commandée par l'Usine", () => {
-  it("sans budget reçu de l'Usine : plus de refus, alerte (cloche) + journal « usine-absent », l'engagement est posé", async () => {
+  it("sans budget reçu de l'Usine : refus BUDGET_USINE_ABSENT, aucune réservation ni engagement", async () => {
     const d = demande();
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", d)).resolves.toBeUndefined();
-    expect(await aAlerte("usine-absent")).toBe(true);
-    expect((await couts.resumeBudget()).engage.centimes).toBe(10);
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", d)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    expect(await depots().reservations.compter((r) => r.travailId === d.travailId)).toBe(0);
+    expect(await lireParametre(`budget.engage.${d.travailId}`, null)).toBeNull();
   });
 
-  it("budget reçu : passe et engage ; au-delà du budget de l'Usine : plus de refus, alerte (cloche) + journal « usine-atteint »", async () => {
+  it("budget reçu : passe et engage ; au-delà du budget de l'Usine : BUDGET_MENSUEL_ATTEINT", async () => {
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 50, mois: couts.moisParis() });
     await credits.reserverPourUsine(estimation(40), true, "Cette vidéo", demande());
-    expect(await aAlerte("usine-atteint")).toBe(false);
-    await expect(credits.reserverPourUsine(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
-    expect(await aAlerte("usine-atteint")).toBe(true);
+    await expect(credits.reserverPourUsine(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
   });
 
   it("l'origine ne peut pas être surchargée par l'appelant (toujours « usine »)", async () => {
     // @ts-expect-error — le 5e paramètre n'existe pas : une origine passée est ignorée.
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", demande(), { origine: "studio" })).resolves.toBeUndefined();
-    // l'origine reste « usine » : le motif journalisé est celui de l'Usine, pas celui d'un lancement du studio
-    expect(await aAlerte("usine-absent")).toBe(true);
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", demande(), { origine: "studio" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
   });
 
   it("la dépense manuelle de Will est inchangée : verifierEtReserver sans origine passe sans budget de l'Usine", async () => {
@@ -115,14 +110,14 @@ async function nouvelleGeneration(): Promise<GenerationScript> {
 const depensesClaude = async () => (await depots().depenses.lister()).filter((d) => d.lignes.some((l) => l.fournisseur === "anthropic"));
 
 describe("2. écriture du script (generation-claude) : `origine`", () => {
-  it("origine « usine » sans budget reçu : plus d'arrêt, alerte + journal « usine-absent », l'écriture part", async () => {
+  it("origine « usine » sans budget reçu : refus, AUCUN appel, aucune dépense, aucune réservation", async () => {
     const { appels } = await brancherClaude();
     const g = await nouvelleGeneration();
     const r = await gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" });
-    expect(r).toMatchObject({ ok: true, simule: false });
-    expect(await aAlerte("usine-absent")).toBe(true);
-    expect(appels).toHaveLength(1);
-    expect(await depensesClaude()).toHaveLength(1);
+    expect(r).toMatchObject({ ok: false, arret: "budget-usine" });
+    expect(appels).toHaveLength(0);
+    expect(await depensesClaude()).toHaveLength(0);
+    expect(await depots().reservations.lister()).toHaveLength(0);
   });
 
   it("origine « usine » avec le budget du mois reçu : l'écriture part", async () => {
@@ -140,13 +135,13 @@ describe("2. écriture du script (generation-claude) : `origine`", () => {
     expect(appels).toHaveLength(1);
   });
 
-  it("budget de l'Usine atteint : plus d'arrêt « budget-usine », alerte + journal « usine-atteint », l'écriture part", async () => {
+  it("budget de l'Usine atteint : refus « budget-usine », la génération n'est pas mise en attente (rien ne repart seul)", async () => {
     const { appels } = await brancherClaude();
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 0, mois: couts.moisParis() });
     const g = await nouvelleGeneration();
-    expect(await gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" })).toMatchObject({ ok: true, simule: false });
-    expect(await aAlerte("usine-atteint")).toBe(true);
-    expect(appels).toHaveLength(1);
+    expect(await gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" })).toMatchObject({ ok: false, arret: "budget-usine" });
+    expect(appels).toHaveLength(0);
+    expect((await depots().generations.obtenir(g.id))!.statut).toBe("en-cours");
   });
 });
 
@@ -154,14 +149,14 @@ describe("2. dépense d'une vidéo (depense-claude-video) : `origine`", () => {
   const videoId = "v-04";
   const options = { etape: "Texte de publication · LinkedIn" };
 
-  it("origine « usine » sans budget reçu : plus d'arrêt « budget-usine », alerte + journal « usine-absent », l'appel part", async () => {
+  it("origine « usine » sans budget reçu : refus « budget-usine », aucun appel, aucune dépense", async () => {
     const { appels } = await brancherClaude();
     await depots().videos.enregistrer({ ...(await depots().videos.obtenir(videoId))!, id: "v-l30", estDemo: false });
     const r = await dcv.executerRolePourVideo("v-l30", roleSonde, entreeRole, { ...options, origine: "usine" });
-    expect(r.ok).toBe(true);
-    expect(await aAlerte("usine-absent")).toBe(true);
-    expect(appels).toHaveLength(1);
-    expect(await depensesClaude()).toHaveLength(1);
+    expect(r).toMatchObject({ ok: false, arret: "budget-usine" });
+    expect(appels).toHaveLength(0);
+    expect(await depensesClaude()).toHaveLength(0);
+    expect(await depots().reservations.lister()).toHaveLength(0);
   });
 
   it("avec le budget reçu : part ; sans origine (Will) : part sans budget de l'Usine", async () => {
