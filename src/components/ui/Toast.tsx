@@ -11,12 +11,12 @@ export function Toasts() {
       mobileOffset={{ top: 12, left: 16, right: 16 }}
       toastOptions={{
         classNames: {
-          toast: "!rounded-carte !border !border-toast !bg-toast !text-toast-texte !shadow-carte !font-texte",
+          toast: "!rounded-carte !border !border-toast !bg-toast !text-toast-texte !shadow-carte !font-texte [&_:focus-visible]:!outline-toast-accent",
           description: "!text-toast-texte/80",
-          actionButton: "!bg-orange !text-sur-orange !rounded-champ !font-semibold",
-          success: "[&_[data-icon]]:!text-toast-accent",
-          error: "[&_[data-icon]]:!text-toast-accent",
-          warning: "[&_[data-icon]]:!text-toast-accent",
+          actionButton: "!border !border-toast-accent !bg-transparent !text-toast-accent !rounded-champ !font-semibold",
+          success: "[&_[data-icon]]:!text-toast-ok",
+          error: "[&_[data-icon]]:!text-toast-erreur",
+          warning: "[&_[data-icon]]:!text-toast-alerte",
         },
       }}
     />

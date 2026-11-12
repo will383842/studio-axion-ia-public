@@ -7,7 +7,8 @@
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { lireJeton } from "@/components/bibliotheque/outils";
 
 const RACINE = join(__dirname, "../..");
 const CSS = readFileSync(join(RACINE, "src/app/globals.css"), "utf-8");
@@ -56,7 +57,7 @@ const PAIRES: Array<[string, string]> = [
   ["fam-video", "surface-1"], ["fam-carrousel", "surface-1"], ["fam-infographie", "surface-1"],
   ["barre-texte", "barre-fond"], ["barre-doux", "barre-fond"], ["barre-faible", "barre-fond"], ["barre-accent", "barre-fond"],
   ["barre-texte", "barre-actif"], ["barre-doux", "barre-actif"], ["barre-faible", "barre-actif"],
-  ["toast-texte", "toast"], ["toast-accent", "toast"], ["ecran-texte", "ecran"],
+  ["toast-texte", "toast"], ["toast-accent", "toast"], ["toast-ok", "toast"], ["toast-erreur", "toast"], ["toast-alerte", "toast"], ["ecran-texte", "ecran"],
   ...["brouillon", "fabrication", "valider", "retouche", "accepte", "programme", "publie", "corriger"].map((s): [string, string] => [`statut-${s}-texte`, `statut-${s}-fond`]),
   ["statut-refuse-texte", "fond"],
 ];
@@ -70,8 +71,8 @@ describe("COUL-01 : contrastes ≥ 4,5:1", () => {
   it.each(SANS_BARRE.filter(([t, f]) => !(t === "sur-orange" && f === "orange-vif")))("sombre : %s sur %s", (t, f) => {
     expect(ratio(valeur(sombre, t), valeur(sombre, f)), `${t} / ${f}`).toBeGreaterThanOrEqual(4.5);
   });
-  it("barre-ok (valeur de la maquette M0) : au moins 4:1 sur le fond de la barre, réservé aux icônes et textes gras", () => {
-    expect(ratio(valeur(racine, "barre-ok"), valeur(racine, "barre-fond"))).toBeGreaterThanOrEqual(4);
+  it("barre-ok : au moins 4,5:1 sur le fond de la barre", () => {
+    expect(ratio(valeur(racine, "barre-ok"), valeur(racine, "barre-fond"))).toBeGreaterThanOrEqual(4.5);
   });
   it("bord des champs : ≥ 3:1 sur blanc", () => {
     expect(ratio(valeur(racine, "trait-champ"), valeur(racine, "surface-1"))).toBeGreaterThanOrEqual(3);
@@ -110,7 +111,8 @@ describe("COUL-01 : les noms", () => {
     expect(valeur(racine, "charte-orange").toLowerCase()).toBe("#b23f16");
     expect(valeur(racine, "charte-ivoire").toLowerCase()).toBe("#faf9f5");
     expect(valeur(racine, "charte-noir").toLowerCase()).toBe("#141413");
-    for (const n of ["charte-orange", "charte-ivoire", "charte-noir"]) expect(valeur(sombre, n)).toBe(valeur(racine, n));
+    expect(valeur(racine, "charte-orange-vif").toLowerCase()).toBe("#9a3412");
+    for (const n of ["charte-orange", "charte-orange-vif", "charte-ivoire", "charte-noir"]) expect(valeur(sombre, n)).toBe(valeur(racine, n));
   });
   it("les halos orange sont neutralisés", () => {
     for (const n of ["lueur", "lueur-forte"]) expect(racine, n).toContain(`--${n}: linear-gradient(transparent, transparent);`);
@@ -119,6 +121,25 @@ describe("COUL-01 : les noms", () => {
   it("focus et surlignage en accent", () => {
     expect(CSS).toMatch(/:focus-visible\s*\{\s*outline:\s*2px solid var\(--accent\)/);
     expect(CSS).toMatch(/::selection\s*\{\s*background:\s*var\(--accent\)/);
+  });
+});
+
+describe("COUL-01 : le contenu lit la charte figée", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("lireJeton renvoie la charte pour orange, orange-vif, fond et texte (pas les couleurs d'interface)", () => {
+    const jetons: Record<string, string> = { "--orange": "#b4512a", "--charte-orange": "#b23f16", "--orange-vif": "#a54623", "--charte-orange-vif": "#9a3412", "--fond": "#f3f7fb", "--charte-ivoire": "#faf9f5", "--texte": "#14212e", "--charte-noir": "#141413", "--sauge": "#2a6234" };
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("document", { documentElement: {} });
+    vi.stubGlobal("getComputedStyle", () => ({ getPropertyValue: (n: string) => ` ${jetons[n] ?? ""} ` }));
+    expect(lireJeton("orange")).toBe("#b23f16");
+    expect(lireJeton("orange-vif")).toBe("#9a3412");
+    expect(lireJeton("fond")).toBe("#faf9f5");
+    expect(lireJeton("texte")).toBe("#141413");
+    expect(lireJeton("sauge")).toBe("#2a6234");
+  });
+  it("les surfaces sombres vont en s'éclaircissant à partir du fond", () => {
+    const l = ["fond", "surface-1", "surface-2", "surface-3"].map((n) => lum(valeur(sombre, n)));
+    expect(l[1]! > l[0]! && l[2]! > l[1]! && l[3]! > l[2]!).toBe(true);
   });
 });
 
