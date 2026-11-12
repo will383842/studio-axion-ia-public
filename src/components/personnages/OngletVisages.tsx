@@ -407,7 +407,7 @@ function FeuilleDetailVisage({ personnageId, visage, habituel, verrouille, onFer
                 <ul className="mt-4 grid gap-2">
                   {v.qualite.conseils.map((c) => (
                     <li key={c} className="flex items-start gap-2.5 text-sm text-texte-doux">
-                      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif">
+                      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent-doux text-accent">
                         <Icone nom="idee" size={13} />
                       </span>
                       {c}
