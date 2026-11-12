@@ -882,7 +882,14 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
       // ou en cours, sur la même vidéo) ou si sa vidéo est à la corbeille : rien n'est réactivé.
       if (enAttenteDeValidation(t)) {
         const autres = await d.travaux.lister((x) => x.cibleId === t.cibleId && x.id !== t.id);
-        if (autres.some((x) => x.creeLe > t.creeLe || x.statut === "en_cours" || x.statut === "en_file")) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a été remplacé. Rouvrez la page.");
+        // GV-EC-01g : seule une FABRICATION plus récente remplace pour de bon (réservation rendue avant le refus, idempotent) ;
+        // un autre travail en file ou en cours (tout type) est un refus TEMPORAIRE (réservation gardée) ; un réexport ou une
+        // retouche terminé ou en échec ne bloque pas.
+        if (autres.some((x) => x.type === "fabrication" && x.creeLe > t.creeLe)) {
+          await libererReservation(t.id, "liberee");
+          throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a été remplacé. Rouvrez la page.");
+        }
+        if (autres.some((x) => x.statut === "en_cours" || x.statut === "en_file")) throw new ErreurStudio("PAS_EN_ECHEC", "Un autre travail de cette vidéo est en cours. Réessayez quand il sera fini.");
         const v = await d.videos.obtenir(t.cibleId);
         if (v?.corbeilleLe) throw new ErreurStudio("PAS_EN_ECHEC", "Cette vidéo est dans la corbeille. Restaurez-la d'abord.");
       }
