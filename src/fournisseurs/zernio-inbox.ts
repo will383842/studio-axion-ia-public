@@ -53,7 +53,11 @@ export interface MessageLu {
   veille?: boolean;
 }
 
+export type SuiviInstagramLu = { statut: "suit" } | { statut: "ne_suit_pas" } | { statut: "inconnu" } | { statut: "panne"; definitive: boolean; code: string };
+
 export interface PortInboxZernio {
+  /** Lecture seule du suivi (follow-status) : ne rend jamais ni nom, ni pseudo, ni identifiant. Facultative. */
+  lireSuiviInstagram?(p: { idCompte: string; idUtilisateur: string }): Promise<SuiviInstagramLu>;
   repondreCommentaire(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; cle: string }): Promise<ResultatEcritureInbox>;
   repondreEnPrive(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; boutons?: BoutonPostback[] }): Promise<ResultatEcritureInbox>;
   /**
@@ -164,7 +168,22 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
     }
   }
 
+  const CODES_PASSAGERS: ReadonlySet<string> = new Set(["debit", "limite-incertaine", "a-verifier", "indisponible", "envoi-coupe", "lecture-requise"]);
+
   return {
+    async lireSuiviInstagram(p) {
+      if (!comptesPermis.includes(p.idCompte)) return { statut: "panne", definitive: true, code: "compte-non-permis" };
+      if (idOpaqueDe(p.idUtilisateur) === undefined) return { statut: "panne", definitive: true, code: "identifiant-illisible" };
+      try {
+        const { suit } = await client.suiviInstagram(p.idCompte, p.idUtilisateur);
+        return suit === true ? { statut: "suit" } : suit === false ? { statut: "ne_suit_pas" } : { statut: "inconnu" };
+      } catch (e) {
+        if (!estErreurZernio(e)) return { statut: "panne", definitive: false, code: "erreur-inconnue" };
+        const passager = CODES_PASSAGERS.has(e.code) || (e.statut !== undefined && e.statut >= 500);
+        return { statut: "panne", definitive: !passager, code: e.code };
+      }
+    },
+
     repondreCommentaire: (p) =>
       ecrire({
         methode: "POST",
