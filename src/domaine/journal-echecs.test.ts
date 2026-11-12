@@ -46,4 +46,22 @@ describe("journal des échecs (pur)", () => {
     expect(nettoyerDetail("access_token=valeur2 fin")).not.toContain("valeur2");
     expect(nettoyerDetail("cle=valeur3")).not.toContain("valeur3");
   });
+
+  it("nettoyage : les clés en camelCase sont retirées", () => {
+    expect(nettoyerDetail("accessToken=valeur4")).not.toContain("valeur4");
+    expect(nettoyerDetail('clientSecret: "abc123"')).not.toContain("abc123");
+    expect(nettoyerDetail('{"refreshToken":"xyz"}')).not.toContain("xyz");
+    expect(nettoyerDetail("apiKey=k9")).not.toContain("k9");
+  });
+
+  it("nettoyage : monkey, article et cycle restent intacts", () => {
+    expect(nettoyerDetail("monkey: banane")).toBe("monkey: banane");
+    expect(nettoyerDetail("article: 12")).toBe("article: 12");
+    expect(nettoyerDetail("cycle=3")).toBe("cycle=3");
+  });
+
+  it("nettoyage : les jetons Bearer sont retirés, seuls ou après Authorization", () => {
+    expect(nettoyerDetail("Authorization: Bearer abc.def")).not.toContain("abc.def");
+    expect(nettoyerDetail("Bearer abc.def")).not.toContain("abc.def");
+  });
 });
