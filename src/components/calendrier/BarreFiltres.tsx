@@ -51,8 +51,9 @@ export function BarreFiltres({ reseaux = RESEAUX_CALENDRIER, actifs, onBasculer,
         const actif = actifs.includes(reseau);
         const nom = nomReseau(reseau);
         const classes = cn(
-          "inline-flex min-h-[34px] items-center gap-1.5 rounded-full border-[1.5px] border-[color:var(--c)] bg-surface-1 py-1 pl-[5px] pr-[11px] text-sm font-bold text-texte",
-          !actif && "border-dashed opacity-45",
+          "inline-flex min-h-[34px] items-center gap-1.5 rounded-full border-[1.5px] border-[color:var(--c)] py-1 pl-[5px] pr-[11px] text-sm font-bold",
+          // Éteinte : pointillé, fond et texte plus doux ; jamais d'opacité (la pastille est un bouton actif, le texte garde 4,5:1).
+          actif ? "bg-surface-1 text-texte" : "border-dashed bg-surface-2 text-texte-doux",
         );
         const contenu = (
           <>
@@ -62,7 +63,7 @@ export function BarreFiltres({ reseaux = RESEAUX_CALENDRIER, actifs, onBasculer,
         );
         if (lienReseau) {
           return (
-            <Link key={reseau} href={lienReseau(reseau)} aria-label={nom} aria-current={actif ? "true" : undefined} data-reseau={reseau} style={styleReseau(reseau)} className={classes}>
+            <Link key={reseau} href={lienReseau(reseau)} aria-label={`${nom}, ${actif ? "affiché" : "masqué"}`} data-reseau={reseau} style={styleReseau(reseau)} className={classes}>
               {contenu}
             </Link>
           );

@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import { plageMois } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
 import { libelleJour } from "./BarreVue";
-import { jourLisible, monogrammeReseau, nomReseau, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { RepereReseau, jourLisible, nomReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 
 export interface ProprietesGrilleMois {
   /** Mois à montrer, « AAAA-MM » ; vide ou illisible : le mois d'aujourd'hui. */
@@ -37,26 +37,27 @@ export function GrilleMois({ mois, aujourdhui, entrees, reseaux = RESEAUX_CALEND
     const duJour = comptees.filter((e) => e.jour === jour);
     const estAujourdhui = jour === aujourdhui;
     const horsMois = !jour.startsWith(plage.mois);
-    const libelle = `${libelleJour(jour)}, ${duJour.length} publication${duJour.length > 1 ? "s" : ""}`;
+    // Le libellé remplace le contenu à l'oral : le détail par réseau y est donc redit (il n'est plus seulement dans `title`).
+    const detail = reseaux.flatMap((reseau) => {
+      const nombre = duJour.filter((e) => e.reseau === reseau).length;
+      return nombre ? [`${nomReseau(reseau)} ${nombre}`] : [];
+    });
+    const libelle = `${libelleJour(jour)}, ${duJour.length} publication${duJour.length > 1 ? "s" : ""}${detail.length ? ` : ${detail.join(", ")}` : ""}`;
     const classes = cn(
       "block min-h-[78px] w-full rounded-[10px] border p-1.5 text-left",
-      estAujourdhui ? "border-orange bg-orange-doux" : "border-trait bg-surface-1",
-      horsMois && "opacity-40",
+      // Hors du mois : contour en pointillé et fond plus doux, jamais d'opacité (elle ferait passer le texte sous 4,5:1).
+      estAujourdhui ? "border-orange bg-orange-doux" : horsMois ? "border-dashed border-trait-fort bg-surface-2" : "border-trait bg-surface-1",
       (lienJour || onOuvrirJour) && "hover:border-orange",
     );
     const commun = { "data-jour": jour, "data-hors-mois": horsMois ? "true" : undefined, "aria-current": estAujourdhui ? ("date" as const) : undefined, "aria-label": libelle, className: classes };
     const contenu = (
       <>
-        <b className="tabular-nums text-texte">{Number(jour.slice(8))}</b>
+        <b className={cn("tabular-nums", horsMois ? "text-texte-faible" : "text-texte")}>{Number(jour.slice(8))}</b>
         <span className="mt-1.5 flex flex-wrap gap-1">
           {reseaux.map((reseau) => {
             const nombre = duJour.filter((e) => e.reseau === reseau).length;
             if (!nombre) return null;
-            return (
-              <span key={reseau} title={`${nomReseau(reseau)} : ${nombre}`} data-reseau={reseau} style={styleReseau(reseau)} className="rounded-md border-2 border-[color:var(--c)] bg-surface-1 px-1 text-[11px] font-extrabold tabular-nums text-texte">
-                {monogrammeReseau(reseau)} {nombre}
-              </span>
-            );
+            return <RepereReseau key={reseau} reseau={reseau} nombre={nombre} />;
           })}
         </span>
       </>
@@ -84,7 +85,7 @@ export function GrilleMois({ mois, aujourdhui, entrees, reseaux = RESEAUX_CALEND
 
   return (
     <div className={className}>
-      <div role="grid" aria-label="Mois" className="grid grid-cols-7 gap-1">
+      <div role="table" aria-label="Mois" className="grid grid-cols-7 gap-1">
         <div role="row" className="contents">
           {EN_TETES.map((j) => (
             <div key={j} role="columnheader" className="px-1 py-0.5 text-[11px] font-bold uppercase text-texte-faible">
@@ -95,14 +96,17 @@ export function GrilleMois({ mois, aujourdhui, entrees, reseaux = RESEAUX_CALEND
         {plage.semaines.map((semaine) => (
           <div key={semaine[0]} role="row" data-semaine={semaine[0]} className="contents">
             {semaine.map((jour) => (
-              <div key={jour} role="gridcell" className="min-w-0">
+              <div key={jour} role="cell" className="min-w-0">
                 {jourDe(jour)}
               </div>
             ))}
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-texte-faible">Chaque pastille donne le nombre de publications d&apos;un réseau. Cliquez sur un jour pour l&apos;ouvrir.</p>
+      <p className="mt-2 text-xs text-texte-faible">
+        Chaque pastille donne le nombre de publications d&apos;un réseau.
+        {(lienJour || onOuvrirJour) && " Cliquez sur un jour pour l'ouvrir."}
+      </p>
     </div>
   );
 }
