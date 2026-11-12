@@ -42,6 +42,10 @@
       "version": "mp-adresse-refusee-v2",
       "texte": "Message automatique envoyé par Axion IA. Nous n'avons pas pu enregistrer cette adresse e-mail : le guide ne peut pas vous être envoyé par ce moyen."
     },
+    "mp-merci-v1": {
+      "version": "mp-merci-v1",
+      "texte": "Merci à vous ! J'ai bien reçu votre demande : le guide « [TITRE DU GUIDE] » arrive dans votre boîte mail d'ici quelques minutes. S'il n'y est pas, jetez un œil à vos courriers indésirables."
+    },
     "mp-lien-v2": {
       "version": "mp-lien-v2",
       "texte": "Message automatique envoyé par Axion IA. Voici le guide « [TITRE DU GUIDE] » : [LIEN]. Bonne lecture !"
