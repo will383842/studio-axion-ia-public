@@ -3,7 +3,7 @@
  * (jamais bloquantes) et ne change aucun paramètre de rendu (donc aucune clé de cache).
  */
 import { describe, expect, it } from "vitest";
-import { controlerSousTitres, VITESSE_LECTURE_MAX_MOTS_PAR_SEC } from "@/briques/sous-titres";
+import { controlerSousTitres, DEBIT_VOIX_ESTIME_MOTS_PAR_SEC } from "@/briques/sous-titres";
 import { parametresComposition } from "@/briques/composition";
 import { decorsCatalogue } from "@/donnees/decors-catalogue";
 import { ACCESSOIRE_MICRO, HABILLAGE_AVOCAT, PROFIL_SON_AVOCAT, STYLE_SOUS_TITRES_AVOCAT } from "@/donnees/elements-avocat";
@@ -69,8 +69,8 @@ function phrase(n: number, dureeSec: number): { texte: string; segments: Segment
 const entree = (segments: SegmentSousTitres[]) => ({ ratio: "9:16" as const, plans: PLANS, segments, dureeSec: 9 });
 
 describe("contrôle des sous-titres branché sur la composition", () => {
-  it("la vitesse de lecture de référence reste 4,4 mots par seconde", () => {
-    expect(VITESSE_LECTURE_MAX_MOTS_PAR_SEC).toBe(4.4);
+  it("le débit de voix estimé reste 4,4 mots par seconde", () => {
+    expect(DEBIT_VOIX_ESTIME_MOTS_PAR_SEC).toBe(4.4);
   });
 
   it("une phrase de 12 mots dite en 2 s : remarque « vitesse-lecture », sans bloquer", () => {
@@ -79,6 +79,12 @@ describe("contrôle des sous-titres branché sur la composition", () => {
     const a = p.alertes.filter((x) => x.code === "vitesse-lecture");
     expect(a).toHaveLength(1);
     expect(a[0].gravite).toBe("info");
+  });
+
+  it("5 mots par seconde (sous le seuil de lecture) : aucune remarque de vitesse", () => {
+    const { texte, segments } = phrase(10, 2);
+    const p = parametresComposition(commande(texte), entree(segments), RECETTE_COMPOSITION_AVOCAT);
+    expect(p.alertes.some((x) => x.code === "vitesse-lecture")).toBe(false);
   });
 
   it("une phrase normale : aucune remarque de vitesse", () => {
