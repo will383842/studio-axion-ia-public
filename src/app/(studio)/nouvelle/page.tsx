@@ -66,7 +66,7 @@ export default async function PageNouvelle() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1 text-[11px] font-semibold text-texte-faible">
                       <Icone nom={m.format.icone} size={12} />
-                      <span className="truncate">{nomCourtFormat(m.format)}</span>
+                      <span className="truncate">{AFFICHAGE_FORMAT[m.formatId]?.nomAffiche ?? nomCourtFormat(m.format)}</span>
                     </span>
                     <span className="mt-0.5 block truncate text-[15px] font-semibold text-texte">{m.nom}</span>
                     <span className="mt-1 flex items-center gap-1.5 text-xs tabular-nums text-texte-faible">
