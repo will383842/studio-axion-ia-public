@@ -8,10 +8,12 @@ import { describe, expect, it } from "vitest";
 import { PALETTE } from "@/briques/charte/axion-2026";
 import { InfographieSpec } from "@/domaine/visuels/schema-infographie";
 import type { DemandeRendu, EtatRendu, OperationRendu, ServiceRendu } from "@/fournisseurs/types";
+import { largeurMot } from "@/briques/visuels/largeur-mot";
 import { OPERATIONS, verifierDemande } from "../../studio-rendu/src/contrat";
 import {
   ErreurDebordementInfographie,
   FORMATS_INFOGRAPHIE,
+  INTERLIGNE_INFOGRAPHIE,
   GABARITS_INFOGRAPHIE,
   ID_COMPOSITION_INFOGRAPHIE,
   miseEnPageInfographie,
@@ -21,7 +23,7 @@ import {
 
 const DOSSIER = resolve(__dirname, "../../studio-rendu/compositions/visuels/infographie");
 
-const bloc = (i: number, valeur = true) => ({ titre: `Point ${i}`, texte: `Une phrase courte pour le point ${i}.`, ...(valeur ? { valeur: `${i * 10} %` } : {}) });
+const bloc = (i: number, valeur = true) => ({ titre: `Point ${i}`, texte: `Une phrase courte pour le point ${i}.`, ...(valeur ? { valeur: `${i * 10}\u00a0%` } : {}) });
 const spec = (n: number, valeur = true) => InfographieSpec.parse({ version: "infographie/1", alt: "Exemple fictif", titre: "Trois chiffres à retenir", blocs: Array.from({ length: n }, (_, i) => bloc(i + 1, valeur)) });
 const NB: Record<Gabarit, number> = { "chiffres-cles": 4, etapes: 4, comparaison: 2 };
 const RATIOS: RatioInfographie[] = ["1:1", "9:16"];
@@ -44,7 +46,8 @@ describe("L2-06 · dimensions du profil", () => {
           expect(t.y).toBeGreaterThanOrEqual(0);
           expect(t.x + t.largeur).toBeLessThanOrEqual(m.largeur);
           expect(t.y + t.hauteur).toBeLessThanOrEqual(m.hauteur);
-          expect(t.lignes.length * t.taille).toBeLessThanOrEqual(t.hauteur);
+          expect(t.lignes.length * t.taille * INTERLIGNE_INFOGRAPHIE).toBeLessThanOrEqual(t.hauteur);
+          for (const l of t.lignes) expect(largeurMot(l, t.taille)).toBeLessThanOrEqual(t.largeur);
         }
       });
     }
@@ -62,6 +65,33 @@ describe("L2-06 · un texte qui déborde est refusé", () => {
   it("chiffres clés sans valeur, ou comparaison de plus de deux blocs : refusés", () => {
     expect(() => miseEnPageInfographie("chiffres-cles", "1:1", spec(3, false))).toThrow(/valeur/);
     expect(() => miseEnPageInfographie("comparaison", "1:1", spec(3))).toThrow(/deux/);
+  });
+});
+
+describe("L2-06 · typographie française et mesure réelle", () => {
+  const PONCTUATION_SEULE = /^[?%:;!»]/;
+  const avec = (titre: string, texte: string, valeur: string) =>
+    InfographieSpec.parse({ version: "infographie/1", alt: "x", titre: "Titre", blocs: [{ titre, texte, valeur }, { titre: "B", texte: "ok", valeur: "1" }] });
+  it("aucune ligne ne commence par « ? », « % », « : », « ; », « ! » ou « » »", () => {
+    const textes = ["Combien de temps gagné par semaine oooooo ?", "Voici le résultat : oui !", "Il dit « bonjour » ; puis part", "Une phrase assez longue pour passer à la ligne avant la fin ?"];
+    for (const g of GABARITS_INFOGRAPHIE) for (const r of RATIOS) for (const texte of textes) {
+      const s = avec("Titre", texte, "42\u00a0%");
+      let m;
+      try { m = miseEnPageInfographie(g, r, s); } catch (e) { expect(e).toBeInstanceOf(ErreurDebordementInfographie); continue; }
+      for (const t of m.textes) for (const l of t.lignes) expect(l, `${g} ${r} ${t.zone}`).not.toMatch(PONCTUATION_SEULE);
+    }
+  });
+  it("la valeur « 42 % » (espace insécable) reste d'un seul tenant", () => {
+    const m = miseEnPageInfographie("chiffres-cles", "1:1", avec("Titre", "ok", "42\u00a0%"));
+    const v = m.textes.find((t) => t.zone === "bloc 1 valeur");
+    expect(v?.lignes).toEqual(["42\u00a0%"]);
+  });
+  it("un mot à lettres larges est refusé ou posé plus petit, et chaque ligne tient dans sa boîte", () => {
+    const m = miseEnPageInfographie("chiffres-cles", "1:1", avec("Accompagnement", "ok", "1"));
+    const t = m.textes.find((x) => x.zone === "bloc 1 titre");
+    expect(t?.taille).toBeLessThan(44);
+    for (const x of m.textes) for (const l of x.lignes) expect(largeurMot(l, x.taille)).toBeLessThanOrEqual(x.largeur);
+    expect(() => miseEnPageInfographie("comparaison", "1:1", avec("m".repeat(30), "ok", "1"))).toThrow(ErreurDebordementInfographie);
   });
 });
 

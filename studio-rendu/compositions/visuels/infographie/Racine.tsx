@@ -13,7 +13,7 @@ export const INFOGRAPHIE_DEFAUT: ProprietesInfographie = {
     alt: "Exemple d'infographie",
     titre: "Trois chiffres à retenir",
     blocs: [
-      { titre: "Premier", texte: "Un exemple fictif.", valeur: "42 %" },
+      { titre: "Premier", texte: "Un exemple fictif.", valeur: "42\u00a0%" },
       { titre: "Deuxième", texte: "Un autre exemple fictif.", valeur: "3 sur 4" },
     ],
   }),

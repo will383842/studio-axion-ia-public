@@ -1,9 +1,10 @@
 /**
  * Mise en page PURE des infographies (L2-06) : aucune dépendance de rendu, mesurable sans navigateur. Trois gabarits (chiffres clés, étapes,
  * comparaison) sur deux ratios (1:1, 9:16). Toute couleur vient de la charte 2026. Un texte qui ne tient pas dans sa boîte à 26 px au moins est REFUSÉ
- * (jamais coupé en silence). La largeur du texte est ESTIMÉE (Manrope ExtraBold, par prudence un peu large) : la mesure réelle reste celle du rendu.
+ * (jamais coupé en silence). La largeur est la mesure réelle de Manrope ExtraBold (`largeurMot`), comme la porte qualité des carrousels.
  */
 import { PALETTE } from "../../../../../src/briques/charte/axion-2026";
+import { largeurMot, motsInsecables } from "../../../../../src/briques/visuels/largeur-mot";
 import type { InfographieSpecType } from "../../../../../src/domaine/visuels/schema-infographie";
 
 export type Gabarit = "chiffres-cles" | "etapes" | "comparaison";
@@ -39,21 +40,14 @@ export interface TexteMis {
 }
 export interface MiseEnPage { gabarit: Gabarit; ratio: RatioInfographie; largeur: number; hauteur: number; fond: string; formes: Forme[]; textes: TexteMis[] }
 
-/** Largeur estimée (px) d'un texte au corps donné. */
-export function largeurEstimee(texte: string, taille: number): number {
-  let em = 0;
-  for (const c of texte) em += c === " " ? 0.3 : /[A-ZÀ-Ý]/.test(c) ? 0.76 : /[0-9%]/.test(c) ? 0.66 : /[ilI.,;:'!|]/.test(c) ? 0.34 : 0.64;
-  return em * taille;
-}
-
-/** Coupe aux espaces ; `null` si un mot dépasse la largeur. */
+/** Coupe aux espaces ordinaires (les insécables restent collées au mot, typographie française) ; `null` si un mot dépasse la largeur. */
 function lignesDe(texte: string, largeur: number, taille: number): string[] | null {
   const lignes: string[] = [];
   let cour = "";
-  for (const mot of texte.split(/\s+/).filter(Boolean)) {
-    if (largeurEstimee(mot, taille) > largeur) return null;
+  for (const mot of motsInsecables(texte)) {
+    if (largeurMot(mot, taille) > largeur) return null;
     const essai = cour ? `${cour} ${mot}` : mot;
-    if (largeurEstimee(essai, taille) <= largeur) cour = essai;
+    if (largeurMot(essai, taille) <= largeur) cour = essai;
     else { lignes.push(cour); cour = mot; }
   }
   if (cour) lignes.push(cour);
