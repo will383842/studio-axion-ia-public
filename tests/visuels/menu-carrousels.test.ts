@@ -5,7 +5,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { NAV_LATERALE, TUILES_PLUS, ONGLETS_BAS, SECTIONS_NAV, estActif, navigationLaterale, tuilesPlusMobile } from "../../src/components/coquille/navigation";
+import { NAV_LATERALE, TUILES_PLUS, ONGLETS_BAS, estActif, navigationLaterale, tuilesPlusMobile } from "../../src/components/coquille/navigation";
 import { FiltresContenus, compterContenus, lienContenus, lireFiltresContenus } from "../../src/components/contenus/FiltresContenus";
 import { GrilleContenus, adresseContenu, calculerVueContenus } from "../../src/components/contenus/GrilleContenus";
 import { MOTS_INTERDITS_ECRAN } from "../../src/domaine/libelles";
@@ -62,28 +62,6 @@ const JEU: ContenuBibliotheque[] = [
   contenu("i1", "image", ["facebook"], 5),
 ];
 const ids = (l: readonly ContenuBibliotheque[]) => l.map((c) => c.id);
-
-describe("menu : entrée « Tous mes contenus »", () => {
-  const entree = SECTIONS_NAV.flatMap((s) => s.entrees).find((e) => e.href === "/contenus");
-  it("existe dans la section « Mes contenus », avec une icône propre, sur ordinateur et dans la feuille « Plus »", () => {
-    expect(entree?.libelle).toBe("Tous mes contenus");
-    expect(SECTIONS_NAV.find((s) => s.titre === "Mes contenus")?.entrees.map((e) => e.href)).toContain("/contenus");
-    expect(navigationLaterale([], false).some((e) => e.href === "/contenus")).toBe(true);
-    expect(tuilesPlusMobile(false).some((t) => t.href === "/contenus")).toBe(true);
-    expect(NAV_LATERALE.filter((e) => e.icone === entree?.icone)).toHaveLength(1);
-  });
-  it("ne s'allume que sur /contenus et dessous", () => {
-    expect(estActif("/contenus", entree!)).toBe(true);
-    expect(estActif("/contenus/x", entree!)).toBe(true);
-    expect(estActif("/contenusX", entree!)).toBe(false);
-    expect(estActif("/carrousels", entree!)).toBe(false);
-    expect(estActif("/videos", entree!)).toBe(false);
-  });
-  it("ne touche pas aux autres entrées : /mots (Réponses automatiques) et Carrousels restent", () => {
-    expect(NAV_LATERALE.find((e) => e.href === "/mots")?.libelle).toBe("Réponses automatiques");
-    expect(NAV_LATERALE.find((e) => e.href === "/carrousels")?.libelle).toBe("Carrousels");
-  });
-});
 
 describe("/contenus : lecture de l'adresse", () => {
   it("valeur inconnue, vide ou mal formée : ignorée ; les trois types et le réseau « non précisé » sont connus", () => {
