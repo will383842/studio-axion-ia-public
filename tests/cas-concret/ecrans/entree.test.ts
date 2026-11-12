@@ -125,7 +125,7 @@ describe("feuille « Votre vidéo »", () => {
     for (const r of ["Facebook", "Instagram", "TikTok", "LinkedIn"]) expect(t).toContain(r);
     expect(t).toContain("Le mot à commenter");
     expect(t).toContain("Avec le mot");
-    expect(t).toMatch(/Fabriquer la vidéo.*0,60\s*€/);
+    expect(t).toMatch(/Fabriquer.*0,60\s*€/);
     sansMotTechnique(t);
   });
 

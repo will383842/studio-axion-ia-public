@@ -152,9 +152,9 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
         arreter={actif ? <BoutonArreter travailId={t.id} videoId={t.cibleId} depense={t.depense} compact={compacte} /> : undefined}
         propres={
           etat === "a-relire" ? (
-            <Link href="#valider-script" className="inline-flex min-h-11 items-center rounded-bouton bg-orange px-4 text-sm font-semibold text-sur-orange">
-              Relire et valider le script
-            </Link>
+            <Bouton variante="principal" asChild>
+              <Link href="#valider-script">Relire et valider le script</Link>
+            </Bouton>
           ) : undefined
         }
         reprendre={

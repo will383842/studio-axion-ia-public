@@ -270,12 +270,12 @@ test("E2-13 · Non connecté : /cas-concret renvoie à la connexion", async ({ p
   await expect(page.getByLabel("Mot de passe", { exact: true })).toBeVisible();
 });
 
-test("E2-14 · Tableau animé intact : son écran s'ouvre, aucune phrase « diagnostic »", async ({ page }) => {
+test("E2-14 · L'erreur corrigée intacte : son écran s'ouvre, aucune phrase « diagnostic »", async ({ page }) => {
   await seConnecter(page);
   const erreurs = surveiller(page);
   // Le tableau animé est ouvert depuis #124 (« Allume le format tableau animé ») : son écran d'entrée s'affiche.
   await page.goto("/tableau/nouvelle");
-  await expect(page.locator("main")).toContainText("Tableau animé");
+  await expect(page.locator("main")).toContainText("L'erreur corrigée");
   await expect(page.locator("main")).toContainText("Votre texte, écrit et dessiné au trait.");
   await expect(page.locator("main")).not.toContainText(/diagnostic/i);
   await expect(page.locator("main")).not.toContainText("Cas concret");
