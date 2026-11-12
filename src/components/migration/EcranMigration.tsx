@@ -64,7 +64,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
           <p className="mt-2 text-texte-doux">Elle démarre dès que les 6 comptes sont reliés dans Zernio. Date limite pour résilier Buffer : mercredi 18 novembre.</p>
           <Link href="/reglages" className="mt-4 inline-flex min-h-12 items-center rounded-full bg-orange px-5 font-semibold text-sur-orange">Voir les connexions</Link>
         </section>
-        {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode simulation : la clé Zernio n’est pas renseignée.</p>}
+        {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode essai : la clé Zernio n’est pas renseignée.</p>}
       </Coquille>
     );
   }
@@ -100,7 +100,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
       <Lots lots={lots} onOuvrir={setLotOuvert} />
       <Criteres comptes={comptes} />
       <AReprogrammer posts={aReprogrammer} />
-      {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode simulation : la clé Zernio n’est pas renseignée.</p>}
+      {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode essai : la clé Zernio n’est pas renseignée.</p>}
       {lotOuvert && (
         <FenetreLot
           titre={`Lot ${lotOuvert}`}

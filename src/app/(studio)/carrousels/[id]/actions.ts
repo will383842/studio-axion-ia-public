@@ -4,9 +4,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import type { Reseau } from "@/briques/visuels/reseaux";
 import type { MotifRefus } from "@/domaine/visuels/visuel";
 import { exigerSession } from "@/services/auth";
-import { ErreurVisuel, lancerRendu, PHRASE_GENERATEUR_ETEINT, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { ErreurVisuel, lancerRendu, preparerPourReseaux, PHRASE_GENERATEUR_ETEINT, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { mettreALaCorbeille, restaurer } from "@/visuels/services/corbeille";
 import { codeErreur, dependancesCarrousels, lireIdFormulaire } from "@/visuels/services/production";
 
@@ -81,4 +82,11 @@ export async function corbeilleAction(donnees: FormData): Promise<void> {
 export async function restaurerAction(donnees: FormData): Promise<void> {
   await exigerSession();
   await agir(donnees, (id, deps) => restaurer([id], deps));
+}
+
+/** « Préparer pour les réseaux » : les cases cochées (linkedin, instagram, facebook) ; tout autre valeur est ignorée. */
+export async function preparerReseauxAction(donnees: FormData): Promise<void> {
+  await exigerSession();
+  const reseaux = donnees.getAll("reseau").filter((r): r is Reseau => r === "linkedin" || r === "instagram" || r === "facebook");
+  await agir(donnees, (id, deps) => preparerPourReseaux(id, reseaux, deps));
 }
