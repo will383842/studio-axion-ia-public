@@ -109,4 +109,19 @@ describe("passerelle visuel -> publication", () => {
     expect(toutes).toHaveLength(2);
     for (const p of toutes) expect(p.date.startsWith("2026-11-25")).toBe(true);
   });
+
+  it("un même visuel placé dans un 2e créneau à une autre date est refusé : la Publication du 1er créneau n'est pas déplacée", async () => {
+    const d = await monter();
+    await programmerVisuel(d, "c1", T0);
+    await d.creneaux.enregistrer({
+      id: "c2", jourVise: "2026-12-02", compteCible: "compte-fictif-1", visuelId: "vis_1", statut: "valide", decalages: 0,
+      heuresParReseau: { linkedin: "2026-12-02T08:30:00.000Z" },
+    });
+    await expect(programmerVisuel(d, "c2", T0)).rejects.toThrow(/autre créneau/i);
+    const toutes = await d.publications.lister();
+    expect(toutes).toHaveLength(2);
+    const li = toutes.find((p) => p.reseau === "linkedin")!;
+    expect(li.date).toBe("2026-11-25T08:30:00.000Z");
+    expect((await d.creneaux.obtenir("c2"))?.statut).toBe("valide");
+  });
 });
