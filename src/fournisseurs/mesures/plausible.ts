@@ -2,7 +2,7 @@
  * VISITES ET RENDEZ-VOUS PAR LIEN SUIVI (plan v5 B.5.5, lot G7b). LECTURE SEULE des statistiques du site (Plausible,
  * `POST /api/v2/query` : le corps est une question, rien n'est écrit).
  *
- * - Visites : visiteurs uniques avec `utm_medium=video`, ventilés par `utm_campaign` (= code de la version).
+ * - Visites : visiteurs uniques avec `utm_medium=video` ou `post`, ventilés par `utm_campaign` (= code de la version).
  * - Rendez-vous : parmi eux, ceux qui ont déclenché l'objectif « Outbound Link: Click » vers calendly.com (le site
  *   n'a pas d'objectif « rendez-vous » propre au 03/10/2026 : relevé en lecture réelle, objectifs présents « Outbound
  *   Link: Click » et « File Download »). Réglable (`butRendezVous`, `motifRendezVous`).
@@ -22,12 +22,17 @@ export interface OptionsLecturePlausible {
   periode?: string | [string, string];
   butRendezVous?: string;
   motifRendezVous?: string;
+  /** Valeurs de `utm_medium` lues. Défaut : la vidéo seule (question d'avant) ; le lecteur réel lit `video` et `post`. */
+  natures?: readonly string[];
 }
+
+/** Natures lues par le lecteur réel : les vidéos et les visuels ou posts (décision « lien suivi, version 2 »). */
+export const NATURES_MESUREES = ["video", "post"] as const;
 
 /** Corps des deux questions posées (PUR, testé). */
 export function questionsPlausible(site: string, o: OptionsLecturePlausible = {}) {
   const date_range = o.periode ?? "90d";
-  const video = ["is", "visit:utm_medium", ["video"]];
+  const video = ["is", "visit:utm_medium", [...(o.natures ?? ["video"])]];
   return {
     visites: { site_id: site, metrics: ["visitors"], date_range, dimensions: ["visit:utm_campaign", "visit:utm_source"], filters: [video] },
     rendezVous: {
@@ -80,7 +85,7 @@ export function creerLecteurPlausible(env: Env = process.env, appeler: Fetch = f
   return {
     mode: "reel",
     async lire(o = {}) {
-      const q = questionsPlausible(site, o);
+      const q = questionsPlausible(site, { ...o, natures: o.natures ?? NATURES_MESUREES });
       const [v, r] = await Promise.all([
         lireJsonPost(appeler, `${base}/api/v2/query`, cle, q.visites, "Les statistiques du site"),
         lireJsonPost(appeler, `${base}/api/v2/query`, cle, q.rendezVous, "Les statistiques du site"),

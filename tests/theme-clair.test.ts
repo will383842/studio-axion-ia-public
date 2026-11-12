@@ -22,18 +22,18 @@ function ratio(a: string, b: string): number {
 }
 
 describe("thème clair de la zone de page", () => {
-  it("la racine est claire, la zone sombre garde les anciennes valeurs", () => {
-    expect(racine).toMatch(/--fond:\s*#FAF9F5/i);
+  it("la racine est claire (bleu ciel pâle, décision du 12/11), la zone sombre est bleutée", () => {
+    expect(racine).toMatch(/--fond:\s*#f3f7fb/i);
     expect(racine).toContain("color-scheme: light");
-    expect(sombre).toContain("--fond: #16120f");
-    expect(sombre).toContain("--texte: #f3ede4");
+    expect(sombre).toContain("--fond: #16202b");
+    expect(sombre).toContain("--texte: #eaf1f7");
     expect(sombre).toContain("color-scheme: dark");
   });
-  it("aucun bleu ni jaune dans :root", () => {
+  it("aucun jaune dans :root (le bleu est voulu depuis le 12/11)", () => {
     for (const m of racine.matchAll(/--[a-z0-9-]+:\s*(#[0-9a-fA-F]{6})/g)) {
+      if (m[0].startsWith("--fam-")) continue; // familles de contenu (olive du Carrousel validée en maquette M0)
       const h = m[1];
       const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-      expect(b > r + 20 && b > g + 20, `bleu ${m[0]}`).toBe(false);
       expect(r > b + 60 && g > b + 60 && Math.abs(r - g) < 40, `jaune ${m[0]}`).toBe(false);
     }
   });

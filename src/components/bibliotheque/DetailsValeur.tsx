@@ -73,7 +73,7 @@ export function DetailsValeur({ valeur, vignette }: { valeur: ValeurElement; vig
     case "police":
       return (
         <div className="rounded-2xl bg-surface-2 p-4">
-          <p className={cn("text-5xl text-texte", valeur.famille === "Archivo Black" ? "font-titre" : "font-texte font-bold")} style={valeur.famille !== "Archivo Black" && valeur.famille !== "Manrope" ? { fontFamily: valeur.famille } : undefined}>
+          <p className={cn("text-5xl text-texte", valeur.famille === "Archivo Black" ? "font-archivo" : "font-texte font-bold")} style={valeur.famille !== "Archivo Black" && valeur.famille !== "Manrope" ? { fontFamily: valeur.famille } : undefined}>
             Aa Bb 123
           </p>
           <p className="mt-2 text-sm text-texte-faible">{valeur.usage === "titre" ? "Pour les titres" : "Pour le texte"}</p>

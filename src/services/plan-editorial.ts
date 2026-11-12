@@ -5,7 +5,7 @@
  * Rien ne part sans la validation du fondateur : ce service tient l'état du plan, il ne publie pas.
  */
 import "server-only";
-import type { Depot, JournalDecalage } from "@/domaine/depots";
+import type { Depot, DepotAjoutSeul, JournalDecalage } from "@/domaine/depots";
 import { cleEnvoi } from "@/domaine/envoi-planifie";
 import { transitionner, validerCreneau, heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { AuteurPlan, CreneauEditorial, StatutPlan } from "@/domaine/plan-editorial/types";
@@ -17,7 +17,8 @@ export type CreneauPlan = CreneauEditorial & { aRenvoyer?: boolean };
 
 export interface DepotsPlan {
   creneaux: Depot<CreneauPlan>;
-  journal: Depot<JournalDecalage>;
+  /** Ajout seul (comme le dépôt réel du Studio) : jamais modifié ni effacé. */
+  journal: DepotAjoutSeul<JournalDecalage>;
 }
 
 export type DonneesCreneau = Omit<CreneauEditorial, "statut" | "decalages">;
@@ -55,21 +56,39 @@ export function estConfie(c: CreneauEditorial): boolean {
 
 export async function decaler(d: DepotsPlan, id: string, demande: DemandeDecalage, maintenant: string): Promise<CreneauPlan> {
   const c = await lire(d, id);
-  const idLigne = `decalage:${id}:${demande.cle}`;
-  if (await d.journal.obtenir(idLigne)) return c;
+  const base = `decalage:${id}:${demande.cle}`;
+  const prefixe = `${base}#`;
+  // Identifiant d'une ligne = decalage:<créneau>:<clé>#<rang> ; le rang est le numéro du décalage (décalages déjà appliqués + 1) au moment de l'écriture.
+  const lignes = await d.journal.lister((l) => l.creneauId === id);
+  const ligne = lignes.find((l) => l.id.slice(0, l.id.lastIndexOf("#")) === base && /^\d+$/.test(l.id.slice(l.id.lastIndexOf("#") + 1)));
+  if (ligne) {
+    // Rejeu d'une clé déjà journalisée : on ne réapplique que si SA ligne est celle qui n'a pas été appliquée (rang = décalages + 1, écriture du
+    // créneau tombée en panne) ; sinon (déjà appliquée, même après un aller-retour de jour) on rend le créneau tel quel. La ligne fait foi (jour, raison).
+    if (Number(ligne.id.slice(ligne.id.lastIndexOf("#") + 1)) !== c.decalages + 1) return c;
+  } else if (lignes.length > c.decalages) {
+    // Une ligne d'un décalage précédent n'a pas été appliquée au créneau : rejouer d'abord sa clé (sinon « un décalage = une ligne » est faux).
+    throw new Error(`Décalage refusé : un décalage précédent du créneau ${id} n'a pas été appliqué ; rejouer d'abord sa clé.`);
+  }
   if (c.statut === "publie") throw new Error(`Décalage refusé : le créneau ${id} est publié.`);
   if (c.statut === "archive") throw new Error(`Décalage refusé : le créneau ${id} est archivé.`);
-  if (!JOUR.test(demande.nouveauJour) || Number.isNaN(Date.parse(demande.nouveauJour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
+  // « programme » se décale (PILOTAGE : la passerelle visuel→publication de master rejoue la programmation après un décalage ; la version des envois suit le
+  // nombre de décalages). Un créneau en échec doit d'abord être repassé à « valide ».
+  if (c.statut === "echec") {
+    throw new Error(`Décalage refusé : le créneau ${id} est « echec » ; le repasser d'abord à « valide » après retrait de l'envoi.`);
+  }
+  // En réapplication, la ligne du journal fait foi : une même clé n'a jamais deux effets différents.
+  const nouveauJour = ligne ? ligne.nouveauJour : demande.nouveauJour;
+  if (!JOUR.test(nouveauJour) || Number.isNaN(Date.parse(nouveauJour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
   const heures: CreneauEditorial["heuresParReseau"] = {};
   for (const [reseau, h] of Object.entries(c.heuresParReseau)) {
-    if (h) heures[reseau as keyof typeof heures] = instantParis(demande.nouveauJour, heureAffichageParis(h));
+    if (h) heures[reseau as keyof typeof heures] = instantParis(nouveauJour, heureAffichageParis(h));
   }
   const modifie: CreneauPlan = {
-    ...c, jourVise: demande.nouveauJour, heuresParReseau: heures, decalages: c.decalages + 1,
+    ...c, jourVise: nouveauJour, heuresParReseau: heures, decalages: c.decalages + 1,
     ...(estConfie(c) ? { aRenvoyer: true } : {}),
   };
-  // Journal d'abord (ajout seul), puis le créneau : un rejeu avec la même clé s'arrête sur la ligne déjà écrite.
-  await d.journal.enregistrer({ id: idLigne, creneauId: id, ancienJour: c.jourVise, nouveauJour: demande.nouveauJour, raison: demande.raison, creeLe: maintenant });
+  // Journal (ajout seul) puis créneau ; un rejeu avec la même clé réapplique le créneau si besoin, sans second journal.
+  if (!ligne) await d.journal.enregistrer({ id: `${prefixe}${c.decalages + 1}`, creneauId: id, ancienJour: c.jourVise, nouveauJour, raison: demande.raison, creeLe: maintenant });
   return d.creneaux.enregistrer(modifie);
 }
 

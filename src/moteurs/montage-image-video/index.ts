@@ -130,6 +130,8 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     ...(numeroVersion !== undefined ? { numeroVersion } : {}),
     codeSuivi: e.codeSuivi ?? `iv-${commande.videoId}`,
     ...(e.lot ? { lot: { id: e.lot.id, rang: e.lot.rang } } : {}),
+    // GV-ST-03b : le style de sous-titres choisi (Bibliothèque) voyage jusqu'au rendu ; absent : charte duo, comme avant.
+    ...(commande.styles?.sousTitres?.valeur ? { styleSousTitres: { id: commande.styles.sousTitres.id, nom: commande.styles.sousTitres.nom, valeur: commande.styles.sousTitres.valeur } } : {}),
   };
 }
 
@@ -346,12 +348,14 @@ export function resultatDe(etat: EtatFabricationIV, maintenant: number): Resulta
   // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.
   const livrees = (etat.livraison ?? []).filter((l) => l.fichierCle);
   const premiere = livrees.find((l) => l.format !== "4:5") ?? livrees[0];
+  const rendu = Object.values(etat.rendus ?? {}).find((r) => r.cle === premiere?.fichierCle);
   const quatreCinq = premiere?.format === "4:5";
   const sorties = premiere
     ? [{ ratio: (quatreCinq ? "4:5" : "9:16") as "4:5" | "9:16", fichierCle: premiere.fichierCle!, vignetteCle: premiere.fichierCle!, resolution: quatreCinq ? "1080x1350" : "1080x1920", dureeSec: premiere.dureeSec ?? 0, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }]
     : [];
   return {
     sorties,
+    ...(rendu?.sousTitres?.length ? { sousTitres: rendu.sousTitres } : {}),
     noteQualite: { globale: note, alertes },
     lignesReelles: [...lignesPayeesDe(etat), ligne("Montage image → vidéo", "studio", "forfait", 1, 0, "reel")],
     projetMontage: {

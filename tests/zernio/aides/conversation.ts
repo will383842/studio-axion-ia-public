@@ -103,3 +103,17 @@ export async function validerGuideAuParcours(titre: string = TITRE): Promise<voi
   if (!e.ok) throw new Error(e.raison);
   await ecrireParametre("mots.validation.guide-parcours", { empreinte: e.empreinte, valideLe: "2026-01-01T00:00:00.000Z" });
 }
+
+/** Enregistre (écran /mots) la validation des formulations données : empreinte = sha256(version + "\n" + texte brut). Par défaut une seule par groupe. */
+export const FORMULATIONS_VALIDEES_PAR_DEFAUT = ["mp-m1-v4-1", "mp-adresse-refusee-v3-1"] as const;
+export async function validerFormulationsAuParcours(versions: readonly string[] = FORMULATIONS_VALIDEES_PAR_DEFAUT): Promise<void> {
+  const { TEXTES_MP } = await import("@/domaine/guide-reseau/textes-mp");
+  const { createHash } = await import("node:crypto");
+  const { ecrireParametre } = await import("@/services/_commun");
+  const v: Record<string, { empreinte: string; valideLe: string }> = {};
+  for (const id of versions) {
+    const b = (TEXTES_MP as Record<string, { version: string; texte: string }>)[id];
+    v[id] = { empreinte: createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"), valideLe: "2026-01-01T00:00:00.000Z" };
+  }
+  await ecrireParametre("parcours.validation.formulations", v);
+}

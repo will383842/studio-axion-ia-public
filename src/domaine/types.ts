@@ -1014,7 +1014,7 @@ export interface SegmentSousTitres {
 
 /** Lot M2 (ajout pur) : styles retenus par Will (Karaoké et Minimal en base, Impact et Bandeau en accents). */
 export type GabaritSousTitres = "karaoke" | "minimal" | "impact" | "bandeau";
-export type BaseSousTitres = Extract<GabaritSousTitres, "karaoke" | "minimal">;
+export type BaseSousTitres = GabaritSousTitres;
 export type StyleGroupeSousTitres = "base" | "impact" | "bandeau";
 export type PositionGroupeSousTitres = "auto" | "haut" | "milieu" | "bas";
 /** Intensité du mélange, par vidéo : base seule, défaut, ou accents fréquents. */

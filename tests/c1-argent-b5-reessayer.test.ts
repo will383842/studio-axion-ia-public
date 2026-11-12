@@ -74,14 +74,15 @@ async function travailEnEchec(etape = "montage"): Promise<string> {
 }
 
 describe("B5 · « Réessayer » revérifie le budget et les crédits", () => {
-  it("budget du mois atteint depuis l'échec : la relance est refusée, rien n'est réactivé", async () => {
+  it("budget du mois atteint depuis l'échec : la relance part, avec une alerte (cloche) et une ligne de journal", async () => {
     const travailId = await travailEnEchec();
     const depense = (await couts.resumeBudget()).depense.centimes;
     await ecrireParametre("budget.mensuel", { centimes: depense, devise: "EUR" });
-    await expect(travaux.reessayerTravail(travailId)).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
-    expect(await depots().reservations.compter((r) => r.travailId === travailId && r.statut === "active")).toBe(0);
-    expect((await couts.resumeBudget()).engage.centimes).toBe(0);
+    const r = await travaux.reessayerTravail(travailId);
+    expect(r.statut).not.toBe("echec");
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
+    expect((await couts.resumeBudget()).engage.centimes).toBeGreaterThan(0);
   });
 
   it("crédit HeyGen épuisé depuis l'échec : la relance est refusée (crédit insuffisant)", async () => {
@@ -97,15 +98,21 @@ describe("B5 · « Réessayer » revérifie le budget et les crédits", () => {
     expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
   });
 
-  it("au-delà du seuil : la relance demande une confirmation, puis repart une fois confirmée", async () => {
+  it("origine Studio, au-delà du seuil : la relance repart sans demande de confirmation de prix", async () => {
     const travailId = await travailEnEchec();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-    const refus = await travaux.reessayerTravail(travailId).catch((e: { code?: string; montant?: number }) => e);
-    expect(refus).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    // Seconde relecture paquet 4 (R2) : au-delà du seuil, c'est le MONTANT vu qui confirme (`true` ne suffit plus).
-    await expect(travaux.reessayerTravail(travailId, { confirme: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    const r = await travaux.reessayerTravail(travailId, { confirme: (refus as { montant: number }).montant });
+    const r = await travaux.reessayerTravail(travailId);
     expect(r.statut).not.toBe("echec");
+  });
+
+  it("origine « usine », au-delà du seuil : la relance reste refusée (le travail reste en échec)", async () => {
+    const travailId = await travailEnEchec();
+    const t = (await depots().travaux.obtenir(travailId))!;
+    const v = (await depots().versions.obtenir(t.versionId!))!;
+    await depots().versions.modifier(v.id, { commande: { ...v.commande, origine: "usine" } });
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
+    await expect(travaux.reessayerTravail(travailId)).rejects.toMatchObject({ code: expect.stringMatching(/^(CONFIRMATION_REQUISE|BUDGET_USINE_ABSENT|BUDGET_MENSUEL_ATTEINT|BUDGET_DEPASSE)$/) });
+    expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
   });
 
   it("seul le coût RESTANT compte : ce qui est déjà payé ne bloque pas la relance", async () => {

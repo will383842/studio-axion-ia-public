@@ -13,7 +13,11 @@
  * passée par le réalisateur (les mots qu'il illustre).
  */
 import type { GroupeSousTitrePlan } from "@/domaine/facecam-animee/plan";
-import { estMotOutil, estNombreDit, estUnite, nettoyer, nombreDeLettres, ponctuationFinale, recollerElisions, sansElision, sansMotsInterditsEcran, simplifier, valeurEnLettres, type MotTranscrit } from "./mots";
+import { estMotFort } from "@/briques/sous-titres/mots-importants";
+import { estMotOutil, estNombreDit, estUnite, nettoyer, nombreDeLettres, ponctuationFinale, recollerElisions, sansElision, sansMotsInterditsEcran, simplifier, type MotTranscrit } from "./mots";
+
+/** Re-export : la règle des mots forts vit dans la brique centrale (regles-fixes.ts l'importe d'ici). */
+export { estMotFort };
 
 export const BLANC_COUPURE_SEC = 0.35;
 export const MOTS_PAR_GROUPE = 3;
@@ -25,32 +29,9 @@ export const LETTRES_MOT_SEUL = 12;
 /** Aucun groupe n'est affiché moins de 0,18 s. */
 export const DUREE_MIN_GROUPE_SEC = 0.18;
 
-/** Lexique des mots forts par défaut (forme simplifiée : minuscules, sans accents). */
-const LEXIQUE_FORTS = new Set(
-  (
-    "temps argent euro euros devis relance relances facture factures client clients chiffre chiffres equipe equipes outil outils ia " +
-    "automatiser automatise automatisez automatisation diagnostic gratuit gratuite fuite travail soiree soirees journee journees week-end " +
-    "apres-midi dirigeant dirigeants entreprise entreprises recruter recrutement embauche gagner gagnez reservez reserver commentez " +
-    "former forme formation audit audite auditer accompagne accompagnement priorites minutes heures jours semaine mois resultat " +
-    "resultats vente ventes prospects rendez-vous appel mail mails email emails telephone stack logiciel site miracle"
-  ).split(/\s+/),
-);
-
 export interface OptionsSousTitres {
   /** Mots forts choisis par le réalisateur (ceux qu'il illustre) : comparés sans casse ni accents ni ponctuation. */
   motsForts?: readonly string[];
-}
-
-/** Vrai pour un mot fort : chiffre ou nombre dit (sauf l'article « un/une »), mot du lexique ou de la liste fournie. */
-export function estMotFort(w: string, motsForts: ReadonlySet<string> = new Set()): boolean {
-  const propre = nettoyer(w);
-  if (!propre) return false;
-  if (/\d/.test(propre)) return true;
-  const s = simplifier(propre);
-  const lettres = valeurEnLettres(propre);
-  if (lettres !== null && s !== "un" && s !== "une") return true;
-  const base = simplifier(sansElision(propre));
-  return motsForts.has(s) || motsForts.has(base) || LEXIQUE_FORTS.has(s) || LEXIQUE_FORTS.has(base);
 }
 
 /** Ensemble simplifié des mots forts fournis (« Devis, » → « devis »). */
