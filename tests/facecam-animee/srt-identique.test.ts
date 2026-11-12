@@ -2,6 +2,7 @@
  * GV-ST-13 : le .srt d'une face caméra animée suit les groupes de 1 à 2 mots dessinés par la v4.
  * `segmentsSrtV4` (studio) est une copie de `groupesDuPlan` + `grouperMots` (composition) : mêmes groupes, mêmes instants à 1 ms.
  */
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import type { PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 import { resultatV4 } from "@/moteurs/montage-facecam-animee";
@@ -19,11 +20,24 @@ const ESSAI: Groupes = [
   { mots: [mot("et", 6.2), mot("c'est", 6.4), mot("fini.", 9.5)], fin: 10 },
 ];
 const DUREE = 10.1;
+/**
+ * La composition v4 importe `remotion`, installé seulement dans `studio-rendu`. Les contrôles obligatoires de GitHub
+ * (verifier.yml) n'installent pas ces dépendances : la comparaison stricte avec la composition est alors sautée (et
+ * seulement elle). Le contrôle `gv-tests-moteurs.yml` lance ces cas avec les dépendances installées.
+ */
+const remotionDisponible = (() => {
+  try {
+    createRequire(`${process.cwd()}/studio-rendu/package.json`).resolve("remotion");
+    return true;
+  } catch {
+    return false;
+  }
+})();
 const propre = (t: string) => t.replace(/[.,;:!?…«»"“”()]/g, "").trim().toUpperCase();
 
 describe("srt-identique · segmentsSrtV4 = groupes dessinés par la v4", () => {
   for (const [nom, g, d] of [["plan d'essai", ESSAI, DUREE], ["plan de référence", planValide().groupes, planValide().duree]] as const) {
-    it(`${nom} : mêmes groupes, mêmes débuts et fins à 1 ms, mêmes mots`, async () => {
+    it.skipIf(!remotionDisponible)(`${nom} : mêmes groupes, mêmes débuts et fins à 1 ms, mêmes mots`, async () => {
       const { groupesDuPlan } = await import("../../studio-rendu/compositions/interface-claire/VideoAnimeeV4");
       const attendu = groupesDuPlan(g, d);
       const obtenu = segmentsSrtV4(g, d);
