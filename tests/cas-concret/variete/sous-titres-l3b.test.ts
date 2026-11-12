@@ -222,6 +222,22 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     }
   });
 
+  it("GV-ST-02c : une mise héritée marquée « sans variante », au tirage qui se VOIT, donne une version 2 sans variante", async () => {
+    const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
+    const miseA = { ...mettre(tirage, []), sousTitresSansVariante: true as const };
+    const d = doubles();
+    d.options.outils.variete = variete(lireMise(JSON.parse(JSON.stringify(miseA)))!);
+    const cr = await fabriquerCasConcret(d.options);
+    // Le champ survit dans la mise de la version 2 (elle est refaite par `mettre`).
+    expect((cr.fiche.mise as { sousTitresSansVariante?: boolean }).sousTitresSansVariante).toBe(true);
+    const cs = calques(d);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(85.33);
+    }
+  });
+
   it("GV-ST-02b : une version héritée d'une vidéo d'AVANT le lot (mise sans le champ) garde la variante", async () => {
     const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
     const ancienne = mettre(tirage, []);
