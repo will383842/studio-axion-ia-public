@@ -36,6 +36,9 @@ export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdi
   ];
   const ouverture = historique[0]?.ouvertureV4;
   if (ouverture) lignes.push(`N'ouvrez pas par ${ouverture} (ouverture de la vidéo précédente).`);
+  const T = SEUILS_V4;
+  const ouvertures = [...new Set(historique.slice(0, T.ouverturesRecentesVideos).flatMap((h) => (h.ouvertureV4 ? [h.ouvertureV4] : [])))];
+  lignes.push(`RÈGLE VÉRIFIÉE, plan refusé et à refaire si : il ouvre par ${ouvertures.length ? `l'une de ces plaquettes (ouvertures des ${T.ouverturesRecentesVideos} dernières vidéos) : ${ouvertures.join(", ")}` : "la même plaquette que l'une des dernières vidéos"} ; ou si plus de ${Math.round(100 * T.partReprisePlaquettesMax)} % de ses plaquettes différentes ont déjà été prises dans les ${T.videosRecentesPlaquettes} dernières vidéos. L'erreur exacte vous est renvoyée à l'essai suivant.`);
   return lignes.join("\n");
 }
 
