@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { GabaritSousTitres, IntensiteSousTitres } from "@/domaine/types";
 import { baseDe, baseRetenue, donneesCalque, fabriquerSousTitres, optionsGroupement } from "@/briques/sous-titres";
 import { melanger } from "@/briques/sous-titres/melange";
+import { gabaritDe } from "@/briques/sous-titres/style";
 
 const TEXTE =
   "Il a gagné 35 heures. Votre patron ne peut jamais lire vos mails personnels. Une personne à temps plein juste pour remplir Excel. " +
@@ -86,5 +87,23 @@ describe("groupes verrouillés", () => {
     const m = melanger(s, { intensite: "equilibre", base: "impact" });
     expect(m[2]).toEqual(s[2]);
     expect(m.filter((x, i) => i !== 2).every((x) => x.style === "impact")).toBe(true);
+  });
+});
+
+describe("GV-ST-08d : baseDe d'un élément sans gabarit écrit", () => {
+  const axionPop = { animation: "pop", casse: "majuscules", position: "centre" } as never;
+  it("« Axion pop » (sans gabarit) : gabaritDe = impact (comme master), baseDe = karaoké (comme master)", () => {
+    expect(gabaritDe(axionPop)).toBe("impact");
+    expect(baseDe(axionPop)).toBe("karaoke");
+  });
+  it("sans gabarit : minimal reste minimal, le reste karaoké", () => {
+    expect(baseDe({ animation: "aucune", casse: "normale", position: "bas" } as never)).toBe("minimal");
+    expect(baseDe({ animation: "surlignage", casse: "normale", position: "bas" } as never)).toBe("karaoke");
+    expect(baseDe(undefined)).toBe("karaoke");
+  });
+  it("gabarit écrit : la base est ce gabarit", () => {
+    expect(baseDe({ ...(axionPop as object), gabarit: "impact" } as never)).toBe("impact");
+    expect(baseDe({ gabarit: "bandeau" } as never)).toBe("bandeau");
+    expect(baseRetenue(undefined, { gabarit: "impact" } as never)).toBe("impact");
   });
 });
