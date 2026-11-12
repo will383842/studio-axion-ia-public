@@ -34,8 +34,16 @@ describe("continu P1 : registres", () => {
       });
     }
   });
-  it("la rubrique de chaque gabarit d'essai est bornée à RUBRIQUE_MAX", () => {
-    for (const g of GABARITS.filter((x) => x.essai)) {
+  it("le schéma de chaque gabarit fixe son type en littéral", () => {
+    for (const g of GABARITS) {
+      const champ = (g.schema as unknown as { shape: Record<string, { value?: unknown; def?: { values?: unknown[] } }> }).shape.type;
+      expect(champ, g.type).toBeDefined();
+      expect(champ.def?.values ?? [champ.value], g.type).toEqual([g.type]);
+    }
+  });
+  it("la rubrique de chaque gabarit est bornée à RUBRIQUE_MAX", () => {
+    expect(GABARITS.length).toBeGreaterThan(0);
+    for (const g of GABARITS) {
       const base = g.exemple as Record<string, unknown>;
       expect(g.schema.safeParse({ ...base, rubrique: "a".repeat(RUBRIQUE_MAX) }).success, g.type).toBe(true);
       expect(g.schema.safeParse({ ...base, rubrique: "a".repeat(RUBRIQUE_MAX + 1) }).success, g.type).toBe(false);
