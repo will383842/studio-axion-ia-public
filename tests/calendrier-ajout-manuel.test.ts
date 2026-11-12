@@ -117,6 +117,23 @@ describe("proximité et quota : avertir, puis confirmer d'un clic, jamais bloque
     await d.creneauxEditoriaux.enregistrer(creneau("autre", "09:00", "tiktok"));
     expect((await ajouterEntree({ ...base, heure: "09:00", cle: "p4" })).ok).toBe(true);
   });
+  for (const statut of ["archive", "echec"] as const) {
+    it(`un créneau « ${statut} » à 1 h d'écart ne déclenche aucun avertissement de proximité`, async () => {
+      await d.creneauxEditoriaux.enregistrer({ ...creneau("ancien", "09:00"), statut });
+      const r = await ajouterEntree({ ...base, heure: "09:00", cle: `s-${statut}` });
+      expect(r.ok).toBe(true);
+    });
+    it(`un créneau « ${statut} » le même jour ne compte pas dans le quota`, async () => {
+      await d.creneauxEditoriaux.enregistrer({ ...creneau("ancien", "07:00"), statut });
+      expect((await ajouterEntree({ ...base, heure: "18:00", cle: `q-${statut}` })).ok).toBe(true);
+    });
+  }
+  for (const statut of ["propose", "a_valider", "valide", "programme", "publie"] as const) {
+    it(`un créneau « ${statut} » à 1 h d'écart avertit toujours`, async () => {
+      await d.creneauxEditoriaux.enregistrer({ ...creneau("actif", "09:00"), statut });
+      expect(await ajouterEntree({ ...base, heure: "09:00", cle: `a-${statut}` })).toMatchObject({ ok: false, aConfirmer: "proximite" });
+    });
+  }
   it("sans voisin, aucun avertissement ; le rejeu d'une entrée déjà créée n'est jamais redemandé", async () => {
     expect((await ajouterEntree({ ...base, cle: "p5" })).ok).toBe(true);
     expect((await ajouterEntree({ ...base, cle: "p5" })).ok).toBe(true);
