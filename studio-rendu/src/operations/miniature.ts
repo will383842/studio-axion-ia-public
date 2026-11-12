@@ -9,7 +9,7 @@
  * Entrée : `video` (adresse signée : la vidéo SANS texte de préférence, sinon la vidéo finale).
  * Paramètres : `instantSec`, `dureeSec` (facultatif), `ratio`, `couverture`, `motCle`, `variante` (0, 1, 2).
  * Fond propre (`fondPropre: true` ou aucune image acceptable) : fond de la charte, titre seul.
- * Gabarit `image-video-v3` : première bonne image de la vidéo finale, sans titre (voir `operationImageVideo`).
+ * Gabarit `image-video-v3` : la mieux notée des images des 3 premières secondes de la vidéo finale, sans titre (voir `operationImageVideo`).
  * Gabarit `axion-v2` (vignettes, lot 1) : `gabarit`, `ambiance`, `mise`, `instagram`, `generateur`, entrée facultative `sujet`.
  * Sans `gabarit` (ou `r4`) : le comportement d'avant, inchangé.
  * Mesures : instant retenu, flou, luminosité, largeur, hauteur, octets.
@@ -54,6 +54,8 @@ export interface MesureImage {
   luminosite?: number;
   /** YHIGH − YLOW (signalstats) : écart entre les ombres et les hautes lumières. */
   contraste?: number;
+  /** Différence moyenne (YAVG, 0-255) avec la candidate précédente : grande = fondu ou changement de plan. Absente pour la première. */
+  ecartVoisine?: number;
 }
 
 /** Une image digne d'être une vignette : ni noire, ni vide, ni plate (fondu à moitié), ni floue. Mesure absente : pas jugée mauvaise. PUR. */
@@ -89,37 +91,90 @@ export function choisirPlusNette(mesures: MesureImage[], instantVise: number): M
   });
 }
 
-/** Fin des « premières secondes » où l'on cherche la première image bonne. */
-export const DEBUT_BON_SEC = 2;
+/** Fenêtre de l'accroche : la couverture est cherchée dans les 3 premières secondes (GV-VG-04). */
+export const FENETRE_COUVERTURE_SEC = 3;
+/** Fin des « premières secondes » où l'on cherche la meilleure image (= la fenêtre de l'accroche). */
+export const DEBUT_BON_SEC = FENETRE_COUVERTURE_SEC;
 /** Limite du repli : la meilleure image des 6 premières secondes. */
 export const DEBUT_SECOURS_SEC = 6;
+/** Pas entre deux candidates dans la fenêtre de l'accroche. */
+export const PAS_COUVERTURE_SEC = 0.25;
+/** Pas entre deux candidates du repli (de 3,25 s à 6 s). */
+export const PAS_SECOURS_SEC = 0.5;
 
 /**
- * Instants à examiner au début de la vidéo finale. `premiers` : 0,05 s puis pas de 0,1 s jusqu'à 2 s ; `secours` :
- * pas de 0,25 s de 2 s à 6 s. Jamais au-delà de la durée. PUR.
+ * Différence moyenne (YAVG de `blend=difference`, 0-255) avec l'image d'avant au-dessus de laquelle une image est en
+ * transition (fondu, changement de plan) et écartée. VALEUR ESTIMÉE, à recaler sur de vraies vidéos : un visage qui
+ * parle donne quelques points d'écart en 0,25 s, un fondu bien plus.
+ */
+export const ECART_TRANSITION = 18;
+/** Poids de la note d'une image (somme = 100). */
+export const POIDS_NOTE = { nettete: 40, luminosite: 20, contraste: 15, stabilite: 25 } as const;
+/** Luminosité visée : le milieu de la plage acceptée. */
+export const LUMINOSITE_IDEALE = (LUMINOSITE_MIN + LUMINOSITE_MAX) / 2;
+/** Contraste (YHIGH − YLOW) à partir duquel la note de contraste est pleine. */
+export const CONTRASTE_PLEIN = 120;
+/** À moins de ce nombre de points d'écart avec la meilleure note, on prend la plus tôt. */
+export const ECART_NOTE_EGALITE = 5;
+
+const borner01 = (x: number) => Math.min(1, Math.max(0, x));
+
+/**
+ * Note d'une image, de 0 à 100 : netteté (40), luminosité (20, meilleure vers le milieu de la plage), contraste (15),
+ * stabilité (25, écart avec la voisine). Une mesure absente vaut 0,5 : ni bonne, ni mauvaise. PUR.
+ */
+export function noterImage(m: MesureImage): number {
+  const nettete = m.flou === undefined ? 0.5 : 1 - borner01(m.flou / FLOU_MAX);
+  const luminosite = m.luminosite === undefined ? 0.5 : 1 - borner01(Math.abs(m.luminosite - LUMINOSITE_IDEALE) / (LUMINOSITE_IDEALE - LUMINOSITE_MIN));
+  const contraste = m.contraste === undefined ? 0.5 : borner01(m.contraste / CONTRASTE_PLEIN);
+  const stabilite = m.ecartVoisine === undefined ? 0.5 : 1 - borner01(m.ecartVoisine / ECART_TRANSITION);
+  const note = nettete * POIDS_NOTE.nettete + luminosite * POIDS_NOTE.luminosite + contraste * POIDS_NOTE.contraste + stabilite * POIDS_NOTE.stabilite;
+  return Math.round(note * 100) / 100;
+}
+
+/** Image en transition (fondu, changement de plan) : trop différente de la précédente. PUR. */
+export function enTransition(m: MesureImage): boolean {
+  return m.ecartVoisine !== undefined && m.ecartVoisine > ECART_TRANSITION;
+}
+
+/**
+ * Instants à examiner au début de la vidéo finale. `premiers` : 0,05 s puis un pas de 0,25 s jusqu'à 3 s (13 images au
+ * plus) ; `secours` : de 3,25 s à 6 s par pas de 0,5 s, examiné seulement si aucune des premières ne passe. Jamais
+ * au-delà de la durée. PUR.
  */
 export function instantsDebut(dureeSec: number): { premiers: number[]; secours: number[] } {
   const max = Math.max(0.05, dureeSec - 0.15);
   const arrondi = (t: number) => Math.round(t * 1000) / 1000;
   const premiers: number[] = [];
-  for (let t = 0.05; t <= DEBUT_BON_SEC + 1e-9 && t <= max; t = t === 0.05 ? 0.1 : arrondi(t + 0.1)) premiers.push(arrondi(t));
+  for (let t = 0.05; t <= FENETRE_COUVERTURE_SEC + 1e-9 && t <= max; t = t === 0.05 ? PAS_COUVERTURE_SEC : arrondi(t + PAS_COUVERTURE_SEC)) premiers.push(arrondi(t));
   const secours: number[] = [];
-  for (let t = 2.25; t <= DEBUT_SECOURS_SEC + 1e-9 && t <= max; t = arrondi(t + 0.25)) secours.push(t);
+  for (let t = FENETRE_COUVERTURE_SEC + PAS_COUVERTURE_SEC; t <= DEBUT_SECOURS_SEC + 1e-9 && t <= max; t = arrondi(t + PAS_SECOURS_SEC)) secours.push(arrondi(t));
   return { premiers, secours };
 }
 
+/** Images de l'accroche (3 premières secondes) dignes d'être une couverture : bonnes (`jugerImage`) et hors transition. PUR. */
+export function imagesDebutRetenues(mesures: MesureImage[]): MesureImage[] {
+  return mesures.filter((m) => m.instantSec <= FENETRE_COUVERTURE_SEC + 1e-9 && jugerImage(m) && !enTransition(m));
+}
+
 /**
- * Image de départ de la vignette : la PREMIÈRE image bonne des 2 premières secondes (celle que les réseaux montrent
- * quand la vidéo se lance). Aucune ne passe : la meilleure des 6 premières secondes, pourvu qu'elle ne soit ni noire ni
- * vide. Sinon null (carte de la charte, en dernier recours). PUR.
+ * Image de départ de la vignette : la MIEUX NOTÉE des images de l'accroche (3 premières secondes) qui passent
+ * `jugerImage` hors transition ; à moins de 5 points de la meilleure, la plus tôt. Aucune ne passe : la meilleure des
+ * 6 premières secondes, pourvu qu'elle ne soit ni noire ni vide. Sinon null (carte de la charte, en dernier recours). PUR.
  */
 export function choisirImageDebut(mesures: MesureImage[]): MesureImage | null {
   const triees = [...mesures].sort((a, b) => a.instantSec - b.instantSec);
-  const premiere = triees.find((m) => m.instantSec <= DEBUT_BON_SEC + 1e-9 && jugerImage(m));
-  if (premiere) return premiere;
+  const retenues = imagesDebutRetenues(triees);
+  if (retenues.length) {
+    const meilleure = Math.max(...retenues.map(noterImage));
+    return retenues.find((m) => noterImage(m) >= meilleure - ECART_NOTE_EGALITE)!;
+  }
   const utilisables = triees.filter((m) => (m.luminosite === undefined || (m.luminosite >= LUMINOSITE_MIN && m.luminosite <= LUMINOSITE_MAX)) && m.instantSec <= DEBUT_SECOURS_SEC + 1e-9);
   return utilisables.length ? choisirPlusNette(utilisables, 0) : null;
 }
+
+/** Bande du 9:16 où se pose le titre de couverture : jamais dans les 270 px du haut ni les 670 px du bas. */
+export const BANDE_TITRE_COUVERTURE_9_16 = { haut: 270, bas: 1250 } as const;
 
 /** Mise à la taille de la miniature (recadrage au centre si besoin) et légère netteté. PUR. */
 export function filtreFond(largeur: number, hauteur: number): string {
@@ -165,8 +220,23 @@ async function extraire(url: string, instantSec: number, chemin: string, signal:
   }
 }
 
-async function mesurer(chemin: string, instantSec: number, signal: AbortSignal): Promise<MesureImage> {
+/** Différence moyenne (YAVG, FFmpeg `blend=difference`) entre deux images de même taille ; undefined si la mesure échoue. */
+async function ecartEntre(chemin: string, precedent: string, signal: AbortSignal): Promise<number | undefined> {
+  try {
+    const { erreurs } = await executerAvecErreurs(FFMPEG, ["-hide_banner", "-i", chemin, "-i", precedent, "-filter_complex", "[0:v][1:v]blend=all_mode=difference,signalstats,metadata=print", "-frames:v", "1", "-f", "null", "-"], signal);
+    const lum = /YAVG=([\d.]+)/.exec(erreurs);
+    return lum ? Number(lum[1]) : undefined;
+  } catch {
+    return undefined; /* mesure facultative */
+  }
+}
+
+async function mesurer(chemin: string, instantSec: number, signal: AbortSignal, precedent?: string): Promise<MesureImage> {
   const m: MesureImage = { instantSec };
+  if (precedent) {
+    const ecart = await ecartEntre(chemin, precedent, signal);
+    if (ecart !== undefined) m.ecartVoisine = ecart;
+  }
   try {
     const { erreurs } = await executerAvecErreurs(FFMPEG, ["-hide_banner", "-i", chemin, "-vf", "blurdetect,signalstats,metadata=print", "-frames:v", "1", "-f", "null", "-"], signal);
     const flou = /blur mean:\s*([\d.]+)/.exec(erreurs);
@@ -335,7 +405,9 @@ async function operationImageVideo(demande: Parameters<Operation>[0], contexte: 
   const base: Parameters<typeof proprietesVignette>[0] = {
     ratio,
     ambiance: p.ambiance as AmbianceVignette | undefined,
-    mise: p.mise as MiseVignette | undefined,
+    // Réglage `couverture.titreParDefaut` allumé (paramètre `titreCentre`) : titre posé en 9:16, la mise m2 seule tient dans
+    // la bande centrale (BANDE_TITRE_COUVERTURE_9_16). Réglage éteint : la mise demandée, exactement comme avant GV-VG-04.
+    mise: couverture && ratio === "9:16" && p.titreCentre === true ? "m2" : (p.mise as MiseVignette | undefined),
     couverture,
     motCle: typeof p.motCle === "string" ? p.motCle.slice(0, 60) : undefined,
   };
@@ -348,8 +420,10 @@ async function operationImageVideo(demande: Parameters<Operation>[0], contexte: 
     const { premiers, secours } = instantsDebut(dureeSec);
     const vues: MesureImage[] = [];
     const fichiers = new Map<number, string>();
-    // 2 premières secondes d'abord, on s'arrête à la première image bonne ; le repli (jusqu'à 6 s) seulement si aucune ne passe.
+    // Les 3 premières secondes (accroche) sont toutes examinées ; le repli (jusqu'à 6 s) seulement si aucune ne passe.
+    let precedent: string | undefined;
     for (const [i, t] of [...premiers, ...secours].entries()) {
+      if (i >= premiers.length && imagesDebutRetenues(vues).length) break;
       const chemin = join(contexte.dossier, `debut-${i}.png`);
       try {
         await extraire(url, t, chemin, contexte.signal);
@@ -358,16 +432,17 @@ async function operationImageVideo(demande: Parameters<Operation>[0], contexte: 
         if (e instanceof ErreurRendu && /403|404|Forbidden|Not Found/i.test(e.message)) throw new ErreurRendu({ code: "fichier-inaccessible", reessayable: true, message: "Vidéo inaccessible (adresse expirée ?)." });
         continue;
       }
-      const m = await mesurer(chemin, t, contexte.signal);
+      const m = await mesurer(chemin, t, contexte.signal, precedent);
       vues.push(m);
       fichiers.set(t, chemin);
+      precedent = chemin;
       contexte.progression(5 + Math.min(45, i));
-      if (t <= DEBUT_BON_SEC && jugerImage(m)) break;
     }
     mesures.candidats = vues.length;
     choisie = choisirImageDebut(vues);
     if (choisie) {
       mesures.instant = choisie.instantSec;
+      mesures.instantMs = Math.round(choisie.instantSec * 1000);
       if (choisie.flou !== undefined) mesures.flou = choisie.flou;
       if (choisie.luminosite !== undefined) mesures.luminosite = choisie.luminosite;
       await executer(FFMPEG, ["-hide_banner", "-v", "error", "-y", "-i", fichiers.get(choisie.instantSec)!, "-vf", filtreFondFidele(format.largeur, format.hauteur), "-frames:v", "1", join(contexte.dossier, "fond.png")], contexte.signal);

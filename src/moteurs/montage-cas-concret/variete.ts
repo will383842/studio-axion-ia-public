@@ -189,6 +189,8 @@ export const schemaMise = z.strictObject({
   tirage: schemaTirage,
   /** Par identifiant d'écran du corps (« e01 »…). */
   ecrans: z.record(z.string().regex(/^e\d{2}$/), schemaTirageEcran),
+  /** GV-ST-02b · posé quand le tirage est NEUF (sous-titres sans variante) ; hérité avec la mise. Absent : ancien comportement. */
+  sousTitresSansVariante: z.literal(true).optional(),
 });
 export type Mise = z.infer<typeof schemaMise>;
 

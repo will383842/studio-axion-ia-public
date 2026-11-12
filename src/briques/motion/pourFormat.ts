@@ -25,7 +25,7 @@
 import { DUREE_CARTE_SEC, ficheModele, IDS_MODELES_MOTION } from "./catalogue";
 import { CATALOGUE_ACTIF_ETENDU } from "./catalogue-actif-etendu";
 import { calerCarte, type MotCalage } from "./calage";
-import { choisirModele } from "./choix";
+import { candidatsModele, choisirModele, choisirMoinsRecent, CONFIANCE_MIN_VARIETE } from "./choix";
 import { miseEnPage, preparerCarte, type ParametresRenduCarte } from "./demande";
 import type { RatioMotion } from "./jetons";
 import { choisirStyleMotion, lireDemandeStyle, type IntensiteMotion, type StyleMotion } from "./style";
@@ -109,6 +109,14 @@ export interface DemandeCartesFormat {
   /** Fin de la vidéo (une carte n'est jamais prolongée au-delà). */
   dureeVideoSec?: number;
   catalogue?: CatalogueMotionActif;
+  /**
+   * Mémoire des cartes déjà servies (modèles des dernières vidéos du même format, le plus récent d'abord) : entre par
+   * ici, jamais par une lecture. Quand plusieurs modèles conviennent à une phrase, le moins récemment servi passe.
+   * Absente ou vide : choix identique à avant.
+   */
+  dejaServis?: readonly string[];
+  /** Modèle qui a ouvert la vidéo précédente : la première carte de celle-ci en change si un autre modèle convient. */
+  ouverturePrecedente?: string;
 }
 
 export interface CarteFormat {
@@ -166,9 +174,19 @@ export function cartesPourFormat(d: DemandeCartesFormat): CarteFormat[] {
       if (carte) choix = { modele: modeleDemande, carte, raison: "demandé", origine: "demande" };
     }
     if (!choix) {
-      const auto = cat.choisir([p.texte, ...(p.emphase ?? [])].join(" ").trim());
+      const textePhrase = [p.texte, ...(p.emphase ?? [])].join(" ").trim();
+      const auto = cat.choisir(textePhrase);
       const fiche = auto ? cat.fiche(auto.modele) : undefined;
-      if (auto && fiche?.automatique && auto.confiance >= min) choix = { modele: auto.modele, carte: auto.carte, raison: auto.raison, origine: "automatique" };
+      if (auto && fiche?.automatique && auto.confiance >= min) {
+        choix = { modele: auto.modele, carte: auto.carte, raison: auto.raison, origine: "automatique" };
+        if (d.dejaServis?.length || d.ouverturePrecedente) {
+          // Mémoire : les cartes déjà posées dans cette vidéo comptent comme les plus récentes.
+          const histo = [...sortie.map((x) => x.modele).reverse(), ...(d.dejaServis ?? [])];
+          const pool = [auto, ...candidatsModele(textePhrase).filter((c) => c.modele !== auto.modele && c.confiance >= Math.max(min, CONFIANCE_MIN_VARIETE) && cat.fiche(c.modele)?.automatique)];
+          const autre = choisirMoinsRecent(pool, histo, !sortie.length && d.ouverturePrecedente ? [d.ouverturePrecedente] : []);
+          if (autre && autre !== auto) choix = { modele: autre.modele, carte: autre.carte, raison: autre.raison, origine: "automatique" };
+        }
+      }
     }
     if (!choix) continue;
     // 2. La durée : celle de la phrase, bornée par la fiche et le garde-fou commun, jamais au-delà de la vidéo.

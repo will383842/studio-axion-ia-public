@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { familleDe, identifiantEchec, LONGUEUR_MAX_DETAIL, nettoyerDetail } from "./journal-echecs";
+import { compterEchecs, familleDe, identifiantEchec, LONGUEUR_MAX_DETAIL, nettoyerDetail, type LigneEchec } from "./journal-echecs";
 
 describe("journal des échecs (pur)", () => {
   it("familles : chaque code tombe dans la bonne", () => {
@@ -63,5 +63,54 @@ describe("journal des échecs (pur)", () => {
   it("nettoyage : les jetons Bearer sont retirés, seuls ou après Authorization", () => {
     expect(nettoyerDetail("Authorization: Bearer abc.def")).not.toContain("abc.def");
     expect(nettoyerDetail("Bearer abc.def")).not.toContain("abc.def");
+  });
+});
+
+const MAINTENANT = "2026-11-12T12:00:00.000Z";
+function ligne(code: string, famille: LigneEchec["famille"], date = "2026-11-11T10:00:00.000Z", generateur = "avocat", etape = "montage"): LigneEchec {
+  return { date, videoId: "v-1", travailId: "tr-1", generateur, moteur: "m", etape, code, famille, phrase: "p", detail: "", essai: 1 };
+}
+
+describe("compterEchecs (pur)", () => {
+  it("3 contrôles + 1 fournisseur + 2 attentes : total 4, attentes 2 à part", () => {
+    const lignes = [
+      ligne("BUDGET_X", "controle"), ligne("BUDGET_Y", "controle"), ligne("SUJET_Z", "controle"),
+      ligne("FOURNISSEUR_REFUS", "fournisseur", undefined, "podcast", "voix"),
+      ligne("IV_CARTE_A_VALIDER", "attente-validation"), ligne("IV_SCRIPT_A_VALIDER", "attente-validation"),
+    ];
+    const b = compterEchecs(lignes, MAINTENANT);
+    expect(b.jours30.total).toBe(4);
+    expect(b.jours30.attentes).toBe(2);
+    expect(b.jours30.parFamille).toEqual({ controle: 3, fournisseur: 1 });
+    expect(b.jours30.parGenerateur).toEqual({ avocat: 3, podcast: 1 });
+    expect(b.jours30.parEtape).toEqual({ montage: 3, voix: 1 });
+    expect(b.jours30.parCode.FOURNISSEUR_REFUS).toBe(1);
+  });
+
+  it("7 jours et 30 jours : les anciennes lignes ne comptent qu'à 30 jours, au-delà de 30 jours nulle part", () => {
+    const b = compterEchecs([ligne("A", "autre", "2026-11-05T12:00:00.000Z"), ligne("B", "autre", "2026-10-20T12:00:00.000Z"), ligne("C", "autre", "2026-09-01T12:00:00.000Z"), ligne("D", "autre", "pas une date")], MAINTENANT);
+    expect(b.jours7.total).toBe(1);
+    expect(b.jours30.total).toBe(2);
+  });
+
+  it("aucune ligne : tout à zéro", () => {
+    const b = compterEchecs([], MAINTENANT);
+    expect(b.jours30).toEqual({ total: 0, attentes: 0, parFamille: {}, parGenerateur: {}, parEtape: {}, parCode: {} });
+  });
+
+  it("nettoyage : un montant d'argent est masqué", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail("insufficient balance: 12.50 USD")).toBe(`insufficient balance: ${m}`);
+    expect(nettoyerDetail("solde 3,20 €")).toBe(`solde ${m}`);
+    expect(nettoyerDetail("$5")).toBe(m);
+    expect(nettoyerDetail("40 crédits restants")).toBe(`${m} restants`);
+    expect(nettoyerDetail("reste 7 credits")).toBe(`reste ${m}`);
+    expect(nettoyerDetail("€ 8,5 et USD 3 et 2 euros et 9 dollars et 4GBP et £1.20")).toBe(`${m} et ${m} et ${m} et ${m} et ${m} et ${m}`);
+  });
+
+  it("nettoyage : les nombres sans devise restent", () => {
+    expect(nettoyerDetail("HTTP 429")).toBe("HTTP 429");
+    expect(nettoyerDetail("82,667 s")).toBe("82,667 s");
+    expect(nettoyerDetail("étape 3/7")).toBe("étape 3/7");
   });
 });
