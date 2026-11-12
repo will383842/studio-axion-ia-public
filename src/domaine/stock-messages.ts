@@ -1,6 +1,7 @@
 /**
  * Stock de messages (STK-01) : définition UNIQUE du type. Rien n'est supprimé : on archive (date posée, texte conservé).
  */
+import { RESEAUX_TAXONOMIE } from "./taxonomie-contenu";
 import type { IdReseau } from "./types";
 
 export type PrioriteStock = "haute" | "normale" | "basse";
@@ -36,6 +37,7 @@ export function archiverMessage(message: MessageStock, archiveLe: string): Messa
 export interface FiltreStock {
   reseau?: IdReseau;
   etat?: EtatStock;
+  priorite?: PrioriteStock;
   /** Garde les entrées dont l'échéance est ce jour ou avant (AAAA-MM-JJ). */
   echeanceAvant?: string;
 }
@@ -60,7 +62,30 @@ export function creerEntreeStock(
 
 /** Copie passée à « planifié », liée au créneau. L'original n'est pas modifié. */
 export function planifierEntree(m: MessageStock, creneauId: string): MessageStock {
-  return { ...m, etat: "planifie", creneauId };
+  const cren = creneauId.trim();
+  if (!cren) throw new Error("Choisissez le créneau du calendrier.");
+  if (m.archiveLe) throw new Error("Ce message est archivé : il ne peut plus être planifié.");
+  if (etatDe(m) === "planifie" && m.creneauId === cren) return m;
+  if (etatDe(m) !== "en-stock") throw new Error("Ce message est déjà planifié ou publié.");
+  return { ...m, etat: "planifie", creneauId: cren };
+}
+
+const JOUR = /^(\d{4})-(\d{2})-(\d{2})$/;
+export function jourValide(j: string): boolean {
+  const m = JOUR.exec(j);
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+}
+
+/** Contrôle d'une saisie (donnée client) : renvoie le message d'erreur, ou null si elle est valide. */
+export function verifierSaisieStock(e: { texte: unknown; reseaux: unknown; priorite: unknown; echeance?: unknown }): string | null {
+  if (typeof e.texte !== "string" || !e.texte.trim()) return "Écrivez le message à mettre en stock.";
+  if (!Array.isArray(e.reseaux) || e.reseaux.length === 0) return "Choisissez au moins un réseau.";
+  if (e.reseaux.some((r) => !RESEAUX_TAXONOMIE.includes(r as IdReseau))) return "Réseau inconnu.";
+  if (typeof e.priorite !== "string" || !(e.priorite in RANG_PRIORITE)) return "Choisissez une priorité.";
+  if (e.echeance !== undefined && (typeof e.echeance !== "string" || !jourValide(e.echeance))) return "L'échéance doit être un jour valide (AAAA-MM-JJ).";
+  return null;
 }
 
 /** Stock actif = ni archivé ni déjà planifié ou publié. */
@@ -68,16 +93,21 @@ export function estActif(m: MessageStock): boolean {
   return !m.archiveLe && etatDe(m) === "en-stock";
 }
 
-/** Liste filtrée (réseau, état, échéance), triée par priorité puis échéance. Les archivées n'y figurent pas. */
+function rang(m: MessageStock): number {
+  return RANG_PRIORITE[m.priorite ?? "normale"] ?? 3;
+}
+
+/** Liste filtrée (réseau, priorité, état, échéance), triée par priorité puis échéance. Les archivées n'y figurent pas. */
 export function filtrerStock(liste: MessageStock[], f: FiltreStock = {}): MessageStock[] {
   return liste
     .filter((m) => !m.archiveLe)
     .filter((m) => !f.reseau || reseauxDe(m).includes(f.reseau))
+    .filter((m) => !f.priorite || (m.priorite ?? "normale") === f.priorite)
     .filter((m) => !f.etat || etatDe(m) === f.etat)
     .filter((m) => !f.echeanceAvant || (m.echeance !== undefined && m.echeance <= f.echeanceAvant))
     .sort(
       (a, b) =>
-        RANG_PRIORITE[a.priorite ?? "normale"] - RANG_PRIORITE[b.priorite ?? "normale"] ||
+        rang(a) - rang(b) ||
         (a.echeance ?? "9999").localeCompare(b.echeance ?? "9999"),
     );
 }
