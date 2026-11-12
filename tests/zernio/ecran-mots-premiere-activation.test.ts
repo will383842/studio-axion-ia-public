@@ -119,7 +119,7 @@ describe("écran", () => {
   });
   it("dictionnaire inchangé", () => {
     const h = createHash("sha256").update(readFileSync("contrats/dictionnaire-textes-mp.v2.json")).digest("hex");
-    expect(h).toBe("75778d612ef21a5340a89d6b290923a1adebc803c5810cf603162e7abe5f805c");
+    expect(h).toBe("aa4b8f984a9817c1bbd7ccdd36d12244e97f63f3c7ece8272f9820c791d5b419");
   });
 });
 

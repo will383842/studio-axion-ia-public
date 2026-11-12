@@ -7,8 +7,8 @@ import { expressionsBannieDans, normaliser } from "@/domaine/controles-visuel/te
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import { SECTIONS, type Section, type TextesMot } from "./mots-textes";
 
-/** Aucun texte (toute section) ne commence par cette mention d'automatisme (« ça ne fait pas très pro »). */
-const MOTIF_MENTION_AUTOMATIQUE = /^message automatique\b/;
+/** Aucun texte (toute section) ne contient cette mention d'automatisme, en ouverture comme au milieu (« ça ne fait pas très pro »). */
+const MOTIF_MENTION_AUTOMATIQUE = /\bmessage automatique\b/;
 /** Aucune signature en fin de texte (les réseaux sociaux affichent déjà le nom du compte). */
 const MOTIF_SIGNATURE = /(?:\b(?:l )?equipe (?:de )?axion ia|\bmessage automatique envoye par axion ia|\b(?:bien )?cordialement(?: axion ia)?)$/;
 /** Signature « Axion IA » seule en dernière phrase ou dernière ligne (texte sans accents MAIS avec sa ponctuation) : début de texte ou signe . ! ? … , ; : — – - ou saut de ligne avant, éventuellement « l'équipe », puis axion ia, puis éventuellement . ou !, puis la fin. « proposé par Axion IA » dans une phrase reste accepté. */
@@ -48,7 +48,7 @@ export function controlerTexteSortant(section: Section, texte: string): Refus[] 
   for (const e of expressionsBannieDans(texte.replace(INVISIBLES, ""))) r("expression_bannie", e);
   const nu = texte.replace(INVISIBLES, "");
   const plat = normaliser(nu);
-  if (MOTIF_MENTION_AUTOMATIQUE.test(plat)) r("mention_automatique", "mention d'automatisme interdite en ouverture");
+  if (MOTIF_MENTION_AUTOMATIQUE.test(plat)) r("mention_automatique", "mention d'automatisme interdite");
   const sansAccents = nu.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (MOTIF_SIGNATURE.test(plat) || MOTIF_SIGNATURE_NOM.test(sansAccents)) r("signature", "signature interdite en fin de texte");
   if (MOTIF_STOP.test(plat)) r("mention_stop", "mention de l'arrêt interdite");

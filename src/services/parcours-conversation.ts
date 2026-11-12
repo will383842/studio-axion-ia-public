@@ -25,7 +25,7 @@ import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, reductible, activiteRetenue, dansF
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
-import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
+import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { choisirFormulation, EQUIVALENTS_FIGES } from "@/domaine/guide-reseau/formulations";
 import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
@@ -440,14 +440,36 @@ function nomCourtCompte(env: Env, idCompte: string): string | null {
   return null;
 }
 /**
+ * Série 5 : texte d'un message d'un groupe de formulations. Une formulation VALIDÉE sur /mots est tirée (puis figée dans l'état : une conversation
+ * garde toujours la même) ; tant qu'aucune n'est validée, l'ancien texte part, inchangé. Jamais une formulation non validée.
+ */
+async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempotenceGuide" | "formulations">; ancien: IdTexteMp; valeurs: ValeursTexteMp }): Promise<{ texte: string | null; version: string; formulation?: string }> {
+  const choix = choisirFormulation({
+    groupe: o.groupe,
+    cleConversation: o.e.cleIdempotenceGuide,
+    figee: o.e.formulations?.[o.groupe],
+    validees: await formulationsValidees(),
+    rendre: (v) => rendreTexteMp(v, o.valeurs),
+    conforme: (t) => texteDuDictionnaire(t, false),
+  });
+  if (choix === null) return { texte: rendreTexteMp(o.ancien, o.valeurs), version: TEXTES_MP[o.ancien].version };
+  if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  return { texte: choix.texte, version: choix.version, formulation: choix.version };
+}
+
+/**
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
-async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string }> {
+async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string }> {
   // Le journal et l'alerte du repli ne sont PAS émis ici : l'appelant les émet une fois l'envoi réservé (ni opposition, ni plafond).
   // `formulationLien` : la formulation avec lien déjà choisie reste notée à part (jamais écrasée par le repli) pour le prochain essai.
   const choisie: { version?: string } = {};
-  const repli = async (code: CodeRepliLien) => ({ texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}) });
+  // Le repli demande l'adresse e-mail : une formulation validée du groupe « m1-adresse » si elle existe, sinon mp-m1-v2 (inchangé).
+  const repli = async (code: CodeRepliLien) => {
+    const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot: MOT, titre: d.titreGuide } });
+    return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
+  };
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -465,12 +487,13 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
     if (figeeRetiree && figeeRetiree in EQUIVALENTS_FIGES) await journaliser("parcours_conversation", "formulation_figee_retiree_refusee");
     return repli("texte_lien_non_valide");
   }
-  choisie.version = choix.version;
   if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
   // Le site doit connaître la version AVANT l'envoi (sinon la preuve du texte montré est perdue en silence).
   // Conversation figée sur un ancien identifiant au texte identique : le jeton garde cet identifiant, que le site connaît.
   const figeeAvant = e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1;
   const versionJeton = figeeAvant && EQUIVALENTS_FIGES[figeeAvant] === choix.version ? figeeAvant : choix.version;
+  // Identité gardée pour le prochain essai : calculée APRÈS versionJeton (une conversation figée sur mp-m1-v3 reste mp-m1-v3, jamais mp-m1-v4-1).
+  choisie.version = versionJeton;
   if (!siteAccepteVersionM1(versionJeton)) return repli("version_inconnue_du_site");
   const compte = nomCourtCompte(env, e.idCompte);
   if (compte === null) return repli("compte_lien_inconnu");
@@ -553,7 +576,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.formulationLien ? { formulations: { ...e.formulations, [GROUPE_M1_LIEN]: m1.formulationLien } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse ? { formulations: { ...e.formulations, ...(m1.formulationLien ? { [GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
@@ -783,7 +806,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   if (s.action === "m2") {
-    const texte = rendreTexteMp("mp-m2-v1", {});
+    const m2 = await formuler({ groupe: "adresse-non-reconnue", e: etat, ancien: "mp-m2-v1", valeurs: {} });
+    const texte = m2.texte;
     if (texte === null) {
       await clore(ev, "ignore", "texte_incomplet");
       return "traite";
@@ -799,6 +823,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       return "traite";
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+    // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
+    if (m2.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, "adresse-non-reconnue": m2.formulation } });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
     const sm = transition(etat, { t: "m1", res, maintenantMs: now });
     await reagir(sm, now);
@@ -949,7 +975,8 @@ async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversat
 }
 
 async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"traite" | "bloque"> {
-  const texte = rendreTexteMp("mp-recu-v2", { titre: d.titreGuide });
+  const recu = await formuler({ groupe: "recu", e: (await lireEtat(cle)) ?? etat, ancien: "mp-recu-v2", valeurs: { titre: d.titreGuide } });
+  const texte = recu.texte;
   let code: string | null = "texte_incomplet";
   if (texte !== null) {
     if (await opposeeAvantEnvoi(cle, env)) {
@@ -963,6 +990,8 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
       return "traite";
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+    // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
+    if (recu.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, recu: recu.formulation } });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);
