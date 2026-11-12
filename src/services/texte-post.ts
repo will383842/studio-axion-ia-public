@@ -6,6 +6,7 @@
 import {
   ESSAIS_TEXTE_VISUEL,
   evaluerPublicationVisuel,
+  schemaPublicationVisuel,
   libelleDesEchecs,
   texteDeterministeVisuel,
   type DonneesPublicationVisuel,
@@ -38,8 +39,20 @@ export async function ecrireTextePost(d: DonneesPublicationVisuel, options: Opti
   let corrections: string[] | undefined;
   let echecs: string[] = [];
   for (let essai = 1; essai <= ESSAIS_TEXTE_VISUEL; essai++) {
-    const sortie = await options.appeler({ ...d, ...(corrections ? { corrections } : {}) }, corrections);
-    if (!sortie) return repli("pas de réponse de Claude");
+    let brute: SortiePublicationVisuel | null;
+    try {
+      brute = await options.appeler({ ...d, ...(corrections ? { corrections } : {}) }, corrections);
+    } catch {
+      return repli("erreur de l'appel Claude");
+    }
+    if (!brute) return repli("pas de réponse de Claude");
+    const lue = schemaPublicationVisuel.safeParse(brute);
+    if (!lue.success) {
+      echecs = ["réponse illisible"];
+      corrections = echecs;
+      continue;
+    }
+    const sortie = lue.data;
     echecs = evaluerPublicationVisuel(sortie, d);
     if (echecs.length === 0) return { ...sortie, texte: sortie.texte.trim(), source: "claude" };
     corrections = echecs;

@@ -104,6 +104,28 @@ describe("service texte-post : 2 essais au plus, repli déterministe journalisé
     expect(r.source).toBe("repli");
     expect(journal.length).toBe(1);
   });
+  it("appel qui lève une erreur : repli journalisé, aucune exception, sans nouvel essai", async () => {
+    const journal: string[] = [];
+    let n = 0;
+    const r = await ecrireTextePost(donnees("facebook"), { appeler: async () => { n++; throw new Error("panne"); }, journaliser: (m) => journal.push(m) });
+    expect(n).toBe(1);
+    expect(r.source).toBe("repli");
+    expect(journal.length).toBe(1);
+    expect(journal[0]).toMatch(/repli/i);
+  });
+  it("sortie illisible (sans mots-dièse) : refusée comme une sortie invalide, pas d'exception", async () => {
+    const journal: string[] = [];
+    let n = 0;
+    const r = await ecrireTextePost(donnees("instagram"), { appeler: async () => { n++; return { texte: "42 % des devis restent sans réponse." } as never; }, journaliser: (m) => journal.push(m) });
+    expect(n).toBe(2);
+    expect(r.source).toBe("repli");
+    expect(journal.join(" ")).toMatch(/illisible/i);
+  });
+  it("sortie illisible puis valide : le second essai est retenu", async () => {
+    const sorties = [{ texte: "x" } as never, bonne({ texte: "42 % des devis restent sans réponse." })];
+    const r = await ecrireTextePost(donnees("instagram"), { appeler: async () => sorties.shift()!, journaliser: () => {} });
+    expect(r.source).toBe("claude");
+  });
   it("sans appeleur (simulation) : texte déterministe", async () => {
     const r = await ecrireTextePost(donnees("tiktok"), { journaliser: () => {} });
     expect(r.source).toBe("repli");
