@@ -83,7 +83,8 @@ describe("1 · dictionnaire", () => {
       const t = brut(v).texte;
       expect(t, v).not.toMatch(/^Message automatique/i);
       expect(t, v).not.toMatch(/Axion IA\s*[.!]?\s*$/);
-      expect(t, v).not.toMatch(/\bstop\b|voulez-vous|souhaitez-vous|autres informations|\b(tu|ton|ta|tes|toi)\b|aucun gain garanti/i);
+      expect(t, v).not.toMatch(/\bstop\b|voulez-vous|souhaitez-vous|autres informations|\b(tu|ton|ta|tes|toi)\b/i);
+      expect(t.toLowerCase(), v).not.toContain(J("aucun gain ", "garanti").toLowerCase());
       expect(t.toLowerCase(), v).not.toContain(J("gren", "oble"));
     }
   });
@@ -100,6 +101,19 @@ describe("1 · dictionnaire", () => {
     for (const v of ["mp-m1-v2", "mp-m2-v1", "mp-recu-v2", "mp-merci-v1", "mp-pub-igfb-v1"]) expect((brut(v) as { statut?: string }).statut, v).toBe("actif");
     expect(Object.keys(textesActifs())).not.toContain("mp-m1-v3");
     expect(Object.keys(textesActifs())).toContain("mp-m1-v4-1");
+  });
+});
+
+describe("1 ter · messages encore en service qui commencent par la mention (remplacés dans un autre lot)", () => {
+  it("ils restent actifs et partent tels quels : le dictionnaire les accepte, ils ne passent pas par le contrôle de sortie des mots", async () => {
+    const { texteDuDictionnaire } = await import("@/fournisseurs/publication/zernio-inbox-corps");
+    for (const v of ["mp-m1-v2", "mp-recu-v2", "mp-m2-v1"]) {
+      const t = brut(v).texte;
+      expect(t, v).toMatch(/^Message automatique/);
+      expect((brut(v) as { statut?: string }).statut, v).toBe("actif");
+      const rendu = t.replace("[MOT]", "GUIDE").replace("[TITRE DU GUIDE]", TITRE);
+      expect(texteDuDictionnaire(rendu, false), v).toBe(true);
+    }
   });
 });
 

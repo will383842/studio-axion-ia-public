@@ -279,6 +279,8 @@ export function empreinteAdresseRefusee(): string {
 /** Geste de validation du texte « adresse refusée » (l'appelant exige la session). Idempotent ; journal SANS le texte ; aucun effet réseau. */
 export async function validerAdresseRefusee(d: { confirmeParOperateur: boolean }): Promise<{ ok: boolean; raison: string; empreinte?: string }> {
   if (!d.confirmeParOperateur) return { ok: false, raison: "validation_operateur_absente" };
+  // Ancien texte retiré (remplacé par les formulations v3) : rien à valider, le geste valait pour un texte qui ne part plus.
+  if ((TEXTES_MP["mp-adresse-refusee-v2"] as { statut?: string }).statut === "retire") return { ok: false, raison: "texte_retire" };
   const empreinte = empreinteAdresseRefusee();
   await sousVerrou(async () => {
     if ((await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === empreinte) return;
