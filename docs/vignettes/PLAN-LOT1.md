@@ -136,9 +136,8 @@ Branche : `vignettes/lot1-socle` depuis `origin/master` à jour. Pousser après 
   - jamais plus de 2 lignes ; taille finale ≥ 85 % de la taille de la mise, sinon `trop: true` ;
   - pour chaque mise × ratio : le titre tient dans la zone sûre (9:16 : y 420 → 1500, x + largeur ≤ 940) ; en 16:9,
     aucun élément ne touche le coin 140×60 en bas à droite ; le titre ne recouvre pas le carré « A » ;
-  - `placerSujet` : avec la boîte visage de `docs/vignettes/v2/images/cadrages.js` (facecam), m1 donne un visage de
-    hauteur 560 px (16:9) centré en (960, 330) à 1 px près (mêmes chiffres que `g-facecam.js`). `cadrages.js` est un
-    script de navigateur : le test lit le fichier et fait `JSON.parse` du texte après `window.CADRAGES =` (sans le `;` final) ;
+  - `placerSujet` : avec une boîte visage d'essai écrite dans le test, m1 donne un visage de hauteur
+    `MISES["16:9"].m1.sujet.hv` centré en (`cx`, `cy`) à 1 px près (valeurs lues dans `MISES`, pas recopiées) ;
   - les 3 mises d'un même ratio diffèrent (position du titre ou du sujet) : jamais deux identiques.
 - Commit : « Vignettes lot 1 · titre sur 2 lignes et 3 mises en page ».
 

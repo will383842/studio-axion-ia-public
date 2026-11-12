@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Logo } from "@/components/coquille/Logo";
+import { CadrePublic, LogoPublic, MessagePublic } from "@/components/annexes/PagePublique";
 import { Icone } from "@/components/ui/Icone";
 import { LecteurVideo } from "@/components/ui/LecteurVideo";
+import { Pastille } from "@/components/ui/Pastille";
 import type { Ratio } from "@/domaine/types";
 import { chrono } from "@/lib/dates";
 import { resoudrePartage } from "@/services/partages";
@@ -31,14 +32,12 @@ export default async function PagePartage({ params }: { params: Promise<{ code: 
   const paysage = ratio === "16:9";
 
   return (
-    <main className="relative isolate flex min-h-dvh flex-col items-center px-4 pb-8 pt-5">
-      <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[70vh] lueur-forte opacity-70" />
+    <CadrePublic>
       <header className="mb-5 flex w-full max-w-3xl items-center justify-between">
-        <Logo />
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-trait bg-surface-1/80 px-3 py-1.5 text-xs font-semibold text-texte-doux backdrop-blur">
-          <Icone nom="cadenas" size={13} />
+        <LogoPublic />
+        <Pastille ton="neutre" taille="md" icone="cadenas">
           Lien privé
-        </span>
+        </Pastille>
       </header>
 
       <div className={paysage ? "w-full max-w-3xl" : "w-full max-w-md"}>
@@ -52,30 +51,23 @@ export default async function PagePartage({ params }: { params: Promise<{ code: 
         </p>
         {p.telechargement && (
           <div className="mt-6 flex justify-center">
-            <a href={p.video} download className="inline-flex min-h-12 items-center gap-2 rounded-full bg-orange px-6 font-semibold text-sur-orange shadow-orange transition-colors hover:bg-orange-vif">
+            <a href={p.video} download className="inline-flex min-h-12 items-center gap-2 rounded-full bg-orange px-6 font-semibold text-sur-orange transition-colors hover:bg-orange-vif">
               <Icone nom="telecharger" size={18} />
               Télécharger
             </a>
           </div>
         )}
       </div>
-    </main>
+    </CadrePublic>
   );
 }
 
 /** Lien qui n'a jamais existé : une phrase, aucun bouton vers la console. */
 function LienIntrouvable() {
   return (
-    <main className="relative isolate flex min-h-dvh flex-col items-center px-4 py-6">
-      <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[60vh] lueur" />
-      <Logo className="self-start sm:self-center" />
-      <div className="flex max-w-sm flex-1 flex-col items-center justify-center text-center">
-        <span className="mb-6 grid size-14 place-items-center rounded-full bg-orange text-sur-orange shadow-orange">
-          <Icone nom="lien" size={24} />
-        </span>
-        <h1 className="text-[28px] leading-tight text-texte">Lien introuvable</h1>
-        <p className="mt-3 text-texte-doux">Vérifiez l&apos;adresse, ou demandez le lien à la personne qui vous l&apos;a envoyé.</p>
-      </div>
-    </main>
+    <CadrePublic>
+      <LogoPublic className="self-start sm:self-center" />
+      <MessagePublic icone={<Icone nom="lien" size={24} />} titre="Lien introuvable" phrase="Vérifiez l'adresse, ou demandez le lien à la personne qui vous l'a envoyé." />
+    </CadrePublic>
   );
 }

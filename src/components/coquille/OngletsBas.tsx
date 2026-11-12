@@ -78,8 +78,8 @@ export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false,
             <Tuile key={f.id} href={f.href} icone={f.icone} libelle={f.nom} onClick={() => setCreer(false)} />
           ))}
           <Tuile href="/ecrire/atelier" icone="ecrire" libelle="Nouveau sujet" onClick={() => setCreer(false)} />
-          <Tuile href="/ecrire/matieres?ajout=matiere" icone="micro" libelle="+ Matière" onClick={() => setCreer(false)} />
-          <Tuile href="/ecrire/matieres?ajout=preuve" icone="certifie" libelle="+ Preuve" onClick={() => setCreer(false)} />
+          <Tuile href="/ecrire?onglet=matieres&ajout=matiere" icone="micro" libelle="+ Matière" onClick={() => setCreer(false)} />
+          <Tuile href="/ecrire?onglet=matieres&ajout=preuve" icone="certifie" libelle="+ Preuve" onClick={() => setCreer(false)} />
         </div>
       </FeuilleBas>
 

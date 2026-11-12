@@ -23,7 +23,7 @@ export function CaseIdee({ cochee, onChange, texte }: { cochee: boolean; onChang
       onClick={onChange}
       className="grid size-11 shrink-0 place-items-center rounded-full"
     >
-      <span className={`grid size-6 place-items-center rounded-full border-2 transition-colors ${cochee ? "border-orange bg-orange text-sur-orange" : "border-trait-fort"}`}>
+      <span className={`grid size-6 place-items-center rounded-full border-2 transition-colors ${cochee ? "border-accent bg-accent text-sur-accent" : "border-trait-fort"}`}>
         {cochee && (
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={3} aria-hidden>
             <path d="M5 12l5 5L20 7" strokeLinecap="round" strokeLinejoin="round" />

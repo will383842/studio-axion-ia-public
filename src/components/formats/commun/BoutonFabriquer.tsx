@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Bouton « Fabriquer la vidéo » : le montant est affiché à titre d'information, aucune confirmation n'est demandée.
+ * Bouton « Fabriquer la vidéo » : aucun montant n'est affiché, aucune confirmation n'est demandée.
  * Si le serveur répond qu'il faut un autre montant, `onFabriquer` rend `{ centimes }` et UNE seule relance part avec lui.
  */
 import { useRef, useState } from "react";
@@ -22,10 +22,10 @@ export function BoutonFabriquer({
   desactive?: boolean;
   /** Gardé pour les appelants existants : plus aucune fenêtre ne l'affiche. */
   message?: string;
-  /** Texte du bouton ; absent : « Fabriquer la vidéo (≈ prix) ». */
+  /** Texte du bouton ; absent : « Fabriquer la vidéo ». */
   libelle?: string;
   /**
-   * Contrôle fait AVANT la fenêtre de prix (ex. image déjà traitée) : `false` arrête (rien n'est demandé), `true` continue,
+   * Contrôle fait AVANT l'envoi (ex. image déjà traitée) : `false` arrête (rien n'est demandé), `true` continue,
    * `{ centimes }` continue avec ce montant. Absent : comportement d'origine.
    */
   avantPrix?: () => Promise<boolean | { centimes: number }>;
