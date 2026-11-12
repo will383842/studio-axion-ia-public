@@ -7,6 +7,8 @@ import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
 import { libellePublication } from "@/domaine/buffer";
+import { SemaineAvecApercu } from "@/components/calendrier/ApercuPublication";
+import { entreeDepuisPublication } from "@/components/calendrier/apercu-reseau";
 import { CarteVideo } from "@/components/videos/CarteVideo";
 import { cn } from "@/lib/cn";
 import { cleJour, heure } from "@/lib/dates";
@@ -131,48 +133,10 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         </div>
       )}
 
-      {/* Ordinateur : semaine en 7 colonnes */}
-      <ol className="hidden grid-cols-7 gap-2 lg:grid">
-        {jours.map((j) => {
-          const cle = cleJour(j);
-          const pubs = parJour.get(cle) ?? [];
-          const estAujourdhui = cle === aujourdhui;
-          return (
-            <li key={cle} className={cn("flex min-h-64 flex-col rounded-carte border p-2", estAujourdhui ? "border-orange/50 bg-orange-doux" : "border-trait bg-surface-1")}>
-              <p className="mb-2 flex items-baseline gap-1.5 px-1">
-                <span className="text-xs font-bold uppercase text-texte-faible">{jourSemaine.format(j).replace(".", "")}</span>
-                <span className={cn("font-titre text-lg tabular-nums", estAujourdhui ? "text-orange-vif" : "text-texte")}>{jourMois.format(j)}</span>
-              </p>
-              <ul className="space-y-1.5">
-                {pubs.map((p) => (
-                  <li key={p.id}>
-                    <Link href={`/videos/${p.videoId}`} className="block overflow-hidden rounded-xl border border-trait bg-surface-2 transition-colors hover:border-trait-fort">
-                      {p.video?.vignette && (
-                        <span className="relative block aspect-video">
-                          <Image src={p.video.vignette} alt="" fill sizes="160px" className="object-cover" />
-                        </span>
-                      )}
-                      <span className="block p-2">
-                        <span className="mb-1 flex items-center gap-1.5">
-                          <LogoReseau reseau={p.reseau} taille="sm" />
-                          <span className="min-w-0 truncate text-[11px] tabular-nums text-texte-faible">
-                            {heure(p.date)}
-                            {p.canalNom ? ` · ${p.canalNom}` : ""}
-                          </span>
-                        </span>
-                        <span className="line-clamp-2 text-xs font-semibold text-texte">{p.video?.titre}</span>
-                        <span className="mt-1 block">
-                          <EtatPublication p={p} />
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          );
-        })}
-      </ol>
+      {/* Ordinateur : la semaine en couloirs ; un clic sur une carte ouvre l'aperçu à droite, sans quitter le calendrier (RC-36). */}
+      <div className="hidden lg:block">
+        <SemaineAvecApercu entrees={semaine.map(entreeDepuisPublication)} semaineDu={lundiCle} aujourdhui={aujourdhui} />
+      </div>
 
       {aProgrammer.length > 0 && (
         <section className="mt-10">
