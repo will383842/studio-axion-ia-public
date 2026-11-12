@@ -24,3 +24,10 @@
 - PILOTAGE : aucune page ne passe encore `selonStatut` ni `surPrincipal`.
 - Tests : cal-10 67 passés, 0 échoué ; calendrier + calendrier-*.test + rc-36 + maquettes : 17 fichiers, 325 passés, 0 échoué. master fusionné sans conflit.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (s1, CORRECTIF du 12/11/2026, 16 h)
+- Constat 1 (à corriger, une entrée Manquée passait à « valide ») : corrigé. Nouvelle action `accepterEntree(id)` dans actions/statuts.ts (session, verrou du passé et du publié, même validation tracée que validerEntree) ; refus sans écriture avec la phrase « L'heure est passée : déplacez la publication avant de la valider » (ErreurStudio, donc lisible à l'écran). Le tableau la branche à la place de validerEntree pour « Accepter l'idée » et « Valider et programmer ». Le bouton « Déplacer au… » reste proposé à une entrée Manquée (boutonsTiroir). Tenu : cal-10-statuts.test.ts, describe « entrée passée (Manquée) » (deux boutons, limite de minuit à Paris, statuts refusés, sans session) et lignes JOUR_MEME du tableau. Rouge avant (9 échecs), vert après. Test existant des gestes secondaires mis à jour pour « Déplacer au… » (pas affaibli).
+- Constat 2 (à corriger, 6 erreurs tsc) : corrigé. `lignes` typé par un seul tuple (bouton string | null, type "button" | "submit" | null), bouton absent signalé par une erreur explicite. tsc : 147 erreurs, comme master, aucune dans les fichiers de la fiche.
+- Remarques : gestes secondaires jamais rendus et libellé « Valider et programmer » : reportés (PILOTAGE, au fondateur). validerEntree (L7-11, hors liste) non touchée.
+- Tests : tests/calendrier + calendrier-*.test + rc-36 : 19 fichiers, 393 passés, 0 échoué. master fusionné sans conflit.
+- contrôle anti-fuite : vide
