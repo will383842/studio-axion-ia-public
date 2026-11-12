@@ -13,7 +13,7 @@ import type { Ratio } from "@/domaine/types";
 import { nomFichier } from "@/domaine/derivations-generateur";
 import { cn } from "@/lib/cn";
 import { useVideo } from "./ContexteVideo";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { formateurNombre } from "@/lib/intl";
 
 const ASPECT: Record<Ratio, string> = { "9:16": "aspect-[9/16]", "1:1": "aspect-square", "4:5": "aspect-[4/5]", "16:9": "aspect-video" };
@@ -93,7 +93,7 @@ export function FeuilleTelecharger() {
                   res = await avecConfirmationPrix(res, (accord) => reexporterAction(videoId, r, accord));
                   setEnCours(null);
                   if (!res.ok) {
-                    notifier.erreur(res.message);
+                    notifier.erreur(messageSansMontant(res.message));
                     return;
                   }
                   if (fabricationSimulee) notifier.essai(`le ${r} est préparé avec la vidéo de démonstration`);
