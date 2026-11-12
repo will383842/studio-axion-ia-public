@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BoutonCopier } from "@/components/ui/BoutonCopier";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -15,7 +16,7 @@ import { libelleComptes } from "@/domaine/comptes-envoi";
 import { LIBELLES_ENVOI } from "@/domaine/libelles";
 import { envoyerParOutilAction, marquerEnvoiVerifieAction, type ComplementLigne } from "@/services/a-publier-zernio";
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
-import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPropose, FIN_BUFFER, formatApercu, joursRestantsBrouillon, ligneCompteEtDate, mentionIAVisible, messageSucces, nomOutil, libelleEnvoiOutil, phraseBrouillonAProgrammer, phraseEchec, phraseEssais, type OutilAffiche } from "./finitions-envoi";
+import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPropose, etatPremierCommentaire, FIN_BUFFER, formatApercu, joursRestantsBrouillon, ligneCompteEtDate, mentionIAVisible, messageSucces, nomOutil, libelleEnvoiOutil, phraseBrouillonAProgrammer, phraseEchec, phraseEssais, type OutilAffiche } from "./finitions-envoi";
 import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
 
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
@@ -455,7 +456,7 @@ function PanneauReseau({
             <span className="mb-1 block text-xs font-semibold text-texte-doux">Premier commentaire</span>
             <textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
           </label>
-          {commentaire.trim() && !l.commentaireTransmissible && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par Buffer : rien ne sera envoyé, posez-le à la main.</p>}
+          {commentaire.trim() && etatPremierCommentaire(outilChoisi ?? complement?.outil, l.reseau) === "a-la-main" && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par {nomOutil(outilChoisi ?? complement?.outil)} : rien ne sera envoyé, posez-le à la main (bouton Copier dans l’aperçu).</p>}
 
           <div className="space-y-1">
             <span className="block text-xs font-semibold text-texte-doux">Compte Buffer</span>
@@ -543,7 +544,7 @@ function DetailEnvoi({
   const jours = c.etat === "brouillon" ? joursRestantsBrouillon(c.creeLe) : null;
   const iso = Number.isNaN(new Date(date).getTime()) ? undefined : new Date(date).toISOString();
   const action = actionPrincipale({ etat: c.etat === "aucun" ? "brouillon" : c.etat, reseau: l.reseau, accordTiktok, dateEnvoi: c.etat === "programmee" ? c.dateEnvoi : iso, lien: c.lien });
-  const bloc = blocPremierCommentaire(l.reseau, commentaire);
+  const bloc = blocPremierCommentaire(l.reseau, commentaire, etatPremierCommentaire(outil, l.reseau));
   const format = formatApercu(l.reseau, l.dimensions);
   const tiktokAttendu = l.reseau === "tiktok" && (c.etat === "aucun" || c.etat === "brouillon" || c.etat === "echec");
   const idPhrase = `${id}-phrase`;
@@ -567,6 +568,7 @@ function DetailEnvoi({
           <div className="rounded-xl bg-surface-2 p-2.5 text-sm">
             <p className="font-semibold text-texte-doux">{bloc.titre}</p>
             {bloc.texte && <p className="mt-0.5 whitespace-pre-line text-texte">{bloc.texte}</p>}
+            {bloc.copier && bloc.texte && <BoutonCopier texte={bloc.texte} libelle="Copier" />}
           </div>
         )}
         {iaVisible && <p className="text-xs text-texte-faible">{LIBELLES_ENVOI.mentionIA}</p>}

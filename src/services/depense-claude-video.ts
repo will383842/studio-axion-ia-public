@@ -241,7 +241,7 @@ async function solderAppelsInterrompus(): Promise<void> {
  * ORIGINE DE LA DÉPENSE. Chemin automatique (fabrication, relecture lancée par la fabrication) : `options.origine` est celle de
  * la commande ; absente, elle est lue sur la dernière version de la vidéo (une vidéo de l'Usine reste bloquante).
  * Action que Will fait LUI-MÊME en session (message tapé au monteur, « Régénérer le texte », clic site-videos ou tableau) :
- * `options.parWill: true` saute cette lecture de secours, l'origine est « studio » (budget indicatif), même sur une vidéo venue
+ * `options.quotaSeul: true` (L3-02) rend indicatifs tous les plafonds en argent (défaut : inchangé). `options.parWill: true` saute cette lecture de secours, l'origine est « studio » (budget indicatif), même sur une vidéo venue
  * de l'Usine. Seules les commandes réellement passées par l'Usine restent bloquantes.
  */
 /**
@@ -253,7 +253,7 @@ async function solderAppelsInterrompus(): Promise<void> {
  * `options.plafondPropre` (tableau animé, facultatif) : appel compté sur SON plafond par vidéo (découpage, écriture du
  * script) au lieu du plafond des textes ; l'étape doit commencer par son préfixe.
  */
-export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, role: DefinitionRole<S>, entree: EntreeRole, options: { etape: string; facecam?: { depuis: string }; plafondPropre?: PlafondPropre; origine?: OrigineLancement; parWill?: boolean }): Promise<ResultatVideo<z.infer<S>>> {
+export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, role: DefinitionRole<S>, entree: EntreeRole, options: { etape: string; facecam?: { depuis: string }; plafondPropre?: PlafondPropre; origine?: OrigineLancement; parWill?: boolean; quotaSeul?: boolean }): Promise<ResultatVideo<z.infer<S>>> {
   const d = depots();
   const video = await d.videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
@@ -285,7 +285,10 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
   // L'origine passée l'emporte ; sinon celle de la dernière version de la vidéo : une vidéo de l'Usine reste bloquante.
   const origineEffective = options.origine ?? (options.parWill ? "studio" : await origineDeLaVideo(videoId));
   const sansPrix = formatSansPrix(video.formatId);
-  const indicatif = await budgetIndicatifPour(origineEffective);
+  // L3-02 : `quotaSeul` (porte contenu) — plafond de la vidéo, limite du mois et budget usine ne font que prévenir ; seul le quota d'appels (porte) arrête.
+  // Raison du « studio » en dur : en `quotaSeul`, la garde de budget ne doit jamais refuser (le Studio n'est jamais bloqué par l'argent) ; seul le quota d'appels arrête.
+  const origineGarde: OrigineLancement = options.quotaSeul ? "studio" : origineEffective;
+  const indicatif = options.quotaSeul ? true : await budgetIndicatifPour(origineEffective);
   const sujet = await sujetDeCloche(videoId);
   let reserve = false;
   try {
@@ -303,7 +306,7 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
       if (propre) {
         // Tableau animé : plafond propre de cette vidéo (découpage ou écriture), dit en euros comme le prix du bouton.
         const plafond = await valeurPlafondPropre(propre);
-        const sur = await jugerPlafond((await engagePlafondPropreCentimes(videoId, propre)) + demande, plafond, indicatif, `${libelle} (cette vidéo)`, sujet, sansPrix ? { sansPrix: true } : { tauxUsdEur: t });
+        const sur = await jugerPlafond((await engagePlafondPropreCentimes(videoId, propre)) + demande, plafond, indicatif, `${libelle} (cette vidéo)`, sujet, options.quotaSeul || sansPrix ? { sansPrix: true } : { tauxUsdEur: t });
         if (sur === "bloque") {
           await journaliser("video", `${libelle} : plafond de cette vidéo atteint, rien n'est parti`, { type: "video", id: videoId });
           return { ok: false, arret: "plafond-video", message: `Plafond de cette vidéo atteint : rien n'a été payé.` };
@@ -311,7 +314,7 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
       }
       const plafondVideo = await plafondKitUsd();
       if (!options.facecam && !propre) {
-        const sur = await jugerPlafond((await engageClaudeVideoCentimes(videoId)) + demande, plafondVideo, indicatif, `${libelle} (textes de la vidéo)`, sujet, { tauxUsdEur: t });
+        const sur = await jugerPlafond((await engageClaudeVideoCentimes(videoId)) + demande, plafondVideo, indicatif, `${libelle} (textes de la vidéo)`, sujet, options.quotaSeul ? { sansPrix: true } : { tauxUsdEur: t });
         if (sur === "bloque") {
           // Une seule monnaie à l'écran : le plafond (réglé en dollars) est dit en euros, comme le prix du bouton.
           await journaliser("publication", `${libelle} : plafond de la vidéo atteint, le texte n'est pas écrit`, { type: "video", id: videoId });
@@ -333,7 +336,7 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
         // CORRECTEUR 1 — B6 : aucune confirmation en dur. Un texte est borné par les plafonds Claude (vidéo, mois) : il ne
         // dépasse jamais le seuil de confirmation ; s'il le dépassait, il serait refusé (personne ne l'a confirmé).
         // L3-0 : contrôle, réservation ET engagement sur le budget du mois d'un seul tenant (verrou des crédits) ; « usine » passe par `reserverPourUsine`.
-        await verifierEtReserverSelonOrigine(origineEffective, { lignes, total: lignes[0].total }, false, "Ce texte", { videoId, travailId: appelId });
+        await verifierEtReserverSelonOrigine(origineGarde, { lignes, total: lignes[0].total }, false, "Ce texte", { videoId, travailId: appelId });
       } catch (e) {
         // L3-0 : dépense commandée par l'Usine sans budget reçu (ou budget atteint) : refus net, rien n'est payé.
         if (e instanceof ErreurStudio && (e.code === "BUDGET_USINE_ABSENT" || e.code === "BUDGET_MENSUEL_ATTEINT")) {

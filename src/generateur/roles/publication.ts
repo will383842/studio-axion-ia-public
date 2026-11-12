@@ -11,6 +11,7 @@
  */
 import { z } from "zod";
 import type { Adresse, IdReseau, RegleDatee, TexteReseau } from "@/domaine/types";
+import type { ContenuSourceType } from "@/domaine/ecriture-post/contenu-source";
 import { memeValeur, nombresAffirmes } from "@/domaine/nombres-fr";
 import { avecTermeDuCompte, composerLegende, contientTermeDuCompte, corpsTexteSimule, finDuTexte, motsDiesePour, placeDuCorps, termesDuCompte } from "@/domaine/textes-publication";
 import { TOURNURES_CALIBREES, DRAPEAUX_TOURNURES } from "@/donnees/generateur/tournures-calibrees";
@@ -327,13 +328,18 @@ export function donneesPublication(d: { reseau: IdReseau; titre: string; texteVa
   };
 }
 
+/** Données d'un appel depuis un ContenuSource (L3-01) : son texte validé devient la seule source des faits. */
+export function donneesPublicationDepuisSource(c: ContenuSourceType, o: { reseau: IdReseau; adresse?: Adresse; formatId?: string; mention: string; credits: string[]; regles: Pick<RegleDatee, "id" | "texte" | "niveau" | "verifieeLe" | "archiveLe">[]; famille?: readonly string[] | null }): DonneesPublication {
+  return donneesPublication({ ...o, titre: c.titre, texteValide: c.texteValide, dureeSec: c.dureeSec });
+}
+
 /** Partie variable de la requête (tout ce qui change d'un appel à l'autre) ; aucun bloc en cache. */
 export function entreePublication(d: DonneesPublication): EntreeRole {
   const def = obtenirReseau(d.reseau);
   const md = motsDiesePermis(d.reseau);
   const variable = [
     "<video>",
-    `Titre : ${neutre(d.titre)}`,
+    d.titre.trim() ? `Titre : ${neutre(d.titre)}` : "",
     d.formatId ? `Format : ${d.formatId}` : "",
     d.dureeSec ? `Durée : ${d.dureeSec} s` : "",
     `Adresse : ${d.adresse}`,
@@ -380,12 +386,12 @@ function lireEntree(variable: string): { reseau: IdReseau; titre: string; texteV
 /** Sortie simulée (aucune clé, aucun appel) : le texte d'essai d'aujourd'hui, sans la fin ajoutée par le code. */
 export function simulerPublication(entree: EntreeRole): SortiePublication {
   const e = lireEntree(entree.variable);
-  const corps = corpsTexteSimule({ reseau: e.reseau, titre: e.titre, texteScript: e.texteValide || e.titre, dureeSec: e.dureeSec, adresse: e.adresse });
+  const corps = corpsTexteSimule({ reseau: e.reseau, titre: e.titre || e.texteValide, texteScript: e.texteValide || e.titre, dureeSec: e.dureeSec, adresse: e.adresse });
   return {
     premiereLigne: corps.split("\n")[0],
     texte: corps,
     motsDiese: motsDiesePour(e.formatId, e.reseau, obtenirReseau(e.reseau).legende.motsDieseConseilles),
-    ...(titresDemandes(e.reseau) ? { titres: [e.titre.slice(0, TITRE_CARACTERES_MAX)] } : {}),
+    ...(titresDemandes(e.reseau) ? { titres: [(e.titre || e.texteValide).slice(0, TITRE_CARACTERES_MAX)] } : {}),
     justifications: [],
   };
 }

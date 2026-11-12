@@ -244,7 +244,7 @@ export default async function PageReglages() {
             </CarteSection>
           </Apparition>
           <Apparition index={2}>
-            <CarteSection id="options-payantes" icone="euro" titre="Options supplémentaires">
+            <CarteSection id="options-payantes" icone="curseurs" titre="Options supplémentaires">
               {/* Vérif V4 : un seul geste pour qu'aucune option supplémentaire ne soit proposée ni ne parte. */}
               <OptionsPayantes initial={coupees} />
             </CarteSection>
