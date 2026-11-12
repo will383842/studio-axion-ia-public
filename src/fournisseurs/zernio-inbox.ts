@@ -6,6 +6,7 @@
  * Jamais d'erreur brute rendue : un résultat typé, sans corps de réponse, sans texte ni adresse de la personne.
  */
 import { createHash } from "node:crypto";
+import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
 import { estErreurZernio } from "./publication/zernio-erreurs";
 
@@ -54,14 +55,14 @@ export interface MessageLu {
 }
 
 export interface PortInboxZernio {
-  repondreCommentaire(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; cle: string }): Promise<ResultatEcritureInbox>;
-  repondreEnPrive(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; boutons?: BoutonPostback[] }): Promise<ResultatEcritureInbox>;
+  repondreCommentaire(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; cle: string; nonOpposee?: JetonNonOpposee }): Promise<ResultatEcritureInbox>;
+  repondreEnPrive(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; boutons?: BoutonPostback[]; nonOpposee?: JetonNonOpposee }): Promise<ResultatEcritureInbox>;
   /**
    * Retrouve d'abord par `idPlateforme` (= `id` de la liste), puis par l'ancien id (id/_id/messageId = idMessage), sinon par HORODATAGE
    * (entrant, createdAt/sentAt ≈ occurredAt à ±2 s, expéditeur concordant) : l'id interne du webhook n'est jamais celui de la liste.
    * Ne retient QUE les messages ENTRANTS de la personne (jamais nos messages sortants ni échos). Un message `metadata.standby` est rendu avec `veille: true`. */
   lireMessage(p: { idCompte: string; idConversation: string; idMessage: string; idPlateforme?: string; occurredAt?: string; idExpediteur?: string }): Promise<MessageLu>;
-  envoyerMessage(p: { idCompte: string; idConversation: string; texte: string; boutons?: BoutonPostback[]; cle: string }): Promise<ResultatEcritureInbox>;
+  envoyerMessage(p: { idCompte: string; idConversation: string; texte: string; boutons?: BoutonPostback[]; cle: string; nonOpposee?: JetonNonOpposee }): Promise<ResultatEcritureInbox>;
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
