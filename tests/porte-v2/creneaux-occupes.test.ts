@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { reinitialiserGardePourEssai } = await import("@/usine/garde-porte");
+const { RESEAUX_TAXONOMIE } = await import("@/domaine/taxonomie-contenu");
 const { POST } = await import("@/app/api/usine/creneaux-occupes/route");
 
 const SECRET = "s".repeat(24) + "SECRET-ESSAI-porte-1234567";
@@ -36,18 +37,24 @@ beforeEach(async () => {
     cre("b", "a_valider", "2026-12-02", { linkedin: "2026-12-02T15:00:00.000Z", tiktok: "2026-12-02T17:00:00.000Z" }),
     cre("c", "valide", "2026-12-10", { instagram: "2026-12-10T10:00:00.000Z" }),
     cre("d", "archive", "2026-12-03", { linkedin: "2026-12-03T08:00:00.000Z" }),
+    cre("f", "propose", "2026-12-04", { linkedin: "2026-12-04T09:00:00.000Z" }),
+    cre("g", "publie", "2026-12-05", { facebook: "2026-12-05T09:00:00.000Z" }),
+    cre("h", "echec", "2026-12-06", { youtube: "2026-12-06T16:00:00.000Z" }),
     cre("e", "programme", "2027-02-01", { linkedin: "2027-02-01T08:00:00.000Z" }),
   ]) await d.creneauxEditoriaux.enregistrer(c as never);
 });
 
 describe("créneaux occupés", () => {
-  it("rend programmés, à valider et validés ; pas les archivés ni les autres périodes", async () => {
+  it("rend programmés, à valider, validés, ajoutés à la main (propose), publiés et en échec ; seule l'archive libère ; pas les autres périodes", async () => {
     const r = await POST(appel(ok()));
     expect(r.status).toBe(200);
     expect((await r.json()).creneaux).toEqual([
       { reseau: "linkedin", jour: "2026-12-02", heure: "09:30" },
       { reseau: "linkedin", jour: "2026-12-02", heure: "16:00" },
       { reseau: "tiktok", jour: "2026-12-02", heure: "18:00" },
+      { reseau: "linkedin", jour: "2026-12-04", heure: "10:00" },
+      { reseau: "facebook", jour: "2026-12-05", heure: "10:00" },
+      { reseau: "youtube", jour: "2026-12-06", heure: "17:00" },
       { reseau: "instagram", jour: "2026-12-10", heure: "11:00" },
     ]);
   });
@@ -94,5 +101,16 @@ describe("jeton et validation", () => {
       expect(r.status, JSON.stringify(mauvais)).toBe(400);
       expect((await r.json()).code).toBe("champ_invalide");
     }
+  });
+
+  it("limite exacte de 400 jours : 400 passe, 401 donne 400", async () => {
+    expect((await POST(appel(ok({ du: "2026-01-01", au: "2027-02-05" })))).status).toBe(200);
+    const r = await POST(appel(ok({ du: "2026-01-01", au: "2027-02-06" })));
+    expect(r.status).toBe(400);
+    expect((await r.json()).code).toBe("champ_invalide");
+  });
+
+  it("accepte chacun des réseaux de la taxonomie (la liste de la route ne diverge pas)", async () => {
+    for (const reseau of RESEAUX_TAXONOMIE) expect((await POST(appel(ok({ reseau })))).status, reseau).toBe(200);
   });
 });

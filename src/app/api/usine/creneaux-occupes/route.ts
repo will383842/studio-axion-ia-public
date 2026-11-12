@@ -1,17 +1,18 @@
 import type { NextRequest } from "next/server";
+import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
 import { depots } from "@/donnees/memoire";
 import { creneauxOccupes } from "@/services/cadence";
 import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 
 /**
- * Porte v2 : l'Usine lit les créneaux déjà pris (programmés, à valider, validés, ajoutés à la main ; pas les archivés) pour ne pas
+ * Porte v2 : l'Usine lit les créneaux déjà pris (programmés, à valider, validés, ajoutés à la main, publiés, en échec ; seule l'archive libère) pour ne pas
  * proposer une date occupée. LECTURE SEULE (POST parce que la porte exige un corps JSON) : aucune écriture. La réponse ne garde que
  * réseau, jour et heure : ni identifiant, ni texte, ni titre, ni donnée de personne. Le jeton est vérifié par `garderPorte`.
  */
 export const dynamic = "force-dynamic";
 
 const ROUTE = "POST /api/usine/creneaux-occupes";
-const RESEAUX = new Set(["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"]);
+const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_TAXONOMIE);
 const JOURS_MAX = 400;
 
 function jourValide(v: unknown): v is string {
