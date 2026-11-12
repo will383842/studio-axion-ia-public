@@ -89,6 +89,11 @@ function lienDeChezNous(lien: string, domaines: readonly string[]): boolean {
 /** Forme EXACTE du lien signé de la page « Recevoir le guide » : jeton (charge.signature de 43 caractères), rien d'autre. */
 const LIEN_PAGE_GUIDE = /^https:\/\/axion-ia\.com\/guide-reseau\?j=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/;
 
+/** Le lien a-t-il EXACTEMENT la forme du lien signé de la page guide ? (contrôle avant tout envoi) */
+export function formeLienPageGuide(lien: string): boolean {
+  return LIEN_PAGE_GUIDE.test(lien);
+}
+
 /** Le chemin du lien est-il celui de la page guide ? (le lien doit alors avoir exactement la forme signée) */
 function cheminPageGuide(lien: string): boolean {
   try {

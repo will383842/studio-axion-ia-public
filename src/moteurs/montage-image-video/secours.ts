@@ -70,7 +70,7 @@ const LIGNES_SECOURS_IV: readonly Omit<FinTable, "groupe" | "reseaux">[] = Objec
 /** Ligne de secours `fin-iv-…` lue pour un réseau (son groupe est celui du réseau : Facebook, LinkedIn, Instagram et TikTok les partagent). */
 const ligneSecoursIV = (id: string, reseau: ReseauIV): FinTable => {
   const l = LIGNES_SECOURS_IV.find((x) => x.id === id);
-  if (!l) throw new ErreurFin(`La fin de secours « ${id} » est absente.`);
+  if (!l) throw new ErreurFin("Une fin de secours est absente.");
   return { ...l, groupe: groupeDe(reseau), reseaux: [reseau] };
 };
 
