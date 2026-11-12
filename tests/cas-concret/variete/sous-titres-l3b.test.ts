@@ -15,7 +15,6 @@ import {
   centreSousTitresCasConcret,
   centreSousTitresHautPct,
   REGLAGES_SOUS_TITRES_CAS_CONCRET,
-  SURLIGNAGE_CAS_CONCRET,
   surlignageCasConcret,
   variationSousTitresCasConcret,
   type TirageSousTitres,
@@ -39,12 +38,16 @@ const DUREE = 41;
 const V4: TirageSousTitres = TIRAGE_V4.sousTitres;
 const avec = (st: Partial<TirageSousTitres>): TirageSousTitres => ({ ...V4, ...st });
 
+/**
+ * GV-ST-02 : la variante par vidéo est coupée par défaut (`VARIANTE_PAR_VIDEO`) ; ces essais l'ACTIVENT par le dernier
+ * paramètre des fonctions, pour prouver que le code du tirage fonctionne toujours.
+ */
 /** Demande de la v4, exactement comme `sousTitresDe` dans `fabriquer.ts` (hors variation). */
 function demandeV4(centre = centreSousTitresPleineImagePct(), st?: TirageSousTitres): DemandeSousTitres {
-  const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st) };
+  const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st, true) };
   return { texte: TEXTE, dureeSec: DUREE, emphase: ["9 heures", "gratuit"], style, base: "minimal", occupe: zonesOccupeesSousTitres(DUREE), ratio: "9:16", reseaux: [...QUATRE] };
 }
-const sousTitres = (st?: TirageSousTitres) => fabriquerSousTitres({ ...demandeV4(centreSousTitresCasConcret(st), st), ...variationSousTitresCasConcret(st) });
+const sousTitres = (st?: TirageSousTitres) => fabriquerSousTitres({ ...demandeV4(centreSousTitresCasConcret(st, true), st), ...variationSousTitresCasConcret(st, true) });
 const compte = (s: SegmentSousTitres[], f: (x: SegmentSousTitres) => boolean) => s.filter(f).length;
 const impacts = (s: SegmentSousTitres[]) => s.flatMap((x, i) => (x.style === "impact" ? [i] : []));
 
@@ -102,7 +105,7 @@ describe("L3b · variations selon le tirage", () => {
   });
 
   it("surlignage : l'orange de la charte dans le style, jamais sur un mot coloré", () => {
-    expect(surlignageCasConcret(avec({ accent: "surlignage" }))).toEqual({ surlignage: { fond: "#D97757", texte: "#141413", fondClair: "#B23F16", texteClair: "#FAF9F5" } });
+    expect(surlignageCasConcret(avec({ accent: "surlignage" }), true)).toEqual({ surlignage: { fond: "#D97757", texte: "#141413", fondClair: "#B23F16", texteClair: "#FAF9F5" } });
     const s = sousTitres(avec({ accent: "surlignage" }));
     // Le mot choisi est le même que le soulignement de la v4 : seul son dessin change.
     expect(s).toEqual(sousTitres(V4));
@@ -115,7 +118,7 @@ describe("L3b · hauteur « haute » : dans la bande, jamais en haut ni sur un t
 
   it("un peu plus haut que la v4, toujours dans la bande des sous-titres", () => {
     const haut = centreSousTitresHautPct();
-    expect(centreSousTitresCasConcret(avec({ hauteur: "haute" }))).toBe(haut);
+    expect(centreSousTitresCasConcret(avec({ hauteur: "haute" }), true)).toBe(haut);
     expect(haut).toBeLessThan(centreSousTitresPleineImagePct());
     expect((haut / 100) * H).toBeGreaterThan(BANDE.y);
     expect((haut / 100) * H).toBeLessThan(BANDE.y + BANDE.hauteur);
@@ -126,7 +129,7 @@ describe("L3b · hauteur « haute » : dans la bande, jamais en haut ni sur un t
       const segments = sousTitres(st);
       expect(segments.some((x) => x.position === "haut")).toBe(false);
       expect(segments.filter((x) => x.style === "bandeau").every((x) => x.position === "bas")).toBe(true);
-      const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centreSousTitresCasConcret(st), largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st) };
+      const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centreSousTitresCasConcret(st, true), largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st, true) };
       const d = donneesCalque({ segments, base: "minimal", ratio: "9:16", reseaux: [...QUATRE], style });
       expect(d.positions.milieuPct).toBe(centreSousTitresHautPct());
       for (const s of segments.filter((x) => x.style === "base" || !x.style)) {
@@ -156,7 +159,7 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     expect(d.compositionsSoumises().map((c) => c.parametres)).toEqual(temoin.compositionsSoumises().map((c) => c.parametres));
   });
 
-  it("l'empreinte du montage suit la variation (même hauteur) ; en v4 elle reste celle d'avant", async () => {
+  it("GV-ST-02 : variante supprimée par défaut, l'empreinte du montage ne dépend plus du tirage", async () => {
     const ids = async (mise?: Mise) => {
       const d = doubles();
       if (mise) d.options.outils.variete = variete(mise);
@@ -167,11 +170,11 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     expect(await ids({ version: TIRAGE_V4.version, tirage: TIRAGE_V4, ecrans: {} })).toEqual(sans);
     const surligne = await ids(mettre({ ...TIRAGE_V4, sousTitres: { ...TIRAGE_V4.sousTitres, accent: "surlignage" } }, []));
     const calme = await ids(mettre({ ...TIRAGE_V4, sousTitres: { ...TIRAGE_V4.sousTitres, intensite: "calme" } }, []));
-    for (const autre of [surligne, calme]) autre.forEach((id, i) => expect(id).not.toBe(sans[i]));
-    expect(calme).not.toEqual(surligne);
+    expect(surligne).toEqual(sans);
+    expect(calme).toEqual(sans);
   });
 
-  it("inverse + vif + surlignage + haute : le calque les reçoit, sans rien poser en haut", async () => {
+  it("inverse + vif + surlignage + haute : le tirage est noté, mais le calque reste celui de la v4", async () => {
     const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
     const d = doubles();
     d.options.outils.variete = variete(mettre(tirage, []));
@@ -180,11 +183,9 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     const cs = calques(d);
     expect(cs.length).toBeGreaterThan(0);
     for (const c of cs) {
-      expect(c.surlignage).toEqual(SURLIGNAGE_CAS_CONCRET);
-      expect(c.positions.milieuPct).toBe(centreSousTitresHautPct());
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(centreSousTitresPleineImagePct());
       expect(c.segments.some((s) => s.position === "haut")).toBe(false);
-      const premier = c.segments.find((s) => s.style === "impact");
-      if (premier) expect(premier.inclinaison).toBeLessThan(0);
     }
   });
 });

@@ -57,19 +57,19 @@ export function centreSousTitresHautPct(hauteur = 1920): number {
 }
 
 /** Centre des sous-titres (% de la hauteur) selon le tirage : la v4 (`centreSousTitresPleineImagePct`) ou « haute ». */
-export function centreSousTitresCasConcret(t?: TirageSousTitres | null): number {
-  return VARIANTE_PAR_VIDEO && t?.hauteur === "haute" ? centreSousTitresHautPct() : centreSousTitresPleineImagePct();
+export function centreSousTitresCasConcret(t?: TirageSousTitres | null, actif: boolean = VARIANTE_PAR_VIDEO): number {
+  return actif && t?.hauteur === "haute" ? centreSousTitresHautPct() : centreSousTitresPleineImagePct();
 }
 
 /** Champ à ajouter au style des sous-titres : `{ surlignage }` pour l'accent « surlignage », sinon rien. */
-export function surlignageCasConcret(t?: TirageSousTitres | null): { surlignage?: SurlignageSousTitres } {
-  if (!VARIANTE_PAR_VIDEO) return {};
+export function surlignageCasConcret(t?: TirageSousTitres | null, actif: boolean = VARIANTE_PAR_VIDEO): { surlignage?: SurlignageSousTitres } {
+  if (!actif) return {};
   return t?.accent === "surlignage" ? { surlignage: SURLIGNAGE_CAS_CONCRET } : {};
 }
 
 /** Variation du mélange (sens du premier Impact, réglages) ; `{}` quand inclinaison et intensité sont celles de la v4. */
-export function variationSousTitresCasConcret(t?: TirageSousTitres | null): { variation?: VariationSousTitres } {
-  if (!VARIANTE_PAR_VIDEO || !t) return {};
+export function variationSousTitresCasConcret(t?: TirageSousTitres | null, actif: boolean = VARIANTE_PAR_VIDEO): { variation?: VariationSousTitres } {
+  if (!actif || !t) return {};
   const variation: VariationSousTitres = {
     ...(t.inclinaison === "inverse" ? { sensPremierImpact: -1 as const } : {}),
     ...(t.intensite === "calme" || t.intensite === "vif" ? { reglages: { ...REGLAGES_SOUS_TITRES_CAS_CONCRET[t.intensite] } } : {}),
