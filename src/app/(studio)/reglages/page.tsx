@@ -39,6 +39,8 @@ import { lireReglageDecorIa } from "@/services/decor-ia";
 import { OptionsPayantes } from "@/components/reglages/OptionsPayantes";
 import { optionsPayantesCoupees } from "@/services/options-payantes";
 import { ChoixChaineEcriture } from "@/components/reglages/ChoixChaineEcriture";
+import { etatProduction } from "@/services/etat-production";
+import { lireParametre } from "@/services/_commun";
 import { lireChaineReglee } from "@/services/chaine-ecriture";
 import { InterrupteursEcriture } from "@/components/reglages/InterrupteursEcriture";
 import { lireInterrupteursEcriture } from "@/services/interrupteurs-ecriture";
@@ -109,6 +111,7 @@ export default async function PageReglages() {
       return null;
     }),
   ]);
+  const production = await etatProduction(process.env, (id) => lireParametre<unknown>(id, undefined));
   const decorIa = avecMonteur ? await lireReglageDecorIa() : null;
   const coupees = await optionsPayantesCoupees();
   const lignesSite = await lireReglagesSite();
@@ -218,6 +221,21 @@ export default async function PageReglages() {
           <Apparition>
             <CarteSection id="connexions" icone="prise" titre="Connexions">
               <Connexions connexions={connexions.map((c) => ({ type: c.type, etat: c.etat, options: c.options, montageReelPour: c.montageReelPour, jeLis: c.jeLis, calageRelie: c.calageRelie, montageReel: c.montageReel }))} cles={cles} />
+              <section aria-label="Contrôle de production" className="mt-4 text-sm">
+                <h3 className="font-medium">Contrôle de production (lecture seule)</h3>
+                <ul className="mt-2 space-y-1">
+                  {production.cles.map((c) => (
+                    <li key={c.variable}>
+                      {c.libelle} : {c.posee ? "clé posée" : "clé absente"}
+                    </li>
+                  ))}
+                  {production.interrupteurs.map((i) => (
+                    <li key={i.cle}>
+                      {i.libelle} : {i.allume ? "allumé" : "éteint"}
+                    </li>
+                  ))}
+                </ul>
+              </section>
             </CarteSection>
           </Apparition>
           <Apparition index={1}>
