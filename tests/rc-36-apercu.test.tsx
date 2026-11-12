@@ -445,3 +445,12 @@ describe("aucun libellé interdit dans l'aperçu", () => {
 it("sans entrée (fermée ou disparue), le panneau ne rend rien", () => {
   expect(ApercuPublication({ entree: undefined as unknown as Entree, aujourdhui: AUJOURDHUI, onPrecedente: vi.fn(), onSuivante: vi.fn(), onFermer: vi.fn(), onChangerDate: vi.fn() })).toBeNull();
 });
+
+describe("couleurs du thème seulement dans l'aperçu", () => {
+  it("le fichier du panneau n'emploie aucune couleur hors du thème (ni noir ni blanc en dur)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync("src/components/calendrier/ApercuPublication.tsx", "utf-8");
+    expect(source).not.toMatch(/\b(?:bg|text|border)-(?:black|white)\b/);
+    expect(source).toMatch(/bg-voile/);
+  });
+});
