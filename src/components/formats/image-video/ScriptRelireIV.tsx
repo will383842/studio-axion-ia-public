@@ -146,7 +146,7 @@ export function ScriptRelireIV({
       {aTrancher.length > 0 && (
         <label className="flex items-start gap-2 text-sm text-texte">
           <input type="checkbox" className="mt-1 size-4" checked={formeAcceptee} onChange={(ev) => setFormeAcceptee(ev.target.checked)} />
-          <span>Je valide ce script tel quel malgré ces points de forme (un chiffre, un nom ou un mot interdit reste bloquant)</span>
+          <span>Je valide ce script tel quel malgré ces points de forme. Un chiffre ou un nom inventé, un mot interdit ou une durée trop longue restent bloquants.</span>
         </label>
       )}
     </section>
