@@ -28,6 +28,11 @@ describe("aucun montant à l'écran (lot c)", () => {
     const bruts = EXPRESS.split("\n").filter((l) => /return \{ ok: false[^}]*message: r\.message/.test(l));
     expect(bruts).toEqual([]);
   });
+  it("l'interrupteur « Mode économique » n'utilise pas l'icône euro", () => {
+    const lignes = APERCU.split("\n").filter((l) => l.includes('libelle="Mode économique"'));
+    expect(lignes.length).toBeGreaterThan(0);
+    for (const l of lignes) expect(l).not.toContain('icone="euro"');
+  });
   it("le lancement avec voyant n'affiche aucun montant lui-même", () => {
     expect(VOYANT).not.toMatch(/€|formaterMontant|formaterDollars/);
   });

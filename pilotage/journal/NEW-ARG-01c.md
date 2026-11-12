@@ -4,3 +4,4 @@
 - Serveur (services, domaine, calculs, plafonds) non touché ; les coûts restent enregistrés.
 - Test : tests/sans-prix/new-arg-01c.test.tsx (rouge avant, vert après).
 - CORRECTIF (relecture y7) : Express.tsx, les trois retours de `lancerRelu` (confirmation requise, crédit insuffisant, repli) passent `r.message` par `messageSansMontant` avant RelireScript ; garde ajoutée au test du lot. Serveur intact. Master fusionné. tsc : 0 erreur nouvelle ; eslint propre.
+- CORRECTIF (relecture z6) : l'icône « euro » de l'interrupteur « Mode économique » (Apercu.tsx:621) devient « jauge », sans symbole monétaire ; test ajouté. Master fusionné.
