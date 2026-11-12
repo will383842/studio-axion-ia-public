@@ -7,6 +7,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
+import { Pastille } from "@/components/ui/Pastille";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { notifier } from "@/components/ui/Toast";
 import { controlerSaisie, lireNombreFr, partagesParPortee, type SaisieMesures } from "@/domaine/mesures";
@@ -44,17 +45,34 @@ export function SaisieMesures({ aSaisir, saisies }: { aSaisir: MesureAffichee[];
   const [ouverte, setOuverte] = useState<MesureAffichee | null>(null);
   return (
     <div className="space-y-6">
+      {aSaisir.length > 0 && (
+        <p className="flex items-start gap-2 rounded-carte bg-surface-2 p-3 text-sm text-texte-doux">
+          <Icone nom="horloge" size={18} className="mt-0.5 shrink-0 text-texte-faible" />
+          <span>
+            Chaque vidéo publiée revient ici <b className="text-texte">3 jours</b> puis <b className="text-texte">7 jours</b> après sa publication. Vous recopiez quatre chiffres lus sur le réseau : comptez 30 secondes par vidéo.
+          </span>
+        </p>
+      )}
       {aSaisir.length === 0 ? (
         <Carte className="flex flex-col items-center gap-3 py-10 text-center">
           <span className="grid size-14 place-items-center rounded-2xl bg-sauge-doux text-sauge">
             <Icone nom="coche" size={26} />
           </span>
-          <p className="font-titre text-xl text-texte">Rien à saisir</p>
-          <p className="text-sm text-texte-doux">Les vidéos publiées reviennent ici à J+3 et J+7.</p>
+          <h2 className="font-titre text-xl text-texte">Rien à saisir</h2>
+          <p className="text-sm text-texte-doux">Les vidéos publiées reviennent ici 3 jours puis 7 jours après leur publication.</p>
           {/* Vérification E2E n° 1, n° 29 : une vidéo déjà publiée à la main se mesure tout de suite, à sa vraie date. */}
           <p className="text-sm text-texte-doux">Une vidéo publiée à la main il y a quelques jours ? Sur la vidéo : « Publier », « Choisir » le jour de publication, puis « Je l&apos;ai publiée moi-même ».</p>
         </Carte>
       ) : (
+        <section aria-labelledby="titre-a-saisir">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 id="titre-a-saisir" className="text-lg text-texte">
+              À saisir
+            </h2>
+            <small className="text-sm text-texte-faible">
+              {aSaisir.length} {aSaisir.length > 1 ? "vidéos" : "vidéo"}
+            </small>
+          </div>
         <ul className="space-y-2">
           {aSaisir.map((m) => (
             <li key={m.publicationId}>
@@ -70,22 +88,29 @@ export function SaisieMesures({ aSaisir, saisies }: { aSaisir: MesureAffichee[];
                     {m.code} · {fmtDate(m.datePublication)}
                   </span>
                 </span>
-                <span className={cn("shrink-0 rounded-full px-3 py-1 font-titre text-sm tabular-nums", m.jour === 7 ? "bg-orange-doux text-orange-vif" : "bg-surface-2 text-texte")}>J+{m.jour}</span>
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <Pastille ton={m.jour === 7 ? "ambre" : "neutre"}>{m.jour === 7 ? "À 7 jours · dernier relevé" : "À 3 jours · premier relevé"}</Pastille>
+                  <span className="inline-flex items-center gap-0.5 text-sm font-semibold text-texte-doux">
+                    Saisir
+                    <Icone nom="chevron-droite" size={16} />
+                  </span>
+                </span>
               </button>
             </li>
           ))}
         </ul>
+        </section>
       )}
 
       {saisies.length > 0 && (
         <section aria-labelledby="titre-saisies">
           <div className="mb-2 flex items-end gap-3 pr-3">
-            <h2 id="titre-saisies" className="flex-1 font-texte text-xs font-bold uppercase tracking-wider text-texte-faible">
+            <h2 id="titre-saisies" className="flex-1 text-lg text-texte">
               Déjà saisies
             </h2>
             {/* En-têtes visuels seulement : chaque chiffre porte son propre nom pour les lecteurs d'écran. */}
             <span aria-hidden className="grid grid-cols-3 gap-3 text-right text-[11px] font-semibold text-texte-faible">
-              <span>3 s</span>
+              <span>Avant 3 s</span>
               <span>Durée</span>
               <span>Partages</span>
             </span>
@@ -96,7 +121,7 @@ export function SaisieMesures({ aSaisir, saisies }: { aSaisir: MesureAffichee[];
                 <li key={s.cle} className="flex items-center gap-3 p-3">
                   <LogoReseau reseau={s.reseau} taille="sm" />
                   <span className="min-w-0 flex-1 truncate font-mono text-xs text-texte-doux">
-                    {s.code} · J+{s.jour}
+                    {s.code} · à {s.jour} jours
                   </span>
                   <span className="grid grid-cols-3 gap-3 text-right text-sm tabular-nums text-texte">
                     <span title="Partis avant 3 s"><span className="sr-only">Partis avant 3 s : </span>{fmtNombre(s.tauxAbandon3s, " %")}</span>
@@ -109,6 +134,8 @@ export function SaisieMesures({ aSaisir, saisies }: { aSaisir: MesureAffichee[];
           </Carte>
         </section>
       )}
+
+      <p className="pb-2 text-center text-xs text-texte-faible">Les chiffres sont gardés tels que vous les notez. Aucune estimation.</p>
 
       {ouverte && <FeuilleSaisie key={ouverte.publicationId} mesure={ouverte} onFermer={() => setOuverte(null)} />}
     </div>
@@ -145,7 +172,7 @@ function FeuilleSaisie({ mesure, onFermer }: { mesure: MesureAffichee; onFermer:
         notifier.erreur(r.message);
         return;
       }
-      notifier.succes(`Mesures J+${mesure.jour} enregistrées`);
+      notifier.succes(`Relevé à ${mesure.jour} jours enregistré`);
       onFermer();
       router.refresh();
     });
@@ -155,7 +182,7 @@ function FeuilleSaisie({ mesure, onFermer }: { mesure: MesureAffichee; onFermer:
     <FeuilleBas
       ouverte
       onOuverteChange={(o) => !o && onFermer()}
-      titre={`Mesures J+${mesure.jour}`}
+      titre={`Relevé à ${mesure.jour} jours`}
       description={mesure.code}
       pied={
         <Bouton pleineLargeur taille="lg" icone="coche" disabled={!complet} chargement={enCours} onClick={enregistrer}>
@@ -171,7 +198,7 @@ function FeuilleSaisie({ mesure, onFermer }: { mesure: MesureAffichee; onFermer:
         {CHAMPS.map((c) => (
           <label key={c.cle} className="block">
             <span className="mb-1.5 block text-[13px] font-semibold leading-tight text-texte-doux">{c.libelle}</span>
-            <span className={cn("flex min-h-14 items-center gap-1 rounded-champ border bg-surface-2 px-3 focus-within:border-orange", erreur?.champ === c.cle ? "border-brique" : "border-trait")}>
+            <span className={cn("flex min-h-14 items-center gap-1 rounded-champ border bg-surface-2 px-3 focus-within:border-accent", erreur?.champ === c.cle ? "border-brique" : "border-trait")}>
               <input
                 inputMode={c.mode}
                 enterKeyHint="next"
