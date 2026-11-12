@@ -234,8 +234,8 @@ export interface ProprietesFicheEntree {
    */
   selonStatut?: boolean;
   /**
-   * Geste de l'hôte pour le bouton principal des états « À valider », « À corriger » et « Programmé » (valider, renvoyer,
-   * rouvrir). Ce bouton est en `type="button"` : il n'enregistre jamais le texte. Absent : pas de bouton (jamais un bouton mort).
+   * Geste de l'hôte pour le bouton principal des états « À valider », « À corriger », « Programmé » et « Idée » (valider, renvoyer,
+   * rouvrir, accepter). Ce bouton est en `type="button"` : il n'enregistre jamais le texte. Absent : pas de bouton (jamais un bouton mort).
    */
   surPrincipal?: () => void;
   /** Refus rendu par l'action, à dire à la personne. */
@@ -306,8 +306,8 @@ export function FicheEntree({
   const modifiable = verrou === null && action !== undefined;
   const boutons = selonStatut ? boutonsTiroir(entree.etat, entree.jour, aujourdhui) : null;
   const boutonPrincipal = boutons ? boutons.principal : boutonPrincipalDonne;
-  // À valider, À corriger, Programmée : le bouton principal est un geste de l'hôte, il n'enregistre rien. Sans rappel, pas de bouton.
-  const principalEstGeste = boutons !== null && ["a_valider", "a_corriger", "programme"].includes(entree.etat);
+  // À valider, À corriger, Programmée, Idée (« Accepter l'idée ») : le bouton principal est un geste de l'hôte, il n'enregistre rien. Sans rappel, pas de bouton.
+  const principalEstGeste = boutons !== null && ["a_valider", "a_corriger", "programme", "idee"].includes(entree.etat);
   const boutonGeste = principalEstGeste && surPrincipal !== undefined && action !== undefined && boutonPrincipal !== null;
   const libelleEnregistrer = principalEstGeste && modifiable ? "Enregistrer le texte" : boutonPrincipal;
   const reseau = reseauConnu(entree.reseau) ? entree.reseau : null;
