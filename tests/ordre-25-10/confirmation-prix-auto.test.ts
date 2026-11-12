@@ -56,7 +56,7 @@ describe("BoutonFabriquer : au plus une relance automatique", () => {
   it("le rendu initial du bouton affiche le montant à titre d'information", async () => {
     const { BoutonFabriquer } = await import("@/components/formats/commun/BoutonFabriquer");
     const html = renderToStaticMarkup(createElement(BoutonFabriquer, { montantCentimes: 300, onFabriquer: async () => undefined }));
-    expect(texte(html)).toContain("Fabriquer");
+    expect(html).toMatch(/>\s*Fabriquer\s*</);
   });
 
   it("pas de montant demandé : un seul envoi", async () => {
@@ -70,11 +70,11 @@ describe("Fabrication image → vidéo : plus de « Relever le plafond »", () =
   const argent = { engageCentimes: 120, plafondCentimes: 500, payeCentimes: 50, attente: false, pas: [] };
   const rendre = (p: Record<string, unknown>) => renderToStaticMarkup(createElement(Fabrication, { videoId: "v-1", ecran: "fabrication", vue: argent, enCours: false, ...p } as never));
 
-  it("ni bouton ni message d'accord de prix, même plafond atteint ; la jauge reste", () => {
+  // Règle du fondateur (12/11) : aucun prix ni montant affiché dans le Studio ; la jauge a été retirée avec les prix.
+  it("ni bouton ni message d'accord de prix, même plafond atteint", () => {
     const t = texte(rendre({ plafond: { proposeCentimes: 700, arrete: true } }));
     expect(t).not.toMatch(/Relever|plafond est atteint|Nouveau plafond/);
-    expect(t).toContain("plafond");
-    expect(t).toContain("Dépense");
+    expect(t).not.toMatch(/€|plafond/);
   });
 });
 

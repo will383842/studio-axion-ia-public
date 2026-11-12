@@ -71,7 +71,7 @@ async function saisirLeMot(page: Page, mot: string) {
 /** Dans la feuille ouverte : le mot, « Fabriquer la vidéo », le prix confirmé. Rend la phrase d'un refus, ou arrive sur la fiche. */
 async function fabriquer(page: Page, mot: string) {
   await saisirLeMot(page, mot);
-  await page.getByRole("button", { name: /Fabriquer la vidéo/ }).click();
+  await page.getByRole("button", { name: "Fabriquer", exact: true }).click();
   await page.getByRole("button", { name: /^Confirmer / }).click();
 }
 
@@ -131,7 +131,7 @@ test("E2-02 · Aucun réseau : bouton inactif et la phrase", async ({ page }) =>
   await ouvrirCas(page, CAS.recrutement);
   const feuille = page.getByRole("dialog");
   for (const reseau of ["Facebook", "Instagram", "TikTok", "LinkedIn"]) await feuille.getByRole("checkbox", { name: reseau }).uncheck();
-  await expect(feuille.getByRole("button", { name: /Fabriquer la vidéo/ })).toBeDisabled();
+  await expect(feuille.getByRole("button", { name: "Fabriquer", exact: true })).toBeDisabled();
   await expect(feuille).toContainText("Choisissez au moins un réseau.");
   expect(erreurs).toEqual([]);
 });
@@ -143,7 +143,7 @@ test("E2-03 · Cas non validé : « Je valide ce cas » et « Fabriquer un essai
   const details = await ouvrirAValider(page);
   const bloc = details.locator("li", { hasText: CAS.email }).first();
   await expect(bloc.getByRole("button")).toHaveText(["Je valide ce cas", "Fabriquer un essai"]);
-  await expect(page.getByRole("button", { name: /Fabriquer la vidéo/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Fabriquer", exact: true })).toHaveCount(0);
   await bloc.getByRole("button", { name: "Fabriquer un essai" }).click();
   const feuille = page.getByRole("dialog");
   await expect(feuille).toContainText("Essai : cas à confirmer par Will, ne pas publier.");
@@ -158,7 +158,7 @@ test("E2-04 · Double clic : une seule vidéo", async ({ page }, info) => {
   const avant = await nombreDeVideos(page);
   await ouvrirCas(page, CAS.recrutement);
   await saisirLeMot(page, motDe("04", info));
-  await page.getByRole("button", { name: /Fabriquer la vidéo/ }).dblclick();
+  await page.getByRole("button", { name: "Fabriquer", exact: true }).dblclick();
   await expect(page.getByRole("button", { name: /^Confirmer / })).toHaveCount(1);
   await page.getByRole("button", { name: /^Confirmer / }).click();
   await page.waitForURL(/\/videos\/[^/]+$/, { timeout: 60_000 });
@@ -315,7 +315,7 @@ test("E2-16 · Voix habituelle, rien de désigné pour l'avocat : la feuille ne 
   }
   await ouvrirCas(page, CAS.recrutement);
   const feuille = page.getByRole("dialog");
-  await expect(feuille.getByRole("button", { name: /Fabriquer la vidéo/ })).toBeEnabled();
+  await expect(feuille.getByRole("button", { name: "Fabriquer", exact: true })).toBeEnabled();
   await expect(feuille).not.toContainText("Votre voix n'est pas prête");
   expect(erreurs).toEqual([]);
 });

@@ -117,7 +117,7 @@ describe("feuille « Votre vidéo »", () => {
       ),
     );
 
-  it("liste les étapes, les faits et leur source, les réseaux, le mot, « Avec le mot » et un montant en euros", () => {
+  it("liste les étapes, les faits et leur source, les réseaux, le mot, « Avec le mot » et le bouton Fabriquer, sans montant", () => {
     const cas = parId("recrutement-apporteurs");
     const t = rendre(cas);
     for (const e of cas.etapes) expect(t).toContain(e);
@@ -125,7 +125,9 @@ describe("feuille « Votre vidéo »", () => {
     for (const r of ["Facebook", "Instagram", "TikTok", "LinkedIn"]) expect(t).toContain(r);
     expect(t).toContain("Le mot à commenter");
     expect(t).toContain("Avec le mot");
-    expect(t).toMatch(/Fabriquer.*0,60\s*€/);
+    // Règle du fondateur (12/11) : aucun prix ni montant affiché dans le Studio.
+    expect(t).toContain("Fabriquer");
+    expect(t).not.toMatch(/€/);
     sansMotTechnique(t);
   });
 
