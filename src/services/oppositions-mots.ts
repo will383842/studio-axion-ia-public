@@ -5,6 +5,7 @@
 import "server-only";
 import { candidatsEmpreinte, contientEnTempsConstant, empreinteHeritee, empreintePersonne, ErreurEmpreinteIndisponible, ErreurIdentifiantInvalide, lireClesEmpreinte, type EspacePersonne, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { emettreJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
+import { racineDe } from "@/domaine/guide-reseau/cles-parcours";
 import { ETATS_EN_COURS } from "@/domaine/guide-reseau/etats-parcours";
 import { ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 
@@ -350,7 +351,11 @@ export async function personneOpposeePartout(
   };
   const touchees = new Set<string>();
   for (const k of Object.keys(conv))
-    if (candidats.has(k) || propres(k).some((x) => candidats.has(x)))
+    if (
+      candidats.has(k) ||
+      candidats.has(racineDe(k)) ||
+      propres(k).some((x) => candidats.has(x))
+    )
       touchees.add(k);
   for (const [a, cible] of Object.entries(alias)) {
     // Entrée mal formée : erreur FERMÉE, qu'elle concerne cette personne ou non (jamais ignorée en silence).
@@ -360,11 +365,15 @@ export async function personneOpposeePartout(
     // Alias vers une conversation absente : ignoré, mais la cible reste un candidat (une opposition inscrite sous elle compte).
     candidats.add(cible);
     if (Object.hasOwn(conv, cible)) touchees.add(cible);
+    // Cible = racine d'un dossier : toutes les clés `racine|…` sont touchées (même sans enregistrement propre).
+    for (const k of Object.keys(conv))
+      if (racineDe(k) === cible) touchees.add(k);
   }
   let etat = false;
   let doute = false;
   for (const k of touchees) {
     candidats.add(k);
+    candidats.add(racineDe(k));
     for (const x of propres(k)) candidats.add(x);
     for (const [a, cible] of Object.entries(alias))
       if (cible === k) candidats.add(a);
