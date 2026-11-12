@@ -199,6 +199,8 @@
   --accent: var(--barre-accent);
   --sur-accent: var(--barre-encre);
 }
+/* Le mot « Studio » du logo : sur le bleu ciel de la barre, l'orange ferait 3:1 ; on prend le bleu foncé de la barre (lisible). Ailleurs (connexion, page publique), il reste orange. */
+.theme-barre .logo-studio { color: var(--barre-accent); }
 
 @theme inline {
   --color-*: initial;
