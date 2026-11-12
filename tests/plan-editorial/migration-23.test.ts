@@ -61,6 +61,9 @@ describe("migration 23 · l'existant entre au plan", () => {
     const d = depots();
     for (const e of await d.publications.lister()) await d.publications.supprimer(e.id);
     expect(await etape23PlanEditorial(d, MAINTENANT)).toBeNull();
+    // Le repère est posé même sans publication : la migration ne rejoue pas plus tard (constat de relecture).
+    expect(await d.parametres.obtenir("migrations.plan-editorial")).not.toBeNull();
+    reinitialiserDepots();
     const d2 = await semer();
     await etape23PlanEditorial(d2, MAINTENANT);
     await d2.publications.enregistrer(pub("pub-5", {}));
@@ -73,5 +76,23 @@ describe("migration 23 · l'existant entre au plan", () => {
     await d.creneauxEditoriaux.enregistrer({ id: "cre-pub-1", jourVise: "2026-12-24", heuresParReseau: {}, compteCible: "x", statut: "valide", decalages: 2 } as never);
     expect(await etape23PlanEditorial(d, MAINTENANT)).toEqual({ creneaux: 3 });
     expect(await d.creneauxEditoriaux.obtenir("cre-pub-1")).toMatchObject({ jourVise: "2026-12-24", decalages: 2 });
+  });
+
+  it("relecture : une publication de démonstration (estDemo) ne devient pas un créneau", async () => {
+    const d = await semer();
+    await d.publications.enregistrer(pub("pub-demo", { estDemo: true }));
+    expect(await etape23PlanEditorial(d, MAINTENANT)).toEqual({ creneaux: 4 });
+    expect(await d.creneauxEditoriaux.obtenir("cre-pub-demo")).toBeNull();
+  });
+
+  it("relecture : une date vide ou illisible est sautée et comptée, sans faire échouer la migration", async () => {
+    const d = await semer();
+    await d.publications.enregistrer(pub("pub-vide", { date: "" }));
+    await d.publications.enregistrer(pub("pub-bizarre", { date: "pas une date" }));
+    const avant = JSON.stringify(await d.publications.lister());
+    expect(await etape23PlanEditorial(d, MAINTENANT)).toEqual({ creneaux: 4, illisibles: 2 });
+    expect(await d.creneauxEditoriaux.obtenir("cre-pub-vide")).toBeNull();
+    expect(JSON.stringify(await d.publications.lister())).toBe(avant);
+    expect(await etape23PlanEditorial(d, MAINTENANT)).toBeNull();
   });
 });
