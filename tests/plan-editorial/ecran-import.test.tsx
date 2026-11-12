@@ -2,10 +2,28 @@
  * L4-12 : « Importer un fichier de publications (tableau ou collage) ». Dépôts en mémoire, aucun appel réel, données fictives.
  * Règle : seule une erreur de format bloque ; passé, proximité, quota et week-end avertissent et se confirment d'un clic.
  */
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const espion = vi.hoisted(() => ({ actif: false, setters: {} as Record<number, ReturnType<typeof vi.fn>> }));
+// Passe-plat, sauf quand un test appelle le composant à la main pour saisir au clavier sans DOM.
+vi.mock("react", async (importOriginal) => {
+  const reel = await importOriginal<typeof import("react")>();
+  let rang = 0;
+  return {
+    ...reel,
+    default: reel,
+    useRef: (v: unknown) => (espion.actif ? { current: v } : reel.useRef(v)),
+    useState: (init: unknown) => {
+      if (!espion.actif) return reel.useState(init);
+      const i = rang++;
+      const f = vi.fn();
+      espion.setters[i] = f;
+      return [init, f];
+    },
+  };
+});
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({ id: "s1" })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { reinitialiserDepots } from "@/donnees/memoire";
@@ -13,6 +31,7 @@ import { MOTS_INTERDITS_ECRAN } from "@/domaine/libelles";
 import { analyserImport, importerPublications } from "@/app/(studio)/calendrier/importer/actions";
 import PageImporter from "@/app/(studio)/calendrier/importer/page";
 import { FeuilleImportPlan, importerInactif } from "@/components/plan-editorial/FeuilleImportPlan";
+import { etatDepuisStatut, libelleEtat } from "@/components/calendrier/PastilleStatutPlan";
 import { lireStockageFiche } from "@/services/calendrier-fiche";
 
 let d: ReturnType<typeof reinitialiserDepots>;
@@ -63,8 +82,8 @@ describe("lecture du fichier (analyse)", () => {
     ["heure impossible", "2026-12-03;25:00;linkedin;x", /heure/i],
     ["heure à la minute 60", "2026-12-03;09:60;linkedin;x", /heure/i],
     ["réseau inconnu", "2026-12-03;09:00;myspace;x", /réseau/i],
-    ["texte vide", "2026-12-03;09:00;linkedin;   ", /texte/i],
     ["colonnes manquantes", "2026-12-03;linkedin", /colonnes|texte/i],
+    ["guillemet jamais fermé", '2026-12-03;09:00;linkedin;"texte sans fin', /guillemet/i],
   ])("erreur de format, ligne %s : numéro de ligne et motif", async (_nom, l, motif) => {
     const a = await analyserImport({ texte: `${ligne(0)}\n${l}` });
     expect(a.ok).toBe(false);
@@ -72,6 +91,32 @@ describe("lecture du fichier (analyse)", () => {
     expect(a.erreurs[0].numero).toBe(2);
     expect(a.erreurs[0].message).toMatch(motif);
     expect(a.lus).toBe(2);
+  });
+  it("texte vide : jamais une erreur de format ; la ligne est lue et un avertissement « texte » la signale", async () => {
+    const a = await analyserImport({ texte: `${ligne(0)}\n2026-12-03;09:00;linkedin;   \n${ligne(2)}` });
+    expect(a.ok).toBe(true);
+    expect(a.erreurs).toEqual([]);
+    expect(a.lignes).toHaveLength(3);
+    expect(a.lignes[1].texte).toBe("");
+    expect(a.avertissements).toContainEqual(expect.objectContaining({ numero: 2, type: "texte" }));
+  });
+  it("cellule collée d'un tableur entre guillemets, sur plusieurs paragraphes : une seule publication, retours conservés", async () => {
+    const texte = ['2026-12-03\t09:00\tLinkedIn\t"Premier paragraphe', "", 'Deuxième ""entre guillemets"" ; avec point-virgule"', "04/12/2026\t10:00\tInstagram\tune ligne"].join("\n");
+    const a = await analyserImport({ texte });
+    expect(a.erreurs).toEqual([]);
+    expect(a.lus).toBe(2);
+    expect(a.lignes[0].texte).toBe('Premier paragraphe\n\nDeuxième "entre guillemets" ; avec point-virgule');
+    expect(a.lignes[1]).toMatchObject({ numero: 4, jour: "2026-12-04", reseau: "instagram", texte: "une ligne" });
+  });
+  it("même chose avec des retours Windows et le point-virgule ; la numérotation suit les lignes du fichier", async () => {
+    const a = await analyserImport({ texte: '2026-12-03;09:00;facebook;"a\r\nb"\r\n2026-12-0x;09:00;facebook;x' });
+    expect(a.ok).toBe(false);
+    expect(a.erreurs).toEqual([expect.objectContaining({ numero: 3 })]);
+  });
+  it("fichier CSV à virgules : lu (le texte peut contenir des virgules)", async () => {
+    const a = await analyserImport({ texte: 'jour,heure,réseau,texte\n2026-12-03,09:00,LinkedIn,"Bonjour, tout le monde"\n2026-12-04,10:00,Instagram,Sans guillemets, avec virgule' });
+    expect(a.erreurs).toEqual([]);
+    expect(a.lignes.map((l) => [l.reseau, l.texte])).toEqual([["linkedin", "Bonjour, tout le monde"], ["instagram", "Sans guillemets, avec virgule"]]);
   });
   it("limite exacte : 200 lignes passent, 201 refusées ; texte de 3000 signes passe, 3001 refusé", async () => {
     expect((await analyserImport({ texte: tableau(200) })).ok).toBe(true);
@@ -93,6 +138,41 @@ describe("lecture du fichier (analyse)", () => {
 });
 
 describe("importer : tout ou rien, contrôle lus = créés", () => {
+  it("chaque publication importée arrive « à valider » (pas « propose »), affichée « À valider » dans le calendrier, sans trace de validation", async () => {
+    const r = await importerPublications({ texte: tableau(2), compteCible: COMPTE, cle: "kst" });
+    expect(r).toMatchObject({ ok: true, crees: 2 });
+    const l = await d.creneauxEditoriaux.lister();
+    expect(l.map((c) => c.statut)).toEqual(["a_valider", "a_valider"]);
+    expect(l.every((c) => !c.valideeLe && !c.valideePar)).toBe(true);
+    expect(libelleEtat(etatDepuisStatut(l[0].statut)!).libelle).toBe("À valider");
+  });
+  it("rejeu après coupure : une ligne restée « propose » passe « à valider », une ligne déjà validée n'est pas touchée", async () => {
+    const texte = tableau(2);
+    await importerPublications({ texte, compteCible: COMPTE, cle: "krj" });
+    const [a, b] = await d.creneauxEditoriaux.lister();
+    await d.creneauxEditoriaux.enregistrer({ ...a, statut: "propose" });
+    await d.creneauxEditoriaux.enregistrer({ ...b, statut: "valide", valideeLe: "2026-11-20T09:00:00.000Z", valideePar: "fondateur" });
+    await importerPublications({ texte, compteCible: COMPTE, cle: "krj" });
+    expect((await d.creneauxEditoriaux.obtenir(a.id))!.statut).toBe("a_valider");
+    expect((await d.creneauxEditoriaux.obtenir(b.id))!.statut).toBe("valide");
+  });
+  it("une ligne sans texte parmi 60 valides : à confirmer, puis 61 lues = 61 créées, la vide « à valider » sans texte rangé", async () => {
+    const texte = [...Array.from({ length: 60 }, (_, i) => ligne(i + 1)), "2026-12-03;09:00;linkedin;"].join("\n");
+    const r = await importerPublications({ texte, compteCible: COMPTE, cle: "kv" });
+    expect(r).toMatchObject({ ok: false, aConfirmer: true });
+    expect(r.ok === false && r.avertissements?.some((x) => x.type === "texte" && x.numero === 61)).toBe(true);
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(0);
+    expect(await importerPublications({ texte, compteCible: COMPTE, cle: "kv", confirmer: true })).toMatchObject({ ok: true, lus: 61, crees: 61 });
+    const vide = (await d.creneauxEditoriaux.lister()).find((c) => c.heuresParReseau.linkedin === "2026-12-03T08:00:00.000Z")!;
+    expect(vide.statut).toBe("a_valider");
+    expect((await lireStockageFiche({ cle: `creneau:${vide.id}|linkedin`, origine: "creneau", id: vide.id, reseau: "linkedin" })).texte ?? "").toBe("");
+  });
+  it("un texte de plusieurs paragraphes entre guillemets est rangé tel quel", async () => {
+    const r = await importerPublications({ texte: '2026-12-03;09:00;linkedin;"Un\n\nDeux"', compteCible: COMPTE, cle: "kml" });
+    expect(r).toMatchObject({ ok: true, lus: 1, crees: 1 });
+    const [c] = await d.creneauxEditoriaux.lister();
+    expect((await lireStockageFiche({ cle: `creneau:${c.id}|linkedin`, origine: "creneau", id: c.id, reseau: "linkedin" })).texte).toBe("Un\n\nDeux");
+  });
   it("61 lignes lues = 61 créneaux « propose », texte rangé, aucun appel au diffuseur", async () => {
     const fetchEspion = vi.spyOn(globalThis, "fetch");
     // 61 jours distincts ouvrés
@@ -193,6 +273,51 @@ describe("écran", () => {
     for (const texte of [feuille, page]) {
       for (const interdit of MOTS_INTERDITS_ECRAN) expect(texte).not.toMatch(new RegExp(`(^|[^a-zà-ÿ])${interdit}([^a-zà-ÿ]|$)`));
       expect(texte).not.toMatch(/€|\$|euro|automatique/);
+    }
+  });
+  it("aucun libellé interdit ni « Proposée » dans les messages d'erreur, d'avertissement et de réussite", async () => {
+    const textes: string[] = [];
+    const a = await analyserImport({ texte: ["2026-13-03;09:00;linkedin;x", "2026-12-03;25:00;linkedin;x", "2026-12-03;09:00;myspace;x", "2026-12-03;linkedin", '2026-12-03;09:00;linkedin;"x', "demain;09:00;linkedin;x"].join("\n") });
+    textes.push(...a.erreurs.map((e) => e.message));
+    textes.push((await analyserImport({ texte: "" })).erreurs[0].message, (await analyserImport({ texte: tableau(201) })).erreurs[0].message);
+    const w = await analyserImport({ texte: "2026-11-03;09:00;linkedin;passé\n2026-12-05;09:00;linkedin;samedi\n2026-12-07;09:00;linkedin;\n2026-12-07;09:20;linkedin;proche" });
+    textes.push(...w.avertissements.map((x) => x.message));
+    const conf = await importerPublications({ texte: "2026-11-03;09:00;linkedin;passé", compteCible: COMPTE, cle: "kmsg" });
+    const fin = await importerPublications({ texte: "2026-11-03;09:00;linkedin;passé", compteCible: COMPTE, cle: "kmsg", confirmer: true });
+    const sans = await importerPublications({ texte: ligne(0), compteCible: "", cle: "kmsg2" });
+    textes.push(conf.ok ? "" : conf.message, sans.ok ? "" : sans.message);
+    expect(textes.length).toBeGreaterThan(10);
+    expect(fin.ok).toBe(true);
+    for (const t of textes.map(mots)) {
+      for (const interdit of MOTS_INTERDITS_ECRAN) expect(t).not.toMatch(new RegExp(`(^|[^a-zà-ÿ])${interdit}([^a-zà-ÿ]|$)`));
+      expect(t).not.toMatch(/€|\$|euro|automatique|propos[ée]e?s?\b/);
+    }
+    const ecran = mots(renderToStaticMarkup(createElement(FeuilleImportPlan, { compteCible: COMPTE })));
+    expect(ecran).not.toMatch(/propos[ée]e?s?\b/);
+  });
+  it("après un import réussi, l'écran dit « À valider » et jamais « Proposée »", () => {
+    const src = FeuilleImportPlan.toString();
+    expect(src).toContain("À valider");
+    expect(src).not.toContain("Proposée");
+  });
+  it("taper dans le champ remet l'analyse à zéro : le bouton redevient actif au premier clic", () => {
+    espion.actif = true;
+    try {
+      const arbre = FeuilleImportPlan({ compteCible: COMPTE }) as ReactElement<{ children: unknown }>;
+      const trouver = (n: unknown, balise: string): ReactElement<Record<string, unknown>> | null => {
+        if (!n || typeof n !== "object") return null;
+        if (Array.isArray(n)) { for (const x of n) { const r = trouver(x, balise); if (r) return r; } return null; }
+        const e = n as ReactElement<Record<string, unknown>>;
+        if (e.type === balise) return e;
+        return trouver(e.props?.children, balise);
+      };
+      const zone = trouver(arbre, "textarea")!;
+      expect(zone).not.toBeNull();
+      (zone.props.onChange as (e: unknown) => void)({ target: { value: "2026-12-03;09:00;linkedin;corrigé" } });
+      // Rang des états dans le composant : texte 0, compte 1, analyse 2.
+      expect(espion.setters[2]).toHaveBeenCalledWith(null);
+    } finally {
+      espion.actif = false;
     }
   });
   it("la page s'appelle « Importer un fichier de publications » et dit que rien ne part sans validation", async () => {
