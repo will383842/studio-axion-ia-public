@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { RUBRIQUES, TEXTES_FIXES, TEXTES_FIXES_L9 } from "@/briques/visuels/textes-fixes";
-import { espacerPage, typographieFrancaise } from "@/briques/visuels/typographie-francaise";
+import { espacerPage, pourManrope, typographieFrancaise } from "@/briques/visuels/typographie-francaise";
 
 const FINE = "\u202f";
 const INSECABLE = "\u00a0";
@@ -72,7 +72,7 @@ describe("typographieFrancaise", () => {
 describe("espacerPage", () => {
   it("traite toutes les chaînes d'une page (objets et listes imbriqués) sauf les identifiants", () => {
     const page = { type: "T23", titre: "Prêt ?", questions: [{ question: "Qui ?", aide: "Vous : oui", icone: "question" }], annotation: "« oui »" };
-    expect(espacerPage(page)).toEqual({ type: "T23", titre: `Prêt${FINE}?`, questions: [{ question: `Qui${FINE}?`, aide: `Vous${INSECABLE}: oui`, icone: "question" }], annotation: `«${INSECABLE}oui${INSECABLE}»` });
+    expect(espacerPage(page)).toEqual({ type: "T23", titre: `Prêt${INSECABLE}?`, questions: [{ question: `Qui${INSECABLE}?`, aide: `Vous${INSECABLE}: oui`, icone: "question" }], annotation: `«${INSECABLE}oui${INSECABLE}»` });
   });
 
   it("la composition l'applique à chaque page du spec, avant le dessin", () => {
@@ -82,7 +82,7 @@ describe("espacerPage", () => {
 });
 
 describe("textes posés par le code", () => {
-  it("les textes fixes et les rubriques respectent déjà les espaces insécables", () => {
-    for (const t of [...Object.values(TEXTES_FIXES), ...Object.values(TEXTES_FIXES_L9), ...Object.values(RUBRIQUES)]) expect(typographieFrancaise(t), t).toBe(t);
+  it("les textes fixes et les rubriques respectent déjà les espaces insécables (forme Manrope : aucune fine, absente de la police)", () => {
+    for (const t of [...Object.values(TEXTES_FIXES), ...Object.values(TEXTES_FIXES_L9), ...Object.values(RUBRIQUES)]) expect(pourManrope(t), t).toBe(t);
   });
 });
