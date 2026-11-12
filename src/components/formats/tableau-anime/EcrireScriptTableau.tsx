@@ -328,7 +328,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
             <h2 className="text-sm font-semibold text-texte-doux">Les accroches</h2>
             <ul className="space-y-2">
               {resultat.accroches.map((a, i) => (
-                <li key={i} className={i === resultat.retenue ? "rounded-2xl border-2 border-orange-vif bg-surface-1 px-4 py-3" : "rounded-2xl border border-trait px-4 py-3"}>
+                <li key={i} className={i === resultat.retenue ? "rounded-2xl border-2 border-accent bg-surface-1 px-4 py-3" : "rounded-2xl border border-trait px-4 py-3"}>
                   <p className="text-[15px] text-texte">{a.dit}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-sm text-texte-doux">{i === resultat.retenue ? "Retenue" : a.ecran}</span>
