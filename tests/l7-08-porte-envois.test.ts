@@ -1,15 +1,29 @@
 /** L7-08 : la porte « publication éditoriale » est lue par TOUS les chemins d'envoi du calendrier. Réglage absent = zéro appel au diffuseur. */
-import { beforeEach, describe, expect, it } from "vitest";
+import { hash } from "@node-rs/argon2";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { reinitialiserDepots } from "@/donnees/memoire";
 import { ecrireParametre } from "@/services/_commun";
-import { PARAM_EDITORIALE_ACTIVE, PARAM_ENVOI_CALENDRIER, PARAM_ARRET_ZERNIO } from "@/services/zernio";
+import { injecterClientZernio, PARAM_EDITORIALE_ACTIVE, PARAM_ENVOI_CALENDRIER, PARAM_ARRET_ZERNIO } from "@/services/zernio";
 import { confirmerTable, proposerTable } from "@/services/import-buffer/cibles";
 import { creerBrouillons } from "@/services/import-buffer/creer-brouillons";
 import { promouvoirBrouillons } from "@/services/import-buffer/promotion";
 import type { PostBuffer } from "@/services/import-buffer/types";
 import { creerClientZernio } from "@/fournisseurs/publication/zernio-client";
 import { envoiAutoriseCalendrierClient } from "@/fournisseurs/publication/inscription";
+import { envoyerParOutilAction } from "@/services/a-publier-zernio";
+import { seConnecter } from "@/services/auth";
 import { creerFauxClientZernio, creerFauxFetch, postExemple } from "./zernio/aides/faux-zernio";
+
+vi.mock("next/headers", () => mockHeaders);
+vi.mock("next/navigation", () => mockNavigation);
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
+const MDP = "essai-l708-123";
+beforeAll(async () => {
+  process.env.SESSION_SECRET = "s".repeat(48);
+  const empreinte = await hash(MDP, { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 });
+  process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
+});
 
 const MAINT = Date.parse("2026-11-01T08:00:00Z");
 const TABLE = confirmerTable(proposerTable([{ id: "canal-ig", nom: "Exemple IG", service: "instagram" }], { "canal-ig": "exemple-compte-1" }).table, "C'est juste", new Date(MAINT));
@@ -27,7 +41,13 @@ const FERMES: [string, boolean | undefined, boolean | undefined, boolean | undef
   ["envoi général coupé", false, true, true],
 ];
 
-beforeEach(() => reinitialiserDepots());
+beforeEach(async () => {
+  reinitialiserDepots();
+  reinitialiserRequete();
+  injecterClientZernio(null);
+  await seConnecter(MDP, false);
+});
+afterEach(() => injecterClientZernio(null));
 
 describe("L7-08 : réglage absent ou éteint = aucun appel au diffuseur", () => {
   it.each(FERMES)("création de brouillons (%s)", async (_n, a, c, e) => {
@@ -35,6 +55,19 @@ describe("L7-08 : réglage absent ou éteint = aucun appel au diffuseur", () => 
     const { client, faux } = creerFauxClientZernio([]);
     const r = await creerBrouillons({ client, table: TABLE, posts: [post], copies: new Map(), lot: "A", aBlanc: false, maintenant: () => MAINT, urlLecture: async (cle) => `https://exemple-r2.test/${cle}`, lecteur: async () => { throw new Error("aucune lecture attendue"); } });
     expect(r.refusLot).toMatch(/fermée/);
+    expect(faux.appels).toHaveLength(0);
+  });
+
+  it.each([
+    ["réglage éditorial absent", undefined],
+    ["réglage éditorial éteint", false],
+  ] as const)("envoi « À publier » Zernio (%s, ancien et calendrier ouverts) : refusé, zéro appel", async (_n, e) => {
+    await regler(true, true, e);
+    const { client, faux } = creerFauxClientZernio([]);
+    injecterClientZernio(client);
+    const r = await envoyerParOutilAction("video-exemple", "instagram", "2030-01-01T10:00:00Z", { outil: "zernio" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("ENVOI_CALENDRIER_FERME");
     expect(faux.appels).toHaveLength(0);
   });
 

@@ -1,6 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { ecrireParametre } from "../../src/services/_commun";
-import { PARAM_EDITORIALE_ACTIVE, PARAM_ENVOI_CALENDRIER } from "../../src/services/zernio";
+import { describe, expect, it } from "vitest";
 import { confirmerTable, proposerTable } from "../../src/services/import-buffer/cibles";
 import { creerBrouillons } from "../../src/services/import-buffer/creer-brouillons";
 import type { MediaCopie } from "../../src/services/import-buffer/medias-prives";
@@ -37,9 +35,6 @@ function serveur(suite: (a: AppelEnregistre) => ReponsePreparee | undefined = ()
   };
 }
 const base = { table: CONFIRMEE, copies: new Map<string, MediaCopie[]>(), maintenant: () => MAINT, urlLecture, lecteur };
-
-// L7-08 : une vraie création exige les trois réglages ouverts (publication éditoriale éteinte par défaut).
-beforeEach(async () => { await ecrireParametre(PARAM_ENVOI_CALENDRIER, true); await ecrireParametre(PARAM_EDITORIALE_ACTIVE, true); });
 
 describe("IMP-2 brouillons", () => {
   it("à blanc (défaut) : corps construits, aucun appel réseau", async () => {
