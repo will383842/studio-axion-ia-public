@@ -61,7 +61,8 @@ describe("GV-ST-02 · chaîne : empreinte et position avec un style choisi", () 
     avec.ids.forEach((id, i) => expect(id).not.toBe(sans.ids[i]));
     expect(encore.ids).toEqual(avec.ids);
     for (const m of avec.milieux) expect(m).toBe(STYLE_SOUS_TITRES_AVOCAT.positionPct);
-    for (const m of sans.milieux) expect(m).toBe(centreSousTitresPleineImagePct());
+    // Instantané d'AVANT (gv/LOT-1), déroulé à la main : sans style, centre plein image = (143 + 1447,4 + 48) / 1920 = 85,33 %.
+    for (const m of sans.milieux) expect(m).toBe(85.33);
   });
 
   it("sans style choisi (absent ou null) : empreinte identique à la fabrication d'avant", async () => {
