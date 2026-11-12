@@ -1288,7 +1288,7 @@ function entreeDe(v: VersionVoixIV, sons: ReturnType<typeof sonsBrutsIV>): Entre
   if (sons.lecture) {
     // Lecture unique : un seul son pour la version, taillé par heures de mots (aucune fin séparée).
     const l = sons.lecture[v.id];
-    if (!l) throw new ErreurVoixIV("entree", `Le son de la version ${v.id} manque.`);
+    if (!l) throw new ErreurVoixIV("entree", "Le son d'une des versions manque.");
     return { version: v.id, reseaux: v.reseaux, courte: false, corps: l.son, motsCorps: l.motsCorps, ...(l.retraitsVoulus.length ? { retraitsVoulus: l.retraitsVoulus } : {}), ...(l.coupeSec !== undefined ? { coupeSec: l.coupeSec, ...(l.coupeEntreSec ? { coupeEntreSec: l.coupeEntreSec } : {}) } : {}) };
   }
   const fin = v.segment ? sons.fins[v.segment] : undefined;

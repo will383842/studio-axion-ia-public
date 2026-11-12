@@ -20,7 +20,6 @@ import { estReseauDeclinaison } from "@/reseaux/codes";
 import type { VueKitVariante } from "@/services/vues";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import { obtenirReseau, verifierPourReseau } from "@/reseaux";
 import type { VueKitReseau } from "@/services/vues";
 import { useVideo } from "./ContexteVideo";
@@ -57,9 +56,9 @@ export function OrigineTexte({ origine }: { origine: VueKitReseau["origine"] }) 
   return <Pastille ton={o.ton}>{o.libelle}</Pastille>;
 }
 
-/** Libellé du bouton « Réécrire » : avec Claude, le prix au pire (reprise comprise) est dit AVANT le geste. */
-export function libelleReecrire(r: Pick<VueKitReseau, "prixReecriture">): string {
-  return r.prixReecriture ? `Réécrire · jusqu'à environ ${formaterMontant(r.prixReecriture)}` : "Réécrire";
+/** Libellé du bouton « Réécrire » : aucun montant affiché (le prix reste confirmé par le geste, sans texte d'argent). */
+export function libelleReecrire(_r: Pick<VueKitReseau, "prixReecriture">): string {
+  return "Réécrire";
 }
 
 /**

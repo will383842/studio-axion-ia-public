@@ -78,6 +78,12 @@ export const TRAITEMENT_SUPPRESSION: Record<keyof Depots, Traitement> = {
   reservations: "garde-comptabilite",
   relevesSoldes: "sans-lien",
   scriptsMaitres: "sans-lien",
+  stockMessages: "sans-lien",
+  // Créneaux du plan éditorial (CORRECTIF STK-01) : un créneau ni publié ni archivé reste, sans la vidéo (détaché) ; un créneau publié
+  // ou archivé garde son lien vidéo (historique du plan, comme les publications publiées).
+  creneauxEditoriaux: "detache",
+  // Journal des décalages : ajout seul, ne cite que l'identifiant d'un créneau, jamais celui d'une vidéo : il reste.
+  journalDecalages: "sans-lien",
   variantes: "detache",
   preuves: "sans-lien",
   matieres: "sans-lien",
@@ -93,6 +99,8 @@ export const TRAITEMENT_SUPPRESSION: Record<keyof Depots, Traitement> = {
   tracesScriptsTableau: "efface",
   correctionsWill: "sans-lien",
   visuels: "sans-lien",
+  // Les envois déjà partis restent (comme les publications publiées) ; les autres partent avec la vidéo.
+  envoisPlanifies: "garde-publiees",
 };
 
 /** Phrase de l'entrée d'un lot d'images dont la vidéo a été supprimée (la même que `PHRASES_LOT_IV.supprimee`). */
@@ -112,6 +120,7 @@ export const GARDES_APRES_SUPPRESSION: readonly { quoi: string; collection: keyo
   { quoi: "transferts de crédit d'un lot", collection: "parametres", correspond: (e) => /^credits\.lot\..+\.transfere\./.test(e.id) },
   { quoi: "journal de la vidéo et trace « Vidéo supprimée »", collection: "evenements", correspond: () => true },
   { quoi: "publications déjà publiées et leurs mesures", collection: "publications", correspond: (e) => e.statut === "publiee" },
+  { quoi: "créneaux éditoriaux publiés ou archivés (historique du plan)", collection: "creneauxEditoriaux", correspond: (e) => e.statut === "publie" || e.statut === "archive" },
   { quoi: "modèle fait depuis la vidéo", collection: "modeles", correspond: (e) => typeof e.creeDepuisVideoId === "string" },
   {
     quoi: "entrée « Supprimée. » d'un lot d'images",
@@ -181,6 +190,9 @@ export async function refusSuppression(video: Video, contexte: { aussiSupprimees
   const envoisIncertains = await d.publications.compter(
     (p) => p.videoId === video.id && (p.etatEnvoi === "en-cours" || p.etatEnvoi === "a-verifier") && depuisMs(p) < ATTENTE_ENVOI_INCERTAIN_MS,
   );
+  // Envoi planifié confirmé ou en cours d'envoi (geste du fondateur posé) : refusé, rien ne s'efface sans trace.
+  const envoisPlanifiesEnRoute = await d.envoisPlanifies.compter((x) => x.videoId === video.id && (x.statut === "confirme" || x.statut === "a-envoyer"));
+  if (envoisPlanifiesEnRoute && !programmees) return { code: "PUBLICATION_PROGRAMMEE", message: `« ${video.titre} » a un envoi planifié confirmé ou en cours : annulez-le d'abord.` };
   if (envoisIncertains && !programmees) return { code: "PUBLICATION_PROGRAMMEE", message: `« ${video.titre} » a un envoi vers Buffer à vérifier : réessayez dans une heure au plus.` };
   if (programmees) {
     const quoi = programmees > 1 ? `${programmees} publications programmées : annulez-les` : "une publication programmée : annulez-la";
@@ -274,6 +286,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   const publications = await d.publications.lister((x) => x.videoId === id && x.statut !== "publiee");
   const partages = await d.partages.lister((x) => x.videoId === id);
   const travaux = await d.travaux.lister((t) => t.cibleId === id || t.id === `iv-lanceur-${id}` || (!!t.versionId && versionIds.has(t.versionId)));
+  const envois = await d.envoisPlanifies.lister((x) => x.videoId === id && x.statut !== "envoye");
   const traces = await d.tracesTableau.lister((x) => x.videoId === id);
   const tracesScripts = await d.tracesScriptsTableau.lister((x) => x.videoId === id);
   // Notifications qui mènent à la vidéo (lien mort, titre de la vidéo dans le message).
@@ -290,6 +303,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   effacer("publications", ids(publications));
   effacer("partages", ids(partages));
   effacer("travaux", ids(travaux));
+  effacer("envoisPlanifies", ids(envois));
   effacer("tracesTableau", ids(traces));
   effacer("tracesScriptsTableau", ids(tracesScripts));
   effacer("notifications", ids(notifications));
@@ -333,6 +347,10 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   // 3. Références retirées, l'objet reste : idée, prises de tournage, version par réseau (son texte est gardé).
   for (const i of await d.idees.lister((x) => x.videoId === id)) {
     reecrire("idees", { ...i, videoId: undefined, modifieLe: maintenant() } as unknown as Doc);
+  }
+  // Créneau du plan éditorial : il reste (rien n'est supprimé), il oublie seulement la vidéo. Un créneau publié ou archivé garde son lien.
+  for (const c of await d.creneauxEditoriaux.lister((x) => x.videoId === id && x.statut !== "publie" && x.statut !== "archive")) {
+    reecrire("creneauxEditoriaux", { ...c, videoId: undefined } as unknown as Doc);
   }
   for (const s of await d.sessionsTournage.lister((x) => x.prises.some((p) => p.videoId === id))) {
     reecrire("sessionsTournage", { ...s, prises: s.prises.map(({ videoId, ...p }) => (videoId === id ? p : { ...p, videoId })), modifieLe: maintenant() } as unknown as Doc);
@@ -449,7 +467,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   reecrire("evenements", {
     id: nouvelId("ev"),
     type: "video_supprimee",
-    message: `Vidéo supprimée : « ${video.titre} » (${video.formatId}), ${totalDepense} dépensés`,
+    message: `Vidéo supprimée : « ${video.titre} » (${video.formatId})`,
     entite: "video",
     entiteId: id,
     date: maintenant(),

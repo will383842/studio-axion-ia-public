@@ -100,7 +100,8 @@ function repereDe(corps: CorpsPorte | null): string | undefined {
 
 async function ecrireJournal(route: string, statut: number, debut: number, repere?: string, alerte?: string): Promise<void> {
   try {
-    await journaliser("porte", alerte ? `Porte usine ${route} → ${statut} : ${alerte}` : `Porte usine ${route} → ${statut} (${Date.now() - debut} ms)${repere ? ` repère ${repere}` : ""}`);
+    const issue = statut >= 200 && statut < 300 ? "acceptée" : "refusée";
+    await journaliser("porte", alerte ? `Porte usine ${route} ${issue} : ${alerte}` : `Porte usine ${route} ${issue} (${Date.now() - debut} ms)${repere ? ` repère ${repere}` : ""}`);
   } catch {
     /* le journal ne change jamais la réponse */
   }
