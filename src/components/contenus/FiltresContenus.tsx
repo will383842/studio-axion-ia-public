@@ -7,7 +7,7 @@ import { nomCourtFormat, trouverFormat } from "@/formats";
 import { listerReseaux, obtenirReseau } from "@/reseaux";
 
 /**
- * Filtres de l'écran /contenus : type (les 3 familles), réseau, statut. Tout est dans l'adresse (liens, aucun état caché) :
+ * Filtres de l'écran /contenus : famille (Tout, Vidéos, Infographies, Carrousels), format (vidéos seulement, formats non réservés), réseau, étape. Tout est dans l'adresse (liens, aucun état caché) :
  * le partage et le rechargement rouvrent la même vue. Composant serveur ; une valeur inconnue de l'adresse est ignorée.
  */
 export const BASE_CONTENUS = "/contenus";
@@ -18,7 +18,13 @@ export interface FiltresLus extends Filtres {
   page: number;
 }
 
-export const PLURIEL_TYPE: Readonly<Record<TypeContenu, string>> = { video: "Vidéos", image: "Images", carrousel: "Carrousels" };
+export const PLURIEL_TYPE: Readonly<Record<TypeContenu, string>> = { video: "Vidéos", image: "Infographies", carrousel: "Carrousels" };
+
+/** Un format se filtre s'il est au registre et n'est pas réservé à Will (un format réservé n'apparaît jamais, ni dans les puces, ni dans l'adresse). */
+export function formatFiltrable(id: string): boolean {
+  const f = trouverFormat(id);
+  return !!f && !f.reserveAWill;
+}
 
 const premier = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
 
@@ -33,7 +39,7 @@ export function lireFiltresContenus(sp: ParametresContenus): FiltresLus {
   if (type && (TYPES_CONTENU as readonly string[]).includes(type)) f.type = type as TypeContenu;
   if (reseau && (reseau === NON_PRECISE || estIdReseau(reseau))) f.reseau = reseau as CleClassement;
   if (statut && (STATUTS_COMMUNS as readonly string[]).includes(statut)) f.statut = statut as StatutCommun;
-  if (format && trouverFormat(format)) f.format = format;
+  if (format && formatFiltrable(format)) f.format = format;
   return f;
 }
 
@@ -72,7 +78,7 @@ export function compterContenus(contenus: readonly ContenuBibliotheque[]): Compt
     return nombre > 0 ? [{ statut, nombre }] : [];
   });
   const parFormat = new Map<string, number>();
-  for (const c of contenus) if (c.format) parFormat.set(c.format, (parFormat.get(c.format) ?? 0) + 1);
+  for (const c of contenus) if (c.format && formatFiltrable(c.format)) parFormat.set(c.format, (parFormat.get(c.format) ?? 0) + 1);
   const formats = [...parFormat].map(([id, nombre]) => ({ id, nom: nomCourtFormat({ id }), nombre })).sort((a, b) => b.nombre - a.nombre || a.nom.localeCompare(b.nom, "fr"));
   return { types, reseaux, statuts, formats };
 }
@@ -99,7 +105,7 @@ export function FiltresContenus({ params, filtres, comptes }: { params: Parametr
           </PuceLien>
         ))}
       </GroupeFiltres>
-      {(comptes.formats.length > 0 || filtres.format) && (
+      {(!filtres.type || filtres.type === "video") && (comptes.formats.length > 0 || filtres.format) && (
         <GroupeFiltres titre="Format">
           <PuceLien href={lienContenus(params, { format: undefined })} actif={!filtres.format}>
             Tous

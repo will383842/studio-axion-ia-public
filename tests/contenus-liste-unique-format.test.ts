@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { FiltresContenus, compterContenus, lienContenus, lireFiltresContenus } from "../src/components/contenus/FiltresContenus";
+import { FiltresContenus, compterContenus, formatFiltrable, lienContenus, lireFiltresContenus } from "../src/components/contenus/FiltresContenus";
 import { GrilleContenus, calculerVueContenus } from "../src/components/contenus/GrilleContenus";
 import { filtrerContenus, type ContenuBibliotheque } from "../src/domaine/filtres-contenus";
 import { listerFormats } from "../src/formats";
@@ -57,7 +57,7 @@ describe("REF-R5 : une seule liste, filtre Famille", () => {
     expect(html).toContain('aria-label="Famille"');
     expect(html).not.toContain('aria-label="Type"');
     expect(html).toMatch(/aria-current="true"[^>]*>Tout</);
-    for (const mot of ["Vidéos", "Images", "Carrousels"]) expect(html).toContain(mot);
+    for (const mot of ["Vidéos", "Infographies", "Carrousels"]) expect(html).toContain(mot);
   });
   it("les cartes portent le liseré et la pastille de leur famille (jetons)", () => {
     const g = renderToStaticMarkup(createElement(GrilleContenus, { vue: calculerVueContenus(JEU, {}), params: {}, filtres: {} }));
@@ -70,5 +70,43 @@ describe("REF-R5 : une seule liste, filtre Famille", () => {
     expect(page.match(/<GrilleContenus/g)).toHaveLength(1);
     const grille = readFileSync(join(__dirname, "../src/components/contenus/GrilleContenus.tsx"), "utf-8");
     expect(grille).not.toMatch(/orange/);
+  });
+});
+
+describe("REF-R5 (relecture) : formats réservés, groupe Format, combinaisons", () => {
+  it("un format réservé à Will n'est ni compté, ni accepté dans l'adresse", () => {
+    const avecReserve = [...JEU, c("fa", "video", 6, "facecam-animee")];
+    expect(compterContenus(avecReserve).formats.map((f) => f.id)).not.toContain("facecam-animee");
+    expect(lireFiltresContenus({ format: "facecam-animee" }).format).toBeUndefined();
+    expect(formatFiltrable("facecam-animee")).toBe(false);
+    expect(formatFiltrable("inconnu")).toBe(false);
+    expect(formatFiltrable(F1)).toBe(true);
+  });
+  it("un format choisi garde son groupe même sans vidéo dans les comptes", () => {
+    const html = renderToStaticMarkup(createElement(FiltresContenus, { params: { format: F1 }, filtres: { format: F1 }, comptes: compterContenus([c("c1", "carrousel", 1)]) }));
+    expect(html).toContain('aria-label="Format"');
+  });
+  it("le groupe Format est masqué quand la famille choisie n'est pas Vidéos", () => {
+    const comptes = compterContenus(JEU);
+    const rendre = (type?: "video" | "carrousel" | "image") => renderToStaticMarkup(createElement(FiltresContenus, { params: {}, filtres: type ? { type } : {}, comptes }));
+    expect(rendre()).toContain('aria-label="Format"');
+    expect(rendre("video")).toContain('aria-label="Format"');
+    expect(rendre("carrousel")).not.toContain('aria-label="Format"');
+    expect(rendre("image")).not.toContain('aria-label="Format"');
+  });
+  it("combinaisons : format + étape filtre les deux ; format + carrousel donne une liste vide", () => {
+    const jeu = [...JEU, c("v4", "video", 7, F1)].map((x) => (x.id === "v2" ? { ...x, statut: "brouillon" as const } : x));
+    expect(filtrerContenus(jeu, { format: F1, statut: "brouillon" }).map((x) => x.id)).toEqual(["v2"]);
+    expect(filtrerContenus(jeu, { format: F1, type: "carrousel" })).toEqual([]);
+  });
+  it("la pagination garde format et famille", () => {
+    expect(lienContenus({ format: F1, type: "video" }, { page: "2" })).toBe(`/contenus?format=${F1}&type=video&page=2`);
+  });
+  it("un seul mot pour les images : « Infographies » dans la puce, « Infographie » sur la carte", () => {
+    const f = renderToStaticMarkup(createElement(FiltresContenus, { params: {}, filtres: {}, comptes: compterContenus(JEU) }));
+    expect(f).toContain("Infographies");
+    expect(f).not.toContain("Images");
+    const g = renderToStaticMarkup(createElement(GrilleContenus, { vue: calculerVueContenus([c("i1", "image", 1)], {}), params: {}, filtres: {} }));
+    expect(g).toContain("Infographie");
   });
 });
