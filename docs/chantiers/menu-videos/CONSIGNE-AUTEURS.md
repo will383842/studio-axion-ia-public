@@ -1,10 +1,10 @@
 # Consigne commune des auteurs — studio (08/11/2026)
 
-Dépôt : `C:\Users\Will\Documents\Projets\studio-axion-ia-public` (branche principale `master`, remote GitHub `will383842/studio-axion-ia-public`).
+Dépôt : `<dossier du projet>` (branche principale `master`, remote GitHub `will383842/studio-axion-ia-public`).
 NE TRAVAILLE JAMAIS dans ce dossier directement (une autre branche y est en cours). Crée TA copie :
 
 ```
-cd C:/Users/Will/Documents/Projets/studio-axion-ia-public
+cd <dossier du projet>
 git fetch -q origin
 git worktree add ../wt-<lot> -b <branche> <base>      # base indiquée dans ta mission
 cd ../wt-<lot> && pnpm install --frozen-lockfile --prefer-offline
@@ -33,3 +33,6 @@ Livraison :
 
 ## En session cloud (prioritaire depuis le 08/11 soir)
 Pas de worktree : la session cloud a son propre clone. `git fetch origin && git checkout <branche>` (ou `-b <branche> origin/master`), `pnpm install --frozen-lockfile`, puis la même méthode. Ne fusionne jamais : ouvre la PR et donne son numéro.
+
+## Avenant du 11/11/2026 — contrôle des lots (fiche L0-03)
+Le lot est contrôlé par `scripts/controle-lots.ts` avant le départ des auteurs : fichiers exacts, aucun fichier partagé entre deux fiches, `parallele_avec` dans les deux sens, versions fermées (V1 ne dépend jamais de V2), PR ouvertes comparées, jauge 400 M de jetons / 400 sessions (atteints ou dépassés, ou jauge illisible : refus). Sont aussi refusés : une version illisible (attendu V<n>) et un identifiant en double dans le lot. Un refus = aucune vague. Tout se passe dans le cloud, jamais sur le PC du fondateur.

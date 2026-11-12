@@ -36,7 +36,7 @@ import { etapeZero } from "@/generateur/etape-zero";
 import { vousVersTu } from "@/generateur/adresse-tu";
 import { versionsRoles } from "@/generateur/roles";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { exigerSession } from "./auth";
 import { effacerRepriseDeWill, marquerRepriseDeWill, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
 import { accordAutomatique, budgetIndicatifPour } from "./mode-budget";
@@ -547,7 +547,7 @@ async function supplementReprise(liste: { releveUsd: number }[]): Promise<Montan
   return usd > 0 ? usdVersEur(Math.ceil(usd * 100), await tauxUsdEur()) : null;
 }
 
-const phraseSupplement = (m: Montant) => `Reprendre peut coûter jusqu'à ${formaterMontant(m)} de plus : des appels à Claude restés sans réponse sont peut-être déjà payés, l'écriture refait ces étapes. Confirmez pour continuer.`;
+const phraseSupplement = () => `Reprendre peut coûter plus cher : des appels à Claude restés sans réponse sont peut-être déjà payés, l'écriture refait ces étapes. Confirmez pour continuer.`;
 
 /**
  * Re-relecture A09 : prix que « Reprendre l'écriture » fait confirmer. D'ordinaire le supplément des appels restés sans
@@ -564,10 +564,10 @@ async function prixAConfirmerArretee(liste: { g: GenerationScript; releveUsd: nu
   }
   if (releveAuReglage && prixUsd > 0) {
     const montant = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
-    return { montant, phrase: `Reprendre peut coûter jusqu'à ${formaterMontant(montant)}. Confirmez pour continuer.` };
+    return { montant, phrase: `Reprendre est payant. Confirmez pour continuer.` };
   }
   const supplement = await supplementReprise(liste);
-  return supplement ? { montant: supplement, phrase: phraseSupplement(supplement) } : null;
+  return supplement ? { montant: supplement, phrase: phraseSupplement() } : null;
 }
 
 /**
@@ -604,10 +604,10 @@ export async function reprendreEcritureArretee(scriptMaitreId: Id, accord?: Acco
     const releve = await releverPlafondApresPannes(g.id, indicatif ? Number.POSITIVE_INFINITY : releveUsd);
     if (releve < 0) {
       const nouveau = (await supplementReprise(await ecrituresAReprendre(scriptMaitreId))) ?? supplement!;
-      throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(nouveau), nouveau.centimes);
+      throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(), nouveau.centimes);
     }
     await ecrireParametre(clePanne(g.id), null);
-    if (releve > 0) await journaliser("generateur", indicatif ? `Reprise lancée, prix indicatif : jusqu'à ${formaterUsd(releve)} $ de plus pour les appels restés sans réponse (ils restent comptés dans le mois).` : `Reprise acceptée par Will : jusqu'à ${formaterUsd(releve)} $ de plus pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
+    if (releve > 0) await journaliser("generateur", indicatif ? `Reprise lancée, prix indicatif : un supplément pour les appels restés sans réponse (ils restent comptés dans le mois).` : `Reprise acceptée par Will : un supplément pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
     await d.generations.modifier(g.id, { statut: "en-cours" });
     if (g.portee === "sujet") await d.scriptsMaitres.modifier(scriptMaitreId, { etat: "en-ecriture" });
     n++;
@@ -673,7 +673,7 @@ async function releverPlafondAuReglage(g: GenerationScript): Promise<void> {
   const plafond = await plafondRepriseUsd(g);
   if (plafond > g.plafondUsd + 1e-9) {
     await depots().generations.modifier(g.id, { plafondUsd: plafond });
-    await journaliser("generateur", `Plafond de l'écriture relevé au réglage : ${formaterUsd(plafond)} $.`, { type: "sujet", id: g.scriptMaitreId });
+    await journaliser("generateur", `Plafond de l'écriture relevé au réglage.`, { type: "sujet", id: g.scriptMaitreId });
   }
 }
 
@@ -707,7 +707,7 @@ async function devisReprise(g: GenerationScript, plafondUsd: number, releveUsd =
   const reglage = await reglageDe(g, o);
   if (sansReserve) {
     if (reste >= 0.01) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
-    return { ...base, possible: false, prixUsd: 0, raison: `Plafond de l'écriture atteint (${formaterUsd(depenseUsd)} $ utilisés sur ${formaterUsd(plafondUsd)} $) : elle ne peut pas reprendre.${reglage ? ` Relevez le réglage « ${reglage} » pour la reprendre.` : ""}` };
+    return { ...base, possible: false, prixUsd: 0, raison: `Plafond de l'écriture atteint : elle ne peut pas reprendre.${reglage ? ` Relevez le réglage « ${reglage} » pour la reprendre.` : ""}` };
   }
   if (depenseUsd + pire <= limiteUsd + 1e-9) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
   return { ...base, possible: false, prixUsd: 0, raison: await phrasePireCasTropHaut({ pireCasUsd: depenseUsd + pire, plafondUsd, reglage }, "elle ne peut pas reprendre") };
@@ -770,7 +770,7 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
   const prix = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
   const accordVu = accordPropre(accord);
   const confirme = prix.centimes > 0 ? await accordAutomatique(accordVu, prix.centimes, { signaler: !(typeof accordVu === "number" && accordVu >= prix.centimes) }) : accordVu;
-  if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre peut coûter jusqu'à ${formaterMontant(prix)}. Confirmez pour continuer.`, prix.centimes);
+  if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre est payant. Confirmez pour continuer.`, prix.centimes);
   const d = depots();
   let n = 0;
   for (const g of liste) {
@@ -778,7 +778,7 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
     if (g.statut === "plafond-atteint") {
       await d.generations.modifier(g.id, { statut: "en-cours" });
       await marquerRepriseDeWill(g.id);
-      await journaliser("generateur", `Écriture reprise par Will (au plus ${formaterMontant(prix)}).`, { type: "sujet", id: scriptMaitreId });
+      await journaliser("generateur", `Écriture reprise par Will.`, { type: "sujet", id: scriptMaitreId });
       n++;
     }
   }
@@ -921,7 +921,7 @@ async function deroulerGeneration(g: GenerationScript, executeur: ExecuteurRoles
     const a = r.etat.arret!;
     const type = a.type === "PREUVE_MANQUANTE" ? "PREUVE_MANQUANTE" : "ANCRAGE_MANQUANT";
     await d.generations.modifier(g.id, { statut: "en-pause" });
-    await d.scriptsMaitres.modifier(m.id, { etat: "a-completer", manque: { type, etape: a.etape, ceQuIlFaudrait: `${a.message} · ${utilise.centimes ? `${(utilise.centimes / 100).toFixed(2).replace(".", ",")} € utilisés, rien n'est perdu, on reprend ici.` : "0 €."}` } });
+    await d.scriptsMaitres.modifier(m.id, { etat: "a-completer", manque: { type, etape: a.etape, ceQuIlFaudrait: `${a.message} · ${utilise.centimes ? "Rien n'est perdu, on reprend ici." : "Rien n'a été payé."}` } });
     await journaliser("generateur", `Écriture mise en pause, rien n'est perdu : ${a.message}`, { type: "sujet", id: m.id });
   } else if (r.statut === "coupee") {
     // Garde-fous budget (15/10) : réponse coupée (`max_tokens`) : arrêt, le texte brut est gardé dans l'état, rien

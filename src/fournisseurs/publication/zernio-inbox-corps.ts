@@ -6,7 +6,8 @@
  * - boutons : postback seulement, 3 au plus, titre et charge bornés.
  * Chaque refus lève `ErreurZernio("chemin-refuse")` AVANT le réseau, sans recopier le texte refusé.
  */
-import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
+import { textesActifs } from "@/domaine/guide-reseau/textes-mp";
+import { LONGUEUR_MAX_TEXTE } from "@/services/mots-controle";
 import { ErreurZernio } from "./zernio-erreurs";
 
 export type RouteInboxZernio = "repondre-commentaire" | "reponse-privee" | "lire-messages" | "envoyer-message";
@@ -48,11 +49,12 @@ function motif(texte: string): { re: RegExp; marqueurs: string[] } {
   return { re: new RegExp(`^${source}$`, "u"), marqueurs };
 }
 
-const MOTIFS = Object.entries(TEXTES_MP).map(([id, t]) => ({ id, publique: id.startsWith("mp-pub-"), ...motif(t.texte) }));
+const MOTIFS = Object.entries(textesActifs()).map(([id, t]) => ({ id, publique: id.startsWith("mp-pub-"), ...motif(t.texte) }));
 
 /** Texte conforme à un modèle du dictionnaire v2 du bon côté (public / privé) ? */
 export function texteDuDictionnaire(texte: unknown, publique: boolean): texte is string {
-  return typeof texte === "string" && texte.length <= 2000 && MOTIFS.some((m) => m.publique === publique && m.re.test(texte));
+  // Seuls les textes « actif » comptent. Message privé : 1 000 caractères (limite Instagram) ; réponse publique : 2 000.
+  return typeof texte === "string" && texte.length <= (publique ? 2000 : LONGUEUR_MAX_TEXTE) && MOTIFS.some((m) => m.publique === publique && m.re.test(texte));
 }
 
 /** Titres et liens relus dans un texte conforme au dictionnaire (jamais recopiés dans une erreur). */
@@ -88,6 +90,11 @@ function lienDeChezNous(lien: string, domaines: readonly string[]): boolean {
 
 /** Forme EXACTE du lien signé de la page « Recevoir le guide » : jeton (charge.signature de 43 caractères), rien d'autre. */
 const LIEN_PAGE_GUIDE = /^https:\/\/axion-ia\.com\/guide-reseau\?j=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/;
+
+/** Le lien a-t-il EXACTEMENT la forme du lien signé de la page guide ? (contrôle avant tout envoi) */
+export function formeLienPageGuide(lien: string): boolean {
+  return LIEN_PAGE_GUIDE.test(lien);
+}
 
 /** Le chemin du lien est-il celui de la page guide ? (le lien doit alors avoir exactement la forme signée) */
 function cheminPageGuide(lien: string): boolean {

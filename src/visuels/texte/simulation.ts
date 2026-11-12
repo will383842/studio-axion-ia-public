@@ -88,7 +88,7 @@ export function creerFournisseurSimulation(): FournisseurTexteCarrousel {
     mode: "simulation",
     async ecrire(demande: DemandeTexteCarrousel): Promise<ReponseTexteCarrousel> {
       if (demande.type !== "sujet") {
-        throw new ErreurTexteCarrousel("SESSION_ATTENDUE", "La simulation n'accepte qu'un sujet ; un paquet de session passe par le fournisseur de session.");
+        throw new ErreurTexteCarrousel("SESSION_ATTENDUE", "Le mode essai n'accepte qu'un sujet ; un paquet de session passe par le fournisseur de session.");
       }
       const sujet = demande.sujet.trim();
       if (sujet.length === 0 || sujet.length > SUJET_MAX) {
