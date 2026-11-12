@@ -11,7 +11,7 @@
  *    double non ancré en bas, décor à vérifier, LUT sans fichier).
  */
 import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types";
-import { donneesCalque } from "@/briques/sous-titres";
+import { controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
 import { positionsVerticales } from "@/briques/sous-titres/largeur";
 import type { BandeFondSousTitres, DonneesCalque } from "@/briques/sous-titres/scene";
 import { sousTitresSurDecor } from "@/domaine/decors";
@@ -353,6 +353,13 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   const calque = (ouverture?: DonneesCalque["ouverture"]): DonneesCalque | undefined =>
     avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}) } : undefined;
   let sousTitres = calque();
+  // Contrôle central des sous-titres : des remarques seulement (jamais bloquant), sans effet sur les paramètres de rendu.
+  if (sousTitres) {
+    const occupe = encadreActif && instantsEncadre ? [{ debutSec: instantsEncadre.de, finSec: instantsEncadre.a, zone: "haut" as const }] : [];
+    for (const a of controlerSousTitres(sousTitres, { texte: c.script.texteComplet, occupe })) {
+      if (!alertes.some((x) => x.code === a.code && x.message === a.message)) alertes.push(a);
+    }
+  }
 
   // Encadré d'ouverture SOUS les sous-titres réellement dessinés (≥ 80 px), au-dessus de la zone protégée du bas
   // (B.2). Pendant ses 3 s, la ligne garde sa place (pas de descente sur la poitrine) ; si la place manque encore
