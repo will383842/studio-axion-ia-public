@@ -20,6 +20,7 @@ import type { FormatEcrivable } from "@/components/generateur/ReglagesSujet";
 import { SuiviSerie } from "@/components/generateur/SuiviSerie";
 import type { SuiviSerie as Suivi } from "@/services/serie-ecriture";
 import { BlocIdeesUsine } from "./BlocIdeesUsine";
+import { PastilleEtapeEcrire } from "./PastilleEtapeEcrire";
 import { BarreSerieIdees, CaseIdee, ideeEcrivable } from "./SerieIdees";
 
 /** Format où ouvrir l'assistant : le format suggéré s'il est actif, sinon le premier actif. */
@@ -114,6 +115,7 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
                           {nomCourtFormat(f)}
                         </Pastille>
                       )}
+                      {i.etat === "nouvelle" && !i.scriptMaitreId && <PastilleEtapeEcrire etape="idee" />}
                       {i.etat === "en-video" && (
                         <Pastille ton="sauge" icone="clap">
                           En vidéo
