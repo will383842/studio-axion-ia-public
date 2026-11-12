@@ -20,7 +20,7 @@ import {
   variationSousTitresCasConcret,
   type TirageSousTitres,
 } from "@/moteurs/montage-cas-concret/sous-titres-variete";
-import { mettre, tirer, TIRAGE_V4, type Mise, type Tirage } from "@/moteurs/montage-cas-concret/variete";
+import { lireMise, mettre, tirer, TIRAGE_V4, type Mise, type Tirage } from "@/moteurs/montage-cas-concret/variete";
 import { centreSousTitresPleineImagePct } from "@/moteurs/montage-cas-concret/zone-objets";
 import { doubles, type Doubles } from "../fabriquer/doubles";
 
@@ -202,5 +202,45 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
       expect(c.surlignage).toBeUndefined();
       expect(c.positions.milieuPct).toBe(85.33);
     }
+  });
+  it("GV-ST-02b : une version héritée d'une vidéo au tirage NEUF garde les sous-titres sans variante", async () => {
+    const a = doubles();
+    a.options.outils.variete = { lireHistorique: async () => [], ajouter: async () => undefined };
+    const crA = await fabriquerCasConcret(a.options);
+    const miseA = crA.fiche.mise;
+    expect(miseA).toBeTruthy();
+    expect((miseA as { sousTitresSansVariante?: boolean }).sousTitresSansVariante).toBe(true);
+    // Version 2 : journal neuf, le tirage vient de la mise de la version précédente (donc relue par `lireMise`).
+    const b = doubles();
+    b.options.outils.variete = variete(lireMise(JSON.parse(JSON.stringify(miseA)))!);
+    await fabriquerCasConcret(b.options);
+    const cs = calques(b);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(85.33);
+    }
+  });
+
+  it("GV-ST-02b : une version héritée d'une vidéo d'AVANT le lot (mise sans le champ) garde la variante", async () => {
+    const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
+    const ancienne = mettre(tirage, []);
+    expect((ancienne as { sousTitresSansVariante?: boolean }).sousTitresSansVariante).toBeUndefined();
+    const d = doubles();
+    d.options.outils.variete = variete(ancienne);
+    await fabriquerCasConcret(d.options);
+    const cs = calques(d);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toEqual(SURLIGNAGE_CAS_CONCRET);
+      expect(c.positions.milieuPct).toBe(centreSousTitresHautPct());
+    }
+  });
+
+  it("GV-ST-02b : la lecture de la mise garde le champ, et une mise sans le champ reste valide", () => {
+    const base = mettre(TIRAGE_V4, []);
+    expect(lireMise({ ...base, sousTitresSansVariante: true })).toEqual({ ...base, sousTitresSansVariante: true });
+    expect(lireMise(base)).toEqual(base);
+    expect(lireMise({ ...base, sousTitresSansVariante: false })).toBeNull();
   });
 });
