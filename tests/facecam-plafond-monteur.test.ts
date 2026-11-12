@@ -87,19 +87,32 @@ describe("lot G · plafond du monteur face caméra", () => {
     expect(appels).toHaveLength(1);
   });
 
-  it("plafond de la version atteint → aucun appel, arrêt « plafond-video » sans montant ; une nouvelle version repart à zéro", async () => {
+  it("plafond de la version atteint, commande d'origine Studio → elle passe, alerte sans montant ; une nouvelle version repart à zéro", async () => {
     const appels = brancherClaude();
     const v = await video();
     const avant = new Date(Date.now() - 60_000).toISOString();
     await depenseMonteur(v.id, 140, new Date(Date.now() - 30_000).toISOString());
-    const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Monteur · relecture des images", facecam: { depuis: avant } });
+    const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Monteur · relecture des images", facecam: { depuis: avant }, origine: "studio" });
+    expect(r.ok).toBe(true);
+    expect(appels).toHaveLength(1);
+    const alertes = (await depots().notifications.lister((n) => n.titre.startsWith("Prix annoncé dépassé"))).flatMap((x) => [x.titre, x.message]);
+    expect(alertes.length).toBeGreaterThan(0);
+    expect(alertes.join(" ")).not.toMatch(/€|\$|\d/);
+    // Version suivante (le tour commence maintenant) : la dépense d'avant ne compte plus.
+    const suivante = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Monteur · relecture des images", facecam: { depuis: new Date().toISOString() }, origine: "studio" });
+    expect(suivante.ok).toBe(true);
+    expect(appels).toHaveLength(2);
+  });
+
+  it("plafond de la version atteint, commande d'origine usine → refus entier, aucun appel, arrêt « plafond-video » sans montant", async () => {
+    const appels = brancherClaude();
+    const v = await video();
+    const avant = new Date(Date.now() - 60_000).toISOString();
+    await depenseMonteur(v.id, 140, new Date(Date.now() - 30_000).toISOString());
+    const r = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Monteur · relecture des images", facecam: { depuis: avant }, origine: "usine" });
     expect(r).toMatchObject({ ok: false, arret: "plafond-video" });
     expect(!r.ok && r.message).not.toMatch(/€|\$|\d/);
     expect(appels).toHaveLength(0);
-    // Version suivante (le tour commence maintenant) : la dépense d'avant ne compte plus.
-    const suivante = await dcv.executerRolePourVideo(v.id, roleRelectureFacecam, entree, { etape: "Monteur · relecture des images", facecam: { depuis: new Date().toISOString() } });
-    expect(suivante.ok).toBe(true);
-    expect(appels).toHaveLength(1);
   });
 
   it("réglable en base (`facecam.plafondVersionUsd`), 1,50 $ par défaut", async () => {
