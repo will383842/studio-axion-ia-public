@@ -6,6 +6,7 @@
  * ⚠️ Seuls les SERVICES (src/services) importent les dépôts. Les écrans, jamais.
  */
 import type { EnvoiPlanifie } from "./envoi-planifie";
+import type { CreneauEditorial } from "./plan-editorial/types";
 import type { EvenementTrace } from "./tracabilite-tableau";
 import type { Visuel } from "./visuels/visuel";
 import type {
@@ -65,6 +66,18 @@ import type {
 } from "./types";
 import type { TraceScriptTableau } from "./scripts-tableau";
 
+/** Journal des décalages d'un créneau éditorial : lignes AJOUTÉES seulement (jamais modifiées ni effacées). */
+export interface JournalDecalage {
+  id: Id;
+  creneauId: Id;
+  /** Jours de Paris, AAAA-MM-JJ. */
+  ancienJour: string;
+  nouveauJour: string;
+  raison: string;
+  /** Instant ISO en UTC. */
+  creeLe: string;
+}
+
 export interface Depot<T extends { id: Id }> {
   /**
    * `projeter` (facultatif) s'applique AVANT la copie : il rend une version allégée de chaque entité retenue (sans ses
@@ -84,6 +97,12 @@ export interface Depot<T extends { id: Id }> {
   supprimer(id: Id): Promise<boolean>;
   compter(filtre?: (e: T) => boolean): Promise<number>;
 }
+
+/**
+ * Dépôt en AJOUT SEUL (journal) : on ajoute et on relit, on ne modifie ni n'efface (`modifier` et `supprimer` n'existent
+ * pas sur ce type). `enregistrer` crée ; ne pas l'utiliser pour remplacer une ligne (le service L1-08 y veille).
+ */
+export type DepotAjoutSeul<T extends { id: Id }> = Pick<Depot<T>, "lister" | "obtenir" | "trouver" | "enregistrer" | "compter">;
 
 /** Écritures appliquées ensemble (une transaction avec Postgres) : effacements puis enregistrements. */
 export interface LotEcritures {
@@ -158,4 +177,7 @@ export interface Depots {
   visuels: Depot<Visuel>;
   /** Calendrier d'envoi (D7-01) : un envoi planifié par vidéo, réseau et version de créneau. */
   envoisPlanifies: Depot<EnvoiPlanifie>;
+  /** Plan éditorial (L1-06) : les créneaux, et le journal de leurs décalages (ajout seul). */
+  creneauxEditoriaux: Depot<CreneauEditorial>;
+  journalDecalages: DepotAjoutSeul<JournalDecalage>;
 }
