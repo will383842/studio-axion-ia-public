@@ -43,16 +43,16 @@ export function ListeScripts({ scripts, vide }: { scripts: ScriptListe[]; vide: 
             className="group relative flex h-full flex-col rounded-carte border border-trait bg-surface-1 p-4 transition-[border-color,transform] duration-200 ease-studio hover:-translate-y-0.5 hover:border-trait-fort"
           >
             <div className="mb-2 flex items-center gap-2">
-              <span className="grid size-7 place-items-center rounded-full bg-surface-2 text-orange-vif">
+              <span className="grid size-7 place-items-center rounded-full bg-surface-2 text-accent">
                 <Icone nom={f?.icone ?? "document"} size={14} />
               </span>
               <span className="text-xs tabular-nums text-texte-faible">{libelleDuree(s.dureeEstimeeSec)}</span>
-              {s.favori && <Icone nom="etoile" size={13} className="text-orange-vif" fill="currentColor" />}
+              {s.favori && <Icone nom="etoile" size={13} className="text-accent" fill="currentColor" />}
               {note !== undefined && (
                 <span className={cn("ml-auto font-titre text-2xl tabular-nums leading-none", note >= 75 ? "text-sauge" : note >= 55 ? "text-ambre" : "text-brique")}>{note}</span>
               )}
             </div>
-            <p className="line-clamp-2 font-semibold leading-snug text-texte group-hover:text-orange-vif">{s.sujet}</p>
+            <p className="line-clamp-2 font-semibold leading-snug text-texte group-hover:text-accent">{s.sujet}</p>
             <p className="mt-1 line-clamp-2 text-sm text-texte-doux">{s.apercu}</p>
             <div className="mt-auto flex items-center gap-1.5 pt-3 text-xs text-texte-faible">
               {s.statutEditorial === "valide" && (

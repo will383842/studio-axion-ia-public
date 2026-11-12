@@ -54,7 +54,7 @@ export function EcranLut({ luts, formats, ajouterAuDepart }: { luts: VueLut[]; f
                 className="peer absolute inset-0 size-full cursor-ew-resize touch-pan-y opacity-0"
               />
               {/* Le curseur est invisible : l'aperçu s'entoure quand il a le focus clavier. touch-pan-y laisse la page défiler au doigt. */}
-              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-carte peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-orange-vif" />
+              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-carte peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent" />
             </div>
             <Curseur libelle="Intensité" valeur={intensite} onChange={(v) => setIntensites((x) => ({ ...x, [lut.id]: v }))} unite=" %" />
             {modifiee && (

@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { reprendreTacheTableauAction, suiviTacheTableauAction } from "@/app/(studio)/tableau/nouvelle/actions";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
 import type { VueTacheTableau } from "@/services/tableau-taches";
 import { versSuiviTacheTableau } from "./vues-gabarit";
@@ -118,7 +118,7 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
           Reprendre
         </Bouton>
         <BoutonAnnuler videoId={videoId} apres="/videos" />
-        {phrase && <p className="text-sm text-texte-doux">{phrase}</p>}
+        {phrase && <p className="text-sm text-texte-doux">{messageSansMontant(phrase)}</p>}
       </section>
     );
   }

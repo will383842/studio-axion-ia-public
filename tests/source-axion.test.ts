@@ -254,8 +254,9 @@ describe("lecture quotidienne : pages nouvelles ou modifiées seulement", () => 
     expect(web.pagesLues().sort()).toEqual(["/fr", "/fr/a-propos", "/fr/actualites/adoption-limitee-ia-consommateurs-investissements", "/fr/audit", "/fr/faq", "/fr/formations", "/fr/implementation", "/fr/tarifs"]);
     expect(await depots().pagesSite.obtenir(idPage(`${S}/fr/blog/audit-ia-venissieux-comprendre-optimiser`))).toMatchObject({ connueAuDepart: true });
     expect(await depots().pagesSite.obtenir(idPage(`${S}/fr/admin/secret`))).toBeNull();
+    // Refonte R7 (décision de Williams du 12/11) : une seule page pour Matières, l’onglet de /ecrire.
     // Cloche : « 1 nouvelle matière depuis votre site ».
-    expect((await depots().notifications.lister()).some((n) => n.titre === "1 nouvelle matière depuis votre site" && n.lien === "/ecrire/matieres")).toBe(true);
+    expect((await depots().notifications.lister()).some((n) => n.titre === "1 nouvelle matière depuis votre site" && n.lien === "/ecrire?onglet=matieres")).toBe(true);
   });
 
   it("le lendemain : un NOUVEL article et une page suivie MODIFIÉE ; rien d'autre n'est relu ni proposé", async () => {

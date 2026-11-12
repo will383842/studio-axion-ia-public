@@ -47,7 +47,7 @@ export async function controlerScriptImageVideo(videoId: Id, entree: ScriptACont
 /** « Valider et fabriquer » (voir l'en-tête). */
 export async function validerScriptImageVideo(
   videoId: Id,
-  entree: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV> } = {},
+  entree: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean } = {},
   accord?: AccordPrix,
 ): Promise<{ modifie: boolean; lanceur: boolean }> {
   await exigerSession();
@@ -70,6 +70,7 @@ export async function validerScriptImageVideo(
     choixFormules: entree.choixFormules ?? {},
     ajoutsWill: entree.ajoutsWill ?? [],
     ...(entree.variete ? { variete: entree.variete } : {}),
+    ...(entree.formeAcceptee === true ? { formeAcceptee: true } : {}),
     ...(lanceur ? { accordCentimes } : {}),
   };
   try {
