@@ -84,9 +84,10 @@ describe("contrôle de sortie v2", () => {
     for (const s of T.SECTIONS) {
       expect(C.controlerTexteSortant(s, `${MENTION} Votre adresse ?`).map((r) => r.code), s).toContain("mention_automatique");
       expect(C.controlerTexteSortant(s, "message  AUTOMATIQUE, votre adresse ?").map((r) => r.code), s).toContain("mention_automatique");
-      for (const sig of ["Merci pour votre message. L'équipe Axion IA", "Merci pour votre message. Cordialement", "Merci pour votre message. Cordialement Axion IA", "Merci pour votre message. Message automatique envoyé par Axion IA"]) expect(C.controlerTexteSortant(s, sig).map((r) => r.code), `${s} ${sig}`).toContain("signature");
+      for (const sig of ["Merci pour votre message. L'équipe Axion IA", "Merci pour votre message. Cordialement", "Merci pour votre message. Cordialement Axion IA", "Merci pour votre message. Message automatique envoyé par Axion IA", "Merci pour votre message. Axion IA.", "Merci, Axion IA", "Merci pour votre message.\nAxion IA", "Merci pour votre message — Axion IA"]) expect(C.controlerTexteSortant(s, sig).map((r) => r.code), `${s} ${sig}`).toContain("signature");
     }
     expect(C.controlerTexteSortant("message_prive", "Bonjour, votre adresse ?")).toEqual([]);
+    expect(C.controlerTexteSortant("message_prive", "Votre guide est prêt, proposé par Axion IA").map((r) => r.code)).not.toContain("signature");
   });
   it("toute mention STOP et toute question d'accord sont refusées, dans chaque section", () => {
     for (const s of T.SECTIONS) {
