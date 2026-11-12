@@ -19,16 +19,27 @@ export async function creerEntreeStockAction(e: {
 }): Promise<Resultat<MessageStock>> {
   await exigerSession();
   return essayer(async () => {
-    const erreur = verifierSaisieStock(e);
+    // Un champ d'échéance laissé vide = pas d'échéance.
+    const saisie = { ...e, echeance: e.echeance?.trim() ? e.echeance : undefined };
+    const erreur = verifierSaisieStock(saisie);
     if (erreur) throw new Error(erreur);
     const texte = e.texte.trim();
     const cle = e.cle?.trim();
     const id = cle ? `stk-${cle}` : nouvelId("stk");
     if (cle) {
       const existante = await depots().stockMessages.obtenir(id);
-      if (existante) return existante;
+      if (existante) {
+        const memes =
+          existante.texte === texte &&
+          existante.priorite === saisie.priorite &&
+          existante.echeance === saisie.echeance &&
+          (existante.format ?? undefined) === (saisie.format ?? undefined) &&
+          JSON.stringify(existante.reseaux ?? []) === JSON.stringify(saisie.reseaux);
+        if (!memes) throw new Error("Cette saisie a déjà servi pour un autre message : rechargez la page.");
+        return existante;
+      }
     }
-    const entree = await depots().stockMessages.enregistrer(creerEntreeStock({ ...e, texte, id }, maintenant()));
+    const entree = await depots().stockMessages.enregistrer(creerEntreeStock({ ...saisie, texte, id }, maintenant()));
     revalidatePath("/ecrire/stock");
     return entree;
   });

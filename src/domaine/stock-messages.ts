@@ -83,7 +83,7 @@ export function verifierSaisieStock(e: { texte: unknown; reseaux: unknown; prior
   if (typeof e.texte !== "string" || !e.texte.trim()) return "Écrivez le message à mettre en stock.";
   if (!Array.isArray(e.reseaux) || e.reseaux.length === 0) return "Choisissez au moins un réseau.";
   if (e.reseaux.some((r) => !RESEAUX_TAXONOMIE.includes(r as IdReseau))) return "Réseau inconnu.";
-  if (typeof e.priorite !== "string" || !(e.priorite in RANG_PRIORITE)) return "Choisissez une priorité.";
+  if (typeof e.priorite !== "string" || !Object.hasOwn(RANG_PRIORITE, e.priorite)) return "Choisissez une priorité.";
   if (e.echeance !== undefined && (typeof e.echeance !== "string" || !jourValide(e.echeance))) return "L'échéance doit être un jour valide (AAAA-MM-JJ).";
   return null;
 }
@@ -94,7 +94,8 @@ export function estActif(m: MessageStock): boolean {
 }
 
 function rang(m: MessageStock): number {
-  return RANG_PRIORITE[m.priorite ?? "normale"] ?? 3;
+  const r: unknown = Object.hasOwn(RANG_PRIORITE, m.priorite ?? "normale") ? RANG_PRIORITE[m.priorite ?? "normale"] : undefined;
+  return typeof r === "number" ? r : 3;
 }
 
 /** Liste filtrée (réseau, priorité, état, échéance), triée par priorité puis échéance. Les archivées n'y figurent pas. */
