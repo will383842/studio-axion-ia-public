@@ -11,7 +11,7 @@ import { renduSimule } from "@/fournisseurs/rendu/client";
 import { traduireLigneJournal } from "@/fournisseurs/journal-lisible";
 import { choisirMoteurAuLancement, deciderJeLis, deciderMontageReel, moteurMontageReel, moteurPrisesFilmees, type DecisionJeLis, type DecisionMontageReel } from "@/moteurs";
 import { prixVideoReelle, type PrixVideoReelle } from "@/moteurs/montage-avocat/prix-reel";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, fournisseur, journaliser, lireParametre, ressourceActive } from "./_commun";
 import { exigerSession } from "./auth";
 import { renduDoubleAllume } from "./rendu-double";
@@ -358,7 +358,7 @@ export async function definirMontageReel(formatId: string, allume: boolean): Pro
     if (raison) throw new ErreurStudio("MONTAGE_REEL_INDISPONIBLE", raison);
   }
   await ecrireParametre(`moteur.${formatId}.montageReel`, allume === true);
-  const prix = allume === true ? ` (environ ${formaterMontant((await prixMontageReel(formatId)).total)} la vidéo de 45 s)` : "";
+  const prix = allume === true ? ` (payant)` : "";
   await journaliser("connexion", `Vidéos ${nomCourtFormat(format)} : ${allume === true ? `montage réel${prix}` : "retour en essai"}`);
 }
 

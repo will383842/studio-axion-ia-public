@@ -45,7 +45,6 @@ import { partiesAccordees, partiesDuScript } from "@/domaine/scripts-tableau";
 import { evaluerQualite } from "@/domaine/qualite-script";
 import { depuisLignesTableau } from "@/domaine/qualite-script/adaptateurs/tableau";
 import { RECETTE_TABLEAU } from "@/domaine/qualite-script/recettes/tableau";
-import { formaterMontant } from "@/lib/montants";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { CorrectionScene, DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
 import { importantsDeLaScene } from "./importants";
@@ -56,7 +55,6 @@ import { FicheScenesTableau } from "./FicheScenes";
 import { SuiviTacheTableau } from "./SuiviTacheTableau";
 import { refusDecoupagePerime } from "./vue";
 
-const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
 /** La saisie de l'écran : les mots de la douleur sont tapés séparés par des virgules (le serveur les remet en liste). */
 type Saisie = Omit<DonneesScriptTableau, "structure" | "finId" | "motsDouleur"> & { structure?: DonneesScriptTableau["structure"]; finId: string; motsDouleur: string };
@@ -435,7 +433,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
               prixCentimes={ecran.coutDecoupageCentimes}
               debit={debitDe(depart.texte)}
               texteLibre
-              libelleLancer={`Découper en scènes (≈ ${euros(ecran.coutDecoupageCentimes)} au plus)`}
+              libelleLancer={"Découper en scènes"}
               iconeLancer="ciseaux"
               bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : null}
               surChangement={suivreTexte}
@@ -450,7 +448,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         {b?.fiche ? (
           !relireTexte && (
             <Bouton icone="ciseaux" chargement={enCours && !corriger} disabled={occupe} onClick={decouperANouveauOuRelire} pleineLargeur>
-              Découper à nouveau (≈ {euros(ecran.coutDecoupageCentimes)} au plus)
+              Découper à nouveau
             </Bouton>
           )
         ) : (
@@ -620,7 +618,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
             prixCentimes={b.voix === "reutilisee" ? 0 : b.coutVoixCentimes}
             prixDejaPaye={b.voix === "reutilisee"}
             debit={debitDe(b.donnees.texte)}
-            libelleLancer={b.voix === "reutilisee" ? "Fabriquer la vidéo (voix déjà payée)" : `Fabriquer la vidéo (≈ ${euros(b.coutVoixCentimes)})`}
+            libelleLancer={b.voix === "reutilisee" ? "Fabriquer la vidéo (voix déjà faite)" : "Fabriquer la vidéo"}
             bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : !dejaVu ? RAISON_CASE_DEJA_VU : b.raisonFabriquerCase ? null : b.raisonFabriquer}
           />
         </section>

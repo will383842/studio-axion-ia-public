@@ -6,6 +6,10 @@
       "version": "mp-m1-v2",
       "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « [MOT] ». Pour vous envoyer le guide « [TITRE DU GUIDE] » par e-mail, répondez à ce message avec votre adresse e-mail."
     },
+    "mp-m1-v3": {
+      "version": "mp-m1-v3",
+      "texte": "Bonjour ! Merci pour votre commentaire, ça fait plaisir. Comme promis, voici votre guide « [TITRE DU GUIDE] ». Le lien reste ouvert 48 heures : [LIEN]"
+    },
     "mp-m1-v2-a": {
       "version": "mp-m1-v2-a",
       "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « [MOT] ». Pour recevoir le guide, écrivez-nous votre adresse e-mail en réponse."
@@ -37,6 +41,10 @@
     "mp-adresse-refusee-v2": {
       "version": "mp-adresse-refusee-v2",
       "texte": "Message automatique envoyé par Axion IA. Nous n'avons pas pu enregistrer cette adresse e-mail : le guide ne peut pas vous être envoyé par ce moyen."
+    },
+    "mp-merci-v1": {
+      "version": "mp-merci-v1",
+      "texte": "Merci à vous ! J'ai bien reçu votre demande : le guide « [TITRE DU GUIDE] » arrive dans votre boîte mail d'ici quelques minutes. S'il n'y est pas, jetez un œil à vos courriers indésirables."
     },
     "mp-lien-v2": {
       "version": "mp-lien-v2",

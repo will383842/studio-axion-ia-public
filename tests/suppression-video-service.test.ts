@@ -166,7 +166,7 @@ describe("suppression définitive · cascade", () => {
     const traces = await d.evenements.lister((e) => e.type === "video_supprimee");
     expect(traces).toHaveLength(1);
     expect(traces[0]).toMatchObject({ entite: "video", entiteId: ID });
-    expect(traces[0].message).toMatch(/« .+ » \(avocat\), .+ dépensés/);
+    expect(traces[0].message).toMatch(/^Vidéo supprimée : « .+ » \(avocat\)$/);
     // Le lien privé répond « plus actif » (410 via src/proxy.ts), pas « introuvable » (404).
     expect(await resoudrePartage(partage.code)).toEqual({ etat: "revoque" });
     expect(await resoudrePartage("zzzzzzzz")).toEqual({ etat: "introuvable" });

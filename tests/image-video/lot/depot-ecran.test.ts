@@ -47,7 +47,7 @@ describe("3 images : la grille et le total", () => {
   });
   it("le bouton dit le nombre de vidéos et le prix total « au plus » ; une phrase dit qu'aucun arrêt n'a lieu", () => {
     expect(t).toMatch(/Fabriquer les 3 vidéos · au plus 10,80\s?€/);
-    expect(t).toContain("Au plus ce prix pour les 3 vidéos. Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.");
+    expect(t).toContain("Aucun arrêt : une vidéo douteuse est mise de côté sans payer sa voix.");
     const bouton = /<button[^>]*>(?:(?!<\/button>)[\s\S])*Fabriquer les 3 vidéos/.exec(html)?.[0] ?? "";
     expect(bouton).not.toBe("");
     expect(bouton).not.toContain(`disabled=""`);

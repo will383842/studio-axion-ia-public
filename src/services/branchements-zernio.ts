@@ -174,11 +174,13 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
     await arretEtAncienChemin(env);
     return;
   }
-  // (7) Dans l'ordre : « Tout arrêter », conversations (seulement allumé ET envoi possible), transmission des « stop », rattrapage.
-  const { traiterConversations } = await import("./parcours-conversation");
+  // (7) Dans l'ordre : « Tout arrêter », conversations (seulement allumé ET envoi possible), mercis (même condition), transmission des « stop », rattrapage.
+  const { traiterConversations, traiterMercis } = await import("./parcours-conversation");
   const { transmettreOppositions, rattraperOppositions } = await import("./oppositions-transmission");
   await toutArreter(env);
   if (actif && !sansEnvoi) await etape("conversations", () => traiterConversations({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
+  // Merci après la page : même condition que les conversations ; les accusés en retard partent même interrupteur du merci éteint.
+  if (actif && !sansEnvoi) await etape("mercis", () => traiterMercis({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
   await etape("transmission des oppositions", () => transmettreOppositions({ port, env, maintenantMs: now }));
   await etape("rattrapage des oppositions", () => rattraperOppositions({ env, maintenantMs: now }));
   // (8) Ancien chemin des « stop ».
