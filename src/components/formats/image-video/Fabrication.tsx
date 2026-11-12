@@ -5,7 +5,7 @@
  * arrêtée) et la dépense : ce qui est engagé face au plafond de la vidéo, et la voix réellement payée. L'écran se relit
  * seul toutes les quelques secondes tant que la fabrication avance. Un arrêt dit quoi en une phrase et propose
  * « Refaire cette partie » (seule l'étape arrêtée repart ; ce qui est payé reste). Règle du 25/10/2026 : le prix ne bloque
- * jamais et rien ne demande d'accorder un prix ; la jauge de dépense reste une simple information.
+ * jamais et rien ne demande d'accorder un prix ; aucun montant n'est affiché.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { PrevenirTelephone } from "@/components/fabrication/PrevenirTelephone";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonArreter } from "@/components/videos/BoutonArreter";
 import type { Montant } from "@/domaine/types";
@@ -82,7 +83,7 @@ export function Fabrication({
 
   const etat = etatSuiviIV({ enCours, arretee, vue });
   // Le refus du moteur dit sa phrase dans le titre ; l'arrêt de Will, ce qui est payé. Le détail du refus reste sous les étapes.
-  const message = vue.refus && !enCours && !arretee ? vue.refus.phrase : arretee && !enCours ? "Fabrication arrêtée : seules les étapes déjà faites ont été payées." : undefined;
+  const message = vue.refus && !enCours && !arretee ? messageSansMontant(vue.refus.phrase) : arretee && !enCours ? "Fabrication arrêtée : seules les étapes déjà faites ont été payées." : undefined;
   const peutRefaire = vue.refus?.reessayable && !enCours;
   return (
     <section aria-label="La fabrication" className="space-y-6">
@@ -108,10 +109,10 @@ export function Fabrication({
 
       {vue.refus && (vue.refus.details.length > 0 || arretee) && (
         <Carte className="border-brique">
-          {arretee && <p className="mb-2 text-sm text-texte">{vue.refus.phrase}</p>}
+          {arretee && <p className="mb-2 text-sm text-texte">{messageSansMontant(vue.refus.phrase)}</p>}
           <ul className="list-disc space-y-1 pl-5 text-sm text-texte-doux">
             {vue.refus.details.map((d) => (
-              <li key={d}>{d}</li>
+              <li key={d}>{messageSansMontant(d)}</li>
             ))}
           </ul>
         </Carte>
@@ -130,7 +131,7 @@ export function Fabrication({
 
       {phrase && (
         <p role="alert" className="text-sm text-brique">
-          {phrase}
+          {messageSansMontant(phrase)}
         </p>
       )}
     </section>
