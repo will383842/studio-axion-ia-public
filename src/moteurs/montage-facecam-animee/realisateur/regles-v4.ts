@@ -516,10 +516,19 @@ export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: 
   );
   // D17 (anti-répétition d'une vidéo à l'autre) : rien sans historique. Non bloquante au rendu ; au dernier essai du réalisateur elle passe en avertissement.
   const repetition = repetitionHistoriqueV4(resolu.elements, options.historique);
+  // D15k (GV-MD-03) : écart RESTANT entre le début d'une plaquette et le mot qui la déclenche (`motIndex`), mesuré sur le plan APRÈS recalage.
+  // Simple remarque (jamais une erreur) : le calage au mot n'a jamais fait échouer une vidéo.
+  const remarquesCalage: string[] = [];
+  if (options.mots?.length) {
+    (plan.elementsV4 ?? []).forEach((e) => {
+      const m = e.motIndex !== undefined ? options.mots![e.motIndex] : undefined;
+      if (m && Math.abs(e.debut - (m.a - 0.15)) > 0.1) remarquesCalage.push(`D15k — élément v4 « ${e.id} » à ${sec(e.debut)} : le mot « ${m.w} » est dit à ${sec(m.a)} ; écart de ${sec(Math.abs(e.debut - m.a))} entre l'animation et le mot (remarque, pas une erreur).`);
+    });
+  }
   const erreursBase = [...resolu.erreurs, ...interditsSousTitres, ...interdites, ...r.erreurs];
   return options.repetitionEnAvertissement
-    ? { erreurs: erreursBase, avertissements: [...r.avertissements, ...repetition], mesures: r.mesures }
-    : { erreurs: [...erreursBase, ...repetition], avertissements: r.avertissements, mesures: r.mesures };
+    ? { erreurs: erreursBase, avertissements: [...r.avertissements, ...remarquesCalage, ...repetition], mesures: r.mesures }
+    : { erreurs: [...erreursBase, ...repetition], avertissements: [...r.avertissements, ...remarquesCalage], mesures: r.mesures };
 }
 
 /** D17a et D17b : ce plan reprend-il l'ouverture, ou presque toutes les plaquettes, des vidéos récentes ? Aucun message sans historique v4. */
