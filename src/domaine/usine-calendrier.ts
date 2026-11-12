@@ -69,10 +69,11 @@ export function jourDeParis(instantMs: number): string {
 
 export type Resultat<T> = { ok: true; valeur: T } | { ok: false; erreur: string; code: CodeRefusCalendrier; http: number };
 
-function lire<T>(schema: z.ZodType<T>, corps: unknown): Resultat<T> {
-  // Contrat inconnu : 426 avant tout autre contrôle (une valeur absente reste un champ invalide).
-  if (corps && typeof corps === "object" && !Array.isArray(corps) && "contrat" in corps && (corps as { contrat: unknown }).contrat !== CONTRAT_CALENDRIER) {
-    return { ok: false, erreur: "contrat : valeur inconnue", code: "contrat_inconnu", http: CODES_REFUS_CALENDRIER.contrat_inconnu };
+/** `absentPermis` : les corps reçus (appels 4 et 5) portent `contrat: 2` ; absent ou autre : 426. Une réponse émise n'en porte pas (absent permis, présent et autre : 426). */
+function lire<T>(schema: z.ZodType<T>, corps: unknown, absentPermis = false): Resultat<T> {
+  // Contrat inconnu ou absent : 426 avant tout autre contrôle (document de contrat, § 1). Un corps qui n'est pas un objet reste invalide (400).
+  if (corps && typeof corps === "object" && !Array.isArray(corps) && (absentPermis ? "contrat" in corps : true) && (corps as { contrat?: unknown }).contrat !== CONTRAT_CALENDRIER) {
+    return { ok: false, erreur: "contrat : absent ou valeur inconnue", code: "contrat_inconnu", http: CODES_REFUS_CALENDRIER.contrat_inconnu };
   }
   const r = schema.safeParse(corps);
   if (r.success) return { ok: true, valeur: r.data };
@@ -143,7 +144,7 @@ export type ReponseCalendrier = z.infer<typeof corpsReponse>;
 
 /** Lit la réponse du Studio : un créneau par cle_proposition, d'origine usine ou choisie par le fondateur. */
 export function lireReponseCalendrier(corps: unknown): Resultat<ReponseCalendrier> {
-  return lire(corpsReponse, corps);
+  return lire(corpsReponse, corps, true);
 }
 
 /* ------------------------------- Appel 5 : cadence ------------------------------- */

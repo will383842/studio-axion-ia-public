@@ -75,9 +75,11 @@ describe("PropositionCalendrier (appel 4, contrat 2)", () => {
   it("tout champ d'état, nom de diffuseur ou montant : 400 champ_invalide", () => {
     for (const sur of [{ statut: "programme" }, { etat: "propose" }, { buffer_id: "x" }, { diffuseur: "zernio" }, { cout_estime_cents: 100 }]) expect(refus(corps([ligne(sur)])), JSON.stringify(sur)).toEqual({ code: "champ_invalide", http: 400 });
   });
-  it("contrat inconnu : 426 contrat_inconnu ; contrat absent : 400", () => {
+  it("contrat inconnu ou absent : 426 contrat_inconnu (document § 1 : « absent ou autre → 426 »)", () => {
     for (const contrat of [1, 1.1, 3, "2"]) expect(refus(corps([ligne()], { contrat })), String(contrat)).toEqual({ code: "contrat_inconnu", http: 426 });
-    expect(refus({ propositions: [ligne()] })?.code).toBe("champ_invalide");
+    expect(refus({ propositions: [ligne()] })).toEqual({ code: "contrat_inconnu", http: 426 });
+    expect(refus({})).toEqual({ code: "contrat_inconnu", http: 426 });
+    expect(refus({ contrat: undefined, propositions: [ligne()] })).toEqual({ code: "contrat_inconnu", http: 426 });
   });
   it("deux lignes de même cle_proposition dans le corps : refusées", () => {
     expect(refus(corps([ligne(), ligne()]))?.code).toBe("champ_invalide");
@@ -136,6 +138,11 @@ describe("CadenceUsine (appel 5, contrat 2)", () => {
     const r = lireCadenceUsine(c);
     return r.ok ? null : { code: r.code, http: r.http };
   };
+  it("contrat absent : 426 contrat_inconnu, pas 400", () => {
+    expect(ko({ cadence: cad().cadence })).toEqual({ code: "contrat_inconnu", http: 426 });
+    expect(ko({})).toEqual({ code: "contrat_inconnu", http: 426 });
+    expect(ko(null)).toEqual({ code: "champ_invalide", http: 400 });
+  });
   it("accepte une cadence conforme au document", () => {
     expect(lireCadenceUsine(cad()).ok).toBe(true);
     expect(lireCadenceUsine(cad([quota({ periode: "jour", nombre: 0 }), quota({ reseau: "instagram", type_contenu: "carrousel" })])).ok).toBe(true);
