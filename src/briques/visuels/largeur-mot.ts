@@ -5,7 +5,7 @@
  * insécable (espace insécable devant « : »).
  */
 import { CARACTERES, METRIQUES } from "../sous-titres/metriques";
-import { typographieFrancaise } from "./typographie-francaise";
+import { pourManrope } from "./typographie-francaise";
 
 /** Manrope ExtraBold (800) : la graisse la plus large chargée ; Manrope est la seule police des pages. */
 const MANROPE = METRIQUES["Manrope ExtraBold"];
@@ -17,7 +17,7 @@ export const MARGE_MESURE = 1.03;
 
 /** Mots insécables d'un texte affiché : seuls l'espace ordinaire, les blancs de contrôle et les tirets ASCII / U+2010 coupent (choix prudent). */
 export function motsInsecables(texte: string): string[] {
-  return typographieFrancaise(texte)
+  return pourManrope(texte)
     .split(/[ \t\n\r\f]+|(?<=[-‐])/u)
     .filter((m) => m !== "");
 }

@@ -2,7 +2,7 @@
  * Polices des visuels de carrousels : UNE SEULE, Manrope (variable 200 à 800, SIL OFL 1.1, licence `../commune/polices/OFL-Manrope.txt`),
  * chargée EN LOCAL dans Remotion (aucune dépendance réseau au rendu) par `./police-manrope.ts`. Une page ne contient que Manrope.
  * Les anciens points d'entrée (titre, texte courant, annotations) sont conservés pour les gabarits : tous chargent Manrope, avec le même nom
- * de famille. Manrope n'a pas l'espace fine insécable (U+202F, avant « ? ! ; ») : aucune face de repli n'est déclarée ici (à traiter par une fiche suivante).
+ * de famille. Manrope n'a pas l'espace fine insécable (U+202F) : `espacerPage` écrit U+00A0 (présente dans Manrope) à sa place avant « ? ! ; », donc aucune face de repli.
  * Le rendu attend le chargement (jamais une image avec une police de secours).
  */
 import { chargerPoliceManrope, FAMILLE_MANROPE, policeManropePrete } from "./police-manrope";
