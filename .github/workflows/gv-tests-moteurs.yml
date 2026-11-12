@@ -1,0 +1,148 @@
+# GV-TESTS-MOTEURS : contrôle INFORMATIF, NON BLOQUANT (ne jamais l'ajouter aux contrôles exigés de la protection de `master`).
+# À quoi il sert : quand une PR modifie un moteur de montage, les sous-titres, le motion, les LUT, les miniatures,
+# le conteneur de rendu ou l'aligneur, il relance les tests DÉJÀ EXISTANTS de cette zone (pas la suite complète : la file
+# gratuite de GitHub est saturée). Le résultat s'affiche sur la PR, mais un rouge n'empêche jamais de fusionner :
+# `continue-on-error: true` est posé sur chaque tâche. Informatif tant qu'il n'a pas fait ses preuves (accord entre équipes).
+# Complète `verifier` (qui ne lance que les fichiers de test touchés), `tests-cibles` et `tests-scripts` : on ne les double pas.
+# Aucun secret, lecture seule du dépôt.
+#
+# Pas de tâche pour le pytest de studio-aligneur : ses exigences (requirements.txt) installent PyTorch, torchaudio,
+# MediaPipe, OpenCV et faster-whisper, trop lourds pour la file gratuite. À reprendre seulement si un sous-ensemble de
+# tests tourne sans ces bibliothèques.
+name: gv-tests-moteurs
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/moteurs/montage-avocat/**"
+      - "src/moteurs/montage-image-video/**"
+      - "src/moteurs/montage-facecam/**"
+      - "src/moteurs/montage-facecam-animee/**"
+      - "src/moteurs/montage-demo-facecam/**"
+      - "src/moteurs/montage-tutoriel-outil/**"
+      - "src/moteurs/montage-vitrines/**"
+      - "src/briques/sous-titres/**"
+      - "src/briques/motion/**"
+      - "src/briques/schema-motion/**"
+      - "src/briques/jetons-motion.ts"
+      - "src/lib/lut3d.ts"
+      - "src/donnees/luts-axion.ts"
+      - "studio-rendu/**"
+      - "src/services/travaux.ts"
+      - "src/services/miniatures*.ts"
+      - "src/domaine/vignettes*.ts"
+      - "studio-aligneur/**"
+      - ".github/workflows/gv-tests-moteurs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un nouveau lancement sur la même branche annule l'ancien.
+concurrency:
+  group: gv-tests-moteurs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Repère les zones modifiées (lancement manuel : toutes les zones).
+  zones:
+    name: repérage des zones modifiées
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    outputs:
+      tests: ${{ steps.liste.outputs.tests }}
+      rendu: ${{ steps.liste.outputs.rendu }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Zones touchées
+        id: liste
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENEMENT" = "pull_request" ]; then
+            git diff --name-only "$BASE"...HEAD > modifies.txt
+          else
+            echo ".github/workflows/gv-tests-moteurs.yml" > modifies.txt
+          fi
+          cat modifies.txt
+          # Le fichier du workflow lui-même ou un lancement manuel : on essaie toutes les zones.
+          if grep -q '^\.github/workflows/gv-tests-moteurs\.yml$' modifies.txt; then TOUT=1; else TOUT=0; fi
+
+          # Table zone modifiée -> tests existants (filtres vitest : un morceau de chemin suffit).
+          : > filtres.txt
+          zone() { # $1 = expression régulière sur les fichiers modifiés, les suivants = filtres de test
+            motif="$1"; shift
+            if [ "$TOUT" = "1" ] || grep -Eq "$motif" modifies.txt; then
+              for f in "$@"; do echo "$f" >> filtres.txt; done
+            fi
+          }
+          zone '^src/moteurs/montage-facecam/' tests/facecam-
+          zone '^src/moteurs/montage-facecam-animee/' tests/facecam-animee
+          zone '^src/moteurs/montage-image-video/' tests/image-video
+          zone '^src/moteurs/montage-avocat/' tests/a2- tests/montage-avocat. tests/moteur-avocat
+          zone '^src/moteurs/montage-tutoriel-outil/' tests/tutoriel-outil
+          zone '^src/moteurs/montage-demo-facecam/' src/moteurs/montage-demo-facecam
+          zone '^src/moteurs/montage-vitrines/' src/moteurs/montage-vitrines
+          zone '^src/briques/sous-titres/' src/briques/sous-titres tests/sous-titres
+          zone '^src/(lib/lut3d|donnees/luts-axion)\.ts$|^studio-rendu/src/lut\.ts$' tests/luts.test.ts tests/apercu-lut.test.ts
+          zone '^src/(services/miniatures|domaine/vignettes|services/travaux\.ts)' tests/vignettes- tests/r4-miniatures
+          zone '^src/briques/(motion/|schema-motion/|jetons-motion\.ts)' tests/facecam-motion-
+          sort -u filtres.txt > filtres-uniques.txt
+          echo "Filtres de test retenus :"; cat filtres-uniques.txt
+          echo "tests=$(tr '\n' ' ' < filtres-uniques.txt)" >> "$GITHUB_OUTPUT"
+
+          if [ "$EVENEMENT" != "pull_request" ] || grep -q '^studio-rendu/' modifies.txt; then
+            echo "rendu=oui" >> "$GITHUB_OUTPUT"
+          else
+            echo "rendu=non" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Relance les tests existants de la zone modifiée (jamais la suite complète).
+  tests-zone:
+    name: tests existants de la zone modifiée
+    needs: zones
+    if: needs.zones.outputs.tests != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Tests de la zone
+        env:
+          FILTRES: ${{ needs.zones.outputs.tests }}
+        run: |
+          # $FILTRES est volontairement non guillemeté : une liste de morceaux de chemin séparés par des espaces.
+          pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile=rapport-vitest.json $FILTRES || true
+          node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+
+  # Contrôle de types du conteneur de rendu (npm run verifier = tsc --noEmit), seulement si studio-rendu change.
+  types-studio-rendu:
+    name: types de studio-rendu
+    needs: zones
+    if: needs.zones.outputs.rendu == 'oui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: studio-rendu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: studio-rendu/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run verifier
