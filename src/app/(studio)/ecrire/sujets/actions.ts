@@ -227,7 +227,7 @@ export async function regenererVarianteAction(id: string, varianteId: string, de
 }
 
 /**
- * « Reprendre » : relance, par un geste de Will, l'écriture de CE sujet bloquée (crédit, limite du mois, plafond).
+ * « Reprendre » : relance, par un geste du fondateur, l'écriture de CE sujet bloquée (crédit, limite du mois, plafond).
  * `accord` : l'accord (en centimes) donné à la confirmation ; le serveur le refuse s'il est plus bas que le prix du jour.
  */
 export async function reprendreEcrituresAction(id: string, accord?: number | true): Promise<Resultat<number>> {
