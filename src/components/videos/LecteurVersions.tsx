@@ -130,7 +130,7 @@ export function LecteurVersions({
                     }}
                     className={cn(
                       "flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full px-3 text-xs font-bold transition-colors disabled:opacity-40",
-                      courante ? "bg-orange text-sur-orange" : "text-texte-doux hover:text-texte",
+                      courante ? "bg-accent text-sur-accent" : "text-texte-doux hover:text-texte",
                     )}
                   >
                     {v.enCours ? <Icone nom="sablier" size={13} /> : courante && <Icone nom="coche" size={13} strokeWidth={3} />}V{v.numero}
