@@ -19,6 +19,7 @@ import type { CommandeFabrication } from "@/domaine/types";
 import { lireEntreesFacecam, type EntreesFacecam, type ImageFacecam } from "@/domaine/facecam";
 import type { DefinitionEtapeMoteur } from "../types";
 import type { CleTravailChaine, EtatChaine, SuiviTravail } from "./chaine";
+import type { SourceMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { lireReglagesMonteur, type ReglagesMonteur } from "./monteur/appliquer";
 import { coupesActives, resumerCoupes, type Intervalle } from "./monteur/temps";
 import { passageEffetSpecial } from "./monteur/effets";
@@ -55,6 +56,8 @@ export interface RepriseChaine {
   declinaisons?: EtatChaine["declinaisons"];
   /** Mission H : piste multicaméra (reprise tant que la piste montée ne change pas : aucun angle refabriqué). */
   multicamera?: EtatChaine["multicamera"];
+  /** GV-N2 : mots colorés validés à l'origine ; une retouche les garde au lieu de les recalculer depuis le script. */
+  motsImportants?: { source: SourceMotsImportants; emphase: string[] };
   /** Cartes déjà rendues (empreinte des paramètres → clé R2 du MP4). */
   cartes: { empreinte: string; cle: string }[];
   /** Durée de la vidéo montée (estimation du temps de la retouche). */
@@ -142,6 +145,11 @@ export function gardesDepuisCoupes(coupes: Intervalle[], dureeSec: number): Inte
 export function lireReprise(projetMontage: Record<string, unknown> | undefined): RepriseChaine | null {
   const r = (projetMontage as { moteur?: string; reprise?: RepriseChaine } | undefined) ?? undefined;
   if (r?.moteur !== "montage-facecam" || !r.reprise || r.reprise.version !== VERSION_REPRISE) return null;
+  // GV-N2 : une ancienne reprise sans mots colorés les retrouve dans la reprise des formats (même liste figée).
+  if (!r.reprise.motsImportants) {
+    const emphase = (projetMontage as { repriseFormats?: { habillage?: { emphase?: string[] } } }).repriseFormats?.habillage?.emphase;
+    if (emphase?.length) return { ...r.reprise, motsImportants: { source: "script", emphase: [...emphase] } };
+  }
   return r.reprise;
 }
 
@@ -168,6 +176,7 @@ export function repriseDeLaChaine(etat: EtatChaine, signature: SignatureMontage,
     ...(etat.decor ? { decor: etat.decor } : {}),
     ...(etat.declinaisons ? { declinaisons: declinaisonsSansHabillage(etat.declinaisons) } : {}),
     ...(etat.multicamera ? { multicamera: etat.multicamera } : {}),
+    ...(etat.habillage && !etat.habillage.abandonne && etat.habillage.motsImportants ? { motsImportants: { source: etat.habillage.motsImportants.source, emphase: etat.habillage.motsImportants.emphase ?? [] } } : {}),
     cartes: [...(etat.cartesReprises ?? []), ...cartes].filter((c, i, l) => l.findIndex((x) => x.empreinte === c.empreinte) === i).slice(-60),
     dureeSec,
   };
@@ -200,6 +209,7 @@ export function etatPourRetouche(reprise: RepriseChaine, commande: Pick<Commande
     // Mission H : la piste multicaméra suit la piste montée ; refaite seulement si celle-ci l'est (voir plus bas).
     ...(reprise.multicamera && !parties.has("assemblage") && !parties.has("image") && !parties.has("son") ? { multicamera: structuredClone(reprise.multicamera) } : {}),
     monteur: { statut: "fait", cartes, ...effetsDesEntrees(commande.entrees) },
+    ...(reprise.motsImportants ? { emphaseValidee: [...reprise.motsImportants.emphase] } : {}),
     sauts: [],
     cartesReprises: reprise.cartes,
   };
