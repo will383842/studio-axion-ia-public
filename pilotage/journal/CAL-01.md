@@ -4,3 +4,8 @@
 - Reste : une fois RC-35 et L4-04 réellement faites, relancer CAL-01 en fusionnant origin/usine/L1-05 et origin/usine/L4-04.
 - Tests : aucun lancé.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (avis opus-v1-x1)
+- Constat bloquant (aucun critère tenu, aucun code) : reporté. PILOTAGE : L4-04 sans code et RC-35 sans branche ; décision du fondateur nécessaire (déposer RC-35 ou autoriser des doublures) avant de relancer la fiche. Rien de bricolé.
+- Tests : aucun (aucun code). Master fusionnée dans la branche.
+- contrôle anti-fuite : vide
