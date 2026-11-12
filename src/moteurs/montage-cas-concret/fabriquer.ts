@@ -82,7 +82,7 @@ import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsC
 import { textesDePublication, type TextePublication } from "./publication";
 import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
-import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret } from "./sous-titres-variete";
+import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
 import { avancerVoixCasConcret, empreintePriseVoix, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
@@ -155,6 +155,12 @@ export interface JournalCasConcret extends Journal<EtapeCasConcret> {
   memoireCommune?: string;
   /** L2 : la mise de la vidéo, tirée une seule fois ; `notee` : sa ligne est déjà dans l'historique. */
   mise?: { mise: Mise; notee: boolean };
+  /**
+   * GV-ST-02 : le tirage de cette vidéo a été tiré NEUF après la suppression de la variante par vidéo (sous-titres sans
+   * variante). Absent : tirage d'une fiche, hérité d'une version, ou d'un journal d'avant ce changement : le tirage
+   * enregistré est respecté tel quel (clé et sous-titres inchangés).
+   */
+  tirageNeuf?: true;
   /**
    * D2 : le tirage de la vidéo, fait AVANT l'écriture (la structure tirée dicte l'ordre des écrans) et gardé : une reprise
    * ne le retire jamais ; `notee` : sa ligne est déjà dans l'historique. Absent : écriture d'avant ce lot, ou sans variété.
@@ -894,6 +900,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         // combinaison unique, écarts minimum) : le tirage lui-même exclut ces structures.
         const exclues = !imposee && o.structureEcartee ? STRUCTURES.filter((s) => structureEffective(cas.offre, s) === o.structureEcartee) : [];
         const heritable = heritee && !exclues.includes(heritee.tirage.structure) ? heritee : null;
+        if (!heritable) journal.tirageNeuf = true;
         tirage = heritable?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(imposee ? { structureImposee: imposee } : {}), ...(exclues.length ? { structuresExclues: exclues } : {}) });
         // Une structure imposée (script validé, écriture déjà commencée) l'emporte aussi sur celle d'un tirage hérité.
         if (imposee && tirage.structure !== imposee) tirage = { ...tirage, structure: imposee };
@@ -942,6 +949,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     if (!gardee && variete) {
       const heritee = variete.miseHeritee ? lireMise(await sansPanne(() => variete.miseHeritee!(o.videoId), null)) : null;
       const historique = lireHistorique(await sansPanne(() => variete.lireHistorique(), []));
+      if (!journal.tirage && !heritee) journal.tirageNeuf = true;
       const tirage = journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique });
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
@@ -1057,6 +1065,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // 7. Finitions : une composition complète par fin.
   // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
   const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
+  // Variante par vidéo : coupée pour un tirage NEUF ; le tirage déjà enregistré (fiche, version existante, journal d'avant) est respecté.
+  const variante = VARIANTE_PAR_VIDEO || !journal.tirageNeuf;
   // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
   const positionDuStyle = (v: ValeurStyleSousTitres): number => {
     if (v.positionPct !== undefined) return v.positionPct;
@@ -1064,15 +1074,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const zones = positionsVerticales(RATIO, [...new Set(calage.fins.flatMap((cf) => cf.fin.reseaux))]);
     return v.position === "haut" ? zones.hautPct : zones.basPct;
   };
-  const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres);
+  const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres, variante);
   const style = choisi
     ? { id: choisi.id, nom: choisi.nom, valeur: { ...choisi.valeur, positionPct: centre, largeurMaxPct: choisi.valeur.largeurMaxPct ?? LARGEUR_SOUS_TITRES_PCT } }
-    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres) } };
+    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres, variante) } };
   const baseSousTitres = choisi ? baseRetenue(o.baseSousTitres, choisi.valeur) : "minimal";
   // Le style choisi (identifiant, valeur, base) entre dans l'empreinte du montage ; sans choix rien n'est ajouté (empreinte v4 inchangée).
   const variationDuMontage = choisi
     ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
-    : [variationSousTitresCasConcret(mise?.tirage.sousTitres), surlignageCasConcret(mise?.tirage.sousTitres)].filter((x) => Object.keys(x).length);
+    : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante)].filter((x) => Object.keys(x).length);
   const emphase = [...new Set(calage.fiche.ecrans.flatMap(motsOrange))];
   const bruitagesDe = new Map<string, BruitagePlace[]>();
   const preparees = calage.fins.map((cf) => {
@@ -1089,7 +1099,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage);
     return { f, son, scenes, dureeSec, bruitages, texteScript, cle, clairs };
   });
-  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...(choisi ? {} : variationSousTitresCasConcret(mise?.tirage.sousTitres)) });
+  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...(choisi ? {} : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante)) });
   const montage = await etape("montage", empreinte("montage", preparees.map((x) => x.cle)), async () => {
     const faites: { id: string; sortieCle: string; masterCle?: string; vignetteCle: string; mesures: Record<string, number> }[] = [];
     for (const x of preparees) {
