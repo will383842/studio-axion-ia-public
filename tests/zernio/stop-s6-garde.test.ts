@@ -8,6 +8,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   empreintePersonne,
@@ -42,11 +43,17 @@ const CONSTRUCTEURS_CLIENT_ZERNIO = [
   "fournisseurs/publication/zernio.ts",
   "services/zernio.ts",
 ];
-/** Liste fermée : fichiers qui appellent `.requete(` (hors client lui-même). Les autres n'ont que des méthodes typées sans Inbox. */
+/**
+ * Liste fermée : fichiers qui appellent `.requete(` (hors client lui-même), SANS filtre sur l'import.
+ * `higgsfield/client.ts` est documenté hors Zernio : son `.requete(` est celui d'un contrat Higgsfield (pas du client Zernio).
+ */
 const APPELANTS_REQUETE_BRUTE = [
   "fournisseurs/zernio-inbox.ts",
   "fournisseurs/mesures/zernio.ts",
+  "fournisseurs/higgsfield/client.ts",
 ];
+/** Fichiers où un nom de méthode d'envoi n'est pas celui du port Inbox (fonction `envoyerMessage` propre à Claude). */
+const HORS_PORT_ENVOI = /^fournisseurs\/claude\//;
 /** Liste fermée : fichiers qui construisent le port Inbox (`creerPortInboxZernio`). */
 const CONSTRUCTEURS_PORT_INBOX = ["services/branchements-zernio.ts"];
 /** Liste fermée : fichiers autorisés à nommer l'émetteur de jetons « non opposée » (hors sa définition). */
@@ -73,23 +80,125 @@ function listerSources(dossier: string): string[] {
   }
   return res;
 }
-/** Retire les commentaires (une phrase de doc qui cite un nom n'est pas un appel). */
-function sansCommentaires(s: string): string {
-  return s
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/(^|[\s;{}(,])\/\/.*$/gm, "$1");
+/**
+ * Retire les commentaires avec le compilateur TypeScript (il connaît les chaînes, gabarits et regex :
+ * "image/*" ou " //" dans une chaîne n'effacent plus de vrai code).
+ */
+function sansCommentaires(s: string, nomFichier = "x.ts"): string {
+  const genre = nomFichier.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  return ts
+    .createPrinter({ removeComments: true })
+    .printFile(
+      ts.createSourceFile(nomFichier, s, ts.ScriptTarget.Latest, false, genre),
+    );
 }
 const SOURCES = new Map<string, string>(
   listerSources(RACINE).map((f) => [
     relative(RACINE, f).split("\\").join("/"),
-    sansCommentaires(readFileSync(f, "utf8")),
+    sansCommentaires(readFileSync(f, "utf8"), f),
   ]),
 );
-const fichiersContenant = (re: RegExp): string[] =>
-  [...SOURCES]
-    .filter(([, s]) => re.test(s))
+const fichiersContenantDans = (
+  sources: ReadonlyMap<string, string>,
+  re: RegExp,
+): string[] =>
+  [...sources]
+    .filter(([, s]) => re.test(normaliser(s)))
     .map(([f]) => f)
     .sort();
+const fichiersContenant = (re: RegExp): string[] =>
+  fichiersContenantDans(SOURCES, re);
+/** Texte du client avec les `\/` d'une regex littérale remis en `/` : une route écrite `/^\/v1\/inbox\/…$/` reste visible. */
+const normaliser = (s: string): string => s.replace(/\\\//g, "/");
+
+/** Routes Inbox du tableau ROUTES : écritures (POST), toutes, et décompte indépendant des lignes qui parlent d'inbox. */
+function routesInbox(clientBrut: string) {
+  const client = normaliser(clientBrut);
+  const ecritures = [
+    ...client.matchAll(
+      /methode:\s*"POST",\s*motif:[^\n]*?\/v1\/inbox[^\n]*?route:\s*"([a-z-]+)"/g,
+    ),
+  ]
+    .map((m) => m[1])
+    .sort();
+  const tous = [
+    ...client.matchAll(/motif:[^\n]*?\/v1\/inbox[^\n]*?route:\s*"([a-z-]+)"/g),
+  ]
+    .map((m) => m[1])
+    .sort();
+  const lignesInbox = client
+    .split("\n")
+    .filter((l) => /\bmethode:\s*"/.test(l) && /inbox/i.test(l)).length;
+  return { ecritures, tous, lignesInbox };
+}
+
+/** Le port : `ecrire(` (définition + 3 appels, un par méthode d'envoi) et `client.requete(` (ecrire + lireMessage GET). */
+function analysePort(port: string): string[] {
+  const erreurs: string[] = [];
+  if (!/consommerJetonNonOpposee/.test(port)) erreurs.push("jeton absent");
+  const nbEcrire = [...port.matchAll(/\becrire\(/g)].length;
+  if (nbEcrire !== 4)
+    erreurs.push(`ecrire( : ${nbEcrire} occurrences au lieu de 4`);
+  const requetes = [...port.matchAll(/\bclient\.requete\(/g)];
+  if (requetes.length !== 2)
+    erreurs.push(
+      `client.requete( : ${requetes.length} occurrences au lieu de 2`,
+    );
+  const iLire = port.indexOf("async lireMessage(");
+  const iReq = requetes.map((m) => m.index!);
+  if (iLire === -1 || !iReq.some((i) => i > iLire))
+    erreurs.push("client.requete( de lireMessage absent");
+  else {
+    const argLire = argumentsDe(
+      port,
+      port.indexOf("(", port.indexOf("client.requete(", iLire)),
+    );
+    if (!/methode:\s*"GET"/.test(argLire))
+      erreurs.push("lireMessage doit appeler client.requete en GET");
+  }
+  const defEcrire = port.search(/function\s+ecrire\(/);
+  if (defEcrire === -1 || !iReq.some((i) => i > defEcrire && i < iLire))
+    erreurs.push("client.requete( d'ecrire absent");
+  // Chaque méthode : jeton testé AVANT son (unique) appel à ecrire( dans SON bloc.
+  const debuts = METHODES_ENVOI.map((m) => ({ m, i: port.indexOf(`${m}:`) }));
+  for (const { m, i } of debuts) {
+    if (i === -1) {
+      erreurs.push(`${m} absente du port`);
+      continue;
+    }
+    const suivants = [...debuts.map((d) => d.i), iLire].filter((x) => x > i);
+    const fin = suivants.length ? Math.min(...suivants) : port.length;
+    const bloc = port.slice(i, fin);
+    const n = [...bloc.matchAll(/\becrire\(/g)].length;
+    if (n !== 1) erreurs.push(`${m} : ${n} appel(s) à ecrire( au lieu de 1`);
+    const iJeton = bloc.search(/jetonRefuse\(p\.nonOpposee\)/);
+    const iEcrire = bloc.search(/\becrire\(/);
+    if (iJeton === -1 || (iEcrire !== -1 && iJeton > iEcrire))
+      erreurs.push(`${m} : le jeton doit être testé AVANT l'écriture`);
+  }
+  return erreurs;
+}
+
+/** Appelants de `.requete(` hors client, SANS regarder les imports. */
+const appelantsBruts = (sources: ReadonlyMap<string, string>): string[] =>
+  fichiersContenantDans(sources, /\.requete\(/).filter((f) => f !== CLIENT);
+
+/** Déstructuration d'une méthode d'envoi hors du port (ignore `import` et fournisseurs/claude/*). */
+const DESTRUCTURATION = new RegExp(
+  `\\{[^}]*\\b(${METHODES_ENVOI.join("|")})\\b[^}]*\\}\\s*=`,
+);
+function destructurations(sources: ReadonlyMap<string, string>): string[] {
+  const res: string[] = [];
+  for (const [f, s] of sources) {
+    if (f === PORT || HORS_PORT_ENVOI.test(f)) continue;
+    const lignes = s
+      .split("\n")
+      .filter((l) => !/^\s*import\b/.test(l))
+      .join("\n");
+    if (DESTRUCTURATION.test(lignes)) res.push(f);
+  }
+  return res.sort();
+}
 /** Texte des arguments d'un appel : de la parenthèse ouvrante à sa parenthèse fermante. */
 function argumentsDe(s: string, indexParenthese: number): string {
   let niveau = 0;
@@ -114,31 +223,23 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
   it("(1) les routes d'écriture de l'Inbox (liste fermée du client) ne sont appelées que depuis zernio-inbox.ts", () => {
     const client = SOURCES.get(CLIENT)!;
     // Routes Inbox d'ÉCRITURE = lignes POST de la table ROUTES dont le motif vise /v1/inbox.
-    const ecritures = [
-      ...client.matchAll(
-        /methode:\s*"POST",\s*motif:[^\n]*?\/v1\/inbox[^\n]*?route:\s*"([a-z-]+)"/g,
-      ),
-    ]
-      .map((m) => m[1])
-      .sort();
+    const { ecritures, tous, lignesInbox } = routesInbox(client);
     expect(
       ecritures,
       "La liste fermée des routes d'écriture Inbox a changé : relecture de sécurité obligatoire, puis mets cette garde à jour.",
     ).toEqual(["envoyer-message", "repondre-commentaire", "reponse-privee"]);
     // Aucun GET inbox déguisé en écriture ni écriture hors table : seuls les 4 chemins Inbox existent.
-    const tousInbox = [
-      ...client.matchAll(
-        /motif:[^\n]*?\/v1\/inbox[^\n]*?route:\s*"([a-z-]+)"/g,
-      ),
-    ]
-      .map((m) => m[1])
-      .sort();
-    expect(tousInbox).toEqual([
+    expect(tous).toEqual([
       "envoyer-message",
       "lire-messages",
       "repondre-commentaire",
       "reponse-privee",
     ]);
+    // Décompte indépendant (insensible à la casse) : une route écrite d'une façon que les regex ne voient pas fait rougir.
+    expect(
+      lignesInbox,
+      "Une ligne de ROUTES parle d'inbox sans être reconnue (ou une 5e route existe) : relecture de sécurité.",
+    ).toBe(4);
     // Qui écrit un chemin d'écriture Inbox ? (chemin littéral ou gabarit)
     const appelants = fichiersContenant(/\/v1\/inbox/).filter(
       (f) => f !== CLIENT,
@@ -148,10 +249,7 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
       echec("Chemin /v1/inbox écrit hors de la liste fermée", appelants),
     ).toEqual(APPELANTS_ROUTES_ECRITURE_INBOX);
     // Appel brut `.requete(` : liste fermée aussi (un autre appelant pourrait viser l'Inbox par un chemin construit).
-    const importeClient = new Set(fichiersContenant(/zernio-client"/));
-    const bruts = fichiersContenant(/\.requete\(/).filter(
-      (f) => f !== CLIENT && importeClient.has(f),
-    );
+    const bruts = appelantsBruts(SOURCES);
     expect(bruts, echec("Appel direct à client.requete(", bruts)).toEqual(
       [...APPELANTS_REQUETE_BRUTE].sort(),
     );
@@ -165,7 +263,7 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
     ).toEqual(APPELANTS_ROUTES_ECRITURE_INBOX);
   });
 
-  it("(2) hors zernio-inbox.ts, personne n'importe le client d'envoi bas niveau de l'Inbox", () => {
+  it("(2) l'aide d'idempotence Inbox, la fabrique du client (creerClientZernio) et celle du port (creerPortInboxZernio) restent dans leurs listes fermées, et le port teste le jeton avant d'écrire", () => {
     // Aide d'idempotence Inbox : propre au port.
     const idem = fichiersContenant(/\benteteIdempotenceInbox\b/).filter(
       (f) => f !== CLIENT,
@@ -190,22 +288,8 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
       CONSTRUCTEURS_PORT_INBOX,
     );
     // Le port ne contourne pas son propre jeton : chaque méthode d'écriture teste le jeton avant d'écrire.
-    const port = SOURCES.get(PORT)!;
-    expect(port).toMatch(/consommerJetonNonOpposee/);
-    for (const m of METHODES_ENVOI) {
-      const i = port.indexOf(`${m}:`);
-      expect(i, `${m} absente du port`).toBeGreaterThan(-1);
-      const bloc = port.slice(i, i + 400);
-      expect(
-        bloc,
-        `${m} doit refuser sans jeton avant tout appel réseau. ${CONSIGNE}`,
-      ).toMatch(/jetonRefuse\(p\.nonOpposee\)/);
-      const iEcrire = bloc.indexOf("ecrire(");
-      expect(
-        iEcrire === -1 || bloc.indexOf("jetonRefuse") < iEcrire,
-        `${m} : le jeton doit être testé AVANT l'écriture. ${CONSIGNE}`,
-      ).toBe(true);
-    }
+    const erreursPort = analysePort(SOURCES.get(PORT)!);
+    expect(erreursPort, `${erreursPort.join(" ; ")}. ${CONSIGNE}`).toEqual([]);
   });
 
   it("(3) aucun appel à personneOpposee( mono-espace dans le parcours, le mot et à-traiter", () => {
@@ -255,6 +339,11 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
         }
       }
     }
+    const destr = destructurations(SOURCES);
+    expect(
+      destr,
+      echec("Déstructuration d'une méthode d'envoi du port", destr),
+    ).toEqual([]);
     expect(
       total,
       "le parcours doit appeler les 3 méthodes (garde vide sinon)",
@@ -269,22 +358,116 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
   });
 });
 
+/* ───────── (A bis) PREUVES : chaque garde rougit sur un texte fautif construit en mémoire ───────── */
+
+describe("S6 (A bis) preuves que les gardes détectent les cas pièges", () => {
+  const clientOk = SOURCES.get(CLIENT)!;
+  const portOk = SOURCES.get(PORT)!;
+
+  it("les vrais fichiers passent (point de départ des mutations)", () => {
+    expect(routesInbox(clientOk).lignesInbox).toBe(4);
+    expect(analysePort(portOk)).toEqual([]);
+    expect(destructurations(SOURCES)).toEqual([]);
+  });
+
+  it("(1) une route Inbox écrite en regex littérale est vue, et une 5e route fait bouger le décompte", () => {
+    const fautif =
+      clientOk +
+      '\nexport const ROUTES_PIEGE = [\n  { methode: "POST", motif: /^\\/v1\\/inbox\\/secret\\/[a-z]+$/, route: "envoi-secret" },\n];\n';
+    const r = routesInbox(sansCommentaires(fautif, CLIENT));
+    expect(r.ecritures).toContain("envoi-secret");
+    expect(r.tous).toContain("envoi-secret");
+    expect(r.lignesInbox).toBe(5);
+    // un appelant qui écrit le chemin en regex littérale est vu aussi
+    const sources = new Map([
+      ["x/appelant.ts", "const re = /^\\/v1\\/inbox\\/comments/;"],
+    ]);
+    expect(fichiersContenantDans(sources, /\/v1\/inbox/)).toEqual([
+      "x/appelant.ts",
+    ]);
+  });
+
+  it("(2) \"image/*\" dans une chaîne n'efface plus de vrai code : l'envoi sans jeton reste visible", () => {
+    const texte = [
+      'const types = "image/*";',
+      "await port.envoyerMessage({ texte });",
+      "/* fin */",
+    ].join("\n");
+    const propre = sansCommentaires(texte);
+    expect(propre).toContain("envoyerMessage");
+    expect(propre).toContain('"image/*"');
+    expect(propre).not.toContain("fin");
+    const avecSlashes = sansCommentaires(
+      'const u = " //"; port.repondreEnPrive({ a }); // vrai commentaire',
+    );
+    expect(avecSlashes).toContain("repondreEnPrive");
+    expect(avecSlashes).not.toContain("vrai commentaire");
+    // ... et la garde (4) rougit : appel sans jeton repéré
+    const args = argumentsDe(
+      propre,
+      propre.indexOf("(", propre.indexOf(".envoyerMessage")),
+    );
+    expect(args).not.toMatch(/\bnonOpposee\w*\b/);
+  });
+
+  it("(3) un ecrire( caché dans le port ou une requête de plus fait rougir analysePort", () => {
+    const cache = portOk.replace(
+      "async lireMessage(p) {",
+      'async lireMessage(p) {\n      void ecrire({ methode: "POST", chemin: "/v1/inbox/x" } as never);',
+    );
+    expect(cache).not.toBe(portOk);
+    expect(analysePort(cache).join(" ")).toMatch(/ecrire\( : 5 occurrences/);
+    const requeteEnPlus = portOk.replace(
+      "async lireMessage(p) {",
+      'async lireMessage(p) {\n      await client.requete({ methode: "POST", chemin: "/v1/inbox/y" } as never);',
+    );
+    expect(analysePort(requeteEnPlus).join(" ")).toMatch(
+      /client\.requete\( : 3/,
+    );
+    // écriture avant le jeton dans une méthode
+    const avant = portOk.replace(
+      "repondreEnPrive: (p) => {\n",
+      "repondreEnPrive: (p) => {\n      void ecrire({} as never);\n",
+    );
+    expect(avant).not.toBe(portOk);
+    expect(analysePort(avant).length).toBeGreaterThan(0);
+    // lireMessage qui n'est plus en GET
+    const pasGet = portOk.replace('methode: "GET"', 'methode: "POST"');
+    expect(analysePort(pasGet).join(" ")).toMatch(/GET/);
+  });
+
+  it("(4) un fichier qui appelle .requete( sans importer zernio-client est repéré", () => {
+    const sources = new Map(SOURCES);
+    sources.set(
+      "services/intrus.ts",
+      'export const f = (c: any) => c.requete({ methode: "POST", chemin: `/v1/inbox/${a}` });',
+    );
+    expect(appelantsBruts(SOURCES)).toEqual(
+      [...APPELANTS_REQUETE_BRUTE].sort(),
+    );
+    expect(appelantsBruts(sources)).toContain("services/intrus.ts");
+    expect(appelantsBruts(sources)).not.toEqual(
+      [...APPELANTS_REQUETE_BRUTE].sort(),
+    );
+  });
+
+  it("(5) une déstructuration d'une méthode d'envoi hors du port est repérée (import et Claude ignorés)", () => {
+    const sources = new Map<string, string>([
+      ["services/a.ts", "const { repondreEnPrive } = port;"],
+      ["services/b.ts", "const { x, envoyerMessage: e, y } = port;"],
+      ["services/c.ts", 'import { envoyerMessage } from "./z";'],
+      ["fournisseurs/claude/d.ts", "const { envoyerMessage } = outils;"],
+      [PORT, "const { repondreCommentaire } = autre;"],
+    ]);
+    expect(destructurations(sources)).toEqual([
+      "services/a.ts",
+      "services/b.ts",
+    ]);
+  });
+});
+
 /* ───────────────── (B) SCÉNARIO DE BOUT EN BOUT (fausses dépendances) ───────────────── */
 
-const hook = vi.hoisted(() => ({
-  apresEcriture: null as null | ((nom: string) => Promise<void>),
-}));
-vi.mock("@/services/_commun", async (orig) => {
-  const r = await orig<Record<string, any>>();
-  return {
-    ...r,
-    ecrireParametre: async (nom: string, ...a: unknown[]) => {
-      const x = await r.ecrireParametre(nom, ...a);
-      await hook.apresEcriture?.(nom);
-      return x;
-    },
-  };
-});
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => {
   const r = await orig<Record<string, unknown>>();
@@ -338,7 +521,6 @@ beforeEach(async () => {
   C.reinitialiserParcoursConversation();
   pm.reinitialiserGardesParcours();
   silencerConsole();
-  hook.apresEcriture = null;
   surPub = null;
   sites = [];
   port = fauxPort();
