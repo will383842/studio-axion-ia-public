@@ -170,7 +170,56 @@ describe("GV-EC-01c : vidéo supprimée pendant l'attente de validation", () => 
       expect(await reservationsLiberees(travailId)).toBe(1);
       // La réservation reste en comptabilité (jamais effacée), l'engagement du budget est rendu.
       expect(await depots().reservations.compter((r) => r.travailId === travailId)).toBe(1);
-      expect((await couts.resumeBudget()).engage.centimes).toBe(0);
+      // Vérification qui échoue sans la correction : la réservation est bien passée à « liberee », avec sa date de libération.
+      const [res] = await depots().reservations.lister((r) => r.travailId === travailId);
+      expect(res.statut).toBe("liberee");
+      expect(res.libereeLe).toBeTruthy();
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("la libération échoue : la réservation n'est pas perdue et la vidéo n'est pas effacée ; une reprise retrouve une réservation active", async () => {
+    const { travailId } = await mettreEnEchec("IV_SCRIPT_A_VALIDER");
+    const cible = (await depots().travaux.obtenir(travailId))!.cibleId;
+    const espion = vi.spyOn(credits, "libererReservation").mockRejectedValueOnce(new Error("libération en panne"));
+    try {
+      await expect((await videos()).supprimerVideoDefinitivement(cible)).rejects.toThrow();
+    } finally {
+      espion.mockRestore();
+    }
+    expect(await depots().videos.obtenir(cible)).toBeDefined();
+    expect(await depots().travaux.obtenir(travailId)).toBeDefined();
+    expect(await reservationsActives(travailId)).toBe(1);
+    // Même si la réservation avait été rendue avant l'échec du lot, la reprise la réactive.
+    await credits.libererReservation(travailId, "liberee");
+    const r = await travaux.reessayerTravail(travailId);
+    expect(r.statut).not.toBe("echec");
+    expect(await reservationsActives(travailId)).toBe(1);
+  });
+
+  it("le lot d'effacement échoue après la libération : la réservation est rétablie (active), rien n'est perdu", async () => {
+    const { travailId } = await mettreEnEchec("IV_SCRIPT_A_VALIDER");
+    const cible = (await depots().travaux.obtenir(travailId))!.cibleId;
+    const espion = vi.spyOn(depots().videos, "supprimer").mockRejectedValue(new Error("lot en panne"));
+    try {
+      await expect((await videos()).supprimerVideoDefinitivement(cible)).rejects.toThrow();
+    } finally {
+      espion.mockRestore();
+    }
+    expect(await depots().travaux.obtenir(travailId)).toBeDefined();
+    expect(await reservationsActives(travailId)).toBe(1);
+  });
+
+  it("un travail portant le code d'attente mais un autre statut n'est pas libéré par la suppression", async () => {
+    const { travailId } = await mettreEnEchec("IV_SCRIPT_A_VALIDER");
+    const cible = (await depots().travaux.obtenir(travailId))!.cibleId;
+    // Même code d'erreur, mais le travail est « annulé » : sa réservation n'est pas du ressort de la suppression.
+    await depots().travaux.modifier(travailId, { statut: "annule" });
+    const espion = vi.spyOn(credits, "libererReservation");
+    try {
+      expect(await (await videos()).supprimerVideoDefinitivement(cible)).toBe(true);
+      expect(espion.mock.calls.filter((c) => c[0] === travailId)).toHaveLength(0);
     } finally {
       espion.mockRestore();
     }
