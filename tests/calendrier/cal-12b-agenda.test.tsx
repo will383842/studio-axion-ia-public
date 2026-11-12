@@ -114,10 +114,32 @@ describe("VueAgenda : un jour sans publication", () => {
     expect(rendre(<VueAgenda {...props({ entrees: [] })} />).match(/rien /gi)).toHaveLength(7);
   });
 
-  it("un filtre qui masque tout laisse les jours dits sans publication, sans rien cacher d'autre", () => {
+  it("un filtre qui masque tout : « rien ce jour » seulement les jours sans publication, « aucune publication avec ces filtres » les jours qui en ont", () => {
     const h = rendre(<VueAgenda {...props({ criteres: { reseaux: [], types: [], etats: [] } })} />);
     expect(h).not.toContain("data-carte");
-    expect(h.match(/rien /gi)).toHaveLength(7);
+    // La liste a des publications le jeudi (2) et le samedi (1) : ces deux jours ne disent jamais « rien de prévu ».
+    expect(h.match(/Aucune publication avec ces filtres\./g)).toHaveLength(2);
+    expect(h.match(/rien /gi)).toHaveLength(5);
+    const jeudi = h.slice(h.indexOf('data-jour="2026-11-12"'), h.indexOf('data-jour="2026-11-13"'));
+    const samedi = h.slice(h.indexOf('data-jour="2026-11-14"'), h.indexOf('data-jour="2026-11-15"'));
+    for (const jour of [jeudi, samedi]) {
+      expect(jour).toContain("Aucune publication avec ces filtres.");
+      expect(jour).not.toMatch(/rien/i);
+    }
+  });
+
+  it("un filtre qui garde une partie du jour montre les cartes gardées, sans phrase de jour vide", () => {
+    const h = rendre(<VueAgenda {...props({ criteres: { reseaux: ["linkedin"], types: [], etats: [] } })} />);
+    const jeudi = h.slice(h.indexOf('data-jour="2026-11-12"'), h.indexOf('data-jour="2026-11-13"'));
+    expect(jeudi).toContain("creneau:c1|linkedin");
+    expect(jeudi).not.toContain("creneau:c2|instagram");
+    expect(jeudi).not.toMatch(/rien|Aucune publication/i);
+    // Le samedi n'a que du TikTok : masqué par le filtre, il le dit.
+    expect(h.slice(h.indexOf('data-jour="2026-11-14"'), h.indexOf('data-jour="2026-11-15"'))).toContain("Aucune publication avec ces filtres.");
+  });
+
+  it("sans filtre, un jour qui a des publications n'a jamais la phrase de filtre", () => {
+    expect(rendre(<VueAgenda {...props()} />)).not.toContain("avec ces filtres");
   });
 
   it("jour illisible : la semaine d'aujourd'hui ; aujourd'hui illisible aussi : une phrase, pas d'erreur", () => {
