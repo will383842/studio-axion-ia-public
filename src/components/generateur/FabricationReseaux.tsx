@@ -177,18 +177,6 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
           ))}
         </ol>
         {avatarParle && <p className="mt-3 text-sm font-semibold text-texte">{avatarParle}</p>}
-        <dl className="mt-4 space-y-1.5 rounded-champ bg-surface-2 p-3 text-sm" aria-busy={calcul}>
-          {resume && !calcul && (
-            <>
-              {resume.credits.map((c) => (
-                <div key={c.nom} className="flex items-center justify-between gap-2">
-                  <dt className="text-texte-doux">Crédit {c.nom}</dt>
-                  <dd className="tabular-nums text-texte">{c.disponible}</dd>
-                </div>
-              ))}
-            </>
-          )}
-        </dl>
         {/* E2E-2 argent n° 7 : la phrase dit exactement ce qui sera payé (jamais « rien » quand la voix l'est). */}
         {resume?.messageEssai && !calcul && <p className="mt-2 text-center text-xs text-texte-faible">{resume.messageEssai}</p>}
         <div className="mt-4">

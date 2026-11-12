@@ -143,7 +143,7 @@ export async function testerConnexionAction(fournisseur: string): Promise<Result
 export async function declarerRechargeAction(fournisseur: string, dollars: number): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {
-    if (!Number.isFinite(dollars) || dollars <= 0 || dollars > 10000) throw new ErreurStudio("MONTANT_INVALIDE", "Indiquez un montant entre 0,01 et 10 000.");
+    if (!Number.isFinite(dollars) || dollars <= 0 || dollars > 10000) throw new ErreurStudio("MONTANT_INVALIDE", "Indiquez un montant valide (au moins un centime).");
     await declarerRecharge(String(fournisseur), Math.round(dollars * 100));
     rafraichir();
     revalidatePath("/");
