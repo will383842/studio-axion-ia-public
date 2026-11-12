@@ -13,3 +13,10 @@
 - Douteux : CreneauEditorial a un videoId facultatif ; « sans-lien » ne le détache pas à la suppression d'une vidéo. À trancher par une autre fiche.
 - Remarques (Depot.supprimer, champs du message) : reportées, à confirmer par le fondateur.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (avis opus-v1-u8)
+- creneauxEditoriaux « sans-lien » faux (orphelin prouvé) : corrigé. Traitement « detache » ; planifierSuppression retire le videoId du créneau (le créneau reste). Test ajouté dans tests/suppression-video-orphelins.test.ts (rouge puis vert) : fichier de test HORS liste, ajouté comme l'avis le demande.
+- Fichier src/services/suppression-video.ts hors fichiers_autorises, sans CORRECTIF de fiche : REPORTÉ au pilotage (je ne peux pas écrire de CORRECTIF dans la fiche). Ordre de fusion conseillé : L0-07 → L1-06 → STK-01. Les deux fichiers hors liste sont à couvrir par un CORRECTIF avant fusion.
+- stockMessages, journalDecalages : « sans-lien » confirmé juste par l'avis. Remarques (Depot.supprimer, champs du message) : reportées au fondateur.
+- Tests : suppression-video* + stock-messages + calendrier + plan-editorial : 10 fichiers, 84 passés, 0 échoué. tsc : aucune erreur dans les fichiers touchés.
+- contrôle anti-fuite : vide
