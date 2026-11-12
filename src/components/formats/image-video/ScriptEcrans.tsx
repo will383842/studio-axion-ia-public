@@ -62,6 +62,7 @@ export function ScriptEcrans({
   const [edition, setEdition] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const [phrase, setPhrase] = useState<string | null>(null);
+  const [formeAcceptee, setFormeAcceptee] = useState(false);
   const [changes, setChanges] = useState<Partial<RecetteVarieteIV>>({});
   const lignes = lignesDuScript(fiche, formules);
   const ouvertes = formulesNonTranchees(formules, m);
@@ -80,7 +81,7 @@ export function ScriptEcrans({
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
       // Le script de Williams fait foi : une phrase non tranchée est gardée telle quelle (simple remarque).
       const choixFormules = { ...Object.fromEntries(ouvertes.map((f) => [f.cle, "garder" as const])), ...decision.choixFormules };
-      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}) }, montant);
+      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}), ...(formeAcceptee && aTrancher.length > 0 && !decision.fiche ? { formeAcceptee: true } : {}) }, montant);
       if (!r.ok) return setPhrase(r.message);
       const fin = await jusquALaReprise(videoId, r.donnees);
       if (fin) return setPhrase(fin);
@@ -200,6 +201,12 @@ export function ScriptEcrans({
             <li key={t}>{t}</li>
           ))}
         </ul>
+      )}
+      {aTrancher.length > 0 && !decision.fiche && (
+        <label className="flex items-start gap-2 text-sm text-texte">
+          <input type="checkbox" className="mt-1 size-4" checked={formeAcceptee} onChange={(ev) => setFormeAcceptee(ev.target.checked)} />
+          <span>Je valide ce script tel quel malgré ces points de forme. Un chiffre ou un nom inventé, un mot interdit ou une durée trop longue restent bloquants.</span>
+        </label>
       )}
 
       <div className="flex flex-wrap gap-2">
