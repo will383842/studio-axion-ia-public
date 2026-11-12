@@ -16,7 +16,7 @@ import { ENTREE_MONTEUR_AVOCAT, PARAM_MONTEUR_AVOCAT } from "@/moteurs/montage-a
 import { ENTREE_MOTION_AVOCAT, PARAM_MOTION_AVOCAT } from "@/moteurs/montage-avocat/motion";
 import { resoudreFournisseur } from "@/fournisseurs";
 import type { Video } from "@/domaine/types";
-import { lireParametre } from "./_commun";
+import { depots, lireParametre } from "./_commun";
 import { analyseurAnglesStudio } from "./analyseur-angles";
 import { lireReglageMulticameraAvocat, passeMulticameraAvocat } from "./multicamera-avocat";
 
@@ -54,14 +54,53 @@ async function allume(param: string): Promise<Record<string, unknown> | null> {
 }
 
 /**
+ * Mémoire des cartes animées déjà servies par l'avocat : les modèles posés dans les 5 dernières vidéos avocat prêtes
+ * (hors la vidéo en cours), la plus récente d'abord, une version par vidéo ; et le modèle qui a ouvert la dernière.
+ * Cartes en échec ignorées ; seules celles du premier ratio rencontré comptent (pas de doublon par ratio). Une lecture
+ * qui échoue ne bloque jamais : liste vide, donc le choix d'avant. Le résultat est figé dans la commande au lancement.
+ */
+export async function memoireCartesAvocat(videoIdEnCours?: string): Promise<{ dejaServis: string[]; ouverturePrecedente?: string }> {
+  try {
+    const versions = await depots().versions.lister((v) => v.statut === "prete" && (v.projetMontage as { moteur?: unknown } | undefined)?.moteur === "montage-avocat" && v.videoId !== videoIdEnCours);
+    const vus = new Set<string>();
+    const videos = [...versions]
+      .sort((a, b) => (b.creeLe ?? "").localeCompare(a.creeLe ?? ""))
+      .filter((v) => (vus.has(v.videoId) ? false : (vus.add(v.videoId), true)))
+      .slice(0, 5)
+      .map((v) => {
+        const cartes = (v.projetMontage as { motionCommune?: { cartes?: { ratio?: unknown; modele?: unknown; statut?: unknown; debutSec?: unknown }[] } } | undefined)?.motionCommune?.cartes;
+        const valides = (Array.isArray(cartes) ? cartes : []).filter((x) => x.statut !== "echec" && typeof x.ratio === "string" && typeof x.modele === "string" && typeof x.debutSec === "number");
+        const premierRatio = valides[0]?.ratio;
+        return valides
+          .filter((x) => x.ratio === premierRatio)
+          .sort((a, b) => (a.debutSec as number) - (b.debutSec as number))
+          .map((x) => x.modele as string);
+      });
+    const ouverture = videos.find((m) => m.length)?.[0];
+    return { dejaServis: videos.flat(), ...(ouverture ? { ouverturePrecedente: ouverture } : {}) };
+  } catch (e) {
+    console.warn("[studio] mémoire des cartes avocat illisible :", e instanceof Error ? e.message : e);
+    return { dejaServis: [] };
+  }
+}
+
+/**
  * Réglages de l'avocat figés au lancement (le moteur ne lit pas les réglages). Tous coupés par défaut : rien n'est
  * ajouté à la commande. Les consignes du monteur viennent de la vidéo (`entrees.avocatConsignes` : fil, consignes
  * dites relevées dans une transcription libre).
  */
-export async function entreesAvocatDuLancement(video: Pick<Video, "entrees">): Promise<Record<string, unknown>> {
+export async function entreesAvocatDuLancement(video: Pick<Video, "entrees"> & Partial<Pick<Video, "id">>): Promise<Record<string, unknown>> {
   const sortie: Record<string, unknown> = {};
   const motion = await allume(PARAM_MOTION_AVOCAT);
-  if (motion) sortie[ENTREE_MOTION_AVOCAT] = { actif: true, ...(Array.isArray(motion.habitude) ? { habitude: motion.habitude } : {}) };
+  if (motion) {
+    const memoire = await memoireCartesAvocat(video.id);
+    sortie[ENTREE_MOTION_AVOCAT] = {
+      actif: true,
+      ...(Array.isArray(motion.habitude) ? { habitude: motion.habitude } : {}),
+      ...(memoire.dejaServis.length ? { dejaServis: memoire.dejaServis } : {}),
+      ...(memoire.ouverturePrecedente ? { ouverturePrecedente: memoire.ouverturePrecedente } : {}),
+    };
+  }
   const monteur = await allume(PARAM_MONTEUR_AVOCAT);
   const consignes = monteur ? lireConsignes((video.entrees as { avocatConsignes?: unknown } | undefined)?.avocatConsignes) : [];
   if (consignes.length) sortie[ENTREE_MONTEUR_AVOCAT] = { consignes };

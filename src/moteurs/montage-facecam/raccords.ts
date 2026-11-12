@@ -178,6 +178,8 @@ export function entreesAvecLivraison(entrees: Record<string, unknown> | undefine
     ...(livraison.passages?.length ? { passages: avant.passages.map((p) => livraison.passages!.find((x) => x.id === p.id) ?? p) } : {}),
     // Vérif V1 : cartes automatiques posées par l'habillage de cette version (le monteur du chat les voit).
     ...(livraison.cartesAuto ? { cartesAuto: livraison.cartesAuto } : {}),
+    // GV-MD-05a : la première mémoire des cartes figée sur la vidéo gagne, elle n'est jamais remplacée.
+    ...(livraison.memoireCartes && !avant.memoireCartes ? { memoireCartes: livraison.memoireCartes } : {}),
   };
   return { ...(entrees ?? {}), facecam };
 }

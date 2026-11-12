@@ -10,6 +10,7 @@ import { ImagePlan } from "../../../src/briques/plan-scenes/rendu";
 import { adoucir, CHARTE_AXION, FAMILLE_CSS_AXION, avecOpacite } from "../../../src/briques/jetons-motion";
 import { miseEnPageDemo, transformZoom, zoomA, type RectPx } from "../../../src/moteurs/montage-demo-facecam/mise-en-page";
 import type { ProprietesDemoFacecam } from "../../../src/moteurs/montage-demo-facecam/proprietes";
+import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
 import manrope from "../../../src/app/polices/manrope-latin.woff2";
 
 let chargement: Promise<void> | null = null;
@@ -80,7 +81,8 @@ export function DemoFacecam(p: ProprietesDemoFacecam) {
           <div style={{ position: "absolute", left: "50%", top: Math.round(ecran.hauteur * 0.05), transform: "translateX(-50%)", padding: "12px 28px", borderRadius: 999, background: CHARTE_AXION.noir, color: CHARTE_AXION.ivoire, fontSize: Math.round(ecran.hauteur * 0.045), fontWeight: 700, whiteSpace: "nowrap" }}>{legende.texte}</div>
         )}
       </div>
-      {groupe && (
+      {p.calqueSousTitres ? <CalqueSousTitres donnees={p.calqueSousTitres} /> : null}
+      {!p.calqueSousTitres && groupe && (
         <div style={{ position: "absolute", left: sousTitres.x, top: sousTitres.y, width: sousTitres.largeur, height: sousTitres.hauteur, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ padding: "10px 22px", borderRadius: 16, background: avecOpacite(CHARTE_AXION.noir, 0.82), color: CHARTE_AXION.ivoire, fontSize: Math.round(Math.min(sousTitres.hauteur * 0.42, 58)), fontWeight: 800, textAlign: "center", lineHeight: 1.15 }}>
             {groupe.mots.map((m, i) => (

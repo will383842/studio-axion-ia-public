@@ -29,7 +29,10 @@ brancherServicesTutoriel({
       // Rendu, stockage ou voix pas reliés : pause claire (le moteur le dit), rien n'est dépensé.
       return null;
     }
+    // Style de la Bibliothèque choisi pour la vidéo : transmis au moteur (champs absents si non définis).
+    const style = c.styles.sousTitres?.valeur;
     return {
+      sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       voix: {
         ...b.voix,
         avantLecture: async () => {

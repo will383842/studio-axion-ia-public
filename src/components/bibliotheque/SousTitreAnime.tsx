@@ -2,7 +2,7 @@
 
 import { useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { cssElement, donneesCalque, fabriquerSousTitres, gabaritDe, sceneAuTemps, type NomPolice } from "@/briques/sous-titres";
+import { baseRetenue, cssElement, donneesCalque, fabriquerSousTitres, sceneAuTemps, type NomPolice } from "@/briques/sous-titres";
 import { COULEURS_REPLI, type CouleursSousTitres } from "@/briques/sous-titres/style";
 import type { IntensiteSousTitres, SegmentSousTitres } from "@/domaine/types";
 import { cn } from "@/lib/cn";
@@ -18,24 +18,25 @@ const LARGEUR = 1080;
 const PAUSE_FIN_SEC = 0.8;
 
 /**
+ * Les groupes de l'aperçu : le MÊME calcul que la vidéo (base du style, intensité choisie), affichés tels quels.
+ */
+export function segmentsApercu({ style, phrase = PHRASE, intensite = "equilibre" }: { style: ValeurSousTitres; phrase?: string; intensite?: IntensiteSousTitres }): SegmentSousTitres[] {
+  return fabriquerSousTitres({ texte: phrase, dureeSec: phrase.split(/\s+/).length / 4.4, emphase: EN_VALEUR, style, base: baseRetenue(undefined, style), intensite });
+}
+
+/**
  * Aperçu animé d'un style de sous-titres (Bibliothèque, Style) : le MÊME moteur de rendu que la vidéo
- * (`briques/sous-titres/scene.ts`), mis à l'échelle du cadre. Un style d'accent (Impact, Bandeau) est montré seul ;
- * un style de base l'est avec le mélange de l'intensité choisie.
+ * (`briques/sous-titres/scene.ts`), mis à l'échelle du cadre. Impact et Bandeau sont de vraies bases : le mélange de
+ * l'intensité choisie s'applique comme dans la vidéo.
  */
 export function SousTitreAnime({ style, phrase = PHRASE, intensite = "equilibre", className }: { style: ValeurSousTitres; phrase?: string; intensite?: IntensiteSousTitres; className?: string }) {
   const reduit = useReducedMotion();
   const cadre = useRef<HTMLDivElement>(null);
   const [taille, setTaille] = useState({ l: 0, h: 0 });
   const [t, setT] = useState(1.2);
-  const gabarit = gabaritDe(style);
-  const base = gabarit === "minimal" ? "minimal" : "karaoke";
-  const accent = gabarit === "impact" || gabarit === "bandeau";
+  const base = baseRetenue(undefined, style);
 
-  const segments = useMemo<SegmentSousTitres[]>(() => {
-    const brut = fabriquerSousTitres({ texte: phrase, dureeSec: phrase.split(/\s+/).length / 4.4, emphase: EN_VALEUR, style, base, intensite: accent ? "sobre" : intensite });
-    // Un élément Impact ou Bandeau : chaque groupe dans ce style (pour juger le style lui-même).
-    return accent ? brut.map((s) => ({ ...s, style: gabarit === "impact" ? "impact" : "bandeau", importance: 3, position: "milieu", inclinaison: gabarit === "impact" ? 4 : 0 })) : brut;
-  }, [phrase, style, base, gabarit, accent, intensite]);
+  const segments = useMemo<SegmentSousTitres[]>(() => segmentsApercu({ style, phrase, intensite }), [phrase, style, intensite]);
   const duree = (segments.at(-1)?.finSec ?? 0) + PAUSE_FIN_SEC;
 
   useEffect(() => {
