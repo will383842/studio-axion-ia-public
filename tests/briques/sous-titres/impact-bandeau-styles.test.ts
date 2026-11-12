@@ -107,3 +107,16 @@ describe("GV-ST-08d : baseDe d'un élément sans gabarit écrit", () => {
     expect(baseRetenue(undefined, { gabarit: "impact" } as never)).toBe("impact");
   });
 });
+
+describe("GV-ST-08e : la brique lit la base du style sans passer par le gabarit résolu", () => {
+  const axionPop = { animation: "pop", casse: "majuscules", position: "centre" } as never;
+  it("« Axion pop » sans gabarit : base de la vidéo = karaoké (pas impact)", () => {
+    expect(baseRetenue(undefined, axionPop)).toBe("karaoke");
+    expect(JSON.stringify(optionsGroupement({ style: axionPop }))).toBe(JSON.stringify(optionsGroupement({ style: axionPop, base: "karaoke" })));
+  });
+  it("gabarit « impact » écrit : base impact ; base de la vidéo prioritaire", () => {
+    const impact = { ...(axionPop as object), gabarit: "impact" } as never;
+    expect(baseRetenue(undefined, impact)).toBe("impact");
+    expect(baseRetenue("minimal", impact)).toBe("minimal");
+  });
+});
