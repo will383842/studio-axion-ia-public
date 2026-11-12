@@ -20,7 +20,8 @@ beforeAll(async () => {
 const Z = await import("@/services/zernio");
 const { REGLAGE_EDITORIALE_ACTIVE } = await import("@/services/promotion-envois");
 const { ecrireParametre } = await import("@/services/_commun");
-const { lireConnexionsZernioAction } = await import("@/app/(studio)/reglages/actions-zernio");
+const actions = await import("@/app/(studio)/reglages/actions-zernio");
+const { lireConnexionsZernioAction } = actions;
 
 const EDITORIALE = "publication.editoriale_active";
 const ANCIEN = "zernio.envoi_autorise";
@@ -94,5 +95,43 @@ describe("L7-08 · publication.editoriale_active", () => {
     const apres = await lireConnexionsZernioAction();
     expect(apres.ok && apres.donnees.editorialeActive).toBe(true);
     expect(apres.ok && apres.donnees.arretActif).toBe(false);
+  });
+
+  it("geste : sans session, allumer et éteindre sont refusés et n'écrivent rien", async () => {
+    await auth.seDeconnecter();
+    await expect(actions.allumerEditorialeAction()).rejects.toThrow();
+    await expect(actions.eteindreEditorialeAction()).rejects.toThrow();
+    expect(await Z.editorialeActive()).toBe(false);
+  });
+
+  it("geste : éteint par défaut ; allumer pose vrai, éteindre repose faux, rien d'autre n'est touché", async () => {
+    expect(await Z.editorialeActive()).toBe(false);
+    const r = await actions.allumerEditorialeAction();
+    expect(r.ok).toBe(true);
+    expect(await Z.editorialeActive()).toBe(true);
+    expect(await Z.envoiZernioAutorise()).toBe(true);
+    expect(await Z.envoiCalendrierAutorise()).toBe(false); // ne touche pas aux autres réglages
+    expect(await Z.publicationEditorialeAutorisee()).toBe(false); // l'éditorial seul n'ouvre pas la porte
+    expect((await actions.eteindreEditorialeAction()).ok).toBe(true);
+    expect(await Z.editorialeActive()).toBe(false);
+  });
+
+  it("geste : écrit le booléen seul, journalisé, avec une phrase claire", async () => {
+    const base = await import("@/services/_commun");
+    const ecrits: Array<[string, unknown]> = [];
+    const e = vi.spyOn(base, "ecrireParametre").mockImplementation(async (c, v) => { ecrits.push([c, v]); });
+    const j = vi.spyOn(base, "journaliser").mockResolvedValue(undefined);
+    try {
+      await actions.allumerEditorialeAction();
+      expect(ecrits).toEqual([[EDITORIALE, true]]);
+      expect(j).toHaveBeenCalledTimes(1);
+      expect(String(j.mock.calls[0][1])).toMatch(/publication éditoriale/i);
+      expect(String(j.mock.calls[0][1])).toMatch(/allumée/);
+    } finally { e.mockRestore(); j.mockRestore(); }
+  });
+
+  it("phrase affichée : dit l'état en clair, éteint par défaut", () => {
+    expect(Z.PHRASE_EDITORIALE.eteinte).toMatch(/éteinte/);
+    expect(Z.PHRASE_EDITORIALE.allumee).toMatch(/allumée/);
   });
 });
