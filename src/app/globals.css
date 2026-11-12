@@ -341,9 +341,10 @@
   --sur-accent: var(--charte-ivoire);
   --ecran: var(--charte-noir);
   --ecran-texte: var(--charte-ivoire);
-  --ombre: 0 1px 2px rgb(20 20 19 / 0.06), 0 8px 24px -12px rgb(20 20 19 / 0.18);
+  --ombre: 0 1px 2px color-mix(in srgb, var(--charte-noir) 6%, transparent), 0 8px 24px -12px color-mix(in srgb, var(--charte-noir) 18%, transparent);
   --ombre-carte: var(--ombre);
   --ombre-orange: var(--ombre);
+  font-family: var(--font-texte), var(--police-texte), system-ui, sans-serif;
   background: var(--charte-ivoire);
   color: var(--charte-noir);
 }

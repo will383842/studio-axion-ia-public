@@ -6,7 +6,7 @@ const RACINE = join(__dirname, "..", "..");
 const lire = (c: string) => readFileSync(join(RACINE, c), "utf-8");
 const CSS = lire("src/app/globals.css");
 const racine = CSS.slice(CSS.indexOf(":root {"), CSS.indexOf("}", CSS.indexOf(":root {")));
-const jeton = (n: string) => new RegExp(`--${n}:\s*([^;]+);`).exec(racine)![1]!.trim().toLowerCase();
+const jeton = (n: string) => new RegExp(String.raw`--${n}:\s*([^;]+);`).exec(racine)![1]!.trim().toLowerCase();
 
 describe("REF-R10 : pages annexes", () => {
   it("global-error recopie les jetons clairs de globals.css (aucune couleur écrite à part)", () => {
@@ -25,15 +25,21 @@ describe("REF-R10 : pages annexes", () => {
     const bloc = /\.charte-publique \{([\s\S]*?)\n\}/.exec(CSS)![1]!;
     for (const [n, c] of [["fond", "ivoire"], ["texte", "noir"], ["orange", "orange"]] as const) expect(bloc).toContain(`--${n}: var(--charte-${c});`);
     expect(bloc).not.toMatch(/#[0-9a-f]{3,6}\b(?<!#ffffff)/i);
+    expect(bloc).not.toMatch(/rgba?\(/i);
+    expect(bloc).toMatch(/font-family:[^;]*police-texte/);
   });
   it("les pages /v utilisent le cadre public, le vrai logo et un seul bouton orange plein", () => {
     const page = lire("src/app/v/[code]/page.tsx");
     const exp = lire("src/app/v/[code]/not-found.tsx");
     expect(page + exp).toContain("CadrePublic");
-    expect(lire("src/components/annexes/PagePublique.tsx")).toContain("/logo-axion-ia.png");
-    expect(page.match(/bg-orange(?![-w])\b/g)).toHaveLength(1);
-    expect(exp).not.toMatch(/bg-orange(?![-w])\b/);
-    expect(lire("src/components/ui/LecteurVideo.tsx")).not.toMatch(/bg-orange(?![-w])\b/);
+    const logo = lire("src/components/annexes/PagePublique.tsx");
+    // Import statique : /_next/static passe le proxy sans session (un chemin de public/ serait bloqué).
+    expect(logo).toContain('import logoAxion from "./logo-axion-ia.png"');
+    expect(logo).not.toContain('src="/logo');
+    expect(page.match(/bg-orange(?![-\w])/g)).toHaveLength(1);
+    expect(exp).not.toMatch(/bg-orange(?![-\w])/);
+    expect(lire("src/components/ui/LecteurVideo.tsx")).not.toMatch(/bg-orange(?![-\w])/);
+    expect(lire("src/proxy.ts")).toMatch(/_next\/static\/\|_next\/image/);
   });
   it("la 404 est en accent (bleu) et plus en orange", () => {
     const src = lire("src/components/annexes/Introuvable.tsx");
