@@ -1077,6 +1077,8 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     ...(v.format === "4:5" ? { format: v.format } : {}),
     // Variété : la recette de la version (son format, l'ouverture de ses réseaux) ; les bruitages partent de la graine.
     ...(e.variete ? { variete: recettePourVersion(e.variete.recette, v.reseaux, v.format ?? "9:16"), graine: e.demande.videoId } : {}),
+    // GV-ST-03e : le style choisi par Will, pour que le contrôle Q22 mesure avec lui ; sans choix : aucune clé en plus.
+    ...(e.demande.styleSousTitres?.valeur ? { styleSousTitres: e.demande.styleSousTitres } : {}),
   };
 }
 
@@ -1669,6 +1671,11 @@ export function idRenduSansStyleIV(versionId: string, ligne: LigneDeTempsIV, mix
   return code === "SOU-C" || code === "SOU-D" || code === "SOU-E" ? `${base}-st1` : base;
 }
 
+/** GV-ST-03e : identifiant de rendu avec style choisi (PUR) ; seule la `valeur` (l'apparence) compte, pas l'id ni le nom. */
+export function idRenduAvecStyleIV(idSans: string, choisi: StyleChoisiIV): string {
+  return `${idSans}-${empreinteDe(choisi.valeur).slice(0, 12)}`;
+}
+
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   e.rendus ??= {};
@@ -1678,7 +1685,7 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     const choisi = e.demande.styleSousTitres?.valeur ? e.demande.styleSousTitres : undefined;
     // Sans style choisi : empreinte inchangée ; avec : le style entre dans l'empreinte (autre style = autre rendu).
     const idSans = idRenduSansStyleIV(v.id, ligne, mixage.id);
-    const id = choisi ? `${idSans}-${empreinteDe(choisi).slice(0, 12)}` : idSans;
+    const id = choisi ? idRenduAvecStyleIV(idSans, choisi) : idSans;
     if (e.rendus[v.id]?.demande === id) continue;
     if (choisi && styleRetenuIV(choisi, formatDeHauteurIV(ligne.hauteur)).deplace) e.journal.push(`Remarque · ${nomVersion(v)} : ${REMARQUE_SOUS_TITRES_DEPLACES_IV}.`);
     const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1, ...(choisi ? { styleSousTitres: choisi } : {}) };
