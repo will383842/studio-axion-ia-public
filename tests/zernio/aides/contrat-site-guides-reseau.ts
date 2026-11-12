@@ -55,9 +55,7 @@ export const SchemaDemandeGuideReseau = z
  * COPIE du schéma v3 du site (`SchemaDemandeGuideReseauV3`, contrat.ts) : v1 + champs d'origine FACULTATIFS, toujours strict.
  * Listes fermées recopiées de `valeurs-connues.ts`. À re-synchroniser si le site change.
  */
-// Copie de la liste RÉELLE du site (non circulaire : la PR n'y ajoute rien). Les nouvelles formulations du Studio ne doivent être
-// acceptées (src/domaine/guide-reseau/versions-acceptees-site.ts) qu'une fois présentes ici, donc connues du site.
-export const VERSIONS_TEXTE_CONNUES_SITE = ["m1-brouillon-v1", "m1-v1", "mp-m1-v3"] as const;
+export const VERSIONS_TEXTE_CONNUES_SITE = ["m1-brouillon-v1", "m1-v1"] as const;
 export const SchemaDemandeGuideReseauV3 = z
   .object({
     schemaVersion: z.literal(3),

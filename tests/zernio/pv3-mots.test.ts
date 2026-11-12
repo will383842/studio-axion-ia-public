@@ -129,6 +129,12 @@ describe("pv3 · contrôle de sortie", () => {
     expect(r).toMatchObject({ ok: false, code: "texte_refuse" });
     expect(!r.ok && r.refus.map((x) => x.code)).toContain(code);
   });
+  it("« Axion IA » en fin de texte n'est refusé que pour une vraie signature ou la mention automatique", () => {
+    const codes = (t: string) => { const r = avecTexte(t); return r.ok ? [] : r.refus.map((x) => x.code); };
+    expect(codes("Bonjour ! Votre guide est prêt, proposé par Axion IA")).not.toContain("signature");
+    expect(codes("Bonjour ! Votre guide est prêt. Message automatique envoyé par Axion IA")).toContain("signature");
+    for (const fin of ["L'équipe Axion IA", "Cordialement,\nAxion IA", "Bien cordialement", "Cordialement"]) expect(codes(`Bonjour ! Votre guide est prêt. ${fin}`), fin).toContain("signature");
+  });
   it("mot interdit refusé à la pose : aucun appel", async () => {
     const faux = brancher();
     const saisie = { ...saisieDe(), reponsePublique: `Bonjour ! ${TOKENS.lieu}` };

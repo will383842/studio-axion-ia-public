@@ -10,7 +10,7 @@ import { SECTIONS, type Section, type TextesMot } from "./mots-textes";
 /** Aucun texte (toute section) ne commence par cette mention d'automatisme (« ça ne fait pas très pro »). */
 const MOTIF_MENTION_AUTOMATIQUE = /^message automatique\b/;
 /** Aucune signature en fin de texte (les réseaux sociaux affichent déjà le nom du compte). */
-const MOTIF_SIGNATURE = /(?:\bl equipe axion ia|\baxion ia|\bcordialement|\bbien cordialement)$/;
+const MOTIF_SIGNATURE = /(?:\b(?:l )?equipe (?:de )?axion ia|\bmessage automatique envoye par axion ia|\b(?:bien )?cordialement(?: axion ia)?)$/;
 export const LONGUEUR_MAX_TEXTE = 1000;
 
 /** Promesses refusées (racines, comparées sans accents ni casse). */

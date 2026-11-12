@@ -71,7 +71,7 @@
     },
     "mp-lien-v2": {
       "version": "mp-lien-v2",
-      "statut": "retire",
+      "statut": "actif",
       "texte": "Message automatique envoyé par Axion IA. Voici le guide « [TITRE DU GUIDE] » : [LIEN]. Bonne lecture !"
     },
     "mp-pub-igfb-v1": {
