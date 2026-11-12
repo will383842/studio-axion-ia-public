@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { Icone } from "@/components/ui/Icone";
 import { regrouper, replier, type RegroupementPar } from "@/domaine/calendrier/regroupement";
 import type { IdReseau } from "@/domaine/types";
@@ -5,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, MonogrammeReseau, TYPES_CONTENU, estVerrouillee, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import type { TableLibelles } from "./PastilleStatutPlan";
+import { DENSITES_SEMAINE, type DensiteSemaine } from "./GrilleSemaine";
 
 export interface ProprietesVueListe {
   entrees: readonly EntreeCarte[];
@@ -66,6 +68,68 @@ export function VueListe({ entrees, aujourdhui, par, maxParGroupe, filtresActifs
           </section>
         );
       })}
+    </div>
+  );
+}
+
+/** CAL-09 : clé de mémoire (navigateur) du choix de densité de la vue Semaine. */
+export const CLE_DENSITE_SEMAINE = "axion.calendrier.densite-semaine";
+const DENSITE_DEFAUT: DensiteSemaine = "visuel";
+const ECOUTEURS = new Set<() => void>();
+
+/** Densité retenue ; Visuel si rien n'est retenu, si la valeur est illisible ou si la mémoire du navigateur est fermée. */
+export function lireDensiteSemaine(): DensiteSemaine {
+  try {
+    const v = window.localStorage.getItem(CLE_DENSITE_SEMAINE);
+    return v === "compact" || v === "visuel" ? v : DENSITE_DEFAUT;
+  } catch {
+    return DENSITE_DEFAUT;
+  }
+}
+
+export function retenirDensiteSemaine(d: DensiteSemaine): void {
+  try {
+    window.localStorage.setItem(CLE_DENSITE_SEMAINE, d);
+  } catch {
+    // Mémoire fermée : le choix vaut pour la page seulement.
+  }
+  ECOUTEURS.forEach((f) => f());
+}
+
+function abonner(f: () => void): () => void {
+  ECOUTEURS.add(f);
+  window.addEventListener("storage", f);
+  return () => {
+    ECOUTEURS.delete(f);
+    window.removeEventListener("storage", f);
+  };
+}
+
+/** Densité de la vue Semaine, retenue d'une visite à l'autre (à utiliser dans un composant client). */
+export function useDensiteSemaine(): [DensiteSemaine, (d: DensiteSemaine) => void] {
+  const densite = useSyncExternalStore(abonner, lireDensiteSemaine, () => DENSITE_DEFAUT);
+  return [densite, retenirDensiteSemaine];
+}
+
+/** Choix Compact / Visuel de la vue Semaine ; le choix est retenu. `onChange` prévient l'appelant. */
+export function SelecteurDensiteSemaine({ onChange, className }: { onChange?: (d: DensiteSemaine) => void; className?: string }) {
+  const [densite, choisir] = useDensiteSemaine();
+  return (
+    <div role="group" aria-label="Densité de la semaine" className={cn("inline-flex gap-1", className)}>
+      {(Object.keys(DENSITES_SEMAINE) as DensiteSemaine[]).map((d) => (
+        <button
+          key={d}
+          type="button"
+          aria-pressed={d === densite}
+          onClick={() => {
+            choisir(d);
+            onChange?.(d);
+          }}
+          className={cn("min-h-[38px] rounded-[9px] border px-3 text-sm font-bold", d === densite ? "border-orange bg-orange-doux text-texte" : "border-trait-fort bg-surface-1 text-texte-doux hover:border-orange")}
+        >
+          {DENSITES_SEMAINE[d].libelle}
+        </button>
+      ))}
     </div>
   );
 }
