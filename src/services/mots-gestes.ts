@@ -72,7 +72,7 @@ export async function gesteValiderMotGuide(): Promise<{ ok: boolean; raison: str
   const r = await validerGuideParcours({ titre: titreGuideParcours(process.env), confirmeParOperateur: true });
   return { ok: r.ok, raison: r.raison };
 }
-/** Validation du message « adresse refusée » : le client ne transmet rien, le texte est celui du dictionnaire (serveur). */
+/** OBSOLÈTE : valide l'ancien texte « adresse refusée » (retiré), refusé par le service (`texte_retire`) ; plus branché sur l'écran. Remplacé par `gesteValiderFormulation`. */
 export async function gesteValiderAdresseRefusee(): Promise<{ ok: boolean; raison: string }> {
   await exigerSession();
   const r = await validerAdresseRefusee({ confirmeParOperateur: true });

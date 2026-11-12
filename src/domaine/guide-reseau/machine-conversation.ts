@@ -126,7 +126,7 @@ function m1AvecLien(v: string | null | undefined): boolean {
   return v === "mp-m1-v3" || (v != null && (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v));
 }
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
-export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee";
+export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee" | "version_inconnue_du_site";
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
 

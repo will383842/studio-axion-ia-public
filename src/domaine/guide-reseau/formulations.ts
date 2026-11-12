@@ -10,6 +10,9 @@ export function rangFormulation(groupe: GroupeMp, cleConversation: string, n: nu
   return parseInt(h.slice(0, 8), 16) % n;
 }
 
+/** Anciennes versions retirées d'un groupe, au texte IDENTIQUE à l'octet à une version du groupe : une conversation figée sur l'ancienne garde ce texte. */
+export const EQUIVALENTS_FIGES: Readonly<Record<string, IdTexteMp>> = { "mp-m1-v3": "mp-m1-v4-1" };
+
 export interface ChoixFormulation {
   version: IdTexteMp;
   texte: string;
@@ -37,6 +40,12 @@ export function choisirFormulation(o: {
     const t = o.rendre(v);
     return t !== null && (!o.conforme || o.conforme(t)) ? t : null;
   };
+  // Figée sur une ancienne version retirée du groupe : on garde son texte (équivalent identique) ou on refuse. Jamais un autre texte.
+  if (o.figee && o.figee in EQUIVALENTS_FIGES) {
+    const eq = EQUIVALENTS_FIGES[o.figee];
+    const t = liste.includes(eq) ? essayer(eq) : null;
+    return t !== null ? { version: eq, texte: t, figeeAbandonnee: false } : null;
+  }
   const figee = o.figee ? liste.find((v) => v === o.figee) : undefined;
   if (figee) {
     const t = essayer(figee);

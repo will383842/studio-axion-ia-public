@@ -26,7 +26,8 @@ import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
 import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
-import { choisirFormulation } from "@/domaine/guide-reseau/formulations";
+import { choisirFormulation, EQUIVALENTS_FIGES } from "@/domaine/guide-reseau/formulations";
+import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
@@ -423,6 +424,7 @@ const RAISONS_REPLI_LIEN: Record<Exclude<CodeRepliLien, "lien_eteint">, string> 
   jeton_invalide: "jeton refusé",
   lien_trop_long: "lien trop long",
   forme_refusee: "lien de forme non permise",
+  version_inconnue_du_site: "le site ne connaît pas encore cette formulation",
 };
 const LONGUEUR_MAX_M1_LIEN = 1000;
 const RE_NOM_COURT_COMPTE = /^[a-z0-9_]{2,40}$/;
@@ -441,9 +443,11 @@ function nomCourtCompte(env: Env, idCompte: string): string | null {
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
-async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien }> {
+async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string }> {
   // Le journal et l'alerte du repli ne sont PAS émis ici : l'appelant les émet une fois l'envoi réservé (ni opposition, ni plafond).
-  const repli = async (code: CodeRepliLien) => ({ texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version, codeRepli: code });
+  // `formulationLien` : la formulation avec lien déjà choisie reste notée à part (jamais écrasée par le repli) pour le prochain essai.
+  const choisie: { version?: string } = {};
+  const repli = async (code: CodeRepliLien) => ({ texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}) });
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -452,12 +456,19 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   const choix = choisirFormulation({
     groupe: GROUPE_M1_LIEN,
     cleConversation: e.cleIdempotenceGuide,
-    figee: e.versionTexteM1,
+    figee: e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1,
     validees: await formulationsValidees(),
     rendre: (v) => rendreTexteMp(v, { mot: MOT, titre: d.titreGuide, lien: "https://exemple.test/essai" }),
   });
-  if (choix === null) return repli("texte_lien_non_valide");
+  if (choix === null) {
+    const figeeRetiree = e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1;
+    if (figeeRetiree && figeeRetiree in EQUIVALENTS_FIGES) await journaliser("parcours_conversation", "formulation_figee_retiree_refusee");
+    return repli("texte_lien_non_valide");
+  }
+  choisie.version = choix.version;
   if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  // Le site doit connaître la version AVANT l'envoi (sinon la preuve du texte montré est perdue en silence).
+  if (!siteAccepteVersionM1(choix.version)) return repli("version_inconnue_du_site");
   const compte = nomCourtCompte(env, e.idCompte);
   if (compte === null) return repli("compte_lien_inconnu");
   const conv = e.refLienConv || refConversationLien(cles.courante.secret.toString("utf8"), e.cleIdempotenceGuide);
@@ -473,7 +484,7 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   // Borne de M1 avec lien : 1 000 unités de texte (texte.length), pas les 2 000 du dictionnaire ; au-delà, M1 v2.
   if (texte === null || texte.length > LONGUEUR_MAX_M1_LIEN || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
   // Empreinte du jeton réellement envoyé : c'est la `ref` que le site renverra à la validation de la page (jamais le jeton lui-même).
-  return { texte, version: choix.version, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
+  return { texte, version: choix.version, formulationLien: choix.version, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
 
 async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {
@@ -539,7 +550,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.formulationLien ? { formulations: { ...e.formulations, [GROUPE_M1_LIEN]: m1.formulationLien } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
