@@ -103,8 +103,16 @@ describe("L7-08 · deux réglages, deux portes", () => {
     }
   });
 
-  it("envoi du calendrier, les deux ouverts : la porte s'ouvre (le refus suivant n'est plus celui du réglage)", async () => {
+  it("envoi du calendrier, les deux ouverts mais publication éditoriale éteinte : refusé (L7-08)", async () => {
     await reglages(true, true);
+    const r = await envoyerParOutilAction("video-exemple", "instagram", "2030-01-01T10:00:00Z", { outil: "zernio" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("ENVOI_CALENDRIER_FERME");
+  });
+
+  it("envoi du calendrier, les trois ouverts : la porte s'ouvre (le refus suivant n'est plus celui du réglage)", async () => {
+    await reglages(true, true);
+    await ecrireParametre(Z.PARAM_EDITORIALE_ACTIVE, true);
     const r = await envoyerParOutilAction("video-exemple", "instagram", "2030-01-01T10:00:00Z", { outil: "zernio" });
     // La vidéo « video-exemple » n'existe pas dans ce test : l'issue attendue est un refus d'un autre ordre, jamais celui du réglage.
     expect(r.ok).toBe(false);
