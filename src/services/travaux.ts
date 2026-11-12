@@ -502,6 +502,17 @@ function enAttenteDeValidation(t: Pick<Travail, "erreur">): boolean {
 }
 
 /**
+ * GV-EC-01e : la reprise d'une attente de validation est REFUSÉE (cas retiré ou déjà traité) : la réservation gardée ne
+ * servira plus, elle est rendue au moment du refus (une fois ; idempotent). Une seule écriture : rien à séparer. Si le
+ * refus tombe un jour (cas rétabli), la reprise réactive la réservation (`reactiverReservations`). Sans effet pour un
+ * vrai échec (sa réservation est déjà rendue).
+ */
+export async function libererSiAttenteRefusee(travailId: string): Promise<void> {
+  const t = await depots().travaux.obtenir(travailId);
+  if (t && t.statut === "echec" && enAttenteDeValidation(t)) await libererReservation(travailId, "liberee");
+}
+
+/**
  * Temps 3 — SOUS le verrou : écrit ce que le moteur a renvoyé, SEULEMENT si le travail n'a pas changé depuis la lecture
  * (un « Arrêter » pendant le tour n'est jamais écrasé). Renvoie les suites à exécuter hors verrou.
  */
@@ -847,10 +858,16 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   if (videoAvant && versionAvant && !videoAvant.estDemo && !videoAvant.sourceVideoId && !videoAvant.typeDerive && !TRAVAUX_SUR_VIDEO_FINIE.includes(avant.type)) {
     const { refusCasDejaTraite } = await import("./cas-concret-traites");
     const phrase = await refusCasDejaTraite(versionAvant.commande.entrees, avant.cibleId);
-    if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+    if (phrase) {
+      await libererSiAttenteRefusee(id);
+      throw new ErreurStudio("CAS_TRAITE", phrase);
+    }
     // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (rien n'est dépensé).
     const retire = await (await import("./cas-concret-retires")).refusCasRetire(versionAvant.commande.entrees);
-    if (retire) throw new ErreurStudio("CAS_RETIRE", retire);
+    if (retire) {
+      await libererSiAttenteRefusee(id);
+      throw new ErreurStudio("CAS_RETIRE", retire);
+    }
   }
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du
@@ -861,6 +878,21 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
       const t = await d.travaux.obtenir(id);
       if (!t) throw new ErreurStudio("INTROUVABLE", "Ce travail n'existe plus.");
       if (t.statut !== "echec") throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail n'est pas en échec.");
+      // GV-EC-01f : une attente de validation ne repart pas si elle a été remplacée (un autre travail plus récent, en file
+      // ou en cours, sur la même vidéo) ou si sa vidéo est à la corbeille : rien n'est réactivé.
+      if (enAttenteDeValidation(t)) {
+        const autres = await d.travaux.lister((x) => x.cibleId === t.cibleId && x.id !== t.id);
+        // GV-EC-01g : seule une FABRICATION plus récente remplace pour de bon (réservation rendue avant le refus, idempotent) ;
+        // un autre travail en file ou en cours (tout type) est un refus TEMPORAIRE (réservation gardée) ; un réexport ou une
+        // retouche terminé ou en échec ne bloque pas.
+        if (autres.some((x) => x.type === "fabrication" && x.creeLe > t.creeLe)) {
+          await libererReservation(t.id, "liberee");
+          throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a été remplacé. Rouvrez la page.");
+        }
+        if (autres.some((x) => x.statut === "en_cours" || x.statut === "en_file")) throw new ErreurStudio("PAS_EN_ECHEC", "Un autre travail de cette vidéo est en cours. Réessayez quand il sera fini.");
+        const v = await d.videos.obtenir(t.cibleId);
+        if (v?.corbeilleLe) throw new ErreurStudio("PAS_EN_ECHEC", "Cette vidéo est dans la corbeille. Restaurez-la d'abord.");
+      }
       // Relancé entre-temps ailleurs (autre onglet) puis de nouveau en échec : le contrôle fait plus haut ne vaut plus.
       if (avant.tentatives !== t.tentatives || avant.versionId !== t.versionId) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a changé. Rouvrez la page puis réessayez.");
       const version = t.versionId ? await d.versions.obtenir(t.versionId) : null;
@@ -886,7 +918,11 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   // GV-EC-01b : la reprise d'une ATTENTE DE VALIDATION ne repasse par aucun contrôle de budget ni de quota (commande de
   // Williams comme commande de l'usine) : la réservation a été gardée, il n'y a rien à revérifier. Un vrai échec garde
   // son contrôle d'avant.
-  const relance = enAttenteDeValidation(avant)
+  // GV-EC-01h : seule une réservation restée ACTIVE sans interruption est reprise sans contrôle. Si toutes ont été rendues
+  // entre-temps (vidéo à la corbeille puis restaurée), c'est un nouvel engagement : il passe par le contrôle selon l'origine
+  // (Studio : jamais refusé pour un montant ; usine : refusé en cas de dépassement). Un refus laisse l'attente intacte.
+  const reservationActive = enAttenteDeValidation(avant) && (await depots().reservations.compter((r) => r.travailId === id && r.statut === "active")) > 0;
+  const relance = reservationActive
     ? await lancer(() => reactiverReservations(id))
     : await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, lancer);
   return versVue(relance);

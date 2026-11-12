@@ -1,5 +1,5 @@
 /**
- * GV-EC-01c — double compte de la réservation gardée à la reprise après validation : ÉTABLI par ce test, pas corrigé.
+ * GV-EC-01c — double compte de la réservation gardée à la reprise après validation : il n'est PAS établi ; ce test garantit qu'il n'existe pas.
  * Un travail en attente de validation garde sa réservation ; Williams valide, le travail reprend. Combien de
  * réservations ACTIVES (et d'engagements budget) le travail compte-t-il après la reprise ?
  */
@@ -66,15 +66,26 @@ async function mettreEnEchec(code: string, origine?: "studio" | "usine"): Promis
 }
 
 
+/** Tous les compteurs de quota de l'usine (`plafond.compteur.*`), triés : doivent rester identiques à la reprise. */
+const compteursDeQuota = async () => (await depots().parametres.lister((p) => p.id.startsWith("plafond.compteur."))).map((p) => [p.id, p.valeur]).sort();
+
 const reservationsActives = (travailId: string) => depots().reservations.compter((r) => r.travailId === travailId && r.statut === "active");
 
 describe("double compte à la reprise après validation", () => {
   it.each(["studio", "usine"] as const)("commande %s : une seule réservation active et un seul engagement après la reprise", async (origine) => {
     const { travailId } = await mettreEnEchec("IV_SCRIPT_A_VALIDER", origine);
     expect(await reservationsActives(travailId)).toBe(1);
+    const compteursAvant = await compteursDeQuota();
     const r = await travaux.reessayerTravail(travailId);
     expect(r.statut).not.toBe("echec");
     expect(await reservationsActives(travailId)).toBe(1);
+    // Le quota de l'usine n'est pas recompté par la reprise.
+    expect(await compteursDeQuota()).toEqual(compteursAvant);
+    // Un tour de la boucle de fond après la reprise : toujours une seule réservation active.
+    const { tourDeBoucle } = await import("@/services/boucle");
+    await tourDeBoucle();
+    expect(await reservationsActives(travailId)).toBe(1);
+    expect(await compteursDeQuota()).toEqual(compteursAvant);
     expect(await depots().reservations.compter((x) => x.travailId === travailId)).toBe(1);
     expect((await couts.resumeBudget()).engage.centimes).toBe(100);
   });
