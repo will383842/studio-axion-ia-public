@@ -55,14 +55,15 @@ export function estConfie(c: CreneauEditorial): boolean {
 
 export async function decaler(d: DepotsPlan, id: string, demande: DemandeDecalage, maintenant: string): Promise<CreneauPlan> {
   const c = await lire(d, id);
-  const prefixe = `decalage:${id}:${demande.cle}#`;
+  const base = `decalage:${id}:${demande.cle}`;
+  const prefixe = `${base}#`;
   // Identifiant d'une ligne = decalage:<créneau>:<clé>#<rang> ; le rang est le numéro du décalage (décalages déjà appliqués + 1) au moment de l'écriture.
   const lignes = await d.journal.lister((l) => l.creneauId === id);
-  const ligne = lignes.find((l) => l.id.startsWith(prefixe));
+  const ligne = lignes.find((l) => l.id.slice(0, l.id.lastIndexOf("#")) === base && /^\d+$/.test(l.id.slice(l.id.lastIndexOf("#") + 1)));
   if (ligne) {
     // Rejeu d'une clé déjà journalisée : on ne réapplique que si SA ligne est celle qui n'a pas été appliquée (rang = décalages + 1, écriture du
     // créneau tombée en panne) ; sinon (déjà appliquée, même après un aller-retour de jour) on rend le créneau tel quel. La ligne fait foi (jour, raison).
-    if (Number(ligne.id.slice(prefixe.length)) !== c.decalages + 1) return c;
+    if (Number(ligne.id.slice(ligne.id.lastIndexOf("#") + 1)) !== c.decalages + 1) return c;
   } else if (lignes.length > c.decalages) {
     // Une ligne d'un décalage précédent n'a pas été appliquée au créneau : rejouer d'abord sa clé (sinon « un décalage = une ligne » est faux).
     throw new Error(`Décalage refusé : un décalage précédent du créneau ${id} n'a pas été appliqué ; rejouer d'abord sa clé.`);

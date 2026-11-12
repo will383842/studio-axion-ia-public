@@ -181,6 +181,20 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     expect((await d.creneaux.obtenir("c1"))?.jourVise).toBe("2026-11-25");
     expect(await d.journal.lister()).toHaveLength(2);
   });
+  it("correction relecture opus-v1-g1 : une clé qui est le préfixe d'une autre (a et a#1) n'est pas confondue avec elle", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    const premier = await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "a#1" }, T0);
+    expect(premier.jourVise).toBe("2026-11-27");
+    const second = await decaler(d, "c1", { nouveauJour: "2026-11-29", raison: "r", cle: "a" }, T0);
+    expect(second.jourVise).toBe("2026-11-29");
+    expect(second.decalages).toBe(2);
+    expect(await d.journal.lister()).toHaveLength(2);
+    const rejeu = await decaler(d, "c1", { nouveauJour: "2026-11-30", raison: "r", cle: "a" }, T0);
+    expect(rejeu.jourVise).toBe("2026-11-29");
+    expect(rejeu.decalages).toBe(2);
+    expect(await d.journal.lister()).toHaveLength(2);
+  });
   it("correction relecture v1-w1 : une nouvelle clé est refusée tant qu'une ligne du créneau n'a pas été appliquée", async () => {
     const d = depots();
     await creerCreneau(d, base("c1"), T0);
