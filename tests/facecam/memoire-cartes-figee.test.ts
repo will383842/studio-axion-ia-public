@@ -31,9 +31,15 @@ describe("lireEntreesFacecam : memoireCartes", () => {
     expect(lireEntreesFacecam({ facecam: { memoireCartes: { dejaServis: ["liste"] } } }).memoireCartes).toEqual({ dejaServis: ["liste"] });
   });
   it("une mémoire mal formée est écartée, sans lever", () => {
-    for (const mauvaise of [null, 3, "x", [], {}, { dejaServis: "liste" }, { dejaServis: [1] }, { dejaServis: [""] }, { dejaServis: ["x".repeat(61)] }, { dejaServis: Array(41).fill("a") }, { dejaServis: ["a"], ouverturePrecedente: 4 }, { dejaServis: ["a"], ouverturePrecedente: "x".repeat(61) }]) {
+    for (const mauvaise of [null, 3, "x", [], {}, { dejaServis: "liste" }, { dejaServis: [1] }, { dejaServis: [""] }, { dejaServis: ["x".repeat(61)] }, { dejaServis: ["a"], ouverturePrecedente: 4 }, { dejaServis: ["a"], ouverturePrecedente: "x".repeat(61) }]) {
       expect("memoireCartes" in lireEntreesFacecam({ facecam: { memoireCartes: mauvaise } })).toBe(false);
     }
+  });
+  it("au-delà de 40 modèles : tronquée aux 40 premiers, jamais rejetée", () => {
+    const longue = Array.from({ length: 55 }, (_, i) => `m${i}`);
+    const lue = lireEntreesFacecam({ facecam: { memoireCartes: { dejaServis: longue, ouverturePrecedente: "m0" } } }).memoireCartes;
+    expect(lue?.dejaServis).toEqual(longue.slice(0, 40));
+    expect(lue?.ouverturePrecedente).toBe("m0");
   });
   it("absente : aucune clé memoireCartes", () => {
     expect("memoireCartes" in lireEntreesFacecam({})).toBe(false);
