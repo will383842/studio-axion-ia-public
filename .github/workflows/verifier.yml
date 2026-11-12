@@ -84,6 +84,22 @@ jobs:
       - name: Comparer
         run: node outils/gardes/zone-interdite.mjs --differentiel --dossier "$RUNNER_TEMP/v" --racine-tete "$PWD" --racine-base "$RUNNER_TEMP/base" --connus scripts/echecs-connus.json
 
+  regles-de-fer:
+    name: règles de fer (sans IA, sans réseau)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Garde des règles de fer
+        # Liste des mots : SECRET masqué (jamais une variable, imprimée en clair dans le journal public).
+        # Absente (secret non créé, PR venue d'un fork) : la règle est dite « non vérifiée » par la garde.
+        env:
+          MOTS_FONDATEUR: ${{ secrets.MOTS_FONDATEUR }}
+        run: node outils/gardes/regles-de-fer.mjs
+
   tests:
     name: tests des fichiers touchés
     runs-on: ubuntu-latest
@@ -117,6 +133,8 @@ jobs:
         run: |
           pnpm exec vitest run --testTimeout=60000 --reporter=json --outputFile=rapport-vitest.json $(cat fichiers-test.txt) || true
           node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+      - name: Garde sans IA, réponses automatiques [VERIF-REPAUTO]
+        run: pnpm exec vitest run --testTimeout=60000 tests/garde-reponses-auto.test.ts
       - name: Aucun fichier de test touché
         if: steps.liste.outputs.nombre == '0'
         env:

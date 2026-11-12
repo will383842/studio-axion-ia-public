@@ -141,7 +141,7 @@ describe("argent n° 4 bis · maquette demandée APRÈS le lancement", () => {
 });
 
 describe("argent n° 5 · le budget du mois déduit ce qui est engagé", () => {
-  it("restant = 1,5 vidéo : la seconde vidéo est refusée ; l'engagement se libère à la fin de la fabrication", async () => {
+  it("restant = 1,5 vidéo : la seconde vidéo part avec une alerte (plus de refus de montant) ; l'engagement se libère à la fin de la fabrication", async () => {
     for (const x of await depots().travaux.lister((t) => t.statut === "en_cours" || t.statut === "en_file")) await depots().travaux.enregistrer({ ...x, statut: "termine" });
     const c3 = await fabrication.construireCommande("v-03");
     const e3 = await moteurDeCommande(c3).estimer(c3);
@@ -155,7 +155,10 @@ describe("argent n° 5 · le budget du mois déduit ce qui est engagé", () => {
     const vue = await couts.resumeBudget();
     expect(vue.engage.centimes).toBe(e3.total.centimes);
     expect(vue.restant.centimes).toBe(budget - vue.depense.centimes - e3.total.centimes);
-    await expect(fabrication.lancerFabrication("v-04", { confirme: true })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    const second = await fabrication.lancerFabrication("v-04", { confirme: true });
+    expect(second.travailId).toBeTruthy();
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
     // Fin de la fabrication : l'engagement est remplacé par la dépense réelle.
     vi.useFakeTimers({ toFake: ["Date"] });
     for (let i = 0; i < 200; i++) {
