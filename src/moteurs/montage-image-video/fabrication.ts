@@ -40,7 +40,7 @@ import { adapterCarteAutomatiquement } from "@/domaine/image-video/analyste/chai
 import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
-import type { DeclencheurBruitage } from "@/domaine/types";
+import type { DeclencheurBruitage, SegmentSousTitres } from "@/domaine/types";
 import { AXES_VARIETE, codeDe, tirablesDe, type AxeVariete, type FormatIV, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { MesuresExport } from "@/briques/controle-image";
 import { cleBruitage, idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
@@ -62,6 +62,7 @@ import { chapitresDetachables } from "./recettes";
 import { ecrireScriptColleIV, manquementsDuScriptColle } from "./script-colle";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
 import { verdictReseau } from "./reseaux";
+import { sousTitresVariesIV } from "./sous-titres-varies";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { recetteEffectiveIV } from "./variete/historique";
@@ -262,6 +263,8 @@ export interface RenduFaitIV {
   empreinte?: string;
   dureeSec: number;
   mesures?: MesuresExport;
+  /** Sous-titres réellement dessinés (variés), calculés sur la même ligne que la demande de rendu : le .srt en est tiré. Absent pour un rendu d'avant. */
+  sousTitres?: SegmentSousTitres[];
   /** Empreinte de la demande rendue (ligne de temps + mixage) : un rendu d'une autre demande n'est pas repris. */
   demande: string;
 }
@@ -1102,7 +1105,8 @@ export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabrica
   // Chaque relance réserve de nouveau (`relances` entre dans la clé de la caisse) : un appel qui repart est toujours un appel réservé.
   // Les contrôles ne sont jamais relancés ici : leurs transcriptions et relectures payées ne remontent à l'état qu'au retour de la porte.
   // Pas de « mode réparé » : l'écriture rejoue déjà ses refus de forme dans sa consigne ; relancer un refus d'écriture est un simple nouvel essai.
-  if (!(CODES_RELANCABLES_IV.includes(code) && !(code === "IV_PANNE" && etape === "controles"))) return e;
+  // Exception : un contrôle « non fait » (outil en panne) a rendu ses transcriptions et relectures à l'état (`e.controles`) : sa relance ne repaie rien.
+  if (!(CODES_RELANCABLES_IV.includes(code) && !(code === "IV_PANNE" && etape === "controles" && !e.controles))) return e;
   await (outils.pause ?? ((t) => new Promise<void>((ok) => setTimeout(ok, t))))(PAUSE_RELANCE_IV_MS);
   const quoi = code === "IV_PANNE" ? "panne passagère" : "refus de forme";
   const phrase = `${quoi}, un nouvel essai automatique de ${NOMS_ETAPES_IV[etape]}`;
@@ -1691,7 +1695,7 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
         throw err2;
       }
     }
-    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
+    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), sousTitres: sousTitresVariesIV(ligne), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
     return e;
   }
@@ -1753,6 +1757,8 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis, ...(e.remarques ?? [])] };
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
+  // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
+  if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.", { phrases: verdict.phrases, reessayable: true });
   if (!verdict.ok) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });
   e.livraison = livraisonDe(e, verdict, publication, liens);
   return passerA(e, "livraison");
