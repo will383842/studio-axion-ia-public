@@ -6,3 +6,12 @@ Tests : tests/calendrier + relais-buffer + mediatheque : 357 passés, 0 échoué
 Reste : DepotMedia ne branche pas encore l'envoi réel (/api/depots) ni l'action ajouterEntree (hors fichiers autorisés) ; le téléverseur chez le diffuseur est un port injecté, non branché. Limites de format prudentes, à confirmer.
 Douteux : « brouillon » = statut « propose » (pas de statut brouillon dans le plan). Le test de composant ne vérifie que le texte rendu.
 contrôle anti-fuite : vide
+
+## Corrections après relecture (u1, 12/11/2026)
+- Dépôt sur une entrée validée ou programmée : elle repasse « a_valider » (revalidation du fondateur) ; entrée publiée : dépôt refusé. Corrigé, tests/calendrier/cal-25-media-depose.test.ts (bloc « un dépôt ramène l'entrée en brouillon »), rouge d'abord.
+- Format refusé : porteValidee revérifie le format pour chaque réseau de l'entrée ; lien et téléversement refusés, 0 appel au diffuseur. Corrigé, même bloc, rouge d'abord.
+- Formulaire : le fichier choisi est réellement envoyé (envoyerFichierChoisi, dépôt existant, entrée manuel-<clé>) puis rattaché par ajouterEntree ; format refusé jamais envoyé ; pas de renvoi sur « Ajouter quand même ». Corrigé, bloc « formulaire », rouge d'abord.
+- Anciens tests : la validation est posée APRÈS le dépôt (ils supposaient un dépôt sans effet sur le statut).
+- Reste : l'enregistrement serveur (enregistrerDepot) n'est branché à aucune action (hors fichiers autorisés) : PILOTAGE.
+- master fusionné. Tests (calendrier, calendrier-*, visuels, relais, médiathèque) : 1906 passés, 0 échoué. tsc : 147 erreurs, comme master (0 nouvelle). Aucune couleur ajoutée.
+contrôle anti-fuite : vide

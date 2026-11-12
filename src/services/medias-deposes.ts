@@ -58,6 +58,7 @@ export async function enregistrerDepot(d: DepotRecu, deps: DepotsMedias): Promis
   const creneau = await deps.creneaux.obtenir(d.creneauId);
   if (!creneau) return refus("Cette entrée du calendrier n'existe pas : le fichier n'a pas été rattaché.");
   if (creneau.statut === "archive") return refus("Cette entrée est archivée : le fichier n'a pas été rattaché.");
+  if (creneau.statut === "publie") return refus("Cette publication est déjà publiée : le fichier n'a pas été rattaché.");
   const type = typeDuMime(d.mime);
   if (!type) return refus("Ce fichier n'est ni une vidéo, ni une image, ni un PDF : le format n'est pas reconnu.");
   if (!Number.isFinite(d.taille) || d.taille <= 0) return refus("Ce fichier semble vide : il n'a pas été reçu en entier.");
@@ -85,9 +86,11 @@ export async function enregistrerDepot(d: DepotRecu, deps: DepotsMedias): Promis
   } as Fichier;
   const enregistre = await deps.fichiers.enregistrer(fichier);
 
-  // Rattachement : une vidéo OU un visuel, jamais les deux. Le statut de l'entrée ne bouge pas.
+  // Rattachement : une vidéo OU un visuel, jamais les deux. Un nouveau fichier n'a jamais été validé : une entrée déjà
+  // validée ou programmée repasse « à valider » (le fondateur revalide ; rien ne part sans sa validation).
   const { videoId: _v, visuelId: _i, ...sans } = creneau;
-  await deps.creneaux.enregistrer({ ...sans, ...(type === "video" ? { videoId: d.fichierId } : { visuelId: d.fichierId }) });
+  const aRevalider = creneau.statut === "valide" || creneau.statut === "programme";
+  await deps.creneaux.enregistrer({ ...sans, ...(aRevalider ? { statut: "a_valider" as const } : {}), ...(type === "video" ? { videoId: d.fichierId } : { visuelId: d.fichierId }) });
 
   const format = verifierFormat(d.reseau, { mime: d.mime, taille: d.taille, dureeSec: d.dureeSec });
   if (!format.ok) return { ok: true, etat: "brouillon", fichier: enregistre, formatRefuse: format.raison };
@@ -127,6 +130,11 @@ async function porteValidee(mediaId: string, creneauId: string, deps: Pick<Depot
   if (c.statut !== "valide" && c.statut !== "programme" && c.statut !== "publie") return { ok: false, raison: "Le fichier reste privé tant que vous n'avez pas validé la publication." };
   const f = await deps.fichiers.obtenir(mediaId);
   if (!f || f.statut !== "pret") return { ok: false, raison: "Le fichier n'est pas prêt." };
+  // Le format est revérifié à chaque porte : un fichier refusé par un réseau de l'entrée ne part jamais chez le diffuseur.
+  for (const reseau of Object.keys(c.heuresParReseau ?? {}) as IdReseau[]) {
+    const v = verifierFormat(reseau, { mime: f.mime, taille: f.taille, ...(f.dureeSec ? { dureeSec: f.dureeSec } : {}) });
+    if (!v.ok) return { ok: false, raison: v.raison };
+  }
   return { ok: true, fichier: f };
 }
 

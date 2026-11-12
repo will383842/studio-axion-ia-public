@@ -15,7 +15,7 @@ const Mo = 1024 * 1024;
 const SHA = "a".repeat(64);
 const horo = { creeLe: "2026-12-08T08:00:00.000Z", modifieLe: "2026-12-08T08:00:00.000Z" };
 
-function monde(sur: { taille?: number | null; sha?: string; statut?: "propose" | "valide" | "programme"; mime?: string; taillePosee?: number } = {}) {
+function monde(sur: { taille?: number | null; sha?: string; statut?: "propose" | "a_valider" | "valide" | "programme" | "publie"; mime?: string; taillePosee?: number } = {}) {
   const fichiers = new Map<string, Record<string, unknown>>();
   const creneaux = new Map<string, Record<string, unknown>>([["c1", { id: "c1", jourVise: "2026-12-10", heuresParReseau: {}, compteCible: "compte-fictif", statut: sur.statut ?? "propose", decalages: 0, ...horo }]]);
   const televerse: unknown[] = [];

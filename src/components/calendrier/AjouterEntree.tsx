@@ -7,16 +7,18 @@
 import { useRef, useState } from "react";
 import { ajouterEntree, type ResultatAjout } from "@/app/(studio)/calendrier/actions/ajouter";
 import type { IdReseau } from "@/domaine/types";
-import { DepotMedia } from "./DepotMedia";
+import { DepotMedia, envoyerFichierChoisi, type FichierChoisi, type ResultatEnvoiChoisi } from "./DepotMedia";
 
 export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour: string; compteCible: string; reseau?: IdReseau }) {
   const cle = useRef(crypto.randomUUID());
   const [heure, setHeure] = useState("09:00");
   const [mediaId, setMediaId] = useState("");
+  const [choisi, setChoisi] = useState<FichierChoisi | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [retour, setRetour] = useState<ResultatAjout | null>(null);
 
   // Confirmations déjà données pour cette saisie (le passé, puis la proximité ou le quota).
+  const dejaEnvoye = useRef<{ fichier: File; envoi: ResultatEnvoiChoisi } | null>(null);
   const confirme = useRef({ passe: false, proximite: false });
 
   async function envoyer(confirmation?: "passe" | "proximite" | "quota") {
@@ -25,11 +27,20 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour
     if (confirmation === "proximite" || confirmation === "quota") confirme.current.proximite = true;
     setEnCours(true);
     try {
-      const r = await ajouterEntree({ jour, heure, compteCible, reseau, videoId: mediaId || undefined, cle: cle.current, confirmerPasse: confirme.current.passe, confirmerProximite: confirme.current.proximite });
+      // Le fichier choisi part vraiment (dépôt existant) avant la création de l'entrée, qui le rattache.
+      // Déjà envoyé pour cette saisie (clic sur « Ajouter quand même ») : on ne renvoie pas le fichier.
+      const envoi = dejaEnvoye.current?.fichier === choisi?.fichier ? dejaEnvoye.current!.envoi : await envoyerFichierChoisi(choisi?.fichier, reseau, `manuel-${cle.current}`);
+      if (envoi.ok && choisi?.fichier) dejaEnvoye.current = { fichier: choisi.fichier, envoi };
+      if (!envoi.ok) {
+        setRetour({ ok: false, message: envoi.message });
+        return;
+      }
+      const r = await ajouterEntree({ jour, heure, compteCible, reseau, videoId: envoi.videoId ?? (mediaId || undefined), ...(envoi.visuelId ? { visuelId: envoi.visuelId } : {}), cle: cle.current, confirmerPasse: confirme.current.passe, confirmerProximite: confirme.current.proximite });
       setRetour(r);
       // Succès : nouvelle clé, pour qu'un 2e ajout depuis ce formulaire crée bien un 2e créneau.
       if (r.ok) {
         cle.current = crypto.randomUUID();
+        dejaEnvoye.current = null;
         confirme.current = { passe: false, proximite: false };
       }
     } finally {
@@ -42,7 +53,7 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour
       <p>Ajouter le {jour}</p>
       <label>Heure (Paris) <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} /></label>
       <label>Vidéo <input type="text" value={mediaId} onChange={(e) => setMediaId(e.target.value)} /></label>
-      <DepotMedia reseau={reseau} onMedia={() => undefined} />
+      <DepotMedia reseau={reseau} onMedia={setChoisi} />
       <button type="submit" disabled={enCours}>Ajouter</button>
       {retour?.ok === false && retour.aConfirmer && (
         <p role="alert">{retour.avertissement} <button type="button" disabled={enCours} onClick={() => void envoyer(retour.aConfirmer)}>Ajouter quand même</button></p>
