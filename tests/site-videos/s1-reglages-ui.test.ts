@@ -51,10 +51,15 @@ describe("S1.8 carte « Sur le site »", () => {
     expect(html).not.toContain("image-video");
   });
 
-  it("la page des Réglages a sa section « Sur le site » juste après « Votre site »", () => {
+  it("la page des Réglages a sa section « Sur le site » dans la rubrique « Publication »", () => {
     const page = readFileSync("src/app/(studio)/reglages/page.tsx", "utf8");
-    const ordre = [...page.matchAll(/\{ id: "([a-z-]+)", libelle/g)].map((m) => m[1]);
-    expect(ordre.indexOf("sur-le-site")).toBe(ordre.indexOf("votre-site") + 1);
-    expect(page).toContain('id="sur-le-site"');
+    const debut = page.indexOf('<Rubrique id="publication">');
+    const fin = page.indexOf('<Rubrique id="services">');
+    expect(debut).toBeGreaterThan(-1);
+    expect(fin).toBeGreaterThan(debut);
+    const rubrique = page.slice(debut, fin);
+    expect(rubrique).toContain('id="sur-le-site"');
+    expect(rubrique.indexOf('id="sur-le-site"')).toBeGreaterThan(rubrique.indexOf('id="envoi-programme"'));
+    expect(page.match(/id="sur-le-site"/g)).toHaveLength(1);
   });
 });

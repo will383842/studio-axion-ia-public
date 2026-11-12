@@ -189,16 +189,12 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
               })
             }
           >
-            {etat.supplement ? `Reprendre l'écriture (jusqu'à ${etat.supplement} de plus)` : "Reprendre l'écriture"}
+            Reprendre l'écriture
           </Bouton>
         </>
       )}
       <BarreProgression className="mt-5" valeur={Math.round((fait / etapes.length) * 100)} libelle="Avancement de l'écriture" />
       <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs font-bold">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-texte-doux">
-          <Icone nom="euro" size={12} />
-          {etat.utiliseEur} utilisés
-        </span>
         {etat.medianeMin !== null && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-texte-doux">
             <Icone nom="horloge" size={12} />
