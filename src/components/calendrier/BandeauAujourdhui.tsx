@@ -28,8 +28,8 @@ export function BandeauAujourdhui({ entrees, aujourdhui, className }: { entrees:
   if (!jourLisible(aujourdhui)) return null;
   const { total, aValider } = compterAujourdhui(entrees, aujourdhui);
   return (
-    <p className={cn("mb-2 text-sm text-doux", className)}>
-      Aujourd&apos;hui, {libelleJour(aujourdhui)} : {total} publications, dont {aValider} à valider.{" "}
+    <p className={cn("mb-2 text-sm text-texte-doux", className)}>
+      Aujourd&apos;hui, {libelleJour(aujourdhui)} : {total} publication{total === 1 ? "" : "s"}, dont {aValider} à valider.{" "}
       <Link href={lienJournee(aujourdhui)} className="underline underline-offset-[3px]">Voir la journée</Link>
     </p>
   );
