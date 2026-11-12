@@ -6,7 +6,7 @@ import type { EntreeCalendrier } from "@/domaine/calendrier";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { RESEAUX } from "@/reseaux";
-import { LIBELLES_ETAT, PastilleStatutPlan, etatDepuisStatut, type EtatCalendrier } from "./PastilleStatutPlan";
+import { PastilleStatutPlan, etatDepuisStatut, statutConnu, libelleEtat, type EtatAffiche, type TableLibelles, type TableStatuts } from "./PastilleStatutPlan";
 
 export type TypeContenu = "video" | "carrousel" | "infographie" | "image";
 
@@ -26,7 +26,7 @@ export interface EntreeCarte {
   jour: string;
   reseau: IdReseau;
   type: TypeContenu;
-  etat: EtatCalendrier;
+  etat: EtatAffiche;
   /** Heure de Paris « HH:MM » (déjà convertie par l'appelant) ; absente ou illisible : non affichée. */
   heure?: string;
   /** Début du texte ou titre du média. */
@@ -93,6 +93,18 @@ export function MonogrammeReseau({ reseau, taille = "md", className }: { reseau:
   );
 }
 
+/**
+ * Repère d'un réseau dans une case du mois : picto et nombre de publications. Exporté pour que la couleur (CAL-06)
+ * se règle ici, sans toucher aux grilles. Le nom du réseau est dans le `title` ; la grille le redit à l'oral.
+ */
+export function RepereReseau({ reseau, nombre, className }: { reseau: IdReseau; nombre: number; className?: string }) {
+  return (
+    <span title={`${nomReseau(reseau)} : ${nombre}`} data-reseau={reseau} style={styleReseau(reseau)} className={cn("rounded-md border-2 border-[color:var(--c)] bg-surface-1 px-1 text-[11px] font-extrabold tabular-nums text-texte", className)}>
+      {monogrammeReseau(reseau)} {nombre}
+    </span>
+  );
+}
+
 /** Verrou de la maquette : déjà publiée, ou jour passé (comparé au jour de Paris fourni). */
 export function estVerrouillee(entree: Pick<EntreeCarte, "etat" | "jour">, aujourdhui: string): boolean {
   if (entree.etat === "publie") return true;
@@ -105,25 +117,36 @@ export function trierEntrees<T extends Pick<EntreeCarte, "cle" | "jour" | "heure
   return [...entrees].sort((a, b) => a.jour.localeCompare(b.jour) || h(a).localeCompare(h(b)) || a.cle.localeCompare(b.cle));
 }
 
+export interface OptionsCartesDepuisEntrees {
+  /** Table « statut interne → état » fournie de l'extérieur (CAL-10) ; remplace la table par défaut. */
+  statuts?: TableStatuts;
+  /** Appelée pour chaque entrée dont le statut n'est dans aucune table : elle n'est pas montrée, et ce n'est jamais silencieux. */
+  surStatutInconnu?: (statut: string, entree: EntreeCalendrier) => void;
+}
+
 /**
- * Vue unifiée → cartes : une carte par réseau connu. Une entrée archivée ou sans réseau ne donne aucune carte.
+ * Vue unifiée → cartes : une carte par réseau connu. Une entrée archivée, sans réseau ou de statut inconnu ne donne
+ * aucune carte (le statut inconnu est signalé par `surStatutInconnu`, jamais montré comme « Brouillon »).
  * L'heure n'est pas dans la vue unifiée : l'appelant l'ajoute s'il la connaît.
  */
-export function cartesDepuisEntrees(entrees: readonly EntreeCalendrier[]): EntreeCarte[] {
+export function cartesDepuisEntrees(entrees: readonly EntreeCalendrier[], options: OptionsCartesDepuisEntrees = {}): EntreeCarte[] {
   return entrees.flatMap((e) => {
-    const etat = etatDepuisStatut(e.statut);
+    const etat = etatDepuisStatut(e.statut, options.statuts);
+    if (etat === null && !statutConnu(e.statut, options.statuts)) options.surStatutInconnu?.((e.statut ?? "").trim(), e);
     if (!etat) return [];
     return e.reseaux.filter(reseauConnu).map((reseau) => ({ cle: `${e.cle}|${reseau}`, jour: e.jour, reseau, type: e.famille === "carrousel" ? "carrousel" : "video", etat, titre: e.titre, mediaId: e.mediaId }) satisfies EntreeCarte);
   });
 }
 
 /** Ce qu'un lecteur d'écran dit de la carte : réseau, type, heure, état. */
-export function libelleCarte(entree: EntreeCarte): string {
-  return [nomReseau(entree.reseau), TYPES_CONTENU[entree.type]?.libelle, heureLisible(entree.heure), (LIBELLES_ETAT[entree.etat] ?? LIBELLES_ETAT.brouillon).libelle].filter(Boolean).join(", ");
+export function libelleCarte(entree: EntreeCarte, libellesEtat?: TableLibelles): string {
+  return [nomReseau(entree.reseau), TYPES_CONTENU[entree.type]?.libelle, heureLisible(entree.heure), libelleEtat(entree.etat, libellesEtat).libelle].filter(Boolean).join(", ");
 }
 
 export interface ProprietesCarteEntreeCalendrier {
   entree: EntreeCarte;
+  /** Table de libellés d'état fournie de l'extérieur (CAL-10) ; complète la table par défaut. */
+  libellesEtat?: TableLibelles;
   /** Ajoute la ligne de titre (vue du jour, réserve). */
   avecTitre?: boolean;
   /** Affiche le cadenas (voir `estVerrouillee`). */
@@ -141,11 +164,11 @@ export interface ProprietesCarteEntreeCalendrier {
  * Carte courte d'une publication : picto du réseau et heure, type (icône et libellé), état.
  * Le liseré de gauche prend la couleur du réseau (`--c`) ; l'état d'idée est en pointillé.
  */
-export function CarteEntreeCalendrier({ entree, avecTitre, verrouillee, tropProche, href, onOuvrir, className }: ProprietesCarteEntreeCalendrier) {
+export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verrouillee, tropProche, href, onOuvrir, className }: ProprietesCarteEntreeCalendrier) {
   const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
   const heure = heureLisible(entree.heure);
   // Le libellé remplace le contenu pour un lecteur d'écran : le verrou et l'alerte y sont donc redits.
-  const libelle = [libelleCarte(entree), verrouillee && "verrouillée", tropProche && "trop proche d'une autre publication"].filter(Boolean).join(", ");
+  const libelle = [libelleCarte(entree, libellesEtat), verrouillee && "verrouillée", tropProche && "trop proche d'une autre publication"].filter(Boolean).join(", ");
   const classes = cn(
     "block w-full rounded-[9px] border border-l-[5px] border-trait border-l-[color:var(--c)] bg-surface-1 px-1.5 py-1 text-left shadow-carte transition-colors",
     entree.etat === "idee" && "border-dashed",
@@ -169,7 +192,7 @@ export function CarteEntreeCalendrier({ entree, avecTitre, verrouillee, tropProc
         {type.libelle}
       </span>
       <span className="flex flex-wrap gap-1">
-        <PastilleStatutPlan etat={entree.etat} />
+        <PastilleStatutPlan etat={entree.etat} libelles={libellesEtat} />
         {tropProche && (
           <Pastille ton="ambre" icone="attention">
             Trop proches

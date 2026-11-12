@@ -3,6 +3,7 @@ import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
+import type { TableLibelles } from "./PastilleStatutPlan";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, MonogrammeReseau, estVerrouillee, jourLisible, nomReseau, styleReseau, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
 
@@ -23,6 +24,17 @@ export interface ProprietesGrilleSemaine {
   /** « + » d'une case d'aujourd'hui ou à venir. Sans lien ni geste, aucun « + » n'est affiché. */
   lienAjout?: (jour: string, reseau: IdReseau) => string;
   onAjouter?: (jour: string, reseau: IdReseau) => void;
+  /**
+   * Densité (point d'extension de RC-37 et CAL-09) : nombre de cartes montrées par case, entier de 1 au moins.
+   * Au-delà, la case garde les premières (par heure) et ajoute « + N autres », nommé, qui ouvre `lienPlus` ou
+   * appelle `onVoirPlus`. Sans lien ni geste, ou si la valeur n'est pas un entier de 1 au moins, toutes les cartes restent
+   * montrées : rien n'est caché sans moyen de le retrouver.
+   */
+  maxParCase?: number;
+  lienPlus?: (reseau: IdReseau, jour: string) => string;
+  onVoirPlus?: (reseau: IdReseau, jour: string) => void;
+  /** Table de libellés d'état fournie de l'extérieur (CAL-10), transmise aux cartes. */
+  libellesEtat?: TableLibelles;
   /** Vrai si une publication est attendue ce jour-là sur ce réseau : la case vide dit « Créneau vide ». */
   attendu?: (reseau: IdReseau, jour: string) => boolean;
   /** Clés des cartes à marquer « Trop proches » (voir AlerteProximite). */
@@ -40,7 +52,7 @@ const AJOUT = "mt-auto grid min-h-[30px] place-items-center rounded-[9px] border
  * Semaine en couloirs : une ligne par réseau, une colonne par jour (lundi d'abord), sans lignes d'heures.
  * Aujourd'hui est marqué ; les jours passés sont hachurés et sans « + ».
  */
-export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, tropProches, filtresActifs, className }: ProprietesGrilleSemaine) {
+export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, lienPlus, onVoirPlus, libellesEtat, tropProches, filtresActifs, className }: ProprietesGrilleSemaine) {
   if (reseaux.length === 0) return <div className={cn(VIDE, className)}>Aucun réseau affiché. Rallumez un réseau ci-dessus.</div>;
   const repere = jourLisible(semaineDu) ? semaineDu : aujourdhui;
   if (!jourLisible(repere)) return <div className={cn(VIDE, className)}>Semaine illisible. Revenez à aujourd&apos;hui.</div>;
@@ -48,35 +60,34 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
   const visibles = trierEntrees(entrees.filter((e) => reseaux.includes(e.reseau) && jours.includes(e.jour)));
   const passe = (jour: string) => jourLisible(aujourdhui) && jour < aujourdhui;
   const peutAjouter = Boolean(lienAjout || onAjouter);
+  const limite = (lienPlus || onVoirPlus) && Number.isInteger(maxParCase) && (maxParCase as number) >= 1 ? (maxParCase as number) : null;
 
   const enTete = (jour: string) => {
     const estAujourdhui = jour === aujourdhui;
     const libelle = `Ouvrir la journée du ${libelleJour(jour)}`;
     const classes = cn("rounded-lg px-1.5 py-1 text-left text-sm font-bold capitalize", estAujourdhui ? "bg-orange text-sur-orange" : "text-texte-doux", (lienJour || onOuvrirJour) && !estAujourdhui && "hover:bg-surface-2");
-    const commun = { "data-entete-jour": jour, "aria-current": estAujourdhui ? ("date" as const) : undefined, role: "columnheader", className: classes };
+    const commun = { "data-entete-jour": jour, "aria-current": estAujourdhui ? ("date" as const) : undefined, className: classes };
     const contenu = (
       <>
         {JOUR_COURT.format(new Date(`${jour}T12:00:00Z`))} <b className={cn("text-base", !estAujourdhui && "text-texte")}>{Number(jour.slice(8))}</b>
         {estAujourdhui && <span className="sr-only"> (aujourd&apos;hui)</span>}
       </>
     );
-    if (lienJour) {
-      return (
-        <Link key={jour} href={lienJour(jour)} aria-label={libelle} {...commun}>
-          {contenu}
-        </Link>
-      );
-    }
-    if (onOuvrirJour) {
-      return (
-        <button key={jour} type="button" aria-label={libelle} onClick={() => onOuvrirJour(jour)} {...commun}>
-          {contenu}
-        </button>
-      );
-    }
-    return (
-      <div key={jour} {...commun}>
+    // Le rôle « columnheader » est sur un conteneur : sur le lien ou le bouton, il masquerait leur rôle à l'oral.
+    const interieur = lienJour ? (
+      <Link href={lienJour(jour)} aria-label={libelle} {...commun}>
         {contenu}
+      </Link>
+    ) : onOuvrirJour ? (
+      <button type="button" aria-label={libelle} onClick={() => onOuvrirJour(jour)} {...commun}>
+        {contenu}
+      </button>
+    ) : (
+      <div {...commun}>{contenu}</div>
+    );
+    return (
+      <div key={jour} role="columnheader">
+        {interieur}
       </div>
     );
   };
@@ -98,6 +109,21 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
       </Link>
     ) : (
       <button type="button" aria-label={libelle} onClick={() => onAjouter?.(jour, reseau)} className={classes}>
+        {contenu}
+      </button>
+    );
+  };
+
+  const voirPlus = (reseau: IdReseau, jour: string, reste: number) => {
+    const libelle = `Voir ${reste === 1 ? "l'autre publication" : `les ${reste} autres publications`} sur ${nomReseau(reseau)}, ${libelleJour(jour)}`;
+    const classes = "block w-full rounded-[9px] border border-dashed border-trait-fort bg-surface-1 px-1.5 py-1 text-center text-xs font-bold text-texte-doux hover:border-orange hover:text-orange-vif";
+    const contenu = `+ ${reste} autre${reste > 1 ? "s" : ""}`;
+    return lienPlus ? (
+      <Link href={lienPlus(reseau, jour)} aria-label={libelle} data-plus={`${reseau}|${jour}`} className={classes}>
+        {contenu}
+      </Link>
+    ) : (
+      <button type="button" aria-label={libelle} data-plus={`${reseau}|${jour}`} onClick={() => onVoirPlus?.(reseau, jour)} className={classes}>
         {contenu}
       </button>
     );
@@ -141,12 +167,13 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
                     className={cn(
                       "relative flex min-h-[74px] min-w-0 flex-col gap-1 rounded-[11px] border p-1",
                       estAujourdhui ? "border-orange/40 bg-orange-doux" : "border-trait bg-surface-1",
-                      estPasse && "bg-[repeating-linear-gradient(135deg,var(--surface-3),var(--surface-3)_6px,var(--fond)_6px,var(--fond)_12px)] opacity-80",
+                      estPasse && "bg-[repeating-linear-gradient(135deg,var(--surface-3),var(--surface-3)_6px,var(--fond)_6px,var(--fond)_12px)]",
                     )}
                   >
-                    {cartes.map((e) => (
-                      <CarteEntreeCalendrier key={e.cle} entree={e} verrouillee={estVerrouillee(e, aujourdhui)} tropProche={tropProches?.has(e.cle)} href={lienEntree?.(e)} onOuvrir={onOuvrirEntree} />
+                    {(limite !== null && cartes.length > limite ? cartes.slice(0, limite) : cartes).map((e) => (
+                      <CarteEntreeCalendrier key={e.cle} entree={e} libellesEtat={libellesEtat} verrouillee={estVerrouillee(e, aujourdhui)} tropProche={tropProches?.has(e.cle)} href={lienEntree?.(e)} onOuvrir={onOuvrirEntree} />
                     ))}
+                    {limite !== null && cartes.length > limite && voirPlus(reseau, jour, cartes.length - limite)}
                     {!estPasse && peutAjouter && ajout(jour, reseau, creneauVide)}
                   </div>
                 );

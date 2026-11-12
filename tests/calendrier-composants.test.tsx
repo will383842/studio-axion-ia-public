@@ -2,16 +2,17 @@
  * Composants du calendrier (L4-03) : grilles semaine et mois, carte, pastille de statut, barre de vue, barre de
  * filtres, alerte de proximité. Rendu serveur seulement (renderToStaticMarkup), données fictives, aucun appel réel.
  */
+import { readFileSync } from "node:fs";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AlerteProximite, JOURS_PROXIMITE, SEUIL_PROXIMITE, clesTropProches, pairesTropProches } from "@/components/calendrier/AlerteProximite";
 import { BarreFiltres, RESEAUX_CALENDRIER, basculerReseau, filtrerParReseau } from "@/components/calendrier/BarreFiltres";
 import { BarreVue, libellePeriode } from "@/components/calendrier/BarreVue";
-import { CarteEntreeCalendrier, TYPES_CONTENU, cartesDepuisEntrees, estVerrouillee, styleReseau, type EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
+import { CarteEntreeCalendrier, RepereReseau, TYPES_CONTENU, cartesDepuisEntrees, estVerrouillee, styleReseau, type EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
 import { GrilleMois } from "@/components/calendrier/GrilleMois";
 import { GrilleSemaine } from "@/components/calendrier/GrilleSemaine";
-import { ETATS_CALENDRIER, LIBELLES_ETAT, PastilleStatutPlan, etatDepuisStatut } from "@/components/calendrier/PastilleStatutPlan";
+import { ETATS_CALENDRIER, LIBELLES_ETAT, PastilleStatutPlan, STATUTS_VERS_ETAT, etatDepuisStatut, statutConnu } from "@/components/calendrier/PastilleStatutPlan";
 import type { EntreeCalendrier } from "@/domaine/calendrier";
 import { STATUTS_PLAN } from "@/domaine/plan-editorial/statuts";
 import { empreinte } from "@/domaine/proximite/empreinte";
@@ -98,8 +99,43 @@ describe("PastilleStatutPlan", () => {
     for (const etat of ETATS_CALENDRIER) expect(etatDepuisStatut(etat)).toBe(etat);
   });
 
-  it("statut vide ou illisible : « Brouillon » (rien n'est parti), jamais d'erreur", () => {
-    for (const s of ["", "   ", "n'importe quoi", undefined, null]) expect(etatDepuisStatut(s)).toBe("brouillon");
+  it("statut vide : « Brouillon » (rien n'est décidé), jamais d'erreur", () => {
+    for (const s of ["", "   ", undefined, null]) expect(etatDepuisStatut(s)).toBe("brouillon");
+  });
+
+  it("statut inconnu : jamais « Brouillon » en silence (écarté et signalé), y compris les propriétés de l'objet", () => {
+    for (const s of ["n'importe quoi", "refusee", "manquee", "constructor", "__proto__", "toString"]) {
+      expect(etatDepuisStatut(s)).toBeNull();
+      expect(statutConnu(s)).toBe(false);
+    }
+    expect(statutConnu("")).toBe(true);
+    expect(statutConnu("archive")).toBe(true);
+    expect(statutConnu(" publie ")).toBe(true);
+  });
+
+  it("la table des statuts peut être fournie de l'extérieur (CAL-10) et remplace la table par défaut", () => {
+    const table = { ...STATUTS_VERS_ETAT, refusee: "refusee", manquee: "manquee", archive: null };
+    expect(etatDepuisStatut("refusee", table)).toBe("refusee");
+    expect(etatDepuisStatut("refusee")).toBeNull();
+    expect(etatDepuisStatut("programme", { programme: "publie" })).toBe("publie");
+    expect(etatDepuisStatut("publie", { programme: "publie" })).toBeNull();
+    expect(statutConnu("manquee", table)).toBe(true);
+  });
+
+  it("la table des libellés peut être fournie de l'extérieur ; un état sans libellé se dit « État à vérifier », jamais « Brouillon »", () => {
+    const libelles = { refusee: { libelle: "Refusée", ton: "brique" }, publie: { libelle: "Publiée", ton: "sauge" } } as const;
+    expect(lisible(rendre(<PastilleStatutPlan etat="refusee" libelles={libelles} />))).toContain("Refusée");
+    expect(lisible(rendre(<PastilleStatutPlan etat="publie" libelles={libelles} />))).toContain("Publiée");
+    expect(lisible(rendre(<PastilleStatutPlan etat="programme" libelles={libelles} />))).toContain("Programmé");
+    for (const html of [rendre(<PastilleStatutPlan etat="refusee" />), rendre(<PastilleStatutPlan etat="constructor" libelles={libelles} />)]) {
+      expect(lisible(html)).toContain("État à vérifier");
+      expect(lisible(html)).not.toContain("Brouillon");
+    }
+    const carteRefusee = carte({ etat: "refusee" });
+    expect(rendre(<CarteEntreeCalendrier entree={carteRefusee} libellesEtat={libelles} />)).toContain('aria-label="LinkedIn, Vidéo, 09:00, Refusée"');
+    const grille = rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={[carteRefusee]} libellesEtat={libelles} />);
+    expect(lisible(grille)).toContain("Refusée");
+    expect(lisible(grille)).not.toContain("État à vérifier");
   });
 });
 
@@ -171,6 +207,15 @@ describe("CarteEntreeCalendrier", () => {
     expect(cartes.map((c) => c.cle)).toEqual(["creneau:c1|linkedin", "creneau:c1|instagram"]);
     expect(cartes[0]).toMatchObject({ jour: AUJOURDHUI, reseau: "linkedin", type: "carrousel", etat: "a_valider", titre: base.titre, mediaId: "v1" });
     expect(cartesDepuisEntrees([])).toEqual([]);
+    // Statut inconnu : aucune carte « Brouillon », et l'appelant est prévenu une fois par entrée.
+    const surStatutInconnu = vi.fn();
+    expect(cartesDepuisEntrees([{ ...base, statut: "refusee" }, base], { surStatutInconnu }).map((c) => c.cle)).toEqual(["creneau:c1|linkedin", "creneau:c1|instagram"]);
+    expect(surStatutInconnu).toHaveBeenCalledTimes(1);
+    expect(surStatutInconnu.mock.calls[0][0]).toBe("refusee");
+    expect(cartesDepuisEntrees([{ ...base, statut: "refusee" }])).toEqual([]);
+    expect(cartesDepuisEntrees([{ ...base, statut: "refusee" }], { statuts: { ...STATUTS_VERS_ETAT, refusee: "refusee" } })[0]).toMatchObject({ etat: "refusee" });
+    expect(cartesDepuisEntrees([{ ...base, statut: "archive" }], { surStatutInconnu })).toEqual([]);
+    expect(surStatutInconnu).toHaveBeenCalledTimes(1);
     expect(cartesDepuisEntrees([{ ...base, famille: "video", statut: "programmee", reseaux: ["tiktok"] }])[0]).toMatchObject({ type: "video", etat: "programme", reseau: "tiktok" });
   });
 });
@@ -203,12 +248,43 @@ describe("GrilleMois", () => {
   it("chaque jour porte un repère par réseau (picto, nombre et nom), sans compter les idées", () => {
     const entrees = [carte({ reseau: "linkedin" }), carte({ reseau: "linkedin", heure: "12:15" }), carte({ reseau: "instagram" }), carte({ reseau: "tiktok", etat: "idee" }), carte({ jour: "illisible" })];
     const html = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={entrees} />);
-    expect(html).toContain('aria-label="mercredi 11 novembre, 3 publications"');
+    expect(html).toContain('aria-label="mercredi 11 novembre, 3 publications : LinkedIn 2, Instagram 1"');
     expect(html).toContain('title="LinkedIn : 2"');
     expect(html).toContain('title="Instagram : 1"');
     expect(html).not.toContain('title="TikTok');
     expect(html).toContain('aria-label="jeudi 12 novembre, 0 publication"');
-    expect(html).toContain("Chaque pastille donne le nombre de publications d'un réseau. Cliquez sur un jour pour l'ouvrir.".replace(/'/g, "&#x27;"));
+    expect(html).toContain("Chaque pastille donne le nombre de publications d&#x27;un réseau.");
+    expect(html).not.toContain("Cliquez sur un jour");
+    const ouvrable = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={entrees} lienJour={(j) => `/c?${j}`} />);
+    expect(ouvrable).toContain("Cliquez sur un jour pour l&#x27;ouvrir.");
+    expect(rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={entrees} onOuvrirJour={() => {}} />)).toContain("Cliquez sur un jour pour l&#x27;ouvrir.");
+  });
+
+  it("lecteur d'écran : le libellé du jour dit le détail par réseau, dans l'ordre des réseaux allumés", () => {
+    const entrees = [carte({ reseau: "instagram" }), carte({ reseau: "linkedin" }), carte({ reseau: "linkedin", heure: "12:00" }), carte({ reseau: "tiktok", etat: "idee" })];
+    const html = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={entrees} />);
+    expect(html).toContain('aria-label="mercredi 11 novembre, 3 publications : LinkedIn 2, Instagram 1"');
+    expect(html).toContain('aria-label="jeudi 12 novembre, 0 publication"');
+    const un = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={[carte({ reseau: "facebook" })]} />);
+    expect(un).toContain('aria-label="mercredi 11 novembre, 1 publication : Facebook 1"');
+  });
+
+  it("rôles vrais : un tableau et des cellules (aucune navigation aux flèches n'existe), jamais « grid »", () => {
+    const html = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={[]} lienJour={(j) => `/c?${j}`} />);
+    expect(html).toContain('role="table"');
+    expect(compter(html, 'role="cell"')).toBe(42);
+    expect(compter(html, 'role="columnheader"')).toBe(7);
+    expect(html).not.toMatch(/role="(grid|gridcell)"/);
+  });
+
+  it("le repère par réseau est le composant exporté RepereReseau (point d'extension de CAL-06)", () => {
+    const repere = rendre(<RepereReseau reseau="linkedin" nombre={2} />);
+    expect(repere).toContain('title="LinkedIn : 2"');
+    expect(repere).toContain('data-reseau="linkedin"');
+    expect(repere).toContain("--c:var(--res-linkedin, var(--trait-fort))");
+    expect(repere).toMatch(/>in 2</);
+    const html = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={[carte({ reseau: "linkedin" }), carte({ reseau: "linkedin", heure: "12:00" })]} />);
+    expect(html).toContain(repere);
   });
 
   it("un jour s'ouvre par lien ou par clic", () => {
@@ -232,7 +308,7 @@ describe("GrilleMois", () => {
     const html = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={entrees} reseaux={["linkedin"]} />);
     expect(html).toContain('title="LinkedIn : 1"');
     expect(html).not.toContain('title="Instagram');
-    expect(html).toContain('aria-label="mercredi 11 novembre, 1 publication"');
+    expect(html).toContain('aria-label="mercredi 11 novembre, 1 publication : LinkedIn 1"');
   });
 });
 
@@ -294,6 +370,69 @@ describe("GrilleSemaine", () => {
     expect(onOuvrirJour).toHaveBeenCalledWith("2026-11-14");
     cliquer(el, "LinkedIn, Vidéo, 09:00, Programmé");
     expect(onOuvrirEntree).toHaveBeenCalledWith(e);
+  });
+
+  it("le rôle d'en-tête de colonne est sur un conteneur, jamais sur le lien ou le bouton (qui gardent leur rôle à l'oral)", () => {
+    const variantes = [semaine({ lienJour: (j) => `/c?${j}` }), semaine({ onOuvrirJour: () => {} }), semaine()];
+    for (const el of variantes) {
+      const html = rendre(el);
+      expect(html).not.toMatch(/<(a|button)\b[^>]*\brole=/);
+      expect(compter(html, 'role="columnheader"')).toBe(8);
+    }
+    const lien = rendre(variantes[0]);
+    expect(lien).toMatch(/<div role="columnheader"><a [^>]*data-entete-jour="2026-11-09"/);
+    expect(rendre(variantes[1])).toMatch(/<div role="columnheader"><button [^>]*data-entete-jour="2026-11-09"/);
+  });
+
+  describe("densité : maxParCase et « + N autres » (point d'extension de RC-37 et CAL-09)", () => {
+    const quatre = ["09:00", "10:00", "11:00", "12:00"].map((heure, i) => carte({ cle: `d${i}`, heure }));
+    const caseDe = (html: string) => html.slice(html.indexOf('data-case="linkedin|2026-11-11"'), html.indexOf('data-case="linkedin|2026-11-12"'));
+
+    it("au-delà de la limite : les premières cartes (par heure) et un bouton nommé qui rend la case", () => {
+      const onVoirPlus = vi.fn();
+      const el = semaine({ entrees: [...quatre].reverse(), maxParCase: 2, onVoirPlus });
+      const c = caseDe(rendre(el));
+      expect(compter(c, 'data-carte="')).toBe(2);
+      expect(c).toContain('data-carte="d0"');
+      expect(c).toContain('data-carte="d1"');
+      expect(c).not.toContain('data-carte="d2"');
+      expect(lisible(c)).toContain("+ 2 autres");
+      cliquer(el, "Voir les 2 autres publications sur LinkedIn, mercredi 11 novembre");
+      expect(onVoirPlus).toHaveBeenCalledWith("linkedin", "2026-11-11");
+    });
+
+    it("par lien (rendu serveur), et « + 1 autre » au singulier", () => {
+      const html = rendre(semaine({ entrees: quatre.slice(0, 3), maxParCase: 2, lienPlus: (r, j) => `/c?plus=${r}|${j}` }));
+      expect(html).toContain('href="/c?plus=linkedin|2026-11-11"');
+      expect(html).toContain('aria-label="Voir l&#x27;autre publication sur LinkedIn, mercredi 11 novembre"');
+      expect(lisible(html)).toContain("+ 1 autre");
+      expect(lisible(html)).not.toContain("+ 1 autres");
+    });
+
+    it("à la limite exacte ou en dessous : aucun « + N autres » ; les autres cases ne sont pas touchées", () => {
+      for (const max of [4, 5, 100]) expect(rendre(semaine({ entrees: quatre, maxParCase: max, onVoirPlus: () => {} }))).not.toContain("autre");
+      const html = rendre(semaine({ entrees: [...quatre, carte({ cle: "ig", reseau: "instagram" })], maxParCase: 3, onVoirPlus: () => {} }));
+      expect(compter(html, 'data-carte="')).toBe(4);
+      expect(compter(html, "+ 1 autre")).toBe(1);
+    });
+
+    it("limite absente, nulle, négative, fractionnaire ou illisible, ou sans lien ni geste : toutes les cartes restent montrées", () => {
+      for (const maxParCase of [undefined, 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+        const html = rendre(semaine({ entrees: quatre, maxParCase, onVoirPlus: () => {} }));
+        expect(compter(html, 'data-carte="'), String(maxParCase)).toBe(4);
+        expect(html).not.toContain("autre");
+      }
+      const sansGeste = rendre(semaine({ entrees: quatre, maxParCase: 1 }));
+      expect(compter(sansGeste, 'data-carte="')).toBe(4);
+      expect(sansGeste).not.toContain("autre");
+    });
+
+    it("la limite compte les cartes d'un jour passé aussi (consultation), et le rejeu donne le même rendu", () => {
+      const passees = quatre.map((e) => ({ ...e, jour: "2026-11-10", cle: `p${e.cle}` }));
+      const el = semaine({ entrees: passees, maxParCase: 1, onVoirPlus: () => {} });
+      expect(rendre(el)).toContain("+ 3 autres");
+      expect(rendre(el)).toBe(rendre(el));
+    });
   });
 
   it("états vides de la maquette", () => {
@@ -360,7 +499,9 @@ describe("BarreFiltres (filtre simple par réseau)", () => {
   it("par liens (rendu serveur) : chaque pastille porte son adresse", () => {
     const html = rendre(<BarreFiltres actifs={["linkedin"]} lienReseau={(r) => `/calendrier?reseaux=${r}`} />);
     expect(html).toContain('href="/calendrier?reseaux=instagram"');
-    expect(html).toMatch(/aria-current="true"[^>]*aria-label="LinkedIn"|aria-label="LinkedIn"[^>]*aria-current="true"/);
+    expect(html).toContain('aria-label="LinkedIn, affiché"');
+    expect(html).toContain('aria-label="Instagram, masqué"');
+    expect(html).not.toContain("aria-current");
   });
 
   it("« Effacer les filtres (N) » n'apparaît que si un autre filtre est actif", () => {
@@ -529,5 +670,46 @@ describe("aucun libellé interdit", () => {
     expect(texte).toContain("Trop proches");
     expect(texte).toContain("Idée de l'IA");
     for (const motif of INTERDITS) expect(texte, String(motif)).not.toMatch(motif);
+  });
+});
+
+describe("contraste (WCAG AA, 4,5:1) : aucune opacité sur du texte", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const jeton = (nom: string) => css.match(new RegExp(`--${nom}:\\s*(#[0-9A-Fa-f]{6})`))?.[1] ?? "";
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contraste = (a: string, b: string) => {
+    const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m);
+    return (x + 0.05) / (y + 0.05);
+  };
+
+  it("les textes de remplacement (éteint, hors du mois, case passée) ont 4,5:1 sur tous les fonds clairs", () => {
+    for (const texte of ["texte", "texte-doux", "texte-faible"]) {
+      for (const fond of ["fond", "surface-1", "surface-2", "surface-3"]) {
+        expect(jeton(texte), texte).not.toBe("");
+        expect(contraste(jeton(texte), jeton(fond)), `${texte} sur ${fond}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("ni la barre de filtres (réseau éteint), ni le mois (jours voisins), ni la semaine (cases passées) n'estompent par l'opacité", () => {
+    const entrees = [carte({ jour: "2026-11-09" }), carte({ cle: "futur", jour: "2026-11-13" })];
+    const html = [
+      rendre(<BarreFiltres actifs={["linkedin"]} onBasculer={() => {}} />),
+      rendre(<BarreFiltres actifs={["linkedin"]} lienReseau={(r) => `/c?${r}`} />),
+      rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={entrees} />),
+      rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={entrees} onAjouter={() => {}} />),
+    ].join("\n");
+    expect(html).not.toMatch(/\bopacity-/);
+    expect(html).toContain("border-dashed");
+  });
+
+  it("un réseau éteint garde un texte doux sur fond plein (pointillé, pas d'opacité) ; un jour hors du mois, un texte faible", () => {
+    const eteint = rendre(<BarreFiltres actifs={["linkedin"]} onBasculer={() => {}} />);
+    expect(eteint).toMatch(/aria-label="Instagram"[^>]*class="[^"]*border-dashed[^"]*bg-surface-2[^"]*text-texte-doux|class="[^"]*border-dashed[^"]*bg-surface-2[^"]*text-texte-doux[^"]*"[^>]*aria-label="Instagram"/);
+    const mois = rendre(<GrilleMois mois="2026-11" aujourdhui={AUJOURDHUI} entrees={[]} />);
+    expect(mois).toMatch(/<b class="tabular-nums text-texte-faible">26<\/b>/);
   });
 });
