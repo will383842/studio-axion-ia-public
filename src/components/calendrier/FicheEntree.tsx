@@ -4,6 +4,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { Icone } from "@/components/ui/Icone";
 import { modePremierCommentaire } from "@/domaine/ecriture-post/commentaire";
 import { cn } from "@/lib/cn";
+import { controlerProgrammation } from "@/services/controle-programmation";
 import { libelleJour } from "./BarreVue";
 import { MonogrammeReseau, TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { ETATS_CALENDRIER, PastilleStatutPlan, type EtatAffiche, type TableLibelles } from "./PastilleStatutPlan";
@@ -86,6 +87,8 @@ export interface EntreeFiche extends EntreeCarte {
   confiee?: boolean;
   /** Ce qui manque ou ce que le réseau a répondu, en une phrase. */
   message?: string;
+  /** Qui a écrit le texte ; absent : une personne (ajout manuel, jamais bloqué). */
+  auteur?: "machine" | "will";
   /** Origine de la date (CAL-01, définie dans types.ts) ; absente : choisie à la main. */
   origineDate?: OrigineEntree;
 }
@@ -322,6 +325,8 @@ export function FicheEntree({
   const idCommentaire = `${idTitre}-commentaire`;
   const sansCommentaire = sansPremierCommentaire(entree.reseau);
   const reponsesALaMain = entree.reseau === "linkedin" || entree.reseau === "tiktok";
+  // L7-12 : le contrôleur de texte avertit (voyant), il n'empêche jamais d'enregistrer ni de programmer à la main.
+  const controle = reseau && entree.texte.trim() ? controlerProgrammation({ reseau, texte: entree.texte, commentaire: entree.premierCommentaire, auteur: entree.auteur ?? "will" }) : null;
   const aNavigation = Boolean(lienPrecedente || onPrecedente || lienSuivante || onSuivante || lienFermer || onFermer);
 
   const champs = (
@@ -332,6 +337,21 @@ export function FicheEntree({
           Texte de la publication
         </label>
         <textarea id={idTexte} name="texte" rows={5} maxLength={LONGUEUR_MAX_TEXTE} defaultValue={entree.texte} readOnly={!modifiable} className={CHAMP} />
+        {controle && (
+          <div data-voyant-controle={controle.voyant} className="mt-1.5 text-sm">
+            <p className={cn("font-semibold", controle.voyant === "vert" ? "text-sauge" : controle.voyant === "orange" ? "text-ambre" : "text-brique")}>
+              {controle.voyant === "vert" ? "Contrôle du texte : rien à signaler." : controle.voyant === "orange" ? "Contrôle du texte : à relire." : "Contrôle du texte : le réseau refuserait ce format."}
+            </p>
+            {controle.avertissements.length > 0 && (
+              <ul className="mt-1 list-disc pl-5 text-texte-doux">
+                {controle.avertissements.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            )}
+            {controle.voyant !== "vert" && <p className="mt-1 text-xs text-texte-faible">Ce contrôle avertit seulement : vous pouvez enregistrer quand même.</p>}
+          </div>
+        )}
         {!entree.texte.trim() && verrou === null && <p className="mt-1.5 text-sm font-semibold text-ambre">Il manque le texte.</p>}
       </div>
       {sansCommentaire ? (
