@@ -954,7 +954,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
       // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.
-      if (journal.tirageNeuf) gardee = { ...gardee, sousTitresSansVariante: true };
+      if (journal.tirageNeuf || heritee?.sousTitresSansVariante) gardee = { ...gardee, sousTitresSansVariante: true };
     }
     if (!gardee) return undefined;
     if (variete && !journal.mise?.notee) {
