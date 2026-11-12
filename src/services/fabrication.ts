@@ -28,11 +28,12 @@ import type {
 } from "@/domaine/types";
 import { centimesBloquants } from "@/domaine/credits";
 import { motsSousTitres, plansDepuisScript, texteScript } from "@/domaine/derivations";
+import { decorParDefaut } from "@/domaine/decors";
 import { baseRetenue, fabriquerSousTitres } from "@/briques/sous-titres";
 import { resoudreVisagesParAngle, visagePourFormat } from "@/domaine/distribution";
 import { prononciationsActives } from "@/domaine/prononciations";
 import { empreinteDesBlocs, relectureAExiger } from "@/domaine/relecture-assistant";
-import { accordDuFormat, briquesEffectives, dureeVideo, migrerReglages, musiqueRetenue, debitLecture, nomCourtFormat, obtenirFormat, scriptAJour, trouverFormat, validerReglages } from "@/formats";
+import { accordDuFormat, briquesEffectives, dureeVideo, migrerReglages, musiqueRetenue, styleParDefautRetenu, debitLecture, nomCourtFormat, obtenirFormat, scriptAJour, trouverFormat, validerReglages } from "@/formats";
 import { repartitionDepuisReglages } from "@/formats/communs";
 import type { DefinitionFormat } from "@/formats/types";
 import { resoudreFournisseur } from "@/fournisseurs";
@@ -92,20 +93,21 @@ async function stylesResolus(video: Video, format: DefinitionFormat): Promise<St
   const def = format.stylesParDefaut;
   // Ancien champ `fondId` (vidéos d'avant la fusion fond → décor) : lu tant que la migration ne l'a pas renommé.
   const ancienFond = (video.styles as { fondId?: string }).fondId;
-  // Priorité : choix de la vidéo > défaut du format (le plan et le visage priment au montage).
+  // Priorité : choix de la vidéo > style étoilé dans la Bibliothèque > défaut du code (le plan et le visage priment au montage).
+  const tous = await d.elements.lister();
   const ids = {
-    lut: video.styles.lutId ?? def.lut,
-    sousTitres: video.styles.sousTitresId ?? def.sousTitres,
-    habillage: video.styles.habillageId ?? def.habillage,
-    styleMontage: video.styles.styleMontageId ?? def.styleMontage,
-    profilSon: video.styles.profilSonId ?? def.profilSon,
-    decor: video.styles.decorId ?? ancienFond ?? def.decor,
+    lut: styleParDefautRetenu(format, "lut", video.styles.lutId, tous),
+    sousTitres: styleParDefautRetenu(format, "sousTitres", video.styles.sousTitresId, tous),
+    habillage: styleParDefautRetenu(format, "habillage", video.styles.habillageId, tous),
+    styleMontage: styleParDefautRetenu(format, "styleMontage", video.styles.styleMontageId, tous),
+    profilSon: styleParDefautRetenu(format, "profilSon", video.styles.profilSonId, tous),
+    // Décor : N1 Halo orange prime sur l'étoile pour l'avocat (règle existante `decorParDefaut`).
+    decor: video.styles.decorId ?? ancienFond ?? decorParDefaut(format.id, tous, styleParDefautRetenu(format, "decor", undefined, tous)),
   };
   const obtenir = async (id?: string) => (id ? await d.elements.obtenir(id) : null);
   const resoudre = async <V extends ValeurElement>(id?: string) => (id ? styleResolu<V>(await obtenir(id), id) : undefined);
   // UNE règle de musique, la même que l'écran Style ; jamais de musique si le format l'interdit (avocat).
-  const elementsMusique = await d.elements.lister((e) => e.type === "musique");
-  const musique = musiqueRetenue(format, video.styles.musiqueId, elementsMusique);
+  const musique = musiqueRetenue(format, video.styles.musiqueId);
   const lut = ids.lut && ids.lut !== LUT_AUCUNE ? await obtenir(ids.lut) : null;
   return {
     lut: ids.lut

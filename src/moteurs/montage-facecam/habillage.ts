@@ -22,6 +22,7 @@ import { TAILLE_SOUS_TITRES_REFERENCE_PX } from "@/briques/composition";
 import { dispositionQuiTient, GROUPEMENT_FACECAM, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
 import { calerCarteTous, miseEnPage, preparerCarteTous, type CarteMotionTous, type CodeSurMesure, type ParametresRenduCarte, type StyleMotion } from "@/briques/motion";
 import { grouperMots, recalerSurCoupes } from "@/briques/sous-titres/groupement";
+import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { recollerElisionsHorodatees } from "@/briques/sous-titres/recollage";
 import { cartesAutoDeLaVideo, texteCarteMotion, type AjustementCarteAutoMonte, type CarteAutoVue } from "./cartes-video";
 import { geometrieCote, geometrieVignette, type CoteWill, type ModeMiseEnPage } from "@/briques/habillage-facecam/mise-en-page";
@@ -76,6 +77,8 @@ export interface EntreeHabillageFacecam {
   cartes?: CartePosee[];
   /** Vérif V1 : cartes automatiques retirées depuis le chat (identifiants `auto-…`, stables : tirés du contenu). */
   cartesAutoRetirees?: string[];
+  /** Emphase du script, quand la commande en porte une (générateur central) ; sinon repli sur les mots forts de la transcription. */
+  emphase?: string[];
   /** 10/10 : gestes de Will sur les cartes automatiques depuis la fiche, en temps du montage (résolus par la chaîne). */
   cartesAuto?: AjustementCarteAutoMonte[];
   /** V6 : passages déjà pris (effets spéciaux posés en plein écran) : aucune carte automatique dessus. */
@@ -236,7 +239,8 @@ export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
   }
   // 2. Sous-titres : 1 à 4 mots coupés par le sens, calés sur les raccords à moins de 0,2 s.
   const groupes = grouperMots(recollerElisionsHorodatees(e.mots), GROUPEMENT_FACECAM);
-  const segments = e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes;
+  // Mots importants : une règle unique avec repli (emphase du script, sinon mots forts de la transcription), dans le style choisi.
+  const { segments } = marquerMotsImportants(e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes, { emphaseScript: e.emphase });
   // Un titre affiché (appel à l'action, carte plein écran) n'est pas répété en sous-titre pendant la carte.
   const textesAffiches = textesAffichesDesCartes(affichees);
   // 3. Entrée de la composition : piste pré-cadrée 10 bits, cartes, ligne des sous-titres, Look sur les B-roll.
