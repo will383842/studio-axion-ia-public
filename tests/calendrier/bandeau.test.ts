@@ -30,6 +30,9 @@ describe("BandeauAujourdhui", () => {
     expect(compterAujourdhui([], AUJ)).toEqual({ total: 0, aValider: 0 });
     expect(texte(rendre([]))).toBe("Aujourd'hui, jeudi 12 novembre : 0 publications, dont 0 à valider. Voir la journée");
   });
+  it("une seule publication : « 1 publication » au singulier", () => {
+    expect(texte(rendre([e("a", AUJ, "a_valider")]))).toBe("Aujourd'hui, jeudi 12 novembre : 1 publication, dont 1 à valider. Voir la journée");
+  });
   it("le lien ouvre la vue Jour d'aujourd'hui", () => {
     expect(lienJournee(AUJ)).toBe("/calendrier?vue=jour&date=2026-11-12");
     expect(rendre(CINQ)).toContain('href="/calendrier?vue=jour&amp;date=2026-11-12"');
