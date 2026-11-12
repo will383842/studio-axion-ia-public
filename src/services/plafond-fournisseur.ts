@@ -64,6 +64,7 @@ interface Compteur {
   cles: string[];
 }
 
+// Le verrou vit dans la mémoire du processus : avec deux instances du serveur, le quota peut être dépassé d'une unité (acceptable en V1, une seule instance).
 const verrou = creerVerrou();
 const cleCompteur = (q: QuotaUsine, jour: string) => `plafond.compteur.${q.periode}.${q.periode === "semaine" ? lundiDeLaSemaine(jour) : jour}.${q.reseau}.${q.type}`;
 
