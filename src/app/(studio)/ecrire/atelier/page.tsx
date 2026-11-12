@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 /**
  * ÉCRAN SUJET (plan v5 B.6.5, lot G1b ; ancien « Atelier », même adresse). ?idee=<id> (« En faire un sujet »),
  * ?texte=… (idée préremplie), ?structure=…&famille=… (« Refaire cette structure », depuis « Ce qui marche »), ?retour=… (correcteur 3, B1 : « Nouvelle vidéo » › « Une idée », retour à la vidéo).
- * G4 : l'écriture passe par la chaîne ; elle reste un essai (0 €) tant que Claude n'est pas branché. Prix calculé (B11).
+ * G4 : l'écriture passe par la chaîne ; elle reste un essai (rien de payé) tant que Claude n'est pas branché. Prix calculé (B11).
  */
 export default async function PageSujet({ searchParams }: { searchParams: Promise<{ idee?: string; texte?: string; retour?: string; structure?: string; famille?: string }> }) {
   await exigerSession();
