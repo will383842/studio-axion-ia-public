@@ -2,7 +2,7 @@
 
 /**
  * La feuille « Votre vidéo » : la promesse, les étapes, les chiffres et leur source, les réseaux, le mot à commenter
- * (interrupteur « Avec le mot », éteint par défaut, actif seulement si le mot est branché sur un réseau coché, X6), puis le bouton commun « Fabriquer la vidéo » avec le montant estimé. Quand la voix du
+ * (interrupteur « Avec le mot », éteint par défaut, actif seulement si le mot est branché sur un réseau coché, X6), puis le bouton commun « Fabriquer » avec le montant estimé. Quand la voix du
  * format n'est pas prête, la feuille le dit avec le lien, avant tout clic, et le bouton est inactif.
  * X7 : tout refus que la fabrication opposerait sans dépense (`refusAvantPrix`, le même que le lancement) est dit ici, avant
  * le prix, et le bouton est inactif.

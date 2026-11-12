@@ -1,5 +1,6 @@
 "use client";
 
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { useEffect, useState, useTransition } from "react";
 import { Bouton, Champ, FeuilleBas, Icone, notifier, PastilleEssai, SelecteurPastilles } from "@/components/ui";
 import { variantesMot } from "@/domaine/prononciations";
@@ -73,7 +74,7 @@ export function FeuilleAjoutPrononciation({ ouverte, onOuverteChange, initial, e
     const donnees = { mot: m, prononciation: p, ecriture: ecriture.trim() || undefined, portee: valeurPortee, source, ecoutee: ecouteApres === cleApres };
     demarrer(async () => {
       const r = existante ? await modifierPrononciationAction(existante.id, donnees) : await ajouterPrononciationAction(donnees);
-      if (!r.ok) return void notifier.erreur(r.message);
+      if (!r.ok) return void notifier.erreur(messageSansMontant(r.message));
       notifier.succes(existante ? `« ${m} » modifié` : `« ${m} » ajouté`, existante && (existante.mot !== m || existante.prononciation !== p) ? "L'ancienne façon de dire est dans « Archivés »." : "La voix le dira ainsi dans vos prochaines vidéos.");
       onEnregistree?.({ id: r.donnees.id, mot: m, prononciation: p });
       onOuverteChange(false);
