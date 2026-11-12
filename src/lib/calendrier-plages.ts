@@ -3,6 +3,7 @@
  * Un jour est une clé « AAAA-MM-JJ » (jour de Paris). Les bornes ISO couvrent de minuit Paris à la dernière
  * milliseconde du dernier jour, y compris autour des changements d'heure (journée de 23 h ou de 25 h).
  */
+import { cleJour } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 
 export interface PlageSemaine {
@@ -50,4 +51,16 @@ export function plageMois(jour: string): PlageMois {
   const jours = Array.from({ length: 42 }, (_, i) => ajouterJoursParis(premier, i));
   const semaines = Array.from({ length: 6 }, (_, i) => jours.slice(i * 7, i * 7 + 7));
   return { mois, jours, semaines, debutIso: instantParis(jours[0], "00:00"), finIso: finDeJour(jours[41]) };
+}
+
+/** Jour de Paris (AAAA-MM-JJ) d'un instant ISO : 23 h 30 le 30 reste le 30. Vide ou illisible : null. */
+export function jourDeParis(instant: string | null | undefined): string | null {
+  if (!instant) return null;
+  const date = new Date(instant);
+  return Number.isNaN(date.getTime()) ? null : cleJour(date);
+}
+
+/** Adresse de la vue Jour d'un jour (un clic sur un jour du mois ouvre ce jour, pas sa semaine). `suite` : filtres déjà écrits (« &reseaux=… »). */
+export function adresseVueJour(jour: string, suite = ""): string {
+  return `/calendrier?vue=jour&date=${jour}${suite}`;
 }
