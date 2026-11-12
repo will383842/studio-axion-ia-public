@@ -117,7 +117,7 @@ async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptCo
     const accordAuto = await accordAutomatique(accordBrut ?? false, montant, { signaler: accordBrut === undefined || accordBrut < montant });
     const accord = typeof accordAuto === "number" ? accordAuto : undefined;
     // Accord absent ou plus bas que le prix : rien n'est créé, le prix est redemandé.
-    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo coûte au plus ${(montant / 100).toFixed(2).replace(".", ",")} €. Confirmez ce prix pour lancer.` };
+    if (accord === undefined || accord < montant) return { statut: "accord-requis", centimes: montant, phrase: `Cette vidéo est payante. Confirmez pour lancer.` };
     const accordEssaiReel = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_IV, false)))();
     const titre = titreDuTexte(texte);
     const entrees = {

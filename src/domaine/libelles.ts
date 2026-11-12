@@ -3,7 +3,6 @@
  * Les tonalités sont des NOMS DE JETONS : « orange », « sauge », « ambre », « brique », « neutre », « encre ».
  */
 import type { NomIcone } from "@/components/ui/Icone";
-import { formaterMontant } from "@/lib/montants";
 import type { BriqueFacultative, EtapeEditoriale, Montant, EtatVeille, NaturePersonnage, StatutNouveaute, StatutPreparation, StatutTravail, StatutVideo, TypeElement, VeilleNouveaute } from "./types";
 
 export type Tonalite = "orange" | "sauge" | "ambre" | "brique" | "neutre" | "encre" | "contour" | "pointille";
@@ -308,7 +307,7 @@ export const LIBELLES_ARGENT = { estime: "Coût estimé", auPlus: "Au plus", dej
 export function libelleFabriquer({ montant, dureeSec, n, sansPrix, essai }: { montant?: Montant; dureeSec?: number; n?: number; sansPrix: boolean; essai: boolean }): string {
   const parties = [n && n > 1 ? `Fabriquer ${n} vidéos` : "Fabriquer"];
   if (dureeSec) parties.push(dureeSec < 60 ? `${Math.round(dureeSec)} s` : `${Math.round(dureeSec / 60)} min`);
-  if (montant && !sansPrix) parties.push(formaterMontant(montant));
+  void montant; // Règle de Williams : aucun montant à l'écran.
   const texte = parties.join(" · ");
   return essai && !sansPrix ? `${texte} (essai)` : texte;
 }
@@ -332,6 +331,8 @@ export const LIBELLES_ENVOI = {
   aussiSur: "Aussi sur :",
   premierCommentaire: "Premier commentaire, posé automatiquement",
   premierCommentaireTiktok: "TikTok ne permet pas de premier commentaire automatique : à poser à la main, juste après la publication.",
+  premierCommentaireALaMain: "Premier commentaire à poser à la main, juste après la publication : le bouton Copier le recopie. Rien n'est envoyé pour ce réseau.",
+  premierCommentaireAConfirmer: "Premier commentaire transmis, à confirmer : vérifiez qu'il apparaît sous la publication, sinon posez-le à la main (bouton Copier).",
   tiktokAccord: "J'ai regardé l'aperçu et j'accepte que TikTok publie cette vidéo.",
   tiktokAccordPetit: "TikTok demande cet accord à chaque envoi.",
   tiktokAccordManquant: "Cochez l'accord TikTok ci-dessus pour valider.",

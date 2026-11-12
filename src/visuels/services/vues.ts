@@ -51,7 +51,8 @@ function actionsPermises(v: Visuel, maintenantMs: number): ActionCarrousel[] {
   if (v.corbeilleLe) return joursRestants(v.corbeilleLe, maintenantMs) > 0 ? ["restaurer"] : [];
   const vers = TRANSITIONS[v.statut];
   const actions: ActionCarrousel[] = [];
-  if (vers.includes("valide")) actions.push("valider");
+  // « Valider » n'appartient qu'à la relecture : programme -> valide (déprogrammer) n'est pas une validation.
+  if (v.statut === "a_valider" && vers.includes("valide")) actions.push("valider");
   if (vers.includes("refuse")) actions.push("refuser");
   // Refus de mise en page : relancer échouera pareil, le texte est à changer.
   const refusMiseEnPage = v.statut === "echec_rendu" && ERREUR_MISE_EN_PAGE.test(v.erreur ?? "");

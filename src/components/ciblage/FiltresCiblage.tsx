@@ -12,7 +12,7 @@ function Puce({ href, actif, children }: { href: string; actif: boolean; childre
       href={href}
       aria-current={actif ? "true" : undefined}
       className={cn(
-        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors",
         actif ? "border-orange/40 bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
       )}
     >
@@ -90,7 +90,7 @@ export function FiltresCiblage({
         <div>
           <Link
             href={lienCiblage(base, params, { anciens: filtre.anciens ? undefined : "1" })}
-            className="inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold text-texte-doux hover:text-orange-vif"
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-texte-doux hover:text-orange-vif"
           >
             {filtre.anciens ? "Masquer les anciens" : "Afficher les anciens"}
             <span className="text-[11px] tabular-nums text-texte-faible">{nbAnciens}</span>
