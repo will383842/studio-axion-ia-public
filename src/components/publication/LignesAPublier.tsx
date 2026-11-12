@@ -10,6 +10,8 @@ import { programmerSujetAction } from "@/app/(studio)/mesures/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
+import { PastilleStatut } from "@/components/ui/PastilleStatut";
+import type { Tonalite } from "@/domaine/libelles";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
@@ -18,6 +20,9 @@ import { envoyerParOutilAction, marquerEnvoiVerifieAction, type ComplementLigne 
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
 import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPropose, etatPremierCommentaire, FIN_BUFFER, formatApercu, joursRestantsBrouillon, ligneCompteEtDate, mentionIAVisible, messageSucces, nomOutil, libelleEnvoiOutil, phraseBrouillonAProgrammer, phraseEchec, phraseEssais, type OutilAffiche } from "./finitions-envoi";
 import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
+
+/** Aucun orange dans « À publier » : l'ambre porte le « à faire ». Le mot reste écrit dans la pastille. */
+const sansOrange = (t: Tonalite): Tonalite => (t === "orange" ? "ambre" : t);
 
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
 function versLocal(d: Date): string {
@@ -158,7 +163,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
             {carte.titre}
           </Link>
           {etats.map((e) => (
-            <Pastille key={e.cle} ton={e.ton}>
+            <Pastille key={e.cle} ton={sansOrange(e.ton)}>
               {e.reseauNom} : {e.libelle}
             </Pastille>
           ))}
@@ -206,7 +211,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
                   aria-expanded={ouvert === l.reseau}
                   aria-controls={`reseau-${l.cle.replace(/\W/g, "-")}`}
                   onClick={() => setOuvert(ouvert === l.reseau ? null : l.reseau)}
-                  className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${ouvert === l.reseau ? "border-orange bg-surface-2 text-texte" : "border-trait text-texte-doux hover:border-orange"}`}
+                  className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${ouvert === l.reseau ? "border-accent bg-accent-doux text-texte" : "border-trait text-texte-doux hover:border-accent"}`}
                 >
                   <LogoReseau reseau={l.reseau} taille="sm" />
                   {l.reseauNom}
@@ -258,9 +263,9 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
                   <span className="font-semibold text-texte">{p.reseauNom}</span> : {p.raison}
                   {p.etat && (
                     <span className="mt-1 flex flex-wrap items-center gap-2">
-                      <Pastille ton={p.etat.ton}>{p.etat.libelle}</Pastille>
+                      <Pastille ton={sansOrange(p.etat.ton)}>{p.etat.libelle}</Pastille>
                       {p.etat.lien && (
-                        <a href={p.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-orange-vif">
+                        <a href={p.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-accent">
                           Voir la publication
                         </a>
                       )}
@@ -409,9 +414,9 @@ function PanneauReseau({
         <>
       {l.etat && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-texte-doux">
-          <Pastille ton={l.etat.ton}>{l.etat.libelle}</Pastille>
+          <Pastille ton={sansOrange(l.etat.ton)}>{l.etat.libelle}</Pastille>
           {l.etat.lien && (
-            <a href={l.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-orange-vif">
+            <a href={l.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-accent">
               Voir la publication
             </a>
           )}
@@ -429,7 +434,7 @@ function PanneauReseau({
       )}
 
       <details className="text-sm">
-        <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-orange-vif">Voir le détail</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-accent">Voir le détail</summary>
         <div className="space-y-3 pt-2">
           <fieldset className="flex flex-wrap gap-2">
             <legend className="mb-1 text-xs font-semibold text-texte-doux">Avant de publier</legend>
@@ -443,7 +448,7 @@ function PanneauReseau({
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-texte-doux">Phrase du post</span>
-            <textarea value={texte} onChange={(e) => setTexte(e.target.value)} rows={4} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
+            <textarea value={texte} onChange={(e) => setTexte(e.target.value)} rows={4} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-accent" />
           </label>
           {modifie && (
             <Bouton variante="secondaire" icone="coche" chargement={enCours} onClick={enregistrerTexte}>
@@ -454,7 +459,7 @@ function PanneauReseau({
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-texte-doux">Premier commentaire</span>
-            <textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-orange" />
+            <textarea value={commentaire} onChange={(e) => setCommentaire(e.target.value)} rows={2} className="w-full rounded-champ border border-trait bg-surface-1 p-3 text-sm text-texte outline-none focus:border-accent" />
           </label>
           {commentaire.trim() && etatPremierCommentaire(outilChoisi ?? complement?.outil, l.reseau) === "a-la-main" && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par {nomOutil(outilChoisi ?? complement?.outil)} : rien ne sera envoyé, posez-le à la main (bouton Copier dans l’aperçu).</p>}
 
@@ -476,7 +481,7 @@ function PanneauReseau({
 
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-texte-doux">Date</span>
-            <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className="min-h-12 w-full rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte outline-none [color-scheme:light] focus:border-orange sm:w-auto" />
+            <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className="min-h-12 w-full rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte outline-none [color-scheme:light] focus:border-accent sm:w-auto" />
           </label>
         </div>
       </details>
@@ -499,7 +504,7 @@ export function BlocSucces({ succes, suivante }: { succes: string | null; suivan
 }
 
 const ETIQUETTES_ETAT = { aucun: "À envoyer", brouillon: "Brouillon", programmee: "Programmée", publiee: "Publiée", echec: "Échec" } as const;
-const TONS_ETAT = { aucun: "neutre", brouillon: "neutre", programmee: "orange", publiee: "sauge", echec: "brique" } as const;
+const TONS_ETAT = { aucun: "neutre", brouillon: "neutre", programmee: "sauge", publiee: "sauge", echec: "brique" } as const;
 
 /** Détail d'une ligne : aperçu tel que publié, état, « Aussi sur », avertissements, UNE action principale, « Envoi par ». */
 function DetailEnvoi({
@@ -575,7 +580,11 @@ function DetailEnvoi({
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Pastille ton={TONS_ETAT[c.etat]}>{ETIQUETTES_ETAT[c.etat]}</Pastille>
+        {c.etat === "programmee" || c.etat === "publiee" ? (
+          <PastilleStatut statut={c.etat === "programmee" ? "programme" : "publie"} />
+        ) : (
+          <Pastille ton={TONS_ETAT[c.etat]}>{ETIQUETTES_ETAT[c.etat]}</Pastille>
+        )}
         {c.etat !== "publiee" && c.essai && <span className="text-xs text-texte-faible">{phraseEssais(l.reseauNom)}</span>}
       </div>
 
@@ -662,7 +671,7 @@ function DetailEnvoi({
           {choixOutilPropose(c) && (
             <>
               {" · "}
-              <button type="button" aria-expanded={choix} aria-controls={`${id}-outils`} onClick={() => setChoix(!choix)} className="min-h-11 px-1 font-semibold text-orange-vif underline">
+              <button type="button" aria-expanded={choix} aria-controls={`${id}-outils`} onClick={() => setChoix(!choix)} className="min-h-11 px-1 font-semibold text-accent underline">
                 {LIBELLES_ENVOI.changer}
               </button>
             </>

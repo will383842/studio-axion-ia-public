@@ -35,7 +35,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
         {c.problemes > 0 && (
           <span className="text-texte-doux">
             {" · "}
-            <Link href={lienListeReseau(reseau, "problemes")} className="font-semibold text-orange-vif">
+            <Link href={lienListeReseau(reseau, "problemes")} className="font-semibold text-accent">
               {c.problemes === 1 ? "1 problème" : `${c.problemes} problèmes`}
             </Link>
           </span>
@@ -51,7 +51,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
               key={r}
               href={lienListeReseau(r, filtre)}
               aria-current={r === reseau ? "page" : undefined}
-              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold", r === reseau ? "border-orange bg-surface-2 text-texte" : "border-trait text-texte-doux hover:border-orange")}
+              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold", r === reseau ? "border-accent bg-accent-doux text-texte" : "border-trait text-texte-doux hover:border-accent")}
             >
               {r !== "tous" && <LogoReseau reseau={r} taille="sm" />}
               {r === "tous" ? "Tous" : obtenirReseau(r).nom}
@@ -69,7 +69,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
             key={f.id}
             href={lienListeReseau(reseau, f.id)}
             aria-current={f.id === filtre ? "page" : undefined}
-            className={cn("flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold", f.id === filtre ? "border-orange bg-surface-2 text-texte" : "border-trait text-texte-doux hover:border-orange")}
+            className={cn("flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold", f.id === filtre ? "border-accent bg-accent-doux text-texte" : "border-trait text-texte-doux hover:border-accent")}
           >
             {f.libelle}
             <span className="text-xs text-texte-faible">{nombres[f.id]}</span>
@@ -107,7 +107,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                           {[ligne.typeVideo, format, etat.raison].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <Pastille ton={etat.ton}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
+                      <Pastille ton={etat.ton === "orange" ? "ambre" : etat.ton}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
                     </Link>
                     <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
                       <PastillesReseaux reseaux={ligne.reseauxVideo ?? [ligne.reseau]} precis={ligne.reseauxPrecis ?? true} />
@@ -129,7 +129,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                   <p className="text-xs text-texte-faible">
                     {montrees.length} vidéos sur {s.lignes.length}
                   </p>
-                  <Link href={lienListeReseau(s.reseau, filtre, affichees + TRANCHE)} className="inline-flex min-h-11 items-center rounded-full border border-trait px-5 text-sm font-semibold text-texte hover:border-orange">
+                  <Link href={lienListeReseau(s.reseau, filtre, affichees + TRANCHE)} className="inline-flex min-h-11 items-center rounded-full border border-trait px-5 text-sm font-semibold text-texte hover:border-accent">
                     Voir 20 de plus
                   </Link>
                 </div>
@@ -143,7 +143,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
           {filtre !== "toutes" && c.toutes > 0 && (
             <>
               {" "}
-              <Link href={lienListeReseau(reseau, "toutes")} className="font-semibold text-orange-vif">
+              <Link href={lienListeReseau(reseau, "toutes")} className="font-semibold text-accent">
                 Voir toutes les vidéos
               </Link>
             </>
