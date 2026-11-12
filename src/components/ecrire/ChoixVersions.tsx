@@ -27,15 +27,14 @@ export function ChoixVersions({ formatId, versions, choisie, onChoisir, classNam
             onClick={() => onChoisir(i)}
             className={cn(
               "relative isolate flex min-h-32 flex-col overflow-hidden rounded-carte border p-3 text-left transition-colors duration-200",
-              actif ? "border-orange bg-surface-2 shadow-orange" : "border-trait bg-surface-1 hover:border-trait-fort",
+              actif ? "border-accent bg-surface-2" : "border-trait bg-surface-1 hover:border-trait-fort",
             )}
           >
-            {actif && <span aria-hidden className="absolute inset-0 -z-10 lueur" />}
             <span className="flex items-center justify-between">
-              <span className={cn("grid size-7 place-items-center rounded-full font-titre text-sm", actif ? "bg-orange text-sur-orange" : "bg-surface-3 text-texte-doux")}>
+              <span className={cn("grid size-7 place-items-center rounded-full font-titre text-sm", actif ? "bg-accent text-sur-accent" : "bg-surface-3 text-texte-doux")}>
                 {actif ? <Icone nom="coche" size={14} strokeWidth={3} /> : String.fromCharCode(65 + i)}
               </span>
-              {meilleure && <Icone nom="etoile" size={14} className="text-orange-vif" fill="currentColor" />}
+              {meilleure && <Icone nom="etoile" size={14} className="text-accent" fill="currentColor" />}
             </span>
             <span className="mt-2 font-titre text-3xl tabular-nums leading-none text-texte">{v.notes.globale}</span>
             <span className="mt-1 line-clamp-2 text-xs font-semibold leading-snug text-texte-doux">{v.titre}</span>

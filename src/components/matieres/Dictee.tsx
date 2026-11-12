@@ -95,7 +95,7 @@ export function BoutonMicro({ ecoute, onClick, taille = "lg", libelle }: { ecout
         onClick={onClick}
         aria-label={ecoute ? "Arrêter la dictée" : "Dicter"}
         className={cn(
-          "relative grid place-items-center rounded-full bg-orange text-sur-orange shadow-orange transition-transform active:scale-95",
+          "relative grid place-items-center rounded-full bg-accent text-sur-accent transition-transform active:scale-95",
           taille === "lg" ? "size-20" : "size-14",
           ecoute && "bg-brique",
         )}

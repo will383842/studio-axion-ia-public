@@ -16,16 +16,17 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
-import { Pastille } from "@/components/ui/Pastille";
+import { PastilleEtapeEcrire } from "@/components/ecrire/PastilleEtapeEcrire";
 import { notifier } from "@/components/ui/Toast";
 import { Enregistreur } from "./Enregistreur";
 import { SelecteurDrive } from "@/components/google-drive/SelecteurDrive";
 import { ErreurLisible } from "@/lib/erreur-lisible";
 
+/** Étapes propres à Écrire (PastilleEtapeEcrire) : mêmes teintes que les statuts, mots à elles. */
 const ETATS = {
-  "a-filmer": { libelle: "À filmer", pastille: "bg-surface-3 text-texte-doux", icone: "camera" as const },
-  rangee: { libelle: "Rangée", pastille: "bg-sauge text-fond", icone: "coche" as const },
-  "a-refaire": { libelle: "À refaire", pastille: "bg-ambre text-fond", icone: "reessayer" as const },
+  "a-filmer": { libelle: "À filmer", pastille: "bg-[var(--statut-valider-fond)] text-[var(--statut-valider-texte)]", icone: "camera" as const },
+  rangee: { libelle: "Rangée", pastille: "bg-[var(--statut-accepte-fond)] text-[var(--statut-accepte-texte)]", icone: "coche" as const },
+  "a-refaire": { libelle: "À refaire", pastille: "bg-[var(--statut-retouche-fond)] text-[var(--statut-retouche-texte)]", icone: "reessayer" as const },
 };
 
 export function Seance({ seanceId, groupes, prochaineId }: { seanceId: string; groupes: { libelle: string; versions: VersionDeSeance[] }[]; prochaineId: string | null }) {
@@ -109,7 +110,7 @@ export function Seance({ seanceId, groupes, prochaineId }: { seanceId: string; g
               {g.versions.map((v) => {
                 const e = ETATS[v.etat];
                 return (
-                  <li key={v.id} className={cn("rounded-carte border bg-surface-1 p-3", v.id === prochaineId ? "border-orange" : "border-trait")}>
+                  <li key={v.id} className={cn("rounded-carte border bg-surface-1 p-3", v.id === prochaineId ? "border-accent" : "border-trait")}>
                     <div className="flex items-start gap-3">
                       <span className="relative shrink-0">
                         <LogoReseau reseau={v.reseau} taille="lg" />
@@ -127,9 +128,7 @@ export function Seance({ seanceId, groupes, prochaineId }: { seanceId: string; g
                     <div className="mt-2 flex items-center justify-end gap-1">
                       {v.etat === "rangee" ? (
                         <>
-                          <Pastille ton="sauge" icone="coche" className="mr-auto">
-                            Rangée
-                          </Pastille>
+                          <PastilleEtapeEcrire etape="rangee" className="mr-auto" />
                           <Bouton variante="fantome" icone="reessayer" disabled={enCours} onClick={() => refaire(v.id)}>
                             Refaire
                           </Bouton>
@@ -137,9 +136,7 @@ export function Seance({ seanceId, groupes, prochaineId }: { seanceId: string; g
                       ) : (
                         <>
                           {v.etat === "a-refaire" && (
-                            <Pastille ton="ambre" icone="reessayer" className="mr-auto">
-                              À refaire
-                            </Pastille>
+                            <PastilleEtapeEcrire etape="a-refaire" className="mr-auto" />
                           )}
                           <Link href={`/ecrire/sujets/${v.scriptMaitreId}/lire/${v.id}`} aria-label="Lire sur un autre appareil" title="Lire sur un autre appareil" className="grid size-11 place-items-center rounded-full text-texte-doux hover:bg-surface-2 hover:text-texte">
                             <Icone nom="appareils" size={18} />
