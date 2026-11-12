@@ -7,7 +7,7 @@ import { declarerBoutonPrincipal } from "@/lib/ecran-principal";
 import { Icone, type NomIcone } from "./Icone";
 import { PastilleEssai } from "./PastilleEssai";
 
-export type VarianteBouton = "principal" | "secondaire" | "discret" | "fantome" | "contour" | "danger";
+export type VarianteBouton = "principal" | "secondaire" | "discret" | "fantome" | "contour" | "contour-orange" | "danger";
 export type TailleBouton = "md" | "lg" | "xl";
 
 /** Variantes de la maquette M0 : un seul `principal` (orange plein) par écran ; `fantome` est l'ancien nom de `discret`. */
@@ -17,7 +17,10 @@ export const VARIANTES_BOUTON: Record<VarianteBouton, string> = {
   secondaire: "bg-surface-1 text-texte hover:bg-surface-2 border border-trait-fort",
   discret: DISCRET,
   fantome: DISCRET,
-  contour: "bg-surface-1 text-orange-vif border-2 border-orange hover:bg-surface-2",
+  /** Contour NEUTRE, comme avant la refonte (une quarantaine d'usages). */
+  contour: "bg-transparent text-texte border border-trait-fort hover:border-orange hover:text-orange-vif",
+  /** Orange en contour (maquette M0) : bouton « Nouvelle vidéo » quand l'écran a son propre principal. */
+  "contour-orange": "bg-surface-1 text-orange-vif border-2 border-orange hover:bg-surface-2",
   danger: "bg-surface-1 text-brique border border-brique hover:bg-brique-doux",
 };
 const VARIANTES = VARIANTES_BOUTON;
@@ -49,7 +52,7 @@ export const Bouton = forwardRef<HTMLButtonElement, ProprietesBouton>(function B
   { variante = "principal", taille = "md", icone, iconeDroite, chargement, essai, pleineLargeur, asChild, sansDecompte, className, children, disabled, type, ...props },
   ref,
 ) {
-  const compte = variante === "principal" && !disabled && !chargement && !sansDecompte;
+  const compte = variante === "principal" && !disabled && !sansDecompte;
   useEffect(() => (compte ? declarerBoutonPrincipal() : undefined), [compte]);
   const tailleIcone = taille === "xl" ? 20 : 18;
   const classes = cn(
@@ -84,6 +87,8 @@ export interface ProprietesBoutonIcone extends ButtonHTMLAttributes<HTMLButtonEl
   /** Libellé obligatoire (lecteurs d'écran + infobulle). */
   libelle: string;
   variante?: "fantome" | "secondaire" | "principal";
+  /** Ne compte pas ce bouton principal dans la règle « un seul orange plein ». */
+  sansDecompte?: boolean;
   taille?: "md" | "lg";
   /** Petit compteur orange (notifications). */
   compteur?: number;
@@ -91,15 +96,18 @@ export interface ProprietesBoutonIcone extends ButtonHTMLAttributes<HTMLButtonEl
 
 /** Bouton rond à icône seule (44 px). */
 export const BoutonIcone = forwardRef<HTMLButtonElement, ProprietesBoutonIcone>(function BoutonIcone(
-  { icone, libelle, variante = "fantome", taille = "md", compteur, className, ...props },
+  { icone, libelle, variante = "fantome", taille = "md", compteur, sansDecompte, className, disabled, ...props },
   ref,
 ) {
+  const compte = variante === "principal" && !disabled && !sansDecompte;
+  useEffect(() => (compte ? declarerBoutonPrincipal() : undefined), [compte]);
   return (
     <button
       ref={ref}
       type="button"
       aria-label={libelle}
       title={libelle}
+      disabled={disabled}
       className={cn(
         "relative inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-45",
         taille === "md" ? "size-11" : "size-12",
