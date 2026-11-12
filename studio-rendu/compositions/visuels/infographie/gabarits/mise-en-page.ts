@@ -44,10 +44,12 @@ export interface MiseEnPage { gabarit: Gabarit; ratio: RatioInfographie; largeur
 function lignesDe(texte: string, largeur: number, taille: number): string[] | null {
   const lignes: string[] = [];
   let cour = "";
+  let prec = "";
   for (const mot of motsInsecables(texte)) {
     if (largeurMot(mot, taille) > largeur) return null;
-    // Après un trait d'union la coupure reste permise en fin de ligne, mais le mot se recolle sans espace.
-    const essai = cour ? (/[-\u2010]$/.test(cour) ? cour + mot : `${cour} ${mot}`) : mot;
+    // Après un mot à trait d'union (au moins un caractère avant le tiret) le mot suivant se recolle sans espace ; un tiret isolé garde ses espaces.
+    const essai = cour ? (/[^\s\-\u2010][-\u2010]$/.test(prec) ? cour + mot : `${cour} ${mot}`) : mot;
+    prec = mot;
     if (largeurMot(essai, taille) <= largeur) cour = essai;
     else { lignes.push(cour); cour = mot; }
   }
