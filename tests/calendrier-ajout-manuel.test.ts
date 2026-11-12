@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({ id: "s1" })) }));
 import { reinitialiserDepots } from "@/donnees/memoire";
-import { ajouterEntree, validerEntree } from "@/app/(studio)/calendrier/actions";
+import { ajouterEntree, validerEntree } from "@/app/(studio)/calendrier/actions/ajouter";
 import { AjouterEntree } from "@/components/calendrier/AjouterEntree";
 
 const base = { jour: "2026-12-03", compteCible: "compte-fictif-1", reseau: "linkedin" as const, videoId: "v1" };
@@ -152,5 +152,24 @@ describe("bouton AjouterEntree", () => {
     expect(html).toContain("2026-12-03");
     expect(html).toMatch(/Ajouter/);
     expect(html).not.toMatch(/Publier/);
+  });
+});
+
+describe("découpage des actions du calendrier (CORRECTIF du 12/11)", () => {
+  it("les actions de cette fiche vivent dans actions/ajouter.ts ; actions.ts ne garde que celles de la fiche d'entrée", async () => {
+    const ajouter = await import("@/app/(studio)/calendrier/actions/ajouter");
+    expect(Object.keys(ajouter).sort()).toEqual(["ajouterEntree", "validerEntree"]);
+    const racine = await import("@/app/(studio)/calendrier/actions");
+    expect(Object.keys(racine).sort()).toEqual(["enregistrerFicheEntreeAction", "lireFicheEntreeAction"]);
+  });
+
+  it("chaque action commence par la garde de session : sans session, rien n'est créé ni validé", async () => {
+    const { exigerSession } = await import("@/services/auth");
+    const refus = new Error("NEXT_REDIRECT");
+    vi.mocked(exigerSession).mockRejectedValueOnce(refus).mockRejectedValueOnce(refus);
+    await expect(ajouterEntree({ jour: "2030-01-01", compteCible: "c", reseau: "linkedin", videoId: "v1", cle: "sans-session" })).rejects.toBe(refus);
+    await expect(validerEntree("manuel-sans-session")).rejects.toBe(refus);
+    // La même demande avec une session crée bien l'entrée : le refus ci-dessus venait de la garde.
+    expect(await ajouterEntree({ jour: "2030-01-01", compteCible: "c", reseau: "linkedin", videoId: "v1", cle: "sans-session" })).toMatchObject({ ok: true });
   });
 });

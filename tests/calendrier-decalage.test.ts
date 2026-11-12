@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({ id: "s1" })) }));
 import { reinitialiserDepots } from "@/donnees/memoire";
-import { decalerEntree } from "@/app/(studio)/calendrier/actions";
+import { decalerEntree } from "@/app/(studio)/calendrier/actions/decaler";
 import { AReprogrammer } from "@/components/migration/AReprogrammer";
 import { DecalerEntree, enPost } from "@/components/calendrier/DecalerEntree";
 import type { CreneauPlan } from "@/services/plan-editorial";
@@ -107,5 +107,24 @@ describe("décaler une entrée du calendrier", () => {
     renderToStaticMarkup(createElement(AReprogrammer, { posts }));
     expect(erreur.mock.calls.filter((a) => String(a[0]).includes("same key"))).toHaveLength(0);
     erreur.mockRestore();
+  });
+});
+
+describe("découpage des actions du calendrier (CORRECTIF du 12/11)", () => {
+  it("l'action de cette fiche vit dans actions/decaler.ts ; actions.ts ne garde que celles de la fiche d'entrée", async () => {
+    const decaler = await import("@/app/(studio)/calendrier/actions/decaler");
+    expect(Object.keys(decaler)).toEqual(["decalerEntree"]);
+    const racine = await import("@/app/(studio)/calendrier/actions");
+    expect(Object.keys(racine).sort()).toEqual(["enregistrerFicheEntreeAction", "lireFicheEntreeAction"]);
+  });
+
+  it("sans session, rien n'est décalé ; avec session, la même demande passe", async () => {
+    const { exigerSession } = await import("@/services/auth");
+    await d.creneauxEditoriaux.enregistrer(creneau({ id: "c9" }));
+    const refus = new Error("NEXT_REDIRECT");
+    vi.mocked(exigerSession).mockRejectedValueOnce(refus);
+    await expect(decalerEntree({ id: "c9", nouveauJour: "2026-12-10", raison: "Report", cle: "sans-session" })).rejects.toBe(refus);
+    expect(await lire("c9")).toMatchObject({ jourVise: "2026-12-03", decalages: 0 });
+    expect((await decalerEntree({ id: "c9", nouveauJour: "2026-12-10", raison: "Report", cle: "avec-session" })).ok).toBe(true);
   });
 });
