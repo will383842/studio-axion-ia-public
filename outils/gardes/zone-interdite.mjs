@@ -97,7 +97,7 @@ const clean = (liste) => (Array.isArray(liste) ? liste.map(sansMention).filter(B
  * `fiches` : [{ id, autorises, accords }] (une PR « lot » peut en porter plusieurs). Ancienne forme : `fiche` + `autorises`
  * (+ `accords` global). Un fichier autorisé par UNE des fiches suffit ; l'accord ne vaut que pour la fiche qui le porte.
  * Une fiche sans liste donne un avertissement (pas un rouge) : le relecteur contrôle alors ses fichiers.
- * `branche` : zernio/* est dispensée de la liste interdite ; usine/LOT-* sans fiche est rouge ; toute autre branche sans
+ * `branche` : usine/* n'a AUCUNE exception par accord dans la liste interdite (l'accord ne vaut que pour la zone partagée) ; zernio/* est dispensée de la liste interdite ; usine/LOT-* sans fiche est rouge ; toute autre branche sans
  * fiche n'a que les contrôles de zone.
  * @param {object} [entree]
  * @param {string[]} [entree.fichiers]
@@ -112,6 +112,7 @@ export function controler({ fichiers = [], autorises = null, fiche = null, fiche
   const defauts = [];
   const avertissements = [];
   const deZernio = /^zernio\//.test(String(branche ?? ""));
+  const deUsine = /^usine\//.test(String(branche ?? ""));
   const lot = /^usine\/LOT-/.test(String(branche ?? ""));
   const globaux = (accords ?? []).map((a) => String(a).trim().toUpperCase());
   const entrees = (fiches ?? (fiche ? [{ id: fiche, autorises }] : [])).map((e) => ({
@@ -131,7 +132,7 @@ export function controler({ fichiers = [], autorises = null, fiche = null, fiche
     if (zone === "interdit" && deZernio) {
       // branche zernio/* : c'est leur zone, la liste interdite ne s'applique pas
     } else if (zone === "interdit") {
-      const exception = COUVERTS_PAR_ACCORD.some((r) => r.test(f)) && sains.some((e) => e.accords.includes(ACCORD) && dans(e, f));
+      const exception = !deUsine && COUVERTS_PAR_ACCORD.some((r) => r.test(f)) && sains.some((e) => e.accords.includes(ACCORD) && dans(e, f));
       if (!exception) defauts.push({ regle: "zone-interdite", fichier: f, detail: "zone de l'autre poste : interdite sans exception" });
     } else if (zone === "partage" && !sains.some((e) => annonceLibre(annonces, e.id))) {
       defauts.push({ regle: "zone-partagee", fichier: f, detail: `zone partagée : il faut ANNONCE-${sains[0]?.id ?? "<fiche>"}-*.md avec le mot « libre »` });
