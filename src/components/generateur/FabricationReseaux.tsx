@@ -120,7 +120,7 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
     <>
       <Carte className="space-y-3">
         <div className="flex items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-doux text-orange-vif">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent-doux text-accent">
             <Icone nom="film" size={20} />
           </span>
           <div className="min-w-0 flex-1">
@@ -182,8 +182,8 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
         <div className="mt-4">
           <p className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Formats</p>
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-orange bg-orange-doux px-4 text-sm font-semibold text-texte">
-              <Icone nom="coche" size={14} className="text-orange-vif" />
+            <span className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-accent bg-accent-doux px-4 text-sm font-semibold text-texte">
+              <Icone nom="coche" size={14} className="text-accent" />
               Vertical
             </span>
             {OPTIONS_RATIO.map((o) => {
@@ -194,9 +194,9 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
                   type="button"
                   aria-pressed={actif}
                   onClick={() => basculer(o.valeur)}
-                  className={cn("inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold", actif ? "border-2 border-orange bg-orange-doux text-texte" : "border-trait text-texte-doux")}
+                  className={cn("inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold", actif ? "border-2 border-accent bg-accent-doux text-texte" : "border-trait text-texte-doux")}
                 >
-                  {actif && <Icone nom="coche" size={14} className="text-orange-vif" />}
+                  {actif && <Icone nom="coche" size={14} className="text-accent" />}
                   {o.libelle}
                 </button>
               );
