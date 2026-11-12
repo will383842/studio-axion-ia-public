@@ -884,7 +884,13 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   // gardée par GV-EC-01b) ne repartira plus tel quel : sa réservation est rendue (une fois ; idempotent). Après le lancement
   // et non avant : si le lancement échoue, l'ancien garde la sienne. L'ancien travail reste « echec » (aucun statut nouveau).
   for (const ancien of await d.travaux.lister((t) => t.cibleId === videoId && t.id !== travailId && t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation")) {
-    await libererReservation(ancien.id, "liberee");
+    // GV-EC-01f : le nouveau travail est déjà parti ; une panne ici ne doit pas faire croire à un échec (la suppression
+    // ou la corbeille rendent cette réservation plus tard). Journalisé sans montant.
+    try {
+      await libererReservation(ancien.id, "liberee");
+    } catch (e) {
+      console.error("[fabrication] réservation de l'ancien travail non rendue (rattrapée plus tard)", ancien.id, e instanceof Error ? e.name : "erreur");
+    }
   }
   return lance;
 }
