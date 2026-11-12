@@ -181,7 +181,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
           m.numero !== undefined ? (
             <span className="flex flex-wrap items-center gap-2">
               {formatsDuSujet.map((f) => (
-                <Pastille key={f} ton="orange" taille="md">
+                <Pastille key={f} ton="encre" taille="md">
                   {nomFormat(f)}
                 </Pastille>
               ))}
