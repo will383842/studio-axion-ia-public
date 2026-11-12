@@ -50,6 +50,10 @@ const COLLECTIONS: (keyof Depots)[] = [
   "correctionsWill",
   // Carrousels (V3).
   "visuels",
+  // Calendrier d'envoi (D7-01).
+  "envoisPlanifies",
+  // Plan éditorial (L1-06) : créneaux et journal des décalages (ajout seul).
+  "creneauxEditoriaux", "journalDecalages",
 ];
 
 /**
