@@ -16,7 +16,7 @@ import { RACCORDS } from "../../src/briques/visuels/continu/registre-raccords.js
 import { HAUTEURS, LARGEUR_PAGE, type FormatToile } from "../../src/domaine/visuels/continu/geometrie.js";
 import { VERSION_TOILE_SOCLE } from "../../src/domaine/visuels/continu/version.js";
 import { executer, FFMPEG } from "../src/outils.js";
-import { creerToileContinue, rendreToileAvecRemotion } from "../src/operations/toile-continue.js";
+import { creerToileContinue, grapheDecoupe, rendreToileAvecRemotion } from "../src/operations/toile-continue.js";
 
 process.env.STUDIO_RENDU_ESSAI ??= "1";
 const navigateur = process.env.STUDIO_RENDU_NAVIGATEUR;
@@ -28,7 +28,8 @@ if (!navigateur) {
 
 /**
  * Écart JPEG / PNG admis sur une colonne de bord (0-255, par canal) : bruit propre au JPEG -q:v 2 en 4:4:4 sur le grain. Mesuré le 25/10 :
- * 5 à 7 sur les colonnes 0 et 1079, 10 à 12 au milieu des mêmes pages ; la couture elle-même est prouvée par le TEST PIXEL (PNG).
+ * 17 à 19 sur les colonnes 0 et 1079 (le maximum capte le pixel le plus bruité de la colonne), davantage au milieu des mêmes pages. Ce seuil ne
+ * prouve pas la couture : elle l'est par le TEST PIXEL (PNG) et par `coutureDecalee` (la bonne colonne est plus proche que ses voisines ±1).
  */
 const ECART_MAX = 24;
 const OCTETS_JPEG_MAX = 400 * 1024;
@@ -97,7 +98,7 @@ async function testPixel(dossier: string, n: number, hauteur: number): Promise<{
   const tranches: Buffer[] = [];
   for (let i = 0; i < n; i++) {
     const fichier = join(dossier, `tranche-${i + 1}.png`);
-    await executer(FFMPEG, ["-y", "-v", "error", "-i", png, "-vf", `crop=${LARGEUR_PAGE}:${hauteur}:${i * LARGEUR_PAGE}:0`, "-frames:v", "1", fichier]);
+    await executer(FFMPEG, ["-y", "-v", "error", "-i", png, "-vf", grapheDecoupe(i, hauteur), "-frames:v", "1", fichier]);
     const t = await brut(fichier, join(dossier, `tranche-${i + 1}.rgba`));
     tranches.push(t);
     if (t.length !== ligneP * hauteur) fautes.push(`tranche ${i + 1} : ${t.length} octets au lieu de ${ligneP * hauteur}`);
@@ -151,6 +152,7 @@ for (const e of ESSAIS) {
       m.chevauchements !== 0 && `${m.chevauchements} chevauchement(s)`,
       m.traitsFinsSurCouture !== 0 && `${m.traitsFinsSurCouture} trait(s) fin(s) sur une couture`,
       e.raccords.some((x) => x.couture === 1) && !(m.debordCouture1 >= 1) && "aucun objet à cheval sur la couture 1",
+      m.coutureDecalee !== 0 && `${m.coutureDecalee} colonne(s) de bord plus proche(s) d'une colonne voisine de la toile`,
       !(m.ecartCoutureMax <= ECART_MAX) && `écart JPEG / PNG ${m.ecartCoutureMax} (> ${ECART_MAX})`,
       ...octets.map((o, i) => o > OCTETS_JPEG_MAX && `page ${i + 1} : ${Math.round(o / 1024)} Ko (> 400 Ko)`),
       ...pixel.fautes,
