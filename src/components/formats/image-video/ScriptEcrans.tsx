@@ -30,7 +30,7 @@ function Ecrit({ t }: { t: string }) {
   return (
     <span className="font-titre uppercase">
       {morceauxEcrit(t).map((m, i) => (
-        <span key={i} className={m.orange ? "text-orange-vif" : undefined}>
+        <span key={i} className={m.orange ? "text-accent" : undefined}>
           {m.texte}
         </span>
       ))}
@@ -108,7 +108,7 @@ export function ScriptEcrans({
                 type="button"
                 aria-pressed={choisie}
                 onClick={() => setM((v) => ({ ...v, autreAccroche: i === 1 }))}
-                className={cn("min-h-11 rounded-carte border-2 p-3 text-left", choisie ? "border-orange bg-orange-doux" : "border-trait bg-surface-1")}
+                className={cn("min-h-11 rounded-carte border-2 p-3 text-left", choisie ? "border-accent bg-accent-doux" : "border-trait bg-surface-1")}
               >
                 <span className="block text-[15px] text-texte">« {x.texteDit} »</span>
                 <span className="mt-1 block text-sm">
