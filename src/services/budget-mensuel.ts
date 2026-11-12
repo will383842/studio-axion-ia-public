@@ -19,9 +19,8 @@ import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } 
 import { creerNotification } from "./notifications";
 import { budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
 import { centimesDuPlafond } from "@/lib/montants";
+import { CLE_QUOTAS_USINE, type QuotaUsine } from "./plafond-fournisseur";
 
-/** Plafond du mois par défaut (150 €, garde-fou du plan maître C2), tant que Will n'en a pas réglé d'autre. */
-export const PLAFOND_MENSUEL_PAR_DEFAUT_CENTIMES = 15000;
 const CLE_PLAFOND = "budget.mensuel";
 const cleBudgetUsine = (mois: string) => `budget.usine.${mois}`;
 const MOIS_VALIDE = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -41,10 +40,14 @@ export function estCentimesEntiers(v: unknown): v is number {
   return typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
 }
 
-/** Plafond du mois réglé dans le studio, en centimes entiers. Illisible → `BUDGET_ILLISIBLE` (refus, rien ne part). */
-export async function plafondStudioCentimes(): Promise<number> {
-  const p = await lireParametre<unknown>(CLE_PLAFOND, centimes(PLAFOND_MENSUEL_PAR_DEFAUT_CENTIMES));
-  const c = p && typeof p === "object" ? (p as { centimes?: unknown }).centimes : undefined;
+/**
+ * Plafond du mois réglé dans le studio, en centimes entiers ; `null` : aucun plafond réglé (plus de plafond par défaut :
+ * une commande du Studio n'est jamais refusée pour un montant sans réglage du fondateur). Illisible → `BUDGET_ILLISIBLE`.
+ */
+export async function plafondStudioCentimes(): Promise<number | null> {
+  const p = await lireParametre<unknown>(CLE_PLAFOND, null);
+  if (p === null || p === undefined) return null;
+  const c = typeof p === "object" ? (p as { centimes?: unknown }).centimes : undefined;
   if (!estCentimesEntiers(c)) throw new ErreurStudio("BUDGET_ILLISIBLE", "Le plafond du mois est illisible : réglez-le de nouveau dans Réglages > Budget. Rien ne part en attendant.");
   return c;
 }
@@ -52,45 +55,74 @@ export async function plafondStudioCentimes(): Promise<number> {
 /* --- Budget envoyé par l'Usine ------------------------------------------ */
 
 interface BudgetUsineEnBase {
-  budget_mensuel_cents: number;
+  budget_mensuel_cents?: number;
+  /** Budget réglé en quantités (quotas) : tient lieu de budget du mois ; les quotas eux-mêmes sont gardés par plafond-fournisseur. */
+  en_quantites?: true;
   mois: string;
   le: string;
 }
 
 export interface BudgetUsine {
-  budget_mensuel_cents: number;
+  /** `null` : budget réglé en quantités seulement (jamais un refus pour un montant). */
+  budget_mensuel_cents: number | null;
   mois: string;
 }
 
 /** Budget de l'Usine pour ce mois (Paris). Absent, illisible ou d'un autre mois → null (= aucune fabrication de l'Usine). */
 export async function lireBudgetUsine(mois: string = moisParis()): Promise<BudgetUsine | null> {
   const b = await lireParametre<Partial<BudgetUsineEnBase> | null>(cleBudgetUsine(mois), null);
-  if (!b || typeof b !== "object" || b.mois !== mois || !estCentimesEntiers(b.budget_mensuel_cents)) return null;
-  return { budget_mensuel_cents: b.budget_mensuel_cents, mois };
+  if (!b || typeof b !== "object" || b.mois !== mois) return null;
+  if (estCentimesEntiers(b.budget_mensuel_cents)) return { budget_mensuel_cents: b.budget_mensuel_cents, mois };
+  if (b.en_quantites === true && b.budget_mensuel_cents === undefined) return { budget_mensuel_cents: null, mois };
+  return null;
+}
+
+function quotasValides(v: unknown): QuotaUsine[] {
+  const estQuota = (q: unknown): q is QuotaUsine => {
+    if (!q || typeof q !== "object") return false;
+    const { periode, reseau, type, limite } = q as Record<string, unknown>;
+    return (periode === "jour" || periode === "semaine") && typeof reseau === "string" && reseau !== "" && typeof type === "string" && type !== "" && typeof limite === "number" && Number.isSafeInteger(limite) && limite > 0;
+  };
+  if (!Array.isArray(v) || v.length === 0 || v.length > 100 || !v.every(estQuota)) {
+    throw new ErreurChampInvalide("quotas", "Les quotas doivent être une liste de { periode (jour ou semaine), reseau, type, limite (entier supérieur à zéro) }.");
+  }
+  return v.map((q) => ({ periode: q.periode, reseau: q.reseau, type: q.type, limite: q.limite }));
 }
 
 /**
- * SEUL endroit d'écriture du budget de l'Usine (appel 5 : `{ budget_mensuel_cents, mois }`). Pas de session : la porte
- * (lot 3) garde l'appel par son secret ; ce service ne doit être exposé par aucune action d'écran.
- *  - `budget_mensuel_cents` : centimes entiers ≥ 0, ≤ plafond du studio, sinon `CHAMP_INVALIDE` (rien n'est écrit) ;
- *  - `mois` : AAAA-MM, le mois de Paris en cours ou le suivant (jamais un mois passé) ;
- *  - rejeu de la même valeur pour le même mois → `deja: true`, rien n'est réécrit ni journalisé.
+ * SEUL endroit d'écriture du budget de l'Usine (appel 5). Pas de session : la porte (lot 3) garde l'appel par son secret ;
+ * ce service ne doit être exposé par aucune action d'écran. Le budget est un QUOTA de contenus (par période, réseau et type) ;
+ * `budget_mensuel_cents` reste toléré. Un corps vide est accepté (rien n'est écrit).
+ *  - `quotas` (facultatif) : liste lisible en entier, sinon `CHAMP_INVALIDE` ; enregistrée comme quotas de l'usine ;
+ *  - `budget_mensuel_cents` (facultatif) : centimes entiers ≥ 0, ≤ plafond du studio s'il y en a un, sinon `CHAMP_INVALIDE` ;
+ *  - `mois` (facultatif, le mois de Paris en cours par défaut) : AAAA-MM, le mois en cours ou le suivant ;
+ *  - rejeu de la même valeur pour le même mois → `deja: true`, rien n'est réécrit ni journalisé. Aucun montant dans le journal.
  */
-export async function reglerBudgetUsine(corps: { budget_mensuel_cents: unknown; mois: unknown }): Promise<BudgetUsine & { deja: boolean }> {
-  const { budget_mensuel_cents: cents, mois } = corps;
+export async function reglerBudgetUsine(corps: { budget_mensuel_cents?: unknown; mois?: unknown; quotas?: unknown }): Promise<BudgetUsine & { deja: boolean; quotas?: QuotaUsine[] }> {
+  const { budget_mensuel_cents: cents, mois: moisRecu, quotas: quotasRecus } = corps;
   const courant = moisParis();
+  const mois = moisRecu === undefined ? courant : moisRecu;
   if (typeof mois !== "string" || !MOIS_VALIDE.test(mois) || (mois !== courant && mois !== decalerMois(courant, 1))) {
     throw new ErreurChampInvalide("mois", "Le mois doit être le mois en cours ou le suivant (AAAA-MM).");
   }
-  if (!estCentimesEntiers(cents)) throw new ErreurChampInvalide("budget_mensuel_cents", "Le budget doit être un nombre entier de centimes, positif ou nul.");
-  const plafond = await plafondStudioCentimes();
-  if (cents > plafond) throw new ErreurChampInvalide("budget_mensuel_cents", "Le budget dépasse le plafond du mois réglé dans le studio.");
+  if (cents !== undefined && !estCentimesEntiers(cents)) throw new ErreurChampInvalide("budget_mensuel_cents", "Le budget doit être un nombre entier de centimes, positif ou nul.");
+  const quotas = quotasRecus === undefined ? undefined : quotasValides(quotasRecus);
+  if (cents !== undefined) {
+    const plafond = await plafondStudioCentimes();
+    if (plafond !== null && cents > plafond) throw new ErreurChampInvalide("budget_mensuel_cents", "Le budget dépasse le plafond du mois réglé dans le studio.");
+  }
   const avant = await lireBudgetUsine(mois);
-  if (avant && avant.budget_mensuel_cents === cents) return { ...avant, deja: true };
-  const b: BudgetUsineEnBase = { budget_mensuel_cents: cents, mois, le: maintenant() };
+  if (cents === undefined && quotas === undefined) return { budget_mensuel_cents: avant?.budget_mensuel_cents ?? null, mois, deja: true };
+  const quotasAvant = quotas ? JSON.stringify(await lireParametre<unknown>(CLE_QUOTAS_USINE, null)) : undefined;
+  const memeQuotas = quotas === undefined || quotasAvant === JSON.stringify(quotas);
+  if (avant && memeQuotas && (cents === undefined ? avant.budget_mensuel_cents === null || quotas !== undefined : avant.budget_mensuel_cents === cents)) {
+    return { ...avant, deja: true, ...(quotas ? { quotas } : {}) };
+  }
+  if (quotas) await ecrireParametre(CLE_QUOTAS_USINE, quotas);
+  const b: BudgetUsineEnBase = { mois, le: maintenant(), ...(cents !== undefined ? { budget_mensuel_cents: cents } : { en_quantites: true }) };
   await ecrireParametre(cleBudgetUsine(mois), b);
-  await journaliser("budget", `Budget de l'Usine pour ${mois} : ${formaterMontant(centimes(cents))} (plafond du studio : ${formaterMontant(centimes(plafond))})`);
-  return { budget_mensuel_cents: cents, mois, deja: false };
+  await journaliser("budget", `Budget de l'Usine pour ${mois} réglé${quotas ? ` en quantités (${quotas.length} quota${quotas.length > 1 ? "s" : ""})` : ""}.`);
+  return { budget_mensuel_cents: cents ?? null, mois, deja: false, ...(quotas ? { quotas } : {}) };
 }
 
 /**
@@ -108,7 +140,8 @@ export async function plafondSujetCentimes(): Promise<number> {
  * `plafond_cents` d'une commande de l'Usine : entier > 0, ≤ plafond d'UN SUJET du studio (§ 3 quater), et non le plafond
  * du mois (le mois reste gardé à la dépense, par `controlerBudgetDuMois`). Le chiffre de l'Usine n'est jamais cru.
  */
-export async function verifierPlafondCommande(plafondCents: unknown): Promise<number> {
+export async function verifierPlafondCommande(plafondCents: unknown): Promise<number | null> {
+  if (plafondCents === undefined) return null; // absent : accepté (NEW-ARG-03), l'usine n'envoie plus de plafond en euros
   if (!estCentimesEntiers(plafondCents) || plafondCents === 0) throw new ErreurChampInvalide("plafond_cents", "Le plafond de la commande doit être un nombre entier de centimes, supérieur à zéro.");
   if (plafondCents > (await plafondSujetCentimes())) throw new ErreurChampInvalide("plafond_cents", "Le plafond de la commande dépasse le plafond d'un sujet réglé dans le studio.");
   return plafondCents;
@@ -182,7 +215,7 @@ async function alerterUneFoisParJour(motif: string, texte: { titre: string; mess
 export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id } = {}): Promise<void> {
   // Mode indicatif (commande de Will seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
   const indicatif = await budgetIndicatifPour(options.origine);
-  let plafond: number;
+  let plafond: number | null;
   try {
     plafond = await plafondStudioCentimes();
   } catch (e) {
@@ -196,7 +229,7 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
   const vue = await resumeBudget();
   const propre = options.travailId ? await engagementDuTravail(options.travailId) : 0;
   const utilise = vue.depense.centimes + vue.engage.centimes - propre;
-  if (utilise + besoin > plafond) {
+  if (plafond !== null && utilise + besoin > plafond) {
     if (indicatif) {
       await signalerDepassementIndicatif("mois", "Budget indicatif du mois dépassé", "Rien n'est arrêté : la fabrication continue. Réglages > Budget pour ajuster le repère du mois.");
       return;
@@ -210,7 +243,7 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
     await alerterRefus("usine-absent");
     throw new ErreurStudio("BUDGET_USINE_ABSENT", "Aucun budget du mois reçu de l'Usine : rien ne part.");
   }
-  if (utilise + besoin > usine.budget_mensuel_cents) {
+  if (usine.budget_mensuel_cents !== null && utilise + besoin > usine.budget_mensuel_cents) {
     await alerterRefus("usine-atteint");
     throw new ErreurStudio("BUDGET_MENSUEL_ATTEINT", "Le budget du mois réglé dans l'Usine serait dépassé : rien ne part.");
   }

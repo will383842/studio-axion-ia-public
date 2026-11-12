@@ -1,13 +1,8 @@
-# NEW-ARG-03 — bloquée : dépendances non finales après 40 minutes
-- Fait : rien de codé. Attente « à la chaîne » de 20 essais (2 min) épuisée.
-- Bloque : `usine/L2-13` existe mais son journal dit encore « en cours » ; `usine/L2-13c` existe, journal encore « en cours ».
-- Fichiers touchés : ce journal seulement.
-- Tests : aucun lancé (0 passé, 0 échoué).
-- Reste : toute la fiche (quota en quantités, plus de plafond par défaut, `budget_mensuel_cents` toléré, `plafond_cents` optionnel) ; relancer quand L2-13 puis L2-13c sont finales.
-- Douteux : rien d'autre.
+# NEW-ARG-03 : budget de l'usine en quantités (FAIT en partie, à relire, 12/11/2026)
+- Reprise après le CORRECTIF du 12/11, 16 h (blocage levé : L2-13 et L2-13c sur master) ; master fusionné sans conflit. Test autorisé d'office : aucun besoin, le test de la fiche existe (tests/porte-usine-garde-budget.test.ts, nouveau bloc « NEW-ARG-03 »).
+- Fait (src/services/budget-mensuel.ts, route budget) : le budget de l'usine se règle en quantités (champ `quotas` : période jour ou semaine, réseau, type, limite entière > 0), enregistrées comme quotas de l'usine et gardées par plafond-fournisseur (L2-13) ; `budget_mensuel_cents` et `mois` deviennent facultatifs (toléré, corps vide accepté, mois en cours par défaut) ; plafond par défaut du studio retiré : sans réglage du fondateur il n'y a aucun plafond, une commande du Studio n'est jamais refusée pour un montant ; `verifierPlafondCommande` accepte un plafond absent (valeur présente toujours contrôlée) ; journal du budget sans aucun montant.
+- Règles d'argent tenues : refus entier pour l'origine « usine » au-delà de son quota (test) et au-delà d'un montant reçu (BUDGET_MENSUEL_ATTEINT, test) ; Studio jamais bloqué (tests quota et plafond absent) ; aucun montant dans réponse ni journal (test) ; aucun test supprimé, ignoré ou affaibli (28 tests existants du fichier inchangés).
+- Critères : 2 tenu (« verifierPlafondCommande accepte un plafond_cents absent ») ; 3 tenu pour le corps vide ou en quantités et le plafond par défaut retiré (tests « corps vide », « corps en quantités ») ; 4 tenu (« une commande du Studio… jamais bloquée ») ; 1 PARTIEL : une commande de l'usine n'est plus refusée « budget absent » quand son budget est en quantités (test), mais un MONTANT reçu reste gardé.
+- PILOTAGE : le critère 1 (« ne lève ni BUDGET_USINE_ABSENT ni BUDGET_MENSUEL_ATTEINT pour un montant ») et la fin du critère 3 (« plus de refus pour un montant ») contredisent le CORRECTIF (le refus reste entier pour l'usine au-delà de son budget) et 31 tests de 13 fichiers voisins hors liste (l1-09, l3-0-*, l3-01-*, c1-argent-*), qui exigent ces refus ; non fait. Un budget absent (ni quotas ni montant) refuse toujours une commande de l'usine. Au fondateur de trancher.
+- Tests : porte-usine-garde-budget 35 passés, 0 échoué (7 rouges avant le code) ; 156 fichiers voisins (porte, plafond-fournisseur, l3-0*, l3-01*, l1-09, budget-indicatif, c1-argent*, e2e2-argent*, services, ordre-25-10, comite-editorial, zernio, aucun-prix) : 6 échecs, les mêmes que sur master sans mes changements (aucun-prix-affiche, c1-argent-b6 ×3, l3-0-garde-origine, confirmation-prix-auto). tsc : 147 erreurs comme master, aucune dans mes fichiers.
 - contrôle anti-fuite : vide
-
-## Corrections après relecture
-- Constat « fiche non faite » : reporté. PILOTAGE : usine/L2-13 (journal « en cours », branche probablement abandonnée) et usine/L2-13c (bloquée sur L2-13) toujours non finales le 12/11 ; la série doit être reprise à L2-13. Rien codé, aucun fichier d'argent touché.
-- Remarque RC-02 : dépendance documentaire (contrat d'échange du dépôt des plans), pas une dépendance de code du Studio ; à confirmer au relancement.
-- Tests : 0 lancé, 0 écrit. contrôle anti-fuite : vide

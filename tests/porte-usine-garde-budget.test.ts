@@ -327,3 +327,87 @@ describe("proxy et garde dans chaque handler", () => {
     expect(appels).toBeGreaterThan(0);
   });
 });
+
+/**
+ * NEW-ARG-03 (CORRECTIF du 12/11, 16 h) : le budget de l'usine se règle en QUANTITÉS (quota par période, réseau et type).
+ * Règles d'argent : une commande d'origine « usine » au-delà de son budget ou de son quota reste refusée entière ; une
+ * commande d'origine Studio n'est jamais refusée pour un montant ; aucun montant ni prix dans un message ou un journal.
+ */
+describe("NEW-ARG-03 : budget de l'usine en quantités", () => {
+  const budget = () => import("@/services/budget-mensuel");
+  const plafond = () => import("@/services/plafond-fournisseur");
+  const QUOTAS = [{ periode: "jour", reseau: "fal", type: "image", limite: 2 }, { periode: "semaine", reseau: "linkedin", type: "video", limite: 3 }];
+  const sansMontant = (t: string) => expect(t).not.toMatch(/€|\beuros?\b|\bcents?\b|centimes|\bprix\b|\d+\s*(?:€|EUR)/i);
+
+  it("un corps vide (contrat seul) est accepté : rien n'est écrit, rien n'est bloqué", async () => {
+    const r = await PUT(appel({ contrat: 2 }));
+    expect(r.status).toBe(200);
+    const j = await r.json();
+    expect(j.mois).toBe(courant());
+    expect(j.deja).toBe(true);
+    expect(await depots().parametres.obtenir(`budget.usine.${courant()}`)).toBeFalsy();
+    expect(await depots().parametres.obtenir("plafond.quotas-usine")).toBeFalsy();
+  });
+
+  it("un corps en quantités est accepté, enregistré en quotas, sans aucun montant dans la réponse ni dans le journal", async () => {
+    const r = await PUT(appel({ contrat: 2, quotas: QUOTAS }));
+    expect(r.status).toBe(200);
+    const j = await r.json();
+    expect(j.quotas).toEqual(QUOTAS);
+    expect(await (await plafond()).lireQuotasUsine()).toEqual(QUOTAS);
+    sansMontant(JSON.stringify(j));
+    for (const e of await depots().evenements.lister()) sansMontant(JSON.stringify(e));
+  });
+
+  it("quotas mal formés (limite nulle, période inconnue, tableau vide, texte) → 400 champ_invalide « quotas », rien d'écrit", async () => {
+    for (const q of [[{ ...QUOTAS[0], limite: 0 }], [{ ...QUOTAS[0], periode: "mois" }], [], "40", [{ ...QUOTAS[0], limite: 1.5 }], [{ ...QUOTAS[0], type: "" }]]) {
+      const r = await PUT(appel({ contrat: 2, quotas: q }));
+      expect(r.status).toBe(400);
+      const j = await r.json();
+      expect(j.code).toBe("champ_invalide");
+      expect(j.erreur).toContain("quotas");
+    }
+    expect(await depots().parametres.obtenir("plafond.quotas-usine")).toBeFalsy();
+  });
+
+  it("un budget en quantités tient lieu de budget du mois : la commande de l'usine n'est plus refusée « budget absent »", async () => {
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(1, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await PUT(appel({ contrat: 2, quotas: QUOTAS }));
+    await expect(controlerBudgetDuMois(1, { origine: "usine" })).resolves.toBeUndefined();
+  });
+
+  it("le refus reste entier pour l'usine : un montant reçu en plus des quantités est toujours gardé", async () => {
+    const { controlerBudgetDuMois } = await budget();
+    await PUT(appel({ contrat: 2, quotas: QUOTAS, budget_mensuel_cents: 100 }));
+    await expect(controlerBudgetDuMois(100, { origine: "usine" })).resolves.toBeUndefined();
+    await expect(controlerBudgetDuMois(101, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+  });
+
+  it("le refus reste entier pour l'usine au-delà du quota ; une commande du Studio (ajout manuel) n'est jamais bloquée", async () => {
+    const { reserverQuota, avecOrigineFournisseur } = await plafond();
+    await PUT(appel({ contrat: 2, quotas: QUOTAS }));
+    await avecOrigineFournisseur("usine", async () => {
+      expect(await reserverQuota("fal", "image", "a")).not.toBeNull();
+      expect(await reserverQuota("fal", "image", "b")).not.toBeNull();
+      expect(await reserverQuota("fal", "image", "c")).toBeNull();
+    });
+    await avecOrigineFournisseur("studio", async () => {
+      for (const k of ["m1", "m2", "m3", "m4"]) expect(await reserverQuota("fal", "image", k)).not.toBeNull();
+    });
+  });
+
+  it("verifierPlafondCommande accepte un plafond_cents absent ; une valeur présente reste contrôlée", async () => {
+    const { verifierPlafondCommande } = await budget();
+    await expect(verifierPlafondCommande(undefined)).resolves.toBeNull();
+    await expect(verifierPlafondCommande(0)).rejects.toMatchObject({ code: "CHAMP_INVALIDE", champ: "plafond_cents" });
+    await expect(verifierPlafondCommande("10")).rejects.toMatchObject({ code: "CHAMP_INVALIDE", champ: "plafond_cents" });
+  });
+
+  it("sans plafond réglé dans le studio, aucun plafond par défaut : une commande du Studio n'est jamais refusée pour un montant", async () => {
+    const { controlerBudgetDuMois, PLAFOND_MENSUEL_PAR_DEFAUT_CENTIMES } = await import("@/services/budget-mensuel") as unknown as Record<string, unknown>;
+    expect(PLAFOND_MENSUEL_PAR_DEFAUT_CENTIMES).toBeUndefined();
+    reinitialiserDepots(); // aucun plafond réglé
+    await expect((controlerBudgetDuMois as (n: number, o: object) => Promise<void>)(10_000_000, { origine: "studio" })).resolves.toBeUndefined();
+  });
+});
