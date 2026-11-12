@@ -12,6 +12,11 @@ import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 import { ADRESSE_FICTIVE, COMPTE, ENV, POST, SECRET_EMPREINTE, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
+vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => {
+  const r = await orig<Record<string, unknown>>();
+  const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+  return { ...r, siteAccepteVersionM1: (v: string) => VERSIONS_SITE_TEST.has(v) };
+});
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const C = await import("@/services/parcours-conversation");

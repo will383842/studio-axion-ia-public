@@ -14,6 +14,11 @@ import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 import { ADRESSE_FICTIVE, COMPTE, ENV, SECRET_EMPREINTE, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
+vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => {
+  const r = await orig<Record<string, unknown>>();
+  const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+  return { ...r, siteAccepteVersionM1: (v: string) => VERSIONS_SITE_TEST.has(v) };
+});
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -117,12 +122,40 @@ describe("1 ter · messages encore en service qui commencent par la mention (rem
   });
 });
 
-describe("1 bis · liste des versions acceptées par le site (copie de test)", () => {
-  it("chaque formulation du 1er message avec lien est dans la liste ; les versions « adresse refusée » n'y sont pas (elles ne partent jamais au site)", async () => {
+describe("1 bis · liste des versions acceptées par le site (un seul fichier côté Studio, copie RÉELLE du site en test)", () => {
+  it("chaque formulation du groupe « m1-lien » est classée dans le fichier : acceptée OU en attente du site, jamais les deux, jamais oubliée", async () => {
+    const F = await import("@/domaine/guide-reseau/versions-acceptees-site");
+    const acceptees = F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE;
+    const attente = F.VERSIONS_M1_EN_ATTENTE_DU_SITE;
+    for (const v of GROUPES_MP["m1-lien"]) expect(acceptees.includes(v) !== attente.includes(v), `${v} : dans une seule des deux listes`).toBe(true);
+    for (const v of [...acceptees, ...attente]) expect(v).toMatch(/^[A-Za-z0-9._-]{1,32}$/); // forme exigée pour `version_m1` du jeton
+  });
+  it("NON CIRCULAIRE : toute version acceptée par le Studio est dans la copie de la liste RÉELLE du site (que cette PR ne modifie pas) ; « adresse refusée » n'y est jamais", async () => {
+    const F = await import("@/domaine/guide-reseau/versions-acceptees-site");
     const { VERSIONS_TEXTE_CONNUES_SITE } = await import("./aides/contrat-site-guides-reseau");
-    for (const v of V_M1) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[], v).toContain(v);
-    for (const v of V_AR) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[], v).not.toContain(v);
-    for (const v of V_M1) expect(v).toMatch(/^[A-Za-z0-9._-]{1,32}$/); // forme exigée pour `version_m1` du jeton
+    for (const v of F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[], v).toContain(v);
+    for (const v of V_AR) expect(F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE).not.toContain(v);
+    // aujourd'hui les 4 nouvelles ne sont PAS connues du site : elles sont en attente (ce test rougit si on les passe en « acceptées » sans le site)
+    for (const v of V_M1) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[]).not.toContain(v);
+  });
+  it("le VRAI fichier (sans faux site) : aucune v4 n'est acceptée, le message part SANS lien avec une alerte cloche, et l'état garde la formulation choisie", async () => {
+    const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+    const avant = [...VERSIONS_SITE_TEST];
+    VERSIONS_SITE_TEST.clear();
+    try {
+      await validerFormulationsAuParcours();
+      await deposerCommentaire(depots, {});
+      await passer();
+      expect(port.prive).toHaveLength(1);
+      expect(port.prive[0].texte).toBe(rendreTexteMp("mp-m1-v2", { mot: "GUIDE", titre: TITRE }));
+      expect(port.prive[0].texte).not.toContain("https://");
+      expect(await cloches(/sans lien \(le site ne connaît pas encore cette formulation\)/)).toBe(1);
+      const e = await etatDe();
+      expect(e.versionTexteM1).toBe("mp-m1-v2");
+      expect(e.formulations["m1-lien"]).toBe("mp-m1-v4-1");
+    } finally {
+      for (const v of avant) VERSIONS_SITE_TEST.add(v);
+    }
   });
 });
 
@@ -185,7 +218,7 @@ describe("4 · déterminisme", () => {
   });
   it("figée et valide : elle gagne ; figée hors groupe, retirée ou non validée : une autre ; aucune validée : null", () => {
     expect(choix("cle-fictive-9", "mp-m1-v4-3")!.version).toBe("mp-m1-v4-3");
-    expect(choix("cle-fictive-9", "mp-m1-v3")!.version).toMatch(/^mp-m1-v4-/);
+    expect(choix("cle-fictive-9", "mp-m1-v3")!.version).toBe("mp-m1-v4-1"); // texte identique à l'octet : la conversation garde son texte
     expect(choisirFormulation({ groupe: "m1-lien", cleConversation: "k", figee: "mp-m1-v4-3", validees: new Set(["mp-m1-v4-1"]), rendre: () => "x" })!.version).toBe("mp-m1-v4-1");
     expect(choisirFormulation({ groupe: "m1-lien", cleConversation: "k", validees: new Set(), rendre: () => "x" })).toBeNull();
     expect(choisirFormulation({ groupe: "m1-lien", cleConversation: "k", validees: new Set(V_M1), rendre: () => null })).toBeNull();
@@ -288,9 +321,77 @@ describe("7 · formulation non validée = jamais envoyée (M1)", () => {
     port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
     await passer(T0 + 3_600_000);
     const derniers = port.prive.map((p) => p.texte);
-    expect(derniers[derniers.length - 1]).not.toContain(brut(figee).texte.slice(0, 40) + "zz");
+    const dernier = derniers[derniers.length - 1];
+    expect(dernier).not.toContain(brut(figee).texte.slice(0, 40)); // ce n'est pas le texte de la formulation devenue non validée
+    expect(dernier).toBe(rendreM1((await etatDe()).versionTexteM1, dernier.slice(dernier.indexOf("https://")))); // c'est exactement le texte de la formulation notée dans l'état
     expect(sans).toContain((await etatDe()).versionTexteM1);
     expect((await depots().evenements.lister((x: any) => /formulation_figee_non_validee/.test(x.message))).length).toBeGreaterThan(0);
+  });
+  it("(g) renvoi sans changement de validation : le MÊME texte, à l'octet (hors jeton du lien), même formulation", async () => {
+    await validerFormulationsAuParcours([...V_M1]);
+    await deposerCommentaire(depots, {});
+    port.reponses.prive = () => ({ statut: "a_reessayer", code: "reseau" }) as never;
+    await passer();
+    port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
+    await passer(T0 + 3_600_000);
+    expect(port.prive).toHaveLength(2);
+    const [t1, t2] = port.prive.map((p) => p.texte);
+    const sansLien = (t: string) => t.slice(0, t.indexOf("https://"));
+    expect(Buffer.from(sansLien(t2), "utf8").equals(Buffer.from(sansLien(t1), "utf8"))).toBe(true);
+    const v = (await etatDe()).versionTexteM1;
+    expect(t1).toBe(rendreM1(v, t1.slice(t1.indexOf("https://"))));
+    expect(t2).toBe(rendreM1(v, t2.slice(t2.indexOf("https://"))));
+  });
+  it("(h) conversation figée sur mp-m1-v3 (retiré) : elle garde ce texte (= mp-m1-v4-1, identique à l'octet) ; v4-1 non validée : sans lien avec un journal, JAMAIS une autre v4", async () => {
+    for (const validees of [[...V_M1], ["mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4"]]) {
+      reinitialiserDepots();
+      C.reinitialiserParcoursConversation();
+      port = fauxPort();
+      await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
+      await validerGuideAuParcours();
+      await validerFormulationsAuParcours(validees);
+      await deposerCommentaire(depots, {});
+      port.reponses.prive = () => ({ statut: "a_reessayer", code: "reseau" }) as never;
+      await passer();
+      const tout = await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {});
+      const cle = cleConversation(A);
+      tout[cle] = { ...tout[cle], versionTexteM1: "mp-m1-v3", formulations: undefined };
+      await Com.ecrireParametre(C.PARAM_CONVERSATIONS, tout);
+      port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
+      const avant = port.prive.length;
+      await passer(T0 + 3_600_000);
+      const t = port.prive[port.prive.length - 1].texte;
+      expect(port.prive.length).toBe(avant + 1);
+      if (validees.includes("mp-m1-v4-1")) {
+        expect(t).toBe(rendreM1("mp-m1-v4-1", t.slice(t.indexOf("https://"))));
+      } else {
+        expect(t).toBe(rendreTexteMp("mp-m1-v2", { mot: "GUIDE", titre: TITRE }));
+        for (const v of ["mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4"]) expect(t).not.toContain(brut(v).texte.slice(0, 30));
+        expect((await depots().evenements.lister((x: { message: string }) => /formulation_figee_retiree_refusee/.test(x.message))).length).toBeGreaterThan(0);
+      }
+    }
+  });
+  it("(i) repli sans lien puis nouvel essai : la formulation avec lien choisie au 1er essai est gardée (formulations[\"m1-lien\"])", async () => {
+    await deposerCommentaire(depots, {});
+    await validerFormulationsAuParcours([...V_M1]);
+    const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+    const avant = [...VERSIONS_SITE_TEST];
+    VERSIONS_SITE_TEST.clear(); // le site ne connaît rien : repli sans lien, nouvel essai
+    port.reponses.prive = () => ({ statut: "a_reessayer", code: "reseau" }) as never;
+    try {
+      await passer();
+    } finally {
+      for (const v of avant) VERSIONS_SITE_TEST.add(v);
+    }
+    const e1 = await etatDe();
+    expect(e1.versionTexteM1).toBe("mp-m1-v2");
+    const choisie = e1.formulations["m1-lien"] as string;
+    expect(V_M1).toContain(choisie);
+    port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
+    await passer(T0 + 3_600_000);
+    const t = port.prive[port.prive.length - 1].texte;
+    expect(t).toBe(rendreM1(choisie, t.slice(t.indexOf("https://"))));
+    expect((await etatDe()).formulations["m1-lien"]).toBe(choisie);
   });
   it("(c) aucune M1 v4 validée, lien allumé : M1 sans lien mp-m1-v2 exact, code texte_lien_non_valide, cloche sans push", async () => {
     await validerFormulationsAuParcours([]);
@@ -339,7 +440,7 @@ describe("8 · stop gagnant, fenêtre", () => {
     await deposerMessage(depots, { idMessage: "msg-tard" });
     await passer(T0 + 30 * 3_600_000);
     expect(port.envoyes).toHaveLength(0);
-    expect((await etatDe()).formulations).toBeUndefined();
+    expect((await etatDe()).formulations?.["adresse-refusee"]).toBeUndefined();
   });
 });
 
@@ -372,5 +473,22 @@ describe("10 · écran /mots", () => {
     expect(apres.formulations!.filter((f) => f.valide).map((f) => f.version)).toEqual(["mp-m1-v4-2"]);
     expect(await actions.validerFormulationAction("mp-m1-v3")).toMatchObject({ ok: false });
     expect(await actions.validerFormulationAction("n'importe quoi")).toMatchObject({ ok: false });
+  });
+  it("EcranMots affiche le texte de chaque formulation, sa pastille et le bouton « Valider cette formulation »", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { createElement } = await import("react");
+    const { EcranMots } = await import("@/components/mots/EcranMots");
+    const vue = await MS.lireVueMots();
+    await MS.validerFormulation({ version: "mp-m1-v4-2", confirmeParOperateur: true });
+    const vue2 = await MS.lireVueMots();
+    const rendu = (v: typeof vue) => renderToStaticMarkup(createElement(EcranMots, { vue: v, services: { validerFormulation: async () => ({ ok: true, raison: "valide" }) } as never, comptes: [COMPTE] }));
+    const html = rendu(vue);
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+    for (const t of [...M1_VALIDES, ...AR_VALIDES]) expect(html, t.slice(0, 30)).toContain(esc(t));
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7);
+    expect(html.match(/Non validée/g)).toHaveLength(7);
+    const html2 = rendu(vue2);
+    expect(html2.match(/Validée/g)).toHaveLength(1);
+    expect(html2.match(/Non validée/g)).toHaveLength(6);
   });
 });
