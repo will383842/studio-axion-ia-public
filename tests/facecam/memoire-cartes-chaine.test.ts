@@ -56,6 +56,13 @@ describe("memoireCartesFacecam (dépôts simulés)", () => {
     expect(m.dejaServis).toEqual(["m6", "m5", "m4", "m3", "m2"]);
     expect(m.ouverturePrecedente).toBe("m6");
   });
+  it("5 vidéos de 12 cartes : la mémoire est coupée à 40 modèles, les plus récents", async () => {
+    for (let i = 1; i <= 5; i++) versionsSimulees.push(version(`v${i}`, `2026-01-0${i}`, Array.from({ length: 12 }, (_, k) => `v${i}k${k}`)));
+    const m = await memoireCartesFacecam("autre");
+    expect(m.dejaServis).toHaveLength(40);
+    expect(m.dejaServis[0]).toBe("v5k0");
+    expect(m.dejaServis).not.toContain("v1k0");
+  });
   it("une panne de lecture donne une liste vide, sans lever", async () => {
     lectureEnPanne = true;
     expect(await memoireCartesFacecam("v1")).toEqual({ dejaServis: [] });
@@ -118,13 +125,32 @@ describe("chaîne : la mémoire des cartes est lue une fois et figée", () => {
     expect(appels).not.toHaveBeenCalled();
     expect(etat.memoireCartes).toBeUndefined();
   });
-  it("lecture en panne ou mémoire vide : rien de figé, comportement d'avant", async () => {
-    for (const lire of [async () => { throw new Error("panne"); }, async () => ({ dejaServis: [] })]) {
-      const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu(), memoireCartes: lire }, commande());
-      expect(etat.fini).toBe(true);
-      expect(etat.memoireCartes).toBeUndefined();
-      expect("memoireCartes" in livraisonChaine(etat).facecam).toBe(false);
-    }
+  it("lecture en panne : rien de figé, comportement d'avant", async () => {
+    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu(), memoireCartes: async () => { throw new Error("panne"); } }, commande());
+    expect(etat.fini).toBe(true);
+    expect(etat.memoireCartes).toBeUndefined();
+    expect("memoireCartes" in livraisonChaine(etat).facecam).toBe(false);
+  });
+  it("première vidéo (mémoire vide figée) : figée, et la retouche ne relit pas l'historique", async () => {
+    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu(), memoireCartes: async () => ({ dejaServis: [] }) }, commande());
+    expect(etat.fini).toBe(true);
+    expect(etat.memoireCartes).toEqual({ dejaServis: [] });
+    const figee = livraisonChaine(etat).facecam.memoireCartes;
+    expect(figee).toEqual({ dejaServis: [] });
+    const relue = vi.fn(async () => ({ dejaServis: ["autre"] }));
+    const retouche = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu(), memoireCartes: relue }, commande({ facecam: { memoireCartes: figee } }));
+    expect(retouche.fini).toBe(true);
+    expect(relue).not.toHaveBeenCalled();
+  });
+  it("retouche d'une vidéo dont la mémoire dépassait 40 : mêmes cartes (40 modèles figés, pas de relecture)", async () => {
+    const longue = Array.from({ length: 55 }, (_, i) => `m${i}`);
+    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu(), memoireCartes: async () => ({ dejaServis: longue.slice(0, 40) }) }, commande());
+    const figee = livraisonChaine(etat).facecam.memoireCartes;
+    expect(figee?.dejaServis).toHaveLength(40);
+    const relue = vi.fn(async () => ({ dejaServis: ["autre"] }));
+    const retouche = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu(), memoireCartes: relue }, commande({ facecam: { memoireCartes: { dejaServis: longue } } }));
+    expect(retouche.fini).toBe(true);
+    expect(relue).not.toHaveBeenCalled();
   });
   it("sans service : état et livraison inchangés", async () => {
     const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outilsRendu() }, commande());
