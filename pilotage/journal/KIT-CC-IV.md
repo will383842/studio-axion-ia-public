@@ -1,0 +1,15 @@
+# KIT-CC-IV — textes du cas concret et de l'image → vidéo dans le kit (final)
+Fait : nouveau service `textes-version-generateur.ts` (lit projetMontage.casConcret.publication et imageVideo.livraison) ; le kit verse ces textes (source « variante », mots-dièse si le format en écrit) ; aucun appel à « texte-reseaux » (création du kit, affichage, écriture auto, « Réécrire ») ; envoi refusé (TEXTES_MANQUANTS) si le texte du réseau manque ; page vidéo : « Publier » dès que le kit porte ces textes.
+Fichiers : src/services/textes-version-generateur.ts, src/services/publications.ts, src/app/(studio)/videos/[id]/page.tsx, tests/ecriture-post/kit-cc-iv.test.ts.
+Critères (CORRECTIF 12/11 14 h 45) : (1) cas concret : texte, mots-dièse, 1er commentaire — tenu : kit-cc-iv.test.ts « (1) le kit porte… » ; (2) image → vidéo — tenu : « (2) le kit reprend… » ; (3) textes manquants, illisibles, vides, essai : envoi refusé, jamais d'essai — tenu : « (3) » x4 ; (4) aucun appel au rédacteur — tenu : « (4) » et les deux « redacteur not called » ; (5) brouillon, cases cochées — tenu : « (5) » x2. Format ordinaire inchangé — tenu : dernier test.
+Test rouge vérifié avant le code (10 échecs sur 12). Tests : fiche 12 passés, 0 échoué. Dossiers voisins (ecriture-post, a-publier*, premier-commentaire, cas-concret/services, image-video, publication*, r2*) : 101 échoués, 0 imputable à la fiche : sur 4 fichiers échoués comparés (r2-textes-publication, image-video/carte, depot-studio, carte-orphelins) master donne les mêmes 5 échecs que la branche ; reste non comparé fichier par fichier (échecs d'import des gabarits vidéo, dossier image-video).
+Reste / douteux : les formats n'écrivent pas de mots-dièse eux-mêmes aujourd'hui (champ `motsDiese` ou `hashtags` repris s'il existe, rien n'est deviné) ; eslint signale une apostrophe non échappée ligne 344 de la page, déjà là avant.
+Test autorisé d'office : non utilisé (le chemin de test figure dans la fiche). Aucun envoi réel (doublure de simulation).
+contrôle anti-fuite : vide
+
+## Corrections après relecture
+- Corrigé (à corriger) : la voie d'envoi direct (Zernio, `envoyerReel`) contournait le refus TEXTES_MANQUANTS. Le contrôle est maintenant une garde commune `refuserSiTextesManquants` (publications.ts), appelée par `envoyerVersBufferInterne` ET par `envoyerReelInterne` : toutes les voies d'envoi sont couvertes. a-publier-zernio.ts non touché. Tenu : kit-cc-iv.test.ts, bloc « toutes les voies d'envoi » (zernio, buffer, image → vidéo en blanc, format ordinaire inchangé). Test rouge vérifié avant le code (3 échecs), vert après.
+- Remarque 2 (projetMontage vs travail.parametres) : conforme au code réel, à confirmer par le concepteur, rien changé.
+- Remarque 3 (mots-dièse vides en pratique) : déjà dit plus haut, rien changé.
+- Tests : fiche 16 passés, 0 échoué. Voisins (ecriture-post, a-publier*, premier-commentaire, publication*) : 245 tests, 243 passés, 2 échoués (r2-textes-publication, les mêmes 2 sur master).
+- contrôle anti-fuite : vide
