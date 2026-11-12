@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { tonEtatAffiche } from "./ton-etat-affiche";
 import { PastillesReseaux } from "@/components/videos/PastillesReseaux";
 import { BoutonValider } from "@/components/videos/BoutonValider";
 import { Bouton } from "@/components/ui/Bouton";
@@ -107,7 +108,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                           {[ligne.typeVideo, format, etat.raison].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <Pastille ton={etat.ton === "orange" ? "ambre" : etat.ton}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
+                      <Pastille ton={tonEtatAffiche(etat.libelle, etat.ton)}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
                     </Link>
                     <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
                       <PastillesReseaux reseaux={ligne.reseauxVideo ?? [ligne.reseau]} precis={ligne.reseauxPrecis ?? true} />

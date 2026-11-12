@@ -10,8 +10,7 @@ import { programmerSujetAction } from "@/app/(studio)/mesures/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
-import { PastilleStatut } from "@/components/ui/PastilleStatut";
-import type { Tonalite } from "@/domaine/libelles";
+import { tonEtatAffiche } from "./ton-etat-affiche";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
@@ -22,7 +21,6 @@ import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPro
 import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
 
 /** Aucun orange dans « À publier » : l'ambre porte le « à faire ». Le mot reste écrit dans la pastille. */
-const sansOrange = (t: Tonalite): Tonalite => (t === "orange" ? "ambre" : t);
 
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
 function versLocal(d: Date): string {
@@ -163,7 +161,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
             {carte.titre}
           </Link>
           {etats.map((e) => (
-            <Pastille key={e.cle} ton={sansOrange(e.ton)}>
+            <Pastille key={e.cle} ton={tonEtatAffiche(e.libelle, e.ton)}>
               {e.reseauNom} : {e.libelle}
             </Pastille>
           ))}
@@ -263,7 +261,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
                   <span className="font-semibold text-texte">{p.reseauNom}</span> : {p.raison}
                   {p.etat && (
                     <span className="mt-1 flex flex-wrap items-center gap-2">
-                      <Pastille ton={sansOrange(p.etat.ton)}>{p.etat.libelle}</Pastille>
+                      <Pastille ton={tonEtatAffiche(p.etat.libelle, p.etat.ton)}>{p.etat.libelle}</Pastille>
                       {p.etat.lien && (
                         <a href={p.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-accent">
                           Voir la publication
@@ -414,7 +412,7 @@ function PanneauReseau({
         <>
       {l.etat && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-texte-doux">
-          <Pastille ton={sansOrange(l.etat.ton)}>{l.etat.libelle}</Pastille>
+          <Pastille ton={tonEtatAffiche(l.etat.libelle, l.etat.ton)}>{l.etat.libelle}</Pastille>
           {l.etat.lien && (
             <a href={l.etat.lien} target="_blank" rel="noreferrer" className="font-semibold text-accent">
               Voir la publication
@@ -504,7 +502,7 @@ export function BlocSucces({ succes, suivante }: { succes: string | null; suivan
 }
 
 const ETIQUETTES_ETAT = { aucun: "À envoyer", brouillon: "Brouillon", programmee: "Programmée", publiee: "Publiée", echec: "Échec" } as const;
-const TONS_ETAT = { aucun: "neutre", brouillon: "neutre", programmee: "sauge", publiee: "sauge", echec: "brique" } as const;
+const TONS_ETAT = { aucun: "neutre", brouillon: "neutre", programmee: "sauge", publiee: "contour", echec: "brique" } as const;
 
 /** Détail d'une ligne : aperçu tel que publié, état, « Aussi sur », avertissements, UNE action principale, « Envoi par ». */
 function DetailEnvoi({
@@ -580,11 +578,7 @@ function DetailEnvoi({
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
-        {c.etat === "programmee" || c.etat === "publiee" ? (
-          <PastilleStatut statut={c.etat === "programmee" ? "programme" : "publie"} />
-        ) : (
-          <Pastille ton={TONS_ETAT[c.etat]}>{ETIQUETTES_ETAT[c.etat]}</Pastille>
-        )}
+        <Pastille ton={TONS_ETAT[c.etat]}>{ETIQUETTES_ETAT[c.etat]}</Pastille>
         {c.etat !== "publiee" && c.essai && <span className="text-xs text-texte-faible">{phraseEssais(l.reseauNom)}</span>}
       </div>
 
