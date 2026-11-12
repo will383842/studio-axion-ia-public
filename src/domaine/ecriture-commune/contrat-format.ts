@@ -49,6 +49,9 @@ export interface ViolationPreuve {
 /** Hors contrat, ni exigé ni excepté (décision de Will : rien sur l'avocat). */
 export const FORMATS_HORS_CONTRAT: readonly string[] = ["avocat"];
 
+/** Textes courts couverts par la mémoire anti-copie des posts (L3-13). Hors du registre des formats vidéo : aucun contrat d'écriture à déclarer. */
+export const FORMATS_POSTS: readonly string[] = ["post", "commentaire"];
+
 /**
  * Contrats déclarés (lot G4). Une pièce à `true` doit avoir sa preuve dans `PREUVES_CONTRAT`. Aucun format n'a de contrat COMPLET :
  * le débit mesuré (scripts par heure sur de vrais essais) n'a été relevé nulle part. Le cas concret écrit avec sa propre recette
