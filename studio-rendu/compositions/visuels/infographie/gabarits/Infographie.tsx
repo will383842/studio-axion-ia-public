@@ -4,7 +4,7 @@ import type { InfographieSpecType } from "../../../../../src/domaine/visuels/sch
 import { GRAISSE_TITRE, POLICE_CORPS, POLICE_TITRE } from "../../commun/constantes";
 import { INTERLIGNE_INFOGRAPHIE, miseEnPageInfographie, type Gabarit, type RatioInfographie } from "./mise-en-page";
 
-export interface ProprietesInfographie { spec: InfographieSpecType; gabarit: Gabarit; ratio: RatioInfographie }
+export type ProprietesInfographie = { spec: InfographieSpecType; gabarit: Gabarit; ratio: RatioInfographie };
 
 export function Infographie({ spec, gabarit, ratio }: ProprietesInfographie) {
   const m = miseEnPageInfographie(gabarit, ratio, spec);
