@@ -15,6 +15,12 @@ export interface DemandeEnvoi {
   heure?: string;
 }
 
+/** Heure de Paris : jour AAAA-MM-JJ, heure HH:MM. */
+function verifierCreneau(c: { jour: string; heure?: string }): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(c.jour)) throw new Error(`Jour invalide (AAAA-MM-JJ attendu) : ${c.jour}`);
+  if (c.heure !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(c.heure)) throw new Error(`Heure invalide (HH:MM attendu) : ${c.heure}`);
+}
+
 async function lire(d: Depot<EnvoiPlanifie>, id: Id): Promise<EnvoiPlanifie> {
   const e = await d.obtenir(id);
   if (!e) throw new Error(`Envoi planifié introuvable : ${id}`);
@@ -24,6 +30,7 @@ async function lire(d: Depot<EnvoiPlanifie>, id: Id): Promise<EnvoiPlanifie> {
 /** Idempotent : la même clé rend l'entrée existante, sans rien changer. */
 export async function creerEnvoi(d: Depot<EnvoiPlanifie>, demande: DemandeEnvoi, maintenant: string): Promise<EnvoiPlanifie> {
   const cle = cleEnvoi(demande.videoId, demande.reseau, demande.versionCreneau);
+  verifierCreneau(demande);
   const existant = await d.obtenir(cle);
   if (existant) return existant;
   return d.enregistrer({ id: cle, cle, ...demande, statut: "brouillon", creeLe: maintenant, modifieLe: maintenant });
@@ -53,5 +60,7 @@ export async function annulerEnvoi(d: Depot<EnvoiPlanifie>, id: Id, maintenant: 
 export async function deplacerCreneau(d: Depot<EnvoiPlanifie>, id: Id, creneau: { jour: string; heure?: string }, maintenant: string): Promise<EnvoiPlanifie> {
   const e = await lire(d, id);
   if (e.statut === "envoye" || e.statut === "annule" || e.statut === "a-envoyer") throw new Error(`Créneau figé : ${e.statut}`);
-  return d.modifier(id, { jour: creneau.jour, heure: creneau.heure, modifieLe: maintenant });
+  verifierCreneau(creneau);
+  // Un envoi confirmé déplacé doit être reconfirmé : la confirmation portait sur l'ancien créneau.
+  return d.modifier(id, { jour: creneau.jour, heure: creneau.heure, ...(e.statut === "confirme" ? { statut: "programme" as const } : {}), modifieLe: maintenant });
 }

@@ -183,6 +183,9 @@ export async function refusSuppression(video: Video, contexte: { aussiSupprimees
   const envoisIncertains = await d.publications.compter(
     (p) => p.videoId === video.id && (p.etatEnvoi === "en-cours" || p.etatEnvoi === "a-verifier") && depuisMs(p) < ATTENTE_ENVOI_INCERTAIN_MS,
   );
+  // Envoi planifié confirmé ou en cours d'envoi (geste du fondateur posé) : refusé, rien ne s'efface sans trace.
+  const envoisPlanifiesEnRoute = await d.envoisPlanifies.compter((x) => x.videoId === video.id && (x.statut === "confirme" || x.statut === "a-envoyer"));
+  if (envoisPlanifiesEnRoute && !programmees) return { code: "PUBLICATION_PROGRAMMEE", message: `« ${video.titre} » a un envoi planifié confirmé ou en cours : annulez-le d'abord.` };
   if (envoisIncertains && !programmees) return { code: "PUBLICATION_PROGRAMMEE", message: `« ${video.titre} » a un envoi vers Buffer à vérifier : réessayez dans une heure au plus.` };
   if (programmees) {
     const quoi = programmees > 1 ? `${programmees} publications programmées : annulez-les` : "une publication programmée : annulez-la";
