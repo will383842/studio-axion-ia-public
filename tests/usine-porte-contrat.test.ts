@@ -15,7 +15,7 @@ const { lireIdeesUsine, lireMetiersUsine } = await import("@/domaine/usine");
 import type { OrigineUsine } from "@/domaine/usine";
 
 /** Empreinte du jeu de la porte publié par l'usine (RC-09). À mettre à jour ICI à chaque nouveau jeu. */
-const EMPREINTE_ATTENDUE = "cf947b9ae1e743f95f151544ae5d9172d5aa15a516f07b6d22ca133200107890";
+const EMPREINTE_ATTENDUE = "0f52e3423ccb45cb1633212036abc4efe818ee4da2481fc694e1bedbccff8c95";
 const DOSSIER = new URL("./fixtures/usine-porte/", import.meta.url);
 const lire = <T>(nom: string): T => JSON.parse(readFileSync(new URL(nom, DOSSIER), "utf8")) as T;
 
@@ -86,6 +86,42 @@ describe("contrat croisé · demande de sujets", () => {
     });
   });
 
+  it("ligne « nouveauté » (douleur et cas d'usage à null) : le Studio lit actualite.titre et actualite.ce_qui_change", () => {
+    const idee = lireIdeesUsine(sujets.reponse).find((i) => i.signature.includes("actu-fictive-01"));
+    expect(idee).toEqual({
+      signature: "compta.cabinet-fictif|TPE|formation|||actu-fictive-01|video-court|scène vécue",
+      parts: { metier: "compta.cabinet-fictif", taille: "TPE", service: "formation", douleur: null, cas_usage: null, actualite: "actu-fictive-01", format: "video-court", structure: "scène vécue" },
+      metier: "Cabinet comptable (fictif)",
+      taille: "Petite structure",
+      service: "Formation",
+      douleur: "Nouvelle règle fictive de facturation",
+      casUsage: "Les factures changent de forme.",
+      sujet: undefined,
+      format: "Vidéo courte",
+      famille: "scène vécue",
+      fin: "Dites-le en commentaire.",
+    });
+  });
+
+  it("ligne avec sujet : le Studio lit sujet.titre", () => {
+    const idee = lireIdeesUsine(sujets.reponse).find((i) => i.signature.includes("sujet-fictif-01"));
+    expect(idee).toMatchObject({ douleur: "Les relances partent trop tard.", casUsage: "", sujet: "Sujet fictif de relances", fin: undefined });
+  });
+
+  it("la fixture contient une ligne avec sujet et une ligne avec actualité remplis, aux champs lus par le Studio (un renommage fait échouer)", () => {
+    const lignes = sujets.reponse.lignes as Record<string, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const avecActu = lignes.filter((l) => l.actualite);
+    const avecSujet = lignes.filter((l) => l.sujet);
+    expect(avecActu.length, "ligne avec actualite").toBeGreaterThan(0);
+    expect(avecSujet.length, "ligne avec sujet").toBeGreaterThan(0);
+    for (const l of avecActu) {
+      expect(typeof l.actualite.titre, "actualite.titre").toBe("string");
+      expect(typeof l.actualite.ce_qui_change, "actualite.ce_qui_change").toBe("string");
+    }
+    for (const l of avecSujet) expect(typeof l.sujet.titre, "sujet.titre").toBe("string");
+    expect(lireIdeesUsine(sujets.reponse), "aucune ligne jetée en silence").toHaveLength(lignes.length);
+  });
+
   it("chaque champ que le Studio lit existe dans chaque ligne de la fixture (un renommage fait échouer)", () => {
     for (const l of sujets.reponse.lignes as Record<string, any>[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
       expect(typeof l.metier?.libelle, "metier.libelle").toBe("string");
@@ -93,8 +129,9 @@ describe("contrat croisé · demande de sujets", () => {
       expect(typeof l.service?.libelle, "service.libelle").toBe("string");
       expect(typeof l.format?.libelle, "format.libelle").toBe("string");
       expect(typeof l.accroche?.famille, "accroche.famille").toBe("string");
-      expect(typeof l.douleur?.dite, "douleur.dite").toBe("string");
-      expect(typeof l.cas_usage?.ce_que_ca_change, "cas_usage.ce_que_ca_change").toBe("string");
+      if (l.douleur) expect(typeof l.douleur.dite, "douleur.dite").toBe("string");
+      if (l.cas_usage) expect(typeof l.cas_usage.ce_que_ca_change, "cas_usage.ce_que_ca_change").toBe("string");
+      expect(l.douleur || l.cas_usage || l.actualite, "douleur, cas d'usage ou actualité").toBeTruthy();
       for (const [reseau, fin] of Object.entries((l.fins ?? {}) as Record<string, { dit?: unknown }>)) expect(typeof fin?.dit, `fins.${reseau}.dit`).toBe("string");
     }
   });
