@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { choisirAccrochesAction, choisirAngleAction, reprendreEcritureArreteeAction, reprendreEcrituresAction } from "@/app/(studio)/ecrire/sujets/actions";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { Icone } from "@/components/ui/Icone";
 import { BarreProgression } from "@/components/ui/ProgressionEtapes";
 import { PastilleEssai } from "@/components/ui/PastilleEssai";
@@ -75,7 +75,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
             onClick={() =>
               demarrer(async () => {
                 const r = await choisirAngleAction(id, i);
-                if (!r.ok) notifier.erreur(r.message);
+                if (!r.ok) notifier.erreur(messageSansMontant(r.message));
                 router.refresh();
               })
             }
@@ -120,7 +120,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
           onClick={() =>
             demarrer(async () => {
               const r = await choisirAccrochesAction(id, choisies);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
               router.refresh();
             })
           }
@@ -137,10 +137,10 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
         <Icone nom={attend ? "ecrire" : "sablier"} size={26} className={cn(attend && "animate-pulse")} />
       </span>
       <h2 className="text-2xl text-texte">{attend ? etat.libelle : etat.statut === "echec" ? "Écriture arrêtée" : "En attente"}</h2>
-      {etat.message && <p className="mt-2 text-[15px] text-texte-doux">{etat.message}</p>}
+      {etat.message && <p className="mt-2 text-[15px] text-texte-doux">{messageSansMontant(etat.message)}</p>}
       {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise && !etat.reprise.possible && (
         <>
-          <p className="mt-2 text-sm text-texte-faible">{etat.reprise.raison}</p>
+          <p className="mt-2 text-sm text-texte-faible">{messageSansMontant(etat.reprise.raison)}</p>
           <Bouton className="mt-4" pleineLargeur icone="repeter" disabled>
             Reprendre : pas possible pour l&apos;instant
           </Bouton>
@@ -158,7 +158,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
               // Le prix montré part comme accord ; plus haut au moment de reprendre, la feuille « Confirmer ce prix » le redemande.
               const r = await avecConfirmationPrix(await reprendreEcrituresAction(id, prix), (accord) => reprendreEcrituresAction(id, accord));
               if (!r.ok) {
-                if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+                if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
               } else if (!r.donnees) notifier.erreur(etat.aucunCompte ? MESSAGE_AUCUN_COMPTE_CLAUDE : etat.abonnements ? "Toujours bloquée : attendez le renouvellement des comptes Claude ou relevez la limite du mois." : "Toujours bloquée : rechargez Claude ou relevez la limite du mois.");
               else notifier.succes("L'écriture reprend");
               router.refresh();
@@ -171,7 +171,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
       {etat.statut === "echec" && (
         <>
           <p className="mt-2 text-sm text-texte-faible">Ce qui est déjà écrit est gardé ; les autres sujets continuent.</p>
-          {etat.bloque && <p className="mt-2 text-sm text-texte-faible">{etat.bloque}</p>}
+          {etat.bloque && <p className="mt-2 text-sm text-texte-faible">{messageSansMontant(etat.bloque)}</p>}
           <Bouton
             disabled={!!etat.bloque}
             className="mt-4"
@@ -183,7 +183,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
                 // Relecture finale G1 : le supplément possible passe par la feuille « Confirmer ce prix ».
                 const r = await avecConfirmationPrix(await reprendreEcritureArreteeAction(id), (accord) => reprendreEcritureArreteeAction(id, accord));
                 if (!r.ok) {
-                  if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+                  if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
                 } else notifier.succes("L'écriture reprend");
                 router.refresh();
               })
