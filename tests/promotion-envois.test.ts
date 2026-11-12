@@ -67,10 +67,11 @@ function fauxServeur(brouillons: { cle: string; id: string }[], options: { apres
 const NOW0 = Date.parse("2026-11-20T08:00:00Z");
 
 async function monter(opts: {
-  entrees?: { jour: string; heure?: string; valider?: boolean; videoId?: string }[];
+  entrees?: { jour: string; heure?: string; valider?: boolean; videoId?: string; reseau?: string; consentementTiktok?: boolean; niveauConfidentialiteTiktok?: string }[];
   now?: number;
   envoi?: boolean;
   calendrier?: boolean;
+  editoriale?: boolean | "absent";
   sansBrouillon?: boolean;
   apresPutIncertain?: boolean;
 }) {
@@ -78,7 +79,8 @@ async function monter(opts: {
   const cles: string[] = [];
   let i = 0;
   for (const e of opts.entrees ?? []) {
-    const env = await creerEnvoi(depot, { videoId: e.videoId ?? `vid-${++i}`, reseau: "linkedin", versionCreneau: 1, jour: e.jour, heure: e.heure }, "2026-01-01T00:00:00.000Z");
+    const env = await creerEnvoi(depot, { videoId: e.videoId ?? `vid-${++i}`, reseau: (e.reseau ?? "linkedin") as never, versionCreneau: 1, jour: e.jour, heure: e.heure }, "2026-01-01T00:00:00.000Z");
+    if (e.consentementTiktok !== undefined || e.niveauConfidentialiteTiktok !== undefined) await depot.modifier(env.id, { consentementTiktok: e.consentementTiktok, niveauConfidentialiteTiktok: e.niveauConfidentialiteTiktok });
     if (e.valider !== false) await validerEnvoi(depot, env.id, "le fondateur", "2026-01-02T00:00:00.000Z");
     cles.push(env.id);
   }
@@ -91,7 +93,7 @@ async function monter(opts: {
   const options: OptionsPromotionEnvois = {
     depot,
     client,
-    reglages: { envoiAutorise: async () => opts.envoi ?? true, envoiCalendrierAutorise: async () => opts.calendrier ?? true },
+    reglages: { envoiAutorise: async () => opts.envoi ?? true, envoiCalendrierAutorise: async () => opts.calendrier ?? true, ...(opts.editoriale === "absent" ? {} : { editorialeActive: async () => opts.editoriale !== false }) },
     maintenant: horloge.maintenant,
     attendre: horloge.attendre,
     etats,
@@ -183,7 +185,7 @@ describe("L0-08 · promotion automatique", () => {
 
   it("un réglage illisible (lecture qui échoue) vaut fermé", async () => {
     const m = await monter({ entrees: [entreeA(NOW0 + 2 * H)] });
-    const r = await promouvoirEnvoisPlanifies({ ...m.options, reglages: { envoiAutorise: async () => { throw new Error("base illisible"); }, envoiCalendrierAutorise: async () => true } });
+    const r = await promouvoirEnvoisPlanifies({ ...m.options, reglages: { ...m.options.reglages, envoiAutorise: async () => { throw new Error("base illisible"); } } });
     expect(m.faux.appels).toHaveLength(0);
     expect(r.refus).toBeTruthy();
   });
@@ -191,7 +193,7 @@ describe("L0-08 · promotion automatique", () => {
   it("l'interrupteur coupé en cours de lot arrête avant le PUT suivant", async () => {
     const m = await monter({ entrees: [entreeA(NOW0 + 2 * H), entreeA(NOW0 + 2 * H + 5 * MIN)] });
     let lectures = 0;
-    const r = await promouvoirEnvoisPlanifies({ ...m.options, reglages: { envoiAutorise: async () => true, envoiCalendrierAutorise: async () => ++lectures <= 2 } });
+    const r = await promouvoirEnvoisPlanifies({ ...m.options, reglages: { ...m.options.reglages, envoiCalendrierAutorise: async () => ++lectures <= 2 } });
     expect(m.puts()).toHaveLength(1);
     expect(r.lignes.map((l) => l.etat)).toEqual(["programme", "arret"]);
   });
@@ -291,5 +293,100 @@ describe("L0-08 · promotion automatique", () => {
     expect(Z.PARAM_ENVOI_CALENDRIER).toBe("zernio.envoi_calendrier_autorise");
     expect(REGLAGE_ENVOI_CALENDRIER).toBe(Z.PARAM_ENVOI_CALENDRIER);
     expect(REGLAGE_ENVOI_CALENDRIER).not.toBe(Z.PARAM_ARRET_ZERNIO);
+  });
+
+  // CORRECTIF du 12/11/2026, 15 h 15 (1) : la promotion d'une entrée VALIDÉE reste permise pour LinkedIn, Facebook, Instagram ;
+  // une entrée NON validée n'est jamais promue, quel que soit le réseau.
+  it.each(["linkedin", "facebook", "instagram"])("entrée validée %s : promue (un PUT)", async (reseau) => {
+    const m = await monter({ entrees: [{ ...entreeA(NOW0 + 2 * H), reseau }] });
+    const r = await m.lancer();
+    expect(r.lignes[0].etat).toBe("programme");
+    expect(m.puts()).toHaveLength(1);
+  });
+
+  it.each(["linkedin", "facebook", "instagram", "tiktok"])("entrée non validée (brouillon) sur %s : jamais promue, zéro appel", async (reseau) => {
+    const m = await monter({ entrees: [{ ...entreeA(NOW0 + 2 * H, { valider: false }), reseau, consentementTiktok: true, niveauConfidentialiteTiktok: "public" }] });
+    const r = await m.lancer();
+    expect(r.lignes[0].etat).toBe("non-valide");
+    expect(m.faux.appels).toHaveLength(0);
+    expect((await m.depot.obtenir(m.cles[0]))?.statut).toBe("brouillon");
+  });
+
+  it.each(["idée", "à valider", "à corriger", "brouillon"])("statut « %s » : jamais promu, quel que soit le réseau", async (statut) => {
+    for (const reseau of ["linkedin", "facebook", "instagram", "tiktok"]) {
+      const m = await monter({ entrees: [{ ...entreeA(NOW0 + 2 * H), reseau, consentementTiktok: true, niveauConfidentialiteTiktok: "public" }] });
+      await m.depot.modifier(m.cles[0], { statut: statut as never });
+      await m.lancer();
+      expect(m.puts(), `${statut}/${reseau}`).toHaveLength(0);
+      expect((await m.depot.obtenir(m.cles[0]))?.statut).toBe(statut);
+    }
+  });
+
+  // CORRECTIF (2) : TikTok sans consentement et niveau de confidentialité : ni promotion ni PUT, l'entrée reste telle quelle, une alerte.
+  it.each([
+    ["consentement absent", { niveauConfidentialiteTiktok: "public" }],
+    ["consentement faux", { consentementTiktok: false, niveauConfidentialiteTiktok: "public" }],
+    ["niveau absent", { consentementTiktok: true }],
+    ["niveau vide", { consentementTiktok: true, niveauConfidentialiteTiktok: "" }],
+    ["les deux absents", {}],
+  ])("TikTok validé, %s : zéro PUT, entrée inchangée, une alerte, une seule au rejeu", async (_n, champs) => {
+    const m = await monter({ entrees: [{ ...entreeA(NOW0 + 2 * H), reseau: "tiktok", ...champs }] });
+    const r = await m.lancer();
+    expect(m.puts()).toHaveLength(0);
+    expect(r.lignes[0].etat).toBe("refuse");
+    expect((await m.depot.obtenir(m.cles[0]))?.statut).toBe("valide");
+    expect(m.notifications).toHaveLength(1);
+    expect(m.notifications[0]).toMatchObject({ cle: m.cles[0], motif: "tiktok-incomplet" });
+    await m.lancer();
+    expect(m.puts()).toHaveLength(0);
+    expect(m.notifications).toHaveLength(1);
+  });
+
+  it("TikTok validé avec consentement ET niveau renseignés : promu", async () => {
+    const m = await monter({ entrees: [{ ...entreeA(NOW0 + 2 * H), reseau: "tiktok", consentementTiktok: true, niveauConfidentialiteTiktok: "public" }] });
+    const r = await m.lancer();
+    expect(r.lignes[0].etat).toBe("programme");
+    expect(m.puts()).toHaveLength(1);
+    expect(m.notifications).toHaveLength(0);
+  });
+
+  it("brouillon Zernio sur TikTok alors que l'entrée n'est pas TikTok et que les champs manquent : zéro PUT, alerte", async () => {
+    const m = await monter({ entrees: [{ ...entreeA(NOW0 + 2 * H), reseau: "instagram" }] });
+    const p = m.serveur.posts.get("exemple-post-1")!;
+    m.serveur.posts.set("exemple-post-1", { ...p, platforms: [{ ...p.platforms![0], platform: "tiktok" }] });
+    const r = await m.lancer();
+    expect(m.puts()).toHaveLength(0);
+    expect(r.lignes[0].etat).toBe("refuse");
+    expect(m.notifications[0]?.motif).toBe("tiktok-incomplet");
+  });
+
+  it("TikTok incomplet à plus de 3 h : pas d'alerte, aucun PUT", async () => {
+    const m = await monter({ entrees: [{ ...entreeA(NOW0 + 5 * H), reseau: "tiktok" }] });
+    await m.lancer();
+    expect(m.puts()).toHaveLength(0);
+    expect(m.notifications).toHaveLength(0);
+  });
+
+  // CORRECTIF (3) : publication.editoriale_active (défaut FAUX) lu avant toute écriture ; réglage inexistant = FAUX.
+  it.each([
+    ["faux", false],
+    ["inexistant (pas encore créé par L7-08)", "absent"],
+  ] as const)("réglage publication.editoriale_active %s : rien n'est promu, zéro appel", async (_n, editoriale) => {
+    const m = await monter({ entrees: [entreeA(NOW0 + 2 * H)], editoriale });
+    const r = await m.lancer();
+    expect(r.refus).toBeDefined();
+    expect(m.faux.appels).toHaveLength(0);
+    expect((await m.depot.obtenir(m.cles[0]))?.statut).toBe("valide");
+  });
+
+  it("réglage publication.editoriale_active illisible ou coupé en cours de lot : fermé", async () => {
+    const m = await monter({ entrees: [entreeA(NOW0 + 2 * H)] });
+    const r = await promouvoirEnvoisPlanifies({ ...m.options, reglages: { ...m.options.reglages, editorialeActive: async () => { throw new Error("base illisible"); } } });
+    expect(r.refus).toBeDefined();
+    expect(m.faux.appels).toHaveLength(0);
+    const n = await monter({ entrees: [entreeA(NOW0 + 2 * H), entreeA(NOW0 + 2 * H + MIN)] });
+    let lectures = 0;
+    await promouvoirEnvoisPlanifies({ ...n.options, reglages: { ...n.options.reglages, editorialeActive: async () => ++lectures <= 2 } });
+    expect(n.puts()).toHaveLength(1);
   });
 });
