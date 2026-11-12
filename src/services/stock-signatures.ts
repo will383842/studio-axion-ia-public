@@ -6,7 +6,6 @@
  */
 import { createHash } from "node:crypto";
 import { empreinte, type Empreinte } from "@/domaine/proximite/empreinte";
-import { scoreProximite } from "@/domaine/proximite/score";
 import { etatDe, type MessageStock } from "@/domaine/stock-messages";
 
 /** Ce qui est rangé : l'identifiant du message et des empreintes hachées (SHA-256), rien d'autre. */
@@ -22,8 +21,32 @@ export interface SujetUsine {
   signatureUsine?: string;
 }
 
-/** Seuil par défaut, aligné sur `voisines` (L3-11). */
+/** Seuil par défaut (même valeur que `voisines`, L3-11), appliqué à la couverture du sujet. */
 export const SEUIL_REDITE = 0.5;
+
+/**
+ * Un vrai message fait 40 à 200 mots, un sujet de l'usine quelques mots : comparer TOUTES les racines du message à
+ * celles du sujet donne un score proche de 0. On ne retient donc que l'ouverture du message (titre et première phrase),
+ * là où se trouve son thème, et le score est la COUVERTURE du sujet par cette ouverture.
+ */
+export const MOTS_OUVERTURE = 30;
+const ouverture = (t: string): string => t.trim().split(/\s+/).slice(0, MOTS_OUVERTURE).join(" ");
+
+function axesDe(e: Empreinte): Set<string> {
+  const x = new Set(e.axes);
+  if (e.signature) x.add(`sig:${e.signature}`);
+  return x;
+}
+
+/** Part des axes du sujet (racines hachées + signature de l'usine) qu'on retrouve dans l'ouverture du message : 0 à 1. */
+function couvertureDuSujet(sujet: Empreinte, message: Empreinte): number {
+  const x = axesDe(sujet);
+  const y = axesDe(message);
+  if (!x.size || !y.size) return 0;
+  let commun = 0;
+  for (const a of x) if (y.has(a)) commun++;
+  return commun / x.size;
+}
 
 const hacher = (mot: string): string => createHash("sha256").update(mot).digest("hex");
 
@@ -36,7 +59,7 @@ const texte = (v: unknown): string => (typeof v === "string" ? v : "");
 
 /** Signature hachée d'un message du stock (sans le texte). */
 export function signatureDeMessage(m: MessageStock, signatureUsine?: string): SignatureStock {
-  const h = haché(empreinte({ sujet: texte(m?.texte), signatureUsine: texte(signatureUsine) }));
+  const h = haché(empreinte({ sujet: ouverture(texte(m?.texte)), signatureUsine: texte(signatureUsine) }));
   return { id: String(m?.id ?? ""), axes: h.axes, ...(h.signature ? { signature: h.signature } : {}) };
 }
 
@@ -77,7 +100,7 @@ export function ecarterSujetsProches(
     const cible = haché(empreinte({ sujet: texte(sujet?.sujet), signatureUsine: texte(sujet?.signatureUsine) }));
     let meilleur: { id: string; score: number } | undefined;
     for (const b of base) {
-      const score = scoreProximite(cible, b.e);
+      const score = couvertureDuSujet(cible, b.e);
       if (score > 0 && score >= seuil && (!meilleur || score > meilleur.score)) meilleur = { id: b.id, score };
     }
     if (meilleur) ecartes.push({ ...sujet, proche: meilleur.id, score: meilleur.score });
