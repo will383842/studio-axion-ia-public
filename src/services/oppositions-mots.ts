@@ -315,12 +315,6 @@ export async function personneOpposeePartout(
   if (bruts.length === 0 && fournies.length === 0)
     throw new ErreurOppositionIllisible("personne_inconnue");
   const c = cles(o);
-  const liste: unknown = await lireParametre<unknown>(
-    PARAM_OPPOSITIONS_MOTS,
-    [],
-  );
-  if (!Array.isArray(liste)) throw new ErreurOppositionIllisible("registre");
-  verifierKids(liste as LigneOpposition[], c);
   const conv: unknown = await lireParametre<unknown>(
     PARAM_CONVERSATIONS_ETAT,
     {},
@@ -329,6 +323,13 @@ export async function personneOpposeePartout(
     `${PARAM_CONVERSATIONS_ETAT}.alias`,
     {},
   );
+  // Ordre : l'écrivain pose d'abord le registre PUIS l'état « oppose » ; on lit donc les conversations AVANT le registre.
+  const liste: unknown = await lireParametre<unknown>(
+    PARAM_OPPOSITIONS_MOTS,
+    [],
+  );
+  if (!Array.isArray(liste)) throw new ErreurOppositionIllisible("registre");
+  verifierKids(liste as LigneOpposition[], c);
   if (!estObjet(conv) || !estObjet(alias))
     throw new ErreurOppositionIllisible("conversations");
 
@@ -349,13 +350,12 @@ export async function personneOpposeePartout(
   for (const k of Object.keys(conv))
     if (candidats.has(k) || propres(k).some((x) => candidats.has(x)))
       touchees.add(k);
-  for (const [a, cible] of Object.entries(alias))
-    if (
-      typeof cible === "string" &&
-      candidats.has(a) &&
-      Object.hasOwn(conv, cible)
-    )
-      touchees.add(cible);
+  for (const [a, cible] of Object.entries(alias)) {
+    if (!candidats.has(a)) continue;
+    if (typeof cible !== "string")
+      throw new ErreurOppositionIllisible("conversations");
+    if (Object.hasOwn(conv, cible)) touchees.add(cible);
+  }
   let etat = false;
   let doute = false;
   for (const k of touchees) {
@@ -364,7 +364,7 @@ export async function personneOpposeePartout(
     for (const [a, cible] of Object.entries(alias))
       if (cible === k) candidats.add(a);
     const e = conv[k];
-    if (!estObjet(e)) continue;
+    if (!estObjet(e)) throw new ErreurOppositionIllisible("conversations");
     const ec = e as ConversationLue;
     if (ec.etat === "oppose") etat = true;
     if (ec.douteOpposition === true && o?.douteBloque === true) doute = true;

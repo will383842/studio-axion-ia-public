@@ -13,7 +13,7 @@ import {
   type EspacePersonne,
 } from "@/domaine/guide-reseau/empreinte-personne";
 
-const { reinitialiserDepots } = await import("@/donnees/memoire");
+const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const Opp = await import("@/services/oppositions-mots");
 const Com = await import("@/services/_commun");
 
@@ -91,6 +91,32 @@ describe("conversations", () => {
       await Opp.personneOpposeePartout({ idsBruts: ["exp_1"] }, { env: ENV }),
     ).toEqual({ opposee: true, source: "registre" });
   });
+  it("alias trouvé par la liste `alias` propre à la conversation", async () => {
+    const cle = emp("zernio-conversation", "conv_p");
+    await poser(CONV, {
+      [cle]: { etat: "oppose", alias: [emp("zernio-contact", "ct_p")] },
+    });
+    expect(
+      await Opp.personneOpposeePartout({ idsBruts: ["ct_p"] }, { env: ENV }),
+    ).toEqual({ opposee: true, source: "etat" });
+  });
+  it("alias inverse : on part de la clé, l'alias de la table rejoint le registre", async () => {
+    const cle = emp("zernio-conversation", "conv_i");
+    await poser(REG, [ligne(emp("instagram", "exp_i"))]);
+    await poser(CONV, { [cle]: { etat: "actif" } });
+    await poser(ALIAS, { [emp("instagram", "exp_i")]: cle });
+    expect(
+      await Opp.personneOpposeePartout({ empreintes: [cle] }, { env: ENV }),
+    ).toEqual({ opposee: true, source: "registre" });
+  });
+  it("état « oppose » atteint par la table d'alias (espace zernio-conversation)", async () => {
+    const cle = emp("zernio-conversation", "conv_t");
+    await poser(CONV, { [cle]: { etat: "oppose" } });
+    await poser(ALIAS, { [emp("zernio-conversation", "exp_t")]: cle });
+    expect(
+      await Opp.personneOpposeePartout({ idsBruts: ["exp_t"] }, { env: ENV }),
+    ).toEqual({ opposee: true, source: "etat" });
+  });
   it("empreinte fournie seule : retrouvée au registre", async () => {
     const e = emp("evenement", "evt");
     await poser(REG, [ligne(e)]);
@@ -161,9 +187,44 @@ describe("échec fermé : la fonction LÈVE", () => {
     await poser(ALIAS, "x");
     expect(await code({ idsBruts: ["a"] })).toBe("conversations");
   });
-  it("message fixe, sans identifiant", async () => {
-    const e = new Opp.ErreurOppositionIllisible("registre");
-    expect(e.message).not.toMatch(/ct_|p1\./);
+  it("conversation retrouvée par la clé, valeur non objet : LÈVE", async () => {
+    const cle = emp("zernio-conversation", "conv_c");
+    for (const v of ["oppose", null, 3]) {
+      await poser(CONV, { [cle]: v });
+      expect(await code({ empreintes: [cle] })).toBe("conversations");
+    }
+  });
+  it("alias retrouvé à cible non chaîne : LÈVE", async () => {
+    const a = emp("zernio-conversation", "exp_n");
+    for (const v of [null, 3, { x: 1 }]) {
+      await poser(CONV, {});
+      await poser(ALIAS, { [a]: v });
+      expect(await code({ idsBruts: ["exp_n"] })).toBe("conversations");
+    }
+  });
+  it("message fixe, sans identifiant (erreurs réellement levées)", async () => {
+    const msgs: string[] = [];
+    const attraper = async (
+      p: Parameters<typeof Opp.personneOpposeePartout>[0],
+    ) => {
+      try {
+        await Opp.personneOpposeePartout(p, { env: ENV });
+      } catch (e) {
+        expect(e).toBeInstanceOf(Opp.ErreurOppositionIllisible);
+        msgs.push((e as Error).message);
+      }
+    };
+    await attraper({});
+    await poser(REG, { x: 1 });
+    await attraper({ idsBruts: ["ct_secret_1"] });
+    await poser(REG, []);
+    await poser(CONV, []);
+    await attraper({ idsBruts: ["ct_secret_1"] });
+    expect(msgs).toHaveLength(3);
+    for (const m of msgs) {
+      expect(m).toBe(msgs[0]);
+      expect(m).not.toMatch(/ct_|p1\.|secret/);
+    }
   });
 });
 
@@ -181,11 +242,25 @@ describe("jeton", () => {
 describe("lecture seule et exhaustivité", () => {
   it("aucune écriture", async () => {
     const esp = vi.spyOn(Com, "ecrireParametre");
+    const verrou = vi.spyOn(Com, "sousVerrou");
+    const jour = vi.spyOn(Com, "journaliser");
+    const enr = vi.spyOn(depots().parametres, "enregistrer");
     await poser(REG, [ligne(emp("zernio-contact", "ct_z", ENV))]);
     esp.mockClear();
+    enr.mockClear();
     await Opp.personneOpposeePartout({ idsBruts: ["ct_z"] }, { env: ENV_ROT });
     await Opp.personneOpposeePartout({ idsBruts: ["inconnu"] }, { env: ENV });
-    expect(esp).not.toHaveBeenCalled();
+    for (const e of [esp, verrou, jour, enr]) expect(e).not.toHaveBeenCalled();
+  });
+  it("lit les conversations et les alias AVANT le registre", async () => {
+    const lus: string[] = [];
+    const obt = depots().parametres.obtenir.bind(depots().parametres);
+    vi.spyOn(depots().parametres, "obtenir").mockImplementation(async (id) => {
+      lus.push(id);
+      return obt(id);
+    });
+    await Opp.personneOpposeePartout({ idsBruts: ["x"] }, { env: ENV });
+    expect(lus).toEqual([CONV, ALIAS, REG]);
   });
   it("ESPACES_TOUS couvre tout EspacePersonne", () => {
     const tous = {
