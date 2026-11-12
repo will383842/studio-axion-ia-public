@@ -40,7 +40,7 @@ export function EnTetePage({
   /** Lien « retour » (flèche) au-dessus du titre. */
   retour?: { href: string; libelle: string };
   actions?: ReactNode;
-  /** Commandes rangées dans un menu « Plus » (au bout des actions). */
+  /** Commandes rangées dans un menu « Plus » (au bout des actions). Appelant client seulement : les `onSelect` sont des fonctions. */
   plus?: ElementMenu[];
   /** Petite ligne au-dessus du titre (format, catégorie). */
   surTitre?: ReactNode;

@@ -26,6 +26,7 @@ export function VitrineSocle() {
           Principal
         </Bouton>
         <Bouton variante="contour">Contour</Bouton>
+        <Bouton variante="contour-orange">Contour orange</Bouton>
         <Bouton variante="secondaire">Secondaire</Bouton>
         <Bouton variante="discret">Discret</Bouton>
         <Bouton variante="danger">Danger</Bouton>

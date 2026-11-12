@@ -31,16 +31,18 @@ export function nombreBoutonsPrincipaux(): number {
   return nombre;
 }
 
+function abonner(cb: () => void) {
+  abonnes.add(cb);
+  return () => {
+    abonnes.delete(cb);
+  };
+}
+const instantane = () => nombre > 0;
+const instantaneServeur = () => false;
+
 /** Vrai quand l'écran porte son propre bouton principal. Faux côté serveur et avant l'affichage. */
 export function useEcranAUnBoutonPrincipal(): boolean {
-  return useSyncExternalStore(
-    (cb) => {
-      abonnes.add(cb);
-      return () => abonnes.delete(cb);
-    },
-    () => nombre > 0,
-    () => false,
-  );
+  return useSyncExternalStore(abonner, instantane, instantaneServeur);
 }
 
 /** Variante de « Nouvelle vidéo » dans la barre : orange plein seul sur l'écran, sinon contour orange. */

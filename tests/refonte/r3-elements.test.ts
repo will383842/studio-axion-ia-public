@@ -50,9 +50,12 @@ describe("carte de contenu à liseré", () => {
 
 describe("règle de l'orange : un seul plein par écran", () => {
   it("variantes du bouton : discret et fantôme identiques, un seul principal orange plein", () => {
-    const h = (variante: "principal" | "contour" | "discret" | "fantome" | "danger") => renderToStaticMarkup(createElement(Bouton, { variante }, "ok"));
+    const h = (variante: "principal" | "contour" | "contour-orange" | "discret" | "fantome" | "danger") => renderToStaticMarkup(createElement(Bouton, { variante }, "ok"));
     expect(h("principal")).toContain("bg-orange");
-    expect(h("contour")).not.toMatch(/(^|[ "])bg-orange/);
+    expect(h("contour-orange")).not.toMatch(/(^|[ "])bg-orange/);
+    expect(h("contour-orange")).toContain("border-orange");
+    expect(h("contour")).toContain("text-texte"); // le contour neutre d'avant la refonte est intact
+    expect(h("contour")).toContain("border-trait-fort");
     expect(h("discret")).toContain("text-accent");
     expect(h("fantome")).toContain("text-accent");
     expect(h("danger")).toContain("text-brique");
@@ -75,6 +78,34 @@ describe("règle de l'orange : un seul plein par écran", () => {
       expect(s).toContain("useEcranAUnBoutonPrincipal");
       expect(s).toContain("varianteNouvelleVideo");
     }
+  });
+});
+
+describe("contraste du bouton « Nouvelle vidéo » en contour", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const bloc = (debut: string) => {
+    const i = css.indexOf(debut);
+    return css.slice(i, css.indexOf("\n}", i));
+  };
+  const val = (b: string, nom: string) => b.match(new RegExp(`--${nom}:\\s*(#[0-9a-fA-F]{6})`))?.[1] ?? "";
+  const lum = (hex: string) => {
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
+  };
+  const rapport = (a: string, b: string) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x! + 0.05) / (y! + 0.05);
+  };
+  it("orange-vif sur barre-bouton-fond : au moins 4,5:1 en clair et en sombre", () => {
+    for (const b of [bloc(":root {"), bloc(".theme-sombre {")]) {
+      const fond = val(b, "barre-bouton-fond");
+      const orange = val(b, "orange-vif") || val(bloc(":root {"), "orange-vif");
+      expect(fond).toMatch(/^#/);
+      expect(rapport(orange, fond)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it("la barre n'utilise plus surface-1 pour ce bouton", () => {
+    for (const f of ["src/components/coquille/BarreLaterale.tsx", "src/components/coquille/OngletsBas.tsx"]) expect(readFileSync(f, "utf8")).toContain("bg-barre-bouton-fond");
   });
 });
 

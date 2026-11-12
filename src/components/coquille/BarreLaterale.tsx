@@ -290,7 +290,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
             "group relative flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium leading-5 transition-colors",
             varianteNouvelleVideo(ecranAPrincipal) === "plein"
               ? "bg-orange text-sur-orange shadow-orange hover:bg-orange-vif"
-              : "border-2 border-orange bg-surface-1 text-orange-vif hover:bg-surface-2",
+              : "border-2 border-orange bg-barre-bouton-fond text-orange-vif hover:border-orange-vif",
             repliee && "flex-col justify-center gap-0.5 px-0",
           )}
         >

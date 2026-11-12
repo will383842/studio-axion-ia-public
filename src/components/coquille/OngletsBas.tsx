@@ -42,7 +42,7 @@ export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false,
                     aria-expanded={creer}
                     className={cn(
                       "-mt-6 grid size-[60px] place-items-center rounded-full ring-4 ring-barre-fond transition-transform active:scale-95",
-                      varianteNouvelleVideo(ecranAPrincipal) === "plein" ? "bg-orange text-sur-orange shadow-orange" : "border-2 border-orange bg-surface-1 text-orange-vif",
+                      varianteNouvelleVideo(ecranAPrincipal) === "plein" ? "bg-orange text-sur-orange shadow-orange" : "border-2 border-orange bg-barre-bouton-fond text-orange-vif hover:border-orange-vif",
                     )}
                   >
                     <Icone nom="plus" size={28} strokeWidth={2.4} />
