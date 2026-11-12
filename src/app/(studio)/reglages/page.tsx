@@ -10,6 +10,9 @@ import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
 import { ConnexionsZernioReglages } from "@/components/reglages/ConnexionsZernioReglages";
+import { lireParametre } from "@/services/_commun";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { tauxValide } from "@/components/reglages/montants-euros";
 import { Credits } from "@/components/reglages/Credits";
 import { CreditClaude } from "@/components/reglages/CreditClaude";
 import { vueCreditClaude } from "@/services/credit-claude";
@@ -36,6 +39,7 @@ import { lireReglageDecorIa } from "@/services/decor-ia";
 import { OptionsPayantes } from "@/components/reglages/OptionsPayantes";
 import { optionsPayantesCoupees } from "@/services/options-payantes";
 import { ChoixChaineEcriture } from "@/components/reglages/ChoixChaineEcriture";
+import { etatProduction } from "@/services/etat-production";
 import { lireChaineReglee } from "@/services/chaine-ecriture";
 import { InterrupteursEcriture } from "@/components/reglages/InterrupteursEcriture";
 import { lireInterrupteursEcriture } from "@/services/interrupteurs-ecriture";
@@ -106,6 +110,7 @@ export default async function PageReglages() {
       return null;
     }),
   ]);
+  const production = await etatProduction(process.env, (id) => lireParametre<unknown>(id, undefined));
   const decorIa = avecMonteur ? await lireReglageDecorIa() : null;
   const coupees = await optionsPayantesCoupees();
   const lignesSite = await lireReglagesSite();
@@ -114,6 +119,7 @@ export default async function PageReglages() {
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
   const infos = aPropos();
+  const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
 
   return (
     <div>
@@ -214,12 +220,27 @@ export default async function PageReglages() {
           <Apparition>
             <CarteSection id="connexions" icone="prise" titre="Connexions">
               <Connexions connexions={connexions.map((c) => ({ type: c.type, etat: c.etat, options: c.options, montageReelPour: c.montageReelPour, jeLis: c.jeLis, calageRelie: c.calageRelie, montageReel: c.montageReel }))} cles={cles} />
+              <section aria-label="Contrôle de production" className="mt-4 text-sm">
+                <h3 className="font-medium">Contrôle de production (lecture seule)</h3>
+                <ul className="mt-2 space-y-1">
+                  {production.cles.map((c) => (
+                    <li key={c.variable}>
+                      {c.libelle} : {c.posee ? "clé posée" : "clé absente"}
+                    </li>
+                  ))}
+                  {production.interrupteurs.map((i) => (
+                    <li key={i.cle}>
+                      {i.libelle} : {i.allume ? "allumé" : "éteint"}
+                    </li>
+                  ))}
+                </ul>
+              </section>
             </CarteSection>
           </Apparition>
           <Apparition index={1}>
             <CarteSection id="credits" icone="jauge" titre="Crédits">
-              <Credits cartes={credits} />
-              {creditClaude && <CreditClaude vue={creditClaude} />}
+              <Credits cartes={credits} tauxUsdEur={tauxUsdEur} />
+              {creditClaude && <CreditClaude vue={creditClaude} tauxUsdEur={tauxUsdEur} />}
             </CarteSection>
           </Apparition>
           <Apparition index={2}>
@@ -276,7 +297,7 @@ export default async function PageReglages() {
             <div className="space-y-10 border-t border-trait p-4 sm:p-5">
               {/* Choix de la chaîne qui écrit les prochains scripts (courte ou équipe). */}
               <CarteSection id="ecriture" icone="ecrire" titre="Écriture des scripts">
-                <ChoixChaineEcriture key={chaine} initiale={chaine} />
+                <ChoixChaineEcriture key={chaine} initiale={chaine} tauxUsdEur={tauxUsdEur} />
                 <div className="my-4 h-px bg-trait" />
                 <GardeSujetsReglage key={gardeSujets} garde={gardeSujets} />
                 <div className="my-4 h-px bg-trait" />

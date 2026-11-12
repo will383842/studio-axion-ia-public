@@ -6,20 +6,22 @@ import { definirCycleCreditClaudeAction, releverCreditClaudeAction } from "@/app
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { notifier } from "@/components/ui/Toast";
+import { LIBELLES_NIVEAU_FORFAIT, niveauCompteClaude, niveauTotalClaude } from "@/domaine/niveau-credit";
 import type { SourceAbonnement } from "@/domaine/source-claude";
+import { champEuros, dollarsVersEuros, eurosVersDollars, lireSaisieEuros } from "./montants-euros";
 import type { VueCompteCredit, VueCreditClaude } from "@/services/credit-claude";
 
 export const TEXTES_CREDIT_CLAUDE = {
-  titre: "Crédit Claude restant (estimé)",
-  aide: "Estimé : à recaler avec la Console. Anthropic n'indique aucun solde ; ce chiffre est un calcul et ne bloque jamais rien.",
-  montant: "Crédit du cycle ($)",
+  titre: "Crédit Claude",
+  aide: "Niveau estimé : à recaler avec la Console. Anthropic n'indique aucun solde ; cette indication est un calcul et ne bloque jamais rien.",
+  montant: "Crédit du cycle (€)",
   debut: "Début du cycle",
   expiration: "Expiration",
   prochain: "Prochain crédit",
-  releve: "Solde relevé dans la Console ($)",
+  releve: "Solde relevé dans la Console (€)",
   enregistrerCycle: "Enregistrer le cycle",
   enregistrerReleve: "Enregistrer le relevé",
-  apresExpiration: "Après l'expiration, saisissez le nouveau cycle (ex. compte 1 : revient vers le 11/11). Les 200 $ proposés ne comptent qu'après un clic sur « Enregistrer le cycle ».",
+  apresExpiration: "Après l'expiration, saisissez le nouveau cycle (ex. compte 1 : revient vers le 11/11). Le crédit proposé dans le champ ne compte qu'après un clic sur « Enregistrer le cycle ».",
 } as const;
 
 /** Exemples gris (placeholder) : jamais une valeur enregistrable par défaut. */
@@ -30,10 +32,10 @@ const EXEMPLES: Partial<Record<SourceAbonnement, { debut: string; expireLe: stri
 
 const jour = (v: string | null | undefined) => (v ? v.slice(0, 10) : "");
 
-function CarteCompte({ compte }: { compte: VueCompteCredit }) {
+function CarteCompte({ compte, taux }: { compte: VueCompteCredit; taux?: number }) {
   const router = useRouter();
   const exemple = compte.cycle ? undefined : EXEMPLES[compte.source];
-  const [dollars, setDollars] = useState(String(compte.cycle?.dollars ?? 200));
+  const [dollars, setDollars] = useState(champEuros(dollarsVersEuros(compte.cycle?.dollars ?? 200, taux)));
   const [debut, setDebut] = useState(jour(compte.cycle?.debut));
   const [expireLe, setExpireLe] = useState(jour(compte.cycle?.expireLe));
   const [prochainLe, setProchainLe] = useState(jour(compte.cycle?.prochainLe));
@@ -59,7 +61,8 @@ function CarteCompte({ compte }: { compte: VueCompteCredit }) {
     });
   }
 
-  const nombre = (v: string) => (v.trim() === "" ? Number.NaN : Number(v.replace(",", ".")));
+  /** Saisie en euros → dollars (l'action et le stockage restent en dollars). */
+  const nombre = (v: string) => eurosVersDollars(lireSaisieEuros(v), taux);
 
   return (
     <div className="rounded-carte border border-trait p-4">
@@ -68,7 +71,7 @@ function CarteCompte({ compte }: { compte: VueCompteCredit }) {
           {compte.libelle} {compte.finCle && <span className="text-sm font-normal text-texte-faible">{compte.finCle}</span>}
         </p>
         <p className="text-sm text-texte-doux" role="status">
-          {compte.restantTexte}
+          {compte.horsTotalTexte ? "hors total" : compte.etat === "expire" ? "Expiré" : compte.etat === "a-venir" ? "À venir" : LIBELLES_NIVEAU_FORFAIT[niveauCompteClaude(compte)]}
           {compte.depuisTexte && <span className="text-texte-faible"> · {compte.depuisTexte}</span>}
         </p>
       </div>
@@ -94,21 +97,21 @@ function CarteCompte({ compte }: { compte: VueCompteCredit }) {
   );
 }
 
-export function CreditClaude({ vue }: { vue: VueCreditClaude }) {
+export function CreditClaude({ vue, tauxUsdEur }: { vue: VueCreditClaude; tauxUsdEur?: number }) {
   return (
     <div id="credits-claude" className="mt-6 scroll-mt-24">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold text-texte">{TEXTES_CREDIT_CLAUDE.titre}</h3>
-        <p className="text-sm text-texte-doux">Total : {vue.totalTexte}</p>
+        <p className="text-sm text-texte-doux">{LIBELLES_NIVEAU_FORFAIT[niveauTotalClaude(vue.comptes)]}</p>
       </div>
       <p className="mt-1 text-sm text-texte-faible">{TEXTES_CREDIT_CLAUDE.aide}</p>
       <div className="mt-3 grid gap-3">
         {vue.comptes.map((c) => (
-          <CarteCompte key={c.source} compte={c} />
+          <CarteCompte key={c.source} compte={c} taux={tauxUsdEur} />
         ))}
       </div>
       <p className="mt-3 text-xs text-texte-faible">
-        Accès payant {vue.api.finCle ?? ""} : {vue.api.eteinte ? "éteinte" : "active"} · dépensé ce mois-ci {vue.api.consommeMoisTexte}
+        Accès payant {vue.api.finCle ?? ""} : {vue.api.eteinte ? "éteinte" : "active"}
       </p>
     </div>
   );

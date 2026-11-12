@@ -64,7 +64,7 @@ export function MessagesFiche({ fiche }: { fiche: VueCarrouselFiche }) {
           )}
         </Message>
       )}
-      {fiche.modeTexte === "simulation" && <Message>Simulation : texte d&apos;exemple{fiche.noteTexte ? ` ; ${fiche.noteTexte}` : ", pas un texte écrit pour votre sujet"}.</Message>}
+      {fiche.modeTexte === "simulation" && <Message>Essai : texte d&apos;exemple{fiche.noteTexte ? ` ; ${fiche.noteTexte}` : ", pas un texte écrit pour votre sujet"}.</Message>}
     </>
   );
 }
