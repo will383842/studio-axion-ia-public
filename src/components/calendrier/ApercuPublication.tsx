@@ -226,10 +226,7 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
     enCours.current = true;
     const avant = deplacements[courante.cle];
     const revenir = () =>
-      setDeplacements((d) => {
-        const { [courante.cle]: _perdu, ...reste } = d;
-        return avant ? { ...reste, [courante.cle]: avant } : reste;
-      });
+      setDeplacements((d) => Object.fromEntries([...Object.entries(d).filter(([k]) => k !== courante.cle), ...(avant ? [[courante.cle, avant]] : [])]));
     setDeplacements((d) => ({ ...d, [courante.cle]: jour }));
     setRetour(null);
     try {
