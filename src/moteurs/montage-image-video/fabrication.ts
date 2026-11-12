@@ -62,7 +62,8 @@ import { chapitresDetachables } from "./recettes";
 import { ecrireScriptColleIV, manquementsDuScriptColle } from "./script-colle";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
 import { verdictReseau } from "./reseaux";
-import { sousTitresVariesIV } from "./sous-titres-varies";
+import { formatDeHauteurIV } from "@/briques/schema-motion/types";
+import { REMARQUE_SOUS_TITRES_DEPLACES_IV, sousTitresVariesIV, styleRetenuIV, type StyleChoisiIV } from "./sous-titres-varies";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { recetteEffectiveIV } from "./variete/historique";
@@ -157,6 +158,8 @@ export interface DemandeFabricationIV {
    * remplace ; une vidéo douteuse est mise de côté sans payer la suite. Absent : le parcours d'une image seule.
    */
   lot?: { id: string; rang: number };
+  /** GV-ST-03 : style de sous-titres choisi (id, nom, valeur), posé depuis `commande.styles.sousTitres` ; absent : charte duo. */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 /** Une réservation comptée par la caisse (pire coût, centimes d'euro). */
@@ -437,6 +440,8 @@ export interface DemandeRenduIV {
    * identifiant (le serveur garde un échec), ce qui est déjà rendu est repris tel quel.
    */
   essai?: number;
+  /** GV-ST-03 : style de sous-titres choisi dans la Bibliothèque (commande.styles.sousTitres) ; absent : charte duo, sans tirage. */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 export interface OutilsFabricationIV {
@@ -1660,9 +1665,13 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
   for (const v of versionsDe(e)) {
     const ligne = mettreEnSceneIV(sceneDe(e, v, bruitages)).ligne;
     const mixage = planMixageIV(v.piste, ligne.bruitages, ligne.dureeSec);
-    const id = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
+    const choisi = e.demande.styleSousTitres?.valeur ? e.demande.styleSousTitres : undefined;
+    // Sans style choisi : empreinte inchangée ; avec : le style entre dans l'empreinte (autre style = autre rendu).
+    const idSans = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
+    const id = choisi ? `${idSans}-${empreinteDe(choisi).slice(0, 12)}` : idSans;
     if (e.rendus[v.id]?.demande === id) continue;
-    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 };
+    if (choisi && styleRetenuIV(choisi, formatDeHauteurIV(ligne.hauteur)).deplace) e.journal.push(`Remarque · ${nomVersion(v)} : ${REMARQUE_SOUS_TITRES_DEPLACES_IV}.`);
+    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1, ...(choisi ? { styleSousTitres: choisi } : {}) };
     let r: Awaited<ReturnType<OutilsFabricationIV["rendre"]>>;
     /** Écran irrendable : au 1er échec de la version, ses écrans passent en texte seul et la mise en scène est refaite ; au 2e : IV_RENDU. */
     const textesSeuls = (err: ErreurRenduDefinitifIV): EtatFabricationIV => {
@@ -1695,7 +1704,7 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
         throw err2;
       }
     }
-    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), sousTitres: sousTitresVariesIV(ligne), demande: id };
+    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), sousTitres: sousTitresVariesIV(ligne, choisi), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
     return e;
   }
