@@ -72,6 +72,15 @@ async function choisirGabarit(): Promise<"r4" | "axion-v2" | typeof GABARIT_IMAG
 
 /** `{ titreCentre: true }` seulement pour l'image de la vidéo avec le réglage `couverture.titreParDefaut` allumé ; sinon rien (aucune clé en plus). */
 async function titreCentreAllume(): Promise<{ titreCentre?: true }> {
+  // Une panne de lecture du réglage ne fait pas échouer la couverture : comportement d'avant (pas de titreCentre).
+  try {
+    return await lireTitreCentreAllume();
+  } catch {
+    return {};
+  }
+}
+
+async function lireTitreCentreAllume(): Promise<{ titreCentre?: true }> {
   if ((await choisirGabarit()) !== GABARIT_IMAGE_VIDEO) return {};
   return (await lireParametre<boolean>(REGLAGE_TITRE_COUVERTURE, false)) === true ? { titreCentre: true } : {};
 }

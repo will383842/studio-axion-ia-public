@@ -113,6 +113,22 @@ describe("compterEchecs (pur)", () => {
     expect(nettoyerDetail("82,667 s")).toBe("82,667 s");
     expect(nettoyerDetail("étape 3/7")).toBe("étape 3/7");
   });
+  it("GV-FIN-02 · devises collées à des lettres (US$, CA$, A$) masquées", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail("reste US$5")).toBe(`reste ${m}`);
+    expect(nettoyerDetail("reste CA$12")).toBe(`reste ${m}`);
+    expect(nettoyerDetail("reste A$3,50")).toBe(`reste ${m}`);
+  });
+
+  it("GV-FIN-02 · la clé « total » suivie d'une unité non monétaire n'est pas masquée", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail("total: 82,667 s")).toBe("total: 82,667 s");
+    expect(nettoyerDetail("total=12 tests")).toBe("total=12 tests");
+    expect(nettoyerDetail("total: 40 mots")).toBe("total: 40 mots");
+    expect(nettoyerDetail("total: 99, ok")).toBe(`total: ${m}, ok`);
+    expect(nettoyerDetail("total: 12 EUR")).toBe(`total: ${m}`);
+  });
+
   it("nettoyage : forme JSON, montant et devise séparés (clés d'argent, devise quelconque)", () => {
     const m = "[montant masqué]";
     expect(nettoyerDetail('{"amount": 1250, "currency": "usd"}')).toBe(`{"amount": ${m}, "currency": "usd"}`);
