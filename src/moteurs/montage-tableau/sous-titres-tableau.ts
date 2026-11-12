@@ -19,6 +19,7 @@ import type { AlerteQualite, BaseSousTitres, GabaritSousTitres, IdReseau, Intens
 import { contraste, luminance, sousTitresSurDecor } from "@/domaine/decors";
 import { baseDe, couleursDepuisMarque, dimensions, elementDe, gabaritDe, GABARITS, largeurElement, largeurLibrePx, melanger, type BandeFondSousTitres, type CouleursSousTitres, type DonneesCalque, type ElementDessine } from "@/briques/sous-titres";
 import { estNombre, estUnite, normaliser } from "@/briques/sous-titres/typographie";
+import { motsImportants } from "@/briques/sous-titres/mots-importants";
 import { COULEURS_VIDEO } from "@/briques/habillage/charte-video";
 import { COULEURS_REFERENCE_3 } from "@/briques/tableau-scene/reference/charte";
 import { CHARTES_TABLEAU, estStyleTableau, melangeTableau, type StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
@@ -238,6 +239,22 @@ export const INCLINAISON_MAX_TABLEAU = 2;
 
 /** Nombres dits en toutes lettres (« trois jours », « dix minutes ») ; « un », « une » sont trop souvent des articles. */
 const NOMBRES_DITS: ReadonlySet<string> = new Set(["deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "quinze", "vingt", "trente", "quarante", "cinquante", "soixante", "cent", "mille"]);
+
+/**
+ * Mots importants du tableau animé, par la règle unique de la brique centrale (`motsImportants`) : emphase du script si
+ * elle existe, sinon mots forts du texte dit (chiffres, nombres dits, lexique). Rend les mots sous leur forme DITE (avec
+ * accents), prêts pour le champ `emphase` de `fabriquerSousTitres`. Vide si le style éteint la mise en valeur. PUR.
+ */
+export function emphaseTableau(o: { texte: string; mots?: readonly { mot: string }[]; emphaseScript?: readonly string[]; motsEnValeur: boolean }): string[] {
+  if (!o.motsEnValeur) return [];
+  const dits = o.mots?.length ? o.mots.map((m) => m.mot) : o.texte.split(/\s+/).filter(Boolean);
+  const regle = motsImportants({ emphaseScript: o.emphaseScript, mots: dits });
+  if (regle.source === "script") return [...(o.emphaseScript ?? [])];
+  return dits.filter((w) => {
+    const forme = [...motsImportants({ emphaseScript: [w], mots: [] }).mots][0];
+    return forme !== undefined && regle.mots.has(forme);
+  });
+}
 
 /**
  * Chiffres DITS du tableau : un nombre (en chiffres ou en lettres) suivi d'une unité (« trois jours », « dix minutes »,
