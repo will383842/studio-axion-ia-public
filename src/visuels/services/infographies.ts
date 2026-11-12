@@ -8,19 +8,18 @@ import { executerRendu } from "@/fournisseurs/rendu/attente";
 import { identifiantSur, segmentStockage } from "@/fournisseurs/rendu/commun";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { exigerGenerateurAllume } from "../interrupteur";
-import {
-  FORMATS_INFOGRAPHIE,
-  ID_COMPOSITION_INFOGRAPHIE,
-  miseEnPageInfographie,
-  type Gabarit,
-  type RatioInfographie,
-} from "../../../studio-rendu/compositions/visuels/infographie/gabarits/mise-en-page";
 import { canonique, DELAI_RENDU_MS, VERSION_RENDU } from "./rendu";
+
+/** Copie locale (l'image du studio ne contient pas `studio-rendu/`, `src/` ne l'importe jamais) : gabarits, ratios, dimensions, composition de L2-06. */
+export type Gabarit = "chiffres-cles" | "etapes" | "comparaison";
+export type RatioInfographie = "1:1" | "9:16";
+export const FORMATS_INFOGRAPHIE: Record<RatioInfographie, { largeur: number; hauteur: number }> = { "1:1": { largeur: 1080, hauteur: 1080 }, "9:16": { largeur: 1080, hauteur: 1920 } };
+export const ID_COMPOSITION_INFOGRAPHIE = "Infographie";
 
 /**
  * Service de production d'une infographie (L2-07) : l'interrupteur « infographies » est vérifié tout au début, AVANT toute réservation de
  * crédit et toute soumission. Éteint (réglage absent ou autre que le booléen `true`) : GENERATEUR_ETEINT, rien n'est réservé ni rendu.
- * Allumé : le texte est mesuré (un texte qui déborde est refusé avant la réservation), le crédit est réservé, puis UN rendu par réseau est
+ * Allumé : le crédit est réservé, puis UN rendu par réseau est
  * soumis (opération « image-fixe », composition « Infographie »). Un échec libère la réservation. Tout est injecté : aucun appel payant ici.
  */
 
@@ -67,8 +66,6 @@ export async function produireInfographie(demande: DemandeInfographie, deps: Dep
   const inconnu = demande.reseaux.find((r) => !Object.hasOwn(PROFILS_RESEAUX, r));
   if (inconnu !== undefined) throw new Error(`Réseau inconnu « ${String(inconnu)} »`);
   const reseaux = [...new Set(demande.reseaux)];
-  // Un texte qui déborde lève ici, avant la réservation.
-  miseEnPageInfographie(gabarit, ratio, spec);
 
   const { reserver, liberer } = deps;
   await reserver({ travailId, lignes: demande.lignes ?? [] });
@@ -87,7 +84,10 @@ export async function produireInfographie(demande: DemandeInfographie, deps: Dep
         sortie: { urlDepot: await deps.stockage.urlDepot(cle), cle },
         parametres: { composition: ID_COMPOSITION_INFOGRAPHIE, proprietes: { gabarit, ratio, spec } },
       };
-      await executerRendu(service, requete, attente);
+      const fini = await executerRendu(service, requete, attente);
+      // Texte qui déborde, mesuré par le serveur de rendu : refusé (le crédit est libéré). Mesure absente : rien à contrôler ici.
+      const debordements = fini.mesures?.debordements;
+      if (typeof debordements === "number" && debordements >= 1) throw new Error(`L'infographie pour ${reseau} déborde de son cadre (${debordements} débordement(s)) : texte coupé`);
       rendus.push({ reseau, ratio, empreinte, cle });
     }
     await liberer(travailId, "consommee");
