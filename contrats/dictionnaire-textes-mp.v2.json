@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "groupes": {
     "m1-lien": [
       "mp-m1-v4-1",
@@ -11,6 +11,27 @@
       "mp-adresse-refusee-v3-1",
       "mp-adresse-refusee-v3-2",
       "mp-adresse-refusee-v3-3"
+    ],
+    "m1-adresse": [
+      "mp-m1-v5-1",
+      "mp-m1-v5-2",
+      "mp-m1-v5-3",
+      "mp-m1-v5-4"
+    ],
+    "recu": [
+      "mp-recu-v3-1",
+      "mp-recu-v3-2",
+      "mp-recu-v3-3"
+    ],
+    "adresse-non-reconnue": [
+      "mp-m2-v2-1",
+      "mp-m2-v2-2",
+      "mp-m2-v2-3"
+    ],
+    "lien-rappel": [
+      "mp-lien-v3-1",
+      "mp-lien-v3-2",
+      "mp-lien-v3-3"
     ]
   },
   "textes": {
@@ -123,6 +144,71 @@
       "version": "mp-adresse-refusee-v3-3",
       "statut": "actif",
       "texte": "Je suis navré, cette adresse e-mail n'a pas été acceptée par notre système. Il ne m'est pas possible de vous faire parvenir le guide par ce moyen."
+    },
+    "mp-m1-v5-1": {
+      "version": "mp-m1-v5-1",
+      "statut": "actif",
+      "texte": "Bonjour ! Merci pour votre commentaire, ça fait plaisir. Pour vous envoyer le guide « [TITRE DU GUIDE] », il me suffit de votre adresse e-mail : répondez-moi simplement ici."
+    },
+    "mp-m1-v5-2": {
+      "version": "mp-m1-v5-2",
+      "statut": "actif",
+      "texte": "Merci d'avoir commenté « [MOT] » ! Le guide « [TITRE DU GUIDE] » est prêt. Écrivez-moi votre adresse e-mail en réponse et je vous l'envoie tout de suite."
+    },
+    "mp-m1-v5-3": {
+      "version": "mp-m1-v5-3",
+      "statut": "actif",
+      "texte": "Bonjour, c'est bien reçu, merci ! Pour que le guide « [TITRE DU GUIDE] » arrive dans votre boîte mail, répondez-moi avec votre adresse e-mail."
+    },
+    "mp-m1-v5-4": {
+      "version": "mp-m1-v5-4",
+      "statut": "actif",
+      "texte": "Avec plaisir ! Je vous envoie le guide « [TITRE DU GUIDE] » par e-mail : il me faut juste votre adresse, que vous pouvez écrire ici en réponse."
+    },
+    "mp-recu-v3-1": {
+      "version": "mp-recu-v3-1",
+      "statut": "actif",
+      "texte": "Merci, c'est reçu ! Le guide « [TITRE DU GUIDE] » arrive dans votre boîte mail d'ici quelques minutes. S'il n'y est pas, jetez un œil à vos courriers indésirables."
+    },
+    "mp-recu-v3-2": {
+      "version": "mp-recu-v3-2",
+      "statut": "actif",
+      "texte": "Parfait, merci ! Je vous envoie le guide « [TITRE DU GUIDE] » à cette adresse dans quelques minutes. Pensez à regarder aussi vos courriers indésirables. Bonne lecture !"
+    },
+    "mp-recu-v3-3": {
+      "version": "mp-recu-v3-3",
+      "statut": "actif",
+      "texte": "C'est noté, merci beaucoup ! Le guide « [TITRE DU GUIDE] » part vers votre boîte mail. Si vous ne le voyez pas d'ici quelques minutes, regardez dans vos courriers indésirables."
+    },
+    "mp-m2-v2-1": {
+      "version": "mp-m2-v2-1",
+      "statut": "actif",
+      "texte": "Je n'ai pas reconnu d'adresse e-mail dans votre message. Pouvez-vous l'écrire à nouveau, par exemple adresse@entreprise.fr ? Si vous préférez ne pas la donner, touchez « Recevoir ici »."
+    },
+    "mp-m2-v2-2": {
+      "version": "mp-m2-v2-2",
+      "statut": "actif",
+      "texte": "Mince, je n'ai pas trouvé d'adresse e-mail dans votre réponse. Pourriez-vous la réécrire, par exemple adresse@entreprise.fr ? Vous pouvez aussi toucher « Recevoir ici » si vous préférez."
+    },
+    "mp-m2-v2-3": {
+      "version": "mp-m2-v2-3",
+      "statut": "actif",
+      "texte": "Je n'arrive pas à lire votre adresse e-mail, pouvez-vous la saisir à nouveau, par exemple adresse@entreprise.fr ? Sinon, touchez « Recevoir ici » et je vous envoie le guide autrement."
+    },
+    "mp-lien-v3-1": {
+      "version": "mp-lien-v3-1",
+      "statut": "actif",
+      "texte": "Voici votre guide « [TITRE DU GUIDE] », bonne lecture ! Le lien : [LIEN]"
+    },
+    "mp-lien-v3-2": {
+      "version": "mp-lien-v3-2",
+      "statut": "actif",
+      "texte": "Le guide « [TITRE DU GUIDE] » est ici, avec plaisir. Bonne lecture : [LIEN]"
+    },
+    "mp-lien-v3-3": {
+      "version": "mp-lien-v3-3",
+      "statut": "actif",
+      "texte": "Comme promis, voici le guide « [TITRE DU GUIDE] ». Il vous attend ici : [LIEN]"
     }
   }
 }
