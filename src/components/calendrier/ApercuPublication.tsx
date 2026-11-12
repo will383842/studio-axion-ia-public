@@ -19,6 +19,8 @@ import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ESSAI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
+import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
+import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
 import { TiroirAccessible } from "./TiroirAccessible";
 import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regroupement";
 import type { IdReseau } from "@/domaine/types";
@@ -36,13 +38,15 @@ export interface ProprietesApercuPublication {
   /** Phrase sous le champ de date : un refus, ou une précision. */
   message?: string | null;
   tonMessage?: "alerte" | "info";
+  /** Mot-clé, guide et commentaires (RC-38), fournis par l'appelant ; montrés seulement sur Instagram et Facebook (CAL-04). */
+  mots?: MotsPublication | null;
 }
 
 const CHAMP_DE_SAISIE = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 const BOUTON = "min-h-[38px] rounded-[10px] border border-trait-fort bg-surface-2 px-3 py-1.5 text-sm font-bold text-texte hover:bg-surface-3";
 
 /** Le panneau : sans état propre, tout vient de l'appelant. */
-export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante, onFermer, onChangerDate, message, tonMessage = "alerte" }: ProprietesApercuPublication): ReactNode {
+export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante, onFermer, onChangerDate, message, tonMessage = "alerte", mots }: ProprietesApercuPublication): ReactNode {
   if (!entree) return null;
   const a = apercuReseau(entree, aujourdhui);
   const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
@@ -133,6 +137,21 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         <p className="font-bold text-texte">Premier commentaire</p>
         <p className="text-texte-doux">{a.premierCommentaire ?? a.phrasePremierCommentaire}</p>
       </div>
+
+      {accepteReponseAutomatique(entree.reseau) ? (
+        <BlocMotsCommentaires reseau={entree.reseau} mots={mots} />
+      ) : (
+        nomReponseALaMain(entree.reseau) && (
+          <section aria-label="Réponses aux commentaires" className="mt-2 text-sm text-texte-doux">
+            <p>
+              Réponses aux commentaires : toujours à la main sur {nomReponseALaMain(entree.reseau)}.{" "}
+              <Link href="/a-traiter" className="font-bold text-texte underline">
+                À traiter
+              </Link>
+            </p>
+          </section>
+        )
+      )}
 
       <div className="mt-3">
         <label htmlFor="apercu-date" className="text-sm font-bold text-texte">
