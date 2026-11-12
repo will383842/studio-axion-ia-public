@@ -10,8 +10,13 @@ import { construireLienGuide, creerJetonLien, refConversationLien } from "@/doma
 import * as LG from "@/domaine/guide-reseau/lien-guide";
 import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
-import { ADRESSE_FICTIVE, COMPTE, ENV, POST, SECRET_EMPREINTE, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, POST, SECRET_EMPREINTE, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
+vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => {
+  const r = await orig<Record<string, unknown>>();
+  const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+  return { ...r, siteAccepteVersionM1: (v: string) => VERSIONS_SITE_TEST.has(v) };
+});
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const C = await import("@/services/parcours-conversation");
@@ -24,10 +29,9 @@ const Opp = await import("@/services/oppositions-mots");
 const H = 3600_000;
 const SECRET_LIEN = "secret-fictif-lien-page-guide-0123456789-abcdef";
 const ENV_LIEN = { ...ENV, PARCOURS_LIEN_GUIDE: "1", GUIDES_RESEAU_LIEN_SECRET: SECRET_LIEN, LIEN_GUIDE_COMPTES: `${COMPTE}=page_principale` };
-const PARAM_VALIDATION_M1 = "parcours.validation.m1_lien";
+const PARAM_VALIDATION_M1 = "parcours.validation.formulations"; // une formulation = un geste ; seule mp-m1-v4-1 est validée ici (donc toujours choisie)
 const A = "auteur-fictif-400";
-const empreinteV3 = () => { const b = TEXTES_MP["mp-m1-v3"]; return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"); };
-const validerV3 = () => Com.ecrireParametre(PARAM_VALIDATION_M1, { empreinte: empreinteV3() });
+const validerV3 = () => validerFormulationsAuParcours(["mp-m1-v4-1"]);
 const PREFIXE = "https://axion-ia.com/guide-reseau?j=";
 
 let port: ReturnType<typeof fauxPort>;
@@ -36,7 +40,7 @@ const passer = (env: Record<string, string | undefined> = ENV_LIEN, ms = T0, p =
 const etatDe = async (auteur = A) => (await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(auteur)];
 const sansLien = async () => (await depots().notifications.lister((n: any) => /sans lien/.test(n.message))).length;
 const jetonAttendu = (etat: Record<string, any>, extra: Record<string, string> = {}) =>
-  creerJetonLien({ conv: refConversationLien(SECRET_EMPREINTE, etat.cleIdempotenceGuide), mot: "GUIDE", reseau: "instagram", guide: "guide-ia", compte: "page_principale", post_ref: POST, version_m1: "mp-m1-v3", ...extra }, SECRET_LIEN, T0);
+  creerJetonLien({ conv: refConversationLien(SECRET_EMPREINTE, etat.cleIdempotenceGuide), mot: "GUIDE", reseau: "instagram", guide: "guide-ia", compte: "page_principale", post_ref: POST, version_m1: "mp-m1-v4-1", ...extra }, SECRET_LIEN, T0);
 const v2 = () => rendreTexteMp("mp-m1-v2", { mot: "GUIDE", titre: TITRE });
 
 beforeEach(async () => {
@@ -82,17 +86,17 @@ describe("2 · allumé et tout prêt : M1 v3 avec lien signé", () => {
     const e = await etatDe();
     const lien = construireLienGuide(jetonAttendu(e));
     expect(port.prive).toHaveLength(1);
-    expect(port.prive[0].texte).toBe(rendreTexteMp("mp-m1-v3", { mot: "GUIDE", titre: TITRE, lien: lien! }));
+    expect(port.prive[0].texte).toBe(rendreTexteMp("mp-m1-v4-1", { mot: "GUIDE", titre: TITRE, lien: lien! }));
     expect(e.refLienConv).toBe(refConversationLien(SECRET_EMPREINTE, e.cleIdempotenceGuide));
-    expect(e.versionTexteM1).toBe("mp-m1-v3");
+    expect(e.versionTexteM1).toBe("mp-m1-v4-1");
   });
   it("identifiant de publication inadmissible dans le jeton (« : ») : lien SANS post_ref, M1 v3 quand même", async () => {
     await deposerCommentaire(depots, { idPost: "post:fictif:1" });
     await passer();
     const e = await etatDe();
-    const attendu = creerJetonLien({ conv: e.refLienConv, mot: "GUIDE", reseau: "instagram", guide: "guide-ia", compte: "page_principale", version_m1: "mp-m1-v3" }, SECRET_LIEN, T0);
-    expect(port.prive[0].texte).toBe(rendreTexteMp("mp-m1-v3", { mot: "GUIDE", titre: TITRE, lien: construireLienGuide(attendu)! }));
-    expect(e.versionTexteM1).toBe("mp-m1-v3");
+    const attendu = creerJetonLien({ conv: e.refLienConv, mot: "GUIDE", reseau: "instagram", guide: "guide-ia", compte: "page_principale", version_m1: "mp-m1-v4-1" }, SECRET_LIEN, T0);
+    expect(port.prive[0].texte).toBe(rendreTexteMp("mp-m1-v4-1", { mot: "GUIDE", titre: TITRE, lien: construireLienGuide(attendu)! }));
+    expect(e.versionTexteM1).toBe("mp-m1-v4-1");
   });
 });
 
@@ -110,19 +114,19 @@ describe("3 · VRAI constructeur de corps d'envoi", () => {
     const e = await etatDe();
     expect(posts).toHaveLength(1);
     const message = (posts[0].json as { message: string }).message;
-    expect(message).toBe(rendreTexteMp("mp-m1-v3", { mot: "GUIDE", titre: TITRE, lien: construireLienGuide(jetonAttendu(e))! }));
+    expect(message).toBe(rendreTexteMp("mp-m1-v4-1", { mot: "GUIDE", titre: TITRE, lien: construireLienGuide(jetonAttendu(e))! }));
     expect(message).toContain(PREFIXE);
   });
   it("un lien sans signature est refusé avant le réseau (preuve que le test peut rougir)", async () => {
     const r = reel();
-    const texte = rendreTexteMp("mp-m1-v3", { mot: "GUIDE", titre: TITRE, lien: `${PREFIXE}abc` })!;
+    const texte = rendreTexteMp("mp-m1-v4-1", { mot: "GUIDE", titre: TITRE, lien: `${PREFIXE}abc` })!;
     const res = await r.p.repondreEnPrive({ idCompte: COMPTE, idPost: POST, idCommentaire: "com-1", texte });
     expect(res.statut).toBe("refuse");
     expect(r.faux.appels.filter((a) => a.methode === "POST")).toHaveLength(0);
   });
   it("formeLienPageGuide : lien signé accepté, lien sans signature refusé", async () => {
     const { formeLienPageGuide } = await import("@/fournisseurs/publication/zernio-inbox-corps");
-    const jeton = creerJetonLien({ conv: "c1_abcdefghijklmnopqrstuv", mot: "GUIDE", reseau: "instagram", guide: "guide-ia", compte: "page_principale", version_m1: "mp-m1-v3" }, SECRET_LIEN, T0);
+    const jeton = creerJetonLien({ conv: "c1_abcdefghijklmnopqrstuv", mot: "GUIDE", reseau: "instagram", guide: "guide-ia", compte: "page_principale", version_m1: "mp-m1-v4-1" }, SECRET_LIEN, T0);
     expect(formeLienPageGuide(PREFIXE + jeton)).toBe(true);
     expect(formeLienPageGuide(`${PREFIXE}abc`)).toBe(false);
   });
@@ -265,14 +269,14 @@ describe("8 · rejeu, doublon, redémarrage", () => {
 
 describe("9 · la version de M1 suit jusqu'au site", () => {
   const versionEnvoyee = () => (site.vus[0].corps as { versionTexteM1?: string }).versionTexteM1 ?? JSON.stringify(site.vus[0].corps);
-  it("après M1 v3 : mp-m1-v3", async () => {
+  it("après M1 v3 : mp-m1-v4-1", async () => {
     await deposerCommentaire(depots, {});
     await passer();
     port.reponses.texte = () => `Mon adresse ${ADRESSE_FICTIVE}`;
     await deposerMessage(depots, { idMessage: "msg-s1" });
     await passer(ENV_LIEN, T0 + 1000);
     expect(site.vus).toHaveLength(1);
-    expect(JSON.stringify(site.vus[0].corps)).toContain("mp-m1-v3");
+    expect(JSON.stringify(site.vus[0].corps)).toContain("mp-m1-v4-1");
     expect(versionEnvoyee()).toBeTruthy();
   });
   it("après repli v2 : mp-m1-v2", async () => {
@@ -282,21 +286,22 @@ describe("9 · la version de M1 suit jusqu'au site", () => {
     await deposerMessage(depots, { idMessage: "msg-s2" });
     await passer(ENV_LIEN, T0 + 1000);
     expect(JSON.stringify(site.vus[0].corps)).toContain("mp-m1-v2");
-    expect(JSON.stringify(site.vus[0].corps)).not.toContain("mp-m1-v3");
+    expect(JSON.stringify(site.vus[0].corps)).not.toContain("mp-m1-v4-1");
   });
 });
 
 describe("10 · la validation suit le texte", () => {
   it("empreinte de l'ancien texte : repli v2 texte_lien_non_valide", async () => {
-    await Com.ecrireParametre(PARAM_VALIDATION_M1, { empreinte: createHash("sha256").update("mp-m1-v3\nautre texte").digest("hex") });
+    await Com.ecrireParametre(PARAM_VALIDATION_M1, { "mp-m1-v4-1": { empreinte: createHash("sha256").update("mp-m1-v4-1\nautre texte").digest("hex") } });
     await deposerCommentaire(depots, {});
     await passer();
     expect(port.prive[0].texte).toBe(v2());
     expect(await sansLien()).toBe(1);
   });
   it("PARAM_VALIDATION_M1_LIEN est la clé attendue, texte conforme (sans mention ni signature, vouvoiement, pas de STOP)", () => {
-    expect(MS.PARAM_VALIDATION_M1_LIEN).toBe(PARAM_VALIDATION_M1);
-    const t = TEXTES_MP["mp-m1-v3"].texte;
+    expect(MS.PARAM_VALIDATION_FORMULATIONS).toBe(PARAM_VALIDATION_M1);
+    expect(MS.PARAM_VALIDATION_M1_LIEN).toBe("parcours.validation.m1_lien"); // ancien paramètre gardé, plus lu par l'envoi
+    const t = TEXTES_MP["mp-m1-v4-1"].texte;
     expect(t).not.toMatch(/Message automatique/);
     expect(t.endsWith("[LIEN]")).toBe(true);
     expect(t).toMatch(/48 heures/);
@@ -331,7 +336,7 @@ describe("RELECTURE-OPUS · défaut 1 : borne à 1 000 caractères pour M1 v3", 
     await deposerCommentaire(depots, {});
     await passer();
     expect(port.prive[0].texte.length).toBeLessThanOrEqual(1000);
-    expect((await etatDe()).versionTexteM1).toBe("mp-m1-v3");
+    expect((await etatDe()).versionTexteM1).toBe("mp-m1-v4-1");
   });
 });
 

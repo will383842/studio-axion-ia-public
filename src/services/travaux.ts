@@ -28,6 +28,7 @@ import { deduireDejaPaye, estCreditInsuffisant, fournisseurDeLErreur, libererRes
 import { urlFichier } from "./fichiers";
 import { rangDeLaVideo } from "./illustrations";
 import { creerNotification } from "./notifications";
+import { consignerEchec } from "./journal-echecs";
 import { synchroniserApresFabrication } from "./generateur";
 import type { VueTravail } from "./vues";
 import type { AccordPrix } from "@/domaine/accord";
@@ -532,6 +533,7 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
     }
     await notifier({ type: "echec", titre: "Une étape n'a pas abouti", message: travail.erreur?.messagePourWill, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
     await journaliser("echec", `Étape en échec : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    await consignerEchec(travail, lu.commande);
   } else if (travail.statut === "en_cours" && t.statut === "en_file" && !reexport) {
     await d.videos.modifier(travail.cibleId, { statut: "en_fabrication" });
   }
@@ -639,6 +641,7 @@ export async function ecrirePanne(lu: InstantaneTravail, erreur: unknown, instan
     // Le message du fournisseur (souvent technique) va en console serveur ; le Journal garde la phrase pour Will.
     console.warn(`[travaux] ${t.id} abandonné : ${message.slice(0, 300)}`);
     await journaliser("echec", erreurTravail.messagePourWill, { type: "video", id: t.cibleId });
+    await consignerEchec(travail, lu.commande);
     return { ecrit: true };
   }
   const entreEnAttente = !!suite.reprise?.attenteDepuis && !t.reprise?.attenteDepuis;
@@ -852,6 +855,7 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
         const { RETOUCHE_PAS_DISPONIBLE } = await import("./fabrication");
         throw new ErreurStudio("RETOUCHE_INDISPONIBLE", RETOUCHE_PAS_DISPONIBLE);
       }
+      await consignerEchec(t, version?.commande ?? { formatId: "" });
       const r: Travail = { ...(await moteur.reessayer(t)), reprise: undefined };
       await reactiver();
       await d.travaux.enregistrer(r);
