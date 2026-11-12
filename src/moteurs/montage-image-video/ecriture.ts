@@ -38,6 +38,7 @@ import {
   phraseChocAttendue,
   verifierScript,
   type ChiffreDit,
+  type CodeRegle,
   type ContexteRegles,
   type Manquement,
   type VerdictScript,
@@ -52,6 +53,20 @@ export const PREFIXE_APPEL_ECRITURE = "ivecr";
 export const CONSIGNE_MOT_MACHINE = "N'emploie jamais le mot « machine » (dis « automatisation »).";
 /** Dite entre la charte de Will et les règles du format. */
 export const PRIORITE_REGLES_IMAGE_VIDEO = "Pour ce format, les règles « image → vidéo » (la consigne) passent avant la charte générale quand elles diffèrent.";
+
+/**
+ * Règles « jamais faux » : un manquement de l'une d'elles garde le refus, même au dernier essai (GV-EC-04). Liste fermée ;
+ * en cas de doute sur une règle, elle y figure. Q04 et Q05 : chiffre absent de l'image ou inventé ; Q05bis : promesse et
+ * client présenté comme réel ; Q06 : phrase-choc ; Q08 : mot interdit, marque, nom inventé ; Q08bis : question en « vous »
+ * (tutoiement). FORME y figure aussi : il couvre la carte validée (empreinte) et les références. Restent hors liste, donc
+ * à relire : Q07 (ossature), Q09 (écriture), Q10 (durée) et CHAPITRES.
+ */
+export const CODES_REGLES_JAMAIS_FAUX: readonly CodeRegle[] = ["FORME", "Q04", "Q05", "Q05bis", "Q06", "Q08", "Q08bis"];
+
+/** Vrai si aucun manquement à corriger du verdict n'est de la classe « jamais faux » : le script peut être proposé à relire. */
+export function peutEtreProposeARelire(verdict: Pick<VerdictScript, "manquements">): boolean {
+  return aCorrigerParClaude(verdict).every((m) => !CODES_REGLES_JAMAIS_FAUX.includes(m.regle));
+}
 
 const liste = (xs: readonly string[]) => xs.map((x) => `« ${x} »`).join(", ");
 
@@ -480,6 +495,12 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
   /** Simulation de la dernière réponse reçue (la réparation sans appel la garde). */
   let simule = false;
   let coutUsd: number | undefined;
+  /** Meilleure fiche de forme valide (le moins de manquements) parmi les essais refusés : proposée à relire si rien de mieux. */
+  let meilleure: { fiche: FicheImage; verdict: VerdictScript; simule: boolean } | undefined;
+  const retenir = (fiche: FicheImage, verdict: VerdictScript, deSimulation: boolean) => {
+    const note = (v: VerdictScript) => (peutEtreProposeARelire(v) ? 0 : 1_000) + v.manquements.length;
+    if (!meilleure || note(verdict) < note(meilleure.verdict)) meilleure = { fiche, verdict, simule: deSimulation };
+  };
   for (let essai = 1; essai <= APPELS_ECRITURE_MAX; essai++) {
     const entreeRole: EntreeRole = { contexte, variable };
     const appelId = idAppelEcritureIV(entree, essai);
@@ -520,6 +541,10 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
     }
     refus = jugement.refus;
     derniere = lecture.ok ? lecture.brute : undefined;
+    if (lecture.ok) {
+      const forme = schemaFicheImage.safeParse(lecture.brute);
+      if (forme.success) retenir(forme.data, verifierScript(forme.data, ctx), reponse.simule);
+    }
     variable = variableRelanceIV(base, lecture.texte, refus);
     // Phrase trop longue (Q09) : coupée sans appel, sans changer un mot ni la lecture d'un chiffre (`reparation-script.ts`).
     const coupee = lecture.ok ? reparerPhrasesLonguesIV(lecture.brute, ctx) : null;
@@ -537,6 +562,7 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
       // Un autre refus reste : chemin normal, sur la fiche coupée (la coupe est gardée pour la réparation des chiffres).
       refus = coupee.refus;
       derniere = coupee.fiche;
+      retenir(coupee.fiche, coupee.verdict, reponse.simule);
       variable = variableRelanceIV(base, JSON.stringify(coupee.fiche), refus);
     }
   }
@@ -552,6 +578,26 @@ export async function ecrireScriptIV(entree: EntreeEcritureIV, outils: OutilsEcr
       return { ok: false, motif: "a-trancher", message: `Script écrit : ${refusWill.length} point(s) à trancher par Will avant validation.`, refus: refusWill, ...commun };
     }
     return { ok: true, ...commun };
+  }
+  // Repli (GV-EC-04) : la meilleure fiche, refusée sur la forme seule, est proposée à relire avec ses points, sans appel de plus.
+  const gardee = meilleure as { fiche: FicheImage; verdict: VerdictScript; simule: boolean } | undefined;
+  if (gardee && peutEtreProposeARelire(gardee.verdict)) {
+    const marque = `Gardé à relire : ${gardee.verdict.manquements.length} point(s) de forme restent après ${appels} essai(s).`;
+    const verdict = { ...gardee.verdict, marques: [...gardee.verdict.marques, ...marqueRefs(refsRetirees), marque] };
+    const refusWill = verdict.manquements.map((m) => m.message);
+    return {
+      ok: false,
+      motif: "a-trancher",
+      message: `Script écrit : ${refusWill.length} point(s) à relire par Will avant validation.`,
+      refus: refusWill,
+      fiche: gardee.fiche,
+      verdict,
+      aTrancher: verdict.manquements,
+      appels,
+      relance: appels > 1,
+      simule: gardee.simule,
+      ...(coutUsd !== undefined ? { coutUsd } : {}),
+    };
   }
   return { ok: false, motif: "refusee", message: `${DEBUT_REFUS_ECRITURE} après ${APPELS_ECRITURE_MAX} essais (${refus.length} refus) : à reprendre à la main.`, refus, appels };
 }

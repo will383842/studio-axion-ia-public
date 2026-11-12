@@ -33,6 +33,7 @@ import { baseRetenue, fabriquerSousTitres } from "@/briques/sous-titres";
 import { resoudreVisagesParAngle, visagePourFormat } from "@/domaine/distribution";
 import { prononciationsActives } from "@/domaine/prononciations";
 import { empreinteDesBlocs, relectureAExiger } from "@/domaine/relecture-assistant";
+import { renduCouleurDe } from "@/briques/charte/rendu-couleur";
 import { accordDuFormat, briquesEffectives, dureeVideo, migrerReglages, musiqueRetenue, styleParDefautRetenu, debitLecture, nomCourtFormat, obtenirFormat, scriptAJour, trouverFormat, validerReglages } from "@/formats";
 import { repartitionDepuisReglages } from "@/formats/communs";
 import type { DefinitionFormat } from "@/formats/types";
@@ -90,13 +91,15 @@ function styleResolu<V extends ValeurElement>(e: ElementBibliotheque | null | un
 
 async function stylesResolus(video: Video, format: DefinitionFormat): Promise<StylesResolus> {
   const d = depots();
-  const def = format.stylesParDefaut;
+  // Rendu de couleur : UNE table (GV-LU-01). Ordre : choix de la vidéo > étoile > table.
+  const rendu = renduCouleurDe(format.id);
+  const formatLut = { ...format, stylesParDefaut: { ...format.stylesParDefaut, lut: rendu.lut ?? undefined } };
   // Ancien champ `fondId` (vidéos d'avant la fusion fond → décor) : lu tant que la migration ne l'a pas renommé.
   const ancienFond = (video.styles as { fondId?: string }).fondId;
   // Priorité : choix de la vidéo > style étoilé dans la Bibliothèque > défaut du code (le plan et le visage priment au montage).
   const tous = await d.elements.lister();
   const ids = {
-    lut: styleParDefautRetenu(format, "lut", video.styles.lutId, tous),
+    lut: styleParDefautRetenu(formatLut, "lut", video.styles.lutId, tous),
     sousTitres: styleParDefautRetenu(format, "sousTitres", video.styles.sousTitresId, tous),
     habillage: styleParDefautRetenu(format, "habillage", video.styles.habillageId, tous),
     styleMontage: styleParDefautRetenu(format, "styleMontage", video.styles.styleMontageId, tous),
@@ -113,7 +116,7 @@ async function stylesResolus(video: Video, format: DefinitionFormat): Promise<St
     lut: ids.lut
       ? {
           ...(ids.lut === LUT_AUCUNE ? { id: LUT_AUCUNE, nom: "Sans LUT" } : styleResolu<Extract<ValeurElement, { type: "lut" }>>(lut, ids.lut)),
-          intensite: video.styles.intensiteLut ?? def.intensiteLut ?? 70,
+          intensite: video.styles.intensiteLut ?? rendu.intensite,
           cible: video.styles.cibleLut ?? ["personnage", "illustrations", "rushs", "decor", "accessoire"],
           // Priorité plan > vidéo > visage > format (lot M4) : le moteur sait si la LUT vient de la vidéo.
           origine: video.styles.lutId ? ("video" as const) : ("format" as const),

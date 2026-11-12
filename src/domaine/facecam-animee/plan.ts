@@ -333,6 +333,8 @@ export const schemaElementV4 = z.object({
   depuisSec: z.number().min(0).optional(),
   sens: z.enum(["gauche", "droite"]).optional(),
   verdict: z.object({ gagnant: z.enum(["A", "B"]), a: instant }).optional(),
+  /** GV-MD-03 (FACULTATIF) : indice du mot de la transcription qui déclenche l'animation (calage au mot). Absent : calage sur le mot le plus proche. */
+  motIndex: z.number().int().min(0).optional(),
   /** Mots EXACTS de la transcription que l'élément montre (littéralité). */
   illustre: illustre.optional(),
 });
