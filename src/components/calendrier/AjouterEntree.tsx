@@ -7,9 +7,10 @@
 import { useRef, useState } from "react";
 import { ajouterEntree, type ResultatAjout } from "@/app/(studio)/calendrier/actions/ajouter";
 import type { IdReseau } from "@/domaine/types";
+import { ProposerTexte, type PropsProposerTexte } from "./ProposerTexte";
 import { DepotMedia, envoyerFichierChoisi, type FichierChoisi, type ResultatEnvoiChoisi } from "./DepotMedia";
 
-export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour: string; compteCible: string; reseau?: IdReseau }) {
+export function AjouterEntree({ jour, compteCible, reseau = "linkedin", proposer }: { jour: string; compteCible: string; reseau?: IdReseau; proposer?: PropsProposerTexte["proposer"] }) {
   const cle = useRef(crypto.randomUUID());
   const [heure, setHeure] = useState("09:00");
   const [mediaId, setMediaId] = useState("");
@@ -54,6 +55,7 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour
       <label>Heure (Paris) <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} /></label>
       <label>Vidéo <input type="text" value={mediaId} onChange={(e) => setMediaId(e.target.value)} /></label>
       <DepotMedia reseau={reseau} onMedia={setChoisi} />
+      {proposer && <ProposerTexte type="video" reseaux={[reseau]} proposer={proposer} />}
       <button type="submit" disabled={enCours}>Ajouter</button>
       {retour?.ok === false && retour.aConfirmer && (
         <p role="alert">{retour.avertissement} <button type="button" disabled={enCours} onClick={() => void envoyer(retour.aConfirmer)}>Ajouter quand même</button></p>

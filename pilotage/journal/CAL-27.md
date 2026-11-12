@@ -1,0 +1,9 @@
+# CAL-27 : proposer le texte et le premier commentaire d'un contenu importé (FAIT, à relire)
+- Fait : proposerTexteImporte (src/services/texte-post.ts) : un texte par réseau choisi, contrôlé par PV-01 à PV-05 (longueur, chiffres absents de la description, vouvoiement, interdits de marque) ; premierCommentaireImporte (src/services/premier-commentaire.ts) : aucun sur TikTok, jamais de lien ni de fait ajouté ; composant ProposerTexte (nouveau), branché dans AjouterEntree par une prop facultative « proposer ».
+- Vidéo : la phrase de description saisie est la seule source des faits (transcription en V2). Sans phrase : « Écrivez d'abord une phrase… », aucun appel.
+- Panne ou simulation : repli sans exception ; texte d'essai signalé en français ; champs toujours modifiables, ajout jamais bloqué. Le bouton n'est jamais obligatoire (sans la prop, formulaire inchangé).
+- Test : tests/calendrier/cal-27-proposer-texte.test.ts, 9 passés (rouge d'abord : composant absent). Appel à l'IA : doublure, aucun appel réel.
+- tsc : 147 erreurs, comme master (0 nouvelle). eslint : aucune erreur. tests/aucun-prix-affiche : 1 échec déjà présent sur master (Credits), hors fichiers touchés.
+- Reste : l'hôte doit passer « proposer » à AjouterEntree (action serveur avec la porte de dépense, hors fichiers autorisés) et enregistrer texte et commentaire retenus après validation ; le type « video » est fixé dans AjouterEntree (carrousel/infographie : prop à ajouter avec le branchement).
+- Rien n'est publié : la proposition est à relire et valider par le fondateur.
+contrôle anti-fuite : vide
