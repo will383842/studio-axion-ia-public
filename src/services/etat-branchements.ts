@@ -4,6 +4,7 @@
  * ou « trop court », jamais la valeur. « Prêt à publier » est refusé si le stockage est simulé en production.
  */
 import "server-only";
+import { configR2 } from "@/fournisseurs/r2/stockage";
 import { etatBranchementZernio, type EtatBranchement } from "./branchements-zernio";
 
 type Env = Record<string, string | undefined>;
@@ -31,9 +32,15 @@ export interface EtatStockage {
   message: string | null;
 }
 
-export function etatStockage(env: Env = process.env): EtatStockage {
+/**
+ * Le stockage est réel seulement si les quatre variables R2 sont posées (`configR2`, une seule définition) ET si le
+ * fournisseur choisi est « r2 » : le réglage en base `fournisseur.stockage` (`valeurEnBase`), sinon FOURNISSEUR_STOCKAGE,
+ * comme `choixFournisseur`. Sinon la simulation reste en place, même avec les quatre variables.
+ */
+export function etatStockage(env: Env = process.env, valeurEnBase?: string | null): EtatStockage {
   const manque = VARIABLES_R2.filter((n) => (env[n]?.trim() ?? "") === "") as string[];
-  const simule = manque.length > 0;
+  const choisi = valeurEnBase || env.FOURNISSEUR_STOCKAGE || "simulation";
+  const simule = configR2(env) === null || choisi !== "r2";
   const production = env.NODE_ENV === "production";
   const pretAPublier = !(simule && production);
   return { simule, production, manque, pretAPublier, message: pretAPublier ? null : MESSAGE_STOCKAGE_SIMULE };
@@ -46,8 +53,8 @@ export interface EtatBranchements {
   pretAPublier: boolean;
 }
 
-export function etatBranchements(env: Env = process.env, zernio: EtatBranchement | null = etatBranchementZernio()): EtatBranchements {
-  const stockage = etatStockage(env);
+export function etatBranchements(env: Env = process.env, zernio: EtatBranchement | null = etatBranchementZernio(), stockageEnBase?: string | null): EtatBranchements {
+  const stockage = etatStockage(env, stockageEnBase);
   const secrets = Object.fromEntries(SECRETS_SURVEILLES.map((n) => [n, statutSecret(env[n])])) as EtatBranchements["secrets"];
   return { stockage, secrets, zernio, pretAPublier: stockage.pretAPublier };
 }

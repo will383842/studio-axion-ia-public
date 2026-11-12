@@ -1,0 +1,53 @@
+# TESTS DES NOUVEAUX FICHIERS DE TEST : bloquant. Lance les fichiers de test ajoutés ou modifiés par la PR (n'importe quel
+# dossier de tests/, y compris la racine, et src/ ; sélection testée dans scripts/comparer-echecs.mjs), compare les échecs à scripts/echecs-connus.json (scripts/comparer-echecs.mjs).
+# Un échec absent de la liste est rouge. Pas la suite complète. tests-cibles.yml et tests-visuels.yml ne sont pas touchés. Aucun secret.
+name: tests-nouveau
+
+on:
+  pull_request:
+    paths:
+      - "tests/**"
+      - "src/**/*.test.ts"
+      - "src/**/*.test.tsx"
+      - "scripts/echecs-connus.json"
+      - "scripts/comparer-echecs.mjs"
+      - ".github/workflows/tests-nouveau.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-nouveau-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests-nouveau:
+    name: tests des nouveaux fichiers de test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Fichiers de test ajoutés ou modifiés
+        id: liste
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only --diff-filter=AMR "$BASE"...HEAD | node scripts/comparer-echecs.mjs --selection > fichiers-test.txt
+          cat fichiers-test.txt
+          echo "nombre=$(wc -l < fichiers-test.txt)" >> "$GITHUB_OUTPUT"
+      - name: Lancer ces tests et comparer aux échecs connus
+        if: steps.liste.outputs.nombre != '0'
+        run: |
+          pnpm exec vitest run --testTimeout=60000 --reporter=json --outputFile=rapport-vitest.json $(cat fichiers-test.txt) || true
+          node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+      - name: Aucun fichier de test nouveau
+        if: steps.liste.outputs.nombre == '0'
+        run: echo "0 tests lancés (aucun fichier de test ajouté ou modifié)"

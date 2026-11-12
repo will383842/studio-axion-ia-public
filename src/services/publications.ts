@@ -631,8 +631,7 @@ async function envoyerVersBufferInterne(
 ): Promise<{ simulation: boolean; publications: Publication[]; mode?: ModeEnvoiPublication; problemes?: ProblemeEnvoi[]; commentairesALaMain?: IdReseau[] }> {
   await exigerSession();
   // L0-12 : stockage simulé en production = rien n'est prêt à publier (message clair, aucune valeur de secret).
-  const stockage = etatStockage();
-  if (!stockage.pretAPublier) throw new ErreurStudio("STOCKAGE_SIMULE", stockage.message ?? "Le stockage est simulé.");
+  await refuserSiStockageSimule();
   const kitVue = await obtenirKit(videoId);
   if (!kitVue) throw new ErreurStudio("PAS_PRETE", "La vidéo n'est pas prête.");
   // Générateur (G1b, B.5.5) : une vidéo issue d'une version part sur SON réseau ; ailleurs, seulement après confirmation.
@@ -817,8 +816,15 @@ export interface ExtrasEnvoiReel {
   contenuIA?: boolean;
 }
 
+/** L0-12 : garde commune à toutes les voies d'envoi (Buffer, Zernio). Lit le choix réel du fournisseur de stockage (base, puis environnement). */
+async function refuserSiStockageSimule(): Promise<void> {
+  const stockage = etatStockage(process.env, await lireParametre<string | null>("fournisseur.stockage", null));
+  if (!stockage.pretAPublier) throw new ErreurStudio("STOCKAGE_SIMULE", stockage.message ?? "Le stockage est simulé.");
+}
+
 export async function envoyerReel(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean, extras: ExtrasEnvoiReel = {}) {
   try {
+    await refuserSiStockageSimule();
     const r = await envoyerReelInterne(outil, service, kitVue, reseaux, dateIso, choisis, commentaires, avecVideo, extras);
     journaliserIssueEnvoi("envoyerReel", kitVue.videoId, reseaux, r.publications, r.problemes, outil, r.mode === "brouillon");
     return r;
