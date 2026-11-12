@@ -10,6 +10,7 @@
 import "server-only";
 import type { CommandeFabrication, LigneCout, Montant, Notification, Plan, Ratio, Sortie, SuiteFabrication, Travail, VersionVideo, Video } from "@/domaine/types";
 import { TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
+import { familleDe } from "@/domaine/journal-echecs";
 import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, depenseDesEtapes, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
@@ -25,7 +26,7 @@ import { depots, ecrireParametre, filtreExemples, horodatage, journaliser, lireP
 import { exigerSession } from "./auth";
 import { preparerReglagesMoteur } from "./cas-concret-reglages";
 import { envoyerAlerteBudget, ligneSimulee } from "./couts";
-import { deduireDejaPaye, estCreditInsuffisant, fournisseurDeLErreur, libererReservation, nomFournisseur, reactiverSelonOrigine, RELANCE_ATTENTE_CREDIT_MS, signalerAttenteCredit, soldeLuChezLeFournisseur } from "./credits";
+import { deduireDejaPaye, estCreditInsuffisant, fournisseurDeLErreur, libererReservation, nomFournisseur, reactiverReservations, reactiverSelonOrigine, RELANCE_ATTENTE_CREDIT_MS, signalerAttenteCredit, soldeLuChezLeFournisseur } from "./credits";
 import { urlFichier } from "./fichiers";
 import { rangDeLaVideo } from "./illustrations";
 import { creerNotification } from "./notifications";
@@ -495,6 +496,11 @@ function seulementReprogramme(actuel: Travail | null, lu: Travail): actuel is Tr
   return sans(actuel) === sans(lu);
 }
 
+/** GV-EC-01b : le travail s'est arrêté pour attendre la validation de Williams (liste fermée de `sujets-traites.ts`). */
+function enAttenteDeValidation(t: Pick<Travail, "erreur">): boolean {
+  return !!t.erreur && familleDe(t.erreur.code) === "attente-validation";
+}
+
 /**
  * Temps 3 — SOUS le verrou : écrit ce que le moteur a renvoyé, SEULEMENT si le travail n'a pas changé depuis la lecture
  * (un « Arrêter » pendant le tour n'est jamais écrasé). Renvoie les suites à exécuter hors verrou.
@@ -525,15 +531,25 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
   // Un format ajouté ne touche ni le statut de la vidéo ni sa version : elle reste prête (et publiée).
   const reexport = t.type === "reexport";
   if (travail.statut === "echec" && t.statut !== "echec") {
-    await libererReservation(t.id, "liberee");
+    // GV-EC-01b : une attente de validation n'est pas un échec : la réservation est GARDÉE (elle sert à la reprise).
+    const attente = enAttenteDeValidation(travail);
+    if (!attente) await libererReservation(t.id, "liberee");
     // E2E-1 n° 3 : les étapes déjà payées (la voix lue…) sont enregistrées, comme à « Arrêter ».
     await enregistrerDepensePayee(travail, await lignesPayeesDuTravail(lu.moteur, travail, lu.commande), { versionAussi: !reexport });
     if (!reexport) {
       await d.videos.modifier(travail.cibleId, { statut: "echec" });
       if (t.versionId && (await d.versions.obtenir(t.versionId))) await d.versions.modifier(t.versionId, { statut: "echec" });
     }
-    await notifier({ type: "echec", titre: "Une étape n'a pas abouti", message: travail.erreur?.messagePourWill, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
-    await journaliser("echec", `Étape en échec : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    if (attente) {
+      // Phrases fixes, sans montant : la vidéo dit seulement qu'elle est à relire.
+      const carte = /CARTE/.test(travail.erreur?.code ?? "");
+      await notifier({ type: "info", titre: carte ? "Une carte attend votre validation" : "Un script attend votre relecture", message: "Ouvrez la vidéo pour la valider : la fabrication reprendra ensuite.", lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
+      await journaliser("attente", `En attente de validation : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    } else {
+      await notifier({ type: "echec", titre: "Une étape n'a pas abouti", message: travail.erreur?.messagePourWill, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
+      await journaliser("echec", `Étape en échec : ${travail.etapes.find((e) => e.statut === "echec")?.nom ?? "?"}`, { type: "video", id: travail.cibleId });
+    }
+    // La ligne durable est écrite dans les deux cas ; pour une attente elle porte la famille `attente-validation`.
     await consignerEchec(travail, lu.commande);
   } else if (travail.statut === "en_cours" && t.statut === "en_file" && !reexport) {
     await d.videos.modifier(travail.cibleId, { statut: "en_fabrication" });
@@ -839,7 +855,7 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du
   // double a été confirmé au lancement : seul le seuil habituel redemande une confirmation.
-  const relance = await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, (reactiver) =>
+  const lancer = (reactiver: () => Promise<void>) =>
     sousVerrou(async () => {
       const d = depots();
       const t = await d.travaux.obtenir(id);
@@ -866,8 +882,13 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
       }
       await journaliser("fabrication", "Étape relancée", { type: "video", id: t.cibleId });
       return r;
-    }),
-  );
+    });
+  // GV-EC-01b : la reprise d'une ATTENTE DE VALIDATION ne repasse par aucun contrôle de budget ni de quota (commande de
+  // Williams comme commande de l'usine) : la réservation a été gardée, il n'y a rien à revérifier. Un vrai échec garde
+  // son contrôle d'avant.
+  const relance = enAttenteDeValidation(avant)
+    ? await lancer(() => reactiverReservations(id))
+    : await reactiverSelonOrigine(versionAvant?.commande.origine, id, restant, options.confirme, "Cette relance", { doubleDejaConfirme: true }, lancer);
   return versVue(relance);
 }
 
