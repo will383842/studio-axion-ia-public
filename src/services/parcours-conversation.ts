@@ -487,7 +487,7 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   // Borne de M1 avec lien : 1 000 unités de texte (texte.length), pas les 2 000 du dictionnaire ; au-delà, M1 v2.
   if (texte === null || texte.length > LONGUEUR_MAX_M1_LIEN || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
   // Empreinte du jeton réellement envoyé : c'est la `ref` que le site renverra à la validation de la page (jamais le jeton lui-même).
-  return { texte, version: choix.version, formulationLien: choix.version, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
+  return { texte, version: versionJeton, formulationLien: versionJeton, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
 
 async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {

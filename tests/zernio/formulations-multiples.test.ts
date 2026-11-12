@@ -136,6 +136,7 @@ describe("1 bis · liste des versions acceptées par le site (un seul fichier c�
     for (const v of F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[], v).toContain(v);
     for (const v of V_AR) expect(F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE).not.toContain(v);
     // aujourd'hui les 4 nouvelles ne sont PAS connues du site : elles sont en attente (ce test rougit si on les passe en « acceptées » sans le site)
+    // QUAND LE SITE CONNAÎTRA LES v4 : les ajouter à aides/versions-m1-jeton-site.ts ET retirer la ligne ci-dessous (ou la faire porter sur VERSIONS_M1_EN_ATTENTE_DU_SITE), sinon ce test reste rouge.
     for (const v of V_M1) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[]).not.toContain(v);
   });
   it("faux site sans aucune version connue : aucune v4 n'est acceptée, le message part SANS lien avec une alerte cloche, et l'état garde la formulation choisie", async () => {
@@ -385,17 +386,26 @@ describe("7 · formulation non validée = jamais envoyée (M1)", () => {
       const cle = cleConversation(A);
       tout[cle] = { ...tout[cle], versionTexteM1: "mp-m1-v3", formulations: undefined };
       await Com.ecrireParametre(C.PARAM_CONVERSATIONS, tout);
-      port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
+      // 2e passage : « a_reessayer » ; l'état écrit AVANT l'envoi garde l'identifiant du jeton (mp-m1-v3), pas mp-m1-v4-1.
       await passer(T0 + 3_600_000);
+      const milieu = await etatDe();
+      expect(milieu.versionTexteM1).toBe("mp-m1-v3");
+      expect(milieu.formulations["m1-lien"]).toBe("mp-m1-v3");
+      // 3e passage : « envoye » ; le nouvel essai repart AVEC lien, même identifiant de version, même texte.
+      port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
+      await passer(T0 + 7_200_000);
     } finally {
       VERSIONS_SITE_TEST.clear();
       for (const v of avant) VERSIONS_SITE_TEST.add(v);
     }
     const t = port.prive[port.prive.length - 1].texte;
+    expect(port.prive.length).toBe(3);
     const lien = t.slice(t.indexOf("https://"));
+    expect(lien).toContain("https://");
     expect(t).toBe(rendreM1("mp-m1-v4-1", lien));
     const charge = JSON.parse(Buffer.from(lien.split("?j=")[1].split(".")[0], "base64url").toString("utf8"));
     expect(charge.version_m1).toBe("mp-m1-v3");
+    expect((await etatDe()).versionTexteM1).toBe("mp-m1-v3");
   });
   it("(i) repli sans lien puis nouvel essai : la formulation avec lien choisie au 1er essai est gardée (formulations[\"m1-lien\"])", async () => {
     await deposerCommentaire(depots, {});
