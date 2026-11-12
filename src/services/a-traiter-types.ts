@@ -27,6 +27,8 @@ export interface CarteATraiter {
   statut: StatutATraiter;
   /** Réponse proposée, validée par `controlerTexteSortant`, sinon null. */
   kit: string | null;
+  /** La personne a demandé l'arrêt : AUCUNE action d'envoi, seulement classer la carte. Jamais d'identifiant ici. */
+  opposee?: boolean;
 }
 
 export interface EntreeATraiter {
@@ -38,6 +40,8 @@ export interface EntreeATraiter {
   motif: string;
   commentaire: string;
   reponse?: string | null;
+  /** Vrai si la personne a demandé l'arrêt : pas de réponse proposée. */
+  opposee?: boolean;
   creeLe?: string;
 }
 

@@ -10,7 +10,7 @@
  * extrait court du commentaire public (≤ 140 caractères, échappé), date, statut, kit de réponse validé par le contrôle de sortie.
  */
 import "server-only";
-import { ESPACE_CONTACT_ZERNIO, enregistrerOpposition, personneOpposee } from "./oppositions-mots";
+import { ESPACE_CONTACT_ZERNIO, enregistrerOpposition, personneOpposeePartout } from "./oppositions-mots";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import type { Canal } from "@/domaine/guide-reseau/origine-v3";
@@ -103,10 +103,11 @@ export function construireCarte(e: EntreeATraiter, horodatage: string): { ok: tr
   if (mot !== null && !RE_MOT.test(mot)) return { ok: false, code: "mot_invalide" };
   const lien = e.lienPost ?? null;
   if (lien !== null && !lienGuideValide(lien)) return { ok: false, code: "lien_invalide" };
-  const kit = e.reponse && controlerTexteSortant("reponse_publique", e.reponse).length === 0 ? e.reponse : null;
+  const opposee = e.opposee === true;
+  const kit = !opposee && e.reponse && controlerTexteSortant("reponse_publique", e.reponse).length === 0 ? e.reponse : null;
   return {
     ok: true,
-    carte: { idEvenement: e.idEvenement, reseau: e.reseau, post: e.post, lienPost: lien, mot, motif: e.motif, extrait: fabriquerExtrait(e.commentaire), creeLe: e.creeLe ?? horodatage, statut: "a_traiter", kit },
+    carte: { idEvenement: e.idEvenement, reseau: e.reseau, post: e.post, lienPost: lien, mot, motif: e.motif, extrait: fabriquerExtrait(e.commentaire), creeLe: e.creeLe ?? horodatage, statut: "a_traiter", kit, ...(opposee ? { opposee: true } : {}) },
   };
 }
 
@@ -175,7 +176,8 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   }
   let opposee = false;
   try {
-    opposee = await personneOpposee(c.idContact, ESPACE_CONTACT_ZERNIO);
+    // « Stop partout » : sans identifiant il n'y a personne à vérifier (comportement inchangé) ; avec, une opposition sur n'importe quel réseau suffit.
+    if (c.idContact) opposee = (await personneOpposeePartout({ idsBruts: [c.idContact] })).opposee;
   } catch {
     // Registre illisible : jamais « opposée ». Un « stop » est enregistré malgré tout ; le reste attend un nouvel essai.
     if (!estMotOpposition(c.mot)) return { issue: "reessai", raison: "registre_illisible" };
@@ -198,7 +200,8 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
 export async function lireVueATraiter(o: { env?: Env; depot?: DepotATraiter } = {}): Promise<VueATraiter> {
   if (!aTraiterActif(o.env ?? process.env)) return { etat: "desactive", cartes: [], compteur: null };
   try {
-    const cartes = cartesAFaire(await (o.depot ?? depotCourant).lire());
+    // Carte d'une personne opposée : jamais de réponse proposée, quoi qu'il y ait en dépôt.
+    const cartes = cartesAFaire(await (o.depot ?? depotCourant).lire()).map((c) => (c.opposee ? { ...c, kit: null } : c));
     return { etat: cartes.length ? "normal" : "vide", cartes, compteur: cartes.length };
   } catch {
     return { etat: "illisible", cartes: [], compteur: null };
@@ -210,17 +213,19 @@ export const compteurMenu = async (o: { env?: Env; depot?: DepotATraiter } = {})
   return n && n > 0 ? n : null;
 };
 
-async function changerStatut(id: string, statut: StatutATraiter, o: { env?: Env; depot?: DepotATraiter }): Promise<ResultatChangement> {
+async function changerStatut(id: string, statut: StatutATraiter, o: { env?: Env; depot?: DepotATraiter }, plus: Partial<CarteATraiter> = {}): Promise<ResultatChangement> {
   if (!aTraiterActif(o.env ?? process.env)) return { issue: "simule", raison: "interrupteur_eteint" };
   const depot = o.depot ?? depotCourant;
   return verrou(async () => {
     const cartes = await depot.lire();
     if (!cartes.some((c) => c.idEvenement === id)) return { issue: "refuse", raison: "carte_inconnue" };
-    await depot.ecrire(cartes.map((c) => (c.idEvenement === id ? { ...c, statut } : c)));
+    await depot.ecrire(cartes.map((c) => (c.idEvenement === id ? { ...c, statut, ...plus } : c)));
     return { issue: "execute", raison: statut };
   });
 }
 export const marquerCarteFaite = (id: string, o: { env?: Env; depot?: DepotATraiter } = {}) => changerStatut(id, "fait", o);
+/** La personne de cette carte a demandé l'arrêt : la carte n'offre plus aucun envoi. Rien n'est supprimé. */
+export const marquerCarteOpposee = (id: string, o: { env?: Env; depot?: DepotATraiter } = {}) => changerStatut(id, "a_traiter", o, { opposee: true, kit: null });
 export const ignorerCarte = (id: string, o: { env?: Env; depot?: DepotATraiter } = {}) => changerStatut(id, "ignore", o);
 
 /**
