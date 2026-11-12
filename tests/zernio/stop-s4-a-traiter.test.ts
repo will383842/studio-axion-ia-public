@@ -138,7 +138,7 @@ describe("mot commenté : « stop partout »", () => {
     );
     expect(ev.traite).toBe(false);
   });
-  it("outbox : sans identifiant de contact => rien ne part, réessai (fermé)", async () => {
+  it("outbox : sans identifiant de contact => rien ne part, écarté pour de bon (voir stop-s4-correctifs)", async () => {
     await deposer("evt_s4_c", "ct_x");
     const [ev] = await depots().evenementsFournisseurs.lister(
       (x) => x.idEvenement === "evt_s4_c",
@@ -149,7 +149,7 @@ describe("mot commenté : « stop partout »", () => {
     const vus = brancher();
     expect(
       await pm.traiterOutboxZernio({ env: ENV, maintenantMs: T0 }),
-    ).toMatchObject({ envoyes: 0, aReessayer: 1 });
+    ).toMatchObject({ envoyes: 0, aReessayer: 0, ecartes: 1 });
     expect(vus).toHaveLength(0);
   });
   it("outbox : non opposée => envoi inchangé", async () => {

@@ -10,7 +10,8 @@
  * extrait court du commentaire public (≤ 140 caractères, échappé), date, statut, kit de réponse validé par le contrôle de sortie.
  */
 import "server-only";
-import { ESPACE_CONTACT_ZERNIO, enregistrerOpposition, personneOpposeePartout } from "./oppositions-mots";
+import { ESPACE_CONTACT_ZERNIO, ESPACES_TOUS, enregistrerOpposition, personneOpposeePartout } from "./oppositions-mots";
+import { empreintePersonne, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { decisionPourMot } from "@/domaine/guide-reseau/decision-mot";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import type { Canal } from "@/domaine/guide-reseau/origine-v3";
@@ -122,6 +123,13 @@ export type ResultatEnregistrement =
   | { issue: "simule"; raison: "interrupteur_eteint" }
   | { issue: "refuse"; raison: RefusEntree };
 
+/** Empreintes opaques (jamais l'identifiant) ; null si pas d'identifiant ou clés absentes. */
+function empreintesDeContact(id: string | null | undefined): string[] | null {
+  if (!id) return null;
+  const c = lireClesEmpreinte(process.env);
+  return c.ok ? ESPACES_TOUS.map((e) => empreintePersonne(c.courante, e, id)) : null;
+}
+
 /** Point d'entrée du futur crochet (comment.received signé). Idempotent par identifiant d'événement. */
 export async function enregistrerATraiter(entree: EntreeATraiter, o: { env?: Env; depot?: DepotATraiter } = {}): Promise<ResultatEnregistrement> {
   if (!aTraiterActif(o.env ?? process.env)) return { issue: "simule", raison: "interrupteur_eteint" };
@@ -129,6 +137,9 @@ export async function enregistrerATraiter(entree: EntreeATraiter, o: { env?: Env
   return verrou(async () => {
     const r = construireCarte(entree, maintenant());
     if (!r.ok) return { issue: "refuse" as const, raison: r.code };
+    const empreintes = empreintesDeContact(entree.idContact);
+    if (empreintes) r.carte.empreintes = empreintes;
+    else if (entree.idContact) r.carte.kit = null; // empreintes impossibles à calculer : aucune réponse proposée
     const existantes = await depot.lire();
     if (existantes.some((c) => c.idEvenement === r.carte.idEvenement)) return { issue: "execute" as const, raison: "deja_present" as const };
     await depot.ecrire([...existantes, r.carte]);
@@ -177,7 +188,7 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   let opposee = false;
   try {
     // « Stop partout » : sans identifiant il n'y a personne à vérifier (comportement inchangé) ; avec, une opposition sur n'importe quel réseau suffit.
-    if (c.idContact) opposee = (await personneOpposeePartout({ idsBruts: [c.idContact] })).opposee;
+    if (c.idContact) opposee = (await personneOpposeePartout({ idsBruts: [c.idContact] }, { douteBloque: true })).opposee;
   } catch {
     // Registre illisible : jamais « opposée ». Un « stop » est enregistré malgré tout ; le reste attend un nouvel essai.
     if (!estMotOpposition(c.mot)) return { issue: "reessai", raison: "registre_illisible" };
@@ -187,9 +198,10 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   const d = decisionPourMot({ mot: c.mot, reseau: c.reseau, canal: c.canal, mots, opposee });
   if (d.action === "silence" && d.motif === "opposition" && c.idContact) await enregistrerOpposition(c.idContact, ESPACE_CONTACT_ZERNIO); // mise à l'écart, rien n'est supprimé
   if (d.action === "silence") return { issue: "execute", action: "silence", raison: d.motif };
-  if (d.action !== "a_traiter") return { issue: "execute", action: d.action, raison: "mot_connu", motRetenu: d.motRetenu };
+  // Sans identifiant, impossible de savoir si la personne s'est opposée : JAMAIS d'envoi, la carte va à la main (sans réponse proposée).
+  if (d.action !== "a_traiter" && c.idContact) return { issue: "execute", action: d.action, raison: "mot_connu", motRetenu: d.motRetenu };
   const r = await enregistrerATraiter(
-    { idEvenement: c.idEvenement, reseau: c.reseau === "linkedin_page" ? "linkedin" : c.reseau, post: c.post, mot: c.mot, motif: d.motif, commentaire: c.commentaire },
+    { idEvenement: c.idEvenement, reseau: c.reseau === "linkedin_page" ? "linkedin" : c.reseau, post: c.post, mot: c.mot, motif: d.action === "a_traiter" ? d.motif : "mot_manuel", commentaire: c.commentaire, idContact: c.idContact },
     { env: o.env, depot: o.depot },
   );
   if (r.issue === "refuse") return { issue: "refuse", raison: r.raison };
@@ -197,11 +209,22 @@ export async function orienterCommentaire(c: CommentaireAMot, o: { env?: Env; de
   return { issue: "execute", action: "a_traiter", raison: r.raison };
 }
 
+async function carteOpposee(c: CarteATraiter): Promise<boolean> {
+  if (c.opposee) return true;
+  if (!c.empreintes?.length) return false;
+  try {
+    return (await personneOpposeePartout({ empreintes: c.empreintes }, { douteBloque: true })).opposee;
+  } catch {
+    return true; // vérification impossible : fermé
+  }
+}
+
 export async function lireVueATraiter(o: { env?: Env; depot?: DepotATraiter } = {}): Promise<VueATraiter> {
   if (!aTraiterActif(o.env ?? process.env)) return { etat: "desactive", cartes: [], compteur: null };
   try {
     // Carte d'une personne opposée : jamais de réponse proposée, quoi qu'il y ait en dépôt.
-    const cartes = cartesAFaire(await (o.depot ?? depotCourant).lire()).map((c) => (c.opposee ? { ...c, kit: null } : c));
+    // Revérification à chaque lecture : opposée OU vérification impossible => carte « opposée » (aucun envoi proposé).
+    const cartes = await Promise.all(cartesAFaire(await (o.depot ?? depotCourant).lire()).map(async (c) => ((await carteOpposee(c)) ? { ...c, opposee: true, kit: null } : c)));
     return { etat: cartes.length ? "normal" : "vide", cartes, compteur: cartes.length };
   } catch {
     return { etat: "illisible", cartes: [], compteur: null };

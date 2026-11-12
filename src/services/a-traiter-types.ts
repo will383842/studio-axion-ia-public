@@ -29,6 +29,8 @@ export interface CarteATraiter {
   kit: string | null;
   /** La personne a demandé l'arrêt : AUCUNE action d'envoi, seulement classer la carte. Jamais d'identifiant ici. */
   opposee?: boolean;
+  /** Empreintes opaques de la personne (une par espace, jamais l'identifiant brut), pour revérifier l'opposition à la lecture. */
+  empreintes?: string[];
 }
 
 export interface EntreeATraiter {
@@ -42,6 +44,8 @@ export interface EntreeATraiter {
   reponse?: string | null;
   /** Vrai si la personne a demandé l'arrêt : pas de réponse proposée. */
   opposee?: boolean;
+  /** Identifiant opaque du contact : sert seulement à calculer les empreintes gardées dans la carte (jamais conservé). */
+  idContact?: string | null;
   creeLe?: string;
 }
 
