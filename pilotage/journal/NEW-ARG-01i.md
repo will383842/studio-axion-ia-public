@@ -5,3 +5,4 @@
 - Icône de reglages/page.tsx : non testée par rendu (page serveur lourde) ; changement d'une valeur littérale.
 - PILOTAGE : Credits.tsx ligne ~170, la saisie « Montant » sert à declarerRechargeAction (note la recharge, relance les vidéos en attente) ; gardée, saisie toujours convertie en dollars via le taux du réglage, unité non affichée. CreditClaude.tsx : le champ « Crédit du cycle » reste pré-rempli de la valeur enregistrée (un chiffre en saisie, pas un libellé) ; non retiré pour ne pas casser la saisie. Décision du fondateur utile : unité à indiquer ou non.
 - contrôle anti-fuite : vide
+- CORRECTIF du pilote (12/11) : les exceptions « prix » de Credits.tsx et CreditClaude.tsx sont retirées de outils/gardes/regles-de-fer.mjs, devenues périmées puisque ces écrans n'affichent plus de prix.
