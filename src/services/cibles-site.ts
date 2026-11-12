@@ -239,6 +239,8 @@ function phraseDuRefus(r: ReponseSite): string {
   if (r.statut === 404) return PHRASES_REFUS_SITE.introuvable;
   if (r.statut === 429) return PHRASES_REFUS_SITE.trop_de_requetes;
   if (r.statut === 401) return PHRASES_REFUS_SITE.signature_invalide;
+  // Erreur du site (5xx) sans code lisible : l'appel est parti, la demande a pu être enregistrée.
+  if (r.statut >= 500) return PHRASE_INCERTAIN;
   return PHRASE_INCONNUE;
 }
 
@@ -357,6 +359,7 @@ export const lierMot = (o: {
 /**
  * Délie un mot : la ligne est désactivée (actif=false), jamais supprimée.
  * Il faut envoyer la cible actuelle de la ligne : le site la remplace par celle reçue.
+ * Si la cible a été désactivée, le site refuse (cible_inactive) : relier d'abord le mot à une cible active, ou réactiver la cible, puis délier.
  */
 export const delierMot = (o: {
   env?: Env;

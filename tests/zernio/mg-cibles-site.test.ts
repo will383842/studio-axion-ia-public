@@ -10,6 +10,7 @@ import {
   ENTETE_NONCE,
   ENTETE_SIGNATURE,
   signatureValide,
+  signerAppel,
 } from "@/fournisseurs/site/signature";
 import {
   ENV_SITE_FICTIF,
@@ -23,6 +24,8 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const pm = await import("@/services/parcours-mot");
 const S = await import("@/services/cibles-site");
 
+const PHRASE_INCERTAIN_TEXTE =
+  "Le site n'a pas répondu à temps : la demande a peut-être été enregistrée. Réessayez, elle ne sera pas créée deux fois.";
 const T0 = Date.UTC(2026, 10, 12, 10, 0, 0);
 const MIN = 60_000;
 const H = 60 * MIN;
@@ -429,6 +432,9 @@ describe("délai de 3 s", () => {
       "Le site n'a pas répondu à temps : la demande a peut-être été enregistrée. Réessayez, elle ne sera pas créée deux fois.",
     );
     expect(r.code).toMatch(/^adr-[0-9a-f]{12}$/);
+    // Le premier appel est bien parti avec CE code (et le faux site l'a enregistré).
+    expect(JSON.parse(site.appels[0].corps).code).toBe(r.code);
+    const departCibles = site.cibles.length;
     vi.useRealTimers();
     pm.injecterTransportSite(site.transport);
     const r2 = await S.creerElementCatalogue({
@@ -440,7 +446,93 @@ describe("délai de 3 s", () => {
       code: r.code,
     });
     expect(r2.ok).toBe(true);
+    expect(JSON.parse(site.appels.at(-1)!.corps).code).toBe(r.code);
     expect(site.cibles.filter((c) => c.code === r.code)).toHaveLength(1);
+    // Le premier appel avait déjà créé la cible : le rejeu n'ajoute rien.
+    expect(site.cibles).toHaveLength(departCibles);
+  });
+
+  it("erreur 5xx sans code de refus connu : « peut-être enregistrée », pas « rien n'a été enregistré »", async () => {
+    site.etat.statutForce = 502;
+    site.etat.corpsForce = null;
+    const r = await S.creerElementCatalogue({
+      env,
+      maintenantMs: T0,
+      type: "adresse",
+      titre: "Page fictive E",
+      url: "https://exemple.test/page-e",
+    });
+    expect(site.appels).toHaveLength(1);
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.phrase).toBe(PHRASE_INCERTAIN_TEXTE);
+    expect(!r.ok && r.phrase).not.toContain("rien n'a été enregistré");
+  });
+
+  it("faux site : mêmes règles que le vrai (chemin PDF, préfixe du code, url sur un guide)", async () => {
+    const envoyer = async (corps: Record<string, unknown>) => {
+      const json = JSON.stringify(corps);
+      const chemin = "/api/interne/cibles-reseau";
+      const r = await site.transport({
+        methode: "POST",
+        chemin,
+        corps: json,
+        entetes: signerAppel({
+          secret: SECRET_FICTIF,
+          methode: "POST",
+          chemin,
+          corps: json,
+          horodatageSec: T0 / 1000,
+        }),
+      });
+      return r.corps;
+    };
+    const avant = site.cibles.length;
+    const base = { titre: "Cible fictive", type: "guide" };
+    expect(await envoyer({ ...base, code: "gde-abc123def456" })).toEqual({
+      ok: false,
+      erreur: "chemin_pdf_invalide",
+    });
+    expect(
+      await envoyer({
+        ...base,
+        code: "adr-abc123def456",
+        cheminPdf: "g/a.pdf",
+      }),
+    ).toEqual({ ok: false, erreur: "code_invalide" });
+    expect(
+      await envoyer({
+        ...base,
+        code: "adr-abc123def456",
+        type: "adresse",
+        url: "https://exemple.test/x",
+        cheminPdf: "g/a.pdf",
+      }),
+    ).toEqual({ ok: false, erreur: "adresse_sans_pdf" });
+    expect(
+      await envoyer({
+        ...base,
+        code: "gde-abc123def456",
+        cheminPdf: "g/a.pdf",
+        url: "https://exemple.test/x",
+      }),
+    ).toEqual({ ok: false, erreur: "guide_sans_adresse" });
+    expect(
+      await envoyer({
+        titre: "Cible fictive",
+        type: "adresse",
+        code: "gde-abc123def456",
+        url: "https://exemple.test/x",
+      }),
+    ).toEqual({ ok: false, erreur: "code_invalide" });
+    expect(site.cibles).toHaveLength(avant);
+    expect(
+      await envoyer({
+        ...base,
+        code: "guide-ia",
+        cheminPdf: "guides/depart.pdf",
+      }),
+    ).toMatchObject({ ok: true });
+    expect(site.cibles).toHaveLength(avant + 1);
   });
 
   it("« rien n'a été enregistré » seulement quand aucun appel n'est parti", async () => {
@@ -468,21 +560,26 @@ describe("délai de 3 s", () => {
 });
 
 describe("délier, code de départ, reprise après échec", () => {
-  it("délier après désactivation de la cible : on envoie la cible actuelle de la ligne, actif=false", async () => {
+  it("délier après désactivation de la cible : le site refuse (cible_inactive), la liaison reste active", async () => {
     site.cibles.find((c) => c.code === "gde-essai01")!.actif = false;
-    await S.delierMot({
+    const r = await S.delierMot({
       env,
       maintenantMs: T0,
       mot: "TOUS1",
       reseau: "tous",
       codeCible: "gde-essai01",
     });
+    expect(r).toEqual({ ok: false, phrase: PHRASES_REFUS_SITE.cible_inactive });
     expect(JSON.parse(site.appels.at(-1)!.corps)).toEqual({
       mot: "tous1",
       reseau: "tous",
       codeCible: "gde-essai01",
       actif: false,
     });
+    expect(
+      site.liaisons.find((l) => l.mot === "tous1" && l.reseau === "tous")
+        ?.actif,
+    ).toBe(true);
   });
 
   it("code de départ guide-ia accepté pour un guide, pas pour une adresse", async () => {
@@ -492,6 +589,7 @@ describe("délier, code de départ, reprise après échec", () => {
       type: "guide",
       titre: "Guide de départ",
       code: CODE_GUIDE_DEPART,
+      cheminPdf: "guides/depart.pdf",
     });
     expect(g).toEqual({ ok: true, code: "guide-ia" });
     expect(JSON.parse(site.appels.at(-1)!.corps).code).toBe("guide-ia");
