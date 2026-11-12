@@ -5,7 +5,7 @@
  * Rien ne part sans la validation du fondateur : ce service tient l'état du plan, il ne publie pas.
  */
 import "server-only";
-import type { Depot, JournalDecalage } from "@/domaine/depots";
+import type { Depot, DepotAjoutSeul, JournalDecalage } from "@/domaine/depots";
 import { cleEnvoi } from "@/domaine/envoi-planifie";
 import { transitionner, validerCreneau, heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { AuteurPlan, CreneauEditorial, StatutPlan } from "@/domaine/plan-editorial/types";
@@ -17,7 +17,8 @@ export type CreneauPlan = CreneauEditorial & { aRenvoyer?: boolean };
 
 export interface DepotsPlan {
   creneaux: Depot<CreneauPlan>;
-  journal: Depot<JournalDecalage>;
+  /** Ajout seul (comme le dépôt réel du Studio) : jamais modifié ni effacé. */
+  journal: DepotAjoutSeul<JournalDecalage>;
 }
 
 export type DonneesCreneau = Omit<CreneauEditorial, "statut" | "decalages">;

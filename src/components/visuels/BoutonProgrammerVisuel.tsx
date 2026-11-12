@@ -7,7 +7,7 @@ import "server-only";
 import { Bouton } from "@/components/ui/Bouton";
 import type { IdReseau } from "@/domaine/types";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
-import { formateurDate } from "@/lib/intl";
+import { cleJour } from "@/lib/dates";
 import { changerStatut, creerCreneau } from "@/services/plan-editorial";
 import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 
@@ -16,15 +16,8 @@ const HEURES: Partial<Record<IdReseau, string>> = { linkedin: "08:30", instagram
 const COMPTE_CIBLE = "compte-studio";
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Le jour (AAAA-MM-JJ) qu'il est à Paris à cet instant ISO : jamais le jour UTC. */
-export function jourDeParis(instant: string): string {
-  const p = Object.fromEntries(
-    formateurDate("en-GB", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" })
-      .formatToParts(new Date(instant))
-      .map((x) => [x.type, x.value]),
-  );
-  return `${p.year}-${p.month}-${p.day}`;
-}
+/** Le jour (AAAA-MM-JJ) qu'il est à Paris à cet instant ISO : jamais le jour UTC (`cleJour`, heure de Paris). */
+export const jourDeParis = (instant: string): string => cleJour(instant);
 
 /** Jour proposé par défaut : demain, à l'heure de Paris. */
 export function jourParDefautParis(instant: string): string {
@@ -42,7 +35,11 @@ export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, 
   if (!v.reseaux || v.reseaux.length === 0) throw new Error("Aucun réseau préparé : utiliser d'abord « Préparer pour les réseaux ».");
   const creneauId = `cre_${v.id}`;
   const existant = await d.creneaux.obtenir(creneauId);
-  if (!existant) {
+  if (existant) {
+    // Créneau déjà créé : l'heure peut être passée depuis le premier clic ; jamais de Publication « programmée » dans le passé.
+    const passes = Object.entries(existant.heuresParReseau).filter(([, h]) => Date.parse(h) <= Date.parse(maintenant)).map(([r]) => r);
+    if (passes.length > 0) throw new Error(`Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
+  } else {
     if (!JOUR.test(jour) || Number.isNaN(Date.parse(jour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
     if (jour < jourDeParis(maintenant)) throw new Error("Jour invalide : il est déjà passé.");
     const heuresParReseau: Partial<Record<IdReseau, string>> = {};
