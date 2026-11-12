@@ -1,0 +1,6 @@
+# NEW-ARG-01b : aucun montant affiché, lot b (6 fichiers)
+- Constat : EnCours, page d'accueil, Vitrine, fiche sujet et atelier ne rendent déjà aucun montant (prix passés à vide, JaugeBudget n'affiche qu'un pourcentage). Seul trou : `planFabricationNAction` renvoyait des prix formatés (« 12,34 € ») à FabricationReseaux.
+- Corrigé : `planFabricationNAction` renvoie des textes de prix vides ; `totalCentimes` et le calcul serveur restent intacts. Mentions « € » retirées des commentaires des trois fichiers de sujets. Aucun calcul, plafond ni donnée de coût touché ; aucun lancement bloqué.
+- Fichiers : actions.ts, atelier/page.tsx, sujets/[id]/page.tsx, tests/sans-prix/new-arg-01b.test.tsx (nouveau), ce journal. Aucun composant de src/components/ui touché. Signature de ConfirmationPrix inchangée.
+- Test : rouge avant (« 12,34 € » rendu), vert après. Tests voisins : 122 passés, 1 échec déjà présent sur la base (e2e1-restes-mineurs « fiche vidéo marque ESSAI », hors lot). tsc : 147 erreurs, identique sans mes changements. eslint : sans erreur.
+- Hors lot, à signaler : FabricationReseaux.tsx lit ces textes de prix (maintenant vides) ; la grep complète du motif reste à refaire pour les lots suivants.
