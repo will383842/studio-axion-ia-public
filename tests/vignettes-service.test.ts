@@ -129,6 +129,44 @@ describe("vignettes · service", () => {
     for (const d of recues) expect(d.parametres.couverture).toBe("");
   });
 
+  describe("réglage couverture.titreParDefaut (GV-VG-04)", () => {
+    const accroche = async (v: { id: string; formatId: string }, texte: string) => {
+      await depots().scripts.enregistrer({ id: "scr-vign", formatId: v.formatId, blocs: [{ id: "b1", blocRecette: "accroche", segments: [{ id: "s1", texte }] }] } as never);
+      await depots().videos.modifier(v.id, { scriptId: "scr-vign" });
+    };
+    const allumer = async () => (await import("@/services/_commun")).ecrireParametre("couverture.titreParDefaut", true);
+
+    it("éteint (ou faux) : couverture vide comme avant", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Votre amende de 135 € n'est pas définitive, contestez-la dans les 45 jours.");
+      await (await import("@/services/_commun")).ecrireParametre("couverture.titreParDefaut", false);
+      await fabriquer(v);
+      expect(recues[0].parametres).toMatchObject({ couverture: "", motCle: "" });
+      expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toBeUndefined();
+    });
+
+    it("allumé : un titre de 3 à 5 mots tiré de l'accroche, gardé sur la fiche", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Votre amende n'est pas définitive, contestez-la vite.");
+      await allumer();
+      await fabriquer(v);
+      const titre = String(recues[0].parametres.couverture);
+      const mots = titre.split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m));
+      expect(mots.length).toBeGreaterThanOrEqual(3);
+      expect(mots.length).toBeLessThanOrEqual(5);
+      expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: titre, fixee: false });
+    });
+
+    it("allumé, accroche avec un mot interdit : pas de titre", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Faites-le vous-même sans attendre");
+      await allumer();
+      await fabriquer(v);
+      expect(recues[0].parametres).toMatchObject({ couverture: "", motCle: "" });
+      expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toBeUndefined();
+    });
+  });
+
   it("saisir un titre pose le titre sur une NOUVELLE image (l'ancienne reste) ; le vider revient à l'image seule", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await fabriquer(v);

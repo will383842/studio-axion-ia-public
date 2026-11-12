@@ -17,7 +17,7 @@ import { fournisseurMiniatureSimulation } from "@/fournisseurs/simulation/autres
 import type { CouvertureMiniature, PropositionMiniature, SourceMiniature } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
 import { proposerCouverture } from "@/domaine/couverture-vignette";
-import { estImageVideo, GABARIT_IMAGE_VIDEO, GABARIT_IMAGE_VIDEO_RATIO, GABARITS_MINIATURE, INSTANT_PREMIERE_IMAGE_SEC, rangDeVideo } from "@/domaine/vignettes";
+import { estImageVideo, GABARIT_IMAGE_VIDEO, GABARIT_IMAGE_VIDEO_RATIO, GABARITS_MINIATURE, INSTANT_PREMIERE_IMAGE_SEC, interditsVignette, rangDeVideo, REGLAGE_TITRE_COUVERTURE } from "@/domaine/vignettes";
 import { depots, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre } from "./_commun";
 
 
@@ -77,8 +77,14 @@ async function choisirGabarit(): Promise<"r4" | "axion-v2" | typeof GABARIT_IMAG
 async function resoudreCouverture(video: Video, titre: string): Promise<{ couverture: CouvertureMiniature; aGarder?: { texte: string; motCle: string; fixee: false } }> {
   const fiche = video.couvertureVignette;
   if (fiche?.texte.trim()) return { couverture: { texte: fiche.texte.trim(), motCle: fiche.motCle.trim() || motCleCouverture(fiche.texte) } };
-  // Image de la vidéo (défaut) : le titre est OPTIONNEL, vide tant que Williams n'en saisit pas. Rien n'est proposé ni écrit.
-  if ((await choisirGabarit()) === GABARIT_IMAGE_VIDEO) return { couverture: { texte: "", motCle: "" } };
+  // Image de la vidéo (défaut) : le titre est OPTIONNEL, vide tant que Williams n'en saisit pas. Rien n'est proposé ni écrit,
+  // sauf si le réglage `couverture.titreParDefaut` est allumé : alors un titre court tiré de l'accroche (3 à 5 mots).
+  if ((await choisirGabarit()) === GABARIT_IMAGE_VIDEO) {
+    if ((await lireParametre<boolean>(REGLAGE_TITRE_COUVERTURE, false)) !== true) return { couverture: { texte: "", motCle: "" } };
+    const proposee = proposerCouverture(await accrocheDe(video), titre);
+    if (!proposee.texte.trim() || interditsVignette(proposee.texte).length) return { couverture: { texte: "", motCle: "" } };
+    return { couverture: proposee, aGarder: { ...proposee, fixee: false } };
+  }
   const variante = video.varianteId ? await depots().variantes.obtenir(video.varianteId) : null;
   // Le générateur ne borne pas sa couverture : elle passe par la même règle (5 mots au plus, coupée proprement).
   if (variante?.couverture?.texte.trim()) {
