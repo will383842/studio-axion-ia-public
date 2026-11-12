@@ -270,6 +270,17 @@ describe("5 · hors fenêtre de 24 h : rien n'est envoyé, l'accusé le dit", ()
     await passer(T0 + 1000);
     expect((await lireJournal())[ref(2)].issue).toBe("envoye");
   });
+  it("fenêtre fermée : conversation marquée « merci non envoyé : fenêtre fermée » + alerte cloche (sans push), une fois par heure", async () => {
+    await poserPersonne({ ageMs: 23 * H + 60_000 });
+    confirmer(ref(1));
+    await passer(T0);
+    await passer(T0 + 60_000);
+    expect(merciEnvoyes()).toHaveLength(0);
+    expect(await etatDe()).toMatchObject({ merciMotif: "merci non envoyé : fenêtre fermée" });
+    const n = (await notifs()).filter((x) => /merci non envoyé : fenêtre fermée/i.test(x.message));
+    expect(n).toHaveLength(1);
+    expect(n[0].envoi).toBeUndefined();
+  });
   it("date du dernier message dans le futur : fenêtre fermée", async () => {
     await poserPersonne({ ageMs: -3 * H });
     confirmer(ref(1));
