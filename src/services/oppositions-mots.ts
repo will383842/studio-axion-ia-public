@@ -4,6 +4,7 @@
  */
 import "server-only";
 import { candidatsEmpreinte, contientEnTempsConstant, empreinteHeritee, empreintePersonne, ErreurEmpreinteIndisponible, ErreurIdentifiantInvalide, lireClesEmpreinte, type EspacePersonne, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
+import { emettreJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { ETATS_EN_COURS } from "@/domaine/guide-reseau/etats-parcours";
 import { ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
 
@@ -250,4 +251,127 @@ export async function etatRegistreEmpreintes(o?: Options): Promise<{ lignesParKi
     }
   }
   return { lignesParKid, seulementParKid, heritees, kidsInconnus: [...inconnus].sort(), conversationsParKid, conversationsActivesParKid };
+}
+
+/** Les 5 espaces d'empreinte : une opposition vaut PARTOUT (voir `personneOpposeePartout`). */
+export const ESPACES_TOUS = [
+  "zernio-conversation",
+  "zernio-contact",
+  "evenement",
+  "instagram",
+  "facebook",
+] as const satisfies readonly EspacePersonne[];
+
+export interface PersonneAVerifier {
+  idsBruts?: readonly (string | null | undefined)[];
+  empreintes?: readonly string[];
+}
+export type VerdictPartout =
+  | { opposee: false; jeton: JetonNonOpposee }
+  | { opposee: true; source: "registre" | "etat" | "doute" };
+
+/** Message FIXE : jamais d'identifiant, d'empreinte ni de secret. */
+export class ErreurOppositionIllisible extends Error {
+  readonly code:
+    | "personne_inconnue"
+    | "registre"
+    | "conversations"
+    | "site_perime";
+  constructor(
+    code: "personne_inconnue" | "registre" | "conversations" | "site_perime",
+  ) {
+    super("Opposition illisible : la personne ne peut pas être vérifiée.");
+    this.name = "ErreurOppositionIllisible";
+    this.code = code;
+  }
+}
+
+interface ConversationLue {
+  etat?: unknown;
+  douteOpposition?: unknown;
+}
+const estObjet = (x: unknown): x is Record<string, unknown> =>
+  typeof x === "object" && x !== null && !Array.isArray(x);
+
+/**
+ * Cette personne s'est-elle opposée DANS N'IMPORTE QUEL espace, registre OU état de conversation ? LECTURE SEULE (aucune écriture,
+ * aucun alias, aucun verrou, aucun journal). FERMÉ : rien à vérifier, secret absent, registre ou conversations illisibles => on LÈVE.
+ * Toute erreur est propagée, jamais convertie en « non opposée ». NE JAMAIS appeler sous `sousVerrou`.
+ */
+export async function personneOpposeePartout(
+  p: PersonneAVerifier,
+  o?: Options & { maintenantMs?: number; douteBloque?: boolean },
+): Promise<VerdictPartout> {
+  const bruts = [
+    ...new Set(
+      (p.idsBruts ?? []).filter(
+        (x): x is string => typeof x === "string" && x.length > 0,
+      ),
+    ),
+  ];
+  const fournies = (p.empreintes ?? []).filter(
+    (x) => typeof x === "string" && x.length > 0,
+  );
+  if (bruts.length === 0 && fournies.length === 0)
+    throw new ErreurOppositionIllisible("personne_inconnue");
+  const c = cles(o);
+  const conv: unknown = await lireParametre<unknown>(
+    PARAM_CONVERSATIONS_ETAT,
+    {},
+  );
+  const alias: unknown = await lireParametre<unknown>(
+    `${PARAM_CONVERSATIONS_ETAT}.alias`,
+    {},
+  );
+  // Ordre : l'écrivain pose d'abord le registre PUIS l'état « oppose » ; on lit donc les conversations AVANT le registre.
+  const liste: unknown = await lireParametre<unknown>(
+    PARAM_OPPOSITIONS_MOTS,
+    [],
+  );
+  if (!Array.isArray(liste)) throw new ErreurOppositionIllisible("registre");
+  verifierKids(liste as LigneOpposition[], c);
+  if (!estObjet(conv) || !estObjet(alias))
+    throw new ErreurOppositionIllisible("conversations");
+
+  const candidats = new Set<string>(fournies);
+  for (const r of bruts) {
+    for (const e of ESPACES_TOUS)
+      for (const f of candidatsEmpreinte(c, e, r)) candidats.add(f);
+  }
+  // Table d'alias : alias -> clé de conversation. Une entrée peut aussi porter sa propre liste `alias`.
+  const propres = (k: string): string[] => {
+    const e = conv[k];
+    const l = estObjet(e) ? e.alias : undefined;
+    return Array.isArray(l)
+      ? l.filter((x): x is string => typeof x === "string")
+      : [];
+  };
+  const touchees = new Set<string>();
+  for (const k of Object.keys(conv))
+    if (candidats.has(k) || propres(k).some((x) => candidats.has(x)))
+      touchees.add(k);
+  for (const [a, cible] of Object.entries(alias)) {
+    if (!candidats.has(a)) continue;
+    if (typeof cible !== "string")
+      throw new ErreurOppositionIllisible("conversations");
+    if (Object.hasOwn(conv, cible)) touchees.add(cible);
+  }
+  let etat = false;
+  let doute = false;
+  for (const k of touchees) {
+    candidats.add(k);
+    for (const x of propres(k)) candidats.add(x);
+    for (const [a, cible] of Object.entries(alias))
+      if (cible === k) candidats.add(a);
+    const e = conv[k];
+    if (!estObjet(e)) throw new ErreurOppositionIllisible("conversations");
+    const ec = e as ConversationLue;
+    if (ec.etat === "oppose") etat = true;
+    if (ec.douteOpposition === true && o?.douteBloque === true) doute = true;
+  }
+  const dansRegistre = trouver(liste as LigneOpposition[], [...candidats]) >= 0;
+  if (etat) return { opposee: true, source: "etat" };
+  if (dansRegistre) return { opposee: true, source: "registre" };
+  if (doute) return { opposee: true, source: "doute" };
+  return { opposee: false, jeton: emettreJetonNonOpposee() };
 }
