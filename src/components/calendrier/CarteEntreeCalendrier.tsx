@@ -6,6 +6,8 @@ import type { EntreeCalendrier } from "@/domaine/calendrier";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { RESEAUX } from "@/reseaux";
+import { PictoReseau } from "./PictoReseau";
+import { couleurReseau } from "./couleurs-reseaux";
 import { PastilleStatutPlan, etatDepuisStatut, statutConnu, libelleEtat, type EtatAffiche, type TableLibelles, type TableStatuts } from "./PastilleStatutPlan";
 
 export type TypeContenu = "video" | "carrousel" | "infographie" | "image";
@@ -73,8 +75,10 @@ export function monogrammeReseau(reseau: IdReseau): string {
  * `--res-<réseau>` (ex. `--res-linkedin`). Tant que le jeton n'existe pas, le trait neutre s'applique.
  * Aucune couleur n'est écrite ici : définir les jetons suffit à colorer cartes, pastilles, couloirs et repères.
  */
-export function styleReseau(reseau: IdReseau): CSSProperties {
-  return { "--c": `var(--res-${reseau}, var(--trait-fort))` } as CSSProperties;
+export function styleReseau(reseau: IdReseau | string | null | undefined): CSSProperties {
+  const jeton = typeof reseau === "string" && reseauConnu(reseau) ? couleurReseau(reseau) : undefined;
+  if (!jeton) return { "--c": "var(--trait-fort)" } as CSSProperties;
+  return { "--c": `${jeton.slice(0, -1)}, var(--trait-fort))` } as CSSProperties;
 }
 
 /** Picto d'un réseau (monogramme). Décoratif : le nom du réseau est toujours écrit ou dit à côté. */
@@ -153,6 +157,8 @@ export interface ProprietesCarteEntreeCalendrier {
   verrouillee?: boolean;
   /** Affiche le repère « Trop proches » (voir AlerteProximite). */
   tropProche?: boolean;
+  /** Premier manque de la publication (CAL-08) : une seule icône d'alerte, discrète, dont l'infobulle le dit. */
+  alerte?: string;
   /** Rendu serveur : la carte est un lien. */
   href?: string | null;
   /** Rendu client : la carte est un bouton. */
@@ -164,11 +170,11 @@ export interface ProprietesCarteEntreeCalendrier {
  * Carte courte d'une publication : picto du réseau et heure, type (icône et libellé), état.
  * Le liseré de gauche prend la couleur du réseau (`--c`) ; l'état d'idée est en pointillé.
  */
-export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verrouillee, tropProche, href, onOuvrir, className }: ProprietesCarteEntreeCalendrier) {
+export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verrouillee, tropProche, alerte, href, onOuvrir, className }: ProprietesCarteEntreeCalendrier) {
   const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
   const heure = heureLisible(entree.heure);
   // Le libellé remplace le contenu pour un lecteur d'écran : le verrou et l'alerte y sont donc redits.
-  const libelle = [libelleCarte(entree, libellesEtat), verrouillee && "verrouillée", tropProche && "trop proche d'une autre publication"].filter(Boolean).join(", ");
+  const libelle = [libelleCarte(entree, libellesEtat), verrouillee && "verrouillée", tropProche && "trop proche d'une autre publication", alerte && `à compléter : ${alerte}`].filter(Boolean).join(", ");
   const classes = cn(
     "block w-full rounded-[9px] border border-l-[5px] border-trait border-l-[color:var(--c)] bg-surface-1 px-1.5 py-1 text-left shadow-carte transition-colors",
     entree.etat === "idee" && "border-dashed",
@@ -179,10 +185,15 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
   const contenu: ReactNode = (
     <>
       <span className="flex items-center gap-1.5">
-        <MonogrammeReseau reseau={entree.reseau} taille="sm" />
+        <PictoReseau reseau={entree.reseau} taille="sm" className="text-xs font-bold text-texte" />
         {heure && <span className="text-sm font-extrabold tabular-nums text-texte">{heure}</span>}
+        {alerte && (
+          <span data-alerte-carte title={alerte} className="ml-auto text-texte-doux">
+            <Icone nom="attention" size={12} />
+          </span>
+        )}
         {verrouillee && (
-          <span title="Verrouillée" className="ml-auto text-texte-faible">
+          <span title="Verrouillée" className={cn("text-texte-faible", !alerte && "ml-auto")}>
             <Icone nom="cadenas" size={12} />
           </span>
         )}

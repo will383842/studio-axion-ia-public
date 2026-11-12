@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Icone } from "./Icone";
 
@@ -18,7 +19,7 @@ export function etatEtape(index: number, courante: number): EtatEtape {
  * étape en cours en accent, étapes à venir en gris. Sur téléphone, seuls les ronds restent et la phrase de l'étape
  * courante s'affiche dessous. Aucune information par la couleur seule : numéro, coche et mot.
  */
-export function BarreEtapesCommune({ etapes, courante, libelle = "Étapes", className }: { etapes: EtapeCommune[]; courante: number; libelle?: string; className?: string }) {
+export function BarreEtapesCommune({ etapes, courante, libelle = "Étapes", className, onAller }: { etapes: EtapeCommune[]; courante: number; libelle?: string; className?: string; onAller?: (index: number) => void }) {
   return (
     <nav aria-label={libelle} className={cn("@container w-full", className)}>
       <ol className="flex items-center">
@@ -32,6 +33,7 @@ export function BarreEtapesCommune({ etapes, courante, libelle = "Étapes", clas
               aria-current={etat === "ici" ? "step" : undefined}
               className={cn("flex items-center gap-2 whitespace-nowrap font-bold", !dernier && "flex-1", etat === "a-venir" ? "text-texte-doux" : "text-texte", etat === "ici" && "font-extrabold")}
             >
+              <Rond actif={etat === "faite" && !!onAller} onClick={() => onAller?.(i)} nom={e.libelle}>
               <span
                 className={cn(
                   "grid size-[30px] flex-none place-items-center rounded-full text-[13px] font-extrabold",
@@ -42,6 +44,7 @@ export function BarreEtapesCommune({ etapes, courante, libelle = "Étapes", clas
               >
                 {etat === "faite" ? <Icone nom="coche" size={15} /> : i + 1}
               </span>
+              </Rond>
               <span className="hidden @[560px]:inline">{e.libelle}</span>
               <span className="sr-only">{etat === "faite" ? "(faite)" : etat === "ici" ? "(en cours)" : ""}</span>
               {!dernier && <span aria-hidden className={cn("mx-1.5 h-0.5 min-w-3.5 flex-1 rounded-sm @[560px]:mx-3", etat === "faite" ? "bg-sauge" : "bg-trait-fort")} />}
@@ -51,5 +54,16 @@ export function BarreEtapesCommune({ etapes, courante, libelle = "Étapes", clas
       </ol>
       <p className="mt-2.5 font-extrabold text-texte @[560px]:hidden">{etapes[courante]?.libelle}</p>
     </nav>
+  );
+}
+
+/** onAller : appelant client seulement (une fonction ne passe pas d'un composant serveur à un composant client).
+ * Une étape déjà faite reste cliquable quand la page sait revenir en arrière (cible de 44 px au téléphone). */
+function Rond({ actif, onClick, nom, children }: { actif: boolean; onClick: () => void; nom: string; children: ReactNode }) {
+  if (!actif) return <>{children}</>;
+  return (
+    <button type="button" onClick={onClick} aria-label={`Revenir à l'étape ${nom}`} className="-m-[7px] grid min-h-11 min-w-11 flex-none place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+      {children}
+    </button>
   );
 }

@@ -120,13 +120,16 @@ describe("vignettes · service", () => {
     expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: "Vos devis sans réponse", fixee: true });
   });
 
-  it("GV-FIN-02 · titre déjà sur la fiche : une panne de lecture du réglage ne fait pas échouer la couverture (pas de titreCentre)", { timeout: 60_000 }, async () => {
+  it("GV-N9 · titre sur la fiche : une panne de lecture du gabarit au moment du titre centré ne fait pas échouer la couverture, et titreCentre est absent", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
     const d = depots();
     const obtenir = d.parametres.obtenir.bind(d.parametres);
+    // Seule la PREMIÈRE lecture du gabarit tombe en panne : c'est celle de titreCentreImageVideo (appelée avant preparerSource,
+    // qui relit le gabarit sans protection, miniatures.ts, preparerSource). Les lectures suivantes réussissent.
+    let lecturesGabarit = 0;
     const espion = vi.spyOn(d.parametres, "obtenir").mockImplementation(async (id: string) => {
-      if (id === "couverture.titreParDefaut") throw new Error("panne de lecture des paramètres");
+      if (id === "miniature.gabarit" && lecturesGabarit++ === 0) throw new Error("panne de lecture du gabarit");
       return obtenir(id);
     });
     try {
@@ -134,9 +137,28 @@ describe("vignettes · service", () => {
     } finally {
       espion.mockRestore();
     }
+    expect(lecturesGabarit).toBeGreaterThanOrEqual(2);
     expect(recues).toHaveLength(1);
     expect(recues[0].parametres).toMatchObject({ couverture: "Vos devis sans réponse", motCle: "devis" });
     expect(recues[0].parametres).not.toHaveProperty("titreCentre");
+  });
+
+  it("GV-N1 · réglage éteint : un titre saisi à la main est centré comme le titre automatique", { timeout: 60_000 }, async () => {
+    const v = await vraieVideo();
+    await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
+    await fabriquer(v);
+    expect(recues).toHaveLength(1);
+    expect(recues[0].parametres.titreCentre).toBe(true);
+  });
+
+  it("GV-N1 · gabarit r4 forcé : un titre sur la fiche n'a pas de clé titreCentre", { timeout: 60_000 }, async () => {
+    const { GABARITS_MINIATURE } = await import("@/domaine/vignettes");
+    await (await import("@/services/_commun")).ecrireParametre("miniature.gabarit", GABARITS_MINIATURE[0]);
+    const v = await vraieVideo();
+    await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
+    await fabriquer(v);
+    expect(recues.length).toBeGreaterThan(0);
+    for (const r of recues) expect(r.parametres).not.toHaveProperty("titreCentre");
   });
 
   it("à la création, AUCUN titre n'est proposé ni écrit, même avec un script (champs vides par défaut)", { timeout: 60_000 }, async () => {

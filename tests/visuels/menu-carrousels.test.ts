@@ -140,7 +140,7 @@ describe("/contenus : rendu", () => {
   const grille = renderToStaticMarkup(createElement(GrilleContenus, { vue: calculerVueContenus(JEU, filtres), params, filtres }));
 
   it("les 3 familles sont affichées dans les filtres, avec leur nombre ; l'URL garde le filtre réseau", () => {
-    for (const mot of ["Vidéos", "Images", "Carrousels"]) expect(barre).toContain(mot);
+    for (const mot of ["Vidéos", "Infographies", "Carrousels"]) expect(barre).toContain(mot);
     expect(barre).toContain('href="/contenus?reseau=instagram&amp;type=video"');
     expect(barre).toContain('href="/contenus?reseau=instagram&amp;type=image"');
     expect(barre).toContain('href="/contenus?reseau=instagram&amp;type=carrousel"');

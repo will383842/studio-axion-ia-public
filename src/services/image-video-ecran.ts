@@ -516,7 +516,7 @@ export type IssueRepriseIV = { statut: "reprise" } | { statut: "accord-requis"; 
 export interface DependancesGestesIV {
   travail?: (videoId: Id) => Promise<Travail | null>;
   validerCarte?: (videoId: Id, e: { carte?: CarteImage }) => Promise<unknown>;
-  validerScript?: (videoId: Id, e: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV> }, accord?: AccordPrix) => Promise<unknown>;
+  validerScript?: (videoId: Id, e: { fiche?: FicheImage; choixFormules?: Record<string, ChoixFormule>; ajoutsWill?: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean }, accord?: AccordPrix) => Promise<unknown>;
   reessayer?: (travailId: Id, accord?: AccordPrix) => Promise<unknown>;
 }
 
@@ -564,7 +564,7 @@ export async function validerCarteEtReprendre(videoId: Id, carte: CarteImage | u
 /** « Valider et fabriquer » (écran 3) : `accord` = le prix affiché et confirmé. */
 export async function validerScriptEtReprendre(
   videoId: Id,
-  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV> },
+  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean },
   accord: AccordPrix | undefined,
   dep: DependancesGestesIV = {},
 ): Promise<IssueRepriseIV> {

@@ -23,7 +23,7 @@ function Barre({ libelle, pct }: { libelle: string; pct: number }) {
         <span className="tabular-nums text-texte">{Math.round(pct)}</span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-        <div className="h-full rounded-full bg-orange" style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
       </div>
     </div>
   );
@@ -128,7 +128,7 @@ export function DetailsValeur({ valeur, vignette }: { valeur: ValeurElement; vig
             <Chiffre valeur={valeur.transitions} libelle="transitions" />
           </div>
           {valeur.bruitagesTransitions && (
-            <Pastille ton="orange" icone="volume" taille="md">
+            <Pastille ton="neutre" icone="volume" taille="md">
               Bruitages aux transitions
             </Pastille>
           )}

@@ -35,8 +35,6 @@ export const EXCEPTIONS = {
     "src/components/generateur/FicheSujet.tsx": 1,
     "src/components/personnages/OngletVoix.tsx": 1,
     "src/components/prononciations/useEcoute.ts": 1,
-    "src/components/reglages/CreditClaude.tsx": 2,
-    "src/components/reglages/Credits.tsx": 1,
     "src/components/reglages/montants-euros.ts": 3,
     "src/components/ui/JaugeBudget.tsx": 1,
     "src/components/ui/index.ts": 1

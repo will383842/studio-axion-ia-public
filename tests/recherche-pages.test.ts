@@ -22,11 +22,12 @@ describe("pagesTrouvees", () => {
     expect(hrefs("commentaires")).toContain("/mots");
     expect(hrefs("réponses")).toContain("/mots");
   });
+  // R8a (décision de Williams, 12/11) : les animations sont regroupées dans Bibliothèque › Animations.
   it("Veille, Outils motion design, Mesures et Résultats mènent à la bonne page", () => {
     expect(hrefs("veille")).toContain("/veille");
     expect(hrefs("nouveautés")).toContain("/veille");
-    expect(hrefs("motion")).toContain("/outils-motion");
-    expect(hrefs("animations")).toContain("/outils-motion");
+    expect(hrefs("motion")).toContain("/bibliotheque/animations?onglet=studio");
+    expect(hrefs("animations")).toContain("/bibliotheque/animations?onglet=studio");
     expect(hrefs("mesures")).toContain("/mesures");
     expect(hrefs("résultats")).toContain("/mesures");
     expect(hrefs("nouvelle")).toContain("/nouvelle");
