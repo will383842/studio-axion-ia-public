@@ -64,4 +64,32 @@ describe("sourceIdeesReelle", () => {
     const source = sourceIdeesReelle({ actif: true, porte: async () => { throw new Error("hors service fictif"); } });
     expect(await source.tirer(30)).toEqual([]);
   });
+
+  it("correction après relecture : parts et textes mal formés sont écartés", async () => {
+    const bons = faux(1, 100);
+    const mauvais: unknown[] = [
+      { signature: "m1", parts: [], textes: { metier: "x" } },
+      { signature: "m2", parts: { metier: 42 }, textes: { metier: "x" } },
+      { signature: "m3", parts: { metier: "a" }, textes: { metier: "x", douleur: {} } },
+      { signature: "m4", parts: { metier: "a" }, textes: { metier: "x", taille: 3 } },
+      { signature: "m5", parts: { metier: "a" }, textes: ["x"] },
+    ];
+    const source = sourceIdeesReelle({ actif: true, porte: async () => [...mauvais, ...bons, { signature: "ok-null", parts: { metier: null }, textes: { metier: "x" } }] });
+    const r = await source.tirer(30);
+    expect(r.map((c) => c.signature)).toEqual(["essai-100", "ok-null"]);
+  });
+
+  it("correction après relecture : doublon jugé après trim", async () => {
+    const un = { parts: {}, textes: { metier: "x" } };
+    const source = sourceIdeesReelle({ actif: true, porte: async () => [{ ...un, signature: "a" }, { ...un, signature: "a " }] });
+    expect(await source.tirer(5)).toHaveLength(1);
+  });
+
+  it("correction après relecture : tirer(2.5) demande 2 à la porte", async () => {
+    const porte = vi.fn(async (n: number) => faux(n));
+    const source = sourceIdeesReelle({ actif: true, porte });
+    await source.tirer(2.5);
+    expect(porte).toHaveBeenCalledWith(2);
+    expect(await source.tirer(0.5)).toEqual([]);
+  });
 });
