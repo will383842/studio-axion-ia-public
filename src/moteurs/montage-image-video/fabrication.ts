@@ -40,7 +40,7 @@ import { adapterCarteAutomatiquement } from "@/domaine/image-video/analyste/chai
 import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
-import type { DeclencheurBruitage } from "@/domaine/types";
+import type { DeclencheurBruitage, SegmentSousTitres } from "@/domaine/types";
 import { AXES_VARIETE, codeDe, tirablesDe, type AxeVariete, type FormatIV, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { MesuresExport } from "@/briques/controle-image";
 import { cleBruitage, idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
@@ -62,6 +62,7 @@ import { chapitresDetachables } from "./recettes";
 import { ecrireScriptColleIV, manquementsDuScriptColle } from "./script-colle";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
 import { verdictReseau } from "./reseaux";
+import { sousTitresVariesIV } from "./sous-titres-varies";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
 import { recetteEffectiveIV } from "./variete/historique";
@@ -262,6 +263,8 @@ export interface RenduFaitIV {
   empreinte?: string;
   dureeSec: number;
   mesures?: MesuresExport;
+  /** Sous-titres réellement dessinés (variés), calculés sur la même ligne que la demande de rendu : le .srt en est tiré. Absent pour un rendu d'avant. */
+  sousTitres?: SegmentSousTitres[];
   /** Empreinte de la demande rendue (ligne de temps + mixage) : un rendu d'une autre demande n'est pas repris. */
   demande: string;
 }
@@ -1692,7 +1695,7 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
         throw err2;
       }
     }
-    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
+    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), sousTitres: sousTitresVariesIV(ligne), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
     return e;
   }
