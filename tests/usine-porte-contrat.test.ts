@@ -2,6 +2,8 @@
  * Contrat croisé de la porte (v1 actuelle) : le Studio lit le jeu de fixtures de l'usine (copie fictive, empreinte sha256)
  * et vérifie que son client dit et lit exactement les mêmes champs. Toute divergence de champ fait échouer ce test.
  * Aucun réseau : `fetch` est une doublure.
+ * Empreinte : sha256 de la concaténation, pour chaque fichier .json trié par nom, de « nom, saut de ligne, contenu, saut de
+ * ligne ». Même algorithme des deux côtés ; la valeur attendue est inscrite ci-dessous : changer le jeu oblige à la changer ici.
  */
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
@@ -12,6 +14,8 @@ const porte = await import("@/services/usine-porte");
 const { lireIdeesUsine, lireMetiersUsine } = await import("@/domaine/usine");
 import type { OrigineUsine } from "@/domaine/usine";
 
+/** Empreinte du jeu de la porte publié par l'usine (RC-09). À mettre à jour ICI à chaque nouveau jeu. */
+const EMPREINTE_ATTENDUE = "cf947b9ae1e743f95f151544ae5d9172d5aa15a516f07b6d22ca133200107890";
 const DOSSIER = new URL("./fixtures/usine-porte/", import.meta.url);
 const lire = <T>(nom: string): T => JSON.parse(readFileSync(new URL(nom, DOSSIER), "utf8")) as T;
 
@@ -32,7 +36,9 @@ describe("fixtures de la porte · empreinte", () => {
   it("l'empreinte sha256 du jeu copié est celle de l'usine (nom + contenu, fichiers triés)", () => {
     const h = createHash("sha256");
     for (const nom of readdirSync(DOSSIER).filter((n) => n.endsWith(".json")).sort()) h.update(nom + "\n" + readFileSync(new URL(nom, DOSSIER), "utf8") + "\n");
-    expect(h.digest("hex")).toBe(readFileSync(new URL("EMPREINTE.sha256", DOSSIER), "utf8").trim());
+    const calculee = h.digest("hex");
+    expect(calculee).toBe(readFileSync(new URL("EMPREINTE.sha256", DOSSIER), "utf8").trim());
+    expect(calculee, "le jeu n'est plus celui publié par l'usine : recopier le nouveau jeu ET son empreinte").toBe(EMPREINTE_ATTENDUE);
   });
 
   it("le jeu ne contient aucune adresse hors @exemple.fr ni aucune clé réelle", () => {
@@ -62,6 +68,35 @@ describe("contrat croisé · demande de sujets", () => {
       expect(idees[i].parts).toEqual(l.parts);
     });
     expect(idees[0].douleur).toContain("relances");
+  });
+
+  it("le Studio lit TOUS les champs de la première ligne de la fixture (valeur attendue complète)", () => {
+    expect(lireIdeesUsine(sujets.reponse)[0]).toEqual({
+      signature: "compta.cabinet-fictif|TPE|formation|d-retards|cas-fictif-01||video-court|scène vécue",
+      parts: { metier: "compta.cabinet-fictif", taille: "TPE", service: "formation", douleur: "d-retards", cas_usage: "cas-fictif-01", actualite: null, format: "video-court", structure: "scène vécue" },
+      metier: "Cabinet comptable (fictif)",
+      taille: "Petite structure",
+      service: "Formation",
+      douleur: "Les relances partent trop tard.",
+      casUsage: "Relances triées · Le tri se fait seul.",
+      sujet: undefined,
+      format: "Vidéo courte",
+      famille: "scène vécue",
+      fin: "Dites-le en commentaire.",
+    });
+  });
+
+  it("chaque champ que le Studio lit existe dans chaque ligne de la fixture (un renommage fait échouer)", () => {
+    for (const l of sujets.reponse.lignes as Record<string, any>[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      expect(typeof l.metier?.libelle, "metier.libelle").toBe("string");
+      expect(typeof l.taille?.libelle, "taille.libelle").toBe("string");
+      expect(typeof l.service?.libelle, "service.libelle").toBe("string");
+      expect(typeof l.format?.libelle, "format.libelle").toBe("string");
+      expect(typeof l.accroche?.famille, "accroche.famille").toBe("string");
+      expect(typeof l.douleur?.dite, "douleur.dite").toBe("string");
+      expect(typeof l.cas_usage?.ce_que_ca_change, "cas_usage.ce_que_ca_change").toBe("string");
+      for (const [reseau, fin] of Object.entries((l.fins ?? {}) as Record<string, { dit?: unknown }>)) expect(typeof fin?.dit, `fins.${reseau}.dit`).toBe("string");
+    }
   });
 
   it("le Studio envoie le secret en Bearer exact, sur la bonne route", async () => {
@@ -120,6 +155,8 @@ describe("contrat croisé · erreurs et retenues échouées", () => {
     const f = vi.fn();
     expect(porte.usineActive({ USINE_URL: "https://usine.test", USINE_PORTE_SECRET: secrets.court })).toBe(false);
     expect(porte.usineActive({ USINE_URL: "https://usine.test" })).toBe(false);
+    await expect(porte.listerMetiersUsine({ env: { USINE_URL: "https://usine.test", USINE_PORTE_SECRET: secrets.court }, fetchImpl: F(f) })).rejects.toMatchObject({ code: "USINE_ETEINTE" });
+    await expect(porte.listerMetiersUsine({ env: { USINE_URL: "https://usine.test" }, fetchImpl: F(f) })).rejects.toMatchObject({ code: "USINE_ETEINTE" });
     expect(f).not.toHaveBeenCalled();
   });
 
