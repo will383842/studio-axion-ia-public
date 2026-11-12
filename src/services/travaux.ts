@@ -15,6 +15,7 @@ import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, depenseDesEtapes, fin
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
 import { phraseLisible } from "@/lib/erreur-lisible";
+import { phraseDEchec } from "@/domaine/phrase-echec";
 import { nouvelId } from "@/lib/ids";
 import { additionner } from "@/lib/montants";
 import { commandeEnEssai, moteurDeCommande } from "@/moteurs";
@@ -634,7 +635,7 @@ export async function ecrirePanne(lu: InstantaneTravail, erreur: unknown, instan
     const erreurTravail = {
       code: definitive ? "FOURNISSEUR_REFUS" : "FOURNISSEUR_INDISPONIBLE",
       reessayable: true,
-      messagePourWill: definitive ? (pourWill ?? "Un outil a refusé cette étape. Vous pouvez réessayer.") : "Un outil est resté indisponible pendant 24 h. Vous pouvez réessayer.",
+      messagePourWill: (definitive && pourWill) || phraseDEchec({ outil: nomFournisseur(fournisseurDeLErreur(erreur, t.fournisseurUtilise)), message, definitive }),
       detailTechnique: message,
     };
     const travail: Travail = {
