@@ -15,6 +15,7 @@ import {
   centreSousTitresCasConcret,
   centreSousTitresHautPct,
   REGLAGES_SOUS_TITRES_CAS_CONCRET,
+  SURLIGNAGE_CAS_CONCRET,
   surlignageCasConcret,
   variationSousTitresCasConcret,
   type TirageSousTitres,
@@ -159,7 +160,7 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     expect(d.compositionsSoumises().map((c) => c.parametres)).toEqual(temoin.compositionsSoumises().map((c) => c.parametres));
   });
 
-  it("GV-ST-02 : variante supprimée par défaut, l'empreinte du montage ne dépend plus du tirage", async () => {
+  it("l'empreinte du montage suit la variation (même hauteur) ; en v4 elle reste celle d'avant", async () => {
     const ids = async (mise?: Mise) => {
       const d = doubles();
       if (mise) d.options.outils.variete = variete(mise);
@@ -170,11 +171,11 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     expect(await ids({ version: TIRAGE_V4.version, tirage: TIRAGE_V4, ecrans: {} })).toEqual(sans);
     const surligne = await ids(mettre({ ...TIRAGE_V4, sousTitres: { ...TIRAGE_V4.sousTitres, accent: "surlignage" } }, []));
     const calme = await ids(mettre({ ...TIRAGE_V4, sousTitres: { ...TIRAGE_V4.sousTitres, intensite: "calme" } }, []));
-    expect(surligne).toEqual(sans);
-    expect(calme).toEqual(sans);
+    for (const autre of [surligne, calme]) autre.forEach((id, i) => expect(id).not.toBe(sans[i]));
+    expect(calme).not.toEqual(surligne);
   });
 
-  it("inverse + vif + surlignage + haute : le tirage est noté, mais le calque reste celui de la v4", async () => {
+  it("inverse + vif + surlignage + haute : le calque les reçoit, sans rien poser en haut", async () => {
     const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
     const d = doubles();
     d.options.outils.variete = variete(mettre(tirage, []));
@@ -183,9 +184,23 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
     const cs = calques(d);
     expect(cs.length).toBeGreaterThan(0);
     for (const c of cs) {
-      expect(c.surlignage).toBeUndefined();
-      expect(c.positions.milieuPct).toBe(centreSousTitresPleineImagePct());
+      expect(c.surlignage).toEqual(SURLIGNAGE_CAS_CONCRET);
+      expect(c.positions.milieuPct).toBe(centreSousTitresHautPct());
       expect(c.segments.some((s) => s.position === "haut")).toBe(false);
+      const premier = c.segments.find((s) => s.style === "impact");
+      if (premier) expect(premier.inclinaison).toBeLessThan(0);
+    }
+  });
+
+  it("GV-ST-02 : tirage NEUF (rien d'hérité) : variante coupée, calque de la v4 quel que soit le tirage", async () => {
+    const d = doubles();
+    d.options.outils.variete = { lireHistorique: async () => [], ajouter: async () => undefined };
+    await fabriquerCasConcret(d.options);
+    const cs = calques(d);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(85.33);
     }
   });
 });
