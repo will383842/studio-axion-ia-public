@@ -55,10 +55,10 @@ import { COULEURS_DUO, VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo
 import type { BruitagePlace } from "@/briques/intensite/types";
 import { avancerCartesMotion, cartesMotionFinies, ErreurSceneRatee, etatInitialCartesMotion, type EtatCartesMotion } from "@/briques/motion/rendu-cartes";
 import type { CarteFormat } from "@/briques/motion/pourFormat";
-import { fabriquerSousTitres } from "@/briques/sous-titres";
+import { baseRetenue, fabriquerSousTitres, positionsVerticales } from "@/briques/sous-titres";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 import { substituerPrononciations } from "@/domaine/prononciations";
-import type { MediaCommande, SegmentSousTitres, ValeurDecor, ValeurStyleSousTitres } from "@/domaine/types";
+import type { BaseSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurStyleSousTitres } from "@/domaine/types";
 import { BANDE_SOUS_TITRES_CAS_CONCRET, FIN_APRES_DERNIER_MOT_SEC, TEMPO_VOIX, type ReseauCas } from "@/formats/cas-concret";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { surTitreDuCas } from "@/formats/cas-concret/recette";
@@ -82,7 +82,7 @@ import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsC
 import { textesDePublication, type TextePublication } from "./publication";
 import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
-import { centreSousTitresHautPct, surlignageCasConcret, variationSousTitresCasConcret } from "./sous-titres-variete";
+import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret } from "./sous-titres-variete";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
 import { avancerVoixCasConcret, empreintePriseVoix, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
@@ -190,6 +190,13 @@ export interface OptionsFabricationCasConcret {
   personnageId?: string;
   /** Lot R2 : plan de scènes (motion sur mesure) pour les écrans d'interface, de chiffres et d'accents. Absent (par défaut) : écrans inchangés. `appeler` absent : pièces du stock seulement. */
   planScenes?: { appeler?: AppelClaude };
+  /**
+   * GV-ST-02 : style de sous-titres choisi (`commande.styles.sousTitres`, choix de la vidéo ou étoile du format). Il fait
+   * loi ; absent (ou `null`) : « Charte duo » comme la v4.
+   */
+  styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null;
+  /** GV-ST-02 : base des sous-titres de la commande (`commande.sousTitres?.base`), lue seulement si un style est choisi. */
+  baseSousTitres?: BaseSousTitres;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -1048,11 +1055,24 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const ecransRepris = suivi.etapes.some((e) => e.etape === "ecrans" && e.statut === "reprise");
 
   // 7. Finitions : une composition complète par fin.
-  // L3b : hauteur et accent des sous-titres tirés (`mise.tirage.sousTitres`) ; « v4 » ou aucune mise : la v4 exacte.
-  const centre = mise?.tirage.sousTitres.hauteur === "haute" ? centreSousTitresHautPct() : centreSousTitresPleineImagePct();
-  const style = { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres) } };
-  // L3b : la variation des sous-titres entre dans l'empreinte du montage (rien en v4 : empreinte inchangée).
-  const variationDuMontage = [variationSousTitresCasConcret(mise?.tirage.sousTitres), surlignageCasConcret(mise?.tirage.sousTitres)].filter((x) => Object.keys(x).length);
+  // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
+  const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
+  // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
+  const positionDuStyle = (v: ValeurStyleSousTitres): number => {
+    if (v.positionPct !== undefined) return v.positionPct;
+    if (v.position === "centre") return centreSousTitresPleineImagePct();
+    const zones = positionsVerticales(RATIO, [...new Set(calage.fins.flatMap((cf) => cf.fin.reseaux))]);
+    return v.position === "haut" ? zones.hautPct : zones.basPct;
+  };
+  const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres);
+  const style = choisi
+    ? { id: choisi.id, nom: choisi.nom, valeur: { ...choisi.valeur, positionPct: centre, largeurMaxPct: choisi.valeur.largeurMaxPct ?? LARGEUR_SOUS_TITRES_PCT } }
+    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres) } };
+  const baseSousTitres = choisi ? baseRetenue(o.baseSousTitres, choisi.valeur) : "minimal";
+  // Le style choisi (identifiant, valeur, base) entre dans l'empreinte du montage ; sans choix rien n'est ajouté (empreinte v4 inchangée).
+  const variationDuMontage = choisi
+    ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
+    : [variationSousTitresCasConcret(mise?.tirage.sousTitres), surlignageCasConcret(mise?.tirage.sousTitres)].filter((x) => Object.keys(x).length);
   const emphase = [...new Set(calage.fiche.ecrans.flatMap(motsOrange))];
   const bruitagesDe = new Map<string, BruitagePlace[]>();
   const preparees = calage.fins.map((cf) => {
@@ -1069,7 +1089,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage);
     return { f, son, scenes, dureeSec, bruitages, texteScript, cle, clairs };
   });
-  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: "minimal", occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...variationSousTitresCasConcret(mise?.tirage.sousTitres) });
+  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...(choisi ? {} : variationSousTitresCasConcret(mise?.tirage.sousTitres)) });
   const montage = await etape("montage", empreinte("montage", preparees.map((x) => x.cle)), async () => {
     const faites: { id: string; sortieCle: string; masterCle?: string; vignetteCle: string; mesures: Record<string, number> }[] = [];
     for (const x of preparees) {
