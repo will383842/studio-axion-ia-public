@@ -85,11 +85,12 @@ import { GEOMETRIE_INCRUSTATIONS_PAR_DEFAUT } from "@/briques/composition/recett
 import { REDUCTION_LARGE_PAR_DEFAUT } from "@/briques/composition/scene";
 import { parametresComposition, type EntreeComposition } from "@/briques/composition/parametres";
 import { fabriquerSousTitres } from "@/briques/sous-titres";
+import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { COULEURS_VIDEO } from "@/briques/habillage/charte-video";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, IntensiteSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurProfilSon, ValeurStyleSousTitres } from "@/domaine/types";
-import { bandeDe, bandeDuCalque, bornerDansLaBande, emphaseTableau, groupesTableau, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
+import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
 import { calerFicheTableau, type ElementCale } from "./calage";
 import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau } from "./controles";
 import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTableau, type SceneTableau } from "./fiche";
@@ -636,9 +637,12 @@ export interface ScenePosee {
  * groupes d'avant. PUR.
  */
 export function segmentsSousTitresTableau(o: { c: CommandeFabrication; st: SousTitresTableau; dynamiques: boolean; texte: string; dureeSec: number; mots?: MotHorodate[]; prononciations?: readonly { mot: string; prononciation: string }[]; ratio: Ratio; reseaux: IdReseau[]; scenes: readonly ScenePosee[]; mise: MiseEnPageTableau; dureeVideoSec?: number; supplements?: Partial<EntreeComposition>; emphase?: readonly string[] }): SegmentSousTitres[] {
-  // Mots importants : la règle unique de la brique centrale (emphase du script si elle existe, sinon mots forts du texte dit).
-  const emphase = emphaseTableau({ texte: o.texte, ...(o.mots ? { mots: o.mots } : {}), ...(o.emphase ? { emphaseScript: o.emphase } : {}), motsEnValeur: o.st.motsEnValeur });
-  const brutes = fabriquerSousTitres({ texte: o.texte, dureeSec: o.dureeSec, ...(o.mots ? { mots: o.mots } : {}), prononciations: [...(o.prononciations ?? [])], emphase, style: o.c.styles.sousTitres?.valeur, base: o.c.sousTitres?.base ?? "karaoke", ratio: o.ratio, reseaux: o.reseaux });
+  const brutes0 = fabriquerSousTitres({ texte: o.texte, dureeSec: o.dureeSec, ...(o.mots ? { mots: o.mots } : {}), prononciations: [...(o.prononciations ?? [])], style: o.c.styles.sousTitres?.valeur, base: o.c.sousTitres?.base ?? "karaoke", ratio: o.ratio, reseaux: o.reseaux });
+  // Mots importants : la règle commune AVEC son plafond, sur les seuls groupes non verrouillés, recollés dans l'ordre.
+  const libres = brutes0.filter((s) => !s.verrouille);
+  const marques = o.st.motsEnValeur ? marquerMotsImportants(libres, { emphaseScript: o.emphase ?? [] }).segments : libres;
+  let suivant = 0;
+  const brutes = brutes0.map((s) => (s.verrouille ? s : marques[suivant++]));
   if (!o.dynamiques) return brutes;
   const coupesSec = o.scenes.slice(1).map((s) => s.debutSec);
   // Mélange central avec les garde-fous du tableau (toujours dans la bande, jamais sur la page).
