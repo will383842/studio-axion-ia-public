@@ -618,7 +618,7 @@ export function BlocCout({ donnees, nbFormats, onEconomique }: { donnees: Apercu
             </p>
           )}
           {onEconomique && (
-            <Interrupteur icone="euro" libelle="Mode économique" detail="Banques gratuites seulement, rien n'est fabriqué" coche={illus.economique} onChange={onEconomique} className="mt-2" />
+            <Interrupteur icone="jauge" libelle="Mode économique" detail="Banques gratuites seulement, rien n'est fabriqué" coche={illus.economique} onChange={onEconomique} className="mt-2" />
           )}
         </div>
       )}
