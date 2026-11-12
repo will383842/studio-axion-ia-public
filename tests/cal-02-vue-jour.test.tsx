@@ -182,11 +182,12 @@ describe("CAL-02 : bascule Semaine | Mois", () => {
     expect(h).toContain("Retour à la semaine");
   });
 
-  it("depuis la semaine et le mois, la bascule garde la date demandée", async () => {
+  it("depuis la semaine, la bascule vers le mois garde la date ; depuis le mois, elle garde les filtres", async () => {
     const s = await rendre({ vue: "semaine", date: "2026-12-09" });
     expect(s).toContain('href="/calendrier?vue=mois&amp;date=2026-12-09"');
-    const m = await rendre({ vue: "mois", date: "2026-12" });
-    expect(m).toContain('href="/calendrier?vue=semaine&amp;date=2026-12-01"');
+    const f = await rendre({ vue: "mois", date: "2026-12", reseaux: "linkedin" });
+    expect(f).toContain('href="/calendrier?reseaux=linkedin"');
+    expect(f).toContain('href="/calendrier?vue=mois&amp;date=2026-11&amp;reseaux=linkedin"');
   });
 
   it("la vue Jour s'ouvre par un clic sur un jour du mois", async () => {
