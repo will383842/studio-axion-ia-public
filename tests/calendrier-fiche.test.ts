@@ -270,8 +270,10 @@ describe("verrou du jour passé, à l'heure de Paris", () => {
   it("aujourd'hui se modifie jusqu'à 23 h 59 à Paris, plus à minuit", async () => {
     await creneau("c1", { jourVise: AUJOURDHUI, heuresParReseau: { linkedin: "2026-11-11T08:00:00Z" } });
     vi.setSystemTime(new Date("2026-11-11T22:59:59Z")); // 23:59:59 à Paris
+    await ouvrirSession();
     expect(await enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Dernière minute." })).toMatchObject({ ok: true });
     vi.setSystemTime(new Date("2026-11-11T23:00:00Z")); // minuit à Paris, encore le 11 en temps universel
+    await ouvrirSession();
     const r = await enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Trop tard." });
     expect(r).toMatchObject({ ok: false, code: "FICHE_VERROUILLEE" });
     expect(r.ok ? "" : r.message).toBe("Ce jour est passé : cette publication n'est plus modifiable.");
@@ -311,6 +313,18 @@ describe("saisie vide, illisible ou hors limite", () => {
       expect([cle, l.ok]).toEqual([cle, false]);
     }
     expect(await ecritures()).toBe(avant);
+  });
+
+  it("un réseau du créneau sans heure n'est pas une entrée : introuvable", async () => {
+    await creneau("c1", { heuresParReseau: { linkedin: "2026-11-12T08:00:00Z", facebook: "" } });
+    expect(await enregistrerFicheEntreeAction("creneau:c1|facebook", { texte: "Texte." })).toMatchObject({ ok: false, code: "FICHE_INTROUVABLE" });
+    expect(await depots().parametres.obtenir("calendrier.fiche.creneau:c1|facebook")).toBeNull();
+  });
+
+  it("la réponse brute de l'outil de publication n'est jamais recopiée dans la fiche", async () => {
+    await publication("p1", { statut: "echec", etatEnvoi: "refuse", erreur: "Réponse technique fictive 422" });
+    const lue = await lireFicheEntreeAction("publication:p1|linkedin");
+    expect(lue.ok && JSON.stringify(lue.donnees)).not.toContain("422");
   });
 
   it("une publication demandée sous un autre réseau que le sien est introuvable", async () => {
@@ -423,7 +437,8 @@ describe("composant FicheEntree", () => {
   const base: EntreeFiche = { cle: "creneau:c1|linkedin", jour: DEMAIN, reseau: "linkedin", type: "video", etat: "a_valider", heure: "09:00", texte: "Deux entreprises, même métier.", premierCommentaire: "Combien de temps pour répondre à un devis chez vous ?" };
   const action = async () => {};
   const rendre = (p: Partial<Parameters<typeof FicheEntree>[0]> = {}) => renderToStaticMarkup(createElement(FicheEntree, { entree: base, aujourdhui: AUJOURDHUI, action, ...p }) as ReactElement);
-  const lisible = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+  // Le petit script que React joint à un formulaire n'est pas lu par une personne : il est écarté.
+  const lisible = (html: string) => html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<[^>]*>/g, " ").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
   const zone = (html: string, nom: string) => new RegExp(`<textarea[^>]*name="${nom}"[^>]*>`).exec(html)?.[0] ?? "";
 
   it("montre le réseau, le type, la date à l'heure de Paris, l'état, le texte et le premier commentaire", () => {
