@@ -133,6 +133,7 @@ export const GROUPE_M1_LIEN = "m1-lien" satisfies GroupeMp;
 export function m1AvecLien(v: string | null | undefined): boolean {
   if (v == null) return false;
   // Messages de renvoi avec lien (groupes « deja-envoye » et « lien-rappel ») : eux non plus ne déclenchent pas M2.
+  // TODO : remplacer par l'appartenance à GROUPES_MP['deja-envoye'] et ['lien-rappel'] quand le groupe existera dans le dictionnaire (PR Studio #343).
   return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-") || v.startsWith("mp-lien-v3-");
 }
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
@@ -330,7 +331,11 @@ export type DecisionCommentaire =
   | { action: "demarrer" }
   | {
       action: "public_seul";
-      raison: "en_cours" | "plafond_personne" | "deja_envoye";
+      raison:
+        | "en_cours"
+        | "plafond_personne"
+        | "deja_envoye"
+        | "doute_opposition";
     }
   | { action: "renvoyer"; groupe: "deja-envoye" | "lien-rappel" };
 
@@ -342,16 +347,17 @@ export function cibleLivree(r: Pick<Conversation, "etat">): boolean {
   return r.etat === "guide_demande" || r.etat === "termine";
 }
 
-/** Date d'envoi du premier message : `m1Le`, ou `creeLe` pour `m1_a_verifier`. `null` si aucune date lisible. */
+/** Date d'envoi du premier message : `m1Le`, ou `creeLe` pour `m1_a_verifier` et `m1_consommee` (sans `m1Le`). `null` si aucune date lisible. */
 function dateEnvoi(c: Conversation): number | null {
-  return c.etat === "m1_a_verifier"
+  return c.etat === "m1_a_verifier" || c.etat === "m1_consommee"
     ? (dateLue(c.m1Le) ?? dateLue(c.creeLe))
     : dateLue(c.m1Le);
 }
 
 /**
+ * L'appelant doit tenir un verrou par racine : deux commentaires traités en même temps verraient tous deux D vide.
  * Décision pour un commentaire en mode allumé. T = tout le dossier de la personne, D = sa partie pour la cible du commentaire.
- * Ordre : R0 opposition › R1 même commentaire › R2 cible vide › R3 en cours › R4 refus récent › R5 livrée / non livrée ›
+ * Ordre : R0 opposition › R1 même commentaire › doute d'opposition (public seul, jamais d'envoi privé) › R2 cible vide › R3 en cours › R4 refus récent › R5 livrée / non livrée ›
  * R7 renvoi périmé › R6 plafond par personne (avant tout démarrer / renvoyer).
  */
 export function deciderCommentaire(
@@ -367,6 +373,9 @@ export function deciderCommentaire(
     return meme.etat.etat === "nouveau" || meme.etat.etat === "pub_ok"
       ? { action: "reprendre" }
       : { action: "silence", raison: "deja_traite" };
+  // Un doute sur une demande d'arrêt, sur n'importe quelle cible de la personne : jamais de message privé.
+  if (T.some((x) => x.etat.douteOpposition === true))
+    return { action: "public_seul", raison: "doute_opposition" };
 
   const ouvrir = (): DecisionCommentaire => {
     if (ev.ageMs > DELAI_PERIME_MS) return { action: "perime" };
@@ -375,6 +384,7 @@ export function deciderCommentaire(
       : { action: "demarrer" };
   };
   const plafondAtteint = (): boolean =>
+    !Number.isFinite(o.plafondPersonneJour) || // plafond illisible : atteint, par prudence
     T.filter((x) => {
       const t = dateEnvoi(x.etat);
       return t !== null && ev.maintenantMs - t < DELAI_PERIME_MS;
@@ -399,7 +409,9 @@ export function deciderCommentaire(
       (a, b) => (dateLue(a.etat.creeLe) ?? 0) - (dateLue(b.etat.creeLe) ?? 0),
     )[D.length - 1];
     const refus =
-      dernier.etat.etat === "m1_refuse" ? dateLue(dernier.etat.refuseLe) : null;
+      dernier.etat.etat === "m1_refuse"
+        ? dateLue(dernier.etat.refuseLe ?? dernier.etat.creeLe)
+        : null;
     if (refus !== null && ev.maintenantMs - refus < DELAI_PERIME_MS)
       return { action: "public_seul", raison: "deja_envoye" };
     return ouvrir();
@@ -417,7 +429,7 @@ export function deciderCommentaire(
 /**
  * Parcours à qui rattacher un message privé. Ordre : le `guide_demande` dont `idMessageGuide` est ce message › le plus récent
  * (`m1Le ?? creeLe`) du même compte dans un état de ETATS_MESSAGE_ACCEPTES › le plus récent du même compte › le plus récent tout court.
- * `tous` = les parcours du même compte. `principal` est `null` si le dossier est vide.
+ * `tous` = les parcours du même compte. `principal` est `null` si `tous` est vide (aucun repli sur un autre compte).
  */
 export function choisirParcoursPourMessage(
   dossier: readonly EntreeParcours[],
@@ -441,7 +453,6 @@ export function choisirParcoursPourMessage(
         x.etat.etat === "guide_demande" && x.etat.idMessageGuide === idMessage,
     ) ??
     recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat))) ??
-    recent(tous) ??
-    recent(dossier);
+    recent(tous); // dossier sans parcours de ce compte : null, jamais un parcours d'un autre compte
   return { principal, tous };
 }

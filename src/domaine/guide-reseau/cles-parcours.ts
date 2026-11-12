@@ -39,6 +39,18 @@ export function dossierDe(
     .map((cle) => ({ cle, etat: conv[cle] }));
 }
 
+/** Cible d'un enregistrement : son `guide` ; absent ou vide (enregistrement ANCIEN) = `guide-ia`. `titreCible` n'est qu'un libellé, il ne désigne pas la cible. */
+const cibleDe = (c: Conversation): string =>
+  typeof c.guide === "string" && c.guide !== "" ? c.guide : "guide-ia";
+
+/** Partie D d'un dossier T : les enregistrements dont la cible est `guide`. Fonction pure. */
+export function partieCible(
+  T: readonly EntreeDossier[],
+  guide: string,
+): EntreeDossier[] {
+  return T.filter((x) => cibleDe(x.etat) === guide);
+}
+
 /** Alias de la personne : ceux de l'enregistrement ANCIEN (clé = racine) + les entrées de la table d'alias qui pointent vers la racine. */
 export function aliasDe(
   racine: string,
