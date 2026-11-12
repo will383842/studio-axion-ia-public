@@ -40,7 +40,6 @@ import { OptionsPayantes } from "@/components/reglages/OptionsPayantes";
 import { optionsPayantesCoupees } from "@/services/options-payantes";
 import { ChoixChaineEcriture } from "@/components/reglages/ChoixChaineEcriture";
 import { etatProduction } from "@/services/etat-production";
-import { lireParametre } from "@/services/_commun";
 import { lireChaineReglee } from "@/services/chaine-ecriture";
 import { InterrupteursEcriture } from "@/components/reglages/InterrupteursEcriture";
 import { lireInterrupteursEcriture } from "@/services/interrupteurs-ecriture";
