@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({ id: "s1" })) }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { reinitialiserDepots } from "@/donnees/memoire";
 import { MOTS_INTERDITS_ECRAN } from "@/domaine/libelles";
 import { analyserImport, importerPublications } from "@/app/(studio)/calendrier/importer/actions";
@@ -85,7 +86,7 @@ describe("lecture du fichier (analyse)", () => {
     expect((await analyserImport({ texte: 42 as unknown as string })).ok).toBe(false);
   });
   it("date passée ou future : avertissement, jamais une erreur ; le passé se confirme", async () => {
-    const a = await analyserImport({ texte: "2026-11-01;09:00;linkedin;passé\n2030-01-08;09:00;linkedin;futur lointain" });
+    const a = await analyserImport({ texte: "2026-11-03;09:00;linkedin;passé\n2030-01-08;09:00;linkedin;futur lointain" });
     expect(a.ok).toBe(true);
     expect(a.avertissements.map((x) => [x.numero, x.type])).toEqual([[1, "passe"]]);
   });
@@ -118,7 +119,7 @@ describe("importer : tout ou rien, contrôle lus = créés", () => {
     expect(await d.creneauxEditoriaux.lister()).toHaveLength(0);
   });
   it("le passé avertit sans écrire, puis « importer quand même » écrit", async () => {
-    const texte = `2026-11-01;09:00;linkedin;passé\n${ligne(3)}`;
+    const texte = `2026-11-03;09:00;linkedin;passé\n${ligne(3)}`;
     const r = await importerPublications({ texte, compteCible: COMPTE, cle: "kp" });
     expect(r).toMatchObject({ ok: false, aConfirmer: true });
     expect(r.ok === false && r.avertissements?.some((x) => x.type === "passe")).toBe(true);
@@ -173,10 +174,10 @@ describe("importer : tout ou rien, contrôle lus = créés", () => {
 describe("écran", () => {
   const mots = (html: string) => html.replace(/<[^>]*>/g, " ").toLowerCase();
   it("le bouton « Importer » est inactif seulement sur une erreur de format (ou rien à importer)", () => {
-    const ok = { ok: true, lus: 2, lignes: [], erreurs: [], avertissements: [] };
+    const ok = { ok: true, lus: 2, lignes: [], erreurs: [] as { numero: number; message: string }[], avertissements: [] as { numero: number; type: "passe"; message: string }[] };
     expect(importerInactif(ok)).toBe(false);
-    expect(importerInactif({ ...ok, avertissements: [{ numero: 1, type: "passe" as const, message: "passé" }] })).toBe(false);
-    expect(importerInactif({ ...ok, ok: false, erreurs: [{ numero: 2, message: "Jour invalide." }] })).toBe(true);
+    expect(importerInactif({ ...ok, avertissements: [{ numero: 1, type: "passe", message: "passé" }] })).toBe(false);
+    expect(importerInactif({ ...ok, erreurs: [{ numero: 2, message: "Jour invalide." }] })).toBe(true);
     expect(importerInactif(null)).toBe(false);
   });
   it("la feuille montre le champ de collage, le choix d'un fichier et un bouton « Importer » actif au départ", () => {
@@ -184,7 +185,7 @@ describe("écran", () => {
     expect(html).toContain("Importer");
     expect(html).toMatch(/<textarea/);
     expect(html).toMatch(/type="file"/);
-    expect(html).not.toMatch(/<button[^>]*disabled[^>]*>\s*Importer/);
+    expect(html).toMatch(/<button(?![^>]*\sdisabled[=\s>])[^>]*>\s*Importer/);
   });
   it("aucun libellé interdit, aucun montant, aucune mention de message automatique", async () => {
     const feuille = mots(renderToStaticMarkup(createElement(FeuilleImportPlan, { compteCible: COMPTE })));
