@@ -25,6 +25,7 @@ on:
       - "src/moteurs/montage-demo-facecam/**"
       - "src/moteurs/montage-tutoriel-outil/**"
       - "src/moteurs/montage-vitrines/**"
+      - "src/moteurs/montage-cas-concret/**"
       - "src/briques/sous-titres/**"
       - "src/briques/motion/**"
       - "src/briques/schema-motion/**"
@@ -57,6 +58,7 @@ jobs:
     outputs:
       tests: ${{ steps.liste.outputs.tests }}
       rendu: ${{ steps.liste.outputs.rendu }}
+      deps-rendu: ${{ steps.liste.outputs.deps-rendu }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,6 +95,10 @@ jobs:
           zone '^src/moteurs/montage-tutoriel-outil/' tests/tutoriel-outil
           zone '^src/moteurs/montage-demo-facecam/' src/moteurs/montage-demo-facecam
           zone '^src/moteurs/montage-vitrines/' src/moteurs/montage-vitrines
+          # Cas concret : tests-cibles lance déjà une dizaine de fichiers (variete, ecriture, suivi, script-valide, sujets-traites) et
+          # tests-scripts lance x4 ; on lance le reste du dossier, en excluant ces fichiers à l'étape de test.
+          # montage-tableau : tests/tableau est déjà lancé en entier par tests-scripts, rien à ajouter ici.
+          zone '^src/moteurs/montage-cas-concret/' tests/cas-concret
           zone '^src/briques/sous-titres/' src/briques/sous-titres tests/sous-titres-*.test.ts
           zone '^src/(lib/lut3d|donnees/luts-axion)\.ts$|^studio-rendu/src/lut\.ts$' tests/luts.test.ts tests/apercu-lut.test.ts
           zone '^src/(services/miniatures|domaine/vignettes|services/travaux\.ts)' tests/vignettes-*.test.ts tests/r4-miniatures*.test.ts
@@ -104,6 +110,13 @@ jobs:
           sort -u filtres.txt > filtres-uniques.txt
           echo "Filtres de test retenus :"; cat filtres-uniques.txt
           echo "tests=$(tr '\n' ' ' < filtres-uniques.txt)" >> "$GITHUB_OUTPUT"
+
+          # Les tests de ces zones importent studio-rendu/… : il faut y installer ses dépendances (hors espace de travail pnpm).
+          if grep -Eq 'tests/(facecam-animee|image-video|cas-concret)' filtres-uniques.txt; then
+            echo "deps-rendu=oui" >> "$GITHUB_OUTPUT"
+          else
+            echo "deps-rendu=non" >> "$GITHUB_OUTPUT"
+          fi
 
           if [ "$EVENEMENT" != "pull_request" ] || grep -q '^studio-rendu/' modifies.txt; then
             echo "rendu=oui" >> "$GITHUB_OUTPUT"
@@ -127,12 +140,37 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/setup-node@v4
+        if: needs.zones.outputs.deps-rendu == 'oui'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: studio-rendu/package-lock.json
+      - name: Dépendances de studio-rendu
+        if: needs.zones.outputs.deps-rendu == 'oui'
+        working-directory: studio-rendu
+        run: npm ci --ignore-scripts
       - name: Tests de la zone
         env:
           FILTRES: ${{ needs.zones.outputs.tests }}
         run: |
           # $FILTRES est volontairement non guillemeté : une liste de morceaux de chemin séparés par des espaces.
-          pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile=rapport-vitest.json $FILTRES || true
+          pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile=rapport-vitest.json \
+            --exclude '**/node_modules/**' \
+            --exclude 'tests/cas-concret/variete/variete.test.ts' \
+            --exclude 'tests/cas-concret/variete/l6.test.ts' \
+            --exclude 'tests/cas-concret/variete/maquettes-par-canal.test.ts' \
+            --exclude 'tests/cas-concret/variete/part-v4-centree.test.ts' \
+            --exclude 'tests/cas-concret/variete/structure-chaine.test.ts' \
+            --exclude 'tests/cas-concret/variete/fiche-et-chaine.test.ts' \
+            --exclude 'tests/cas-concret/variete/habillage.test.ts' \
+            --exclude 'tests/cas-concret/ecriture/ecriture.test.ts' \
+            --exclude 'tests/cas-concret/suivi/suivi.test.ts' \
+            --exclude 'tests/cas-concret/suivi/numero-suivi-unique.test.ts' \
+            --exclude 'tests/cas-concret/sujets-traites/controle-sujet.test.ts' \
+            --exclude 'tests/cas-concret/variete-scripts/**' --exclude 'tests/cas-concret/script-valide/**' \
+            --exclude 'tests/cas-concret/x4/**' \
+            $FILTRES || true
           # Résumé lisible sans ouvrir les journaux : tests lancés, échecs, 30 premiers fichiers en échec.
           node -e '
             const r = JSON.parse(require("fs").readFileSync("rapport-vitest.json", "utf8"));
