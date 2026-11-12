@@ -58,6 +58,22 @@ describe("L3-01 · carrousel → ContenuSource", () => {
     expect(verifierFaits("Plus de 80 artisans, formés.", ["80 artisans"])).toEqual([]);
   });
 
+  it("un fait n'est pas accepté comme morceau d'un nombre à milliers ou à virgule (200 vs 1 200, 80 vs 80,5)", () => {
+    expect(verifierFaits("Plus de 1 200 clients", ["200 clients"])).toEqual(["200 clients"]);
+    expect(verifierFaits("Plus de 1\u00a0200 clients", ["200 clients"])).toEqual(["200 clients"]);
+    expect(verifierFaits("Plus de 1\u202f200 clients", ["200 clients"])).toEqual(["200 clients"]);
+    expect(verifierFaits("Plus de 1 200 clients", ["1 200 clients"])).toEqual([]);
+    expect(verifierFaits("Plus de 1200 clients", ["1 200 clients"])).toEqual([]);
+    expect(verifierFaits("Taux de 80,5 % sur l'année", ["80"])).toEqual(["80"]);
+    expect(verifierFaits("Taux de 80,5 % sur l'année", ["5 %"])).toEqual(["5 %"]);
+    expect(verifierFaits("Taux de 80 % sur l'année", ["80 %"])).toEqual([]);
+  });
+
+  it("la ponctuation finale d'un fait est ignorée (« Pas de 12 jours. »)", () => {
+    expect(verifierFaits("Pas de 12 jours", ["Pas de 12 jours."])).toEqual([]);
+    expect(verifierFaits("Pas de 12 jours, jamais", ["Pas de 12 jours !"])).toEqual([]);
+  });
+
   it("texteDesPages ne garde que les textes lus (ni type, ni icône)", () => {
     const t = texteDesPages(carrousel);
     expect(t.split("\n")).toContain("Relancer dérange le client");
