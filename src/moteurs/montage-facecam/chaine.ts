@@ -30,12 +30,13 @@ import { appliquerZooms, controlerRealisation, realiser, type PisteVisage, type 
 import type { FournisseurAlignement } from "@/fournisseurs/types";
 import { appliquerAlignement, demandeAlignement } from "@/briques/calage/alignement";
 import { horodaterMotsPrononces } from "@/briques/calage/report";
+import type { SourceMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { avancerDeclinaisons, avancerHabillagesFormats, bandeAvecDeclinaisons, declinaisonsFinies, habillagesFormatsRegles, preparerDeclinaisons, preparerHabillagesFormats, type EtatDeclinaisons } from "./declinaisons";
 import { avancerCompositions, type BaseComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu } from "@/fournisseurs/types";
 import { multicameraPourComposition, type PisteMulticamera } from "@/briques/multicamera";
-import { corrigerMots, habillageFacecam, type CartePosee, type HabillageFacecam } from "./habillage";
+import { corrigerMots, emphaseDuScript, habillageFacecam, type CartePosee, type HabillageFacecam } from "./habillage";
 import { ajustementsAuMontage, priseVersMonteeGardes, type AjustementCarteAutoMonte, type CarteAutoVue } from "./cartes-video";
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
@@ -53,6 +54,7 @@ import { MESSAGE_EFFET_RATE, planAvecEffets, plansLargesPendant, selonEffetsReal
 import { effetDuPassage } from "./monteur/effet-realiste";
 import type { ControleCouleurs } from "@/briques/composition/scene";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import type { MemoireCartesAuto } from "@/briques/habillage-facecam";
 import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generateurs/video";
 import { couleursBloquent, MESSAGE_COULEURS, pairesCouleurs } from "./garde-couleurs";
 
@@ -82,6 +84,8 @@ export interface SuiviTravail {
 
 export interface EtatChaine {
   version: string;
+  /** GV-MD-05b : historique des cartes figé au premier habillage ; une reprise ou une retouche refait le même choix. */
+  memoireCartes?: MemoireCartesAuto;
   travaux: Partial<Record<CleTravailChaine, SuiviTravail>>;
   coupes?: {
     mode: "texte" | "libre";
@@ -174,6 +178,8 @@ export interface EtatHabillage {
   effets?: EffetChaine[];
   /** Vérif V1 : cartes automatiques posées (livrées dans `entrees.facecam.cartesAuto`, vues par le monteur du chat). */
   cartesAuto?: CarteAutoFacecam[];
+  /** GV-ST-10 : d'où viennent les mots colorés des sous-titres, et les mots désignés dans le script (vide : aucun). */
+  motsImportants?: { source: SourceMotsImportants; emphase?: string[] };
 }
 
 /** Lot G : fenêtre 9:16 du décor dans la SOURCE (px) : le passage extrait, retouché puis reposé à cette taille. */
@@ -223,6 +229,8 @@ export interface ResultatDecorChaine {
 
 export interface DependancesChaine {
   facecam: FournisseurFacecam;
+  /** GV-MD-05b : historique des cartes des dernières vidéos, lu une fois au premier habillage puis figé dans l'état ; absent : choix d'avant. */
+  memoireCartes?: () => Promise<MemoireCartesAuto>;
   /** Adresse signée de lecture d'une clé R2 (réel) ; ignorée en simulation. */
   urlLecture?: (cle: string) => Promise<string>;
   /** Adresse signée de dépôt (PUT) d'une clé R2 (réel) ; ignorée en simulation. */
@@ -896,15 +904,21 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       const cartesAuto = ajustementsAuMontage(lireReglagesMonteur(c.entrees).cartesAuto, (s) => priseVersMonteeGardes(s, gardes));
       // V6 P0 n° 9 : les effets spéciaux occupent leur passage (aucune carte automatique dessus).
       const occupes = (etat.monteur?.effets ?? []).filter((p) => p.finSec > p.debutSec).map((p) => ({ debutSec: p.debutSec, finSec: p.finSec }));
+      // GV-MD-05b : historique des cartes lu UNE fois, figé dans l'état ; une lecture en panne ou une mémoire vide ne fige rien.
+      const memoire = entrees.memoireCartes ?? etat.memoireCartes ?? (deps.memoireCartes ? await deps.memoireCartes().catch(() => undefined) : undefined);
+      if (memoire && !entrees.memoireCartes && !etat.memoireCartes) etat.memoireCartes = memoire;
+      const emphase = emphaseDuScript(c);
       const h: HabillageFacecam = habillageFacecam({
         pisteMonteeCle: montage?.fichierCle ?? cle("montage.mov"),
         dureeSec,
         mots,
         coupesSec,
+        ...(memoire ? { memoireCartes: memoire } : {}),
         ...(cartes ? { cartes } : {}),
         ...cartesAutoRetirees,
         ...(cartesAuto.length ? { cartesAuto } : {}),
         ...(occupes.length ? { occupes } : {}),
+        ...(emphase.length ? { emphase } : {}),
         versionSimple: !!c.plafondClaudeAtteint,
         ...(lut ? { lookLutCle: lut.cle } : {}),
         prefixeCartes: cle("cartes"),
@@ -944,11 +958,12 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       }
       // Lot F1 : habillage des autres formats (mêmes mots, mêmes raccords, mêmes cartes ; aucun format : rien). APRÈS les
       // cartes du 9:16 (Vérif V2) : studio-rendu rend un long travail à la fois, la vidéo attendue passe d'abord.
-      if (etat.declinaisons) await preparerHabillagesFormats(etat, { dureeSec, mots, coupesSec, ...(cartes ? { cartes } : {}), ...cartesAutoRetirees, ...(cartesAuto.length ? { cartesAuto } : {}), ...(occupes.length ? { occupes } : {}), versionSimple: !!c.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle } : {}), prefixeCartes: cle("cartes") }, outils);
+      if (etat.declinaisons) await preparerHabillagesFormats(etat, { dureeSec, mots, coupesSec, ...(memoire ? { memoireCartes: memoire } : {}), ...(cartes ? { cartes } : {}), ...cartesAutoRetirees, ...(cartesAuto.length ? { cartesAuto } : {}), ...(occupes.length ? { occupes } : {}), ...(emphase.length ? { emphase } : {}), versionSimple: !!c.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle } : {}), prefixeCartes: cle("cartes") }, outils);
       etat.habillage = {
         ...(fx?.effets.length ? { effets: fx.effets } : {}),
         ...(h.cartesAuto.length ? { cartesAuto: h.cartesAuto } : {}),
         ...(h.cartesAutoVues.length || cartesAuto.length || retirees.length ? { cartesAutoFiche: { vues: h.cartesAutoVues, ajustements: cartesAuto, ...(retirees.length ? { retirees } : {}) } } : {}),
+        motsImportants: { source: h.sourceMotsImportants, ...(emphase.length ? { emphase } : {}) },
         cartes: demandes,
         base: {
           ...(bruitages.length ? { bruitages } : {}),
@@ -1127,6 +1142,8 @@ export function livraisonChaine(etat: EtatChaine): {
       ...(etat.monteur?.effets?.length ? { passages: etat.monteur.effets } : {}),
       // Vérif V1 : cartes automatiques réellement posées dans cette version (liste vide : aucune).
       ...(etat.habillage && !etat.habillage.abandonne ? { cartesAuto: etat.habillage.cartesAuto ?? [] } : {}),
+      // GV-MD-05b : l'historique figé sert aux retouches et aux reprises.
+      ...(etat.memoireCartes ? { memoireCartes: { dejaServis: [...(etat.memoireCartes.dejaServis ?? [])], ...(etat.memoireCartes.ouverturePrecedente !== undefined ? { ouverturePrecedente: etat.memoireCartes.ouverturePrecedente } : {}) } } : {}),
     },
     alertes,
     version: etat.sauts.length ? "partielle" : "complete",
