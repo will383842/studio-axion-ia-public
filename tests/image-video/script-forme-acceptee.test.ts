@@ -77,6 +77,18 @@ describe("GV-EC-06 · points de forme acceptés par Williams", () => {
     }
   });
 
+  it.each(["Q07", "CHAPITRES"])("point de forme %s seul AVEC drapeau, script tel que montré : validé, étape voix", async (code) => {
+    const e = await auScript();
+    forces.liste = [{ regle: code, priorite: 5, message: "Un point d'écriture." }];
+    try {
+      const v = validerScriptIV(e, decision(e, { formeAcceptee: true }));
+      expect(v.etape).toBe("voix");
+      expect(v.script).toBeDefined();
+    } finally {
+      forces.liste = [];
+    }
+  });
+
   it("mot interdit (jamais faux) AVEC drapeau, script tel que montré : refus qui nomme le point", async () => {
     const e = await auScript();
     forces.liste = [{ regle: "Q08", priorite: 1, message: "Le mot « machine » est interdit." }];
