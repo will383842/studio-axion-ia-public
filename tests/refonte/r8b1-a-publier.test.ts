@@ -1,6 +1,7 @@
 /** Refonte R8b1 : « À publier » sans orange, statuts Programmé (vert) et Publié (contour), bouton secondaire de la saisie de matière. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { tonEtatAffiche } from "@/components/publication/ton-etat-affiche";
 
 const lire = (c: string) => readFileSync(c, "utf-8");
 const CLASSE_ORANGE = /(?:bg|text|border|shadow|ring|outline)-orange|hover:border-orange|focus:border-orange/;
@@ -15,18 +16,24 @@ describe("R8b1 : À publier (maquette M5)", () => {
     });
   }
 
-  it("Programmée est verte (sauge) et passe par PastilleStatut ; Publiée en contour", () => {
+  it("détail d'envoi : Programmée verte, Publiée en contour, libellés au féminin inchangés", () => {
     const s = lire("src/components/publication/LignesAPublier.tsx");
-    expect(s).toContain('programmee: "sauge"');
-    expect(s).not.toContain('programmee: "orange"');
-    expect(s).toContain('statut={c.etat === "programmee" ? "programme" : "publie"}');
+    expect(s).toContain('programmee: "sauge", publiee: "contour"');
+    expect(s).not.toContain("PastilleStatut");
     expect(s).toContain('programmee: "Programmée"');
     expect(s).toContain('publiee: "Publiée"');
   });
 
-  it("les pastilles d'état n'ont plus de ton orange", () => {
-    expect(lire("src/components/publication/LignesAPublier.tsx")).toContain('t === "orange" ? "ambre" : t');
-    expect(lire("src/components/publication/ListeAPublier.tsx")).toContain('etat.ton === "orange" ? "ambre"');
+  it("ton affiché d'un état : vert, contour, jamais d'orange", () => {
+    expect(tonEtatAffiche("Programmée", "orange")).toBe("sauge");
+    expect(tonEtatAffiche("Publiée", "sauge")).toBe("contour");
+    expect(tonEtatAffiche("À envoyer", "orange")).toBe("ambre");
+    expect(tonEtatAffiche("Problème", "brique")).toBe("brique");
+    for (const f of ["LignesAPublier.tsx", "ListeAPublier.tsx"]) {
+      const s = lire(`src/components/publication/${f}`);
+      expect(s).toContain("tonEtatAffiche(");
+      expect(s).not.toMatch(/ton=\{[^}]*\.ton\}/);
+    }
   });
 
   it("SaisieMatiereSujet : variante réglable, principale par défaut", () => {
