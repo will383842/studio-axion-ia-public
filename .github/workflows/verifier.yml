@@ -84,6 +84,22 @@ jobs:
       - name: Comparer
         run: node outils/gardes/zone-interdite.mjs --differentiel --dossier "$RUNNER_TEMP/v" --racine-tete "$PWD" --racine-base "$RUNNER_TEMP/base" --connus scripts/echecs-connus.json
 
+  regles-de-fer:
+    name: règles de fer (sans IA, sans réseau)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Garde des règles de fer
+        # Liste des mots : SECRET masqué (jamais une variable, imprimée en clair dans le journal public).
+        # Absente (secret non créé, PR venue d'un fork) : la règle est dite « non vérifiée » par la garde.
+        env:
+          MOTS_FONDATEUR: ${{ secrets.MOTS_FONDATEUR }}
+        run: node outils/gardes/regles-de-fer.mjs
+
   tests:
     name: tests des fichiers touchés
     runs-on: ubuntu-latest
