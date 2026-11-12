@@ -13,12 +13,16 @@ import { RESEAUX_DECLINAISON } from "@/reseaux/codes";
 /** Code du refus : le format de l'idée n'est pas disponible (contrat d'échange : 422, format non disponible). */
 export const format_non_disponible = "FORMAT_NON_DISPONIBLE";
 
+/** Anciens noms de format (clés normalisées) que l'usine peut encore envoyer : le format a été renommé dans le Studio (maquette M3, décision du fondateur du 12/11). */
+const ANCIENS_NOMS: Record<string, string> = { "tableau anime": "tableau-anime" };
+
 /** Le format de l'idée s'il correspond à un format actif (accents et casse ignorés). Absent, inconnu ou éteint : refus, jamais de repli sur un autre format. */
 export function formatPourIdeeUsine(format: string | undefined): string {
   const actifs = listerFormatsActifs();
   const n = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
   const cherche = format ? n(format) : "";
-  const trouve = cherche ? actifs.find((f) => [f.id, f.nom, f.nomCourt].some((x) => x && n(x) === cherche)) : undefined;
+  const ancien = ANCIENS_NOMS[cherche];
+  const trouve = cherche ? actifs.find((f) => f.id === ancien || [f.id, f.nom, f.nomCourt].some((x) => x && n(x) === cherche)) : undefined;
   if (!trouve) throw new ErreurStudio(format_non_disponible, "Le format de cette idée n'est pas disponible : aucun sujet n'a été écrit.");
   return trouve.id;
 }
@@ -33,7 +37,14 @@ export async function ecrireSujetDeLUsine(
   const cible = [idee.metier, idee.taille].filter(Boolean).join(", ");
   let formatId: string;
   try {
-    formatId = formatPourIdeeUsine(idee.format);
+    try {
+      formatId = formatPourIdeeUsine(idee.format);
+    } catch (premier) {
+      // Libellé inconnu : repli sur le code envoyé par l'usine (parts.format), jamais sur un autre format.
+      const code = idee.parts?.format;
+      if (!code) throw premier;
+      formatId = formatPourIdeeUsine(code);
+    }
   } catch (e) {
     // Refus visible : journalisé avec la signature de l'idée, avant tout sujet, matière ou rappel à l'usine.
     if (e instanceof ErreurStudio && e.code === format_non_disponible) {

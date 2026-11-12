@@ -87,8 +87,13 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
   if (enMarche(vue)) {
     return (
       <section aria-label="Travail en cours" aria-live="polite" className="space-y-3 rounded-2xl border border-trait bg-surface-1 px-4 py-3">
-        {/* Titre et phrase communs (PHRASES_SUIVI) ; la phrase vivante ci-dessous dit l'étape, elle n'est pas un second titre. */}
-        <EnTeteSuivi etat="en-cours" sansTemps />
+        {/* Ce suivi n'est pas une fabrication de vidéo : titre dit le vrai travail ; « Vous pouvez fermer » n'est dit qu'en bas. */}
+        <EnTeteSuivi
+          etat={versSuiviTacheTableau(vue).etat === "coincee" ? "coincee" : "en-cours"}
+          sansTemps
+          titre={vue.type === "ecriture" ? "Le script s'écrit" : "Le découpage en scènes est en cours"}
+          phrase="Le travail se fait en arrière-plan."
+        />
         <p className="flex items-center gap-2 text-[15px] font-semibold text-texte">
           <span aria-hidden className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           {vue.phrase}
@@ -110,7 +115,11 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
     return (
       <section aria-label={decoupageRefuse ? "Découpage refusé" : vue.statut === "erreur" ? "Travail arrêté" : "Travail interrompu"} role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
         {/* Un arrêt venu du studio (erreur, refus, redémarrage) est une panne, pas un arrêt voulu : titre commun « coincée », la raison en clair. */}
-        <EnTeteSuivi etat="coincee" message={vue.phrase} />
+        <EnTeteSuivi
+          etat="coincee"
+          message={vue.phrase}
+          titre={decoupageRefuse ? "Le découpage a été refusé" : vue.type === "ecriture" ? "L'écriture du script s'est arrêtée" : "Le découpage en scènes s'est arrêté"}
+        />
         <SuiviFabrication vue={{ ...versSuiviTacheTableau(vue), message: undefined }} compacte />
         {vue.motifs.length > 0 && (
           <ul className="list-disc space-y-1 pl-5 text-sm text-texte-doux">

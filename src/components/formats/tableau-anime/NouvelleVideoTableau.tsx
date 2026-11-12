@@ -157,8 +157,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   const fin = ecran.fins.find((f) => f.id === saisie.finId);
   /** Le texte dit se relit tant qu'aucune fiche n'existe (ensuite, c'est la fiche, sauf texte modifié à redécouper). */
   const relireTexte = relecture && (!b?.fiche || relireApresFiche);
-  /** Étape courante de la barre : le texte tant qu'il n'y a pas de fiche ; les scènes pendant un découpage ou une correction de la fiche ; sinon la relecture avant fabrication. */
-  const etapeCourante = !b?.fiche ? (b?.tache?.type === "decoupage" && (b.tache.statut === "en-attente" || b.tache.statut === "en-cours") ? 1 : 0) : corriger || relireApresFiche ? 1 : 2;
+  /** Étape courante de la barre : le texte tant qu'il n'y a pas de fiche ou que le texte modifié se relit ; les scènes pendant un découpage ou une correction de la fiche ; sinon la relecture avant fabrication. */
+  const etapeCourante = !b?.fiche ? (b?.tache?.type === "decoupage" && (b.tache.statut === "en-attente" || b.tache.statut === "en-cours") ? 1 : 0) : relireApresFiche ? 0 : corriger ? 1 : 2;
   const barreEtapes = <BarreEtapesCommune etapes={ETAPES_TABLEAU} courante={etapeCourante} />;
 
   /** Une tâche de fond tourne : les boutons qui lancent ou modifient attendent (le serveur refuse aussi). */
