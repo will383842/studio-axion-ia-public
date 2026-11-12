@@ -7,8 +7,6 @@ import { listerIdees } from "@/services/idees";
 import { exigerSession } from "@/services/auth";
 import { apprentissageActif } from "@/services/apprentissage";
 import { retourValide } from "@/domaine/retour-video";
-import { formaterMontant } from "@/lib/montants";
-import { prixLancement } from "@/services/boucle-generation";
 import { claudeBranche } from "@/services/generation-claude";
 import { libelleAxe } from "@/services/mesures-completes";
 import { listerSeries } from "@/services/series";
@@ -34,7 +32,7 @@ export default async function PageSujet({ searchParams }: { searchParams: Promis
         ideeId={idee?.id}
         formats={formatsEcrivables()}
         ecritureSimulee={!(await claudeBranche())}
-        prix={formaterMontant(await prixLancement())}
+        prix=""
         retour={retour}
         series={(await listerSeries()).map((s) => ({ id: s.id, nom: s.nom }))}
         imposee={sp.structure && (await apprentissageActif()) ? { structure: sp.structure, libelle: libelleAxe("structure", sp.structure), ...(sp.famille ? { famille: sp.famille } : {}) } : undefined}

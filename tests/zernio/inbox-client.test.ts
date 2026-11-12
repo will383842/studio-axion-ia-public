@@ -277,7 +277,7 @@ describe("inbox · erreurs typées", () => {
 
   it("liens et titres : hors de nos domaines / hors liste = refus typé avant le réseau ; boutons sur réponse privée = code dédié", async () => {
     const c = creerFauxClientZernio([]);
-    const lien = rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: "https://evil.example/x" })!;
+    const lien = rendreTexteMp("mp-m1-v4-1", { titre: "Guide d'exemple", lien: "https://evil.example/x" })!;
     await expect(c.client.requete(envoi({ accountId: "exemple-compte-1", message: lien }))).rejects.toMatchObject({ code: "lien-hors-domaine" });
     await expect(c.client.requete({ ...envoi(), titresGuidesPermis: undefined })).rejects.toMatchObject({ code: "guide-inconnu" }); // aucune liste de titres fournie
     await expect(c.client.requete({ ...envoi(), titresGuidesPermis: ["Autre guide"] })).rejects.toMatchObject({ code: "guide-inconnu" });
