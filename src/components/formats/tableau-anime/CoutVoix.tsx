@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * COÛT ANNONCÉ AVANT LA VOIX (tâche TB-21) : la seule étape payante du tableau animé. Le prix est montré AVANT tout
- * lancement ; rien ne part sans « Lancer ». Le prix est reçu en centimes (calculé par `coutVoixCentimes`).
+ * ANNONCE AVANT LA VOIX (tâche TB-21) : la seule étape payante du tableau animé. L'écran dit ce qui va se passer AVANT tout
+ * lancement, sans aucun montant ; rien ne part sans « Lancer ».
  */
 import { Bouton } from "@/components/ui/Bouton";
 import { Icone } from "@/components/ui/Icone";
 
 /**
  * `voix` : après une fabrication arrêtée dont la voix est payée, l'écran l'annonce AVANT : « la voix déjà payée sera
- * réutilisée » (même texte dit) ou « la voix sera relue : ≈ X € » (le texte dit a changé).
+ * réutilisée » (même texte dit) ou « la voix sera relue » (le texte dit a changé).
  */
 export function CoutVoixTableau({ onLancer, chargement, essai, voix = "neuve" }: { /** Reçu du serveur, jamais affiché. */ centimes?: number; onLancer?: () => void; chargement?: boolean; essai?: boolean; voix?: "neuve" | "reutilisee" | "relue" }) {
   const titre = voix === "reutilisee" ? "La voix déjà payée sera réutilisée" : voix === "relue" ? "La voix sera relue" : "La voix sera lue";

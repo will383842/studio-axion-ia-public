@@ -10,7 +10,7 @@ describe("S2.6 SITE-12 et SITE-13", () => {
   it("générateur éteint → bloqué, le message nomme le type de vidéo", () => {
     const e = echecs(entreeOk({ formatId: "tableau-anime", ecrivain: "tableau", generateurAllume: false }), "SITE-12");
     expect(e).toHaveLength(1);
-    expect(e[0].message).toBe("Les vidéos « Tableau animé » ne vont pas sur le site (Réglages › Sur le site).");
+    expect(e[0].message).toBe("Les vidéos « L'erreur corrigée » ne vont pas sur le site (Réglages › Sur le site).");
     expect(controlerAvantSite(entreeOk({ generateurAllume: false })).publiable).toBe(false);
   });
   it("vidéo non prête → bloqué", () => {

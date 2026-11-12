@@ -98,6 +98,12 @@ describe("format non disponible", () => {
     expect(sujet.formatPourIdeeUsine(f.id)).toBe(f.id);
   });
 
+  it("l'ancien libellé de l'usine « Tableau animé » et le nom actuel « L'erreur corrigée » donnent tableau-anime", () => {
+    // Maquette M3 et décision du fondateur du 12/11 : le format a été renommé ; l'usine envoie encore l'ancien libellé.
+    expect(sujet.formatPourIdeeUsine("Tableau animé")).toBe("tableau-anime");
+    expect(sujet.formatPourIdeeUsine("L'erreur corrigée")).toBe("tableau-anime");
+  });
+
   it("un format existant mais éteint (« bientôt ») n'est pas trouvé : refus, pas de repli", () => {
     const { trouverFormat } = require_formats;
     const eteint = ["createur-b", "ecran-partage", "motion", "ugc"].map((id) => trouverFormat(id)).find((f) => f && f.statut !== "actif");
