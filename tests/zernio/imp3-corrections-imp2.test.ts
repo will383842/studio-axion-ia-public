@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { ecrireParametre } from "../../src/services/_commun";
+import { PARAM_EDITORIALE_ACTIVE, PARAM_ENVOI_CALENDRIER } from "../../src/services/zernio";
 import { confirmerTable, ErreurCibles, proposerTable, validerLigne } from "../../src/services/import-buffer/cibles";
 import { creerBrouillons, listerTousLesPosts } from "../../src/services/import-buffer/creer-brouillons";
 import { ajouterCles, lireCles } from "../../src/services/import-buffer/journal";
@@ -25,6 +27,9 @@ const serveur = (compte: Record<string, unknown>, suite: (a: AppelEnregistre) =>
   if (a.methode === "POST" && a.url.endsWith("/v1/posts")) return { statut: 201, corps: { post: postExemple({ _id: "exemple-post-9" }) } };
   return { statut: 404, corps: {} };
 };
+
+// L7-08 : une vraie création exige les trois réglages ouverts (publication éditoriale éteinte par défaut).
+beforeEach(async () => { await ecrireParametre(PARAM_ENVOI_CALENDRIER, true); await ecrireParametre(PARAM_EDITORIALE_ACTIVE, true); });
 
 describe("IMP-3 · corrections de la relecture d'IMP-2", () => {
   it("1 · verifier : le texte attendu vient du corps envoyé, pas du post relu", () => {
