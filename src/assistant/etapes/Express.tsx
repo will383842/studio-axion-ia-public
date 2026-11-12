@@ -573,7 +573,7 @@ export function EtapeExpress(props: ProprietesEtape) {
         ouverte={!!credit}
         onOuverteChange={(o) => !o && setCredit(null)}
         titre={credit?.manques[0] ? `Crédit ${credit.manques[0].nom} insuffisant` : "Crédit insuffisant"}
-        description={credit?.manques[0] ? `Il reste ${credit.manques[0].disponible}, cette vidéo demande ≈ ${credit.manques[0].demande}.` : undefined}
+        description={credit?.manques[0] ? "Rechargez le compte, puis relancez." : undefined}
         pied={
           <div className="grid gap-2">
             {credit?.manques[0]?.urlRecharge && (

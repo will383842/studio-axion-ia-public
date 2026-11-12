@@ -6,10 +6,8 @@
  */
 import { useRef, useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
-import { formaterMontant } from "@/lib/montants";
 import { fabriquerAvecUneRelance, montantApresControle } from "./avant-prix";
 
-const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
 export function BoutonFabriquer({
   montantCentimes,
@@ -54,7 +52,7 @@ export function BoutonFabriquer({
   return (
     <>
       <Bouton icone="film" taille="lg" pleineLargeur chargement={enCours} disabled={desactive || enCours} onClick={() => void cliquer()}>
-        {libelle ?? `Fabriquer la vidéo (≈ ${euros(montantCentimes)})`}
+        {libelle ?? "Fabriquer la vidéo"}
       </Bouton>
       {phrase && (
         <p role="alert" className="mt-2 text-sm text-brique">

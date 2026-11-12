@@ -9,7 +9,8 @@
  *    automatique s'arrête et un message apparaît dans le journal du cockpit ;
  *  - origine « studio » : on prévient (journal) sans bloquer ; une action lancée à la main (`parWill`) n'est jamais bloquée ;
  *  - crédit Claude réellement épuisé chez le fournisseur : « en-attente-credit » ;
- *  - aucun message ne contient de montant.
+ *  - aucun message ne contient de montant (phrase fixe par cause) ;
+ *  - le chemin commun est appelé en mode `quotaSeul` : plafond par vidéo, limite du mois et budget usine ne font que prévenir.
  * Cette porte ne dépense rien elle-même : elle garde puis délègue, les gardes d'argent restent dans le chemin commun.
  */
 import "server-only";
@@ -45,18 +46,19 @@ export async function appelsClaudeDuJour(): Promise<number> {
   return l.length;
 }
 
-/** Retire tout montant d'un message (chiffres et monnaies) : l'écran ne montre jamais de somme. */
-export function sansMontant(message: string): string {
-  return message
-    .replace(/\d[\d\s.,]*\s*(?:€|\$|eur(?:os?)?|usd|dollars?)/gi, "")
-    .replace(/\(\s*\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+([.,;:])/g, "$1")
-    .trim();
-}
-
 const MESSAGE_QUOTA = "Quota d'appels du jour atteint : la fabrication automatique s'arrête, elle reprendra demain.";
 const MESSAGE_CREDIT = "En attente de crédit Claude : le texte actuel est gardé.";
+const MESSAGE_INTERNE = "Limite interne atteinte : le texte actuel est gardé.";
+const MESSAGE_AUTRE = "L'étape n'a pas été lancée : le texte actuel est gardé.";
+
+/** Phrase FIXE par cause (jamais le message brut, donc jamais de montant). Le crédit n'est « épuisé » que s'il l'est chez le fournisseur. */
+function phraseDuRefus(r: { arret: string; message: string }): string {
+  if (r.arret === "en-attente-credit") {
+    // Plafonds internes (limite du mois, budget du mois) : pas un crédit épuisé chez le fournisseur.
+    return /^(limite claude du mois|budget du mois)/i.test(r.message.trim()) ? MESSAGE_INTERNE : MESSAGE_CREDIT;
+  }
+  return r.arret === "budget-usine" || r.arret === "plafond-video" ? MESSAGE_INTERNE : MESSAGE_AUTRE;
+}
 
 export async function executerRolePourContenu<S extends z.ZodType>(
   contenu: ContenuRef,
@@ -77,7 +79,7 @@ export async function executerRolePourContenu<S extends z.ZodType>(
     }
   }
 
-  const r = await executerRolePourVideo(contenu.id, role, entree, { etape: options.etape, origine, ...(options.parWill ? { parWill: true } : {}) });
+  const r = await executerRolePourVideo(contenu.id, role, entree, { etape: options.etape, origine, quotaSeul: true, ...(options.parWill ? { parWill: true } : {}) });
   if (r.ok) return r;
-  return { ...r, message: r.arret === "en-attente-credit" ? MESSAGE_CREDIT : sansMontant(r.message) };
+  return { ...r, message: phraseDuRefus(r) };
 }
