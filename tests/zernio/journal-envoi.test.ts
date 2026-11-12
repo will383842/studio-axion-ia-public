@@ -81,7 +81,7 @@ beforeEach(async () => {
   reinitialiserRequete();
   await auth.seConnecter("essai-log-refus", false);
   etat.zernio = fauxZernio();
-  canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Jean Exemple")];
+  canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Williams")];
   await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });

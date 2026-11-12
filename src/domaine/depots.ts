@@ -99,6 +99,12 @@ export interface Depot<T extends { id: Id }> {
   compter(filtre?: (e: T) => boolean): Promise<number>;
 }
 
+/**
+ * Dépôt en AJOUT SEUL (journal) : on ajoute et on relit, on ne modifie ni n'efface (`modifier` et `supprimer` n'existent
+ * pas sur ce type). `enregistrer` crée ; ne pas l'utiliser pour remplacer une ligne (le service L1-08 y veille).
+ */
+export type DepotAjoutSeul<T extends { id: Id }> = Pick<Depot<T>, "lister" | "obtenir" | "trouver" | "enregistrer" | "compter">;
+
 /** Écritures appliquées ensemble (une transaction avec Postgres) : effacements puis enregistrements. */
 export interface LotEcritures {
   supprimer: { collection: keyof Depots; id: Id }[];
@@ -174,7 +180,7 @@ export interface Depots {
   envoisPlanifies: Depot<EnvoiPlanifie>;
   /** Plan éditorial (L1-06) : les créneaux, et le journal de leurs décalages (ajout seul). */
   creneauxEditoriaux: Depot<CreneauEditorial>;
-  journalDecalages: Depot<JournalDecalage>;
+  journalDecalages: DepotAjoutSeul<JournalDecalage>;
   /** Stock de messages (STK-01) : archivage sans suppression (`archiveLe`). */
   stockMessages: Depot<MessageStock>;
 }
