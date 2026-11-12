@@ -1,6 +1,6 @@
 // Clés de parcours « une conversation par (personne, cible) » : fonctions PURES (aucun réseau, aucune base, aucun journal).
 // Une clé = `racine` (empreinte de la personne) ou `racine|empreinte-courte`. Une clé SANS `|` est un enregistrement ANCIEN :
-// mot absent = GUIDE, nature absente = premier. Rien n'appelle encore ce module.
+// mot absent = GUIDE, nature absente = premier. Les oppositions (oppositions-mots, oppositions-transmission) s'en servent déjà.
 import type { Conversation } from "./machine-conversation";
 
 export interface EntreeDossier {
