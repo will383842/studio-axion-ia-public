@@ -10,8 +10,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("./aides/crochets-factices")).crochets }));
 vi.mock("@/app/(studio)/calendrier/actions/decaler", () => ({ decalerEntree: vi.fn(async () => ({ ok: false, message: "doublure" })) }));
 vi.mock("@/services/auth", () => ({ exigerSession: async () => ({}) }));
-const listerCalendrier = vi.fn(async (_d: string, _f: string) => [] as unknown[]);
-vi.mock("@/services/publications", () => ({ listerCalendrier: (d: string, f: string) => listerCalendrier(d, f), listerAProgrammer: async () => [] }));
+const listerCalendrier = vi.fn(async () => [] as unknown[]);
+vi.mock("@/services/publications", () => ({ listerCalendrier: () => listerCalendrier(), listerAProgrammer: async () => [] }));
 
 const { attendre, monter, trouver, texteDe } = await import("./aides/crochets-factices");
 const outils = await import("@/components/calendrier/apercu-reseau");
@@ -293,7 +293,7 @@ describe("SemaineAvecApercu : un clic ouvre, les flèches passent, la date se vo
   });
   it("la date changée dans le panneau est dans la grille AUSSITÔT (avant la réponse), via l'action de décalage", async () => {
     let finir!: (r: Awaited<ReturnType<Decaler>>) => void;
-    const lent: Decaler = vi.fn(() => new Promise((r) => (finir = r)));
+    const lent: Decaler = vi.fn(() => new Promise<Awaited<ReturnType<Decaler>>>((r) => (finir = r)));
     const e = ecran(trois(), lent);
     e.ouvrir("creneau:c1|linkedin");
     (e.panneau().props.onChangerDate as (j: string) => void)("2026-11-14");
@@ -345,7 +345,7 @@ describe("SemaineAvecApercu : un clic ouvre, les flèches passent, la date se vo
   });
   it("limite exacte : aujourd'hui est accepté ; deux changements coup sur coup : un seul appel tant que le premier n'est pas fini", async () => {
     let finir!: (r: Awaited<ReturnType<Decaler>>) => void;
-    const lent: Decaler = vi.fn(() => new Promise((r) => (finir = r)));
+    const lent: Decaler = vi.fn(() => new Promise<Awaited<ReturnType<Decaler>>>((r) => (finir = r)));
     const e = ecran(trois(), lent);
     e.ouvrir("creneau:c1|linkedin");
     const changer = (j: string) => (e.panneau().props.onChangerDate as (j: string) => void)(j);
