@@ -157,6 +157,26 @@ describe("vignettes · service", () => {
       expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: titre, fixee: false });
     });
 
+    it("GV-VG-04c · éteint : aucune clé titreCentre en plus", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Votre amende n'est pas définitive, contestez-la vite.");
+      await (await import("@/services/_commun")).ecrireParametre("couverture.titreParDefaut", false);
+      await fabriquer(v);
+      expect(recues[0].parametres).not.toHaveProperty("titreCentre");
+    });
+
+    it("GV-VG-04c · allumé : titreCentre: true est envoyé, y compris quand le titre est déjà sur la fiche", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Votre amende n'est pas définitive, contestez-la vite.");
+      await allumer();
+      await fabriquer(v);
+      expect(recues[0].parametres.titreCentre).toBe(true);
+      recues.length = 0;
+      const { refaireVignettes } = await import("@/services/miniatures");
+      await refaireVignettes(v.id);
+      expect(recues[0].parametres.titreCentre).toBe(true);
+    });
+
     it("allumé, accroche avec un mot interdit : pas de titre", { timeout: 60_000 }, async () => {
       const v = await vraieVideo();
       await accroche(v, "Faites-le vous-même sans attendre");
