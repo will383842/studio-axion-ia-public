@@ -75,8 +75,10 @@ export function monogrammeReseau(reseau: IdReseau): string {
  * `--res-<réseau>` (ex. `--res-linkedin`). Tant que le jeton n'existe pas, le trait neutre s'applique.
  * Aucune couleur n'est écrite ici : définir les jetons suffit à colorer cartes, pastilles, couloirs et repères.
  */
-export function styleReseau(reseau: IdReseau): CSSProperties {
-  return { "--c": `${couleurReseau(reseau).slice(0, -1)}, var(--trait-fort))` } as CSSProperties;
+export function styleReseau(reseau: IdReseau | string | null | undefined): CSSProperties {
+  const jeton = typeof reseau === "string" && reseauConnu(reseau) ? couleurReseau(reseau) : undefined;
+  if (!jeton) return { "--c": "var(--trait-fort)" } as CSSProperties;
+  return { "--c": `${jeton.slice(0, -1)}, var(--trait-fort))` } as CSSProperties;
 }
 
 /** Picto d'un réseau (monogramme). Décoratif : le nom du réseau est toujours écrit ou dit à côté. */
