@@ -32,6 +32,8 @@ export interface ProprietesVueAgenda {
 export const PHRASE_DATE_EN_SEMAINE = "Pour changer la date, ouvrez la vue Semaine.";
 const PHRASE_JOUR_A_VENIR = "Vous n'avez rien de prévu ce jour.";
 const PHRASE_JOUR_PASSE = "Vous n'aviez rien prévu ce jour-là.";
+/** Mots de la maquette : un jour qui a des publications que les filtres masquent n'est pas un jour vide. */
+const PHRASE_FILTRE = "Aucune publication avec ces filtres.";
 const PHRASE_ILLISIBLE = "Semaine illisible. Revenez à aujourd'hui.";
 
 /** Bouton d'au moins 38 px de haut (maquette) : un doigt l'atteint sans viser. */
@@ -81,6 +83,7 @@ export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerD
       <div data-agenda="" className={cn("flex w-full min-w-0 flex-col gap-3 overflow-x-hidden", className)}>
         {jours.map((jour) => {
           const duJour = triees.filter((e) => e.jour === jour);
+          const masque = duJour.length === 0 && entrees.some((e) => e.jour === jour);
           const estAujourdhui = jour === aujourdhui;
           const passe = jourLisible(aujourdhui) && jour < aujourdhui;
           return (
@@ -97,7 +100,7 @@ export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerD
                 {estAujourdhui && <span className="font-semibold normal-case"> · aujourd&apos;hui</span>}
               </h3>
               {duJour.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-trait-fort p-3 text-center text-sm text-texte-doux">{passe ? PHRASE_JOUR_PASSE : PHRASE_JOUR_A_VENIR}</p>
+                <p className="rounded-lg border border-dashed border-trait-fort p-3 text-center text-sm text-texte-doux">{masque ? PHRASE_FILTRE : passe ? PHRASE_JOUR_PASSE : PHRASE_JOUR_A_VENIR}</p>
               ) : (
                 <ul className="m-0 flex min-w-0 list-none flex-col gap-2 p-0">
                   {duJour.map((e) => (
