@@ -11,6 +11,7 @@
  * les phrases se relisent et se modifient, les contrôles tournent en direct, puis « Lancer la vidéo » confirme
  * et lance. La flèche retour garde les phrases retouchées. Vidéo déjà filmée (« rush ») : pas de relecture.
  */
+import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -200,7 +201,7 @@ export function EtapeExpress(props: ProprietesEtape) {
       let parti = false;
       try {
         const r = await creerVersionDejaFilmeeAction(undefined, titreDejaFilme(brouillon));
-        if (!r.ok) return notifier.erreur(r.message);
+        if (!r.ok) return notifier.erreur(messageSansMontant(r.message));
         // Le brouillon vidéo déjà créé n'a plus d'usage : la version face caméra le remplace (archivé, jamais supprimé).
         parti = true;
         if (brouillon.videoId) await abandonnerBrouillonAction(brouillon.videoId).catch(() => undefined);
@@ -215,7 +216,7 @@ export function EtapeExpress(props: ProprietesEtape) {
     try {
       const r = await chargerCout();
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         if (r.code === "ACCORD_MANQUANT" || r.code === "DISTRIBUTION_INCOMPLETE") setFeuille("plateau");
         return;
       }
@@ -266,7 +267,7 @@ export function EtapeExpress(props: ProprietesEtape) {
     if (r.code === "CONFIRMATION_REQUISE") {
       setMontantServeur(r.montant ?? null);
       // CORRECTEUR FINAL A : la phrase du serveur dit la vraie raison (« montée pour de vrai : … »).
-      return setConfirmation([r.message || "Plus cher que d'habitude"]);
+      return setConfirmation([messageSansMontant(r.message) || "Plus cher que d'habitude"]);
     }
     if (r.code === "CREDIT_INSUFFISANT") {
       setConfirmation(null);
@@ -276,7 +277,7 @@ export function EtapeExpress(props: ProprietesEtape) {
         return setCredit({ ...detail.donnees, videoId: id, confirme });
       }
     }
-    notifier.erreur(r.message);
+    notifier.erreur(messageSansMontant(r.message));
     if (r.code === "ACCORD_MANQUANT" || r.code === "DISTRIBUTION_INCOMPLETE") setFeuille("plateau");
   }
 
@@ -313,7 +314,7 @@ export function EtapeExpress(props: ProprietesEtape) {
     if (r.code === "ACCORD_MANQUANT" || r.code === "DISTRIBUTION_INCOMPLETE") {
       setRelecture(null);
       setFeuille("plateau");
-      notifier.erreur(r.message);
+      notifier.erreur(messageSansMontant(r.message));
     }
     return { ok: false, message: r.message };
   }
@@ -607,7 +608,7 @@ export function EtapeExpress(props: ProprietesEtape) {
                 setGarde(true);
                 const r = await garderEnAttenteAction(credit.videoId, desQuePossible, credit.manques[0]?.fournisseur ?? "", credit.confirme, credit.scriptRelu);
                 setGarde(false);
-                if (!r.ok) return notifier.erreur(r.message);
+                if (!r.ok) return notifier.erreur(messageSansMontant(r.message));
                 setCredit(null);
                 notifier.succes("Gardée en brouillon", desQuePossible ? "Elle partira dès la recharge." : undefined);
               }}
