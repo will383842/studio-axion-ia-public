@@ -142,7 +142,9 @@ describe("une seule table état interne → libellé affiché", () => {
     }
   });
   it("la pastille lit cette table et n'en garde aucune (mêmes objets)", () => {
-    expect(pastille.LIBELLES_ETAT).toBe(LIBELLES_ETAT);
+    // Vue des six états affichés (pour le filtre), tirée de la table unique : aucune valeur n'est recopiée.
+    expect(Object.keys(pastille.LIBELLES_ETAT)).toEqual([...statuts.ETATS_CALENDRIER]);
+    for (const [k, v] of Object.entries(pastille.LIBELLES_ETAT)) expect(v).toBe((LIBELLES_ETAT as Record<string, unknown>)[k]);
     expect(pastille.STATUTS_VERS_ETAT).toBe(statuts.STATUTS_VERS_ETAT);
     const html = (etat: string, libelles?: typeof LIBELLES_ETAT) => renderToStaticMarkup(createElement(pastille.PastilleStatutPlan, { etat, libelles }));
     expect(html("echec", LIBELLES_ETAT)).toContain("À corriger");
@@ -349,9 +351,10 @@ describe("tableau : statut de départ, bouton, statut d'arrivée", () => {
     ["echec", FUTUR, [["Corriger et renvoyer", "button", "valide"], ["Enregistrer le texte", "submit", "echec"]]],
     ["publie", FUTUR, []],
     ["archive", FUTUR, []],
-    // Le jour même reste ouvert : les boutons agissent.
-    ["propose", JOUR_MEME, [["Accepter l'idée", "button", "valide"], ["Enregistrer le texte", "submit", "propose"]]],
-    ["a_valider", JOUR_MEME, [["Valider et programmer", "button", "valide"], ["Enregistrer le texte", "submit", "a_valider"]]],
+    // Le jour même, l'horloge est à 11 h Paris et le créneau à 09 h Paris : l'heure est passée, les deux gestes sont refusés
+    // (CORRECTIF 12/11 17 h) ; les boutons restent affichés, le statut ne bouge pas.
+    ["propose", JOUR_MEME, [["Accepter l'idée", "button", "propose"], ["Enregistrer le texte", "submit", "propose"]]],
+    ["a_valider", JOUR_MEME, [["Valider et programmer", "button", "a_valider"], ["Enregistrer le texte", "submit", "a_valider"]]],
     ["propose", PASSE, []],
     ["a_valider", PASSE, []],
     ["valide", PASSE, []],
@@ -427,6 +430,35 @@ describe("entrée passée (Manquée) : « Accepter l'idée » et « Valider et p
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.message).toBe(PHRASE);
     expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(depart);
+  });
+  it.each([
+    ["Accepter l'idée", "propose"],
+    ["Valider et programmer", "a_valider"],
+  ] as const)("%s (départ %s, le jour même, heure passée) : même refus, même phrase, aucune écriture (CORRECTIF 12/11 17 h)", async (_bouton, depart) => {
+    const d = reinitialiserDepots();
+    // AUJ = 20/11 à 11 h Paris ; créneau à 09 h Paris.
+    await d.creneauxEditoriaux.enregistrer(creneau({ statut: depart, jourVise: "2026-11-20", heuresParReseau: { linkedin: "2026-11-20T08:00:00.000Z" } }));
+    const r = await accepterEntree("c1");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toBe(PHRASE);
+    expect((await d.creneauxEditoriaux.obtenir("c1"))?.statut).toBe(depart);
+    expect((await d.creneauxEditoriaux.obtenir("c1"))?.validePar).toBeUndefined();
+  });
+  it("le jour même, limite exacte : une seconde avant l'heure passe, à l'heure pile passe, une seconde après est refusée ; deux réseaux : une heure passée suffit", async () => {
+    const d = reinitialiserDepots();
+    const cree = (id: string, h: Record<string, string>) => d.creneauxEditoriaux.enregistrer(creneau({ id, statut: "propose", jourVise: "2026-11-20", heuresParReseau: h }));
+    await cree("c1", { linkedin: "2026-11-20T12:00:00.000Z" });
+    vi.setSystemTime(new Date("2026-11-20T11:59:59Z"));
+    expect((await accepterEntree("c1")).ok).toBe(true);
+    await cree("c2", { linkedin: "2026-11-20T12:00:00.000Z" });
+    vi.setSystemTime(new Date("2026-11-20T12:00:00Z"));
+    expect((await accepterEntree("c2")).ok).toBe(true);
+    await cree("c3", { linkedin: "2026-11-20T12:00:00.000Z" });
+    vi.setSystemTime(new Date("2026-11-20T12:00:01Z"));
+    expect((await accepterEntree("c3")).ok).toBe(false);
+    await cree("c4", { linkedin: "2026-11-20T18:00:00.000Z", instagram: "2026-11-20T08:00:00.000Z" });
+    expect((await accepterEntree("c4")).ok).toBe(false);
+    expect((await d.creneauxEditoriaux.obtenir("c4"))?.statut).toBe("propose");
   });
   it("à la limite exacte : le jour même (minuit passé à Paris) reste ouvert, la veille à 23 h 59 Paris est refusée", async () => {
     const d = reinitialiserDepots();
