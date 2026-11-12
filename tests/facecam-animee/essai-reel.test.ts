@@ -554,7 +554,7 @@ describe("Essai réel · 4. prise horizontale (IMG_7747, 3840 × 2160) recadrée
       };
       // Le « visage » blanc est dans la colonne gardée : une zone 16 × 16 centrée sur lui est blanche.
       expect(moyenne("16:16:532:792")).toBeGreaterThan(200);
-      // Hors de la colonne du visage : fond gris. Cela prouve que c'est bien la colonne du visage qui est gardée.
+      // À côté du visage : fond gris. L'image n'est donc pas blanche partout ; c'est la zone blanche du centre qui prouve la bonne colonne.
       const horsColonne = moyenne("16:16:92:792");
       expect(horsColonne).toBeGreaterThan(90);
       expect(horsColonne).toBeLessThan(170);
