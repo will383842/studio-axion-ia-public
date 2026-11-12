@@ -96,9 +96,9 @@ describe("barre latérale compacte (bureau)", () => {
     expect(logo).toContain("tracking-wider");
     expect(logo).not.toContain("tracking-[0.2em]");
   });
-  it("la barre garde le thème sombre (classe theme-sombre)", () => {
-    expect(html).toContain("theme-sombre");
-    expect(lire("src/components/coquille/OngletsBas.tsx")).toContain("theme-sombre");
+  it("la barre et les onglets du bas prennent le bleu ciel (classe theme-barre)", () => {
+    expect(html).toContain("theme-barre");
+    expect(lire("src/components/coquille/OngletsBas.tsx")).toContain("theme-barre");
   });
 });
 

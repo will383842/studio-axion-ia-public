@@ -21,7 +21,7 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
     <>
       <nav
         aria-label="Menu principal (mobile)"
-        className="theme-sombre fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-fond/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+        className="theme-barre fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-fond/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
       >
         <ul className="mx-auto grid h-[var(--hauteur-onglets-bas)] max-w-xl grid-cols-5 items-center px-2">
           {ONGLETS_BAS.map((o) => {
@@ -36,7 +36,7 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
                     aria-label="Créer"
                     aria-haspopup="dialog"
                     aria-expanded={creer}
-                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-[#16120f] transition-transform active:scale-95"
+                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-barre-fond transition-transform active:scale-95"
                   >
                     <Icone nom="plus" size={28} strokeWidth={2.4} />
                   </button>
