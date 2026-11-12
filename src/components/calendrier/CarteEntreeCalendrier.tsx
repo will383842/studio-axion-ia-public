@@ -6,6 +6,8 @@ import type { EntreeCalendrier } from "@/domaine/calendrier";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { RESEAUX } from "@/reseaux";
+import { PictoReseau } from "./PictoReseau";
+import { couleurReseau } from "./couleurs-reseaux";
 import { PastilleStatutPlan, etatDepuisStatut, statutConnu, libelleEtat, type EtatAffiche, type TableLibelles, type TableStatuts } from "./PastilleStatutPlan";
 
 export type TypeContenu = "video" | "carrousel" | "infographie" | "image";
@@ -74,7 +76,7 @@ export function monogrammeReseau(reseau: IdReseau): string {
  * Aucune couleur n'est écrite ici : définir les jetons suffit à colorer cartes, pastilles, couloirs et repères.
  */
 export function styleReseau(reseau: IdReseau): CSSProperties {
-  return { "--c": `var(--res-${reseau}, var(--trait-fort))` } as CSSProperties;
+  return { "--c": `${couleurReseau(reseau).slice(0, -1)}, var(--trait-fort))` } as CSSProperties;
 }
 
 /** Picto d'un réseau (monogramme). Décoratif : le nom du réseau est toujours écrit ou dit à côté. */
@@ -179,7 +181,7 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
   const contenu: ReactNode = (
     <>
       <span className="flex items-center gap-1.5">
-        <MonogrammeReseau reseau={entree.reseau} taille="sm" />
+        <PictoReseau reseau={entree.reseau} taille="sm" className="text-xs font-bold text-texte" />
         {heure && <span className="text-sm font-extrabold tabular-nums text-texte">{heure}</span>}
         {verrouillee && (
           <span title="Verrouillée" className="ml-auto text-texte-faible">
