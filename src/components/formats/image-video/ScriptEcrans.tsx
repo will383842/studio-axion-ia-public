@@ -70,6 +70,8 @@ export function ScriptEcrans({
   // Hors édition, Will lit le texte qui sera vraiment gardé : ses modifications ET la version prudente.
   const lues = lignesDuScript(decision.fiche ?? fiche, formules);
   const montant = Math.max(prix.auPlusCentimes, prix.habituelCentimes);
+  // Le serveur ignore « tel quel » si une formule n'est pas « garder » : l'écran ne montre alors pas la case.
+  const toutesGardees = Object.values(m.formules).every((c) => c === "garder");
 
   const changerEcran = (id: string, x: { texteDit?: string; ecrits?: string[] }) => setM((v) => ({ ...v, ecrans: { ...v.ecrans, [id]: { ...v.ecrans[id], ...x } } }));
 
@@ -81,7 +83,7 @@ export function ScriptEcrans({
       const choixVariete = variete ? changementsVarieteIV(variete.recette, changes) : undefined;
       // Le script de Williams fait foi : une phrase non tranchée est gardée telle quelle (simple remarque).
       const choixFormules = { ...Object.fromEntries(ouvertes.map((f) => [f.cle, "garder" as const])), ...decision.choixFormules };
-      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}), ...(formeAcceptee && aTrancher.length > 0 && !decision.fiche ? { formeAcceptee: true } : {}) }, montant);
+      const r = await validerScriptImageVideoAction(videoId, { ...decision, choixFormules, ...(choixVariete ? { variete: choixVariete } : {}), ...(formeAcceptee && aTrancher.length > 0 && !decision.fiche && toutesGardees ? { formeAcceptee: true } : {}) }, montant);
       if (!r.ok) return setPhrase(r.message);
       const fin = await jusquALaReprise(videoId, r.donnees);
       if (fin) return setPhrase(fin);
@@ -202,7 +204,7 @@ export function ScriptEcrans({
           ))}
         </ul>
       )}
-      {aTrancher.length > 0 && !decision.fiche && (
+      {aTrancher.length > 0 && !decision.fiche && toutesGardees && (
         <label className="flex items-start gap-2 text-sm text-texte">
           <input type="checkbox" className="mt-1 size-4" checked={formeAcceptee} onChange={(ev) => setFormeAcceptee(ev.target.checked)} />
           <span>Je valide ce script tel quel malgré ces points de forme. Un chiffre ou un nom inventé, un mot interdit ou une durée trop longue restent bloquants.</span>
