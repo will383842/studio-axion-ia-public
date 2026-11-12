@@ -49,17 +49,23 @@ export function EcranATraiter({ vue, services, compte, onChange }: { vue: VueATr
     <div className="flex flex-col gap-4" data-ecran="a-traiter">
       <p className="text-sm text-texte-doux" data-restantes>{restantes.length} à traiter</p>
       <CarteATraiter carte={carte} />
-      <div className="flex flex-wrap gap-2">
-        <Bouton variante="secondaire" disabled={!carte.kit} onClick={copier}>Copier la réponse</Bouton>
-        {carte.lienPost ? (
-          <Bouton variante="secondaire" asChild>
-            <a href={carte.lienPost} target="_blank" rel="noopener noreferrer">Ouvrir le post</a>
-          </Bouton>
-        ) : null}
-        <Bouton disabled={enCours} onClick={() => agir(() => services.fait(carte.idEvenement))}>Fait</Bouton>
-        <Bouton variante="fantome" disabled={enCours} onClick={() => agir(() => services.ignorer(carte.idEvenement))}>Ignorer</Bouton>
-        <Bouton variante="danger" disabled={enCours} onClick={() => agir(() => services.stop(carte.idEvenement, compte))}>STOP</Bouton>
-      </div>
+      {carte.opposee ? (
+        <div className="flex flex-wrap gap-2" data-actions="opposee">
+          <Bouton variante="fantome" disabled={enCours} onClick={() => agir(() => services.ignorer(carte.idEvenement))}>Classer la carte</Bouton>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Bouton variante="secondaire" disabled={!carte.kit} onClick={copier}>Copier la réponse</Bouton>
+          {carte.lienPost ? (
+            <Bouton variante="secondaire" asChild>
+              <a href={carte.lienPost} target="_blank" rel="noopener noreferrer">Ouvrir le post</a>
+            </Bouton>
+          ) : null}
+          <Bouton disabled={enCours} onClick={() => agir(() => services.fait(carte.idEvenement))}>Fait</Bouton>
+          <Bouton variante="fantome" disabled={enCours} onClick={() => agir(() => services.ignorer(carte.idEvenement))}>Ignorer</Bouton>
+          <Bouton variante="danger" disabled={enCours} onClick={() => agir(() => services.stop(carte.idEvenement, compte))}>STOP</Bouton>
+        </div>
+      )}
     </div>
   );
 }

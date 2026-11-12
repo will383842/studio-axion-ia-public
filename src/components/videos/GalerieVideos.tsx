@@ -251,7 +251,7 @@ export function GalerieVideos({
       {suppression.feuille}
       {/* Barre d'outils : recherche, filtres, tri, sélection */}
       <div className="mb-4 flex items-center gap-2">
-        <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 transition-colors focus-within:border-orange">
+        <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 transition-colors focus-within:border-accent">
           <Icone nom="loupe" size={18} className="shrink-0 text-texte-faible" />
           <span className="sr-only">Rechercher une vidéo</span>
           <input
@@ -479,7 +479,7 @@ function PuceFiltre({ libelle, onRetirer }: { libelle: string; onRetirer: () => 
 function CarteChoix({ video: v, ratio, choisi, onBasculer }: { video: VueVideoCarte; ratio: Ratio; choisi: boolean; onBasculer: () => void }) {
   return (
     <button type="button" role="checkbox" aria-checked={choisi} onClick={onBasculer} className="group block w-full text-left">
-      <div className={cn("rounded-carte ring-2 ring-offset-2 ring-offset-fond transition-[box-shadow] duration-200", choisi ? "ring-orange" : "ring-transparent")}>
+      <div className={cn("rounded-carte ring-2 ring-offset-2 ring-offset-fond transition-[box-shadow] duration-200", choisi ? "ring-accent" : "ring-transparent")}>
         <VignetteVideo
           src={v.vignette}
           titre={v.titre}
@@ -492,7 +492,7 @@ function CarteChoix({ video: v, ratio, choisi, onBasculer }: { video: VueVideoCa
             <span
               className={cn(
                 "grid size-7 place-items-center rounded-full border-2 transition-colors",
-                choisi ? "border-orange bg-orange text-sur-orange" : "border-texte/70 bg-fond/50 text-transparent backdrop-blur",
+                choisi ? "border-accent bg-accent text-fond" : "border-texte/70 bg-fond/50 text-transparent backdrop-blur",
               )}
             >
               <Icone nom="coche" size={15} strokeWidth={3} />

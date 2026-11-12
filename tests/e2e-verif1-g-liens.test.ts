@@ -144,7 +144,7 @@ describe("agent g — liens internes", () => {
   });
 
   it("/bibliotheque/<type>, /formats/<id>, /nouvelle/<id> : valeurs écrites en dur toutes connues", () => {
-    const types = new Set<string>([...TYPES_BIBLIOTHEQUE.map((t) => t.type), "rushs"]);
+    const types = new Set<string>([...TYPES_BIBLIOTHEQUE.map((t) => t.type), "rushs", "animations" /* page fixe /bibliotheque/animations (R8a), absente de TYPES_BIBLIOTHEQUE */]);
     const fautifs: string[] = [];
     for (const l of LIENS) {
       const m = /^\/(bibliotheque|formats|nouvelle)\/([^/]+)$/.exec(l.chemin);
