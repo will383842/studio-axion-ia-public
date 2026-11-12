@@ -7,3 +7,12 @@
 - Reste : brancher dans la page les gestes secondaires, refuserEntree et renvoyerEntreeCorrigee ; « Valider et programmer » et « Modifier le texte » (retrait de programmation) attendent le diffuseur (CAL-23, zone Zernio, non touchée).
 - PILOTAGE : types.ts non modifiable ici, donc Refusée = archive + refuseLe et Manquée = état lu, pas de statut enregistré.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (n2, 12/11/2026)
+- Constat 1 (à corriger, « Valider et programmer » / « Corriger et renvoyer » enregistraient le texte) : corrigé. Nouvelle prop `surPrincipal` ; pour À valider et À corriger le bouton principal est `type="button"` branché sur le rappel de l'hôte ; l'enregistrement du texte reste un bouton à part « Enregistrer le texte ». Tenu : tests/calendrier/cal-10-statuts.test.ts:222-231 (le clic appelle le rappel, aucun submit portant ce libellé), :232-234.
+- Constat 2 (à corriger, « Modifier le texte » bouton mort) : corrigé. Sans rappel de l'hôte, aucun de ces trois boutons n'est rendu ; avec rappel, `type="button"` branché dessus. Tenu : cal-10-statuts.test.ts:235-243 et :222-231. Rouge avant (8 échecs), vert après.
+- Remarque tons « Refusée » (contour) / « Manquée » (brique) : reporté, le fondateur doit trancher (déjà douteux plus haut), table non modifiée.
+- Remarque envoi : rien à corriger. Aucun statut ne promet d'envoi, rien n'ouvre l'envoi.
+- Non fait, signalé : « Accepter l'idée » reste un submit (hors constat). L'hôte doit encore brancher `surPrincipal` (validation, renvoyerEntreeCorrigee) : PILOTAGE.
+- Tests : cal-10 47 passés, 0 échoué ; tests/calendrier 296 passés ; calendrier-*.test + rc-36 193 passés ; master fusionné sans conflit.
+- contrôle anti-fuite : vide

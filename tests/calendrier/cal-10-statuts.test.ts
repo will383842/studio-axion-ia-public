@@ -198,15 +198,48 @@ describe("tiroir : la fiche branche les boutons selon l'état", () => {
   const entree = (o: Partial<EntreeFiche> = {}): EntreeFiche => ({ cle: "creneau:c1|linkedin", reseau: "linkedin", type: "video", jour: "2026-11-21", heure: "09:00", etat: "brouillon", texte: "Texte fictif", ...o }) as EntreeFiche;
   const rendre = (e: EntreeFiche, extra: Record<string, unknown> = {}) =>
     renderToStaticMarkup(createElement(FicheEntree, { entree: e, aujourdhui: "2026-11-20", action: () => {}, selonStatut: true, ...extra }));
-  it("brouillon, à valider, à corriger : le bouton principal est celui de la maquette", () => {
+  it("brouillon : le bouton principal de la maquette enregistre le texte", () => {
     expect(rendre(entree())).toMatch(/type="submit"[^>]*>.*Compléter le texte/);
-    expect(rendre(entree({ etat: "a_valider" }))).toMatch(/type="submit"[^>]*>.*Valider et programmer/);
-    expect(rendre(entree({ etat: "a_corriger" }))).toMatch(/type="submit"[^>]*>.*Corriger et renvoyer/);
   });
-  it("programmé : « Modifier le texte » sans enregistrer le formulaire (type bouton)", () => {
-    const h = rendre(entree({ etat: "programme" }));
-    expect(h).toMatch(/type="button"[^>]*>.*Modifier le texte/);
-    expect(h).not.toContain('type="submit"');
+  // Le geste de l'hôte : on parcourt l'arbre rendu par la fiche (pas de DOM, pas de regex sur du texte de script).
+  type Noeud = { type?: unknown; props?: Record<string, unknown> };
+  const boutons = (n: unknown, sortie: Noeud[] = []): Noeud[] => {
+    if (Array.isArray(n)) n.forEach((x) => boutons(x, sortie));
+    else if (n && typeof n === "object") {
+      const e = n as Noeud;
+      if (e.props && (e.props.type === "button" || e.props.type === "submit")) sortie.push(e);
+      if (e.props) boutons(e.props.children, sortie);
+    }
+    return sortie;
+  };
+  const arbre = (e: EntreeFiche, extra: Record<string, unknown> = {}) =>
+    (FicheEntree as unknown as (p: Record<string, unknown>) => unknown)({ entree: e, aujourdhui: "2026-11-20", action: () => {}, selonStatut: true, ...extra });
+  const enfantsTexte = (n: Noeud) => JSON.stringify(n.props?.children);
+  it.each([
+    ["a_valider", "Valider et programmer"],
+    ["a_corriger", "Corriger et renvoyer"],
+    ["programme", "Modifier le texte"],
+  ])("%s : « %s » est un geste distinct (type bouton, rappel de l'hôte), jamais l'enregistrement du texte", (etat, libelle) => {
+    const surPrincipal = vi.fn();
+    const principal = boutons(arbre(entree({ etat }), { surPrincipal })).filter((b) => enfantsTexte(b).includes(libelle));
+    expect(principal).toHaveLength(1);
+    expect(principal[0].props?.type).toBe("button");
+    expect(principal[0].props?.onClick).toBe(surPrincipal);
+    (principal[0].props?.onClick as () => void)();
+    expect(surPrincipal).toHaveBeenCalledTimes(1);
+    expect(rendre(entree({ etat }), { surPrincipal })).not.toMatch(new RegExp(`type="submit"[^>]*>[^<]*${libelle}`));
+  });
+  it.each(["a_valider", "a_corriger"])("%s : le texte reste enregistrable par un bouton à part", (etat) => {
+    expect(rendre(entree({ etat }), { surPrincipal: () => {} })).toMatch(/type="submit"[^>]*>.*Enregistrer le texte/);
+  });
+  it.each([
+    ["a_valider", "Valider et programmer"],
+    ["a_corriger", "Corriger et renvoyer"],
+    ["programme", "Modifier le texte"],
+  ])("%s sans rappel de l'hôte : pas de bouton mort « %s »", (etat, libelle) => {
+    const h = rendre(entree({ etat }));
+    expect(h).not.toContain(libelle);
+    expect(boutons(arbre(entree({ etat }))).filter((b) => b.props?.type === "button" && enfantsTexte(b).includes(libelle))).toHaveLength(0);
   });
   it("publiée ou passée : aucun bouton principal", () => {
     for (const e of [entree({ etat: "publie" }), entree({ jour: "2026-11-19" }), entree({ etat: "publie", jour: "2026-11-19" })]) {
