@@ -29,25 +29,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # [L0-17b] La tête de la PR elle-même (pas le commit de fusion) ; la base est la base COMMUNE avec la branche cible À JOUR.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Garde de zone
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
+          CIBLE: origin/${{ github.event.pull_request.base.ref }}
           BRANCHE: ${{ github.head_ref }}
           CORPS: ${{ github.event.pull_request.body }}
         run: |
+          BASE=$(git merge-base HEAD "$CIBLE")
           git worktree add "$RUNNER_TEMP/base" "$BASE"
           printf '%s\n' "$CORPS" > "$RUNNER_TEMP/corps.txt"
           # La garde est lancée depuis la BASE dès qu'elle y existe (une PR ne modifie pas la garde qui la juge) ;
           # tant qu'elle n'est pas sur la branche principale, la version de la PR sert (limite connue, voir le journal).
           GARDE=outils/gardes/zone-interdite.mjs
           if [ -f "$RUNNER_TEMP/base/$GARDE" ]; then GARDE="$RUNNER_TEMP/base/$GARDE"; fi
-          node "$GARDE" --base "$BASE" --branche "$BRANCHE" \
+          node "$GARDE" --base "$BASE" --cible "$CIBLE" --branche "$BRANCHE" \
             --listes "$RUNNER_TEMP/base/pilotage/autorises" \
             --annonces "$RUNNER_TEMP/base/pilotage/annonces" \
             --corps "$RUNNER_TEMP/corps.txt"
@@ -57,9 +60,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # [L0-17b] Sur une PR : la tête de la PR et la base commune avec la branche cible à jour (pas le sommet figé).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -73,8 +78,10 @@ jobs:
           pnpm exec eslint . -f json -o "$RUNNER_TEMP/v/eslint-tete.json" || true
       - name: Erreurs de la base (base de la PR, ou commit précédent sur un push)
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CIBLE: ${{ github.event.pull_request.base.ref && format('origin/{0}', github.event.pull_request.base.ref) || '' }}
+          BASE: ${{ github.event.before }}
         run: |
+          if [ -n "$CIBLE" ]; then BASE=$(git merge-base HEAD "$CIBLE"); fi
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then BASE=$(git rev-parse HEAD^); fi
           git worktree add "$RUNNER_TEMP/base" "$BASE"
           ln -s "$PWD/node_modules" "$RUNNER_TEMP/base/node_modules"
