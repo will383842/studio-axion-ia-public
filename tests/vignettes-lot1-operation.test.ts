@@ -193,12 +193,21 @@ describe.skipIf(!ffmpegPresent)("vignettes lot 1 · opération miniature", { tim
     expect(vus[0].proprietes).toMatchObject({ couverture: "Vos devis sans réponse", image: expect.stringMatching(/\/fond\.png$/) });
   });
 
-  it("« image-video-v3 » avec un titre en 9:16 : mise m2 forcée (bande centrale) ; en 16:9 la mise demandée reste", async () => {
+  it("« image-video-v3 », réglage éteint (pas de titreCentre), 9:16, titre saisi : la mise demandée reste, comme avant GV-VG-04", async () => {
     const { op, vus } = essai();
     await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse", mise: "m1" }), contexte());
+    expect(vus[0].proprietes).toMatchObject({ mise: "m1" });
+    const b = essai();
+    await b.op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse" }), contexte());
+    expect(b.vus[0].proprietes).toMatchObject({ mise: "m1" }); // mise par défaut de proprietesVignette, comme sur gv/LOT-2
+  });
+
+  it("« image-video-v3 » réglage allumé (titreCentre) avec un titre en 9:16 : mise m2 forcée (bande centrale) ; en 16:9 la mise demandée reste", async () => {
+    const { op, vus } = essai();
+    await op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "9:16", couverture: "Vos devis sans réponse", mise: "m1", titreCentre: true }), contexte());
     expect(vus[0].proprietes).toMatchObject({ mise: "m2" });
     const b = essai();
-    await b.op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "16:9", couverture: "Vos devis sans réponse", mise: "m1" }), contexte());
+    await b.op(demande({ gabarit: "image-video-v3", dureeSec: 4, ratio: "16:9", couverture: "Vos devis sans réponse", mise: "m1", titreCentre: true }), contexte());
     expect(b.vus[0].proprietes).toMatchObject({ mise: "m1" });
   });
 
