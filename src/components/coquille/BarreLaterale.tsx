@@ -1,5 +1,6 @@
 "use client";
 
+import { useEcranAUnBoutonPrincipal, varianteNouvelleVideo } from "@/lib/ecran-principal";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -253,6 +254,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
 
   const rubriques = rubriquesLaterales(surLeSite, aPublier);
   const creerActif = courant === ACTION_CREER.href;
+  const ecranAPrincipal = useEcranAUnBoutonPrincipal();
   const libelleRepli = repliee ? "Déplier le menu" : "Replier le menu";
 
   return (
@@ -278,14 +280,17 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
         </button>
       )}
 
-      {/* Action principale : bouton plein sous le logo, hors du menu (la règle « contour » viendra en R3). */}
+      {/* Action principale sous le logo, hors du menu. Règle « un seul orange plein » : en contour dès que l'écran a son propre bouton principal. */}
       <div className="shrink-0 px-3 pb-2">
         <Link
           href={ACTION_CREER.href}
           aria-label={repliee ? ACTION_CREER.libelle : undefined}
           aria-current={creerActif ? "page" : undefined}
           className={cn(
-            "group relative flex items-center gap-2 rounded-lg bg-orange px-2 py-2 text-sm font-medium leading-5 text-sur-orange shadow-orange transition-colors hover:bg-orange-vif",
+            "group relative flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium leading-5 transition-colors",
+            varianteNouvelleVideo(ecranAPrincipal) === "plein"
+              ? "bg-orange text-sur-orange shadow-orange hover:bg-orange-vif"
+              : "border-2 border-orange bg-barre-bouton-fond text-orange-vif hover:border-orange-vif",
             repliee && "flex-col justify-center gap-0.5 px-0",
           )}
         >
