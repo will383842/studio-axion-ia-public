@@ -7,7 +7,7 @@ import { ecritureDatePermise, libelleOrigineDate } from "@/domaine/plan-editoria
 import { ORIGINES_ENTREE } from "@/domaine/plan-editorial/statuts";
 import type { OrigineEntree } from "@/domaine/plan-editorial/types";
 
-const entree: EntreeFiche = { cle: "creneau:c1|linkedin", jour: "2026-12-10", reseau: "linkedin", type: "texte", etat: "brouillon", heure: "09:30", texte: "Texte fictif." };
+const entree: EntreeFiche = { cle: "creneau:c1|linkedin", jour: "2026-12-10", reseau: "linkedin", type: "image", etat: "brouillon", heure: "09:30", texte: "Texte fictif." };
 const rendre = (o?: OrigineEntree) => renderToStaticMarkup(createElement(FicheEntree, { entree: { ...entree, ...(o ? { origineDate: o } : {}) }, aujourdhui: "2026-12-01" }));
 
 describe("CAL-01 · garde : une date choisie à la main n'est jamais écrasée", () => {
@@ -41,7 +41,7 @@ describe("CAL-01 · garde : une date choisie à la main n'est jamais écrasée",
 });
 
 describe("CAL-01 · libellés et fiche", () => {
-  it("une libellé par origine", () => {
+  it("un libellé par origine", () => {
     expect(libelleOrigineDate("vous")).toBe("choisie par vous");
     expect(libelleOrigineDate("usine")).toBe("proposée par l'usine");
     expect(libelleOrigineDate(undefined)).toBe("choisie par vous");

@@ -7,6 +7,8 @@ import { cn } from "@/lib/cn";
 import { libelleJour } from "./BarreVue";
 import { MonogrammeReseau, TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { ETATS_CALENDRIER, PastilleStatutPlan, type EtatAffiche, type TableLibelles } from "./PastilleStatutPlan";
+import { libelleOrigineDate } from "@/domaine/plan-editorial/origine-date";
+import type { OrigineEntree } from "@/domaine/plan-editorial/types";
 import type { IdReseau } from "@/domaine/types";
 
 /**
@@ -83,6 +85,8 @@ export interface EntreeFiche extends EntreeCarte {
   confiee?: boolean;
   /** Ce qui manque ou ce que le réseau a répondu, en une phrase. */
   message?: string;
+  /** Origine de la date (CAL-01, définie dans types.ts) ; absente : choisie à la main. */
+  origineDate?: OrigineEntree;
 }
 
 /** Pourquoi une fiche est en lecture seule. */
@@ -382,6 +386,11 @@ export function FicheEntree({
           {`${nom} · ${type}`}
         </h2>
         <p className="mt-0.5 text-xs text-texte-faible">{quand}</p>
+        {jour && (
+          <p data-origine-date={entree.origineDate === "usine" ? "usine" : "vous"} className="mt-0.5 text-xs text-texte-faible">
+            {`Date ${libelleOrigineDate(entree.origineDate)}`}
+          </p>
+        )}
         {sousDate}
       </header>
 
