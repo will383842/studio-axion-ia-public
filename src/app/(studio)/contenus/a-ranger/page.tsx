@@ -48,7 +48,7 @@ export default async function PageContenusARanger({ searchParams }: { searchPara
               <form action={rangerContenuAction} className="mt-2 flex flex-wrap gap-2">
                 <input type="hidden" name="id" value={c.id} />
                 {RESEAUX_RANGEMENT.map((r) => (
-                  <button key={r} type="submit" name="reseau" value={r} className="inline-flex min-h-11 items-center rounded-full bg-orange-doux px-3 text-sm font-semibold text-orange-vif">
+                  <button key={r} type="submit" name="reseau" value={r} className="inline-flex min-h-11 items-center rounded-full bg-accent-doux px-3 text-sm font-semibold text-accent">
                     Ranger sous {NOMS_RESEAUX[r]}
                   </button>
                 ))}
