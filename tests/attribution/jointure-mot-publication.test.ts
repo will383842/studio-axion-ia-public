@@ -32,6 +32,10 @@ describe("L5-26 · corps sans e-mail", () => {
   it("refuse un corps qui contient une adresse e-mail", () => {
     expect(corpsSansEmail("écris-moi à personne@exemple.fr")).toEqual({ ok: false, motif: "email_interdit" });
   });
+  it("refuse aussi une adresse sans domaine de premier niveau, mais pas une mention @compte", () => {
+    expect(corpsSansEmail("écris à contact@exemple")).toEqual({ ok: false, motif: "email_interdit" });
+    expect(corpsSansEmail("suis @compte_fictif")).toEqual({ ok: true });
+  });
   it("accepte un corps sans e-mail", () => {
     expect(corpsSansEmail("Commente GUIDE pour le recevoir")).toEqual({ ok: true });
   });
