@@ -320,6 +320,37 @@
   }
 }
 
+/* Page publique d'un lien privé (/v/...) : charte du site public (ivoire, noir, terracotta), jamais le bleu du Studio.
+   Les noms de jetons sont redéfinis ici à partir de la charte FIGÉE ; les utilitaires (@theme inline) suivent. */
+.charte-publique {
+  --fond: var(--charte-ivoire);
+  --surface-1: #ffffff;
+  --surface-2: color-mix(in srgb, var(--charte-noir) 5%, var(--charte-ivoire));
+  --surface-3: color-mix(in srgb, var(--charte-noir) 9%, var(--charte-ivoire));
+  --trait: color-mix(in srgb, var(--charte-noir) 10%, var(--charte-ivoire));
+  --trait-fort: color-mix(in srgb, var(--charte-noir) 20%, var(--charte-ivoire));
+  --trait-champ: color-mix(in srgb, var(--charte-noir) 55%, var(--charte-ivoire));
+  --texte: var(--charte-noir);
+  --texte-doux: color-mix(in srgb, var(--charte-noir) 82%, var(--charte-ivoire));
+  --texte-faible: color-mix(in srgb, var(--charte-noir) 72%, var(--charte-ivoire));
+  --orange: var(--charte-orange);
+  --orange-vif: var(--charte-orange-vif);
+  --sur-orange: #ffffff;
+  --accent: var(--charte-noir);
+  --accent-doux: var(--surface-2);
+  --sur-accent: var(--charte-ivoire);
+  --ecran: var(--charte-noir);
+  --ecran-texte: var(--charte-ivoire);
+  --ombre: 0 1px 2px rgb(20 20 19 / 0.06), 0 8px 24px -12px rgb(20 20 19 / 0.18);
+  --ombre-carte: var(--ombre);
+  --ombre-orange: var(--ombre);
+  background: var(--charte-ivoire);
+  color: var(--charte-noir);
+}
+html:has(.charte-publique) {
+  background: var(--charte-ivoire);
+}
+
 @layer utilities {
   .lueur {
     background-image: var(--lueur);
@@ -333,6 +364,10 @@
     text-transform: uppercase;
     letter-spacing: -0.01em;
     line-height: 1.1;
+  }
+  /* Halo terracotta en haut de la page publique (décision de Williams, 12/11) */
+  .halo-public {
+    background-image: radial-gradient(ellipse 60% 100% at 50% 0%, color-mix(in srgb, var(--charte-orange) 14%, transparent), transparent 70%);
   }
   .sans-barre {
     scrollbar-width: none;

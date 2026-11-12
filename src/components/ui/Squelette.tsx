@@ -21,8 +21,10 @@ export function SqueletteGrille({ nombre = 6, ratio = "9:16" }: { nombre?: numbe
 
 /** Page en chargement : en-tête + grille. */
 export function SquelettePage() {
+  // Le mot « Chargement de la page… » est visible (maquette M7) ; le gris ne bouge pas si l'appareil demande moins de mouvements (globals.css).
   return (
-    <div role="status" aria-label="Chargement" className="space-y-6">
+    <div role="status" className="space-y-6">
+      <p className="text-[13px] font-bold text-texte-doux">Chargement de la page…</p>
       <div className="space-y-3">
         <Squelette className="h-9 w-56" />
         <Squelette className="h-4 w-72" />

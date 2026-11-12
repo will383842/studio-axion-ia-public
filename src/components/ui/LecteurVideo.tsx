@@ -124,7 +124,7 @@ export function LecteurVideo({
           className="group absolute inset-0 grid place-items-center bg-linear-to-t from-[#000]/50 to-transparent"
           aria-label={`Lire « ${titre} »`}
         >
-          <span className="grid size-16 place-items-center rounded-full bg-orange text-sur-orange shadow-orange transition-transform duration-200 group-hover:scale-110">
+          <span className="grid size-16 place-items-center rounded-full bg-surface-1 text-texte shadow-carte transition-transform duration-200 group-hover:scale-110">
             <Icone nom="lecture" size={26} className="translate-x-0.5" fill="currentColor" />
           </span>
         </button>

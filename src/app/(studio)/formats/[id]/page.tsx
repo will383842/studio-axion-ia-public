@@ -53,6 +53,8 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
   // « Bientôt » seulement pour un format réellement pas fait : pas pour un format ouvert dans la navigation (Image → vidéo, essai).
   const ouvert = trouverFormat(f.id)?.ouvertDansLaNavigation === true;
   const bientot = formatBientot(f.statut, ouvert);
+  // M7 (décision de Williams, 12/11) : un format masqué porte « Masqué », plus « Bientôt » : on ne les confond plus.
+  const masque = bientot && f.statut === "masque";
   // Lot M : mêmes rangées Réseau et Étape que Mes vidéos (le format est déjà celui de la page).
   const filtres = lireFiltres({ ...sp, format: undefined });
   const sansReseau = filtrerCartes(fiche.videos, { etape: filtres.etape });
@@ -102,9 +104,14 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
               <Icone nom={f.icone} size={26} />
             </span>
             <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-              {bientot && (
+              {bientot && !masque && (
                 <Pastille ton="ambre" icone="horloge">
                   Bientôt
+                </Pastille>
+              )}
+              {masque && (
+                <Pastille ton="brique" taille="md">
+                  Masqué
                 </Pastille>
               )}
               {valeursDuree(f).map((d) => (
@@ -121,7 +128,15 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
             </div>
           </div>
         </Carte>
-        {bientot && f.aFournir.length > 0 && (
+        {masque && (
+          <p className="-mt-3 mb-6 flex items-start gap-2.5 rounded-carte border border-dashed border-trait-champ bg-surface-1 px-3.5 py-3 text-[13px] text-texte-doux">
+            <Icone nom="cadenas" size={16} className="mt-0.5 shrink-0" />
+            <span>
+              <b className="text-texte">Ce format est masqué.</b> Il n&apos;apparaît plus dans « Nouvelle vidéo ». Ses anciennes vidéos restent ici.
+            </span>
+          </p>
+        )}
+        {bientot && !masque && f.aFournir.length > 0 && (
           <Section id="a-fournir" titre="À fournir" className="mb-6">
             <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {f.aFournir.map((a) => (
@@ -189,7 +204,7 @@ export default async function PageFormat({ params, searchParams }: { params: Pro
           filtresAdresse={filtresAdresse}
           afficherFormat={false}
           ratioForce={f.ratioMaitre}
-          vide={<EtatVide compact icone={f.icone} titre="Pas encore de vidéo" phrase={bientot ? "Ce format arrive bientôt." : "Lancez la première."} />}
+          vide={<EtatVide compact icone={f.icone} titre="Pas encore de vidéo" phrase={masque ? "Ce format est masqué." : bientot ? "Ce format arrive bientôt." : "Lancez la première."} />}
         />
         {fiche.nbArchivees > 0 && (
           <p className="mt-4 text-sm">
