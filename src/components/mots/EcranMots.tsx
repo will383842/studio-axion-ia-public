@@ -49,7 +49,7 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["pub-commentaire", "Réponse publique au commentaire"],
 ];
 /** Groupes proposés (série 6) : à relire et valider, mais aucun envoi n'est encore branché dessus. */
-const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore", "deja-envoye", "pub-commentaire"]);
+const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore", "deja-envoye", "pub-commentaire", "lien-rappel"]);
 
 /**
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que

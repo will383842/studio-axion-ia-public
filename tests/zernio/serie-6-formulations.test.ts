@@ -236,11 +236,14 @@ describe("3 · écran /mots", () => {
       "m1-adresse",
       "recu",
       "adresse-non-reconnue",
-      "lien-rappel",
     ]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
       expect(bloc, g).not.toContain("pas encore branché");
     }
+    const rappel = html
+      .split(`data-groupe="lien-rappel"`)[1]
+      .split("data-groupe=")[0];
+    expect(rappel.match(/pas encore branché/g)).toHaveLength(1);
     expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12);
   });
 });
