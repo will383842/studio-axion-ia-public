@@ -21,7 +21,6 @@ import { Pastille } from "@/components/ui/Pastille";
 import { FormeRatio, SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { Squelette } from "@/components/ui/Squelette";
 import { notifier } from "@/components/ui/Toast";
-import { phraseAvatarParle } from "@/domaine/double-reel";
 import { resoudreVisagesParAngle } from "@/domaine/distribution";
 import type { AngleVisage, ChoixBruitagePlan, Ratio } from "@/domaine/types";
 import { briquesEffectives, libelleDuree, obtenirFormat } from "@/formats";
@@ -34,7 +33,7 @@ import type { VueElement, VuePlan } from "@/services/vues";
 import type { CleEtape } from "./meta";
 import { lancerAvecVoyant, type OuiVoyant } from "./lancer-avec-voyant";
 import type { ProprietesEtape } from "./types";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 
 /** Écran « Votre vidéo » : l'étape à corriger → la feuille qui la porte (E2E-1 n° 5). */
 export const FEUILLE_DE_L_ETAPE: Partial<Record<CleEtape, "script" | "plateau" | "voix" | "style">> = { script: "script", distribution: "plateau", reglages: "style" };
@@ -116,7 +115,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
     if (!id) return setErreur({ message: "Le brouillon n'a pas pu être enregistré." });
     const r = await apercuAction(id);
     if (r.ok) setDonnees(r.donnees);
-    else setErreur({ message: r.message, code: r.code });
+    else setErreur({ message: messageSansMontant(r.message), code: r.code });
     // Lot « intensité » : la courbe arrive après les plans (jamais bloquante).
     const i = await intensiteApercuAction(id);
     if (i.ok) setIntensite(i.donnees);
@@ -125,7 +124,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
   async function changerSon(planId: string, choix: ChoixBruitagePlan | null) {
     const r = await sonDuPlanAction(planId, choix);
     if (r.ok) setIntensite(r.donnees);
-    else notifier.erreur(r.message);
+    else notifier.erreur(messageSansMontant(r.message));
   }
 
   useEffect(() => {
@@ -165,7 +164,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
       setMontantServeur(r.montant ?? null);
       return setConfirmation(true);
     }
-    notifier.erreur(r.message);
+    notifier.erreur(messageSansMontant(r.message));
     if (r.code === "ACCORD_MANQUANT" || r.code === "DISTRIBUTION_INCOMPLETE") allerA("distribution");
   }
 
@@ -174,7 +173,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
     if (!id) return;
     const r = await modeEconomiqueAction(id, actif);
     if (r.ok) setDonnees(r.donnees);
-    else notifier.erreur(r.message);
+    else notifier.erreur(messageSansMontant(r.message));
   }
 
   async function voirMaquette() {
@@ -187,14 +186,14 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
     if (r.ok) {
       setMaquette(r.donnees);
       notifier.essai("maquette de démonstration");
-    } else notifier.erreur(r.message);
+    } else notifier.erreur(messageSansMontant(r.message));
   }
 
   async function remplacer(plan: VuePlan, element: VueElement | null) {
     setOccupe("remplacement");
     const r = await choisirIllustrationAction(plan.id, element?.id ?? null);
     setOccupe(null);
-    if (!r.ok) return notifier.erreur(r.message);
+    if (!r.ok) return notifier.erreur(messageSansMontant(r.message));
     setDonnees((d) =>
       d
         ? {
@@ -507,7 +506,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
         titre={donnees.budget.double ? "Votre avatar parle" : donnees.budget.montageReel ? "Cette vidéo sera montée pour de vrai" : "Fabriquer cette vidéo"}
         description={
           donnees.budget.double
-            ? phraseAvatarParle(donnees.budget.double)
+            ? "Votre avatar parle dans cette vidéo : à confirmer, sans montant affiché."
             : donnees.budget.montageReel
               ? "Pour repasser en essai : Réglages, Connexions, Montage."
               : undefined
