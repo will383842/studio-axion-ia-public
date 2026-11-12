@@ -158,3 +158,20 @@ describe("GV-ST-03b · Q22 mesure avec le style choisi", () => {
     expect(q22(undefined).details).toEqual(q22().details);
   });
 });
+
+describe("GV-ST-03c · la mise en scène transmet le style au contrôle", () => {
+  const fiche = FICHES_SIMULEES["essai-c"];
+  const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+  const entree = { carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES };
+  const q22 = (st?: StyleChoisiIV) => mettreEnSceneIV({ ...entree, ...(st ? { styleSousTitres: st } : {}) }).rapport.lignes.find((l) => l.code === "Q22")!;
+  const enorme: StyleChoisiIV = { id: "enorme", nom: "Énorme", valeur: { ...KARAOKE.valeur!, taillePx: 260, tailleRelative: 3, positionPct: 50 } };
+
+  it("avec un style choisi, le contrôle appelé depuis la mise en scène le reçoit (Q22 rouge)", () => {
+    expect(q22().ok).toBe(true);
+    expect(q22(enorme).ok).toBe(false);
+  });
+
+  it("sans style : mêmes détails qu'avant", () => {
+    expect(q22(undefined).details).toEqual(controlerMiseEnSceneIV(mettreEnSceneIV(entree).ligne, { carte, fiche, reseaux: fin.reseaux, voix: entree.voix.mots, bruitages: { ok: true, bruitages: mettreEnSceneIV(entree).ligne.bruitages, rapport: { changementsSansSon: [] } } as never }).lignes.find((l) => l.code === "Q22")!.details);
+  });
+});
