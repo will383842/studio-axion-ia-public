@@ -4,9 +4,11 @@ import {
   aliasDe,
   cleParcours,
   dossierDe,
+  partieCible,
   racineDe,
   racinesConnues,
 } from "@/domaine/guide-reseau/cles-parcours";
+import { GROUPES_MP } from "@/domaine/guide-reseau/textes-mp";
 import {
   choisirParcoursPourMessage,
   cibleLivree,
@@ -237,12 +239,123 @@ describe("deciderCommentaire", () => {
         .action,
     ).toBe("public_seul");
   });
+  it("deux mots vers la même cible : D calculé par partieCible", () => {
+    const T = [
+      e("r|1", {
+        etat: "attente_email",
+        m1Le: iso(10 * 60_000),
+        mot: "GUIDE",
+        nature: "premier",
+        guide: "guide-ia",
+      }),
+      e("r|2", { etat: "termine", m1Le: iso(10 * H), guide: "autre-guide" }),
+    ];
+    const D = partieCible(T, "guide-ia");
+    expect(D.map((x) => x.cle)).toEqual(["r|1"]);
+    expect(
+      deciderCommentaire(T, D, ev({ idCommentaire: "com-autre-mot" }), opt)
+        .action,
+    ).toBe("public_seul");
+  });
   it("ancien enregistrement sans mot ni nature : décidé comme les autres", () => {
     const ancien = envoye(10 * 60_000);
     expect(ancien.mot).toBeUndefined();
     expect(ancien.nature).toBeUndefined();
     const D = [{ cle: "racine", etat: ancien }];
     expect(deciderCommentaire(D, D, ev(), opt).action).toBe("public_seul");
+  });
+});
+
+describe("correctifs de relecture", () => {
+  it("m1_consommee récent : pas de 2e message privé (passe par R5 non livrée)", () => {
+    const D = [
+      e("r|1", {
+        etat: "m1_consommee",
+        idCommentaire: "com-0",
+        creeLe: iso(5 * 60_000),
+        m1Le: null,
+      }),
+    ];
+    expect(deciderCommentaire(D, D, ev(), opt)).toMatchObject({
+      action: "public_seul",
+      raison: "deja_envoye",
+    });
+    const vieux = [
+      e("r|1", {
+        etat: "m1_consommee",
+        idCommentaire: "com-0",
+        creeLe: iso(50 * H),
+      }),
+    ];
+    expect(deciderCommentaire(vieux, vieux, ev(), opt)).toMatchObject({
+      action: "renvoyer",
+      groupe: "lien-rappel",
+    });
+  });
+  it("doute d'opposition sur une autre cible : jamais demarrer ni renvoyer", () => {
+    const doute = e("r|9", {
+      etat: "termine",
+      guide: "autre-guide",
+      m1Le: iso(100 * H),
+      douteOpposition: true,
+    });
+    const vide = [doute];
+    expect(deciderCommentaire(vide, [], ev(), opt)).toMatchObject({
+      action: "public_seul",
+      raison: "doute_opposition",
+    });
+    const D = [{ cle: "r|1", etat: envoye(50 * H) }];
+    expect(deciderCommentaire([...D, doute], D, ev(), opt)).toMatchObject({
+      action: "public_seul",
+      raison: "doute_opposition",
+    });
+  });
+  it("R4 : ancien m1_refuse sans refuseLe => date de création", () => {
+    const recent = [
+      e("r|1", {
+        etat: "m1_refuse",
+        idCommentaire: "com-0",
+        creeLe: iso(2 * H),
+        refuseLe: null,
+      }),
+    ];
+    expect(deciderCommentaire(recent, recent, ev(), opt)).toMatchObject({
+      action: "public_seul",
+      raison: "deja_envoye",
+    });
+    const vieux = [
+      e("r|1", {
+        etat: "m1_refuse",
+        idCommentaire: "com-0",
+        creeLe: iso(30 * H),
+      }),
+    ];
+    expect(deciderCommentaire(vieux, vieux, ev(), opt).action).toBe("demarrer");
+  });
+  it("R6 : plafond illisible (NaN, undefined) => atteint par prudence", () => {
+    for (const p of [Number.NaN, undefined, Infinity]) {
+      const o = { plafondPersonneJour: p as unknown as number };
+      expect(deciderCommentaire([], [], ev(), o)).toMatchObject({
+        action: "public_seul",
+        raison: "plafond_personne",
+      });
+    }
+  });
+  it("m1AvecLien reconnaît tout identifiant du groupe lien-rappel du dictionnaire", () => {
+    for (const id of GROUPES_MP["lien-rappel"])
+      expect(m1AvecLien(id), id).toBe(true);
+  });
+});
+
+describe("partieCible", () => {
+  it("garde les enregistrements de la cible, l'ancien (guide absent) = guide-ia", () => {
+    const a = e("r|1", { guide: "guide-ia", titreCible: "Guide IA" });
+    const b = e("r|2", { guide: "autre" });
+    const ancien = e("r", {});
+    (ancien.etat as { guide?: string }).guide = undefined;
+    expect(partieCible([a, b, ancien], "guide-ia")).toEqual([a, ancien]);
+    expect(partieCible([a, b, ancien], "autre")).toEqual([b]);
+    expect(partieCible([], "guide-ia")).toEqual([]);
   });
 });
 
@@ -276,9 +389,15 @@ describe("choisirParcoursPourMessage", () => {
     expect(choisirParcoursPourMessage([A, fini, Z], "m-9", "c").principal).toBe(
       fini,
     );
-    expect(choisirParcoursPourMessage([Z, B], "m-9", "inconnu").principal).toBe(
-      Z,
-    );
+    // Aucun parcours du même compte : jamais de repli sur le parcours d'un autre compte.
+    expect(choisirParcoursPourMessage([Z, B], "m-9", "inconnu")).toEqual({
+      principal: null,
+      tous: [],
+    });
+    expect(choisirParcoursPourMessage([], "m-9", "c")).toEqual({
+      principal: null,
+      tous: [],
+    });
     expect(choisirParcoursPourMessage([A, B, C, Z], "m-9", "c").tous).toEqual([
       A,
       B,
