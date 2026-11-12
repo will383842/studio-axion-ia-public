@@ -3,7 +3,7 @@
  * Chaque cellule : valeur + niveau de preuve ; hors « inconnu », une URL https et une date ; une source de plus de
  * 6 mois porte « à revérifier ».
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 interface Cellule {
@@ -11,6 +11,7 @@ interface Cellule {
   preuve: "officiel" | "secondaire" | "inconnu";
   url: string | null;
   date: string | null;
+  copie_depot: string | null;
   a_reverifier?: boolean;
 }
 interface Constante {
@@ -67,7 +68,16 @@ describe("relevé des règles officielles (L8-01)", () => {
         expect(c.valeur, chemin).toBe("inconnu");
         expect(c.url, chemin).toBeNull();
         expect(c.date, chemin).toBeNull();
+        expect(c.copie_depot, chemin).toBeNull();
       } else {
+        expect(c.copie_depot ?? "", chemin).toMatch(/^docs\/[^#\s]+\.json#\/\S+$/);
+        const [fichier, pointeur] = (c.copie_depot ?? "#").split("#");
+        expect(existsSync(fichier), `${chemin} → ${fichier}`).toBe(true);
+        let noeud: unknown = JSON.parse(readFileSync(fichier, "utf8"));
+        for (const partie of pointeur.slice(1).split("/")) {
+          noeud = (noeud as Record<string, unknown> | undefined)?.[partie.replace(/~1/g, "/").replace(/~0/g, "~")];
+        }
+        expect(noeud, `${chemin} → ${c.copie_depot}`).toBeDefined();
         expect(c.valeur.trim().length, chemin).toBeGreaterThan(0);
         expect(c.valeur, chemin).not.toBe("inconnu");
         expect(c.url ?? "", chemin).toMatch(/^https:\/\/[^\s]+$/);
@@ -112,5 +122,32 @@ describe("relevé des règles officielles (L8-01)", () => {
     const lignes = t.slice(i).split("\n").slice(1).filter((l) => l.trim());
     expect(lignes.length).toBeGreaterThan(0);
     expect(lignes.length).toBeLessThanOrEqual(10);
+  });
+
+  it("le document reprend exactement le relevé : chaque ligne de chaque couche et des constantes", () => {
+    const md = readFileSync("docs/reseaux/REGLES-OFFICIELLES.md", "utf8");
+    const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok" };
+    const LIBELLES = [
+      "Premier commentaire", "Réponses aux commentaires", "Messages privés", "Duplication de contenu", "Statistiques",
+      "Plafond de posts", "Longueur de texte", "Mots-dièse", "Vidéo (durée, taille)", "Carrousel / document PDF", "Texte alternatif",
+    ];
+    for (const r of ACTIFS) {
+      for (const [couche, titre] of [["reseau", "Couche 1 : règles du réseau"], ["zernio", "Couche 2 : règles de Zernio"]] as const) {
+        const entete = `### ${titre} (${NOMS[r]})\n`;
+        const debut = md.indexOf(entete);
+        expect(debut, entete).toBeGreaterThan(-1);
+        const fin = md.indexOf("\n\n##", debut + entete.length);
+        const lignes = md.slice(debut + entete.length, fin).split("\n");
+        RUBRIQUES.forEach((rub, i) => {
+          const c = releve.reseaux[r][couche]![rub];
+          const attendue = `| ${LIBELLES[i]} | ${c.valeur} | ${c.preuve} | ${c.url ? `[source](${c.url})` : "—"} | ${c.copie_depot ? `\`${c.copie_depot}\`` : "—"} | ${c.date ?? "—"} |`;
+          expect(lignes, `${r}.${couche}.${rub}`).toContain(attendue);
+        });
+      }
+    }
+    for (const k of releve.constantes) {
+      const attendue = `| \`${k.nom}\` | ${k.valeur_code} | **${k.statut}** | \`${k.cellule}\` | ${k.note} |`;
+      expect(md.split("\n"), k.nom).toContain(attendue);
+    }
   });
 });
