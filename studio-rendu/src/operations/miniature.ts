@@ -405,8 +405,9 @@ async function operationImageVideo(demande: Parameters<Operation>[0], contexte: 
   const base: Parameters<typeof proprietesVignette>[0] = {
     ratio,
     ambiance: p.ambiance as AmbianceVignette | undefined,
-    // Titre posé en 9:16 : la mise m2 seule tient dans la bande centrale (BANDE_TITRE_COUVERTURE_9_16).
-    mise: couverture && ratio === "9:16" ? "m2" : (p.mise as MiseVignette | undefined),
+    // Réglage `couverture.titreParDefaut` allumé (paramètre `titreCentre`) : titre posé en 9:16, la mise m2 seule tient dans
+    // la bande centrale (BANDE_TITRE_COUVERTURE_9_16). Réglage éteint : la mise demandée, exactement comme avant GV-VG-04.
+    mise: couverture && ratio === "9:16" && p.titreCentre === true ? "m2" : (p.mise as MiseVignette | undefined),
     couverture,
     motCle: typeof p.motCle === "string" ? p.motCle.slice(0, 60) : undefined,
   };
