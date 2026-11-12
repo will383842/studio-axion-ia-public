@@ -122,7 +122,7 @@ export function OngletVoix({ fiche, texteALire, verrouille, onOuvrirAccord }: { 
             {voix ? <PastilleEtat type="preparation" statut={voix.statut} /> : <span className="text-sm text-texte-faible">Pas encore de voix</span>}
           </div>
           <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-surface-3">
-            <motion.div className="h-full rounded-full bg-orange" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
+            <motion.div className="h-full rounded-full bg-accent" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
           </div>
           <p className="mt-2 text-sm text-texte-faible">{minutes >= MINUTES_CONSEILLEES ? "Assez pour une voix très naturelle." : `${MINUTES_CONSEILLEES} min conseillées · 1 min suffit pour un premier essai`}</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -604,7 +604,7 @@ function ReglagesEtEssai({ personnageId, voix }: { personnageId: string; voix: V
           onChange={(e) => setTexte(e.target.value)}
           maxLength={300}
           rows={2}
-          className="w-full resize-none rounded-champ border border-trait bg-surface-2 p-3 text-[15px] text-texte outline-none focus:border-orange"
+          className="w-full resize-none rounded-champ border border-trait bg-surface-2 p-3 text-[15px] text-texte outline-none focus:border-accent"
         />
         {/* Mobile : l'onde passe sous le bouton. Barres de largeur fixe, coupées si la place manque (jamais hors de la carte). */}
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">

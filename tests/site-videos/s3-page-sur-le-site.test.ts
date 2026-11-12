@@ -65,16 +65,17 @@ describe("S3.5 la page", () => {
     expect(h).toContain("Rien n&#x27;est encore sur le site");
   });
 
-  it("liste par générateur : titre, version, lien ↗, vues « — », « Retirer »", async () => {
+  // Refonte R8a : la maquette M5 (validée par Williams le 12/11) écrit « Voir la page » et « Vues : pas encore disponibles ».
+  it("liste par générateur : titre, version, « Voir la page », vues « pas encore disponibles », « Retirer »", async () => {
     await mettreEnLigne("v-01");
     await mettreEnLigne("v-02", "retiree");
     const h = await html();
     expect(h).toContain((await depots().videos.obtenir("v-01"))!.titre.slice(0, 20));
     expect(h).not.toContain((await depots().videos.obtenir("v-02"))!.titre.slice(0, 25));
     expect(h).toContain('href="https://site-factice.invalid/fr/videos/v-01"');
-    expect(h).toContain("↗");
+    expect(h).toContain("Voir la page");
     expect(h).toContain("Version 2");
-    expect(h).toContain("—");
+    expect(h).toContain("Vues : pas encore disponibles");
     expect(h).toContain("Retirer");
   });
 });

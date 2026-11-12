@@ -22,7 +22,7 @@ const Opp = await import("@/services/oppositions-mots");
 
 const J = (...p: string[]) => p.join("");
 const MENTION = "Message automatique envoyé par Axion IA.";
-const IDS = ["mp-m1-v2", "mp-m1-v3", "mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4", "mp-adresse-refusee-v3-1", "mp-adresse-refusee-v3-2", "mp-adresse-refusee-v3-3", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-merci-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1", "mp-m1-v5-1", "mp-m1-v5-2", "mp-m1-v5-3", "mp-m1-v5-4", "mp-recu-v3-1", "mp-recu-v3-2", "mp-recu-v3-3", "mp-m2-v2-1", "mp-m2-v2-2", "mp-m2-v2-3", "mp-lien-v3-1", "mp-lien-v3-2", "mp-lien-v3-3"] as const;
+const IDS = ["mp-m1-v2", "mp-m1-v3", "mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4", "mp-adresse-refusee-v3-1", "mp-adresse-refusee-v3-2", "mp-adresse-refusee-v3-3", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-merci-v1", "mp-lien-v2", "mp-pub-igfb-v1", "mp-pub-linkedin-v1", "mp-pub-tiktok-v1", "mp-m1-v5-1", "mp-m1-v5-2", "mp-m1-v5-3", "mp-m1-v5-4", "mp-recu-v3-1", "mp-recu-v3-2", "mp-recu-v3-3", "mp-m2-v2-1", "mp-m2-v2-2", "mp-m2-v2-3", "mp-lien-v3-1", "mp-lien-v3-2", "mp-lien-v3-3", "mp-ig-suivre-v1-1", "mp-ig-suivre-v1-2", "mp-ig-suivre-v1-3", "mp-ig-pas-encore-v1-1", "mp-ig-pas-encore-v1-2", "mp-ig-pas-encore-v1-3", "mp-deja-envoye-v1-1", "mp-deja-envoye-v1-2", "mp-deja-envoye-v1-3", "mp-pub-v2-1", "mp-pub-v2-2", "mp-pub-v2-3"] as const;
 /** Anciens textes (encore au dictionnaire, statut « actif » ou « retire ») qui portent la mention d'ouverture. Les nouveaux n'en portent aucune. */
 const AVEC_MENTION = ["mp-m1-v2", "mp-m1-v2-a", "mp-m1-v2-b", "mp-m1-v2-c", "mp-m1-v2-d", "mp-m1-v2-e", "mp-recu-v2", "mp-m2-v1", "mp-adresse-refusee-v2", "mp-lien-v2"] as const;
 
@@ -63,7 +63,7 @@ describe("textes v2 : registre versionné", () => {
   });
   it("le dictionnaire de textes est une copie à empreinte figée", () => {
     const brut = readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url));
-    expect(createHash("sha256").update(brut).digest("hex")).toBe("aa4b8f984a9817c1bbd7ccdd36d12244e97f63f3c7ece8272f9820c791d5b419");
+    expect(createHash("sha256").update(brut).digest("hex")).toBe("67ba568c93e52ee518cb729de753a491a3aba0082cc5415a74a803ae94b6e3c3");
     const d = JSON.parse(brut.toString("utf8")) as { textes: Record<string, { texte: string }> };
     for (const id of IDS) expect(d.textes[id].texte).toBe(TEXTES_MP[id].texte);
     expect(JSON.stringify(d)).not.toMatch(/\bstop\b/i);
@@ -145,7 +145,7 @@ describe("service d'aiguillage v2", () => {
     const base = { idEvenement: "ev-s1", post: "post-1", reseau: "instagram" as const, canal: "commentaire" as const, commentaire: "GUIDE", mot: "GUIDE" };
     expect(await A.orienterCommentaire({ ...base, idContact: "ct_opp_service" }, o)).toEqual({ issue: "execute", action: "silence", raison: "personne_opposee" });
     expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-s2", mot: "arrêtez", commentaire: "arrêtez" }, o)).toEqual({ issue: "execute", action: "silence", raison: "opposition" });
-    expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-s3", mot: "ZORG", commentaire: "ZORG" }, o)).toMatchObject({ action: "reponse_publique", motRetenu: "GUIDE" });
+    expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-s3", mot: "ZORG", commentaire: "ZORG", idContact: "ct_fictif_zorg" }, o)).toMatchObject({ action: "reponse_publique", motRetenu: "GUIDE" });
     expect(await depot.lire()).toEqual([]);
   });
 });
