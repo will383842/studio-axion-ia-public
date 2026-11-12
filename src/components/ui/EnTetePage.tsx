@@ -3,6 +3,17 @@ import type { ReactNode } from "react";
 import { insecable } from "@/lib/textes";
 import { cn } from "@/lib/cn";
 import { Icone } from "./Icone";
+import { Menu, type ElementMenu } from "./Menu";
+import { BoutonIcone } from "./Bouton";
+
+/** Une page montre 6 commandes au plus (maquette M0) ; le reste va dans « Plus ». */
+export const COMMANDES_MAX = 6;
+
+/** Sépare les commandes visibles de celles rangées dans « Plus » (pur, testable). */
+export function repartirCommandes<T>(commandes: T[], max = COMMANDES_MAX): { visibles: T[]; plus: T[] } {
+  if (commandes.length <= max) return { visibles: commandes, plus: [] };
+  return { visibles: commandes.slice(0, max - 1), plus: commandes.slice(max - 1) };
+}
 
 /** Lien « retour » (flèche) à mettre au-dessus d'un titre ; EnTetePage l'utilise via sa prop `retour`. */
 export function LienRetour({ href, libelle, className }: { href: string; libelle: string; className?: string }) {
@@ -20,6 +31,7 @@ export function EnTetePage({
   sousTitre,
   retour,
   actions,
+  plus,
   surTitre,
   className,
 }: {
@@ -28,6 +40,8 @@ export function EnTetePage({
   /** Lien « retour » (flèche) au-dessus du titre. */
   retour?: { href: string; libelle: string };
   actions?: ReactNode;
+  /** Commandes rangées dans un menu « Plus » (au bout des actions). Appelant client seulement : les `onSelect` sont des fonctions. */
+  plus?: ElementMenu[];
   /** Petite ligne au-dessus du titre (format, catégorie). */
   surTitre?: ReactNode;
   className?: string;
@@ -38,11 +52,16 @@ export function EnTetePage({
         {retour && (
           <LienRetour href={retour.href} libelle={retour.libelle} />
         )}
-        {surTitre && <div className="mb-2 text-sm font-semibold text-orange-vif">{surTitre}</div>}
+        {surTitre && <div className="mb-2 text-sm font-semibold text-accent">{surTitre}</div>}
         <h1 className="text-[28px] text-texte sm:text-4xl">{typeof titre === "string" ? insecable(titre) : titre}</h1>
         {sousTitre && <p className="mt-2 max-w-2xl text-[15px] text-texte-doux">{sousTitre}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {(actions || (plus && plus.length > 0)) && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {actions}
+          {plus && plus.length > 0 && <Menu declencheur={<BoutonIcone icone="menu" libelle="Plus" variante="secondaire" />} elements={plus} />}
+        </div>
+      )}
     </header>
   );
 }

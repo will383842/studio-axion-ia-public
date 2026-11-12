@@ -1,4 +1,4 @@
-// TODO(S2) : lier le jeton à l'empreinte de la personne et à l'instant ; l'appelant vérifie juste avant l'envoi.
+// Le port d'envoi (zernio-inbox) consomme ce jeton avant tout appel réseau : sans jeton valide et neuf, rien ne part.
 // Jeton « vérifié : non opposée » : module PUR, sans horloge, sans réseau, sans contenu.
 // Seule `personneOpposeePartout` en émet ; un futur envoi le consomme UNE fois. Un objet forgé n'est jamais accepté.
 declare const marque: unique symbol;
