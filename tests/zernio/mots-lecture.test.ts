@@ -7,6 +7,9 @@ const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { PARAM_REGISTRE_MOTS } = await import("@/services/mots-service");
 const { PARAM_COMPTES_ZERNIO } = await import("@/services/zernio");
 const { motsActifsPourReseau } = await import("@/services/mots-lecture");
+const { titreGuideParcours } =
+  await import("@/domaine/guide-reseau/empreinte-guide");
+const TITRE_GUIDE = titreGuideParcours(process.env) || null;
 
 const ligne = (
   mot: string,
@@ -52,6 +55,8 @@ describe("motsActifsPourReseau", () => {
     expect(await motsActifsPourReseau("facebook")).toEqual([
       {
         mot: "GUIDE",
+        titreCible: TITRE_GUIDE,
+        typeCible: "guide",
         guide: "guide-ia",
         compte: "Nom fb_1",
         mode: "auto",
@@ -70,8 +75,10 @@ describe("motsActifsPourReseau", () => {
     const r = await motsActifsPourReseau("facebook");
     expect(r).toEqual([
       {
-        mot: "GUIDE",
-        guide: "guide-ia",
+        mot: "AUTRE",
+        titreCible: null,
+        typeCible: null,
+        guide: null,
         compte: "Nom fb_1",
         mode: "auto",
         reponse: "auto",
@@ -79,8 +86,10 @@ describe("motsActifsPourReseau", () => {
         textesValides: false,
       },
       {
-        mot: "AUTRE",
-        guide: null,
+        mot: "GUIDE",
+        titreCible: TITRE_GUIDE,
+        typeCible: "guide",
+        guide: "guide-ia",
         compte: "Nom fb_1",
         mode: "auto",
         reponse: "auto",
@@ -103,6 +112,8 @@ describe("motsActifsPourReseau", () => {
     expect(await motsActifsPourReseau("facebook")).toEqual([
       {
         mot: "GUIDE",
+        titreCible: TITRE_GUIDE,
+        typeCible: "guide",
         guide: "guide-ia",
         compte: "Nom fb_2",
         mode: "auto",
@@ -127,6 +138,8 @@ describe("motsActifsPourReseau", () => {
     expect(await motsActifsPourReseau("linkedin")).toEqual([
       {
         mot: "GUIDE",
+        titreCible: TITRE_GUIDE,
+        typeCible: "guide",
         guide: "guide-ia",
         compte: "Nom li_1",
         mode: "manuel",
@@ -138,6 +151,8 @@ describe("motsActifsPourReseau", () => {
     expect(await motsActifsPourReseau("tiktok")).toEqual([
       {
         mot: "GUIDE",
+        titreCible: TITRE_GUIDE,
+        typeCible: "guide",
         guide: "guide-ia",
         compte: "Nom tt_1",
         mode: "manuel",
@@ -175,6 +190,7 @@ describe("motsActifsPourReseau", () => {
     const { validerGuideParcours } = await import("@/services/mots-service");
     const { titreGuideParcours } =
       await import("@/domaine/guide-reseau/empreinte-guide");
+    const avantTitre = process.env.PARCOURS_CONVERSATION_TITRE_GUIDE;
     process.env.PARCOURS_CONVERSATION_TITRE_GUIDE = "Titre fictif";
     try {
       const v = await validerGuideParcours({
@@ -186,7 +202,9 @@ describe("motsActifsPourReseau", () => {
         true,
       );
     } finally {
-      delete process.env.PARCOURS_CONVERSATION_TITRE_GUIDE;
+      if (avantTitre === undefined)
+        delete process.env.PARCOURS_CONVERSATION_TITRE_GUIDE;
+      else process.env.PARCOURS_CONVERSATION_TITRE_GUIDE = avantTitre;
     }
   });
 
@@ -195,6 +213,33 @@ describe("motsActifsPourReseau", () => {
     expect((await motsActifsPourReseau("facebook"))[0].textesValides).toBe(
       false,
     );
+  });
+
+  it("autre mot : titreCible et typeCible à null", async () => {
+    await poser([ligne("AUTRE", "fb_1", "actif")]);
+    const [m] = await motsActifsPourReseau("facebook");
+    expect(m.titreCible).toBeNull();
+    expect(m.typeCible).toBeNull();
+  });
+
+  it("deux comptes actifs pour le même mot : le plus petit identifiant l'emporte", async () => {
+    await poser([
+      ligne("GUIDE", "fb_2", "actif"),
+      ligne("GUIDE", "fb_1", "actif"),
+    ]);
+    const r = await motsActifsPourReseau("facebook");
+    expect(r).toHaveLength(1);
+    expect(r[0].compte).toBe("Nom fb_1");
+  });
+
+  it("résultat trié par mot", async () => {
+    await poser([
+      ligne("ZETA", "fb_1", "actif"),
+      ligne("GUIDE", "fb_1", "actif"),
+      ligne("ALPHA", "fb_2", "actif"),
+    ]);
+    const r = await motsActifsPourReseau("facebook");
+    expect(r.map((m) => m.mot)).toEqual(["ALPHA", "GUIDE", "ZETA"]);
   });
 
   it("lecture seule : le registre n'est pas modifié", async () => {
