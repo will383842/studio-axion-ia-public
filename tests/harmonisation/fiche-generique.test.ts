@@ -97,7 +97,8 @@ describe("fiche générique /videos/[id] : le gabarit commun", () => {
 
   it("garde les spécificités : face caméra sans montant, « Valider et publier », pas de « Passer devant » en page", () => {
     expect(page).toContain('libellePublier="Valider et publier"');
-    expect(page).toMatch(/\.\.\.\(facecam \? \[\] :/);
+    expect(page).toMatch(/chiffresCout: ChiffreVideo\[\] = \[\]/);
+    expect(page).not.toContain("formaterMontant");
     expect(page).not.toContain("Passer devant");
   });
 });

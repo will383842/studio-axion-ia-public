@@ -23,7 +23,7 @@ export default async function PageTraceScript({ params }: { params: Promise<{ id
     <ConteneurPage largeur="lecture" className="space-y-6">
       <EnTetePage titre="Détail de l'écriture" sousTitre={`${new Date(t.date).toLocaleString("fr-FR")} · ${ISSUES[t.issue] ?? t.issue}`} />
       <p className="text-[15px] text-texte">
-        {t.note === null ? "Pas de note" : `Note : ${t.note} sur 10`} · {t.appels.length} appel{t.appels.length > 1 ? "s" : ""} · {t.coutUsd.toFixed(2).replace(".", ",")} ${t.simule ? " (essai)" : ""}
+        {t.note === null ? "Pas de note" : `Note : ${t.note} sur 10`} · {t.appels.length} appel{t.appels.length > 1 ? "s" : ""}{t.simule ? " · essai" : ""}
       </p>
       {t.erreur && t.motifs.join(" ") !== t.erreur && <p className="text-[15px] text-texte">{t.erreur}</p>}
       {t.motifs.length > 0 && (

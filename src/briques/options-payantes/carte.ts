@@ -1,8 +1,7 @@
 /**
  * TEXTES DE LA CARTE DE CONFIRMATION (lot J). PUR.
  *
- * Le SEUL endroit du format face caméra où un montant apparaît : « Option payante — environ X € pris sur vos crédits
- * <outil>. [Confirmer] [Annuler] ». Vocabulaire simple, montant arrondi à l'euro supérieur (jamais sous-estimé).
+ * Carte « Option payante — pris sur vos crédits <outil>. [Confirmer] [Annuler] ». Aucun montant affiché (règle de Williams).
  */
 import { NOMS_OUTILS, OPTIONS_PAYANTES } from "./registre";
 import type { DemandeConfirmation, EtatDemande, IdOptionPayante, OutilPayant } from "./types";
@@ -24,7 +23,8 @@ export const TEXTES_CARTE = {
 } as const;
 
 export function phraseCarte(c: { montantCentimes: number; outil: OutilPayant; precision?: string; optionId?: IdOptionPayante }): string {
-  const fin = `${montantEnvironEuros(c.montantCentimes)}${c.precision ? ` ${c.precision}` : ""} pris sur vos crédits ${NOMS_OUTILS[c.outil]}.`;
+  // Règle de Williams : aucun montant à l'écran (le montant reste porté par la demande, côté serveur).
+  const fin = `pris sur vos crédits ${NOMS_OUTILS[c.outil]}${c.precision ? ` (${c.precision})` : ""}.`;
   // Lot K : « Effet réaliste par IA — option payante, environ 3 € pris sur vos crédits Higgsfield. »
   const option = c.optionId ? OPTIONS_PAYANTES[c.optionId] : undefined;
   if (option?.nommeeDansLaCarte) return `${option.libelle} — ${TEXTES_CARTE.titre.toLowerCase()}, ${fin}`;
