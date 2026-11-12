@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { OUTILS, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { serviceBuffer } from "@/domaine/buffer";
-import { cleZernioPresente, comptesZernioEnregistres, editorialeActive, PARAM_ARRET_ZERNIO, PARAM_ENVOI_CALENDRIER, testerZernio } from "@/services/zernio";
+import { cleZernioPresente, comptesZernioEnregistres, editorialeActive, PARAM_ARRET_ZERNIO, PARAM_EDITORIALE_ACTIVE, PHRASE_EDITORIALE, PARAM_ENVOI_CALENDRIER, testerZernio } from "@/services/zernio";
 import { canauxEnregistres } from "@/services/buffer";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
 import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
@@ -196,6 +196,28 @@ export async function reprendreToutAction(): Promise<Resultat> {
   return essayer(async () => {
     await ecrireParametre(PARAM_ARRET_ZERNIO, true);
     await journaliser("reglages", "Reprise : les envois sont rétablis");
+    rafraichir();
+    return undefined;
+  });
+}
+
+/** Geste explicite : allume la publication éditoriale (écrit le booléen seul ; ne touche ni `zernio.envoi_autorise` ni l'envoi du calendrier). */
+export async function allumerEditorialeAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, true);
+    await journaliser("reglages", PHRASE_EDITORIALE.allumee);
+    rafraichir();
+    return undefined;
+  });
+}
+
+/** Éteint la publication éditoriale (état par défaut). */
+export async function eteindreEditorialeAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, false);
+    await journaliser("reglages", PHRASE_EDITORIALE.eteinte);
     rafraichir();
     return undefined;
   });

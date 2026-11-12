@@ -87,6 +87,12 @@ export async function editorialeActive(): Promise<boolean> {
   }
 }
 
+/** Phrases claires pour l'écran et le journal : l'état éteint est le défaut. */
+export const PHRASE_EDITORIALE = {
+  eteinte: "La publication éditoriale est éteinte : aucun brouillon ni envoi du calendrier ne part.",
+  allumee: "La publication éditoriale est allumée : le calendrier peut créer des brouillons et les promouvoir, si les autres réglages d'envoi sont ouverts.",
+} as const;
+
 /** Création de brouillons et promotion du calendrier : exige les TROIS réglages ouverts (envoi général, calendrier, éditorial). Le GUIDE n'utilise pas cette porte. */
 export async function publicationEditorialeAutorisee(): Promise<boolean> {
   return (await editorialeActive()) && (await envoiPublicationCalendrierAutorise().catch(() => false));
