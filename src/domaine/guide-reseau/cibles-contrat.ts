@@ -1,5 +1,7 @@
 // MG-0 — contrat PUR avec le catalogue du site (guides et adresses de page, liaisons mot → cible).
 // Aucun import serveur, aucun accès réseau ni base : seulement des constantes, des types et des lectures défensives.
+// TODO : aligner la règle de mot du site (2 à 20, pas que des chiffres, mêmes mots d'arrêt dont STOP).
+//   Aujourd'hui le site accepte 2 à 30 caractères et laisse passer STOP ; le Studio, lui, refuse avant d'envoyer.
 import { normaliserMot } from "./mot-normalise";
 
 /** Chemins du site (liste des cibles, liaisons mot → cible, création/modification d'une cible). */
@@ -67,7 +69,9 @@ export interface LigneTableauMot {
   readonly reseau: ReseauSite;
   readonly cible: ElementCatalogue | null;
   readonly source: "reseau" | "tous" | null;
-  /** Vrai si la cible du site et celle que le Studio attendait ne sont pas la même. */
+  /** Vrai si la liaison existe mais que sa cible est absente du catalogue ou inactive. */
+  readonly cibleIntrouvable: boolean;
+  /** Vrai si le site pointe une autre cible que celle attendue par le Studio (jamais vrai sans cible attendue). */
   readonly divergent: boolean;
   readonly actif: boolean;
   readonly stats: StatsMot | null;
@@ -156,19 +160,32 @@ export function motVersSite(mot: unknown): string | null {
   return m === null ? null : m.toLowerCase();
 }
 
-/** Cible d'un mot pour un réseau : la ligne propre au réseau l'emporte sur « tous ». `divergent` : la ligne existe mais sa cible est absente du catalogue ou inactive. */
+/**
+ * Cible d'un mot pour un réseau : la ligne propre au réseau l'emporte sur « tous ».
+ * - `cibleIntrouvable` : la ligne existe mais sa cible est absente du catalogue ou inactive.
+ * - `divergent` : la ligne existe et pointe une autre cible que `codeAttendu` (celle que le Studio attendait).
+ *   Sans `codeAttendu`, ou sans ligne, `divergent` est faux.
+ */
 export function cibleDuMot(
   mot: string,
   reseau: ReseauSite,
   liaisons: readonly LiaisonMot[],
   catalogue: readonly ElementCatalogue[],
+  codeAttendu: string | null = null,
 ): {
   element: ElementCatalogue | null;
   source: "reseau" | "tous" | null;
+  cibleIntrouvable: boolean;
   divergent: boolean;
 } {
+  const rien = {
+    element: null,
+    source: null,
+    cibleIntrouvable: false,
+    divergent: false,
+  } as const;
   const m = normaliserMot(mot);
-  if (m === null) return { element: null, source: null, divergent: false };
+  if (m === null) return rien;
   const propre = liaisons.find(
     (l) => l.actif && l.mot === m && l.reseau === reseau && reseau !== "tous",
   );
@@ -176,16 +193,22 @@ export function cibleDuMot(
     (l) => l.actif && l.mot === m && l.reseau === "tous",
   );
   const ligne = propre ?? commune;
-  if (!ligne) return { element: null, source: null, divergent: false };
+  if (!ligne) return rien;
   const element = catalogue.find((e) => e.code === ligne.codeCible) ?? null;
   return {
     element,
     source: propre ? "reseau" : "tous",
-    divergent: element === null || !element.actif,
+    cibleIntrouvable: element === null || !element.actif,
+    divergent: codeAttendu !== null && ligne.codeCible !== codeAttendu,
   };
 }
 
-/** Réseau Zernio → réseau du site. Inconnu → null. */
+/**
+ * Réseau Zernio → réseau du site. Inconnu → null.
+ * `page_guide` (présent dans `RESEAUX_GUIDE`) est volontairement traduit en `null` : c'est la page du guide,
+ * pas un réseau social, donc le site n'a aucune ligne de liaison propre pour elle.
+ * `linkedin`, `linkedin_page` et `linkedin_profil` donnent tous « linkedin ».
+ */
 export function reseauSite(reseauZernio: string): ReseauSite | null {
   switch (reseauZernio) {
     case "linkedin":
@@ -223,10 +246,9 @@ export function rechercherCibles(
   return [...normaux, ...essais].slice(0, max);
 }
 
-/** Une phrase simple pour chaque refus du site (clé = code d'erreur renvoyé ; `site_eteint` = 404, `trop_de_demandes` = 429). */
+/** Une phrase simple pour chaque refus du site. Clé = code d'erreur réellement renvoyé dans `{ ok:false, erreur }` (ex. `introuvable` = 404 quand le site est éteint, `trop_de_requetes` = 429). */
 export const PHRASES_REFUS_SITE: Readonly<Record<string, string>> = {
-  mot_invalide:
-    "Ce mot n'est pas accepté : de 2 à 20 lettres ou chiffres, pas seulement des chiffres, et pas un mot d'arrêt.",
+  mot_invalide: "Le site n'a pas accepté ce mot : choisissez-en un autre.",
   cible_inconnue: "Cette cible n'existe pas dans le catalogue.",
   cible_inactive: "Cette cible est désactivée : choisissez-en une active.",
   titre_invalide: "Le titre n'est pas accepté : de 3 à 120 caractères.",
@@ -234,6 +256,17 @@ export const PHRASES_REFUS_SITE: Readonly<Record<string, string>> = {
   corps_invalide: "La demande est incomplète ou contient un champ inconnu.",
   corps_illisible: "La demande n'a pas pu être lue par le site.",
   signature_invalide: "Le site a refusé la signature de la demande.",
+  horodatage_hors_fenetre:
+    "L'heure de la demande est trop éloignée de celle du site : l'horloge du serveur dérive. Ce n'est pas un problème de signature.",
+  entetes_invalides: "Les en-têtes de la demande sont mal formés.",
+  corps_trop_gros: "La demande est trop volumineuse pour le site.",
+  type_non_supporte: "Le site n'accepte que des demandes au format JSON.",
+  reception_non_configuree:
+    "Le site n'est pas encore configuré pour recevoir : rien n'a été enregistré.",
+  base_indisponible:
+    "La base du site est indisponible pour le moment : réessayez plus tard.",
+  reception_eteinte:
+    "La réception du site est éteinte pour le moment : rien n'a été enregistré.",
   guide_sans_adresse: "Un guide n'a pas d'adresse de page.",
   chemin_pdf_invalide: "Le chemin du fichier du guide n'est pas accepté.",
   adresse_sans_pdf: "Une adresse de page n'a pas de fichier de guide.",
@@ -250,7 +283,7 @@ export const PHRASES_REFUS_SITE: Readonly<Record<string, string>> = {
   adresse_port_interdit: "L'adresse ne doit pas contenir de numéro de port.",
   adresse_hote_non_autorise:
     "Le site de cette adresse n'est pas dans la liste autorisée.",
-  site_eteint: "Le site est éteint pour le moment : rien n'a été enregistré.",
-  trop_de_demandes:
+  introuvable: "Le site est éteint pour le moment : rien n'a été enregistré.",
+  trop_de_requetes:
     "Trop de demandes d'un coup : attendez un moment, puis réessayez.",
 };
