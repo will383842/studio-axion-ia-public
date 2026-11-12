@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      # [L0-17b] La tête de la PR elle-même (pas le commit de fusion) ; la base est la base COMMUNE avec la branche cible À JOUR.
+      # [L0-17b] La tête de la PR elle-même (pas le commit de fusion) ; les listes et annonces viennent de la cible À JOUR, la base COMMUNE ne sert qu'à lister les fichiers modifiés.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -43,8 +43,10 @@ jobs:
           BRANCHE: ${{ github.head_ref }}
           CORPS: ${{ github.event.pull_request.body }}
         run: |
+          # [L0-17b] Le worktree de référence (listes de fichiers autorisés, annonces, script de garde) est la cible À JOUR.
+          # La base commune (merge-base) ne sert qu'à calculer la liste des fichiers modifiés par la PR.
           BASE=$(git merge-base HEAD "$CIBLE")
-          git worktree add "$RUNNER_TEMP/base" "$BASE"
+          git worktree add --detach "$RUNNER_TEMP/base" "$CIBLE"
           printf '%s\n' "$CORPS" > "$RUNNER_TEMP/corps.txt"
           # La garde est lancée depuis la BASE dès qu'elle y existe (une PR ne modifie pas la garde qui la juge) ;
           # tant qu'elle n'est pas sur la branche principale, la version de la PR sert (limite connue, voir le journal).
