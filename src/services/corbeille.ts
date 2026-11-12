@@ -58,7 +58,7 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
     exiger(aMettre);
     await refuser(aMettre);
     // GV-EC-01e : un travail en attente de validation GARDE sa réservation (GV-EC-01b) ; à la corbeille elle est rendue TOUT
-    // DE SUITE (pas à la purge des 30 jours). Rendue AVANT l'écriture des vidéos : si celle-ci échoue, elle est rétablie
+    // DE SUITE (pas au bout des 30 jours). Rendue AVANT l'écriture des vidéos : si celle-ci échoue, elle est rétablie
     // (`reactiverReservations`, la même qu'une reprise) puis l'erreur remonte ; une restauration puis une reprise la réactivent.
     const ensembleIds = new Set(aMettre.map((v) => v.id));
     const enAttente = await d.travaux.lister((t) => t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation" && ensembleIds.has(t.cibleId));
