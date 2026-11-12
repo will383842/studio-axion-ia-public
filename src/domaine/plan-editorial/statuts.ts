@@ -1,6 +1,6 @@
 /** Statuts du plan : tableau unique des transitions, garde « l'usine n'écrit pas programme/publie/echec ». PUR. */
 import { IDS_RESEAUX_PLAN } from "./correspondances";
-import type { AuteurPlan, CreneauEditorial, ResultatTransition, StatutPlan } from "./types";
+import type { AuteurPlan, CreneauEditorial, OrigineEntree, ResultatTransition, StatutPlan } from "./types";
 
 export const STATUTS_PLAN: readonly StatutPlan[] = ["propose", "a_valider", "valide", "programme", "publie", "echec", "archive"];
 
@@ -25,11 +25,53 @@ export function transitionAutorisee(de: StatutPlan, vers: StatutPlan): boolean {
 export function transitionner(c: CreneauEditorial, vers: StatutPlan, auteur: AuteurPlan): ResultatTransition {
   if (!transitionAutorisee(c.statut, vers)) return { ok: false, raison: `Transition refusée : ${c.statut} → ${vers}.` };
   if (auteur === "usine" && !STATUTS_ECRITS_PAR_USINE.includes(vers)) return { ok: false, raison: `L'usine n'écrit jamais « ${vers} ».` };
+  // La validation est un geste tracé du fondateur : elle ne passe jamais par ici (jamais publiée sans validation).
+  if (c.statut === "a_valider" && vers === "valide") return { ok: false, raison: "Une proposition se valide par validerProposition (trace du fondateur), pas par un simple changement de statut." };
+  // Un retour en arrière efface l'ancienne trace : une nouvelle validation ne reprend pas la précédente.
+  if (vers === "a_valider" || vers === "propose") {
+    const { valideeLe: _le, valideePar: _par, ...reste } = c;
+    return { ok: true, creneau: { ...reste, statut: vers } };
+  }
   return { ok: true, creneau: { ...c, statut: vers } };
 }
 
-const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+/** Les deux seules origines d'une entrée. */
+export const ORIGINES_ENTREE: readonly OrigineEntree[] = ["vous", "usine"];
+
+/** Garde « jamais publiée sans validation » : seul un créneau « valide » portant la trace du fondateur est publiable. PUR. */
+export function estPubliable(c: CreneauEditorial): { ok: true } | { ok: false; raison: string } {
+  if (c.statut !== "valide") return { ok: false, raison: `Statut « ${c.statut} » : non publiable sans validation.` };
+  if (!c.valideeLe || !c.valideePar) return { ok: false, raison: "Aucune trace de validation par le fondateur." };
+  return { ok: true };
+}
+
 const INSTANT_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z$/;
+
+/** Vrai si la chaîne est un instant ISO UTC lisible (« AAAA-MM-JJTHH:MM[:SS[.mmm]]Z ») d'un jour qui existe. */
+function instantUtcValide(v: string): boolean {
+  return INSTANT_UTC.test(v) && jourExiste(v.slice(0, 10)) && !Number.isNaN(Date.parse(v));
+}
+
+/** Validation : réservée au Studio, depuis « a_valider » seulement ; pose valideeLe (instant ISO UTC) et valideePar. */
+export function validerProposition(c: CreneauEditorial, auteur: AuteurPlan, le: string, par: string): ResultatTransition {
+  if (auteur !== "studio") return { ok: false, raison: "Seul le fondateur valide une proposition." };
+  if (c.statut !== "a_valider") return { ok: false, raison: `Statut « ${c.statut} » : seule une proposition « a_valider » se valide.` };
+  if (!le || !par) return { ok: false, raison: "Date et auteur de la validation requis." };
+  if (!instantUtcValide(le)) return { ok: false, raison: "Date de validation illisible (instant ISO en UTC attendu)." };
+  return { ok: true, creneau: { ...c, statut: "valide", valideeLe: le, valideePar: par } };
+}
+
+/** Refus : geste du fondateur (Studio seulement) ; la proposition est archivée avec un motif facultatif, jamais supprimée. */
+export function refuserProposition(c: CreneauEditorial, auteur: AuteurPlan, motif: string | undefined, le: string): ResultatTransition {
+  if (auteur !== "studio") return { ok: false, raison: "Seul le fondateur refuse une proposition." };
+  if (!instantUtcValide(le)) return { ok: false, raison: "Date du refus illisible (instant ISO en UTC attendu)." };
+  if (c.statut !== "propose" && c.statut !== "a_valider") return { ok: false, raison: `Statut « ${c.statut} » : seule une proposition se refuse.` };
+  const m = motif?.trim();
+  const { motifRefus: _ancien, ...reste } = c;
+  return { ok: true, creneau: { ...reste, statut: "archive", refuseLe: le, ...(m ? { motifRefus: m } : {}) } };
+}
+
+const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Vrai si la chaîne AAAA-MM-JJ désigne un jour qui existe au calendrier. */
 function jourExiste(jour: string): boolean {
@@ -46,10 +88,11 @@ export function validerCreneau(c: CreneauEditorial): string[] {
   if (!c.compteCible) e.push("Compte cible manquant.");
   if (c.videoId && c.visuelId) e.push("Une vidéo et un visuel ensemble sont refusés : choisir l'un des deux.");
   if (!STATUTS_PLAN.includes(c.statut)) e.push("Statut inconnu.");
+  if (c.origine !== undefined && !ORIGINES_ENTREE.includes(c.origine)) e.push("Origine inconnue.");
   if (!Number.isInteger(c.decalages) || c.decalages < 0) e.push("Le nombre de décalages doit être un entier positif ou nul.");
   for (const [reseau, h] of Object.entries(c.heuresParReseau)) {
     if (!IDS_RESEAUX_PLAN.includes(reseau as never)) e.push(`Réseau inconnu : ${reseau}.`);
-    else if (!h || !INSTANT_UTC.test(h) || !jourExiste(h.slice(0, 10)) || Number.isNaN(Date.parse(h))) e.push(`Heure invalide pour ${reseau} (ISO en UTC attendu).`);
+    else if (!h || !instantUtcValide(h)) e.push(`Heure invalide pour ${reseau} (ISO en UTC attendu).`);
   }
   return e;
 }
