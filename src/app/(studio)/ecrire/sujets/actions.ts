@@ -227,8 +227,8 @@ export async function regenererVarianteAction(id: string, varianteId: string, de
 }
 
 /**
- * « Reprendre (≈ X €) » : relance, par un geste de Will, l'écriture de CE sujet bloquée (crédit, limite du mois, plafond).
- * `accord` : le prix (centimes d'euro) montré sur le bouton ; le serveur le refuse s'il est plus bas que le prix du jour.
+ * « Reprendre » : relance, par un geste de Will, l'écriture de CE sujet bloquée (crédit, limite du mois, plafond).
+ * `accord` : l'accord (en centimes) donné à la confirmation ; le serveur le refuse s'il est plus bas que le prix du jour.
  */
 export async function reprendreEcrituresAction(id: string, accord?: number | true): Promise<Resultat<number>> {
   await exigerSession();
@@ -256,11 +256,11 @@ export async function reprendreEcritureArreteeAction(id: string, accord?: number
 export async function planFabricationNAction(id: string, ratiosOption: Ratio[]): Promise<Resultat<{ versions: { varianteId: string; prix: string }[]; total: string; totalCentimes: number; sansDeclinaison: string; avatarParle?: string } | null>> {
   await exigerSession();
   return essayer(async () => {
-    const { formaterMontant } = await import("@/lib/montants");
     const { phraseAvatarParle } = await import("@/domaine/double-reel");
     const p = await planFabricationSujet(id, { ratiosOption });
     if (!p) return null;
-    return { versions: p.versions.map((x) => ({ varianteId: x.varianteId, prix: formaterMontant(x.cout) })), total: formaterMontant(p.total), totalCentimes: p.total.centimes, sansDeclinaison: formaterMontant(p.sansDeclinaison), avatarParle: p.avatarParle ? phraseAvatarParle(p.avatarParle, p.versions.filter((x) => !x.videoId).length) : undefined };
+    // Règle du fondateur : aucun montant à l'écran. Les textes de prix restent vides ; les centimes servent seulement au contrôle du serveur.
+    return { versions: p.versions.map((x) => ({ varianteId: x.varianteId, prix: "" })), total: "", totalCentimes: p.total.centimes, sansDeclinaison: "", avatarParle: p.avatarParle ? phraseAvatarParle(p.avatarParle, p.versions.filter((x) => !x.videoId).length) : undefined };
   });
 }
 
@@ -285,7 +285,7 @@ export async function fabriquerEnEntierAction(id: string, videoId: string, confi
   });
 }
 
-/** G6b « Monter ma prise » (0 €). */
+/** G6b « Monter ma prise » (rien de payé). */
 export async function monterJeLisAction(id: string, varianteId: string, confirme?: AccordPrix): Promise<Resultat<{ videoId: string }>> {
   await exigerSession();
   return essayer(async () => {
@@ -315,7 +315,7 @@ export async function controlerRelectureAction(id: string, varianteId: string | 
   });
 }
 
-/** Relire et modifier (0 €) : les modifications sont enregistrées en lot ; la version redevient « à relire ». */
+/** Relire et modifier (rien de payé) : les modifications sont enregistrées en lot ; la version redevient « à relire ». */
 export async function enregistrerRelectureAction(id: string, varianteId: string, lignes: LigneScript[]): Promise<Resultat<{ modifiees: number; phrase?: string }>> {
   await exigerSession();
   return essayer(async () => {

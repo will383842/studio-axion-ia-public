@@ -73,7 +73,7 @@ export default async function PageSujet({ params, searchParams }: { params: Prom
             abonnements: ecriture.abonnements,
             aucunCompte: ecriture.aucunCompte,
             
-            // Garde-fous budget (15/10) : « Reprendre (≈ X €) », seul geste qui relance une écriture en attente ou au plafond ;
+            // Garde-fous budget (15/10) : « Reprendre », seul geste qui relance une écriture en attente ou au plafond ;
             // si elle ne peut pas partir, le bouton dit pourquoi (correctif après relecture).
             reprise: ecriture.reprise ? (ecriture.reprise.possible ? { possible: true, prix: "", centimes: ecriture.reprise.centimesEur } : { possible: false, raison: ecriture.reprise.raison ?? "" }) : undefined,
             bloque: ecriture.statut === "echec" ? arret?.bloque : undefined,
