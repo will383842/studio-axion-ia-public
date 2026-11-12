@@ -98,7 +98,7 @@ describe("1 · dictionnaire", () => {
     expect(GROUPES_MP["adresse-refusee"]).toEqual([...V_AR]);
     for (const g of Object.values(GROUPES_MP)) for (const v of g) expect(brut(v) && (brut(v) as { statut?: string }).statut, v).toBe("actif");
     const d = JSON.parse(readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url), "utf8"));
-    expect(d.version).toBe(4); // série 5 : 13 formulations ajoutées (version 3 → 4)
+    expect(d.version).toBe(5); // série 5 : 13 formulations (3 → 4), série 6 : 12 de plus (4 → 5)
     expect(d).not.toHaveProperty("mention_ouverture");
   });
   it("aucune entrée supprimée : les anciens textes restent, marqués « retire »", () => {
@@ -543,10 +543,10 @@ describe("10 · écran /mots", () => {
     const html = rendu(vue);
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
     for (const t of [...M1_VALIDES, ...AR_VALIDES]) expect(html, t.slice(0, 30)).toContain(esc(t));
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13);
-    expect(html.match(/Non validée/g)).toHaveLength(7 + 13);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12);
+    expect(html.match(/Non validée/g)).toHaveLength(7 + 13 + 12);
     const html2 = rendu(vue2);
     expect(html2.match(/Validée/g)).toHaveLength(1);
-    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13);
+    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13 + 12);
   });
 });
