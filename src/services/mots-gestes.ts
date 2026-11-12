@@ -5,7 +5,7 @@
  */
 import "server-only";
 import { exigerSession } from "./auth";
-import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
+import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, validerFormulation, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
@@ -72,11 +72,17 @@ export async function gesteValiderMotGuide(): Promise<{ ok: boolean; raison: str
   const r = await validerGuideParcours({ titre: titreGuideParcours(process.env), confirmeParOperateur: true });
   return { ok: r.ok, raison: r.raison };
 }
-/** Validation du message « adresse refusée » : le client ne transmet rien, le texte est celui du dictionnaire (serveur). */
+/** OBSOLÈTE : valide l'ancien texte « adresse refusée » (retiré), refusé par le service (`texte_retire`) ; plus branché sur l'écran. Remplacé par `gesteValiderFormulation`. */
 export async function gesteValiderAdresseRefusee(): Promise<{ ok: boolean; raison: string }> {
   await exigerSession();
   const r = await validerAdresseRefusee({ confirmeParOperateur: true });
   return { ok: r.ok, raison: r.raison };
+}
+/** Validation d'UNE formulation : le client n'envoie qu'un nom de version, contrôlé côté serveur contre le dictionnaire (jamais de texte). */
+export async function gesteValiderFormulation(version: string): Promise<{ ok: boolean; raison: string }> {
+  await exigerSession();
+  if (typeof version !== "string") return { ok: false, raison: "formulation_inconnue" };
+  return validerFormulation({ version, confirmeParOperateur: true });
 }
 /** Comptes du parcours de conversation (identifiants seulement) pour les boutons d'activation. */
 export async function gesteComptesGuide(): Promise<string[]> {

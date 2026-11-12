@@ -85,6 +85,7 @@ import { GEOMETRIE_INCRUSTATIONS_PAR_DEFAUT } from "@/briques/composition/recett
 import { REDUCTION_LARGE_PAR_DEFAUT } from "@/briques/composition/scene";
 import { parametresComposition, type EntreeComposition } from "@/briques/composition/parametres";
 import { fabriquerSousTitres } from "@/briques/sous-titres";
+import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { COULEURS_VIDEO } from "@/briques/habillage/charte-video";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 import { substituerPrononciations } from "@/domaine/prononciations";
@@ -464,6 +465,8 @@ export interface SortieFaite {
   controleFichier: ControleSortie;
   /** Alertes de la sortie (un bruitage introuvable retiré, par exemple) ; absent : aucune. */
   alertes?: AlerteQualite[];
+  /** Groupes de sous-titres donnés à la composition (le .srt les reprend tels quels) ; absent : journal d'avant. */
+  sousTitres?: SegmentSousTitres[];
 }
 
 /** Compte rendu d'un lancement. */
@@ -635,8 +638,13 @@ export interface ScenePosee {
  * et la taille des accents bornée par la bande sur le calque réel (`bornerDansLaBande`). Anciens styles « Encre » : les
  * groupes d'avant. PUR.
  */
-export function segmentsSousTitresTableau(o: { c: CommandeFabrication; st: SousTitresTableau; dynamiques: boolean; texte: string; dureeSec: number; mots?: MotHorodate[]; prononciations?: readonly { mot: string; prononciation: string }[]; ratio: Ratio; reseaux: IdReseau[]; scenes: readonly ScenePosee[]; mise: MiseEnPageTableau; dureeVideoSec?: number; supplements?: Partial<EntreeComposition> }): SegmentSousTitres[] {
-  const brutes = fabriquerSousTitres({ texte: o.texte, dureeSec: o.dureeSec, ...(o.mots ? { mots: o.mots } : {}), prononciations: [...(o.prononciations ?? [])], style: o.c.styles.sousTitres?.valeur, base: o.c.sousTitres?.base ?? "karaoke", ratio: o.ratio, reseaux: o.reseaux });
+export function segmentsSousTitresTableau(o: { c: CommandeFabrication; st: SousTitresTableau; dynamiques: boolean; texte: string; dureeSec: number; mots?: MotHorodate[]; prononciations?: readonly { mot: string; prononciation: string }[]; ratio: Ratio; reseaux: IdReseau[]; scenes: readonly ScenePosee[]; mise: MiseEnPageTableau; dureeVideoSec?: number; supplements?: Partial<EntreeComposition>; emphase?: readonly string[] }): SegmentSousTitres[] {
+  const brutes0 = fabriquerSousTitres({ texte: o.texte, dureeSec: o.dureeSec, ...(o.mots ? { mots: o.mots } : {}), prononciations: [...(o.prononciations ?? [])], style: o.c.styles.sousTitres?.valeur, base: o.c.sousTitres?.base ?? "karaoke", ratio: o.ratio, reseaux: o.reseaux });
+  // Mots importants : la règle commune AVEC son plafond, sur les seuls groupes non verrouillés, recollés dans l'ordre.
+  const libres = brutes0.filter((s) => !s.verrouille);
+  const marques = o.st.motsEnValeur ? marquerMotsImportants(libres, { emphaseScript: o.emphase ?? [] }).segments : libres;
+  let suivant = 0;
+  const brutes = brutes0.map((s) => (s.verrouille ? s : marques[suivant++]));
   if (!o.dynamiques) return brutes;
   const coupesSec = o.scenes.slice(1).map((s) => s.debutSec);
   // Mélange central avec les garde-fous du tableau (toujours dans la bande, jamais sur la page).
@@ -1248,7 +1256,12 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // les anciens styles « Encre » gardent leurs groupes d'avant.
     const dynamiques = stTableau.personnalise || estStyleReference3(ficheS);
     const intensiteST: IntensiteSousTitres = o.intensiteSousTitres ?? "equilibre";
-    const cleCompo = empreinte("composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : []));
+    const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : [])];
+    // Mots mis en valeur (GV-ST-09) : un journal d'avant, dont la composition est déjà gardée, garde sa clé (reprise sans refaire) ;
+    // une fabrication neuve reçoit le marqueur, donc une autre clé que celle d'avant.
+    const cleAvant = empreinte(...(entreesCompo));
+    const compoDejaAuJournal = store.etapes.composition?.empreinte === cleAvant || store.composition?.empreinte === cleAvant;
+    const cleCompo = compoDejaAuJournal ? cleAvant : empreinte(...(entreesCompo), { motsImportants: 1 });
     const composition = await etape(
       "composition",
       cleCompo,
@@ -1301,7 +1314,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         }
         const faite = etat[format.ratio] as Extract<EtatComposition, { phase: "faite" }>;
         dire(`  Montage (${format.libelle}) : vidéo déposée.`);
-        return { sortieCle: faite.sortieCle, masterCle: faite.masterCle, vignetteCle: faite.vignetteCle, mesures: faite.mesures ?? {}, alertes: faite.alertes };
+        return { sortieCle: faite.sortieCle, masterCle: faite.masterCle, vignetteCle: faite.vignetteCle, mesures: faite.mesures ?? {}, alertes: faite.alertes, sousTitres: base.segments };
       },
       store,
       nomEtape,
@@ -1362,6 +1375,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       ...(typeof tailleOctets === "number" && tailleOctets > 0 ? { tailleOctets } : {}),
       controles,
       controleFichier,
+      ...(composition.sousTitres?.length ? { sousTitres: composition.sousTitres } : {}),
     };
   }
 }

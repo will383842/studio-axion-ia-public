@@ -1,0 +1,8 @@
+[
+  { "code": "gde-essai01", "type": "guide", "titre": "Guide fictif A", "actif": true, "test": false, "cheminPdf": "/fictif/a.pdf" },
+  { "code": "adr-essai02", "type": "adresse", "titre": "Prière du soir (page fictive)", "actif": true, "test": false, "url": "https://exemple.test/page" },
+  { "code": "gde-essai03", "type": "guide", "titre": "Guide fictif B", "actif": false, "test": false },
+  { "code": "gde-essai04", "type": "guide", "titre": "Prière de test", "actif": true, "test": true },
+  { "code": "guide-ia", "type": "guide", "titre": "Guide fictif de départ", "actif": true, "test": false },
+  { "code": "n-importe-quoi", "type": "guide", "titre": "Code refusé", "actif": true, "test": false }
+]
