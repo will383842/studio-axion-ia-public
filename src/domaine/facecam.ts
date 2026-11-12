@@ -94,13 +94,13 @@ const estCle = (v: unknown): v is string => typeof v === "string" && v.length > 
 const CRANS: CranImage[] = ["moins", "juste", "plus"];
 const cran = (v: unknown): CranImage => (CRANS.includes(v as CranImage) ? (v as CranImage) : "juste");
 
-/** Mémoire des cartes lue sans jamais lever : 40 modèles au plus, de 1 à 60 caractères ; sinon écartée. */
+/** Mémoire des cartes lue sans jamais lever : au-delà de 40 modèles, on garde les 40 premiers (les plus récents) ; de 1 à 60 caractères ; sinon écartée. */
 function lireMemoireCartes(v: unknown): EntreesFacecam["memoireCartes"] {
   const ok = (x: unknown): x is string => typeof x === "string" && x.length > 0 && x.length <= 60;
   const m = (v ?? {}) as { dejaServis?: unknown; ouverturePrecedente?: unknown };
-  if (!Array.isArray(m.dejaServis) || m.dejaServis.length > 40 || !m.dejaServis.every(ok)) return undefined;
+  if (!Array.isArray(m.dejaServis) || !m.dejaServis.every(ok)) return undefined;
   if (m.ouverturePrecedente !== undefined && !ok(m.ouverturePrecedente)) return undefined;
-  return { dejaServis: [...m.dejaServis], ...(m.ouverturePrecedente !== undefined ? { ouverturePrecedente: m.ouverturePrecedente } : {}) };
+  return { dejaServis: m.dejaServis.slice(0, 40), ...(m.ouverturePrecedente !== undefined ? { ouverturePrecedente: m.ouverturePrecedente } : {}) };
 }
 
 /**

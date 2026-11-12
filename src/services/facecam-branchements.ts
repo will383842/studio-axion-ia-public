@@ -203,7 +203,7 @@ export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ d
           .map((x) => x.modele as string);
       });
     const ouverture = videos.find((m) => m.length)?.[0];
-    return { dejaServis: videos.flat(), ...(ouverture ? { ouverturePrecedente: ouverture } : {}) };
+    return { dejaServis: videos.flat().slice(0, 40), ...(ouverture ? { ouverturePrecedente: ouverture } : {}) };
   } catch (e) {
     console.warn("[studio] mémoire des cartes face caméra illisible :", e instanceof Error ? e.message : e);
     return { dejaServis: [] };

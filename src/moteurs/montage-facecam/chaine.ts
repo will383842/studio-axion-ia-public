@@ -906,7 +906,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       const occupes = (etat.monteur?.effets ?? []).filter((p) => p.finSec > p.debutSec).map((p) => ({ debutSec: p.debutSec, finSec: p.finSec }));
       // GV-MD-05b : historique des cartes lu UNE fois, figé dans l'état ; une lecture en panne ou une mémoire vide ne fige rien.
       const memoire = entrees.memoireCartes ?? etat.memoireCartes ?? (deps.memoireCartes ? await deps.memoireCartes().catch(() => undefined) : undefined);
-      if (memoire && !entrees.memoireCartes && !etat.memoireCartes && (memoire.dejaServis?.length || memoire.ouverturePrecedente)) etat.memoireCartes = memoire;
+      if (memoire && !entrees.memoireCartes && !etat.memoireCartes) etat.memoireCartes = memoire;
       const emphase = emphaseDuScript(c);
       const h: HabillageFacecam = habillageFacecam({
         pisteMonteeCle: montage?.fichierCle ?? cle("montage.mov"),
