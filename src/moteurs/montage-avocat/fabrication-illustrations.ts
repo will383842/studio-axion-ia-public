@@ -16,6 +16,7 @@ import type { CommandeFabrication, LigneCout, MediaCommande, PlanCommande, Ratio
 import type { FournisseurIllustration } from "@/fournisseurs/types";
 import type { EtatFabrication, FournisseurIllustrationEtendu } from "@/fournisseurs/illustration/types";
 import { centimes, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import type { OrigineLancement } from "@/services/budget-mensuel";
 import type { ElementCree, PlanProduit } from "../types";
 
 /** Préfixe de l'identifiant provisoire d'une illustration fabriquée (remplacé par l'élément créé, `travaux.ts`). */
@@ -94,7 +95,14 @@ export function etatInitial(c: Pick<CommandeFabrication, "plans" | "briques" | "
 export const fini = (e: EtatIllustrations) => Object.values(e.plans).every((p) => p.phase === "faite" || p.phase === "abandon");
 
 /** Fait avancer UN tour : chaque plan d'une phase au plus. Ne lève jamais : un plan en échec est abandonné. */
-export async function avancerIllustrations(etat: EtatIllustrations, fournisseur: FournisseurIllustration, ratio: Ratio, idBase: string, tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT): Promise<EtatIllustrations> {
+export async function avancerIllustrations(etat: EtatIllustrations, fournisseur: FournisseurIllustration, ratio: Ratio, idBase: string, tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT, origine?: OrigineLancement): Promise<EtatIllustrations> {
+  // L2-13 : l'origine figée dans la commande (`commande.origine`) suit jusqu'au fournisseur : quota de quantité et plafond
+  // technique ne s'appliquent qu'à « usine » ; absente ou « studio » : jamais bloqué.
+  const { avecOrigineFournisseur } = await import("@/services/plafond-fournisseur");
+  return avecOrigineFournisseur(origine === "usine" ? "usine" : "studio", () => avancerTousLesPlans(etat, fournisseur, ratio, idBase, tauxUsdEur));
+}
+
+async function avancerTousLesPlans(etat: EtatIllustrations, fournisseur: FournisseurIllustration, ratio: Ratio, idBase: string, tauxUsdEur: number): Promise<EtatIllustrations> {
   const f = fournisseur as FournisseurIllustrationEtendu;
   const suivant: EtatIllustrations = { plans: { ...etat.plans } };
   for (const [ordre, e] of Object.entries(etat.plans)) {

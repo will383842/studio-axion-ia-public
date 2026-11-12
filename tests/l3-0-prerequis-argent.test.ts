@@ -30,6 +30,8 @@ const MDP = "l3-0-prerequis-argent";
 const eur = (c: number) => ({ centimes: c, devise: "EUR" as const });
 const ligne = (c: number): LigneCout => ({ etape: "Voix", fournisseur: "simulation", unite: "forfait", quantite: 1, prixUnitaire: eur(c), total: eur(c), nature: "estime" });
 const estimation = (c: number) => ({ lignes: [ligne(c)], total: eur(c) });
+/** L2-13 (critère 5) : pour l'origine Studio, un montant n'est plus un refus ; il alerte (cloche) et se journalise. */
+const lignesBudget = async () => (await depots().evenements.lister()).filter((e) => e.type === "budget").map((e) => e.message);
 let n = 0;
 const demande = () => ({ videoId: `v-l30-${++n}`, travailId: `trv-l30-${n}` });
 
@@ -206,24 +208,27 @@ describe("3. plafond_cents d'une commande de l'Usine", () => {
 /* --- 4. Alerte budget : la marque « déjà alerté » s'écrit APRÈS l'envoi réussi ------------------------------- */
 
 describe("4. alerte du budget : marque écrite après l'envoi", () => {
-  const notes = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget" && x.titre.includes("refusée"));
-  const cleMarque = () => `budget.refus.${couts.jourParis()}.plafond`;
+  // L2-13 : le dépassement du plafond du mois ne refuse plus ; l'alerte (cloche, type « credit ») est posée une fois par jour et par motif.
+  const notes = async () => (await depots().notifications.lister()).filter((x) => /indicatif/i.test(x.titre));
+  const cleMarque = () => `budget.refus.${couts.jourParis()}.indicatif-mois`;
 
-  it("envoi en panne : le refus part quand même, AUCUNE marque posée ; l'alerte repart au refus suivant", async () => {
+  it("envoi en panne : rien n'est refusé, AUCUNE marque posée, la ligne de journal est écrite ; l'alerte repart au dépassement suivant", async () => {
     await credits.verifierEtReserver(estimation(90), true, "Cette vidéo", demande());
     const enregistrer = vi.spyOn(depots().notifications, "enregistrer").mockRejectedValueOnce(new Error("panne d'envoi"));
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     expect(await lireParametre(cleMarque(), false)).toBe(false);
     expect(await notes()).toHaveLength(0);
+    expect((await lignesBudget()).some((m) => m.includes("(mois)"))).toBe(true);
     enregistrer.mockRestore();
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     expect(await notes()).toHaveLength(1);
     expect(await lireParametre(cleMarque(), false)).toBe(true);
   });
 
-  it("envoi réussi : marque posée, une seule alerte par jour et par motif (inchangé)", async () => {
+  it("envoi réussi : marque posée, une seule alerte par jour et par motif, une ligne de journal à chaque dépassement", async () => {
     await credits.verifierEtReserver(estimation(90), true, "Cette vidéo", demande());
-    for (let i = 0; i < 3; i++) await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    for (let i = 0; i < 3; i++) await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     expect(await notes()).toHaveLength(1);
+    expect((await lignesBudget()).filter((m) => m.includes("(mois)"))).toHaveLength(3);
   });
 });

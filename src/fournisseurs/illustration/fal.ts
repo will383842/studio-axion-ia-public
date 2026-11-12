@@ -71,6 +71,17 @@ export interface OptionsFal {
   /** Plafond de dépense fal.ai, en centimes de dollar (garde-fou). */
   plafondUsdCentimes?: number;
   /**
+   * L2-13 : décision quand le plafond technique est dépassé. Absente : « refuser » (comme avant). Le fournisseur inscrit
+   * y branche l'origine de l'appel : l'usine est refusée, le fondateur passe avec une alerte.
+   */
+  auDepassementDuPlafond?: () => Promise<"refuser" | "laisser">;
+  /**
+   * L2-13 : quota de quantité, posé ICI (le seul point par où part un POST) pour que `soumettre`, `generer` et `animer`
+   * le traversent tous. Rend `null` quand le quota est atteint (rien n'est envoyé) ; sinon une réservation, rendue
+   * si l'envoi n'est pas parti.
+   */
+  reserverQuota?: (genre: "image" | "clip", cleIdempotence: string) => Promise<{ liberer(): Promise<void> } | null>;
+  /**
    * CORRECTEUR 1 — B3 : ce qui est DÉJÀ dépensé chez fal.ai, lu EN BASE (dépenses du mois + demandes gardées par les
    * travaux en cours), et les demandes que la base connaît déjà. Le plafond tient donc après un redémarrage. Absent
    * (essais) : le compteur de ce processus seul.
@@ -159,22 +170,40 @@ export function creerFabricationFal(o: OptionsFal): FabricationParEtapes & { dep
       if (trace?.etat === "envoi") throw erreurSoumissionIncertaine("fal.ai n'a pas confirmé une demande déjà envoyée : elle n'est pas renvoyée.");
       const prix = d.genre === "image" ? TARIFS_FABRICATION_USD.image : coutClipUsd(d.dureeSec);
       const reservation = ++numeroReserve;
+      let quota: { liberer(): Promise<void> } | null = null;
       await sousControle(async () => {
-        if (o.plafondUsdCentimes !== undefined && (await dejaDepense()) + prix > o.plafondUsdCentimes) {
+        if (o.plafondUsdCentimes !== undefined && (await dejaDepense()) + prix > o.plafondUsdCentimes && (o.auDepassementDuPlafond ? await o.auDepassementDuPlafond() : "refuser") === "refuser") {
           // E2E-1 n° 9 (03/10) : plafond du studio (`FAL_PLAFOND_USD`), pas le crédit fal.ai : une recharge n'y change rien.
           throw new ErreurIllustration({ code: "refuse", reessayable: false, message: "Plafond de dépense des illustrations du studio atteint (réglé sur le serveur) : ce plan garde votre double." });
         }
+        if (o.reserverQuota) {
+          quota = await o.reserverQuota(d.genre, d.cleIdempotence);
+          if (!quota) throw new ErreurIllustration({ code: "quota", reessayable: false, message: "Limite de fabrication automatique atteinte : rien n'est envoyé." });
+        }
         reservees.set(reservation, prix);
       });
+      const rendreQuota = async () => {
+        await (quota as { liberer(): Promise<void> } | null)?.liberer();
+      };
       const { modele, corps } = corpsFal(d);
       let r: { request_id?: string; status_url?: string; response_url?: string };
-      await o.journal?.ecrire(d.cleIdempotence, { etat: "envoi", le: new Date().toISOString() });
+      try {
+        await o.journal?.ecrire(d.cleIdempotence, { etat: "envoi", le: new Date().toISOString() });
+      } catch (e) {
+        // Trace impossible à écrire (base indisponible) : rien n'est parti, la place et l'unité de quota réservées sont rendues.
+        reservees.delete(reservation);
+        await rendreQuota();
+        throw e;
+      }
       try {
         r = (await appel(`https://queue.fal.run/${modele}`, { method: "POST", body: JSON.stringify(corps) }, true)) as typeof r;
       } catch (e) {
         // Refus net (rien n'est parti) : la trace est levée, une nouvelle tentative reste possible. Une soumission
         // incertaine garde sa trace « envoi » : elle ne sera jamais renvoyée.
-        if (!(e as { soumissionIncertaine?: boolean }).soumissionIncertaine) await o.journal?.ecrire(d.cleIdempotence, { etat: "refusee", le: new Date().toISOString() });
+        if (!(e as { soumissionIncertaine?: boolean }).soumissionIncertaine) {
+          await rendreQuota();
+          await o.journal?.ecrire(d.cleIdempotence, { etat: "refusee", le: new Date().toISOString() });
+        }
         throw e;
       } finally {
         // Revenue (réussie ou non) : la place réservée passe à la dépense ci-dessous, ou se libère (une soumission
@@ -184,6 +213,7 @@ export function creerFabricationFal(o: OptionsFal): FabricationParEtapes & { dep
       if (!r.request_id || !r.status_url || !r.response_url) {
         // Réponse sans suivi : la demande a pu être prise, sans moyen de la suivre.
         if (r.request_id) throw erreurSoumissionIncertaine("fal.ai : réponse inattendue.");
+        await rendreQuota();
         await o.journal?.ecrire(d.cleIdempotence, { etat: "refusee", le: new Date().toISOString() });
         throw new ErreurIllustration({ code: "inconnu", reessayable: true, message: "fal.ai : réponse inattendue." });
       }

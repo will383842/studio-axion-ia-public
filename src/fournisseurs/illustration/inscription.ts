@@ -21,5 +21,10 @@ export function illustrationsReelles(env: Record<string, string | undefined> = p
     lire: async (cle: string) => (await import("@/services/illustrations")).lireTraceFal(cle),
     ecrire: async (cle: string, trace: TraceDemandeFal) => (await import("@/services/illustrations")).ecrireTraceFal(cle, trace),
   };
-  return { reel: creerFournisseurIllustrationReel(cles, { plafondUsdCentimes: Number.isFinite(plafond) && plafond > 0 ? plafond * 100 : undefined, depenseDeja, journal }) };
+  // L2-13 : `FAL_PLAFOND_USD` reste une constante technique du serveur ; au-delà, seul l'appel de l'usine est refusé.
+  const auDepassementDuPlafond = async () => (await import("@/services/plafond-fournisseur")).decisionAuDepassementTechnique("fal");
+  // L2-13 : quota de QUANTITÉ de l'usine, posé dans la fabrication elle-même : soumettre, generer et animer le traversent.
+  const reserverQuota = async (genre: "image" | "clip", cleIdempotence: string) => (await import("@/services/plafond-fournisseur")).reserverQuota("fal", genre, cleIdempotence);
+  const reel = creerFournisseurIllustrationReel(cles, { plafondUsdCentimes: Number.isFinite(plafond) && plafond > 0 ? plafond * 100 : undefined, auDepassementDuPlafond, reserverQuota, depenseDeja, journal });
+  return { reel };
 }
