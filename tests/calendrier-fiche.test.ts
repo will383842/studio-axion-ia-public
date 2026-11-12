@@ -452,7 +452,8 @@ describe("règles pures de la fiche", () => {
   it("lireCleFiche : la clé d'une carte, rien d'autre", () => {
     expect(lireCleFiche("creneau:c1|linkedin")).toEqual({ cle: "creneau:c1|linkedin", origine: "creneau", id: "c1", reseau: "linkedin" });
     expect(lireCleFiche("publication:pub-0a1b2c|youtube-shorts")).toEqual({ cle: "publication:pub-0a1b2c|youtube-shorts", origine: "publication", id: "pub-0a1b2c", reseau: "youtube-shorts" });
-    for (const cle of ["", "creneau:c1", "creneau:c1|", "creneau:c 1|linkedin", " creneau:c1|linkedin", "creneau:c1|LinkedIn", `creneau:${"a".repeat(121)}|linkedin`, null, undefined, 3]) expect(lireCleFiche(cle)).toBeNull();
+    for (const cle of ["", "creneau:c1", "creneau:c1|", "creneau:c 1|linkedin", " creneau:c1|linkedin", "creneau:c1|LinkedIn", `creneau:${"a".repeat(201)}|linkedin`, null, undefined, 3]) expect(lireCleFiche(cle)).toBeNull();
+    expect(lireCleFiche(`creneau:${"a".repeat(200)}|linkedin`)).not.toBeNull();
   });
 
   it("verrouFiche : publiée, passée, confiée, état inconnu, jour illisible", () => {
