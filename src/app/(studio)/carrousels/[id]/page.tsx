@@ -12,7 +12,7 @@ import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesCarrousels, phraseDuCode } from "@/visuels/services/production";
 import { ficheCarrousel } from "@/visuels/services/vues";
 import { libellePages } from "@/domaine/visuels/statuts";
-import { corbeilleAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, validerAction } from "./actions";
+import { corbeilleAction, preparerReseauxAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, validerAction } from "./actions";
 
 export const metadata: Metadata = { title: "Carrousel" };
 export const dynamic = "force-dynamic";
@@ -64,6 +64,16 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
             ))}
           </ol>
         </section>
+      )}
+      {fiche.statut === "valide" && (
+        <form action={preparerReseauxAction} aria-label="Préparer pour les réseaux" className="mb-6 flex flex-col gap-2 rounded-champ border border-trait bg-surface-1 px-3.5 py-3">
+          <input type="hidden" name="id" value={fiche.id} />
+          <h2 className="text-sm font-semibold text-texte-doux">Préparer pour les réseaux</h2>
+          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked /> LinkedIn (un document PDF)</label>
+          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked /> Instagram (images JPEG)</label>
+          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" /> Facebook (images JPEG)</label>
+          <button type="submit" className="self-start rounded-champ border border-trait px-3 py-1.5 text-sm font-semibold text-texte">Préparer pour les réseaux</button>
+        </form>
       )}
       <BarreValidation id={fiche.id} actionsPermises={fiche.actionsPermises} actions={ACTIONS} pdfUrl={fiche.pdfUrl} pdfTelechargement={fiche.pdfTelechargement} />
     </ConteneurPage>
