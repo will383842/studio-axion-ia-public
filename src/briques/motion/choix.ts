@@ -183,16 +183,58 @@ function liste(phrase: string): ChoixModele | null {
   };
 }
 
+/** Les règles de choix, dans l'ordre de priorité. */
+const REGLES_CHOIX = [avantApres, etapes, liste, comparaison, chiffre];
+
+/** Confiance minimale d'un modèle de remplacement : jamais une carte hors sujet pour faire varier. */
+export const CONFIANCE_MIN_VARIETE = 0.6;
+
+/** Mémoire des cartes déjà servies : elle entre par paramètre (la brique reste pure, sans lecture d'historique). */
+export interface OptionsChoixModele {
+  /** Modèles des dernières vidéos du même format, le plus récemment servi d'abord. */
+  dejaServis?: readonly string[];
+}
+
+/** Tous les modèles qui conviennent à une phrase, dans l'ordre de priorité (le premier est le choix d'avant la mémoire). */
+export function candidatsModele(phrase: string): ChoixModele[] {
+  const p = phrase.replace(/\s+/g, " ").trim();
+  if (p.length < 8) return [];
+  return REGLES_CHOIX.map((f) => f(p)).filter((c): c is ChoixModele => c !== null);
+}
+
+/**
+ * Parmi des candidats qui conviennent tous, celui qui a servi le moins récemment (jamais servi : le meilleur). À
+ * égalité, le premier de la liste. `interdits` : modèles à éviter si un autre convient (sinon le premier est gardé).
+ * Un seul candidat : il est gardé. Aucun : null.
+ */
+export function choisirMoinsRecent<T extends { modele: string }>(candidats: readonly T[], dejaServis: readonly string[] = [], interdits: readonly string[] = []): T | null {
+  if (!candidats.length) return null;
+  const permis = candidats.filter((c) => !interdits.includes(c.modele));
+  const pool = permis.length ? permis : candidats;
+  const anciennete = (m: string) => {
+    const i = dejaServis.indexOf(m);
+    return i < 0 ? Infinity : i;
+  };
+  return pool.reduce((meilleur, c) => (anciennete(c.modele) > anciennete(meilleur.modele) ? c : meilleur));
+}
+
 /**
  * Le modèle qui convient à une phrase (ou à quelques phrases qui se suivent), avec ses données remplies d'office.
  * Ordre : avant / après, étapes, liste, comparaison, chiffre. Null : rien qui mérite une carte.
+ * Avec `options.dejaServis`, quand plusieurs modèles conviennent (confiance d'au moins 0,6 pour les remplaçants), on
+ * prend celui qui a servi le moins récemment ; un seul qui convient : il est gardé. Sans `dejaServis` : comme avant.
  */
-export function choisirModele(phrase: string): ChoixModele | null {
+export function choisirModele(phrase: string, options?: OptionsChoixModele): ChoixModele | null {
   const p = phrase.replace(/\s+/g, " ").trim();
   if (p.length < 8) return null;
-  for (const f of [avantApres, etapes, liste, comparaison, chiffre]) {
-    const c = f(p);
-    if (c) return c;
+  if (!options?.dejaServis?.length) {
+    for (const f of REGLES_CHOIX) {
+      const c = f(p);
+      if (c) return c;
+    }
+    return null;
   }
-  return null;
+  const [premier, ...autres] = candidatsModele(p);
+  if (!premier) return null;
+  return choisirMoinsRecent([premier, ...autres.filter((c) => c.confiance >= CONFIANCE_MIN_VARIETE)], options.dejaServis);
 }

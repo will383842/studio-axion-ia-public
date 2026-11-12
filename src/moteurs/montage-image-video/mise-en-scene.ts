@@ -54,6 +54,7 @@ import { calerFiche, cleMot, type CalageIV, type MotCale } from "./calage";
 import { ecranV4Tient } from "./ecrans-v4";
 import { cleChiffre, clesDeLaCarte, clesDuTexte, controlerMiseEnSceneIV, instantsVisibles, type RapportMiseEnSceneIV } from "./controles-scene";
 import type { FinIV } from "./fins";
+import type { StyleChoisiIV } from "./sous-titres-varies";
 import { legendeDuChiffre } from "./legende-chiffre";
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
@@ -99,6 +100,8 @@ export interface EntreeMiseEnSceneIV {
   format?: FormatIV;
   /** Graine de la vidéo (son identifiant) : variante de départ des bruitages (lot TIR) ; absente : départ à 0. */
   graine?: string;
+  /** GV-ST-03c : style de sous-titres choisi (celui de la demande) ; absent : charte duo, mesure d'avant. */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 /** Ce que montre un plan : le composant qui le rend. */
@@ -623,7 +626,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
     ...(queue ? { queue } : {}),
     ...(affiche ? { affiche } : {}),
   };
-  const rapport = controlerMiseEnSceneIV(ligne, { carte, fiche, reseaux: entree.reseaux, bruitages: poses, voix: calage.voix });
+  const rapport = controlerMiseEnSceneIV(ligne, { carte, fiche, reseaux: entree.reseaux, bruitages: poses, voix: calage.voix, ...(entree.styleSousTitres ? { styleSousTitres: entree.styleSousTitres } : {}) });
   return { ok: rapport.bloquants.length === 0, ligne, rapport, phrases: rapport.bloquants.map((b) => b.phrase) };
 }
 
