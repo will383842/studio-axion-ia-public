@@ -252,8 +252,12 @@ export function FicheSujet(p: {
         )}
         {" · "}
         Type : <span className="font-semibold text-texte">{TYPES_AUTOMATISATION.find((t) => t.id === p.typeAutomatisation)?.libelle ?? "À classer"}</span>
-        {" · "}
-        <PastilleEtapeEcrire etape={p.archive ? "rangee" : !p.lignes.length ? "ecriture" : p.manque || p.arret ? "a-refaire" : "a-filmer"} />
+        {!p.archive && !p.lignes.length && (
+          <>
+            {" · "}
+            <PastilleEtapeEcrire etape="ecriture" />
+          </>
+        )}
       </p>
 
       {/* La grille, puis les onglets réseaux */}
@@ -447,7 +451,10 @@ export function FicheSujet(p: {
       </details>
 
       <details className="group rounded-carte border border-trait bg-surface-1 px-4 py-2" data-plus>
-        <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-texte">Plus</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-texte">
+          Plus
+          <Icone nom="chevron-bas" size={16} className="transition-transform group-open:rotate-180" />
+        </summary>
         <div className="space-y-3 pb-2">
       <div className="grid grid-cols-2 gap-2">
         <Bouton variante="secondaire" icone="calendrier" onClick={() => setFeuille("ordre")}>
