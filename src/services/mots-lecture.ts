@@ -30,6 +30,10 @@ import { PARAM_COMPTES_ZERNIO, type ComptesZernioEnregistres } from "./zernio";
 
 export interface MotLu {
   mot: string;
+  /** Titre du guide visé par le mot (GUIDE seulement), sinon null. */
+  titreCible: string | null;
+  /** Type de la cible : « guide » pour le mot par défaut, sinon null. */
+  typeCible: "guide" | null;
   guide: string | null;
   /** Nom d'affichage du compte du réseau où le mot est actif (jamais de jeton ni de clé). */
   compte: string;
@@ -90,7 +94,11 @@ export async function motsActifsPourReseau(reseau: IdReseau): Promise<MotLu[]> {
     {},
   );
   const parMot = new Map<string, MotLu>();
-  for (const l of Object.values(registre)) {
+  // L'ordre du jsonb n'est pas garanti : on parcourt par identifiant de compte (le plus petit l'emporte à égalité).
+  const lignes = Object.values(registre)
+    .filter((l): l is LigneMot => !!l)
+    .sort((a, b) => (a.compte < b.compte ? -1 : a.compte > b.compte ? 1 : 0));
+  for (const l of lignes) {
     if (!l || l.mot === MOT_STOP || !ids.has(l.compte)) continue;
     if (l.etat !== "actif" && l.etat !== "pause" && l.etat !== "pause_auto")
       continue;
@@ -99,6 +107,11 @@ export async function motsActifsPourReseau(reseau: IdReseau): Promise<MotLu[]> {
     if (deja && (deja.etat === "actif" || etat === "pause")) continue; // un seul résultat par mot ; « actif » l'emporte
     parMot.set(l.mot, {
       mot: l.mot,
+      titreCible:
+        l.mot === MOT_PAR_DEFAUT
+          ? titreGuideParcours(process.env) || null
+          : null,
+      typeCible: l.mot === MOT_PAR_DEFAUT ? "guide" : null,
       guide: l.mot === MOT_PAR_DEFAUT ? GUIDE_PAR_DEFAUT : null,
       compte: noms.get(l.compte) ?? l.compte,
       mode: reponse,
@@ -111,7 +124,9 @@ export async function motsActifsPourReseau(reseau: IdReseau): Promise<MotLu[]> {
     PARAM_VALIDATIONS_MOTS,
     {},
   );
-  const res = [...parMot.values()];
+  const res = [...parMot.values()].sort((a, b) =>
+    a.mot < b.mot ? -1 : a.mot > b.mot ? 1 : 0,
+  );
   for (const m of res)
     m.textesValides = await textesValidesDuMot(m.mot, validations);
   return res;
