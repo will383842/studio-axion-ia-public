@@ -160,12 +160,12 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
                   </Pastille>
                 </div>
                 {c.voir && c.statut === "faite" && (
-                  <Link href={c.voir} className="text-sm font-semibold text-orange-vif">
+                  <Link href={c.voir} className="text-sm font-semibold text-accent">
                     Voir
                   </Link>
                 )}
                 {c.nouvelle && (
-                  <Link href={c.nouvelle} className="text-sm font-semibold text-orange-vif">
+                  <Link href={c.nouvelle} className="text-sm font-semibold text-accent">
                     Voir la nouvelle
                   </Link>
                 )}
