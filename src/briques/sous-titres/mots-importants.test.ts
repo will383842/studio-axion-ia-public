@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { MotHorodate } from "@/domaine/types";
 import { estMotFort, marquerMotsImportants, motsImportants } from "./mots-importants";
 
-const seg = (...mots: string[]) => ({ mots: mots.map((mot) => ({ mot, debutSec: 0, finSec: 1 })) });
+const seg = (...mots: string[]) => ({ mots: mots.map((mot): MotHorodate => ({ mot, debutSec: 0, finSec: 1 })) });
 
 describe("mots importants : ordre de repli", () => {
   const mots = ["vous", "avez", "trois", "devis", "ouverts"];
@@ -28,10 +29,16 @@ describe("mots importants : plafonds", () => {
     const { segments: sortie } = marquerMotsImportants(segments, {});
     expect(sortie.filter((s) => s.mots.some((m) => m.enValeur)).length).toBe(8);
   });
-  it("2 mots au plus par groupe, texte inchangé", () => {
-    const { segments } = marquerMotsImportants([seg("trois", "devis", "clients", "hier")], {});
-    expect(segments[0].mots.filter((m) => m.enValeur).length).toBe(2);
+  it("2 mots au plus par groupe, texte inchangé (5 groupes : plafond de 2 groupes)", () => {
+    const { segments } = marquerMotsImportants([seg("trois", "devis", "clients", "hier"), seg("a"), seg("b"), seg("c"), seg("d")], {});
+    expect(segments[0].mots.filter((m) => m.enValeur).map((m) => m.mot)).toEqual(["trois", "devis"]);
     expect(segments[0].mots.map((m) => m.mot)).toEqual(["trois", "devis", "clients", "hier"]);
+  });
+  it("toujours actif : au moins 1 groupe marqué pour 1 ou 2 groupes", () => {
+    const un = marquerMotsImportants([seg("trois", "devis")], {}).segments;
+    expect(un[0].mots.filter((m) => m.enValeur).length).toBe(2);
+    const deux = marquerMotsImportants([seg("trois"), seg("devis")], {}).segments;
+    expect(deux.map((s) => s.mots.some((m) => m.enValeur))).toEqual([true, false]);
   });
 });
 
