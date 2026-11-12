@@ -1,0 +1,690 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 1 · commentaire GUIDE Facebook : réponse publique puis M1 > 1-guide-facebook 1`] = `
+{
+  "alias": {},
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [],
+      "cleIdempotenceGuide": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+      "creeLe": "2026-10-18T10:00:30.000Z",
+      "dernierCode": null,
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "attente_email",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-1",
+      "idCompte": "compte-fictif-100",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T10:00:30.000Z",
+      "m2Envoye": false,
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-filet-1",
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+  ],
+  "site": [],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 2 · trois commentaires de la même personne > 2-trois-commentaires 1`] = `
+{
+  "alias": {},
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [],
+      "cleIdempotenceGuide": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+      "creeLe": "2026-10-18T10:00:30.000Z",
+      "dernierCode": null,
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "attente_email",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-1",
+      "idCompte": "compte-fictif-100",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T10:00:30.000Z",
+      "m2Envoye": false,
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": "silence",
+      "etat": "silence",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": "silence",
+      "etat": "silence",
+      "type": "zernio.commentaire",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-filet-1",
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+  ],
+  "site": [],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 3 · événement injecté avec motSeul « CHATGPT » : écarté (raison « mot ») > 3-mot-ecarte 1`] = `
+{
+  "alias": {},
+  "conversations": {},
+  "evenements": [
+    {
+      "dernierCode": "mot",
+      "etat": "ecarte",
+      "type": "zernio.commentaire",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [],
+  "site": [],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 4 · commentaire « stop » > 4-stop 1`] = `
+{
+  "alias": {
+    "p1.ad952024.04c46614e84c727b59f66859facf6b9435eb2507cebf1320e1f1d834950f40ef": "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022",
+  },
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [
+        "p1.ad952024.04c46614e84c727b59f66859facf6b9435eb2507cebf1320e1f1d834950f40ef",
+      ],
+      "cleIdempotenceGuide": "2e4cf217d01659847ea450cc93a1d8940422ca99746da8f4fd8c0b13e432526f",
+      "creeLe": "2026-10-18T10:00:30.500Z",
+      "dernierCode": null,
+      "derniereActiviteLe": "2026-10-18T10:00:20.000Z",
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "oppose",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-2",
+      "idCompte": "compte-fictif-100",
+      "idMessageDernier": "msg-2",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T10:00:30.500Z",
+      "m2Envoye": false,
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionTexteM1": "mp-m1-v2",
+    },
+    "p1.ad952024.fa19851a7dab96e2728910a910fcd07c61851931b7fc3e41b4e4da6b01ae7c51": {
+      "alias": [],
+      "cleIdempotenceGuide": "bc448b2ef95f861c6c15ff31caa02c8de4d4e487222cf47c3127fd3feeabb062",
+      "creeLe": "2026-10-18T10:00:30.000Z",
+      "dernierCode": null,
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "oppose",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-1",
+      "idCompte": "compte-fictif-100",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": null,
+      "m2Envoye": false,
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": "opposition",
+      "etat": "oppose",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": "opposition",
+      "etat": "oppose",
+      "type": "zernio.message",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-filet-2",
+        "idCommentaire": "com-fictif-filet-2",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-filet-2",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+    {
+      "appel": "lireMessage",
+      "args": {
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "idExpediteur": "auteur-fictif-400",
+        "idMessage": "msg-2",
+        "occurredAt": "2026-10-18T10:00:20.000Z",
+      },
+    },
+  ],
+  "site": [],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 5 · message avec adresse : corps exact de l'appel au site > 5-adresse 1`] = `
+{
+  "alias": {
+    "p1.ad952024.04c46614e84c727b59f66859facf6b9435eb2507cebf1320e1f1d834950f40ef": "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022",
+  },
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [
+        "p1.ad952024.04c46614e84c727b59f66859facf6b9435eb2507cebf1320e1f1d834950f40ef",
+      ],
+      "cleIdempotenceGuide": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+      "creeLe": "2026-10-18T10:00:30.000Z",
+      "dernierCode": null,
+      "derniereActiviteLe": "2026-10-18T10:00:20.000Z",
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "termine",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-1",
+      "idCompte": "compte-fictif-100",
+      "idMessageAdresse": "msg-3",
+      "idMessageDernier": "msg-3",
+      "idMessageGuide": "msg-3",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T10:00:30.000Z",
+      "m2Envoye": false,
+      "occurredAt": "2026-10-18T10:00:20.000Z",
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionCorpsGuide": 1,
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": null,
+      "etat": "termine",
+      "type": "zernio.message",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-filet-1",
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+    {
+      "appel": "lireMessage",
+      "args": {
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "idExpediteur": "auteur-fictif-400",
+        "idMessage": "msg-3",
+        "occurredAt": "2026-10-18T10:00:20.000Z",
+      },
+    },
+    {
+      "appel": "envoyerMessage",
+      "args": {
+        "cle": "msg-3",
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci ! Le guide « Guide d'exemple » part à votre adresse dans quelques minutes. Pensez à regarder aussi vos courriers indésirables. Bonne lecture !",
+      },
+    },
+  ],
+  "site": [
+    {
+      "chemin": "/api/interne/demandes-guide-reseau",
+      "corps": {
+        "cleIdempotence": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+        "email": "adresse@exemple.test",
+        "guide": "guide-ia",
+        "locale": "fr",
+        "mot": "GUIDE",
+        "occurredAt": "2026-10-18T10:00:20.000Z",
+        "reseau": "facebook",
+        "schemaVersion": 1,
+        "versionTexteM1": "mp-m1-v2",
+      },
+    },
+  ],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 6 · m1_refuse puis commentaire 25 h après : redémarre sur la même clé > 6-m1-refuse-25h 1`] = `
+{
+  "alias": {},
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [],
+      "cleIdempotenceGuide": "dc084b63a0cc38be3b765548b4e9de46ea03af4d02a70629ce82625fa3931f0c",
+      "creeLe": "2026-10-19T11:00:30.000Z",
+      "dernierCode": null,
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "attente_email",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-tard",
+      "idCompte": "compte-fictif-100",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-19T11:00:30.000Z",
+      "m2Envoye": false,
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-tard",
+        "idCommentaire": "com-fictif-tard",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-tard",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+  ],
+  "site": [],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 7 · message « doute » > 7-doute 1`] = `
+{
+  "alias": {},
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [],
+      "cleIdempotenceGuide": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+      "creeLe": "2026-10-18T10:00:30.000Z",
+      "dernierCode": null,
+      "derniereActiviteLe": "2026-10-18T10:00:20.000Z",
+      "douteOpposition": true,
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "attente_email",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-1",
+      "idCompte": "compte-fictif-100",
+      "idMessageDernier": "msg-5",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T10:00:30.000Z",
+      "m2Envoye": false,
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": "doute_opposition",
+      "etat": "silence",
+      "type": "zernio.message",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-filet-1",
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+    {
+      "appel": "lireMessage",
+      "args": {
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "idExpediteur": "auteur-fictif-400",
+        "idMessage": "msg-5",
+        "occurredAt": "2026-10-18T10:00:20.000Z",
+      },
+    },
+  ],
+  "site": [],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 8 · merci (interrupteur allumé, texte validé) > 8-merci 1`] = `
+{
+  "alias": {},
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "alias": [],
+      "cleIdempotenceGuide": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "creeLe": "2026-10-18T08:00:30.000Z",
+      "dernierCode": null,
+      "derniereActiviteLe": "2026-10-18T09:00:30.000Z",
+      "empreintesLien": [
+        "ee6ebd0954190f5c3adcec0ad3666c20bb9c5bd7ad32e6b27faa12cf9d4b3a86",
+      ],
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "attente_email",
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-graine",
+      "idCompte": "compte-fictif-100",
+      "idMessageDernier": "msg-dernier-fictif",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T08:00:30.000Z",
+      "m2Envoye": false,
+      "merciEtat": "envoye",
+      "merciLe": "2026-10-18T10:00:30.000Z",
+      "occurredAt": null,
+      "prochainEssaiLe": null,
+      "refLienConv": "c1_AbCdEf0123456789_-xyZQ",
+      "reseau": "instagram",
+      "versionTexteM1": "mp-m1-v4-1",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "termine",
+      "type": "zernio.message",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "envoyerMessage",
+      "args": {
+        "cle": "merci:c1_<masque>",
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "nonOpposee": {},
+        "texte": "Merci à vous ! J'ai bien reçu votre demande : le guide « Guide d'exemple » arrive dans votre boîte mail d'ici quelques minutes. S'il n'y est pas, jetez un œil à vos courriers indésirables.",
+      },
+    },
+  ],
+  "site": [
+    {
+      "chemin": "/api/interne/confirmations-page-guide",
+      "corps": {
+        "limite": 10,
+        "schemaVersion": 1,
+      },
+    },
+    {
+      "chemin": "/api/interne/confirmations-page-guide/issue",
+      "corps": {
+        "issues": [
+          {
+            "issue": "envoye",
+            "ref": "ee6ebd0954190f5c3adcec0ad3666c20bb9c5bd7ad32e6b27faa12cf9d4b3a86",
+          },
+        ],
+        "schemaVersion": 1,
+      },
+    },
+  ],
+}
+`;
+
+exports[`LIA-0 · comportement actuel figé (réglage éteint) > 9 · adresse refusée par le site (422) > 9-adresse-refusee-422 1`] = `
+{
+  "alias": {
+    "p1.ad952024.04c46614e84c727b59f66859facf6b9435eb2507cebf1320e1f1d834950f40ef": "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022",
+  },
+  "conversations": {
+    "p1.ad952024.469162d5aec4666ece0e9ddeb56f5a5acaab6b2990e8faa78347c621facdd022": {
+      "adresseRefuseeEnvoyee": true,
+      "alias": [
+        "p1.ad952024.04c46614e84c727b59f66859facf6b9435eb2507cebf1320e1f1d834950f40ef",
+      ],
+      "cleIdempotenceGuide": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+      "creeLe": "2026-10-18T10:00:30.000Z",
+      "dernierCode": "422",
+      "derniereActiviteLe": "2026-10-18T10:00:20.000Z",
+      "essaisM1": 0,
+      "essaisPub": 0,
+      "essaisSite": 0,
+      "etat": "site_refuse",
+      "formulations": {
+        "adresse-refusee": "mp-adresse-refusee-v3-1",
+      },
+      "guide": "guide-ia",
+      "idCommentaire": "com-fictif-filet-1",
+      "idCompte": "compte-fictif-100",
+      "idMessageAdresse": "msg-6",
+      "idMessageDernier": "msg-6",
+      "idPostPlateforme": "post-plateforme-fictif-200",
+      "m1Le": "2026-10-18T10:00:30.000Z",
+      "m2Envoye": false,
+      "occurredAt": "2026-10-18T10:00:20.000Z",
+      "prochainEssaiLe": null,
+      "reseau": "facebook",
+      "versionCorpsGuide": 1,
+      "versionTexteM1": "mp-m1-v2",
+    },
+  },
+  "evenements": [
+    {
+      "dernierCode": null,
+      "etat": "attente_email",
+      "type": "zernio.commentaire",
+    },
+    {
+      "dernierCode": "422",
+      "etat": "site_refuse",
+      "type": "zernio.message",
+    },
+  ],
+  "oppositionsFile": {},
+  "port": [
+    {
+      "appel": "repondreCommentaire",
+      "args": {
+        "cle": "com-fictif-filet-1",
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Merci pour votre commentaire ! Je vous écris en message privé pour vous envoyer le guide. Si vous ne voyez rien, regardez vos demandes de messages.",
+      },
+    },
+    {
+      "appel": "repondreEnPrive",
+      "args": {
+        "idCommentaire": "com-fictif-filet-1",
+        "idCompte": "compte-fictif-100",
+        "idPost": "post-plateforme-fictif-200",
+        "nonOpposee": {},
+        "texte": "Message automatique envoyé par Axion IA. Merci pour votre commentaire « GUIDE ». Pour vous envoyer le guide « Guide d'exemple » par e-mail, répondez à ce message avec votre adresse e-mail.",
+      },
+    },
+    {
+      "appel": "lireMessage",
+      "args": {
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "idExpediteur": "auteur-fictif-400",
+        "idMessage": "msg-6",
+        "occurredAt": "2026-10-18T10:00:20.000Z",
+      },
+    },
+    {
+      "appel": "envoyerMessage",
+      "args": {
+        "cle": "msg-6",
+        "idCompte": "compte-fictif-100",
+        "idConversation": "conv-fictive-700",
+        "nonOpposee": {},
+        "texte": "Désolé, je n'ai pas réussi à enregistrer cette adresse e-mail. Je ne peux donc pas vous envoyer le guide par ce moyen.",
+      },
+    },
+  ],
+  "site": [
+    {
+      "chemin": "/api/interne/demandes-guide-reseau",
+      "corps": {
+        "cleIdempotence": "fc8196c0a05c2b52cfa878ea8992d796b5898fb5ee3f0638c3fdb79291171261",
+        "email": "adresse@exemple.test",
+        "guide": "guide-ia",
+        "locale": "fr",
+        "mot": "GUIDE",
+        "occurredAt": "2026-10-18T10:00:20.000Z",
+        "reseau": "facebook",
+        "schemaVersion": 1,
+        "versionTexteM1": "mp-m1-v2",
+      },
+    },
+  ],
+}
+`;
