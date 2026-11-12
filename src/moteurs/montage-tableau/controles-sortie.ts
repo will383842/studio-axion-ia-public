@@ -12,6 +12,8 @@
  * PUR : ne lit que les mesures rendues par `studio-rendu`. Une mesure absente est dite « non mesurée », jamais réussie.
  */
 import { controleFinDesMesures } from "@/briques/composition/fin-propre";
+import { beneficeClair, cibleNommee, debutParle } from "@/domaine/ciblage/controles";
+import type { Ciblage } from "@/domaine/ciblage/types";
 import { formatSortie, type IdFormatSortie } from "./formats-sortie";
 
 export type EtatControleSortie = "conforme" | "non-conforme" | "non-mesure";
@@ -52,4 +54,20 @@ export function controlerSortie(id: IdFormatSortie, mesures: Readonly<Record<str
   }
   const etat: EtatControleSortie = problemes.length ? "non-conforme" : manquants.length ? "non-mesure" : "conforme";
   return { format: id, etat, phrases: [...problemes, ...manquants] };
+}
+
+export interface RemarqueCiblage {
+  code: "C100" | "C101";
+  phrase: string;
+  /** Toujours faux : une vidéo n'est jamais bloquée pour cela. */
+  bloquant: false;
+}
+
+/** Remarques sur la cible dans l'accroche dite (PUR, jamais bloquantes). Sans cible déclarée : aucune. */
+export function remarquesCiblage(ciblage: Ciblage | undefined, texteDit: string): RemarqueCiblage[] {
+  if (!ciblage) return [];
+  const r: RemarqueCiblage[] = [];
+  if (!cibleNommee(debutParle(texteDit), ciblage)) r.push({ code: "C100", phrase: `La cible « ${ciblage.libelle} » n'est pas nommée dans les 5 premières secondes.`, bloquant: false });
+  if (!beneficeClair(texteDit)) r.push({ code: "C101", phrase: "Aucun bénéfice clair (temps, argent, erreurs) dans le texte dit.", bloquant: false });
+  return r;
 }

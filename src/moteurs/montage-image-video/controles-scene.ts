@@ -12,6 +12,7 @@
 import { controlerCadrage, etatDansCadre, emprise, mesurerTrajectoire, BORNES_CAMERA, cameraA } from "@/briques/schema-motion/camera";
 import { disposerEnsemble } from "@/briques/schema-motion/disposition";
 import { controlerEnsemble, controlerLisibiliteToile } from "@/briques/schema-motion/lisibilite";
+import { debordementsEnsemble, planEnsemble } from "@/briques/schema-motion/plan-objets";
 import type { CadrageCamera } from "@/briques/schema-motion/camera";
 import type { DispositionToile, MotParle, TrajectoireCamera } from "@/briques/schema-motion/types";
 import type { CarteImage } from "@/domaine/image-video/carte";
@@ -23,7 +24,7 @@ import type { BlocRenduIV, EvenementTempsIV, LigneDeTempsIV, PlanIV } from "./mi
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
 import { controlerSousTitresIV } from "./sous-titres";
-import { controlerVariationsIV, sousTitresVariesIV } from "./sous-titres-varies";
+import { controlerVariationsIV, sousTitresVariesIV, type StyleChoisiIV } from "./sous-titres-varies";
 
 const S = REGLES_SCENE_IV;
 
@@ -60,6 +61,8 @@ export interface ContexteControleScene {
   reseaux: readonly ReseauIV[];
   bruitages: ResultatBruitagesIV;
   voix: readonly MotHorodate[];
+  /** GV-ST-03b : style de sous-titres choisi ; absent : charte duo (mesure d'avant). */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 const sec = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
@@ -241,9 +244,10 @@ export function controlerMiseEnSceneIV(l: LigneDeTempsIV, ctx: ContexteControleS
   // Q21 · textes : longueur tenable au plancher ; Q22 · sous-titres.
   const q21: string[] = [];
   for (const p of l.plans) for (const t of p.textes) if (t.replace(/\*/g, "").length > S.signesMax) q21.push(`« ${t.replace(/\*/g, "")} » (plan ${p.id}) est trop long pour rester lisible.`);
+  for (const b of toiles) for (const e of b.proprietes.ensembles ?? []) q21.push(...debordementsEnsemble(planEnsemble(b.proprietes.schema, { allumes: e.allumes, chiffresCles: e.chiffresCles })).map((x) => `séquence ${b.id}, vue d'ensemble : ${x}`));
   lignes.push(ligne("Q21", q21, "Textes d'écran lisibles.", "Texte trop long :"));
   // Q22 : la bande, puis CHAQUE groupe tel que la composition le dessine (variations Impact / Bandeau comprises), mesuré.
-  const q22 = [...controlerSousTitresIV(l.sousTitres, ctx.reseaux), ...controlerVariationsIV(sousTitresVariesIV(l), l)];
+  const q22 = [...controlerSousTitresIV(l.sousTitres, ctx.reseaux), ...controlerVariationsIV(sousTitresVariesIV(l, ctx.styleSousTitres), l, undefined, ctx.styleSousTitres)];
   lignes.push(ligne("Q22", q22, "Sous-titres et leurs variations dans leur bande, sous le contenu, hors des zones masquées des réseaux.", "Sous-titres mal placés :"));
 
   // Q23 · défauts visibles : texte coupé, écran vide, même texte deux plans de suite.
@@ -267,12 +271,12 @@ export function controlerMiseEnSceneIV(l: LigneDeTempsIV, ctx: ContexteControleS
   // Un seul mot orange par plan.
   lignes.push(ligne("ORANGE", l.plans.filter((p) => p.textes.reduce((n, t) => n + (t.match(/\*[^*]+\*/g)?.length ?? 0), 0) > 1).map((p) => `le plan ${p.id} a plus d'un mot orange.`), "Un mot orange au plus par plan.", "Mot orange :"));
 
-  // Segment de fin : question dite (sauf LinkedIn), rien après la phrase-choc sur LinkedIn.
+  // Segment de fin : question dite quand la fin en porte une ; LinkedIn dit la fin comme les autres depuis le 26/10/2026.
+  // Seule une version muette d'AVANT (LinkedIn seul) n'a rien après la phrase-choc.
   const finPlans = l.plans.filter((p) => p.partie === "fin");
   const fin: string[] = [];
   if (l.segmentFin.muet && finPlans.length) fin.push("la version LinkedIn montre une fin : rien ne doit suivre la phrase-choc.");
   if (l.segmentFin.muet && l.reseaux.some((r) => r !== "linkedin")) fin.push(`une version sans fin vise ${l.reseaux.filter((r) => r !== "linkedin").join(", ")}.`);
-  if (!l.segmentFin.muet && l.reseaux.includes("linkedin")) fin.push("la version LinkedIn porte un segment de fin.");
   if (l.segmentFin.question && !finPlans.some((p) => p.scene === "question")) fin.push("la question de commentaire n'est pas à l'écran.");
   if (l.segmentFin.question && finPlans.length && finPlans[0].scene !== "question") fin.push("la question de commentaire doit ouvrir le segment de fin.");
   lignes.push(ligne("FIN", fin, "Segment de fin conforme au réseau.", "Segment de fin :"));

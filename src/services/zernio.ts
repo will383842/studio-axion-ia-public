@@ -1,0 +1,295 @@
+/**
+ * ZERNIO (lot Z2-S) : client du serveur, test des comptes, synchronisation des états (toutes les 15 min, hors verrou).
+ *
+ * - La clé `ZERNIO_API_KEY` reste sur le serveur ; le client est celui de la liste fermée (`zernio-client.ts`).
+ * - Synchronisation : brouillon / programmée / publiée / échec / partielle / annulée → états du Studio, avec le lien
+ *   `platformPostUrl`. Un post introuvable depuis 30 minutes devient « À vérifier » : jamais renvoyé à l'aveugle.
+ * - Rien n'est jamais effacé chez Zernio ; une publication change d'état, elle n'est jamais supprimée.
+ */
+import "server-only";
+import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
+import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
+import { cleDans } from "@/fournisseurs/mesures/commun";
+import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
+import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
+import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { obtenirReseau } from "@/reseaux";
+import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou, creerVerrou } from "./_commun";
+import { exigerSession } from "./auth";
+import { passerProgrammee } from "./buffer";
+import { synchroniserEtats } from "./generateur";
+import { creerNotification } from "./notifications";
+
+export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
+export const PARAM_COMPTES_ZERNIO = "zernio.comptes";
+/** Interrupteur local « Tout arrêter » : à faux, toute écriture vers Zernio est refusée. Absent = envois permis. */
+export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
+/** L7-08 · interrupteur SÉPARÉ de l'envoi des publications du calendrier. FERMÉ par défaut (absent = fermé). Le parcours GUIDE ne le lit jamais. */
+export const PARAM_ENVOI_CALENDRIER = "zernio.envoi_calendrier_autorise";
+
+/** Jour (AAAA-MM-JJ, UTC) de la dernière alerte envoyée, par sujet : une alerte par sujet et par jour. */
+export const PARAM_ALERTES_JETONS_ZERNIO = "zernio.alertes_jetons";
+
+/** Verrou LOCAL (le verrou global est pris par `creerNotification`) : lecture, envoi et marque ne s'entrelacent pas. */
+const verrouAlertes = creerVerrou();
+
+/**
+ * Alertes jetons / comptes déconnectés / quota : CLOCHE SEULEMENT (jamais de push ni d'e-mail), une par sujet et par jour.
+ * `quotaRestantPct` : l'API lue aujourd'hui ne le donne pas (ESCALADE dans la PR) ; absent = pas d'alerte quota.
+ */
+export async function alerterJetonsZernio(comptes: readonly CompteZernio[], instant: number, quotaRestantPct?: number | null): Promise<number> {
+  const alertes = alertesJetonsZernio({ comptes: comptes.map(compteSurveilleDepuisZernio), quotaRestantPct, maintenant: instant });
+  const jour = new Date(instant).toISOString().slice(0, 10);
+  return verrouAlertes(async () => {
+    const lus = await lireParametre<Record<string, string>>(PARAM_ALERTES_JETONS_ZERNIO, {});
+    // Purge : seules les marques du jour servent ; les autres (jours passés, comptes disparus) sont retirées.
+    const etat: Record<string, string> = Object.fromEntries(Object.entries(lus).filter(([, j]) => j === jour));
+    let envoyees = 0;
+    for (const a of alertes.filter((x) => etat[x.sujet] !== jour)) {
+      // Création d'abord, marque ensuite : si la création échoue, rien n'est marqué et l'alerte reviendra.
+      await creerNotification({ type: "echec", titre: "Zernio : compte ou jeton à surveiller", message: a.message, lien: "/reglages" }, { cloche: true });
+      etat[a.sujet] = jour;
+      envoyees++;
+      await ecrireParametre(PARAM_ALERTES_JETONS_ZERNIO, etat);
+    }
+    if (envoyees === 0 && Object.keys(etat).length !== Object.keys(lus).length) await ecrireParametre(PARAM_ALERTES_JETONS_ZERNIO, etat);
+    return envoyees;
+  });
+}
+
+export const INTERVALLE_SYNCHRO_ZERNIO_MS = 15 * 60_000;
+/** L0-11 · écart toléré entre la date du Studio et celle du diffuseur : au-delà (strictement), la date du Studio fait foi. */
+export const ECART_DATE_TOLERE_MS = 60_000;
+const LECTURES_PAR_TOUR = 50;
+
+/** Relu à CHAQUE requête (jamais mis en cache) : l'arrêt agit tout de suite. */
+export async function envoiZernioAutorise(): Promise<boolean> {
+  return (await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) !== false;
+}
+
+/** Relu à chaque appel. Seul `true` ouvre : absent, faux ou toute autre valeur = fermé. */
+export async function envoiCalendrierAutorise(): Promise<boolean> {
+  return (await lireParametre<boolean>(PARAM_ENVOI_CALENDRIER, false)) === true;
+}
+
+/** Envoi de publications (calendrier, promotion) : exige les DEUX réglages ouverts. Le GUIDE n'utilise pas cette porte. */
+export async function envoiPublicationCalendrierAutorise(): Promise<boolean> {
+  return (await envoiZernioAutorise()) && (await envoiCalendrierAutorise());
+}
+
+let clientInjecte: ClientZernio | null = null;
+let clientCache: { cle: string; client: ClientZernio } | null = null;
+
+/** Tests : remplace le client (null = retour au client réel). */
+export function injecterClientZernio(client: ClientZernio | null): void {
+  clientInjecte = client;
+  clientCache = null;
+}
+
+/** La clé existe-t-elle sur le serveur ? (jamais sa valeur). */
+export function cleZernioPresente(): boolean {
+  return !!clientInjecte || !!cleDans(process.env, VARIABLE_CLE_ZERNIO);
+}
+
+/** Client Zernio du serveur. Sans clé : refus clair, aucun repli vers un autre outil. */
+export function clientZernio(): ClientZernio {
+  if (clientInjecte) return clientInjecte;
+  const cle = cleDans(process.env, VARIABLE_CLE_ZERNIO);
+  if (!cle) throw new ErreurStudio("ZERNIO_NON_RELIE", "Zernio n'est pas relié (clé absente) : l'envoi est refusé, aucun autre outil n'est utilisé à sa place.");
+  if (clientCache?.cle !== cle) clientCache = { cle, client: creerClientZernio({ cle, envoiAutorise: envoiZernioAutorise }) };
+  return clientCache.client;
+}
+
+/** Erreur Zernio → phrase française simple pour Will (le détail technique ne sort jamais). */
+export function versErreurStudioZernio(e: unknown): ErreurStudio {
+  if (e instanceof ErreurStudio) return e;
+  if (estErreurZernio(e)) return new ErreurStudio(e.code === "acces" ? "ZERNIO_CLE" : "ZERNIO", e.message);
+  return new ErreurStudio("ZERNIO", "Zernio n'a pas pu répondre : réessayez dans un instant.");
+}
+
+/* ------------------------------------------------------------------ */
+/* Comptes                                                              */
+/* ------------------------------------------------------------------ */
+
+export interface ComptesZernioEnregistres {
+  lusLe: string;
+  comptes: { id: string; reseau: string; nom: string }[];
+}
+
+export async function comptesZernioEnregistres(): Promise<ComptesZernioEnregistres | null> {
+  return lireParametre<ComptesZernioEnregistres | null>(PARAM_COMPTES_ZERNIO, null);
+}
+
+/** « Tester » (Réglages) : Zernio répond-il, et quels comptes y sont reliés ? RÉSEAU : jamais depuis un écran. */
+export async function testerZernio(): Promise<{ message: string; comptes: number; etats: Record<string, boolean> }> {
+  await exigerSession();
+  let liste: CompteZernio[];
+  try {
+    liste = await clientZernio().listerComptes();
+  } catch (e) {
+    const erreur = versErreurStudioZernio(e);
+    await journaliser("publication", `Zernio, lecture des comptes : ${erreur.message}`);
+    throw erreur;
+  }
+  const comptes = liste.map((c) => ({ id: c._id, reseau: c.platform, nom: c.displayName ?? c.username ?? c.platform }));
+  await ecrireParametre(PARAM_COMPTES_ZERNIO, { lusLe: maintenant(), comptes } satisfies ComptesZernioEnregistres);
+  await journaliser("reglages", `Zernio testé : ${comptes.length} compte(s) relié(s)`);
+  const reseaux = [...new Set(comptes.map((c) => c.reseau))].join(", ");
+  return { comptes: comptes.length, etats: Object.fromEntries(liste.map((c) => [c._id, c.isActive !== false])), message: comptes.length ? `Le nouvel outil répond : ${reseaux}.` : "Le nouvel outil répond, mais aucun compte n'y est relié." };
+}
+
+/* ------------------------------------------------------------------ */
+/* Correspondance des états                                             */
+/* ------------------------------------------------------------------ */
+
+export interface EtatLuZernio {
+  statut: StatutPublication;
+  lien?: string;
+  erreur?: string;
+  /** Statut Zernio « partial » sans verdict pour ce compte, ou « cancelled ». */
+  note?: "partielle" | "annulee";
+}
+
+/** L0-11 · heure de Paris (jamais UTC) pour toute date montrée dans le Studio. */
+const heureParis = (ms: number): string => new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(ms).replace(",", " à");
+
+const idCompte = (pf: PlateformePostZernio): string => (typeof pf.accountId === "string" ? pf.accountId : pf.accountId._id);
+
+/** Statut d'un post (ou d'une plateforme) Zernio → statut du Studio. */
+export function statutDepuisZernio(status: string | null | undefined): StatutPublication {
+  switch (status) {
+    case "published":
+      return "publiee";
+    case "scheduled":
+    case "publishing":
+      return "programmee";
+    case "failed":
+    case "partial":
+    case "cancelled":
+      return "echec";
+    default: // draft, pending_approval, pending, inconnu : rien n'est parti
+      return "brouillon";
+  }
+}
+
+/** La cible du Studio (« compte », « compte:fb:page », « compte:li:n° ») commence par l'identifiant du compte Zernio. */
+const compteDeCible = (canalId: string): string => canalId.split(":")[0];
+
+/** État lu chez Zernio pour une publication : la plateforme du compte visé prime sur le statut global du post. */
+export function etatDepuisPost(post: PostZernio, p: Pick<Publication, "canalId">): EtatLuZernio {
+  const compte = p.canalId ? compteDeCible(p.canalId) : undefined;
+  const pf = compte ? post.platforms.find((x) => idCompte(x) === compte) : post.platforms.length === 1 ? post.platforms[0] : undefined;
+  const global = String(post.status);
+  const lien = pf?.platformPostUrl || undefined;
+  if (global === "cancelled") return { statut: "echec", note: "annulee", erreur: "Annulée chez Zernio." };
+  if (pf?.status && ["published", "failed"].includes(pf.status)) {
+    return { statut: statutDepuisZernio(pf.status), lien, ...(pf.status === "failed" ? { erreur: pf.errorMessage ?? "Zernio n'a pas pu publier." } : {}) };
+  }
+  if (global === "partial") return { statut: "echec", note: "partielle", erreur: "Publication partielle chez Zernio : voyez le détail dans Zernio." };
+  return { statut: statutDepuisZernio(global), lien };
+}
+
+/* ------------------------------------------------------------------ */
+/* Synchronisation (boucle de fond)                                     */
+/* ------------------------------------------------------------------ */
+
+const cleSynchro = Symbol.for("studio-axion-ia.synchro-zernio");
+type AvecSynchro = typeof globalThis & { [cleSynchro]?: number };
+
+async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Promise<boolean> {
+  return sousVerrou(async () => {
+    const actuelle = await depots().publications.obtenir(p.id);
+    if (!actuelle || actuelle.modifieLe !== p.modifieLe) return false;
+    await depots().publications.modifier(p.id, modif);
+    return true;
+  });
+}
+
+/**
+ * Toutes les 15 minutes au plus : relit chez Zernio l'état des publications envoyées et pas encore publiées. Le réseau
+ * se fait HORS verrou ; chaque écriture, sous le verrou, seulement si la publication n'a pas changé entre-temps.
+ * Un post introuvable (404) depuis 30 minutes ou plus passe « À vérifier » ; avant, il est laissé tel quel.
+ */
+export async function synchroniserEtatsZernio(options: { force?: boolean; instant?: number } = {}): Promise<{ lues: number; changees: number }> {
+  const instant = options.instant ?? Date.now();
+  const g = globalThis as AvecSynchro;
+  if (!options.force && g[cleSynchro] && instant - g[cleSynchro]! < INTERVALLE_SYNCHRO_ZERNIO_MS) return { lues: 0, changees: 0 };
+  g[cleSynchro] = instant;
+  if (!cleZernioPresente()) return { lues: 0, changees: 0 };
+  const client = clientZernio();
+  const d = depots();
+  const r = { lues: 0, changees: 0 };
+  // Passage périodique (15 min) : alertes jetons / comptes déconnectés. Jamais bloquant pour la synchronisation.
+  try {
+    await alerterJetonsZernio(await client.listerComptes(), instant);
+  } catch {
+    /* lecture ou alerte impossible : on réessaiera au prochain passage */
+  }
+  const suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
+    .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""))
+    .slice(0, LECTURES_PAR_TOUR);
+  const lu = new Date(instant).toISOString();
+  for (const p of suivies) {
+    const vid = videoIdSure(p);
+    const entite = vid ? { type: "video", id: vid } : undefined;
+    const lien = vid ? `/videos/${vid}` : "/calendrier";
+    let post: PostZernio;
+    try {
+      post = await client.lirePost(p.idExterne!);
+    } catch (e) {
+      if (estErreurZernio(e) && e.code === "introuvable") {
+        const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
+        if (p.etatEnvoi !== "a-verifier" && instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
+          r.changees++;
+          await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
+          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo });
+        }
+      }
+      continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
+    }
+    r.lues++;
+    const etat = etatDepuisPost(post, p);
+    const changement: Partial<Publication> = { etatLuLe: lu };
+    if (etat.statut !== p.statut) changement.statut = etat.statut;
+    if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
+    if (etat.statut === "echec") changement.erreur = etat.erreur;
+    if (etat.statut === "publiee" && p.erreur) changement.erreur = undefined;
+    // L0-11 : la date du Studio fait foi, la synchro ne l'écrase jamais. Celle du diffuseur est rangée dans `dateExterne`.
+    let ecartDate: { studio: number; diffuseur: number } | null = null;
+    if (etat.statut === "programmee") {
+      const diffuseur = typeof post.scheduledFor === "string" ? Date.parse(post.scheduledFor) : NaN;
+      const studio = Date.parse(p.date);
+      if (Number.isFinite(diffuseur)) {
+        const ecarte = Number.isFinite(studio) && Math.abs(diffuseur - studio) > ECART_DATE_TOLERE_MS;
+        if (ecarte && p.dateExterne !== post.scheduledFor) {
+          changement.dateExterne = post.scheduledFor;
+          ecartDate = { studio, diffuseur };
+        } else if (!ecarte && Number.isFinite(studio) && p.dateExterne) changement.dateExterne = undefined; // écart résorbé
+      }
+    }
+    if (!(await ecrireSiInchange(p, changement))) continue;
+    const nom = obtenirReseau(p.reseau).nom;
+    if (ecartDate) {
+      // Cloche seulement (jamais de push ni d'e-mail) : une fois par date relue chez le diffuseur.
+      const phrase = `${nom} : la date du Studio (${heureParis(ecartDate.studio)}) est gardée ; le diffuseur indique ${heureParis(ecartDate.diffuseur)}. Corrigez-la dans le Studio ou chez le diffuseur.`;
+      await journaliser("publication", phrase, entite);
+      await creerNotification({ type: "echec", titre: "Date différente chez le diffuseur", message: phrase, lien, estDemo: p.estDemo }, { cloche: true });
+    }
+    if (etat.statut === p.statut) continue;
+    r.changees++;
+    if (etat.statut === "publiee") {
+      if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
+      if (p.varianteId) await synchroniserEtats(p.varianteId);
+      await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
+    } else if (etat.statut === "programmee") {
+      if (vid) await passerProgrammee(vid);
+      if (p.varianteId) await synchroniserEtats(p.varianteId);
+    } else if (etat.statut === "echec") {
+      const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;
+      console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
+      await journaliser("publication", phrase, entite);
+      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
+    }
+  }
+  return r;
+}

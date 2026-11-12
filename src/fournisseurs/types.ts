@@ -432,9 +432,11 @@ export interface SourceMiniature {
   /** Mise en page de chaque miniature (0, 1, 2) ; absent : 0, 1, 2 dans l'ordre. */
   variantes?: number[];
   /** Vignettes lot 1 : gabarit voulu (réglage `miniature.gabarit`, `r4` par défaut), générateur et rang de la vidéo. */
-  gabarit?: "r4" | "axion-v2";
+  gabarit?: "r4" | "axion-v2" | "image-video-v3";
   formatId?: string;
   rangVideo?: number;
+  /** Aucune vidéo SANS texte : pas de lecture de la vidéo finale (texte déjà incrusté), fond propre de la charte. */
+  fondPropre?: boolean;
   depots: { cle: string; urlDepot: string }[];
 }
 
@@ -442,6 +444,8 @@ export interface SourceMiniature {
 export interface CouvertureMiniature {
   texte: string;
   motCle?: string;
+  /** Réglage « titre par défaut » allumé : le moteur de rendu pose le titre au centre (écrit seulement s'il vaut `true`). */
+  titreCentre?: boolean;
 }
 
 export interface PropositionMiniature {
@@ -455,6 +459,8 @@ export interface PropositionMiniature {
   /** Vignettes lot 1 (gabarit `axion-v2`) : ambiance et mise en page de l'image. */
   ambiance?: "encre" | "ivoire";
   mise?: "m1" | "m2" | "m3";
+  /** Marqueur de gabarit de l'image produite (`image-video-v3` : vraie image du début de la vidéo). */
+  gabarit?: "image-video-v3";
 }
 
 export interface FournisseurMiniature extends FournisseurBase {
@@ -521,12 +527,24 @@ export interface DemandePublication {
    * (relevé du 03/10/2026) : non transmis, le studio le rappelle. À brancher ici si Buffer l'ajoute un jour.
    */
   votreMarque?: boolean;
+  /* --- z1t (facultatifs) --- */
+  /** Cible de publication (ex. page, profil, chaîne) propre à l'outil. */
+  cible?: string;
+  tailleOctets?: number;
+  /** Publication de type document (ex. PDF en carrousel). */
+  document?: { url: string; titre?: string };
+  /** Consentement TikTok enregistré pour cet envoi. */
+  consentementTiktok?: boolean;
+  /** Le contenu est généré par IA (mention à déclarer là où l'outil le permet). */
+  contenuIA?: boolean;
+  format?: string;
+  dureeSec?: number;
 }
 
 export interface FournisseurPublication extends FournisseurBase {
   type: "publication";
   /** `statut` (lot R1) : ce que le service a enregistré. Absent : la simulation (rien n'est parti). */
-  envoyer(demande: DemandePublication): Promise<{ idExterne: string; via: "buffer" | "simulation"; statut?: Extract<StatutPublication, "brouillon" | "programmee">; premierCommentaire?: "transmis" | "a-la-main" }>;
+  envoyer(demande: DemandePublication): Promise<{ idExterne: string; via: "buffer" | "zernio" | "simulation"; statut?: Extract<StatutPublication, "brouillon" | "programmee">; premierCommentaire?: "transmis" | "a-la-main" }>;
   /* --- Lot R1 (facultatifs, réseau : jamais appelés par un écran) --- */
   listerCanaux?(): Promise<CanalPublication[]>;
   lireEtat?(idExterne: string): Promise<EtatPublicationExterne>;
@@ -616,6 +634,8 @@ export interface StockageFichiers extends FournisseurBase {
   /* --- Lot R7 (corrections sécurité) --- */
   /** Les `octets` premiers octets de l'objet stocké (lecture partielle), pour reconnaître le type réel du fichier. */
   lireDebut?(cleStockage: string, octets: number): Promise<Uint8Array>;
+  /** Taille réelle de l'objet stocké (HEAD signé en interne, contenu non lu) ; `null` si l'objet n'existe plus ou si R2 ne répond pas. */
+  tailleObjet?(cleStockage: string): Promise<number | null>;
   /** Efface un objet déposé qui ne sera pas gardé (aucun objet orphelin). */
   supprimer?(cleStockage: string): Promise<void>;
   /**

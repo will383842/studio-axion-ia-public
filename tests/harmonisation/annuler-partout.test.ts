@@ -43,6 +43,7 @@ export const EXCEPTIONS: Record<string, string> = {
   "src/components/formats/tableau-anime/EtapesTableau.tsx": "range les boutons par ActionsSuivi (annuler reçu de SuiviTableau)",
   "src/components/facecam/EncartFormatFacecam.tsx": "« Refaire l'effet » d'une vidéo prête : jamais annulable",
   "src/app/(studio)/styleguide/Vitrine.tsx": "vitrine du guide de style",
+  "src/components/reglages/Connexions.tsx": "« Réessayer » recharge la liste des comptes reliés : ce n'est pas le suivi d'une vidéo, rien à annuler",
 };
 export const EXCEPTIONS_DEPART = Object.keys(EXCEPTIONS).length;
 
@@ -142,7 +143,7 @@ describe("garde : chaque suivi qui a Reprendre a Annuler", () => {
   });
 
   it("les exceptions existent encore et ne grossissent pas", () => {
-    expect(EXCEPTIONS_DEPART).toBeLessThanOrEqual(7);
+    expect(EXCEPTIONS_DEPART).toBeLessThanOrEqual(8);
     for (const f of Object.keys(EXCEPTIONS)) expect(() => lire(f), f).not.toThrow();
   });
 

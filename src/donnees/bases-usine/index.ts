@@ -663,3 +663,6 @@ export type { SourceBases };
 export function sourceDesBases(): SourceBases {
   return source_ as SourceBases;
 }
+
+/** Valeurs de `source` qui ne prouvent rien : une règle qui n'a que celles-là reste « non confirmée » (lu par la cadence). */
+export const SOURCES_NON_CONFIRMEES: readonly string[] = ["", "inconnu", "exemple inventé"];

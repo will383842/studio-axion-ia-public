@@ -14,6 +14,7 @@
  * design, `familles.ts`) et le contrôle applique les règles de diversité R1 à R7 ; `rendable` est faux si le plan livré
  * échoue sur R1, R3a, R4a ou R5a (il ne doit pas être rendu).
  */
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { schemaCalque, schemaCarte, schemaElementV3, schemaElementV4, schemaFenetre, schemaMotionTypee, schemaMouvement, VERSION_PLAN_FACECAM_ANIMEE, type ElementV3Plan, type ElementV4Plan, type MotionPlan, type PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 import { schemaJson } from "@/generateur/roles/types";
@@ -53,6 +54,9 @@ export const ESSAIS_MAX_REALISATEUR = 3;
 export const PHRASE_REALISATEUR_REFUSE = "La mise en scène proposée par Claude n'a pas passé les contrôles après 3 essais : j'ai fait une mise en scène simple (version simple). Vous pouvez relancer pour retenter la version complète.";
 export const PHRASE_REALISATEUR_PANNE = "Claude n'a pas pu faire la mise en scène : j'ai fait une mise en scène simple (version simple). Réessayez dans un instant pour la version complète.";
 
+/** Phrase pour Will quand le plan gardé ressemble aux vidéos récentes (règle D17 devenue avertissement). */
+export const PHRASE_REPETITION_GARDEE = "Mise en scène gardée : elle ressemble aux vidéos récentes (ouverture ou plaquettes déjà vues) malgré les essais.";
+
 /** Sortie demandée à Claude : le plan SANS ce que remplit le code. Zooms en objets (les tuples passent mal en sortie structurée). */
 export const schemaSortieRealisateur = z.object({
   cartes: z.array(schemaCarte),
@@ -87,6 +91,8 @@ export interface EntreeRealisateur {
   /** Durée totale de la vidéo, écran de fin compris. */
   dureeSec: number;
   titre?: string;
+  /** Identifiant de la vidéo : graine du repli (sha256), même vidéo → même graine (le plan dépend aussi de `historique` : un Refaire peut changer l'ouverture si la version précédente est dans les 3 dernières). Absent : empreinte de la prise. */
+  videoId?: string;
   /** Les 5 dernières vidéos (la plus récente en premier). */
   historique?: HistoriqueVideo[];
   /** Plafond Claude du mois atteint (lu par le service AVANT tout appel). */
@@ -219,14 +225,23 @@ export function graineDe(src: string, mots: readonly MotTranscrit[]): number {
   return h % 1000;
 }
 
+/** Graine du repli d'après l'identifiant de la vidéo (sha256, jamais l'heure) : entre 0 et 999. */
+export function graineVideo(videoId: string): number {
+  return parseInt(createHash("sha256").update(videoId).digest("hex").slice(0, 12), 16) % 1000;
+}
+
+/** Plaquettes d'ouverture des 3 dernières vidéos (la plus récente en premier) : la nouvelle vidéo n'ouvre pas sur l'une d'elles. */
+export const ouverturesRecentes = (historique: readonly HistoriqueVideo[] | undefined): string[] =>
+  (historique ?? []).slice(0, 3).flatMap((h) => (h.ouvertureV4 ? [h.ouvertureV4] : []));
+
 /**
  * VERSION SIMPLE (repli sans Claude, Lot I du 17/10) : le plan v4 MINIMAL (`plan-minimal-v4.ts`, plaquettes simples en rotation sur les mots
  * dits), contrôlé par `verifierPlan`. L'ancienne version par règles fixes (`realiserParRegles`, ancien catalogue) n'est plus appelée ici.
  */
 function versionSimple(entree: EntreeRealisateur, essais: number, phrase?: string, erreursClaude?: string[]): ResultatRealisateur {
-  const elementsV4 = planMinimalV4({ mots: entree.mots, horizon: debutFin(entree), graine: graineDe(entree.prise.src, entree.mots) });
+  const elementsV4 = planMinimalV4({ mots: entree.mots, horizon: debutFin(entree), graine: entree.videoId ? graineVideo(entree.videoId) : graineDe(entree.prise.src, entree.mots), eviterOuvertures: ouverturesRecentes(entree.historique) });
   const plan = assemblerPlan(entree, { cartes: [], fenetres: [], calques: [], zooms: [], elementsV4 });
-  const v = verifierPlan(plan, entree.mots, { historique: entree.historique });
+  const v = verifierPlan(plan, entree.mots, { historique: entree.historique, repetitionEnAvertissement: true });
   const erreurs = erreursClaude ?? (v.erreurs.length ? v.erreurs : undefined);
   // Un plan sans plaquette (vidéo muette ou trop courte) n'est jamais rendu.
   const rendable = v.rendable && elementsV4.length > 0;
@@ -252,8 +267,17 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
   let message = repli ? messageAvecErreurs(base, [...repli.erreurs], { cartes: [], fenetres: [], calques: [], zooms: [], elementsV4: repli.elementsPrecedents }) : base;
   let erreurs: string[] = [];
   let planRefuse: unknown;
+  let gardeRepetition: { plan: PlanFacecamAnimee; v: ReturnType<typeof verifierPlan> } | undefined;
+  /** Le plan refusé seulement pour D17 (répétition), rendu tel quel avec un avertissement, plutôt que la version simple. */
+  const planRepetitionGarde = (essais: number): ResultatRealisateur | undefined =>
+    gardeRepetition && {
+      plan: gardeRepetition.plan, version: "complete", essais, rendable: true, mesures: gardeRepetition.v.mesures,
+      avertissements: [...gardeRepetition.v.avertissements, ...gardeRepetition.v.erreurs.map((e) => `Plan gardé malgré : ${e}`)],
+      phrase: PHRASE_REPETITION_GARDEE,
+    };
   let essais = 0;
-  while (essais < (repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR)) {
+  const essaisMax = repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR;
+  while (essais < essaisMax) {
     essais++;
     planRefuse = undefined;
     let r: ReponseRealisateur;
@@ -265,7 +289,7 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
       r = { ok: false, message: "Claude n'a pas répondu." };
     }
     // Panne (plafond franchi entre-temps, crédit, réseau) : pas de nouvel essai, la version simple tout de suite.
-    if (!r.ok) return versionSimple(entree, essais, PHRASE_REALISATEUR_PANNE, [`Claude indisponible : ${r.message}`]);
+    if (!r.ok) return planRepetitionGarde(essais) ?? versionSimple(entree, essais, PHRASE_REALISATEUR_PANNE, [`Claude indisponible : ${r.message}`]);
     const lu = r.erreur ? null : schemaSortieRealisateur.safeParse(r.donnees);
     if (!lu) {
       erreurs = [r.erreur!];
@@ -284,8 +308,15 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
         elementsV4: s.elementsV4 ?? [],
         motsForts: (s.motsForts ?? []).map(nettoyer).filter(Boolean),
       });
-      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}) });
-      if (!v.erreurs.length) return { plan, version: "complete", essais, avertissements: v.avertissements, mesures: v.mesures, rendable: v.rendable };
+      // Anti-répétition (D17) : bloquante au SEUL premier essai (comme D14 et D2a, une vidéo ordinaire ne paie pas 3 appels) ; dès le 2ᵉ essai elle devient
+      // un avertissement et le plan passe (jamais d'échec pour cette raison). Avec un seul essai prévu, elle n'est jamais bloquante.
+      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}), ...(essais >= Math.min(2, essaisMax) ? { repetitionEnAvertissement: true } : {}) });
+      // Un plan refusé UNIQUEMENT pour D17 est mis de côté : si les essais suivants échouent (panne, réponse illisible), il vaut mieux que la version simple.
+      if (!gardeRepetition && v.erreurs.length && v.rendable && v.erreurs.every((e) => e.startsWith("D17"))) gardeRepetition = { plan, v };
+      if (!v.erreurs.length) {
+        const repetee = v.avertissements.some((a) => a.startsWith("D17"));
+        return { plan, version: "complete", essais, avertissements: v.avertissements, mesures: v.mesures, rendable: v.rendable, ...(repetee ? { phrase: PHRASE_REPETITION_GARDEE } : {}) };
+      }
       // Dès le 2ᵉ essai (une vidéo ordinaire ne paie pas 3 appels) : si les seules erreurs sont D14 (plafond d'une plaquette) ou D2a (emplacements), le plan d'Opus
       // est GARDÉ, avec un avertissement et une phrase pour Will, plutôt que remplacé par le repli simple (ces règles ne bloquent pas le rendu).
       if (essais >= Math.min(2, repli ? repli.essaisMax : ESSAIS_MAX_REALISATEUR) && v.rendable && v.erreurs.every((e) => /^(?:D14|D2a) — /.test(e))) {
@@ -295,7 +326,9 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
       erreurs = v.erreurs;
       planRefuse = s;
     }
+    // Un plan est déjà mis de côté (D17 au 1er essai) et ce nouvel essai n'est pas acceptable : on le rend tout de suite, pas de 3ᵉ appel.
+    if (essais >= 2 && gardeRepetition) return planRepetitionGarde(essais)!;
     message = messageAvecErreurs(base, erreurs, planRefuse);
   }
-  return versionSimple(entree, essais, PHRASE_REALISATEUR_REFUSE, erreurs);
+  return planRepetitionGarde(essais) ?? versionSimple(entree, essais, PHRASE_REALISATEUR_REFUSE, erreurs);
 }

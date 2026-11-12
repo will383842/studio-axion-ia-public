@@ -11,7 +11,7 @@ import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { COULEURS_DUO } from "../../../../../src/briques/habillage/charte-duo";
 import { largeurAnton } from "../../../../../src/briques/schema-motion/chasse-anton";
 import { famille, graisse, planSurgir, progres, teinte } from "../../../cas-concret/plans/commun";
-import { Fond } from "../../../cas-concret/socle/Fond";
+import { FondIV } from "../fond/FondVarie";
 import { Icone } from "../../../interface-claire/elements";
 import { Entete } from "../../Entete";
 import type { ProprietesEcranVariete } from "../CompositionVariete";
@@ -101,7 +101,7 @@ export function EcranCamera(p: ProprietesEcranVariete) {
   const m = mise(p.hauteur);
   return (
     <AbsoluteFill>
-      <Fond fond="ivoire" largeur={p.largeur} hauteur={p.hauteur} />
+      <FondIV fond="ivoire" largeur={p.largeur} hauteur={p.hauteur} />
       {d ? (
         <AbsoluteFill style={{ overflow: "hidden" }}>
           <Panneau b={d.branches[0]} cote={0} t={t} m={m} />

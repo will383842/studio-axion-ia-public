@@ -147,7 +147,7 @@ function CarteValidation({ image, onFaite }: { image: VueMesImage; onFaite: (val
             role="radio"
             aria-checked={categorie === c.id}
             onClick={() => setCategorie(c.id)}
-            className={cn("flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-sm font-semibold transition-colors", categorie === c.id ? "bg-orange text-sur-orange" : "bg-surface-2 text-texte-doux hover:text-texte")}
+            className={cn("flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-sm font-semibold transition-colors", categorie === c.id ? "bg-texte text-fond" : "bg-surface-2 text-texte-doux hover:text-texte")}
           >
             {c.nom}
           </button>
@@ -156,7 +156,7 @@ function CarteValidation({ image, onFaite }: { image: VueMesImage; onFaite: (val
 
       <div className="flex flex-wrap gap-2">
         {mots.map((m) => (
-          <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-orange-doux px-3 text-sm font-semibold text-orange-vif" aria-label={`Retirer ${m}`}>
+          <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-accent-doux px-3 text-sm font-semibold text-accent" aria-label={`Retirer ${m}`}>
             {m}
             <Icone nom="fermer" size={13} />
           </button>

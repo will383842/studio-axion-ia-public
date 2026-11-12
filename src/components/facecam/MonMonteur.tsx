@@ -1,20 +1,16 @@
 "use client";
 
 /**
- * RÉGLAGES › MON MONTEUR (plan facecam v4, B.11 et B.26 ; lot D). Le SEUL endroit où un montant apparaît pour le face
- * caméra : le total du mois et le plafond de sécurité (« Relever »). Puis « Mes habitudes » (les demandes « Appliquer
- * aux prochaines vidéos ») et le look gardé.
+ * RÉGLAGES › MON MONTEUR (plan facecam v4, B.11 et B.26 ; lot D). Aucun montant affiché. Pour le face
+ * caméra : « Mes habitudes » (les demandes « Appliquer aux prochaines vidéos ») et le look gardé.
  */
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ajouterHabitudeAction, releverPlafondAction, retirerHabitudeAction } from "@/app/(studio)/videos/actions-facecam";
+import { ajouterHabitudeAction, retirerHabitudeAction } from "@/app/(studio)/videos/actions-facecam";
 import { Bouton } from "@/components/ui/Bouton";
-import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
-import { cn } from "@/lib/cn";
-import { formaterMontant } from "@/lib/montants";
 import type { VueReglagesMonteur } from "@/services/monteur-facecam";
 
 const CRANS: Record<string, string> = { moins: "Moins", juste: "Juste", plus: "Plus" };
@@ -23,11 +19,7 @@ const NOMS: Record<string, string> = { lumiere: "Lumière", couleurs: "Couleurs"
 export function MonMonteur({ vue }: { vue: VueReglagesMonteur }) {
   const router = useRouter();
   const [envoi, demarrer] = useTransition();
-  const [relever, setRelever] = useState(false);
   const [habitude, setHabitude] = useState("");
-  const part = vue.plafond.centimes ? Math.min(1, vue.totalMois.centimes / vue.plafond.centimes) : 0;
-  const tauxEur = vue.plafondUsd ? vue.plafond.centimes / (vue.plafondUsd * 100) : 1;
-  const choix = [1.5, 2, 3].map((k) => Math.round(vue.plafondUsd * k));
 
   function lancer(f: () => Promise<{ ok: true } | { ok: false; message: string }>, succes: string, apres?: () => void) {
     demarrer(async () => {
@@ -44,27 +36,6 @@ export function MonMonteur({ vue }: { vue: VueReglagesMonteur }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-semibold text-texte-doux">Ce mois-ci</p>
-          <p className="tabular-nums text-texte">
-            <span className="font-titre text-xl">{formaterMontant(vue.totalMois)}</span>
-            <span className="text-sm text-texte-faible"> / {formaterMontant(vue.plafond, { court: true })}</span>
-          </p>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2" role="meter" aria-valuenow={Math.round(part * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Part du plafond utilisée">
-          <div className={cn("h-full rounded-full", vue.atteint ? "bg-ambre" : "bg-sauge")} style={{ width: `${Math.max(2, part * 100)}%` }} />
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="text-sm text-texte-faible">{vue.atteint ? "Plafond atteint : les vidéos sortent en version simple." : "Plafond de sécurité : au-delà, les vidéos sortent en version simple."}</p>
-          <Bouton variante={vue.atteint ? "principal" : "contour"} onClick={() => setRelever(true)} className="shrink-0">
-            Relever
-          </Bouton>
-        </div>
-      </div>
-
-      <div className="h-px bg-trait" />
-
       <div>
         <p className="mb-1 text-sm font-semibold text-texte-doux">Mes habitudes</p>
         <p className="mb-3 text-sm text-texte-faible">Ce que le monteur fait à chaque vidéo, sans que vous le redemandiez.</p>
@@ -115,18 +86,6 @@ export function MonMonteur({ vue }: { vue: VueReglagesMonteur }) {
           </div>
         </>
       )}
-
-      <FeuilleBas ouverte={relever} onOuverteChange={setRelever} titre="Relever le plafond du mois" description="Il évite seulement une dépense qui s'emballe.">
-        <ul className="space-y-2 pb-2">
-          {choix.map((usd) => (
-            <li key={usd}>
-              <Bouton variante="contour" taille="lg" pleineLargeur chargement={envoi} onClick={() => lancer(() => releverPlafondAction(usd), "Plafond relevé", () => setRelever(false))}>
-                {formaterMontant({ centimes: Math.round(usd * 100 * tauxEur), devise: "EUR" }, { court: true })} par mois
-              </Bouton>
-            </li>
-          ))}
-        </ul>
-      </FeuilleBas>
     </div>
   );
 }

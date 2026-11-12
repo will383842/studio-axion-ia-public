@@ -36,7 +36,9 @@ import {
   validerScriptIV,
   type EtatFabricationIV,
 } from "@/moteurs/montage-image-video/fabrication";
-import { planDesFinsIV } from "@/moteurs/montage-image-video/fins";
+// 26/10/2026 : les valeurs de référence (octet pour octet) des deux fonctions ci-dessous sont celles du plan des fins d'AVANT
+// (fin « diagnostic », LinkedIn muet) : le rendu 9:16 ne change pas pour un plan inchangé.
+import { planDesFinsAvant } from "../plan-des-fins-avant";
 import { mettreEnSceneIV, type LigneDeTempsIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { estimerImageVideo, PRIX_AU_PIRE_USD, resultatDe } from "@/moteurs/montage-image-video";
 import { CONSIGNE_FIL_FACEBOOK, texteFilFacebookIV, type PublicationIV } from "@/moteurs/montage-image-video/publication";
@@ -57,7 +59,7 @@ function lignes916(): LigneDeTempsIV[] {
   return Object.entries(IMAGES).flatMap(([nom, id]) => {
     const carte = carteDe(nom);
     const fiche = FICHES_SIMULEES[id];
-    const fins = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
+    const fins = planDesFinsAvant({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins;
     return fins.map((fin) => mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES }).ligne);
   });
 }
@@ -66,7 +68,7 @@ function lignes916(): LigneDeTempsIV[] {
 function ligneC45(): LigneDeTempsIV {
   const carte = carteDe("C");
   const fiche = FICHES_SIMULEES["essai-c"];
-  const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("linkedin"))!;
+  const fin = planDesFinsAvant({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("linkedin"))!;
   return mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, format: "4:5" }).ligne;
 }
 
@@ -85,8 +87,8 @@ function ligneC45(): LigneDeTempsIV {
  * si c'est un écran v4, passe par `ImageVideoEcranFin` ; rien d'autre ne change (vérifié en neutralisant la queue).
  */
 // 19/10/2026 : TikTok retiré d'Image → vidéo (décision de Will) : version 9:16 de référence = YouTube Shorts ; empreinte recalculée sur master avec YouTube Shorts à la place de TikTok : même valeur.
-const EMPREINTE_SCENES_916 = "9a79be38f8f82eda0b851bb62b5b09d38f61dd95103e86b7cfab9f3a74601960"; // 25/10/2026 (compositions-iv/10 : clé de version + en-tête de l'écran « 80 % » : la 2e ligne n'est plus remontée en étiquette quand elle SUIT le titre ; le lot « 4:5 sans surimpression » ne touche pas le 9:16, prouvé : sans le lot B ni la version, l'ancienne empreinte revient ; recalculée, ancienne ada38249…) ; 25/10/2026 (compositions-iv/9 : clé de version + réserve de chasse de 6 % sur les boîtes de la toile, donc largeurs des boîtes des toiles 9:16 un peu plus grandes ; recalculée, ancienne 030c6027…) ; 24/10/2026 (tempo ×1,05, débit 3,3 : empreinte recalculée, seule différence) ; avant : compositions-iv/8 (écran CHI-E, pile des chiffres), seule la clé de version a bougé ; ancienne 674cc298… ; 24/10/2026 : compositions-iv/7 (liens sans part : plus de pastille « 0 % »), seule la clé de version a bougé ; ancienne 88beba03… ; 23/10/2026 : compositions-iv/6 (feutre APP-B en 0,3 s, vue d'ensemble sans paires dans le tronc) ; // 23/10/2026 : VERSION_COMPOSITIONS_IV (/5) dans la clé des scènes ; les écrans v4 9:16 ont une zone au-dessus de la bande des sous-titres
-const EMPREINTE_MONTAGES_916 = "945b472bd60957a265c655bb4edd820f19b24c53c36162b301048fbd1b8241cf"; // 25/10/2026 (compositions-iv/10 + en-tête de l'écran « 80 % » : recalculée, ancienne fc396179…) ; 25/10/2026 (compositions-iv/9 + réserve de chasse : recalculée, ancienne a338f818…) ; 24/10/2026 (tempo ×1,05, débit 3,3 : recalculée) ; avant : compositions-iv/8, seule la clé de version a bougé ; ancienne 4bd99a15… ; 24/10/2026 : compositions-iv/7, seule la clé de version a bougé ; ancienne f38513d0… ; 23/10/2026 : clés de scène avec VERSION_COMPOSITIONS_IV (compositions-iv/5), écrans v4 9:16 repositionnés ; // clés des scènes changées (mêmes blocs ; queue de fin) ; 18/10/2026 : clé "scene-iv/2" (fond ivoire des vues d'ensemble, pastille REC-B) — seule la clé a bougé, vérifié : avec "scene-iv/1" les anciennes empreintes repassent
+const EMPREINTE_SCENES_916 = "355f5d855957b911963e78518a64377df11fc1846683a6432df8116b20b8d3fb"; // 30/10/2026 (compositions-iv/25, clé de version seule, prouvé : avec /24 l'ancienne c37af618… revient ; recalculée) ; 29/10/2026 (compositions-iv/24, clé de version seule, prouvé : avec /23 l'ancienne dda2b666… revient ; recalculée) ; 29/10/2026 (compositions-iv/23, clé de version seule, prouvé : avec /22 l'ancienne 5ea45dbe… revient ; recalculée) ; 29/10/2026 (compositions-iv/22, clé de version seule, prouvé : avec /21 l'ancienne 20d34813… revient ; recalculée) ; 29/10/2026 (compositions-iv/21, clé de version seule, prouvé : avec /20 l'ancienne d2b7f311… revient ; recalculée) ; 29/10/2026 (compositions-iv/20, clé de version seule, prouvé : avec /19 l'ancienne b8a8286a… revient ; recalculée) ; 29/10/2026 (compositions-iv/19, clé de version seule, prouvé : avec /18 l'ancienne 4c2c43eb… revient ; recalculée) ; 29/10/2026 (compositions-iv/18, clé de version seule, prouvé : avec /17 l'ancienne 34506377… revient ; recalculée) ; 29/10/2026 (compositions-iv/17, filet bloc coupé : clé de version seule, prouvé : avec /16 l'ancienne 9b1f660d… revient ; recalculée) ; 29/10/2026 (compositions-iv/16, cadrage 4:5 du moteur : clé de version seule, prouvé : avec /15 l'ancienne 4adb2465… revient ; recalculée) ; 29/10/2026 (compositions-iv/15, issue 119 : clé de version + mention au mot 0 des blocs déjà posés ; recalculée, ancienne 6ab26ca5…) ; 26/10/2026 (compositions-iv/14 : clé de version + étiquette d'une paire « X · Y » réduite à X ; recalculée, ancienne a9d49087…) ; 25/10/2026 (compositions-iv/13, v-b54bb4798246 : vue d'ensemble, mot trop large abrégé ; recalculée sur le serveur) ; 25/10/2026 (compositions-iv/12 : clé de version seule ; les lots D1-D5 ne touchent aucune propriété de scène, prouvé : avec les 4 lots et /11 l'ancienne empreinte f2f95a75… revient, avec /12 seule la clé change, et master + seule la version /12 donne la même valeur ; recalculée, ancienne f2f95a75…) ; 25/10/2026 (compositions-iv/11 + affiche de la première image : la première scène porte `affiche` et la clé de version change ; prouvé : affiche neutralisée + /10, l'ancienne 9a79be38… revient ; recalculée) ; 25/10/2026 (compositions-iv/10 : clé de version + en-tête de l'écran « 80 % » : la 2e ligne n'est plus remontée en étiquette quand elle SUIT le titre ; le lot « 4:5 sans surimpression » ne touche pas le 9:16, prouvé : sans le lot B ni la version, l'ancienne empreinte revient ; recalculée, ancienne ada38249…) ; 25/10/2026 (compositions-iv/9 : clé de version + réserve de chasse de 6 % sur les boîtes de la toile, donc largeurs des boîtes des toiles 9:16 un peu plus grandes ; recalculée, ancienne 030c6027…) ; 24/10/2026 (tempo ×1,05, débit 3,3 : empreinte recalculée, seule différence) ; avant : compositions-iv/8 (écran CHI-E, pile des chiffres), seule la clé de version a bougé ; ancienne 674cc298… ; 24/10/2026 : compositions-iv/7 (liens sans part : plus de pastille « 0 % »), seule la clé de version a bougé ; ancienne 88beba03… ; 23/10/2026 : compositions-iv/6 (feutre APP-B en 0,3 s, vue d'ensemble sans paires dans le tronc) ; // 23/10/2026 : VERSION_COMPOSITIONS_IV (/5) dans la clé des scènes ; les écrans v4 9:16 ont une zone au-dessus de la bande des sous-titres
+const EMPREINTE_MONTAGES_916 = "ea2865281dceec2c5f2bc1e58d29f23200743f40625144f44b3fa340fa173733"; // 30/10/2026 (compositions-iv/25, clé de version seule, prouvé avec /24 ; recalculée, ancienne 20fb1a07…) ; 29/10/2026 (compositions-iv/24, clé de version seule, prouvé avec /23 ; recalculée, ancienne fef05996…) ; 29/10/2026 (compositions-iv/23, clé de version seule, prouvé avec /22 ; recalculée, ancienne dba9587a…) ; 29/10/2026 (compositions-iv/22, clé de version seule, prouvé avec /21 ; recalculée, ancienne 634f7f32…) ; 29/10/2026 (compositions-iv/21, clé de version seule, prouvé avec /20 ; recalculée, ancienne ca279901…) ; 29/10/2026 (compositions-iv/20, clé de version seule, prouvé avec /19 ; recalculée, ancienne e41905c5…) ; 29/10/2026 (compositions-iv/19, clé de version seule, prouvé avec /18 ; recalculée, ancienne 6909f2b2…) ; 29/10/2026 (compositions-iv/18, clé de version seule, prouvé avec /17 ; recalculée, ancienne b56b5478…) ; 29/10/2026 (compositions-iv/17, clé de version seule, prouvé avec /16 ; recalculée, ancienne 70093e1e…) ; 29/10/2026 (compositions-iv/16, clé de version seule, prouvé avec /15 ; recalculée, ancienne e75657a6…) ; 29/10/2026 (compositions-iv/15, issue 119 ; recalculée, ancienne 64d352c6…) ; 26/10/2026 (compositions-iv/14, clé de version ; recalculée, ancienne cb7b982c…) ; 25/10/2026 (compositions-iv/12 : clé de version seule, prouvé de même : lots + /11 = ancienne ad006bf0… ; recalculée, ancienne ad006bf0…) ; 25/10/2026 (compositions-iv/11 + affiche : clés de scène changées, recalculée, ancienne 945b472b… ; prouvé : affiche neutralisée + /10, elle revient) ; 25/10/2026 (compositions-iv/10 + en-tête de l'écran « 80 % » : recalculée, ancienne fc396179…) ; 25/10/2026 (compositions-iv/9 + réserve de chasse : recalculée, ancienne a338f818…) ; 24/10/2026 (tempo ×1,05, débit 3,3 : recalculée) ; avant : compositions-iv/8, seule la clé de version a bougé ; ancienne 4bd99a15… ; 24/10/2026 : compositions-iv/7, seule la clé de version a bougé ; ancienne f38513d0… ; 23/10/2026 : clés de scène avec VERSION_COMPOSITIONS_IV (compositions-iv/5), écrans v4 9:16 repositionnés ; // clés des scènes changées (mêmes blocs ; queue de fin) ; 18/10/2026 : clé "scene-iv/2" (fond ivoire des vues d'ensemble, pastille REC-B) — seule la clé a bougé, vérifié : avec "scene-iv/1" les anciennes empreintes repassent
 
 const OUTILS_RENDU = {
   rendu: {} as never,
@@ -229,40 +231,38 @@ describe("F45 · une version par (groupe de fins × format), une seule voix", ()
     expect([idVersionFormatIV("fin-facebook", "9:16"), idVersionFormatIV("fin-facebook", "4:5")]).toEqual(["fin-facebook", "fin-facebook-4x5"]);
   });
 
-  it("carte C, LinkedIn + Facebook : 3 versions (LinkedIn 4:5, Facebook 9:16, Facebook 4:5), UNE voix, une piste par fin", async () => {
+  // 26/10/2026 : Facebook et LinkedIn disent la même fin (même phrase du lien) : un seul fichier de fin, donc le 4:5 est commun.
+  it("carte C, LinkedIn + Facebook : 2 versions (Facebook 9:16 ; LinkedIn et Facebook 4:5, même fichier), UNE voix, une piste", async () => {
     const { e, m } = await jusquALaMiseEnScene(true, ["linkedin", "facebook"]);
     expect(e.etape).toBe("mise-en-scene");
     const v = lignesDesVersionsIV(e);
     expect(v.map((x) => [x.version, x.reseaux, x.format, x.ligne.largeur, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin-4x5", ["linkedin"], "4:5", 1080, 1350],
-      ["fin-facebook", ["facebook"], "9:16", 1080, 1920],
-      ["fin-facebook-4x5", ["facebook"], "4:5", 1080, 1350],
+      ["fin-linkedin-facebook", ["facebook"], "9:16", 1080, 1920],
+      ["fin-linkedin-facebook-4x5", ["linkedin", "facebook"], "4:5", 1080, 1350],
     ]);
-    // Une seule voix payée : le corps lu une fois, une lecture par fin dite (LinkedIn muet) ; les deux Facebook ont la même piste.
+    // Une seule voix payée : le corps lu une fois, une lecture par fin dite ; le 9:16 et le 4:5 ont la même piste.
     expect(m.lus.length).toBe((e.voix?.segments.fins.length ?? 0) + 1);
-    expect(e.pistes?.map((p) => p.version)).toEqual(["fin-linkedin", "fin-facebook"]);
-    expect(v[1].piste).toBe(v[2].piste);
+    expect(e.pistes?.map((p) => p.version)).toEqual(["fin-linkedin-facebook"]);
+    expect(v[0].piste).toBe(v[1].piste);
     // Même voix, mêmes mots, même durée : seule la mise en page change.
-    expect(v[2].ligne.dureeSec).toBe(v[1].ligne.dureeSec);
-    expect(v[2].ligne.sousTitres.groupes).toEqual(v[1].ligne.sousTitres.groupes);
+    expect(v[1].ligne.dureeSec).toBe(v[0].ligne.dureeSec);
+    expect(v[1].ligne.sousTitres.groupes).toEqual(v[0].ligne.sousTitres.groupes);
   });
 
-  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-4x5 (4:5), fin-instagram, fin-facebook et fin-facebook-4x5", async () => {
+  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-facebook (9:16), fin-linkedin-facebook-4x5 (4:5) et fin-instagram", async () => {
     const { e } = await jusquALaMiseEnScene("defaut", ["linkedin", "instagram", "facebook"]);
     expect(e.etape).toBe("mise-en-scene");
     expect(lignesDesVersionsIV(e).map((x) => [x.version, x.format, x.ligne.largeur, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin-4x5", "4:5", 1080, 1350],
+      ["fin-linkedin-facebook", "9:16", 1080, 1920],
+      ["fin-linkedin-facebook-4x5", "4:5", 1080, 1350],
       ["fin-instagram", "9:16", 1080, 1920],
-      ["fin-facebook", "9:16", 1080, 1920],
-      ["fin-facebook-4x5", "4:5", 1080, 1350],
     ]);
   });
 
   it("formats explicitement vides (anciennes demandes) : la version LinkedIn reste en 1080 × 1920, Facebook n'a qu'un fichier", async () => {
     const { e } = await jusquALaMiseEnScene(false, ["linkedin", "facebook"]);
     expect(lignesDesVersionsIV(e).map((x) => [x.version, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin", 1920],
-      ["fin-facebook", 1920],
+      ["fin-linkedin-facebook", 1920],
     ]);
   });
 
@@ -295,7 +295,7 @@ describe("F45 · prix au pire, états d'avant et parcours par défaut", () => {
     delete (ancien.demande as { formats?: unknown }).formats;
     const repris = reprendreIV({ ...ancien, etape: "refusee", refus: { etape: "mise-en-scene", code: "IV_MISE_EN_SCENE", message: "x", reessayable: true } } as EtatFabricationIV);
     expect(repris.demande).not.toHaveProperty("formats");
-    expect(lignesDesVersionsIV(repris).map((x) => x.version)).toEqual(["fin-linkedin", "fin-facebook"]);
+    expect(lignesDesVersionsIV(repris).map((x) => x.version)).toEqual(["fin-linkedin-facebook"]);
   });
 
   it("parcours par défaut (sans `formats`) jusqu'à « prête » : LinkedIn 4:5, Facebook Reel 9:16 + fil 4:5", async () => {
@@ -333,23 +333,22 @@ describe("F45 · livraison Facebook en deux fichiers", () => {
     const etat: EtatFabricationIV = {
       ...e,
       rendus: {
-        "fin-linkedin-4x5": { cle: "final/li-45.mp4", dureeSec: 50, demande: "a" },
-        "fin-facebook": { cle: "final/fb-916.mp4", dureeSec: 52, demande: "b" },
-        "fin-facebook-4x5": { cle: "final/fb-45.mp4", dureeSec: 52, demande: "c" },
+        "fin-linkedin-facebook": { cle: "final/fb-916.mp4", dureeSec: 52, demande: "b" },
+        "fin-linkedin-facebook-4x5": { cle: "final/45.mp4", dureeSec: 52, demande: "c" },
       },
     };
     const publication: PublicationIV = { textes: [{ reseau: "facebook", texte: "Texte du Reel.", premierCommentaire: "Le lien : x", ouPoserLeLien: "premier-commentaire", consigneLien: "Poser ce lien." }], manquements: [] };
     const l = livraisonDe(etat, { reseaux: [{ reseau: "linkedin", version: "longue" }, { reseau: "facebook", version: "longue" }] as never }, publication, {});
-    expect(l.find((x) => x.reseau === "linkedin")).toMatchObject({ fichierCle: "final/li-45.mp4", format: "4:5" });
+    expect(l.find((x) => x.reseau === "linkedin")).toMatchObject({ fichierCle: "final/45.mp4", format: "4:5" });
     expect(l.find((x) => x.reseau === "linkedin")).not.toHaveProperty("fichierCleFil");
-    expect(l.find((x) => x.reseau === "facebook")).toMatchObject({ fichierCle: "final/fb-916.mp4", fichierCleFil: "final/fb-45.mp4", dureeSecFil: 52, texte: "Texte du Reel.", texteFil: "Texte du Reel.", consigneLienFil: CONSIGNE_FIL_FACEBOOK });
+    expect(l.find((x) => x.reseau === "facebook")).toMatchObject({ fichierCle: "final/fb-916.mp4", fichierCleFil: "final/45.mp4", dureeSecFil: 52, texte: "Texte du Reel.", texteFil: "Texte du Reel.", consigneLienFil: CONSIGNE_FIL_FACEBOOK });
     expect(l.find((x) => x.reseau === "facebook")).not.toHaveProperty("format");
 
-    // Le fil manque : rien ne part (« relancez le rendu »).
+    // Le fil manque : le Reel 9:16 part quand même (livraison sans blocage), le fil est signalé en remarque.
     const sansFil = l.map((x) => (x.reseau === "facebook" ? { ...x, fichierCleFil: undefined } : x));
     const r = await avancerIV({ ...etat, etape: "livraison", livraison: sansFil }, outilsSimules(carteFixe("C"), monde()));
-    expect(r.etape).toBe("refusee");
-    expect(r.refus?.message).toMatch(/facebook/);
+    expect(r.etape).toBe("prete");
+    expect(r.livraison?.find((x) => x.reseau === "facebook")?.fichierCle).toBe("final/fb-916.mp4");
     const ok = await avancerIV({ ...etat, etape: "livraison", livraison: l }, outilsSimules(carteFixe("C"), monde()));
     expect(ok.etape).toBe("prete");
   });

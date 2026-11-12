@@ -86,14 +86,18 @@ describe("R1 — envoi réel vers Buffer, brouillon d'abord", () => {
     expect(enBase).toMatchObject({ via: "buffer", statut: "brouillon", idExterne: p.idExterne });
   });
 
-  it("ROUGE 2 : l'adresse de la vidéo donnée à Buffer vit au moins 6 jours (7 jours signés), en https", async () => {
+  it("ROUGE 2 : l'adresse de la vidéo donnée à Buffer est celle du relais du Studio (https, /video.mp4, jeton de 30 jours, aucune signature R2)", async () => {
     await cocherTout();
     await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
     expect(buffer.mutations()).toHaveLength(1);
-    const url = new URL((buffer.mutations()[0].variables.input as { assets: { video: { url: string } }[] }).assets[0].video.url);
+    const adresse = (buffer.mutations()[0].variables.input as { assets: { video: { url: string } }[] }).assets[0].video.url;
+    const url = new URL(adresse);
     expect(url.protocol).toBe("https:");
-    expect(Number(url.searchParams.get("X-Amz-Expires"))).toBeGreaterThanOrEqual(6 * 24 * 3600);
-    expect(Number(url.searchParams.get("X-Amz-Expires"))).toBe(604_800);
+    expect(url.pathname).toMatch(/^\/api\/media-buffer\/[^/]+\/video\.mp4$/);
+    expect(adresse).not.toMatch(/X-Amz|r2\.cloudflarestorage/i);
+    const { verifierJetonMediaBuffer } = await import("@/lib/jeton-media-buffer");
+    const fichierId = verifierJetonMediaBuffer(url.pathname.split("/")[3], Date.now() + 29 * 24 * 3600 * 1000);
+    expect(fichierId).toEqual(expect.any(String));
   });
 
   it("ROUGE 3 : coupure APRÈS l'envoi (Buffer a créé, la réponse se perd) → « à vérifier », puis aucune seconde mutation", async () => {

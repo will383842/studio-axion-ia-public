@@ -34,7 +34,7 @@ export const TEXTES_FIXES_L9 = {
   t22Mythe: "MYTHE",
   t22Realite: "RÉALITÉ",
   /** Annotation manuscrite à côté de la flèche (espace fine insécable avant « ! »). */
-  t22Bascule: "Pas si vite\u202f!",
+  t22Bascule: "Pas si vite\u00a0!",
   t24Sans: "SANS",
   t24Avec: "AVEC",
   /** Étiquette OBLIGATOIRE d'un cas concret : le cas est inventé pour l'exemple. */

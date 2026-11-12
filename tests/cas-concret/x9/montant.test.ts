@@ -41,19 +41,16 @@ beforeEach(async () => {
 });
 
 describe("X9 · le montant confirmé est celui que la fiche affichera", () => {
-  it("un accord au montant de la feuille sans les textes est redemandé au montant du lancement, puis lancé", async () => {
+  it("un accord au montant de la feuille sans les textes ne redemande rien : la vidéo est lancée au montant exact du lancement", async () => {
     const feuille = (await service.estimerCas("recrutement-apporteurs", RESEAUX, false)).centimes;
     const lancer = vi.fn(async () => ({ travailId: "t-x9" }));
     const demande = { casId: "recrutement-apporteurs", reseaux: RESEAUX, mot: "IA", avecMot: false, empreinteScriptRelu: RELU_RECRUTEMENT };
 
+    // 08/11/2026 : plus de confirmation de prix. Un accord au montant de la feuille (sans les textes) lance directement ;
+    // le lancement reçoit le montant exact que la fiche affichera (feuille + textes), jamais un montant plus bas.
     const premier = await service.preparerEtLancer({ ...demande, accordCentimes: feuille }, { lancer });
-    expect(premier).toMatchObject({ statut: "accord-requis", centimes: feuille + TEXTES });
-    expect(lancer).not.toHaveBeenCalled();
-
-    const second = await service.preparerEtLancer({ ...demande, accordCentimes: feuille + TEXTES }, { lancer });
-    expect(second.statut).toBe("lancee");
-    // Même vidéo (le brouillon est repris), lancée avec l'accord du montant exact.
-    expect(premier.statut === "accord-requis" && second.statut === "lancee" && second.videoId).toBe(premier.statut === "accord-requis" ? premier.videoId : "");
+    expect(premier.statut).toBe("lancee");
+    expect(lancer).toHaveBeenCalledTimes(1);
     expect(lancer).toHaveBeenCalledWith(expect.any(String), feuille + TEXTES);
   });
 });

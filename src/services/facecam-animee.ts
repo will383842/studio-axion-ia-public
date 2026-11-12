@@ -27,6 +27,7 @@ import type { ReponseRealisateur, RequeteRealisateur } from "@/moteurs/montage-f
 import { texteScript } from "@/domaine/derivations";
 import { cleFichierRef, clesFichier, type CandidatSujet, type Confirmation, type NiveauSujet, type Precedent } from "@/domaine/sujets-traites";
 import { empreinteAvantControle, PHRASE_VERIFICATION_EN_COURS, phraseRefusEmpreinte, type DependancesAvantControle } from "./empreintes-fichiers";
+import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
 import { creerVerrou, depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import type { SourcesSujets } from "./sujets-traites";
 import { phrasePrisesSautees } from "@/components/formats/facecam-animee/sujet-deja-traite";
@@ -41,6 +42,8 @@ export const PARAM_ACCORD_ESSAI_FA = "facecamAnimee.accordEssaiReel";
 /** Plafond Claude propre d'une vidéo face caméra animée (dollars) : jusqu'à 3 essais du réalisateur. */
 export const PARAM_PLAFOND_CLAUDE_FA = "facecamAnimee.plafondClaudeUsd";
 export const PLAFOND_CLAUDE_FA_USD = 4;
+/** GV-MD-03b : calage des animations sur le début du mot dit. ÉTEINT par défaut (allumé seulement si la valeur vaut exactement `true`). */
+export const PARAM_CALAGE_AU_MOT_FA = "facecamAnimee.calageAuMot";
 export const PREFIXE_ETAPE_FA = "Face caméra animée ·";
 /** Contrôle visuel des vidéos d'illustration (Sonnet) : plafond propre par vidéo finale, 0,60 $ (décision de Will du 18/10) ; défini avec les autres plafonds propres. */
 export { PARAM_PLAFOND_VIDEOS_FA, PREFIXE_ETAPE_VIDEOS_FA };
@@ -51,6 +54,8 @@ const STUDIO_NON_RELIE_FA = "Le studio n'est pas relié (stockage ou serveur de 
 /* ------------------------------------------------------------------ */
 
 export interface DependancesOutilsFA {
+  /** Lot R2 : option « plan de scènes » (double dans les tests). Par défaut : le réglage `planScenes.facecamAnimee` (éteint). */
+  planScenes?: OutilsChaineV4["planScenes"] | null;
   videoId: Id;
   /** Origine de la commande (« usine » : les plafonds restent bloquants). */
   origine?: CommandeFabrication["origine"];
@@ -145,8 +150,20 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   if (!dep.rendu && production && client.renduSimule()) throw new Error(STUDIO_NON_RELIE_FA);
   const rendu = dep.rendu ?? client.obtenirServiceRendu();
   const cleFA = (nom: string) => `studio/${env}/facecam-animee/${dep.videoId}/${nom}`;
+  // Lot R2 : éteint par défaut ; allumé, pièces du stock (le fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
+  const planScenes = dep.planScenes !== undefined ? dep.planScenes : (await planScenesActif("facecam-animee", lireParametre)) ? {} : null;
+
+  // GV-MD-03b : éteint par défaut ; une lecture en échec vaut éteint (rendu des vidéos existantes inchangé).
+  let calageAuMot = false;
+  try {
+    calageAuMot = (await lireParametre<unknown>(PARAM_CALAGE_AU_MOT_FA, false)) === true;
+  } catch {
+    calageAuMot = false;
+  }
 
   return {
+    ...(planScenes ? { planScenes } : {}),
+    ...(calageAuMot ? { calageAuMot } : {}),
     async transcrire({ priseCle, appelId }) {
       if (dep.transcrire) return dep.transcrire({ priseCle, appelId });
       const [{ fournisseurFacecam }, { lireJsonGz }] = await Promise.all([import("@/fournisseurs/facecam"), import("./monteur-facecam")]);

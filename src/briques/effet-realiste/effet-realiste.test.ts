@@ -217,9 +217,9 @@ describe("lot K · devis et carte (brique J)", () => {
     const c = { videoId: "v", versionId: "ver", dureeSec: 5, passagesSec: [5], modele: "kling_video_edit" as const };
     expect(estimerOption("effet-realiste-ia", c)).toBe(50); // 10 crédits × 5 c
     expect(estimerOption("effet-realiste-ia", { ...c, dureeSec: 8, passagesSec: [8] }, { prixCreditHiggsfieldCentimes: 12, tauxUsdEur: 0.92 })).toBe(192);
-    expect(phraseCarte({ montantCentimes: 192, outil: "higgsfield", optionId: "effet-realiste-ia" })).toBe("Effet réaliste par IA — option payante, environ 2 € pris sur vos crédits Higgsfield.");
+    expect(phraseCarte({ montantCentimes: 192, outil: "higgsfield", optionId: "effet-realiste-ia" })).toBe("Effet réaliste par IA — option payante, pris sur vos crédits Higgsfield.");
     // Les autres options gardent la phrase du lot J.
-    expect(phraseCarte({ montantCentimes: 600, outil: "higgsfield", optionId: "decor-ia" })).toBe("Option payante — environ 6 € pris sur vos crédits Higgsfield.");
+    expect(phraseCarte({ montantCentimes: 600, outil: "higgsfield", optionId: "decor-ia" })).toBe("Option payante — pris sur vos crédits Higgsfield.");
   });
 });
 

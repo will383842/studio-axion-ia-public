@@ -470,18 +470,19 @@ describe("Comité · travail de fond (lot groupé simulé)", () => {
     expect(await lireParametre(comite.PARAM_LOT_EN_COURS, null)).toBeNull();
   });
 
-  it("PLAFOND des idées du mois (réglage `idees.plafondMoisUsd`, 5 $ par défaut) : au-delà, rien ne part", async () => {
+  const postsLots = () => faux.appels.filter((a) => a.url === lots.URL_LOTS && a.methode === "POST").length;
+
+  it("PLAFOND des idées du mois (réglage `idees.plafondMoisUsd`, 5 $ par défaut) : au-delà, simple repère (le lot part, Will est prévenu), même avec le réglage « bloquant »", async () => {
     await allumer();
     expect(await comite.plafondIdeesMoisUsd()).toBe(5);
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre(comite.PARAM_PLAFOND_IDEES, 0.05);
     const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
-    expect(issue).toMatchObject({ etat: "arrete" });
-    expect(issue.etat === "arrete" ? issue.message : "").toMatch(/Plafond des idées du mois/);
-    expect(faux.appels).toEqual([]);
-    expect(await reservationsIdees()).toEqual([]);
+    expect(issue.etat).not.toBe("arrete");
+    expect(postsLots()).toBe(1);
+    expect(await reservationsIdees()).not.toEqual([]);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Repère des idées/.test(x.titre))).toHaveLength(1);
   });
-
-  const postsLots = () => faux.appels.filter((a) => a.url === lots.URL_LOTS && a.methode === "POST").length;
 
   // Un lot engage ≈ 26 cents de dollar (pire cas avec marge) : un repère de 0,15 $ est dépassé 1,7 fois, un repère de 0,02 $ plus de 5 fois.
   it("budget INDICATIF : plafond des idées dépassé (sous 5 ×) → le lot PART avec une alerte ; l'Usine reste bloquée", async () => {
@@ -494,16 +495,18 @@ describe("Comité · travail de fond (lot groupé simulé)", () => {
     const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-18T08:00:00Z") });
     expect(issue.etat).not.toBe("arrete");
     expect(postsLots()).toBe(1);
-    expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Repère des idées/.test(x.titre))).toHaveLength(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Repère des idées/.test(x.titre))).toHaveLength(1);
   });
 
-  it("budget INDICATIF : au-delà de 5 × le plafond des idées, arrêt de sécurité (rien n'est envoyé)", async () => {
+  it("budget INDICATIF : au-delà de 5 × le plafond des idées, plus d'arrêt de sécurité (le lot part, Will est prévenu)", async () => {
     await allumer();
     await ecrireParametre("budget.mode", "indicatif");
     await ecrireParametre(comite.PARAM_PLAFOND_IDEES, 0.02);
     const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
-    expect(issue.etat === "arrete" ? issue.message : "").toMatch(/Arrêt de sécurité/);
-    expect(postsLots()).toBe(0);
+    expect(issue.etat).not.toBe("arrete");
+    expect(issue.etat === "arrete" ? issue.message : "").not.toMatch(/Arrêt de sécurité/);
+    expect(postsLots()).toBe(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Repère des idées/.test(x.titre))).toHaveLength(1);
   });
 
   it("budget INDICATIF : la limite Claude du mois ne refuse plus le comité (alerte, le lot part)", async () => {
@@ -513,14 +516,17 @@ describe("Comité · travail de fond (lot groupé simulé)", () => {
     const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
     expect(issue.etat).not.toBe("arrete");
     expect(postsLots()).toBe(1);
-    expect((await depots().notifications.lister()).filter((x) => x.type === "budget" && /Claude du mois/.test(x.titre))).toHaveLength(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Claude du mois/.test(x.titre))).toHaveLength(1);
   });
 
-  it("limite Claude DU MOIS : au-delà, rien ne part", async () => {
+  it("limite Claude DU MOIS : au-delà, le lot part quand même (alerte seulement), même avec le réglage « bloquant »", async () => {
     await allumer();
+    await ecrireParametre("budget.mode", "bloquant");
     await ecrireParametre("claude.plafondMensuelUsd", 0.01);
-    expect(await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") })).toMatchObject({ etat: "arrete", message: expect.stringMatching(/Limite Claude du mois/) });
-    expect(faux.appels).toEqual([]);
+    const issue = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z") });
+    expect(issue.etat).not.toBe("arrete");
+    expect(postsLots()).toBe(1);
+    expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Claude du mois/.test(x.titre))).toHaveLength(1);
   });
 
   it("une fois par jour au plus, et seulement si la réserve a moins de 10 idées « garder »", async () => {

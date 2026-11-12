@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { lireSession } from "@/services/auth";
 import { EntreeCasConcret } from "@/components/formats/cas-concret/entree/EntreeCasConcret";
 import { stockDeLAjoute, versVueCas } from "@/components/formats/cas-concret/entree/vue";
-import { EnTetePage } from "@/components/ui/EnTetePage";
+import { GabaritCreation } from "@/components/creation/GabaritCreation";
 import { casVisibles, estCasStock } from "@/formats/cas-concret/catalogue";
 import { estimerCas, listerCas } from "@/services/cas-concret";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "@/services/cas-concret-reglages";
@@ -27,8 +27,15 @@ import { lireStockCas } from "@/services/cas-concret-stock-lecture";
 import { lireParamsStock } from "@/components/formats/cas-concret/stock/filtres-stock";
 import { apercuDesEcrans } from "@/moteurs/montage-cas-concret/script-valide";
 
-export const metadata: Metadata = { title: "Cas concret MD" };
+export const metadata: Metadata = { title: "Cas concret" };
 export const dynamic = "force-dynamic";
+
+/** Les trois étapes du cas concret (maquette M3) : la page est la première. */
+const ETAPES_CAS_CONCRET = [
+  { cle: "choisir", libelle: "Choisir un cas" },
+  { cle: "relire", libelle: "Relire" },
+  { cle: "fabrication", libelle: "Fabrication" },
+];
 
 const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"];
 
@@ -54,8 +61,11 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
   const nombres = { "a-faire": valides.length + aValider.length, "deja-faits": dejaFaits.length, retires: casRetires.length };
   const synthese = { aFaire: nombres["a-faire"], faits: nombres["deja-faits"], valides: valides.length };
   return (
-    <div className="mx-auto max-w-2xl">
-      <EnTetePage titre="Cas concret MD" sousTitre="Une phrase, une vidéo." />
+    <GabaritCreation
+      largeur="etroite"
+      entete={{ titre: "Cas concret", sousTitre: "Une automatisation montrée étape par étape. Choisissez le cas à raconter." }}
+      etapes={onglet === "a-faire" ? { etapes: ETAPES_CAS_CONCRET, courante: 0 } : undefined}
+    >
       <OngletsCasConcret actif={onglet} nombres={nombres} synthese={synthese} />
       <section id={ID_PANNEAU_CAS} aria-labelledby={idOnglet(onglet)} className="mt-6">
         {onglet === "deja-faits" && (
@@ -72,7 +82,7 @@ export default async function PageCasConcret({ searchParams }: { searchParams: P
         )}
         {onglet === "a-faire" && <OngletAFaire valides={valides} aValider={aValider} traites={traites} retires={retires} ajoutes={ajoutes} etendu={etendu} stockMetiers={stockMetiers} ecranFourni={ecranFourni} porteB={porteB} voix={voix} mots={mots} searchParams={await searchParams} />}
       </section>
-    </div>
+    </GabaritCreation>
   );
 }
 
@@ -116,7 +126,7 @@ async function OngletAFaire({ valides, aValider, traites, retires, ajoutes, eten
   return (
     <>
       <p className="mb-4">
-        <Link href="/cas-concret/ajouter" className="inline-flex min-h-11 items-center rounded-sm text-[15px] font-semibold text-orange-vif underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
+        <Link href="/cas-concret/ajouter" className="inline-flex min-h-11 items-center rounded-sm text-[15px] font-semibold text-texte underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-vif">
           Ajouter un cas
         </Link>
       </p>

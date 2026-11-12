@@ -260,7 +260,7 @@ export function texteBlocs(blocs: BlocScript[]): string {
 /** Le brief au format du sujet (pour les contrôles). */
 function briefDe(d: DonneesGeneration): ScriptMaitre["brief"] {
   const s = d.sujet;
-  return { idee: s.idee, phraseWill: s.phraseWill, objectif: s.objectif, niveauConscience: s.niveauConscience, reseaux: s.reseaux, formatId: s.formatId, formatsDemandes: [s.formatId], adresseParDefaut: s.adresse, modeParDefaut: s.mode, cible: s.cible, pilier: s.pilier?.id, modeChoix: "rapide", mentionIA: false, sujetSensible: s.sujetSensible };
+  return { idee: s.idee, phraseWill: s.phraseWill, objectif: s.objectif, niveauConscience: s.niveauConscience, reseaux: s.reseaux, formatId: s.formatId, formatsDemandes: [s.formatId], adresseParDefaut: s.adresse, modeParDefaut: s.mode, cible: s.cible, ciblage: s.ciblage, typeAutomatisation: s.typeAutomatisation, pilier: s.pilier?.id, modeChoix: "rapide", mentionIA: false, sujetSensible: s.sujetSensible };
 }
 
 /**
@@ -317,7 +317,7 @@ export function entreeControle(c: Contexte, o: { ouverture: BlocScript[]; corps:
     motCleSource: "hypothese",
     encadre: v ? { texte: v.declinaison.encadre } : undefined,
     couverture: v ? { texte: v.declinaison.couverture } : undefined,
-    publication: v ? publicationDe(v.declinaison, c.d.sujet.objectif) : undefined,
+    publication: v ? publicationDe(v.declinaison) : undefined,
     familleAccroche: c.etat.finalistes?.find((f) => f.id === v?.declinaison.accrocheId)?.famille,
     maitre: maitreDe(c),
     preuves: c.d.preuves,
@@ -331,7 +331,7 @@ export function entreeControle(c: Contexte, o: { ouverture: BlocScript[]; corps:
   };
 }
 
-function publicationDe(s: SortieDeclinaison, objectif: string): VarianteReseau["publication"] {
+function publicationDe(s: SortieDeclinaison): VarianteReseau["publication"] {
   const p = s.publication;
   return {
     texte: p.texte,
@@ -348,7 +348,6 @@ function publicationDe(s: SortieDeclinaison, objectif: string): VarianteReseau["
     justifications: p.justifications,
     typePublication: p.post ? "video-native" : undefined,
     motCleVariante: p.motCleVariante,
-    lienSuivi: objectif === "rendez-vous" ? undefined : undefined,
   };
 }
 

@@ -61,7 +61,7 @@ export function AccPageEcrite({ p, d }: { p: P<"accroche">; d: ReturnType<typeof
     <>
       {et ? <TexteL t={et} couleur={k.accent} accent={k.accent} style={{ opacity: prog(image, 0, 6) }} /> : null}
       <TexteL t={lt} couleur={k.texte} accent={k.accent} ligne={(i) => entree(ressort(image, departLigne(p, i)), 70)} />
-      <div style={{ position: "absolute", left: page.x, top: page.y, width: page.largeur, height: page.hauteur, borderRadius: 48, background: C.blanc, padding: pad, boxSizing: "border-box", overflow: "hidden", transform: `translateY(${(1 - montee) * 220}px) rotate(${-3 + 3 * (1 - montee)}deg)`, boxShadow: `0 40px 90px ${a(C.nuit, p.fond === "sombre" ? 0.45 : 0.16)}` }}>
+      <div style={{ position: "absolute", left: page.x, top: page.y, width: page.largeur, height: page.hauteur, borderRadius: 48, background: C.carte, padding: pad, boxSizing: "border-box", overflow: "hidden", transform: `translateY(${(1 - montee) * 220}px) rotate(${-3 + 3 * (1 - montee)}deg)`, boxShadow: `0 40px 90px ${a(C.nuit, p.fond === "sombre" ? 0.45 : 0.16)}` }}>
         <div style={{ width: "62%", height: 34, borderRadius: 17, background: C.encre }} />
         <div style={{ marginTop: 22, width: "44%", height: 34, borderRadius: 17, background: C.encre }} />
         <div style={{ marginTop: 48 }}>
@@ -141,7 +141,7 @@ export function TitMotObjet({ p, d }: { p: P<"titre">; d: ReturnType<typeof disp
   return (
     <>
       {haut ? <TexteL t={haut} couleur={k.texte} accent={k.accent} ligne={(i) => entree(ressort(image, 2 + i * 5), 50)} /> : null}
-      <div style={{ position: "absolute", left: page.x, top: page.y, width: page.largeur, height: page.hauteur, borderRadius: 44, background: C.blanc, padding: 64, boxSizing: "border-box", overflow: "hidden", transform: `translateY(${(1 - montee) * 200}px) rotate(2deg) scale(${1 - 0.015 * Math.sin(Math.PI * borne(frappe))})`, boxShadow: `0 40px 100px ${a(C.nuit, p.fond === "sombre" ? 0.5 : 0.16)}` }}>
+      <div style={{ position: "absolute", left: page.x, top: page.y, width: page.largeur, height: page.hauteur, borderRadius: 44, background: C.carte, padding: 64, boxSizing: "border-box", overflow: "hidden", transform: `translateY(${(1 - montee) * 200}px) rotate(2deg) scale(${1 - 0.015 * Math.sin(Math.PI * borne(frappe))})`, boxShadow: `0 40px 100px ${a(C.nuit, p.fond === "sombre" ? 0.5 : 0.16)}` }}>
         <div style={{ width: "100%", height: page.hauteur * 0.3, borderRadius: 26, background: `linear-gradient(135deg, ${C.grisClair}, ${a(C.orange, 0.55)})` }} />
         <div style={{ marginTop: 40, width: "66%", height: 36, borderRadius: 18, background: C.encre }} />
         <div style={{ marginTop: 40 }}>

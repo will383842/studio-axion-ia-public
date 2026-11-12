@@ -240,24 +240,22 @@ describe("visage par défaut du personnage", () => {
 });
 
 describe("confirmation et budget, avant toute dépense", () => {
-  it("ROUGE — sans confirmation : refus « Votre avatar parle dans cette vidéo : environ … €, à confirmer », aucun appel, rien réservé", async () => {
+  it("sans confirmation : la fabrication part (aucune confirmation de prix, décision du 08/11), la part de l'avatar reste annoncée", async () => {
     await deuxAvatarsRelies();
     await voixHeygenReliee();
     await renduDouble.definirRenduDouble({ allume: true });
-    // Seuil très haut : seule la règle de l'avatar exige la confirmation.
+    // Seuil très haut : seule l'ancienne règle de l'avatar aurait exigé la confirmation.
     await definirBudget(100_000, 100_000);
     await enProduction(async () => {
       // CORRECTEUR FINAL A : le prix de l'avatar n'est annoncé que pour une vidéo du vrai moteur (jamais pour un essai).
       const apercu = await fabrication.apercuFabrication("v-03");
       expect(apercu.budget.double).not.toBeNull();
-      expect(apercu.budget.confirmationRequise).toBe(true);
+      expect(apercu.budget.confirmationRequise).toBe(false);
       const phrase = phraseAvatarParle(apercu.budget.double!);
       expect(phrase).toMatch(/^Votre avatar parle dans cette vidéo : environ \d+,\d\d €, à confirmer\.$/);
-      for (const confirme of [undefined, false]) {
-        const reservations = await depots().reservations.compter();
-        await expect(fabrication.lancerFabrication("v-03", { confirme })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: phrase });
-        expect(await depots().reservations.compter()).toBe(reservations);
-      }
+      // Sans accord : la fabrication est lancée (mise en file), rien n'est encore envoyé.
+      const { travailId } = await fabrication.lancerFabrication("v-03", { confirme: false });
+      expect(travailId).toBeTruthy();
     });
     expect(envoisPayants()).toEqual([]);
   });
@@ -294,15 +292,16 @@ describe("confirmation et budget, avant toute dépense", () => {
     }
   }, 60_000);
 
-  it("budget du mois dépassé : refus avant tout appel, même confirmé", async () => {
+  it("budget du mois dépassé : aucun refus (décision du 08/11), la fabrication part", async () => {
     await deuxAvatarsRelies();
     await voixHeygenReliee();
     await renduDouble.definirRenduDouble({ allume: true });
     await definirBudget(1, 0);
     await enProduction(async () => {
-      await expect(fabrication.lancerFabrication("v-03", { confirme: true })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+      const { travailId } = await fabrication.lancerFabrication("v-03", { confirme: true });
+      expect(travailId).toBeTruthy();
     });
-    expect(await depots().reservations.compter()).toBe(0);
+    // Lancée (mise en file) : rien n'est encore envoyé chez HeyGen dans la requête.
     expect(envoisPayants()).toEqual([]);
   });
 
@@ -553,11 +552,11 @@ describe("décors « look HeyGen » : toujours interdits, même réglage allumé
 
 describe("écrans en phrases simples", () => {
   const INTERDIT = /simulation|api|webm|mp4|matting|avatar_v|engine|look|digital|twin|idempotence|heygen_api|\bfalse\b|\btrue\b/i;
-  it("Réglages › Connexions › Double : éteint, prix d'une minute, fond, consigne ; aucun nom technique ni anglais", () => {
+  it("Réglages › Connexions › Double : éteint, aucun prix, fond, consigne ; aucun nom technique ni anglais", () => {
     const html = renderToStaticMarkup(createElement(ReglageDouble, { initial: { allume: false, fond: "sans-fond", prixMinute: { centimes: 378, devise: "EUR" } } }));
     const texte = html.replace(/<[^>]+>/g, " ");
     expect(texte).toContain("Votre avatar parle dans le studio");
-    expect(texte).toContain("Environ 3,78 € par minute de vidéo.");
+    expect(texte).not.toMatch(/€|par minute de vidéo/);
     expect(texte).toContain("Sans fond, posé sur vos décors");
     expect(texte).toContain("Fond uni");
     expect(html).toMatch(/aria-checked="false"/);

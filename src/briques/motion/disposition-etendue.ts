@@ -3,7 +3,7 @@
  * compositions se resserrent (titres ajustés, textes à la taille de légende, contexte omis) ; mais une check-list de
  * longs points ou une carte documentaire très fournie ne tient pas dans une demi-image sans passer sous 3 % de la
  * hauteur. `tientEnMoitieHaute` le dit AVANT le rendu : le moteur pose alors la carte en plein écran (aucun réglage
- * pour Will). Estimation par la chasse réelle de Poppins (`mesure.ts`), avec une marge. PUR, sans alias « @/ ».
+ * pour Will). Estimation par la chasse réelle de Manrope (`mesure.ts`), avec une marge. PUR, sans alias « @/ ».
  */
 import { couperLignes } from "./mesure";
 import { taillePx, ZONES_SURES, type RatioMotion } from "./jetons";

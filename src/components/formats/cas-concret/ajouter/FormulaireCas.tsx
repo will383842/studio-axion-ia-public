@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { ajouterCasAction, controlerCasAjouteAction } from "@/app/(studio)/cas-concret/actions";
+import { ChoixCible } from "@/components/ciblage/ChoixCible";
 import { Bouton } from "@/components/ui/Bouton";
 import { notifier } from "@/components/ui/Toast";
 import { LIBELLES_SECTEURS } from "../stock/filtres-stock";
-import { champEnFaute, ETAPES_MAX, ETAPES_MIN, etapeVide, LIBELLES_OBJETS, OBJETS_CHOIX, saisieVide, versFormulaire, type EtapeSaisie, type SaisieCas } from "./formulaire-cas";
+import { champEnFaute, choixCibleVersPhrase, ETAPES_MAX, ETAPES_MIN, etapeVide, LIBELLES_OBJETS, OBJETS_CHOIX, saisieVide, versFormulaire, type EtapeSaisie, type SaisieCas } from "./formulaire-cas";
 
 const CLASSE_CHAMP = "block w-full rounded-champ border border-trait bg-surface-1 px-3.5 py-3 text-base leading-relaxed text-texte hover:border-trait-fort focus:border-orange focus:outline-none aria-[invalid=true]:border-brique";
 const AIDE_SCRIPT = "Facultatif. Une ligne = un écran. Étiquettes facultatives en début de ligne : [accroche] [avant] [bascule] [étape] [détail] [humain] [résultat] [question]. Il est dit mot pour mot, sans écriture par l'IA.";
@@ -40,6 +41,7 @@ export function FormulaireCas() {
   const routeur = useRouter();
   const pref = useId();
   const liste = useRef<HTMLDivElement>(null);
+  const derniereCible = useRef("");
   const [s, setS] = useState<SaisieCas>(saisieVide);
   const [refus, setRefus] = useState<string[]>([]);
   const [ressemble, setRessemble] = useState<{ id: string; titre: string }[] | null>(null);
@@ -54,6 +56,11 @@ export function FormulaireCas() {
     setRessemble(null);
   };
   const id = (nom: string) => `${pref}-${nom}`;
+  const choisirCible = (_niveau: unknown, valeur: string) => {
+    setS((x) => ({ ...x, cible: choixCibleVersPhrase(x.cible, derniereCible.current, valeur) }));
+    derniereCible.current = valeur;
+    setRessemble(null);
+  };
   /** Retire une étape ; le curseur va sur l'étape d'avant (sur la première s'il n'y en a pas) : il n'est jamais perdu. */
   const retirerEtape = (i: number) => {
     setS((x) => ({ ...x, etapes: x.etapes.filter((_, j) => j !== i) }));
@@ -163,6 +170,7 @@ export function FormulaireCas() {
         </Champ>
       </div>
 
+      <ChoixCible nom={id("ciblage")} onChange={choisirCible} />
       <Champ id={id("cible")} libelle="Pour qui" aide="La personne à qui s'adresse la vidéo." max={160} valeur={s.cible} enFaute={fautes.has("cible")} erreur={err("cible")}>
         {(p) => <input {...p} type="text" value={s.cible} maxLength={160} onChange={(e) => maj("cible", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
@@ -175,7 +183,7 @@ export function FormulaireCas() {
       <Champ id={id("scene")} libelle="La scène, au présent, sans nom ni chiffre" aide="Ce qui se passe avant : une situation, pas un client réel." max={260} valeur={s.scene} enFaute={fautes.has("scene")} erreur={err("scene")}>
         {(p) => <textarea {...p} rows={4} value={s.scene} maxLength={260} onChange={(e) => maj("scene", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
-      <Champ id={id("exemple")} libelle="L'exemple suivi" aide="La chose que la vidéo suit du début à la fin (« ce devis envoyé… »)." max={80} valeur={s.exemple} enFaute={fautes.has("exemple")} erreur={err("exemple")}>
+      <Champ id={id("exemple")} libelle="L'exemple suivi" aide="La chose que la vidéo suit du début à la fin (« ce dossier envoyé… »)." max={80} valeur={s.exemple} enFaute={fautes.has("exemple")} erreur={err("exemple")}>
         {(p) => <input {...p} type="text" value={s.exemple} maxLength={80} onChange={(e) => maj("exemple", e.target.value)} className={CLASSE_CHAMP} />}
       </Champ>
       <Champ id={id("taches")} libelle="Ce qui se fait à la main aujourd'hui" aide="Une tâche par ligne, de 2 à 6, 6 mots au plus chacune." enFaute={fautes.has("taches")} erreur={err("taches")}>

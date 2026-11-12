@@ -24,7 +24,7 @@ export function MiniGrille({ lignes, reseauActif }: { lignes: LigneGrilleAffiche
         <span
           key={r}
           aria-hidden
-          className={cn("text-center font-titre text-[10px] leading-none", reseauActif === r ? "text-orange-vif" : reseauActif ? "text-texte-faible/40" : "text-texte-faible")}
+          className={cn("text-center font-titre text-[10px] leading-none", reseauActif === r ? "text-accent" : reseauActif ? "text-texte-faible/40" : "text-texte-faible")}
         >
           {obtenirReseau(r).monogramme}
         </span>

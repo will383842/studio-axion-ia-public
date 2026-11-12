@@ -24,7 +24,8 @@ const TAILLE_LIGNE = 0.022;
 function questionDe(nom: "A" | "B" | "C" | "D" | "E" | "F", format: "9:16" | "4:5") {
   const carte: CarteImage = JSON.parse(readFileSync(join(DOSSIER, `${nom}.json`), "utf8"));
   const fiche = FICHES_SIMULEES[`essai-${nom.toLowerCase()}`];
-  const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+  // 26/10/2026 : la question n'est plus posée par défaut ; ce test porte sur son écran, donc le réglage « question puis fin ».
+  const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, numeroVersion: 1, appelCommentaire: "question-puis-fin", questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
   const ligne = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, ...(format === "4:5" ? { format } : {}) }).ligne;
   const bloc = ligne.blocs.find((b) => b.sorte === "ecran" && b.ecran.type === "question")!;
   const p = parametresDuBloc(bloc, ligne).proprietes as unknown as ProprietesEcran;

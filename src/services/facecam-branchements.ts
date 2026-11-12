@@ -53,6 +53,15 @@ async function imageRvb(cle: string): Promise<ImageRvb | null> {
   }
 }
 
+// Lot R2 : plan de scènes du face caméra (réglage `planScenes.facecam`, ÉTEINT par défaut ; allumé : pièces du stock, le
+// fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
+brancherServicesFacecam({
+  planScenes: async () => {
+    const [{ planScenesActif }, { lireParametre }] = await Promise.all([import("@/briques/plan-scenes-generateurs/reglage"), import("./_commun")]);
+    return (await planScenesActif("facecam", lireParametre)) ? {} : undefined;
+  },
+});
+
 // Mission H : multicaméra du face caméra (même brique et même service que l'avocat, coupée par défaut).
 brancherServicesFacecam({
   multicamera: (c, travailId) => async ({ pisteCle, dureeSec, mots, coupesPrefereesSec, consignes }) => {
@@ -170,3 +179,37 @@ brancherServicesFacecam({
     if (r && !r.ok && r.defauts.length) console.warn(`[facecam] relecture de ${c.videoId} : ${r.defauts.map((d) => d.defaut).join(", ")}`);
   },
 });
+
+/**
+ * Mémoire des cartes animées déjà servies par le face caméra : les modèles posés dans les 5 dernières vidéos terminées
+ * (hors la vidéo en cours), la plus récente d'abord, un seul travail par vidéo (le plus récent) ; et le modèle qui a
+ * ouvert la dernière. Même méthode que l'historique du réalisateur v4. Une lecture qui échoue remonte (GV-FIN-01) : la
+ * chaîne la rattrape, ce n'est pas cette fonction qui l'avale. Le résultat doit être GARDÉ dans l'état du travail : une étape rejouée refait le même choix.
+ */
+export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ dejaServis: string[]; ouverturePrecedente?: string }> {
+  try {
+    const { ID_MOTEUR_FACECAM } = await import("@/moteurs/montage-facecam");
+    const versions = await depots().versions.lister((v) => v.statut === "prete" && v.commande?.moteurId === ID_MOTEUR_FACECAM && v.videoId !== videoIdEnCours);
+    const vus = new Set<string>();
+    const videos = [...versions]
+      .sort((a, b) => (b.creeLe ?? "").localeCompare(a.creeLe ?? ""))
+      .filter((v) => (vus.has(v.videoId) ? false : (vus.add(v.videoId), true)))
+      .slice(0, 5)
+      .map((v) => {
+        const vues = (v.projetMontage as { cartesAuto?: { modele?: unknown; etat?: unknown; debutSec?: unknown }[] } | undefined)?.cartesAuto;
+        return (Array.isArray(vues) ? vues : [])
+          .filter((x) => x.etat === "posee" && typeof x.modele === "string" && typeof x.debutSec === "number")
+          .sort((a, b) => (a.debutSec as number) - (b.debutSec as number))
+          .map((x) => x.modele as string);
+      });
+    const ouverture = videos.find((m) => m.length)?.[0];
+    return { dejaServis: videos.flat().slice(0, 40), ...(ouverture ? { ouverturePrecedente: ouverture } : {}) };
+  } catch (e) {
+    console.warn("[studio] mémoire des cartes face caméra illisible :", e instanceof Error ? e.message : e);
+    // GV-FIN-01 : on laisse remonter l'erreur (la chaîne la rattrape) pour qu'une lecture en panne ne fige aucune mémoire.
+    throw e;
+  }
+}
+
+// GV-MD-05b : la chaîne lit cet historique une fois au premier habillage et le fige dans l'état du travail.
+brancherServicesFacecam({ memoireCartes: (c) => memoireCartesFacecam(c.videoId) });

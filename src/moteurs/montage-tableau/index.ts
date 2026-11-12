@@ -24,7 +24,7 @@
  * Version 2 (refus lisible aujourd'hui) : autres ratios, fins par réseau, correction des sous-titres seule, maquette.
  */
 import { createHash } from "node:crypto";
-import type { CommandeFabrication, EtapeTravail, ErreurTravail, IdReseau, LigneCout, StyleResolu, Travail, ValeurStyleSousTitres } from "@/domaine/types";
+import type { CommandeFabrication, SegmentSousTitres, EtapeTravail, ErreurTravail, IdReseau, LigneCout, StyleResolu, Travail, ValeurStyleSousTitres } from "@/domaine/types";
 import { ZERO, centimes } from "@/lib/montants";
 import { decouperEnScenes, type EntreeDecoupage, type OutilsDecoupage } from "./decoupage";
 import { ETAPES_CHAINE, etapeDuMoteur, etapesTableau, ficheFournie, lireEntreesTableau, type CleEtapeTableau, type VoixPayee } from "./etapes";
@@ -33,7 +33,7 @@ import { finAuMot } from "./variantes-fin";
 import type { FinRetenue } from "./relecture";
 import { finPermise } from "@/reseaux/sorties";
 import { lecturesVoixMax, ressemblanceDeLaCommande } from "@/briques/voix-maitre/reference";
-import { ErreurFabrication, ETAPES_FABRICATION, fabriquerTableau, type CompteRenduFabrication, type EtapeFabrication, type JournalFabrication, type OutilsFabrication } from "./fabriquer";
+import { ErreurFabrication, ETAPES_FABRICATION, fabriquerTableau, type CompteRenduFabrication, type EtapeFabrication, type JournalFabrication, type OutilsFabrication, type SortieFaite } from "./fabriquer";
 import type { FicheTableau } from "./fiche";
 import type { ContexteTableau } from "./regles";
 import { apercuRetouche, estOperationRetouche, lireOperationRetouche, type ContexteRetouche, type OperationRetouche } from "./retouches";
@@ -474,6 +474,11 @@ export function destinationDeLaSortie(format: IdSortie, faites: readonly IdSorti
   return { reseaux, ...(appelAuMot !== undefined ? { appelAuMot } : {}) };
 }
 
+/** Sous-titres de la sortie principale (le premier 9:16 dans l'ordre donné, sinon la première sortie) : ceux du .srt. */
+export function sousTitresDeLaSortiePrincipale(sorties: readonly SortieFaite[]): SegmentSousTitres[] | undefined {
+  return (sorties.find((s) => s.ratio === "9:16") ?? sorties[0])?.sousTitres;
+}
+
 function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, etat: EtatTableau): ResultatFabrication {
   const { alertes, note } = qualiteDe(r.controles, r.fin, r.recetteVoix, r.alertes);
   // La voix reprise d'une fabrication arrêtée est déjà dans le journal : pas recopiée dans le projet.
@@ -489,6 +494,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, et
   const iLinkedin = ordonnees.findIndex((s) => s.format === PORTRAIT_LINKEDIN);
   if (iPortrait >= 0 && iLinkedin > iPortrait) ordonnees.splice(iPortrait, 0, ...ordonnees.splice(iLinkedin, 1));
   const faites = ordonnees.map((s) => s.format);
+  const st = sousTitresDeLaSortiePrincipale(ordonnees);
   const sorties = ordonnees.length
     ? ordonnees.map((s) => {
         const q = qualiteDe(s.controles, s.fin, r.recetteVoix, s.alertes);
@@ -507,6 +513,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, et
   return {
     sorties,
     noteQualite: { globale: note, alertes },
+    ...(st?.length ? { sousTitres: st } : {}),
     lignesReelles: [...lignesPayeesDe(etat), ligne("Montage tableau animé", "studio", "forfait", 1, "reel")],
     projetMontage: {
       moteur: ID_MOTEUR_TABLEAU,
@@ -617,8 +624,8 @@ export function creerMoteurMontageTableau(dependances: DependancesMoteurTableau 
     id: ID_MOTEUR_TABLEAU,
     nom: "Montage tableau animé",
     capacites: {
-      // 90 s : plafond du Reel Facebook (§ 2) ; 9:16 seulement en version 1.
-      dureeMaxSec: 90,
+      // 180 s : plafond du tableau (Williams) ; 9:16 seulement en version 1.
+      dureeMaxSec: 180,
       ratios: ["9:16"],
       langues: ["fr-FR"],
       retoucheParPlan: true,

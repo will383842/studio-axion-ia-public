@@ -1,17 +1,16 @@
 /**
  * Libellés et tonalités d'affichage (PUR, importable côté client).
- * Les tonalités sont des NOMS DE JETONS : « orange », « sauge », « ambre », « brique », « neutre ».
+ * Les tonalités sont des NOMS DE JETONS : « orange », « sauge », « ambre », « brique », « neutre », « encre ».
  */
 import type { NomIcone } from "@/components/ui/Icone";
-import { formaterMontant } from "@/lib/montants";
 import type { BriqueFacultative, EtapeEditoriale, Montant, EtatVeille, NaturePersonnage, StatutNouveaute, StatutPreparation, StatutTravail, StatutVideo, TypeElement, VeilleNouveaute } from "./types";
 
-export type Tonalite = "orange" | "sauge" | "ambre" | "brique" | "neutre";
+export type Tonalite = "orange" | "sauge" | "ambre" | "brique" | "neutre" | "encre" | "contour" | "pointille";
 
 export const STATUTS_VIDEO: Record<StatutVideo, { libelle: string; tonalite: Tonalite; icone: NomIcone }> = {
   brouillon: { libelle: "Brouillon", tonalite: "neutre", icone: "ecrire" },
   maquette: { libelle: "Maquette", tonalite: "neutre", icone: "oeil" },
-  en_file: { libelle: "En attente", tonalite: "ambre", icone: "sablier" },
+  en_file: { libelle: "En attente", tonalite: "neutre", icone: "sablier" },
   en_fabrication: { libelle: "En fabrication", tonalite: "orange", icone: "chargement" },
   prete: { libelle: "Prête", tonalite: "sauge", icone: "valide" },
   echec: { libelle: "À corriger", tonalite: "brique", icone: "attention" },
@@ -21,9 +20,9 @@ export const STATUTS_VIDEO: Record<StatutVideo, { libelle: string; tonalite: Ton
 
 export const ETAPES_EDITORIALES: Record<EtapeEditoriale, { libelle: string; tonalite: Tonalite; icone: NomIcone }> = {
   a_relire: { libelle: "À relire", tonalite: "ambre", icone: "oeil" },
-  validee: { libelle: "Validée", tonalite: "sauge", icone: "coche" },
-  programmee: { libelle: "Programmée", tonalite: "orange", icone: "calendrier" },
-  publiee: { libelle: "Publiée", tonalite: "sauge", icone: "megaphone" },
+  validee: { libelle: "Validée", tonalite: "encre", icone: "coche" },
+  programmee: { libelle: "Programmée", tonalite: "sauge", icone: "calendrier" },
+  publiee: { libelle: "Publiée", tonalite: "contour", icone: "megaphone" },
 };
 
 /**
@@ -33,7 +32,7 @@ export const ETAPES_EDITORIALES: Record<EtapeEditoriale, { libelle: string; tona
 export const LIBELLES_RETRAIT = { action: "Archiver", retour: "Restaurer", liste: "Archivés", listeFeminin: "Archivées" } as const;
 
 export const STATUTS_TRAVAIL: Record<StatutTravail, { libelle: string; tonalite: Tonalite }> = {
-  en_file: { libelle: "En attente", tonalite: "ambre" },
+  en_file: { libelle: "En attente", tonalite: "neutre" },
   en_cours: { libelle: "En cours", tonalite: "orange" },
   termine: { libelle: "Terminé", tonalite: "sauge" },
   echec: { libelle: "À corriger", tonalite: "brique" },
@@ -59,7 +58,7 @@ export const TYPES_BIBLIOTHEQUE: { type: TypeElement | "prononciations" | "mes-i
   { type: "couleurs", nom: "Couleurs", icone: "nuancier", groupe: "style" },
   { type: "police", nom: "Polices", icone: "texte", groupe: "style" },
   { type: "logo", nom: "Logo", icone: "certifie", groupe: "style" },
-  { type: "lut", nom: "LUT", icone: "contraste", groupe: "style" },
+  { type: "lut", nom: "Rendu des couleurs", icone: "contraste", groupe: "style" },
   { type: "style-sous-titres", nom: "Sous-titres", icone: "sous-titres", groupe: "style" },
   { type: "habillage", nom: "Habillage", icone: "calques", groupe: "style" },
   { type: "style-montage", nom: "Montage", icone: "ciseaux", groupe: "style" },
@@ -88,7 +87,7 @@ export const LICENCES: Record<string, string> = {
 /** Libellés des briques facultatives (AV2.7) : LES MÊMES dans l'assistant et dans la fiche vidéo. */
 export const LIBELLES_BRIQUES: Record<BriqueFacultative, { libelle: string; icone: NomIcone }> = {
   "sous-titres": { libelle: "Sous-titres", icone: "sous-titres" },
-  etalonnage: { libelle: "Couleurs de cinéma (LUT)", icone: "contraste" },
+  etalonnage: { libelle: "Rendu des couleurs", icone: "contraste" },
   illustrations: { libelle: "Images d'illustration", icone: "images" },
   son: { libelle: "Musique et bruitages", icone: "musique" },
   habillage: { libelle: "Habillage (logo, fin)", icone: "calques" },
@@ -308,7 +307,48 @@ export const LIBELLES_ARGENT = { estime: "Coût estimé", auPlus: "Au plus", dej
 export function libelleFabriquer({ montant, dureeSec, n, sansPrix, essai }: { montant?: Montant; dureeSec?: number; n?: number; sansPrix: boolean; essai: boolean }): string {
   const parties = [n && n > 1 ? `Fabriquer ${n} vidéos` : "Fabriquer"];
   if (dureeSec) parties.push(dureeSec < 60 ? `${Math.round(dureeSec)} s` : `${Math.round(dureeSec / 60)} min`);
-  if (montant && !sansPrix) parties.push(formaterMontant(montant));
+  void montant; // Règle de Williams : aucun montant à l'écran.
   const texte = parties.join(" · ");
   return essai && !sansPrix ? `${texte} (essai)` : texte;
 }
+
+/* --- Écran d'envoi « À publier » (Z3-E) : le nom de l'outil vient d'ici, jamais écrit en dur dans un bouton --- */
+
+/** Catalogue des outils de publication : le nom affiché. */
+export const NOMS_OUTILS_PUBLICATION: Readonly<Record<"buffer" | "zernio", string>> = { buffer: "Buffer", zernio: "Zernio" };
+
+/** Libellés de l'écran d'envoi (vouvoiement, sans jargon). */
+export const LIBELLES_ENVOI = {
+  brouillon: "Mettre en brouillon",
+  programmer: "Programmer",
+  validerEtProgrammer: "Valider et programmer",
+  repasserBrouillon: "Repasser en brouillon",
+  reessayer: "Réessayer maintenant",
+  voirPublication: "Voir la publication",
+  publieeVerifiee: "Publiée et vérifiée. Le lien est enregistré.",
+  envoyerPar: "Envoi par",
+  changer: "Changer",
+  aussiSur: "Aussi sur :",
+  premierCommentaire: "Premier commentaire, posé automatiquement",
+  premierCommentaireTiktok: "TikTok ne permet pas de premier commentaire automatique : à poser à la main, juste après la publication.",
+  premierCommentaireALaMain: "Premier commentaire à poser à la main, juste après la publication : le bouton Copier le recopie. Rien n'est envoyé pour ce réseau.",
+  premierCommentaireAConfirmer: "Premier commentaire transmis, à confirmer : vérifiez qu'il apparaît sous la publication, sinon posez-le à la main (bouton Copier).",
+  tiktokAccord: "J'ai regardé l'aperçu et j'accepte que TikTok publie cette vidéo.",
+  tiktokAccordPetit: "TikTok demande cet accord à chaque envoi.",
+  tiktokAccordManquant: "Cochez l'accord TikTok ci-dessus pour valider.",
+  tiktokInactif: "TikTok : cochez d'abord l'accord ci-dessus pour envoyer.",
+  recommande: "recommandé",
+  jusquAu: "jusqu'au",
+  pourCeContenu: "Pour ce contenu seulement.",
+  chargement: "Chargement de l'aperçu…",
+  vide: "Rien à envoyer pour le moment.",
+  erreur: "L'aperçu n'a pas pu s'afficher. Réessayez dans un instant.",
+  mentionIA: "Mention « contenu généré par IA » : transmise à ce réseau.",
+  validerLesN: (n: number) => `Valider et programmer les ${n}`,
+  noteGroupee: "Le TikTok attend votre accord.",
+  annuler: "Annuler",
+  simuleRaison: "Pour le moment, c'est un essai : rien ne peut partir tant que l'outil de publication n'est pas relié.",
+  groupeDate: (jour: string) => `Tous les envois partiront ${jour}, à 9 h.`,
+  groupeConseil: "Pour changer un envoi, ouvrez la vidéo et repassez-la en brouillon.",
+  enCours: "Envoi en cours…",
+} as const;

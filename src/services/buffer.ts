@@ -1,14 +1,14 @@
 /**
  * BUFFER RÉEL (lot R1, brouillon d'abord) : comptes, correspondance réseau → compte, mode, synchronisation des états.
  *
- * - Les comptes Buffer sont LUS sur un geste de Will (« Tester »), à un envoi s'ils n'ont jamais été lus ou s'il en
+ * - Les comptes Buffer sont LUS sur un geste de l'opérateur (« Tester »), à un envoi s'ils n'ont jamais été lus ou s'il en
  *   manque un, et par la boucle de fond au plus une fois par heure ; ils sont gardés en base (`buffer.canaux`).
  *   Un ÉCRAN ne lit que cette copie : afficher une page n'appelle jamais Buffer.
- * - Comptes d'un réseau (lot R1b) : Will coche le ou les comptes À CHAQUE ENVOI (deux LinkedIn : le profil, la page ou
+ * - Comptes d'un réseau (lot R1b) : l'opérateur coche le ou les comptes À CHAQUE ENVOI (deux LinkedIn : le profil, la page ou
  *   les deux) ; son dernier choix est mémorisé par réseau (`buffer.correspondance`) et proposé la fois suivante, et sert
  *   à « Programmer les N ». Sans choix ni mémoire : le seul compte du réseau ; plusieurs → jamais deviné.
  *   YouTube et YouTube Shorts partent sur le même compte.
- * - Mode (`buffer.mode`) : « brouillon » par défaut (Will relit et programme dans Buffer) ; « programmer » sur son choix.
+ * - Mode (`buffer.mode`) : « brouillon » par défaut (l'opérateur relit et programme dans Buffer) ; « programmer » sur son choix.
  * - Synchronisation (boucle de fond, toutes les 15 min, HORS verrou pour le réseau) : brouillon → programmée → publiée
  *   (+ lien de la publication) ou échec (+ notification) ; un envoi « à vérifier » est relu, jamais renvoyé à l'aveugle.
  * - Rien n'est jamais effacé chez Buffer ; ici, une publication change d'état, elle n'est jamais supprimée.
@@ -17,7 +17,9 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
-import type { Id, IdReseau, ModeEnvoiPublication, Publication } from "@/domaine/types";
+import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
+import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, memeSource, videoIdSure } from "@/domaine/types";
+import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { ErreurBuffer } from "@/fournisseurs/publication/buffer";
 import { VARIABLE_CLE_BUFFER } from "@/fournisseurs/mesures/buffer";
@@ -79,7 +81,7 @@ export function cleEnvoiBuffer(videoId: Id, reseau: IdReseau, dateIso: string, c
 }
 
 /* ------------------------------------------------------------------ */
-/* Comptes (réseau sur geste de Will ou boucle)                         */
+/* Comptes (réseau sur geste de l'opérateur ou boucle)                         */
 /* ------------------------------------------------------------------ */
 
 /** Relit les comptes chez Buffer et les garde en base. RÉSEAU : jamais depuis un écran. */
@@ -99,9 +101,9 @@ export async function actualiserCanauxBuffer(): Promise<CanauxEnregistres> {
 }
 
 /**
- * Les comptes où part ce réseau (geste « Envoyer » de Will, ou « Programmer les N ») : les comptes cochés (`choisis`),
+ * Les comptes où part ce réseau (geste « Envoyer » de l'opérateur, ou « Programmer les N ») : les comptes cochés (`choisis`),
  * sinon le dernier choix mémorisé, sinon le seul compte. Les comptes sont lus s'ils ne l'ont jamais été ; s'il manque
- * un compte, ils sont relus UNE fois (Will vient peut-être de le relier dans Buffer) avant de le dire.
+ * un compte, ils sont relus UNE fois (l'opérateur vient peut-être de le relier dans Buffer) avant de le dire.
  */
 export async function comptesBufferPour(reseau: IdReseau, choisis?: string[]): Promise<ComptesPourReseau> {
   const enBase = await canauxEnregistres();
@@ -113,7 +115,7 @@ export async function comptesBufferPour(reseau: IdReseau, choisis?: string[]): P
 }
 
 /**
- * Lot R1b : le choix de Will à l'envoi devient le choix proposé la fois suivante (et pour « Programmer les N »).
+ * Lot R1b : le choix de l'opérateur à l'envoi devient le choix proposé la fois suivante (et pour « Programmer les N »).
  * L'appelant ne passe que des comptes VALIDÉS (réseau envoyé, comptes connus de ce réseau).
  */
 export async function memoriserComptesBuffer(choix: Partial<Record<IdReseau, string[]>>): Promise<void> {
@@ -133,12 +135,12 @@ export async function testerBuffer(): Promise<{ message: string; comptes: number
   for (const c of lus.canaux) parService.set(c.service, (parService.get(c.service) ?? 0) + 1);
   const liste = [...parService].map(([s, n]) => `${nomService(s)}${n > 1 ? ` ×${n}` : ""}`).join(", ");
   await journaliser("reglages", `Buffer testé : ${lus.canaux.length} compte(s) relié(s)`);
-  return { comptes: lus.canaux.length, message: lus.canaux.length ? `Buffer répond : ${liste}.` : "Buffer répond, mais aucun compte n'y est relié." };
+  return { comptes: lus.canaux.length, message: lus.canaux.length ? `L'ancien outil répond : ${liste}.` : "L'ancien outil répond, mais aucun compte n'y est relié." };
 }
 
 /**
  * Réglages : le ou les comptes PROPOSÉS PAR DÉFAUT pour un réseau (cochés à l'ouverture de la feuille d'envoi, utilisés
- * par « Programmer les N »). Vide ou null : aucun compte proposé, Will choisit à chaque envoi.
+ * par « Programmer les N »). Vide ou null : aucun compte proposé, l'opérateur choisit à chaque envoi.
  */
 export async function choisirCanalBuffer(reseau: IdReseau, canalId: string | string[] | null): Promise<void> {
   await exigerSession();
@@ -175,12 +177,12 @@ export interface VueCompteReseau {
   nom: string;
   /** Le seul compte du réseau (ou le seul proposé par défaut) ; absent si aucun ou s'il y en a plusieurs. */
   compte?: { id: string; nom: string; source: "choisi" | "auto" };
-  /** Lot R1b : comptes proposés par défaut à l'envoi (dernier choix de Will), quand le réseau en a plusieurs. */
+  /** Lot R1b : comptes proposés par défaut à l'envoi (dernier choix de l'opérateur), quand le réseau en a plusieurs. */
   proposes?: string[];
   probleme?: string;
   /** Un compte de ce réseau est déconnecté (nommé) ; les autres restent à cocher. */
   avertissement?: string;
-  /** Comptes connectés de ce réseau (plusieurs : Will coche à chaque envoi). */
+  /** Comptes connectés de ce réseau (plusieurs : l'opérateur coche à chaque envoi). */
   candidats: { id: string; nom: string; genre?: string }[];
 }
 
@@ -216,7 +218,7 @@ export async function vueBuffer(): Promise<VueBuffer> {
       // Plusieurs comptes : choisis à chaque envoi, ce n'est pas un problème.
       if (candidats.length > 1 && (c.ok || c.raison === "plusieurs")) return { reseau: r.id, nom: r.nom, candidats, proposes: c.ok ? c.canaux.map((x) => x.id) : [], avertissement };
       // Un compte déconnecté (mémorisé, ou parmi plusieurs sans mémoire) ne bloque pas les comptes restés connectés :
-      // Will les coche ; proposés d'office, ceux qu'il avait choisis, ou le seul resté connecté.
+      // l'opérateur les coche ; proposés d'office, ceux qu'il avait choisis, ou le seul resté connecté.
       if (!c.ok && candidats.length && (c.raison === "deconnecte" || c.raison === "plusieurs")) {
         const memoires = idsMemorises(memoire[r.id]).filter((id) => candidats.some((x) => x.id === id));
         return { reseau: r.id, nom: r.nom, candidats, proposes: memoires.length ? memoires : candidats.length === 1 ? [candidats[0].id] : [], avertissement };
@@ -268,7 +270,7 @@ export async function noterErreurBuffer(contexte: string, e: unknown, entite?: {
   await journaliser("publication", `Buffer, ${contexte} : ${phrase}`, entite);
 }
 
-/** Erreur de Buffer → message pour Will : la phrase française fixe (`PHRASES_BUFFER`), jamais le détail. */
+/** Erreur de Buffer → message pour l'opérateur : la phrase française fixe (`PHRASES_BUFFER`), jamais le détail. */
 export function versErreurStudio(e: unknown): ErreurStudio {
   if (e instanceof ErreurStudio) return e;
   if (e instanceof ErreurBuffer) return new ErreurStudio(e.code === "refuse" ? "BUFFER_CLE" : "BUFFER", e.message);
@@ -281,23 +283,44 @@ export function versErreurStudio(e: unknown): ErreurStudio {
 
 /**
  * Relit Buffer pour un envoi « à vérifier » (réseau, HORS verrou), puis écrit le résultat sous le verrou si la
- * publication n'a pas changé entre-temps. Trouvé → relié (« envoyé ») ; absent après 30 min → « absent » (Will peut
+ * publication n'a pas changé entre-temps. Trouvé → relié (« envoyé ») ; absent après 30 min → « absent » (l'opérateur peut
  * renvoyer) ; sinon inchangé.
  */
 export async function reconcilierEnvoi(publicationId: Id, instant: number = Date.now()): Promise<Publication | null> {
   const d = depots();
   const p = await d.publications.obtenir(publicationId);
-  if (!p || p.via !== "buffer" || (p.etatEnvoi !== "a-verifier" && p.etatEnvoi !== "en-cours") || !p.canalId || !p.envoiCommenceLe) return p;
-  const f = await publicationReelle();
-  const organisationId = (await canauxEnregistres())?.canaux.find((c) => c.id === p.canalId)?.organisationId;
+  const outil = p ? outilDe(p) : null;
+  if (!p || !outil || (p.etatEnvoi !== "a-verifier" && p.etatEnvoi !== "en-cours") || !p.canalId || !p.envoiCommenceLe) return p;
+  // Chaque outil se relit lui-même ; la cible Zernio « compte:fb:page » se compare par son compte (le fournisseur rend le compte).
+  let f: FournisseurPublication | null = null;
+  try {
+    f = outil === "buffer" ? await publicationReelle() : fournisseurParId("publication", outil);
+  } catch {
+    return p; // outil non relié (clé absente) : on relira plus tard, rien n'est renvoyé.
+  }
+  const organisationId = outil === "buffer" ? (await canauxEnregistres())?.canaux.find((c) => c.id === p.canalId)?.organisationId : outil;
+  const canalLu = outil === "buffer" ? p.canalId : p.canalId.split(":")[0];
   if (!f?.publicationsRecentes || !organisationId) return p;
   let trouvee: Awaited<ReturnType<typeof retrouverEnvoi>> = null;
   // Même marge que `retrouverEnvoi` : l'horloge de Buffer peut retarder sur celle du studio.
   const depuis = new Date(new Date(p.envoiCommenceLe).getTime() - MARGE_HORLOGE_MS).toISOString();
   try {
-    trouvee = retrouverEnvoi(await f.publicationsRecentes({ organisationId, canalId: p.canalId, depuis }), { canalId: p.canalId, texte: p.texte, depuis: p.envoiCommenceLe });
+    trouvee = retrouverEnvoi(await f.publicationsRecentes({ organisationId, canalId: canalLu, depuis }), { canalId: canalLu, texte: p.texte, depuis: p.envoiCommenceLe });
   } catch {
     return p; // Buffer muet : on relira plus tard, sans rien renvoyer.
+  }
+  // Plusieurs pages d'un même compte pour cette vidéo et ce réseau : le post retrouvé peut être celui d'une autre page.
+  // On ne conclut pas « envoyé » : l'envoi reste à vérifier (jamais de renvoi non plus).
+  const vid = videoIdSure(p);
+  const entite = vid ? { type: "video", id: vid } : undefined;
+  const lienSource = vid ? `/videos/${vid}` : "/calendrier";
+  if (trouvee && outil !== "buffer" && p.canalId.includes(":")) {
+    const memeCompte = await d.publications.lister((x) => x.id !== p.id && memeSource(x, p) && x.reseau === p.reseau && outilDe(x) === outil && !!x.canalId && x.canalId !== p.canalId && x.canalId.split(":")[0] === canalLu);
+    if (memeCompte.length) {
+      // Annoncé dans le journal (message neutre, sans secret) : une vérification à la main est nécessaire.
+      await journaliser("publication", `Envoi à vérifier à la main (${obtenirReseau(p.reseau).nom}) : plusieurs pages du même compte, l'outil de publication ne permet pas de savoir laquelle est partie.`, entite);
+      return p;
+    }
   }
   const absente = !trouvee && instant - new Date(p.envoiCommenceLe).getTime() >= DELAI_ABSENCE_MS;
   if (!trouvee && !absente) return p;
@@ -305,12 +328,32 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
     const actuelle = await d.publications.obtenir(publicationId);
     if (!actuelle || actuelle.modifieLe !== p.modifieLe) return actuelle;
     if (trouvee) {
-      await journaliser("publication", `Envoi vers Buffer retrouvé (${obtenirReseau(p.reseau).nom})`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, entite);
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
-    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
-    await creerNotification({ type: "echec", titre: "Envoi vers Buffer non arrivé", message: `${obtenirReseau(p.reseau).nom} : Buffer n'a rien reçu. Vérifiez dans Buffer avant de renvoyer.`, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
+    const eux = outil === "buffer" ? "Buffer" : "l'outil de publication";
+    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "dans Buffer" : "chez lui"} avant de renvoyer.`, lien: lienSource, estDemo: p.estDemo });
     return modif;
+  });
+}
+
+/**
+ * Sortie manuelle d'un envoi « à vérifier » (par exemple plusieurs pages d'un même compte : le studio ne peut pas savoir
+ * laquelle est partie, voir `reconcilierEnvoi`). L'opérateur a regardé dans l'outil : l'envoi passe à « envoyé », donc il
+ * ne reste plus bloqué et ne sera jamais renvoyé. N'écrit QUE dans le studio : rien n'est lu, supprimé ni modifié chez Buffer
+ * ou chez Zernio. Refus si l'envoi n'est pas « à vérifier » (rien d'autre ne se marque ainsi). Écrit au journal.
+ */
+export async function marquerEnvoiVerifie(publicationId: Id): Promise<Publication> {
+  await exigerSession();
+  return sousVerrou(async () => {
+    const p = await depots().publications.obtenir(publicationId);
+    if (!p || !estChezUnOutil(p)) throw new ErreurStudio("PUBLICATION_INCONNUE", "Cet envoi est introuvable.");
+    if (p.etatEnvoi !== "a-verifier") throw new ErreurStudio("PAS_A_VERIFIER", "Cet envoi n'est pas à vérifier : rien à marquer.");
+    const vid = videoIdSure(p);
+    const modifiee = await depots().publications.modifier(p.id, { etatEnvoi: "envoye", erreur: undefined, etatLuLe: maintenant() });
+    await journaliser("publication", `Envoi marqué comme vérifié à la main (${obtenirReseau(p.reseau).nom}) : rien n'a été modifié chez l'outil de publication.`, vid ? { type: "video", id: vid } : undefined);
+    return modifiee;
   });
 }
 
@@ -332,21 +375,27 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
   if (!options.force && g[cleSynchro] && instant - g[cleSynchro]! < INTERVALLE_SYNCHRO_BUFFER_MS) return { lues: 0, changees: 0 };
   g[cleSynchro] = instant;
   const f = await publicationReelle();
-  if (!f?.lireEtat) return { lues: 0, changees: 0 };
   const d = depots();
   const r = { lues: 0, changees: 0 };
+  // 1. Envois interrompus ou à vérifier (de n'importe quel outil) : relire, jamais renvoyer. Chaque outil se relit lui-même.
+  const relireEnvoisIncertains = async () => {
+    const aVerifier = await d.publications.lister((p) => estChezUnOutil(p) && (p.etatEnvoi === "a-verifier" || (p.etatEnvoi === "en-cours" && !!p.envoiCommenceLe && instant - new Date(p.envoiCommenceLe).getTime() > ENVOI_INTERROMPU_MS)));
+    for (const p of aVerifier) {
+      r.lues++;
+      const apres = await reconcilierEnvoi(p.id, instant);
+      if (apres && apres.etatEnvoi !== p.etatEnvoi) r.changees++;
+    }
+  };
+  if (!f?.lireEtat) {
+    await relireEnvoisIncertains();
+    return r;
+  }
 
   // 0. Comptes : relus au plus une fois par heure (un compte relié ou retiré dans Buffer).
   const lus = await canauxEnregistres();
   if (!lus || instant - new Date(lus.lusLe).getTime() >= INTERVALLE_COMPTES_BUFFER_MS) await actualiserCanauxBuffer().catch(() => undefined);
 
-  // 1. Envois interrompus ou à vérifier : relire, jamais renvoyer.
-  const aVerifier = await d.publications.lister((p) => p.via === "buffer" && (p.etatEnvoi === "a-verifier" || (p.etatEnvoi === "en-cours" && !!p.envoiCommenceLe && instant - new Date(p.envoiCommenceLe).getTime() > ENVOI_INTERROMPU_MS)));
-  for (const p of aVerifier) {
-    r.lues++;
-    const apres = await reconcilierEnvoi(p.id, instant);
-    if (apres && apres.etatEnvoi !== p.etatEnvoi) r.changees++;
-  }
+  await relireEnvoisIncertains();
 
   // 2. Publications chez Buffer pas encore publiées : leur état.
   const suivies = (await d.publications.lister((p) => p.via === "buffer" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye")))
@@ -358,7 +407,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     try {
       etat = await f.lireEtat(p.idExterne!);
     } catch (e) {
-      // Supprimée dans Buffer par Will (introuvable) : on le dit, on n'efface rien ici.
+      // Supprimée dans Buffer par l'opérateur (introuvable) : on le dit, on n'efface rien ici.
       if (e instanceof ErreurBuffer && e.code === "introuvable") {
         await ecrireSiInchange(p, { statut: "echec", erreur: "Introuvable dans Buffer (retirée de Buffer ?).", etatLuLe: new Date(instant).toISOString() });
         r.changees++;
@@ -366,6 +415,9 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
       continue;
     }
     r.lues++;
+    const vid = videoIdSure(p);
+    const entite = vid ? { type: "video", id: vid } : undefined;
+    const lienSource = vid ? `/videos/${vid}` : "/calendrier";
     const changement: Partial<Publication> = { etatLuLe: new Date(instant).toISOString() };
     if (etat.statut !== p.statut) changement.statut = etat.statut;
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
@@ -377,16 +429,16 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     if (!ecrite || etat.statut === p.statut) continue;
     r.changees++;
     if (etat.statut === "publiee") {
-      await d.videos.modifier(p.videoId, { etapeEditoriale: "publiee" });
+      if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, { type: "video", id: p.videoId });
+      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, entite);
     } else if (etat.statut === "programmee") {
-      await passerProgrammee(p.videoId);
+      if (vid) await passerProgrammee(vid);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       console.warn(`[studio] Buffer, échec sur ${p.reseau} : ${etat.erreur ?? "sans raison donnée"}`);
-      await journaliser("publication", raisonEchec, { type: "video", id: p.videoId });
-      await creerNotification({ type: "echec", titre: "Buffer n'a pas pu publier", message: raisonEchec, lien: `/videos/${p.videoId}`, estDemo: p.estDemo });
+      await journaliser("publication", raisonEchec, entite);
+      await creerNotification({ type: "echec", titre: "Buffer n'a pas pu publier", message: raisonEchec, lien: lienSource, estDemo: p.estDemo });
     }
   }
   return r;

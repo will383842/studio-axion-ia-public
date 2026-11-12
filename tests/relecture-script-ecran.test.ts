@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { controlerEssai, DEBIT_V4, lignesV4, TEXTE_V4 } from "@/app/(studio)/essais/relire-script/_exemple";
+import { controlerEssai, DEBIT_V4, lignesV4, TEXTE_V4 } from "./relecture-script-exemple";
 import { dureeLisible, RelireScript } from "@/components/script/RelireScript";
 import { appliquerSaisie, scriptReluDe } from "@/domaine/relecture-script";
 
@@ -24,8 +24,9 @@ describe("RelireScript : rendu", () => {
     expect(vu).toContain("On recrute nos collaborateurs en quinze minutes.");
   });
 
-  it("le bouton porte le prix, la durée est estimée, le mode texte libre est proposé", () => {
-    expect(vu).toContain("Lancer la vidéo (≈ 4,20 €)");
+  it("le bouton ne porte aucun prix, la durée est estimée, le mode texte libre est proposé", () => {
+    expect(vu).toContain("Lancer la vidéo");
+    expect(vu).not.toMatch(/€|4,20/);
     expect(vu).toMatch(/≈ 4\d s/);
     expect(vu).toContain("Texte libre");
     expect(vu).toContain("Vérification");

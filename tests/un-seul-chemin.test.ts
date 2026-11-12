@@ -12,7 +12,8 @@ vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refre
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 const { BarreLaterale } = await import("@/components/coquille/BarreLaterale");
-const { formatActif } = await import("@/components/coquille/navigation");
+const { estActif, formatActif, RUBRIQUES_NAV, entreesDeRubrique } = await import("@/components/coquille/navigation");
+const mesVideos = RUBRIQUES_NAV.flatMap(entreesDeRubrique).find((e) => e.href === "/videos")!;
 const { OngletsMesVideos } = await import("@/components/videos/OngletsMesVideos");
 const { CarteFormat } = await import("@/components/ui/CarteFormat");
 
@@ -43,7 +44,7 @@ describe("BarreLaterale : aucun raccourci de création", () => {
   const formats = [
     { id: "avocat", nom: "Vidéo type avocat", icone, statut: "actif" as const, nbVideos: 1, adresseCreation: "/nouvelle/avocat" },
     { id: "tableau-anime", nom: "Tableau animé", icone, statut: "actif" as const, nbVideos: 0, adresseCreation: "/tableau/nouvelle" },
-    { id: "cas-concret", nom: "Cas concret MD", icone, statut: "actif" as const, nbVideos: 0, adresseCreation: "/cas-concret" },
+    { id: "cas-concret", nom: "Cas concret", icone, statut: "actif" as const, nbVideos: 0, adresseCreation: "/cas-concret" },
     { id: "facecam-animee", nom: "Vidéo face caméra animée", icone, statut: "actif" as const, nbVideos: 0, essai: true, adresseCreation: "/face-camera-animee" },
     { id: "image-video", nom: "Image → vidéo", icone, statut: "actif" as const, nbVideos: 2, essai: true, adresseCreation: "/image-video" },
   ];
@@ -52,18 +53,16 @@ describe("BarreLaterale : aucun raccourci de création", () => {
   it("aucun lien vers un écran de création de générateur", () => {
     for (const adresse of ["/tableau/nouvelle", "/cas-concret", "/image-video", "/face-camera-animee"]) expect(html).not.toContain(`href="${adresse}`);
   });
-  it("les lignes de formats mènent à leur fiche /formats/<id>", () => {
-    for (const f of formats) expect(html).toContain(`href="/formats/${f.id}"`);
+  it("les lignes de formats ne sont plus dans la barre (la liste est dans Mes vidéos)", () => {
+    for (const f of formats) expect(html).not.toContain(`href="/formats/${f.id}"`);
+    expect(texte(html)).not.toContain("Essai");
   });
-  it("Image → vidéo : pastille « Essai » et nombre de vidéos", () => {
-    const lien = /<a[^>]*href="\/formats\/image-video"[^>]*>([\s\S]*?)<\/a>/.exec(html);
-    expect(lien).not.toBeNull();
-    const t = texte(lien![1]!);
-    expect(t).toContain("Essai");
-    expect(t).toContain("2");
+  it("« Vidéos » reste allumé sur les écrans de création et les fiches de format", () => {
+    for (const chemin of ["/formats", "/formats/avocat", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee"]) expect(estActif(chemin, mesVideos)).toBe(true);
+    expect(estActif("/carrousels", mesVideos)).toBe(false);
   });
-  it("« Nouvelle vidéo » est là, mais pas « Image → vidéo » comme entrée du menu principal", () => {
-    expect(html).toContain('href="/nouvelle"');
+  it("« Nouvelle vidéo » est le bouton plein sous le logo (allumé sur /nouvelle), mais pas « Image → vidéo » comme entrée du menu", () => {
+    expect(html).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/nouvelle"/);
     expect(html).not.toMatch(/<a[^>]*href="\/image-video"/);
   });
 });

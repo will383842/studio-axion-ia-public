@@ -64,14 +64,15 @@ describe("L16 · écran 1 « Déposer »", () => {
     expect(vue.refusFichier({ type: "image/webp", size: 10 })).toBeNull();
   });
 
-  it("montre la zone de dépôt, les 4 réseaux, l'offre et le prix SUR le bouton", () => {
+  it("montre les 2 entrées (texte par défaut), les 4 réseaux et aucun prix sur le bouton ; aucune zone de dépôt d'image", () => {
     const montants = { 1: 120, 2: 180, 3: 240, 4: 300 };
     const html = texte(renderToStaticMarkup(createElement(Depot, { montants })));
-    expect(html).toContain("Déposez une ou plusieurs images");
-    expect(html).toContain("800 px de côté au moins");
+    expect(html).toContain("Décrire avec mes mots");
+    expect(html).toContain("Coller mon script complet");
+    expect(html).not.toContain("Déposer une image");
+    expect(html).not.toContain("Déposez une ou plusieurs images");
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
-    expect(html).toContain("Selon l'image");
-    expect(html).toMatch(/Fabriquer la vidéo \(au plus 3,00\s?€\)/);
+    expect(html).not.toMatch(/au plus|€/);
     expect(html).not.toMatch(TECHNIQUE);
   });
 
@@ -200,13 +201,17 @@ describe("L16 · écran 3 « Le script »", () => {
     const { e, m } = await jusquAuScript("C");
     expect(e.etape).toBe("script-a-valider");
     expect(m.lus).toHaveLength(0);
-    const v = ecran.construireVueImageVideo(VIDEO, travailDe(e, "echec"), null);
+    // 26/10/2026 : la question de commentaire n'est plus posée par défaut ; l'écran la montre seulement dans le réglage « question puis fin ».
+    const parDefaut = ecran.construireVueImageVideo(VIDEO, travailDe(e, "echec"), null).script!;
+    expect(texte(renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", ...parDefaut })))).not.toContain("La question pour faire commenter");
+    const avecQuestion = { ...e, demande: { ...e.demande, appelCommentaire: "question-puis-fin" as const } };
+    const v = ecran.construireVueImageVideo(VIDEO, travailDe(avecQuestion, "echec"), null);
     expect(v.ecran).toBe("script");
     const s = v.script!;
     expect(s.prix.auPlusCentimes).toBeGreaterThan(0);
     const html = texte(renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", ...s })));
-    const auPlus = vue.euros(Math.max(s.prix.auPlusCentimes, s.prix.habituelCentimes));
-    expect(html).toContain(`Valider et fabriquer (au plus ${auPlus})`);
+    expect(html).toContain("Valider et fabriquer");
+    expect(html).not.toMatch(/au plus|€/);
     expect(html).toContain("Modifier le script");
     expect(html).toContain("La question pour faire commenter");
     expect(html).toContain(s.fiche.accroches[0].texteDit);
@@ -401,7 +406,7 @@ describe("L16 · écran 4 « Fabrication » et écran 5 « Vos vidéos »", () =
     expect(v!.ecran).toBe("videos");
     expect(v!.barre).toBe("videos");
     expect(v!.imageUrl).toBe("https://exemple/studio/dev/entree/image-video/f-1.png");
-    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videos: v!.videos!, verdict: v!.verdict })));
+    const html = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: v!.videos!, verdict: v!.verdict })));
     for (const r of ["YouTube Shorts", "LinkedIn", "Instagram", "Facebook"]) expect(html).toContain(r);
     expect(html).toContain("Télécharger");
     expect(html).toContain("Copier le texte");

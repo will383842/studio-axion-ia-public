@@ -20,7 +20,6 @@ import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import type { CarteVideoLotIV, VueLotIV } from "@/services/image-video-lot";
-import { euros } from "./vue";
 import { enteteSuiviLot, versSuiviLot } from "./vues-gabarit";
 
 /** Relecture de l'avancement (ms). */
@@ -79,7 +78,7 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
       const r = await refaireVideoDuLotAction(vue.id, c.rang, accord);
       if (!r.ok) return void notifier.erreur(r.message);
       if (r.donnees.statut === "lancee") return void router.push(`/image-video/${r.donnees.videoId}`);
-      notifier.erreur(r.donnees.statut === "refusee" ? r.donnees.phrase : "Le prix a changé : recommencez.");
+      notifier.erreur(r.donnees.statut === "refusee" ? r.donnees.phrase : "Recommencez dans un instant.");
     } finally {
       setOccupe(false);
     }
@@ -143,7 +142,7 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
               </li>
             ))}
           </ul>
-          <p className="text-sm text-texte-faible">Refaire : une nouvelle vidéo de la même image, à partir de {euros(vue.prixParVideoCentimes)} au plus.</p>
+          <p className="text-sm text-texte-faible">Refaire : une nouvelle vidéo de la même image.</p>
         </section>
       )}
 

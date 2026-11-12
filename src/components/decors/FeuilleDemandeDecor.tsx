@@ -3,38 +3,26 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Bouton, FeuilleBas, notifier, ZoneTexte } from "@/components/ui";
-import type { EstimationDemandeDecor } from "@/services/decors";
-import { formaterMontant } from "@/lib/montants";
-import { demanderDecorAction, estimerDemandeDecorAction } from "./actions";
+import { demanderDecorAction } from "./actions";
 
 const EXEMPLES = ["Un bureau en bois avec une bibliothèque", "Une salle de réunion lumineuse", "Un atelier avec des lumières chaudes"];
 
 /**
- * « Demander un décor » (lot B1) : une phrase → le coût AVANT → 3 propositions montrées sur le double. Aucune personne
+ * « Demander un décor » (lot B1) : une phrase → 3 propositions montrées sur le double. Aucune personne
  * n'est jamais fabriquée dans un décor.
  */
 export function FeuilleDemandeDecor({ ouverte, onOuverteChange }: { ouverte: boolean; onOuverteChange: (v: boolean) => void }) {
   const router = useRouter();
   const [texte, setTexte] = useState("");
-  const [estimation, setEstimation] = useState<EstimationDemandeDecor | null>(null);
   const [enCours, demarrer] = useTransition();
 
   function fermer(v: boolean) {
     onOuverteChange(v);
-    if (!v) setEstimation(null);
-  }
-
-  function estimer() {
-    demarrer(async () => {
-      const r = await estimerDemandeDecorAction(texte);
-      if (!r.ok) return void notifier.erreur(r.message);
-      setEstimation(r.donnees);
-    });
   }
 
   function lancer() {
     demarrer(async () => {
-      // Le bouton affiche le coût : le toucher vaut confirmation de ce prix.
+      // Le toucher du bouton vaut confirmation.
       const r = await demanderDecorAction(texte, true);
       if (!r.ok) return void notifier.erreur(r.message);
       notifier.succes(`${r.donnees.propositionIds.length} propositions prêtes : gardez celle qui vous plaît`);
@@ -51,15 +39,9 @@ export function FeuilleDemandeDecor({ ouverte, onOuverteChange }: { ouverte: boo
       titre="Demander un décor"
       description="Décrivez le lieu en une phrase."
       pied={
-        estimation ? (
-          <Bouton pleineLargeur taille="lg" icone="etincelles" chargement={enCours} essai={estimation.essai} onClick={lancer}>
-            Créer {estimation.propositions} propositions · {formaterMontant(estimation.cout)}
-          </Bouton>
-        ) : (
-          <Bouton pleineLargeur taille="lg" disabled={texte.trim().length < 3} chargement={enCours} onClick={estimer}>
-            Voir le coût
-          </Bouton>
-        )
+        <Bouton pleineLargeur taille="lg" icone="etincelles" disabled={texte.trim().length < 3} chargement={enCours} onClick={lancer}>
+          Créer 3 propositions
+        </Bouton>
       }
     >
       <div className="space-y-3">
@@ -70,10 +52,7 @@ export function FeuilleDemandeDecor({ ouverte, onOuverteChange }: { ouverte: boo
           maxLength={200}
           placeholder="Un bureau en bois avec une bibliothèque"
           value={texte}
-          onChange={(e) => {
-            setTexte(e.target.value);
-            setEstimation(null);
-          }}
+          onChange={(e) => setTexte(e.target.value)}
         />
         {!texte && (
           <div className="flex flex-wrap gap-2">
@@ -84,12 +63,9 @@ export function FeuilleDemandeDecor({ ouverte, onOuverteChange }: { ouverte: boo
             ))}
           </div>
         )}
-        {estimation && (
-          <p className="rounded-xl bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
-            Trois ambiances (dorée, jour, soir), sans personne, montrées sur votre double.
-            {estimation.essai ? " Essai : rien n'est payé." : ""}
-          </p>
-        )}
+        <p className="rounded-xl bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
+          Trois ambiances (dorée, jour, soir), sans personne, montrées sur votre double.
+        </p>
       </div>
     </FeuilleBas>
   );

@@ -49,7 +49,7 @@ describe("Image → vidéo : réglage `imageVideo.relireScript`", () => {
     expect(allume!.script!.relireScript).toBe(true);
   });
 
-  it("éteint : l'ancien écran est rendu tel quel ; allumé : l'écran « Relire le script » (une carte par écran, prix sur le bouton)", async () => {
+  it("éteint : l'ancien écran est rendu tel quel ; allumé : l'écran « Relire le script » (une carte par écran, aucun prix)", async () => {
     const { travail } = await auScript();
     const s = ecran.construireVueImageVideo({ id: "v-1", titre: "Essai" }, travail, null).script!;
     const ancien = renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", ...s }));
@@ -59,9 +59,11 @@ describe("Image → vidéo : réglage `imageVideo.relireScript`", () => {
     const html = renderToStaticMarkup(createElement(ScriptRelireIV, { videoId: "v-1", ...s }));
     const t = texte(html);
     expect(html).toContain('aria-label="Relire le script"');
-    expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(s.fiche.ecrans.length + 1);
-    const auPlus = vue.euros(Math.max(s.prix.auPlusCentimes, s.prix.habituelCentimes));
-    expect(t).toContain(`Valider et fabriquer (au plus ${auPlus})`);
+    // Une phrase par écran, plus celle de la question de commentaire seulement dans le réglage « question puis fin » (le défaut depuis le 26/10/2026 est « fin seule »).
+    expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(s.fiche.ecrans.length);
+    // Aucun prix dans l'interface : le bouton dit seulement « Valider et fabriquer ».
+    expect(t).toContain("Valider et fabriquer");
+    expect(t).not.toMatch(/€|au plus \d/);
     for (const ec of s.fiche.ecrans) expect(t).toContain(ec.texteDit.slice(0, 20));
     expect(t).toContain(s.fiche.accroches[1].texteDit);
   });

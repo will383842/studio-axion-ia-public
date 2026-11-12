@@ -36,10 +36,10 @@ import { etapeZero } from "@/generateur/etape-zero";
 import { vousVersTu } from "@/generateur/adresse-tu";
 import { versionsRoles } from "@/generateur/roles";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { exigerSession } from "./auth";
-import { effacerRepriseDeWill, limiteSecuriteUsd, marquerRepriseDeWill, plafondAnnonceUsd, phraseArretSecuriteEcriture, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
-import { budgetIndicatifPour } from "./mode-budget";
+import { effacerRepriseDeWill, marquerRepriseDeWill, chaineDeLEcriture, claudeBranche, CODE_REFUS_NET, depenseGenerationUsd, ecritureDebloquee, ecritureEnEssai, ecriturePreteAReprendre, ecritureSansReserve, executerRoleFacture, marquerEcrituresAnciennesEnEssai, formaterUsd, phraseAttenteCredit, phraseAttenteSeuil, phrasePireCasTropHaut, phraseReserveRefusee, PARAM_CHAINE, plafondChaineUsd, reglagePlafond, releveApresPannesUsd, releverPlafondApresPannes, relancerEcrituresEnAttente, reprendreGenerationsEnAttenteCredit, reserverPireCasChaine } from "./generation-claude";
+import { accordAutomatique, budgetIndicatifPour } from "./mode-budget";
 import { gagnantsDuJour, poidsApprentissage } from "./apprentissage";
 import { controlerSujetCentral, ErreurSujetDejaTraite } from "./sujet-central-controle";
 import { attribuerNumero, attribuerNumeroSousVerrou, creerSujet, prendreEpisode, PLAFOND_SUPPLEMENT_ADRESSE_USD, PLAFOND_SUPPLEMENT_USD, rattacherVideoAVariante, reporterCorps, retoucherCorps, retoucherVariante, synchroniserSujet, validerVersions, type BriefSujet } from "./generateur";
@@ -547,7 +547,7 @@ async function supplementReprise(liste: { releveUsd: number }[]): Promise<Montan
   return usd > 0 ? usdVersEur(Math.ceil(usd * 100), await tauxUsdEur()) : null;
 }
 
-const phraseSupplement = (m: Montant) => `Reprendre peut coûter jusqu'à ${formaterMontant(m)} de plus : des appels à Claude restés sans réponse sont peut-être déjà payés, l'écriture refait ces étapes. Confirmez pour continuer.`;
+const phraseSupplement = () => `Reprendre peut coûter plus cher : des appels à Claude restés sans réponse sont peut-être déjà payés, l'écriture refait ces étapes. Confirmez pour continuer.`;
 
 /**
  * Re-relecture A09 : prix que « Reprendre l'écriture » fait confirmer. D'ordinaire le supplément des appels restés sans
@@ -564,10 +564,10 @@ async function prixAConfirmerArretee(liste: { g: GenerationScript; releveUsd: nu
   }
   if (releveAuReglage && prixUsd > 0) {
     const montant = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
-    return { montant, phrase: `Reprendre peut coûter jusqu'à ${formaterMontant(montant)}. Confirmez pour continuer.` };
+    return { montant, phrase: `Reprendre est payant. Confirmez pour continuer.` };
   }
   const supplement = await supplementReprise(liste);
-  return supplement ? { montant: supplement, phrase: phraseSupplement(supplement) } : null;
+  return supplement ? { montant: supplement, phrase: phraseSupplement() } : null;
 }
 
 /**
@@ -587,21 +587,27 @@ export async function reprendreEcritureArretee(scriptMaitreId: Id, accord?: Acco
     if (!devis.possible) throw new ErreurStudio("REPRISE_IMPOSSIBLE", devis.raison!);
   }
   const aConfirmer = await prixAConfirmerArretee(liste);
-  const confirme = accordPropre(accord);
+  // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu, inchangé.
+  // L'origine est celle de la génération reprise (l'Usine reste bloquante).
+  const origine = liste.length ? (await lireParametre<OptionsGeneration | null>(cleOptions(liste[0].g.id), null))?.origine : undefined;
+  const accordVu = accordPropre(accord);
+  const confirme = aConfirmer ? await accordAutomatique(accordVu, aConfirmer.montant.centimes, { origine, signaler: !(typeof accordVu === "number" && accordVu >= aConfirmer.montant.centimes) }) : accordVu;
   if (aConfirmer && !(typeof confirme === "number" && confirme >= aConfirmer.montant.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", aConfirmer.phrase, aConfirmer.montant.centimes);
   const supplement = await supplementReprise(liste);
+  const indicatif = await budgetIndicatifPour(origine);
   let n = 0;
   for (const { g, releveUsd } of liste) {
     // CORRECTEUR FINAL A (VERIF-E2E-1 n° 7) : les appels restés sans réponse ne bloquent plus la reprise au plafond.
     // G1 : jamais plus que le relèvement accepté ; plus haut entre-temps → le nouveau prix est redemandé.
     await releverPlafondAuReglage(g);
-    const releve = await releverPlafondApresPannes(g.id, releveUsd);
+    // Indicatif : le relèvement du jour est accepté d'office (aucune limite, le prix ne bloque jamais) ; bloquant : celui que Will a vu.
+    const releve = await releverPlafondApresPannes(g.id, indicatif ? Number.POSITIVE_INFINITY : releveUsd);
     if (releve < 0) {
       const nouveau = (await supplementReprise(await ecrituresAReprendre(scriptMaitreId))) ?? supplement!;
-      throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(nouveau), nouveau.centimes);
+      throw new ErreurStudio("CONFIRMATION_REQUISE", phraseSupplement(), nouveau.centimes);
     }
     await ecrireParametre(clePanne(g.id), null);
-    if (releve > 0) await journaliser("generateur", `Reprise acceptée par Will : jusqu'à ${formaterUsd(releve)} $ de plus pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
+    if (releve > 0) await journaliser("generateur", indicatif ? `Reprise lancée, prix indicatif : un supplément pour les appels restés sans réponse (ils restent comptés dans le mois).` : `Reprise acceptée par Will : un supplément pour les appels restés sans réponse (ils restent comptés dans le mois).`, { type: "sujet", id: scriptMaitreId });
     await d.generations.modifier(g.id, { statut: "en-cours" });
     if (g.portee === "sujet") await d.scriptsMaitres.modifier(scriptMaitreId, { etat: "en-ecriture" });
     n++;
@@ -667,7 +673,7 @@ async function releverPlafondAuReglage(g: GenerationScript): Promise<void> {
   const plafond = await plafondRepriseUsd(g);
   if (plafond > g.plafondUsd + 1e-9) {
     await depots().generations.modifier(g.id, { plafondUsd: plafond });
-    await journaliser("generateur", `Plafond de l'écriture relevé au réglage : ${formaterUsd(plafond)} $.`, { type: "sujet", id: g.scriptMaitreId });
+    await journaliser("generateur", `Plafond de l'écriture relevé au réglage.`, { type: "sujet", id: g.scriptMaitreId });
   }
 }
 
@@ -694,19 +700,16 @@ async function devisReprise(g: GenerationScript, plafondUsd: number, releveUsd =
   const chaine = chaineDe(o);
   const depart = await departDe(g, o, limite);
   const pire = pireCasChaine(chaine, { donnees: z.donnees, options: optionsPireCas(chaine, optionsDeLaChaine(chaine, z), chaine === "courte" && (await memoireCentraleAllumee())), etatDepart: depart ?? undefined }).usd;
-  // Mode indicatif (commande de Will) : le plafond du sujet est un repère, la reprise est possible jusqu'à 5 × ce plafond (même règle que la réserve du tour).
+  // Mode indicatif (commande de Will) : le plafond du sujet est un repère, le prix ne bloque JAMAIS la reprise (aucune limite).
   const indicatif = await budgetIndicatifPour(o.origine);
-  const limiteUsd = indicatif ? Math.max(plafondUsd, limiteSecuriteUsd({ ...g, plafondUsd }, releveUsd)) : plafondUsd;
-  const annonceUsd = plafondAnnonceUsd({ ...g, plafondUsd }, releveUsd);
+  const limiteUsd = indicatif ? Infinity : plafondUsd;
   const reste = Math.max(0, limiteUsd - depenseUsd);
   const reglage = await reglageDe(g, o);
   if (sansReserve) {
     if (reste >= 0.01) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
-    if (indicatif) return { ...base, possible: false, prixUsd: 0, raison: phraseArretSecuriteEcriture(annonceUsd) };
-    return { ...base, possible: false, prixUsd: 0, raison: `Plafond de l'écriture atteint (${formaterUsd(depenseUsd)} $ utilisés sur ${formaterUsd(plafondUsd)} $) : elle ne peut pas reprendre.${reglage ? ` Relevez le réglage « ${reglage} » pour la reprendre.` : ""}` };
+    return { ...base, possible: false, prixUsd: 0, raison: `Plafond de l'écriture atteint : elle ne peut pas reprendre.${reglage ? ` Relevez le réglage « ${reglage} » pour la reprendre.` : ""}` };
   }
   if (depenseUsd + pire <= limiteUsd + 1e-9) return { ...base, possible: true, prixUsd: Math.min(pire, reste) };
-  if (indicatif) return { ...base, possible: false, prixUsd: 0, raison: phraseArretSecuriteEcriture(annonceUsd) };
   return { ...base, possible: false, prixUsd: 0, raison: await phrasePireCasTropHaut({ pireCasUsd: depenseUsd + pire, plafondUsd, reglage }, "elle ne peut pas reprendre") };
 }
 
@@ -765,8 +768,9 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
     prixUsd += r.prixUsd;
   }
   const prix = usdVersEur(Math.ceil(prixUsd * 100), await tauxUsdEur());
-  const confirme = accordPropre(accord);
-  if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre peut coûter jusqu'à ${formaterMontant(prix)}. Confirmez pour continuer.`, prix.centimes);
+  const accordVu = accordPropre(accord);
+  const confirme = prix.centimes > 0 ? await accordAutomatique(accordVu, prix.centimes, { signaler: !(typeof accordVu === "number" && accordVu >= prix.centimes) }) : accordVu;
+  if (prix.centimes > 0 && !(typeof confirme === "number" && confirme >= prix.centimes)) throw new ErreurStudio("CONFIRMATION_REQUISE", `Reprendre est payant. Confirmez pour continuer.`, prix.centimes);
   const d = depots();
   let n = 0;
   for (const g of liste) {
@@ -774,7 +778,7 @@ export async function reprendreEcriture(scriptMaitreId: Id, accord?: AccordPrix)
     if (g.statut === "plafond-atteint") {
       await d.generations.modifier(g.id, { statut: "en-cours" });
       await marquerRepriseDeWill(g.id);
-      await journaliser("generateur", `Écriture reprise par Will (au plus ${formaterMontant(prix)}).`, { type: "sujet", id: scriptMaitreId });
+      await journaliser("generateur", `Écriture reprise par Will.`, { type: "sujet", id: scriptMaitreId });
       n++;
     }
   }
@@ -917,7 +921,7 @@ async function deroulerGeneration(g: GenerationScript, executeur: ExecuteurRoles
     const a = r.etat.arret!;
     const type = a.type === "PREUVE_MANQUANTE" ? "PREUVE_MANQUANTE" : "ANCRAGE_MANQUANT";
     await d.generations.modifier(g.id, { statut: "en-pause" });
-    await d.scriptsMaitres.modifier(m.id, { etat: "a-completer", manque: { type, etape: a.etape, ceQuIlFaudrait: `${a.message} · ${utilise.centimes ? `${(utilise.centimes / 100).toFixed(2).replace(".", ",")} € utilisés, rien n'est perdu, on reprend ici.` : "0 €."}` } });
+    await d.scriptsMaitres.modifier(m.id, { etat: "a-completer", manque: { type, etape: a.etape, ceQuIlFaudrait: `${a.message} · ${utilise.centimes ? "Rien n'est perdu, on reprend ici." : "Rien n'a été payé."}` } });
     await journaliser("generateur", `Écriture mise en pause, rien n'est perdu : ${a.message}`, { type: "sujet", id: m.id });
   } else if (r.statut === "coupee") {
     // Garde-fous budget (15/10) : réponse coupée (`max_tokens`) : arrêt, le texte brut est gardé dans l'état, rien
@@ -947,6 +951,8 @@ async function rangerSujet(m: ScriptMaitre, g: GenerationScript, o: OptionsGener
     versionFormat: format.version,
     sujet: m.brief.idee,
     cible: m.brief.cible,
+    ...(m.brief.ciblage ? { ciblage: m.brief.ciblage } : {}),
+    ...(m.brief.typeAutomatisation ? { typeAutomatisation: m.brief.typeAutomatisation } : {}),
     adresse: o.adresse,
     version: 1,
     blocs: k.blocs,
@@ -1376,7 +1382,7 @@ export async function validerVariantes(varianteIds: Id[]): Promise<number> {
   const sujets = new Set((await Promise.all(varianteIds.map((id) => d.variantes.obtenir(id)))).filter((x): x is VarianteReseau => !!x).map((v) => v.scriptMaitreId));
   for (const id of sujets) {
     const m = await d.scriptsMaitres.obtenir(id);
-    if (m?.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) throw new ErreurStudio("LIMITE_A_VALIDER", "Validez d'abord la limite proposée (un toucher).");
+    if (m?.exception && m.exception.source === "proposition-machine" && !m.exception.valideeParWill) await journaliser("generateur", "Remarque : la limite proposée par la machine n'est pas validée ; la fabrication continue (le script de Williams fait foi).");
   }
   return validerVersions(await suivreInsertionLimite(varianteIds));
 }
@@ -1418,7 +1424,8 @@ export async function fabriquerVariante(varianteId: Id, options: { operationId: 
   const d = depots();
   const v = await d.variantes.obtenir(varianteId);
   if (!v || v.archiveLe) throw new ErreurStudio("INTROUVABLE", "Cette version n'existe plus.");
-  if (v.etat !== "validee") throw new ErreurStudio("A_VALIDER", "Validez d'abord cette version.");
+  // 08/11/2026 : une version non validée ne bloque plus ; remarque au journal, la fabrication part avec le texte de Williams.
+  if (v.etat !== "validee") await journaliser("generateur", "Remarque : cette version n'est pas validée ; la fabrication continue.", { type: "sujet", id: v.scriptMaitreId });
   if (options.lancer && !v.videoId) {
     // E2E-2 parcours n° 2 (fonction du correcteur argent) : budget, crédit et clé vérifiés AVANT toute création ; un
     // refus remonte tel quel et rien n'est créé.

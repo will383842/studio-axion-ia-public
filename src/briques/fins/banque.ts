@@ -15,6 +15,7 @@
  * PUR, sans alias « @/ ».
  */
 import { LIGNES_BASE_7 } from "./banque-base7.generee";
+import { LIGNES_FINS_IV } from "./banque-fins-iv";
 import type { FinTable, ReseauFin, TypeFin } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -60,7 +61,7 @@ export interface AppelBanque {
   valideLe: string;
 }
 
-export const BANQUE_APPELS: readonly AppelBanque[] = Object.freeze(LIGNES_BASE_7.map((a) => Object.freeze(a)));
+export const BANQUE_APPELS: readonly AppelBanque[] = Object.freeze([...LIGNES_BASE_7, ...LIGNES_FINS_IV].map((a) => Object.freeze(a)));
 
 /**
  * Les phrases de la banque des fins (dites et écrites), pour la mémoire commune : le script enregistré les contient mot pour mot (la fin est imposée
@@ -73,9 +74,16 @@ export function appelDeLaBanque(code: string): AppelBanque | null {
   return BANQUE_APPELS.find((a) => a.code === code) ?? null;
 }
 
-/** Les lignes VALIDÉES de la base 7 pour un réseau, un public et une sorte de contenu (ordre de la base). */
+/**
+ * Préfixe des lignes propres aux fins Image → vidéo (26/10/2026 : accroche, appel, lien, Tour de France IA). Elles ne se
+ * lisent QU'ENSEMBLE, par code (`appelDeLaBanque`), dans l'ordre accroche + appel + lien : jamais tirées une à une par
+ * filtre, sinon le tableau animé et l'équipe du générateur y piocheraient une phrase seule.
+ */
+export const PREFIXE_FINS_IMAGE_VIDEO = "fin-iv-";
+
+/** Les lignes VALIDÉES de la base 7 pour un réseau, un public et une sorte de contenu (ordre de la base), hors lignes réservées à Image → vidéo. */
 export function appelsDeLaBanque(filtre: { reseau: ReseauFin; public: PublicAppel; typeContenu: TypeContenu }): AppelBanque[] {
-  return BANQUE_APPELS.filter((a) => a.etat === "valide" && a.reseaux.includes(filtre.reseau) && a.public === filtre.public && a.typeContenu === filtre.typeContenu);
+  return BANQUE_APPELS.filter((a) => a.etat === "valide" && !a.code.startsWith(PREFIXE_FINS_IMAGE_VIDEO) && a.reseaux.includes(filtre.reseau) && a.public === filtre.public && a.typeContenu === filtre.typeContenu);
 }
 
 /** Phrases dite et écrite d'un code de la base 7, pour une table du studio : jamais recopiées à la main. */
@@ -124,6 +132,11 @@ export const VALIDATION_WILL_SECOURS_2 = Object.freeze({ par: "will" as const, l
 /** Motif d'une ligne désactivée le 12/10/2026. */
 /** Fin de secours d'Instagram et de YouTube Shorts : variante B validée par Will le 19/10/2026 (vidéo v-6a3b74364711). */
 export const VALIDATION_WILL_SECOURS_IG = Object.freeze({ par: "will" as const, le: "2026-10-19", source: "fin de secours d'Instagram et de YouTube Shorts : variante B validée par Will le 19/10/2026 (v-6a3b74364711), avec la relecture de la seule fin" });
+/** Fin de secours de Shorts « … en haut de ma chaîne » : variante de la phrase validée le 19/10 (« profil » → « chaîne »), PAS encore validée. */
+export const VALIDATION_SECOURS_CHAINE_IV = Object.freeze({ par: "proposition" as const, le: "2026-10-26", source: "proposée le 26/10/2026, à valider par Will (variante « chaîne » de la phrase de secours validée le 19/10/2026)" });
+
+/** Fins de secours `fin-iv-…` communes (commentaire, sous la vidéo, profil) : phrases dites validées le 15/10 et le 19/10, écrans neutres NOUVEAUX, à valider par Will. */
+export const VALIDATION_SECOURS_NEUTRE_IV = Object.freeze({ par: "proposition" as const, le: "2026-10-26", source: "proposée le 26/10/2026, à valider par Will : phrase dite déjà validée (15/10 ou 19/10), écran neutre nouveau, aussi lu par LinkedIn et TikTok" });
 
 export const MOTIF_REMPLACEE = "remplacée le 12/10/2026";
 /** Motif des deux lignes « Réservez… » qui restent désactivées. */

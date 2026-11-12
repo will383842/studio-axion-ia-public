@@ -19,7 +19,13 @@ import { fileAValider, lireFicheStyle, listerReglesDatees, listerTextesWill, lis
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { EnTetePage } from "@/components/ui/EnTetePage";
-import { Icone } from "@/components/ui/Icone";
+import { ConteneurPage } from "@/components/ui/ConteneurPage";
+import { PanneauFiltres, PucesActives } from "@/components/ui/PanneauFiltres";
+import { Section } from "@/components/ui/Section";
+import { FiltresCiblage } from "@/components/ciblage/FiltresCiblage";
+import { compterAnciens, estDoublonPossible, filtrerParCiblage, filtrerSujetsParType, lienCiblage, lireFiltreCiblage } from "@/domaine/ciblage/listes";
+import { TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
+import { EtatVide } from "@/components/ui/EtatVide";
 import { Onglets } from "@/components/ui/Onglets";
 import { listerSujets, valeursFiltresGenerateur } from "@/services/generateur";
 import { listerIdees } from "@/services/idees";
@@ -32,18 +38,19 @@ export const metadata: Metadata = { title: "Écrire" };
 export const dynamic = "force-dynamic";
 
 const ONGLETS = ["scripts", "idees", "matieres", "voix"] as const;
+const RUBRIQUES = ["facon", "textes", "carnet", "positions", "themes", "interdits", "tournures", "regles", "prononciation"];
 
 /**
  * ÉCRIRE (plan v5 B.6.1, lot G1b) : Scripts (défaut) · Idées · Matières · Ma voix.
- * Anciennes adresses : `?onglet=facon` et `?onglet=references` → /ecrire/voix ; `?onglet=preuves` → Matières, type preuves.
- * Matières et Ma voix : composants du lot G2 (`?type=`, `?ajout=`, `?rubrique=` sont transmis).
+ * Anciennes adresses : `?onglet=facon` et `?onglet=references` → Ma voix (`?onglet=voix&rubrique=`) ; `?onglet=preuves` → Matières, type preuves.
+ * Matières et Ma voix : composants du lot G2 (`?type=`, `?ajout=`, `?rubrique=` sont transmis). Refonte R7 : cette page est la SEULE pour Matières et Ma voix ; `/ecrire/matieres` et `/ecrire/voix` y renvoient.
  * Les filtres de Scripts vivent dans l'adresse (`?reseau=tiktok&format=avocat&etat=a-relire`).
  */
 export default async function PageEcrire({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await exigerSession();
   const sp = await searchParams;
-  if (sp.onglet === "facon") redirect("/ecrire/voix?rubrique=facon");
-  if (sp.onglet === "references") redirect("/ecrire/voix?rubrique=textes");
+  if (sp.onglet === "facon") redirect("/ecrire?onglet=voix&rubrique=facon");
+  if (sp.onglet === "references") redirect("/ecrire?onglet=voix&rubrique=textes");
   if (sp.onglet === "preuves") redirect("/ecrire?onglet=matieres&type=preuves");
   const actif = ONGLETS.includes(sp.onglet as (typeof ONGLETS)[number]) ? sp.onglet : "scripts";
 
@@ -71,27 +78,39 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
   const series = await listerSeries();
   const filtreMatieres = sp.type === "preuves" || TYPES_MATIERE.includes(sp.type as TypeMatiere) ? (sp.type as TypeMatiere | "preuves") : "tout";
   const ajoutMatiere = sp.ajout === "matiere" || sp.ajout === "vrac" || sp.ajout === "preuve" ? sp.ajout : undefined;
-  const sujets = vues.map(versSujetListe);
+  const filtreCiblage = lireFiltreCiblage(sp);
+  // Le filtre par type trie aussi la liste principale des sujets (les compteurs de formats restent calculés sur ce qui est affiché).
+  const sujets = filtrerSujetsParType(vues, filtreCiblage).map(versSujetListe);
   const formats = formatsClassables();
   const nombres = Object.fromEntries(formats.map((f) => [f.id, sujets.filter((s) => s.grille.some((l) => l.formatId === f.id)).length]));
-  const sansSujet = scripts.filter((s) => !s.scriptMaitreId).map((s) => ({ id: s.id, titre: s.sujet }));
+  // Ciblage (lot H) : anciens masqués par défaut, filtre par type ; les doublons sont signalés, jamais supprimés.
+  const sansSujetTous = scripts.filter((s) => !s.scriptMaitreId);
+  const sansSujetVus = filtrerParCiblage(sansSujetTous, filtreCiblage);
+  const idsScripts = new Set(scripts.map((s) => s.id));
+  const sansSujet = sansSujetVus.map((s) => ({ id: s.id, titre: s.sujet, doublon: estDoublonPossible(s, idsScripts) }));
+  const pucesCiblage = [
+    ...(filtreCiblage.type
+      ? [{ libelle: filtreCiblage.type === "a-classer" ? "À classer" : (TYPES_AUTOMATISATION.find((t) => t.id === filtreCiblage.type)?.libelle ?? "Type"), href: lienCiblage("/ecrire", sp, { typeAuto: undefined }) }]
+      : []),
+    ...(filtreCiblage.anciens ? [{ libelle: "Anciens affichés", href: lienCiblage("/ecrire", sp, { anciens: undefined }) }] : []),
+  ];
+  const effacerCiblage = lienCiblage("/ecrire", sp, { typeAuto: undefined, anciens: undefined });
+  const ciblageActif = !!filtreCiblage.type || filtreCiblage.anciens;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <ConteneurPage largeur="lecture">
       <EnTetePage
         titre="Écrire"
-        className="mb-3 flex-row items-end justify-between"
+        sousTitre="Vos sujets, idées et matières, avant le tournage."
         actions={
-          actif === "scripts" ? (
-            <div className="flex items-center gap-2">
-              <Link href="/ecrire/tournage" aria-label="Tournage" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-                <Icone nom="camera" size={18} />
-              </Link>
-              <Suspense>
-                <BoutonPlusDeFiltres />
-              </Suspense>
-            </div>
-          ) : undefined
+          <>
+            <Bouton asChild variante="secondaire" icone="camera">
+              <Link href="/ecrire/tournage">Tournage</Link>
+            </Bouton>
+            <Bouton asChild icone="plus" className="max-lg:hidden" sansDecompte>
+              <Link href="/ecrire/atelier">Nouveau sujet</Link>
+            </Bouton>
+          </>
         }
       />
       <Onglets
@@ -105,16 +124,28 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             icone: "document",
             contenu: (
               <Suspense>
-                <BandeauSeries series={series} active={sp.serie} />
-                <ListeSujets
-                  sujets={sujets}
-                  formats={formats}
-                  nombres={nombres}
-                  codes={codesParFormat()}
-                  piliers={valeurs.piliers}
-                  series={valeurs.series}
-                  sansSujet={sansSujet}
-                />
+                <div className="mb-6 flex flex-wrap items-start gap-2">
+                  {(sansSujetTous.length > 0 || vues.length > 0) && (
+                    <PanneauFiltres nombre={(filtreCiblage.type ? 1 : 0) + (filtreCiblage.anciens ? 1 : 0)} className="min-w-0 flex-1 basis-full sm:basis-auto">
+                      <FiltresCiblage disposition="panneau" base="/ecrire" params={sp} filtre={filtreCiblage} nbAnciens={compterAnciens(sansSujetTous)} />
+                    </PanneauFiltres>
+                  )}
+                  <BoutonPlusDeFiltres />
+                  <BandeauSeries series={series} active={sp.serie} />
+                </div>
+                <PucesActives puces={pucesCiblage} effacerHref={effacerCiblage} className="mb-4" />
+                <Section id="sujets" titre="Vos sujets" sansCarte>
+                  <ListeSujets
+                    sujets={sujets}
+                    formats={formats}
+                    nombres={nombres}
+                    codes={codesParFormat()}
+                    piliers={valeurs.piliers}
+                    series={valeurs.series}
+                    sansSujet={sansSujet}
+                  />
+                </Section>
+                {sansSujet.length === 0 && sansSujetTous.length > 0 && ciblageActif && <EtatVide compact icone="document" titre="Aucun script ici" phrase="Changez de type ou affichez les anciens." />}
               </Suspense>
             ),
           },
@@ -132,17 +163,17 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             contenu: (
               <MaVoix
                 d={{ fiche, textes, expressions, avis: avisVues.filter((v) => v.etat.disponible).map((v) => v.matiere), contexte, interdits, tournures, regles, file }}
-                ouverteInitiale={sp.rubrique}
+                ouverteInitiale={RUBRIQUES.includes(sp.rubrique ?? "") ? sp.rubrique : undefined}
               />
             ),
           },
         ]}
       />
-      <BarreActionCollee>
+      <BarreActionCollee className="lg:hidden">
         <Bouton asChild taille="lg" icone="plus">
           <Link href="/ecrire/atelier">Nouveau sujet</Link>
         </Bouton>
       </BarreActionCollee>
-    </div>
+    </ConteneurPage>
   );
 }

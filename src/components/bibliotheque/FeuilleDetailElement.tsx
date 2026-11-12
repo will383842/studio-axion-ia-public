@@ -94,10 +94,10 @@ function Contenu({ element: e, formats, onFermer, lectureSeule }: { element: Ele
     <div className="grid gap-5">
       {/* Aperçu */}
       {estVideo && e.url ? (
-        <video src={e.url} poster={e.vignette ?? undefined} controls playsInline className="mx-auto max-h-[50dvh] w-auto rounded-carte bg-fond" />
+        <video src={e.url} poster={e.vignette ?? undefined} controls playsInline className="mx-auto max-h-[50dvh] w-auto rounded-carte bg-[#000]" />
       ) : e.type === "lut" ? (
         <Link href="/bibliotheque/lut" className="flex min-h-12 items-center gap-2 rounded-carte bg-surface-2 px-4 text-sm font-semibold text-texte">
-          <Icone nom="contraste" size={18} className="text-orange-vif" />
+          <Icone nom="contraste" size={18} className="text-texte-faible" />
           Voir l&apos;avant / après
           <Icone nom="chevron-droite" size={16} className="ml-auto" />
         </Link>
@@ -130,7 +130,7 @@ function Contenu({ element: e, formats, onFermer, lectureSeule }: { element: Ele
             />
             <div className="mt-2 flex flex-wrap gap-2">
               {mots.map((m) => (
-                <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-orange-doux px-3 text-sm font-semibold text-orange-vif" aria-label={`Retirer ${m}`}>
+                <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-accent-doux px-3 text-sm font-semibold text-accent" aria-label={`Retirer ${m}`}>
                   #{m}
                   <Icone nom="fermer" size={13} />
                 </button>

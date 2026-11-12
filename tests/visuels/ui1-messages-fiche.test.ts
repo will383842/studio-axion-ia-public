@@ -82,8 +82,8 @@ describe("fiche à la corbeille", () => {
 describe("fiche : texte d'exemple (simulation)", () => {
   it("dit que c'est un texte d'exemple et pourquoi le sujet n'a pas été repris", () => {
     const h = rendu({ modeTexte: "simulation", noteTexte: "votre sujet n'a pas été repris comme titre parce qu'il contient un nombre" });
-    expect(h).toContain("Simulation : texte d&#x27;exemple");
-    expect(h).toContain("Simulation : texte d&#x27;exemple");
+    expect(h).toContain("Essai : texte d&#x27;exemple");
+    expect(h).toContain("Essai : texte d&#x27;exemple");
     expect(h.replace(/&#x27;/g, "'")).toContain("votre sujet n'a pas été repris comme titre parce qu'il contient un nombre");
   });
   it("texte de session : pas de mention de simulation", () => {

@@ -81,20 +81,22 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
     expect(texte(html)).not.toContain("Refaire cette partie");
   });
 
-  it("l'argent : dépense face au plafond gardée, « Au plus » et « Déjà payé » dits avec les mots communs", () => {
+  it("l'argent : dépense gardée mais aucun montant dit, « Au plus » et « Déjà payé » dits avec les mots communs", () => {
     const t = texte(rendreFab({ enCours: true, arret, plafond: { proposeCentimes: 700, arrete: false } }));
-    expect(t).toContain("Dépense");
-    expect(t).toContain("plafond");
-    expect(t).toContain("Au plus");
-    expect(t).toContain("Voix déjà payée");
+    // Règle de Williams (11/11) : aucun montant ni plafond affiché.
+    expect(t).not.toContain("plafond");
+    expect(t).not.toContain("Au plus");
+    expect(t).not.toContain("Voix déjà payée");
     expect(t).not.toContain("Déjà payé");
+    expect(t).not.toMatch(/€/);
   });
 
-  it("l'ordre d'avant : steps, puis l'argent, puis le détail du refus, puis « Refaire cette partie », puis le plafond", () => {
+  it("l'ordre d'avant : steps, puis l'argent, puis le détail du refus, puis « Refaire cette partie » (plus de plafond à relever)", () => {
     const vue = { ...argent, pas: pas("fait", "arrete"), attente: true, refus: { phrase: "Le rendu n'a pas abouti.", details: ["Détail un"], reessayable: true } };
     const t = texte(rendreFab({ vue, plafond: { proposeCentimes: 700, arrete: false } }));
-    const ordre = ["Le rendu tourne", "Dépense", "Détail un", "Refaire cette partie", "Besoin de plus de marge"].map((m) => t.indexOf(m));
+    const ordre = ["Le rendu tourne", "Détail un", "Refaire cette partie"].map((m) => t.indexOf(m));
     expect(ordre.every((i) => i >= 0)).toBe(true);
+    expect(t).not.toContain("Besoin de plus de marge");
     expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
   });
 
@@ -122,8 +124,8 @@ describe("F6 · Fabrication d'une vidéo, sur le socle", () => {
     expect(texte(rendreFab({ vue, arretee: true }))).not.toContain("Refaire cette partie");
   });
 
-  it("le plafond relevable reste proposé hors fabrication en cours", () => {
-    expect(texte(rendreFab({ plafond: { proposeCentimes: 700, arrete: true } }))).toContain("Relever le plafond");
+  it("plus de « Relever le plafond » (règle du 25/10/2026) : la jauge de dépense reste en information", () => {
+    expect(texte(rendreFab({ plafond: { proposeCentimes: 700, arrete: true } }))).not.toContain("Relever le plafond");
     expect(texte(rendreFab({ enCours: true, arret, plafond: { proposeCentimes: 700, arrete: false } }))).not.toContain("Relever le plafond");
   });
 
@@ -226,19 +228,21 @@ describe("F7 · SuiviLot, sur le socle", () => {
 
 describe("F7 · Vos vidéos (le résultat)", () => {
   const video = { reseau: "tiktok", nom: "TikTok", ton: "vert" as const, phrase: "Prête.", duree: "0:30", format: "9:16" as const, url: "https://x/v.mp4", titre: "T", texte: "Texte", premierCommentaire: "C", lien: undefined, consigneLien: undefined };
-  it("titre commun « Votre vidéo est prête » avant les cartes ; un fichier par réseau gardé", () => {
-    const html = renderToStaticMarkup(createElement(VosVideos, { videos: [video, { ...video, reseau: "youtube-shorts", nom: "YouTube Shorts" }] as never }));
+  // 08/11 (Williams) : un seul lecteur, une puce par réseau ; le téléchargement passe par la route du studio (plus de lien `download` par carte).
+  it("titre commun « Votre vidéo est prête » avant le lecteur ; une puce par réseau gardé, un seul téléchargement affiché", () => {
+    const html = renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: [video, { ...video, reseau: "youtube-shorts", nom: "YouTube Shorts" }] as never }));
     const t = texte(html);
     expect(t).toContain(PHRASES_SUIVI.prete.titre);
     expect(t.indexOf(PHRASES_SUIVI.prete.titre)).toBeLessThan(t.indexOf("TikTok"));
-    expect(html.match(/<a [^>]*download/g)).toHaveLength(2);
+    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html.match(/\/api\/telechargements\/video\?video=v-1/g)).toHaveLength(1);
   });
 
   it("verdict rouge (ok=false) : pas de titre « Votre vidéo est prête », le verdict est dit ; verdict vert : titre gardé", () => {
-    const rouge = texte(renderToStaticMarkup(createElement(VosVideos, { videos: [video], verdict: { ok: false, phrase: "Contrôle : à revoir.", mentions: [] } } as never)));
+    const rouge = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: [video], verdict: { ok: false, phrase: "Contrôle : à revoir.", mentions: [] } } as never)));
     expect(rouge).not.toContain(PHRASES_SUIVI.prete.titre);
     expect(rouge).toContain("Contrôle : à revoir.");
-    const vert = texte(renderToStaticMarkup(createElement(VosVideos, { videos: [video], verdict: { ok: true, phrase: "Contrôle : bon.", mentions: [] } } as never)));
+    const vert = texte(renderToStaticMarkup(createElement(VosVideos, { videoId: "v-1", videos: [video], verdict: { ok: true, phrase: "Contrôle : bon.", mentions: [] } } as never)));
     expect(vert).toContain(PHRASES_SUIVI.prete.titre);
   });
 });

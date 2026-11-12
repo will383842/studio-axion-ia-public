@@ -56,7 +56,7 @@ export function EcranSousTitres({ styles, formats, avant, logo, ajouterAuDepart 
               <button
                 type="button"
                 onClick={() => setEdition(s)}
-                className="group block w-full overflow-hidden rounded-carte border border-trait bg-surface-1 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-trait-fort"
+                className="group block w-full overflow-hidden rounded-carte border border-trait bg-surface-1 text-left shadow-carte transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-trait-fort"
               >
                 <CadreApercu avant={avant} sousTitres={s.valeur} mentionIA={false} className="rounded-none border-0" />
                 <div className="flex items-center gap-3 p-3">
@@ -67,7 +67,7 @@ export function EcranSousTitres({ styles, formats, avant, logo, ajouterAuDepart 
                     </p>
                   </div>
                   {s.formatsParDefaut.length > 0 && (
-                    <span className="grid size-7 place-items-center rounded-full bg-orange text-sur-orange" title="Par défaut d'un format">
+                    <span className="grid size-7 place-items-center rounded-full bg-texte text-fond" title="Par défaut d'un format">
                       <Icone nom="etoile" size={14} fill="currentColor" />
                     </span>
                   )}

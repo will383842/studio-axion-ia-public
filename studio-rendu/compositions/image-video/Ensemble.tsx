@@ -13,11 +13,11 @@ import { COULEURS_DUO } from "../../../src/briques/habillage/charte-duo";
 import { doux, famille, graisse, planSurgir, progres, teinte } from "../cas-concret/plans/commun";
 import { Icone } from "../interface-claire/elements";
 import { couleurTrait, OPACITE_VU } from "./plan";
-import { entreePastille, type PlanEnsemble } from "./plan-objets";
+import { cheminContourne, entreePastille, type PlanEnsemble } from "./plan-objets";
 
 export type ImageSourceEnsemble = { src: string; photoPersonnes: boolean };
 
-const fondPastille = (c: string) => (c === "orange" ? COULEURS_DUO.orangeVif : c === "vert" ? COULEURS_DUO.vert : c === "neutre" ? COULEURS_DUO.gris : COULEURS_DUO.encre);
+const fondPastille = (c: string) => (c === "orange" ? COULEURS_DUO.orangeVif : c === "vert" ? COULEURS_DUO.vert : c === "neutre" ? COULEURS_DUO.encre : COULEURS_DUO.encre);
 
 export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsemble; schema?: SchemaEntree; ecoule: number; fondu: number; imageSource?: ImageSourceEnsemble }) {
   if (imageSource && !imageSource.photoPersonnes) {
@@ -32,6 +32,13 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
   const parId = new Map(plan.blocs.map((b) => [b.id, b]));
   const halo = 0.5 + 0.5 * Math.sin(ecoule * 5);
   const tousAllumes = plan.blocs.every((b) => b.allume);
+  // D3 (compositions-iv/12) : dosage CONTINU, toujours actif, sur l'écart posé entre rangées (`plan.ecart`, ≥ 16 px) : ni le halo, ni l'ombre,
+  // ni le grossissement d'entrée ne dépassent l'écart, donc les blocs voisins ne sont jamais mordus ; plus l'écart est grand, plus le rendu s'approche de l'ancien.
+  const { ecart } = plan;
+  const haloPx = Math.min(30 + 30 * halo, 0.75 * ecart);
+  const flouPx = Math.min(26, 0.6 * ecart);
+  const decalagePx = Math.min(10, ecart / 4);
+  const echelleMax = (hauteur: number) => 1 + ecart / (2 * Math.max(1, hauteur));
   return (
     <div style={{ position: "absolute", inset: 0, opacity: fondu, transform: `scale(${0.96 + 0.04 * fondu})` }}>
       <svg width={ECRAN_IV.largeur} height={ECRAN_IV.hauteur} style={{ position: "absolute", left: 0, top: 0 }}>
@@ -41,9 +48,9 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
           const trace = doux(Math.min(entree(de), progres(entree(vers), 0.2, 0.8)));
           if (trace <= 0) return null;
           const k = Math.max(10, (f.vers.y - f.de.y) / 2);
-          const chemin = `M ${f.de.x} ${f.de.y} C ${f.de.x} ${f.de.y + k}, ${f.vers.x} ${f.vers.y - k}, ${f.vers.x} ${f.vers.y}`;
+          const chemin = f.via ? cheminContourne(f.de, f.vers, f.via) : `M ${f.de.x} ${f.de.y} C ${f.de.x} ${f.de.y + k}, ${f.vers.x} ${f.vers.y - k}, ${f.vers.x} ${f.vers.y}`;
           const allume = parId.get(de)?.allume && parId.get(vers)?.allume;
-          return <path key={f.id} d={chemin} pathLength={1} fill="none" stroke={couleurTrait(f.couleur)} strokeWidth={7} strokeLinecap="round" strokeDasharray="1 1" strokeDashoffset={1 - trace} opacity={allume ? 1 : OPACITE_VU} />;
+          return <path key={f.id} d={chemin} pathLength={1} fill="none" stroke={couleurTrait(f.couleur)} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 1" strokeDashoffset={1 - trace} opacity={allume ? 1 : OPACITE_VU} />;
         })}
       </svg>
       {plan.blocs.map((b) => {
@@ -65,12 +72,12 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
               borderRadius: Math.min(b.hauteur / 2, 44),
               background: fond,
               opacity: s.opacite * (b.allume ? 1 : OPACITE_VU),
-              transform: `scale(${s.echelle})`,
+              transform: `scale(${Math.min(s.echelle, echelleMax(b.hauteur))})`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 8,
-              boxShadow: b.allume && !tousAllumes ? `0 0 ${30 + 30 * halo}px ${teinte(COULEURS_DUO.orangeVif, 0.6)}` : `0 10px 26px ${teinte(fond, 0.35)}`,
+              boxShadow: b.allume && !tousAllumes ? `0 0 ${haloPx}px ${teinte(COULEURS_DUO.orangeVif, 0.6)}` : `0 ${decalagePx}px ${flouPx}px ${teinte(fond, 0.35)}`,
             }}
           >
             {b.icone && b.badge ? (
@@ -113,8 +120,8 @@ export function Ensemble({ plan, ecoule, fondu, imageSource }: { plan: PlanEnsem
               color: pastille ? COULEURS_DUO.blanc : c.couleur,
               whiteSpace: "nowrap",
               opacity: s.opacite,
-              transform: `scale(${s.echelle})`,
-              boxShadow: pastille ? `0 12px 30px ${teinte(c.couleur, 0.35)}` : undefined,
+              transform: `scale(${Math.min(s.echelle, echelleMax(c.hauteur))})`,
+              boxShadow: pastille ? `0 ${Math.min(12, ecart / 4)}px ${Math.min(30, 0.6 * ecart)}px ${teinte(c.couleur, 0.35)}` : undefined,
             }}
           >
             {c.texte}

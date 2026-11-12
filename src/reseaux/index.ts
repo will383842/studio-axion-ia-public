@@ -143,7 +143,7 @@ export const RESEAUX: DefinitionReseau[] = [
     codeClassement: CODES_RESEAU.facebook,
     ratios: ["9:16", "4:5", "1:1", "16:9"],
     ratioPrefere: "9:16",
-    dureeMaxSec: 90,
+    dureeMaxSec: 180,
     export: { resolution: RES_VERTICALE, fps: 30, debitMbps: 10, codec: "h264" },
     niveauSonoreLufs: -14,
     zonesProtegees: { "9:16": { haut: 14, droite: 16, bas: 30, gauche: 6 } },
@@ -275,3 +275,12 @@ export function zoneProtegeeCombinee(ratio: Ratio, ids: IdReseau[]): ZoneProtege
     gauche: Math.max(acc.gauche, z.gauche),
   }));
 }
+
+/**
+ * L3-03 : valeur de référence du texte alternatif d'une image (signes). Les deux envois (zernio-corps.ts et buffer.ts)
+ * déclarent la leur ; un test de non-divergence les lit sans les modifier. Hypothèse tant qu'elle n'est pas sourcée.
+ */
+export const ALT_MAX_REFERENCE = { valeur: 125, regleId: "hyp-ecriture-reseau" } as const;
+
+export { verifierLimitesTexte } from "./ecriture";
+export type { ErreurLimiteTexte, CodeErreurLimite } from "./ecriture";

@@ -11,7 +11,6 @@ import { complexiteSchema, estimationGrammaire, SEUILS_GRAMMAIRE } from "@/gener
 import {
   fusionnerLectures,
   lireImage,
-  PHRASE_TYPE_INCONNU,
   roleLectureImage,
   schemaLectureImage,
   type DemandeReservationLecture,
@@ -257,15 +256,104 @@ describe("refus", () => {
     expect(!r.ok && r.message).toMatch(/^Je ne lis presque aucun texte/);
   });
 
-  it("type reconnu par aucune des deux lectures : « Je ne reconnais pas ce type d'image : choisissez-le », puis Will impose le type sans repayer", async () => {
+  it("image sans phrase du bas : la lecture réussit, la phrase du bas est déduite (texte déjà lu, autre que le titre), alerte non bloquante", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), phraseChoc: "", sousTitre: "" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.phraseChoc.trim()).not.toBe("");
+    expect(r.carte.phraseChoc).not.toBe(r.carte.titre);
+    expect(r.carte.lecture.alertes.some((x) => /phrase du bas/i.test(x))).toBe(true);
+  });
+
+  it("image sans titre : le titre est déduit (sous-titre, sinon premier bloc)", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), titre: "", sousTitre: "" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.titre).toBe(r.carte.noeuds[0]!.libelle);
+    expect(r.carte.lecture.alertes.some((x) => /titre non lu/i.test(x))).toBe(true);
+  });
+
+  it("sous-titre présent, titre absent : le titre est pris du sous-titre, qui est déplacé (pas copié)", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), titre: "", sousTitre: "Mon sous-titre" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.titre).toBe("Mon sous-titre");
+    expect(r.carte.sousTitre).toBeUndefined();
+  });
+
+  it("titre ET phrase du bas absents ensemble : tous deux déduits, non vides, avec leurs deux alertes", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), titre: "", sousTitre: "", phraseChoc: "" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.titre.trim()).not.toBe("");
+    expect(r.carte.phraseChoc.trim()).not.toBe("");
+    expect(r.carte.lecture.alertes.some((x) => /titre non lu/i.test(x))).toBe(true);
+    expect(r.carte.lecture.alertes.some((x) => /phrase du bas non lue/i.test(x))).toBe(true);
+  });
+
+  it("libellé du premier bloc vide, détail rempli : la lecture réussit et le titre vient du détail", async () => {
+    const base = lectureDeCarte(cartes.B);
+    const premier = [...base.noeuds].sort((x, y) => x.ordre - y.ordre)[0]!;
+    const noeuds = base.noeuds.map((n) => (n.id === premier.id ? { ...n, libelle: "", detail: "Détail du premier" } : n));
+    const la: LectureImage = { ...base, titre: "", sousTitre: "", noeuds };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.titre).toBe("Détail du premier");
+  });
+
+  it("la déduction ne duplique pas l'inventaire des chiffres", async () => {
+    const base = lectureDeCarte(cartes.B);
+    const la: LectureImage = { ...base, titre: "", sousTitre: "", phraseChoc: "" };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const sans = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: base, b: base }).outils);
+    if (!sans.ok) throw new Error("lecture de référence refusée");
+    expect(r.carte.chiffres.length).toBeLessThanOrEqual(sans.carte.chiffres.length);
+    expect(new Set(r.carte.chiffres.map((c) => c.id)).size).toBe(r.carte.chiffres.length);
+    expect(r.carte.chiffres.map((c) => c.brut).sort()).toEqual(sans.carte.chiffres.map((c) => c.brut).sort());
+  });
+
+  it("image sans aucun bloc : refus « incomplete »", async () => {
+    const la: LectureImage = { ...lectureDeCarte(cartes.B), noeuds: [], liens: [], bandeau: ["a", "b", "c", "d"] };
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, outils({ a: la, b: la }).outils);
+    expect(r).toMatchObject({ ok: false, motif: "incomplete" });
+  });
+
+  it("type reconnu par aucune des deux lectures (R1) : plus de refus, le type vient du code avec l'adaptation « type déduit »", async () => {
     const inconnu: LectureImage = { ...lectureDeCarte(cartes.B), type: "inconnu" };
     const o = outils({ a: inconnu, b: inconnu });
     const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, o.outils);
-    expect(r).toMatchObject({ ok: false, motif: "type-inconnu", message: PHRASE_TYPE_INCONNU, choisirType: true, appels: 2 });
-    if (r.ok) return;
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.carte.types).toEqual(["benefices"]);
+    expect(r.carte.adaptations?.some((x) => /type déduit/.test(x))).toBe(true);
+  });
 
+  it("enchaînement R1 puis R2 : type déduit, puis cycle excédentaire réparé, les deux dans carte.adaptations", async () => {
+    const lien = (id: string, de: string, vers: string) => ({ id, de, vers, couleur: "noir" as const, style: "plein" as const });
+    const abimee: CarteImage = { ...cartes.B, liens: [...cartes.B.liens, lien("r1", cartes.B.noeuds[2]!.id, cartes.B.noeuds[0]!.id), lien("r2", cartes.B.noeuds[2]!.id, cartes.B.noeuds[1]!.id), lien("l1", cartes.B.noeuds[0]!.id, cartes.B.noeuds[1]!.id), lien("l2", cartes.B.noeuds[1]!.id, cartes.B.noeuds[2]!.id)] };
+    const inconnu: LectureImage = { ...lectureDeCarte(abimee), type: "inconnu" };
+    const o = outils({ a: inconnu, b: inconnu });
+    const r = await lireImage({ videoId: "essai-B", source: source(cartes.B) }, o.outils);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const adaptations = r.carte.adaptations ?? [];
+    expect(adaptations.some((x) => /type déduit/.test(x))).toBe(true);
+    expect(adaptations.some((x) => x.startsWith("Adapté automatiquement : ") && /tournait en rond/.test(x))).toBe(true);
+    expect(r.carte.lecture.alertes.some((x) => x.includes("Réparé"))).toBe(false);
+    expect(r.controle.erreurs).not.toContain("Le schéma tourne en rond plus d'une fois.");
+  });
+
+  it("Will peut toujours imposer le type, sans repayer (états anciens « type à choisir »)", async () => {
+    const inconnu: LectureImage = { ...lectureDeCarte(cartes.B), type: "inconnu" };
     const o2 = outils({ a: LECTURE_VIDE, b: LECTURE_VIDE });
-    const r2 = await lireImage({ videoId: "essai-B", source: source(cartes.B), typeImpose: "chaine" }, o2.outils, r.lectures);
+    const r2 = await lireImage({ videoId: "essai-B", source: source(cartes.B), typeImpose: "chaine" }, o2.outils, { a: inconnu, b: inconnu });
     expect(r2.ok).toBe(true);
     if (!r2.ok) return;
     expect(r2.appels).toBe(0);

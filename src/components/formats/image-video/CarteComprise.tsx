@@ -16,6 +16,7 @@ import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { cn } from "@/lib/cn";
+import { estCleTexte } from "@/moteurs/montage-image-video/texte/provenance";
 import { jusquALaReprise } from "./reprise";
 import { AUCUNE_CORRECTION, carteACorriger, carteCorrigeeParWill, type BlocCarte, type CorrectionsCarte, type VueCarte } from "./vue";
 
@@ -83,7 +84,10 @@ export function CarteComprise({ videoId, vue, carte, imageUrl }: { videoId: stri
   return (
     <section aria-label="Ce que j'ai compris" className="grid gap-6 md:grid-cols-2">
       <div className="md:sticky md:top-4 md:self-start">
-        {imageUrl ? (
+        {estCleTexte(carte.image.cle) ? (
+          // Mode texte : la carte vient de votre description, aucune image n'existe (rien à afficher, aucun fichier lu).
+          <Carte className="grid aspect-[3/4] place-items-center p-6 text-center text-texte-faible">Schéma conçu depuis votre description : aucune image à afficher.</Carte>
+        ) : imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={imageUrl} alt="Votre image" className="w-full rounded-carte border border-trait bg-surface-2 object-contain" />
         ) : (

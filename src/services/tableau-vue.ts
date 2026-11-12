@@ -20,7 +20,6 @@ import { ecranTableauVisible } from "@/components/formats/tableau-anime/aiguilla
 import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import type { Id, VersionVideo } from "@/domaine/types";
 import { trouverFormat } from "@/formats";
-import { formaterMontant } from "@/lib/montants";
 import type { OperationMontage } from "@/moteurs";
 import { CATALOGUE_RETOUCHES, apercuRetouche, lireEntreesTableau, type ContexteRetouche } from "@/moteurs/montage-tableau";
 import { estimerFabrication } from "@/moteurs/montage-tableau/fabriquer";
@@ -31,6 +30,7 @@ import { GESTES_RETOUCHE, lireOperationRetouche, type OperationRetouche, type Ty
 import { depots } from "./_commun";
 import { exigerSession } from "./auth";
 import { lancerRetouche } from "./fabrication";
+import { avecAccordAutomatique } from "./mode-budget";
 import { appelsValides, reseauDuTableau } from "./tableau-fin";
 import { interditsDeLaMarque } from "./tableau-marque";
 import { TARIF_VOIX_CENTIMES_PAR_CARACTERE } from "./tableau-outils";
@@ -361,6 +361,12 @@ function consigneDe(op: OperationRetouche, fiche: FicheTableau): string {
  * au moins égal au montant annoncé, sinon rien n'est lancé. Sinon : le chemin de retouche du studio.
  */
 export async function retoucherTableau(videoId: Id, operation: unknown, options: { accord?: AccordPrix } = {}, dependances: DependancesVueTableau = {}): Promise<IssueRetoucheTableau> {
+  // Règle « le prix ne bloque jamais » : en mode indicatif, un accord-requis est relancé UNE fois avec le prix du jour ;
+  // en mode bloquant (et pour l'Usine), l'issue d'avant est rendue telle quelle.
+  return avecAccordAutomatique((accord) => retoucherTableauSansAuto(videoId, operation, { accord: accord ?? options.accord }, dependances), undefined, { videoId });
+}
+
+async function retoucherTableauSansAuto(videoId: Id, operation: unknown, options: { accord?: AccordPrix }, dependances: DependancesVueTableau): Promise<IssueRetoucheTableau> {
   await exigerSession();
   const version = await versionDuTableau(videoId);
   if (!version) return { statut: "refusee", phrase: "La retouche par boutons n'est pas disponible pour cette vidéo." };
@@ -384,8 +390,7 @@ export async function retoucherTableau(videoId: Id, operation: unknown, options:
     const accord = accordPropre(options.accord);
     // Seul un MONTANT confirmé couvre la voix relue : `true` sans montant ne suffit pas.
     if (typeof accord !== "number" || accord < montant) {
-      const prix = formaterMontant({ centimes: montant, devise: "EUR" });
-      return { statut: "accord-requis", centimes: montant, phrase: `Cette retouche refait la voix : environ ${prix}. Confirmez ce prix pour continuer.` };
+      return { statut: "accord-requis", centimes: montant, phrase: `Cette retouche refait la voix, ce qui est payant. Confirmez pour continuer.` };
     }
     confirme = accord;
   }

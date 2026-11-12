@@ -30,7 +30,7 @@ export function LigneMorceau({ morceau: m, ouvert, onOuvrir, onChange }: { morce
     <li className={cn("rounded-2xl border border-trait bg-surface-1 p-3.5 transition-opacity", !m.garde && "opacity-45")}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <button type="button" onClick={onOuvrir} aria-expanded={ouvert} className="min-h-10">
-          <PastilleType type={m.type} className="bg-orange-doux text-orange-vif" />
+          <PastilleType type={m.type} className="bg-accent-doux text-accent" />
         </button>
         <button
           type="button"
@@ -133,7 +133,7 @@ export function FeuilleEnVrac({ ouverte, onOuverteChange, rangementEssai = false
             </Bouton>
             {rangementEssai && (
               <Bouton pleineLargeur variante="fantome" icone="etincelles" chargement={envoi === "machine"} disabled={!dictee.trim()} onClick={() => decouper(true)}>
-                Ranger pour moi · 0 €
+                Ranger pour moi
                 <PastilleEssai className="ml-1" />
               </Bouton>
             )}

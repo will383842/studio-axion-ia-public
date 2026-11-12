@@ -121,7 +121,7 @@ export function Plaque(p: { texte: ReactNode; fond: string; couleur?: string; co
         boxSizing: "border-box",
         padding: `${0.16 * corps}px ${0.3 * corps}px`,
         background: p.fond,
-        color: p.couleur ?? ENCRE,
+        color: p.couleur ?? (p.fond === COULEURS.ORANGE_MARQUE ? BLANC : ENCRE),
         border: `${TRAIT.MOYEN}px solid ${ENCRE}`,
         borderRadius: RAYON.PLAQUE,
         boxShadow: p.sansOmbre ? undefined : ombre("S"),
@@ -145,7 +145,7 @@ export function Puce(p: { texte: ReactNode; fond: string; couleur?: string; corp
         boxSizing: "border-box",
         padding: `${0.3 * corps}px ${0.65 * corps}px`,
         background: p.fond,
-        color: p.couleur ?? ENCRE,
+        color: p.couleur ?? (p.fond === COULEURS.ORANGE_MARQUE ? BLANC : ENCRE),
         border: `${TRAIT.MOYEN}px solid ${ENCRE}`,
         borderRadius: RAYON.PILULE,
         boxShadow: ombre("S"),
@@ -273,12 +273,13 @@ export function BarreProgression({ f, total, palette }: { f: number; total: numb
 /* ------------------------------------------------------------------ Étiquettes génériques (lot 1, version locale) ------------------------------------------------------------------ */
 /** `EtiquetteTete` générique (M1, D1) : plaque 0,40-0,72 L au-dessus de la tête, éventuellement coiffée d'une sur-étiquette. */
 export function EtiquetteTete(p: { f: number; debut: number; fin: number; palette: Palette; texte: string; sur?: string; blanc?: boolean; x?: number; inclinaison?: number; interjection?: boolean }) {
-  const { ACCENT_1 } = accents(p.palette);
+  const { ACCENT_1, ACCENT_SOMBRE } = accents(p.palette);
   const x = p.x ?? L / 2;
   const inc = p.inclinaison ?? -3;
   const y = 0.115 * H;
   const fond = p.interjection ? ENCRE : p.blanc ? BLANC : ACCENT_1;
-  const couleur = p.interjection ? ACCENT_1 : ENCRE;
+  const encreOuBlanc = fond === ACCENT_1 ? BLANC : ENCRE;
+  const couleur = p.interjection ? ACCENT_SOMBRE : encreOuBlanc;
   const tremble = p.interjection ? secousse(p.f - p.debut - 6, 0.006 * L) : 0;
   return (
     <>
@@ -321,7 +322,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
   if (!g || (masque && masque(f))) return null; // `masque` : groupe caché ≤ 6 i pendant qu'un objet balaie sa place (ouverture du plein cadre)
   // un mot déjà affiché par une étiquette posée n'est pas répété en plaque dans le sous-titre
   if (exclure && g.mots.every((m) => exclure(m, f))) return null;
-  const { ACCENT_1, ACCENT_2 } = accents(palette);
+  const { ACCENT_1, ACCENT_2, ACCENT_SOMBRE } = accents(palette);
   const visibles = g.mots.filter((m) => t >= m.debut && !(exclure && exclure(m, f)));
   if (visibles.length === 0) return null;
   const dernier = visibles[visibles.length - 1];
@@ -354,6 +355,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
         const enCours = m === dernier;
         const plaque = m.fort || m.chiffre;
         const fondPlaque = m.chiffre ? ACCENT_2 : ACCENT_1;
+        const encreOuBlanc = fondPlaque === ACCENT_1 ? BLANC : ENCRE;
         const incl = k % 2 === 0 ? -2 : 1.5;
         const etire = plaque ? lerp(0.35, 1, ress("GLISSE", f, fm)) : 1;
         return (
@@ -365,7 +367,7 @@ export function SousTitresV4({ f, mots, palette, position, exclure, masque }: { 
               style={{
                 position: "relative",
                 ...styleTexteMontserrat(corps),
-                color: plaque ? ENCRE : enCours ? ACCENT_1 : BLANC,
+                color: plaque ? encreOuBlanc : enCours ? ACCENT_SOMBRE : BLANC,
                 WebkitTextStroke: plaque ? undefined : `${contour}px ${ENCRE}`,
                 paintOrder: "stroke fill",
                 opacity: 1,

@@ -19,23 +19,25 @@ import { ecrireScriptTableauAction, reprendreMeilleureVersionTableauAction } fro
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { dureeDiteSec } from "@/domaine/duree-tableau";
 import { MOMENTS_SCRIPT, normaliserScript, phrasesDites, phrasesEtape, type DemandeScriptTableau, type ScriptTableau } from "@/domaine/scripts-tableau";
-import { formaterMontant } from "@/lib/montants";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
+import { ChoixCible } from "@/components/ciblage/ChoixCible";
+import type { Ciblage } from "@/domaine/ciblage/types";
+import { publicDepuisCible } from "./ciblage-saisie";
 import { DUREE_ECRITURE_TEXTE } from "./durees";
 import { accordApresRefus, controleServeurAvantPrix, PHRASE_PRIX_CHANGE, prixRedemandable } from "./sujet-deja-traite";
 
-const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
 interface Saisie {
   serie: string;
   sujet: string;
   public: string;
+  ciblage?: Ciblage;
   avecVraiCas: boolean;
   vraiCas: { metier: string; tache: string; avant: string; apres: string; date: string };
   reseau: string;
@@ -49,6 +51,7 @@ function saisieDe(d: Partial<DemandeScriptTableau> | null | undefined): Saisie {
     serie: d?.serie ?? "",
     sujet: d?.sujet ?? "",
     public: d?.public ?? "",
+    ciblage: d?.ciblage,
     avecVraiCas: !!d?.vraiCas,
     vraiCas: d?.vraiCas ?? { metier: "", tache: "", avant: "", apres: "", date: "" },
     reseau: d?.reseau ?? "",
@@ -110,6 +113,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
       serie: saisie.serie,
       sujet: saisie.sujet,
       public: saisie.public,
+      ...(saisie.ciblage ? { ciblage: saisie.ciblage } : {}),
       vraiCas: saisie.avecVraiCas ? saisie.vraiCas : null,
       reseau: saisie.reseau,
       fin: saisie.fin === "commentaire" ? { type: "commentaire", mot: saisie.mot } : { type: saisie.fin },
@@ -184,6 +188,15 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
       <section aria-label="Votre demande" className="space-y-4">
         <SelecteurPastilles libelle="La série" options={ecran.ecriture.series} valeur={saisie.serie || undefined} onChange={(v) => changer({ serie: v })} />
         <Champ libelle="Le sujet, en une ligne" value={saisie.sujet} onChange={(e) => changer({ sujet: e.target.value })} maxLength={160} />
+        <ChoixCible
+          nom="cible-tableau"
+          niveau={saisie.ciblage?.niveau}
+          valeur={saisie.ciblage?.libelle}
+          onChange={(niveau, valeur) => {
+            const c = publicDepuisCible(niveau, valeur);
+            changer({ ciblage: c.ciblage, ...(c.public !== undefined ? { public: c.public } : {}) });
+          }}
+        />
         <Champ libelle="À qui parle la vidéo" value={saisie.public} onChange={(e) => changer({ public: e.target.value })} maxLength={200} />
         <CaseACocher libelle="J'ai un vrai cas à raconter" coche={saisie.avecVraiCas} onChange={(v) => changer({ avecVraiCas: v })} />
         {saisie.avecVraiCas && (
@@ -210,17 +223,17 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
           <Champ libelle={saisie.fin === "commentaire" ? "Ce que vous envoyez" : "Ce que l'appel apporte"} value={saisie.envoi} onChange={(e) => changer({ envoi: e.target.value })} maxLength={300} />
         )}
         <Bouton icone="ecrire" variante={resultat ? "secondaire" : "principal"} chargement={enCours} disabled={occupe} onClick={() => void ecrire()} pleineLargeur>
-          {interrompue ? "Reprendre l'écriture" : resultat || g ? "Réécrire le script" : "Écrire le script"} (≈ {euros(cout)} au plus)
+          {interrompue ? "Reprendre l'écriture" : resultat || g ? "Réécrire le script" : "Écrire le script"}
         </Bouton>
         <p className="text-sm text-texte-doux">Durée : {DUREE_ECRITURE_TEXTE}. Vous pourrez fermer la page : le travail continue.</p>
         {phrase && (
           <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase}
+            {messageSansMontant(phrase)}
           </p>
         )}
         {refusSujet && (
           <section aria-label="Sujet déjà traité" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : refusSujet.refus.phrase}</p>
+            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : messageSansMontant(refusSujet.refus.phrase)}</p>
             <ul className="space-y-1 text-sm">
               {refusSujet.refus.precedents.slice(0, 5).map((p) => (
                 <li key={p.videoId ?? p.sujetId ?? p.lien}>
@@ -256,7 +269,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
         <section aria-label="Écriture interrompue" role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
           <p className="font-semibold">Écriture interrompue</p>
           <p className="mt-1 text-sm text-texte-doux">
-            {interrompue.appels} appel{interrompue.appels > 1 ? "s" : ""} à Claude ({euros(interrompue.centimes)}) n&apos;{interrompue.appels > 1 ? "ont" : "a"} pas laissé de résultat gardé. Complétez la demande ci-dessus, puis « Reprendre l&apos;écriture ».
+            {interrompue.appels} appel{interrompue.appels > 1 ? "s" : ""} à Claude n&apos;{interrompue.appels > 1 ? "ont" : "a"} pas laissé de résultat gardé. Complétez la demande ci-dessus, puis « Reprendre l&apos;écriture ».
           </p>
         </section>
       )}
@@ -285,7 +298,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
                   .filter((d) => !d.eliminatoire)
                   .slice(0, 4)
                   .map((d, i) => (
-                    <li key={i}>Remarque : {d.message}</li>
+                    <li key={i}>Remarque : {messageSansMontant(d.message)}</li>
                   ))}
               </ul>
             )}
@@ -303,7 +316,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
               </Bouton>
             )}
             <Bouton variante="secondaire" icone="reessayer" chargement={enCours} disabled={occupe} onClick={() => void ecrire()}>
-              Réécrire (≈ {euros(cout)} au plus)
+              Réécrire
             </Bouton>
           </div>
         </section>

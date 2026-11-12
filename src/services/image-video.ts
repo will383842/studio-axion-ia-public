@@ -27,13 +27,15 @@ import { join } from "node:path";
 import type { CommandeFabrication, Id, LigneCout, MotHorodate } from "@/domaine/types";
 import type { DemandeRendu, EtatRendu, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
 import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
+import { squelettesRecentsIV } from "@/moteurs/montage-image-video/parcours-varies";
 import { BRUITAGES_V4_IV, historiqueVarieteIV, RenduEnCoursIV, tarifVoixCentimesEur, type DemandeDepenseIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import type { ConvertirEnPng } from "@/moteurs/montage-image-video/lecture/preparation";
+import { idTravailControleIV, imagesExtraitesIV } from "@/moteurs/montage-image-video/relecture-finale";
 import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture";
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { budgetIndicatifPour, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
+import { accordAutomatique, budgetIndicatifPourVideo, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
 import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -287,15 +289,23 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   const decisionsGardees = async () => lireParametre<Record<string, unknown> | null>(`${PREFIXE_DECISIONS}${dep.videoId}`, null);
 
   // Budget réel, APRÈS la caisse : pré-vol pour Claude et la transcription, réservation pour la voix.
+  const indicatifIV = await budgetIndicatifPourVideo(String(dep.videoId), dep.origine);
   const budget: OutilsFabricationIV["budget"] = {
     reserver: async (d) => {
       // Lanceur : la voix ne part que sur l'accord de Will, relu à chaque réservation (avant même le mode simulé).
       let accordVoix: number = d.centimes;
+      let accordManquant = false;
       if (d.fournisseur === "heygen" && dep.accordDuScriptExige) {
         const accord = accordDeLaDecision((await decisionsGardees())?.script);
-        if (accord === null) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
-        accordVoix = accord;
+        // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, Will ne valide jamais un prix à la main.
+        if (accord === null && !indicatifIV) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
+        accordManquant = accord === null;
+        accordVoix = accord ?? d.centimes;
       } else if (d.fournisseur === "heygen") accordVoix = accordDeLaVoixIV(d.centimes, dep.accordLotCentimes);
+      if (d.fournisseur === "heygen") {
+        const auto = await accordAutomatique(accordVoix, d.centimes, { origine: dep.origine, videoId: String(dep.videoId), signaler: accordManquant });
+        if (typeof auto === "number") accordVoix = auto;
+      }
       const { claudeTextesActif } = await import("./depense-claude-video");
       if (d.fournisseur === "anthropic" && !(await claudeTextesActif())) return { ok: true };
       if (d.fournisseur === "heygen" && voix.mode === "simulation") return { ok: true };
@@ -315,8 +325,10 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         throw err;
       }
     },
-    // Mode indicatif : le plafond de la vidéo est un repère (cloche), l'arrêt de sécurité vient à 5 × ce plafond.
-    ...((await budgetIndicatifPour(dep.origine))
+    // Hors mode indicatif aussi, le prix annoncé ne bloque pas : même cloche que `indicatif.signaler`.
+    avertir: async (message: string) => signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", message, await sujetDeCloche(String(dep.videoId))),
+    // Mode indicatif : le plafond de la vidéo est un repère (cloche) ; le prix n'arrête plus rien (ordre du 25/10).
+    ...(indicatifIV
       ? { indicatif: { facteurSecurite: FACTEUR_SECURITE_BUDGET, signaler: async (message: string) => signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", message, await sujetDeCloche(String(dep.videoId))) } }
       : {}),
   };
@@ -343,7 +355,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
     script: async () => {
       const d = (await decisionsGardees())?.script ?? null;
       // Lanceur : une décision sans accord du prix n'avance pas la fabrication (le lanceur reste à la porte).
-      return (dep.accordDuScriptExige && accordDeLaDecision(d) === null ? null : d) as never;
+      return (dep.accordDuScriptExige && !indicatifIV && accordDeLaDecision(d) === null ? null : d) as never;
     },
   };
 
@@ -453,9 +465,10 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
       },
       extraireImages: async (d) => {
         const depots = Object.fromEntries(await Promise.all(Object.entries(d.parametres.cles).map(async ([nom, cle]) => [nom, await signerDepot(cle, "image/jpeg")] as const)));
-        const id = `iv-controle-${Buffer.from(`${dep.videoId}|${d.source}`).toString("base64url").slice(-48)}`;
-        await travailFacecam("image", id, async () => ({ source: await signerLecture(d.source), depots, parametres: d.parametres }), "L'extraction des images de contrôle", 10 * 60_000);
-        return { images: Object.entries(d.parametres.cles).map(([nom, cle]) => ({ nom, cle })) };
+        // L'id dépend des instants (l'aligneur garde ses travaux 24 h) ; seules les images réellement listées sont déclarées.
+        const id = idTravailControleIV(String(dep.videoId), d);
+        const r = await travailFacecam("image", id, async () => ({ source: await signerLecture(d.source), depots, parametres: d.parametres }), "L'extraction des images de contrôle", 10 * 60_000);
+        return { images: imagesExtraitesIV(r, d) };
       },
       lireImage: async (cle) => {
         const octets = await lireStockage(cle);
@@ -467,14 +480,20 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
     budget,
     bruitagesValides: BRUITAGES_V4_IV,
     cartesValidees: dep.cartesValidees ?? (async () => nombreCartesValidees(await lireParametre<unknown>(PARAM_CARTES_VALIDEES, []))),
-    // Variété : les recettes des fabrications IV prêtes, la plus récente d'abord (aucune table : l'état du travail les garde).
+    // Variété : les recettes des fabrications IV qui en ont une (hors refusées, le tri d'historiqueVarieteIV), la plus récente d'abord (aucune table : l'état du travail les garde).
     historiqueVariete:
       dep.historiqueVariete ??
       (async () => {
-        const travaux = await commun.depots().travaux.lister((t) => (t.parametres as { imageVideo?: { etape?: unknown } } | undefined)?.imageVideo?.etape === "prete");
+        const travaux = await commun.depots().travaux.lister((t) => !!(t.parametres as { imageVideo?: { variete?: unknown } } | undefined)?.imageVideo?.variete);
         travaux.sort((a, b) => (b.termineLe ?? b.creeLe).localeCompare(a.termineLe ?? a.creeLe));
         return historiqueVarieteIV(travaux.map((t) => (t.parametres as { imageVideo: EtatFabricationIV }).imageVideo), String(dep.videoId));
       }),
+    // Parcours varié : les squelettes de scènes des trois dernières fabrications prêtes (même lecture que la variété).
+    historiqueSquelettes: async () => {
+      const travaux = await commun.depots().travaux.lister((t) => (t.parametres as { imageVideo?: { etape?: unknown } } | undefined)?.imageVideo?.etape === "prete");
+      travaux.sort((a, b) => (b.termineLe ?? b.creeLe).localeCompare(a.termineLe ?? a.creeLe));
+      return squelettesRecentsIV(travaux.map((t) => (t.parametres as { imageVideo: EtatFabricationIV }).imageVideo), String(dep.videoId));
+    },
     decisions,
     maintenant: () => new Date().toISOString(),
   };

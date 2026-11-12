@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { ordreValide } from "@/domaine/classement-generateur";
 import type { Adresse, ModeDiction, ReseauDeclinaison, TypeMatiere, VarianteReseau } from "@/domaine/types";
+import { CIBLE_ABSENTE, ciblageSaisieValide, MESSAGE_CIBLE_ABSENTE, typeAutomatisationValide } from "@/domaine/ciblage/saisie";
 import { exigerSession } from "@/services/auth";
 import { ecrireParametre, ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import { proposerTypeMatiere } from "@/domaine/derivations-generateur";
@@ -40,13 +41,18 @@ export async function creerSujetAction(brief: BriefSujet): Promise<Resultat<{ id
   return essayer(async () => {
     // Lot L5 : la confirmation « Refaire quand même » est une donnée non sûre (choix connu + jeton, sinon rien).
     // `estDemo` ne vient jamais du navigateur : il ferait sauter tout le contrôle.
+    // La cible est OBLIGATOIRE ici (comme à l'écran) : refus avant toute création et toute dépense.
+    const ciblage = ciblageSaisieValide(brief.ciblage);
+    if (!ciblage) throw new ErreurStudio(CIBLE_ABSENTE, MESSAGE_CIBLE_ABSENTE);
+    const typeAutomatisation = typeAutomatisationValide(brief.typeAutomatisation);
     const { confirmationSujet, ...reste } = brief;
     delete reste.estDemo;
     // `origineUsine` non plus : l'écran ne l'envoie jamais (l'Usine passe par `ecrireSujetDeLUsine`, côté serveur) et une clé forgée fausserait la comparaison.
     delete reste.origineUsine;
+    delete reste.typeAutomatisation;
     const confirmation = confirmationPropre(confirmationSujet);
     try {
-      const r = await lancerGeneration({ ...reste, ...(confirmation ? { confirmationSujet: confirmation } : {}) });
+      const r = await lancerGeneration({ ...reste, ciblage, ...(typeAutomatisation ? { typeAutomatisation } : {}), ...(confirmation ? { confirmationSujet: confirmation } : {}) });
       rafraichir(r.scriptMaitreId);
       return { id: r.scriptMaitreId, ecrit: r.ok };
     } catch (e) {

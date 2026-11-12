@@ -34,33 +34,41 @@
  * Ce fichier n'importe aucun service, aucun fournisseur et rien de `studio-rendu/`.
  */
 import { createHash } from "node:crypto";
-import { completerCarte, controlerCarte, schemaCarteImage, type CarteImage, type ControleCarte, type TypeImage } from "@/domaine/image-video/carte";
+import { completerCarte, controlerCarte, reparerOrphelinsDeBranche, schemaCarteImage, type CarteImage, type ControleCarte, type TypeImage } from "@/domaine/image-video/carte";
+import { ecrireAdaptations, reparerEtSignaler } from "@/domaine/image-video/reparation";
+import { adapterCarteAutomatiquement } from "@/domaine/image-video/analyste/chaine-auto";
 import { schemaFicheImage, type FicheImage } from "@/domaine/image-video/fiche";
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
-import type { DeclencheurBruitage } from "@/domaine/types";
-import { AXES_VARIETE, tirablesDe, type AxeVariete, type FormatIV, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
+import type { DeclencheurBruitage, SegmentSousTitres } from "@/domaine/types";
+import { AXES_VARIETE, codeDe, tirablesDe, type AxeVariete, type FormatIV, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { MesuresExport } from "@/briques/controle-image";
 import { cleBruitage, idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
 import { assemblerVersionCourteIV, assemblerVersionsIV, planMixageIV, type DemandeMixageIV, type OutilsAssemblageIV, type PisteVoixSeuleIV, type VersionCourteIV } from "./assemblage";
 import type { BruitageValideIV } from "./bruitages";
 import { carteSansRetires, type VersionAControlerIV } from "./controles";
-import { ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
+import { choisirParcoursIV, type ChoixParcoursIV, type SqueletteRecent } from "./parcours-varies";
+import { CODES_REGLES_FORME_ACCEPTABLES, ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
 import type { DemandeReservationControleIV } from "./ecoute";
 import type { Offre } from "./emprunts";
 import type { ActiviteLien } from "@/domaine/mesures";
-import { liensSuivisIV, planDesFinsIV, refusQuestion, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
+import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
+import { ecranVivantIV, ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
-import { porteUniqueIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
+import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
 import { chapitresDetachables } from "./recettes";
+import { ecrireScriptColleIV, manquementsDuScriptColle } from "./script-colle";
 import { aTrancherParWill, cleFormule, phraseChocAttendue, verifierScript, type ChoixFormule, type Manquement } from "./regles";
 import { verdictReseau } from "./reseaux";
+import { formatDeHauteurIV } from "@/briques/schema-motion/types";
+import { REMARQUE_SOUS_TITRES_DEPLACES_IV, sousTitresVariesIV, styleRetenuIV, type StyleChoisiIV } from "./sous-titres-varies";
 import { phraseDeRepliIV, planDeSecoursIV, secoursApresArretIV, type SecoursIV } from "./secours";
 import { AXES_APPLIQUES_IV } from "./variete";
+import { recetteEffectiveIV } from "./variete/historique";
 import { RECETTE_REFERENCE_IV, recettePourVersion, tirerVarieteIV } from "./variete/tirage";
-import { avancerVoixIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, repriseVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
+import { avancerVoixIV, ErreurPlafondLecturesIV, ErreurVoixIV, etatInitialVoixIV, LECTURE_UNIQUE_IV, rapportVoixIV, relireLaVoixIV, repriseVoixIV, REPARATIONS_VOIX_MAX_IV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "./voix";
 
 /* ------------------------------------------------------------------ */
 /* Étapes                                                                */
@@ -77,7 +85,11 @@ export const CARTES_OBLIGATOIRES = 10;
 /** Plafond par défaut d'une vidéo, en centimes d'euro (plan § 9 : au plus ≈ 2,20 € ; très complexe ≈ 3 €). */
 export const PLAFOND_VIDEO_IV_CENTIMES = 300;
 
-export type ValidationCarte = "toujours" | "si-doute";
+/**
+ * `automatique` (défaut, R5) : le code répare et adapte la carte, la carte et le script sont validés par le réglage, rien
+ * n'attend Will tant que le prix reste dans le prix accordé. `si-doute` et `toujours` : les portes de Will (B6).
+ */
+export type ValidationCarte = "automatique" | "toujours" | "si-doute";
 
 /* ------------------------------------------------------------------ */
 /* Bruitages validés                                                     */
@@ -101,6 +113,21 @@ export interface DemandeFabricationIV {
   versionId: string;
   /** Image déposée (clé de stockage ; jamais transmise à Claude). `empreinte` : celle du fichier, sinon calculée. */
   image: { cle: string; empreinte?: string };
+  /**
+   * MODE TEXTE (R6b) : description libre de Will à la place d'une image (la clé d'image est alors `texte:<empreinte>`,
+   * aucun fichier n'existe). L'étape « lecture » conçoit le workflow depuis ce texte au lieu de lire une image.
+   */
+  texte?: string;
+  /**
+   * MODE « SCRIPT COMPLET » : `texte` est le script de Will, dit tel quel. Il sert à concevoir le schéma (comme le mode
+   * texte), puis REMPLACE l'écriture : aucun appel d'écriture, aucun mot changé (`script-colle.ts`).
+   */
+  scriptColle?: boolean;
+  /**
+   * Titre ou idée de Williams (script GÉNÉRÉ par le studio) : le script s'arrête pour sa relecture et sa modification, même en
+   * mode « automatique », avant toute voix. Absent (script collé, lot, essais) : comportement inchangé.
+   */
+  scriptAValider?: boolean;
   /** Réseaux cochés (tous les quatre par défaut). */
   reseaux: ReseauIV[];
   /** Offre corrigée par Will au dépôt ; absente : déduite du type de l'image. */
@@ -131,6 +158,8 @@ export interface DemandeFabricationIV {
    * remplace ; une vidéo douteuse est mise de côté sans payer la suite. Absent : le parcours d'une image seule.
    */
   lot?: { id: string; rang: number };
+  /** GV-ST-03 : style de sous-titres choisi (id, nom, valeur), posé depuis `commande.styles.sousTitres` ; absent : charte duo. */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 /** Une réservation comptée par la caisse (pire coût, centimes d'euro). */
@@ -237,6 +266,8 @@ export interface RenduFaitIV {
   empreinte?: string;
   dureeSec: number;
   mesures?: MesuresExport;
+  /** Sous-titres réellement dessinés (variés), calculés sur la même ligne que la demande de rendu : le .srt en est tiré. Absent pour un rendu d'avant. */
+  sousTitres?: SegmentSousTitres[];
   /** Empreinte de la demande rendue (ligne de temps + mixage) : un rendu d'une autre demande n'est pas repris. */
   demande: string;
 }
@@ -272,6 +303,8 @@ export interface EtatFabricationIV {
   caisse: { plafondCentimes: number; reservations: ReservationIV[] };
   /** Nombre de passages de chaque étape (une reprise en ouvre un nouveau : ses appels sont comptés à part). */
   tentatives: Partial<Record<EtapeChaineIV, number>>;
+  /** Relances automatiques de chaque étape dans la tentative en cours : chacune réserve de nouveau (l'appel qui repart est un appel réel de plus). */
+  relances?: Partial<Record<EtapeChaineIV, number>>;
   /** Compteur des identifiants d'appel donnés aux contrôles (jamais deux fois le même, d'une exécution à l'autre). */
   compteurAppels?: number;
   /** Lectures payées, gardées même après un refus (reprise sans relire). */
@@ -281,9 +314,12 @@ export interface EtatFabricationIV {
   /**
    * Recette de variété de la vidéo : tirée avant l'écriture (`par: "tirage"`), changée par Will avant la voix
    * (`par: "will"`) ; `historique` : nombre de recettes passées vues au tirage. Absente (fabrication d'avant) : le rendu
-   * de référence.
+   * de référence. `effective` : la recette réellement posée à l'écran une fois les replis de la mise en scène appliqués
+   * (celle que l'historique compare) ; absente : `recette`.
    */
-  variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number };
+  variete?: { recette: RecetteVarieteIV; par: "tirage" | "will"; historique: number; effective?: RecetteVarieteIV };
+  /** Parcours varié et scènes à éviter, tirés avant la première écriture (absent : le parcours de `recettes.ts`). */
+  parcours?: ChoixParcoursIV;
   propositionScript?: PropositionScriptIV;
   script?: { fiche: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[] };
   plan?: PlanDesFinsIV;
@@ -291,6 +327,18 @@ export interface EtatFabricationIV {
   pistes?: PisteVoixSeuleIV[];
   courtes?: CourteIV[];
   scenes?: { version: string; dureeSec: number; empreinte: string }[];
+  /** 25/10 : écrans passés en scène « titre » par le filet de la mise en scène (défaut de détail Q13/Q14), PAR VERSION (id de version) ; rendu et contrôles relisent la même fiche. */
+  ecransAdaptes?: Record<string, string[]>;
+  /**
+   * Écrans de la fiche (ids « e01 »…) passés en TEXTE SEUL parce que le rendu ne savait pas les montrer, PAR VERSION. Champ à part
+   * (`ecransAdaptes` est recalculé de zéro à chaque mise en scène) : la mise en scène le fusionne aux écrans du filet. Posé au 1er
+   * échec de rendu d'une version ; s'il existe déjà, un 2e échec est `IV_RENDU`. Effacé avec `ecransAdaptes`.
+   */
+  ecransImposesRendu?: Record<string, string[]>;
+  /** Versions dont l'imposition du texte seul est un repli « tous les écrans » (le rendu n'a nommé aucun écran retrouvé). */
+  ecransImposesRepli?: Record<string, true>;
+  /** Remarques pour Will (non bloquantes) nées de la fabrication, reprises dans les mentions de la livraison ; recalculées à chaque mise en scène. */
+  remarques?: string[];
   rendus?: Record<string, RenduFaitIV>;
   /** Transcriptions et relectures déjà payées (reprise de la porte sans repayer). */
   controles?: { transcriptions: VerdictPorteIV["transcriptions"]; relectures: VerdictPorteIV["relectures"]; verdict?: ResumePorteIV };
@@ -346,6 +394,8 @@ export interface DecisionScriptIV {
   ajoutsWill?: string[];
   /** Variantes changées par Will (tous les axes sauf le récit, déjà dans le script). */
   variete?: Partial<RecetteVarieteIV>;
+  /** Williams valide tel quel un script « à relire » pour des points de FORME seulement (jamais un point « jamais faux »). */
+  formeAcceptee?: boolean;
 }
 
 export class RenduEnCoursIV extends Error {
@@ -364,6 +414,8 @@ export class ErreurRenduDefinitifIV extends Error {
   constructor(
     message: string,
     readonly phrases: string[] = [],
+    /** Identifiants (bloc de la ligne de temps, ou écran de la fiche) des écrans irrendables, quand on les connaît. */
+    readonly ecransIrrendables?: string[],
   ) {
     super(message);
     this.name = "ErreurRenduDefinitifIV";
@@ -390,6 +442,8 @@ export interface DemandeRenduIV {
    * identifiant (le serveur garde un échec), ce qui est déjà rendu est repris tel quel.
    */
   essai?: number;
+  /** GV-ST-03 : style de sous-titres choisi dans la Bibliothèque (commande.styles.sousTitres) ; absent : charte duo, sans tirage. */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 export interface OutilsFabricationIV {
@@ -399,6 +453,8 @@ export interface OutilsFabricationIV {
   ecriture: Omit<OutilsEcritureIV, "budget">;
   /** Voix : tout sauf la réservation, posée par la caisse. */
   voix: Omit<OutilsVoixIV, "avantLecture">;
+  /** Faux : la fin de secours à lire n'est pas posée automatiquement, elle attend « Refaire cette partie » (parcours des tests d'avant). Défaut : vrai. */
+  secoursAutomatique?: boolean;
   assemblage: OutilsAssemblageIV;
   /** Rendu du fichier final d'une version (opération existante du serveur) ; pas fini : lève une attente. */
   rendre: (d: DemandeRenduIV) => Promise<{ cle: string; empreinte?: string; dureeSec: number; mesures?: MesuresExport }>;
@@ -409,10 +465,13 @@ export interface OutilsFabricationIV {
     reserver: (d: DemandeDepenseIV) => Promise<{ ok: true } | { ok: false; message: string }>;
     /**
      * MODE INDICATIF (`budget.mode`, posé par le service) : le plafond de la vidéo n'est qu'un repère. Au-dessus, la caisse
-     * appelle `signaler` (journal + cloche) et laisse passer ; l'arrêt de sécurité vient à `facteurSecurite` × le plafond.
+     * appelle `signaler` (journal + cloche) et laisse passer ; les chemins Claude et le lot d'images n'ont plus d'arrêt de sécurité
+     * (`facteurSecurite` ne sert que là où le service le demande encore).
      * Absent : mode bloquant, comportement d'avant.
      */
     indicatif?: { facteurSecurite: number; signaler: (message: string) => Promise<void> };
+    /** Prévient Will d'un prix annoncé dépassé quand il n'y a pas d'outil indicatif (même canal que `indicatif.signaler`). */
+    avertir?: (message: string) => Promise<void>;
   };
   /** Sons validés (défaut : ceux de la v4, `BRUITAGES_V4_IV`). */
   bruitagesValides?: readonly BruitageValideIV[];
@@ -420,10 +479,16 @@ export interface OutilsFabricationIV {
   cartesValidees: () => Promise<number>;
   /** Recettes des dernières vidéos IV prêtes, la plus récente d'abord (absent : aucun historique). */
   historiqueVariete?: () => Promise<readonly RecetteVarieteIV[]>;
+  /** Squelettes de scènes des dernières vidéos IV prêtes, la plus récente d'abord (absent : aucun historique). */
+  historiqueSquelettes?: () => Promise<readonly SqueletteRecent[]>;
   /** Décisions de Will en attente (services : gardées hors du travail) ; absentes : seules les fonctions pures s'appliquent. */
   decisions?: { carte?: () => Promise<DecisionCarteIV | null>; script?: () => Promise<DecisionScriptIV | null> };
   /** Heure ISO (validation automatique de la carte en « si-doute »). */
   maintenant: () => string;
+  /** Attente avant l'unique relance automatique d'une panne (défaut : attente réelle ; les essais injectent une attente vide). */
+  pause?: (ms: number) => Promise<void>;
+  /** Faux : aucune relance automatique (défaut : vrai). Les essais qui comptent chaque appel payé le coupent. */
+  relancesAuto?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -535,11 +600,11 @@ export const estFinieIV = (e: Pick<EtatFabricationIV, "etape">) => e.etape === "
 export const HISTORIQUE_VARIETE_IV = 10;
 
 /**
- * Historique du tirage (PUR) : les recettes des fabrications IV PRÊTES, dans l'ordre reçu (la plus récente d'abord),
+ * Historique du tirage (PUR) : les recettes (effectives si connues) des fabrications IV qui ont une recette (hors refusées), dans l'ordre reçu (la plus récente d'abord),
  * sans la vidéo en cours, au plus `HISTORIQUE_VARIETE_IV`. Une fabrication sans recette (d'avant la variété) est sautée.
  */
 export function historiqueVarieteIV(etats: readonly (Pick<EtatFabricationIV, "etape" | "variete"> & { demande: Pick<DemandeFabricationIV, "videoId"> })[], videoId?: string): RecetteVarieteIV[] {
-  return etats.filter((e) => e.etape === "prete" && e.variete && e.demande.videoId !== videoId).slice(0, HISTORIQUE_VARIETE_IV).map((e) => e.variete!.recette);
+  return etats.filter((e) => e.etape !== "refusee" && e.variete && e.demande.videoId !== videoId).slice(0, HISTORIQUE_VARIETE_IV).map((e) => e.variete!.effective ?? e.variete!.recette);
 }
 
 /** Codes que Will peut choisir sur cette image, axe par axe (PUR) : les tirables que l'image permet (9:16), sinon la référence. */
@@ -561,7 +626,7 @@ export function changerVarieteIV(recette: RecetteVarieteIV, changes: Partial<Rec
   const r: Record<string, string> = { ...recette };
   for (const axe of AXES_VARIETE) {
     const code = changes[axe];
-    if (code === undefined || code === recette[axe]) continue;
+    if (code === undefined || code === codeDe(recette, axe)) continue;
     if (axe === "recit") phrases.push("Le déroulé du récit est déjà dans le script : il ne change plus après l'écriture.");
     else if (!possibles[axe].includes(code)) phrases.push(`La variante ${code} n'est pas possible sur cette image.`);
     else r[axe] = code;
@@ -571,7 +636,7 @@ export function changerVarieteIV(recette: RecetteVarieteIV, changes: Partial<Rec
 }
 
 /** La recette en une ligne pour le journal (« OUV-A · REC-B · … »). */
-const ligneRecette = (r: RecetteVarieteIV) => AXES_VARIETE.map((a) => r[a]).join(" · ");
+const ligneRecette = (r: RecetteVarieteIV) => AXES_VARIETE.map((a) => codeDe(r, a)).join(" · ");
 
 /** Recette de chaque version à fabriquer (PUR) : `recettePourVersion` (format, ouverture des réseaux) ; vide sans recette. */
 export function recettesDesVersionsIV(e: EtatFabricationIV): { version: string; reseaux: ReseauIV[]; format: FormatIV; recette: RecetteVarieteIV }[] {
@@ -584,7 +649,6 @@ export function recettesDesVersionsIV(e: EtatFabricationIV): { version: string; 
 /* ------------------------------------------------------------------ */
 
 class Caisse {
-  arretPlafond: string | null = null;
   constructor(
     private readonly etat: EtatFabricationIV,
     private readonly outils: OutilsFabricationIV,
@@ -593,25 +657,26 @@ class Caisse {
 
   /** Réserve un appel ; refus (plafond ou budget du studio) : rien ne part. Idempotent par appel et par tentative. */
   async reserver(d: Omit<DemandeDepenseIV, "videoId">): Promise<{ ok: true } | { ok: false; message: string }> {
-    const cle = `${this.etape}#${this.etat.tentatives[this.etape] ?? 1}:${d.appelId}`;
+    // Une relance automatique (même tentative) ouvre une série de clés neuve : l'appel qui repart est réservé de nouveau, jamais « déjà fait ».
+    const relance = this.etat.relances?.[this.etape] ?? 0;
+    const serie = `${this.etape}#${this.etat.tentatives[this.etape] ?? 1}${relance ? `.r${relance}` : ""}`;
+    const cle = `${serie}:${d.appelId}`;
+    if (relance) d = { ...d, appelId: `${d.appelId}.r${relance}` };
     if (this.etat.caisse.reservations.some((r) => r.cle === cle)) return { ok: true };
     const engage = engageCentimes(this.etat);
     const centimes = Math.max(0, Math.ceil(d.centimes));
-    const ind = this.outils.budget.indicatif;
     const plafond = this.etat.caisse.plafondCentimes;
-    if (ind && engage + centimes > plafond && engage + centimes <= plafond * ind.facteurSecurite) {
-      // Repère dépassé, arrêt de sécurité pas atteint : Will est prévenu, la fabrication continue (la réservation reste posée).
-      await ind.signaler(`Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`).catch(() => undefined);
-    } else if (engage + centimes > plafond) {
-      if (ind) {
-        this.arretPlafond = `Arrêt de sécurité : cette vidéo a déjà coûté ${ind.facteurSecurite} fois son prix annoncé (${euros(plafond)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
-        return { ok: false, message: this.arretPlafond };
-      }
-      this.arretPlafond = `Plafond de cette vidéo atteint (${euros(this.etat.caisse.plafondCentimes)}, déjà engagé ${euros(engage)}, il faudrait ${euros(centimes)} de plus) : rien n'a été payé pour cette étape.`;
-      return { ok: false, message: this.arretPlafond };
-    }
+    const depasse = engage + centimes > plafond;
+    const phrase = `Cette vidéo dépasse son prix annoncé (${euros(plafond)}, engagé ${euros(engage)}, ${euros(centimes)} de plus).`;
+    // Règle du 25/10 : le prix ne bloque jamais. Mode indicatif : le repère dépassé est signalé avant la réservation ; sinon Will est prévenu seulement après une réservation acceptée.
+    if (depasse && this.outils.budget.indicatif?.signaler) await this.outils.budget.indicatif.signaler(phrase).catch(() => undefined);
     const r = await this.outils.budget.reserver({ ...d, videoId: this.etat.demande.videoId, centimes });
     if (!r.ok) return r;
+    // Seul le crédit réel du studio peut refuser ; le journal garde la trace du dépassement une fois la réservation acceptée.
+    if (depasse && !this.outils.budget.indicatif) {
+      this.etat.journal.push(`Avertissement : ${phrase} Le crédit réel suffit, la fabrication continue.`);
+      if (this.outils.budget.avertir) await this.outils.budget.avertir(phrase).catch(() => undefined);
+    }
     this.etat.caisse.reservations.push({ cle, etape: d.etape, fournisseur: d.fournisseur, centimes });
     return { ok: true };
   }
@@ -684,14 +749,30 @@ export function validerCarteIV(etat: EtatFabricationIV, d: DecisionCarteIV): Eta
   } catch {
     throw new ErreurDecisionIV("La carte corrigée est incomplète : vérifiez chaque bloc, puis validez de nouveau.");
   }
+  // R2 : une carte incohérente ne bloque pas la vidéo, le code la répare seul (dit à Will dans les alertes et le journal).
+  const reparee = reparerEtSignaler(carte, { typeChoisi: !!d.carte });
+  carte = reparee.carte;
+  // Puis les blocs sans flèche rangés dans une branche : lien déduit de la mise en page (marqué, signalé), sinon blocage expliqué.
+  const { carte: reliee, deduits } = reparerOrphelinsDeBranche(carte);
+  const vusDeduits = new Set(deduits.map((l) => l.vers));
+  carte = reliee;
+  // R5 : puis le réalisme (calculs, chiffres absurdes, parts, ordre), sans rien demander à Will ni à l'IA.
+  const auto = adapterCarteAutomatiquement(carte, { typeChoisi: !!d.carte });
+  carte = auto.carte;
   const controle = controlerCarte(carte);
-  if (!controle.ok) throw new ErreurDecisionIV("La carte corrigée a encore un défaut bloquant.", controle.erreurs);
+  if (!controle.ok) {
+    const aide = " Ce bloc n'a aucune flèche et le code ne peut pas deviner où le relier : relancez la lecture avec une image où il est relié.";
+    throw new ErreurDecisionIV("La carte corrigée a encore un défaut bloquant.", controle.erreurs.map((m) => (m.endsWith("n'est relié à rien.") ? m + aide : m)));
+  }
   const validee: CarteImage = { ...carte, validation: { par: "will", le: d.le.slice(0, 40), empreinteCarte: carte.image.empreinte } };
   const e = structuredClone(etat);
   delete e.propositionCarte;
   delete e.miseDeCote;
   e.carte = { carte: validee, par: "will" };
   e.journal.push(`Carte validée par Will${d.carte ? " (corrigée)" : ""}.`);
+  if (vusDeduits.size > 0) e.journal.push(`Liens déduits de la mise en page (aucune flèche sur l'image) : ${deduits.map((l) => `${l.de} → ${l.vers}`).join(", ")}.`);
+  if (reparee.reparations.length > 0) e.journal.push(`Carte réparée par le code avant validation : ${reparee.reparations.map((x) => x.detail).join(" ")}`);
+  if (auto.phrases.length > 0) e.journal.push(`Carte adaptée automatiquement avant validation : ${auto.phrases.join(" ")}`);
   return passerA(e, "ecriture");
 }
 
@@ -708,15 +789,23 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   if (!lu.success) throw new ErreurDecisionIV("Le script modifié est incomplet.", lu.error.issues.slice(0, 10).map((i) => `${i.path.join(".") || "script"} : ${i.message}`));
   const fiche = lu.data;
   const choixFormules = { ...(d.choixFormules ?? {}) };
-  const ajoutsWill = [...(d.ajoutsWill ?? [])];
+  const ajoutsWill = [...(d.ajoutsWill ?? []), ...(etat.demande.scriptColle && etat.demande.texte ? [etat.demande.texte] : [])];
   const verdict = verifierScript(fiche, { carte, choixFormules, ajoutsWill, interdits: etat.demande.interdits ?? [], ...recitDe(etat) });
-  if (!verdict.ok) throw new ErreurDecisionIV(`Le script ne passe pas encore les contrôles (${verdict.manquements.length} point(s)).`, verdict.manquements.map((m) => m.message));
+  // Script collé : seuls les points qui le bloquent comptent (chiffre hors schéma, interdit, phrase affirmative non tranchée).
+  const manquements = etat.demande.scriptColle ? manquementsDuScriptColle(verdict) : verdict.manquements;
+  // Le drapeau ne vaut que pour le script TEL QU'IL A ÉTÉ MONTRÉ (aTrancher vient de la proposition) : texte identique, aucune formule reformulée.
+  const tel = (!d.fiche || JSON.stringify(d.fiche) === JSON.stringify(p.fiche)) && Object.values(choixFormules).every((c) => c === "garder");
+  const pointsAcceptes = manquements.length && d.formeAcceptee === true && tel ? manquements : [];
+  if (pointsAcceptes.length) {
+    const bloquants = pointsAcceptes.filter((m) => !CODES_REGLES_FORME_ACCEPTABLES.includes(m.regle));
+    if (bloquants.length) throw new ErreurDecisionIV(`Ce point ne peut pas être accepté tel quel : ${bloquants.map((m) => m.message).join(" ")}`, bloquants.map((m) => m.message));
+  } else if (manquements.length) throw new ErreurDecisionIV(`Le script ne passe pas encore les contrôles (${manquements.length} point(s)).`, manquements.map((m) => m.message));
   const question = etat.demande.appelCommentaire === "question-puis-fin" ? fiche.questionCommentaire.texteDit : undefined;
   if (question) {
     const refus = refusQuestion(question);
     if (refus) throw new ErreurDecisionIV(refus, [refus]);
   }
-  const plan = planDesFinsIV({ reseaux: etat.demande.reseaux, offre: carte.offre, appelCommentaire: etat.demande.appelCommentaire, ...(question ? { questionCommentaire: question } : {}) });
+  const plan = planDesFinsIV({ reseaux: etat.demande.reseaux, offre: carte.offre, appelCommentaire: etat.demande.appelCommentaire, ...(etat.demande.numeroVersion !== undefined ? { numeroVersion: etat.demande.numeroVersion } : {}), ...(question ? { questionCommentaire: question } : {}) });
   const variete = etat.variete && d.variete ? changerVarieteIV(etat.variete.recette, d.variete, carte) : etat.variete?.recette;
   const e = structuredClone(etat);
   delete e.propositionScript;
@@ -724,6 +813,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   e.script = { fiche, choixFormules, ajoutsWill };
   if (e.variete && variete && JSON.stringify(variete) !== JSON.stringify(e.variete.recette)) {
     e.variete = { ...e.variete, recette: variete, par: "will" };
+    delete e.variete.effective;
     e.journal.push(`Variété changée par Will : ${ligneRecette(variete)}.`);
   }
   e.plan = plan;
@@ -731,6 +821,11 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
   delete e.pistes;
   delete e.courtes;
   delete e.scenes;
+  delete e.ecransAdaptes;
+  delete e.ecransImposesRendu;
+  delete e.ecransImposesRepli;
+  delete e.remarques;
+  if (pointsAcceptes.length) e.journal.push(`Script validé par Williams malgré ${pointsAcceptes.length} point(s) de forme : ${pointsAcceptes.map((m) => m.message).join(" ")}`);
   e.journal.push(`Script validé par Will${d.fiche ? " (modifié)" : ""} : la voix peut être payée.`);
   return passerA(e, "voix");
 }
@@ -766,8 +861,13 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     delete e.refus;
     delete e.attente;
     delete e.scenes;
+    delete e.ecransAdaptes;
+    delete e.ecransImposesRendu;
+    delete e.ecransImposesRepli;
+    delete e.remarques;
     if (avantVariete) delete e.rendus;
     e.etape = "mise-en-scene";
+    delete e.tentatives.livraison;
     e.tentatives["mise-en-scene"] = (e.tentatives["mise-en-scene"] ?? 1) + 1;
     e.journal.push(
       avantVariete
@@ -776,12 +876,29 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
     );
     return e;
   }
+  // Aucun fichier rendu pour aucun réseau : la livraison ne se rejoue pas à vide, on repart du rendu.
+  if (e.refus.etape === "livraison" && e.refus.code === "IV_RENDU") {
+    delete e.refus;
+    delete e.attente;
+    delete e.livraison;
+    delete e.rendus;
+    delete e.tentatives.livraison;
+    e.etape = "rendu";
+    e.tentatives.rendu = (e.tentatives.rendu ?? 1) + 1;
+    e.journal.push("Reprise du rendu : aucun fichier n'avait été rendu pour aucun réseau.");
+    return e;
+  }
   const etape = e.refus.etape;
+  // R1 : une lecture refusée APRÈS les deux lectures payées (carte « incomplète » ou « illisible » d'origine fusion, refus réessayable ; « sans texte » ou « trop chargée » ne relisent pas) donnerait
+  // le même refus si on rendait les mêmes lectures : on les efface pour relire vraiment. (« Type à choisir » d'un ancien
+  // état : les lectures restent, Will impose le type sans repayer.)
+  const relireVraiment = etape === "lecture" && e.refus.code === "IV_IMAGE" && e.refus.reessayable !== false && !!e.lectures?.a && !!e.lectures?.b;
+  if (relireVraiment) delete e.lectures;
   delete e.refus;
   delete e.attente;
   e.etape = etape;
   e.tentatives[etape] = (e.tentatives[etape] ?? 1) + 1;
-  e.journal.push(`Reprise de l'étape « ${etape} ».`);
+  e.journal.push(relireVraiment ? `Reprise de l'étape « ${etape} » : relecture neuve, comptée dans le prix accordé.` : `Reprise de l'étape « ${etape} ».`);
   return e;
 }
 
@@ -791,6 +908,11 @@ function poserSecoursIV(e: EtatFabricationIV, secours: SecoursIV): void {
   delete e.pistes;
   delete e.courtes;
   delete e.scenes;
+  delete e.ecransAdaptes;
+  delete e.ecransImposesRendu;
+  delete e.ecransImposesRepli;
+  delete e.remarques;
+  delete e.tentatives.livraison;
   if (secours.phrases.length) e.journal.push(`Fin de secours pour ${secours.reseaux.join(", ")} : « ${secours.phrases.join(" ")} » (validée par Will).`);
   // 19/10 (v-6a3b74364711) : relecture de la seule fin de secours refusée (une lecture neuve du même texte, une seule fois) ;
   // la voix la prépare au tour suivant AVANT toute lecture, le corps et les autres fins payés sont gardés.
@@ -895,7 +1017,7 @@ function propositionScript(e: EtatFabricationIV, fiche: FicheImage, aTrancher: M
   const question = e.demande.appelCommentaire === "question-puis-fin" ? fiche.questionCommentaire.texteDit : undefined;
   let prix: PrixIV = { engageCentimes: engageCentimes(e), habituelCentimes: 0, auPlusCentimes: 0, plafondCentimes: e.caisse.plafondCentimes };
   try {
-    const plan = planDesFinsIV({ reseaux: e.demande.reseaux, offre: e.carte!.carte.offre, appelCommentaire: e.demande.appelCommentaire, ...(question && !refusQuestion(question) ? { questionCommentaire: question } : {}) });
+    const plan = planDesFinsIV({ reseaux: e.demande.reseaux, offre: e.carte!.carte.offre, appelCommentaire: e.demande.appelCommentaire, ...(e.demande.numeroVersion !== undefined ? { numeroVersion: e.demande.numeroVersion } : {}), ...(question && !refusQuestion(question) ? { questionCommentaire: question } : {}) });
     if (tarif !== undefined) prix = prixSuiteIV(e, fiche, plan, tarif);
   } catch {
     // Prix inconnu tant que la question n'est pas corrigée : Will la corrige avant de valider.
@@ -956,7 +1078,7 @@ const nomVersion = (v: Pick<VersionIV, "reseaux" | "courte" | "format">) => `${v
 function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly BruitageValideIV[]): EntreeMiseEnSceneIV {
   return {
     carte: v.courte ? carteSansRetires(e.carte!.carte, v.noeudsRetires ?? []) : e.carte!.carte,
-    fiche: v.fiche,
+    fiche: ficheAdapteeIV(v.fiche, [...(e.ecransAdaptes?.[v.id] ?? []), ...(e.ecransImposesRendu?.[v.id] ?? [])]),
     voix: { mots: v.piste.mots, motsCorps: v.piste.motsCorps, dureeSec: v.piste.dureeSec, finVoixSec: v.piste.finVoixSec },
     fin: v.fin,
     reseaux: v.reseaux,
@@ -964,6 +1086,8 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     ...(v.format === "4:5" ? { format: v.format } : {}),
     // Variété : la recette de la version (son format, l'ouverture de ses réseaux) ; les bruitages partent de la graine.
     ...(e.variete ? { variete: recettePourVersion(e.variete.recette, v.reseaux, v.format ?? "9:16"), graine: e.demande.videoId } : {}),
+    // GV-ST-03e : le style choisi par Will, pour que le contrôle Q22 mesure avec lui ; sans choix : aucune clé en plus.
+    ...(e.demande.styleSousTitres?.valeur ? { styleSousTitres: e.demande.styleSousTitres } : {}),
   };
 }
 
@@ -974,7 +1098,7 @@ export function entreesMiseEnSceneIV(e: EtatFabricationIV, bruitages: readonly B
 
 function publicationDe(e: EtatFabricationIV): { publication: PublicationIV; liens: Record<string, string> } {
   const { script, plan, carte, demande } = e;
-  const liens = liensSuivisIV(demande.reseaux, demande.numeroVersion, demande.activite);
+  const liens = liensSuivisIV(demande.reseaux, demande.numeroVersion, demande.activite, plan ? sorteDuPlanIV(plan) : "diagnostic");
   const question = demande.appelCommentaire === "question-puis-fin" ? script!.fiche.questionCommentaire.texteDit : undefined;
   const publication = textesDePublicationIV(
     { accroche: script!.fiche.accroches[0].texteDit, resultat: phraseChocAttendue(carte!.carte, script!.choixFormules), ...(question ? { questionCommentaire: question } : {}) },
@@ -990,12 +1114,57 @@ function publicationDe(e: EtatFabricationIV): { publication: PublicationIV; lien
  * devient un refus réessayable (phrase simple), une attente de rendu devient `attente`.
  */
 export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabricationIV): Promise<EtatFabricationIV> {
+  let e = await avancerUnPasIV(entree, outils);
+  if (outils.relancesAuto === false || !e.refus || e.etape !== "refusee" || !e.refus.reessayable) return e;
+  const { etape, code } = e.refus;
+  // Filet : UNE seule relance par tour, pause courte ; un refus IV_PANNE met le travail en échec (`apresPanne` ne sert qu'aux exceptions) : après cette relance unique, il faut « Refaire » à la main.
+  // Chaque relance réserve de nouveau (`relances` entre dans la clé de la caisse) : un appel qui repart est toujours un appel réservé.
+  // Les contrôles ne sont jamais relancés ici : leurs transcriptions et relectures payées ne remontent à l'état qu'au retour de la porte.
+  // Pas de « mode réparé » : l'écriture rejoue déjà ses refus de forme dans sa consigne ; relancer un refus d'écriture est un simple nouvel essai.
+  // Exception : un contrôle « non fait » (outil en panne) a rendu ses transcriptions et relectures à l'état (`e.controles`) : sa relance ne repaie rien.
+  if (!(CODES_RELANCABLES_IV.includes(code) && !(code === "IV_PANNE" && etape === "controles" && !e.controles))) return e;
+  await (outils.pause ?? ((t) => new Promise<void>((ok) => setTimeout(ok, t))))(PAUSE_RELANCE_IV_MS);
+  const quoi = code === "IV_PANNE" ? "panne passagère" : "refus de forme";
+  const phrase = `${quoi}, un nouvel essai automatique de ${NOMS_ETAPES_IV[etape]}`;
+  const relance = structuredClone(e);
+  delete relance.refus;
+  relance.etape = etape;
+  relance.journal.push(`${phrase}.`);
+  // Panne : même tentative, nouvelle série de clés de caisse. Écriture refusée : nouvelle tentative (ses appels sont comptés à part).
+  if (code === "IV_PANNE") relance.relances = { ...relance.relances, [etape]: (relance.relances?.[etape] ?? 0) + 1 };
+  else relance.tentatives[etape] = (relance.tentatives[etape] ?? 1) + 1;
+  e = await avancerUnPasIV(relance, outils);
+  if (e.refus && e.etape === "refusee") {
+    e.refus.message = `${e.refus.message} Essayé automatiquement : ${phrase}.${e.refus.reessayable ? " Vous pouvez aussi « Refaire cette partie »." : ""}`;
+    e.journal.push(`Essai automatique sans succès : ${phrase}.`);
+  }
+  return e;
+}
+
+/** Pause avant l'unique relance automatique (courte : le tour de la boucle reste sous son délai ; au-delà, c'est « Refaire » à la main ; `apresPanne` ne sert qu'aux exceptions). */
+const PAUSE_RELANCE_IV_MS = 1500;
+/** Refus relancés automatiquement une fois : une panne passagère, ou une écriture refusée sur la forme (les autres refus de forme ne sont pas réessayables). */
+const CODES_RELANCABLES_IV: readonly CodeRefusIV[] = ["IV_PANNE", "IV_ECRITURE"];
+/** Noms des étapes pour Will (jamais l'identifiant interne). */
+const NOMS_ETAPES_IV: Record<EtapeChaineIV, string> = {
+  lecture: "la lecture de l'image",
+  "carte-a-valider": "la validation de ce que j'ai compris",
+  ecriture: "l'écriture du script",
+  "script-a-valider": "la validation du script",
+  voix: "la voix",
+  "mise-en-scene": "la mise en scène",
+  rendu: "le montage de la vidéo",
+  controles: "les vérifications finales",
+  livraison: "la livraison",
+};
+
+async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricationIV): Promise<EtatFabricationIV> {
   if (estFinieIV(entree)) return entree;
   const e = structuredClone(entree);
   delete e.attente;
   const etape = e.etape as EtapeChaineIV;
   const caisse = new Caisse(e, outils, etape);
-  const plafond = (code: CodeRefusIV = "IV_BUDGET"): CodeRefusIV => (caisse.arretPlafond ? "IV_PLAFOND" : code);
+  const plafond = (code: CodeRefusIV = "IV_BUDGET"): CodeRefusIV => code;
   try {
     switch (etape) {
       case "lecture":
@@ -1024,19 +1193,24 @@ export async function avancerIV(entree: EtatFabricationIV, outils: OutilsFabrica
       garde.caisse = e.caisse;
       if (e.compteurAppels !== undefined) garde.compteurAppels = e.compteurAppels;
       garde.attente = raisonDe(err);
+      // Le nouvel essai du rendu et sa remarque survivent à l'attente.
+      if (etape === "rendu") {
+        garde.tentatives = e.tentatives;
+        garde.journal = e.journal;
+      }
       return garde;
     }
-    if (caisse.arretPlafond) return refuser(e, etape, "IV_PLAFOND", caisse.arretPlafond);
     // Q17 (son brut pas lisible en WAV) : « Refaire » relance la conversion, gratuite, sans relire la voix.
     if (err instanceof ErreurVoixIV) return refuser(e, etape, err.controle === "budget" ? plafond() : "IV_VOIX", err.message, { reessayable: err.controle === "budget" || err.controle === "Q17" });
     if (err instanceof ErreurRenduDefinitifIV) return refuser(e, etape, "IV_RENDU", err.message, { phrases: err.phrases, reessayable: false });
-    return refuser(e, etape, "IV_PANNE", `Panne pendant l'étape « ${etape} » : ${raisonDe(err)} Rien de ce qui est payé n'est perdu ; réessayez.`);
+    return refuser(e, etape, "IV_PANNE", `Panne pendant ${NOMS_ETAPES_IV[etape]} : ${raisonDe(err)} Rien de ce qui est payé n'est perdu ; réessayez.`);
   }
   return e;
 }
 
 async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { demande } = e;
+  if (demande.texte !== undefined) return pasConceptionTexte(e, o, caisse, plafond);
   const octets = await o.lireImageSource(demande.image.cle);
   if (!octets) return refuser(e, "lecture", "IV_IMAGE", "L'image déposée est introuvable : déposez-la de nouveau.", { reessayable: false });
   const r = await lireImage(
@@ -1048,22 +1222,68 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
     if (r.lectures && Object.keys(r.lectures).length) e.lectures = r.lectures;
     if (r.motif === "type-inconnu") return refuser(e, "lecture", "IV_TYPE_A_CHOISIR", PHRASE_TYPE_INCONNU, { reessayable: false });
     if (r.motif === "budget") return refuser(e, "lecture", plafond(), r.message);
-    const reessayable = r.motif === "appel" || r.motif === "illisible" || r.motif === "conversion";
+    // Panne de Claude (appel) : passagère, code « panne » relancé une fois seul par `avancerIV` ; image illisible : « image ».
+    if (r.motif === "appel") return refuser(e, "lecture", "IV_PANNE", r.message);
+    const reessayable = r.motif === "illisible" || r.motif === "conversion" || r.motif === "incomplete";
     return refuser(e, "lecture", "IV_IMAGE", r.message, { reessayable });
   }
   // Lectures gardées : une correction de type ou une reprise ne relit jamais l'image.
   delete e.lectures;
-  const doutes = doutesDeLaCarte(r.carte, r.controle);
-  e.propositionCarte = { carte: r.carte, controle: r.controle, doutes, empreinte: empreinteDe({ carte: r.carte, controle: r.controle }) };
-  e.journal.push(`Image lue (${r.appels} appel(s)${r.simule ? ", simulés" : ""}) : ${r.carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+  return suiteCarteLue(e, o, r.carte, r.controle, (doutes) => `Image lue (${r.appels} appel(s)${r.simule ? ", simulés" : ""}) : ${r.carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+}
+
+/**
+ * MODE TEXTE (R6b) : l'étape « lecture » conçoit le workflow depuis le texte de Will (même chemin de dépense que la
+ * lecture : la caisse réserve le pire coût avant l'appel), puis la carte suit la chaîne d'une image lue (réparation
+ * automatique, doutes, porte « carte »). Aucun fichier n'est lu.
+ */
+async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
+  const { concevoirWorkflow } = await import("./texte/conception");
+  const { demande } = e;
+  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
+  if (!t.ok) {
+    if (t.motif === "budget" || t.motif === "plafond") return refuser(e, "lecture", plafond(), t.message);
+    // Texte à reformuler : relancer le même texte donnerait le même refus ; panne ou sortie illisible : « Refaire » réessaie.
+    if (t.motif === "appel") return refuser(e, "lecture", "IV_PANNE", t.message);
+    return refuser(e, "lecture", "IV_IMAGE", t.message, { reessayable: t.motif === "illisible" });
+  }
+  // Même réparation automatique que pour une image lue (R2).
+  const carte = reparerEtSignaler(t.carte, { typeChoisi: false }).carte;
+  return suiteCarteLue(e, o, carte, controlerCarte(carte), (doutes) => `Workflow conçu depuis votre texte (${t.appels} appel(s)${t.simule ? ", simulés" : ""}) : ${carte.types.join(" + ")}${doutes.length ? `, ${doutes.length} doute(s)` : ""}.`);
+}
+
+/** Suite commune de la lecture d'une image et de la conception d'un texte : la carte proposée, ses doutes, la porte « carte ». */
+async function suiteCarteLue(e: EtatFabricationIV, o: OutilsFabricationIV, carteLue: CarteImage, controleLu: ControleCarte, ligne: (doutes: string[]) => string): Promise<EtatFabricationIV> {
+  const { demande } = e;
+  // R5 : AVANT la validation et le script (l'empreinte de la carte, lue par Q03, change avec elle), la carte est réparée puis
+  // adaptée au réalisme par le code, sans appel IA. Si elle change, sa validation tombe (rien n'est encore validé ici).
+  const adaptee = adapterCarteAutomatiquement(carteLue, { typeChoisi: !!demande.typeImpose });
+  let lue = adaptee.carte;
+  const controle = adaptee.changee ? controlerCarte(lue) : controleLu;
+  const doutes = doutesDeLaCarte(lue, controle);
+  // Mode automatique : chaque doute accepté sans relecture est écrit dans les adaptations (visible sur l'écran de résultat),
+  // AVANT l'empreinte de la proposition.
+  if (demande.validationCarte === "automatique" && doutes.length) lue = ecrireAdaptations(lue, doutes.map((d) => `Point accepté sans relecture, à vérifier : ${d}`));
+  e.propositionCarte = { carte: lue, controle, doutes, empreinte: empreinteDe({ carte: lue, controle }) };
+  e.journal.push(ligne(doutes));
+  if (lue.adaptations?.length) e.journal.push(`Carte adaptée automatiquement (${lue.adaptations.length}) : ${lue.adaptations.map((x) => x.replace(/^Adapté automatiquement : /, "")).join(" ; ")}`);
 
   // Lot : aucune porte n'attend Will (ni B6, ni le réglage « toujours ») ; contrôle automatique à la place.
   if (demande.lot) return carteEnLot(e, o);
+  // Mode automatique (défaut) : la carte réparée est validée par le réglage, même sous 10 cartes et malgré les doutes.
+  // Seul un défaut bloquant que le code n'a pas su réparer garde la porte (Will peut alors corriger la carte).
+  if (demande.validationCarte === "automatique" && controle.ok) {
+    const carte: CarteImage = { ...lue, validation: { par: "reglage", le: o.maintenant().slice(0, 40), empreinteCarte: lue.image.empreinte } };
+    delete e.propositionCarte;
+    e.carte = { carte, par: "reglage" };
+    e.journal.push(`Carte validée par le réglage « automatique »${doutes.length ? ` : ${doutes.length} point(s) accepté(s) sans relecture, écrit(s) dans « Adapté automatiquement, à vérifier »` : ""}.`);
+    return passerA(e, "ecriture");
+  }
   const validees = await o.cartesValidees();
   const obligatoire = validees < CARTES_OBLIGATOIRES;
-  if (obligatoire || demande.validationCarte === "toujours" || doutes.length || !r.controle.ok) return passerA(e, "carte-a-valider");
+  if (obligatoire || demande.validationCarte === "toujours" || doutes.length || !controle.ok) return passerA(e, "carte-a-valider");
   // « si-doute », 10 cartes validées, aucun doute : la carte est validée par le réglage de Will.
-  const carte: CarteImage = { ...r.carte, validation: { par: "reglage", le: o.maintenant().slice(0, 40), empreinteCarte: r.carte.image.empreinte } };
+  const carte: CarteImage = { ...lue, validation: { par: "reglage", le: o.maintenant().slice(0, 40), empreinteCarte: lue.image.empreinte } };
   delete e.propositionCarte;
   e.carte = { carte, par: "reglage" };
   e.journal.push("Carte sans doute : validée par le réglage « si-doute » (10 cartes déjà validées).");
@@ -1073,15 +1293,16 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
 /** Lot, porte « carte » : les mêmes fonctions que Will (`validerCarteIV`), avec la carte telle que proposée. */
 function carteEnLot(e: EtatFabricationIV, o: OutilsFabricationIV): EtatFabricationIV {
   const p = e.propositionCarte!;
-  const mise = miseDeCoteCarteIV(p.carte, p.controle, p.doutes);
+  // Mode automatique : plus de mise de côté sur doute ; seul un défaut bloquant resté après réparation met la vidéo de côté.
+  const mise = e.demande.validationCarte === "automatique" ? (p.controle.ok ? null : { motif: "Ce que j'ai compris de l'image a un défaut.", phrases: [...new Set(p.controle.erreurs)] }) : miseDeCoteCarteIV(p.carte, p.controle, p.doutes);
   passerA(e, "carte-a-valider");
   if (mise) return mettreDeCote(e, "carte", mise.motif, mise.phrases);
   try {
     const valide = validerCarteIV(e, { proposition: p.empreinte, le: o.maintenant() });
     // Validée par le contrôle automatique, pas par Will : `par: "reglage"` ; elle ne compte pas parmi les cartes relues.
     valide.carte = { carte: { ...valide.carte!.carte, validation: { ...valide.carte!.carte.validation!, par: "reglage" } }, par: "reglage" };
-    valide.journal.pop();
-    valide.journal.push("Carte sans doute : validée par le contrôle automatique du lot.");
+    valide.journal = valide.journal.filter((l) => !l.startsWith("Carte validée par Will"));
+    valide.journal.push(e.demande.validationCarte === "automatique" ? "Carte validée par le réglage « automatique » (lot)." : "Carte sans doute : validée par le contrôle automatique du lot.");
     return valide;
   } catch (err) {
     return mettreDeCote(e, "carte", raisonDe(err), err instanceof ErreurDecisionIV ? err.phrases : []);
@@ -1116,31 +1337,41 @@ async function pasEcriture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse:
     e.variete = { recette, par: "tirage", historique: historique.length };
     e.journal.push(`Variété tirée (${historique.length} vidéo(s) d'historique) : ${ligneRecette(recette)}.`);
   }
-  const r = await ecrireScriptIV(
-    // L'identifiant des appels porte la tentative : un nouvel essai après un refus est compté à part.
-    { videoId: e.demande.videoId, versionId: tentative > 1 ? `${e.demande.versionId}-t${tentative}` : e.demande.versionId, carte, interdits: e.demande.interdits ?? [], decoupage: "chapitres", ...recitDe(e) },
-    { ...o.ecriture, budget: caisse.claude("ecriture") },
-  );
+  // Parcours varié : tiré une seule fois, avec la graine de la vidéo et les squelettes des trois dernières.
+  e.parcours ??= choisirParcoursIV({ graine: e.demande.videoId, carte, historique: (await o.historiqueSquelettes?.()) ?? [] });
+  const colle = e.demande.scriptColle === true;
+  // Script collé : l'écriture est remplacée, sans appel ni réservation ; la suite de la chaîne est la même.
+  const r = colle
+    ? ecrireScriptColleIV({ script: e.demande.texte ?? "", carte, interdits: e.demande.interdits ?? [], ...recitDe(e) })
+    : await ecrireScriptIV(
+        // L'identifiant des appels porte la tentative : un nouvel essai après un refus est compté à part.
+        { videoId: e.demande.videoId, versionId: tentative > 1 ? `${e.demande.versionId}-t${tentative}` : e.demande.versionId, carte, interdits: e.demande.interdits ?? [], decoupage: "chapitres", ...recitDe(e), parcours: e.parcours },
+        { ...o.ecriture, budget: caisse.claude("ecriture") },
+      );
   if (r.ok || r.motif === "a-trancher") {
     e.propositionScript = propositionScript(e, r.fiche, r.aTrancher, o.voix.tarifCentimesParCaractere);
-    e.journal.push(`Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
+    e.journal.push(colle ? `Script collé découpé en ${r.fiche.ecrans.length} écrans, mots inchangés (aucun appel d'écriture)${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.` : `Script écrit (${r.appels} appel(s)${r.simule ? ", simulés" : ""})${r.aTrancher.length ? `, ${r.aTrancher.length} point(s) à trancher` : ""}.`);
     passerA(e, "script-a-valider");
     // Lot : aucune porte n'attend Will ; contrôle automatique avant de payer la voix.
-    return e.demande.lot ? controleAutomatiqueScriptIV(e, o.budget.indicatif?.facteurSecurite) : e;
+    return e.demande.lot || (e.demande.validationCarte === "automatique" && !e.demande.scriptAValider) ? controleAutomatiqueScriptIV(e, e.demande.lot ? o.budget.indicatif?.facteurSecurite : undefined, { prixIndicatif: !!o.budget.indicatif }) : e;
   }
   if (r.motif === "budget") return refuser(e, "ecriture", plafond(), r.message);
-  return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" });
+  // Script collé : le relancer tel quel donnerait le même refus ; Will corrige son texte et le dépose de nouveau.
+  return refuser(e, "ecriture", "IV_ECRITURE", r.message, { phrases: r.refus, reessayable: r.motif !== "reglage" && !colle });
 }
 
 /**
  * Lot, porte « script » (plan § d.2). PUR. `null` : le script est sans doute (rien à trancher, prix connu et dans le prix
  * accordé). Les formules absolues passent avant « à trancher » : B7, rien n'est changé sans Will.
  */
-export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number): { motif: string; phrases: string[] } | null {
-  if (p.formules.length) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
-  if (p.aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: p.aTrancher.map((m) => m.message) };
-  if (p.prix.auPlusCentimes <= 0) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
-  // Mode indicatif (`facteurSecurite` donné) : le prix accordé est un repère ; seul l'arrêt de sécurité (n × ce prix) met le script de côté.
+export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: number, options: { formulesGardees?: boolean; prixIndicatif?: boolean } = {}): { motif: string; phrases: string[] } | null {
+  // R5 (mode automatique) : les phrases affirmatives sont GARDÉES telles quelles ; elles ne mettent rien de côté.
+  const aTrancher = options.formulesGardees ? p.aTrancher.filter((m) => m.regle !== "Q05bis") : p.aTrancher;
+  if (p.formules.length && !options.formulesGardees) return { motif: `Une formule trop affirmative est dans le script : ${p.formules.map((f) => `« ${f.texte} »`).join(", ")}.`, phrases: p.aTrancher.map((m) => m.message) };
+  if (aTrancher.length) return { motif: "Le script a une phrase à trancher.", phrases: aTrancher.map((m) => m.message) };
+  if (!(p.prix.auPlusCentimes > 0)) return { motif: "Le prix de la voix n'a pas pu être calculé.", phrases: [] };
+  // Mode indicatif (`prixIndicatif`, ordre du 25/10) : le prix ne met JAMAIS le script de côté (le prix de la voix inconnu, plus haut, reste un manque).
+  if (options.prixIndicatif) return null;
   if (p.prix.engageCentimes + p.prix.auPlusCentimes > p.prix.plafondCentimes * (facteurSecurite ?? 1)) {
     return { motif: `La voix dépasserait le prix accordé pour cette vidéo (${(p.prix.plafondCentimes / 100).toFixed(2).replace(".", ",")} €).`, phrases: [] };
   }
@@ -1151,14 +1382,17 @@ export function miseDeCoteScriptIV(p: PropositionScriptIV, facteurSecurite?: num
  * Lot : le script est contrôlé et, s'il est sans doute, validé comme Will le ferait (`validerScriptIV`, script tel que
  * proposé) ; sinon la vidéo reste à la porte, mise de côté, sans payer la voix. PUR.
  */
-export function controleAutomatiqueScriptIV(etat: EtatFabricationIV, facteurSecurite?: number): EtatFabricationIV {
+export function controleAutomatiqueScriptIV(etat: EtatFabricationIV, facteurSecurite?: number, options: { prixIndicatif?: boolean } = {}): EtatFabricationIV {
   const p = etat.propositionScript!;
-  const mise = miseDeCoteScriptIV(p, facteurSecurite);
+  // R5 : en mode automatique, les phrases affirmatives sont gardées (choix « garder » posé par le réglage, pas par Will).
+  const auto = etat.demande.validationCarte === "automatique";
+  const mise = miseDeCoteScriptIV(p, facteurSecurite, { formulesGardees: auto, prixIndicatif: options.prixIndicatif });
   if (mise) return mettreDeCote(etat, "script", mise.motif, mise.phrases);
   try {
-    const valide = validerScriptIV(etat, { proposition: p.empreinte, choixFormules: {}, ajoutsWill: [] });
+    const choixFormules: Record<string, ChoixFormule> = auto ? Object.fromEntries(p.formules.map((f) => [f.cle, "garder" as const])) : {};
+    const valide = validerScriptIV(etat, { proposition: p.empreinte, choixFormules, ajoutsWill: [] });
     valide.journal.pop();
-    valide.journal.push("Script sans doute : validé par le contrôle automatique du lot.");
+    valide.journal.push(auto ? `Script validé par le réglage « automatique » : le prix reste dans le prix accordé${p.formules.length ? `, ${p.formules.length} phrase(s) affirmative(s) gardée(s) telle(s) quelle(s)` : ""}.` : "Script sans doute : validé par le contrôle automatique du lot.");
     return valide;
   } catch (err) {
     return mettreDeCote(etat, "script", raisonDe(err), err instanceof ErreurDecisionIV ? err.phrases : []);
@@ -1176,11 +1410,20 @@ async function pasScript(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<
   }
 }
 
+/** Délai de base entre deux essais de conversion WAV (Q17) ; l'essai k attend k fois ce délai. */
+const DELAI_ESSAI_WAV_MS = 250;
+
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
   const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
+  // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
+  // plan de départ (le corps + chaque fin lue à part), quel que soit le texte (une fin de secours a un texte neuf).
+  const premieresLectures = 1 + segments.fins.length;
+  const reservationsVoix = () => e.caisse.reservations.filter((x) => x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}:`) || x.cle.startsWith(`voix#${e.tentatives.voix ?? 1}.r`)).length;
+  const lecturesSupplementairesRestantes = () => REPARATIONS_VOIX_MAX_IV - Math.max(0, reservationsVoix() - premieresLectures);
   const voixOutils: OutilsVoixIV = {
     ...o.voix,
+    lecturesSupplementairesRestantes,
     avantLecture: async (l) => {
       // Le numéro de la lecture se compte sur la CAISSE, jamais sur les lectures payées de l'état : une reprise neuve (texte
       // modifié puis remis comme avant : A → B → A) a `payees` vide, et la clé `…-1` du texte A existe déjà dans la caisse, qui
@@ -1188,8 +1431,12 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
       // Revers accepté : après une panne entre la réservation et la lecture, on réserve une fois de plus (sans risque).
       const marque = createHash("sha256").update(l.texte).digest("hex").slice(0, 10);
       const prefixe = `iv-voix-${l.prise}-${marque}-`;
-      const cle = `voix#${e.tentatives.voix ?? 1}:${prefixe}`;
-      const deja = e.caisse.reservations.filter((x) => x.cle.startsWith(cle)).length;
+      // Les relances automatiques (`.rN`) comptent aussi : une même série de clés ne revient jamais.
+      const serie = `voix#${e.tentatives.voix ?? 1}`;
+      const deja = e.caisse.reservations.filter((x) => (x.cle.startsWith(`${serie}:`) || x.cle.startsWith(`${serie}.r`)) && x.cle.includes(`:${prefixe}`)).length;
+      // Plafond GLOBAL de la vidéo : 3 lectures payantes de plus que les premières lectures (relances de ressemblance comprises).
+      // Filet : les décisions de la voix s'y arrêtent avant ; ici une lecture de trop n'est jamais réservée ni payée.
+      if ((deja > 0 || reservationsVoix() >= premieresLectures) && lecturesSupplementairesRestantes() <= 0) throw new ErreurPlafondLecturesIV(`Plafond de ${REPARATIONS_VOIX_MAX_IV} lectures supplémentaires atteint pour cette vidéo : aucune lecture de plus n'est payée.`);
       const r = await caisse.reserver({ appelId: `${prefixe}${deja + 1}`, etape: "voix", fournisseur: "heygen", centimes: l.coutMaxCentimes, caracteres: l.caracteres });
       if (!r.ok) throw new Error(r.message);
     },
@@ -1199,18 +1446,33 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
   // 1. La voix : un tour (une lecture payée au plus).
   if (!e.voix.issue) {
     e.voix = await avancerVoixIV(e.voix, voixOutils);
-    if (e.voix.issue?.statut === "faite") e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+    if (e.voix.issue?.statut === "faite") {
+      e.journal.push(`Voix lue : ${rapportVoixIV(e.voix).payees} lecture(s) payée(s).`);
+      for (const r of e.voix.remarques ?? []) e.journal.push(r);
+    }
     // Un refus se dit dans le même pas : la caisse sait encore si c'est le plafond.
     if (e.voix.issue?.statut !== "refus") return e;
   }
   if (e.voix.issue.statut === "refus") {
     // 15/10 : dernière fin de secours refusée et repli prévu (Facebook reprend Instagram) : posé dans le même passage,
-    // sans lecture ni accord (rien n'est payé) ; la vidéo continue. Une fin de secours à LIRE attend « Refaire ».
+    // sans lecture ni accord (rien n'est payé) ; la vidéo continue. Une fin de secours à LIRE est posée plus bas, automatiquement.
     const repli = e.voix.issue.controle === "Q16" ? secoursApresArretIV(e.voix, e.plan!) : null;
     if (repli && !repli.lecture) {
       e.journal.push(`Fin de secours refusée : ${e.voix.issue.message}`);
       delete e.voix.issue;
       poserSecoursIV(e, repli);
+      return e;
+    }
+    // La fin de secours (ou la relecture de la seule fin) à LIRE est posée sans attendre « Refaire » : même réservation avant
+    // la lecture, dans le plafond GLOBAL de réparations de la vidéo. Épuisé : l'arrêt reste (voix refusée, jamais gardée en silence).
+    const faites = e.voix.reparations ?? 0;
+    if (repli && o.secoursAutomatique !== false && faites < REPARATIONS_VOIX_MAX_IV && lecturesSupplementairesRestantes() > 0) {
+      const raison = e.voix.issue.message;
+      e.journal.push(`Fin de secours refusée : ${raison} Lecture de secours posée automatiquement (${faites + 1}/${REPARATIONS_VOIX_MAX_IV}).`);
+      delete e.voix.issue;
+      poserSecoursIV(e, repli);
+      e.voix.reparations = faites + 1;
+      e.voix.remarques = [...(e.voix.remarques ?? []), `Fin de secours lue automatiquement (${faites + 1}/${REPARATIONS_VOIX_MAX_IV}) : ${raison}`];
       return e;
     }
     const code = e.voix.issue.controle === "budget" ? plafond() : "IV_VOIX";
@@ -1223,8 +1485,33 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
 
   // 2. Une piste voix seule par version (aucune lecture).
   if (!e.pistes) {
-    e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+    // Réparation sans validation : conversion WAV (Q17, gratuite) retentée 3 fois ; coupe ou mots qui ne collent pas :
+    // voix relue en lecture neuve (3 fois au plus). Seul un échec après ces essais reste un arrêt.
+    for (let essai = 1; !e.pistes; essai++) {
+      try {
+        e.pistes = await assemblerVersionsIV(e.voix, o.assemblage);
+      } catch (err) {
+        if (!(err instanceof ErreurVoixIV) || err.controle === "budget" || err.controle === "musique" || err.controle === "Q11bis") throw err;
+        if (err.controle === "Q17") {
+          if (essai >= 3) throw err;
+          e.journal.push(`Son de la voix non converti en WAV (essai ${essai}/3) : nouvel essai automatique.`);
+          // Court délai croissant : le rangement ou la conversion lente a le temps de finir (gratuit, aucune lecture).
+          await new Promise((r) => setTimeout(r, DELAI_ESSAI_WAV_MS * essai));
+          continue;
+        }
+        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) et le décompte de mots différent ;
+        // une erreur d'entrée qui ne dépend pas de la lecture (son d'une version absent…) est levée sans rien payer.
+        if (err.controle !== "coupe" && err.controle !== "Q19" && !err.relire) throw err;
+        const refaite = relireLaVoixIV(e.voix, voixOutils, err.message);
+        if (!refaite) throw err;
+        e.voix = refaite;
+        delete e.pistes;
+        e.journal.push(`Piste voix refusée : ${err.message} La voix est relue automatiquement (${refaite.reparations}/3).`);
+        return e;
+      }
+    }
     e.journal.push(`Pistes voix seule : ${e.pistes.length}.`);
+    for (const p of e.pistes) if (p.remarque) e.journal.push(p.remarque);
     return e;
   }
 
@@ -1268,7 +1555,7 @@ async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Pr
   return res;
 }
 
-async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
+export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   // Reprise d'un travail dont le script a été écrit avant la variété : recette tirée ici, une seule fois, sans rien
   // réécrire ni refaire la voix. Le script a été écrit sans recette, donc avec le récit de référence : le récit est
   // forcé à REC-A (les autres axes ne lisent que la carte et se replient d'eux-mêmes si le script ne s'y prête pas).
@@ -1281,13 +1568,76 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   const scenes: NonNullable<EtatFabricationIV["scenes"]> = [];
   const phrases: string[] = [];
+  let ligne916: LigneDeTempsIV | undefined;
+  // Remarques recalculées à chaque mise en scène : celles que le rendu a imposées (texte seul) sont redites d'après `ecransImposesRendu`.
+  delete e.remarques;
   for (const v of versionsDe(e)) {
-    const r = mettreEnSceneIV(sceneDe(e, v, bruitages));
-    if (!r.ok) phrases.push(...r.phrases.map((p) => `${nomVersion(v)} · ${p}`));
+    const imposes = e.ecransImposesRendu?.[v.id] ?? [];
+    if (imposes.length) (e.remarques ??= []).push(`${nomVersion(v)} : ${imposes.length} écran(s) que la vidéo ne savait pas montrer tels quels sont passés en texte seul (${imposes.join(", ")})${e.ecransImposesRepli?.[v.id] ? " : repli sur tous les écrans, le rendu n'en a nommé aucun retrouvé" : ""}.`);
+    // 25/10 (zéro blocage, v-b54bb4798246) : un défaut de détail (Q13 chiffre non montré, Q14 rythme) ne refuse plus la vidéo :
+    // les écrans cités passent en texte seul (3 essais au plus) ; s'il persiste, la vidéo continue et le défaut reste au journal.
+    const mettre = (adaptes: readonly string[]) => mettreEnSceneIV({ ...sceneDe(e, v, bruitages), fiche: ficheAdapteeIV(v.fiche, [...imposes, ...adaptes]) });
+    let issue: ReturnType<typeof mettreEnSceneAvecFiletIV> | undefined;
+    let panne: string | undefined;
+    try {
+      issue = mettreEnSceneAvecFiletIV(mettre, [], nomVersion(v), ficheAdapteeIV(v.fiche, imposes));
+    } catch (err) {
+      panne = raisonDe(err);
+    }
+    // Zéro blocage : une mise en scène refusée (ou en panne) retombe sur une composition sûre de la même scène (tous les
+    // écrans en texte seul) ; la raison reste en remarque. Le refus ne sort qu'en dernier.
+    if (!issue || issue.refus.length) {
+      const motif = panne ?? issue!.refus[0];
+      // Grands vides (issue 119) : on essaie d'abord les seuls écrans NOMMÉS en défaut (Q13, Q14) ; si la liste est vide, ou si cet
+      // essai est en panne ou refusé, on retombe sur l'ancienne composition sûre (tous les écrans à texte) avant de refuser.
+      // Dans les deux cas, un écran n'est gardé en texte seul que s'il reste vivant (`ecranVivantIV`) : pas de nouveau grand vide.
+      const nommes = issue ? ecransEnDefautIV(issue.resultat.ligne) : { q13: [], q14: [] };
+      const aAdapter = (id: string) => v.fiche.ecrans.some((x) => x.id === id && x.scene !== "titre" && x.textesEcran.length > 0);
+      const listeNommee = [...new Set([...nommes.q13, ...nommes.q14])].filter(aAdapter);
+      const listeTous = v.fiche.ecrans.filter((x) => aAdapter(x.id)).map((x) => x.id);
+      type Essai = { sure: ReturnType<typeof mettreEnSceneAvecFiletIV>; sures: string[]; vide: boolean };
+      const essayer = (ids: string[]): Essai | undefined => {
+        if (!ids.length) return undefined;
+        try {
+          const r = mettreEnSceneAvecFiletIV(mettre, ids, nomVersion(v), v.fiche);
+          const gardes = ids.filter((id) => ecranVivantIV(r.resultat.ligne, id));
+          if (gardes.length === ids.length) return { sure: r, sures: ids, vide: false };
+          const r2 = gardes.length ? mettreEnSceneAvecFiletIV(mettre, gardes, nomVersion(v), v.fiche) : undefined;
+          // Aucun écran vivant : la composition complète reste le dernier recours (un vide vaut mieux qu'un refus).
+          return r2 ? { sure: r2, sures: gardes, vide: false } : { sure: r, sures: ids, vide: true };
+        } catch {
+          return undefined;
+        }
+      };
+      const essais = [essayer(listeNommee), listeTous.join() !== listeNommee.join() ? essayer(listeTous) : undefined].filter((x): x is Essai => !!x);
+      const essai = essais.find((x) => !x.sure.refus.length && !x.vide) ?? essais.find((x) => !x.sure.refus.length) ?? essais[essais.length - 1];
+      const sure = essai?.sure;
+      const sures = essai?.sures ?? [];
+      if (sure && !sure.refus.length) {
+        e.journal.push(`Remarque · mise en scène (${nomVersion(v)}) refusée (${motif}) : composition plus simple (texte seul) utilisée.`);
+        sure.adaptes.unshift(...sures);
+        issue = sure;
+      } else if (sure) {
+        // Un refus d'une autre nature (chiffre faux, etc.) n'est jamais effacé.
+        phrases.push(...sure.refus.map((p) => `${nomVersion(v)} · ${p}`));
+        continue;
+      } else if (!issue) {
+        phrases.push(`${nomVersion(v)} · ${motif}`);
+        continue;
+      }
+    }
+    // Recalculé de zéro à chaque passage ; un état par version (chaque version est vérifiée séparément).
+    if (issue.adaptes.length) (e.ecransAdaptes ??= {})[v.id] = issue.adaptes;
+    else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
+    e.journal.push(...issue.journal);
+    const r = issue.resultat;
+    if (!ligne916 && (v.format ?? "9:16") === "9:16") ligne916 = r.ligne;
+    if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
   }
   if (phrases.length) return refuser(e, "mise-en-scene", "IV_MISE_EN_SCENE", `La mise en scène est refusée : ${phrases[0]}`, { phrases, reessayable: false });
   e.scenes = scenes;
+  if (e.variete && ligne916?.variete) e.variete.effective = recetteEffectiveIV(ligne916.variete.recette, ligne916.variete.replis);
   e.journal.push(`Mise en scène : ${scenes.length} version(s).`);
   return passerA(e, "rendu");
 }
@@ -1297,7 +1647,43 @@ async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationIV): Pro
  * sans elle, une correction qui ne touche que l'affichage ne change ni la ligne de temps ni l'identifiant de rendu, et « Refaire
  * cette partie » reprend les anciens rendus (même refus, à 0 €). 23/10/2026 : bulle du récit, légende du chiffre, phrase de la fin.
  */
-export const VERSION_COMPOSITIONS_IV = "compositions-iv/10"; // /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
+export const VERSION_COMPOSITIONS_IV = "compositions-iv/25"; // /25 (30/10/2026, PR 148) : 4:5 et 9:16, le titre d'en-tête en liste à virgules suit le bloc dont le libellé est dit ; /24 (29/10/2026, PR 145) : 4:5, carte F, variante de disposition « etroite » (cartes d'une rangée l'une sous l'autre quand deux ne tiennent pas côte à côte) ; /23 (29/10/2026) : le rendu 4:5 change (toile et vue d'ensemble, ouverture OUV-E 140, variété 143 qui rend la référence tirable pour récit, chiffres, caméra et transitions, repère k/N) ; /22 (29/10/2026, essai v-d67cc6670a97) : icône inconnue remplacée d'office (mots-clés proches, sinon icône neutre), silhouette « Place de la carte suivante » au rythme du filet, 4:5 : une alerte « trop grand » n'est pas un cadrage propre ; /21 (29/10/2026, PR 136) : typographie des écrans de texte (ponctuation isolée, guillemet fermant, ponctuation en tête de ligne, mots outils des libellés courts) ; /20 (29/10/2026, essai v-77ae5fc27b74) : OUV-E recul, le libellé de la carte centrale ne déborde plus sous la pastille (2 lignes équilibrées, sinon carte élargie, sinon taille réduite avec remarque) ; /19 (29/10/2026, essai v-77ae5fc27b74) : en-tête varié, le filet orange ne barre plus le titre (hauteur de l'étiquette réservée à l'estimation de la géométrie, minHeight), étiquette 4:5 moins espacée (0,24 em) ; /18 (29/10/2026) : 4:5, disposition « large » quand le cadre lisible est court (boîtes de 960 px, plus de bloc qui s'allonge ni de déborde sur les côtés) ; /17 (29/10/2026) : filet « jamais un bloc coupé à l'écran » (opacité des blocs et pastilles au franchissement d'un bord, repli à coupe franche) ; /16 (29/10/2026) : 4:5, le moteur calcule la toile et la caméra pour 1350 px de haut (plus 1920) et le calque caméra efface la scène avant la bande des sous-titres ; /15 (29/10/2026, issue 119) : blocs déjà vus montrés quel que soit APP (Toile), rappel des blocs déjà montrés, mention au mot 0 ; /14 (26/10/2026) : en-tête d'une paire « X · Y » avant le titre = étiquette X seule (elle ne recouvre plus le titre) ; /13 (25/10/2026, v-b54bb4798246) : vue d'ensemble, mot trop large abrégé, jamais de texte blanc hors pastille ; libellés courts sans « + » final ; /12 (25/10/2026, vidéo v-0339175a9f88) : pile des chiffres centrée sur la page, légende de l'anneau jamais sur le trait (dedans si elle tient dans la corde, sinon dessous), écrans de texte TYP-C sans trou entre rangées et « Au matin » gardé entier, vue d'ensemble avec 16 px au moins entre rangées (chiffres-clés retirés avant les paires, libellés raccourcis signalés, rendu dosé sur l'écart) ; /11 (25/10/2026) : affiche de la première image (l'accroche écrite en entier, posée 1 image sur le premier bloc, `affiche` dans les propriétés de la première scène) ; /10 (25/10/2026) : 4:5 sans surimpression d'accent (le badge sans place à côté du nœud n'est plus dessiné, son chiffre est déjà dans le libellé), 2e ligne de l'en-tête en étiquette seulement si elle précède le titre, étiquette de repli jamais égale à la marque, question de fin 4:5 à la taille du 9:16 ; /9 (25/10/2026) : badge d'accent dans le cadre 4:5 (au-dessus du rail, sous l'en-tête), décors et ombre hachurée évités, réserve de chasse 6 % des boîtes de la toile ; /8 (24/10/2026) : écran CHI-E centré avec écart sous la légende, pile des chiffres « 0 » + « demande perdue » ; /7 (24/10/2026) : liens sans part = ni pastille « 0 % » ni étiquette de part ; /6 : tracé au feutre APP-B posé en 0,3 s, vue d'ensemble sans paires dans le tronc ; /3 : dossier seul agrandi (remplissage vertical 70 %) ; /4 : entre aussi dans la clé des scènes de toile ; /5 : écrans v4 9:16 au-dessus de la bande des sous-titres
+
+/**
+ * Écrans de la fiche à passer en texte seul : ceux que le rendu a nommés (identifiant d'écran de la fiche, ou bloc de la ligne de
+ * temps retrouvé par ses plans) ; à défaut, tous ceux qui ont un texte d'écran (repli signalé en remarque). PUR.
+ */
+export function ecransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): string[] {
+  return choisirEcransAAdapterIV(fiche, ligne, nommes).ids;
+}
+
+/** Idem `ecransAAdapterIV`, et dit si c'est un repli « tous les écrans » (le rendu n'a nommé aucun écran retrouvé). PUR. */
+export function choisirEcransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV, nommes: readonly string[] | undefined): { ids: string[]; repli: boolean } {
+  const avecTexte = fiche.ecrans.filter((x) => x.textesEcran.length).map((x) => x.id);
+  const trouves = new Set<string>();
+  for (const id of nommes ?? []) {
+    if (avecTexte.includes(id)) trouves.add(id);
+    const bloc = ligne.blocs.find((b) => b.id === id);
+    if (bloc) for (const p of ligne.plans) if (p.ecran && avecTexte.includes(p.ecran) && p.debut < bloc.fin - 1e-6 && p.fin > bloc.debut + 1e-6) trouves.add(p.ecran);
+  }
+  // Zéro blocage : si le rendu n'en nomme aucun retrouvé, repli sur tous les écrans à texte (`repli`), remarque au journal ; jamais IV_RENDU pour cela.
+  return trouves.size ? { ids: avecTexte.filter((x) => trouves.has(x)), repli: false } : { ids: avecTexte, repli: true };
+}
+
+/**
+ * GV-ST-03d : identifiant de rendu sans style choisi (PUR). Le tirage de sous-titres étant éteint, une recette SOU-C, SOU-D ou SOU-E
+ * change l'image rendue sans changer la ligne : le suffixe `-st1` évite de reprendre l'ancien rendu. Sans recette ou SOU-B : inchangé.
+ */
+export function idRenduSansStyleIV(versionId: string, ligne: LigneDeTempsIV, mixageId: string): string {
+  const code = ligne.variete?.recette.sousTitres;
+  const base = `iv-rendu-${empreinteDe([versionId, empreinteDe(ligne), mixageId, VERSION_COMPOSITIONS_IV])}`;
+  return code === "SOU-C" || code === "SOU-D" || code === "SOU-E" ? `${base}-st1` : base;
+}
+
+/** GV-ST-03e : identifiant de rendu avec style choisi (PUR) ; seule la `valeur` (l'apparence) compte, pas l'id ni le nom. */
+export function idRenduAvecStyleIV(idSans: string, choisi: StyleChoisiIV): string {
+  return `${idSans}-${empreinteDe(choisi.valeur).slice(0, 12)}`;
+}
 
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
@@ -1305,20 +1691,55 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
   for (const v of versionsDe(e)) {
     const ligne = mettreEnSceneIV(sceneDe(e, v, bruitages)).ligne;
     const mixage = planMixageIV(v.piste, ligne.bruitages, ligne.dureeSec);
-    const id = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
+    const choisi = e.demande.styleSousTitres?.valeur ? e.demande.styleSousTitres : undefined;
+    // Sans style choisi : empreinte inchangée ; avec : le style entre dans l'empreinte (autre style = autre rendu).
+    const idSans = idRenduSansStyleIV(v.id, ligne, mixage.id);
+    const id = choisi ? idRenduAvecStyleIV(idSans, choisi) : idSans;
     if (e.rendus[v.id]?.demande === id) continue;
-    const r = await o.rendre({ id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1 });
-    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), demande: id };
+    if (choisi && styleRetenuIV(choisi, formatDeHauteurIV(ligne.hauteur)).deplace) e.journal.push(`Remarque · ${nomVersion(v)} : ${REMARQUE_SOUS_TITRES_DEPLACES_IV}.`);
+    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1, ...(choisi ? { styleSousTitres: choisi } : {}) };
+    let r: Awaited<ReturnType<OutilsFabricationIV["rendre"]>>;
+    /** Écran irrendable : au 1er échec de la version, ses écrans passent en texte seul et la mise en scène est refaite ; au 2e : IV_RENDU. */
+    const textesSeuls = (err: ErreurRenduDefinitifIV): EtatFabricationIV => {
+      const { ids, repli } = choisirEcransAAdapterIV(v.fiche, ligne, err.ecransIrrendables);
+      if (e.ecransImposesRendu?.[v.id] || !ids.length) throw err;
+      e.ecransImposesRendu = { ...(e.ecransImposesRendu ?? {}), [v.id]: ids };
+      if (repli) e.ecransImposesRepli = { ...(e.ecransImposesRepli ?? {}), [v.id]: true };
+      e.journal.push(`Remarque · ${nomVersion(v)} : écran(s) irrendable(s) passé(s) en texte seul (${ids.join(", ")}${repli ? " : repli sur tous les écrans, le rendu n'en a nommé aucun retrouvé" : ""}) ; la mise en scène est refaite.`);
+      delete e.scenes;
+      return passerA(e, "mise-en-scene");
+    };
+    try {
+      r = await o.rendre(demandeRendu);
+    } catch (err) {
+      if (estAttenteIV(err)) throw err;
+      if (err instanceof ErreurRenduDefinitifIV) return textesSeuls(err);
+      // Zéro blocage : une panne passagère du rendu est refaite une fois toute seule ; l'attente repart telle quelle.
+      if ((e.tentatives.rendu ?? 1) >= 2) throw err;
+      e.journal.push(`Remarque · rendu de ${nomVersion(v)} en panne (${raisonDe(err)}) : refait automatiquement une fois.`);
+      // L'essai est noté avant de relancer : si le serveur répond « rendu en cours », la reprise demande directement le bon essai.
+      e.tentatives.rendu = demandeRendu.essai + 1;
+      try {
+        r = await o.rendre({ ...demandeRendu, essai: demandeRendu.essai + 1 });
+      } catch (err2) {
+        if (err2 instanceof ErreurRenduDefinitifIV) {
+          // La mise en scène refaite repart avec le compteur d'avant la relance : une simple panne passagère ensuite est encore refaite.
+          e.tentatives.rendu = demandeRendu.essai;
+          return textesSeuls(err2);
+        }
+        throw err2;
+      }
+    }
+    e.rendus[v.id] = { cle: r.cle, ...(r.empreinte ? { empreinte: r.empreinte } : {}), dureeSec: r.dureeSec, ...(r.mesures ? { mesures: r.mesures } : {}), sousTitres: sousTitresVariesIV(ligne, choisi), demande: id };
     e.journal.push(`Rendu de ${nomVersion(v)}.`);
     return e;
   }
   return passerA(e, "controles");
 }
 
-async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
-  const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
-  const { publication, liens } = publicationDe(e);
-  const versions: VersionAControlerIV[] = versionsDe(e).map((v) => {
+/** Versions à contrôler, telles que la porte les reçoit : mise en scène recalculée, piste, fichier rendu et mesures (PUR). */
+export function miseEnSceneDesVersionsIV(e: EtatFabricationIV, bruitages: readonly BruitageValideIV[] = BRUITAGES_V4_IV): VersionAControlerIV[] {
+  return versionsDe(e).map((v) => {
     const scene = sceneDe(e, v, bruitages);
     const ligne = mettreEnSceneIV(scene).ligne;
     const rendu = e.rendus?.[v.id];
@@ -1336,29 +1757,43 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
       fichier: { cle: rendu?.cle ?? "", ...(rendu?.empreinte ? { empreinte: rendu.empreinte } : {}), ...(rendu?.mesures ? { mesures: rendu.mesures } : {}) },
     };
   });
+}
+
+/** Entrée de la porte unique pour l'état (PUR), avec la publication et les liens qu'elle contrôle. */
+export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly BruitageValideIV[] = BRUITAGES_V4_IV): { entree: EntreePorteIV; publication: PublicationIV; liens: Record<string, string> } {
+  const { publication, liens } = publicationDe(e);
+  const entree: EntreePorteIV = {
+    videoId: e.demande.videoId,
+    carte: e.carte!.carte,
+    fiche: e.script!.fiche,
+    reseaux: e.demande.reseaux,
+    plan: e.plan!,
+    versions: miseEnSceneDesVersionsIV(e, bruitages),
+    regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
+    ...(e.demande.scriptColle ? { scriptColle: true } : {}),
+    voix: { issue: e.voix?.issue ?? { statut: "faite" } },
+    publication,
+    liens,
+    ...(e.demande.appelCommentaire ? { appelCommentaire: e.demande.appelCommentaire } : {}),
+    ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
+  };
+  return { entree, publication, liens };
+}
+
+async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
+  const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(
-    {
-      videoId: e.demande.videoId,
-      carte: e.carte!.carte,
-      fiche: e.script!.fiche,
-      reseaux: e.demande.reseaux,
-      plan: e.plan!,
-      versions,
-      regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
-      voix: { issue: e.voix?.issue ?? { statut: "faite" } },
-      publication,
-      liens,
-      ...(e.controles ? { deja: { transcriptions: e.controles.transcriptions, relectures: e.controles.relectures } } : {}),
-    },
+    entree,
     // Chaque tentative d'appel a son propre identifiant (compteur gardé dans l'état) : jamais la réservation d'un appel parti.
     { ...o.controles, budget: caisse.controles(), idAppel: (prefixe) => `${prefixe}-n${(e.compteurAppels = (e.compteurAppels ?? 0) + 1)}` },
   );
   // 15/10 : une version reprise d'un autre réseau (repli de secours) est dite dans le rapport.
   const replis = e.plan!.fins.flatMap((f) => (f.repli ? [phraseDeRepliIV(f.reseaux, f.repli)] : []));
-  const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis] };
+  const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis, ...(e.remarques ?? [])] };
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
-  if (caisse.arretPlafond && !verdict.ok) return refuser(e, "controles", "IV_PLAFOND", caisse.arretPlafond, { phrases: verdict.phrases });
+  // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
+  if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.", { phrases: verdict.phrases, reessayable: true });
   if (!verdict.ok) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });
   e.livraison = livraisonDe(e, verdict, publication, liens);
   return passerA(e, "livraison");
@@ -1400,10 +1835,32 @@ function textesDuFil(publication: PublicationIV): Pick<LivraisonReseauIV, "texte
 }
 
 function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
-  // Facebook livré : ses DEUX fichiers (Reel 9:16 et fil 4:5) ; un seul manquant = rien ne part.
-  const filAttendu = (l: LivraisonReseauIV) => l.reseau === "facebook" && formatsDe(e.demande, "facebook").includes("9:16") && formatsDe(e.demande, "facebook").includes("4:5");
-  const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && (!l.fichierCle || (filAttendu(l) && !l.fichierCleFil)));
-  if (manque.length) return refuser(e, "livraison", "IV_RENDU", `Aucun fichier pour ${manque.map((l) => l.reseau).join(", ")} : relancez le rendu.`);
+  // Zéro blocage : un réseau sans fichier principal est rendu à nouveau, une seule fois ; ensuite les autres partent avec une remarque.
+  const manque = (e.livraison ?? []).filter((l) => l.version !== "aucune" && !l.fichierCle);
+  if (manque.length) {
+    const noms = manque.map((l) => l.reseau).join(", ");
+    if ((e.tentatives.livraison ?? 1) < 2) {
+      e.tentatives.livraison = 2;
+      // Même identifiant, même essai = rien de refait côté serveur : l'essai passe à +1 pour les versions concernées.
+      e.tentatives.rendu = (e.tentatives.rendu ?? 1) + 1;
+      const concernees = versionsDe(e).filter((v) => v.reseaux.some((r) => manque.some((l) => l.reseau === r)));
+      for (const v of concernees) delete e.rendus?.[v.id];
+      e.journal.push(`Remarque · aucun fichier pour ${noms} : rendu refait automatiquement une fois.`);
+      delete e.livraison;
+      return passerA(e, "rendu");
+    }
+    e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => (manque.includes(l) ? { reseau: l.reseau, version: "aucune", mention: `Aucun fichier pour ${l.reseau} après un second rendu : à refaire.` } : l));
+    e.journal.push(`Remarque · aucun fichier pour ${noms} après un second rendu : les autres réseaux sont livrés.`);
+    if (!e.livraison.some((l) => l.version !== "aucune")) return refuser(e, "livraison", "IV_RENDU", "Aucun fichier rendu pour aucun réseau, relancez le rendu.", { reessayable: true });
+  }
+  // Facebook : si seul le fil 4:5 manque, le Reel 9:16 qui existe est livré, avec une remarque sur le fil.
+  const formatsFb = formatsDe(e.demande, "facebook");
+  e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => {
+    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
+    const remarque = "Le fil 4:5 n'a pas été rendu : le Reel 9:16 est livré, le fil est à refaire.";
+    e.journal.push(`Remarque · Facebook : ${remarque}`);
+    return { ...l, mention: [l.mention, remarque].filter(Boolean).join(" ") };
+  });
   e.journal.push(`Vidéo prête : ${(e.livraison ?? []).filter((l) => l.version !== "aucune").length} réseau(x).`);
   return passerA(e, "prete");
 }

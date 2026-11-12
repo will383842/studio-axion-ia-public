@@ -21,7 +21,7 @@ describe("page d'un format", () => {
     expect(page).toContain("Archivées de ce format");
   });
   it("le titre reste celui d'avant", () => {
-    expect(page).toContain("<EnTetePage titre={titrePageFormat(f.nom, bientot)} />");
+    expect(page).toContain("<EnTetePage titre={titrePageFormat(f.nom, bientot)}");
   });
 });
 

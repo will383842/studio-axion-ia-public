@@ -11,6 +11,8 @@ import { formatTableauAnime } from "./tableau-anime";
 import { formatCasConcret } from "./cas-concret";
 import { formatFacecamAnimee } from "./facecam-animee";
 import { formatImageVideo } from "./image-video";
+import { formatTutorielOutil } from "./tutoriel-outil";
+import { formatDemoFacecam } from "./demo-facecam";
 import type { DefinitionFormat, StatutFormat } from "./types";
 import type { ConseilSite, RegleChapitresWeb } from "@/domaine/site-videos/types";
 import { BRIQUES_FACULTATIVES, type BlocScript, type BriqueFacultative, type ModeDeclinaison, type Script } from "@/domaine/types";
@@ -19,7 +21,7 @@ import { codeDuFormat } from "./registre-codes";
 
 export type { DefinitionFormat } from "./types";
 
-const FORMATS: DefinitionFormat[] = [formatAvocat, formatFacecam, formatPodcast, formatCreateurB, formatEcranPartage, formatMotion, formatUgc, formatSelfie, formatTableauAnime, formatCasConcret, formatFacecamAnimee, formatImageVideo];
+const FORMATS: DefinitionFormat[] = [formatAvocat, formatFacecam, formatPodcast, formatCreateurB, formatEcranPartage, formatMotion, formatUgc, formatSelfie, formatTableauAnime, formatCasConcret, formatFacecamAnimee, formatImageVideo, formatTutorielOutil, formatDemoFacecam];
 
 /**
  * Inscrit un format PAR DES DONNÉES (générateur, plan v5 B.4.0) : ajouter un format ne change jamais le générateur
@@ -158,12 +160,42 @@ export function musiqueInterdite(format: DefinitionFormat): boolean {
 }
 
 /**
- * UNE seule règle de musique par défaut, partagée par l'écran Style et la commande (bug corrigé, B.7) :
- * le choix de la vidéo, sinon la musique « par défaut » du format, et jamais rien si le format l'interdit.
+ * UNE seule règle de musique, partagée par l'écran Style et la commande : le choix de la vidéo, et rien d'autre.
+ * Décision du propriétaire : aucune musique de fond par défaut (une étoile sur une musique ne suffit plus).
+ * Jamais de musique non plus si le format l'interdit (avocat).
  */
-export function musiqueRetenue(format: DefinitionFormat, choisie: string | undefined, elements: { id: string; type: string; formatsParDefaut: string[]; archiveLe?: string }[]): string | undefined {
+export function musiqueRetenue(format: DefinitionFormat, choisie: string | undefined, _elements?: { id: string; type: string; formatsParDefaut: string[]; archiveLe?: string }[]): string | undefined {
   if (musiqueInterdite(format)) return undefined;
-  return choisie ?? elements.find((e) => e.type === "musique" && !e.archiveLe && e.formatsParDefaut.includes(format.id))?.id;
+  return choisie;
+}
+
+/** Types de style dont l'étoile de la Bibliothèque sert de défaut du format (identiques à l'écran, à l'aperçu et à la fabrication). */
+export type TypeStyleParDefaut = "lut" | "sousTitres" | "habillage" | "styleMontage" | "profilSon" | "decor";
+
+const TYPE_ELEMENT_DU_STYLE: Record<TypeStyleParDefaut, string> = {
+  lut: "lut",
+  sousTitres: "style-sous-titres",
+  habillage: "habillage",
+  styleMontage: "style-montage",
+  profilSon: "profil-son",
+  decor: "decor",
+};
+
+/**
+ * UNE seule règle pour le style par défaut d'un format (même règle à l'écran, à l'aperçu et à la fabrication) :
+ * le choix de la vidéo, sinon l'élément non archivé du bon type étoilé pour ce format, sinon le défaut écrit dans le code du format.
+ */
+export function styleParDefautRetenu(
+  format: DefinitionFormat,
+  type: TypeStyleParDefaut,
+  choisi: string | undefined,
+  elements: { id: string; type: string; formatsParDefaut: string[]; archiveLe?: string }[],
+): string | undefined {
+  if (choisi !== undefined) return choisi;
+  const etoiles = elements.filter((e) => e.type === TYPE_ELEMENT_DU_STYLE[type] && !e.archiveLe && e.formatsParDefaut.includes(format.id));
+  // Plusieurs étoiles pour le même format : celle qui est déjà le défaut du code, sinon la première.
+  const etoile = etoiles.find((e) => e.id === format.stylesParDefaut[type]) ?? etoiles[0];
+  return etoile?.id ?? format.stylesParDefaut[type];
 }
 
 /** Valeurs par défaut des réglages d'un format (via son schéma zod). */

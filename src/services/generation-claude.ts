@@ -50,7 +50,7 @@ import { estimationRealisteRole } from "@/generateur/roles/estimation";
 import { pireCasRole, type DefinitionRole, type EntreeRole, type MarqueurArret } from "@/generateur/roles/types";
 import { cleMois } from "@/lib/dates";
 import { nouvelId } from "@/lib/ids";
-import { centimesAuSuperieur, centimesDuPlafond, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
+import { centimesAuSuperieur, centimesDuPlafond, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { etatBoucle } from "./_boucle-etat";
 import { exigerSession } from "./auth";
@@ -434,7 +434,7 @@ function rendreReserveSujet(generationId: Id, appelId: string): void {
 
 /** Phrase de l'arrêt de sécurité d'une écriture : son pire cas dépasserait 5 fois le prix annoncé (le plafond du sujet). */
 export function phraseArretSecuriteEcriture(plafondUsd: number): string {
-  return `Arrêt de sécurité : cette écriture dépasserait ${FACTEUR_SECURITE_BUDGET} fois le prix annoncé (${formaterUsd(plafondUsd)} $), rien de plus n'est payé.`;
+  return `Arrêt de sécurité : cette écriture dépasserait ${FACTEUR_SECURITE_BUDGET} fois le prix annoncé (le plafond du sujet), rien de plus n'est payé.`;
 }
 
 /**
@@ -461,9 +461,9 @@ export function plafondAnnonceUsd(g: Pick<GenerationScript, "plafondUsd" | "etap
  * Contrôle du plafond du sujet ET réservation de l'estimation, d'un seul tenant sous le verrou des étapes : deux appels
  * partis ensemble (`Promise.all`) voient chacun la réservation de l'autre. La réservation est rendue quand l'étape
  * « lancée » est écrite (`ajouterEtape(…, true)`) ou quand l'appel ne part pas.
- * `indicatif` (mode budget indicatif, commande de Will) : le plafond ne refuse plus, il prévient ; refus seulement à 5 × le plafond.
+ * `indicatif` (mode budget indicatif, commande de Will) : le plafond ne refuse plus, il prévient ; jamais de refus (le prix ne bloque jamais).
  */
-export async function reserverDansPlafondSujet(generationId: Id, appelId: string, usd: number, indicatif = false): Promise<{ ok: true } | { ok: false; plafondUsd: number; securite?: true }> {
+export async function reserverDansPlafondSujet(generationId: Id, appelId: string, usd: number, indicatif = false): Promise<{ ok: true } | { ok: false; plafondUsd: number }> {
   let depassement: string | null = null;
   const r = await sousVerrouEtapes(async () => {
     const g = await depots().generations.obtenir(generationId);
@@ -472,10 +472,9 @@ export async function reserverDansPlafondSujet(generationId: Id, appelId: string
     const pireCas = depenseGenerationCentimesUsd(g) + reserveSujetCentimesUsd(generationId) + centimesAuSuperieur(usd * 100);
     const plafond = centimesDuPlafond(g.plafondUsd);
     if (pireCas > plafond) {
-      // Mode indicatif (commande de Will) : le plafond du sujet est un repère ; l'arrêt de sécurité est à 5 × ce plafond.
+      // Mode indicatif (commande de Will) : le plafond du sujet est un repère, jamais un arrêt (règle « le prix ne bloque jamais »).
       if (!indicatif) return { ok: false as const, plafondUsd: g.plafondUsd };
-      if (pireCas > centimesDuPlafond(limiteSecuriteUsd(g))) return { ok: false as const, plafondUsd: g.plafondUsd, securite: true as const };
-      depassement = `Le plafond du sujet (${formaterUsd(g.plafondUsd)} $) est dépassé ; l'écriture continue, l'arrêt de sécurité est à ${FACTEUR_SECURITE_BUDGET} fois ce prix.`;
+      depassement = `Le plafond du sujet est dépassé ; l'écriture continue.`;
     }
     const m = enVol().sujet.get(generationId) ?? new Map<string, number>();
     m.set(appelId, usd);
@@ -508,7 +507,7 @@ export async function solderAppelsInterrompus(): Promise<number> {
       const appelId = e.appelId!;
       if (!signales.has(appelId)) {
         signales.add(appelId);
-        await journaliser("generateur", `Un appel à Claude est resté sans réponse (coupure ou redémarrage) : il sera rejoué ; ${formaterUsd(e.estimationPireCasUsd)} $ restent comptés dans le plafond du sujet.`, { type: "sujet", id: g.scriptMaitreId });
+        await journaliser("generateur", `Un appel à Claude est resté sans réponse (coupure ou redémarrage) : il sera rejoué ; sa part reste comptée dans le plafond du sujet.`, { type: "sujet", id: g.scriptMaitreId });
       }
       const anciennes = await d.reservations.lister((r) => r.travailId === appelId && r.statut === "active" && cleMois(r.creeLe) !== mois);
       if (anciennes.length) {
@@ -646,16 +645,9 @@ export async function executerRoleFacture<S extends z.ZodType>(generationId: Id,
   const place = await reserverDansPlafondSujet(g.id, appelId, estimationRealisteRole(role, entree), indicatif);
   if (!place.ok) {
     await d.generations.modifier(g.id, { statut: "plafond-atteint" });
-    const securite = "securite" in place && place.securite;
-    if (securite) {
-      // L'écran lit cette réserve (`phraseReserveRefusee`) : elle doit dire l'arrêt de sécurité, pas rester « acceptée ».
-      // Seulement si une réserve de chaîne existait déjà : sinon l'écriture « sans réserve » (déjà en route) passerait au régime « réserve ».
-      const avant = await lireReserveChaine(g.id);
-      const depenseUsd = depenseGenerationUsd(g);
-      if (avant) await ecrireParametre(paramReserveChaine(g.id), { ...avant, pireCasUsd: depenseUsd + estimationRealisteRole(role, entree), depenseUsd, plafondUsd: g.plafondUsd, accepte: false, securite: true, le: maintenant() } satisfies ReserveChaine);
-    }
-    await journaliser("generateur", securite ? `Arrêt de sécurité : cette écriture dépasserait ${FACTEUR_SECURITE_BUDGET} fois le plafond du sujet (${plafondAnnonceUsd(g).toFixed(2)} $) : elle s'arrête là` : `Plafond du sujet atteint (${g.plafondUsd.toFixed(2)} $) : l'écriture s'arrête là`, { type: "sujet", id: g.scriptMaitreId });
-    return { ok: false, arret: "plafond-atteint", message: securite ? phraseArretSecuriteEcriture(plafondAnnonceUsd(g)) : "Plafond du sujet atteint : on garde ce qui est écrit." };
+    // Plus d'arrêt de sécurité à 5 × : seul le mode bloquant refuse (les anciennes réserves `securite` restent lues par `phraseReserveRefusee`).
+    await journaliser("generateur", `Plafond du sujet atteint : l'écriture s'arrête là`, { type: "sujet", id: g.scriptMaitreId });
+    return { ok: false, arret: "plafond-atteint", message: "Plafond du sujet atteint : on garde ce qui est écrit." };
   }
 
   let etapeEcrite = false;
@@ -668,9 +660,9 @@ export async function executerRoleFacture<S extends z.ZodType>(generationId: Id,
       const engage = await engageClaudeDuMoisCentimes();
       if (engage.depense + engage.reserve + Math.ceil(estimation * 100 * (1 + MARGE_CREDITS)) > centimesDuPlafond(plafond)) {
         // Mode indicatif : la limite du mois est un repère (alerte, une cloche par jour), pas de plafond mensuel dur.
-        if (!indicatif) return mettreEnAttente(g, { motif: "plafond-mensuel", estimationUsd: estimation, lignes, message: `Limite Claude du mois atteinte (${formaterUsd(plafond)} $).` });
+        if (!indicatif) return mettreEnAttente(g, { motif: "plafond-mensuel", estimationUsd: estimation, lignes, message: `Limite Claude du mois atteinte : relevez-la dans Réglages pour continuer.` });
         // L'alerte part après le verrou du mois (pas d'écriture de notification sous verrou).
-        alerteMois = `Rien n'est arrêté : l'écriture continue (repère du mois ${formaterUsd(plafond)} $). Seul un crédit Claude épuisé la met en attente.`;
+        alerteMois = `Rien n'est arrêté : l'écriture continue (repère du mois). Seul un crédit Claude épuisé la met en attente.`;
       }
 
       // 4. Pré-vol de la brique Crédits.
@@ -916,7 +908,7 @@ async function marquerPrete(g: GenerationScript, a: Attente): Promise<void> {
   await creerNotification({
     type: "credit",
     titre: "Une écriture peut reprendre",
-    message: `« ${titre} » : touchez « Reprendre » (au plus ${formaterUsd(Math.max(0, g.plafondUsd - depenseGenerationUsd(g)))} $, le prix exact est sur le bouton). Elle ne repart pas seule.`,
+    message: `« ${titre} » : touchez « Reprendre » (c'est payant, il faut confirmer). Elle ne repart pas seule.`,
     lien: `/ecrire/sujets/${g.scriptMaitreId}`,
     estDemo: g.estDemo,
   });
@@ -996,7 +988,7 @@ export interface ReserveChaine {
   chaine?: ChaineEcriture;
   /** Réglage à relever pour qu'elle passe : celui de la chaîne (sujet) ou du supplément (relecture A09). */
   reglage?: string;
-  /** Arrêt de sécurité (indicatif) : le pire cas dépasse 5 × le plafond ; l'écran ne propose pas de relever le réglage. */
+  /** ANCIENNE réserve (avant le 25/10) : arrêt de sécurité (indicatif), toujours lue pour les écritures déjà arrêtées ; plus écrite. Le pire cas dépasse 5 × le plafond ; l'écran ne propose pas de relever le réglage. */
   securite?: boolean;
   le: string;
 }
@@ -1017,8 +1009,8 @@ export async function ecritureSansReserve(g: Pick<GenerationScript, "id" | "etap
 /** Phrase d'un pire cas au-dessus du plafond, avec le chiffre et le réglage à changer. */
 export async function phrasePireCasTropHaut(r: Pick<ReserveChaine, "pireCasUsd" | "plafondUsd" | "reglage">, suite = "rien n'est parti"): Promise<string> {
   const eur = usdVersEur(centimesUsd(r.pireCasUsd), await taux());
-  const reglage = r.reglage ? ` Pour l'écrire, relevez le réglage « ${r.reglage} » à ${formaterUsd(Math.ceil(r.pireCasUsd * 100) / 100)} $ au moins.` : "";
-  return `Cette écriture peut coûter jusqu'à ${formaterUsd(r.pireCasUsd)} $ (${formaterMontant(eur)}), plus que le plafond de ${formaterUsd(r.plafondUsd)} $ par sujet : ${suite}.${reglage}`;
+  const reglage = r.reglage ? ` Pour l'écrire, relevez le réglage « ${r.reglage} » (Réglages).` : "";
+  return `Cette écriture peut coûter plus que le plafond du sujet : ${suite}.${reglage}`;
 }
 
 /** Phrase d'une écriture refusée avant tout appel : son pire cas dépasse le plafond du sujet. */
@@ -1045,19 +1037,18 @@ export async function reserverPireCasChaine(generationId: Id, o: { pireCasRestan
   const pireCasUsd = depenseUsd + o.pireCasRestantUsd;
   // L3-01 (audit) : contrôle en centimes de dollar entiers (plus de tolérance 1e-9), dépenses au centime supérieur.
   const accepte = depenseGenerationCentimesUsd(g) + centimesAuSuperieur(o.pireCasRestantUsd * 100) <= centimesDuPlafond(g.plafondUsd);
-  // Mode indicatif (commande de Will) : un pire cas au-dessus du plafond PRÉVIENT, l'écriture part ; arrêt de sécurité à 5 × le plafond d'origine.
-  const securite = !!o.indicatif && !accepte && depenseGenerationCentimesUsd(g) + centimesAuSuperieur(o.pireCasRestantUsd * 100) > centimesDuPlafond(limiteSecuriteUsd(g));
-  const passeEnIndicatif = !!o.indicatif && !accepte && !securite;
+  // Mode indicatif (commande de Will) : un pire cas au-dessus du plafond PRÉVIENT, l'écriture part ; aucun arrêt de sécurité (le prix ne bloque jamais).
+  const passeEnIndicatif = !!o.indicatif && !accepte;
   // Le réglage à relever : celui donné (un supplément a le sien, relecture A09), sinon celui de la chaîne d'un sujet.
   const reglage = o.reglage ?? (g.portee === "sujet" && o.chaine ? reglagePlafond(o.chaine) : undefined);
-  await ecrireParametre(paramReserveChaine(g.id), { pireCasUsd, depenseUsd, plafondUsd: g.plafondUsd, accepte: accepte || passeEnIndicatif, etape: o.etape ?? 0, chaine: o.chaine, reglage, ...(securite ? { securite: true } : {}), le: maintenant() } satisfies ReserveChaine);
+  await ecrireParametre(paramReserveChaine(g.id), { pireCasUsd, depenseUsd, plafondUsd: g.plafondUsd, accepte: accepte || passeEnIndicatif, etape: o.etape ?? 0, chaine: o.chaine, reglage, le: maintenant() } satisfies ReserveChaine);
   if (passeEnIndicatif) {
-    await journaliser("generateur", `Pire cas de l'écriture ${formaterUsd(pireCasUsd)} $ au-dessus du plafond du sujet (${formaterUsd(g.plafondUsd)} $) : l'écriture continue (budget indicatif).`, { type: "sujet", id: g.scriptMaitreId });
-    await signalerDepassementIndicatif("plafond-sujet", "Plafond du sujet dépassé (l'écriture continue)", `Cette écriture peut coûter jusqu'à ${formaterUsd(pireCasUsd)} $, plus que le repère de ${formaterUsd(g.plafondUsd)} $ par sujet ; rien n'est arrêté, l'arrêt de sécurité est à ${FACTEUR_SECURITE_BUDGET} fois ce prix.`);
+    await journaliser("generateur", `Pire cas de l'écriture au-dessus du plafond du sujet : l'écriture continue (budget indicatif).`, { type: "sujet", id: g.scriptMaitreId });
+    await signalerDepassementIndicatif("plafond-sujet", "Plafond du sujet dépassé (l'écriture continue)", `Cette écriture peut coûter plus que le repère du sujet ; rien n'est arrêté.`);
     return { ok: true };
   }
   if (accepte) {
-    await journaliser("generateur", `Pire cas de l'écriture réservé : ${formaterUsd(pireCasUsd)} $ (plafond ${formaterUsd(g.plafondUsd)} $).`, { type: "sujet", id: g.scriptMaitreId });
+    await journaliser("generateur", `Pire cas de l'écriture réservé dans le plafond du sujet.`, { type: "sujet", id: g.scriptMaitreId });
     return { ok: true };
   }
   const message = (await phraseReserveRefusee(g.id))!;
@@ -1071,9 +1062,9 @@ export async function reserverPireCasChaine(generationId: Id, o: { pireCasRestan
 /** Réglages : limite mensuelle Claude (dollars). L'enregistrer rend « prêtes » les écritures qu'elle bloquait ; rien ne repart seul. */
 export async function definirPlafondMensuelClaude(usd: number): Promise<Id[]> {
   await exigerSession();
-  if (!Number.isFinite(usd) || usd < 0 || usd > 10_000) throw new ErreurStudio("MONTANT_INVALIDE", "Indiquez une limite entre 0 et 10 000 $.");
+  if (!Number.isFinite(usd) || usd < 0 || usd > 10_000) throw new ErreurStudio("MONTANT_INVALIDE", "Indiquez une limite valide.");
   await ecrireParametre(PARAM_PLAFOND_MENSUEL, Math.round(usd * 100) / 100);
-  await journaliser("generateur", `Limite Claude du mois : ${formaterUsd(usd)} $`);
+  await journaliser("generateur", `Limite Claude du mois modifiée`);
   return reprendreGenerationsEnAttenteCredit();
 }
 

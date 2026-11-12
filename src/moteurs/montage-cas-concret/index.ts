@@ -39,17 +39,18 @@ import { VoixNonEpingleeError } from "@/briques/voix-maitre";
 import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, EtapeTravail, ErreurTravail, LigneCout, Travail } from "@/domaine/types";
+import type { RapportControleCasConcret } from "./controles";
 import { TEMPO_VOIX, type ReseauCas } from "@/formats/cas-concret";
 import { verifierCas, type CasConcret } from "@/formats/cas-concret/cas";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { refusAvantPrix } from "./avant-prix";
 import { retenirCasPourSimulation } from "./cas-simules";
 import { recettePour } from "@/formats/cas-concret/recette";
-import { centimes, formaterMontant, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur, ZERO } from "@/lib/montants";
+import { centimes, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur, ZERO } from "@/lib/montants";
 import { APPELS_ECRITURE_MAX, contexteDuSocle, coutEstimeUsd, DEBUT_REFUS_ECRITURE, dureesDesFins, ficheParGabarit, MAX_TOKENS_ECRITURE, roleEcritureCasConcret, variableEcriture } from "./ecriture";
 import { etapesCasConcret, lireEntreesCasConcret, regrouperFins, type EntreesCasConcret } from "./etapes";
 import { empreinte, ErreurFabricationCasConcret, fabriquerCasConcret, marquerRepriseEcriture, MOTEUR_CAS_CONCRET, relancerRendusCasConcret, VERSION_FABRICATION_CAS_CONCRET, type CompteRenduCasConcret, type JournalCasConcret } from "./fabriquer";
-import { texteDuCorps, validerSchemaFiche, type FicheEcrans } from "./fiche";
+import { texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type FicheEcrans } from "./fiche";
 import { planDesFins } from "./fins";
 import { LECTURES_CORPS_MAX, LECTURES_FIN_MAX } from "./voix";
 import { ETAPES_CAS_CONCRET, type ContexteFabricationCasConcret, type EtapeCasConcret, type OutilsFabricationCasConcret } from "./outils";
@@ -105,6 +106,8 @@ export interface OutilsCasConcret extends Omit<OutilsFabricationCasConcret<Journ
    * s'écrit), lu seulement quand Claude écrit. Absent ou illisible : aucune mémoire (comme avant), l'écriture n'échoue pas.
    */
   scriptsAnterieurs?: (casId: string, videoId: string) => Promise<readonly string[]>;
+  /** Lot R2 : plan de scènes (réglage `planScenes.casConcret`, ÉTEINT par défaut). Rend les options si le réglage est allumé, sinon rien. Absent : écrans inchangés. */
+  planScenes?: () => Promise<{ appeler?: import("@/briques/plan-scenes/generateur").AppelClaude } | undefined>;
 }
 
 /**
@@ -588,7 +591,7 @@ function voixDeRetouche(commande: CommandeFabrication, outils: OutilsCasConcret,
   const reseaux = [...new Set(entrees.reseaux)];
   const motDit = entrees.motDit ?? cas.motDit;
   const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: outils.contexte.tableDesFins }));
-  const texteCorps = lire(texteDuCorps(r.fiche));
+  const texteCorps = lire(texteDuCorpsPourVoix(r.fiche));
   const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(texteDeFin(f)) }));
   const v = outils.voix;
   const meme = (texte: string, p: EtatVoixCasConcret["corps"]["prise"]) => priseReprise(texte, p, v);
@@ -614,7 +617,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   const cas = casDe(commande, outils);
   if (!cas) return { etat: depart, issue: { type: "echec", cle: "fiche", erreur: { code: "CAS_CONCRET_SANS_CAS", reessayable: false, messagePourWill: "Le cas de cette vidéo est introuvable : choisissez-en un autre." } } };
 
-  const { env, contexte, lireFiche, cas: _cas, numeroVersion: lireNumero, scriptValide: lireScript, scriptValideDeLaVideo: lireDeLaVideo, scriptsAnterieurs: lireAnterieurs, ...reste } = outils;
+  const { env, contexte, lireFiche, cas: _cas, numeroVersion: lireNumero, scriptValide: lireScript, scriptValideDeLaVideo: lireDeLaVideo, scriptsAnterieurs: lireAnterieurs, planScenes: lirePlanScenes, ...reste } = outils;
   void _cas;
   // Retouche : la voix part des prises déjà payées (posée une fois, avant que la chaîne ne lise la voix).
   if (retouche && !journal?.voix) {
@@ -624,7 +627,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   const numeroVersion = await lireNumero?.(versionId);
   // V4-3 : le script validé du cas (services, sinon catalogue) ; une fiche fournie l'emporte (elle saute l'écriture).
   const scriptLu = entrees.ficheCle ? null : lireScript ? await lireScript(cas.id) : (scriptValideDuCatalogue(cas.id) ?? null);
-  // Un script validé DEPUIS LE STUDIO qui ne convient plus au cas (autre cas, autre version) est périmé : traité comme ABSENT (Claude
+  // Un script validé qui est celui d'un AUTRE cas est traité comme ABSENT (08/11/2026 : une autre VERSION du cas est rejouée, avec remarque). (Claude
   // écrit un nouveau script, la fabrication s'arrête à « Script à valider », Will valide, la voix n'est payée qu'après). Même règle
   // que la feuille « Votre vidéo » (`problemesScriptValide`). Sinon la fabrication le refusait (« faites revalider le script ») sans
   // aucun recours dans l'interface. Un script du CATALOGUE périmé reste un refus (défaut de code).
@@ -672,8 +675,10 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
     },
   };
 
+  const optionPlanScenes = lirePlanScenes ? await lirePlanScenes().catch(() => undefined) : undefined;
   try {
     const compteRendu = await fabriquerCasConcret({
+      ...(optionPlanScenes ? { planScenes: optionPlanScenes } : {}),
       videoId: commande.videoId,
       versionId,
       ...(numeroVersion !== undefined ? { numeroVersion } : {}),
@@ -687,6 +692,9 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
       ...(commande.distribution[0]?.personnageId ? { personnageId: commande.distribution[0].personnageId } : {}),
       prononciations: commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation })),
+      // GV-ST-02 : le style de sous-titres choisi (ou étoilé) fait loi ; absent : « Charte duo » comme la v4.
+      ...(commande.styles.sousTitres ? { styleSousTitres: commande.styles.sousTitres } : {}),
+      ...(commande.styles.sousTitres && commande.sousTitres?.base ? { baseSousTitres: commande.sousTitres.base } : {}),
       // X2 : l'âge d'un appel détaché se compte à l'heure du passage.
       horlogeAppels: () => maintenant,
       // Un fournisseur fait attendre : on rend la main, le prochain `avancer` reprend au même endroit.
@@ -760,9 +768,29 @@ export function plansDeLaFiche(videoId: string, fiche: Pick<FicheEcrans, "ecrans
   };
 }
 
+/**
+ * 08/11/2026 : une vidéo finie avec un défaut de détail est LIVRÉE avec une liste « à vérifier » (terminée avec réserves),
+ * jamais jetée ni marquée en échec. Les contrôles qui bloquaient deviennent des alertes « attention » ; le rapport garde
+ * son verdict mais le dit en clair. PUR.
+ */
+export function reservesDuRapport(rapport: Pick<RapportControleCasConcret, "bloquants" | "resume" | "phrases">): { alertes: AlerteQualite[]; resume: string; phrases: string[] } {
+  const n = rapport.bloquants.length;
+  const reserves = rapport.bloquants.map((l) => `À vérifier · ${l.raison.startsWith(l.libelle) ? l.raison : `${l.libelle} : ${l.raison}`}`);
+  return {
+    alertes: rapport.bloquants.map((l) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message: `À vérifier · ${l.libelle} : ${l.raison}` })),
+    resume: n ? `Terminée, ${n} point${n > 1 ? "s" : ""} à vérifier` : rapport.resume,
+    phrases: n ? [...reserves, ...rapport.phrases.filter((p) => !p.startsWith("Bloquant · "))] : rapport.phrases,
+  };
+}
+
 function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, etat: EtatCasConcret, maintenant: number): ResultatFabrication {
   const signales = [...r.rapport.indicatifs, ...r.rapport.nonFaits];
+  const reserves = reservesDuRapport(r.rapport);
   const alertes: AlerteQualite[] = [
+    ...reserves.alertes,
+    ...(r.reservesVoix ?? []).map((message) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message: `À vérifier · ${message}` })),
+    // Script de Will : remarques simples (info), avertissements très visibles (attention).
+    ...(r.remarquesScript ?? []).map((message) => ({ code: "defaut-visuel" as const, gravite: ((r.avertissementsScript ?? []).includes(message) ? "attention" : "info") as "attention" | "info", message: `Script : ${message}` })),
     ...signales.map((l) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message: `${l.libelle} : ${l.raison}` })),
     // S1e : un bruitage illisible par le rendu est retiré ; la vidéo est fabriquée sans lui.
     ...r.bruitagesRetires.map((message) => ({ code: "bruitage" as const, gravite: "attention" as const, message })),
@@ -794,7 +822,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
         // L0d : et ses sous-titres (export .srt / .vtt par réseau, `services/sous-titres-par-reseau.ts`).
         fins: r.fins.map((f) => ({ id: f.id, reseaux: f.reseaux, fichierCle: f.fichierCle, dureeSec: f.dureeSec, mesures: f.mesures, ...(f.sousTitres?.length ? { sousTitres: f.sousTitres } : {}) })),
         liens: r.liens,
-        rapport: { verdict: r.rapport.verdict, resume: r.rapport.resume, phrases: r.rapport.phrases },
+        rapport: { verdict: r.rapport.verdict, resume: reserves.resume, phrases: reserves.phrases },
         // Traçabilité (demande de Will du 12/10).
         ...entrees,
         cas: { id: r.fiche.casId, empreinte: r.fiche.empreinteCas },
@@ -815,7 +843,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
 /* Le moteur                                                             */
 /* ------------------------------------------------------------------ */
 
-const NON_RELIE = "« Cas concret MD » n'est pas relié (voix, stockage des fichiers ou serveur de rendu). Vérifiez Réglages > Connexions, puis réessayez.";
+const NON_RELIE = "« Cas concret » n'est pas relié (voix, stockage des fichiers ou serveur de rendu). Vérifiez Réglages > Connexions, puis réessayez.";
 const VERSION_2 = "viendra en version 2";
 
 /** Refus avant toute réservation : ce qui manque à la commande elle-même. */
@@ -842,8 +870,7 @@ export function coutNouvelEssaiEcritureCentimes(cas: CasConcret, commande: Comma
 
 /** X12 : ce que fait « Réessayer » après une écriture refusée, et son prix (dit AVANT le clic). */
 function annonceNouvelEssai(cas: CasConcret, commande: CommandeFabrication): string {
-  const prix = formaterMontant({ centimes: coutNouvelEssaiEcritureCentimes(cas, commande), devise: "EUR" });
-  return ` « Reprendre » relit d'abord les réponses déjà payées avec les règles du jour ; si elles restent refusées, un nouvel essai d'écriture coûte environ ${prix}.`;
+  return ` « Reprendre » relit d'abord les réponses déjà payées avec les règles du jour ; si elles restent refusées, il lance un seul nouvel essai d'écriture.`;
 }
 
 /** Phrase d'une étape en échec : une seule tournure, accordée quel que soit le nom de l'étape (« Les écrans »…). */
@@ -924,10 +951,7 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
       if (tour.issue.type === "pause") return { travail: suivant(travail, etat, statuts(travail, etat), maintenant) };
       if (tour.issue.type === "echec") return { travail: enEchec(travail, etat, tour.issue.cle, tour.issue.erreur, maintenant) };
       const r = tour.issue.compteRendu;
-      if (r.rapport.verdict === "bloque") {
-        const etatControle = { ...etat, atteinte: ETAPES_CAS_CONCRET.indexOf("controle") - 1 };
-        return { travail: enEchec(travail, etatControle, "controle", { code: "CAS_CONCRET_CONTROLES_BLOQUANTS", reessayable: false, messagePourWill: `La vérification bloque la livraison (${r.rapport.resume}). ${r.rapport.phrases.join(" ")}` }, maintenant) };
-      }
+      // 08/11/2026 : un contrôle en défaut ne jette plus la vidéo : elle est livrée « avec réserves » (voir `reservesDuRapport`).
       return { travail: suivant(travail, etat, statuts(travail, etat), maintenant), resultat: resultatDe(commande, r, etat, maintenant) };
     },
 

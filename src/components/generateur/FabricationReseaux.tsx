@@ -79,9 +79,7 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
   const derniere = useRef(0);
   const cleRatios = [...ratios].sort().join(",");
   const prixAJour = prixCoches && prixCoches.cle === cleRatios ? prixCoches : null;
-  const total = prixAJour?.total ?? plan.total;
   const avatarParle = prixAJour ? prixAJour.avatarParle : plan.avatarParle;
-  const prixDe = (varianteId: string, prix: string) => prixAJour?.versions[varianteId] ?? prix;
   const essai = resume?.essai ?? !!plan.essai;
   const aFaire = plan.versions.filter((v) => !v.dejaVideo);
   const n = aFaire.length;
@@ -148,7 +146,7 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
             void chiffrer(ratios);
           }}
         >
-          Fabriquer les {n} · {plan.total}
+          Fabriquer les {n}
         </Bouton>
       </Carte>
       <FeuilleBas
@@ -159,9 +157,9 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
         pied={
           // La fabrication ne part qu'après « Relire le script » (repère « script relu » exigé par le serveur) : le
           // total confirmé là-bas est celui des formats cochés ici (CORRECTEUR 1 — B6).
-          <Bouton asChild pleineLargeur taille="lg" icone="ecrire" essai={essai} disabled={calcul || !!resume?.budgetInsuffisant}>
-            <Link aria-disabled={calcul || !!resume?.budgetInsuffisant} href={`/ecrire/sujets/${sujetId}/relire${ratios.length ? `?ratios=${encodeURIComponent([...ratios].sort().join(","))}` : ""}`}>
-              Relire le script · {total}
+          <Bouton asChild pleineLargeur taille="lg" icone="ecrire" essai={essai} disabled={calcul}>
+            <Link aria-disabled={calcul} href={`/ecrire/sujets/${sujetId}/relire${ratios.length ? `?ratios=${encodeURIComponent([...ratios].sort().join(","))}` : ""}`}>
+              Relire le script
             </Link>
           </Bouton>
         }
@@ -174,54 +172,11 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
                 <span className="block text-sm font-semibold text-texte">{obtenirReseau(v.reseau).nom}</span>
                 <span className="block text-xs text-texte-faible">{v.role === "mere" ? "Vidéo mère, en entier" : plan.surMere ? "Début et fin" : "En entier"}</span>
               </span>
-              <span className="flex shrink-0 items-center gap-1.5 text-sm tabular-nums text-texte">
-                ≈ {prixDe(v.varianteId, v.prix)}
-                {essai && <PastilleEssai />}
-              </span>
+              {essai && <PastilleEssai />}
             </li>
           ))}
         </ol>
         {avatarParle && <p className="mt-3 text-sm font-semibold text-texte">{avatarParle}</p>}
-        {plan.surMere && <p className="mt-3 text-center text-xs text-texte-faible">Chacune en entier : ≈ {prixAJour?.sansDeclinaison ?? plan.sansDeclinaison}</p>}
-        <dl className="mt-4 space-y-1.5 rounded-champ bg-surface-2 p-3 text-sm" aria-busy={calcul}>
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-texte-doux">Total</dt>
-            <dd className="flex items-center gap-2 font-semibold tabular-nums text-texte">
-              {calcul ? "calcul…" : total}
-              {essai && <PastilleEssai />}
-            </dd>
-          </div>
-          {resume && !calcul && (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Aujourd&apos;hui</dt>
-                <dd className="flex items-center gap-2 tabular-nums text-texte">
-                  {resume.jourAvant} → {resume.jourApres}
-                  {essai && <PastilleEssai />}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-texte-doux">Budget du mois restant</dt>
-                <dd className="tabular-nums text-texte">{resume.budgetRestant}</dd>
-              </div>
-              {resume.credits.map((c) => (
-                <div key={c.nom} className="flex items-center justify-between gap-2">
-                  <dt className="text-texte-doux">Crédit {c.nom}</dt>
-                  <dd className="tabular-nums text-texte">{c.disponible}</dd>
-                </div>
-              ))}
-            </>
-          )}
-        </dl>
-        {resume?.auDelaDuRepere && !calcul && <p className="mt-2 text-sm font-semibold text-ambre">Au-dessus de votre repère de confirmation.</p>}
-        {resume?.budgetInsuffisant && !calcul && (
-          <p className="mt-2 text-sm font-semibold text-ambre">
-            Le budget du mois ne suffit pas pour ce lancement.{" "}
-            <a href="/reglages#budget" className="underline">
-              Augmenter le budget
-            </a>
-          </p>
-        )}
         {/* E2E-2 argent n° 7 : la phrase dit exactement ce qui sera payé (jamais « rien » quand la voix l'est). */}
         {resume?.messageEssai && !calcul && <p className="mt-2 text-center text-xs text-texte-faible">{resume.messageEssai}</p>}
         <div className="mt-4">
@@ -279,7 +234,7 @@ export function EtatFabricationVersion({ sujetId, etat }: { sujetId: string; eta
             })
           }
         >
-          Fabriquer en entier · ≈ {etat.coutComplet}
+          Fabriquer en entier
         </Bouton>
       </div>
     );
@@ -335,7 +290,7 @@ export function EtatFabricationVersion({ sujetId, etat }: { sujetId: string; eta
 }
 
 /** « 2e ouverture Reels » (Instagram) : une autre accroche, même milieu, publiée à la main. */
-export function BoutonSecondeOuverture({ sujetId, varianteId, prix, avatarParle }: { sujetId: string; varianteId: string; prix: string; avatarParle?: string }) {
+export function BoutonSecondeOuverture({ sujetId, varianteId, avatarParle }: { sujetId: string; varianteId: string; prix: string; avatarParle?: string }) {
   const router = useRouter();
   const [ouverte, setOuverte] = useState(false);
   const [operation, setOperation] = useState("");
@@ -350,7 +305,7 @@ export function BoutonSecondeOuverture({ sujetId, varianteId, prix, avatarParle 
           setOuverte(true);
         }}
       >
-        2e ouverture · ≈ {prix}
+        2e ouverture
       </Bouton>
       <FeuilleBas ouverte={ouverte} onOuverteChange={setOuverte} titre="2e ouverture Reels" description="La même vidéo avec une autre accroche, pour comparer sur Instagram. À publier à la main.">
         {avatarParle && <p className="mb-3 text-sm font-semibold text-texte">{avatarParle}</p>}
@@ -372,7 +327,7 @@ export function BoutonSecondeOuverture({ sujetId, varianteId, prix, avatarParle 
             })
           }
         >
-          Lancer · ≈ {prix}
+          Lancer
         </Bouton>
       </FeuilleBas>
     </>
@@ -405,7 +360,7 @@ export function BoutonMonterPrise({ sujetId, varianteId, prix, essai }: { sujetI
         })
       }
     >
-      {prix ? `Monter ma prise · ≈ ${prix}` : "Monter ma prise"}
+      Monter ma prise
     </Bouton>
   );
 }

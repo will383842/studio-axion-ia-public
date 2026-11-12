@@ -125,7 +125,7 @@ describe("REC · variantes possibles par image", () => {
       const carte = carteDe(n);
       for (let g = 0; g < 40; g++) expect(["REC-A", ...recitsPossibles(carte)]).toContain(tirerVarieteIV({ graine: `v${g}`, carte, format: "9:16" }).recit);
     }
-    expect(new Set(Array.from({ length: 60 }, (_, g) => tirerVarieteIV({ graine: `v${g}`, carte: C, format: "9:16" }).recit))).toEqual(new Set(CODES));
+    expect(new Set(Array.from({ length: 60 }, (_, g) => tirerVarieteIV({ graine: `v${g}`, carte: C, format: "9:16" }).recit))).toEqual(new Set(["REC-A", ...CODES])); // la référence REC-A est tirable (issue 124)
   });
 });
 

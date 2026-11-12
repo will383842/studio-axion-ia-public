@@ -203,8 +203,8 @@ async function scriptReluDe(videoId: string): Promise<string> {
   return empreinteDesBlocs((await depots().scripts.obtenir(v!.scriptId!))!.blocs);
 }
 
-describe("n° 1 — un accord donné en essai ne vaut pas pour un montage réel", () => {
-  it("ROUGE — attente confirmée en essai → interrupteur allumé → rien ne part ; brouillon, Will prévenu", async () => {
+describe("n° 1 — un accord donné en essai, puis montage réel (08/11 : la confirmation de prix « Montage réel » est automatique)", () => {
+  it("attente confirmée en essai → interrupteur allumé → la vidéo part montée pour de vrai, sans rien redemander", async () => {
     await preparer();
     // Interrupteur éteint : Will voit le prix de l'ESSAI et coche « lancer dès que possible ».
     expect((await fabrication.apercuFabrication(VIDEO)).budget.montageReel).toBe(false);
@@ -217,13 +217,13 @@ describe("n° 1 — un accord donné en essai ne vaut pas pour un montage réel"
 
     const { lancees } = await credits.lancerVideosEnAttente();
 
-    expect(lancees).toEqual([]);
-    expect(await travauxDeLaVideo()).toBe(avant);
-    const v = (await depots().videos.obtenir(VIDEO))!;
-    expect(v.statut).toBe("brouillon");
-    expect(v.lancementEnAttente).toBeUndefined();
-    const n = await depots().notifications.trouver((x) => /n'a pas pu partir/.test(x.titre));
-    expect(n?.message).toMatch(/montée pour de vrai/);
+    expect(lancees).toHaveLength(1);
+    expect(await travauxDeLaVideo()).toBe(avant + 1);
+    const version = (await depots().versions.lister((x) => x.videoId === VIDEO && x.statut === "en_fabrication"))[0];
+    expect(version.commande.moteurId).toBe("montage-avocat");
+    expect((await depots().videos.obtenir(VIDEO))!.lancementEnAttente).toBeUndefined();
+    expect(await depots().notifications.trouver((x) => /n'a pas pu partir/.test(x.titre))).toBeFalsy();
+    // Mise en file seulement : rien n'est encore payé.
     expect(rienDePaye()).toBe(true);
   });
 
@@ -237,13 +237,20 @@ describe("n° 1 — un accord donné en essai ne vaut pas pour un montage réel"
     expect(await depots().notifications.trouver((x) => /n'a pas pu partir/.test(x.titre))).toBeTruthy();
   });
 
-  it("ROUGE — version qui suit sa mère, confirmée en essai : la garde refuse au lancement (CONFIRMATION_REQUISE)", async () => {
+  it("version qui suit sa mère, confirmée en essai : la garde ne refuse plus au lancement (aucun CONFIRMATION_REQUISE)", async () => {
     await preparer();
     await reglages.definirMontageReel("avocat", true);
-    await expect(fabrication.lancerFabricationConfirmee(VIDEO, { confirme: true, confirmationDifferee: { moteurId: "simulation" } })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    await expect(fabrication.lancerFabricationConfirmee(VIDEO, { confirme: true, confirmationDifferee: {} })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await travauxDeLaVideo()).toBe(0);
+    await expect(fabrication.lancerFabricationConfirmee(VIDEO, { confirme: true, confirmationDifferee: { moteurId: "simulation" } })).resolves.toBeTruthy();
+    expect(await travauxDeLaVideo()).toBe(1);
+    // Mise en file seulement : rien n'est encore payé.
     expect(rienDePaye()).toBe(true);
+  });
+
+  it("mode indicatif : un confirmationDifferee sur un autre moteur ne refuse plus (le prix du jour vaut accord)", async () => {
+    await preparer();
+    await reglages.definirMontageReel("avocat", true);
+    await ecrireParametre("budget.mode", "indicatif");
+    await expect(fabrication.lancerFabricationConfirmee(VIDEO, { confirme: true, confirmationDifferee: { moteurId: "simulation" } })).resolves.toBeTruthy();
   });
 
   it("accord donné pour le montage réel : la vidéo en attente part montée pour de vrai, comme confirmé", async () => {
@@ -292,8 +299,8 @@ describe("n° 2 — prix de 45 s : le second angle compte quand deux avatars son
     const c = await fabrication.construireCommande(VIDEO);
     expect(c.moteurId).toBe("montage-avocat");
     expect(secondesAnnonceesDouble({ ...c, dureeCibleSec: 45 })).toBe(45 + 11);
-    // Le journal de l'allumage annonce ce prix-là.
-    expect((await reglages.listerJournal(5)).find((e) => /montage réel/.test(e.message))!.message).toContain(formaterMontant(f.prix.total));
+    // Le journal de l'allumage ne montre aucun montant (règle « aucun prix dans le studio »).
+    expect((await reglages.listerJournal(5)).find((e) => /montage réel/.test(e.message))!.message).not.toMatch(/€|\$/);
   });
 
   it("un seul avatar prêt : un seul angle, pas de ligne de second angle", async () => {

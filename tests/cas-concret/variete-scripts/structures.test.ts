@@ -54,8 +54,13 @@ const EMPREINTES_RECETTE_V4: Record<string, string> = {
   "rendez-vous-classes": "010b015b30bc1e93",
   "coaching-dirigeant": "d206aed8ed87c242",
 };
-/** Calculées de même sur le code de master : `variableEcriture` des 23 cas (patrons de « video-3 »), et les patrons de 200 vidéos (sel 0 et 1). */
-const EMPREINTE_VARIABLE_V4 = "28b849e538dedb6e";
+/**
+ * Calculées de même sur le code de master : `variableEcriture` des 23 cas (patrons de « video-3 »), et les patrons de 200 vidéos (sel 0 et 1).
+ * Recalcul de l'empreinte variable : remplacer la valeur par `empreinte(variables.join("\n====\n"))` lu dans l'échec du test 4, après avoir
+ * vérifié que le changement de texte est voulu. Recalculée le 02/11/2026 (« 28b849e538dedb6e » → « 683c013e70876555 ») : l'ancienne valeur venait du
+ * dépôt privé d'avant l'export public (textes assainis depuis) et ne correspondait à aucun commit public ; le texte est identique depuis le premier.
+ */
+const EMPREINTE_VARIABLE_V4 = "683c013e70876555";
 const EMPREINTE_PATRONS_V4 = "1dac3ee01a3d0d89";
 
 describe("D1 · recettes par structure", () => {

@@ -1,0 +1,6050 @@
+{
+ "videoId": "v-b54bb4798246",
+ "carte": {
+  "pied": [],
+  "image": {
+   "cle": "entree/image.png",
+   "hauteur": 1672,
+   "largeur": 941,
+   "empreinte": "fixture",
+   "orientation": "portrait"
+  },
+  "liens": [
+   {
+    "de": "n01",
+    "id": "l01",
+    "vers": "n02",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n02",
+    "id": "l02",
+    "vers": "n03",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n03",
+    "id": "l03",
+    "vers": "n04",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n04",
+    "id": "l04",
+    "vers": "n05",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "OUI"
+   },
+   {
+    "de": "n04",
+    "id": "l05",
+    "vers": "n06",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "NON"
+   },
+   {
+    "de": "n05",
+    "id": "l06",
+    "vers": "n07",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n06",
+    "id": "l07",
+    "vers": "n07",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n07",
+    "id": "l08",
+    "vers": "n08",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n08",
+    "id": "l09",
+    "vers": "n09",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "VALIDÉ"
+   },
+   {
+    "de": "n08",
+    "id": "l10",
+    "vers": "n10",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "MODIFIÉ"
+   },
+   {
+    "de": "n09",
+    "id": "l11",
+    "vers": "n11",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n10",
+    "id": "l12",
+    "vers": "n11",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n11",
+    "id": "l13",
+    "vers": "n12",
+    "style": "plein",
+    "couleur": "noir"
+   },
+   {
+    "de": "n12",
+    "id": "l14",
+    "vers": "n13",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "PAYÉ"
+   },
+   {
+    "de": "n12",
+    "id": "l15",
+    "vers": "n14",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "J+30"
+   },
+   {
+    "de": "n12",
+    "id": "l16",
+    "vers": "n15",
+    "style": "plein",
+    "couleur": "noir",
+    "etiquette": "J+60"
+   }
+  ],
+  "offre": "integration",
+  "titre": "Axion-IA.com",
+  "types": [
+   "embranchement"
+  ],
+  "noeuds": [
+   {
+    "id": "n01",
+    "role": "declencheur",
+    "icone": "coche",
+    "ordre": 1,
+    "acteur": "inconnu",
+    "couleur": "neutre",
+    "libelle": "Mission terminée détectée"
+   },
+   {
+    "id": "n02",
+    "role": "etape",
+    "icone": "document",
+    "ordre": 2,
+    "acteur": "auto",
+    "couleur": "neutre",
+    "libelle": "IA génère brouillon facture"
+   },
+   {
+    "id": "n03",
+    "role": "etape",
+    "icone": "bouclier",
+    "ordre": 3,
+    "acteur": "auto",
+    "couleur": "neutre",
+    "libelle": "Vérification TVA auto"
+   },
+   {
+    "id": "n04",
+    "role": "decision",
+    "ordre": 4,
+    "acteur": "inconnu",
+    "couleur": "orange",
+    "libelle": "?"
+   },
+   {
+    "id": "n05",
+    "role": "etape",
+    "icone": "flèches circulaires",
+    "ordre": 5,
+    "acteur": "inconnu",
+    "groupe": "g-branche-oui",
+    "couleur": "neutre",
+    "libelle": "Autoliquidation"
+   },
+   {
+    "id": "n06",
+    "role": "etape",
+    "icone": "calculatrice",
+    "ordre": 6,
+    "acteur": "inconnu",
+    "groupe": "g-branche-non",
+    "couleur": "neutre",
+    "libelle": "TVA locale calculée"
+   },
+   {
+    "id": "n07",
+    "role": "etape",
+    "icone": "personne",
+    "ordre": 7,
+    "acteur": "humain",
+    "couleur": "neutre",
+    "libelle": "Validation 1 clic dirigeant"
+   },
+   {
+    "id": "n08",
+    "role": "decision",
+    "ordre": 8,
+    "acteur": "inconnu",
+    "couleur": "orange",
+    "libelle": "?"
+   },
+   {
+    "id": "n09",
+    "role": "etape",
+    "icone": "avion papier",
+    "ordre": 9,
+    "acteur": "inconnu",
+    "groupe": "g-branche-valide",
+    "couleur": "neutre",
+    "libelle": "Envoi + archivage + écriture comptable"
+   },
+   {
+    "id": "n10",
+    "role": "etape",
+    "icone": "flèches circulaires",
+    "ordre": 10,
+    "acteur": "auto",
+    "groupe": "g-branche-modifie",
+    "couleur": "neutre",
+    "libelle": "Correction IA + re-soumission"
+   },
+   {
+    "id": "n11",
+    "role": "etape",
+    "icone": "graphique",
+    "ordre": 11,
+    "acteur": "inconnu",
+    "couleur": "neutre",
+    "libelle": "Suivi paiement"
+   },
+   {
+    "id": "n12",
+    "role": "decision",
+    "ordre": 12,
+    "acteur": "inconnu",
+    "couleur": "orange",
+    "libelle": "?"
+   },
+   {
+    "id": "n13",
+    "role": "sortie",
+    "icone": "coche",
+    "ordre": 13,
+    "acteur": "inconnu",
+    "groupe": "g-sorties",
+    "couleur": "neutre",
+    "libelle": "Clôture + trésorerie mise à jour"
+   },
+   {
+    "id": "n14",
+    "role": "sortie",
+    "icone": "cloche",
+    "ordre": 14,
+    "acteur": "inconnu",
+    "groupe": "g-sorties",
+    "couleur": "neutre",
+    "libelle": "Relance niveau 1"
+   },
+   {
+    "id": "n15",
+    "role": "sortie",
+    "icone": "triangle alerte",
+    "ordre": 15,
+    "acteur": "inconnu",
+    "groupe": "g-sorties",
+    "couleur": "neutre",
+    "libelle": "Relance niveau 2 + alerte"
+   }
+  ],
+  "bandeau": [],
+  "groupes": [
+   {
+    "id": "g-branche-oui",
+    "sorte": "branche",
+    "titre": "OUI",
+    "noeuds": [
+     "n05"
+    ]
+   },
+   {
+    "id": "g-branche-non",
+    "sorte": "branche",
+    "titre": "NON",
+    "noeuds": [
+     "n06"
+    ]
+   },
+   {
+    "id": "g-branche-valide",
+    "sorte": "branche",
+    "titre": "VALIDÉ",
+    "noeuds": [
+     "n09"
+    ]
+   },
+   {
+    "id": "g-branche-modifie",
+    "sorte": "branche",
+    "titre": "MODIFIÉ",
+    "noeuds": [
+     "n10"
+    ]
+   },
+   {
+    "id": "g-sorties",
+    "sorte": "sorties",
+    "noeuds": [
+     "n13",
+     "n14",
+     "n15"
+    ]
+   }
+  ],
+  "lecture": {
+   "ecarts": [
+    {
+     "champ": "titre",
+     "lectureA": "",
+     "lectureB": "Axion-IA.com"
+    },
+    {
+     "champ": "noeuds.n09.icone",
+     "lectureA": "avion papier",
+     "lectureB": "avion en papier"
+    }
+   ],
+   "alertes": []
+  },
+  "version": "carte-image/1",
+  "chiffres": [
+   {
+    "id": "c01",
+    "lu": "les-deux",
+    "brut": "1 clic",
+    "aDire": true,
+    "unite": "nombre",
+    "valeur": 1,
+    "dansNoeud": "n07"
+   },
+   {
+    "id": "c02",
+    "lu": "les-deux",
+    "brut": "1",
+    "aDire": true,
+    "unite": "nombre",
+    "valeur": 1,
+    "dansNoeud": "n14"
+   },
+   {
+    "id": "c03",
+    "lu": "les-deux",
+    "brut": "2",
+    "aDire": true,
+    "unite": "nombre",
+    "valeur": 2,
+    "dansNoeud": "n15"
+   },
+   {
+    "id": "c04",
+    "lu": "les-deux",
+    "brut": "30",
+    "aDire": true,
+    "unite": "nombre",
+    "valeur": 30,
+    "dansLien": "l15"
+   },
+   {
+    "id": "c05",
+    "lu": "les-deux",
+    "brut": "60",
+    "aDire": true,
+    "unite": "nombre",
+    "valeur": 60,
+    "dansLien": "l16"
+   }
+  ],
+  "coherence": [],
+  "phraseChoc": "De la mission terminée à la facture encaissée. Zéro saisie manuelle.",
+  "adaptations": [
+   "Adapté automatiquement : type déduit par le code (embranchement) : aucune des deux lectures ne l'a reconnu",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : 2 écart(s) entre les deux lectures.",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : Icône inconnue pour « Vérification TVA auto » : choisissez-en une.",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : Icône inconnue pour « Autoliquidation » : choisissez-en une.",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : Icône inconnue pour « TVA locale calculée » : choisissez-en une.",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : Icône inconnue pour « Envoi + archivage + écriture comptable » : choisissez-en une.",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : Icône inconnue pour « Correction IA + re-soumission » : choisissez-en une.",
+   "Adapté automatiquement : Point accepté sans relecture, à vérifier : Icône inconnue pour « Relance niveau 2 + alerte » : choisissez-en une."
+  ],
+  "automatisation": true,
+  "bandeauChiffres": [],
+  "formulesAbsolues": []
+ },
+ "fiche": {
+  "ecrans": [
+   {
+    "id": "e01",
+    "fond": "sombre",
+    "refs": [
+     "n01"
+    ],
+    "scene": "accroche",
+    "partie": "accroche",
+    "surMot": [
+     {
+      "mot": 4,
+      "action": "allume"
+     }
+    ],
+    "texteDit": "Mission finie. Et la facture, elle part quand ?",
+    "textesEcran": [
+     "Mission finie.",
+     "Et la *facture* ?"
+    ]
+   },
+   {
+    "id": "e02",
+    "fond": "ivoire",
+    "refs": [],
+    "scene": "micro-objet",
+    "partie": "douleur",
+    "surMot": [
+     {
+      "mot": 10,
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Oui, elle part sans que vous la tapiez. Aujourd'hui, le soir, vous ouvrez le logiciel. Vous recopiez la mission, ligne par ligne.",
+    "textesEcran": [
+     "Le *soir*, vous recopiez"
+    ]
+   },
+   {
+    "id": "e03",
+    "fond": "sombre",
+    "refs": [],
+    "scene": "recherche",
+    "partie": "douleur",
+    "surMot": [
+     {
+      "mot": 6,
+      "action": "allume"
+     }
+    ],
+    "texteDit": "Vous cherchez le bon taux de TVA. Le paiement, vous le surveillez de tête. Et la relance part trop tard.",
+    "textesEcran": [
+     "Quel taux de *TVA* ?",
+     "Relance trop tard"
+    ]
+   },
+   {
+    "id": "e04",
+    "fond": "ivoire",
+    "refs": [],
+    "scene": "titre",
+    "partie": "debut-reponse",
+    "surMot": [
+     {
+      "mot": 6,
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Maintenant, l'automatisation prend le relais. Trois étapes.",
+    "textesEcran": [
+     "Trois *étapes*"
+    ]
+   },
+   {
+    "id": "e05",
+    "fond": "sombre",
+    "refs": [
+     "n01"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 2,
+      "action": "apparait"
+     },
+     {
+      "mot": 14,
+      "ref": "n01",
+      "action": "coche"
+     }
+    ],
+    "texteDit": "Voici une situation type. D'abord, ce qui arrive. Votre mission est terminée. L'automatisation le détecte.",
+    "textesEcran": [
+     "Situation type",
+     "Mission terminée *détectée*"
+    ]
+   },
+   {
+    "id": "e06",
+    "fond": "sombre",
+    "refs": [
+     "n02",
+     "l01"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 6,
+      "ref": "l01",
+      "action": "apparait"
+     },
+     {
+      "mot": 8,
+      "ref": "n02",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Ensuite, ce que l'automatisation fait. L'IA génère un brouillon de facture. Personne ne le tape.",
+    "textesEcran": [
+     "IA génère *brouillon* facture"
+    ]
+   },
+   {
+    "id": "e07",
+    "fond": "sombre",
+    "refs": [
+     "n03",
+     "n04",
+     "l02",
+     "l03"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 1,
+      "ref": "l02",
+      "action": "apparait"
+     },
+     {
+      "mot": 3,
+      "ref": "n03",
+      "action": "apparait"
+     },
+     {
+      "mot": 7,
+      "ref": "l03",
+      "action": "apparait"
+     },
+     {
+      "mot": 9,
+      "ref": "n04",
+      "action": "allume"
+     }
+    ],
+    "texteDit": "Elle vérifie la TVA, automatiquement. Puis elle pose la question du régime.",
+    "textesEcran": [
+     "Vérification TVA *auto*",
+     "?"
+    ]
+   },
+   {
+    "id": "e08",
+    "fond": "ivoire",
+    "refs": [
+     "n07",
+     "c01"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 2,
+      "ref": "n07",
+      "action": "apparait"
+     },
+     {
+      "mot": 8,
+      "ref": "c01",
+      "action": "tape"
+     }
+    ],
+    "texteDit": "Le brouillon arrive chez vous. Vous relisez. Un clic pour valider.",
+    "textesEcran": [
+     "Validation 1 *clic* dirigeant"
+    ]
+   },
+   {
+    "id": "e09",
+    "fond": "ivoire",
+    "refs": [
+     "n08",
+     "n10",
+     "l08",
+     "l10",
+     "g-branche-modifie"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 0,
+      "ref": "l08",
+      "action": "apparait"
+     },
+     {
+      "mot": 1,
+      "ref": "n08",
+      "action": "allume"
+     },
+     {
+      "mot": 3,
+      "ref": "l10",
+      "action": "bascule"
+     },
+     {
+      "mot": 5,
+      "ref": "n10",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Une ligne à modifier ? L'IA corrige et vous la resoumet.",
+    "textesEcran": [
+     "MODIFIÉ",
+     "Correction IA + *re-soumission*"
+    ]
+   },
+   {
+    "id": "e10",
+    "fond": "ivoire",
+    "refs": [
+     "n11",
+     "n12",
+     "l12",
+     "l13"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 2,
+      "ref": "l12",
+      "action": "apparait"
+     },
+     {
+      "mot": 4,
+      "ref": "n11",
+      "action": "apparait"
+     },
+     {
+      "mot": 6,
+      "ref": "l13",
+      "action": "apparait"
+     },
+     {
+      "mot": 7,
+      "ref": "n12",
+      "action": "allume"
+     }
+    ],
+    "texteDit": "Puis l'automatisation suit le paiement. Elle attend l'encaissement.",
+    "textesEcran": [
+     "Suivi *paiement*",
+     "?"
+    ]
+   },
+   {
+    "id": "e11",
+    "fond": "sombre",
+    "refs": [
+     "n13",
+     "l14",
+     "g-sorties"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 5,
+      "ref": "l14",
+      "action": "apparait"
+     },
+     {
+      "mot": 9,
+      "ref": "n13",
+      "action": "coche"
+     }
+    ],
+    "texteDit": "Enfin, ce qui en sort. Payé : le dossier est clôturé. Votre trésorerie est mise à jour.",
+    "textesEcran": [
+     "PAYÉ",
+     "Clôture + *trésorerie* mise à jour"
+    ]
+   },
+   {
+    "id": "e12",
+    "fond": "sombre",
+    "refs": [
+     "n14",
+     "n15",
+     "l15",
+     "l16",
+     "c02",
+     "c03",
+     "c04",
+     "c05"
+    ],
+    "scene": "alerte",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 5,
+      "ref": "l15",
+      "action": "apparait"
+     },
+     {
+      "mot": 6,
+      "ref": "n14",
+      "action": "tombe"
+     },
+     {
+      "mot": 13,
+      "ref": "l16",
+      "action": "apparait"
+     },
+     {
+      "mot": 14,
+      "ref": "n15",
+      "action": "tombe"
+     },
+     {
+      "mot": 20,
+      "ref": "n15",
+      "action": "allume"
+     }
+    ],
+    "texteDit": "Pas payé à J plus trente ? Relance de niveau un. À J plus soixante, relance de niveau deux. Avec une alerte pour vous.",
+    "textesEcran": [
+     "J+30 · Relance niveau 1",
+     "J+60 · Relance niveau 2 + *alerte*"
+    ]
+   },
+   {
+    "id": "e13",
+    "fond": "ivoire",
+    "refs": [
+     "n06",
+     "l05",
+     "l07",
+     "g-branche-non"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 9,
+      "ref": "l05",
+      "action": "bascule"
+     },
+     {
+      "mot": 12,
+      "ref": "n06",
+      "action": "apparait"
+     },
+     {
+      "mot": 14,
+      "ref": "l07",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Un mot sur la TVA. Si la réponse est non, la TVA locale est calculée.",
+    "textesEcran": [
+     "NON",
+     "TVA locale *calculée*"
+    ]
+   },
+   {
+    "id": "e14",
+    "fond": "sombre",
+    "refs": [
+     "n05",
+     "n09",
+     "l04",
+     "l06",
+     "l09",
+     "l11",
+     "g-branche-oui",
+     "g-branche-valide"
+    ],
+    "scene": "embranchement",
+    "partie": "explication",
+    "surMot": [
+     {
+      "mot": 4,
+      "ref": "l04",
+      "action": "bascule"
+     },
+     {
+      "mot": 5,
+      "ref": "n05",
+      "action": "apparait"
+     },
+     {
+      "mot": 6,
+      "ref": "l06",
+      "action": "apparait"
+     },
+     {
+      "mot": 10,
+      "ref": "l09",
+      "action": "apparait"
+     },
+     {
+      "mot": 14,
+      "ref": "n09",
+      "action": "apparait"
+     },
+     {
+      "mot": 19,
+      "ref": "l11",
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "Si la réponse est oui, l'autoliquidation s'applique. Et une fois validée, la facture est envoyée. Elle est archivée, et passée en comptabilité.",
+    "textesEcran": [
+     "OUI · Autoliquidation",
+     "VALIDÉ · Envoi + archivage + écriture *comptable*"
+    ]
+   },
+   {
+    "id": "e15",
+    "fond": "ivoire",
+    "refs": [
+     "n07",
+     "c01"
+    ],
+    "scene": "ensemble",
+    "partie": "resultat",
+    "surMot": [
+     {
+      "mot": 6,
+      "action": "allume"
+     },
+     {
+      "mot": 12,
+      "ref": "c01",
+      "action": "tape"
+     }
+    ],
+    "texteDit": "Au bout du compte, vous ne saisissez rien. Votre part, c'est un clic.",
+    "textesEcran": [
+     "Votre part : 1 *clic*"
+    ]
+   },
+   {
+    "id": "e16",
+    "fond": "sombre",
+    "refs": [
+     "n01",
+     "n13"
+    ],
+    "scene": "phrase-choc",
+    "partie": "phrase-choc",
+    "surMot": [
+     {
+      "mot": 0,
+      "action": "apparait"
+     }
+    ],
+    "texteDit": "De la mission terminée à la facture encaissée. Zéro saisie manuelle.",
+    "textesEcran": [
+     "De la mission terminée à la facture encaissée.",
+     "Zéro saisie *manuelle*."
+    ]
+   }
+  ],
+  "version": "fiche-image/1",
+  "accroches": [
+   {
+    "famille": "situation",
+    "texteDit": "Mission finie. Et la facture, elle part quand ?",
+    "textesEcran": [
+     "Mission finie.",
+     "Et la *facture* ?"
+    ]
+   },
+   {
+    "famille": "question",
+    "texteDit": "Combien de factures attendent encore votre soirée ?",
+    "textesEcran": [
+     "Combien de *factures* attendent ?"
+    ]
+   }
+  ],
+  "chapitres": [
+   {
+    "titre": "MODIFIÉ",
+    "ecrans": [
+     "e05",
+     "e06",
+     "e07",
+     "e08",
+     "e09",
+     "e10",
+     "e11",
+     "e12"
+    ],
+    "repere": "1/3",
+    "essentiel": true
+   },
+   {
+    "titre": "NON",
+    "ecrans": [
+     "e13"
+    ],
+    "repere": "2/3",
+    "essentiel": false
+   },
+   {
+    "titre": "OUI",
+    "ecrans": [
+     "e14"
+    ],
+    "repere": "3/3",
+    "essentiel": false
+   }
+  ],
+  "empreinteCarte": "fixture",
+  "questionCommentaire": {
+   "texteDit": "Et chez vous, combien de factures partent encore à la main ?",
+   "texteEcran": "Et chez vous, combien de factures partent encore à la main ?"
+  }
+ },
+ "recette": {
+  "fin": "FIN-C",
+  "recit": "REC-D",
+  "texte": "TYP-B",
+  "camera": "CAM-B",
+  "matiere": "MAT-B",
+  "chiffres": "CHI-A",
+  "ouverture": "OUV-D",
+  "apparition": "APP-D",
+  "sousTitres": "SOU-C",
+  "transitions": "TRA-C"
+ },
+ "versions": [
+  {
+   "id": "fin-youtube-shorts",
+   "piste": "fin-youtube-shorts",
+   "format": "9:16",
+   "reseaux": [
+    "youtube-shorts"
+   ]
+  },
+  {
+   "id": "fin-linkedin",
+   "piste": "fin-linkedin",
+   "format": "4:5",
+   "reseaux": [
+    "linkedin"
+   ]
+  },
+  {
+   "id": "fin-instagram",
+   "piste": "fin-instagram",
+   "format": "9:16",
+   "reseaux": [
+    "instagram"
+   ]
+  },
+  {
+   "id": "fin-facebook",
+   "piste": "fin-facebook",
+   "format": "9:16",
+   "reseaux": [
+    "facebook"
+   ]
+  },
+  {
+   "id": "fin-facebook",
+   "piste": "fin-facebook",
+   "format": "4:5",
+   "reseaux": [
+    "facebook"
+   ]
+  }
+ ],
+ "fins": [
+  {
+   "id": "fin-youtube-shorts",
+   "muet": false,
+   "appels": [
+    {
+     "id": "fin-ty-diagnostic-gratuit",
+     "dit": "Faites votre diagnostic gratuit en quelques minutes.",
+     "type": "rendez-vous",
+     "ecran": "Faites votre diagnostic gratuit",
+     "groupe": "tiktok-youtube"
+    },
+    {
+     "id": "fin-ty-lien-profil",
+     "dit": "Le lien est dans mon profil.",
+     "type": "lien",
+     "ecran": "Le lien est dans mon profil",
+     "groupe": "tiktok-youtube"
+    }
+   ],
+   "reseaux": [
+    "youtube-shorts"
+   ],
+   "question": {
+    "dit": "Et chez vous, combien de factures partent encore à la main ?",
+    "ecran": "Votre réponse en commentaire",
+    "ligne": "fin-ty-question-tache",
+    "origine": "image"
+   }
+  },
+  {
+   "id": "fin-linkedin",
+   "muet": true,
+   "appels": [],
+   "reseaux": [
+    "linkedin"
+   ]
+  },
+  {
+   "id": "fin-instagram",
+   "muet": false,
+   "appels": [
+    {
+     "id": "fin-if-diagnostic-gratuit",
+     "dit": "Faites votre diagnostic gratuit en quelques minutes.",
+     "type": "rendez-vous",
+     "ecran": "Faites votre diagnostic gratuit",
+     "groupe": "instagram-facebook"
+    },
+    {
+     "id": "fin-ig-lien-profil",
+     "dit": "Le lien est dans mon profil.",
+     "type": "lien",
+     "ecran": "Diagnostic gratuit · lien dans le profil",
+     "groupe": "instagram-facebook"
+    }
+   ],
+   "reseaux": [
+    "instagram"
+   ],
+   "question": {
+    "dit": "Et chez vous, combien de factures partent encore à la main ?",
+    "ecran": "Votre réponse en commentaire",
+    "ligne": "fin-if-question",
+    "origine": "image"
+   }
+  },
+  {
+   "id": "fin-facebook",
+   "muet": false,
+   "appels": [
+    {
+     "id": "fin-if-diagnostic-gratuit",
+     "dit": "Faites votre diagnostic gratuit en quelques minutes.",
+     "type": "rendez-vous",
+     "ecran": "Faites votre diagnostic gratuit",
+     "groupe": "instagram-facebook"
+    },
+    {
+     "id": "fin-fb-lien-commentaire",
+     "dit": "Le lien est en commentaire.",
+     "type": "lien",
+     "ecran": "Diagnostic gratuit · lien en commentaire",
+     "groupe": "instagram-facebook"
+    }
+   ],
+   "reseaux": [
+    "facebook"
+   ],
+   "question": {
+    "dit": "Et chez vous, combien de factures partent encore à la main ?",
+    "ecran": "Votre réponse en commentaire",
+    "ligne": "fin-if-question",
+    "origine": "image"
+   }
+  }
+ ],
+ "pistes": [
+  {
+   "version": "fin-youtube-shorts",
+   "reseaux": [
+    "youtube-shorts"
+   ],
+   "dureeSec": 68.3263,
+   "finVoixSec": 67.37,
+   "motsCorps": 228,
+   "mots": [
+    {
+     "mot": "Mission",
+     "finSec": 0.319,
+     "debutSec": 0.0333
+    },
+    {
+     "mot": "finie.",
+     "finSec": 0.6048,
+     "debutSec": 0.3762
+    },
+    {
+     "mot": "Et",
+     "finSec": 1.1,
+     "debutSec": 1.0619
+    },
+    {
+     "mot": "la",
+     "finSec": 1.1953,
+     "debutSec": 1.1381
+    },
+    {
+     "mot": "facture,",
+     "finSec": 1.5,
+     "debutSec": 1.2524
+    },
+    {
+     "mot": "elle",
+     "finSec": 1.6334,
+     "debutSec": 1.5381
+    },
+    {
+     "mot": "part",
+     "finSec": 1.8048,
+     "debutSec": 1.6715
+    },
+    {
+     "mot": "quand",
+     "finSec": 1.9572,
+     "debutSec": 1.8238
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 2.3286,
+     "debutSec": 2.1762
+    },
+    {
+     "mot": "elle",
+     "finSec": 2.6523,
+     "debutSec": 2.519
+    },
+    {
+     "mot": "part",
+     "finSec": 2.8428,
+     "debutSec": 2.6904
+    },
+    {
+     "mot": "sans",
+     "finSec": 2.9761,
+     "debutSec": 2.9
+    },
+    {
+     "mot": "que",
+     "finSec": 3.0523,
+     "debutSec": 2.9952
+    },
+    {
+     "mot": "vous",
+     "finSec": 3.1285,
+     "debutSec": 3.0714
+    },
+    {
+     "mot": "la",
+     "finSec": 3.2428,
+     "debutSec": 3.1666
+    },
+    {
+     "mot": "tapiez.",
+     "finSec": 3.6238,
+     "debutSec": 3.2809
+    },
+    {
+     "mot": "Aujourd'hui,",
+     "finSec": 4.119,
+     "debutSec": 3.8142
+    },
+    {
+     "mot": "le",
+     "finSec": 4.2333,
+     "debutSec": 4.1571
+    },
+    {
+     "mot": "soir,",
+     "finSec": 4.5,
+     "debutSec": 4.2904
+    },
+    {
+     "mot": "vous",
+     "finSec": 4.8286,
+     "debutSec": 4.7143
+    },
+    {
+     "mot": "ouvrez",
+     "finSec": 5.0381,
+     "debutSec": 4.8476
+    },
+    {
+     "mot": "le",
+     "finSec": 5.0762,
+     "debutSec": 5.0571
+    },
+    {
+     "mot": "logiciel.",
+     "finSec": 5.5714,
+     "debutSec": 5.1143
+    },
+    {
+     "mot": "Vous",
+     "finSec": 5.8572,
+     "debutSec": 5.781
+    },
+    {
+     "mot": "recopiez",
+     "finSec": 6.2191,
+     "debutSec": 5.8762
+    },
+    {
+     "mot": "la",
+     "finSec": 6.2953,
+     "debutSec": 6.2572
+    },
+    {
+     "mot": "mission,",
+     "finSec": 6.6,
+     "debutSec": 6.3334
+    },
+    {
+     "mot": "ligne",
+     "finSec": 6.9285,
+     "debutSec": 6.7761
+    },
+    {
+     "mot": "par",
+     "finSec": 7.0619,
+     "debutSec": 6.9666
+    },
+    {
+     "mot": "ligne.",
+     "finSec": 7.3285,
+     "debutSec": 7.1
+    },
+    {
+     "mot": "Vous",
+     "finSec": 7.6142,
+     "debutSec": 7.519
+    },
+    {
+     "mot": "cherchez",
+     "finSec": 7.9,
+     "debutSec": 7.6523
+    },
+    {
+     "mot": "le",
+     "finSec": 7.9952,
+     "debutSec": 7.938
+    },
+    {
+     "mot": "bon",
+     "finSec": 8.1476,
+     "debutSec": 8.0333
+    },
+    {
+     "mot": "taux",
+     "finSec": 8.2619,
+     "debutSec": 8.1857
+    },
+    {
+     "mot": "de",
+     "finSec": 8.319,
+     "debutSec": 8.3
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 8.6619,
+     "debutSec": 8.3761
+    },
+    {
+     "mot": "Le",
+     "finSec": 8.9857,
+     "debutSec": 8.8904
+    },
+    {
+     "mot": "paiement,",
+     "finSec": 9.2523,
+     "debutSec": 9.0238
+    },
+    {
+     "mot": "vous",
+     "finSec": 9.5762,
+     "debutSec": 9.5
+    },
+    {
+     "mot": "le",
+     "finSec": 9.6334,
+     "debutSec": 9.5953
+    },
+    {
+     "mot": "surveillez",
+     "finSec": 9.9762,
+     "debutSec": 9.6905
+    },
+    {
+     "mot": "de",
+     "finSec": 10.0905,
+     "debutSec": 9.9953
+    },
+    {
+     "mot": "tête.",
+     "finSec": 10.3572,
+     "debutSec": 10.1286
+    },
+    {
+     "mot": "Et",
+     "finSec": 10.6048,
+     "debutSec": 10.5667
+    },
+    {
+     "mot": "la",
+     "finSec": 10.7,
+     "debutSec": 10.6429
+    },
+    {
+     "mot": "relance",
+     "finSec": 10.9857,
+     "debutSec": 10.7381
+    },
+    {
+     "mot": "part",
+     "finSec": 11.119,
+     "debutSec": 11.0238
+    },
+    {
+     "mot": "trop",
+     "finSec": 11.2524,
+     "debutSec": 11.1571
+    },
+    {
+     "mot": "tard.",
+     "finSec": 11.5381,
+     "debutSec": 11.3095
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 11.9952,
+     "debutSec": 11.7286
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 12.719,
+     "debutSec": 12.0333
+    },
+    {
+     "mot": "prend",
+     "finSec": 12.8524,
+     "debutSec": 12.7571
+    },
+    {
+     "mot": "le",
+     "finSec": 12.8905,
+     "debutSec": 12.8714
+    },
+    {
+     "mot": "relais.",
+     "finSec": 13.1762,
+     "debutSec": 12.9286
+    },
+    {
+     "mot": "Trois",
+     "finSec": 13.519,
+     "debutSec": 13.3667
+    },
+    {
+     "mot": "étapes.",
+     "finSec": 13.919,
+     "debutSec": 13.5762
+    },
+    {
+     "mot": "Voici",
+     "finSec": 14.3762,
+     "debutSec": 14.1095
+    },
+    {
+     "mot": "une",
+     "finSec": 14.4714,
+     "debutSec": 14.3952
+    },
+    {
+     "mot": "situation",
+     "finSec": 14.9095,
+     "debutSec": 14.5095
+    },
+    {
+     "mot": "type.",
+     "finSec": 15.1952,
+     "debutSec": 14.9857
+    },
+    {
+     "mot": "D'abord,",
+     "finSec": 15.519,
+     "debutSec": 15.3286
+    },
+    {
+     "mot": "ce",
+     "finSec": 15.5952,
+     "debutSec": 15.5571
+    },
+    {
+     "mot": "qui",
+     "finSec": 15.6714,
+     "debutSec": 15.6143
+    },
+    {
+     "mot": "arrive.",
+     "finSec": 16.0143,
+     "debutSec": 15.7095
+    },
+    {
+     "mot": "Votre",
+     "finSec": 16.3571,
+     "debutSec": 16.2048
+    },
+    {
+     "mot": "mission",
+     "finSec": 16.7381,
+     "debutSec": 16.3762
+    },
+    {
+     "mot": "est",
+     "finSec": 16.8524,
+     "debutSec": 16.7762
+    },
+    {
+     "mot": "terminée.",
+     "finSec": 17.2905,
+     "debutSec": 16.9095
+    },
+    {
+     "mot": "L'automatisation",
+     "finSec": 18.2048,
+     "debutSec": 17.481
+    },
+    {
+     "mot": "le",
+     "finSec": 18.319,
+     "debutSec": 18.2429
+    },
+    {
+     "mot": "détecte.",
+     "finSec": 18.7952,
+     "debutSec": 18.3571
+    },
+    {
+     "mot": "Ensuite,",
+     "finSec": 19.2905,
+     "debutSec": 18.9857
+    },
+    {
+     "mot": "ce",
+     "finSec": 19.6143,
+     "debutSec": 19.5381
+    },
+    {
+     "mot": "que",
+     "finSec": 19.7095,
+     "debutSec": 19.6524
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 20.4714,
+     "debutSec": 19.7476
+    },
+    {
+     "mot": "fait.",
+     "finSec": 20.7381,
+     "debutSec": 20.5476
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 21.119,
+     "debutSec": 20.9286
+    },
+    {
+     "mot": "génère",
+     "finSec": 21.5,
+     "debutSec": 21.1762
+    },
+    {
+     "mot": "un",
+     "finSec": 21.6333,
+     "debutSec": 21.5571
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 21.9571,
+     "debutSec": 21.6714
+    },
+    {
+     "mot": "de",
+     "finSec": 22.0143,
+     "debutSec": 21.9762
+    },
+    {
+     "mot": "facture.",
+     "finSec": 22.4143,
+     "debutSec": 22.0524
+    },
+    {
+     "mot": "Personne",
+     "finSec": 22.9667,
+     "debutSec": 22.6239
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.0619,
+     "debutSec": 23.0048
+    },
+    {
+     "mot": "le",
+     "finSec": 23.1381,
+     "debutSec": 23.081
+    },
+    {
+     "mot": "tape.",
+     "finSec": 23.4429,
+     "debutSec": 23.1762
+    },
+    {
+     "mot": "Elle",
+     "finSec": 23.7286,
+     "debutSec": 23.6334
+    },
+    {
+     "mot": "vérifie",
+     "finSec": 24.0905,
+     "debutSec": 23.7477
+    },
+    {
+     "mot": "la",
+     "finSec": 24.2048,
+     "debutSec": 24.1286
+    },
+    {
+     "mot": "TVA,",
+     "finSec": 24.5858,
+     "debutSec": 24.2619
+    },
+    {
+     "mot": "automatiquement.",
+     "finSec": 25.4285,
+     "debutSec": 24.8381
+    },
+    {
+     "mot": "Puis",
+     "finSec": 25.7143,
+     "debutSec": 25.6381
+    },
+    {
+     "mot": "elle",
+     "finSec": 25.8286,
+     "debutSec": 25.7524
+    },
+    {
+     "mot": "pose",
+     "finSec": 26,
+     "debutSec": 25.8667
+    },
+    {
+     "mot": "la",
+     "finSec": 26.0953,
+     "debutSec": 26.0381
+    },
+    {
+     "mot": "question",
+     "finSec": 26.3429,
+     "debutSec": 26.1334
+    },
+    {
+     "mot": "du",
+     "finSec": 26.4572,
+     "debutSec": 26.381
+    },
+    {
+     "mot": "régime.",
+     "finSec": 26.8953,
+     "debutSec": 26.4953
+    },
+    {
+     "mot": "Le",
+     "finSec": 27.1619,
+     "debutSec": 27.0857
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 27.4476,
+     "debutSec": 27.2
+    },
+    {
+     "mot": "arrive",
+     "finSec": 27.6762,
+     "debutSec": 27.5048
+    },
+    {
+     "mot": "chez",
+     "finSec": 27.8095,
+     "debutSec": 27.6953
+    },
+    {
+     "mot": "vous.",
+     "finSec": 28.0381,
+     "debutSec": 27.8667
+    },
+    {
+     "mot": "Vous",
+     "finSec": 28.3048,
+     "debutSec": 28.2286
+    },
+    {
+     "mot": "relisez.",
+     "finSec": 28.7429,
+     "debutSec": 28.3238
+    },
+    {
+     "mot": "Un",
+     "finSec": 29.0286,
+     "debutSec": 28.9334
+    },
+    {
+     "mot": "clic",
+     "finSec": 29.2572,
+     "debutSec": 29.0667
+    },
+    {
+     "mot": "pour",
+     "finSec": 29.3715,
+     "debutSec": 29.2762
+    },
+    {
+     "mot": "valider.",
+     "finSec": 29.8286,
+     "debutSec": 29.4095
+    },
+    {
+     "mot": "Une",
+     "finSec": 30.0953,
+     "debutSec": 30.0191
+    },
+    {
+     "mot": "ligne",
+     "finSec": 30.2667,
+     "debutSec": 30.1334
+    },
+    {
+     "mot": "à",
+     "finSec": 30.3429,
+     "debutSec": 30.3048
+    },
+    {
+     "mot": "modifier",
+     "finSec": 30.781,
+     "debutSec": 30.381
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 31.219,
+     "debutSec": 31.0095
+    },
+    {
+     "mot": "corrige",
+     "finSec": 31.8857,
+     "debutSec": 31.2571
+    },
+    {
+     "mot": "et",
+     "finSec": 31.9809,
+     "debutSec": 31.9238
+    },
+    {
+     "mot": "vous",
+     "finSec": 32.0571,
+     "debutSec": 32
+    },
+    {
+     "mot": "la",
+     "finSec": 32.1333,
+     "debutSec": 32.0952
+    },
+    {
+     "mot": "resoumet.",
+     "finSec": 32.5905,
+     "debutSec": 32.1714
+    },
+    {
+     "mot": "Puis",
+     "finSec": 32.8762,
+     "debutSec": 32.7809
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 33.5238,
+     "debutSec": 32.8952
+    },
+    {
+     "mot": "suit",
+     "finSec": 33.6571,
+     "debutSec": 33.5809
+    },
+    {
+     "mot": "le",
+     "finSec": 33.7143,
+     "debutSec": 33.6762
+    },
+    {
+     "mot": "paiement.",
+     "finSec": 34.019,
+     "debutSec": 33.7524
+    },
+    {
+     "mot": "Elle",
+     "finSec": 34.3048,
+     "debutSec": 34.2095
+    },
+    {
+     "mot": "attend",
+     "finSec": 34.4952,
+     "debutSec": 34.3428
+    },
+    {
+     "mot": "l'encaissement.",
+     "finSec": 35.1238,
+     "debutSec": 34.5143
+    },
+    {
+     "mot": "Enfin,",
+     "finSec": 35.3714,
+     "debutSec": 35.1619
+    },
+    {
+     "mot": "ce",
+     "finSec": 35.6809,
+     "debutSec": 35.6047
+    },
+    {
+     "mot": "qui",
+     "finSec": 35.8143,
+     "debutSec": 35.719
+    },
+    {
+     "mot": "en",
+     "finSec": 35.9285,
+     "debutSec": 35.8523
+    },
+    {
+     "mot": "sort.",
+     "finSec": 36.1952,
+     "debutSec": 35.9857
+    },
+    {
+     "mot": "Payé",
+     "finSec": 36.6143,
+     "debutSec": 36.3857
+    },
+    {
+     "mot": "le",
+     "finSec": 36.9095,
+     "debutSec": 36.8333
+    },
+    {
+     "mot": "dossier",
+     "finSec": 37.1761,
+     "debutSec": 36.9476
+    },
+    {
+     "mot": "est",
+     "finSec": 37.2523,
+     "debutSec": 37.1952
+    },
+    {
+     "mot": "clôturé.",
+     "finSec": 37.6904,
+     "debutSec": 37.2904
+    },
+    {
+     "mot": "Votre",
+     "finSec": 38.1285,
+     "debutSec": 37.8809
+    },
+    {
+     "mot": "trésorerie",
+     "finSec": 38.7381,
+     "debutSec": 38.1666
+    },
+    {
+     "mot": "est",
+     "finSec": 38.8523,
+     "debutSec": 38.7952
+    },
+    {
+     "mot": "mise",
+     "finSec": 39.0238,
+     "debutSec": 38.8904
+    },
+    {
+     "mot": "à",
+     "finSec": 39.1381,
+     "debutSec": 39.1
+    },
+    {
+     "mot": "jour.",
+     "finSec": 39.4428,
+     "debutSec": 39.1952
+    },
+    {
+     "mot": "Pas",
+     "finSec": 39.7285,
+     "debutSec": 39.6333
+    },
+    {
+     "mot": "payé",
+     "finSec": 39.9761,
+     "debutSec": 39.7857
+    },
+    {
+     "mot": "à",
+     "finSec": 40.0523,
+     "debutSec": 40.0142
+    },
+    {
+     "mot": "J",
+     "finSec": 40.1857,
+     "debutSec": 40.1285
+    },
+    {
+     "mot": "plus",
+     "finSec": 40.3571,
+     "debutSec": 40.2238
+    },
+    {
+     "mot": "trente",
+     "finSec": 40.6238,
+     "debutSec": 40.3952
+    },
+    {
+     "mot": "Relance",
+     "finSec": 41.1286,
+     "debutSec": 40.8619
+    },
+    {
+     "mot": "de",
+     "finSec": 41.2238,
+     "debutSec": 41.1667
+    },
+    {
+     "mot": "niveau",
+     "finSec": 41.5286,
+     "debutSec": 41.2619
+    },
+    {
+     "mot": "un.",
+     "finSec": 41.7762,
+     "debutSec": 41.6238
+    },
+    {
+     "mot": "À",
+     "finSec": 42.0238,
+     "debutSec": 41.9667
+    },
+    {
+     "mot": "J",
+     "finSec": 42.1762,
+     "debutSec": 42.081
+    },
+    {
+     "mot": "plus",
+     "finSec": 42.3095,
+     "debutSec": 42.2333
+    },
+    {
+     "mot": "soixante,",
+     "finSec": 42.7286,
+     "debutSec": 42.3667
+    },
+    {
+     "mot": "relance",
+     "finSec": 42.9952,
+     "debutSec": 42.7667
+    },
+    {
+     "mot": "de",
+     "finSec": 43.0905,
+     "debutSec": 43.0143
+    },
+    {
+     "mot": "niveau",
+     "finSec": 43.3,
+     "debutSec": 43.1286
+    },
+    {
+     "mot": "deux.",
+     "finSec": 43.5286,
+     "debutSec": 43.3571
+    },
+    {
+     "mot": "Avec",
+     "finSec": 43.8905,
+     "debutSec": 43.719
+    },
+    {
+     "mot": "une",
+     "finSec": 43.9857,
+     "debutSec": 43.9286
+    },
+    {
+     "mot": "alerte",
+     "finSec": 44.2143,
+     "debutSec": 44.0429
+    },
+    {
+     "mot": "pour",
+     "finSec": 44.3667,
+     "debutSec": 44.2524
+    },
+    {
+     "mot": "vous.",
+     "finSec": 44.5571,
+     "debutSec": 44.4048
+    },
+    {
+     "mot": "Un",
+     "finSec": 44.8048,
+     "debutSec": 44.7476
+    },
+    {
+     "mot": "mot",
+     "finSec": 44.9381,
+     "debutSec": 44.8429
+    },
+    {
+     "mot": "sur",
+     "finSec": 45.0714,
+     "debutSec": 44.9952
+    },
+    {
+     "mot": "la",
+     "finSec": 45.1857,
+     "debutSec": 45.1095
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 45.5857,
+     "debutSec": 45.2238
+    },
+    {
+     "mot": "Si",
+     "finSec": 45.9476,
+     "debutSec": 45.8524
+    },
+    {
+     "mot": "la",
+     "finSec": 46.0429,
+     "debutSec": 45.9857
+    },
+    {
+     "mot": "réponse",
+     "finSec": 46.5572,
+     "debutSec": 46.081
+    },
+    {
+     "mot": "est",
+     "finSec": 46.6714,
+     "debutSec": 46.5952
+    },
+    {
+     "mot": "non,",
+     "finSec": 46.8429,
+     "debutSec": 46.7286
+    },
+    {
+     "mot": "la",
+     "finSec": 47.1524,
+     "debutSec": 47.0762
+    },
+    {
+     "mot": "TVA",
+     "finSec": 47.4762,
+     "debutSec": 47.2095
+    },
+    {
+     "mot": "locale",
+     "finSec": 48.0095,
+     "debutSec": 47.5143
+    },
+    {
+     "mot": "est",
+     "finSec": 48.1238,
+     "debutSec": 48.0667
+    },
+    {
+     "mot": "calculée.",
+     "finSec": 48.619,
+     "debutSec": 48.1619
+    },
+    {
+     "mot": "Si",
+     "finSec": 48.8857,
+     "debutSec": 48.8095
+    },
+    {
+     "mot": "la",
+     "finSec": 48.9809,
+     "debutSec": 48.9238
+    },
+    {
+     "mot": "réponse",
+     "finSec": 49.3047,
+     "debutSec": 49.019
+    },
+    {
+     "mot": "est",
+     "finSec": 49.4,
+     "debutSec": 49.3428
+    },
+    {
+     "mot": "oui,",
+     "finSec": 49.5714,
+     "debutSec": 49.4381
+    },
+    {
+     "mot": "l'autoliquidation",
+     "finSec": 50.5095,
+     "debutSec": 49.8238
+    },
+    {
+     "mot": "s'applique.",
+     "finSec": 50.9286,
+     "debutSec": 50.5476
+    },
+    {
+     "mot": "Et",
+     "finSec": 51.1762,
+     "debutSec": 51.1381
+    },
+    {
+     "mot": "une",
+     "finSec": 51.3285,
+     "debutSec": 51.2333
+    },
+    {
+     "mot": "fois",
+     "finSec": 51.4809,
+     "debutSec": 51.3666
+    },
+    {
+     "mot": "validée,",
+     "finSec": 51.8619,
+     "debutSec": 51.519
+    },
+    {
+     "mot": "la",
+     "finSec": 52.1715,
+     "debutSec": 52.0953
+    },
+    {
+     "mot": "facture",
+     "finSec": 52.4762,
+     "debutSec": 52.2286
+    },
+    {
+     "mot": "est",
+     "finSec": 52.5905,
+     "debutSec": 52.5143
+    },
+    {
+     "mot": "envoyée.",
+     "finSec": 52.9524,
+     "debutSec": 52.6286
+    },
+    {
+     "mot": "Elle",
+     "finSec": 53.2191,
+     "debutSec": 53.1429
+    },
+    {
+     "mot": "est",
+     "finSec": 53.3324,
+     "debutSec": 53.2381
+    },
+    {
+     "mot": "archivée,",
+     "finSec": 53.8086,
+     "debutSec": 53.3905
+    },
+    {
+     "mot": "et",
+     "finSec": 54.1191,
+     "debutSec": 54.0619
+    },
+    {
+     "mot": "passée",
+     "finSec": 54.3657,
+     "debutSec": 54.1572
+    },
+    {
+     "mot": "en",
+     "finSec": 54.4619,
+     "debutSec": 54.4048
+    },
+    {
+     "mot": "comptabilité.",
+     "finSec": 55.1667,
+     "debutSec": 54.4991
+    },
+    {
+     "mot": "Au",
+     "finSec": 55.4143,
+     "debutSec": 55.3572
+    },
+    {
+     "mot": "bout",
+     "finSec": 55.5095,
+     "debutSec": 55.4334
+    },
+    {
+     "mot": "du",
+     "finSec": 55.6238,
+     "debutSec": 55.5286
+    },
+    {
+     "mot": "compte,",
+     "finSec": 55.8905,
+     "debutSec": 55.6619
+    },
+    {
+     "mot": "vous",
+     "finSec": 56.2571,
+     "debutSec": 56.1619
+    },
+    {
+     "mot": "ne",
+     "finSec": 56.3143,
+     "debutSec": 56.2762
+    },
+    {
+     "mot": "saisissez",
+     "finSec": 56.7143,
+     "debutSec": 56.3714
+    },
+    {
+     "mot": "rien.",
+     "finSec": 57,
+     "debutSec": 56.7714
+    },
+    {
+     "mot": "Votre",
+     "finSec": 57.4381,
+     "debutSec": 57.1905
+    },
+    {
+     "mot": "part,",
+     "finSec": 57.9143,
+     "debutSec": 57.4952
+    },
+    {
+     "mot": "c'est",
+     "finSec": 58.1048,
+     "debutSec": 57.9714
+    },
+    {
+     "mot": "un",
+     "finSec": 58.219,
+     "debutSec": 58.1429
+    },
+    {
+     "mot": "clic.",
+     "finSec": 58.6,
+     "debutSec": 58.2571
+    },
+    {
+     "mot": "De",
+     "finSec": 58.8476,
+     "debutSec": 58.7905
+    },
+    {
+     "mot": "la",
+     "finSec": 58.9429,
+     "debutSec": 58.8857
+    },
+    {
+     "mot": "mission",
+     "finSec": 59.1905,
+     "debutSec": 58.981
+    },
+    {
+     "mot": "terminée",
+     "finSec": 59.6857,
+     "debutSec": 59.2286
+    },
+    {
+     "mot": "à",
+     "finSec": 59.7619,
+     "debutSec": 59.7429
+    },
+    {
+     "mot": "la",
+     "finSec": 59.8762,
+     "debutSec": 59.8
+    },
+    {
+     "mot": "facture",
+     "finSec": 60.2,
+     "debutSec": 59.9333
+    },
+    {
+     "mot": "encaissée.",
+     "finSec": 60.6762,
+     "debutSec": 60.2381
+    },
+    {
+     "mot": "Zéro",
+     "finSec": 61.0952,
+     "debutSec": 60.8667
+    },
+    {
+     "mot": "saisie",
+     "finSec": 61.3619,
+     "debutSec": 61.1524
+    },
+    {
+     "mot": "manuelle.",
+     "finSec": 61.781,
+     "debutSec": 61.4
+    },
+    {
+     "mot": "Et",
+     "finSec": 62.0476,
+     "debutSec": 61.9714
+    },
+    {
+     "mot": "chez",
+     "finSec": 62.2,
+     "debutSec": 62.0667
+    },
+    {
+     "mot": "vous,",
+     "finSec": 62.4286,
+     "debutSec": 62.2571
+    },
+    {
+     "mot": "combien",
+     "finSec": 62.7143,
+     "debutSec": 62.4667
+    },
+    {
+     "mot": "de",
+     "finSec": 62.8476,
+     "debutSec": 62.7524
+    },
+    {
+     "mot": "factures",
+     "finSec": 63.2286,
+     "debutSec": 62.8857
+    },
+    {
+     "mot": "partent",
+     "finSec": 63.4571,
+     "debutSec": 63.2857
+    },
+    {
+     "mot": "encore",
+     "finSec": 63.6667,
+     "debutSec": 63.4762
+    },
+    {
+     "mot": "à",
+     "finSec": 63.7238,
+     "debutSec": 63.7238
+    },
+    {
+     "mot": "la",
+     "finSec": 63.8381,
+     "debutSec": 63.781
+    },
+    {
+     "mot": "main",
+     "finSec": 63.9905,
+     "debutSec": 63.8952
+    },
+    {
+     "mot": "Faites",
+     "finSec": 64.3142,
+     "debutSec": 64.1809
+    },
+    {
+     "mot": "votre",
+     "finSec": 64.4285,
+     "debutSec": 64.3333
+    },
+    {
+     "mot": "diagnostic",
+     "finSec": 64.8666,
+     "debutSec": 64.4476
+    },
+    {
+     "mot": "gratuit",
+     "finSec": 65.1904,
+     "debutSec": 64.8857
+    },
+    {
+     "mot": "en",
+     "finSec": 65.3047,
+     "debutSec": 65.2285
+    },
+    {
+     "mot": "quelques",
+     "finSec": 65.5523,
+     "debutSec": 65.3428
+    },
+    {
+     "mot": "minutes.",
+     "finSec": 65.9142,
+     "debutSec": 65.6095
+    },
+    {
+     "mot": "Le",
+     "finSec": 66.2381,
+     "debutSec": 66.1619
+    },
+    {
+     "mot": "lien",
+     "finSec": 66.4857,
+     "debutSec": 66.2762
+    },
+    {
+     "mot": "est",
+     "finSec": 66.6,
+     "debutSec": 66.5429
+    },
+    {
+     "mot": "dans",
+     "finSec": 66.7334,
+     "debutSec": 66.6381
+    },
+    {
+     "mot": "mon",
+     "finSec": 66.8667,
+     "debutSec": 66.7714
+    },
+    {
+     "mot": "profil.",
+     "finSec": 67.2857,
+     "debutSec": 66.9048
+    }
+   ]
+  },
+  {
+   "version": "fin-linkedin",
+   "reseaux": [
+    "linkedin"
+   ],
+   "dureeSec": 62.8745,
+   "finVoixSec": 61.91,
+   "motsCorps": 228,
+   "mots": [
+    {
+     "mot": "Mission",
+     "finSec": 0.319,
+     "debutSec": 0.0333
+    },
+    {
+     "mot": "finie.",
+     "finSec": 0.6048,
+     "debutSec": 0.3762
+    },
+    {
+     "mot": "Et",
+     "finSec": 1.1,
+     "debutSec": 1.0619
+    },
+    {
+     "mot": "la",
+     "finSec": 1.1953,
+     "debutSec": 1.1381
+    },
+    {
+     "mot": "facture,",
+     "finSec": 1.5,
+     "debutSec": 1.2524
+    },
+    {
+     "mot": "elle",
+     "finSec": 1.6334,
+     "debutSec": 1.5381
+    },
+    {
+     "mot": "part",
+     "finSec": 1.8048,
+     "debutSec": 1.6715
+    },
+    {
+     "mot": "quand",
+     "finSec": 1.9572,
+     "debutSec": 1.8238
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 2.3286,
+     "debutSec": 2.1762
+    },
+    {
+     "mot": "elle",
+     "finSec": 2.6523,
+     "debutSec": 2.519
+    },
+    {
+     "mot": "part",
+     "finSec": 2.8428,
+     "debutSec": 2.6904
+    },
+    {
+     "mot": "sans",
+     "finSec": 2.9761,
+     "debutSec": 2.9
+    },
+    {
+     "mot": "que",
+     "finSec": 3.0523,
+     "debutSec": 2.9952
+    },
+    {
+     "mot": "vous",
+     "finSec": 3.1285,
+     "debutSec": 3.0714
+    },
+    {
+     "mot": "la",
+     "finSec": 3.2428,
+     "debutSec": 3.1666
+    },
+    {
+     "mot": "tapiez.",
+     "finSec": 3.6238,
+     "debutSec": 3.2809
+    },
+    {
+     "mot": "Aujourd'hui,",
+     "finSec": 4.119,
+     "debutSec": 3.8142
+    },
+    {
+     "mot": "le",
+     "finSec": 4.2333,
+     "debutSec": 4.1571
+    },
+    {
+     "mot": "soir,",
+     "finSec": 4.5,
+     "debutSec": 4.2904
+    },
+    {
+     "mot": "vous",
+     "finSec": 4.8286,
+     "debutSec": 4.7143
+    },
+    {
+     "mot": "ouvrez",
+     "finSec": 5.0381,
+     "debutSec": 4.8476
+    },
+    {
+     "mot": "le",
+     "finSec": 5.0762,
+     "debutSec": 5.0571
+    },
+    {
+     "mot": "logiciel.",
+     "finSec": 5.5714,
+     "debutSec": 5.1143
+    },
+    {
+     "mot": "Vous",
+     "finSec": 5.8572,
+     "debutSec": 5.781
+    },
+    {
+     "mot": "recopiez",
+     "finSec": 6.2191,
+     "debutSec": 5.8762
+    },
+    {
+     "mot": "la",
+     "finSec": 6.2953,
+     "debutSec": 6.2572
+    },
+    {
+     "mot": "mission,",
+     "finSec": 6.6,
+     "debutSec": 6.3334
+    },
+    {
+     "mot": "ligne",
+     "finSec": 6.9285,
+     "debutSec": 6.7761
+    },
+    {
+     "mot": "par",
+     "finSec": 7.0619,
+     "debutSec": 6.9666
+    },
+    {
+     "mot": "ligne.",
+     "finSec": 7.3285,
+     "debutSec": 7.1
+    },
+    {
+     "mot": "Vous",
+     "finSec": 7.6142,
+     "debutSec": 7.519
+    },
+    {
+     "mot": "cherchez",
+     "finSec": 7.9,
+     "debutSec": 7.6523
+    },
+    {
+     "mot": "le",
+     "finSec": 7.9952,
+     "debutSec": 7.938
+    },
+    {
+     "mot": "bon",
+     "finSec": 8.1476,
+     "debutSec": 8.0333
+    },
+    {
+     "mot": "taux",
+     "finSec": 8.2619,
+     "debutSec": 8.1857
+    },
+    {
+     "mot": "de",
+     "finSec": 8.319,
+     "debutSec": 8.3
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 8.6619,
+     "debutSec": 8.3761
+    },
+    {
+     "mot": "Le",
+     "finSec": 8.9857,
+     "debutSec": 8.8904
+    },
+    {
+     "mot": "paiement,",
+     "finSec": 9.2523,
+     "debutSec": 9.0238
+    },
+    {
+     "mot": "vous",
+     "finSec": 9.5762,
+     "debutSec": 9.5
+    },
+    {
+     "mot": "le",
+     "finSec": 9.6334,
+     "debutSec": 9.5953
+    },
+    {
+     "mot": "surveillez",
+     "finSec": 9.9762,
+     "debutSec": 9.6905
+    },
+    {
+     "mot": "de",
+     "finSec": 10.0905,
+     "debutSec": 9.9953
+    },
+    {
+     "mot": "tête.",
+     "finSec": 10.3572,
+     "debutSec": 10.1286
+    },
+    {
+     "mot": "Et",
+     "finSec": 10.6048,
+     "debutSec": 10.5667
+    },
+    {
+     "mot": "la",
+     "finSec": 10.7,
+     "debutSec": 10.6429
+    },
+    {
+     "mot": "relance",
+     "finSec": 10.9857,
+     "debutSec": 10.7381
+    },
+    {
+     "mot": "part",
+     "finSec": 11.119,
+     "debutSec": 11.0238
+    },
+    {
+     "mot": "trop",
+     "finSec": 11.2524,
+     "debutSec": 11.1571
+    },
+    {
+     "mot": "tard.",
+     "finSec": 11.5381,
+     "debutSec": 11.3095
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 11.9952,
+     "debutSec": 11.7286
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 12.719,
+     "debutSec": 12.0333
+    },
+    {
+     "mot": "prend",
+     "finSec": 12.8524,
+     "debutSec": 12.7571
+    },
+    {
+     "mot": "le",
+     "finSec": 12.8905,
+     "debutSec": 12.8714
+    },
+    {
+     "mot": "relais.",
+     "finSec": 13.1762,
+     "debutSec": 12.9286
+    },
+    {
+     "mot": "Trois",
+     "finSec": 13.519,
+     "debutSec": 13.3667
+    },
+    {
+     "mot": "étapes.",
+     "finSec": 13.919,
+     "debutSec": 13.5762
+    },
+    {
+     "mot": "Voici",
+     "finSec": 14.3762,
+     "debutSec": 14.1095
+    },
+    {
+     "mot": "une",
+     "finSec": 14.4714,
+     "debutSec": 14.3952
+    },
+    {
+     "mot": "situation",
+     "finSec": 14.9095,
+     "debutSec": 14.5095
+    },
+    {
+     "mot": "type.",
+     "finSec": 15.1952,
+     "debutSec": 14.9857
+    },
+    {
+     "mot": "D'abord,",
+     "finSec": 15.519,
+     "debutSec": 15.3286
+    },
+    {
+     "mot": "ce",
+     "finSec": 15.5952,
+     "debutSec": 15.5571
+    },
+    {
+     "mot": "qui",
+     "finSec": 15.6714,
+     "debutSec": 15.6143
+    },
+    {
+     "mot": "arrive.",
+     "finSec": 16.0143,
+     "debutSec": 15.7095
+    },
+    {
+     "mot": "Votre",
+     "finSec": 16.3571,
+     "debutSec": 16.2048
+    },
+    {
+     "mot": "mission",
+     "finSec": 16.7381,
+     "debutSec": 16.3762
+    },
+    {
+     "mot": "est",
+     "finSec": 16.8524,
+     "debutSec": 16.7762
+    },
+    {
+     "mot": "terminée.",
+     "finSec": 17.2905,
+     "debutSec": 16.9095
+    },
+    {
+     "mot": "L'automatisation",
+     "finSec": 18.2048,
+     "debutSec": 17.481
+    },
+    {
+     "mot": "le",
+     "finSec": 18.319,
+     "debutSec": 18.2429
+    },
+    {
+     "mot": "détecte.",
+     "finSec": 18.7952,
+     "debutSec": 18.3571
+    },
+    {
+     "mot": "Ensuite,",
+     "finSec": 19.2905,
+     "debutSec": 18.9857
+    },
+    {
+     "mot": "ce",
+     "finSec": 19.6143,
+     "debutSec": 19.5381
+    },
+    {
+     "mot": "que",
+     "finSec": 19.7095,
+     "debutSec": 19.6524
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 20.4714,
+     "debutSec": 19.7476
+    },
+    {
+     "mot": "fait.",
+     "finSec": 20.7381,
+     "debutSec": 20.5476
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 21.119,
+     "debutSec": 20.9286
+    },
+    {
+     "mot": "génère",
+     "finSec": 21.5,
+     "debutSec": 21.1762
+    },
+    {
+     "mot": "un",
+     "finSec": 21.6333,
+     "debutSec": 21.5571
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 21.9571,
+     "debutSec": 21.6714
+    },
+    {
+     "mot": "de",
+     "finSec": 22.0143,
+     "debutSec": 21.9762
+    },
+    {
+     "mot": "facture.",
+     "finSec": 22.4143,
+     "debutSec": 22.0524
+    },
+    {
+     "mot": "Personne",
+     "finSec": 22.9667,
+     "debutSec": 22.6239
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.0619,
+     "debutSec": 23.0048
+    },
+    {
+     "mot": "le",
+     "finSec": 23.1381,
+     "debutSec": 23.081
+    },
+    {
+     "mot": "tape.",
+     "finSec": 23.4429,
+     "debutSec": 23.1762
+    },
+    {
+     "mot": "Elle",
+     "finSec": 23.7286,
+     "debutSec": 23.6334
+    },
+    {
+     "mot": "vérifie",
+     "finSec": 24.0905,
+     "debutSec": 23.7477
+    },
+    {
+     "mot": "la",
+     "finSec": 24.2048,
+     "debutSec": 24.1286
+    },
+    {
+     "mot": "TVA,",
+     "finSec": 24.5858,
+     "debutSec": 24.2619
+    },
+    {
+     "mot": "automatiquement.",
+     "finSec": 25.4285,
+     "debutSec": 24.8381
+    },
+    {
+     "mot": "Puis",
+     "finSec": 25.7143,
+     "debutSec": 25.6381
+    },
+    {
+     "mot": "elle",
+     "finSec": 25.8286,
+     "debutSec": 25.7524
+    },
+    {
+     "mot": "pose",
+     "finSec": 26,
+     "debutSec": 25.8667
+    },
+    {
+     "mot": "la",
+     "finSec": 26.0953,
+     "debutSec": 26.0381
+    },
+    {
+     "mot": "question",
+     "finSec": 26.3429,
+     "debutSec": 26.1334
+    },
+    {
+     "mot": "du",
+     "finSec": 26.4572,
+     "debutSec": 26.381
+    },
+    {
+     "mot": "régime.",
+     "finSec": 26.8953,
+     "debutSec": 26.4953
+    },
+    {
+     "mot": "Le",
+     "finSec": 27.1619,
+     "debutSec": 27.0857
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 27.4476,
+     "debutSec": 27.2
+    },
+    {
+     "mot": "arrive",
+     "finSec": 27.6762,
+     "debutSec": 27.5048
+    },
+    {
+     "mot": "chez",
+     "finSec": 27.8095,
+     "debutSec": 27.6953
+    },
+    {
+     "mot": "vous.",
+     "finSec": 28.0381,
+     "debutSec": 27.8667
+    },
+    {
+     "mot": "Vous",
+     "finSec": 28.3048,
+     "debutSec": 28.2286
+    },
+    {
+     "mot": "relisez.",
+     "finSec": 28.7429,
+     "debutSec": 28.3238
+    },
+    {
+     "mot": "Un",
+     "finSec": 29.0286,
+     "debutSec": 28.9334
+    },
+    {
+     "mot": "clic",
+     "finSec": 29.2572,
+     "debutSec": 29.0667
+    },
+    {
+     "mot": "pour",
+     "finSec": 29.3715,
+     "debutSec": 29.2762
+    },
+    {
+     "mot": "valider.",
+     "finSec": 29.8286,
+     "debutSec": 29.4095
+    },
+    {
+     "mot": "Une",
+     "finSec": 30.0953,
+     "debutSec": 30.0191
+    },
+    {
+     "mot": "ligne",
+     "finSec": 30.2667,
+     "debutSec": 30.1334
+    },
+    {
+     "mot": "à",
+     "finSec": 30.3429,
+     "debutSec": 30.3048
+    },
+    {
+     "mot": "modifier",
+     "finSec": 30.781,
+     "debutSec": 30.381
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 31.219,
+     "debutSec": 31.0095
+    },
+    {
+     "mot": "corrige",
+     "finSec": 31.8857,
+     "debutSec": 31.2571
+    },
+    {
+     "mot": "et",
+     "finSec": 31.9809,
+     "debutSec": 31.9238
+    },
+    {
+     "mot": "vous",
+     "finSec": 32.0571,
+     "debutSec": 32
+    },
+    {
+     "mot": "la",
+     "finSec": 32.1333,
+     "debutSec": 32.0952
+    },
+    {
+     "mot": "resoumet.",
+     "finSec": 32.5905,
+     "debutSec": 32.1714
+    },
+    {
+     "mot": "Puis",
+     "finSec": 32.8762,
+     "debutSec": 32.7809
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 33.5238,
+     "debutSec": 32.8952
+    },
+    {
+     "mot": "suit",
+     "finSec": 33.6571,
+     "debutSec": 33.5809
+    },
+    {
+     "mot": "le",
+     "finSec": 33.7143,
+     "debutSec": 33.6762
+    },
+    {
+     "mot": "paiement.",
+     "finSec": 34.019,
+     "debutSec": 33.7524
+    },
+    {
+     "mot": "Elle",
+     "finSec": 34.3048,
+     "debutSec": 34.2095
+    },
+    {
+     "mot": "attend",
+     "finSec": 34.4952,
+     "debutSec": 34.3428
+    },
+    {
+     "mot": "l'encaissement.",
+     "finSec": 35.1238,
+     "debutSec": 34.5143
+    },
+    {
+     "mot": "Enfin,",
+     "finSec": 35.3714,
+     "debutSec": 35.1619
+    },
+    {
+     "mot": "ce",
+     "finSec": 35.6809,
+     "debutSec": 35.6047
+    },
+    {
+     "mot": "qui",
+     "finSec": 35.8143,
+     "debutSec": 35.719
+    },
+    {
+     "mot": "en",
+     "finSec": 35.9285,
+     "debutSec": 35.8523
+    },
+    {
+     "mot": "sort.",
+     "finSec": 36.1952,
+     "debutSec": 35.9857
+    },
+    {
+     "mot": "Payé",
+     "finSec": 36.6143,
+     "debutSec": 36.3857
+    },
+    {
+     "mot": "le",
+     "finSec": 36.9095,
+     "debutSec": 36.8333
+    },
+    {
+     "mot": "dossier",
+     "finSec": 37.1761,
+     "debutSec": 36.9476
+    },
+    {
+     "mot": "est",
+     "finSec": 37.2523,
+     "debutSec": 37.1952
+    },
+    {
+     "mot": "clôturé.",
+     "finSec": 37.6904,
+     "debutSec": 37.2904
+    },
+    {
+     "mot": "Votre",
+     "finSec": 38.1285,
+     "debutSec": 37.8809
+    },
+    {
+     "mot": "trésorerie",
+     "finSec": 38.7381,
+     "debutSec": 38.1666
+    },
+    {
+     "mot": "est",
+     "finSec": 38.8523,
+     "debutSec": 38.7952
+    },
+    {
+     "mot": "mise",
+     "finSec": 39.0238,
+     "debutSec": 38.8904
+    },
+    {
+     "mot": "à",
+     "finSec": 39.1381,
+     "debutSec": 39.1
+    },
+    {
+     "mot": "jour.",
+     "finSec": 39.4428,
+     "debutSec": 39.1952
+    },
+    {
+     "mot": "Pas",
+     "finSec": 39.7285,
+     "debutSec": 39.6333
+    },
+    {
+     "mot": "payé",
+     "finSec": 39.9761,
+     "debutSec": 39.7857
+    },
+    {
+     "mot": "à",
+     "finSec": 40.0523,
+     "debutSec": 40.0142
+    },
+    {
+     "mot": "J",
+     "finSec": 40.1857,
+     "debutSec": 40.1285
+    },
+    {
+     "mot": "plus",
+     "finSec": 40.3571,
+     "debutSec": 40.2238
+    },
+    {
+     "mot": "trente",
+     "finSec": 40.6238,
+     "debutSec": 40.3952
+    },
+    {
+     "mot": "Relance",
+     "finSec": 41.1286,
+     "debutSec": 40.8619
+    },
+    {
+     "mot": "de",
+     "finSec": 41.2238,
+     "debutSec": 41.1667
+    },
+    {
+     "mot": "niveau",
+     "finSec": 41.5286,
+     "debutSec": 41.2619
+    },
+    {
+     "mot": "un.",
+     "finSec": 41.7762,
+     "debutSec": 41.6238
+    },
+    {
+     "mot": "À",
+     "finSec": 42.0238,
+     "debutSec": 41.9667
+    },
+    {
+     "mot": "J",
+     "finSec": 42.1762,
+     "debutSec": 42.081
+    },
+    {
+     "mot": "plus",
+     "finSec": 42.3095,
+     "debutSec": 42.2333
+    },
+    {
+     "mot": "soixante,",
+     "finSec": 42.7286,
+     "debutSec": 42.3667
+    },
+    {
+     "mot": "relance",
+     "finSec": 42.9952,
+     "debutSec": 42.7667
+    },
+    {
+     "mot": "de",
+     "finSec": 43.0905,
+     "debutSec": 43.0143
+    },
+    {
+     "mot": "niveau",
+     "finSec": 43.3,
+     "debutSec": 43.1286
+    },
+    {
+     "mot": "deux.",
+     "finSec": 43.5286,
+     "debutSec": 43.3571
+    },
+    {
+     "mot": "Avec",
+     "finSec": 43.8905,
+     "debutSec": 43.719
+    },
+    {
+     "mot": "une",
+     "finSec": 43.9857,
+     "debutSec": 43.9286
+    },
+    {
+     "mot": "alerte",
+     "finSec": 44.2143,
+     "debutSec": 44.0429
+    },
+    {
+     "mot": "pour",
+     "finSec": 44.3667,
+     "debutSec": 44.2524
+    },
+    {
+     "mot": "vous.",
+     "finSec": 44.5571,
+     "debutSec": 44.4048
+    },
+    {
+     "mot": "Un",
+     "finSec": 44.8048,
+     "debutSec": 44.7476
+    },
+    {
+     "mot": "mot",
+     "finSec": 44.9381,
+     "debutSec": 44.8429
+    },
+    {
+     "mot": "sur",
+     "finSec": 45.0714,
+     "debutSec": 44.9952
+    },
+    {
+     "mot": "la",
+     "finSec": 45.1857,
+     "debutSec": 45.1095
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 45.5857,
+     "debutSec": 45.2238
+    },
+    {
+     "mot": "Si",
+     "finSec": 45.9476,
+     "debutSec": 45.8524
+    },
+    {
+     "mot": "la",
+     "finSec": 46.0429,
+     "debutSec": 45.9857
+    },
+    {
+     "mot": "réponse",
+     "finSec": 46.5572,
+     "debutSec": 46.081
+    },
+    {
+     "mot": "est",
+     "finSec": 46.6714,
+     "debutSec": 46.5952
+    },
+    {
+     "mot": "non,",
+     "finSec": 46.8429,
+     "debutSec": 46.7286
+    },
+    {
+     "mot": "la",
+     "finSec": 47.1524,
+     "debutSec": 47.0762
+    },
+    {
+     "mot": "TVA",
+     "finSec": 47.4762,
+     "debutSec": 47.2095
+    },
+    {
+     "mot": "locale",
+     "finSec": 48.0095,
+     "debutSec": 47.5143
+    },
+    {
+     "mot": "est",
+     "finSec": 48.1238,
+     "debutSec": 48.0667
+    },
+    {
+     "mot": "calculée.",
+     "finSec": 48.619,
+     "debutSec": 48.1619
+    },
+    {
+     "mot": "Si",
+     "finSec": 48.8857,
+     "debutSec": 48.8095
+    },
+    {
+     "mot": "la",
+     "finSec": 48.9809,
+     "debutSec": 48.9238
+    },
+    {
+     "mot": "réponse",
+     "finSec": 49.3047,
+     "debutSec": 49.019
+    },
+    {
+     "mot": "est",
+     "finSec": 49.4,
+     "debutSec": 49.3428
+    },
+    {
+     "mot": "oui,",
+     "finSec": 49.5714,
+     "debutSec": 49.4381
+    },
+    {
+     "mot": "l'autoliquidation",
+     "finSec": 50.5095,
+     "debutSec": 49.8238
+    },
+    {
+     "mot": "s'applique.",
+     "finSec": 50.9286,
+     "debutSec": 50.5476
+    },
+    {
+     "mot": "Et",
+     "finSec": 51.1762,
+     "debutSec": 51.1381
+    },
+    {
+     "mot": "une",
+     "finSec": 51.3285,
+     "debutSec": 51.2333
+    },
+    {
+     "mot": "fois",
+     "finSec": 51.4809,
+     "debutSec": 51.3666
+    },
+    {
+     "mot": "validée,",
+     "finSec": 51.8619,
+     "debutSec": 51.519
+    },
+    {
+     "mot": "la",
+     "finSec": 52.1715,
+     "debutSec": 52.0953
+    },
+    {
+     "mot": "facture",
+     "finSec": 52.4762,
+     "debutSec": 52.2286
+    },
+    {
+     "mot": "est",
+     "finSec": 52.5905,
+     "debutSec": 52.5143
+    },
+    {
+     "mot": "envoyée.",
+     "finSec": 52.9524,
+     "debutSec": 52.6286
+    },
+    {
+     "mot": "Elle",
+     "finSec": 53.2191,
+     "debutSec": 53.1429
+    },
+    {
+     "mot": "est",
+     "finSec": 53.3324,
+     "debutSec": 53.2381
+    },
+    {
+     "mot": "archivée,",
+     "finSec": 53.8086,
+     "debutSec": 53.3905
+    },
+    {
+     "mot": "et",
+     "finSec": 54.1191,
+     "debutSec": 54.0619
+    },
+    {
+     "mot": "passée",
+     "finSec": 54.3657,
+     "debutSec": 54.1572
+    },
+    {
+     "mot": "en",
+     "finSec": 54.4619,
+     "debutSec": 54.4048
+    },
+    {
+     "mot": "comptabilité.",
+     "finSec": 55.1667,
+     "debutSec": 54.4991
+    },
+    {
+     "mot": "Au",
+     "finSec": 55.4143,
+     "debutSec": 55.3572
+    },
+    {
+     "mot": "bout",
+     "finSec": 55.5095,
+     "debutSec": 55.4334
+    },
+    {
+     "mot": "du",
+     "finSec": 55.6238,
+     "debutSec": 55.5286
+    },
+    {
+     "mot": "compte,",
+     "finSec": 55.8905,
+     "debutSec": 55.6619
+    },
+    {
+     "mot": "vous",
+     "finSec": 56.2571,
+     "debutSec": 56.1619
+    },
+    {
+     "mot": "ne",
+     "finSec": 56.3143,
+     "debutSec": 56.2762
+    },
+    {
+     "mot": "saisissez",
+     "finSec": 56.7143,
+     "debutSec": 56.3714
+    },
+    {
+     "mot": "rien.",
+     "finSec": 57,
+     "debutSec": 56.7714
+    },
+    {
+     "mot": "Votre",
+     "finSec": 57.4381,
+     "debutSec": 57.1905
+    },
+    {
+     "mot": "part,",
+     "finSec": 57.9143,
+     "debutSec": 57.4952
+    },
+    {
+     "mot": "c'est",
+     "finSec": 58.1048,
+     "debutSec": 57.9714
+    },
+    {
+     "mot": "un",
+     "finSec": 58.219,
+     "debutSec": 58.1429
+    },
+    {
+     "mot": "clic.",
+     "finSec": 58.6,
+     "debutSec": 58.2571
+    },
+    {
+     "mot": "De",
+     "finSec": 58.8476,
+     "debutSec": 58.7905
+    },
+    {
+     "mot": "la",
+     "finSec": 58.9429,
+     "debutSec": 58.8857
+    },
+    {
+     "mot": "mission",
+     "finSec": 59.1905,
+     "debutSec": 58.981
+    },
+    {
+     "mot": "terminée",
+     "finSec": 59.6857,
+     "debutSec": 59.2286
+    },
+    {
+     "mot": "à",
+     "finSec": 59.7619,
+     "debutSec": 59.7429
+    },
+    {
+     "mot": "la",
+     "finSec": 59.8762,
+     "debutSec": 59.8
+    },
+    {
+     "mot": "facture",
+     "finSec": 60.2,
+     "debutSec": 59.9333
+    },
+    {
+     "mot": "encaissée.",
+     "finSec": 60.6762,
+     "debutSec": 60.2381
+    },
+    {
+     "mot": "Zéro",
+     "finSec": 61.0952,
+     "debutSec": 60.8667
+    },
+    {
+     "mot": "saisie",
+     "finSec": 61.3619,
+     "debutSec": 61.1524
+    },
+    {
+     "mot": "manuelle.",
+     "finSec": 61.781,
+     "debutSec": 61.4
+    }
+   ]
+  },
+  {
+   "version": "fin-instagram",
+   "reseaux": [
+    "instagram"
+   ],
+   "dureeSec": 68.3263,
+   "finVoixSec": 67.37,
+   "motsCorps": 228,
+   "mots": [
+    {
+     "mot": "Mission",
+     "finSec": 0.319,
+     "debutSec": 0.0333
+    },
+    {
+     "mot": "finie.",
+     "finSec": 0.6048,
+     "debutSec": 0.3762
+    },
+    {
+     "mot": "Et",
+     "finSec": 1.1,
+     "debutSec": 1.0619
+    },
+    {
+     "mot": "la",
+     "finSec": 1.1953,
+     "debutSec": 1.1381
+    },
+    {
+     "mot": "facture,",
+     "finSec": 1.5,
+     "debutSec": 1.2524
+    },
+    {
+     "mot": "elle",
+     "finSec": 1.6334,
+     "debutSec": 1.5381
+    },
+    {
+     "mot": "part",
+     "finSec": 1.8048,
+     "debutSec": 1.6715
+    },
+    {
+     "mot": "quand",
+     "finSec": 1.9572,
+     "debutSec": 1.8238
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 2.3286,
+     "debutSec": 2.1762
+    },
+    {
+     "mot": "elle",
+     "finSec": 2.6523,
+     "debutSec": 2.519
+    },
+    {
+     "mot": "part",
+     "finSec": 2.8428,
+     "debutSec": 2.6904
+    },
+    {
+     "mot": "sans",
+     "finSec": 2.9761,
+     "debutSec": 2.9
+    },
+    {
+     "mot": "que",
+     "finSec": 3.0523,
+     "debutSec": 2.9952
+    },
+    {
+     "mot": "vous",
+     "finSec": 3.1285,
+     "debutSec": 3.0714
+    },
+    {
+     "mot": "la",
+     "finSec": 3.2428,
+     "debutSec": 3.1666
+    },
+    {
+     "mot": "tapiez.",
+     "finSec": 3.6238,
+     "debutSec": 3.2809
+    },
+    {
+     "mot": "Aujourd'hui,",
+     "finSec": 4.119,
+     "debutSec": 3.8142
+    },
+    {
+     "mot": "le",
+     "finSec": 4.2333,
+     "debutSec": 4.1571
+    },
+    {
+     "mot": "soir,",
+     "finSec": 4.5,
+     "debutSec": 4.2904
+    },
+    {
+     "mot": "vous",
+     "finSec": 4.8286,
+     "debutSec": 4.7143
+    },
+    {
+     "mot": "ouvrez",
+     "finSec": 5.0381,
+     "debutSec": 4.8476
+    },
+    {
+     "mot": "le",
+     "finSec": 5.0762,
+     "debutSec": 5.0571
+    },
+    {
+     "mot": "logiciel.",
+     "finSec": 5.5714,
+     "debutSec": 5.1143
+    },
+    {
+     "mot": "Vous",
+     "finSec": 5.8572,
+     "debutSec": 5.781
+    },
+    {
+     "mot": "recopiez",
+     "finSec": 6.2191,
+     "debutSec": 5.8762
+    },
+    {
+     "mot": "la",
+     "finSec": 6.2953,
+     "debutSec": 6.2572
+    },
+    {
+     "mot": "mission,",
+     "finSec": 6.6,
+     "debutSec": 6.3334
+    },
+    {
+     "mot": "ligne",
+     "finSec": 6.9285,
+     "debutSec": 6.7761
+    },
+    {
+     "mot": "par",
+     "finSec": 7.0619,
+     "debutSec": 6.9666
+    },
+    {
+     "mot": "ligne.",
+     "finSec": 7.3285,
+     "debutSec": 7.1
+    },
+    {
+     "mot": "Vous",
+     "finSec": 7.6142,
+     "debutSec": 7.519
+    },
+    {
+     "mot": "cherchez",
+     "finSec": 7.9,
+     "debutSec": 7.6523
+    },
+    {
+     "mot": "le",
+     "finSec": 7.9952,
+     "debutSec": 7.938
+    },
+    {
+     "mot": "bon",
+     "finSec": 8.1476,
+     "debutSec": 8.0333
+    },
+    {
+     "mot": "taux",
+     "finSec": 8.2619,
+     "debutSec": 8.1857
+    },
+    {
+     "mot": "de",
+     "finSec": 8.319,
+     "debutSec": 8.3
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 8.6619,
+     "debutSec": 8.3761
+    },
+    {
+     "mot": "Le",
+     "finSec": 8.9857,
+     "debutSec": 8.8904
+    },
+    {
+     "mot": "paiement,",
+     "finSec": 9.2523,
+     "debutSec": 9.0238
+    },
+    {
+     "mot": "vous",
+     "finSec": 9.5762,
+     "debutSec": 9.5
+    },
+    {
+     "mot": "le",
+     "finSec": 9.6334,
+     "debutSec": 9.5953
+    },
+    {
+     "mot": "surveillez",
+     "finSec": 9.9762,
+     "debutSec": 9.6905
+    },
+    {
+     "mot": "de",
+     "finSec": 10.0905,
+     "debutSec": 9.9953
+    },
+    {
+     "mot": "tête.",
+     "finSec": 10.3572,
+     "debutSec": 10.1286
+    },
+    {
+     "mot": "Et",
+     "finSec": 10.6048,
+     "debutSec": 10.5667
+    },
+    {
+     "mot": "la",
+     "finSec": 10.7,
+     "debutSec": 10.6429
+    },
+    {
+     "mot": "relance",
+     "finSec": 10.9857,
+     "debutSec": 10.7381
+    },
+    {
+     "mot": "part",
+     "finSec": 11.119,
+     "debutSec": 11.0238
+    },
+    {
+     "mot": "trop",
+     "finSec": 11.2524,
+     "debutSec": 11.1571
+    },
+    {
+     "mot": "tard.",
+     "finSec": 11.5381,
+     "debutSec": 11.3095
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 11.9952,
+     "debutSec": 11.7286
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 12.719,
+     "debutSec": 12.0333
+    },
+    {
+     "mot": "prend",
+     "finSec": 12.8524,
+     "debutSec": 12.7571
+    },
+    {
+     "mot": "le",
+     "finSec": 12.8905,
+     "debutSec": 12.8714
+    },
+    {
+     "mot": "relais.",
+     "finSec": 13.1762,
+     "debutSec": 12.9286
+    },
+    {
+     "mot": "Trois",
+     "finSec": 13.519,
+     "debutSec": 13.3667
+    },
+    {
+     "mot": "étapes.",
+     "finSec": 13.919,
+     "debutSec": 13.5762
+    },
+    {
+     "mot": "Voici",
+     "finSec": 14.3762,
+     "debutSec": 14.1095
+    },
+    {
+     "mot": "une",
+     "finSec": 14.4714,
+     "debutSec": 14.3952
+    },
+    {
+     "mot": "situation",
+     "finSec": 14.9095,
+     "debutSec": 14.5095
+    },
+    {
+     "mot": "type.",
+     "finSec": 15.1952,
+     "debutSec": 14.9857
+    },
+    {
+     "mot": "D'abord,",
+     "finSec": 15.519,
+     "debutSec": 15.3286
+    },
+    {
+     "mot": "ce",
+     "finSec": 15.5952,
+     "debutSec": 15.5571
+    },
+    {
+     "mot": "qui",
+     "finSec": 15.6714,
+     "debutSec": 15.6143
+    },
+    {
+     "mot": "arrive.",
+     "finSec": 16.0143,
+     "debutSec": 15.7095
+    },
+    {
+     "mot": "Votre",
+     "finSec": 16.3571,
+     "debutSec": 16.2048
+    },
+    {
+     "mot": "mission",
+     "finSec": 16.7381,
+     "debutSec": 16.3762
+    },
+    {
+     "mot": "est",
+     "finSec": 16.8524,
+     "debutSec": 16.7762
+    },
+    {
+     "mot": "terminée.",
+     "finSec": 17.2905,
+     "debutSec": 16.9095
+    },
+    {
+     "mot": "L'automatisation",
+     "finSec": 18.2048,
+     "debutSec": 17.481
+    },
+    {
+     "mot": "le",
+     "finSec": 18.319,
+     "debutSec": 18.2429
+    },
+    {
+     "mot": "détecte.",
+     "finSec": 18.7952,
+     "debutSec": 18.3571
+    },
+    {
+     "mot": "Ensuite,",
+     "finSec": 19.2905,
+     "debutSec": 18.9857
+    },
+    {
+     "mot": "ce",
+     "finSec": 19.6143,
+     "debutSec": 19.5381
+    },
+    {
+     "mot": "que",
+     "finSec": 19.7095,
+     "debutSec": 19.6524
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 20.4714,
+     "debutSec": 19.7476
+    },
+    {
+     "mot": "fait.",
+     "finSec": 20.7381,
+     "debutSec": 20.5476
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 21.119,
+     "debutSec": 20.9286
+    },
+    {
+     "mot": "génère",
+     "finSec": 21.5,
+     "debutSec": 21.1762
+    },
+    {
+     "mot": "un",
+     "finSec": 21.6333,
+     "debutSec": 21.5571
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 21.9571,
+     "debutSec": 21.6714
+    },
+    {
+     "mot": "de",
+     "finSec": 22.0143,
+     "debutSec": 21.9762
+    },
+    {
+     "mot": "facture.",
+     "finSec": 22.4143,
+     "debutSec": 22.0524
+    },
+    {
+     "mot": "Personne",
+     "finSec": 22.9667,
+     "debutSec": 22.6239
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.0619,
+     "debutSec": 23.0048
+    },
+    {
+     "mot": "le",
+     "finSec": 23.1381,
+     "debutSec": 23.081
+    },
+    {
+     "mot": "tape.",
+     "finSec": 23.4429,
+     "debutSec": 23.1762
+    },
+    {
+     "mot": "Elle",
+     "finSec": 23.7286,
+     "debutSec": 23.6334
+    },
+    {
+     "mot": "vérifie",
+     "finSec": 24.0905,
+     "debutSec": 23.7477
+    },
+    {
+     "mot": "la",
+     "finSec": 24.2048,
+     "debutSec": 24.1286
+    },
+    {
+     "mot": "TVA,",
+     "finSec": 24.5858,
+     "debutSec": 24.2619
+    },
+    {
+     "mot": "automatiquement.",
+     "finSec": 25.4285,
+     "debutSec": 24.8381
+    },
+    {
+     "mot": "Puis",
+     "finSec": 25.7143,
+     "debutSec": 25.6381
+    },
+    {
+     "mot": "elle",
+     "finSec": 25.8286,
+     "debutSec": 25.7524
+    },
+    {
+     "mot": "pose",
+     "finSec": 26,
+     "debutSec": 25.8667
+    },
+    {
+     "mot": "la",
+     "finSec": 26.0953,
+     "debutSec": 26.0381
+    },
+    {
+     "mot": "question",
+     "finSec": 26.3429,
+     "debutSec": 26.1334
+    },
+    {
+     "mot": "du",
+     "finSec": 26.4572,
+     "debutSec": 26.381
+    },
+    {
+     "mot": "régime.",
+     "finSec": 26.8953,
+     "debutSec": 26.4953
+    },
+    {
+     "mot": "Le",
+     "finSec": 27.1619,
+     "debutSec": 27.0857
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 27.4476,
+     "debutSec": 27.2
+    },
+    {
+     "mot": "arrive",
+     "finSec": 27.6762,
+     "debutSec": 27.5048
+    },
+    {
+     "mot": "chez",
+     "finSec": 27.8095,
+     "debutSec": 27.6953
+    },
+    {
+     "mot": "vous.",
+     "finSec": 28.0381,
+     "debutSec": 27.8667
+    },
+    {
+     "mot": "Vous",
+     "finSec": 28.3048,
+     "debutSec": 28.2286
+    },
+    {
+     "mot": "relisez.",
+     "finSec": 28.7429,
+     "debutSec": 28.3238
+    },
+    {
+     "mot": "Un",
+     "finSec": 29.0286,
+     "debutSec": 28.9334
+    },
+    {
+     "mot": "clic",
+     "finSec": 29.2572,
+     "debutSec": 29.0667
+    },
+    {
+     "mot": "pour",
+     "finSec": 29.3715,
+     "debutSec": 29.2762
+    },
+    {
+     "mot": "valider.",
+     "finSec": 29.8286,
+     "debutSec": 29.4095
+    },
+    {
+     "mot": "Une",
+     "finSec": 30.0953,
+     "debutSec": 30.0191
+    },
+    {
+     "mot": "ligne",
+     "finSec": 30.2667,
+     "debutSec": 30.1334
+    },
+    {
+     "mot": "à",
+     "finSec": 30.3429,
+     "debutSec": 30.3048
+    },
+    {
+     "mot": "modifier",
+     "finSec": 30.781,
+     "debutSec": 30.381
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 31.219,
+     "debutSec": 31.0095
+    },
+    {
+     "mot": "corrige",
+     "finSec": 31.8857,
+     "debutSec": 31.2571
+    },
+    {
+     "mot": "et",
+     "finSec": 31.9809,
+     "debutSec": 31.9238
+    },
+    {
+     "mot": "vous",
+     "finSec": 32.0571,
+     "debutSec": 32
+    },
+    {
+     "mot": "la",
+     "finSec": 32.1333,
+     "debutSec": 32.0952
+    },
+    {
+     "mot": "resoumet.",
+     "finSec": 32.5905,
+     "debutSec": 32.1714
+    },
+    {
+     "mot": "Puis",
+     "finSec": 32.8762,
+     "debutSec": 32.7809
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 33.5238,
+     "debutSec": 32.8952
+    },
+    {
+     "mot": "suit",
+     "finSec": 33.6571,
+     "debutSec": 33.5809
+    },
+    {
+     "mot": "le",
+     "finSec": 33.7143,
+     "debutSec": 33.6762
+    },
+    {
+     "mot": "paiement.",
+     "finSec": 34.019,
+     "debutSec": 33.7524
+    },
+    {
+     "mot": "Elle",
+     "finSec": 34.3048,
+     "debutSec": 34.2095
+    },
+    {
+     "mot": "attend",
+     "finSec": 34.4952,
+     "debutSec": 34.3428
+    },
+    {
+     "mot": "l'encaissement.",
+     "finSec": 35.1238,
+     "debutSec": 34.5143
+    },
+    {
+     "mot": "Enfin,",
+     "finSec": 35.3714,
+     "debutSec": 35.1619
+    },
+    {
+     "mot": "ce",
+     "finSec": 35.6809,
+     "debutSec": 35.6047
+    },
+    {
+     "mot": "qui",
+     "finSec": 35.8143,
+     "debutSec": 35.719
+    },
+    {
+     "mot": "en",
+     "finSec": 35.9285,
+     "debutSec": 35.8523
+    },
+    {
+     "mot": "sort.",
+     "finSec": 36.1952,
+     "debutSec": 35.9857
+    },
+    {
+     "mot": "Payé",
+     "finSec": 36.6143,
+     "debutSec": 36.3857
+    },
+    {
+     "mot": "le",
+     "finSec": 36.9095,
+     "debutSec": 36.8333
+    },
+    {
+     "mot": "dossier",
+     "finSec": 37.1761,
+     "debutSec": 36.9476
+    },
+    {
+     "mot": "est",
+     "finSec": 37.2523,
+     "debutSec": 37.1952
+    },
+    {
+     "mot": "clôturé.",
+     "finSec": 37.6904,
+     "debutSec": 37.2904
+    },
+    {
+     "mot": "Votre",
+     "finSec": 38.1285,
+     "debutSec": 37.8809
+    },
+    {
+     "mot": "trésorerie",
+     "finSec": 38.7381,
+     "debutSec": 38.1666
+    },
+    {
+     "mot": "est",
+     "finSec": 38.8523,
+     "debutSec": 38.7952
+    },
+    {
+     "mot": "mise",
+     "finSec": 39.0238,
+     "debutSec": 38.8904
+    },
+    {
+     "mot": "à",
+     "finSec": 39.1381,
+     "debutSec": 39.1
+    },
+    {
+     "mot": "jour.",
+     "finSec": 39.4428,
+     "debutSec": 39.1952
+    },
+    {
+     "mot": "Pas",
+     "finSec": 39.7285,
+     "debutSec": 39.6333
+    },
+    {
+     "mot": "payé",
+     "finSec": 39.9761,
+     "debutSec": 39.7857
+    },
+    {
+     "mot": "à",
+     "finSec": 40.0523,
+     "debutSec": 40.0142
+    },
+    {
+     "mot": "J",
+     "finSec": 40.1857,
+     "debutSec": 40.1285
+    },
+    {
+     "mot": "plus",
+     "finSec": 40.3571,
+     "debutSec": 40.2238
+    },
+    {
+     "mot": "trente",
+     "finSec": 40.6238,
+     "debutSec": 40.3952
+    },
+    {
+     "mot": "Relance",
+     "finSec": 41.1286,
+     "debutSec": 40.8619
+    },
+    {
+     "mot": "de",
+     "finSec": 41.2238,
+     "debutSec": 41.1667
+    },
+    {
+     "mot": "niveau",
+     "finSec": 41.5286,
+     "debutSec": 41.2619
+    },
+    {
+     "mot": "un.",
+     "finSec": 41.7762,
+     "debutSec": 41.6238
+    },
+    {
+     "mot": "À",
+     "finSec": 42.0238,
+     "debutSec": 41.9667
+    },
+    {
+     "mot": "J",
+     "finSec": 42.1762,
+     "debutSec": 42.081
+    },
+    {
+     "mot": "plus",
+     "finSec": 42.3095,
+     "debutSec": 42.2333
+    },
+    {
+     "mot": "soixante,",
+     "finSec": 42.7286,
+     "debutSec": 42.3667
+    },
+    {
+     "mot": "relance",
+     "finSec": 42.9952,
+     "debutSec": 42.7667
+    },
+    {
+     "mot": "de",
+     "finSec": 43.0905,
+     "debutSec": 43.0143
+    },
+    {
+     "mot": "niveau",
+     "finSec": 43.3,
+     "debutSec": 43.1286
+    },
+    {
+     "mot": "deux.",
+     "finSec": 43.5286,
+     "debutSec": 43.3571
+    },
+    {
+     "mot": "Avec",
+     "finSec": 43.8905,
+     "debutSec": 43.719
+    },
+    {
+     "mot": "une",
+     "finSec": 43.9857,
+     "debutSec": 43.9286
+    },
+    {
+     "mot": "alerte",
+     "finSec": 44.2143,
+     "debutSec": 44.0429
+    },
+    {
+     "mot": "pour",
+     "finSec": 44.3667,
+     "debutSec": 44.2524
+    },
+    {
+     "mot": "vous.",
+     "finSec": 44.5571,
+     "debutSec": 44.4048
+    },
+    {
+     "mot": "Un",
+     "finSec": 44.8048,
+     "debutSec": 44.7476
+    },
+    {
+     "mot": "mot",
+     "finSec": 44.9381,
+     "debutSec": 44.8429
+    },
+    {
+     "mot": "sur",
+     "finSec": 45.0714,
+     "debutSec": 44.9952
+    },
+    {
+     "mot": "la",
+     "finSec": 45.1857,
+     "debutSec": 45.1095
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 45.5857,
+     "debutSec": 45.2238
+    },
+    {
+     "mot": "Si",
+     "finSec": 45.9476,
+     "debutSec": 45.8524
+    },
+    {
+     "mot": "la",
+     "finSec": 46.0429,
+     "debutSec": 45.9857
+    },
+    {
+     "mot": "réponse",
+     "finSec": 46.5572,
+     "debutSec": 46.081
+    },
+    {
+     "mot": "est",
+     "finSec": 46.6714,
+     "debutSec": 46.5952
+    },
+    {
+     "mot": "non,",
+     "finSec": 46.8429,
+     "debutSec": 46.7286
+    },
+    {
+     "mot": "la",
+     "finSec": 47.1524,
+     "debutSec": 47.0762
+    },
+    {
+     "mot": "TVA",
+     "finSec": 47.4762,
+     "debutSec": 47.2095
+    },
+    {
+     "mot": "locale",
+     "finSec": 48.0095,
+     "debutSec": 47.5143
+    },
+    {
+     "mot": "est",
+     "finSec": 48.1238,
+     "debutSec": 48.0667
+    },
+    {
+     "mot": "calculée.",
+     "finSec": 48.619,
+     "debutSec": 48.1619
+    },
+    {
+     "mot": "Si",
+     "finSec": 48.8857,
+     "debutSec": 48.8095
+    },
+    {
+     "mot": "la",
+     "finSec": 48.9809,
+     "debutSec": 48.9238
+    },
+    {
+     "mot": "réponse",
+     "finSec": 49.3047,
+     "debutSec": 49.019
+    },
+    {
+     "mot": "est",
+     "finSec": 49.4,
+     "debutSec": 49.3428
+    },
+    {
+     "mot": "oui,",
+     "finSec": 49.5714,
+     "debutSec": 49.4381
+    },
+    {
+     "mot": "l'autoliquidation",
+     "finSec": 50.5095,
+     "debutSec": 49.8238
+    },
+    {
+     "mot": "s'applique.",
+     "finSec": 50.9286,
+     "debutSec": 50.5476
+    },
+    {
+     "mot": "Et",
+     "finSec": 51.1762,
+     "debutSec": 51.1381
+    },
+    {
+     "mot": "une",
+     "finSec": 51.3285,
+     "debutSec": 51.2333
+    },
+    {
+     "mot": "fois",
+     "finSec": 51.4809,
+     "debutSec": 51.3666
+    },
+    {
+     "mot": "validée,",
+     "finSec": 51.8619,
+     "debutSec": 51.519
+    },
+    {
+     "mot": "la",
+     "finSec": 52.1715,
+     "debutSec": 52.0953
+    },
+    {
+     "mot": "facture",
+     "finSec": 52.4762,
+     "debutSec": 52.2286
+    },
+    {
+     "mot": "est",
+     "finSec": 52.5905,
+     "debutSec": 52.5143
+    },
+    {
+     "mot": "envoyée.",
+     "finSec": 52.9524,
+     "debutSec": 52.6286
+    },
+    {
+     "mot": "Elle",
+     "finSec": 53.2191,
+     "debutSec": 53.1429
+    },
+    {
+     "mot": "est",
+     "finSec": 53.3324,
+     "debutSec": 53.2381
+    },
+    {
+     "mot": "archivée,",
+     "finSec": 53.8086,
+     "debutSec": 53.3905
+    },
+    {
+     "mot": "et",
+     "finSec": 54.1191,
+     "debutSec": 54.0619
+    },
+    {
+     "mot": "passée",
+     "finSec": 54.3657,
+     "debutSec": 54.1572
+    },
+    {
+     "mot": "en",
+     "finSec": 54.4619,
+     "debutSec": 54.4048
+    },
+    {
+     "mot": "comptabilité.",
+     "finSec": 55.1667,
+     "debutSec": 54.4991
+    },
+    {
+     "mot": "Au",
+     "finSec": 55.4143,
+     "debutSec": 55.3572
+    },
+    {
+     "mot": "bout",
+     "finSec": 55.5095,
+     "debutSec": 55.4334
+    },
+    {
+     "mot": "du",
+     "finSec": 55.6238,
+     "debutSec": 55.5286
+    },
+    {
+     "mot": "compte,",
+     "finSec": 55.8905,
+     "debutSec": 55.6619
+    },
+    {
+     "mot": "vous",
+     "finSec": 56.2571,
+     "debutSec": 56.1619
+    },
+    {
+     "mot": "ne",
+     "finSec": 56.3143,
+     "debutSec": 56.2762
+    },
+    {
+     "mot": "saisissez",
+     "finSec": 56.7143,
+     "debutSec": 56.3714
+    },
+    {
+     "mot": "rien.",
+     "finSec": 57,
+     "debutSec": 56.7714
+    },
+    {
+     "mot": "Votre",
+     "finSec": 57.4381,
+     "debutSec": 57.1905
+    },
+    {
+     "mot": "part,",
+     "finSec": 57.9143,
+     "debutSec": 57.4952
+    },
+    {
+     "mot": "c'est",
+     "finSec": 58.1048,
+     "debutSec": 57.9714
+    },
+    {
+     "mot": "un",
+     "finSec": 58.219,
+     "debutSec": 58.1429
+    },
+    {
+     "mot": "clic.",
+     "finSec": 58.6,
+     "debutSec": 58.2571
+    },
+    {
+     "mot": "De",
+     "finSec": 58.8476,
+     "debutSec": 58.7905
+    },
+    {
+     "mot": "la",
+     "finSec": 58.9429,
+     "debutSec": 58.8857
+    },
+    {
+     "mot": "mission",
+     "finSec": 59.1905,
+     "debutSec": 58.981
+    },
+    {
+     "mot": "terminée",
+     "finSec": 59.6857,
+     "debutSec": 59.2286
+    },
+    {
+     "mot": "à",
+     "finSec": 59.7619,
+     "debutSec": 59.7429
+    },
+    {
+     "mot": "la",
+     "finSec": 59.8762,
+     "debutSec": 59.8
+    },
+    {
+     "mot": "facture",
+     "finSec": 60.2,
+     "debutSec": 59.9333
+    },
+    {
+     "mot": "encaissée.",
+     "finSec": 60.6762,
+     "debutSec": 60.2381
+    },
+    {
+     "mot": "Zéro",
+     "finSec": 61.0952,
+     "debutSec": 60.8667
+    },
+    {
+     "mot": "saisie",
+     "finSec": 61.3619,
+     "debutSec": 61.1524
+    },
+    {
+     "mot": "manuelle.",
+     "finSec": 61.781,
+     "debutSec": 61.4
+    },
+    {
+     "mot": "Et",
+     "finSec": 62.0476,
+     "debutSec": 61.9714
+    },
+    {
+     "mot": "chez",
+     "finSec": 62.2,
+     "debutSec": 62.0667
+    },
+    {
+     "mot": "vous,",
+     "finSec": 62.4286,
+     "debutSec": 62.2571
+    },
+    {
+     "mot": "combien",
+     "finSec": 62.7143,
+     "debutSec": 62.4667
+    },
+    {
+     "mot": "de",
+     "finSec": 62.8476,
+     "debutSec": 62.7524
+    },
+    {
+     "mot": "factures",
+     "finSec": 63.2286,
+     "debutSec": 62.8857
+    },
+    {
+     "mot": "partent",
+     "finSec": 63.4571,
+     "debutSec": 63.2857
+    },
+    {
+     "mot": "encore",
+     "finSec": 63.6667,
+     "debutSec": 63.4762
+    },
+    {
+     "mot": "à",
+     "finSec": 63.7238,
+     "debutSec": 63.7238
+    },
+    {
+     "mot": "la",
+     "finSec": 63.8381,
+     "debutSec": 63.781
+    },
+    {
+     "mot": "main",
+     "finSec": 63.9905,
+     "debutSec": 63.8952
+    },
+    {
+     "mot": "Faites",
+     "finSec": 64.3142,
+     "debutSec": 64.1809
+    },
+    {
+     "mot": "votre",
+     "finSec": 64.4285,
+     "debutSec": 64.3333
+    },
+    {
+     "mot": "diagnostic",
+     "finSec": 64.8666,
+     "debutSec": 64.4476
+    },
+    {
+     "mot": "gratuit",
+     "finSec": 65.1904,
+     "debutSec": 64.8857
+    },
+    {
+     "mot": "en",
+     "finSec": 65.3047,
+     "debutSec": 65.2285
+    },
+    {
+     "mot": "quelques",
+     "finSec": 65.5523,
+     "debutSec": 65.3428
+    },
+    {
+     "mot": "minutes.",
+     "finSec": 65.9142,
+     "debutSec": 65.6095
+    },
+    {
+     "mot": "Le",
+     "finSec": 66.2381,
+     "debutSec": 66.1619
+    },
+    {
+     "mot": "lien",
+     "finSec": 66.4857,
+     "debutSec": 66.2762
+    },
+    {
+     "mot": "est",
+     "finSec": 66.6,
+     "debutSec": 66.5429
+    },
+    {
+     "mot": "dans",
+     "finSec": 66.7334,
+     "debutSec": 66.6381
+    },
+    {
+     "mot": "mon",
+     "finSec": 66.8667,
+     "debutSec": 66.7714
+    },
+    {
+     "mot": "profil.",
+     "finSec": 67.2857,
+     "debutSec": 66.9048
+    }
+   ]
+  },
+  {
+   "version": "fin-facebook",
+   "reseaux": [
+    "facebook"
+   ],
+   "dureeSec": 68.2218,
+   "finVoixSec": 67.3,
+   "motsCorps": 228,
+   "mots": [
+    {
+     "mot": "Mission",
+     "finSec": 0.319,
+     "debutSec": 0.0333
+    },
+    {
+     "mot": "finie.",
+     "finSec": 0.6048,
+     "debutSec": 0.3762
+    },
+    {
+     "mot": "Et",
+     "finSec": 1.1,
+     "debutSec": 1.0619
+    },
+    {
+     "mot": "la",
+     "finSec": 1.1953,
+     "debutSec": 1.1381
+    },
+    {
+     "mot": "facture,",
+     "finSec": 1.5,
+     "debutSec": 1.2524
+    },
+    {
+     "mot": "elle",
+     "finSec": 1.6334,
+     "debutSec": 1.5381
+    },
+    {
+     "mot": "part",
+     "finSec": 1.8048,
+     "debutSec": 1.6715
+    },
+    {
+     "mot": "quand",
+     "finSec": 1.9572,
+     "debutSec": 1.8238
+    },
+    {
+     "mot": "Oui,",
+     "finSec": 2.3286,
+     "debutSec": 2.1762
+    },
+    {
+     "mot": "elle",
+     "finSec": 2.6523,
+     "debutSec": 2.519
+    },
+    {
+     "mot": "part",
+     "finSec": 2.8428,
+     "debutSec": 2.6904
+    },
+    {
+     "mot": "sans",
+     "finSec": 2.9761,
+     "debutSec": 2.9
+    },
+    {
+     "mot": "que",
+     "finSec": 3.0523,
+     "debutSec": 2.9952
+    },
+    {
+     "mot": "vous",
+     "finSec": 3.1285,
+     "debutSec": 3.0714
+    },
+    {
+     "mot": "la",
+     "finSec": 3.2428,
+     "debutSec": 3.1666
+    },
+    {
+     "mot": "tapiez.",
+     "finSec": 3.6238,
+     "debutSec": 3.2809
+    },
+    {
+     "mot": "Aujourd'hui,",
+     "finSec": 4.119,
+     "debutSec": 3.8142
+    },
+    {
+     "mot": "le",
+     "finSec": 4.2333,
+     "debutSec": 4.1571
+    },
+    {
+     "mot": "soir,",
+     "finSec": 4.5,
+     "debutSec": 4.2904
+    },
+    {
+     "mot": "vous",
+     "finSec": 4.8286,
+     "debutSec": 4.7143
+    },
+    {
+     "mot": "ouvrez",
+     "finSec": 5.0381,
+     "debutSec": 4.8476
+    },
+    {
+     "mot": "le",
+     "finSec": 5.0762,
+     "debutSec": 5.0571
+    },
+    {
+     "mot": "logiciel.",
+     "finSec": 5.5714,
+     "debutSec": 5.1143
+    },
+    {
+     "mot": "Vous",
+     "finSec": 5.8572,
+     "debutSec": 5.781
+    },
+    {
+     "mot": "recopiez",
+     "finSec": 6.2191,
+     "debutSec": 5.8762
+    },
+    {
+     "mot": "la",
+     "finSec": 6.2953,
+     "debutSec": 6.2572
+    },
+    {
+     "mot": "mission,",
+     "finSec": 6.6,
+     "debutSec": 6.3334
+    },
+    {
+     "mot": "ligne",
+     "finSec": 6.9285,
+     "debutSec": 6.7761
+    },
+    {
+     "mot": "par",
+     "finSec": 7.0619,
+     "debutSec": 6.9666
+    },
+    {
+     "mot": "ligne.",
+     "finSec": 7.3285,
+     "debutSec": 7.1
+    },
+    {
+     "mot": "Vous",
+     "finSec": 7.6142,
+     "debutSec": 7.519
+    },
+    {
+     "mot": "cherchez",
+     "finSec": 7.9,
+     "debutSec": 7.6523
+    },
+    {
+     "mot": "le",
+     "finSec": 7.9952,
+     "debutSec": 7.938
+    },
+    {
+     "mot": "bon",
+     "finSec": 8.1476,
+     "debutSec": 8.0333
+    },
+    {
+     "mot": "taux",
+     "finSec": 8.2619,
+     "debutSec": 8.1857
+    },
+    {
+     "mot": "de",
+     "finSec": 8.319,
+     "debutSec": 8.3
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 8.6619,
+     "debutSec": 8.3761
+    },
+    {
+     "mot": "Le",
+     "finSec": 8.9857,
+     "debutSec": 8.8904
+    },
+    {
+     "mot": "paiement,",
+     "finSec": 9.2523,
+     "debutSec": 9.0238
+    },
+    {
+     "mot": "vous",
+     "finSec": 9.5762,
+     "debutSec": 9.5
+    },
+    {
+     "mot": "le",
+     "finSec": 9.6334,
+     "debutSec": 9.5953
+    },
+    {
+     "mot": "surveillez",
+     "finSec": 9.9762,
+     "debutSec": 9.6905
+    },
+    {
+     "mot": "de",
+     "finSec": 10.0905,
+     "debutSec": 9.9953
+    },
+    {
+     "mot": "tête.",
+     "finSec": 10.3572,
+     "debutSec": 10.1286
+    },
+    {
+     "mot": "Et",
+     "finSec": 10.6048,
+     "debutSec": 10.5667
+    },
+    {
+     "mot": "la",
+     "finSec": 10.7,
+     "debutSec": 10.6429
+    },
+    {
+     "mot": "relance",
+     "finSec": 10.9857,
+     "debutSec": 10.7381
+    },
+    {
+     "mot": "part",
+     "finSec": 11.119,
+     "debutSec": 11.0238
+    },
+    {
+     "mot": "trop",
+     "finSec": 11.2524,
+     "debutSec": 11.1571
+    },
+    {
+     "mot": "tard.",
+     "finSec": 11.5381,
+     "debutSec": 11.3095
+    },
+    {
+     "mot": "Maintenant,",
+     "finSec": 11.9952,
+     "debutSec": 11.7286
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 12.719,
+     "debutSec": 12.0333
+    },
+    {
+     "mot": "prend",
+     "finSec": 12.8524,
+     "debutSec": 12.7571
+    },
+    {
+     "mot": "le",
+     "finSec": 12.8905,
+     "debutSec": 12.8714
+    },
+    {
+     "mot": "relais.",
+     "finSec": 13.1762,
+     "debutSec": 12.9286
+    },
+    {
+     "mot": "Trois",
+     "finSec": 13.519,
+     "debutSec": 13.3667
+    },
+    {
+     "mot": "étapes.",
+     "finSec": 13.919,
+     "debutSec": 13.5762
+    },
+    {
+     "mot": "Voici",
+     "finSec": 14.3762,
+     "debutSec": 14.1095
+    },
+    {
+     "mot": "une",
+     "finSec": 14.4714,
+     "debutSec": 14.3952
+    },
+    {
+     "mot": "situation",
+     "finSec": 14.9095,
+     "debutSec": 14.5095
+    },
+    {
+     "mot": "type.",
+     "finSec": 15.1952,
+     "debutSec": 14.9857
+    },
+    {
+     "mot": "D'abord,",
+     "finSec": 15.519,
+     "debutSec": 15.3286
+    },
+    {
+     "mot": "ce",
+     "finSec": 15.5952,
+     "debutSec": 15.5571
+    },
+    {
+     "mot": "qui",
+     "finSec": 15.6714,
+     "debutSec": 15.6143
+    },
+    {
+     "mot": "arrive.",
+     "finSec": 16.0143,
+     "debutSec": 15.7095
+    },
+    {
+     "mot": "Votre",
+     "finSec": 16.3571,
+     "debutSec": 16.2048
+    },
+    {
+     "mot": "mission",
+     "finSec": 16.7381,
+     "debutSec": 16.3762
+    },
+    {
+     "mot": "est",
+     "finSec": 16.8524,
+     "debutSec": 16.7762
+    },
+    {
+     "mot": "terminée.",
+     "finSec": 17.2905,
+     "debutSec": 16.9095
+    },
+    {
+     "mot": "L'automatisation",
+     "finSec": 18.2048,
+     "debutSec": 17.481
+    },
+    {
+     "mot": "le",
+     "finSec": 18.319,
+     "debutSec": 18.2429
+    },
+    {
+     "mot": "détecte.",
+     "finSec": 18.7952,
+     "debutSec": 18.3571
+    },
+    {
+     "mot": "Ensuite,",
+     "finSec": 19.2905,
+     "debutSec": 18.9857
+    },
+    {
+     "mot": "ce",
+     "finSec": 19.6143,
+     "debutSec": 19.5381
+    },
+    {
+     "mot": "que",
+     "finSec": 19.7095,
+     "debutSec": 19.6524
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 20.4714,
+     "debutSec": 19.7476
+    },
+    {
+     "mot": "fait.",
+     "finSec": 20.7381,
+     "debutSec": 20.5476
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 21.119,
+     "debutSec": 20.9286
+    },
+    {
+     "mot": "génère",
+     "finSec": 21.5,
+     "debutSec": 21.1762
+    },
+    {
+     "mot": "un",
+     "finSec": 21.6333,
+     "debutSec": 21.5571
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 21.9571,
+     "debutSec": 21.6714
+    },
+    {
+     "mot": "de",
+     "finSec": 22.0143,
+     "debutSec": 21.9762
+    },
+    {
+     "mot": "facture.",
+     "finSec": 22.4143,
+     "debutSec": 22.0524
+    },
+    {
+     "mot": "Personne",
+     "finSec": 22.9667,
+     "debutSec": 22.6239
+    },
+    {
+     "mot": "ne",
+     "finSec": 23.0619,
+     "debutSec": 23.0048
+    },
+    {
+     "mot": "le",
+     "finSec": 23.1381,
+     "debutSec": 23.081
+    },
+    {
+     "mot": "tape.",
+     "finSec": 23.4429,
+     "debutSec": 23.1762
+    },
+    {
+     "mot": "Elle",
+     "finSec": 23.7286,
+     "debutSec": 23.6334
+    },
+    {
+     "mot": "vérifie",
+     "finSec": 24.0905,
+     "debutSec": 23.7477
+    },
+    {
+     "mot": "la",
+     "finSec": 24.2048,
+     "debutSec": 24.1286
+    },
+    {
+     "mot": "TVA,",
+     "finSec": 24.5858,
+     "debutSec": 24.2619
+    },
+    {
+     "mot": "automatiquement.",
+     "finSec": 25.4285,
+     "debutSec": 24.8381
+    },
+    {
+     "mot": "Puis",
+     "finSec": 25.7143,
+     "debutSec": 25.6381
+    },
+    {
+     "mot": "elle",
+     "finSec": 25.8286,
+     "debutSec": 25.7524
+    },
+    {
+     "mot": "pose",
+     "finSec": 26,
+     "debutSec": 25.8667
+    },
+    {
+     "mot": "la",
+     "finSec": 26.0953,
+     "debutSec": 26.0381
+    },
+    {
+     "mot": "question",
+     "finSec": 26.3429,
+     "debutSec": 26.1334
+    },
+    {
+     "mot": "du",
+     "finSec": 26.4572,
+     "debutSec": 26.381
+    },
+    {
+     "mot": "régime.",
+     "finSec": 26.8953,
+     "debutSec": 26.4953
+    },
+    {
+     "mot": "Le",
+     "finSec": 27.1619,
+     "debutSec": 27.0857
+    },
+    {
+     "mot": "brouillon",
+     "finSec": 27.4476,
+     "debutSec": 27.2
+    },
+    {
+     "mot": "arrive",
+     "finSec": 27.6762,
+     "debutSec": 27.5048
+    },
+    {
+     "mot": "chez",
+     "finSec": 27.8095,
+     "debutSec": 27.6953
+    },
+    {
+     "mot": "vous.",
+     "finSec": 28.0381,
+     "debutSec": 27.8667
+    },
+    {
+     "mot": "Vous",
+     "finSec": 28.3048,
+     "debutSec": 28.2286
+    },
+    {
+     "mot": "relisez.",
+     "finSec": 28.7429,
+     "debutSec": 28.3238
+    },
+    {
+     "mot": "Un",
+     "finSec": 29.0286,
+     "debutSec": 28.9334
+    },
+    {
+     "mot": "clic",
+     "finSec": 29.2572,
+     "debutSec": 29.0667
+    },
+    {
+     "mot": "pour",
+     "finSec": 29.3715,
+     "debutSec": 29.2762
+    },
+    {
+     "mot": "valider.",
+     "finSec": 29.8286,
+     "debutSec": 29.4095
+    },
+    {
+     "mot": "Une",
+     "finSec": 30.0953,
+     "debutSec": 30.0191
+    },
+    {
+     "mot": "ligne",
+     "finSec": 30.2667,
+     "debutSec": 30.1334
+    },
+    {
+     "mot": "à",
+     "finSec": 30.3429,
+     "debutSec": 30.3048
+    },
+    {
+     "mot": "modifier",
+     "finSec": 30.781,
+     "debutSec": 30.381
+    },
+    {
+     "mot": "L'IA",
+     "finSec": 31.219,
+     "debutSec": 31.0095
+    },
+    {
+     "mot": "corrige",
+     "finSec": 31.8857,
+     "debutSec": 31.2571
+    },
+    {
+     "mot": "et",
+     "finSec": 31.9809,
+     "debutSec": 31.9238
+    },
+    {
+     "mot": "vous",
+     "finSec": 32.0571,
+     "debutSec": 32
+    },
+    {
+     "mot": "la",
+     "finSec": 32.1333,
+     "debutSec": 32.0952
+    },
+    {
+     "mot": "resoumet.",
+     "finSec": 32.5905,
+     "debutSec": 32.1714
+    },
+    {
+     "mot": "Puis",
+     "finSec": 32.8762,
+     "debutSec": 32.7809
+    },
+    {
+     "mot": "l'automatisation",
+     "finSec": 33.5238,
+     "debutSec": 32.8952
+    },
+    {
+     "mot": "suit",
+     "finSec": 33.6571,
+     "debutSec": 33.5809
+    },
+    {
+     "mot": "le",
+     "finSec": 33.7143,
+     "debutSec": 33.6762
+    },
+    {
+     "mot": "paiement.",
+     "finSec": 34.019,
+     "debutSec": 33.7524
+    },
+    {
+     "mot": "Elle",
+     "finSec": 34.3048,
+     "debutSec": 34.2095
+    },
+    {
+     "mot": "attend",
+     "finSec": 34.4952,
+     "debutSec": 34.3428
+    },
+    {
+     "mot": "l'encaissement.",
+     "finSec": 35.1238,
+     "debutSec": 34.5143
+    },
+    {
+     "mot": "Enfin,",
+     "finSec": 35.3714,
+     "debutSec": 35.1619
+    },
+    {
+     "mot": "ce",
+     "finSec": 35.6809,
+     "debutSec": 35.6047
+    },
+    {
+     "mot": "qui",
+     "finSec": 35.8143,
+     "debutSec": 35.719
+    },
+    {
+     "mot": "en",
+     "finSec": 35.9285,
+     "debutSec": 35.8523
+    },
+    {
+     "mot": "sort.",
+     "finSec": 36.1952,
+     "debutSec": 35.9857
+    },
+    {
+     "mot": "Payé",
+     "finSec": 36.6143,
+     "debutSec": 36.3857
+    },
+    {
+     "mot": "le",
+     "finSec": 36.9095,
+     "debutSec": 36.8333
+    },
+    {
+     "mot": "dossier",
+     "finSec": 37.1761,
+     "debutSec": 36.9476
+    },
+    {
+     "mot": "est",
+     "finSec": 37.2523,
+     "debutSec": 37.1952
+    },
+    {
+     "mot": "clôturé.",
+     "finSec": 37.6904,
+     "debutSec": 37.2904
+    },
+    {
+     "mot": "Votre",
+     "finSec": 38.1285,
+     "debutSec": 37.8809
+    },
+    {
+     "mot": "trésorerie",
+     "finSec": 38.7381,
+     "debutSec": 38.1666
+    },
+    {
+     "mot": "est",
+     "finSec": 38.8523,
+     "debutSec": 38.7952
+    },
+    {
+     "mot": "mise",
+     "finSec": 39.0238,
+     "debutSec": 38.8904
+    },
+    {
+     "mot": "à",
+     "finSec": 39.1381,
+     "debutSec": 39.1
+    },
+    {
+     "mot": "jour.",
+     "finSec": 39.4428,
+     "debutSec": 39.1952
+    },
+    {
+     "mot": "Pas",
+     "finSec": 39.7285,
+     "debutSec": 39.6333
+    },
+    {
+     "mot": "payé",
+     "finSec": 39.9761,
+     "debutSec": 39.7857
+    },
+    {
+     "mot": "à",
+     "finSec": 40.0523,
+     "debutSec": 40.0142
+    },
+    {
+     "mot": "J",
+     "finSec": 40.1857,
+     "debutSec": 40.1285
+    },
+    {
+     "mot": "plus",
+     "finSec": 40.3571,
+     "debutSec": 40.2238
+    },
+    {
+     "mot": "trente",
+     "finSec": 40.6238,
+     "debutSec": 40.3952
+    },
+    {
+     "mot": "Relance",
+     "finSec": 41.1286,
+     "debutSec": 40.8619
+    },
+    {
+     "mot": "de",
+     "finSec": 41.2238,
+     "debutSec": 41.1667
+    },
+    {
+     "mot": "niveau",
+     "finSec": 41.5286,
+     "debutSec": 41.2619
+    },
+    {
+     "mot": "un.",
+     "finSec": 41.7762,
+     "debutSec": 41.6238
+    },
+    {
+     "mot": "À",
+     "finSec": 42.0238,
+     "debutSec": 41.9667
+    },
+    {
+     "mot": "J",
+     "finSec": 42.1762,
+     "debutSec": 42.081
+    },
+    {
+     "mot": "plus",
+     "finSec": 42.3095,
+     "debutSec": 42.2333
+    },
+    {
+     "mot": "soixante,",
+     "finSec": 42.7286,
+     "debutSec": 42.3667
+    },
+    {
+     "mot": "relance",
+     "finSec": 42.9952,
+     "debutSec": 42.7667
+    },
+    {
+     "mot": "de",
+     "finSec": 43.0905,
+     "debutSec": 43.0143
+    },
+    {
+     "mot": "niveau",
+     "finSec": 43.3,
+     "debutSec": 43.1286
+    },
+    {
+     "mot": "deux.",
+     "finSec": 43.5286,
+     "debutSec": 43.3571
+    },
+    {
+     "mot": "Avec",
+     "finSec": 43.8905,
+     "debutSec": 43.719
+    },
+    {
+     "mot": "une",
+     "finSec": 43.9857,
+     "debutSec": 43.9286
+    },
+    {
+     "mot": "alerte",
+     "finSec": 44.2143,
+     "debutSec": 44.0429
+    },
+    {
+     "mot": "pour",
+     "finSec": 44.3667,
+     "debutSec": 44.2524
+    },
+    {
+     "mot": "vous.",
+     "finSec": 44.5571,
+     "debutSec": 44.4048
+    },
+    {
+     "mot": "Un",
+     "finSec": 44.8048,
+     "debutSec": 44.7476
+    },
+    {
+     "mot": "mot",
+     "finSec": 44.9381,
+     "debutSec": 44.8429
+    },
+    {
+     "mot": "sur",
+     "finSec": 45.0714,
+     "debutSec": 44.9952
+    },
+    {
+     "mot": "la",
+     "finSec": 45.1857,
+     "debutSec": 45.1095
+    },
+    {
+     "mot": "TVA.",
+     "finSec": 45.5857,
+     "debutSec": 45.2238
+    },
+    {
+     "mot": "Si",
+     "finSec": 45.9476,
+     "debutSec": 45.8524
+    },
+    {
+     "mot": "la",
+     "finSec": 46.0429,
+     "debutSec": 45.9857
+    },
+    {
+     "mot": "réponse",
+     "finSec": 46.5572,
+     "debutSec": 46.081
+    },
+    {
+     "mot": "est",
+     "finSec": 46.6714,
+     "debutSec": 46.5952
+    },
+    {
+     "mot": "non,",
+     "finSec": 46.8429,
+     "debutSec": 46.7286
+    },
+    {
+     "mot": "la",
+     "finSec": 47.1524,
+     "debutSec": 47.0762
+    },
+    {
+     "mot": "TVA",
+     "finSec": 47.4762,
+     "debutSec": 47.2095
+    },
+    {
+     "mot": "locale",
+     "finSec": 48.0095,
+     "debutSec": 47.5143
+    },
+    {
+     "mot": "est",
+     "finSec": 48.1238,
+     "debutSec": 48.0667
+    },
+    {
+     "mot": "calculée.",
+     "finSec": 48.619,
+     "debutSec": 48.1619
+    },
+    {
+     "mot": "Si",
+     "finSec": 48.8857,
+     "debutSec": 48.8095
+    },
+    {
+     "mot": "la",
+     "finSec": 48.9809,
+     "debutSec": 48.9238
+    },
+    {
+     "mot": "réponse",
+     "finSec": 49.3047,
+     "debutSec": 49.019
+    },
+    {
+     "mot": "est",
+     "finSec": 49.4,
+     "debutSec": 49.3428
+    },
+    {
+     "mot": "oui,",
+     "finSec": 49.5714,
+     "debutSec": 49.4381
+    },
+    {
+     "mot": "l'autoliquidation",
+     "finSec": 50.5095,
+     "debutSec": 49.8238
+    },
+    {
+     "mot": "s'applique.",
+     "finSec": 50.9286,
+     "debutSec": 50.5476
+    },
+    {
+     "mot": "Et",
+     "finSec": 51.1762,
+     "debutSec": 51.1381
+    },
+    {
+     "mot": "une",
+     "finSec": 51.3285,
+     "debutSec": 51.2333
+    },
+    {
+     "mot": "fois",
+     "finSec": 51.4809,
+     "debutSec": 51.3666
+    },
+    {
+     "mot": "validée,",
+     "finSec": 51.8619,
+     "debutSec": 51.519
+    },
+    {
+     "mot": "la",
+     "finSec": 52.1715,
+     "debutSec": 52.0953
+    },
+    {
+     "mot": "facture",
+     "finSec": 52.4762,
+     "debutSec": 52.2286
+    },
+    {
+     "mot": "est",
+     "finSec": 52.5905,
+     "debutSec": 52.5143
+    },
+    {
+     "mot": "envoyée.",
+     "finSec": 52.9524,
+     "debutSec": 52.6286
+    },
+    {
+     "mot": "Elle",
+     "finSec": 53.2191,
+     "debutSec": 53.1429
+    },
+    {
+     "mot": "est",
+     "finSec": 53.3324,
+     "debutSec": 53.2381
+    },
+    {
+     "mot": "archivée,",
+     "finSec": 53.8086,
+     "debutSec": 53.3905
+    },
+    {
+     "mot": "et",
+     "finSec": 54.1191,
+     "debutSec": 54.0619
+    },
+    {
+     "mot": "passée",
+     "finSec": 54.3657,
+     "debutSec": 54.1572
+    },
+    {
+     "mot": "en",
+     "finSec": 54.4619,
+     "debutSec": 54.4048
+    },
+    {
+     "mot": "comptabilité.",
+     "finSec": 55.1667,
+     "debutSec": 54.4991
+    },
+    {
+     "mot": "Au",
+     "finSec": 55.4143,
+     "debutSec": 55.3572
+    },
+    {
+     "mot": "bout",
+     "finSec": 55.5095,
+     "debutSec": 55.4334
+    },
+    {
+     "mot": "du",
+     "finSec": 55.6238,
+     "debutSec": 55.5286
+    },
+    {
+     "mot": "compte,",
+     "finSec": 55.8905,
+     "debutSec": 55.6619
+    },
+    {
+     "mot": "vous",
+     "finSec": 56.2571,
+     "debutSec": 56.1619
+    },
+    {
+     "mot": "ne",
+     "finSec": 56.3143,
+     "debutSec": 56.2762
+    },
+    {
+     "mot": "saisissez",
+     "finSec": 56.7143,
+     "debutSec": 56.3714
+    },
+    {
+     "mot": "rien.",
+     "finSec": 57,
+     "debutSec": 56.7714
+    },
+    {
+     "mot": "Votre",
+     "finSec": 57.4381,
+     "debutSec": 57.1905
+    },
+    {
+     "mot": "part,",
+     "finSec": 57.9143,
+     "debutSec": 57.4952
+    },
+    {
+     "mot": "c'est",
+     "finSec": 58.1048,
+     "debutSec": 57.9714
+    },
+    {
+     "mot": "un",
+     "finSec": 58.219,
+     "debutSec": 58.1429
+    },
+    {
+     "mot": "clic.",
+     "finSec": 58.6,
+     "debutSec": 58.2571
+    },
+    {
+     "mot": "De",
+     "finSec": 58.8476,
+     "debutSec": 58.7905
+    },
+    {
+     "mot": "la",
+     "finSec": 58.9429,
+     "debutSec": 58.8857
+    },
+    {
+     "mot": "mission",
+     "finSec": 59.1905,
+     "debutSec": 58.981
+    },
+    {
+     "mot": "terminée",
+     "finSec": 59.6857,
+     "debutSec": 59.2286
+    },
+    {
+     "mot": "à",
+     "finSec": 59.7619,
+     "debutSec": 59.7429
+    },
+    {
+     "mot": "la",
+     "finSec": 59.8762,
+     "debutSec": 59.8
+    },
+    {
+     "mot": "facture",
+     "finSec": 60.2,
+     "debutSec": 59.9333
+    },
+    {
+     "mot": "encaissée.",
+     "finSec": 60.6762,
+     "debutSec": 60.2381
+    },
+    {
+     "mot": "Zéro",
+     "finSec": 61.0952,
+     "debutSec": 60.8667
+    },
+    {
+     "mot": "saisie",
+     "finSec": 61.3619,
+     "debutSec": 61.1524
+    },
+    {
+     "mot": "manuelle.",
+     "finSec": 61.781,
+     "debutSec": 61.4
+    },
+    {
+     "mot": "Et",
+     "finSec": 62.0476,
+     "debutSec": 61.9714
+    },
+    {
+     "mot": "chez",
+     "finSec": 62.2,
+     "debutSec": 62.0667
+    },
+    {
+     "mot": "vous,",
+     "finSec": 62.4286,
+     "debutSec": 62.2571
+    },
+    {
+     "mot": "combien",
+     "finSec": 62.7143,
+     "debutSec": 62.4667
+    },
+    {
+     "mot": "de",
+     "finSec": 62.8476,
+     "debutSec": 62.7524
+    },
+    {
+     "mot": "factures",
+     "finSec": 63.2286,
+     "debutSec": 62.8857
+    },
+    {
+     "mot": "partent",
+     "finSec": 63.4571,
+     "debutSec": 63.2857
+    },
+    {
+     "mot": "encore",
+     "finSec": 63.6667,
+     "debutSec": 63.4762
+    },
+    {
+     "mot": "à",
+     "finSec": 63.7238,
+     "debutSec": 63.7238
+    },
+    {
+     "mot": "la",
+     "finSec": 63.8381,
+     "debutSec": 63.781
+    },
+    {
+     "mot": "main",
+     "finSec": 63.9905,
+     "debutSec": 63.8952
+    },
+    {
+     "mot": "Faites",
+     "finSec": 64.3142,
+     "debutSec": 64.1809
+    },
+    {
+     "mot": "votre",
+     "finSec": 64.4285,
+     "debutSec": 64.3333
+    },
+    {
+     "mot": "diagnostic",
+     "finSec": 64.8666,
+     "debutSec": 64.4476
+    },
+    {
+     "mot": "gratuit",
+     "finSec": 65.1904,
+     "debutSec": 64.8857
+    },
+    {
+     "mot": "en",
+     "finSec": 65.3047,
+     "debutSec": 65.2285
+    },
+    {
+     "mot": "quelques",
+     "finSec": 65.5523,
+     "debutSec": 65.3428
+    },
+    {
+     "mot": "minutes.",
+     "finSec": 65.9142,
+     "debutSec": 65.6095
+    },
+    {
+     "mot": "Le",
+     "finSec": 66.2572,
+     "debutSec": 66.1619
+    },
+    {
+     "mot": "lien",
+     "finSec": 66.5429,
+     "debutSec": 66.2953
+    },
+    {
+     "mot": "est",
+     "finSec": 66.6762,
+     "debutSec": 66.6
+    },
+    {
+     "mot": "en",
+     "finSec": 66.7714,
+     "debutSec": 66.7143
+    },
+    {
+     "mot": "commentaire.",
+     "finSec": 67.2286,
+     "debutSec": 66.8095
+    }
+   ]
+  }
+ ]
+}

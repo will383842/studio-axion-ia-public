@@ -14,6 +14,7 @@ export async function planSerieAction(demandees: number): Promise<Resultat<PlanS
 export async function lancerSerieAction(idees: { texte: string; ideeId?: string }[], reglages: ReglagesSerie, cle: string, totalConfirme?: number, partirontConfirme?: number): Promise<Resultat<{ partis: number; restes: number; essai: boolean }>> {
   await exigerSession();
   return essayer(async () => {
+    // Cible du lot : exigée par l'écran Sujet ; la page Idées n'en a pas, donc ici son absence est une remarque (jamais un refus).
     const { serie, plan } = await lancerSerie(idees, reglages, cle, typeof totalConfirme === "number" && Number.isFinite(totalConfirme) ? totalConfirme : undefined, typeof partirontConfirme === "number" && Number.isInteger(partirontConfirme) ? partirontConfirme : undefined);
     revalidatePath("/ecrire");
     revalidatePath("/");

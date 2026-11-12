@@ -110,10 +110,12 @@ export const MOT_PAR_MOT = Object.freeze({ pasS: 0.09, dureeS: 0.34, monteePx: 6
  * Mot par mot : chaque mot entre à son tour (opacité, montée de 60 px, flou de 12 px), décalé de 90 ms, en 340 ms.
  * `ecoule` = temps (s) depuis le départ du premier mot.
  */
-export function planMotParMot(texte: string, ecoule: number, pas: number = MOT_PAR_MOT.pasS, duree: number = MOT_PAR_MOT.dureeS) {
+export function planMotParMot(texte: string, ecoule: number, pas: number = MOT_PAR_MOT.pasS, duree: number = MOT_PAR_MOT.dureeS, style?: { monteePx: number; flouPx: number } | null) {
+  const monteePx = style?.monteePx ?? MOT_PAR_MOT.monteePx;
+  const flouPx = style?.flouPx ?? MOT_PAR_MOT.flouPx;
   return motsBalises(texte).map((m, i) => {
     const x = progres(ecoule - i * pas, 0, duree);
-    return { mot: m.mot, accent: m.accent, opacite: x, decalageY: (1 - doux(x)) * MOT_PAR_MOT.monteePx, flou: x < 1 ? (1 - x) * MOT_PAR_MOT.flouPx : 0 };
+    return { mot: m.mot, accent: m.accent, opacite: x, decalageY: (1 - doux(x)) * monteePx, flou: x < 1 ? (1 - x) * flouPx : 0 };
   });
 }
 
@@ -171,7 +173,7 @@ export function planEclair(t: number, debut: number | null) {
 
 /** Puce (pastille blanche à coche verte) : couleurs et taille de la charte. */
 export function planPuce(texte: string, taille: number) {
-  return { texte, taille, fond: COULEURS_DUO.blanc, texteCouleur: COULEURS_DUO.encre, coche: COULEURS_DUO.vert, cocheTrait: COULEURS_DUO.blanc, famille: famille("inter-gras") };
+  return { texte, taille, fond: COULEURS_DUO.carte, texteCouleur: COULEURS_DUO.encre, coche: COULEURS_DUO.vert, cocheTrait: COULEURS_DUO.blanc, famille: famille("inter-gras") };
 }
 
 /** Propriétés communes à tout objet redessiné : sa boîte, l'instant, le fond, ses textes ou sa capture. */

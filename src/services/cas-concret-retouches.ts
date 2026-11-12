@@ -31,6 +31,7 @@ import { creerVerrou, depots, ecrireParametre, ErreurStudio, lireParametre } fro
 import { exigerSession } from "./auth";
 import { ecritureClaudeCasConcret, type DependancesBranchementsCasConcret } from "./cas-concret-branchements";
 import { preparerReglagesMoteur, REGLAGES_CAS_CONCRET, reglageAllume } from "./cas-concret-reglages";
+import { avecAccordAutomatique } from "./mode-budget";
 
 export const PREFIXE_DISCUSSION = "casConcret.discussion.";
 export const PHRASE_LECTURE = "Je lis votre demande…";
@@ -236,6 +237,12 @@ export async function abandonnerRetouche(videoId: Id, demande?: string): Promise
  * Sinon, le chemin de retouche du studio, avec les opérations ; la demande est oubliée.
  */
 export async function confirmerRetouche(videoId: Id, accordCentimes: unknown, dep: DependancesRetouche = {}): Promise<IssueRetouche> {
+  // Règle « le prix ne bloque jamais » : en mode indicatif, un accord-requis est relancé UNE fois avec le prix du jour ;
+  // bloquant (et Usine) : l'issue d'avant, telle quelle.
+  return avecAccordAutomatique((accord) => confirmerRetoucheSansAuto(videoId, accord ?? accordCentimes, dep), undefined, { videoId });
+}
+
+async function confirmerRetoucheSansAuto(videoId: Id, accordCentimes: unknown, dep: DependancesRetouche): Promise<IssueRetouche> {
   await exigerSession();
   if (!(await retouchesAllumees())) return { statut: "refusee", phrase: PHRASE_RETOUCHES_ETEINTES };
   return verrou(async () => {
@@ -248,7 +255,7 @@ export async function confirmerRetouche(videoId: Id, accordCentimes: unknown, de
     // quels : la règle commune du seuil est appliquée par `lancerRetouche` (sous le seuil l'accord suffit, au-delà il redemande
     // le montant). Une valeur illisible vaut `false`, jamais un accord.
     const accord = accordPropre(accordCentimes);
-    if (typeof accord === "number" && accord < etat.centimes) return { statut: "accord-requis", centimes: etat.centimes, phrase: `Cette retouche coûte ${etat.prix}. Confirmez ce prix pour continuer.` };
+    if (typeof accord === "number" && accord < etat.centimes) return { statut: "accord-requis", centimes: etat.centimes, phrase: `Cette retouche est payante. Confirmez pour continuer.` };
     // Les opérations relues une dernière fois : seule la liste fermée part.
     const operations = g.operations.map(lireOperationRetoucheCasConcret).filter((o): o is OperationRetoucheCasConcret => !!o);
     await preparerReglagesMoteur(version.commande);

@@ -28,8 +28,18 @@ import { chiffresDuTexte } from "./regles";
 
 /** Seuils de l'écoute (plan § 7, Q18-Q19). */
 export const SEUILS_ECOUTE_IV = Object.freeze({
-  /** Part des mots du script retrouvés dans l'ordre. */
+  /**
+   * Seuil de REMARQUE : en dessous, la part des mots entendus est signalée en orange (contrôle indicatif, la vidéo continue).
+   * Entre le plancher et ce seuil, c'est du bruit de transcription ou une prononciation : jamais un motif de refus.
+   */
   retrouvesMin: 0.97,
+  /**
+   * PLANCHER BLOQUANT : en dessous (la voix manque vraiment, des phrases entières sont absentes), la vidéo est inutilisable
+   * et reste refusée. Règle de Will : un défaut de détail signale, il ne bloque pas.
+   */
+  retrouvesPlancher: 0.9,
+  /** VOIX ABSENTE : en dessous de cette part (ou transcription vide), Q18 BLOQUE. Entre ce seuil et le plancher, remarque seulement. */
+  retrouvesAbsente: 0.5,
   /** Mots ajoutés consécutifs tolérés (au-delà : refus). */
   ajoutConsecutifMax: 2,
   /** Un mot transcrit qui commence plus de 0,3 s après la fin de la voix est ignoré (Whisper invente sur les silences). */
@@ -253,6 +263,7 @@ export function cleSonore(texte: string): string {
     .replace(/ph/g, "f")
     .replace(/v/g, "b")
     .replace(/y/g, "i")
+    .replace(/x/g, "")
     .replace(/eau|au/g, "o")
     .replace(/h/g, "")
     .replace(/e/g, "")
@@ -308,14 +319,23 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
     const trou = formes.slice(avant + 1, apres);
     if (trou.length === 0 || suite.length > trou.length + 2) return undefined;
     const entendu = suite.map((k) => entendus[k].mot);
-    if (porteUnChiffre(trou) || porteUnChiffre(formesComparables(entendu.join(" ")))) return undefined;
+    // Un chiffre écrit, ou un trou du script qui porte déjà un nombre, n'est jamais pris pour une substitution sonore. Un MOT de nombre
+    // entendu (« deux vies » pour « devis ») l'est, tant que le passage du script remplacé n'en contient aucun : la transcription a
+    // entendu des sons, pas un chiffre (27/10/2026, vidéo refusée pour « la voix dit 2 »).
+    // Un nombre au MILIEU de la suite entendue (« chat deux bot ») reste refusé ; en tête ou en fin (« deux vies »), c'est un son.
+    const nombreAuMilieu = entendu.slice(1, -1).some((m) => /\d/.test(m) || MOT_DE_NOMBRE.test(cleAccents(m)));
+    if (porteUnChiffre(trou) || nombreAuMilieu || entendu.some((m) => /\d/.test(m))) return undefined;
     const cleScript = cleSonore(trou.join(""));
-    if (cleScript.length < CLE_SONORE_MIN) return undefined;
+    // Un mot de nombre entendu pour un mot court du script (« deux vies » / « devis ») : clé de 4 lettres acceptée.
+    if (cleScript.length < (entendu.some((m) => MOT_DE_NOMBRE.test(cleAccents(m))) ? CLE_SONORE_MIN - 1 : CLE_SONORE_MIN)) return undefined;
     return ecartNormalise(cleScript, cleSonore(entendu.join(""))) <= ECART_SONORE_MAX ? trou.join(" ") : undefined;
   };
+  /** Mots entendus (dont des mots de nombre) qui remplacent à l'oreille un passage du script sans nombre : jamais un chiffre inventé. */
+  const remplaces = new Set<number>();
   const fermer = () => {
     if (courant.length) {
       const remplace = remplacement(courant);
+      if (remplace) courant.forEach((k) => remplaces.add(k));
       ajouts.push({ texte: courant.map((k) => entendus[k].mot).join(" "), mots: courant.length, debutSec: entendus[courant[0]].debutSec, ...(remplace ? { remplace } : {}) });
     }
     courant = [];
@@ -337,7 +357,28 @@ export function comparerAuScript(script: string, entendus: readonly MotHorodate[
 
   // Chiffres : valeur ET unité, lus de la même façon des deux côtés.
   const attendus = clesChiffresDits(script);
-  const entendusCles = clesChiffresDits(entendus.map((m) => m.mot).join(" "));
+  // La voix écrit « un » / « une » / « premier » en « 1 » / « 1er » : ce « 1 » n'est pas inventé, mais seulement s'il est apparié, à sa
+  // place, à un de ces mots du script. Un « 1 » seul, ou suivi d'une unité, de mille/million/milliard, ou « 11 », « 21 » reste contrôlé.
+  const uneEnUn = (f: string) => (f === "une" ? "un" : f);
+  const pairesUn = apparier(formes.map(uneEnUn), dits.map((d) => ({ ...d, forme: uneEnUn(d.forme) })));
+  const exemptes = new Set<number>();
+  formes.forEach((f, i) => {
+    if (!/^(?:un|une|premier|premiere|première)$/.test(f) || pairesUn[i] < 0 || attendus.includes("1|nombre")) return;
+    const k = dits[pairesUn[i]].mot;
+    if (exemptes.has(k) || /^(?:mille|milliers?|millions?|milliards?|dizaines?|douzaines?|centaines?|k|m|md|mds|k€|m€|md€)$/.test(cleAccents(entendus[k + 1]?.mot.replace(/[^\p{L}€]/gu, "") ?? ""))) return;
+    const reste = entendus.filter((_, n) => !exemptes.has(n) && n !== k).map((m) => m.mot).join(" ");
+    const avec = entendus.filter((_, n) => !exemptes.has(n)).map((m) => m.mot).join(" ");
+    // Le mot retiré ne doit valoir que « 1 » nombre : toute autre valeur ou unité (1 %, 1 heure, 1 million, 21) change les clés autrement.
+    const clesAvec = clesChiffresDits(avec);
+    const clesReste = clesChiffresDits(reste);
+    const retire = [...clesAvec];
+    for (const c of clesReste) {
+      const x = retire.indexOf(c);
+      if (x >= 0) retire.splice(x, 1);
+    }
+    if (retire.length === 1 && retire[0] === "1|nombre") exemptes.add(k);
+  });
+  const entendusCles = clesChiffresDits(entendus.filter((_, k) => !exemptes.has(k) && !remplaces.has(k)).map((m) => m.mot).join(" "));
   const chiffresNonEntendus = [...new Set(attendus.filter((c) => !entendusCles.includes(c)))].map(lisible);
   const chiffresInventes = [...new Set(entendusCles.filter((c) => !attendus.includes(c)))].map(lisible);
 
@@ -405,6 +446,29 @@ export interface OutilsEcouteIV {
   lireSon: (cle: string) => Promise<Uint8Array | null>;
   transcrire: (demande: DemandeTranscriptionIV) => Promise<{ mots: MotHorodate[] }>;
   budget: BudgetControlesIV;
+  /** Pause entre deux relectures de la piste voix seule (Q17), en millisecondes (150 par défaut ; 0 dans les tests). */
+  pauseRelectureMs?: number;
+}
+
+/** Relectures gratuites de la piste voix seule avant de conclure qu'elle est introuvable ou illisible (Q17). */
+const RELECTURES_PISTE_IV = 3;
+/** Énergie (RMS) moyenne, sur les mots horodatés, au-dessous de laquelle la piste est tenue pour muette (environ -46 dBFS). */
+const RMS_MIN_MOTS_IV = 0.005;
+
+/** Une attente de fournisseur (transcription lente) : jamais une panne, jamais un 2e travail payé. Même test que `estAttenteIV`. */
+const estAttenteEcoute = (err: unknown) => !!err && typeof err === "object" && ((err as { enCours?: unknown }).enCours === true || ["RenduEnCoursIV", "RenduEnCours"].includes((err as { name?: unknown }).name as string));
+
+/** Énergie RMS moyenne du son sur les mots horodatés (0 si aucun mot ne tombe dans le son). PUR. */
+export function rmsSurLesMotsIV(son: Son, mots: readonly Pick<MotHorodate, "debutSec" | "finSec">[]): number {
+  let somme = 0;
+  let n = 0;
+  for (const m of mots) {
+    const a = Math.max(0, Math.round(m.debutSec * son.frequence));
+    const b = Math.min(son.echantillons.length, Math.round(m.finSec * son.frequence));
+    for (let i = a; i < b; i++) somme += son.echantillons[i] * son.echantillons[i];
+    n += Math.max(0, b - a);
+  }
+  return n ? Math.sqrt(somme / n) : 0;
 }
 
 export const idAppelEcoute = (videoId: string, empreinte: string) => `iv-ecoute-${videoId}-${empreinte}`;
@@ -429,6 +493,8 @@ export interface EcouteVersionIV {
   q17: ConstatControle;
   q18: ConstatControle;
   q19: ConstatControle;
+  /** Remarques d'écoute NON bloquantes (part entre le plancher et le seuil) : orange à la porte, la vidéo continue. */
+  q18Remarques?: string[];
   /** Clés « valeur|unité » des chiffres entendus (pour « dit ET montré »). */
   chiffresEntendus: string[];
   /** Texte entendu utile (pour les interdits et la phrase-choc). */
@@ -438,6 +504,11 @@ export interface EcouteVersionIV {
   /** Transcription brute obtenue (gardée pour une reprise sans repayer). */
   transcription?: MotHorodate[];
   appelPaye: boolean;
+  /**
+   * Vrai : la transcription est restée en panne après une relance, alors que la piste voix seule est lue (Q17 bon), porte des mots
+   * horodatés et contient du son. L'écoute (Q06, Q18) devient une remarque ; une transcription vide, muette ou un refus volontaire n'y sont jamais.
+   */
+  panneTranscription?: true;
 }
 
 export interface EntreeEcouteIV {
@@ -472,7 +543,7 @@ export function finSurLaVoixSeule(son: Son, dernierMotFinSec: number): string[] 
 
 /**
  * Q17 (relu), Q18 et Q19 d'une version. Lit la piste voix seule (WAV, empreinte), la fait transcrire (réservation
- * d'abord), puis compare. Ne lève jamais : toute panne devient un échec motivé.
+ * d'abord), puis compare. Toute panne devient un échec motivé ; seule une ATTENTE (transcription lente) est levée telle quelle.
  */
 export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Promise<EcouteVersionIV> {
   const vide = { chiffresEntendus: [] as string[], texteEntendu: "", appelPaye: false };
@@ -480,11 +551,20 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
   let son: Son | null = null;
   const q17: string[] = [];
   let octets: Uint8Array | null = null;
-  try {
-    octets = await o.lireSon(e.piste.cle);
-  } catch (err) {
-    q17.push(`la piste voix seule n'a pas pu être lue (${(err as Error).message}).`);
+  // Introuvable, illisible ou d'empreinte différente : relue jusqu'à 3 fois, avec un court délai, sans rien payer, avant de conclure.
+  let derniereErreur: Error | null = null;
+  for (let essai = 0; essai <= RELECTURES_PISTE_IV; essai++) {
+    if (essai > 0) await new Promise((r) => setTimeout(r, o.pauseRelectureMs ?? 150));
+    octets = null;
+    derniereErreur = null;
+    try {
+      octets = await o.lireSon(e.piste.cle);
+    } catch (err) {
+      derniereErreur = err as Error;
+    }
+    if (octets && empreinteSon(octets) === e.piste.empreinte) break;
   }
+  if (derniereErreur) q17.push(`la piste voix seule n'a pas pu être lue (${derniereErreur.message}).`);
   if (!octets && !q17.length) q17.push("la piste voix seule est introuvable : l'écoute et la fin ne peuvent pas être contrôlées.");
   if (octets) {
     try {
@@ -514,14 +594,25 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
     if (!e.depenseAutorisee) {
       return { ...vide, q17: constat([]), q18: echec(["écoute non lancée : la vidéo est déjà refusée par un autre contrôle, aucune dépense n'est engagée."], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
     }
-    const appelId = idAppelEcoute(e.videoId, e.piste.empreinte);
-    const r = await o.budget.reserver({ appelId, videoId: e.videoId, etape: ETAPE_ECOUTE, fournisseur: "transcription", coutEstimeUsd: coutTranscriptionUsd(e.piste.dureeSec) }).catch((err: Error) => ({ ok: false as const, message: err.message }));
-    if (!r.ok) return { ...vide, q17: constat([]), q18: echec([`écoute non lancée : la dépense n'a pas pu être réservée (${r.message}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
-    try {
-      appelPaye = true;
-      transcription = (await o.transcrire({ appelId, cle: e.piste.cle, empreinte: e.piste.empreinte, langue: "fr", jusquaSec: +(e.piste.finVoixSec + SEUILS_ECOUTE_IV.margeBorneSec).toFixed(3) })).mots;
-    } catch (err) {
-      return { ...vide, appelPaye, q17: constat([]), q18: echec([`la transcription a échoué (${(err as Error).message}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
+    // Panne de transcription : relancée UNE fois, sous une réservation neuve. Une attente (transcription lente) remonte telle quelle.
+    let derniere = "";
+    for (let essai = 1; essai <= 2 && !transcription; essai++) {
+      const appelId = essai === 1 ? idAppelEcoute(e.videoId, e.piste.empreinte) : `${idAppelEcoute(e.videoId, e.piste.empreinte)}-reprise`;
+      const r = await o.budget.reserver({ appelId, videoId: e.videoId, etape: ETAPE_ECOUTE, fournisseur: "transcription", coutEstimeUsd: coutTranscriptionUsd(e.piste.dureeSec) }).catch((err: Error) => ({ ok: false as const, message: err.message }));
+      // Réservation refusée : jamais une remarque.
+      if (!r.ok) return { ...vide, appelPaye, q17: constat([]), q18: echec([`écoute non lancée : la dépense n'a pas pu être réservée (${r.message}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
+      try {
+        appelPaye = true;
+        transcription = (await o.transcrire({ appelId, cle: e.piste.cle, empreinte: e.piste.empreinte, langue: "fr", jusquaSec: +(e.piste.finVoixSec + SEUILS_ECOUTE_IV.margeBorneSec).toFixed(3) })).mots;
+      } catch (err) {
+        if (estAttenteEcoute(err)) throw err;
+        derniere = (err as Error).message;
+      }
+    }
+    if (!transcription) {
+      // Remarque seulement si la voix existe bel et bien : mots horodatés ET du son sur ces mots. Sinon : blocage comme avant.
+      const panne = e.piste.mots.length > 0 && rmsSurLesMotsIV(son, e.piste.mots) >= RMS_MIN_MOTS_IV;
+      return { ...vide, appelPaye, ...(panne ? { panneTranscription: true as const } : {}), q17: constat([]), q18: echec([`la transcription a échoué (${derniere}).`], true), q19: echec([...q19Final, "la fin n'est pas confirmée sans l'écoute."], true) };
     }
   }
   if (!Array.isArray(transcription) || transcription.length === 0) {
@@ -531,7 +622,11 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
   const utile = transcriptionUtile(transcription, { finVoixSec: e.piste.finVoixSec, script: e.script });
   const c = comparerAuScript(e.script, utile.mots);
   const q18: string[] = [];
-  if (c.part < SEUILS_ECOUTE_IV.retrouvesMin - 1e-9) q18.push(`${Math.round(c.part * 1000) / 10} % des mots du script entendus dans l'ordre (97 % au moins)${c.manques.length ? ` ; manquent notamment : « ${c.manques.slice(0, 3).join(" », « ")} »` : ""}.`);
+  const q18Remarques: string[] = [];
+  const phrasePart = `${Math.round(c.part * 1000) / 10} % des mots du script entendus dans l'ordre${c.manques.length ? ` ; manquent notamment : « ${c.manques.slice(0, 3).join(" », « ")} »` : ""}`;
+  const partAssezBonne = c.part >= SEUILS_ECOUTE_IV.retrouvesPlancher - 1e-9;
+  if (!partAssezBonne) q18.push(`${phrasePart} (${Math.round(SEUILS_ECOUTE_IV.retrouvesPlancher * 100)} % au moins : la voix manque).`);
+  else if (c.part < SEUILS_ECOUTE_IV.retrouvesMin - 1e-9) q18Remarques.push(`${phrasePart} (${Math.round(SEUILS_ECOUTE_IV.retrouvesMin * 100)} % visés ; sans gravité, probablement la transcription).`);
   for (const a of c.ajouts.filter((x) => x.mots > SEUILS_ECOUTE_IV.ajoutConsecutifMax && !x.remplace)) q18.push(`la voix dit « ${a.texte} » (vers ${sec(a.debutSec)}), absent du script.`);
   for (const ch of c.chiffresNonEntendus) q18.push(`le chiffre « ${ch} » du script n'est pas entendu.`);
   for (const ch of c.chiffresInventes) q18.push(`le chiffre « ${ch} » est entendu mais n'est pas dans le script.`);
@@ -547,6 +642,7 @@ export async function ecouterVersionIV(e: EntreeEcouteIV, o: OutilsEcouteIV): Pr
     q17: constat([]),
     q18: constat(q18),
     q19: constat(q19),
+    q18Remarques,
     chiffresEntendus: clesChiffresDits(utile.mots.map((m) => m.mot).join(" ")),
     texteEntendu: utile.mots.map((m) => m.mot).join(" "),
     comparaison: c,

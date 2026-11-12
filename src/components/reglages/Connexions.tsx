@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import type { EtatConnexionsZernio, ServicesZernio } from "@/app/(studio)/reglages/actions-zernio";
 import { definirFournisseurAction, definirJeLisReelAction, definirMontageReelAction, testerConnexionAction } from "@/app/(studio)/reglages/actions";
+import { BandeauChargement, BandeauCleAbsente, BandeauErreur, BandeauVide, CarteBascule, CarteBudget, CarteCompte } from "@/components/reglages/BlocZernio";
+import { ToutArreter } from "@/components/reglages/ToutArreter";
 import { Bouton } from "@/components/ui/Bouton";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
@@ -14,7 +17,6 @@ import { TITRES_SERVICES } from "@/fournisseurs/titres";
 import { cn } from "@/lib/cn";
 import { ilYA } from "@/lib/dates";
 import type { CleService } from "@/services/credits";
-import { formaterMontant } from "@/lib/montants";
 import type { FormatJeLis, FormatMontageReel } from "@/services/reglages";
 
 export interface ConnexionVue {
@@ -171,28 +173,24 @@ export function ChoixService({ connexion, valeur, onChange }: { connexion: Conne
   );
 }
 
-/** Ligne sous l'interrupteur « montage réel » : ce qui empêche de l'allumer, ou son prix. */
+/** Ligne sous l'interrupteur « montage réel » : ce qui empêche de l'allumer, ou son état. */
 export function detailMontageReel(f: FormatMontageReel): string {
   if (!f.possible) return f.raison ?? "Il faut d'abord relier le montage.";
-  const prix = `Environ ${formaterMontant(f.prix.total)} pour une vidéo de ${f.prix.dureeSec} s.`;
-  return f.allume ? `${prix} Prix confirmé à chaque lancement.` : `${prix} Éteint : vos vidéos restent des essais.`;
+  return f.allume ? "Vos vidéos sont montées pour de vrai." : "Éteint : vos vidéos restent des essais.";
 }
 
 /**
  * Lot R8 : « Montage réel des vidéos avocat » (voix, double, montage, réseaux). Proposé seulement quand tout est relié
- * et que le double est prêt ; sinon la ligne dit ce qui manque. Allumer : le prix d'une vidéo de 45 s s'affiche d'abord
- * (feuille à confirmer). Couper : un seul geste, rien n'est perdu (les vidéos repartent en essai).
+ * et que le double est prêt ; sinon la ligne dit ce qui manque. Allumer ou couper : un seul geste, rien n'est perdu (les vidéos repartent en essai).
  */
 export function BlocMontageReel({ formats }: { formats: FormatMontageReel[] }) {
   const router = useRouter();
   const [etats, setEtats] = useState<Record<string, boolean>>({});
-  const [aConfirmer, setAConfirmer] = useState<FormatMontageReel | null>(null);
-  const [enCours, demarrer] = useTransition();
+  const [, demarrer] = useTransition();
   function enregistrer(f: FormatMontageReel, v: boolean) {
     setEtats((x) => ({ ...x, [f.formatId]: v }));
     demarrer(async () => {
       const r = await definirMontageReelAction(f.formatId, v);
-      setAConfirmer(null);
       if (!r.ok) {
         setEtats((x) => ({ ...x, [f.formatId]: !v }));
         notifier.erreur(r.message);
@@ -216,45 +214,12 @@ export function BlocMontageReel({ formats }: { formats: FormatMontageReel[] }) {
                 detail={detailMontageReel({ ...f, allume: coche })}
                 coche={coche}
                 desactive={!f.possible && !coche}
-                onChange={(v) => (v ? setAConfirmer(f) : enregistrer(f, false))}
+                onChange={(v) => enregistrer(f, v)}
               />
             </li>
           );
         })}
       </ul>
-      <FeuilleBas
-        ouverte={!!aConfirmer}
-        onOuverteChange={(o) => !o && setAConfirmer(null)}
-        titre="Monter vos vidéos pour de vrai"
-        description={aConfirmer ? `Prix estimé d'une vidéo de ${aConfirmer.prix.dureeSec} s. Il s'affiche aussi avant chaque lancement.` : undefined}
-        pied={
-          aConfirmer && (
-            <div className="flex flex-col gap-2">
-              <Bouton taille="lg" pleineLargeur icone="clap" chargement={enCours} onClick={() => enregistrer(aConfirmer, true)}>
-                Allumer · environ {formaterMontant(aConfirmer.prix.total, { court: true })} la vidéo
-              </Bouton>
-              <Bouton variante="secondaire" pleineLargeur onClick={() => setAConfirmer(null)}>
-                Rester en essai
-              </Bouton>
-            </div>
-          )
-        }
-      >
-        {aConfirmer && (
-          <>
-            <p className="py-4 text-center font-titre text-[56px] tabular-nums leading-none text-orange-vif">{formaterMontant(aConfirmer.prix.total)}</p>
-            <ul className="flex flex-col gap-1 text-sm">
-              {aConfirmer.prix.lignes.map((l) => (
-                <li key={l.quoi} className="flex justify-between gap-3">
-                  <span className="text-texte-doux">{l.quoi}</span>
-                  <span className="tabular-nums text-texte">{l.montant.centimes ? formaterMontant(l.montant) : "Gratuit"}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-sm text-texte-doux">Vidéo verticale en haute définition. Vous pouvez repasser en essai à tout moment, sans rien perdre.</p>
-          </>
-        )}
-      </FeuilleBas>
     </div>
   );
 }
@@ -459,5 +424,115 @@ function ClesServices({ cles }: { cles: CleService[] }) {
         })}
       </ul>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Écran « Connexions Zernio » (lot Z3-C)                               */
+/* ------------------------------------------------------------------ */
+
+export type VueZernio = { etat: "chargement" } | { etat: "erreur" } | { etat: "vide" | "normal"; donnees: EtatConnexionsZernio };
+
+/**
+ * Les 4 états de l'écran. « Arrêt d'urgence » est rendu dans chacun, y compris sous erreur : il ne dépend pas de Zernio.
+ * Aucun appel réseau ici : tout passe par `services` (faux dans les tests).
+ */
+export function VueConnexionsZernio({ vue, services, arretActif, enCours, onChange, onTester, onReessayer }: {
+  vue: VueZernio;
+  services: ServicesZernio;
+  arretActif: boolean;
+  enCours?: boolean;
+  onChange?: () => void;
+  onTester?: () => void;
+  onReessayer?: () => void;
+}) {
+  const donnees = "donnees" in vue ? vue.donnees : null;
+  return (
+    <div className="flex flex-col gap-4" data-ecran="connexions-zernio" data-etat-ecran={vue.etat}>
+      <header>
+        <h2 className="text-xl text-texte">Vos comptes</h2>
+        <p className="mt-1 text-sm text-texte-doux">Vos 6 comptes, l’outil qui publie et le mode d’envoi, réseau par réseau.</p>
+        <div className="mt-3">
+          <Bouton variante="secondaire" icone="actualiser" chargement={enCours} onClick={onTester}>
+            Tester les 6 comptes
+          </Bouton>
+        </div>
+      </header>
+
+      <ToutArreter services={services} arretActif={donnees?.arretActif ?? arretActif} erreur={vue.etat === "erreur"} onChange={onChange} />
+      <p data-reglage="envoi-calendrier" className="text-sm text-texte-doux">
+        Envoi du calendrier : <strong className="text-texte">{donnees?.envoiCalendrierOuvert === true ? "allumé" : "éteint"}</strong>. Réglage séparé de l’arrêt d’urgence : il ne touche pas aux messages du parcours.
+      </p>
+
+      {vue.etat === "chargement" && <BandeauChargement />}
+      {vue.etat === "erreur" && <BandeauErreur onReessayer={() => onReessayer?.()} enCours={enCours} />}
+      {vue.etat === "vide" && <BandeauVide onRelie={() => onReessayer?.()} enCours={enCours} />}
+      {donnees && vue.etat === "normal" && (
+        <>
+          {donnees.cleAbsente && <BandeauCleAbsente />}
+          <CarteBascule comptes={donnees.comptes} services={services} onChange={onChange} />
+          <ul className="flex flex-col gap-3">
+            {donnees.comptes.map((c) => (
+              <CarteCompte key={c.code} compte={c} services={services} onChange={onChange} />
+            ))}
+          </ul>
+          <CarteBudget budget={donnees.budget} nombreComptes={donnees.comptes.length} />
+        </>
+      )}
+      {vue.etat === "vide" && donnees?.cleAbsente && <BandeauCleAbsente />}
+    </div>
+  );
+}
+
+/** Décide l'état à afficher d'après la réponse du service. Sans compte : vue vide. Échec : erreur. */
+export function vueDepuisReponse(r: Awaited<ReturnType<ServicesZernio["lire"]>>): VueZernio {
+  if (!r.ok) return { etat: "erreur" };
+  return { etat: r.donnees.comptes.length === 0 ? "vide" : "normal", donnees: r.donnees };
+}
+
+/**
+ * Écran branché : lit en base au chargement, relit après chaque geste. « Tester » est le seul geste qui interroge
+ * Zernio (lecture seule). À brancher dans Réglages par Z3-E/NAV : `<ConnexionsZernio services={...actions-zernio} />`.
+ */
+export function ConnexionsZernio({ services, initial }: { services: ServicesZernio; initial?: VueZernio }) {
+  const [vue, setVue] = useState<VueZernio>(initial ?? { etat: "chargement" });
+  const [arret, setArret] = useState(false);
+  const [enCours, demarrer] = useTransition();
+  const recharger = useCallback(async () => {
+    const v = vueDepuisReponse(await services.lire());
+    if ("donnees" in v) setArret(v.donnees.arretActif);
+    setVue(v);
+  }, [services]);
+  useEffect(() => {
+    if (!initial) void recharger();
+  }, [initial, recharger]);
+  // Erreur : nouvel essai seul toutes les 2 minutes.
+  useEffect(() => {
+    if (vue.etat !== "erreur") return;
+    const t = setInterval(() => void recharger(), 120_000);
+    return () => clearInterval(t);
+  }, [vue.etat, recharger]);
+  return (
+    <VueConnexionsZernio
+      vue={vue}
+      services={services}
+      arretActif={arret}
+      enCours={enCours}
+      onChange={() => void recharger()}
+      onReessayer={() => demarrer(recharger)}
+      onTester={() =>
+        demarrer(async () => {
+          const r = await services.tester();
+          if (r.ok) notifier.succes(r.donnees.message);
+          else {
+            // NAV D3 : Zernio ne répond pas → état erreur avec « Réessayer maintenant » (en plus du message passager).
+            notifier.erreur(r.message);
+            setVue({ etat: "erreur" });
+            return;
+          }
+          await recharger();
+        })
+      }
+    />
   );
 }

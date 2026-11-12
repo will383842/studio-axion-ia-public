@@ -42,7 +42,7 @@ function planBulleLienV4(p: ProprietesBulle, image?: number) {
   return {
     boite: { x: 0, y: 0, largeur: boite.largeur, hauteur: h },
     rayon: h / 2,
-    fiche: COULEURS_DUO.blanc,
+    fiche: COULEURS_DUO.carte,
     ombre: c.ombre,
     pastille: {
       x: (30 / 210) * h,

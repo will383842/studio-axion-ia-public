@@ -33,6 +33,10 @@ import type { ChiffreOuverture, DonneesOuverture } from "../../studio-rendu/comp
 import { largeurAnton } from "@/briques/schema-motion/chasse-anton";
 import { disposerPhraseDetail } from "../../studio-rendu/compositions/image-video/variete/fin/fin-d";
 import { ZONES_PHRASE, zonePhrase } from "../../studio-rendu/compositions/image-video/variete/ouverture/phrase-choc";
+import { TAILLES_DUO } from "@/briques/habillage/charte-duo";
+import { BANDE_SOUS_TITRES_IV, DECALAGE_REFERENCE_4X5_PX, MISE_EN_PAGE_IV } from "@/briques/schema-motion/types";
+import { coupePhraseChoc, INTERLIGNE_IV, largeurLignePhraseChoc, MARGE_IV, planPhraseChoc, RESERVE_MARQUE_PHRASE_CHOC, zonePhraseChocIV } from "@/briques/schema-motion/plan-objets";
+import { ecransDuScript } from "@/moteurs/montage-image-video/script-colle";
 import { champsDessinesParLaFin, comptesNonDessines } from "./dessin-du-plan";
 
 const exiger = createRequire(join(process.cwd(), "studio-rendu/package.json"));
@@ -219,4 +223,69 @@ describe("FIN-C · le dessin réel avec les vraies données du moteur (carte C)"
       });
     }
   }
+});
+
+/**
+ * Phrase-choc de la galerie (K19) en 4:5 et en 9:16 : la phrase finale d'un script collé (cabinet de kinésithérapie,
+ * script fictif) tient dans sa zone, au-dessus de la bande des sous-titres, sans ligne plus large que le cadre.
+ */
+describe("phrase-choc de la galerie · zone, sous-titres et largeur", () => {
+  const SCRIPT = "Vous gérez une petite entreprise. Vous perdez du temps sur des tâches répétitives. Le client attend. Vous gagnez du temps. Votre équipe respire. Merci. Vous perdez du temps chaque jour, alors que tout est fait pour vous.";
+  const fin = ecransDuScript(SCRIPT).at(-1)!.join(" ");
+  const mots = fin.split(/\s+/);
+  const CAS = [
+    { nom: "9:16", hauteur: 1920, decalage: 0, bande: BANDE_SOUS_TITRES_IV.haut * 1920 },
+    { nom: "4:5", hauteur: 1350, decalage: DECALAGE_REFERENCE_4X5_PX, bande: MISE_EN_PAGE_IV["4:5"].bandeSousTitres.haut * 1350 },
+  ];
+
+  it("la phrase finale fait 8 mots au plus, coupée à la virgule, tous les mots du script gardés", () => {
+    expect(mots.length).toBeLessThanOrEqual(8);
+    expect(fin).toBe("alors que tout est fait pour vous.");
+    expect(ecransDuScript(SCRIPT).flat().join(" ")).toBe(SCRIPT);
+  });
+
+  for (const c of CAS) {
+    it(`${c.nom} : le bas du texte et de la marque est sous le haut de la bande des sous-titres, chaque ligne tient entre les marges, la marque reste dans la zone`, () => {
+      const zone = zonePhraseChocIV(c.hauteur);
+      const p = planPhraseChoc({ phrase: fin, debut: 0, zone }, 60);
+      expect(p.alertes).toEqual([]);
+      const hauteur = p.lignes.length * p.taille * INTERLIGNE_IV;
+      const haut = (zone.haut + zone.bas - RESERVE_MARQUE_PHRASE_CHOC) / 2 - hauteur / 2;
+      const basMarque = haut + hauteur + 24 + 1.2 * TAILLES_DUO.marque * 1920 * 1.5;
+      expect(haut).toBeGreaterThanOrEqual(zone.haut);
+      expect(basMarque).toBeLessThanOrEqual(zone.bas);
+      expect(basMarque - c.decalage).toBeLessThan(c.bande);
+      for (const l of p.lignes) expect(largeurLignePhraseChoc(l.map((m) => m.mot), p.taille)).toBeLessThanOrEqual(1080 - 2 * MARGE_IV + 1e-6);
+      expect(p.lignes.flat().map((m) => m.mot).join(" ").toUpperCase()).toBe(fin.toUpperCase());
+    });
+  }
+
+  it("la hauteur du texte est bornée par la zone moins 110 px (4:5)", () => {
+    const zone = zonePhraseChocIV(1350);
+    const a = coupePhraseChoc("UN DEUX TROIS QUATRE CINQ SIX SEPT HUIT NEUF DIX ONZE DOUZE TREIZE QUATORZE QUINZE SEIZE".split(" "), zone);
+    expect(a.lignes.length * a.taille * INTERLIGNE_IV).toBeLessThanOrEqual(zone.bas - zone.haut - RESERVE_MARQUE_PHRASE_CHOC + 1e-6);
+  });
+
+  it("une zone étroite {haut: 400, bas: 900} contraint vraiment : texte plus 110 px de marque dans la zone, plus bas que sans zone", () => {
+    const mots16 = "UN DEUX TROIS QUATRE CINQ SIX SEPT HUIT NEUF DIX ONZE DOUZE TREIZE QUATORZE QUINZE SEIZE".split(" ");
+    const etroite = { haut: 400, bas: 900 };
+    const libre = coupePhraseChoc(mots16);
+    const a = coupePhraseChoc(mots16, etroite);
+    const hauteurLibre = libre.lignes.length * libre.taille * INTERLIGNE_IV;
+    expect(hauteurLibre).toBeGreaterThan(etroite.bas - etroite.haut - RESERVE_MARQUE_PHRASE_CHOC);
+    expect(a.lignes.length * a.taille * INTERLIGNE_IV).toBeLessThanOrEqual(etroite.bas - etroite.haut - RESERVE_MARQUE_PHRASE_CHOC + 1e-6);
+    expect(a.taille).toBeLessThan(libre.taille);
+  });
+
+  it("zonePhraseChocIV(1350) reste calculée depuis la mise en page 4:5 : 180 → 1075", () => {
+    const z = zonePhraseChocIV(1350);
+    expect(z.haut).toBeCloseTo(180, 6);
+    expect(z.bas).toBeCloseTo(1075, 6);
+  });
+
+  it("aucun mot : pas d'alerte, pas de ligne", () => {
+    const a = coupePhraseChoc([]);
+    expect(a.alerte).toBeNull();
+    expect(a.lignes).toEqual([]);
+  });
 });

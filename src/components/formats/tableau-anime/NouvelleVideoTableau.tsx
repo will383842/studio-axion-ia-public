@@ -32,7 +32,7 @@ import { RelireScript } from "@/components/script/RelireScript";
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
@@ -45,7 +45,6 @@ import { partiesAccordees, partiesDuScript } from "@/domaine/scripts-tableau";
 import { evaluerQualite } from "@/domaine/qualite-script";
 import { depuisLignesTableau } from "@/domaine/qualite-script/adaptateurs/tableau";
 import { RECETTE_TABLEAU } from "@/domaine/qualite-script/recettes/tableau";
-import { formaterMontant } from "@/lib/montants";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { CorrectionScene, DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
 import { importantsDeLaScene } from "./importants";
@@ -56,7 +55,6 @@ import { FicheScenesTableau } from "./FicheScenes";
 import { SuiviTacheTableau } from "./SuiviTacheTableau";
 import { refusDecoupagePerime } from "./vue";
 
-const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
 /** La saisie de l'écran : les mots de la douleur sont tapés séparés par des virgules (le serveur les remet en liste). */
 type Saisie = Omit<DonneesScriptTableau, "structure" | "finId" | "motsDouleur"> & { structure?: DonneesScriptTableau["structure"]; finId: string; motsDouleur: string };
@@ -370,7 +368,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         <EcrireScriptTableau ecran={ecran} onUtiliser={utiliser} onCorriger={corrigerALaMain} occupe={occupe} />
         {phrase && (
           <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase}
+            {messageSansMontant(phrase)}
           </p>
         )}
       </div>
@@ -435,7 +433,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
               prixCentimes={ecran.coutDecoupageCentimes}
               debit={debitDe(depart.texte)}
               texteLibre
-              libelleLancer={`Découper en scènes (≈ ${euros(ecran.coutDecoupageCentimes)} au plus)`}
+              libelleLancer={"Découper en scènes"}
               iconeLancer="ciseaux"
               bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : null}
               surChangement={suivreTexte}
@@ -450,7 +448,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         {b?.fiche ? (
           !relireTexte && (
             <Bouton icone="ciseaux" chargement={enCours && !corriger} disabled={occupe} onClick={decouperANouveauOuRelire} pleineLargeur>
-              Découper à nouveau (≈ {euros(ecran.coutDecoupageCentimes)} au plus)
+              Découper à nouveau
             </Bouton>
           )
         ) : (
@@ -463,7 +461,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         <p className="text-sm text-texte-doux">Durée du découpage : {DUREE_DECOUPAGE_TEXTE}.</p>
         {refusSujet && refusSujet.cle === cleSaisie(saisie) && (
           <section aria-label="Sujet déjà traité" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : refusSujet.refus.phrase}</p>
+            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : messageSansMontant(refusSujet.refus.phrase)}</p>
             <ul className="space-y-1 text-sm">
               {refusSujet.refus.precedents.slice(0, 5).map((p) => (
                 <li key={p.videoId ?? p.sujetId ?? p.lien}>
@@ -498,11 +496,11 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         )}
         {(phrase || refus) && (
           <div role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase && <p>{phrase}</p>}
+            {phrase && <p>{messageSansMontant(phrase)}</p>}
             {refus && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-texte-doux">
                 {refus.slice(0, 6).map((x, i) => (
-                  <li key={i}>{x}</li>
+                  <li key={i}>{messageSansMontant(x)}</li>
                 ))}
               </ul>
             )}
@@ -620,7 +618,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
             prixCentimes={b.voix === "reutilisee" ? 0 : b.coutVoixCentimes}
             prixDejaPaye={b.voix === "reutilisee"}
             debit={debitDe(b.donnees.texte)}
-            libelleLancer={b.voix === "reutilisee" ? "Fabriquer la vidéo (voix déjà payée)" : `Fabriquer la vidéo (≈ ${euros(b.coutVoixCentimes)})`}
+            libelleLancer={b.voix === "reutilisee" ? "Fabriquer la vidéo (voix déjà faite)" : "Fabriquer la vidéo"}
             bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : !dejaVu ? RAISON_CASE_DEJA_VU : b.raisonFabriquerCase ? null : b.raisonFabriquer}
           />
         </section>

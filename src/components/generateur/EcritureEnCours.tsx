@@ -138,7 +138,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
       </span>
       <h2 className="text-2xl text-texte">{attend ? etat.libelle : etat.statut === "echec" ? "Écriture arrêtée" : "En attente"}</h2>
       {etat.message && <p className="mt-2 text-[15px] text-texte-doux">{etat.message}</p>}
-      {(etat.statut === "en-attente-credit" || etat.statut === "plafond-atteint") && etat.reprise && !etat.reprise.possible && (
+      {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise && !etat.reprise.possible && (
         <>
           <p className="mt-2 text-sm text-texte-faible">{etat.reprise.raison}</p>
           <Bouton className="mt-4" pleineLargeur icone="repeter" disabled>
@@ -146,7 +146,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
           </Bouton>
         </>
       )}
-      {(etat.statut === "en-attente-credit" || etat.statut === "plafond-atteint") && etat.reprise?.possible && (
+      {(etat.statut === "en-attente-credit" || etat.statut?.endsWith("-atteint")) && etat.reprise?.possible && (
         <Bouton
           className="mt-4"
           pleineLargeur
@@ -165,7 +165,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
             })
           }
         >
-          {etat.reprise.centimes > 0 ? `Reprendre (≈ ${etat.reprise.prix})` : "Reprendre"}
+          Reprendre
         </Bouton>
       )}
       {etat.statut === "echec" && (
@@ -189,16 +189,12 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
               })
             }
           >
-            {etat.supplement ? `Reprendre l'écriture (jusqu'à ${etat.supplement} de plus)` : "Reprendre l'écriture"}
+            Reprendre l'écriture
           </Bouton>
         </>
       )}
       <BarreProgression className="mt-5" valeur={Math.round((fait / etapes.length) * 100)} libelle="Avancement de l'écriture" />
       <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs font-bold">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-texte-doux">
-          <Icone nom="euro" size={12} />
-          {etat.utiliseEur} utilisés
-        </span>
         {etat.medianeMin !== null && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-texte-doux">
             <Icone nom="horloge" size={12} />
