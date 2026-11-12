@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
-import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
+import { ADRESSE_FICTIVE, COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, deposerMessage, evenement, fauxPort, fauxSite, silencerConsole, validerFormulationsAuParcours, validerGuideAuParcours } from "./aides/conversation";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -21,7 +21,9 @@ const Opp = await import("@/services/oppositions-mots");
 const H = 3600_000;
 const HEURE = Math.floor(T0 / H) * H;
 const PARAM_COMPTEURS = "parcours.conversations.compteurs";
-const PARAM_VALIDATION = "parcours.validation.adresse_refusee";
+const PARAM_VALIDATION = "parcours.validation.formulations"; // une formulation = un geste (écran /mots)
+const VERSION = "mp-adresse-refusee-v3-1";
+const PARAM_ANCIEN = "parcours.validation.adresse_refusee"; // ancien geste unique, gardé (aucune donnée supprimée), plus lu par l'envoi
 const empreinteTexte = () => { const b = TEXTES_MP["mp-adresse-refusee-v2"]; return createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex"); };
 const A = "auteur-fictif-400";
 let port: ReturnType<typeof fauxPort>;
@@ -49,7 +51,7 @@ beforeEach(async () => {
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
-  await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: empreinteTexte() });
+  await validerFormulationsAuParcours([VERSION]);
   await deposerCommentaire(depots, {});
   await passer();
 });
@@ -60,16 +62,16 @@ afterEach(() => {
 
 describe("texte du message « adresse refusée »", () => {
   it("nouvelle clé v2 du dictionnaire validé (donc acceptée par le vrai constructeur d'envoi), vouvoiement, sans STOP, sans prix, sans « autres informations »", () => {
-    const b = TEXTES_MP["mp-adresse-refusee-v2"];
-    expect(b.version).toBe("mp-adresse-refusee-v2");
-    expect(Object.keys(TEXTES_MP)).toContain("mp-adresse-refusee-v2");
-    expect(b.texte).toBe("Message automatique envoyé par Axion IA. Nous n'avons pas pu enregistrer cette adresse e-mail : le guide ne peut pas vous être envoyé par ce moyen.");
-    expect(b.texte.startsWith("Message automatique envoyé par Axion IA. ")).toBe(true);
+    const b = TEXTES_MP["mp-adresse-refusee-v3-1"];
+    expect(b.version).toBe("mp-adresse-refusee-v3-1");
+    expect(Object.keys(TEXTES_MP)).toContain("mp-adresse-refusee-v2"); // ancien texte gardé comme preuve, statut « retire »
+    expect(b.texte).toBe("Désolé, je n'ai pas réussi à enregistrer cette adresse e-mail. Je ne peux donc pas vous envoyer le guide par ce moyen.");
+    expect(b.texte).not.toMatch(/^Message automatique/);
     expect(b.texte).toMatch(/\bvotre\b|\bvous\b/i);
     expect(b.texte).not.toMatch(/\bstop\b|autres? informations|€|\beuros?\b|\bprix\b|\btarifs?\b|\b(tu|ton|ta|tes|toi)\b|\bordre de\b|aucun gain/i);
     expect(b.texte).not.toMatch(/\bici\b|renvoy|à nouveau|écrivez|répond/i); // aucune invitation à répondre ni à renvoyer
     expect(b.texte.toLowerCase()).not.toContain(["gren", "oble"].join(""));
-    expect(b.texte.split(/[.?!]\s/).length).toBeLessThanOrEqual(4); // une ou deux phrases après la mention
+    expect(b.texte.split(/[.?!]\s/).length).toBeLessThanOrEqual(4); // deux phrases
     expect(rendreTexteMp("mp-m2-v1", {})).toBe(TEXTES_MP["mp-m2-v1"].texte); // textes validés inchangés
   });
 });
@@ -82,10 +84,10 @@ describe("garde de validation du texte", () => {
     const id = await ecrireAdresse("msg-v1");
     expect(port.envoyes).toHaveLength(0);
     expect(JSON.stringify(await Com.lireParametre(PARAM_COMPTEURS, {}))).toBe(avant);
-    const non = (await depots().evenements.lister((e: any) => /n'est pas validé dans Mots/.test(e.message))).length;
+    const non = (await depots().evenements.lister((e: any) => /n.est validée dans Mots/.test(e.message))).length;
     expect(non).toBe(1);
     // Alerte « adresse_refusee_non_validee » : cloche seulement (aucune file d'envoi push/e-mail), jamais de texte ni d'adresse.
-    const notifs = await depots().notifications.lister((n: any) => /pas validé dans Mots/.test(n.message));
+    const notifs = await depots().notifications.lister((n: any) => /n.est validée dans Mots/.test(n.message));
     expect(notifs).toHaveLength(1);
     expect(notifs[0].envoi).toBeUndefined();
     const etat = await etatDe();
@@ -95,7 +97,7 @@ describe("garde de validation du texte", () => {
   });
 
   it("empreinte différente : 0 envoi", async () => {
-    await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: "0".repeat(64) });
+    await Com.ecrireParametre(PARAM_VALIDATION, { [VERSION]: { empreinte: "0".repeat(64) } });
     site.reponses = refuse;
     await ecrireAdresse("msg-v2");
     expect(port.envoyes).toHaveLength(0);
@@ -106,11 +108,11 @@ describe("garde de validation du texte", () => {
     site.reponses = refuse;
     await ecrireAdresse("msg-v3");
     expect(port.envoyes).toHaveLength(1);
-    expect(port.envoyes[0].texte).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect(port.envoyes[0].texte).toBe(TEXTES_MP[VERSION].texte);
   });
 
   it("la validation d'un AUTRE texte (guide du parcours) ne vaut pas validation de celui-ci", async () => {
-    await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: createHash("sha256").update(TEXTES_MP["mp-adresse-refusee-v2"].texte).digest("hex") }); // sans la version : autre empreinte
+    await Com.ecrireParametre(PARAM_VALIDATION, { [VERSION]: { empreinte: createHash("sha256").update(TEXTES_MP[VERSION].texte).digest("hex") } }); // sans la version : autre empreinte
     site.reponses = refuse;
     await ecrireAdresse("msg-v4");
     expect(port.envoyes).toHaveLength(0);
@@ -122,7 +124,7 @@ describe("garde de validation du texte", () => {
     await ecrireAdresse("msg-v5");
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, Object.fromEntries(Object.entries(await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {})).map(([k, v]) => [k, { ...v, etat: "attente_email" }])));
     await ecrireAdresse("msg-v6", T0 + 2000);
-    expect((await depots().notifications.lister((n: any) => /pas validé dans Mots/.test(n.message))).length).toBe(1);
+    expect((await depots().notifications.lister((n: any) => /n.est validée dans Mots/.test(n.message))).length).toBe(1);
   });
 });
 
@@ -137,8 +139,8 @@ describe("VRAI constructeur de corps d'envoi (zernio-inbox-corps), sans faux ser
 
   it("le texte est dans le dictionnaire validé v2 (côté privé, pas public)", async () => {
     const { texteDuDictionnaire } = await import("@/fournisseurs/publication/zernio-inbox-corps");
-    expect(texteDuDictionnaire(TEXTES_MP["mp-adresse-refusee-v2"].texte, false)).toBe(true);
-    expect(texteDuDictionnaire(TEXTES_MP["mp-adresse-refusee-v2"].texte, true)).toBe(false);
+    expect(texteDuDictionnaire(TEXTES_MP[VERSION].texte, false)).toBe(true);
+    expect(texteDuDictionnaire(TEXTES_MP[VERSION].texte, true)).toBe(false);
   });
 
   it("texte validé : le corps est ACCEPTÉ par le vrai constructeur et part une seule fois", async () => {
@@ -150,7 +152,7 @@ describe("VRAI constructeur de corps d'envoi (zernio-inbox-corps), sans faux ser
     const envois = p.faux.appels.filter((a) => a.methode === "POST");
     expect(envois).toHaveLength(1);
     expect(envois[0].url).toContain("/messages");
-    expect((envois[0].json as { message: string }).message).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect((envois[0].json as { message: string }).message).toBe(TEXTES_MP[VERSION].texte);
     expect(envois[0].corps).not.toContain(ADRESSE_FICTIVE);
     expect(await etatDe()).toMatchObject({ etat: "site_refuse", adresseRefuseeEnvoyee: true });
   });
@@ -163,13 +165,13 @@ describe("VRAI constructeur de corps d'envoi (zernio-inbox-corps), sans faux ser
     await deposerMessage(depots, { idMessage: "msg-r2" });
     await passerReel(p);
     expect(p.faux.appels.filter((a) => a.methode === "POST")).toHaveLength(0);
-    expect((await depots().notifications.lister((n: any) => /pas validé dans Mots/.test(n.message))).length).toBe(1);
+    expect((await depots().notifications.lister((n: any) => /n.est validée dans Mots/.test(n.message))).length).toBe(1);
   });
 
   it("un texte hors dictionnaire est refusé par le vrai constructeur (preuve que le test peut rougir)", async () => {
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
     const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
-    const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: "Message automatique envoyé par Axion IA. Texte inconnu.", cle: "k" });
+    const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: "Bonjour, texte inconnu du dictionnaire.", cle: "k" });
     expect(res.statut).toBe("refuse");
     expect(faux.appels).toHaveLength(0);
   });
@@ -180,7 +182,7 @@ describe("422 du site : un seul message", () => {
     site.reponses = refuse;
     const id = await ecrireAdresse("msg-a1");
     expect(port.envoyes).toHaveLength(1);
-    expect(port.envoyes[0].texte).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect(port.envoyes[0].texte).toBe(TEXTES_MP[VERSION].texte);
     expect(port.envoyes[0].texte).not.toContain(ADRESSE_FICTIVE);
     expect(await etatDe()).toMatchObject({ etat: "site_refuse", dernierCode: "422" });
     expect((await evenement(depots, id)).traite).toBe(true);
@@ -302,31 +304,28 @@ describe("confidentialité", () => {
 
 describe("RELECTURE-OPUS · défaut 2 : le geste de validation /mots écrit la bonne empreinte", () => {
   it("sans confirmation de l'opérateur : refus, rien d'écrit", async () => {
-    await Com.ecrireParametre(PARAM_VALIDATION, null);
+    await Com.ecrireParametre(PARAM_ANCIEN, null);
     const r = await MS.validerAdresseRefusee({ confirmeParOperateur: false });
     expect(r.ok).toBe(false);
-    expect(await Com.lireParametre(PARAM_VALIDATION, null)).toBeNull();
+    expect(await Com.lireParametre(PARAM_ANCIEN, null)).toBeNull();
   });
 
-  it("le geste (session exigée) écrit sha256(version + \\n + texte), journalise sans le texte, est idempotent", async () => {
-    await Com.ecrireParametre(PARAM_VALIDATION, null);
+  it("le geste (session exigée) refuse : l'ancien texte est retiré, rien n'est écrit ni journalisé", async () => {
+    await Com.ecrireParametre(PARAM_ANCIEN, null);
     const gestes = await import("@/services/mots-gestes");
     const auth = await import("@/services/auth");
+    const avant = (await depots().evenements.lister(() => true)).length;
     const r = await gestes.gesteValiderAdresseRefusee();
     expect(auth.exigerSession).toHaveBeenCalled();
-    expect(r).toMatchObject({ ok: true });
-    expect(await Com.lireParametre<any>(PARAM_VALIDATION, null)).toMatchObject({ empreinte: empreinteTexte() });
-    const avant = (await depots().evenements.lister(() => true)).length;
-    await gestes.gesteValiderAdresseRefusee();
-    expect((await depots().evenements.lister(() => true)).length).toBe(avant); // déjà validé : rien de nouveau
-    const journal = JSON.stringify(await depots().evenements.lister(() => true));
-    expect(journal).not.toContain(TEXTES_MP["mp-adresse-refusee-v2"].texte);
-    expect(journal).toMatch(/adresse refusée/);
+    expect(r).toMatchObject({ ok: false, raison: "texte_retire" });
+    expect(await Com.lireParametre(PARAM_ANCIEN, null)).toBeNull();
+    expect((await depots().evenements.lister(() => true)).length).toBe(avant);
   });
 
-  it("validé par le geste (pas par une écriture directe) + 422 : le VRAI constructeur envoie UN message", async () => {
+  it("validé par le geste de formulation (pas par une écriture directe) + 422 : le VRAI constructeur envoie UN message ; l'ancien geste ne suffit plus", async () => {
     await Com.ecrireParametre(PARAM_VALIDATION, null);
-    expect((await MS.validerAdresseRefusee({ confirmeParOperateur: true })).ok).toBe(true);
+    expect((await MS.validerAdresseRefusee({ confirmeParOperateur: true })).ok).toBe(false); // ancien geste : texte retiré, n'autorise plus rien
+    expect((await MS.validerFormulation({ version: VERSION, confirmeParOperateur: true })).ok).toBe(true);
     site.reponses = refuse;
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "msg-sortant-2" } }));
     const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE] });
@@ -335,7 +334,7 @@ describe("RELECTURE-OPUS · défaut 2 : le geste de validation /mots écrit la b
     await C.traiterConversations({ port: { ...port.port, envoyerMessage: reel.envoyerMessage }, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: T0 + 1000 });
     const envois = faux.appels.filter((a) => a.methode === "POST");
     expect(envois).toHaveLength(1);
-    expect((envois[0].json as { message: string }).message).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect((envois[0].json as { message: string }).message).toBe(TEXTES_MP[VERSION].texte);
   });
 });
 
@@ -361,6 +360,6 @@ describe("RELECTURE-OPUS · défaut 4 : après un doute d'opposition (règle act
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...tout, [k]: { ...tout[k], douteOpposition: true } });
     await ecrireAdresse("msg-d1");
     expect(port.envoyes).toHaveLength(1);
-    expect(port.envoyes[0].texte).toBe(TEXTES_MP["mp-adresse-refusee-v2"].texte);
+    expect(port.envoyes[0].texte).toBe(TEXTES_MP[VERSION].texte);
   });
 });
