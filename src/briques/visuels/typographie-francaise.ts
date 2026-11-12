@@ -25,13 +25,18 @@ export function typographieFrancaise(texte: string): string {
       .replace(new RegExp(`(?<=\\S)${ESPACES}»`, "gu"), `${ESPACE_INSECABLE}»`)
   );
 }
+/** Pour les visuels (Manrope n'a pas U+202F) : la fine devient l'insécable U+00A0, présente dans Manrope. */
+export function pourManrope(texte: string): string {
+  return typographieFrancaise(texte).replaceAll(ESPACE_FINE, ESPACE_INSECABLE);
+}
+
 /** Champs d'une page qui sont des identifiants (énumérations du schéma), jamais du texte affiché. */
 const IDENTIFIANTS = new Set(["type", "deco", "mini", "icone"]);
 
 /** Copie de `valeur` (page de carrousel) dont toutes les chaînes de texte passent par `typographieFrancaise`. */
 export function espacerPage<T>(valeur: T): T {
   const traiter = (v: unknown, cle?: string): unknown => {
-    if (typeof v === "string") return cle && IDENTIFIANTS.has(cle) ? v : typographieFrancaise(v);
+    if (typeof v === "string") return cle && IDENTIFIANTS.has(cle) ? v : pourManrope(v);
     if (Array.isArray(v)) return v.map((x) => traiter(x));
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, traiter(x, k)]));
     return v;

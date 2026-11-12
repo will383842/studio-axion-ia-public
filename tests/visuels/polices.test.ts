@@ -68,10 +68,17 @@ describe("polices des carrousels (M1-02, passées à Manrope par L2-02)", () => 
     for (const c of "ÉÀÇŒœ’«»") expect(codes.has(c.codePointAt(0)!), c).toBe(true);
   });
 
-  it("espaces insécables : l'insécable (U+00A0) est dans Manrope ; aucune face de repli ni unicodeRange n'est déclarée (la fine U+202F n'y est pas : voir le journal de L2-02)", () => {
-    expect(codesCmap(readFileSync(new URL("Manrope-Variable.ttf", DOSSIER_POLICES))).has(0xa0)).toBe(true);
+  it("tout signe produit par espacerPage existe dans la cmap de Manrope (sinon le navigateur prend une police de secours)", async () => {
+    const { espacerPage } = await import("../../src/briques/visuels/typographie-francaise");
+    const cmap = codesCmap(readFileSync(new URL("Manrope-Variable.ttf", DOSSIER_POLICES)));
+    expect(cmap.has(0xa0)).toBe(true);
+    const sortie = espacerPage({ titre: "Et si on essayait ? Oui ! Voyons ; « ok » : fin 9:30 l'IA" });
+    for (const c of JSON.stringify(sortie)) {
+      const code = c.codePointAt(0)!;
+      if (code > 0x7f) expect(cmap.has(code), `U+${code.toString(16).toUpperCase()}`).toBe(true);
+    }
+    expect(JSON.stringify(sortie)).not.toContain("\u202f");
     expect(readFileSync(SOURCE, "utf8")).not.toMatch(/unicodeRange|PLAGE_ESPACE_FINE/);
-    expect(readFileSync(SOURCE_MANROPE, "utf8")).not.toMatch(/unicodeRange/);
   });
 
   it("l'attente est exposée, une erreur de chargement fait échouer le rendu, et les bornes de 5 s ont disparu", () => {

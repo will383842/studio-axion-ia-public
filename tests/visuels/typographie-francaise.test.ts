@@ -72,7 +72,7 @@ describe("typographieFrancaise", () => {
 describe("espacerPage", () => {
   it("traite toutes les chaînes d'une page (objets et listes imbriqués) sauf les identifiants", () => {
     const page = { type: "T23", titre: "Prêt ?", questions: [{ question: "Qui ?", aide: "Vous : oui", icone: "question" }], annotation: "« oui »" };
-    expect(espacerPage(page)).toEqual({ type: "T23", titre: `Prêt${FINE}?`, questions: [{ question: `Qui${FINE}?`, aide: `Vous${INSECABLE}: oui`, icone: "question" }], annotation: `«${INSECABLE}oui${INSECABLE}»` });
+    expect(espacerPage(page)).toEqual({ type: "T23", titre: `Prêt${INSECABLE}?`, questions: [{ question: `Qui${INSECABLE}?`, aide: `Vous${INSECABLE}: oui`, icone: "question" }], annotation: `«${INSECABLE}oui${INSECABLE}»` });
   });
 
   it("la composition l'applique à chaque page du spec, avant le dessin", () => {
