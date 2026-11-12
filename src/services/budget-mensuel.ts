@@ -19,7 +19,7 @@ import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } 
 import { creerNotification } from "./notifications";
 import { budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
 import { centimesDuPlafond } from "@/lib/montants";
-import { CLE_QUOTAS_USINE, type QuotaUsine } from "./plafond-fournisseur";
+import { avecOrigineFournisseur, CLE_QUOTAS_USINE, lireQuotasUsine, QUOTAS_PAR_DEFAUT, reserverQuota, type QuotaUsine } from "./plafond-fournisseur";
 
 const CLE_PLAFOND = "budget.mensuel";
 const cleBudgetUsine = (mois: string) => `budget.usine.${mois}`;
@@ -152,10 +152,12 @@ export async function verifierPlafondCommande(plafondCents: unknown): Promise<nu
 /** D'où vient le lancement : Will dans le studio (par défaut, inchangé) ou une commande de l'Usine. */
 export type OrigineLancement = "studio" | "usine";
 
-type MotifRefus = "plafond" | "usine-atteint" | "usine-absent";
+type MotifRefus = "plafond" | "usine-atteint" | "usine-absent" | "usine-sans-borne" | "usine-quota";
 const ALERTES: Record<MotifRefus, { titre: string; message: string }> = {
   plafond: { titre: "Fabrication refusée : plafond du mois atteint", message: "Rien n'est parti. Réglages > Budget pour relever le plafond." },
   "usine-atteint": { titre: "Commande de l'Usine refusée : budget du mois atteint", message: "Rien n'est parti. Le budget se règle dans l'Usine, sous le plafond du studio." },
+  "usine-sans-borne": { titre: "Commande de l'Usine refusée : aucune limite ne s'applique", message: "Rien n'est parti. Réglez une limite dans l'Usine, ou un plafond du mois dans Réglages > Budget." },
+  "usine-quota": { titre: "Commande de l'Usine refusée : limite de quantité atteinte", message: "Rien n'est parti. La limite se règle dans l'Usine ; vos essais à la main ne sont pas concernés." },
   "usine-absent": { titre: "Commande de l'Usine refusée : aucun budget reçu pour ce mois", message: "Rien n'est parti. Réglez le budget du mois dans l'Usine." },
 };
 
@@ -210,9 +212,13 @@ async function alerterUneFoisParJour(motif: string, texte: { titre: string; mess
 /**
  * Contrôle du mois, appelé SOUS le verrou des crédits avant toute réservation. `besoinCentimes` est arrondi au centime
  * supérieur (pire cas). `travailId` : un travail qui reprend ne compte pas deux fois son propre engagement.
- * Codes : `BUDGET_ILLISIBLE`, `BUDGET_DEPASSE` (plafond du studio), `BUDGET_USINE_ABSENT`, `BUDGET_MENSUEL_ATTEINT`.
+ * Codes : `BUDGET_ILLISIBLE`, `BUDGET_DEPASSE` (plafond du studio), `BUDGET_USINE_ABSENT`, `BUDGET_MENSUEL_ATTEINT`,
+ * `BUDGET_USINE_SANS_BORNE` et `QUOTA_USINE_ATTEINT` (sans montant).
+ * Commande de l'Usine : REFUSÉE dès qu'il manque une borne (jamais « passe ») : un montant reçu de l'Usine, un plafond du
+ * studio, ou un quota réellement appliqué (couple réseau/type gardé sur le chemin de fabrication) la borne. `reseau` et `type`
+ * (facultatifs) désignent le couple de la commande : un quota qui le couvre est appliqué ici (une unité par travail).
  */
-export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id } = {}): Promise<void> {
+export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id; reseau?: string; type?: string } = {}): Promise<void> {
   // Mode indicatif (commande de Will seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
   const indicatif = await budgetIndicatifPour(options.origine);
   let plafond: number | null;
@@ -246,5 +252,22 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
   if (usine.budget_mensuel_cents !== null && utilise + besoin > usine.budget_mensuel_cents) {
     await alerterRefus("usine-atteint");
     throw new ErreurStudio("BUDGET_MENSUEL_ATTEINT", "Le budget du mois réglé dans l'Usine serait dépassé : rien ne part.");
+  }
+  const { reseau, type } = options;
+  const couple = reseau !== undefined && type !== undefined;
+  const quotas = await lireQuotasUsine();
+  const couvert = (r: string, t: string) => quotas.some((q) => q.reseau === r && q.type === t);
+  // Un quota ne borne que s'il est réellement appliqué : couple de la commande connu et couvert, sinon couples gardés par le fournisseur d'images.
+  const borne = usine.budget_mensuel_cents !== null || plafond !== null || (couple ? couvert(reseau, type) : QUOTAS_PAR_DEFAUT.some((d) => couvert(d.reseau, d.type)));
+  if (!borne) {
+    await alerterRefus("usine-sans-borne");
+    throw new ErreurStudio("BUDGET_USINE_SANS_BORNE", "Aucune limite ne s'applique à cette commande de l'Usine : rien ne part.");
+  }
+  if (couple && options.travailId !== undefined && couvert(reseau, type)) {
+    const r = await avecOrigineFournisseur("usine", () => reserverQuota(reseau, type, `budget:${options.travailId}`));
+    if (r === null) {
+      await alerterRefus("usine-quota");
+      throw new ErreurStudio("QUOTA_USINE_ATTEINT", "La limite de quantité réglée dans l'Usine est atteinte : rien ne part.");
+    }
   }
 }
