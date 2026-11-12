@@ -28,6 +28,7 @@ import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import { dispositionQuiTient, GROUPEMENT_FACECAM, SOUS_TITRES_FACECAM, textesAffichesDesCartes } from "@/briques/habillage-facecam";
 import { calerCarteTous, miseEnPage, preparerCarteTous } from "@/briques/motion";
 import { grouperMots, recalerSurCoupes } from "@/briques/sous-titres/groupement";
+import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { recollerElisionsHorodatees } from "@/briques/sous-titres/recollage";
 import type { PisteVisage, PlanCamera } from "@/briques/realisation";
 import {
@@ -649,7 +650,8 @@ export function habillageFacecamRatio(e: EntreeHabillageFacecam & { plansFormat?
     else if ("sourceY" in placement) ecransPartages.push({ debutSec: c.debutSec, finSec: fin, carteCle: cle, sourceY: placement.sourceY, ligne });
   }
   const groupes = grouperMots(recollerElisionsHorodatees(e.mots), GROUPEMENT_FACECAM);
-  const segments = e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes;
+  // Mots importants : une règle unique avec repli (emphase du script, sinon mots forts de la transcription), dans le style choisi.
+  const { segments } = marquerMotsImportants(e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes, { emphaseScript: e.emphase });
   const echelle = echelleTexteFormat(ratio);
   // Finitions du 10/10 : un titre affiché n'est pas répété en sous-titre (comme en 9:16).
   const textesAffiches = textesAffichesDesCartes(posees.map((c) => ({ ...c, disposition: renduCarteFormat(ratio, c.disposition).posee === "plein-ecran" ? ("plein-ecran" as const) : ("moitie-haute" as const) })));
