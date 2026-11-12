@@ -4,7 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { baseRetenue } from "@/briques/sous-titres";
 import { MISE_EN_PAGE_IV } from "@/briques/schema-motion/types";
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
@@ -15,11 +15,15 @@ import { idElementBruitage, SONS_BANQUE } from "@/donnees/bruitages";
 import type { BruitageValideIV } from "@/moteurs/montage-image-video/bruitages";
 import { pisteSimulee } from "@/moteurs/montage-image-video/calage";
 import { FICHES_SIMULEES } from "@/moteurs/montage-image-video/ecriture.simulation";
+import { controlerMiseEnSceneIV } from "@/moteurs/montage-image-video/controles-scene";
+import { demandeDeLaCommande } from "@/moteurs/montage-image-video";
 import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { codeSousTitresIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV, styleRetenuIV, VARIANTE_PAR_VERSION, type StyleChoisiIV } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { RECETTE_REFERENCE_IV } from "@/moteurs/montage-image-video/variete/tirage";
 import { CENTRE_SOUS_TITRES_IV_4X5_PCT, commandeDuMontageIV } from "@/services/image-video-rendu";
 import { planDesFinsAvant as planDesFinsIV } from "./plan-des-fins-avant";
+
+vi.mock("server-only", () => ({}));
 
 const VALIDES: BruitageValideIV[] = SONS_BANQUE.map((s) => ({ elementId: idElementBruitage(s), declencheur: s.declencheur, variante: s.variante, dureeSec: s.dureeSec }));
 const carte: CarteImage = JSON.parse(readFileSync(join(process.cwd(), "tests/image-video/fixtures/cartes/C.json"), "utf8"));
@@ -96,5 +100,61 @@ describe("GV-ST-03 · plus de tirage par version", () => {
       expect(sortie, code).toEqual(attendu);
     }
     expect(ref.length).toBeGreaterThan(2);
+  });
+});
+
+/* GV-ST-03b · le style choisi est relié jusqu'au rendu et jusqu'au contrôle Q22. */
+const commandeAvec = (sousTitres?: unknown) =>
+  ({ videoId: "v", entrees: { imageVideo: { imageCle: "texte:x", texte: "Une idée", reseaux: ["instagram"] } }, reglages: { validationCarte: "automatique" }, styles: { sousTitres: sousTitres ?? null } }) as never;
+
+describe("GV-ST-03b · demande de fabrication", () => {
+  it("style choisi : la demande le porte (id, nom, valeur) et le rendu le reçoit", () => {
+    const d = demandeDeLaCommande(commandeAvec({ id: KARAOKE.id, nom: KARAOKE.nom, valeur: KARAOKE.valeur }), "ver-1");
+    expect(d.styleSousTitres).toEqual({ id: KARAOKE.id, nom: KARAOKE.nom, valeur: KARAOKE.valeur });
+    // Ce que la fabrication envoie au rendu (fabrication.ts : demandeRendu.styleSousTitres) donne la commande du montage karaoké.
+    const piste = { mots: [{ mot: "bonjour", debutSec: 0, finSec: 1 }] } as never;
+    const c = commandeDuMontageIV({ videoId: "v", ligne: ligneDe(), mixage: { bruitages: [] } as never, piste, styleSousTitres: d.styleSousTitres }, [], []);
+    expect(c.styles.sousTitres?.id).toBe("sous-titres-karaoke");
+    expect((c.styles.sousTitres?.valeur as ValeurStyleSousTitres).gabarit).toBe("karaoke");
+  });
+
+  it("sans style choisi (null, absent ou sans valeur) : aucune clé styleSousTitres, la demande d'avant", () => {
+    for (const st of [undefined, null, { id: "x", nom: "sans valeur" }]) {
+      const d = demandeDeLaCommande(commandeAvec(st), "ver-1");
+      expect(d).not.toHaveProperty("styleSousTitres");
+    }
+    const sans = { videoId: "v", entrees: { imageVideo: { imageCle: "texte:x", texte: "Une idée", reseaux: ["instagram"] } }, reglages: { validationCarte: "automatique" }, styles: {} } as never;
+    expect(demandeDeLaCommande(sans, "ver-1")).not.toHaveProperty("styleSousTitres");
+  });
+
+  it("sans style : le rendu et les empreintes restent ceux d'avant (sous-titres sans recette, empreinte figée)", () => {
+    // L'empreinte figée « sans recette » (6 cartes × 4 réseaux) reste vérifiée par variete/sous-titres.test.ts ; ici, sans style
+    // exploitable, le paramètre « choisi » ne change aucun octet.
+    const a = JSON.stringify(sousTitresVariesIV(ligneDe()));
+    expect(JSON.stringify(sousTitresVariesIV(ligneDe(), null))).toBe(a);
+    expect(JSON.stringify(sousTitresVariesIV(ligneDe(), { id: "x", nom: "sans valeur" }))).toBe(a);
+  });
+});
+
+describe("GV-ST-03b · Q22 mesure avec le style choisi", () => {
+  const fiche = FICHES_SIMULEES["essai-c"];
+  const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
+  const voix = pisteSimulee(fiche, fin.muet ? null : fin);
+  const ligne = ligneDe();
+  const ctx = (styleSousTitres?: StyleChoisiIV) => ({
+    carte, fiche, reseaux: fin.reseaux, voix: voix.mots,
+    bruitages: { ok: true, bruitages: ligne.bruitages, rapport: { changementsSansSon: [] } } as never,
+    ...(styleSousTitres ? { styleSousTitres } : {}),
+  });
+  const q22 = (st?: StyleChoisiIV) => controlerMiseEnSceneIV(ligne, ctx(st)).lignes.find((l) => l.code === "Q22")!;
+
+  it("un style démesuré fait sortir les sous-titres de la bande : Q22 rouge avec le style, vert sans", () => {
+    const enorme: StyleChoisiIV = { id: "enorme", nom: "Énorme", valeur: { ...KARAOKE.valeur!, taillePx: 260, tailleRelative: 3, positionPct: 50 } };
+    expect(q22().ok).toBe(true);
+    expect(q22(enorme).ok).toBe(false);
+  });
+
+  it("sans style : même résultat qu'avant (charte duo)", () => {
+    expect(q22(undefined).details).toEqual(q22().details);
   });
 });
