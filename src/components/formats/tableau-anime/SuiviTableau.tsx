@@ -16,7 +16,7 @@ import { useState, useTransition } from "react";
 import { passerDevantAction } from "@/app/(studio)/videos/actions";
 import { relancerTableauAction, rouvrirFicheTableauAction } from "@/app/(studio)/tableau/nouvelle/actions";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { phrasePanneAction } from "@/components/ui/phrasesAction";
 import { notifier } from "@/components/ui/Toast";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
@@ -73,7 +73,7 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
         if (dejaRelance) return setPhrase("La relance n'a pas abouti, réessayez.");
         return void relancer(r.donnees.centimes, r.donnees.phrase, true);
       }
-      notifier.succes(r.donnees.phrase);
+      notifier.succes(messageSansMontant(r.donnees.phrase));
       // Relance d'un autre travail (arrêt à la relecture) : la page suit le nouveau ; sinon le suivi repart d'ici.
       if (r.donnees.travailId !== t.id) router.refresh();
       else {
@@ -88,7 +88,7 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
     passerDevant(async () => {
       try {
         const r = await passerDevantAction(t.id);
-        if (!r.ok) notifier.erreur(r.message);
+        if (!r.ok) notifier.erreur(messageSansMontant(r.message));
         else {
           router.refresh();
           void actualiser();
@@ -133,7 +133,7 @@ export function SuiviTableau({ initial, fichiers }: { initial: VueTravail; fichi
       />
       {phrase && (
         <p role="alert" className="mt-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-          {phrase}
+          {messageSansMontant(phrase)}
         </p>
       )}
     </>

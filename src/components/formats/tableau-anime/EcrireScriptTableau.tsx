@@ -19,7 +19,7 @@ import { ecrireScriptTableauAction, reprendreMeilleureVersionTableauAction } fro
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { dureeDiteSec } from "@/domaine/duree-tableau";
@@ -228,12 +228,12 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
         <p className="text-sm text-texte-doux">Durée : {DUREE_ECRITURE_TEXTE}. Vous pourrez fermer la page : le travail continue.</p>
         {phrase && (
           <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase}
+            {messageSansMontant(phrase)}
           </p>
         )}
         {refusSujet && (
           <section aria-label="Sujet déjà traité" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : refusSujet.refus.phrase}</p>
+            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : messageSansMontant(refusSujet.refus.phrase)}</p>
             <ul className="space-y-1 text-sm">
               {refusSujet.refus.precedents.slice(0, 5).map((p) => (
                 <li key={p.videoId ?? p.sujetId ?? p.lien}>
@@ -298,7 +298,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
                   .filter((d) => !d.eliminatoire)
                   .slice(0, 4)
                   .map((d, i) => (
-                    <li key={i}>Remarque : {d.message}</li>
+                    <li key={i}>Remarque : {messageSansMontant(d.message)}</li>
                   ))}
               </ul>
             )}
