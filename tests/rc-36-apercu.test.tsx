@@ -102,8 +102,8 @@ describe("aperçu façon réseau", () => {
     expect(v({}).phraseVerrou).toBeNull();
   });
   it("le visuel est une vidéo lisible sur place ou une image ; sans adresse : « Visuel à venir »", () => {
-    expect(outils.apercuReseau(entree(), AUJOURDHUI).media).toEqual({ genre: "video", url: "https://exemple.fr/video.mp4", ratio: expect.any(String) });
-    expect(outils.apercuReseau(entree({ media: undefined }), AUJOURDHUI).media).toEqual({ genre: "absent", url: null, ratio: expect.any(String) });
+    expect(outils.apercuReseau(entree(), AUJOURDHUI).media).toEqual({ genre: "video", url: "https://exemple.fr/video.mp4", poster: null, ratio: expect.any(String) });
+    expect(outils.apercuReseau(entree({ media: undefined }), AUJOURDHUI).media).toEqual({ genre: "absent", url: null, poster: null, ratio: expect.any(String) });
     expect(outils.apercuReseau(entree({ media: { genre: "video", url: "" } }), AUJOURDHUI).media.url).toBeNull();
     expect(outils.apercuReseau(entree({ media: { genre: "image", url: "https://exemple.fr/a.png", ratio: "4:5" } }), AUJOURDHUI).media.ratio).toBe("4:5");
   });
@@ -159,8 +159,10 @@ describe("depuis une publication du calendrier", () => {
     expect(e).toMatchObject({ cle: "publication:pub1|instagram", jour: "2026-11-12", heure: "09:30", reseau: "instagram", etat: "programme", type: "video", titre: "Titre exemple", texte: "Un texte #IA", lienSource: "/videos/v1" });
     expect(e.media).toMatchObject({ genre: "video", url: "https://exemple.fr/v.mp4" });
   });
-  it("un essai se dit « Essai » ; une source visuelle donne une image ; aucun mot interne ne passe", () => {
-    expect(outils.entreeDepuisPublication(pub({ via: "simulation" })).etatLibelle).toBe("Essai");
+  it("un essai est un état à part (« Essai »), jamais « Programmé » ; une source visuelle donne une image ; aucun mot interne ne passe", () => {
+    expect(outils.entreeDepuisPublication(pub({ via: "simulation" })).etat).toBe("essai");
+    expect(outils.LIBELLES_ESSAI.essai.libelle).toBe("Essai");
+    expect(outils.apercuReseau(outils.entreeDepuisPublication(pub({ via: "simulation" })), AUJOURDHUI).phraseEtat).toBe("Essai : rien n'est parti vers le réseau.");
     const v = outils.entreeDepuisPublication(pub({ videoId: undefined, visuelId: "vis1", video: null }));
     expect(v.type).toBe("image");
     expect(v.lienSource).toBeUndefined();
@@ -208,13 +210,13 @@ describe("ApercuPublication (le panneau)", () => {
     const ouvert = html();
     expect(ouvert).toMatch(/<input[^>]*type="date"[^>]*value="2026-11-12"/);
     expect(ouvert).toContain(`min="${AUJOURDHUI}"`);
-    expect(ouvert).not.toMatch(/<input[^>]*type="date"[^>]*disabled/);
+    expect(ouvert).not.toMatch(/<input[^>]*type="date"[^>]*\sdisabled=""/);
     for (const [e, phrase] of [
       [entree({ etat: "publie" }), "Déjà publiée. Elle n'est plus modifiable."],
       [entree({ jour: "2026-11-10" }), "Ce jour est passé : cette publication n'est plus modifiable."],
     ] as const) {
       const h = html({ entree: e });
-      expect(h).toMatch(/<input[^>]*type="date"[^>]*disabled/);
+      expect(h).toMatch(/<input[^>]*type="date"[^>]*\sdisabled=""/);
       expect(lisible(h)).toContain(phrase);
     }
   });
@@ -371,6 +373,12 @@ describe("SemaineAvecApercu : un clic ouvre, les flèches passent, la date se vo
     await attendre();
     expect((e.panneau().props.entree as Entree).jour).toBe("2026-11-25");
     expect(String(e.panneau().props.message)).toContain("autre semaine");
+  });
+  it("un essai porte la pastille « Essai » dans la grille, jamais « Programmé »", () => {
+    const e = ecran([entree({ etat: "essai" })]);
+    const h = lisible(rendre(e.grille()));
+    expect(h).toContain("Essai");
+    expect(h).not.toContain("Programmé");
   });
   it("liste vide : grille vide et aucun panneau, sans erreur", () => {
     const e = ecran([]);
