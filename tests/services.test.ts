@@ -101,24 +101,30 @@ describe("blocage budgétaire", () => {
     expect((await auth.seConnecter(MDP_TEST, false)).ok).toBe(true);
   }
 
-  it("refuse de lancer si le budget du mois serait dépassé", async () => {
+  it("budget du mois dépassé : le lancement part, avec une alerte (cloche) et une ligne de journal", async () => {
     await connecter();
     await ecrireParametre("budget.mensuel", { centimes: 1, devise: "EUR" });
-    await expect(lancerFabrication("v-03", { confirme: true })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect(await depots().travaux.compter((t) => t.cibleId === "v-03" && t.statut !== "termine" && t.statut !== "echec")).toBe(0);
+    const r = await lancerFabrication("v-03", { confirme: true });
+    expect(r.travailId).toBeTruthy();
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
   });
 
-  it("au-delà du seuil, exige une confirmation, puis lance", async () => {
+  it("origine Studio, au-delà du seuil : la commande passe sans demande de confirmation de prix", async () => {
     await connecter();
     await ecrireParametre("budget.mensuel", { centimes: 10_000_000, devise: "EUR" });
     await ecrireParametre("budget.seuilConfirmation", { centimes: 1, devise: "EUR" });
-    const refus = await lancerFabrication("v-03").catch((e: { code?: string; montant?: number }) => e);
-    expect(refus).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    // Seconde relecture paquet 4 (R2) : au-delà du seuil, c'est le MONTANT vu qui confirme (`true` ne suffit plus).
-    await expect(lancerFabrication("v-03", { confirme: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    const r = await lancerFabrication("v-03", { confirme: (refus as { montant: number }).montant });
+    const r = await lancerFabrication("v-03");
     expect(r.travailId).toBeTruthy();
     expect((await depots().videos.obtenir("v-03"))?.statut).toBe("en_file");
+  });
+
+  it("origine « usine », au-delà du seuil : le refus reste entier (aucune vidéo lancée)", async () => {
+    await connecter();
+    await ecrireParametre("budget.mensuel", { centimes: 10_000_000, devise: "EUR" });
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 1, devise: "EUR" });
+    await expect(lancerFabrication("v-03", { origine: "usine" })).rejects.toMatchObject({ code: expect.stringMatching(/^(CONFIRMATION_REQUISE|BUDGET_USINE_ABSENT|BUDGET_MENSUEL_ATTEINT|BUDGET_DEPASSE)$/) });
+    expect((await depots().videos.obtenir("v-03"))?.statut).not.toBe("en_file");
   });
 
   it("sans session, lancer est refusé", async () => {
