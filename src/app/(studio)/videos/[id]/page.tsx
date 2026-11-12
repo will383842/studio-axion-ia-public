@@ -137,7 +137,8 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   const scriptAValider = ficheCasConcretVisible(format) && d.travail?.statut === "echec" ? await apercuScriptCasConcret(v.id) : null;
   // Brique 3 : cet arrêt est une étape « À relire », pas un échec (en-tête et icône).
   const aRelire = scriptAValider?.etat === "a-valider";
-  const sansPublication = format?.ecranVideo?.publication === "aucune";
+  // KIT-CC-IV : « Publier » revient dès que le kit porte les textes de la version (cas concret, image → vidéo).
+  const sansPublication = format?.ecranVideo?.publication === "aucune" && !kit?.reseaux.some((r) => r.origine === "version" && r.texte.trim());
   const principale = d.sorties.find((s) => s.ratio === v.ratios[0]) ?? d.sorties[0];
   const miniature = d.miniatures.find((m) => m.choisie);
   // Face caméra : un « Nouveau format » (4:5, carré, 16:9) qui se fabrique ne bloque ni le fil du monteur ni les
