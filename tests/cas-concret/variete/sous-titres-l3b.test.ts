@@ -20,7 +20,7 @@ import {
   variationSousTitresCasConcret,
   type TirageSousTitres,
 } from "@/moteurs/montage-cas-concret/sous-titres-variete";
-import { mettre, tirer, TIRAGE_V4, type Mise, type Tirage } from "@/moteurs/montage-cas-concret/variete";
+import { lireMise, mettre, tirer, TIRAGE_V4, type Mise, type Tirage } from "@/moteurs/montage-cas-concret/variete";
 import { centreSousTitresPleineImagePct } from "@/moteurs/montage-cas-concret/zone-objets";
 import { doubles, type Doubles } from "../fabriquer/doubles";
 
@@ -39,12 +39,16 @@ const DUREE = 41;
 const V4: TirageSousTitres = TIRAGE_V4.sousTitres;
 const avec = (st: Partial<TirageSousTitres>): TirageSousTitres => ({ ...V4, ...st });
 
+/**
+ * GV-ST-02 : la variante par vidéo est coupée par défaut (`VARIANTE_PAR_VIDEO`) ; ces essais l'ACTIVENT par le dernier
+ * paramètre des fonctions, pour prouver que le code du tirage fonctionne toujours.
+ */
 /** Demande de la v4, exactement comme `sousTitresDe` dans `fabriquer.ts` (hors variation). */
 function demandeV4(centre = centreSousTitresPleineImagePct(), st?: TirageSousTitres): DemandeSousTitres {
-  const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st) };
+  const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st, true) };
   return { texte: TEXTE, dureeSec: DUREE, emphase: ["9 heures", "gratuit"], style, base: "minimal", occupe: zonesOccupeesSousTitres(DUREE), ratio: "9:16", reseaux: [...QUATRE] };
 }
-const sousTitres = (st?: TirageSousTitres) => fabriquerSousTitres({ ...demandeV4(centreSousTitresCasConcret(st), st), ...variationSousTitresCasConcret(st) });
+const sousTitres = (st?: TirageSousTitres) => fabriquerSousTitres({ ...demandeV4(centreSousTitresCasConcret(st, true), st), ...variationSousTitresCasConcret(st, true) });
 const compte = (s: SegmentSousTitres[], f: (x: SegmentSousTitres) => boolean) => s.filter(f).length;
 const impacts = (s: SegmentSousTitres[]) => s.flatMap((x, i) => (x.style === "impact" ? [i] : []));
 
@@ -102,7 +106,7 @@ describe("L3b · variations selon le tirage", () => {
   });
 
   it("surlignage : l'orange de la charte dans le style, jamais sur un mot coloré", () => {
-    expect(surlignageCasConcret(avec({ accent: "surlignage" }))).toEqual({ surlignage: { fond: "#D97757", texte: "#141413", fondClair: "#B23F16", texteClair: "#FAF9F5" } });
+    expect(surlignageCasConcret(avec({ accent: "surlignage" }), true)).toEqual({ surlignage: { fond: "#D97757", texte: "#141413", fondClair: "#B23F16", texteClair: "#FAF9F5" } });
     const s = sousTitres(avec({ accent: "surlignage" }));
     // Le mot choisi est le même que le soulignement de la v4 : seul son dessin change.
     expect(s).toEqual(sousTitres(V4));
@@ -115,7 +119,7 @@ describe("L3b · hauteur « haute » : dans la bande, jamais en haut ni sur un t
 
   it("un peu plus haut que la v4, toujours dans la bande des sous-titres", () => {
     const haut = centreSousTitresHautPct();
-    expect(centreSousTitresCasConcret(avec({ hauteur: "haute" }))).toBe(haut);
+    expect(centreSousTitresCasConcret(avec({ hauteur: "haute" }), true)).toBe(haut);
     expect(haut).toBeLessThan(centreSousTitresPleineImagePct());
     expect((haut / 100) * H).toBeGreaterThan(BANDE.y);
     expect((haut / 100) * H).toBeLessThan(BANDE.y + BANDE.hauteur);
@@ -126,7 +130,7 @@ describe("L3b · hauteur « haute » : dans la bande, jamais en haut ni sur un t
       const segments = sousTitres(st);
       expect(segments.some((x) => x.position === "haut")).toBe(false);
       expect(segments.filter((x) => x.style === "bandeau").every((x) => x.position === "bas")).toBe(true);
-      const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centreSousTitresCasConcret(st), largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st) };
+      const style = { ...STYLE_SOUS_TITRES_DUO, positionPct: centreSousTitresCasConcret(st, true), largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(st, true) };
       const d = donneesCalque({ segments, base: "minimal", ratio: "9:16", reseaux: [...QUATRE], style });
       expect(d.positions.milieuPct).toBe(centreSousTitresHautPct());
       for (const s of segments.filter((x) => x.style === "base" || !x.style)) {
@@ -186,5 +190,73 @@ describe("L3b · chaîne : du tirage au calque des sous-titres", () => {
       const premier = c.segments.find((s) => s.style === "impact");
       if (premier) expect(premier.inclinaison).toBeLessThan(0);
     }
+  });
+
+  it("GV-ST-02 : tirage NEUF (rien d'hérité) : variante coupée, calque de la v4 quel que soit le tirage", async () => {
+    const d = doubles();
+    d.options.outils.variete = { lireHistorique: async () => [], ajouter: async () => undefined };
+    await fabriquerCasConcret(d.options);
+    const cs = calques(d);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(85.33);
+    }
+  });
+  it("GV-ST-02b : une version héritée d'une vidéo au tirage NEUF garde les sous-titres sans variante", async () => {
+    const a = doubles();
+    a.options.outils.variete = { lireHistorique: async () => [], ajouter: async () => undefined };
+    const crA = await fabriquerCasConcret(a.options);
+    const miseA = crA.fiche.mise;
+    expect(miseA).toBeTruthy();
+    expect((miseA as { sousTitresSansVariante?: boolean }).sousTitresSansVariante).toBe(true);
+    // Version 2 : journal neuf, le tirage vient de la mise de la version précédente (donc relue par `lireMise`).
+    const b = doubles();
+    b.options.outils.variete = variete(lireMise(JSON.parse(JSON.stringify(miseA)))!);
+    await fabriquerCasConcret(b.options);
+    const cs = calques(b);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(85.33);
+    }
+  });
+
+  it("GV-ST-02c : une mise héritée marquée « sans variante », au tirage qui se VOIT, donne une version 2 sans variante", async () => {
+    const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
+    const miseA = { ...mettre(tirage, []), sousTitresSansVariante: true as const };
+    const d = doubles();
+    d.options.outils.variete = variete(lireMise(JSON.parse(JSON.stringify(miseA)))!);
+    const cr = await fabriquerCasConcret(d.options);
+    // Le champ survit dans la mise de la version 2 (elle est refaite par `mettre`).
+    expect((cr.fiche.mise as { sousTitresSansVariante?: boolean }).sousTitresSansVariante).toBe(true);
+    const cs = calques(d);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toBeUndefined();
+      expect(c.positions.milieuPct).toBe(85.33);
+    }
+  });
+
+  it("GV-ST-02b : une version héritée d'une vidéo d'AVANT le lot (mise sans le champ) garde la variante", async () => {
+    const tirage: Tirage = { ...TIRAGE_V4, sousTitres: { inclinaison: "inverse", intensite: "vif", accent: "surlignage", hauteur: "haute" } };
+    const ancienne = mettre(tirage, []);
+    expect((ancienne as { sousTitresSansVariante?: boolean }).sousTitresSansVariante).toBeUndefined();
+    const d = doubles();
+    d.options.outils.variete = variete(ancienne);
+    await fabriquerCasConcret(d.options);
+    const cs = calques(d);
+    expect(cs.length).toBeGreaterThan(0);
+    for (const c of cs) {
+      expect(c.surlignage).toEqual(SURLIGNAGE_CAS_CONCRET);
+      expect(c.positions.milieuPct).toBe(centreSousTitresHautPct());
+    }
+  });
+
+  it("GV-ST-02b : la lecture de la mise garde le champ, et une mise sans le champ reste valide", () => {
+    const base = mettre(TIRAGE_V4, []);
+    expect(lireMise({ ...base, sousTitresSansVariante: true })).toEqual({ ...base, sousTitresSansVariante: true });
+    expect(lireMise(base)).toEqual(base);
+    expect(lireMise({ ...base, sousTitresSansVariante: false })).toBeNull();
   });
 });

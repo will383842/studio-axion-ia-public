@@ -14,11 +14,13 @@ import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { MonogrammeReseau, TYPES_CONTENU, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ESSAI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
+import { TiroirAccessible } from "./TiroirAccessible";
+import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regroupement";
 import type { IdReseau } from "@/domaine/types";
 
 export interface ProprietesApercuPublication {
@@ -60,7 +62,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
       {a.media.genre === "video" && a.media.url ? (
-        <video controls preload="metadata" poster={a.media.poster ?? undefined} src={a.media.url} className="max-h-[60vh] w-full bg-black">
+        <video controls preload="metadata" poster={a.media.poster ?? undefined} src={a.media.url} className="max-h-[60vh] w-full bg-voile">
           <track kind="captions" />
         </video>
       ) : a.media.genre === "image" && a.media.url ? (
@@ -69,7 +71,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       ) : (
         <span>Visuel à venir</span>
       )}
-      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-black/55 p-3 text-left text-sm font-semibold text-white">{a.texte}</p>}
+      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange">{a.texte}</p>}
     </div>
   );
   const texte = (
@@ -77,16 +79,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   );
 
   return (
-    <aside
-      role="dialog"
-      aria-modal="false"
-      aria-label={`Aperçu de la publication ${nom}, ${a.dateDite}`}
-      data-apercu={entree.cle}
-      data-reseau={entree.reseau}
-      style={styleReseau(entree.reseau)}
-      onKeyDown={surTouche}
-      className="fixed inset-y-0 right-0 z-50 w-[min(440px,100%)] overflow-y-auto border-l border-trait bg-surface-2 p-4 shadow-[-12px_0_40px_rgb(40_30_20/0.18)]"
-    >
+    <TiroirAccessible aria-label={`Aperçu de la publication ${nom}, ${a.dateDite}`} data-apercu={entree.cle} data-reseau={entree.reseau} style={styleReseau(entree.reseau)} onFermer={onFermer}>
+    <aside onKeyDown={surTouche}>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={onPrecedente} className={BOUTON}>
           <Icone nom="chevron-gauche" size={14} /> Précédente
@@ -167,6 +161,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         </Link>
       )}
     </aside>
+    </TiroirAccessible>
   );
 }
 
@@ -182,13 +177,15 @@ export interface ProprietesSemaineAvecApercu {
   aujourdhui: string;
   /** Action de décalage de L4-06 (doublure en test). */
   decaler?: DecalerLeJour;
+  /** Filtres du calendrier (CAL-12) : la grille et les flèches Précédente / Suivante ne parcourent que les entrées gardées. Absent : toutes. */
+  criteres?: CriteresFiltre;
 }
 
 const RAISON = "Déplacée depuis l'aperçu du calendrier";
 const JOUR_COURT = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 
 /** La semaine en couloirs et son panneau d'aperçu : un clic ouvre, les flèches passent, la date se voit aussitôt. */
-export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = decalerEntree as DecalerLeJour }: ProprietesSemaineAvecApercu): ReactNode {
+export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = decalerEntree as DecalerLeJour, criteres }: ProprietesSemaineAvecApercu): ReactNode {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [deplacements, setDeplacements] = useState<Readonly<Record<string, string>>>({});
   const [retour, setRetour] = useState<{ texte: string; ton: "alerte" | "info" } | null>(null);
@@ -196,6 +193,8 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
 
   // Les jours changés ici s'appliquent par-dessus les données reçues : un nouvel envoi de la page ne les écrase pas.
   const liste = useMemo(() => entrees.reduce<readonly EntreeApercu[]>((acc, e) => (deplacements[e.cle] ? deplacerEntree(acc, e.cle, deplacements[e.cle]) : acc), entrees), [entrees, deplacements]);
+  // La liste filtrée : c'est elle que montre la grille et que parcourent les flèches.
+  const visibles = useMemo(() => (criteres ? filtrerEntrees(liste, criteres) : liste), [liste, criteres]);
   const courante = ouverte ? liste.find((e) => e.cle === ouverte) : undefined;
   // Un réseau hors des quatre du calendrier garde son couloir : rien n'est caché.
   const reseaux: IdReseau[] = [...RESEAUX_CALENDRIER, ...Array.from(new Set(liste.map((e) => e.reseau))).filter((r) => !RESEAUX_CALENDRIER.includes(r))];
@@ -207,7 +206,8 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
   };
   const aller = (sens: 1 | -1) => {
     if (!ouverte) return;
-    const voisine = entreeVoisine(liste, ouverte, sens);
+    // Une entrée ouverte que le filtre masque : on repart du début (ou de la fin) de la liste filtrée.
+    const voisine = entreeVoisine(visibles, ouverte, sens) ?? (sens === 1 ? trierEntrees(visibles)[0] : trierEntrees(visibles).at(-1));
     if (voisine) {
       setOuverte(voisine.cle);
       setRetour(null);
@@ -247,7 +247,7 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
 
   return (
     <>
-      <GrilleSemaine semaineDu={semaineDu} aujourdhui={aujourdhui} entrees={liste} reseaux={reseaux} libellesEtat={LIBELLES_ESSAI} onOuvrirEntree={ouvrir} />
+      <GrilleSemaine semaineDu={semaineDu} aujourdhui={aujourdhui} entrees={visibles} reseaux={reseaux} libellesEtat={LIBELLES_ESSAI} onOuvrirEntree={ouvrir} />
       {courante && (
         <ApercuPublication
           entree={courante}
