@@ -26,7 +26,7 @@ import { ErreurLisible } from "@/lib/erreur-lisible";
 const ETATS = {
   "a-filmer": { libelle: "À filmer", pastille: "bg-[var(--statut-valider-fond)] text-[var(--statut-valider-texte)]", icone: "camera" as const },
   rangee: { libelle: "Rangée", pastille: "bg-[var(--statut-accepte-fond)] text-[var(--statut-accepte-texte)]", icone: "coche" as const },
-  "a-refaire": { libelle: "À refaire", pastille: "bg-[var(--statut-retouche-fond)] text-[var(--statut-retouche-texte)]", icone: "reessayer" as const },
+  "a-refaire": { libelle: "À refaire", pastille: "bg-[var(--statut-retouche-fond)] text-[var(--statut-retouche-texte)] border border-dashed border-current", icone: "reessayer" as const },
 };
 
 export function Seance({ seanceId, groupes, prochaineId }: { seanceId: string; groupes: { libelle: string; versions: VersionDeSeance[] }[]; prochaineId: string | null }) {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Popover } from "radix-ui";
 import { useState, useTransition } from "react";
 import { creerSerieAction } from "@/app/(studio)/ecrire/actions-series";
 import { Icone } from "@/components/ui/Icone";
@@ -35,23 +36,22 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
 
   const choisieNom = series.find((s) => s.id === active)?.nom;
   return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-expanded={panneau}
-        aria-controls="panneau-series"
-        onClick={() => setPanneau((x) => !x)}
-        className={cn(
-          "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors",
-          active ? "border-texte bg-texte text-fond" : "border-trait-fort bg-surface-1 text-texte hover:bg-surface-2",
-        )}
-      >
+    <Popover.Root open={panneau} onOpenChange={setPanneau}>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors",
+            active ? "border-texte bg-texte text-fond" : "border-trait-fort bg-surface-1 text-texte hover:bg-surface-2",
+          )}
+        >
         <Icone nom="calques" size={16} />
         Séries
         {choisieNom ? <span className="max-w-32 truncate font-normal">· {choisieNom}</span> : series.length > 0 && <span className="rounded-full bg-surface-3 px-1.5 text-[11px] tabular-nums text-texte-doux">{series.length}</span>}
-      </button>
-      {panneau && (
-        <div id="panneau-series" className="mt-3 flex w-full min-w-72 flex-col gap-2 rounded-carte border border-trait bg-surface-1 p-4 shadow-carte sm:absolute sm:left-0 sm:z-20 sm:w-80">
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content align="start" sideOffset={8} collisionPadding={12} className="z-50 flex w-[min(calc(100vw-32px),320px)] flex-col gap-2 rounded-carte border border-trait bg-surface-1 p-4 shadow-carte outline-none">
           <p className="text-sm text-texte-doux">Touchez une série pour ne voir que ses sujets.</p>
           {series.length === 0 && <p className="text-sm text-texte-faible">Aucune série pour l&apos;instant.</p>}
           <ul className="flex flex-col gap-1.5">
@@ -62,6 +62,7 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
                   <Link
                     href={choisie ? "/ecrire" : `/ecrire?serie=${encodeURIComponent(s.id)}`}
                     scroll={false}
+                    onClick={() => setPanneau(false)}
                     aria-current={choisie ? "true" : undefined}
                     className={cn(
                       "flex min-h-11 items-center justify-between gap-3 rounded-champ border px-3 py-2 transition-colors",
@@ -97,8 +98,8 @@ export function BandeauSeries({ series, active }: { series: { id: string; nom: s
               Nouvelle série
             </button>
           )}
-        </div>
-      )}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

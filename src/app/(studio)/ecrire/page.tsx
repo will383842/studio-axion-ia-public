@@ -38,11 +38,12 @@ export const metadata: Metadata = { title: "Écrire" };
 export const dynamic = "force-dynamic";
 
 const ONGLETS = ["scripts", "idees", "matieres", "voix"] as const;
+const RUBRIQUES = ["facon", "textes", "carnet", "positions", "themes", "interdits", "tournures", "regles", "prononciation"];
 
 /**
  * ÉCRIRE (plan v5 B.6.1, lot G1b) : Scripts (défaut) · Idées · Matières · Ma voix.
- * Anciennes adresses : `?onglet=facon` et `?onglet=references` → /ecrire/voix ; `?onglet=preuves` → Matières, type preuves.
- * Matières et Ma voix : composants du lot G2 (`?type=`, `?ajout=`, `?rubrique=` sont transmis).
+ * Anciennes adresses : `?onglet=facon` et `?onglet=references` → Ma voix (`?onglet=voix&rubrique=`) ; `?onglet=preuves` → Matières, type preuves.
+ * Matières et Ma voix : composants du lot G2 (`?type=`, `?ajout=`, `?rubrique=` sont transmis). Refonte R7 : cette page est la SEULE pour Matières et Ma voix ; `/ecrire/matieres` et `/ecrire/voix` y renvoient.
  * Les filtres de Scripts vivent dans l'adresse (`?reseau=tiktok&format=avocat&etat=a-relire`).
  */
 export default async function PageEcrire({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -162,7 +163,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             contenu: (
               <MaVoix
                 d={{ fiche, textes, expressions, avis: avisVues.filter((v) => v.etat.disponible).map((v) => v.matiere), contexte, interdits, tournures, regles, file }}
-                ouverteInitiale={sp.rubrique}
+                ouverteInitiale={RUBRIQUES.includes(sp.rubrique ?? "") ? sp.rubrique : undefined}
               />
             ),
           },
