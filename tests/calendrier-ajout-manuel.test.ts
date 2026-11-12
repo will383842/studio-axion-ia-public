@@ -89,6 +89,46 @@ describe("rien ne part avant validerEntree", () => {
   });
 });
 
+describe("proximité et quota : avertir, puis confirmer d'un clic, jamais bloquer", () => {
+  const creneau = (id: string, heureUtc: string, reseau: "linkedin" | "tiktok" = "linkedin") => ({
+    id, jourVise: "2026-12-03", heuresParReseau: { [reseau]: `2026-12-03T${heureUtc}:00.000Z` }, compteCible: "compte-fictif-1", videoId: "v0", statut: "valide" as const, decalages: 0,
+  });
+  it("écart trop court (09:00 contre un créneau à 10:00) : à confirmer, rien d'écrit ; confirmé : ajouté", async () => {
+    await d.creneauxEditoriaux.enregistrer(creneau("existant", "09:00"));
+    const r = await ajouterEntree({ ...base, heure: "09:00", cle: "p1" });
+    expect(r).toMatchObject({ ok: false, aConfirmer: "proximite" });
+    expect(r.ok === false && r.avertissement).toBeTruthy();
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(1);
+    const c = await ajouterEntree({ ...base, heure: "09:00", cle: "p1", confirmerProximite: true });
+    expect(c.ok).toBe(true);
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(2);
+  });
+  it("quota atteint (un autre créneau le même jour, écart suffisant) : à confirmer, puis ajouté", async () => {
+    await d.creneauxEditoriaux.enregistrer(creneau("existant", "07:00"));
+    const r = await ajouterEntree({ ...base, heure: "18:00", cle: "p2" });
+    expect(r).toMatchObject({ ok: false, aConfirmer: "quota" });
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(1);
+    expect((await ajouterEntree({ ...base, heure: "18:00", cle: "p2", confirmerProximite: true })).ok).toBe(true);
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(2);
+  });
+  it("un créneau de la veille proche (23:00 la veille, 00:30 ce jour) est vu ; un autre réseau ne compte pas", async () => {
+    await d.creneauxEditoriaux.enregistrer({ ...creneau("veille", "22:00"), jourVise: "2026-12-02", heuresParReseau: { linkedin: "2026-12-02T22:00:00.000Z" } });
+    expect(await ajouterEntree({ ...base, jour: "2026-12-03", heure: "00:30", cle: "p3" })).toMatchObject({ ok: false, aConfirmer: "proximite" });
+    await d.creneauxEditoriaux.enregistrer(creneau("autre", "09:00", "tiktok"));
+    expect((await ajouterEntree({ ...base, heure: "09:00", cle: "p4" })).ok).toBe(true);
+  });
+  it("sans voisin, aucun avertissement ; le rejeu d'une entrée déjà créée n'est jamais redemandé", async () => {
+    expect((await ajouterEntree({ ...base, cle: "p5" })).ok).toBe(true);
+    expect((await ajouterEntree({ ...base, cle: "p5" })).ok).toBe(true);
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(1);
+  });
+  it("rejeu sans confirmation d'une entrée créée dans le passé : reconnue, pas de nouvelle demande", async () => {
+    expect((await ajouterEntree({ ...base, jour: "2026-11-01", cle: "p6", confirmerPasse: true })).ok).toBe(true);
+    expect((await ajouterEntree({ ...base, jour: "2026-11-01", cle: "p6" })).ok).toBe(true);
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(1);
+  });
+});
+
 describe("bouton AjouterEntree", () => {
   it("affiche le jour, propose « Ajouter » et ne parle jamais de publier directement", () => {
     const html = renderToStaticMarkup(createElement(AjouterEntree, { jour: "2026-12-03", compteCible: "compte-fictif-1" }));

@@ -3,14 +3,15 @@
 /**
  * Actions serveur du calendrier (L7-11) : ajout manuel à une date précise.
  * - Le créneau naît « propose » ; rien ne part avant validerEntree(), qui ne programme ni ne publie : aucun appel au diffuseur ici.
- * - Un ajout manuel n'est jamais bloqué : seule une erreur de format refuse. Le passé avertit et se confirme d'un clic.
+ * - Un ajout manuel n'est jamais bloqué : seule une erreur de format refuse. Le passé, une proximité ou un quota atteint avertissent et se confirment d'un clic.
  * - Idempotent : la clé du formulaire donne l'identifiant, un double clic ne crée qu'un créneau.
  */
 import type { IdReseau } from "@/domaine/types";
 import { exigerSession } from "@/services/auth";
 import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut, creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
-import { resoudreHeureParis } from "@/lib/horloge-paris";
+import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
+import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
 
 export interface SaisieEntree {
   /** AAAA-MM-JJ (jour de Paris). */
@@ -26,11 +27,13 @@ export interface SaisieEntree {
   cle: string;
   /** Vrai après le clic de confirmation d'un ajout dans le passé. */
   confirmerPasse?: boolean;
+  /** Vrai après le clic de confirmation d'une proximité ou d'un quota atteint. */
+  confirmerProximite?: boolean;
 }
 
 export type ResultatAjout =
   | { ok: true; donnees: CreneauPlan; avertissement?: string }
-  | { ok: false; message: string; aConfirmer?: "passe"; avertissement?: string };
+  | { ok: false; message: string; aConfirmer?: "passe" | "proximite" | "quota"; avertissement?: string };
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -40,6 +43,33 @@ function jourExiste(j: string): boolean {
   return t.getUTCFullYear() === a && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 const CLE = /^[A-Za-z0-9_-]{1,64}$/;
+
+const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+/** Instant ISO → jour et heure de Paris (jamais UTC). */
+function enParis(instant: string): { jour: string; heure: string } {
+  const p = Object.fromEntries(FORMAT_PARIS.formatToParts(new Date(instant)).map((x) => [x.type, x.value]));
+  return { jour: `${p.year}-${p.month}-${p.day}`, heure: `${p.hour}:${p.minute}` };
+}
+
+/** Avertissement de proximité ou de quota pour le nouveau créneau (jour, veille et lendemain du réseau). Ne bloque jamais. */
+async function verifierVoisinage(saisie: SaisieEntree, instant: string): Promise<{ type: "proximite" | "quota"; message: string } | null> {
+  const nouveau = enParis(instant);
+  const fenetre = new Set([ajouterJoursParis(saisie.jour, -1), saisie.jour, ajouterJoursParis(saisie.jour, 1)]);
+  const posts: PostPlanifie[] = [{ id: "nouveau", reseau: saisie.reseau, ...nouveau, pilier: "nouveau", cible: "nouveau" }];
+  for (const c of await depotsPlan().creneaux.lister()) {
+    const inst = c.heuresParReseau[saisie.reseau];
+    if (!inst) continue;
+    const p = enParis(inst);
+    // Pilier et cible distincts : seules l'écart et le quota nous intéressent ici.
+    if (fenetre.has(p.jour)) posts.push({ id: c.id, reseau: saisie.reseau, ...p, pilier: c.id, cible: c.id });
+  }
+  const constats = verifierEspacement(posts, reglesDuReseau(saisie.reseau)).filter((x) => x.posts.includes("nouveau"));
+  const ecart = constats.find((x) => x.code === "ecart");
+  if (ecart) return { type: "proximite", message: `${ecart.message} Confirmer pour l'ajouter quand même.` };
+  const quota = constats.find((x) => x.code === "quota");
+  if (quota) return { type: "quota", message: `${quota.message} Confirmer pour l'ajouter quand même.` };
+  return null;
+}
 
 function depotsPlan(): DepotsPlan {
   const d = depots();
@@ -53,9 +83,6 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
   if (!HEURE.test(heure)) return { ok: false, message: "Heure invalide (HH:MM attendu)." };
   if (!CLE.test(saisie.cle ?? "")) return { ok: false, message: "Clé de formulaire invalide." };
   const { instant, avertissement } = resoudreHeureParis(saisie.jour, heure);
-  if (Date.parse(instant) < Date.now() && !saisie.confirmerPasse) {
-    return { ok: false, aConfirmer: "passe", avertissement: "Cette date est passée : confirmer pour l'ajouter quand même.", message: "Date dans le passé : à confirmer." };
-  }
   try {
     const id = `manuel-${saisie.cle}`;
     const existant = await depotsPlan().creneaux.obtenir(id);
@@ -69,6 +96,13 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
         (existant.visuelId ?? undefined) === (saisie.visuelId || undefined);
       if (!memeContenu) return { ok: false, message: "Ce formulaire a déjà créé une entrée différente : rouvrez-le pour en ajouter une autre." };
       return { ok: true, donnees: existant, ...(avertissement ? { avertissement } : {}) };
+    }
+    if (Date.parse(instant) < Date.now() && !saisie.confirmerPasse) {
+      return { ok: false, aConfirmer: "passe", avertissement: "Cette date est passée : confirmer pour l'ajouter quand même.", message: "Date dans le passé : à confirmer." };
+    }
+    if (!saisie.confirmerProximite) {
+      const v = await verifierVoisinage(saisie, instant);
+      if (v) return { ok: false, aConfirmer: v.type, avertissement: v.message, message: "Proximité ou quota : à confirmer." };
     }
     const c = await creerCreneau(depotsPlan(), {
       id,
