@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { creerPortInboxZernio, type PortInboxZernio } from "@/fournisseurs/zernio-inbox";
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 
@@ -22,7 +23,7 @@ const fabrique = (reponses: Parameters<typeof creerFauxClientZernio>[0], opts: P
 describe("port inbox · écritures", () => {
   it("réponse privée : corps {accountId, message} sans Idempotency-Key", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-1" } }]);
-    const r = await port.repondreEnPrive({ idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE });
+    const r = await port.repondreEnPrive({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE });
     expect(r).toMatchObject({ statut: "envoye", idMessage: "exemple-msg-1" });
     expect(faux.appels[0].json).toEqual({ accountId: "exemple-compte-1", message: PRIVE });
     expect(faux.appels[0].entetes["Idempotency-Key"]).toBeUndefined();
@@ -30,8 +31,8 @@ describe("port inbox · écritures", () => {
 
   it("réponse publique : corps {accountId, message, commentId} avec clé dédiée stable", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: {} }, { statut: 200, corps: {} }]);
-    await port.repondreCommentaire({ idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PUBLIC, cle: "cle-metier-1" });
-    await port.repondreCommentaire({ idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PUBLIC, cle: "cle-metier-1" });
+    await port.repondreCommentaire({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PUBLIC, cle: "cle-metier-1" });
+    await port.repondreCommentaire({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PUBLIC, cle: "cle-metier-1" });
     expect(faux.appels[0].json).toEqual({ accountId: "exemple-compte-1", message: PUBLIC, commentId: "exemple-com-1" });
     const k = faux.appels[0].entetes["Idempotency-Key"];
     expect(k).toMatch(/^inbox-[0-9a-f]{64}$/);
@@ -40,7 +41,7 @@ describe("port inbox · écritures", () => {
 
   it("envoi de message : boutons postback transmis, clé dédiée", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-2" } }]);
-    const r = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, boutons: [{ titre: "Recevoir ici", payload: "recevoir_ici" }], cle: "cle-metier-2" });
+    const r = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, boutons: [{ titre: "Recevoir ici", payload: "recevoir_ici" }], cle: "cle-metier-2" });
     expect(r).toMatchObject({ statut: "envoye", idMessage: "exemple-msg-2" });
     expect(faux.appels[0].json).toEqual({ accountId: "exemple-compte-1", message: PRIVE, buttons: [{ type: "postback", title: "Recevoir ici", payload: "recevoir_ici" }] });
     expect(faux.appels[0].entetes["Idempotency-Key"]).toMatch(/^inbox-[0-9a-f]{64}$/);
@@ -48,8 +49,8 @@ describe("port inbox · écritures", () => {
 
   it("texte libre ou compte hors liste : refus rendu, zéro appel réseau", async () => {
     const { port, faux } = fabrique([]);
-    const a = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: `Écrivez à ${ADRESSE}`, cle: "k" });
-    const b = await port.repondreEnPrive({ idCompte: "exemple-autre", idPost: "p", idCommentaire: "c", texte: PRIVE });
+    const a = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: `Écrivez à ${ADRESSE}`, cle: "k" });
+    const b = await port.repondreEnPrive({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-autre", idPost: "p", idCommentaire: "c", texte: PRIVE });
     expect(a).toMatchObject({ statut: "refuse", code: "chemin-refuse" });
     expect(b).toMatchObject({ statut: "refuse", code: "chemin-refuse" });
     expect(JSON.stringify([a, b])).not.toContain("example.com");
@@ -58,7 +59,7 @@ describe("port inbox · écritures", () => {
 
   it("« Tout arrêter » : refus rendu sans appel réseau", async () => {
     const { port, faux } = fabrique([], { envoiAutorise: () => false });
-    const r = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
+    const r = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
     expect(r).toMatchObject({ statut: "refuse", code: "envoi-coupe" });
     expect(faux.appels).toHaveLength(0);
   });
@@ -70,7 +71,8 @@ describe("port inbox · écritures", () => {
       { statut: 400, corps: { details: { privateReplyConsumed: true } } },
       { statut: 502, corps: { details: { privateReplyOutcome: "unknown" } } },
     ]);
-    const p = { idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE };
+    // Un jeton neuf par envoi (il ne sert qu'une fois) : `p` est un objet à lecture dynamique.
+    const p = { idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE, get nonOpposee() { return emettreJetonNonOpposee(); } };
     expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "refuse", code: "INBOX_REQUIRED" });
     expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "refuse", code: "message_allowance_exceeded" });
     expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "definitif", consomme: true });
@@ -84,7 +86,7 @@ describe("port inbox · écritures", () => {
 
   it("429 sur une écriture : INCERTAIN (même état que à vérifier), Retry-After conservé, aucun rejeu", async () => {
     const { port, faux } = fabrique([{ statut: 429, entetes: { "retry-after": "11" }, corps: {} }]);
-    const r = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
+    const r = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
     expect(r).toMatchObject({ statut: "a_verifier", etat: "a_verifier", code: "limite-incertaine", reessayerApresSec: 11 });
     expect(faux.appels).toHaveLength(1);
   });
@@ -94,14 +96,15 @@ describe("port inbox · écritures", () => {
       { statut: 400, corps: { privateReplyConsumed: true } },
       { statut: 502, corps: { privateReplyOutcome: "unknown" } },
     ]);
-    const p = { idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE };
+    // Un jeton neuf par envoi (il ne sert qu'une fois) : `p` est un objet à lecture dynamique.
+    const p = { idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE, get nonOpposee() { return emettreJetonNonOpposee(); } };
     expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "definitif", etat: "consommee" });
     expect(await port.repondreEnPrive(p)).toMatchObject({ statut: "a_verifier", etat: "a_verifier", issueInconnue: true });
   });
 
   it("réponse privée avec boutons : code dédié, distinct de chemin-refuse, zéro appel", async () => {
     const { port, faux } = fabrique([]);
-    const r = await port.repondreEnPrive({ idCompte: "exemple-compte-1", idPost: "p", idCommentaire: "c", texte: PRIVE, boutons: [{ titre: "Recevoir", payload: "recevoir_ici" }] });
+    const r = await port.repondreEnPrive({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idPost: "p", idCommentaire: "c", texte: PRIVE, boutons: [{ titre: "Recevoir", payload: "recevoir_ici" }] });
     expect(r).toMatchObject({ statut: "refuse", code: "boutons-non-supportes" });
     expect(faux.appels).toHaveLength(0);
   });
@@ -109,32 +112,32 @@ describe("port inbox · écritures", () => {
   it("lien hors de nos domaines ou titre hors liste : refus typés, zéro appel, rien de recopié", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-9" } }, { statut: 200, corps: {} }]);
     const base = { idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "k" };
-    const lien = (u: string) => rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: u })!;
+    const lien = (u: string) => rendreTexteMp("mp-m1-v4-1", { titre: "Guide d'exemple", lien: u })!;
     // « http:// » n'entre même pas dans le modèle du dictionnaire : refusé aussi (chemin-refuse).
-    expect(await port.envoyerMessage({ ...base, texte: lien("http://axion-ia.com/x") })).toMatchObject({ statut: "refuse" });
+    expect(await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, texte: lien("http://axion-ia.com/x") })).toMatchObject({ statut: "refuse" });
     for (const mauvais of ["https://evil.example/x", "https://axion-ia.com.evil.example/x", "https://axion-ia.com@evil.example/x", "https://xaxion-ia.com/x"]) {
-      const r = await port.envoyerMessage({ ...base, texte: lien(mauvais) });
+      const r = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, texte: lien(mauvais) });
       expect(r).toMatchObject({ statut: "refuse", code: "lien-hors-domaine" });
       expect(JSON.stringify(r)).not.toContain("evil");
     }
-    const titre = await port.envoyerMessage({ ...base, texte: rendreTexteMp("mp-lien-v2", { titre: "Guide inventé", lien: "https://axion-ia.com/fr/guide-ia" })! });
+    const titre = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, texte: rendreTexteMp("mp-m1-v4-1", { titre: "Guide inventé", lien: "https://axion-ia.com/fr/guide-ia" })! });
     expect(titre).toMatchObject({ statut: "refuse", code: "guide-inconnu" });
     expect(JSON.stringify(titre)).not.toContain("inventé");
     expect(faux.appels).toHaveLength(0);
     // Nos domaines et sous-domaines passent.
-    expect(await port.envoyerMessage({ ...base, texte: lien("https://axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
-    expect(await port.envoyerMessage({ ...base, cle: "k2", texte: lien("https://guides.axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
+    expect(await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, texte: lien("https://axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
+    expect(await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, cle: "k2", texte: lien("https://guides.axion-ia.com/fr/guide-ia") })).toMatchObject({ statut: "envoye" });
   });
 
   it("lien de la page guide : la forme exacte du lien signé passe, tout écart est refusé", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-g1" } }]);
     const base = { idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "kg" };
-    const lien = (u: string) => rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: u })!;
+    const lien = (u: string) => rendreTexteMp("mp-m1-v4-1", { titre: "Guide d'exemple", lien: u })!;
     const fixture = JSON.parse(readFileSync(resolve(__dirname, "aides", "lien-page-guide.v2.json"), "utf8")) as { lien: string };
     const entete = "https://axion-ia.com/guide-reseau?j=";
     const [charge, sig] = fixture.lien.slice(entete.length).split(".") as [string, string];
     // Le lien de la fixture (340 caractères) est accepté.
-    expect(await port.envoyerMessage({ ...base, texte: lien(fixture.lien) })).toMatchObject({ statut: "envoye" });
+    expect(await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, texte: lien(fixture.lien) })).toMatchObject({ statut: "envoye" });
     const appelsAvant = faux.appels.length;
     // 513 caractères : refusé (le modèle du dictionnaire n'admet pas plus de 512).
     const trop = entete + "a".repeat(513 - entete.length);
@@ -151,7 +154,7 @@ describe("port inbox · écritures", () => {
       "https://guides.axion-ia.com/guide-reseau?j=" + charge + "." + sig, // sous-domaine : forme exacte exigée
     ];
     for (const mauvais of refuses) {
-      const r = await port.envoyerMessage({ ...base, texte: lien(mauvais) });
+      const r = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), ...base, texte: lien(mauvais) });
       expect(r).toMatchObject({ statut: "refuse" });
       expect(JSON.stringify(r)).not.toContain(charge);
     }
@@ -162,11 +165,11 @@ describe("port inbox · écritures", () => {
     const { port, faux } = fabrique([]);
     const pub = rendreTexteMp("mp-pub-linkedin-v1", { titre: "Guide d'exemple", lien: "https://evil.example/x" });
     {
-      const r = await port.repondreCommentaire({ idCompte: "exemple-compte-1", idPost: "p", idCommentaire: "c", texte: pub!, cle: "k" });
+      const r = await port.repondreCommentaire({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idPost: "p", idCommentaire: "c", texte: pub!, cle: "k" });
       expect(r).toMatchObject({ statut: "refuse", code: "lien-hors-domaine" });
     }
     const sans = creerPortInboxZernio({ client: fabrique([]).client, comptesPermis: COMPTES });
-    expect(await sans.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "c", texte: PRIVE, cle: "k" })).toMatchObject({ statut: "refuse", code: "guide-inconnu" });
+    expect(await sans.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "c", texte: PRIVE, cle: "k" })).toMatchObject({ statut: "refuse", code: "guide-inconnu" });
     expect(faux.appels).toHaveLength(0);
   });
 
@@ -179,7 +182,7 @@ describe("port inbox · écritures", () => {
 
   it("le résultat ne contient jamais le corps ni l'adresse de la personne", async () => {
     const { port } = fabrique([{ statut: 403, corps: { code: "INBOX_REQUIRED", error: ADRESSE } }]);
-    const r = await port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
+    const r = await port.envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k" });
     expect(JSON.stringify(r)).not.toContain("example.com");
   });
 });
@@ -281,6 +284,34 @@ describe("port inbox · atteint seulement par branchements-zernio (lot 4c)", () 
     for (const f of departs) {
       const { dynamiques } = importsDe(f);
       expect(dynamiques.filter((spec) => /zernio-inbox|parcours-conversation|oppositions-transmission/.test(spec)), f).toEqual([]);
+    }
+  });
+});
+
+describe("port inbox · jeton « non opposée » (MG-STOP01 / S2)", () => {
+  const base = { idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: PRIVE };
+  const envois = (port: PortInboxZernio, nonOpposee: unknown) => [
+    () => port.repondreCommentaire({ ...base, texte: PUBLIC, cle: "k", nonOpposee: nonOpposee as never }),
+    () => port.repondreEnPrive({ ...base, nonOpposee: nonOpposee as never }),
+    () => port.envoyerMessage({ idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", texte: PRIVE, cle: "k", nonOpposee: nonOpposee as never }),
+  ];
+
+  it("sans jeton, avec un objet forgé ou une valeur vide : refus fermé, AUCUN appel réseau", async () => {
+    for (const faux of [undefined, null, {}, Object.freeze({}), "jeton", 1]) {
+      const { port, faux: reseau } = fabrique([{ statut: 200, corps: { messageId: "x" } }]);
+      for (const envoi of envois(port, faux)) expect(await envoi()).toMatchObject({ statut: "refuse", code: "non-opposee-requis" });
+      expect(reseau.appels).toHaveLength(0);
+    }
+  });
+
+  it("le même jeton utilisé deux fois : le 2e envoi est refusé, sans réseau", async () => {
+    for (const i of [0, 1, 2]) {
+      const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "x" } }, { statut: 200, corps: { messageId: "y" } }]);
+      const jeton = emettreJetonNonOpposee();
+      const envoi = envois(port, jeton)[i];
+      expect(await envoi()).toMatchObject({ statut: "envoye" });
+      expect(await envoi()).toMatchObject({ statut: "refuse", code: "non-opposee-requis" });
+      expect(faux.appels).toHaveLength(1);
     }
   });
 });

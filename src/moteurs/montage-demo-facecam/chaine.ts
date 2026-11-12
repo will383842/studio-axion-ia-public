@@ -17,6 +17,8 @@
 import type { FournisseurAlignement, ServiceRendu } from "@/fournisseurs/types";
 import type { FournisseurFacecam } from "@/fournisseurs/facecam";
 import type { CommandeFabrication, MotHorodate, Ratio } from "@/domaine/types";
+import { baseRetenue, donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
+import type { DonneesCalque } from "@/briques/sous-titres/scene";
 import { genererPlan, type AppelClaude } from "@/briques/plan-scenes/generateur";
 import { planDeRepli, validerPlan } from "@/briques/plan-scenes/validateur";
 import { scenesARerendre } from "@/briques/plan-scenes/empreinte";
@@ -107,14 +109,61 @@ export function groupesSousTitres(mots: MotHorodate[]): GroupeSousTitre[] {
   }));
 }
 
+export type StyleSousTitresDemo = Pick<CommandeFabrication, "prononciations"> & {
+  style?: NonNullable<NonNullable<CommandeFabrication["styles"]["sousTitres"]>["valeur"]>;
+  base?: NonNullable<CommandeFabrication["sousTitres"]>["base"];
+  intensite?: NonNullable<CommandeFabrication["sousTitres"]>["intensite"];
+};
+
+/** Style de la commande (Bibliothèque) ; sans style ni réglage : `null`, l'ancienne pastille reste. */
+export function styleSousTitresDemo(commande: CommandeFabrication): StyleSousTitresDemo | null {
+  const style = commande.styles?.sousTitres?.valeur;
+  if (!style && !commande.sousTitres) return null;
+  return { prononciations: commande.prononciations ?? [], ...(style ? { style } : {}), ...(commande.sousTitres?.base ? { base: commande.sousTitres.base } : {}), ...(commande.sousTitres?.intensite ? { intensite: commande.sousTitres.intensite } : {}) };
+}
+
+/**
+ * Calque de sous-titres du style choisi (brique centrale, comme le tutoriel). La position du style est ramenée dans la
+ * zone prévue par la mise en page quand elle couvrirait la moitié facecam (le visage) : `deplace` le dit.
+ */
+export function calqueSousTitresDemo(mots: MotHorodate[], ratio: RatioDemo, st: StyleSousTitresDemo): { calque: DonneesCalque; deplace: boolean } | null {
+  if (!mots.length) return null;
+  const segments = fabriquerSousTitres({
+    texte: mots.map((m) => m.mot).join(" "),
+    dureeSec: Math.max(...mots.map((m) => m.finSec), 1),
+    mots,
+    prononciations: st.prononciations,
+    ratio,
+    ...(st.style !== undefined ? { style: st.style } : {}),
+    ...(st.base ? { base: st.base } : {}),
+    ...(st.intensite ? { intensite: st.intensite } : {}),
+  });
+  if (!segments.length) return null;
+  const calque = donneesCalque({ segments, base: baseRetenue(st.base, st.style ?? null), ratio, ...(st.style ? { style: st.style } : {}) });
+  const m = miseEnPageDemo(ratio);
+  const zonePct = ((m.sousTitres.y + m.sousTitres.hauteur / 2) / calque.hauteur) * 100;
+  let deplace = false;
+  const ramener = (pct: number): number => {
+    const y = (pct / 100) * calque.hauteur;
+    // Côte à côte (16:9) : la position verticale ne dit rien du visage (moitié droite sur toute la hauteur) ; on ne touche à rien.
+    if (m.disposition === "cote-a-cote" || y < m.facecam.y || y > m.facecam.y + m.facecam.hauteur) return pct;
+    deplace = true;
+    return zonePct;
+  };
+  const p = calque.positions;
+  const positions = { milieuPct: ramener(p.milieuPct), hautPct: ramener(p.hautPct), basPct: ramener(p.basPct), ...(p.poitrinePct !== undefined ? { poitrinePct: ramener(p.poitrinePct) } : {}) };
+  return { calque: deplace ? { ...calque, positions } : calque, deplace };
+}
+
 /** Propriétés de la composition pour un format (pures, sans adresse : elles arrivent par les entrées du rendu). */
-export function proprietesDemo(etat: EtatDemo, entrees: EntreesDemo, ratio: RatioDemo): ProprietesDemoFacecam {
+export function proprietesDemo(etat: EtatDemo, entrees: EntreesDemo, ratio: RatioDemo, styleSousTitres?: StyleSousTitresDemo | null): ProprietesDemoFacecam {
   const miseEnPage = miseEnPageDemo(ratio);
   const dureeParoleMs = Math.max(1000, Math.round((etat.dureeSec ?? 0) * 1000));
   const facecam = entrees.facecam!;
   const ecranSrc = entrees.ecran ?? facecam;
   const plan = etat.plan!;
   const pistes = pistesEcran(plan, entrees.consignes);
+  const calque = styleSousTitres ? calqueSousTitresDemo(etat.mots ?? [], ratio, styleSousTitres) : null;
   return {
     largeur: miseEnPage.largeur,
     hauteur: miseEnPage.hauteur,
@@ -130,6 +179,7 @@ export function proprietesDemo(etat: EtatDemo, entrees: EntreesDemo, ratio: Rati
     ...pistes,
     plan: planPourCalque(plan),
     sousTitres: groupesSousTitres(etat.mots ?? []),
+    ...(calque ? { calqueSousTitres: calque.calque } : {}),
     carteFin: entrees.carteFin,
   };
 }
@@ -284,11 +334,13 @@ export async function avancerChaineDemo(precedent: EtatDemo, commande: CommandeF
   // --- 5. Rendu : 4:5 d'abord, puis les exports réseaux ------------------------------------------------------------
   if (etat.plan) {
     const ratios = ratiosDemo(commande);
+    const styleDemo = styleSousTitresDemo(commande);
     for (const ratio of ratios) {
       const nom = `rendu-${ratio}`;
       if (ratio !== RATIO_MAITRE_DEMO && !termine(`rendu-${RATIO_MAITRE_DEMO}`)) break;
       if (termine(nom) && !etat.sorties[ratio]) etat.sorties[ratio] = { fichierCle: (t[nom].resultat as { sortieCle: string }).sortieCle };
       if (!aSoumettre(nom)) continue;
+      if (styleDemo && etat.mots && calqueSousTitresDemo(etat.mots, ratio, styleDemo)?.deplace) ajouterRemarque(etat, "SOUS_TITRES_DEPLACES", "Sous-titres déplacés pour ne pas cacher le visage.");
       const p = prochain(nom);
       const cle = cleDemo(commande, ctx.versionId, `demo-${ratio.replace(":", "x")}.mp4`);
       const entreesRendu: Record<string, string> = { facecam: await deps.urlLecture(entrees.facecam.cle) };
@@ -299,7 +351,7 @@ export async function avancerChaineDemo(precedent: EtatDemo, commande: CommandeF
         file: "longue",
         entrees: entreesRendu,
         sortie: { urlDepot: await deps.urlDepot(cle, "video/mp4"), cle },
-        parametres: { composition: ID_COMPOSITION_DEMO_FACECAM, proprietes: proprietesDemo(etat, entrees, ratio) },
+        parametres: { composition: ID_COMPOSITION_DEMO_FACECAM, proprietes: proprietesDemo(etat, entrees, ratio, styleDemo) },
       });
       t[nom] = { id: p.id, essais: p.essais, statut: "soumis" };
     }

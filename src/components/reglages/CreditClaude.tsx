@@ -14,11 +14,11 @@ import type { VueCompteCredit, VueCreditClaude } from "@/services/credit-claude"
 export const TEXTES_CREDIT_CLAUDE = {
   titre: "Crédit Claude",
   aide: "Niveau estimé : à recaler avec la Console. Anthropic n'indique aucun solde ; cette indication est un calcul et ne bloque jamais rien.",
-  montant: "Crédit du cycle (€)",
+  montant: "Crédit du cycle",
   debut: "Début du cycle",
   expiration: "Expiration",
   prochain: "Prochain crédit",
-  releve: "Solde relevé dans la Console (€)",
+  releve: "Solde relevé dans la Console",
   enregistrerCycle: "Enregistrer le cycle",
   enregistrerReleve: "Enregistrer le relevé",
   apresExpiration: "Après l'expiration, saisissez le nouveau cycle (ex. compte 1 : revient vers le 11/11). Le crédit proposé dans le champ ne compte qu'après un clic sur « Enregistrer le cycle ».",

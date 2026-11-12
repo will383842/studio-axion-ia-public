@@ -75,6 +75,13 @@ export async function register() {
   } catch {
     console.error("[studio] branchement du parcours de conversation en échec (code BRANCHEMENT_ECHEC)");
   }
+  // KB-01 : la source d'idées du comité suit le réglage « comite.source_usine.actif » (éteint par défaut ; aucun appel ici).
+  try {
+    const { brancherIdeesUsine } = await import("@/services/branchement-idees-usine");
+    brancherIdeesUsine();
+  } catch {
+    console.error("[studio] branchement des idées de l'usine en échec (code BRANCHEMENT_IDEES_ECHEC)");
+  }
   // Compte retiré de la liste pendant l'arrêt : ses lignes GUIDE actives passent en pause automatique dès le démarrage.
   void import("@/services/mots-service")
     .then((m) => m.pauserGuidesHorsListe(process.env))

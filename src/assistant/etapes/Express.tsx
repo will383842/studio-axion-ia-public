@@ -41,7 +41,7 @@ import type { DetailCredit } from "@/services/credits";
 import type { ApercuFabrication } from "@/services/fabrication";
 import { FeuillePlateau } from "../express/FeuillePlateau";
 import { aDuTexte, blocSuivant, BLOCS_EXPRESS, decisionLancement, elementsAVerifier, etatPlateau, etatVoix, libelleManques, manquesAvantFabrication, ouvreLaRelecture, premiereFois, sujetDepuisScript, type BlocExpress, type BlocManquant, type TonBloc } from "../express/logique";
-import { decorDe, imageDecor, proprietesPlateau } from "../express/plateau";
+import { decorDe, imageDecor, lutApercu, proprietesPlateau } from "../express/plateau";
 import { RelectureAssistant } from "../express/RelectureAssistant";
 import { VoirLesPlans } from "../express/VoirLesPlans";
 import { ZoneColler } from "../express/ZoneColler";
@@ -333,7 +333,7 @@ export function EtapeExpress(props: ProprietesEtape) {
   // CORRECTEUR FINAL A (VERIF-E2E-1 n° 6) : la pastille « Essai » seulement quand rien de réel n'est payé (comme l'Aperçu).
   const fabricationEssai = !apercu?.budget.montageReel && !apercu?.budget.double;
   const prixAConfirmer = sansPrix ? undefined : cout ? { centimes: Math.max(cout.centimes, montantServeur ?? 0), devise: cout.devise } : montantServeur !== null ? { centimes: montantServeur, devise: "EUR" as const } : undefined;
-  const lut = contexte.elements.find((e) => e.id === (brouillon.styles.lutId ?? format.stylesParDefaut.lut));
+  const lut = contexte.elements.find((e) => e.id === lutApercu(brouillon.formatId, brouillon.styles, contexte.elements).lutId);
   const sousTitres = contexte.elements.find((e) => e.id === (brouillon.styles.sousTitresId ?? format.stylesParDefaut.sousTitres));
   const rythme = contexte.elements.find((e) => e.id === (brouillon.styles.styleMontageId ?? format.stylesParDefaut.styleMontage));
   const vignettePlateau = visages.find((v) => v.id === d?.visageId)?.vignette ?? null;

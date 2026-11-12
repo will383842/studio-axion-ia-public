@@ -77,12 +77,22 @@ export async function listerMetiersUsine(o: Options = {}): Promise<MetierUsine[]
   return lireMetiersUsine(await appeler("/api/porte/metiers", { methode: "GET" }, o));
 }
 
-/** Dit à l'usine que ce sujet est pris. Renvoie false (sans lever) si l'appel échoue : le sujet existe déjà. */
+let retenuesEchouees = 0;
+/** Nombre de retenues que l'usine n'a pas pu noter depuis le démarrage du serveur (le sujet existe quand même au Studio). */
+export function compterRetenuesEchouees(): number {
+  return retenuesEchouees;
+}
+export function reinitialiserRetenuesEchouees(): void {
+  retenuesEchouees = 0;
+}
+
+/** Dit à l'usine que ce sujet est pris. Renvoie false (sans lever) si l'appel échoue : le sujet existe déjà. Chaque échec est compté. */
 export async function retenirSujetUsine(origine: OrigineUsine, referenceStudio: string, o: Options = {}): Promise<boolean> {
   try {
     await appeler("/api/porte/sujets/retenir", { methode: "POST", corps: { signature: origine.signature, parts: origine.parts, type_contenu: origine.typeContenu, reference_studio: referenceStudio } }, o);
     return true;
   } catch {
+    retenuesEchouees += 1;
     return false;
   }
 }

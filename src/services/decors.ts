@@ -46,6 +46,7 @@ import { RECETTE_COMPOSITION_AVOCAT } from "@/moteurs/montage-avocat/recette-com
 import { nouvelId } from "@/lib/ids";
 import { centimes, TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import type { OrigineLancement } from "./budget-mensuel";
+import { avecOrigineFournisseur } from "./plafond-fournisseur";
 import { depots, ecrireParametre, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre, maintenant, ressourceActive } from "./_commun";
 import { exigerSession } from "./auth";
 import { urlsFichiers } from "./fichiers";
@@ -469,7 +470,9 @@ export async function demanderDecor(texte: string, options: { confirme: AccordPr
   let depenseEcrite = false;
   try {
     await sauver();
-    await Promise.all(
+    // L2-13 : l'origine du lancement suit jusqu'au fournisseur (quota de quantité et plafond technique : « usine » seulement).
+    await avecOrigineFournisseur("usine" === options.origine ? "usine" : "studio", () =>
+      Promise.all(
       lot.demandes.map(async (dem) => {
         try {
           dem.idDemande = (await fabrication.soumettre({ genre: "image", requete: dem.requete, ratio: "9:16", cleIdempotence: `${lotId}-${dem.i}` })).idDemande;
@@ -479,6 +482,7 @@ export async function demanderDecor(texte: string, options: { confirme: AccordPr
         }
         await sauver();
       }),
+      ),
     );
     await sauver();
     // Dépense comptée DÈS la soumission (ce qui est parti est payé), au tarif relevé.

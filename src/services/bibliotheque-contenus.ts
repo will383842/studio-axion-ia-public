@@ -48,6 +48,7 @@ export async function lireBibliotheque(demande: DemandeBibliotheque, deps: Depen
       titre: v.titre,
       statut: projeterStatutVideo(v.statut),
       reseaux: v.reseaux ?? [],
+      ...(v.format?.id ? { format: v.format.id } : {}),
       modifieLe: v.modifieLe,
       ...(v.vignette ? { vignetteUrl: v.vignette } : {}),
     });

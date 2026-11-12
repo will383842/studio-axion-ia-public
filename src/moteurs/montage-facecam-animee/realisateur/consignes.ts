@@ -20,7 +20,7 @@ const pc = (x: number) => `${Math.round(x * 100)} %`;
 /**
  * Mémoire des plaquettes v4 (19/10) : celles déjà prises dans les 5 dernières vidéos (avec leur compte), celles JAMAIS prises (parmi les plaquettes
  * ACTIVES seulement : jamais une plaquette « en coulisse », ni une plaquette `interdites` du repli sans vidéo) et l'ouverture à ne pas reprendre.
- * Elle passe dans le MESSAGE de la demande (la consigne système reste la même d'une vidéo à l'autre, cache conservé) ; consignes seulement, aucune règle n'en dépend.
+ * Elle passe dans le MESSAGE de la demande (la consigne système reste la même d'une vidéo à l'autre, cache conservé) ; elle annonce aussi la règle D17 (`regles-v4.ts`), vérifiée par le code au premier essai seulement ; ensuite elle n'est plus qu'un avertissement.
  * Rend "" sans historique v4.
  */
 export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdites: readonly string[] = []): string {
@@ -36,6 +36,9 @@ export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdi
   ];
   const ouverture = historique[0]?.ouvertureV4;
   if (ouverture) lignes.push(`N'ouvrez pas par ${ouverture} (ouverture de la vidéo précédente).`);
+  const T = SEUILS_V4;
+  const ouvertures = [...new Set(historique.slice(0, T.ouverturesRecentesVideos).flatMap((h) => (h.ouvertureV4 ? [h.ouvertureV4] : [])))];
+  lignes.push(`RÈGLE VÉRIFIÉE, plan refusé et à refaire si : il ouvre par ${ouvertures.length ? `l'une de ces plaquettes (ouvertures des ${T.ouverturesRecentesVideos} dernières vidéos) : ${ouvertures.join(", ")}` : "la même plaquette que l'une des dernières vidéos"} ; ou si plus de ${Math.round(100 * T.partReprisePlaquettesMax)} % de ses plaquettes différentes ont déjà été prises dans les ${T.videosRecentesPlaquettes} dernières vidéos. L'erreur exacte vous est renvoyée à l'essai suivant.`);
   return lignes.join("\n");
 }
 

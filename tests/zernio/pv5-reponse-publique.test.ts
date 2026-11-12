@@ -18,7 +18,7 @@ const J = (...p: string[]) => p.join("");
 const TOKENS = { lieu: J("Gren", "oble"), label: J("Quali", "opi"), participe: J("cert", "ifié"), gain: J("Aucun gain ", "garanti") };
 const ALLUME = { MOTS_ENABLED: "1" };
 const LIEN = "https://exemple.test/guide";
-const saisieDe = (reponsePublique = "Message automatique envoyé par Axion IA. le guide est sur la page indiquée.") => ({ mot: "GUIDE", reponsePublique, messagePrive: "Message automatique envoyé par Axion IA. Quelle adresse pour le guide ?", relance: null, fin: "Message automatique envoyé par Axion IA. Merci, c'est noté." });
+const saisieDe = (reponsePublique = "Bonjour ! le guide est sur la page indiquée.") => ({ mot: "GUIDE", reponsePublique, messagePrive: "Bonjour ! Quelle adresse pour le guide ?", relance: null, fin: "Bonjour ! Merci, c'est noté." });
 const valides = (s = saisieDe()) => T.validerTextes(T.textesDepuisSaisie(s));
 const brouillon = () => T.textesDepuisSaisie(saisieDe());
 
@@ -64,9 +64,9 @@ describe("pv5 · graphe adapté", () => {
   });
   it("textes non validés ou refusés par le contrôle de sortie : refus, quel que soit le réseau", () => {
     expect(Cap.construireGrapheReseau(brouillon(), "instagram")).toMatchObject({ ok: false, code: "textes_non_valides" });
-    const modifie = { ...valides(), reponsePublique: "Message automatique envoyé par Axion IA. autre texte." };
+    const modifie = { ...valides(), reponsePublique: "Bonjour ! autre texte." };
     expect(Cap.construireGrapheReseau(modifie, "instagram")).toMatchObject({ ok: false, code: "textes_non_valides" });
-    for (const mauvais of [`Message automatique envoyé par Axion IA. ${TOKENS.lieu}`, `Message automatique envoyé par Axion IA. ${TOKENS.gain}`, `Message automatique envoyé par Axion IA. ${TOKENS.label} ${TOKENS.participe}`]) {
+    for (const mauvais of [`Bonjour ! ${TOKENS.lieu}`, `Bonjour ! ${TOKENS.gain}`, `Bonjour ! ${TOKENS.label} ${TOKENS.participe}`]) {
       expect(Cap.construireGrapheReseau(valides(saisieDe(mauvais)), "facebook")).toMatchObject({ ok: false, code: "texte_refuse" });
     }
   });
@@ -87,7 +87,7 @@ describe("pv5 · kit LinkedIn profil", () => {
     }
   });
   it("mots interdits (jetons), adresse e-mail et lien douteux refusés", () => {
-    for (const mauvais of [`Message automatique envoyé par Axion IA. ${TOKENS.lieu}`, `Message automatique envoyé par Axion IA. ${TOKENS.gain}`, `Message automatique envoyé par Axion IA. ${TOKENS.label}`, "Message automatique envoyé par Axion IA. écrivez à nom@exemple.test"]) {
+    for (const mauvais of [`Bonjour ! ${TOKENS.lieu}`, `Bonjour ! ${TOKENS.gain}`, `Bonjour ! ${TOKENS.label}`, "Bonjour ! écrivez à nom@exemple.test"]) {
       expect(K.construireKitLinkedinProfil(valides(saisieDe(mauvais)), LIEN)).toMatchObject({ ok: false, code: "texte_refuse" });
     }
     for (const lien of ["http://exemple.test/g", "https://u:p@exemple.test/g", `https://exemple.test/${TOKENS.lieu}`, "https://exemple.test/a@b", "javascript:alert(1)", "pas un lien"]) {
@@ -114,7 +114,7 @@ describe("pv5 · service inerte et file À traiter", () => {
     expect(await KS.genererKit({ saisie: saisieDe(), lienGuide: LIEN, env: ALLUME })).toMatchObject({ issue: "refuse", raison: "textes_non_valides" });
     await S.validerMot({ saisie: saisieDe(), confirmeParOperateur: true });
     expect(await KS.genererKit({ saisie: saisieDe(), lienGuide: LIEN, env: ALLUME })).toMatchObject({ issue: "execute" });
-    expect(await KS.genererKit({ saisie: saisieDe("Message automatique envoyé par Axion IA. modifié."), lienGuide: LIEN, env: ALLUME })).toMatchObject({ issue: "refuse" });
+    expect(await KS.genererKit({ saisie: saisieDe("Bonjour ! modifié."), lienGuide: LIEN, env: ALLUME })).toMatchObject({ issue: "refuse" });
   });
   it("file : ajout, repère refusé (e-mail, mot interdit), marquage fait", async () => {
     expect(await KS.ajouterATraiter({ mot: "GUIDE", repere: "Post du lundi", env: ALLUME })).toMatchObject({ issue: "execute" });
