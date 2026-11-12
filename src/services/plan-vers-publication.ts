@@ -34,6 +34,10 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
     // Reprise après coupure : le créneau est resté « valide » alors que le visuel est déjà « programme ».
     if (!porte.ok) throw new Error(porte.raison);
     if (v.statut !== "valide" && v.statut !== "programme") throw new Error(`Visuel non validé (statut « ${v.statut} ») : il ne peut pas être programmé.`);
+    // Un visuel n'est programmé que par UN créneau : un autre créneau déjà « programme » pour ce visuel (même date ou non, même réseau ou non)
+    // en possède les Publications ; le 2e passerait « programme » sans Publication à lui. La reprise du créneau lui-même (même id) passe.
+    const autre = await d.creneaux.trouver((x) => x.id !== c.id && x.visuelId === v.id && x.statut === "programme");
+    if (autre) throw new Error(`Visuel déjà programmé sur un autre créneau (${autre.id}) : refus, rien d'écrit.`);
   }
 
   const lignes = identifiantsProgrammation(c);
@@ -51,10 +55,10 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
     if (c.aRenvoyer) throw new Error("À renvoyer à l'usine après un décalage : le rejeu est refusé.");
     if (plan.some((l) => !l.existante)) { const porte = peutProgrammer(c); if (!porte.ok) throw new Error(porte.raison); }
   }
-  // Hors rejeu (!deja), une Publication existante à une autre date appartient à un autre créneau (même visuel) :
-  // on ne la déplace pas. Une reprise après coupure garde les mêmes dates et passe.
+  // Hors rejeu (!deja), une Publication existante à une autre date n'est pas déplacée (message neutre : ce peut être le créneau lui-même,
+  // resté « programme » puis décalé, ou une Publication restante). Une reprise après coupure garde les mêmes dates et passe.
   if (!deja && plan.some((l) => l.existante && l.existante.date !== c.heuresParReseau[l.reseau])) {
-    throw new Error("Visuel déjà programmé sur un autre créneau : refus, aucune Publication déplacée.");
+    throw new Error("Publication existante à une autre date : refus, aucune Publication déplacée.");
   }
   const publications: Publication[] = [];
   for (const { reseau, id, existante } of plan) {
