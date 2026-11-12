@@ -89,7 +89,7 @@ export function EcranIllustrations({ elements, formats, filtreInitial, ajouterAu
                   <span className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
                     {e.etatLicence === "expiree" && <Pastille ton="brique" icone="attention">Expirée</Pastille>}
                     {e.etatLicence === "a-verifier" && <Pastille ton="ambre" icone="attention">À vérifier</Pastille>}
-                    {e.licence.type === "generee-ia" && <Pastille ton="orange">IA</Pastille>}
+                    {e.licence.type === "generee-ia" && <Pastille ton="contour">IA</Pastille>}
                   </span>
                   {e.type === "illustration-video" && (
                     <span className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-fond/70 text-texte">

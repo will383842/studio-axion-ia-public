@@ -58,7 +58,7 @@ export const TYPES_BIBLIOTHEQUE: { type: TypeElement | "prononciations" | "mes-i
   { type: "couleurs", nom: "Couleurs", icone: "nuancier", groupe: "style" },
   { type: "police", nom: "Polices", icone: "texte", groupe: "style" },
   { type: "logo", nom: "Logo", icone: "certifie", groupe: "style" },
-  { type: "lut", nom: "LUT", icone: "contraste", groupe: "style" },
+  { type: "lut", nom: "Rendu des couleurs", icone: "contraste", groupe: "style" },
   { type: "style-sous-titres", nom: "Sous-titres", icone: "sous-titres", groupe: "style" },
   { type: "habillage", nom: "Habillage", icone: "calques", groupe: "style" },
   { type: "style-montage", nom: "Montage", icone: "ciseaux", groupe: "style" },
