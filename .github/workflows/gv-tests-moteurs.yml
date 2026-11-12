@@ -138,7 +138,7 @@ jobs:
             const r = JSON.parse(require("fs").readFileSync("rapport-vitest.json", "utf8"));
             const fich = r.testResults || [];
             const lances = fich.reduce((n, f) => n + (f.assertionResults || []).length, 0);
-            const rates = fich.filter((f) => f.status === "failed").map((f) => f.name.replace(/\/g, "/").replace(/^.*\/((tests|src)\/)/, "$1"));
+            const rates = fich.filter((f) => f.status === "failed").map((f) => f.name.replace(/\x5c/g, "/").replace(/^.*\/((tests|src)\/)/, "$1"));
             const nbEchecs = fich.reduce((n, f) => n + (f.assertionResults || []).filter((c) => c.status === "failed").length, 0);
             const l = ["### Tests de la zone", "", "Tests lancés : " + lances, "Échecs : " + nbEchecs + " (dans " + rates.length + " fichiers)", "", "30 premiers fichiers en échec :"];
             for (const f of rates.slice(0, 30)) l.push("- " + f);
