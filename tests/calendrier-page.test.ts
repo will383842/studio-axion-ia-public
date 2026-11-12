@@ -1,5 +1,5 @@
 /** L4-05 : page /calendrier, vues semaine et mois. Services doublés, aucun réseau. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const listerCalendrier = vi.fn(async (_d: string, _f: string) => [] as unknown[]);
@@ -42,5 +42,42 @@ describe("page /calendrier", () => {
     expect(h).toContain("vue=mois");
     expect(h).toContain(">Semaine<");
     expect(h).toContain(">Mois<");
+  });
+
+  it("vue mois : un jour avec un seul essai n'est pas compté comme publication (case et en-tête)", async () => {
+    listerCalendrier.mockResolvedValueOnce([{ jour: "2026-12-10", publications: [{ videoId: "v1", via: "simulation" }] }]);
+    const h = await rendre({ vue: "mois", date: "2026-12" });
+    expect(h).toContain("0 publication");
+    expect(h).toContain("1 essai");
+    expect(h).not.toMatch(/>1 (<!-- -->)?<span class="sr-only">/);
+  });
+  it("vue mois : une vraie publication et un essai le même jour → « 1 » et « 1 essai »", async () => {
+    listerCalendrier.mockResolvedValueOnce([{ jour: "2026-12-10", publications: [{ videoId: "v1", via: "buffer" }, { videoId: "v2", via: "simulation" }] }]);
+    const h = await rendre({ vue: "mois", date: "2026-12" });
+    expect(h).toContain("1 publication");
+    expect(h).toMatch(/>1 (<!-- -->)?<span class="sr-only">publication<\/span>/);
+    expect(h).toContain("1 essai");
+  });
+  it("?date= très lointaine : « Semaine précédente » reste sur la semaine voisine (pas de saut)", async () => {
+    const h = await rendre({ vue: "semaine", date: "2040-06-06" });
+    expect(h).toContain("date=2040-05-28"); // lundi 4 juin 2040 − 7 jours
+    expect(h).toContain("date=2040-06-11");
+    expect(h).not.toContain("semaine=5");
+  });
+  describe("lundi entre 0 h et 2 h à Paris (le serveur est encore dimanche en UTC)", () => {
+    afterEach(() => vi.useRealTimers());
+    it("?semaine=0 affiche la semaine qui commence ce lundi (Paris)", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-12-06T23:30:00Z")); // lundi 7/12 00:30 à Paris
+      await rendre({});
+      expect(listerCalendrier.mock.calls[0][0].slice(0, 10)).toBe("2026-12-06");
+    });
+    it("?date=2026-12-07 affiche la semaine du 7 au 13 même à cette heure", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-12-06T23:30:00Z"));
+      await rendre({ date: "2026-12-07" });
+      expect(listerCalendrier.mock.calls[0][0].slice(0, 10)).toBe("2026-12-06");
+      expect(listerCalendrier.mock.calls[0][1].slice(0, 10)).toBe("2026-12-13");
+    });
   });
 });
