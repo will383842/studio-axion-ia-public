@@ -54,7 +54,7 @@ describe("en-tête de la fiche : un seul bouton orange", () => {
         actions: createElement("span", null, "actions"),
       }),
     );
-    expect(h).toMatch(/<button[^>]*bg-orange[^>]*>(?:(?!<\/button>).)*Valider/s);
+    expect(h).toMatch(/<button[^>]*bg-orange[^>]*>(?:(?!<\/button>)[\s\S])*Valider/);
   });
 
   it("l'aria-label de la pastille reprend le libellé visible", () => {
