@@ -68,6 +68,11 @@ export interface EntreesFacecam {
    * que le monteur du chat les voie (« enlève la carte sur les relances ») ; absentes : aucune connue.
    */
   cartesAuto?: CarteAutoFacecam[];
+  /**
+   * GV-MD-05a : mémoire des cartes (modèles déjà servis, ouverture de la vidéo précédente) figée sur la vidéo, pour que
+   * la même vidéo donne toujours les mêmes cartes après une retouche. Absente : aucune mémoire.
+   */
+  memoireCartes?: { dejaServis: string[]; ouverturePrecedente?: string };
 }
 
 /** Carte automatique posée par l'habillage (temps de la vidéo montée). L'identifiant `auto-…` est tiré du contenu. */
@@ -89,6 +94,15 @@ const estCle = (v: unknown): v is string => typeof v === "string" && v.length > 
 const CRANS: CranImage[] = ["moins", "juste", "plus"];
 const cran = (v: unknown): CranImage => (CRANS.includes(v as CranImage) ? (v as CranImage) : "juste");
 
+/** Mémoire des cartes lue sans jamais lever : 40 modèles au plus, de 1 à 60 caractères ; sinon écartée. */
+function lireMemoireCartes(v: unknown): EntreesFacecam["memoireCartes"] {
+  const ok = (x: unknown): x is string => typeof x === "string" && x.length > 0 && x.length <= 60;
+  const m = (v ?? {}) as { dejaServis?: unknown; ouverturePrecedente?: unknown };
+  if (!Array.isArray(m.dejaServis) || m.dejaServis.length > 40 || !m.dejaServis.every(ok)) return undefined;
+  if (m.ouverturePrecedente !== undefined && !ok(m.ouverturePrecedente)) return undefined;
+  return { dejaServis: [...m.dejaServis], ...(m.ouverturePrecedente !== undefined ? { ouverturePrecedente: m.ouverturePrecedente } : {}) };
+}
+
 /**
  * Lit `entrees.facecam` d'une vidéo (ou d'une commande) sans jamais lever : un champ absent ou mal formé prend sa valeur
  * par défaut. Une clé R2 trop longue (contenu lourd glissé par erreur) est écartée.
@@ -98,6 +112,7 @@ export function lireEntreesFacecam(entrees: Record<string, unknown> | null | und
   const vide = entreesFacecamVides();
   const coupes = (brut.coupes ?? {}) as { auto?: unknown; retablies?: unknown };
   const image = (brut.image ?? {}) as Partial<Record<keyof ImageFacecam, unknown>>;
+  const m = lireMemoireCartes(brut.memoireCartes);
   return {
     ...(estCle(brut.pisteVisageCle) ? { pisteVisageCle: brut.pisteVisageCle } : {}),
     ...(estCle(brut.transcriptionCle) ? { transcriptionCle: brut.transcriptionCle } : {}),
@@ -110,6 +125,7 @@ export function lireEntreesFacecam(entrees: Record<string, unknown> | null | und
     passages: Array.isArray(brut.passages) ? (brut.passages as PassageFacecam[]) : vide.passages,
     consignes: Array.isArray(brut.consignes) ? (brut.consignes as ConsigneFacecam[]) : vide.consignes,
     ...(Array.isArray(brut.cartesAuto) ? { cartesAuto: (brut.cartesAuto as CarteAutoFacecam[]).filter((c) => typeof c?.id === "string" && Number.isFinite(c.debutSec) && Number.isFinite(c.finSec)) } : {}),
+    ...(m ? { memoireCartes: m } : {}),
   };
 }
 
