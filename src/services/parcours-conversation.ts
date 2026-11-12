@@ -19,7 +19,7 @@ import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { cibleDuMot, reseauSite } from "@/domaine/guide-reseau/cibles-contrat";
 import { dossierDe, racineDe } from "@/domaine/guide-reseau/cles-parcours";
-import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
+import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, GUIDES_RESEAU_CONNUS, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
@@ -39,7 +39,7 @@ import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
-import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours } from "./parcours-dossier";
+import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { CHEMIN_DEMANDES_GUIDE, transportDuSite } from "./parcours-mot";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
@@ -148,7 +148,7 @@ async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: st
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ferme";
     // Enregistrement du mode « plusieurs mots » (champ `mot` présent) : la ligne du SON mot ; une cible autre que `guide-ia` n'a pas encore de validation : fermé.
     if (!(await motActif(parcours?.mot ?? MOT, idCompte))) return "mot_inactif";
-    if (parcours?.mot !== undefined && parcours.guide !== "guide-ia") return "validation_perimee";
+    if (parcours?.mot !== undefined && !textesValidesPourLeMot(parcours.mot, parcours.guide)) return "validation_absente";
     // La validation de l'opérateur est liée aux textes réellement envoyés : revérifiée ici, à chaque garde (échec fermé).
     const e = empreinteGuideParcours(d.titreGuide ?? "");
     const v = await lireParametre<{ empreinte?: string } | null>(PARAM_VALIDATION_GUIDE_PARCOURS, null);
@@ -169,6 +169,7 @@ const MESSAGES_GARDE: Record<string, string> = {
   reseau: "Réseau non pris en charge : aucun message privé ne part.",
   cles_absentes: "Le secret d'empreinte des personnes est absent ou invalide : aucun message privé ne part.",
   lecture_impossible: "Les réglages des mots sont illisibles : aucun message privé ne part.",
+  validation_absente: "Ce mot n'a pas de textes validés : aucun message ne part pour ce mot.",
   validation_perimee: "Les textes du mot GUIDE ont changé depuis leur validation (ou ne sont pas validés) : aucun message ne part. Revalidez-les dans Mots.",
 };
 
@@ -211,7 +212,7 @@ const formesConversation = (cles: ClesOk, idBrut: string): string[] => [cles.cou
  * PROPAGÉE (fermé) ; le passage reporte l'événement (`registre_illisible`) et on réessaiera. Jamais « non opposée » par défaut.
  * Un simple doute (M2 seulement) bloque l'envoi sans passer la conversation à « oppose ».
  */
-async function verifierPartout(env: Env, cle: string, charge: Record<string, unknown> | null, now: number, opts: { m2?: boolean } = {}): Promise<JetonNonOpposee | null> {
+async function verifierPartout(env: Env, cle: string, charge: Record<string, unknown> | null, now: number, opts: { m2?: boolean; doute?: boolean } = {}): Promise<JetonNonOpposee | null> {
   const e = await lireEtat(cle);
   if (e?.etat === "oppose") return null;
   // Clé de dossier (`racine|…`, mode « plusieurs mots ») : la racine est aussi vérifiée, et un « stop » vaut pour TOUT le dossier. Clé sans `|` : inchangé.
@@ -225,7 +226,7 @@ async function verifierPartout(env: Env, cle: string, charge: Record<string, unk
   }
   const c = charge ?? {};
   const bruts = [c.idAuteur, c.idExpediteur, c.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
-  const v = await personneOpposeePartout({ idsBruts: bruts, empreintes: [cle, ...(e?.alias ?? []), ...(enDossier ? [racine] : [])] }, { env, douteBloque: opts.m2 === true });
+  const v = await personneOpposeePartout({ idsBruts: bruts, empreintes: [cle, ...(e?.alias ?? []), ...(enDossier ? [racine] : [])] }, { env, douteBloque: opts.m2 === true || opts.doute === true });
   if (!v.opposee) return v.jeton;
   if (v.source !== "doute") {
     if (enDossier) await passerDossierOppose(racine);
@@ -416,7 +417,8 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const connue = await retrouver(cles, idAuteur!);
   // Retour arrière après un allumage du mode « plusieurs mots » : la personne n'a plus d'enregistrement ancien mais un dossier `racine|…` existe.
   // Réglage éteint : jamais un nouveau parcours pour elle, silence (rien ne part).
-  if (!connue && (await aUnDossierComposite(cles, idAuteur!))) {
+  // Personne retrouvée (ancien enregistrement sans `|`) : le dossier composite de sa clé ou de ses alias compte aussi. Sans clé `|` nulle part : inchangé.
+  if (await aUnDossierComposite(cles, idAuteur!, connue ? [connue.cle, ...(connue.etat.alias ?? [])] : [])) {
     await clore(ev, "silence", "silence");
     return "traite";
   }
@@ -436,13 +438,13 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     // Clé d'idempotence calculée UNE fois ici, stockée : jamais recalculée (la rotation du secret la changerait).
     await ecrireEtat(cleEtat, (e) => ({ ...etatNeuf("nouveau", c, d, cleIdempotenceOpaque(cles.courante, "guide", String(c.idCommentaire)), now), alias: e?.alias ?? [] })); // les alias déjà connus sont conservés
   }
-  return etapesCommentaire(ev, d, env, cleEtat, now, cles);
+  return etapesCommentaire(ev, d, env, cleEtat, now, cles, false);
 }
 
 /** Vrai si un dossier `racine|…` existe pour une des formes de la personne (ou pour la cible d'un de ses alias). Lecture seule. */
-async function aUnDossierComposite(cles: ClesOk, idBrut: string): Promise<boolean> {
+async function aUnDossierComposite(cles: ClesOk, idBrut: string, clesConnues: readonly string[] = []): Promise<boolean> {
   const { conv, alias } = await lireTout();
-  const racines = formesConversation(cles, idBrut).flatMap((f) => [f, ...(typeof alias[f] === "string" ? [racineDe(alias[f])] : [])]);
+  const racines = [...formesConversation(cles, idBrut), ...clesConnues].flatMap((f) => [f, ...(typeof alias[f] === "string" ? [racineDe(alias[f])] : [])]);
   return racines.some((r) => Object.keys(conv).some((k) => k.startsWith(`${r}|`)));
 }
 
@@ -458,12 +460,12 @@ async function cibleDuCommentaire(mot: string, reseau: string, d: DepsConversati
   const r = cibleDuMot(mot, reseauSite(reseau) ?? "tous", site.liaisons, site.catalogue);
   if (mot === MOT && r.source === null) return { genre: "ok", code: "guide-ia", titre: titreServeur };
   const el = r.element;
-  if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
+  if (!el || !el.actif || el.test || el.type === "adresse") return { genre: "inconnue" };
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }
 
-async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<"traite" | "bloque"> {
+async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<"traite" | "bloque" | "leger"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
   const reseau = String(c.reseau ?? "");
@@ -494,6 +496,12 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     await alerter("cible_inconnue", "Un mot est lié à une cible introuvable, désactivée ou de type adresse : le commentaire est écarté, rien n'est envoyé. Vérifiez les liaisons dans Mots.", now);
     await clore(ev, "ecarte", "cible_inconnue");
     return "traite";
+  }
+  // 3 bis. Textes validés pour ce mot et cette cible ? Sinon l'événement est CLOS (jamais remis en attente : il bloquerait les GUIDE du lot).
+  if (!textesValidesPourLeMot(mot, cible.code)) {
+    await alerter(`validation_absente:${mot}`, `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.`, now);
+    await clore(ev, "ecarte", "validation_absente");
+    return "leger";
   }
   // 4. Garde par mot (ligne `mot|compte` active ; textes validés pour `guide-ia`, fermé pour toute autre cible).
   const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code });
@@ -531,7 +539,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     }
     return repondrePubliqueSeule(ev, d, env, cles, trouvee.racine, idCommentaire, dec.raison, now);
   }
-  return etapesCommentaire(ev, d, env, r.cle!, now, cles);
+  return etapesCommentaire(ev, d, env, r.cle!, now, cles, true);
 }
 
 /**
@@ -755,8 +763,9 @@ async function preparerRenvoi(e: Conversation, d: DepsConversation, env: Env, cl
   return { texte, version: choix.version, formulationLien: choix.version, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
 
-async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {
+async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk, multi = false): Promise<"traite" | "bloque"> {
   let e = await lireEtat(cle);
+  const optsDoute = multi ? { doute: true } : {}; // mode allumé : le doute bloque aussi juste avant chaque envoi ; éteint : appels inchangés
   if (!e) return "traite";
   const { idCompte } = e;
   const idPost = e.idPostPlateforme;
@@ -770,7 +779,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     if (texte === null) {
       await patcher(cle, { etat: "pub_ok", dernierCode: "texte_incomplet" });
     } else {
-      const nonOpposee = await verifierPartout(env, cle, ev.charge, now);
+      const nonOpposee = await verifierPartout(env, cle, ev.charge, now, optsDoute);
       if (!nonOpposee) {
         await clore(ev, "silence", "opposee");
         return "traite";
@@ -797,6 +806,11 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   const bloque = await garde(d, env, idCompte, e.reseau, e);
+  if (bloque === "validation_absente") {
+    await alerter(`validation_absente:${e.mot ?? MOT}`, `Le mot ${e.mot ?? MOT} n'a pas de textes validés : aucun message ne part pour ce mot.`, now);
+    await clore(ev, "ecarte", "validation_absente");
+    return "traite";
+  }
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -811,7 +825,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "m1_refuse", codeRefus);
     return "traite";
   }
-  const nonOpposeeM1 = await verifierPartout(env, cle, ev.charge, now);
+  const nonOpposeeM1 = await verifierPartout(env, cle, ev.charge, now, optsDoute);
   if (!nonOpposeeM1) {
     await clore(ev, "silence", "opposee");
     return "traite";
@@ -1115,10 +1129,21 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, res.statut, res.code ?? null);
     return "traite";
   }
-  return demanderGuide(ev, d, env, cle, etat, idConversation, idMessage, adresse!, c, now);
+  return demanderGuide(ev, d, env, cle, etat, idConversation, idMessage, adresse!, c, now, multi);
 }
 
-async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, adresse: string, c: Record<string, unknown>, now: number): Promise<"traite" | "bloque"> {
+/** Codes des cibles `guide` actives et non d'essai du catalogue, plus `guide-ia`. Catalogue illisible : la liste par défaut. */
+async function guidesDuCatalogue(env: Env, now: number): Promise<readonly string[]> {
+  try {
+    const site = await lireCiblesSite({ env, maintenantMs: now });
+    if (site === null) return GUIDES_RESEAU_CONNUS;
+    return [...new Set(["guide-ia", ...site.catalogue.filter((x) => x.type === "guide" && x.actif && !x.test).map((x) => x.code)])];
+  } catch {
+    return GUIDES_RESEAU_CONNUS;
+  }
+}
+
+async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, adresse: string, c: Record<string, unknown>, now: number, multi = false): Promise<"traite" | "bloque"> {
   const site = transportDuSite(env);
   const p = processus();
   if (!site || now < p.ouvertJusqua) {
@@ -1136,7 +1161,9 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   const occurredAt = etat.occurredAt ?? (typeof c.occurredAt === "string" ? c.occurredAt : new Date(now).toISOString());
   const run: RunLu = { email: adresse, mot: etat.mot ?? MOT, reseau: etat.reseau, guide: etat.guide, versionTexteM1: etat.versionTexteM1, occurredAt };
   const cleEnvoi = RE_CLE_IDEMPOTENCE.test(etat.cleIdempotenceGuide) ? etat.cleIdempotenceGuide : "";
-  if (!runValide(run) || !cleEnvoi) {
+  // Mode allumé : guides connus = cibles `guide` actives et non d'essai du catalogue (+ `guide-ia`) ; catalogue illisible : liste par défaut. Éteint : appel inchangé.
+  const guidesConnus = multi ? await guidesDuCatalogue(env, now) : undefined;
+  if (!(guidesConnus ? runValide(run, undefined, guidesConnus) : runValide(run)) || !cleEnvoi) {
     await patcher(cle, { etat: "site_refuse", dernierCode: "run_invalide" });
     await alerter("site_refuse", "Le site a refusé une demande de guide (données invalides). La personne ne recevra pas le guide.", now);
     await clore(ev, "site_refuse", "run_invalide");
@@ -1425,8 +1452,11 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     await expirerConversations({ env, maintenantMs: now });
     const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && !e.traite && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
-    for (const ev of dus.slice(0, LOT_MAX_PAR_PASSAGE_CONVERSATION)) { // les autres restent dus pour le passage suivant
-      let issue: "traite" | "bloque";
+    // Les événements clos sans aucun envoi (mot sans textes validés) ne comptent pas dans le lot : ils ne prennent pas la place des GUIDE. Borne dure : 10 lots.
+    let restant = LOT_MAX_PAR_PASSAGE_CONVERSATION;
+    for (const ev of dus.slice(0, LOT_MAX_PAR_PASSAGE_CONVERSATION * 10)) { // les autres restent dus pour le passage suivant
+      if (restant <= 0) break;
+      let issue: "traite" | "bloque" | "leger";
       try {
         issue = ev.type === TYPE_COMMENTAIRE ? await (multi ? traiterCommentaireDossier : traiterCommentaire)(ev, d, env, k, now) : await traiterMessage(ev, d, env, k, now, multi);
       } catch {
@@ -1435,6 +1465,7 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
         rapport.enAttente++;
         continue;
       }
+      if (issue !== "leger") restant--;
       if (issue === "bloque") {
         rapport.enAttente++;
         rapport.gardeBloquante = "garde";
@@ -1568,6 +1599,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
     if (!rapport.actif) return rapport;
     const k = lireClesEmpreinte(env);
     if (!k.ok) return rapport;
+    const multi = await motsMultiplesActifs(); // lu une fois par passage
     // 4. Lecture-réservation.
     const lecture = await appelerSite(env, CHEMIN_CONFIRMATIONS, { schemaVersion: 1, limite: LOT_CONFIRMATIONS });
     const liste = lecture && lecture.statut === 200 && typeof lecture.corps === "object" && lecture.corps !== null ? (lecture.corps as { confirmations?: unknown }).confirmations : undefined;
@@ -1584,7 +1616,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
       }
       let issue: "envoye" | "fait" | "garde";
       try {
-        issue = await traiterConfirmation(r, d, env, k, now);
+        issue = await traiterConfirmation(r, d, env, k, now, multi);
       } catch {
         // Vérification impossible (registre illisible…) : ce merci n'est PAS envoyé (fermé), les autres continuent ; le site le re-proposera.
         await journaliser("parcours_conversation", "Merci : verification_impossible (non envoyé, sans accusé).");
@@ -1602,7 +1634,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
 /** Gardes qui valent pour tout le Studio : elles arrêtent la boucle des mercis. Les autres (compte, mot, réseau) sont propres à une conversation. */
 const GARDES_GLOBALES = new Set(["tout_arrete", "disjoncteur_ferme", "validation_perimee", "lecture_impossible", "cles_absentes"]);
 /** Une confirmation, dans l'ordre. `garde` : un blocage a mis fin au passage (rien n'est écrit pour cette ref). */
-async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number): Promise<"envoye" | "fait" | "garde"> {
+async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number, multi = false): Promise<"envoye" | "fait" | "garde"> {
   // b. Déjà au registre : aucun envoi, accusé seulement s'il manque. JAMAIS DEUX FOIS LA MÊME REF.
   if ((await lireJournalMerci())[ref]) {
     await accuserMerci(env, ref, now);
@@ -1625,6 +1657,8 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
     await mettreEnFileCle(cle, conv.etat, k.courante, now);
     return (await terminer("non_envoye", "oppose", cle), "fait");
   }
+  // d bis. Réglage éteint (retour arrière) : un parcours de dossier `racine|…` ne reçoit AUCUN merci (silence strict) ; l'accusé dû au site suit la règle des merci non envoyés.
+  if (!multi && racineDe(cle) !== cle) return (await terminer("non_envoye", "dossier_eteint", cle), "fait");
   // e. Garde (« Tout arrêter », disjoncteur, mot actif, validation du guide…) : si elle bloque, ni envoi ni accusé.
   const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau, conv.etat);
   if (bloque) {

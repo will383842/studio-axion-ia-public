@@ -35,6 +35,14 @@ import { ecrireParametre, lireParametre, sousVerrou } from "./_commun";
 import { enregistrerOppositionPersonne } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 
+/**
+ * Règle de validation (décision du fondateur, fermée) : la validation des textes existante vaut UNIQUEMENT pour le mot GUIDE lié à `guide-ia`.
+ * Tout AUTRE mot (même lié à `guide-ia`) n'a pas de textes validés tant qu'une validation par mot n'existe pas : rien ne part pour lui.
+ */
+export function textesValidesPourLeMot(mot: string, cible: string): boolean {
+  return mot.toUpperCase() === "GUIDE" && cible === "guide-ia";
+}
+
 /** Messages privés à NOTRE initiative (premier envoi ou renvoi) par personne et par 24 h. Les réponses dans la fenêtre (M2, reçu, merci, adresse refusée) ne comptent pas. */
 export const PLAFOND_MP_PERSONNE_JOUR = 3;
 
