@@ -19,7 +19,7 @@ import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } 
 import { creerNotification } from "./notifications";
 import { budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
 import { centimesDuPlafond } from "@/lib/montants";
-import { avecOrigineFournisseur, CLE_QUOTAS_USINE, lireQuotasUsine, QUOTAS_PAR_DEFAUT, reserverQuota, type QuotaUsine } from "./plafond-fournisseur";
+import { avecOrigineFournisseur, CLE_QUOTAS_USINE, lireQuotasUsine, reserverQuota, type QuotaUsine } from "./plafond-fournisseur";
 
 const CLE_PLAFOND = "budget.mensuel";
 const cleBudgetUsine = (mois: string) => `budget.usine.${mois}`;
@@ -257,8 +257,9 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
   const couple = reseau !== undefined && type !== undefined;
   const quotas = await lireQuotasUsine();
   const couvert = (r: string, t: string) => quotas.some((q) => q.reseau === r && q.type === t);
-  // Un quota ne borne que s'il est réellement appliqué : couple de la commande connu et couvert, sinon couples gardés par le fournisseur d'images.
-  const borne = usine.budget_mensuel_cents !== null || plafond !== null || (couple ? couvert(reseau, type) : QUOTAS_PAR_DEFAUT.some((d) => couvert(d.reseau, d.type)));
+  // Un quota ne borne que s'il est réellement appliqué : couple de la commande CONNU et couvert. Couple inconnu ou quota absent :
+  // aucune borne (jamais « passe » par défaut pour l'origine usine) ; les quotas par défaut ne valent pas borne.
+  const borne = usine.budget_mensuel_cents !== null || plafond !== null || (couple && couvert(reseau, type));
   if (!borne) {
     await alerterRefus("usine-sans-borne");
     throw new ErreurStudio("BUDGET_USINE_SANS_BORNE", "Aucune limite ne s'applique à cette commande de l'Usine : rien ne part.");

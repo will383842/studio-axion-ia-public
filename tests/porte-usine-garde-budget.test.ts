@@ -442,11 +442,30 @@ describe("NEW-ARG-03 : refus de l'usine quand il manque une borne", () => {
     await expect(controlerBudgetDuMois(1, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
   });
 
-  it("sans plafond du Studio, un quota réellement appliqué (fal, image) tient lieu de borne : la commande de l'usine passe", async () => {
+  it("usine + couple inconnu (quotas fal/image seulement, sans plafond du Studio) : refus, jamais « passe »", async () => {
     await sansPlafondStudio();
     await PUT(appel({ contrat: 2, quotas: IMAGE_FAL }));
     const { controlerBudgetDuMois } = await budget();
-    await expect(controlerBudgetDuMois(1, { origine: "usine" })).resolves.toBeUndefined();
+    const e = await controlerBudgetDuMois(1, { origine: "usine" }).then(() => null, (x: unknown) => x as { code: string; message: string });
+    expect(e?.code).toBe("BUDGET_USINE_SANS_BORNE");
+    sansMontant(e?.message ?? "");
+  });
+
+  it("usine sans plafond du Studio + budget en quantités : borné par le quota du couple connu (une unité par travail)", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: IMAGE_FAL }));
+    const { controlerBudgetDuMois } = await budget();
+    const lien = { origine: "usine" as const, reseau: "fal", type: "image" };
+    await expect(controlerBudgetDuMois(1, { ...lien, travailId: "a1" })).resolves.toBeUndefined();
+    await expect(controlerBudgetDuMois(1, { ...lien, travailId: "a2" })).rejects.toMatchObject({ code: "QUOTA_USINE_ATTEINT" });
+  });
+
+  it("Studio sans plafond ni borne de l'usine : passe, et aucune alerte ne contient de montant", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: IMAGE_FAL }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(5_000_000, { origine: "studio" })).resolves.toBeUndefined();
+    for (const ev of await depots().evenements.lister()) sansMontant(JSON.stringify(ev));
   });
 
   it("sans plafond du Studio, un montant reçu de l'usine est une borne : refus au-delà, passe en deçà", async () => {
