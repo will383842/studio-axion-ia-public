@@ -11,7 +11,7 @@
  *    double non ancré en bas, décor à vérifier, LUT sans fichier).
  */
 import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types";
-import { controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
+import { baseRetenue, controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
 import { positionsVerticales } from "@/briques/sous-titres/largeur";
 import type { BandeFondSousTitres, DonneesCalque } from "@/briques/sous-titres/scene";
 import { sousTitresSurDecor } from "@/domaine/decors";
@@ -314,7 +314,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
 
   // --- Texte : sous-titres (M2), encadré, incrustations ---
   const style = c.styles.sousTitres?.valeur;
-  const base = c.sousTitres?.base ?? (style?.gabarit === "minimal" ? "minimal" : "karaoke");
+  const base = baseRetenue(c.sousTitres?.base, style);
   // Style « Encre » (tableau animé) : l'encre sur la page claire se lit sans ombre ni bandeau. Absent : inchangé.
   const encre = style?.encre;
   const regle = encre ? { mode: "normal" as const, facteurOmbre: 1 } : sousTitresSurDecor(c.styles.decor?.valeur);
