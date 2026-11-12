@@ -7,7 +7,7 @@ import { lireBibliotheque } from "@/services/bibliotheque-contenus";
 import { listerVideos } from "@/services/videos";
 import { dependancesCarrousels } from "@/visuels/services/production";
 
-export const metadata: Metadata = { title: "Tous mes contenus" };
+export const metadata: Metadata = { title: "Mes contenus" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -22,7 +22,7 @@ export default async function PageContenus({ searchParams }: { searchParams: Pro
   const vue = calculerVueContenus(tous.elements, filtres);
   return (
     <>
-      <EnTetePage titre="Tous mes contenus" sousTitre="Vos vidéos, images et carrousels, classés par réseau et par type." />
+      <EnTetePage titre="Mes contenus" sousTitre="Vos vidéos, images et carrousels, au même endroit." />
       <div className="space-y-6">
         <FiltresContenus params={sp} filtres={filtres} comptes={compterContenus(tous.elements)} />
         <GrilleContenus vue={vue} params={sp} filtres={filtres} />
