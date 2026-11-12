@@ -6,3 +6,11 @@
 - PILOTAGE : tests/calendrier/liens.test.ts (L4-15) fige « Semaine = /calendrier » en vue mois et semaine datée : le lien Semaine de ces deux vues ne garde donc pas la date (il garde les filtres) ; à lever par CORRECTIF. Le clic sur l'en-tête de jour de la grille ordinateur (ApercuPublication.tsx, hors liste) n'ouvre pas encore le jour ; la case du mois et la tuile mobile le font.
 - Douteux : les filtres ?reseaux= ne s'appliquent que dans la vue du jour (semaine et mois les transportent dans les liens sans filtrer) ; « Ajouter » sur un créneau libre non fait (hors liste) ; rendu visuel non vérifié.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (u1, 12/11/2026)
+- Bouton segmenté sur les trois vues : corrigé. Semaine et Mois rendent BarreVue (flèches, Aujourd'hui, « Semaine | Mois »), ChoixVue est supprimé. Tenu : tests/cal-02-vue-jour.test.tsx « le bouton segmenté… » (3 vues).
+- Lien Semaine de la vue Mois : corrigé, garde la date (celle demandée, sinon celle d'aujourd'hui) et les filtres ; la semaine datée garde aussi sa date ; sans date, /calendrier. Tenu : « vue mois : Semaine garde la date… », « vue semaine datée… ».
+- tests/calendrier/liens.test.ts (L4-15, hors liste, modifié sur demande de l'avis) : l'attente « Semaine = /calendrier » vaut désormais pour la vue sans date seulement.
+- Remarques (filtres ?reseaux= hors vue Jour, bouton « + Ajouter ce jour-là ») : reportées, fichiers hors liste.
+- tsc : master 147 erreurs, branche 147, identiques (0 nouvelle). Contrôle anti-fuite : vide.
+- Rouge sans le code : 8 échecs sur 37 (vérifié). Après : 449 passés, 0 échoué (23 fichiers : cal-02, tests/calendrier, calendrier-*, rc-36, rc-37, e2e1-console-ecrans, final-b-mobile, couleurs-theme-seulement).
