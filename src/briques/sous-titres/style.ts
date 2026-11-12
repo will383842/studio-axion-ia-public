@@ -133,9 +133,15 @@ export function gabaritDe(valeur: StyleBibliothequeRendu | null | undefined): Ga
   return valeur.position === "bas" ? "minimal" : "karaoke";
 }
 
-/** Base d'une vidéo depuis un gabarit : le gabarit lui-même (Impact et Bandeau sont de vrais styles de base). */
-export function baseDe(gabarit: GabaritSousTitres): BaseSousTitres {
-  return gabarit;
+/**
+ * Base d'une vidéo. Donné un gabarit écrit : le gabarit lui-même (Impact et Bandeau sont de vrais styles de base).
+ * Donné un élément de Bibliothèque : Impact et Bandeau ne sont la base que si `gabarit` est écrit explicitement ;
+ * sans `gabarit`, la base est celle d'avant GV-ST-08a (Minimal ou Karaoké), même pour « pop » en majuscules.
+ */
+export function baseDe(source: GabaritSousTitres | StyleBibliothequeRendu | null | undefined): BaseSousTitres {
+  if (typeof source === "string") return source;
+  if (source?.gabarit) return source.gabarit;
+  return gabaritDe(source) === "minimal" ? "minimal" : "karaoke";
 }
 
 /** Facteur de taille (3 niveaux) : normal ×1, grand ×1,3, très grand ×1,8 (Impact). */
