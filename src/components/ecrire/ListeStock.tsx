@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { filtrerStock, etatDe, reseauxDe, type EtatStock, type MessageStock } from "@/domaine/stock-messages";
+import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
 import type { IdReseau } from "@/domaine/types";
 
 const ETATS: { valeur: EtatStock; libelle: string }[] = [
@@ -9,7 +10,11 @@ const ETATS: { valeur: EtatStock; libelle: string }[] = [
   { valeur: "planifie", libelle: "Planifié" },
   { valeur: "publie", libelle: "Publié" },
 ];
-const RESEAUX: IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
+const NOMS_RESEAUX: Record<IdReseau, string> = {
+  linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts",
+} as Record<IdReseau, string>;
+const RESEAUX = RESEAUX_TAXONOMIE;
+const nom = (r: IdReseau) => NOMS_RESEAUX[r] ?? r;
 
 /** Stock de messages à faire passer : filtres par réseau, état et échéance. Liste distincte des idées et des scripts. */
 export function ListeStock({ entrees }: { entrees: MessageStock[] }) {
@@ -25,7 +30,7 @@ export function ListeStock({ entrees }: { entrees: MessageStock[] }) {
           <select value={reseau} onChange={(ev) => setReseau(ev.target.value as IdReseau | "")}>
             <option value="">Tous</option>
             {RESEAUX.map((r) => (
-              <option key={r} value={r}>{r}</option>
+              <option key={r} value={r}>{nom(r)}</option>
             ))}
           </select>
         </label>
@@ -50,7 +55,7 @@ export function ListeStock({ entrees }: { entrees: MessageStock[] }) {
             <li key={m.id}>
               <p>{m.texte}</p>
               <p className="text-sm">
-                {reseauxDe(m).join(", ")} · priorité {m.priorite ?? "normale"}
+                {reseauxDe(m).map(nom).join(", ")} · priorité {m.priorite ?? "normale"}
                 {m.echeance ? ` · à faire avant le ${m.echeance}` : ""} · {ETATS.find((x) => x.valeur === etatDe(m))?.libelle}
               </p>
             </li>
