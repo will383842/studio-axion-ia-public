@@ -12,7 +12,7 @@ import { planifierPublications, type CreneauPropose } from "./classement-generat
 import type { EtatReseau } from "./derivations-generateur";
 import type { Publication, ReseauDeclinaison, StatsPublication } from "./types";
 import { JOUR_MS } from "@/lib/dates";
-import { formateurDate } from "@/lib/intl";
+import { instantParis as instantParisHorloge } from "@/lib/horloge-paris";
 
 /* ------------------------------------------------------------------ */
 /* Échéances J+3 et J+7                                                */
@@ -237,19 +237,8 @@ export function versionsAProgrammer(versions: readonly VersionProgrammable[], op
 /** Heure proposée quand Will n'en a pas réglé pour ce réseau (celle de « Demain 9 h » de la feuille Buffer). */
 export const HEURE_PAR_DEFAUT = "09:00";
 
-/** « 2026-10-06 » + « 09:00 » à l'heure de Paris → instant ISO (gère l'heure d'été). */
-export function instantParis(jour: string, heure: string): string {
-  const [a, m, j] = jour.split("-").map(Number);
-  const [h, mi] = heure.split(":").map(Number);
-  const suppose = Date.UTC(a, m - 1, j, h, mi);
-  const parties = Object.fromEntries(
-    formateurDate("en-GB", { timeZone: "Europe/Paris", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
-      .formatToParts(new Date(suppose))
-      .map((p) => [p.type, p.value]),
-  );
-  const vuAParis = Date.UTC(Number(parties.year), Number(parties.month) - 1, Number(parties.day), Number(parties.hour), Number(parties.minute));
-  return new Date(suppose - (vuAParis - suppose)).toISOString();
-}
+/** « 2026-10-06 » + « 09:00 » à l'heure de Paris → instant ISO (gère l'heure d'été) : délègue à l'horloge Paris. */
+export const instantParis = instantParisHorloge;
 
 export interface CreneauVersion extends CreneauPropose {
   varianteId: string;

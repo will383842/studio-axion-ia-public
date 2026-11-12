@@ -93,7 +93,6 @@ function lignesUneVideo(reseaux: readonly ReseauIV[], taux: number): LigneCout[]
   return estimerImageVideo(commande).lignes;
 }
 
-const eurosTexte = (centimes: number) => `${(centimes / 100).toFixed(2).replace(".", ",")} €`;
 
 // ─── Dépôt ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -290,7 +289,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   const accordAuto = await accordAutomatique(accordBrut ?? false, total, { signaler: accordBrut === undefined || accordBrut < total });
   const accord = typeof accordAuto === "number" ? accordAuto : undefined;
   if (accord === undefined || accord < total) {
-    return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos coûte au plus ${eurosTexte(total)}. Confirmez ce prix pour lancer.`, ...(sautees.length ? { sautees } : {}) };
+    return { statut: "accord-requis", centimes: total, phrase: `${phraseSautees ? `${phraseSautees} ` : ""}Ce lot de ${nLot} vidéos est payant. Confirmez pour lancer.`, ...(sautees.length ? { sautees } : {}) };
   }
 
   return verrouDepot(async () => {
@@ -349,7 +348,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
       videos,
       statut: "en-cours",
       pannesDeSuite: 0,
-      journal: [`Lot de ${nLot} images déposé : au plus ${eurosTexte(total)}.`, ...(phraseSautees ? [phraseSautees] : [])],
+      journal: [`Lot de ${nLot} images déposé.`, ...(phraseSautees ? [phraseSautees] : [])],
     };
     await sousVerrou(() => ecrireLotIV(lot));
     await journaliser("video", `Lot d'images déposé : ${nLot} vidéos${sautees.length ? ` (${sautees.length} déjà traitée${sautees.length > 1 ? "s" : ""}, sautée${sautees.length > 1 ? "s" : ""})` : ""}`).catch(() => undefined);
@@ -477,7 +476,7 @@ async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void>
     // Un lot dont une vidéo a été commandée par l'Usine reste BLOQUANT (le lot lui-même n'est déposé que par Will, session présente).
     const indicatif = await budgetIndicatifPour(await origineDuLotIV(apres));
     if (indicatif && engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
-      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatifClaude(eurosTexte(apres.plafondCentimes))}`, id);
+      await signalerDepassementIndicatif("video", "Prix annoncé du lot dépassé (le lot continue)", `Le lot d'images : ${messageAuDelaDuBudgetIndicatifClaude()}`, id);
     } else if (engage + apres.prixParVideoCentimes > apres.plafondCentimes) {
       await sousVerrou(async () => {
         const lu = await lireLotIV(id);
