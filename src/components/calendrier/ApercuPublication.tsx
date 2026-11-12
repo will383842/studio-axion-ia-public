@@ -69,7 +69,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       ) : (
         <span>Visuel à venir</span>
       )}
-      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-white">{a.texte}</p>}
+      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange">{a.texte}</p>}
     </div>
   );
   const texte = (
