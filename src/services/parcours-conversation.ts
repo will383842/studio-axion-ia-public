@@ -1,10 +1,12 @@
 /**
  * PARCOURS DE CONVERSATION (lot 3a) : commentaire GUIDE → réponse publique → message privé M1 → adresse e-mail → demande de guide.
- * INERTE : éteint tant que `PARCOURS_CONVERSATION_ENABLED` n'est pas allumé (absent = éteint, échec fermé) ; ni `boucle.ts` ni
- * `instrumentation.ts` ne l'importent (lot 4). Éteint : aucun appel au port ni au site, aucune écriture d'état.
+ * Éteint tant que `PARCOURS_CONVERSATION_ENABLED` n'est pas allumé (absent = éteint, échec fermé). Chargé par `branchements-zernio.ts`
+ * (import dynamique, après le contrôle de l'interrupteur). Éteint : aucun appel au port ni au site, aucune écriture d'état.
  *
  * Règles de sûreté :
- *  - L'état par personne (`parcours.conversations`) ne contient JAMAIS pseudo, texte, adresse ni identifiant brut : des empreintes.
+ *  - L'état par personne (`parcours.conversations`) ne contient JAMAIS pseudo, texte, adresse ni identifiant de personne ou de conversation
+ *    brut : des empreintes. Seuls restent bruts `idCommentaire` (reprise du même commentaire, réduit après clôture si PARCOURS_REDUCTION_IDS
+ *    est allumé), `idCompte` et `idPostPlateforme` (identifiants de NOTRE compte et de NOTRE publication).
  *  - L'adresse e-mail n'existe qu'en mémoire, le temps d'un appel ; à chaque nouvel essai le message est relu.
  *  - Lectures/écritures d'état sous `sousVerrou` ; appels réseau (port, site) HORS verrou ; rien n'est supprimé.
  *  - M1 : `m1_en_vol` est écrit AVANT l'envoi ; après un plantage il vaut `m1_a_verifier` : jamais de second envoi.
@@ -18,16 +20,18 @@ import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
-import { decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { DELAI_PERIME_MS, doitExpirer, transition, VERSION_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
+import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, reductible, activiteRetenue, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
-import { rendreTexteMp, TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
+import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { choisirFormulation, EQUIVALENTS_FIGES } from "@/domaine/guide-reseau/formulations";
+import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
-import { empreinteAdresseRefusee, lireGardes, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_ADRESSE_REFUSEE, PARAM_VALIDATION_GUIDE_PARCOURS, PARAM_VALIDATION_M1_LIEN } from "./mots-service";
+import { formulationsValidees, lireGardes, PARAM_VALIDATION_MERCI, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
 import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposee } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -85,6 +89,9 @@ export interface RapportConversation {
 interface EtatProcessus {
   enCours: boolean;
   enVol: Set<string>;
+  /** Merci (par `ref`) dont l'envoi est en cours dans CE processus. */
+  merciEnVol: Set<string>;
+  mercisEnCours: boolean;
   alertes: Record<string, number>;
   pannes: number;
   ouvertJusqua: number;
@@ -92,7 +99,7 @@ interface EtatProcessus {
 const CLE_PROCESSUS = Symbol.for("studio-axion-ia.parcours-conversation");
 function processus(): EtatProcessus {
   const g = globalThis as typeof globalThis & { [CLE_PROCESSUS]?: EtatProcessus };
-  return (g[CLE_PROCESSUS] ??= { enCours: false, enVol: new Set(), alertes: {}, pannes: 0, ouvertJusqua: 0 });
+  return (g[CLE_PROCESSUS] ??= { enCours: false, enVol: new Set(), merciEnVol: new Set(), mercisEnCours: false, alertes: {}, pannes: 0, ouvertJusqua: 0 });
 }
 /** Tests : simule un redémarrage du processus (plus rien « en vol », gardes en mémoire remises à zéro). */
 export function reinitialiserParcoursConversation(): void {
@@ -186,6 +193,25 @@ async function opposeeAvantEnvoi(cle: string, env: Env, opts: { m2?: boolean } =
 }
 
 /**
+ * Fenêtre de 24 h de Meta : date (et identifiant opaque) du dernier message écrit par la personne, posés sous verrou, seulement si
+ * la nouvelle date est STRICTEMENT plus récente (rejeu et désordre sans effet). Appelée en tête de traitement d'un message entrant.
+ */
+async function noterActivite(cle: string, ev: EvenementFournisseur, now: number): Promise<void> {
+  const c = ev.charge;
+  await ecrireEtat(cle, (e) => {
+    if (!e) return undefined;
+    const nouvelle = activiteRetenue(e.derniereActiviteLe, typeof c.occurredAt === "string" ? c.occurredAt : null, ev.recuLe, now);
+    if (nouvelle === null || nouvelle === (e.derniereActiviteLe ?? null)) return undefined;
+    return { ...e, derniereActiviteLe: nouvelle, idMessageDernier: texteDe(c.idMessage) };
+  });
+}
+/** Vrai = hors fenêtre : le message de conversation ne part pas. L'état est relu (échec fermé si la date manque). */
+async function horsFenetre(cle: string, now: number): Promise<boolean> {
+  const e = await lireEtat(cle);
+  return !e || !dansFenetreEnvoi(e, now);
+}
+
+/**
  * Retrouve la personne par les formes de `sender.id`, sinon par un alias (formes de `sender.id` ou de `conversationId`), sous toutes les clés connues.
  * Ordre inchangé, forme par forme : alias du FIL, clé de l'expéditeur, alias de l'expéditeur, clé du fil.
  * Retrouvée par une forme ANCIENNE : migration douce, la forme courante devient un alias (la clé reste l'ancienne, rien n'est supprimé).
@@ -245,6 +271,20 @@ async function reserverEnvoi(idCompte: string, now: number): Promise<"ok" | "pla
     });
   } catch {
     return "illisible";
+  }
+}
+/** Rend une place réservée par `reserverEnvoi` quand finalement aucun envoi n'est parti (même heure seulement). Une panne est sans gravité : la place reste prise. */
+async function rendrePlaceEnvoi(idCompte: string, now: number): Promise<void> {
+  try {
+    await sousVerrou(async () => {
+      const tous = await lireParametre<unknown>(PARAM_COMPTEURS_CONVERSATION, {});
+      if (typeof tous !== "object" || tous === null || Array.isArray(tous)) return;
+      const c = (tous as Record<string, unknown>)[idCompte] as { heure?: unknown; envois?: unknown } | undefined;
+      if (!c || c.heure !== debutHeure(now) || typeof c.envois !== "number" || c.envois < 1) return;
+      await ecrireParametre(PARAM_COMPTEURS_CONVERSATION, { ...(tous as Record<string, unknown>), [idCompte]: { ...c, envois: c.envois - 1 } });
+    });
+  } catch {
+    /* la place reste prise : plus prudent */
   }
 }
 /** Vrai = l'envoi peut partir. Sinon l'événement est reporté (aucun essai consommé, aucun changement d'état de la conversation). */
@@ -384,6 +424,7 @@ const RAISONS_REPLI_LIEN: Record<Exclude<CodeRepliLien, "lien_eteint">, string> 
   jeton_invalide: "jeton refusé",
   lien_trop_long: "lien trop long",
   forme_refusee: "lien de forme non permise",
+  version_inconnue_du_site: "le site ne connaît pas encore cette formulation",
 };
 const LONGUEUR_MAX_M1_LIEN = 1000;
 const RE_NOM_COURT_COMPTE = /^[a-z0-9_]{2,40}$/;
@@ -398,41 +439,78 @@ function nomCourtCompte(env: Env, idCompte: string): string | null {
   }
   return null;
 }
-async function texteLienValide(): Promise<boolean> {
-  try {
-    const b = TEXTES_MP[VERSION_M1_LIEN];
-    const attendue = createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex");
-    return (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_M1_LIEN, null))?.empreinte === attendue;
-  } catch {
-    return false; // échec fermé vers M1 v2, jamais vers « pas de M1 »
-  }
+/**
+ * Série 5 : texte d'un message d'un groupe de formulations. Une formulation VALIDÉE sur /mots est tirée (puis figée dans l'état : une conversation
+ * garde toujours la même) ; tant qu'aucune n'est validée, l'ancien texte part, inchangé. Jamais une formulation non validée.
+ */
+async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempotenceGuide" | "formulations">; ancien: IdTexteMp; valeurs: ValeursTexteMp }): Promise<{ texte: string | null; version: string; formulation?: string }> {
+  const choix = choisirFormulation({
+    groupe: o.groupe,
+    cleConversation: o.e.cleIdempotenceGuide,
+    figee: o.e.formulations?.[o.groupe],
+    validees: await formulationsValidees(),
+    rendre: (v) => rendreTexteMp(v, o.valeurs),
+    conforme: (t) => texteDuDictionnaire(t, false),
+  });
+  if (choix === null) return { texte: rendreTexteMp(o.ancien, o.valeurs), version: TEXTES_MP[o.ancien].version };
+  if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  return { texte: choix.texte, version: choix.version, formulation: choix.version };
 }
+
 /**
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
-async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; codeRepli?: CodeRepliLien }> {
+async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<{ texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string }> {
   // Le journal et l'alerte du repli ne sont PAS émis ici : l'appelant les émet une fois l'envoi réservé (ni opposition, ni plafond).
-  const repli = async (code: CodeRepliLien) => ({ texte: rendreTexteMp("mp-m1-v2", { mot: MOT, titre: d.titreGuide }), version: TEXTES_MP["mp-m1-v2"].version, codeRepli: code });
+  // `formulationLien` : la formulation avec lien déjà choisie reste notée à part (jamais écrasée par le repli) pour le prochain essai.
+  const choisie: { version?: string } = {};
+  // Le repli demande l'adresse e-mail : une formulation validée du groupe « m1-adresse » si elle existe, sinon mp-m1-v2 (inchangé).
+  const repli = async (code: CodeRepliLien) => {
+    const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot: MOT, titre: d.titreGuide } });
+    return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
+  };
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
-  if (!(await texteLienValide())) return repli("texte_lien_non_valide");
+  // Formulation choisie AVANT le jeton : `version_m1` du jeton est la version choisie (le site l'enregistre comme preuve du texte montré).
+  // Essai de rendu avec un lien d'essai : seule la présence des valeurs compte ici ; le lien réel est contrôlé plus bas.
+  const choix = choisirFormulation({
+    groupe: GROUPE_M1_LIEN,
+    cleConversation: e.cleIdempotenceGuide,
+    figee: e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1,
+    validees: await formulationsValidees(),
+    rendre: (v) => rendreTexteMp(v, { mot: MOT, titre: d.titreGuide, lien: "https://exemple.test/essai" }),
+  });
+  if (choix === null) {
+    const figeeRetiree = e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1;
+    if (figeeRetiree && figeeRetiree in EQUIVALENTS_FIGES) await journaliser("parcours_conversation", "formulation_figee_retiree_refusee");
+    return repli("texte_lien_non_valide");
+  }
+  if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  // Le site doit connaître la version AVANT l'envoi (sinon la preuve du texte montré est perdue en silence).
+  // Conversation figée sur un ancien identifiant au texte identique : le jeton garde cet identifiant, que le site connaît.
+  const figeeAvant = e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1;
+  const versionJeton = figeeAvant && EQUIVALENTS_FIGES[figeeAvant] === choix.version ? figeeAvant : choix.version;
+  // Identité gardée pour le prochain essai : calculée APRÈS versionJeton (une conversation figée sur mp-m1-v3 reste mp-m1-v3, jamais mp-m1-v4-1).
+  choisie.version = versionJeton;
+  if (!siteAccepteVersionM1(versionJeton)) return repli("version_inconnue_du_site");
   const compte = nomCourtCompte(env, e.idCompte);
   if (compte === null) return repli("compte_lien_inconnu");
   const conv = e.refLienConv || refConversationLien(cles.courante.secret.toString("utf8"), e.cleIdempotenceGuide);
   let jeton: string;
   try {
-    jeton = creerJetonLien({ conv, mot: MOT, reseau: e.reseau, guide: e.guide, compte, ...(e.idPostPlateforme && RE_OPAQUE_LIEN.test(e.idPostPlateforme) ? { post_ref: e.idPostPlateforme } : {}), version_m1: VERSION_M1_LIEN }, secret, now);
+    jeton = creerJetonLien({ conv, mot: MOT, reseau: e.reseau, guide: e.guide, compte, ...(e.idPostPlateforme && RE_OPAQUE_LIEN.test(e.idPostPlateforme) ? { post_ref: e.idPostPlateforme } : {}), version_m1: versionJeton }, secret, now);
   } catch {
     return repli("jeton_invalide"); // jamais e.message
   }
   const lien = construireLienGuide(jeton);
   if (lien === null) return repli("lien_trop_long");
-  const texte = rendreTexteMp(VERSION_M1_LIEN, { mot: MOT, titre: d.titreGuide, lien });
-  // Borne de M1 v3 : 1 000 unités de texte (texte.length), pas les 2 000 du dictionnaire ; au-delà, M1 v2.
+  const texte = rendreTexteMp(choix.version, { mot: MOT, titre: d.titreGuide, lien });
+  // Borne de M1 avec lien : 1 000 unités de texte (texte.length), pas les 2 000 du dictionnaire ; au-delà, M1 v2.
   if (texte === null || texte.length > LONGUEUR_MAX_M1_LIEN || !texteDuDictionnaire(texte, false) || !formeLienPageGuide(lien)) return repli("forme_refusee");
-  return { texte, version: VERSION_M1_LIEN, ...(e.refLienConv ? {} : { refLienConv: conv }) };
+  // Empreinte du jeton réellement envoyé : c'est la `ref` que le site renverra à la validation de la page (jamais le jeton lui-même).
+  return { texte, version: versionJeton, formulationLien: versionJeton, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
 
 async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk): Promise<"traite" | "bloque"> {
@@ -498,7 +576,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse ? { formulations: { ...e.formulations, ...(m1.formulationLien ? { [GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
@@ -641,6 +719,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   const { cle } = trouve;
+  await noterActivite(cle, ev, now); // avant tout envoi, même pour une personne opposée (sans effet d'envoi)
   const etat = trouve.etat;
   const s0 = transition(etat, { t: "message", idExpediteur, idCompte, idMessage, sortant });
   if (s0.action === "silence") {
@@ -713,7 +792,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Lecture réussie = message entrant confirmé : seulement maintenant, les alias sont notés.
   const adresse = extraireAdresse(lu.texte);
-  const classeMachine: ClasseOpposition = classe as ClasseOpposition; // opposition et doute sont déjà traités plus haut : la machine reste la source de vérité des transitions
+  // `classe` ne peut plus valoir « opposition » ni « doute » ici (traités plus haut) : `estOpposition` et `doute` sont donc toujours faux et la
+  // branche « opposer » plus bas est inatteignable aujourd'hui. Elle est GARDÉE volontairement (filet de sécurité d'un « stop ») : ne pas la retirer.
+  const classeMachine: ClasseOpposition = classe as ClasseOpposition;
   const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse });
   if (s.action === "opposer") {
     await opposerEnPrive(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
@@ -725,7 +806,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   if (s.action === "m2") {
-    const texte = rendreTexteMp("mp-m2-v1", {});
+    const m2 = await formuler({ groupe: "adresse-non-reconnue", e: etat, ancien: "mp-m2-v1", valeurs: {} });
+    const texte = m2.texte;
     if (texte === null) {
       await clore(ev, "ignore", "texte_incomplet");
       return "traite";
@@ -734,7 +816,15 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "silence", "opposee");
       return "traite";
     }
+    if (await horsFenetre(cle, now)) {
+      // Fenêtre de 24 h de Meta : M2 ne part pas, m2Envoye reste faux (un message ultérieur rouvre la fenêtre).
+      await patcher(cle, { dernierCode: "hors_fenetre" });
+      await clore(ev, "hors_fenetre", "hors_fenetre");
+      return "traite";
+    }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+    // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
+    if (m2.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, "adresse-non-reconnue": m2.formulation } });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
     const sm = transition(etat, { t: "m1", res, maintenantMs: now });
     await reagir(sm, now);
@@ -856,36 +946,52 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
 async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
   if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
   if (await opposeeAvantEnvoi(cle, env)) return "fait";
-  // Garde de validation (échec fermé) : le texte ne part que si /mots en a validé l'empreinte exacte.
-  const brouillon = TEXTES_MP["mp-adresse-refusee-v2"];
-  const attendue = empreinteAdresseRefusee();
-  let validee = false;
-  try {
-    validee = (await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_ADRESSE_REFUSEE, null))?.empreinte === attendue;
-  } catch {
-    validee = false;
-  }
-  if (!validee) {
-    await alerter("adresse_refusee_non_validee", "Le message « adresse refusée » n'est pas validé dans Mots : il n'est pas parti.", now);
+  if (await horsFenetre(cle, now)) {
+    // Fenêtre de 24 h de Meta : le message ne partira plus jamais (l'état passe ensuite à site_refuse).
+    await patcher(cle, { adresseRefuseeEnvoyee: true, dernierCode: "hors_fenetre" });
     return "fait";
   }
+  // Garde de validation (échec fermé) : seule une formulation validée dans /mots (empreinte exacte) peut partir.
+  const etatCourant = (await lireEtat(cle)) ?? etat;
+  const choix = choisirFormulation({
+    groupe: "adresse-refusee",
+    cleConversation: etat.cleIdempotenceGuide,
+    figee: etatCourant.formulations?.["adresse-refusee"],
+    validees: await formulationsValidees(),
+    rendre: (v) => rendreTexteMp(v, {}),
+    conforme: (t) => texteDuDictionnaire(t, false),
+  });
+  if (choix === null) {
+    await alerter("adresse_refusee_non_validee", "Aucune formulation « adresse refusée » n'est validée dans Mots : le message n'est pas parti.", now);
+    return "fait";
+  }
+  if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
   if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
-  // Marqué AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
-  await patcher(cle, { adresseRefuseeEnvoyee: true });
-  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: brouillon.texte, cle: idMessage }));
+  // Formulation figée et message marqués AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
+  await patcher(cle, { adresseRefuseeEnvoyee: true, formulations: { ...etatCourant.formulations, "adresse-refusee": choix.version } });
+  const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: choix.texte, cle: idMessage }));
   await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
   return "fait";
 }
 
 async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"traite" | "bloque"> {
-  const texte = rendreTexteMp("mp-recu-v2", { titre: d.titreGuide });
+  const recu = await formuler({ groupe: "recu", e: (await lireEtat(cle)) ?? etat, ancien: "mp-recu-v2", valeurs: { titre: d.titreGuide } });
+  const texte = recu.texte;
   let code: string | null = "texte_incomplet";
   if (texte !== null) {
     if (await opposeeAvantEnvoi(cle, env)) {
       await clore(ev, "silence", "opposee");
       return "traite";
     }
+    if (await horsFenetre(cle, now)) {
+      // Le guide part par e-mail (demande déjà faite au site) : seul le reçu dans la conversation est abandonné.
+      await patcher(cle, { etat: "termine", dernierCode: "hors_fenetre" });
+      await clore(ev, "termine", "hors_fenetre");
+      return "traite";
+    }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+    // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
+    if (recu.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, recu: recu.formulation } });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);
@@ -909,11 +1015,17 @@ async function reprendreEnVol(now: number): Promise<void> {
   if (touches > 0) await alerter("m1_a_verifier", "Un message privé était en cours d'envoi lors d'un arrêt : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
 }
 
-/** Tâche d'expiration : `attente_email`, `m2_envoye`, `m1_a_verifier` et `m1_en_vol` (hors vol) → `expire` après 7 jours. Aucun message n'est envoyé. */
+/** Tâche d'expiration : `nouveau`, `pub_ok`, `guide_demande`, `attente_email`, `m2_envoye`, `m1_a_verifier` et `m1_en_vol` (hors vol) → `expire` après 7 jours. Aucun message n'est envoyé, aucune clé n'est retirée. */
 export async function expirerConversations(o: { env?: Env; maintenantMs?: number; enVol?: ReadonlySet<string> } = {}): Promise<number> {
   if (!parcoursConversationActif(o.env ?? process.env)) return 0;
   const now = o.maintenantMs ?? Date.now();
-  const enVol = o.enVol ?? processus().enVol;
+  const expirees = await expirerSousVerrou(now, o.enVol ?? processus().enVol);
+  // Même cadence : la réduction des identifiants bruts (éteinte par défaut) suit l'expiration. Une panne ici n'empêche jamais l'expiration.
+  await reduireIdentifiants({ env: o.env, maintenantMs: now }).catch(() => undefined);
+  return expirees;
+}
+
+function expirerSousVerrou(now: number, enVol: ReadonlySet<string>): Promise<number> {
   return sousVerrou(async () => {
     const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     const cles = Object.keys(conv).filter((k) => doitExpirer(conv[k], now, enVol.has(k)));
@@ -922,6 +1034,84 @@ export async function expirerConversations(o: { env?: Env; maintenantMs?: number
     return cles.length;
   });
 }
+
+/* --- Réduction des identifiants bruts après clôture (STU-MIN) ------------------------------------------------------ */
+export const VARIABLE_REDUCTION_IDS = "PARCOURS_REDUCTION_IDS";
+const LOT_REDUCTION = 50;
+/** Éteint par défaut ; n'agit que si le parcours de conversation est allumé aussi. */
+export function reductionIdsActive(env: Env = process.env): boolean {
+  return parcoursConversationActif(env) && /^(1|true|oui)$/i.test(env[VARIABLE_REDUCTION_IDS]?.trim() ?? "");
+}
+
+/**
+ * Remplace par `null` les identifiants bruts (auteur, expéditeur, conversation, plateforme) des événements clos depuis plus de
+ * `DELAI_REDUCTION_MS`. La LIGNE reste, ainsi que `idEvenement`, `idCompte`, `idCommentaire` / `idMessage` (déduplication des rejeux).
+ * Jamais réduits : le message qui portait l'adresse (relu pour transmettre un « stop », sans limite de durée), le dernier message d'une
+ * conversation à fenêtre ouverte, un événement dont une opposition à transmettre dépend. Au plus 50 événements par passage, une seule
+ * écriture par événement. Une personne opposée n'est JAMAIS touchée : aucun de ses événements (le « stop » comme le commentaire d'origine)
+ * ni sa conversation, que l'opposition vienne de l'état `oppose`, de la file des oppositions ou du registre. Registre illisible : rien n'est réduit.
+ */
+export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number } = {}): Promise<number> {
+  const env = o.env ?? process.env;
+  if (!reductionIdsActive(env)) return 0;
+  const now = o.maintenantMs ?? Date.now();
+  const cles = lireClesEmpreinte(env);
+  if (!cles.ok) return 0; // échec fermé : sans les clés on ne sait pas reconnaître une personne opposée
+  const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+  const file = await lireParametre<Record<string, { etat?: string }>>("parcours.oppositions.file", {});
+  const proteges = new Set<string>();
+  const clesOpposees = new Set<string>(); // clés (et alias) des conversations d'une personne opposée ou en file d'opposition
+  for (const [cle, c] of Object.entries(conv)) {
+    for (const id of [c.idMessageAdresse, c.idMessageGuide]) if (id) proteges.add(id);
+    if (c.idMessageDernier && (dansFenetreEnvoi(c, now) || file[cle]?.etat === "a_transmettre")) proteges.add(c.idMessageDernier);
+    if (c.etat === "oppose" || file[cle] || c.douteOpposition === true) {
+      for (const k of [cle, ...(c.alias ?? [])]) clesOpposees.add(k);
+      for (const id of [c.idMessageDernier, c.idMessageAdresse, c.idMessageGuide]) if (id) proteges.add(id);
+    }
+  }
+  const estOpposee = async (ch: Record<string, unknown>): Promise<boolean> => {
+    const ids = [ch.idAuteur, ch.idExpediteur, ch.idConversation].filter((x): x is string => typeof x === "string" && x.length > 0);
+    for (const id of ids) {
+      if (formesConversation(cles, id).some((f) => clesOpposees.has(f))) return true;
+      if (await personneOpposee(id, ESPACE_CONVERSATION, { env })) return true;
+    }
+    return false;
+  };
+  const iso = new Date(now).toISOString();
+  const evenements = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && reductible(e, { idsMessagesProteges: proteges }, now));
+  evenements.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
+  let n = 0;
+  let traites = 0;
+  for (const ev of evenements) {
+    if (traites >= LOT_REDUCTION) break;
+    try {
+      if (await estOpposee(ev.charge)) continue; // la preuve de l'opposition reste intacte
+    } catch {
+      break; // registre illisible : on ne réduit plus rien dans ce passage
+    }
+    traites++;
+    await depots().evenementsFournisseurs.modifier(ev.id, { charge: { ...ev.charge, idAuteur: null, idExpediteur: null, idConversation: null, idPlateforme: null, idsReduitsLe: iso } });
+    n++;
+  }
+  // Conversation close depuis plus de 30 jours (sauf `oppose`) : l'identifiant brut du commentaire n'a plus d'usage (la reprise n'existe qu'en nouveau / pub_ok).
+  const aReduire = await sousVerrou(async () => {
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const cles = Object.keys(tout).filter((k) => {
+      const c = tout[k];
+      if (!FINIS_REDUCTIBLES.includes(c.etat) || c.idCommentaire === "reduit") return false;
+      // Date de clôture inconnue : on retient la PLUS RÉCENTE des dates de l'état (conservateur). Aucune date lisible : jamais réduit.
+      const dates = [c.creeLe, c.m1Le, c.m2Le, c.refuseLe, c.derniereActiviteLe, c.occurredAt].map((x) => (typeof x === "string" ? Date.parse(x) : NaN)).filter((d) => Number.isFinite(d));
+      if (c.alias?.some((a) => clesOpposees.has(a)) || clesOpposees.has(k)) return false;
+      return dates.length > 0 && now - Math.max(...dates) >= DELAI_REDUCTION_MS;
+    });
+    if (cles.length > 0) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, ...Object.fromEntries(cles.map((k) => [k, { ...tout[k], idCommentaire: "reduit" }])) });
+    return cles.length;
+  });
+  n += aReduire;
+  if (n > 0) await journaliser("parcours_conversation", `${n} identifiants réduits.`);
+  return n;
+}
+const FINIS_REDUCTIBLES: readonly string[] = ["termine", "site_refuse", "expire", "m1_refuse", "m1_consommee"];
 
 export async function traiterConversations(d: DepsConversation): Promise<RapportConversation> {
   const env = d.env ?? process.env;
@@ -960,4 +1150,273 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     p.enCours = false;
   }
   return rapport;
+}
+
+/* --- Merci après la validation de la page (Z4) ------------------------------------------------------------------- */
+export const VARIABLE_INTERRUPTEUR_MERCI = "PARCOURS_MERCI_ENABLED";
+export const PARAM_MERCI_JOURNAL = "parcours.merci.journal";
+export const CHEMIN_CONFIRMATIONS = "/api/interne/confirmations-page-guide";
+export const CHEMIN_CONFIRMATIONS_ISSUE = "/api/interne/confirmations-page-guide/issue";
+const LOT_CONFIRMATIONS = 10;
+/** Délais entre deux essais d'accusé (puis 6 h, sans fin). */
+const ATTENTES_ACCUSE_MS = [60_000, 5 * 60_000, 15 * 60_000, 3600_000, 6 * 3600_000] as const;
+const RE_REF_CONFIRMATION = /^[A-Za-z0-9_-]{8,80}$/;
+
+/** Éteint par défaut ; n'agit que si le parcours de conversation est allumé aussi. */
+export function parcoursMerciActif(env: Env = process.env): boolean {
+  return parcoursConversationActif(env) && /^(1|true|oui)$/i.test(env[VARIABLE_INTERRUPTEUR_MERCI]?.trim() ?? "");
+}
+
+/** Une ligne par `ref`, JAMAIS retirée. Ni adresse, ni prénom, ni texte, ni identifiant Zernio. `cle` = clé d'empreinte de la conversation. */
+export interface EntreeMerci {
+  cle: string | null;
+  etat: EtatMerci;
+  issue: string;
+  accuse: boolean;
+  le: string;
+  essaisAccuse: number;
+  prochainAccuseLe: number | null;
+}
+type JournalMerci = Record<string, EntreeMerci>;
+export interface RapportMerci {
+  actif: boolean;
+  lues: number;
+  envoyes: number;
+  accuses: number;
+}
+
+const lireJournalMerci = (): Promise<JournalMerci> => lireParametre<JournalMerci>(PARAM_MERCI_JOURNAL, {});
+async function ecrireEntreeMerci(ref: string, f: (e: EntreeMerci | undefined) => EntreeMerci | undefined): Promise<EntreeMerci | undefined> {
+  return sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    const suivant = f(j[ref]);
+    if (suivant) await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: suivant });
+    return suivant ?? j[ref];
+  });
+}
+/** Issue vue par le site (liste fermée : envoye | hors_fenetre | echec). « echec » n'est jamais utilisé : le site re-proposerait la ref. */
+const issueDuSite = (e: Pick<EntreeMerci, "etat">): "envoye" | "hors_fenetre" => (e.etat === "envoye" || e.etat === "a_verifier" ? "envoye" : "hors_fenetre");
+
+/** Texte du merci validé par l'opérateur ET rendu non nul. `null` = ne part pas. */
+async function texteMerciPret(d: DepsConversation): Promise<string | null> {
+  try {
+    const b = TEXTES_MP["mp-merci-v1"];
+    const attendue = createHash("sha256").update(`${b.version}\n${b.texte}`).digest("hex");
+    if ((await lireParametre<{ empreinte?: unknown } | null>(PARAM_VALIDATION_MERCI, null))?.empreinte !== attendue) return null;
+    return rendreTexteMp("mp-merci-v1", { titre: d.titreGuide });
+  } catch {
+    return null; // échec fermé
+  }
+}
+
+/** Appel signé au site. Le corps n'est jamais journalisé. `null` = site non relié ou injoignable. */
+async function appelerSite(env: Env, chemin: string, corpsObjet: unknown): Promise<{ statut: number; corps: unknown } | null> {
+  const site = transportDuSite(env);
+  if (!site) return null;
+  const corps = JSON.stringify(corpsObjet);
+  const entetes = signerAppel({ secret: site.secret, methode: "POST", chemin, corps, horodatageSec: Math.floor(Date.now() / 1000) });
+  try {
+    const r = await site.transport({ methode: "POST", chemin, corps, entetes });
+    return { statut: r.statut, corps: r.corps };
+  } catch {
+    return null;
+  }
+}
+
+/** Accuse une issue au site. Vrai = le site a pris l'accusé (200) ou le connaissait déjà (409). Sinon l'échéance du prochain essai est écrite. */
+async function accuserMerci(env: Env, ref: string, now: number): Promise<boolean> {
+  const e = (await lireJournalMerci())[ref];
+  if (!e || e.accuse || e.etat === "en_vol") return e?.accuse === true;
+  const r = await appelerSite(env, CHEMIN_CONFIRMATIONS_ISSUE, { schemaVersion: 1, issues: [{ ref, issue: issueDuSite(e) }] });
+  if (r && (r.statut === 200 || r.statut === 409)) {
+    await ecrireEntreeMerci(ref, (x) => (x ? { ...x, accuse: true, prochainAccuseLe: null } : x));
+    return true;
+  }
+  await ecrireEntreeMerci(ref, (x) => (x ? { ...x, essaisAccuse: x.essaisAccuse + 1, prochainAccuseLe: now + ATTENTES_ACCUSE_MS[Math.min(x.essaisAccuse, ATTENTES_ACCUSE_MS.length - 1)] } : x));
+  return false;
+}
+
+/** Au redémarrage, tout merci « en vol » non porté par CE processus devient « à vérifier » : jamais de second envoi. */
+async function reprendreMercisEnVol(now: number): Promise<void> {
+  const vol = processus().merciEnVol;
+  const touches = await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    const refs = Object.keys(j).filter((r) => j[r].etat === "en_vol" && !vol.has(r));
+    if (refs.length === 0) return 0;
+    await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, ...Object.fromEntries(refs.map((r) => [r, { ...j[r], etat: "a_verifier" as const, issue: "a_verifier", accuse: false, prochainAccuseLe: null }])) });
+    const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const cles = refs.map((r) => j[r].cle).filter((c): c is string => !!c && conv[c]?.merciEtat === "en_vol");
+    if (cles.length > 0) await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, ...Object.fromEntries(cles.map((c) => [c, { ...conv[c], merciEtat: "a_verifier" as const }])) });
+    return refs.length;
+  });
+  if (touches > 0) await alerter("merci_a_verifier", "Un merci a une issue inconnue : il ne sera pas renvoyé.", now);
+}
+
+/**
+ * Merci après la validation de la page « Recevoir le guide ». Le Studio réserve la liste des confirmations au site, envoie UN merci
+ * dans la conversation quand c'est permis, puis accuse l'issue. Jamais deux merci pour une même `ref` ni pour une même conversation ;
+ * l'opposition est relue juste avant le réseau ; hors fenêtre de 24 h, rien n'est envoyé. Les accusés en retard partent même
+ * interrupteur du merci éteint (ce n'est pas un message à une personne).
+ */
+export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> {
+  const env = d.env ?? process.env;
+  const rapport: RapportMerci = { actif: parcoursMerciActif(env), lues: 0, envoyes: 0, accuses: 0 };
+  const p = processus();
+  if (!parcoursConversationActif(env) || p.mercisEnCours) return rapport;
+  p.mercisEnCours = true;
+  try {
+    const now = d.maintenantMs ?? Date.now();
+    await reprendreMercisEnVol(now);
+    // 2. Accusés en retard (échéance passée), même interrupteur éteint.
+    const dus = Object.entries(await lireJournalMerci()).filter(([, e]) => !e.accuse && e.etat !== "en_vol" && (e.prochainAccuseLe === null || e.prochainAccuseLe <= now)).map(([r]) => r);
+    for (const r of dus) if (await accuserMerci(env, r, now)) rapport.accuses++;
+    // 3. Interrupteur du merci éteint : fin du passage.
+    if (!rapport.actif) return rapport;
+    const k = lireClesEmpreinte(env);
+    if (!k.ok) return rapport;
+    // 4. Lecture-réservation.
+    const lecture = await appelerSite(env, CHEMIN_CONFIRMATIONS, { schemaVersion: 1, limite: LOT_CONFIRMATIONS });
+    const liste = lecture && lecture.statut === 200 && typeof lecture.corps === "object" && lecture.corps !== null ? (lecture.corps as { confirmations?: unknown }).confirmations : undefined;
+    if (!Array.isArray(liste)) {
+      await alerter("merci_site", "Le site ne répond pas pour les merci après la page : rien n'est envoyé, nouvel essai au prochain passage.", now);
+      return rapport;
+    }
+    for (const el of liste.slice(0, LOT_CONFIRMATIONS)) {
+      rapport.lues++;
+      const r = typeof el === "object" && el !== null ? (el as { ref?: unknown }).ref : undefined;
+      if (typeof r !== "string" || !RE_REF_CONFIRMATION.test(r)) {
+        await journaliser("parcours_conversation", "Merci : confirmation_illisible (ignorée, sans accusé).");
+        continue;
+      }
+      const issue = await traiterConfirmation(r, d, env, k, now);
+      if (issue === "garde") return rapport; // la garde a bloqué : ni envoi ni accusé, le site re-proposera
+      if (issue === "envoye") rapport.envoyes++;
+    }
+  } finally {
+    p.mercisEnCours = false;
+  }
+  return rapport;
+}
+
+/** Gardes qui valent pour tout le Studio : elles arrêtent la boucle des mercis. Les autres (compte, mot, réseau) sont propres à une conversation. */
+const GARDES_GLOBALES = new Set(["tout_arrete", "disjoncteur_ferme", "validation_perimee", "lecture_impossible", "cles_absentes"]);
+/** Une confirmation, dans l'ordre. `garde` : un blocage a mis fin au passage (rien n'est écrit pour cette ref). */
+async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number): Promise<"envoye" | "fait" | "garde"> {
+  // b. Déjà au registre : aucun envoi, accusé seulement s'il manque. JAMAIS DEUX FOIS LA MÊME REF.
+  if ((await lireJournalMerci())[ref]) {
+    await accuserMerci(env, ref, now);
+    return "fait";
+  }
+  // c. Retrouver la conversation par l'empreinte du jeton envoyé dans M1 v3.
+  const conv = await sousVerrou(async () => {
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const cle = Object.keys(tout).find((c) => tout[c].empreintesLien?.includes(ref));
+    return cle ? { cle, etat: tout[cle] } : null;
+  });
+  const terminer = async (etat: EtatMerci, issue: string, cle: string | null) => {
+    await ecrireEntreeMerci(ref, (x) => x ?? { cle, etat, issue, accuse: false, le: new Date(now).toISOString(), essaisAccuse: 0, prochainAccuseLe: null });
+    await accuserMerci(env, ref, now);
+  };
+  if (!conv) return (await terminer("non_envoye", "conversation_inconnue", null), "fait");
+  const { cle } = conv;
+  // d. Opposition relue (état, registre, clé et alias).
+  if (await opposeeAvantEnvoi(cle, env)) {
+    await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
+    return (await terminer("non_envoye", "oppose", cle), "fait");
+  }
+  // e. Garde (« Tout arrêter », disjoncteur, mot actif, validation du guide…) : si elle bloque, ni envoi ni accusé.
+  const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau);
+  if (bloque) {
+    await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    // Garde GLOBALE : fin du passage, ni envoi ni accusé (le site re-proposera). Garde propre à CETTE conversation :
+    // on la clôt sans envoi (accusé), sinon la même ref resterait en tête et bloquerait tous les autres mercis.
+    if (GARDES_GLOBALES.has(bloque)) return "garde";
+    return (await terminer("non_envoye", `garde_${bloque}`, cle), "fait");
+  }
+  // f. Texte validé, fenêtre, identifiant de conversation retrouvé via le dernier message de la personne.
+  const texte = await texteMerciPret(d);
+  const idConversation = await idConversationDuDernierMessage(conv.etat);
+  const issue = issueMerci({ refAuRegistre: false, conversation: conv.etat, oppose: false, texteValide: texte !== null, idConversationRetrouve: idConversation !== null, maintenantMs: now });
+  if (issue === "texte_non_valide") await alerter("merci_non_valide", "Le texte du merci n'est pas validé dans Mots : le merci n'est pas parti.", now);
+  // g. Tout sauf « à envoyer » : entrée « non_envoyé », accusé.
+  if (issue !== "a_envoyer" || texte === null || idConversation === null) {
+    const motif = issue === "a_envoyer" ? "hors_fenetre" : issue;
+    await terminer("non_envoye", motif, cle);
+    if (motif === "hors_fenetre") await marquerFenetreFermee(cle, now); // marque la conversation + alerte cloche (jamais de push)
+    if (issue === "deja_remercie") return "fait";
+    return "fait";
+  }
+  // h. Plafond d'envois : ni envoi ni accusé si atteint (on reviendra).
+  const reserve = await reserverEnvoi(conv.etat.idCompte, now);
+  if (reserve !== "ok") {
+    await alerter(reserve === "plafond" ? "plafond_heure" : "compteur_illisible", reserve === "plafond" ? "Le plafond d'envois par heure est atteint pour un compte : les messages en attente repartent à l'heure suivante, rien n'est perdu." : "Le compteur d'envois est illisible : aucun message ne part, nouvel essai dans une minute.", now);
+    return "fait";
+  }
+  // i. SOUS VERROU : revérifier le registre et l'état, puis écrire « en vol » dans le registre ET dans la conversation.
+  const pris = await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (j[ref] || tout[cle]?.merciEtat) return false;
+    await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: { cle, etat: "en_vol" as const, issue: "en_vol", accuse: false, le: new Date(now).toISOString(), essaisAccuse: 0, prochainAccuseLe: null } });
+    await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: "en_vol" as const } });
+    return true;
+  });
+  if (!pris) {
+    await rendrePlaceEnvoi(conv.etat.idCompte, now);
+    await terminer("non_envoye", "deja_remercie", cle);
+    return "fait";
+  }
+  p_enVol(ref, true);
+  try {
+    // j. RELIRE L'OPPOSITION une dernière fois, juste avant le réseau.
+    if (await opposeeAvantEnvoi(cle, env)) {
+      await rendrePlaceEnvoi(conv.etat.idCompte, now);
+      await mettreEnFileOpposition(cle, conv.etat, k.courante, now);
+      await finirMerci(ref, cle, "non_envoye", "oppose", null);
+      await accuserMerci(env, ref, now);
+      return "fait";
+    }
+    // k. Envoi : clé d'idempotence par CONVERSATION (un rejeu chez Zernio ne double pas).
+    const res = await appeler(() => d.port.envoyerMessage({ idCompte: conv.etat.idCompte, idConversation, texte, cle: `merci:${conv.etat.refLienConv ?? cle}` }));
+    await reagir(transition(conv.etat, { t: "m1", res, maintenantMs: now }), now);
+    // l. Issue : envoyé | à vérifier (jamais renvoyé) | tout le reste = non envoyé avec le code (D4 : aucun nouvel essai).
+    if (res.statut === "envoye") await finirMerci(ref, cle, "envoye", "envoye", new Date(now).toISOString());
+    else if (res.statut === "a_verifier") {
+      await finirMerci(ref, cle, "a_verifier", "a_verifier", null);
+      await alerter("merci_a_verifier", "Un merci a une issue inconnue : il ne sera pas renvoyé.", now);
+    } else await finirMerci(ref, cle, "non_envoye", String(res.code ?? res.statut), null);
+  } finally {
+    p_enVol(ref, false);
+  }
+  // m. Accusé immédiat ; un échec est rattrapé au passage suivant. Jamais de second envoi pour rattraper un accusé.
+  await accuserMerci(env, ref, now);
+  return (await lireJournalMerci())[ref]?.etat === "envoye" ? "envoye" : "fait";
+}
+const p_enVol = (ref: string, vol: boolean): void => void (vol ? processus().merciEnVol.add(ref) : processus().merciEnVol.delete(ref));
+
+/** Écrit l'issue dans le registre ET dans la conversation (même section). */
+async function finirMerci(ref: string, cle: string, etat: EtatMerci, issue: string, merciLe: string | null): Promise<void> {
+  await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    if (j[ref]) await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: { ...j[ref], etat, issue } });
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (tout[cle]) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: etat, ...(merciLe ? { merciLe } : {}) } });
+  });
+}
+
+export const MOTIF_MERCI_FENETRE_FERMEE = "merci non envoyé : fenêtre fermée";
+/** Dernier message de la personne trop ancien (≥ 23 h) : rien n'est envoyé ; on le note sur la conversation et on lève l'alerte cloche existante. */
+async function marquerFenetreFermee(cle: string, now: number): Promise<void> {
+  await sousVerrou(async () => {
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (tout[cle]) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciMotif: MOTIF_MERCI_FENETRE_FERMEE } });
+  });
+  await alerter("merci_fenetre_fermee", `${MOTIF_MERCI_FENETRE_FERMEE.charAt(0).toUpperCase()}${MOTIF_MERCI_FENETRE_FERMEE.slice(1)}. Le dernier message de la personne date de plus de 23 h.`, now);
+}
+
+/** Identifiant brut de conversation Zernio, relu EN MÉMOIRE dans l'événement du dernier message de la personne (jamais gardé dans l'état). */
+async function idConversationDuDernierMessage(e: Conversation): Promise<string | null> {
+  if (!e.idMessageDernier) return null;
+  const ev = (await depots().evenementsFournisseurs.lister((x) => x.type === TYPE_MESSAGE && x.charge.idMessage === e.idMessageDernier))[0];
+  return typeof ev?.charge.idConversation === "string" && ev.charge.idConversation ? ev.charge.idConversation : null;
 }

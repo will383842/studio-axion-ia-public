@@ -234,7 +234,7 @@ describe("l'écran : deux chemins", () => {
     expect(html).toMatch(/Note : \d+ sur 10/);
     expect(html).toContain("À préparer avant de publier");
     expect(html).toContain("Utiliser ce script");
-    expect(html).toMatch(/au plus\)/);
+    expect(html).not.toMatch(/au plus\)|\d\s*€/);
   });
 });
 

@@ -234,12 +234,11 @@ async function reserverPourComite(appelId: string, etape: string, pireUsd: numbe
   const resultat = await sousVerrouMois(async () => {
     const plafondIdees = await plafondIdeesMoisUsd();
     if ((await engageIdeesDuMoisCentimes()) + demande > centimesDuPlafond(plafondIdees)) {
-      const enEuros = formaterMontant(centimes(centimesDuPlafond(plafondIdees * t)));
       if (!indicatif) {
-        await journaliser("generateur", `Comité éditorial : plafond des idées du mois atteint (${enEuros}), rien n'est parti`);
-        return `Plafond des idées du mois atteint (${enEuros}) : rien n'a été payé.`;
+        await journaliser("generateur", `Comité éditorial : plafond des idées du mois atteint, rien n'est parti`);
+        return `Plafond des idées du mois atteint : rien n'a été payé.`;
       }
-      alertes.push(["idees-mois", "Repère des idées du mois dépassé", `Le jugement d'idées continue (repère du mois ${enEuros}) ; rien n'est arrêté. Réglages pour l'ajuster.`]);
+      alertes.push(["idees-mois", "Repère des idées du mois dépassé", `Le jugement d'idées continue (repère du mois) ; rien n'est arrêté. Réglages pour l'ajuster.`]);
     }
     const plafondMois = await plafondMensuelClaudeUsd();
     const engage = await engageClaudeDuMoisCentimes();
@@ -562,7 +561,7 @@ export async function jugerALaDemande(prixVuCentimesEur: number, options: { orig
   // Le prix montré doit couvrir le pire cas de CE jugement (marge comprise) : sinon Will revoit le nouveau prix.
   const prixReel = usdVersEur(Math.ceil(pireUsd * 100 * (1 + MARGE_CREDITS)), await taux());
   if (!Number.isFinite(prixVuCentimesEur) || prixVuCentimesEur < prixReel.centimes) {
-    return { ok: false, message: `Le prix a changé : ≈ ${formaterMontant(prixReel)} au plus. Confirmez ce prix pour continuer.` };
+    return { ok: false, message: `Le prix a changé. Confirmez le nouveau prix pour continuer.` };
   }
   const arret = await reserverPourComite(appelId, ETAPE_DIRECT, pireUsd, prixVuCentimesEur, options.origine);
   if (arret) return { ok: false, message: arret };

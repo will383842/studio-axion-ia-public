@@ -84,7 +84,9 @@ describe("B3 · plafond FAL_PLAFOND_USD depuis les dépenses en base", () => {
     // Dépense fal.ai du mois déjà en base : 2 € (bien au-delà d'un plafond de 1 $).
     await depots().depenses.enregistrer({ id: "dep-fal", lignes: [{ etape: "Illustrations fabriquées", fournisseur: "fal.ai", unite: "image", quantite: 1, prixUnitaire: centimes(200), total: centimes(200), nature: "reel" }], total: centimes(200), date: new Date().toISOString(), creeLe: new Date().toISOString(), modifieLe: new Date().toISOString() });
     const reel = illustrationsReelles({ FAL_KEY: "cle-factice", FAL_PLAFOND_USD: "1" }).reel as FournisseurIllustrationEtendu;
-    const err = await reel.fabrication!.soumettre({ genre: "image", requete: "a contract", ratio: "9:16", cleIdempotence: "z" }).catch((e) => e);
+    // L2-13 : au-delà du plafond technique, seul l'appel de l'usine est refusé (celui du fondateur passe avec une alerte).
+    const { avecOrigineFournisseur } = await import("@/services/plafond-fournisseur");
+    const err = await avecOrigineFournisseur("usine", () => reel.fabrication!.soumettre({ genre: "image", requete: "a contract", ratio: "9:16", cleIdempotence: "z" }).catch((e) => e));
     expect(err).toMatchObject({ erreur: { code: "refuse" } });
     expect(posts).toBe(0);
   });
