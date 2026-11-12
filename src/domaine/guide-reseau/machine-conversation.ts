@@ -77,6 +77,8 @@ export interface Conversation {
   /** Merci après la page : « en_vol » écrit AVANT l'envoi, jamais effacé. Une autre confirmation de la même personne ne déclenche pas un 2e merci. */
   merciEtat?: EtatMerci | null;
   merciLe?: string | null;
+  /** Motif lisible quand le merci n'est pas parti faute de fenêtre (ne bloque pas un merci ultérieur : `merciEtat` reste vide). */
+  merciMotif?: string | null;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
 }
