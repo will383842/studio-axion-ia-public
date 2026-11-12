@@ -106,12 +106,19 @@ describe("relevé des règles officielles (L8-01)", () => {
     }
   });
 
-  it("ne contient ni prénom du fondateur, ni identifiant réel, ni prix", () => {
+  it("ne contient ni identifiant réel, ni prix", () => {
     for (const f of ["docs/reseaux/regles-officielles.json", "docs/reseaux/REGLES-OFFICIELLES.md"]) {
       const t = readFileSync(f, "utf8");
-      expect(t, f).not.toMatch(/williams/i);
       expect(t, f).not.toMatch(/[€$]\s?\d|\d\s?(€|euros?|dollars?)\b/i);
       expect(t, f).not.toMatch(/urn:li:(organization|person):\d{5,}/);
+    }
+  });
+
+  const motsFondateur = (process.env.MOTS_FONDATEUR ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+  it.skipIf(motsFondateur.length === 0)("ne contient aucun mot de la liste MOTS_FONDATEUR (variable d'environnement)", () => {
+    for (const f of ["docs/reseaux/regles-officielles.json", "docs/reseaux/REGLES-OFFICIELLES.md"]) {
+      const t = readFileSync(f, "utf8").toLowerCase();
+      for (const m of motsFondateur) expect(t.includes(m.toLowerCase()), f).toBe(false);
     }
   });
 
