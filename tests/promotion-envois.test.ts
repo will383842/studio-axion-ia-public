@@ -45,7 +45,7 @@ function etatsEnMemoire(): EtatsPromotion & { table: Map<string, string> } {
 function fauxServeur(brouillons: { cle: string; id: string }[], options: { apresPutIncertain?: boolean } = {}) {
   const posts = new Map(brouillons.map((b) => [b.id, postExemple({ _id: b.id, metadata: { origine: "studio", studioCle: b.cle } })]));
   const reponse = (a: AppelEnregistre): ReponsePreparee => {
-    const chemin = new URL(a.url).pathname;
+    const chemin = new URL(a.url).pathname.replace(/^\/api/, "");
     if (a.methode === "GET" && chemin === "/v1/posts") {
       const statut = new URL(a.url).searchParams.get("status");
       return { statut: 200, corps: { posts: [...posts.values()].filter((p) => p.status === statut) } };
@@ -78,8 +78,8 @@ async function monter(opts: {
   const cles: string[] = [];
   let i = 0;
   for (const e of opts.entrees ?? []) {
-    const env = await creerEnvoi(depot, { videoId: e.videoId ?? `vid-${++i}`, reseau: "linkedin", versionCreneau: 1, jour: e.jour, heure: e.heure }, "2026-11-01T00:00:00.000Z");
-    if (e.valider !== false) await validerEnvoi(depot, env.id, "le fondateur", "2026-11-02T00:00:00.000Z");
+    const env = await creerEnvoi(depot, { videoId: e.videoId ?? `vid-${++i}`, reseau: "linkedin", versionCreneau: 1, jour: e.jour, heure: e.heure }, "2026-01-01T00:00:00.000Z");
+    if (e.valider !== false) await validerEnvoi(depot, env.id, "le fondateur", "2026-01-02T00:00:00.000Z");
     cles.push(env.id);
   }
   const serveur = fauxServeur(opts.sansBrouillon ? [] : cles.map((c, k) => ({ cle: c, id: `exemple-post-${k + 1}` })), { apresPutIncertain: opts.apresPutIncertain });
