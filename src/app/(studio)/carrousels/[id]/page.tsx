@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
-import { BoutonProgrammerVisuel } from "@/components/visuels/BoutonProgrammerVisuel";
+import { BoutonProgrammerVisuel, jourParDefautParis } from "@/components/visuels/BoutonProgrammerVisuel";
 import { BarreValidation, type ActionsCarrousel } from "@/components/visuels/BarreValidation";
 import { MessagesFiche } from "@/components/visuels/MessagesFiche";
 import { RangeePages } from "@/components/visuels/RangeePages";
@@ -12,7 +12,6 @@ import { exigerSession } from "@/services/auth";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesCarrousels, phraseDuCode } from "@/visuels/services/production";
 import { ficheCarrousel } from "@/visuels/services/vues";
-import { ajouterJoursParis } from "@/lib/horloge-paris";
 import { libellePages } from "@/domaine/visuels/statuts";
 import { corbeilleAction, preparerReseauxAction, programmerAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, validerAction } from "./actions";
 
@@ -77,7 +76,7 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
           <button type="submit" className="self-start rounded-champ border border-trait px-3 py-1.5 text-sm font-semibold text-texte">Préparer pour les réseaux</button>
         </form>
       )}
-      {fiche.statut === "valide" && <BoutonProgrammerVisuel id={fiche.id} action={programmerAction} jourParDefaut={ajouterJoursParis(new Date().toISOString().slice(0, 10), 1)} />}
+      {fiche.statut === "valide" && <BoutonProgrammerVisuel id={fiche.id} action={programmerAction} jourParDefaut={jourParDefautParis(new Date().toISOString())} />}
       <BarreValidation id={fiche.id} actionsPermises={fiche.actionsPermises} actions={ACTIONS} pdfUrl={fiche.pdfUrl} pdfTelechargement={fiche.pdfTelechargement} />
     </ConteneurPage>
   );

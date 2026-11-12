@@ -11,7 +11,7 @@ import type { Publication } from "@/domaine/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import type { CreneauPlan } from "@/services/plan-editorial";
 import type { DepotsPasserelle } from "@/services/plan-vers-publication";
-import { BoutonProgrammerVisuel, programmerEnUnClic } from "@/components/visuels/BoutonProgrammerVisuel";
+import { BoutonProgrammerVisuel, jourDeParis, jourParDefautParis, programmerEnUnClic } from "@/components/visuels/BoutonProgrammerVisuel";
 
 function faux<T extends { id: string }>(): Depot<T> {
   const m = new Map<string, T>();
@@ -73,6 +73,40 @@ describe("programmer en un clic", () => {
     await expect(programmerEnUnClic(d2, "vis_1", "2026-11-01", T0)).rejects.toThrow(/jour/i);
     await expect(programmerEnUnClic(d2, "vis_9", "2026-11-25", T0)).rejects.toThrow(/introuvable/i);
     expect(await d2.creneaux.lister()).toHaveLength(0);
+  });
+});
+
+describe("heure de Paris (frontière de minuit et créneaux déjà passés)", () => {
+  it("le jour de Paris n'est pas le jour UTC : 23:30 UTC le 24/11 = 25/11 à Paris", () => {
+    expect(jourDeParis("2026-11-24T23:30:00.000Z")).toBe("2026-11-25");
+    expect(jourDeParis("2026-11-25T22:59:00.000Z")).toBe("2026-11-25");
+    expect(jourDeParis("2026-11-25T23:00:00.000Z")).toBe("2026-11-26");
+  });
+  it("refuse la veille à Paris même si c'est encore aujourd'hui en UTC, sans rien écrire", async () => {
+    const d = await monter();
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-24", "2026-11-24T23:30:00.000Z")).rejects.toThrow(/déjà passé/i);
+    expect(await d.creneaux.lister()).toHaveLength(0);
+    expect(await d.publications.lister()).toHaveLength(0);
+  });
+  it("accepte le jour de Paris juste après minuit quand les heures sont à venir", async () => {
+    const d = await monter();
+    const r = await programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-24T23:30:00.000Z");
+    expect((await d.creneaux.obtenir(r.creneauId))?.statut).toBe("programme");
+  });
+  it("refuse le jour même quand une heure de publication est déjà passée (18:00 à Paris), sans rien écrire", async () => {
+    const d = await monter();
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T17:00:00.000Z")).rejects.toThrow(/déjà passée/i);
+    expect(await d.creneaux.lister()).toHaveLength(0);
+    expect(await d.publications.lister()).toHaveLength(0);
+  });
+  it("refuse à la limite exacte (08:30 Paris = 07:30 UTC) et accepte une minute avant", async () => {
+    const d = await monter({ reseaux: ["linkedin"] });
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T07:30:00.000Z")).rejects.toThrow(/déjà passée/i);
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T07:29:00.000Z")).resolves.toBeDefined();
+  });
+  it("jour proposé par défaut : demain à Paris, pas demain en UTC", () => {
+    expect(jourParDefautParis("2026-11-24T23:30:00.000Z")).toBe("2026-11-26");
+    expect(jourParDefautParis("2026-11-25T10:00:00.000Z")).toBe("2026-11-26");
   });
 });
 

@@ -6,7 +6,8 @@
 import "server-only";
 import { Bouton } from "@/components/ui/Bouton";
 import type { IdReseau } from "@/domaine/types";
-import { instantParis } from "@/lib/horloge-paris";
+import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
+import { formateurDate } from "@/lib/intl";
 import { changerStatut, creerCreneau } from "@/services/plan-editorial";
 import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 
@@ -14,6 +15,21 @@ import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-pu
 const HEURES: Partial<Record<IdReseau, string>> = { linkedin: "08:30", instagram: "12:30", facebook: "17:30" };
 const COMPTE_CIBLE = "compte-studio";
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Le jour (AAAA-MM-JJ) qu'il est à Paris à cet instant ISO : jamais le jour UTC. */
+export function jourDeParis(instant: string): string {
+  const p = Object.fromEntries(
+    formateurDate("en-GB", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(new Date(instant))
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** Jour proposé par défaut : demain, à l'heure de Paris. */
+export function jourParDefautParis(instant: string): string {
+  return ajouterJoursParis(jourDeParis(instant), 1);
+}
 
 /**
  * Crée (ou retrouve) le créneau du visuel validé et le programme. Idempotent : id de créneau stable par visuel.
@@ -28,9 +44,11 @@ export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, 
   const existant = await d.creneaux.obtenir(creneauId);
   if (!existant) {
     if (!JOUR.test(jour) || Number.isNaN(Date.parse(jour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
-    if (jour < maintenant.slice(0, 10)) throw new Error("Jour invalide : il est déjà passé.");
+    if (jour < jourDeParis(maintenant)) throw new Error("Jour invalide : il est déjà passé.");
     const heuresParReseau: Partial<Record<IdReseau, string>> = {};
     for (const r of v.reseaux) heuresParReseau[r] = instantParis(jour, HEURES[r]!);
+    const passes = v.reseaux.filter((r) => Date.parse(heuresParReseau[r]!) <= Date.parse(maintenant));
+    if (passes.length > 0) throw new Error(`Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
     await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_CIBLE, visuelId: v.id }, maintenant);
     await changerStatut(d, creneauId, "a_valider", "studio", maintenant);
     await changerStatut(d, creneauId, "valide", "studio", maintenant);
