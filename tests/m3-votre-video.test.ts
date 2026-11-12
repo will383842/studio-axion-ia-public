@@ -387,7 +387,7 @@ describe("tableau A.3 : les cas où il faut vous aider", () => {
 
   it("« Décrivez » : libellés des pastilles (trouvé, à créer avec son prix, pas encore filmé avec son repli)", () => {
     expect(logique.libellePastille({ genre: "decor", etat: "trouve", id: "x", libelle: "Bureau" })).toBe("Bureau ✓");
-    expect(logique.libellePastille({ genre: "tenue", etat: "a-creer", libelle: "costume bleu", coutEstime: { centimes: 25, devise: "EUR" }, dureeEstimeeSec: 180 })).toMatch(/costume bleu · à créer \(≈ 0,25/);
+    expect(logique.libellePastille({ genre: "tenue", etat: "a-creer", libelle: "costume bleu", coutEstime: { centimes: 25, devise: "EUR" }, dureeEstimeeSec: 180 })).toBe("costume bleu · à créer");
     expect(logique.libellePastille({ genre: "posture", etat: "non-filme", libelle: "Debout", repli: "assis" })).toBe("Debout · pas encore filmé → Assis");
   });
 

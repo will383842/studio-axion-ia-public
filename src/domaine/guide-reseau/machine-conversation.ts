@@ -8,6 +8,10 @@ import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 export const DELAI_PERIME_MS = 24 * 3600_000;
 export const EXPIRATION_MS = 7 * 24 * 3600_000;
 export const FENETRE_M1_REESSAI_MS = 6 * 24 * 3600_000;
+/** Fenêtre de 24 h de Meta, avec 1 h de marge (retards de Zernio) : au-delà, aucun message de conversation n'est envoyé. */
+export const FENETRE_ENVOI_MS = 23 * 3600_000;
+/** Une date de dernier message plus en avance que cela sur notre horloge est jugée suspecte : fenêtre fermée. */
+export const AVANCE_HORLOGE_MAX_MS = 5 * 60_000;
 export const ESSAIS_PUBLIC_MAX = 3;
 export const ESSAIS_M1_MAX = 3;
 export const ATTENTES_ORPHELIN_MS = [30_000, 2 * 60_000] as const;
@@ -23,7 +27,7 @@ export { ETATS_EN_COURS, type EtatParcours };
 /** Etats où un message privé de la personne est pris en compte. */
 export const ETATS_MESSAGE_ACCEPTES: readonly EtatParcours[] = ["attente_email", "m1_a_verifier", "m1_en_vol", "m2_envoye"];
 
-/** État conservé par personne. JAMAIS : pseudo, texte, adresse, identifiant brut (les alias sont des empreintes). */
+/** État conservé par personne. JAMAIS : pseudo, texte, adresse, identifiant brut de personne ou de conversation (les alias sont des empreintes). `idCommentaire`, `idCompte` et `idPostPlateforme` restent bruts (commentaire, compte et publication de NOTRE côté). */
 export interface Conversation {
   etat: EtatParcours;
   reseau: "instagram" | "facebook";
@@ -61,8 +65,55 @@ export interface Conversation {
   adresseRefuseeEnAttente?: boolean;
   /** Référence opaque de conversation du lien signé (« c1_… »), écrite UNE fois au premier M1 v3 ; jamais réécrite, jamais le jeton. */
   refLienConv?: string | null;
+  /** Date (ISO) du dernier message ÉCRIT PAR LA PERSONNE : base de la fenêtre de 24 h de Meta. Jamais reculée. Absente = fenêtre fermée. */
+  derniereActiviteLe?: string | null;
+  /** Identifiant OPAQUE de ce dernier message de la personne (jamais d'identifiant de conversation brut). */
+  idMessageDernier?: string | null;
+  /** Empreintes SHA-256 (hex) des jetons des liens réellement ENVOYÉS dans M1 v3 : la `ref` d'une confirmation du site en est une. Jamais le jeton, jamais le lien. */
+  empreintesLien?: string[];
+  /** Merci après la page : « en_vol » écrit AVANT l'envoi, jamais effacé. Une autre confirmation de la même personne ne déclenche pas un 2e merci. */
+  merciEtat?: EtatMerci | null;
+  merciLe?: string | null;
+  /** Motif lisible quand le merci n'est pas parti faute de fenêtre (ne bloque pas un merci ultérieur : `merciEtat` reste vide). */
+  merciMotif?: string | null;
   /** Un message privé a laissé un DOUTE sur une demande d'arrêt : M2 n'est plus jamais envoyé (une adresse explicite déclenche encore la demande de guide). Absent = faux. */
   douteOpposition?: boolean;
+}
+
+/** Délai avant réduction des identifiants bruts d'un événement clos (D1 : 30 jours, assez pour les réessais et les vérifications à la main dans l'Inbox Zernio). */
+export const DELAI_REDUCTION_MS = 30 * 24 * 3600_000;
+export interface FaitsReduction {
+  /** `idMessage` à NE PAS réduire : message d'adresse et du guide de TOUTES les conversations (relecture d'un « stop »), dernier message des conversations à fenêtre ouverte, messages dont dépend une opposition à transmettre. */
+  idsMessagesProteges: ReadonlySet<string>;
+}
+/**
+ * Un événement Zernio clos peut-il perdre ses identifiants bruts ? Fonction pure. Vrai seulement si : clos, plus vieux que le délai
+ * (date illisible = jamais : échec fermé), non protégé, pas déjà réduit.
+ */
+export function reductible(ev: { traite: boolean; recuLe: string; modifieLe?: string; charge: Record<string, unknown> }, faits: FaitsReduction, maintenantMs: number): boolean {
+  if (ev.traite !== true) return false;
+  if (typeof ev.charge.idsReduitsLe === "string") return false;
+  const t = dateLue(ev.modifieLe) ?? dateLue(ev.recuLe);
+  if (t === null || maintenantMs - t < DELAI_REDUCTION_MS) return false;
+  const idMessage = ev.charge.idMessage;
+  return !(typeof idMessage === "string" && faits.idsMessagesProteges.has(idMessage));
+}
+
+export type EtatMerci = "en_vol" | "envoye" | "a_verifier" | "non_envoye";
+/** Issues d'une confirmation, dans l'ordre où elles s'évaluent (la première vraie l'emporte). */
+export type IssueMerci = "deja_traite" | "conversation_inconnue" | "oppose" | "deja_remercie" | "texte_non_valide" | "hors_fenetre" | "a_envoyer";
+/**
+ * Issue d'une confirmation de la page, à partir de faits DÉJÀ lus. Fonction pure. Ordre : ref au registre › conversation inconnue
+ * › opposée › déjà remerciée (autre ref) › texte non validé › hors fenêtre (ou identifiant de conversation introuvable) › à envoyer.
+ */
+export function issueMerci(o: { refAuRegistre: boolean; conversation: Pick<Conversation, "derniereActiviteLe" | "merciEtat"> | null; oppose: boolean; texteValide: boolean; idConversationRetrouve: boolean; maintenantMs: number }): IssueMerci {
+  if (o.refAuRegistre) return "deja_traite";
+  if (!o.conversation) return "conversation_inconnue";
+  if (o.oppose) return "oppose";
+  if (o.conversation.merciEtat) return "deja_remercie";
+  if (!o.texteValide) return "texte_non_valide";
+  if (!dansFenetreEnvoi(o.conversation, o.maintenantMs) || !o.idConversationRetrouve) return "hors_fenetre";
+  return "a_envoyer";
 }
 
 /** Version du 1er message privé quand il porte le lien signé de la page guide (interrupteur PARCOURS_LIEN_GUIDE). */
@@ -168,7 +219,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
-      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition ? { action: "m2" } : { action: "silence", raison: "silence" };
+      // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
+      if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && etat.versionTexteM1 !== VERSION_M1_LIEN ? { action: "m2" } : { action: "silence", raison: "silence" };
       return { action: "demander_guide" };
     }
     case "site": {
@@ -192,6 +244,7 @@ const dateLue = (d: string | null | undefined): number | null => {
 /**
  * Expiration après 7 jours, sans message envoyé. Date de référence, avec repli quand la date est illisible :
  *  - `m2_envoye` : m2Le → m1Le → creeLe ; `attente_email` et `m1_a_verifier` : m1Le → creeLe ;
+ *  - `nouveau` et `pub_ok` : creeLe ; `guide_demande` : m1Le → creeLe ;
  *  - `m1_en_vol` : creeLe, seulement s'il n'est PAS en vol dans ce processus (`enVol`, indicateur : la fonction reste pure) ;
  *  - toutes les dates illisibles : expiré (jamais un état éternel).
  */
@@ -201,6 +254,10 @@ export function doitExpirer(c: Conversation, maintenantMs: number, enVol = false
     case "m2_envoye": candidates = [c.m2Le, c.m1Le, c.creeLe]; break;
     case "attente_email": case "m1_a_verifier": candidates = [c.m1Le, c.creeLe]; break;
     case "m1_en_vol": if (enVol) return false; candidates = [c.creeLe]; break;
+    // STU-MENAGE : sans cela ces états « en cours » ne finissaient JAMAIS si leur événement était perdu ou clos autrement.
+    // `nouveau` / `pub_ok` : la réponse privée de Meta n'est plus possible après 7 jours. `guide_demande` : le guide est parti par e-mail, seul le reçu manquait.
+    case "nouveau": case "pub_ok": candidates = [c.creeLe]; break;
+    case "guide_demande": candidates = [c.m1Le, c.creeLe]; break;
     default: return false;
   }
   for (const d of candidates) {
@@ -208,4 +265,33 @@ export function doitExpirer(c: Conversation, maintenantMs: number, enVol = false
     if (t !== null) return maintenantMs - t >= EXPIRATION_MS;
   }
   return true;
+}
+
+/**
+ * Date de dernière activité à retenir : la PLUS RÉCENTE de l'ancienne et de la nouvelle (jamais en arrière : rejeu, désordre).
+ * La nouvelle vient de `occurredAt` s'il est lisible, sinon de `recuLe` ; une date dans le futur est ramenée à maintenant.
+ * `null` si rien n'est lisible.
+ */
+export function activiteRetenue(ancienne: string | null | undefined, occurredAt: string | null | undefined, recuLe: string | null | undefined, maintenantMs: number): string | null {
+  const nouvelle = dateLue(occurredAt) ?? dateLue(recuLe);
+  const vieille = dateLue(ancienne);
+  const n = nouvelle === null ? null : Math.min(nouvelle, maintenantMs);
+  const meilleur = n === null ? vieille : vieille === null ? n : Math.max(n, vieille);
+  return meilleur === null ? null : new Date(meilleur).toISOString();
+}
+
+/** Vrai si un message de conversation peut encore partir. Échec fermé : date absente, illisible ou en avance sur l'horloge = faux. */
+export function dansFenetreEnvoi(c: Pick<Conversation, "derniereActiviteLe">, maintenantMs: number): boolean {
+  const t = dateLue(c.derniereActiviteLe);
+  if (t === null || t > maintenantMs + AVANCE_HORLOGE_MAX_MS) return false;
+  return maintenantMs - t < FENETRE_ENVOI_MS;
+}
+
+/**
+ * Par quelles voies un « stop » peut-il devoir atteindre le site ?
+ *  - `adresse` : l'adresse a été tapée dans la conversation et transmise (route actuelle, par adresse) ;
+ *  - `page` : la personne a reçu le lien de la page (`refLienConv`), donc son adresse est peut-être chez le site sans que le Studio la connaisse.
+ */
+export function voiesOpposition(c: Pick<Conversation, "occurredAt" | "refLienConv">): { adresse: boolean; page: boolean } {
+  return { adresse: typeof c.occurredAt === "string", page: typeof c.refLienConv === "string" && c.refLienConv !== "" };
 }

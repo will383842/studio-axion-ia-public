@@ -44,9 +44,14 @@ concurrency:
 
 jobs:
   tests-scripts:
-    name: tests ciblés écriture des scripts
+    name: tests ciblés écriture des scripts (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Découpage en 4 morceaux parallèles (12/11/2026) : mêmes dossiers, même couverture, environ 4 fois plus court.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     # Informatif : un rouge s'affiche sur la PR sans empêcher de fusionner.
     continue-on-error: true
     steps:
@@ -59,7 +64,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Tests ciblés (dossiers)
         run: |
-          pnpm exec vitest run --testTimeout=60000 \
+          pnpm exec vitest run --shard=${{ matrix.shard }}/4 --testTimeout=60000 \
             tests/domaine \
             tests/donnees \
             tests/debit-voix \
