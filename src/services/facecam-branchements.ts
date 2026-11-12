@@ -206,7 +206,8 @@ export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ d
     return { dejaServis: videos.flat().slice(0, 40), ...(ouverture ? { ouverturePrecedente: ouverture } : {}) };
   } catch (e) {
     console.warn("[studio] mémoire des cartes face caméra illisible :", e instanceof Error ? e.message : e);
-    return { dejaServis: [] };
+    // GV-FIN-01 : on laisse remonter l'erreur (la chaîne la rattrape) pour qu'une lecture en panne ne fige aucune mémoire.
+    throw e;
   }
 }
 
