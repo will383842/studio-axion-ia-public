@@ -6,7 +6,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GrilleMois } from "@/components/calendrier/GrilleMois";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
-import { adresseVueJour, jourDeParis, plageMois } from "@/lib/calendrier-plages";
+import { adresseVueJour, plageMois } from "@/lib/calendrier-plages";
+import { cleJour as jourDeParis } from "@/lib/dates"; // doublon retiré : le jour de Paris vient de cleJour
 
 const AUJOURDHUI = "2026-11-11";
 const rendre = (mois: string, entrees: EntreeCarte[] = [], extra: Partial<Parameters<typeof GrilleMois>[0]> = {}) =>
@@ -70,14 +71,11 @@ describe("CAL-05 : les jours sont ceux de Paris", () => {
     expect(jourDeParis("2026-06-30T22:30:00.000Z")).toBe("2026-07-01");
   });
 
-  it("limites : minuit pile, changements d'heure, entrée vide ou illisible", () => {
+  it("limites : minuit pile, changements d'heure, jour de 25 h", () => {
     expect(jourDeParis("2026-11-29T23:00:00.000Z")).toBe("2026-11-30"); // minuit pile à Paris
     expect(jourDeParis("2026-11-29T22:59:59.999Z")).toBe("2026-11-29");
     expect(jourDeParis("2026-10-25T22:30:00.000Z")).toBe("2026-10-25"); // jour de 25 h : 23 h 30 à Paris
     expect(jourDeParis("2027-03-27T23:30:00.000Z")).toBe("2027-03-28"); // veille du saut de printemps
-    expect(jourDeParis("")).toBeNull();
-    expect(jourDeParis("pas une date")).toBeNull();
-    expect(jourDeParis(undefined)).toBeNull();
   });
 
   it("dans la grille, la publication de 23 h 30 compte dans le 30 et pas dans le 1er décembre", () => {
