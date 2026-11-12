@@ -890,3 +890,68 @@ describe("LIA-C · (m) réglage ÉTEINT : comportement inchangé", () => {
     expect(compter()).toMatchObject({ pub: 1, prive: 1 });
   });
 });
+
+describe("LIA-C · borne d'un passage quand le traitement lève (M1)", () => {
+  /** Dès que la liste des événements dus est lue, toute lecture de paramètre lève (registre illisible / base en panne). */
+  async function casserApresLaListe(): Promise<void> {
+    const ev = depots().evenementsFournisseurs;
+    const listerReel = ev.lister.bind(ev);
+    const param = depots().parametres;
+    const obtenirReel = param.obtenir.bind(param);
+    let casse = false;
+    vi.spyOn(ev, "lister").mockImplementation(async (...a: any[]) => {
+      const r = await (listerReel as any)(...a);
+      casse = true;
+      return r;
+    });
+    vi.spyOn(param, "obtenir").mockImplementation(async (id: string) => {
+      if (casse) throw new Error("base en panne (test)");
+      return obtenirReel(id);
+    });
+  }
+  const trenteCommentaires = async () => {
+    for (let i = 0; i < 30; i++)
+      await commenter("GUIDE", {
+        id: `com-m1-${i}`,
+        auteur: `auteur-m1-${i}`,
+        a: T0 + i * 10,
+      });
+  };
+
+  it("éteint : 30 événements dont le traitement lève => au plus 20 traités dans le passage", async () => {
+    etat.allume = false;
+    await trenteCommentaires();
+    await casserApresLaListe();
+    const rap = await passer(T0);
+    expect(rap.enAttente).toBeLessThanOrEqual(20);
+    expect(rap.enAttente).toBe(20);
+    expect(compter()).toMatchObject({ pub: 0, prive: 0 });
+  });
+
+  it("allumé : même cas => le compte ne dépasse pas la borne prévue (un lot de 20)", async () => {
+    etat.allume = true;
+    await trenteCommentaires();
+    await casserApresLaListe();
+    const rap = await passer(T0);
+    expect(rap.enAttente).toBeLessThanOrEqual(20);
+    expect(rap.enAttente).toBe(20);
+    expect(compter()).toMatchObject({ pub: 0, prive: 0 });
+  });
+});
+
+describe("LIA-C · éteint : aucune lecture du catalogue, même jusqu'à la demande de guide (M2)", () => {
+  it("parcours mené jusqu'à la demande de guide : ZÉRO appel à `lireCiblesSite`", async () => {
+    etat.allume = false;
+    await commenter("GUIDE");
+    await passer(T0);
+    await deposerMessage(depots, {
+      idMessage: "msg-m2",
+      idExpediteur: AUTEUR,
+      idConversation: "conv-fictive-700",
+    });
+    lireTexteDe(`voici mon adresse ${ADRESSE}`);
+    await passer(T0 + 60_000);
+    expect(banc.site.vus.length).toBeGreaterThan(0); // la demande de guide est bien partie
+    expect(etat.appelsCatalogue).toBe(0);
+  });
+});

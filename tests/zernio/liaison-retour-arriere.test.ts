@@ -224,3 +224,23 @@ describe("LIA-C · retour arrière (allumé puis éteint)", () => {
     ).toBeGreaterThan(0); // l'accusé est rendu
   });
 });
+
+describe("LIA-C · vérification « dossier composite » : lecture impossible (M3)", () => {
+  it("éteint : la lecture des conversations échoue dans cette vérification => `registre_illisible`, ZÉRO appel du port", async () => {
+    etat.allume = false;
+    const param = depots().parametres;
+    const obtenirReel = param.obtenir.bind(param);
+    vi.spyOn(param, "obtenir").mockImplementation(async (id: string) => {
+      if (new Error().stack?.includes("aUnDossierComposite"))
+        throw new Error("lecture impossible (test)");
+      return obtenirReel(id);
+    });
+    const evt = await commenter("com-m3-1");
+    const rap = await passer(T0);
+    expect(rap.enAttente).toBe(1);
+    const e = await evenement(depots, evt);
+    expect(e.traite).toBe(false);
+    expect(e.charge.dernierCode).toBe("registre_illisible");
+    expect(banc.port.total()).toBe(0);
+  });
+});

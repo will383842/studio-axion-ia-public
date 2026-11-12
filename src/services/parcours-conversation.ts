@@ -1454,7 +1454,8 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
     // Les événements clos sans aucun envoi (mot sans textes validés) ne comptent pas dans le lot : ils ne prennent pas la place des GUIDE. Borne dure : 10 lots.
     let restant = LOT_MAX_PAR_PASSAGE_CONVERSATION;
-    for (const ev of dus.slice(0, LOT_MAX_PAR_PASSAGE_CONVERSATION * 10)) { // les autres restent dus pour le passage suivant
+    // Éteint : exactement le lot historique (aucune boucle à plusieurs lots). Allumé seulement : jusqu'à 10 lots.
+    for (const ev of dus.slice(0, multi ? LOT_MAX_PAR_PASSAGE_CONVERSATION * 10 : LOT_MAX_PAR_PASSAGE_CONVERSATION)) { // les autres restent dus pour le passage suivant
       if (restant <= 0) break;
       let issue: "traite" | "bloque" | "leger";
       try {
@@ -1463,9 +1464,10 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
         // Registre illisible ou panne de base : nouvel essai plus tard, JAMAIS « non opposée » ni envoi.
         await reporter(ev, now, ATTENTE_REGISTRE_MS, "registre_illisible").catch(() => undefined);
         rapport.enAttente++;
+        restant--; // une exception compte dans le lot : panne de base = au plus un lot par passage
         continue;
       }
-      if (issue !== "leger") restant--;
+      if (!multi || issue !== "leger") restant--;
       if (issue === "bloque") {
         rapport.enAttente++;
         rapport.gardeBloquante = "garde";
