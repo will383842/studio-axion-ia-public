@@ -19,6 +19,7 @@ export default async function PageFacecamAnimee() {
   return (
     <GabaritCreation
       entete={{ titre: "Face caméra animée", sousTitre: "Filmées par vous, animées sur vos mots. Une ou plusieurs vidéos à la fois." }}
+      etapes={{ etapes: [{ cle: "deposer", libelle: "Déposer les prises" }, { cle: "fabrication", libelle: "Fabrication" }], courante: 0 }}
       recents={<RecentsGenerateur elements={versRecentsFacecamAnimee(dernieres)} deuxColonnes vide={{ titre: "Aucune vidéo pour le moment", phrase: "Déposez vos premières prises ci-dessus." }} />}
     >
       <DepotPrise accordDejaDonne={etat.accordEssai} />
