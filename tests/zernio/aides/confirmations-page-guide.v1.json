@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "note": "Valeurs 100 % fictives. ATTENTION : ce n'est PAS une copie octet pour octet d'un fichier de contrat du site (il n'en existe pas pour cette route). Elle est DÉRIVÉE de la lecture du code du site, branche lot/guide-reseau-2 @ a7df74bb : src/app/api/interne/confirmations-page-guide/route.ts, .../issue/route.ts, src/server/guides-reseau/confirmations.ts, accuse-confirmations.ts, config.ts. À remplacer par la copie du fichier de contrat du site dès qu'il existe. ÉCART avec la fiche 04 : le site ne renvoie PAS `conv`, seulement `{ ref, valideLe }` où `ref` = SHA-256 (hex, 64 caractères) du jeton du lien ; le Studio rapproche donc `ref` de l'empreinte du jeton qu'il a lui-même envoyé dans M1 v3.",
+  "interrupteur_site": "CONFIRMATIONS_PAGE_GUIDE_ENABLED",
+  "lecture": {
+    "methode": "POST",
+    "chemin": "/api/interne/confirmations-page-guide",
+    "corps": { "schemaVersion": 1, "limite": 10 },
+    "limite_max": 50,
+    "reponse_200": { "ok": true, "schemaVersion": 1, "confirmations": [{ "ref": "289ccaa99343ed187825c78ee7817971840fabbf7c0aed556d63aa09448df682", "valideLe": "2026-10-18T09:55:00.000Z" }] },
+    "reservation_reprise_apres_minutes": 10,
+    "fenetre_merci_heures": 48
+  },
+  "accuse": {
+    "methode": "POST",
+    "chemin": "/api/interne/confirmations-page-guide/issue",
+    "corps": { "schemaVersion": 1, "issues": [{ "ref": "289ccaa99343ed187825c78ee7817971840fabbf7c0aed556d63aa09448df682", "issue": "envoye" }] },
+    "issues_acceptees": ["envoye", "hors_fenetre", "echec"],
+    "lot_max": 50,
+    "reponse_200": { "ok": true, "schemaVersion": 1, "recus": 1 }
+  },
+  "erreurs": { "eteint": 503, "chaine_de_requete": 400, "json_ou_schema_invalide": 400, "signature_ou_horodatage": 401, "debit": 429, "interne": 500 },
+  "signature": "Comme /api/interne/demandes-guide-reseau : signerAppel(secret SITE_GUIDES_RESEAU_SECRET, POST, chemin, corps JSON exact). Aucune chaîne de requête.",
+  "table_issues_studio_vers_site": {
+    "envoye": "envoye",
+    "a_verifier": "envoye",
+    "oppose": "hors_fenetre",
+    "conversation_inconnue": "hors_fenetre",
+    "deja_remercie": "hors_fenetre",
+    "texte_non_valide": "hors_fenetre",
+    "hors_fenetre": "hors_fenetre",
+    "non_envoye": "hors_fenetre",
+    "confirmation_illisible": null
+  }
+}

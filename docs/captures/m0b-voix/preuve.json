@@ -60,9 +60,9 @@
     },
     {
       "id": "3-nom-propre",
-      "texte": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
-      "texteDit": "Williams Jullin, d'Axion-IA, vous explique tout cela simplement.",
-      "caracteres": 64,
+      "texte": "Williams ici, d'Axion-IA, vous explique tout cela simplement.",
+      "texteDit": "Williams ici, d'Axion-IA, vous explique tout cela simplement.",
+      "caracteres": 61,
       "dureeSec": 4.075,
       "mots": 8,
       "motsParSeconde": 2.25,
