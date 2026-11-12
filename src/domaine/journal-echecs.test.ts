@@ -36,4 +36,14 @@ describe("journal des échecs (pur)", () => {
     expect(identifiantEchec("tr-1", 2)).toBe(identifiantEchec("tr-1", 2));
     expect(identifiantEchec("tr-1", 3)).not.toBe(identifiantEchec("tr-1", 2));
   });
+
+  it("nettoyage : les mots qui contiennent « cle » ou « key » ne sont pas pris pour des clés", () => {
+    expect(nettoyerDetail("article: lisible, cycle=3, monkey: oui")).toBe("article: lisible, cycle=3, monkey: oui");
+  });
+
+  it("nettoyage : les vraies clés nommées sont retirées", () => {
+    expect(nettoyerDetail("x-api-key: valeur1")).not.toContain("valeur1");
+    expect(nettoyerDetail("access_token=valeur2 fin")).not.toContain("valeur2");
+    expect(nettoyerDetail("cle=valeur3")).not.toContain("valeur3");
+  });
 });

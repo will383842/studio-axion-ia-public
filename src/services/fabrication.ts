@@ -28,6 +28,7 @@ import type {
 } from "@/domaine/types";
 import { centimesBloquants } from "@/domaine/credits";
 import { motsSousTitres, plansDepuisScript, texteScript } from "@/domaine/derivations";
+import { decorParDefaut } from "@/domaine/decors";
 import { baseRetenue, fabriquerSousTitres } from "@/briques/sous-titres";
 import { resoudreVisagesParAngle, visagePourFormat } from "@/domaine/distribution";
 import { prononciationsActives } from "@/domaine/prononciations";
@@ -100,7 +101,8 @@ async function stylesResolus(video: Video, format: DefinitionFormat): Promise<St
     habillage: styleParDefautRetenu(format, "habillage", video.styles.habillageId, tous),
     styleMontage: styleParDefautRetenu(format, "styleMontage", video.styles.styleMontageId, tous),
     profilSon: styleParDefautRetenu(format, "profilSon", video.styles.profilSonId, tous),
-    decor: styleParDefautRetenu(format, "decor", video.styles.decorId ?? ancienFond, tous),
+    // Décor : N1 Halo orange prime sur l'étoile pour l'avocat (règle existante `decorParDefaut`).
+    decor: video.styles.decorId ?? ancienFond ?? decorParDefaut(format.id, tous, styleParDefautRetenu(format, "decor", undefined, tous)),
   };
   const obtenir = async (id?: string) => (id ? await d.elements.obtenir(id) : null);
   const resoudre = async <V extends ValeurElement>(id?: string) => (id ? styleResolu<V>(await obtenir(id), id) : undefined);
