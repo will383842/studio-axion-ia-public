@@ -24,9 +24,9 @@ export interface EnvoiPlanifie extends EntiteBase {
   videoId: Id;
   reseau: ReseauDeclinaison;
   versionCreneau: number;
-  /** AAAA-MM-JJ */
+  /** AAAA-MM-JJ, heure de Paris. */
   jour: string;
-  /** « 09:30 » ; jamais une « meilleure heure » inventée. */
+  /** « 09:30 » (HH:MM, heure de Paris) ; jamais une « meilleure heure » inventée. */
   heure?: string;
   statut: StatutEnvoi;
   valideeLe?: DateIso;
