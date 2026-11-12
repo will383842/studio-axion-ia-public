@@ -183,6 +183,59 @@ describe("(i ter) reprise d'une attente qui ne doit plus repartir", () => {
   });
 });
 
+describe("(i quater) GV-EC-01g — reprise selon le travail plus récent de la même vidéo", () => {
+  /** Pose un travail d'un autre type (réexport…) sur la vidéo, plus récent que l'attente. */
+  async function poserAutre(ancien: string, type: Travail["type"], statut: Travail["statut"]): Promise<string> {
+    const t = (await depots().travaux.obtenir(ancien))!;
+    const id = `autre-${type}-${statut}`;
+    const creeLe = new Date(Date.parse(t.creeLe) + 60_000).toISOString();
+    await depots().travaux.enregistrer({ ...t, id, type, statut, creeLe, erreur: undefined, reprise: undefined });
+    return id;
+  }
+
+  it("réexport en cours : refus temporaire (« en cours »), réservation gardée ; puis réexport fini : reprise acceptée, une seule active", async () => {
+    const a = await mettreEnAttente();
+    const autre = await poserAutre(a, "reexport", "en_cours");
+    await expect(travaux.reessayerTravail(a)).rejects.toMatchObject({ message: "Un autre travail de cette vidéo est en cours. Réessayez quand il sera fini." });
+    expect(await actives(a)).toBe(1);
+    await depots().travaux.enregistrer({ ...(await depots().travaux.obtenir(autre))!, statut: "termine" });
+    await travaux.reessayerTravail(a);
+    expect(await actives(a)).toBe(1);
+  });
+
+  it("nouvelle fabrication plus récente, libération de l'ancien en échec : reprise refusée « remplacé » et 0 réservation active", async () => {
+    const a = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(a))!.cibleId;
+    const credits2 = await import("@/services/credits");
+    const vraie = credits2.libererReservation;
+    const espion = vi.spyOn(credits2, "libererReservation").mockImplementation(async (id, ...reste) => {
+      if (id === a) throw new Error("panne de libération");
+      return vraie(id, ...reste);
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { travailId: nouveau } = await fabrication.lancerFabrication(video, { confirme: true });
+    expect(await actives(a)).toBe(1);
+    espion.mockRestore();
+    await depots().travaux.enregistrer({ ...(await depots().travaux.obtenir(nouveau))!, statut: "termine" });
+    await expect(travaux.reessayerTravail(a)).rejects.toMatchObject({ message: "Ce travail a été remplacé. Rouvrez la page." });
+    expect(await actives(a)).toBe(0);
+  });
+
+  it("réexport terminé plus récent : la reprise est acceptée comme avant", async () => {
+    const a = await mettreEnAttente();
+    await poserAutre(a, "reexport", "termine");
+    await travaux.reessayerTravail(a);
+    expect(await actives(a)).toBe(1);
+  });
+
+  it("retouche en échec plus récente : elle ne bloque pas, la reprise est acceptée", async () => {
+    const a = await mettreEnAttente();
+    await poserAutre(a, "retouche", "echec");
+    await travaux.reessayerTravail(a);
+    expect(await actives(a)).toBe(1);
+  });
+});
+
 describe("(ii) reprise d'une attente refusée", () => {
   it("cas retiré : la reprise est refusée ET la réservation est libérée (une fois)", async () => {
     const id = await mettreEnAttente();
