@@ -57,6 +57,13 @@
   --fam-infographie: #8e3a80;
   --fam-infographie-doux: #f6e4f2;
   /* Les 9 statuts (mêmes couleurs que l'usine et le calendrier) */
+  /* Réseaux (CAL-06) : couleurs officielles, permises car outil interne. Jamais seules : picto et nom à côté. */
+  --res-linkedin: #0a66c2;
+  --res-instagram: #d6336c;
+  --res-facebook: #3b5bdb;
+  --res-tiktok: #0b8f8a;
+  --res-youtube: #cc0000;
+  --res-youtube-shorts: #cc0000;
   --statut-brouillon-fond: var(--surface-3);
   --statut-brouillon-texte: var(--texte-doux);
   --statut-fabrication-fond: var(--accent-doux);
@@ -146,6 +153,12 @@
   --fam-carrousel-doux: #2c3312;
   --fam-infographie: #e7a9da;
   --fam-infographie-doux: #3a2036;
+  --res-linkedin: #6fb3f2;
+  --res-instagram: #f08cb4;
+  --res-facebook: #9db0ff;
+  --res-tiktok: #5fd3cd;
+  --res-youtube: #ff7b7b;
+  --res-youtube-shorts: #ff7b7b;
   --statut-brouillon-fond: var(--surface-3);
   --statut-brouillon-texte: var(--texte-doux);
   --statut-fabrication-fond: var(--accent-doux);
