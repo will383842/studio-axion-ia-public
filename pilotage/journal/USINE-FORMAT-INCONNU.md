@@ -8,3 +8,10 @@
 - BLOQUÉ, CORRECTIF REQUIS : ces 3 tests (et 2 de usine-comite-affichage) fabriquent une idée sans format et comptaient sur le repli ; leur fichier n'est pas dans fichiers_autorises. Donner un format (ex. Facecam) à leur doublure d'idée.
 - PILOTAGE : le journal côté usine est dans STU-PORTE-CMD ; le 422 vers l'usine n'est pas câblé ici (actions.ts hors liste).
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (12/11/2026, CORRECTIF 15 h 15 : fichier controle-sujet.test.ts autorisé)
+- Constat 1 (3 tests rouges de controle-sujet.test.ts) : corrigé, la doublure d'idée de « sujet venu de l'Usine » et celle de « deux cas d'usage distincts » reçoivent le format connu et actif « avocat » (celui du repli retiré) ; attentes inchangées, ni skip ni suppression.
+- Constat 2 (422 non câblé, actions.ts hors liste) : reporté, PILOTAGE (STU-PORTE-CMD).
+- Constat 3 (2 rouges usine-comite-affichage) : refusé, déjà rouges sur master, hors fiche.
+- Tests : sujets-traites + usine-format-inconnu + usine-idees : 57 passés, 0 échoué ; usine-comite-affichage : 2 échecs identiques à master.
+- origin/master fusionné d'abord, sans conflit. contrôle anti-fuite : vide
