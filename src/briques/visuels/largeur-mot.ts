@@ -5,19 +5,19 @@
  * insécable (espace insécable devant « : »).
  */
 import { CARACTERES, METRIQUES } from "../sous-titres/metriques";
-import { typographieFrancaise } from "./typographie-francaise";
+import { pourManrope } from "./typographie-francaise";
 
 /** Manrope ExtraBold (800) : la graisse la plus large chargée ; Manrope est la seule police des pages. */
 const MANROPE = METRIQUES["Manrope ExtraBold"];
 const CHASSES = new Map([...CARACTERES].map((c, i) => [c, MANROPE.largeurs[i] / MANROPE.unitesParEm] as const));
 /** Un signe absent de la table compte comme le plus large de la table (choix prudent). */
 const CHASSE_MAX = Math.max(...CHASSES.values());
-/** Marge de sécurité sur la mesure (versions d'Inter, arrondis du moteur de rendu). */
+/** Marge de sécurité sur la mesure (versions de Manrope, arrondis du moteur de rendu). */
 export const MARGE_MESURE = 1.03;
 
 /** Mots insécables d'un texte affiché : seuls l'espace ordinaire, les blancs de contrôle et les tirets ASCII / U+2010 coupent (choix prudent). */
 export function motsInsecables(texte: string): string[] {
-  return typographieFrancaise(texte)
+  return pourManrope(texte)
     .split(/[ \t\n\r\f]+|(?<=[-‐])/u)
     .filter((m) => m !== "");
 }
