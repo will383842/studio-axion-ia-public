@@ -1,0 +1,39 @@
+import { describe, expect, it } from "vitest";
+import { familleDe, identifiantEchec, LONGUEUR_MAX_DETAIL, nettoyerDetail } from "./journal-echecs";
+
+describe("journal des échecs (pur)", () => {
+  it("familles : chaque code tombe dans la bonne", () => {
+    expect(familleDe("IV_CARTE_A_VALIDER")).toBe("attente-validation");
+    expect(familleDe("IV_SCRIPT_A_VALIDER")).toBe("attente-validation");
+    expect(familleDe("CAS_CONCRET_SCRIPT_A_VALIDER")).toBe("attente-validation");
+    expect(familleDe("FOURNISSEUR_REFUS")).toBe("fournisseur");
+    expect(familleDe("FOURNISSEUR_INDISPONIBLE")).toBe("fournisseur");
+    expect(familleDe("IV_IMAGE")).toBe("entree-a-corriger");
+    expect(familleDe("IV_TYPE_A_CHOISIR")).toBe("entree-a-corriger");
+    expect(familleDe("BUDGET_DEPASSE")).toBe("controle");
+    expect(familleDe("CLE_ABSENTE")).toBe("reglage");
+    expect(familleDe("PANNE_EXPORT")).toBe("panne");
+    expect(familleDe("QUELQUE_CHOSE_D_INCONNU")).toBe("autre");
+  });
+
+  it("nettoyage : un faux secret est retiré, le texte utile reste", () => {
+    const faux = "sk-abcdefghijklmnop1234567890";
+    const texte = `Refus du fournisseur (HTTP 401) api_key=${faux} Authorization: Bearer abcDEF1234567890xyz`;
+    const net = nettoyerDetail(texte);
+    expect(net).not.toContain(faux);
+    expect(net).not.toContain("abcDEF1234567890xyz");
+    expect(net).toContain("Refus du fournisseur (HTTP 401)");
+  });
+
+  it("nettoyage : 500 caractères au plus, vide si rien", () => {
+    expect(nettoyerDetail("mot ".repeat(400)).length).toBeLessThanOrEqual(LONGUEUR_MAX_DETAIL);
+    expect(nettoyerDetail(undefined)).toBe("");
+    expect(nettoyerDetail("")).toBe("");
+  });
+
+  it("identifiant stable pour un même travail et un même essai", () => {
+    expect(identifiantEchec("tr-1", 2)).toBe("ev-echec-tr-1-2");
+    expect(identifiantEchec("tr-1", 2)).toBe(identifiantEchec("tr-1", 2));
+    expect(identifiantEchec("tr-1", 3)).not.toBe(identifiantEchec("tr-1", 2));
+  });
+});
