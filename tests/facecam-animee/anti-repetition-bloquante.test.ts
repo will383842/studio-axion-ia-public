@@ -136,15 +136,36 @@ describe("anti-répétition · jamais d'échec ni d'appel de plus", () => {
     expect(d17(r.avertissements).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("2e et 3e réponses illisibles : le plan refusé seulement pour D17 est rendu (pas la version simple)", async () => {
+  it("2e réponse illisible (GV-MD-01b : pas de 3e appel) : le plan refusé seulement pour D17 est rendu (pas la version simple)", async () => {
     const { appeler, requetes } = fauxClaude([reponsePlan(), { ok: true, donnees: { elementsV4: "rien" } }]);
     const r = await realiser({ ...ENTREE, historique: HISTO_REPETE }, { appeler });
-    expect(requetes).toHaveLength(ESSAIS_MAX_REALISATEUR);
+    expect(requetes).toHaveLength(2);
     expect(r.version).toBe("complete");
     expect(r.rendable).toBe(true);
     expect(r.phrase).toBe(PHRASE_REPETITION_GARDEE);
     expect(r.plan.elementsV4).toEqual(elements);
     expect(r.avertissements.filter((a) => a.includes("D17")).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("GV-MD-01b · 1er plan refusé pour répétition, 2e refusé pour une AUTRE règle : 2 requêtes, plan du 1er essai rendu", async () => {
+    const mauvais: ReponseRealisateur = { ok: true, donnees: { cartes: [], fenetres: [], calques: [], zooms: [{ debut: 0, fin: DUREE + 500, echelle: 1.2 }], elementsV4: elements } };
+    expect(verifierPlan(assemblerPlan(ENTREE, { cartes: [], fenetres: [], calques: [], zooms: [[0, DUREE + 500, 1.2]], elementsV4: elements }), MOTS, { repetitionEnAvertissement: true }).erreurs.length).toBeGreaterThan(0);
+    const { appeler, requetes } = fauxClaude([reponsePlan(), mauvais]);
+    const r = await realiser({ ...ENTREE, historique: HISTO_REPETE }, { appeler });
+    expect(requetes).toHaveLength(2);
+    expect(r.version).toBe("complete");
+    expect(r.rendable).toBe(true);
+    expect(r.phrase).toBe(PHRASE_REPETITION_GARDEE);
+    expect(r.plan.zooms).toEqual([]);
+    expect(r.plan.elementsV4).toEqual(elements);
+  });
+
+  it("GV-MD-01b · 1er plan refusé pour une autre raison (sans répétition) : comportement inchangé, 3 appels puis version simple", async () => {
+    const { appeler, requetes } = fauxClaude([{ ok: true, donnees: { elementsV4: "rien" } }]);
+    const r = await realiser(ENTREE, { appeler });
+    expect(requetes).toHaveLength(ESSAIS_MAX_REALISATEUR);
+    expect(r.version).toBe("simple");
+    expect(r.phrase).not.toBe(PHRASE_REPETITION_GARDEE);
   });
 
   it("panne d'Opus au 2e essai : le plan gardé est rendu", async () => {
