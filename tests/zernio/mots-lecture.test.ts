@@ -28,7 +28,7 @@ const poser = async (lignes: LigneMot[]) =>
 const comptes = async (liste: [string, string][]) =>
   ecrireParametre(PARAM_COMPTES_ZERNIO, {
     lusLe: "2026-01-01T00:00:00.000Z",
-    comptes: liste.map(([id, reseau]) => ({ id, reseau, nom: id })),
+    comptes: liste.map(([id, reseau]) => ({ id, reseau, nom: `Nom ${id}` })),
   });
 
 beforeEach(async () => {
@@ -50,7 +50,15 @@ describe("motsActifsPourReseau", () => {
   it("un mot actif : réponse automatique et guide connu", async () => {
     await poser([ligne("GUIDE", "fb_1", "actif")]);
     expect(await motsActifsPourReseau("facebook")).toEqual([
-      { mot: "GUIDE", guide: "guide-ia", etat: "actif", reponse: "auto" },
+      {
+        mot: "GUIDE",
+        guide: "guide-ia",
+        compte: "Nom fb_1",
+        mode: "auto",
+        reponse: "auto",
+        etat: "actif",
+        textesValides: false,
+      },
     ]);
   });
 
@@ -61,8 +69,24 @@ describe("motsActifsPourReseau", () => {
     ]);
     const r = await motsActifsPourReseau("facebook");
     expect(r).toEqual([
-      { mot: "GUIDE", guide: "guide-ia", etat: "pause", reponse: "auto" },
-      { mot: "AUTRE", guide: null, etat: "pause", reponse: "auto" },
+      {
+        mot: "GUIDE",
+        guide: "guide-ia",
+        compte: "Nom fb_1",
+        mode: "auto",
+        reponse: "auto",
+        etat: "pause",
+        textesValides: false,
+      },
+      {
+        mot: "AUTRE",
+        guide: null,
+        compte: "Nom fb_1",
+        mode: "auto",
+        reponse: "auto",
+        etat: "pause",
+        textesValides: false,
+      },
     ]);
   });
 
@@ -77,7 +101,15 @@ describe("motsActifsPourReseau", () => {
       ligne("GUIDE", "fb_2", "actif"),
     ]);
     expect(await motsActifsPourReseau("facebook")).toEqual([
-      { mot: "GUIDE", guide: "guide-ia", etat: "actif", reponse: "auto" },
+      {
+        mot: "GUIDE",
+        guide: "guide-ia",
+        compte: "Nom fb_2",
+        mode: "auto",
+        reponse: "auto",
+        etat: "actif",
+        textesValides: false,
+      },
     ]);
   });
 
@@ -93,11 +125,76 @@ describe("motsActifsPourReseau", () => {
       ligne("GUIDE", "tt_1", "pause"),
     ]);
     expect(await motsActifsPourReseau("linkedin")).toEqual([
-      { mot: "GUIDE", guide: "guide-ia", etat: "actif", reponse: "manuel" },
+      {
+        mot: "GUIDE",
+        guide: "guide-ia",
+        compte: "Nom li_1",
+        mode: "manuel",
+        reponse: "manuel",
+        etat: "actif",
+        textesValides: false,
+      },
     ]);
     expect(await motsActifsPourReseau("tiktok")).toEqual([
-      { mot: "GUIDE", guide: "guide-ia", etat: "pause", reponse: "manuel" },
+      {
+        mot: "GUIDE",
+        guide: "guide-ia",
+        compte: "Nom tt_1",
+        mode: "manuel",
+        reponse: "manuel",
+        etat: "pause",
+        textesValides: false,
+      },
     ]);
+  });
+
+  it("le workflow STOP d'un compte n'est pas renvoyé", async () => {
+    await poser([
+      ligne("STOP", "fb_1", "actif"),
+      ligne("GUIDE", "fb_1", "actif"),
+    ]);
+    const r = await motsActifsPourReseau("facebook");
+    expect(r.map((m) => m.mot)).toEqual(["GUIDE"]);
+  });
+
+  it("compte : nom d'affichage du compte où le mot est actif (deux comptes)", async () => {
+    await poser([
+      ligne("GUIDE", "fb_1", "pause"),
+      ligne("GUIDE", "fb_2", "actif"),
+    ]);
+    const [m] = await motsActifsPourReseau("facebook");
+    expect(m.compte).toBe("Nom fb_2");
+    expect(JSON.stringify(m)).not.toMatch(/token|jeton|cle/i);
+  });
+
+  it("textesValides : faux sans validation, vrai si la validation du GUIDE est à jour", async () => {
+    await poser([ligne("GUIDE", "fb_1", "actif")]);
+    expect((await motsActifsPourReseau("facebook"))[0].textesValides).toBe(
+      false,
+    );
+    const { validerGuideParcours } = await import("@/services/mots-service");
+    const { titreGuideParcours } =
+      await import("@/domaine/guide-reseau/empreinte-guide");
+    process.env.PARCOURS_CONVERSATION_TITRE_GUIDE = "Titre fictif";
+    try {
+      const v = await validerGuideParcours({
+        titre: titreGuideParcours(process.env),
+        confirmeParOperateur: true,
+      });
+      expect(v.ok).toBe(true);
+      expect((await motsActifsPourReseau("facebook"))[0].textesValides).toBe(
+        true,
+      );
+    } finally {
+      delete process.env.PARCOURS_CONVERSATION_TITRE_GUIDE;
+    }
+  });
+
+  it("textesValides : un autre mot sans fichier de textes lisible reste faux", async () => {
+    await poser([ligne("AUTRE", "fb_1", "actif")]);
+    expect((await motsActifsPourReseau("facebook"))[0].textesValides).toBe(
+      false,
+    );
   });
 
   it("lecture seule : le registre n'est pas modifié", async () => {

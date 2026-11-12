@@ -13,14 +13,53 @@ import {
 import type { IdReseau } from "@/domaine/types";
 import { lireParametre } from "./_commun";
 import { CAPACITES, type Reseau } from "./mots-capacites";
-import { PARAM_REGISTRE_MOTS, type LigneMot } from "./mots-service";
+import {
+  chargerTextesFichier,
+  lireValidationGuideParcours,
+  MOT_STOP,
+  PARAM_REGISTRE_MOTS,
+  PARAM_VALIDATIONS_MOTS,
+  type LigneMot,
+} from "./mots-service";
+import { empreinteTextes } from "./mots-textes";
+import {
+  empreinteGuideParcours,
+  titreGuideParcours,
+} from "@/domaine/guide-reseau/empreinte-guide";
 import { PARAM_COMPTES_ZERNIO, type ComptesZernioEnregistres } from "./zernio";
 
 export interface MotLu {
   mot: string;
   guide: string | null;
-  etat: "actif" | "pause";
+  /** Nom d'affichage du compte du réseau où le mot est actif (jamais de jeton ni de clé). */
+  compte: string;
+  /** Identique à `reponse` (LinkedIn et TikTok : toujours « manuel »). */
+  mode: "auto" | "manuel";
   reponse: "auto" | "manuel";
+  etat: "actif" | "pause";
+  /** Vrai seulement si les textes du mot (réponse publique et message privé) sont validés par l'opérateur et inchangés. Faux en cas de doute. */
+  textesValides: boolean;
+}
+
+/** Lecture seule : la validation enregistrée correspond-elle aux textes actuels ? Toute erreur ou ambiguïté = faux. */
+async function textesValidesDuMot(
+  mot: string,
+  validations: Record<string, string>,
+): Promise<boolean> {
+  try {
+    if (mot === MOT_PAR_DEFAUT) {
+      const v = await lireValidationGuideParcours();
+      if (!v) return false;
+      const e = empreinteGuideParcours(titreGuideParcours(process.env));
+      return e.ok && e.empreinte === v.empreinte;
+    }
+    const enregistree = validations[mot];
+    if (!enregistree) return false;
+    const f = await chargerTextesFichier(mot);
+    return !!f && f.ok && empreinteTextes(f.textes) === enregistree;
+  } catch {
+    return false;
+  }
 }
 
 /** Réseau du Studio → ligne de la matrice des capacités (LinkedIn : page et profil sont tous deux manuels). */
@@ -39,11 +78,12 @@ export async function motsActifsPourReseau(reseau: IdReseau): Promise<MotLu[]> {
     PARAM_COMPTES_ZERNIO,
     null,
   );
-  const ids = new Set(
+  const noms = new Map(
     (comptes?.comptes ?? [])
       .filter((c) => c.reseau === reseau)
-      .map((c) => c.id),
+      .map((c) => [c.id, c.nom] as const),
   );
+  const ids = new Set(noms.keys());
   if (ids.size === 0) return [];
   const registre = await lireParametre<Record<string, LigneMot>>(
     PARAM_REGISTRE_MOTS,
@@ -51,7 +91,7 @@ export async function motsActifsPourReseau(reseau: IdReseau): Promise<MotLu[]> {
   );
   const parMot = new Map<string, MotLu>();
   for (const l of Object.values(registre)) {
-    if (!l || !ids.has(l.compte)) continue;
+    if (!l || l.mot === MOT_STOP || !ids.has(l.compte)) continue;
     if (l.etat !== "actif" && l.etat !== "pause" && l.etat !== "pause_auto")
       continue;
     const etat = l.etat === "actif" ? "actif" : "pause";
@@ -60,9 +100,19 @@ export async function motsActifsPourReseau(reseau: IdReseau): Promise<MotLu[]> {
     parMot.set(l.mot, {
       mot: l.mot,
       guide: l.mot === MOT_PAR_DEFAUT ? GUIDE_PAR_DEFAUT : null,
-      etat,
+      compte: noms.get(l.compte) ?? l.compte,
+      mode: reponse,
       reponse,
+      etat,
+      textesValides: false,
     });
   }
-  return [...parMot.values()];
+  const validations = await lireParametre<Record<string, string>>(
+    PARAM_VALIDATIONS_MOTS,
+    {},
+  );
+  const res = [...parMot.values()];
+  for (const m of res)
+    m.textesValides = await textesValidesDuMot(m.mot, validations);
+  return res;
 }
