@@ -63,8 +63,11 @@ describe("memoireCartesFacecam (dépôts simulés)", () => {
     expect(m.dejaServis[0]).toBe("v5k0");
     expect(m.dejaServis).not.toContain("v1k0");
   });
-  it("une panne de lecture donne une liste vide, sans lever", async () => {
+  it("une panne de lecture ne rend PAS une mémoire vide (la chaîne ne doit rien figer)", async () => {
     lectureEnPanne = true;
+    await expect(memoireCartesFacecam("v1")).rejects.toThrow("base illisible");
+  });
+  it("lecture réussie sans aucune vidéo : mémoire vide", async () => {
     expect(await memoireCartesFacecam("v1")).toEqual({ dejaServis: [] });
   });
 });
