@@ -8,7 +8,7 @@
 import { exigerSession } from "@/services/auth";
 import { depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut } from "@/services/plan-editorial";
-import { estPasse, refuserProposition, transitionner, validerProposition } from "@/domaine/plan-editorial/statuts";
+import { estPasse, heurePassee, refuserProposition, transitionner, validerProposition } from "@/domaine/plan-editorial/statuts";
 import type { CreneauPlan, DepotsPlan } from "@/services/plan-editorial";
 
 const MOTIF_MAX = 500;
@@ -30,14 +30,14 @@ export const PHRASE_HEURE_PASSEE = "L'heure est passée : déplacez la publicati
 
 /**
  * « Accepter l'idée » et « Valider et programmer » : une entrée à venir passe à « valide » (validation tracée : date et auteur).
- * Une entrée dont l'heure est passée (Manquée) est refusée, sans écriture : il faut d'abord la déplacer. Rien ne part d'ici.
+ * Une entrée dont le jour est passé (Manquée) ou dont l'heure est passée le jour même est refusée, sans écriture : il faut d'abord la déplacer. Rien ne part d'ici.
  */
 export async function accepterEntree(id: string): Promise<Resultat<CreneauPlan>> {
   const session = await exigerSession();
   return essayer(async () => {
     const d = depotsPlan();
     const lu = typeof id === "string" && id ? await d.creneaux.obtenir(id) : null;
-    if (lu && lu.statut !== "publie" && estPasse(lu.jourVise, new Date())) throw new ErreurStudio("HEURE_PASSEE", PHRASE_HEURE_PASSEE);
+    if (lu && lu.statut !== "publie" && (estPasse(lu.jourVise, new Date()) || heurePassee(lu.heuresParReseau, new Date()))) throw new ErreurStudio("HEURE_PASSEE", PHRASE_HEURE_PASSEE);
     const c = await lireModifiable(id);
     if (c.statut !== "propose" && c.statut !== "a_valider") throw new Error("Seule une idée ou une entrée à valider peut être acceptée.");
     if (c.statut === "propose") await changerStatut(d, id, "a_valider", "studio", maintenant());
