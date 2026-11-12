@@ -57,11 +57,11 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture 
                 onClick={() => {
                   setChoisie(m.id);
                 }}
-                className={cn("relative block aspect-[9/16] w-full overflow-hidden rounded-xl border-2 transition-[border-color,transform] duration-200", actif ? "scale-[1.02] border-orange shadow-orange" : "border-trait hover:border-trait-fort")}
+                className={cn("relative block aspect-[9/16] w-full overflow-hidden rounded-xl border-2 transition-[border-color,transform] duration-200", actif ? "scale-[1.02] border-accent shadow-carte" : "border-trait hover:border-trait-fort")}
               >
                 <Image src={m.url} alt="" fill sizes="(max-width: 640px) 33vw, 160px" className="object-cover" />
                 {actif && (
-                  <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-orange text-sur-orange">
+                  <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-accent text-sur-accent">
                     <Icone nom="coche" size={13} strokeWidth={3} />
                   </span>
                 )}
@@ -222,7 +222,7 @@ export function OngletMiniature({ videoId, miniatures, dureeLibelle, couverture 
               <span className="absolute bottom-2 right-2 rounded bg-fond/80 px-1.5 text-[11px] font-bold tabular-nums text-texte">{dureeLibelle}</span>
             </div>
             <div className="mt-2 flex gap-2.5">
-              <span className="size-9 shrink-0 rounded-full bg-orange" aria-hidden />
+              <span className="size-9 shrink-0 rounded-full bg-accent" aria-hidden />
               <div className="min-w-0">
                 <p className="line-clamp-2 text-sm font-semibold text-texte">{titreVignette || "Sans titre"}</p>
                 <p className="text-xs text-texte-faible">Axion-IA</p>
