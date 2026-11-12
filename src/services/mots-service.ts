@@ -417,10 +417,8 @@ export function injecterVerificationMotParcours(v: VerificationMotParcours | nul
   verificationMotInjectee = v;
 }
 
-/** Réglage « plusieurs mots » : FERMÉ ici (aucun réglage lu). Le lot qui le câblera le fera plus tard ; d'ici là, seul `plusieursMots` injecté peut l'ouvrir. */
-async function motsMultiplesActifs(): Promise<boolean> {
-  return false;
-}
+/** Réglage « plusieurs mots » : FERMÉ ici (aucune lecture). Le lot qui le câblera le fera plus tard ; d'ici là, seul `plusieursMots` injecté peut l'ouvrir. */
+const reglageFerme = async (): Promise<boolean> => false;
 
 /** Active un mot (GUIDE ou autre) sur un compte, EN LOCAL, rien vers Zernio. Un mot autre que GUIDE exige la vérification injectée. */
 export async function activerMotParcours(d: Demande & { mot: string; compte: string; plusieursMots?: () => Promise<boolean> }): Promise<Resultat> {
@@ -429,7 +427,7 @@ export async function activerMotParcours(d: Demande & { mot: string; compte: str
   if (d.mot === "GUIDE") return activerMotLocal({ ...d, mot: "GUIDE" });
   const env = d.env ?? process.env;
   if (!comptesParcours(env).includes(d.compte)) return refus("compte_hors_liste");
-  if (!(await (d.plusieursMots ?? motsMultiplesActifs)())) return refus("plusieurs_mots_eteint");
+  if (!(await (d.plusieursMots ?? reglageFerme)())) return refus("plusieurs_mots_eteint");
   if (!verificationMotInjectee) return refus("mot_non_valide");
   if (!motsActif(env)) return refus("interrupteur_eteint");
   const motif = await verificationMotInjectee({ mot: d.mot, compte: d.compte, env }); // HORS verrou
