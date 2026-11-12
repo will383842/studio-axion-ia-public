@@ -65,6 +65,7 @@ export function creerFournisseurMiniatureStudioRendu(deps: DependancesMiniature)
               sortie: d.sortie,
               parametres: {
                 instantSec: d.instant, dureeSec: source.dureeSec, ratio: source.ratio, couverture: texte, motCle: couverture?.motCle ?? "", variante: d.variante,
+                ...(couverture?.titreCentre === true ? { titreCentre: true } : {}),
                 ...(v2 ? { gabarit: v3 ? "image-video-v3" : "axion-v2", ...(source.fondPropre ? { fondPropre: true } : {}), ambiance, mise: mises[d.variante % mises.length], generateur: source.formatId ?? "" } : {}),
               },
             },

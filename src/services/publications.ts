@@ -32,6 +32,7 @@ import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/ty
 import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { etatStockage } from "./etat-branchements";
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
 import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
@@ -49,6 +50,8 @@ import { lireFamilles } from "./hashtags";
 import { listerSeries, serieDeVideo, votreMarqueDeVideo } from "./series";
 import { creerNotification } from "./notifications";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
+import { choisirSourceTextePost, scriptGardeEcrans, scriptGardeFacecam, scriptGardeTableau, type OrigineSourcePost } from "./source-texte-post";
+import { formatSansRedacteur, textesDeLaVersion, type TextesDeVersion } from "./textes-version-generateur";
 import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
 import { construirePasseportDEssai, pagePourYoutube, passeportDeLaVideo } from "./site-videos";
@@ -69,11 +72,42 @@ interface SourceTextes {
   credits: string[];
   /** Équipe 7 : « Vos hashtags » par réseau (les textes du studio y piochent, le code l'applique). */
   familles: FamillesHashtags;
+  /** TXT-SOURCE : le titre envoyé au rédacteur, seulement quand il est la source (aucun script) ; sinon vide. */
+  titreDemande: string;
+  /** TXT-SOURCE : d'où vient `texteValide` (« titre » : aucun script, l'écran le dit). */
+  texteDepuis: OrigineSourcePost;
+}
+
+/**
+ * TXT-SOURCE : les scripts que le générateur de la vidéo a gardés (brouillon du tableau, script validé de la face caméra
+ * animée, écrans du cas concret, fiche de l'image → vidéo). Lecture seule, tolérante : au moindre doute, rien.
+ */
+async function scriptsGardesParLeGenerateur(video: Video): Promise<(string | null)[]> {
+  const gardes: (string | null)[] = [scriptGardeTableau(video.entrees)];
+  try {
+    const d = depots();
+    const versions = (await d.versions.lister((v) => v.videoId === video.id)).sort((a, b) => b.numero - a.numero);
+    gardes.push(...versions.map((v) => scriptGardeFacecam(v.commande?.entrees)));
+    const { ID_MOTEUR_CAS_CONCRET } = await import("@/moteurs/montage-cas-concret");
+    const { ficheDuTravail } = await import("./cas-concret-scripts");
+    const cas = versions.find((v) => v.commande?.moteurId === ID_MOTEUR_CAS_CONCRET && v.travailId);
+    gardes.push(cas ? scriptGardeEcrans(ficheDuTravail((await d.travaux.obtenir(cas.travailId!)) ?? null)?.ecrans) : null);
+    const { travailImageVideo } = await import("./image-video-carte");
+    const etat = (await travailImageVideo(video.id))?.parametres?.imageVideo as { version?: unknown; script?: { fiche?: { ecrans?: unknown } } } | undefined;
+    gardes.push(etat?.version === "fabrication-iv/1" ? scriptGardeEcrans(etat.script?.fiche?.ecrans) : null);
+  } catch {
+    // Illisible : ces sources comptent comme absentes, le titre ne sert qu'à défaut.
+  }
+  return gardes;
 }
 
 async function sourceTextes(video: Video, credits: string[]): Promise<SourceTextes> {
   const script = video.scriptId ? await depots().scripts.obtenir(video.scriptId) : null;
-  return { video, texteValide: script ? texteScript(script.blocs) : video.titre, mention: video.mentionIA.dansLegende ? video.mentionIA.texte + "." : "", credits, familles: await lireFamilles() };
+  const scriptRelie = script ? texteScript(script.blocs) : null;
+  // Les lectures du générateur ne servent qu'à défaut de script relié.
+  const gardes = scriptRelie?.trim() ? [] : await scriptsGardesParLeGenerateur(video);
+  const source = choisirSourceTextePost({ scriptRelie, gardes, titre: video.titre });
+  return { video, texteValide: source.texte, texteDepuis: source.origine, titreDemande: source.origine === "titre" ? video.titre : "", mention: video.mentionIA.dansLegende ? video.mentionIA.texte + "." : "", credits, familles: await lireFamilles() };
 }
 
 /** Équipe 7 : mots-dièse d'un texte du studio ramenés à la famille du réseau (sans famille : seulement sans interdit). */
@@ -86,7 +120,7 @@ function dansLaFamille(t: TexteReseau, reseau: IdReseau, familles: FamillesHasht
 async function texteEssai(s: SourceTextes, reseau: IdReseau, redaction?: Awaited<ReturnType<typeof fournisseur<"texte-reseaux">>>): Promise<TexteReseau> {
   const t = await (redaction ?? (await fournisseur("texte-reseaux"))).ecrire({
     reseau,
-    titre: s.video.titre,
+    titre: s.titreDemande,
     sujet: s.video.sujet,
     texteScript: s.texteValide,
     mentionIA: s.mention,
@@ -121,9 +155,14 @@ async function kitOuCreation(videoId: string): Promise<KitPublication> {
     const video = await d.videos.obtenir(videoId);
     if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
     const s = await sourceTextes(video, await creditsVideo(videoId));
-    const redaction = await fournisseur("texte-reseaux");
+    // KIT-CC-IV : cas concret et image → vidéo écrivent eux-mêmes leurs textes : ceux de la version, sinon rien (jamais d'essai).
+    const deVersion = await textesDeLaVersion(videoId);
     const textes: KitPublication["textes"] = {};
-    for (const r of listerReseaux()) textes[r.id] = await texteEssai(s, r.id, redaction);
+    if (deVersion) for (const r of listerReseaux()) textes[r.id] = deVersion[r.id] ?? { texte: "", motsDiese: [] };
+    else {
+      const redaction = await fournisseur("texte-reseaux");
+      for (const r of listerReseaux()) textes[r.id] = await texteEssai(s, r.id, redaction);
+    }
     // Vidéos sur le site (lot S1) : le passeport d'essai naît avec le kit (gratuit) ; une vidéo pas prête n'en reçoit pas.
     const passeportWeb = await construirePasseportDEssai(video, s.credits);
     const kit: KitPublication = {
@@ -240,7 +279,7 @@ export async function genererKit(videoId: string, options: { autoriserDepense?: 
   if (!options.autoriserDepense) return kit;
   const d = depots();
   const video = await d.videos.obtenir(videoId);
-  if (!video || (await videoEnEssai(video)) || !(await ecritureAutoPrevue(video)) || !(await reserverEcritureAuto(kit.id))) return kit;
+  if (!video || (await formatSansRedacteur(videoId)) || (await videoEnEssai(video)) || !(await ecritureAutoPrevue(video)) || !(await reserverEcritureAuto(kit.id))) return kit;
   const s = await sourceTextes(video, kit.credits);
   const redaction = await fournisseur("texte-reseaux");
   const nonEcrits: IdReseau[] = [];
@@ -297,7 +336,7 @@ export async function avecTextesDesReseaux<E extends { lignes: LigneCout[]; tota
 
 function donneesDe(s: SourceTextes, reseau: IdReseau, regles: Awaited<ReturnType<ReturnType<typeof depots>["reglesDatees"]["lister"]>>) {
   const v = s.video;
-  return donneesPublication({ reseau, titre: v.titre, texteValide: s.texteValide, formatId: v.formatId, dureeSec: v.dureeCibleSec, adresse: v.adresse, mention: s.mention, credits: s.credits, regles, famille: famillePour(reseau, s.familles) });
+  return donneesPublication({ reseau, titre: s.titreDemande, texteValide: s.texteValide, formatId: v.formatId, dureeSec: v.dureeCibleSec, adresse: v.adresse, mention: s.mention, credits: s.credits, regles, famille: famillePour(reseau, s.familles) });
 }
 
 export async function reseauxParDefaut(): Promise<IdReseau[]> {
@@ -319,6 +358,33 @@ export async function decocherApresRetouche(videoId: string, quoi: "retouche" | 
   });
 }
 
+/**
+ * KIT-CC-IV : verse dans le kit les textes de la version (cas concret, image → vidéo), sous le verrou du kit. Un texte retouché
+ * à la main n'est jamais écrasé ; un réseau sans texte dans la version perd son éventuel texte d'essai ou d'ancienne version.
+ */
+async function verserTextesDeVersion(kit: KitPublication, deVersion: TextesDeVersion): Promise<KitPublication> {
+  const vide = (): TexteReseau => ({ texte: "", motsDiese: [] });
+  const suite = (frais: KitPublication) => {
+    const textes = { ...frais.textes };
+    let change = false;
+    for (const r of listerReseaux()) {
+      const actuel = textes[r.id];
+      if (actuel?.modifieAMain) continue;
+      const voulu = deVersion[r.id] ?? vide();
+      if (actuel && memeTexte(actuel, voulu) && (actuel.source ?? undefined) === voulu.source) continue;
+      textes[r.id] = voulu;
+      change = true;
+    }
+    return change ? textes : null;
+  };
+  if (!suite(kit)) return kit;
+  return sousVerrouKit(async () => {
+    const frais = (await depots().kits.obtenir(kit.id)) ?? kit;
+    const textes = suite(frais);
+    return textes ? depots().kits.modifier(kit.id, { textes }) : frais;
+  });
+}
+
 /** Kit prêt à afficher : textes, compteurs, avertissements, cases « Avant de publier ». */
 export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   const detail = await obtenirVideo(videoId);
@@ -329,16 +395,19 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   if (!kit.passeportWeb) await passeportDeLaVideo(videoId);
   const variante = await versionDeVideo(videoId);
   if (variante) kit = await resynchroniserKit(kit, variante, await lireFamilles());
+  // KIT-CC-IV : les textes de la version (cas concret, image → vidéo) ; `null` pour un format ordinaire.
+  const deVersion = await textesDeLaVersion(videoId);
+  if (deVersion) kit = await verserTextesDeVersion(kit, deVersion);
   const parDefaut = await reseauxParDefaut();
   const source = await sourceTextes(detail.video, kit.credits);
-  const redaction = await fournisseur("texte-reseaux");
-  const parClaude = await claudeTextesActif();
+  const redaction = deVersion ? null : await fournisseur("texte-reseaux");
+  const parClaude = deVersion ? false : await claudeTextesActif();
   const t = parClaude ? await taux() : 0;
   const regles = parClaude ? await depots().reglesDatees.lister() : [];
   const origines: Partial<Record<IdReseau, VueKitReseau["origine"]>> = {};
   const prix: Partial<Record<IdReseau, Montant>> = {};
   for (const r of listerReseaux()) {
-    origines[r.id] = origineTexte(kit.textes[r.id], await texteEssai(source, r.id, redaction));
+    origines[r.id] = deVersion && !kit.textes[r.id]?.texte.trim() ? undefined : origineTexte(kit.textes[r.id], redaction ? await texteEssai(source, r.id, redaction) : { texte: "", motsDiese: [] });
     // Prix d'un « Réécrire » (geste de l'opérateur), affiché sur le bouton AVANT le geste ; aucun appel. C'est le PIRE cas :
     // tous les essais (la reprise ciblée d'une réponse refusée comprise), chacun au pire cas.
     if (parClaude) prix[r.id] = usdVersEur(centimesUsd(ESSAIS_TEXTE_PUBLICATION * pireCasRole(rolePublication, entreePublication(donneesDe(source, r.id, regles)))), t);
@@ -384,6 +453,8 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
     ...(serie ? { serie } : {}),
     series: (await listerSeries()).map((x) => ({ id: x.id, nom: x.nom })),
     votreMarque: await votreMarqueDeVideo(detail.video),
+    // TXT-SOURCE : « Texte proposé depuis le titre seulement » (jamais pour un format qui écrit lui-même ses textes).
+    ...(!deVersion && source.texteDepuis === "titre" ? { texteDepuis: "titre" as const } : {}),
     credits: kit.credits,
     avantDePublier: cases,
     mentionIAActive: mentionActive,
@@ -463,6 +534,8 @@ export async function regenererTexteKit(videoId: string, reseau: IdReseau, optio
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
   // Le texte du réseau d'une version vient du générateur et y est recopié : réécrit ici, il serait payé puis effacé.
   if ((await versionDeVideo(videoId))?.reseau === reseau) throw new ErreurStudio("TEXTE_DE_VERSION", "Ce texte vient de la version du sujet : modifiez-le ici, ou réécrivez la version depuis le sujet.");
+  // KIT-CC-IV : le texte de ces formats vient de leur version : aucun appel au rédacteur, payé ou non.
+  if (await formatSansRedacteur(videoId)) throw new ErreurStudio("TEXTE_DE_VERSION", "Ce texte est écrit avec la vidéo : modifiez-le ici, il ne se réécrit pas.");
   const parClaude = await claudeTextesActif();
   if (parClaude && video.estDemo) throw new ErreurStudio("VIDEO_EXEMPLE", "C'est une vidéo d'exemple : son texte ne se réécrit pas.");
   const kit = await genererKit(videoId);
@@ -614,6 +687,13 @@ export async function envoyerVersBuffer(
   }
 }
 
+/** KIT-CC-IV : cas concret et image → vidéo n'envoient que les textes rangés dans leur version, jamais un texte d'essai. Garde commune à TOUTES les voies d'envoi (Buffer, Zernio). */
+async function refuserSiTextesManquants(videoId: Id, kitVue: VueKit, reseaux: IdReseau[]): Promise<void> {
+  if (!(await formatSansRedacteur(videoId))) return;
+  const sans = [...new Set(reseaux)].filter((r) => !kitVue.reseaux.find((x) => x.reseau === r)?.texte.trim());
+  if (sans.length) throw new ErreurStudio("TEXTES_MANQUANTS", `Le texte de cette vidéo manque pour ${sans.map((r) => obtenirReseau(r).nom).join(", ")} : il est écrit avec la vidéo, rien n'est envoyé sans lui.`);
+}
+
 async function envoyerVersBufferInterne(
   videoId: string,
   reseaux: IdReseau[],
@@ -638,6 +718,7 @@ async function envoyerVersBufferInterne(
   if (reseauVersion && !options.autreReseauConfirme && reseaux.some((r) => r !== reseauVersion)) {
     throw new ErreurStudio("RESEAU_DIFFERENT", `Cette vidéo a été écrite pour ${obtenirReseau(reseauVersion).nom}. Confirmez pour l'envoyer ailleurs.`);
   }
+  await refuserSiTextesManquants(videoId, kitVue, reseaux);
   if (!kitVue.publiable) throw new ErreurStudio("AVANT_DE_PUBLIER", phraseVerifications(kitVue));
   const service = await fournisseur("publication");
   // Z2-E : l'outil de chaque réseau (réglage « publication.routage », défaut Buffer). Sans clé de l'outil choisi : refus, jamais l'autre.
@@ -727,10 +808,11 @@ async function envoyerVersBufferInterne(
  * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram, Facebook et
  * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
  */
-async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean): Promise<{ texte?: string; aLaMain: boolean }> {
+async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean, outil: OutilPublication = "buffer"): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  if (premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
+  // Zernio : seuls Facebook et LinkedIn le reçoivent (zernio-corps.ts) ; Instagram, TikTok, YouTube : à la main, aucun firstComment.
+  if (outil === "zernio" ? premierCommentaireTransmissibleZernio(reseau) : premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
   // Posé à la main : le texte est tout de même montré et recopié, il passe donc le même filtre, avant tout envoi.
   try {
     verifierPremierCommentaire(texte);
@@ -851,6 +933,8 @@ function journaliserRefusEnvoi(action: string, contenuId: string, reseaux: IdRes
 async function envoyerReelInterne(outil: OutilPublication, service: FournisseurPublication, kitVue: VueKit, reseaux: IdReseau[], dateIso: string, choisis: Partial<Record<IdReseau, string[]>>, commentaires: Partial<Record<IdReseau, string>>, avecVideo: boolean, extras: ExtrasEnvoiReel = {}) {
   const d = depots();
   const videoId = kitVue.videoId;
+  // KIT-CC-IV : le refus « textes manquants » couvre aussi l'envoi direct (Zernio) : rien ne part sans le texte de la version.
+  await refuserSiTextesManquants(videoId, kitVue, reseaux);
   // Phrases neutres : le nom de Buffer ne s'écrit que pour Buffer ; ailleurs « l'outil de publication ».
   const lui = outil === "buffer" ? "Buffer" : "l'outil de publication";
   const mode: ModeEnvoiPublication = outil === "buffer" ? await lireModeBuffer() : "brouillon";
@@ -878,7 +962,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
     const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const nomReseau = obtenirReseau(reseau).nom;
-    const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau], avecVideo);
+    const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau], avecVideo, outil);
     if (commentaire.aLaMain) aPoserALaMain.add(reseau);
     const texte = texteAEnvoyer(r, kitVue.serie?.entete);
     verifierTextesAEnvoyer(reseau, texte, r.titre);

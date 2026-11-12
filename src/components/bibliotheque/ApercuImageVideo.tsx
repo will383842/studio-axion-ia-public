@@ -33,7 +33,7 @@ export function ApercuImageVideo({ donnees }: { donnees: DonneesApercuImage }) {
           Aperçu en direct
         </p>
         <SelecteurPastilles
-          libelle="Couleurs (LUT)"
+          libelle="Rendu des couleurs"
           defilement
           options={[{ valeur: AUCUN, libelle: "Aucune" }, ...donnees.luts.map((l) => ({ valeur: l.id, libelle: l.nom }))]}
           valeur={lutId}

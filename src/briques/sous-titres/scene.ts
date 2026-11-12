@@ -8,7 +8,7 @@ import { largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
 import { estNombre } from "./typographie";
 import type { StylePastille } from "./pastille";
-import type { BaseRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
+import type { GabaritRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
 
 export interface DonneesCalque {
   /** Taille de l'image (1080 × 1920 en 9:16). */
