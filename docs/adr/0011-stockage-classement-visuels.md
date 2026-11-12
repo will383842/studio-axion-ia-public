@@ -1,6 +1,7 @@
 # ADR-0011 · Stockage et classement des visuels
 
 - Statut : brouillon (à valider par le fondateur)
+- Source : à confronter à D8-07 avant validation
 - Date : 2026-11-11
 - Chantier : usine à contenu, décision D8-07
 - Liens : ADR-0010, ADR-0013

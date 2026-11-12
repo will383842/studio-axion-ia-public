@@ -1,6 +1,7 @@
 # ADR-0012 · Anti-répétition et sonde de publication
 
 - Statut : brouillon (à valider par le fondateur)
+- Source : à confronter à D8-07 avant validation
 - Date : 2026-11-11
 - Chantier : usine à contenu, décision D8-07
 - Liens : ADR-0002, ADR-0010
