@@ -43,14 +43,14 @@ export function ChoixSerie({ series, valeur, onChange, detail, desactive }: { se
       />
       {nouvelle ? (
         <form
-          className="flex min-h-12 items-center gap-1 rounded-champ border border-orange bg-surface-1 pl-3 pr-1"
+          className="flex min-h-12 items-center gap-1 rounded-champ border border-accent bg-surface-1 pl-3 pr-1"
           onSubmit={(e) => {
             e.preventDefault();
             creer();
           }}
         >
           <input autoFocus value={nom} onChange={(e) => setNom(e.target.value)} maxLength={40} placeholder="L'IA qui fait gagner 1 h" aria-label="Nom de la série" className="min-w-0 flex-1 bg-transparent text-[15px] text-texte outline-none placeholder:text-texte-faible" />
-          <button type="submit" disabled={enCours || nom.trim().length < 2} aria-label="Créer la série" className="grid size-10 place-items-center rounded-full bg-orange text-sur-orange disabled:opacity-40">
+          <button type="submit" disabled={enCours || nom.trim().length < 2} aria-label="Créer la série" className="grid size-10 place-items-center rounded-full bg-accent text-sur-accent disabled:opacity-40">
             <Icone nom="coche" size={16} />
           </button>
           <button type="button" aria-label="Annuler" onClick={() => setNouvelle(false)} className="grid size-10 place-items-center rounded-full text-texte-faible hover:text-texte">
@@ -58,7 +58,7 @@ export function ChoixSerie({ series, valeur, onChange, detail, desactive }: { se
           </button>
         </form>
       ) : (
-        <button type="button" disabled={desactive} onClick={() => setNouvelle(true)} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif hover:underline disabled:opacity-40">
+        <button type="button" disabled={desactive} onClick={() => setNouvelle(true)} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent hover:underline disabled:opacity-40">
           <Icone nom="plus" size={15} />
           Nouvelle série
         </button>

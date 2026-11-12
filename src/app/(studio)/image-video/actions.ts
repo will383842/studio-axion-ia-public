@@ -49,7 +49,7 @@ export async function validerCarteImageVideoAction(videoId: string, carte?: Cart
 /** Écran 3 · « Valider et fabriquer » : le script (modifié ou non), les choix sur les formules, le prix confirmé. */
 export async function validerScriptImageVideoAction(
   videoId: string,
-  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV> },
+  decision: { fiche?: FicheImage; choixFormules: Record<string, ChoixFormule>; ajoutsWill: string[]; variete?: Partial<RecetteVarieteIV>; formeAcceptee?: boolean },
   accord?: AccordPrix,
 ): Promise<Resultat<IssueRepriseIV>> {
   const r = await essayer(() => avecAccordAutomatique((a) => validerScriptEtReprendre(videoId, decision, a ?? accord), typeof accord === "number" ? accord : undefined, { videoId }));

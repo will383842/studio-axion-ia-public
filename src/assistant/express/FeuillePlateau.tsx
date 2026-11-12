@@ -9,7 +9,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { creerDecorDecritAction, estimerDecorDecritAction, pastillesPlateauAction } from "@/app/(studio)/nouvelle/[format]/actions";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { ApercuPlateau } from "@/components/creation/ApercuPlateau";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
@@ -151,7 +151,7 @@ function Decrivez({ brouillon, modifier, contexte }: ProprietesEtape) {
     setOccupe(true);
     const r = await pastillesPlateauAction(d?.personnageId, phrase);
     setOccupe(false);
-    if (!r.ok) return notifier.erreur(r.message);
+    if (!r.ok) return notifier.erreur(messageSansMontant(r.message));
     setPastilles(r.donnees);
   }
 
@@ -163,15 +163,15 @@ function Decrivez({ brouillon, modifier, contexte }: ProprietesEtape) {
     setOccupe(true);
     const e = await estimerDecorDecritAction(phrase, deuxAngles);
     setOccupe(false);
-    if (!e.ok) return notifier.erreur(e.message);
-    if (e.donnees.bloque) return notifier.info("Décor HeyGen", e.donnees.bloque);
+    if (!e.ok) return notifier.erreur(messageSansMontant(e.message));
+    if (e.donnees.bloque) return notifier.info("Décor HeyGen", messageSansMontant(e.donnees.bloque));
     const n = e.donnees.angles.length;
     const accord = await confirmerPrix({ message: `Votre avatar dans « ${e.donnees.nom} » (${n} angle${n > 1 ? "s" : ""}).${e.donnees.essai ? " Essai : rien n'est payé." : ""}`, montant: e.donnees.cout.centimes });
     if (accord === null) return;
     setOccupe(true);
     const r = await creerDecorDecritAction(phrase, deuxAngles, accord);
     setOccupe(false);
-    if (!r.ok) return notifier.erreur(r.message);
+    if (!r.ok) return notifier.erreur(messageSansMontant(r.message));
     modifier({ styles: { ...brouillon.styles, decorId: r.donnees.decorId } });
     notifier.succes("Décor en création chez HeyGen", "Validez-le sur sa vignette (Bibliothèque, Décors) avant la vidéo.");
   }

@@ -125,13 +125,19 @@ jobs:
           fi
 
   # Relance les tests existants de la zone modifiée (jamais la suite complète).
-  tests-zone:
-    name: tests existants de la zone modifiée
+  # Mesure des tests de la zone : la tête et la base tournent EN PARALLÈLE (deux tâches, chacune avec sa limite de 30 min).
+  # Chaque tâche dépose son rapport vitest en artefact ; la tâche finale « tests existants de la zone modifiée » les compare.
+  mesure:
+    name: mesure (${{ matrix.cote }})
     needs: zones
     if: needs.zones.outputs.tests != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        cote: [tete, base]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -152,13 +158,19 @@ jobs:
         if: needs.zones.outputs.deps-rendu == 'oui'
         working-directory: studio-rendu
         run: npm ci --ignore-scripts
-      - name: Tests de la zone (tête, puis base)
+      - name: Tests de la zone (${{ matrix.cote }})
+        # Limite de l'étape un peu sous celle de la tâche : si les tests sont trop longs, l'étape s'arrête proprement
+        # et l'artefact est quand même déposé (avec le statut « coupe »).
+        timeout-minutes: 27
         env:
+          COTE: ${{ matrix.cote }}
           FILTRES: ${{ needs.zones.outputs.tests }}
           BASE_PR: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Différentiel : rouge seulement pour un test rouge sur la tête et vert ou absent sur la base.
-          # Base = ancêtre commun (git merge-base) de la tête et de la branche de base (lancement manuel : origin/master).
+          mkdir -p rapports
+          RACINE="$PWD"
+          # Statut écrit avant le lancement : s'il reste « coupe », la mesure a été arrêtée par la limite de temps.
+          echo coupe > "rapports/statut-$COTE.txt"
           lancer() { # $1 = fichier du rapport JSON ; à lancer depuis la racine à tester
             # $FILTRES est volontairement non guillemeté : une liste de morceaux de chemin séparés par des espaces.
             pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile="$1" \
@@ -178,31 +190,64 @@ jobs:
               --exclude 'tests/cas-concret/x4/**' \
               $FILTRES || true
           }
-          RACINE="$PWD"
-          lancer "$RACINE/rapport-vitest.json"
-          # Résumé lisible sans ouvrir les journaux : tests lancés, échecs, 30 premiers fichiers en échec.
-          node -e '
-            const r = JSON.parse(require("fs").readFileSync("rapport-vitest.json", "utf8"));
-            const fich = r.testResults || [];
-            const lances = fich.reduce((n, f) => n + (f.assertionResults || []).length, 0);
-            const rates = fich.filter((f) => f.status === "failed").map((f) => f.name.replace(/\x5c/g, "/").replace(/^.*\/((tests|src)\/)/, "$1"));
-            const nbEchecs = fich.reduce((n, f) => n + (f.assertionResults || []).filter((c) => c.status === "failed").length, 0);
-            const l = ["### Tests de la zone", "", "Tests lancés : " + lances, "Échecs : " + nbEchecs + " (dans " + rates.length + " fichiers)", "", "30 premiers fichiers en échec :"];
-            for (const f of rates.slice(0, 30)) l.push("- " + f);
-            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join(String.fromCharCode(10)) + String.fromCharCode(10));
-          ' || echo "Résumé impossible (rapport illisible)" >> "$GITHUB_STEP_SUMMARY"
-
-          # Même lancement sur la base (si elle ne se prépare pas : repli sur la liste des échecs connus).
-          if [ -n "$BASE_PR" ]; then BASE=$(git merge-base HEAD "$BASE_PR"); else BASE=$(git merge-base HEAD origin/master); fi
-          rm -f "$RUNNER_TEMP/rapport-base.json"
-          if git worktree add "$RUNNER_TEMP/base" "$BASE"; then
-            ln -s "$RACINE/node_modules" "$RUNNER_TEMP/base/node_modules"
-            if [ -d "$RACINE/studio-rendu/node_modules" ] && [ -d "$RUNNER_TEMP/base/studio-rendu" ]; then
-              ln -s "$RACINE/studio-rendu/node_modules" "$RUNNER_TEMP/base/studio-rendu/node_modules"
+          if [ "$COTE" = "tete" ]; then
+            lancer "$RACINE/rapports/rapport-tete.json"
+            # Résumé lisible sans ouvrir les journaux : tests lancés, échecs, 30 premiers fichiers en échec.
+            node -e '
+              const r = JSON.parse(require("fs").readFileSync("rapports/rapport-tete.json", "utf8"));
+              const fich = r.testResults || [];
+              const lances = fich.reduce((n, f) => n + (f.assertionResults || []).length, 0);
+              const rates = fich.filter((f) => f.status === "failed").map((f) => f.name.replace(/\x5c/g, "/").replace(/^.*\/((tests|src)\/)/, "$1"));
+              const nbEchecs = fich.reduce((n, f) => n + (f.assertionResults || []).filter((c) => c.status === "failed").length, 0);
+              const l = ["### Tests de la zone", "", "Tests lancés : " + lances, "Échecs : " + nbEchecs + " (dans " + rates.length + " fichiers)", "", "30 premiers fichiers en échec :"];
+              for (const f of rates.slice(0, 30)) l.push("- " + f);
+              require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join(String.fromCharCode(10)) + String.fromCharCode(10));
+            ' || echo "Résumé impossible (rapport illisible)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Base = ancêtre commun (git merge-base) de la tête et de la branche de base (lancement manuel : origin/master).
+            # Si elle ne se prépare pas : pas de rapport, la tâche finale se replie sur la liste des échecs connus.
+            if [ -n "$BASE_PR" ]; then BASE=$(git merge-base HEAD "$BASE_PR"); else BASE=$(git merge-base HEAD origin/master); fi
+            if git worktree add "$RUNNER_TEMP/base" "$BASE"; then
+              ln -s "$RACINE/node_modules" "$RUNNER_TEMP/base/node_modules"
+              if [ -d "$RACINE/studio-rendu/node_modules" ] && [ -d "$RUNNER_TEMP/base/studio-rendu" ]; then
+                ln -s "$RACINE/studio-rendu/node_modules" "$RUNNER_TEMP/base/studio-rendu/node_modules"
+              fi
+              (cd "$RUNNER_TEMP/base" && lancer "$RACINE/rapports/rapport-base.json") || true
             fi
-            (cd "$RUNNER_TEMP/base" && lancer "$RUNNER_TEMP/rapport-base.json") || true
           fi
+          echo fini > "rapports/statut-$COTE.txt"
+      - name: Dépôt du rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-${{ matrix.cote }}
+          path: rapports/
+          if-no-files-found: ignore
+          retention-days: 3
 
+  # Tâche finale : compare la tête et la base (rouge seulement pour un test rouge sur la tête et vert ou absent sur la base).
+  # C'est ce contrôle-là que les sessions lisent sur la PR.
+  tests-zone:
+    name: tests existants de la zone modifiée
+    needs: [zones, mesure]
+    if: always() && needs.zones.outputs.tests != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rapport-*
+          path: rapports
+          merge-multiple: true
+      - name: Comparaison tête / base
+        env:
+          RESULTAT_MESURE: ${{ needs.mesure.result }}
+        run: |
           cat > "$RUNNER_TEMP/comparer-base-tete.mjs" <<'JS'
           import { readFileSync, existsSync, appendFileSync } from "node:fs";
           import { pathToFileURL } from "node:url";
@@ -235,11 +280,28 @@ jobs:
           for (const e of nouveaux) console.log("NOUVEAU : " + e.fichier + " › " + e.nom);
           process.exit(nouveaux.length === 0 && lances > 0 ? 0 : 1);
           JS
+          # Une mesure coupée par la limite de temps (ou jamais terminée) n'est pas un test rouge : on le dit clairement.
+          statut() { cat "rapports/statut-$1.txt" 2>/dev/null || echo absent; }
+          coupee=0
+          for cote in tete base; do
+            if [ "$(statut $cote)" != "fini" ]; then
+              coupee=1
+              msg="Mesure « $cote » coupée par la limite de temps (ou interrompue avant la fin, résultat de la mesure : $RESULTAT_MESURE) : ce n'est pas un test rouge."
+              echo "::warning::$msg"
+              printf '### Tests de la zone\n\n%s\n' "$msg" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          if [ "$coupee" = "1" ]; then exit 1; fi
+          if [ ! -f rapports/rapport-tete.json ]; then
+            echo "::warning::Rapport de la tête absent alors que la mesure est finie : comparaison impossible."
+            echo "Rapport de la tête absent : comparaison impossible." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
           code=0
-          node "$RUNNER_TEMP/comparer-base-tete.mjs" rapport-vitest.json "$RUNNER_TEMP/rapport-base.json" "$RACINE/scripts/comparer-echecs.mjs" || code=$?
+          node "$RUNNER_TEMP/comparer-base-tete.mjs" rapports/rapport-tete.json rapports/rapport-base.json "$PWD/scripts/comparer-echecs.mjs" || code=$?
           if [ "$code" = "2" ]; then
             # Repli : liste des échecs connus (ancien comportement).
-            node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+            node scripts/comparer-echecs.mjs rapports/rapport-tete.json scripts/echecs-connus.json
           else
             exit "$code"
           fi
