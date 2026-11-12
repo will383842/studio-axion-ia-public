@@ -1,6 +1,6 @@
 /**
  * LIA-0 · le parcours GUIDE tel qu'il est AUJOURD'HUI (réglage `parcours.mots_multiples` éteint) est FIGÉ avant toute liaison.
- * Test de caractérisation : il ne doit plus jamais être modifié. Neuf scénarios, un instantané chacun.
+ * Test de caractérisation : il ne doit plus jamais être modifié. Dix scénarios, un instantané chacun.
  * Chaque instantané garde : la suite ordonnée des appels du port (méthode + arguments, sans jeton), les appels au site (chemin + corps),
  * `parcours.conversations`, la table d'alias, `parcours.oppositions.file`, et `etat` + `dernierCode` de chaque événement.
  * Horloge et secrets fixes (banc `filet-guide/_amorce.ts`). Données 100 % fictives, aucun réseau.
@@ -43,10 +43,26 @@ type Appel = { appel: string; args: unknown };
 let journalPort: Appel[] = [];
 
 /** Enrobe le faux port : note chaque appel dans l'ordre. Les valeurs qui ressemblent à un jeton (long mot opaque dans un lien) sont masquées. */
-const masquer = (v: unknown): unknown =>
-  JSON.parse(
-    JSON.stringify(v).replace(/(c1_|jeton=)[A-Za-z0-9_-]{8,}/g, "$1<masque>"),
+const masquer = (v: unknown): unknown => {
+  // Le jeton « non opposée » n'a aucune valeur lisible : on grave seulement s'il est présent ou absent.
+  const a = v as Record<string, unknown>;
+  const marque =
+    "nonOpposee" in a
+      ? {
+          ...a,
+          nonOpposee:
+            typeof a.nonOpposee === "object" && a.nonOpposee !== null
+              ? "<jeton présent>"
+              : "<jeton absent>",
+        }
+      : a;
+  return JSON.parse(
+    JSON.stringify(marque).replace(
+      /(c1_|jeton=)[A-Za-z0-9_-]{8,}/g,
+      "$1<masque>",
+    ),
   );
+};
 function enrober(): void {
   const p = banc.port.port as unknown as Record<
     string,
@@ -133,7 +149,10 @@ describe("LIA-0 · comportement actuel figé (réglage éteint)", () => {
     await crochetCommentaire("GUIDE", { reseau: "facebook", idAuteur: AUTEUR });
     await passer(T0 + 500);
     lireTexteDe("stop");
-    await deposerMessage(depots, { occurredAt: "2026-10-18T10:00:20.000Z" });
+    await deposerMessage(depots, {
+      idMessage: "msg-fictif-4a",
+      occurredAt: "2026-10-18T10:00:20.000Z",
+    });
     await passer(T0 + 1000);
     expect(await instantane()).toMatchSnapshot("4-stop");
   });
@@ -142,7 +161,10 @@ describe("LIA-0 · comportement actuel figé (réglage éteint)", () => {
     await crochetCommentaire("GUIDE", { reseau: "facebook" });
     await passer();
     lireTexteDe(`Voici mon adresse : ${ADRESSE}`);
-    await deposerMessage(depots, { occurredAt: "2026-10-18T10:00:20.000Z" });
+    await deposerMessage(depots, {
+      idMessage: "msg-fictif-5a",
+      occurredAt: "2026-10-18T10:00:20.000Z",
+    });
     await passer(T0 + 1000);
     expect(banc.site.vus).toHaveLength(1);
     expect(await instantane()).toMatchSnapshot("5-adresse");
@@ -184,7 +206,10 @@ describe("LIA-0 · comportement actuel figé (réglage éteint)", () => {
     await crochetCommentaire("GUIDE", { reseau: "facebook" });
     await passer();
     lireTexteDe("je ne veux pas de stop");
-    await deposerMessage(depots, { occurredAt: "2026-10-18T10:00:20.000Z" });
+    await deposerMessage(depots, {
+      idMessage: "msg-fictif-7a",
+      occurredAt: "2026-10-18T10:00:20.000Z",
+    });
     await passer(T0 + 1000);
     expect(banc.site.vus).toHaveLength(0);
     expect(await instantane()).toMatchSnapshot("7-doute");
@@ -263,8 +288,36 @@ describe("LIA-0 · comportement actuel figé (réglage éteint)", () => {
     await passer();
     banc.site.reponses = () => ({ statut: 422, corps: { erreur: "invalide" } });
     lireTexteDe(`Mon adresse ${ADRESSE}`);
-    await deposerMessage(depots, { occurredAt: "2026-10-18T10:00:20.000Z" });
+    await deposerMessage(depots, {
+      idMessage: "msg-fictif-9a",
+      occurredAt: "2026-10-18T10:00:20.000Z",
+    });
     await passer(T0 + 1000);
     expect(await instantane()).toMatchSnapshot("9-adresse-refusee-422");
+  });
+
+  it("10 · adresse transmise au site, PUIS « stop » en message privé : l'opposition est mise en file", async () => {
+    await crochetCommentaire("GUIDE", { reseau: "facebook" });
+    await passer();
+    lireTexteDe(`Voici mon adresse : ${ADRESSE}`);
+    await deposerMessage(depots, {
+      idMessage: "msg-fictif-10a",
+      occurredAt: "2026-10-18T10:00:20.000Z",
+    });
+    await passer(T0 + 1000);
+    expect(banc.site.vus).toHaveLength(1);
+    lireTexteDe("stop");
+    await deposerMessage(depots, {
+      idMessage: "msg-fictif-10b",
+      occurredAt: "2026-10-18T10:00:30.000Z",
+      avance: 2000,
+    });
+    await passer(T0 + 3000);
+    const file = await Com.lireParametre<Record<string, unknown>>(
+      "parcours.oppositions.file",
+      {},
+    );
+    expect(Object.keys(file)).toHaveLength(1);
+    expect(await instantane()).toMatchSnapshot("10-adresse-puis-stop");
   });
 });
