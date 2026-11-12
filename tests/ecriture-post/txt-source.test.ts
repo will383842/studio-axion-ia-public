@@ -24,10 +24,10 @@ const SCRIPT_TABLEAU = "Voici le texte dit du brouillon du tableau.";
 const SCRIPT_FACECAM = "Voici le script validé de la face caméra animée.";
 
 const bloc = (texte: string) => [{ id: "b1", blocRecette: "explication", segments: [{ id: "s1", texte }] }];
-async function poser(e: { scriptRelie?: string | null; tableau?: string; facecam?: string }) {
+async function poser(e: { scriptRelie?: string | null; tableau?: string; facecam?: string; garderKit?: boolean }) {
   const d = depots();
   const v = (await d.videos.obtenir(VIDEO))!;
-  for (const k of await d.kits.lister((x) => x.videoId === VIDEO)) await d.kits.supprimer(k.id);
+  if (!e.garderKit) for (const k of await d.kits.lister((x) => x.videoId === VIDEO)) await d.kits.supprimer(k.id);
   let scriptId: string | undefined;
   if (e.scriptRelie !== undefined && e.scriptRelie !== null) {
     const s = (v.scriptId ? await d.scripts.obtenir(v.scriptId) : null) ?? (await d.scripts.lister(() => true))[0];
@@ -43,7 +43,7 @@ async function poser(e: { scriptRelie?: string | null; tableau?: string; facecam
 const kitInstagram = async () => (await pub.obtenirKit(VIDEO))!;
 
 let redacteur: ReturnType<typeof vi.spyOn>;
-const demandes = () => redacteur.mock.calls.map((c) => c[0] as { texteScript: string; titre: string });
+const demandes = () => redacteur.mock.calls.map((c: unknown[]) => c[0] as { texteScript: string; titre: string });
 beforeAll(async () => {
   await preparerMotDePasse(MDP);
 });
@@ -124,7 +124,7 @@ describe("TXT-SOURCE · le texte demandé au rédacteur", () => {
     await poser({ scriptRelie: null });
     await pub.genererKit(VIDEO);
     await pub.modifierTexteKit(VIDEO, "instagram", "Ma retouche", ["#moi"]);
-    await poser({ scriptRelie: SCRIPT_RELIE });
+    await poser({ scriptRelie: SCRIPT_RELIE, garderKit: true });
     const insta = (await kitInstagram()).reseaux.find((r) => r.reseau === "instagram")!;
     expect(insta.texte).toBe("Ma retouche");
     expect(insta.origine).toBe("main");

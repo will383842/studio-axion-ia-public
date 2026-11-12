@@ -50,6 +50,9 @@ const ORIGINES: Record<NonNullable<VueKitReseau["origine"]>, { libelle: string; 
   version: { libelle: "Texte de la version", ton: "neutre" },
 };
 
+/** TXT-SOURCE : dit à l'écran quand aucun script n'existe (le texte proposé ne part que du titre). */
+export const PHRASE_TEXTE_DEPUIS_TITRE = "Texte proposé depuis le titre seulement";
+
 export function OrigineTexte({ origine }: { origine: VueKitReseau["origine"] }) {
   if (!origine) return null;
   const o = ORIGINES[origine];
@@ -180,7 +183,10 @@ export function KitPublication() {
               </div>
             </div>
           ) : (
-            <EditeurReseau key={courant.reseau} r={courant} credits={kit.credits} />
+            <>
+              {kit.texteDepuis === "titre" && <p className="mb-3 text-sm text-texte-doux">{PHRASE_TEXTE_DEPUIS_TITRE}</p>}
+              <EditeurReseau key={courant.reseau} r={courant} credits={kit.credits} />
+            </>
           )}
         </motion.div>
       </AnimatePresence>
