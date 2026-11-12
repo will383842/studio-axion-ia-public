@@ -40,7 +40,7 @@ export function planCartesAuto(etat: EtatMonteur, mots: MotHorodate[], dureePris
   const passages = etat.facecam.passages as PassageMonteur[];
   const occupees = [...cartesDesPassages(passages), ...passages.filter((p) => passageEffetSpecial(p) && p.finSec > p.debutSec)];
   const ajustements = ajustementsAuMontage(etat.reglages.cartesAuto, (s) => priseVersMontee(s, coupes));
-  return cartesAutoDeLaVideo(montes, dureeMontee(dureePriseSec, coupes), ajustements, occupees, etat.reglages.cartesAutoRetirees).vues;
+  return cartesAutoDeLaVideo(montes, dureeMontee(dureePriseSec, coupes), ajustements, occupees, etat.reglages.cartesAutoRetirees, etat.facecam.memoireCartes ?? {}).vues;
 }
 
 /** Nom court d'une carte pour Will (« 3 questions ») : le début de son texte, comme dans la liste vue par Claude. */
