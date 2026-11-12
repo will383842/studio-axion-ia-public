@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import logoAxion from "./logo-axion-ia.png";
 import { cn } from "@/lib/cn";
 
 /**
@@ -16,9 +17,9 @@ export function CadrePublic({ children, className }: { children: ReactNode; clas
   );
 }
 
-/** Vrai logo du site public (logo-axion-ia.png). */
+/** Vrai logo du site public. Import statique : servi par /_next/static, que le proxy laisse passer sans session. */
 export function LogoPublic({ className }: { className?: string }) {
-  return <Image src="/logo-axion-ia.png" alt="Axion-IA" width={72} height={72} priority className={cn("size-[72px] shrink-0", className)} />;
+  return <Image src={logoAxion} alt="Axion-IA" width={72} height={72} priority className={cn("size-[72px] shrink-0", className)} />;
 }
 
 /** Message centré d'un lien inactif ou introuvable : un rond noir, un titre, une phrase, aucun bouton vers la console. */
