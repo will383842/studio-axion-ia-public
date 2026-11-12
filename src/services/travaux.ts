@@ -502,6 +502,17 @@ function enAttenteDeValidation(t: Pick<Travail, "erreur">): boolean {
 }
 
 /**
+ * GV-EC-01e : la reprise d'une attente de validation est REFUSÉE (cas retiré ou déjà traité) : la réservation gardée ne
+ * servira plus, elle est rendue au moment du refus (une fois ; idempotent). Une seule écriture : rien à séparer. Si le
+ * refus tombe un jour (cas rétabli), la reprise réactive la réservation (`reactiverReservations`). Sans effet pour un
+ * vrai échec (sa réservation est déjà rendue).
+ */
+export async function libererSiAttenteRefusee(travailId: string): Promise<void> {
+  const t = await depots().travaux.obtenir(travailId);
+  if (t && t.statut === "echec" && enAttenteDeValidation(t)) await libererReservation(travailId, "liberee");
+}
+
+/**
  * Temps 3 — SOUS le verrou : écrit ce que le moteur a renvoyé, SEULEMENT si le travail n'a pas changé depuis la lecture
  * (un « Arrêter » pendant le tour n'est jamais écrasé). Renvoie les suites à exécuter hors verrou.
  */
@@ -847,10 +858,16 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
   if (videoAvant && versionAvant && !videoAvant.estDemo && !videoAvant.sourceVideoId && !videoAvant.typeDerive && !TRAVAUX_SUR_VIDEO_FINIE.includes(avant.type)) {
     const { refusCasDejaTraite } = await import("./cas-concret-traites");
     const phrase = await refusCasDejaTraite(versionAvant.commande.entrees, avant.cibleId);
-    if (phrase) throw new ErreurStudio("CAS_TRAITE", phrase);
+    if (phrase) {
+      await libererSiAttenteRefusee(id);
+      throw new ErreurStudio("CAS_TRAITE", phrase);
+    }
     // Cas retiré par Will : la panne ou la pause de cette vidéo ne se relance pas (rien n'est dépensé).
     const retire = await (await import("./cas-concret-retires")).refusCasRetire(versionAvant.commande.entrees);
-    if (retire) throw new ErreurStudio("CAS_RETIRE", retire);
+    if (retire) {
+      await libererSiAttenteRefusee(id);
+      throw new ErreurStudio("CAS_RETIRE", retire);
+    }
   }
   // L3-01 : contrôle du budget du mois (origine de la commande) et des crédits sur le coût RESTANT, réactivation de la
   // réservation et de l'engagement, puis le travail repart, d'un seul tenant sous le verrou des crédits. Le prix du
