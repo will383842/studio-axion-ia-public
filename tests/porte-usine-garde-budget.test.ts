@@ -411,3 +411,86 @@ describe("NEW-ARG-03 : budget de l'usine en quantités", () => {
     await expect((controlerBudgetDuMois as (n: number, o: object) => Promise<void>)(10_000_000, { origine: "studio" })).resolves.toBeUndefined();
   });
 });
+
+/**
+ * NEW-ARG-03, correction après relecture (BLOQUANT) : une commande d'origine « usine » est REFUSÉE dès qu'il manque une borne
+ * (ni budget en montant, ni plafond du Studio, ni quota réellement appliqué sur son chemin = refus, jamais « passe »).
+ * Une commande d'origine Studio n'est jamais refusée pour un montant. Aucun montant dans les messages.
+ */
+describe("NEW-ARG-03 : refus de l'usine quand il manque une borne", () => {
+  const budget = () => import("@/services/budget-mensuel");
+  const plafond = () => import("@/services/plafond-fournisseur");
+  const VIDEO_LINKEDIN = [{ periode: "jour", reseau: "linkedin", type: "video", limite: 1 }];
+  const IMAGE_FAL = [{ periode: "jour", reseau: "fal", type: "image", limite: 1 }];
+  const sansMontant = (t: string) => expect(t).not.toMatch(/€|\beuros?\b|\bcents?\b|centimes|\bprix\b|\d+\s*(?:€|EUR)/i);
+  const sansPlafondStudio = async () => { await depots().parametres.supprimer("budget.mensuel"); expect(await depots().parametres.obtenir("budget.mensuel")).toBeNull(); };
+
+  it("sans plafond du Studio, un quota seulement sur une vidéo linkedin (appliqué nulle part) : la commande de l'usine est refusée, sans montant", async () => {
+    await sansPlafondStudio();
+    expect((await PUT(appel({ contrat: 2, quotas: VIDEO_LINKEDIN }))).status).toBe(200);
+    const { controlerBudgetDuMois } = await budget();
+    const e = await controlerBudgetDuMois(500_000, { origine: "usine" }).then(() => null, (x: unknown) => x as { code: string; message: string });
+    expect(e?.code).toBe("BUDGET_USINE_SANS_BORNE");
+    sansMontant(e?.message ?? "");
+    for (const ev of await depots().evenements.lister()) sansMontant(JSON.stringify(ev));
+  });
+
+  it("sans plafond du Studio ni quota appliqué : budget absent ou corps vide, la commande de l'usine reste refusée", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2 }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(1, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+  });
+
+  it("sans plafond du Studio, un quota réellement appliqué (fal, image) tient lieu de borne : la commande de l'usine passe", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: IMAGE_FAL }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(1, { origine: "usine" })).resolves.toBeUndefined();
+  });
+
+  it("sans plafond du Studio, un montant reçu de l'usine est une borne : refus au-delà, passe en deçà", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: VIDEO_LINKEDIN, budget_mensuel_cents: 100 }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(100, { origine: "usine" })).resolves.toBeUndefined();
+    await expect(controlerBudgetDuMois(101, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+  });
+
+  it("sans plafond du Studio, une commande du Studio (ajout manuel) n'est jamais refusée, quelle que soit la borne de l'usine", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: VIDEO_LINKEDIN }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(500_000, { origine: "studio" })).resolves.toBeUndefined();
+    await expect(controlerBudgetDuMois(500_000)).resolves.toBeUndefined();
+  });
+
+  it("le quota déclaré sur linkedin/video est APPLIQUÉ là où la commande est acceptée : au-delà, refus entier ; deux commandes d'un même travail ne comptent qu'une unité", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: [...IMAGE_FAL, ...VIDEO_LINKEDIN] }));
+    const { controlerBudgetDuMois } = await budget();
+    const lien = { origine: "usine" as const, reseau: "linkedin", type: "video" };
+    await expect(controlerBudgetDuMois(1, { ...lien, travailId: "t1" })).resolves.toBeUndefined();
+    await expect(controlerBudgetDuMois(1, { ...lien, travailId: "t1" })).resolves.toBeUndefined();
+    const e = await controlerBudgetDuMois(1, { ...lien, travailId: "t2" }).then(() => null, (x: unknown) => x as { code: string; message: string });
+    expect(e?.code).toBe("QUOTA_USINE_ATTEINT");
+    sansMontant(e?.message ?? "");
+    // le fondateur n'est jamais arrêté par ce quota
+    await expect(controlerBudgetDuMois(1, { origine: "studio", reseau: "linkedin", type: "video", travailId: "t3" })).resolves.toBeUndefined();
+  });
+
+  it("un couple sans quota déclaré, sans plafond du Studio ni montant : refus (rien ne le borne)", async () => {
+    await sansPlafondStudio();
+    await PUT(appel({ contrat: 2, quotas: IMAGE_FAL }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(1, { origine: "usine", reseau: "tiktok", type: "video", travailId: "t9" })).rejects.toMatchObject({ code: "BUDGET_USINE_SANS_BORNE" });
+  });
+
+  it("avec un plafond du Studio, le comportement des quantités seules ne change pas (plafond = borne)", async () => {
+    await PUT(appel({ contrat: 2, quotas: VIDEO_LINKEDIN }));
+    const { controlerBudgetDuMois } = await budget();
+    await expect(controlerBudgetDuMois(10_000, { origine: "usine" })).resolves.toBeUndefined();
+    await expect(controlerBudgetDuMois(10_001, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    void plafond;
+  });
+});
