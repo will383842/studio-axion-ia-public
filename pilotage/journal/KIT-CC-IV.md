@@ -1,3 +1,8 @@
-# KIT-CC-IV — en cours
-Fiche prise le 12/11/2026. Branche usine/KIT-CC-IV depuis master (L3-07 déjà fusionnée). Test rouge, puis code.
+# KIT-CC-IV — textes du cas concret et de l'image → vidéo dans le kit (final)
+Fait : nouveau service `textes-version-generateur.ts` (lit projetMontage.casConcret.publication et imageVideo.livraison) ; le kit verse ces textes (source « variante », mots-dièse si le format en écrit) ; aucun appel à « texte-reseaux » (création du kit, affichage, écriture auto, « Réécrire ») ; envoi refusé (TEXTES_MANQUANTS) si le texte du réseau manque ; page vidéo : « Publier » dès que le kit porte ces textes.
+Fichiers : src/services/textes-version-generateur.ts, src/services/publications.ts, src/app/(studio)/videos/[id]/page.tsx, tests/ecriture-post/kit-cc-iv.test.ts.
+Critères (CORRECTIF 12/11 14 h 45) : (1) cas concret : texte, mots-dièse, 1er commentaire — tenu : kit-cc-iv.test.ts « (1) le kit porte… » ; (2) image → vidéo — tenu : « (2) le kit reprend… » ; (3) textes manquants, illisibles, vides, essai : envoi refusé, jamais d'essai — tenu : « (3) » x4 ; (4) aucun appel au rédacteur — tenu : « (4) » et les deux « redacteur not called » ; (5) brouillon, cases cochées — tenu : « (5) » x2. Format ordinaire inchangé — tenu : dernier test.
+Test rouge vérifié avant le code (10 échecs sur 12). Les nombres de tests sont ajoutés ci-dessous.
+Reste / douteux : les formats n'écrivent pas de mots-dièse eux-mêmes aujourd'hui (champ `motsDiese` ou `hashtags` repris s'il existe, rien n'est deviné) ; eslint signale une apostrophe non échappée ligne 344 de la page, déjà là avant.
+Test autorisé d'office : non utilisé (le chemin de test figure dans la fiche). Aucun envoi réel (doublure de simulation).
 contrôle anti-fuite : vide
