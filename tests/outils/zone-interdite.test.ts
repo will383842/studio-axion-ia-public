@@ -84,6 +84,16 @@ describe("exception par accord (zernio-client.ts, zernio.ts)", () => {
       expect(controler({ fichiers: [g], autorises: [g], fiche: "X-1", accords: ["RC-40"] }).ok).toBe(false);
     }
   });
+  it("branche usine/* : aucune exception, même avec l'accord (par fiche ou global)", () => {
+    const parFiche = controler({ fichiers: [f], fiches: [{ id: "X", autorises: [f], accords: ["RC-40"] }], branche: "usine/X" });
+    expect(parFiche.ok).toBe(false);
+    expect(parFiche.defauts.map((d) => d.regle)).toContain("zone-interdite");
+    const global = controler({ fichiers: [f], fiches: [{ id: "X", autorises: [f] }], accords: ["RC-40"], branche: "usine/X" });
+    expect(global.ok).toBe(false);
+    expect(global.defauts.map((d) => d.regle)).toContain("zone-interdite");
+    const lot = controler({ fichiers: [f], fiches: [{ id: "X", autorises: [f], accords: ["RC-40"] }], branche: "usine/LOT-1" });
+    expect(lot.ok).toBe(false);
+  });
   it("accord couvrant mesures/zernio.ts", () => {
     const g = "src/fournisseurs/mesures/zernio.ts";
     expect(controler({ fichiers: [g], autorises: [g], fiche: "X-1", accords: ["RC-40"] }).ok).toBe(true);
@@ -380,16 +390,21 @@ describe("relecture v1-s2 : fichiers autorisés, annonces et accords lisibles da
     fs.writeFileSync(path.join(sans, "corps.txt"), "Fiche: X-1\n");
     expect(lancer(sans, [...opts(sans), "--branche", "lot/v1", "--corps", path.join(sans, "corps.txt")]).code).toBe(1);
   });
-  it("accord RC-40 rattaché à LA fiche : seule cette fiche passe sur zernio-client.ts", () => {
+  it("accord RC-40 rattaché à LA fiche : seule cette fiche passe sur zernio-client.ts (hors branche usine/*)", () => {
     const fichier = "src/fournisseurs/publication/zernio-client.ts";
     const base = {
       "pilotage/autorises/X-1.json": JSON.stringify({ fichiers: [fichier], accords: ["RC-40"] }),
       "pilotage/autorises/X-2.json": JSON.stringify({ fichiers: [fichier] }),
     };
-    const d1 = monde("usine/X-1", base, { [fichier]: "1" });
-    expect(lancer(d1, [...opts(d1), "--branche", "usine/X-1"]).code).toBe(0);
-    const d2 = monde("usine/X-2", base, { [fichier]: "1" });
-    expect(lancer(d2, [...opts(d2), "--branche", "usine/X-2"]).code).toBe(1);
+    const lancerAvec = (fiche: string) => {
+      const d = monde("lot/v1", base, { [fichier]: "1" });
+      fs.writeFileSync(path.join(d, "corps.txt"), `Fiche: ${fiche}\n`);
+      return lancer(d, [...opts(d), "--branche", "lot/v1", "--corps", path.join(d, "corps.txt")]).code;
+    };
+    expect(lancerAvec("X-1")).toBe(0);
+    expect(lancerAvec("X-2")).toBe(1);
+    const d3 = monde("usine/X-1", base, { [fichier]: "1" });
+    expect(lancer(d3, [...opts(d3), "--branche", "usine/X-1"]).code).toBe(1);
   });
   it("le workflow passe les listes, les annonces et le corps lus sur la BASE de la PR", () => {
     const yml = fs.readFileSync(path.resolve(__dirname, "../../.github/workflows/verifier.yml"), "utf8");
