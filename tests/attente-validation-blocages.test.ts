@@ -371,3 +371,32 @@ describe("(iv) GV-EC-01h — reprise d'une attente : la réservation rendue entr
     expect(t.erreur?.code).toBe("IV_SCRIPT_A_VALIDER");
   });
 });
+
+describe("(v) GV-EC-01i — la réservation active est relue sous le verrou avant la voie (b)", () => {
+  it("réservation rendue entre la lecture et le verrou : refus, 0 réservation active, travail toujours en attente", async () => {
+    const id = await mettreEnAttente();
+    const reservations = depots().reservations;
+    const compterReel = reservations.compter.bind(reservations);
+    let libere = false;
+    // Crochet : juste après la première lecture « au moins une active ? » (avant le verrou), la réservation est rendue.
+    const espion = vi.spyOn(reservations, "compter").mockImplementation(async (filtre) => {
+      const n = await compterReel(filtre);
+      if (!libere && n > 0) {
+        libere = true;
+        const res = (await reservations.lister((r) => r.travailId === id && r.statut === "active"))[0];
+        await reservations.enregistrer({ ...res, statut: "liberee" });
+      }
+      return n;
+    });
+    try {
+      await expect(travaux.reessayerTravail(id)).rejects.toMatchObject({ code: "PAS_EN_ECHEC" });
+    } finally {
+      espion.mockRestore();
+    }
+    expect(libere).toBe(true);
+    expect(await actives(id)).toBe(0);
+    const t = (await depots().travaux.obtenir(id))!;
+    expect(t.statut).toBe("echec");
+    expect(t.erreur?.code).toBe("IV_SCRIPT_A_VALIDER");
+  });
+});
