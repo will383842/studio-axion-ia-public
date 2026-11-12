@@ -47,7 +47,7 @@ export const VERSION_BRIQUE_SOUS_TITRES = "m2-1";
 type Egaux<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 const verifierTypes: [
   Egaux<SegmentSousTitres, SegmentRendu>,
-  Egaux<BaseSousTitres, BaseRendu>,
+  Egaux<BaseSousTitres, GabaritRendu>,
   Egaux<GabaritSousTitres, GabaritRendu>,
   ValeurStyleSousTitres extends StyleBibliothequeRendu ? true : false,
 ] = [true, true, true, true];
@@ -85,7 +85,7 @@ export type StyleSousTitresVarie = ValeurStyleSousTitres & { surlignage?: Surlig
 
 /** Base retenue : celle de la vidéo, sinon celle du style de la Bibliothèque, sinon Karaoké. */
 export function baseRetenue(base: BaseSousTitres | undefined, style: ValeurStyleSousTitres | null | undefined): BaseSousTitres {
-  return base ?? baseDe(gabaritDe(style));
+  return base ?? baseDe(style);
 }
 
 /** Options de groupement du style de base : gabarit, puis réglages de l'élément de la Bibliothèque. */
@@ -148,7 +148,9 @@ export function fabriquerSousTitres(demande: DemandeSousTitres): SegmentSousTitr
   if (demande.coupesSec?.length) segments = recalerSurCoupes(segments, demande.coupesSec, { dureeMinSec: options.dureeMinSec });
   if (demande.style?.modeEmphase === "groupe") segments = emphaseParGroupe(segments);
   if (demande.anciens?.length) segments = reporterVerrouilles(demande.anciens, segments);
+  const baseVideo = baseRetenue(demande.base, demande.style);
   return melanger(segments, {
+    ...(baseVideo === "impact" || baseVideo === "bandeau" ? { base: baseVideo } : {}),
     intensite: demande.intensite ?? "equilibre",
     coupesSec: demande.coupesSec,
     motsTitre: demande.motsTitre,
@@ -184,7 +186,8 @@ export function donneesCalque(entree: {
     largeur,
     hauteur,
     segments: sansChevauchement(entree.segments),
-    base: entree.base,
+    // GV-ST-08a : `BaseRendu` (types-rendu.ts, hors liste) n'admet encore que karaoke/minimal ; à élargir par GV-ST-08b.
+    base: entree.base as BaseRendu,
     couleurs: entree.couleurs ?? couleursDepuisMarque(entree.marque, entree.style?.jetonEmphase ?? "orange-vif"),
     largeurMaxPx: entree.style?.largeurMaxPct ? Math.floor((entree.style.largeurMaxPct / 100) * largeur) : largeurLibrePx(ratio, reseaux),
     positions: positionsDuStyle(ratio, reseaux, entree.style),
