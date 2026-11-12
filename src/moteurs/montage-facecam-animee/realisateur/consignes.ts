@@ -20,7 +20,7 @@ const pc = (x: number) => `${Math.round(x * 100)} %`;
 /**
  * Mémoire des plaquettes v4 (19/10) : celles déjà prises dans les 5 dernières vidéos (avec leur compte), celles JAMAIS prises (parmi les plaquettes
  * ACTIVES seulement : jamais une plaquette « en coulisse », ni une plaquette `interdites` du repli sans vidéo) et l'ouverture à ne pas reprendre.
- * Elle passe dans le MESSAGE de la demande (la consigne système reste la même d'une vidéo à l'autre, cache conservé) ; consignes seulement, aucune règle n'en dépend.
+ * Elle passe dans le MESSAGE de la demande (la consigne système reste la même d'une vidéo à l'autre, cache conservé) ; elle annonce aussi la règle D17 (`regles-v4.ts`), vérifiée par le code au premier essai seulement ; ensuite elle n'est plus qu'un avertissement.
  * Rend "" sans historique v4.
  */
 export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdites: readonly string[] = []): string {
