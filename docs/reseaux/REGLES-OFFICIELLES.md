@@ -23,7 +23,7 @@ YouTube : éteint (non relevé).
 | Longueur de texte | inconnu | inconnu | — | — | — |
 | Mots-dièse | inconnu | inconnu | — | — | — |
 | Vidéo (durée, taille) | inconnu | inconnu | — | — | — |
-| Carrousel / document PDF | 20 images ; un PDF de 100 Mo au plus, d'après la spec Zernio (page LinkedIn non consultée) | secondaire | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/properties/documentTitle` | 2026-11-12 |
+| Carrousel / document PDF | 20 images ; un PDF de 100 Mo au plus, d'après la spec Zernio (page LinkedIn non consultée) | secondaire | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/description` | 2026-11-12 |
 | Texte alternatif | inconnu | inconnu | — | — | — |
 
 ### Couche 2 : règles de Zernio (LinkedIn)
@@ -39,7 +39,7 @@ YouTube : éteint (non relevé).
 | Longueur de texte | inconnu | inconnu | — | — | — |
 | Mots-dièse | Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description` | 2026-11-12 |
 | Vidéo (durée, taille) | inconnu | inconnu | — | — | — |
-| Carrousel / document PDF | Jusqu'à 20 images, pas de multi-vidéo ; un seul PDF (100 Mo au plus) ; titre de document exigé par LinkedIn | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/properties/documentTitle` | 2026-11-12 |
+| Carrousel / document PDF | Jusqu'à 20 images, pas de multi-vidéo ; un seul PDF (100 Mo au plus) ; titre de document exigé par LinkedIn | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/description` | 2026-11-12 |
 | Texte alternatif | Texte alternatif appliqué (valeur par image, la même pour tous les réseaux choisis) ; longueur non donnée | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description` | 2026-11-12 |
 
 ## Instagram
@@ -126,7 +126,7 @@ YouTube : éteint (non relevé).
 | Mots-dièse | inconnu | inconnu | — | — | — |
 | Vidéo (durée, taille) | inconnu | inconnu | — | — | — |
 | Carrousel / document PDF | Carrousel photo jusqu'à 35 images, d'après la spec Zernio (page TikTok non consultée) | secondaire | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
-| Texte alternatif | TikTok n'a pas de texte alternatif, d'après la spec Zernio (page TikTok non consultée) | secondaire | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
+| Texte alternatif | TikTok n'a pas de texte alternatif, d'après la spec Zernio (page TikTok non consultée) | secondaire | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description` | 2026-11-12 |
 
 ### Couche 2 : règles de Zernio (TikTok)
 
@@ -140,9 +140,9 @@ YouTube : éteint (non relevé).
 | Plafond de posts | Limites quotidiennes de publication directe TikTok, vérifiables à blanc (essai sans rien publier) ; plus 25 posts/heure par compte | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1accounts~1{accountId}~1tiktok~1creator-info/get` | 2026-11-12 |
 | Longueur de texte | Titre vidéo jusqu'à 2200 signes ; titre d'un carrousel photo coupé à 90 signes | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
 | Mots-dièse | Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description` | 2026-11-12 |
-| Vidéo (durée, taille) | Durée maximale lue en direct dans les réglages du créateur (champ dédié) ; miniature JPG/PNG/WebP 20 Mo au plus | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
+| Vidéo (durée, taille) | Durée maximale lue en direct dans les réglages du créateur (champ dédié) ; miniature JPG/PNG/WebP 20 Mo au plus | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1accounts~1{accountId}~1tiktok~1creator-info/get/responses/200/content/application~1json/schema/properties/postingLimits/properties/maxVideoDurationSec` | 2026-11-12 |
 | Carrousel / document PDF | Carrousel photo jusqu'à 35 images | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
-| Texte alternatif | Ignoré : TikTok n'a pas de texte alternatif | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
+| Texte alternatif | Ignoré : TikTok n'a pas de texte alternatif | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description` | 2026-11-12 |
 
 ## Constantes de `zernio-corps.ts` confrontées à leur source
 

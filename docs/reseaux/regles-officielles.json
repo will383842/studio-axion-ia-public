@@ -73,7 +73,7 @@
           "preuve": "secondaire",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-12",
-          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/properties/documentTitle"
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/description"
         },
         "texte_alternatif": {
           "valeur": "inconnu",
@@ -152,7 +152,7 @@
           "preuve": "officiel",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-12",
-          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/properties/documentTitle"
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/description"
         },
         "texte_alternatif": {
           "valeur": "Texte alternatif appliqué (valeur par image, la même pour tous les réseaux choisis) ; longueur non donnée",
@@ -560,7 +560,7 @@
           "preuve": "secondaire",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-12",
-          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
         }
       },
       "zernio": {
@@ -625,7 +625,7 @@
           "preuve": "officiel",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-12",
-          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1accounts~1{accountId}~1tiktok~1creator-info/get/responses/200/content/application~1json/schema/properties/postingLimits/properties/maxVideoDurationSec"
         },
         "format_carrousel_document": {
           "valeur": "Carrousel photo jusqu'à 35 images",
@@ -639,7 +639,7 @@
           "preuve": "officiel",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-12",
-          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
         }
       }
     },
