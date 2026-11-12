@@ -1,7 +1,7 @@
 /**
  * ROUTAGE DE LA PUBLICATION (lot Z2-S, D2) : quel outil (Buffer ou Zernio) porte un réseau, ou un compte d'un réseau.
  * Réglage `publication.routage` : { "<reseau>": outil, "<reseau>:<compteCode>": outil } ; la clé la plus précise gagne.
- * Défaut {} = Buffer partout. Sans clé du fournisseur choisi : refus clair, jamais un repli silencieux vers l'autre outil.
+ * Défaut {} = Zernio partout (un « buffer » déjà enregistré reste lu). Sans clé du fournisseur choisi : refus clair, jamais un repli silencieux vers l'autre outil.
  * La bascule se fait réseau par réseau ; le retour à Buffer tient en un geste (on retire la clé ou on la met à « buffer »).
  */
 import "server-only";
@@ -16,7 +16,7 @@ import { cleZernioPresente } from "./zernio";
 export const PARAM_ROUTAGE = "publication.routage";
 const NOMS_OUTILS: Record<OutilPublication, string> = { buffer: "Buffer", zernio: "Zernio" };
 
-/** Le routage en base ; une valeur illisible ou inconnue est ignorée (défaut : Buffer). */
+/** Le routage en base ; une valeur illisible ou inconnue est ignorée (défaut : Zernio). */
 export async function lireRoutage(): Promise<RoutagePublication> {
   const brut = await lireParametre<unknown>(PARAM_ROUTAGE, {});
   const propre: RoutagePublication = {};
@@ -44,7 +44,7 @@ export async function definirRoutage(cle: string, outil: OutilPublication | null
     suivant[cle] = outil;
   }
   await ecrireParametre(PARAM_ROUTAGE, suivant);
-  await journaliser("reglages", outil ? `Publication : ${cle} part par ${NOMS_OUTILS[outil]}` : `Publication : ${cle} revient au réglage par défaut (Buffer)`);
+  await journaliser("reglages", outil ? `Publication : ${cle} part par ${NOMS_OUTILS[outil]}` : `Publication : ${cle} revient au réglage par défaut (Zernio)`);
   return suivant;
 }
 
@@ -71,7 +71,7 @@ export async function outilDeEnvoi(reseau: IdReseau, compte?: string | null): Pr
     if (!cleZernioPresente()) throw refusOutil("zernio");
     return outil;
   }
-  // Défaut (aucune clé de routage) : Buffer, ou sa simulation si Buffer n'est pas relié. Choix explicite de Buffer : clé exigée.
+  // Seul un « buffer » déjà enregistré mène ici : clé exigée, jamais de repli silencieux.
   const t = await lireRoutage();
   const explicite = [compte ? `${reseau}:${compte}` : null, reseau].some((c) => !!c && Object.hasOwn(t, c) && t[c] === "buffer");
   if (explicite && !bufferRelie()) throw refusOutil("buffer");
