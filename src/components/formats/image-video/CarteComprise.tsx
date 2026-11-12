@@ -21,7 +21,7 @@ import { jusquALaReprise } from "./reprise";
 import { AUCUNE_CORRECTION, carteACorriger, carteCorrigeeParWill, type BlocCarte, type CorrectionsCarte, type VueCarte } from "./vue";
 
 const PASTILLE_COULEUR: Record<BlocCarte["couleur"], string> = {
-  orange: "bg-orange text-sur-orange",
+  orange: "bg-accent text-sur-accent",
   noir: "bg-texte text-fond",
   vert: "bg-sauge text-fond",
   neutre: "bg-surface-3 text-texte",
@@ -125,8 +125,8 @@ export function CarteComprise({ videoId, vue, carte, imageUrl }: { videoId: stri
         {vue.branches.length > 0 && (
           <div className={cn("grid gap-3", vue.branches.length > 1 && "sm:grid-cols-2")}>
             {vue.branches.map((br) => (
-              <div key={br.id} className={cn("rounded-carte border-2 p-3", br.majoritaire ? "border-orange" : "border-trait")}>
-                <p className={cn("mb-2 text-sm font-semibold", br.majoritaire ? "text-orange-vif" : "text-texte-doux")}>{br.titre}</p>
+              <div key={br.id} className={cn("rounded-carte border-2 p-3", br.majoritaire ? "border-accent" : "border-trait")}>
+                <p className={cn("mb-2 text-sm font-semibold", br.majoritaire ? "text-accent" : "text-texte-doux")}>{br.titre}</p>
                 <ol className="space-y-2">
                   {br.blocs.map((b) => (
                     <Bloc key={b.id} b={b} edition={edition} valeur={libelle(b.id)} onChange={(v) => changerLibelle(b.id, v)} />
@@ -149,7 +149,7 @@ export function CarteComprise({ videoId, vue, carte, imageUrl }: { videoId: stri
                     type="button"
                     aria-pressed={dit}
                     onClick={() => setC((v) => ({ ...v, aDire: { ...v.aDire, [x.id]: !dit } }))}
-                    className={cn("min-h-11 rounded-full border px-3 text-sm font-semibold", dit ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-2 text-texte-faible line-through", x.unSeul && "ring-2 ring-ambre")}
+                    className={cn("min-h-11 rounded-full border px-3 text-sm font-semibold", dit ? "border-accent bg-accent-doux text-accent" : "border-trait bg-surface-2 text-texte-faible line-through", x.unSeul && "ring-2 ring-ambre")}
                   >
                     {x.brut}
                   </button>

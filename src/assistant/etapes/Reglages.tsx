@@ -127,8 +127,8 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
       <AnimatePresence initial={false}>
         {actives.etalonnage && luts.length > 0 && (
           <Bloc key="lut" icone="contraste" titre="Couleurs">
-            <div role="radiogroup" aria-label="LUT" className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-              {/* « Sans LUT » toujours possible (lot M4) : aucune couleur ajoutée, même pas celle du visage. */}
+            <div role="radiogroup" aria-label="Rendu des couleurs" className="sans-barre -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              {/* « Sans rendu des couleurs » toujours possible (lot M4) : aucune couleur ajoutée, même pas celle du visage. */}
               <button
                 type="button"
                 role="radio"
