@@ -113,4 +113,39 @@ describe("compterEchecs (pur)", () => {
     expect(nettoyerDetail("82,667 s")).toBe("82,667 s");
     expect(nettoyerDetail("étape 3/7")).toBe("étape 3/7");
   });
+  it("nettoyage : forme JSON, montant et devise séparés (clés d'argent, devise quelconque)", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail('{"amount": 1250, "currency": "usd"}')).toBe(`{"amount": ${m}, "currency": "usd"}`);
+    expect(nettoyerDetail('{"balance":0.75,"Price": "12,5"}')).toBe(`{"balance":${m},"Price": "${m}"}`);
+    expect(nettoyerDetail("cost=3.4 total: 99, credits=10 montant: 5 solde=2 prix: 8")).toBe(`cost=${m} total: ${m}, credits=${m} montant: ${m} solde=${m} prix: ${m}`);
+    expect(nettoyerDetail('{"CREDIT": 7}')).toBe(`{"CREDIT": ${m}}`);
+    expect(nettoyerDetail("amount: 3/7")).toBe("amount: 3/7");
+  });
+
+  it("nettoyage : milliers avec espace, « 12k€ », autres devises", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail("solde 1 234,56 €")).toBe(`solde ${m}`);
+    expect(nettoyerDetail("reste 1 234 567 EUR ok")).toBe(`reste ${m} ok`);
+    expect(nettoyerDetail("1\u202f234,56 €")).toBe(m);
+    expect(nettoyerDetail("budget 12k€")).toBe(`budget ${m}`);
+    expect(nettoyerDetail("2M$")).toBe(m);
+    expect(nettoyerDetail("5 CAD, 7 CHF, 300 JPY, ¥500, CHF 12.5")).toBe(`${m}, ${m}, ${m}, ${m}, ${m}`);
+  });
+
+  it("nettoyage : faux positifs corrigés (code HTTP avant « credits », lettres accentuées)", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail("error 402 credits exhausted")).toBe("error 402 credits exhausted");
+    expect(nettoyerDetail("HTTP 402 credits exhausted")).toBe("HTTP 402 credits exhausted");
+    expect(nettoyerDetail("erreur 402 crédits épuisés")).toBe("erreur 402 crédits épuisés");
+    expect(nettoyerDetail("3 créditées")).toBe("3 créditées");
+    expect(nettoyerDetail("reste 402 credits")).toBe(`reste ${m}`);
+    expect(nettoyerDetail("error 40 credits")).toBe(`error ${m}`);
+  });
+
+  it("nettoyage : ne masque toujours pas code HTTP, durée, étape, identifiant", () => {
+    expect(nettoyerDetail("HTTP 429")).toBe("HTTP 429");
+    expect(nettoyerDetail("82,667 s")).toBe("82,667 s");
+    expect(nettoyerDetail("étape 3/7")).toBe("étape 3/7");
+    expect(nettoyerDetail("travail tr-1234 vidéo v-98")).toBe("travail tr-1234 vidéo v-98");
+  });
 });
