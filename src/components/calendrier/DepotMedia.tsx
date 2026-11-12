@@ -20,12 +20,15 @@ export interface FichierChoisi {
 }
 
 export type ResultatEnvoiChoisi =
-  | { ok: true; videoId?: string; visuelId?: string; refuse?: string }
-  | { ok: false; message: string };
+  | { ok: true; videoId?: string; visuelId?: string; refuse?: string; nonEnvoye?: string };
+
+export const PHRASE_FORMAT_REFUSE = "Le fichier n'a pas été envoyé : format refusé pour ce réseau. L'entrée est créée sans lui, à compléter.";
+export const PHRASE_ENVOI_ECHEC = "Le fichier n'a pas été envoyé (connexion) : l'entrée est créée sans lui, à joindre ensuite.";
 
 /**
  * Envoie réellement le fichier choisi (dépôt existant, vers l'entrée du formulaire) et renvoie l'identifiant à rattacher.
- * Un format refusé par le réseau n'est JAMAIS envoyé : l'ajout continue sans fichier, avec la raison.
+ * Un format refusé par le réseau n'est JAMAIS envoyé, et un envoi en échec non plus : dans les deux cas l'ajout continue
+ * SANS fichier (un ajout manuel n'est jamais bloqué) et `nonEnvoye` donne la phrase à montrer.
  */
 export async function envoyerFichierChoisi(
   fichier: File | null | undefined,
@@ -35,12 +38,12 @@ export async function envoyerFichierChoisi(
 ): Promise<ResultatEnvoiChoisi> {
   if (!fichier) return { ok: true };
   const v = verifierFormat(reseau, { mime: fichier.type, taille: fichier.size });
-  if (!v.ok) return { ok: true, refuse: v.raison };
+  if (!v.ok) return { ok: true, refuse: v.raison, nonEnvoye: `${PHRASE_FORMAT_REFUSE} ${v.raison}` };
   try {
     const { fichierId } = await envoyer(fichier, { typeEntite: "entree", entiteId });
     return typeDuMime(fichier.type) === "video" ? { ok: true, videoId: fichierId } : { ok: true, visuelId: fichierId };
   } catch {
-    return { ok: false, message: "Le fichier n'a pas pu être envoyé : rien n'a été ajouté. Vérifiez la connexion et réessayez." };
+    return { ok: true, nonEnvoye: PHRASE_ENVOI_ECHEC };
   }
 }
 
