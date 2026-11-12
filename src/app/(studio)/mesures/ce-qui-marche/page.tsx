@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { CeQuiMarche } from "@/components/generateur/CeQuiMarche";
+import { OngletsResultats } from "@/components/mesures/OngletsResultats";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { apprentissageActif } from "@/services/apprentissage";
 import { exigerSession } from "@/services/auth";
 import { ceQuiMarche, modesLecture } from "@/services/mesures-completes";
 
-export const metadata: Metadata = { title: "Ce qui marche" };
+export const metadata: Metadata = { title: "Résultats" };
 export const dynamic = "force-dynamic";
 
 /**
- * CE QUI MARCHE (plan v5 B.8 §3 et §8, lot G7b) : rangs par réseau, ce qui revient devant (format, structure, ouverture),
+ * RÉSULTATS › CE QUI MARCHE (refonte R8a ; plan v5 B.8 §3 et §8, lot G7b) : rangs par réseau, ce qui revient devant (format, structure, ouverture),
  * et les 5 vidéos les plus proches d'une version prête. Des rangs mesurés, jamais une prévision.
  */
 export default async function PageCeQuiMarche() {
@@ -20,7 +21,8 @@ export default async function PageCeQuiMarche() {
   const modes = modesLecture();
   return (
     <ConteneurPage largeur="lecture">
-      <EnTetePage retour={{ href: "/mesures", libelle: "Mesures" }} titre="Ce qui marche" sousTitre={donnees.nombre ? `${donnees.nombre} vidéos mesurées` : undefined} />
+      <EnTetePage titre="Résultats" sousTitre={donnees.nombre ? `${donnees.nombre} vidéos mesurées` : "Notez les chiffres de vos vidéos publiées, puis regardez ce qui marche le mieux."} className="mb-4" />
+      <OngletsResultats actif="marche" />
       <CeQuiMarche donnees={donnees} apprentissage={apprentissage} essai={modes.buffer === "simulation" && modes.visites === "simulation"} />
     </ConteneurPage>
   );

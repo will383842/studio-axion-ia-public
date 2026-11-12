@@ -42,6 +42,8 @@ export const PARAM_ACCORD_ESSAI_FA = "facecamAnimee.accordEssaiReel";
 /** Plafond Claude propre d'une vidéo face caméra animée (dollars) : jusqu'à 3 essais du réalisateur. */
 export const PARAM_PLAFOND_CLAUDE_FA = "facecamAnimee.plafondClaudeUsd";
 export const PLAFOND_CLAUDE_FA_USD = 4;
+/** GV-MD-03b : calage des animations sur le début du mot dit. ÉTEINT par défaut (allumé seulement si la valeur vaut exactement `true`). */
+export const PARAM_CALAGE_AU_MOT_FA = "facecamAnimee.calageAuMot";
 export const PREFIXE_ETAPE_FA = "Face caméra animée ·";
 /** Contrôle visuel des vidéos d'illustration (Sonnet) : plafond propre par vidéo finale, 0,60 $ (décision de Will du 18/10) ; défini avec les autres plafonds propres. */
 export { PARAM_PLAFOND_VIDEOS_FA, PREFIXE_ETAPE_VIDEOS_FA };
@@ -151,8 +153,17 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   // Lot R2 : éteint par défaut ; allumé, pièces du stock (le fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
   const planScenes = dep.planScenes !== undefined ? dep.planScenes : (await planScenesActif("facecam-animee", lireParametre)) ? {} : null;
 
+  // GV-MD-03b : éteint par défaut ; une lecture en échec vaut éteint (rendu des vidéos existantes inchangé).
+  let calageAuMot = false;
+  try {
+    calageAuMot = (await lireParametre<unknown>(PARAM_CALAGE_AU_MOT_FA, false)) === true;
+  } catch {
+    calageAuMot = false;
+  }
+
   return {
     ...(planScenes ? { planScenes } : {}),
+    ...(calageAuMot ? { calageAuMot } : {}),
     async transcrire({ priseCle, appelId }) {
       if (dep.transcrire) return dep.transcrire({ priseCle, appelId });
       const [{ fournisseurFacecam }, { lireJsonGz }] = await Promise.all([import("@/fournisseurs/facecam"), import("./monteur-facecam")]);

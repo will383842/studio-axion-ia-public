@@ -1,0 +1,8 @@
+# NEW-ARG-01i — journal final
+- Fait : « Montant (€) » → « Montant » (sans suffixe ni exemple chiffré) dans Credits.tsx ; « (€) » retiré des deux libellés de CreditClaude.tsx ; titre « Coûts » → « Chiffres » (OngletDetails.tsx) ; icône euro → curseurs (reglages/page.tsx). Aucune donnée, action ni garde-fou touché.
+- Test autorisé d'office : tests/sans-prix/new-arg-01i.test.tsx (4 verts ; 4 rouges sans le code). Critère 1 tenu : lignes 70-110 du test (rendu sans € $ EUR USD euros dollars coût prix). Critère 2 tenu : saisies et boutons toujours rendus (mêmes lignes) ; tests voisins verts (aucun-prix-affiche, sans-prix-credits, chiffres-ecrans, source-claude, mise-en-page, alertes-credits-claires). Critère 3 : tsc sans erreur sur les 4 fichiers ; thème inchangé.
+- Échec déjà présent sur master, non lié : tests/fiche-video-ordre.test.ts (1 échec identique avant et après).
+- Icône de reglages/page.tsx : non testée par rendu (page serveur lourde) ; changement d'une valeur littérale.
+- PILOTAGE : Credits.tsx ligne ~170, la saisie « Montant » sert à declarerRechargeAction (note la recharge, relance les vidéos en attente) ; gardée, saisie toujours convertie en dollars via le taux du réglage, unité non affichée. CreditClaude.tsx : le champ « Crédit du cycle » reste pré-rempli de la valeur enregistrée (un chiffre en saisie, pas un libellé) ; non retiré pour ne pas casser la saisie. Décision du fondateur utile : unité à indiquer ou non.
+- contrôle anti-fuite : vide
+- CORRECTIF du pilote (12/11) : les exceptions « prix » de Credits.tsx et CreditClaude.tsx sont retirées de outils/gardes/regles-de-fer.mjs, devenues périmées puisque ces écrans n'affichent plus de prix.

@@ -43,7 +43,13 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["recu", "Accusé de réception"],
   ["adresse-non-reconnue", "Adresse non reconnue (on la redemande)"],
   ["lien-rappel", "Rappel avec le lien"],
+  ["ig-suivre", "Instagram, réponse privée unique"],
+  ["ig-pas-encore", "Instagram, la personne ne suit pas encore"],
+  ["deja-envoye", "Déjà envoyé"],
+  ["pub-commentaire", "Réponse publique au commentaire"],
 ];
+/** Groupes proposés (série 6) : à relire et valider, mais aucun envoi n'est encore branché dessus. */
+const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore", "deja-envoye", "pub-commentaire", "lien-rappel"]);
 
 /**
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
@@ -127,6 +133,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
           {GROUPES_ECRAN.map(([groupe, titre]) => (
             <div key={groupe} className="mt-3" data-groupe={groupe}>
               <h4 className="text-sm font-semibold text-texte">{titre}</h4>
+              {GROUPES_PAS_ENCORE_BRANCHES.has(groupe) && <p className="mt-1 text-sm text-texte-doux">Ce groupe n’est pas encore branché : ces formulations sont des propositions, rien n’est envoyé avec.</p>}
               <ul className="mt-2 flex flex-col gap-3">
                 {(vue.formulations ?? []).filter((f) => f.groupe === groupe).map((f) => (
                   <li key={f.version} className="flex flex-col gap-2" data-formulation={f.version}>
