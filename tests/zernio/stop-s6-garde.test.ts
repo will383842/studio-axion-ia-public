@@ -52,6 +52,34 @@ const APPELANTS_REQUETE_BRUTE = [
   "fournisseurs/mesures/zernio.ts",
   "fournisseurs/higgsfield/client.ts",
 ];
+/**
+ * Liste fermée : fichiers où `.requete` n'est PAS le client Zernio : champ de données (`plan.illustration.requete`,
+ * `p.requete`…) ou client Heygen/Claude (`.requete<T>(…)`). Un nouveau fichier qui touche `.requete` rougit.
+ */
+const ACCES_REQUETE_AUTRE_QUE_ZERNIO = [
+  "assistant/etapes/Apercu.tsx",
+  "briques/intensite/montage.ts",
+  "briques/schema-motion/emprise.ts",
+  "briques/schema-motion/plan-objets.ts",
+  "domaine/illustrations.ts",
+  "fournisseurs/claude/lots.ts",
+  "fournisseurs/credits/heygen.ts",
+  "fournisseurs/heygen/looks.ts",
+  "fournisseurs/heygen/rendus.ts",
+  "fournisseurs/heygen/videos-compte.ts",
+  "fournisseurs/heygen/voix.ts",
+  "fournisseurs/illustration/fal.ts",
+  "moteurs/montage-avocat/decoupage.ts",
+  "moteurs/montage-avocat/fabrication-illustrations.ts",
+  "moteurs/montage-facecam-animee/images/index.ts",
+  "services/boucle-visibilite.ts",
+  "services/comite-editorial.ts",
+  "services/decors.ts",
+  "services/gardien-chiffres.ts",
+  "services/illustrations.ts",
+  "services/retouche-chat/generateurs.ts",
+  "services/videos.ts",
+];
 /** Fichiers où un nom de méthode d'envoi n'est pas celui du port Inbox (fonction `envoyerMessage` propre à Claude). */
 const HORS_PORT_ENVOI = /^fournisseurs\/claude\//;
 /** Liste fermée : fichiers qui construisent le port Inbox (`creerPortInboxZernio`). */
@@ -111,7 +139,7 @@ const fichiersContenant = (re: RegExp): string[] =>
 /** Texte du client avec les `\/` d'une regex littérale remis en `/` : une route écrite `/^\/v1\/inbox\/…$/` reste visible. */
 const normaliser = (s: string): string => s.replace(/\\\//g, "/");
 
-/** Routes Inbox du tableau ROUTES : écritures (POST), toutes, et décompte indépendant des lignes qui parlent d'inbox. */
+/** Routes Inbox du tableau ROUTES : écritures (POST), toutes, et décompte indépendant des mentions d'inbox dans le tableau. */
 function routesInbox(clientBrut: string) {
   const client = normaliser(clientBrut);
   const ecritures = [
@@ -126,17 +154,21 @@ function routesInbox(clientBrut: string) {
   ]
     .map((m) => m[1])
     .sort();
-  const lignesInbox = client
-    .split("\n")
-    .filter((l) => /\bmethode:\s*"/.test(l) && /inbox/i.test(l)).length;
+  // Tableau ROUTES isolé (de `const ROUTES` jusqu'au `];` qui le ferme), blancs écrasés : une route écrite sur
+  // PLUSIEURS lignes compte comme les autres. -1 = tableau introuvable (la garde rougit).
+  const bloc = /const ROUTES\b[\s\S]*?\n\];/.exec(client)?.[0];
+  const lignesInbox = bloc
+    ? [...bloc.replace(/\s+/g, " ").matchAll(/inbox/gi)].length
+    : -1;
   return { ecritures, tous, lignesInbox };
 }
 
-/** Le port : `ecrire(` (définition + 3 appels, un par méthode d'envoi) et `client.requete(` (ecrire + lireMessage GET). */
+/** Le port : `ecrire` (définition + 3 appels, un par méthode d'envoi : 4 mentions au total, aucune référence nue) et `client.requete(` (ecrire + lireMessage GET). */
 function analysePort(port: string): string[] {
   const erreurs: string[] = [];
   if (!/consommerJetonNonOpposee/.test(port)) erreurs.push("jeton absent");
-  const nbEcrire = [...port.matchAll(/\becrire\(/g)].length;
+  // TOUTES les mentions (une référence nue comme `masquer: ecrire` compte aussi) : 1 définition + 3 appels.
+  const nbEcrire = [...port.matchAll(/\becrire\b/g)].length;
   if (nbEcrire !== 4)
     erreurs.push(`ecrire( : ${nbEcrire} occurrences au lieu de 4`);
   const requetes = [...port.matchAll(/\bclient\.requete\(/g)];
@@ -169,7 +201,7 @@ function analysePort(port: string): string[] {
     const suivants = [...debuts.map((d) => d.i), iLire].filter((x) => x > i);
     const fin = suivants.length ? Math.min(...suivants) : port.length;
     const bloc = port.slice(i, fin);
-    const n = [...bloc.matchAll(/\becrire\(/g)].length;
+    const n = [...bloc.matchAll(/\becrire\b/g)].length;
     if (n !== 1) erreurs.push(`${m} : ${n} appel(s) à ecrire( au lieu de 1`);
     const iJeton = bloc.search(/jetonRefuse\(p\.nonOpposee\)/);
     const iEcrire = bloc.search(/\becrire\(/);
@@ -179,15 +211,20 @@ function analysePort(port: string): string[] {
   return erreurs;
 }
 
-/** Appelants de `.requete(` hors client, SANS regarder les imports. */
+/** Accès à `requete` : `.requete` (appel, `.call(`, référence passée) ou `["requete"]` entre crochets. */
+const ACCES_REQUETE = /\.requete\b|\[\s*["'`]requete["'`]\s*\]/;
+/** Appelants de `.requete` hors client, SANS regarder les imports. */
 const appelantsBruts = (sources: ReadonlyMap<string, string>): string[] =>
-  fichiersContenantDans(sources, /\.requete\(/).filter((f) => f !== CLIENT);
+  fichiersContenantDans(sources, ACCES_REQUETE).filter(
+    (f) => f !== CLIENT && !ACCES_REQUETE_AUTRE_QUE_ZERNIO.includes(f),
+  );
 
-/** Déstructuration d'une méthode d'envoi hors du port (ignore `import` et fournisseurs/claude/*). */
-const DESTRUCTURATION = new RegExp(
-  `\\{[^}]*\\b(${METHODES_ENVOI.join("|")})\\b[^}]*\\}\\s*=`,
-);
-function destructurations(sources: ReadonlyMap<string, string>): string[] {
+/**
+ * Hors du port, hors `fournisseurs/claude/` et hors lignes `import`, chaque méthode d'envoi doit avoir autant de
+ * mentions `\bM\b` que d'appels `.M(`. Toute autre mention (déstructuration simple, en paramètre, imbriquée, alias,
+ * référence passée) fait rougir. Sur le code actuel : aucune exception (les mentions en commentaire sont déjà retirées).
+ */
+function mentionsNonAppelees(sources: ReadonlyMap<string, string>): string[] {
   const res: string[] = [];
   for (const [f, s] of sources) {
     if (f === PORT || HORS_PORT_ENVOI.test(f)) continue;
@@ -195,7 +232,12 @@ function destructurations(sources: ReadonlyMap<string, string>): string[] {
       .split("\n")
       .filter((l) => !/^\s*import\b/.test(l))
       .join("\n");
-    if (DESTRUCTURATION.test(lignes)) res.push(f);
+    for (const m of METHODES_ENVOI) {
+      const mentions = [...lignes.matchAll(new RegExp(`\\b${m}\\b`, "g"))]
+        .length;
+      const appels = [...lignes.matchAll(new RegExp(`\\.${m}\\(`, "g"))].length;
+      if (mentions !== appels) res.push(`${f} (${m})`);
+    }
   }
   return res.sort();
 }
@@ -339,10 +381,10 @@ describe("S6 (A) garde statique · aucune porte d'envoi ne contourne « stop par
         }
       }
     }
-    const destr = destructurations(SOURCES);
+    const destr = mentionsNonAppelees(SOURCES);
     expect(
       destr,
-      echec("Déstructuration d'une méthode d'envoi du port", destr),
+      echec("Mention non appelée d'une méthode d'envoi du port", destr),
     ).toEqual([]);
     expect(
       total,
@@ -367,13 +409,15 @@ describe("S6 (A bis) preuves que les gardes détectent les cas pièges", () => {
   it("les vrais fichiers passent (point de départ des mutations)", () => {
     expect(routesInbox(clientOk).lignesInbox).toBe(4);
     expect(analysePort(portOk)).toEqual([]);
-    expect(destructurations(SOURCES)).toEqual([]);
+    expect(mentionsNonAppelees(SOURCES)).toEqual([]);
   });
 
   it("(1) une route Inbox écrite en regex littérale est vue, et une 5e route fait bouger le décompte", () => {
+    const iFin = clientOk.indexOf("\n];", clientOk.indexOf("const ROUTES"));
     const fautif =
-      clientOk +
-      '\nexport const ROUTES_PIEGE = [\n  { methode: "POST", motif: /^\\/v1\\/inbox\\/secret\\/[a-z]+$/, route: "envoi-secret" },\n];\n';
+      clientOk.slice(0, iFin) +
+      '\n  { methode: "POST", motif: /^\\/v1\\/inbox\\/secret\\/[a-z]+$/, route: "envoi-secret" },' +
+      clientOk.slice(iFin);
     const r = routesInbox(sansCommentaires(fautif, CLIENT));
     expect(r.ecritures).toContain("envoi-secret");
     expect(r.tous).toContain("envoi-secret");
@@ -459,9 +503,57 @@ describe("S6 (A bis) preuves que les gardes détectent les cas pièges", () => {
       ["fournisseurs/claude/d.ts", "const { envoyerMessage } = outils;"],
       [PORT, "const { repondreCommentaire } = autre;"],
     ]);
-    expect(destructurations(sources)).toEqual([
-      "services/a.ts",
-      "services/b.ts",
+    expect(mentionsNonAppelees(sources)).toEqual([
+      "services/a.ts (repondreEnPrive)",
+      "services/b.ts (envoyerMessage)",
+    ]);
+  });
+
+  it("(6) une référence nue à ecrire dans le port fait rougir", () => {
+    const nue = portOk.replace(
+      "async lireMessage(p) {",
+      "async lireMessage(p) {\n      void { masquer: ecrire };",
+    );
+    expect(nue).not.toBe(portOk);
+    expect(analysePort(nue).join(" ")).toMatch(/ecrire\( : 5 occurrences/);
+    expect(analysePort("masquer: ecrire,\n" + portOk)).not.toEqual([]);
+  });
+
+  it("(7) un appel .requete entre crochets, .call( ou passé sans appel est repéré", () => {
+    for (const code of [
+      'export const f = (c: any) => c["requete"]({ methode: "POST" });',
+      "export const f = (c: any) => c[`requete`]({});",
+      "export const f = (c: any) => c.requete.call(c, {});",
+      "export const f = (c: any) => autre(c.requete);",
+    ]) {
+      const sources = new Map(SOURCES);
+      sources.set("services/intrus.ts", code);
+      expect(appelantsBruts(sources), code).toContain("services/intrus.ts");
+    }
+  });
+
+  it("(8) une 5e route POST Inbox écrite sur plusieurs lignes fait bouger le décompte", () => {
+    const iFin = clientOk.indexOf("\n];", clientOk.indexOf("const ROUTES"));
+    expect(iFin).toBeGreaterThan(-1);
+    const fautif =
+      clientOk.slice(0, iFin) +
+      '\n  {\n    methode: "POST",\n    motif: /^\\/v1\\/inbox\\/secret$/,\n    route: "envoi-secret",\n  },' +
+      clientOk.slice(iFin);
+    expect(routesInbox(fautif).lignesInbox).toBe(5);
+    expect(routesInbox("export const X = 1;").lignesInbox).toBe(-1);
+  });
+
+  it("(9) déstructuration en paramètre ou imbriquée : repérée", () => {
+    const sources = new Map<string, string>([
+      [
+        "services/p.ts",
+        "export async function _y({ envoyerMessage }: any) { return envoyerMessage; }",
+      ],
+      ["services/q.ts", "const { port: { repondreCommentaire } } = d;"],
+    ]);
+    expect(mentionsNonAppelees(sources)).toEqual([
+      "services/p.ts (envoyerMessage)",
+      "services/q.ts (repondreCommentaire)",
     ]);
   });
 });
