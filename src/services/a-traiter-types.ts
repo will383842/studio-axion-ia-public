@@ -5,9 +5,20 @@
 export const VARIABLE_INTERRUPTEUR_A_TRAITER = "A_TRAITER_ENABLED";
 export const EXTRAIT_MAX = 140;
 
-export const RESEAUX_A_TRAITER = ["linkedin", "tiktok", "youtube", "facebook", "instagram"] as const;
+export const RESEAUX_A_TRAITER = [
+  "linkedin",
+  "tiktok",
+  "youtube",
+  "facebook",
+  "instagram",
+] as const;
 export type ReseauATraiter = (typeof RESEAUX_A_TRAITER)[number];
-export const MOTIFS = ["echec_envoi", "mot_dans_phrase", "mot_inconnu", "mot_manuel"] as const;
+export const MOTIFS = [
+  "echec_envoi",
+  "mot_dans_phrase",
+  "mot_inconnu",
+  "mot_manuel",
+] as const;
 export type Motif = (typeof MOTIFS)[number];
 export type StatutATraiter = "a_traiter" | "fait" | "ignore";
 
@@ -27,6 +38,12 @@ export interface CarteATraiter {
   statut: StatutATraiter;
   /** Réponse proposée, validée par `controlerTexteSortant`, sinon null. */
   kit: string | null;
+  /** La personne a demandé l'arrêt : AUCUNE action d'envoi, seulement classer la carte. Jamais d'identifiant ici. */
+  opposee?: boolean;
+  /** Empreintes opaques de la personne (une par espace, jamais l'identifiant brut), pour revérifier l'opposition à la lecture. */
+  empreintes?: string[];
+  /** Identifiant (kid) de la clé courante à la création : si elle change, la carte est traitée comme opposée (fermé). */
+  kid?: string;
 }
 
 export interface EntreeATraiter {
@@ -38,6 +55,10 @@ export interface EntreeATraiter {
   motif: string;
   commentaire: string;
   reponse?: string | null;
+  /** Vrai si la personne a demandé l'arrêt : pas de réponse proposée. */
+  opposee?: boolean;
+  /** Identifiant opaque du contact : sert seulement à calculer les empreintes gardées dans la carte (jamais conservé). */
+  idContact?: string | null;
   creeLe?: string;
 }
 
@@ -49,7 +70,17 @@ export interface VueATraiter {
   compteur: number | null;
 }
 
-export type ResultatChangement = { issue: "execute" | "simule" | "refuse"; raison: string };
-const INVERSES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
+export type ResultatChangement = {
+  issue: "execute" | "simule" | "refuse";
+  raison: string;
+};
+const INVERSES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+};
 /** Pour l'affichage seulement : React échappe lui-même, on rend donc le texte lisible. */
-export const extraitLisible = (extrait: string): string => extrait.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => INVERSES[m]);
+export const extraitLisible = (extrait: string): string =>
+  extrait.replace(/&(?:amp|lt|gt|quot|#39);/g, (m) => INVERSES[m]);

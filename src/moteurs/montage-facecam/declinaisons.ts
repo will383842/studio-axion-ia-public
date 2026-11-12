@@ -65,7 +65,7 @@ import { alertesControles, bandeDesPlans, cleResultat, dimensionsSource, ESSAIS_
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
 import type { AjustementCarteAutoMonte } from "./cartes-video";
-import { cartesPosees, habillageFacecam, marquerMotsDuScript, planUnique, type CartePosee, type EntreeHabillageFacecam, type HabillageFacecam, type RenduCarte } from "./habillage";
+import { cartesPosees, intensiteLutCommande, habillageFacecam, marquerMotsDuScript, planUnique, type CartePosee, type EntreeHabillageFacecam, type HabillageFacecam, type RenduCarte } from "./habillage";
 
 
 /** Ce que la chaîne garde pour les déclinaisons (petit : clés, plans, identifiants ; jamais d'image). */
@@ -233,7 +233,7 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
         bande,
         image: entrees.image,
         ...(fini(t.visages) && visages?.pointsCle ? { points: await lire(visages.pointsCle), ...(visages.pisteVisageCle ? { piste: await lire(visages.pisteVisageCle) } : {}) } : {}),
-        ...(lut ? { lut: { adresse: await lire(lut.cle), intensite: c.styles.lut?.intensite ?? 60 } } : {}),
+        ...(lut ? { lut: { adresse: await lire(lut.cle), intensite: intensiteLutCommande(c.styles.lut) } } : {}),
         ...(look?.peauLab ? { lookWill: look } : {}),
         cles: { image: cle("image-10bits-formats.mp4") },
       },
@@ -523,7 +523,7 @@ export async function avancerReexportFacecam(travail: Travail, commande: Command
         const lut = commande.styles.lut && commande.styles.lut.id !== "aucune" ? commande.medias?.[commande.styles.lut.id] : undefined;
         await preparerHabillagesFormats(
           etat,
-          { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
+          { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(commande.styles.lut) / 100 } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
           deps.habillage,
         );
       }
@@ -672,7 +672,7 @@ export function habillageFacecamRatio(e: EntreeHabillageFacecam & { plansFormat?
     positionSousTitresPct: position,
     ...(ecransPartages.length ? { ecransPartages } : {}),
     ...(cartesPleinEcran.length ? { cartesPleinEcran } : {}),
-    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle } } : {}),
+    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle, ...(e.lookLutIntensite !== undefined ? { intensite: e.lookLutIntensite } : {}) } } : {}),
     ...(echelle !== undefined ? { echelleSousTitres: echelle } : {}),
     ...(textesAffiches.length ? { textesAffiches } : {}),
   };
