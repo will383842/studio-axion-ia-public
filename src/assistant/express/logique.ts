@@ -271,7 +271,7 @@ export function libelleBoutonFabriquer(p: { montant?: Montant | null; dureeFabri
 
 /** Ancienne ligne de prix sous le bouton d'un essai : règle du fondateur, plus rien à l'écran. */
 export function prixEnVrai(montant: Montant | null | undefined): string | null {
-  void montant; // Règle de Williams : aucun montant à l'écran.
+  void montant; // Règle : aucun montant à l'écran.
   return null;
 }
 
