@@ -61,4 +61,20 @@ describe("E2E-2 parcours n° 2 · « Fabriquer cette version » refusé", () => 
     expect(rejeu.videoId).toBe(ok.videoId);
     expect(await depots().videos.compter()).toBe(toutesAvant);
   });
+
+  it("opération nouvelle (op-b) : le montant ne refuse pas ; la version a déjà sa vidéo, elle la reprend sans en créer une seconde", async () => {
+    const r = await bg.lancerGeneration({ idee: SUJETS_BANC[0].idee, reseaux: [...RESEAUX_DECLINAISON], formatId: "avocat", pilier: SUJETS_BANC[0].pilier.id, mode: "avatar" as const });
+    if (!r.ok) throw new Error("lancement");
+    await bg.tourBoucleGeneration();
+    const v = (await depots().variantes.lister((x) => x.scriptMaitreId === r.scriptMaitreId))[0];
+    await depots().variantes.modifier(v.id, { etat: "validee" });
+    await ecrireParametre("budget.mensuel", centimes(1));
+    const ok = await bg.fabriquerVariante(v.id, { operationId: "op-a", lancer: true });
+    const avant = await depots().videos.compter();
+    const b = await bg.fabriquerVariante(v.id, { operationId: "op-b", lancer: true });
+    expect(b.travailId).toBeTruthy();
+    expect(b.videoId).toBe(ok.videoId);
+    expect(await depots().videos.compter()).toBe(avant);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
+  });
 });

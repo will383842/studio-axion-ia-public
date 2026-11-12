@@ -98,15 +98,21 @@ describe("B5 · « Réessayer » revérifie le budget et les crédits", () => {
     expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
   });
 
-  it("au-delà du seuil : la relance demande une confirmation, puis repart une fois confirmée", async () => {
+  it("origine Studio, au-delà du seuil : la relance repart sans demande de confirmation de prix", async () => {
     const travailId = await travailEnEchec();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-    const refus = await travaux.reessayerTravail(travailId).catch((e: { code?: string; montant?: number }) => e);
-    expect(refus).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    // Seconde relecture paquet 4 (R2) : au-delà du seuil, c'est le MONTANT vu qui confirme (`true` ne suffit plus).
-    await expect(travaux.reessayerTravail(travailId, { confirme: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    const r = await travaux.reessayerTravail(travailId, { confirme: (refus as { montant: number }).montant });
+    const r = await travaux.reessayerTravail(travailId);
     expect(r.statut).not.toBe("echec");
+  });
+
+  it("origine « usine », au-delà du seuil : la relance reste refusée (le travail reste en échec)", async () => {
+    const travailId = await travailEnEchec();
+    const t = (await depots().travaux.obtenir(travailId))!;
+    const v = (await depots().versions.obtenir(t.versionId!))!;
+    await depots().versions.modifier(v.id, { commande: { ...v.commande, origine: "usine" } });
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
+    await expect(travaux.reessayerTravail(travailId)).rejects.toMatchObject({ code: expect.stringMatching(/^(CONFIRMATION_REQUISE|BUDGET_USINE_ABSENT|BUDGET_MENSUEL_ATTEINT|BUDGET_DEPASSE)$/) });
+    expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
   });
 
   it("seul le coût RESTANT compte : ce qui est déjà payé ne bloque pas la relance", async () => {

@@ -83,7 +83,7 @@ describe("B4 · décor payé jamais abandonné puis repayé", () => {
     expect(doublure.soumissions).toBe(3);
   });
 
-  it("contrôle du budget avec réservation : deux demandes en même temps ne passent pas sur le même restant", async () => {
+  it("contrôle du budget avec réservation : deux demandes en même temps passent toutes les deux, avec une alerte (le montant ne refuse plus)", async () => {
     doublure.suiviEnPanne = false;
     // fal.ai prend un instant à répondre : les deux demandes se chevauchent.
     doublure.lentMs = 50;
