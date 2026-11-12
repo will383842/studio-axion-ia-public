@@ -50,6 +50,7 @@ import { lireFamilles } from "./hashtags";
 import { listerSeries, serieDeVideo, votreMarqueDeVideo } from "./series";
 import { creerNotification } from "./notifications";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
+import { choisirSourceTextePost, scriptGardeEcrans, scriptGardeFacecam, scriptGardeTableau, type OrigineSourcePost } from "./source-texte-post";
 import { formatSansRedacteur, textesDeLaVersion, type TextesDeVersion } from "./textes-version-generateur";
 import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
@@ -71,11 +72,37 @@ interface SourceTextes {
   credits: string[];
   /** Équipe 7 : « Vos hashtags » par réseau (les textes du studio y piochent, le code l'applique). */
   familles: FamillesHashtags;
+  /** TXT-SOURCE : d'où vient `texteValide` (« titre » : aucun script, l'écran le dit). */
+  texteDepuis: OrigineSourcePost;
+}
+
+/**
+ * TXT-SOURCE : les scripts que le générateur de la vidéo a gardés (brouillon du tableau, script validé de la face caméra
+ * animée, écrans du cas concret, fiche de l'image → vidéo). Lecture seule, tolérante : au moindre doute, rien.
+ */
+async function scriptsGardesParLeGenerateur(video: Video): Promise<(string | null)[]> {
+  const gardes: (string | null)[] = [scriptGardeTableau(video.entrees)];
+  try {
+    const d = depots();
+    const versions = (await d.versions.lister((v) => v.videoId === video.id)).sort((a, b) => b.numero - a.numero);
+    gardes.push(...versions.map((v) => scriptGardeFacecam(v.commande?.entrees)));
+    const { ID_MOTEUR_CAS_CONCRET } = await import("@/moteurs/montage-cas-concret");
+    const { ficheDuTravail } = await import("./cas-concret-scripts");
+    const cas = versions.find((v) => v.commande?.moteurId === ID_MOTEUR_CAS_CONCRET && v.travailId);
+    gardes.push(cas ? scriptGardeEcrans(ficheDuTravail((await d.travaux.obtenir(cas.travailId!)) ?? null)?.ecrans) : null);
+    const { travailImageVideo } = await import("./image-video-carte");
+    const etat = (await travailImageVideo(video.id))?.parametres?.imageVideo as { version?: unknown; script?: { fiche?: { ecrans?: unknown } } } | undefined;
+    gardes.push(etat?.version === "fabrication-iv/1" ? scriptGardeEcrans(etat.script?.fiche?.ecrans) : null);
+  } catch {
+    // Illisible : ces sources comptent comme absentes, le titre ne sert qu'à défaut.
+  }
+  return gardes;
 }
 
 async function sourceTextes(video: Video, credits: string[]): Promise<SourceTextes> {
   const script = video.scriptId ? await depots().scripts.obtenir(video.scriptId) : null;
-  return { video, texteValide: script ? texteScript(script.blocs) : video.titre, mention: video.mentionIA.dansLegende ? video.mentionIA.texte + "." : "", credits, familles: await lireFamilles() };
+  const source = choisirSourceTextePost({ scriptRelie: script ? texteScript(script.blocs) : null, gardes: await scriptsGardesParLeGenerateur(video), titre: video.titre });
+  return { video, texteValide: source.texte, texteDepuis: source.origine, mention: video.mentionIA.dansLegende ? video.mentionIA.texte + "." : "", credits, familles: await lireFamilles() };
 }
 
 /** Équipe 7 : mots-dièse d'un texte du studio ramenés à la famille du réseau (sans famille : seulement sans interdit). */
@@ -421,6 +448,8 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
     ...(serie ? { serie } : {}),
     series: (await listerSeries()).map((x) => ({ id: x.id, nom: x.nom })),
     votreMarque: await votreMarqueDeVideo(detail.video),
+    // TXT-SOURCE : « Texte proposé depuis le titre seulement » (jamais pour un format qui écrit lui-même ses textes).
+    ...(!deVersion && source.texteDepuis === "titre" ? { texteDepuis: "titre" as const } : {}),
     credits: kit.credits,
     avantDePublier: cases,
     mentionIAActive: mentionActive,
