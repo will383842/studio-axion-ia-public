@@ -142,6 +142,24 @@ describe("L2-13 · quota de quantité (usine)", () => {
     expect(posts).toBe(1);
   });
 
+  it("la trace « envoi » ne peut pas s'écrire (base indisponible) : l'unité du quota est rendue, rien n'est parti", async () => {
+    await ecrireParametre(pf.CLE_QUOTAS_USINE, [{ periode: "jour", reseau: "fal", type: "image", limite: 1 }]);
+    const f = fabrication();
+    const enregistrer = depots().parametres.enregistrer.bind(depots().parametres);
+    const panne = vi.spyOn(depots().parametres, "enregistrer").mockImplementation(async (p) => {
+      if (p.id.startsWith("fal.demande.") && (p.valeur as { etat?: string })?.etat === "envoi") throw new Error("base indisponible");
+      return enregistrer(p);
+    });
+    await pf.avecOrigineFournisseur("usine", async () => {
+      await expect(f.soumettre(image())).rejects.toThrow("base indisponible");
+      expect(posts).toBe(0);
+      panne.mockRestore();
+      await f.soumettre(image()); // l'unité a été rendue : elle passe
+      expect(posts).toBe(1);
+      expect(await f.soumettre(image()).catch((e) => e)).toMatchObject({ erreur: { code: "quota" } });
+    });
+  });
+
   it("quota illisible (limite 0, négative, texte) : retour au défaut, jamais « tout refusé » ni « sans quota »", async () => {
     for (const mauvais of [[{ periode: "jour", reseau: "fal", type: "image", limite: 0 }], [{ periode: "jour", reseau: "fal", type: "image", limite: -3 }], [{ periode: "an", reseau: "fal", type: "image", limite: 3 }], []]) {
       await ecrireParametre(pf.CLE_QUOTAS_USINE, mauvais);

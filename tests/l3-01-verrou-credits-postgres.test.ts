@@ -168,7 +168,7 @@ describe("1. deux processus réservent ensemble sur le même disponible : un seu
 });
 
 describe("2. `verifierEtReserver` prend le verrou en base et relit ce que l'autre processus a réservé", () => {
-  it("l'autre processus engage 90 € sur 100 € pendant l'attente : la dépense de 20 € est refusée, rien n'est réservé ni engagé", async () => {
+  it("l'autre processus engage presque tout le plafond pendant l'attente : la dépense suivante alerte et se journalise, sans refus", async () => {
     const a = await processus();
     (globalThis as Record<symbol, unknown>)[CLE_DEPOTS] = a;
     await a.parametres.enregistrer(parametre("budget.mensuel", eur(10_000)));
@@ -191,9 +191,11 @@ describe("2. `verifierEtReserver` prend le verrou en base et relit ce que l'autr
     await new Promise((r) => setTimeout(r, 20));
     lacher();
     await cote;
-    await expect(depense).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect(await lireParametre("budget.engage.trv-a", null)).toBeNull();
-    expect(await a.reservations.lister((r) => r.travailId === "trv-a")).toEqual([]);
+    // Le contrôle voit l'engagement de l'autre processus : le dépassement alerte et se journalise, sans refus d'argent.
+    await expect(depense).resolves.toBeUndefined();
+    expect((await a.evenements.lister()).filter((e) => e.type === "budget" && e.message.includes("(mois)"))).toHaveLength(1);
+    expect((await a.notifications.lister()).some((x) => /Budget indicatif du mois dépassé/.test(x.titre))).toBe(true);
+    expect(await lireParametre("budget.engage.trv-a", null)).not.toBeNull();
   });
 
   it("sans dépense de l'autre processus, la même dépense passe et son engagement est écrit en base", async () => {

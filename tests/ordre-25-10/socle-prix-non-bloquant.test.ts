@@ -88,13 +88,15 @@ describe("mode indicatif : le prix ne bloque pas", () => {
     await expect(credits.verifierBudgetEtCredits(estimation(2000), false, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
   });
 
-  it("l'Usine sans budget du mois : BUDGET_USINE_ABSENT toujours levé", async () => {
+  it("l'Usine sans budget du mois : plus de refus, alerte (cloche) et ligne de journal", async () => {
     reinitialiserDepots();
     reinitialiserRequete();
     await auth.seConnecter(MDP, false);
     await ecrireParametre("budget.mensuel", eur(1_000_000));
     await ecrireParametre(CLE_MODE_BUDGET, "indicatif");
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", { videoId: "v-u", travailId: "trv-u" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", { videoId: "v-u", travailId: "trv-u" })).resolves.toBeUndefined();
+    expect((await depots().notifications.lister()).filter((n) => /Usine/.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(usine-absent\)/.test(e.message)).length).toBeGreaterThan(0);
   });
 
   it("sous le seuil, accord false : rien au journal, aucune cloche ; à 0 € non plus", async () => {

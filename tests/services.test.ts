@@ -101,11 +101,13 @@ describe("blocage budgétaire", () => {
     expect((await auth.seConnecter(MDP_TEST, false)).ok).toBe(true);
   }
 
-  it("refuse de lancer si le budget du mois serait dépassé", async () => {
+  it("budget du mois dépassé : le lancement part, avec une alerte (cloche) et une ligne de journal", async () => {
     await connecter();
     await ecrireParametre("budget.mensuel", { centimes: 1, devise: "EUR" });
-    await expect(lancerFabrication("v-03", { confirme: true })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect(await depots().travaux.compter((t) => t.cibleId === "v-03" && t.statut !== "termine" && t.statut !== "echec")).toBe(0);
+    const r = await lancerFabrication("v-03", { confirme: true });
+    expect(r.travailId).toBeTruthy();
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
   });
 
   it("au-delà du seuil, exige une confirmation, puis lance", async () => {

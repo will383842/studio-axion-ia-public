@@ -84,26 +84,26 @@ async function ecritureDeLUsine(): Promise<string> {
 const depensesClaude = async () => (await depots().depenses.lister()).filter((d) => d.lignes.some((l) => l.fournisseur === "anthropic"));
 
 describe("écriture commandée par l'Usine, de bout en bout (tour de la boucle)", () => {
-  it("sans budget du mois reçu de l'Usine : AUCUN appel à Claude, aucune dépense, aucune réservation ni engagement", async () => {
+  it("sans budget du mois reçu de l'Usine : alerte + ligne de journal, plus de refus d'argent ; l'écriture part (le quota de quantité garde)", async () => {
     const claude = fauxClaude(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: claude.fetch, attenteMs: () => 0 });
     const id = await ecritureDeLUsine();
     await bg.tourBoucleGeneration();
-    expect(claude.appels).toEqual([]);
-    expect(await depensesClaude()).toEqual([]);
-    expect(await depots().reservations.lister((r) => r.statut === "active")).toEqual([]);
-    expect((await couts.resumeBudget()).engage.centimes).toBe(0);
-    expect((await depots().generations.obtenir(id))!.statut).not.toBe("terminee");
-  });
+    expect(claude.appels.length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message.includes("(usine-absent)")).length).toBeGreaterThan(0);
+    expect((await depots().notifications.lister()).filter((x) => /Aucun budget du mois reçu/.test(x.titre))).toHaveLength(1);
+    expect((await depots().generations.obtenir(id))!.statut).toBe("terminee");
+  }, 30_000);
 
-  it("budget de l'Usine à 0 € pour ce mois : même refus avant tout appel", async () => {
+  it("budget de l'Usine à zéro pour ce mois : alerte + ligne de journal, l'écriture part quand même", async () => {
     const claude = fauxClaude(Object.values(ROLES_ECRITURE) as DefinitionRole[]);
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: claude.fetch, attenteMs: () => 0 });
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 0, mois: couts.moisParis() });
     await ecritureDeLUsine();
     await bg.tourBoucleGeneration();
-    expect(claude.appels).toEqual([]);
-    expect(await depensesClaude()).toEqual([]);
+    expect(claude.appels.length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message.includes("(usine-atteint)")).length).toBeGreaterThan(0);
+    expect((await depots().notifications.lister()).filter((x) => /Budget du mois de l'Usine atteint/.test(x.titre))).toHaveLength(1);
   });
 
   it("témoin : avec le budget du mois reçu de l'Usine, la même écriture part chez Claude", async () => {
