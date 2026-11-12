@@ -143,12 +143,18 @@ describe("une seule table état interne → libellé affiché", () => {
   it("la pastille lit cette table et n'en garde aucune (mêmes objets)", () => {
     expect(pastille.LIBELLES_ETAT).toBe(LIBELLES_ETAT);
     expect(pastille.STATUTS_VERS_ETAT).toBe(statuts.STATUTS_VERS_ETAT);
-    const html = (etat: string) => renderToStaticMarkup(createElement(pastille.PastilleStatutPlan, { etat }));
-    expect(html("echec")).toContain("À corriger");
-    expect(html("manquee")).toContain("Manquée");
-    expect(html("refusee")).toContain("Refusée");
-    expect(html("bidule")).toContain("État à vérifier");
+    const html = (etat: string, libelles?: typeof LIBELLES_ETAT) => renderToStaticMarkup(createElement(pastille.PastilleStatutPlan, { etat, libelles }));
+    expect(html("echec", LIBELLES_ETAT)).toContain("À corriger");
+    expect(html("manquee", LIBELLES_ETAT)).toContain("Manquée");
+    expect(html("refusee", LIBELLES_ETAT)).toContain("Refusée");
+    expect(html("a_corriger")).toContain("À corriger");
+    expect(html("bidule", LIBELLES_ETAT)).toContain("État à vérifier");
+    expect(html("bidule", LIBELLES_ETAT)).not.toContain("Brouillon");
     expect(html("bidule")).not.toContain("Brouillon");
+  });
+  it("Échec diffuseur → état affiché « À corriger » par la table des statuts", () => {
+    expect(statuts.etatDepuisStatut("echec")).toBe("a_corriger");
+    expect(pastille.libelleEtat(statuts.etatDepuisStatut("echec") as string).libelle).toBe("À corriger");
   });
 });
 
