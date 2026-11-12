@@ -37,6 +37,16 @@ describe("menu : entrée Carrousels", () => {
     expect(estActif("/videos", carrousels)).toBe(false);
   });
 
+  it("« Tous mes contenus » mène à /contenus, juste après « Carrousels », sans toucher aux autres entrées", () => {
+    const i = libelles.indexOf("Tous mes contenus");
+    expect(i).toBe(libelles.indexOf("Carrousels") + 1);
+    const e = menu[i];
+    expect(e.href).toBe("/contenus");
+    expect(estActif("/contenus", e)).toBe(true);
+    expect(estActif("/carrousels", e)).toBe(false);
+    expect(libelles.filter((l) => l === "Réponses automatiques")).toHaveLength(1);
+  });
+
   it("pas d'entrée Infographies (le générateur n'existe pas encore)", () => {
     expect(libelles.some((l) => /infographie/i.test(l))).toBe(false);
   });
