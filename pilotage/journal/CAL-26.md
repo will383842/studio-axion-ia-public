@@ -1,0 +1,9 @@
+# CAL-26 : écran du calendrier simplifié
+Fait : EnTeteCalendrier.tsx (six commandes : période et flèches, Aujourd'hui, Semaine/Mois, Filtrer, + Ajouter, pastilles des réseaux ; libellés fixes « À faire », « À placer », « Mes textes », « Retirer du calendrier », « À corriger ») ; PanneauAFaire.tsx (À corriger, À valider, Brouillons à compléter, un clic ouvre la publication ; bandeau de départ de 3 lignes, fermeture mémorisée, bandeau « Annuler » importé de @/components/ui, 10 s) ; ReserveAPlacer.tsx (contenus prêts sans date) ; page.tsx branchée sur ces trois pièces dans les vues Semaine, Mois et Jour. Ligne « Réponses aux commentaires : à la main » dans le bandeau de départ ; « Idées de l'IA » n'est pas affichée.
+Fichiers : src/app/(studio)/calendrier/page.tsx, src/components/calendrier/{EnTeteCalendrier,PanneauAFaire,ReserveAPlacer}.tsx, tests/calendrier/cal-26-ecran-simplifie.test.tsx.
+Tests : test rouge d'abord (modules absents), puis tests/calendrier et tests/visuels verts. tsc et eslint : aucune erreur nouvelle (les deux avertissements de page.tsx existaient déjà).
+Reste / limites :
+- Alertes de CAL-08 NON branchées à l'écran : la grille de la semaine est montée par SemaineAvecApercu (ApercuPublication.tsx), qui ne transmet pas `alertes`, `manquesParJour` ni `aCompleter` à GrilleSemaine ; ce fichier n'est pas dans les fichiers autorisés. À faire dans une fiche qui l'autorise.
+- « Filtrer » : seul le rappel des réseaux est offert ; les filtres Type/État (Filtres.tsx) demandent un état client dans SemaineAvecApercu, hors fichiers autorisés.
+- « + Ajouter » mène à la journée d'aujourd'hui, en attendant le formulaire d'ajout (CAL-26b) ; la page ne doit pas lier à Importer (liens.test.ts).
+- Geste « Annuler » : seul geste dans le périmètre = fermeture du bandeau de départ ; les décalages d'ApercuPublication gardent leur retour actuel.
