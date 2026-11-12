@@ -20,7 +20,6 @@ import { ecranTableauVisible } from "@/components/formats/tableau-anime/aiguilla
 import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import type { Id, VersionVideo } from "@/domaine/types";
 import { trouverFormat } from "@/formats";
-import { formaterMontant } from "@/lib/montants";
 import type { OperationMontage } from "@/moteurs";
 import { CATALOGUE_RETOUCHES, apercuRetouche, lireEntreesTableau, type ContexteRetouche } from "@/moteurs/montage-tableau";
 import { estimerFabrication } from "@/moteurs/montage-tableau/fabriquer";
@@ -391,8 +390,7 @@ async function retoucherTableauSansAuto(videoId: Id, operation: unknown, options
     const accord = accordPropre(options.accord);
     // Seul un MONTANT confirmé couvre la voix relue : `true` sans montant ne suffit pas.
     if (typeof accord !== "number" || accord < montant) {
-      const prix = formaterMontant({ centimes: montant, devise: "EUR" });
-      return { statut: "accord-requis", centimes: montant, phrase: `Cette retouche refait la voix : environ ${prix}. Confirmez ce prix pour continuer.` };
+      return { statut: "accord-requis", centimes: montant, phrase: `Cette retouche refait la voix, ce qui est payant. Confirmez pour continuer.` };
     }
     confirme = accord;
   }
