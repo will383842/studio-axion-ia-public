@@ -300,7 +300,7 @@ export function EtapeExpress(props: ProprietesEtape) {
     // La relecture redemande l'accord sur le prix du jour (`avecConfirmationPrix`).
     if (r.code === "CONFIRMATION_REQUISE") {
       setMontantServeur(r.montant ?? null);
-      return { ok: false, code: r.code, message: r.message, montant: r.montant };
+      return { ok: false, code: r.code, message: messageSansMontant(r.message), montant: r.montant };
     }
     if (r.code === "CREDIT_INSUFFISANT") {
       const detail = await detailCreditAction(id);
@@ -308,7 +308,7 @@ export function EtapeExpress(props: ProprietesEtape) {
         setRelecture(null);
         setDesQuePossible(true);
         setCredit({ ...detail.donnees, videoId: id, confirme: accord, scriptRelu: script.empreinte });
-        return { ok: false, message: r.message };
+        return { ok: false, message: messageSansMontant(r.message) };
       }
     }
     if (r.code === "ACCORD_MANQUANT" || r.code === "DISTRIBUTION_INCOMPLETE") {
@@ -316,7 +316,7 @@ export function EtapeExpress(props: ProprietesEtape) {
       setFeuille("plateau");
       notifier.erreur(messageSansMontant(r.message));
     }
-    return { ok: false, message: r.message };
+    return { ok: false, message: messageSansMontant(r.message) };
   }
 
   const controlerRelu = useCallback(
