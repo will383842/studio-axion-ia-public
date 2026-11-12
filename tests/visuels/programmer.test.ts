@@ -111,6 +111,29 @@ describe("heure de Paris (frontière de minuit et créneaux déjà passés)", ()
     await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", "2026-11-25T20:00:00.000Z")).rejects.toThrow(/déjà passée/i);
     expect(await d.publications.lister()).toEqual(avant);
   });
+  it("la validation laisse la trace du fondateur sur le créneau (jamais publiée sans validation)", async () => {
+    const d = await monter();
+    const r = await programmerEnUnClic(d, "vis_1", "2026-11-25", T0);
+    const c = await d.creneaux.obtenir(r.creneauId);
+    expect(c?.valideeLe).toBe(T0);
+    expect(c?.valideePar).toBe("fondateur");
+  });
+  it.each(["a_valider", "propose"] as const)("créneau resté « %s » (clic précédent interrompu) : le clic suivant le reprend et programme", async (statut) => {
+    const d = await monter();
+    await d.creneaux.enregistrer({ id: "cre_vis_1", jourVise: "2026-11-25", heuresParReseau: { linkedin: "2026-11-25T07:30:00.000Z", instagram: "2026-11-25T11:30:00.000Z" }, compteCible: "compte-studio", visuelId: "vis_1", statut, decalages: 0 } as unknown as CreneauPlan);
+    const r = await programmerEnUnClic(d, "vis_1", "2026-11-25", T0);
+    const c = await d.creneaux.obtenir(r.creneauId);
+    expect(c?.statut).toBe("programme");
+    expect(c?.valideePar).toBe("fondateur");
+    expect(await d.publications.lister()).toHaveLength(2);
+    expect(await d.creneaux.lister()).toHaveLength(1);
+  });
+  it("créneau archivé ou publié recliqué : refusé, rien n'est écrit", async () => {
+    const d = await monter();
+    await d.creneaux.enregistrer({ id: "cre_vis_1", jourVise: "2026-11-25", heuresParReseau: { linkedin: "2026-11-25T07:30:00.000Z", instagram: "2026-11-25T11:30:00.000Z" }, compteCible: "compte-studio", visuelId: "vis_1", statut: "archive", decalages: 0 } as unknown as CreneauPlan);
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", T0)).rejects.toThrow();
+    expect(await d.publications.lister()).toHaveLength(0);
+  });
   it("jour proposé par défaut : demain à Paris, pas demain en UTC", () => {
     expect(jourParDefautParis("2026-11-24T23:30:00.000Z")).toBe("2026-11-26");
     expect(jourParDefautParis("2026-11-25T10:00:00.000Z")).toBe("2026-11-26");
