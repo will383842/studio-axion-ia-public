@@ -3,13 +3,20 @@
  * `planifierAvecContexte` appelle `planifierPublications` (plan d'un sujet), puis décale chaque publication
  * vers le prochain jour libre du réseau (week-end LinkedIn et quota par jour, via le noyau d'espacement),
  * en tenant compte des posts déjà planifiés. `planifierLot` enchaîne plusieurs sujets dans l'ordre de rotation.
- * Relance : les posts du sujet (identifiant `<sujet>:<réseau>`) déjà présents dans le contexte sont ignorés,
- * donc le même lot redonne le même plan.
+ * Le jour retenu respecte aussi l'écart minimal et la règle pilier+cible du noyau (`verifierEspacement`) : le plan ne
+ * crée aucune violation. Les déclinaisons d'un MÊME sujet sur plusieurs réseaux sont exemptées de la règle
+ * pilier+cible (choix du planificateur, à confirmer par le pilotage : le noyau la compte encore).
+ * Relance : les posts dont le champ `sujet` est celui du sujet sont ignorés du contexte, donc le même lot redonne
+ * le même plan.
  */
 import { planifierPublications } from "@/domaine/classement-generateur";
 import type { ReseauDeclinaison } from "@/domaine/types";
 import { ordreRotation } from "./rotation";
-import { prochainJourLibre, REGLES_PAR_DEFAUT, type PostPlanifie, type ReglesEspacement } from "./verifier";
+import { ajouterJoursParis } from "@/lib/horloge-paris";
+import { prochainJourLibre, REGLES_PAR_DEFAUT, verifierEspacement, type PostPlanifie, type ReglesEspacement } from "./verifier";
+
+/** Un post déjà planifié, avec (si connu) le sujet dont il est une déclinaison : l'écart se fait sur ce champ, pas sur l'identifiant. */
+export type PostExistant = PostPlanifie & { sujet?: string };
 
 export interface SujetAPlanifier {
   id: string;
@@ -31,29 +38,42 @@ export interface OptionsPlanification {
 
 export const idCreneau = (sujet: string, reseau: string) => `${sujet}:${reseau}`;
 
+/** Le candidat crée-t-il une violation avec les posts pris ? (déclinaisons du même sujet exemptées de pilier+cible) */
+function conflit(candidat: CreneauPlanifie, pris: readonly PostPlanifie[], siens: readonly CreneauPlanifie[], regles: ReglesEspacement): boolean {
+  const memeSujet = new Set(siens.map((p) => p.id));
+  return verifierEspacement([...pris, candidat], regles).some(
+    (v) =>
+      v.niveau === "violation" &&
+      v.posts.includes(candidat.id) &&
+      !(v.code === "repetition" && v.posts.every((id) => id === candidat.id || memeSujet.has(id))),
+  );
+}
+
 export function planifierAvecContexte(
   jourJ: string,
   reseaux: readonly ReseauDeclinaison[],
   sujet: SujetAPlanifier,
-  existants: readonly PostPlanifie[],
+  existants: readonly PostExistant[],
   options: OptionsPlanification = {},
 ): CreneauPlanifie[] {
   const regles = options.regles ?? REGLES_PAR_DEFAUT;
-  const prefixe = `${sujet.id}:`;
-  const pris: PostPlanifie[] = existants.filter((p) => !p.id.startsWith(prefixe));
+  const pris: PostPlanifie[] = existants.filter((p) => p.sujet !== sujet.id);
   const propose = planifierPublications(jourJ, reseaux, options.ordre, options.heures);
   const resultat: CreneauPlanifie[] = [];
   for (const c of propose) {
-    const jour = prochainJourLibre(c.reseau, c.jour, pris, regles);
-    const post: CreneauPlanifie = {
+    const modele = {
       id: idCreneau(sujet.id, c.reseau),
       sujet: sujet.id,
       reseau: c.reseau,
-      jour,
       heure: c.heure ?? options.heureParDefaut ?? "09:00",
       pilier: sujet.pilier,
       cible: sujet.cible,
     };
+    let jour = prochainJourLibre(c.reseau, c.jour, pris, regles);
+    for (let i = 0; i < 366 && conflit({ ...modele, jour }, pris, resultat, regles); i++) {
+      jour = prochainJourLibre(c.reseau, ajouterJoursParis(jour, 1), pris, regles);
+    }
+    const post: CreneauPlanifie = { ...modele, jour };
     pris.push(post);
     resultat.push(post);
   }
@@ -65,11 +85,11 @@ export function planifierLot(
   jourJ: string,
   sujets: readonly SujetAPlanifier[],
   reseaux: readonly ReseauDeclinaison[],
-  existants: readonly PostPlanifie[],
+  existants: readonly PostExistant[],
   options: OptionsPlanification = {},
 ): CreneauPlanifie[] {
   const ids = new Set(sujets.map((s) => s.id));
-  const contexte: PostPlanifie[] = existants.filter((p) => !ids.has(p.id.split(":")[0]));
+  const contexte: PostExistant[] = existants.filter((p) => !(p.sujet !== undefined && ids.has(p.sujet)));
   const tout: CreneauPlanifie[] = [];
   for (const s of ordreRotation(sujets)) {
     const plan = planifierAvecContexte(jourJ, reseaux, s, contexte, options);
