@@ -5,7 +5,7 @@
  * Anti double clic : le bouton se désactive pendant l'envoi et la clé du formulaire reste la même.
  */
 import { useRef, useState } from "react";
-import { ajouterEntree, type ResultatAjout } from "@/app/(studio)/calendrier/actions";
+import { ajouterEntree, type ResultatAjout } from "@/app/(studio)/calendrier/actions/ajouter";
 import type { IdReseau } from "@/domaine/types";
 
 export function AjouterEntree({ jour, compteCible, reseau = "linkedin" }: { jour: string; compteCible: string; reseau?: IdReseau }) {
