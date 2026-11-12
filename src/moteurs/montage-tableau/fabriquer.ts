@@ -1256,7 +1256,12 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // les anciens styles « Encre » gardent leurs groupes d'avant.
     const dynamiques = stTableau.personnalise || estStyleReference3(ficheS);
     const intensiteST: IntensiteSousTitres = o.intensiteSousTitres ?? "equilibre";
-    const cleCompo = empreinte("composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : []));
+    const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : [])];
+    // Mots mis en valeur (GV-ST-09) : un journal d'avant, dont la composition est déjà gardée, garde sa clé (reprise sans refaire) ;
+    // une fabrication neuve reçoit le marqueur, donc une autre clé que celle d'avant.
+    const cleAvant = empreinte(...(entreesCompo));
+    const compoDejaAuJournal = store.etapes.composition?.empreinte === cleAvant || store.composition?.empreinte === cleAvant;
+    const cleCompo = compoDejaAuJournal ? cleAvant : empreinte(...(entreesCompo), { motsImportants: 1 });
     const composition = await etape(
       "composition",
       cleCompo,
