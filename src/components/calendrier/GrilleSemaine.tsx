@@ -39,6 +39,12 @@ export interface ProprietesGrilleSemaine {
   attendu?: (reseau: IdReseau, jour: string) => boolean;
   /** Clés des cartes à marquer « Trop proches » (voir AlerteProximite). */
   tropProches?: ReadonlySet<string>;
+  /** CAL-08 : clé de carte → premier manque (une seule icône d'alerte par carte). */
+  alertes?: ReadonlyMap<string, string>;
+  /** CAL-08 : nombre de manques par jour (AAAA-MM-JJ) ; un jour sans manque n'affiche rien. */
+  manquesParJour?: Readonly<Record<string, number>>;
+  /** CAL-08 : filtre « À compléter » : seules les publications incomplètes. */
+  aCompleter?: boolean;
   /** Vrai si un filtre autre que les réseaux est actif : change le message de semaine vide. */
   filtresActifs?: boolean;
   className?: string;
@@ -52,18 +58,19 @@ const AJOUT = "mt-auto grid min-h-[30px] place-items-center rounded-[9px] border
  * Semaine en couloirs : une ligne par réseau, une colonne par jour (lundi d'abord), sans lignes d'heures.
  * Aujourd'hui est marqué ; les jours passés sont hachurés et sans « + ».
  */
-export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, lienPlus, onVoirPlus, libellesEtat, tropProches, filtresActifs, className }: ProprietesGrilleSemaine) {
+export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, lienPlus, onVoirPlus, libellesEtat, tropProches, alertes, manquesParJour, aCompleter, filtresActifs, className }: ProprietesGrilleSemaine) {
   if (reseaux.length === 0) return <div className={cn(VIDE, className)}>Aucun réseau affiché. Rallumez un réseau ci-dessus.</div>;
   const repere = jourLisible(semaineDu) ? semaineDu : aujourdhui;
   if (!jourLisible(repere)) return <div className={cn(VIDE, className)}>Semaine illisible. Revenez à aujourd&apos;hui.</div>;
   const { jours } = plageSemaine(repere);
-  const visibles = trierEntrees(entrees.filter((e) => reseaux.includes(e.reseau) && jours.includes(e.jour)));
+  const visibles = trierEntrees(entrees.filter((e) => reseaux.includes(e.reseau) && jours.includes(e.jour) && (!aCompleter || Boolean(alertes?.has(e.cle)))));
   const passe = (jour: string) => jourLisible(aujourdhui) && jour < aujourdhui;
   const peutAjouter = Boolean(lienAjout || onAjouter);
   const limite = (lienPlus || onVoirPlus) && Number.isInteger(maxParCase) && (maxParCase as number) >= 1 ? (maxParCase as number) : null;
 
   const enTete = (jour: string) => {
     const estAujourdhui = jour === aujourdhui;
+    const nbManques = manquesParJour?.[jour] ?? 0;
     const libelle = `Ouvrir la journée du ${libelleJour(jour)}`;
     const classes = cn("rounded-lg px-1.5 py-1 text-left text-sm font-bold capitalize", estAujourdhui ? "bg-orange text-sur-orange" : "text-texte-doux", (lienJour || onOuvrirJour) && !estAujourdhui && "hover:bg-surface-2");
     const commun = { "data-entete-jour": jour, "aria-current": estAujourdhui ? ("date" as const) : undefined, className: classes };
@@ -71,6 +78,12 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
       <>
         {JOUR_COURT.format(new Date(`${jour}T12:00:00Z`))} <b className={cn("text-base", !estAujourdhui && "text-texte")}>{Number(jour.slice(8))}</b>
         {estAujourdhui && <span className="sr-only"> (aujourd&apos;hui)</span>}
+        {nbManques > 0 && (
+          <span data-compteur-jour={jour} title={`${nbManques} à compléter`} className="ml-1 rounded-full border border-trait-fort px-1 text-xs font-bold tabular-nums text-texte">
+            {nbManques}
+            <span className="sr-only"> à compléter</span>
+          </span>
+        )}
       </>
     );
     // Le rôle « columnheader » est sur un conteneur : sur le lien ou le bouton, il masquerait leur rôle à l'oral.
@@ -94,7 +107,7 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
 
   const ajout = (jour: string, reseau: IdReseau, creneauVide: boolean) => {
     const libelle = `Ajouter sur ${nomReseau(reseau)}, ${libelleJour(jour)}`;
-    const classes = cn(AJOUT, creneauVide && "min-h-14 border-[color:var(--c)] text-texte-doux");
+    const classes = cn(AJOUT, creneauVide && "min-h-14 border-dashed border-[color:var(--c)] text-texte-doux");
     const contenu = creneauVide ? (
       <span>
         Créneau vide
@@ -104,11 +117,11 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
       "+"
     );
     return lienAjout ? (
-      <Link href={lienAjout(jour, reseau)} aria-label={libelle} className={classes}>
+      <Link href={lienAjout(jour, reseau)} aria-label={libelle} data-creneau-vide={creneauVide ? `${reseau}|${jour}` : undefined} className={classes}>
         {contenu}
       </Link>
     ) : (
-      <button type="button" aria-label={libelle} onClick={() => onAjouter?.(jour, reseau)} className={classes}>
+      <button type="button" aria-label={libelle} data-creneau-vide={creneauVide ? `${reseau}|${jour}` : undefined} onClick={() => onAjouter?.(jour, reseau)} className={classes}>
         {contenu}
       </button>
     );
@@ -171,7 +184,7 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
                     )}
                   >
                     {(limite !== null && cartes.length > limite ? cartes.slice(0, limite) : cartes).map((e) => (
-                      <CarteEntreeCalendrier key={e.cle} entree={e} libellesEtat={libellesEtat} verrouillee={estVerrouillee(e, aujourdhui)} tropProche={tropProches?.has(e.cle)} href={lienEntree?.(e)} onOuvrir={onOuvrirEntree} />
+                      <CarteEntreeCalendrier key={e.cle} entree={e} libellesEtat={libellesEtat} verrouillee={estVerrouillee(e, aujourdhui)} tropProche={tropProches?.has(e.cle)} alerte={alertes?.get(e.cle)} href={lienEntree?.(e)} onOuvrir={onOuvrirEntree} />
                     ))}
                     {limite !== null && cartes.length > limite && voirPlus(reseau, jour, cartes.length - limite)}
                     {!estPasse && peutAjouter && ajout(jour, reseau, creneauVide)}

@@ -9,7 +9,7 @@ import type { EtatElementSerie, SuiviSerie as Suivi } from "@/services/serie-ecr
 
 const ETATS: Record<EtatElementSerie, { icone: NomIcone; libelle: string; ton: string }> = {
   ecrit: { icone: "coche", libelle: "Écrit", ton: "text-sauge" },
-  "en-cours": { icone: "chargement", libelle: "En écriture", ton: "text-orange-vif" },
+  "en-cours": { icone: "chargement", libelle: "En écriture", ton: "text-accent" },
   attente: { icone: "sablier", libelle: "En attente", ton: "text-ambre" },
   "a-completer": { icone: "attention", libelle: "À compléter", ton: "text-ambre" },
   arretee: { icone: "attention", libelle: "Arrêtée : à reprendre", ton: "text-ambre" },
@@ -38,7 +38,7 @@ export function SuiviSerie({ initial }: { initial: Suivi | null }) {
   return (
     <section className="rounded-carte border border-trait bg-surface-1 p-4" aria-label="Série en cours">
       <button type="button" onClick={() => setOuvert((x) => !x)} aria-expanded={ouvert} className="flex w-full items-center gap-3 text-left">
-        <Icone nom={icone} size={18} className={cn("shrink-0", fini ? "text-sauge" : suivi.termine ? "text-ambre" : "animate-spin text-orange-vif")} />
+        <Icone nom={icone} size={18} className={cn("shrink-0", fini ? "text-sauge" : suivi.termine ? "text-ambre" : "animate-spin text-accent")} />
         <span className="flex-1" role="status">
           <span className="block text-[15px] font-semibold text-texte">
             {suivi.ecrits} sur {suivi.total} écrit{suivi.ecrits > 1 ? "s" : ""}
@@ -48,7 +48,7 @@ export function SuiviSerie({ initial }: { initial: Suivi | null }) {
         <Icone nom="chevron-bas" size={16} className={cn("text-texte-faible transition-transform", ouvert && "rotate-180")} />
       </button>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuemin={0} aria-valuemax={suivi.total} aria-valuenow={suivi.ecrits} aria-label="Idées écrites">
-        <div className="h-full rounded-full bg-orange transition-[width] duration-500" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${pct}%` }} />
       </div>
       {ouvert && (
         <ul className="mt-3 space-y-1">
