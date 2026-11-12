@@ -80,7 +80,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
-    return <VueMois plage={plage} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} />;
+    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} />;
   }
   const aujourdhuiCle = cleJour(new Date());
   const decalageDemande = Math.max(-52, Math.min(52, Number.parseInt(params.semaine ?? "0", 10) || 0));
@@ -104,32 +104,22 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <ChoixVue vue="semaine" date={dateDemandee ?? undefined} suite={suite} />
-
-      {/* Navigation de semaine */}
-      <div className="mb-5 flex items-center gap-2">
-        <Link href={lienSemaine(-1)} aria-label="Semaine précédente" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-gauche" size={18} />
-        </Link>
-        <div className="flex-1 text-center">
-          <p className="font-titre text-lg text-texte">{libelleSemaine}</p>
-          <p className="text-xs tabular-nums text-texte-faible">
-            {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
-            {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
-          </p>
-        </div>
-        <Link href={lienSemaine(1)} aria-label="Semaine suivante" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-droite" size={18} />
-        </Link>
-      </div>
-      {decalage !== 0 && (
-        <div className="-mt-3 mb-4 text-center">
-          <Link href="/calendrier" className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-orange-vif">
-            <Icone nom="calendrier" size={15} />
-            Aujourd&apos;hui
-          </Link>
-        </div>
-      )}
+      <BarreVue
+        vue="semaine"
+        periode={libelleSemaine}
+        liens={{
+          precedent: lienSemaine(-1),
+          suivant: lienSemaine(1),
+          aujourdhui: `/calendrier${suite ? `?${suite.slice(1)}` : ""}`,
+          // « Semaine » garde la date d'une vue datée ; sans date, il reste /calendrier.
+          semaine: dateDemandee ? `/calendrier?vue=semaine&date=${dateDemandee}${suite}` : `/calendrier${suite ? `?${suite.slice(1)}` : ""}`,
+          mois: `/calendrier?vue=mois${dateDemandee ? `&date=${dateDemandee}` : ""}${suite}`,
+        }}
+      />
+      <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">
+        {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
+        {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
+      </p>
 
       {/* Mobile : liste par jour */}
       <ol className="space-y-4 lg:hidden">
@@ -245,21 +235,8 @@ function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxAc
   );
 }
 
-function ChoixVue({ vue, mois, date, suite = "" }: { vue: "semaine" | "mois"; mois?: string; date?: string; suite?: string }) {
-  // La bascule garde les filtres, et la date quand on va vers le mois. « Semaine » reste /calendrier (figé par tests/calendrier/liens.test.ts, L4-15).
-  const hrefSemaine = `/calendrier${suite ? `?${suite.slice(1)}` : ""}`;
-  const hrefMois = `/calendrier?vue=mois${mois ?? date ? `&date=${mois ?? date}` : ""}${suite}`;
-  const lien = (actif: boolean) => cn("inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold", actif ? "bg-orange text-sur-orange" : "border border-trait bg-surface-1 text-texte-doux");
-  return (
-    <nav aria-label="Choix de la vue" className="mb-4 flex gap-2">
-      <Link href={hrefSemaine} className={lien(vue === "semaine")}>Semaine</Link>
-      <Link href={hrefMois} className={lien(vue === "mois")}>Mois</Link>
-    </nav>
-  );
-}
-
 /** Vue mois : grille de 6 semaines (lundi d'abord), jours hors mois estompés. */
-function VueMois({ plage, calendrier, suite }: { plage: ReturnType<typeof plageMois>; calendrier: JourCalendrier[]; suite: string }) {
+function VueMois({ plage, repere, calendrier, suite }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string }) {
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
   const aujourdhui = cleJour(new Date());
   const total = plage.jours.filter((j) => j.startsWith(plage.mois)).flatMap((j) => parJour.get(j) ?? []).filter((p) => p.via !== "simulation").length;
@@ -267,19 +244,19 @@ function VueMois({ plage, calendrier, suite }: { plage: ReturnType<typeof plageM
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <ChoixVue vue="mois" mois={plage.mois} suite={suite} />
-      <div className="mb-5 flex items-center gap-2">
-        <Link href={lienMois(-1)} aria-label="Mois précédent" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-gauche" size={18} />
-        </Link>
-        <div className="flex-1 text-center">
-          <p className="font-titre text-lg capitalize text-texte">{libelleMois.format(new Date(`${plage.mois}-01T12:00:00Z`))}</p>
-          <p className="text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
-        </div>
-        <Link href={lienMois(1)} aria-label="Mois suivant" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-droite" size={18} />
-        </Link>
-      </div>
+      <BarreVue
+        vue="mois"
+        periode={libellePeriode("mois", plage.mois)}
+        liens={{
+          precedent: lienMois(-1),
+          suivant: lienMois(1),
+          aujourdhui: `/calendrier?vue=mois${suite}`,
+          // « Semaine » garde la date (celle demandée, ou celle d'aujourd'hui) et les filtres.
+          semaine: `/calendrier?vue=semaine&date=${repere}${suite}`,
+          mois: `/calendrier?vue=mois&date=${plage.mois}${suite}`,
+        }}
+      />
+      <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
       <ol className="grid grid-cols-7 gap-1">
         {plage.jours.map((j) => {
           const toutes = parJour.get(j) ?? [];

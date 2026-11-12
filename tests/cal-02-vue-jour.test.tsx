@@ -186,8 +186,33 @@ describe("CAL-02 : bascule Semaine | Mois", () => {
     const s = await rendre({ vue: "semaine", date: "2026-12-09" });
     expect(s).toContain('href="/calendrier?vue=mois&amp;date=2026-12-09"');
     const f = await rendre({ vue: "mois", date: "2026-12", reseaux: "linkedin" });
-    expect(f).toContain('href="/calendrier?reseaux=linkedin"');
+    expect(f).toContain('href="/calendrier?vue=semaine&amp;date=2026-12-01&amp;reseaux=linkedin"');
     expect(f).toContain('href="/calendrier?vue=mois&amp;date=2026-11&amp;reseaux=linkedin"');
+  });
+
+  for (const [nom, params] of [["semaine", {}], ["semaine datée", { vue: "semaine", date: "2026-12-09" }], ["mois", { vue: "mois", date: "2026-12" }]] as const) {
+    it(`vue ${nom} : le bouton segmenté « Semaine | Mois » de la maquette, pas deux pastilles`, async () => {
+      const h = await rendre({ ...params });
+      expect(h).toContain('role="group" aria-label="Affichage"');
+      expect(h).toContain('aria-label="Afficher la semaine"');
+      expect(h).toContain('aria-label="Afficher le mois"');
+      expect(h).not.toContain("Choix de la vue");
+      expect(h).not.toMatch(/>Jour</);
+    });
+  }
+
+  it("vue mois : « Semaine » garde la date du mois affiché (et la date du jour si aucune n'est demandée)", async () => {
+    const h = await rendre({ vue: "mois", date: "2026-12-15" });
+    expect(h).toMatch(/aria-label="Afficher la semaine"[^>]*href="\/calendrier\?vue=semaine&amp;date=2026-12-15"/);
+    const sans = await rendre({ vue: "mois" });
+    expect(sans).toMatch(/aria-label="Afficher la semaine"[^>]*href="\/calendrier\?vue=semaine&amp;date=2026-11-11"/);
+  });
+
+  it("vue semaine datée : « Semaine » garde la date ; vue semaine par défaut : /calendrier", async () => {
+    const d = await rendre({ vue: "semaine", date: "2026-12-09", reseaux: "linkedin" });
+    expect(d).toMatch(/aria-label="Afficher la semaine"[^>]*href="\/calendrier\?vue=semaine&amp;date=2026-12-09&amp;reseaux=linkedin"/);
+    const p = await rendre({});
+    expect(p).toMatch(/aria-label="Afficher la semaine"[^>]*href="\/calendrier"/);
   });
 
   it("la vue Jour s'ouvre par un clic sur un jour du mois", async () => {
