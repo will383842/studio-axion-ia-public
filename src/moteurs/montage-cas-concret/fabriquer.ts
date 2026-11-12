@@ -55,7 +55,7 @@ import { COULEURS_DUO, VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo
 import type { BruitagePlace } from "@/briques/intensite/types";
 import { avancerCartesMotion, cartesMotionFinies, ErreurSceneRatee, etatInitialCartesMotion, type EtatCartesMotion } from "@/briques/motion/rendu-cartes";
 import type { CarteFormat } from "@/briques/motion/pourFormat";
-import { baseRetenue, fabriquerSousTitres } from "@/briques/sous-titres";
+import { baseRetenue, fabriquerSousTitres, positionsVerticales } from "@/briques/sous-titres";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 import { substituerPrononciations } from "@/domaine/prononciations";
 import type { BaseSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurStyleSousTitres } from "@/domaine/types";
@@ -1057,7 +1057,14 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // 7. Finitions : une composition complète par fin.
   // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
   const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
-  const centre = choisi ? (choisi.valeur.positionPct ?? centreSousTitresPleineImagePct()) : centreSousTitresCasConcret(mise?.tirage.sousTitres);
+  // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
+  const positionDuStyle = (v: ValeurStyleSousTitres): number => {
+    if (v.positionPct !== undefined) return v.positionPct;
+    if (v.position === "centre") return centreSousTitresPleineImagePct();
+    const zones = positionsVerticales(RATIO, [...new Set(calage.fins.flatMap((cf) => cf.fin.reseaux))]);
+    return v.position === "haut" ? zones.hautPct : zones.basPct;
+  };
+  const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres);
   const style = choisi
     ? { id: choisi.id, nom: choisi.nom, valeur: { ...choisi.valeur, positionPct: centre, largeurMaxPct: choisi.valeur.largeurMaxPct ?? LARGEUR_SOUS_TITRES_PCT } }
     : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres) } };
