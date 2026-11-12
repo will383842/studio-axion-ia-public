@@ -62,12 +62,44 @@ describe("CAL-16 · contrôleur de diversité", () => {
       el("a", "2026-12-07", "f1", { signatureUsine: "sig-42" }),
       el("b", "2026-12-12", "f2", { signatureUsine: "sig-42" }),
     ]);
-    expect(r.alertes.filter((x) => x.type === "texte-proche")).toHaveLength(1);
+    expect(r.alertes.filter((x) => x.type === "sujet-repete")).toHaveLength(1);
+    expect(r.alertes.filter((x) => x.type === "texte-proche")).toEqual([]);
     const autre = controlerDiversite([
       el("a", "2026-12-07", "f1", { signatureUsine: "sig-1" }),
       el("b", "2026-12-12", "f2", { signatureUsine: "sig-2" }),
     ]);
     expect(autre.alertes).toEqual([]);
+  });
+
+  it("(a) même signature de l'usine, textes sans rapport : alerte de sujet, et seulement elle", () => {
+    const r = controlerDiversite([
+      el("a", "2026-12-07", "f1", { signatureUsine: "sig-42", sujet: "avocat fiscaliste contrat" }),
+      el("b", "2026-12-09", "f2", { signatureUsine: "sig-42", sujet: "boulangerie artisanale pain" }),
+    ]);
+    expect(r.alertes.map((x) => x.type)).toEqual(["sujet-repete"]);
+  });
+
+  it("(b) signatures différentes, textes identiques : aucune alerte de sujet (l'usine dit « différents »), le texte reste jugé sur les mots seuls", () => {
+    const r = controlerDiversite([
+      el("a", "2026-12-07", "f1", { signatureUsine: "sig-1", sujet: "avocat contrat client" }),
+      el("b", "2026-12-09", "f2", { signatureUsine: "sig-2", sujet: "avocat contrat client" }),
+    ]);
+    expect(r.alertes.filter((x) => x.type === "sujet-repete")).toEqual([]);
+    expect(r.alertes.filter((x) => x.type === "texte-proche")).toHaveLength(1);
+  });
+
+  it("signature sur un seul des deux créneaux, ou au-delà de la fenêtre : pas d'alerte de sujet ; limite exacte (14 jours) : alerte", () => {
+    const sig = (id: string, jour: string, signatureUsine?: string) => el(id, jour, id, { signatureUsine });
+    expect(controlerDiversite([sig("a", "2026-12-01", "s"), sig("b", "2026-12-02")]).alertes).toEqual([]);
+    expect(controlerDiversite([sig("a", "2026-12-01", "s"), sig("b", "2026-12-16", "s")]).alertes).toEqual([]);
+    expect(controlerDiversite([sig("a", "2026-12-01", "s"), sig("b", "2026-12-15", "s")]).alertes).toHaveLength(1);
+  });
+
+  it("seuils invalides (0, NaN, négatif, texte) : retour aux valeurs par défaut, jamais d'alertes partout ni nulle part", () => {
+    const deux = [el("a", "2026-12-07", "avocat"), el("b", "2026-12-08", "avocat")];
+    for (const mauvais of [0, Number.NaN, -1, Number.POSITIVE_INFINITY, "2" as unknown as number]) expect(controlerDiversite(deux, { joursMaxMemeFormat: mauvais }).alertes).toEqual([]);
+    const proches = [el("a", "2026-12-07", "f1", { sujet: "avocat contrat client" }), el("b", "2026-12-08", "f2", { sujet: "boulangerie pain farine" })];
+    for (const mauvais of [-1, Number.NaN]) expect(controlerDiversite(proches, { seuilProximite: mauvais }).alertes).toEqual([]);
   });
 
   it("le seuil de proximité et la fenêtre en jours se règlent", () => {
