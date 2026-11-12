@@ -1,7 +1,6 @@
 /**
  * MOTS (PV-3) · contrôle de SORTIE. Tout texte qui partira vers une personne passe ici, par les filtres EXISTANTS :
- * mots interdits de l'envoi (famille « certifié », nom du label qualité), expressions bannies (lieu interdit, « Aucun gain
- * garanti »), puis les règles du parcours : aucune mention « Message automatique » en ouverture, aucune signature, jamais de mention STOP, jamais de question d'accord, aucune promesse interdite,
+ * mots interdits de l'envoi (famille « certifié », nom du label qualité), expressions bannies (lieu interdit, expression de gain interdite), puis les règles du parcours : aucune mention « Message automatique » en ouverture, aucune signature, jamais de mention STOP, jamais de question d'accord, aucune promesse interdite,
  * aucune adresse e-mail. PUR. Les mots interdits ne sont jamais écrits en clair dans les tests (jetons).
  */
 import { expressionsBannieDans, normaliser } from "@/domaine/controles-visuel/texte";

@@ -310,25 +310,21 @@ describe("RELECTURE-OPUS · défaut 2 : le geste de validation /mots écrit la b
     expect(await Com.lireParametre(PARAM_ANCIEN, null)).toBeNull();
   });
 
-  it("le geste (session exigée) écrit sha256(version + \\n + texte), journalise sans le texte, est idempotent", async () => {
+  it("le geste (session exigée) refuse : l'ancien texte est retiré, rien n'est écrit ni journalisé", async () => {
     await Com.ecrireParametre(PARAM_ANCIEN, null);
     const gestes = await import("@/services/mots-gestes");
     const auth = await import("@/services/auth");
+    const avant = (await depots().evenements.lister(() => true)).length;
     const r = await gestes.gesteValiderAdresseRefusee();
     expect(auth.exigerSession).toHaveBeenCalled();
-    expect(r).toMatchObject({ ok: true });
-    expect(await Com.lireParametre<any>(PARAM_ANCIEN, null)).toMatchObject({ empreinte: empreinteTexte() });
-    const avant = (await depots().evenements.lister(() => true)).length;
-    await gestes.gesteValiderAdresseRefusee();
-    expect((await depots().evenements.lister(() => true)).length).toBe(avant); // déjà validé : rien de nouveau
-    const journal = JSON.stringify(await depots().evenements.lister(() => true));
-    expect(journal).not.toContain(TEXTES_MP["mp-adresse-refusee-v2"].texte);
-    expect(journal).toMatch(/adresse refusée/);
+    expect(r).toMatchObject({ ok: false, raison: "texte_retire" });
+    expect(await Com.lireParametre(PARAM_ANCIEN, null)).toBeNull();
+    expect((await depots().evenements.lister(() => true)).length).toBe(avant);
   });
 
   it("validé par le geste de formulation (pas par une écriture directe) + 422 : le VRAI constructeur envoie UN message ; l'ancien geste ne suffit plus", async () => {
     await Com.ecrireParametre(PARAM_VALIDATION, null);
-    expect((await MS.validerAdresseRefusee({ confirmeParOperateur: true })).ok).toBe(true); // ancien geste : n'autorise plus rien
+    expect((await MS.validerAdresseRefusee({ confirmeParOperateur: true })).ok).toBe(false); // ancien geste : texte retiré, n'autorise plus rien
     expect((await MS.validerFormulation({ version: VERSION, confirmeParOperateur: true })).ok).toBe(true);
     site.reponses = refuse;
     const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: { messageId: "msg-sortant-2" } }));
