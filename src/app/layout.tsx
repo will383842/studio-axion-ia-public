@@ -8,6 +8,14 @@ import "./globals.css";
 
 // Polices rangées dans le dépôt (sous-ensemble latin de Google Fonts, licence SIL OFL) : la construction de l'image
 // ne dépend plus du réseau (VERIF-E2E-2, gêne 20).
+// Archivo Black reste une police de MARQUE (aperçu de la famille dans la bibliothèque), pas celle des titres.
+const policeArchivo = localFont({
+  src: "./polices/archivo-black-latin.woff2",
+  variable: "--police-archivo",
+  weight: "400",
+  display: "swap",
+});
+
 const policeTexte = localFont({
   src: "./polices/manrope-latin.woff2",
   variable: "--police-texte",
@@ -36,7 +44,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${policeTexte.variable} h-full`}>
+    <html lang="fr" className={`${policeArchivo.variable} ${policeTexte.variable} h-full`}>
       <body className="min-h-full bg-fond text-texte">
         {children}
         <Toasts />

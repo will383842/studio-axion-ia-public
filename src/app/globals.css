@@ -47,7 +47,7 @@
   --barre-faible: #173650;
   --barre-accent: #0f3a5c;
   --barre-encre: #ffffff;
-  --barre-ok: #1c6b2c;
+  --barre-ok: #17602a;
   /* Familles de contenu (toujours avec le nom écrit à côté) */
   --fam-video: #5b3cb0;
   --fam-video-doux: #ece7fa;
@@ -80,6 +80,9 @@
   --toast: #14212e;
   --toast-texte: #ffffff;
   --toast-accent: #9fd3f7;
+  --toast-ok: #8fd49a;
+  --toast-erreur: #ffa795;
+  --toast-alerte: #f0c27d;
   --squelette: #c9d6e2; /* visible sur blanc (1,48:1) et sur --surface-2 (1,32:1) */
   /* Charte de marque FIGÉE : sert à fabriquer du contenu (vidéos, marques). Ne change jamais avec l'interface. */
   --charte-orange: #b23f16;
@@ -104,10 +107,10 @@
 /* Zones sombres (aperçus de vidéo, écran caméra) : bleuté, comme l'usine. */
 .theme-sombre {
   --fond: #16202b;
-  --surface-1: #161e26;
-  --surface-2: #1d2731;
-  --surface-3: #27333f;
-  --trait: #2d3a47;
+  --surface-1: #1d2833;
+  --surface-2: #24313e;
+  --surface-3: #2e3d4c;
+  --trait: #3a4a5b;
   --trait-fort: #4a5b6c;
   --trait-champ: #7d8fa1;
   --texte: #eaf1f7;
@@ -139,8 +142,8 @@
   --fam-video-doux: #2a2347;
   --fam-carrousel: #cdd88a;
   --fam-carrousel-doux: #2c3312;
-  --fam-infographie: #dfc3a4;
-  --fam-infographie-doux: #3a2b1c;
+  --fam-infographie: #e7a9da;
+  --fam-infographie-doux: #3a2036;
   --statut-brouillon-fond: var(--surface-3);
   --statut-brouillon-texte: var(--texte-doux);
   --statut-fabrication-fond: var(--accent-doux);
@@ -164,6 +167,9 @@
   --toast: #27333f;
   --toast-texte: #eaf1f7;
   --toast-accent: #8ecdf7;
+  --toast-ok: #8fd49a;
+  --toast-erreur: #ffa795;
+  --toast-alerte: #f0c27d;
   --squelette: #2d3a47;
   --charte-orange: #b23f16;
   --charte-orange-vif: #9a3412;
@@ -192,7 +198,6 @@
   --texte-faible: var(--barre-faible);
   --accent: var(--barre-accent);
   --sur-accent: var(--barre-encre);
-  --orange-vif: var(--barre-accent);
 }
 
 @theme inline {
@@ -241,12 +246,16 @@
   --color-toast: var(--toast);
   --color-toast-texte: var(--toast-texte);
   --color-toast-accent: var(--toast-accent);
+  --color-toast-ok: var(--toast-ok);
+  --color-toast-erreur: var(--toast-erreur);
+  --color-toast-alerte: var(--toast-alerte);
   --color-squelette: var(--squelette);
   --color-charte-orange: var(--charte-orange);
   --color-charte-ivoire: var(--charte-ivoire);
   --color-charte-noir: var(--charte-noir);
 
   --font-titre: var(--police-titre), "Manrope", system-ui, sans-serif;
+  --font-archivo: var(--police-archivo), "Arial Black", sans-serif;
   --font-texte: var(--police-texte), system-ui, sans-serif;
   --font-sans: var(--police-texte), system-ui, sans-serif;
 
@@ -287,6 +296,10 @@
     font-weight: 800; /* Manrope gras (plus d'Archivo Black) */
     letter-spacing: -0.02em;
     line-height: 1.15;
+  }
+  /* Les classes font-titre n'avaient aucune graisse : Manrope gras partout. */
+  .font-titre {
+    font-weight: 800;
   }
   :focus-visible {
     outline: 2px solid var(--accent);
