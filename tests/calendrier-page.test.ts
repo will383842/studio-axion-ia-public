@@ -52,10 +52,10 @@ describe("page /calendrier", () => {
     expect(h).not.toMatch(/>1 (<!-- -->)?<span class="sr-only">/);
   });
   it("vue mois : une vraie publication et un essai le même jour → « 1 » et « 1 essai »", async () => {
-    listerCalendrier.mockResolvedValueOnce([{ jour: "2026-12-10", publications: [{ videoId: "v1", via: "buffer" }, { videoId: "v2", via: "simulation" }] }]);
+    listerCalendrier.mockResolvedValueOnce([{ jour: "2026-12-10", publications: [{ videoId: "v1", via: "buffer", reseau: "linkedin" }, { videoId: "v2", via: "simulation", reseau: "linkedin" }] }]);
     const h = await rendre({ vue: "mois", date: "2026-12" });
     expect(h).toContain("1 publication");
-    expect(h).toMatch(/>1 (<!-- -->)?<span class="sr-only">publication<\/span>/);
+    expect(h).toMatch(/data-jour="2026-12-10"[^>]*aria-label="[^"]*1 publication : LinkedIn 1"/); // CAL-05 : la grille du mois donne le repère par réseau
     expect(h).toContain("1 essai");
   });
   it("?date= très lointaine : « Semaine précédente » reste sur la semaine voisine (pas de saut)", async () => {

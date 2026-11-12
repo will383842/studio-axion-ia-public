@@ -17,7 +17,10 @@ import { CarteVideo } from "@/components/videos/CarteVideo";
 import { cn } from "@/lib/cn";
 import { cleJour, heure } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
-import { plageMois, plageSemaine } from "@/lib/calendrier-plages";
+import { adresseVueJour, plageMois, plageSemaine } from "@/lib/calendrier-plages";
+import { GrilleMois } from "@/components/calendrier/GrilleMois";
+import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
+import { etatDepuisStatut } from "@/components/calendrier/PastilleStatutPlan";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
 
@@ -240,6 +243,12 @@ function VueMois({ plage, repere, calendrier, suite }: { plage: ReturnType<typeo
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
   const aujourdhui = cleJour(new Date());
   const total = plage.jours.filter((j) => j.startsWith(plage.mois)).flatMap((j) => parJour.get(j) ?? []).filter((p) => p.via !== "simulation").length;
+  const toutes = plage.jours.flatMap((j) => parJour.get(j) ?? []);
+  const essais = toutes.filter((p) => p.via === "simulation").length;
+  // Une entrée par publication réelle, rangée sous la clé du jour déjà calculée (jour de Paris) ; les essais restent à part.
+  const entrees: EntreeCarte[] = plage.jours.flatMap((j) =>
+    (parJour.get(j) ?? []).filter((p) => p.via !== "simulation").map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatDepuisStatut(p.statut) ?? ("inconnu" as const) })),
+  );
   const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}${suite}`;
   return (
     <div>
@@ -257,29 +266,13 @@ function VueMois({ plage, repere, calendrier, suite }: { plage: ReturnType<typeo
         }}
       />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
-      <ol className="grid grid-cols-7 gap-1">
-        {plage.jours.map((j) => {
-          const toutes = parJour.get(j) ?? [];
-          const pubs = toutes.filter((p) => p.via !== "simulation");
-          const essais = toutes.length - pubs.length;
-          const dansMois = j.startsWith(plage.mois);
-          return (
-            <li key={j} className={cn("min-h-14 rounded-xl border p-1 text-xs", j === aujourdhui ? "border-orange bg-surface-1" : "border-trait", !dansMois && "opacity-40")}>
-              <span className="tabular-nums text-texte-doux">{Number(j.slice(8))}</span>
-              {toutes.length > 0 && (
-                <Link href={`/calendrier?vue=jour&date=${j}${suite}`} className="mt-1 block truncate font-semibold text-texte">
-                  {pubs.length > 0 && (
-                    <>
-                      {pubs.length} <span className="sr-only">publication{pubs.length > 1 ? "s" : ""}</span>
-                    </>
-                  )}
-                  {essais > 0 && <span className="block text-[11px] font-normal text-texte-faible">{essais} essai{essais > 1 ? "s" : ""}</span>}
-                </Link>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+      {/* CAL-05 : chaque jour (même vide, même d'un mois voisin) mène à la vue Jour ; un repère par réseau (picto, nom, nombre). Les essais ne sont pas des publications. */}
+      <GrilleMois mois={plage.mois} aujourdhui={aujourdhui} entrees={entrees} lienJour={(j) => adresseVueJour(j, suite)} />
+      {essais > 0 && (
+        <p className="mt-2 text-center text-xs tabular-nums text-texte-faible">
+          {essais} essai{essais > 1 ? "s" : ""} sur cette période (rien n&apos;a été envoyé)
+        </p>
+      )}
     </div>
   );
 }

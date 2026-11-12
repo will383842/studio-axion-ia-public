@@ -22,7 +22,7 @@ import { travailAffiche, useTravaux } from "@/hooks/useTravaux";
 import { formatSansPrix } from "@/formats";
 import { cn } from "@/lib/cn";
 import type { ProprietesEtape } from "./types";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 
 /**
  * Étape « fabrication » — PLEIN ÉCRAN : progression en direct (useTravaux, toutes les 2 s),
@@ -119,7 +119,7 @@ export function EtapeFabrication({ brouillon }: ProprietesEtape) {
               let r = await reessayerTravailAction(t.id);
               r = await avecConfirmationPrix(r, (accord) => reessayerTravailAction(t.id, accord));
               setReessai(false);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
             }}
           />
         ) : charge ? (
