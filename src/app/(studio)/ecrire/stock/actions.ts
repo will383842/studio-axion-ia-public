@@ -2,7 +2,7 @@
 
 /** RC-31 : stock de messages à faire passer. Chaque action commence par exigerSession(). Rien n'est supprimé : on archive. */
 import { revalidatePath } from "next/cache";
-import { creerEntreeStock, archiverMessage, planifierEntree, type MessageStock, type PrioriteStock } from "@/domaine/stock-messages";
+import { verifierSaisieStock, creerEntreeStock, archiverMessage, planifierEntree, type MessageStock, type PrioriteStock } from "@/domaine/stock-messages";
 import type { IdReseau } from "@/domaine/types";
 import { nouvelId } from "@/lib/ids";
 import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
@@ -14,12 +14,21 @@ export async function creerEntreeStockAction(e: {
   format?: string;
   priorite: PrioriteStock;
   echeance?: string;
+  /** Clé de rejeu du formulaire : un double clic ne crée qu'une entrée. */
+  cle?: string;
 }): Promise<Resultat<MessageStock>> {
   await exigerSession();
   return essayer(async () => {
+    const erreur = verifierSaisieStock(e);
+    if (erreur) throw new Error(erreur);
     const texte = e.texte.trim();
-    if (!texte) throw new Error("Écrivez le message à mettre en stock.");
-    const entree = await depots().stockMessages.enregistrer(creerEntreeStock({ ...e, texte, id: nouvelId("stk") }, maintenant()));
+    const cle = e.cle?.trim();
+    const id = cle ? `stk-${cle}` : nouvelId("stk");
+    if (cle) {
+      const existante = await depots().stockMessages.obtenir(id);
+      if (existante) return existante;
+    }
+    const entree = await depots().stockMessages.enregistrer(creerEntreeStock({ ...e, texte, id }, maintenant()));
     revalidatePath("/ecrire/stock");
     return entree;
   });
