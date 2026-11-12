@@ -1,16 +1,21 @@
 /**
- * STOP-S5a — le Studio IMPORTE les oppositions connues du site, par conversation (`POST /api/interne/oppositions-par-conv`).
- * Éteint par défaut (`OPPOSITIONS_SITE_IMPORT_ENABLED`) : aucun appel, aucune écriture.
+ * STOP-S5a — VÉRIFICATION À LA DEMANDE, par personne, des oppositions connues du site (`POST /api/interne/oppositions-par-conv`).
+ * Éteint par défaut (`OPPOSITIONS_SITE_IMPORT_ENABLED`) : aucun appel, aucune lecture, aucune écriture.
+ *
+ * Principe : `personneOpposeePartout` (oppositions-mots) exige, pour chaque lien reçu par la personne, une preuve « non opposée » du
+ * site datée de moins de 10 min ; sinon elle demande la vérification de ces références et LÈVE (rien ne part, l'événement est réessayé).
+ * Ce module traite les demandes : au plus 2 lots de 100 par passage, au plus un passage toutes les 15 s.
  *
  * Règles de sûreté :
- *  - seule une réponse 200 VALIDE (même longueur, même ordre, version 1, rien d'autre) est lue ; tout le reste (429, 503, 5xx, 401, 422,
- *    délai, réponse mal formée) est « INCONNU » : rien n'est écrit, le cycle n'est pas complet. Jamais « non opposée » par défaut ;
- *  - une opposition importée est écrite avec `transmise: true` (le site la connaît) et `source: "site"` ;
- *  - cycle : conversations triées par référence, lots de 100, 10 lots au plus par passage, reprise au curseur ; le cycle n'est « complet »
- *    qu'à la fin. Sans cycle complet récent (30 min), `personneOpposeePartout` écarte les personnes qui ont un lien (`site_perime`) ;
- *  - le paramètre `parcours.oppositions.site` ne contient que des références opaques et des dates ; l'alerte (cloche seulement, jamais
- *    de push) ne contient qu'un nombre, au plus une par heure ;
- *  - appel signé par le transport du site déjà permis (`transportDuSite`), comme `cibles-site.ts`.
+ *  - seule une réponse 200 VALIDE (même longueur, même ordre, version 1, rien d'autre) est lue ; tout le reste (401, 422, 429, 503, 5xx,
+ *    délai, exception, réponse mal formée, site non relié) est « INCONNU » : rien n'est écrit pour le lot, ses références sont remises
+ *    en demande, pause de 60 s, alerte. Jamais « non opposée » par défaut ;
+ *  - une opposition importée est écrite D'ABORD au registre (`transmise: true`, `source: "site"`), ENSUITE seulement les preuves
+ *    « non opposée » sont écrites : si le registre échoue, aucune preuve pour le lot ;
+ *  - AUCUNE écriture des files de transmission (`parcours.oppositions.file` / `.page`) : c'est `rattraperOppositions` qui s'en charge ;
+ *  - l'appel réseau se fait HORS verrou ; le paramètre `parcours.oppositions.site` ne contient que des références opaques et des dates ;
+ *  - alerte à la cloche seulement (jamais de push), un nombre seulement, au plus une par heure ; elle ne fait jamais échouer le passage ;
+ *  - aucun journal ne contient de référence, d'adresse ni d'identifiant.
  */
 import "server-only";
 import {
@@ -20,13 +25,11 @@ import {
   construireCorpsParConv,
   lireReponseParConv,
 } from "@/domaine/guide-reseau/oppositions-par-conv-contrat";
+import { LOT_MAX_PAR_PASSAGE_CONVERSATION } from "@/domaine/guide-reseau/plafonds-conversation";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import type { ReponseSite } from "@/fournisseurs/site/types";
 import {
-  cleIdempotenceOpaque,
-  lireClesEmpreinte,
-} from "@/domaine/guide-reseau/empreinte-personne";
-import {
+  depots,
   ecrireParametre,
   journaliser,
   lireParametre,
@@ -34,72 +37,69 @@ import {
 } from "./_commun";
 import { creerNotification } from "./notifications";
 import {
-  PARAM_OPPOSITIONS_MOTS,
+  FRAICHEUR_SITE_MS,
   PARAM_OPPOSITIONS_SITE,
+  acquitterRefsIllisiblesSite,
+  demanderVerificationSite,
   enregistrerOppositionsImportees,
   importSiteActif,
-  type LigneOpposition,
+  lireVerifs,
+  personneOpposeePartout,
+  prendreDemandesSite,
+  refsIllisiblesSite,
 } from "./oppositions-mots";
-import {
-  PARAM_OPPOSITIONS_FILE,
-  PARAM_OPPOSITIONS_PAGE,
-  type EntreeOpposition,
-  type EntreeOppositionPage,
-} from "./oppositions-transmission";
 import { transportDuSite } from "./parcours-mot";
 
 export {
   PARAM_OPPOSITIONS_SITE,
   VARIABLE_OPPOSITIONS_SITE_IMPORT,
-  PEREMPTION_IMPORT_SITE_MS,
 } from "./oppositions-mots";
-export const INTERVALLE_IMPORT_MS = 10 * 60_000;
-export const LOTS_MAX_PAR_PASSAGE = 10;
-export const DELAI_IMPORT_SITE_MS = 5_000;
-const INTERVALLE_ALERTE_MS = 3600_000;
-/** Même nom que `PARAM_CONVERSATIONS` (parcours-conversation.ts) : pas d'import, pour éviter tout cycle. */
+export const MARGE_RENOUVELLEMENT_MS = 120_000;
+export const MAX_VERIFS = 1000;
+export const MAX_DEMANDES_PAR_PASSAGE = 200;
+export const LOTS_MAX_PAR_PASSAGE = 2;
+export const INTERVALLE_VERIFICATION_MS = 15_000;
+export const PAUSE_APRES_ECHEC_MS = 60_000;
+export const DELAI_APPEL_SITE_MS = 5_000;
+export const INTERVALLE_ALERTE_MS = 3_600_000;
+/** Mêmes noms que dans parcours-conversation.ts : pas d'import (évite tout cycle). */
 const PARAM_CONVERSATIONS_ETAT = "parcours.conversations";
+const FOURNISSEUR = "zernio";
+const TYPES_EVENEMENTS: readonly string[] = [
+  "zernio.commentaire",
+  "zernio.message",
+];
 
 type Env = Record<string, string | undefined>;
-export interface EtatImportSite {
-  curseur: string | null;
-  cycleCommenceLe: number | null;
-  dernierCycleCompletLe: number | null;
-  alerteLe: number | null;
+
+interface EtatProcessus {
+  enCours: boolean;
+  dernierPassageMs: number | null;
+  pauseJusquaMs: number;
 }
-const VIDE: EtatImportSite = {
-  curseur: null,
-  cycleCommenceLe: null,
-  dernierCycleCompletLe: null,
-  alerteLe: null,
+/** Mémoire de processus (un redémarrage repart de zéro). */
+const processus = (): EtatProcessus => {
+  const g = globalThis as { __studioVerifSite?: EtatProcessus };
+  return (g.__studioVerifSite ??= {
+    enCours: false,
+    dernierPassageMs: null,
+    pauseJusquaMs: 0,
+  });
 };
+/** Remet à zéro l'état en mémoire (essais). */
+export function reinitialiserImportOppositionsSite(): void {
+  const g = globalThis as { __studioVerifSite?: EtatProcessus };
+  delete g.__studioVerifSite;
+}
 
 const estObjet = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
-const nombreOuNull = (v: unknown): number | null =>
-  typeof v === "number" && Number.isFinite(v) ? v : null;
-
-function lireEtat(brut: unknown): EtatImportSite {
-  if (!estObjet(brut)) return { ...VIDE };
-  return {
-    curseur:
-      typeof brut.curseur === "string" && RE_REF_CONV.test(brut.curseur)
-        ? brut.curseur
-        : null,
-    cycleCommenceLe: nombreOuNull(brut.cycleCommenceLe),
-    dernierCycleCompletLe: nombreOuNull(brut.dernierCycleCompletLe),
-    alerteLe: nombreOuNull(brut.alerteLe),
-  };
-}
-
-// État en mémoire (un redémarrage repart de zéro) : dernier passage et passage en cours.
-let dernierPassageMs: number | null = null;
-let enCours = false;
-/** Remet à zéro l'état en mémoire (essais). */
-export function reinitialiserImportOppositionsSite(): void {
-  dernierPassageMs = null;
-  enCours = false;
-}
+const lireAlerteLe = (brut: unknown): number | null =>
+  estObjet(brut) &&
+  typeof brut.alerteLe === "number" &&
+  Number.isFinite(brut.alerteLe)
+    ? brut.alerteLe
+    : null;
 
 class DelaiDepasse extends Error {}
 
@@ -124,7 +124,7 @@ async function appeler(
   const delai = new Promise<never>((_, rejeter) => {
     minuteur = setTimeout(
       () => rejeter(new DelaiDepasse("delai")),
-      DELAI_IMPORT_SITE_MS,
+      DELAI_APPEL_SITE_MS,
     );
   });
   try {
@@ -137,221 +137,242 @@ async function appeler(
   }
 }
 
-/** Un lot : un booléen par référence demandée, ou `null` (INCONNU) pour tout ce qui n'est pas une réponse 200 valide. */
+/** Résultat d'un lot : `{ reponse }` (valide), `{ nonRelie }` ou `{}` (INCONNU). */
 async function interroger(
   env: Env,
-  maintenantMs: number,
+  now: number,
   refs: readonly string[],
-): Promise<boolean[] | null> {
+): Promise<{ reponse?: boolean[]; nonRelie?: true }> {
   const corps = construireCorpsParConv(refs);
-  if (corps === null) return null;
+  if (corps === null) return {};
   try {
-    const r = await appeler(env, maintenantMs, corps);
-    if (!r || r.statut !== 200) return null;
-    return lireReponseParConv(r.corps, refs);
+    const r = await appeler(env, now, corps);
+    if (r === null) return { nonRelie: true };
+    if (r.statut !== 200) return {};
+    const reponse = lireReponseParConv(r.corps, refs);
+    return reponse === null ? {} : { reponse };
   } catch {
-    return null;
+    return {};
   }
 }
 
-/** Alerte à la cloche : un nombre seulement, au plus une par heure. Jamais de push. Ne fait jamais échouer le passage. */
+/** Alerte à la cloche : un nombre seulement, au plus une par heure. Jamais de push. Ne fait jamais échouer le passage. Rend vrai si envoyée. */
 async function alerter(
-  etat: EtatImportSite,
-  nombre: number,
+  message: string,
+  titre: string,
   now: number,
-): Promise<void> {
-  if (
-    etat.alerteLe !== null &&
-    now - etat.alerteLe >= 0 &&
-    now - etat.alerteLe < INTERVALLE_ALERTE_MS
-  )
-    return;
-  etat.alerteLe = now;
-  const message = `L'import des oppositions du site est incomplet : ${nombre} conversation(s) n'ont pas pu être vérifiées. Les personnes qui ont reçu un lien sont écartées tant que la vérification échoue (rien ne leur est envoyé).`;
+): Promise<boolean> {
   try {
+    const marquee = await sousVerrou(async () => {
+      const brut = await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null);
+      const dernier = lireAlerteLe(brut);
+      if (
+        dernier !== null &&
+        now - dernier >= 0 &&
+        now - dernier < INTERVALLE_ALERTE_MS
+      )
+        return false;
+      await ecrireParametre(PARAM_OPPOSITIONS_SITE, {
+        v: 1,
+        verifs: lireVerifs(brut),
+        alerteLe: now,
+      });
+      return true;
+    });
+    if (!marquee) return false;
     await journaliser("parcours_conversation", `ALERTE : ${message}`);
     await creerNotification(
-      {
-        type: "echec",
-        titre: "Oppositions du site non importées",
-        message,
-        lien: "/mots",
-      },
+      { type: "echec", titre, message, lien: "/mots" },
       { cloche: true },
     );
+    return true;
   } catch {
-    /* l'alerte ne doit jamais faire échouer le passage */
+    return false; // l'alerte ne doit jamais faire échouer le passage
   }
 }
+const alerteEchec = (nombre: number, now: number): Promise<boolean> =>
+  alerter(
+    `La vérification des oppositions du site a échoué : ${nombre} référence(s) n'ont pas pu être vérifiées. Les personnes qui ont reçu un lien attendent (rien ne leur est envoyé).`,
+    "Oppositions du site non vérifiées",
+    now,
+  );
+const alerteNonRelie = (now: number): Promise<boolean> =>
+  alerter(
+    "Le site n'est pas relié : les oppositions du site ne peuvent pas être vérifiées. Les personnes qui ont reçu un lien attendent (rien ne leur est envoyé).",
+    "Site non relié (oppositions)",
+    now,
+  );
+const alerteIllisibles = (nombre: number, now: number): Promise<boolean> =>
+  alerter(
+    `Des références de lien illisibles bloquent des personnes : ${nombre} cas depuis la dernière alerte. Rien ne leur est envoyé.`,
+    "Références de lien illisibles",
+    now,
+  );
 
 /**
- * Le site connaît déjà ces oppositions : on pose AUSSI les entrées des files de transmission à l'état « transmise » (voie page, et voie
- * adresse si l'adresse avait été transmise). Sans cela, la réconciliation (`rattraperOppositions`) renverrait au site ce qu'il vient de
- * nous dire : boucle. Une entrée déjà présente n'est jamais touchée. Ni adresse, ni identifiant brut.
+ * Un passage de vérification. Éteint : retour immédiat. Allumé : au plus un passage toutes les 15 s, aucun pendant la pause après échec.
+ * Les erreurs de lecture/écriture sont propagées (l'étape du passage les absorbe) ; les références prises sont alors remises en demande.
  */
-async function marquerConnuesDuSite(
-  cles: readonly string[],
-  conv: Record<string, unknown>,
-  env: Env,
-  now: number,
-): Promise<void> {
-  if (cles.length === 0) return;
-  const k = lireClesEmpreinte(env);
-  if (!k.ok) throw new Error("cles_absentes");
-  const iso = new Date(now).toISOString();
-  await sousVerrou(async () => {
-    const page = await lireParametre<Record<string, EntreeOppositionPage>>(
-      PARAM_OPPOSITIONS_PAGE,
-      {},
-    );
-    const file = await lireParametre<Record<string, EntreeOpposition>>(
-      PARAM_OPPOSITIONS_FILE,
-      {},
-    );
-    const page2 = { ...page };
-    const file2 = { ...file };
-    for (const cle of cles) {
-      const e = conv[cle];
-      if (!estObjet(e) || (e.reseau !== "instagram" && e.reseau !== "facebook"))
-        continue;
-      if (
-        !page2[cle] &&
-        typeof e.refLienConv === "string" &&
-        e.refLienConv !== ""
-      )
-        page2[cle] = {
-          cleIdempotence: cleIdempotenceOpaque(
-            k.courante,
-            "opposition",
-            `page:${cle}`,
-          ),
-          refLienConv: e.refLienConv,
-          reseau: e.reseau,
-          creeLe: iso,
-          etat: "transmise",
-          essais: 0,
-          prochainEssaiLe: null,
-          dernierCode: "connue_du_site",
-        };
-      if (!file2[cle] && typeof e.occurredAt === "string")
-        file2[cle] = {
-          cleIdempotence: cleIdempotenceOpaque(k.courante, "opposition", cle),
-          reseau: e.reseau,
-          creeLe: iso,
-          essais: 0,
-          prochainEssaiLe: null,
-          etat: "transmise",
-          dernierCode: "connue_du_site",
-          depuis: iso,
-          lectures: 0,
-        };
-    }
-    if (Object.keys(page2).length !== Object.keys(page).length)
-      await ecrireParametre(PARAM_OPPOSITIONS_PAGE, page2);
-    if (Object.keys(file2).length !== Object.keys(file).length)
-      await ecrireParametre(PARAM_OPPOSITIONS_FILE, file2);
-  });
-}
-
-/**
- * Un passage de l'import. Éteint : aucun appel, aucune écriture. Allumé : au plus un passage toutes les 10 min.
- * Les erreurs de lecture/écriture sont propagées (l'étape du passage les absorbe) : jamais d'état « complet » sur une erreur.
- */
-export async function importerOppositionsDuSite(
+export async function verifierOppositionsSite(
   o: { env?: Env; maintenantMs?: number } = {},
 ): Promise<void> {
   const env = o.env ?? process.env;
   if (!importSiteActif(env)) return;
   const now = o.maintenantMs ?? Date.now();
-  if (enCours) return;
+  const p = processus();
+  if (p.enCours) return;
+  if (now < p.pauseJusquaMs) return;
   if (
-    dernierPassageMs !== null &&
-    now - dernierPassageMs >= 0 &&
-    now - dernierPassageMs < INTERVALLE_IMPORT_MS
+    p.dernierPassageMs !== null &&
+    now - p.dernierPassageMs >= 0 &&
+    now - p.dernierPassageMs < INTERVALLE_VERIFICATION_MS
   )
     return;
-  enCours = true;
+  p.enCours = true;
   try {
-    dernierPassageMs = now;
-    await passage(env, now);
+    p.dernierPassageMs = now;
+    await passage(env, now, p);
   } finally {
-    enCours = false;
+    p.enCours = false;
   }
 }
 
-async function passage(env: Env, now: number): Promise<void> {
-  const etat = lireEtat(
-    await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null),
-  );
-  const conv = await lireParametre<unknown>(PARAM_CONVERSATIONS_ETAT, {});
-  const registre = await lireParametre<unknown>(PARAM_OPPOSITIONS_MOTS, []);
-  const dejaImportees = new Set<string>(
-    Array.isArray(registre)
-      ? (registre as LigneOpposition[])
-          .filter((x) => x?.source === "site" && typeof x.id === "string")
-          .map((x) => x.id)
-      : [],
-  );
+/** Une preuve tient 10 min ; on la renouvelle dès 8 min (marge de 2 min). */
+const encoreAssezFraiche = (t: number | undefined, now: number): boolean =>
+  typeof t === "number" &&
+  Number.isFinite(t) &&
+  now - t >= 0 &&
+  now - t < FRAICHEUR_SITE_MS - MARGE_RENOUVELLEMENT_MS;
 
-  // Conversations à vérifier : un lien, état différent de « oppose », pas déjà importée. Référence -> clés de conversation.
-  const parRef = new Map<string, string[]>();
-  let illisibles = 0;
-  if (estObjet(conv)) {
-    for (const [cle, e] of Object.entries(conv)) {
-      if (
-        !estObjet(e) ||
-        typeof e.refLienConv !== "string" ||
-        e.refLienConv === ""
-      )
-        continue;
-      if (e.etat === "oppose" || dejaImportees.has(cle)) continue;
-      if (!RE_REF_CONV.test(e.refLienConv)) {
-        illisibles++;
-        continue;
+async function passage(env: Env, now: number, p: EtatProcessus): Promise<void> {
+  // 1. PROACTIF : les événements dus (mêmes critères que `traiterConversations`) demandent leur vérification. Le jeton rendu est jeté.
+  const dus = await depots().evenementsFournisseurs.lister(
+    (e) =>
+      e.fournisseur === FOURNISSEUR &&
+      TYPES_EVENEMENTS.includes(e.type) &&
+      !e.traite &&
+      (typeof e.charge.prochainEssaiLe !== "number" ||
+        e.charge.prochainEssaiLe <= now),
+  );
+  dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
+  for (const ev of dus.slice(0, LOT_MAX_PAR_PASSAGE_CONVERSATION)) {
+    const c = ev.charge;
+    await personneOpposeePartout(
+      {
+        idsBruts: [c.idAuteur, c.idExpediteur, c.idConversation].filter(
+          (x): x is string => typeof x === "string",
+        ),
+      },
+      { env, maintenantMs: now },
+    ).catch(() => undefined);
+  }
+
+  // 2. Les demandes : jusqu'à 200, sans celles vérifiées depuis moins de 8 min, sans doublon, en lots de 100 (2 lots au plus).
+  const prises = prendreDemandesSite(MAX_DEMANDES_PAR_PASSAGE);
+  const restantes = new Set<string>();
+  try {
+    const verifs = lireVerifs(
+      await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null),
+    );
+    for (const r of new Set(prises))
+      if (RE_REF_CONV.test(r) && !encoreAssezFraiche(verifs[r], now))
+        restantes.add(r);
+    const aFaire = [...restantes];
+    let echec = false;
+    let nonRelie = false;
+    for (
+      let i = 0;
+      i < LOTS_MAX_PAR_PASSAGE && i * LOT_MAX_PAR_CONV < aFaire.length;
+      i++
+    ) {
+      const lot = aFaire.slice(
+        i * LOT_MAX_PAR_CONV,
+        (i + 1) * LOT_MAX_PAR_CONV,
+      );
+      // 3. Appel HORS verrou.
+      const r = await interroger(env, now, lot);
+      if (!r.reponse) {
+        echec = true;
+        nonRelie = r.nonRelie === true;
+        break;
       }
-      parRef.set(e.refLienConv, [...(parRef.get(e.refLienConv) ?? []), cle]);
+      if (!(await enregistrerLot(env, now, lot, r.reponse, restantes))) {
+        echec = true;
+        break;
+      }
     }
-  } else illisibles++;
-  const refs = [...parRef.keys()].sort();
-
-  const debut =
-    etat.curseur === null
-      ? 0
-      : refs.findIndex((r) => r > (etat.curseur as string));
-  let reste = debut === -1 ? refs.length : debut;
-  if (etat.curseur === null) etat.cycleCommenceLe = now;
-  let echec = illisibles > 0;
-  let lots = 0;
-  while (!echec && reste < refs.length && lots < LOTS_MAX_PAR_PASSAGE) {
-    const lot = refs.slice(reste, reste + LOT_MAX_PAR_CONV);
-    const reponse = await interroger(env, now, lot);
-    if (reponse === null) {
-      echec = true;
-      break;
+    if (echec) {
+      p.pauseJusquaMs = now + PAUSE_APRES_ECHEC_MS;
+      if (nonRelie) await alerteNonRelie(now);
+      else await alerteEchec(restantes.size, now);
     }
-    const opposees = lot
-      .filter((_, i) => reponse[i])
-      .flatMap((r) => parRef.get(r) ?? []);
-    try {
-      if (estObjet(conv)) await marquerConnuesDuSite(opposees, conv, env, now);
-      await enregistrerOppositionsImportees(opposees, { env });
-    } catch {
-      echec = true;
-      break;
-    }
-    reste += lot.length;
-    etat.curseur = lot[lot.length - 1];
-    lots++;
+  } catch (e) {
+    demanderVerificationSite(restantes);
+    throw e;
   }
+  demanderVerificationSite(restantes); // tout ce qui n'a pas reçu de preuve reste demandé
+  const illisibles = refsIllisiblesSite();
+  if (illisibles > 0 && (await alerteIllisibles(illisibles, now)))
+    acquitterRefsIllisiblesSite();
+}
 
-  if (echec) {
-    await alerter(etat, Math.max(refs.length - reste, 0) + illisibles, now);
-  } else if (reste >= refs.length) {
-    // Fin du cycle : tout a été vérifié depuis le début (le curseur n'avance que sur une réponse valide). La date retenue est celle du
-    // DÉBUT du cycle : c'est la plus ancienne vérification, donc la seule qu'on puisse garantir pour toutes les conversations.
-    etat.dernierCycleCompletLe = Math.min(etat.cycleCommenceLe ?? now, now);
-    etat.curseur = null;
-    etat.cycleCommenceLe = null;
+/**
+ * 4. Réponse valide : d'ABORD le registre (références « opposées »), ENSUITE seulement les preuves « non opposée ». Rend faux si rien
+ * n'a été prouvé pour ce lot. Les références prouvées sont retirées de `restantes`.
+ */
+async function enregistrerLot(
+  env: Env,
+  now: number,
+  lot: readonly string[],
+  reponse: readonly boolean[],
+  restantes: Set<string>,
+): Promise<boolean> {
+  const opposees = new Set(lot.filter((_, i) => reponse[i]));
+  const conv = await lireParametre<unknown>(PARAM_CONVERSATIONS_ETAT, {});
+  const cles: string[] = [];
+  const avecCle = new Set<string>();
+  if (estObjet(conv))
+    for (const [cle, e] of Object.entries(conv)) {
+      const r = estObjet(e) ? e.refLienConv : undefined;
+      if (typeof r === "string" && opposees.has(r)) {
+        cles.push(cle);
+        avecCle.add(r);
+      }
+    }
+  try {
+    await enregistrerOppositionsImportees(cles, { env });
+  } catch {
+    return false; // aucune preuve pour le lot
   }
-  await ecrireParametre(PARAM_OPPOSITIONS_SITE, etat);
+  // Une référence « opposée » sans aucune clé reste INCONNUE : pas de preuve, remise en demande.
+  for (const r of avecCle) restantes.delete(r);
+  const nonOpposees = lot.filter((_, i) => !reponse[i]);
+  if (nonOpposees.length > 0) {
+    // Écriture des preuves sous verrou, SANS appel réseau. Heure d'ENVOI de la demande (`now`) : la plus prudente.
+    await sousVerrou(async () => {
+      const brut = await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null);
+      const verifs = lireVerifs(brut);
+      for (const r of nonOpposees)
+        verifs[r] = Math.max(verifs[r] ?? -Infinity, now);
+      // « Futur » = au-delà de l'horloge réelle : un passage plus lent ne doit pas effacer la preuve, plus récente, d'un passage concurrent.
+      const horloge = Math.max(now, Date.now());
+      const gardees = Object.entries(verifs)
+        .filter(
+          ([k, t]) =>
+            RE_REF_CONV.test(k) &&
+            Number.isFinite(t) &&
+            t <= horloge &&
+            now - t <= FRAICHEUR_SITE_MS + MARGE_RENOUVELLEMENT_MS,
+        )
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, MAX_VERIFS);
+      await ecrireParametre(PARAM_OPPOSITIONS_SITE, {
+        v: 1,
+        verifs: Object.fromEntries(gardees),
+        alerteLe: lireAlerteLe(brut),
+      });
+    });
+    for (const r of nonOpposees) restantes.delete(r);
+  }
+  return true;
 }

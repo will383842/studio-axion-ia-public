@@ -7,7 +7,8 @@ import { candidatsEmpreinte, contientEnTempsConstant, empreinteHeritee, empreint
 import { emettreJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { racineDe } from "@/domaine/guide-reseau/cles-parcours";
 import { ETATS_EN_COURS } from "@/domaine/guide-reseau/etats-parcours";
-import { ecrireParametre, lireParametre, maintenant, sousVerrou } from "./_commun";
+import { RE_REF_CONV } from "@/domaine/guide-reseau/oppositions-par-conv-contrat";
+import { ecrireParametre, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 
 export const PARAM_OPPOSITIONS_MOTS = "mots.oppositions";
 export interface LigneOpposition {
@@ -36,10 +37,66 @@ const PARAM_CONVERSATIONS_ETAT = "parcours.conversations";
 /** Import des oppositions connues du site (STOP-S5a) : éteint par défaut. Même lecture que `OPPOSITIONS_PAR_REF_ENABLED`. */
 export const VARIABLE_OPPOSITIONS_SITE_IMPORT = "OPPOSITIONS_SITE_IMPORT_ENABLED";
 export const importSiteActif = (env: Record<string, string | undefined>): boolean => /^(1|true|oui)$/i.test(env[VARIABLE_OPPOSITIONS_SITE_IMPORT]?.trim() ?? "");
-/** Curseur et dates de l'import (des références opaques et des dates seulement, aucune donnée en clair). */
+/** Preuves « non opposée » du site (STOP-S5a) : `{ v: 1, verifs: { référence opaque: date en ms }, alerteLe }`. Aucune donnée en clair. */
 export const PARAM_OPPOSITIONS_SITE = "parcours.oppositions.site";
-/** Au-delà, le dernier cycle complet est périmé : toute personne qui a un lien est écartée (rien ne part). */
-export const PEREMPTION_IMPORT_SITE_MS = 30 * 60_000;
+/** Une preuve « non opposée » du site vaut 10 minutes (de l'heure d'ENVOI de la demande). Au-delà : à revérifier. */
+export const FRAICHEUR_SITE_MS = 600_000;
+/** Demandes de vérification gardées en mémoire de processus (au-delà, la plus ancienne est retirée). */
+export const MAX_DEMANDES_SITE = 500;
+
+interface MemoireSite {
+  demandes: Set<string>;
+  refsIllisibles: number;
+}
+/** Mémoire de processus (survit au rechargement des modules) : demandes en attente et références illisibles vues. */
+const memoireSite = (): MemoireSite => {
+  const g = globalThis as { __studioOppositionsSite?: MemoireSite };
+  return (g.__studioOppositionsSite ??= { demandes: new Set<string>(), refsIllisibles: 0 });
+};
+/** Demande la vérification de ces références (conformes seulement). Bornée : la plus ancienne est retirée ; journal sans référence. */
+export function demanderVerificationSite(refs: Iterable<string>): void {
+  const m = memoireSite();
+  let retirees = 0;
+  for (const r of refs) {
+    if (typeof r !== "string" || !RE_REF_CONV.test(r)) continue;
+    m.demandes.delete(r); // une demande répétée redevient la plus récente
+    m.demandes.add(r);
+    while (m.demandes.size > MAX_DEMANDES_SITE) {
+      const plusAncienne = m.demandes.values().next().value as string;
+      m.demandes.delete(plusAncienne);
+      retirees++;
+    }
+  }
+  if (retirees > 0) void journaliser("parcours_conversation", "Demandes de vérification du site : plafond atteint, les plus anciennes sont retirées.").catch(() => undefined);
+}
+/** Prend (et retire) jusqu'à `n` demandes, les plus anciennes d'abord. */
+export function prendreDemandesSite(n: number): string[] {
+  const m = memoireSite();
+  const pris = [...m.demandes].slice(0, Math.max(0, Math.floor(n)));
+  for (const r of pris) m.demandes.delete(r);
+  return pris;
+}
+/** Remet à zéro la mémoire de processus (essais). */
+export function reinitialiserDemandesSite(): void {
+  const m = memoireSite();
+  m.demandes.clear();
+  m.refsIllisibles = 0;
+}
+/** Nombre de références illisibles vues depuis la dernière alerte (un nombre seulement). */
+export const refsIllisiblesSite = (): number => memoireSite().refsIllisibles;
+export const acquitterRefsIllisiblesSite = (): void => {
+  memoireSite().refsIllisibles = 0;
+};
+/** Lit le paramètre : forme invalide ou version différente de 1 => table vide (tout fermé), sans erreur. Entrées non conformes écartées. */
+export function lireVerifs(brut: unknown): Record<string, number> {
+  const o = brut as { v?: unknown; verifs?: unknown } | null;
+  if (typeof o !== "object" || o === null || Array.isArray(o) || o.v !== 1) return {};
+  const v = o.verifs;
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return {};
+  const res: Record<string, number> = {};
+  for (const [k, t] of Object.entries(v)) if (RE_REF_CONV.test(k) && typeof t === "number" && Number.isFinite(t)) res[k] = t;
+  return res;
+}
 
 interface Options {
   env?: Record<string, string | undefined>;
@@ -306,9 +363,9 @@ export class ErreurOppositionIllisible extends Error {
     | "personne_inconnue"
     | "registre"
     | "conversations"
-    | "site_perime";
+    | "site_a_verifier";
   constructor(
-    code: "personne_inconnue" | "registre" | "conversations" | "site_perime",
+    code: "personne_inconnue" | "registre" | "conversations" | "site_a_verifier",
   ) {
     super("Opposition illisible : la personne ne peut pas être vérifiée.");
     this.name = "ErreurOppositionIllisible";
@@ -415,7 +472,8 @@ export async function personneOpposeePartout(
     if (!passer()) break;
   let etat = false;
   let doute = false;
-  let aUnLien = false;
+  const refs = new Set<string>();
+  let refIllisible = false;
   for (const k of touchees) {
     candidats.add(k);
     candidats.add(racineDe(k));
@@ -427,20 +485,32 @@ export async function personneOpposeePartout(
     const ec = e as ConversationLue;
     if (ec.etat === "oppose") etat = true;
     if (ec.douteOpposition === true && o?.douteBloque === true) doute = true;
-    if (typeof ec.refLienConv === "string" && ec.refLienConv !== "") aUnLien = true;
+    if (typeof ec.refLienConv === "string") {
+      if (ec.refLienConv !== "") refs.add(ec.refLienConv);
+    } else if (ec.refLienConv !== undefined && ec.refLienConv !== null) refIllisible = true;
   }
   const dansRegistre = trouver(liste as LigneOpposition[], [...candidats]) >= 0;
   if (etat) return { opposee: true, source: "etat" };
   if (dansRegistre) return { opposee: true, source: "registre" };
   if (doute) return { opposee: true, source: "doute" };
-  // STOP-S5a : une personne qui a reçu un lien a pu s'opposer sur le site. Sans import récent et complet, on ne sait pas : on LÈVE.
-  // Interrupteur éteint : aucune lecture de plus. Personne sans lien : non touchée.
-  if (aUnLien && importSiteActif(o?.env ?? process.env)) {
-    const site = await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null);
-    const dernier = estObjet(site) ? site.dernierCycleCompletLe : undefined;
-    const maintenantMs = o?.maintenantMs ?? Date.now();
-    if (typeof dernier !== "number" || !Number.isFinite(dernier) || maintenantMs - dernier > PEREMPTION_IMPORT_SITE_MS)
-      throw new ErreurOppositionIllisible("site_perime");
+  // STOP-S5a : une personne qui a reçu un lien a pu s'opposer sur le site. Sans preuve « non opposée » FRAÎCHE pour CHAQUE lien, on ne
+  // sait pas : on demande la vérification (à la demande, par personne) et on LÈVE. Interrupteur éteint : aucune lecture de plus, aucune
+  // demande. Aucun verrou, aucune écriture en base, aucun appel réseau ici.
+  if ((refs.size > 0 || refIllisible) && importSiteActif(o?.env ?? process.env)) {
+    if (refIllisible || [...refs].some((r) => !RE_REF_CONV.test(r))) {
+      memoireSite().refsIllisibles++;
+      throw new ErreurOppositionIllisible("site_a_verifier");
+    }
+    const verifs = lireVerifs(await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null));
+    const now = o?.maintenantMs ?? Date.now();
+    const manquantes = [...refs].filter((r) => {
+      const t = verifs[r];
+      return !(Number.isInteger(t) && now - t >= 0 && now - t <= FRAICHEUR_SITE_MS);
+    });
+    if (manquantes.length > 0) {
+      demanderVerificationSite(manquantes);
+      throw new ErreurOppositionIllisible("site_a_verifier");
+    }
   }
   return { opposee: false, jeton: emettreJetonNonOpposee() };
 }
