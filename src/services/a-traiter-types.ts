@@ -44,6 +44,18 @@ export interface CarteATraiter {
   empreintes?: string[];
   /** Identifiant (kid) de la clé courante à la création : si elle change, la carte est traitée comme opposée (fermé). */
   kid?: string;
+  /** LinkedIn/TikTok (file manuelle) : identifiant opaque du compte réseau concerné. Jamais un pseudo. */
+  idCompte?: string;
+  /** LinkedIn/TikTok : repère opaque de la cible (publication). Jamais un nom de personne. */
+  cible?: string;
+  /** LinkedIn/TikTok : titre court de la cible, ÉCHAPPÉ, jamais un nom de personne. */
+  titreCible?: string;
+  /** LinkedIn/TikTok : le message privé est-il à fabriquer à la main, ou indisponible ? */
+  message?: "a_fabriquer" | "indisponible";
+  /** Pourquoi aucun message n'est proposé (valeur fermée, jamais un texte libre). */
+  raisonSansMessage?: string;
+  /** Instant (ISO 8601) où le message a été copié à la main, pour le plafond de 24 h. */
+  copieLe?: string;
 }
 
 export interface EntreeATraiter {
