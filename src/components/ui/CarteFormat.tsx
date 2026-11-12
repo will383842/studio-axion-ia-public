@@ -20,6 +20,9 @@ export interface DonneesCarteFormat {
   exemple?: { vignette: string; video: string; ratio: string };
   /** Format en essai chez Will : carte normale (cliquable), pastille « Essai ». */
   essai?: boolean;
+  /** Nom et phrase montrés à la place de ceux du registre (Nouvelle vidéo : « L'erreur corrigée » seule, 12/11). */
+  nomAffiche?: string;
+  accrocheAffichee?: string;
 }
 
 /**
@@ -83,8 +86,8 @@ export function CarteFormat({ format, href, compacte, className }: ProprietesCar
       )}
       <div className={cn("flex min-w-0 flex-1 flex-col", !compacte && "gap-3 p-4 pt-1")}>
         <div className="min-w-0">
-          <h3 className={cn("truncate text-texte", compacte ? "text-base" : "text-lg")}>{nomCourtFormat(format)}</h3>
-          <p className="truncate text-sm text-texte-doux">{format.accroche}</p>
+          <h3 className={cn("truncate text-texte", compacte ? "text-base" : "text-lg")}>{format.nomAffiche ?? nomCourtFormat(format)}</h3>
+          <p className="truncate text-sm text-texte-doux">{format.accrocheAffichee ?? format.accroche}</p>
         </div>
         {!compacte && (
           <div className="flex flex-wrap items-center gap-1.5">

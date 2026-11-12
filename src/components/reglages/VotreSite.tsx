@@ -92,7 +92,7 @@ export function VotreSite({ vue }: { vue: VueSite }) {
 
       <div className="grid grid-cols-3 gap-2">
         <Bloc icone="horloge" valeur={vue.derniereLecture ? depuisCourt(vue.derniereLecture) : "Jamais"} libelle="Dernière lecture" />
-        <Bloc icone="citation" valeur={String(vue.totaux.aRelire)} libelle={vue.totaux.aRelire > 1 ? "Matières à relire" : "Matière à relire"} href="/ecrire/matieres" />
+        <Bloc icone="citation" valeur={String(vue.totaux.aRelire)} libelle={vue.totaux.aRelire > 1 ? "Matières à relire" : "Matière à relire"} href="/ecrire?onglet=matieres" />
         <Bloc icone="images" valeur={String(vue.totaux.images)} libelle={vue.totaux.images > 1 ? "Images du site" : "Image du site"} href="/bibliotheque/mes-images" />
       </div>
 

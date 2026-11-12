@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
-import { BarreEtapes, type EtapeBarre } from "@/components/ui/BarreEtapes";
+import { BarreEtapesCommune, type EtapeCommune } from "@/components/ui/BarreEtapesCommune";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 
 export interface ProprietesGabaritCreation {
   entete: Parameters<typeof EnTetePage>[0];
   /** Absent = écran à une seule étape. */
-  etapes?: { etapes: EtapeBarre[]; courante: number; onAller?: (index: number) => void };
+  etapes?: { etapes: EtapeCommune[]; courante: number; onAller?: (index: number) => void };
   /** Un `<SuiviFabrication …/>` ; absent si rien n'est en cours. */
   suivi?: ReactNode;
   /** Un `<RecentsGenerateur …/>` ; absent si le générateur n'en a pas. */
@@ -33,7 +33,7 @@ export function GabaritCreation({ entete, etapes, suivi, recents, action, action
       </div>
       {etapes && (
         <div data-zone="etapes">
-          <BarreEtapes etapes={etapes.etapes} courante={etapes.courante} onAller={etapes.onAller} />
+          <BarreEtapesCommune etapes={etapes.etapes} courante={etapes.courante} onAller={etapes.onAller} />
         </div>
       )}
       <div data-zone="specifique">{children}</div>

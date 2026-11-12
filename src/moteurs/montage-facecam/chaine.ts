@@ -36,7 +36,7 @@ import { avancerCompositions, type BaseComposition, type EtatMontage, type Outil
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu } from "@/fournisseurs/types";
 import { multicameraPourComposition, type PisteMulticamera } from "@/briques/multicamera";
-import { corrigerMots, emphaseDuScript, habillageFacecam, type CartePosee, type HabillageFacecam } from "./habillage";
+import { corrigerMots, intensiteLutCommande, emphaseDuScript, habillageFacecam, type CartePosee, type HabillageFacecam } from "./habillage";
 import { ajustementsAuMontage, priseVersMonteeGardes, type AjustementCarteAutoMonte, type CarteAutoVue } from "./cartes-video";
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
@@ -86,6 +86,8 @@ export interface EtatChaine {
   version: string;
   /** GV-MD-05b : historique des cartes figé au premier habillage ; une reprise ou une retouche refait le même choix. */
   memoireCartes?: MemoireCartesAuto;
+  /** GV-N2 : mots colorés validés à l'origine, posés par une retouche ; présents (même vides), ils remplacent le calcul depuis le script. */
+  emphaseValidee?: string[];
   travaux: Partial<Record<CleTravailChaine, SuiviTravail>>;
   coupes?: {
     mode: "texte" | "libre";
@@ -649,7 +651,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
         bande: bandeAvecDeclinaisons(etat, sourceDim) ?? bandeDesPlans(etat.plans, sourceDim),
         image: entrees.image,
         ...(termine("visages") && visages?.pointsCle ? { points: await lire(visages.pointsCle), ...(visages.pisteVisageCle ? { piste: await lire(visages.pisteVisageCle) } : {}) } : {}),
-        ...(lut ? { lut: { adresse: await lire(lut.cle), intensite: c.styles.lut?.intensite ?? 60 } } : {}),
+        ...(lut ? { lut: { adresse: await lire(lut.cle), intensite: intensiteLutCommande(c.styles.lut) } } : {}),
         ...(look?.peauLab ? { lookWill: look } : {}),
         // Lot G : « plus chaud » / « plus froid » demandé au monteur.
         ...(lireReglagesMonteur(c.entrees).teinte !== "neutre" ? { teinte: lireReglagesMonteur(c.entrees).teinte } : {}),
@@ -907,7 +909,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       // GV-MD-05b : historique des cartes lu UNE fois, figé dans l'état ; une lecture en panne ou une mémoire vide ne fige rien.
       const memoire = entrees.memoireCartes ?? etat.memoireCartes ?? (deps.memoireCartes ? await deps.memoireCartes().catch(() => undefined) : undefined);
       if (memoire && !entrees.memoireCartes && !etat.memoireCartes) etat.memoireCartes = memoire;
-      const emphase = emphaseDuScript(c);
+      const emphase = etat.emphaseValidee ?? emphaseDuScript(c);
       const h: HabillageFacecam = habillageFacecam({
         pisteMonteeCle: montage?.fichierCle ?? cle("montage.mov"),
         dureeSec,
@@ -920,7 +922,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
         ...(occupes.length ? { occupes } : {}),
         ...(emphase.length ? { emphase } : {}),
         versionSimple: !!c.plafondClaudeAtteint,
-        ...(lut ? { lookLutCle: lut.cle } : {}),
+        ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(c.styles.lut) / 100 } : {}),
         prefixeCartes: cle("cartes"),
       });
       const demandes: EtatHabillage["cartes"] = [];
@@ -958,7 +960,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       }
       // Lot F1 : habillage des autres formats (mêmes mots, mêmes raccords, mêmes cartes ; aucun format : rien). APRÈS les
       // cartes du 9:16 (Vérif V2) : studio-rendu rend un long travail à la fois, la vidéo attendue passe d'abord.
-      if (etat.declinaisons) await preparerHabillagesFormats(etat, { dureeSec, mots, coupesSec, ...(memoire ? { memoireCartes: memoire } : {}), ...(cartes ? { cartes } : {}), ...cartesAutoRetirees, ...(cartesAuto.length ? { cartesAuto } : {}), ...(occupes.length ? { occupes } : {}), ...(emphase.length ? { emphase } : {}), versionSimple: !!c.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle } : {}), prefixeCartes: cle("cartes") }, outils);
+      if (etat.declinaisons) await preparerHabillagesFormats(etat, { dureeSec, mots, coupesSec, ...(memoire ? { memoireCartes: memoire } : {}), ...(cartes ? { cartes } : {}), ...cartesAutoRetirees, ...(cartesAuto.length ? { cartesAuto } : {}), ...(occupes.length ? { occupes } : {}), ...(emphase.length ? { emphase } : {}), versionSimple: !!c.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(c.styles.lut) / 100 } : {}), prefixeCartes: cle("cartes") }, outils);
       etat.habillage = {
         ...(fx?.effets.length ? { effets: fx.effets } : {}),
         ...(h.cartesAuto.length ? { cartesAuto: h.cartesAuto } : {}),

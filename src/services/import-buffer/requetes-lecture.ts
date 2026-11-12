@@ -4,7 +4,8 @@
  */
 export { REQUETE_CANAUX, REQUETE_COMPTE } from "../../fournisseurs/publication/requetes";
 
-const FRAGMENT_POST = `
+/** Champs lus d'un post (partagés avec la lecture des posts publiés, lire-publies.ts). Lecture seule. */
+export const FRAGMENT_POST = `
         id
         channelId
         status
