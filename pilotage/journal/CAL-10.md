@@ -16,3 +16,11 @@
 - Non fait, signalé : « Accepter l'idée » reste un submit (hors constat). L'hôte doit encore brancher `surPrincipal` (validation, renvoyerEntreeCorrigee) : PILOTAGE.
 - Tests : cal-10 47 passés, 0 échoué ; tests/calendrier 296 passés ; calendrier-*.test + rc-36 193 passés ; master fusionné sans conflit.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (q1, 12/11/2026)
+- Constat « Accepter l'idée » (à corriger) : corrigé. « idee » ajouté à `principalEstGeste` (FicheEntree.tsx) : bouton `type="button"` branché sur `surPrincipal` (validerEntree côté hôte) ; « Enregistrer le texte » reste à part. « idee » ajouté aux trois `it.each` du test. Rouge avant (2 échecs), vert après.
+- Défaut de même genre, revue de TOUS les boutons : nouveau tableau (statut de départ, bouton, statut d'arrivée) dans cal-10-statuts.test.ts (describe « tableau »), 14 départs dont tous les statuts à venir et passés ; chaque bouton est joué contre les vraies actions (validerEntree, renvoyerEntreeCorrigee, enregistrerFicheEntreeAction), dépôts en mémoire. Résultat : seul « Accepter l'idée » était faux ; les autres boutons arrivent où leur libellé l'annonce (Idée/À valider → valide ; À corriger → valide ; enregistrer → statut inchangé, sauf Brouillon validé → À valider). Publié, passé, archivé : aucun bouton. Aucun départ n'arrive à programmé ni publié (testé). « Modifier le texte » (Programmé) : geste de l'hôte, aucun changement de statut, attend le diffuseur.
+- Remarque envoi : rien à corriger, aucun statut ne promet d'envoi, rien n'ouvre l'envoi. Remarque tons Refusée/Manquée : reportée (fondateur).
+- PILOTAGE : aucune page ne passe encore `selonStatut` ni `surPrincipal`.
+- Tests : cal-10 67 passés, 0 échoué ; calendrier + calendrier-*.test + rc-36 + maquettes : 17 fichiers, 325 passés, 0 échoué. master fusionné sans conflit.
+- contrôle anti-fuite : vide
