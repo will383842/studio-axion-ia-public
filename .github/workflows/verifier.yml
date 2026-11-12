@@ -2,7 +2,7 @@
 #  (1) garde de zone et de fichiers autorisés (outils/gardes/zone-interdite.mjs) ;
 #  (2) eslint et tsc DIFFÉRENTIELS : seules les erreurs absentes de la base de la PR (et de scripts/echecs-connus.json,
 #      clés facultatives « tsc » et « eslint ») sont rouges ;
-#  (3) vitest sur les fichiers de test touchés par la PR (un run à 0 test est rouge) ;
+#  (3) vitest sur les fichiers de test touchés par la PR (un run à 0 test est rouge si la PR touche du code) ;
 #  (4) next build.
 # Sur un push vers master, la base du différentiel est le commit précédent (github.event.before) : master reste vert tant
 # qu'un commit n'ajoute pas d'erreur. Les fichiers autorisés (pilotage/autorises/<ID>.json), les annonces (pilotage/annonces/)
@@ -119,9 +119,21 @@ jobs:
           node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
       - name: Aucun fichier de test touché
         if: steps.liste.outputs.nombre == '0'
+        env:
+          EVENEMENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          echo "0 tests lancés : rouge (une PR sans test touché ne passe pas « vérifier »)"
-          exit 1
+          if [ "$EVENEMENT" = "pull_request" ]; then
+            CODE=$(git diff --name-only --diff-filter=AMDR "$BASE"...HEAD -- ':(glob)src/**' ':(glob)outils/**' ':(glob)scripts/**' | wc -l)
+          else
+            CODE=1
+          fi
+          if [ "$CODE" = "0" ]; then
+            echo "0 test touché et aucun fichier sous src/, outils/ ou scripts/ modifié : vert"
+          else
+            echo "0 tests lancés : rouge (une PR qui touche du code sans test touché ne passe pas « vérifier »)"
+            exit 1
+          fi
 
   build:
     name: next build
