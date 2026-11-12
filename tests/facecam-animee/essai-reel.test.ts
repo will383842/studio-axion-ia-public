@@ -314,7 +314,12 @@ describe("Essai réel · 2. l'envoi par morceaux reprend tout seul (tous les for
 
   it("formats concernés : tous les écrans d'envoi passent par `envoyerFichier` (ZoneDepot, facecam, image → vidéo, tournage…)", () => {
     const src = (f: string) => readFileSync(join(RACINE, f), "utf8");
-    for (const f of ["src/components/ui/ZoneDepot.tsx", "src/components/formats/facecam-animee/DepotPrise.tsx", "src/components/formats/image-video/Depot.tsx", "src/components/facecam/EnvoiIphone.tsx", "src/components/tournage/Enregistreur.tsx"]) expect(src(f)).toMatch(/envoyerFichier\(/);
+    for (const f of ["src/components/ui/ZoneDepot.tsx", "src/components/formats/facecam-animee/DepotPrise.tsx", "src/components/formats/cas-concret/ecran-fourni/EcranFourni.tsx", "src/components/facecam/EnvoiIphone.tsx", "src/components/tournage/Enregistreur.tsx"]) expect(src(f)).toMatch(/envoyerFichier\(/);
+    // Image → vidéo : l'écran de départ ne reçoit plus d'image (titre, idée ou script collé, lot F) ; il n'envoie donc plus de fichier.
+    const departIV = src("src/components/formats/image-video/Depot.tsx");
+    expect(departIV).not.toMatch(/envoyerFichier\(/);
+    expect(departIV).toContain("DepotScript");
+    expect(departIV).toContain("DepotTexte");
     // ZoneDepot : glisser-déposer accepté (entrée et survol), phrase d'attente, bouton « Reprendre l'envoi ».
     const zone = src("src/components/ui/ZoneDepot.tsx");
     expect(zone).toContain("onDragEnter");
