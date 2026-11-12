@@ -105,7 +105,7 @@ export function FeuilleAjoutPrononciation({ ouverte, onOuverteChange, initial, e
         <div>
           <Champ libelle="Comment le dire" value={dit} onChange={(e) => setDit(e.target.value)} placeholder="té-lé-osse" maxLength={120} icone="son" />
           {suggestion && (
-            <button type="button" onClick={() => setDit(suggestion)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-orange/30 bg-orange-doux px-3 text-sm font-semibold text-orange-vif">
+            <button type="button" onClick={() => setDit(suggestion)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-accent/40 bg-accent-doux px-3 text-sm font-semibold text-accent">
               <Icone nom="etincelles" size={14} />« {suggestion} »
             </button>
           )}
@@ -182,12 +182,12 @@ export function BoutonEcoute({
       aria-pressed={actif}
       className={cn(
         "flex min-h-14 items-center gap-2.5 rounded-carte border px-3 text-left transition-colors disabled:opacity-50",
-        principal ? "border-orange/40 bg-orange-doux text-texte hover:border-orange" : "border-trait bg-surface-2 text-texte hover:border-trait-fort",
-        actif && "border-orange",
+        principal ? "border-accent/40 bg-accent-doux text-texte hover:border-accent" : "border-trait bg-surface-2 text-texte hover:border-trait-fort",
+        actif && "border-accent",
         className,
       )}
     >
-      <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", principal ? "bg-orange text-sur-orange" : "bg-surface-3 text-orange-vif")}>
+      <span className={cn("grid size-9 shrink-0 place-items-center rounded-full", principal ? "bg-accent text-sur-accent" : "bg-surface-3 text-accent")}>
         <Icone nom={chargement ? "chargement" : actif ? "volume" : "lecture"} size={16} className={cn(chargement && "animate-spin")} />
       </span>
       <span className="min-w-0">
