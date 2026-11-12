@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "groupes": {
     "m1-lien": [
       "mp-m1-v4-1",
@@ -32,6 +32,26 @@
       "mp-lien-v3-1",
       "mp-lien-v3-2",
       "mp-lien-v3-3"
+    ],
+    "ig-suivre": [
+      "mp-ig-suivre-v1-1",
+      "mp-ig-suivre-v1-2",
+      "mp-ig-suivre-v1-3"
+    ],
+    "ig-pas-encore": [
+      "mp-ig-pas-encore-v1-1",
+      "mp-ig-pas-encore-v1-2",
+      "mp-ig-pas-encore-v1-3"
+    ],
+    "deja-envoye": [
+      "mp-deja-envoye-v1-1",
+      "mp-deja-envoye-v1-2",
+      "mp-deja-envoye-v1-3"
+    ],
+    "pub-commentaire": [
+      "mp-pub-v2-1",
+      "mp-pub-v2-2",
+      "mp-pub-v2-3"
     ]
   },
   "textes": {
@@ -209,6 +229,66 @@
       "version": "mp-lien-v3-3",
       "statut": "actif",
       "texte": "Comme promis, voici le guide « [TITRE DU GUIDE] ». Il vous attend ici : [LIEN]"
+    },
+    "mp-ig-suivre-v1-1": {
+      "version": "mp-ig-suivre-v1-1",
+      "statut": "actif",
+      "texte": "Bonjour ! Merci pour votre commentaire, ça me fait plaisir. Le guide « [TITRE DU GUIDE] » est prêt. Si ce n'est pas déjà fait, suivez le compte, puis répondez OK dans cette conversation."
+    },
+    "mp-ig-suivre-v1-2": {
+      "version": "mp-ig-suivre-v1-2",
+      "statut": "actif",
+      "texte": "Merci d'avoir commenté ! Votre guide « [TITRE DU GUIDE] » vous attend. Avant que je vous l'envoie, suivez le compte si vous ne le faites pas encore, puis écrivez-moi OK ici."
+    },
+    "mp-ig-suivre-v1-3": {
+      "version": "mp-ig-suivre-v1-3",
+      "statut": "actif",
+      "texte": "C'est bien reçu, merci beaucoup ! J'ai le guide « [TITRE DU GUIDE] » pour vous. Il reste deux petits gestes : suivre le compte si ce n'est pas encore fait, puis me répondre OK dans cette conversation."
+    },
+    "mp-ig-pas-encore-v1-1": {
+      "version": "mp-ig-pas-encore-v1-1",
+      "statut": "actif",
+      "texte": "Merci pour votre réponse ! Je ne vous vois pas encore parmi les personnes qui suivent le compte. Il suffit de le suivre, puis de me répondre OK ici."
+    },
+    "mp-ig-pas-encore-v1-2": {
+      "version": "mp-ig-pas-encore-v1-2",
+      "statut": "actif",
+      "texte": "Oups, je ne vous trouve pas encore dans la liste des personnes qui suivent le compte. Pas de souci : suivez-le, puis écrivez-moi OK dans cette conversation."
+    },
+    "mp-ig-pas-encore-v1-3": {
+      "version": "mp-ig-pas-encore-v1-3",
+      "statut": "actif",
+      "texte": "Je n'ai pas encore vu votre nom parmi les personnes qui suivent le compte. Rien de grave : suivez le compte si ce n'est pas fait, puis répondez-moi OK ici."
+    },
+    "mp-deja-envoye-v1-1": {
+      "version": "mp-deja-envoye-v1-1",
+      "statut": "actif",
+      "texte": "Bonne nouvelle : je vous ai déjà envoyé « [TITRE DU GUIDE] » par e-mail. Regardez aussi dans vos courriers indésirables. Et voici le lien : [LIEN]"
+    },
+    "mp-deja-envoye-v1-2": {
+      "version": "mp-deja-envoye-v1-2",
+      "statut": "actif",
+      "texte": "Vous l'avez déjà reçu ! Le guide « [TITRE DU GUIDE] » est parti par e-mail il y a un moment. Jetez un œil à vos courriers indésirables si besoin. Le voici de nouveau : [LIEN]"
+    },
+    "mp-deja-envoye-v1-3": {
+      "version": "mp-deja-envoye-v1-3",
+      "statut": "actif",
+      "texte": "Petit rappel : j'ai déjà envoyé « [TITRE DU GUIDE] » à votre adresse e-mail. S'il n'est pas dans votre boîte principale, il se cache peut-être dans les courriers indésirables. Vous pouvez aussi le prendre ici : [LIEN]"
+    },
+    "mp-pub-v2-1": {
+      "version": "mp-pub-v2-1",
+      "statut": "actif",
+      "texte": "Merci pour votre commentaire ! Je vous envoie le guide en message privé."
+    },
+    "mp-pub-v2-2": {
+      "version": "mp-pub-v2-2",
+      "statut": "actif",
+      "texte": "Avec plaisir ! Jetez un œil à vos messages privés, le guide vous y attend."
+    },
+    "mp-pub-v2-3": {
+      "version": "mp-pub-v2-3",
+      "statut": "actif",
+      "texte": "Bien reçu, merci beaucoup ! Le guide est en route, dans vos messages privés."
     }
   }
 }
