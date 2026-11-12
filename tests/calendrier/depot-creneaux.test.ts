@@ -42,6 +42,7 @@ vi.mock("pg", () => ({ Client: fauxPg.Client, Pool: fauxPg.Pool, default: { Clie
 
 const { creerDepotsPostgres } = await import("@/donnees/postgres");
 const { depots } = await import("@/donnees/memoire");
+const { TRAITEMENT_SUPPRESSION, GARDES_APRES_SUPPRESSION } = await import("@/services/suppression-video");
 
 const creneau: CreneauEditorial = {
   id: "cre-1",
@@ -86,5 +87,24 @@ describe("L1-06 dépôts du calendrier", () => {
     expect(await b.creneauxEditoriaux.obtenir("cre-1")).toMatchObject({ id: "cre-1", decalages: 1 });
     expect(await b.journalDecalages.obtenir("dec-1")).toEqual(decalage);
     expect([...fauxPg.lignes.values()].map((l) => l.collection).filter((c) => c === "creneauxEditoriaux" || c === "journalDecalages").sort()).toEqual(["creneauxEditoriaux", "journalDecalages"]);
+  });
+
+  it("suppression d'une vidéo : une décision écrite pour chacune des deux collections (constat de relecture)", () => {
+    expect(Object.keys(TRAITEMENT_SUPPRESSION).sort()).toEqual(Object.keys(depots()).sort());
+    expect(TRAITEMENT_SUPPRESSION.creneauxEditoriaux).toBe("garde-publiees");
+    expect(TRAITEMENT_SUPPRESSION.journalDecalages).toBe("sans-lien");
+    const g = GARDES_APRES_SUPPRESSION.find((x) => x.collection === "creneauxEditoriaux");
+    expect(g?.correspond({ ...creneau })).toBe(false);
+    expect(g?.correspond({ ...creneau, statut: "publie" })).toBe(true);
+  });
+
+  it("journal des décalages : ajout seul (type restreint, ni modifier ni supprimer)", async () => {
+    const d = depots();
+    await d.journalDecalages.enregistrer(decalage);
+    expect(await d.journalDecalages.compter()).toBe(1);
+    // @ts-expect-error — le journal est en ajout seul : `modifier` n'existe pas sur son type.
+    void d.journalDecalages.modifier;
+    // @ts-expect-error — idem pour `supprimer`.
+    void d.journalDecalages.supprimer;
   });
 });
