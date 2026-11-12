@@ -904,6 +904,7 @@ function CartePanneAjout({ id, message }: { id: string; message: string; supplem
       <p className="mt-1 text-sm text-texte-faible">Ce qui est déjà écrit est gardé ; les autres sujets continuent.</p>
       <Bouton
         className="mt-3"
+        variante="secondaire"
         pleineLargeur
         icone="repeter"
         chargement={enCours}
