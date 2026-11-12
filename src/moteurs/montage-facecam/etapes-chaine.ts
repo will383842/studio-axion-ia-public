@@ -82,6 +82,23 @@ export function resultatChaine(commande: CommandeFabrication, etat: EtatChaine, 
   const alertes = [...l.alertes, ...(habille?.alertes ?? []), ...(simple ? [{ code: "montant" as const, gravite: "info" as const, message: MENTION_PLAFOND_FACECAM }] : [])];
   const bloquantes = alertes.filter((a) => a.gravite === "bloquant").length;
   const note = Math.max(40, (simple ? 80 : 88) - 10 * bloquantes - 3 * (alertes.length - bloquantes));
+  // GV-ST-10 : la source des mots colorés est dite dans le rapport (info) ; ajoutée APRÈS la note, qui ne change pas.
+  const motsImportants = habille ? etat.habillage?.motsImportants : undefined;
+  const alertesVues = motsImportants
+    ? [
+        ...alertes,
+        {
+          code: "defaut-visuel" as const,
+          gravite: "info" as const,
+          message:
+            motsImportants.source === "script"
+              ? "Mots mis en valeur dans les sous-titres : ceux désignés dans le script."
+              : motsImportants.emphase?.length
+                ? "Mots mis en valeur dans les sous-titres : mots forts de la transcription (aucun mot désigné dans le script n'a été dit)."
+                : "Mots mis en valeur dans les sous-titres : mots forts de la transcription (le script n'en désigne aucun).",
+        },
+      ]
+    : alertes;
   const montageCle = l.montageCle ?? "";
   const entrees = entreesFinales(commande, etat);
   return {
@@ -96,12 +113,12 @@ export function resultatChaine(commande: CommandeFabrication, etat: EtatChaine, 
         rapportQualite: {
           note,
           verifie: { image: true, son: true, sousTitres: !!habille && !!commande.briques["sous-titres"], mentionIA: !!commande.briques["mention-ia"], droits: false },
-          alertes,
+          alertes: alertesVues,
           niveauSonoreLufs: Number((etat.travaux.cadrage?.resultat as { controles?: { niveauLufs?: number } } | undefined)?.controles?.niveauLufs ?? -14),
         },
       },
     ],
-    noteQualite: { globale: note, alertes },
+    noteQualite: { globale: note, alertes: alertesVues },
     // 11/10 : la vidéo SANS texte (sous-titres, cartes) est gardée comme piste : les miniatures en sont tirées (image propre).
     ...(habille?.masterCle ? { pistes: [{ type: "master-sans-texte" as const, fournisseur: "studio-rendu", fichierCle: habille.masterCle, ratio: "9:16" as const, cout: ZERO }] } : {}),
     // Lot G : les sous-titres réellement posés (onglet Sous-titres : corriger un mot puis « Appliquer à la vidéo »).
