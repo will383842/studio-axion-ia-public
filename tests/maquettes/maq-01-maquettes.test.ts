@@ -123,6 +123,10 @@ describe("Stock : onglets", () => {
 
 describe("Infographie : écran de création", () => {
   const html = lire("infographie");
+  it("ne dit pas « Envoyer » : rien ne part vers un réseau", () => {
+    expect(texteVisible(html)).not.toMatch(/\bEnvoyer\b/);
+    expect(texteVisible(html)).toContain("Placer dans À publier");
+  });
   it("a un titre, des points clés, un style, un aperçu et un seul bouton principal", () => {
     expect(html).toMatch(/<label[^>]*for="inf-titre"/);
     expect(html).toMatch(/id="inf-points"/);
@@ -138,7 +142,22 @@ describe("Écrans sans prix", () => {
   it("parle en nombres de contenus possibles, jamais en argent", () => {
     const t = texteVisible(html);
     expect(t).toMatch(/\d+\s+(?:vidéos?|carrousels?|infographies?)/i);
-    expect(t).toMatch(/réserve/i);
+    expect(t).toMatch(/quantités/i);
+  });
+  it("n'emprunte pas le nom « Ma réserve », déjà pris par l'écran des scripts et des idées", () => {
+    for (const e of ECRANS) expect(lire(e)).not.toMatch(/Ma réserve/);
+    expect(html).toMatch(/<title>Mes quantités<\/title>/);
+    expect(html).toMatch(/<span class="cur">Mes quantités<\/span>/);
+  });
+  it("un stock vide alerte mais ne met rien en pause : aucun « pause », aucun « reprend »", () => {
+    const t = texteVisible(html);
+    expect(t).not.toMatch(/\bpause\b|reprend|reprise|prochain mois/i);
+    expect(t).toMatch(/Vide[\s\S]*(?:rien n'est bloqué|continuer|ajout)/i);
+  });
+  it("accorde « prévus » avec carrousels et infographies", () => {
+    const t = texteVisible(html);
+    expect(t).not.toMatch(/carrousels possibles?\s+sur\s+\d+\s+prévues/i);
+    expect(t).toMatch(/carrousels possibles\s+sur 12 prévus/);
   });
   it("ne bloque jamais l'action : l'alerte reste une information", () => {
     expect(html).not.toMatch(/\bdisabled\b/);

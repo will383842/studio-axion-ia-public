@@ -6,3 +6,12 @@
 - CORRECTIF « le fondateur » : aucun nom écrit nulle part. Aucun fichier hors liste ; fiche sans dépendance de code en retard (maquette du calendrier présente sur master).
 - Douteux : pictogrammes ▶ ▤ ▨ choisis par moi (la maquette du calendrier n'en fixe pas) ; menu complété par À publier, Stock, Infographie, Ma réserve.
 - contrôle anti-fuite : vide
+
+## Corrections après relecture (n2)
+- Avis « Vide » qui met en pause : corrigé. Plus de « pause » ni de « reprend » ; le texte dit que rien n'est bloqué et que l'ajout à la main reste possible (test : « un stock vide alerte mais ne met rien en pause »).
+- Nom « Ma réserve » déjà pris : corrigé. L'écran s'appelle « Mes quantités » (titre, menu des 4 pages, texte) ; test : aucune page ne contient « Ma réserve ».
+- Remarque « prévues » : corrigé en « 12 prévus » pour les carrousels ; « infographies prévues » reste au féminin, correct.
+- Remarque « Envoyer vers À publier » : corrigé en « Placer dans À publier » (test dédié).
+- Remarque critère 3 (validation écrite du fondateur) : reporté, relève du pilotage ; les maquettes ne sont pas validées.
+- Tests : tests/maquettes 46 passés, 0 échoué (5 tests nouveaux, rouges sans les corrections). tests/aucun-prix-affiche.test.ts : 1 échec déjà présent sur master, sans lien.
+- origin/master fusionné d'abord. contrôle anti-fuite : vide

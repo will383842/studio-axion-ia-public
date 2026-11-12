@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ma réserve</title>
+<title>Mes quantités</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@400;500;600;700;800&display=swap">
 <style>
 /* Maquette sur fond clair, mêmes couleurs que la maquette du calendrier. Une couleur = un réseau. L'orange = la seule action principale. */
@@ -76,20 +76,20 @@ textarea,input[type=text],select{width:100%;border:1px solid var(--trait2);borde
 <body>
 <div class="maq">Maquette fictive : rien n'est branché, rien ne part. Vous pouvez cliquer, tout s'efface au rechargement.</div>
 <div class="app">
-<nav class="menu" aria-label="Menu du Studio (non branché)"><b class="logo t">Studio</b><span>Accueil</span><div class="sec">Contenus</div><span>Mes vidéos</span><span>Carrousels</span><span>Infographie</span><span>Écrire</span><span>Stock</span><div class="sec">Publier</div><span>Calendrier</span><span>À publier</span><span>À traiter</span><span>Mesures</span><div class="sec">Studio</div><span class="cur">Ma réserve</span><span>Réglages</span></nav>
+<nav class="menu" aria-label="Menu du Studio (non branché)"><b class="logo t">Studio</b><span>Accueil</span><div class="sec">Contenus</div><span>Mes vidéos</span><span>Carrousels</span><span>Infographie</span><span>Écrire</span><span>Stock</span><div class="sec">Publier</div><span>Calendrier</span><span>À publier</span><span>À traiter</span><span>Mesures</span><div class="sec">Studio</div><span class="cur">Mes quantités</span><span>Réglages</span></nav>
 <main>
-<div class="haut"><h1 class="t">Ma réserve</h1></div>
+<div class="haut"><h1 class="t">Mes quantités</h1></div>
 <p class="petit">Ce qu'il vous reste pour fabriquer ce mois-ci, compté en contenus, jamais en argent.</p>
-<div class="dit ok">Tout va bien : votre réserve couvre les publications prévues cette semaine.</div>
+<div class="dit ok">Tout va bien : vos quantités couvrent les publications prévues cette semaine.</div>
 <div class="bloc"><h2>Vidéos</h2><div class="jauge"><i style="width:70%"></i></div><b>14 vidéos possibles</b> <span class="petit">sur 20 prévues ce mois-ci</span></div>
-<div class="bloc"><h2>Carrousels</h2><div class="jauge"><i style="width:75%"></i></div><b>9 carrousels possibles</b> <span class="petit">sur 12 prévues ce mois-ci</span></div>
+<div class="bloc"><h2>Carrousels</h2><div class="jauge"><i style="width:75%"></i></div><b>9 carrousels possibles</b> <span class="petit">sur 12 prévus ce mois-ci</span></div>
 <div class="bloc"><h2>Infographies</h2><div class="jauge bas"><i style="width:20%"></i></div><b>2 infographies possibles</b> <span class="petit">sur 10 prévues ce mois-ci</span></div>
 <div class="dit info">Il reste 2 infographies. Rien n'est bloqué : vous pouvez continuer, le Studio vous prévient simplement.</div>
-<div class="bloc"><h2>Quand la réserve baisse</h2><p>Trois avis possibles, toujours en mots simples.</p>
+<div class="bloc"><h2>Quand les quantités baissent</h2><p>Trois avis possibles, toujours en mots simples.</p>
 <ul class="liste">
-<li class="carte LI"><span class="ico" aria-hidden="true">✓</span><div><b>Assez</b><div class="titre1">Plus de la moitié de la réserve : rien à faire.</div></div><span class="et e-programme">Rien à faire</span></li>
+<li class="carte LI"><span class="ico" aria-hidden="true">✓</span><div><b>Assez</b><div class="titre1">Plus de la moitié des quantités : rien à faire.</div></div><span class="et e-programme">Rien à faire</span></li>
 <li class="carte FB"><span class="ico" aria-hidden="true">!</span><div><b>Bientôt vide</b><div class="titre1">Moins de trois contenus possibles : le Studio vous le dit une fois.</div></div><span class="et e-valider">À surveiller</span></li>
-<li class="carte TT"><span class="ico" aria-hidden="true">…</span><div><b>Vide</b><div class="titre1">Vous pouvez toujours écrire et importer vos fichiers ; la fabrication reprend au prochain mois.</div></div><span class="et e-brouillon">En pause</span></li>
+<li class="carte TT"><span class="ico" aria-hidden="true">…</span><div><b>Vide</b><div class="titre1">Le Studio vous prévient ; rien n'est bloqué, vous pouvez continuer à fabriquer et à ajouter vos contenus à la main.</div></div><span class="et e-valider">Vous êtes prévenu</span></li>
 </ul></div>
 <div class="bloc"><h2>Se faire prévenir</h2><label for="sp-avis">Quand voulez-vous être prévenu ?</label>
 <select id="sp-avis"><option>Quand il reste moins de trois contenus</option><option>Quand il reste moins de cinq contenus</option><option>Jamais</option></select>
