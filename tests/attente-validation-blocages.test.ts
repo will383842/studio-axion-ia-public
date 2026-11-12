@@ -312,3 +312,62 @@ describe("(iii) Nettoyer et corbeille", () => {
     expect(await actives(id)).toBe(1);
   });
 });
+
+describe("(iv) GV-EC-01h — reprise d'une attente : la réservation rendue entre-temps est recomptée selon son origine", () => {
+  /** Le budget du mois est atteint : tout nouvel engagement dépasse. */
+  async function budgetAtteint() {
+    const { ecrireParametre } = await import("@/services/_commun");
+    const couts = await import("@/services/couts");
+    const depense = (await couts.resumeBudget()).depense.centimes;
+    await ecrireParametre("budget.mensuel", { centimes: depense, devise: "EUR" });
+  }
+  async function passerEnOrigine(id: string, origine: "usine" | "studio") {
+    const t = (await depots().travaux.obtenir(id))!;
+    const v = (await depots().versions.obtenir(t.versionId!))!;
+    await depots().versions.modifier(v.id, { commande: { ...v.commande, origine } });
+  }
+  const sansChiffre = async () => {
+    // Les alertes de dépassement de cette reprise : cloche « indicatif » et lignes de journal du budget.
+    const textes = [...(await depots().notifications.lister((n) => /indicatif/i.test(n.titre))).flatMap((n) => [n.titre, n.message]), ...(await depots().evenements.lister((e) => e.type === "budget" && /indicatif/i.test(e.message))).map((e) => e.message)];
+    expect(textes.length).toBeGreaterThan(0);
+    return textes.filter((m) => /\d|€/.test(m ?? ""));
+  };
+
+  it("réservation restée active : reprise par (b), aucun contrôle de budget, une seule réservation active", async () => {
+    const id = await mettreEnAttente();
+    await budgetAtteint();
+    const r = await travaux.reessayerTravail(id);
+    expect(r.statut).not.toBe("echec");
+    expect(await actives(id)).toBe(1);
+    expect((await depots().notifications.lister()).filter((n) => /indicatif|dépassé/i.test(n.titre)).map((n) => n.titre)).toEqual([]);
+  });
+
+  it("corbeille puis restauration, origine Studio, budget dépassé : la reprise passe, alerte sans aucun chiffre", async () => {
+    const id = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(id))!.cibleId;
+    await passerEnOrigine(id, "studio");
+    await corbeille.mettreALaCorbeille([video]);
+    await corbeille.restaurerDeLaCorbeille([video]);
+    expect(await actives(id)).toBe(0);
+    await budgetAtteint();
+    const r = await travaux.reessayerTravail(id);
+    expect(r.statut).not.toBe("echec");
+    expect(await actives(id)).toBe(1);
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect(await sansChiffre()).toEqual([]);
+  });
+
+  it("corbeille puis restauration, origine usine, budget dépassé : reprise refusée, 0 réservation active, travail toujours en attente", async () => {
+    const id = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(id))!.cibleId;
+    await passerEnOrigine(id, "usine");
+    await corbeille.mettreALaCorbeille([video]);
+    await corbeille.restaurerDeLaCorbeille([video]);
+    await budgetAtteint();
+    await expect(travaux.reessayerTravail(id)).rejects.toMatchObject({ code: expect.stringMatching(/^(BUDGET_DEPASSE|BUDGET_USINE_ABSENT|BUDGET_MENSUEL_ATTEINT)$/) });
+    expect(await actives(id)).toBe(0);
+    const t = (await depots().travaux.obtenir(id))!;
+    expect(t.statut).toBe("echec");
+    expect(t.erreur?.code).toBe("IV_SCRIPT_A_VALIDER");
+  });
+});
