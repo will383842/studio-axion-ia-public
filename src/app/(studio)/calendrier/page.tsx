@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { EnTetePage, EnTeteSection } from "@/components/ui/EnTetePage";
+import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
 import { libellePublication } from "@/domaine/buffer";
 import { SemaineAvecApercu } from "@/components/calendrier/ApercuPublication";
-import { BarreFiltres, RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
-import { BarreVue, libellePeriode } from "@/components/calendrier/BarreVue";
+import { RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
+import { libellePeriode } from "@/components/calendrier/BarreVue";
+import { EnTeteCalendrier } from "@/components/calendrier/EnTeteCalendrier";
+import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFaire";
+import { ReserveAPlacer } from "@/components/calendrier/ReserveAPlacer";
 import { VueJour, debutDeTexte } from "@/components/calendrier/VueJour";
 import type { IdReseau } from "@/domaine/types";
 import { entreeDepuisPublication } from "@/components/calendrier/apercu-reseau";
-import { CarteVideo } from "@/components/videos/CarteVideo";
 import { cn } from "@/lib/cn";
 import { cleJour, heure } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
@@ -56,6 +58,15 @@ function suiteReseaux(actifs: readonly IdReseau[]): string {
   return actifs.length === RESEAUX_CALENDRIER.length ? "" : `&reseaux=${actifs.join(",")}`;
 }
 
+/** Ajoute le filtre des réseaux à une adresse du calendrier (rien si les quatre sont allumés). */
+function avecReseaux(base: string, actifs: readonly IdReseau[]): string {
+  const suite = suiteReseaux(actifs);
+  return !suite ? base : base.includes("?") ? `${base}${suite}` : `${base}?${suite.slice(1)}`;
+}
+
+/** « + Ajouter » mène à la journée d'aujourd'hui, en attendant le formulaire d'ajout (CAL-26b). */
+const lienAjouter = () => `/calendrier?vue=jour&date=${cleJour(new Date())}`;
+
 function moisVoisin(mois: string, delta: number): string {
   const d = new Date(`${mois}-01T12:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() + delta);
@@ -83,7 +94,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
-    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} />;
+    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} reseauxActifs={reseauxActifs} />;
   }
   const aujourdhuiCle = cleJour(new Date());
   const decalageDemande = Math.max(-52, Math.min(52, Number.parseInt(params.semaine ?? "0", 10) || 0));
@@ -102,14 +113,25 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const semaine = jours.flatMap((j) => parJour.get(cleJour(j)) ?? []);
   const total = semaine.filter((p) => p.via !== "simulation").length;
   const essais = semaine.length - total;
+  const adresseSemaine = dateDemandee ? `/calendrier?vue=semaine&date=${dateDemandee}` : decalageDemande ? `/calendrier?semaine=${decalageDemande}` : "/calendrier";
+  // « À faire » : à corriger, à valider, brouillons ; les essais n'y sont pas.
+  const aFaire = semaine.filter((p) => p.via !== "simulation").map((p) => {
+    const e = entreeDepuisPublication(p);
+    return { cle: e.cle, etat: e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
+  });
   const libelleSemaine = decalage === 0 ? "Cette semaine" : decalage === 1 ? "Semaine prochaine" : decalage === -1 ? "Semaine dernière" : `${moisAnnee.format(jours[0])} – ${moisAnnee.format(jours[6])}`;
 
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <BarreVue
+      <BandeauDepart />
+      <EnTeteCalendrier
         vue="semaine"
         periode={libelleSemaine}
+        reseauxActifs={reseauxActifs}
+        lienReseau={(r) => avecReseaux(adresseSemaine, basculerReseau(reseauxActifs, r))}
+        lienTout={adresseSemaine}
+        lienAjouter={lienAjouter()}
         liens={{
           precedent: lienSemaine(-1),
           suivant: lienSemaine(1),
@@ -119,6 +141,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
           mois: `/calendrier?vue=mois${dateDemandee ? `&date=${dateDemandee}` : ""}${suite}`,
         }}
       />
+      <PanneauAFaire entrees={aFaire} />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">
         {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
         {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
@@ -157,18 +180,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         <SemaineAvecApercu entrees={semaine.map(entreeDepuisPublication)} semaineDu={lundiCle} aujourdhui={aujourdhui} />
       </div>
 
-      {aProgrammer.length > 0 && (
-        <section className="mt-10">
-          <EnTeteSection titre="À programmer" compteur={aProgrammer.length} />
-          <ul className="sans-barre -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:px-0 lg:grid-cols-6">
-            {aProgrammer.map((v) => (
-              <li key={v.id} className="w-36 shrink-0 sm:w-auto">
-                <CarteVideo video={v} ratioForce="9:16" />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <ReserveAPlacer contenus={aProgrammer.map((v) => ({ id: v.id, titre: v.titre, vignette: v.vignette }))} />
     </div>
   );
 }
@@ -224,22 +236,25 @@ function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxAc
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <BarreVue
+      <EnTeteCalendrier
         vue="jour"
         periode={libellePeriode("jour", jour)}
+        reseauxActifs={reseauxActifs}
+        lienReseau={(r) => adresse("jour", jour, basculerReseau(reseauxActifs, r))}
+        lienTout={adresse("jour", jour, [...RESEAUX_CALENDRIER])}
+        lienAjouter={lienAjouter()}
         liens={{ precedent: adresse("jour", ajouterJoursParis(jour, -1)), suivant: adresse("jour", ajouterJoursParis(jour, 1)), aujourdhui: adresse("jour", aujourdhui), semaine: adresse("semaine", jour), mois: adresse("mois", jour) }}
       />
       <Link href={adresse("semaine", jour)} className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-texte-doux underline underline-offset-4">
         ← Retour à la semaine
       </Link>
-      <BarreFiltres actifs={reseauxActifs} lienReseau={(r) => adresse("jour", jour, basculerReseau(reseauxActifs, r))} />
       <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} lienEntree={(e) => liens.get(e.cle) ?? null} />
     </div>
   );
 }
 
 /** Vue mois : grille de 6 semaines (lundi d'abord), jours hors mois estompés. */
-function VueMois({ plage, repere, calendrier, suite }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string }) {
+function VueMois({ plage, repere, calendrier, suite, reseauxActifs }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string; reseauxActifs: IdReseau[] }) {
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
   const aujourdhui = cleJour(new Date());
   const total = plage.jours.filter((j) => j.startsWith(plage.mois)).flatMap((j) => parJour.get(j) ?? []).filter((p) => p.via !== "simulation").length;
@@ -253,9 +268,13 @@ function VueMois({ plage, repere, calendrier, suite }: { plage: ReturnType<typeo
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <BarreVue
+      <EnTeteCalendrier
         vue="mois"
         periode={libellePeriode("mois", plage.mois)}
+        reseauxActifs={reseauxActifs}
+        lienReseau={(r) => `/calendrier?vue=mois&date=${plage.mois}${suiteReseaux(basculerReseau(reseauxActifs, r))}`}
+        lienTout={`/calendrier?vue=mois&date=${plage.mois}`}
+        lienAjouter={lienAjouter()}
         liens={{
           precedent: lienMois(-1),
           suivant: lienMois(1),

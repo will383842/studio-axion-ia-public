@@ -1,0 +1,708 @@
+{
+  "version": 1,
+  "consulte_le": "2026-11-12",
+  "note_acces": "Les sites officiels de LinkedIn, Meta (Instagram, Facebook), TikTok et la documentation en ligne de Zernio n'étaient pas joignables depuis la session de recherche (réseau fermé). Aucune page officielle d'un réseau n'a donc été lue : tout ce qui n'est pas dans la copie de la spec Zernio du dépôt vaut « inconnu ». La spec Zernio est lue dans docs/zernio/openapi-extrait-1.418.1.json (version 1.429.1 de la spec en ligne), fournie au dépôt par une session précédente. Cellule « secondaire » = chiffre propre à un réseau cité par Zernio, pas lu chez le réseau.",
+  "reseaux": {
+    "linkedin": {
+      "reseau": {
+        "premier_commentaire": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "statistiques": {
+          "valeur": "Profil personnel : mesures seulement pour les posts écrits par le compte connecté ; pages : tous les posts (d'après la spec Zernio, page LinkedIn non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get"
+        },
+        "plafond_posts": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_video": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_carrousel_document": {
+          "valeur": "20 images ; un PDF de 100 Mo au plus, d'après la spec Zernio (page LinkedIn non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/description"
+        },
+        "texte_alternatif": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        }
+      },
+      "zernio": {
+        "premier_commentaire": {
+          "valeur": "Champ « premier commentaire » publié après le post",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/properties/firstComment"
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/409"
+        },
+        "statistiques": {
+          "valeur": "Route de statistiques de posts ; début par défaut 90 jours en arrière, étendue au plus 366 jours ; profil personnel : seulement pour les posts publiés via Zernio ; pages : tous les posts",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get"
+        },
+        "plafond_posts": {
+          "valeur": "Plafond de rythme : 25 posts par heure et par compte, plus des plafonds quotidiens par plateforme (valeurs non données)",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/429"
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description"
+        },
+        "format_video": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_carrousel_document": {
+          "valeur": "Jusqu'à 20 images, pas de multi-vidéo ; un seul PDF (100 Mo au plus) ; titre de document exigé par LinkedIn",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/LinkedInPlatformData/description"
+        },
+        "texte_alternatif": {
+          "valeur": "Texte alternatif appliqué (valeur par image, la même pour tous les réseaux choisis) ; longueur non donnée",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
+        }
+      }
+    },
+    "instagram": {
+      "reseau": {
+        "premier_commentaire": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "statistiques": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_posts": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_video": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_carrousel_document": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "texte_alternatif": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        }
+      },
+      "zernio": {
+        "premier_commentaire": {
+          "valeur": "Champ « premier commentaire » publié après le post (pas pour les Stories)",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/InstagramPlatformData/properties/firstComment"
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/409"
+        },
+        "statistiques": {
+          "valeur": "Route de statistiques de posts ; début par défaut 90 jours en arrière, étendue au plus 366 jours",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get"
+        },
+        "plafond_posts": {
+          "valeur": "Quota glissant sur 24 h lu en direct par une route dédiée ; ne pas figer de chiffre (la valeur en direct fait foi) ; plus 25 posts/heure par compte",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1accounts~1{accountId}~1instagram~1publishing-limit/get"
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description"
+        },
+        "format_video": {
+          "valeur": "Vidéo seule = Reel ; option de diffusion au fil ; durée non vérifiée par Zernio",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/InstagramPlatformData"
+        },
+        "format_carrousel_document": {
+          "valeur": "Carrousel jusqu'à 20 éléments (images ou vidéos)",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/InstagramPlatformData/description"
+        },
+        "texte_alternatif": {
+          "valeur": "Appliqué aux images du fil seulement, pas aux Reels ni aux Stories ; longueur non donnée",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
+        }
+      }
+    },
+    "facebook": {
+      "reseau": {
+        "premier_commentaire": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "statistiques": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_posts": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_video": {
+          "valeur": "Reel : 3 à 90 s, d'après la spec Zernio qui cite le guide de publication Meta (page Meta non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/FacebookPlatformData"
+        },
+        "format_carrousel_document": {
+          "valeur": "10 images au plus par post, d'après la spec Zernio (page Meta non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/FacebookPlatformData"
+        },
+        "texte_alternatif": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        }
+      },
+      "zernio": {
+        "premier_commentaire": {
+          "valeur": "Champ « premier commentaire » publié juste après (posts et Reels, pas Stories) ; ignoré en brouillon",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/FacebookPlatformData/properties/firstComment"
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/409"
+        },
+        "statistiques": {
+          "valeur": "Route de statistiques de posts ; début par défaut 90 jours en arrière, étendue au plus 366 jours",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get"
+        },
+        "plafond_posts": {
+          "valeur": "Plafond de rythme : 25 posts par heure et par compte, plus des plafonds quotidiens par plateforme (valeurs non données)",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/429"
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description"
+        },
+        "format_video": {
+          "valeur": "Reel : une seule vidéo verticale 9:16 ; Zernio ne contrôle pas la durée et cite le guide Meta : 3 à 90 s",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/FacebookPlatformData"
+        },
+        "format_carrousel_document": {
+          "valeur": "Post : jusqu'à 10 images, pas de mélange image + vidéo ; carrousel à liens : 2 à 10 cartes, images seulement",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/FacebookPlatformData"
+        },
+        "texte_alternatif": {
+          "valeur": "Appliqué ; longueur non donnée",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
+        }
+      }
+    },
+    "tiktok": {
+      "reseau": {
+        "premier_commentaire": {
+          "valeur": "Pas de premier commentaire côté TikTok dans la spec Zernio (page TikTok non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "statistiques": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_posts": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_texte": {
+          "valeur": "Titre vidéo 2200 signes ; titre photo 90 signes, d'après la spec Zernio (page TikTok non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+        },
+        "plafond_mots_dieses": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_video": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_carrousel_document": {
+          "valeur": "Carrousel photo jusqu'à 35 images, d'après la spec Zernio (page TikTok non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+        },
+        "texte_alternatif": {
+          "valeur": "TikTok n'a pas de texte alternatif, d'après la spec Zernio (page TikTok non consultée)",
+          "preuve": "secondaire",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
+        }
+      },
+      "zernio": {
+        "premier_commentaire": {
+          "valeur": "Aucun champ de premier commentaire dans la spec TikTok",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/409"
+        },
+        "statistiques": {
+          "valeur": "Route de statistiques de posts ; début par défaut 90 jours en arrière, étendue au plus 366 jours",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get"
+        },
+        "plafond_posts": {
+          "valeur": "Limites quotidiennes de publication directe TikTok, vérifiables à blanc (essai sans rien publier) ; plus 25 posts/heure par compte",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1accounts~1{accountId}~1tiktok~1creator-info/get"
+        },
+        "plafond_texte": {
+          "valeur": "Titre vidéo jusqu'à 2200 signes ; titre d'un carrousel photo coupé à 90 signes",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+        },
+        "plafond_mots_dieses": {
+          "valeur": "Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description"
+        },
+        "format_video": {
+          "valeur": "Durée maximale lue en direct dans les réglages du créateur (champ dédié) ; miniature JPG/PNG/WebP 20 Mo au plus",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1accounts~1{accountId}~1tiktok~1creator-info/get/responses/200/content/application~1json/schema/properties/postingLimits/properties/maxVideoDurationSec"
+        },
+        "format_carrousel_document": {
+          "valeur": "Carrousel photo jusqu'à 35 images",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData"
+        },
+        "texte_alternatif": {
+          "valeur": "Ignoré : TikTok n'a pas de texte alternatif",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-12",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
+        }
+      }
+    },
+    "youtube": {
+      "statut": "éteint"
+    }
+  },
+  "constantes": [
+    {
+      "nom": "REEL_FACEBOOK_DUREE_SEC",
+      "valeur_code": "3 à 60 s",
+      "statut": "écart",
+      "cellule": "facebook.reseau.format_video",
+      "note": "Le code accepte 3 à 60 s ; la source citée (guide Meta, via la spec Zernio) donne 3 à 90 s. Écart prudent (le code refuse plus que nécessaire), sans risque d'envoi refusé, mais à confirmer sur la page Meta."
+    },
+    {
+      "nom": "ALT_MAX",
+      "valeur_code": "125 signes",
+      "statut": "inconnu",
+      "cellule": "facebook.reseau.texte_alternatif",
+      "note": "Aucune source consultée ne donne 125 ; la spec Zernio ne donne que X 1000 et Pinterest 500. À prouver sur les aides officielles."
+    },
+    {
+      "nom": "TITRE_DOCUMENT_MAX",
+      "valeur_code": "60 signes",
+      "statut": "inconnu",
+      "cellule": "linkedin.reseau.format_carrousel_document",
+      "note": "Aucune source consultée ne donne 60 pour le titre d'un document LinkedIn (la spec Zernio dit seulement que le titre est exigé)."
+    },
+    {
+      "nom": "DOCUMENT_TAILLE_MAX",
+      "valeur_code": "100 Mo",
+      "statut": "conforme",
+      "cellule": "linkedin.zernio.format_carrousel_document",
+      "note": "La spec Zernio dit : un PDF, 100 Mo au plus."
+    },
+    {
+      "nom": "IMAGES_MAX.linkedin",
+      "valeur_code": "20",
+      "statut": "conforme",
+      "cellule": "linkedin.zernio.format_carrousel_document",
+      "note": "La spec Zernio dit : jusqu'à 20 images."
+    },
+    {
+      "nom": "IMAGES_MAX.facebook",
+      "valeur_code": "10",
+      "statut": "conforme",
+      "cellule": "facebook.zernio.format_carrousel_document",
+      "note": "La spec Zernio dit : jusqu'à 10 images."
+    },
+    {
+      "nom": "IMAGES_MAX.tiktok",
+      "valeur_code": "35",
+      "statut": "conforme",
+      "cellule": "tiktok.zernio.format_carrousel_document",
+      "note": "La spec Zernio dit : carrousel photo jusqu'à 35 images."
+    },
+    {
+      "nom": "IMAGES_MAX.instagram",
+      "valeur_code": "10",
+      "statut": "écart",
+      "cellule": "instagram.zernio.format_carrousel_document",
+      "note": "Le code limite le carrousel à 10 images ; la spec Zernio (schéma InstagramPlatformData) permet jusqu'à 20 éléments. Écart prudent (le code refuse plus que nécessaire), sans risque d'envoi refusé."
+    }
+  ]
+}
