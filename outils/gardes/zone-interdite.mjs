@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // [L0-17] Garde de zone et de fichiers autorisés d'une PR. Sans IA, sans réseau, sans secret.
 //
-//   node outils/gardes/zone-interdite.mjs --base <ref> [--branche usine/<ID>] [--autorises <fichier.json|.md>]
+//   node outils/gardes/zone-interdite.mjs --base <ref> | --cible <branche cible à jour> [--branche usine/<ID>] [--autorises <fichier.json|.md>]
 //        [--annonces <dossier>] [--accords RC-40,...] [--fichiers <liste.txt>]
 //        [--listes <dossier>] [--corps <fichier>] [--fiches A,B]
 //
@@ -153,6 +153,11 @@ export function controler({ fichiers = [], autorises = null, fiche = null, fiche
 }
 
 // --- ligne de commande -----------------------------------------------------------------------------------------
+/** [L0-17b] Base commune de la tête et de la branche cible À JOUR (git merge-base), jamais le sommet figé de la cible. */
+export function baseCommune(cible, tete = "HEAD", cwd = undefined) {
+  return execFileSync("git", ["merge-base", tete, cible], { encoding: "utf8", cwd }).trim();
+}
+
 function option(argv, nom) {
   const i = argv.indexOf(nom);
   return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
@@ -216,8 +221,12 @@ export function main(argv = process.argv.slice(2)) {
   const liste = option(argv, "--fichiers");
   if (liste) fichiers = fs.readFileSync(liste, "utf8").split(/\r?\n/).filter(Boolean);
   else {
-    const base = option(argv, "--base");
-    if (!base) { console.error("zone-interdite : --base <ref> ou --fichiers <liste> requis"); return 2; }
+    const cible = option(argv, "--cible");
+    let base = option(argv, "--base");
+    if (cible) {
+      try { base = baseCommune(cible); } catch { console.error(`zone-interdite : base commune introuvable avec ${cible}`); return 2; }
+    }
+    if (!base) { console.error("zone-interdite : --base <ref> (ou --cible <ref>) ou --fichiers <liste> requis"); return 2; }
     fichiers = execFileSync("git", ["diff", "--name-only", "--no-renames", `${base}...HEAD`], { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
   }
   const accords = (option(argv, "--accords") ?? process.env.ZONE_ACCORDS ?? "").split(",").filter(Boolean);
