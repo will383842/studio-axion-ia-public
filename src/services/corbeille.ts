@@ -7,6 +7,7 @@
 import "server-only";
 import { estChezUnOutil } from "@/domaine/outil-publication";
 import { JOURS_CORBEILLE, joursRestants } from "@/domaine/corbeille";
+import { familleDe } from "@/domaine/journal-echecs";
 import { type Id, type Video, videoIdSure } from "@/domaine/types";
 import { depots, ErreurStudio, ecrireParametre, filtreExemples, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
@@ -56,8 +57,26 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
     const aMettre = await lire();
     exiger(aMettre);
     await refuser(aMettre);
-    for (const v of aMettre) {
-      await d.videos.modifier(v.id, { statut: "archivee", statutAvantArchive: v.statut === "archivee" ? v.statutAvantArchive : v.statut, corbeilleLe: instant });
+    // GV-EC-01e : un travail en attente de validation GARDE sa réservation (GV-EC-01b) ; à la corbeille elle est rendue TOUT
+    // DE SUITE (pas au bout des 30 jours). Rendue AVANT l'écriture des vidéos : si celle-ci échoue, elle est rétablie
+    // (`reactiverReservations`, la même qu'une reprise) puis l'erreur remonte ; une restauration puis une reprise la réactivent.
+    const ensembleIds = new Set(aMettre.map((v) => v.id));
+    const enAttente = await d.travaux.lister((t) => t.statut === "echec" && !!t.erreur && familleDe(t.erreur.code) === "attente-validation" && ensembleIds.has(t.cibleId));
+    const { libererReservation, reactiverReservations } = await import("./credits");
+    const liberes: Id[] = [];
+    try {
+      for (const t of enAttente) {
+        // GV-EC-01f : seules les réservations encore ACTIVES sont rendues (et rétablies au retour arrière).
+        if ((await d.reservations.compter((r) => r.travailId === t.id && r.statut === "active")) === 0) continue;
+        liberes.push(t.id);
+        await libererReservation(t.id, "liberee");
+      }
+      for (const v of aMettre) {
+        await d.videos.modifier(v.id, { statut: "archivee", statutAvantArchive: v.statut === "archivee" ? v.statutAvantArchive : v.statut, corbeilleLe: instant });
+      }
+    } catch (e) {
+      for (const id of liberes) await reactiverReservations(id).catch((e2) => console.error("[corbeille] réservation non rétablie (une reprise la réactive)", id, e2));
+      throw e;
     }
     const ensemble = new Set(aMettre.map((v) => v.id));
     const brouillonsBuffer = await d.publications.compter((p) => ensemble.has(videoIdSure(p) ?? "") && estChezUnOutil(p) && !!p.idExterne && p.statut === "brouillon");

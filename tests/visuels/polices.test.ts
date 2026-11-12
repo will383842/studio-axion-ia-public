@@ -3,13 +3,10 @@ import { describe, expect, it } from "vitest";
 
 const DOSSIER_POLICES = new URL("../../studio-rendu/compositions/commune/polices/", import.meta.url);
 const SOURCE = new URL("../../studio-rendu/compositions/visuels/polices.ts", import.meta.url);
+const SOURCE_MANROPE = new URL("../../studio-rendu/compositions/visuels/police-manrope.ts", import.meta.url);
 
-const POLICES = [
-  { fichier: "InterDisplay-Black.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter Display", chargeur: "chargerPoliceTitre" },
-  { fichier: "Inter-Medium.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter", chargeur: "chargerPoliceInter" },
-  { fichier: "Inter-SemiBold.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter", chargeur: "chargerPoliceInter" },
-  { fichier: "Inter-Bold.ttf", licence: "OFL-Inter.txt", famille: "Axion Inter", chargeur: "chargerPoliceInter" },
-] as const;
+const POLICES = [{ fichier: "Manrope-Variable.ttf", licence: "OFL-Manrope.txt", famille: "Axion Manrope" }] as const;
+const CHARGEURS = ["chargerPoliceTitre", "chargerPoliceInter", "chargerPoliceKalam"] as const;
 
 /** Points de code présents dans la table cmap (formats 4 et 12) d'un fichier TrueType. */
 function codesCmap(b: Buffer): Set<number> {
@@ -44,7 +41,7 @@ function codesCmap(b: Buffer): Set<number> {
   return codes;
 }
 
-describe("polices des carrousels (M1-02)", () => {
+describe("polices des carrousels (M1-02, passées à Manrope par L2-02)", () => {
   it.each(POLICES)("$famille : fichier de police et licence OFL présents", ({ fichier, licence }) => {
     expect(existsSync(new URL(fichier, DOSSIER_POLICES))).toBe(true);
     expect(existsSync(new URL(licence, DOSSIER_POLICES))).toBe(true);
@@ -53,20 +50,17 @@ describe("polices des carrousels (M1-02)", () => {
     expect(texte).toMatch(/^Copyright /);
   });
 
-  it("le chargeur déclare les familles (Inter Display Black pour les titres, Inter en trois graisses), sans chargement au niveau du module", () => {
+  it("le chargeur ne déclare que Manrope (un seul fichier local), sans chargement au niveau du module, et garde les points d'entrée des gabarits", () => {
     const src = readFileSync(SOURCE, "utf8");
-    for (const { famille, chargeur, fichier } of POLICES) {
-      expect(src).toContain(`"${famille}"`);
-      expect(src).toMatch(new RegExp(`export function ${chargeur}\\(\\): void`));
-      expect(src).toContain(fichier);
-    }
-    // Inter Display Black (1 fichier) + Inter (une FontFace par graisse : 500, 600, 700, plus U+202F pour le Bold) + Kalam (et son U+202F) ; ni Archivo Black ni JetBrains Mono.
-    expect(src.match(/new FontFace\(/g)).toHaveLength(5);
-    expect(src).not.toMatch(/Archivo/);
-    for (const poids of ["500", "600", "700"]) expect(src).toContain(`poids: "${poids}"`);
-    expect(src).not.toMatch(/JetBrains/i);
-    expect(src).toContain("delayRender");
-    expect(src).toContain("continueRender");
+    for (const chargeur of CHARGEURS) expect(src).toMatch(new RegExp(`export function ${chargeur}\\(\\): void`));
+    expect(src).toContain('from "./police-manrope"');
+    expect(src).not.toMatch(/new FontFace\(|\.ttf/);
+    expect(src).not.toMatch(/Archivo|JetBrains/i);
+    const manrope = readFileSync(SOURCE_MANROPE, "utf8");
+    expect(manrope.match(/new FontFace\(/g)).toHaveLength(1);
+    expect(manrope).toContain('weight: "200 800"');
+    expect(manrope).toContain("delayRender");
+    expect(manrope).toContain("continueRender");
   });
 
   it.each(POLICES)("$famille : glyphes français « ÉÀÇŒœ’« » » présents (cmap)", ({ fichier }) => {
@@ -74,18 +68,50 @@ describe("polices des carrousels (M1-02)", () => {
     for (const c of "ÉÀÇŒœ’«»") expect(codes.has(c.codePointAt(0)!), c).toBe(true);
   });
 
-  it("espace fine insécable (U+202F) : dans Inter Display Black et Inter SemiBold ; Inter Bold et Kalam la prennent dans Inter SemiBold (unicodeRange)", () => {
-    for (const f of ["InterDisplay-Black.ttf", "Inter-SemiBold.ttf", "Inter-Medium.ttf"]) expect(codesCmap(readFileSync(new URL(f, DOSSIER_POLICES))).has(0x202f), f).toBe(true);
-    const src = readFileSync(SOURCE, "utf8");
-    expect(src).toContain('PLAGE_ESPACE_FINE = "U+202F"');
-    expect(src.match(/url\(\$\{interSemiBold\}\)`, \{ weight: "700", unicodeRange: PLAGE_ESPACE_FINE \}/g)).toHaveLength(2);
+  it("tout signe produit par espacerPage existe dans la cmap de Manrope (sinon le navigateur prend une police de secours)", async () => {
+    const { espacerPage } = await import("../../src/briques/visuels/typographie-francaise");
+    const cmap = codesCmap(readFileSync(new URL("Manrope-Variable.ttf", DOSSIER_POLICES)));
+    expect(cmap.has(0xa0)).toBe(true);
+    const sortie = espacerPage({ titre: "Et si on essayait ? Oui ! Voyons ; « ok » : fin 9:30 l'IA" });
+    for (const c of JSON.stringify(sortie)) {
+      const code = c.codePointAt(0)!;
+      if (code > 0x7f) expect(cmap.has(code), `U+${code.toString(16).toUpperCase()}`).toBe(true);
+    }
+    expect(JSON.stringify(sortie)).not.toContain("\u202f");
+    expect(readFileSync(SOURCE, "utf8")).not.toMatch(/unicodeRange|PLAGE_ESPACE_FINE/);
   });
 
+  it("correction opus-v1-w1 : toute chaîne de TEXTES_FIXES, TEXTES_FIXES_L9 et TEXTES_FIXES_L11 existe dans la cmap de Manrope (page T22 comprise)", async () => {
+    const { TEXTES_FIXES, TEXTES_FIXES_L9, TEXTES_FIXES_L11 } = await import("../../src/briques/visuels/textes-fixes");
+    const cmap = codesCmap(readFileSync(new URL("Manrope-Variable.ttf", DOSSIER_POLICES)));
+    const chaines: [string, string][] = [];
+    const parcourir = (nom: string, v: unknown) => {
+      if (typeof v === "string") chaines.push([nom, v]);
+      else if (Array.isArray(v)) v.forEach((x, i) => parcourir(`${nom}[${i}]`, x));
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) parcourir(`${nom}.${k}`, x);
+    };
+    parcourir("TEXTES_FIXES", TEXTES_FIXES);
+    parcourir("TEXTES_FIXES_L9", TEXTES_FIXES_L9);
+    parcourir("TEXTES_FIXES_L11", TEXTES_FIXES_L11);
+    expect(chaines.length).toBeGreaterThan(10);
+    expect(chaines.map(([n]) => n)).toContain("TEXTES_FIXES_L9.t22Bascule");
+    for (const [nom, t] of chaines) {
+      for (const c of t) {
+        const code = c.codePointAt(0)!;
+        if (code > 0x7f) expect(cmap.has(code), `${nom} : U+${code.toString(16).toUpperCase()}`).toBe(true);
+      }
+    }
+  });
+  it("correction opus-v1-w1 : T21 passe son texte par pourManrope (jamais typographieFrancaise seule)", () => {
+    const t21 = readFileSync(new URL("../../studio-rendu/compositions/visuels/pages/T21.tsx", import.meta.url), "utf8");
+    expect(t21).toContain("pourManrope");
+    expect(t21).not.toMatch(/\btypographieFrancaise\b/);
+  });
   it("l'attente est exposée, une erreur de chargement fait échouer le rendu, et les bornes de 5 s ont disparu", () => {
     const src = readFileSync(SOURCE, "utf8");
     expect(src).toContain("export function policeTitrePrete");
     expect(src).toContain("export function policeInterPrete");
-    expect(src).toContain("cancelRender");
+    expect(readFileSync(SOURCE_MANROPE, "utf8")).toContain("cancelRender");
     for (const f of ["commun/Titre.tsx", "commun/controle-debordement.tsx"]) {
       const s = readFileSync(new URL(`../../studio-rendu/compositions/visuels/${f}`, import.meta.url), "utf8");
       expect(s, f).toContain("DELAI_POLICE_MS");

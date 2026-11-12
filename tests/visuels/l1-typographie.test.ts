@@ -27,8 +27,8 @@ function sources(dossier = ""): string[] {
 }
 
 describe("L1 : police du texte courant", () => {
-  it("POLICE_CORPS est Inter, et plus aucune source des visuels ne cite JetBrains Mono", () => {
-    expect(POLICE_CORPS).toContain("Axion Inter");
+  it("POLICE_CORPS est Manrope, et plus aucune source des visuels ne cite JetBrains Mono", () => {
+    expect(POLICE_CORPS).toContain("Axion Manrope");
     expect(POLICE_CORPS).not.toMatch(/mono/i);
     for (const f of sources()) expect(lire(f), f).not.toMatch(/JetBrains/i);
   });
@@ -37,7 +37,7 @@ describe("L1 : police du texte courant", () => {
     expect(TAILLES.corps).toBeGreaterThanOrEqual(30);
     for (const [nom, t] of Object.entries(TAILLES)) expect(t, nom).toBeGreaterThanOrEqual(TAILLE_TEXTE_MIN);
   });
-  it("la mesure et le contrôle de débordement attendent Inter", () => {
+  it("la mesure et le contrôle de débordement attendent Manrope", () => {
     expect(lire("commun/controle-debordement.tsx")).toContain("policeInterPrete");
     expect(lire("commun/controle-debordement.tsx")).not.toContain("JetBrains");
   });
@@ -92,8 +92,8 @@ describe("L1 : rubrique des pages intérieures", () => {
 });
 
 describe("ART-1 : style éditorial (A) et typographique (C)", () => {
-  it("titres en Inter Display Black, rang écrit sur deux chiffres par le code", () => {
-    expect(POLICE_TITRE).toContain("Axion Inter Display");
+  it("titres en Manrope ExtraBold, rang écrit sur deux chiffres par le code", () => {
+    expect(POLICE_TITRE).toContain("Axion Manrope");
     expect(rangEcrit(1)).toBe("01");
     expect(rangEcrit(6)).toBe("06");
   });
