@@ -70,19 +70,14 @@ async function choisirGabarit(): Promise<"r4" | "axion-v2" | typeof GABARIT_IMAG
   return reglage === GABARITS_MINIATURE[0] ? "r4" : reglage === GABARITS_MINIATURE[1] ? "axion-v2" : GABARIT_IMAGE_VIDEO;
 }
 
-/** `{ titreCentre: true }` seulement pour l'image de la vidéo avec le réglage `couverture.titreParDefaut` allumé ; sinon rien (aucune clé en plus). */
-async function titreCentreAllume(): Promise<{ titreCentre?: true }> {
-  // Une panne de lecture du réglage ne fait pas échouer la couverture : comportement d'avant (pas de titreCentre).
+/** `{ titreCentre: true }` pour l'image de la vidéo (titre saisi à la main centré comme le titre automatique, décision du fondateur) ; sinon rien (aucune clé en plus). */
+async function titreCentreImageVideo(): Promise<{ titreCentre?: true }> {
+  // Une panne de lecture du gabarit ne fait pas échouer la couverture : pas de titreCentre.
   try {
-    return await lireTitreCentreAllume();
+    return (await choisirGabarit()) === GABARIT_IMAGE_VIDEO ? { titreCentre: true } : {};
   } catch {
     return {};
   }
-}
-
-async function lireTitreCentreAllume(): Promise<{ titreCentre?: true }> {
-  if ((await choisirGabarit()) !== GABARIT_IMAGE_VIDEO) return {};
-  return (await lireParametre<boolean>(REGLAGE_TITRE_COUVERTURE, false)) === true ? { titreCentre: true } : {};
 }
 
 /**
@@ -92,7 +87,7 @@ async function lireTitreCentreAllume(): Promise<{ titreCentre?: true }> {
  */
 async function resoudreCouverture(video: Video, titre: string): Promise<{ couverture: CouvertureMiniature; aGarder?: { texte: string; motCle: string; fixee: false } }> {
   const fiche = video.couvertureVignette;
-  if (fiche?.texte.trim()) return { couverture: { texte: fiche.texte.trim(), motCle: fiche.motCle.trim() || motCleCouverture(fiche.texte), ...(await titreCentreAllume()) } };
+  if (fiche?.texte.trim()) return { couverture: { texte: fiche.texte.trim(), motCle: fiche.motCle.trim() || motCleCouverture(fiche.texte), ...(await titreCentreImageVideo()) } };
   // Image de la vidéo (défaut) : le titre est OPTIONNEL, vide tant que Williams n'en saisit pas. Rien n'est proposé ni écrit,
   // sauf si le réglage `couverture.titreParDefaut` est allumé : alors un titre court tiré de l'accroche (3 à 5 mots).
   if ((await choisirGabarit()) === GABARIT_IMAGE_VIDEO) {

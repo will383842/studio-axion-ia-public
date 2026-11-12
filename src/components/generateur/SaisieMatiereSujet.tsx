@@ -39,7 +39,7 @@ export function SaisieMatiereSujet({ id, libelleBouton, icone = "ecrire", messag
         rows={3}
         aria-label="Votre matière"
         placeholder="Touchez le micro du clavier et racontez"
-        className="block w-full resize-none rounded-champ border border-trait bg-surface-2 p-3 text-left text-base text-texte outline-none focus:border-orange"
+        className="block w-full resize-none rounded-champ border border-trait bg-surface-2 p-3 text-left text-base text-texte outline-none focus:border-accent"
       />
       {type && (
         <div>

@@ -5,7 +5,7 @@ import { NouvelleVideoTableau } from "@/components/formats/tableau-anime/Nouvell
 import { EtatVide } from "@/components/ui/EtatVide";
 import { ecranCreationTableau } from "@/services/tableau-creation";
 
-export const metadata: Metadata = { title: "Nouvelle vidéo · Tableau animé" };
+export const metadata: Metadata = { title: "Nouvelle vidéo · L'erreur corrigée" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -16,10 +16,10 @@ export const dynamic = "force-dynamic";
 export default async function PageNouvelleTableau({ searchParams }: { searchParams?: Promise<{ brouillon?: string }> }) {
   const sp = (await searchParams) ?? {};
   const ecran = await ecranCreationTableau(sp.brouillon);
-  if (!ecran.visible) return <EtatVide icone="pinceau" titre="Pas encore ouvert" phrase="Le tableau animé arrive bientôt." />;
+  if (!ecran.visible) return <EtatVide icone="pinceau" titre="Pas encore ouvert" phrase="L'erreur corrigée arrive bientôt." />;
   return (
     <GabaritCreation
-      entete={{ titre: "Tableau animé", sousTitre: "Votre texte, écrit et dessiné au trait." }}
+      entete={{ titre: "L'erreur corrigée", sousTitre: "Votre texte, écrit et dessiné au trait. Commencez par le texte que la vidéo dira." }}
       recents={<BrouillonsRecentsTableau recents={ecran.recents} courant={ecran.brouillon?.videoId} />}
     >
       <NouvelleVideoTableau key={ecran.brouillon ? `${ecran.brouillon.videoId}-${ecran.brouillon.versions}-${ecran.brouillon.tache?.id ?? ""}-${ecran.brouillon.tache?.statut ?? ""}` : "neuf"} ecran={ecran} />

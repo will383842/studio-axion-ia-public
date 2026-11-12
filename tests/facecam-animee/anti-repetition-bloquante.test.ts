@@ -196,3 +196,10 @@ describe("anti-répétition · la consigne dit la règle", () => {
     expect(blocHistoriqueV4([video({})])).toBe("");
   });
 });
+
+describe("anti-répétition · seuils tranchés par le fondateur le 12/11/2026", () => {
+  it("60 % de plaquettes déjà vues au plus, sur les 2 dernières vidéos", () => {
+    expect(SEUILS_V4.partReprisePlaquettesMax).toBe(0.6);
+    expect(SEUILS_V4.videosRecentesPlaquettes).toBe(2);
+  });
+});

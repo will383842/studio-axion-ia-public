@@ -6,6 +6,7 @@ export const TYPES_CONTENU_USINE = [
   { id: "carrousel", libelle: "Carrousel", actif: false },
   { id: "image", libelle: "Infographie", actif: false },
   { id: "texte", libelle: "Texte", actif: false },
+  { id: "story", libelle: "Story", actif: false },
 ] as const;
 export type TypeContenuUsine = "video" | "carrousel" | "image" | "texte" | "story";
 
