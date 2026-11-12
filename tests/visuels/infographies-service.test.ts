@@ -20,7 +20,7 @@ const spec = InfographieSpec.parse({
   ],
 });
 
-function simule(echec = false) {
+function simule(echec = false, mesures: Record<string, number> = {}) {
   const soumises: DemandeRendu[] = [];
   const service: ServiceRendu = {
     async soumettre(d) {
@@ -29,7 +29,7 @@ function simule(echec = false) {
     },
     async etat(id): Promise<EtatRendu> {
       if (echec) return { statut: "echec", erreur: { code: "refuse", reessayable: false, message: "refusé" } };
-      return { statut: "termine", sortieCle: `cle/${id}`, mesures: {} };
+      return { statut: "termine", sortieCle: `cle/${id}`, mesures };
     },
   };
   return { service, soumises };
@@ -107,13 +107,11 @@ describe("L2-07 · service d'infographie", () => {
     expect(liberer).toHaveBeenCalledWith("t4", "liberee");
   });
 
-  it("une infographie qui déborde est refusée avant toute réservation", async () => {
+  it("un texte qui déborde (mesure du serveur de rendu) est refusé et le crédit libéré", async () => {
     await ecrireParametre("infographies.actif", true);
-    const trop = InfographieSpec.parse({ ...spec, blocs: Array.from({ length: 8 }, (_, i) => ({ titre: `Point ${i + 1}`, texte: `Une phrase courte pour le point ${i + 1}.` })) });
-    const { service, soumises } = simule();
-    const { deps, reserver } = dependances(service);
-    await expect(produireInfographie({ travailId: "t5", spec: trop, gabarit: "etapes", reseaux: ["linkedin"], ratio: "1:1" }, deps)).rejects.toThrow();
-    expect(reserver).toHaveBeenCalledTimes(0);
-    expect(soumises).toHaveLength(0);
+    const { service } = simule(false, { debordements: 2 });
+    const { deps, liberer } = dependances(service);
+    await expect(produireInfographie({ travailId: "t5", spec, gabarit: "etapes", reseaux: ["linkedin"] }, deps)).rejects.toThrow(/déborde/);
+    expect(liberer).toHaveBeenCalledWith("t5", "liberee");
   });
 });
