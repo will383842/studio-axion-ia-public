@@ -63,6 +63,12 @@ export const PRIORITE_REGLES_IMAGE_VIDEO = "Pour ce format, les règles « image
  */
 export const CODES_REGLES_JAMAIS_FAUX: readonly CodeRegle[] = ["FORME", "Q04", "Q05", "Q05bis", "Q06", "Q08", "Q08bis"];
 
+/**
+ * GV-EC-06b · LISTE BLANCHE : seuls ces codes, de pure forme, peuvent être acceptés tels quels par Williams. Tout autre code
+ * (jamais faux, inconnu, futur) reste bloquant. Q10 (durée) n'y est PAS : un script beaucoup trop long coûterait plus que le prix confirmé.
+ */
+export const CODES_REGLES_FORME_ACCEPTABLES: readonly CodeRegle[] = ["Q07", "Q09", "CHAPITRES"];
+
 /** Vrai si aucun manquement à corriger du verdict n'est de la classe « jamais faux » : le script peut être proposé à relire. */
 export function peutEtreProposeARelire(verdict: Pick<VerdictScript, "manquements">): boolean {
   return aCorrigerParClaude(verdict).every((m) => !CODES_REGLES_JAMAIS_FAUX.includes(m.regle));

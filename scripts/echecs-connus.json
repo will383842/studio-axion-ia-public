@@ -9,11 +9,6 @@
     },
     {
       "fichier": "tests/e2e-verif1-g-liens.test.ts",
-      "nom": "agent g — liens internes /reglages#<ancre> : la section existe",
-      "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
-    },
-    {
-      "fichier": "tests/e2e-verif1-g-liens.test.ts",
       "nom": "agent g — liens internes /ecrire?onglet= et /videos?vue= : la page lit cette valeur",
       "note": "déjà rouge sur master le 13/11 (adresses /ecrire/stock, ancres de réglages, ?vue=) ; à corriger par R7 et R9 de la refonte"
     }
