@@ -12,6 +12,7 @@
  *  - journal et alertes : des codes seulement, jamais d'adresse, de corps d'appel, d'empreinte ni de clé ; aucun `catch` n'en journalise.
  */
 import "server-only";
+import { aliasDe, dossierDe, racineDe } from "@/domaine/guide-reseau/cles-parcours";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { cleIdempotenceOpaque, lireClesEmpreinte, type CleEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { ATTENTES_INTROUVABLE_MS, ATTENTES_PANNE_LECTURE_MS, voiesOpposition, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
@@ -161,14 +162,16 @@ export async function rattraperOppositions(o: { env?: Env; maintenantMs?: number
   const k = lireClesEmpreinte(env);
   if (!k.ok) return 0;
   const conversations = await lireParametre<Record<string, Conversation>>(PARAM_CONVERSATIONS, {});
+  const tableAlias = await lireParametre<Record<string, string>>(`${PARAM_CONVERSATIONS}.alias`, {});
   const f = await lireFile();
   const fp = await lireFilePage();
   let ajoutees = 0;
   for (const [cle, c] of Object.entries(conversations)) {
     const voies = voiesOpposition(c);
     if (!((voies.adresse && !f[cle]) || (voies.page && !fp[cle]))) continue;
-    const auRegistre = await empreintesOpposees([cle, ...(c.alias ?? [])], { env });
-    if (!auRegistre && c.etat !== "oppose") continue;
+    const racine = racineDe(cle);
+    const auRegistre = await empreintesOpposees([racine, ...aliasDe(racine, conversations, tableAlias)], { env });
+    if (!auRegistre && !dossierDe(racine, conversations).some((x) => x.etat.etat === "oppose")) continue;
     await mettreEnFileOpposition(cle, c, k.courante, now);
     ajoutees++;
   }
