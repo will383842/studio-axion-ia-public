@@ -128,10 +128,10 @@ describe("heure de Paris (frontière de minuit et créneaux déjà passés)", ()
     expect(await d.publications.lister()).toHaveLength(2);
     expect(await d.creneaux.lister()).toHaveLength(1);
   });
-  it("créneau archivé ou publié recliqué : refusé, rien n'est écrit", async () => {
+  it.each(["archive", "publie"] as const)("créneau « %s » recliqué : refusé avec un motif, rien n'est écrit", async (statut) => {
     const d = await monter();
-    await d.creneaux.enregistrer({ id: "cre_vis_1", jourVise: "2026-11-25", heuresParReseau: { linkedin: "2026-11-25T07:30:00.000Z", instagram: "2026-11-25T11:30:00.000Z" }, compteCible: "compte-studio", visuelId: "vis_1", statut: "archive", decalages: 0 } as unknown as CreneauPlan);
-    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", T0)).rejects.toThrow();
+    await d.creneaux.enregistrer({ id: "cre_vis_1", jourVise: "2026-11-25", heuresParReseau: { linkedin: "2026-11-25T07:30:00.000Z", instagram: "2026-11-25T11:30:00.000Z" }, compteCible: "compte-studio", visuelId: "vis_1", statut, decalages: 0 } as unknown as CreneauPlan);
+    await expect(programmerEnUnClic(d, "vis_1", "2026-11-25", T0)).rejects.toThrow(new RegExp(`Statut « ${statut} » : seul « valide »`));
     expect(await d.publications.lister()).toHaveLength(0);
   });
   it("jour proposé par défaut : demain à Paris, pas demain en UTC", () => {

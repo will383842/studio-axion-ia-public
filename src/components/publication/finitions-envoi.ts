@@ -5,6 +5,7 @@
 import { LIBELLES_ENVOI, NOMS_OUTILS_PUBLICATION } from "@/domaine/libelles";
 import { FIN_BUFFER_ISO } from "@/domaine/outil-publication";
 import type { IdReseau } from "@/domaine/types";
+import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
 import type { LigneAPublier } from "@/services/a-publier";
 import { FILTRE_PAR_DEFAUT, TRANCHE, type FiltreListe } from "./liste-a-publier";
 import { etatDeLigne, lienDetailReseau, type ReseauListe } from "./liste-par-reseau";
@@ -79,10 +80,24 @@ export function formatApercu(reseau: IdReseau | string, dimensions?: { largeur: 
   return reseau === "tiktok" ? "9:16" : "4:5";
 }
 
-/** Le bloc « Premier commentaire » : posé tout seul, sauf TikTok (à la main). Rien si le texte est vide hors TikTok. */
-export function blocPremierCommentaire(reseau: IdReseau | string, texte: string | undefined): { titre: string; texte?: string; alaMain: boolean } | null {
-  if (reseau === "tiktok") return { titre: LIBELLES_ENVOI.premierCommentaireTiktok, alaMain: true };
+/** Comment le premier commentaire part, selon l'outil : posé tout seul, transmis mais à confirmer, ou à poser à la main. */
+export type EtatPremierCommentaire = "auto" | "a-confirmer" | "a-la-main";
+
+/**
+ * Buffer : Instagram, Facebook et LinkedIn le reçoivent. Zernio : seuls Facebook et LinkedIn le reçoivent (règle lue dans
+ * zernio-corps.ts), et ils restent « à confirmer » tant que l'essai réel n'a rien prouvé ; Instagram, TikTok et YouTube : à la main.
+ */
+export function etatPremierCommentaire(outil: "buffer" | "zernio" | string | undefined, reseau: IdReseau | string): EtatPremierCommentaire {
+  if (outil === "zernio") return premierCommentaireTransmissibleZernio(reseau) ? "a-confirmer" : "a-la-main";
+  return reseau === "instagram" || reseau === "facebook" || reseau === "linkedin" ? "auto" : "a-la-main";
+}
+
+/** Le bloc « Premier commentaire » : sans état donné, comme avant (posé tout seul, sauf TikTok). Avec un état : titre propre et bouton Copier. */
+export function blocPremierCommentaire(reseau: IdReseau | string, texte: string | undefined, etat?: EtatPremierCommentaire): { titre: string; texte?: string; alaMain: boolean; copier?: boolean } | null {
   const t = texte?.trim();
+  if (etat === "a-la-main") return { titre: reseau === "tiktok" ? LIBELLES_ENVOI.premierCommentaireTiktok : LIBELLES_ENVOI.premierCommentaireALaMain, ...(t ? { texte: t, copier: true } : {}), alaMain: true };
+  if (etat === "a-confirmer") return t ? { titre: LIBELLES_ENVOI.premierCommentaireAConfirmer, texte: t, alaMain: false, copier: true } : null;
+  if (reseau === "tiktok") return { titre: LIBELLES_ENVOI.premierCommentaireTiktok, alaMain: true };
   return t ? { titre: LIBELLES_ENVOI.premierCommentaire, texte: t, alaMain: false } : null;
 }
 

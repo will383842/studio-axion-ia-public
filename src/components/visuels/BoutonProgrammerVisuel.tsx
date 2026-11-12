@@ -41,7 +41,8 @@ async function validerParLeFondateur(d: DepotsPasserelle, creneauId: string, mai
 
 /**
  * Crée (ou retrouve) le créneau du visuel validé et le programme. Idempotent : id de créneau stable par visuel.
- * Rien n'est écrit si une vérification échoue.
+ * Les vérifications du visuel, des réseaux et des heures se font avant toute écriture. Le créneau est validé AVANT les refus de
+ * `programmerVisuel` (ex. visuel déjà programmé ailleurs) : s'il refuse, le créneau reste « valide » mais aucune Publication n'est créée.
  */
 export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, jour: string, maintenant: string): Promise<{ creneauId: string }> {
   const v = await d.visuels.obtenir(visuelId);
