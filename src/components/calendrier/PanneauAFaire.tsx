@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { BandeauAnnuler } from "@/components/ui/BandeauAnnuler";
 import { Pastille } from "@/components/ui/Pastille";
+import { LIBELLES_CALENDRIER } from "./EnTeteCalendrier";
 import { libelleEtat } from "./PastilleStatutPlan";
 
 export interface EntreeAFaire {
@@ -54,13 +55,13 @@ export function PanneauAFaire({ entrees }: { entrees: readonly EntreeAFaire[] })
   const { aCorriger, aValider, brouillons } = repartirAFaire(entrees);
   const vide = aCorriger.length + aValider.length + brouillons.length === 0;
   return (
-    <aside aria-label="À faire" className="mb-4 rounded-carte border border-trait bg-surface-1 p-3">
-      <h2 className="mb-2 font-titre text-lg text-texte">À faire</h2>
+    <aside aria-label={LIBELLES_CALENDRIER.aFaire} className="mb-4 rounded-carte border border-trait bg-surface-1 p-3">
+      <h2 className="mb-2 font-titre text-lg text-texte">{LIBELLES_CALENDRIER.aFaire}</h2>
       {vide ? (
         <p className="text-sm text-texte-doux">Rien à faire pour le moment.</p>
       ) : (
         <>
-          <Groupe titre="À corriger" etat="a_corriger" entrees={aCorriger} />
+          <Groupe titre={LIBELLES_CALENDRIER.aCorriger} etat="a_corriger" entrees={aCorriger} />
           <Groupe titre="À valider" etat="a_valider" entrees={aValider} />
           <Groupe titre="Brouillons à compléter" etat="brouillon" entrees={brouillons} />
         </>
@@ -88,6 +89,15 @@ function memoriser(valeur: boolean) {
   }
   ECOUTEURS.forEach((f) => f());
 }
+/** Fermeture du bandeau de départ : le choix est mémorisé. */
+export function fermerBandeauDepart() {
+  memoriser(true);
+}
+/** Retour par « Annuler » : le bandeau de départ revient et la mémoire est effacée. */
+export function rouvrirBandeauDepart() {
+  memoriser(false);
+}
+export { lireFerme as bandeauDepartFerme };
 function abonner(f: () => void) {
   ECOUTEURS.add(f);
   return () => void ECOUTEURS.delete(f);
@@ -111,7 +121,7 @@ export function BandeauDepart() {
             className="min-h-11 shrink-0 rounded-[10px] border border-trait-fort px-3 font-bold text-texte hover:bg-surface-2"
             onClick={() => {
               setAnnulable(true);
-              memoriser(true);
+              fermerBandeauDepart();
             }}
           >
             Compris
@@ -123,7 +133,7 @@ export function BandeauDepart() {
           message="Bandeau fermé."
           onAnnuler={() => {
             setAnnulable(false);
-            memoriser(false);
+            rouvrirBandeauDepart();
           }}
           onFin={() => setAnnulable(false)}
         />

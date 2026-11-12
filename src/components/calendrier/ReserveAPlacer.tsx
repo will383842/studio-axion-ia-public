@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { EnTeteSection } from "@/components/ui/EnTetePage";
+import { LIBELLES_CALENDRIER } from "./EnTeteCalendrier";
 
 export interface ContenuAPlacer {
   id: string;
@@ -12,8 +13,8 @@ export interface ContenuAPlacer {
 export function ReserveAPlacer({ contenus }: { contenus: readonly ContenuAPlacer[] }) {
   if (contenus.length === 0) return null;
   return (
-    <section aria-label="À placer" className="mt-10">
-      <EnTeteSection titre="À placer" compteur={contenus.length} />
+    <section aria-label={LIBELLES_CALENDRIER.aPlacer} className="mt-10">
+      <EnTeteSection titre={LIBELLES_CALENDRIER.aPlacer} compteur={contenus.length} />
       <ul className="sans-barre -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:px-0 lg:grid-cols-6">
         {contenus.map((c) => (
           <li key={c.id} className="w-36 shrink-0 sm:w-auto">

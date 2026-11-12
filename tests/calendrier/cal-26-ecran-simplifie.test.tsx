@@ -106,3 +106,66 @@ describe("CAL-26 : bandeau de départ", () => {
     expect(h).toContain("Réponses aux commentaires : à la main");
   });
 });
+
+describe("CAL-26 : libellés fixes", () => {
+  it("« À faire », « À placer », « À corriger » viennent de la constante et s'affichent", async () => {
+    const { LIBELLES_CALENDRIER } = await import("@/components/calendrier/EnTeteCalendrier");
+    const faire = renderToStaticMarkup(<PanneauAFaire entrees={[{ cle: "a", etat: "a_corriger", titre: "Un", href: "/x" }]} />);
+    expect(faire).toContain(`>${LIBELLES_CALENDRIER.aFaire}<`);
+    expect(faire).toContain(LIBELLES_CALENDRIER.aCorriger);
+    expect(renderToStaticMarkup(<ReserveAPlacer contenus={[{ id: "v1", titre: "Ma vidéo" }]} />)).toContain(`>${LIBELLES_CALENDRIER.aPlacer}<`);
+  });
+  it("« Mes textes » s'affiche dans « Filtrer » et mène à la voix de la marque", async () => {
+    const { LIBELLES_CALENDRIER } = await import("@/components/calendrier/EnTeteCalendrier");
+    const h = renderToStaticMarkup(<EnTeteCalendrier vue="semaine" periode="Cette semaine" liens={liens} reseauxActifs={["linkedin", "instagram", "facebook", "tiktok"]} lienReseau={() => "/x"} lienTout="/t" lienAjouter="/a" />);
+    expect(h).toMatch(new RegExp(`<a [^>]*href="/ecrire/voix"[^>]*>\\s*${LIBELLES_CALENDRIER.mesTextes}\\s*</a>`));
+  });
+  it("« Retirer du calendrier » est le libellé du tiroir d'une publication (affiché par statuts.ts, hors des fichiers de cette fiche)", async () => {
+    const { LIBELLES_CALENDRIER } = await import("@/components/calendrier/EnTeteCalendrier");
+    const { boutonsTiroir } = await import("@/domaine/plan-editorial/statuts");
+    expect(boutonsTiroir("brouillon", "2026-11-21", new Date("2026-11-20T10:00:00Z")).secondaires).toContain(LIBELLES_CALENDRIER.retirer);
+  });
+});
+
+describe("CAL-26 : « À faire » ouvre toute publication", () => {
+  it("une publication sans vidéo (visuel, carrousel) mène à son jour dans le calendrier", async () => {
+    const auj = new Date().toISOString();
+    listerCalendrier.mockResolvedValue([{ jour: auj.slice(0, 10), publications: [{ id: "p2", videoId: null, via: "buffer", reseau: "instagram", statut: "a_valider", date: auj, texte: "Un visuel", video: null }] }]);
+    const h = await rendre({ date: auj.slice(0, 10) });
+    const aside = h.slice(h.indexOf('<aside aria-label="À faire"'), h.indexOf("</aside>"));
+    expect(aside).toContain("Un visuel");
+    expect(aside).toMatch(/<a [^>]*href="\/calendrier\?vue=jour&amp;date=\d{4}-\d{2}-\d{2}"[^>]*>[^<]*Un visuel/);
+  });
+});
+
+describe("CAL-26 : bandeau de départ, mémoire et « Annuler »", () => {
+  const magasin = new Map<string, string>();
+  const memoire = { getItem: (k: string) => magasin.get(k) ?? null, setItem: (k: string, v: string) => void magasin.set(k, v), removeItem: (k: string) => void magasin.delete(k) };
+  it("la fermeture est mémorisée, « Annuler » la défait, une mémoire en panne ne plante pas", async () => {
+    const { fermerBandeauDepart, rouvrirBandeauDepart, bandeauDepartFerme } = await import("@/components/calendrier/PanneauAFaire");
+    vi.stubGlobal("localStorage", memoire);
+    try {
+      expect(bandeauDepartFerme()).toBe(false);
+      fermerBandeauDepart();
+      expect(bandeauDepartFerme()).toBe(true);
+      rouvrirBandeauDepart();
+      expect(bandeauDepartFerme()).toBe(false);
+      expect(magasin.size).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    vi.stubGlobal("localStorage", { getItem: () => { throw new Error("indisponible"); }, setItem: () => { throw new Error("indisponible"); }, removeItem: () => { throw new Error("indisponible"); } });
+    try {
+      expect(() => fermerBandeauDepart()).not.toThrow();
+      expect(bandeauDepartFerme()).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+  it("le bouton « Compris » ferme par fermerBandeauDepart ; « Annuler » (10 s, BandeauAnnuler) rouvre par rouvrirBandeauDepart", () => {
+    const src = readFileSync(join(process.cwd(), "src/components/calendrier/PanneauAFaire.tsx"), "utf8");
+    expect(src).toMatch(/setAnnulable\(true\);\s*fermerBandeauDepart\(\);/);
+    expect(src).toMatch(/onAnnuler=\{\(\) => \{\s*setAnnulable\(false\);\s*rouvrirBandeauDepart\(\);/);
+    expect(src).not.toMatch(/dureeMs/);
+  });
+});
