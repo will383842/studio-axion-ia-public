@@ -34,7 +34,7 @@ const SYNONYMES: Record<string, string[]> = {
 
 const HORS_MENU: PageRecherchable[] = [
   { href: "/veille", libelle: "Veille des outils", icone: "tendance", synonymes: ["veille", "nouveautes", "mises a jour"] },
-  { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette", synonymes: ["motion", "animations"] },
+  { href: "/bibliotheque/animations?onglet=studio", libelle: "Animations du studio", icone: "baguette", synonymes: ["motion", "animations", "outils motion design"] },
   { href: "/mesures/ce-qui-marche", libelle: "Ce qui marche", icone: "resultats", synonymes: ["succes", "meilleures", "performances"] },
   { href: "/videos/a-ranger", libelle: "Vidéos à ranger", icone: "film", synonymes: ["ranger", "rangement", "non classees"] },
 ];

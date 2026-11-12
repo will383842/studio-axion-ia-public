@@ -244,7 +244,7 @@ export function MaVoix({ d, ouverteInitiale }: { d: DonneesMaVoix; ouverteInitia
           </ul>
         ) : (
           <Bouton asChild variante="secondaire" pleineLargeur icone="micro">
-            <Link href="/ecrire/matieres?type=avis-will&ajout=matiere">Dicter un avis</Link>
+            <Link href="/ecrire?onglet=matieres&type=avis-will&ajout=matiere">Dicter un avis</Link>
           </Bouton>
         )}
       </Rubrique>

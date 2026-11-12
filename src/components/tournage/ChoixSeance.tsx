@@ -48,9 +48,9 @@ export function ChoixSeance({ versions, preselection, seances }: { versions: Ver
       {seances.length > 0 && (
         <section aria-label="Séances en cours" className="flex gap-3 overflow-x-auto pb-1">
           {seances.map((s) => (
-            <Link key={s.id} href={`/ecrire/tournage/${s.id}`} className="flex min-w-[160px] flex-col gap-2 rounded-carte border border-trait bg-surface-1 p-4 hover:border-orange">
+            <Link key={s.id} href={`/ecrire/tournage/${s.id}`} className="flex min-w-[160px] flex-col gap-2 rounded-carte border border-trait bg-surface-1 p-4 hover:border-accent">
               <span className="flex items-center gap-2 text-sm font-semibold text-texte">
-                <Icone nom="clap" size={16} className="text-orange-vif" />
+                <Icone nom="clap" size={16} className="text-accent" />
                 Reprendre
               </span>
               <span className="font-titre text-2xl font-bold text-texte">
@@ -78,7 +78,7 @@ export function ChoixSeance({ versions, preselection, seances }: { versions: Ver
       ) : (
         <ul className="space-y-3">
           {sujets.map((g) => (
-            <li key={g.id} className={cn("rounded-carte border bg-surface-1 p-4", g.versions.some((v) => choisies.includes(v.id)) ? "border-orange" : "border-trait")}>
+            <li key={g.id} className={cn("rounded-carte border bg-surface-1 p-4", g.versions.some((v) => choisies.includes(v.id)) ? "border-accent" : "border-trait")}>
               <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-texte">{g.titre}</p>
               <p className="mt-1 text-xs text-texte-faible">
                 {g.numero !== undefined && <span className="font-mono">n° {g.numero} · </span>}
@@ -94,11 +94,11 @@ export function ChoixSeance({ versions, preselection, seances }: { versions: Ver
                       aria-pressed={coche}
                       aria-label={`${v.code}${coche ? " (choisie)" : ""}`}
                       onClick={() => basculer(v.id)}
-                      className={cn("relative rounded-2xl p-1 transition-colors", coche ? "bg-orange" : "bg-transparent hover:bg-surface-2")}
+                      className={cn("relative rounded-2xl p-1 transition-colors", coche ? "bg-accent" : "bg-transparent hover:bg-surface-2")}
                     >
                       <LogoReseau reseau={v.reseau} taille="lg" className={cn(coche && "border-transparent")} />
                       {coche && (
-                        <span aria-hidden className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-sur-orange text-orange">
+                        <span aria-hidden className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-sur-accent text-accent">
                           <Icone nom="coche" size={12} />
                         </span>
                       )}

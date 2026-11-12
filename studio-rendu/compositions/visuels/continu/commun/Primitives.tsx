@@ -6,8 +6,8 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { alpha, CHARTE_CONTINU as C, DEGRADES_CONTINU as D } from "../../../../../src/briques/visuels/charte-carrousel";
 import { ATTRIBUT_DESSIN } from "../../commun/zones";
-import { FAMILLE_BRICOLAGE, FAMILLE_INSTRUMENT, TAILLES_CONTINU } from "../constantes-continu";
-import { FAMILLE_INTER } from "../polices-continu";
+import { TAILLES_CONTINU } from "../constantes-continu";
+import { FAMILLE_MANROPE } from "../../police-manrope";
 import { ICONES_CONTINU, type NomIconeContinu } from "./icones-continu";
 
 /** Ombre portée chaude de la maquette (brun 70, 30, 8) : rouille assombrie d'encre. */
@@ -15,13 +15,14 @@ export function ombre(a: number): string {
   return alpha(`color-mix(in srgb, ${C.rouille} 50%, ${C.encre})`, a);
 }
 
-export const POLICE_TITRE = `"${FAMILLE_BRICOLAGE}", sans-serif`;
-export const POLICE_SERIF = `"${FAMILLE_INSTRUMENT}", serif`;
-export const POLICE_TEXTE = `"${FAMILLE_INTER}", sans-serif`;
+/** Une seule police (Manrope) : titres, accents (anciennement en serif) et texte courant partagent la même famille. */
+export const POLICE_TITRE = `"${FAMILLE_MANROPE}", "Manrope", sans-serif`;
+export const POLICE_SERIF = POLICE_TITRE;
+export const POLICE_TEXTE = POLICE_TITRE;
 
-/** Police d'un texte, en propriétés séparées (graisse, corps en px, interligne, famille, italique). */
-export function police(poids: number, taille: number, interligne: number, famille: string, italique = false): CSSProperties {
-  return { fontWeight: poids, fontSize: taille, lineHeight: interligne, fontFamily: famille, fontStyle: italique ? "italic" : "normal" };
+/** Police d'un texte, en propriétés séparées (graisse, corps en px, interligne, famille). Manrope n'a pas d'italique : `italique` est accepté pour les appels existants mais jamais appliqué (aucun italique synthétisé). */
+export function police(poids: number, taille: number, interligne: number, famille: string, _italique = false): CSSProperties {
+  return { fontWeight: poids, fontSize: taille, lineHeight: interligne, fontFamily: famille, fontStyle: "normal" };
 }
 
 /** `ic(n, s, c, w)` : icône duotone, traits à `epaisseur`, forme pleine teintée à 24 %. */
@@ -154,7 +155,7 @@ export function Etiquette({ children }: { children: ReactNode }) {
   return <span style={{ display: "inline-flex", alignSelf: "flex-start", ...police(700, TAILLES_CONTINU.tagx, 1, POLICE_TEXTE), letterSpacing: "0.07em", textTransform: "uppercase", padding: "12px 18px", borderRadius: 12, background: C.peche, color: C.encre }}>{children}</span>;
 }
 
-/** `.t` : grand titre Bricolage 800 ; `accent` en Instrument Serif italique orange (grands titres seulement, ≥ 64 px). */
+/** `.t` : grand titre Manrope 800 ; `accent` en Manrope orange, même famille (grands titres seulement, ≥ 64 px). */
 export function Titre({ taille, texte, accent, sombre = false, style }: { taille: number; texte: string; accent?: string; sombre?: boolean; style?: CSSProperties }) {
   return (
     <h1 style={{ ...police(800, taille, 0.94, POLICE_TITRE), letterSpacing: "-0.045em", wordSpacing: "0.08em", margin: 0, textWrap: "balance", color: sombre ? C.creme : C.encre, ...style }}>
@@ -169,7 +170,7 @@ export function Titre({ taille, texte, accent, sombre = false, style }: { taille
   );
 }
 
-/** `.p` : texte courant Inter 500, 38 px. */
+/** `.p` : texte courant Manrope 500, 38 px. */
 export function Texte({ children, sombre = false, taille = TAILLES_CONTINU.p, style }: { children: ReactNode; sombre?: boolean; taille?: number; style?: CSSProperties }) {
   return <p style={{ ...police(500, taille, 1.32, POLICE_TEXTE), color: sombre ? C.sableSombre : C.grisTexte, margin: 0, ...style }}>{children}</p>;
 }

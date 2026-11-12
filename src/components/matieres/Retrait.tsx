@@ -46,7 +46,7 @@ export function ChoixMotif({ envoi, onRetirer }: { envoi: boolean; onRetirer: (m
 const GROUPES: { categorie: CategorieTouchee; titre: string; icone: NomIcone; ton: string }[] = [
   { categorie: "a-completer", titre: "À compléter", icone: "ecrire", ton: "text-ambre" },
   { categorie: "a-revoir", titre: "À revoir", icone: "oeil", ton: "text-ambre" },
-  { categorie: "programmee", titre: "Programmées", icone: "calendrier", ton: "text-orange-vif" },
+  { categorie: "programmee", titre: "Programmées", icone: "calendrier", ton: "text-accent" },
   { categorie: "publiee", titre: "Publiées", icone: "envoyer", ton: "text-brique" },
 ];
 
