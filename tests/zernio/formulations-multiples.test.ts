@@ -102,7 +102,7 @@ describe("1 · dictionnaire", () => {
     expect(d).not.toHaveProperty("mention_ouverture");
   });
   it("aucune entrée supprimée : les anciens textes restent, marqués « retire »", () => {
-    for (const v of ["mp-m1-v3", "mp-adresse-refusee-v2", "mp-m1-v2-a", "mp-m1-v2-e", "mp-lien-v2"]) expect((brut(v) as { statut?: string }).statut, v).toBe("retire");
+    for (const v of ["mp-m1-v3", "mp-adresse-refusee-v2", "mp-m1-v2-a", "mp-m1-v2-e"]) expect((brut(v) as { statut?: string }).statut, v).toBe("retire");
     for (const v of ["mp-m1-v2", "mp-m2-v1", "mp-recu-v2", "mp-merci-v1", "mp-pub-igfb-v1"]) expect((brut(v) as { statut?: string }).statut, v).toBe("actif");
     expect(Object.keys(textesActifs())).not.toContain("mp-m1-v3");
     expect(Object.keys(textesActifs())).toContain("mp-m1-v4-1");
@@ -112,17 +112,17 @@ describe("1 · dictionnaire", () => {
 describe("1 ter · messages encore en service qui commencent par la mention (remplacés dans un autre lot)", () => {
   it("ils restent actifs et partent tels quels : le dictionnaire les accepte, ils ne passent pas par le contrôle de sortie des mots", async () => {
     const { texteDuDictionnaire } = await import("@/fournisseurs/publication/zernio-inbox-corps");
-    for (const v of ["mp-m1-v2", "mp-recu-v2", "mp-m2-v1"]) {
+    for (const v of ["mp-m1-v2", "mp-recu-v2", "mp-m2-v1", "mp-lien-v2"]) {
       const t = brut(v).texte;
       expect(t, v).toMatch(/^Message automatique/);
       expect((brut(v) as { statut?: string }).statut, v).toBe("actif");
-      const rendu = t.replace("[MOT]", "GUIDE").replace("[TITRE DU GUIDE]", TITRE);
+      const rendu = t.replace("[MOT]", "GUIDE").replace("[TITRE DU GUIDE]", TITRE).replace("[LIEN]", "https://exemple.test/g");
       expect(texteDuDictionnaire(rendu, false), v).toBe(true);
     }
   });
 });
 
-describe("1 bis · liste des versions acceptées par le site (un seul fichier côté Studio, copie RÉELLE du site en test)", () => {
+describe("1 bis · liste des versions acceptées par le site (un seul fichier côté Studio, comparé à une copie des versions du jeton connues du site)", () => {
   it("chaque formulation du groupe « m1-lien » est classée dans le fichier : acceptée OU en attente du site, jamais les deux, jamais oubliée", async () => {
     const F = await import("@/domaine/guide-reseau/versions-acceptees-site");
     const acceptees = F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE;
@@ -130,15 +130,15 @@ describe("1 bis · liste des versions acceptées par le site (un seul fichier c�
     for (const v of GROUPES_MP["m1-lien"]) expect(acceptees.includes(v) !== attente.includes(v), `${v} : dans une seule des deux listes`).toBe(true);
     for (const v of [...acceptees, ...attente]) expect(v).toMatch(/^[A-Za-z0-9._-]{1,32}$/); // forme exigée pour `version_m1` du jeton
   });
-  it("NON CIRCULAIRE : toute version acceptée par le Studio est dans la copie de la liste RÉELLE du site (que cette PR ne modifie pas) ; « adresse refusée » n'y est jamais", async () => {
+  it("NON CIRCULAIRE : toute version acceptée par le Studio est dans la copie des `version_m1` du jeton connus du site (aides/versions-m1-jeton-site.ts) ; « adresse refusée » n'y est jamais", async () => {
     const F = await import("@/domaine/guide-reseau/versions-acceptees-site");
-    const { VERSIONS_TEXTE_CONNUES_SITE } = await import("./aides/contrat-site-guides-reseau");
+    const { VERSIONS_M1_JETON_SITE: VERSIONS_TEXTE_CONNUES_SITE } = await import("./aides/versions-m1-jeton-site");
     for (const v of F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[], v).toContain(v);
     for (const v of V_AR) expect(F.VERSIONS_M1_ACCEPTEES_PAR_LE_SITE).not.toContain(v);
     // aujourd'hui les 4 nouvelles ne sont PAS connues du site : elles sont en attente (ce test rougit si on les passe en « acceptées » sans le site)
     for (const v of V_M1) expect(VERSIONS_TEXTE_CONNUES_SITE as readonly string[]).not.toContain(v);
   });
-  it("le VRAI fichier (sans faux site) : aucune v4 n'est acceptée, le message part SANS lien avec une alerte cloche, et l'état garde la formulation choisie", async () => {
+  it("faux site sans aucune version connue : aucune v4 n'est acceptée, le message part SANS lien avec une alerte cloche, et l'état garde la formulation choisie", async () => {
     const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
     const avant = [...VERSIONS_SITE_TEST];
     VERSIONS_SITE_TEST.clear();
@@ -248,7 +248,7 @@ describe("5 · formulation figée dans l'état, M1 avec lien", () => {
       expect(res.statut, v).toBe("envoye");
       expect(faux.appels.filter((a) => a.methode === "POST"), v).toHaveLength(1);
     }
-    for (const v of ["mp-adresse-refusee-v2", "mp-m1-v2-a", "mp-lien-v2"]) {
+    for (const v of ["mp-adresse-refusee-v2", "mp-m1-v2-a"]) {
       const { client, faux } = creerFauxClientZernio(() => ({ statut: 200, corps: {} }));
       const reel = creerPortInboxZernio({ client, comptesPermis: [COMPTE], titresGuidesPermis: [TITRE] });
       const res = await reel.envoyerMessage({ idCompte: COMPTE, idConversation: "conv-1", texte: rendreTexteMp(v as never, { mot: "GUIDE", titre: TITRE, lien: lienSigne("mp-m1-v4-1") })!, cle: "k" });
@@ -370,6 +370,32 @@ describe("7 · formulation non validée = jamais envoyée (M1)", () => {
         expect((await depots().evenements.lister((x: { message: string }) => /formulation_figee_retiree_refusee/.test(x.message))).length).toBeGreaterThan(0);
       }
     }
+  });
+  it("(h bis) figée sur mp-m1-v3 : le site connaît mp-m1-v3 (pas v4-1) → le message part AVEC lien, jeton version_m1 = mp-m1-v3, texte de v4-1", async () => {
+    const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+    const avant = [...VERSIONS_SITE_TEST];
+    VERSIONS_SITE_TEST.clear();
+    VERSIONS_SITE_TEST.add("mp-m1-v3");
+    try {
+      await validerFormulationsAuParcours([...V_M1]);
+      await deposerCommentaire(depots, {});
+      port.reponses.prive = () => ({ statut: "a_reessayer", code: "reseau" }) as never;
+      await passer();
+      const tout = await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {});
+      const cle = cleConversation(A);
+      tout[cle] = { ...tout[cle], versionTexteM1: "mp-m1-v3", formulations: undefined };
+      await Com.ecrireParametre(C.PARAM_CONVERSATIONS, tout);
+      port.reponses.prive = () => ({ statut: "envoye", idMessage: "m" }) as never;
+      await passer(T0 + 3_600_000);
+    } finally {
+      VERSIONS_SITE_TEST.clear();
+      for (const v of avant) VERSIONS_SITE_TEST.add(v);
+    }
+    const t = port.prive[port.prive.length - 1].texte;
+    const lien = t.slice(t.indexOf("https://"));
+    expect(t).toBe(rendreM1("mp-m1-v4-1", lien));
+    const charge = JSON.parse(Buffer.from(lien.split("?j=")[1].split(".")[0], "base64url").toString("utf8"));
+    expect(charge.version_m1).toBe("mp-m1-v3");
   });
   it("(i) repli sans lien puis nouvel essai : la formulation avec lien choisie au 1er essai est gardée (formulations[\"m1-lien\"])", async () => {
     await deposerCommentaire(depots, {});

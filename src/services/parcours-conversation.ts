@@ -468,13 +468,16 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   choisie.version = choix.version;
   if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
   // Le site doit connaître la version AVANT l'envoi (sinon la preuve du texte montré est perdue en silence).
-  if (!siteAccepteVersionM1(choix.version)) return repli("version_inconnue_du_site");
+  // Conversation figée sur un ancien identifiant au texte identique : le jeton garde cet identifiant, que le site connaît.
+  const figeeAvant = e.formulations?.[GROUPE_M1_LIEN] ?? e.versionTexteM1;
+  const versionJeton = figeeAvant && EQUIVALENTS_FIGES[figeeAvant] === choix.version ? figeeAvant : choix.version;
+  if (!siteAccepteVersionM1(versionJeton)) return repli("version_inconnue_du_site");
   const compte = nomCourtCompte(env, e.idCompte);
   if (compte === null) return repli("compte_lien_inconnu");
   const conv = e.refLienConv || refConversationLien(cles.courante.secret.toString("utf8"), e.cleIdempotenceGuide);
   let jeton: string;
   try {
-    jeton = creerJetonLien({ conv, mot: MOT, reseau: e.reseau, guide: e.guide, compte, ...(e.idPostPlateforme && RE_OPAQUE_LIEN.test(e.idPostPlateforme) ? { post_ref: e.idPostPlateforme } : {}), version_m1: choix.version }, secret, now);
+    jeton = creerJetonLien({ conv, mot: MOT, reseau: e.reseau, guide: e.guide, compte, ...(e.idPostPlateforme && RE_OPAQUE_LIEN.test(e.idPostPlateforme) ? { post_ref: e.idPostPlateforme } : {}), version_m1: versionJeton }, secret, now);
   } catch {
     return repli("jeton_invalide"); // jamais e.message
   }
