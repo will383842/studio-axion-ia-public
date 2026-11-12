@@ -223,6 +223,8 @@ export interface VueKit {
   series: { id: string; nom: string }[];
   /** Équipe 7 : « Cette vidéo met en avant Axion IA » (pré-cochée d'après le texte tant que Will n'a pas choisi). */
   votreMarque: { cochee: boolean; auto: boolean };
+  /** TXT-SOURCE : présent (« titre ») quand aucun script n'existe : le texte proposé ne vient que du titre, l'écran le dit. */
+  texteDepuis?: "titre";
 }
 
 /** Version par réseau d'une vidéo du générateur, telle que le kit l'affiche (B.5.3, B.6.11). */
