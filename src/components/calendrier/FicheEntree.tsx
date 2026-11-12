@@ -8,6 +8,7 @@ import { libelleJour } from "./BarreVue";
 import { MonogrammeReseau, TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { ETATS_CALENDRIER, PastilleStatutPlan, type EtatAffiche, type TableLibelles } from "./PastilleStatutPlan";
 import { libelleOrigineDate } from "@/domaine/plan-editorial/origine-date";
+import { boutonsTiroir } from "@/domaine/plan-editorial/statuts";
 import type { OrigineEntree } from "@/domaine/plan-editorial/types";
 import type { IdReseau } from "@/domaine/types";
 
@@ -227,6 +228,11 @@ export interface ProprietesFicheEntree {
   action?: (formulaire: FormData) => void | Promise<void>;
   /** Libellé du bouton qui enregistre ; `null` : pas de bouton (l'hôte fournit le sien dans `children`). */
   boutonPrincipal?: string | null;
+  /**
+   * Vrai : le bouton principal vient de l'état (table du domaine, CAL-10) et non de `boutonPrincipal`. Publiée ou passée :
+   * aucun. Programmée (déjà confiée) : « Modifier le texte » en `type="button"`, le geste est celui de l'hôte.
+   */
+  selonStatut?: boolean;
   /** Refus rendu par l'action, à dire à la personne. */
   erreur?: string;
   /** Vrai seulement quand l'envoi est allumé : sinon une entrée programmée dit « envoi éteint ». */
@@ -274,7 +280,8 @@ export function FicheEntree({
   aujourdhui,
   presentation = "volet",
   action,
-  boutonPrincipal = "Enregistrer le texte",
+  boutonPrincipal: boutonPrincipalDonne = "Enregistrer le texte",
+  selonStatut = false,
   erreur,
   envoiAllume,
   libellesEtat,
@@ -291,6 +298,10 @@ export function FicheEntree({
 }: ProprietesFicheEntree) {
   const verrou = verrouFiche(entree, aujourdhui);
   const modifiable = verrou === null && action !== undefined;
+  const boutons = selonStatut ? boutonsTiroir(entree.etat, entree.jour, aujourdhui) : null;
+  const boutonPrincipal = boutons ? boutons.principal : boutonPrincipalDonne;
+  // Programmée : le formulaire est fermé, le bouton n'enregistre rien (geste de l'hôte).
+  const boutonGeste = boutons !== null && !modifiable && action !== undefined && boutonPrincipal !== null;
   const reseau = reseauConnu(entree.reseau) ? entree.reseau : null;
   const nom = reseau ? nomReseau(reseau) : "Réseau à vérifier";
   const type = Object.hasOwn(TYPES_CONTENU, entree.type) ? TYPES_CONTENU[entree.type].libelle : "Publication";
@@ -334,10 +345,15 @@ export function FicheEntree({
           {erreur}
         </p>
       )}
-      {((modifiable && boutonPrincipal) || children) && (
+      {((modifiable && boutonPrincipal) || boutonGeste || children) && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {modifiable && boutonPrincipal && (
             <Bouton type="submit" pleineLargeur>
+              {boutonPrincipal}
+            </Bouton>
+          )}
+          {boutonGeste && (
+            <Bouton type="button" pleineLargeur data-geste="principal">
               {boutonPrincipal}
             </Bouton>
           )}
