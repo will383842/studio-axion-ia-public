@@ -4,6 +4,7 @@
  * la demande de rendu (`facecam`, `ecran`), fusionnées dans les propriétés par l'opération `composition`.
  */
 import type { PlanValide } from "../../briques/plan-scenes/schema";
+import type { DonneesCalque } from "../../briques/sous-titres/scene";
 import type { MiseEnPageDemo, RectPx, ZoomEcran } from "./mise-en-page";
 import type { ClicEcran, LegendeEcran, SurlignageEcran } from "./pistes";
 
@@ -40,5 +41,7 @@ export type ProprietesDemoFacecam = {
   /** Plan de scènes du lot C posé sur la moitié écran (pièces gestuelles retirées : elles sont devenues zooms et clics). */
   plan: PlanValide;
   sousTitres: GroupeSousTitre[];
+  /** Sous-titres du style de la Bibliothèque (calque commun). Absent (rendus déjà en file) : l'ancienne pastille fixe. */
+  calqueSousTitres?: DonneesCalque;
   carteFin: { titre: string; sousTitre: string };
 };
