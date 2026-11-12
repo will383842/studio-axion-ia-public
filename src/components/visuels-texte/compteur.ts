@@ -15,10 +15,20 @@ export interface EtatCompteur {
 
 export type VerdictLegende = { ok: true } | { ok: false; code: "TROP_LONG" | "VIDE"; phrase: string };
 
+/** Sauts de ligne en « \n » (un formulaire envoie « \r\n ») : c'est ce texte-là qui est compté et enregistré. */
+export function normaliserLegende(texte: string): string {
+  return texte.replace(/\r\n?/g, "\n");
+}
+
+/** Le texte normalisé, sans espaces autour, compté en points de code (un emoji vaut 1 ; avec teinte, 2). */
+export function mesurerLegende(texte: string): number {
+  return [...normaliserLegende(texte).trim()].length;
+}
+
 /** Même mesure que l'évaluation du rôle de publication : le texte sans espaces autour. */
 export function compterLegende(texte: string, reseau: IdReseau): EtatCompteur {
   const { longueurMax, longueurVisible } = obtenirReseau(reseau).legende;
-  const caracteres = texte.trim().length;
+  const caracteres = mesurerLegende(texte);
   return { caracteres, max: longueurMax, visible: longueurVisible, restant: longueurMax - caracteres, depasse: caracteres > longueurMax };
 }
 
@@ -31,7 +41,7 @@ export function phraseCompteur(etat: EtatCompteur): string {
 export function verifierLegende(texte: string, reseau: IdReseau): VerdictLegende {
   const etat = compterLegende(texte, reseau);
   if (etat.caracteres === 0) return { ok: false, code: "VIDE", phrase: "Le texte est vide : écrivez quelques lignes avant d'enregistrer." };
-  if (etat.depasse) return { ok: false, code: "TROP_LONG", phrase: `Le texte est trop long pour ce réseau : ${nombre(-etat.restant)} caractères à retirer.` };
+  if (etat.depasse) return { ok: false, code: "TROP_LONG", phrase: `Le texte est trop long pour ce réseau : ${nombre(-etat.restant)} ${-etat.restant === 1 ? "caractère" : "caractères"} à retirer.` };
   return { ok: true };
 }
 
