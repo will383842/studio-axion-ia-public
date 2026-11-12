@@ -8,3 +8,4 @@
 - Douteux : le picto est un monogramme (pas de logo de marque) ; les valeurs sombres sont à valider.
 - Reste : néant pour cette fiche.
 - contrôle anti-fuite : vide
+- CORRECTIF (relecture Opus) : `styleReseau` accepte un réseau inconnu ou absent (style neutre, sans plantage ; `couleurReseau` renvoie `undefined`) avec test ; test de contraste : libellé 4,5:1 (le libellé est écrit en couleur de texte normale, jamais en couleur de réseau), pastilles et liserés 3:1 ; test de distinction ambre / brique / orange vs réseaux (écart RGB ≥ 30 ; brique et orange sont voisins par conception). Aucun nouveau jeton, donc rien à doubler dans `.theme-sombre`. `tests/calendrier` + `couleurs-theme-seulement` + `theme-clair` : 23 fichiers, 461 passés ; tsc et eslint : aucune erreur nouvelle.

@@ -18,6 +18,6 @@ export const COULEURS_RESEAUX: Readonly<Record<IdReseau, string>> = {
 export const RESEAUX_COLORES: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
 
 /** La couleur (jeton CSS) d'un réseau. */
-export function couleurReseau(reseau: IdReseau): string {
-  return COULEURS_RESEAUX[reseau];
+export function couleurReseau(reseau: IdReseau): string | undefined {
+  return Object.hasOwn(COULEURS_RESEAUX, reseau) ? COULEURS_RESEAUX[reseau] : undefined;
 }
