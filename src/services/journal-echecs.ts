@@ -44,6 +44,7 @@ export async function consignerEchec(travail: Travail, commande: Pick<CommandeFa
       message: `Échec consigné : ${etape}`,
       entite: "video",
       entiteId: travail.cibleId,
+      estDemo: travail.estDemo,
       date: ligne.date,
       ...horodatage(),
       echec: ligne,
