@@ -18,6 +18,7 @@ import { comptesParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { creerNotification } from "./notifications";
 import { journaliser, lireParametre } from "./_commun";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
+import { importSiteActif } from "./oppositions-mots";
 
 export const VARIABLE_INTERRUPTEUR = "PARCOURS_CONVERSATION_ENABLED";
 export const VARIABLE_COMPTES = "PARCOURS_CONVERSATION_COMPTES";
@@ -132,6 +133,8 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const env = o.env ?? process.env;
   const now = o.maintenantMs ?? Date.now();
   const actif = allume(env);
+  // (0) STOP-S5a : vérification à la demande des oppositions du site, AVANT tout retour anticipé. Interrupteur éteint : aucune lecture, aucun import.
+  if (importSiteActif(env)) await etape("vérification des oppositions du site", async () => (await import("./oppositions-import-site")).verifierOppositionsSite({ env, maintenantMs: now }));
   // (1) Éteint ET aucun « stop » à transmettre : rien n'est lu au-delà de la file, rien n'est importé, rien n'est écrit.
   if (!actif && !(await oppositionsEnAttente())) return;
   // (2) Au plus un passage toutes les 15 s.
@@ -179,7 +182,6 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const { traiterConversations, traiterMercis } = await import("./parcours-conversation");
   const { transmettreOppositions, rattraperOppositions } = await import("./oppositions-transmission");
   await toutArreter(env);
-  await etape("import des oppositions du site", async () => (await import("./oppositions-import-site")).importerOppositionsDuSite({ env, maintenantMs: now }));
   if (actif && !sansEnvoi) await etape("conversations", () => traiterConversations({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
   // Merci après la page : même condition que les conversations ; les accusés en retard partent même interrupteur du merci éteint.
   if (actif && !sansEnvoi) await etape("mercis", () => traiterMercis({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
