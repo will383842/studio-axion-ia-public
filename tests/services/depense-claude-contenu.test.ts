@@ -90,6 +90,32 @@ describe("L3-02 · dépense Claude d'un contenu", () => {
     }
   });
 
+  it("plafond interne (limite/budget du mois) : jamais dit « crédit épuisé »", async () => {
+    for (const message of ["Limite Claude du mois atteinte : le texte actuel est gardé.", "Budget du mois atteint. Le texte actuel est gardé."]) {
+      reponse = { ok: false, arret: "en-attente-credit", message };
+      const r = await m.executerRolePourContenu(contenu, role, entree, { etape: "Texte", origine: "usine" });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.message).not.toMatch(/cr[ée]dit/i);
+    }
+  });
+
+  it("messages à montant préfixé ou mal nettoyable : phrase fixe, jamais de montant", async () => {
+    for (const [arret, message] of [["plafond-video", `Plafond de ${"\u0024"}${[0, 30].join(".")} atteint`], ["budget-usine", `${"US" + "D"} ${[4, 20].join(".")} dépensés`], ["budget-usine", `${[1, 2].join("")} ${"\u20ac"} sur ${[1, 0].join("")} ${"\u20ac"}.`]] as const) {
+      reponse = { ok: false, arret, message };
+      const r = await m.executerRolePourContenu(contenu, role, entree, { etape: "Texte", origine: "usine" });
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        aucunMontant(r.message);
+        expect(r.message).not.toMatch(/USD|sur\./);
+      }
+    }
+  });
+
+  it("la porte demande au chemin commun le mode « quota seul »", async () => {
+    await m.executerRolePourContenu(contenu, role, entree, { etape: "Texte", origine: "usine" });
+    expect(appels[0].options).toMatchObject({ quotaSeul: true });
+  });
+
   it("le nombre d'appels du jour ne compte que les dépenses Claude d'aujourd'hui", async () => {
     await remplirQuota(2);
     expect(await m.appelsClaudeDuJour()).toBe(2);
