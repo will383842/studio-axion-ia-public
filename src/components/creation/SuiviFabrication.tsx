@@ -5,14 +5,6 @@ import type { ReactNode } from "react";
 import { ProgressionEtapes, type SuiviProgression } from "@/components/ui/ProgressionEtapes";
 import type { EtapeTravail } from "@/domaine/types";
 
-/** Titre et phrase du suivi : les mêmes pour tous les formats (maquette M3, « Le suivi de fabrication »). */
-export function enteteSuivi(etat: EtatSuivi): { titre: string; phrase: string } {
-  if (etat === "prete") return { titre: "Votre vidéo est prête", phrase: "Elle vous attend dans Mes vidéos." };
-  if (etat === "arretee" || etat === "coincee") return { titre: "Une étape a coincé", phrase: "Rien n'est perdu. La fabrication repart de l'étape qui a coincé, pas du début." };
-  if (etat === "a-relire") return { titre: "Une étape est à relire", phrase: "Relisez-la, puis la fabrication continue." };
-  return { titre: "Je fabrique votre vidéo", phrase: "Quelques minutes de patience. Vous pouvez fermer cette page : on vous prévient." };
-}
-
 export type EtatSuivi = "en-cours" | "prete" | "a-relire" | "arretee" | "coincee";
 export type EtatEtapeSuivi = "faite" | "en-cours" | "a-venir" | "arretee" | "ignoree";
 
@@ -83,15 +75,8 @@ export function SuiviFabrication({
   reessaiEnCours?: boolean;
 }) {
   const aRelire = vue.etat === "a-relire" ? vue.etapes.find((e) => e.etat === "arretee")?.cle : undefined;
-  const entete = enteteSuivi(vue.etat);
   return (
     <section aria-label="Suivi de la fabrication" data-etat={vue.etat}>
-      {!compacte && (
-        <header className="mb-4">
-          <h2 className="text-lg font-extrabold text-texte">{entete.titre}</h2>
-          <p className="text-[15px] text-texte-doux">{entete.phrase}</p>
-        </header>
-      )}
       <ProgressionEtapes
         etapes={etapesDeVue(vue)}
         progression={vue.progression ?? progressionDeVue(vue)}

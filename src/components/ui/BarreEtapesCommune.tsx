@@ -57,7 +57,8 @@ export function BarreEtapesCommune({ etapes, courante, libelle = "Étapes", clas
   );
 }
 
-/** Une étape déjà faite reste cliquable quand la page sait revenir en arrière (cible de 44 px au téléphone). */
+/** onAller : appelant client seulement (une fonction ne passe pas d'un composant serveur à un composant client).
+ * Une étape déjà faite reste cliquable quand la page sait revenir en arrière (cible de 44 px au téléphone). */
 function Rond({ actif, onClick, nom, children }: { actif: boolean; onClick: () => void; nom: string; children: ReactNode }) {
   if (!actif) return <>{children}</>;
   return (
