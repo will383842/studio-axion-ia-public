@@ -444,6 +444,8 @@ export interface SourceMiniature {
 export interface CouvertureMiniature {
   texte: string;
   motCle?: string;
+  /** Réglage « titre par défaut » allumé : le moteur de rendu pose le titre au centre (écrit seulement s'il vaut `true`). */
+  titreCentre?: boolean;
 }
 
 export interface PropositionMiniature {

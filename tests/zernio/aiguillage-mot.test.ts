@@ -48,7 +48,7 @@ describe("orienterCommentaire (service)", () => {
   });
   it("mot connu : décision seulement, rien dans la file, rien envoyé", async () => {
     const depot = A.creerDepotMemoire();
-    const r = await A.orienterCommentaire({ ...entree, mot: "GUIDE" }, { env: { A_TRAITER_ENABLED: "1" }, depot, lireMots: async () => LISTE });
+    const r = await A.orienterCommentaire({ ...entree, mot: "GUIDE", idContact: "ct_fictif_mot_connu" }, { env: { A_TRAITER_ENABLED: "1" }, depot, lireMots: async () => LISTE });
     expect(r).toEqual({ issue: "execute", action: "reponse_publique", raison: "mot_connu", motRetenu: "GUIDE" });
     expect(await depot.lire()).toEqual([]);
   });
