@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StatutPublication } from "@/domaine/types";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
-import { STATUTS_PLAN, TRANSITIONS, STATUTS_ECRITS_PAR_USINE, transitionAutorisee, transitionner, validerCreneau, enregistrerDecalage, fusionnerDecalages, heureAffichageParis } from "@/domaine/plan-editorial/statuts";
+import { STATUTS_PLAN, TRANSITIONS, STATUTS_ECRITS_PAR_USINE, transitionAutorisee, transitionner, verifierMiseAJour, validerCreneau, enregistrerDecalage, fusionnerDecalages, heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import { IMAGE_PUBLICATION, statutPlanDepuisPublication, statutPublicationDepuisPlan } from "@/domaine/plan-editorial/correspondances";
 
 const base: CreneauEditorial = {
@@ -96,5 +96,26 @@ describe("heure : stockage UTC, affichage Europe/Paris", () => {
   it("affiche l'heure de Paris en hiver et en été", () => {
     expect(heureAffichageParis("2026-12-01T08:30:00.000Z")).toBe("09:30");
     expect(heureAffichageParis("2026-07-01T08:30:00.000Z")).toBe("10:30");
+  });
+});
+
+describe("corrections après relecture", () => {
+  it("refuse un jour qui n'existe pas (30 février) et une heure inexistante", () => {
+    expect(validerCreneau({ ...base, jourVise: "2026-02-30" }).length).toBeGreaterThan(0);
+    expect(validerCreneau({ ...base, heuresParReseau: { linkedin: "2026-02-31T08:00:00Z" } }).length).toBeGreaterThan(0);
+    expect(validerCreneau({ ...base, jourVise: "2028-02-29" })).toEqual([]);
+    expect(validerCreneau({ ...base, jourVise: "2027-02-29" }).length).toBeGreaterThan(0);
+  });
+  it("la liste des réseaux du plan est celle de la taxonomie (non-divergence)", async () => {
+    const { RESEAUX_TAXONOMIE } = await import("@/domaine/taxonomie-contenu");
+    const { IDS_RESEAUX_PLAN } = await import("@/domaine/plan-editorial/correspondances");
+    expect([...IDS_RESEAUX_PLAN]).toEqual([...RESEAUX_TAXONOMIE]);
+  });
+  it("verifierMiseAJour refuse une baisse de decalages", () => {
+    const ancien = { ...base, decalages: 2 };
+    expect(verifierMiseAJour(ancien, { ...ancien, decalages: 0 }).ok).toBe(false);
+    expect(verifierMiseAJour(ancien, { ...ancien, decalages: 1 }).ok).toBe(false);
+    expect(verifierMiseAJour(ancien, { ...ancien, decalages: 2 }).ok).toBe(true);
+    expect(verifierMiseAJour(ancien, { ...ancien, decalages: 3 }).ok).toBe(true);
   });
 });
