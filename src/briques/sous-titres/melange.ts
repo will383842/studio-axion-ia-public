@@ -8,7 +8,7 @@
  * - INTENSITÉ par vidéo : Sobre (base seule + mots en couleur), Équilibré (défaut), Très dynamique.
  * Un groupe VERROUILLÉ (choix de Will) n'est jamais réécrit.
  */
-import type { IntensiteSousTitres, MotHorodate, PositionGroupeSousTitres, SegmentSousTitres, StyleGroupeSousTitres } from "@/domaine/types";
+import type { BaseSousTitres, IntensiteSousTitres, MotHorodate, PositionGroupeSousTitres, SegmentSousTitres, StyleGroupeSousTitres } from "@/domaine/types";
 import { estFinPhrase, estMotOutil, estNombre, MOTS_FORTS, normaliser } from "./typographie";
 
 export interface ReglagesIntensite {
@@ -56,6 +56,8 @@ export function reglagesVaries(r: ReglagesIntensite, variation?: VariationSousTi
 }
 
 export interface ContexteMelange {
+  /** Base de la vidéo ; « impact » ou « bandeau » : tous les groupes sont dessinés dans ce style. Absente : inchangé. */
+  base?: BaseSousTitres;
   intensite: IntensiteSousTitres;
   /** Variation facultative (sens du premier Impact, réglages) ; absente : inchangé. */
   variation?: VariationSousTitres;
@@ -101,6 +103,17 @@ export function melanger(segments: SegmentSousTitres[], ctx: ContexteMelange): S
   const sortie: SegmentSousTitres[] = segments.map((s, i) =>
     s.verrouille ? { ...s } : { ...s, style: "base" as StyleGroupeSousTitres, importance: Math.max(0, ...notes[i]), souligne: null, position: "auto" as PositionGroupeSousTitres, inclinaison: 0, verrouille: false },
   );
+  // Base Impact ou Bandeau : tout est dans ce style, le mélange ne règle que l'importance (taille) et l'inclinaison.
+  if (ctx.base === "impact" || ctx.base === "bandeau") {
+    let signe: number = ctx.variation?.sensPremierImpact ?? 1;
+    return sortie.map((s) => {
+      if (s.verrouille) return s;
+      if (ctx.base === "bandeau") return { ...s, style: "bandeau" as StyleGroupeSousTitres, importance: Math.max(2, s.importance ?? 0), position: "auto" as PositionGroupeSousTitres, inclinaison: 0, souligne: null };
+      const inclinaison = r.mouvement ? signe * 4 : 0;
+      signe = -signe;
+      return { ...s, style: "impact" as StyleGroupeSousTitres, position: "auto" as PositionGroupeSousTitres, inclinaison, souligne: null };
+    });
+  }
   const libre = (i: number) => !sortie[i].verrouille && sortie[i].style === "base";
   const accent = (i: number) => sortie[i] && sortie[i].style !== "base" && sortie[i].style !== undefined;
 

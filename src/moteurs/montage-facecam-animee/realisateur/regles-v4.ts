@@ -35,6 +35,7 @@ import {
 } from "./catalogue-v4";
 import { estMotOutil, motsInterditsDans, nettoyer, nombresDansTexte, nombresDits, sansElision, simplifier, type MotTranscrit } from "./mots";
 import { EPS } from "./regles-v2";
+import type { HistoriqueVideo } from "./regles";
 
 /** Les fichiers de `studio-rendu/compositions/interface-claire/sons/` (Kenney CC0) + 3 bruitages maison (synthèse ffmpeg, lot 5). Aucune musique. */
 export const SONS_V4 = Object.freeze([
@@ -76,6 +77,16 @@ export const SEUILS_V4 = Object.freeze({
   statistiqueMin: 10,
   /** Jeu toléré sur les durées de la fiche et sur les raccords (s). */
   tolerance: 0.05,
+  /** D17a : l'ouverture du plan ne reprend pas celle d'une des N dernières vidéos. */
+  ouverturesRecentesVideos: 3,
+  /**
+   * D17b : on regarde les N dernières vidéos ; au plus cette part des plaquettes DIFFÉRENTES du plan peut y avoir déjà été prise.
+   * `partReprisePlaquettesMax` = valeur proposée par la fiche GV-MD-01 (60 %). Le propriétaire ne l'a pas encore tranchée : c'est ICI qu'on la change.
+   */
+  videosRecentesPlaquettes: 2,
+  partReprisePlaquettesMax: 0.6,
+  /** D17b ne juge pas un plan qui a moins de plaquettes différentes que cela (un pourcentage n'a pas de sens sur 2 ou 3 plaquettes). */
+  plaquettesMinPourReprise: 5,
 });
 
 /** Codes dont l'échec interdit le rendu : les décisions fixes de Will, le rythme et le catalogue. */
@@ -480,7 +491,7 @@ export function controlerSuiteV4(elements: readonly ElementResoluV4[], ctx: Cont
 /* ---------------- Le contrôle d'un plan ---------------- */
 
 /** D0 à D15 et V1 à V7, H1, H2 sur le plan (rien si le plan n'a pas d'`elementsV4`). Les messages commencent par leur code. */
-export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: readonly MotTranscrit[]; interdites?: readonly string[] } = {}): { erreurs: string[]; avertissements: string[]; mesures: MesuresV4 | null } {
+export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: readonly MotTranscrit[]; interdites?: readonly string[]; historique?: readonly HistoriqueVideo[]; repetitionEnAvertissement?: boolean } = {}): { erreurs: string[]; avertissements: string[]; mesures: MesuresV4 | null } {
   if (!plan.elementsV4?.length) return { erreurs: [], avertissements: [], mesures: null };
   const resolu = resoudreElementsV4(plan.elementsV4, plan.duree);
   const interditsSousTitres: string[] = [];
@@ -503,5 +514,39 @@ export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: 
   const interdites = (options.interdites?.length ? resolu.elements.filter((e) => options.interdites!.includes(e.fiche.id)) : []).map(
     (e) => `D16 — élément v4 ${e.rang} « ${e.fiche.id} » à ${sec(e.debut)} : plaquette à vidéo INTERDITE dans ce plan (aucune vidéo fidèle à ce que Will dit n'a été trouvée) ; remplacez-la par une plaquette sans vidéo, sans « recherches ».`,
   );
-  return { erreurs: [...resolu.erreurs, ...interditsSousTitres, ...interdites, ...r.erreurs], avertissements: r.avertissements, mesures: r.mesures };
+  // D17 (anti-répétition d'une vidéo à l'autre) : rien sans historique. Non bloquante au rendu ; au dernier essai du réalisateur elle passe en avertissement.
+  const repetition = repetitionHistoriqueV4(resolu.elements, options.historique);
+  // D15k (GV-MD-03) : écart RESTANT entre le début d'une plaquette et le mot qui la déclenche (`motIndex`), mesuré sur le plan APRÈS recalage.
+  // Simple remarque (jamais une erreur) : le calage au mot n'a jamais fait échouer une vidéo.
+  const remarquesCalage: string[] = [];
+  if (options.mots?.length) {
+    (plan.elementsV4 ?? []).forEach((e) => {
+      const m = e.motIndex !== undefined ? options.mots![e.motIndex] : undefined;
+      if (m && Math.abs(e.debut - (m.a - 0.15)) > 0.1) remarquesCalage.push(`D15k — élément v4 « ${e.id} » à ${sec(e.debut)} : le mot « ${m.w} » est dit à ${sec(m.a)} ; écart de ${sec(Math.abs(e.debut - m.a))} entre l'animation et le mot (remarque, pas une erreur).`);
+    });
+  }
+  const erreursBase = [...resolu.erreurs, ...interditsSousTitres, ...interdites, ...r.erreurs];
+  return options.repetitionEnAvertissement
+    ? { erreurs: erreursBase, avertissements: [...r.avertissements, ...remarquesCalage, ...repetition], mesures: r.mesures }
+    : { erreurs: [...erreursBase, ...repetition], avertissements: [...r.avertissements, ...remarquesCalage], mesures: r.mesures };
+}
+
+/** D17a et D17b : ce plan reprend-il l'ouverture, ou presque toutes les plaquettes, des vidéos récentes ? Aucun message sans historique v4. */
+function repetitionHistoriqueV4(elements: readonly ElementResoluV4[], historique: readonly HistoriqueVideo[] | undefined): string[] {
+  if (!historique?.length || !elements.length) return [];
+  const S = SEUILS_V4;
+  const messages: string[] = [];
+  const ouverture = [...elements].sort((x, y) => x.debut - y.debut)[0].fiche.id;
+  if (historique.slice(0, S.ouverturesRecentesVideos).some((h) => h.ouvertureV4 === ouverture)) {
+    messages.push(`D17a — le plan ouvre par « ${ouverture} », comme l'une des ${S.ouverturesRecentesVideos} dernières vidéos ; ouvrez par une autre plaquette.`);
+  }
+  const dejaPrises = new Set(historique.slice(0, S.videosRecentesPlaquettes).flatMap((h) => h.plaquettesV4 ?? []));
+  const differentes = [...new Set(elements.map((e) => e.fiche.id))];
+  if (dejaPrises.size && differentes.length >= S.plaquettesMinPourReprise) {
+    const reprises = differentes.filter((id) => dejaPrises.has(id));
+    if (reprises.length / differentes.length > S.partReprisePlaquettesMax) {
+      messages.push(`D17b — ${reprises.length} plaquettes différentes sur ${differentes.length} (${Math.round((100 * reprises.length) / differentes.length)} %) viennent déjà des ${S.videosRecentesPlaquettes} dernières vidéos (${reprises.join(", ")}) ; au plus ${Math.round(100 * S.partReprisePlaquettesMax)} % : remplacez-en par des plaquettes pas encore vues.`);
+    }
+  }
+  return messages;
 }
