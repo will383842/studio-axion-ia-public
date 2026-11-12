@@ -7,6 +7,14 @@ import type { TableLibelles } from "./PastilleStatutPlan";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, MonogrammeReseau, estVerrouillee, jourLisible, nomReseau, styleReseau, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
 
+export type DensiteSemaine = "compact" | "visuel";
+
+/** CAL-09 : Compact montre plus de cartes par case, sans titre ; Visuel en montre moins, avec le titre. */
+export const DENSITES_SEMAINE: Readonly<Record<DensiteSemaine, { libelle: string; max: number; avecTitre: boolean }>> = {
+  compact: { libelle: "Compact", max: 3, avecTitre: false },
+  visuel: { libelle: "Visuel", max: 2, avecTitre: true },
+};
+
 export interface ProprietesGrilleSemaine {
   /** N'importe quel jour de Paris (AAAA-MM-JJ) de la semaine à montrer ; illisible : la semaine d'aujourd'hui. */
   semaineDu: string;
@@ -31,6 +39,12 @@ export interface ProprietesGrilleSemaine {
    * montrées : rien n'est caché sans moyen de le retrouver.
    */
   maxParCase?: number;
+  /**
+   * CAL-09 : densité Compact ou Visuel. Fixe le nombre de cartes par case (sauf `maxParCase`) et l'affichage du titre.
+   * Au-delà, « + N autres » ouvre `lienPlus` ou appelle `onVoirPlus` ; sans l'un ni l'autre, il déplie la case sur place
+   * et montre toutes ses publications. Absente : rendu d'avant, sans titre.
+   */
+  densite?: DensiteSemaine;
   lienPlus?: (reseau: IdReseau, jour: string) => string;
   onVoirPlus?: (reseau: IdReseau, jour: string) => void;
   /** Table de libellés d'état fournie de l'extérieur (CAL-10), transmise aux cartes. */
@@ -58,7 +72,7 @@ const AJOUT = "mt-auto grid min-h-[30px] place-items-center rounded-[9px] border
  * Semaine en couloirs : une ligne par réseau, une colonne par jour (lundi d'abord), sans lignes d'heures.
  * Aujourd'hui est marqué ; les jours passés sont hachurés et sans « + ».
  */
-export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, lienPlus, onVoirPlus, libellesEtat, tropProches, alertes, manquesParJour, aCompleter, filtresActifs, className }: ProprietesGrilleSemaine) {
+export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, densite, lienPlus, onVoirPlus, libellesEtat, tropProches, alertes, manquesParJour, aCompleter, filtresActifs, className }: ProprietesGrilleSemaine) {
   if (reseaux.length === 0) return <div className={cn(VIDE, className)}>Aucun réseau affiché. Rallumez un réseau ci-dessus.</div>;
   const repere = jourLisible(semaineDu) ? semaineDu : aujourdhui;
   if (!jourLisible(repere)) return <div className={cn(VIDE, className)}>Semaine illisible. Revenez à aujourd&apos;hui.</div>;
@@ -66,7 +80,12 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
   const visibles = trierEntrees(entrees.filter((e) => reseaux.includes(e.reseau) && jours.includes(e.jour) && (!aCompleter || Boolean(alertes?.has(e.cle)))));
   const passe = (jour: string) => jourLisible(aujourdhui) && jour < aujourdhui;
   const peutAjouter = Boolean(lienAjout || onAjouter);
-  const limite = (lienPlus || onVoirPlus) && Number.isInteger(maxParCase) && (maxParCase as number) >= 1 ? (maxParCase as number) : null;
+  const reglage = densite ? DENSITES_SEMAINE[densite] : undefined;
+  const maxExplicite = Number.isInteger(maxParCase) && (maxParCase as number) >= 1 ? (maxParCase as number) : null;
+  const aUneSortie = Boolean(lienPlus || onVoirPlus);
+  // Sans densité, comportement d'avant : on ne cache rien sans lien ni geste pour retrouver le reste.
+  const limite = reglage ? (maxExplicite ?? reglage.max) : aUneSortie ? maxExplicite : null;
+  const avecTitre = Boolean(reglage?.avecTitre);
 
   const enTete = (jour: string) => {
     const estAujourdhui = jour === aujourdhui;
@@ -127,10 +146,26 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
     );
   };
 
-  const voirPlus = (reseau: IdReseau, jour: string, reste: number) => {
+  const carteDe = (e: EntreeCarte) => (
+    <CarteEntreeCalendrier key={e.cle} entree={e} avecTitre={avecTitre} libellesEtat={libellesEtat} verrouillee={estVerrouillee(e, aujourdhui)} tropProche={tropProches?.has(e.cle)} alerte={alertes?.get(e.cle)} href={lienEntree?.(e)} onOuvrir={onOuvrirEntree} />
+  );
+
+  const voirPlus = (reseau: IdReseau, jour: string, cachees: readonly EntreeCarte[]) => {
+    const reste = cachees.length;
     const libelle = `Voir ${reste === 1 ? "l'autre publication" : `les ${reste} autres publications`} sur ${nomReseau(reseau)}, ${libelleJour(jour)}`;
     const classes = "block w-full rounded-[9px] border border-dashed border-trait-fort bg-surface-1 px-1.5 py-1 text-center text-xs font-bold text-texte-doux hover:border-orange hover:text-orange-vif";
     const contenu = `+ ${reste} autre${reste > 1 ? "s" : ""}`;
+    if (!aUneSortie) {
+      // Sans lien ni geste : la case se déplie sur place et montre toutes ses publications (elles restent dans la page).
+      return (
+        <details data-plus={`${reseau}|${jour}`} className="flex flex-col gap-1">
+          <summary aria-label={libelle} className={cn(classes, "cursor-pointer list-none")}>
+            {contenu}
+          </summary>
+          <div className="mt-1 flex flex-col gap-1">{cachees.map((e) => carteDe(e))}</div>
+        </details>
+      );
+    }
     return lienPlus ? (
       <Link href={lienPlus(reseau, jour)} aria-label={libelle} data-plus={`${reseau}|${jour}`} className={classes}>
         {contenu}
@@ -183,10 +218,8 @@ export function GrilleSemaine({ semaineDu, aujourdhui, entrees, reseaux = RESEAU
                       estPasse && "bg-[repeating-linear-gradient(135deg,var(--surface-3),var(--surface-3)_6px,var(--fond)_6px,var(--fond)_12px)]",
                     )}
                   >
-                    {(limite !== null && cartes.length > limite ? cartes.slice(0, limite) : cartes).map((e) => (
-                      <CarteEntreeCalendrier key={e.cle} entree={e} libellesEtat={libellesEtat} verrouillee={estVerrouillee(e, aujourdhui)} tropProche={tropProches?.has(e.cle)} alerte={alertes?.get(e.cle)} href={lienEntree?.(e)} onOuvrir={onOuvrirEntree} />
-                    ))}
-                    {limite !== null && cartes.length > limite && voirPlus(reseau, jour, cartes.length - limite)}
+                    {(limite !== null && cartes.length > limite ? cartes.slice(0, limite) : cartes).map(carteDe)}
+                    {limite !== null && cartes.length > limite && voirPlus(reseau, jour, cartes.slice(limite))}
                     {!estPasse && peutAjouter && ajout(jour, reseau, creneauVide)}
                   </div>
                 );
