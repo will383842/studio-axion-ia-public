@@ -14,7 +14,7 @@ const { EcranATraiter } = await import("@/components/a-traiter/EcranATraiter");
 const J = (...p: string[]) => p.join("");
 const TOKENS = { lieu: J("Gren", "oble"), label: J("Quali", "opi"), participe: J("cert", "ifié"), gain: J("Aucun gain ", "garanti") };
 const ALLUME = { A_TRAITER_ENABLED: "1" };
-const REPONSE = "Message automatique envoyé par Axion IA. le guide est sur la page indiquée.";
+const REPONSE = "Bonjour ! le guide est sur la page indiquée.";
 const entree = (o: Partial<import("@/services/a-traiter").EntreeATraiter> = {}) => ({ idEvenement: "ev-1", reseau: "linkedin", post: "post-1", mot: "GUIDE", motif: "mot_manuel", commentaire: "GUIDE", reponse: REPONSE, ...o });
 let depot = A.creerDepotMemoire();
 
