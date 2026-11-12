@@ -188,9 +188,9 @@ export function EcranSujet({
         </p>
       )}
       {/* Le champ n'a pas de contour propre : c'est la carte entière qui s'entoure quand on y écrit au clavier. */}
-      <Carte lueur className="p-0 sm:p-0 has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-offset-2 has-[textarea:focus-visible]:outline-orange-vif">
+      <Carte className="p-0 sm:p-0 has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-offset-2 has-[textarea:focus-visible]:outline-accent">
         <div className="flex items-center gap-2 px-4 pt-4">
-          <label htmlFor={idIdee} className="flex flex-1 items-center gap-2 text-sm font-semibold text-orange-vif">
+          <label htmlFor={idIdee} className="flex flex-1 items-center gap-2 text-sm font-semibold text-accent">
             <Icone nom="idee" size={16} />
             {plusieurs ? "Vos idées" : "Votre idée"}
           </label>
@@ -200,7 +200,7 @@ export function EcranSujet({
             aria-pressed={plusieurs}
             className={cn(
               "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold transition-colors",
-              plusieurs ? "border-orange bg-orange-doux text-orange-vif" : "border-trait text-texte-doux hover:text-texte",
+              plusieurs ? "border-accent bg-accent-doux text-accent" : "border-trait text-texte-doux hover:text-texte",
             )}
           >
             <Icone nom="calques" size={14} />
@@ -228,7 +228,7 @@ export function EcranSujet({
       </Carte>
 
       {plusieurs ? null : phraseOuverte ? (
-        <Carte className="p-0 sm:p-0 has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-offset-2 has-[textarea:focus-visible]:outline-orange-vif">
+        <Carte className="p-0 sm:p-0 has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-offset-2 has-[textarea:focus-visible]:outline-accent">
           <label htmlFor={`${idIdee}-p`} className="block px-4 pt-3 text-sm font-semibold text-texte-doux">
             Une phrase à vous
           </label>

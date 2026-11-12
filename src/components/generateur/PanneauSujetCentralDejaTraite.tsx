@@ -24,7 +24,7 @@ export function PanneauSujetCentralDejaTraite({ refus, chargement, onAutreSujet,
       <ul className="space-y-1">
         {refus.precedents.slice(0, 3).map((p) => (
           <li key={p.videoId ?? p.sujetId ?? p.lien}>
-            <Link href={p.lien} className="inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-texte hover:text-orange-vif">
+            <Link href={p.lien} className="inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-texte hover:text-accent">
               {p.titre} · le {formateurDate("fr-FR", { day: "2-digit", month: "2-digit" }).format(new Date(p.le))}
               <Icone nom="chevron-droite" size={14} className="text-texte-faible" />
             </Link>

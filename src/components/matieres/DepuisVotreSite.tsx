@@ -37,7 +37,7 @@ export function DepuisVotreSite({ vues }: { vues: VueMatiere[] }) {
   return (
     <section aria-labelledby="depuis-site" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
       <h2 id="depuis-site" className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-texte">
-        <span className="grid size-8 place-items-center rounded-xl bg-orange-doux text-orange-vif">
+        <span className="grid size-8 place-items-center rounded-xl bg-accent-doux text-accent">
           <Icone nom="lien" size={16} />
         </span>
         Depuis votre site
@@ -65,7 +65,7 @@ export function DepuisVotreSite({ vues }: { vues: VueMatiere[] }) {
         ))}
       </ul>
       {restantes.length > 3 && (
-        <button type="button" onClick={() => setToutes(!toutes)} className="mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 text-sm font-semibold text-orange-vif hover:underline">
+        <button type="button" onClick={() => setToutes(!toutes)} className="mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 text-sm font-semibold text-accent hover:underline">
           {toutes ? "Moins" : `Voir les ${restantes.length}`}
           <Icone nom={toutes ? "chevron-bas" : "chevron-droite"} size={16} className={toutes ? "rotate-180" : undefined} />
         </button>

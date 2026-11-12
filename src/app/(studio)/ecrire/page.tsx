@@ -48,8 +48,8 @@ const ONGLETS = ["scripts", "idees", "matieres", "voix"] as const;
 export default async function PageEcrire({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await exigerSession();
   const sp = await searchParams;
-  if (sp.onglet === "facon") redirect("/ecrire/voix?rubrique=facon");
-  if (sp.onglet === "references") redirect("/ecrire/voix?rubrique=textes");
+  if (sp.onglet === "facon") redirect("/ecrire?onglet=voix&rubrique=facon");
+  if (sp.onglet === "references") redirect("/ecrire?onglet=voix&rubrique=textes");
   if (sp.onglet === "preuves") redirect("/ecrire?onglet=matieres&type=preuves");
   const actif = ONGLETS.includes(sp.onglet as (typeof ONGLETS)[number]) ? sp.onglet : "scripts";
 
@@ -106,7 +106,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             <Bouton asChild variante="secondaire" icone="camera">
               <Link href="/ecrire/tournage">Tournage</Link>
             </Bouton>
-            <Bouton asChild icone="plus" className="max-lg:hidden">
+            <Bouton asChild icone="plus" className="max-lg:hidden" sansDecompte>
               <Link href="/ecrire/atelier">Nouveau sujet</Link>
             </Bouton>
           </>
@@ -123,7 +123,6 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
             icone: "document",
             contenu: (
               <Suspense>
-                <BandeauSeries series={series} active={sp.serie} />
                 <div className="mb-6 flex flex-wrap items-start gap-2">
                   {(sansSujetTous.length > 0 || vues.length > 0) && (
                     <PanneauFiltres nombre={(filtreCiblage.type ? 1 : 0) + (filtreCiblage.anciens ? 1 : 0)} className="min-w-0 flex-1 basis-full sm:basis-auto">
@@ -131,6 +130,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
                     </PanneauFiltres>
                   )}
                   <BoutonPlusDeFiltres />
+                  <BandeauSeries series={series} active={sp.serie} />
                 </div>
                 <PucesActives puces={pucesCiblage} effacerHref={effacerCiblage} className="mb-4" />
                 <Section id="sujets" titre="Vos sujets" sansCarte>
