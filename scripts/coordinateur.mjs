@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // L0-18 · Coordinateur de fusion SANS IA. Commandes `gh` seulement, aucun modèle, aucun secret hors le jeton automatique du dépôt.
-// Il fusionne (gh pr merge --squash) une PR de usine/* seulement si : la CI est verte, le label « relu » est posé, aucun label
+// Il fusionne (gh pr merge --squash) une PR de usine/* seulement si : la CI est verte, le marque « relu-<commit> » liée au commit relu est posée, aucun label
 // d'attente ou sensible, aucun fichier de .github/, et le dépôt n'est pas à l'arrêt. MODE PAR DÉFAUT : « à blanc » (il liste,
 // il ne fusionne ni ne pose rien) tant que COORDINATEUR_FUSION n'est pas exactement « oui ». Il ne retire jamais pilotage/ARRET.
 // Il ne lit ni n'exécute jamais le code d'une PR : seulement des métadonnées renvoyées par gh.
@@ -10,7 +10,17 @@ import { fileURLToPath } from "node:url";
 export const PLAFOND_EXECUTIONS = 320;
 export const PLAFOND_BRANCHES = 200;
 export const SEUIL_ARRET = 0.8;
-const LABEL_RELU = "relu";
+// Contrôles de la CI (workflow « verifier ») : les check runs portent le NOM DES JOBS de .github/workflows/verifier.yml.
+export const CONTROLES_CI = [
+  "garde de zone et de fichiers autorisés",
+  "eslint et tsc différentiels",
+  "règles de fer (sans IA, sans réseau)",
+  "tests des fichiers touchés",
+  "next build",
+];
+// Marque de relecture liée au commit relu : « relu-<7 à 40 premiers caractères du SHA relu> ». Le relecteur la pose sur le commit qu'il a lu ;
+// si la tête de la PR a bougé depuis, la marque ne correspond plus et la PR attend une nouvelle relecture.
+const MARQUE_RELU = /^relu-([0-9a-f]{7,40})$/;
 // Labels qui laissent la PR au fondateur (ou en attente) : jamais fusionnée ici.
 const LABELS_BLOQUANTS = ["sensible-a-fusionner", "attend-fondateur", "attend-zone", "manuel", "bloque", "a-corriger"];
 
@@ -26,11 +36,16 @@ export function decider(pr) {
   const labels = nomsLabels(pr);
   const bloquant = labels.find((l) => LABELS_BLOQUANTS.includes(l));
   if (bloquant) return attendre(`label ${bloquant}`);
-  if (!labels.includes(LABEL_RELU)) return attendre("pas encore relue");
+  const sha = String(pr.headRefOid ?? "").toLowerCase();
+  const marques = labels.map((l) => MARQUE_RELU.exec(l)?.[1]).filter(Boolean);
+  if (marques.length === 0) return attendre("pas encore relue");
+  if (!sha || !marques.some((m) => sha.startsWith(m))) return attendre("relue sur un autre commit que la tête actuelle");
   if ((pr.files ?? []).some((f) => String(f.path ?? "").startsWith(".github/"))) return attendre("touche .github/ : sensible");
   const verifs = pr.statusCheckRollup ?? [];
-  const verifier = verifs.find((c) => c.name === "verifier");
-  if (!verifier || verifier.status !== "COMPLETED" || verifier.conclusion !== "SUCCESS") return attendre("contrôle « verifier » pas vert");
+  for (const nom of CONTROLES_CI) {
+    const controle = verifs.find((c) => c.name === nom);
+    if (!controle || controle.status !== "COMPLETED" || controle.conclusion !== "SUCCESS") return attendre(`contrôle « ${nom} » pas vert`);
+  }
   if (verifs.some((c) => c.status === "COMPLETED" && ["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"].includes(c.conclusion))) return attendre("un contrôle est rouge");
   if (verifs.some((c) => c.status !== "COMPLETED")) return attendre("un contrôle est en cours");
   return { action: "fusionner", raison: "CI verte, relue, non sensible" };
