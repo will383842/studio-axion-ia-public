@@ -1,6 +1,6 @@
 /** Statuts du plan : tableau unique des transitions, garde « l'usine n'écrit pas programme/publie/echec ». PUR. */
 import { IDS_RESEAUX_PLAN } from "./correspondances";
-import type { AuteurPlan, CreneauEditorial, ResultatTransition, StatutPlan } from "./types";
+import type { AuteurPlan, CreneauEditorial, OrigineEntree, ResultatTransition, StatutPlan } from "./types";
 
 export const STATUTS_PLAN: readonly StatutPlan[] = ["propose", "a_valider", "valide", "programme", "publie", "echec", "archive"];
 
@@ -26,6 +26,32 @@ export function transitionner(c: CreneauEditorial, vers: StatutPlan, auteur: Aut
   if (!transitionAutorisee(c.statut, vers)) return { ok: false, raison: `Transition refusée : ${c.statut} → ${vers}.` };
   if (auteur === "usine" && !STATUTS_ECRITS_PAR_USINE.includes(vers)) return { ok: false, raison: `L'usine n'écrit jamais « ${vers} ».` };
   return { ok: true, creneau: { ...c, statut: vers } };
+}
+
+/** Les deux seules origines d'une entrée. */
+export const ORIGINES_ENTREE: readonly OrigineEntree[] = ["vous", "usine"];
+
+/** Garde « jamais publiée sans validation » : seul un créneau « valide » portant la trace du fondateur est publiable. PUR. */
+export function estPubliable(c: CreneauEditorial): { ok: true } | { ok: false; raison: string } {
+  if (c.statut !== "valide") return { ok: false, raison: `Statut « ${c.statut} » : non publiable sans validation.` };
+  if (!c.valideeLe || !c.valideePar) return { ok: false, raison: "Aucune trace de validation par le fondateur." };
+  return { ok: true };
+}
+
+/** Validation : réservée au Studio, depuis « a_valider » seulement ; pose valideeLe et valideePar. */
+export function validerProposition(c: CreneauEditorial, auteur: AuteurPlan, le: string, par: string): ResultatTransition {
+  if (auteur !== "studio") return { ok: false, raison: "Seul le fondateur valide une proposition." };
+  if (c.statut !== "a_valider") return { ok: false, raison: `Statut « ${c.statut} » : seule une proposition « a_valider » se valide.` };
+  if (!le || !par) return { ok: false, raison: "Date et auteur de la validation requis." };
+  return { ok: true, creneau: { ...c, statut: "valide", valideeLe: le, valideePar: par } };
+}
+
+/** Refus : la proposition est archivée avec un motif facultatif, jamais supprimée. */
+export function refuserProposition(c: CreneauEditorial, motif: string | undefined, le: string): ResultatTransition {
+  if (c.statut !== "propose" && c.statut !== "a_valider") return { ok: false, raison: `Statut « ${c.statut} » : seule une proposition se refuse.` };
+  const m = motif?.trim();
+  const { motifRefus: _ancien, ...reste } = c;
+  return { ok: true, creneau: { ...reste, statut: "archive", refuseLe: le, ...(m ? { motifRefus: m } : {}) } };
 }
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
