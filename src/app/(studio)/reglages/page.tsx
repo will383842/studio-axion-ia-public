@@ -237,13 +237,13 @@ export default async function PageReglages() {
             </CartePliante>
           </Apparition>
           {/* Lot R1 : envoi programmé, lu en base, aucun appel au service à l'affichage. */}
-          <Apparition index={3}>
+          <Apparition index={4}>
             <CartePliante id="envoi-programme" icone="envoyer" titre="Envoi programmé" resume="Comment les vidéos partent">
               <BlocBuffer vue={buffer} />
             </CartePliante>
           </Apparition>
           {/* Vidéos sur le site (lot S1) : un interrupteur par type de vidéo, tous éteints. */}
-          <Apparition index={4}>
+          <Apparition index={5}>
             <CartePliante id="sur-le-site" icone="film" titre="Sur le site" resume="Les types de vidéo qui peuvent aller sur votre site">
               <SurLeSite lignes={lignesSite} />
             </CartePliante>
@@ -323,9 +323,8 @@ export default async function PageReglages() {
           </div>
           <div className="space-y-4">
             <CartePliante id="controle-production" icone="valide" titre="Contrôle de production" resume="Lecture seule : les clés posées et les interrupteurs de production">
-              <section aria-label="Contrôle de production" className="mt-4 text-sm">
-                <h3 className="font-medium">Contrôle de production (lecture seule)</h3>
-                <ul className="mt-2 space-y-1">
+              <section aria-label="Contrôle de production" className="text-sm">
+                <ul className="space-y-1">
                   {production.cles.map((c) => (
                     <li key={c.variable}>
                       {c.libelle} : {c.posee ? "clé posée" : "clé absente"}
@@ -407,7 +406,7 @@ export default async function PageReglages() {
             <CartePliante id="aide-chat" icone="idee" titre="Aide du chat" resume="Ce que vous pouvez demander, en mots simples">
               <Link href="/aide-chat" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:underline">
                 <span className="flex-1">
-                  Ouvrir l'aide du chat de retouche
+                  Ouvrir l&apos;aide du chat de retouche
                   <span className="block text-sm font-normal text-texte-doux">La liste des demandes que le chat comprend, avec des exemples.</span>
                 </span>
                 <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
