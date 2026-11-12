@@ -50,6 +50,7 @@ import { lireFamilles } from "./hashtags";
 import { listerSeries, serieDeVideo, votreMarqueDeVideo } from "./series";
 import { creerNotification } from "./notifications";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
+import { formatSansRedacteur, textesDeLaVersion, type TextesDeVersion } from "./textes-version-generateur";
 import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
 import { construirePasseportDEssai, pagePourYoutube, passeportDeLaVideo } from "./site-videos";
@@ -122,9 +123,14 @@ async function kitOuCreation(videoId: string): Promise<KitPublication> {
     const video = await d.videos.obtenir(videoId);
     if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
     const s = await sourceTextes(video, await creditsVideo(videoId));
-    const redaction = await fournisseur("texte-reseaux");
+    // KIT-CC-IV : cas concret et image → vidéo écrivent eux-mêmes leurs textes : ceux de la version, sinon rien (jamais d'essai).
+    const deVersion = await textesDeLaVersion(videoId);
     const textes: KitPublication["textes"] = {};
-    for (const r of listerReseaux()) textes[r.id] = await texteEssai(s, r.id, redaction);
+    if (deVersion) for (const r of listerReseaux()) textes[r.id] = deVersion[r.id] ?? { texte: "", motsDiese: [] };
+    else {
+      const redaction = await fournisseur("texte-reseaux");
+      for (const r of listerReseaux()) textes[r.id] = await texteEssai(s, r.id, redaction);
+    }
     // Vidéos sur le site (lot S1) : le passeport d'essai naît avec le kit (gratuit) ; une vidéo pas prête n'en reçoit pas.
     const passeportWeb = await construirePasseportDEssai(video, s.credits);
     const kit: KitPublication = {
@@ -241,7 +247,7 @@ export async function genererKit(videoId: string, options: { autoriserDepense?: 
   if (!options.autoriserDepense) return kit;
   const d = depots();
   const video = await d.videos.obtenir(videoId);
-  if (!video || (await videoEnEssai(video)) || !(await ecritureAutoPrevue(video)) || !(await reserverEcritureAuto(kit.id))) return kit;
+  if (!video || (await formatSansRedacteur(videoId)) || (await videoEnEssai(video)) || !(await ecritureAutoPrevue(video)) || !(await reserverEcritureAuto(kit.id))) return kit;
   const s = await sourceTextes(video, kit.credits);
   const redaction = await fournisseur("texte-reseaux");
   const nonEcrits: IdReseau[] = [];
@@ -320,6 +326,33 @@ export async function decocherApresRetouche(videoId: string, quoi: "retouche" | 
   });
 }
 
+/**
+ * KIT-CC-IV : verse dans le kit les textes de la version (cas concret, image → vidéo), sous le verrou du kit. Un texte retouché
+ * à la main n'est jamais écrasé ; un réseau sans texte dans la version perd son éventuel texte d'essai ou d'ancienne version.
+ */
+async function verserTextesDeVersion(kit: KitPublication, deVersion: TextesDeVersion): Promise<KitPublication> {
+  const vide = (): TexteReseau => ({ texte: "", motsDiese: [] });
+  const suite = (frais: KitPublication) => {
+    const textes = { ...frais.textes };
+    let change = false;
+    for (const r of listerReseaux()) {
+      const actuel = textes[r.id];
+      if (actuel?.modifieAMain) continue;
+      const voulu = deVersion[r.id] ?? vide();
+      if (actuel && memeTexte(actuel, voulu) && (actuel.source ?? undefined) === voulu.source) continue;
+      textes[r.id] = voulu;
+      change = true;
+    }
+    return change ? textes : null;
+  };
+  if (!suite(kit)) return kit;
+  return sousVerrouKit(async () => {
+    const frais = (await depots().kits.obtenir(kit.id)) ?? kit;
+    const textes = suite(frais);
+    return textes ? depots().kits.modifier(kit.id, { textes }) : frais;
+  });
+}
+
 /** Kit prêt à afficher : textes, compteurs, avertissements, cases « Avant de publier ». */
 export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   const detail = await obtenirVideo(videoId);
@@ -330,16 +363,19 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   if (!kit.passeportWeb) await passeportDeLaVideo(videoId);
   const variante = await versionDeVideo(videoId);
   if (variante) kit = await resynchroniserKit(kit, variante, await lireFamilles());
+  // KIT-CC-IV : les textes de la version (cas concret, image → vidéo) ; `null` pour un format ordinaire.
+  const deVersion = await textesDeLaVersion(videoId);
+  if (deVersion) kit = await verserTextesDeVersion(kit, deVersion);
   const parDefaut = await reseauxParDefaut();
   const source = await sourceTextes(detail.video, kit.credits);
-  const redaction = await fournisseur("texte-reseaux");
-  const parClaude = await claudeTextesActif();
+  const redaction = deVersion ? null : await fournisseur("texte-reseaux");
+  const parClaude = deVersion ? false : await claudeTextesActif();
   const t = parClaude ? await taux() : 0;
   const regles = parClaude ? await depots().reglesDatees.lister() : [];
   const origines: Partial<Record<IdReseau, VueKitReseau["origine"]>> = {};
   const prix: Partial<Record<IdReseau, Montant>> = {};
   for (const r of listerReseaux()) {
-    origines[r.id] = origineTexte(kit.textes[r.id], await texteEssai(source, r.id, redaction));
+    origines[r.id] = deVersion && !kit.textes[r.id]?.texte.trim() ? undefined : origineTexte(kit.textes[r.id], redaction ? await texteEssai(source, r.id, redaction) : { texte: "", motsDiese: [] });
     // Prix d'un « Réécrire » (geste de l'opérateur), affiché sur le bouton AVANT le geste ; aucun appel. C'est le PIRE cas :
     // tous les essais (la reprise ciblée d'une réponse refusée comprise), chacun au pire cas.
     if (parClaude) prix[r.id] = usdVersEur(centimesUsd(ESSAIS_TEXTE_PUBLICATION * pireCasRole(rolePublication, entreePublication(donneesDe(source, r.id, regles)))), t);
@@ -464,6 +500,8 @@ export async function regenererTexteKit(videoId: string, reseau: IdReseau, optio
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
   // Le texte du réseau d'une version vient du générateur et y est recopié : réécrit ici, il serait payé puis effacé.
   if ((await versionDeVideo(videoId))?.reseau === reseau) throw new ErreurStudio("TEXTE_DE_VERSION", "Ce texte vient de la version du sujet : modifiez-le ici, ou réécrivez la version depuis le sujet.");
+  // KIT-CC-IV : le texte de ces formats vient de leur version : aucun appel au rédacteur, payé ou non.
+  if (await formatSansRedacteur(videoId)) throw new ErreurStudio("TEXTE_DE_VERSION", "Ce texte est écrit avec la vidéo : modifiez-le ici, il ne se réécrit pas.");
   const parClaude = await claudeTextesActif();
   if (parClaude && video.estDemo) throw new ErreurStudio("VIDEO_EXEMPLE", "C'est une vidéo d'exemple : son texte ne se réécrit pas.");
   const kit = await genererKit(videoId);
@@ -638,6 +676,11 @@ async function envoyerVersBufferInterne(
   const reseauVersion = kitVue.variante?.reseau;
   if (reseauVersion && !options.autreReseauConfirme && reseaux.some((r) => r !== reseauVersion)) {
     throw new ErreurStudio("RESEAU_DIFFERENT", `Cette vidéo a été écrite pour ${obtenirReseau(reseauVersion).nom}. Confirmez pour l'envoyer ailleurs.`);
+  }
+  // KIT-CC-IV : cas concret et image → vidéo n'envoient que les textes rangés dans leur version, jamais un texte d'essai.
+  if (await formatSansRedacteur(videoId)) {
+    const sans = [...new Set(reseaux)].filter((r) => !kitVue.reseaux.find((x) => x.reseau === r)?.texte.trim());
+    if (sans.length) throw new ErreurStudio("TEXTES_MANQUANTS", `Le texte de cette vidéo manque pour ${sans.map((r) => obtenirReseau(r).nom).join(", ")} : il est écrit avec la vidéo, rien n'est envoyé sans lui.`);
   }
   if (!kitVue.publiable) throw new ErreurStudio("AVANT_DE_PUBLIER", phraseVerifications(kitVue));
   const service = await fournisseur("publication");
