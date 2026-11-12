@@ -226,6 +226,7 @@ function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxAc
       const e = entreeDepuisPublication(p);
       return { ...e, titre: debutDeTexte(p.texte) || e.titre };
     });
+  const liens = new Map(entrees.map((e) => [e.cle, e.lienSource]));
   const adresse = (vue: "jour" | "semaine" | "mois", date: string, actifs: readonly IdReseau[] = reseauxActifs) => `/calendrier?vue=${vue}&date=${date}${suiteReseaux(actifs)}`;
   return (
     <div>
@@ -239,7 +240,7 @@ function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxAc
         ← Retour à la semaine
       </Link>
       <BarreFiltres actifs={reseauxActifs} lienReseau={(r) => adresse("jour", jour, basculerReseau(reseauxActifs, r))} />
-      <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} lienEntree={(e) => e.lienSource ?? null} />
+      <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} lienEntree={(e) => liens.get(e.cle) ?? null} />
     </div>
   );
 }
