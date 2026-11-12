@@ -127,7 +127,7 @@ export function motsImportants(entree: EntreeMotsImportants): ResultatMotsImport
 }
 
 /**
- * Marque `enValeur` les mots importants des groupes : 2 mots au plus par groupe, 40 % des groupes au plus (les premiers
+ * Marque `enValeur` les mots importants des groupes : 2 mots au plus par groupe, 40 % des groupes au plus, et un au moins (les premiers
  * dans l'ordre). Le texte, l'ordre et les groupes ne changent pas ; un mot déjà en valeur le reste.
  */
 export function marquerMotsImportants<S extends { mots: { mot: string; enValeur?: boolean }[] }>(
@@ -135,7 +135,7 @@ export function marquerMotsImportants<S extends { mots: { mot: string; enValeur?
   entree: Omit<EntreeMotsImportants, "mots">,
 ): { segments: S[]; source: SourceMotsImportants } {
   const { mots: cibles, source } = motsImportants({ ...entree, mots: segments.flatMap((s) => s.mots.map((m) => m.mot)) });
-  let restant = Math.floor(segments.length * PART_GROUPES_MAX);
+  let restant = Math.max(1, Math.floor(segments.length * PART_GROUPES_MAX));
   const sortie = segments.map((s) => {
     if (restant <= 0) return s;
     let n = 0;
