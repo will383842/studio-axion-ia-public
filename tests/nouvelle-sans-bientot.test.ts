@@ -45,7 +45,8 @@ describe("barre latérale : état actif sur les sous-pages", () => {
     chemin = c;
     return renderToStaticMarkup(createElement(BarreLaterale, { formats, actionDeconnexion: async () => undefined }));
   };
-  const balise = (html: string, href: string) => html.match(new RegExp(`<a[^>]*href="${href}"[^>]*>`))?.[0] ?? "";
+  // 12/11 (refonte R2) : « Vidéos » a deux liens vers /videos (l'en-tête de la rubrique « Mes contenus » puis la sous-rubrique) ; c'est la DERNIÈRE balise qui porte aria-current.
+  const balise = (html: string, href: string) => [...html.matchAll(new RegExp(`<a[^>]*href="${href}"[^>]*>`, "g"))].at(-1)?.[0] ?? "";
 
   it("/ecrire/atelier allume « Écrire »", () => {
     const html = rendre("/ecrire/atelier");
@@ -53,7 +54,7 @@ describe("barre latérale : état actif sur les sous-pages", () => {
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
   });
 
-  it("/formats/avocat et /cas-concret : « Mes vidéos » reste allumé (une seule annonce), plus de ligne de format", () => {
+  it("/formats/avocat et /cas-concret : « Vidéos » reste allumé (une seule annonce), plus de ligne de format", () => {
     for (const c of ["/formats/avocat", "/cas-concret"]) {
       const html = rendre(c);
       expect(html).not.toContain('href="/formats/avocat"');
@@ -62,7 +63,7 @@ describe("barre latérale : état actif sur les sous-pages", () => {
     }
   });
 
-  it("/videos : « Mes vidéos » porte aria-current", () => {
+  it("/videos : « Vidéos » porte aria-current", () => {
     const html = rendre("/videos");
     expect(balise(html, "/videos")).toContain('aria-current="page"');
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
