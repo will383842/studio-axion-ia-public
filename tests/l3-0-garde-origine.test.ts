@@ -53,22 +53,28 @@ afterEach(() => {
   credits.injecterLecteursPourEssai(null);
 });
 
-describe("1. sans budget de l'Usine, une dépense commandée par l'Usine ne réserve ni n'engage rien", () => {
-  const rien = async (travailId: string) => {
-    expect(await depots().reservations.lister((r) => r.travailId === travailId)).toEqual([]);
-    expect(await lireParametre(`budget.engage.${travailId}`, null)).toBeNull();
-  };
+/** L2-13 (critère 5) : l'absence de budget de l'Usine n'est plus un refus ; elle alerte (cloche) et se journalise (type « budget »). */
+const alerteUsineAbsente = async () => {
+  const lignes = (await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message.startsWith("Budget indicatif dépassé (usine-absent)"));
+  expect(lignes.length).toBeGreaterThan(0);
+  expect((await depots().notifications.lister()).length).toBeGreaterThan(0);
+};
 
-  it("reserverPourUsine : BUDGET_USINE_ABSENT avant toute réservation", async () => {
+describe("1. sans budget de l'Usine, une dépense commandée par l'Usine alerte et se journalise (plus de refus)", () => {
+  const engage = async (travailId: string) => (await lireParametre<{ statut: string } | null>(`budget.engage.${travailId}`, null))?.statut;
+
+  it("reserverPourUsine : plus de BUDGET_USINE_ABSENT, alerte + journal, l'engagement est posé", async () => {
     const d = demande();
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", d)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    await rien(d.travailId);
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", d)).resolves.toBeUndefined();
+    await alerteUsineAbsente();
+    expect(await engage(d.travailId)).toBe("active");
   });
 
-  it("l'aiguillage avec l'origine « usine » : même refus, même absence de trace", async () => {
+  it("l'aiguillage avec l'origine « usine » : même alerte, même journal, même engagement", async () => {
     const d = demande();
-    await expect(credits.verifierEtReserverSelonOrigine("usine", estimation(10), true, "Cette vidéo", d)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    await rien(d.travailId);
+    await expect(credits.verifierEtReserverSelonOrigine("usine", estimation(10), true, "Cette vidéo", d)).resolves.toBeUndefined();
+    await alerteUsineAbsente();
+    expect(await engage(d.travailId)).toBe("active");
   });
 
   it("la dépense manuelle de Will (sans origine) passe et engage le budget du mois — inchangée", async () => {
@@ -194,12 +200,13 @@ describe("3. L3-01 : liste exhaustive des sites de dépense (fermée)", () => {
 /* --- 4. L3-01 : portes d'un coup, de relance et du lot ------------------------------------------------------------ */
 
 describe("4. L3-01 : dépense d'un coup, relance et lot d'images, avec l'origine", () => {
-  it("depenserSelonOrigine (« usine », sans budget) : BUDGET_USINE_ABSENT, l'appel payant ne part pas, rien n'est réservé", async () => {
+  it("depenserSelonOrigine (« usine », sans budget) : alerte + journal, l'appel payant part, l'engagement est consommé", async () => {
     const d = demande();
     const payer = vi.fn(async () => "payé");
-    await expect(credits.depenserSelonOrigine("usine", estimation(10), true, "Ce décor", d, payer)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    expect(payer).not.toHaveBeenCalled();
-    expect(await depots().reservations.lister((r) => r.travailId === d.travailId)).toEqual([]);
+    await expect(credits.depenserSelonOrigine("usine", estimation(10), true, "Ce décor", d, payer)).resolves.toBe("payé");
+    await alerteUsineAbsente();
+    expect(payer).toHaveBeenCalledOnce();
+    expect((await lireParametre<{ statut: string } | null>(`budget.engage.${d.travailId}`, null))?.statut).toBe("consommee");
   });
 
   it("depenserSelonOrigine (Will) : réserve et engage pendant l'appel, puis rend l'engagement (consommé) ; en panne : libéré", async () => {
@@ -212,24 +219,22 @@ describe("4. L3-01 : dépense d'un coup, relance et lot d'images, avec l'origine
     expect((await lireParametre<{ statut: string } | null>(`budget.engage.${e.travailId}`, null))?.statut).toBe("liberee");
   });
 
-  it("reactiverSelonOrigine (« usine », sans budget) : refus, la réservation libérée du travail ne redevient pas active", async () => {
+  it("reactiverSelonOrigine (« usine », sans budget) : alerte + journal, la réservation libérée du travail redevient active", async () => {
     const d = demande();
     await credits.verifierEtReserver(estimation(10), true, "Cette vidéo", d);
     await credits.libererReservation(d.travailId, "liberee");
     // L3-01 (audit) : `ensuite` reçoit la réactivation et l'appelle lui-même (sous le verrou de la boucle, pris DANS `ensuite`).
     const ensuite = vi.fn(async (reactiver: () => Promise<void>) => reactiver());
-    await expect(credits.reactiverSelonOrigine("usine", d.travailId, estimation(10), true, "Cette relance", {}, ensuite)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    expect(ensuite).not.toHaveBeenCalled();
-    expect((await lireParametre<{ statut: string } | null>(`budget.engage.${d.travailId}`, null))?.statut).toBe("liberee");
-    await credits.reactiverSelonOrigine(undefined, d.travailId, estimation(10), true, "Cette relance", {}, ensuite);
+    await credits.reactiverSelonOrigine("usine", d.travailId, estimation(10), true, "Cette relance", {}, ensuite);
+    await alerteUsineAbsente();
     expect(ensuite).toHaveBeenCalledOnce();
     expect((await lireParametre<{ statut: string } | null>(`budget.engage.${d.travailId}`, null))?.statut).toBe("active");
   });
 
-  it("reserverLot avec l'origine « usine » sans budget : refus, rien n'est réservé ni engagé ; sans origine : inchangé", async () => {
-    await expect(credits.reserverLot("lot-usine", [ligne(10)], eur(10), true, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    expect(await depots().reservations.lister((r) => r.travailId === "lot:lot-usine")).toEqual([]);
-    expect(await lireParametre("budget.engage.lot:lot-usine", null)).toBeNull();
+  it("reserverLot avec l'origine « usine » sans budget : alerte + journal, le lot est engagé ; sans origine : inchangé", async () => {
+    await expect(credits.reserverLot("lot-usine", [ligne(10)], eur(10), true, { origine: "usine" })).resolves.not.toThrow();
+    await alerteUsineAbsente();
+    expect(await lireParametre("budget.engage.lot:lot-usine", null)).not.toBeNull();
     await credits.reserverLot("lot-will", [ligne(10)], eur(10), true);
     expect(await lireParametre("budget.engage.lot:lot-will", null)).not.toBeNull();
   });

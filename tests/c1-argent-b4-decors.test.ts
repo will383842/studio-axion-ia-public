@@ -92,8 +92,11 @@ describe("B4 · décor payé jamais abandonné puis repayé", () => {
     // Assez pour UNE demande, pas pour deux.
     await ecrireParametre("budget.mensuel", { centimes: deja + Math.round(est.cout.centimes * 1.5), devise: "EUR" });
     const r = await Promise.allSettled([decors.demanderDecor("un bureau de direction avec une baie vitrée", { confirme: true }), decors.demanderDecor("une bibliothèque ancienne en bois", { confirme: true })]);
-    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
-    expect(r.find((x) => x.status === "rejected")).toMatchObject({ reason: { code: "BUDGET_DEPASSE" } });
-    expect(doublure.soumissions).toBe(3);
+    // Critère 5 (L2-13) : le montant ne refuse plus ; les deux passent, le dépassement alerte (cloche) et se journalise.
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(2);
+    expect(r.find((x) => x.status === "rejected")).toBeUndefined();
+    expect(doublure.soumissions).toBe(6);
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
   });
 });

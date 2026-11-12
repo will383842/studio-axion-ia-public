@@ -37,7 +37,7 @@ beforeEach(async () => {
 afterEach(() => bg.arreterBoucleGeneration());
 
 describe("E2E-2 parcours n° 2 · « Fabriquer cette version » refusé", () => {
-  it("budget dépassé : raison remontée, version sans brouillon rattaché ; budget relevé : le même brouillon repart", async () => {
+  it("budget dépassé : la fabrication part avec une alerte et une ligne de journal ; le rejeu de l'opération ne crée rien de plus", async () => {
     const r = await bg.lancerGeneration({ idee: SUJETS_BANC[0].idee, reseaux: [...RESEAUX_DECLINAISON], formatId: "avocat", pilier: SUJETS_BANC[0].pilier.id, mode: "avatar" as const });
     if (!r.ok) throw new Error("lancement");
     await bg.tourBoucleGeneration();
@@ -46,25 +46,19 @@ describe("E2E-2 parcours n° 2 · « Fabriquer cette version » refusé", () => 
     await ecrireParametre("budget.mensuel", centimes(1));
     const brouillonsAvant = await depots().videos.compter((x) => x.statut === "brouillon");
 
-    const e = await bg.fabriquerVariante(v.id, { operationId: "op-a", lancer: true }).then(() => null, (x: ErreurStudio) => x);
-    expect(e?.code).toBe("BUDGET_DEPASSE");
-    expect(e?.message).toMatch(/budget/i);
-    // Rien de rattaché : la version garde son bouton « Fabriquer » ; aucun brouillon orphelin dans « Brouillons ».
-    expect((await depots().variantes.obtenir(v.id))?.videoId).toBeUndefined();
-    expect(await depots().videos.compter((x) => x.statut === "brouillon")).toBe(brouillonsAvant);
-    expect(await depots().videos.compter((x) => x.varianteId === v.id)).toBe(0);
-
-    // Deuxième refus (nouvelle opération) : toujours rien de créé.
-    const toutesAvant = await depots().videos.compter();
-    await bg.fabriquerVariante(v.id, { operationId: "op-b", lancer: true }).catch(() => undefined);
-    expect(await depots().videos.compter()).toBe(toutesAvant);
-
-    // Budget relevé : un toucher suffit, la vidéo part.
-    await ecrireParametre("budget.mensuel", centimes(15000));
-    const ok = await bg.fabriquerVariante(v.id, { operationId: "op-c", lancer: true });
+    // Critère 5 (L2-13) : le montant ne refuse plus ; la fabrication part, le dépassement alerte (cloche) et se journalise.
+    const ok = await bg.fabriquerVariante(v.id, { operationId: "op-a", lancer: true });
     expect(ok.travailId).toBeTruthy();
     expect((await depots().variantes.obtenir(v.id))?.videoId).toBe(ok.videoId);
-    // Une seule vidéo pour toute l'affaire : les refus n'en ont créé aucune.
-    expect(await depots().videos.compter()).toBe(toutesAvant + 1);
+    expect(await depots().videos.compter((x) => x.varianteId === v.id)).toBe(1);
+    expect(await depots().videos.compter((x) => x.statut === "brouillon")).toBe(brouillonsAvant);
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
+
+    // Rejeu de la même opération : la même vidéo, aucune seconde créée.
+    const toutesAvant = await depots().videos.compter();
+    const rejeu = await bg.fabriquerVariante(v.id, { operationId: "op-a", lancer: true });
+    expect(rejeu.videoId).toBe(ok.videoId);
+    expect(await depots().videos.compter()).toBe(toutesAvant);
   });
 });

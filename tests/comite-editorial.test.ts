@@ -594,23 +594,25 @@ describe("Comité · L3-01 : une commande de l'Usine passe par reserverPourUsine
     await reglerBudgetUsine({ budget_mensuel_cents: cents, mois: moisParis() });
   };
 
-  it("lot du jour commandé par l'Usine sans budget reçu : arrêté AVANT tout appel, rien n'est réservé ni engagé", async () => {
+  it("lot du jour commandé par l'Usine sans budget reçu : alerte + ligne de journal, plus de refus d'argent, le lot part", async () => {
     await allumer();
     const r = await comite.travaillerComite({ instant: Date.parse("2026-10-17T08:00:00Z"), origine: "usine" });
-    expect(r).toMatchObject({ etat: "arrete", message: expect.stringMatching(/Usine/) });
-    expect(faux.appels).toEqual([]);
-    expect(await reservationsIdees()).toEqual([]);
+    expect(r).toMatchObject({ etat: "envoye" });
+    expect(faux.appels.length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).some((e) => e.type === "budget" && e.message.includes("(usine-absent)"))).toBe(true);
+    expect((await depots().notifications.lister()).some((x) => /Aucun budget du mois reçu/.test(x.titre))).toBe(true);
   });
 
-  it("jugement à la demande commandé par l'Usine sans budget reçu : refusé AVANT tout appel ; avec le budget reçu : il part", async () => {
+  it("jugement à la demande commandé par l'Usine sans budget reçu : alerte + ligne de journal, il part", async () => {
     await allumer();
     const prix = await comite.prixJugementDirect();
-    expect(await comite.jugerALaDemande(prix.centimesEur, { origine: "usine" })).toMatchObject({ ok: false, message: expect.stringMatching(/Usine/) });
-    expect(faux.appels).toEqual([]);
-    expect(await reservationsIdees()).toEqual([]);
-    await budgetUsine(10_000);
-    expect(await comite.jugerALaDemande(prix.centimesEur, { origine: "usine" })).toMatchObject({ ok: true, simule: false });
+    const r1 = await comite.jugerALaDemande(prix.centimesEur, { origine: "usine" });
+    expect(r1).toMatchObject({ ok: true, simule: false });
     expect(faux.appels.length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).some((e) => e.type === "budget" && e.message.includes("(usine-absent)"))).toBe(true);
+    // Le budget reçu ne change rien au départ ; la garde qui reste est celle des idées déjà en attente (pas un montant).
+    await budgetUsine(10_000);
+    expect(await comite.jugerALaDemande(prix.centimesEur, { origine: "usine" })).toMatchObject({ ok: false, message: expect.stringMatching(/attendent déjà/) });
   });
 
   it("défaut inchangé : sans origine (la tâche de fond du studio), le lot part sans budget de l'Usine", async () => {

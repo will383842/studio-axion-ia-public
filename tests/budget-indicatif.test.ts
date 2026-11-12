@@ -102,12 +102,17 @@ describe("mode indicatif : le plafond du mois ne refuse plus", () => {
     expect((await (await import("@/services/couts")).resumeBudget()).engage.centimes).toBe(130);
   });
 
-  it("l'Usine reste BLOQUANTE : budget absent, budget atteint, et plafond du studio dépassé", async () => {
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    await expect(credits.reserverPourUsine(estimation(500), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+  it("l'Usine n'est plus refusée pour un montant : budget absent, plafond du studio dépassé, budget atteint alertent et se journalisent", async () => {
+    const journal = async (m: string) => (await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message.includes(`(${m})`));
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await journal("usine-absent")).toHaveLength(1);
     const { moisParis } = await import("@/services/couts");
     await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 50, mois: moisParis(), le: new Date().toISOString() });
-    await expect(credits.reserverPourUsine(estimation(60), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+    await expect(credits.reserverPourUsine(estimation(60), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await journal("usine-atteint")).toHaveLength(1);
+    await expect(credits.reserverPourUsine(estimation(500), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await journal("mois")).toHaveLength(1);
+    expect((await notesBudget()).length).toBeGreaterThanOrEqual(3);
   });
 
   it("une estimation illisible (NaN) est refusée dans les deux modes", async () => {

@@ -187,7 +187,14 @@ export function creerFabricationFal(o: OptionsFal): FabricationParEtapes & { dep
       };
       const { modele, corps } = corpsFal(d);
       let r: { request_id?: string; status_url?: string; response_url?: string };
-      await o.journal?.ecrire(d.cleIdempotence, { etat: "envoi", le: new Date().toISOString() });
+      try {
+        await o.journal?.ecrire(d.cleIdempotence, { etat: "envoi", le: new Date().toISOString() });
+      } catch (e) {
+        // Trace impossible à écrire (base indisponible) : rien n'est parti, la place et l'unité de quota réservées sont rendues.
+        reservees.delete(reservation);
+        await rendreQuota();
+        throw e;
+      }
       try {
         r = (await appel(`https://queue.fal.run/${modele}`, { method: "POST", body: JSON.stringify(corps) }, true)) as typeof r;
       } catch (e) {

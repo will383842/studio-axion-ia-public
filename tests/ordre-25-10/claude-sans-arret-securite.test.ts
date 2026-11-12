@@ -92,17 +92,23 @@ describe("cas concret : voix", () => {
 });
 
 describe("arrêts qui restent", () => {
-  it("le budget du mois de l'Usine reste bloquant même en indicatif", async () => {
+  it("budget de l'Usine absent, même en indicatif : plus de refus de montant, alerte (cloche) et ligne de journal", async () => {
     await ecrireParametre("budget.mode", "indicatif");
     const { controlerBudgetDuMois } = await import("@/services/budget-mensuel");
-    await expect(controlerBudgetDuMois(100, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(controlerBudgetDuMois(100, { origine: "usine" })).resolves.toBeUndefined();
+    const { depots } = await import("@/donnees/memoire");
+    expect((await depots().notifications.lister()).filter((n) => /Usine/.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(usine-absent\)/.test(e.message)).length).toBeGreaterThan(0);
   });
-  it("budget de l'Usine présent mais dépassé : BUDGET_MENSUEL_ATTEINT, même en indicatif", async () => {
+  it("budget de l'Usine présent mais dépassé, même en indicatif : alerte (cloche) et ligne de journal, sans refus", async () => {
     await ecrireParametre("budget.mode", "indicatif");
     const { controlerBudgetDuMois } = await import("@/services/budget-mensuel");
     const { moisParis } = await import("@/services/couts");
     await ecrireParametre(`budget.usine.${moisParis()}`, { budget_mensuel_cents: 50, mois: moisParis(), le: new Date().toISOString() });
-    await expect(controlerBudgetDuMois(100, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+    await expect(controlerBudgetDuMois(100, { origine: "usine" })).resolves.toBeUndefined();
+    const { depots } = await import("@/donnees/memoire");
+    expect((await depots().notifications.lister()).filter((n) => /Usine/.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(usine-atteint\)/.test(e.message)).length).toBeGreaterThan(0);
   });
 });
 

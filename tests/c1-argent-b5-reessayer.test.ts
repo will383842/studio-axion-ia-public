@@ -74,14 +74,15 @@ async function travailEnEchec(etape = "montage"): Promise<string> {
 }
 
 describe("B5 · « Réessayer » revérifie le budget et les crédits", () => {
-  it("budget du mois atteint depuis l'échec : la relance est refusée, rien n'est réactivé", async () => {
+  it("budget du mois atteint depuis l'échec : la relance part, avec une alerte (cloche) et une ligne de journal", async () => {
     const travailId = await travailEnEchec();
     const depense = (await couts.resumeBudget()).depense.centimes;
     await ecrireParametre("budget.mensuel", { centimes: depense, devise: "EUR" });
-    await expect(travaux.reessayerTravail(travailId)).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
-    expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
-    expect(await depots().reservations.compter((r) => r.travailId === travailId && r.statut === "active")).toBe(0);
-    expect((await couts.resumeBudget()).engage.centimes).toBe(0);
+    const r = await travaux.reessayerTravail(travailId);
+    expect(r.statut).not.toBe("echec");
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
+    expect((await couts.resumeBudget()).engage.centimes).toBeGreaterThan(0);
   });
 
   it("crédit HeyGen épuisé depuis l'échec : la relance est refusée (crédit insuffisant)", async () => {
