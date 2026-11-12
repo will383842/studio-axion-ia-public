@@ -40,9 +40,11 @@ const vers = async (formatId: string, sp: { brouillon?: string } = {}) => {
 };
 
 describe("Nouvelle vidéo commune et tableau animé", () => {
-  it("la grille propose le tableau animé, mais le lien de sa carte passe par la redirection du tableau", async () => {
+  // 12/11 (décision de Williams, refonte R4) : « L'erreur corrigée » est seule, la carte « Tableau animé » à quatre recettes disparaît de Nouvelle vidéo.
+  it("la grille propose « L'erreur corrigée » (ex-tableau animé), mais le lien de sa carte passe par la redirection du tableau", async () => {
     const html = renderToStaticMarkup(await PageNouvelle());
-    expect(html).toContain("Tableau animé");
+    expect(html).toContain("L&#x27;erreur corrigée");
+    expect(html).not.toContain("Tableau animé");
     expect(html).toContain('href="/nouvelle/facecam"');
   });
 
