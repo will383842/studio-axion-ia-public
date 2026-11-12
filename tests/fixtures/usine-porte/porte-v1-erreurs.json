@@ -1,0 +1,14 @@
+{
+  "erreurs": [
+    { "nom": "secret faux", "statut": 401 },
+    { "nom": "porte éteinte", "statut": 404 },
+    { "nom": "aucun métier allumé", "statut": 409, "code": "aucun_metier_allume" },
+    { "nom": "métier inconnu", "statut": 400, "code": "metier_inconnu" },
+    { "nom": "signature incohérente", "statut": 400, "code": "signature_incoherente" },
+    { "nom": "parts absentes", "statut": 400, "code": "parts_absentes" },
+    { "nom": "corps trop grand", "statut": 413, "code": "corps_trop_grand" },
+    { "nom": "type du corps", "statut": 415, "code": "type_invalide" },
+    { "nom": "json illisible", "statut": 400, "code": "json_illisible" },
+    { "nom": "demande hors contrat", "statut": 400, "code": "demande_invalide" }
+  ]
+}
