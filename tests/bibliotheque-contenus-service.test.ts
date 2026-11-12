@@ -24,7 +24,7 @@ async function monter() {
   await depot.enregistrer(visuel("c5", "carrousel", ["linkedin"], 7, { corbeilleLe: T(8) }));
   const video = (id: string, reseaux: IdReseau[], n: number, extra: Partial<VueVideoCarte> = {}) =>
     ({ id, titre: `Vidéo ${id}`, statut: "prete", reseaux, modifieLe: T(n), creeLe: T(n), ...extra }) as unknown as VueVideoCarte;
-  const videos = [video("v1", ["linkedin"], 10), video("v2", ["tiktok"], 11), video("v3", ["youtube"], 12), video("v4", ["linkedin"], 13, { corbeilleLe: T(14) })];
+  const videos = [video("v1", ["linkedin"], 10, { format: { id: "avocat" } as never }), video("v2", ["tiktok"], 11, { format: { id: "podcast" } as never }), video("v3", ["youtube"], 12, { format: { id: "avocat" } as never }), video("v4", ["linkedin"], 13, { corbeilleLe: T(14) })];
   const deps: DependancesBibliotheque = {
     depot,
     urlLecture: async (cle) => `https://stockage.invente/${cle}`,
@@ -84,5 +84,16 @@ describe("filtres purs", () => {
   });
   it("filtre par statut commun", () => {
     expect(filtrerContenus([a("a", T(1)), { ...a("b", T(2)), statut: "brouillon" }], { statut: "brouillon" }).map((e) => e.id)).toEqual(["b"]);
+  });
+});
+
+describe("lireBibliotheque : format (REF-R5)", () => {
+  it("le format d'une vidéo filtre ; images et carrousels n'ont pas de champ format", async () => {
+    const deps = await monter();
+    const r = await lireBibliotheque({ format: "podcast" }, deps);
+    expect(r.elements.map((e) => e.id)).toEqual(["v2"]);
+    expect(r.elements[0].format).toBe("podcast");
+    const tous = await lireBibliotheque({}, deps);
+    for (const e of tous.elements.filter((x) => x.type !== "video")) expect("format" in e).toBe(false);
   });
 });

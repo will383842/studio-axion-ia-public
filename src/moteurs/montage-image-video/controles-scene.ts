@@ -24,7 +24,7 @@ import type { BlocRenduIV, EvenementTempsIV, LigneDeTempsIV, PlanIV } from "./mi
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
 import { controlerSousTitresIV } from "./sous-titres";
-import { controlerVariationsIV, sousTitresVariesIV } from "./sous-titres-varies";
+import { controlerVariationsIV, sousTitresVariesIV, type StyleChoisiIV } from "./sous-titres-varies";
 
 const S = REGLES_SCENE_IV;
 
@@ -61,6 +61,8 @@ export interface ContexteControleScene {
   reseaux: readonly ReseauIV[];
   bruitages: ResultatBruitagesIV;
   voix: readonly MotHorodate[];
+  /** GV-ST-03b : style de sous-titres choisi ; absent : charte duo (mesure d'avant). */
+  styleSousTitres?: StyleChoisiIV;
 }
 
 const sec = (s: number) => `${s.toFixed(1).replace(".", ",")} s`;
@@ -245,7 +247,7 @@ export function controlerMiseEnSceneIV(l: LigneDeTempsIV, ctx: ContexteControleS
   for (const b of toiles) for (const e of b.proprietes.ensembles ?? []) q21.push(...debordementsEnsemble(planEnsemble(b.proprietes.schema, { allumes: e.allumes, chiffresCles: e.chiffresCles })).map((x) => `séquence ${b.id}, vue d'ensemble : ${x}`));
   lignes.push(ligne("Q21", q21, "Textes d'écran lisibles.", "Texte trop long :"));
   // Q22 : la bande, puis CHAQUE groupe tel que la composition le dessine (variations Impact / Bandeau comprises), mesuré.
-  const q22 = [...controlerSousTitresIV(l.sousTitres, ctx.reseaux), ...controlerVariationsIV(sousTitresVariesIV(l), l)];
+  const q22 = [...controlerSousTitresIV(l.sousTitres, ctx.reseaux), ...controlerVariationsIV(sousTitresVariesIV(l, ctx.styleSousTitres), l, undefined, ctx.styleSousTitres)];
   lignes.push(ligne("Q22", q22, "Sous-titres et leurs variations dans leur bande, sous le contenu, hors des zones masquées des réseaux.", "Sous-titres mal placés :"));
 
   // Q23 · défauts visibles : texte coupé, écran vide, même texte deux plans de suite.

@@ -12,8 +12,8 @@ vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refre
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 const { BarreLaterale } = await import("@/components/coquille/BarreLaterale");
-const { estActif, formatActif, SECTIONS_NAV } = await import("@/components/coquille/navigation");
-const mesVideos = SECTIONS_NAV.flatMap((s) => s.entrees).find((e) => e.href === "/videos")!;
+const { estActif, formatActif, RUBRIQUES_NAV, entreesDeRubrique } = await import("@/components/coquille/navigation");
+const mesVideos = RUBRIQUES_NAV.flatMap(entreesDeRubrique).find((e) => e.href === "/videos")!;
 const { OngletsMesVideos } = await import("@/components/videos/OngletsMesVideos");
 const { CarteFormat } = await import("@/components/ui/CarteFormat");
 
@@ -57,7 +57,7 @@ describe("BarreLaterale : aucun raccourci de création", () => {
     for (const f of formats) expect(html).not.toContain(`href="/formats/${f.id}"`);
     expect(texte(html)).not.toContain("Essai");
   });
-  it("« Mes vidéos » reste allumé sur les écrans de création et les fiches de format", () => {
+  it("« Vidéos » reste allumé sur les écrans de création et les fiches de format", () => {
     for (const chemin of ["/formats", "/formats/avocat", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee"]) expect(estActif(chemin, mesVideos)).toBe(true);
     expect(estActif("/carrousels", mesVideos)).toBe(false);
   });

@@ -80,7 +80,7 @@ export function OngletRetouches({
                 onClick={() => basculer(p.id)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-2xl border p-2 pr-3 text-left transition-colors disabled:opacity-50",
-                  choisi ? "border-orange bg-orange-doux" : "border-trait bg-surface-1 hover:border-trait-fort",
+                  choisi ? "border-accent bg-accent-doux" : "border-trait bg-surface-1 hover:border-trait-fort",
                 )}
               >
                 <span className="relative aspect-[9/16] w-11 shrink-0 overflow-hidden rounded-lg bg-surface-2">
@@ -93,8 +93,8 @@ export function OngletRetouches({
                   </span>
                   <span className="line-clamp-2 text-sm text-texte">{p.texte}</span>
                 </span>
-                {p.verrouille && <Icone nom="cadenas" size={14} className="shrink-0 text-orange-vif" aria-label="Choix verrouillé" />}
-                <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border-2", choisi ? "border-orange bg-orange text-sur-orange" : "border-trait-fort")}>
+                {p.verrouille && <Icone nom="cadenas" size={14} className="shrink-0 text-accent" aria-label="Choix verrouillé" />}
+                <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border-2", choisi ? "border-accent bg-accent text-sur-accent" : "border-trait-fort")}>
                   {choisi && <Icone nom="coche" size={13} strokeWidth={3} />}
                 </span>
               </button>
@@ -114,7 +114,7 @@ export function OngletRetouches({
                 onClick={() => setConsigne(t)}
                 className={cn(
                   "min-h-11 shrink-0 rounded-full border px-3.5 text-sm font-semibold transition-colors",
-                  consigne === t ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-2 text-texte-doux hover:text-texte",
+                  consigne === t ? "border-accent bg-accent-doux text-accent" : "border-trait bg-surface-2 text-texte-doux hover:text-texte",
                 )}
               >
                 {t}

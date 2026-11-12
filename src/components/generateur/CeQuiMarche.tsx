@@ -8,6 +8,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
+import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import { INDICATEURS, ordinal, type Axe, type RangVideo, type VideoProche } from "@/domaine/mesures-rangs";
 import type { ReseauDeclinaison } from "@/domaine/types";
@@ -51,7 +52,7 @@ export function CeQuiMarche({ donnees, essai, apprentissage }: { donnees: Donnee
           <span className="grid size-14 place-items-center rounded-2xl bg-surface-2 text-texte-doux">
             <Icone nom="tendance" size={26} />
           </span>
-          <p className="font-titre text-xl text-texte">Pas encore de rangs</p>
+          <h2 className="font-titre text-xl text-texte">Pas encore de rangs</h2>
           <p className="text-sm text-texte-doux">Ils arrivent avec les premières mesures.</p>
         </Carte>
       ) : (
@@ -66,7 +67,7 @@ export function CeQuiMarche({ donnees, essai, apprentissage }: { donnees: Donnee
                   role="tab"
                   aria-selected={r === reseau}
                   onClick={() => setReseau(r)}
-                  className={cn("grid min-h-11 min-w-11 place-items-center rounded-2xl border-2 p-0.5 transition-colors", r === reseau ? "border-orange" : "border-transparent opacity-60 hover:opacity-100")}
+                  className={cn("grid min-h-11 min-w-11 place-items-center rounded-2xl border-2 p-0.5 transition-colors", r === reseau ? "border-texte" : "border-transparent opacity-60 hover:opacity-100")}
                 >
                   <LogoReseau reseau={r} />
                 </button>
@@ -130,7 +131,7 @@ export function CeQuiMarche({ donnees, essai, apprentissage }: { donnees: Donnee
 
 function Titre({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <h2 id={id} className="mb-2 font-texte text-xs font-bold uppercase tracking-wider text-texte-faible">
+    <h2 id={id} className="mb-2 text-lg text-texte">
       {children}
     </h2>
   );
@@ -263,7 +264,7 @@ function MettreAJour({ essai, exemples }: { essai: boolean; exemples: boolean })
       <Bouton variante="secondaire" icone="actualiser" essai={essai} chargement={enCours} onClick={lancer} className="flex-1">
         Mettre à jour
       </Bouton>
-      {exemples && <span className="shrink-0 rounded-full bg-ambre-doux px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-ambre">Exemples</span>}
+      {exemples && <Pastille ton="ambre">Exemples</Pastille>}
     </div>
   );
 }

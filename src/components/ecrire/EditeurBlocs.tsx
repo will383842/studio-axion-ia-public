@@ -53,7 +53,7 @@ export function TexteEnValeur({ texte, mots }: { texte: string; mots?: string[] 
     <>
       {morceaux.map((m, i) =>
         liste.some((x) => x.toLowerCase() === m.toLowerCase()) ? (
-          <mark key={i} className="rounded bg-transparent font-bold text-orange-vif">
+          <mark key={i} className="rounded bg-transparent font-bold text-accent">
             {m}
           </mark>
         ) : (
@@ -139,7 +139,7 @@ export function EditeurBlocs({
                 className={cn(
                   "relative overflow-hidden rounded-carte border border-trait border-l-4 bg-surface-1 transition-shadow duration-500",
                   BORDURES_BLOC[couleur],
-                  eclat === bloc.id && "shadow-orange",
+                  eclat === bloc.id && "ring-2 ring-accent",
                 )}
               >
                 <div className="flex items-center gap-2 px-4 pt-3">
@@ -171,7 +171,7 @@ export function EditeurBlocs({
                               key={i}
                               className={cn(
                                 "inline-flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px] font-medium",
-                                a.accent ? "bg-orange-doux text-orange-vif" : "bg-surface-2 text-texte-faible",
+                                a.accent ? "bg-accent-doux text-accent" : "bg-surface-2 text-texte-faible",
                               )}
                             >
                               <Icone nom={a.icone} size={11} className="shrink-0" />
@@ -195,7 +195,7 @@ export function EditeurBlocs({
                           onClick={() => void lancer(bloc, c.cle)}
                           className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-texte-doux transition-colors hover:bg-surface-2 hover:text-texte disabled:opacity-50"
                         >
-                          <Icone nom={actif ? "chargement" : c.icone} size={14} className={actif ? "animate-spin text-orange-vif" : "text-orange-vif"} />
+                          <Icone nom={actif ? "chargement" : c.icone} size={14} className={actif ? "animate-spin text-accent" : "text-accent"} />
                           {c.libelle}
                         </button>
                       );
@@ -256,7 +256,7 @@ function PhraseModifiable({ texte, mots, lectureSeule, placeholder, onChange }: 
         aria-label="Phrase"
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => texte.trim() && setEdition(false)}
-        className="block w-full resize-none rounded-xl bg-surface-2 px-3 py-2 text-[16px] leading-relaxed text-texte outline-none ring-1 ring-orange placeholder:text-texte-faible"
+        className="block w-full resize-none rounded-xl bg-surface-2 px-3 py-2 text-[16px] leading-relaxed text-texte outline-none ring-1 ring-accent placeholder:text-texte-faible"
       />
     );
   }

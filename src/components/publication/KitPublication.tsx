@@ -43,10 +43,10 @@ const saisieDe = (r: VueKitReseau): Saisie => ({ texte: r.texte, mots: r.motsDie
 export const cleSaisie = (s: Saisie) => `${s.texte}\u0000${s.mots.join(" ")}\u0000${s.titre}`;
 
 /** Lot R2 : d'où vient le texte, en clair. Rien n'est affiché pour un texte d'origine inconnue (ancienne retouche). */
-const ORIGINES: Record<NonNullable<VueKitReseau["origine"]>, { libelle: string; ton: "sauge" | "neutre" | "orange" }> = {
+const ORIGINES: Record<NonNullable<VueKitReseau["origine"]>, { libelle: string; ton: "sauge" | "neutre" | "encre" }> = {
   claude: { libelle: "Écrit par Claude", ton: "sauge" },
   essai: { libelle: "Texte d'essai", ton: "neutre" },
-  main: { libelle: "Retouché par vous", ton: "orange" },
+  main: { libelle: "Retouché par vous", ton: "encre" },
   version: { libelle: "Texte de la version", ton: "neutre" },
 };
 
@@ -98,7 +98,7 @@ export function KitPublication() {
               onClick={() => ouvrir(r.cle)}
               className="group relative flex min-h-24 w-full flex-col justify-between gap-2 rounded-carte border border-trait bg-surface-1 p-3 text-left transition-[border-color,background-color,transform] duration-200 ease-studio hover:-translate-y-0.5 hover:border-trait-fort hover:bg-surface-2"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-orange-doux text-orange-vif transition-transform group-hover:scale-105">
+              <span className="grid size-9 place-items-center rounded-xl bg-accent-doux text-accent transition-transform group-hover:scale-105">
                 <Icone nom={r.icone} size={18} />
               </span>
               <span>
@@ -145,11 +145,11 @@ export function KitPublication() {
               onClick={() => setReseau(r.reseau)}
               className={cn(
                 "relative flex min-h-12 shrink-0 items-center gap-2 rounded-full border py-1 pl-1.5 pr-4 text-sm font-semibold transition-colors",
-                actif ? "border-orange bg-orange-doux text-texte" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
+                actif ? "border-accent bg-accent-doux text-texte" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort hover:text-texte",
                 grise && "opacity-45",
               )}
             >
-              <LogoReseau reseau={r.reseau} taille="md" className={cn(actif && "border-orange")} />
+              <LogoReseau reseau={r.reseau} taille="md" className={cn(actif && "border-accent")} />
               {r.nom}
               {alerte && (
                 <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-ambre">
@@ -310,7 +310,7 @@ function EditeurReseau({ r, credits }: { r: VueKitReseau; credits: string[] }) {
 
       {entete && (
         <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-texte">
-          <Icone nom="calques" size={15} className="shrink-0 text-orange-vif" />
+          <Icone nom="calques" size={15} className="shrink-0 text-accent" />
           <span className="truncate">{entete}</span>
           <span className="ml-auto shrink-0 text-xs font-medium text-texte-faible">en tête</span>
         </p>
@@ -332,7 +332,7 @@ function EditeurReseau({ r, credits }: { r: VueKitReseau; credits: string[] }) {
                 type="button"
                 onClick={() => setMots((l) => l.filter((x) => x !== m))}
                 aria-label={`Retirer ${m}`}
-                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-orange/30 bg-orange-doux pl-3 pr-2 text-sm font-semibold text-orange-vif transition-colors hover:border-brique/40 hover:bg-brique-doux hover:text-brique"
+                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-accent/30 bg-accent-doux pl-3 pr-2 text-sm font-semibold text-accent transition-colors hover:border-brique/40 hover:bg-brique-doux hover:text-brique"
               >
                 {m}
                 <Icone nom="fermer" size={13} />
@@ -345,7 +345,7 @@ function EditeurReseau({ r, credits }: { r: VueKitReseau; credits: string[] }) {
                 e.preventDefault();
                 ajouterMot();
               }}
-              className="flex min-h-11 items-center rounded-full border border-dashed border-trait-fort pl-3 pr-1 focus-within:border-orange"
+              className="flex min-h-11 items-center rounded-full border border-dashed border-trait-fort pl-3 pr-1 focus-within:border-accent"
             >
               <span className="text-sm text-texte-faible">#</span>
               <label className="sr-only" htmlFor={`mot-${r.reseau}`}>
@@ -358,7 +358,7 @@ function EditeurReseau({ r, credits }: { r: VueKitReseau; credits: string[] }) {
                 placeholder="ajouter"
                 className="min-h-11 w-20 bg-transparent text-sm text-texte outline-none placeholder:text-texte-faible"
               />
-              <button type="submit" aria-label="Ajouter" className="grid size-11 place-items-center rounded-full text-texte-doux hover:text-orange-vif">
+              <button type="submit" aria-label="Ajouter" className="grid size-11 place-items-center rounded-full text-texte-doux hover:text-accent">
                 <Icone nom="plus" size={15} />
               </button>
             </form>
