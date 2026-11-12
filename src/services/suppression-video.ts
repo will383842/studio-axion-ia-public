@@ -82,6 +82,7 @@ export const TRAITEMENT_SUPPRESSION: Record<keyof Depots, Traitement> = {
   // Créneaux du plan éditorial (CORRECTIF STK-01) : un créneau ni publié ni archivé reste, sans la vidéo (détaché) ; un créneau publié
   // ou archivé garde son lien vidéo (historique du plan, comme les publications publiées).
   creneauxEditoriaux: "detache",
+  // Journal des décalages : ajout seul, ne cite que l'identifiant d'un créneau, jamais celui d'une vidéo : il reste.
   journalDecalages: "sans-lien",
   variantes: "detache",
   preuves: "sans-lien",
@@ -100,8 +101,6 @@ export const TRAITEMENT_SUPPRESSION: Record<keyof Depots, Traitement> = {
   visuels: "sans-lien",
   // Les envois déjà partis restent (comme les publications publiées) ; les autres partent avec la vidéo.
   envoisPlanifies: "garde-publiees",
-  // Journal des décalages : ajout seul, ne cite que l'identifiant d'un créneau, jamais celui d'une vidéo : il reste.
-  journalDecalages: "sans-lien",
 };
 
 /** Phrase de l'entrée d'un lot d'images dont la vidéo a été supprimée (la même que `PHRASES_LOT_IV.supprimee`). */
