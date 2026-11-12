@@ -54,7 +54,8 @@ export function motifVersRegex(motif) {
   }
   return new RegExp(`^${r}$`);
 }
-const REGEX_INTERDITS = INTERDITS.map(motifVersRegex);
+// Un motif interdit couvre aussi ce qui se trouve SOUS un dossier qu'il nomme (src/fournisseurs/zernio/a.ts).
+const REGEX_INTERDITS = INTERDITS.map((m) => new RegExp(`${motifVersRegex(m).source.slice(0, -1)}(?:/.*)?$`));
 const REGEX_PARTAGES = PARTAGES.map(motifVersRegex);
 // Seuls fichiers qu'une PR sans fiche peut toucher : publier les listes et les annonces.
 const PUBLICATION_LISTES = ["pilotage/autorises/**", "pilotage/annonces/**"].map(motifVersRegex);
@@ -95,9 +96,23 @@ const clean = (liste) => (Array.isArray(liste) ? liste.map(sansMention).filter(B
 /**
  * `fiches` : [{ id, autorises, accords }] (une PR « lot » peut en porter plusieurs). Ancienne forme : `fiche` + `autorises`
  * (+ `accords` global). Un fichier autorisé par UNE des fiches suffit ; l'accord ne vaut que pour la fiche qui le porte.
+ * Une fiche sans liste donne un avertissement (pas un rouge) : le relecteur contrôle alors ses fichiers.
+ * `branche` : zernio/* est dispensée de la liste interdite ; usine/LOT-* sans fiche est rouge ; toute autre branche sans
+ * fiche n'a que les contrôles de zone.
+ * @param {object} [entree]
+ * @param {string[]} [entree.fichiers]
+ * @param {string[]|null} [entree.autorises]
+ * @param {string|null} [entree.fiche]
+ * @param {{id:string,autorises:string[]|null,accords?:string[]}[]|null} [entree.fiches]
+ * @param {{nom:string,contenu:string}[]} [entree.annonces]
+ * @param {string[]} [entree.accords]
+ * @param {string} [entree.branche]
  */
-export function controler({ fichiers = [], autorises = null, fiche = null, fiches = null, annonces = [], accords = [] } = {}) {
+export function controler({ fichiers = [], autorises = null, fiche = null, fiches = null, annonces = [], accords = [], branche = "" } = {}) {
   const defauts = [];
+  const avertissements = [];
+  const deZernio = /^zernio\//.test(String(branche ?? ""));
+  const lot = /^usine\/LOT-/.test(String(branche ?? ""));
   const globaux = (accords ?? []).map((a) => String(a).trim().toUpperCase());
   const entrees = (fiches ?? (fiche ? [{ id: fiche, autorises }] : [])).map((e) => ({
     id: e.id,
@@ -113,24 +128,27 @@ export function controler({ fichiers = [], autorises = null, fiche = null, fiche
     const f = normaliser(brut);
     if (!f) continue;
     const zone = classer(f);
-    if (zone === "interdit") {
+    if (zone === "interdit" && deZernio) {
+      // branche zernio/* : c'est leur zone, la liste interdite ne s'applique pas
+    } else if (zone === "interdit") {
       const exception = COUVERTS_PAR_ACCORD.some((r) => r.test(f)) && sains.some((e) => e.accords.includes(ACCORD) && dans(e, f));
       if (!exception) defauts.push({ regle: "zone-interdite", fichier: f, detail: "zone de l'autre poste : interdite sans exception" });
     } else if (zone === "partage" && !sains.some((e) => annonceLibre(annonces, e.id))) {
       defauts.push({ regle: "zone-partagee", fichier: f, detail: `zone partagée : il faut ANNONCE-${sains[0]?.id ?? "<fiche>"}-*.md avec le mot « libre »` });
     }
     if (!sains.length) {
+      if (!lot) continue;
       if (f.split("/").includes("..") || !PUBLICATION_LISTES.some((r) => r.test(f))) defauts.push({ regle: "sans-fiche", fichier: f, detail: "aucune fiche identifiée (branche usine/<ID> ou ligne « Fiche: <ID> »)" });
     } else {
       const sansListe = sains.filter((e) => !e.liste);
       if (sansListe.length) {
-        for (const e of sansListe) if (!defauts.some((d) => d.regle === "liste-introuvable" && d.detail.includes(e.id))) defauts.push({ regle: "liste-introuvable", fichier: f, detail: `fichiers autorisés de ${e.id} introuvables (pilotage/autorises/${e.id}.json sur la base)` });
+        for (const e of sansListe) if (!avertissements.some((d) => d.detail.includes(e.id))) avertissements.push({ regle: "avertissement-liste", fichier: f, detail: `fichiers autorisés de ${e.id} introuvables (pilotage/autorises/${e.id}.json sur la base) : le relecteur contrôle ces fichiers` });
       } else if (!sains.some((e) => f === `pilotage/journal/${e.id}.md` || dans(e, f))) {
         defauts.push({ regle: "hors-fiche", fichier: f, detail: `hors des fichiers autorisés de ${sains.map((e) => e.id).join(", ")}` });
       }
     }
   }
-  return { ok: defauts.length === 0, defauts };
+  return { ok: defauts.length === 0, defauts, avertissements };
 }
 
 // --- ligne de commande -----------------------------------------------------------------------------------------
@@ -166,6 +184,21 @@ export function fichesDuCorps(texte) {
   return [...String(texte ?? "").matchAll(/^\s*Fiche\s*:\s*(\S+)\s*$/gim)].map((m) => m[1]);
 }
 
+/**
+ * Fiches d'une PR : la branche usine/<ID> (suffixe -propre retiré ; usine/LOT-* n'est pas une fiche) plus les lignes
+ * « Fiche: <ID> » du corps.
+ * @param {string} branche
+ * @param {string} corps
+ * @returns {string[]}
+ */
+export function fichesDeLaPR(branche, corps) {
+  const ids = new Set();
+  const deBranche = /^usine\/(?!LOT-)(.+?)(?:-propre)?$/.exec(String(branche ?? ""))?.[1];
+  if (deBranche) ids.add(deBranche);
+  for (const i of fichesDuCorps(corps)) ids.add(i);
+  return [...ids];
+}
+
 function lireAnnonces(dossier) {
   if (!dossier || !fs.existsSync(dossier)) return [];
   return fs.readdirSync(dossier).filter((n) => /^ANNONCE-.+\.md$/.test(n))
@@ -174,12 +207,8 @@ function lireAnnonces(dossier) {
 
 export function main(argv = process.argv.slice(2)) {
   const branche = option(argv, "--branche") ?? process.env.GITHUB_HEAD_REF ?? "";
-  const ids = new Set();
-  // Une branche « propre » (refaite sans historique fautif) porte le suffixe -propre : la fiche est celle d'avant.
-  const deBranche = /^usine\/(.+?)(?:-propre)?$/.exec(branche)?.[1];
-  if (deBranche) ids.add(deBranche);
   const corps = option(argv, "--corps");
-  if (corps && fs.existsSync(corps)) for (const i of fichesDuCorps(fs.readFileSync(corps, "utf8"))) ids.add(i);
+  const ids = new Set(fichesDeLaPR(branche, corps && fs.existsSync(corps) ? fs.readFileSync(corps, "utf8") : ""));
   for (const i of (option(argv, "--fiches") ?? "").split(",").filter(Boolean)) ids.add(i);
   const fiches = [...ids].map((id) => (ID_FICHE.test(id) ? lireFiche(argv, id, ids.size === 1) : { id, autorises: null, accords: [] }));
   let fichiers;
@@ -191,8 +220,9 @@ export function main(argv = process.argv.slice(2)) {
     fichiers = execFileSync("git", ["diff", "--name-only", "--no-renames", `${base}...HEAD`], { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
   }
   const accords = (option(argv, "--accords") ?? process.env.ZONE_ACCORDS ?? "").split(",").filter(Boolean);
-  const res = controler({ fichiers, fiches, annonces: lireAnnonces(option(argv, "--annonces")), accords });
+  const res = controler({ fichiers, fiches, annonces: lireAnnonces(option(argv, "--annonces")), accords, branche });
   console.log(`${fichiers.length} fichier(s) contrôlé(s)${fiches.length ? ` pour ${fiches.length > 1 ? "les fiches" : "la fiche"} ${fiches.map((e) => e.id).join(", ")}` : ""}`);
+  for (const d of res.avertissements) console.log(`AVERTISSEMENT [${d.regle}] ${d.fichier} : ${d.detail}`);
   for (const d of res.defauts) console.log(`ROUGE [${d.regle}] ${d.fichier} : ${d.detail}`);
   if (res.ok) console.log("vert : zone et fichiers autorisés respectés");
   return res.ok ? 0 : 1;

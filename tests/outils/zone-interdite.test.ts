@@ -138,19 +138,22 @@ describe("fichiers autorisés de la fiche", () => {
     expect(regles(r)).toContain("joker-refuse");
     expect(regles(controler({ fichiers: ["src/n-importe.ts"], autorises: ["**"], fiche: "L9-99" }))).toContain("joker-refuse");
   });
-  it("rouge si la fiche est connue mais sa liste introuvable", () => {
-    expect(regles(controler({ fichiers: ["src/a.ts"], fiche: "X-1" }))).toContain("liste-introuvable");
+  it("fiche connue mais liste introuvable : avertissement, pas de rouge (correctif 12/11)", () => {
+    const r = controler({ fichiers: ["src/a.ts"], fiche: "X-1" });
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.map((d: Defaut) => d.regle)).toContain("avertissement-liste");
   });
-  it("sans fiche identifiée : rouge « sans-fiche » (relecture v1-u3, constat 4)", () => {
-    expect(regles(controler({ fichiers: ["src/a.ts"] }))).toContain("sans-fiche");
+  it("lot sans fiche identifiée : rouge « sans-fiche » (relecture v1-u3, constat 4)", () => {
+    expect(regles(controler({ fichiers: ["src/a.ts"], branche: "usine/LOT-1" }))).toContain("sans-fiche");
   });
-  it("sans fiche : exception limitée à pilotage/autorises/** et pilotage/annonces/**", () => {
-    expect(controler({ fichiers: ["pilotage/autorises/X-1.json", "pilotage/annonces/ANNONCE-X-1-a.md"] }).ok).toBe(true);
-    expect(regles(controler({ fichiers: ["pilotage/autorises/X-1.json", "src/a.ts"] }))).toEqual(["sans-fiche"]);
-    expect(regles(controler({ fichiers: ["pilotage/autorises/../../src/a.ts"] }))).toContain("sans-fiche");
+  it("lot sans fiche : exception limitée à pilotage/autorises/** et pilotage/annonces/**", () => {
+    const lot = "usine/LOT-1";
+    expect(controler({ fichiers: ["pilotage/autorises/X-1.json", "pilotage/annonces/ANNONCE-X-1-a.md"], branche: lot }).ok).toBe(true);
+    expect(regles(controler({ fichiers: ["pilotage/autorises/X-1.json", "src/a.ts"], branche: lot }))).toEqual(["sans-fiche"]);
+    expect(regles(controler({ fichiers: ["pilotage/autorises/../../src/a.ts"], branche: lot }))).toContain("sans-fiche");
   });
-  it("sans fiche : la zone interdite reste rouge en plus", () => {
-    expect(regles(controler({ fichiers: ["tests/zernio/a.test.ts"] }))).toEqual(expect.arrayContaining(["zone-interdite", "sans-fiche"]));
+  it("lot sans fiche : la zone interdite reste rouge en plus", () => {
+    expect(regles(controler({ fichiers: ["tests/zernio/a.test.ts"], branche: "usine/LOT-1" }))).toEqual(expect.arrayContaining(["zone-interdite", "sans-fiche"]));
   });
   it("aucun fichier changé : vert", () => {
     expect(controler({ fichiers: [] }).ok).toBe(true);
@@ -206,9 +209,11 @@ describe("ligne de commande (dépôt git temporaire fictif)", () => {
     expect(r.code).toBe(1);
     expect(r.out).toContain("src/b.ts");
   });
-  it("sort 1 si la branche est d'une fiche sans liste", () => {
+  it("sort 0 avec un avertissement si la branche est d'une fiche sans liste (correctif 12/11)", () => {
     const d = depot({ "src/a.ts": "1" });
-    expect(lancer(d, ["--base", "master", "--branche", "usine/X-1"]).code).toBe(1);
+    const r = lancer(d, ["--base", "master", "--branche", "usine/X-1"]);
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("avertissement-liste");
   });
   it("liste de fichiers fournie, annonce et accord par options", () => {
     const d = depot({ "src/components/ui/B.tsx": "1" });
@@ -326,25 +331,25 @@ describe("relecture v1-s2 : fichiers autorisés, annonces et accords lisibles da
     expect(r.out).not.toContain("src/a.ts :");
     expect(r.out).not.toContain("src/b.ts :");
   });
-  it("PR sans aucune ligne « Fiche: » ni branche usine/<ID> : rouge (relecture v1-u3, constat 4)", () => {
-    const d = monde("correctif-x", {}, { "src/services/n-importe.ts": "1", "src/app/page.tsx": "1" });
+  it("lot sans aucune ligne « Fiche: » : rouge (relecture v1-u3, constat 4)", () => {
+    const d = monde("usine/LOT-x", {}, { "src/services/n-importe.ts": "1", "src/app/page.tsx": "1" });
     const corps = path.join(d, "corps.txt"); fs.writeFileSync(corps, "rien");
-    const r = lancer(d, [...opts(d), "--branche", "correctif-x", "--corps", corps]);
+    const r = lancer(d, [...opts(d), "--branche", "usine/LOT-x", "--corps", corps]);
     expect(r.code, r.out).toBe(1);
     expect(r.out).toContain("sans-fiche");
   });
   it("PR sans fiche qui ne publie que des listes et des annonces : verte", () => {
-    const d = monde("publier-listes", {}, { "pilotage/autorises/X-1.json": "[]", "pilotage/annonces/ANNONCE-X-1-a.md": "libre" });
-    expect(lancer(d, [...opts(d), "--branche", "publier-listes"]).code).toBe(0);
+    const d = monde("usine/LOT-publier", {}, { "pilotage/autorises/X-1.json": "[]", "pilotage/annonces/ANNONCE-X-1-a.md": "libre" });
+    expect(lancer(d, [...opts(d), "--branche", "usine/LOT-publier"]).code).toBe(0);
   });
-  it("une PR ne s'autorise pas elle-même : liste absente de la base, fiche de la tête ignorée (constat 2)", () => {
+  it("une PR ne s'autorise pas elle-même : liste absente de la base, fiche de la tête ignorée, avertissement (constat 2)", () => {
     const d = monde("usine/L9-99", {}, {
       "src/services/n-importe.ts": "1",
       "pilotage/fiches/L9-99.md": '---\nid: L9-99\nfichiers_autorises: ["**"]\n---\n',
     });
     const r = lancer(d, [...opts(d), "--branche", "usine/L9-99"]);
-    expect(r.code, r.out).toBe(1);
-    expect(r.out).toContain("liste-introuvable");
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).toContain("avertissement-liste");
   });
   it("le mode --differentiel est dans la garde (aucun fichier hors liste de la fiche)", () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), "diff-"));
@@ -448,5 +453,51 @@ describe("correction après relecture opus-v1-y1", () => {
     expect(lancer(d, ["--tsconfig-build", f]).code).toBe(0);
     expect(JSON.parse(fs.readFileSync(f, "utf8")).include).not.toContain("**/*.ts");
     expect(lancer(d, ["--tsconfig-build", path.join(d, "absent.json")]).code).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Correctif du 12/11 (10 h 45) : fiches du corps, lot, avertissement de liste, branches zernio/*.
+// ---------------------------------------------------------------------------------------------------------------
+describe("correctif 12/11 : fichesDeLaPR et branches", () => {
+  const charger = async () => (await import("../../outils/gardes/zone-interdite.mjs")) as unknown as {
+    fichesDeLaPR: (branche: string, corps: string) => string[];
+  };
+  const a = ["src/a.ts"];
+  const b = ["src/b.ts"];
+  it("LOT + 2 lignes « Fiche: » donne [A,B]", async () => {
+    const { fichesDeLaPR } = await charger();
+    expect(fichesDeLaPR("usine/LOT-NUIT-1", "Lot.\nFiche: A\nFiche : B\n")).toEqual(["A", "B"]);
+  });
+  it("retire le suffixe -propre et ajoute les lignes du corps", async () => {
+    const { fichesDeLaPR } = await charger();
+    expect(fichesDeLaPR("usine/L0-17-propre", "Fiche: B")).toEqual(["L0-17", "B"]);
+    expect(fichesDeLaPR("usine/LOT-X", "")).toEqual([]);
+  });
+  it("liste absente : ok:true plus un avertissement (hors défauts)", () => {
+    const r = controler({ fichiers: ["src/a.ts"], fiches: [{ id: "A", autorises: null }], branche: "usine/A" }) as unknown as { ok: boolean; defauts: Defaut[]; avertissements: Defaut[] };
+    expect(r.ok).toBe(true);
+    expect(r.defauts).toEqual([]);
+    expect(r.avertissements).toContainEqual(expect.objectContaining({ regle: "avertissement-liste" }));
+  });
+  it("deux listes présentes : un fichier hors de leur union est rouge", () => {
+    const r = controler({ fichiers: ["src/a.ts", "src/b.ts", "src/c.ts"], fiches: [{ id: "A", autorises: a }, { id: "B", autorises: b }], branche: "usine/LOT-1" });
+    expect(r.ok).toBe(false);
+    expect(r.defauts).toEqual([expect.objectContaining({ regle: "hors-fiche", fichier: "src/c.ts" })]);
+  });
+  it("LOT sans ligne « Fiche: » est rouge", () => {
+    const r = controler({ fichiers: ["src/a.ts"], fiches: [], branche: "usine/LOT-1" });
+    expect(regles(r)).toContain("sans-fiche");
+  });
+  it("autre branche sans fiche : seulement les contrôles de zone", () => {
+    expect(controler({ fichiers: ["src/a.ts"], branche: "correctif-x" }).ok).toBe(true);
+    expect(controler({ fichiers: ["tests/zernio/a.test.ts"], branche: "correctif-x" }).ok).toBe(false);
+  });
+  it("zernio/x qui touche src/fournisseurs/zernio/a.ts est vert", () => {
+    expect(controler({ fichiers: ["src/fournisseurs/zernio/a.ts"], branche: "zernio/x" }).ok).toBe(true);
+  });
+  it("usine/X qui touche le même fichier est rouge", () => {
+    const r = controler({ fichiers: ["src/fournisseurs/zernio/a.ts"], fiches: [{ id: "X", autorises: ["src/fournisseurs/zernio/a.ts"] }], branche: "usine/X" });
+    expect(regles(r)).toContain("zone-interdite");
   });
 });
