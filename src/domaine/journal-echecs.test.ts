@@ -97,4 +97,20 @@ describe("compterEchecs (pur)", () => {
     const b = compterEchecs([], MAINTENANT);
     expect(b.jours30).toEqual({ total: 0, attentes: 0, parFamille: {}, parGenerateur: {}, parEtape: {}, parCode: {} });
   });
+
+  it("nettoyage : un montant d'argent est masqué", () => {
+    const m = "[montant masqué]";
+    expect(nettoyerDetail("insufficient balance: 12.50 USD")).toBe(`insufficient balance: ${m}`);
+    expect(nettoyerDetail("solde 3,20 €")).toBe(`solde ${m}`);
+    expect(nettoyerDetail("$5")).toBe(m);
+    expect(nettoyerDetail("40 crédits restants")).toBe(`${m} restants`);
+    expect(nettoyerDetail("reste 7 credits")).toBe(`reste ${m}`);
+    expect(nettoyerDetail("€ 8,5 et USD 3 et 2 euros et 9 dollars et 4GBP et £1.20")).toBe(`${m} et ${m} et ${m} et ${m} et ${m} et ${m}`);
+  });
+
+  it("nettoyage : les nombres sans devise restent", () => {
+    expect(nettoyerDetail("HTTP 429")).toBe("HTTP 429");
+    expect(nettoyerDetail("82,667 s")).toBe("82,667 s");
+    expect(nettoyerDetail("étape 3/7")).toBe("étape 3/7");
+  });
 });
