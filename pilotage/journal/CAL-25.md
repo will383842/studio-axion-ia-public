@@ -15,3 +15,12 @@ contrôle anti-fuite : vide
 - Reste : l'enregistrement serveur (enregistrerDepot) n'est branché à aucune action (hors fichiers autorisés) : PILOTAGE.
 - master fusionné. Tests (calendrier, calendrier-*, visuels, relais, médiathèque) : 1906 passés, 0 échoué. tsc : 147 erreurs, comme master (0 nouvelle). Aucune couleur ajoutée.
 contrôle anti-fuite : vide
+
+## Corrections après relecture (x1, 12/11/2026)
+- [bloquant] Ajout manuel sans fichier : TypeError (null.envoi), ajouterEntree jamais appelé. Corrigé (AjouterEntree.tsx : le cache d'envoi n'est lu que si un fichier est choisi). Test en tableau tests/calendrier/cal-25-formulaire.test.tsx, rouge d'abord (TypeError relevé), vert ensuite : sans fichier, bon format, format refusé, envoi en échec, dépôt sur entrée validée (revient à « a_valider »).
+- [à corriger] Envoi du fichier en échec : l'entrée est maintenant créée sans fichier, phrase « le fichier n'a pas été envoyé (connexion) : … à joindre ensuite ». Corrigé (DepotMedia.tsx, ancien test « envoi en échec » réécrit).
+- [remarque] Format refusé : le message de succès dit maintenant que le fichier n'a pas été envoyé et pourquoi. Corrigé, testé.
+- [remarque] Ancien fichier d'une entrée « programme » non retiré chez le diffuseur : reporté, PILOTAGE (diffuseur hors liste).
+- Fichier de test ajouté hors liste, nécessaire à l'avis : tests/calendrier/cal-25-formulaire.test.tsx. Master fusionné. Aucune couleur ajoutée.
+- Tests (calendrier, calendrier-ajout-manuel, rc-32, couleurs) : 463 passés, 0 échoué. tsc : 147 erreurs, aucune nouvelle (master : 149 sur le même arbre).
+contrôle anti-fuite : vide

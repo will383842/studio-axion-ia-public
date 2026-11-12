@@ -222,12 +222,13 @@ describe("formulaire : le fichier choisi est réellement envoyé", () => {
     const envoyer = vi.fn(async () => ({ fichierId: "fAbc", simulation: false }));
     const r = await envoyerFichierChoisi(fichier("a.pdf", "application/pdf"), "instagram", "manuel-k1", envoyer as never);
     expect(envoyer).not.toHaveBeenCalled();
-    expect(r).toMatchObject({ ok: true, refuse: expect.stringMatching(/Instagram/) });
+    expect(r).toMatchObject({ ok: true, refuse: expect.stringMatching(/Instagram/), nonEnvoye: expect.stringMatching(/n'a pas été envoyé/) });
   });
-  it("envoi en échec : l'ajout n'a pas lieu avec un faux fichier, message clair", async () => {
+  it("envoi en échec : l'ajout continue sans fichier, avec une phrase claire", async () => {
     const envoyer = vi.fn(async () => { throw new Error("hors ligne"); });
     const r = await envoyerFichierChoisi(fichier("a.mp4", "video/mp4"), "linkedin", "manuel-k1", envoyer as never);
-    expect(r).toMatchObject({ ok: false, message: expect.stringMatching(/pas pu être envoyé/) });
+    expect(r).toMatchObject({ ok: true, nonEnvoye: expect.stringMatching(/à joindre ensuite/) });
+    expect(r).not.toHaveProperty("videoId");
   });
   it("aucun fichier choisi : rien n'est envoyé", async () => {
     const envoyer = vi.fn();
