@@ -13,6 +13,8 @@ import { LIBELLES_MOTIF_RETRAIT, LIBELLES_TYPE_PREUVE, matieresDeLaPreuve, preuv
 import { peremptionParDefaut } from "@/domaine/preuves";
 import { preuveParDefaut, proposerANePasDire, sansFaitAjoute, type PropositionANePasDire, type SaisiePreuve } from "@/domaine/preuves-saisie";
 import { nouvelId } from "@/lib/ids";
+import { cleJour } from "@/lib/dates";
+import { baseSiteValide, construireAdresseRecherche, masquerMontants, validerFait } from "@/domaine/kb-site";
 import { exigerSession } from "./auth";
 import { appliquerRetrait, type ImpactRetrait, type MotifRetrait } from "./matieres";
 import { depots, ErreurStudio, filtreExemples, horodatage, journaliser, maintenant } from "./_commun";
@@ -127,4 +129,29 @@ export async function listerPreuves(): Promise<VuePreuve[]> {
   return preuves
     .map((p) => ({ preuve: p, disponible: preuveDisponible(p, t), utilisations: utilisationsPreuve(p.id, { maitres, scripts, variantes }) }))
     .sort((a, b) => Number(!!a.preuve.retrait) - Number(!!b.preuve.retrait) || b.preuve.creeLe.localeCompare(a.preuve.creeLe));
+}
+
+/**
+ * KB-02 : un fait trouvé dans la base du site devient une preuve PROPOSÉE (« a-valider », saisie par « machine »).
+ * Elle n'est jamais disponible pour l'écriture (`preuveDisponible` faux) tant que le fondateur ne l'a pas validée :
+ * aucune validation automatique. Le résultat est revalidé ici (il vient de l'écran), et tout montant est masqué.
+ * La source garde le titre, l'adresse de la RECHERCHE (jamais une adresse de fiche inventée) et la date du jour (Paris).
+ * Rejeu : une proposition identique encore en attente est renvoyée, sans doublon.
+ */
+export async function proposerPreuveDepuisSite(fait: unknown, options: { env?: Record<string, string | undefined> } = {}): Promise<{ preuve: Preuve }> {
+  await exigerSession();
+  const hit = validerFait(fait);
+  if (!hit) throw new ErreurStudio("VIDE", "Ce résultat n'est pas utilisable.");
+  const titre = masquerMontants(hit.title).trim();
+  const enonce = masquerMontants(hit.excerpt).trim() || titre;
+  const base = (options.env ?? process.env).SITE_KB_URL;
+  const url = baseSiteValide(base) ? (construireAdresseRecherche(base, hit.title) ?? undefined) : undefined;
+  const existante = (await depots().preuves.lister((p) => p.saisiePar === "machine" && p.statut === "a-valider" && !p.archiveLe && p.enonce === enonce && p.source.titre === titre))[0];
+  if (existante) return { preuve: existante };
+  const le = maintenant();
+  const brouillon = preuveParDefaut({ enonce, source: { titre, url, date: cleJour(le) } }, le);
+  const preuve: Preuve = { ...brouillon, id: nouvelId("preuve"), saisiePar: "machine", statut: "a-valider", valideeLe: undefined, ...horodatage() };
+  await depots().preuves.enregistrer(preuve);
+  await journaliser("preuve", "Preuve proposée depuis la base du site (à valider)", { type: "preuve", id: preuve.id });
+  return { preuve };
 }
