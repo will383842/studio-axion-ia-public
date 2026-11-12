@@ -200,3 +200,60 @@ describe("voie 2 · avancerIllustrations (montage)", () => {
     expect(posts).toBe(1 + 2);
   });
 });
+
+describe("voie 3 · generer et animer du fournisseur inscrit (chemin bloquant)", () => {
+  const quotas = (image: number, clip: number) =>
+    ecrireParametre(pf.CLE_QUOTAS_USINE, [
+      { periode: "jour", reseau: "fal", type: "image", limite: image },
+      { periode: "jour", reseau: "fal", type: "clip", limite: clip },
+    ]);
+  const clip = () => ({
+    genre: "clip" as const,
+    imageUrl: "https://exemple.fr/i.jpg",
+    requete: "slow zoom",
+    dureeSec: 5,
+    ratio: "9:16" as const,
+    cleIdempotence: `c-${++n}`,
+  });
+
+  it("generer, origine « usine », quota image atteint : refus, zéro envoi de plus", async () => {
+    await quotaAtteint();
+    const r = await reel();
+    await pf
+      .avecOrigineFournisseur("usine", () =>
+        r.generer({ requete: "a contract", ratio: "9:16" }),
+      )
+      .catch(() => undefined);
+    expect(posts).toBe(1);
+  });
+
+  it("animer, origine « usine », quota clip atteint : refus, zéro envoi de plus", async () => {
+    await quotas(5, 1);
+    const r = await reel();
+    await pf.avecOrigineFournisseur("usine", () =>
+      r.fabrication!.soumettre(clip()),
+    );
+    expect(posts).toBe(1);
+    await pf
+      .avecOrigineFournisseur("usine", () =>
+        r.animer({ imageCle: "https://exemple.fr/i.jpg", dureeSec: 5 }),
+      )
+      .catch(() => undefined);
+    expect(posts).toBe(1);
+  });
+
+  it("generer et animer, origine du fondateur : jamais bloqués, même quota atteint", async () => {
+    await quotas(1, 1);
+    const r = await reel();
+    await pf.avecOrigineFournisseur("usine", async () => {
+      await r.fabrication!.soumettre(image());
+      await r.fabrication!.soumettre(clip());
+    });
+    expect(posts).toBe(2);
+    await r.generer({ requete: "a contract", ratio: "9:16" }).catch(() => undefined);
+    await r
+      .animer({ imageCle: "https://exemple.fr/i.jpg", dureeSec: 5 })
+      .catch(() => undefined);
+    expect(posts).toBe(4);
+  });
+});
