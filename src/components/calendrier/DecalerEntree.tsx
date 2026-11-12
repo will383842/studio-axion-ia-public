@@ -6,7 +6,7 @@
  * Anti double clic : le bouton se désactive pendant l'envoi et la clé du formulaire reste la même.
  */
 import { useRef, useState } from "react";
-import { decalerEntree, type ResultatDecalage } from "@/app/(studio)/calendrier/actions";
+import { decalerEntree, type ResultatDecalage } from "@/app/(studio)/calendrier/actions/decaler";
 import { AReprogrammer } from "@/components/migration/AReprogrammer";
 import type { PostMigration, Reseau } from "@/components/migration/logique";
 import type { CreneauPlan } from "@/services/plan-editorial";
