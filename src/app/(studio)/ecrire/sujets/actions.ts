@@ -256,11 +256,10 @@ export async function reprendreEcritureArreteeAction(id: string, accord?: number
 export async function planFabricationNAction(id: string, ratiosOption: Ratio[]): Promise<Resultat<{ versions: { varianteId: string; prix: string }[]; total: string; totalCentimes: number; sansDeclinaison: string; avatarParle?: string } | null>> {
   await exigerSession();
   return essayer(async () => {
-    const { phraseAvatarParle } = await import("@/domaine/double-reel");
     const p = await planFabricationSujet(id, { ratiosOption });
     if (!p) return null;
     // Règle du fondateur : aucun montant à l'écran. Les textes de prix restent vides ; les centimes servent seulement au contrôle du serveur.
-    return { versions: p.versions.map((x) => ({ varianteId: x.varianteId, prix: "" })), total: "", totalCentimes: p.total.centimes, sansDeclinaison: "", avatarParle: p.avatarParle ? phraseAvatarParle(p.avatarParle, p.versions.filter((x) => !x.videoId).length) : undefined };
+    return { versions: p.versions.map((x) => ({ varianteId: x.varianteId, prix: "" })), total: "", totalCentimes: p.total.centimes, sansDeclinaison: "", avatarParle: p.avatarParle ? (p.versions.filter((x) => !x.videoId).length > 1 ? "Votre avatar parle dans ces vidéos." : "Votre avatar parle dans cette vidéo.") : undefined };
   });
 }
 
