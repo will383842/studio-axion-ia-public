@@ -89,10 +89,97 @@ describe("(i) nouvelle fabrication sur une vidéo dont l'ancien travail attend",
     expect(await actives(ancien)).toBe(1);
   });
 
-  it("un vrai échec ou un travail d'une autre vidéo n'est pas touché", async () => {
+  it("un travail d'une autre vidéo n'est pas touché, et un vrai échec de la même vidéo non plus", async () => {
     const autre = await mettreEnAttente("v-04");
+    const vrai = await mettreEnAttente("v-03", "IV_CONTROLES");
     await fabrication.lancerFabrication("v-03", { confirme: true });
     expect(await actives(autre)).toBe(1);
+    // Le vrai échec n'avait déjà aucune réservation active (rendue à l'échec) : rien n'est ni créé ni réactivé.
+    expect(await actives(vrai)).toBe(0);
+    expect((await depots().travaux.obtenir(vrai))!.statut).toBe("echec");
+  });
+
+  it("si la création de la fabrication échoue APRÈS la réservation du nouveau, l'ancien garde la sienne", async () => {
+    const ancien = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(ancien))!.cibleId;
+    const avant = await depots().reservations.compter(() => true);
+    vi.spyOn(depots().versions, "enregistrer").mockRejectedValueOnce(new Error("panne d'écriture"));
+    await expect(fabrication.lancerFabrication(video, { confirme: true })).rejects.toBeTruthy();
+    expect(await actives(ancien)).toBe(1);
+    // Le nouveau travail a bien été libéré par le retour arrière : aucune réservation active en trop.
+    expect(await depots().reservations.compter((r) => r.statut === "active")).toBe(1);
+    expect(await depots().reservations.compter(() => true)).toBeGreaterThanOrEqual(avant);
+  });
+
+  it("libération de l'ancien en panne : le lancement du nouveau réussit quand même", async () => {
+    const ancien = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(ancien))!.cibleId;
+    const credits2 = await import("@/services/credits");
+    const vraie = credits2.libererReservation;
+    vi.spyOn(credits2, "libererReservation").mockImplementation(async (id, ...reste) => {
+      if (id === ancien) throw new Error("panne de libération");
+      return vraie(id, ...reste);
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const r = await fabrication.lancerFabrication(video, { confirme: true });
+    expect(r.travailId).toBeTruthy();
+    expect(r.travailId).not.toBe(ancien);
+    expect(await actives(ancien)).toBe(1); // rattrapée plus tard par la suppression ou la corbeille
+  });
+});
+
+describe("(i bis) un retour arrière ne réactive jamais une réservation déjà rendue", () => {
+  it("corbeille puis purge avec l'effacement en panne : 0 réservation active", async () => {
+    const id = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(id))!.cibleId;
+    await corbeille.mettreALaCorbeille([video]);
+    expect(await actives(id)).toBe(0);
+    vi.spyOn(depots().videos, "supprimer").mockRejectedValue(new Error("effacement en panne"));
+    await expect(corbeille.viderCorbeille([video])).rejects.toBeTruthy();
+    expect(await actives(id)).toBe(0);
+  });
+
+  it("ancien travail remplacé puis suppression en panne : 0 réservation active", async () => {
+    const ancien = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(ancien))!.cibleId;
+    const { travailId: nouveau } = await fabrication.lancerFabrication(video, { confirme: true });
+    await depots().travaux.enregistrer({ ...(await depots().travaux.obtenir(nouveau))!, statut: "termine" });
+    await depots().videos.modifier(video, { statut: "brouillon" });
+    expect(await actives(ancien)).toBe(0);
+    vi.spyOn(depots().videos, "supprimer").mockRejectedValue(new Error("effacement en panne"));
+    const { supprimerVideosSansSession } = await import("@/services/videos");
+    await expect(supprimerVideosSansSession([video])).rejects.toThrow("effacement en panne");
+    expect(await actives(ancien)).toBe(0);
+  });
+
+  it("corbeille de nouveau en panne après une première libération : 0 réservation active", async () => {
+    const id = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(id))!.cibleId;
+    await corbeille.mettreALaCorbeille([video]);
+    await corbeille.restaurerDeLaCorbeille([video]);
+    vi.spyOn(depots().videos, "modifier").mockRejectedValueOnce(new Error("écriture en panne"));
+    await expect(corbeille.mettreALaCorbeille([video])).rejects.toBeTruthy();
+    expect(await actives(id)).toBe(0);
+  });
+});
+
+describe("(i ter) reprise d'une attente qui ne doit plus repartir", () => {
+  it("ancien travail remplacé : reprise refusée, une seule réservation active", async () => {
+    const ancien = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(ancien))!.cibleId;
+    const { travailId: nouveau } = await fabrication.lancerFabrication(video, { confirme: true });
+    await depots().reservations.enregistrer({ id: `res-${nouveau}`, fournisseur: "fal", videoId: video, travailId: nouveau, centimes: 120, devise: "USD", statut: "active", ...horodatage() });
+    await expect(travaux.reessayerTravail(ancien)).rejects.toMatchObject({ message: "Ce travail a été remplacé. Rouvrez la page." });
+    expect(await actives(ancien)).toBe(0);
+    expect(await depots().reservations.compter((r) => r.statut === "active" && r.videoId === video)).toBe(1);
+  });
+
+  it("vidéo à la corbeille : reprise refusée, aucune réservation réactivée", async () => {
+    const id = await mettreEnAttente();
+    const video = (await depots().travaux.obtenir(id))!.cibleId;
+    await corbeille.mettreALaCorbeille([video]);
+    await expect(travaux.reessayerTravail(id)).rejects.toMatchObject({ message: "Cette vidéo est dans la corbeille. Restaurez-la d'abord." });
+    expect(await actives(id)).toBe(0);
   });
 });
 
