@@ -1,5 +1,5 @@
 # TESTS DES NOUVEAUX FICHIERS DE TEST : bloquant. Lance les fichiers de test ajoutés ou modifiés par la PR (n'importe quel
-# dossier de tests/, y compris la racine), compare les échecs à scripts/echecs-connus.json (scripts/comparer-echecs.mjs).
+# dossier de tests/, y compris la racine, et src/ ; sélection testée dans scripts/comparer-echecs.mjs), compare les échecs à scripts/echecs-connus.json (scripts/comparer-echecs.mjs).
 # Un échec absent de la liste est rouge. Pas la suite complète. tests-cibles.yml et tests-visuels.yml ne sont pas touchés. Aucun secret.
 name: tests-nouveau
 
@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - "tests/**"
+      - "src/**/*.test.ts"
+      - "src/**/*.test.tsx"
       - "scripts/echecs-connus.json"
       - "scripts/comparer-echecs.mjs"
       - ".github/workflows/tests-nouveau.yml"
@@ -38,7 +40,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          git diff --name-only --diff-filter=AM "$BASE"...HEAD -- 'tests/**/*.test.ts' 'tests/**/*.test.tsx' > fichiers-test.txt
+          git diff --name-only --diff-filter=AMR "$BASE"...HEAD | node scripts/comparer-echecs.mjs --selection > fichiers-test.txt
           cat fichiers-test.txt
           echo "nombre=$(wc -l < fichiers-test.txt)" >> "$GITHUB_OUTPUT"
       - name: Lancer ces tests et comparer aux échecs connus

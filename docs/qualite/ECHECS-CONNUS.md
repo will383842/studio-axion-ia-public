@@ -17,3 +17,8 @@ La liste est vide au départ : l'inventaire des échecs de `master` se fait dans
 
 Essai à la main :
 `pnpm exec vitest run --reporter=json --outputFile=rapport.json <fichiers>` puis `node scripts/comparer-echecs.mjs rapport.json`.
+
+## Limites connues
+- Un test supprimé n'est pas relancé ; un test renommé l'est (nouveau nom).
+- Le workflow ne se déclenche pas sur une PR qui ne touche que du code de `src/` sans fichier de test : voulu.
+- La liste est vide tant que l'inventaire des échecs de master n'est pas fait : un échec préexistant d'un fichier de test modifié rendra la PR rouge jusque-là.
