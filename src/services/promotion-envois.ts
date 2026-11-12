@@ -20,6 +20,8 @@ import { controlerGrille, MARGE_CREATION_MS, SuiviDebitImport } from "./import-b
 
 /** Recopié de L7-08 (`PARAM_ENVOI_CALENDRIER`, services/zernio.ts) ; le test échoue si les deux diffèrent. */
 export const REGLAGE_ENVOI_CALENDRIER = "zernio.envoi_calendrier_autorise";
+/** Réglage éditorial (créé par L7-08, FAUX par défaut) : lu avant toute écriture ; absent ou illisible = FAUX. */
+export const REGLAGE_EDITORIALE_ACTIVE = "publication.editoriale_active";
 /** Début de la fenêtre de promotion : 3 h avant la date. */
 export const FENETRE_PROMOTION_MS = MARGE_CREATION_MS;
 
@@ -48,7 +50,7 @@ export interface ResultatPromotionEnvois {
 export interface NotificationPromotion {
   cle: string;
   videoId: string;
-  motif: "a-reprogrammer";
+  motif: "a-reprogrammer" | "tiktok-incomplet";
   raison: string;
 }
 
@@ -61,7 +63,12 @@ export interface EtatsPromotion {
 export interface OptionsPromotionEnvois {
   depot: Depot<EnvoiPlanifie>;
   client: ClientZernio;
-  reglages: { envoiAutorise(): Promise<boolean>; envoiCalendrierAutorise(): Promise<boolean> };
+  reglages: {
+    envoiAutorise(): Promise<boolean>;
+    envoiCalendrierAutorise(): Promise<boolean>;
+    /** Lecture de `publication.editoriale_active` ; omise tant que le réglage n'existe pas = FAUX, rien n'est promu. */
+    editorialeActive?(): Promise<boolean>;
+  };
   maintenant: () => number;
   attendre?: (ms: number) => Promise<void>;
   suivi?: SuiviDebitImport;
@@ -80,9 +87,23 @@ const idCompte = (z: PostZernio): string => {
 /** Les DEUX réglages ouverts ; toute erreur de lecture ou toute valeur autre que `true` = fermé. */
 async function ouverts(r: OptionsPromotionEnvois["reglages"]): Promise<boolean> {
   try {
-    return (await r.envoiAutorise()) === true && (await r.envoiCalendrierAutorise()) === true;
+    if (typeof r.editorialeActive !== "function") return false;
+    return (await r.envoiAutorise()) === true && (await r.envoiCalendrierAutorise()) === true && (await r.editorialeActive()) === true;
   } catch {
     return false;
+  }
+}
+
+/** TikTok : consentement ET niveau de confidentialité renseignés sur l'entrée, sinon rien ne part. */
+const tiktokIncomplet = (e: EnvoiPlanifie): boolean => e.consentementTiktok !== true || !e.niveauConfidentialiteTiktok;
+const cleTiktok = (e: EnvoiPlanifie): string => `tiktok-incomplet:${e.cle}`;
+
+async function alerterTiktok(o: OptionsPromotionEnvois, e: EnvoiPlanifie, ligne: LigneEnvoiPromotion): Promise<void> {
+  ligne.etat = "refuse";
+  ligne.raison = "TikTok : consentement et niveau de confidentialité à renseigner avant toute promotion";
+  if ((await o.etats.lire(cleTiktok(e))) !== "notifie") {
+    await o.notifier({ cle: e.cle, videoId: e.videoId, motif: "tiktok-incomplet", raison: ligne.raison });
+    await o.etats.noter(cleTiktok(e), "notifie");
   }
 }
 
@@ -144,6 +165,10 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
       ligne.etat = "pas-encore";
       continue;
     }
+    if (e.reseau === "tiktok" && tiktokIncomplet(e)) {
+      await alerterTiktok(o, e, ligne);
+      continue;
+    }
     candidates.push({ e, t, ligne });
   }
   if (candidates.length === 0) return res;
@@ -156,6 +181,8 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
     if (!post) {
       c.ligne.etat = "sans-brouillon";
       c.ligne.raison = "aucun brouillon Zernio pour cette entrée : rien à promouvoir";
+    } else if (post.platforms?.[0]?.platform === "tiktok" && tiktokIncomplet(c.e)) {
+      await alerterTiktok(o, c.e, c.ligne);
     } else trouvees.push({ ...c, post });
   }
 
