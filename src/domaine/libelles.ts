@@ -87,7 +87,7 @@ export const LICENCES: Record<string, string> = {
 /** Libellés des briques facultatives (AV2.7) : LES MÊMES dans l'assistant et dans la fiche vidéo. */
 export const LIBELLES_BRIQUES: Record<BriqueFacultative, { libelle: string; icone: NomIcone }> = {
   "sous-titres": { libelle: "Sous-titres", icone: "sous-titres" },
-  etalonnage: { libelle: "Couleurs de cinéma (LUT)", icone: "contraste" },
+  etalonnage: { libelle: "Rendu des couleurs", icone: "contraste" },
   illustrations: { libelle: "Images d'illustration", icone: "images" },
   son: { libelle: "Musique et bruitages", icone: "musique" },
   habillage: { libelle: "Habillage (logo, fin)", icone: "calques" },

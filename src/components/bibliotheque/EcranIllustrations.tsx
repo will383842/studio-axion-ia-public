@@ -201,7 +201,7 @@ function FeuilleAjoutIllustrations({ ouverte, onOuverteChange, motsClesConnus }:
           />
           <div className="mt-2 flex flex-wrap gap-2">
             {mots.map((m) => (
-              <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-orange-doux px-3 text-sm font-semibold text-orange-vif">
+              <button key={m} type="button" onClick={() => setMots((x) => x.filter((y) => y !== m))} className="flex min-h-11 items-center gap-1 rounded-full bg-accent-doux px-3 text-sm font-semibold text-accent">
                 {m}
                 <Icone nom="fermer" size={13} />
               </button>
