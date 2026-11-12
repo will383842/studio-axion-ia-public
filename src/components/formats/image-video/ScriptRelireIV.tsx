@@ -94,7 +94,7 @@ export function ScriptRelireIV({
           {[a, b].map((x, i) => {
             const choisie = (i === 1) === autreAccroche;
             return (
-              <button key={i} type="button" aria-pressed={choisie} onClick={() => setAutreAccroche(i === 1)} className={cn("min-h-11 rounded-carte border-2 p-3 text-left", choisie ? "border-orange bg-orange-doux" : "border-trait bg-surface-1")}>
+              <button key={i} type="button" aria-pressed={choisie} onClick={() => setAutreAccroche(i === 1)} className={cn("min-h-11 rounded-carte border-2 p-3 text-left", choisie ? "border-accent bg-accent-doux" : "border-trait bg-surface-1")}>
                 <span className="block text-[15px] text-texte">« {x.texteDit} »</span>
               </button>
             );
