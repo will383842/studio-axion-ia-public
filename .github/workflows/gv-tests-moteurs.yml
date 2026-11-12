@@ -134,6 +134,8 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -150,27 +152,34 @@ jobs:
         if: needs.zones.outputs.deps-rendu == 'oui'
         working-directory: studio-rendu
         run: npm ci --ignore-scripts
-      - name: Tests de la zone
+      - name: Tests de la zone (tête, puis base)
         env:
           FILTRES: ${{ needs.zones.outputs.tests }}
+          BASE_PR: ${{ github.event.pull_request.base.sha }}
         run: |
-          # $FILTRES est volontairement non guillemeté : une liste de morceaux de chemin séparés par des espaces.
-          pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile=rapport-vitest.json \
-            --exclude '**/node_modules/**' \
-            --exclude 'tests/cas-concret/variete/variete.test.ts' \
-            --exclude 'tests/cas-concret/variete/l6.test.ts' \
-            --exclude 'tests/cas-concret/variete/maquettes-par-canal.test.ts' \
-            --exclude 'tests/cas-concret/variete/part-v4-centree.test.ts' \
-            --exclude 'tests/cas-concret/variete/structure-chaine.test.ts' \
-            --exclude 'tests/cas-concret/variete/fiche-et-chaine.test.ts' \
-            --exclude 'tests/cas-concret/variete/habillage.test.ts' \
-            --exclude 'tests/cas-concret/ecriture/ecriture.test.ts' \
-            --exclude 'tests/cas-concret/suivi/suivi.test.ts' \
-            --exclude 'tests/cas-concret/suivi/numero-suivi-unique.test.ts' \
-            --exclude 'tests/cas-concret/sujets-traites/controle-sujet.test.ts' \
-            --exclude 'tests/cas-concret/variete-scripts/**' --exclude 'tests/cas-concret/script-valide/**' \
-            --exclude 'tests/cas-concret/x4/**' \
-            $FILTRES || true
+          # Différentiel : rouge seulement pour un test rouge sur la tête et vert ou absent sur la base.
+          # Base = ancêtre commun (git merge-base) de la tête et de la branche de base (lancement manuel : origin/master).
+          lancer() { # $1 = fichier du rapport JSON ; à lancer depuis la racine à tester
+            # $FILTRES est volontairement non guillemeté : une liste de morceaux de chemin séparés par des espaces.
+            pnpm exec vitest run --testTimeout=60000 --passWithNoTests --reporter=json --outputFile="$1" \
+              --exclude '**/node_modules/**' \
+              --exclude 'tests/cas-concret/variete/variete.test.ts' \
+              --exclude 'tests/cas-concret/variete/l6.test.ts' \
+              --exclude 'tests/cas-concret/variete/maquettes-par-canal.test.ts' \
+              --exclude 'tests/cas-concret/variete/part-v4-centree.test.ts' \
+              --exclude 'tests/cas-concret/variete/structure-chaine.test.ts' \
+              --exclude 'tests/cas-concret/variete/fiche-et-chaine.test.ts' \
+              --exclude 'tests/cas-concret/variete/habillage.test.ts' \
+              --exclude 'tests/cas-concret/ecriture/ecriture.test.ts' \
+              --exclude 'tests/cas-concret/suivi/suivi.test.ts' \
+              --exclude 'tests/cas-concret/suivi/numero-suivi-unique.test.ts' \
+              --exclude 'tests/cas-concret/sujets-traites/controle-sujet.test.ts' \
+              --exclude 'tests/cas-concret/variete-scripts/**' --exclude 'tests/cas-concret/script-valide/**' \
+              --exclude 'tests/cas-concret/x4/**' \
+              $FILTRES || true
+          }
+          RACINE="$PWD"
+          lancer "$RACINE/rapport-vitest.json"
           # Résumé lisible sans ouvrir les journaux : tests lancés, échecs, 30 premiers fichiers en échec.
           node -e '
             const r = JSON.parse(require("fs").readFileSync("rapport-vitest.json", "utf8"));
@@ -182,7 +191,54 @@ jobs:
             for (const f of rates.slice(0, 30)) l.push("- " + f);
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join(String.fromCharCode(10)) + String.fromCharCode(10));
           ' || echo "Résumé impossible (rapport illisible)" >> "$GITHUB_STEP_SUMMARY"
-          node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+
+          # Même lancement sur la base (si elle ne se prépare pas : repli sur la liste des échecs connus).
+          if [ -n "$BASE_PR" ]; then BASE=$(git merge-base HEAD "$BASE_PR"); else BASE=$(git merge-base HEAD origin/master); fi
+          rm -f "$RUNNER_TEMP/rapport-base.json"
+          if git worktree add "$RUNNER_TEMP/base" "$BASE"; then
+            ln -s "$RACINE/node_modules" "$RUNNER_TEMP/base/node_modules"
+            if [ -d "$RACINE/studio-rendu/node_modules" ] && [ -d "$RUNNER_TEMP/base/studio-rendu" ]; then
+              ln -s "$RACINE/studio-rendu/node_modules" "$RUNNER_TEMP/base/studio-rendu/node_modules"
+            fi
+            (cd "$RUNNER_TEMP/base" && lancer "$RUNNER_TEMP/rapport-base.json") || true
+          fi
+
+          cat > "$RUNNER_TEMP/comparer-base-tete.mjs" <<'JS'
+          import { readFileSync, existsSync, appendFileSync } from "node:fs";
+          import { pathToFileURL } from "node:url";
+          const [, , chemTete, chemBase, chemOutil] = process.argv;
+          const { extraireEchecs, compterLances } = await import(pathToFileURL(chemOutil).href);
+          const tete = JSON.parse(readFileSync(chemTete, "utf8"));
+          const cle = (e) => e.fichier + "\u0000" + e.nom;
+          const echecsTete = extraireEchecs(tete);
+          const lances = compterLances(tete);
+          let echecsBase = null;
+          if (existsSync(chemBase)) {
+            try { echecsBase = extraireEchecs(JSON.parse(readFileSync(chemBase, "utf8"))); } catch { echecsBase = null; }
+          }
+          const l = ["", "### Tests de la zone : différence avec la base", ""];
+          if (echecsBase === null) {
+            l.push("Rapport de la base illisible ou absent : comparaison impossible.");
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join("\n") + "\n");
+            process.exit(2);
+          }
+          const surBase = new Set(echecsBase.map(cle));
+          const nouveaux = echecsTete.filter((e) => !surBase.has(cle(e)));
+          l.push("Échecs sur la base : " + echecsBase.length, "Échecs sur la tête : " + echecsTete.length, "Échecs NOUVEAUX : " + nouveaux.length, "");
+          for (const e of nouveaux.slice(0, 50)) l.push("- " + e.fichier + " › " + e.nom);
+          if (lances === 0) l.push("", "Aucun test lancé sur la tête.");
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join("\n") + "\n");
+          for (const e of nouveaux) console.log("NOUVEAU : " + e.fichier + " › " + e.nom);
+          process.exit(nouveaux.length === 0 && lances > 0 ? 0 : 1);
+          JS
+          code=0
+          node "$RUNNER_TEMP/comparer-base-tete.mjs" rapport-vitest.json "$RUNNER_TEMP/rapport-base.json" "$RACINE/scripts/comparer-echecs.mjs" || code=$?
+          if [ "$code" = "2" ]; then
+            # Repli : liste des échecs connus (ancien comportement).
+            node scripts/comparer-echecs.mjs rapport-vitest.json scripts/echecs-connus.json
+          else
+            exit "$code"
+          fi
 
   # Contrôle de types du conteneur de rendu (npm run verifier = tsc --noEmit), seulement si studio-rendu change.
   types-studio-rendu:
@@ -197,23 +253,48 @@ jobs:
         working-directory: studio-rendu
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: studio-rendu/package-lock.json
       - run: npm ci --ignore-scripts
-      - name: Contrôle de types
+      - name: Contrôle de types, tête puis base (rouge seulement pour une erreur NOUVELLE)
+        env:
+          BASE_PR: ${{ github.event.pull_request.base.sha }}
         run: |
+          # Base = ancêtre commun (git merge-base) de la tête et de la branche de base (lancement manuel : origin/master).
+          # Erreurs comparées par fichier + code + message, sans numéro de ligne ni de colonne.
+          norm() { grep -E 'error TS' "$1" | sed -E 's/\([0-9]+,[0-9]+\)//' | sort || true; }
           code=0
-          npm run verifier > tsc.txt 2>&1 || code=$?
-          tail -n 30 tsc.txt
+          npm run verifier -- --pretty false > tsc-tete.txt 2>&1 || code=$?
+          tail -n 30 tsc-tete.txt
+          norm tsc-tete.txt > erreurs-tete.txt
+          if [ -n "$BASE_PR" ]; then BASE=$(git merge-base HEAD "$BASE_PR"); else BASE=$(git merge-base HEAD origin/master); fi
+          : > erreurs-base.txt
+          base_ok=non
+          if git worktree add "$RUNNER_TEMP/base" "$BASE" && [ -d "$RUNNER_TEMP/base/studio-rendu" ]; then
+            ln -s "$PWD/node_modules" "$RUNNER_TEMP/base/studio-rendu/node_modules"
+            (cd "$RUNNER_TEMP/base/studio-rendu" && npm run verifier -- --pretty false > "$OLDPWD/tsc-base.txt" 2>&1) || true
+            norm tsc-base.txt > erreurs-base.txt
+            base_ok=oui
+          fi
+          # Erreurs présentes sur la tête et absentes de la base (comm tient compte des doublons).
+          comm -13 erreurs-base.txt erreurs-tete.txt > erreurs-nouvelles.txt
+          avant=$(wc -l < erreurs-base.txt); apres=$(wc -l < erreurs-tete.txt); nouvelles=$(wc -l < erreurs-nouvelles.txt)
           {
             echo "### Types de studio-rendu"
             echo ""
-            echo "Erreurs de types : $(grep -c 'error TS' tsc.txt || true)"
+            if [ "$base_ok" = "non" ]; then echo "Base illisible : comparaison impossible, toutes les erreurs comptent comme nouvelles."; echo ""; fi
+            echo "Erreurs avant (base) : $avant"
+            echo "Erreurs après (tête) : $apres"
+            echo "Erreurs NOUVELLES : $nouvelles"
             echo ""
-            echo "30 premiers fichiers en erreur :"
-            grep 'error TS' tsc.txt | sed 's/(.*//' | sort -u | head -n 30 | sed 's/^/- /' || true
+            echo "50 premières erreurs nouvelles :"
+            head -n 50 erreurs-nouvelles.txt | sed 's/^/- /'
           } >> "$GITHUB_STEP_SUMMARY"
-          exit $code
+          # tsc a échoué sans produire d'erreur lisible : on ne le laisse pas passer pour vert.
+          if [ "$code" != "0" ] && [ "$apres" = "0" ]; then echo "tsc a échoué sans erreur de type lisible (code $code)"; exit "$code"; fi
+          [ "$nouvelles" = "0" ]
