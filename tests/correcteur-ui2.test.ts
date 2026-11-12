@@ -82,9 +82,9 @@ describe("U6 — « Fabriquer » d'un essai : « Essai gratuit », et « qui par
     const essai = libelleBoutonFabriquer({ montant, dureeFabricationSec: 24, essaiGratuit: true });
     expect(essai).toBe("Fabriquer · Essai gratuit · prête en ~24 s");
     expect(essai).not.toMatch(/€/);
-    expect(prixEnVrai(montant)).toMatch(/^En vrai : ≈ 1,03\s€$/);
-    // Une vraie vidéo garde son prix sur le bouton.
-    expect(libelleBoutonFabriquer({ montant, dureeFabricationSec: 24, essaiGratuit: false })).toMatch(/^Fabriquer · ≈ 1,03\s€ · prête en ~24 s$/);
+    // Règle de Williams (11/11) : aucun montant, ni sur le bouton ni en petit.
+    expect(prixEnVrai(montant)).toBeNull();
+    expect(libelleBoutonFabriquer({ montant, dureeFabricationSec: 24, essaiGratuit: false })).toBe("Fabriquer · prête en ~24 s");
     expect(libelleBoutonFabriquer({ montant: null, essaiGratuit: true })).toBe("Fabriquer");
   });
 

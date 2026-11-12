@@ -2,10 +2,14 @@
  * L0-07 — collection envoisPlanifies. Test autonome : doublure locale du dépôt, aucun appel réel,
  * rien importé de tests/helpers/. Données fictives.
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import type { Depot } from "@/domaine/depots";
 import { TRANSITIONS_ENVOI, cleEnvoi, peutTransiter, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { annulerEnvoi, creerEnvoi, deplacerCreneau, transiterEnvoi, validerEnvoi } from "@/services/envois-planifies";
+
+vi.mock("next/headers", () => mockHeaders);
+vi.mock("next/navigation", () => mockNavigation);
 
 function doublure(): Depot<EnvoiPlanifie> {
   const t = new Map<string, EnvoiPlanifie>();
@@ -79,5 +83,69 @@ describe("service", () => {
     const e = await creerEnvoi(d, base, NOW);
     expect((await annulerEnvoi(d, e.id, NOW)).statut).toBe("annule");
     await expect(transiterEnvoi(d, e.id, "valide", NOW)).rejects.toThrow();
+  });
+});
+
+describe("déplacer un créneau confirmé (relecture v1-s1)", () => {
+  it("un envoi confirmé déplacé repasse en programme : il faut confirmer le nouveau créneau", async () => {
+    const d = doublure();
+    const e = await creerEnvoi(d, base, NOW);
+    await validerEnvoi(d, e.id, "le fondateur", NOW);
+    await transiterEnvoi(d, e.id, "programme", NOW);
+    await transiterEnvoi(d, e.id, "confirme", NOW);
+    const m = await deplacerCreneau(d, e.id, { jour: "2026-11-27", heure: "11:00" }, NOW);
+    expect(m).toMatchObject({ statut: "programme", jour: "2026-11-27", heure: "11:00" });
+    await expect(transiterEnvoi(d, e.id, "a-envoyer", NOW)).rejects.toThrow(/transition/i);
+  });
+  it("un envoi programmé déplacé reste programmé", async () => {
+    const d = doublure();
+    const e = await creerEnvoi(d, base, NOW);
+    await validerEnvoi(d, e.id, "le fondateur", NOW);
+    await transiterEnvoi(d, e.id, "programme", NOW);
+    expect((await deplacerCreneau(d, e.id, { jour: "2026-11-28" }, NOW)).statut).toBe("programme");
+  });
+});
+
+describe("forme du créneau (relecture v1-s1)", () => {
+  it("refuse un jour ou une heure mal formés, à la création et au déplacement", async () => {
+    const d = doublure();
+    await expect(creerEnvoi(d, { ...base, jour: "25/11" }, NOW)).rejects.toThrow(/jour/i);
+    await expect(creerEnvoi(d, { ...base, heure: "9h30" }, NOW)).rejects.toThrow(/heure/i);
+    const e = await creerEnvoi(d, base, NOW);
+    await expect(deplacerCreneau(d, e.id, { jour: "demain" }, NOW)).rejects.toThrow(/jour/i);
+  });
+});
+
+describe("suppression d'une vidéo et envois planifiés (relecture v1-s1)", () => {
+  const ID = "v-01";
+  const H = { creeLe: NOW, modifieLe: NOW };
+  const ligne = (id: string, statut: EnvoiPlanifie["statut"], videoId = ID): EnvoiPlanifie =>
+    ({ id, cle: id, videoId, reseau: "linkedin", versionCreneau: 1, jour: "2026-11-25", statut, ...H }) as EnvoiPlanifie;
+
+  beforeEach(async () => {
+    const { reinitialiserDepots } = await import("@/donnees/memoire");
+    reinitialiserDepots();
+    reinitialiserRequete();
+  });
+
+  it.each(["confirme", "a-envoyer"] as const)("un envoi %s refuse la suppression (PUBLICATION_PROGRAMMEE) et ne perd rien", async (statut) => {
+    const { depots } = await import("@/donnees/memoire");
+    const { supprimerVideosSansSession } = await import("@/services/videos");
+    await depots().envoisPlanifies.enregistrer(ligne("e1", statut));
+    await expect(supprimerVideosSansSession([ID])).rejects.toMatchObject({ code: "PUBLICATION_PROGRAMMEE" });
+    expect(await depots().envoisPlanifies.obtenir("e1")).not.toBeNull();
+    expect(await depots().videos.obtenir(ID)).not.toBeNull();
+  });
+
+  it("un envoi envoye reste, un brouillon et un programme partent avec la vidéo, l'envoi d'une autre vidéo ne bouge pas", async () => {
+    const { depots } = await import("@/donnees/memoire");
+    const { supprimerVideosSansSession } = await import("@/services/videos");
+    const d = depots();
+    for (const [id, st, v] of [["e-ok", "envoye", ID], ["e-br", "brouillon", ID], ["e-pr", "programme", ID], ["e-autre", "confirme", "v-03"]] as const) await d.envoisPlanifies.enregistrer(ligne(id, st, v));
+    expect(await supprimerVideosSansSession([ID])).toEqual({ supprimees: 1 });
+    expect(await d.envoisPlanifies.obtenir("e-ok")).not.toBeNull();
+    expect(await d.envoisPlanifies.obtenir("e-br")).toBeNull();
+    expect(await d.envoisPlanifies.obtenir("e-pr")).toBeNull();
+    expect(await d.envoisPlanifies.obtenir("e-autre")).not.toBeNull();
   });
 });

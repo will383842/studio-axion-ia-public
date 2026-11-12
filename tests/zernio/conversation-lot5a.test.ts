@@ -93,7 +93,7 @@ describe("expirerConversations · repli sur l'état du processus", () => {
     let pendant = -1;
     const enveloppe = { ...port.port, repondreEnPrive: async (p: any) => { pendant = await C.expirerConversations({ env: ENV, maintenantMs: T0 + 8 * J }); return port.port.repondreEnPrive(p); } };
     await deposerCommentaire(depots, { idAuteur: A, idCommentaire: "com-vol" });
-    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(A)]: graine("pub_ok", { idCommentaire: "com-vol", creeLe: new Date(T0 - 10 * J).toISOString() }) });
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(A)]: graine("pub_ok", { idCommentaire: "com-vol", creeLe: new Date(T0 - 3600_000).toISOString() }) }); // STU-MENAGE : un pub_ok de plus de 7 jours expire désormais avant tout envoi ; 1 h + 8 jours reste bien « trop vieux » pour le test d'enVol ci-dessous
     await C.traiterConversations({ port: enveloppe, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: T0 });
     expect(pendant).toBe(0); // en vol dans ce processus : pas expiré (repli sur processus().enVol)
     expect((await etatDe(A)).etat).toBe("attente_email");
