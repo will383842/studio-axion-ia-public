@@ -209,3 +209,6 @@ export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ d
     return { dejaServis: [] };
   }
 }
+
+// GV-MD-05b : la chaîne lit cet historique une fois au premier habillage et le fige dans l'état du travail.
+brancherServicesFacecam({ memoireCartes: (c) => memoireCartesFacecam(c.videoId) });
