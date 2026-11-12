@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BadgeDoublon } from "@/components/ciblage/BadgeDoublon";
+import { PastilleEtapeEcrire } from "@/components/ecrire/PastilleEtapeEcrire";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { Champ } from "@/components/ui/Champ";
@@ -136,7 +137,7 @@ export function ListeSujets(p: ProprietesListeSujets) {
                     </span>
                   </div>
                   <p className="mb-4 line-clamp-2 text-[15px] leading-snug text-texte-doux">{s.titre}</p>
-                  {s.grille.length ? <MiniGrille lignes={s.grille} reseauActif={filtres.reseau} /> : <p className="text-sm text-ambre">En écriture</p>}
+                  {s.grille.length ? <MiniGrille lignes={s.grille} reseauActif={filtres.reseau} /> : <PastilleEtapeEcrire etape="ecriture" />}
                 </Carte>
               </Link>
             </li>

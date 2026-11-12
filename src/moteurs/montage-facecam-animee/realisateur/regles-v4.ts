@@ -81,7 +81,7 @@ export const SEUILS_V4 = Object.freeze({
   ouverturesRecentesVideos: 3,
   /**
    * D17b : on regarde les N dernières vidéos ; au plus cette part des plaquettes DIFFÉRENTES du plan peut y avoir déjà été prise.
-   * `partReprisePlaquettesMax` = valeur proposée par la fiche GV-MD-01 (60 %). Le propriétaire ne l'a pas encore tranchée : c'est ICI qu'on la change.
+   * `partReprisePlaquettesMax` : 60 % tranché par le fondateur le 12/11/2026. C'est ICI qu'on la change.
    */
   videosRecentesPlaquettes: 2,
   partReprisePlaquettesMax: 0.6,

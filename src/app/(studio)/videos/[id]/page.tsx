@@ -283,10 +283,10 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
       versionCouranteId={d.versionCourante?.id}
     />
   ) : (
-    <div className="relative isolate mx-auto grid aspect-[9/16] max-h-[56vh] place-items-center overflow-hidden rounded-carte border border-trait bg-surface-1 lg:max-h-[70vh]">
+    <div className="relative isolate mx-auto grid aspect-[9/16] max-h-[56vh] place-items-center overflow-hidden rounded-carte border border-trait bg-surface-3 text-texte-doux lg:max-h-[70vh]">
       <div aria-hidden className="absolute inset-0 -z-10 lueur-forte" />
       {d.carte.vignette && <Image src={d.carte.vignette} alt="" fill sizes="420px" className="-z-20 object-cover opacity-30" />}
-      <span className="grid size-16 place-items-center rounded-full bg-fond/70 text-orange-vif backdrop-blur">
+      <span className="grid size-16 place-items-center rounded-full bg-fond/70 text-accent backdrop-blur">
         <Icone nom={aRelire ? "oeil" : STATUTS_VIDEO[v.statut].icone} size={28} className={v.statut === "en_fabrication" ? "animate-spin [animation-duration:2.5s]" : undefined} />
       </span>
     </div>
@@ -341,7 +341,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                     {!(prete && d.travail.statut === "annule") && <SuiviCasConcret initial={d.travail} compacte={!enFabrication} annulable={peutAnnuler(v)} videoPrete={prete} />}
                     {!scriptAValider && etapeARelire(d.travail) && (
                       <p role="status" className="mt-4 rounded-carte border border-trait bg-surface-2 p-3 text-sm text-texte-doux">
-                        Le script n'a pas pu être chargé : rechargez la page.
+                        Le script n&apos;a pas pu être chargé : rechargez la page.
                       </p>
                     )}
                     {aRelire && scriptAValider && <ValidationScript videoId={v.id} travailId={d.travail.id} ecrans={scriptAValider.ecrans} avertissements={scriptAValider.avertissements} />}
