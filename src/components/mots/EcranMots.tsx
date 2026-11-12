@@ -39,6 +39,10 @@ export function champsModifies(actuel: { heureCompte: number; jourMot: number },
 const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["m1-lien", "Premier message avec le lien"],
   ["adresse-refusee", "Adresse refusée"],
+  ["m1-adresse", "Premier message sans lien (on demande l'adresse e-mail)"],
+  ["recu", "Accusé de réception"],
+  ["adresse-non-reconnue", "Adresse non reconnue (on la redemande)"],
+  ["lien-rappel", "Rappel avec le lien"],
 ];
 
 /**

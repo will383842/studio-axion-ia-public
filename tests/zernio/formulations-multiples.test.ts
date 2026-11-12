@@ -98,7 +98,7 @@ describe("1 · dictionnaire", () => {
     expect(GROUPES_MP["adresse-refusee"]).toEqual([...V_AR]);
     for (const g of Object.values(GROUPES_MP)) for (const v of g) expect(brut(v) && (brut(v) as { statut?: string }).statut, v).toBe("actif");
     const d = JSON.parse(readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url), "utf8"));
-    expect(d.version).toBe(3);
+    expect(d.version).toBe(4); // série 5 : 13 formulations ajoutées (version 3 → 4)
     expect(d).not.toHaveProperty("mention_ouverture");
   });
   it("aucune entrée supprimée : les anciens textes restent, marqués « retire »", () => {
@@ -407,6 +407,28 @@ describe("7 · formulation non validée = jamais envoyée (M1)", () => {
     expect(charge.version_m1).toBe("mp-m1-v3");
     expect((await etatDe()).versionTexteM1).toBe("mp-m1-v3");
   });
+  it("(h ter) figée sur mp-m1-v3 et le site ne la connaît plus : le repli sans lien GARDE l'identité mp-m1-v3 (jamais mp-m1-v4-1) ; 2 passages de suite", async () => {
+    const { VERSIONS_SITE_TEST } = await import("./aides/versions-site-test");
+    const avant = [...VERSIONS_SITE_TEST];
+    VERSIONS_SITE_TEST.clear(); // le site ne connaît aucune version : repli « version_inconnue_du_site »
+    try {
+      await validerFormulationsAuParcours([...V_M1]);
+      await deposerCommentaire(depots, {});
+      port.reponses.prive = () => ({ statut: "a_reessayer", code: "reseau" }) as never;
+      await passer();
+      const tout = await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {});
+      const cle = cleConversation(A);
+      tout[cle] = { ...tout[cle], versionTexteM1: "mp-m1-v3", formulations: undefined };
+      await Com.ecrireParametre(C.PARAM_CONVERSATIONS, tout);
+      await passer(T0 + 3_600_000);
+      expect((await etatDe()).formulations["m1-lien"], "1er passage").toBe("mp-m1-v3");
+      await passer(T0 + 7_200_000);
+      expect((await etatDe()).formulations["m1-lien"], "2e passage").toBe("mp-m1-v3");
+      expect((await etatDe()).versionTexteM1).toBe("mp-m1-v2");
+    } finally {
+      for (const v of avant) VERSIONS_SITE_TEST.add(v);
+    }
+  });
   it("(i) repli sans lien puis nouvel essai : la formulation avec lien choisie au 1er essai est gardée (formulations[\"m1-lien\"])", async () => {
     await deposerCommentaire(depots, {});
     await validerFormulationsAuParcours([...V_M1]);
@@ -501,7 +523,7 @@ describe("10 · écran /mots", () => {
   it("la vue liste les 7 formulations non validées ; valider l'une ne change que celle-ci ; l'action refuse une version hors dictionnaire", async () => {
     const actions = await import("@/app/(studio)/mots/actions");
     const avant = await MS.lireVueMots();
-    expect(avant.formulations!.map((f) => f.version)).toEqual([...TOUTES]);
+    expect(avant.formulations!.map((f) => f.version).slice(0, TOUTES.length)).toEqual([...TOUTES]); // les 13 de la série 5 suivent (serie-5-formulations.test.ts)
     expect(avant.formulations!.every((f) => !f.valide)).toBe(true);
     expect(avant.formulations![0].texte).toBe(M1_VALIDES[0]);
     expect(await actions.validerFormulationAction("mp-m1-v4-2")).toMatchObject({ ok: true });
@@ -521,10 +543,10 @@ describe("10 · écran /mots", () => {
     const html = rendu(vue);
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
     for (const t of [...M1_VALIDES, ...AR_VALIDES]) expect(html, t.slice(0, 30)).toContain(esc(t));
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7);
-    expect(html.match(/Non validée/g)).toHaveLength(7);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13);
+    expect(html.match(/Non validée/g)).toHaveLength(7 + 13);
     const html2 = rendu(vue2);
     expect(html2.match(/Validée/g)).toHaveLength(1);
-    expect(html2.match(/Non validée/g)).toHaveLength(6);
+    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13);
   });
 });
