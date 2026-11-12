@@ -125,6 +125,41 @@ describe("personneOpposeePartout : fermeture par la racine", () => {
     expect(await verifier("ct_z")).toEqual({ opposee: true, source: "etat" });
   });
 
+  it("6 ter) ancien R alias [Z] terminé + R|b opposé, vérifiée par Z : opposée (état)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [R]: conv("termine", { alias: [Z] }),
+      [`${R}|b`]: conv("oppose"),
+    });
+    expect(await verifier("ct_z")).toEqual({ opposee: true, source: "etat" });
+  });
+
+  it("6 quater) ancien R alias [Z] terminé + R|b en doute (bloquant), vérifiée par Z : opposée (doute)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [R]: conv("termine", { alias: [Z] }),
+      [`${R}|b`]: conv("termine", { douteOpposition: true }),
+    });
+    const v = await Opp.personneOpposeePartout(
+      { idsBruts: ["ct_z"] },
+      { env: ENV, douteBloque: true },
+    );
+    expect(v).toEqual({ opposee: true, source: "doute" });
+  });
+
+  it("7 bis) point fixe à plusieurs passages : R|b opposé placé avant R|a, table Z -> R|a : opposée (état)", async () => {
+    const R = racineDe("ct_r");
+    const Z = racineDe("ct_z");
+    await Com.ecrireParametre(CONV, {
+      [`${R}|b`]: conv("oppose"),
+      [`${R}|a`]: conv("termine"),
+    });
+    await Com.ecrireParametre(ALIAS, { [Z]: `${R}|a` });
+    expect(await verifier("ct_z")).toEqual({ opposee: true, source: "etat" });
+  });
+
   it("8) identifiée par l'alias Z de R|a, opposition au registre sous R : opposée (registre)", async () => {
     const R = racineDe("ct_r");
     const Z = racineDe("ct_z");
