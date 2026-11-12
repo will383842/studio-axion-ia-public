@@ -157,15 +157,15 @@ describe("importer : tout ou rien, contrôle lus = créés", () => {
     expect((await d.creneauxEditoriaux.obtenir(b.id))!.statut).toBe("valide");
   });
   it("une ligne sans texte parmi 60 valides : à confirmer, puis 61 lues = 61 créées, la vide « à valider » sans texte rangé", async () => {
-    const texte = [...Array.from({ length: 60 }, (_, i) => ligne(i + 1)), "2026-12-03;09:00;linkedin;"].join("\n");
+    const texte = [...Array.from({ length: 60 }, (_, i) => ligne(i + 1)), "2026-12-03;09:00;tiktok;"].join("\n");
     const r = await importerPublications({ texte, compteCible: COMPTE, cle: "kv" });
     expect(r).toMatchObject({ ok: false, aConfirmer: true });
     expect(r.ok === false && r.avertissements?.some((x) => x.type === "texte" && x.numero === 61)).toBe(true);
     expect(await d.creneauxEditoriaux.lister()).toHaveLength(0);
     expect(await importerPublications({ texte, compteCible: COMPTE, cle: "kv", confirmer: true })).toMatchObject({ ok: true, lus: 61, crees: 61 });
-    const vide = (await d.creneauxEditoriaux.lister()).find((c) => c.heuresParReseau.linkedin === "2026-12-03T08:00:00.000Z")!;
+    const vide = (await d.creneauxEditoriaux.lister()).find((c) => c.heuresParReseau.tiktok === "2026-12-03T08:00:00.000Z")!;
     expect(vide.statut).toBe("a_valider");
-    expect((await lireStockageFiche({ cle: `creneau:${vide.id}|linkedin`, origine: "creneau", id: vide.id, reseau: "linkedin" })).texte ?? "").toBe("");
+    expect((await lireStockageFiche({ cle: `creneau:${vide.id}|linkedin`, origine: "creneau", id: vide.id, reseau: "tiktok" })).texte ?? "").toBe("");
   });
   it("un texte de plusieurs paragraphes entre guillemets est rangé tel quel", async () => {
     const r = await importerPublications({ texte: '2026-12-03;09:00;linkedin;"Un\n\nDeux"', compteCible: COMPTE, cle: "kml" });
@@ -173,7 +173,7 @@ describe("importer : tout ou rien, contrôle lus = créés", () => {
     const [c] = await d.creneauxEditoriaux.lister();
     expect((await lireStockageFiche({ cle: `creneau:${c.id}|linkedin`, origine: "creneau", id: c.id, reseau: "linkedin" })).texte).toBe("Un\n\nDeux");
   });
-  it("61 lignes lues = 61 créneaux « propose », texte rangé, aucun appel au diffuseur", async () => {
+  it("61 lignes lues = 61 créneaux, texte rangé, aucun appel au diffuseur", async () => {
     const fetchEspion = vi.spyOn(globalThis, "fetch");
     // 61 jours distincts ouvrés
     const texte = Array.from({ length: 61 }, (_, i) => ligne(i)).join("\n");
@@ -181,7 +181,7 @@ describe("importer : tout ou rien, contrôle lus = créés", () => {
     expect(r).toMatchObject({ ok: true, lus: 61, crees: 61 });
     const l = await d.creneauxEditoriaux.lister();
     expect(l).toHaveLength(61);
-    expect(l.every((c) => c.statut === "propose" && c.compteCible === COMPTE)).toBe(true);
+    expect(l.every((c) => c.statut === "a_valider" && c.compteCible === COMPTE)).toBe(true);
     const c0 = l.find((c) => c.jourVise === "2026-12-01")!;
     expect(c0.heuresParReseau.linkedin).toBe("2026-12-01T08:00:00.000Z");
     expect((await lireStockageFiche({ cle: `creneau:${c0.id}|linkedin`, origine: "creneau", id: c0.id, reseau: "linkedin" })).texte).toBe("Publication fictive numéro 0");

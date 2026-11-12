@@ -84,11 +84,11 @@ export function FeuilleImportPlan({ compteCible = "" }: { compteCible?: string }
           className="min-h-48 rounded-xl border border-trait-fort bg-surface-1 p-3 font-mono text-sm font-normal"
           value={texte}
           placeholder={MODELE}
-          onChange={(e) => { setTexte(e.target.value); setRetour(null); setAConfirmer(false); }}
+          onChange={(e) => { setTexte(e.target.value); setAnalyse(null); setRetour(null); setAConfirmer(false); }}
           onBlur={() => void verifier(texte)}
         />
       </label>
-      <p className="text-sm text-texte-doux">Séparez les colonnes par une tabulation, un point-virgule ou une barre verticale. L&apos;heure est facultative (9 h, heure de Paris). Réseaux : LinkedIn, Instagram, Facebook, TikTok.</p>
+      <p className="text-sm text-texte-doux">Séparez les colonnes par une tabulation, un point-virgule, une virgule ou une barre verticale ; un texte sur plusieurs lignes se met entre guillemets. Un texte vide se signale et se complète ensuite. L&apos;heure est facultative (9 h, heure de Paris). Réseaux : LinkedIn, Instagram, Facebook, TikTok.</p>
 
       {analyse?.ok && <p role="status" className="text-sm">{analyse.lus} ligne{analyse.lus > 1 ? "s" : ""} lue{analyse.lus > 1 ? "s" : ""}, toutes lisibles.</p>}
       {erreurs.length > 0 && (
@@ -103,7 +103,7 @@ export function FeuilleImportPlan({ compteCible = "" }: { compteCible?: string }
         </div>
       )}
       {retour?.ok === false && !retour.aConfirmer && !retour.erreurs && <p role="alert" className="text-sm text-brique">{retour.message}</p>}
-      {retour?.ok === true && <p role="status" className="text-sm font-semibold">{retour.lus} ligne{retour.lus > 1 ? "s" : ""} lue{retour.lus > 1 ? "s" : ""} = {retour.crees} publication{retour.crees > 1 ? "s" : ""} créée{retour.crees > 1 ? "s" : ""}, « Proposée{retour.crees > 1 ? "s" : ""} » : à valider avant tout envoi.</p>}
+      {retour?.ok === true && <p role="status" className="text-sm font-semibold">{retour.lus} ligne{retour.lus > 1 ? "s" : ""} lue{retour.lus > 1 ? "s" : ""} = {retour.crees} publication{retour.crees > 1 ? "s" : ""} créée{retour.crees > 1 ? "s" : ""}, « À valider » : rien ne part avant votre validation.</p>}
 
       <div className="flex flex-wrap gap-3">
         <Bouton type="button" variante="secondaire" disabled={enCours} onClick={() => void verifier(texte)}>Vérifier</Bouton>

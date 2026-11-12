@@ -3,7 +3,7 @@
 /**
  * Importer un fichier de publications (tableau ou collage) dans le calendrier (L4-12).
  * - Une ligne = une publication : jour, heure (facultative, 09:00 de Paris par défaut), réseau, texte.
- * - Chaque publication naît « propose » : rien ne part avant la validation du fondateur, et ces actions n'appellent jamais le diffuseur.
+ * - Chaque publication naît « propose » puis passe aussitôt « à valider » : rien ne part avant la validation du fondateur, et ces actions n'appellent jamais le diffuseur.
  * - Seule une erreur de format bloque (et alors rien n'est écrit). Le passé, une proximité, un quota atteint ou un week-end
  *   avertissent et se confirment d'un clic : un ajout fait à la main n'est jamais mis de côté.
  * - Contrôle « lus = créés » rendu à l'écran. Idempotent : la clé du formulaire donne les identifiants.
@@ -16,7 +16,7 @@ import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { exigerSession } from "@/services/auth";
 import { ecrireStockageFiche } from "@/services/calendrier-fiche";
 import { creerVerrou, depots, maintenant } from "@/services/_commun";
-import { creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
+import { changerStatut, creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 
 export interface SaisieImport {
   /** Le contenu du fichier ou le texte collé. */
@@ -40,7 +40,7 @@ export interface ErreurImport {
 
 export interface AvertissementImport {
   numero: number;
-  type: "passe" | "proximite" | "quota" | "weekend";
+  type: "passe" | "proximite" | "quota" | "weekend" | "texte";
   message: string;
 }
 
@@ -94,16 +94,66 @@ function lireReseau(brut: string): IdReseau | null {
   return RESEAUX[cle] ?? null;
 }
 
-function separateur(ligne: string): string {
-  return ["\t", ";", "|"].find((s) => ligne.includes(s)) ?? ";";
+interface Enregistrement { numero: number; sep: string; champs: string[]; guillemetOuvert: boolean }
+
+/**
+ * Découpe le fichier en enregistrements (une publication chacun). Un champ qui commence par un guillemet va jusqu'au
+ * guillemet fermant, retours à la ligne compris (cellule collée d'un tableur) ; deux guillemets collés valent un guillemet.
+ * Le séparateur d'un enregistrement est le premier de « tabulation ; | , » qui apparaît dans sa première ligne.
+ */
+function decouper(brut: string): Enregistrement[] {
+  const sortie: Enregistrement[] = [];
+  const n = brut.length;
+  let i = 0;
+  let ligne = 1;
+  while (i < n) {
+    const numero = ligne;
+    const finLigne = brut.slice(i).search(/[\r\n]/);
+    const premiere = finLigne === -1 ? brut.slice(i) : brut.slice(i, i + finLigne);
+    const sep = /[\t;|,]/.exec(premiere)?.[0] ?? ";";
+    const champs: string[] = [];
+    let guillemetOuvert = false;
+    let courant = "";
+    let debutChamp = true;
+    for (;;) {
+      if (i >= n) { champs.push(courant); break; }
+      const c = brut[i];
+      if (c === '"' && debutChamp) {
+        i++;
+        let ferme = false;
+        while (i < n) {
+          if (brut[i] === '"') {
+            if (brut[i + 1] === '"') { courant += '"'; i += 2; continue; }
+            i++; ferme = true; break;
+          }
+          if (brut[i] === "\n") ligne++;
+          courant += brut[i++];
+        }
+        if (!ferme) guillemetOuvert = true;
+        debutChamp = false;
+        continue;
+      }
+      if (c === "\r" || c === "\n") {
+        champs.push(courant);
+        i += c === "\r" && brut[i + 1] === "\n" ? 2 : 1;
+        ligne++;
+        break;
+      }
+      if (c === sep) { champs.push(courant); courant = ""; debutChamp = true; i++; continue; }
+      courant += c;
+      debutChamp = false;
+      i++;
+    }
+    if (champs.every((x) => x.trim() === "") && !guillemetOuvert) continue;
+    sortie.push({ numero, sep, champs, guillemetOuvert });
+  }
+  return sortie;
 }
 
 /** Lecture pure du fichier : lignes valides, erreurs de format (avec numéro de ligne). Aucun accès aux données. */
 function lire(brut: unknown): { lus: number; lignes: LigneImport[]; erreurs: ErreurImport[] } {
   if (typeof brut !== "string") return { lus: 0, lignes: [], erreurs: [{ numero: 0, message: "Aucune publication trouvée : le fichier est illisible." }] };
-  const sources = brut.split(/\r\n|\r|\n/).map((texte, i) => ({ numero: i + 1, texte: texte.trim() })).filter((l) => l.texte !== "");
-  // Le séparateur se devine ligne par ligne ; le texte garde ce qui suit, tel quel, même s'il contient le séparateur.
-  const decoupees = sources.map((l) => { const sep = separateur(l.texte); return { numero: l.numero, sep, champs: l.texte.split(sep) }; });
+  const decoupees = decouper(brut);
   if (decoupees.length && ENTETE.test(decoupees[0].champs[0].trim())) decoupees.shift();
   if (decoupees.length === 0) return { lus: 0, lignes: [], erreurs: [{ numero: 0, message: "Aucune publication trouvée : collez au moins une ligne (jour, heure, réseau, texte)." }] };
   if (decoupees.length > MAX_LIGNES) {
@@ -112,19 +162,22 @@ function lire(brut: unknown): { lus: number; lignes: LigneImport[]; erreurs: Err
 
   const lignes: LigneImport[] = [];
   const erreurs: ErreurImport[] = [];
-  for (const { numero, sep, champs: bruts } of decoupees) {
+  for (const { numero, sep, champs: bruts, guillemetOuvert } of decoupees) {
+    if (guillemetOuvert) { erreurs.push({ numero, message: lirePhrase(numero, "guillemet jamais refermé : fermez le texte entre guillemets.") }); continue; }
     const champs = bruts.map((c, i) => (i < 3 ? c.trim() : c));
     const avecHeure = HEURE_LUE.test(champs[1] ?? "");
     const [jourBrut, heureBrute, reseauBrut, texte] = avecHeure
       ? [champs[0], champs[1], champs[2] ?? "", champs.slice(3).join(sep).trim()]
       : [champs[0], HEURE_DEFAUT, champs[1] ?? "", champs.slice(2).join(sep).trim()];
+    const colonnesVues = champs.length + (avecHeure ? 0 : 1);
     const jour = lireJour(jourBrut ?? "");
     if (!jour) { erreurs.push({ numero, message: lirePhrase(numero, `jour illisible ou impossible (« ${jourBrut ?? ""} »). Écrivez AAAA-MM-JJ ou JJ/MM/AAAA.`) }); continue; }
     const h = HEURE_LUE.exec(heureBrute);
     if (!h || +h[1] > 23 || +h[2] > 59) { erreurs.push({ numero, message: lirePhrase(numero, `heure impossible (« ${heureBrute} »). Écrivez HH:MM.`) }); continue; }
     const reseau = lireReseau(reseauBrut);
     if (!reseau) { erreurs.push({ numero, message: lirePhrase(numero, `réseau inconnu (« ${reseauBrut} »). Choisissez LinkedIn, Instagram, Facebook ou TikTok.`) }); continue; }
-    if (!texte) { erreurs.push({ numero, message: lirePhrase(numero, "texte vide ou colonnes manquantes (jour, heure, réseau, texte).") }); continue; }
+    // Une colonne absente est une erreur de format ; une colonne présente mais vide est une publication sans texte (avertie, jamais bloquée).
+    if (colonnesVues < 4) { erreurs.push({ numero, message: lirePhrase(numero, "colonnes manquantes (jour, heure, réseau, texte).") }); continue; }
     if (texte.length > MAX_TEXTE) { erreurs.push({ numero, message: lirePhrase(numero, `texte trop long (${texte.length} signes, ${MAX_TEXTE} au plus).`) }); continue; }
     lignes.push({ numero, jour, heure: `${h[1].padStart(2, "0")}:${h[2]}`, reseau, texte });
   }
@@ -155,6 +208,7 @@ async function avertir(lignes: readonly LigneImport[], ignorerPrefixe?: string):
     if (Date.parse(resoudreHeureParis(l.jour, l.heure).instant) < maintenantMs) {
       sortie.push({ numero: l.numero, type: "passe", message: lirePhrase(l.numero, `le ${l.jour} à ${l.heure} est passé : à confirmer.`) });
     }
+    if (!l.texte) sortie.push({ numero: l.numero, type: "texte", message: lirePhrase(l.numero, "il manque le texte : la publication sera créée sans texte, à compléter avant de la valider.") });
     posts.set(l.reseau, [...(posts.get(l.reseau) ?? []), { id: `ligne-${l.numero}`, reseau: l.reseau, jour: l.jour, heure: l.heure, pilier: `ligne-${l.numero}`, cible: `ligne-${l.numero}` }]);
     for (const j of [ajouterJoursParis(l.jour, -1), l.jour, ajouterJoursParis(l.jour, 1)]) jours.add(j);
   }
@@ -190,7 +244,7 @@ export async function analyserImport(saisie: SaisieImport): Promise<AnalyseImpor
 
 const unALaFois = creerVerrou();
 
-/** Crée une publication « propose » par ligne, après confirmation s'il y a des avertissements. Tout ou rien sur le format. */
+/** Crée une publication « à valider » par ligne, après confirmation s'il y a des avertissements. Tout ou rien sur le format. */
 export async function importerPublications(demande: DemandeImport): Promise<ResultatImport> {
   await exigerSession();
   return unALaFois(async () => {
@@ -219,9 +273,11 @@ export async function importerPublications(demande: DemandeImport): Promise<Resu
       }
       let crees = 0;
       for (const v of voulus) {
-        const c: CreneauPlan = await creerCreneau(depotsPlan(), { id: v.id, jourVise: v.l.jour, heuresParReseau: { [v.l.reseau]: v.instant }, compteCible: compte }, maintenant());
+        let c: CreneauPlan = await creerCreneau(depotsPlan(), { id: v.id, jourVise: v.l.jour, heuresParReseau: { [v.l.reseau]: v.instant }, compteCible: compte }, maintenant());
+        // Le fondateur l'a apportée : elle arrive « À valider » (jamais « idée de l'IA »). Un rejeu ne touche pas une ligne déjà avancée.
+        if (c.statut === "propose") c = await changerStatut(depotsPlan(), c.id, "a_valider", "studio", maintenant());
         const cleFiche = lireCleFiche(`creneau:${c.id}|${v.l.reseau}`);
-        if (cleFiche) await ecrireStockageFiche(cleFiche, { texte: v.l.texte });
+        if (cleFiche && v.l.texte) await ecrireStockageFiche(cleFiche, { texte: v.l.texte });
         crees++;
       }
       if (crees !== lus) return { ok: false, message: `Contrôle non tenu : ${lus} lignes lues, ${crees} créées. Relancez l'import avec le même formulaire.` };
