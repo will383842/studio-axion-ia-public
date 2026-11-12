@@ -162,8 +162,8 @@ describe("dépôt conforme : vert", () => {
     expect((controler(f, { exceptions: { purge: ["src/autre.ts"] } }) as { defauts: unknown[] }).defauts.length).toBe(1);
   });
   it("lireMots : variable ou liste, sans doublon ni vide", () => {
-    expect(lireMots({ MOTS_FONDATEUR: " a, B ,,a " })).toEqual(["a", "b"]);
-    expect(lireMots({})).toEqual([]);
+    expect(lireMots({ MOTS_FONDATEUR: " a, B ,,a " } as unknown as NodeJS.ProcessEnv)).toEqual(["a", "b"]);
+    expect(lireMots({} as unknown as NodeJS.ProcessEnv)).toEqual([]);
   });
 });
 
