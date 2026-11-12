@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { MonogrammeReseau, nomReseau, styleReseau } from "./CarteEntreeCalendrier";
+import { nomReseau, styleReseau } from "./CarteEntreeCalendrier";
+import { PictoReseau } from "./PictoReseau";
 
 /** Les réseaux du calendrier, dans l'ordre de la maquette. */
 export const RESEAUX_CALENDRIER: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok"];
@@ -41,7 +42,7 @@ const BOUTON_EFFACER = "inline-flex min-h-[38px] items-center rounded-[10px] bor
 
 /**
  * Filtre simple par réseau : une pastille par réseau (picto et nom), qu'on allume ou éteint.
- * Les pastilles servent aussi de légende des couleurs de réseau (`--c`, voir `styleReseau`).
+ * Les pastilles servent aussi de légende des couleurs de réseau (`--c`, voir `styleReseau`) : pastille de couleur, picto et nom.
  */
 export function BarreFiltres({ reseaux = RESEAUX_CALENDRIER, actifs, onBasculer, lienReseau, nombreFiltres = 0, onEffacer, lienEffacer, children, className }: ProprietesBarreFiltres) {
   const libelleEffacer = `Effacer les filtres (${nombreFiltres})`;
@@ -57,8 +58,8 @@ export function BarreFiltres({ reseaux = RESEAUX_CALENDRIER, actifs, onBasculer,
         );
         const contenu = (
           <>
-            <MonogrammeReseau reseau={reseau} />
-            {nom}
+            <span aria-hidden="true" data-pastille-couleur={reseau} className="size-2.5 shrink-0 rounded-full bg-[color:var(--c)]" />
+            <PictoReseau reseau={reseau} />
           </>
         );
         if (lienReseau) {
