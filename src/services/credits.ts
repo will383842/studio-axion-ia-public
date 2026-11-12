@@ -303,10 +303,10 @@ export async function manquesPour(lignes: LigneCout[]): Promise<{ manques: Manqu
   return { manques: calculerManques(besoins, disponibles), besoins, refusees };
 }
 
-/** « Crédit HeyGen insuffisant : il reste 2,10 $, cette vidéo demande ≈ 3,80 $. » */
+/** « Crédit HeyGen insuffisant pour cette vidéo : rechargez le compte HeyGen, puis relancez. » (aucun montant affiché ; la condition de blocage ne change pas) */
 export function messageManque(m: Manque, quoi = "Cette vidéo"): string {
-  const u = uniteDe(m.fournisseur);
-  return `Crédit ${nomFournisseur(m.fournisseur)} insuffisant : il reste ${texteMontant(u, Math.max(0, m.disponible))}, ${quoi.charAt(0).toLowerCase()}${quoi.slice(1)} demande ≈ ${texteMontant(u, m.demande)}.`;
+  const nom = nomFournisseur(m.fournisseur);
+  return `Crédit ${nom} insuffisant pour ${quoi.charAt(0).toLowerCase()}${quoi.slice(1)} : rechargez le compte ${nom}, puis relancez.`;
 }
 
 /**
@@ -342,8 +342,7 @@ export async function verifierBudgetEtCredits(
   // un lancement AUTOMATIQUE d'une commande qui garderait un accord insuffisant. Mode bloquant et Usine : confirmation exigée.
   const seuilIndicatif = options.automatique === true && options.origine !== "usine" && (await budgetIndicatif());
   if (!seuilIndicatif && bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
-    const prix = formaterMontant({ centimes: bloquant, devise: "EUR" });
-    const message = typeof confirme === "number" ? `Le prix a changé : ${prix} au plus. Confirmez ce prix pour continuer.` : `${quoi} coûte au plus ${prix}, plus que d'habitude. Confirmez ce prix pour continuer.`;
+    const message = typeof confirme === "number" ? "Le prix a changé : confirmez pour continuer." : `${quoi} coûte plus que d'habitude : confirmez pour continuer.`;
     throw new ErreurStudio("CONFIRMATION_REQUISE", message, bloquant);
   }
   // Lot R7 — GARDE-FOU : le double RÉEL ne part jamais sans que Will ait confirmé son prix, quel que soit le seuil.

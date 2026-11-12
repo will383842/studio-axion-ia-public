@@ -41,7 +41,6 @@ import { formatSansPrix, trouverFormat } from "@/formats";
 import { ID_FORMAT_IMAGE_VIDEO } from "@/formats/image-video";
 import { dureeDeLaVideo, libelleDureeVideo } from "@/domaine/duree-video";
 import { titreAffiche } from "@/domaine/titres";
-import { formaterMontant } from "@/lib/montants";
 import { exigerSession } from "@/services/auth";
 import { listerPartages } from "@/services/partages";
 import { obtenirKit, resultatsVideo, telechargementsVideo } from "@/services/publications";
@@ -50,8 +49,6 @@ import { estimerReexport } from "@/services/fabrication";
 import { exemplesModification, historiqueModifications } from "@/services/modifications";
 import { commandeEnEssai, moteurDeCommande } from "@/moteurs";
 import { obtenirVideo } from "@/services/videos";
-import { coutsDeLaVideo } from "@/services/cout-video";
-import { chiffresCoutVideo } from "@/domaine/cout-video";
 import { vueEnvoiBuffer } from "@/services/buffer";
 import { AttenteFacecam } from "@/components/facecam/AttenteFacecam";
 import { EncartFormatFacecam } from "@/components/facecam/EncartFormatFacecam";
@@ -160,7 +157,6 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   const recalquePossible = !!d.versionCourante && typeof moteurDeCommande(d.versionCourante.commande).recalquer === "function";
   // Une correction déjà enregistrée mais pas encore appliquée à la vidéo reste proposée après un rechargement.
   const correctionAAppliquer = recalquePossible && !enFabrication && d.versionCourante ? await correctionEnAttente(d.versionCourante.id) : false;
-  const couts = await coutsDeLaVideo(v.id);
   const coutsFormats = Object.fromEntries(await Promise.all(manquants.map(async (r) => [r, (await estimerReexport(v.id, r)).centimes] as const)));
 
   const donnees: DonneesVideo = {
@@ -187,15 +183,8 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
     { libelle: "Durée", valeur: dureeLibelle, icone: "horloge" as const },
     { libelle: "Vues", valeur: resultats.total.vues ? compact.format(resultats.total.vues) : "—", icone: "oeil" as const },
   ];
-  const chiffresCout: ChiffreVideo[] = [
-    // E2E-2 argent n° 6 et 7 : le payé (sans ESSAI) et la part simulée (ESSAI, pas payée) sont séparés.
-    ...(facecam ? [] : chiffresCoutVideo({ ...couts, coutEstime: v.coutEstime, fabricationSimulee, estDemo: v.estDemo }).map((c) => ({
-      libelle: c.libelle,
-      valeur: c.montant ? `${c.estime ? "≈ " : ""}${formaterMontant(c.montant)}` : "—",
-      icone: "euro" as const,
-      essai: c.essai,
-    }))),
-  ];
+  // Règle de Williams : aucun montant dans le studio (les coûts ne sont plus affichés).
+  const chiffresCout: ChiffreVideo[] = [];
 
   const onglets: Onglet[] = [
     ...(prete && kit && !sansPublication
