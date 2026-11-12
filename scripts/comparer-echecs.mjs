@@ -30,6 +30,12 @@ export function extraireEchecs(rapportVitest) {
   return echecs;
 }
 
+// Garde, parmi des chemins (un par ligne de git diff --name-only), les fichiers de test que vitest lance :
+// racine de tests/, sous-dossiers de tests/, et src/ (vitest.config.mts).
+export function selectionnerTests(chemins) {
+  return chemins.map((c) => String(c).trim()).filter((c) => /^(tests|src)\/(.+\/)?[^/]+\.test\.tsx?$/.test(c));
+}
+
 export function compterLances(rapportVitest) {
   verifierRapport(rapportVitest);
   return rapportVitest.testResults.reduce(
@@ -63,7 +69,12 @@ export function rapport(res) {
   return l.join("\n");
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[2] === "--selection") {
+  // Usage : git diff --name-only ... | node scripts/comparer-echecs.mjs --selection > fichiers-test.txt
+  const entree = readFileSync(0, "utf8").split("\n");
+  const liste = selectionnerTests(entree);
+  if (liste.length) console.log(liste.join("\n"));
+} else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const [, , chemRapport, chemConnus = "scripts/echecs-connus.json"] = process.argv;
   if (!chemRapport) {
     console.error("Usage : node scripts/comparer-echecs.mjs <rapport.json> [echecs-connus.json]");
