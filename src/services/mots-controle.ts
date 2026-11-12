@@ -1,17 +1,18 @@
 /**
  * MOTS (PV-3) · contrôle de SORTIE. Tout texte qui partira vers une personne passe ici, par les filtres EXISTANTS :
- * mots interdits de l'envoi (famille « certifié », nom du label qualité), expressions bannies (lieu interdit, « Aucun gain
- * garanti »), puis les règles du parcours : mention « Message automatique envoyé par Axion IA. » en ouverture de chaque message privé, jamais de mention STOP, jamais de question d'accord, aucune promesse interdite,
+ * mots interdits de l'envoi (famille « certifié », nom du label qualité), expressions bannies (lieu interdit, expression de gain interdite), puis les règles du parcours : aucune mention « Message automatique » en ouverture, aucune signature, jamais de mention STOP, jamais de question d'accord, aucune promesse interdite,
  * aucune adresse e-mail. PUR. Les mots interdits ne sont jamais écrits en clair dans les tests (jetons).
  */
 import { expressionsBannieDans, normaliser } from "@/domaine/controles-visuel/texte";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
-import { MENTION_OUVERTURE } from "@/domaine/guide-reseau/textes-mp";
 import { SECTIONS, type Section, type TextesMot } from "./mots-textes";
 
-export const MENTION_AUTOMATIQUE = MENTION_OUVERTURE;
-/** Sections qui partent en message PRIVÉ : la mention d'ouverture y est obligatoire (la réponse publique n'en porte pas). */
-const SECTIONS_PRIVEES: readonly Section[] = ["message_prive", "relance", "fin"];
+/** Aucun texte (toute section) ne contient cette mention d'automatisme, en ouverture comme au milieu (« ça ne fait pas très pro »). */
+const MOTIF_MENTION_AUTOMATIQUE = /\bmessage automatique\b/;
+/** Aucune signature en fin de texte (les réseaux sociaux affichent déjà le nom du compte). */
+const MOTIF_SIGNATURE = /(?:\b(?:l )?equipe (?:de )?axion ia|\bmessage automatique envoye par axion ia|\b(?:bien )?cordialement(?: axion ia)?)$/;
+/** Signature « Axion IA » seule en dernière phrase ou dernière ligne (texte sans accents MAIS avec sa ponctuation) : début de texte ou signe . ! ? … , ; : — – - ou saut de ligne avant, éventuellement « l'équipe », puis axion ia, puis éventuellement . ou !, puis la fin. « proposé par Axion IA » dans une phrase reste accepté. */
+const MOTIF_SIGNATURE_NOM = /(?:^|[.!?…,;:\u2014\u2013\-\n])\s*(?:l['’ ]?equipe\s+(?:de\s+)?)?axion\s+ia\s*[.!]*\s*$/;
 export const LONGUEUR_MAX_TEXTE = 1000;
 
 /** Promesses refusées (racines, comparées sans accents ni casse). */
@@ -33,7 +34,7 @@ const INVISIBLES = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
 
 export interface Refus {
   section: Section;
-  code: "vide" | "trop_long" | "mot_interdit" | "expression_bannie" | "mention_absente" | "promesse_interdite" | "adresse_email" | "mention_stop" | "question_accord";
+  code: "vide" | "trop_long" | "mot_interdit" | "expression_bannie" | "mention_automatique" | "signature" | "promesse_interdite" | "adresse_email" | "mention_stop" | "question_accord";
   detail: string;
 }
 
@@ -47,7 +48,9 @@ export function controlerTexteSortant(section: Section, texte: string): Refus[] 
   for (const e of expressionsBannieDans(texte.replace(INVISIBLES, ""))) r("expression_bannie", e);
   const nu = texte.replace(INVISIBLES, "");
   const plat = normaliser(nu);
-  if (SECTIONS_PRIVEES.includes(section) && !plat.startsWith(normaliser(MENTION_AUTOMATIQUE))) r("mention_absente", `« ${MENTION_AUTOMATIQUE} » absent en ouverture`);
+  if (MOTIF_MENTION_AUTOMATIQUE.test(plat)) r("mention_automatique", "mention d'automatisme interdite");
+  const sansAccents = nu.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (MOTIF_SIGNATURE.test(plat) || MOTIF_SIGNATURE_NOM.test(sansAccents)) r("signature", "signature interdite en fin de texte");
   if (MOTIF_STOP.test(plat)) r("mention_stop", "mention de l'arrêt interdite");
   if (MOTIF_QUESTION_ACCORD.test(plat)) r("question_accord", "question d'accord interdite");
   for (const p of PROMESSES) if (p.motif.test(plat)) r("promesse_interdite", p.libelle);

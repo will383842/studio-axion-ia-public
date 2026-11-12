@@ -43,6 +43,8 @@ const REGISTRE: EntreeCodeFormat[] = [
   // Lot G (08/11) : vitrines « Tutoriel d'outil » et « Démo facecam » (rendu pas encore branché).
   { code: "TO", formatId: "tutoriel-outil", creeLe: "2026-11-08" },
   { code: "DF", formatId: "demo-facecam", creeLe: "2026-11-08" },
+  // Décision « lien suivi, version 2 » (12/11) : un seul code pour tous les visuels (ajout en fin de registre, rien renuméroté).
+  { code: "VS", formatId: "visuel", creeLe: "2026-11-12" },
 ];
 
 export const MOTIF_CODE_FORMAT = /^[A-Z]{2,3}$/;
