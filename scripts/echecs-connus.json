@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "Échecs déjà présents sur master, tolérés par la CI des nouveaux tests. Un échec absent d'ici est rouge. Ne jamais y ajouter un échec nouveau : le corriger.",
+  "echecs": []
+}
