@@ -57,8 +57,13 @@ export async function decaler(d: DepotsPlan, id: string, demande: DemandeDecalag
   const c = await lire(d, id);
   const idLigne = `decalage:${id}:${demande.cle}`;
   const ligne = await d.journal.obtenir(idLigne);
-  // Rejeu : si le décalage est déjà appliqué, on rend le créneau tel quel ; sinon (écriture du créneau tombée en panne) on le réapplique sans nouvelle ligne.
-  if (ligne && c.jourVise === ligne.nouveauJour) return c;
+  // Rejeu : on ne réapplique que si la ligne de cette clé est la DERNIÈRE du créneau et que le créneau est encore à son ancien jour
+  // (écriture du créneau tombée en panne) ; sinon (déjà appliqué, ou décalé depuis) on rend le créneau tel quel.
+  if (ligne) {
+    const lignes = await d.journal.lister((l) => l.creneauId === id);
+    const derniere = lignes.length > 0 && lignes[lignes.length - 1].id === idLigne;
+    if (!derniere || c.jourVise !== ligne.ancienJour) return c;
+  }
   if (c.statut === "publie") throw new Error(`Décalage refusé : le créneau ${id} est publié.`);
   if (c.statut === "archive") throw new Error(`Décalage refusé : le créneau ${id} est archivé.`);
   if (c.statut === "programme" || c.statut === "echec") {
