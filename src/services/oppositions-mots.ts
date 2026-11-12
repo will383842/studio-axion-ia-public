@@ -16,6 +16,8 @@ export interface LigneOpposition {
   transmise: boolean;
   /** Autres formes (clé courante) de la même personne, ajoutées après rotation. Aucune ligne n'est jamais supprimée. */
   alias?: string[];
+  /** Ligne importée du site (STOP-S5a) : toujours `transmise: true` (le site la connaît déjà). */
+  source?: "site";
 }
 /** HÉRITÉE, LECTURE SEULE : ancien SHA-256 tronqué. On n'écrit plus jamais sous cette forme. */
 export const empreinteContact = (id: string): string => empreinteHeritee(id);
@@ -30,6 +32,14 @@ export const ESPACE_CONTACT_ZERNIO: EspacePersonne = "zernio-contact";
 
 /** Même nom que `PARAM_CONVERSATIONS` (parcours-conversation.ts importe ce module : pas d'import circulaire). */
 const PARAM_CONVERSATIONS_ETAT = "parcours.conversations";
+
+/** Import des oppositions connues du site (STOP-S5a) : éteint par défaut. Même lecture que `OPPOSITIONS_PAR_REF_ENABLED`. */
+export const VARIABLE_OPPOSITIONS_SITE_IMPORT = "OPPOSITIONS_SITE_IMPORT_ENABLED";
+export const importSiteActif = (env: Record<string, string | undefined>): boolean => /^(1|true|oui)$/i.test(env[VARIABLE_OPPOSITIONS_SITE_IMPORT]?.trim() ?? "");
+/** Curseur et dates de l'import (des références opaques et des dates seulement, aucune donnée en clair). */
+export const PARAM_OPPOSITIONS_SITE = "parcours.oppositions.site";
+/** Au-delà, le dernier cycle complet est périmé : toute personne qui a un lien est écartée (rien ne part). */
+export const PEREMPTION_IMPORT_SITE_MS = 30 * 60_000;
 
 interface Options {
   env?: Record<string, string | undefined>;
@@ -176,6 +186,25 @@ export async function enregistrerOppositionPersonne(idsBruts: readonly string[],
 export async function enregistrerOppositionSousVerrou(idContact: string, espace: EspacePersonne = ESPACE_CONTACT_ZERNIO, o?: Options): Promise<string> {
   return ecrireOpposition(idContact, espace, cles(o));
 }
+/**
+ * Import du site (STOP-S5a) : écrit `{id: cle, le, transmise: true, source: "site"}` pour chaque clé de conversation.
+ * `transmise: true` est OBLIGATOIRE (sinon la ligne repartirait vers le site : boucle). Rejeu = une seule ligne. Échec fermé sans secret.
+ */
+export async function enregistrerOppositionsImportees(clesConversation: readonly string[], o?: Options): Promise<void> {
+  if (clesConversation.length === 0) return;
+  const c = cles(o);
+  await sousVerrou(async () => {
+    const liste = await lireParametre<LigneOpposition[]>(PARAM_OPPOSITIONS_MOTS, []);
+    verifierKids(liste, c);
+    const ajout: LigneOpposition[] = [];
+    for (const cle of new Set(clesConversation)) {
+      if (liste.some((x) => contientEnTempsConstant(formes(x), [cle]))) continue;
+      ajout.push({ id: cle, le: maintenant(), transmise: true, source: "site" });
+    }
+    if (ajout.length > 0) await ecrireParametre(PARAM_OPPOSITIONS_MOTS, [...liste, ...ajout]);
+  });
+}
+
 /** Marque « transmise » la ligne retrouvée par ses formes reconnues (courante, anciennes, héritée). */
 export async function marquerTransmise(idContact: string, espace: EspacePersonne = ESPACE_CONTACT_ZERNIO, o?: Options): Promise<void> {
   const c = cles(o);
@@ -290,6 +319,7 @@ export class ErreurOppositionIllisible extends Error {
 interface ConversationLue {
   etat?: unknown;
   douteOpposition?: unknown;
+  refLienConv?: unknown;
 }
 const estObjet = (x: unknown): x is Record<string, unknown> =>
   typeof x === "object" && x !== null && !Array.isArray(x);
@@ -385,6 +415,7 @@ export async function personneOpposeePartout(
     if (!passer()) break;
   let etat = false;
   let doute = false;
+  let aUnLien = false;
   for (const k of touchees) {
     candidats.add(k);
     candidats.add(racineDe(k));
@@ -396,10 +427,20 @@ export async function personneOpposeePartout(
     const ec = e as ConversationLue;
     if (ec.etat === "oppose") etat = true;
     if (ec.douteOpposition === true && o?.douteBloque === true) doute = true;
+    if (typeof ec.refLienConv === "string" && ec.refLienConv !== "") aUnLien = true;
   }
   const dansRegistre = trouver(liste as LigneOpposition[], [...candidats]) >= 0;
   if (etat) return { opposee: true, source: "etat" };
   if (dansRegistre) return { opposee: true, source: "registre" };
   if (doute) return { opposee: true, source: "doute" };
+  // STOP-S5a : une personne qui a reçu un lien a pu s'opposer sur le site. Sans import récent et complet, on ne sait pas : on LÈVE.
+  // Interrupteur éteint : aucune lecture de plus. Personne sans lien : non touchée.
+  if (aUnLien && importSiteActif(o?.env ?? process.env)) {
+    const site = await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null);
+    const dernier = estObjet(site) ? site.dernierCycleCompletLe : undefined;
+    const maintenantMs = o?.maintenantMs ?? Date.now();
+    if (typeof dernier !== "number" || !Number.isFinite(dernier) || maintenantMs - dernier > PEREMPTION_IMPORT_SITE_MS)
+      throw new ErreurOppositionIllisible("site_perime");
+  }
   return { opposee: false, jeton: emettreJetonNonOpposee() };
 }

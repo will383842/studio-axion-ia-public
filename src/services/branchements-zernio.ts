@@ -179,6 +179,7 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const { traiterConversations, traiterMercis } = await import("./parcours-conversation");
   const { transmettreOppositions, rattraperOppositions } = await import("./oppositions-transmission");
   await toutArreter(env);
+  await etape("import des oppositions du site", async () => (await import("./oppositions-import-site")).importerOppositionsDuSite({ env, maintenantMs: now }));
   if (actif && !sansEnvoi) await etape("conversations", () => traiterConversations({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
   // Merci après la page : même condition que les conversations ; les accusés en retard partent même interrupteur du merci éteint.
   if (actif && !sansEnvoi) await etape("mercis", () => traiterMercis({ port, comptesPermis, comptesLecture, titreGuide: titre, env, maintenantMs: now }));
