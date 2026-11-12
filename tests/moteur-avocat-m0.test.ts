@@ -271,7 +271,8 @@ describe("musique interdite et styles avocat (B.0 §8, B.7)", () => {
   it("une seule règle de musique pour l'écran et la commande ; rien pour un format sans musique", async () => {
     const elements = await depots().elements.lister();
     expect(formats.musiqueRetenue(formatAvocat, "mus-tension", elements)).toBeUndefined();
-    expect(formats.musiqueRetenue(formats.obtenirFormat("podcast"), undefined, elements)).toBe("mus-nappe");
+    // Décision du propriétaire : aucune musique par défaut, même étoilée ; seul le choix de la vidéo compte.
+    expect(formats.musiqueRetenue(formats.obtenirFormat("podcast"), undefined, elements)).toBeUndefined();
     expect(formats.musiqueRetenue(formats.obtenirFormat("podcast"), "mus-elan", elements)).toBe("mus-elan");
   });
 
