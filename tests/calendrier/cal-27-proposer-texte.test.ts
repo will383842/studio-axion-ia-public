@@ -79,6 +79,17 @@ describe("composant : ProposerTexte", () => {
     expect(String(champs(m)[0]!.props.value)).toBe("Ma version.");
   });
 
+  it("sans simulation, un texte de repli est dit « texte automatique, l'assistant n'est pas branché : à réécrire », jamais « proposition »", async () => {
+    const m = monter(ProposerTexte, { type: "video" as const, reseaux: ["linkedin" as const], proposer: proposerTexteImporte });
+    const description = trouver(m.rendre(), (e) => e.type === "input")[0]!;
+    (description.props.onChange as (e: unknown) => void)({ target: { value: DESCRIPTION } });
+    (boutonDe(m).props.onClick as () => void)();
+    await attendre();
+    const t = texteDe(m.rendre());
+    expect(t).toMatch(/Texte automatique, l'assistant n'est pas branché : à réécrire/);
+    expect(t).not.toMatch(/Proposition à relire/);
+  });
+
   it("sans description : demande une phrase ; en panne : message clair, champs vides éditables, jamais bloquant", async () => {
     const vide = monter(ProposerTexte, { type: "video" as const, reseaux: ["linkedin" as const], proposer: proposerTexteImporte });
     (boutonDe(vide).props.onClick as () => void)();

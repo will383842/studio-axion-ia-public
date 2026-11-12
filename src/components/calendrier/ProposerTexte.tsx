@@ -24,6 +24,9 @@ export interface PropsProposerTexte {
   onChange?: (parReseau: Record<string, TexteReseau>) => void;
 }
 
+export const MESSAGE_REPLI = "Texte automatique, l'assistant n'est pas branché : à réécrire. Rien n'est envoyé sans votre validation.";
+export const MESSAGE_REPLI_ESSAI = "Texte d'essai automatique : le Studio est en simulation, l'assistant n'est pas branché. À réécrire.";
+
 const LIBELLE_TYPE: Record<TypeImporte, string> = { video: "de votre vidéo", carrousel: "de votre carrousel", infographie: "de votre infographie" };
 
 export function ProposerTexte({ type, reseaux, proposer, texteDesPages, onChange }: PropsProposerTexte) {
@@ -57,7 +60,9 @@ export function ProposerTexte({ type, reseaux, proposer, texteDesPages, onChange
       }
       setProposition(meta);
       majeur(suivant);
-      setMessage(r.essai ? "Texte d'essai : le Studio est en simulation, ce texte n'est pas écrit par l'assistant. À relire et modifier." : "Proposition à relire et modifier : rien n'est envoyé sans votre validation.");
+      // Un texte de repli n'est jamais présenté comme une proposition de l'assistant : il est dit automatique, à réécrire.
+      const repli = r.propositions.some((p) => p.source === "repli");
+      setMessage(repli && r.essai ? MESSAGE_REPLI_ESSAI : repli ? MESSAGE_REPLI : r.essai ? "Texte d'essai : le Studio est en simulation, ce texte n'est pas écrit par l'assistant. À relire et modifier." : "Proposition à relire et modifier : rien n'est envoyé sans votre validation.");
     } catch {
       setMessage("La proposition n'est pas disponible pour le moment. Vous pouvez écrire le texte à la main : l'ajout n'est pas bloqué.");
     } finally {
