@@ -148,11 +148,12 @@ describe("3. alerte « budget à 80 % » : la marque du mois n'est posée qu'apr
 /* --- 4. origine figée dans la commande ----------------------------------------------------------------------------- */
 
 describe("4. l'origine d'une fabrication est figée dans sa commande", () => {
-  it("lancement commandé par l'Usine sans budget reçu : BUDGET_USINE_ABSENT, aucun travail, rien réservé ni engagé", async () => {
-    await expect(fabrication.lancerFabrication("v-04", { confirme: true, origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    expect(await depots().travaux.lister((t) => t.cibleId === "v-04" && t.statut !== "termine")).toEqual([]);
-    expect(await depots().reservations.lister((r) => r.statut === "active")).toEqual([]);
-    expect((await couts.resumeBudget()).engage.centimes).toBe(0);
+  it("lancement commandé par l'Usine sans budget reçu : alerte + ligne de journal, plus de refus d'argent ; le travail est créé avec l'origine « usine »", async () => {
+    const { versionId } = await fabrication.lancerFabrication("v-04", { confirme: true, origine: "usine" });
+    expect((await depots().versions.obtenir(versionId))!.commande.origine).toBe("usine");
+    expect((await depots().travaux.lister((t) => t.cibleId === "v-04")).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).some((e) => e.type === "budget" && e.message.includes("(usine-absent)"))).toBe(true);
+    expect((await depots().notifications.lister()).some((x) => /Aucun budget du mois reçu/.test(x.titre))).toBe(true);
   });
 
   it("avec le budget reçu : la version garde `origine: usine` (retouche, format et relance la relisent)", async () => {

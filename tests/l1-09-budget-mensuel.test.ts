@@ -54,6 +54,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const journalBudget = async (motif: string) => (await depots().evenements.lister()).filter((e) => e.type === "budget" && e.message.includes(`(${motif})`));
+const cloches = async (motif: RegExp) => (await depots().notifications.lister()).filter((x) => motif.test(x.titre));
 const notificationsBudget = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget");
 /** Cloche du dépassement indicatif (la fabrication continue) : une par jour et par motif. */
 const clochesIndicatif = async () => (await depots().notifications.lister()).filter((x) => x.type === "credit" && /indicatif/i.test(x.titre));
@@ -175,11 +177,12 @@ describe("budget envoyé par l'Usine (porte v2, appel 5)", () => {
     expect(await budget.reglerBudgetUsine({ ...corps, budget_mensuel_cents: 40 })).toMatchObject({ deja: false, budget_mensuel_cents: 40 });
   });
 
-  it("budget absent → aucune fabrication commandée par l'Usine ne part (rien réservé) ; la commande de Will passe", async () => {
+  it("budget absent → alerte + journal, plus de refus d'argent pour l'Usine (le quota de quantité garde) ; la commande du fondateur passe", async () => {
     const d = demande();
-    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", d, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", d, { origine: "usine" })).resolves.toBeUndefined();
+    expect(await journalBudget("usine-absent")).toHaveLength(1);
+    expect(await cloches(/Aucun budget du mois reçu/)).toHaveLength(1);
     expect(await depots().reservations.compter((r) => r.travailId === d.travailId)).toBe(0);
-    expect(await lireParametre(`budget.engage.${d.travailId}`, null)).toBeNull();
     await credits.verifierEtReserver(estimation(1), true, "Cette vidéo", demande());
   });
 
@@ -189,30 +192,36 @@ describe("budget envoyé par l'Usine (porte v2, appel 5)", () => {
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 80, mois: "2026-10" });
     vi.setSystemTime(new Date("2026-11-02T10:00:00Z"));
     expect(await budget.lireBudgetUsine()).toBeNull();
-    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", demande(), { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", demande(), { origine: "usine" })).resolves.toBeUndefined();
+    expect(await journalBudget("usine-absent")).toHaveLength(1);
+    expect(await cloches(/Aucun budget du mois reçu/)).toHaveLength(1);
   });
 
-  it("dépassement du budget de l'Usine → refus (budget_mensuel_atteint) et alerte à Will ; la commande de Will reste sous SON plafond", async () => {
+  it("dépassement du budget de l'Usine → alerte au fondateur + journal, sans refus d'argent ; la commande du fondateur reste sous SON plafond", async () => {
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 50, mois: moisCourant() });
     await credits.verifierEtReserver(estimation(40), true, "Cette vidéo", demande(), { origine: "usine" });
     const d = demande();
-    await expect(credits.verifierEtReserver(estimation(11), true, "Cette vidéo", d, { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+    await expect(credits.verifierEtReserver(estimation(11), true, "Cette vidéo", d, { origine: "usine" })).resolves.toBeUndefined();
     expect(await depots().reservations.compter((r) => r.travailId === d.travailId)).toBe(0);
-    expect((await notificationsBudget()).some((x) => x.titre.includes("Usine"))).toBe(true);
+    expect(await journalBudget("usine-atteint")).toHaveLength(1);
+    expect((await cloches(/Usine/)).length).toBeGreaterThan(0);
     // Will, lui, peut encore lancer jusqu'à son plafond de 100 c.
     await credits.verifierEtReserver(estimation(60), true, "Cette vidéo", demande());
   });
 
-  it("Will baisse son plafond sous le budget de l'Usine : c'est le plus bas qui tient", async () => {
+  it("le fondateur baisse son plafond sous le budget de l'Usine : le dépassement alerte et se journalise, sans refus", async () => {
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 100, mois: moisCourant() });
     await couts.definirBudget(30);
-    await expect(credits.verifierEtReserver(estimation(31), true, "Cette vidéo", demande(), { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(credits.verifierEtReserver(estimation(31), true, "Cette vidéo", demande(), { origine: "usine" })).resolves.toBeUndefined();
+    expect(await journalBudget("mois")).toHaveLength(1);
+    expect((await cloches(/Budget indicatif du mois dépassé/)).length).toBeGreaterThan(0);
     await credits.verifierEtReserver(estimation(30), true, "Cette vidéo", demande(), { origine: "usine" });
   });
 
-  it("budget de l'Usine illisible en base → refus", async () => {
+  it("budget de l'Usine illisible en base → traité comme absent : alerte + journal, sans refus d'argent", async () => {
     await ecrireParametre(`budget.usine.${moisCourant()}`, { budget_mensuel_cents: "beaucoup", mois: moisCourant() });
-    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", demande(), { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(credits.verifierEtReserver(estimation(1), true, "Cette vidéo", demande(), { origine: "usine" })).resolves.toBeUndefined();
+    expect(await journalBudget("usine-absent")).toHaveLength(1);
   });
 });
 

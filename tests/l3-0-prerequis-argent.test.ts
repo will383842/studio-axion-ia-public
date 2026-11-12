@@ -30,6 +30,9 @@ const MDP = "l3-0-prerequis-argent";
 const eur = (c: number) => ({ centimes: c, devise: "EUR" as const });
 const ligne = (c: number): LigneCout => ({ etape: "Voix", fournisseur: "simulation", unite: "forfait", quantite: 1, prixUnitaire: eur(c), total: eur(c), nature: "estime" });
 const estimation = (c: number) => ({ lignes: [ligne(c)], total: eur(c) });
+/** L2-13 (critère 5) : un budget d'argent n'est plus un refus ; il alerte (cloche) et se journalise. */
+const lignesBudget = async () => (await depots().evenements.lister()).filter((e) => e.type === "budget").map((e) => e.message);
+const aAlerte = async (motif: string) => (await lignesBudget()).some((m) => m.includes(`(${motif})`)) && (await depots().notifications.lister()).length > 0;
 let n = 0;
 const demande = () => ({ videoId: `v-l30-${++n}`, travailId: `trv-l30-${n}` });
 
@@ -55,22 +58,26 @@ afterEach(() => {
 });
 
 describe("1. reserverPourUsine : le chemin unique d'une dépense commandée par l'Usine", () => {
-  it("sans budget reçu de l'Usine : refus BUDGET_USINE_ABSENT, aucune réservation ni engagement", async () => {
+  it("sans budget reçu de l'Usine : plus de refus, alerte (cloche) + journal « usine-absent », l'engagement est posé", async () => {
     const d = demande();
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", d)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
-    expect(await depots().reservations.compter((r) => r.travailId === d.travailId)).toBe(0);
-    expect(await lireParametre(`budget.engage.${d.travailId}`, null)).toBeNull();
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", d)).resolves.toBeUndefined();
+    expect(await aAlerte("usine-absent")).toBe(true);
+    expect((await couts.resumeBudget()).engage.centimes).toBe(10);
   });
 
-  it("budget reçu : passe et engage ; au-delà du budget de l'Usine : BUDGET_MENSUEL_ATTEINT", async () => {
+  it("budget reçu : passe et engage ; au-delà du budget de l'Usine : plus de refus, alerte (cloche) + journal « usine-atteint »", async () => {
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 50, mois: couts.moisParis() });
     await credits.reserverPourUsine(estimation(40), true, "Cette vidéo", demande());
-    await expect(credits.reserverPourUsine(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
+    expect(await aAlerte("usine-atteint")).toBe(false);
+    await expect(credits.reserverPourUsine(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
+    expect(await aAlerte("usine-atteint")).toBe(true);
   });
 
   it("l'origine ne peut pas être surchargée par l'appelant (toujours « usine »)", async () => {
     // @ts-expect-error — le 5e paramètre n'existe pas : une origine passée est ignorée.
-    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", demande(), { origine: "studio" })).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+    await expect(credits.reserverPourUsine(estimation(10), true, "Cette vidéo", demande(), { origine: "studio" })).resolves.toBeUndefined();
+    // l'origine reste « usine » : le motif journalisé est celui de l'Usine, pas celui d'un lancement du studio
+    expect(await aAlerte("usine-absent")).toBe(true);
   });
 
   it("la dépense manuelle de Will est inchangée : verifierEtReserver sans origine passe sans budget de l'Usine", async () => {
@@ -108,14 +115,14 @@ async function nouvelleGeneration(): Promise<GenerationScript> {
 const depensesClaude = async () => (await depots().depenses.lister()).filter((d) => d.lignes.some((l) => l.fournisseur === "anthropic"));
 
 describe("2. écriture du script (generation-claude) : `origine`", () => {
-  it("origine « usine » sans budget reçu : refus, AUCUN appel, aucune dépense, aucune réservation", async () => {
+  it("origine « usine » sans budget reçu : plus d'arrêt, alerte + journal « usine-absent », l'écriture part", async () => {
     const { appels } = await brancherClaude();
     const g = await nouvelleGeneration();
     const r = await gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" });
-    expect(r).toMatchObject({ ok: false, arret: "budget-usine" });
-    expect(appels).toHaveLength(0);
-    expect(await depensesClaude()).toHaveLength(0);
-    expect(await depots().reservations.lister()).toHaveLength(0);
+    expect(r).toMatchObject({ ok: true, simule: false });
+    expect(await aAlerte("usine-absent")).toBe(true);
+    expect(appels).toHaveLength(1);
+    expect(await depensesClaude()).toHaveLength(1);
   });
 
   it("origine « usine » avec le budget du mois reçu : l'écriture part", async () => {
@@ -133,13 +140,13 @@ describe("2. écriture du script (generation-claude) : `origine`", () => {
     expect(appels).toHaveLength(1);
   });
 
-  it("budget de l'Usine atteint : refus « budget-usine », la génération n'est pas mise en attente (rien ne repart seul)", async () => {
+  it("budget de l'Usine atteint : plus d'arrêt « budget-usine », alerte + journal « usine-atteint », l'écriture part", async () => {
     const { appels } = await brancherClaude();
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 0, mois: couts.moisParis() });
     const g = await nouvelleGeneration();
-    expect(await gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" })).toMatchObject({ ok: false, arret: "budget-usine" });
-    expect(appels).toHaveLength(0);
-    expect((await depots().generations.obtenir(g.id))!.statut).toBe("en-cours");
+    expect(await gc.executerRoleFacture(g.id, roleSonde, entreeRole, { origine: "usine" })).toMatchObject({ ok: true, simule: false });
+    expect(await aAlerte("usine-atteint")).toBe(true);
+    expect(appels).toHaveLength(1);
   });
 });
 
@@ -147,14 +154,14 @@ describe("2. dépense d'une vidéo (depense-claude-video) : `origine`", () => {
   const videoId = "v-04";
   const options = { etape: "Texte de publication · LinkedIn" };
 
-  it("origine « usine » sans budget reçu : refus « budget-usine », aucun appel, aucune dépense", async () => {
+  it("origine « usine » sans budget reçu : plus d'arrêt « budget-usine », alerte + journal « usine-absent », l'appel part", async () => {
     const { appels } = await brancherClaude();
     await depots().videos.enregistrer({ ...(await depots().videos.obtenir(videoId))!, id: "v-l30", estDemo: false });
     const r = await dcv.executerRolePourVideo("v-l30", roleSonde, entreeRole, { ...options, origine: "usine" });
-    expect(r).toMatchObject({ ok: false, arret: "budget-usine" });
-    expect(appels).toHaveLength(0);
-    expect(await depensesClaude()).toHaveLength(0);
-    expect(await depots().reservations.lister()).toHaveLength(0);
+    expect(r.ok).toBe(true);
+    expect(await aAlerte("usine-absent")).toBe(true);
+    expect(appels).toHaveLength(1);
+    expect(await depensesClaude()).toHaveLength(1);
   });
 
   it("avec le budget reçu : part ; sans origine (Will) : part sans budget de l'Usine", async () => {
@@ -206,24 +213,27 @@ describe("3. plafond_cents d'une commande de l'Usine", () => {
 /* --- 4. Alerte budget : la marque « déjà alerté » s'écrit APRÈS l'envoi réussi ------------------------------- */
 
 describe("4. alerte du budget : marque écrite après l'envoi", () => {
-  const notes = async () => (await depots().notifications.lister()).filter((x) => x.type === "budget" && x.titre.includes("refusée"));
-  const cleMarque = () => `budget.refus.${couts.jourParis()}.plafond`;
+  // L2-13 : le dépassement du plafond du mois ne refuse plus ; l'alerte (cloche, type « credit ») est posée une fois par jour et par motif.
+  const notes = async () => (await depots().notifications.lister()).filter((x) => /indicatif/i.test(x.titre));
+  const cleMarque = () => `budget.refus.${couts.jourParis()}.indicatif-mois`;
 
-  it("envoi en panne : le refus part quand même, AUCUNE marque posée ; l'alerte repart au refus suivant", async () => {
+  it("envoi en panne : rien n'est refusé, AUCUNE marque posée, la ligne de journal est écrite ; l'alerte repart au dépassement suivant", async () => {
     await credits.verifierEtReserver(estimation(90), true, "Cette vidéo", demande());
     const enregistrer = vi.spyOn(depots().notifications, "enregistrer").mockRejectedValueOnce(new Error("panne d'envoi"));
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     expect(await lireParametre(cleMarque(), false)).toBe(false);
     expect(await notes()).toHaveLength(0);
+    expect((await lignesBudget()).some((m) => m.includes("(mois)"))).toBe(true);
     enregistrer.mockRestore();
-    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     expect(await notes()).toHaveLength(1);
     expect(await lireParametre(cleMarque(), false)).toBe(true);
   });
 
-  it("envoi réussi : marque posée, une seule alerte par jour et par motif (inchangé)", async () => {
+  it("envoi réussi : marque posée, une seule alerte par jour et par motif, une ligne de journal à chaque dépassement", async () => {
     await credits.verifierEtReserver(estimation(90), true, "Cette vidéo", demande());
-    for (let i = 0; i < 3; i++) await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    for (let i = 0; i < 3; i++) await expect(credits.verifierEtReserver(estimation(20), true, "Cette vidéo", demande())).resolves.toBeUndefined();
     expect(await notes()).toHaveLength(1);
+    expect((await lignesBudget()).filter((m) => m.includes("(mois)"))).toHaveLength(3);
   });
 });
