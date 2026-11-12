@@ -10,6 +10,7 @@ import { libellePublication } from "@/domaine/buffer";
 import { CarteVideo } from "@/components/videos/CarteVideo";
 import { cn } from "@/lib/cn";
 import { ajouterJours, cleJour, heure } from "@/lib/dates";
+import { plageMois, plageSemaine } from "@/lib/calendrier-plages";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
 
@@ -29,6 +30,23 @@ function lundi(decalage: number): Date {
   return ajouterJours(d, -jour + decalage * 7);
 }
 
+const libelleMois = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** « AAAA-MM-JJ » réel, ou « AAAA-MM » (→ le 1er) ; sinon null. */
+function lireDate(brut: string | undefined): string | null {
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(brut ?? "");
+  if (!m) return null;
+  const jour = `${m[1]}-${m[2]}-${m[3] ?? "01"}`;
+  const d = new Date(`${jour}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== jour ? null : jour;
+}
+
+function moisVoisin(mois: string, delta: number): string {
+  const d = new Date(`${mois}-01T12:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + delta);
+  return d.toISOString().slice(0, 7);
+}
+
 type Pub = JourCalendrier["publications"][number];
 
 /**
@@ -36,9 +54,17 @@ type Pub = JourCalendrier["publications"][number];
  * 7 colonnes sur ordinateur, « À programmer » en bas.
  * Les publications « simulation » ne sont JAMAIS montrées comme programmées (pastille Essai).
  */
-export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string }> }) {
+export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string }> }) {
   await exigerSession();
-  const decalage = Math.max(-52, Math.min(52, Number.parseInt((await searchParams).semaine ?? "0", 10) || 0));
+  const params = await searchParams;
+  const dateDemandee = lireDate(params.date);
+  if (params.vue === "mois") {
+    const plage = plageMois(dateDemandee ?? cleJour(new Date()));
+    return <VueMois plage={plage} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} />;
+  }
+  let decalage = Math.max(-52, Math.min(52, Number.parseInt(params.semaine ?? "0", 10) || 0));
+  // ?date= (vue semaine) : la semaine qui contient ce jour ; ?semaine=N reste le décalage relatif.
+  if (dateDemandee) decalage = Math.round((new Date(`${plageSemaine(dateDemandee).jours[0]}T12:00:00Z`).getTime() - new Date(`${plageSemaine(cleJour(new Date())).jours[0]}T12:00:00Z`).getTime()) / (7 * 86_400_000));
   const debut = lundi(decalage);
   const jours = Array.from({ length: 7 }, (_, i) => ajouterJours(debut, i));
   const [calendrier, aProgrammer] = await Promise.all([
@@ -56,6 +82,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   return (
     <div>
       <EnTetePage titre="Calendrier" />
+      <ChoixVue vue="semaine" />
 
       {/* Navigation de semaine */}
       <div className="mb-5 flex items-center gap-2">
@@ -197,5 +224,57 @@ function LignePublication({ p }: { p: Pub }) {
         <EtatPublication p={p} />
       </Link>
     </li>
+  );
+}
+
+function ChoixVue({ vue, mois }: { vue: "semaine" | "mois"; mois?: string }) {
+  const lien = (actif: boolean) => cn("inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold", actif ? "bg-orange text-sur-orange" : "border border-trait bg-surface-1 text-texte-doux");
+  return (
+    <nav aria-label="Choix de la vue" className="mb-4 flex gap-2">
+      <Link href="/calendrier" className={lien(vue === "semaine")}>Semaine</Link>
+      <Link href={`/calendrier?vue=mois${mois ? `&date=${mois}` : ""}`} className={lien(vue === "mois")}>Mois</Link>
+    </nav>
+  );
+}
+
+/** Vue mois : grille de 6 semaines (lundi d'abord), jours hors mois estompés. */
+function VueMois({ plage, calendrier }: { plage: ReturnType<typeof plageMois>; calendrier: JourCalendrier[] }) {
+  const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
+  const aujourdhui = cleJour(new Date());
+  const total = plage.jours.filter((j) => j.startsWith(plage.mois)).flatMap((j) => parJour.get(j) ?? []).filter((p) => p.via !== "simulation").length;
+  const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}`;
+  return (
+    <div>
+      <EnTetePage titre="Calendrier" />
+      <ChoixVue vue="mois" mois={plage.mois} />
+      <div className="mb-5 flex items-center gap-2">
+        <Link href={lienMois(-1)} aria-label="Mois précédent" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
+          <Icone nom="chevron-gauche" size={18} />
+        </Link>
+        <div className="flex-1 text-center">
+          <p className="font-titre text-lg capitalize text-texte">{libelleMois.format(new Date(`${plage.mois}-01T12:00:00Z`))}</p>
+          <p className="text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
+        </div>
+        <Link href={lienMois(1)} aria-label="Mois suivant" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
+          <Icone nom="chevron-droite" size={18} />
+        </Link>
+      </div>
+      <ol className="grid grid-cols-7 gap-1">
+        {plage.jours.map((j) => {
+          const pubs = parJour.get(j) ?? [];
+          const dansMois = j.startsWith(plage.mois);
+          return (
+            <li key={j} className={cn("min-h-14 rounded-xl border p-1 text-xs", j === aujourdhui ? "border-orange bg-surface-1" : "border-trait", !dansMois && "opacity-40")}>
+              <span className="tabular-nums text-texte-doux">{Number(j.slice(8))}</span>
+              {pubs.length > 0 && (
+                <Link href={`/calendrier?vue=semaine&date=${j}`} className="mt-1 block truncate font-semibold text-texte">
+                  {pubs.length} <span className="sr-only">publication{pubs.length > 1 ? "s" : ""}</span>
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
