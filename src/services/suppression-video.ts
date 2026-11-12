@@ -93,6 +93,8 @@ export const TRAITEMENT_SUPPRESSION: Record<keyof Depots, Traitement> = {
   tracesScriptsTableau: "efface",
   correctionsWill: "sans-lien",
   visuels: "sans-lien",
+  // Les envois déjà partis restent (comme les publications publiées) ; les autres partent avec la vidéo.
+  envoisPlanifies: "garde-publiees",
 };
 
 /** Phrase de l'entrée d'un lot d'images dont la vidéo a été supprimée (la même que `PHRASES_LOT_IV.supprimee`). */
@@ -181,6 +183,9 @@ export async function refusSuppression(video: Video, contexte: { aussiSupprimees
   const envoisIncertains = await d.publications.compter(
     (p) => p.videoId === video.id && (p.etatEnvoi === "en-cours" || p.etatEnvoi === "a-verifier") && depuisMs(p) < ATTENTE_ENVOI_INCERTAIN_MS,
   );
+  // Envoi planifié confirmé ou en cours d'envoi (geste du fondateur posé) : refusé, rien ne s'efface sans trace.
+  const envoisPlanifiesEnRoute = await d.envoisPlanifies.compter((x) => x.videoId === video.id && (x.statut === "confirme" || x.statut === "a-envoyer"));
+  if (envoisPlanifiesEnRoute && !programmees) return { code: "PUBLICATION_PROGRAMMEE", message: `« ${video.titre} » a un envoi planifié confirmé ou en cours : annulez-le d'abord.` };
   if (envoisIncertains && !programmees) return { code: "PUBLICATION_PROGRAMMEE", message: `« ${video.titre} » a un envoi vers Buffer à vérifier : réessayez dans une heure au plus.` };
   if (programmees) {
     const quoi = programmees > 1 ? `${programmees} publications programmées : annulez-les` : "une publication programmée : annulez-la";
@@ -274,6 +279,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   const publications = await d.publications.lister((x) => x.videoId === id && x.statut !== "publiee");
   const partages = await d.partages.lister((x) => x.videoId === id);
   const travaux = await d.travaux.lister((t) => t.cibleId === id || t.id === `iv-lanceur-${id}` || (!!t.versionId && versionIds.has(t.versionId)));
+  const envois = await d.envoisPlanifies.lister((x) => x.videoId === id && x.statut !== "envoye");
   const traces = await d.tracesTableau.lister((x) => x.videoId === id);
   const tracesScripts = await d.tracesScriptsTableau.lister((x) => x.videoId === id);
   // Notifications qui mènent à la vidéo (lien mort, titre de la vidéo dans le message).
@@ -290,6 +296,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   effacer("publications", ids(publications));
   effacer("partages", ids(partages));
   effacer("travaux", ids(travaux));
+  effacer("envoisPlanifies", ids(envois));
   effacer("tracesTableau", ids(traces));
   effacer("tracesScriptsTableau", ids(tracesScripts));
   effacer("notifications", ids(notifications));
