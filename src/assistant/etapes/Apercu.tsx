@@ -30,6 +30,7 @@ import { sansAccents } from "@/lib/textes";
 import type { ApercuFabrication, IllustrationsApercu } from "@/services/fabrication";
 import type { OrigineCascade } from "@/domaine/illustrations";
 import type { VueElement, VuePlan } from "@/services/vues";
+import { lutApercu } from "../express/plateau";
 import type { CleEtape } from "./meta";
 import { lancerAvecVoyant, type OuiVoyant } from "./lancer-avec-voyant";
 import type { ProprietesEtape } from "./types";
@@ -313,7 +314,7 @@ export function EtapeApercu({ formatId, brouillon, modifier, allerA, contexte, c
   const plan = plans[Math.min(actif, plans.length - 1)];
   const prixAConfirmer = { centimes: Math.max(donnees.estimation.total.centimes, montantServeur ?? 0) };
   const nbDebordements = zones ? plans.filter((p) => briques["texte-ecran"] && texteDeborde(p.texteEcran, ratio)).length : 0;
-  const lut = contexte.elements.find((e) => e.id === (brouillon.styles.lutId ?? format.stylesParDefaut.lut));
+  const lut = contexte.elements.find((e) => e.id === lutApercu(brouillon.formatId, brouillon.styles, contexte.elements).lutId);
 
   const precedente = format.etapes[format.etapes.indexOf("apercu") - 1];
 

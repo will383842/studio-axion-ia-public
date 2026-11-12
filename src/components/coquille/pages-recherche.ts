@@ -3,7 +3,7 @@
  * propose la page. Liste tirée de la navigation (une seule source) + quelques pages utiles hors menu. Fichier pur.
  */
 import type { NomIcone } from "@/components/ui/Icone";
-import { ACTION_CREER, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE, NAV_PIED, SECTIONS_NAV } from "./navigation";
+import { ACTION_CREER, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE, ENTREES_HORS_BARRE, entreesDeRubrique, NAV_PIED, RUBRIQUES_NAV } from "./navigation";
 
 export interface PageTrouvee {
   href: string;
@@ -28,11 +28,13 @@ const SYNONYMES: Record<string, string[]> = {
   "/nouvelle": ["creer", "nouveau", "generer"],
   "/videos": ["videos", "video"],
   "/a-publier": ["publier", "buffer"],
+  "/contenus": ["contenus", "tout", "toutes mes videos"],
+  "/modeles": ["modele", "gabarit", "gabarits"],
 };
 
 const HORS_MENU: PageRecherchable[] = [
   { href: "/veille", libelle: "Veille des outils", icone: "tendance", synonymes: ["veille", "nouveautes", "mises a jour"] },
-  { href: "/outils-motion", libelle: "Outils motion design", icone: "baguette", synonymes: ["motion", "animations"] },
+  { href: "/bibliotheque/animations?onglet=studio", libelle: "Animations du studio", icone: "baguette", synonymes: ["motion", "animations", "outils motion design"] },
   { href: "/mesures/ce-qui-marche", libelle: "Ce qui marche", icone: "resultats", synonymes: ["succes", "meilleures", "performances"] },
   { href: "/videos/a-ranger", libelle: "Vidéos à ranger", icone: "film", synonymes: ["ranger", "rangement", "non classees"] },
 ];
@@ -47,7 +49,7 @@ export function simplifier(s: string): string {
 }
 
 function toutes(): PageRecherchable[] {
-  const menu = [...SECTIONS_NAV.flatMap((s) => s.entrees), ACTION_CREER, ...NAV_PIED, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE];
+  const menu = [...RUBRIQUES_NAV.flatMap(entreesDeRubrique), ACTION_CREER, ...NAV_PIED, ...ENTREES_HORS_BARRE, ENTREE_A_PUBLIER, ENTREE_SUR_LE_SITE];
   const depuisMenu = menu.map((e): PageRecherchable => ({
     href: e.href,
     libelle: e.libelle,
