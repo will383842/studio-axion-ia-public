@@ -72,6 +72,8 @@ interface SourceTextes {
   credits: string[];
   /** Équipe 7 : « Vos hashtags » par réseau (les textes du studio y piochent, le code l'applique). */
   familles: FamillesHashtags;
+  /** TXT-SOURCE : le titre envoyé au rédacteur, seulement quand il est la source (aucun script) ; sinon vide. */
+  titreDemande: string;
   /** TXT-SOURCE : d'où vient `texteValide` (« titre » : aucun script, l'écran le dit). */
   texteDepuis: OrigineSourcePost;
 }
@@ -101,8 +103,11 @@ async function scriptsGardesParLeGenerateur(video: Video): Promise<(string | nul
 
 async function sourceTextes(video: Video, credits: string[]): Promise<SourceTextes> {
   const script = video.scriptId ? await depots().scripts.obtenir(video.scriptId) : null;
-  const source = choisirSourceTextePost({ scriptRelie: script ? texteScript(script.blocs) : null, gardes: await scriptsGardesParLeGenerateur(video), titre: video.titre });
-  return { video, texteValide: source.texte, texteDepuis: source.origine, mention: video.mentionIA.dansLegende ? video.mentionIA.texte + "." : "", credits, familles: await lireFamilles() };
+  const scriptRelie = script ? texteScript(script.blocs) : null;
+  // Les lectures du générateur ne servent qu'à défaut de script relié.
+  const gardes = scriptRelie?.trim() ? [] : await scriptsGardesParLeGenerateur(video);
+  const source = choisirSourceTextePost({ scriptRelie, gardes, titre: video.titre });
+  return { video, texteValide: source.texte, texteDepuis: source.origine, titreDemande: source.origine === "titre" ? video.titre : "", mention: video.mentionIA.dansLegende ? video.mentionIA.texte + "." : "", credits, familles: await lireFamilles() };
 }
 
 /** Équipe 7 : mots-dièse d'un texte du studio ramenés à la famille du réseau (sans famille : seulement sans interdit). */
@@ -115,7 +120,7 @@ function dansLaFamille(t: TexteReseau, reseau: IdReseau, familles: FamillesHasht
 async function texteEssai(s: SourceTextes, reseau: IdReseau, redaction?: Awaited<ReturnType<typeof fournisseur<"texte-reseaux">>>): Promise<TexteReseau> {
   const t = await (redaction ?? (await fournisseur("texte-reseaux"))).ecrire({
     reseau,
-    titre: s.video.titre,
+    titre: s.titreDemande,
     sujet: s.video.sujet,
     texteScript: s.texteValide,
     mentionIA: s.mention,
@@ -331,7 +336,7 @@ export async function avecTextesDesReseaux<E extends { lignes: LigneCout[]; tota
 
 function donneesDe(s: SourceTextes, reseau: IdReseau, regles: Awaited<ReturnType<ReturnType<typeof depots>["reglesDatees"]["lister"]>>) {
   const v = s.video;
-  return donneesPublication({ reseau, titre: v.titre, texteValide: s.texteValide, formatId: v.formatId, dureeSec: v.dureeCibleSec, adresse: v.adresse, mention: s.mention, credits: s.credits, regles, famille: famillePour(reseau, s.familles) });
+  return donneesPublication({ reseau, titre: s.titreDemande, texteValide: s.texteValide, formatId: v.formatId, dureeSec: v.dureeCibleSec, adresse: v.adresse, mention: s.mention, credits: s.credits, regles, famille: famillePour(reseau, s.familles) });
 }
 
 export async function reseauxParDefaut(): Promise<IdReseau[]> {
