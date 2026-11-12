@@ -233,7 +233,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
             )}
             {phraseOrientation(p) && (
               <p className="flex items-center gap-2 text-sm text-texte-doux">
-                <Icone nom="ecran-partage" size={16} className="shrink-0 text-orange-vif" />
+                <Icone nom="ecran-partage" size={16} className="shrink-0 text-accent" />
                 {phraseOrientation(p)}
               </p>
             )}
@@ -272,7 +272,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
               </div>
             )}
             <div className="space-y-2">
-              <button type="button" className="flex items-center gap-1.5 text-sm font-semibold text-orange-vif" aria-expanded={p.texteOuvert} onClick={() => modifier(p.id, { texteOuvert: !p.texteOuvert })}>
+              <button type="button" className="flex items-center gap-1.5 text-sm font-semibold text-accent" aria-expanded={p.texteOuvert} onClick={() => modifier(p.id, { texteOuvert: !p.texteOuvert })}>
                 <Icone nom="chevron-bas" size={16} className={p.texteOuvert ? "rotate-180" : undefined} />
                 {p.texte.trim() ? "Ce que vous dites (ajouté)" : "Ajouter ce que vous dites (facultatif)"}
               </button>
