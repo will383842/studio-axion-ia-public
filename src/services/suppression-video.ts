@@ -501,6 +501,9 @@ export async function appliquerSuppression(video: Video): Promise<string[]> {
     const liberes: string[] = [];
     try {
       for (const t of enAttente) {
+        // GV-EC-01f : seules les réservations encore ACTIVES sont rendues (et rétablies au retour arrière) ; une réservation
+        // déjà rendue (corbeille, refus de reprise, ancien travail remplacé) n'est jamais réactivée.
+        if ((await depots().reservations.compter((r) => r.travailId === t.id && r.statut === "active")) === 0) continue;
         liberes.push(t.id);
         await libererReservation(t.id, "liberee");
       }

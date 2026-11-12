@@ -878,6 +878,14 @@ export async function reessayerTravail(id: string, options: { confirme?: AccordP
       const t = await d.travaux.obtenir(id);
       if (!t) throw new ErreurStudio("INTROUVABLE", "Ce travail n'existe plus.");
       if (t.statut !== "echec") throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail n'est pas en échec.");
+      // GV-EC-01f : une attente de validation ne repart pas si elle a été remplacée (un autre travail plus récent, en file
+      // ou en cours, sur la même vidéo) ou si sa vidéo est à la corbeille : rien n'est réactivé.
+      if (enAttenteDeValidation(t)) {
+        const autres = await d.travaux.lister((x) => x.cibleId === t.cibleId && x.id !== t.id);
+        if (autres.some((x) => x.creeLe > t.creeLe || x.statut === "en_cours" || x.statut === "en_file")) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a été remplacé. Rouvrez la page.");
+        const v = await d.videos.obtenir(t.cibleId);
+        if (v?.corbeilleLe) throw new ErreurStudio("PAS_EN_ECHEC", "Cette vidéo est dans la corbeille. Restaurez-la d'abord.");
+      }
       // Relancé entre-temps ailleurs (autre onglet) puis de nouveau en échec : le contrôle fait plus haut ne vaut plus.
       if (avant.tentatives !== t.tentatives || avant.versionId !== t.versionId) throw new ErreurStudio("PAS_EN_ECHEC", "Ce travail a changé. Rouvrez la page puis réessayez.");
       const version = t.versionId ? await d.versions.obtenir(t.versionId) : null;

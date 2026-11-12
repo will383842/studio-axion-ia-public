@@ -66,6 +66,8 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
     const liberes: Id[] = [];
     try {
       for (const t of enAttente) {
+        // GV-EC-01f : seules les réservations encore ACTIVES sont rendues (et rétablies au retour arrière).
+        if ((await d.reservations.compter((r) => r.travailId === t.id && r.statut === "active")) === 0) continue;
         liberes.push(t.id);
         await libererReservation(t.id, "liberee");
       }
