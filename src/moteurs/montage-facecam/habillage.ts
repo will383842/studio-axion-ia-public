@@ -19,14 +19,15 @@
 import { PALETTE } from "@/briques/charte/axion-2026";
 import type { EntreeComposition, RecetteComposition } from "@/briques/composition";
 import { TAILLE_SOUS_TITRES_REFERENCE_PX } from "@/briques/composition";
-import { dispositionQuiTient, GROUPEMENT_FACECAM, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
+import { dispositionQuiTient, GROUPEMENT_FACECAM, type MemoireCartesAuto, ligneSousTitresEcranPartage, positionSousTitresFacecam, SOUS_TITRES_FACECAM, sourceYMoitieBasse, textesAffichesDesCartes, type PhraseHorodatee } from "@/briques/habillage-facecam";
 import { calerCarteTous, miseEnPage, preparerCarteTous, type CarteMotionTous, type CodeSurMesure, type ParametresRenduCarte, type StyleMotion } from "@/briques/motion";
 import { grouperMots, recalerSurCoupes } from "@/briques/sous-titres/groupement";
+import { marquerMotsImportants, type SourceMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { recollerElisionsHorodatees } from "@/briques/sous-titres/recollage";
 import { cartesAutoDeLaVideo, texteCarteMotion, type AjustementCarteAutoMonte, type CarteAutoVue } from "./cartes-video";
 import { geometrieCote, geometrieVignette, type CoteWill, type ModeMiseEnPage } from "@/briques/habillage-facecam/mise-en-page";
 import type { CarteAutoFacecam } from "@/domaine/facecam";
-import type { MotHorodate, SegmentSousTitres } from "@/domaine/types";
+import type { CommandeFabrication, MotHorodate, SegmentSousTitres } from "@/domaine/types";
 import type { PlanProduit } from "@/moteurs/types";
 
 /** Ce que le format face caméra dit à la brique « composition » (piste opaque, pré-cadrée, aucun décor ajouté). */
@@ -42,7 +43,7 @@ export const RECETTE_COMPOSITION_FACECAM: RecetteComposition = {
   incrustations: { hautPct: 50, montantTaillePx: 96, objetLargeurPct: 33, dureeMinSec: 0.4 },
   // Le Look est déjà dans la piste (passe image du lot B) : grain très léger (tramage), aucune vignette ajoutée.
   realisme: { grainPct: 2, grainTaillePx: 1.5, vignettePct: 0 },
-  lutIntensiteParDefaut: 100,
+  lutIntensiteParDefaut: 100, // jamais lu pour la face caméra : la commande donne toujours l'intensité
 };
 
 /** Une carte posée par le monteur (lot D) ou choisie d'office. */
@@ -68,6 +69,8 @@ export interface EntreeHabillageFacecam {
   dureeSec: number;
   /** Mots de la vidéo montée (temps du montage). */
   mots: MotHorodate[];
+  /** GV-MD-05a : mémoire des cartes figée sur la vidéo (absente : aucune). */
+  memoireCartes?: MemoireCartesAuto;
   /** Raccords du montage (s) : les groupes de sous-titres s'y calent. */
   coupesSec?: number[];
   /** Visage médian dans la piste montée (% de la hauteur) : yeux et bouche. */
@@ -76,6 +79,8 @@ export interface EntreeHabillageFacecam {
   cartes?: CartePosee[];
   /** Vérif V1 : cartes automatiques retirées depuis le chat (identifiants `auto-…`, stables : tirés du contenu). */
   cartesAutoRetirees?: string[];
+  /** Emphase du script, quand la commande en porte une (générateur central) ; sinon repli sur les mots forts de la transcription. */
+  emphase?: string[];
   /** 10/10 : gestes de Will sur les cartes automatiques depuis la fiche, en temps du montage (résolus par la chaîne). */
   cartesAuto?: AjustementCarteAutoMonte[];
   /** V6 : passages déjà pris (effets spéciaux posés en plein écran) : aucune carte automatique dessus. */
@@ -84,6 +89,8 @@ export interface EntreeHabillageFacecam {
   versionSimple?: boolean;
   /** LUT du Look Will (pour les B-roll). */
   lookLutCle?: string;
+  /** Intensité (0 à 1) de la LUT du Look sur les plans d'illustration : celle de la commande, comme sur la prise. */
+  lookLutIntensite?: number;
   /** Préfixe des clés R2 des cartes rendues (ex. `studio/prod/videos/<id>/<version>/cartes`). */
   prefixeCartes: string;
 }
@@ -99,6 +106,8 @@ export interface RenduCarte {
 }
 
 export interface HabillageFacecam {
+  /** GV-ST-10 : d'où viennent les mots colorés des sous-titres (script désigné, ou mots forts de la transcription). */
+  sourceMotsImportants: SourceMotsImportants;
   /** Cartes à rendre AVANT la composition finale (une demande `composition` sans mode chacune). */
   cartes: RenduCarte[];
   /** Vérif V1 : cartes automatiques posées (rangées dans la version : le monteur du chat les voit et peut les retirer). */
@@ -114,7 +123,7 @@ export interface HabillageFacecam {
  * Cartes à poser : celles du monteur, puis les cartes automatiques (gestes de Will appliqués) qui ne les chevauchent
  * pas, par ordre d'apparition. Mêmes cartes, mêmes instants dans tous les formats.
  */
-export function cartesAPoser(e: Pick<EntreeHabillageFacecam, "mots" | "dureeSec" | "cartes" | "cartesAuto" | "cartesAutoRetirees">): { posees: CartePosee[]; cartesAuto: CarteAutoVue[] } {
+export function cartesAPoser(e: Pick<EntreeHabillageFacecam, "mots" | "dureeSec" | "cartes" | "cartesAuto" | "cartesAutoRetirees" | "memoireCartes">): { posees: CartePosee[]; cartesAuto: CarteAutoVue[] } {
   const r = cartesPosees(e);
   return { posees: r.posees, cartesAuto: r.vues };
 }
@@ -177,10 +186,10 @@ export function corrigerMots(mots: MotHorodate[], corrections: { ancien: string;
  * aussi les cartes automatiques posées (`auto`, livrées au monteur du chat) et la vue de chacune (`vues`, fiche
  * « Cartes et effets »). Mêmes cartes, mêmes instants dans tous les formats (`declinaisons.ts`).
  */
-export function cartesPosees(e: Pick<EntreeHabillageFacecam, "cartes" | "cartesAutoRetirees" | "cartesAuto" | "occupes" | "mots" | "dureeSec">): { posees: CartePosee[]; auto: CarteAutoFacecam[]; vues: CarteAutoVue[] } {
+export function cartesPosees(e: Pick<EntreeHabillageFacecam, "cartes" | "cartesAutoRetirees" | "cartesAuto" | "occupes" | "mots" | "dureeSec" | "memoireCartes">): { posees: CartePosee[]; auto: CarteAutoFacecam[]; vues: CarteAutoVue[] } {
   const monteur = e.cartes ?? [];
   // V6 P0 n° 9 : ni sur une carte du monteur, ni sur un passage occupé (effet spécial en plein écran).
-  const r = cartesAutoDeLaVideo(e.mots, e.dureeSec, e.cartesAuto ?? [], [...monteur, ...(e.occupes ?? [])], e.cartesAutoRetirees ?? []);
+  const r = cartesAutoDeLaVideo(e.mots, e.dureeSec, e.cartesAuto ?? [], [...monteur, ...(e.occupes ?? [])], e.cartesAutoRetirees ?? [], e.memoireCartes ?? {});
   const posees: CartePosee[] = [...monteur, ...r.posees].sort((a, b) => a.debutSec - b.debutSec);
   const auto: CarteAutoFacecam[] = r.vues.filter((v) => v.etat === "posee").map((v) => ({ id: v.idStable, debutSec: v.debutSec, finSec: v.finSec, modele: v.modele, texte: texteCarteMotion(v.carte) }));
   return { posees, auto, vues: r.vues };
@@ -197,6 +206,25 @@ export { ECART_CARTES_OCCUPEES_SEC as ECART_CARTES_AUTO_SEC } from "./cartes-vid
 export function cartesAvecAutomatiques(monteur: CartePosee[] | undefined, mots: MotHorodate[], dureeSec: number, occupes: { debutSec: number; finSec: number }[] = []): CartePosee[] {
   return cartesPosees({ cartes: monteur, mots, dureeSec, occupes }).posees;
 }
+
+/** GV-ST-10 : mots mis en valeur dans le script (`emphase` des segments) ; à défaut, ceux des plans ; sans doublon. */
+export function emphaseDuScript(c: Pick<CommandeFabrication, "script" | "plans">): string[] {
+  const dedoublonner = (l: string[]) => [...new Set(l.map((m) => m.trim()).filter(Boolean))];
+  const duScript = dedoublonner((c.script?.blocs ?? []).flatMap((b) => b.segments.flatMap((s) => s.emphase ?? [])));
+  return duScript.length ? duScript : dedoublonner((c.plans ?? []).flatMap((p) => p.motsEnValeur ?? []));
+}
+
+/**
+ * GV-ST-10 : marque les mots importants avec l'emphase du script ; si elle n'en marque AUCUN (mots jamais dits),
+ * repli sur les mots forts de la transcription. La source rendue dit ce qui a vraiment servi.
+ */
+export function marquerMotsDuScript<S extends { mots: { mot: string; enValeur?: boolean }[] }>(segments: readonly S[], emphase?: readonly string[]): { segments: S[]; source: SourceMotsImportants } {
+  const r = marquerMotsImportants(segments, { emphaseScript: emphase });
+  const marques = (l: readonly S[]) => l.reduce((n, s) => n + s.mots.filter((m) => m.enValeur).length, 0);
+  if (r.source === "script" && marques(r.segments) <= marques(segments)) return marquerMotsImportants(segments, {});
+  return r;
+}
+
 
 /** Tout l'habillage d'une vidéo face caméra en 9:16. */
 export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
@@ -236,7 +264,8 @@ export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
   }
   // 2. Sous-titres : 1 à 4 mots coupés par le sens, calés sur les raccords à moins de 0,2 s.
   const groupes = grouperMots(recollerElisionsHorodatees(e.mots), GROUPEMENT_FACECAM);
-  const segments = e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes;
+  // Mots importants : une règle unique avec repli (emphase du script, sinon mots forts de la transcription), dans le style choisi.
+  const { segments, source: sourceMotsImportants } = marquerMotsDuScript(e.coupesSec?.length ? recalerSurCoupes(groupes, e.coupesSec, { fenetreSec: SOUS_TITRES_FACECAM.fenetreCoupeSec }) : groupes, e.emphase);
   // Un titre affiché (appel à l'action, carte plein écran) n'est pas répété en sous-titre pendant la carte.
   const textesAffiches = textesAffichesDesCartes(affichees);
   // 3. Entrée de la composition : piste pré-cadrée 10 bits, cartes, ligne des sous-titres, Look sur les B-roll.
@@ -255,8 +284,14 @@ export function habillageFacecam(e: EntreeHabillageFacecam): HabillageFacecam {
     ...(ecransPartages.length ? { ecransPartages } : {}),
     ...(cartesPleinEcran.length ? { cartesPleinEcran } : {}),
     ...(misesEnPage.length ? { misesEnPage } : {}),
-    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle } } : {}),
+    ...(e.lookLutCle ? { lookBroll: { lutCle: e.lookLutCle, ...(e.lookLutIntensite !== undefined ? { intensite: e.lookLutIntensite } : {}) } } : {}),
     ...(textesAffiches.length ? { textesAffiches } : {}),
   };
-  return { cartes, entree, segments, cartesAuto, cartesAutoVues };
+  return { cartes, entree, segments, cartesAuto, cartesAutoVues, sourceMotsImportants };
+}
+
+/** Intensité de la LUT de la commande (0 à 100) : erreur lisible si elle manque (elle est toujours remplie à la fabrication). */
+export function intensiteLutCommande(lut: { intensite?: number } | null | undefined): number {
+  if (lut?.intensite === undefined) throw new Error("Intensité de la LUT absente de la commande face caméra.");
+  return lut.intensite;
 }

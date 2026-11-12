@@ -7,10 +7,16 @@ import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
 import { libellePublication } from "@/domaine/buffer";
+import { SemaineAvecApercu } from "@/components/calendrier/ApercuPublication";
+import { BarreFiltres, RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
+import { BarreVue, libellePeriode } from "@/components/calendrier/BarreVue";
+import { VueJour, debutDeTexte } from "@/components/calendrier/VueJour";
+import type { IdReseau } from "@/domaine/types";
+import { entreeDepuisPublication } from "@/components/calendrier/apercu-reseau";
 import { CarteVideo } from "@/components/videos/CarteVideo";
 import { cn } from "@/lib/cn";
 import { cleJour, heure } from "@/lib/dates";
-import { ajouterJoursParis } from "@/lib/horloge-paris";
+import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { plageMois, plageSemaine } from "@/lib/calendrier-plages";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
@@ -23,6 +29,7 @@ const jourSemaine = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZon
 const jourMois = new Intl.DateTimeFormat("fr-FR", { day: "numeric", timeZone: FUSEAU });
 const moisAnnee = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: FUSEAU });
 
+const libelleJourLong = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: FUSEAU });
 const libelleMois = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
 
 /** « AAAA-MM-JJ » réel, ou « AAAA-MM » (→ le 1er) ; sinon null. */
@@ -32,6 +39,18 @@ function lireDate(brut: string | undefined): string | null {
   const jour = `${m[1]}-${m[2]}-${m[3] ?? "01"}`;
   const d = new Date(`${jour}T12:00:00Z`);
   return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== jour ? null : jour;
+}
+
+/** Réseaux allumés d'après ?reseaux=a,b (absent : les quatre ; vide ou inconnu : aucun). Toujours dans l'ordre de la maquette. */
+function lireReseaux(brut: string | string[] | undefined): IdReseau[] {
+  if (brut === undefined) return [...RESEAUX_CALENDRIER];
+  const demandes = new Set((Array.isArray(brut) ? brut.join(",") : brut).split(","));
+  return RESEAUX_CALENDRIER.filter((r) => demandes.has(r));
+}
+
+/** « &reseaux=… » à ajouter aux adresses quand un filtre est actif ; rien si les quatre réseaux sont allumés. */
+function suiteReseaux(actifs: readonly IdReseau[]): string {
+  return actifs.length === RESEAUX_CALENDRIER.length ? "" : `&reseaux=${actifs.join(",")}`;
 }
 
 function moisVoisin(mois: string, delta: number): string {
@@ -47,13 +66,21 @@ type Pub = JourCalendrier["publications"][number];
  * 7 colonnes sur ordinateur, « À programmer » en bas.
  * Les publications « simulation » ne sont JAMAIS montrées comme programmées (pastille Essai).
  */
-export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string }> }) {
+export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string; reseaux?: string }> }) {
   await exigerSession();
   const params = await searchParams;
   const dateDemandee = lireDate(params.date);
+  const reseauxActifs = lireReseaux(params.reseaux);
+  const suite = suiteReseaux(reseauxActifs);
+  if (params.vue === "jour") {
+    const jour = dateDemandee ?? cleJour(new Date());
+    // Journée de Paris, de minuit à minuit (23 h ou 25 h le jour d'un changement d'heure).
+    const finIso = new Date(new Date(instantParis(ajouterJoursParis(jour, 1), "00:00")).getTime() - 1).toISOString();
+    return <PageJour jour={jour} reseauxActifs={reseauxActifs} calendrier={await listerCalendrier(instantParis(jour, "00:00"), finIso)} />;
+  }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
-    return <VueMois plage={plage} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} />;
+    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} />;
   }
   const aujourdhuiCle = cleJour(new Date());
   const decalageDemande = Math.max(-52, Math.min(52, Number.parseInt(params.semaine ?? "0", 10) || 0));
@@ -77,32 +104,22 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <ChoixVue vue="semaine" />
-
-      {/* Navigation de semaine */}
-      <div className="mb-5 flex items-center gap-2">
-        <Link href={lienSemaine(-1)} aria-label="Semaine précédente" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-gauche" size={18} />
-        </Link>
-        <div className="flex-1 text-center">
-          <p className="font-titre text-lg text-texte">{libelleSemaine}</p>
-          <p className="text-xs tabular-nums text-texte-faible">
-            {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
-            {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
-          </p>
-        </div>
-        <Link href={lienSemaine(1)} aria-label="Semaine suivante" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-droite" size={18} />
-        </Link>
-      </div>
-      {decalage !== 0 && (
-        <div className="-mt-3 mb-4 text-center">
-          <Link href="/calendrier" className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-orange-vif">
-            <Icone nom="calendrier" size={15} />
-            Aujourd&apos;hui
-          </Link>
-        </div>
-      )}
+      <BarreVue
+        vue="semaine"
+        periode={libelleSemaine}
+        liens={{
+          precedent: lienSemaine(-1),
+          suivant: lienSemaine(1),
+          aujourdhui: `/calendrier${suite ? `?${suite.slice(1)}` : ""}`,
+          // « Semaine » garde la date d'une vue datée ; sans date, il reste /calendrier.
+          semaine: dateDemandee ? `/calendrier?vue=semaine&date=${dateDemandee}${suite}` : `/calendrier${suite ? `?${suite.slice(1)}` : ""}`,
+          mois: `/calendrier?vue=mois${dateDemandee ? `&date=${dateDemandee}` : ""}${suite}`,
+        }}
+      />
+      <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">
+        {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
+        {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
+      </p>
 
       {/* Mobile : liste par jour */}
       <ol className="space-y-4 lg:hidden">
@@ -113,10 +130,11 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
           if (!pubs.length && !estAujourdhui) return null;
           return (
             <li key={cle} className="flex gap-3">
-              <div className={cn("flex w-12 shrink-0 flex-col items-center rounded-2xl py-2", estAujourdhui ? "bg-orange text-sur-orange" : "bg-surface-1 text-texte-doux")}>
+              {/* Un clic sur un jour ouvre la vue du jour (heure par heure). */}
+              <Link href={`/calendrier?vue=jour&date=${cle}${suite}`} aria-label={`Ouvrir la journée du ${libelleJourLong.format(j)}`} className={cn("flex w-12 shrink-0 flex-col items-center self-start rounded-2xl py-2", estAujourdhui ? "bg-orange text-sur-orange" : "bg-surface-1 text-texte-doux")}>
                 <span className="text-[11px] font-bold uppercase">{jourSemaine.format(j).replace(".", "")}</span>
                 <span className="font-titre text-xl tabular-nums">{jourMois.format(j)}</span>
-              </div>
+              </Link>
               <ul className="min-w-0 flex-1 space-y-2">
                 {pubs.length ? pubs.map((p) => <LignePublication key={p.id} p={p} />) : <li className="flex min-h-14 items-center text-sm text-texte-faible">Rien de prévu.</li>}
               </ul>
@@ -131,48 +149,10 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         </div>
       )}
 
-      {/* Ordinateur : semaine en 7 colonnes */}
-      <ol className="hidden grid-cols-7 gap-2 lg:grid">
-        {jours.map((j) => {
-          const cle = cleJour(j);
-          const pubs = parJour.get(cle) ?? [];
-          const estAujourdhui = cle === aujourdhui;
-          return (
-            <li key={cle} className={cn("flex min-h-64 flex-col rounded-carte border p-2", estAujourdhui ? "border-orange/50 bg-orange-doux" : "border-trait bg-surface-1")}>
-              <p className="mb-2 flex items-baseline gap-1.5 px-1">
-                <span className="text-xs font-bold uppercase text-texte-faible">{jourSemaine.format(j).replace(".", "")}</span>
-                <span className={cn("font-titre text-lg tabular-nums", estAujourdhui ? "text-orange-vif" : "text-texte")}>{jourMois.format(j)}</span>
-              </p>
-              <ul className="space-y-1.5">
-                {pubs.map((p) => (
-                  <li key={p.id}>
-                    <Link href={`/videos/${p.videoId}`} className="block overflow-hidden rounded-xl border border-trait bg-surface-2 transition-colors hover:border-trait-fort">
-                      {p.video?.vignette && (
-                        <span className="relative block aspect-video">
-                          <Image src={p.video.vignette} alt="" fill sizes="160px" className="object-cover" />
-                        </span>
-                      )}
-                      <span className="block p-2">
-                        <span className="mb-1 flex items-center gap-1.5">
-                          <LogoReseau reseau={p.reseau} taille="sm" />
-                          <span className="min-w-0 truncate text-[11px] tabular-nums text-texte-faible">
-                            {heure(p.date)}
-                            {p.canalNom ? ` · ${p.canalNom}` : ""}
-                          </span>
-                        </span>
-                        <span className="line-clamp-2 text-xs font-semibold text-texte">{p.video?.titre}</span>
-                        <span className="mt-1 block">
-                          <EtatPublication p={p} />
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          );
-        })}
-      </ol>
+      {/* Ordinateur : la semaine en couloirs ; un clic sur une carte ouvre l'aperçu à droite, sans quitter le calendrier (RC-36). */}
+      <div className="hidden lg:block">
+        <SemaineAvecApercu entrees={semaine.map(entreeDepuisPublication)} semaineDu={lundiCle} aujourdhui={aujourdhui} />
+      </div>
 
       {aProgrammer.length > 0 && (
         <section className="mt-10">
@@ -222,38 +202,61 @@ function LignePublication({ p }: { p: Pub }) {
   );
 }
 
-function ChoixVue({ vue, mois }: { vue: "semaine" | "mois"; mois?: string }) {
-  const lien = (actif: boolean) => cn("inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold", actif ? "bg-orange text-sur-orange" : "border border-trait bg-surface-1 text-texte-doux");
+/**
+ * Vue du jour (CAL-02) : heure par heure, publications de tous les réseaux, créneaux libres.
+ * Le jour est celui de Paris.
+ */
+function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxActifs: IdReseau[]; calendrier: JourCalendrier[] }) {
+  const aujourdhui = cleJour(new Date());
+  // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
+  const entrees = calendrier
+    .flatMap((j) => j.publications)
+    .filter((p) => cleJour(p.date) === jour)
+    .map((p) => {
+      const e = entreeDepuisPublication(p);
+      return { ...e, titre: debutDeTexte(p.texte) || e.titre };
+    });
+  const liens = new Map(entrees.map((e) => [e.cle, e.lienSource]));
+  const adresse = (vue: "jour" | "semaine" | "mois", date: string, actifs: readonly IdReseau[] = reseauxActifs) => `/calendrier?vue=${vue}&date=${date}${suiteReseaux(actifs)}`;
   return (
-    <nav aria-label="Choix de la vue" className="mb-4 flex gap-2">
-      <Link href="/calendrier" className={lien(vue === "semaine")}>Semaine</Link>
-      <Link href={`/calendrier?vue=mois${mois ? `&date=${mois}` : ""}`} className={lien(vue === "mois")}>Mois</Link>
-    </nav>
+    <div>
+      <EnTetePage titre="Calendrier" />
+      <BarreVue
+        vue="jour"
+        periode={libellePeriode("jour", jour)}
+        liens={{ precedent: adresse("jour", ajouterJoursParis(jour, -1)), suivant: adresse("jour", ajouterJoursParis(jour, 1)), aujourdhui: adresse("jour", aujourdhui), semaine: adresse("semaine", jour), mois: adresse("mois", jour) }}
+      />
+      <Link href={adresse("semaine", jour)} className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-texte-doux underline underline-offset-4">
+        ← Retour à la semaine
+      </Link>
+      <BarreFiltres actifs={reseauxActifs} lienReseau={(r) => adresse("jour", jour, basculerReseau(reseauxActifs, r))} />
+      <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} lienEntree={(e) => liens.get(e.cle) ?? null} />
+    </div>
   );
 }
 
 /** Vue mois : grille de 6 semaines (lundi d'abord), jours hors mois estompés. */
-function VueMois({ plage, calendrier }: { plage: ReturnType<typeof plageMois>; calendrier: JourCalendrier[] }) {
+function VueMois({ plage, repere, calendrier, suite }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string }) {
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
   const aujourdhui = cleJour(new Date());
   const total = plage.jours.filter((j) => j.startsWith(plage.mois)).flatMap((j) => parJour.get(j) ?? []).filter((p) => p.via !== "simulation").length;
-  const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}`;
+  const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}${suite}`;
   return (
     <div>
       <EnTetePage titre="Calendrier" />
-      <ChoixVue vue="mois" mois={plage.mois} />
-      <div className="mb-5 flex items-center gap-2">
-        <Link href={lienMois(-1)} aria-label="Mois précédent" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-gauche" size={18} />
-        </Link>
-        <div className="flex-1 text-center">
-          <p className="font-titre text-lg capitalize text-texte">{libelleMois.format(new Date(`${plage.mois}-01T12:00:00Z`))}</p>
-          <p className="text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
-        </div>
-        <Link href={lienMois(1)} aria-label="Mois suivant" className="grid size-11 place-items-center rounded-full border border-trait bg-surface-1 text-texte-doux hover:text-texte">
-          <Icone nom="chevron-droite" size={18} />
-        </Link>
-      </div>
+      <BarreVue
+        vue="mois"
+        periode={libellePeriode("mois", plage.mois)}
+        liens={{
+          precedent: lienMois(-1),
+          suivant: lienMois(1),
+          aujourdhui: `/calendrier?vue=mois${suite}`,
+          // « Semaine » garde la date (celle demandée, ou celle d'aujourd'hui) et les filtres.
+          semaine: `/calendrier?vue=semaine&date=${repere}${suite}`,
+          mois: `/calendrier?vue=mois&date=${plage.mois}${suite}`,
+        }}
+      />
+      <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
       <ol className="grid grid-cols-7 gap-1">
         {plage.jours.map((j) => {
           const toutes = parJour.get(j) ?? [];
@@ -264,7 +267,7 @@ function VueMois({ plage, calendrier }: { plage: ReturnType<typeof plageMois>; c
             <li key={j} className={cn("min-h-14 rounded-xl border p-1 text-xs", j === aujourdhui ? "border-orange bg-surface-1" : "border-trait", !dansMois && "opacity-40")}>
               <span className="tabular-nums text-texte-doux">{Number(j.slice(8))}</span>
               {toutes.length > 0 && (
-                <Link href={`/calendrier?vue=semaine&date=${j}`} className="mt-1 block truncate font-semibold text-texte">
+                <Link href={`/calendrier?vue=jour&date=${j}${suite}`} className="mt-1 block truncate font-semibold text-texte">
                   {pubs.length > 0 && (
                     <>
                       {pubs.length} <span className="sr-only">publication{pubs.length > 1 ? "s" : ""}</span>

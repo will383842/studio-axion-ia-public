@@ -1344,7 +1344,7 @@ export function creerMoteurMontageAvocat(deps: DependancesMoteurAvocat = {}): Mo
         let etat = (parametres.illustrations as EtatIllustrations | undefined) ?? etatInitialIllustrations(c, (parametres.plans as PlanProduit[] | undefined) ?? []);
         // Essai (simulation sans injection) : rien n'est fabriqué ni payé, le double garde ces plans.
         if (fournisseurIllus.mode === "simulation" && !deps.illustration) etat = { plans: Object.fromEntries(Object.keys(etat.plans).map((k) => [k, { phase: "abandon" as const, raison: "Essai : aucune illustration fabriquée." }])) };
-        else etat = await avancerIllustrations(etat, fournisseurIllus, c.ratios[0] ?? "9:16", idBaseDe(travail, c), c.tauxUsdEur);
+        else etat = await avancerIllustrations(etat, fournisseurIllus, c.ratios[0] ?? "9:16", idBaseDe(travail, c), c.tauxUsdEur, c.origine);
         parametres.illustrations = etat;
         const termine = illustrationsFinies(etat);
         etapeIllus.statut = termine ? "terminee" : "en_cours";

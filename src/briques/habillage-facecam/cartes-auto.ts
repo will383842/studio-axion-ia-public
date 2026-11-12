@@ -18,7 +18,7 @@
  *     absurde) : graphique, check-list, avant / après et documentaire bien reconnus sont posés d'office, les autres
  *     servent à combler un trou de plus de 20 s.
  */
-import { iconePour } from "../motion/choix";
+import { candidatsModele, choisirMoinsRecent, CONFIANCE_MIN_VARIETE, iconePour } from "../motion/choix";
 import { choisirModeleTous } from "../motion/choix-etendu";
 import { estModeleEtendu } from "../motion/catalogue-etendu";
 import { tientEnMoitieHaute } from "../motion/disposition-etendue";
@@ -50,6 +50,18 @@ export const REGLES_CARTES_AUTO = {
   avancePanneauSec: 0.4,
 };
 export type ReglesCartesAuto = typeof REGLES_CARTES_AUTO;
+
+/**
+ * Mémoire des cartes déjà servies (entre par paramètre : la brique reste pure). Elle ne joue que sur le comblement par
+ * les règles des 13 modèles, seul endroit où plusieurs modèles peuvent convenir à la même phrase ; les détecteurs
+ * (listes, chiffres, titres nommés…) suivent le contenu dit et ne changent jamais.
+ */
+export interface MemoireCartesAuto {
+  /** Modèles des dernières vidéos face caméra, le plus récemment servi d'abord. */
+  dejaServis?: readonly string[];
+  /** Modèle qui a ouvert la vidéo précédente : la première carte de comblement en change si un autre convient. */
+  ouverturePrecedente?: string;
+}
 
 export interface CarteAuto {
   debutSec: number;
@@ -551,12 +563,26 @@ function carteSensee(carte: CarteMotionTous, phrase: string): boolean {
   return true;
 }
 
-function comblements(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: ReglesCartesAuto): CarteAuto[] {
+function comblements(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: ReglesCartesAuto, memoire: MemoireCartesAuto = {}): CarteAuto[] {
+  const memorise = !!(memoire.dejaServis?.length || memoire.ouverturePrecedente);
+  const servis: string[] = [];
+  /** Une carte des règles générales est posable : confiance, sens, et tient en moitié haute. */
+  const posable = (c: { carte: CarteMotionTous; confiance: number } | null, texte: string): boolean => {
+    if (!c || c.confiance < r.confianceComblement || !carteSensee(c.carte, texte)) return false;
+    return !(estModeleEtendu(c.carte.modele) && !tientEnMoitieHaute(c.carte as CarteModeleEtendu));
+  };
   return phrases.flatMap((p) => {
     const texte = texteDe(p.idx.map((i) => mots[i]), true);
-    const c = choisirModeleTous(texte);
-    if (!c || c.confiance < r.confianceComblement || !carteSensee(c.carte, texte)) return [];
-    if (estModeleEtendu(c.carte.modele) && !tientEnMoitieHaute(c.carte as CarteModeleEtendu)) return [];
+    let c = choisirModeleTous(texte);
+    if (!posable(c, texte)) return [];
+    if (memorise && c) {
+      // Les modèles de base qui conviennent aussi à la phrase (aussi sûrs) : le moins récemment servi passe.
+      const autres = candidatsModele(texte).filter((x) => x.modele !== c!.modele && x.confiance >= Math.max(r.confianceComblement, CONFIANCE_MIN_VARIETE) && posable(x, texte));
+      const histo = [...servis, ...(memoire.dejaServis ?? [])];
+      c = choisirMoinsRecent([c, ...autres], histo, !servis.length && memoire.ouverturePrecedente ? [memoire.ouverturePrecedente] : []) ?? c;
+    }
+    if (!c) return [];
+    servis.unshift(c.modele);
     // Graphique, check-list, avant / après, documentaire bien reconnus : aussi sûrs que les détecteurs (posés d'office).
     const sur = c.confiance >= 0.8 && ["graphique", "check-list", "avant-apres", "documentaire"].includes(c.carte.modele);
     return [{ ...bornes(mots[p.idx[0]].debutSec, mots[p.idx[p.idx.length - 1]].finSec, dureeVideo, r), carte: c.carte, raison: c.raison, score: sur ? 7.5 : 2 + c.confiance }];
@@ -633,7 +659,7 @@ function aUnTitre(carte: CarteMotionTous): boolean {
  * Les cartes automatiques d'une vidéo face caméra (temps de la vidéo MONTÉE). Les plus sûres d'abord, sans
  * chevauchement (2,5 s d'écart au moins) ; puis comblement des trous de plus de 20 s par les règles des 13 modèles.
  */
-export function planifierCartesAuto(motsBruts: MotCarte[], dureeVideoSec: number, reglages: Partial<ReglesCartesAuto> = {}): CarteAuto[] {
+export function planifierCartesAuto(motsBruts: MotCarte[], dureeVideoSec: number, reglages: Partial<ReglesCartesAuto> = {}, memoire: MemoireCartesAuto = {}): CarteAuto[] {
   const r: ReglesCartesAuto = { ...REGLES_CARTES_AUTO, ...reglages };
   const mots = motsBruts.filter((m) => m.mot.trim() && Number.isFinite(m.debutSec) && Number.isFinite(m.finSec));
   if (!mots.length || dureeVideoSec < r.dureeSec[0] + r.pasAvantSec) return [];
@@ -689,7 +715,7 @@ export function planifierCartesAuto(motsBruts: MotCarte[], dureeVideoSec: number
     }
     retenues.push({ ...c });
   };
-  const generales = comblements(mots, phrases, dureeVideoSec, r).map(ouvrir);
+  const generales = comblements(mots, phrases, dureeVideoSec, r, memoire).map(ouvrir);
   for (const c of [...sures, ...generales.filter((x) => x.score >= 7)].sort((a, b) => b.score - a.score || a.debutSec - b.debutSec)) if (!poser(c) && c.score >= SCORE_NUMEROTEE) imposer(c);
   // Comblement : un trou de plus de `ecartCibleSec[1]` entre deux débuts (ou depuis le début / jusqu'à la fin).
   const candidats = generales.filter((x) => x.score < 7).sort((a, b) => b.score - a.score);
