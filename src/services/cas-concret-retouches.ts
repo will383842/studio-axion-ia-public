@@ -255,7 +255,7 @@ async function confirmerRetoucheSansAuto(videoId: Id, accordCentimes: unknown, d
     // quels : la règle commune du seuil est appliquée par `lancerRetouche` (sous le seuil l'accord suffit, au-delà il redemande
     // le montant). Une valeur illisible vaut `false`, jamais un accord.
     const accord = accordPropre(accordCentimes);
-    if (typeof accord === "number" && accord < etat.centimes) return { statut: "accord-requis", centimes: etat.centimes, phrase: `Cette retouche coûte ${etat.prix}. Confirmez ce prix pour continuer.` };
+    if (typeof accord === "number" && accord < etat.centimes) return { statut: "accord-requis", centimes: etat.centimes, phrase: `Cette retouche est payante. Confirmez pour continuer.` };
     // Les opérations relues une dernière fois : seule la liste fermée part.
     const operations = g.operations.map(lireOperationRetoucheCasConcret).filter((o): o is OperationRetoucheCasConcret => !!o);
     await preparerReglagesMoteur(version.commande);

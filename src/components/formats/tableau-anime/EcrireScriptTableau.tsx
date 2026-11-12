@@ -24,7 +24,6 @@ import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { dureeDiteSec } from "@/domaine/duree-tableau";
 import { MOMENTS_SCRIPT, normaliserScript, phrasesDites, phrasesEtape, type DemandeScriptTableau, type ScriptTableau } from "@/domaine/scripts-tableau";
-import { formaterMontant } from "@/lib/montants";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
 import { ChoixCible } from "@/components/ciblage/ChoixCible";
@@ -33,7 +32,6 @@ import { publicDepuisCible } from "./ciblage-saisie";
 import { DUREE_ECRITURE_TEXTE } from "./durees";
 import { accordApresRefus, controleServeurAvantPrix, PHRASE_PRIX_CHANGE, prixRedemandable } from "./sujet-deja-traite";
 
-const euros = (centimes: number) => formaterMontant({ centimes: Math.max(0, Math.ceil(centimes)), devise: "EUR" });
 
 interface Saisie {
   serie: string;
@@ -225,7 +223,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
           <Champ libelle={saisie.fin === "commentaire" ? "Ce que vous envoyez" : "Ce que l'appel apporte"} value={saisie.envoi} onChange={(e) => changer({ envoi: e.target.value })} maxLength={300} />
         )}
         <Bouton icone="ecrire" variante={resultat ? "secondaire" : "principal"} chargement={enCours} disabled={occupe} onClick={() => void ecrire()} pleineLargeur>
-          {interrompue ? "Reprendre l'écriture" : resultat || g ? "Réécrire le script" : "Écrire le script"} (≈ {euros(cout)} au plus)
+          {interrompue ? "Reprendre l'écriture" : resultat || g ? "Réécrire le script" : "Écrire le script"}
         </Bouton>
         <p className="text-sm text-texte-doux">Durée : {DUREE_ECRITURE_TEXTE}. Vous pourrez fermer la page : le travail continue.</p>
         {phrase && (
@@ -271,7 +269,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
         <section aria-label="Écriture interrompue" role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
           <p className="font-semibold">Écriture interrompue</p>
           <p className="mt-1 text-sm text-texte-doux">
-            {interrompue.appels} appel{interrompue.appels > 1 ? "s" : ""} à Claude ({euros(interrompue.centimes)}) n&apos;{interrompue.appels > 1 ? "ont" : "a"} pas laissé de résultat gardé. Complétez la demande ci-dessus, puis « Reprendre l&apos;écriture ».
+            {interrompue.appels} appel{interrompue.appels > 1 ? "s" : ""} à Claude n&apos;{interrompue.appels > 1 ? "ont" : "a"} pas laissé de résultat gardé. Complétez la demande ci-dessus, puis « Reprendre l&apos;écriture ».
           </p>
         </section>
       )}
@@ -318,7 +316,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
               </Bouton>
             )}
             <Bouton variante="secondaire" icone="reessayer" chargement={enCours} disabled={occupe} onClick={() => void ecrire()}>
-              Réécrire (≈ {euros(cout)} au plus)
+              Réécrire
             </Bouton>
           </div>
         </section>
