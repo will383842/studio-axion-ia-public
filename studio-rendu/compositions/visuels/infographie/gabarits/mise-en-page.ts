@@ -46,7 +46,8 @@ function lignesDe(texte: string, largeur: number, taille: number): string[] | nu
   let cour = "";
   for (const mot of motsInsecables(texte)) {
     if (largeurMot(mot, taille) > largeur) return null;
-    const essai = cour ? `${cour} ${mot}` : mot;
+    // Après un trait d'union la coupure reste permise en fin de ligne, mais le mot se recolle sans espace.
+    const essai = cour ? (/[-\u2010]$/.test(cour) ? cour + mot : `${cour} ${mot}`) : mot;
     if (largeurMot(essai, taille) <= largeur) cour = essai;
     else { lignes.push(cour); cour = mot; }
   }
