@@ -163,7 +163,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
               const courante = v.id === script.id;
               const comparee = v.id === comparerAvec;
               return courante ? (
-                <span key={v.id} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-sur-orange">
+                <span key={v.id} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-sur-accent">
                   v{i + 1}
                   <span className="text-xs">{dateCourte(v.creeLe)}</span>
                 </span>
