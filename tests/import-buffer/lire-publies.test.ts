@@ -9,6 +9,7 @@ import {
   comparerAvecInventaire,
   copierEtVerifierMedias,
   formaterRapportArchive,
+  lignesDepuisStudio,
   nomArchive,
   produireArchive,
   tenterLectureBuffer,
@@ -254,5 +255,63 @@ describe("L0-04 médias copiés vers R2 puis vérifiés", () => {
     const r = await copierEtVerifierMedias([ligne(pub(2), media)], stockage, refus as unknown as typeof fetch);
     expect(r.echecs).toHaveLength(1);
     expect(JSON.stringify(r)).not.toContain("exemple.fr/i.png");
+  });
+});
+
+describe("L0-04 correction après relecture : l'archive se lit dans les dépôts du Studio", () => {
+  const sortie = { id: "s1", videoId: "vid-1", fichierId: "f1" };
+  const depotsFictifs = (publications: Publication[]) => ({
+    publications: { lister: async () => publications },
+    sorties: { obtenir: async (id: string) => (id === "s1" ? sortie : null), lister: async (f?: (x: typeof sortie) => boolean) => [sortie].filter((x) => !f || f(x)) },
+    fichiers: { obtenir: async (id: string) => (id === "f1" ? { id: "f1", cleStockage: "studio/prod/sortie/s1/f1.mp4", mime: "video/mp4", taille: 12 } : null) },
+    visuels: { obtenir: async (id: string) => (id === "vis-1" ? { id: "vis-1", rendu: { pdfCle: "studio/prod/visuel/vis-1/rendu.pdf" } } : null) },
+  });
+
+  it("sans fichier JSON : les lignes viennent des Publications, avec la clé de stockage de la vidéo ou du visuel", async () => {
+    const lignes = await lignesDepuisStudio(depotsFictifs([pub(1, { sortieId: "s1" }), pub(2, { videoId: undefined, visuelId: "vis-1" }), pub(3, { videoId: "vid-inconnue" })]));
+    expect(lignes.map((l) => l.publication.id)).toEqual(["pub-1", "pub-2", "pub-3"]);
+    expect(lignes[0].media).toMatchObject({ type: "video", mime: "video/mp4", cleStockage: "studio/prod/sortie/s1/f1.mp4" });
+    expect(lignes[1].media).toMatchObject({ cleStockage: "studio/prod/visuel/vis-1/rendu.pdf" });
+    expect(lignes[2].media).toBeUndefined();
+    const a = archiveDepuisPublications(lignes, MAINTENANT);
+    expect(a.entrees[0].media).toMatchObject({ cleStockage: "studio/prod/sortie/s1/f1.mp4" });
+    expect(a.champsAbsents.find((c) => c.champ === "media")?.ids).toEqual(["pub-3"]);
+  });
+
+  it("une publication sans source unique ne fait pas tomber l'archive : média absent signalé", async () => {
+    const lignes = await lignesDepuisStudio(depotsFictifs([pub(4, { videoId: undefined })]));
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0].media).toBeUndefined();
+  });
+
+  it("média déjà dans le stockage du Studio : vérifié sans téléchargement ni adresse", async () => {
+    const lignes = await lignesDepuisStudio(depotsFictifs([pub(1, { sortieId: "s1" })]));
+    const appeler = vi.fn();
+    const r = await copierEtVerifierMedias(lignes, { urlDepotDuree: async () => "https://x.exemple.fr/p", tailleObjet: async () => 12 }, appeler as unknown as typeof fetch);
+    expect(appeler).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ verifies: 1 });
+    expect(r.echecs).toHaveLength(0);
+    const absent = await copierEtVerifierMedias(lignes, { urlDepotDuree: async () => "https://x.exemple.fr/p", tailleObjet: async () => null });
+    expect(absent.echecs).toHaveLength(1);
+  });
+
+  const postBuffer = (id: string, extra: Record<string, unknown> = {}) => ({
+    id, canalId: "canal-b", texte: `Texte Buffer ${id}`, dateUtc: "2026-11-02T08:00:00Z", envoyeLe: "2026-11-02T08:00:05Z", statut: "sent",
+    medias: [{ type: "image", mime: "image/png", source: "https://cdn.exemple.fr/secret-adresse.png" }], ...extra,
+  });
+
+  it("les posts publiés lus dans Buffer vont dans l'archive (texte, date de Paris, canal, identifiant), sans adresse de média", () => {
+    const a = archiveDepuisPublications([ligne(pub(1, { idExterne: "b1" }))], MAINTENANT, { etat: "lu", tronque: false, posts: [postBuffer("b1"), postBuffer("b2")] as never });
+    expect(a.bufferPublies).toBe(2);
+    expect(a.entreesBuffer?.map((e) => e.id)).toEqual(["b1", "b2"]);
+    expect(a.entreesBuffer?.[1]).toMatchObject({ texte: "Texte Buffer b2", canalId: "canal-b", dateParis: "02/11/2026 09:00", medias: [{ type: "image", mime: "image/png" }] });
+    expect(JSON.stringify(a)).not.toContain("secret-adresse");
+    expect(a.bufferSansJumeau).toEqual(["b2"]);
+    expect(formaterRapportArchive(a)).toContain("sans jumeau");
+  });
+
+  it("Buffer indisponible : pas d'entrées Buffer", () => {
+    const a = archiveDepuisPublications([], MAINTENANT, { etat: "indisponible", raison: "x" });
+    expect(a.entreesBuffer ?? []).toHaveLength(0);
   });
 });

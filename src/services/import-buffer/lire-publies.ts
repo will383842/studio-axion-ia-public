@@ -34,7 +34,56 @@ const NOM_RESEAU: Record<ReseauInventaire, string> = { linkedin: "LinkedIn", fac
 /** Une publication du Studio et, si elle en a un, son média source (adresse temporaire, jamais archivée). */
 export interface LignePublication {
   publication: Publication;
-  media?: Pick<MediaBuffer, "type" | "mime" | "source">;
+  media?: Pick<MediaBuffer, "type" | "mime"> & {
+    /** Adresse de lecture temporaire (média venu d'ailleurs) : jamais archivée. */
+    source?: string;
+    /** Clé du fichier dans le stockage du Studio (vidéo ou visuel déjà stocké) : rien à télécharger. */
+    cleStockage?: string;
+  };
+}
+
+/** Ce que l'export lit dans les dépôts du Studio (structure minimale, pour pouvoir être doublée dans les tests). */
+export interface DepotsLecturePublications {
+  publications: { lister(): Promise<Publication[]> };
+  sorties: {
+    obtenir(id: string): Promise<{ id: string; videoId: string; fichierId: string; reseau?: string } | null>;
+    lister(filtre?: (s: { id: string; videoId: string; fichierId: string; reseau?: string }) => boolean): Promise<{ id: string; videoId: string; fichierId: string; reseau?: string }[]>;
+  };
+  fichiers: { obtenir(id: string): Promise<{ cleStockage: string; mime: string } | null> };
+  visuels: { obtenir(id: string): Promise<{ rendu?: { pdfCle?: string; vignetteCle?: string }; renduToile?: { bandeCle?: string } } | null> };
+}
+
+/**
+ * Lit les Publications du Studio et retrouve le média de chaque publication : fichier de la sortie de la vidéo, ou rendu
+ * du visuel. Lecture seule. Une publication dont la source est illisible reste dans l'archive, sans média (champ absent).
+ */
+export async function lignesDepuisStudio(depots: DepotsLecturePublications): Promise<LignePublication[]> {
+  const out: LignePublication[] = [];
+  for (const publication of await depots.publications.lister()) {
+    out.push({ publication, media: await mediaDeLaPublication(depots, publication) });
+  }
+  return out.map((l) => (l.media ? l : { publication: l.publication }));
+}
+
+async function mediaDeLaPublication(depots: DepotsLecturePublications, p: Publication): Promise<LignePublication["media"]> {
+  try {
+    if (p.videoId && !p.visuelId) {
+      const sortie = p.sortieId
+        ? await depots.sorties.obtenir(p.sortieId)
+        : ((await depots.sorties.lister((x) => x.videoId === p.videoId && (!x.reseau || x.reseau === p.reseau)))[0] ?? null);
+      const fichier = sortie ? await depots.fichiers.obtenir(sortie.fichierId) : null;
+      return fichier ? { type: "video", mime: fichier.mime, cleStockage: fichier.cleStockage } : undefined;
+    }
+    if (p.visuelId && !p.videoId) {
+      const v = await depots.visuels.obtenir(p.visuelId);
+      const cle = v?.rendu?.pdfCle ?? v?.renduToile?.bandeCle ?? v?.rendu?.vignetteCle;
+      if (!cle) return undefined;
+      return { type: cle.endsWith(".pdf") ? "document" : "image", mime: cle.endsWith(".pdf") ? "application/pdf" : "image/png", cleStockage: cle };
+    }
+  } catch {
+    /* source illisible : média absent, signalé dans le rapport */
+  }
+  return undefined;
 }
 
 /* ------------------------------ lecture seule ------------------------------ */
@@ -112,7 +161,19 @@ export interface EntreeArchive {
   urlPubliee?: string;
   erreur?: string;
   /** Type et format du média source seulement : l'adresse n'est jamais archivée. */
-  media?: { type: string; mime: string };
+  media?: { type: string; mime: string; cleStockage?: string };
+}
+
+/** Un post publié lu dans Buffer (clé encore valide) : sans aucune adresse de média. */
+export interface EntreeBuffer {
+  id: string;
+  canalId: string;
+  texte: string;
+  statut: string;
+  dateUtc?: string;
+  dateParis?: string;
+  titre?: string;
+  medias: { type: string; mime: string }[];
 }
 
 export interface Comparaison {
@@ -135,6 +196,10 @@ export interface ArchiveBuffer {
   bufferRaison?: string;
   /** Nombre de posts publiés lus dans Buffer quand la tentative a réussi. */
   bufferPublies?: number;
+  /** Posts publiés lus dans Buffer, rangés tels quels (texte, date, canal, identifiant). */
+  entreesBuffer?: EntreeBuffer[];
+  /** Identifiants Buffer sans jumeau dans les Publications du Studio (même idExterne). */
+  bufferSansJumeau?: string[];
   entrees: EntreeArchive[];
   champsAbsents: { champ: ChampArchive; ids: string[] }[];
   doublonsIgnores: number;
@@ -231,7 +296,18 @@ export function archiveDepuisPublications(
       canalNom: plein(p.canalNom),
       urlPubliee: plein(p.urlPubliee),
       erreur: plein(p.erreur),
-      ...(media ? { media: { type: media.type, mime: media.mime } } : {}),
+      ...(media ? { media: { type: media.type, mime: media.mime, ...(media.cleStockage ? { cleStockage: media.cleStockage } : {}) } } : {}),
+    };
+  });
+  const postsBuffer = buffer?.etat === "lu" ? buffer.posts : [];
+  const externes = new Set(gardes.map((l) => l.publication.idExterne).filter((x): x is string => !!x));
+  const entreesBuffer: EntreeBuffer[] = postsBuffer.map((b) => {
+    const dateUtc = b.envoyeLe ?? b.dateUtc;
+    return {
+      id: b.id, canalId: b.canalId, texte: b.texte, statut: b.statut,
+      ...(tempsValide(dateUtc) === undefined ? {} : { dateUtc, dateParis: dateParisLisible(dateUtc) }),
+      ...(b.titre ? { titre: b.titre } : {}),
+      medias: b.medias.map((m) => ({ type: m.type, mime: m.mime })),
     };
   });
   const ordre: ChampArchive[] = ["texte", "date", "idExterne", "canalId", "media", "urlPubliee"];
@@ -241,7 +317,7 @@ export function archiveDepuisPublications(
     source: "studio",
     bufferLu: buffer?.etat === "lu" ? "lu" : "indisponible",
     ...(buffer?.etat === "indisponible" ? { bufferRaison: buffer.raison } : {}),
-    ...(buffer?.etat === "lu" ? { bufferPublies: buffer.posts.length } : {}),
+    ...(buffer?.etat === "lu" ? { bufferPublies: buffer.posts.length, entreesBuffer, bufferSansJumeau: entreesBuffer.filter((e) => !externes.has(e.id)).map((e) => e.id) } : {}),
     entrees,
     champsAbsents: ordre.filter((c) => absents.has(c)).map((champ) => ({ champ, ids: absents.get(champ)! })),
     doublonsIgnores: ignores,
@@ -255,6 +331,7 @@ export function formaterRapportArchive(a: ArchiveBuffer): string {
   const c = a.comparaison;
   const l: string[] = [];
   l.push(`Archive ${a.nom} — ${a.entrees.length} publications du Studio (source : Studio ; Buffer : ${a.bufferLu === "lu" ? `lu, ${a.bufferPublies ?? 0} posts publiés` : `non lu${a.bufferRaison ? ` (${a.bufferRaison})` : ""}`}).`);
+  if (a.entreesBuffer?.length) l.push(`${a.entreesBuffer.length} post(s) publié(s) rangé(s) depuis Buffer, dont ${a.bufferSansJumeau?.length ?? 0} sans jumeau dans les Publications du Studio.`);
   if (a.doublonsIgnores) l.push(`${a.doublonsIgnores} doublon(s) ignoré(s).`);
   l.push("", `Posts programmés trouvés : ${c.trouve.total} sur ${c.attendu.total} attendus (écart ${signe(c.ecart.total)}${c.conforme ? ", conforme" : ""}).`);
   for (const r of RESEAUX_INVENTAIRE) l.push(`  ${NOM_RESEAU[r]} : ${c.trouve[r]} / ${c.attendu[r]} (écart ${signe(c.ecart[r])})`);
@@ -285,8 +362,19 @@ export async function copierEtVerifierMedias(lignes: LignePublication[], stockag
   const { gardes } = dedoublonner(lignes, (l) => l.publication);
   for (const { publication: p, media } of gardes) {
     if (!media) continue;
+    if (!media.source && media.cleStockage) {
+      // Déjà dans le stockage du Studio : rien à télécharger, on vérifie seulement que l'objet existe.
+      try {
+        if (!stockage.tailleObjet) echec(p.id, "Média non vérifiable : le stockage ne relit pas la taille.");
+        else if ((await stockage.tailleObjet(media.cleStockage)) === null) echec(p.id, "Vérification : objet absent du stockage du Studio.");
+        else res.verifies++;
+      } catch (e) {
+        echec(p.id, e instanceof Error ? e.message : "erreur");
+      }
+      continue;
+    }
     try {
-      const copie = await copierMedia(p.id, 0, { ...media }, stockage, appeler);
+      const copie = await copierMedia(p.id, 0, { type: media.type, mime: media.mime, source: media.source ?? "" }, stockage, appeler);
       res.copies++;
       if (!stockage.tailleObjet) {
         echec(p.id, "Copie non vérifiable : le stockage ne relit pas la taille.");
