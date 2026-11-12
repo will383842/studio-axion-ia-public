@@ -54,3 +54,20 @@ export async function consignerEchec(travail: Travail, commande: Pick<CommandeFa
     /* jamais d'erreur : le journal durable est un plus */
   }
 }
+
+/**
+ * Lit les échecs consignés (type `echec-detail`) des `joursMax` derniers jours, exemples exclus, du plus récent au
+ * plus ancien. Ne lance jamais d'erreur : sans lecture possible, la liste est vide.
+ */
+export async function lireEchecs({ joursMax = 30 }: { joursMax?: number } = {}): Promise<LigneEchec[]> {
+  try {
+    const limite = Date.now() - joursMax * 86_400_000;
+    const evenements = await depots().evenements.lister((e) => e.type === TYPE_EVENEMENT_ECHEC && !e.estDemo);
+    return evenements
+      .map((e) => (e as Partial<EvenementEchec>).echec)
+      .filter((l): l is LigneEchec => !!l && new Date(l.date).getTime() >= limite)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  } catch {
+    return [];
+  }
+}
