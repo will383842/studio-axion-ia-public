@@ -1,0 +1,190 @@
+/** CAL-25 · média déposé à la main : format par réseau, empreinte relue, lien public après validation, téléversement serveur. */
+import { describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+process.env.SESSION_SECRET = "secret-de-session-essai-0123456789-abcdef";
+process.env.STUDIO_ADRESSE = "https://studio.essai.example";
+
+const { verifierFormat, ratioDe, LIMITES_FORMAT } = await import("@/domaine/calendrier/formats-media");
+const svc = await import("@/services/medias-deposes");
+const { AjouterEntree } = await import("@/components/calendrier/AjouterEntree");
+const { DepotMedia } = await import("@/components/calendrier/DepotMedia");
+
+const Mo = 1024 * 1024;
+const SHA = "a".repeat(64);
+const horo = { creeLe: "2026-12-08T08:00:00.000Z", modifieLe: "2026-12-08T08:00:00.000Z" };
+
+function monde(sur: { taille?: number | null; sha?: string; statut?: "propose" | "valide" | "programme"; mime?: string; taillePosee?: number } = {}) {
+  const fichiers = new Map<string, Record<string, unknown>>();
+  const creneaux = new Map<string, Record<string, unknown>>([["c1", { id: "c1", jourVise: "2026-12-10", heuresParReseau: {}, compteCible: "compte-fictif", statut: sur.statut ?? "propose", decalages: 0, ...horo }]]);
+  const televerse: unknown[] = [];
+  const deps = {
+    fichiers: { obtenir: async (id: string) => (fichiers.get(id) as never) ?? null, enregistrer: async (f: never) => { fichiers.set((f as { id: string }).id, f); return f; } },
+    creneaux: { obtenir: async (id: string) => (creneaux.get(id) as never) ?? null, enregistrer: async (c: never) => { creneaux.set((c as { id: string }).id, c); return c; } },
+    stockage: {
+      tailleObjet: async () => (sur.taille === undefined ? 5 * Mo : sur.taille),
+      empreinteSha256: async (_c: string, t: number) => ({ sha256: sur.sha ?? SHA, taille: t }),
+      urlLectureDuree: vi.fn(async (_c: string, s: number) => `https://r2.exemple/objet?exp=${s}`),
+    },
+    diffuseur: { televerser: vi.fn(async (d: unknown) => { televerse.push(d); return { idDiffuseur: "media-fictif-1" }; }) },
+    maintenant: () => Date.parse("2026-12-09T10:00:00Z"),
+  };
+  return { deps, fichiers, creneaux, televerse };
+}
+const depot = (o: Record<string, unknown> = {}) => ({ fichierId: "f1", creneauId: "c1", reseau: "linkedin" as const, cle: "studio/dev/entree/c1/f1.mp4", nom: "demo.mp4", mime: "video/mp4", taille: 5 * Mo, sha256: SHA, largeur: 1080, hauteur: 1920, ...o });
+
+describe("formats-media : contrôle par réseau, raison en français", () => {
+  it("accepte un mp4 sur LinkedIn, refuse un PDF sur Instagram avec la raison", () => {
+    expect(verifierFormat("linkedin", { mime: "video/mp4", taille: 5 * Mo }).ok).toBe(true);
+    const r = verifierFormat("instagram", { mime: "application/pdf", taille: 1 * Mo });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.raison).toMatch(/Instagram.*PDF/);
+  });
+  it("limite exacte acceptée, un octet de plus refusé", () => {
+    const max = LIMITES_FORMAT.linkedin.pdf!.tailleMax;
+    expect(verifierFormat("linkedin", { mime: "application/pdf", taille: max }).ok).toBe(true);
+    const r = verifierFormat("linkedin", { mime: "application/pdf", taille: max + 1 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.raison).toMatch(/trop lourd/i);
+  });
+  it("vide, taille nulle, type illisible, durée trop longue : refusés avec raison", () => {
+    for (const m of [{ mime: "", taille: 10 }, { mime: "video/mp4", taille: 0 }, { mime: "video/mp4", taille: Number.NaN }, { mime: "application/zip", taille: 10 }]) {
+      const r = verifierFormat("tiktok", m);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.raison.length).toBeGreaterThan(10);
+    }
+    expect(verifierFormat("youtube-shorts", { mime: "video/mp4", taille: 10, dureeSec: 181 }).ok).toBe(false);
+    expect(verifierFormat("youtube-shorts", { mime: "video/mp4", taille: 10, dureeSec: 180 }).ok).toBe(true);
+  });
+  it("ratio : 9:16, 1:1, 4:5, 16:9 reconnus ; dimensions absentes ou nulles : null", () => {
+    expect(ratioDe(1080, 1920)).toBe("9:16");
+    expect(ratioDe(1080, 1080)).toBe("1:1");
+    expect(ratioDe(1080, 1350)).toBe("4:5");
+    expect(ratioDe(1920, 1080)).toBe("16:9");
+    expect(ratioDe(0, 10)).toBeNull();
+    expect(ratioDe(undefined, 10)).toBeNull();
+  });
+});
+
+describe("medias-deposes : dépôt, empreinte, rattachement", () => {
+  it("dépôt complet : fichier prêt, rattaché à l'entrée, entrée toujours « propose », média privé", async () => {
+    const m = monde();
+    const r = await svc.enregistrerDepot(depot(), m.deps as never);
+    expect(r.ok).toBe(true);
+    expect((m.fichiers.get("f1") as { statut: string; sha256: string }).statut).toBe("pret");
+    expect((m.fichiers.get("f1") as { sha256: string }).sha256).toBe(SHA);
+    expect(m.creneaux.get("c1")).toMatchObject({ videoId: "f1", statut: "propose" });
+    expect(m.deps.diffuseur.televerser).not.toHaveBeenCalled();
+    expect(await svc.lienPublicPourDiffuseur("f1", "c1", m.deps as never)).toEqual({ ok: false, raison: expect.stringMatching(/valid/i) });
+  });
+  it("image et PDF se rattachent comme visuel", async () => {
+    const m = monde();
+    await svc.enregistrerDepot(depot({ mime: "application/pdf", cle: "studio/dev/entree/c1/f1.pdf", nom: "a.pdf" }), m.deps as never);
+    expect(m.creneaux.get("c1")).toMatchObject({ visuelId: "f1" });
+  });
+  it("taille relue différente : refusé, entrée en brouillon, rien rattaché", async () => {
+    const m = monde({ taille: 3 * Mo });
+    const r = await svc.enregistrerDepot(depot(), m.deps as never);
+    expect(r).toMatchObject({ ok: false, etat: "brouillon" });
+    expect(m.creneaux.get("c1")).not.toHaveProperty("videoId");
+    expect(m.fichiers.get("f1")?.statut).not.toBe("pret");
+  });
+  it("empreinte relue différente, ou objet absent (null) : refusé, brouillon", async () => {
+    for (const sur of [{ sha: "b".repeat(64) }, { taille: null }]) {
+      const m = monde(sur);
+      const r = await svc.enregistrerDepot(depot(), m.deps as never);
+      expect(r).toMatchObject({ ok: false, etat: "brouillon" });
+      expect(m.creneaux.get("c1")).not.toHaveProperty("videoId");
+    }
+  });
+  it("sans empreinte annoncée ou sans lecture possible : refusé (rien ne se prouve)", async () => {
+    const m = monde();
+    expect((await svc.enregistrerDepot(depot({ sha256: "" }), m.deps as never)).ok).toBe(false);
+    const n = monde();
+    delete (n.deps.stockage as Record<string, unknown>).empreinteSha256;
+    expect((await svc.enregistrerDepot(depot(), n.deps as never)).ok).toBe(false);
+  });
+  it("format refusé par le réseau : l'ajout n'est pas bloqué, fichier gardé, brouillon à compléter avec la raison", async () => {
+    const m = monde();
+    const r = await svc.enregistrerDepot(depot({ reseau: "instagram", mime: "application/pdf", cle: "studio/dev/entree/c1/f1.pdf", nom: "a.pdf" }), m.deps as never);
+    expect(r).toMatchObject({ ok: true, etat: "brouillon", formatRefuse: expect.stringMatching(/Instagram/) });
+    expect(m.fichiers.get("f1")?.statut).toBe("pret");
+    expect(m.creneaux.get("c1")).toMatchObject({ statut: "propose" });
+  });
+  it("rejeu du même dépôt : même résultat, un seul fichier", async () => {
+    const m = monde();
+    await svc.enregistrerDepot(depot(), m.deps as never);
+    const r = await svc.enregistrerDepot(depot(), m.deps as never);
+    expect(r.ok).toBe(true);
+    expect(m.fichiers.size).toBe(1);
+  });
+  it("entrée inconnue ou archivée : refus", async () => {
+    const m = monde();
+    expect((await svc.enregistrerDepot(depot({ creneauId: "inconnu" }), m.deps as never)).ok).toBe(false);
+    (m.creneaux.get("c1") as { statut: string }).statut = "archive";
+    expect((await svc.enregistrerDepot(depot(), m.deps as never)).ok).toBe(false);
+  });
+});
+
+describe("medias-deposes : après validation", () => {
+  it("lien public signé (relais L5-04) seulement une fois l'entrée validée ; statuts avant validation refusés", async () => {
+    for (const statut of ["propose", "a_valider"] as const) {
+      const m = monde({ statut: statut as never });
+      await svc.enregistrerDepot(depot(), m.deps as never);
+      expect((await svc.lienPublicPourDiffuseur("f1", "c1", m.deps as never)).ok).toBe(false);
+    }
+    const m = monde({ statut: "valide" });
+    await svc.enregistrerDepot(depot(), m.deps as never);
+    const r = await svc.lienPublicPourDiffuseur("f1", "c1", m.deps as never);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.url).toMatch(/^https:\/\/studio\.essai\.example\/api\/medias-publics\/[^/]+\/video\.mp4$/);
+  });
+  it("le fichier d'une autre entrée n'est jamais publié par ce créneau", async () => {
+    const m = monde({ statut: "valide" });
+    await svc.enregistrerDepot(depot(), m.deps as never);
+    m.creneaux.set("c2", { ...(m.creneaux.get("c1") as object), id: "c2" });
+    expect((await svc.lienPublicPourDiffuseur("f1", "c2", m.deps as never)).ok).toBe(false);
+  });
+  it("le serveur téléverse le fichier privé chez le diffuseur, après validation seulement", async () => {
+    const p = monde();
+    await svc.enregistrerDepot(depot(), p.deps as never);
+    expect((await svc.televerserChezDiffuseur("f1", "c1", p.deps as never)).ok).toBe(false);
+    expect(p.deps.diffuseur.televerser).not.toHaveBeenCalled();
+    const v = monde({ statut: "valide" });
+    await svc.enregistrerDepot(depot(), v.deps as never);
+    const r = await svc.televerserChezDiffuseur("f1", "c1", v.deps as never);
+    expect(r).toMatchObject({ ok: true, idDiffuseur: "media-fictif-1" });
+    expect(v.televerse).toHaveLength(1);
+    expect(v.televerse[0]).toMatchObject({ nom: "demo.mp4", mime: "video/mp4", taille: 5 * Mo });
+  });
+  it("panne du diffuseur : échec clair, rien de faux enregistré", async () => {
+    const v = monde({ statut: "valide" });
+    await svc.enregistrerDepot(depot(), v.deps as never);
+    v.deps.diffuseur.televerser.mockRejectedValueOnce(new Error("hors ligne"));
+    expect((await svc.televerserChezDiffuseur("f1", "c1", v.deps as never)).ok).toBe(false);
+  });
+});
+
+describe("medias-deposes : ratio, affiche, urlDeLecture", () => {
+  it("expose le ratio, l'image d'affiche et une adresse de lecture à durée limitée", async () => {
+    const m = monde();
+    await svc.enregistrerDepot(depot({ afficheCle: "studio/dev/entree/c1/affiche.jpg" }), m.deps as never);
+    const i = await svc.infosMedia("f1", m.deps as never);
+    expect(i).toMatchObject({ ratio: "9:16", affiche: "studio/dev/entree/c1/affiche.jpg" });
+    const u = await svc.urlDeLecture("f1", m.deps as never);
+    expect(u).toMatch(/^https:\/\//);
+    expect(m.deps.stockage.urlLectureDuree).toHaveBeenCalledWith(expect.any(String), svc.DUREE_LECTURE_SEC);
+    expect(svc.DUREE_LECTURE_SEC).toBeLessThanOrEqual(900);
+    expect(await svc.urlDeLecture("inconnu", m.deps as never)).toBeNull();
+  });
+});
+
+describe("composants", () => {
+  it("AjouterEntree propose le dépôt d'un fichier (vidéo, PDF, image) ; DepotMedia dit que rien ne part sans validation", () => {
+    const html = renderToStaticMarkup(createElement(AjouterEntree, { jour: "2026-12-10", compteCible: "compte-fictif" }));
+    expect(html).toMatch(/vidéo, PDF, image/i);
+    const d = renderToStaticMarkup(createElement(DepotMedia, { reseau: "linkedin", onMedia: () => undefined }));
+    expect(d).toMatch(/ne partira pas|rien ne part/i);
+  });
+});
