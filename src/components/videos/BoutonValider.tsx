@@ -17,7 +17,7 @@ import type { EtapeEditoriale } from "@/domaine/types";
  *  - pas prête : rien.
  * Le bouton n'est grisé que pendant l'envoi.
  */
-export function BoutonValider({ videoId, prete, etape }: { videoId: string; prete: boolean; etape?: EtapeEditoriale }) {
+export function BoutonValider({ videoId, prete, etape, variante = "principal" }: { videoId: string; prete: boolean; etape?: EtapeEditoriale; /** « secondaire » quand la barre du bas porte déjà le seul bouton orange. */ variante?: "principal" | "secondaire" }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   if (!prete) return null;
@@ -52,7 +52,7 @@ export function BoutonValider({ videoId, prete, etape }: { videoId: string; pret
     );
   }
   return (
-    <Bouton variante="principal" taille="md" icone="coche" disabled={enCours} onClick={() => changer("validee", "Vidéo validée")}>
+    <Bouton variante={variante} taille="md" icone="coche" disabled={enCours} onClick={() => changer("validee", "Vidéo validée")}>
       Valider
     </Bouton>
   );
