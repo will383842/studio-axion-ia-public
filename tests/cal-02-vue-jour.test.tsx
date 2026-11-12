@@ -69,8 +69,8 @@ describe("CAL-02 : ?vue=jour&date=…", () => {
   it("montre les créneaux libres : une heure sans publication est dite « Libre », une heure occupée non", async () => {
     listerCalendrier.mockResolvedValueOnce(jourDe("2026-11-11", [pub("2026-11-11T08:30:00Z", "linkedin", "Texte du matin")]));
     const h = await rendre({ vue: "jour", date: "2026-11-11" });
-    expect(h).toMatch(/data-heure="10"[^>]*>(?:(?!<\/li>).)*Libre/s);
-    expect(h).not.toMatch(/data-heure="09"[^>]*>(?:(?!<\/li>).)*Libre/s);
+    expect(h).toMatch(/data-heure="10"[^>]*>(?:(?!<\/li>)[\s\S])*Libre/);
+    expect(h).not.toMatch(/data-heure="09"[^>]*>(?:(?!<\/li>)[\s\S])*Libre/);
     expect(h).toContain('data-heure="08"');
     expect(h).toContain('data-heure="19"');
   });
