@@ -90,7 +90,10 @@ describe("voix par format", () => {
 
 describe("crédits : le garde-fou commun", () => {
   it("garde le contrôle du budget du mois à l'identique (dépassement, confirmation)", async () => {
-    await expect(verifierBudgetEtCredits({ lignes: [], total: centimes(10_000_000) }, true, "Cette vidéo")).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(verifierBudgetEtCredits({ lignes: [], total: centimes(10_000_000) }, true, "Cette vidéo")).resolves.toBeUndefined();
+    const { depots } = await import("@/donnees/memoire");
+    expect((await depots().notifications.lister()).filter((n) => /indicatif/i.test(n.titre)).length).toBeGreaterThan(0);
+    expect((await depots().evenements.lister()).filter((e) => e.type === "budget" && /Budget indicatif dépassé \(mois\)/.test(e.message)).length).toBeGreaterThan(0);
     await expect(verifierBudgetEtCredits({ lignes: [], total: centimes(1) }, false, "Cette vidéo")).resolves.toBeUndefined();
   });
   it("les collections des crédits existent (mémoire)", async () => {
