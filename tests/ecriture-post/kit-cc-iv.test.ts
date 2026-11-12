@@ -174,3 +174,45 @@ describe("KIT-CC-IV · autres formats", () => {
     expect(insta.origine).not.toBe("version");
   });
 });
+
+describe("KIT-CC-IV · toutes les voies d'envoi refusent des textes manquants", () => {
+  // Doublure du diffuseur : tout appel serait une faute, le refus doit venir avant.
+  const faux = () => {
+    const appels = vi.fn();
+    const service = new Proxy({}, { get: () => appels }) as never;
+    return { appels, service };
+  };
+  const vue = async () => (await pub.obtenirKit(VIDEO))!;
+
+  it("(3) envoyerReel par l'outil « zernio » : texte du réseau absent → TEXTES_MANQUANTS, rien n'est appelé", async () => {
+    await poserCasConcret([CAS[1]]);
+    await cocherTout();
+    const { appels, service } = faux();
+    await expect(pub.envoyerReel("zernio", service, await vue(), ["instagram"], demain(), {}, {}, true)).rejects.toMatchObject({ code: "TEXTES_MANQUANTS" });
+    expect(appels).not.toHaveBeenCalled();
+    expect(redacteur).not.toHaveBeenCalled();
+  });
+
+  it("(3) envoyerReel par l'outil « buffer » : même refus", async () => {
+    await poserCasConcret([]);
+    await cocherTout();
+    const { appels, service } = faux();
+    await expect(pub.envoyerReel("buffer", service, await vue(), ["instagram"], demain(), {}, {}, true)).rejects.toMatchObject({ code: "TEXTES_MANQUANTS" });
+    expect(appels).not.toHaveBeenCalled();
+  });
+
+  it("(3) image → vidéo, outil « zernio » : texte en blanc → refus", async () => {
+    await poserImageVideo({ parametres: { imageVideo: { version: "fabrication-iv/1", livraison: [{ reseau: "instagram", version: "longue", texte: "  " }] } } });
+    await cocherTout();
+    const { appels, service } = faux();
+    await expect(pub.envoyerReel("zernio", service, await vue(), ["instagram"], demain(), {}, {}, true)).rejects.toMatchObject({ code: "TEXTES_MANQUANTS" });
+    expect(appels).not.toHaveBeenCalled();
+  });
+
+  it("un format ordinaire n'est pas touché par ce refus (le code du refus n'est pas TEXTES_MANQUANTS)", async () => {
+    await cocherTout();
+    const { service } = faux();
+    const r = await pub.envoyerReel("zernio", service, await vue(), ["instagram"], demain(), {}, {}, true).then(() => null, (e) => e);
+    expect(r?.code).not.toBe("TEXTES_MANQUANTS");
+  });
+});
