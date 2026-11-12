@@ -34,4 +34,10 @@ describe("R8b1 : À publier (maquette M5)", () => {
     expect(s).toContain('variante = "principal"');
     expect(s).toContain("variante={variante}");
   });
+
+  it("fiche d'un sujet : « Ajouter et reprendre » est secondaire (la barre collée garde le seul orange plein)", () => {
+    const f = lire("src/components/generateur/FicheSujet.tsx");
+    expect(f).toContain('<SaisieMatiereSujet id={id} variante="secondaire" libelleBouton="Ajouter et reprendre"');
+    expect(f).not.toMatch(/variante="secondaire" libelleBouton="Ajouter et écrire"/);
+  });
 });
