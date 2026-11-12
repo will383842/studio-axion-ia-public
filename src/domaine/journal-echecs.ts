@@ -64,7 +64,7 @@ export function nettoyerDetail(texte: string | null | undefined): string {
   const net = String(texte)
     // en-têtes et valeurs nommées : Authorization: Bearer xxx, api_key=xxx, "token":"xxx", password: xxx…
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, `Bearer ${retire}`)
-    .replace(/(["']?\b[\w-]*(?:api[_-]?key|apikey|secret|token|passw(?:or)?d|mot[_-]?de[_-]?passe|authorization|cle|key)[\w-]*\b["']?\s*[:=]\s*)(["']?)[^\s"',;&]+\2/gi, `$1${retire}`)
+    .replace(/(?<![A-Za-z0-9])(["']?(?:[A-Za-z0-9]+[_-])*(?:api[_-]?key|apikey|secret|token|passw(?:or)?d|mot[_-]?de[_-]?passe|authorization|cle|key)(?:[_-][A-Za-z0-9]+)*["']?\s*[:=]\s*)(["']?)[^\s"',;&]+\2/gi, `$1${retire}`)
     // préfixes de clés connus
     .replace(/\b(?:sk|pk|rk|xox[abprs]|ghp|gho|ghs|github_pat|AKIA|AIza)[-_A-Za-z0-9]{8,}/g, retire)
     // jeton signé (JWT)

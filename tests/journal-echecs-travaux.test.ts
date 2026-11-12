@@ -73,4 +73,12 @@ describe("journal durable des échecs", () => {
     await consignerEchec({ ...travailEnEchec(1), erreur: undefined }, commande);
     expect(await lignes()).toHaveLength(0);
   });
+
+  it("l'échec d'une vidéo de démonstration reste marqué démonstration", async () => {
+    await consignerEchec({ ...travailEnEchec(1), estDemo: true }, commande);
+    await consignerEchec({ ...travailEnEchec(2), id: "tr-2" }, commande);
+    const l = await lignes();
+    expect(l.find((x) => x.echec.travailId === "tr-1")?.estDemo).toBe(true);
+    expect(l.find((x) => x.echec.travailId === "tr-2")?.estDemo).toBeFalsy();
+  });
 });
