@@ -149,3 +149,42 @@ describe("un vrai échec ne change pas", () => {
     expect(await reservationsActives(travailId)).toBe(1);
   });
 });
+
+describe("GV-EC-01c : vidéo supprimée pendant l'attente de validation", () => {
+  const videos = () => import("@/services/videos");
+  const reservationsLiberees = (travailId: string) => depots().reservations.compter((r) => r.travailId === travailId && r.statut === "liberee");
+
+  it("la réservation gardée est rendue une seule fois ; une seconde suppression ne libère rien de plus", async () => {
+    const { travailId } = await mettreEnEchec("IV_SCRIPT_A_VALIDER");
+    const cible = (await depots().travaux.obtenir(travailId))!.cibleId;
+    expect(await reservationsActives(travailId)).toBe(1);
+    const espion = vi.spyOn(credits, "libererReservation");
+    try {
+      expect(await (await videos()).supprimerVideoDefinitivement(cible)).toBe(true);
+      expect(await reservationsActives(travailId)).toBe(0);
+      expect(await reservationsLiberees(travailId)).toBe(1);
+      expect(espion.mock.calls.filter((c) => c[0] === travailId)).toEqual([[travailId, "liberee"]]);
+      // Suppression relancée : la vidéo n'existe plus, aucune libération supplémentaire.
+      await (await videos()).supprimerVideoDefinitivement(cible).catch(() => undefined);
+      expect(espion.mock.calls.filter((c) => c[0] === travailId)).toHaveLength(1);
+      expect(await reservationsLiberees(travailId)).toBe(1);
+      // La réservation reste en comptabilité (jamais effacée), l'engagement du budget est rendu.
+      expect(await depots().reservations.compter((r) => r.travailId === travailId)).toBe(1);
+      expect((await couts.resumeBudget()).engage.centimes).toBe(0);
+    } finally {
+      espion.mockRestore();
+    }
+  });
+
+  it("vidéo sans attente de validation (vrai échec) : aucun appel de libération par la suppression", async () => {
+    const { travailId } = await mettreEnEchec("IV_CONTROLES");
+    const cible = (await depots().travaux.obtenir(travailId))!.cibleId;
+    const espion = vi.spyOn(credits, "libererReservation");
+    try {
+      expect(await (await videos()).supprimerVideoDefinitivement(cible)).toBe(true);
+      expect(espion).not.toHaveBeenCalled();
+    } finally {
+      espion.mockRestore();
+    }
+  });
+});

@@ -23,6 +23,7 @@ import { CLE_CODES_SUPPRIMES } from "./partages";
 import { tacheDe, tachesEnCours } from "./tableau-taches";
 import { cleFicheScenes } from "@/briques/fiche-scenes/cle";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
+import { familleDe } from "@/domaine/journal-echecs";
 import { cleDeCetteVideo, cleProtegee, dossierPropreValide, prefixesDeVideo } from "@/domaine/dossiers-video";
 
 
@@ -489,7 +490,16 @@ export async function appliquerSuppression(video: Video): Promise<string[]> {
   // Un cas concret fini reste « traité » après sa suppression (manuelle ou purge de la corbeille) : inscrit AVANT d'effacer.
   // Ne bloque jamais la suppression.
   await (await import("./cas-concret-traites")).noterAvantSuppression(video);
+  // GV-EC-01c : un travail en attente de validation de Williams GARDE sa réservation (GV-EC-01b) ; sa vidéo part, la réservation
+  // doit être rendue (sinon elle reste bloquée pour toujours). Relevé AVANT l'effacement des travaux.
+  const enAttente = await depots().travaux.lister((t) => !!t.erreur && familleDe(t.erreur.code) === "attente-validation" && plan.lot.supprimer.some((s) => s.collection === "travaux" && s.id === t.id));
   await appliquerLot(plan.lot);
+  // Rendue APRÈS l'effacement (si le lot échoue, la vidéo et sa réservation restent ensemble). Idempotent : seules les
+  // réservations encore actives sont libérées, une suppression relancée ne trouve plus de travail.
+  if (enAttente.length) {
+    const { libererReservation } = await import("./credits");
+    for (const t of enAttente) await libererReservation(t.id, "liberee");
+  }
   try {
     await oublierBailExpire(`lanceur-image-video:${video.id}`);
   } catch (e) {
