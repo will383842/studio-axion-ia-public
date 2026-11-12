@@ -96,6 +96,8 @@ describe("m1AvecLien", () => {
   it("les messages de renvoi avec lien comptent comme des messages avec lien", () => {
     expect(m1AvecLien("mp-deja-envoye-v1-1")).toBe(true);
     expect(m1AvecLien("mp-lien-v3-2")).toBe(true);
+    for (const v of GROUPES_MP["lien-rappel"]) expect(m1AvecLien(v)).toBe(true);
+    expect(m1AvecLien("mp-lien-v3-99")).toBe(false);
     expect(m1AvecLien("mp-m1-v4-1")).toBe(true);
     expect(m1AvecLien("mp-m1-v3")).toBe(true);
     expect(m1AvecLien("mp-m1-v2")).toBe(false);
@@ -403,5 +405,47 @@ describe("choisirParcoursPourMessage", () => {
       B,
       C,
     ]);
+  });
+});
+
+describe("enregistrements sans m1Le (adresse reçue depuis m1_a_verifier)", () => {
+  for (const etat of [
+    "guide_demande",
+    "termine",
+    "site_refuse",
+    "expire",
+  ] as const) {
+    it(`${etat} sans m1Le, récent : jamais de nouveau premier message`, () => {
+      const T = [
+        e("r|1", {
+          etat,
+          m1Le: null,
+          creeLe: iso(10 * 60_000),
+          idCommentaire: "com-0",
+        }),
+      ];
+      const d = deciderCommentaire(T, T, ev(), opt);
+      expect(d.action).not.toBe("demarrer");
+      expect(["public_seul", "renvoyer"]).toContain(d.action);
+    });
+  }
+  it("plafond : trois enregistrements termine sans m1Le récents => plafond_personne", () => {
+    const T = [1, 2, 3].map((i) =>
+      e(`r|${i}`, {
+        etat: "termine",
+        m1Le: null,
+        creeLe: iso(10 * 60_000),
+        idCommentaire: `com-0${i}`,
+      }),
+    );
+    expect(deciderCommentaire(T, [], ev(), opt)).toMatchObject({
+      action: "public_seul",
+      raison: "plafond_personne",
+    });
+  });
+  it("Infinity compte comme plafond atteint (pas de valeur illimité)", () => {
+    expect(
+      deciderCommentaire([], [], ev(), { plafondPersonneJour: Infinity }),
+    ).toMatchObject({ action: "public_seul", raison: "plafond_personne" });
   });
 });
