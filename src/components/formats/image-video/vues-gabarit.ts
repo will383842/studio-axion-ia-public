@@ -5,7 +5,7 @@ import type { EtatSuivi, VueSuiviFabrication } from "@/components/creation/Suivi
 import type { VueLotIV } from "@/services/image-video-lot";
 import { ETAPES_ECRANS, type EcranIV, type VueFabrication } from "./vue";
 
-/** Les 5 écrans de l'onglet, l'écran courant allumé (même liste que `EtapesImageVideo`). */
+/** Les 5 écrans de l'onglet, l'écran courant allumé. */
 export function etapesImageVideo(ecran: EcranIV | "depot"): { etapes: EtapeBarre[]; courante: number } {
   return { etapes: ETAPES_ECRANS.map((e) => ({ cle: e.ecran, libelle: e.nom })), courante: Math.max(0, ETAPES_ECRANS.findIndex((e) => e.ecran === ecran)) };
 }
