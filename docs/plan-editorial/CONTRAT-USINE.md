@@ -19,3 +19,5 @@ Le plan éditorial (`src/services/plan-editorial.ts`) tient le calendrier des cr
 
 ## Porte unique `peutProgrammer`
 Seul un créneau `valide`, valide au sens du plan, avec un média, au moins une heure et sans `aRenvoyer` passe. `identifiantsProgrammation` donne la correspondance avec les envois planifiés : une clé d'envoi par réseau géré, la version étant le nombre de décalages.
+- Rejeu d'une clé déjà consommée : le créneau n'est réappliqué que si la ligne de cette clé est la dernière du créneau et que le créneau est encore à son ancien jour ; sinon il est rendu tel quel (jamais de retour en arrière, jamais de nouvelle ligne).
+- Un rejeu qui doit réappliquer un créneau passé entre-temps à « programme » ou « echec » est refusé (« Décalage refusé »), par prudence.

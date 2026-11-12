@@ -108,6 +108,17 @@ describe("plan éditorial : décalage et journal en ajout seul", () => {
     expect(encore.decalages).toBe(1);
     expect(await d.journal.lister()).toHaveLength(1);
   });
+  it("correction relecture v1-r4 : rejouer une ancienne clé après un second décalage ne ramène pas le créneau en arrière", async () => {
+    const d = depots();
+    await creerCreneau(d, base("c1"), T0);
+    await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    await decaler(d, "c1", { nouveauJour: "2026-11-28", raison: "r", cle: "k2" }, T0);
+    const rejeu = await decaler(d, "c1", { nouveauJour: "2026-11-27", raison: "r", cle: "k1" }, T0);
+    expect(rejeu.jourVise).toBe("2026-11-28");
+    expect(rejeu.decalages).toBe(2);
+    expect((await d.creneaux.obtenir("c1"))?.jourVise).toBe("2026-11-28");
+    expect(await d.journal.lister()).toHaveLength(2);
+  });
   it("refuse un jour invalide et un créneau inconnu", async () => {
     const d = depots();
     await creerCreneau(d, base("c1"), T0);
