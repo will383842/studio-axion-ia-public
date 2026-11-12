@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { sceneAuTemps } from "../../src/briques/sous-titres";
 import type { CommandeFabrication } from "../../src/domaine/types";
-import { bandeDe, bandeDuCalque, emphaseTableau, encombrementTableau, sousTitresTableau, zoneTexteTableau, type SousTitresTableau } from "../../src/moteurs/montage-tableau/sous-titres-tableau";
+import { bandeDe, bandeDuCalque, encombrementTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type SousTitresTableau } from "../../src/moteurs/montage-tableau/sous-titres-tableau";
 import { centreBandePct, commandeTableau, plansTableau, RECETTE_COMPOSITION_TABLEAU, reseauxDuRatio, segmentsSousTitresTableau } from "../../src/moteurs/montage-tableau/fabriquer";
 import { parametresComposition } from "../../src/briques/composition/parametres";
 import { formatSortie } from "../../src/moteurs/montage-tableau/formats-sortie";
@@ -20,23 +20,26 @@ const scenes = [{ id: "s01", debutSec: 0, finSec: 4, cle: "k" }];
 const commandeMinimale = { styles: {}, sousTitres: { base: "karaoke", intensite: "equilibre" } } as unknown as CommandeFabrication;
 const stMinimal = (motsEnValeur: boolean) => ({ motsEnValeur }) as unknown as SousTitresTableau;
 const reseaux = reseauxDuRatio("9:16");
-const brut = (motsEnValeur: boolean) =>
-  segmentsSousTitresTableau({ c: commandeMinimale, st: stMinimal(motsEnValeur), dynamiques: false, texte: TEXTE, dureeSec: 4, ratio: "9:16", reseaux, scenes, mise: undefined as never });
-const enValeur = (motsEnValeur: boolean) => brut(motsEnValeur).flatMap((s) => s.mots).filter((m) => m.enValeur).map((m) => m.mot);
+const brut = (motsEnValeur: boolean, texte = TEXTE, emphase?: string[]) =>
+  segmentsSousTitresTableau({ c: commandeMinimale, st: stMinimal(motsEnValeur), dynamiques: false, texte, dureeSec: 4, ratio: "9:16", reseaux, scenes, mise: undefined as never, ...(emphase ? { emphase } : {}) });
+const enValeur = (motsEnValeur: boolean, texte = TEXTE, emphase?: string[]) => brut(motsEnValeur, texte, emphase).flatMap((s) => s.mots).filter((m) => m.enValeur).map((m) => m.mot);
 
 describe("mots importants du tableau animé", () => {
-  it("« trois jours » et « devis » sont en valeur, pas « faut » ni « pour »", () => {
-    const v = enValeur(true);
-    expect(v).toContain("trois");
-    expect(v).toContain("jours");
-    expect(v).toContain("devis.");
-    expect(v).not.toContain("faut");
-    expect(v).not.toContain("pour");
+  it("« trois jours » : les deux mots sont en valeur", () => {
+    expect(enValeur(true, "trois jours")).toEqual(["trois", "jours"]);
+  });
+
+  it("« devis » est en valeur", () => {
+    expect(enValeur(true, "devis")).toEqual(["devis"]);
+  });
+
+  it("des mots ordinaires ne sont pas en valeur", () => {
+    expect(enValeur(true, "Il faut pour")).toEqual([]);
   });
 
   it("motsEnValeur: false n'en met aucun en valeur", () => {
+    expect(enValeur(false, "trois jours")).toEqual([]);
     expect(enValeur(false)).toEqual([]);
-    expect(emphaseTableau({ texte: TEXTE, motsEnValeur: false })).toEqual([]);
   });
 
   it("le texte et l'ordre des mots ne changent pas", () => {
@@ -44,7 +47,7 @@ describe("mots importants du tableau animé", () => {
   });
 
   it("l'emphase du script, si elle existe, passe avant les mots forts", () => {
-    expect(emphaseTableau({ texte: TEXTE, emphaseScript: ["faut"], motsEnValeur: true })).toEqual(["faut"]);
+    expect(enValeur(true, "Il faut devis", ["faut"])).toEqual(["faut"]);
   });
 });
 
@@ -61,9 +64,10 @@ describe("sous-titres dans la bande après mise en valeur", () => {
     const bande = bandeDe(mise, f.ratio, false, rs);
     const st = sousTitresTableau({ fiche, positionPct: centreBandePct(mise), bande });
     const c = commandeTableau({ videoId: "v", fiche, texteScript: texte, dureeSec, centreSousTitresPct: centreBandePct(mise), scenes: sc, ratio: f.ratio, bandeSousTitres: bande });
-    const segments = segmentsSousTitresTableau({ c, st, dynamiques: true, texte, dureeSec, mots, ratio: f.ratio, reseaux: rs, scenes: sc, mise });
+    const supplements = supplementsSousTitresTableau({ st, mise, ratio: f.ratio, verticale: false, dynamiques: true });
+    const segments = segmentsSousTitresTableau({ c, st, dynamiques: true, texte, dureeSec, mots, ratio: f.ratio, reseaux: rs, scenes: sc, mise, supplements });
     expect(segments.some((s) => s.mots.some((m) => m.enValeur))).toBe(true);
-    const calque = parametresComposition(c, { ratio: f.ratio, plans: plansTableau(sc), segments, dureeSec, mots, pistesDouble: { face: "k" } }, RECETTE_COMPOSITION_TABLEAU).texte.sousTitres!;
+    const calque = parametresComposition(c, { ratio: f.ratio, plans: plansTableau(sc), segments, dureeSec, mots, pistesDouble: { face: "k" }, ...supplements }, RECETTE_COMPOSITION_TABLEAU).texte.sousTitres!;
     const bandeCalque = bandeDuCalque(mise, calque);
     const zone = zoneTexteTableau(st, bandeCalque);
     const e = calque.echelleTexte ?? calque.largeur / 1080;
