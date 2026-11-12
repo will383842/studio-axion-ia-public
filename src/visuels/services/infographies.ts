@@ -6,7 +6,6 @@ import type { LigneCout } from "@/domaine/types";
 import { executerRendu } from "@/fournisseurs/rendu/attente";
 import { identifiantSur, segmentStockage } from "@/fournisseurs/rendu/commun";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
-import { libererReservation, reserverCredits } from "@/services/credits";
 import { exigerGenerateurAllume } from "../interrupteur";
 import {
   ID_COMPOSITION_INFOGRAPHIE,
@@ -26,10 +25,10 @@ import { canonique, DELAI_RENDU_MS, VERSION_RENDU } from "./rendu";
 export interface DependancesInfographies {
   rendu: () => ServiceRendu;
   stockage: { urlDepot(cle: string): Promise<string>; urlLecture(cle: string): Promise<string> };
-  /** Par défaut : `reserverCredits` (le rendu maison ne coûte rien, les lignes sont celles que l'appelant fournit). */
-  reserver?: (demande: { travailId: string; lignes: LigneCout[] }) => Promise<void>;
-  /** Par défaut : `libererReservation`. */
-  liberer?: (travailId: string, issue: "consommee" | "liberee") => Promise<void>;
+  /** Réservation du crédit, fournie par l'appelant (les dossiers visuels n'appellent jamais le module des crédits : test du verrou). */
+  reserver: (demande: { travailId: string; lignes: LigneCout[] }) => Promise<void>;
+  /** Libération de la réservation (« consommee » au succès, « liberee » en cas d'échec). */
+  liberer: (travailId: string, issue: "consommee" | "liberee") => Promise<void>;
   attendre?: (ms: number) => Promise<void>;
   maintenant?: () => number;
   delaiMs?: number;
@@ -69,8 +68,7 @@ export async function produireInfographie(demande: DemandeInfographie, deps: Dep
   // Un texte qui déborde lève ici, avant la réservation.
   miseEnPageInfographie(gabarit, ratio, spec);
 
-  const reserver = deps.reserver ?? reserverCredits;
-  const liberer = deps.liberer ?? libererReservation;
+  const { reserver, liberer } = deps;
   await reserver({ travailId, lignes: demande.lignes ?? [] });
   try {
     const service = deps.rendu();
