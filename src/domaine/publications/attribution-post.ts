@@ -19,7 +19,7 @@ export function rattacherContact(o: OrigineContact): Rattachement {
   return { statut: "rattache", cle: { mot: o.mot.trim().toUpperCase(), postRef: ref } };
 }
 
-const RE_EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
+const RE_EMAIL = /[^\s@]+@[^\s@]+/;
 
 export function corpsSansEmail(corps: string): { ok: true } | { ok: false; motif: "email_interdit" } {
   return RE_EMAIL.test(corps) ? { ok: false, motif: "email_interdit" } : { ok: true };
