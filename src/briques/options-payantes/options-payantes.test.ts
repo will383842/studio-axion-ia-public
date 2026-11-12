@@ -54,11 +54,11 @@ describe("lot J · devis et carte", () => {
     expect(estimerOption("multicamera-avocat", { ...ctx, angles: 1 })).toBe(378);
   });
 
-  it("phrase de la carte : « Option payante — environ X € pris sur vos crédits <outil>. »", () => {
-    expect(phraseCarte({ montantCentimes: 600, outil: "higgsfield" })).toBe("Option payante — environ 6 € pris sur vos crédits Higgsfield.");
-    expect(phraseCarte({ montantCentimes: 756, outil: "heygen" })).toBe("Option payante — environ 8 € pris sur vos crédits HeyGen.");
+  it("phrase de la carte : « Option payante — pris sur vos crédits <outil>. »", () => {
+    expect(phraseCarte({ montantCentimes: 600, outil: "higgsfield" })).toBe("Option payante — pris sur vos crédits Higgsfield.");
+    expect(phraseCarte({ montantCentimes: 756, outil: "heygen" })).toBe("Option payante — pris sur vos crédits HeyGen.");
     expect(montantEnvironEuros(40)).toBe("moins de 1 €");
-    expect(vueCarte(demande())).toMatchObject({ etat: "en-attente", libelle: "Effets main ultra réalistes", phrase: "Option payante — environ 6 € pris sur vos crédits Higgsfield." });
+    expect(vueCarte(demande())).toMatchObject({ etat: "en-attente", libelle: "Effets main ultra réalistes", phrase: "Option payante — pris sur vos crédits Higgsfield." });
   });
 });
 
