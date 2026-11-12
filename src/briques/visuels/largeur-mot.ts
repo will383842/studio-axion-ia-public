@@ -1,13 +1,15 @@
 /**
- * Largeur d'un mot insécable du texte d'une page de carrousel (ART-1, tour 2), en fonctions PURES : chasses RÉELLES d'Inter Bold (`metriques-inter`),
- * borne haute du texte courant (SemiBold et Medium sont plus étroits). Lues par la porte qualité (MOT_TROP_LONG, AVANT le rendu) et par les
+ * Largeur d'un mot insécable du texte d'une page de carrousel (ART-1, tour 2), en fonctions PURES : chasses RÉELLES de Manrope ExtraBold (`sous-titres/metriques`),
+ * borne haute du texte courant et des titres (Medium, SemiBold et Bold sont plus étroits). Lues par la porte qualité (MOT_TROP_LONG, AVANT le rendu) et par les
  * gabarits (corps abaissé pour qu'un mot long tienne). Le texte passe d'abord par la typographie française : « mot : » devient un seul bloc
  * insécable (espace insécable devant « : »).
  */
-import { CARACTERES_INTER, INTER_BOLD } from "../composition/metriques-inter";
+import { CARACTERES, METRIQUES } from "../sous-titres/metriques";
 import { typographieFrancaise } from "./typographie-francaise";
 
-const CHASSES = new Map([...CARACTERES_INTER].map((c, i) => [c, INTER_BOLD.largeurs[i] / INTER_BOLD.unitesParEm] as const));
+/** Manrope ExtraBold (800) : la graisse la plus large chargée ; Manrope est la seule police des pages. */
+const MANROPE = METRIQUES["Manrope ExtraBold"];
+const CHASSES = new Map([...CARACTERES].map((c, i) => [c, MANROPE.largeurs[i] / MANROPE.unitesParEm] as const));
 /** Un signe absent de la table compte comme le plus large de la table (choix prudent). */
 const CHASSE_MAX = Math.max(...CHASSES.values());
 /** Marge de sécurité sur la mesure (versions d'Inter, arrondis du moteur de rendu). */
@@ -20,7 +22,7 @@ export function motsInsecables(texte: string): string[] {
     .filter((m) => m !== "");
 }
 
-/** Largeur (px) d'un mot en Inter Bold au corps `taille`, marge de sécurité comprise. */
+/** Largeur (px) d'un mot en Manrope ExtraBold au corps `taille`, marge de sécurité comprise. */
 export function largeurMot(mot: string, taille: number): number {
   let em = 0;
   for (const c of mot) em += c === " " || c === " " ? (CHASSES.get(" ") ?? CHASSE_MAX) : (CHASSES.get(c) ?? CHASSE_MAX);
