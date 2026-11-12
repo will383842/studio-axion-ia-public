@@ -1,6 +1,8 @@
 /**
  * Variété « Image → vidéo » · axe 10, intensité des sous-titres (lot TYP-SOU) : SOU-C (appuyés) → intensité « Très
  * dynamique » de la brique ; SOU-B (référence) et sans recette : inchangé. Toujours dans la bande (Q22).
+ * GV-ST-03b : le tirage par version est ÉTEINT (le style de la Bibliothèque fait loi) : SOU-C/D/E donnent désormais les
+ * mêmes sous-titres que SOU-B (charte duo) ; les tests ci-dessous vérifient ce nouveau comportement.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -64,22 +66,25 @@ describe("sous-titres · sans recette, rien ne change", () => {
       expect(intensiteSousTitresIV(l), code).toBe("equilibre");
     }
     expect(intensiteSousTitresIV({})).toBe("equilibre");
-    expect(intensiteSousTitresIV({ variete: { recette: { ...RECETTE_REFERENCE_IV, sousTitres: "SOU-C" }, format: "9:16", replis: [] } })).toBe("tres-dynamique");
+    // GV-ST-03b : avant, SOU-C donnait « tres-dynamique » ; le tirage étant éteint, l'intensité reste « equilibre ».
+    expect(intensiteSousTitresIV({ variete: { recette: { ...RECETTE_REFERENCE_IV, sousTitres: "SOU-C" }, format: "9:16", replis: [] } })).toBe("equilibre");
   });
 });
 
 describe("sous-titres · SOU-C appuyés", () => {
-  it("rouge sans le lot : SOU-C ne donne pas les mêmes segments que SOU-B (carte C)", () => {
-    expect(JSON.stringify(sousTitresVariesIV(miseEnScene("C", "youtube-shorts", "SOU-C").ligne))).not.toBe(JSON.stringify(sousTitresVariesIV(miseEnScene("C", "youtube-shorts", "SOU-B").ligne)));
+  // GV-ST-03b : avant, SOU-C donnait d'autres segments que SOU-B ; le tirage étant éteint, ils sont identiques.
+  it("SOU-C donne les mêmes segments que SOU-B (carte C), le tirage par version étant éteint", () => {
+    expect(JSON.stringify(sousTitresVariesIV(miseEnScene("C", "youtube-shorts", "SOU-C").ligne))).toBe(JSON.stringify(sousTitresVariesIV(miseEnScene("C", "youtube-shorts", "SOU-B").ligne)));
   });
 
-  it("carte C : plus de mots mis en avant et plus d'accents que SOU-B ; mêmes mots, mêmes heures", () => {
+  // GV-ST-03b : avant, SOU-C mettait plus de mots et d'accents en avant que SOU-B (greaterThan) ; désormais égalité.
+  it("carte C : autant de mots mis en avant et d'accents que SOU-B ; mêmes mots, mêmes heures", () => {
     const b = miseEnScene("C", "youtube-shorts", "SOU-B");
     const c = miseEnScene("C", "youtube-shorts", "SOU-C");
     const sb = sousTitresVariesIV(b.ligne);
     const sc = sousTitresVariesIV(c.ligne);
-    expect(misEnAvant(sc)).toBeGreaterThan(misEnAvant(sb));
-    expect(accents(sc).length).toBeGreaterThan(accents(sb).length);
+    expect(misEnAvant(sc)).toBe(misEnAvant(sb));
+    expect(accents(sc).length).toBe(accents(sb).length);
     expect(sc.map((s) => s.mots.map((m) => [m.mot, m.debutSec, m.finSec]))).toEqual(sb.map((s) => s.mots.map((m) => [m.mot, m.debutSec, m.finSec])));
   });
 
@@ -98,11 +103,12 @@ describe("sous-titres · SOU-C appuyés", () => {
 });
 
 describe("sous-titres · SOU-D (surlignage) et SOU-E (calme, à l'envers)", () => {
-  it("SOU-D : surlignage dans le style, mélange de SOU-B ; SOU-E : mots et heures inchangés, pas de surlignage", () => {
+  // GV-ST-03b : avant, SOU-D posait un surlignage (toHaveProperty) ; le tirage étant éteint, aucun surlignage tiré.
+  it("SOU-D : pas de surlignage tiré, mélange de SOU-B ; SOU-E : mots et heures inchangés, pas de surlignage", () => {
     const b = miseEnScene("C", "youtube-shorts", "SOU-B").ligne;
     const d = miseEnScene("C", "youtube-shorts", "SOU-D").ligne;
     const e = miseEnScene("C", "youtube-shorts", "SOU-E").ligne;
-    expect(surlignageSousTitresIV(d)).toHaveProperty("surlignage");
+    expect(surlignageSousTitresIV(d)).toEqual({});
     expect(surlignageSousTitresIV(e)).toEqual({});
     expect(surlignageSousTitresIV(b)).toEqual({});
     expect(JSON.stringify(sousTitresVariesIV(d))).toBe(JSON.stringify(sousTitresVariesIV(b)));
@@ -111,8 +117,10 @@ describe("sous-titres · SOU-D (surlignage) et SOU-E (calme, à l'envers)", () =
   });
 
   for (const format of [undefined, "4:5"] as const) {
-    it(`6 cartes × 5 réseaux en ${format ?? "9:16"} : Q22 vert pour SOU-D et SOU-E`, { timeout: 60_000 }, () => {
-      let retours = 0; // versions retombées sur SOU-B parce que Q22 échouait
+    // GV-ST-03b : avant, « retours » comptait les versions retombées sur SOU-B (0 en 9:16, au plus 30 en 4:5) ; le tirage
+    // étant éteint, aucune version ne garde SOU-D/SOU-E (code effectif absent) : on le vérifie, et Q22 reste vert.
+    it(`6 cartes × 5 réseaux en ${format ?? "9:16"} : Q22 vert pour SOU-D et SOU-E, aucun code tiré`, { timeout: 60_000 }, () => {
+      let retours = 0; // versions dont le code SOU-D/SOU-E n'est pas gardé (toutes, le tirage étant éteint)
       for (const code of ["SOU-D", "SOU-E"] as const) {
         for (const nom of NOMS) {
           for (const r of RESEAUX_IV) {
@@ -123,9 +131,7 @@ describe("sous-titres · SOU-D (surlignage) et SOU-E (calme, à l'envers)", () =
           }
         }
       }
-      // Jamais de retour en 9:16 ; en 4:5 le retour est un repli rare, pas la règle.
-      if (!format) expect(retours).toBe(0);
-      else expect(retours).toBeLessThanOrEqual(30);
+      expect(retours).toBe(2 * NOMS.length * RESEAUX_IV.length);
     });
   }
 });
