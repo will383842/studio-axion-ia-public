@@ -98,19 +98,32 @@ describe("contrôle des vidéos d'illustration v4 · plafond propre « favid »"
     expect(await dcv.engageClaudeVideoCentimes(v.id)).toBe(0);
   });
 
-  it("l'enveloppe commence au début de la version (`depuis`) : la dépense d'une version précédente ne compte pas ; plafond atteint → rien ne part", async () => {
+  it("l'enveloppe commence au début de la version (`depuis`) : la dépense d'une version précédente ne compte pas ; plafond atteint, origine Studio → ça passe avec une alerte sans montant", async () => {
     const v = await video();
     const appels = brancherClaude();
-    await depense(v.id, ETAPE, 200, "2026-10-01T10:00:00.000Z"); // ancienne version : 2 € > 0,60 $
+    await depense(v.id, ETAPE, 200, "2026-10-01T10:00:00.000Z"); // ancienne version, au-delà du plafond
     const depuis = "2026-10-18T09:00:00.000Z";
     expect(await dcv.engagePlafondPropreCentimes(v.id, dcv.plafondVideosFa(depuis))).toBe(0);
     expect(await dcv.engagePlafondPropreCentimes(v.id, dcv.plafondVideosFa())).toBeGreaterThan(0);
-    const bloque = await dcv.executerRolePourVideo(v.id, roleControleVideoV4(), entree, { etape: ETAPE, plafondPropre: dcv.plafondVideosFa() });
-    expect(bloque).toMatchObject({ ok: false, arret: "plafond-video" });
-    expect(appels).toHaveLength(0);
-    const ok = await dcv.executerRolePourVideo(v.id, roleControleVideoV4(), entree, { etape: ETAPE, plafondPropre: dcv.plafondVideosFa(depuis) });
-    expect(ok.ok).toBe(true);
+    const passe = await dcv.executerRolePourVideo(v.id, roleControleVideoV4(), entree, { etape: ETAPE, plafondPropre: dcv.plafondVideosFa(), origine: "studio" });
+    expect(passe.ok).toBe(true);
     expect(appels).toHaveLength(1);
+    const alertes = (await depots().notifications.lister((n) => n.titre.startsWith("Prix annoncé dépassé"))).flatMap((x) => [x.titre, x.message]);
+    expect(alertes.length).toBeGreaterThan(0);
+    expect(alertes.join(" ")).not.toMatch(/€|\$|\d/);
+    const ok = await dcv.executerRolePourVideo(v.id, roleControleVideoV4(), entree, { etape: ETAPE, plafondPropre: dcv.plafondVideosFa(depuis), origine: "studio" });
+    expect(ok.ok).toBe(true);
+    expect(appels).toHaveLength(2);
+  });
+
+  it("plafond atteint, commande d'origine usine → refus entier : rien ne part, arrêt « plafond-video » sans montant", async () => {
+    const v = await video();
+    const appels = brancherClaude();
+    await depense(v.id, ETAPE, 200, "2026-10-01T10:00:00.000Z");
+    const bloque = await dcv.executerRolePourVideo(v.id, roleControleVideoV4(), entree, { etape: ETAPE, plafondPropre: dcv.plafondVideosFa(), origine: "usine" });
+    expect(bloque).toMatchObject({ ok: false, arret: "plafond-video" });
+    expect(!bloque.ok && bloque.message).not.toMatch(/€|\$|\d/);
+    expect(appels).toHaveLength(0);
   });
 
   it("préfixes DISJOINTS : une dépense « favid » ne réduit pas le plafond du réalisateur (« faclaude »), et inversement", async () => {

@@ -167,7 +167,7 @@ export function Credits({ cartes, tauxUsdEur }: { cartes: CarteCredit[]; tauxUsd
           </Bouton>
         }
       >
-        <Champ libelle="Montant (€)" inputMode="decimal" grand autoFocus value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="20" suffixe="€" />
+        <Champ libelle="Montant" inputMode="decimal" grand autoFocus value={montant} onChange={(e) => setMontant(e.target.value)} />
       </FeuilleBas>
     </div>
   );

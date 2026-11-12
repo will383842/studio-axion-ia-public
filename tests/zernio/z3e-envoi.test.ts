@@ -99,7 +99,8 @@ describe("Z3-E · écran", () => {
   });
   it("Instagram : premier commentaire posé automatiquement, mention IA visible, pas de case TikTok", () => {
     const t = texte(rendre([ligne("instagram")], { "v-1:instagram": comp({ etat: "brouillon", creeLe: new Date().toISOString() }) }));
-    expect(t).toContain("Premier commentaire, posé automatiquement");
+    expect(t).toContain("Premier commentaire à poser à la main");
+    expect(t).toContain("Brouillon dans Zernio");
     expect(t).toContain("Voir le lien en bio");
     expect(t).toContain("Mention « contenu généré par IA »");
     expect(t).not.toContain("j'accepte que TikTok");

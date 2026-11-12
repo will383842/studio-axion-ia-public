@@ -10,11 +10,12 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { Pastille } from "@/components/ui/Pastille";
-import { lutsConseilleesPour, sousTitresSurDecor } from "@/domaine/decors";
+import { decorParDefaut, lutsConseilleesPour, sousTitresSurDecor } from "@/domaine/decors";
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
 import { LIBELLES_BRIQUES } from "@/domaine/libelles";
 import type { BriqueFacultative, NiveauIntensite, ReglageBruitages, StylesChoisis, TypeElement } from "@/domaine/types";
-import { briquesCoupables, briquesEffectives, musiqueInterdite, musiqueRetenue, obtenirFormat } from "@/formats";
+import { renduCouleurDe } from "@/briques/charte/rendu-couleur";
+import { briquesCoupables, briquesEffectives, musiqueInterdite, musiqueRetenue, obtenirFormat, styleParDefautRetenu } from "@/formats";
 import type { ChampReglage } from "@/formats/types";
 import { cn } from "@/lib/cn";
 import type { ProprietesEtape } from "./types";
@@ -78,8 +79,7 @@ function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: s
  */
 export function EtapeReglages({ formatId, brouillon, modifier, contexte, compacte }: ProprietesEtape) {
   const format = obtenirFormat(formatId);
-  const def = format.stylesParDefaut;
-  const decorId = brouillon.styles.decorId ?? def.decor;
+  const decorId = brouillon.styles.decorId ?? decorParDefaut(format.id, contexte.elements, styleParDefautRetenu(format, "decor", undefined, contexte.elements));
   const decor = contexte.elements.find((e) => e.id === decorId);
   const valeurDecor = decor?.valeur.type === "decor" ? decor.valeur : null;
   const conseillees = new Set(lutsConseilleesPour(valeurDecor, contexte.elements).map((l) => l.id));
@@ -90,7 +90,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
   const elements = (type: TypeElement) => contexte.elements.filter((e) => e.type === type);
   const s = brouillon.styles;
   // UNE règle de musique, la même que la commande (bug corrigé : l'écran montrait une musique jamais utilisée).
-  const musiqueAffichee = musiqueRetenue(format, s.musiqueId, contexte.elements);
+  const musiqueAffichee = musiqueRetenue(format, s.musiqueId);
   const style = (patch: Partial<StylesChoisis>) => modifier({ styles: { ...brouillon.styles, ...patch } });
   const basculer = (b: BriqueFacultative, allumee: boolean) => {
     const coupees = allumee ? brouillon.briquesCoupees.filter((x) => x !== b) : [...brouillon.briquesCoupees, b];
@@ -102,7 +102,8 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
   };
 
   const luts = elements("lut");
-  const lutChoisie = s.lutId ?? def.lut;
+  const rendu = renduCouleurDe(format.id);
+  const lutChoisie = styleParDefautRetenu({ ...format, stylesParDefaut: { ...format.stylesParDefaut, lut: rendu.lut ?? undefined } }, "lut", s.lutId, contexte.elements);
 
   return (
     <div className="space-y-3">
@@ -171,7 +172,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                 );
               })}
             </div>
-            {lutChoisie !== LUT_AUCUNE && <Curseur libelle="Intensité" unite=" %" valeur={s.intensiteLut ?? def.intensiteLut ?? 70} onChange={(v) => style({ intensiteLut: v })} className="mt-3" />}
+            {lutChoisie !== LUT_AUCUNE && <Curseur libelle="Intensité" unite=" %" valeur={s.intensiteLut ?? rendu.intensite} onChange={(v) => style({ intensiteLut: v })} className="mt-3" />}
           </Bloc>
         )}
 
@@ -182,7 +183,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
               libelleMasque
               defilement
               options={elements("style-sous-titres").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-              valeur={s.sousTitresId ?? def.sousTitres}
+              valeur={styleParDefautRetenu(format, "sousTitres", s.sousTitresId, contexte.elements)}
               onChange={(v) => style({ sousTitresId: v })}
             />
             {regleSousTitres.mode !== "normal" && (
@@ -213,7 +214,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
                   libelle="Son"
                   defilement
                   options={elements("profil-son").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-                  valeur={s.profilSonId ?? def.profilSon}
+                  valeur={styleParDefautRetenu(format, "profilSon", s.profilSonId, contexte.elements)}
                   onChange={(v) => style({ profilSonId: v })}
                 />
               )}
@@ -248,7 +249,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
               libelle="Style de montage"
               libelleMasque
               options={elements("style-montage").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-              valeur={s.styleMontageId ?? def.styleMontage}
+              valeur={styleParDefautRetenu(format, "styleMontage", s.styleMontageId, contexte.elements)}
               onChange={(v) => style({ styleMontageId: v })}
             />
           </Bloc>
@@ -260,7 +261,7 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
               libelle="Habillage"
               libelleMasque
               options={elements("habillage").map((e) => ({ valeur: e.id, libelle: e.nom }))}
-              valeur={s.habillageId ?? def.habillage}
+              valeur={styleParDefautRetenu(format, "habillage", s.habillageId, contexte.elements)}
               onChange={(v) => style({ habillageId: v })}
             />
           </Bloc>

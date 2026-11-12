@@ -54,6 +54,8 @@ const COLLECTIONS: (keyof Depots)[] = [
   "envoisPlanifies",
   // Plan éditorial (L1-06) : créneaux et journal des décalages (ajout seul).
   "creneauxEditoriaux", "journalDecalages",
+  // Stock de messages (STK-01) : archivage sans suppression.
+  "stockMessages",
 ];
 
 /**

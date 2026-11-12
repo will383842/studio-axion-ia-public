@@ -144,6 +144,44 @@ describe("plus aucune citation de la vidéo", () => {
   });
 });
 
+describe("créneaux éditoriaux", () => {
+  const base = { jourVise: "2026-11-25", compteCible: "compte-fictif-1", decalages: 0, heuresParReseau: {}, ...H };
+  it("un créneau qui cite la vidéo reste, mais oublie la vidéo (détaché) ; le créneau d'une autre vidéo est intact", async () => {
+    const d = depots();
+    await d.creneauxEditoriaux.enregistrer({ id: "cr-1", videoId: ID, statut: "propose", ...base });
+    await d.creneauxEditoriaux.enregistrer({ id: "cr-2", videoId: AUTRE, statut: "propose", ...base });
+    expect(suppression.TRAITEMENT_SUPPRESSION.creneauxEditoriaux).toBe("detache");
+    await videos.supprimerVideoDefinitivement(ID);
+    expect(await citations(ID)).toEqual([]);
+    const c1 = await d.creneauxEditoriaux.obtenir("cr-1");
+    expect(c1).not.toBeNull();
+    expect(c1!.videoId).toBeUndefined();
+    expect((await d.creneauxEditoriaux.obtenir("cr-2"))!.videoId).toBe(AUTRE);
+  });
+
+  it.each(["propose", "a_valider", "valide", "programme", "echec"] as const)("correction opus-v1-w2 : un créneau « %s » est détaché (il reste, sans vidéo)", async (statut) => {
+    const d = depots();
+    await d.creneauxEditoriaux.enregistrer({ id: "cr-s", videoId: ID, statut, ...base });
+    await videos.supprimerVideoDefinitivement(ID);
+    const c = await d.creneauxEditoriaux.obtenir("cr-s");
+    expect(c).not.toBeNull();
+    expect(c!.videoId).toBeUndefined();
+    expect(c!.statut).toBe(statut);
+  });
+
+  it.each(["publie", "archive"] as const)("correction opus-v1-w2 : un créneau « %s » garde son lien vidéo (l'historique du plan reste lisible)", async (statut) => {
+    const d = depots();
+    await d.creneauxEditoriaux.enregistrer({ id: "cr-h", videoId: ID, statut, ...base });
+    await videos.supprimerVideoDefinitivement(ID);
+    const c = await d.creneauxEditoriaux.obtenir("cr-h");
+    expect(c).not.toBeNull();
+    expect(c!.videoId).toBe(ID);
+    expect(c!.statut).toBe(statut);
+    // Citation gardée EXPRÈS : elle figure dans la liste des citations autorisées après suppression.
+    expect(suppression.GARDES_APRES_SUPPRESSION.some((g) => g.collection === "creneauxEditoriaux" && g.correspond(c as never))).toBe(true);
+  });
+});
+
 describe("objets du stockage", () => {
   it("quatre dossiers + fiches de scènes + fichier et objets cités effacés ; leurres, voisin et objet partagé gardés", async () => {
     await semer();

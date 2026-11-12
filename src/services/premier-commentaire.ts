@@ -6,6 +6,9 @@
 import "server-only";
 import type { Id, IdReseau } from "@/domaine/types";
 import { ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
+import { composerPremierCommentaire, modePremierCommentaire, type ModePremierCommentaire, type ObjectifCommentaire } from "@/domaine/ecriture-post/commentaire";
+import type { ContenuSourceType } from "@/domaine/ecriture-post/contenu-source";
+import { evaluerPremierCommentaire } from "@/generateur/roles/premier-commentaire";
 import { depots } from "./_commun";
 
 const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -40,4 +43,28 @@ export function deLaVersion(variante: { reseau: IdReseau; champs: { sources: str
 
 export async function premierCommentaireDeVideo(videoId: Id, reseau: IdReseau, variante?: Parameters<typeof deLaVersion>[0]): Promise<string | undefined> {
   return (await deCasConcret(videoId, reseau).catch(() => undefined)) ?? (await deImageVideo(videoId, reseau).catch(() => undefined)) ?? deLaVersion(variante, reseau);
+}
+
+/** L3-08 : proposition de premier commentaire à partir d'un contenu source seul (sans videoId : contenu importé à la main). */
+export interface OptionsProposition {
+  objectif?: ObjectifCommentaire;
+  lien?: string;
+  /** Preuve RC-08 faite : Instagram devient automatique. TikTok ne l'est jamais. */
+  preuveRC08?: boolean;
+}
+export interface PropositionPremierCommentaire {
+  mode: ModePremierCommentaire;
+  /** Le texte à copier à la main (toujours présent). */
+  texte: string;
+  copier: boolean;
+  /** Présent seulement si le texte part avec la publication (jamais Instagram avant RC-08, jamais TikTok). */
+  firstComment?: string;
+}
+
+export async function proposerPremierCommentaire(contenuSource: ContenuSourceType, reseau: IdReseau, options: OptionsProposition = {}): Promise<PropositionPremierCommentaire> {
+  const face = modePremierCommentaire(reseau, { preuveRC08: options.preuveRC08 });
+  const texte = composerPremierCommentaire({ contenu: contenuSource, reseau, objectif: options.objectif, lien: options.lien });
+  const echecs = evaluerPremierCommentaire({ texte }, { reseau, objectif: options.objectif, lien: options.lien });
+  if (echecs.length > 0) throw new Error(`Premier commentaire refusé : ${echecs.join(" ; ")}`);
+  return { mode: face.mode, texte, copier: face.copier, ...(face.transmettre ? { firstComment: texte } : {}) };
 }

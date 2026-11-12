@@ -58,7 +58,7 @@ export const TYPES_BIBLIOTHEQUE: { type: TypeElement | "prononciations" | "mes-i
   { type: "couleurs", nom: "Couleurs", icone: "nuancier", groupe: "style" },
   { type: "police", nom: "Polices", icone: "texte", groupe: "style" },
   { type: "logo", nom: "Logo", icone: "certifie", groupe: "style" },
-  { type: "lut", nom: "LUT", icone: "contraste", groupe: "style" },
+  { type: "lut", nom: "Rendu des couleurs", icone: "contraste", groupe: "style" },
   { type: "style-sous-titres", nom: "Sous-titres", icone: "sous-titres", groupe: "style" },
   { type: "habillage", nom: "Habillage", icone: "calques", groupe: "style" },
   { type: "style-montage", nom: "Montage", icone: "ciseaux", groupe: "style" },
@@ -87,7 +87,7 @@ export const LICENCES: Record<string, string> = {
 /** Libellés des briques facultatives (AV2.7) : LES MÊMES dans l'assistant et dans la fiche vidéo. */
 export const LIBELLES_BRIQUES: Record<BriqueFacultative, { libelle: string; icone: NomIcone }> = {
   "sous-titres": { libelle: "Sous-titres", icone: "sous-titres" },
-  etalonnage: { libelle: "Couleurs de cinéma (LUT)", icone: "contraste" },
+  etalonnage: { libelle: "Rendu des couleurs", icone: "contraste" },
   illustrations: { libelle: "Images d'illustration", icone: "images" },
   son: { libelle: "Musique et bruitages", icone: "musique" },
   habillage: { libelle: "Habillage (logo, fin)", icone: "calques" },
@@ -331,6 +331,8 @@ export const LIBELLES_ENVOI = {
   aussiSur: "Aussi sur :",
   premierCommentaire: "Premier commentaire, posé automatiquement",
   premierCommentaireTiktok: "TikTok ne permet pas de premier commentaire automatique : à poser à la main, juste après la publication.",
+  premierCommentaireALaMain: "Premier commentaire à poser à la main, juste après la publication : le bouton Copier le recopie. Rien n'est envoyé pour ce réseau.",
+  premierCommentaireAConfirmer: "Premier commentaire transmis, à confirmer : vérifiez qu'il apparaît sous la publication, sinon posez-le à la main (bouton Copier).",
   tiktokAccord: "J'ai regardé l'aperçu et j'accepte que TikTok publie cette vidéo.",
   tiktokAccordPetit: "TikTok demande cet accord à chaque envoi.",
   tiktokAccordManquant: "Cochez l'accord TikTok ci-dessus pour valider.",
