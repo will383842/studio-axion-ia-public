@@ -45,6 +45,7 @@ export const SECTIONS_NAV: readonly SectionNavigation[] = [
       { href: "/videos", libelle: "Mes vidéos", icone: "film", actifSur: ACTIF_SUR_VIDEOS },
       // 18/10 : carrousels, infographies et vidéos sont trois familles distinctes (jamais sous « Mes vidéos »).
       { href: "/carrousels", libelle: "Carrousels", icone: "images" },
+      { href: "/contenus", libelle: "Tous mes contenus", icone: "grille" },
       { href: "/ecrire", libelle: "Écrire", icone: "ecrire", actifSur: ["/ecrire", "/scripts", "/idees"] },
     ],
   },

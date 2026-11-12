@@ -109,7 +109,7 @@ describe("port inbox · écritures", () => {
   it("lien hors de nos domaines ou titre hors liste : refus typés, zéro appel, rien de recopié", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-9" } }, { statut: 200, corps: {} }]);
     const base = { idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "k" };
-    const lien = (u: string) => rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: u })!;
+    const lien = (u: string) => rendreTexteMp("mp-m1-v4-1", { titre: "Guide d'exemple", lien: u })!;
     // « http:// » n'entre même pas dans le modèle du dictionnaire : refusé aussi (chemin-refuse).
     expect(await port.envoyerMessage({ ...base, texte: lien("http://axion-ia.com/x") })).toMatchObject({ statut: "refuse" });
     for (const mauvais of ["https://evil.example/x", "https://axion-ia.com.evil.example/x", "https://axion-ia.com@evil.example/x", "https://xaxion-ia.com/x"]) {
@@ -117,7 +117,7 @@ describe("port inbox · écritures", () => {
       expect(r).toMatchObject({ statut: "refuse", code: "lien-hors-domaine" });
       expect(JSON.stringify(r)).not.toContain("evil");
     }
-    const titre = await port.envoyerMessage({ ...base, texte: rendreTexteMp("mp-lien-v2", { titre: "Guide inventé", lien: "https://axion-ia.com/fr/guide-ia" })! });
+    const titre = await port.envoyerMessage({ ...base, texte: rendreTexteMp("mp-m1-v4-1", { titre: "Guide inventé", lien: "https://axion-ia.com/fr/guide-ia" })! });
     expect(titre).toMatchObject({ statut: "refuse", code: "guide-inconnu" });
     expect(JSON.stringify(titre)).not.toContain("inventé");
     expect(faux.appels).toHaveLength(0);
@@ -129,7 +129,7 @@ describe("port inbox · écritures", () => {
   it("lien de la page guide : la forme exacte du lien signé passe, tout écart est refusé", async () => {
     const { port, faux } = fabrique([{ statut: 200, corps: { messageId: "exemple-msg-g1" } }]);
     const base = { idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "kg" };
-    const lien = (u: string) => rendreTexteMp("mp-lien-v2", { titre: "Guide d'exemple", lien: u })!;
+    const lien = (u: string) => rendreTexteMp("mp-m1-v4-1", { titre: "Guide d'exemple", lien: u })!;
     const fixture = JSON.parse(readFileSync(resolve(__dirname, "aides", "lien-page-guide.v2.json"), "utf8")) as { lien: string };
     const entete = "https://axion-ia.com/guide-reseau?j=";
     const [charge, sig] = fixture.lien.slice(entete.length).split(".") as [string, string];
