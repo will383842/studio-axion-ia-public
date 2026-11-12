@@ -23,7 +23,7 @@ import { notifier } from "@/components/ui/Toast";
 import type { Ratio, ReseauDeclinaison } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { obtenirReseau } from "@/reseaux";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 
 export interface PlanFabricationAffiche {
   /** Relecture finale : format des versions, pour que « rien n'est payé » se décide sur CE format seulement. */
@@ -176,9 +176,9 @@ export function CarteFabriquerLesN({ sujetId, plan }: { sujetId: string; plan: P
             </li>
           ))}
         </ol>
-        {avatarParle && <p className="mt-3 text-sm font-semibold text-texte">{avatarParle}</p>}
+        {avatarParle && <p className="mt-3 text-sm font-semibold text-texte">{messageSansMontant(avatarParle)}</p>}
         {/* E2E-2 argent n° 7 : la phrase dit exactement ce qui sera payé (jamais « rien » quand la voix l'est). */}
-        {resume?.messageEssai && !calcul && <p className="mt-2 text-center text-xs text-texte-faible">{resume.messageEssai}</p>}
+        {resume?.messageEssai && !calcul && <p className="mt-2 text-center text-xs text-texte-faible">{messageSansMontant(resume.messageEssai)}</p>}
         <div className="mt-4">
           <p className="mb-2 text-xs font-bold uppercase tracking-wider text-texte-faible">Formats</p>
           <div className="flex flex-wrap gap-2">
@@ -220,7 +220,7 @@ export function EtatFabricationVersion({ sujetId, etat }: { sujetId: string; eta
           Raccord visible avec la vidéo mère
         </p>
         <p className="text-sm text-texte-doux">Cette version doit être fabriquée en entier.</p>
-        {etat.avatarParle && <p className="text-sm font-semibold text-texte">{etat.avatarParle}</p>}
+        {etat.avatarParle && <p className="text-sm font-semibold text-texte">{messageSansMontant(etat.avatarParle)}</p>}
         <Bouton
           variante="secondaire"
           icone="film"
@@ -229,7 +229,7 @@ export function EtatFabricationVersion({ sujetId, etat }: { sujetId: string; eta
             demarrer(async () => {
               let r = await fabriquerEnEntierAction(sujetId, etat.videoId);
               r = await avecConfirmationPrix(r, (accord) => fabriquerEnEntierAction(sujetId, etat.videoId, accord));
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
               else router.refresh();
             })
           }
@@ -251,7 +251,7 @@ export function EtatFabricationVersion({ sujetId, etat }: { sujetId: string; eta
     return (
       <p className="flex min-h-11 items-center gap-2 rounded-champ bg-surface-2 px-4 py-2 text-sm text-texte-doux">
         <Icone nom="horloge" size={14} className="shrink-0" />
-        {etat.raisonAttente ?? "Attend du crédit · partira d’elle-même"}
+        {messageSansMontant(etat.raisonAttente ?? "Attend du crédit · partira d’elle-même")}
       </p>
     );
   }
@@ -308,7 +308,7 @@ export function BoutonSecondeOuverture({ sujetId, varianteId, avatarParle }: { s
         2e ouverture
       </Bouton>
       <FeuilleBas ouverte={ouverte} onOuverteChange={setOuverte} titre="2e ouverture Reels" description="La même vidéo avec une autre accroche, pour comparer sur Instagram. À publier à la main.">
-        {avatarParle && <p className="mb-3 text-sm font-semibold text-texte">{avatarParle}</p>}
+        {avatarParle && <p className="mb-3 text-sm font-semibold text-texte">{messageSansMontant(avatarParle)}</p>}
         <Bouton
           taille="lg"
           pleineLargeur
@@ -319,7 +319,7 @@ export function BoutonSecondeOuverture({ sujetId, varianteId, avatarParle }: { s
               let r = await secondeOuvertureAction(sujetId, varianteId, operation);
               r = await avecConfirmationPrix(r, (accord) => secondeOuvertureAction(sujetId, varianteId, operation, accord));
               if (!r.ok) {
-                notifier.erreur(r.message);
+                notifier.erreur(messageSansMontant(r.message));
                 return;
               }
               setOuverte(false);
@@ -352,7 +352,7 @@ export function BoutonMonterPrise({ sujetId, varianteId, prix, essai }: { sujetI
           let r = await monterJeLisAction(sujetId, varianteId);
           r = await avecConfirmationPrix(r, (accord) => monterJeLisAction(sujetId, varianteId, accord));
           if (!r.ok) {
-            notifier.erreur(r.message);
+            notifier.erreur(messageSansMontant(r.message));
             return;
           }
           notifier.succes("Votre prise part au montage");

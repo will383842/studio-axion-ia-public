@@ -1,9 +1,5 @@
-/** FACE CAMÉRA ANIMÉE · phrases du coût (estimation avant, vrai coût après), PUR. */
-import { centimes, formaterMontant } from "@/lib/montants";
+/** FACE CAMÉRA ANIMÉE · phrases du coût, PUR. Règle du fondateur : aucun prix ni montant à l'écran ; les coûts restent calculés et enregistrés côté serveur. */
 import type { EstimationFA } from "@/services/facecam-animee";
-
-export const eurosFA = (c: number) => formaterMontant(centimes(c));
-export const dollarsFA = (usd: number) => `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(usd)} $`;
 
 export interface LignesCout {
   titre: string;
@@ -12,18 +8,16 @@ export interface LignesCout {
   autres: string;
 }
 
-/** Les lignes affichées au-dessus du bouton « Animer ». */
+/** Les lignes (sans aucun montant) de l'estimation d'une ou plusieurs vidéos. */
 export function lignesCout(e: EstimationFA): LignesCout {
   const lot = e.videos > 1;
   return {
     titre: lot ? `Coût pour ${e.videos} vidéos` : "Coût de cette vidéo",
-    pireCas: lot
-      ? `Au plus ${eurosFA(e.pireCasLotCentimesEur)} (jusqu'à ${e.essaisMax} essais de Claude par vidéo, +${e.essaisRepliMax} si aucune vidéo fidèle n'est trouvée, ${eurosFA(e.pireCasCentimesEur)} au plus pour la plus longue)`
-      : `Un essai : ${eurosFA(e.unEssaiCentimesEur)} au plus. Au pire : ${eurosFA(e.pireCasCentimesEur)} (jusqu'à ${e.essaisMax} essais de Claude, +${e.essaisRepliMax} si aucune vidéo fidèle n'est trouvée)`,
-    plafond: `Plafond Claude : ${dollarsFA(e.plafondUsd)} par vidéo (≈ ${eurosFA(e.plafondCentimesEur)}). Rien n'est dépensé au-delà.`,
-    autres: "Montage et voix : 0 € (votre voix, montage sur le serveur du studio)",
+    pireCas: `Jusqu'à ${e.essaisMax} essais de Claude${lot ? " par vidéo" : ""}, +${e.essaisRepliMax} si aucune vidéo fidèle n'est trouvée.`,
+    plafond: "Le coût est plafonné pour chaque vidéo. Rien n'est dépensé au-delà.",
+    autres: "Montage et voix : rien à payer en plus (votre voix, montage sur le serveur du studio)",
   };
 }
 
-/** « Déjà payé : 1,38 € » pour une vidéo en fabrication ou finie. */
-export const phrasePaye = (centimesEur: number) => `Déjà payé : ${eurosFA(centimesEur)}`;
+/** Phrase pour une vidéo en fabrication ou finie : sans montant. */
+export const phrasePaye = (): string => "Déjà payé";

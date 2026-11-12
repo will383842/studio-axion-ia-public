@@ -19,8 +19,8 @@ export const dynamic = "force-dynamic";
  * NOUVELLE VIDÉO (refonte R4, maquette M1) : d'abord « Choisir un format », puis « Repartir d'un modèle » (mes modèles intégrés).
  * 12/11 (Williams) : « L'erreur corrigée » est seule, sans carte « Tableau animé » à quatre recettes.
  */
-const AFFICHAGE_FORMAT: Record<string, { nomAffiche: string; accrocheAffichee: string }> = {
-  "tableau-anime": { nomAffiche: "L'erreur corrigée", accrocheAffichee: "Une erreur courante, puis la bonne façon de faire, dessinées sur un tableau" },
+const AFFICHAGE_FORMAT: Record<string, { accrocheAffichee: string }> = {
+  "tableau-anime": { accrocheAffichee: "Une erreur courante, puis la bonne façon de faire, dessinées sur un tableau" },
 };
 
 export default async function PageNouvelle() {
@@ -66,7 +66,7 @@ export default async function PageNouvelle() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1 text-[11px] font-semibold text-texte-faible">
                       <Icone nom={m.format.icone} size={12} />
-                      <span className="truncate">{AFFICHAGE_FORMAT[m.formatId]?.nomAffiche ?? nomCourtFormat(m.format)}</span>
+                      <span className="truncate">{nomCourtFormat(m.format)}</span>
                     </span>
                     <span className="mt-0.5 block truncate text-[15px] font-semibold text-texte">{m.nom}</span>
                     <span className="mt-1 flex items-center gap-1.5 text-xs tabular-nums text-texte-faible">
