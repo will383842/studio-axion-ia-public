@@ -323,7 +323,8 @@ describe("Format masqué", () => {
     expect(formatTableauAnime.statut).toBe("actif");
     const html = renderToStaticMarkup(await PageNouvelleTableau({}));
     expect(html).not.toContain("Pas encore ouvert");
-    expect(html).toContain("Tableau animé");
+    // Décision de Williams du 12/11 (refonte R6, maquette M3) : le nom affiché du format est « L'erreur corrigée ».
+    expect(html).toContain("erreur corrigée");
     expect(adresseCreationFormat({ id: "tableau-anime" })).toBe("/tableau/nouvelle");
     expect(listerFormatsNavigation().map((f) => f.id)).toContain("tableau-anime");
   });
