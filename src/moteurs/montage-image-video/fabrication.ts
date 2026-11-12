@@ -1659,6 +1659,16 @@ export function choisirEcransAAdapterIV(fiche: FicheImage, ligne: LigneDeTempsIV
   return trouves.size ? { ids: avecTexte.filter((x) => trouves.has(x)), repli: false } : { ids: avecTexte, repli: true };
 }
 
+/**
+ * GV-ST-03d : identifiant de rendu sans style choisi (PUR). Le tirage de sous-titres étant éteint, une recette SOU-C, SOU-D ou SOU-E
+ * change l'image rendue sans changer la ligne : le suffixe `-st1` évite de reprendre l'ancien rendu. Sans recette ou SOU-B : inchangé.
+ */
+export function idRenduSansStyleIV(versionId: string, ligne: LigneDeTempsIV, mixageId: string): string {
+  const code = ligne.variete?.recette.sousTitres;
+  const base = `iv-rendu-${empreinteDe([versionId, empreinteDe(ligne), mixageId, VERSION_COMPOSITIONS_IV])}`;
+  return code === "SOU-C" || code === "SOU-D" || code === "SOU-E" ? `${base}-st1` : base;
+}
+
 async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   e.rendus ??= {};
@@ -1667,7 +1677,7 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     const mixage = planMixageIV(v.piste, ligne.bruitages, ligne.dureeSec);
     const choisi = e.demande.styleSousTitres?.valeur ? e.demande.styleSousTitres : undefined;
     // Sans style choisi : empreinte inchangée ; avec : le style entre dans l'empreinte (autre style = autre rendu).
-    const idSans = `iv-rendu-${empreinteDe([v.id, empreinteDe(ligne), mixage.id, VERSION_COMPOSITIONS_IV])}`;
+    const idSans = idRenduSansStyleIV(v.id, ligne, mixage.id);
     const id = choisi ? `${idSans}-${empreinteDe(choisi).slice(0, 12)}` : idSans;
     if (e.rendus[v.id]?.demande === id) continue;
     if (choisi && styleRetenuIV(choisi, formatDeHauteurIV(ligne.hauteur)).deplace) e.journal.push(`Remarque · ${nomVersion(v)} : ${REMARQUE_SOUS_TITRES_DEPLACES_IV}.`);
