@@ -11,9 +11,9 @@ Le Studio doit pouvoir programmer ses publications à la main dès la première 
 
 ## Décision
 
-- Le Studio tient son propre calendrier éditorial : la programmation à la main est possible dès la V1.
-- Par défaut, la date d'une publication est fixée par l'usine (décision D-14 maintenue).
-- Le choix du fondateur l'emporte toujours : une date posée ou changée à la main dans le Studio remplace la date proposée par l'usine, et l'usine ne la modifie plus.
+- Le Studio tient son propre calendrier éditorial : la programmation à la main est disponible dans la première version.
+- Par défaut, la date d'une publication est fixée par l'usine (règle D-14, inchangée).
+- En cas de désaccord, le choix du fondateur l'emporte : une date posée ou changée à la main dans le Studio remplace la date proposée par l'usine, et l'usine ne la modifie plus.
 - Le Studio fait foi pour une date posée à la main ; pour une date non touchée, c'est la proposition de l'usine qui s'applique. Cette nuance doit toujours rester écrite.
 - Rien ne part sans la validation du fondateur : le calendrier ne déclenche aucun envoi à lui seul.
 
