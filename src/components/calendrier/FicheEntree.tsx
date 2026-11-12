@@ -4,6 +4,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { Icone } from "@/components/ui/Icone";
 import { modePremierCommentaire } from "@/domaine/ecriture-post/commentaire";
 import { cn } from "@/lib/cn";
+import { estReseauDeclinaison } from "@/reseaux/codes";
 import { controlerProgrammation } from "@/services/controle-programmation";
 import { libelleJour } from "./BarreVue";
 import { MonogrammeReseau, TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
@@ -326,7 +327,7 @@ export function FicheEntree({
   const sansCommentaire = sansPremierCommentaire(entree.reseau);
   const reponsesALaMain = entree.reseau === "linkedin" || entree.reseau === "tiktok";
   // L7-12 : le contrôleur de texte avertit (voyant), il n'empêche jamais d'enregistrer ni de programmer à la main.
-  const controle = reseau && entree.texte.trim() ? controlerProgrammation({ reseau, texte: entree.texte, commentaire: entree.premierCommentaire, auteur: entree.auteur ?? "will" }) : null;
+  const controle = reseau && estReseauDeclinaison(reseau) && entree.texte.trim() ? controlerProgrammation({ reseau, texte: entree.texte, commentaire: entree.premierCommentaire, auteur: entree.auteur ?? "will" }) : null;
   const aNavigation = Boolean(lienPrecedente || onPrecedente || lienSuivante || onSuivante || lienFermer || onFermer);
 
   const champs = (
