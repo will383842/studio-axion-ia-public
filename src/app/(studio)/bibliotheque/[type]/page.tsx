@@ -93,7 +93,7 @@ export default async function PageTypeBibliotheque({ params, searchParams }: { p
       const [tous, formats] = await Promise.all([listerElements({ type: ["illustration-image", "illustration-video"] }), formatsCourts()]);
       // Les images de Will ont leur écran (« Mes images ») : elles n'apparaissent pas ici.
       const elements = tous.filter((e) => e.origine !== "personnelle");
-      ecran = <EcranIllustrations elements={elements} formats={formats} filtreInitial={meta.type} ajouterAuDepart={ajouterAuDepart} />;
+      ecran = <EcranIllustrations elements={elements} formats={formats} filtreInitial={meta.type === "illustration-video" ? "illustration-video" : "tout"} ajouterAuDepart={ajouterAuDepart} />;
       break;
     }
     // Lot « bruitages » (02/10) : la banque à écouter et valider, puis les autres sons (jamais posés seuls).
