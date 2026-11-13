@@ -247,6 +247,8 @@ describe("validation par mot et par réseau", () => {
         reseau: "facebook",
         codeCible: "gde-essai01",
         titre: "Guide fictif A",
+        env,
+        maintenantMs: maintenantMs(),
       }),
     ).toBe(true);
     expect(
@@ -407,9 +409,65 @@ describe("validation par mot et par réseau", () => {
     });
     expect(r).toEqual({ ok: false, raison: "site_injoignable" });
   });
-  it("cible TEST : validation permise, envoi refusé", async () => {
-    expect((await valider("ESSAI", "facebook")).ok).toBe(true);
+  it("cible TEST : jamais validée, jamais envoyée (double garde)", async () => {
+    const a = (await apercu("ESSAI")).find((x) => x.reseau === "facebook")!;
+    expect(a).toEqual({ reseau: "facebook", ok: false, raison: "cible_test" });
+    expect(await valider("ESSAI", "facebook", "x")).toEqual({
+      ok: false,
+      raison: "cible_test",
+    });
     expect(await verifier("ESSAI", NOM_FB)).toBe("cible_test");
+    // Même si une validation est inscrite de force (réglage modifié à la main), motValidePour reste faux.
+    const e = empreinteMot({
+      mot: "ESSAI",
+      reseau: "facebook",
+      codeCible: "gde-essai04",
+      titre: "Guide d'essai E",
+    });
+    if (!e.ok) throw new Error("empreinte");
+    await commun.ecrireParametre(V.PARAM_VALIDATIONS_PAR_MOT, {
+      "ESSAI|facebook": {
+        empreinte: e.empreinte,
+        codeCible: "gde-essai04",
+        valideLe: "2026-11-12T10:00:00.000Z",
+      },
+    });
+    expect(
+      await V.motValidePour({
+        mot: "ESSAI",
+        reseau: "facebook",
+        codeCible: "gde-essai04",
+        titre: "Guide d'essai E",
+        env,
+        maintenantMs: maintenantMs(),
+      }),
+    ).toBe(false);
+  });
+  it("adresse : motValidePour reste faux même avec une validation inscrite de force", async () => {
+    const e = empreinteMot({
+      mot: "PAGE",
+      reseau: "facebook",
+      codeCible: "adr-essai0000001",
+      titre: "Page fictive B",
+    });
+    if (!e.ok) throw new Error("empreinte");
+    await commun.ecrireParametre(V.PARAM_VALIDATIONS_PAR_MOT, {
+      "PAGE|facebook": {
+        empreinte: e.empreinte,
+        codeCible: "adr-essai0000001",
+        valideLe: "2026-11-12T10:00:00.000Z",
+      },
+    });
+    expect(
+      await V.motValidePour({
+        mot: "PAGE",
+        reseau: "facebook",
+        codeCible: "adr-essai0000001",
+        titre: "Page fictive B",
+        env,
+        maintenantMs: maintenantMs(),
+      }),
+    ).toBe(false);
   });
   it("adresse : pas encore", async () => {
     const a = (await apercu("PAGE")).find((x) => x.reseau === "facebook")!;
