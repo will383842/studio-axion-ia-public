@@ -30,6 +30,8 @@ export interface ConversationStat {
   readonly creeLe: string;
   /** Date d'envoi du premier message privé ; vide = pas encore envoyé. */
   readonly m1Le: string | null;
+  /** Date du refus d'envoi (états `m1_refuse` / `site_refuse`), si lisible ; sinon `creeLe` sert de date. */
+  readonly refuseLe?: string | null;
   /** Champ facultatif, absent des données actuelles : la personne suit le compte (connu sans doute possible). */
   readonly suitLeCompte?: boolean;
 }
@@ -42,6 +44,12 @@ export interface StatsMotChiffrees extends StatsMot {
   /** Premiers messages privés ENVOYÉS : une fois par personne et par mot, dès le premier envoi ; un renvoi ne compte pas. */
   readonly premiersMessages: Fenetres;
   readonly erreurs: Fenetres;
+  /** Envois incertains (`m1_a_verifier`, `m1_consommee`) : comptés à part, JAMAIS dans `premiersMessages`. */
+  readonly incertains: Fenetres;
+  /** Commentaires dont l'événement est `bloque` (une garde ou le port a refusé). */
+  readonly commentairesBloques: Fenetres;
+  /** Envois refusés (`m1_refuse`, `site_refuse`), datés par `refuseLe` s'il est lisible, sinon `creeLe`. */
+  readonly envoisRefuses: Fenetres;
   /** Personnes distinctes (par clé d'empreinte, sans jamais la montrer) ayant une conversation sur ce mot. */
   readonly personnes: Fenetres;
   /**
@@ -53,6 +61,7 @@ export interface StatsMotChiffrees extends StatsMot {
 
 /** États où la réponse publique n'est pas partie (ou pas encore). */
 const SANS_REPONSE_PUBLIQUE: readonly string[] = ["nouveau", "oppose"];
+const ETATS_INCERTAINS: readonly string[] = ["m1_a_verifier", "m1_consommee"];
 const ETATS_ERREUR_CONVERSATION: readonly string[] = [
   "m1_refuse",
   "site_refuse",
@@ -93,6 +102,9 @@ export function agregerStatsMots(
     | "reponsesPubliques"
     | "premiersMessages"
     | "erreurs"
+    | "incertains"
+    | "commentairesBloques"
+    | "envoisRefuses"
     | "personnes"
     | "suivent",
     Compteur
@@ -108,6 +120,9 @@ export function agregerStatsMots(
           reponsesPubliques: vide(),
           premiersMessages: vide(),
           erreurs: vide(),
+          incertains: vide(),
+          commentairesBloques: vide(),
+          envoisRefuses: vide(),
           personnes: vide(),
           suivent: vide(),
         }),
@@ -120,7 +135,10 @@ export function agregerStatsMots(
     if (mot === null) continue;
     const a = acc(mot);
     compter(a.commentaires, ev.recuLe, maintenantMs);
-    if (ev.etat === "bloque") compter(a.erreurs, ev.recuLe, maintenantMs);
+    if (ev.etat === "bloque") {
+      compter(a.erreurs, ev.recuLe, maintenantMs);
+      compter(a.commentairesBloques, ev.recuLe, maintenantMs);
+    }
   }
 
   // Une personne et un mot : un seul « enregistrement », daté du premier envoi.
@@ -130,22 +148,30 @@ export function agregerStatsMots(
       mot: string;
       creeLe: string;
       m1Le: string | null;
+      refuseLe: string | null;
       reponse: boolean;
       erreur: boolean;
+      incertain: boolean;
       suit: boolean;
     }
   >();
   for (const c of conversations) {
     const mot = normaliserMot(c.mot) ?? MOT_PAR_DEFAUT;
     const cle = JSON.stringify([c.cle, mot]);
-    const premierEnvoi = c.nature !== "renvoi" && c.m1Le !== null;
+    const incertain = ETATS_INCERTAINS.includes(c.etat);
+    const erreur = ETATS_ERREUR_CONVERSATION.includes(c.etat);
+    // Un envoi incertain n'est jamais compté comme envoyé, même si une date d'envoi est écrite.
+    const premierEnvoi = c.nature !== "renvoi" && c.m1Le !== null && !incertain;
     const avant = parPersonneMot.get(cle);
     const lui = {
       mot,
       creeLe: c.creeLe,
       m1Le: premierEnvoi ? c.m1Le : null,
-      reponse: !SANS_REPONSE_PUBLIQUE.includes(c.etat),
-      erreur: ETATS_ERREUR_CONVERSATION.includes(c.etat),
+      refuseLe: erreur ? (c.refuseLe ?? null) : null,
+      // Un état vide n'est pas une réponse publique.
+      reponse: c.etat !== "" && !SANS_REPONSE_PUBLIQUE.includes(c.etat),
+      erreur,
+      incertain,
       suit: c.suitLeCompte === true,
     };
     parPersonneMot.set(
@@ -155,8 +181,10 @@ export function agregerStatsMots(
             mot,
             creeLe: plusAncienne(avant.creeLe, c.creeLe) ?? avant.creeLe,
             m1Le: plusAncienne(avant.m1Le, lui.m1Le),
+            refuseLe: plusAncienne(avant.refuseLe, lui.refuseLe),
             reponse: avant.reponse || lui.reponse,
             erreur: avant.erreur || lui.erreur,
+            incertain: avant.incertain || lui.incertain,
             suit: avant.suit || lui.suit,
           }
         : lui,
@@ -166,7 +194,12 @@ export function agregerStatsMots(
     const a = acc(p.mot);
     compter(a.personnes, p.creeLe, maintenantMs);
     if (p.reponse) compter(a.reponsesPubliques, p.creeLe, maintenantMs);
-    if (p.erreur) compter(a.erreurs, p.creeLe, maintenantMs);
+    if (p.erreur) {
+      compter(a.erreurs, p.creeLe, maintenantMs);
+      const refus = p.refuseLe && Number.isFinite(Date.parse(p.refuseLe));
+      compter(a.envoisRefuses, refus ? p.refuseLe : p.creeLe, maintenantMs);
+    }
+    if (p.incertain) compter(a.incertains, p.creeLe, maintenantMs);
     if (p.m1Le !== null) compter(a.premiersMessages, p.m1Le, maintenantMs);
     if (p.suit) compter(a.suivent, p.creeLe, maintenantMs);
   }
