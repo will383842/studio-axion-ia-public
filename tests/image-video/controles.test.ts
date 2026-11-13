@@ -831,8 +831,9 @@ describe("porte : toutes les versions, aucune donnée manquante sautée", () => 
     expect(q24.etat).toBe("non-fait");
     expect(bloque(q24)).toBe(true);
     expect(v.ok).toBe(false);
-    // Déjà refusée sans dépense : rien n'est payé.
-    expect(j.reservations).toEqual([]);
+    // Version déjà refusée sans dépense : rien n'est payé pour sa piste (GV2-26 : les autres versions sont écoutées).
+    expect(j.transcriptions.filter((d) => d.cle === m.entree.versions[0].piste.cle)).toEqual([]);
+    expect(j.reservations.length).toBeGreaterThan(0);
   });
 
   it("Q24 : la hauteur attendue est celle de la ligne (4:5 → 1350 px), plus 1920 en dur", async () => {
@@ -1001,4 +1002,51 @@ describe("défauts de détail (Q12 à Q15, Q19 à Q23, Q25, Q27, SCENE) : remarq
     expect(verdict([ligne("Q12", "reussi"), ligne("CHIFFRES", "echoue")])).toBe(false);
   });
   // Limite : ces tests vérifient la règle (`CONTROLES_INDICATIFS` + `bloque`) ; les cas de bout en bout sont dans les tests de la porte ci-dessus.
+});
+
+describe("GV2-26 · verdict par version et par réseau", () => {
+  it("chaque version a sa clé, son verdict et ses phrases ; les réseaux demandés ont le leur ; vidéo prête = tout livrable", async () => {
+    const m = monter("C");
+    const v = await porteUniqueIV(m.entree, outils(m).o);
+    expect(v.ok).toBe(true);
+    expect(v.partielle).toBe(false);
+    expect(v.versions.map((x) => x.cle)).toEqual(m.entree.versions.map((x) => x.version));
+    expect(v.versions.every((x) => x.ok && x.phrases.length === 0)).toBe(true);
+    expect(v.parReseau.map((x) => x.reseau).sort()).toEqual([...RESEAUX_IV].sort());
+    expect(v.parReseau.every((x) => x.ok)).toBe(true);
+  });
+
+  it("version refusée avant l'écoute : les autres sont écoutées et relues, aucune écoute payée pour la refusée ; verdict global inchangé (refusée)", async () => {
+    const m = monter("C");
+    const refusee = m.entree.versions[0];
+    refusee.fichier.mesures = { ...refusee.fichier.mesures!, noirMaxSec: 5 };
+    const { o, j } = outils(m);
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(false);
+    expect(v.partielle).toBe(true);
+    expect(j.transcriptions.filter((d) => d.cle === refusee.piste.cle)).toEqual([]);
+    for (const autre of m.entree.versions.slice(1)) expect(j.transcriptions.some((d) => d.cle === autre.piste.cle)).toBe(true);
+    expect(j.extractions.length).toBeGreaterThan(0);
+    const verdictRefusee = v.versions.find((x) => x.cle === refusee.version)!;
+    expect(verdictRefusee.ok).toBe(false);
+    expect(verdictRefusee.phrases.join(" ")).toMatch(/noir/);
+    expect(v.versions.filter((x) => x.cle !== refusee.version).every((x) => x.ok)).toBe(true);
+    const reseauxRefuses = v.parReseau.filter((x) => !x.ok).map((x) => x.reseau);
+    expect(reseauxRefuses.length).toBeGreaterThan(0);
+    for (const r of reseauxRefuses) expect(refusee.reseaux).toContain(r);
+  });
+
+  it("une faute commune à toutes les versions (relecture « faux » partout) : refus global, pas de livraison partielle", async () => {
+    const m = monter("C");
+    const { o } = outils(m, { relecture: (r) => ({ ...r, images: r.images.map((x, i) => (i === 1 ? { ...x, faux: "30 % au lieu de 20 %" } : x)) }) });
+    const v = await porteUniqueIV(m.entree, o);
+    expect(v.ok).toBe(false);
+    expect(v.partielle).toBe(false);
+  });
+
+  it("un défaut général (réseau demandé sans version) : refus global, pas de livraison partielle", async () => {
+    const m = monter("C");
+    const v = await porteUniqueIV({ ...m.entree, versions: [] }, outils(m).o);
+    expect(v.partielle).toBe(false);
+  });
 });

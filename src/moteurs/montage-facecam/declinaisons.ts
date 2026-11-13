@@ -60,7 +60,7 @@ import {
 import type { DemandeFacecam } from "@/fournisseurs/facecam/client";
 import { ZERO } from "@/lib/montants";
 import type { ResultatFabrication, SortieProduite } from "../types";
-import { aSoumettre, apresSoumission, prochaineSoumission, sansReprise, suiviSansEssai } from "./reprise";
+import { aSoumettre, apresSoumission, delaiSansProgresMs, lireCarteGardee, prochaineSoumission, sansReprise, sansVeille, suiviFige, suiviSansEssai, veilleProgres } from "./reprise";
 import { alertesControles, bandeDesPlans, cleResultat, dimensionsSource, ESSAIS_MAX, renduPassager, priseDe, type ContexteChaine, type ControlesMontage, type DependancesChaine, type EtatChaine, type EtatHabillage, type SuiviTravail } from "./chaine";
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
@@ -147,7 +147,7 @@ export function declinaisonsFinies(etat: Pick<EtatChaine, "declinaisons">): bool
 /* Pistes pré-cadrées par format                                       */
 /* ------------------------------------------------------------------ */
 
-const identifiant = (base: string, nom: string, essai: number) => `${base}-${nom}${essai ? `-e${essai}` : ""}`.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 200);
+const identifiant = (base: string, nom: string, essai: number, tour = 0) => `${base}-${nom}${tour > 0 ? `-t${tour}` : ""}${essai ? `-e${essai}` : ""}`.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 200);
 
 /**
  * Un tour des déclinaisons (appelé par la chaîne après la piste 9:16) : suit les travaux soumis, soumet la piste
@@ -188,9 +188,13 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
     const repris = suiviSansEssai(s, r, maintenant());
     if (repris) return repris;
     if (r.statut === "termine") return { ...sansReprise(s), statut: "termine", progression: 100, resultat: r.resultat as unknown as Record<string, unknown> };
-    if (r.statut === "en_cours") return { ...sansReprise(s), progression: r.progression };
+    if (r.statut === "en_cours") {
+      // GV2-23 : même règle que la chaîne : aucun progrès depuis le délai → échec réessayable.
+      const v = veilleProgres(sansReprise(s), r.progression, maintenant(), delaiSansProgresMs());
+      return v.fige ? suiviFige(s, v.depuisMin, ESSAIS_MAX) : v.suivi;
+    }
     if (r.statut === "echec") return { ...sansReprise(s), statut: "echec", erreur: { code: r.erreur.code, message: r.erreur.message, reessayable: r.erreur.reessayable && s.essais < ESSAIS_MAX } };
-    return sansReprise(s);
+    return sansVeille(s);
   }
   async function soumettre(precedent: SuiviTravail | undefined, id: (essai: number) => string, demande: Omit<DemandeFacecam, "idTravail">): Promise<SuiviTravail> {
     const s = prochaineSoumission(precedent, id);
@@ -225,7 +229,7 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
     const lut = c.styles.lut && c.styles.lut.id !== "aucune" ? c.medias?.[c.styles.lut.id] : undefined;
     const look = (c.entrees as { facecamLookWill?: { peauLab?: number[]; murLab?: number[] } } | undefined)?.facecamLookWill;
     // Mêmes réglages que la passe du 9:16 (chaîne, étape 5), seule la bande change.
-    d.passeLarge = await soumettre(d.passeLarge, (e) => identifiant(ctx.versionId, "passe-formats", e), {
+    d.passeLarge = await soumettre(d.passeLarge, (e) => identifiant(ctx.versionId, "passe-formats", e, etat.tour ?? 0), {
       source: await lire(prise.cle),
       depots: { image: await deposer(cle("image-10bits-formats.mp4"), "video/mp4") },
       parametres: {
@@ -255,7 +259,7 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
     // Passe élargie ratée : la prise est recadrée telle quelle (préparée), comme la piste 9:16 quand la passe rate.
     const imageSource = depuisLarge ? large!.fichierCle! : avecImage && !aElargir ? passe!.fichierCle! : null;
     const { largeur, hauteur } = DIMENSIONS_FACECAM[r];
-    d.cadrages[r] = await soumettre(d.cadrages[r], (e) => identifiant(ctx.travailId, `cadrage-${nom}`, e), {
+    d.cadrages[r] = await soumettre(d.cadrages[r], (e) => identifiant(ctx.travailId, `cadrage-${nom}`, e, etat.tour ?? 0), {
       source: imageSource ? await lire(imageSource) : await lire(prise.cle),
       depots: { montage: await deposer(cle(`montage-${nom}.mov`), "video/quicktime"), vignette: await deposer(cle(`vignette-${nom}.jpg`), "image/jpeg") },
       parametres: {
@@ -507,31 +511,26 @@ export async function avancerReexportFacecam(travail: Travail, commande: Command
     if (piste) for (const r of d.ratios) d.plans[r] = plansDuFormat(r, etat.plans!, d.source, piste);
     d.pisteLue = true;
   }
-  try {
-    await avancerDeclinaisons(etat, commande, ctx, deps);
-    // Puis l'habillage du format (mêmes sous-titres, mêmes cartes, composition finale), comme à la fabrication.
-    if (declinaisonsFinies(etat) && deps.habillage && d.repriseHabillage) {
-      if (!d.habillages) {
-        const h = d.repriseHabillage;
-        const simule = deps.facecam.mode === "simulation";
-        const cartes: CartePosee[] = [];
-        for (const m of h.cartesMonteur ?? []) {
-          const code = m.codeCle && deps.lireJsonGz && !simule ? ((await deps.lireJsonGz(m.codeCle).catch(() => null)) as CodeCarte | null) : null;
-          const posee = cartePosee(m, code, commande.intensite?.niveau);
-          if (posee) cartes.push(posee);
-        }
-        const lut = commande.styles.lut && commande.styles.lut.id !== "aucune" ? commande.medias?.[commande.styles.lut.id] : undefined;
-        await preparerHabillagesFormats(
-          etat,
-          { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(commande.styles.lut) / 100 } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
-          deps.habillage,
-        );
+  await avancerDeclinaisons(etat, commande, ctx, deps);
+  // Puis l'habillage du format (mêmes sous-titres, mêmes cartes, composition finale), comme à la fabrication.
+  if (declinaisonsFinies(etat) && deps.habillage && d.repriseHabillage) {
+    if (!d.habillages) {
+      const h = d.repriseHabillage;
+      const simule = deps.facecam.mode === "simulation";
+      const cartes: CartePosee[] = [];
+      for (const m of h.cartesMonteur ?? []) {
+        const code = m.codeCle && deps.lireJsonGz && !simule ? ((await deps.lireJsonGz(m.codeCle).catch(() => null)) as CodeCarte | null) : null;
+        const posee = cartePosee(m, code, commande.intensite?.niveau);
+        if (posee) cartes.push(posee);
       }
-      await avancerHabillagesFormats(etat, commande, ctx, deps.habillage);
+      const lut = commande.styles.lut && commande.styles.lut.id !== "aucune" ? commande.medias?.[commande.styles.lut.id] : undefined;
+      await preparerHabillagesFormats(
+        etat,
+        { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(commande.styles.lut) / 100 } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
+        deps.habillage,
+      );
     }
-  } catch (e) {
-    // Panne imprévue (stockage, réseau) : on retentera au tour suivant, sans rien perdre.
-    void e;
+    await avancerHabillagesFormats(etat, commande, ctx, deps.habillage);
   }
   const fini = declinaisonsFinies(etat) && (!deps.habillage || !d.repriseHabillage || habillagesFormatsRegles(etat));
   const faits = d.ratios.filter((r) => d.cadrages[r]?.statut === "termine");
@@ -767,7 +766,7 @@ export async function avancerHabillagesFormats(etat: EtatChaine, c: CommandeFabr
     if (carte.statut !== "soumise") continue;
     let s: Awaited<ReturnType<typeof suivreRendu>>;
     try {
-      s = await suivreRendu(outils.rendu(), carte.demande);
+      s = await lireCarteGardee(outils.rendu(), carte, outils.garde);
     } catch (e) {
       // Vérif V2 : studio-rendu injoignable → on attend le tour suivant (avant : l'erreur sortait de la chaîne).
       if (!(e instanceof ErreurRendu)) throw e;
@@ -779,6 +778,7 @@ export async function avancerHabillagesFormats(etat: EtatChaine, c: CommandeFabr
       if (s.erreur.reessayable && carte.essais < 1) {
         const signe = await outils.signer({}, [{ cle: carte.demande.sortie.cle, mime: "video/mp4" }]);
         carte.essais += 1;
+        delete carte.veille;
         carte.demande = { ...carte.demande, idRendu: `${carte.demande.idRendu.replace(/-e\d+$/, "")}-e${carte.essais}`, sortie: { ...carte.demande.sortie, urlDepot: signe.depots[carte.demande.sortie.cle] ?? carte.demande.sortie.urlDepot } };
         await outils.rendu().soumettre(carte.demande);
       } else {

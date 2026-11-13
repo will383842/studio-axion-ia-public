@@ -36,6 +36,8 @@ TRANCHE_SEC = 30.0
 # du silence ; `async=1` comble aussi les trous du flux (paquets perdus) au lieu de recoller la suite trop tôt.
 FILTRE_SON_ALIGNE = "aresample=async=1:first_pts=0"
 DELAI_DEPOT_SEC = 1800
+# Délai maximal d'une commande FFmpeg / ffprobe (20 min) : une lecture de prise pendue ne fige plus le calcul pour toujours.
+DELAI_COMMANDE_SEC = 20 * 60
 
 
 class ErreurTravail(Exception):
@@ -48,8 +50,11 @@ class ErreurTravail(Exception):
         self.reessayable = reessayable
 
 
-def executer(cmd: list[str], entree: bytes | None = None) -> subprocess.CompletedProcess:
-    r = subprocess.run(cmd, input=entree, capture_output=True)
+def executer(cmd: list[str], entree: bytes | None = None, timeout: float = DELAI_COMMANDE_SEC) -> subprocess.CompletedProcess:
+    try:
+        r = subprocess.run(cmd, input=entree, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise ErreurTravail("indisponible", "ffmpeg ne répond plus.", True) from None
     if r.returncode != 0:
         fin = r.stderr.decode("utf-8", "replace")[-600:]
         raise ErreurTravail("inconnu", f"FFmpeg a échoué ({os.path.basename(cmd[0])}) : {fin.strip().splitlines()[-1] if fin.strip() else 'sans message'}")
@@ -60,7 +65,7 @@ def executer(cmd: list[str], entree: bytes | None = None) -> subprocess.Complete
 # Lecture de la prise
 # --------------------------------------------------------------------------------------------------------------------
 
-ENTREE_RESEAU = ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "10"]
+ENTREE_RESEAU = ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "10", "-rw_timeout", "60000000"]
 
 
 def entree(source: str) -> list[str]:

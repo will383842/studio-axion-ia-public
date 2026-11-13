@@ -43,12 +43,14 @@ export interface EtatBranchement {
 }
 interface Interne extends EtatBranchement {
   dernierPassage: number;
+  /** Horodate propre à l'étape « a_traiter_manuel » (au plus une fois par 15 s, indépendante de `dernierPassage`). */
+  dernierATraiter: number;
   alertes: Record<string, number>;
 }
 const CLE = Symbol.for("studio-axion-ia.branchements-zernio");
 function interne(): Interne {
   const g = globalThis as typeof globalThis & { [CLE]?: Interne };
-  return (g[CLE] ??= { branche: false, cleZernio: false, secretSite: false, cleEmpreinte: false, comptesEnvoi: false, titreGuide: false, codes: [], dernierPassage: -Infinity, alertes: {} });
+  return (g[CLE] ??= { branche: false, cleZernio: false, secretSite: false, cleEmpreinte: false, comptesEnvoi: false, titreGuide: false, codes: [], dernierPassage: -Infinity, dernierATraiter: -Infinity, alertes: {} });
 }
 const vue = (i: Interne): EtatBranchement => ({ branche: i.branche, cleZernio: i.cleZernio, secretSite: i.secretSite, cleEmpreinte: i.cleEmpreinte, comptesEnvoi: i.comptesEnvoi, titreGuide: i.titreGuide, codes: [...i.codes] });
 
@@ -128,6 +130,30 @@ async function oppositionsEnAttente(): Promise<boolean> {
   return Object.values(file).some((e) => e?.etat === "a_transmettre");
 }
 
+let depotATraiterInjecte = false;
+/** Copie de l'interrupteur d'a-traiter (exactement « 1 » ou « true »), testée AVANT tout import : éteint = aucun import ni dépôt. Un test garde l'égalité des noms. */
+export const VARIABLE_A_TRAITER_BOUCLE = "A_TRAITER_ENABLED";
+const aTraiterAllumeSansImport = (env: Env): boolean => env[VARIABLE_A_TRAITER_BOUCLE] === "1" || env[VARIABLE_A_TRAITER_BOUCLE] === "true";
+
+/** Dépôt persistant des cartes injecté une seule fois (idempotent), puis traitement du lot manuel. Éteint = retour immédiat, aucune lecture. */
+async function passageATraiterManuel(env: Env, now: number): Promise<void> {
+  if (!aTraiterAllumeSansImport(env)) return;
+  // Au plus une fois par 15 s (horodate propre ; une horloge qui recule ne bloque pas).
+  const i = interne();
+  const ecart = now - i.dernierATraiter;
+  if (ecart >= 0 && ecart < INTERVALLE_PASSAGE_MS) return;
+  i.dernierATraiter = now;
+  const { aTraiterActif, injecterDepotATraiter } = await import("./a-traiter");
+  if (!aTraiterActif(env)) return;
+  if (!depotATraiterInjecte) {
+    const { creerDepotParametre } = await import("./a-traiter-depot");
+    injecterDepotATraiter(creerDepotParametre());
+    depotATraiterInjecte = true;
+  }
+  const { traiterCommentairesManuels } = await import("./a-traiter-manuel");
+  await traiterCommentairesManuels({ env, maintenantMs: now });
+}
+
 /** Un passage de la boucle (au plus un toutes les 15 s). */
 export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: number } = {}): Promise<void> {
   const env = o.env ?? process.env;
@@ -135,6 +161,8 @@ export async function passageParcoursZernio(o: { env?: Env; maintenantMs?: numbe
   const actif = allume(env);
   // (0) STOP-S5a : vérification à la demande des oppositions du site, AVANT tout retour anticipé. Interrupteur éteint : aucune lecture, aucun import.
   if (importSiteActif(env)) await etape("vérification des oppositions du site", async () => (await import("./oppositions-import-site")).verifierOppositionsSite({ env, maintenantMs: now }));
+  // (0b) À TRAITER (LinkedIn/TikTok) : cartes seulement, JAMAIS de réponse ni d'envoi, sans le port. Inerte si À TRAITER ou le réglage est éteint.
+  await etape("a_traiter_manuel", () => passageATraiterManuel(env, now));
   // (1) Éteint ET aucun « stop » à transmettre : rien n'est lu au-delà de la file, rien n'est importé, rien n'est écrit.
   if (!actif && !(await oppositionsEnAttente())) return;
   // (2) Au plus un passage toutes les 15 s.

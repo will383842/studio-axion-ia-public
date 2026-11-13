@@ -167,7 +167,7 @@ export function vueTache(t: TacheTableau, boucleActive: boolean): VueTacheTablea
       : t.statut === "en-cours"
         ? LIBELLES_ETAPES_TABLEAU[t.etape]
         : t.statut === "interrompue"
-          ? `${t.type === "ecriture" ? "Écriture interrompue" : "Découpage interrompu"} (redémarrage du studio pendant un appel). ${appels ? `Les ${appels} appel${appels > 1 ? "s" : ""} déjà fait${appels > 1 ? "s sont gardés" : " est gardé"} : « Reprendre » fait seulement la suite.` : "« Reprendre » relance le travail."}`
+          ? `${t.type === "ecriture" ? "Écriture interrompue" : "Découpage interrompu"} (${t.message ?? "redémarrage du studio pendant un appel"}). ${appels ? `Les ${appels} appel${appels > 1 ? "s" : ""} déjà fait${appels > 1 ? "s sont gardés" : " est gardé"} : « Reprendre » fait seulement la suite.` : "« Reprendre » relance le travail."}`
           : t.statut === "erreur"
             ? (t.message ?? `${quoi} s'est arrêté${t.type === "ecriture" ? "e" : ""}. Réessayez.`)
             : t.statut === "refusee"
@@ -278,6 +278,10 @@ export function phraseErreur(e: unknown): string {
  * Un passage de la boucle : marque « interrompues » les tâches coupées pendant un appel payé (redémarrage), puis traite
  * les tâches à faire, la plus ancienne d'abord, jusqu'à ce qu'il n'y en ait plus. Rend le nombre de tâches traitées.
  */
+/** Une écriture ou un découpage qui ne revient pas après ce délai est mis « interrompu » (jamais relancé seul : « Reprendre » redemande le prix). */
+export const DELAI_TACHE_TABLEAU_MS = 30 * 60_000;
+const RAISON_TACHE_BLOQUEE = "L'écriture ne répond plus : reprenez-la.";
+
 export async function travaillerTaches(executer: ExecuterTache): Promise<number> {
   const enCours = tachesEnCours();
   let faites = 0;
@@ -297,7 +301,16 @@ export async function travaillerTaches(executer: ExecuterTache): Promise<number>
     if (!suivante) return faites;
     enCours.add(suivante.tache.id);
     try {
-      await executer(suivante.videoId, suivante.tache);
+      let minuterie: ReturnType<typeof setTimeout> | undefined;
+      const bloquee = Symbol("bloquee");
+      const delai = new Promise<typeof bloquee>((fin) => {
+        minuterie = setTimeout(() => fin(bloquee), DELAI_TACHE_TABLEAU_MS);
+      });
+      const travail = executer(suivante.videoId, suivante.tache);
+      // Si le délai gagne, `travail` continue en arrière-plan : son éventuelle erreur tardive est avalée ici.
+      travail.catch(() => undefined);
+      const issue = await Promise.race([travail, delai]).finally(() => clearTimeout(minuterie));
+      if (issue === bloquee) await marquerInterrompue(suivante.videoId, suivante.tache, RAISON_TACHE_BLOQUEE);
     } catch (e) {
       // Filet : `executer` range lui-même ses erreurs ; une exception ici ne doit jamais laisser la tâche « en cours ».
       console.error(`[tableau] tâche ${suivante.tache.type} de la vidéo ${suivante.videoId} en échec à l'étape « ${suivante.tache.etape} » : ${e instanceof Error ? e.name : "erreur"} — ${phraseErreur(e)}`);
@@ -310,12 +323,12 @@ export async function travaillerTaches(executer: ExecuterTache): Promise<number>
   return faites;
 }
 
-async function marquerInterrompue(videoId: Id, t: TacheTableau): Promise<void> {
-  console.error(`[tableau] tâche ${t.type} de la vidéo ${videoId} interrompue pendant l'étape « ${t.enVol?.etape ?? t.etape} » (redémarrage du studio pendant un appel)`);
-  await modifierTache(videoId, t.id, (x) => x && { ...x, statut: "interrompue", message: undefined });
+async function marquerInterrompue(videoId: Id, t: TacheTableau, raison?: string): Promise<void> {
+  console.error(`[tableau] tâche ${t.type} de la vidéo ${videoId} interrompue pendant l'étape « ${t.enVol?.etape ?? t.etape} » (${raison ? "aucune réponse dans le délai" : "redémarrage du studio pendant un appel"})`);
+  await modifierTache(videoId, t.id, (x) => x && { ...x, statut: "interrompue", message: raison });
   if (t.traceId) {
     const { fermerTraceScript } = await import("./tableau-scripts");
-    await fermerTraceScript(t.traceId, "interrompu", `Interrompue pendant l'étape « ${t.enVol?.etape ?? t.etape} » (redémarrage du studio pendant un appel).`);
+    await fermerTraceScript(t.traceId, "interrompu", `Interrompue pendant l'étape « ${t.enVol?.etape ?? t.etape} » (${raison ? "aucune réponse dans le délai" : "redémarrage du studio pendant un appel"}).`);
   }
-  await journaliser("video", `Tableau animé : ${t.type === "ecriture" ? "écriture" : "découpage"} interrompu par un redémarrage, à reprendre`, { type: "video", id: videoId });
+  await journaliser("video", `Tableau animé : ${t.type === "ecriture" ? "écriture" : "découpage"} interrompu ${raison ? "faute de réponse" : "par un redémarrage"}, à reprendre`, { type: "video", id: videoId });
 }

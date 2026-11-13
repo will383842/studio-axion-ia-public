@@ -273,10 +273,13 @@ export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
   const r = etat.rendu;
   if (!r) throw new Error("chaîne v4 sans rendu");
   const simple = etat.realisation?.version === "simple";
+  const filet = etat.realisation?.filetSimple === true;
   // Repli « sans vidéo » réussi : Will est prévenu que la mise en scène a été refaite sans vidéo d'illustration.
   const alertes = [
-    ...(simple ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "Mise en scène simple (sans Claude)." }] : []),
-    ...(etat.repliSansVideo?.fait ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "La mise en scène a été refaite sans vidéo d'illustration." }] : []),
+    // GV2-04 : dernier filet (le repli sans vidéo a échoué), la version simple est livrée avec une alerte « attention ».
+    ...(filet ? [{ code: "defaut-visuel" as const, gravite: "attention" as const, message: etat.realisation?.phrase ?? "Mise en scène simple : aucune vidéo d'illustration fidèle n'a été trouvée." }] : []),
+    ...(simple && !filet ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "Mise en scène simple (sans Claude)." }] : []),
+    ...(etat.repliSansVideo?.fait && !filet ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "La mise en scène a été refaite sans vidéo d'illustration." }] : []),
   ];
   const note = simple ? 80 : 90;
   return {
@@ -354,14 +357,18 @@ export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFa
         const { avancerChaineV4, EnCoursChaineV4, ErreurChaineV4 } = await import("./chaine-v4");
         let apres: EtatChaineV4;
         try {
-          apres = await avancerChaineV4(etatV4, outils);
+          apres = await avancerChaineV4(etatV4, outils, travail.tentatives, maintenant);
         } catch (err) {
           if (err instanceof EnCoursChaineV4) {
             const etapes = etapesDepuisEtat(travail, etatV4.etape).map((x) => (x.cle === etatV4.etape ? { ...x, progression: Math.min(95, (x.progression || 1) + 2) } : x));
-            return { travail: { ...travail, statut: "en_cours", etapes, progression: Math.round(etapes.reduce((t, x) => t + x.progression, 0) / Math.max(1, etapes.length)), modifieLe: iso } };
+            // GV2-04 : l'état porté par l'attente (compteurs de panne) est enregistré ; sans lui, rien n'est enregistré, comme avant.
+            return { travail: { ...travail, statut: "en_cours", etapes, progression: Math.round(etapes.reduce((t, x) => t + x.progression, 0) / Math.max(1, etapes.length)), ...(err.etat ? { parametres: { ...travail.parametres, [CLE_ETAT_V4]: err.etat } } : {}), modifieLe: iso } };
           }
           if (err instanceof ErreurChaineV4) return echec("FACECAM_ANIMEE_ECHEC", err.message, err.reessayable, err.detail, err.etat);
-          return echec("FACECAM_ANIMEE_ECHEC", "Une étape n'a pas abouti. Vous pouvez réessayer.", true, err instanceof Error ? err.message.slice(0, 300) : String(err));
+          // GV2-04 : une exception inconnue réessayable est relevée, la boucle fait ses essais espacés ; sinon échec immédiat, avec le nom de l'étape.
+          if ((err as { reessayable?: boolean } | null)?.reessayable === true) throw err;
+          const nomEtape = etapesV4(commande).find((x) => x.cle === etatV4.etape)?.nom ?? "en cours";
+          return echec("FACECAM_ANIMEE_ECHEC", `L'étape « ${nomEtape} » n'a pas abouti. Vous pouvez réessayer.`, true, err instanceof Error ? err.message.slice(0, 300) : String(err));
         }
         const etapes = etapesDepuisEtat(travail, apres.etape);
         const fini = apres.etape === "prete";

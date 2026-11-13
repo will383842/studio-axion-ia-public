@@ -163,6 +163,8 @@ interface RetoucheEnCours {
   prisesAvant?: PrisesVoix;
   /** Ce que la retouche relit (payé) : sa réservation, donc le plafond de sa voix, d'un « Réessayer » à l'autre. */
   aRelire?: ARelire;
+  /** GV2-30 : le texte retouché vient d'un script validé ou fourni : la voix ne reformule jamais une phrase (règles tolérantes du script). */
+  texteFige?: true;
 }
 
 /** Prises de voix faites, gardées dans le projet de montage (`prisesVoix`) pour qu'une retouche les reprenne. */
@@ -382,7 +384,7 @@ export function refusOperationsCasConcret(operations: readonly unknown[]): { cod
 }
 
 /** Ce que la version d'avant garde dans son projet de montage (`projetMontage.casConcret`). */
-function projetGarde(projetMontage: Record<string, unknown> | undefined): { fiche?: unknown; reglages?: Partial<ReglagesFins>; prisesVoix?: PrisesVoix } {
+function projetGarde(projetMontage: Record<string, unknown> | undefined): { fiche?: unknown; reglages?: Partial<ReglagesFins>; prisesVoix?: PrisesVoix; texteFige?: true } {
   const p = projetMontage?.casConcret as Record<string, unknown> | undefined;
   if (!p || typeof p !== "object") return {};
   const texte = (v: unknown) => (typeof v === "string" && v.trim() ? v : undefined);
@@ -392,6 +394,7 @@ function projetGarde(projetMontage: Record<string, unknown> | undefined): { fich
     fiche: p.fiche,
     ...(typeof p.avecMot === "boolean" ? { reglages: { ...(mot ? { mot } : {}), ...(motDit ? { motDit } : {}), avecMot: p.avecMot } } : {}),
     ...(p.prisesVoix && typeof p.prisesVoix === "object" ? { prisesVoix: p.prisesVoix as PrisesVoix } : {}),
+    ...(p.texteFige === true ? { texteFige: true as const } : {}),
   };
 }
 
@@ -437,7 +440,7 @@ function preparerRetouche(commande: CommandeFabrication, operations: readonly un
     voixGardee: p ? { ...(p.corps.retenu && (!v || priseReprise(p.corps.texte, p.corps.prise, v)) ? { corps: p.corps.texte } : {}), fins: p.fins.filter((f) => (v ? priseReprise(f.texte, f.prise, v) : f.prise?.controle)).map((f) => f.texte) } : null,
   };
   const apercu = apercuRetoucheCasConcret(forme.fiche, [...operations], contexte);
-  return apercu.ok ? { apercu, retouche: { fiche: apercu.fiche, reglages: apercu.reglages, aRelire: aRelireDe(apercu), ...(p ? { prisesAvant: p } : {}) } } : { apercu };
+  return apercu.ok ? { apercu, retouche: { fiche: apercu.fiche, reglages: apercu.reglages, aRelire: aRelireDe(apercu), ...(p ? { prisesAvant: p } : {}), ...(garde.texteFige ? { texteFige: true as const } : {}) } } : { apercu };
 }
 
 function estimationRetouche(commande: CommandeFabrication, apercu: ApercuRetoucheCasConcret): Estimation {
@@ -484,9 +487,9 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Travail refusé d'emblée (ce qui viendra en version 2) : message lisible, rien à refaire. */
-function travailRefuse(ctx: ContexteLancement, commande: CommandeFabrication, code: string, message: string): Travail {
+function travailRefuse(ctx: ContexteLancement, commande: CommandeFabrication, code: string, message: string, detailTechnique?: string): Travail {
   const t = nouveauTravail(etapesCasConcret(commande), ctx, commande, { journal: null, atteinte: -1 });
-  const erreur: ErreurTravail = { code, reessayable: false, messagePourWill: message };
+  const erreur: ErreurTravail = { code, reessayable: false, messagePourWill: message, ...(detailTechnique ? { detailTechnique } : {}) };
   return { ...t, statut: "echec", erreur, termineLe: t.creeLe, etapes: t.etapes.map((e) => ({ ...e, statut: "ignoree" as const })) };
 }
 
@@ -545,6 +548,10 @@ const MARQUE_PAUSE = "cas-concret:pause";
 type Issue = { type: "pause" } | { type: "fini"; compteRendu: CompteRenduCasConcret } | { type: "echec"; cle: string; erreur: ErreurTravail };
 
 const raisonDe = (err: unknown) => (err instanceof Error ? err.message : String(err));
+/** GV2-07 : cause courte et lisible d'une erreur technique (première ligne, sans point final, 120 signes au plus). */
+const causeCourte = (err: unknown) => raisonDe(err).split("\n")[0].trim().replace(/[.\s]+$/, "").slice(0, 120);
+/** GV2-07 : une raison déjà écrite en phrase (point final : « Votre voix n'est pas prête… ») reste telle quelle ; une cause technique est enveloppée. */
+const phraseOutils = (err: unknown) => (/^[^\n]*\.$/.test(raisonDe(err).trim()) && !raisonDe(err).includes("\n") ? `${raisonDe(err)} Vous pouvez réessayer.` : `Les outils du cas concret ne sont pas prêts (${causeCourte(err)}). Vous pouvez réessayer.`);
 
 /** En-tête de la réponse brute dans le détail technique d'une écriture refusée (X9). */
 export const ENTETE_REPONSE_BRUTE = "Réponse brute du dernier essai :";
@@ -688,6 +695,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       outils: o,
       ...(retouche ? { lireFiche: async () => structuredClone(retouche.fiche) } : entrees.ficheCle && lireFiche ? { lireFiche: () => lireFiche(entrees.ficheCle!) } : {}),
       ...(scriptValide ? { scriptValide } : {}),
+      ...(retouche?.texteFige ? { texteFige: true as const } : {}),
       ...(ecarte ? { structureEcartee: ecarte.structure ?? STRUCTURES[0] } : {}),
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
       ...(commande.distribution[0]?.personnageId ? { personnageId: commande.distribution[0].personnageId } : {}),
@@ -818,6 +826,8 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
       casConcret: {
         journal: journalAGarder(etat.journal),
         fiche: r.fiche,
+        // GV2-30 : le texte vient d'un script validé ou fourni (ou d'une retouche de ce texte) : une retouche ne le fait jamais réécrire par la voix.
+        ...(r.ecriture?.scriptValide || etat.retouche?.texteFige ? { texteFige: true as const } : {}),
         // Mesures du fichier de CHAQUE fin (dimensions, volume, crête…) : la fiche vidéo les montre réseau par réseau.
         // L0d : et ses sous-titres (export .srt / .vtt par réseau, `services/sous-titres-par-reseau.ts`).
         fins: r.fins.map((f) => ({ id: f.id, reseaux: f.reseaux, fichierCle: f.fichierCle, dureeSec: f.dureeSec, mesures: f.mesures, ...(f.sousTitres?.length ? { sousTitres: f.sousTitres } : {}) })),
@@ -941,7 +951,7 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
       } catch (err) {
         // L1-05 : une voix refusée ne se règle pas en réessayant (il faut choisir la voix maître) : pas de « réessayer ».
         if (err instanceof VoixNonEpingleeError) return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: false, messagePourWill: err.messagePourWill, detailTechnique: raisonDe(err) }, maintenant) };
-        return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: `${raisonDe(err)} Vous pouvez réessayer.`, detailTechnique: raisonDe(err) }, maintenant) };
+        return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: phraseOutils(err), detailTechnique: raisonDe(err) }, maintenant) };
       }
       if (!outils) return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: NON_RELIE }, maintenant) };
 
@@ -986,7 +996,7 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
       try {
         outils = (await fabrique()?.(commande, contexte.travailId)) ?? null;
       } catch (err) {
-        return travailRefuse(ctx, commande, "CAS_CONCRET_NON_RELIE", `${raisonDe(err)} Vous pouvez réessayer.`);
+        return travailRefuse(ctx, commande, "CAS_CONCRET_NON_RELIE", phraseOutils(err), raisonDe(err));
       }
       if (!outils) return travailRefuse(ctx, commande, "CAS_CONCRET_NON_RELIE", NON_RELIE);
       // Appliquée et revalidée ICI, avant de rien lancer : un refus ne modifie rien et dit pourquoi.
