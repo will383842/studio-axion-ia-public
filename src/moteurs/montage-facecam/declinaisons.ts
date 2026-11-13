@@ -60,7 +60,7 @@ import {
 import type { DemandeFacecam } from "@/fournisseurs/facecam/client";
 import { ZERO } from "@/lib/montants";
 import type { ResultatFabrication, SortieProduite } from "../types";
-import { aSoumettre, apresSoumission, prochaineSoumission, sansReprise, suiviSansEssai } from "./reprise";
+import { aSoumettre, apresSoumission, delaiSansProgresMs, lireCarteGardee, prochaineSoumission, sansReprise, sansVeille, suiviFige, suiviSansEssai, veilleProgres } from "./reprise";
 import { alertesControles, bandeDesPlans, cleResultat, dimensionsSource, ESSAIS_MAX, renduPassager, priseDe, type ContexteChaine, type ControlesMontage, type DependancesChaine, type EtatChaine, type EtatHabillage, type SuiviTravail } from "./chaine";
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
@@ -188,9 +188,13 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
     const repris = suiviSansEssai(s, r, maintenant());
     if (repris) return repris;
     if (r.statut === "termine") return { ...sansReprise(s), statut: "termine", progression: 100, resultat: r.resultat as unknown as Record<string, unknown> };
-    if (r.statut === "en_cours") return { ...sansReprise(s), progression: r.progression };
+    if (r.statut === "en_cours") {
+      // GV2-23 : même règle que la chaîne : aucun progrès depuis le délai → échec réessayable.
+      const v = veilleProgres(sansReprise(s), r.progression, maintenant(), delaiSansProgresMs());
+      return v.fige ? suiviFige(s, v.depuisMin, ESSAIS_MAX) : v.suivi;
+    }
     if (r.statut === "echec") return { ...sansReprise(s), statut: "echec", erreur: { code: r.erreur.code, message: r.erreur.message, reessayable: r.erreur.reessayable && s.essais < ESSAIS_MAX } };
-    return sansReprise(s);
+    return sansVeille(s);
   }
   async function soumettre(precedent: SuiviTravail | undefined, id: (essai: number) => string, demande: Omit<DemandeFacecam, "idTravail">): Promise<SuiviTravail> {
     const s = prochaineSoumission(precedent, id);
@@ -762,7 +766,7 @@ export async function avancerHabillagesFormats(etat: EtatChaine, c: CommandeFabr
     if (carte.statut !== "soumise") continue;
     let s: Awaited<ReturnType<typeof suivreRendu>>;
     try {
-      s = await suivreRendu(outils.rendu(), carte.demande);
+      s = await lireCarteGardee(outils.rendu(), carte, outils.garde);
     } catch (e) {
       // Vérif V2 : studio-rendu injoignable → on attend le tour suivant (avant : l'erreur sortait de la chaîne).
       if (!(e instanceof ErreurRendu)) throw e;
@@ -774,6 +778,7 @@ export async function avancerHabillagesFormats(etat: EtatChaine, c: CommandeFabr
       if (s.erreur.reessayable && carte.essais < 1) {
         const signe = await outils.signer({}, [{ cle: carte.demande.sortie.cle, mime: "video/mp4" }]);
         carte.essais += 1;
+        delete carte.veille;
         carte.demande = { ...carte.demande, idRendu: `${carte.demande.idRendu.replace(/-e\d+$/, "")}-e${carte.essais}`, sortie: { ...carte.demande.sortie, urlDepot: signe.depots[carte.demande.sortie.cle] ?? carte.demande.sortie.urlDepot } };
         await outils.rendu().soumettre(carte.demande);
       } else {

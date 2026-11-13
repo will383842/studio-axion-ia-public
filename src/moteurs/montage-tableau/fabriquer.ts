@@ -97,7 +97,7 @@ import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTablea
 import { ErreurMiseEnPage, mettreEnPage, reseauxVerticaux, type MiseEnPageTableau } from "./mise-en-page";
 import { controlerSortie, type ControleSortie } from "./controles-sortie";
 import { descriptionSortie, formatImage, lireSorties, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
-import { estimerVoixSorties, planVoixSorties, trouverAppel, texteDitDe, texteLu, type LectureVoix, type PlanVoixSorties, type VarianteVoix } from "./variantes-fin";
+import { estimerVoixSorties, planVoixSorties, trouverAppel, avecPonctuationFinale, texteDitDe, texteLu, type LectureVoix, type PlanVoixSorties, type VarianteVoix } from "./variantes-fin";
 import type { AudioBrut } from "@/briques/voix-maitre/types";
 import { listerReseaux } from "@/reseaux";
 import type { IdReseau, MotHorodate, Ratio } from "@/domaine/types";
@@ -907,7 +907,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       // La recette suit l'horodatage des mots de la voix (jamais un calage par l'aligneur).
       caler: () => false,
       idBase: `tb-voix-${cleVoix.slice(0, 12)}`,
-      texte: () => texte,
+      // GV2-28 : le point final va au texte envoyé seulement ; `cleVoix` garde le texte d'avant.
+      texte: () => avecPonctuationFinale(texte),
       empreinte: () => cleVoix,
       avantLecture: () => o.budget.verifierEtReserver(estimation),
     };
@@ -1043,7 +1044,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       reglages: reglagesLecture,
       caler: () => false,
       idBase: `tb-lecture-${cle.slice(0, 12)}`,
-      texte: () => texteL,
+      texte: () => avecPonctuationFinale(texteL),
       empreinte: () => cle,
       avantLecture: () => o.budget.verifierEtReserver(prix),
       cle: (nom) => o.voix.cle(`lecture-${cle.slice(0, 12)}-${nom}`),

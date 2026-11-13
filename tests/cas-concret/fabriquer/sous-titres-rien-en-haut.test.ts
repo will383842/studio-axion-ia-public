@@ -26,13 +26,11 @@ describe("sous-titres du cas concret : rien en haut, sur le titre d'un écran", 
     expect(segments.filter((s) => s.position === "haut").map(decrire)).toEqual([]);
   });
 
-  it("les accents hors du haut restent : Impact incliné, et le Bandeau descend en bas", async () => {
+  it("GV2-30 · les accents hors du haut restent : Impact incliné ; plus aucun bandeau (il était dessiné hors de la ligne des sous-titres)", async () => {
     const segments = await segmentsSoumis();
     const impacts = segments.filter((s) => s.style === "impact");
     expect(impacts.length).toBeGreaterThan(0);
     expect(impacts.every((s) => s.position === "milieu" && s.inclinaison !== 0)).toBe(true);
-    const bandeaux = segments.filter((s) => s.style === "bandeau");
-    expect(bandeaux.length).toBeGreaterThan(0);
-    expect(bandeaux.every((s) => s.position === "bas")).toBe(true);
+    expect(segments.filter((s) => s.style === "bandeau").map(decrire)).toEqual([]);
   });
 });
