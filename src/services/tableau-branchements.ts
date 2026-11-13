@@ -15,11 +15,53 @@
  * création et lue dans les entrées de la commande par le moteur.
  */
 import "server-only";
-import { brancherServicesTableau, type OutilsTableau } from "@/moteurs/montage-tableau";
+import { brancherServicesTableau, ID_MOTEUR_TABLEAU, type OutilsTableau } from "@/moteurs/montage-tableau";
+import type { ResumeVisuel } from "@/briques/variete";
+import { resumeVisuelDepuisFiche } from "@/briques/variete/resume";
+import type { FicheScenes } from "@/briques/fiche-scenes";
 import { depots } from "./_commun";
 
 /** Date du jour (AAAA-MM-JJ). */
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * GV2-47 : résumés visuels des 10 vidéos « prêtes » les plus récentes du tableau (une par vidéo, hors vidéo en cours),
+ * créées AVANT `avant` (date de création de la version en cours) : la même fabrication relit donc toujours le même
+ * historique, et l'empreinte de l'étape « script » ne bouge pas d'une reprise à l'autre. Une fiche illisible : cette
+ * vidéo est ignorée ; une lecture en échec : historique vide. Jamais d'arrêt de la fabrication.
+ */
+export async function historiqueVarieteTableau(videoIdEnCours: string, avant: string): Promise<ResumeVisuel[]> {
+  try {
+    const versions = await depots().versions.lister((v) => v.statut === "prete" && v.commande?.moteurId === ID_MOTEUR_TABLEAU && v.videoId !== videoIdEnCours && (v.creeLe ?? "") < avant);
+    const vus = new Set<string>();
+    const resumes: ResumeVisuel[] = [];
+    for (const v of [...versions].sort((a, b) => (b.creeLe ?? "").localeCompare(a.creeLe ?? ""))) {
+      if (vus.has(v.videoId)) continue;
+      vus.add(v.videoId);
+      if (vus.size > 10) break;
+      try {
+        const fiche = (v.projetMontage?.tableau as { fiche?: unknown } | undefined)?.fiche as FicheScenes<unknown> | undefined;
+        if (fiche && typeof fiche === "object" && Array.isArray(fiche.scenes)) resumes.push(resumeVisuelDepuisFiche(fiche));
+      } catch {
+        // Fiche illisible : cette vidéo n'entre pas dans l'historique.
+      }
+    }
+    return resumes;
+  } catch (e) {
+    console.warn("[studio] historique de variété du tableau illisible :", e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
+/** Date de création de la version en cours (celle du travail) ; absente ou illisible : « » (historique vide, stable). */
+async function creationVersionEnCours(travailId: string): Promise<string> {
+  try {
+    const v = await depots().versions.trouver((x) => x.travailId === travailId);
+    return v?.creeLe ?? "";
+  } catch {
+    return "";
+  }
+}
 
 brancherServicesTableau({
   outils: async (c, travailId): Promise<OutilsTableau | null> => {
@@ -75,6 +117,7 @@ brancherServicesTableau({
         return r.json();
       },
       // Mots de la douleur validés avec la fiche à la création : la relecture de la fabrication cherche les mêmes.
+      historique: await historiqueVarieteTableau(c.videoId, await creationVersionEnCours(travailId)),
       contexte: { aujourdhui: aujourdhui(), sourcesChiffres: [], preuves, matieres, ...(entrees.motsDouleur?.length ? { motsDouleur: entrees.motsDouleur } : {}), ...(entrees.origine === "will" ? { texteDeWill: true } : {}) },
       budget: {
         tarifCentimesParCaractere: TARIF_VOIX_CENTIMES_PAR_CARACTERE,
