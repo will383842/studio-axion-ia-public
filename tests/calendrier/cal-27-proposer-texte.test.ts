@@ -172,3 +172,13 @@ describe("composant : le contrôle est refait après toute modification (critèr
     expect(alertes(m)).toBe("");
   });
 });
+
+describe("correctif : le contrôle du texte saisi vit dans le domaine, sans service serveur", () => {
+  it("le domaine et le service exposent la même fonction ; le contrôle d'un texte vide de fait reste identique", async () => {
+    const domaine = await import("@/domaine/plan-editorial/controle-texte");
+    const service = await import("@/services/texte-post");
+    expect(service.controlerTexteSaisi).toBe(domaine.controlerTexteSaisi);
+    const echecs = domaine.controlerTexteSaisi({ reseau: "linkedin", texte: "Bonjour", description: DESCRIPTION });
+    expect(Array.isArray(echecs)).toBe(true);
+  });
+});
