@@ -132,6 +132,30 @@ describe("panne de rendu d'une carte de scène (GV2-08, B3 de la relecture)", ()
   });
 });
 
+describe("« Réessayer » remet le compte des pannes de carte à zéro (GV2-08, B5 de la relecture)", () => {
+  it("une carte de scène écartée après 5 pannes repart à « a-soumettre », sans panne", async () => {
+    const b = banc(ficheDemonstration);
+    const c = b.commande(ficheDemonstration);
+    const fini = (await jouer(b.moteur, c, await b.moteur.lancer(c, ctx("t-pannes-relance")), 1000)).travail;
+    expect(fini.statut).toBe("termine");
+    type Cartes = { statut: string; essais?: number; pannes?: number }[];
+    const lieu = (t: Travail) => {
+      const j = (t.parametres as { tableau: { journal: { scenes?: { etat: { cartes: Cartes } }; sorties?: Record<string, { scenes?: { etat: { cartes: Cartes } } }> } } }).tableau.journal;
+      return j.scenes?.etat.cartes ?? Object.values(j.sorties ?? {}).flatMap((s) => s.scenes?.etat.cartes ?? []);
+    };
+    // Le journal garde les cartes ; l'une d'elles a été écartée après 5 pannes.
+    const ecarte = JSON.parse(JSON.stringify(fini)) as Travail;
+    const cartes = lieu(ecarte);
+    expect(cartes.length).toBeGreaterThan(0);
+    Object.assign(cartes[0], { statut: "echec", essais: 2, pannes: 5 });
+    const repris = await b.moteur.reessayer(ecarte, T0 + 60_000);
+    const apres = lieu(repris);
+    expect(apres[0].statut).toBe("a-soumettre");
+    expect(apres[0].essais).toBe(0);
+    expect(apres.every((x) => x.pannes === undefined)).toBe(true);
+  });
+});
+
 describe("refus d'animation (GV2-06)", () => {
   it("une page qui reste vide 0,5 s : TABLEAU_ANIMATION_REFUSEE, non réessayable, le problème est nommé", async () => {
     const b0 = banc(ficheDemonstration);
