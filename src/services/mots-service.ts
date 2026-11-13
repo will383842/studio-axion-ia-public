@@ -19,6 +19,7 @@ import { creerNotification } from "./notifications";
 import { ESPACE_CONTACT_ZERNIO, enregistrerOppositionSousVerrou, marquerTransmise, PARAM_OPPOSITIONS_MOTS } from "./oppositions-mots";
 import { ErreurEmpreinteIndisponible } from "@/domaine/guide-reseau/empreinte-personne";
 import { GROUPES_MP, TEXTES_MP, type GroupeMp, type IdTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
 import { comptesParcours, empreinteGuideParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { parcoursMotActif } from "./parcours-mot";
 import { PARAM_PLAFONDS_CONVERSATION_NOM, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
@@ -368,8 +369,10 @@ async function poserTextes(d: Demande & { compte: string }, textes: TextesMot): 
  * ACTIVATION LOCALE (aucun appel réseau) : le registre local est la seule source de vérité de la machine de conversation.
  * Retourne le code du refus, ou null si tout est permis. Échec fermé : une panne de lecture refuse. À appeler sous verrou.
  */
-async function refusActivationLocale(mot: string, compte: string, env: Env): Promise<string | null> {
+async function refusActivationLocale(mot: string, compte: string, env: Env, verifieHorsVerrou = false): Promise<string | null> {
   if (!comptesParcours(env).includes(compte)) return "compte_hors_liste";
+  // Un mot autre que GUIDE ne s'active en local que par `activerMotParcours` (qui a vérifié HORS verrou) : jamais par la fiche.
+  if (mot !== "GUIDE" && !verifieHorsVerrou) return "activation_par_la_fiche";
   try {
     if (!motsActif(env)) return "interrupteur_eteint";
     if (mot === "GUIDE") {
@@ -379,7 +382,7 @@ async function refusActivationLocale(mot: string, compte: string, env: Env): Pro
       const e = empreinteGuideParcours(titreGuideParcours(env));
       if (!e.ok) return e.raison;
       if (e.empreinte !== v.empreinte) return "validation_perimee";
-    } else if (!(await lireValidations())[mot]) return "mot_non_valide";
+    } else if (!verifieHorsVerrou && !(await lireValidations())[mot]) return "mot_non_valide"; // vérifié hors verrou : la vérification injectée remplace ce contrôle
     if (!(await envoiZernioAutorise())) return "tout_arrete";
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ouvert";
   } catch {
@@ -398,6 +401,42 @@ export async function activerMotLocal(d: Demande & { mot: "GUIDE"; compte: strin
     if (existante && !!existante.idWorkflow) return refus("deja_pose_chez_zernio");
     const motif = await refusActivationLocale(d.mot, d.compte, env);
     if (motif) return refus(motif);
+    await enregistrerLigne({ mot: d.mot, compte: d.compte, etat: "actif", idWorkflow: null, raison: "local", modifieLe: maintenant() });
+    await journaliser("mots", `Mot ${d.mot} activé en local sur un compte.`);
+    return { issue: "execute", raison: "activation_locale" };
+  });
+}
+
+/**
+ * Vérification d'un mot autre que GUIDE avant son activation locale (point d'injection, FERMÉ par défaut : aucune vérification
+ * injectée = refus `mot_non_valide`). Renvoie null si tout est bon, sinon le code du refus. Elle tourne HORS verrou.
+ */
+export type VerificationMotParcours = (o: { mot: string; compte: string; env: Env }) => Promise<string | null>;
+let verificationMotInjectee: VerificationMotParcours | null = null;
+export function injecterVerificationMotParcours(v: VerificationMotParcours | null): void {
+  verificationMotInjectee = v;
+}
+
+/** Réglage « plusieurs mots » : FERMÉ ici (aucune lecture). Le lot qui le câblera le fera plus tard ; d'ici là, seul `plusieursMots` injecté peut l'ouvrir. */
+const reglageFerme = async (): Promise<boolean> => false;
+
+/** Active un mot (GUIDE ou autre) sur un compte, EN LOCAL, rien vers Zernio. Un mot autre que GUIDE exige la vérification injectée. */
+export async function activerMotParcours(d: Demande & { mot: string; compte: string; plusieursMots?: () => Promise<boolean> }): Promise<Resultat> {
+  if (!d.confirmeParOperateur) return refus("validation_operateur_absente");
+  if (normaliserMot(d.mot) !== d.mot || d.mot === MOT_STOP) return refus("mot_invalide");
+  if (d.mot === "GUIDE") return activerMotLocal({ ...d, mot: "GUIDE" });
+  const env = d.env ?? process.env;
+  if (!comptesParcours(env).includes(d.compte)) return refus("compte_hors_liste");
+  if (!(await (d.plusieursMots ?? reglageFerme)())) return refus("plusieurs_mots_eteint");
+  if (!verificationMotInjectee) return refus("mot_non_valide");
+  if (!motsActif(env)) return refus("interrupteur_eteint");
+  const motif = await verificationMotInjectee({ mot: d.mot, compte: d.compte, env }); // HORS verrou
+  if (motif) return refus(motif);
+  return sousVerrou(async () => {
+    const existante = (await lireRegistre())[cle(d.mot, d.compte)];
+    if (existante && !!existante.idWorkflow) return refus("deja_pose_chez_zernio");
+    const m = await refusActivationLocale(d.mot, d.compte, env, true);
+    if (m) return refus(m);
     await enregistrerLigne({ mot: d.mot, compte: d.compte, etat: "actif", idWorkflow: null, raison: "local", modifieLe: maintenant() });
     await journaliser("mots", `Mot ${d.mot} activé en local sur un compte.`);
     return { issue: "execute", raison: "activation_locale" };
