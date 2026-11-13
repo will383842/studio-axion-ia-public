@@ -263,8 +263,8 @@ describe("e2e-2 · premier commentaire, images[], texte alternatif, document Lin
     const { f, faux } = monter();
     await expect(f.envoyer(demande({ images: [{ url: "https://exemple-r2.test/a.png", texteAlternatif: "" }] }))).rejects.toThrow(/texte alternatif/);
     await expect(f.envoyer(demande({ images: [{ url: "https://exemple-r2.test/a.png", texteAlternatif: "x".repeat(126) }] }))).rejects.toThrow(/125/);
-    const onze = Array.from({ length: 11 }, (_v, i) => ({ url: `https://exemple-r2.test/${i}.png`, texteAlternatif: "ok" }));
-    await expect(f.envoyer(demande({ images: onze }))).rejects.toThrow(/10 images/);
+    const vingtEtUne = Array.from({ length: 21 }, (_v, i) => ({ url: `https://exemple-r2.test/${i}.png`, texteAlternatif: "ok" }));
+    await expect(f.envoyer(demande({ images: vingtEtUne }))).rejects.toThrow(/20 images/);
     expect(faux.appels).toHaveLength(0);
   });
 
