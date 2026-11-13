@@ -1812,7 +1812,7 @@ export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly Bruitage
 
 /** Remarques de la voix (« Voix gardée malgré une remarque », piste dont la dernière phrase risque d'être coupée) : elles vont aussi aux mentions, pas seulement au journal. */
 function remarquesDeFinDeVoixIV(e: EtatFabricationIV): string[] {
-  return [...new Set([...(e.voix?.remarques ?? []), ...(e.pistes ?? []).flatMap((p) => (p.remarque ? [p.remarque] : []))])];
+  return [...new Set([...(e.voix?.remarques ?? []).filter((r) => r.startsWith("Voix gardée malgré une remarque")), ...(e.pistes ?? []).flatMap((p) => (p.remarque ? [p.remarque] : []))])];
 }
 
 async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
