@@ -1,7 +1,9 @@
 /**
  * MG-2 — chiffres par mot, LECTURE SEULE. Lit les événements `zernio.commentaire` et l'état `parcours.conversations` avec les dépôts
  * existants, sans rien écrire. La sortie ne contient que des mots et des nombres : jamais d'identifiant, de clé d'empreinte ni de texte.
- * Cache mémoire de 60 s (une lecture en panne n'est jamais mise en cache).
+ * Cache mémoire de 60 s (une lecture en panne n'est jamais mise en cache). Le résultat rendu est une copie profonde figée ;
+ * deux appels simultanés partagent une seule lecture.
+ * DÉFAUT CONNU, NON CORRIGÉ ICI : la lecture des événements n'a pas de limite de date (tout l'historique est relu).
  */
 import "server-only";
 import {
@@ -47,15 +49,29 @@ const lectureReelle: LectureStatsMots = {
       etat: texte(c.etat) ?? "",
       creeLe: texte(c.creeLe) ?? "",
       m1Le: texte(c.m1Le),
+      refuseLe: texte(c.refuseLe),
       suitLeCompte: c.suitLeCompte === true,
     }));
   },
 };
 
 let cache: { jusqua: number; valeur: StatsMotChiffrees[] } | null = null;
-/** Tests : vide le cache. */
+let enCours: Promise<StatsMotChiffrees[]> | null = null;
+/** Tests : vide le cache et la lecture en cours. */
 export function reinitialiserCacheStatsMots(): void {
   cache = null;
+  enCours = null;
+}
+
+/** Copie profonde, puis gel de chaque objet : l'appelant ne peut pas abîmer le cache. */
+function copieFigee(v: StatsMotChiffrees[]): StatsMotChiffrees[] {
+  const c = structuredClone(v);
+  for (const m of c) {
+    for (const x of Object.values(m))
+      if (x && typeof x === "object") Object.freeze(x);
+    Object.freeze(m);
+  }
+  return Object.freeze(c) as StatsMotChiffrees[];
 }
 
 /** Chiffres par mot, en lecture seule. `lecture` et `maintenantMs` ne servent qu'aux tests. */
@@ -63,13 +79,24 @@ export async function lireStatsMots(
   o: { maintenantMs?: number; lecture?: LectureStatsMots } = {},
 ): Promise<StatsMotChiffrees[]> {
   const maintenant = o.maintenantMs ?? Date.now();
-  if (cache && maintenant < cache.jusqua) return cache.valeur;
-  const lecture = o.lecture ?? lectureReelle;
-  const [evenements, conversations] = await Promise.all([
-    lecture.evenements(),
-    lecture.conversations(),
-  ]);
-  const valeur = agregerStatsMots(evenements, conversations, maintenant);
-  cache = { jusqua: maintenant + DUREE_CACHE_STATS_MOTS_MS, valeur };
-  return valeur;
+  if (cache && maintenant < cache.jusqua) return copieFigee(cache.valeur);
+  if (!enCours) {
+    const lecture = o.lecture ?? lectureReelle;
+    const cette: Promise<StatsMotChiffrees[]> = (async () => {
+      const [evenements, conversations] = await Promise.all([
+        lecture.evenements(),
+        lecture.conversations(),
+      ]);
+      const valeur = agregerStatsMots(evenements, conversations, maintenant);
+      cache = { jusqua: maintenant + DUREE_CACHE_STATS_MOTS_MS, valeur };
+      return valeur;
+    })();
+    enCours = cette;
+    // Une erreur n'est jamais mémorisée : la promesse en cours est libérée dans tous les cas.
+    const liberer = () => {
+      if (enCours === cette) enCours = null;
+    };
+    cette.then(liberer, liberer);
+  }
+  return copieFigee(await enCours);
 }
