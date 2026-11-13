@@ -426,7 +426,7 @@ export function relancerRendusCasConcret(j: JournalCasConcret | null, relance: n
   const autreId = (id: string) => `${id.replace(/(-[er]\d+)+$/, "")}-r${relance}`;
   // X12 : un journal écrit par une version antérieure du code (ou incomplet) ne fait jamais échouer « Réessayer ».
   if (Array.isArray(copie.ecrans?.etat?.cartes)) {
-    copie.ecrans.etat.cartes = copie.ecrans.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, veille: undefined, demande: { ...c.demande, idRendu: autreId(c.demande.idRendu) } } : c));
+    copie.ecrans.etat.cartes = copie.ecrans.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, pannes: undefined, veille: undefined, demande: { ...c.demande, idRendu: autreId(c.demande.idRendu) } } : c));
   }
   for (const m of Object.values(copie.montage ?? {})) {
     if (m?.etat?.phase !== "soumise") continue;
