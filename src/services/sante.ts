@@ -11,6 +11,7 @@ import { delaiDepasse } from "@/lib/demarrage";
 import { versionDuCode } from "@/lib/version-code";
 import { ecrireParametre, lireParametre } from "./_commun";
 import { etatBoucle, type EtatBoucle } from "./_boucle-etat";
+import { sonderPublication, type EtatSondePublication } from "./sonde-publication";
 
 /** Aucun tour terminé depuis plus longtemps : boucle déclarée bloquée. */
 export const BOUCLE_MUETTE_MAX_MS = 3 * 60_000;
@@ -54,19 +55,21 @@ export async function enregistrerEmpreinteBasesAttendue(empreinte: string): Prom
 }
 
 /** `version` : le commit en ligne (`versionDuCode`), « inconnu » si l'image a été construite sans lui. */
-export type EtatSante = { ok: boolean; base: "ok" | "memoire" | "injoignable"; boucle: EtatBoucleSante; version: string; bases: EtatBasesSante };
+export type EtatSante = { ok: boolean; base: "ok" | "memoire" | "injoignable"; boucle: EtatBoucleSante; version: string; bases: EtatBasesSante; publication: EtatSondePublication };
 
 /** Une base qui ne répond pas en 3 s est déclarée injoignable (la sonde de Docker coupe à 5 s). */
-export async function etatSante(delaiMs = 3000): Promise<EtatSante> {
+export async function etatSante(delaiMs = 3000, options: { sonde?: () => Promise<{ etat: EtatSondePublication }> } = {}): Promise<EtatSante> {
   const boucle = santeBoucle(etatBoucle());
   const boucleOk = boucle !== "bloquee" && boucle !== "verrou-ailleurs";
   const version = versionDuCode(process.env);
   const embarquee = sourceDesBases().empreinte;
+  // L5-07 : la sonde de publication est informative. Lente ou en échec = « inconnu » ; elle n'agit JAMAIS sur `ok` ni sur le statut HTTP.
+  const publication = await delaiDepasse((options.sonde ?? sonderPublication)(), delaiMs).then((r) => r.etat, (): EtatSondePublication => "inconnu");
   try {
     const base = await delaiDepasse(sonderBase(), delaiMs);
     const attendue = await delaiDepasse(lireParametre<string | null>(CLE_EMPREINTE_BASES, null), delaiMs).catch(() => null);
-    return { ok: boucleOk, base, boucle, version, bases: santeBases(embarquee, attendue) };
+    return { ok: boucleOk, base, boucle, version, bases: santeBases(embarquee, attendue), publication };
   } catch {
-    return { ok: false, base: "injoignable", boucle, version, bases: santeBases(embarquee, null) };
+    return { ok: false, base: "injoignable", boucle, version, bases: santeBases(embarquee, null), publication };
   }
 }

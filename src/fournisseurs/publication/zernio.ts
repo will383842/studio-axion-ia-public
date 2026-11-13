@@ -8,6 +8,7 @@
  * - Sans clé : le fournisseur n'est pas inscrit (voir `inscription.ts`), la simulation reste.
  */
 import { cleEnvoiPublication } from "@/domaine/outil-publication";
+import { CLE_PREMIER_COMMENTAIRE_COUPE } from "@/domaine/interrupteurs/registre";
 import type { StatutPublication } from "@/domaine/types";
 import type { CanalPublication, DemandePublication, EtatPublicationExterne, FournisseurPublication } from "../types";
 import { creerClientZernio, enteteIdempotenceStudio, type ClientZernio, type OptionsClientZernio, type PostZernio } from "./zernio-client";
@@ -27,7 +28,26 @@ export interface OptionsPublicationZernio {
   maintenant?: () => number;
   /** Pages Facebook jamais ciblées (tests) ; sinon la liste du dépôt. */
   pagesInterdites?: PagesInterdites;
+  /** Lecture du réglage « premier commentaire coupé » (tests) ; sinon la lecture du réglage en base. */
+  lirePremierCommentaireCoupe?: () => Promise<unknown>;
 }
+
+const DELAI_LECTURE_COUPE_MS = 1500;
+
+/** Lecture à chaque envoi, sans jamais bloquer : exception, lenteur ou valeur illisible = faux (le premier commentaire part). */
+async function premierCommentaireCoupe(lecture: () => Promise<unknown>): Promise<boolean> {
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const attente = new Promise<undefined>((r) => { minuteur = setTimeout(() => r(undefined), DELAI_LECTURE_COUPE_MS); });
+    return (await Promise.race([lecture(), attente])) === true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(minuteur);
+  }
+}
+
+const lireReglagePremierCommentaireCoupe = async (): Promise<unknown> => (await import("@/services/_commun")).lireParametre<unknown>(CLE_PREMIER_COMMENTAIRE_COUPE, false);
 
 /** Statut Studio d'un statut Zernio. */
 export function statutDepuisZernio(statut: string | undefined): StatutPublication {
@@ -95,6 +115,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
     capacites: { asynchrone: false, accordExige: false },
 
     async envoyer(demande: DemandeZernio) {
+      const coupe = await premierCommentaireCoupe(options.lirePremierCommentaireCoupe ?? lireReglagePremierCommentaireCoupe);
       const hex = cleHex(demande);
       const d: DemandeZernio = { ...demande, cleEnvoi: hex };
       const instant = maintenant();
@@ -102,7 +123,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       // 1. Tout refus pur, avant le réseau (TikTok : réglages fictifs prudents, remplacés par les vrais ensuite).
       const niveau = d.niveauConfidentialiteTiktok ?? "";
       const prudent: CreateurTiktok = { privacyLevels: [niveau], allowComment: false, allowDuet: false, allowStitch: false };
-      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true });
+      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, premierCommentaireCoupe: coupe });
       // LinkedIn profil : prouvé par la lecture du compte (jamais présumé).
       const profilLinkedinProuve = cible.profilLinkedin ? compteLinkedinEstProfil((await client.listerComptes()).find((c) => c._id === cible.accountId)) : false;
       const demandes = mediasDemandes(d);
@@ -110,7 +131,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const createurTiktok = plateformeZernio(d.reseau) === "tiktok" ? lireCreateurTiktok(await client.infoCreateurTiktok(cible.accountId)) : undefined;
       const hotesPublics = new Set<string>();
       const medias = await televerserMedias(client, lire, demandes, hotesPublics);
-      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve });
+      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe });
       // 3. Création, clé d'idempotence neutre.
       let resultat;
       try {

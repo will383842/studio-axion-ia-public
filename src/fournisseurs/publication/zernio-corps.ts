@@ -129,6 +129,8 @@ export interface OptionsCorps {
   hotesPublics?: ReadonlySet<string>;
   /** LinkedIn : le compte lu est bien un profil personnel (requis pour la cible « accountId:li:profil »). */
   profilLinkedinProuve?: boolean;
+  /** Interrupteur « Premier commentaire » : `true` = le premier commentaire n'entre pas dans le corps. Sert uniquement à couper. */
+  premierCommentaireCoupe?: boolean;
 }
 
 /** Médias demandés, sans adresse Zernio : sert au téléversement et au corps. Types : image | video | document. */
@@ -179,7 +181,7 @@ export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsP
   }
 
   exigerSansMotInterdit(d.texte, "Le texte du post");
-  const commentaire = d.premierCommentaire?.trim();
+  const commentaire = options.premierCommentaireCoupe === true ? undefined : d.premierCommentaire?.trim();
   if (commentaire) exigerSansMotInterdit(commentaire, "Le premier commentaire");
 
   const echeance = Date.parse(d.date);
