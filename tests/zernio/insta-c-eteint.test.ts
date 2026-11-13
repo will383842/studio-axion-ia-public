@@ -12,13 +12,13 @@ import { rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, graineConv, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 import { cleConversation, deposerCommentaire, deposerMessage, validerFormulationsAuParcours } from "./aides/conversation";
 
-const etat = vi.hoisted(() => ({ multi: true, ig: true, lecturesIg: 0, lecturesMulti: 0 }));
+const etat = vi.hoisted(() => ({ multi: true, ig: true as boolean | "reel", lecturesIg: 0, lecturesMulti: 0 }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: () => true }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => null }));
 vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true }));
 vi.mock("@/services/parcours-mots-multiples", async (orig) => ({ ...(await orig<Record<string, unknown>>()), motsMultiplesActifs: async () => (etat.lecturesMulti++, etat.multi) }));
-vi.mock("@/services/parcours-instagram", async (orig) => ({ ...(await orig<Record<string, unknown>>()), instagramSuivreActif: async () => (etat.lecturesIg++, etat.ig) }));
+vi.mock("@/services/parcours-instagram", async (orig) => ({ ...(await orig<Record<string, unknown>>()), instagramSuivreActif: async (o?: unknown) => (etat.lecturesIg++, etat.ig === "reel" ? (await orig<any>()).instagramSuivreActif(o) : etat.ig) }));
 
 const H = 3600_000;
 const ENV_LIEN = { ...ENV, PARCOURS_LIEN_GUIDE: "1", GUIDES_RESEAU_LIEN_SECRET: "secret-fictif-du-lien-0123456789-abcdefghij", LIEN_GUIDE_COMPTES: `${COMPTE}=page_principale` };
@@ -58,6 +58,15 @@ describe("INSTA-C · éteint : Instagram identique à la PR 424, Facebook inchan
     await deposerMessage(depots, { idMessage: "msg-1", avance: 5000 });
     await pass(T0 + 10_000);
     expect(suivi.appels).toBe(0);
+  });
+
+  it("15 · réglage ABSENT (rien d'enregistré, vraie lecture) : Instagram identique à la PR 424", async () => {
+    etat.ig = "reel";
+    await comment("instagram");
+    await pass(T0);
+    expect(prives).toHaveLength(1);
+    expect(prives[0].texte).toMatch(/https?:\/\//);
+    expect(((Object.values(await toutesLesConversations()) as any[])[0]).etat).toBe("attente_email");
   });
 
   it("15 · réglage vrai mais « plusieurs mots » éteint : chemin historique, le réglage n'est même pas lu", async () => {

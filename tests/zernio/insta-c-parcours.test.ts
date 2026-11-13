@@ -32,14 +32,17 @@ const prives: any[] = [];
 const publics: any[] = [];
 const lecture = (...r: any[]) => (suivi.file = [...r]);
 
-function brancher(): void {
-  const p = banc.port.port as any;
-  p.lireSuiviInstagram = async (a: any) => {
+function poserLecture(): void {
+  (banc.port.port as any).lireSuiviInstagram = async (a: any) => {
     suivi.appels.push(a);
     const r = suivi.file.length > 0 ? suivi.file.shift() : suivi.defaut;
     if (r instanceof Error) throw r;
     return r;
   };
+}
+function brancher(): void {
+  const p = banc.port.port as any;
+  poserLecture();
   const priv = p.repondreEnPrive, env = p.envoyerMessage, pub = p.repondreCommentaire;
   p.repondreEnPrive = async (a: any) => (prives.push(a), priv(a));
   p.repondreCommentaire = async (a: any) => (publics.push(a), pub(a));
@@ -230,7 +233,7 @@ describe("INSTA-C · le OK de la personne", () => {
     expect(envois).toHaveLength(1);
     expect(await un()).toMatchObject({ etat: "attente_email", suiviIg: "inconnu" });
     await semer("2", "ig_attente_ok", { creeLe: iso(T0) });
-    brancher();
+    poserLecture();
     lecture(new Error("panne fictive"));
     await message("msg-ok-2", 20_000);
     await pass(T1 + 30_000);
@@ -261,13 +264,16 @@ describe("INSTA-C · le OK de la personne", () => {
   });
 
   it("11 · 4 mots en attente + 1 OK : 3 liens (les plus anciens), une seule lecture ; le 4e au message suivant", async () => {
-    for (const n of ["1", "2", "3", "4"]) await semer(n, "ig_attente_ok", { guide: `gde-${n}`, mot: `MOT${n}` });
+    const reg: Record<string, unknown> = {};
+    for (const m of ["GUIDE", "MOT1", "MOT2", "MOT3", "MOT4"]) reg[`${m}|${COMPTE}`] = { mot: m, compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" };
+    await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, reg);
+    for (const n of ["1", "2", "3", "4"]) await semer(n, "ig_attente_ok", { guide: `gde-${n.repeat(6)}`, mot: `MOT${n}` });
     await message("msg-ok-1");
     await pass(T1);
     expect(envois).toHaveLength(3);
     expect(suivi.appels).toHaveLength(1);
     const etats = Object.fromEntries((await parcours()).map(([, c]) => [c.guide, c.etat]));
-    expect(etats).toEqual({ "gde-1": "attente_email", "gde-2": "attente_email", "gde-3": "attente_email", "gde-4": "ig_attente_ok" });
+    expect(etats).toEqual({ "gde-111111": "attente_email", "gde-222222": "attente_email", "gde-333333": "attente_email", "gde-444444": "ig_attente_ok" });
     await message("msg-ok-2", 20_000);
     await pass(T1 + 30_000);
     expect(envois).toHaveLength(4);
@@ -336,7 +342,10 @@ describe("INSTA-C · le OK de la personne", () => {
     expect(c3.etat).toBe("ig_a_verifier");
     expect(await alerteIg(/issue inconnue/)).toBe(1);
     await pass(T1 + 600_000);
-    expect(envois.length).toBe(avant + 1);
+    expect(envois.length).toBe(avant + 2); // les parcours 2 et 3 attendaient tous deux ce OK
+    expect((await parcours()).filter(([, c]) => c.etat === "ig_a_verifier")).toHaveLength(2);
+    await pass(T1 + 700_000);
+    expect(envois.length).toBe(avant + 2);
   });
 
   it("blocage (INBOX_REQUIRED) : état restauré, disjoncteur ouvert comme aujourd'hui", async () => {
