@@ -151,6 +151,35 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
   });
 
+  // DÉCISION figée (session propriétaire) : une transmission PAR PARCOURS. Les doublons sont acceptés, jamais de perte : une personne qui a donné
+  // une adresse différente pour chaque mot voit son « stop » transmis pour CHAQUE adresse. (Une variante « une seule par personne » existe sur une
+  // branche à part, non fusionnée : elle pouvait perdre un « stop ».)
+  it("DÉCISION : trois mots, trois adresses différentes : trois transmissions, une par adresse, aucun « stop » perdu", async () => {
+    const cl = await semerDossier();
+    const adresses = ["premiere@example.test", "deuxieme@example.test", "troisieme@example.test"];
+    const conv = await toutesLesConversations();
+    for (const [i, c] of cl.entries()) {
+      conv[c] = { ...conv[c], idMessageAdresse: `msg-adr-lia-d-${i}` };
+      await deposerMessage(depots, { idMessage: `msg-adr-lia-d-${i}`, idExpediteur: AUTEUR });
+    }
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, conv);
+    await recevoirStop();
+    lectureParMessage(banc.port, Object.fromEntries(adresses.map((a, i) => [`msg-adr-lia-d-${i}`, `Mon adresse : ${a}`])));
+    await transmettre();
+    expect(site.opp().map((x) => JSON.parse(x.corps).email).sort()).toEqual([...adresses].sort());
+    expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
+  });
+
+  it("DÉCISION : la même adresse pour trois mots donne trois transmissions (doublons acceptés), de clés d'idempotence différentes", async () => {
+    await semerDossier();
+    await recevoirStop();
+    lireAdresse();
+    await transmettre();
+    const corps = site.opp().map((x) => JSON.parse(x.corps));
+    expect(corps).toHaveLength(3);
+    expect(new Set(corps.map((c) => c.cleIdempotence)).size).toBe(3);
+  });
+
   it("voulu : une personne, deux parcours, DEUX adresses différentes : le « stop » est transmis pour LES DEUX adresses (décision du 13/11)", async () => {
     const cl = await semerDossier();
     const conv = await toutesLesConversations();
