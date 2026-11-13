@@ -163,6 +163,8 @@ interface RetoucheEnCours {
   prisesAvant?: PrisesVoix;
   /** Ce que la retouche relit (payé) : sa réservation, donc le plafond de sa voix, d'un « Réessayer » à l'autre. */
   aRelire?: ARelire;
+  /** GV2-30 : le texte retouché vient d'un script validé ou fourni : la voix ne reformule jamais une phrase (règles tolérantes du script). */
+  texteFige?: true;
 }
 
 /** Prises de voix faites, gardées dans le projet de montage (`prisesVoix`) pour qu'une retouche les reprenne. */
@@ -382,7 +384,7 @@ export function refusOperationsCasConcret(operations: readonly unknown[]): { cod
 }
 
 /** Ce que la version d'avant garde dans son projet de montage (`projetMontage.casConcret`). */
-function projetGarde(projetMontage: Record<string, unknown> | undefined): { fiche?: unknown; reglages?: Partial<ReglagesFins>; prisesVoix?: PrisesVoix } {
+function projetGarde(projetMontage: Record<string, unknown> | undefined): { fiche?: unknown; reglages?: Partial<ReglagesFins>; prisesVoix?: PrisesVoix; texteFige?: true } {
   const p = projetMontage?.casConcret as Record<string, unknown> | undefined;
   if (!p || typeof p !== "object") return {};
   const texte = (v: unknown) => (typeof v === "string" && v.trim() ? v : undefined);
@@ -392,6 +394,7 @@ function projetGarde(projetMontage: Record<string, unknown> | undefined): { fich
     fiche: p.fiche,
     ...(typeof p.avecMot === "boolean" ? { reglages: { ...(mot ? { mot } : {}), ...(motDit ? { motDit } : {}), avecMot: p.avecMot } } : {}),
     ...(p.prisesVoix && typeof p.prisesVoix === "object" ? { prisesVoix: p.prisesVoix as PrisesVoix } : {}),
+    ...(p.texteFige === true ? { texteFige: true as const } : {}),
   };
 }
 
@@ -437,7 +440,7 @@ function preparerRetouche(commande: CommandeFabrication, operations: readonly un
     voixGardee: p ? { ...(p.corps.retenu && (!v || priseReprise(p.corps.texte, p.corps.prise, v)) ? { corps: p.corps.texte } : {}), fins: p.fins.filter((f) => (v ? priseReprise(f.texte, f.prise, v) : f.prise?.controle)).map((f) => f.texte) } : null,
   };
   const apercu = apercuRetoucheCasConcret(forme.fiche, [...operations], contexte);
-  return apercu.ok ? { apercu, retouche: { fiche: apercu.fiche, reglages: apercu.reglages, aRelire: aRelireDe(apercu), ...(p ? { prisesAvant: p } : {}) } } : { apercu };
+  return apercu.ok ? { apercu, retouche: { fiche: apercu.fiche, reglages: apercu.reglages, aRelire: aRelireDe(apercu), ...(p ? { prisesAvant: p } : {}), ...(garde.texteFige ? { texteFige: true as const } : {}) } } : { apercu };
 }
 
 function estimationRetouche(commande: CommandeFabrication, apercu: ApercuRetoucheCasConcret): Estimation {
@@ -692,6 +695,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       outils: o,
       ...(retouche ? { lireFiche: async () => structuredClone(retouche.fiche) } : entrees.ficheCle && lireFiche ? { lireFiche: () => lireFiche(entrees.ficheCle!) } : {}),
       ...(scriptValide ? { scriptValide } : {}),
+      ...(retouche?.texteFige ? { texteFige: true as const } : {}),
       ...(ecarte ? { structureEcartee: ecarte.structure ?? STRUCTURES[0] } : {}),
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
       ...(commande.distribution[0]?.personnageId ? { personnageId: commande.distribution[0].personnageId } : {}),
@@ -822,6 +826,8 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
       casConcret: {
         journal: journalAGarder(etat.journal),
         fiche: r.fiche,
+        // GV2-30 : le texte vient d'un script validé ou fourni (ou d'une retouche de ce texte) : une retouche ne le fait jamais réécrire par la voix.
+        ...(r.ecriture?.scriptValide || etat.retouche?.texteFige ? { texteFige: true as const } : {}),
         // Mesures du fichier de CHAQUE fin (dimensions, volume, crête…) : la fiche vidéo les montre réseau par réseau.
         // L0d : et ses sous-titres (export .srt / .vtt par réseau, `services/sous-titres-par-reseau.ts`).
         fins: r.fins.map((f) => ({ id: f.id, reseaux: f.reseaux, fichierCle: f.fichierCle, dureeSec: f.dureeSec, mesures: f.mesures, ...(f.sousTitres?.length ? { sousTitres: f.sousTitres } : {}) })),

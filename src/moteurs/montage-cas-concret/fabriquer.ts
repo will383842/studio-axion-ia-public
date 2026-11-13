@@ -75,7 +75,8 @@ import { defautsVisuels, type DefautVisuel } from "./defauts-visuels";
 import { ecrireFiche, PREFIXE_APPEL_ECRITURE, reformulerPhrase, type ResultatEcriture } from "./ecriture";
 import { ecartsScriptValide, ficheDuScriptValide, PHRASE_SCRIPT_A_VALIDER, PHRASE_SCRIPT_VALIDE_REFUSE, problemesScriptValide, type ScriptValide } from "./script-valide";
 import { departDePage, ecransCales, LIBELLES_ETAPES_CAS_CONCRET, motsOrange, regrouperFins, reporterTexteDit, type CaptureVraiEcran, type EntreesCasConcret } from "./etapes";
-import { FORMAT_CAS_CONCRET, texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
+import { lireTexteFourni } from "./script-fourni";
+import { cleMot, FORMAT_CAS_CONCRET, motsDe, motsLus, texteDuCorps, texteDuCorpsPourVoix, validerSchemaFiche, type EcranFin, type FicheEcrans, type FinPlanifiee, type PlanDesFins } from "./fiche";
 import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
@@ -85,7 +86,7 @@ import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesR
 import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
-import { avancerVoixCasConcret, empreintePriseVoix, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
+import { avancerVoixCasConcret, empreintePriseVoix, planSonEntier, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
 
 /** Version de la chaîne (entre dans chaque empreinte : une chaîne changée refait tout). */
 export const VERSION_FABRICATION_CAS_CONCRET = "fabrication-cas-concret/1";
@@ -185,6 +186,11 @@ export interface OptionsFabricationCasConcret {
    * relecture le contrôle comme une fiche écrite ; refusé, la fabrication s'arrête (jamais réparé en silence).
    */
   scriptValide?: ScriptValide | null;
+  /**
+   * GV2-30 : retouche d'une vidéo dont le texte vient d'un script validé ou fourni par le fondateur : la voix ne reformule
+   * jamais une phrase, et la fiche retouchée suit les règles tolérantes de ce script (remarques, pas de refus).
+   */
+  texteFige?: true;
   /**
    * LOT F · « Nouveau script (autre structure) » : structure du script validé que cette vidéo n'a pas rejoué. Le tirage
    * (fait avant l'écriture) n'en reprend pas la même ; la v4 s'il s'agit d'un script sans structure.
@@ -446,7 +452,56 @@ export function relancerRendusCasConcret(j: JournalCasConcret | null, relance: n
 function brutDe(prise: PriseVoix | undefined, nom: string): SonAssemble {
   if (!prise || prise.etat.phase !== "faite") throw new ErreurFabricationCasConcret("voix", [`La prise « ${nom} » n'est pas finie.`]);
   const son = prise.brut ?? prise.etat.audio;
-  return { fichierCle: son.fichierCle, dureeSec: son.dureeSec, mots: son.mots };
+  return { fichierCle: son.fichierCle, dureeSec: son.dureeSec, mots: son.mots, ...("approximatif" in son && son.approximatif ? { approximatif: son.approximatif } : {}) };
+}
+
+/** GV2-30 : mots d'un texte, sans la ponctuation de bord, pour retrouver une phrase quelle que soit sa ponctuation. */
+const sansPonctuationFinale = (m: string): string => m.replace(/[.?!…]+$/u, "");
+
+/**
+ * GV2-30 : report d'UNE phrase vraiment réformulée par la voix dans le texte ÉCRIT (celui du fondateur). La phrase est
+ * retrouvée dans le texte écrit (les prononciations remontées au mot écrit, la ponctuation de fin d'écran ignorée) puis
+ * remplacée par la phrase réécrite, écrite comme le script. Le reste du texte écrit n'est jamais touché. `null` : une
+ * phrase ne se retrouve pas ou ne se répartit pas sur les écrans (l'appelant garde alors le texte écrit et le signale).
+ */
+export function reporterPhrasesReformulees(fiche: FicheEcrans, reformulations: readonly { avant: string; apres: string }[], prononciations: readonly { mot: string; prononciation: string }[]): FicheEcrans | null {
+  const remonter = (t: string) => [...prononciations].filter((p) => p.mot.trim() && p.prononciation.trim()).sort((a, b) => b.prononciation.length - a.prononciation.length).reduce((r, p) => r.split(p.prononciation).join(p.mot), t);
+  let courante = fiche;
+  for (const r of reformulations.filter((x) => x.avant !== x.apres)) {
+    const mots = motsDe(texteDuCorps(courante));
+    const cherche = motsLus(remonter(r.avant)).map(cleMot);
+    if (!cherche.length) return null;
+    const lus = mots.flatMap((m, i) => (motsLus(m).length ? [i] : []));
+    const debut = lus.findIndex((_, k) => cherche.every((c, j) => lus[k + j] !== undefined && cleMot(mots[lus[k + j]]) === c));
+    if (debut < 0) return null;
+    const de = lus[debut];
+    const a = lus[debut + cherche.length - 1];
+    const nouveaux = motsDe(remonter(r.apres));
+    // Le point de fin d'écran ajouté pour la voix n'entre pas dans le texte écrit s'il n'y était pas.
+    if (nouveaux.length && !/[.?!…]$/u.test(mots[a])) nouveaux[nouveaux.length - 1] = sansPonctuationFinale(nouveaux[nouveaux.length - 1]);
+    const suivant = reporterTexteDit(courante, [...mots.slice(0, de), ...nouveaux, ...mots.slice(a + 1)].join(" "));
+    if (!suivant) return null;
+    courante = suivant;
+  }
+  return courante;
+}
+
+/**
+ * GV2-30 : garde « mots envoyés = mots fournis ». Les mots du script du fondateur (`texteFourni`, lignes lues comme à la
+ * validation) sont comparés, un à un, à ceux du corps de la fiche (casse, accents, points de sigle ignorés). `null` :
+ * identiques (ou texte illisible : la lecture du script le refuse ailleurs). Sinon la phrase d'arrêt, avant toute voix.
+ */
+export function ecartAvecTexteFourni(texteFourni: string, cas: CasConcret, fiche: Pick<FicheEcrans, "ecrans">): string | null {
+  const lecture = lireTexteFourni(texteFourni, cas);
+  if (!lecture.ok) return null;
+  const script = lecture.lignes.flatMap((l) => motsLus(l.texte).map((mot) => ({ mot, ligne: l.rang }))).filter((x) => cleMot(x.mot));
+  const fichee = motsLus(texteDuCorps(fiche)).filter((m) => cleMot(m));
+  for (let i = 0; i < Math.max(script.length, fichee.length); i++) {
+    if (script[i] && fichee[i] && cleMot(script[i].mot) === cleMot(fichee[i])) continue;
+    const ligne = script[i]?.ligne ?? script.at(-1)?.ligne ?? 1;
+    return `Ligne ${ligne} : votre script dit « ${script[i]?.mot ?? "(rien)"} », la fiche dit « ${fichee[i] ?? "(rien)"} ». Vérifiez le script.`;
+  }
+  return null;
 }
 
 /** Son WAV rangé sous `cle`, lu par l'outil `lireSon` ; `null` : outil absent, son illisible ou pas en WAV (rien à mesurer). */
@@ -608,7 +663,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
 
   // 2. Relecture : un refus arrête avant toute voix.
   const script = !entrees.ficheCle && o.scriptValide ? o.scriptValide : null;
-  const { fiche, remarquesScript, avertissementsScript } = await etape("fiche", empreinte("fiche", brute, cas, reseaux, controleRegles, script ? "script-valide" : "ecrite", !!ctx.exigerScriptValide), async () => {
+  const { fiche, remarquesScript, avertissementsScript } = await etape("fiche", empreinte("fiche", brute, cas, reseaux, controleRegles, script ? "script-valide" : o.texteFige ? "texte-fige" : "ecrite", !!ctx.exigerScriptValide), async () => {
     if (!reseaux.length) throw new ErreurFabricationCasConcret("fiche", ["Aucun réseau choisi : cochez au moins un réseau."]);
     if (!plan.fins.length) throw new ErreurFabricationCasConcret("fiche", plan.sansFin.length ? plan.sansFin.map((s) => s.raison) : ["Aucune fin possible pour ces réseaux."]);
     // V4-3 : un script validé refusé arrête la fabrication avec une phrase claire, suivie des refus exacts.
@@ -623,10 +678,16 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     // 08/11/2026 : le script de Will (validé, fourni ou modifié) fait foi : durée, accroche, tutoiement, mots à éviter… sont des
     // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
     const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
-    if (script) {
-      const t = validerFicheEcransTolerant(brute, ctxRegles, script.fourni === true);
+    // GV2-30 : un script FOURNI est dit tel quel : un mot différent entre le script et la fiche arrête AVANT toute voix (gratuit).
+    if (script?.fourni && script.texteFourni) {
+      const ecart = ecartAvecTexteFourni(script.texteFourni, cas, forme.fiche);
+      if (ecart) throw new ErreurFabricationCasConcret("fiche", [ecart]);
+    }
+    // GV2-30 : la retouche d'un texte du fondateur suit, comme lui, les règles tolérantes.
+    if (script || o.texteFige) {
+      const t = validerFicheEcransTolerant(brute, ctxRegles, script ? script.fourni === true : true);
       if (!t.ok) throw refus(t.problemes.map((p) => p.message));
-      return { fiche: t.fiche, remarquesScript: [...ecartsScriptValide(script, cas), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
+      return { fiche: t.fiche, remarquesScript: [...(script ? ecartsScriptValide(script, cas) : []), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
     }
     const v = validerFicheEcrans(brute, ctxRegles);
     if (!v.ok) throw refus(v.problemes.map((p) => p.message));
@@ -697,7 +758,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     ...v,
     faits: cas.faits,
     // Le script validé par Will est dit tel quel : aucune reformulation.
-    ...(script ? { texteFige: true } : {}),
+    ...(script || o.texteFige ? { texteFige: true } : {}),
     // Deux refus identiques sur la même phrase : arrêt expliqué, jamais une lecture payée de plus qui échouerait pareil.
     arretSiRefusIdentique: true,
     garderLaLectureSiRefus: true,
@@ -739,8 +800,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const corps = brutDe(finie.corps.prise, "corps");
     const sons = finie.fins.map((f) => {
       const son = brutDe(f.prise, f.id);
-      return { id: f.id, son, plan: planRaccordVoix(corps, son) };
+      // GV2-30 : heures de mots estimées : aucun resserrage, le son est gardé entier (sinon le plan normal, mêmes clés).
+      return { id: f.id, son, plan: corps.approximatif || son.approximatif ? planSonEntier(corps, son) : planRaccordVoix(corps, son) };
     });
+    const approximatif = !!corps.approximatif || sons.some((x) => !!x.son.approximatif);
     // V4-1 : une coupe ne tombe jamais en plein son (heure de fin du fournisseur trop tôt) : elle va dans le blanc mesuré.
     // Essai réel du 14/10 (v-f17775b9177a) : le son brut de HeyGen est un MP3, illisible pour la mesure ; aucune coupe
     // n'était replacée et une fin de mot était rognée (« coupée net à 24,57 s »). Le son brut est d'abord copié en WAV
@@ -770,8 +833,9 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       (e) => [corps.fichierCle, ...sons.map((x) => x.son.fichierCle)].every((cle) => e[cle]),
       async () => undefined,
     ) : {};
-    const blancsCorps = await blancsDe(v, mesurables[corps.fichierCle] ?? corps.fichierCle);
+    const blancsCorps = approximatif ? undefined : await blancsDe(v, mesurables[corps.fichierCle] ?? corps.fichierCle);
     for (const x of sons) {
+      if (approximatif) break;
       const blancsFin = await blancsDe(v, mesurables[x.son.fichierCle] ?? x.son.fichierCle);
       if (blancsCorps || blancsFin) x.plan = recalerCoupesSurSilences(x.plan, { corps: corps.mots, fin: x.son.mots }, { ...(blancsCorps ? { 0: blancsCorps } : {}), ...(blancsFin ? { 1: blancsFin } : {}) }, RECETTE_VOIX_CAS_CONCRET, REGLES_RECALAGE_CAS_CONCRET).plan;
     }
@@ -817,23 +881,38 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     // V4-1 : la dernière phrase est dite jusqu'au bout (son final mesuré, pas l'heure du fournisseur). 08/11/2026 : un défaut
     // n'arrête plus la vidéo, il est signalé à vérifier.
     const reservesFin: string[] = [];
+    if (approximatif) reservesFin.push("Voix sans heures des mots : sous-titres approximatifs, son gardé entier.");
+    let finIllisible = false;
     for (const f of fins) {
+      // GV2-30 : sans heures réelles, la fin de la dernière phrase ne peut pas être mesurée.
+      if (approximatif) break;
       const son = await sonDe(v, f.cle);
       const dernier = f.mots.at(-1);
-      if (!son || !dernier) continue;
+      if (!dernier) continue;
+      if (!son) {
+        // Le contrôle n'a pas pu se faire (son illisible) : dit une fois, jamais sauté en silence. Sans `lireSon`, rien à dire.
+        if (v.lireSon && !finIllisible) {
+          finIllisible = true;
+          reservesFin.push("Fin de voix non contrôlée (son illisible).");
+        }
+        continue;
+      }
       const verdict = controlerFinDeVoix(son, dernier.finSec);
       if (!verdict.ok) {
         const fin = plan.fins.find((x) => x.id === f.id);
         reservesFin.push(`Voix${fin && plan.fins.length > 1 ? ` de la fin pour ${nomsReseaux(fin.reseaux)}` : ""} · ${verdict.raison}`);
       }
     }
-    return { texteCorps: finie.corps.texte, reformule: finie.reformulations.length > 0, payees: finie.payees, rapport: rapportVoix(finie), fins, reservesFin };
+    return { texteCorps: finie.corps.texte, reformule: finie.reformulations.some((r) => r.avant !== r.apres), reformulations: finie.reformulations.filter((r) => r.avant !== r.apres).map((r) => ({ avant: r.avant, apres: r.apres })), payees: finie.payees, rapport: rapportVoix(finie), fins, reservesFin };
   });
   const coutCentimes = voix.payees.slice(payeesAvant).reduce((s, p) => s + p.coutCentimes, 0);
 
   // 5. Calage, fin par fin ; le corps finit au même instant pour toutes (ses écrans sont rendus une fois).
-  const reportee = voix.reformule ? reporterTexteDit(captures.fiche, voix.texteCorps) : captures.fiche;
-  if (!reportee) throw new ErreurFabricationCasConcret("calage", ["La phrase reformulée ne se répartit plus sur ses écrans : reprenez la fiche."]);
+  // GV2-30 : seule la phrase vraiment réécrite entre dans le texte écrit (jamais le texte de la voix entier, avec ses
+  // prononciations et ses points). Introuvable : le texte écrit reste tel quel et la réserve le dit.
+  const reportee0 = voix.reformule ? reporterPhrasesReformulees(captures.fiche, voix.reformulations ?? [], prononciations) : captures.fiche;
+  const reportee = reportee0 ?? captures.fiche;
+  const reserveReport = reportee0 ? [] : ["Une phrase reformulée par la voix n'a pas pu être reportée dans le texte écrit : les écrans gardent le texte écrit, écoutez la voix."];
   const calage = await etape("calage", empreinte("calage", reportee, plan.fins, voix.fins, prononciations), async () => {
     const parFin = plan.fins.map((f) => {
       const son = voix.fins.find((x) => x.id === f.id)!;
@@ -1088,6 +1167,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const variationDuMontage = choisi
     ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
     : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante)].filter((x) => Object.keys(x).length);
+  // GV2-30 : le bandeau est dessiné à 65 % de la hauteur, hors de la ligne des sous-titres (85 %) : il n'est plus jamais posé,
+  // avec ou sans style choisi. Les autres accents de la variation du tirage restent.
+  const variationTirage = choisi ? undefined : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante).variation;
+  const variationSansBandeau = { variation: { ...variationTirage, reglages: { ...variationTirage?.reglages, bandeauToutesLesSec: null } } };
   const emphase = [...new Set(calage.fiche.ecrans.flatMap(motsOrange))];
   const bruitagesDe = new Map<string, BruitagePlace[]>();
   const preparees = calage.fins.map((cf) => {
@@ -1099,12 +1182,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const bruitages = poserBruitages({ ecrans: [...calage.fiche.ecrans, ...f.ecrans], cales: [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales], mots: son.mots, dureeSec, valides: ctx.bruitagesValides, ...(mise && mise.tirage.bruitages.depart ? { graine: mise.tirage.bruitages.depart } : {}) });
     bruitagesDe.set(f.id, bruitages);
     const texteScript = `${texteDuCorps(calage.fiche)} ${f.ecrans.map((e) => e.texteDit.trim()).join(" ")}`;
+    // GV2-30 : les sous-titres reçoivent la même ponctuation de fin d'écran que la voix (aucun groupe ne mêle deux écrans),
+    // sans les prononciations. Le texte envoyé à la voix, lui, ne change pas.
+    const texteSousTitres = joindrePhrasesPourVoix([...calage.fiche.ecrans, ...f.ecrans].map((e) => e.texteDit));
     // Essai réel du 14/10 : sous-titres clairs illisibles sur l'ivoire ; la v4 les écrit en #15100c sur l'ivoire.
     const clairs = [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales].filter((e) => e.fond === "ivoire").map((e) => ({ debutSec: e.debutMs / 1000, finSec: e.finMs / 1000, texte: ENCRE_SOUS_TITRES_IVOIRE }));
-    const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage);
-    return { f, son, scenes, dureeSec, bruitages, texteScript, cle, clairs };
+    const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage, "sous-titres-gv2-30", baseSousTitres, texteSousTitres);
+    return { f, son, scenes, dureeSec, bruitages, texteScript, texteSousTitres, cle, clairs };
   });
-  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteScript, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...(choisi ? {} : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante)) });
+  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteSousTitres, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...variationSansBandeau });
   const montage = await etape("montage", empreinte("montage", preparees.map((x) => x.cle)), async () => {
     const faites: { id: string; sortieCle: string; masterCle?: string; vignetteCle: string; mesures: Record<string, number> }[] = [];
     for (const x of preparees) {
@@ -1122,7 +1208,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         prononciations,
       });
       const sons: Record<string, MediaCommande> = Object.fromEntries(ctx.bruitagesValides.filter((b) => x.bruitages.some((p) => p.elementId === b.elementId)).map((b) => [b.elementId, { cle: b.cle, mime: b.mime, dureeSec: b.dureeSec }]));
-      const commande = { ...c, medias: { ...c.medias, ...sons } };
+      // GV2-30 : la base choisie (Karaoké…) est celle de la commande, comme celle des groupes (`commande.ts` force « minimal »).
+      const commande = { ...c, medias: { ...c.medias, ...sons }, sousTitres: { intensite: "equilibre" as const, ...c.sousTitres, base: baseSousTitres } };
       const segments = sousTitresDe(x);
       const base: BaseComposition = {
         plans: plansDesScenes(x.scenes),
@@ -1232,6 +1319,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     reservesVoix: [
       ...(voix.rapport.corpsGardeMalgreRejet ? [`Voix · la phrase « ${voix.rapport.corpsGardeMalgreRejet.phrase} » est peut-être mal lue (${voix.rapport.corpsGardeMalgreRejet.detail}) : écoutez-la.`] : []),
       ...(voix.reservesFin ?? []),
+      ...reserveReport,
       ...(calage.ecarts ?? []),
     ],
     remarquesScript: remarquesScript ?? [],
