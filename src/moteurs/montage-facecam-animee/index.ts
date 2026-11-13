@@ -280,12 +280,22 @@ export function alertesSousTitresV4(c: ControleSousTitresV4 | undefined): Alerte
   ];
 }
 
+/** GV2-34 : niveau sonore visé du format (LUFS), celui que le rapport écrivait en dur. */
+const NIVEAU_VISE_LUFS_V4 = -14;
+
 /** Résultat d'une chaîne v4 finie : UNE vidéo 9:16, rangée par le studio comme celles des autres générateurs. PUR. */
 export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
   const r = etat.rendu;
   if (!r) throw new Error("chaîne v4 sans rendu");
   const simple = etat.realisation?.version === "simple";
   const filet = etat.realisation?.filetSimple === true;
+  // GV2-34 : le vrai niveau sonore et la vraie durée montée quand le rendu les a mesurés ; sans mesure (ancien état) : rapport d'avant.
+  const niveau = r.lufs !== undefined && Number.isFinite(r.lufs) ? r.lufs : undefined;
+  const dureePlan = etat.coupes?.dureeSec;
+  const mesures: AlerteQualite[] = [
+    ...(niveau !== undefined && Math.abs(niveau - NIVEAU_VISE_LUFS_V4) > 1 ? [{ code: "niveau-sonore" as const, gravite: "info" as const, message: `Niveau sonore mesuré : ${+niveau.toFixed(1)} LUFS (visé : ${NIVEAU_VISE_LUFS_V4}).` }] : []),
+    ...(r.dureeMonteeSec !== undefined && dureePlan !== undefined && Math.abs(r.dureeMonteeSec - dureePlan) > 2 / 30 + 1e-9 ? [{ code: "duree" as const, gravite: "info" as const, message: `Durée montée ${+r.dureeMonteeSec.toFixed(2)} s, différente du plan (${+dureePlan.toFixed(2)} s).` }] : []),
+  ];
   // Repli « sans vidéo » réussi : Will est prévenu que la mise en scène a été refaite sans vidéo d'illustration.
   const alertes = [
     // GV2-04 : dernier filet (le repli sans vidéo a échoué), la version simple est livrée avec une alerte « attention ».
@@ -293,10 +303,11 @@ export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
     ...(simple && !filet ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "Mise en scène simple (sans Claude)." }] : []),
     ...(etat.repliSansVideo?.fait && !filet ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "La mise en scène a été refaite sans vidéo d'illustration." }] : []),
     ...alertesSousTitresV4(etat.coupes?.controle),
+    ...mesures,
   ];
   const note = simple ? 80 : 90;
   return {
-    sorties: [{ ratio: "9:16", fichierCle: r.cle, vignetteCle: r.vignetteCle, resolution: RESOLUTIONS["9:16"], dureeSec: r.dureeSec, taille: r.taille, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: false }, alertes, niveauSonoreLufs: -14 } }],
+    sorties: [{ ratio: "9:16", fichierCle: r.cle, vignetteCle: r.vignetteCle, resolution: RESOLUTIONS["9:16"], dureeSec: r.dureeSec, taille: r.taille, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: false }, alertes, niveauSonoreLufs: niveau ?? NIVEAU_VISE_LUFS_V4 } }],
     noteQualite: { globale: note, alertes },
     lignesReelles: lignes("reel"),
     ...(etat.realisation?.plan.groupes.length ? { sousTitres: segmentsSrtV4(etat.realisation.plan.groupes, etat.realisation.plan.duree) } : {}),
