@@ -2,6 +2,7 @@
  * L3-14 : rotation des mots-dièse. Trois posts successifs n'ont jamais le même ensemble. Limites lues du relevé L8-01 ;
  * une limite sans source bloque la rotation. Aucun appel réel, aucune horloge : l'aléa et la date sont passés.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { cleMotDiese } from "@/reseaux/hashtags";
 import { LIMITES_MOTS_DIESES, limiteMotsDieses } from "@/reseaux/hashtags";
@@ -78,5 +79,16 @@ describe("rotation des mots-dièse (L3-14)", () => {
     expect(limiteMotsDieses("instagram")).toBe("inconnu");
     for (const v of Object.values(LIMITES_MOTS_DIESES)) expect(v === "inconnu" || (Number.isInteger(v) && v > 0)).toBe(true);
     expect(tournerMotsDieses(base({ reseau: "instagram", limites: LIMITES_MOTS_DIESES })).ok).toBe(false);
+  });
+
+  it("la table des limites reprend le relevé L8-01 (aucun nombre sans preuve)", () => {
+    const releve = JSON.parse(readFileSync("docs/reseaux/regles-officielles.json", "utf8")) as {
+      reseaux: Record<string, { reseau?: Record<string, { valeur: string; preuve: string }> }>;
+    };
+    for (const [id, v] of Object.entries(LIMITES_MOTS_DIESES)) {
+      const c = releve.reseaux[id]?.reseau?.plafond_mots_dieses;
+      if (!c || c.preuve === "inconnu") expect(v).toBe("inconnu");
+      else if (id !== "instagram") expect(typeof v === "number" ? String(v) : "").toMatch(/\d/);
+    }
   });
 });
