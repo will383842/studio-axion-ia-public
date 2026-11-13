@@ -152,11 +152,11 @@ export interface EntreeComposition {
 
 /**
  * Correcteur réel 2 (04/10) : durée du fondu de fin (au noir, image et son) : ce qui reste après le dernier mot, au plus
- * `maxSec` ; jamais avant le dernier mot. Undefined : aucun (fin en boucle, ou moins de 0,2 s après le dernier mot).
+ * `maxSec` ; jamais avant le dernier mot (GV2-37 : ni avant `margeSec` après lui, 0 par défaut). Undefined : aucun (fin en boucle, ou moins de 0,2 s après le dernier mot).
  */
-export function fonduDeFin(o: { dureeSec: number; dernierMotSec?: number; finEnBoucle: boolean; maxSec?: number }): number | undefined {
+export function fonduDeFin(o: { dureeSec: number; dernierMotSec?: number; finEnBoucle: boolean; maxSec?: number; margeSec?: number }): number | undefined {
   if (o.finEnBoucle || !o.maxSec || o.dernierMotSec === undefined) return undefined;
-  const d = Math.min(o.maxSec, o.dureeSec - o.dernierMotSec);
+  const d = Math.min(o.maxSec, o.dureeSec - o.dernierMotSec - (o.margeSec ?? 0));
   return d >= 0.2 ? +d.toFixed(3) : undefined;
 }
 
@@ -304,7 +304,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
     plans,
     reductionLarge: recette.reductionLarge,
   };
-  const fondu = fonduDeFin({ dureeSec: e.dureeSec, dernierMotSec: e.mots?.at(-1)?.finSec, finEnBoucle: c.reglages?.finEnBoucle === true, maxSec: recette.fonduFinMaxSec });
+  const fondu = fonduDeFin({ dureeSec: e.dureeSec, dernierMotSec: e.mots?.at(-1)?.finSec, finEnBoucle: c.reglages?.finEnBoucle === true, maxSec: recette.fonduFinMaxSec, margeSec: recette.fonduFinApresMotSec });
   if (fondu) image.fonduFinSec = fondu;
   // Facecam lot C : paramètres FACULTATIFS, posés seulement quand ils sont demandés (sinon, paramètres identiques).
   if (e.sourcePreCadree) image.sourcePreCadree = true;
