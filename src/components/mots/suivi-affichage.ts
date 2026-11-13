@@ -32,8 +32,13 @@ export interface TableauSuivi {
   lignes: LigneSuiviMot[];
 }
 
-/** Le chiffre des personnes gagnées est un plancher : jamais présenté comme un compte exact. */
+/** Passer à true écrit TOUS les comptes en « au moins N » (une seule ligne à changer). */
 export const AU_MOINS_PARTOUT = false;
+
+/** Un compte ordinaire : exact, ou « au moins N » si le réglage global est actif. */
+export function compteAffiche(n: number, partout: boolean = AU_MOINS_PARTOUT): string {
+  return partout ? `au moins ${n}` : String(n);
+}
 
 export function libelleGagnees(n: number): string {
   return n <= 0 ? "aucune vue pour l'instant" : `au moins ${n}`;
