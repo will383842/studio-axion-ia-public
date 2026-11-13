@@ -149,7 +149,7 @@ const MOIS = "janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre
 function documentaire(p: string): ChoixModeleTous | null {
   const date = new RegExp(String.raw`\b(?:(?:le\s+)?(\d{1,2}(?:er)?)\s+)?(${MOIS})\s+((?:19|20)\d{2})\b`, "i").exec(p) ?? /\ben\s+((?:19|20)\d{2})\b/i.exec(p);
   // Lieu : une préposition puis un nom propre (majuscule), éventuellement composé (« Saint-Étienne », « Aix-en-Provence »).
-  const lieu = /(?<![A-Za-zÀ-ÿ])(?:à|au|aux|en|dans le|dans la|près de|pr[eè]s d')\s+((?:[A-ZÀ-Ý][a-zà-ÿ'’]+)(?:[- ](?:sur|en|de|du|la|le|lès|les)?-?[A-ZÀ-Ý][a-zà-ÿ'’]+)*)/.exec(p);
+  const lieu = /(?<![A-Za-zÀ-ÿ])(?:[àÀ]|[Aa]ux?|[Ee]n|[Dd]ans le|[Dd]ans la|[Pp]rès de|[Pp]r[eè]s d')\s+((?:[A-ZÀ-Ý][a-zà-ÿ'’]+)(?:[- ](?:sur|en|de|du|la|le|lès|les)?-?[A-ZÀ-Ý][a-zà-ÿ'’]+)*)/.exec(p);
   if (!lieu || contientNomOuBandeau(lieu[1]) || new RegExp(`^(${MOIS})$`, "i").test(lieu[1])) return null;
   const sansDate = date ? p.slice(0, date.index) + " ".repeat(date[0].length) + p.slice(date.index + date[0].length) : p;
   const c = new RegExp(String.raw`(?<![\d,.A-Za-zÀ-ÿ])(\d+(?:[.,]\d+)?|(?:${MOTS_NOMBRES})(?![A-Za-zÀ-ÿ]))\s*${UNITE}`, "i").exec(sansDate);
