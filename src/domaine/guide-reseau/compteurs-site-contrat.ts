@@ -17,7 +17,9 @@
  *       "clics":       { "j7": 0, "j30": 0, "total": 0 } } ]
  * }
  * Une ligne = un grain (mot, reseau, postRef, versionTexte, cible) ; deux lignes de même grain → null.
- * Le mot passe par `normaliserMot` (un mot invalide → null). Les champs inconnus en plus sont ignorés et jamais gardés.
+ * Le mot doit être déjà sous la forme du Studio (`normaliserMot(mot) === mot` : A–Z et 0–9, 2 à 20, sans accents) : une ligne dont
+ * le mot est d'une autre forme (accents, 21 signes ou plus, chiffres seuls, mot d'arrêt) est IGNORÉE seule, sans rien rejeter d'autre,
+ * et comptée dans `lignesIgnorees`. Un mot qui n'est pas du texte reste une forme fausse (→ null). Les champs inconnus en plus sont ignorés et jamais gardés.
  * Agrégation côté Studio (sommes de lignes) : par mot = toutes les lignes ; par publication = lignes de même (mot, postRef),
  * `postRef` nul = « sans-publication » ; par version = lignes de même (mot, versionTexte non nul) pour les clics.
  */
@@ -54,6 +56,8 @@ export interface CompteursSite {
   readonly genereLe: string;
   /** Lignes validées, telles que le site les a données. */
   readonly lignes: readonly LigneSite[];
+  /** Lignes écartées une à une car leur mot n'est pas sous la forme du Studio. */
+  readonly lignesIgnorees: number;
   /** Clé = mot normalisé (somme de toutes ses lignes). */
   readonly mots: ReadonlyMap<string, CompteursMotSite>;
   /** Clé = JSON.stringify([mot, postRef ou "sans-publication"]) (total, sans fenêtre). */
@@ -100,9 +104,14 @@ export function lireCompteursSite(corps: unknown): CompteursSite | null {
     return null;
   const lignes: LigneSite[] = [];
   const grains = new Set<string>();
+  let lignesIgnorees = 0;
   for (const l of corps.lignes) {
-    if (!estObjet(l)) return null;
+    if (!estObjet(l) || typeof l.mot !== "string") return null;
     const mot = normaliserMot(l.mot);
+    if (mot === null || mot !== l.mot) {
+      lignesIgnorees++;
+      continue;
+    }
     const formulaires = fenetre(l.formulaires);
     const envois = fenetre(l.envois);
     const clics = fenetre(l.clics);
@@ -152,10 +161,22 @@ export function lireCompteursSite(corps: unknown): CompteursSite | null {
       versions.set(kv, (versions.get(kv) ?? 0) + l.clics.total);
     }
   }
-  return { genereLe: corps.genereLe, lignes, mots, publications, versions };
+  return {
+    genereLe: corps.genereLe,
+    lignes,
+    lignesIgnorees,
+    mots,
+    publications,
+    versions,
+  };
 }
 
 /** Forme sérialisable (copie en base) : le contrat se relit à la lecture de la copie. */
 export function compteursVersJson(c: CompteursSite): unknown {
   return { v: 1, genereLe: c.genereLe, lignes: c.lignes };
+}
+
+/** Copie en base : les compteurs au contrat, plus le nombre de lignes déjà écartées (non rejouable au contrat). */
+export function compteursVersCopie(c: CompteursSite): { compteurs: unknown; lignesIgnorees: number } {
+  return { compteurs: compteursVersJson(c), lignesIgnorees: c.lignesIgnorees };
 }

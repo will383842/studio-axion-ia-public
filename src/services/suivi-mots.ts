@@ -9,7 +9,7 @@
 import "server-only";
 import {
   CHEMIN_COMPTEURS_GUIDE_RESEAU,
-  compteursVersJson,
+  compteursVersCopie,
   lireCompteursSite,
   type CompteursSite,
 } from "@/domaine/guide-reseau/compteurs-site-contrat";
@@ -145,7 +145,12 @@ function lireMiroir(brut: unknown): { luLe: number; compteurs: CompteursSite } |
   if (!estObjet(brut) || typeof brut.luLe !== "number" || !Number.isFinite(brut.luLe))
     return null;
   const compteurs = lireCompteursSite(brut.compteurs);
-  return compteurs ? { luLe: brut.luLe, compteurs } : null;
+  if (!compteurs) return null;
+  const ignorees =
+    typeof brut.lignesIgnorees === "number" && Number.isSafeInteger(brut.lignesIgnorees) && brut.lignesIgnorees >= 0
+      ? brut.lignesIgnorees
+      : 0;
+  return { luLe: brut.luLe, compteurs: { ...compteurs, lignesIgnorees: ignorees } };
 }
 
 /** Compteurs du site : copie fraîche, sinon site, sinon copie (≤ 24 h), sinon null. Ne lève jamais. */
@@ -167,7 +172,7 @@ async function compteursDuSite(env: Env, now: number): Promise<CompteursSite | n
             try {
               await ecrireParametre(PARAM_SUIVI_MIROIR, {
                 luLe: now,
-                compteurs: compteursVersJson(c),
+                ...compteursVersCopie(c),
               });
             } catch {
               // Écriture de la copie impossible : même pause d'une minute avant de rappeler le site.
