@@ -2,13 +2,13 @@
  * LIA-D · transmission des oppositions dans le mode « un envoi par personne ET par mot » (réglage « plusieurs mots » allumé).
  * Preuves : (1) une opposition reçue pour UN mot vaut pour TOUS les mots et TOUS les réseaux de la personne ; (2) elle est transmise
  * au site/CRM par le chemin existant (`transmettreOppositions`, port et site FAUX) UNE seule fois, rejeu idempotent ; (3) rien n'est
- * supprimé (mise à l'écart seulement). Données 100 % fictives (example.test) ; aucun réseau, aucun envoi réel. Aucun src modifié.
+ * supprimé (mise à l'écart seulement). Données 100 % fictives (example.test) ; aucun réseau, aucun envoi réel. Une seule transmission PAR PERSONNE (clé = racine), quel que soit le nombre de mots.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleParcours } from "@/domaine/guide-reseau/cles-parcours";
-import { lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
-import { AUTEUR, banc, C, Com, COMPTE, depots, graineConv, MS, nettoyer, passer, pm, preparer, T0, toutesLesConversations } from "./filet-guide/_amorce";
+import { cleIdempotenceOpaque, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
+import { AUTEUR, banc, C, Com, COMPTE, depots, graineConv, MS, nettoyer, passer, pm, preparer, T0, toutesLesConversations, toutLeStockage } from "./filet-guide/_amorce";
 import { ADRESSE_FICTIVE, cleConversation, deposerCommentaire, deposerMessage, ENV, evenement } from "./aides/conversation";
 import { CHEMIN_OPP, H, MIN, lectureParMessage, siteDouble } from "./aides/oppositions";
 
@@ -51,8 +51,7 @@ const lireAdresse = () => lectureParMessage(banc.port, { [MSG_ADRESSE]: `Mon adr
 const transmettre = (ms = T0) => OT.transmettreOppositions({ port: banc.port.port, env: ENV, maintenantMs: ms });
 const file = () => Com.lireParametre<Record<string, any>>(OT.PARAM_OPPOSITIONS_FILE, {});
 const compter = () => ({ pub: banc.port.pub.length, prive: banc.port.prive.length, envoyes: banc.port.envoyes.length });
-const stockage = async (): Promise<string> =>
-  JSON.stringify([await depots().parametres.lister(() => true), await depots().evenements.lister(() => true), await depots().evenementsFournisseurs.lister(() => true)]);
+const journalTexte = async (): Promise<string> => JSON.stringify([await depots().evenements.lister(() => true)]);
 
 beforeEach(async () => {
   await preparer();
@@ -95,6 +94,12 @@ describe("LIA-D · une opposition vaut pour TOUS les mots et TOUS les réseaux",
       expect(r.decision).toEqual({ action: "silence", raison: "oppose" });
     }
     expect(JSON.stringify(await toutesLesConversations())).toBe(avant);
+    // un commentaire reçu APRÈS COUP (par le service) reste lui aussi en silence, sans envoi
+    const avantEnvois = compter();
+    const evt = await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-apres-coup", motSeul: "GUIDE", ageMs: 500, reseau: "instagram" });
+    await passer(T0 + 2 * MIN);
+    expect(String((await evenement(depots, evt)).charge.etat)).toBe("silence");
+    expect(compter()).toEqual(avantEnvois);
   });
 
   it("par le service : après « STOP », un commentaire GUIDE sur chaque réseau ne produit aucun envoi", async () => {
@@ -118,29 +123,29 @@ describe("LIA-D · une opposition vaut pour TOUS les mots et TOUS les réseaux",
     await Opp.enregistrerOpposition(AUTEUR, "zernio-conversation", { env: ENV });
     lireAdresse();
     await transmettre(T0);
-    expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
+    expect(cl).toHaveLength(3);
+    expect(Object.keys(await file())).toEqual([R()]);
   });
 });
 
 describe("LIA-D · transmission au site/CRM par le chemin existant : une seule fois, rejeu idempotent", () => {
-  it("une entrée de file par parcours ; chaque entrée est envoyée UNE fois, avec sa propre clé d'idempotence, corps strict signé", async () => {
-    const cl = await semerDossier();
+  it("UNE entrée de file par PERSONNE (clé = racine) : un « stop » + trois mots = UN envoi, clé d'idempotence stable, corps strict signé", async () => {
+    await semerDossier();
     await recevoirStop();
-    expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
+    expect(Object.keys(await file())).toEqual([R()]);
     lireAdresse();
     const r = await transmettre();
-    expect(r.transmises).toBe(3);
+    expect(r.transmises).toBe(1);
     const corps = site.opp().map((x) => JSON.parse(x.corps));
-    expect(corps).toHaveLength(3);
-    expect(new Set(corps.map((c) => c.cleIdempotence)).size).toBe(3);
-    expect(corps.map((c) => c.reseau).sort()).toEqual(["facebook", "instagram", "instagram"]);
+    expect(corps).toHaveLength(1);
+    expect(corps[0].cleIdempotence).toBe(cleIdempotenceOpaque(cles().courante, "opposition", R()));
     for (const c of corps) expect(c).toMatchObject({ email: ADRESSE_FICTIVE, motif: "stop", schemaVersion: 1 });
     expect(site.opp().every((x) => x.chemin === CHEMIN_OPP)).toBe(true);
     expect(site.invalides).toEqual([]);
     expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
   });
 
-  it("rejeu : passages répétés, redémarrage du processus, nouvelle mise en file, rattrapage : toujours trois envois en tout", async () => {
+  it("rejeu : passages répétés, redémarrage du processus, nouvelle mise en file, rattrapage : toujours UN envoi en tout", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
@@ -154,34 +159,32 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     await mettreEnFileDossier(Object.entries(conv).map(([cle, e]) => ({ cle, etat: e })), cles().courante, T0 + 3 * H);
     await recevoirStop(); // le même « stop » arrive une seconde fois
     await transmettre(T0 + 4 * H);
-    expect(site.opp()).toHaveLength(3);
+    expect(site.opp()).toHaveLength(1);
     expect(JSON.stringify(await file())).toBe(avant);
   });
 
-  it("panne puis reprise : la même clé et les MÊMES octets sont rejoués, puis une seule réussite par parcours", async () => {
+  it("panne puis reprise : la même clé et les MÊMES octets sont rejoués, puis une seule réussite pour la personne", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
     site.reponseOpp = () => 500;
     await transmettre(T0);
-    expect(site.opp()).toHaveLength(3);
+    expect(site.opp()).toHaveLength(1);
     site.reponseOpp = () => 200;
     await transmettre(T0 + MIN + 1000);
-    expect(site.opp()).toHaveLength(6);
-    const premiers = site.opp().slice(0, 3).map((x) => x.corps).sort();
-    const seconds = site.opp().slice(3).map((x) => x.corps).sort();
-    expect(seconds).toEqual(premiers);
+    expect(site.opp()).toHaveLength(2);
+    expect(site.opp()[1].corps).toBe(site.opp()[0].corps);
     await transmettre(T0 + 3 * H);
-    expect(site.opp()).toHaveLength(6);
+    expect(site.opp()).toHaveLength(2);
     expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
   });
 
-  it("deux passages simultanés : trois envois, pas six", async () => {
+  it("deux passages simultanés : un seul envoi, pas deux", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
     await Promise.all([transmettre(T0), transmettre(T0)]);
-    expect(site.opp()).toHaveLength(3);
+    expect(site.opp()).toHaveLength(1);
   });
 
   it("l'adresse n'est jamais stockée : ni dans la file, ni dans la base, ni dans le journal", async () => {
@@ -189,7 +192,47 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     await recevoirStop();
     lireAdresse();
     await transmettre();
-    expect(await stockage()).not.toContain("example.test");
+    expect(site.opp()).toHaveLength(1);
+    expect(await toutLeStockage()).not.toContain("example.test");
+    expect(await journalTexte()).not.toContain("example.test");
+  });
+});
+
+describe("LIA-D · anciennes files « par parcours » et entrées déjà en file", () => {
+  const entreeAncienne = (cleIdempotence: string, reseau: string) => ({ cleIdempotence, reseau, creeLe: new Date(T0 - 2 * H).toISOString(), essais: 0, prochainEssaiLe: null, etat: "a_transmettre", dernierCode: null, depuis: new Date(T0 - 2 * H).toISOString(), lectures: 0 });
+
+  it("ancienne file indexée par PARCOURS : chaque entrée reste lue et transmise (aucune perte), aucune entrée n'est ajoutée ni supprimée", async () => {
+    const cl = await semerDossier();
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, Object.fromEntries(Object.entries(await toutesLesConversations()).map(([k, v]) => [k, { ...(v as object), etat: "oppose" }])));
+    await Com.ecrireParametre(OT.PARAM_OPPOSITIONS_FILE, Object.fromEntries(cl.map((c, i) => [c, entreeAncienne(`cle-ancienne-${i}`, MOTS[i].reseau)])));
+    lireAdresse();
+    const r = await transmettre(T0);
+    expect(r.transmises).toBe(3);
+    expect(new Set(site.opp().map((x) => JSON.parse(x.corps).cleIdempotence))).toEqual(new Set(["cle-ancienne-0", "cle-ancienne-1", "cle-ancienne-2"]));
+    expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
+    expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
+    await recevoirStop();
+    await transmettre(T0 + 2 * H);
+    expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
+    expect(site.opp()).toHaveLength(3);
+  });
+
+  it("une entrée déjà en file pour la personne (ancienne, par parcours) n'est pas dupliquée par un nouveau « stop »", async () => {
+    const cl = await semerDossier();
+    await Com.ecrireParametre(OT.PARAM_OPPOSITIONS_FILE, { [cl[1]]: entreeAncienne("cle-ancienne-seule", "facebook") });
+    await recevoirStop();
+    expect(Object.keys(await file())).toEqual([cl[1]]);
+  });
+
+  it("entrée à la clé nue (format d'avant LIA-C) : transmise avec son adresse relue, une fois", async () => {
+    await semerDossier();
+    await Com.ecrireParametre(OT.PARAM_OPPOSITIONS_FILE, { [R()]: entreeAncienne("cle-nue", "instagram") });
+    await recevoirStop();
+    lireAdresse();
+    await transmettre(T0);
+    await transmettre(T0 + 2 * H);
+    expect(site.opp().map((x) => JSON.parse(x.corps).cleIdempotence)).toEqual(["cle-nue"]);
+    expect(Object.keys(await file())).toEqual([R()]);
   });
 });
 
@@ -211,20 +254,20 @@ describe("LIA-D · rien n'est supprimé : mise à l'écart seulement", () => {
     }
     const evenementsApres = (await depots().evenementsFournisseurs.lister(() => true)).map((e: any) => e.id).sort();
     expect(evenementsApres).toEqual(evenementsAvant);
-    expect(Object.keys(await file())).toHaveLength(3);
+    expect(Object.keys(await file())).toEqual([R()]);
     expect((await Com.lireParametre<any[]>(Opp.PARAM_OPPOSITIONS_MOTS, [])).length).toBeGreaterThanOrEqual(1);
   });
 
   it("« stop » rejeté par le site (422) : l'entrée est GARDÉE (`refusee`), la personne reste écartée", async () => {
-    const cl = await semerDossier();
+    await semerDossier();
     await recevoirStop();
     lireAdresse();
     site.reponseOpp = () => 422;
     await transmettre();
     await transmettre(T0 + 7 * H);
-    expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
+    expect(Object.keys(await file())).toEqual([R()]);
     expect(Object.values(await file()).every((e) => e.etat === "refusee")).toBe(true);
-    expect(site.opp()).toHaveLength(3);
+    expect(site.opp()).toHaveLength(1);
     expect(Object.values(await toutesLesConversations()).every((c: any) => c.etat === "oppose")).toBe(true);
   });
 

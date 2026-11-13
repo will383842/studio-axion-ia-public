@@ -12,7 +12,7 @@
  *  - journal et alertes : des codes seulement, jamais d'adresse, de corps d'appel, d'empreinte ni de clé ; aucun `catch` n'en journalise.
  */
 import "server-only";
-import { aliasDe, racineDe } from "@/domaine/guide-reseau/cles-parcours";
+import { aliasDe, dossierDe, racineDe } from "@/domaine/guide-reseau/cles-parcours";
 import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { cleIdempotenceOpaque, lireClesEmpreinte, type CleEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { ATTENTES_INTROUVABLE_MS, ATTENTES_PANNE_LECTURE_MS, voiesOpposition, type Conversation } from "@/domaine/guide-reseau/machine-conversation";
@@ -128,14 +128,27 @@ export async function mettreEnFileOpposition(cle: string, conv: Pick<Conversatio
   const voies = voiesOpposition(conv);
   if (voies.page) await mettreEnFileOppositionPage(cle, conv, cles, maintenantMs ?? Date.now());
   if (!voies.adresse) return;
-  const cleIdempotence = cleIdempotenceOpaque(cles, "opposition", cle);
+  // UNE entrée par PERSONNE : indexée par la racine (la clé nue de l'ancien format), quel que soit le nombre de mots.
+  const racine = racineDe(cle);
+  const cleIdempotence = cleIdempotenceOpaque(cles, "opposition", racine);
   const now = maintenantMs ?? Date.now();
   await sousVerrou(async () => {
     const f = await lireFile();
-    if (f[cle]) return;
+    // Déjà en file pour cette personne (entrée à la racine, ou ancienne entrée « par parcours ») : jamais dupliquée.
+    if (Object.keys(f).some((k) => racineDe(k) === racine)) return;
     const entree: EntreeOpposition = { cleIdempotence, reseau: conv.reseau, creeLe: iso(now), essais: 0, prochainEssaiLe: null, etat: "a_transmettre", dernierCode: null, depuis: iso(now), lectures: 0 };
-    await ecrireParametre(PARAM_OPPOSITIONS_FILE, { ...f, [cle]: entree });
+    await ecrireParametre(PARAM_OPPOSITIONS_FILE, { ...f, [racine]: entree });
   });
+}
+
+/**
+ * Enregistrement qui porte l'adresse d'une entrée de file : la clé elle-même (ancien format ou « par parcours »), sinon, pour une entrée
+ * « par personne » (clé = racine), un enregistrement du dossier dont l'adresse a été transmise (celui qui garde un message d'adresse d'abord).
+ */
+function conversationDeEntree(cle: string, conversations: Record<string, Conversation>): Conversation | undefined {
+  if (conversations[cle]) return conversations[cle];
+  const dossier = dossierDe(racineDe(cle), conversations).map((x) => x.etat);
+  return dossier.find((c) => typeof c.idMessageAdresse === "string" && c.idMessageAdresse) ?? dossier.find((c) => voiesOpposition(c).adresse && c.idMessageGuide) ?? dossier.find((c) => c.idMessageGuide);
 }
 
 const lireFilePage = (): Promise<FilePage> => lireParametre<FilePage>(PARAM_OPPOSITIONS_PAGE, {});
@@ -193,8 +206,9 @@ export async function rattraperOppositions(o: { env?: Env; maintenantMs?: number
   let ajoutees = 0;
   for (const [cle, c] of Object.entries(conversations)) {
     const voies = voiesOpposition(c);
-    if (!((voies.adresse && !f[cle]) || (voies.page && !fp[cle]))) continue;
     const racine = racineDe(cle);
+    const dejaEnFile = Object.keys(f).some((k) => racineDe(k) === racine);
+    if (!((voies.adresse && !dejaEnFile) || (voies.page && !fp[cle]))) continue;
     const d = entree(racine);
     const auRegistre = await empreintesOpposees([...d.empreintes], { env });
     if (!auRegistre && !d.oppose) continue;
@@ -268,7 +282,8 @@ async function traiterEntree(cle: string, port: PortInboxZernio, env: Env, now: 
   }
 
   // 1. Relire le message qui portait l'adresse : EN MÉMOIRE seulement.
-  const conv = (await lireParametre<Record<string, Conversation>>(PARAM_CONVERSATIONS, {}))[cle];
+  const conversations = await lireParametre<Record<string, Conversation>>(PARAM_CONVERSATIONS, {});
+  const conv = conversationDeEntree(cle, conversations);
   // Conversations d'avant le lot : seul `idMessageGuide` est connu (le message du guide portait l'adresse).
   const idMessage = conv?.idMessageAdresse ?? conv?.idMessageGuide ?? null;
   const evenement = idMessage ? (await depots().evenementsFournisseurs.lister((x) => x.type === "zernio.message" && x.charge.idMessage === idMessage))[0] : undefined;
@@ -322,7 +337,8 @@ async function traiterEntree(cle: string, port: PortInboxZernio, env: Env, now: 
   if (statut >= 200 && statut < 300) {
     const conversation = conv as Conversation;
     await fixer(cle, { etat: "transmise", prochainEssaiLe: null, dernierCode: code, depuis: iso(now) });
-    for (const forme of new Set([cle, ...(conversation.alias ?? [])])) await marquerTransmiseParEmpreinte(forme, { env }).catch(() => undefined);
+    const dossier = dossierDe(racineDe(cle), conversations).map((x) => x.etat);
+    for (const forme of new Set([cle, racineDe(cle), ...(conversation.alias ?? []), ...dossier.flatMap((c) => c.alias ?? [])])) await marquerTransmiseParEmpreinte(forme, { env }).catch(() => undefined);
     await journaliser("parcours_conversation", `Opposition : transmise (${code}).`);
     return true;
   }
