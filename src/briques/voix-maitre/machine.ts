@@ -38,6 +38,12 @@ import type { AudioBrut, AudioMaitre, PriseVoixMesuree, RapportRessemblanceVoix 
 export const ESSAIS_RENDU = 3;
 
 /**
+ * Séries de demandes neuves au-delà des `ESSAIS_RENDU` d'une phase (GV2-08) : une demande en échec reste gardée 24 h sous
+ * son identifiant ; la série suivante repart sous un identifiant neuf (`-s<série>`). Au-delà, l'erreur n'est plus réessayable.
+ */
+export const SERIES_RENDU_MAX = 3;
+
+/**
  * Lot R6 : durée des adresses signées du son données à l'aligneur (15 min). Il le lit dès qu'il prend la demande ; une
  * adresse périmée (file longue) revient « à refaire » et la demande suivante en porte une neuve.
  */
@@ -49,20 +55,20 @@ export type EtatVoixMaitre =
   /* CORRECTEUR 1 — B2 : voix lue et payée, son à ranger dans le stockage (`brut.copieEnAttente`). */
   | { phase: "a-copier"; brut: AudioBrut; texte: string; prises?: PriseVoixMesuree[] }
   /* 14/10, voix de référence : lecture rangée, à mesurer (`prises` : les lectures déjà mesurées de ce texte). */
-  | { phase: "a-mesurer"; brut: AudioBrut; texte: string; prises: PriseVoixMesuree[] }
-  | { phase: "mesure"; brut: AudioBrut; texte: string; prises: PriseVoixMesuree[]; demande: DemandeRendu; essai?: number }
+  | { phase: "a-mesurer"; brut: AudioBrut; texte: string; prises: PriseVoixMesuree[]; serie?: number }
+  | { phase: "mesure"; brut: AudioBrut; texte: string; prises: PriseVoixMesuree[]; demande: DemandeRendu; essai?: number; serie?: number }
   /* Toutes les lectures faites s'écartent de la référence : une nouvelle lecture payée (budget revérifié avant). */
   | { phase: "a-relire"; texte: string; prises: PriseVoixMesuree[] }
   /* Lot « calage » (02/10) : seulement quand l'aligneur est réel. */
   | { phase: "a-aligner"; brut: AudioBrut; texte: string; essai?: number }
   | { phase: "alignement"; brut: AudioBrut; texte: string; demande: DemandeAlignement; essai?: number }
-  | { phase: "a-analyser"; brut: AudioBrut }
-  | { phase: "analyse"; brut: AudioBrut; demande: DemandeRendu; essai?: number }
-  | { phase: "nettoyage"; brut: AudioBrut; coupures: Coupure[]; respirations: Intervalle[]; demande: DemandeRendu; essai?: number }
+  | { phase: "a-analyser"; brut: AudioBrut; serie?: number }
+  | { phase: "analyse"; brut: AudioBrut; demande: DemandeRendu; essai?: number; serie?: number }
+  | { phase: "nettoyage"; brut: AudioBrut; coupures: Coupure[]; respirations: Intervalle[]; demande: DemandeRendu; essai?: number; serie?: number }
   | { phase: "faite"; audio: AudioMaitre }
   /* 15/10 : son maître fait, prise `rang` du rapport de ressemblance à re-mesurer (mesure d'une version antérieure). */
-  | { phase: "a-remesurer"; audio: AudioMaitre; rang: number }
-  | { phase: "remesure"; audio: AudioMaitre; rang: number; demande: DemandeRendu; essai?: number };
+  | { phase: "a-remesurer"; audio: AudioMaitre; rang: number; serie?: number }
+  | { phase: "remesure"; audio: AudioMaitre; rang: number; demande: DemandeRendu; essai?: number; serie?: number };
 
 /** Ce que la sous-machine demande à son appelant (tout est injecté ; rien n'est lu ailleurs). */
 export interface OutilsVoixMaitre {
@@ -142,11 +148,17 @@ async function adresses(o: OutilsVoixMaitre, cleEntree: string, cleSortie: strin
   return { entree: /^https?:\/\//.test(entree) ? entree : `https://simulation.invalid${entree.startsWith("/") ? "" : "/"}${entree}`, depot };
 }
 
-async function soumettre(o: OutilsVoixMaitre, brut: AudioBrut, nom: "analyse" | "nettoyage", parametres: Record<string, unknown>, essai = 0): Promise<DemandeRendu> {
+/** Suffixe d'identifiant d'une série neuve de demandes (vide pour la série 0 : identifiants d'avant inchangés). */
+const suffixeSerie = (serie: number) => (serie > 0 ? `-s${serie}` : "");
+
+/** Dernière série ratée : l'erreur n'est plus réessayable. */
+const erreurSeriesEpuisees = () => new ErreurRendu({ code: "inconnu", reessayable: false, message: "Le traitement de la voix a échoué plusieurs fois." });
+
+async function soumettre(o: OutilsVoixMaitre, brut: AudioBrut, nom: "analyse" | "nettoyage", parametres: Record<string, unknown>, essai = 0, serie = 0): Promise<DemandeRendu> {
   const idBase = o.idBase;
   const sortieCle = o.cle(nom === "analyse" ? "analyse.json" : "audio-maitre.wav");
   const { entree, depot } = await adresses(o, brut.fichierCle, sortieCle, nom === "analyse" ? "application/json" : "audio/wav");
-  const demande: DemandeRendu = { idRendu: essai ? `${idBase}-${nom}-e${essai}` : `${idBase}-${nom}`, operation: "nettoyage-audio", file: "courte", entrees: { audio: entree }, sortie: { urlDepot: depot, cle: sortieCle }, parametres };
+  const demande: DemandeRendu = { idRendu: `${idBase}-${nom}${suffixeSerie(serie)}${essai ? `-e${essai}` : ""}`, operation: "nettoyage-audio", file: "courte", entrees: { audio: entree }, sortie: { urlDepot: depot, cle: sortieCle }, parametres };
   await o.rendu().soumettre(demande);
   return demande;
 }
@@ -157,12 +169,12 @@ const ressemblanceActive = (o: OutilsVoixMaitre) => !!o.ressemblance?.actif && !
 /** Empreinte de la demande de la `n`-ième lecture d'un même texte (1 = la première). */
 const empreinteDemande = (o: OutilsVoixMaitre, n: number) => `${o.empreinte()}#lecture-${n}`;
 
-async function soumettreMesure(o: OutilsVoixMaitre, brut: Pick<AudioBrut, "fichierCle">, n: number, essai = 0, remesure = false): Promise<DemandeRendu> {
+async function soumettreMesure(o: OutilsVoixMaitre, brut: Pick<AudioBrut, "fichierCle">, n: number, essai = 0, remesure = false, serie = 0): Promise<DemandeRendu> {
   // Re-mesure : autre fichier de sortie, autre identifiant (le service ne rend jamais l'ancienne mesure gardée).
   const suffixe = remesure ? `-v${VERSION_MESURE_VOIX}` : "";
   const sortieCle = o.cle(`mesure-voix${suffixe}-l${n}.json`);
   const { entree, depot } = await adresses(o, brut.fichierCle, sortieCle, "application/json");
-  const id = `${o.idBase}-${remesure ? "remesure" : "mesure"}${suffixe}-l${n}`;
+  const id = `${o.idBase}-${remesure ? "remesure" : "mesure"}${suffixe}-l${n}${suffixeSerie(serie)}`;
   const demande: DemandeRendu = { idRendu: essai ? `${id}-e${essai}` : id, operation: "nettoyage-audio", file: "courte", entrees: { audio: entree }, sortie: { urlDepot: depot, cle: sortieCle }, parametres: { mode: "mesure-voix", ...(o.mesureVoix ? { traitement: o.mesureVoix } : {}) } };
   await o.rendu().soumettre(demande);
   return demande;
@@ -229,14 +241,20 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
   }
   if (etat.phase === "a-remesurer") {
     const p = etat.audio.ressemblance!.prises[etat.rang];
-    return { ...etat, phase: "remesure", demande: await soumettreMesure(o, p, etat.rang + 1, 0, true) };
+    return { ...etat, phase: "remesure", demande: await soumettreMesure(o, p, etat.rang + 1, 0, true, etat.serie ?? 0) };
   }
   if (etat.phase === "remesure") {
     const e = await suivreRendu(o.rendu(), etat.demande);
     if (e.statut === "echec") {
       const essai = (etat.essai ?? 0) + 1;
-      if (!e.erreur.reessayable || essai > ESSAIS_RENDU) throw new ErreurRendu(e.erreur);
-      return { ...etat, essai, demande: await soumettreMesure(o, etat.audio.ressemblance!.prises[etat.rang], etat.rang + 1, essai, true) };
+      if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
+      // Trois essais ratés : série neuve (identifiant neuf), l'état de départ de la phase est RENDU (jamais levé, l'appelant
+      // le garde) ; au-delà de `SERIES_RENDU_MAX` séries, erreur non réessayable. La voix n'est jamais relue.
+      if (essai > ESSAIS_RENDU) {
+        if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
+        return { phase: "a-remesurer", audio: etat.audio, rang: etat.rang, serie: (etat.serie ?? 0) + 1 };
+      }
+      return { ...etat, essai, demande: await soumettreMesure(o, etat.audio.ressemblance!.prises[etat.rang], etat.rang + 1, essai, true, etat.serie ?? 0) };
     }
     if (e.statut !== "termine") return etat;
     const versionMesure = versionMesureDesMesures(e.mesures);
@@ -252,15 +270,19 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
     return suivante < 0 ? { phase: "faite", audio } : { phase: "a-remesurer", audio, rang: suivante };
   }
   if (etat.phase === "a-mesurer") {
-    return { ...etat, phase: "mesure", demande: await soumettreMesure(o, etat.brut, etat.prises.length + 1) };
+    return { ...etat, phase: "mesure", demande: await soumettreMesure(o, etat.brut, etat.prises.length + 1, 0, false, etat.serie ?? 0) };
   }
   if (etat.phase === "mesure") {
     const e = await suivreRendu(o.rendu(), etat.demande);
     const n = etat.prises.length + 1;
     if (e.statut === "echec") {
       const essai = (etat.essai ?? 0) + 1;
-      if (!e.erreur.reessayable || essai > ESSAIS_RENDU) throw new ErreurRendu(e.erreur);
-      return { ...etat, essai, demande: await soumettreMesure(o, etat.brut, n, essai) };
+      if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
+      if (essai > ESSAIS_RENDU) {
+        if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
+        return { phase: "a-mesurer", brut: etat.brut, texte: etat.texte, prises: etat.prises, serie: (etat.serie ?? 0) + 1 };
+      }
+      return { ...etat, essai, demande: await soumettreMesure(o, etat.brut, n, essai, false, etat.serie ?? 0) };
     }
     if (e.statut !== "termine") return etat;
     const mesure = mesureVoixDesMesures(e.mesures);
@@ -332,31 +354,40 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
   if (etat.phase === "a-analyser") {
     // Les respirations se reconnaissent dans le son : seulement s'il y a des blancs à raccourcir.
     const blancs = blancsLongs(etat.brut.mots, regles.seuilMs).map(({ debutSec, finSec }) => ({ debutSec, finSec }));
-    const demande = await soumettre(o, etat.brut, "analyse", { mode: "analyse", blancs });
-    return { phase: "analyse", brut: etat.brut, demande };
+    const demande = await soumettre(o, etat.brut, "analyse", { mode: "analyse", blancs }, 0, etat.serie ?? 0);
+    return { phase: "analyse", brut: etat.brut, demande, ...(etat.serie ? { serie: etat.serie } : {}) };
   }
   if (etat.phase === "analyse") {
     const e = await suivreRendu(o.rendu(), etat.demande);
     if (e.statut === "echec") {
       // Échec passager du conteneur : nouvelle demande (nouvel identifiant), 3 fois au plus, puis la boucle reprend la main.
       const essai = (etat.essai ?? 0) + 1;
-      if (!e.erreur.reessayable || essai > ESSAIS_RENDU) throw new ErreurRendu(e.erreur);
-      return { ...etat, essai, demande: await soumettre(o, etat.brut, "analyse", etat.demande.parametres, essai) };
+      if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
+      if (essai > ESSAIS_RENDU) {
+        if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
+        return { phase: "a-analyser", brut: etat.brut, serie: (etat.serie ?? 0) + 1 };
+      }
+      return { ...etat, essai, demande: await soumettre(o, etat.brut, "analyse", etat.demande.parametres, essai, etat.serie ?? 0) };
     }
     if (e.statut !== "termine") return etat;
     const respirations = intervallesDesMesures(e.mesures, "respiration");
-    const plan = calculerCoupures({ mots: etat.brut.mots, dureeSec: etat.brut.dureeSec, regles, respirations });
+    // GV2-08 : mots ESTIMÉS (sans heures réelles) : la queue n'est pas coupée, la dernière phrase ne peut pas être tranchée.
+    const plan = calculerCoupures({ mots: etat.brut.mots, dureeSec: etat.brut.dureeSec, regles, respirations }, { sansQueue: !!etat.brut.approximatif });
     const fonduMs = (regles.fonduMs[0] + regles.fonduMs[1]) / 2;
     // Correcteur réel 2 : silence de fin ajouté (vraie respiration ; l'avatar finit bouche fermée).
-    const demande = await soumettre(o, etat.brut, "nettoyage", { mode: "appliquer", fonduMs, coupures: plan.coupures.map(({ debutSec, finSec }) => ({ debutSec, finSec })), ...(plan.silenceFinSec > 0 ? { silenceFinSec: plan.silenceFinSec } : {}) });
-    return { phase: "nettoyage", brut: etat.brut, coupures: plan.coupures, respirations: plan.respirationsGardees, demande };
+    const demande = await soumettre(o, etat.brut, "nettoyage", { mode: "appliquer", fonduMs, coupures: plan.coupures.map(({ debutSec, finSec }) => ({ debutSec, finSec })), ...(plan.silenceFinSec > 0 ? { silenceFinSec: plan.silenceFinSec } : {}) }, 0, etat.serie ?? 0);
+    return { phase: "nettoyage", brut: etat.brut, coupures: plan.coupures, respirations: plan.respirationsGardees, demande, ...(etat.serie ? { serie: etat.serie } : {}) };
   }
   if (etat.phase === "nettoyage") {
     const e = await suivreRendu(o.rendu(), etat.demande);
     if (e.statut === "echec") {
       const essai = (etat.essai ?? 0) + 1;
-      if (!e.erreur.reessayable || essai > ESSAIS_RENDU) throw new ErreurRendu(e.erreur);
-      return { ...etat, essai, demande: await soumettre(o, etat.brut, "nettoyage", etat.demande.parametres, essai) };
+      if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
+      if (essai > ESSAIS_RENDU) {
+        if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
+        return { phase: "a-analyser", brut: etat.brut, serie: (etat.serie ?? 0) + 1 };
+      }
+      return { ...etat, essai, demande: await soumettre(o, etat.brut, "nettoyage", etat.demande.parametres, essai, etat.serie ?? 0) };
     }
     if (e.statut !== "termine") return etat;
     // Les instants réellement coupés (recalés sur un passage par zéro) font foi pour décaler les mots.
