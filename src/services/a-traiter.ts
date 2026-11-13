@@ -123,6 +123,35 @@ const estMotif = (v: unknown): v is Motif =>
   typeof v === "string" && (MOTIFS as readonly string[]).includes(v);
 const RE_ID = /^[A-Za-z0-9._:|-]{1,100}$/;
 
+/** Entrée complète : l'entrée de base + les champs facultatifs de la file manuelle LinkedIn/TikTok (ATR-A). */
+export type EntreeATraiterManuelle = EntreeATraiter &
+  Partial<
+    Pick<
+      CarteATraiter,
+      "idCompte" | "cible" | "titreCible" | "message" | "raisonSansMessage" | "copieLe"
+    >
+  >;
+const MESSAGES: readonly string[] = ["a_fabriquer", "indisponible"];
+const RAISONS_SANS_MESSAGE: readonly string[] = [
+  "tiktok_sans_message_prive",
+  "textes_non_valides",
+  "mot_en_pause",
+  "mot_inconnu",
+  "deja_traite_pour_ce_mot",
+];
+/** Champs facultatifs d'ATR-A : seules les valeurs sûres passent, le reste est simplement omis (la carte reste). */
+function champsManuels(e: EntreeATraiterManuelle): Partial<CarteATraiter> {
+  const t = typeof e.titreCible === "string" ? fabriquerExtrait(e.titreCible) : "";
+  return {
+    ...(typeof e.idCompte === "string" && RE_ID.test(e.idCompte) ? { idCompte: e.idCompte } : {}),
+    ...(typeof e.cible === "string" && RE_ID.test(e.cible) ? { cible: e.cible } : {}),
+    ...(t ? { titreCible: t } : {}),
+    ...(typeof e.message === "string" && MESSAGES.includes(e.message) ? { message: e.message } : {}),
+    ...(typeof e.raisonSansMessage === "string" && RAISONS_SANS_MESSAGE.includes(e.raisonSansMessage) ? { raisonSansMessage: e.raisonSansMessage } : {}),
+    ...(typeof e.copieLe === "string" && Number.isFinite(Date.parse(e.copieLe)) ? { copieLe: e.copieLe } : {}),
+  } as Partial<CarteATraiter>;
+}
+
 export type RefusEntree =
   | "id_invalide"
   | "reseau_inconnu"
@@ -133,7 +162,7 @@ export type RefusEntree =
 
 /** Construit une carte à partir d'un événement. Le kit refusé par le contrôle de sortie est laissé vide (la carte reste). */
 export function construireCarte(
-  e: EntreeATraiter,
+  e: EntreeATraiterManuelle,
   horodatage: string,
 ): { ok: true; carte: CarteATraiter } | { ok: false; code: RefusEntree } {
   if (!RE_ID.test(e.idEvenement ?? ""))
@@ -170,6 +199,7 @@ export function construireCarte(
       statut: "a_traiter",
       kit,
       ...(opposee ? { opposee: true } : {}),
+      ...champsManuels(e),
     },
   };
 }
@@ -216,7 +246,7 @@ function empreintesDeContact(
 
 /** Point d'entrée du futur crochet (comment.received signé). Idempotent par identifiant d'événement. */
 export async function enregistrerATraiter(
-  entree: EntreeATraiter,
+  entree: EntreeATraiterManuelle,
   o: { env?: Env; depot?: DepotATraiter } = {},
 ): Promise<ResultatEnregistrement> {
   if (!aTraiterActif(o.env ?? process.env))
