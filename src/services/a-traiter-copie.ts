@@ -1,7 +1,7 @@
 /**
  * À TRAITER (ATR-C) · « Copier » : rend un texte que l'opérateur colle À LA MAIN dans LinkedIn. JAMAIS d'envoi (aucun appel au port ni à Zernio) : on fabrique un texte, rien d'autre.
  * Un stop gagne partout : au moindre doute, rien n'est proposé.
- * Fenêtre restante, volontairement petite : une opposition inscrite au registre APRÈS le dernier recontrôle (juste avant l'écriture de la date) mais avant le rendu du texte n'est pas vue ; le texte rendu n'est jamais envoyé, seul l'opérateur le colle à la main.
+ * Fenêtre restante, volontairement petite : une opposition inscrite au registre APRÈS la dernière lecture de la carte et du registre (faite après l'écriture de la date, juste avant le rendu) n'est pas vue ; le texte rendu n'est jamais envoyé, seul l'opérateur le colle à la main.
  * Journaux sans texte, adresse, pseudo, identifiant de personne, jeton ni secret.
  */
 import "server-only";
@@ -13,7 +13,7 @@ import { GROUPES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
 import { ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
-import { aTraiterActif, noterCopieCarte, type DepotATraiter } from "./a-traiter";
+import { aTraiterActif, noterCopieCarte, relireCarteSousVerrou, type DepotATraiter } from "./a-traiter";
 import { extraitLisible, type CarteATraiter } from "./a-traiter-types";
 import { personneOpposeePartout } from "./oppositions-mots";
 import { formulationsValidees } from "./mots-service";
@@ -154,6 +154,15 @@ export async function copierMessageCarte(id: string, o: OptionsCopie = {}): Prom
     });
     if (!cumule) return refus(P_PLAFOND);
     if (!(await noterCopieCarte(id, date, { depot }))) return refus(P_STOP);
+    // Relecture sous le verrou LOCAL (hors `sousVerrou`) : un stop arrivé derrière l'écriture de la date est déjà passé ; carte opposée ou absente => rien n'est rendu.
+    const apres = await relireCarteSousVerrou(id, { depot });
+    if (!apres || apres.statut !== "a_traiter" || apres.opposee) return refus(P_STOP);
+    try {
+      const v = await personneOpposeePartout({ empreintes }, { env, douteBloque: true });
+      if (v.opposee) return refus(P_STOP);
+    } catch {
+      return refus(P_VERIF);
+    }
 
     // Rendu du texte (après l'écriture de la date)
     const texte = rendreTexteMp(choix.version, { mot, titre, lien });

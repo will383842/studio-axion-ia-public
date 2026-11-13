@@ -102,7 +102,7 @@ describe("copie sur le vrai dépôt persistant", () => {
     expect(c.copieLe).toBeUndefined();
   }, 2000);
 
-  it("un stop posé pendant l'écriture de la date : le stop reste (jamais annulé par une liste périmée)", async () => {
+  it("un stop posé pendant l'écriture de la date : le stop reste (jamais annulé par une liste périmée) et aucun texte n'est rendu", async () => {
     let n = 0;
     let stop: Promise<unknown> = Promise.resolve();
     const espion = {
@@ -113,9 +113,11 @@ describe("copie sur le vrai dépôt persistant", () => {
         return l;
       },
     };
-    await copier({ depot: espion });
+    const r = await copier({ depot: espion });
     await stop;
     expect(n).toBeGreaterThanOrEqual(3);
+    expect(r.ok).toBe(false);
+    expect(evenements).toEqual([]);
     expect((await lue()).opposee).toBe(true);
   }, 2000);
 
