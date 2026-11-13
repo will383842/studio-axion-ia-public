@@ -143,7 +143,8 @@ export const RESEAUX: DefinitionReseau[] = [
     codeClassement: CODES_RESEAU.facebook,
     ratios: ["9:16", "4:5", "1:1", "16:9"],
     ratioPrefere: "9:16",
-    dureeMaxSec: 180,
+    // Relevé L8-01, facebook.reseau.format_video (docs/reseaux/regles-officielles.json:385) : Reel 3 à 90 s, preuve secondaire (spec Zernio citant le guide Meta), à revérifier sur la page Meta.
+    dureeMaxSec: 90,
     export: { resolution: RES_VERTICALE, fps: 30, debitMbps: 10, codec: "h264" },
     niveauSonoreLufs: -14,
     zonesProtegees: { "9:16": { haut: 14, droite: 16, bas: 30, gauche: 6 } },

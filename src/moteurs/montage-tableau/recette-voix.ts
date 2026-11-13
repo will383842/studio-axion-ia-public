@@ -77,8 +77,12 @@ export interface PlanRecetteVoix {
   dureeResserreeSec: number;
   /** Durée du son final : resserré ÷ atempo, puis le silence de fin (s). */
   dureeSec: number;
-  /** Instant (son final) où commence le fondu de sortie. */
+  /** Instant (son final) où commence le fondu de sortie : jamais avant la fin du dernier mot + 0,12 s (GV2-16). */
   debutFonduSortieSec: number;
+  /** Durée du fondu de sortie (s) : au plus celle de la recette, moins si la parole gardée s'arrête vite ; 0 : pas de fondu. */
+  fonduSortieSec: number;
+  /** Silence ajouté à la fin (s) : celui de la recette, plus la queue manquante après le dernier mot (GV2-16). */
+  silenceFinSec: number;
 }
 
 type Ponctuation = "phrase" | "virgule" | "aucune";
@@ -90,6 +94,29 @@ function ponctuationDe(mot: string): Ponctuation {
 }
 
 const arrondi = (x: number) => +x.toFixed(4);
+
+/** Au plus tôt, le fondu de sortie commence 0,12 s après la fin du dernier mot (GV2-16). */
+const DELAI_FONDU_APRES_MOT_SEC = 0.12;
+
+/**
+ * Fin de la voix (PUR, GV2-16) : le fondu de sortie ne mord jamais le dernier mot. `dureeParole` : durée du son final
+ * avant le silence ; `queueGardeeSec` : queue réellement gardée après le dernier mot (son brut), bornée par la fin du
+ * fichier du fournisseur. La queue manquante est ajoutée au silence de fin pour que la durée après le dernier mot reste
+ * celle d'une queue complète. Queue complète : les valeurs d'avant, à l'identique.
+ */
+function finDeVoix(dureeParole: number, queueGardeeSec: number, recette: RecetteVoixTableau) {
+  const k = recette.filtres.atempo;
+  const { fonduSortieSec, silenceSec } = recette.fin;
+  const finDernierMot = dureeParole - queueGardeeSec / k;
+  const debut = Math.max(0, dureeParole - fonduSortieSec, finDernierMot + DELAI_FONDU_APRES_MOT_SEC);
+  const fondu = Math.max(0, Math.min(fonduSortieSec, dureeParole - debut));
+  const manque = Math.max(0, recette.resserrage.queueSec - queueGardeeSec) / k;
+  return {
+    debutFonduSortieSec: arrondi(debut),
+    fonduSortieSec: arrondi(fondu),
+    silenceFinSec: arrondi(silenceSec + manque),
+  };
+}
 
 /** Blanc visé après un mot, selon sa ponctuation. */
 export function blancApres(mot: string, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU): number {
@@ -129,7 +156,8 @@ export function planRecetteVoix(mots: readonly MotHorodate[], dureeBruteSec: num
     debut = suivant - avant;
   }
   const finParole = Math.max(finMot, mots.at(-1)!.finSec);
-  morceaux.push({ debutSec: debut, finSec: Math.min(fin, finParole + r.queueSec) });
+  const finDernierMorceau = Math.min(fin, finParole + r.queueSec);
+  morceaux.push({ debutSec: debut, finSec: finDernierMorceau });
 
   // Instant du son brut → instant du son resserré (avant atempo).
   const versResserre = (t: number): number => {
@@ -145,12 +173,33 @@ export function planRecetteVoix(mots: readonly MotHorodate[], dureeBruteSec: num
   const k = recette.filtres.atempo;
   const motsFinaux = mots.map((m) => ({ ...m, debutSec: arrondi(versResserre(m.debutSec) / k), finSec: arrondi(versResserre(m.finSec) / k) }));
   const dureeParole = dureeResserreeSec / k;
+  const finale = finDeVoix(dureeParole, finDernierMorceau - finParole, recette);
   return {
     morceaux: morceaux.map((m) => ({ debutSec: arrondi(m.debutSec), finSec: arrondi(m.finSec) })),
     mots: motsFinaux,
     dureeResserreeSec: arrondi(dureeResserreeSec),
-    dureeSec: arrondi(dureeParole + recette.fin.silenceSec),
-    debutFonduSortieSec: arrondi(Math.max(0, dureeParole - recette.fin.fonduSortieSec)),
+    dureeSec: arrondi(dureeParole + finale.silenceFinSec),
+    ...finale,
+  };
+}
+
+/**
+ * Plan SANS horodatage des mots (GV2-28, PUR) : un seul morceau (tout le fichier, `[0, durée]`), les filtres, le niveau
+ * sonore et le silence de fin de la recette, SANS fondu de sortie (on ne sait pas où finit le dernier mot). Aucun mot
+ * n'est recalé (`mots` vide) : l'appelant garde les mots estimés du fournisseur.
+ */
+export function planRecetteSansMots(dureeBruteSec: number, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU): PlanRecetteVoix {
+  if (!Number.isFinite(dureeBruteSec) || dureeBruteSec <= 0) throw new Error("Durée de la voix illisible.");
+  const dureeParole = dureeBruteSec / recette.filtres.atempo;
+  const silenceFinSec = recette.fin.silenceSec;
+  return {
+    morceaux: [{ debutSec: 0, finSec: arrondi(dureeBruteSec) }],
+    mots: [],
+    dureeResserreeSec: arrondi(dureeBruteSec),
+    dureeSec: arrondi(dureeParole + silenceFinSec),
+    debutFonduSortieSec: arrondi(dureeParole),
+    fonduSortieSec: 0,
+    silenceFinSec,
   };
 }
 
@@ -164,9 +213,9 @@ export function parametresRecette(plan: PlanRecetteVoix, recette: RecetteVoixTab
     filtres: [`atempo=${f.atempo}`, f.passeHaut, f.compresseur, f.volume].join(","),
     // Porte de bruit : posée par `studio-rendu` juste avant la `loudnorm` (le dernier filtre).
     porte: { ...recette.porte },
-    fonduSortieSec: recette.fin.fonduSortieSec,
+    fonduSortieSec: plan.fonduSortieSec,
     debutFonduSortieSec: plan.debutFonduSortieSec,
-    silenceFinSec: recette.fin.silenceSec,
+    silenceFinSec: plan.silenceFinSec,
   };
 }
 
@@ -232,14 +281,18 @@ export function planRaccordVoix(corps: { mots: readonly MotHorodate[]; dureeSec:
   const motsFin = pf.mots.map((m) => ({ ...m, debutSec: arrondi((m.debutSec * k + departFin) / k), finSec: arrondi((m.finSec * k + departFin) / k) }));
   const dureeResserreeSec = morceaux.reduce((s, m) => s + (m.finSec - m.debutSec), 0);
   const dureeParole = dureeResserreeSec / k;
+  // Queue réellement gardée après le dernier mot de la phrase de fin (celui qui termine la voix).
+  const finParoleFin = Math.max(...fin.mots.map((m) => m.finSec));
+  const queueFin = Math.min(Math.max(fin.dureeSec, finParoleFin), finParoleFin + recette.resserrage.queueSec) - finParoleFin;
+  const finale = finDeVoix(dureeParole, queueFin, recette);
   return {
     morceaux: morceaux.map((m) => ({ ...m, debutSec: arrondi(m.debutSec), finSec: arrondi(m.finSec) })),
     mots: [...pc.mots, ...motsFin],
     motsCorps: pc.mots.length,
     raccordSec: arrondi((dureeCorps + silence) / k),
     dureeResserreeSec: arrondi(dureeResserreeSec),
-    dureeSec: arrondi(dureeParole + recette.fin.silenceSec),
-    debutFonduSortieSec: arrondi(Math.max(0, dureeParole - recette.fin.fonduSortieSec)),
+    dureeSec: arrondi(dureeParole + finale.silenceFinSec),
+    ...finale,
   };
 }
 

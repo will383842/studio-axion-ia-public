@@ -96,3 +96,39 @@ describe("fiche : « dite autrement » affiché sobrement, pas comme une alerte"
     expect(alertes.find((a) => /dite\(s\) autrement/.test(a.message))?.gravite).toBe("info");
   });
 });
+
+/** GV2-27 : la dernière phrase (ou une suite de phrases) dite autrement n'est plus jetée comme « fin » (sondes H et S1b). */
+describe("dite autrement aux bords (GV2-27, diteAutrementAuxBords)", () => {
+  const TEXTE_BORDS = ["Bonjour, je suis le fondateur d'Axion.", "Vos devis vous prennent trop de temps chaque semaine.", "Alors n'hésitez pas, appelez-nous dès aujourd'hui pour en parler."];
+  const prise = (apres?: string) => [
+    ...dire(TEXTE_BORDS[0], 2, 5),
+    ...dire(TEXTE_BORDS[1], 5.6, 9.5),
+    ...dire("Vite, contactez-nous dès aujourd'hui pour en parler.", 10, 13),
+    ...(apres ? dire(apres, 13.3, 15) : []),
+  ];
+  const texte = TEXTE_BORDS.join(" ");
+  const garde = (plan: ReturnType<typeof calculerCoupes>, t: number) => plan.gardes.some((g) => t >= g.debutSec && t <= g.finSec);
+
+  it("par défaut, la dernière phrase dite autrement est jetée en fin (état d'aujourd'hui)", () => {
+    const plan = calculerCoupes({ mots: prise(), dureeSec: 16, texteValide: texte });
+    expect(plan.phrases[2].diteAutrement).toBeUndefined();
+    expect(garde(plan, 11.5)).toBe(false);
+  });
+
+  it("avec l'option, elle est reconnue « dite autrement » et gardée, sans alerte", () => {
+    const mots = prise();
+    const plan = calculerCoupes({ mots, dureeSec: 16, texteValide: texte, regles: { diteAutrementAuxBords: true } });
+    expect(plan.phrases[2].diteAutrement).toBeDefined();
+    expect(garde(plan, 11.5)).toBe(true);
+    const ctrl = controlerCoupes(plan, mots);
+    expect(ctrl.phrasesManquantes).toEqual([]);
+    expect(ctrl.phrasesDitesAutrement).toEqual([2]);
+  });
+
+  it("un « Voilà, c'est bon, coupe » final reste jeté", () => {
+    const plan = calculerCoupes({ mots: prise("Voilà, c'est bon, coupe."), dureeSec: 16, texteValide: texte, regles: { diteAutrementAuxBords: true } });
+    expect(plan.phrases[2].diteAutrement).toBeDefined();
+    expect(garde(plan, 11.5)).toBe(true);
+    expect(garde(plan, 14.5)).toBe(false);
+  });
+});

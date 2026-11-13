@@ -113,7 +113,15 @@ export interface EntreeBruitagesIV {
    * pour que deux vidéos ne repartent pas de la même variante. Sans graine : comportement inchangé (départ à 0).
    */
   graine?: string;
+  /**
+   * Fin de la voix (s). Donnée : la clôture n'est jamais posée avant cette fin + `ECART_CLOTURE_APRES_VOIX_SEC`, pour ne pas
+   * masquer la chute de la dernière syllabe. Absente : comportement inchangé (clôture à `CLOTURE_AVANT_FIN_SEC` de la fin).
+   */
+  finVoixSec?: number;
 }
+
+/** Écart minimal entre la fin de la voix et la clôture (s). */
+export const ECART_CLOTURE_APRES_VOIX_SEC = 0.3;
 
 export interface RapportBruitagesIV {
   /** Changements visibles sans son à moins de `COUVERTURE_SEC` (doit rester vide : Q20). */
@@ -170,7 +178,7 @@ export function poserBruitagesIV(entree: EntreeBruitagesIV): ResultatBruitagesIV
   const voulues = [...entree.evenements].sort((a, b) => a.instantSec - b.instantSec || a.id.localeCompare(b.id)).flatMap(posesDe);
   const limite = entree.dureeSec - REGLES_BRUITAGES.pasDansDerniereSec;
   const gardees = voulues.filter((p) => p.debutSec < limite);
-  if (entree.dureeSec > CLOTURE_AVANT_FIN_SEC) gardees.push({ sorte: "cloture", debutSec: arrondi(entree.dureeSec - CLOTURE_AVANT_FIN_SEC), cle: "cloture" });
+  if (entree.dureeSec > CLOTURE_AVANT_FIN_SEC) gardees.push({ sorte: "cloture", debutSec: arrondi(Math.max(entree.dureeSec - CLOTURE_AVANT_FIN_SEC, (entree.finVoixSec ?? -Infinity) + ECART_CLOTURE_APRES_VOIX_SEC)), cle: "cloture" });
 
   const declencheursSansSon = [...new Set(gardees.map((p) => DECLENCHEUR_IV[p.sorte]).filter((d) => !parDeclencheur.has(d)))].sort();
   const possibles = gardees

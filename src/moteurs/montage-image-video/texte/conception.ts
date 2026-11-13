@@ -61,6 +61,11 @@ export interface EntreeConception {
   /** Réseaux visés (indicatif, transmis tel quel à la conception). */
   reseaux?: readonly string[];
   plafond?: PlafondConception;
+  /**
+   * Mode « script collé » (facultatif, absent = mode texte). Un schéma « inconnu » ne refuse alors plus : une carte minimale
+   * faite des phrases du script est rendue. À renseigner depuis `demande.scriptColle` par l'appelant (fabrication.ts, hors liste de cette fiche).
+   */
+  scriptColle?: boolean;
 }
 
 /** Outils branchés par le service : les mêmes que la lecture d'image (appel et réservation), sans conversion d'image. */
@@ -155,6 +160,46 @@ export function refusTexte(texte: unknown): { motif: MotifRefusConception; messa
   return null;
 }
 
+// ─── Carte minimale d'un script collé ──────────────────────────────────────────────────────────────────────────────────
+
+const ETAPES_MINIMALES_MAX = 5;
+
+/** Les phrases du script, mots inchangés (blancs normalisés). */
+const phrasesDuScript = (texte: string) => texte.normalize("NFC").replace(/\s+/g, " ").trim().match(/[^.!?…]+(?:[.!?…]+|$)/g)?.map((p) => p.trim()).filter((p) => /[\p{L}\p{N}]/u.test(p)) ?? [];
+
+/** Coupe un libellé trop long entre deux mots (le texte d'écran reste lisible). */
+const libelleCourt = (t: string, max = 70) => (t.length <= max ? t : t.slice(0, max).replace(/\s+\S*$/, ""));
+
+/**
+ * Carte minimale d'un script SANS automatisation (conseils, opinion) : une étape par phrase clé (5 au plus, 3 au moins),
+ * reliées en chaîne. La suite la traite comme une carte normale, les écrans sont en texte seul. PUR, aucun appel.
+ */
+export function lectureMinimaleDuScript(texte: string): LectureImage {
+  let phrases = phrasesDuScript(texte);
+  if (!phrases.length) phrases = [net(texte)];
+  // Les phrases clés : réparties sur tout le script, la première et la dernière toujours gardées.
+  const n = Math.min(ETAPES_MINIMALES_MAX, phrases.length);
+  const cles = n <= 1 ? phrases : Array.from({ length: n }, (_, k) => phrases[Math.round((k * (phrases.length - 1)) / (n - 1))]!);
+  while (cles.length < BLOCS_MIN) cles.push(cles[cles.length - 1] ?? net(texte));
+  const noeuds = cles.map((p, k) => ({
+    id: `phrase-${k + 1}`,
+    libelle: libelleCourt(p),
+    detail: "",
+    role: k === 0 ? ("declencheur" as const) : k === cles.length - 1 ? ("resultat" as const) : ("etape" as const),
+    icone: "",
+    couleur: "neutre" as const,
+    acteur: "inconnu" as const,
+    groupe: "",
+    ordre: k + 1,
+    quantite: null,
+    sousElements: [],
+    exemple: false,
+    photoPersonnes: false,
+  }));
+  const liens = noeuds.slice(1).map((x, k) => ({ id: `lien-${k + 1}`, de: noeuds[k]!.id, vers: x.id, etiquette: "", part: null, couleur: "neutre" as const, style: "plein" as const }));
+  return { type: "inconnu", titre: libelleCourt(cles[0]!, 60), sousTitre: "", phraseChoc: libelleCourt(cles[cles.length - 1]!), signature: "", noeuds, liens, groupes: [], bandeau: [], pied: [] };
+}
+
 // ─── Conception ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export async function concevoirWorkflow(entree: EntreeConception, outils: OutilsConception): Promise<ResultatConception> {
@@ -198,6 +243,8 @@ export async function concevoirWorkflow(entree: EntreeConception, outils: Outils
       if (rep.stopReason === "max_tokens") { dernier = "réponse coupée"; continue; }
       const v = schemaLectureImage.safeParse(brut);
       if (!v.success) { dernier = "forme illisible"; continue; }
+      // Mode script collé : le script de Will est gardé tel quel, jamais refusé pour son sujet (carte minimale de ses phrases).
+      if (v.data.type === "inconnu" && !v.data.noeuds.length && entree.scriptColle === true) v.data = lectureMinimaleDuScript(texte);
       if (v.data.type === "inconnu" && !v.data.noeuds.length) {
         return refus("hors-sujet", "Je n'y vois pas d'automatisation à schématiser : décrivez ce qui se déclenche, ce que l'IA ou l'outil fait, et le résultat attendu.", appels);
       }
