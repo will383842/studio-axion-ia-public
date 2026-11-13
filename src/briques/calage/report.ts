@@ -11,6 +11,7 @@
  * Le texte de Will n'est jamais modifié : seule la voix entend la substitution.
  */
 import { motsSousTitres } from "@/domaine/derivations";
+import { ponctuerPhrase } from "@/domaine/voix-phrases";
 import type { MotHorodate } from "@/domaine/types";
 
 export interface SegmentTexte {
@@ -68,6 +69,23 @@ export function motsValidesDe(segments: SegmentTexte[]): MotValide[] {
 }
 
 /**
+ * GV2-37 : le dernier mot prononcé de chaque segment reçoit une ponctuation de fin (point si rien, point à la place d'une
+ * virgule ou de deux-points), pour que la voix termine chaque phrase. Le mot visé est le dernier du groupe qui contient
+ * le dernier mot validé du segment ; si ce groupe déborde sur le segment suivant (prononciation à cheval), rien n'est
+ * ajouté ici. Les heures ne changent pas : `normaliser` retire la ponctuation.
+ */
+function ponctuerFinsDeSegments(segments: SegmentTexte[], motsValides: MotValide[], motsPrononces: string[], groupes: Groupe[]): void {
+  for (const s of segments) {
+    let dernier = -1;
+    for (const m of motsValides) if (m.segmentId === s.id) dernier = m.index;
+    if (dernier < 0) continue;
+    const g = groupes.find((x) => x.debut <= dernier && dernier < x.fin);
+    if (!g || g.fin - 1 > dernier || g.finPrononce <= g.debutPrononce) continue;
+    motsPrononces[g.finPrononce - 1] = ponctuerPhrase(motsPrononces[g.finPrononce - 1]);
+  }
+}
+
+/**
  * Substitue les prononciations dans la suite des mots validés et garde la correspondance. Une prononciation peut
  * couvrir plusieurs mots (« 135 € ») ; la comparaison ignore la casse, les accents et la ponctuation, et la
  * ponctuation collée au dernier mot remplacé est gardée (« PV ? » → « pé vé ? ») pour que la voix l'entende.
@@ -112,9 +130,11 @@ export function preparerTexteVoix(segments: SegmentTexte[], prononciations: { mo
     const n = c.n;
     if (regle) {
       const dernier = motsValides[i + n - 1].mot;
-      const ponctuation = /[\s ]*[?!:;,.…»]+$/.exec(dernier)?.[0] ?? "";
+      // GV2-37 : la ponctuation peut être suivie de guillemets ou parenthèses fermants (« PV. » → « pé vé. »), remis derrière.
+      const ponctuation = /(?:[\s ]*[?!:;,.…]+)?(?:[\s ]*["”»)]+)?$/.exec(dernier)?.[0] ?? "";
+      const ouvrant = /^["“«(]+[\s ]*/.exec(dernier)?.[0] ?? "";
       const dit = [...regle.dit];
-      dit[0] = c.elision + dit[0];
+      dit[0] = ouvrant + c.elision + dit[0];
       dit[dit.length - 1] += ponctuation;
       groupes.push({ debut: i, fin: i + n, debutPrononce: motsPrononces.length, finPrononce: motsPrononces.length + dit.length });
       motsPrononces.push(...dit);
@@ -125,6 +145,7 @@ export function preparerTexteVoix(segments: SegmentTexte[], prononciations: { mo
       i++;
     }
   }
+  ponctuerFinsDeSegments(segments, motsValides, motsPrononces, groupes);
   return { texte: motsPrononces.join(" "), motsValides, motsPrononces, groupes };
 }
 
@@ -393,5 +414,6 @@ export function preparerTexteVoixDit(segments: SegmentTexte[], dits: Map<string,
       j = pj + 1;
     }
   });
+  ponctuerFinsDeSegments(segments, motsValides, motsPrononces, groupes);
   return { texte: motsPrononces.join(" "), motsValides, motsPrononces, groupes };
 }
