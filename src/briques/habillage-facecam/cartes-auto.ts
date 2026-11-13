@@ -429,7 +429,7 @@ function problemesSolutions(mots: MotCarte[], phrases: Phrase[], dureeVideo: num
     const b = bornes(mots[p.idx[0]].debutSec, mots[p.idx[p.idx.length - 1]].finSec, dureeVideo, r);
     sortie.push({
       ...b,
-      carte: { modele: "probleme-solution", donnees: { probleme: { titre: probleme, icone: "alerte" }, solution: { titre: solution, icone: iconePour(solution) ?? "coche-cercle" }, etiquetteSolution: "La vraie première étape", aSecSolution: rel(mots[p.idx[k]].debutSec, b.debutSec) } },
+      carte: { modele: "probleme-solution", donnees: { probleme: { titre: probleme, icone: "alerte" }, solution: { titre: solution, icone: iconePour(solution) ?? "coche-cercle" }, aSecSolution: rel(mots[p.idx[k]].debutSec, b.debutSec) } },
       raison: "un réflexe puis la bonne réponse",
       score: 6,
     });
@@ -455,6 +455,8 @@ function corrections(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r:
       const mot = texteDe(b.slice(v + 1).map((i) => mots[i]));
       const surTitre = `Pas ${texteDe(props[k].slice(pas + 1).map((i) => mots[i])).toLowerCase()}`;
       if (!porteDuSens(mot) || surTitre.split(/\s+/).length > 7) continue;
+      // Le sur-titre, sans le « Pas » de tête, doit dire quelque chose (au moins 2 mots qui portent du sens).
+      if (surTitre.split(/[\s'’]+/).slice(1).map(nu).filter((m) => m.length > 1 && !LIAISON.has(m)).length < 2) continue;
       const bb = bornes(mots[props[k][0]].debutSec, mots[b[b.length - 1]].finSec, dureeVideo, r);
       sortie.push({ ...bb, carte: { modele: "icone-mot", donnees: { surTitre, mot, icone: iconePour(mot) ?? "ampoule", aSec: rel(mots[b[v + 1]].debutSec, bb.debutSec) } }, raison: "une idée reçue corrigée", score: 5 });
       break;
