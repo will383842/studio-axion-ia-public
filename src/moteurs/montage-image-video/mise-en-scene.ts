@@ -102,6 +102,11 @@ export interface EntreeMiseEnSceneIV {
   graine?: string;
   /** GV-ST-03c : style de sous-titres choisi (celui de la demande) ; absent : charte duo, mesure d'avant. */
   styleSousTitres?: StyleChoisiIV;
+  /**
+   * GV2-29 : sous-titres écrits comme le script (signes, « œ ») et clôture au plus tôt 0,3 s après la voix. Posé seulement
+   * pour un état neuf (voix « voix-iv/3 ») : absent, la ligne d'une vidéo existante reste identique (même rendu, même clé).
+   */
+  texteEcrit?: true;
 }
 
 /** Ce que montre un plan : le composant qui le rend. */
@@ -624,10 +629,10 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
 
   // 10. Sous-titres mot à mot, mot fort orange.
   const forts: MotFort[] = plans.flatMap((p) => p.textes.flatMap((t) => [...t.matchAll(/\*([^*]+)\*/g)].map((m) => ({ debutSec: p.debut, finSec: p.fin, mot: m[1] }))));
-  const sousTitres = sousTitresIV(motsEcritsHorodates(fiche, fin, calage), { reseaux: entree.reseaux, motsForts: forts, ...(format === "4:5" ? { format } : {}) });
+  const sousTitres = sousTitresIV(entree.texteEcrit ? motsEcritsHorodates(fiche, fin, calage) : calage.voix, { reseaux: entree.reseaux, motsForts: forts, ...(format === "4:5" ? { format } : {}) });
 
   // 11. Bruitages (L4).
-  const poses = poserBruitagesIV({ evenements, dureeSec, finVoixSec: finVoix, valides: entree.bruitagesValides, ...(entree.graine !== undefined ? { graine: entree.graine } : {}) });
+  const poses = poserBruitagesIV({ evenements, dureeSec, ...(entree.texteEcrit ? { finVoixSec: finVoix } : {}), valides: entree.bruitagesValides, ...(entree.graine !== undefined ? { graine: entree.graine } : {}) });
 
   const chiffresDits = chiffresDitsDesEcrans();
   // 12. Queue de fin : du dernier mot des sous-titres (ce qui « parle » pour l'image figée) à la fin de la vidéo.
