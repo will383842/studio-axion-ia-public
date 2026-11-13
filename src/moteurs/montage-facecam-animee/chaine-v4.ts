@@ -123,7 +123,8 @@ export interface EtatChaineV4 {
    * (`repli-sans-video-v4.ts`). `fait` : le repli a réussi (pas de second repli) ; `essais` : appels Claude du repli.
    */
   repliSansVideo?: { retirees: PlaquetteRetireeV4[]; manques: string[]; elementsPrecedents: ElementV4Plan[]; fait?: boolean; essais?: number };
-  rendu?: { cle: string; vignetteCle: string; dureeSec: number; taille: number };
+  /** GV2-34 : `lufs`, `picVraiDbtp` et `dureeMonteeSec` sont les vraies mesures du rendu (absentes des anciens états : rapport d'avant). */
+  rendu?: { cle: string; vignetteCle: string; dureeSec: number; taille: number; lufs?: number; picVraiDbtp?: number; dureeMonteeSec?: number };
   /** GV2-04 : tours de suite sans réponse du service de montage (remis à 0 dès qu'il répond). */
   muets?: { rendu?: number };
   /** GV2-04 : début (ISO) de la panne du conteneur de transcription ou de repérage du visage (la file normale n'est jamais comptée). */
@@ -137,6 +138,8 @@ export interface OutilsChaineV4 {
   planScenes?: { appeler?: AppelClaude };
   /** GV-MD-03 : calage des animations sur le début du mot dit. ÉTEINT par défaut (absent ou faux : plan d'Opus inchangé, rendu des vidéos existantes identique). */
   calageAuMot?: boolean;
+  /** GV2-34 : fin douce (dernier passage prolongé, fondu de sortie du son). ÉTEINT par défaut (absent ou faux : coupes et filtre identiques à la répétition validée). */
+  finDouce?: boolean;
   /** Transcription horodatée au mot de la prise brute (temps de la prise). Lève `EnCoursChaineV4` tant qu'elle n'est pas finie. */
   transcrire(d: { priseCle: string; appelId: string }): Promise<{ mots: MotHorodate[]; dureeSec: number; largeurSource?: number; hauteurSource?: number }>;
   /**
@@ -157,7 +160,7 @@ export interface OutilsChaineV4 {
    */
   videos?(d: { videoId: string; plan: PlanFacecamAnimee; mots: MotTranscrit[] }): Promise<{ plan: PlanFacecamAnimee; fichiers: FichierVideoV4[]; manques: string[]; depenseUsd?: number; choix?: ChoixVideoV4[] }>;
   /** Rendu de la vidéo par le service de rendu (lève `EnCoursChaineV4` tant qu'il tourne). `videos` : fichiers d'illustration à envoyer avec la demande. */
-  rendre(d: { idRendu: string; priseCle: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; recadrage?: RecadrageV4; videos?: FichierVideoV4[] }): Promise<{ cle: string; vignetteCle: string; dureeSec: number; taille: number }>;
+  rendre(d: { idRendu: string; priseCle: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; recadrage?: RecadrageV4; videos?: FichierVideoV4[]; /** GV2-34 : seulement quand le réglage est allumé. */ finDouce?: boolean }): Promise<{ cle: string; vignetteCle: string; dureeSec: number; taille: number; lufs?: number; picVraiDbtp?: number; dureeMonteeSec?: number }>;
 }
 
 /** Un travail extérieur tourne encore : rien n'a changé, le même pas sera refait au passage suivant. */
@@ -236,16 +239,36 @@ export function recadrageVerticalV4(prise: { largeur: number; hauteur: number },
   };
 }
 
+/** GV2-34 : marge gardée après le dernier mot quand la fin douce est allumée (secondes). */
+export const MARGE_FIN_DOUCE_V4_SEC = 0.6;
+
+/** GV2-34 : borne arrondie VERS LE HAUT à la grille de 30 i/s ; jamais au-delà de la prise (alors la grille juste en dessous). PUR. */
+export function arrondiHautV4(finSec: number, dureePriseSec: number): number {
+  const haut = Math.ceil(finSec * GRILLE_V4 - 1e-6) / GRILLE_V4;
+  return haut <= dureePriseSec + 1e-9 ? haut : Math.floor(dureePriseSec * GRILLE_V4 + 1e-6) / GRILLE_V4;
+}
+
+/** GV2-34 : prolonge (jamais ne raccourcit) la dernière garde jusqu'à 0,6 s après le dernier mot, dans la limite de la prise. PUR. */
+export function prolongerFinV4<G extends { finSec: number }>(gardes: readonly G[], mots: readonly MotHorodate[], dureePriseSec: number): G[] {
+  if (!gardes.length || !mots.length) return [...gardes];
+  const dernierMot = Math.max(...mots.map((m) => m.finSec));
+  const derniere = gardes[gardes.length - 1];
+  const fin = Math.max(derniere.finSec, Math.min(dernierMot + MARGE_FIN_DOUCE_V4_SEC, dureePriseSec));
+  return [...gardes.slice(0, -1), { ...derniere, finSec: fin }];
+}
+
 /**
  * COUPES DE LA PRISE pour le rendu v4 (même calcul que la répétition générale validée, `outils/facecam-animee-v4/preparer-prise.ts`) :
  * `calculerCoupes` (silences, reprises, consignes) → intervalles gardés recalés sur la grille de 30 i/s → mots de la vidéo MONTÉE sur ces
  * intervalles (avec l'orthographe du texte dit quand Will l'a donné). PUR.
  */
-export function couperPriseV4(e: { mots: MotHorodate[]; dureeSec: number; texteValide?: string }): { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[]; controle: ControleSousTitresV4 } {
+export function couperPriseV4(e: { mots: MotHorodate[]; dureeSec: number; texteValide?: string; /** GV2-34 : fin douce, éteinte si absent. */ finDouce?: boolean }): { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[]; controle: ControleSousTitresV4 } {
   const texteValide = e.texteValide?.trim() || undefined;
-  const plan = calculerCoupes({ mots: e.mots, dureeSec: e.dureeSec, ...(texteValide ? { texteValide } : {}) });
+  const plan0 = calculerCoupes({ mots: e.mots, dureeSec: e.dureeSec, ...(texteValide ? { texteValide } : {}) });
+  // GV2-34 (réglage allumé seulement) : le dernier passage gardé va jusqu'à 0,6 s après le dernier mot quand la prise le permet.
+  const plan = e.finDouce ? { ...plan0, gardes: prolongerFinV4(plan0.gardes, e.mots, e.dureeSec) } : plan0;
   const mots = appliquerRecalages(e.mots, plan.recalages);
-  const gardes = plan.gardes.map((g) => ({ debutSec: Math.round(g.debutSec * GRILLE_V4) / GRILLE_V4, finSec: Math.round(g.finSec * GRILLE_V4) / GRILLE_V4, debutOrigine: g.debutSec, finOrigine: g.finSec })).filter((g) => g.finSec > g.debutSec);
+  const gardes = plan.gardes.map((g) => ({ debutSec: Math.round(g.debutSec * GRILLE_V4) / GRILLE_V4, finSec: e.finDouce && g === plan.gardes[plan.gardes.length - 1] ? arrondiHautV4(g.finSec, e.dureeSec) : Math.round(g.finSec * GRILLE_V4) / GRILLE_V4, debutOrigine: g.debutSec, finOrigine: g.finSec })).filter((g) => g.finSec > g.debutSec);
   const debuts: number[] = [];
   let cumul = 0;
   for (const g of gardes) {
@@ -526,7 +549,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
     case "coupes": {
       const t = etat.transcription;
       if (!t) return { ...etat, etape: "transcription" };
-      const coupes = couperPriseV4({ mots: t.mots, dureeSec: t.dureeSec, texteValide: etat.demande.texteValide });
+      const coupes = couperPriseV4({ mots: t.mots, dureeSec: t.dureeSec, texteValide: etat.demande.texteValide, ...(outils.finDouce ? { finDouce: true } : {}) });
       if (coupes.dureeSec < DUREE_MIN_SEC || !coupes.mots.length) throw new ErreurChaineV4("Après les coupes, il reste moins de 5 secondes de parole : la vidéo est trop courte pour être animée.", false);
       // Prise horizontale : cadre vertical fixe sur le visage (repérage extérieur repris au passage suivant tant qu'il tourne).
       let cadrage = etat.cadrage;
@@ -645,7 +668,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       }
       const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: etat.planScenes.plan } : etat.realisation.plan;
       const gardes = etat.coupes.gardes;
-      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}) }));
+      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}), ...(outils.finDouce ? { finDouce: true } : {}) }));
       return { ...etat, ...(etat.muets ? { muets: { ...etat.muets, rendu: 0 } } : {}), etape: "prete", rendu };
     }
     case "prete":
