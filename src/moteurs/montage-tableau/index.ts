@@ -573,7 +573,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, et
         dureeSec: r.dureeSec,
         ...(r.fin ? { fin: r.fin } : {}),
         ...(r.recetteVoix ? { recetteVoix: r.recetteVoix } : {}),
-        sorties: ordonnees.map((s) => ({ format: s.format, libelle: s.libelle, ratio: s.ratio, largeur: s.largeur, hauteur: s.hauteur, reseaux: s.reseaux, video: s.cles.video, vignette: s.cles.vignette, dureeSec: s.dureeSec })),
+        sorties: ordonnees.map((s) => ({ format: s.format, libelle: s.libelle, ratio: s.ratio, largeur: s.largeur, hauteur: s.hauteur, reseaux: s.reseaux, video: s.cles.video, vignette: s.cles.vignette, dureeSec: s.dureeSec, ...(s.sousTitres?.length ? { sousTitres: s.sousTitres } : {}) })),
         // Sorties demandées mais refusées (une autre est prête) : la vidéo est livrée sans elles, le rapport le dit.
         ...(r.manquantes?.length ? { manquantes: r.manquantes.map((m) => ({ format: m.format, libelle: m.libelle, etape: m.etape, raisons: m.raisons })) } : {}),
       },
