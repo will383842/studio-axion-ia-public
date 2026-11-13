@@ -5,6 +5,7 @@ import { activerMotLocalAction, mettreEnPauseAction, mettreEnPauseLocalAction, r
 import type { VueMots } from "@/services/mots-service";
 import type { EtatBranchement } from "@/services/branchements-zernio";
 import { EcranMots, type ServicesMots } from "./EcranMots";
+import type { TableauSuivi } from "./suivi-affichage";
 
 /** Les services de l'écran = les actions serveur de /mots (session exigée côté serveur). */
 export const SERVICES_MOTS: ServicesMots = {
@@ -18,7 +19,7 @@ export const SERVICES_MOTS: ServicesMots = {
   validerFormulation: validerFormulationAction,
 };
 
-export function EcranMotsConnecte({ vue, branchement, comptes }: { vue: VueMots; comptes: readonly string[]; branchement: EtatBranchement | null }) {
+export function EcranMotsConnecte({ vue, branchement, comptes, suivi, suiviIndisponible }: { vue: VueMots; comptes: readonly string[]; branchement: EtatBranchement | null; suivi?: TableauSuivi | null; suiviIndisponible?: boolean }) {
   const router = useRouter();
-  return <EcranMots vue={vue} services={SERVICES_MOTS} branchement={branchement} comptes={comptes} onChange={() => router.refresh()} />;
+  return <EcranMots vue={vue} services={SERVICES_MOTS} branchement={branchement} comptes={comptes} suivi={suivi} suiviIndisponible={suiviIndisponible} onChange={() => router.refresh()} />;
 }
