@@ -54,7 +54,7 @@ export function ListeARanger({ videos, versions }: { videos: { id: string; titre
                 <span className="line-clamp-2 font-semibold leading-snug text-texte">{v.titre}</span>
                 <span className="block text-xs text-texte-faible">{v.format}</span>
               </span>
-              <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-orange-doux px-3 text-sm font-semibold text-orange-vif">
+              <span className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent-doux px-3 text-sm font-semibold text-accent">
                 <Icone nom="archive" size={15} />
                 Ranger
               </span>
@@ -82,7 +82,7 @@ export function ListeARanger({ videos, versions }: { videos: { id: string; titre
                     router.refresh();
                   })
                 }
-                className="flex min-h-14 w-full items-center gap-3 rounded-champ border border-trait bg-surface-2 px-3 text-left hover:border-orange"
+                className="flex min-h-14 w-full items-center gap-3 rounded-champ border border-trait bg-surface-2 px-3 text-left hover:border-accent"
               >
                 <LogoReseau reseau={v.reseau} />
                 <span className="min-w-0 flex-1">

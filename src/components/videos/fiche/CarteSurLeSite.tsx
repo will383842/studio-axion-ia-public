@@ -70,7 +70,7 @@ export function CarteSurLeSite({ vue }: { vue: Extract<VueSurLeSite, { visible: 
 
         {vue.enLigne ? (
           <div className="space-y-3">
-            <a href={vue.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-orange-vif underline-offset-4 hover:underline">
+            <a href={vue.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-accent underline-offset-4 hover:underline">
               {TEXTES_SUR_LE_SITE_FICHE.enLigne}
             </a>
             <div className="flex flex-wrap gap-2">

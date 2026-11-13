@@ -4,6 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELAI_REDUCTION_MS, reductible } from "@/domaine/guide-reseau/machine-conversation";
+import { empreintePersonne, lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
 import { ADRESSE_FICTIVE, COMPTE, ENV, T0, cleConversation, fauxPort, silencerConsole } from "./aides/conversation";
 import { graineConv, lectureParMessage, siteDouble } from "./aides/oppositions";
 
@@ -271,5 +272,38 @@ describe("11 · une personne opposée n'est JAMAIS touchée (la preuve de l'oppo
     expect(await reduire()).toBe(0);
     expect(await lire(id)).toEqual(avant);
     expect((await conversations())[cle].idCommentaire).not.toBe("reduit");
+  });
+});
+
+describe("S2 · la réduction ne touche jamais une personne opposée dans un AUTRE espace", () => {
+  const opposerAilleurs = async () => {
+    const k = lireClesEmpreinte(ENV);
+    if (!k.ok) throw new Error("clés attendues");
+    await Com.ecrireParametre(OPP.PARAM_OPPOSITIONS_MOTS, [{ id: empreintePersonne(k.courante, "instagram", A), le: ilYa(40 * J), transmise: false }]);
+  };
+  it("opposée seulement sous « instagram », événement clos depuis plus de 30 jours : identifiants conservés", async () => {
+    await opposerAilleurs();
+    const id = await evenement({ ageMs: 40 * J, personne: A });
+    expect(await reduire()).toBe(0);
+    const e = await lire(id);
+    expect(e.charge.idAuteur).toBe(A);
+    expect(e.charge.idsReduitsLe).toBeUndefined();
+  });
+  it("même chose pour un message (expéditeur et conversation)", async () => {
+    await opposerAilleurs();
+    const id = await evenement({ type: "zernio.message", ageMs: 40 * J, personne: A, idConversation: A });
+    expect(await reduire()).toBe(0);
+    expect((await lire(id)).charge.idExpediteur).toBe(A);
+  });
+  it("registre illisible : rien n'est réduit (fermé), même pour une personne non opposée", async () => {
+    await Com.ecrireParametre(OPP.PARAM_OPPOSITIONS_MOTS, "illisible");
+    const id = await evenement({ ageMs: 40 * J, personne: A });
+    expect(await reduire()).toBe(0);
+    expect((await lire(id)).charge.idAuteur).toBe(A);
+  });
+  it("personne non opposée : la réduction se fait toujours", async () => {
+    const id = await evenement({ ageMs: 40 * J, personne: A });
+    expect(await reduire()).toBeGreaterThan(0);
+    expect((await lire(id)).charge.idAuteur).toBeNull();
   });
 });
