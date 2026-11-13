@@ -109,13 +109,15 @@ describe("recette · machine de la voix et chaîne", () => {
     expect(e.audio.recette).toEqual({ id: RECETTE_VOIX_TABLEAU.id, appliquee: true });
   });
 
-  it("repli : sans horodatage des mots, la voix brute est gardée et l'audio le dit", async () => {
+  it("repli (GV2-28) : sans horodatage des mots, la recette est soumise en un seul morceau, sans fondu, et l'audio le dit", async () => {
     const d = doubles(copie(ficheDemonstration));
     const outils = { ...d.outils.voix, idBase: "tb-essai", texte: () => "x", empreinte: () => "e", caler: () => false };
     const brut = { fichierCle: "studio/dev/brut.mp3", dureeSec: 8.5, mots: MOTS, coutCentimes: 3, fournisseur: "simulation", caracteres: 50, approximatif: "non-relie" as const };
-    const e = await avancerVoixTableau({ phase: "a-analyser", brut }, outils);
-    expect(d.soumises).toHaveLength(0);
-    expect(e).toMatchObject({ phase: "faite", audio: { fichierCle: "studio/dev/brut.mp3", mots: MOTS, recette: { appliquee: false, raison: REPLI_SANS_HORODATAGE } } });
+    let e: EtatVoixTableau = await avancerVoixTableau({ phase: "a-analyser", brut }, outils);
+    expect(d.soumises).toHaveLength(1);
+    expect(d.soumises[0]).toMatchObject({ operation: "nettoyage-audio", parametres: { mode: "recette", morceaux: [{ debutSec: 0, finSec: 8.5 }], fonduSortieSec: 0, silenceFinSec: 0.8 } });
+    e = await avancerVoixTableau(e, outils);
+    expect(e).toMatchObject({ phase: "faite", audio: { fichierCle: "studio/dev/brut.mp3", mots: MOTS, sousTitresApproximatifs: "non-relie", recette: { id: RECETTE_VOIX_TABLEAU.id, appliquee: true, partielle: true, raison: REPLI_SANS_HORODATAGE } } });
   });
 
   it("la chaîne lit à la vitesse 1,0, applique la recette, et le calage suit les mots recalés", async () => {
