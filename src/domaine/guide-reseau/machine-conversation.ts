@@ -27,6 +27,7 @@ export const CODES_BLOCAGE = ["INBOX_REQUIRED", "message_allowance_exceeded", "a
 
 export { ETATS_EN_COURS, type EtatParcours };
 /** Etats où un message privé de la personne est pris en compte. */
+const ETATS_IG_ATTENTE: readonly string[] = ["ig_attente_ok", "ig_pas_encore"];
 export const ETATS_MESSAGE_ACCEPTES: readonly EtatParcours[] = ["attente_email", "m1_a_verifier", "m1_en_vol", "m2_envoye", "ig_attente_ok", "ig_pas_encore"];
 
 /** État conservé par personne. JAMAIS : pseudo, texte, adresse, identifiant brut de personne ou de conversation (les alias sont des empreintes). `idCommentaire`, `idCompte` et `idPostPlateforme` restent bruts (commentaire, compte et publication de NOTRE côté). */
@@ -102,6 +103,8 @@ export interface Conversation {
   lienIgLe?: string;
   /** Identifiant OPAQUE du dernier message « OK » pris en compte (rejeu : sans effet). Jamais d'identifiant de personne. */
   idMessageOk?: string;
+  /** Date du dernier envoi tenté dont l'issue peut être inconnue (états « en vol » / « à vérifier ») : compté dans le plafond par personne. */
+  essaiEnvoiLe?: string;
   /** Lectures du suivi tombées en panne passagère pour ce parcours. */
   essaisSuivi?: number;
 }
@@ -149,7 +152,7 @@ export function m1AvecLien(v: string | null | undefined): boolean {
   if (v == null) return false;
   // Messages de renvoi avec lien : eux non plus ne déclenchent pas M2.
   // « lien-rappel » : appartenance au groupe du dictionnaire ; « déjà envoyé » : pas encore de groupe, on garde le préfixe.
-  return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || (GROUPES_MP["lien-rappel"] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-");
+  return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || (GROUPES_MP["lien-rappel"] as readonly string[]).includes(v) || (GROUPES_MP["ig-suivre"] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-");
 }
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
 export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee" | "version_inconnue_du_site";
@@ -161,7 +164,7 @@ export type EvenementMachine =
   | { t: "public"; res: ResultatEcritureInbox }
   | { t: "m1"; res: ResultatEcritureInbox; maintenantMs: number }
   | { t: "message"; idExpediteur: string | null; idCompte: string; idMessage: string; /** Message sortant / de notre compte (direction, isOwnAccount) : écho. */ sortant?: boolean }
-  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null }
+  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null; /** Instagram : le message ENTIER est un OK de la liste fermée (`estOkInstagram`). Absent = non reconnu. */ okIg?: boolean }
   | { t: "site"; conduite: Conduite; enCoursAvant: number }
   | { t: "orphelin"; essais: number }
   | { t: "texte_absent"; essais: number }
@@ -173,7 +176,7 @@ export type Action =
   | "prive" | "reessayer" | "terminer" | "bloquer"
   | "lire" | "lire_opposition" | "reprendre_recu" | "orphelin_reessai" | "orphelin_lire" | "texte_reessai" | "texte_ignore" | "texte_panne_reessai" | "introuvable_reessai" | "introuvable_clore"
   | "m2" | "demander_guide" | "guide_ok" | "site_reessai" | "site_refuse"
-  | "ig_ok";
+  | "ig_ok" | "ig_non_reconnu";
 
 export interface Sortie {
   action: Action;
@@ -253,8 +256,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
     case "texte": {
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
-      // Instagram « suivre le compte puis OK » : en attente du OK, tout message sans opposition ni doute est un OK (le service décide, rien ne part ici).
-      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return { action: "ig_ok" };
+      // Instagram « suivre le compte puis OK » : liste FERMÉE de OK. Tout autre message (sans opposition ni doute) : rien ne part (le service décide, rien ne part ici).
+      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
       // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
       if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && !m1AvecLien(etat.versionTexteM1) ? { action: "m2" } : { action: "silence", raison: "silence" };
@@ -463,6 +466,8 @@ export function choisirParcoursPourMessage(
   dossier: readonly EntreeParcours[],
   idMessage: string,
   idCompte: string,
+  /** Réglage Instagram allumé : les parcours Instagram en attente passent en premier. Éteint (défaut) : tri d'avant, ces états sont ignorés. */
+  igSuivre = false,
 ): { principal: EntreeParcours | null; tous: EntreeParcours[] } {
   const tous = dossier.filter((x) => x.etat.idCompte === idCompte);
   const recent = (l: readonly EntreeParcours[]): EntreeParcours | null =>
@@ -481,8 +486,8 @@ export function choisirParcoursPourMessage(
         x.etat.etat === "guide_demande" && x.etat.idMessageGuide === idMessage,
     ) ??
     // Un OK de la personne s'adresse d'abord aux parcours Instagram en attente (ces états n'existent que réglage allumé).
-    recent(tous.filter((x) => x.etat.etat === "ig_attente_ok" || x.etat.etat === "ig_pas_encore")) ??
-    recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat))) ??
+    (igSuivre ? recent(tous.filter((x) => x.etat.etat === "ig_attente_ok" || x.etat.etat === "ig_pas_encore")) : null) ??
+    recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat) && (igSuivre || !ETATS_IG_ATTENTE.includes(x.etat.etat)))) ??
     recent(tous); // dossier sans parcours de ce compte : null, jamais un parcours d'un autre compte
   return { principal, tous };
 }

@@ -147,8 +147,8 @@ describe("INSTA-C · stop et doute", () => {
   });
 
   it("chaque envoi porte un jeton « non opposée » (un jeton par envoi)", async () => {
-    await semer("1", "ig_attente_ok");
-    await semer("2", "ig_attente_ok", { creeLe: iso(T0 - 4 * H) });
+    await semer("1", "ig_attente_ok", { m1Le: iso(T0 - 30 * H) }); // envois de plus de 24 h : hors plafond par personne
+    await semer("2", "ig_attente_ok", { creeLe: iso(T0 - 4 * H), m1Le: iso(T0 - 30 * H) });
     await deposerMessage(depots, { idMessage: "msg-ok-1", avance: 5000 });
     await pass(T1);
     expect(envois).toHaveLength(2);

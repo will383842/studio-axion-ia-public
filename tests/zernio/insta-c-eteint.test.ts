@@ -129,7 +129,7 @@ describe("INSTA-C · états et machine (pures)", () => {
   it("transition « texte » : état ig, ni opposition ni doute → ig_ok ; opposition et doute gardent leur chemin ; ailleurs inchangé", () => {
     for (const e of ["ig_attente_ok", "ig_pas_encore"] as const) {
       const c = base({ etat: e });
-      expect(transition(c, { t: "texte", estOpposition: false, adresse: null }).action).toBe("ig_ok");
+      expect(transition(c, { t: "texte", estOpposition: false, adresse: null, okIg: true }).action).toBe("ig_ok");
       expect(transition(c, { t: "texte", estOpposition: true, adresse: null }).action).toBe("opposer");
       expect(transition(c, { t: "texte", estOpposition: false, doute: true, adresse: null }).action).toBe("doute");
     }
