@@ -46,8 +46,25 @@ export interface VersionJugeeIV {
   reseaux: ReseauIV[];
   courte: boolean;
   ok: boolean;
+  /** Clé de la version (même valeur que `version`), pour le verdict par version. */
+  cle: string;
+  /** Une phrase par ligne bloquante de cette version (vide si elle est bonne). */
+  phrases: string[];
   instants: InstantCleIV[];
   lignes: LigneControleIV[];
+}
+
+/**
+ * Verdict d'un réseau demandé : livrable si toutes les versions de son fichier principal (le 9:16 s'il existe, sinon le 4:5)
+ * sont sans ligne bloquante. Un fil 4:5 refusé d'un réseau qui a son 9:16 n'empêche pas ce réseau : il est seulement retiré.
+ */
+export interface VerdictReseauPorteIV {
+  reseau: ReseauIV;
+  ok: boolean;
+  /** Phrases des lignes bloquantes du fichier principal (ou, si le réseau est livrable, du fil refusé). */
+  phrases: string[];
+  /** Versions refusées (fichier principal si le réseau n'est pas livrable, sinon fil 4:5 à retirer). */
+  versionsRefusees: string[];
 }
 
 export interface VerdictPorteIV {
@@ -65,6 +82,10 @@ export interface VerdictPorteIV {
   generaux: string[];
   reseaux: VerdictReseauIV[];
   versions: VersionJugeeIV[];
+  /** Verdict par réseau demandé (livrable ou non). */
+  parReseau: VerdictReseauPorteIV[];
+  /** Vrai si la vidéo est refusée pour certaines versions seulement : les réseaux dont les versions sont bonnes se livrent, les autres sortent « non livrés » (jamais si la faute est commune à toutes les versions, ni si une vérification n'a pas pu se faire). */
+  partielle: boolean;
   /** À garder pour une reprise sans repayer. */
   transcriptions: Record<string, MotHorodate[]>;
   relectures: Record<string, RelectureFinale>;
@@ -113,7 +134,8 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const instants = new Map(e.versions.map((v) => [v.version, instantsClesIV(v.ligne, e.carte)]));
   const mesures = (v: VersionAControlerIV, plus: Partial<MesuresDeLaPorteIV> = {}): MesuresDeLaPorteIV => ({ plafonds: verdicts.filter((x) => v.reseaux.includes(x.reseau)), ...plus });
   const dejaRefusee = (lignes: readonly LigneControleIV[]) => lignes.some((l) => bloque(l) && !(l.etat === "non-fait" && CODES_APRES_ECOUTE.has(l.code)));
-  const refusAvant = generaux.length > 0 || e.versions.some((v) => dejaRefusee(controlerVersionIV(v, ctx, mesures(v))));
+  // Refus avant l'écoute, version par version : une version refusée n'est ni écoutée ni relue (aucune dépense) ; les autres continuent.
+  const refusAvantV = new Map(e.versions.map((v) => [v.version, generaux.length > 0 || dejaRefusee(controlerVersionIV(v, ctx, mesures(v)))]));
 
   // 2. Écoute de chaque version (réservée), seulement si rien n'est déjà refusé ; reprise sans repayer sinon.
   const transcriptions: Record<string, MotHorodate[]> = { ...(e.deja?.transcriptions ?? {}) };
@@ -127,7 +149,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
         piste: v.piste,
         final: { dureeSec: v.ligne.dureeSec, finVoixSec: v.ligne.finVoixSec, empreinteVoixMixee: v.mixage?.voix?.empreinte },
         ...(transcriptions[v.piste.empreinte] ? { deja: transcriptions[v.piste.empreinte] } : {}),
-        depenseAutorisee: !refusAvant,
+        depenseAutorisee: !refusAvantV.get(v.version),
       },
       o,
     );
@@ -135,7 +157,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     if (r.transcription?.length) transcriptions[v.piste.empreinte] = r.transcription;
     ecoutes.set(v.version, r);
   }
-  const refusEcoute = refusAvant || e.versions.some((v) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => bloque(l) && l.code !== "Q26"));
+  const refusEcouteV = new Map(e.versions.map((v) => [v.version, refusAvantV.get(v.version)! || controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => bloque(l) && l.code !== "Q26")]));
 
   // 3. Relecture des images finales (réservée), seulement si tout le reste passe.
   // Rendu suspect : le fichier final a une anomalie de mesure d'image (noir, figé, largeur, hauteur) ou une ligne Q24 bloquante, jamais un volume ni une crête ; sans aucune image lue, la vidéo n'est alors pas livrée.
@@ -144,7 +166,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const relues = new Map<string, Awaited<ReturnType<typeof relireVersionIV>>>();
   for (const v of e.versions) {
     const r = await relireVersionIV(
-      { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcoute, renduSuspect: renduSuspect(v) },
+      { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcouteV.get(v.version), renduSuspect: renduSuspect(v) },
       o,
     );
     appelsPayes += r.appels;
@@ -160,7 +182,7 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     for (const code of CODES_CONTROLE_IV) {
       if (!lignes.some((l) => l.code === code)) lignes.push({ code, version: v.version, reseaux: [...v.reseaux], etat: "non-fait", bloquant: !CONTROLES_INDICATIFS.has(code), phrase: `${LIBELLES_CONTROLE_IV[code]} (non vérifié) : contrôle absent.`, details: ["contrôle absent."] });
     }
-    return { version: v.version, reseaux: [...v.reseaux], courte: v.courte, ok: !lignes.some(bloque), instants: instants.get(v.version)!, lignes };
+    return { version: v.version, cle: v.version, reseaux: [...v.reseaux], courte: v.courte, ok: !lignes.some(bloque), phrases: lignes.filter(bloque).map((l) => l.phrase), instants: instants.get(v.version)!, lignes };
   });
 
   const phrases = [
@@ -177,6 +199,18 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   ];
   const ok = phrases.length === 0;
   const faute = generaux.length > 0 || jugees.some((j) => j.lignes.some((l) => bloque(l) && l.etat !== "non-fait"));
+  // Livraison partielle : seulement une faute PROPRE à certaines versions (aucun défaut général, aucune version dont le seul blocage est une vérification qui n'a pas pu se faire (une version déjà refusée par une vraie faute n'est pas écoutée : ses lignes d'écoute « non faites » sont attendues),
+  // aucun code bloquant commun à toutes les versions : voix, script, chiffre faux du corps commun) et un réseau au moins livrable.
+  const parReseau: VerdictReseauPorteIV[] = RESEAUX_IV.filter((r) => e.reseaux.includes(r)).map((r) => {
+    const siennes = jugees.filter((j) => j.reseaux.includes(r));
+    const cadre = (j: VersionJugeeIV) => e.versions.find((v) => v.version === j.version)!.ligne;
+    const est45 = (j: VersionJugeeIV) => cadre(j).hauteur < cadre(j).largeur * 1.5;
+    const principales = siennes.some((j) => !est45(j)) ? siennes.filter((j) => !est45(j)) : siennes;
+    const refusees = (principales.some((j) => !j.ok) ? principales : siennes.filter((j) => !principales.includes(j))).filter((j) => !j.ok);
+    return { reseau: r, ok: principales.length > 0 && principales.every((j) => j.ok), phrases: refusees.flatMap((j) => j.lignes.filter((l) => bloque(l) && l.etat !== "non-fait").map((l) => l.phrase)), versionsRefusees: refusees.map((j) => j.version) };
+  });
+  const codesCommuns = jugees.length ? jugees[0]!.lignes.filter(bloque).map((l) => l.code).filter((c) => jugees.every((j) => j.lignes.some((l) => bloque(l) && l.code === c))) : [];
+  const partielle = !ok && faute && generaux.length === 0 && !jugees.some((j) => !j.lignes.some((l) => bloque(l) && l.etat !== "non-fait") && j.lignes.some(bloque)) && codesCommuns.length === 0 && parReseau.some((x) => x.ok);
   return {
     ok,
     ...(ok ? {} : { nature: faute ? ("faute" as const) : ("non-fait" as const) }),
@@ -189,6 +223,8 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     generaux,
     reseaux: verdicts,
     versions: jugees,
+    parReseau,
+    partielle,
     transcriptions,
     relectures,
     appelsPayes,
