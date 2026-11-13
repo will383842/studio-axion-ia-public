@@ -4,3 +4,5 @@ Fichiers : src/components/calendrier/{CarteProposition,GrilleSemaine}.tsx, tests
 Tests : rouge d'abord (module absent), puis 576 tests calendrier/rc-37 verts. tsc et eslint : aucune erreur nouvelle.
 Choix : le CORRECTIF de la fiche (un seul lieu de validation, décision Q4) l'emporte sur le titre : pas de validation par sélection ni de refus motivé dans le Studio, donc pas de récapitulatif.
 Reste : brancher les données (raison, ressemblance, adresse de l'écran « À valider » ; non connue dans le code, passée par l'appelant) dans la page, fichiers interdits ici. À confirmer par le fondateur, comme dit la fiche. Aucun prix, aucun envoi.
+
+CORRECTIF (relecture z18) : fusion de usine/CAL-11c à jour (sans rebase). `hover:text-orange-vif` remplacé par `hover:text-accent` dans CarteProposition.tsx pour tenir COUL-01. Tests calendrier, cal-17, garde composants clients, COUL-01 : verts. tsc et eslint : aucune erreur nouvelle.
