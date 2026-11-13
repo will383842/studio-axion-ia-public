@@ -46,6 +46,16 @@ export async function sousTitresDeLaVideo(video: Video, aligne: SegmentSousTitre
   return sousTitresDepuisTexte(texteScript(script.blocs), duree);
 }
 
+/**
+ * GV2-25 : les sous-titres propres au réseau, SEULEMENT si le fondateur n'a rien corrigé (mot, groupe) ni recalqué :
+ * sinon sa liste corrigée (la plus haute) prime, comme avant ; `null` = liste générique.
+ */
+async function sousTitresDuReseauSansCorrection(video: Video, reseau: IdReseau, courants: { version: number } | null | undefined): Promise<SegmentSousTitres[] | null> {
+  const choisie = video.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
+  if (!choisie || (courants && courants.version > 1) || choisie.noteRetouche === "Sous-titres corrigés" || choisie.noteRetouche === "Sons changés") return null;
+  return sousTitresDuReseau(choisie.projetMontage, reseau);
+}
+
 async function entreesVideo(video: Video, code: string, titre: string, version: number, soeurs: Video[], reseau?: IdReseau): Promise<EntreeArchive[]> {
   const detail = await obtenirVideo(video.id);
   if (!detail) return [];
@@ -53,7 +63,7 @@ async function entreesVideo(video: Video, code: string, titre: string, version: 
   const entrees: EntreeArchive[] = detail.sorties
     .filter((s) => !!s.url)
     .map((s) => ({ nom: nomFichier({ code, titre, ratio: s.ratio, extension: "mp4", essaiAccroche: essai, version }), url: s.url }));
-  const duReseau = reseau ? sousTitresDuReseau((video.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null)?.projetMontage, reseau) : null;
+  const duReseau = reseau ? await sousTitresDuReseauSansCorrection(video, reseau, detail.sousTitres) : null;
   const segments = duReseau ?? (await sousTitresDeLaVideo(video, detail.sousTitres?.segments, detail.sorties));
   if (segments.length) {
     entrees.push({ nom: nomFichier({ code, titre, extension: "srt", essaiAccroche: essai, version }), contenu: exporterSrt(segments) });
@@ -204,7 +214,7 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
     const t = kit?.textes[reseau];
     if (t?.texte) poser(`${base}.txt`, { contenu: [t.titre, t.texte, t.motsDiese.join(" ")].filter(Boolean).join("\n\n") + "\n" });
     const detail = await obtenirVideo(video.id);
-    const duReseau = sousTitresDuReseau((video.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null)?.projetMontage, reseau);
+    const duReseau = await sousTitresDuReseauSansCorrection(video, reseau, detail?.sousTitres);
     if (duReseau) poser(`${base}.srt`, { contenu: exporterSrt(duReseau) });
     else if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
   }
