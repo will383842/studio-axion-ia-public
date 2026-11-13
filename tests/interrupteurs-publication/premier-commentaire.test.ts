@@ -64,10 +64,10 @@ describe("fournisseur : lecture à chaque envoi, jamais bloquante", () => {
     expect(e.commentaire).toBe("Commentaire d'exemple");
     expect(e.r).toMatchObject({ idExterne: "exemple-post-9" });
   });
-  it("lecture qui ne répond pas : la publication n'attend pas et le premier commentaire part", async () => {
+  it("lecture qui ne répond pas : la publication attend au plus 500 ms et le premier commentaire part", async () => {
     const debut = Date.now();
     const e = await envoyer(() => new Promise(() => undefined));
-    expect(Date.now() - debut).toBeLessThan(5000);
+    expect(Date.now() - debut).toBeLessThan(2000);
     expect(e.commentaire).toBe("Commentaire d'exemple");
   });
   it("lue à chaque envoi", async () => {
