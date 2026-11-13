@@ -14,6 +14,7 @@ import { obtenirReseau } from "@/reseaux";
 import { meilleureSortie } from "@/reseaux/sorties";
 import { depots, ErreurStudio, filtreExemples, fournisseur, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
+import { sousTitresDuReseau } from "./sous-titres-par-reseau";
 import { sousTitresDepuisTexte, sousTitresUtilisables } from "./telechargements-sous-titres";
 import { nomTelechargement } from "./telechargement-video";
 import { obtenirVideo } from "./videos";
@@ -45,14 +46,15 @@ export async function sousTitresDeLaVideo(video: Video, aligne: SegmentSousTitre
   return sousTitresDepuisTexte(texteScript(script.blocs), duree);
 }
 
-async function entreesVideo(video: Video, code: string, titre: string, version: number, soeurs: Video[]): Promise<EntreeArchive[]> {
+async function entreesVideo(video: Video, code: string, titre: string, version: number, soeurs: Video[], reseau?: IdReseau): Promise<EntreeArchive[]> {
   const detail = await obtenirVideo(video.id);
   if (!detail) return [];
   const essai = rangAccroche(video, soeurs);
   const entrees: EntreeArchive[] = detail.sorties
     .filter((s) => !!s.url)
     .map((s) => ({ nom: nomFichier({ code, titre, ratio: s.ratio, extension: "mp4", essaiAccroche: essai, version }), url: s.url }));
-  const segments = await sousTitresDeLaVideo(video, detail.sousTitres?.segments, detail.sorties);
+  const duReseau = reseau ? sousTitresDuReseau((video.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null)?.projetMontage, reseau) : null;
+  const segments = duReseau ?? (await sousTitresDeLaVideo(video, detail.sousTitres?.segments, detail.sorties));
   if (segments.length) {
     entrees.push({ nom: nomFichier({ code, titre, extension: "srt", essaiAccroche: essai, version }), contenu: exporterSrt(segments) });
     entrees.push({ nom: nomFichier({ code, titre, extension: "vtt", essaiAccroche: essai, version }), contenu: exporterVtt(segments) });
@@ -98,7 +100,7 @@ export async function contenuArchiveReseau(reseau: ReseauDeclinaison, debut: str
     const v = video.varianteId ? await d.variantes.obtenir(video.varianteId) : null;
     const m = v ? await d.scriptsMaitres.obtenir(v.scriptMaitreId) : null;
     const code = v?.code ?? `video-${video.id}`;
-    entrees.push(...(await entreesVideo(video, code, m?.angle?.titre ?? m?.brief.idee ?? video.titre, v?.version ?? 1, videos)));
+    entrees.push(...(await entreesVideo(video, code, m?.angle?.titre ?? m?.brief.idee ?? video.titre, v?.version ?? 1, videos, reseau)));
   }
   return { nom: `${obtenirReseau(reseau).nom.replace(/\s+/g, "")}-${debut}-${fin}.zip`, entrees };
 }
@@ -202,7 +204,9 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
     const t = kit?.textes[reseau];
     if (t?.texte) poser(`${base}.txt`, { contenu: [t.titre, t.texte, t.motsDiese.join(" ")].filter(Boolean).join("\n\n") + "\n" });
     const detail = await obtenirVideo(video.id);
-    if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
+    const duReseau = sousTitresDuReseau((video.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null)?.projetMontage, reseau);
+    if (duReseau) poser(`${base}.srt`, { contenu: exporterSrt(duReseau) });
+    else if (sousTitresUtilisables(detail?.sousTitres?.segments)) poser(`${base}.srt`, { contenu: exporterSrt(detail!.sousTitres!.segments) });
   }
   if (sautees.length) poser("VIDEOS-SANS-FICHIER.txt", { contenu: `Ces vidéos validées n'ont pas de fichier à télécharger :\n\n${sautees.map((t) => `- ${t}`).join("\n")}\n` });
   if (!entrees.length) throw new ErreurStudio("RIEN_A_TELECHARGER", "Aucune vidéo validée pour ce réseau.");
