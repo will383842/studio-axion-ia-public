@@ -62,7 +62,24 @@ export function DecalerEntree({ id, jourActuel }: { id: string; jourActuel: stri
 
 export const HEURE_PLACEMENT = "09:00";
 export const MESSAGE_RIEN_A_PLACER = "Rien à placer. Ajoutez une publication ou importez un fichier.";
-const BOUTON = "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-trait-fort bg-surface-1 px-3 text-sm font-bold text-texte hover:border-orange";
+const BOUTON = "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-trait-fort bg-surface-1 px-3 text-sm font-bold text-texte hover:border-accent";
+
+/** Anti double clic du bouton « Placer » : un contenu déjà confié à l'appelant n'est pas placé deux fois, jusqu'à ce qu'on annule. */
+export function creerGardePlacement() {
+  const places = new Set<string>();
+  return {
+    tenter(id: string): boolean {
+      if (places.has(id)) return false;
+      places.add(id);
+      return true;
+    },
+    retirer(id: string): void {
+      places.delete(id);
+    },
+    deja: (id: string): boolean => places.has(id),
+    ids: (): ReadonlySet<string> => new Set(places),
+  };
+}
 
 /** Versions des autres réseaux du même média : celles que le fondateur peut choisir de déplacer aussi (jamais imposé). */
 export function contenusLies(entree: EntreeCarte, toutes: readonly EntreeCarte[], aujourdhui?: string): EntreeCarte[] {
@@ -121,7 +138,15 @@ export function BoutonDeplacer({ entree, entrees, aujourdhui, onDeplacer, onAnnu
   return (
     <div data-deplacer={entree.cle}>
       {peutGlisser(entree, aujourdhui) && (
-        <button type="button" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)} className={BOUTON}>
+        <button
+          type="button"
+          aria-expanded={ouvert}
+          onClick={() => {
+            if (!ouvert) setJour(entree.jour);
+            setOuvert((o) => !o);
+          }}
+          className={BOUTON}
+        >
           Déplacer
         </button>
       )}
@@ -180,6 +205,13 @@ export function PanneauAProgrammer({ contenus, aujourdhui, onPlacer, onAnnulerPl
   const [jours, setJours] = useState<Readonly<Record<string, string>>>({});
   const [message, setMessage] = useState("");
   const [dernier, setDernier] = useState<ContenuAPlacer | null>(null);
+  // Anti double clic : un contenu déjà confié à onPlacer ne l'est pas deux fois (la référence bloque dès le 2e clic, l'état grise le bouton).
+  const garde = useRef(creerGardePlacement());
+  const [placesVus, setPlacesVus] = useState<ReadonlySet<string>>(new Set());
+  const retirerPlace = (id: string) => {
+    garde.current.retirer(id);
+    setPlacesVus(garde.current.ids());
+  };
   return (
     <section aria-label="À programmer" data-a-programmer className="rounded-xl border border-trait bg-surface-1 p-3">
       <h3 className="mb-2 text-sm font-extrabold text-texte">À programmer</h3>
@@ -198,10 +230,13 @@ export function PanneauAProgrammer({ contenus, aujourdhui, onPlacer, onAnnulerPl
                 <button
                   type="button"
                   className={BOUTON}
+                  disabled={placesVus.has(c.id)}
                   onClick={() => {
                     const d = deciderPlacement(c, { reseau: c.reseau, jour }, aujourdhui);
                     if (!d.ok) return setMessage(d.message);
                     setMessage("");
+                    if (!garde.current.tenter(c.id)) return;
+                    setPlacesVus(garde.current.ids());
                     onPlacer(c, d.jour);
                     setDernier(c);
                   }}
@@ -220,6 +255,7 @@ export function PanneauAProgrammer({ contenus, aujourdhui, onPlacer, onAnnulerPl
           message={`Placée à ${HEURE_PLACEMENT}, à valider. Elle ne partira qu'après votre validation.`}
           onAnnuler={() => {
             onAnnulerPlacement?.(dernier);
+            retirerPlace(dernier.id);
             setDernier(null);
           }}
           onFin={() => setDernier(null)}

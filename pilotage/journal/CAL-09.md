@@ -5,3 +5,4 @@ Tests : test rouge d'abord (exports absents), puis tests/calendrier et tests/rc-
 Reste : brancher le sélecteur et `densite` dans la page calendrier (ApercuPublication.tsx et page interdits ici). Le dépôt n'a pas jsdom : le clic réel n'est pas simulé, le test vérifie le rendu et la lecture/écriture de la mémoire.
 Douteux : valeurs 3 et 2 cartes par case choisies faute de chiffre dans la fiche ; à confirmer sur la maquette. Aucun prix, aucun envoi.
 - CORRECTIF (relecture z10) : Vues.tsx commence par "use client" (useSyncExternalStore) ; boutons Compact/Visuel et « + N autres » (GrilleSemaine) à 44 px de haut au moins.
+- CORRECTIF (relecture z14) : boutons de densité (Vues.tsx:130) passés aux jetons d'accent (border-accent, bg-accent-doux, hover:border-accent) pour tenir le plafond de la garde de l'orange ; master refusionné.
