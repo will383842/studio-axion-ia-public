@@ -131,3 +131,35 @@ export function apresPanne(reprise: RepriseTravail | undefined, maintenant: numb
 export function peutAvancer(t: Travail, maintenant: number): boolean {
   return !t.reprise || new Date(t.reprise.prochainEssai).getTime() <= maintenant;
 }
+
+/* --- Chien de garde « plus d'avancement » (GV2-01) ------------------ */
+
+/** Condensé court (deux hachages de 32 bits) d'un texte : sert seulement à voir si l'état a changé. */
+function condense(texte: string): string {
+  let a = 0x811c9dc5;
+  let b = 5381;
+  for (let i = 0; i < texte.length; i++) {
+    const c = texte.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193) >>> 0;
+    b = (Math.imul(b, 33) ^ c) >>> 0;
+  }
+  return a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0");
+}
+
+/**
+ * Empreinte de l'état d'avancement : statut, étapes (statut et progression), progression, paramètres. Exclut ce qui
+ * bouge sans que la fabrication avance (`modifieLe`, `reprise`, `finEstimee`, `urgent`, `garde`). PUR.
+ */
+export function empreinteAvancement(t: Travail): string {
+  return condense(JSON.stringify([t.statut, t.etapes.map((e) => [e.cle, e.statut, e.progression]), t.progression, t.parametres ?? null]));
+}
+
+/**
+ * Durée sans aucun changement d'état au bout de laquelle un travail en cours est déclaré en panne. `null` : pas de garde
+ * commune (le tableau animé a la sienne, 45 min). Le montage avocat attend jusqu'à 6 h dans son double : 7 h. PUR.
+ */
+export function delaiSansAvancementMs(moteurId: string): number | null {
+  if (moteurId === "montage-tableau") return null;
+  if (moteurId === "montage-avocat") return 7 * 3600_000;
+  return 60 * 60_000;
+}
