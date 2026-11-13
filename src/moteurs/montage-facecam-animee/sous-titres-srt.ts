@@ -35,7 +35,7 @@ export function segmentsSrtV4(groupes: PlanFacecamAnimee["groupes"], duree: numb
   const mots: MotSrt[] = plats
     .map((m, k) => {
       const suivant = plats[k + 1]?.a ?? duree;
-      const brut = m.w.replace(/[.,;:!?…«»"“”()]/g, "").trim();
+      const brut = m.w.replace(/^[.,;:!?…«»"“”()\s]+|[.,;:!?…«»"“”()\s]+$/g, "");
       return { origine: m.w.trim(), mot: brut.toUpperCase(), debut: m.a, fin: Math.min(suivant, m.a + 0.7), fort: !!m.fort };
     })
     .filter((m, k) => m.mot.length > 0 && !interdits.has(k));

@@ -21,14 +21,39 @@ const ref = (nom: string) => `${PREFIXE_ENTREE}${nom}`;
  * sous-titres qui dit ce montant (mêmes nombres, `montantDit`) est masqué de l'image : l'incrustation, en grand et
  * en couleur, le remplace. Les fichiers .srt / .vtt gardent tout le texte (seule l'image change). PUR.
  */
-export function masquerMontantsDits<S extends { debutSec: number; finSec: number; mots: { mot: string }[] }>(segments: S[], incrustations: Pick<IncrustationScene, "deSec" | "aSec" | "type" | "texte">[]): S[] {
+export function masquerMontantsDits<S extends { debutSec: number; finSec: number; mots: { mot: string; debutSec?: number; finSec?: number }[] }>(segments: S[], incrustations: Pick<IncrustationScene, "deSec" | "aSec" | "type" | "texte">[]): S[] {
   const montants = incrustations.filter((i) => i.type === "montant" && i.texte?.trim());
   if (!montants.length) return segments;
-  return segments.filter((s) => {
+  return segments.flatMap((s) => {
     const dit = s.mots.map((m) => m.mot).join(" ");
-    return !montants.some((m) => s.debutSec < m.aSec - 1e-6 && m.deSec < s.finSec - 1e-6 && nombres(m.texte!).length > 0 && montantDit(m.texte!, dit));
+    const concernes = montants.filter((m) => s.debutSec < m.aSec - 1e-6 && m.deSec < s.finSec - 1e-6 && nombres(m.texte!).length > 0 && montantDit(m.texte!, dit));
+    if (!concernes.length) return [s];
+    // GV2-13 : seuls les mots du montant (nombre, tranches de milliers, unité) sont retirés ; « vous perdez » et
+    // « sans le savoir » restent. Le groupe n'est retiré que s'il ne reste aucun mot.
+    const retires = new Set<number>();
+    let i = 0;
+    while (i < s.mots.length) {
+      if (!estMotMontant(s.mots[i].mot)) { i++; continue; }
+      let j = i;
+      while (j < s.mots.length && estMotMontant(s.mots[j].mot)) j++;
+      const nombresDuBloc = nombres(s.mots.slice(i, j).map((m) => m.mot).join(" "));
+      if (concernes.some((m) => nombresDuBloc.some((n) => nombres(m.texte!).includes(n)))) for (let k = i; k < j; k++) retires.add(k);
+      i = j;
+    }
+    const mots = s.mots.filter((_, k) => !retires.has(k));
+    if (!mots.length) return [];
+    if (mots.length === s.mots.length) return [s];
+    const debut = mots[0].debutSec;
+    const fin = mots[mots.length - 1].finSec;
+    return [{ ...s, mots, ...(debut !== undefined ? { debutSec: debut } : {}), ...(fin !== undefined ? { finSec: fin } : {}) } as S];
   });
 }
+
+/** Un mot qui fait partie d'un montant dit : nombre (avec ou sans tranche de milliers collée), « € », « % », « euro(s) ». */
+const estMotMontant = (mot: string): boolean => {
+  const m = mot.replace(/[.,;:!?…»)\s]+$/u, "").replace(/^[«(\s]+/u, "");
+  return /^\d[\d.,  ]*[€%]?$/u.test(m) || /^[€%]$/u.test(m) || /^euros?$/i.test(m);
+};
 
 const motsNormalises = (s: string) =>
   s
@@ -46,14 +71,25 @@ const motsNormalises = (s: string) =>
  * chose reste. Les données des sous-titres ne changent pas (export SRT entier).
  */
 export function masquerTextesAffiches<S extends { debutSec: number; finSec: number; mots: { mot: string }[] }>(segments: S[], textes: { debutSec: number; finSec: number; texte: string }[] | undefined): S[] {
-  const affiches = (textes ?? []).map((t) => ({ ...t, mots: new Set(motsNormalises(t.texte)) })).filter((t) => t.mots.size);
+  const affiches = (textes ?? []).map((t) => ({ ...t, mots: motsNormalises(t.texte) })).filter((t) => t.mots.length);
   if (!affiches.length) return segments;
   return segments.filter((s) => {
     const dits = motsNormalises(s.mots.map((m) => m.mot).join(" "));
-    if (!dits.some((m) => m.length > 2)) return true;
-    return !affiches.some((a) => s.debutSec < a.finSec - 1e-6 && a.debutSec < s.finSec - 1e-6 && dits.every((m) => a.mots.has(m)));
+    // GV2-13 : une répétition = les mots du groupe SE SUIVENT dans le texte de la carte, et au moins 2 mots porteurs.
+    if (dits.filter((m) => !MOTS_DE_LIAISON.has(m)).length < 2) return true;
+    return !affiches.some((a) => s.debutSec < a.finSec - 1e-6 && a.debutSec < s.finSec - 1e-6 && contientSuite(a.mots, dits));
   });
 }
+
+/** Mots de liaison, ignorés pour juger qu'un groupe « répète » une carte (comparaison sans accent ni casse). */
+const MOTS_DE_LIAISON = new Set(["de", "la", "le", "les", "un", "une", "des", "et", "a", "en", "pour", "vos", "nos"]);
+
+/** Vrai si `suite` apparaît telle quelle (mots contigus, dans l'ordre) dans `texte`. */
+const contientSuite = (texte: string[], suite: string[]): boolean => {
+  if (!suite.length || suite.length > texte.length) return false;
+  for (let d = 0; d + suite.length <= texte.length; d++) if (suite.every((m, k) => texte[d + k] === m)) return true;
+  return false;
+};
 
 /**
  * Facecam (11/10, carte « Une formation pour vos équipes ») : pendant une carte PLEIN ÉCRAN, aucun sous-titre n'est
@@ -62,9 +98,34 @@ export function masquerTextesAffiches<S extends { debutSec: number; finSec: numb
  * la carte parle à la place du visage. Les cartes en demi-écran haut gardent leurs sous-titres. Les données des
  * sous-titres ne changent pas (export SRT entier).
  */
-export function masquerPendantCartesPleinEcran<S extends { debutSec: number; finSec: number }>(segments: S[], cartes: { debutSec: number; finSec: number }[] | undefined): S[] {
+export function masquerPendantCartesPleinEcran<S extends { debutSec: number; finSec: number; mots?: { debutSec?: number; finSec?: number }[] }>(segments: S[], cartes: { debutSec: number; finSec: number }[] | undefined): S[] {
   if (!cartes?.length) return segments;
-  return segments.filter((s) => !cartes.some((c) => s.debutSec < c.finSec - 1e-6 && c.debutSec < s.finSec - 1e-6));
+  return cartes.reduce((restants, c) => restants.flatMap((s) => rognerHorsCarte(s, c)), segments);
+}
+
+/** Durée minimale d'une partie de groupe gardée hors d'une carte plein écran (GV2-13). */
+const DUREE_MIN_PARTIE_HORS_CARTE_SEC = 0.3;
+
+/**
+ * GV2-13 : un groupe qui touche la carte n'est plus retiré en entier. On garde les mots dits HORS de la carte (milieu du
+ * mot hors de la carte), rognés pour finir au début de la carte ou commencer à sa fin (jamais un sous-titre sur la
+ * dernière ligne d'une carte). Partie gardée trop courte (< 0,3 s) ou mots sans heures : le groupe est retiré, comme avant.
+ */
+function rognerHorsCarte<S extends { debutSec: number; finSec: number; mots?: { debutSec?: number; finSec?: number }[] }>(s: S, c: { debutSec: number; finSec: number }): S[] {
+  if (!(s.debutSec < c.finSec - 1e-6 && c.debutSec < s.finSec - 1e-6)) return [s];
+  const mots = s.mots;
+  if (!mots?.length || mots.some((m) => m.debutSec === undefined || m.finSec === undefined)) return [];
+  const milieu = (m: { debutSec?: number; finSec?: number }) => (m.debutSec! + m.finSec!) / 2;
+  const avant = mots.filter((m) => milieu(m) <= c.debutSec);
+  const apres = mots.filter((m) => milieu(m) >= c.finSec);
+  const parties = [
+    { mots: avant, debutSec: Math.min(avant[0]?.debutSec ?? 0, c.debutSec), finSec: Math.min(avant.at(-1)?.finSec ?? 0, c.debutSec) },
+    { mots: apres, debutSec: Math.max(apres[0]?.debutSec ?? 0, c.finSec), finSec: Math.max(apres.at(-1)?.finSec ?? 0, c.finSec) },
+  ].filter((p) => p.mots.length && p.finSec - p.debutSec >= DUREE_MIN_PARTIE_HORS_CARTE_SEC - 1e-9);
+  if (!parties.length) return [];
+  // Un seul morceau par groupe (carte au milieu d'un groupe : cas rare) : la partie la plus longue.
+  const p = parties.reduce((a, b) => (b.finSec - b.debutSec > a.finSec - a.debutSec ? b : a));
+  return [{ ...s, mots: p.mots, debutSec: Math.max(p.debutSec, s.debutSec), finSec: Math.min(p.finSec, s.finSec) } as S];
 }
 
 const nombres = (s: string) => (s.replace(/[\s  .]/g, "").match(/\d+(?:,\d+)?/g) ?? []).map((x) => x.replace(/^0+(?=\d)/, ""));
