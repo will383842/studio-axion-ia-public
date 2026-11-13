@@ -15,8 +15,8 @@
  * Ce que la chaîne a fait est rangé dans `projetMontage.reprise` de la version (clés, petits résultats, empreinte des
  * entrées) : la version suivante repart de là.
  */
-import type { CommandeFabrication } from "@/domaine/types";
-import { texteSousTitresGardes } from "@/briques/coupes";
+import type { CommandeFabrication, MotHorodate } from "@/domaine/types";
+import { appliquerRecalages, recalerCoupesDemandees, texteSousTitresGardes } from "@/briques/coupes";
 import { lireEntreesFacecam, type EntreesFacecam, type ImageFacecam } from "@/domaine/facecam";
 import type { DefinitionEtapeMoteur } from "../types";
 import type { CleTravailChaine, EtatChaine, SuiviTravail } from "./chaine";
@@ -222,7 +222,9 @@ export function etatPourRetouche(reprise: RepriseChaine, commande: Pick<Commande
     const facecam = lireEntreesFacecam(entrees);
     const reglages = lireReglagesMonteur(entrees);
     const duree = reprise.coupes?.dureeSourceSec ?? Math.max(0, ...facecam.coupes.auto.map((c) => c.finSec));
-    const actives = coupesActives(facecam, reglages.coupesDemandees);
+    // GV2-33 : les coupes demandées sont recalées sur les blancs avant de calculer les gardes (`coupesActives` seule entre dans la signature).
+    const motsPrise = (reprise.coupes?.motsPrise ?? (reprise.travaux.transcrire?.resultat as { mots?: MotHorodate[] } | undefined)?.mots ?? []) as MotHorodate[];
+    const actives = coupesActives(facecam, recalerCoupesDemandees(reglages.coupesDemandees, appliquerRecalages(motsPrise, reprise.coupes?.recalages)));
     if (etat.coupes) {
       const gardes = gardesDepuisCoupes(actives, etat.coupes.dureeSourceSec);
       etat.coupes = {
