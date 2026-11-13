@@ -77,7 +77,7 @@ function grouperParMot(lignes: readonly LigneTableauMot[]): GroupeMot[] {
 }
 
 function Chiffres({ f, auMoins }: { f: Fenetres; auMoins?: boolean }) {
-  const v = (n: number) => (auMoins ? L.auMoins(n) : String(n));
+  const v = (n: number) => (auMoins && n > 0 ? L.auMoins(n) : String(n));
   return (
     <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-2 text-xs text-texte-doux">
       <dt>{L.fenetres.j7}</dt>
