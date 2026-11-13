@@ -1204,6 +1204,8 @@ async function avancerUnPasIV(entree: EtatFabricationIV, outils: OutilsFabricati
       garde.caisse = e.caisse;
       if (e.compteurAppels !== undefined) garde.compteurAppels = e.compteurAppels;
       garde.attente = raisonDe(err);
+      // Contrôles pas à pas : les transcriptions et relectures déjà obtenues survivent à l'attente (rien n'est redemandé ni repayé).
+      if (etape === "controles" && e.controles) garde.controles = e.controles;
       // Le nouvel essai du rendu et sa remarque survivent à l'attente.
       if (etape === "rendu") {
         garde.tentatives = e.tentatives;
@@ -1808,16 +1810,26 @@ export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly Bruitage
   return { entree, publication, liens };
 }
 
+/** Remarques de la voix (« Voix gardée malgré une remarque », piste dont la dernière phrase risque d'être coupée) : elles vont aussi aux mentions, pas seulement au journal. */
+function remarquesDeFinDeVoixIV(e: EtatFabricationIV): string[] {
+  return [...new Set([...(e.voix?.remarques ?? []), ...(e.pistes ?? []).flatMap((p) => (p.remarque ? [p.remarque] : []))])];
+}
+
 async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
   const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(
     entree,
     // Chaque tentative d'appel a son propre identifiant (compteur gardé dans l'état) : jamais la réservation d'un appel parti.
-    { ...o.controles, budget: caisse.controles(), idAppel: (prefixe) => `${prefixe}-n${(e.compteurAppels = (e.compteurAppels ?? 0) + 1)}` },
+    {
+      ...o.controles,
+      // Chaque transcription et chaque relecture obtenue est gardée dans l'état dès qu'elle arrive.
+      pasAPas: { garder: (obtenu) => void (e.controles = { transcriptions: { ...obtenu.transcriptions }, relectures: { ...obtenu.relectures }, ...(e.controles?.verdict ? { verdict: e.controles.verdict } : {}) }) },
+      budget: caisse.controles(),
+      idAppel: (prefixe) => `${prefixe}-n${(e.compteurAppels = (e.compteurAppels ?? 0) + 1)}` },
   );
   // 15/10 : une version reprise d'un autre réseau (repli de secours) est dite dans le rapport.
   const replis = e.plan!.fins.flatMap((f) => (f.repli ? [phraseDeRepliIV(f.reseaux, f.repli)] : []));
-  const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis, ...(e.remarques ?? [])] };
+  const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis, ...(e.remarques ?? []), ...remarquesDeFinDeVoixIV(e)] };
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
   // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
