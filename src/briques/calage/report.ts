@@ -183,11 +183,72 @@ function aligner(a: string[], b: string[]): Int32Array {
   return correspondance;
 }
 
+/** Un mot à placer ; `sansHeure` : son temps est inconnu (débutSec / finSec ignorés). */
+export interface MotAEtaler extends MotHorodate {
+  sansHeure?: boolean;
+}
+
+/** Durée minimale (s) qu'on veut donner à un mot dont le temps est inconnu. */
+const DUREE_MIN_SANS_HEURE_SEC = 0.08;
+/** Durée (s) d'un mot quand aucun mot voisin n'a d'heure. */
+const DUREE_SANS_REPERE_SEC = 0.3;
+
+/**
+ * Une suite de mots sans heure propre se partage l'intervalle entre ses deux voisins horodatés, au prorata des
+ * lettres. S'il n'y a pas de place (intervalle < 0,08 s par mot), elle prend sur la durée du mot voisin précédent
+ * (ou suivant, en tête). Débuts strictement croissants, aucune durée nulle ni négative. PUR ; les mots qui ont une
+ * heure ne bougent pas, sauf le voisin dont la suite doit prendre une part faute de place.
+ */
+export function etalerSuitesSansHeure(mots: MotAEtaler[]): MotHorodate[] {
+  const n = mots.length;
+  const sortie: MotHorodate[] = mots.map((x) => ({ mot: x.mot, debutSec: x.debutSec, finSec: x.finSec }));
+  const poids = (k: number) => Math.max(1, normaliser(mots[k].mot).length);
+  /** Les mots [de, a) se partagent [debut, fin] au prorata de leurs lettres. */
+  const repartir = (de: number, a: number, debut: number, fin: number) => {
+    let total = 0;
+    for (let k = de; k < a; k++) total += poids(k);
+    let t = debut;
+    for (let k = de; k < a; k++) {
+      const part = ((fin - debut) * poids(k)) / total;
+      sortie[k] = { mot: mots[k].mot, debutSec: +t.toFixed(3), finSec: +(t + part).toFixed(3) };
+      t += part;
+    }
+  };
+  let i = 0;
+  while (i < n) {
+    if (!mots[i].sansHeure) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < n && mots[j].sansHeure) j++;
+    const nombre = j - i;
+    if (i === 0 && j === n) repartir(0, n, 0, DUREE_SANS_REPERE_SEC * n);
+    else if (i === 0) {
+      // En tête : entre 0 et le premier mot horodaté, sinon sur la durée de ce mot.
+      const suivant = sortie[j];
+      if (suivant.debutSec >= DUREE_MIN_SANS_HEURE_SEC * nombre) repartir(0, j, 0, suivant.debutSec);
+      else repartir(0, j + 1, 0, suivant.finSec > 0 ? suivant.finSec : DUREE_MIN_SANS_HEURE_SEC * (nombre + 1));
+    } else {
+      // Au milieu ou en fin : entre la fin du précédent et le début du suivant, sinon sur la durée du précédent.
+      const precedent = sortie[i - 1];
+      const debut = precedent.finSec;
+      const fin = j < n ? sortie[j].debutSec : debut;
+      if (fin - debut >= DUREE_MIN_SANS_HEURE_SEC * nombre) repartir(i, j, debut, fin);
+      else repartir(i - 1, j, precedent.debutSec, fin > precedent.debutSec ? fin : precedent.debutSec + DUREE_MIN_SANS_HEURE_SEC * (nombre + 1));
+    }
+    i = j;
+  }
+  return sortie;
+}
+
 /**
  * Horodatage de chaque mot PRONONCÉ à partir des mots renvoyés par la voix (qui peuvent être découpés autrement).
- * Un mot sans aucune lettre retrouvée prend le temps entre ses voisins.
+ * Un mot sans aucune lettre retrouvée prend le temps entre ses voisins. Avec `etalerSansHeure`, une suite de tels mots
+ * se partage ce temps (`etalerSuitesSansHeure`) au lieu que chacun reçoive le même instant ; sans l'option, la sortie
+ * reste identique à l'ancienne (rendu validé de la face caméra animée).
  */
-export function horodaterMotsPrononces(motsPrononces: string[], renvoyes: MotHorodate[]): MotHorodate[] {
+export function horodaterMotsPrononces(motsPrononces: string[], renvoyes: MotHorodate[], options?: { etalerSansHeure?: boolean }): MotHorodate[] {
   const a = lettres(motsPrononces);
   const b = lettres(renvoyes.map((m) => m.mot));
   const corr = aligner(
@@ -206,6 +267,14 @@ export function horodaterMotsPrononces(motsPrononces: string[], renvoyes: MotHor
     if (debut[x.mot] === undefined) debut[x.mot] = t0;
     fin[x.mot] = t0 + pas;
   });
+  if (options?.etalerSansHeure) {
+    const bruts: MotAEtaler[] = motsPrononces.map((mot, k) => {
+      const d = debut[k];
+      const f = fin[k];
+      return d === undefined || f === undefined ? { mot, debutSec: 0, finSec: 0, sansHeure: true } : { mot, debutSec: d, finSec: Math.max(d, f) };
+    });
+    return etalerSuitesSansHeure(bruts).map((x) => ({ mot: x.mot, debutSec: +x.debutSec.toFixed(3), finSec: +x.finSec.toFixed(3) }));
+  }
   // Mots sans lettre retrouvée : entre la fin du précédent et le début du suivant.
   const sortie: MotHorodate[] = [];
   for (let k = 0; k < motsPrononces.length; k++) {
@@ -228,23 +297,27 @@ export function horodaterMotsPrononces(motsPrononces: string[], renvoyes: MotHor
  * groupe de plusieurs mots validés (« 135 € »), le temps est partagé au prorata de la longueur des mots.
  */
 export function reporterHorodatages(texte: TexteVoix, renvoyes: MotHorodate[]): MotReporte[] {
-  const prononces = horodaterMotsPrononces(texte.motsPrononces, renvoyes);
-  const sortie: MotReporte[] = [];
+  const prononces = horodaterMotsPrononces(texte.motsPrononces, renvoyes, { etalerSansHeure: true });
+  const bruts: (MotAEtaler & { segmentId: string; index: number })[] = [];
   for (const g of texte.groupes) {
     const p0 = prononces[g.debutPrononce];
     const p1 = prononces[g.finPrononce - 1];
-    if (!p0 || !p1) continue;
     const valides = texte.motsValides.slice(g.debut, g.fin);
+    // Groupe sans aucun mot dit (segment sans texte dit) : ses mots n'ont pas d'heure propre, ils sont étalés entre leurs voisins.
+    if (!p0 || !p1 || g.finPrononce <= g.debutPrononce) {
+      for (const m of valides) bruts.push({ mot: m.mot, segmentId: m.segmentId, index: m.index, debutSec: 0, finSec: 0, sansHeure: true });
+      continue;
+    }
     const poids = valides.map((m) => Math.max(1, normaliser(m.mot).length));
     const total = poids.reduce((s, x) => s + x, 0);
     let t = p0.debutSec;
     valides.forEach((m, k) => {
       const part = ((p1.finSec - p0.debutSec) * poids[k]) / total;
-      sortie.push({ mot: m.mot, segmentId: m.segmentId, index: m.index, debutSec: +t.toFixed(3), finSec: +(t + part).toFixed(3) });
+      bruts.push({ mot: m.mot, segmentId: m.segmentId, index: m.index, debutSec: +t.toFixed(3), finSec: +(t + part).toFixed(3) });
       t += part;
     });
   }
-  return sortie;
+  return etalerSuitesSansHeure(bruts).map((x, k) => ({ mot: x.mot, segmentId: bruts[k].segmentId, index: bruts[k].index, debutSec: x.debutSec, finSec: x.finSec }));
 }
 
 /** Écart moyen (ms) entre deux horodatages des mêmes mots (contrôle B.5 : HeyGen contre un alignement forcé). */

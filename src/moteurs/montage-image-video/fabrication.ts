@@ -55,6 +55,7 @@ import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
 import { ecranVivantIV, ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
+import { ErreurCalageIV } from "./calage";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -1240,7 +1241,7 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
 async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { concevoirWorkflow } = await import("./texte/conception");
   const { demande } = e;
-  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
+  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux, ...(demande.scriptColle === true ? { scriptColle: true } : {}) }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
   if (!t.ok) {
     if (t.motif === "budget" || t.motif === "plafond") return refuser(e, "lecture", plafond(), t.message);
     // Texte à reformuler : relancer le même texte donnerait le même refus ; panne ou sortie illisible : « Refaire » réessaie.
@@ -1499,9 +1500,9 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
           await new Promise((r) => setTimeout(r, DELAI_ESSAI_WAV_MS * essai));
           continue;
         }
-        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) et le décompte de mots différent ;
+        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) (plus un décompte de mots différent : le calage l'absorbe) ;
         // une erreur d'entrée qui ne dépend pas de la lecture (son d'une version absent…) est levée sans rien payer.
-        if (err.controle !== "coupe" && err.controle !== "Q19" && !err.relire) throw err;
+        if (err.controle !== "coupe" && err.controle !== "Q19") throw err;
         const refaite = relireLaVoixIV(e.voix, voixOutils, err.message);
         if (!refaite) throw err;
         e.voix = refaite;
@@ -1524,6 +1525,16 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
   return passerA(e, "mise-en-scene");
 }
 
+/** Durée d'une mise en scène, ou `undefined` si le calage de la voix la refuse (`ErreurCalageIV`) ; toute autre erreur est levée. */
+function dureeSansPanneIV(duree: () => number): number | undefined {
+  try {
+    return duree();
+  } catch (err) {
+    if (err instanceof ErreurCalageIV) return undefined;
+    throw err;
+  }
+}
+
 async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<CourteIV[]> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   const res: CourteIV[] = [];
@@ -1531,7 +1542,9 @@ async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Pr
   const detachables = chapitresDetachables(fiche).length;
   for (const piste of e.pistes!) {
     const longue: VersionIV = { id: piste.version, reseaux: piste.reseaux, courte: false, fiche, fin: finDe(e.plan!, piste.version), piste };
-    const duree = mettreEnSceneIV(sceneDe(e, longue, bruitages)).ligne.dureeSec;
+    // Un calage refusé n'est pas une panne de la voix : la version est jugée plus bas (mise en scène), sans version courte ici.
+    const duree = dureeSansPanneIV(() => mettreEnSceneIV(sceneDe(e, longue, bruitages)).ligne.dureeSec);
+    if (duree === undefined) continue;
     const besoin = piste.reseaux.filter((r) => verdictReseau(r, duree).version === "courte");
     if (!besoin.length) continue;
     let trouvee: CourteIV | null = null;
@@ -1546,7 +1559,11 @@ async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Pr
         break;
       }
       const courte: VersionIV = { id: c.piste.version, reseaux: besoin, courte: true, fiche: c.fiche, fin: longue.fin, piste: c.piste, noeudsRetires: noeudsRetiresDe(e.carte!.carte, fiche, c.fiche) };
-      const dureeCourte = mettreEnSceneIV(sceneDe(e, courte, bruitages)).ligne.dureeSec;
+      const dureeCourte = dureeSansPanneIV(() => mettreEnSceneIV(sceneDe(e, courte, bruitages)).ligne.dureeSec);
+      if (dureeCourte === undefined) {
+        raison = "calage de la version courte refusé";
+        break;
+      }
       if (besoin.every((r) => verdictReseau(r, duree, dureeCourte).version !== "aucune")) trouvee = { version: piste.version, reseaux: besoin, resultat: c };
       else raison = `encore trop longue (${Math.round(dureeCourte)} s)`;
     }
@@ -1631,6 +1648,7 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
     else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
     e.journal.push(...issue.journal);
     const r = issue.resultat;
+    for (const m of r.remarquesCalage ?? []) e.journal.push(`Remarque · voix (${nomVersion(v)}) : ${m}`);
     if (!ligne916 && (v.format ?? "9:16") === "9:16") ligne916 = r.ligne;
     if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
