@@ -38,7 +38,7 @@ function Ecrit({ t }: { t: string }) {
       {t
         .split(/(\*[^*]+\*)/)
         .filter(Boolean)
-        .map((m, i) => (m.length > 2 && m.startsWith("*") && m.endsWith("*") ? <span key={i} className="text-orange-vif">{m.slice(1, -1)}</span> : <span key={i}>{m}</span>))}
+        .map((m, i) => (m.length > 2 && m.startsWith("*") && m.endsWith("*") ? <span key={i} className="text-accent">{m.slice(1, -1)}</span> : <span key={i}>{m}</span>))}
     </span>
   );
 }
@@ -211,7 +211,7 @@ export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, 
           ≈ {dureeLisible(duree)}
         </Pastille>
         {modifiees.size > 0 && (
-          <Pastille taille="md" ton="orange" icone="ecrire">
+          <Pastille taille="md" ton="encre" icone="ecrire">
             {modifiees.size} modifiée{modifiees.size > 1 ? "s" : ""}
           </Pastille>
         )}
@@ -269,7 +269,7 @@ export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, 
               <div
                 className={cn(
                   "rounded-carte border bg-surface-1 transition-colors",
-                  enEdition && !libre ? "border-orange" : modifiee ? "border-orange/50" : siennes.some((p) => p.niveau === "bloquant") ? "border-brique/60" : "border-trait",
+                  enEdition && !libre ? "border-accent" : modifiee ? "border-accent/50" : siennes.some((p) => p.niveau === "bloquant") ? "border-brique/60" : "border-trait",
                 )}
               >
                 {enEdition ? (
@@ -318,7 +318,7 @@ export function RelireScript({ lignes: depart, controler, lancer, prixCentimes, 
                       )}
                       <Pastilles liste={siennes} />
                     </span>
-                    <Icone nom={l.verrouille ? "cadenas" : "ecrire"} size={16} className={cn("mt-0.5 shrink-0", modifiee ? "text-orange-vif" : "text-texte-faible")} />
+                    <Icone nom={l.verrouille ? "cadenas" : "ecrire"} size={16} className={cn("mt-0.5 shrink-0", modifiee ? "text-accent" : "text-texte-faible")} />
                   </button>
                 )}
               </div>
