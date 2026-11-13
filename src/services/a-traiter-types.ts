@@ -22,6 +22,14 @@ export const MOTIFS = [
 export type Motif = (typeof MOTIFS)[number];
 export type StatutATraiter = "a_traiter" | "fait" | "ignore";
 
+/** Pourquoi aucun message privé n'est proposé (liste fermée). */
+export type RaisonSansMessage =
+  | "tiktok_sans_message_prive"
+  | "textes_non_valides"
+  | "mot_en_pause"
+  | "mot_inconnu"
+  | "deja_traite_pour_ce_mot";
+
 export interface CarteATraiter {
   idEvenement: string;
   reseau: ReseauATraiter;
@@ -44,6 +52,18 @@ export interface CarteATraiter {
   empreintes?: string[];
   /** Identifiant (kid) de la clé courante à la création : si elle change, la carte est traitée comme opposée (fermé). */
   kid?: string;
+  /** LinkedIn/TikTok (file manuelle) : identifiant opaque du compte réseau concerné. Jamais un pseudo. */
+  idCompte?: string;
+  /** LinkedIn/TikTok : repère opaque de la cible (publication). Jamais un nom de personne. */
+  cible?: string;
+  /** LinkedIn/TikTok : titre court de la cible, ÉCHAPPÉ, jamais un nom de personne. */
+  titreCible?: string;
+  /** LinkedIn/TikTok : le message privé est-il à fabriquer à la main, ou indisponible ? */
+  message?: "a_fabriquer" | "indisponible";
+  /** Pourquoi aucun message n'est proposé (valeur fermée, jamais un texte libre). */
+  raisonSansMessage?: RaisonSansMessage;
+  /** Instant (ISO 8601) où le message a été copié à la main, pour le plafond de 24 h. */
+  copieLe?: string;
 }
 
 export interface EntreeATraiter {
