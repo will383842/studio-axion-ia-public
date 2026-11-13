@@ -14,7 +14,7 @@ import type { Travail } from "@/domaine/types";
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const travaux = await import("@/services/travaux");
 const { etatSante } = await import("@/services/sante");
-const { purgerTemporaires } = await import("@/services/nettoyage-temporaires");
+const { effacerTemporairesAnciens } = await import("@/services/nettoyage-temporaires");
 
 beforeEach(() => {
   reinitialiserDepots();
@@ -117,7 +117,7 @@ describe("GV2-22 · purge des dossiers temporaires", () => {
       await faire("autre-vieux", vieux);
       await faire("mini-videos/ancien", vieux);
       await faire("mini-videos/recent");
-      await purgerTemporaires(Date.now(), racine);
+      await effacerTemporairesAnciens(Date.now(), racine);
       expect((await readdir(racine)).sort()).toEqual(["autre-vieux", "iv-son-recent", "mini-videos"]);
       expect(await readdir(join(racine, "mini-videos"))).toEqual(["recent"]);
     } finally {
@@ -125,6 +125,6 @@ describe("GV2-22 · purge des dossiers temporaires", () => {
     }
   });
   it("ne lève jamais (dossier absent)", async () => {
-    await expect(purgerTemporaires(Date.now(), join(tmpdir(), "gv222-absent-xyz"))).resolves.toBeUndefined();
+    await expect(effacerTemporairesAnciens(Date.now(), join(tmpdir(), "gv222-absent-xyz"))).resolves.toBeUndefined();
   });
 });

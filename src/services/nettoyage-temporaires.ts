@@ -1,5 +1,5 @@
 /**
- * GV2-22 : purge au démarrage des dossiers temporaires de fabrication (`iv-image-`, `iv-son-`, `iv-final-` et les
+ * GV2-22 : effacement au démarrage des dossiers temporaires de fabrication (`iv-image-`, `iv-son-`, `iv-final-` et les
  * sous-dossiers de `mini-videos`) laissés par un processus tué avant la fin de son appel. Modèle : l'atelier de rendu
  * (`studio-rendu/src/nettoyage.ts`), recopié et non importé. Ne touche que des dossiers de plus de 24 h situés
  * directement dans le dossier temporaire donné ; ne lève jamais.
@@ -21,7 +21,7 @@ async function effacerSiVieux(chemin: string, maintenant: number): Promise<void>
   }
 }
 
-export async function purgerTemporaires(maintenant: number = Date.now(), racine: string = tmpdir()): Promise<void> {
+export async function effacerTemporairesAnciens(maintenant: number = Date.now(), racine: string = tmpdir()): Promise<void> {
   try {
     for (const nom of await readdir(racine)) {
       if (PREFIXES_FABRICATION.some((p) => nom.startsWith(p))) await effacerSiVieux(join(racine, nom), maintenant);
