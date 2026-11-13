@@ -41,6 +41,7 @@ const { ciblesZernioPour } = await import("@/services/zernio-cibles");
 // Précondition L7-08 : l'envoi du calendrier a son propre réglage, fermé par défaut ; ce fichier teste l'envoi, il l'ouvre.
 const { ecrireParametre: ecrireReglageCalendrier } = await import("@/services/_commun");
 const { PARAM_ENVOI_CALENDRIER } = await import("@/services/zernio");
+const { REGLAGE_EDITORIALE_ACTIVE } = await import("@/services/promotion-envois");
 
 
 const VIDEO = "v-15";
@@ -78,6 +79,7 @@ beforeEach(async () => {
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
   await ecrireReglageCalendrier(PARAM_ENVOI_CALENDRIER, true);
+  await ecrireReglageCalendrier(REGLAGE_EDITORIALE_ACTIVE, true);
   reinitialiserRequete();
   await auth.seConnecter("essai-log-refus", false);
   etat.zernio = fauxZernio();
