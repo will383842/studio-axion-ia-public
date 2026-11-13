@@ -324,6 +324,8 @@ export const schemaElementV4 = z.object({
   lignes: z.array(z.object({ texte: z.string().min(1).max(40), a: instant, icone: z.string().max(24).optional() })).max(6).optional(),
   /** Un nombre DIT par Will. */
   nombre: z.number().min(0).max(1_000_000_000).optional(),
+  /** GV2-49 (FACULTATIF) : 2 à 4 nombres DITS par Will, montrés par les barres (hauteurs proportionnelles). Un plan ancien sans ce champ reste valide. */
+  valeurs: z.array(z.object({ valeur: z.number().min(0).max(1_000_000_000), libelle: z.string().max(20).optional() })).min(2).max(4).optional(),
   /** Instants dits utiles à l'élément (secondes, ligne de temps de la vidéo). */
   instants: z.array(instant).max(6).optional(),
   /** Ce que chaque vidéo de l'élément doit montrer (Mes images → Pexels → Pixabay), une par vidéo. */

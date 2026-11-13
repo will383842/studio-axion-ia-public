@@ -107,6 +107,8 @@ export interface ElementResoluV4 {
   lignes: readonly { texte: string; a: number }[];
   instants: readonly number[];
   nombre?: number;
+  /** GV2-49 : nombres dits montrés par les barres. */
+  valeurs?: readonly { valeur: number; libelle?: string }[];
   recherches: readonly string[];
   illustre?: string;
   /** Position dans le plan (« élément 3 »). */
@@ -138,7 +140,7 @@ export function resoudreElementsV4(elements: readonly ElementV4Plan[] | undefine
       if (d < min - SEUILS_V4.tolerance || d > max + SEUILS_V4.tolerance) erreurs.push(`D0 — élément v4 ${rang} « ${e.id} » : ${sec(d)} à l'écran, la fiche prévoit de ${sec(min)} à ${sec(max)}.`);
     }
     if (e.fin > duree + EPS) erreurs.push(`D0 — élément v4 ${rang} « ${e.id} » : il finit à ${s3(e.fin)}, après la fin de la vidéo (${s3(duree)}).`);
-    resolus.push({ fiche, debut: e.debut, fin: e.fin, mots: e.mots ?? [], lignes: e.lignes ?? [], instants: e.instants ?? [], nombre: e.nombre, recherches: e.recherches ?? [], illustre: e.illustre, rang });
+    resolus.push({ fiche, debut: e.debut, fin: e.fin, mots: e.mots ?? [], lignes: e.lignes ?? [], instants: e.instants ?? [], nombre: e.nombre, valeurs: e.valeurs, recherches: e.recherches ?? [], illustre: e.illustre, rang });
   });
   for (let k = 1; k < resolus.length; k++) {
     if (resolus[k].debut < resolus[k - 1].fin - SEUILS_V4.tolerance) erreurs.push(`D0 — ${nomElement(resolus[k - 1])} (jusqu'à ${sec(resolus[k - 1].fin)}) et ${nomElement(resolus[k])} sont à l'écran en même temps ; une seule plaquette à la fois (la suivante entre dans l'image où la précédente sort).`);
@@ -181,6 +183,8 @@ export interface ContexteControleV4 {
   prisBougee?: boolean;
   /** Nombre d'objets d'un ancien catalogue (cartes, fenêtres, calques, motions, éléments v2/v3) : un plan v4 n'en a aucun. */
   anciens?: number;
+  /** GV2-49 : le plan sort du réalisateur (le plan n'a pas de marqueur de version) : D15l s'applique. Absent : D15l ne s'applique que si un élément du plan porte déjà `valeurs`. */
+  valeursDitesExigees?: boolean;
 }
 
 export interface MesuresV4 {
@@ -437,6 +441,7 @@ export function controlerSuiteV4(elements: readonly ElementResoluV4[], ctx: Cont
   }
 
   /* D15 — littéralité : mots et chiffres affichés = mots et chiffres DITS, jamais « Villeexemple » ; vidéos littérales ; calage sur la voix. */
+  const exigeValeursDites = ctx.valeursDitesExigees === true || els.some((x) => x.valeurs !== undefined);
   for (const e of els) {
     const f = e.fiche;
     const compter = (nom: string, n: number, [min, max]: readonly [number, number], quoi: string) => {
@@ -456,10 +461,15 @@ export function controlerSuiteV4(elements: readonly ElementResoluV4[], ctx: Cont
     for (const l of e.lignes) if (l.a < e.debut - EPS || l.a > e.fin + EPS) erreurs.push(`D15i — ${nomElement(e)} : la ligne « ${l.texte} » est datée ${sec(l.a)}, hors de la plaquette (${sec(e.debut)} → ${sec(e.fin)}).`);
     const textes = [...e.mots, ...e.lignes.map((l) => l.texte)];
     for (const texte of textes) for (const interdit of motsInterditsDans(texte)) erreurs.push(`V8a — ${nomElement(e)} : texte interdit à l'écran « ${interdit} » dans « ${texte} » (liste de mots interdits à l'écran, décision de Will du 17/10 : jamais affiché, même si Will le dit).`);
+    // D15l (GV2-49) : les barres montrent des nombres DITS (champ « valeurs »), jamais des barres par défaut.
+    if (exigeValeursDites && f.id === "GraphiqueBarres" && !e.valeurs?.length) erreurs.push(`D15l — ${nomElement(e)} : Les barres doivent montrer des nombres dits : renseignez « valeurs » avec 2 à 4 nombres que Will dit (ou choisissez une autre plaquette).`);
     if (!mots) continue;
     const proches = mots.filter((m) => m.a >= e.debut - 2 - EPS && m.a <= e.fin + 1 + EPS);
     const dits = new Set(proches.map((m) => simplifier(sansElision(nettoyer(m.w)))));
     const nombres = nombresDits(proches);
+    if (exigeValeursDites) for (const x of e.valeurs ?? []) {
+      if (![...nombres].some((d) => Math.abs(d - x.valeur) < 1e-9)) erreurs.push(`D15l — ${nomElement(e)} : Les barres doivent montrer des nombres dits : la valeur ${v(x.valeur)} n'est pas dite par Will entre ${sec(Math.max(0, e.debut - 2))} et ${sec(e.fin + 1)}.`);
+    }
     if (e.nombre !== undefined && ![...nombres].some((d) => Math.abs(d - e.nombre!) < 1e-9) && !(f.id === "Chrono" && [...nombres].some((d) => d * 60 === e.nombre))) {
       erreurs.push(`D15d — ${nomElement(e)} : le nombre ${v(e.nombre)} n'est pas dit par Will entre ${sec(Math.max(0, e.debut - 2))} et ${sec(e.fin + 1)}.`);
     }
@@ -491,7 +501,7 @@ export function controlerSuiteV4(elements: readonly ElementResoluV4[], ctx: Cont
 /* ---------------- Le contrôle d'un plan ---------------- */
 
 /** D0 à D15 et V1 à V7, H1, H2 sur le plan (rien si le plan n'a pas d'`elementsV4`). Les messages commencent par leur code. */
-export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: readonly MotTranscrit[]; interdites?: readonly string[]; historique?: readonly HistoriqueVideo[]; repetitionEnAvertissement?: boolean } = {}): { erreurs: string[]; avertissements: string[]; mesures: MesuresV4 | null } {
+export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: readonly MotTranscrit[]; interdites?: readonly string[]; historique?: readonly HistoriqueVideo[]; repetitionEnAvertissement?: boolean; valeursDitesExigees?: boolean } = {}): { erreurs: string[]; avertissements: string[]; mesures: MesuresV4 | null } {
   if (!plan.elementsV4?.length) return { erreurs: [], avertissements: [], mesures: null };
   const resolu = resoudreElementsV4(plan.elementsV4, plan.duree);
   const interditsSousTitres: string[] = [];
@@ -504,6 +514,7 @@ export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: 
     {
       duree: plan.duree,
       finDebut: plan.fin.debut,
+      ...(options.valeursDitesExigees ? { valeursDitesExigees: true } : {}),
       prisBougee: plan.zooms.length > 0 || (plan.mouvements?.length ?? 0) > 0,
       anciens: plan.cartes.length + plan.fenetres.length + plan.calques.length + (plan.motions?.length ?? 0) + (plan.elementsV2?.length ?? 0) + (plan.elementsV3?.length ?? 0),
     },
