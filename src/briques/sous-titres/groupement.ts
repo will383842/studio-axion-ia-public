@@ -179,14 +179,19 @@ function garderVisibilite(segments: SegmentSousTitres[], o: OptionsGroupement): 
   const court = (x: SegmentSousTitres) => x.finSec - x.debutSec < VISIBLE_MIN_SEC - 1e-9;
   const contigus = (a: SegmentSousTitres, b: SegmentSousTitres) => b.debutSec - a.finSec <= o.blancSec + 1e-9;
   const tient = (mots: MotHorodate[]) => mots.length <= o.motsMax && (!o.largeurMaxPx || !o.mesurer || o.mesurer(mots.map((m) => m.mot)) <= o.largeurMaxPx);
+  // Une ligne qui ne peut être ni fusionnée ni allongée est laissée telle quelle : on passe aux suivantes.
+  const laissees = new Set<SegmentSousTitres>();
   for (let garde = 0; garde < segments.length * 4; garde++) {
-    const i = s.findIndex((x, k) => s.length > 1 && court(x) && (k < s.length - 1 || k > 0));
+    const i = s.findIndex((x) => s.length > 1 && court(x) && !laissees.has(x));
     if (i < 0) break;
     const cur = s[i];
     const prec = i > 0 && contigus(s[i - 1], cur) ? s[i - 1] : undefined;
     const suiv = i < s.length - 1 && contigus(cur, s[i + 1]) ? s[i + 1] : undefined;
     const voisine = prec ?? suiv;
-    if (!voisine) break;
+    if (!voisine) {
+      laissees.add(cur);
+      continue;
+    }
     const besoin = VISIBLE_MIN_SEC - (cur.finSec - cur.debutSec);
     if (tient(prec ? [...prec.mots, ...cur.mots] : [...cur.mots, ...suiv!.mots])) {
       if (prec) {
@@ -205,7 +210,7 @@ function garderVisibilite(segments: SegmentSousTitres[], o: OptionsGroupement): 
     } else if (suiv && suiv.finSec - suiv.debutSec - besoin >= VISIBLE_MIN_SEC - 1e-9) {
       suiv.debutSec = arrondi(suiv.debutSec + besoin);
       cur.finSec = arrondi(suiv.debutSec);
-    } else break;
+    } else laissees.add(cur);
   }
   return s;
 }
