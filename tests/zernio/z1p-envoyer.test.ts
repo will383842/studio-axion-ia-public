@@ -95,7 +95,7 @@ describe("z1p · envoyer", () => {
     const { f, faux } = monter();
     await f.envoyer(demande({ reseau: "tiktok", niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE", consentementTiktok: true }));
     expect(faux.appels[0].url).toContain("/tiktok/creator-info");
-    expect(posts(faux)[0].json).toMatchObject({ platforms: [{ platform: "tiktok", platformSpecificData: { contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: true, allowDuet: false, allowStitch: true } }] });
+    expect(posts(faux)[0].json).toMatchObject({ platforms: [{ platform: "tiktok", platformSpecificData: { contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: false, allowDuet: false, allowStitch: false } }] });
   });
   it("premier commentaire : Facebook transmis, TikTok à la main", async () => {
     const { f } = monter();
