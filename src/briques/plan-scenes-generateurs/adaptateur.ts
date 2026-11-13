@@ -10,6 +10,7 @@
  */
 import { CATALOGUE_BRIQUES, type IdPiece } from "../plan-scenes/catalogue";
 import { avecEmpreintes } from "../plan-scenes/empreinte";
+import { faitsDuScript } from "../faits-script/extraire";
 import { genererPlan, type AppelClaude } from "../plan-scenes/generateur";
 import { schemaSceneStrict, type FormatPlan, type MotMinute, type PlanDeScenes, type PlanValide, type ScenePlan } from "../plan-scenes/schema";
 import { planDeRepli, validerPlan, type Remarque } from "../plan-scenes/validateur";
@@ -33,6 +34,8 @@ export interface EntreeAdaptateur {
   /** Une personne à l'image : rien devant le visage. */
   facecam: boolean;
   dureeMs?: number;
+  /** Pièces déjà servies dans les vidéos récentes (facultatif, aucun appelant ne le passe encore). */
+  piecesRecentes?: string[];
 }
 
 export interface DependancesAdaptateur {
@@ -105,7 +108,7 @@ export async function adapterPlan(e: EntreeAdaptateur, deps: DependancesAdaptate
   let base: PlanValide = stock.plan;
   let source: ResultatAdaptateur["source"] = "stock";
   if (deps.appeler && mots.length) {
-    const r = await genererPlan({ script: e.script || mots.map((m) => m.texte).join(" "), mots, format: e.format, facecam: e.facecam }, deps.appeler);
+    const r = await genererPlan({ script: e.script || mots.map((m) => m.texte).join(" "), mots, format: e.format, facecam: e.facecam, faits: faitsDuScript(mots), piecesRecentes: e.piecesRecentes }, deps.appeler);
     remarques.push(...r.remarques);
     if (r.source === "llm") {
       // Validé de nouveau avec la durée de Williams (jamais raccourcie) ; un niveau 3 éventuel est replié par le validateur.
