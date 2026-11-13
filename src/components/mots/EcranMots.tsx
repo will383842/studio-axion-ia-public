@@ -16,7 +16,7 @@ import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
 import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
 
 /** Tableau de suivi chargé à la demande : il n'alourdit pas le premier affichage de /mots. */
-const TableauSuiviMots = dynamic(() => import("./TableauSuiviMots").then((m) => m.TableauSuiviMots), { ssr: false });
+const TableauSuiviMots = dynamic(() => import("./TableauSuiviMots").then((m) => m.TableauSuiviMots));
 
 /** Ce que l'écran appelle : en production les gestes de `mots-gestes`, dans les tests un faux. */
 export interface ServicesMots {

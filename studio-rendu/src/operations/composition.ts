@@ -237,11 +237,47 @@ function mesuresBruitages(son: { bruitages?: { voixDb: number; sons: { ecartDb: 
   return { bruitages: b.sons.length, bruitagesSousVoixMinDb: +Math.min(...ecarts).toFixed(2), bruitagesSousVoixMaxDb: +Math.max(...ecarts).toFixed(2) };
 }
 
+/** Arguments ffmpeg du remplacement du son (fondu de fin du son gardé s'il est connu). */
+export function argumentsRemplacerSon(master: string, son: string, sortie: string, fonduAudio?: string): string[] {
+  return ["-hide_banner", "-y", "-i", master, "-i", son, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-af", fonduAudio ? `${fonduAudio},${PAN_VOIX_STEREO}` : PAN_VOIX_STEREO, "-c:a", "pcm_s24le", "-ar", "48000", "-ac", "2", "-shortest", sortie];
+}
+
+/** GV2-32 : fondu audio du recalque / remixage, si la composition d'origine avait un fondu de fin ; sinon rien. */
+export function fonduAudioDuRecalque(params: { dureeSec: number; fonduFinSec?: number; image?: { fonduFinSec?: number } }): string | undefined {
+  const fondu = params.image?.fonduFinSec ?? params.fonduFinSec;
+  return fondu && fondu > 0 ? filtresFonduFin(params.dureeSec, fondu).audio : undefined;
+}
+
+/**
+ * GV2-32 : pendant une longue passe ffmpeg (qui ne rapporte rien), publie une progression ESTIMÉE au temps écoulé,
+ * croissante, entre `de` et `a` (jamais atteint), toutes les 30 s : la garde « sans nouvelle » ne tue plus un montage sain.
+ */
+export function demarrerProgressionEstimee(publier: (p: number) => void, o: { de: number; a: number; dureeSec: number; periodeMs?: number }): () => void {
+  const debut = Date.now();
+  const tau = Math.max(120, o.dureeSec * 6);
+  const minuteur = setInterval(() => {
+    const ecoule = (Date.now() - debut) / 1000;
+    publier(Math.min(o.a, +(o.de + (o.a - o.de) * (1 - Math.exp(-ecoule / tau))).toFixed(1)));
+  }, o.periodeMs ?? 30_000);
+  minuteur.unref?.();
+  return () => clearInterval(minuteur);
+}
+
+/** Même chose autour d'un travail : le minuteur s'arrête à la fin, réussie ou en erreur. */
+export async function avecProgressionEstimee<T>(publier: (p: number) => void, o: { de: number; a: number; dureeSec: number; periodeMs?: number }, travail: () => Promise<T>): Promise<T> {
+  const arreter = demarrerProgressionEstimee(publier, o);
+  try {
+    return await travail();
+  } finally {
+    arreter();
+  }
+}
+
 /** Remplace le son du master (image recopiée telle quelle) : correction de crête sans refaire l'image. */
 async function remplacerSonMaster(master: string, son: string, dossier: string, signal: AbortSignal, fonduAudio?: string): Promise<void> {
   const sortie = join(dossier, "master-son.mov");
   // Correcteur réel 2 : le fondu de fin du son est gardé quand le son est refait.
-  await executerAvecErreurs(FFMPEG, ["-hide_banner", "-y", "-i", master, "-i", son, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-af", fonduAudio ? `${fonduAudio},${PAN_VOIX_STEREO}` : PAN_VOIX_STEREO, "-c:a", "pcm_s24le", "-ar", "48000", "-ac", "2", "-shortest", sortie], signal, dossier);
+  await executerAvecErreurs(FFMPEG, argumentsRemplacerSon(master, son, sortie, fonduAudio), signal, dossier);
   await rename(sortie, master);
 }
 
@@ -382,6 +418,8 @@ export const composition: Operation = async (demande, contexte) => {
   }
   contexte.progression(3);
   const serveur = await servirDossier(dossier);
+  // GV2-32 : progression estimée pendant les longues passes ffmpeg (arrêtée avant 95 et, au pire, à la sortie).
+  let arreterProgression = () => {};
   try {
     const adresses = Object.fromEntries(Object.entries(locaux).map(([nom, f]) => [nom, `${serveur.base}/${encodeURIComponent(f)}`]));
     const pauses = params.son.pauses;
@@ -478,6 +516,7 @@ export const composition: Operation = async (demande, contexte) => {
       chrono("tempsImageEtTexteSec", t);
       contexte.progression(55);
 
+      arreterProgression = demarrerProgressionEstimee((x) => contexte.progression(x), { de: 55, a: 94, dureeSec: params.dureeSec });
       // 6-7. Export, mesures ; le son est refait plus bas si la crête vraie dépasse (au plus deux fois).
       t = Date.now();
       let video = await exporter(master, dossierTexte, params.export, dossier, contexte.signal);
@@ -496,6 +535,7 @@ export const composition: Operation = async (demande, contexte) => {
       ({ video, mesures } = await noterEtRelancer(video, master, dossierTexte, params.export, dossier, pauses, mesures, contexte.signal));
       // 7 ter (10/10). Garde-fou des couleurs : l'export contre la prise étalonnée (le master peut être déjà faux).
       if (controleCouleurs) mesures = { ...mesures, ...(await couleursDeLExport(video, demande.entrees[controleCouleurs.entree], controleCouleurs.paires, contexte.signal)) };
+      arreterProgression();
       contexte.progression(95);
       const premierDouble = params.image.plans.find((x) => x.type === "double");
       const vign = await vignette(video, dossier, Math.min(params.dureeSec - 0.1, Math.max(0.5, (premierDouble?.debutSec ?? 0) + 0.5)), contexte.signal);
@@ -532,7 +572,7 @@ export const composition: Operation = async (demande, contexte) => {
         signal: contexte.signal,
         ...(s.bruitages?.length ? { bruitages: bruitagesLocaux(s, locaux, dossier) } : {}),
       });
-      await remplacerSonMaster(master, son.chemin, dossier, contexte.signal);
+      await remplacerSonMaster(master, son.chemin, dossier, contexte.signal, fonduAudioDuRecalque(params as { dureeSec: number; fonduFinSec?: number }));
       mesuresRemix = { remixage: 1, gainDb: son.gainDb, ...mesuresBruitages(son) };
       chrono("tempsSonSec", t);
       t = Date.now();
@@ -553,6 +593,7 @@ export const composition: Operation = async (demande, contexte) => {
     temps.tempsTotalSec = +((Date.now() - debut) / 1000).toFixed(1);
     return { mesures: { ...mesures, ...mesuresRemix, ...temps, imagesTexte, ...(rt.coutLambdaUsd !== undefined ? { coutLambdaUsd: rt.coutLambdaUsd } : {}), images: params.texte.images } };
   } finally {
+    arreterProgression();
     await serveur.fermer();
   }
 };

@@ -28,9 +28,40 @@ function finsAvecSousTitres(projetMontage: unknown): FinAvecSousTitres[] {
   });
 }
 
-/** Les sous-titres de la fin d'un réseau ; `null` : aucune fin de ce réseau ne porte ses sous-titres. */
+/** Segments lus avec prudence (liste non vide), sinon `null`. */
+const segmentsDe = (v: unknown): SegmentSousTitres[] | null => (Array.isArray(v) && v.length ? (v as SegmentSousTitres[]) : null);
+
+/** Image → vidéo : la livraison du réseau (une entrée par réseau) porte les sous-titres de la version livrée. */
+function sousTitresImageVideo(projetMontage: unknown, reseau: string): SegmentSousTitres[] | null {
+  const livraison = objet(objet(projetMontage)?.imageVideo)?.livraison;
+  if (!Array.isArray(livraison)) return null;
+  for (const l of livraison) {
+    const x = objet(l);
+    if (x?.reseau === reseau) return segmentsDe(x.sousTitres);
+  }
+  return null;
+}
+
+/** Tableau : la première sortie qui dit ce réseau et porte ses sous-titres. */
+function sousTitresTableau(projetMontage: unknown, reseau: string): SegmentSousTitres[] | null {
+  const sorties = objet(objet(projetMontage)?.tableau)?.sorties;
+  if (!Array.isArray(sorties)) return null;
+  for (const s of sorties) {
+    const x = objet(s);
+    if (Array.isArray(x?.reseaux) && x.reseaux.includes(reseau)) {
+      const segments = segmentsDe(x.sousTitres);
+      if (segments) return segments;
+    }
+  }
+  return null;
+}
+
+/**
+ * Les sous-titres de la fin d'un réseau ; `null` : rien n'est gardé pour ce réseau (ancien projet, autre format).
+ * Trois formes lues : cas concret (`casConcret.fins`), image → vidéo (`imageVideo.livraison`), tableau (`tableau.sorties`).
+ */
 export function sousTitresDuReseau(projetMontage: unknown, reseau: string): SegmentSousTitres[] | null {
-  return finsAvecSousTitres(projetMontage).find((f) => f.reseaux.includes(reseau))?.sousTitres ?? null;
+  return finsAvecSousTitres(projetMontage).find((f) => f.reseaux.includes(reseau))?.sousTitres ?? sousTitresImageVideo(projetMontage, reseau) ?? sousTitresTableau(projetMontage, reseau);
 }
 
 export interface LienSousTitresReseau {

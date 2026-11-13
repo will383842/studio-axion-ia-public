@@ -82,7 +82,7 @@ describe("lecture unique · fabrication bout en bout", () => {
 
     // Une seule lecture, celle du corps suivi de la partie commune puis des phrases propres.
     const voix = etat.voix!;
-    expect(voix.version).toBe("voix-iv/2");
+    expect(voix.version).toBe("voix-iv/3");
     expect(voix.segments.fins).toEqual([]);
     expect(voix.voix.fins).toEqual([]);
     expect(m.lus).toEqual([voix.segments.corps]);
@@ -211,7 +211,7 @@ describe("lecture unique · fabrication bout en bout", () => {
   it("aucun secours pour une voix lue d'un trait : `planDeSecoursIV` rend null", async () => {
     const { o, e } = await auScript();
     const etat = await jusquAuBout(validerScriptIV(e, decisionScript(e)), o);
-    expect(etat.voix!.version).toBe("voix-iv/2");
+    expect(etat.voix!.version).toBe("voix-iv/3");
     const arrete: Pick<EtatFabricationIV, "refus" | "voix" | "plan"> = {
       refus: { etape: "voix", code: "IV_VOIX", message: "x", reessayable: false },
       voix: etat.voix,

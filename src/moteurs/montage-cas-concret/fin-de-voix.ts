@@ -7,7 +7,7 @@
  *  - `recalerCoupesSurSilences` : toute coupe du plan de la voix qui tombe EN PLEIN SON est déplacée dans le blanc MESURÉ
  *    le plus proche (`silencesMesures`, même règle que `silencedetect`), avec une courte fin naturelle ; les mots qui
  *    suivent sont décalés d'autant. La recette (`recette-voix.ts`) n'est pas modifiée : le plan est corrigé après elle.
- *  - `controlerFinDeVoix` : contrôle BLOQUANT du son final. Refusé si le son chute brutalement en plein mot (au moins
+ *  - `controlerFinDeVoix` : contrôle informatif, non bloquant depuis le 08/11 (un défaut est signalé « à vérifier », la vidéo n'est pas arrêtée) du son final. Refusé si le son chute brutalement en plein mot (au moins
  *    −30 dB puis −60 dB ou moins en 20 ms, et le silence tient) ou s'il s'arrête avant l'heure de fin du dernier mot.
  */
 import type { MotHorodate } from "@/domaine/types";

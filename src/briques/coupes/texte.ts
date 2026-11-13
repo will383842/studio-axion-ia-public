@@ -27,11 +27,16 @@ export function finitPhrase(mot: string): boolean {
   return /[.?!…]["»”'\s ]*$/.test(mot);
 }
 
-/** Les phrases du texte validé, dans l'ordre (coupées après . ! ? …). Les blocs vides sont écartés. */
-export function phrasesDuTexte(texte: string): string[] {
-  return texte
-    .replace(/\s+/g, " ")
-    .split(/(?<=[.?!…]["»”]?)\s+/)
+/**
+ * Les phrases du texte validé, dans l'ordre (coupées après . ! ? …). Les blocs vides sont écartés.
+ * `parLigne` (GV2-27, facultatif, éteint par défaut) : une ligne qui commence par une majuscule ouvre aussi une phrase
+ * (script « une phrase par ligne, sans point ») ; une ligne qui commence par une minuscule continue la précédente
+ * (un PDF coupe des phrases au milieu).
+ */
+export function phrasesDuTexte(texte: string, options?: { parLigne?: boolean }): string[] {
+  const blocs = options?.parLigne ? texte.split(/\r?\n+(?=\s*[A-ZÀ-Ý«"“])/) : [texte];
+  return blocs
+    .flatMap((b) => b.replace(/\s+/g, " ").split(/(?<=[.?!…]["»”]?)\s+/))
     .map((p) => p.trim())
     .filter((p) => tokens(p).length > 0);
 }

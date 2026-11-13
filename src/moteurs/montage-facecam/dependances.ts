@@ -11,6 +11,7 @@
 import type { CommandeFabrication } from "@/domaine/types";
 import { resoudreFournisseur } from "@/fournisseurs";
 import { fournisseurFacecam } from "@/fournisseurs/facecam";
+import { delaiSansNouvelleMs } from "@/fournisseurs/rendu/garde";
 import { obtenirServiceRendu, renduSimule } from "@/fournisseurs/rendu/client";
 import type { OutilsMontage } from "@/briques/composition/montage";
 import type { MemoireCartesAuto } from "@/briques/habillage-facecam";
@@ -83,6 +84,8 @@ export function outilsHabillage(env: Record<string, string | undefined> = proces
       return sortie;
     },
     cle: (c, nom) => `facecam/${c.videoId}/${nom}`,
+    // GV2-23 : la composition finale se protège seule (relance sous un autre identifiant, puis échec clair).
+    garde: { delaiMs: delaiSansNouvelleMs(env) },
   };
 }
 
