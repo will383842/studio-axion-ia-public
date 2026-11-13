@@ -144,7 +144,7 @@ describe("COUL-01 : le contenu lit la charte figée", () => {
 });
 
 /** Usages de classes d'orange d'accent + halos, dans src/. Ce nombre ne peut que baisser (chaque lot remplace l'orange d'accent par --accent). */
-const ORANGE_MAX = 309; // mesuré après R1 à R10 et les rattrapages RA1, RA2, RA3a, RA3b, RA3d ; ne peut que baisser
+const ORANGE_MAX = 293; // mesuré après R1 à R10, RA1 à RA3d et REF-R8b1 ; ne peut que baisser
 const CLASSE_ORANGE = /(?<![\w-])(?:[a-z0-9[\]:_-]+:)?(?:bg|text|border(?:-[trblxy])?|shadow|ring|from|to|via|outline|decoration|fill|stroke|divide)-orange(?:-vif|-doux)?(?:\/\d+)?(?![\w-])|(?<![\w-])lueur(?:-forte)?(?![\w-])/g;
 
 function fichiers(dossier: string, sortie: string[] = []): string[] {
