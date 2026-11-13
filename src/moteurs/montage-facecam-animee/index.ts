@@ -18,12 +18,12 @@
  * (`entrees.facecamAnimee.accordEssaiReel`, réglage `facecamAnimee.accordEssaiReel`), même garde que « Image → vidéo ».
  * Ce fichier n'importe aucun service ni fournisseur.
  */
-import type { CommandeFabrication, EtapeTravail, LigneCout, Ratio, Travail } from "@/domaine/types";
+import type { AlerteQualite, CommandeFabrication, EtapeTravail, LigneCout, Ratio, Travail } from "@/domaine/types";
 import { formatFacecamAnimee } from "@/formats/facecam-animee";
 import { ZERO } from "@/lib/montants";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ResultatFabrication, SortieProduite } from "../types";
 import { segmentsSrtV4 } from "./sous-titres-srt";
-import type { EtapeChaineV4, EtatChaineV4, OutilsChaineV4 } from "./chaine-v4";
+import type { ControleSousTitresV4, EtapeChaineV4, EtatChaineV4, OutilsChaineV4 } from "./chaine-v4";
 
 export const ID_MOTEUR_FACECAM_ANIMEE = "montage-facecam-animee";
 
@@ -268,6 +268,18 @@ function travailV4(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, comman
   return { ...base, etapes: etapesDepuisEtat(base, etat.etape) };
 }
 
+/** GV2-24 : alertes « attention » des sous-titres (jamais un échec). Ancien état sans `controle` : aucune. PUR. */
+export function alertesSousTitresV4(c: ControleSousTitresV4 | undefined): AlerteQualite[] {
+  if (!c) return [];
+  const a = (message: string): AlerteQualite => ({ code: "synchronisation", gravite: "attention", message });
+  return [
+    ...(c.texteNonRetrouve ? [a("Votre texte n'a pas été retrouvé dans la vidéo : les sous-titres viennent de ce qui a été entendu.")] : []),
+    ...(c.phrasesManquantes > 0 ? [a(`${c.phrasesManquantes} phrase(s) de votre texte ne sont pas dans la vidéo.`)] : []),
+    ...(c.trous > 0 ? [a(`${c.trous} passage(s) parlé(s) sans sous-titre : vérifiez la transcription.`)] : []),
+    ...(c.motsInterdits > 0 ? [a(`${c.motsInterdits} mot(s) dit(s) non affiché(s) (liste des mots interdits à l'écran).`)] : []),
+  ];
+}
+
 /** Résultat d'une chaîne v4 finie : UNE vidéo 9:16, rangée par le studio comme celles des autres générateurs. PUR. */
 export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
   const r = etat.rendu;
@@ -280,6 +292,7 @@ export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
     ...(filet ? [{ code: "defaut-visuel" as const, gravite: "attention" as const, message: etat.realisation?.phrase ?? "Mise en scène simple : aucune vidéo d'illustration fidèle n'a été trouvée." }] : []),
     ...(simple && !filet ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "Mise en scène simple (sans Claude)." }] : []),
     ...(etat.repliSansVideo?.fait && !filet ? [{ code: "montant" as const, gravite: "info" as const, message: etat.realisation?.phrase ?? "La mise en scène a été refaite sans vidéo d'illustration." }] : []),
+    ...alertesSousTitresV4(etat.coupes?.controle),
   ];
   const note = simple ? 80 : 90;
   return {
