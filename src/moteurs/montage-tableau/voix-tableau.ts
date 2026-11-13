@@ -13,24 +13,39 @@ import { debitEtVitesseConseillee } from "@/briques/voix-maitre/nettoyage";
 import type { AudioBrut, AudioMaitre } from "@/briques/voix-maitre/types";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu } from "@/fournisseurs/types";
-import { parametresRaccord, parametresRecette, planRaccordVoix, planRecetteVoix, RECETTE_VOIX_TABLEAU, type PlanRaccordVoix, type PlanRecetteVoix, type RecetteVoixTableau } from "./recette-voix";
+import { parametresRaccord, parametresRecette, planRaccordVoix, planRecetteSansMots, planRecetteVoix, RECETTE_VOIX_TABLEAU, type PlanRaccordVoix, type PlanRecetteVoix, type RecetteVoixTableau } from "./recette-voix";
 
 /** Ce que la recette a fait du son. */
 export interface RecetteAppliquee {
   id: string;
   appliquee: boolean;
-  /** Pourquoi la voix brute a été gardée (repli). */
+  /** Pourquoi la voix brute a été gardée (repli), ou (`partielle`) pourquoi la recette est réduite. */
   raison?: string;
+  /** GV2-28 : recette réduite (sans horodatage des mots) : un seul morceau, niveau sonore et silence de fin, sans fondu. */
+  partielle?: true;
 }
 
 export type AudioVoixTableau = AudioMaitre & { recette?: RecetteAppliquee };
 
 export type EtatVoixTableau =
   | Exclude<EtatVoixMaitre, { phase: "faite" }>
-  | { phase: "recette"; brut: AudioBrut; plan: PlanRecetteVoix; demande: DemandeRendu; essai?: number }
+  | { phase: "recette"; brut: AudioBrut; plan: PlanRecetteVoix; demande: DemandeRendu; essai?: number; repli?: string }
   | { phase: "faite"; audio: AudioVoixTableau };
 
-export const REPLI_SANS_HORODATAGE = "La voix n'a pas donné l'horodatage de ses mots : la voix brute est gardée, sans la recette.";
+export const REPLI_SANS_HORODATAGE = "Sous-titres approximatifs : la voix n'a pas donné l'horodatage de ses mots. Le son reçoit le niveau sonore et le silence de fin, mais ni resserrage des blancs ni fondu de sortie.";
+
+/** GV2-28 : phrase du repli quand le plan des mots n'a pas pu être calculé. */
+const raisonRepliPlan = (err: unknown) => `${err instanceof Error ? err.message : String(err)} Sous-titres approximatifs : le son reçoit le niveau sonore et le silence de fin, sans resserrage des blancs ni fondu de sortie.`;
+
+/** Mots d'un audio : ceux du plan, ou (repli sans horodatage) les mots estimés de la voix, divisés par `atempo`. */
+function motsFinaux(plan: PlanRecetteVoix, brut: AudioBrut, repli: string | undefined, recette: RecetteVoixTableau) {
+  if (!repli) return plan.mots;
+  const k = recette.filtres.atempo;
+  return k === 1 ? brut.mots : brut.mots.map((m) => ({ ...m, debutSec: +(m.debutSec / k).toFixed(4), finSec: +(m.finSec / k).toFixed(4) }));
+}
+
+/** Recette de l'audio fini : appliquée ; `partielle` et sa raison quand c'est le repli sans horodatage. */
+const recetteFinie = (recette: RecetteVoixTableau, repli: string | undefined): RecetteAppliquee => ({ id: recette.id, appliquee: true, ...(repli ? { partielle: true as const, raison: repli } : {}) });
 
 /** La voix brute sert d'audio final (repli), et l'audio le dit. */
 function voixBrute(brut: AudioBrut, o: OutilsVoixMaitre, recette: RecetteVoixTableau, raison: string): EtatVoixTableau {
@@ -80,14 +95,22 @@ async function soumettreRecette(o: OutilsVoixMaitre, brut: AudioBrut, plan: Plan
 export async function avancerVoixTableau(etat: EtatVoixTableau, o: OutilsVoixMaitre, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU, relance = 0): Promise<EtatVoixTableau> {
   if (etat.phase === "a-analyser") {
     const brut = etat.brut;
-    if (brut.approximatif) return voixBrute(brut, o, recette, REPLI_SANS_HORODATAGE);
+    // GV2-28 : sans horodatage fiable, la recette est quand même soumise (un seul morceau, sans fondu).
+    let repli: string | undefined = brut.approximatif ? REPLI_SANS_HORODATAGE : undefined;
     let plan: PlanRecetteVoix;
     try {
-      plan = planRecetteVoix(brut.mots, brut.dureeSec, recette);
+      if (repli) plan = planRecetteSansMots(brut.dureeSec, recette);
+      else plan = planRecetteVoix(brut.mots, brut.dureeSec, recette);
     } catch (err) {
-      return voixBrute(brut, o, recette, `${err instanceof Error ? err.message : String(err)} La voix brute est gardée.`);
+      if (repli) return voixBrute(brut, o, recette, `${err instanceof Error ? err.message : String(err)} La voix brute est gardée.`);
+      repli = raisonRepliPlan(err);
+      try {
+        plan = planRecetteSansMots(brut.dureeSec, recette);
+      } catch (err2) {
+        return voixBrute(brut, o, recette, `${err2 instanceof Error ? err2.message : String(err2)} La voix brute est gardée.`);
+      }
     }
-    return { phase: "recette", brut, plan, demande: await soumettreRecette(o, brut, plan, recette, 0, relance) };
+    return { phase: "recette", brut, plan, demande: await soumettreRecette(o, brut, plan, recette, 0, relance), ...(repli ? { repli } : {}) };
   }
   if (etat.phase === "recette") {
     const e = await suivreRendu(o.rendu(), etat.demande);
@@ -104,7 +127,7 @@ export async function avancerVoixTableau(etat: EtatVoixTableau, o: OutilsVoixMai
         // Rendu simulé : aucun fichier n'est produit, le son brut sert d'audio (horodatages recalés quand même).
         fichierCle: o.renduEstSimule() ? brut.fichierCle : e.sortieCle,
         dureeSec: +(e.mesures?.dureeSec ?? etat.plan.dureeSec).toFixed(3),
-        mots: etat.plan.mots,
+        mots: motsFinaux(etat.plan, brut, etat.repli, recette),
         empreinte: o.empreinte(),
         reutilise: false,
         coutCentimes: brut.coutCentimes,
@@ -112,9 +135,10 @@ export async function avancerVoixTableau(etat: EtatVoixTableau, o: OutilsVoixMai
         caracteres: brut.caracteres,
         coupures: Math.max(0, etat.plan.morceaux.length - 1),
         respirations: 0,
-        ...debitEtVitesseConseillee(etat.plan.mots, o.reglages?.vitesse ?? 1),
+        ...debitEtVitesseConseillee(motsFinaux(etat.plan, brut, etat.repli, recette), o.reglages?.vitesse ?? 1),
+        ...(brut.approximatif ? { sousTitresApproximatifs: brut.approximatif } : {}),
         ...(brut.ressemblance ? { ressemblance: brut.ressemblance } : {}),
-        recette: { id: recette.id, appliquee: true },
+        recette: recetteFinie(recette, etat.repli),
       },
     };
   }
@@ -148,7 +172,7 @@ export async function avancerLectureBrute(etat: EtatLectureBrute, o: OutilsVoixM
 /** Recette d'une variante : son corps (et sa phrase de fin) raccordés, puis le traitement final commun. */
 export type EtatRecetteVariante =
   | { phase: "a-soumettre" }
-  | { phase: "recette"; plan: PlanRaccordVoix; demande: DemandeRendu; essai?: number }
+  | { phase: "recette"; plan: PlanRaccordVoix; demande: DemandeRendu; essai?: number; repli?: string }
   | { phase: "faite"; audio: AudioVoixTableau };
 
 /** Coût et caractères des lectures dont la variante est faite (le corps est compté UNE fois, par la variante principale). */
@@ -184,8 +208,9 @@ export async function avancerRecetteVariante(etat: EtatRecetteVariante, sources:
   const { corps, fin } = sources;
   if (etat.phase === "a-soumettre") {
     if (!fin && corps.approximatif) {
-      const brute = voixBrute(corps, o, recette, REPLI_SANS_HORODATAGE) as Extract<EtatVoixTableau, { phase: "faite" }>;
-      return { phase: "faite", audio: { ...brute.audio, coutCentimes: compte.coutCentimes, caracteres: compte.caracteres } };
+      // GV2-28 : sans horodatage, la recette est soumise quand même (un seul morceau, sans fondu).
+      const plan: PlanRaccordVoix = { ...planRecetteSansMots(corps.dureeSec, recette), morceaux: [{ debutSec: 0, finSec: corps.dureeSec, source: 0 }], motsCorps: 0 };
+      return { phase: "recette", plan, demande: await soumettreRaccord(o, corps, fin, plan, recette, 0, relance), repli: REPLI_SANS_HORODATAGE };
     }
     const plan = planRaccordVoix(corps, fin, recette);
     return { phase: "recette", plan, demande: await soumettreRaccord(o, corps, fin, plan, recette, 0, relance) };
@@ -204,7 +229,7 @@ export async function avancerRecetteVariante(etat: EtatRecetteVariante, sources:
         // Rendu simulé : aucun fichier n'est produit, le son brut du corps sert d'audio (horodatages recalés quand même).
         fichierCle: o.renduEstSimule() ? corps.fichierCle : e.sortieCle,
         dureeSec: +(e.mesures?.dureeSec ?? etat.plan.dureeSec).toFixed(3),
-        mots: etat.plan.mots,
+        mots: motsFinaux(etat.plan, corps, etat.repli, recette),
         empreinte: o.empreinte(),
         reutilise: false,
         coutCentimes: compte.coutCentimes,
@@ -212,8 +237,9 @@ export async function avancerRecetteVariante(etat: EtatRecetteVariante, sources:
         caracteres: compte.caracteres,
         coupures: Math.max(0, etat.plan.morceaux.length - 1),
         respirations: 0,
-        ...debitEtVitesseConseillee(etat.plan.mots, o.reglages?.vitesse ?? 1),
-        recette: { id: recette.id, appliquee: true },
+        ...debitEtVitesseConseillee(motsFinaux(etat.plan, corps, etat.repli, recette), o.reglages?.vitesse ?? 1),
+        ...(corps.approximatif ? { sousTitresApproximatifs: corps.approximatif } : {}),
+        recette: recetteFinie(recette, etat.repli),
       },
     };
   }
