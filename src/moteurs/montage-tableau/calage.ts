@@ -53,7 +53,7 @@ export interface ElementCale {
 }
 
 export type ResultatCalage =
-  | { ok: true; fiche: FicheTableau; elements: ElementCale[] }
+  | { ok: true; fiche: FicheTableau; elements: ElementCale[]; alertes?: string[] }
   | { ok: false; problemes: string[]; validation?: ProblemeFiche[] };
 
 /** Un mot écrit de la fiche, avec la scène d'où il vient. */
@@ -77,6 +77,59 @@ function formesDites(texte: string): string[] {
   const formes = [cle];
   if (/^\d+$/.test(cle) && cle.length <= 9) formes.push(cleMot(nombreEnLettres(Number(cle))));
   return formes;
+}
+
+/** Part des mots écrits qui doivent être reconnus pour qu'un calage approché soit accepté. */
+const PART_RECONNUE_MIN = 0.9;
+/** Calage approché : au plus ce nombre de mots écrits non reconnus de suite, et de mots dits sautés. */
+const MAX_ECRITS_APPROCHES = 4;
+const MAX_DITS_SAUTES = 8;
+/** Un mot écrit à adresse web (« axion-ia.com »). */
+const ADRESSE_WEB = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(\/\S*)?[.,;:!?]?$/i;
+
+/** Mot écrit « chiffre ou symbole » : seul genre de mot dont l'oral peut légitimement s'écarter (« 3h », « 50% », « 1er », « 2,5 », adresse web). */
+function estChiffreOuSymbole(texte: string): boolean {
+  return /\d/.test(texte) || /[%€&]/.test(texte) || ADRESSE_WEB.test(texte);
+}
+
+/** Vrai si, dans le texte dit, le jeton juste avant ce mot (au besoin dans la scène d'avant) est un symbole sans lettre ni chiffre (« & », « € », « / »). */
+function symboleAvant(fiche: FicheTableau, e: MotEcrit): boolean {
+  const jetons = fiche.scenes[e.scene].texteDit.split(/\s+/).filter(Boolean);
+  let rang = -1;
+  let k = 0;
+  for (; k < jetons.length; k++) {
+    if (/[\p{L}\p{N}]/u.test(jetons[k])) rang++;
+    if (rang === e.rang) break;
+  }
+  const avant = k > 0 ? jetons[k - 1] : e.scene > 0 ? fiche.scenes[e.scene - 1].texteDit.split(/\s+/).filter(Boolean).at(-1) : undefined;
+  return avant !== undefined && !/[\p{L}\p{N}]/u.test(avant) && /[%€&/]/.test(avant);
+}
+
+/**
+ * Repli du calage approché : à l'écart en `i` / `j`, cherche la plus petite reprise « `u` mots écrits (tous chiffre ou
+ * symbole) non reconnus, `d` mots dits sautés », après laquelle les mots écrits et dits se retrouvent. `u` peut être 0
+ * quand un symbole seul (« & ») précède le mot écrit : les mots dits qui le disent sont sautés.
+ */
+function reprise(
+  fiche: FicheTableau,
+  ecrits: MotEcrit[],
+  dits: MotCalage[],
+  i: number,
+  j: number,
+  prononciations: readonly { mot: string; prononciation: string }[],
+): { u: number; d: number } | null {
+  const uMin = symboleAvant(fiche, ecrits[i]) ? 0 : 1;
+  const candidats: { u: number; d: number }[] = [];
+  for (let u = uMin; u <= MAX_ECRITS_APPROCHES && i + u <= ecrits.length; u++) {
+    if (!ecrits.slice(i, i + u).every((e) => estChiffreOuSymbole(e.texte))) break;
+    for (let d = u === 0 ? 1 : 0; d <= MAX_DITS_SAUTES && j + d <= dits.length; d++) candidats.push({ u, d });
+  }
+  candidats.sort((a, b) => a.u + a.d - (b.u + b.d) || a.u - b.u);
+  for (const c of candidats) {
+    const fin = i + c.u === ecrits.length;
+    if (fin ? j + c.d === dits.length : j + c.d < dits.length && correspondance(ecrits, dits, i + c.u, j + c.d, prononciations)) return c;
+  }
+  return null;
 }
 
 /**
@@ -108,7 +161,7 @@ function correspondance(
  * Correspondance des mots écrits (texte dit des scènes) et des mots dits : l'intervalle (ms) où chaque mot écrit est dit,
  * dans l'ordre. Refus en français (scène nommée) sur le premier écart non toléré.
  */
-function alignerMots(fiche: FicheTableau, ecrits: MotEcrit[], motsDits: readonly MotCalage[], prononciations: readonly { mot: string; prononciation: string }[]): { ok: true; temps: Dit[] } | { ok: false; problemes: string[] } {
+function alignerMots(fiche: FicheTableau, ecrits: MotEcrit[], motsDits: readonly MotCalage[], prononciations: readonly { mot: string; prononciation: string }[]): { ok: true; temps: Dit[]; alerte?: string } | { ok: false; problemes: string[] } {
   const problemes: string[] = [];
   const dits = motsDits.filter((d) => cleMot(d.mot) !== "");
   for (const [k, d] of dits.entries()) {
@@ -119,6 +172,10 @@ function alignerMots(fiche: FicheTableau, ecrits: MotEcrit[], motsDits: readonly
   const temps: Dit[] = [];
   let i = 0;
   let j = 0;
+  /** Calage approché (chiffres et symboles seulement) : mots écrits non reconnus, et le premier écart refusé sans cela. */
+  let approches = 0;
+  let premier: { texte: string; scene: string } | null = null;
+  let refusSansRepli: string | null = null;
   while (i < ecrits.length) {
     const e = ecrits[i];
     const s = fiche.scenes[e.scene];
@@ -128,8 +185,33 @@ function alignerMots(fiche: FicheTableau, ecrits: MotEcrit[], motsDits: readonly
     }
     const c = correspondance(ecrits, dits, i, j, prononciations);
     if (!c) {
-      problemes.push(`Scène ${s.id} · le mot ${e.rang + 1} écrit « ${e.texte} » ne correspond pas au mot dit « ${dits[j].mot} » (à ${dits[j].debutSec} s).`);
-      break;
+      const message = `Scène ${s.id} · le mot ${e.rang + 1} écrit « ${e.texte} » ne correspond pas au mot dit « ${dits[j].mot} » (à ${dits[j].debutSec} s).`;
+      refusSansRepli ??= message;
+      const r = reprise(fiche, ecrits, dits, i, j, prononciations);
+      if (!r) {
+        problemes.push(refusSansRepli);
+        break;
+      }
+      // Les mots écrits non reconnus se partagent le temps des mots dits sautés, au prorata de leurs lettres ; sans mot
+      // dit, ils tombent au début du mot suivant. Le texte écrit ne change pas : seule l'heure est approchée.
+      const debut = ms(dits[Math.min(j, dits.length - 1)].debutSec);
+      if (r.d === 0) for (let k = 0; k < r.u; k++) temps.push({ debutMs: debut, finMs: debut });
+      else {
+        const de = ms(dits[j].debutSec);
+        const fin = ms(dits[j + r.d - 1].finSec);
+        const poids = ecrits.slice(i, i + r.u).map((x) => Math.max(1, cleMot(x.texte).length));
+        const total = poids.reduce((a, b) => a + b, 0) || 1;
+        let acc = 0;
+        for (const p of poids) {
+          temps.push({ debutMs: Math.round(de + ((fin - de) * acc) / total), finMs: Math.round(de + ((fin - de) * (acc + p)) / total) });
+          acc += p;
+        }
+      }
+      approches += Math.max(1, r.u);
+      premier ??= { texte: e.texte, scene: s.id };
+      i += r.u;
+      j += r.d;
+      continue;
     }
     const intervalle = { debutMs: ms(dits[j].debutSec), finMs: ms(dits[j + c.b - 1].finSec) };
     for (let k = 0; k < c.a; k++) temps.push(intervalle);
@@ -140,7 +222,11 @@ function alignerMots(fiche: FicheTableau, ecrits: MotEcrit[], motsDits: readonly
     const s = fiche.scenes[fiche.scenes.length - 1];
     problemes.push(`Scène ${s.id} · la voix dit ${dits.length - j} mot${dits.length - j > 1 ? "s" : ""} de plus que le texte dit (à partir de « ${dits[j].mot} »).`);
   }
-  return problemes.length ? { ok: false, problemes } : { ok: true, temps };
+  if (problemes.length) return { ok: false, problemes };
+  if (!approches) return { ok: true, temps };
+  // Au moins 90 % des mots écrits reconnus : sinon c'est un vrai désaccord, refusé comme avant.
+  if (ecrits.length - approches < PART_RECONNUE_MIN * ecrits.length && refusSansRepli) return { ok: false, problemes: [refusSansRepli] };
+  return { ok: true, temps, alerte: `Calage approché sur ${approches} mot${approches > 1 ? "s" : ""} (à partir de « ${premier!.texte} », scène ${premier!.scene}) : vérifiez l'écriture à l'image.` };
 }
 
 /**
@@ -186,6 +272,7 @@ export function calerFicheTableau(fiche: FicheTableau, motsDits: readonly MotCal
   const aligne = alignerMots(fiche, ecrits, motsDits, options.prononciations ?? []);
   if (!aligne.ok) return { ok: false, problemes: aligne.problemes };
   const temps = aligne.temps;
+  const alertes = aligne.alerte ? { alertes: [aligne.alerte] } : {};
 
   // 3. Début et fin des scènes, sans trou ni chevauchement.
   const premier: number[] = [];
@@ -225,14 +312,14 @@ export function calerFicheTableau(fiche: FicheTableau, motsDits: readonly MotCal
 
   // 4. La fiche calée repasse la validation complète.
   const v = validerFicheTableau(calee, options.contexte);
-  if (v.ok) return { ok: true, fiche: v.fiche, elements: elementsDe(v.fiche) };
+  if (v.ok) return { ok: true, fiche: v.fiche, elements: elementsDe(v.fiche), ...alertes };
   // Refus par la seule règle du rythme, lue sur les temps de la VRAIE voix : la réparation automatique (`rythme.ts`)
   // passe avant de refuser (ancres redistribuées, gestes sûrs ajoutés ; le texte dit et les textes écrits ne changent
   // pas, ni le nombre de scènes : une scène calée n'est jamais coupée). Elle n'est gardée que si la validation passe.
   if (v.problemes.every((p) => p.regle === REGLE_RYTHME)) {
     const reparee = reparerRythmeFiche(calee, { ...(options.contexte.caracteresParSeconde ? { debit: options.contexte.caracteresParSeconde } : {}), ...(options.contexte.motsDouleur ? { motsDouleur: options.contexte.motsDouleur } : {}) });
     const r = reparee !== calee && reparee.scenes.length === calee.scenes.length ? validerFicheTableau(reparee, options.contexte) : null;
-    if (r?.ok) return { ok: true, fiche: r.fiche, elements: elementsDe(r.fiche) };
+    if (r?.ok) return { ok: true, fiche: r.fiche, elements: elementsDe(r.fiche), ...alertes };
   }
   return { ok: false, problemes: v.problemes.map((p) => p.message), validation: v.problemes };
 }
