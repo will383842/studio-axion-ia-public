@@ -110,6 +110,7 @@ type RaisonPreparation =
   | "site_injoignable"
   | "sans_cible"
   | "cible_introuvable"
+  | "cible_test"
   | "adresse_pas_encore"
   | "titre_cible_absent"
   | "texte_dictionnaire_incomplet";
@@ -134,7 +135,8 @@ async function preparer(o: {
   if (mot === MOT_GUIDE) return { ok: false, raison: "mot_guide_a_part" };
   const c = await cibleActuelleDuMot(o);
   if (!c.ok) return c;
-  // Une page (adresse) n'a pas encore de parcours : rien n'est validé pour elle. Une cible d'essai peut être validée ; elle est refusée à l'envoi (`cible_test`).
+  // Une cible d'essai ou une page (adresse) n'est JAMAIS validable : « TEST ⇒ rien », et une page n'a pas encore de parcours.
+  if (c.test) return { ok: false, raison: "cible_test" };
   if (c.type === "adresse") return { ok: false, raison: "adresse_pas_encore" };
   const e = empreinteMot({
     mot,
@@ -173,15 +175,24 @@ export async function etatValidationMot(o: {
   }
 }
 
-/** Vrai seulement si l'empreinte retenue est celle d'aujourd'hui. Ne lève jamais ; FERMÉ en cas de doute (lecture impossible, réseau inconnu, texte incomplet). */
+/** Vrai seulement si l'empreinte retenue est celle d'aujourd'hui ET si la cible actuelle n'est ni d'essai ni une adresse (seconde garde, après `preparer`). Ne lève jamais ; FERMÉ en cas de doute (lecture impossible, site injoignable, réseau inconnu, texte incomplet). */
 export async function motValidePour(o: {
   mot: string;
   reseau: ReseauAuto;
   codeCible: string;
   titre: string;
+  env?: Env;
+  maintenantMs?: number;
 }): Promise<boolean> {
   try {
     if (!estAuto(o.reseau)) return false;
+    const c = await cibleActuelleDuMot({
+      mot: o.mot,
+      reseau: o.reseau,
+      env: o.env,
+      maintenantMs: o.maintenantMs,
+    });
+    if (!c.ok || c.test || c.type === "adresse") return false;
     const v = (await lireRegistre())[cleDe(o.mot, o.reseau)];
     if (!v) return false;
     const e = empreinteMot(o);
@@ -246,6 +257,7 @@ export type RaisonValidation =
   | "site_injoignable"
   | "sans_cible"
   | "cible_introuvable"
+  | "cible_test"
   | "adresse_pas_encore"
   | "titre_cible_absent"
   | "texte_dictionnaire_incomplet"
@@ -325,7 +337,7 @@ export type CodeRefusMotCompte =
 
 /**
  * Garde d'envoi pour un compte : `null` = le mot peut partir, sinon le code du refus. Fermé en cas de doute.
- * N'appelle JAMAIS `sousVerrou` (lectures seulement).
+ * N'appelle JAMAIS `sousVerrou` : elle ne fait aucune écriture de validation (`lireCiblesSite` peut toutefois rafraîchir le miroir du site).
  */
 export async function verifierMotPourCompte(o: {
   mot: string;

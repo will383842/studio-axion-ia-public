@@ -243,6 +243,8 @@ describe("validation par mot et par réseau", () => {
     });
     expect(
       await V.motValidePour({
+        env,
+        maintenantMs: maintenantMs(),
         mot: "CHATGPT",
         reseau: "facebook",
         codeCible: "gde-essai01",
@@ -251,6 +253,8 @@ describe("validation par mot et par réseau", () => {
     ).toBe(true);
     expect(
       await V.motValidePour({
+        env,
+        maintenantMs: maintenantMs(),
         mot: "CHATGPT2",
         reseau: "facebook",
         codeCible: "gde-essai01",
@@ -259,6 +263,8 @@ describe("validation par mot et par réseau", () => {
     ).toBe(false);
     expect(
       await V.motValidePour({
+        env,
+        maintenantMs: maintenantMs(),
         mot: "GUIDE",
         reseau: "facebook",
         codeCible: "gde-essai01",
@@ -407,9 +413,64 @@ describe("validation par mot et par réseau", () => {
     });
     expect(r).toEqual({ ok: false, raison: "site_injoignable" });
   });
-  it("cible TEST : validation permise, envoi refusé", async () => {
-    expect((await valider("ESSAI", "facebook")).ok).toBe(true);
+  it("cible TEST : jamais validable, envoi refusé", async () => {
+    expect(await valider("ESSAI", "facebook", "x")).toEqual({
+      ok: false,
+      raison: "cible_test",
+    });
+    const a = (await apercu("ESSAI")).find((x) => x.reseau === "facebook")!;
+    expect(a).toEqual({ reseau: "facebook", ok: false, raison: "cible_test" });
     expect(await verifier("ESSAI", NOM_FB)).toBe("cible_test");
+    expect(await commun.lireParametre(V.PARAM_VALIDATIONS_PAR_MOT, {})).toEqual(
+      {},
+    );
+  });
+  it("motValidePour rend false pour une cible d'essai ou une adresse, même avec une validation écrite au registre", async () => {
+    const e1 = empreinteMot({
+      mot: "ESSAI",
+      reseau: "facebook",
+      codeCible: "gde-essai04",
+      titre: "Guide d'essai E",
+    });
+    const e2 = empreinteMot({
+      mot: "PAGE",
+      reseau: "facebook",
+      codeCible: "adr-essai0000001",
+      titre: "Page fictive B",
+    });
+    if (!e1.ok || !e2.ok) throw new Error("empreinte attendue");
+    await commun.ecrireParametre(V.PARAM_VALIDATIONS_PAR_MOT, {
+      "ESSAI|facebook": {
+        empreinte: e1.empreinte,
+        codeCible: "gde-essai04",
+        valideLe: "2026-11-12T10:00:00.000Z",
+      },
+      "PAGE|facebook": {
+        empreinte: e2.empreinte,
+        codeCible: "adr-essai0000001",
+        valideLe: "2026-11-12T10:00:00.000Z",
+      },
+    });
+    expect(
+      await V.motValidePour({
+        env,
+        maintenantMs: maintenantMs(),
+        mot: "ESSAI",
+        reseau: "facebook",
+        codeCible: "gde-essai04",
+        titre: "Guide d'essai E",
+      }),
+    ).toBe(false);
+    expect(
+      await V.motValidePour({
+        env,
+        maintenantMs: maintenantMs(),
+        mot: "PAGE",
+        reseau: "facebook",
+        codeCible: "adr-essai0000001",
+        titre: "Page fictive B",
+      }),
+    ).toBe(false);
   });
   it("adresse : pas encore", async () => {
     const a = (await apercu("PAGE")).find((x) => x.reseau === "facebook")!;
@@ -463,6 +524,8 @@ describe("validation par mot et par réseau", () => {
       expect(await verifier("CHATGPT", NOM_FB)).toBe("lecture_impossible");
       expect(
         await V.motValidePour({
+          env,
+          maintenantMs: maintenantMs(),
           mot: "CHATGPT",
           reseau: "facebook",
           codeCible: "gde-essai01",
