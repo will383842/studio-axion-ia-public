@@ -23,7 +23,7 @@ const nombre = (v: FormDataEntryValue | null): number | undefined => {
 
 /**
  * Version formulaire de la page : heures séparées par des virgules, par réseau. Un champ vidé reprend la valeur de
- * départ, une heure illisible renvoie à l'écran avec un message (rien n'est enregistré), les objectifs sont conservés.
+ * départ, une heure illisible renvoie à l'écran avec un message (rien n'est enregistré), les objectifs et les règles par réseau sont conservés.
  */
 export async function enregistrerCadenceFormulaire(donnees: FormData): Promise<void> {
   await exigerSession();
@@ -43,5 +43,5 @@ export async function enregistrerCadenceFormulaire(donnees: FormData): Promise<v
     redirect(`/reglages/cadence?erreur=${encodeURIComponent(message)}`);
   }
   const actuels = await lireReglagesCadence();
-  await enregistrerReglagesCadenceAction({ reseaux, objectifs: actuels.objectifs });
+  await enregistrerReglagesCadenceAction({ reseaux, objectifs: actuels.objectifs, regles: actuels.regles });
 }
