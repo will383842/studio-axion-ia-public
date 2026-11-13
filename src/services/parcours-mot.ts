@@ -12,7 +12,6 @@
  */
 import "server-only";
 import { lireCommentaireManuel } from "@/domaine/guide-reseau/commentaire-manuel";
-import { PARAM_RESEAUX_MANUELS, TYPE_COMMENTAIRE_MANUEL } from "./a-traiter-manuel";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { cleIdempotence, RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
@@ -80,6 +79,12 @@ export function evenementsMotsActifs(env: Record<string, string | undefined> = p
   const v = env.MOTS_ENABLED;
   return v === "1" || v === "true";
 }
+
+/** Copies des constantes d'a-traiter-manuel (pas d'import : cycle avec mots-service) ; un test vérifie qu'elles restent égales. */
+export const PARAM_RESEAUX_MANUELS_CROCHET = "a_traiter.reseaux_manuels";
+export const TYPE_COMMENTAIRE_MANUEL_CROCHET = "zernio.commentaire_manuel";
+const PARAM_RESEAUX_MANUELS = PARAM_RESEAUX_MANUELS_CROCHET;
+const TYPE_COMMENTAIRE_MANUEL = TYPE_COMMENTAIRE_MANUEL_CROCHET;
 
 /** Réglage « réseaux manuels » (LinkedIn/TikTok) : ÉTEINT par défaut, allumé SEULEMENT par la valeur booléenne true ; toute panne = éteint. */
 async function reseauxManuelsAllumes(): Promise<boolean> {

@@ -42,6 +42,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+describe("constantes", () => {
+  it("copies du crochet = constantes d'a-traiter-manuel", async () => {
+    const m = await import("@/services/a-traiter-manuel");
+    expect(pm.PARAM_RESEAUX_MANUELS_CROCHET).toBe(m.PARAM_RESEAUX_MANUELS);
+    expect(pm.TYPE_COMMENTAIRE_MANUEL_CROCHET).toBe(m.TYPE_COMMENTAIRE_MANUEL);
+  });
+});
+
 describe("réglage éteint (défaut) : aucun dépôt", () => {
   for (const reseau of ["linkedin", "tiktok"]) it(`${reseau} : réglage absent`, async () => {
     const r = await envoyer(corpsDe(reseau));
