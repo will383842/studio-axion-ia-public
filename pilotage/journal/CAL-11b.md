@@ -5,3 +5,5 @@ Fichiers : src/components/calendrier/GrilleSemaine.tsx, tests/calendrier/cal-11b
 Tests : test rouge d'abord (exports absents), puis tests calendrier, calendrier-composants, calendrier-page, rc-37 : verts (555). tsc et eslint : aucune erreur nouvelle (les erreurs tsc existantes concernent remotion et des tests zernio).
 Reste : brancher `onDeplacer`/`onAnnulerDeplacement` dans la page (ApercuPublication.tsx interdit ici ; CAL-11c apporte le bouton « Déplacer » et le panneau « À programmer »). Pas de jsdom : le geste réel à la souris n'est pas simulé, seule sa logique l'est.
 Douteux : seuils 6 px et 400 ms choisis faute de chiffre dans la fiche. Aucun prix.
+
+CORRECTIF (relecture z18) : fusion de origin/master (CAL-09 fusionnée) sans rebase ; Vues.tsx et journal CAL-09 pris de master, GrilleSemaine.tsx de la branche. `outline-orange` remplacé par `outline-accent` (cartes en main et cases permises) pour tenir la garde COUL-01. Tests calendrier, garde composants clients, COUL-01 : verts. tsc et eslint : aucune erreur nouvelle.

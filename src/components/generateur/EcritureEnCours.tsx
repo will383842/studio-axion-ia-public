@@ -79,7 +79,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
                 router.refresh();
               })
             }
-            className="block w-full rounded-carte border border-trait bg-surface-1 p-4 text-left hover:border-orange"
+            className="block w-full rounded-carte border border-trait bg-surface-1 p-4 text-left hover:border-accent"
           >
             <span className="block text-[17px] font-semibold leading-snug text-texte">{a.titre}</span>
             <span className="mt-1 block text-sm text-texte-doux">{a.probleme}</span>
@@ -102,9 +102,9 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
                   type="button"
                   aria-pressed={pris}
                   onClick={() => setChoisies((x) => (pris ? x.filter((y) => y !== a.id) : x.length < 3 ? [...x, a.id] : x))}
-                  className={cn("flex w-full items-start gap-3 rounded-carte border p-4 text-left", pris ? "border-orange bg-orange-doux" : "border-trait bg-surface-1")}
+                  className={cn("flex w-full items-start gap-3 rounded-carte border p-4 text-left", pris ? "border-accent bg-accent-doux" : "border-trait bg-surface-1")}
                 >
-                  <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold", pris ? "border-orange bg-orange text-sur-orange" : "border-trait-fort text-texte-faible")}>{pris ? choisies.indexOf(a.id) + 1 : ""}</span>
+                  <span className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-xs font-bold", pris ? "border-accent bg-accent text-sur-accent" : "border-trait-fort text-texte-faible")}>{pris ? choisies.indexOf(a.id) + 1 : ""}</span>
                   <span className="text-[15px] font-semibold leading-snug text-texte">{a.dit}</span>
                 </button>
               </li>
@@ -133,7 +133,7 @@ export function EcritureEnCours({ id, etat }: { id: string; etat: EtatEcritureAf
 
   return (
     <Carte lueur className="text-center">
-      <span className={cn("mx-auto mb-4 grid size-14 place-items-center rounded-2xl", attend ? "bg-orange-doux text-orange-vif" : "bg-ambre-doux text-ambre")}>
+      <span className={cn("mx-auto mb-4 grid size-14 place-items-center rounded-2xl", attend ? "bg-accent-doux text-accent" : "bg-ambre-doux text-ambre")}>
         <Icone nom={attend ? "ecrire" : "sablier"} size={26} className={cn(attend && "animate-pulse")} />
       </span>
       <h2 className="text-2xl text-texte">{attend ? etat.libelle : etat.statut === "echec" ? "Écriture arrêtée" : "En attente"}</h2>

@@ -281,7 +281,7 @@ function useGlisse(aujourdhui: string, onDeplacer: ProprietesGrilleSemaine["onDe
           }
         }}
         style={{ touchAction: enMain ? "none" : "pan-y" }}
-        className={cn("min-h-[44px] cursor-grab select-none", enMain && "outline outline-2 outline-orange")}
+        className={cn("min-h-[44px] cursor-grab select-none", enMain && "outline outline-2 outline-accent")}
       >
         {carte}
       </div>
@@ -462,7 +462,7 @@ function corpsGrille( { semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALEND
                     data-passe={estPasse ? "true" : undefined}
                     data-permise={saisie ? (permise ? "true" : "false") : undefined}
                     className={cn(
-                      saisie && (permise ? "outline-dashed outline-2 -outline-offset-2 outline-orange" : "bg-surface-3"),
+                      saisie && (permise ? "outline-dashed outline-2 -outline-offset-2 outline-accent" : "bg-surface-3"),
                       "relative flex min-h-[74px] min-w-0 flex-col gap-1 rounded-[11px] border p-1",
                       estAujourdhui ? "border-orange/40 bg-orange-doux" : "border-trait bg-surface-1",
                       estPasse && "bg-[repeating-linear-gradient(135deg,var(--surface-3),var(--surface-3)_6px,var(--fond)_6px,var(--fond)_12px)]",
