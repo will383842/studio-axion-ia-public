@@ -9,6 +9,7 @@ import {
   RESEAUX_CADENCE,
   controlerTexteSelonRegles,
   normaliserReglagesCadence,
+  regleSaisie,
 } from "@/domaine/cadence/reglages";
 
 const memoire = new Map<string, unknown>();
@@ -16,8 +17,17 @@ vi.mock("@/services/_commun", () => ({
   lireParametre: async (id: string, defaut: unknown) => (memoire.has(id) ? memoire.get(id) : defaut),
   ecrireParametre: async (id: string, v: unknown) => void memoire.set(id, JSON.parse(JSON.stringify(v))),
   journaliser: async () => undefined,
+  essayer: async (f: () => Promise<unknown>) => {
+    try {
+      return { ok: true, donnees: await f() };
+    } catch (e) {
+      return { ok: false, message: (e as Error).message };
+    }
+  },
 }));
 vi.mock("@/services/auth", () => ({ exigerSession: async () => undefined }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error(`REDIRECT:${u}`); } }));
 
 beforeEach(() => memoire.clear());
 
@@ -85,5 +95,31 @@ describe("CAL-19 : règles par réseau", () => {
     // Premier commentaire « à la main » : un texte saisi est signalé comme à copier, pas refusé.
     const pc = controlerTexteSelonRegles(r, "tiktok", { texte: "ok", premierCommentaire: "Et vous ?" });
     expect(pc).toHaveLength(1);
+  });
+});
+
+describe("CAL-19 : date d'une règle modifiée (jour de Paris)", () => {
+  it("à 00:30 heure de Paris (23:30 UTC la veille), la règle est datée du jour de Paris", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-13T23:30:00Z")); // 00:30 le 14 à Paris (hiver)
+      const r = regleSaisie(REGLAGES_CADENCE_DEFAUT.regles.linkedin.texteMax, 999);
+      expect(r.verifieLe).toBe("2026-11-14");
+      vi.setSystemTime(new Date("2026-07-13T22:30:00Z")); // 00:30 le 14 à Paris (été)
+      expect(regleSaisie(REGLAGES_CADENCE_DEFAUT.regles.linkedin.texteMax, 999).verifieLe).toBe("2026-07-14");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("le formulaire historique conserve les règles enregistrées", async () => {
+    const { enregistrerReglagesCadence, lireReglagesCadence } = await import("@/services/reglages-cadence");
+    const { enregistrerCadenceFormulaire } = await import("@/app/(studio)/reglages/cadence/actions");
+    const regles = structuredClone(REGLAGES_CADENCE_DEFAUT.regles);
+    regles.linkedin.texteMax = { valeur: 1234, verifieLe: "2026-11-01", source: "test" };
+    await enregistrerReglagesCadence({ regles });
+    const f = new FormData();
+    f.set("heures-linkedin", "08:00");
+    await enregistrerCadenceFormulaire(f);
+    expect((await lireReglagesCadence()).regles.linkedin.texteMax.valeur).toBe(1234);
   });
 });

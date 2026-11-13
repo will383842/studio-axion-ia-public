@@ -6,6 +6,7 @@
 import type { IdReseau } from "@/domaine/types";
 import { modePremierCommentaire, type ModePremierCommentaire } from "@/domaine/ecriture-post/commentaire";
 import { obtenirReseau } from "@/reseaux";
+import { jourDeParis } from "@/domaine/usine-calendrier";
 
 export const RESEAUX_CADENCE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
 const NOMS: Record<IdReseau, string> = {
@@ -37,6 +38,12 @@ export interface ValeurRegle<T> {
   /** « AAAA-MM-JJ », ou null tant que la règle n'a pas été vérifiée. */
   verifieLe: string | null;
   source: string;
+}
+export const SOURCE_SAISIE = "Modifiée par vous dans les Réglages";
+/** Garde la règle telle quelle si la saisie est identique ou vide ; sinon la valeur change et sa source devient « modifiée par vous », datée d'aujourd'hui (jour de Paris, pas UTC). */
+export function regleSaisie<T extends number | string>(actuelle: ValeurRegle<T>, saisie: T | undefined, maintenantMs: number = Date.now()): ValeurRegle<T> {
+  if (saisie === undefined || (typeof saisie === "number" && !Number.isFinite(saisie)) || saisie === actuelle.valeur) return actuelle;
+  return { valeur: saisie, source: SOURCE_SAISIE, verifieLe: jourDeParis(maintenantMs) };
 }
 /** Premier commentaire : part tout seul, part après votre accord, ou à copier à la main. */
 export type EtatPremierCommentaire = ModePremierCommentaire;

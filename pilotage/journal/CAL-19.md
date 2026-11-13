@@ -8,3 +8,4 @@
   2. Le contrôle réel du texte (`src/services/controle-programmation.ts`, `src/domaine/controles-script/texte-post.ts`) lit encore le registre figé : à brancher sur `controlerTexteSelonRegles` dans une fiche suivante.
   3. Pas de maquette dédiée aux règles dans `calendrier-du-studio.html` : la page suit le style des Réglages existants.
 - Aucun appel réel, aucun fichier de la zone Zernio touché.
+- CORRECTIF (relecture z17) : date d'une règle modifiée = jour de Paris (`jourDeParis(Date.now())`, via `regleSaisie` déplacée dans `src/domaine/cadence/reglages.ts`), test à 00:30 heure de Paris (hiver et été) ; `enregistrerCadenceFormulaire` conserve désormais les règles (test) ; une valeur modifiée s'affiche « Modifiée le <jour> » au lieu de « Vérifiée le ». Restent pour une fiche suivante : remarque 2 (premier commentaire « auto » sur LinkedIn/TikTok, à vérifier au branchement) et remarque 4 (contrôle réel encore sur le registre figé).
