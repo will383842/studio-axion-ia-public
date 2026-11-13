@@ -2,9 +2,11 @@
  * GV2-29 · Point final du texte LU (Image → vidéo). Le texte lu reçoit « . » avant la fin ajoutée seulement pour un état de voix
  * NEUF (« voix-iv/3 ») ; un état « voix-iv/2 » déjà payé garde exactement son texte (aucune relecture). Aucun appel payant.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { motsDits, type FicheImage } from "@/domaine/image-video/fiche";
-import { avecPointFinal, etatInitialVoixIV, segmentsVoixIV } from "@/moteurs/montage-image-video/voix";
+import { attendWillIV, avancerJusquAArretIV, etatInitialIV, lignesDesVersionsIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { avancerVoixIV, avecPointFinal, etatInitialVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "@/moteurs/montage-image-video/voix";
+import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
 /** Script dont le dernier écran finit sans ponctuation (« … Zéro demande perdue »), fin ajoutée à part. */
 const fiche = { ecrans: [{ texteDit: "Vos clients écrivent, on répond." }, { texteDit: "Zéro demande perdue" }] } as unknown as FicheImage;
@@ -54,5 +56,63 @@ describe("point final avant la fin ajoutée", () => {
     expect(b.corps.endsWith("perdue.")).toBe(true);
     expect(motsDits(b.corps).length).toBe(motsDits(a.corps).length);
     for (const f of b.fins) expect(/[.!?…]["»”)]*$/u.test(f.texte)).toBe(true);
+  });
+});
+
+/* Fabrication : le point final n'est posé que pour un état de voix NEUF (« voix-iv/3 »), jamais sur un « voix-iv/2 » payé. */
+vi.setConfig({ testTimeout: 120_000 });
+
+async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
+  let e = await avancerJusquAArretIV(e0, o);
+  for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee"; i++) {
+    if (e.attente) e = await avancerJusquAArretIV(e, o);
+    else break;
+  }
+  return e;
+}
+
+/** Script validé dont le dernier écran finit sans ponctuation (« … perdue »). */
+async function scriptSansPoint() {
+  const carte = carteFixe("C");
+  const m = monde();
+  const o = outilsSimules(carte, m);
+  let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte)), o);
+  if (attendWillIV(e) === "carte") e = await avancerJusquAArretIV(validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-20T08:00:00.000Z" }), o);
+  const valide = validerScriptIV(e, { proposition: e.propositionScript!.empreinte, choixFormules: Object.fromEntries(e.propositionScript!.formules.map((f) => [f.cle, "garder" as const])) });
+  const ecrans = valide.script!.fiche.ecrans;
+  ecrans[ecrans.length - 1] = { ...ecrans[ecrans.length - 1], texteDit: ecrans[ecrans.length - 1].texteDit.replace(/[.!?…\s]+$/u, "") };
+  return { m, o, valide };
+}
+
+describe("fabrication : point final seulement pour un état neuf", () => {
+  it("vidéo neuve : état « voix-iv/3 », le texte lu porte le point final, sous-titres écrits comme le script", async () => {
+    const { m, o, valide } = await scriptSansPoint();
+    const sans = segmentsVoixIV(valide.script!.fiche, valide.plan!, { lectureUnique: true });
+    const avec = segmentsVoixIV(valide.script!.fiche, valide.plan!, { lectureUnique: true, pointFinal: true });
+    expect(avec.corps).not.toBe(sans.corps);
+    const etat = await jusquAuBout(valide, o);
+    expect(etat.voix!.version).toBe("voix-iv/3");
+    expect(etat.voix!.segments.corps).toBe(avec.corps);
+    expect(m.lus).toEqual([avec.corps]);
+  });
+
+  it("voix « voix-iv/2 » déjà payée : texte d'avant, AUCUNE lecture ni réservation de voix, ligne de temps d'avant", async () => {
+    const { m, o, valide } = await scriptSansPoint();
+    const ancien = segmentsVoixIV(valide.script!.fiche, valide.plan!, { lectureUnique: true });
+    let v: EtatVoixIV = etatInitialVoixIV(ancien);
+    const voixOutils: OutilsVoixIV = { ...o.voix, avantLecture: async () => {} };
+    for (let i = 0; i < 50 && !v.issue; i++) v = JSON.parse(JSON.stringify(await avancerVoixIV(v, voixOutils))) as EtatVoixIV;
+    expect(v.version).toBe("voix-iv/2");
+    const lusAvant = m.lus.length;
+    const etat = await jusquAuBout({ ...structuredClone(valide), voix: v }, o);
+    expect(m.lus).toHaveLength(lusAvant);
+    expect(etat.caisse.reservations.filter((r) => r.etape === "voix")).toHaveLength(0);
+    expect(etat.voix!.version).toBe("voix-iv/2");
+    expect(etat.voix!.segments).toEqual(ancien);
+    // Mise en scène d'une vidéo existante : sous-titres des mots de la voix, clôture d'avant (mêmes clés de rendu).
+    for (const l of lignesDesVersionsIV(etat)) {
+      const cloture = l.ligne.bruitages.find((b) => b.planId === "cloture");
+      if (cloture) expect(cloture.debutSec).toBeCloseTo(l.ligne.dureeSec - 1.5, 2);
+    }
   });
 });

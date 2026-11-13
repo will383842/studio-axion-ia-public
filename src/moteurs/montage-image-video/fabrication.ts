@@ -970,11 +970,15 @@ const LECTURES_VOIX_AU_PLUS = { corps: 3 * 2, fin: 2 * 2 };
  * relirait en payant le corps de toute vidéo reprise.
  */
 // Un état déjà payé suit SA version, jamais le drapeau (le remettre à `false` ne doit pas relire les voix « voix-iv/2 »).
-const lectureUniqueDe = (voix: Pick<EtatVoixIV, "version"> | undefined) => (voix ? voix.version === "voix-iv/2" : LECTURE_UNIQUE_IV);
+const lectureUniqueDe = (voix: Pick<EtatVoixIV, "version"> | undefined) => (voix ? voix.version === "voix-iv/2" || voix.version === "voix-iv/3" : LECTURE_UNIQUE_IV);
+// GV2-29 : point final au texte lu, seulement pour un état de voix NEUF ou déjà posé avec lui (« voix-iv/3 », ou segments
+// marqués `pointFinal` en segments séparés) ; jamais pour un « voix-iv/1 » ou « voix-iv/2 » déjà payé (aucune relecture).
+const pointFinalDe = (voix: Pick<EtatVoixIV, "version" | "segments"> | undefined) => (voix ? voix.version === "voix-iv/3" || voix.segments?.pointFinal === true : true);
+const optionsVoixDe = (voix: Pick<EtatVoixIV, "version" | "segments"> | undefined) => ({ lectureUnique: lectureUniqueDe(voix), pointFinal: pointFinalDe(voix) });
 
 /** Prix de la suite après la validation du script : voix (au caractère), écoute et relecture de chaque version. */
 export function prixSuiteIV(etat: Pick<EtatFabricationIV, "demande" | "caisse" | "voix">, fiche: FicheImage, plan: PlanDesFinsIV, tarifVoixCentimesParCaractere: number): PrixIV {
-  const segments = segmentsVoixIV(fiche, plan, { lectureUnique: lectureUniqueDe(etat.voix) });
+  const segments = segmentsVoixIV(fiche, plan, optionsVoixDe(etat.voix));
   const taux = etat.demande.tauxUsdEur;
   const voix = (n: number, k: number) => Math.ceil(n * k * tarifVoixCentimesParCaractere - 1e-9);
   const caracteresFins = segments.fins.reduce((s, f) => s + f.texte.length, 0);
@@ -1091,6 +1095,8 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     ...(e.variete ? { variete: recettePourVersion(e.variete.recette, v.reseaux, v.format ?? "9:16"), graine: e.demande.videoId } : {}),
     // GV-ST-03e : le style choisi par Will, pour que le contrôle Q22 mesure avec lui ; sans choix : aucune clé en plus.
     ...(e.demande.styleSousTitres?.valeur ? { styleSousTitres: e.demande.styleSousTitres } : {}),
+    // GV2-29 : sous-titres écrits comme le script et clôture après la voix, pour un état neuf seulement (clés de rendu des vidéos existantes inchangées).
+    ...(e.voix && pointFinalDe(e.voix) ? { texteEcrit: true as const } : {}),
   };
 }
 
@@ -1418,7 +1424,7 @@ const DELAI_ESSAI_WAV_MS = 250;
 
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
-  const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
+  const segments = segmentsVoixIV(script!.fiche, plan!, optionsVoixDe(e.voix));
   // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
   // plan de départ (le corps + chaque fin lue à part), quel que soit le texte (une fin de secours a un texte neuf).
   const premieresLectures = 1 + segments.fins.length;
