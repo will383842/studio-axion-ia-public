@@ -85,7 +85,7 @@ export function groupesDuPlan(groupes: PlanFacecamAnimee["groupes"], duree: numb
   const interditsEcran = motsInterditsEcran(plats.map((m) => m.w));
   const mots: MotDemo[] = plats.map((m, k) => {
     const suivant = plats[k + 1]?.a ?? duree;
-    const brut = m.w.replace(/[.,;:!?…«»"“”()]/g, "").trim();
+    const brut = m.w.replace(/^[.,;:!?…«»"“”()\s]+|[.,;:!?…«»"“”()\s]+$/g, "");
     return { mot: brut.toUpperCase(), debut: m.a, fin: Math.min(suivant, m.a + 0.7), fort: !!m.fort, chiffre: /\d/.test(brut) };
   }).filter((m, k) => m.mot.length > 0 && !interditsEcran.has(k));
   return grouperMots(mots, duree);
