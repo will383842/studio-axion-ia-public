@@ -105,12 +105,14 @@ export interface ServicesMotsCibles {
   mettreEnPause(mot: string, compte: string): Promise<ResultatGesteVue>;
 }
 
-/** Actif si au moins un compte est actif, en pause si au moins un l'est, brouillon sinon. */
+/** Actif si au moins un compte est actif, en pause si au moins un l'est (pause automatique comprise), brouillon sinon. */
 export function etatDuMot(
   comptes: readonly Pick<CompteDuMot, "etat">[],
 ): EtatMotVue {
   if (comptes.some((c) => c.etat === "actif")) return "actif";
-  if (comptes.some((c) => c.etat === "pause")) return "pause";
+  // Une pause automatique est une pause : le mot n'envoie plus rien tant qu'on ne l'a pas relancé.
+  if (comptes.some((c) => c.etat === "pause" || c.etat === "pause_auto"))
+    return "pause";
   return "brouillon";
 }
 

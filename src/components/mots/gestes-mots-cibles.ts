@@ -6,7 +6,11 @@ import type {
   ReseauAutoVue,
   ServicesMotsCibles,
 } from "@/domaine/guide-reseau/vue-mots-cibles";
-import { NOM_RESEAU, PHRASES_CONFIRMATION } from "./fiche-mot-libelles";
+import {
+  LIBELLES_ECRAN,
+  NOM_RESEAU,
+  PHRASES_CONFIRMATION,
+} from "./fiche-mot-libelles";
 
 export interface DemandeConfirmation {
   titre: string;
@@ -49,6 +53,9 @@ export function creerGestesMotsCibles(
     apres?.(mot, i);
     return i;
   };
+  // Un service qui échoue ne fait jamais planter l'écran : phrase simple, rien n'est dit « réussi ».
+  const echec = (mot: string) =>
+    fin(mot, { confirme: true, ok: false, phrase: LIBELLES_ECRAN.geste });
   return {
     async valider(mot, reseau, apercu) {
       const q = PHRASES_CONFIRMATION.valider(
@@ -57,8 +64,12 @@ export function creerGestesMotsCibles(
         apercu.cible.titre,
       );
       if (!(await confirmer(q))) return REFUSE;
-      const r = await services.validerTextes(mot, reseau, apercu.empreinte);
-      return fin(mot, { confirme: true, ok: r.ok, phrase: r.phrase });
+      try {
+        const r = await services.validerTextes(mot, reseau, apercu.empreinte);
+        return fin(mot, { confirme: true, ok: r.ok, phrase: r.phrase });
+      } catch {
+        return echec(mot);
+      }
     },
     async activer(mot, compte, titre) {
       // Un compte non activable ne s'active jamais : ni question, ni service.
@@ -70,22 +81,30 @@ export function creerGestesMotsCibles(
         titre,
       );
       if (!(await confirmer(q))) return REFUSE;
-      const r = await services.activer(mot, compte.compte);
-      return fin(mot, {
-        confirme: true,
-        ok: r.issue === "execute",
-        phrase: r.phrase,
-      });
+      try {
+        const r = await services.activer(mot, compte.compte);
+        return fin(mot, {
+          confirme: true,
+          ok: r.issue === "execute",
+          phrase: r.phrase,
+        });
+      } catch {
+        return echec(mot);
+      }
     },
     async mettreEnPause(mot, compte) {
       const q = PHRASES_CONFIRMATION.pause(mot, nomDuCompte(compte));
       if (!(await confirmer(q))) return REFUSE;
-      const r = await services.mettreEnPause(mot, compte.compte);
-      return fin(mot, {
-        confirme: true,
-        ok: r.issue === "execute",
-        phrase: r.phrase,
-      });
+      try {
+        const r = await services.mettreEnPause(mot, compte.compte);
+        return fin(mot, {
+          confirme: true,
+          ok: r.issue === "execute",
+          phrase: r.phrase,
+        });
+      } catch {
+        return echec(mot);
+      }
     },
   };
 }

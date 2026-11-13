@@ -17,7 +17,7 @@ const { monter, trouver, texteDe, attendre } =
 const { TableauMots } = await import("@/components/mots/TableauMots");
 const { NouveauMot } = await import("@/components/mots/NouveauMot");
 const { ChoixCibleMot } = await import("@/components/mots/ChoixCibleMot");
-const { FicheMot } = await import("@/components/mots/FicheMot");
+const { FicheMot, titreCible } = await import("@/components/mots/FicheMot");
 const { EcranMotsCibles } = await import("@/components/mots/EcranMotsCibles");
 const { Dialogue } = await import("@/components/ui/Dialogue");
 const { creerGestesMotsCibles } =
@@ -649,7 +649,7 @@ describe("R4 · fiche d'un mot", () => {
       fiche(resume({ comptes: [compte({ etat: "actif", activable: false })] })),
     );
     expect(actif).toContain(
-      'aria-label="Mettre le mot DEVIS en pause sur Page fictive"',
+      'aria-label="Mettre en pause le mot DEVIS sur Page fictive"',
     );
     expect(actif).toContain(">Actif<");
     expect(
@@ -670,6 +670,71 @@ describe("R4 · fiche d'un mot", () => {
     expect(rendre(fiche(resume({ comptes: [] })))).toContain(
       "Aucun compte n'est relié au parcours sur le serveur.",
     );
+  });
+
+  it("« Activer » reste masqué tant que la cible de CE réseau n'est pas connue, et ne prend jamais le titre d'un autre réseau", () => {
+    const seulInstagram: Apercu = {
+      ok: true,
+      reseaux: [
+        okReseau("instagram", {
+          cible: { titre: "Cible Instagram", type: "guide", test: false },
+        }),
+      ],
+    };
+    const r = resume({ comptes: [compte()] }); // compte Facebook
+    expect(renderToStaticMarkup(fiche(r, seulInstagram))).not.toMatch(
+      /aria-label="Activer le mot/,
+    );
+    expect(renderToStaticMarkup(fiche(r, null))).not.toMatch(
+      /aria-label="Activer le mot/,
+    );
+    expect(
+      renderToStaticMarkup(fiche(r, { ok: false, phrase: "Illisible." })),
+    ).not.toMatch(/aria-label="Activer le mot/);
+    // Deux réseaux : le titre est celui du réseau du compte, jamais celui d'un autre.
+    const deux: Apercu = {
+      ok: true,
+      reseaux: [
+        okReseau("facebook", {
+          cible: { titre: "Cible Facebook", type: "guide", test: false },
+        }),
+        okReseau("instagram", {
+          cible: { titre: "Cible Instagram", type: "guide", test: false },
+        }),
+      ],
+    };
+    expect(titreCible(deux, compte({ reseau: "instagram" }))).toBe(
+      "Cible Instagram",
+    );
+    expect(titreCible(deux, compte({ reseau: "facebook" }))).toBe(
+      "Cible Facebook",
+    );
+    expect(titreCible(seulInstagram, compte())).toBeNull();
+    expect(titreCible(deux, compte({ reseau: "linkedin" }))).toBeNull();
+    expect(titreCible(deux, compte({ reseau: null }))).toBeNull();
+    expect(titreCible(null, compte())).toBeNull();
+  });
+
+  it("le nom accessible de « Mettre en pause » commence par son texte visible", () => {
+    const html = renderToStaticMarkup(
+      fiche(resume({ comptes: [compte({ etat: "actif", activable: false })] })),
+    );
+    expect(html).toContain('aria-label="Mettre en pause le mot DEVIS');
+  });
+
+  it("personnes gagnées à zéro : « aucune vue pour l'instant », jamais « au moins 0 »", () => {
+    const zero = fen(0, 0, 0);
+    const c = {
+      ecrits: zero,
+      envoyes: zero,
+      incertains: zero,
+      suivent: zero,
+      commentairesBloques: zero,
+      envoisRefuses: zero,
+    };
+    const t = rendre(fiche(resume({ chiffres: c })));
+    expect(t).toContain("aucune vue pour l'instant");
+    expect(t).not.toContain("au moins 0");
   });
 
   it("chiffres cellule par cellule (7 jours, 30 jours, au total)", () => {
@@ -762,6 +827,26 @@ describe("R4 · confirmations : sans « oui », aucun service", () => {
         bouton: "Oui, mettre en pause",
       },
     ]);
+  });
+
+  it("un service qui échoue : phrase simple, jamais « réussi », aucune erreur qui remonte", async () => {
+    const s = faux();
+    const boum = async () => {
+      throw new Error("panne");
+    };
+    s.validerTextes = vi.fn(boum);
+    s.activer = vi.fn(boum);
+    s.mettreEnPause = vi.fn(boum);
+    const apres = vi.fn();
+    const g = creerGestesMotsCibles(s, async () => true, apres);
+    const phrase = "Le geste n'a pas pu aboutir. Réessayez dans un instant.";
+    const attendu = { confirme: true, ok: false, phrase };
+    expect(await g.valider("DEVIS", "facebook", apercuOk)).toEqual(attendu);
+    expect(await g.activer("DEVIS", compte(), "T")).toEqual(attendu);
+    expect(await g.mettreEnPause("DEVIS", compte({ etat: "actif" }))).toEqual(
+      attendu,
+    );
+    expect(apres).toHaveBeenCalledTimes(3);
   });
 
   it("un compte non activable ne s'active jamais : ni question, ni service", async () => {
@@ -860,6 +945,54 @@ describe("R4 · écran mots et cibles", () => {
       expect(normal).toContain(f);
   });
 
+  it("focus : le titre de la fiche est fourni à la fiche, et la fermeture rend le focus au bouton « Ouvrir »", async () => {
+    const m = monter(EcranMotsCibles, { vue: vueEcran(), services: faux() });
+    const tableau = () => par(m.rendre(), (e) => e.type === TableauMots)[0];
+    tableau().props.onOuvrirMot("DEVIS");
+    await attendre();
+    const f = par(m.rendre(), (e) => e.type === FicheMot)[0];
+    expect(typeof f.props.titreRef).toBe("object");
+    const focus = vi.fn();
+    tableau().props.refsOuvrir.current.DEVIS = { focus };
+    f.props.onFermer();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(par(m.rendre(), (e) => e.type === FicheMot)).toHaveLength(0);
+    const arbre = FicheMot({
+      resume: resume(),
+      catalogue: CATALOGUE,
+      apercu: APERCU,
+      services: gestesFaux(),
+      onFermer: vi.fn(),
+      titreRef: f.props.titreRef,
+    });
+    const titre = par(arbre, (e) => e.type === "h3");
+    expect(titre).toHaveLength(1);
+    expect(titre[0].props.tabIndex).toBe(-1);
+  });
+
+  it("une réponse ancienne ne remplace pas une réponse plus récente du même mot", async () => {
+    const attentes: ((a: Apercu) => void)[] = [];
+    const s = faux();
+    s.apercuTextes = vi.fn(() => new Promise<Apercu>((r) => attentes.push(r)));
+    const vieux: Apercu = { ok: false, phrase: "Ancienne réponse." };
+    const neuf: Apercu = { ok: false, phrase: "Réponse récente." };
+    const m = monter(EcranMotsCibles, { vue: vueEcran(), services: s });
+    const ouvrir = () =>
+      par(m.rendre(), (e) => e.type === TableauMots)[0].props.onOuvrirMot(
+        "DEVIS",
+      );
+    ouvrir();
+    ouvrir();
+    expect(attentes).toHaveLength(2);
+    attentes[1](neuf);
+    await attendre();
+    attentes[0](vieux);
+    await attendre();
+    expect(par(m.rendre(), (e) => e.type === FicheMot)[0].props.apercu).toBe(
+      neuf,
+    );
+  });
+
   it("filtre par état et pastille de chaque mot", () => {
     const v = vueEcran({
       tableau: {
@@ -926,8 +1059,13 @@ describe("R4 · écran mots et cibles", () => {
 describe("R4 · vue pure", () => {
   it("etatDuMot : actif > pause > brouillon", () => {
     expect(etatDuMot([])).toBe("brouillon");
+    expect(etatDuMot([{ etat: "non_pose" }])).toBe("brouillon");
+    // Une pause automatique compte comme « en pause ».
     expect(etatDuMot([{ etat: "non_pose" }, { etat: "pause_auto" }])).toBe(
-      "brouillon",
+      "pause",
+    );
+    expect(etatDuMot([{ etat: "pause_auto" }, { etat: "actif" }])).toBe(
+      "actif",
     );
     expect(etatDuMot([{ etat: "pause" }, { etat: "non_pose" }])).toBe("pause");
     expect(etatDuMot([{ etat: "pause" }, { etat: "actif" }])).toBe("actif");

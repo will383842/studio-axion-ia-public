@@ -59,8 +59,9 @@ export const LIBELLES_FICHE = {
     activer: "Activer",
     activerLe: (mot: string, nom: string) => `Activer le mot ${mot} sur ${nom}`,
     pause: "Mettre en pause",
+    // Le nom accessible commence par le texte visible du bouton (« Mettre en pause »).
     pauseLe: (mot: string, nom: string) =>
-      `Mettre le mot ${mot} en pause sur ${nom}`,
+      `Mettre en pause le mot ${mot} sur ${nom}`,
     etat: {
       actif: "Actif",
       pause: "En pause",
@@ -86,6 +87,7 @@ export const LIBELLES_FICHE = {
     envoyes: "Messages privés envoyés",
     aVerifier: (n: number) => `dont ${n} à vérifier`,
     gagnees: "Personnes gagnées (qui ont fini par suivre le compte)",
+    aucuneVue: "aucune vue pour l'instant",
     auMoins: (n: number) => `au moins ${n}`,
     bloques: "Commentaires bloqués par une sécurité",
     refuses: "Envois refusés",

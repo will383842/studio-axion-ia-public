@@ -2,7 +2,7 @@
 
 // R4 — écran « mots et cibles », par mot. Présentation pure : la vue et les services arrivent en propriétés.
 // Chaque geste qui allume un envoi passe par une confirmation (Dialogue) : sans « oui », aucun service n'est appelé.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Dialogue } from "@/components/ui/Dialogue";
 import { EtatVide } from "@/components/ui/EtatVide";
@@ -44,6 +44,31 @@ interface Message {
   phrase: string;
 }
 
+/**
+ * Textes lus, par mot. Chaque lecture a un numéro : une réponse en retard (ancienne lecture du même mot)
+ * est ignorée, elle ne peut pas écraser une réponse plus récente.
+ */
+function useApercus(services: ServicesMotsCibles) {
+  const [apercus, setApercus] = useState<Record<string, ApercuTextesVue>>({});
+  const numeros = useRef<Record<string, number>>({});
+  const charger = async (mot: string) => {
+    const n = (numeros.current[mot] ?? 0) + 1;
+    numeros.current[mot] = n;
+    let r: ApercuTextesVue;
+    try {
+      r = await services.apercuTextes(mot);
+    } catch {
+      r = { ok: false, phrase: E.apercuIllisible };
+    }
+    if (numeros.current[mot] === n) setApercus((p) => ({ ...p, [mot]: r }));
+  };
+  const oublier = (mot: string) =>
+    setApercus((p) =>
+      Object.fromEntries(Object.entries(p).filter(([k]) => k !== mot)),
+    );
+  return { apercus, charger, oublier };
+}
+
 export function EcranMotsCibles({
   vue,
   services,
@@ -54,9 +79,15 @@ export function EcranMotsCibles({
   const [erreurCreation, setErreurCreation] = useState<string | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [motOuvert, setMotOuvert] = useState<string | null>(null);
-  // Textes lus, par mot : une réponse en retard ne peut pas tomber sur la fiche d'un autre mot.
-  const [apercus, setApercus] = useState<Record<string, ApercuTextesVue>>({});
+  const { apercus, charger, oublier } = useApercus(services);
   const [question, setQuestion] = useState<Question | null>(null);
+  const titreFicheRef = useRef<HTMLHeadingElement | null>(null);
+  const ouvrirRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  // La fiche s'ouvre : son titre prend le focus pour que le lecteur d'écran l'annonce.
+  useEffect(() => {
+    if (motOuvert !== null) titreFicheRef.current?.focus();
+  }, [motOuvert]);
 
   if (vue === null)
     return (
@@ -68,26 +99,16 @@ export function EcranMotsCibles({
       />
     );
 
-  const charger = async (mot: string) => {
-    let r: ApercuTextesVue;
-    try {
-      r = await services.apercuTextes(mot);
-    } catch {
-      r = { ok: false, phrase: E.apercuIllisible };
-    }
-    setApercus((p) => ({ ...p, [mot]: r }));
-  };
-  const oublier = (mot: string) =>
-    setApercus((p) =>
-      Object.fromEntries(Object.entries(p).filter(([k]) => k !== mot)),
-    );
   const ouvrir = (mot: string) => {
     setMotOuvert(mot);
     oublier(mot);
     void charger(mot);
   };
   const fermerFiche = () => {
+    const mot = motOuvert;
     setMotOuvert(null);
+    // Le focus revient au bouton « Ouvrir » du mot.
+    if (mot !== null) ouvrirRefs.current[mot]?.focus();
   };
 
   // La fenêtre est modale : une seule question à la fois.
@@ -219,6 +240,7 @@ export function EcranMotsCibles({
         etats={etats}
         onChangerCible={(m, c) => void changerCible(m, c)}
         onOuvrirMot={ouvrir}
+        refsOuvrir={ouvrirRefs}
       />
 
       {resumeOuvert !== null && (
@@ -228,6 +250,7 @@ export function EcranMotsCibles({
           apercu={apercus[resumeOuvert.mot] ?? null}
           services={gestes}
           onFermer={fermerFiche}
+          titreRef={titreFicheRef}
         />
       )}
 
