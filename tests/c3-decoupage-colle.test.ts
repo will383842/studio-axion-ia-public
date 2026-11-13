@@ -55,3 +55,34 @@ describe("B8 · découpage d'un texte collé", () => {
     for (const t of textes) expect(motsDesBlocs(decouperTexte(t, recette))).toEqual(mots(t));
   });
 });
+
+describe("GV2-18 · abréviations, balises et markdown", () => {
+  const phrases = (t: string) => decouperTexte(t, recette).flatMap((b) => b.segments.map((s) => s.texte));
+
+  it("« M. Dupont a reçu un PV. » reste une seule phrase", () => {
+    expect(phrases("M. Dupont a reçu un PV.")).toEqual(["M. Dupont a reçu un PV."]);
+  });
+
+  it("« Dr. », « Me. », « art. », « cf. », « J. Martin » ne coupent pas la phrase", () => {
+    expect(phrases("Le Dr. Martin a vu Me. Durand.")).toEqual(["Le Dr. Martin a vu Me. Durand."]);
+    expect(phrases("Voir l'art. 12 et cf. le contrat. Merci.")).toEqual(["Voir l'art. 12 et cf. le contrat.", "Merci."]);
+    expect(phrases("J. Martin est venu.")).toEqual(["J. Martin est venu."]);
+  });
+
+  it("une vraie fin de phrase coupe toujours, et aucun mot n'est perdu", () => {
+    const t = "Il a payé. Mme. Roux aussi, etc. et voilà. Fin.";
+    expect(phrases(t)).toEqual(["Il a payé.", "Mme. Roux aussi, etc. et voilà.", "Fin."]);
+    expect(motsDesBlocs(decouperTexte(t, recette))).toEqual(mots(t));
+  });
+
+  it("balises retirées (« si a <b et c> d » → « si a d »), « a < b » gardé", () => {
+    expect(phrases("si a <b et c> d")).toEqual(["si a d"]);
+    expect(phrases("a < b")).toEqual(["a < b"]);
+  });
+
+  it("marques de markdown retirées", () => {
+    expect(phrases("**Important**")).toEqual(["Important"]);
+    expect(phrases("__Important__ et # pas titre")).toEqual(["Important et # pas titre"]);
+    expect(phrases("# Titre\nSuite")).toEqual(["Titre", "Suite"]);
+  });
+});

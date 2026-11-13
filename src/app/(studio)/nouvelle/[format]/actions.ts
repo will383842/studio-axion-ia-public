@@ -12,7 +12,8 @@ import type { ConsigneAmelioration, PastilleDistribution, ScriptGenere } from "@
 import { exigerSession } from "@/services/auth";
 import { depots, ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import { enregistrerBrouillonExpress, memoriserDecor, pastillesDepuisPhrase, plansMaquette, type PlanMaquetteVue } from "@/services/express";
-import { apercuFabrication, changerModeEconomiqueApercu, lancerFabrication, maquetteRapide, relectureExigee, type ApercuFabrication } from "@/services/fabrication";
+import { apercuFabrication, changerModeEconomiqueApercu, gesteMontageReel, lancerFabrication, maquetteRapide, relectureExigee, type ApercuFabrication } from "@/services/fabrication";
+import { decisionMontageReel } from "@/services/reglages";
 import { trouverFormat } from "@/formats";
 import { fichierEnvoye, urlFichier } from "@/services/fichiers";
 import { ameliorerBloc, decouperTexteColle, exigerScriptReluDeLaVideo, exigerSecondOuiVoyantDeVersion, garderOuiVoyantDeVersion, genererScripts, noterScriptEssai, texteRetoucheDeLaVideo, travailDejaParti, varianteOrigineDeLaVideo } from "@/services/scripts";
@@ -95,6 +96,12 @@ export async function noterScriptAction(formatId: string, blocs: BlocScript[], d
 export async function apercuAction(videoId: string): Promise<Resultat<ApercuFabrication>> {
   await exigerSession();
   return essayer(() => apercuFabrication(videoId));
+}
+
+/** GV2-18 : la vidéo de ce format sera-t-elle réelle ou d'essai ? Lecture seule : aucun budget, aucune écriture. */
+export async function etatMontageReelAction(formatId: string): Promise<Resultat<{ reel: boolean; phrase: string }>> {
+  await exigerSession();
+  return essayer(async () => ({ reel: (await decisionMontageReel(formatId)).effectif, phrase: await gesteMontageReel(formatId) }));
 }
 
 /** Lot M5 : mode « économique » (banques seulement, rien n'est fabriqué), puis l'Aperçu recalculé. */
