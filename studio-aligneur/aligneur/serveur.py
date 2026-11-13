@@ -108,6 +108,8 @@ class FileAlignement:
         self._delai_calcul = delai_calcul
         # Calculs abandonnés après le délai, dont le fil tourne encore (un fil Python ne s'arrête pas de force).
         self._figes: set[threading.Thread] = set()
+        # Identifiants déjà abandonnés une fois : le premier abandon est réessayable, le second non.
+        self._abandonnes: set[str] = set()
         self._lire_son = lire_son
         self._horloge = horloge
         self._verrou = threading.Lock()
@@ -121,10 +123,12 @@ class FileAlignement:
         ident = demande["idAlignement"]
         with self._verrou:
             self._oublier_anciens()
-            if ident in self._etats:
+            # Un identifiant en échec peut être resoumis ; en file, en cours ou terminé : jamais recalculé.
+            if ident in self._etats and self._etats[ident]["statut"] != "echec":
                 return False
             self._etats[ident] = {"statut": "en_file", "depuis": self._horloge()}
-            self._ordre.append(ident)
+            if ident not in self._ordre:
+                self._ordre.append(ident)
         self._attente.put(demande)
         return True
 
@@ -218,7 +222,10 @@ class FileAlignement:
                 # Audit D : la file est libérée, le verrou lourd aussi (un calcul figé n'arrête pas tout le conteneur).
                 liberer()
                 print(f"calcul abandonné après {int(self._delai_calcul)} s : {ident}", flush=True)
-                etat = {"statut": "echec", "erreur": {"code": "indisponible", "reessayable": False, "message": f"Calage abandonné : plus de {int(self._delai_calcul // 60) or 1} min de calcul."}}
+                with self._verrou:
+                    deja = ident in self._abandonnes
+                    self._abandonnes.add(ident)
+                etat = {"statut": "echec", "erreur": {"code": "indisponible", "reessayable": not deja, "message": f"Calage abandonné : plus de {int(self._delai_calcul // 60) or 1} min de calcul."}}
             else:
                 etat = boite.get("etat") or {"statut": "echec", "erreur": {"code": "inconnu", "reessayable": True, "message": "Calage impossible."}}
             self._poser(ident, etat)
