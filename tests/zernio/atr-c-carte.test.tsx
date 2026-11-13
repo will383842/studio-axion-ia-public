@@ -44,12 +44,12 @@ afterEach(() => {
 });
 
 describe("CarteATraiter · copie", () => {
-  it("carte LinkedIn : les deux boutons, la mention « à la main », le texte copié par le presse-papiers", async () => {
+  it("carte LinkedIn : le bouton « Copier le message » (un seul « Copier la réponse » : celui de l'écran), la mention « à la main », le texte copié par le presse-papiers", async () => {
     const s = faux();
     contexte.services = s;
     const m = monter(CarteATraiter, { carte: carte() });
     const arbre = m.rendre();
-    expect(par(arbre, "Copier la réponse")).toBeTruthy();
+    expect(par(arbre, "Copier la réponse")).toBeUndefined();
     expect(texteDe(arbre as never)).toContain("À la main : aucun envoi automatique sur LinkedIn ni TikTok");
     await (par(arbre, "Copier le message")!.props.onClick as () => Promise<void>)();
     expect(s.message).toHaveBeenCalledWith("evt-fictif-001");
@@ -64,15 +64,6 @@ describe("CarteATraiter · copie", () => {
     await attendre();
     expect(ecrire).not.toHaveBeenCalled();
     expect(texteDe(m.rendre() as never)).toContain("Vérification impossible, rien n’est proposé.");
-  });
-
-  it("copier la réponse passe par le geste de réponse", async () => {
-    const s = faux();
-    contexte.services = s;
-    const m = monter(CarteATraiter, { carte: carte() });
-    await (par(m.rendre(), "Copier la réponse")!.props.onClick as () => Promise<void>)();
-    expect(s.reponse).toHaveBeenCalledWith("evt-fictif-001");
-    expect(ecrire).toHaveBeenCalledWith("REPONSE");
   });
 
   it("carte TikTok, message indisponible ou personne opposée : pas de bouton « Copier le message »", () => {

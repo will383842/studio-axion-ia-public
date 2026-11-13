@@ -56,10 +56,9 @@ export function CarteATraiter({ carte }: { carte: Donnees }) {
         <div className="mt-3">
           <p className="text-sm font-semibold text-texte">Réponse proposée</p>
           {carte.kit ? <pre className="whitespace-pre-wrap text-sm text-texte-doux" data-kit>{carte.kit}</pre> : <p className="text-sm text-texte-doux">Pas de réponse proposée : écrivez-la vous-même.</p>}
-          {services ? (
+          {services && peutMessage ? (
             <div className="mt-3 flex flex-wrap gap-2" data-copie>
-              <Bouton variante="secondaire" disabled={!carte.kit} onClick={() => copier(services.reponse)}>Copier la réponse</Bouton>
-              {peutMessage ? <Bouton variante="secondaire" data-copier-message onClick={() => copier(services.message)}>Copier le message</Bouton> : null}
+              <Bouton variante="secondaire" data-copier-message onClick={() => copier(services.message)}>Copier le message</Bouton>
             </div>
           ) : null}
         </div>

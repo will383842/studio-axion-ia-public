@@ -84,9 +84,38 @@ export function creerDepotMemoire(): DepotATraiter {
   };
 }
 let depotCourant: DepotATraiter = creerDepotMemoire();
-export const injecterDepotATraiter = (d: DepotATraiter | null): void =>
-  void (depotCourant = d ?? creerDepotMemoire());
+export const injecterDepotATraiter = (d: DepotATraiter | null): void => {
+  depotCourant = d ?? creerDepotMemoire();
+  depotParDefaut = d === null;
+};
 const verrou = creerVerrou();
+
+/** Vrai tant que `depotCourant` est le dépôt mémoire par défaut (aucun dépôt posé par l'appelant). */
+let depotParDefaut = true;
+/**
+ * Injection IDEMPOTENTE du dépôt persistant : ne remplace que le dépôt mémoire par défaut, jamais un dépôt posé explicitement
+ * (ni un dépôt persistant déjà posé). Appelée par l'écran et les gestes.
+ */
+export function injecterDepotPersistantATraiter(d: DepotATraiter): void {
+  if (!depotParDefaut) return;
+  depotCourant = d;
+  depotParDefaut = false;
+}
+
+/**
+ * Note la date de copie sur UNE carte : sous le verrou LOCAL de ce fichier (le même que les autres écrivains de cartes), relit le
+ * dépôt, ne modifie QUE `copieLe` de cette carte, n'écrit que cette carte. Refuse si la carte est opposée, absente ou plus à traiter.
+ * N'appelle jamais `sousVerrou` (verrou global) lui-même ; l'appelant ne doit pas l'appeler depuis l'intérieur de `sousVerrou`.
+ */
+export async function noterCopieCarte(id: string, dateIso: string, o: { depot?: DepotATraiter } = {}): Promise<boolean> {
+  const depot = o.depot ?? depotCourant;
+  return verrou(async () => {
+    const courante = (await depot.lire()).find((c) => c.idEvenement === id);
+    if (!courante || courante.statut !== "a_traiter" || courante.opposee) return false;
+    await depot.ecrire([{ ...courante, copieLe: dateIso }]);
+    return true;
+  });
+}
 
 /* ---- Fonctions pures ---- */
 const ECHAPPEMENTS: Record<string, string> = {
