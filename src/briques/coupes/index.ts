@@ -459,13 +459,42 @@ export function texteSousTitresGardes(plan: { phrases: Pick<PhraseRetrouvee, "in
     if (p.debutSec !== undefined && p.finSec !== undefined) return [{ debutSec: p.debutSec, finSec: p.finSec, texte: p.texte }];
     return p.diteAutrement ? [{ debutSec: p.diteAutrement.debutSec, finSec: p.diteAutrement.finSec, texte: p.diteAutrement.texteDit }] : [];
   });
+  // Une suite de mots hors phrase COLLÉE à une phrase retrouvée et proche (lettres) des mots de cette phrase qui n'ont pas été
+  // entendus est sa fin (ou son début) mal transcrite : déjà écrite par le texte du fondateur, jamais en double.
+  const rang = new Map(mots.map((m, i) => [m, i] as const));
+  const lettres = (s: string) => tokens(s).join("");
+  const bigrammes = (s: string) => new Set(Array.from({ length: Math.max(0, s.length - 1) }, (_, i) => s.slice(i, i + 2)));
+  const proximite = (a: string, b: string) => {
+    const A = bigrammes(a);
+    const B = bigrammes(b);
+    let n = 0;
+    for (const x of A) if (B.has(x)) n++;
+    return A.size + B.size ? (2 * n) / (A.size + B.size) : 0;
+  };
+  const nonEntendus = (p: (typeof plages)[number]) => {
+    const dits = new Set(mots.filter((x) => dansPlage(x, p.debutSec, p.finSec)).flatMap((x) => tokens(x.mot)));
+    return tokens(p.texte).filter((t) => !dits.has(t)).join("");
+  };
+  const hors = mots.filter((m) => gardeA(milieu(m)) && compte(m) && !plages.some((x) => dansPlage(m, x.debutSec, x.finSec)));
+  const absorbes = new Set<MotHorodate>();
+  for (let i = 0; i < hors.length; ) {
+    let j = i;
+    while (j + 1 < hors.length && rang.get(hors[j + 1])! === rang.get(hors[j])! + 1) j++;
+    const suite = hors.slice(i, j + 1);
+    const debut = suite[0].debutSec;
+    const fin = suite[suite.length - 1].finSec;
+    const voisine = plages.find((p) => (debut >= p.finSec - 1e-3 && debut - p.finSec < 1.5) || (fin <= p.debutSec + 1e-3 && p.debutSec - fin < 1.5));
+    const manque = voisine ? nonEntendus(voisine) : "";
+    if (manque && proximite(lettres(suite.map((x) => x.mot).join(" ")), manque) >= 0.5) for (const x of suite) absorbes.add(x);
+    i = j + 1;
+  }
   const sortie: string[] = [];
   const faites = new Set<number>();
   for (const m of mots) {
     if (!gardeA(milieu(m)) || !compte(m)) continue;
     const k = plages.findIndex((x) => dansPlage(m, x.debutSec, x.finSec));
     if (k < 0) {
-      sortie.push(...corrigerLexique([m.mot]));
+      if (!absorbes.has(m)) sortie.push(...corrigerLexique([m.mot]));
       continue;
     }
     if (faites.has(k)) continue;
