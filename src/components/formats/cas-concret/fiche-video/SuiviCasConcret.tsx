@@ -37,7 +37,7 @@ const DELAI_RELANCE_MS = 30_000;
 /** Relectures de la progression après une relance acceptée (ms après l'acceptation). */
 const RELECTURES_MS = [0, 1500, 4000, 8000, 15000];
 
-export function SuiviCasConcret({ initial, compacte, annulable = true, videoPrete }: { initial: VueTravail; compacte?: boolean; annulable?: boolean; videoPrete?: boolean }) {
+export function SuiviCasConcret({ initial, compacte, annulable = true, videoPrete, scriptValide = false }: { initial: VueTravail; compacte?: boolean; annulable?: boolean; videoPrete?: boolean; scriptValide?: boolean }) {
   const router = useRouter();
   const { travail, actualiser } = useTravaux({
     travailId: initial.id,
@@ -152,13 +152,18 @@ export function SuiviCasConcret({ initial, compacte, annulable = true, videoPret
         arreter={actif ? <BoutonArreter travailId={t.id} videoId={t.cibleId} depense={t.depense} compact={compacte} /> : undefined}
         propres={
           etat === "a-relire" ? (
-            <Link href="#valider-script" className="inline-flex min-h-11 items-center rounded-bouton bg-orange px-4 text-sm font-semibold text-sur-orange">
-              Relire et valider le script
-            </Link>
+            <Bouton variante="contour-orange" asChild>
+              <Link href="#valider-script">Relire et valider le script</Link>
+            </Bouton>
           ) : undefined
         }
         reprendre={
-          etat === "coincee" && reessayable ? (
+          // GV2-20 : script à relire DÉJÀ validé (relance refusée ou perdue) : « Reprendre cette étape » (le mot de l'écran, voir `vocabulaire-verbes`), sans nouvelle version numérotée.
+          etat === "a-relire" && scriptValide ? (
+            <Bouton variante="secondaire" icone="reessayer" onClick={() => void reessayer()} chargement={enAttente} className="shrink-0">
+              {ACTIONS_FABRICATION.reprendreEtape}
+            </Bouton>
+          ) : etat === "coincee" && reessayable ? (
             <Bouton variante="secondaire" icone="reessayer" onClick={() => void reessayer()} chargement={enAttente} className="shrink-0">
               {ACTIONS_FABRICATION.reprendreEtape}
             </Bouton>

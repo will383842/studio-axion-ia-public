@@ -115,6 +115,10 @@ const cleMemoire = Symbol.for("studio-axion-ia.facecam-json");
 type AvecMemoire = typeof globalThis & { [cleMemoire]?: Map<string, Uint8Array> };
 const memoire = () => ((globalThis as AvecMemoire)[cleMemoire] ??= new Map());
 
+/** Délais des échanges avec le stockage : une connexion pendue ne doit pas geler la face caméra. */
+const DELAI_DEPOT_JSON_MS = 2 * 60_000;
+const DELAI_LECTURE_JSON_MS = 2 * 60_000;
+
 export async function deposerJsonGz(cle: string, objet: unknown): Promise<void> {
   const octets = gzipSync(Buffer.from(JSON.stringify(objet)));
   const s = await fournisseur("stockage");
@@ -123,7 +127,12 @@ export async function deposerJsonGz(cle: string, objet: unknown): Promise<void> 
     return;
   }
   const url = await s.urlDepotDuree(cle, 600, "application/gzip");
-  const r = await fetch(url, { method: "PUT", body: new Uint8Array(octets), headers: { "content-type": "application/gzip" } });
+  let r: Response;
+  try {
+    r = await fetch(url, { method: "PUT", body: new Uint8Array(octets), headers: { "content-type": "application/gzip" }, signal: AbortSignal.timeout(DELAI_DEPOT_JSON_MS) });
+  } catch {
+    throw new ErreurStudio("DEPOT_IMPOSSIBLE", "Le stockage ne répond pas. Réessayez dans un instant.");
+  }
   if (!r.ok) throw new ErreurStudio("DEPOT_IMPOSSIBLE", "Le stockage n'a pas accepté l'animation. Réessayez dans un instant.");
 }
 
@@ -133,7 +142,7 @@ export async function lireJsonGz<T>(cle: string): Promise<T | null> {
   const s = await fournisseur("stockage");
   if (!s.urlLectureDuree) return null;
   try {
-    const r = await fetch(await s.urlLectureDuree(cle, 600));
+    const r = await fetch(await s.urlLectureDuree(cle, 600), { signal: AbortSignal.timeout(DELAI_LECTURE_JSON_MS) });
     if (!r.ok) return null;
     const brut = Buffer.from(await r.arrayBuffer());
     const texte = brut[0] === 0x1f && brut[1] === 0x8b ? gunzipSync(brut).toString("utf8") : brut.toString("utf8");

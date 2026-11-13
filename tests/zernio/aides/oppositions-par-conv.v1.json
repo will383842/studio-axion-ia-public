@@ -1,0 +1,19 @@
+{
+  "requete": {
+    "schemaVersion": 1,
+    "convs": [
+      "c1_AAAAAAAAAAAAAAAAAAAAAA",
+      "c1_BBBBBBBBBBBBBBBBBBBBBB",
+      "c1_CCCCCCCCCCCCCCCCCCCCCC"
+    ]
+  },
+  "reponse": {
+    "ok": true,
+    "schemaVersion": 1,
+    "resultats": [
+      { "conv": "c1_AAAAAAAAAAAAAAAAAAAAAA", "opposee": true },
+      { "conv": "c1_BBBBBBBBBBBBBBBBBBBBBB", "opposee": false },
+      { "conv": "c1_CCCCCCCCCCCCCCCCCCCCCC", "opposee": false }
+    ]
+  }
+}

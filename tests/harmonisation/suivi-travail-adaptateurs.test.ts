@@ -88,9 +88,9 @@ describe("SuiviFabrication · pied et réessai", () => {
 describe("écrans de fabrication", () => {
   const fabrication = lire("src/assistant/etapes/Fabrication.tsx");
 
-  it("Fabrication : barre collée, EnTetePage, rendu via SuiviFabrication, plus de fixed bas ni de <h1>", () => {
+  it("Fabrication : barre collée, EnTeteSuivi, rendu via SuiviFabrication, plus de fixed bas ni de <h1>", () => {
     expect(fabrication).toMatch(/<BarreActionCollee[^>]*auDessusDesOnglets=\{false\}/);
-    expect(fabrication).toMatch(/<EnTetePage/);
+    expect(fabrication).toMatch(/<EnTeteSuivi/);
     expect(fabrication).toMatch(/<SuiviFabrication/);
     expect(fabrication).not.toMatch(/<h1\b/);
     expect(fabrication).not.toMatch(/fixed inset-x-0 bottom-0/);

@@ -97,7 +97,7 @@ import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTablea
 import { ErreurMiseEnPage, mettreEnPage, reseauxVerticaux, type MiseEnPageTableau } from "./mise-en-page";
 import { controlerSortie, type ControleSortie } from "./controles-sortie";
 import { descriptionSortie, formatImage, lireSorties, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
-import { estimerVoixSorties, planVoixSorties, trouverAppel, texteDitDe, texteLu, type LectureVoix, type PlanVoixSorties, type VarianteVoix } from "./variantes-fin";
+import { estimerVoixSorties, planVoixSorties, trouverAppel, avecPonctuationFinale, texteDitDe, texteLu, type LectureVoix, type PlanVoixSorties, type VarianteVoix } from "./variantes-fin";
 import type { AudioBrut } from "@/briques/voix-maitre/types";
 import { listerReseaux } from "@/reseaux";
 import type { IdReseau, MotHorodate, Ratio } from "@/domaine/types";
@@ -198,6 +198,27 @@ export interface PreparationScenes<P extends ProprietesScene = ProprietesScene> 
   controlerProprietes(p: P): string[];
 }
 
+/**
+ * Un tour de rendu des cartes (scènes) vient d'encaisser une panne : le total des essais a monté sans qu'aucune carte
+ * ne soit de plus soumise ni faite (une carte soumise vaut 1, une carte faite 2), et sans nouvelle demande. Faux pour tout autre état.
+ */
+function panneSurCartes(avant: unknown, apres: unknown): boolean {
+  type Carte = { statut?: string; essais?: number; pannes?: number; demande?: { idRendu?: string } };
+  const lire = (e: unknown) => {
+    const cartes = (e as { cartes?: unknown } | null)?.cartes;
+    return Array.isArray(cartes) ? (cartes as Carte[]) : null;
+  };
+  const a = lire(avant);
+  const b = lire(apres);
+  if (!a || !b || a.length !== b.length) return false;
+  // GV2-08 : une panne attrapée par `rendu-cartes.ts` monte le compteur `pannes` de la carte (plus `essais`).
+  if (b.some((c, i) => (c.pannes ?? 0) > (a[i].pannes ?? 0))) return true;
+  const points = (c: Carte) => (c.statut === "faite" ? 2 : c.statut === "soumise" ? 1 : 0);
+  if (b.reduce((n, c) => n + points(c), 0) !== a.reduce((n, c) => n + points(c), 0)) return false;
+  // Une panne garde la MÊME demande (identifiant inchangé) ; un nouvel essai décidé par la garde de rendu en prend une autre.
+  return b.some((c, i) => (c.essais ?? 0) > (a[i].essais ?? 0) && c.demande?.idRendu === a[i].demande?.idRendu);
+}
+
 /** Arrêt de la chaîne : l'étape et ses raisons, en français. */
 export class ErreurFabrication extends Error {
   constructor(
@@ -208,6 +229,8 @@ export class ErreurFabrication extends Error {
      * d'une seule sortie. Absente : arrêt décidé par la chaîne (calage refusé, mise en page impossible…).
      */
     readonly imprevue = false,
+    /** L'erreur d'origine enveloppée par `etape()` (ex. `ErreurRendu`) : le moteur y lit si la panne est passagère. */
+    readonly cause?: unknown,
   ) {
     super(`Fabrication arrêtée à l'étape « ${etape} » : ${raisons.join(" ")}`);
     this.name = "ErreurFabrication";
@@ -247,6 +270,8 @@ export interface JournalFabrication {
   etapes: Partial<Record<EtapeFabrication, EtapeFaite>>;
   /** État en cours de la voix (une voix payée n'est jamais relue). */
   voix?: { empreinte: string; etat: EtatVoixTableau };
+  /** N° de la relance (« Relancer ») qui a remis le traitement du son à zéro : suffixe `-r<n>` des demandes de son. Absent : aucune. */
+  relanceSon?: number;
   /** Fins propres à chaque sortie : état de chaque lecture brute (corps, phrases de fin), par empreinte ; jamais relue. */
   lectures?: Record<string, { empreinte: string; etat: EtatLectureBrute }>;
   /** Fins propres à chaque sortie : état de la recette (raccord) de chaque variante de voix, par empreinte. */
@@ -775,7 +800,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       return sortie;
     } catch (err) {
       if (err instanceof ErreurFabrication) throw err;
-      throw new ErreurFabrication(nom, [raisonDe(err)], true);
+      throw new ErreurFabrication(nom, [raisonDe(err)], true, err);
     }
   }
 
@@ -798,7 +823,9 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     for (let n = 0; !fini(e); n++) {
       if (n >= TOURS_MAX) throw new ErreurFabrication(nom, [`L'étape ne s'est pas terminée après ${TOURS_MAX} tours.`]);
       const suivant = await tour(e);
-      if (stable(suivant) === stable(e)) await attendre();
+      // Rien n'a changé, ou une panne vient d'être encaissée (compteur d'essai monté, aucune carte de plus soumise ni faite) :
+      // on rend la main, jamais deux essais dans la même seconde.
+      if (stable(suivant) === stable(e) || panneSurCartes(e, suivant)) await attendre();
       e = suivant;
       await garder(e);
       const phrase = decrire?.(e) ?? null;
@@ -880,7 +907,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       // La recette suit l'horodatage des mots de la voix (jamais un calage par l'aligneur).
       caler: () => false,
       idBase: `tb-voix-${cleVoix.slice(0, 12)}`,
-      texte: () => texte,
+      // GV2-28 : le point final va au texte envoyé seulement ; `cleVoix` garde le texte d'avant.
+      texte: () => avecPonctuationFinale(texte),
       empreinte: () => cleVoix,
       avantLecture: () => o.budget.verifierEtReserver(estimation),
     };
@@ -888,7 +916,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     const fin = await suivre<EtatVoixTableau>(
       "voix",
       depart,
-      (e) => avancerVoixTableau(e, outils),
+      (e) => avancerVoixTableau(e, outils, undefined, journal.relanceSon ?? 0),
       (e) => e.phase === "faite",
       async (e) => {
         journal.voix = { empreinte: cleVoix, etat: e };
@@ -1016,7 +1044,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       reglages: reglagesLecture,
       caler: () => false,
       idBase: `tb-lecture-${cle.slice(0, 12)}`,
-      texte: () => texteL,
+      texte: () => avecPonctuationFinale(texteL),
       empreinte: () => cle,
       avantLecture: () => o.budget.verifierEtReserver(prix),
       cle: (nom) => o.voix.cle(`lecture-${cle.slice(0, 12)}-${nom}`),
@@ -1066,7 +1094,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     const fin = await suivre<EtatRecetteVariante>(
       "voix",
       depart,
-      (e) => avancerRecetteVariante(e, sources, compte, outils),
+      (e) => avancerRecetteVariante(e, sources, compte, outils, undefined, journal.relanceSon ?? 0),
       (e) => e.phase === "faite",
       async (e) => {
         recettes[cle] = { empreinte: cle, etat: e };

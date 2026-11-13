@@ -54,8 +54,8 @@ describe("registre des réseaux", () => {
 });
 
 describe("Facebook : durée maximale (11/11/2026)", () => {
-  it("180 s, comme la règle d'écriture « aucune limite » pour les Reels", () => {
-    expect(obtenirReseau("facebook").dureeMaxSec).toBe(180);
+  it("90 s : durée du Reel selon le relevé L8-01 (facebook.reseau.format_video), comme le profil de sortie", () => {
+    expect(obtenirReseau("facebook").dureeMaxSec).toBe(90);
   });
 });
 

@@ -69,7 +69,11 @@ export function ZoneColler({ formatId, onBlocs, autoFocus, libelle = "Votre text
           const colle = e.clipboardData.getData("text");
           if (!colle.trim()) return;
           e.preventDefault();
-          const suite = texte ? `${texte} ${colle}` : colle;
+          // GV2-18 : le texte collé remplace la sélection ou va au curseur ; à la fin s'il n'y a pas de curseur.
+          const champ = e.currentTarget;
+          const debut = Math.min(champ.selectionStart ?? texte.length, texte.length);
+          const fin = Math.min(champ.selectionEnd ?? debut, texte.length);
+          const suite = texte ? `${texte.slice(0, debut)}${colle}${texte.slice(fin)}` : colle;
           changer(suite);
           void utiliser(suite);
         }}

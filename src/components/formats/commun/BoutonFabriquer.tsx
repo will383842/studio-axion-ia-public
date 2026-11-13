@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Bouton « Fabriquer la vidéo » : aucun montant n'est affiché, aucune confirmation n'est demandée.
+ * Bouton « Fabriquer » (maquette M3, décision du 12/11 : un seul libellé) : aucun montant n'est affiché, aucune confirmation n'est demandée.
  * Si le serveur répond qu'il faut un autre montant, `onFabriquer` rend `{ centimes }` et UNE seule relance part avec lui.
  */
 import { useRef, useState } from "react";
@@ -22,7 +22,7 @@ export function BoutonFabriquer({
   desactive?: boolean;
   /** Gardé pour les appelants existants : plus aucune fenêtre ne l'affiche. */
   message?: string;
-  /** Texte du bouton ; absent : « Fabriquer la vidéo ». */
+  /** Texte du bouton ; absent : « Fabriquer ». */
   libelle?: string;
   /**
    * Contrôle fait AVANT l'envoi (ex. image déjà traitée) : `false` arrête (rien n'est demandé), `true` continue,
@@ -51,8 +51,8 @@ export function BoutonFabriquer({
 
   return (
     <>
-      <Bouton icone="film" taille="lg" pleineLargeur chargement={enCours} disabled={desactive || enCours} onClick={() => void cliquer()}>
-        {libelle ?? "Fabriquer la vidéo"}
+      <Bouton variante="principal" icone="film" taille="lg" pleineLargeur chargement={enCours} disabled={desactive || enCours} onClick={() => void cliquer()}>
+        {libelle ?? "Fabriquer"}
       </Bouton>
       {phrase && (
         <p role="alert" className="mt-2 text-sm text-brique">

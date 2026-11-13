@@ -9,10 +9,62 @@
  * Avant (master 85655d2) : chaque tour sans réponse consommait un essai ; 3 tours (≈ 15 s) suffisaient à rater le son.
  */
 import type { EtatTravailFacecam } from "@/fournisseurs/facecam/client";
+import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
+import { suivreRendu } from "@/fournisseurs/rendu/client";
+import { lireRenduGarde, type GardeRendu, type VeilleRendu } from "@/fournisseurs/rendu/garde";
 import type { SuiviTravail } from "./chaine";
 
 export const ATTENTE_INJOIGNABLE_MS = 30 * 60_000;
 export const RELANCES_MEME_ID_MAX = 3;
+/** GV2-23 : un travail « en cours » dont la progression n'a pas bougé depuis ce délai est relancé (20 min). */
+export const SANS_PROGRES_MIN_DEFAUT = 20;
+
+/** Délai sans progrès (ms) : variable `STUDIO_FACECAM_SANS_PROGRES_MIN` (minutes ≥ 1), sinon 20 min. */
+export function delaiSansProgresMs(env: Record<string, string | undefined> = process.env): number {
+  const min = Number(env.STUDIO_FACECAM_SANS_PROGRES_MIN);
+  return (Number.isFinite(min) && min >= 1 ? min : SANS_PROGRES_MIN_DEFAUT) * 60_000;
+}
+
+/**
+ * GV2-23 : décision pure « figé depuis N min ? » pour un travail lu « en_cours ». Se fonde sur l'absence de PROGRÈS
+ * (jamais sur la durée totale). Rend le suivi à garder et, si la progression n'a pas bougé depuis `delaiMs`, `fige`.
+ */
+export function veilleProgres(t: SuiviTravail, progression: number, maintenant: number, delaiMs: number): { suivi: SuiviTravail; fige: boolean; depuisMin: number } {
+  const depuis = t.progresDepuis ? Date.parse(t.progresDepuis) : NaN;
+  if (t.derniereProgression !== progression || !Number.isFinite(depuis)) {
+    return { suivi: { ...t, progression, derniereProgression: progression, progresDepuis: new Date(maintenant).toISOString() }, fige: false, depuisMin: 0 };
+  }
+  const ecoule = maintenant - depuis;
+  return { suivi: { ...t, progression }, fige: ecoule >= delaiMs, depuisMin: Math.max(0, Math.round(ecoule / 60_000)) };
+}
+
+/** Un travail figé devient un échec réessayable (nouvelle soumission) tant qu'il reste des essais ; sinon échec définitif. */
+export function suiviFige(t: SuiviTravail, depuisMin: number, essaisMax: number): SuiviTravail {
+  const nettoye = sansReprise(t);
+  delete nettoye.derniereProgression;
+  delete nettoye.progresDepuis;
+  return { ...nettoye, statut: "echec", erreur: { code: "sans-progres", message: `Le travail du serveur de montage n'a pas avancé depuis ${depuisMin} min.`, reessayable: t.essais < essaisMax } };
+}
+
+/** Un travail revenu « en file » ou terminé n'est pas surveillé : les marques de progrès repartent de zéro. */
+export function sansVeille(t: SuiviTravail): SuiviTravail {
+  const reste = sansReprise(t);
+  delete reste.derniereProgression;
+  delete reste.progresDepuis;
+  return reste;
+}
+
+/**
+ * GV2-23 : lit une carte de `studio-rendu`. Avec garde (`OutilsMontage.garde`) : rendu sans nouvelle → échec réessayable ;
+ * sans garde : `suivreRendu` nu, comme avant. La veille est gardée sur la carte.
+ */
+export async function lireCarteGardee(service: ServiceRendu, carte: { demande: DemandeRendu; veille?: VeilleRendu }, garde: GardeRendu | undefined): ReturnType<typeof suivreRendu> {
+  if (!garde) return suivreRendu(service, carte.demande);
+  const lu = await lireRenduGarde(service, carte.demande, carte.veille, garde);
+  if (lu.veille) carte.veille = lu.veille;
+  else delete carte.veille;
+  return lu.etat;
+}
 
 /** Le suivi sans ses marques de reprise (le conteneur a répondu). */
 export function sansReprise(t: SuiviTravail): SuiviTravail {

@@ -10,17 +10,38 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { ChoixFormule } from "@/moteurs/montage-image-video/regles";
-import { essayer, type Resultat } from "@/services/_commun";
+import { essayer, fournisseur, type Resultat } from "@/services/_commun";
 import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptImageVideo } from "@/services/image-video-scripts";
 import { arreterLotImageVideo, deposerLotImageVideo, refaireVideoDuLot, reprendreLotImageVideo, type DemandeLotIV, type IssueLotIV } from "@/services/image-video-lot";
 import { deposerScriptImageVideo, deposerTexteImageVideo, type DemandeDepotScriptIV, type DemandeDepotTexteIV, type IssueDepotTexteIV } from "@/services/image-video-texte";
+import { exigerGenerateurAllume } from "@/visuels/interrupteur";
+import { creerPontImageVideo, type InfographieRendue, type OptionsPontImageVideo } from "@/visuels/services/infographies";
 import { deposerImageVideo, validerCarteEtReprendre, validerScriptEtReprendre, type DemandeDepotIV, type IssueDepotIV, type IssueRepriseIV } from "@/services/image-video-ecran";
 
 /** Écran 1 · « Lancer » : l'image déposée, les réseaux, l'offre et le montant confirmé. */
 export async function deposerImageVideoAction(demande: DemandeDepotIV): Promise<Resultat<IssueDepotIV>> {
   const r = await essayer(() => avecAccordAutomatique((a) => deposerImageVideo({ ...demande, accordCentimes: a ?? demande.accordCentimes }), typeof demande.accordCentimes === "number" ? demande.accordCentimes : undefined));
+  if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
+  return r;
+}
+
+/**
+ * Pont « infographie → vidéo » (L7-34) : un clic crée la vidéo à partir de l'infographie DÉJÀ rendue, sans nouveau rendu. Éteint par
+ * défaut (interrupteur « infographies ») ; le montant confirmé suit le même chemin que le dépôt d'une image.
+ */
+const pontInfographie = creerPontImageVideo(
+  (demande, fichier) => deposerImageVideo(demande, { fichier: async () => fichier }),
+  // Poids réel lu dans le stockage par le serveur ; stockage sans mesure : null, donc refus.
+  async (cle) => (await (await fournisseur("stockage")).tailleObjet?.(cle)) ?? null,
+);
+
+export async function creerVideoDepuisInfographieAction(rendu: InfographieRendue, options: OptionsPontImageVideo): Promise<Resultat<IssueDepotIV>> {
+  const r = await essayer(async () => {
+    await exigerGenerateurAllume("infographies");
+    return avecAccordAutomatique((a) => pontInfographie(rendu, { ...options, accordCentimes: a ?? options.accordCentimes }), typeof options.accordCentimes === "number" ? options.accordCentimes : undefined);
+  });
   if (r.ok && r.donnees.statut === "lancee") revalidatePath("/videos");
   return r;
 }

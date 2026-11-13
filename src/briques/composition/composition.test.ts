@@ -141,7 +141,8 @@ describe("une autre recette change ce qu'elle dit, rien d'autre", () => {
     for (const ratio of ["9:16", "4:5", "1:1"] as const) {
       const p = parametresComposition(commande(), { ratio, plans: PLANS, segments, dureeSec: 9, cartesPleinEcran: [{ debutSec: 3, finSec: 5, carteCle: "cartes/titre.mp4" }] }, RECETTE_COMPOSITION_AVOCAT);
       const ids = p.texte.sousTitres!.segments.map((s) => s.id);
-      expect(ids, ratio).toEqual(["avant", "apres"]);
+      // GV2-13 : « chevauche-fin » (4,6-5,4, carte 3-5) a 0,4 s hors carte : il est gardé, rogné à 5 s.
+      expect(ids, ratio).toEqual(["avant", "chevauche-fin", "apres"]);
     }
   });
 
