@@ -19,7 +19,7 @@ import { ecrireScriptTableauAction, reprendreMeilleureVersionTableauAction } fro
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import { dureeDiteSec } from "@/domaine/duree-tableau";
@@ -228,12 +228,12 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
         <p className="text-sm text-texte-doux">Durée : {DUREE_ECRITURE_TEXTE}. Vous pourrez fermer la page : le travail continue.</p>
         {phrase && (
           <p role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            {phrase}
+            {messageSansMontant(phrase)}
           </p>
         )}
         {refusSujet && (
           <section aria-label="Sujet déjà traité" role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : refusSujet.refus.phrase}</p>
+            <p className="font-semibold">{refusSujet.refus.jetonPerime ? "Les vidéos ont changé. Choisissez de nouveau." : messageSansMontant(refusSujet.refus.phrase)}</p>
             <ul className="space-y-1 text-sm">
               {refusSujet.refus.precedents.slice(0, 5).map((p) => (
                 <li key={p.videoId ?? p.sujetId ?? p.lien}>
@@ -298,7 +298,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
                   .filter((d) => !d.eliminatoire)
                   .slice(0, 4)
                   .map((d, i) => (
-                    <li key={i}>Remarque : {d.message}</li>
+                    <li key={i}>Remarque : {messageSansMontant(d.message)}</li>
                   ))}
               </ul>
             )}
@@ -328,7 +328,7 @@ export function EcrireScriptTableau({ ecran, onUtiliser, onCorriger, occupe = fa
             <h2 className="text-sm font-semibold text-texte-doux">Les accroches</h2>
             <ul className="space-y-2">
               {resultat.accroches.map((a, i) => (
-                <li key={i} className={i === resultat.retenue ? "rounded-2xl border-2 border-orange-vif bg-surface-1 px-4 py-3" : "rounded-2xl border border-trait px-4 py-3"}>
+                <li key={i} className={i === resultat.retenue ? "rounded-2xl border-2 border-accent bg-surface-1 px-4 py-3" : "rounded-2xl border border-trait px-4 py-3"}>
                   <p className="text-[15px] text-texte">{a.dit}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-sm text-texte-doux">{i === resultat.retenue ? "Retenue" : a.ecran}</span>

@@ -55,7 +55,7 @@ export function CarteVideo({
         }
       />
       <div className="mt-2 px-0.5">
-        <p className="line-clamp-2 text-sm font-semibold leading-snug text-texte group-hover:text-orange-vif">{insecable(v.titre)}</p>
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-texte group-hover:text-accent">{insecable(v.titre)}</p>
         <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-texte-faible">
           {afficherFormat && (
             <>

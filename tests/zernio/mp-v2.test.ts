@@ -145,7 +145,7 @@ describe("service d'aiguillage v2", () => {
     const base = { idEvenement: "ev-s1", post: "post-1", reseau: "instagram" as const, canal: "commentaire" as const, commentaire: "GUIDE", mot: "GUIDE" };
     expect(await A.orienterCommentaire({ ...base, idContact: "ct_opp_service" }, o)).toEqual({ issue: "execute", action: "silence", raison: "personne_opposee" });
     expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-s2", mot: "arrêtez", commentaire: "arrêtez" }, o)).toEqual({ issue: "execute", action: "silence", raison: "opposition" });
-    expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-s3", mot: "ZORG", commentaire: "ZORG" }, o)).toMatchObject({ action: "reponse_publique", motRetenu: "GUIDE" });
+    expect(await A.orienterCommentaire({ ...base, idEvenement: "ev-s3", mot: "ZORG", commentaire: "ZORG", idContact: "ct_fictif_zorg" }, o)).toMatchObject({ action: "reponse_publique", motRetenu: "GUIDE" });
     expect(await depot.lire()).toEqual([]);
   });
 });

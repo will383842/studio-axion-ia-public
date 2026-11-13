@@ -56,7 +56,7 @@ describe("RelireScript : un geste avec montant part directement, sans confirmati
 
   it("montant 0 : accord 0, sans confirmation (avec ou sans `prixDejaPaye`)", async () => {
     await cliquer({ prixCentimes: 0 });
-    await cliquer({ prixCentimes: 0, prixDejaPaye: true, libelleLancer: "Fabriquer la vidéo" });
+    await cliquer({ prixCentimes: 0, prixDejaPaye: true, libelleLancer: "Fabriquer" });
     expect(confirmerPrix).not.toHaveBeenCalled();
     expect(lancer.mock.calls.map((c) => c[1])).toEqual([0, 0]);
   });

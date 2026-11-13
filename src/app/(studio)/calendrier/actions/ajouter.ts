@@ -24,6 +24,8 @@ export interface SaisieEntree {
   /** Une vidéo OU un visuel. */
   videoId?: string;
   visuelId?: string;
+  /** Texte et premier commentaire retenus par le fondateur (CAL-27) ; conservés sur l'entrée, jamais publiés d'ici. */
+  textes?: Record<string, { texte: string; premierCommentaire: string }>;
   /** Clé stable du formulaire ouvert (idempotence). */
   cle: string;
   /** Vrai après le clic de confirmation d'un ajout dans le passé. */
@@ -114,6 +116,7 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
       compteCible: saisie.compteCible,
       ...(saisie.videoId ? { videoId: saisie.videoId } : {}),
       ...(saisie.visuelId ? { visuelId: saisie.visuelId } : {}),
+      ...(saisie.textes?.[saisie.reseau]?.texte?.trim() ? { textes: { [saisie.reseau]: saisie.textes[saisie.reseau]! } } : {}),
     }, maintenant());
     return { ok: true, donnees: c, ...(avertissement ? { avertissement } : {}) };
   } catch (e) {

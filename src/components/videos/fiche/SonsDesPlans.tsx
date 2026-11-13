@@ -68,7 +68,7 @@ export function SonsDesPlans({ videoId, donnees, modifiable, refaisable = true }
                   <span className="block text-xs tabular-nums text-texte-faible">{chrono(p.debutSec)}</span>
                 </span>
                 {libelle && (
-                  <span className={cn("flex shrink-0 items-center gap-1 text-xs font-semibold", libelle.startsWith("Aucun") ? "text-texte-faible" : "text-orange-vif")}>
+                  <span className={cn("flex shrink-0 items-center gap-1 text-xs font-semibold", libelle.startsWith("Aucun") ? "text-texte-faible" : "text-accent")}>
                     <Icone nom="volume" size={13} />
                     {libelle}
                   </span>

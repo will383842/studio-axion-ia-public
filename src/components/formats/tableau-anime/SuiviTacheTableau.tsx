@@ -13,8 +13,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { reprendreTacheTableauAction, suiviTacheTableauAction } from "@/app/(studio)/tableau/nouvelle/actions";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
+import { EnTeteSuivi } from "@/components/fabrication/EnTeteSuivi";
 import { Bouton } from "@/components/ui/Bouton";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { BoutonAnnuler } from "@/components/videos/BoutonAnnuler";
 import type { VueTacheTableau } from "@/services/tableau-taches";
 import { versSuiviTacheTableau } from "./vues-gabarit";
@@ -86,15 +87,22 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
   if (enMarche(vue)) {
     return (
       <section aria-label="Travail en cours" aria-live="polite" className="space-y-3 rounded-2xl border border-trait bg-surface-1 px-4 py-3">
+        {/* Ce suivi n'est pas une fabrication de vidéo : titre dit le vrai travail ; « Vous pouvez fermer » n'est dit qu'en bas. */}
+        <EnTeteSuivi
+          etat={versSuiviTacheTableau(vue).etat === "coincee" ? "coincee" : "en-cours"}
+          sansTemps
+          titre={vue.type === "ecriture" ? "Le script s'écrit" : "Le découpage en scènes est en cours"}
+          phrase="Le travail se fait en arrière-plan."
+        />
         <p className="flex items-center gap-2 text-[15px] font-semibold text-texte">
-          <span aria-hidden className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-orange-vif border-t-transparent" />
+          <span aria-hidden className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           {vue.phrase}
         </p>
         {/* La phrase est dite juste au-dessus : le suivi ne la répète pas. */}
         <SuiviFabrication vue={{ ...versSuiviTacheTableau(vue), message: undefined }} compacte />
         <p className="text-sm text-texte-doux">
           {vue.appels > 0 ? `${vue.appels} appel${vue.appels > 1 ? "s" : ""} fait${vue.appels > 1 ? "s" : ""}, gardé${vue.appels > 1 ? "s" : ""}. ` : ""}
-          Vous pouvez fermer cette page : le travail continue, vous le retrouverez dans « Tableau animé ».
+          Vous pouvez fermer cette page : le travail continue, vous le retrouverez dans « Mes vidéos ».
         </p>
         {injoignable && <p className="text-sm text-texte-doux">Le studio ne répond pas pour l&apos;instant : je réessaie…</p>}
       </section>
@@ -106,7 +114,13 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
   if (vue.statut === "erreur" || vue.statut === "interrompue" || decoupageRefuse) {
     return (
       <section aria-label={decoupageRefuse ? "Découpage refusé" : vue.statut === "erreur" ? "Travail arrêté" : "Travail interrompu"} role="alert" className="space-y-3 rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
-        <SuiviFabrication vue={versSuiviTacheTableau(vue)} compacte />
+        {/* Un arrêt venu du studio (erreur, refus, redémarrage) est une panne, pas un arrêt voulu : titre commun « coincée », la raison en clair. */}
+        <EnTeteSuivi
+          etat="coincee"
+          message={vue.phrase}
+          titre={decoupageRefuse ? "Le découpage a été refusé" : vue.type === "ecriture" ? "L'écriture du script s'est arrêtée" : "Le découpage en scènes s'est arrêté"}
+        />
+        <SuiviFabrication vue={{ ...versSuiviTacheTableau(vue), message: undefined }} compacte />
         {vue.motifs.length > 0 && (
           <ul className="list-disc space-y-1 pl-5 text-sm text-texte-doux">
             {vue.motifs.slice(0, decoupageRefuse ? 12 : 6).map((m, i) => (
@@ -118,7 +132,7 @@ export function SuiviTacheTableau({ videoId, initiale, coutEcritureCentimes, cou
           Reprendre
         </Bouton>
         <BoutonAnnuler videoId={videoId} apres="/videos" />
-        {phrase && <p className="text-sm text-texte-doux">{phrase}</p>}
+        {phrase && <p className="text-sm text-texte-doux">{messageSansMontant(phrase)}</p>}
       </section>
     );
   }

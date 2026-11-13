@@ -97,6 +97,11 @@ export function FournisseurVideo({ donnees, children }: { donnees: DonneesVideo;
   return <Ctx.Provider value={valeur}>{children}</Ctx.Provider>;
 }
 
+/** Comme `useVideo`, sans erreur hors de `<FournisseurVideo>` : null si le contexte est absent. */
+export function useVideoFacultatif(): Contexte | null {
+  return useContext(Ctx);
+}
+
 export function useVideo(): Contexte {
   const c = useContext(Ctx);
   if (!c) throw new Error("useVideo doit être utilisé dans <FournisseurVideo>");

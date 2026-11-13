@@ -120,6 +120,47 @@ describe("vignettes · service", () => {
     expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: "Vos devis sans réponse", fixee: true });
   });
 
+  it("GV-N9 · titre sur la fiche : une panne de lecture du gabarit au moment du titre centré ne fait pas échouer la couverture, et titreCentre est absent", { timeout: 60_000 }, async () => {
+    const v = await vraieVideo();
+    await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
+    const d = depots();
+    const obtenir = d.parametres.obtenir.bind(d.parametres);
+    // Seule la PREMIÈRE lecture du gabarit tombe en panne : c'est celle de titreCentreImageVideo (appelée avant preparerSource,
+    // qui relit le gabarit sans protection, miniatures.ts, preparerSource). Les lectures suivantes réussissent.
+    let lecturesGabarit = 0;
+    const espion = vi.spyOn(d.parametres, "obtenir").mockImplementation(async (id: string) => {
+      if (id === "miniature.gabarit" && lecturesGabarit++ === 0) throw new Error("panne de lecture du gabarit");
+      return obtenir(id);
+    });
+    try {
+      await fabriquer(v);
+    } finally {
+      espion.mockRestore();
+    }
+    expect(lecturesGabarit).toBeGreaterThanOrEqual(2);
+    expect(recues).toHaveLength(1);
+    expect(recues[0].parametres).toMatchObject({ couverture: "Vos devis sans réponse", motCle: "devis" });
+    expect(recues[0].parametres).not.toHaveProperty("titreCentre");
+  });
+
+  it("GV-N1 · réglage éteint : un titre saisi à la main est centré comme le titre automatique", { timeout: 60_000 }, async () => {
+    const v = await vraieVideo();
+    await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
+    await fabriquer(v);
+    expect(recues).toHaveLength(1);
+    expect(recues[0].parametres.titreCentre).toBe(true);
+  });
+
+  it("GV-N1 · gabarit r4 forcé : un titre sur la fiche n'a pas de clé titreCentre", { timeout: 60_000 }, async () => {
+    const { GABARITS_MINIATURE } = await import("@/domaine/vignettes");
+    await (await import("@/services/_commun")).ecrireParametre("miniature.gabarit", GABARITS_MINIATURE[0]);
+    const v = await vraieVideo();
+    await depots().videos.modifier(v.id, { couvertureVignette: { texte: "Vos devis sans réponse", motCle: "devis", fixee: true } });
+    await fabriquer(v);
+    expect(recues.length).toBeGreaterThan(0);
+    for (const r of recues) expect(r.parametres).not.toHaveProperty("titreCentre");
+  });
+
   it("à la création, AUCUN titre n'est proposé ni écrit, même avec un script (champs vides par défaut)", { timeout: 60_000 }, async () => {
     const v = await vraieVideo();
     await depots().scripts.enregistrer({ id: "scr-vign", formatId: v.formatId, blocs: [{ id: "b1", blocRecette: "accroche", segments: [{ id: "s1", texte: "Votre amende de 135 € n'est pas définitive, contestez-la dans les 45 jours." }] }] } as never);
@@ -155,6 +196,26 @@ describe("vignettes · service", () => {
       expect(mots.length).toBeGreaterThanOrEqual(3);
       expect(mots.length).toBeLessThanOrEqual(5);
       expect((await depots().videos.obtenir(v.id))!.couvertureVignette).toMatchObject({ texte: titre, fixee: false });
+    });
+
+    it("GV-VG-04c · éteint : aucune clé titreCentre en plus", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Votre amende n'est pas définitive, contestez-la vite.");
+      await (await import("@/services/_commun")).ecrireParametre("couverture.titreParDefaut", false);
+      await fabriquer(v);
+      expect(recues[0].parametres).not.toHaveProperty("titreCentre");
+    });
+
+    it("GV-VG-04c · allumé : titreCentre: true est envoyé, y compris quand le titre est déjà sur la fiche", { timeout: 60_000 }, async () => {
+      const v = await vraieVideo();
+      await accroche(v, "Votre amende n'est pas définitive, contestez-la vite.");
+      await allumer();
+      await fabriquer(v);
+      expect(recues[0].parametres.titreCentre).toBe(true);
+      recues.length = 0;
+      const { refaireVignettes } = await import("@/services/miniatures");
+      await refaireVignettes(v.id);
+      expect(recues[0].parametres.titreCentre).toBe(true);
     });
 
     it("allumé, accroche avec un mot interdit : pas de titre", { timeout: 60_000 }, async () => {

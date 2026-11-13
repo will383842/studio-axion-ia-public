@@ -11,6 +11,7 @@ import { EtapeExpress } from "./Express";
 import { EtapeFabrication } from "./Fabrication";
 import { EtapeMedias } from "./Medias";
 import type { CleEtape } from "./meta";
+import { lutApercu } from "../express/plateau";
 import { EtapeReglages } from "./Reglages";
 import { EtapeScript } from "./Script";
 import { EtapeSujet } from "./Sujet";
@@ -78,7 +79,7 @@ export const ETAPES: Record<CleEtape, DefinitionEtape> = {
     manque: () => "Un réglage n'est pas valable",
     resume: (b, d) => {
       const f = obtenirFormat(b.formatId);
-      const parties = [nomElement(d, b.styles.lutId ?? f.stylesParDefaut.lut), nomElement(d, b.styles.sousTitresId ?? f.stylesParDefaut.sousTitres), nomElement(d, b.styles.styleMontageId ?? f.stylesParDefaut.styleMontage)];
+      const parties = [nomElement(d, lutApercu(b.formatId, b.styles, d.elements).lutId), nomElement(d, b.styles.sousTitresId ?? f.stylesParDefaut.sousTitres), nomElement(d, b.styles.styleMontageId ?? f.stylesParDefaut.styleMontage)];
       return parties.filter(Boolean).join(" · ") || "Réglages habituels";
     },
   },
