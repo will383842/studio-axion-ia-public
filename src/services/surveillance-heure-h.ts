@@ -23,6 +23,8 @@ export const SEUIL_ALERTE_HEURE_H_MS = 40 * 60_000;
 export const INTERVALLE_SURVEILLANCE_HEURE_H_MS = 5 * 60_000;
 /** Marqueur persistant des alertes déjà envoyées (clé = créneau + cause). */
 export const PARAM_MARQUEUR_HEURE_H = "surveillance.heure-h";
+/** Une marque plus vieille que ce délai est purgée : l'alerte part dans les 40 minutes avant l'heure, le créneau est passé depuis longtemps. */
+export const DUREE_MARQUE_HEURE_H_MS = 24 * 60 * 60_000;
 const PARAM_DERNIERE_EXECUTION = "surveillance.heure-h.derniere";
 
 export type CauseHeureH = "non-promu";
@@ -46,6 +48,16 @@ export async function surveillerHeureH(options: OptionsSurveillanceHeureH = {}):
     if (typeof derniere === "number" && instant - derniere < INTERVALLE_SURVEILLANCE_HEURE_H_MS && instant >= derniere) return 0;
     await ecrireParametre(PARAM_DERNIERE_EXECUTION, instant);
     const marques = await lireParametre<Record<string, string>>(PARAM_MARQUEUR_HEURE_H, {});
+    // Purge des clés passées (marqueur technique : aucune donnée de personne). Marque illisible : conservée.
+    let purge = false;
+    for (const [k, v] of Object.entries(marques)) {
+      const posee = Date.parse(v);
+      if (Number.isFinite(posee) && instant - posee > DUREE_MARQUE_HEURE_H_MS) {
+        delete marques[k];
+        purge = true;
+      }
+    }
+    if (purge) await ecrireParametre(PARAM_MARQUEUR_HEURE_H, marques);
     const entrees = await depots().envoisPlanifies.lister((e) => e.statut === "brouillon" || e.statut === "valide");
     let n = 0;
     for (const e of entrees.sort((a, b) => a.cle.localeCompare(b.cle))) {

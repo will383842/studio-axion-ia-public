@@ -58,6 +58,36 @@ describe("L0-09 · annexe heure H", () => {
     expect(l[0]!.envoi?.emailForce).toBe(true);
     expect(l[0]!.titre).not.toMatch(/zernio|publication\./i);
   });
+  it("jamais de push : avec un abonnement push actif et un faux fournisseur push, 0 push et 1 e-mail pour l'alerte", async () => {
+    await ecrireParametre("push.abonnements", [{ endpoint: "https://push.exemple/x", keys: { p256dh: "a", auth: "b" } }]);
+    await ouvrir();
+    await poser();
+    expect(await S.surveillerHeureH({ maintenant: () => H - 40 * MIN })).toBe(1);
+    const envoyerPush = vi.fn(async () => ({ envoyes: 1, expires: [] as string[] }));
+    const envoyerEmail = vi.fn(async () => ({ envoye: true }));
+    const { diffuserNotifications } = await import("@/services/notifications");
+    const r = await diffuserNotifications({
+      push: { publique: "p", privee: "q", sujet: "mailto:x@exemple.test" },
+      email: { cle: "k", expediteur: "a@exemple.test", destinataire: "b@exemple.test", adresse: "https://mail.exemple.test", site: "https://studio.exemple.test" },
+      envoyerPush: envoyerPush as never,
+      envoyerEmail: envoyerEmail as never,
+    });
+    expect(envoyerPush).toHaveBeenCalledTimes(0);
+    expect(envoyerEmail).toHaveBeenCalledTimes(1);
+    expect(r).toEqual({ push: 0, emails: 1 });
+  });
+  it("le marqueur purge les clés passées (plus de 24 h) et garde les récentes", async () => {
+    await ouvrir();
+    const maintenant = H - 10 * MIN;
+    await ecrireParametre(S.PARAM_MARQUEUR_HEURE_H, {
+      vieille: new Date(maintenant - 25 * 60 * MIN).toISOString(),
+      recente: new Date(maintenant - 60 * MIN).toISOString(),
+    });
+    await S.surveillerHeureH({ maintenant: () => maintenant });
+    const { lireParametre } = await import("@/services/_commun");
+    const marques = await lireParametre<Record<string, string>>(S.PARAM_MARQUEUR_HEURE_H, {});
+    expect(Object.keys(marques)).toEqual(["recente"]);
+  });
   it("le marqueur persiste : une alerte par créneau et par cause", async () => {
     await ouvrir();
     await poser();
