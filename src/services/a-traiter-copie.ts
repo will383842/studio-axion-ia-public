@@ -1,6 +1,7 @@
 /**
  * À TRAITER (ATR-C) · « Copier » : rend un texte que l'opérateur colle À LA MAIN dans LinkedIn. JAMAIS d'envoi (aucun appel au port ni à Zernio) : on fabrique un texte, rien d'autre.
  * Un stop gagne partout : au moindre doute, rien n'est proposé.
+ * Fenêtre restante, volontairement petite : une opposition inscrite au registre APRÈS le dernier recontrôle (juste avant l'écriture de la date) mais avant le rendu du texte n'est pas vue ; le texte rendu n'est jamais envoyé, seul l'opérateur le colle à la main.
  * Journaux sans texte, adresse, pseudo, identifiant de personne, jeton ni secret.
  */
 import "server-only";

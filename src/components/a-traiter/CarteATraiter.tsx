@@ -9,7 +9,7 @@ import { extraitLisible, type CarteATraiter as Donnees } from "@/services/a-trai
 /** Résultat d'une demande de copie (type écrit ici : un composant client n'importe aucun module serveur). */
 export type ResultatCopieCarte = { ok: true; texte: string } | { ok: false; phrase: string };
 export interface ServicesCopie {
-  reponse(id: string): Promise<ResultatCopieCarte>;
+  reponse?(id: string): Promise<ResultatCopieCarte>;
   message(id: string): Promise<ResultatCopieCarte>;
 }
 const ContexteCopie = createContext<ServicesCopie | null>(null);

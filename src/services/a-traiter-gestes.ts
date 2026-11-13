@@ -3,7 +3,7 @@ import "server-only";
 import { exigerSession } from "./auth";
 import { arreterDepuisCarte, ignorerCarte, injecterDepotPersistantATraiter, lireVueATraiter, marquerCarteFaite } from "./a-traiter";
 import { creerDepotParametre } from "./a-traiter-depot";
-import { copierMessageCarte, copierReponseCarte } from "./a-traiter-copie";
+import { copierMessageCarte } from "./a-traiter-copie";
 
 /** Pose (une seule fois) le dépôt persistant comme dépôt courant du service ; idempotent. */
 function depotPersistant() {
@@ -31,8 +31,4 @@ export async function gesteCarteStop(id: string, compte: string) {
 export async function gesteCopierMessage(id: string) {
   await exigerSession();
   return copierMessageCarte(id, { depot: depotPersistant() });
-}
-export async function gesteCopierReponse(id: string) {
-  await exigerSession();
-  return copierReponseCarte(id, { depot: depotPersistant() });
 }

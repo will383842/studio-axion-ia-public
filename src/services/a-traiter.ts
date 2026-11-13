@@ -104,15 +104,16 @@ export function injecterDepotPersistantATraiter(d: DepotATraiter): void {
 
 /**
  * Note la date de copie sur UNE carte : sous le verrou LOCAL de ce fichier (le même que les autres écrivains de cartes), relit le
- * dépôt, ne modifie QUE `copieLe` de cette carte, n'écrit que cette carte. Refuse si la carte est opposée, absente ou plus à traiter.
+ * dépôt, ne modifie QUE `copieLe` de cette carte et réécrit la liste complète (les autres cartes sont conservées telles quelles). Refuse si la carte est opposée, absente ou plus à traiter.
  * N'appelle jamais `sousVerrou` (verrou global) lui-même ; l'appelant ne doit pas l'appeler depuis l'intérieur de `sousVerrou`.
  */
 export async function noterCopieCarte(id: string, dateIso: string, o: { depot?: DepotATraiter } = {}): Promise<boolean> {
   const depot = o.depot ?? depotCourant;
   return verrou(async () => {
-    const courante = (await depot.lire()).find((c) => c.idEvenement === id);
+    const toutes = await depot.lire();
+    const courante = toutes.find((c) => c.idEvenement === id);
     if (!courante || courante.statut !== "a_traiter" || courante.opposee) return false;
-    await depot.ecrire([{ ...courante, copieLe: dateIso }]);
+    await depot.ecrire(toutes.map((c) => (c.idEvenement === id ? { ...c, copieLe: dateIso } : c)));
     return true;
   });
 }

@@ -119,6 +119,26 @@ describe("copie sur le vrai dépôt persistant", () => {
     expect((await lue()).opposee).toBe(true);
   }, 2000);
 
+  it("un stop posé au recontrôle, juste avant l'écriture de la date : le stop reste et aucun texte n'est rendu", async () => {
+    let n = 0;
+    let stop: Promise<unknown> = Promise.resolve();
+    const espion = {
+      ecrire: depot.ecrire,
+      lire: async () => {
+        const l = await depot.lire();
+        if (++n === 2) stop = A.marquerCarteOpposee("evt-fictif-001", { env: ENV, depot }); // recontrôle
+        return l;
+      },
+    };
+    const r = await copier({ depot: espion });
+    await stop;
+    expect(r.ok).toBe(false);
+    expect(evenements).toEqual([]);
+    const c = await lue();
+    expect(c.opposee).toBe(true);
+    expect(c.copieLe).toBeUndefined();
+  }, 2000);
+
   it("deux clics simultanés : pas d'interblocage (moins de 2 s), une date par clic, jamais de doublon dans la carte", async () => {
     const debut = Date.now();
     const [a, b] = await Promise.all([copier(), copier({ maintenantMs: T0 + 1000 })]);
