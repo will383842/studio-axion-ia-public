@@ -3,7 +3,7 @@
 // SUI-B — tableau du suivi chiffré par mot : une ligne par mot, choix de la fenêtre (7 jours / 30 jours / total).
 // Présentation pure : tout arrive en propriété. Les chiffres du site absents s'écrivent « — », jamais 0.
 import { useState } from "react";
-import { chiffreOuTiret, libelleGagnees, type Fen, type TableauSuivi } from "./suivi-affichage";
+import { chiffreOuTiret, compteAffiche, libelleGagnees, type Fen, type TableauSuivi } from "./suivi-affichage";
 
 type Fenetre = keyof Fen;
 
@@ -25,7 +25,7 @@ const COLONNES = [
 
 export function TableauSuiviMots({ suivi }: { suivi: TableauSuivi }) {
   const [fenetre, setFenetre] = useState<Fenetre>("j7");
-  const valeur = (f: Fen | null) => chiffreOuTiret(f === null ? null : f[fenetre]);
+  const valeur = (f: Fen | null) => (f === null ? chiffreOuTiret(null) : compteAffiche(f[fenetre]));
   return (
     <section aria-label="Suivi chiffré par mot">
       {!suivi.siteDisponible && (
@@ -60,7 +60,7 @@ export function TableauSuiviMots({ suivi }: { suivi: TableauSuivi }) {
               <td>{valeur(suivi.siteDisponible ? l.formulaires : null)}</td>
               <td>{valeur(suivi.siteDisponible ? l.envoisEmail : null)}</td>
               <td>{valeur(suivi.siteDisponible ? l.clics : null)}</td>
-              <td>{libelleGagnees(l.auMoinsGagnees)}</td>
+              <td>{libelleGagnees(l.instagram.gagnees[fenetre])}</td>
             </tr>
           ))}
         </tbody>

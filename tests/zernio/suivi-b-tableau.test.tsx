@@ -26,7 +26,7 @@ const base = (siteDisponible: boolean, gagnees = 3): TableauSuivi => ({
       formulaires: siteDisponible ? fen(0, 0, 0) : null,
       envoisEmail: siteDisponible ? fen(0, 0, 0) : null,
       clics: siteDisponible ? fen(0, 0, 0) : null,
-      instagram: { reponsesOk: fen(0, 0, 0), dejaSuivi: fen(0, 0, 0), gagnees: fen(0, 0, 0), sansSuivre: fen(0, 0, 0), inconnu: fen(0, 0, 0) },
+      instagram: { reponsesOk: fen(0, 0, 0), dejaSuivi: fen(0, 0, 0), gagnees: fen(gagnees, gagnees + 1, gagnees + 2), sansSuivre: fen(0, 0, 0), inconnu: fen(0, 0, 0) },
       auMoinsGagnees: gagnees,
       parPublication: [{ post: "post-1", reseau: "instagram", commentaires: 1, premiersMessages: 2, formulaires: null, clics: null, auMoinsGagnees: gagnees }],
       formulations: [{ version: "A", envois: 4, clics: null }],
@@ -65,6 +65,19 @@ describe("TableauSuiviMots", () => {
     expect(cellules()[0]).toBe("5");
     (bouton("Total").props.onClick as () => void)();
     expect(cellules()[0]).toBe("9");
+  });
+  it("la colonne des personnes gagnées suit la période choisie", () => {
+    const m = monter(TableauSuiviMots, { suivi: base(true, 3) });
+    const derniere = () => {
+      const t = trouver(m.rendre(), (e) => e.type === "td").map((e) => texteDe(e));
+      return t[t.length - 1];
+    };
+    const bouton = (t: string) => trouver(m.rendre(), (e) => e.type === "button" && texteDe(e) === t)[0];
+    expect(derniere()).toBe("au moins 3");
+    (bouton("30 jours").props.onClick as () => void)();
+    expect(derniere()).toBe("au moins 4");
+    (bouton("Total").props.onClick as () => void)();
+    expect(derniere()).toBe("au moins 5");
   });
   it("ni le HTML rendu ni les sources ne contiennent le mot interdit", () => {
     const motif = new RegExp(["ab", "onn"].join(""), "i");
