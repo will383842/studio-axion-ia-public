@@ -170,6 +170,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
   }
 
   const CODES_PASSAGERS: ReadonlySet<string> = new Set(["debit", "limite-incertaine", "a-verifier", "indisponible", "envoi-coupe", "lecture-requise"]);
+
   /** Jeton « vérifié : non opposée » consommé UNE fois, AVANT tout appel réseau : absent, forgé ou déjà utilisé => refus fermé. */
   const jetonRefuse = (j: unknown): boolean => !consommerJetonNonOpposee(j);
   const refusSansJeton = (): Promise<ResultatEcritureInbox> => Promise.resolve({ statut: "refuse", code: "non-opposee-requis" });
