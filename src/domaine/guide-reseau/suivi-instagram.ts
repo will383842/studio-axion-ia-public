@@ -31,7 +31,13 @@ export type DecisionIg =
 
 export function deciderReponseInstagram(e: EntreeDecisionIg): DecisionIg {
   if (e.douteOpposition) return { action: "silence", raison: "doute" };
-  if (e.finFenetreMs === null || e.maintenantMs >= e.finFenetreMs) return { action: "silence", raison: "hors_fenetre" };
+  if (
+    e.finFenetreMs === null ||
+    !Number.isFinite(e.maintenantMs) ||
+    !Number.isFinite(e.finFenetreMs) ||
+    e.maintenantMs >= e.finFenetreMs
+  )
+    return { action: "silence", raison: "hors_fenetre" };
   switch (e.suivi) {
     case "suit":
       return { action: "lien", issue: e.pasEncoreDejaEnvoye ? "gagne" : "deja_suivi" };

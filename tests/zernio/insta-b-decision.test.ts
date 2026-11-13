@@ -79,6 +79,12 @@ describe("doute et fenêtre", () => {
     expect(d({ maintenantMs: FIN })).toEqual({ action: "silence", raison: "hors_fenetre" });
     expect(d({ maintenantMs: FIN + 1 })).toEqual({ action: "silence", raison: "hors_fenetre" });
   });
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])("maintenant non fini (%s) => silence hors_fenetre, même si suit", (maintenantMs) =>
+    expect(d({ maintenantMs })).toEqual({ action: "silence", raison: "hors_fenetre" }));
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])("fin de fenêtre non finie (%s) => silence hors_fenetre, même si suit", (finFenetreMs) =>
+    expect(d({ finFenetreMs })).toEqual({ action: "silence", raison: "hors_fenetre" }));
+  it("non fini : le doute reste prioritaire", () =>
+    expect(d({ maintenantMs: Number.NaN, douteOpposition: true })).toEqual({ action: "silence", raison: "doute" }));
   it.each(SUIVIS)("hors fenêtre => silence pour %s", (suivi) =>
     expect(d({ suivi, maintenantMs: FIN })).toEqual({ action: "silence", raison: "hors_fenetre" }));
 });
