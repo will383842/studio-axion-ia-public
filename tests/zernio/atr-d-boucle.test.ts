@@ -76,3 +76,36 @@ describe("aucun événement n'est touché par l'étape simulée", () => {
     expect((await depots().evenementsFournisseurs.lister(() => true))[0].traite).toBe(false);
   });
 });
+
+describe("ATR-D R2 : limite de 15 s propre à l'étape", () => {
+  const ENV = { A_TRAITER_ENABLED: "1" };
+  it("deux passages à 5 s d'écart : un seul traitement ; à 15 s : un second", async () => {
+    await B.passageParcoursZernio({ env: ENV, maintenantMs: T0 + 10 * 60_000 });
+    await B.passageParcoursZernio({ env: ENV, maintenantMs: T0 + 10 * 60_000 + 5_000 });
+    await B.passageParcoursZernio({ env: ENV, maintenantMs: T0 + 10 * 60_000 + 10_000 });
+    expect(manuel.appels).toHaveLength(1);
+    await B.passageParcoursZernio({ env: ENV, maintenantMs: T0 + 10 * 60_000 + 15_000 });
+    expect(manuel.appels).toHaveLength(2);
+  });
+});
+
+describe("ATR-D R3 : éteint, aucun import ni dépôt", () => {
+  it("éteint : le module a-traiter n'est pas importé et aucun dépôt n'est injecté", async () => {
+    vi.resetModules();
+    const charges: string[] = [];
+    vi.doMock("@/services/a-traiter", async (orig) => { charges.push("a-traiter"); return orig(); });
+    vi.doMock("@/services/a-traiter-depot", async (orig) => { charges.push("a-traiter-depot"); return orig(); });
+    const B2 = await import("@/services/branchements-zernio");
+    await B2.passageParcoursZernio({ env: {}, maintenantMs: T0 + 20 * 60_000 });
+    expect(charges).toEqual([]);
+    vi.doUnmock("@/services/a-traiter");
+    vi.doUnmock("@/services/a-traiter-depot");
+  });
+});
+
+describe("ATR-D R3 : nom de la variable", () => {
+  it("la copie de la boucle = la variable d'a-traiter", async () => {
+    const A = await import("@/services/a-traiter");
+    expect(B.VARIABLE_A_TRAITER_BOUCLE).toBe(A.VARIABLE_INTERRUPTEUR_A_TRAITER);
+  });
+});
