@@ -60,29 +60,56 @@ function phrases(script: string): string[][] {
   return res;
 }
 
+/** Mots outils : un écran ne finit jamais sur l'un d'eux (la phrase ne serait pas terminée à l'écran). */
+const MOTS_OUTILS = new Set(["le", "la", "les", "l", "de", "des", "du", "d", "un", "une", "dans", "à", "au", "aux", "en"]);
+/** Mots devant lesquels on peut couper une phrase trop longue (conjonctions et prépositions). */
+const MOTS_DE_COUPE = new Set(["et", "mais", "ou", "donc", "car", "parce", "pour", "dans", "avec", "sans", "sur", "qui", "que"]);
+const motNu = (j: string) => j.normalize("NFC").toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").replace(/^(l|d)['’]\p{L}.*$/u, "$1");
+const finitParUnMotOutil = (jetons: readonly string[]) => MOTS_OUTILS.has(motNu(jetons[jetons.length - 1] ?? ""));
+
 /**
- * Coupe un morceau en deux : après une virgule (ou « ; », « : ») proche du milieu si elle existe, sinon au milieu des mots.
+ * Coupe un morceau en deux, AU SENS : d'abord à une fin de phrase ou à un signe « , ; : » proche du milieu ; sinon avant
+ * une conjonction ou une préposition la plus proche du milieu ; sinon au milieu des mots. Jamais après un mot outil
+ * (« le », « dans »…) quand une autre coupe existe. Aucun mot n'est changé.
  * `max` : nombre de mots au plus dans la première moitié (accroche).
  */
 function couper(jetons: readonly string[], max = Infinity): [string[], string[]] {
   const total = nbMots(jetons);
   const cible = Math.min(max, Math.ceil(total / 2));
-  let meilleur = -1;
-  let ecart = Infinity;
+  // Nombre de mots avant chaque position de coupe possible (la coupe est APRÈS le jeton `i`).
+  const avant: number[] = [];
   let vus = 0;
-  jetons.forEach((j, i) => {
+  jetons.forEach((j) => {
     if (/[\p{L}\p{N}]/u.test(j)) vus++;
-    if (i < jetons.length - 1 && finDeMembre.test(j) && vus >= 2 && vus <= max && total - vus >= 1 && Math.abs(vus - cible) < ecart) {
-      meilleur = i;
-      ecart = Math.abs(vus - cible);
-    }
+    avant.push(vus);
   });
+  const meilleure = (ok: (i: number) => boolean): number => {
+    let choix = -1;
+    let ecart = Infinity;
+    for (let i = 0; i < jetons.length - 1; i++) {
+      if (!ok(i) || avant[i]! < 2 || avant[i]! > max || total - avant[i]! < 1 || finitParUnMotOutil(jetons.slice(0, i + 1))) continue;
+      const e = Math.abs(avant[i]! - cible);
+      if (e < ecart) {
+        choix = i;
+        ecart = e;
+      }
+    }
+    return choix;
+  };
+  // 1. Fin de phrase, puis signe de ponctuation. 2. Avant une conjonction ou une préposition (la coupe est après le jeton précédent).
+  let meilleur = meilleure((i) => finDePhrase.test(jetons[i]!));
+  if (meilleur < 0) meilleur = meilleure((i) => finDeMembre.test(jetons[i]!));
+  if (meilleur < 0) meilleur = meilleure((i) => MOTS_DE_COUPE.has(motNu(jetons[i + 1]!)));
   if (meilleur < 0) {
-    vus = 0;
-    meilleur = jetons.findIndex((j) => {
-      if (/[\p{L}\p{N}]/u.test(j)) vus++;
-      return vus >= cible;
-    });
+    // 3. Au milieu ; si l'écran finirait sur un mot outil, on avance jusqu'au premier mot qui n'en est pas un (sinon on recule).
+    const milieu = jetons.findIndex((_, i) => avant[i]! >= cible);
+    meilleur = milieu;
+    while (meilleur < jetons.length - 2 && finitParUnMotOutil(jetons.slice(0, meilleur + 1))) meilleur++;
+    if (finitParUnMotOutil(jetons.slice(0, meilleur + 1)) || meilleur >= jetons.length - 1 || avant[meilleur]! > max) {
+      meilleur = milieu;
+      while (meilleur > 0 && finitParUnMotOutil(jetons.slice(0, meilleur + 1))) meilleur--;
+      if (finitParUnMotOutil(jetons.slice(0, meilleur + 1))) meilleur = milieu;
+    }
   }
   return [jetons.slice(0, meilleur + 1), jetons.slice(meilleur + 1)];
 }
@@ -120,6 +147,12 @@ function coupeFin(jetons: readonly string[]): [string[], string[]] | null {
 export function ecransDuScript(script: string): string[][] {
   let morceaux = phrases(script);
   if (!morceaux.length) return morceaux;
+  // La phrase-choc est la dernière PHRASE de plus de 2 mots : un mot isolé final (« Maintenant. Merci ») s'y rattache, l'ordre des mots ne change pas.
+  let derniere = morceaux.length - 1;
+  while (derniere > 0 && nbMots(morceaux[derniere]!) <= 2) derniere--;
+  if (derniere >= 1 && derniere < morceaux.length - 1 && nbMots(morceaux.slice(derniere).flat()) <= PHRASE_CHOC_MOTS && texteDe(morceaux.slice(derniere).flat()).length <= PHRASE_CHOC_CARACTERES) {
+    morceaux = [...morceaux.slice(0, derniere), morceaux.slice(derniere).flat()];
+  }
   if (morceaux.length && nbMots(morceaux[0]!) > ACCROCHE_MOTS) morceaux.splice(0, 1, ...couper(morceaux[0]!, ACCROCHE_MOTS));
   const trop = (m: readonly string[]) => nbMots(m) > ECRAN_MOTS_MAX || texteDe(m).length > ECRAN_CARACTERES_MAX || texteDe(m).length > REGLES_SCENE_IV.signesMax;
   for (let i = 1; i < morceaux.length; i++) {
