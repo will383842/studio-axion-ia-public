@@ -14,9 +14,20 @@ function horodatage(s: number, separateur: "," | "."): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}${separateur}${String(r).padStart(3, "0")}`;
 }
 
-/** Groupes exportables : triés, sans chevauchement, sans durée nulle. */
+/** Groupes exportables : triés, sans chevauchement, sans durée nulle. Les mots d'une ligne de durée nulle sont rattachés à la voisine (précédente, sinon suivante) : le fichier garde tous les mots. */
 function exportables(segments: SegmentSousTitres[]): SegmentSousTitres[] {
-  return sansChevauchement(segments).filter((s) => s.finSec - s.debutSec > 0.001 && s.mots.length);
+  const sortie: SegmentSousTitres[] = [];
+  let enAttente: SegmentSousTitres["mots"] = [];
+  for (const s of sansChevauchement(segments)) {
+    if (s.finSec - s.debutSec > 0.001) {
+      sortie.push(enAttente.length ? { ...s, mots: [...enAttente, ...s.mots] } : s);
+      enAttente = [];
+    } else if (sortie.length) {
+      const p = sortie[sortie.length - 1];
+      sortie[sortie.length - 1] = { ...p, mots: [...p.mots, ...s.mots] };
+    } else enAttente = [...enAttente, ...s.mots];
+  }
+  return sortie.filter((s) => s.mots.length);
 }
 
 const texte = (s: SegmentSousTitres) => s.mots.map((m) => m.mot).join(" ");

@@ -132,6 +132,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   }));
   const [refus, setRefus] = useState<string[] | null>(null);
   const [phrase, setPhrase] = useState<string | null>(null);
+  /** Le dernier refus d'enregistrement vient d'un texte qui n'est plus celui du fondateur : « Reprendre mon texte » est proposé. */
+  const [texteChange, setTexteChange] = useState(false);
   /** Texte d'un sujet déjà traité : le refus du serveur et ce qui repart tel quel avec « Refaire quand même » (texte, prix, repère relu). */
   const [refusSujet, setRefusSujet] = useState<{ refus: RefusSujetTraite; avec: Saisie; accord: number | true; relu: string; cle: string } | null>(null);
   const [corrections, setCorrections] = useState<Record<string, CorrectionScene>>({});
@@ -276,6 +278,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   function enregistrer() {
     if (!b) return;
     setPhrase(null);
+    setTexteChange(false);
     demarrer(async () => {
       const scenes = Object.values(corrections);
       const r = await corrigerFicheTableauAction(b.videoId, entete ? { scenes, ...entete } : scenes).catch(() => null);
@@ -284,6 +287,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
       if (r.donnees.statut === "refusee") {
         setPhrase(r.donnees.phrase);
         setRefus(r.donnees.problemes.map((p) => p.message));
+        setTexteChange(r.donnees.code === "TEXTE_FONDATEUR_CHANGE");
         return;
       }
       notifier.succes("Corrections enregistrées", "La version précédente est gardée.");
@@ -294,6 +298,24 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
       setCorriger(false);
       router.refresh();
     });
+  }
+
+  /** « Reprendre mon texte » : le texte d'origine du fondateur est remis dans les scènes (mêmes coupures), à enregistrer. */
+  function reprendreMonTexte() {
+    if (!b?.fiche) return;
+    const mots = b.donnees.texte.split(/\s+/).filter(Boolean);
+    let debut = 0;
+    const reprises: Record<string, CorrectionScene> = {};
+    b.fiche.scenes.forEach((s, i) => {
+      const n = i === b.fiche!.scenes.length - 1 ? mots.length - debut : s.texteDit.split(/\s+/).filter(Boolean).length;
+      reprises[s.id] = { ...corrections[s.id], sceneId: s.id, texteDit: mots.slice(debut, debut + n).join(" ") };
+      debut += n;
+    });
+    setCorrections((c) => ({ ...c, ...reprises }));
+    setPhrase(null);
+    setRefus(null);
+    setTexteChange(false);
+    setCorriger(true);
   }
 
   /** La case « déjà vu » : cochée, elle est datée du jour et gardée dans le brouillon (la fabrication la reçoit). */
@@ -515,6 +537,13 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         {(phrase || refus) && (
           <div role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
             {phrase && <p>{messageSansMontant(phrase)}</p>}
+            {texteChange && (
+              <div className="mt-3">
+                <Bouton variante="secondaire" icone="ecrire" disabled={occupe} onClick={reprendreMonTexte}>
+                  Reprendre mon texte
+                </Bouton>
+              </div>
+            )}
             {refus && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-texte-doux">
                 {refus.slice(0, 6).map((x, i) => (

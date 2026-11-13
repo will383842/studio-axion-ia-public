@@ -31,16 +31,18 @@ describe("instagramSuivreActif", () => {
   });
 });
 
-describe("garde : aucun code de production ne lit encore le réglage", () => {
+describe("garde : seuls les lecteurs prévus lisent le réglage", () => {
   const MODULE = "src/services/parcours-instagram.ts";
   const parcourir = (d: string): string[] =>
     readdirSync(d).flatMap((n) => {
       const p = join(d, n);
       return statSync(p).isDirectory() ? parcourir(p) : /\.(ts|tsx)$/.test(n) ? [p.replace(/\\/g, "/")] : [];
     });
+  // INSTA-C : le seul lecteur de production autorisé (tout autre fichier qui cite la clé ou le module doit rougir).
+  const LECTEURS_PREVUS = ["src/services/parcours-conversation.ts"];
   const fichiers = parcourir("src").filter((f) => f !== MODULE);
-  it("ni la clé ni le module ne sont cités ailleurs", () =>
-    expect(fichiers.filter((f) => /parcours\.instagram_suivre|parcours-instagram|instagramSuivreActif|PARAM_INSTAGRAM_SUIVRE/.test(readFileSync(f, "utf8")))).toEqual([]));
+  it("seuls les lecteurs prévus lisent le réglage", () =>
+    expect(fichiers.filter((f) => /parcours\.instagram_suivre|parcours-instagram|instagramSuivreActif|PARAM_INSTAGRAM_SUIVRE/.test(readFileSync(f, "utf8")))).toEqual(LECTEURS_PREVUS));
   it("le module annonce son état éteint", () =>
-    expect(readFileSync(MODULE, "utf8")).toContain("ÉTEINT PAR DÉFAUT, aucun code de production ne le lit encore"));
+    expect(readFileSync(MODULE, "utf8")).toContain("ÉTEINT PAR DÉFAUT ; seul lecteur de production : parcours-conversation (INSTA-C)"));
 });

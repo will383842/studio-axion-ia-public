@@ -1205,14 +1205,57 @@ export async function compterPublicationsProgrammees(videoIds: string[]): Promis
   return depots().publications.compter((p) => videoIds.includes(videoIdSure(p) ?? "") && p.statut === "programmee" && p.date >= maintenantIso);
 }
 
-/** Famille de contenu d'une ligne « À publier » (aujourd'hui les vidéos seules ; carrousels et infographies viendront à part). */
-export type FamilleAPublier = "video";
+/** Famille de contenu d'une ligne « À publier » : les vidéos, les carrousels et les infographies. */
+export type FamilleAPublier = "video" | "carrousel" | "infographie";
+
+/**
+ * Carte d'un carrousel ou d'une infographie validé, pour « À publier » (maquette M5). Lecture seule : ni prix, ni état, ni envoi.
+ * `lien` ouvre la fiche du visuel. POINT D'EXTENSION (demande RC-40, hors périmètre) : l'envoi de plusieurs images passe par la zone
+ * Zernio ; tant qu'il n'existe pas, ces cartes se relisent et se téléchargent depuis leur fiche, elles ne partent pas d'ici.
+ */
+export interface CarteVisuelAPublier {
+  famille: Exclude<FamilleAPublier, "video">;
+  id: string;
+  titre: string;
+  vignette: string | null;
+  nbPages: number;
+  lien: string;
+}
+
+/** Les visuels validés (hors corbeille, exemples selon l'interrupteur). Un carrousel continu reste un carrousel. */
+export async function listerVisuelsAPublier(): Promise<CarteVisuelAPublier[]> {
+  const exemples = await filtreExemples<{ estDemo?: boolean }>();
+  const visuels = (await depots().visuels.lister((v) => exemples(v) && v.statut === "valide" && !v.corbeilleLe)).sort((a, b) => b.modifieLe.localeCompare(a.modifieLe));
+  const lire = async (cle: string | undefined): Promise<string | null> => {
+    if (!cle) return null;
+    try {
+      return (await (await fournisseur("stockage")).urlLecture(cle)) || null;
+    } catch {
+      return null;
+    }
+  };
+  return Promise.all(
+    visuels.map(async (v) => ({
+      famille: v.famille === "infographie" ? ("infographie" as const) : ("carrousel" as const),
+      id: v.id,
+      titre: v.titre,
+      vignette: await lire(v.rendu?.vignetteCle ?? v.renduToile?.vignetteCle),
+      nbPages: v.spec?.pages.length ?? v.rendu?.pages.length ?? v.renduToile?.pages.length ?? 0,
+      lien: `/carrousels/${v.id}`,
+    })),
+  );
+}
+
+/** Tous les contenus à publier, toutes familles : les vidéos d'abord, puis les visuels. */
+export async function listerContenusAPublier(): Promise<((VueVideoCarte & { famille: "video" }) | CarteVisuelAPublier)[]> {
+  return [...(await listerAPublier()), ...(await listerVisuelsAPublier())];
+}
 
 /**
  * « À publier » : les contenus validés (étape éditoriale « validée »), même forme que les cartes de vidéo, plus leur
  * famille. Lecture seule : ne crée aucun état, aucun envoi.
  */
-export async function listerAPublier(): Promise<(VueVideoCarte & { famille: FamilleAPublier })[]> {
+export async function listerAPublier(): Promise<(VueVideoCarte & { famille: "video" })[]> {
   const d = depots();
   const exemples = await filtreExemples<{ estDemo?: boolean }>();
   const videos = await d.videos.lister((v) => exemples(v) && v.statut === "prete" && v.etapeEditoriale === "validee");

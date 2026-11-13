@@ -581,6 +581,13 @@ export function pagesExempleIllustratif(fiche: FicheTableau): Map<number, Set<st
 
 const LETTRES_CHIFFRES: Readonly<Record<string, string>> = { "2": "deux", "3": "trois", "4": "quatre", "5": "cinq", "6": "six", "7": "sept", "8": "huit", "9": "neuf", "10": "dix", "11": "onze", "12": "douze", "15": "quinze", "20": "vingt", "30": "trente", "40": "quarante", "50": "cinquante", "60": "soixante", "100": "cent" };
 
+/** Chiffres que la voix dit dans le texte d'UNE scène (en chiffres ou en lettres). */
+function chiffresDitsDeLaScene(s: SceneTableau): Set<string> {
+  const dits = new Set<string>([...(s.texteDit.match(/\p{Nd}+/gu) ?? []), ...nombresDits(s.texteDit)]);
+  for (const m of s.texteDit.split(/\s+/)) dits.add(cleMot(m));
+  return dits;
+}
+
 export function regleChiffresSources(fiche: FicheTableau, contexte: ContexteTableau): Manquement[] {
   const sources = new Set(contexte.sourcesChiffres);
   const exemples = pagesExempleIllustratif(fiche);
@@ -590,22 +597,26 @@ export function regleChiffresSources(fiche: FicheTableau, contexte: ContexteTabl
     // Exemple illustratif : un chiffre écrit est permis s'il est dit sur la page (en chiffres ou en lettres).
     const dits = exemples.get(s.page);
     const ditSurLaPage = (t: string) => !!dits && (t.match(/\p{Nd}+/gu) ?? []).every((c) => dits.has(c) || dits.has(LETTRES_CHIFFRES[c] ?? "\u0000"));
+    // Texte du fondateur (`texteDeWill`) : un chiffre écrit est permis s'il est DIT dans le texte de la même scène.
+    // Les scripts écrits par le générateur gardent la règle entière.
+    const ditsFondateur = contexte.texteDeWill ? chiffresDitsDeLaScene(s) : null;
+    const ditParLeFondateur = (t: string) => !!ditsFondateur && (t.match(/\p{Nd}+/gu) ?? []).every((c) => ditsFondateur.has(c) || ditsFondateur.has(LETTRES_CHIFFRES[c] ?? "\u0000"));
     for (const e of s.elements) {
-      if (e.type === "chiffre" && !sources.has(e.sourceId)) {
+      if (e.type === "chiffre" && !sources.has(e.sourceId) && !ditParLeFondateur(String(e.valeur))) {
         res.push({ sceneId: s.id, detail: `le chiffre « ${e.valeur} » cite la source « ${e.sourceId} », inconnue.` });
       }
       // Un décompte annoncé (« 3 étapes », « 3 réflexes ») n'est pas un chiffre à sourcer (vidéo v-b2d772d28b97).
-      if (e.type === "ligne" && !aChiffre && CHIFFRE.test(sansDecomptes(e.texte)) && !ditSurLaPage(e.texte)) {
+      if (e.type === "ligne" && !aChiffre && CHIFFRE.test(sansDecomptes(e.texte)) && !ditSurLaPage(e.texte) && !ditParLeFondateur(e.texte)) {
         res.push({ sceneId: s.id, detail: `la ligne « ${e.texte} » contient un chiffre sans élément chiffre sourcé dans la scène.` });
       }
     }
     for (const t of textesEcransScene(s)) {
-      if (!aChiffre && CHIFFRE.test(t)) res.push({ sceneId: s.id, detail: `l'élément de liste « ${t} » contient un chiffre sans élément chiffre sourcé dans la scène.` });
+      if (!aChiffre && CHIFFRE.test(t) && !ditParLeFondateur(t)) res.push({ sceneId: s.id, detail: `l'élément de liste « ${t} » contient un chiffre sans élément chiffre sourcé dans la scène.` });
     }
     // Style « reference/3 » (peps) : le chiffre d'un visuel ou d'un bloc orange suit la même règle : un élément chiffre
     // sourcé dans la scène (il est alors montré par le visuel ou le bloc, pas écrit une seconde fois).
     for (const t of textesPeps(s)) {
-      if (!aChiffre && CHIFFRE.test(t)) res.push({ sceneId: s.id, detail: `« ${t} » (visuel ou bloc orange) contient un chiffre sans élément chiffre sourcé dans la scène.` });
+      if (!aChiffre && CHIFFRE.test(t) && !ditParLeFondateur(t)) res.push({ sceneId: s.id, detail: `« ${t} » (visuel ou bloc orange) contient un chiffre sans élément chiffre sourcé dans la scène.` });
     }
   }
   return res;

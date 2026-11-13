@@ -118,6 +118,8 @@ export interface SegmentsVoixIV {
   versions: VersionVoixIV[];
   /** Présent seulement en lecture unique : `fins` est alors vide (rien n'est lu à part). */
   lecture?: LectureUniqueIV;
+  /** Vrai : un point final a été posé (si besoin) sur le texte lu ; état de voix neuf « voix-iv/3 ». Absent : texte d'avant. */
+  pointFinal?: true;
   /** Signes retirés du texte lu (la voix ne les compte pas comme mots) : dits dans le journal, jamais un arrêt. */
   remarques?: string[];
 }
@@ -129,8 +131,9 @@ export interface SegmentsVoixIV {
  * `lectureUnique` (20/10) : un seul texte lu (corps, partie commune des fins, phrase propre à chaque fin) ; voir
  * `LECTURE_UNIQUE_IV`. Sans fin à dire (LinkedIn seul), rien ne change.
  */
-export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<PlanDesFinsIV, "fins">, o: { lectureUnique?: boolean } = {}): SegmentsVoixIV {
-  const corps = lettresLisibles(texteDuCorps(fiche).trim());
+export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<PlanDesFinsIV, "fins">, o: { lectureUnique?: boolean; pointFinal?: boolean } = {}): SegmentsVoixIV {
+  const ponctuer = (t: string) => (o.pointFinal ? avecPointFinal(t) : t);
+  const corps = ponctuer(lettresLisibles(texteDuCorps(fiche).trim()));
   if (!corps) throw new ErreurVoixIV("entree", "Le script n'a aucun texte à dire.");
   const fins: SegmentFinIV[] = [];
   const versions: VersionVoixIV[] = [];
@@ -151,13 +154,22 @@ export function segmentsVoixIV(fiche: Pick<FicheImage, "ecrans">, plan: Pick<Pla
     if (f.secours) s.secours = true;
     versions.push({ id: f.id, reseaux: [...f.reseaux], segment: s.id });
   }
-  if (o.lectureUnique && fins.length) return lectureUniqueDe(fiche, corps, fins, versions);
+  if (o.lectureUnique && fins.length) return lectureUniqueDe(fiche, corps, fins, versions, !!o.pointFinal);
   // Sans lecture d'un trait : mêmes lettres réécrites (« œ » → « oe ») et mêmes signes retirés que dans la lecture unique.
   const remarques: string[] = [];
   const nettoyer = (t: string) => sansSignesMuets(t, remarques);
-  const finsLues = fins.map((f) => ({ ...f, texte: nettoyer(lettresLisibles(f.texte)) }));
+  const finsLues = fins.map((f) => ({ ...f, texte: nettoyer(ponctuer(lettresLisibles(f.texte))) }));
   const corpsLu = nettoyer(corps);
-  return { corps: corpsLu, fins: finsLues, versions, ...(remarques.length ? { remarques: [...new Set(remarques)] } : {}) };
+  return { corps: corpsLu, fins: finsLues, versions, ...(o.pointFinal ? { pointFinal: true as const } : {}), ...(remarques.length ? { remarques: [...new Set(remarques)] } : {}) };
+}
+
+/**
+ * Ajoute « . » au texte LU s'il ne finit pas par `.`, `!`, `?` ou `…` (guillemet ou parenthèse fermants permis) : la voix
+ * marque alors la chute. Le script, les écrans, les sous-titres et le nombre de mots ne changent pas.
+ */
+export function avecPointFinal(texte: string): string {
+  const t = texte.trimEnd();
+  return !t || /[.!?…]\s*["»”')]*$/u.test(t) ? texte : `${t}.`;
 }
 
 /** Phrases d'un texte dit (fin de phrase : . ! ? …, avec ou sans guillemet) ; un morceau sans lettre se rattache à la précédente. */
@@ -206,7 +218,7 @@ function sansSignesMuets(texte: string, remarques: string[]): string {
  * Le texte lu d'un trait et la plage de mots que garde chaque version : le corps, la partie COMMUNE des fins (plus long
  * préfixe de phrases que partagent toutes les fins distinctes), puis la phrase propre à chaque fin, dans l'ordre du plan.
  */
-function lectureUniqueDe(fiche: Pick<FicheImage, "ecrans">, corps: string, fins: SegmentFinIV[], versions: VersionVoixIV[]): SegmentsVoixIV {
+function lectureUniqueDe(fiche: Pick<FicheImage, "ecrans">, corps: string, fins: SegmentFinIV[], versions: VersionVoixIV[], pointFinal = false): SegmentsVoixIV {
   const phrases = fins.map((f) => phrasesDeFin(f.texte));
   let commun = 0;
   while (phrases.every((p) => p.length > commun && p[commun] === phrases[0][commun])) commun++;
@@ -231,8 +243,9 @@ function lectureUniqueDe(fiche: Pick<FicheImage, "ecrans">, corps: string, fins:
   });
   const fait: Record<string, [number, number][]> = {};
   for (const v of versions) if (v.segment) fait[v.id] = (parSegment.get(v.segment) ?? []).map(([a, b]) => [a, b]);
-  const lu = sansSignesMuets(lettresLisibles([corps, ...phrases[0].slice(0, commun), ...phrases.flatMap((p) => p.slice(commun))].join(" ")), remarques);
-  return { corps: lu, fins: [], versions, lecture: { motsCorps, fins: fait }, ...(remarques.length ? { remarques: [...new Set(remarques)] } : {}) };
+  const brut = lettresLisibles([corps, ...phrases[0].slice(0, commun), ...phrases.flatMap((p) => p.slice(commun))].join(" "));
+  const lu = sansSignesMuets(pointFinal ? avecPointFinal(brut) : brut, remarques);
+  return { corps: lu, fins: [], versions, lecture: { motsCorps, fins: fait }, ...(pointFinal ? { pointFinal: true as const } : {}), ...(remarques.length ? { remarques: [...new Set(remarques)] } : {}) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -298,8 +311,11 @@ export const TARIF_VOIX_REPLI_IV = 0.1;
 export const REPARATIONS_VOIX_MAX_IV = 3;
 
 export interface EtatVoixIV {
-  /** « voix-iv/2 » : lecture unique (20/10). Un état « voix-iv/1 » garde ses segments séparés, jamais relus. */
-  version: "voix-iv/1" | "voix-iv/2";
+  /**
+   * « voix-iv/2 » : lecture unique (20/10). Un état « voix-iv/1 » garde ses segments séparés, jamais relus. « voix-iv/3 » :
+   * lecture unique avec point final posé sur le texte lu ; seul un état NEUF le prend, un « voix-iv/2 » payé garde son texte.
+   */
+  version: "voix-iv/1" | "voix-iv/2" | "voix-iv/3";
   segments: SegmentsVoixIV;
   voix: EtatVoixCasConcret;
   issue?: { statut: "faite" } | { statut: "refus"; controle: ControleVoixIV; message: string };
@@ -365,7 +381,7 @@ function empreinteAttendue(o: OutilsVoixIV, texte: string, essai?: number): stri
 
 export function etatInitialVoixIV(segments: SegmentsVoixIV): EtatVoixIV {
   return {
-    version: segments.lecture ? "voix-iv/2" : "voix-iv/1",
+    version: segments.lecture ? (segments.pointFinal ? "voix-iv/3" : "voix-iv/2") : "voix-iv/1",
     segments,
     voix: etatInitialVoixCasConcret({ corps: segments.corps, fins: segments.fins.map((f) => ({ id: f.id, texte: f.texte })) }),
     ...(segments.remarques?.length ? { remarques: [...segments.remarques] } : {}),

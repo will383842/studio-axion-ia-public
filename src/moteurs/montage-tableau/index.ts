@@ -490,8 +490,9 @@ function qualiteDe(controles: CompteRenduFabrication["controles"], fin: CompteRe
     // Pas de fin validée : la vidéo est livrée sans écran de fin, et le rapport le dit (jamais un échec). Déjà dite par
     // la chaîne (fin sans appel de TikTok et Shorts) : pas deux fois.
     ...(fin && "absente" in fin && !(enPlus ?? []).some((a) => a.message === fin.absente) ? [{ code: "fin" as const, gravite: "info" as const, message: fin.absente }] : []),
-    // Repli de la recette : voix brute gardée (horodatages absents), dit au rapport.
-    ...(recette && !recette.appliquee && recette.raison ? [{ code: "synchronisation" as const, gravite: "info" as const, message: recette.raison }] : []),
+    // Repli de la recette : voix brute gardée (`appliquee: false`), ou recette réduite sans horodatage des mots
+    // (`partielle`, GV2-28 : sous-titres approximatifs, « attention »), dit au rapport.
+    ...(recette?.raison && (recette.partielle || !recette.appliquee) ? [{ code: "synchronisation" as const, gravite: recette.partielle ? ("attention" as const) : ("info" as const), message: recette.raison }] : []),
     // Bruitage introuvable retiré (repli sûr) : la vidéo est livrée sans ce son, et le rapport le dit.
     ...(enPlus ?? []),
   ];
@@ -573,7 +574,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, et
         dureeSec: r.dureeSec,
         ...(r.fin ? { fin: r.fin } : {}),
         ...(r.recetteVoix ? { recetteVoix: r.recetteVoix } : {}),
-        sorties: ordonnees.map((s) => ({ format: s.format, libelle: s.libelle, ratio: s.ratio, largeur: s.largeur, hauteur: s.hauteur, reseaux: s.reseaux, video: s.cles.video, vignette: s.cles.vignette, dureeSec: s.dureeSec })),
+        sorties: ordonnees.map((s) => ({ format: s.format, libelle: s.libelle, ratio: s.ratio, largeur: s.largeur, hauteur: s.hauteur, reseaux: s.reseaux, video: s.cles.video, vignette: s.cles.vignette, dureeSec: s.dureeSec, ...(s.sousTitres?.length ? { sousTitres: s.sousTitres } : {}) })),
         // Sorties demandées mais refusées (une autre est prête) : la vidéo est livrée sans elles, le rapport le dit.
         ...(r.manquantes?.length ? { manquantes: r.manquantes.map((m) => ({ format: m.format, libelle: m.libelle, etape: m.etape, raisons: m.raisons })) } : {}),
       },
