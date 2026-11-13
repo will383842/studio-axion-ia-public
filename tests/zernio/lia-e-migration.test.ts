@@ -4,7 +4,7 @@
  * `groupeM1`, `titreCible` (voir le commentaire « Absent = ancien » de `Conversation`). Les champs de départ sont ceux de `graineConv`.
  * Preuve : la lecture par le code ACTUEL (réglage « plusieurs mots » allumé) ne perd aucune opposition, ne renvoie jamais un guide
  * déjà envoyé, n'écrit jamais un champ à `undefined`, garde les dates, et traite un enregistrement illisible comme « rien ne part ».
- * Données 100 % fictives ; faux port, faux site, aucun réseau. Aucun fichier de src n'est modifié.
+ * Données 100 % fictives ; faux port, faux site, aucun réseau.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -205,14 +205,28 @@ describe("LIA-E · une opposition ancienne n'est jamais perdue", () => {
     expect(aUndefined(conv)).toBe(false);
   });
 
-  it("`oppose` ancien, puis commentaire en mode allumé sur n'importe quel mot : aucun envoi, aucune écriture", async () => {
+  it("`oppose` ancien, puis commentaire en mode allumé sur n'importe quel mot (deux mots essayés) : aucun envoi, aucune écriture", async () => {
     await semerAncien(ancien("oppose"));
     const avant = JSON.stringify(await toutesLesConversations());
-    const evt = await commenter("com-op-1");
-    await passer(T0);
+    for (const [i, mot] of ["GUIDE", "AUTREMOT"].entries()) {
+      const evt = await commenter(`com-op-1-${i}`, T0, mot);
+      await passer(T0);
+      expect(compter()).toEqual({ pub: 0, prive: 0, envoyes: 0 });
+      expect(JSON.stringify(await toutesLesConversations())).toBe(avant);
+      expect(String((await evenement(depots, evt)).charge.etat)).toMatch(/^(silence|ecarte)$/);
+    }
+  });
+
+  it.each(["expire", "perime", "m1_a_verifier"])("ancien enregistrement `%s` (idCommentaire « reduit »), commentaire sur la même cible : jamais un nouveau départ, aucun envoi, l'enregistrement reste identique", async (etatAncien) => {
+    const e = ancien(etatAncien, { idCommentaire: "reduit", creeLe: new Date(T0 - 100 * H).toISOString(), m1Le: new Date(T0 - 99 * H).toISOString() });
+    await semerAncien(e);
+    for (const [i, code] of ["guide-ia", "guide-ia"].entries()) {
+      const r = await reserver(`com-reduit-${etatAncien}-${i}`, T0 + i * 60_000, code);
+      expect(r.decision.action, `${code}`).not.toBe("demarrer");
+    }
     expect(compter()).toEqual({ pub: 0, prive: 0, envoyes: 0 });
-    expect(JSON.stringify(await toutesLesConversations())).toBe(avant);
-    expect(String((await evenement(depots, evt)).charge.etat)).toBe("silence");
+    expect(JSON.stringify((await toutesLesConversations())[racine()])).toBe(JSON.stringify(e));
+    expect(aUndefined(await toutesLesConversations())).toBe(false);
   });
 
   it("opposition ancienne SEULEMENT au registre (conversation `termine`) : rien ne part", async () => {
