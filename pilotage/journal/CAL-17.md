@@ -1,0 +1,6 @@
+# CAL-17 : propositions en cartes pointillées, lien vers « À valider » (fait)
+Fait : `CarteProposition.tsx` (nouveau) : carte pointillée avec le libellé « Proposée » écrit (réseau et type aussi par texte et icône, jamais la couleur seule), « Pourquoi ici » et « Ressemble à » seulement si l'information existe, un SEUL lien d'au moins 44 px vers l'écran « À valider » de l'usine, aucun bouton. GrilleSemaine accepte `propositions` et `lienAValider` : la carte va dans la case de son réseau et de son jour ; sans lien, rien n'est montré ; jamais déplaçable (hors glisser de CAL-11b).
+Fichiers : src/components/calendrier/{CarteProposition,GrilleSemaine}.tsx, tests/cal-17-propositions.test.tsx.
+Tests : rouge d'abord (module absent), puis 576 tests calendrier/rc-37 verts. tsc et eslint : aucune erreur nouvelle.
+Choix : le CORRECTIF de la fiche (un seul lieu de validation, décision Q4) l'emporte sur le titre : pas de validation par sélection ni de refus motivé dans le Studio, donc pas de récapitulatif.
+Reste : brancher les données (raison, ressemblance, adresse de l'écran « À valider » ; non connue dans le code, passée par l'appelant) dans la page, fichiers interdits ici. À confirmer par le fondateur, comme dit la fiche. Aucun prix, aucun envoi.
