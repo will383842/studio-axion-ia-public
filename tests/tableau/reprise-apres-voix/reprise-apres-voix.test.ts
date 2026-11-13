@@ -12,7 +12,7 @@ import { hash } from "@node-rs/argon2";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../../helpers/next-mocks";
 import { repereFiche, repereTexte } from "@/domaine/relecture-tableau";
 import type { EntreeRole } from "../../../src/generateur/roles/types";
@@ -22,7 +22,7 @@ import type { OutilsDecoupage } from "../../../src/moteurs/montage-tableau/decou
 import type { ContexteTableau } from "../../../src/moteurs/montage-tableau/regles";
 import { auStyleDemande, AUJOURDHUI_EXEMPLES, contexteExemple, copie, ficheErreurCorrigee, texteScriptDe } from "../regles/exemples";
 import { versOutils } from "../moteur/doubles";
-import { doubles } from "../fabriquer/doubles";
+import { doubles, MESURES_CONFORMES } from "../fabriquer/doubles";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -404,5 +404,85 @@ describe("corriger la fiche après la voix : la voix n'est repayée que si le te
     expect(t2.statut).toBe("termine");
     expect(d.lectures()).toBe(1);
     expect(moteur.lignesPayees!(t2, suite).filter((l) => l.etape === "Voix")).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 5. GV2-35 : après la voix payée, une vidéo faite n'est plus jetée pour un défaut de fichier mesuré */
+/* ------------------------------------------------------------------ */
+
+describe("contrôles du fichier fini (GV2-35) : seuls « image noire au début » et « durée de plus de 180 s » bloquent", { timeout: 120_000 }, () => {
+  const VIDEO = reelle.videoId;
+  const sorties = sortiesDesReseaux(["verticaux"]);
+  const avant = { ...MESURES_CONFORMES };
+  afterEach(() => {
+    Object.assign(MESURES_CONFORMES, avant);
+  });
+
+  /** Alertes gardées au journal de la fabrication du travail. */
+  const alertesDu = (t: Travail) => ((t.parametres as { tableau?: { journal?: { alertes?: { code: string; message: string }[] } } }).tableau?.journal?.alertes ?? []);
+
+  /** Fabrique la vidéo d'un bout à l'autre avec les mesures données pour le fichier exporté. */
+  async function fabriquer(mesures: Partial<typeof MESURES_CONFORMES>) {
+    Object.assign(MESURES_CONFORMES, mesures);
+    const d = doubles(reelle);
+    const fiches = new Map<string, FicheTableau>();
+    const cle = `studio/dev/fiches/${VIDEO}/1.json`;
+    fiches.set(cle, structuredClone(reelle));
+    const outils = async () => versOutils(d, fiches, { contexte: contexteReel(reelle), choisirFin: choisirFinTableau({}, { sorties, mot: "CONSIGNE" }) });
+    brancherServicesTableau({ outils });
+    const moteur = creerMoteurMontageTableau({ outils });
+    const commande: CommandeFabrication = {
+      ...commandeTableau({ videoId: VIDEO, fiche: reelle, texteScript: texteScriptDe(reelle), dureeSec: 60, centreSousTitresPct: 80, scenes: [], personnageId: "williams" }),
+      entrees: { tableau: { ficheScenesCle: cle, empreinte: "e1", version: 1, sorties, mot: "CONSIGNE", dejaVu: { coche: true, le: "2026-10-12" } } },
+    };
+    let t = await moteur.lancer(commande, { travailId: "trav-gv2-35", versionId: "ver-gv2-35", titre: "Consigne IA" });
+    let resultat: unknown;
+    for (let n = 0; n < 200 && t.statut !== "termine" && t.statut !== "echec"; n++) {
+      const tour = await moteur.avancer(structuredClone(t), commande);
+      t = tour.travail;
+      resultat = tour.resultat ?? resultat;
+    }
+    return { t, d, resultat };
+  }
+
+  it("volume à −15,2 (hors cible) : travail terminé, sortie livrée, alerte présente", async () => {
+    const { t, d, resultat } = await fabriquer({ lufs: -15.2 });
+    expect(t.statut).toBe("termine");
+    expect(t.erreur).toBeUndefined();
+    expect(resultat).toBeDefined();
+    const alertes = alertesDu(t).filter((a) => a.code === "controle-fichier");
+    expect(alertes.map((a) => a.message).join(" ")).toMatch(/Volume du son/);
+    expect(d.compositionsSoumises().length).toBeGreaterThan(0);
+  });
+
+  it("crête, image figée : alertes aussi, vidéo terminée", async () => {
+    const { t } = await fabriquer({ creteVraieDbtp: 3, imagesFigeesHorsFin: 2 });
+    expect(t.statut).toBe("termine");
+    const messages = alertesDu(t).filter((a) => a.code === "controle-fichier").map((a) => a.message);
+    expect(messages.some((m) => /Crête du son/.test(m))).toBe(true);
+    expect(messages.some((m) => /Image figée/.test(m))).toBe(true);
+  });
+
+  it("image noire au début : échec, le message dit où est le fichier déjà fait", async () => {
+    const { t } = await fabriquer({ imageNoireTete: 1 });
+    expect(t.statut).toBe("echec");
+    expect(t.erreur?.code).toBe("TABLEAU_CONTROLES_BLOQUANTS");
+    expect(t.erreur?.messagePourWill).toMatch(/^La vidéo est faite mais .*image noire.* : elle reste téléchargeable sur sa page\.$/);
+  });
+
+  it("durée de plus de 180 s : reste bloquante après le montage ; le volume, lui, n'est plus qu'une alerte", async () => {
+    const { controlerVideoTableau } = await import("@/moteurs/montage-tableau/controles");
+    const rapport = await controlerVideoTableau({
+      fiche: reelle,
+      contexte: { ...contexteReel(reelle), texteScript: texteScriptDe(reelle) } as ContexteTableau,
+      historique: [],
+      dejaVu: { coche: true, le: "2026-10-12" },
+      mesures: { ...MESURES_CONFORMES, lufs: -15.2, dureeSec: 200 },
+      apresMontage: true,
+    });
+    expect(rapport.bloquants.map((l) => l.libelle)).toContain("Durée");
+    expect(rapport.bloquants.map((l) => l.libelle)).not.toContain("Volume du son");
+    expect(rapport.indicatifs.find((l) => l.libelle === "Volume du son")?.declasse).toBe(true);
   });
 });
