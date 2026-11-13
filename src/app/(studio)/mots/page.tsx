@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_rethrow } from "next/navigation";
 import { EcranMotsConnecte } from "@/components/mots/EcranMotsConnecte";
 import { exigerSession } from "@/services/auth";
 import { etatBranchementZernio } from "@/services/branchements-zernio";
@@ -17,7 +18,9 @@ export default async function PageMots() {
   let suivi: Awaited<ReturnType<typeof gesteLireTableauSuivi>> | null = null;
   try {
     suivi = await gesteLireTableauSuivi();
-  } catch {
+  } catch (e) {
+    // Une redirection (ou tout arrêt interne de Next) doit continuer son chemin ; seule une vraie panne de lecture est absorbée.
+    unstable_rethrow(e);
     suivi = null;
   }
   return <EcranMotsConnecte vue={vue} comptes={comptes} branchement={etatBranchementZernio()} suivi={suivi} suiviIndisponible={suivi === null} />;
