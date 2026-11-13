@@ -5,11 +5,12 @@
  *  - couleurs et polices dans la charte (hex hors charte, police autre que Manrope, orange sur fond clair) ;
  *  - face caméra : jamais devant le visage ; transitions douces ;
  *  - repli d'un niveau par scène : 3 (code libre, désactivé) → 2 → 1 ; niveau 2 sans calque valide → pièce niveau 1
- *    la plus proche. Une entrée illisible donne un plan de repli (légendes et chiffres, niveau 1).
+ *    la plus proche. Une entrée illisible donne un plan de repli (une scène par fait du script, zéro scène s'il n'y en a pas).
  */
 import { z } from "zod";
 import { CHARTE_AXION, POLICE_AXION, TEINTES_INTERDITES } from "../jetons-motion";
-import { CATALOGUE_BRIQUES, pieceLaPlusProche, type IdPiece } from "./catalogue";
+import { faitsDuScript, familleUnite, type ElementFait, type Fait } from "../faits-script";
+import { CATALOGUE_BRIQUES, pieceLaPlusProche, poserInstantsSurMot, type IdPiece } from "./catalogue";
 import { avecEmpreintes } from "./empreinte";
 import { schemaFormat, schemaMot, schemaPlanBrut, VERSION_PLAN_SCENES, type Calque, type FormatPlan, type HabillagePlan, type MotMinute, type Niveau, type PlanValide, type ScenePlan } from "./schema";
 import { devantLeVisage, POSITIONS, POSITION_SURE_FACECAM, SCENE_MIN_MS, TRANSITIONS, TRANSITION_MAX_MS, TRANSITION_MIN_MS, type Position } from "./zones";
@@ -125,14 +126,37 @@ export function reparerParametres(piece: IdPiece, brut: unknown): { parametres: 
   return final.success ? { parametres: final.data, champs } : { parametres: structuredClone(def.exemple), champs: Object.keys(forme) };
 }
 
+/** Coupe un texte à `max` caractères, à la fin d'un mot (jamais au milieu d'un mot, sauf mot unique plus long que `max`). */
+function couperAuMot(texte: string, max: number): string {
+  if (texte.length <= max) return texte;
+  const coupe = texte.slice(0, max + 1);
+  const espace = coupe.lastIndexOf(" ");
+  return (espace > 0 ? coupe.slice(0, espace) : texte.slice(0, max)).replace(/[\s,:;.\-]+$/g, "");
+}
+
+/** Sens lu dans la phrase : baisse, hausse, ou `undefined` (aucun indice). */
+function tendanceDuTexte(texte: string): "baisse" | "hausse" | undefined {
+  const t = texte.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (/\b(reduit|reduire|reduction|baisse|baisser|perd|perdu|perdez|diminue|moins)\b/.test(t)) return "baisse";
+  if (/\b(gagne|gagnez|hausse|augmente|plus)\b/.test(t)) return "hausse";
+  return undefined;
+}
+
 /** Paramètres d'une pièce de repli bâtie sur un texte (légende, ou carte KPI si un chiffre s'y trouve). */
 export function parametresDepuisTexte(piece: IdPiece, texte: string): unknown {
   const propre = texte.replace(/\s+/g, " ").trim() || "Axion IA";
   if (piece === "carte-kpi") {
-    const m = /(\d+(?:[.,]\d+)?)\s*(%|€|min|h)?/.exec(propre);
+    // Premier nombre qui n'est pas une année seule (1900 à 2100 sans unité).
+    const nombres = propre.matchAll(/(\d+(?:[.,]\d+)?)\s*(%|€|(?:min|h)(?![A-Za-zÀ-ÿ]))?/g);
+    let m: RegExpExecArray | undefined;
+    for (const c of nombres) {
+      const anneeSeule = !c[2] && /^\d{4}$/.test(c[1]!) && Number(c[1]) >= 1900 && Number(c[1]) <= 2100;
+      if (!anneeSeule) { m = c; break; }
+    }
     const valeur = m ? Number(m[1]!.replace(",", ".")) : 0;
-    const libelle = propre.replace(m?.[0] ?? "", "").replace(/\s+/g, " ").replace(/^[\s,:;.\-]+|[\s,:;.\-]+$/g, "").slice(0, 40) || "Résultat";
-    return reparerParametres("carte-kpi", { libelle, valeur, prefixe: "", suffixe: m?.[2] ? ` ${m[2]}` : "", decimales: m?.[1]?.match(/[.,](\d+)/)?.[1]?.length ?? 0, tendance: "hausse", variation: "" }).parametres;
+    const libelle = couperAuMot(propre.replace(m?.[0] ?? "", "").replace(/\s+/g, " ").replace(/^[\s,:;.\-]+|[\s,:;.\-]+$/g, ""), 40) || "Résultat";
+    const tendance = tendanceDuTexte(propre) ?? "stable";
+    return reparerParametres("carte-kpi", { libelle, valeur, prefixe: "", suffixe: m?.[2] ? ` ${m[2]}` : "", decimales: m?.[1]?.match(/[.,](\d+)/)?.[1]?.length ?? 0, tendance, variation: "" }).parametres;
   }
   if (piece === "legende") return { texte: propre.slice(0, 80), sousTexte: "", style: "bandeau" };
   return structuredClone(CATALOGUE_BRIQUES[piece].exemple);
@@ -140,28 +164,90 @@ export function parametresDepuisTexte(piece: IdPiece, texte: string): unknown {
 
 /* ------------------------------ Repli ------------------------------ */
 
-/** Plan de repli à partir du minutage : une scène niveau 1 par phrase (chiffre → carte KPI, sinon légende). */
+/** Marge après le dernier mot d'un fait avant que la scène ne se retire (ms). */
+const QUEUE_SCENE_MS = 1200;
+/** Alternance déterministe des entrées du stock. */
+const TRANSITIONS_STOCK = ["fondu", "glisse-haut", "zoom-doux"] as const;
+const POSITIONS_STOCK_FACECAM = ["bas", "haut"] as const;
+
+/** Début d'un texte d'élément coupé à 40 caractères, à la fin d'un mot. */
+const elementCourt = (e: ElementFait) => ({ texte: couperAuMot(e.texte.replace(/\s+/g, " ").trim(), 40), surMot: e.surMot });
+
+/** Nombre dit dans un côté d'une comparaison (premier fait « nombre » avec une unité connue), sinon `undefined`. */
+function nombreDuCote(mots: ContexteValidation["mots"] & object, c: ElementFait) {
+  const taille = c.texte.split(/\s+/).filter(Boolean).length;
+  const f = faitsDuScript(mots.slice(c.surMot, c.surMot + taille)).find((x) => x.type === "nombre" && x.unite);
+  return f && f.type === "nombre" ? { valeur: f.valeur, unite: String(f.unite), surMot: c.surMot + f.surMot } : undefined;
+}
+
+/** Pièce et paramètres d'un fait, ou `null` si le fait ne mérite aucune scène du stock. */
+function sceneDuFait(f: Fait, mots: NonNullable<ContexteValidation["mots"]>): { piece: IdPiece; parametres: unknown } | null {
+  switch (f.type) {
+    case "nombre": {
+      const unite = f.unite && f.unite.length <= 8 ? { unite: f.unite } : {};
+      if (f.unite === "%" && f.valeur >= 0 && f.valeur <= 100) return { piece: "jauge", parametres: { valeur: f.valeur, surMot: f.surMot } };
+      return { piece: "compteur", parametres: { valeur: f.valeur, ...unite, surMot: f.surMot } };
+    }
+    case "passage":
+      return { piece: "avant-apres", parametres: { avant: { valeur: f.avant.valeur, unite: f.avant.unite, surMot: f.avant.surMot }, apres: { valeur: f.apres.valeur, unite: f.apres.unite, surMot: f.apres.surMot } } };
+    case "liste":
+      return f.elements.length >= 2 ? { piece: "liste-au-mot", parametres: { elements: f.elements.slice(0, 6).map(elementCourt) } } : null;
+    case "etapes":
+      return f.elements.length >= 2 ? { piece: "etapes", parametres: { elements: f.elements.slice(0, 6).map(elementCourt) } } : null;
+    case "comparaison": {
+      const g = nombreDuCote(mots, f.gauche);
+      const d = nombreDuCote(mots, f.droite);
+      const famille = g ? familleUnite(g.unite) : null;
+      if (!g || !d || !famille || famille !== familleUnite(d.unite)) return null;
+      return { piece: "avant-apres", parametres: { avant: g, apres: d } };
+    }
+    case "citation":
+      return { piece: "citation", parametres: { texte: couperAuMot(f.texte, 120), surMot: f.surMot } };
+    case "lieu":
+      return { piece: "repere", parametres: { genre: "lieu", texte: couperAuMot(f.nom, 30), surMot: f.surMot } };
+    case "duree":
+      return { piece: "repere", parametres: { genre: f.valeur !== undefined ? "duree" : "date", texte: couperAuMot(f.texte, 30), surMot: f.surMot } };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Plan de repli : UNE scène niveau 1 par fait du script (nombre, passage, liste, étapes, comparaison chiffrée, citation,
+ * lieu, durée), posée sur les mots du fait. Aucun fait : zéro scène (les sous-titres suffisent), jamais de légende inventée.
+ */
 export function planDeRepli(contexte: ContexteValidation): Omit<PlanValide, "scenes"> & { scenes: ScenePlan[] } {
   const mots = contexte.mots ?? [];
   const format = contexte.format ?? FORMAT_DEFAUT;
   const finMots = mots.at(-1)?.finMs ?? 0;
   const dureeMs = Math.max(contexte.dureeMs ?? 0, finMots, 3000);
-  const phrases: { premier: number; dernier: number }[] = [];
-  let debut = 0;
-  mots.forEach((m, i) => {
-    if (/[.!?:]$/.test(m.texte) || i - debut >= 11 || i === mots.length - 1) {
-      phrases.push({ premier: debut, dernier: i });
-      debut = i + 1;
-    }
+  const retenus: { fait: Fait; piece: IdPiece; parametres: unknown }[] = [];
+  let dernierPris = -1;
+  for (const fait of [...faitsDuScript(mots)].sort((a, b) => a.mots.premier - b.mots.premier)) {
+    if (fait.mots.premier <= dernierPris) continue; // deux faits sur les mêmes mots : le premier garde la place
+    const s = sceneDuFait(fait, mots);
+    if (!s) continue;
+    retenus.push({ fait, ...s });
+    dernierPris = fait.mots.dernier;
+  }
+  const scenes: ScenePlan[] = retenus.map((r, i) => {
+    const { premier, dernier } = r.fait.mots;
+    const debutMs = mots[premier]!.debutMs;
+    const suivant = retenus[i + 1] ? mots[retenus[i + 1]!.fait.mots.premier]!.debutMs : dureeMs;
+    const finMs = Math.max(Math.min(mots[dernier]!.finMs + QUEUE_SCENE_MS, suivant, dureeMs), mots[dernier]!.finMs, debutMs + SCENE_MIN_MS);
+    return {
+      id: `s${i + 1}`,
+      version: 1,
+      mots: { premier, dernier },
+      debutMs,
+      finMs,
+      niveau: 1,
+      position: contexte.facecam ? POSITIONS_STOCK_FACECAM[i % POSITIONS_STOCK_FACECAM.length] : "centre",
+      transition: { entree: TRANSITIONS_STOCK[i % TRANSITIONS_STOCK.length], sortie: "fondu", dureeMs: TRANSITION_DEFAUT.dureeMs },
+      piece: r.piece,
+      parametres: poserInstantsSurMot(r.piece, r.parametres, mots, debutMs),
+    } as ScenePlan;
   });
-  const scenes: ScenePlan[] = phrases.length
-    ? phrases.map((p, i) => {
-        const texte = mots.slice(p.premier, p.dernier + 1).map((m) => m.texte).join(" ");
-        const piece = pieceLaPlusProche(undefined, texte);
-        const fin = i + 1 < phrases.length ? mots[phrases[i + 1]!.premier]!.debutMs : dureeMs;
-        return { id: `s${i + 1}`, version: 1, mots: p, debutMs: mots[p.premier]!.debutMs, finMs: Math.max(fin, mots[p.premier]!.debutMs + SCENE_MIN_MS), niveau: 1, position: contexte.facecam ? POSITION_SURE_FACECAM : "centre", transition: { ...TRANSITION_DEFAUT }, piece, parametres: parametresDepuisTexte(piece, texte) } as ScenePlan;
-      })
-    : [{ id: "s1", version: 1, mots: { premier: 0, dernier: 0 }, debutMs: 0, finMs: dureeMs, niveau: 1, position: contexte.facecam ? POSITION_SURE_FACECAM : "centre", transition: { ...TRANSITION_DEFAUT }, piece: "legende", parametres: parametresDepuisTexte("legende", "Axion IA") } as ScenePlan];
   return { version: VERSION_PLAN_SCENES, format, facecam: contexte.facecam ?? false, dureeMs, habillage: { fond: "ivoire", accent: "terracotta" }, mots, scenes };
 }
 
@@ -174,7 +260,7 @@ export function validerPlan(brut: unknown, contexte: ContexteValidation = {}): R
   };
   const lu = schemaPlanBrut.safeParse(brut);
   if (!lu.success || lu.data.scenes.length === 0) {
-    noter("PLAN_ILLISIBLE", "Plan de scènes illisible : plan simple de repli (légendes et chiffres).");
+    noter("PLAN_ILLISIBLE", "Plan de scènes illisible : plan de repli (une scène par fait du script, aucune s'il n'y en a pas).");
     return { plan: avecEmpreintes(validerPlanInterne(planDeRepli(contexte), contexte, () => {})), remarques };
   }
   return { plan: avecEmpreintes(validerPlanInterne(lu.data, contexte, noter)), remarques };

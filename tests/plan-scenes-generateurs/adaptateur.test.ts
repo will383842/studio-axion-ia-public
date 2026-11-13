@@ -62,9 +62,10 @@ describe("adaptateur", () => {
       expect(schemaSceneStrict.safeParse(s).success).toBe(true);
       expect(s.empreinte).toMatch(/^[0-9a-f]{16}$/);
     }
-    expect(r.plan!.scenes.map((s) => s.piece)).toContain("carte-kpi");
-    // Les phrases longues sans interface ni chiffre restent à l'existant.
-    expect(r.laissees.length).toBeGreaterThan(0);
+    // Une scène seulement là où le script donne un fait (durée, nombre) : plus de légende faite d'un bout de phrase.
+    expect(r.plan!.scenes.map((s) => s.piece)).toEqual(["repere", "repere", "compteur"]);
+    expect(r.plan!.scenes.some((s) => s.piece === "legende")).toBe(false);
+    expect(r.laissees).toEqual([]);
     // Le script fait foi : les mots du plan sont ceux des segments, dans l'ordre.
     expect(r.plan!.mots.map((m) => m.texte).join(" ")).toBe(SEGMENTS.map((s) => s.texte).join(" "));
   });
@@ -107,6 +108,25 @@ describe("adaptateur", () => {
     expect(r.plan).toBeNull();
   });
 
+  it("segments sans fait mais un seul mot de liaison en fin : aucune légende-fragment n'est retenue", async () => {
+    const r = await adapterPlan({ generateur: "cas-concret", script: "x", segments: [{ texte: "Je vais vous montrer comment faire de", debutMs: 0, finMs: 4000 }], format: FORMAT, facecam: false });
+    expect(r.plan).toBeNull();
+  });
+
+  it("LLM : une légende en fragment (2 à 5 mots finissant par une liaison, ou d'un seul mot) est laissée à l'existant", async () => {
+    const f = llm(() => ({
+      version: "plan-scenes-1",
+      scenes: [
+        { id: "a", version: 1, mots: { premier: 0, dernier: 2 }, debutMs: 0, finMs: 1500, niveau: 1, position: "centre", piece: "legende", parametres: { texte: "Devis en trois de", sousTexte: "", style: "etiquette" } },
+        { id: "b", version: 1, mots: { premier: 3, dernier: 5 }, debutMs: 1500, finMs: 3000, niveau: 1, position: "centre", piece: "legende", parametres: { texte: "minutes.", sousTexte: "", style: "etiquette" } },
+        { id: "c", version: 1, mots: { premier: 6, dernier: 11 }, debutMs: 3000, finMs: 6000, niveau: 1, position: "centre", piece: "legende", parametres: { texte: "Signature en douze secondes", sousTexte: "", style: "etiquette" } },
+      ],
+    }));
+    const r = await adapterPlan({ generateur: "cas-concret", script: "x", segments: SEGMENTS, format: FORMAT, facecam: false }, { appeler: f.appeler });
+    expect(r.plan!.scenes.map((s) => (s.parametres as { texte: string }).texte)).toEqual(["Signature en douze secondes"]);
+    expect(r.laissees).toEqual(["a", "b"]);
+  });
+
   it("mots des segments : ceux fournis (calés) sont gardés, sinon répartis dans le segment", () => {
     const mots = motsDesSegments([{ texte: "un deux", debutMs: 0, finMs: 1000 }, { texte: "trois", debutMs: 1000, finMs: 2000, mots: [{ texte: "trois", debutMs: 1100, finMs: 1500 }] }]);
     expect(mots).toEqual([
@@ -136,7 +156,8 @@ describe("empreintes par scène et tranches", () => {
     expect(t1!.scenes[0]!.debutMs).toBe(0);
     expect(t1!.dureeMs).toBe(3500);
     // Les mêmes mots plus tôt dans la vidéo : même tranche, même empreinte.
-    const decale = await adapterPlan({ generateur: "cas-concret", script: "x", segments: [{ texte: "Intro.", debutMs: 0, finMs: 1000 }, ...SEGMENTS.map((s) => ({ ...s, debutMs: s.debutMs + 1000, finMs: s.finMs + 1000 }))], format: FORMAT, facecam: false });
+    // (Les pièces « de données » portent l'indice absolu du mot : le même texte décalé dans le temps, sans mot ajouté avant.)
+    const decale = await adapterPlan({ generateur: "cas-concret", script: "x", segments: SEGMENTS.map((s) => ({ ...s, debutMs: s.debutMs + 1000, finMs: s.finMs + 1000 })), format: FORMAT, facecam: false });
     const t2 = tranchePlan(decale.plan!, 7000, 10500);
     expect(t2!.scenes.map((s) => s.empreinte)).toEqual(t1!.scenes.map((s) => s.empreinte));
     expect(tranchePlan(r.plan!, 20000, 21000)).toBeNull();
