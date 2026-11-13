@@ -53,7 +53,7 @@ describe("étiquettes", () => {
 
 describe("nettoyage", () => {
   it("CRLF, lignes vides, puces de tête (tiret, point, astérisque, « 1. », « 1) »), espaces : rien n'est réécrit d'autre", () => {
-    const r = lireTexteFourni("- Un.\r\n\r\n• Deux.\n* Trois.\n1. Quatre.\n2) Cinq.\n   Six.   ", cas);
+    const r = lireTexteFourni("- Un.\r\n\r\n• Deux.\n* Trois.\n1) Quatre.\n2) Cinq.\n   Six.   ", cas);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.lignes.map((l) => l.texte)).toEqual(["Un.", "Deux.", "Trois.", "Quatre.", "Cinq.", "Six."]);
   });
@@ -65,12 +65,20 @@ describe("nettoyage", () => {
   });
 });
 
+describe("ligne sans mot", () => {
+  it("« --- », « *** », « … », un émoji seul : refus qui nomme la ligne ; « 60 » seul reste accepté", () => {
+    for (const l of ["---", "***", "…", "🙂", "- ---"]) expect(refus(`Une phrase.\n${l}\nAutre phrase.`)).toEqual(["Ligne 2 : cette ligne ne contient aucun mot à dire."]);
+    expect(refus("[accroche] ---")).toEqual(["Ligne 1 : cette ligne ne contient aucun mot à dire."]);
+    expect(refus("Une phrase.\n60\nAutre phrase.")).toEqual([]);
+  });
+});
+
 describe("bornes", () => {
-  it("texte vide, pas un texte, plus de 4000 caractères, plus de 26 lignes, ligne de plus de 400 caractères", () => {
+  it("texte vide, pas un texte, plus de 4000 caractères, plus de 40 lignes, ligne de plus de 400 caractères", () => {
     expect(refus("  \n \n")[0]).toBe("Le script est vide : écrivez une ligne par écran.");
     expect(refus(12)[0]).toBe("Le script doit être un texte.");
     expect(refus("a".repeat(4001))[0]).toBe("Le script est trop long : 4000 caractères au plus (il en compte 4001).");
-    expect(refus(Array.from({ length: 27 }, (_, i) => `Phrase ${i}.`).join("\n"))[0]).toBe("Le script compte 27 lignes ; 26 au plus (une ligne = un écran).");
+    expect(refus(Array.from({ length: 41 }, (_, i) => `Phrase ${i}.`).join("\n"))[0]).toBe("Le script compte 41 lignes ; 40 au plus (une ligne = un écran).");
     expect(refus(["Bien.", "b".repeat(401)].join("\n"))[0]).toBe("Ligne 2 : la ligne compte 401 caractères ; 400 au plus. Coupez-la en deux lignes.");
     expect(refus("[accroche]")[0]).toBe("Ligne 1 : la ligne est vide après son étiquette ; écrivez la phrase dite.");
   });

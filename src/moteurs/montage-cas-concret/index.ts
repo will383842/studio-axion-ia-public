@@ -484,9 +484,9 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Travail refusé d'emblée (ce qui viendra en version 2) : message lisible, rien à refaire. */
-function travailRefuse(ctx: ContexteLancement, commande: CommandeFabrication, code: string, message: string): Travail {
+function travailRefuse(ctx: ContexteLancement, commande: CommandeFabrication, code: string, message: string, detailTechnique?: string): Travail {
   const t = nouveauTravail(etapesCasConcret(commande), ctx, commande, { journal: null, atteinte: -1 });
-  const erreur: ErreurTravail = { code, reessayable: false, messagePourWill: message };
+  const erreur: ErreurTravail = { code, reessayable: false, messagePourWill: message, ...(detailTechnique ? { detailTechnique } : {}) };
   return { ...t, statut: "echec", erreur, termineLe: t.creeLe, etapes: t.etapes.map((e) => ({ ...e, statut: "ignoree" as const })) };
 }
 
@@ -545,6 +545,10 @@ const MARQUE_PAUSE = "cas-concret:pause";
 type Issue = { type: "pause" } | { type: "fini"; compteRendu: CompteRenduCasConcret } | { type: "echec"; cle: string; erreur: ErreurTravail };
 
 const raisonDe = (err: unknown) => (err instanceof Error ? err.message : String(err));
+/** GV2-07 : cause courte et lisible d'une erreur technique (première ligne, sans point final, 120 signes au plus). */
+const causeCourte = (err: unknown) => raisonDe(err).split("\n")[0].trim().replace(/[.\s]+$/, "").slice(0, 120);
+/** GV2-07 : une raison déjà écrite en phrase (point final : « Votre voix n'est pas prête… ») reste telle quelle ; une cause technique est enveloppée. */
+const phraseOutils = (err: unknown) => (/^[^\n]*\.$/.test(raisonDe(err).trim()) && !raisonDe(err).includes("\n") ? `${raisonDe(err)} Vous pouvez réessayer.` : `Les outils du cas concret ne sont pas prêts (${causeCourte(err)}). Vous pouvez réessayer.`);
 
 /** En-tête de la réponse brute dans le détail technique d'une écriture refusée (X9). */
 export const ENTETE_REPONSE_BRUTE = "Réponse brute du dernier essai :";
@@ -941,7 +945,7 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
       } catch (err) {
         // L1-05 : une voix refusée ne se règle pas en réessayant (il faut choisir la voix maître) : pas de « réessayer ».
         if (err instanceof VoixNonEpingleeError) return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: false, messagePourWill: err.messagePourWill, detailTechnique: raisonDe(err) }, maintenant) };
-        return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: `${raisonDe(err)} Vous pouvez réessayer.`, detailTechnique: raisonDe(err) }, maintenant) };
+        return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: phraseOutils(err), detailTechnique: raisonDe(err) }, maintenant) };
       }
       if (!outils) return { travail: enEchec(travail, etat, undefined, { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: NON_RELIE }, maintenant) };
 
@@ -986,7 +990,7 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
       try {
         outils = (await fabrique()?.(commande, contexte.travailId)) ?? null;
       } catch (err) {
-        return travailRefuse(ctx, commande, "CAS_CONCRET_NON_RELIE", `${raisonDe(err)} Vous pouvez réessayer.`);
+        return travailRefuse(ctx, commande, "CAS_CONCRET_NON_RELIE", phraseOutils(err), raisonDe(err));
       }
       if (!outils) return travailRefuse(ctx, commande, "CAS_CONCRET_NON_RELIE", NON_RELIE);
       // Appliquée et revalidée ICI, avant de rien lancer : un refus ne modifie rien et dit pourquoi.

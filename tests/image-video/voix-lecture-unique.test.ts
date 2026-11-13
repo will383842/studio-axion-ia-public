@@ -465,12 +465,26 @@ describe("lecture unique · sons des versions taillés dans la lecture d'un trai
     expect(sonsBrutsIV(avec)).toEqual(sonsBrutsIV(etat));
   });
 
-  it("nombre de mots incohérent : refus « entree » clair, jamais une coupe au hasard", async () => {
+  it("un mot du corps que la voix n'a pas dit : la vidéo se taille quand même, sans mot inventé", async () => {
     const etat = await voixLue(monde());
     const casse = structuredClone(etat);
     const prise = casse.voix.corps.prise!;
     if (prise.etat.phase !== "faite") throw new Error("inachevé");
+    const retire = prise.etat.audio.mots[7].mot;
     prise.etat.audio.mots.splice(7, 1);
+    delete prise.brut;
+    const sons = sonsBrutsIV(casse);
+    expect(sons.lecture!["fin-linkedin"].son.mots.map((x) => x.mot)).not.toContain(retire === "" ? "?" : `__${retire}`);
+    expect(sons.lecture!["fin-linkedin"].son.mots).toHaveLength(sonsBrutsIV(etat).lecture!["fin-linkedin"].son.mots.length - 1);
+  });
+
+  it("nombre de mots incohérent : une borne de coupe sans mot de la voix → refus « entree » clair, sans relecture, jamais une coupe au hasard", async () => {
+    const etat = await voixLue(monde());
+    const casse = structuredClone(etat);
+    const prise = casse.voix.corps.prise!;
+    if (prise.etat.phase !== "faite") throw new Error("inachevé");
+    // Dernier mot du corps (où se termine la version LinkedIn) : la voix ne l'a pas dit.
+    prise.etat.audio.mots.splice(12, 1);
     delete prise.brut;
     expect(() => sonsBrutsIV(casse)).toThrowError(ErreurVoixIV);
     expect(() => sonsBrutsIV(casse)).toThrowError(/ne correspondent pas au texte lu/);
@@ -478,6 +492,7 @@ describe("lecture unique · sons des versions taillés dans la lecture d'un trai
       sonsBrutsIV(casse);
     } catch (err) {
       expect((err as ErreurVoixIV).controle).toBe("entree");
+      expect((err as ErreurVoixIV).relire).toBe(false);
     }
   });
 
@@ -578,5 +593,55 @@ describe("lecture unique · assemblage des pistes voix seule", () => {
     expect(c.piste.mots.length - c.piste.motsCorps).toBe(longues[0].mots.length - longues[0].motsCorps);
     expect(c.piste.mots.slice(c.piste.motsCorps).map((x) => x.mot)).toEqual(longues[0].mots.slice(longues[0].motsCorps).map((x) => x.mot));
     expect(c.piste.dureeSec).toBeLessThan(longues[0].dureeSec - 3);
+  });
+});
+
+describe("lecture unique · mot ou nombre découpé autrement : aucun mot coupé, aucun mot retiré", () => {
+  /** Remplace `n` mots rendus à partir de `de` par `nouveaux`, collés (aucun blanc entre eux, comme un mot découpé). */
+  const remplacer = async (de: number, n: number, nouveaux: string[]) => {
+    const etat = await voixLue(monde());
+    const casse = structuredClone(etat);
+    const prise = casse.voix.corps.prise!;
+    if (prise.etat.phase !== "faite") throw new Error("inachevé");
+    const mots = prise.etat.audio.mots;
+    const d = mots[de].debutSec;
+    const f = mots[de + n - 1].finSec;
+    const pas = (f - d) / nouveaux.length;
+    mots.splice(de, n, ...nouveaux.map((mot, k) => ({ mot, debutSec: +(d + k * pas).toFixed(3), finSec: +(d + (k + 1) * pas).toFixed(3) })));
+    delete prise.brut;
+    return casse;
+  };
+
+  it("un mot du milieu du corps rendu en deux (« mi » « nuit. ») : les deux morceaux restent, aucun retrait", async () => {
+    const sons = sonsBrutsIV(await remplacer(4, 1, ["mi", "nuit."]));
+    expect(sons.corps.mots.map((x) => x.mot)).toContain("nuit.");
+    for (const l of Object.values(sons.lecture!)) expect(l.son.mots.map((x) => x.mot)).toContain("nuit.");
+    expect(sons.lecture!["fin-linkedin"].retraitsVoulus).toEqual([]);
+    expect(sons.lecture!["fin-linkedin"].motsCorps).toBe(14);
+  });
+
+  it("les deux derniers mots du corps rendus en trois (« 4 » « sec » « ondes. ») : la version LinkedIn garde « ondes. », coupe après lui", async () => {
+    const casse = await remplacer(11, 2, ["4", "sec", "ondes."]);
+    const li = sonsBrutsIV(casse).lecture!["fin-linkedin"];
+    expect(li.son.mots.at(-1)!.mot).toBe("ondes.");
+    expect(li.coupeEntreSec![0]).toBe(li.son.mots.at(-1)!.finSec);
+  });
+
+  it("un mot rendu de plus sans mot du texte entre deux mots alignés (« vingt ») : gardé, jamais retiré", async () => {
+    const casse = await remplacer(11, 2, ["vingt", "quatre", "heures."]);
+    const li = sonsBrutsIV(casse).lecture!["fin-linkedin"];
+    expect(li.son.mots.map((x) => x.mot).slice(-3)).toEqual(["vingt", "quatre", "heures."]);
+    expect(li.retraitsVoulus).toEqual([]);
+  });
+
+  it("coupe de version entre deux mots dont aucun ne s'écrit comme le script : refus « entree », sans relecture", async () => {
+    const casse = await remplacer(12, 2, ["secondeset"]);
+    expect(() => sonsBrutsIV(casse)).toThrowError(ErreurVoixIV);
+    try {
+      sonsBrutsIV(casse);
+    } catch (err) {
+      expect((err as ErreurVoixIV).controle).toBe("entree");
+      expect((err as ErreurVoixIV).relire).toBe(false);
+    }
   });
 });

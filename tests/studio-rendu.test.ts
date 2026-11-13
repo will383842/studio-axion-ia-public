@@ -207,3 +207,33 @@ describe("serveur HTTP de studio-rendu + client du studio", () => {
     expect((await fetch(`${base}/sante`)).status).toBe(200);
   });
 });
+
+
+
+describe("GV2-10 : erreurs FFmpeg répétées et composition introuvable", () => {
+  it("la même erreur FFmpeg deux fois de suite pour la même commande : non réessayable au second, sans ligne technique dans le message", async () => {
+    const { executer } = await import("../studio-rendu/src/outils");
+    const args = ["-e", "process.stderr.write('Invalid data found\\n'); process.exit(1)"];
+    const premier = await executer(process.execPath, args).catch((e) => e);
+    expect(premier.erreur).toMatchObject({ reessayable: true });
+    const second = await executer(process.execPath, args).catch((e) => e);
+    expect(second.erreur).toEqual({ code: "inconnu", reessayable: false, message: "Le montage a échoué sur un fichier illisible." });
+  });
+
+  it("la même erreur FFmpeg deux fois, avec un dossier temporaire différent à chaque essai : définitive au second (B9 de la relecture)", async () => {
+    const { executer } = await import("../studio-rendu/src/outils");
+    const args = ["-e", "process.stderr.write('/tmp/studio-rendu-' + Math.random().toString(36).slice(2, 8) + '/entree.mp4: Invalid data found when processing input\\n'); process.exit(1)"];
+    const premier = await executer(process.execPath, args).catch((e) => e);
+    expect(premier.erreur).toMatchObject({ reessayable: true });
+    const second = await executer(process.execPath, args).catch((e) => e);
+    expect(second.erreur).toEqual({ code: "inconnu", reessayable: false, message: "Le montage a échoué sur un fichier illisible." });
+  });
+
+  it("navigateur fermé ou délai : l'erreur reste réessayable ; « Could not find composition » : refus définitif", async () => {
+    const { erreurSelectionComposition } = await import("../studio-rendu/src/outils");
+    const { motifEchec } = await import("../studio-rendu/src/files");
+    expect(motifEchec(erreurSelectionComposition("Essai", new Error("Protocol error: Target closed")))).toMatchObject({ reessayable: true });
+    expect(motifEchec(erreurSelectionComposition("Essai", new Error("délai dépassé")))).toMatchObject({ reessayable: true });
+    expect(motifEchec(erreurSelectionComposition("Essai", new Error("Could not find composition with ID Essai. Available compositions: X")))).toMatchObject({ code: "refuse", reessayable: false });
+  });
+});
