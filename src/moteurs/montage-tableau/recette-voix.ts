@@ -183,6 +183,26 @@ export function planRecetteVoix(mots: readonly MotHorodate[], dureeBruteSec: num
   };
 }
 
+/**
+ * Plan SANS horodatage des mots (GV2-28, PUR) : un seul morceau (tout le fichier, `[0, durée]`), les filtres, le niveau
+ * sonore et le silence de fin de la recette, SANS fondu de sortie (on ne sait pas où finit le dernier mot). Aucun mot
+ * n'est recalé (`mots` vide) : l'appelant garde les mots estimés du fournisseur.
+ */
+export function planRecetteSansMots(dureeBruteSec: number, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU): PlanRecetteVoix {
+  if (!Number.isFinite(dureeBruteSec) || dureeBruteSec <= 0) throw new Error("Durée de la voix illisible.");
+  const dureeParole = dureeBruteSec / recette.filtres.atempo;
+  const silenceFinSec = recette.fin.silenceSec;
+  return {
+    morceaux: [{ debutSec: 0, finSec: arrondi(dureeBruteSec) }],
+    mots: [],
+    dureeResserreeSec: arrondi(dureeBruteSec),
+    dureeSec: arrondi(dureeParole + silenceFinSec),
+    debutFonduSortieSec: arrondi(dureeParole),
+    fonduSortieSec: 0,
+    silenceFinSec,
+  };
+}
+
 /** Paramètres de l'opération `nettoyage-audio` (mode `recette`) de `studio-rendu`. */
 export function parametresRecette(plan: PlanRecetteVoix, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU): Record<string, unknown> {
   const f = recette.filtres;
