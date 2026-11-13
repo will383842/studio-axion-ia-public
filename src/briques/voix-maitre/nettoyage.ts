@@ -98,8 +98,10 @@ const arrondi = (x: number) => +x.toFixed(4);
 /**
  * Calcule les coupures. `respirations` : souffles reconnus dans le son par `studio-rendu` (temps de la source) ;
  * absent ou vide (voix de synthèse sans souffle, ou mesure non faite) : tous les blancs sont ramenés à 80-120 ms.
+ * `options.sansQueue` (mots ESTIMÉS, sans heures réelles) : la queue n'est pas coupée, tout le son après le dernier mot
+ * est gardé (la dernière phrase ne peut pas être tranchée) ; le silence de fin reste ajouté.
  */
-export function calculerCoupures(params: { mots: MotHorodate[]; dureeSec: number; regles?: ReglesNettoyage; respirations?: Intervalle[]; espacementPhrases?: number }): PlanNettoyage {
+export function calculerCoupures(params: { mots: MotHorodate[]; dureeSec: number; regles?: ReglesNettoyage; respirations?: Intervalle[]; espacementPhrases?: number }, options?: { sansQueue?: boolean }): PlanNettoyage {
   const r = params.regles ?? REGLES_NETTOYAGE_PAR_DEFAUT;
   const espacement = params.espacementPhrases ?? 2;
   const fonduMs = (r.fonduMs[0] + r.fonduMs[1]) / 2;
@@ -137,9 +139,9 @@ export function calculerCoupures(params: { mots: MotHorodate[]; dureeSec: number
     ajouter(b.debutSec + cible / 2, b.finSec - cible / 2, "blanc");
   }
 
-  // Queue : 0,5 s après le dernier mot.
+  // Queue : 0,5 s après le dernier mot (gardée en entier quand les mots sont estimés).
   const finDernier = mots[mots.length - 1].finSec;
-  ajouter(finDernier + QUEUE_SEC, params.dureeSec, "queue");
+  if (!options?.sansQueue) ajouter(finDernier + QUEUE_SEC, params.dureeSec, "queue");
 
   coupures.sort((a, b) => a.debutSec - b.debutSec);
   const retire = coupures.reduce((s, c) => s + (c.finSec - c.debutSec), 0);
@@ -149,7 +151,7 @@ export function calculerCoupures(params: { mots: MotHorodate[]; dureeSec: number
     dureeSortieSec: arrondi(params.dureeSec - retire),
     mots: decalerMots(mots, coupures),
     respirationsGardees,
-    silenceFinSec: arrondi(Math.max(0, FIN_APRES_DERNIER_MOT_SEC - Math.max(0, Math.min(params.dureeSec, finDernier + QUEUE_SEC) - finDernier))),
+    silenceFinSec: arrondi(Math.max(0, FIN_APRES_DERNIER_MOT_SEC - Math.max(0, Math.min(params.dureeSec, options?.sansQueue ? params.dureeSec : finDernier + QUEUE_SEC) - finDernier))),
   };
 }
 

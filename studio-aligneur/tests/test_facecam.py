@@ -2,6 +2,7 @@
 import json
 import os
 import tempfile
+import threading
 import time
 import unittest
 import urllib.error
@@ -81,6 +82,57 @@ class TestReprise(unittest.TestCase):
         self.assertIsNone(verifier_demande_facecam(DEMANDE))
         self.assertIsNotNone(verifier_demande_facecam({"idTravail": "a b", "source": "https://a"}))
         self.assertIsNotNone(verifier_demande_facecam({"idTravail": "a", "source": "file:///etc/passwd"}))
+
+
+class TestReprisePanne(unittest.TestCase):
+    """GV2-11 : un identifiant en échec est resoumis ; un travail figé libère la file."""
+
+    def test_echec_resoumis_nouveau_et_seconde_execution(self):
+        appels = []
+
+        def executant(d, dossier, p):
+            appels.append(1)
+            if len(appels) == 1:
+                raise RuntimeError("panne")
+            return {"sonCle": "s"}
+
+        t = TravauxFacecam(tempfile.mkdtemp(prefix="facecam-resoumis-"), {"son": executant})
+        demande = {"idTravail": "t-3", "source": "https://a"}
+        self.assertEqual(t.soumettre("son", demande), (202, {"idTravail": "t-3", "nouveau": True}))
+        fin = time.time() + 5
+        while time.time() < fin and (t.etat("son", "t-3") or {}).get("statut") != "echec":
+            time.sleep(0.02)
+        self.assertEqual(t.soumettre("son", demande), (202, {"idTravail": "t-3", "nouveau": True}))
+        fin = time.time() + 5
+        while time.time() < fin and (t.etat("son", "t-3") or {}).get("statut") != "termine":
+            time.sleep(0.02)
+        self.assertEqual(t.etat("son", "t-3")["resultat"], {"sonCle": "s"})
+        self.assertEqual(len(appels), 2)
+        # Terminé : plus de nouvel essai.
+        self.assertFalse(t.soumettre("son", demande)[1]["nouveau"])
+
+    def test_travail_fige_echec_reessayable_file_liberee(self):
+        lacher = threading.Event()
+
+        def executant(d, dossier, p):
+            if d["idTravail"] == "fige":
+                lacher.wait(10)
+            return {"sonCle": "s"}
+
+        t = TravauxFacecam(tempfile.mkdtemp(prefix="facecam-fige-"), {"son": executant}, delai_travail=0.3)
+        try:
+            t.soumettre("son", {"idTravail": "fige", "source": "https://a"})
+            t.soumettre("son", {"idTravail": "suivant", "source": "https://a"})
+            fin = time.time() + 5
+            while time.time() < fin and (t.etat("son", "suivant") or {}).get("statut") != "termine":
+                time.sleep(0.02)
+            e = t.etat("son", "fige")
+            self.assertEqual(e["statut"], "echec")
+            self.assertTrue(e["erreur"]["reessayable"])
+            self.assertEqual(e["erreur"]["message"], "Le calcul n'a pas abouti dans le temps imparti.")
+            self.assertEqual(t.etat("son", "suivant")["statut"], "termine")
+        finally:
+            lacher.set()
 
 
 if __name__ == "__main__":

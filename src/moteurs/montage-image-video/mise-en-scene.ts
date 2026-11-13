@@ -233,6 +233,8 @@ export interface ResultatMiseEnSceneIV {
   rapport: RapportMiseEnSceneIV;
   /** Phrases pour Will (vide si tout passe). */
   phrases: string[];
+  /** Ce que le calage de la voix a absorbé sans arrêter la vidéo (à écrire au journal par l'appelant). */
+  remarquesCalage?: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -627,7 +629,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
     ...(affiche ? { affiche } : {}),
   };
   const rapport = controlerMiseEnSceneIV(ligne, { carte, fiche, reseaux: entree.reseaux, bruitages: poses, voix: calage.voix, ...(entree.styleSousTitres ? { styleSousTitres: entree.styleSousTitres } : {}) });
-  return { ok: rapport.bloquants.length === 0, ligne, rapport, phrases: rapport.bloquants.map((b) => b.phrase) };
+  return { ok: rapport.bloquants.length === 0, ligne, rapport, phrases: rapport.bloquants.map((b) => b.phrase), ...(calage.remarques.length ? { remarquesCalage: calage.remarques } : {}) };
 }
 
 /* ------------------------------------------------------------------ */

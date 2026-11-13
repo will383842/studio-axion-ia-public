@@ -76,6 +76,8 @@ export function etapeImagesStudio<C>(e: EtapeImagesStudio<C>): (commande: C) => 
 
 const TELECHARGEMENT_MAX = 200 * 1024 * 1024;
 const DELAI_TELECHARGEMENT_MS = 180_000;
+/** Une commande ffmpeg/ffprobe qui dépasse ce délai est tuée : un outil figé ne doit pas bloquer la file de toutes les vidéos. */
+const DELAI_COMMANDE_MS = 10 * 60_000;
 
 /** Recherche directe des vidéos Pexels + Pixabay avec les clés du serveur. */
 export function chercherVideosServeur(cles: ClesBanques, recuperer: Recuperer = (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(30_000) })) {
@@ -86,11 +88,11 @@ export function chercherVideosServeur(cles: ClesBanques, recuperer: Recuperer = 
  * Outils de préparation sur le serveur : ffmpeg/ffprobe du système, téléchargement borné (taille et durée), dossier de
  * travail jetable par candidat, dépôt dans le stockage du rendu par `deposer` (contenu, clé, type).
  */
-export function outilsPreparationServeur(o: { telechargementMaxOctets?: number; deposer: (contenu: Uint8Array, cle: string, mime: string) => Promise<string>; retirer?: (cle: string) => Promise<void>; racine?: string; sousVerrou?: OutilsPreparation["sousVerrou"] }): OutilsPreparation {
+export function outilsPreparationServeur(o: { telechargementMaxOctets?: number; deposer: (contenu: Uint8Array, cle: string, mime: string) => Promise<string>; retirer?: (cle: string) => Promise<void>; racine?: string; delaiCommandeMs?: number; sousVerrou?: OutilsPreparation["sousVerrou"] }): OutilsPreparation {
   return {
     executer(programme, args) {
       return new Promise((ok, ko) => {
-        const p = spawn(programme, args, { windowsHide: true });
+        const p = spawn(programme, args, { windowsHide: true, timeout: o.delaiCommandeMs ?? DELAI_COMMANDE_MS, killSignal: "SIGKILL" });
         const sortie: Buffer[] = [];
         let erreur = "";
         p.stdout.on("data", (d: Buffer) => sortie.push(d));
@@ -98,7 +100,11 @@ export function outilsPreparationServeur(o: { telechargementMaxOctets?: number; 
           erreur = (erreur + d.toString()).slice(-2000);
         });
         p.on("error", ko);
-        p.on("close", (code) => (code === 0 ? ok(Buffer.concat(sortie)) : ko(new Error(`${programme} a échoué (${code}) : ${erreur.slice(-300)}`))));
+        p.on("close", (code, signal) => {
+          if (code === 0) ok(Buffer.concat(sortie));
+          else if (code === null && signal === "SIGKILL") ko(new Error("L'outil vidéo ne répond plus."));
+          else ko(new Error(`${programme} a échoué (${code}) : ${erreur.slice(-300)}`));
+        });
       });
     },
     async telecharger(url, fichier) {

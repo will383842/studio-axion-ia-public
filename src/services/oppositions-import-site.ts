@@ -15,7 +15,9 @@
  *  - AUCUNE écriture des files de transmission (`parcours.oppositions.file` / `.page`) : c'est `rattraperOppositions` qui s'en charge ;
  *  - l'appel réseau se fait HORS verrou ; le paramètre `parcours.oppositions.site` ne contient que des références opaques et des dates ;
  *  - alerte à la cloche seulement (jamais de push), un nombre seulement, au plus une par heure ; elle ne fait jamais échouer le passage ;
- *  - aucun journal ne contient de référence, d'adresse ni d'identifiant.
+ *  - aucun journal ne contient de référence, d'adresse ni d'identifiant ;
+ *  - la mémoire (demandes, pause, compteurs) est propre à chaque processus : rien n'est partagé entre processus, un redémarrage repart
+ *    de zéro. Sans gravité : tout est refermé par défaut et une demande perdue est refaite au prochain essai de la personne.
  */
 import "server-only";
 import {
@@ -39,7 +41,9 @@ import { creerNotification } from "./notifications";
 import {
   FRAICHEUR_SITE_MS,
   PARAM_OPPOSITIONS_SITE,
+  acquitterDebordementsSite,
   acquitterRefsIllisiblesSite,
+  debordementsSite,
   demanderVerificationSite,
   enregistrerOppositionsImportees,
   importSiteActif,
@@ -76,14 +80,19 @@ interface EtatProcessus {
   enCours: boolean;
   dernierPassageMs: number | null;
   pauseJusquaMs: number;
+  reponsesIllisibles: number;
+  /** Part des réponses illisibles déjà couverte par une alerte (un nombre seulement). */
+  reponsesIllisiblesAlertees: number;
 }
-/** Mémoire de processus (un redémarrage repart de zéro). */
+/** Mémoire de processus, propre à chaque processus (un redémarrage repart de zéro). */
 const processus = (): EtatProcessus => {
   const g = globalThis as { __studioVerifSite?: EtatProcessus };
   return (g.__studioVerifSite ??= {
     enCours: false,
     dernierPassageMs: null,
     pauseJusquaMs: 0,
+    reponsesIllisibles: 0,
+    reponsesIllisiblesAlertees: 0,
   });
 };
 /** Remet à zéro l'état en mémoire (essais). */
@@ -94,12 +103,17 @@ export function reinitialiserImportOppositionsSite(): void {
 
 const estObjet = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
-const lireAlerteLe = (brut: unknown): number | null =>
-  estObjet(brut) &&
-  typeof brut.alerteLe === "number" &&
-  Number.isFinite(brut.alerteLe)
-    ? brut.alerteLe
-    : null;
+type CreneauAlerte = "alerteLe" | "alerteDebordementLe";
+const lireAlerteLe = (brut: unknown, champ: CreneauAlerte = "alerteLe"): number | null => {
+  const v = estObjet(brut) ? brut[champ] : undefined;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+};
+
+/** Le créneau du débordement n'est écrit que s'il existe (la forme du paramètre reste inchangée tant qu'aucun débordement n'a été signalé). */
+const creneauDebordement = (v: number | null): { alerteDebordementLe?: number } => (v === null ? {} : { alerteDebordementLe: v });
+
+/** Réponses 200 du site refusées par la lecture stricte, depuis le démarrage du processus (un nombre seulement). */
+export const reponsesIllisiblesSite = (): number => processus().reponsesIllisibles;
 
 class DelaiDepasse extends Error {}
 
@@ -120,18 +134,18 @@ async function appeler(
     corps,
     horodatageSec: Math.floor(maintenantMs / 1000),
   });
+  // Le signal est annulé à l'échéance : un transport qui le lit abandonne l'appel (le client réel a aussi son propre délai de 10 s).
+  const arret = new AbortController();
+  const requete = { methode, chemin, corps, entetes, signal: arret.signal };
   let minuteur: ReturnType<typeof setTimeout> | undefined;
   const delai = new Promise<never>((_, rejeter) => {
-    minuteur = setTimeout(
-      () => rejeter(new DelaiDepasse("delai")),
-      DELAI_APPEL_SITE_MS,
-    );
+    minuteur = setTimeout(() => {
+      arret.abort();
+      rejeter(new DelaiDepasse("delai"));
+    }, DELAI_APPEL_SITE_MS);
   });
   try {
-    return await Promise.race([
-      site.transport({ methode, chemin, corps, entetes }),
-      delai,
-    ]);
+    return await Promise.race([site.transport(requete), delai]);
   } finally {
     clearTimeout(minuteur);
   }
@@ -150,6 +164,7 @@ async function interroger(
     if (r === null) return { nonRelie: true };
     if (r.statut !== 200) return {};
     const reponse = lireReponseParConv(r.corps, refs);
+    if (reponse === null) processus().reponsesIllisibles++;
     return reponse === null ? {} : { reponse };
   } catch {
     return {};
@@ -161,11 +176,12 @@ async function alerter(
   message: string,
   titre: string,
   now: number,
+  champ: CreneauAlerte = "alerteLe",
 ): Promise<boolean> {
   try {
     const marquee = await sousVerrou(async () => {
       const brut = await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null);
-      const dernier = lireAlerteLe(brut);
+      const dernier = lireAlerteLe(brut, champ);
       if (
         dernier !== null &&
         now - dernier >= 0 &&
@@ -175,7 +191,8 @@ async function alerter(
       await ecrireParametre(PARAM_OPPOSITIONS_SITE, {
         v: 1,
         verifs: lireVerifs(brut),
-        alerteLe: now,
+        alerteLe: champ === "alerteLe" ? now : lireAlerteLe(brut),
+        ...creneauDebordement(champ === "alerteDebordementLe" ? now : lireAlerteLe(brut, "alerteDebordementLe")),
       });
       return true;
     });
@@ -202,9 +219,22 @@ const alerteNonRelie = (now: number): Promise<boolean> =>
     "Site non relié (oppositions)",
     now,
   );
+const alerteDebordement = (nombre: number, now: number): Promise<boolean> =>
+  alerter(
+    `Trop de vérifications d'oppositions du site en attente : ${nombre} demande(s) ont été abandonnées. Les personnes concernées attendent (rien ne leur est envoyé) et seront revérifiées à leur prochain essai.`,
+    "Demandes de vérification du site en débordement",
+    now,
+    "alerteDebordementLe", // créneau propre : une alerte « échec » répétée ne la masque pas
+  );
+const alerteSansConversation = (nombre: number, now: number): Promise<boolean> =>
+  alerter(
+    `Le site signale ${nombre} référence(s) opposée(s) qui ne correspondent à aucune conversation connue. Elles restent à vérifier (rien n'est envoyé).`,
+    "Oppositions du site sans conversation",
+    now,
+  );
 const alerteIllisibles = (nombre: number, now: number): Promise<boolean> =>
   alerter(
-    `Des références de lien illisibles bloquent des personnes : ${nombre} cas depuis la dernière alerte. Rien ne leur est envoyé.`,
+    `Des références de lien ou des réponses du site illisibles bloquent des personnes : ${nombre} cas depuis la dernière alerte. Rien ne leur est envoyé.`,
     "Références de lien illisibles",
     now,
   );
@@ -280,6 +310,7 @@ async function passage(env: Env, now: number, p: EtatProcessus): Promise<void> {
     const aFaire = [...restantes];
     let echec = false;
     let nonRelie = false;
+    let sansCle = 0;
     for (
       let i = 0;
       i < LOTS_MAX_PAR_PASSAGE && i * LOT_MAX_PAR_CONV < aFaire.length;
@@ -296,29 +327,39 @@ async function passage(env: Env, now: number, p: EtatProcessus): Promise<void> {
         nonRelie = r.nonRelie === true;
         break;
       }
-      if (!(await enregistrerLot(env, now, lot, r.reponse, restantes))) {
+      const bilan = await enregistrerLot(env, now, lot, r.reponse, restantes);
+      if (bilan === null) {
         echec = true;
         break;
       }
+      sansCle += bilan.sansCle;
     }
     if (echec) {
       p.pauseJusquaMs = now + PAUSE_APRES_ECHEC_MS;
       if (nonRelie) await alerteNonRelie(now);
       else await alerteEchec(restantes.size, now);
-    }
+    } else if (sansCle > 0) await alerteSansConversation(sansCle, now); // en cas d'échec, `restantes` les compte déjà
   } catch (e) {
     demanderVerificationSite(restantes);
     throw e;
   }
   demanderVerificationSite(restantes); // tout ce qui n'a pas reçu de preuve reste demandé
-  const illisibles = refsIllisiblesSite();
-  if (illisibles > 0 && (await alerteIllisibles(illisibles, now)))
+  const refsIllisibles = refsIllisiblesSite();
+  const reponsesIllisibles = processus().reponsesIllisibles;
+  const illisibles = refsIllisibles + Math.max(0, reponsesIllisibles - processus().reponsesIllisiblesAlertees);
+  if (illisibles > 0 && (await alerteIllisibles(illisibles, now))) {
     acquitterRefsIllisiblesSite();
+    processus().reponsesIllisiblesAlertees = reponsesIllisibles;
+  }
+  const abandonnees = debordementsSite();
+  if (abandonnees > 0 && (await alerteDebordement(abandonnees, now)))
+    acquitterDebordementsSite();
 }
 
 /**
  * 4. Réponse valide : d'ABORD le registre (références « opposées »), ENSUITE seulement les preuves « non opposée ». Rend faux si rien
- * n'a été prouvé pour ce lot. Les références prouvées sont retirées de `restantes`.
+ * n'a été prouvé pour ce lot (`null`), sinon le nombre de références « opposées » sans aucune clé de conversation (restées INCONNUES).
+ * Les références prouvées sont retirées de `restantes`.
  */
 async function enregistrerLot(
   env: Env,
@@ -326,7 +367,7 @@ async function enregistrerLot(
   lot: readonly string[],
   reponse: readonly boolean[],
   restantes: Set<string>,
-): Promise<boolean> {
+): Promise<{ sansCle: number } | null> {
   const opposees = new Set(lot.filter((_, i) => reponse[i]));
   const conv = await lireParametre<unknown>(PARAM_CONVERSATIONS_ETAT, {});
   const cles: string[] = [];
@@ -342,10 +383,11 @@ async function enregistrerLot(
   try {
     await enregistrerOppositionsImportees(cles, { env });
   } catch {
-    return false; // aucune preuve pour le lot
+    return null; // aucune preuve pour le lot
   }
   // Une référence « opposée » sans aucune clé reste INCONNUE : pas de preuve, remise en demande.
   for (const r of avecCle) restantes.delete(r);
+  const sansCle = [...opposees].filter((r) => !avecCle.has(r)).length;
   const nonOpposees = lot.filter((_, i) => !reponse[i]);
   if (nonOpposees.length > 0) {
     // Écriture des preuves sous verrou, SANS appel réseau. Heure d'ENVOI de la demande (`now`) : la plus prudente.
@@ -370,9 +412,10 @@ async function enregistrerLot(
         v: 1,
         verifs: Object.fromEntries(gardees),
         alerteLe: lireAlerteLe(brut),
+        ...creneauDebordement(lireAlerteLe(brut, "alerteDebordementLe")),
       });
     });
     for (const r of nonOpposees) restantes.delete(r);
   }
-  return true;
+  return { sansCle };
 }

@@ -113,6 +113,46 @@ describe("chaîne vidéo face caméra (lot B)", () => {
     expect((repris.parametres?.chaine as EtatChaine).echec).toBeUndefined();
   });
 
+  it("GV2-03 : son en échec définitif puis « Réessayer » → identifiant neuf (ni t-x-son, -e1, -e2), la vidéo va au bout ; la brique sautée (visages) n'est pas resoumise", async () => {
+    const facecam = creerFacecamSimule();
+    const suivre = facecam.suivre;
+    // Visages toujours en panne définitive (brique sautée) ; le son échoue tant que l'identifiant n'a pas le tour 1.
+    const deps: DependancesChaine = {
+      facecam: {
+        ...facecam,
+        suivre: async (route, id) =>
+          route === "visages"
+            ? { statut: "echec", erreur: { code: "inconnu", reessayable: false, message: "Panne simulée (visages)." } }
+            : route === "son" && !id.includes("-t1")
+              ? { statut: "echec", erreur: { code: "inconnu", reessayable: true, message: "Panne simulée (son)." } }
+              : suivre(route, id),
+      } as typeof facecam,
+    };
+    const moteur = creerMoteurMontageFacecam({ chaine: () => deps });
+    const c = commande();
+    let travail: Travail = await moteur.lancer(c, { travailId: "t-x", versionId: "ver-x", titre: "Essai" });
+    for (let i = 0; i < 40 && travail.statut !== "echec"; i++) travail = (await moteur.avancer(travail, c, Date.now())).travail;
+    expect(travail.statut).toBe("echec");
+    const idsAvant = facecam.soumises.filter((x) => x.route === "son").map((x) => x.demande.idTravail);
+    expect(idsAvant).toEqual(["t-x-son", "t-x-son-e1", "t-x-son-e2"]);
+    const visagesAvant = facecam.soumises.filter((x) => x.route === "visages").length;
+    expect(visagesAvant).toBe(1);
+
+    const repris = await moteur.reessayer(travail, Date.now());
+    const etatRepris = repris.parametres?.chaine as EtatChaine;
+    expect(etatRepris.tour).toBe(1);
+    expect(etatRepris.echec).toBeUndefined();
+    expect(etatRepris.travaux.son).toBeUndefined();
+    expect(etatRepris.travaux.visages?.statut).toBe("echec"); // sautée pour de bon : gardée telle quelle
+    let apres = repris;
+    for (let i = 0; i < 40 && apres.statut !== "termine" && apres.statut !== "echec"; i++) apres = (await moteur.avancer(apres, c, Date.now())).travail;
+    expect(apres.statut).toBe("termine");
+    const idsApres = facecam.soumises.filter((x) => x.route === "son").map((x) => x.demande.idTravail);
+    const nouveaux = idsApres.filter((id) => !idsAvant.includes(id));
+    expect(nouveaux).toEqual(["t-x-son-t1"]);
+    expect(facecam.soumises.filter((x) => x.route === "visages").length).toBe(visagesAvant);
+  });
+
   it("moteur : toutes les étapes faites, résultat 9:16 1080×1920, données du face caméra en clés R2, aucun prix", async () => {
     const facecam = creerFacecamSimule();
     const relues: string[] = [];

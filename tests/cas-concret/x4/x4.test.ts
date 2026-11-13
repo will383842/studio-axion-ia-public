@@ -150,7 +150,14 @@ describe("X4 · la recette de la voix du cas concret : gelée (1,1 / 0,20 s / 1,
     expect(d.assemblages).toHaveLength(cr.fins.length);
     for (const a of d.assemblages) {
       expect(a.recette).toBeDefined();
-      expect(a.recette!.parametres).toMatchObject({ mode: "recette", fonduMs: 6, fonduSortieSec: 0.22, silenceFinSec: 0.8 });
+      expect(a.recette!.parametres).toMatchObject({ mode: "recette", fonduMs: 6 });
+      // GV2-16 : les doubles ont une queue courte après le dernier mot : fondu raccourci (jamais plus de 0,22 s) et
+      // silence de fin complété de la queue manquante (0,8 s au moins, 0,8 + 0,45 s au plus).
+      const fin = a.recette!.parametres as { fonduSortieSec: number; silenceFinSec: number };
+      expect(fin.fonduSortieSec).toBeGreaterThanOrEqual(0);
+      expect(fin.fonduSortieSec).toBeLessThanOrEqual(0.22);
+      expect(fin.silenceFinSec).toBeGreaterThanOrEqual(0.8);
+      expect(fin.silenceFinSec).toBeLessThanOrEqual(0.8 + 0.45 + 1e-9);
       expect(String(a.recette!.parametres.filtres).match(/loudnorm/g)).toHaveLength(1);
       expect((a.recette!.parametres.morceaux as { source?: number }[]).some((m) => m.source === 1)).toBe(true);
     }
