@@ -196,22 +196,22 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
           onEscapeKeyDown={(e) => {
             if (filme || phase === "decompte" || phase === "envoi") e.preventDefault();
           }}
-          className="fixed inset-0 z-[65] flex flex-col bg-[#000] text-[#fff] outline-none"
+          className="fixed inset-0 z-[65] flex flex-col bg-ecran text-ecran-texte outline-none"
         >
       <Dialog.Title className="sr-only">{`Filmer ${v?.code ?? ""}`}</Dialog.Title>
       {/* Bandeau du texte, collé en haut : sous l'objectif de la caméra avant. */}
-      <div className={cn("relative z-10 shrink-0 overflow-hidden bg-[#000]/85 px-5 pb-3 pt-[max(14px,env(safe-area-inset-top))]", v?.mode === "trame" ? "max-h-[38vh]" : "h-[30vh]")}>
+      <div className={cn("relative z-10 shrink-0 overflow-hidden bg-ecran/85 px-5 pb-3 pt-[max(14px,env(safe-area-inset-top))]", v?.mode === "trame" ? "max-h-[38vh]" : "h-[30vh]")}>
         {v?.mode === "trame" && v.trame ? (
           <div className="space-y-2 text-[20px] font-semibold leading-snug">
             <p>« {v.trame.verbatim.accroche} »</p>
             <ul className="flex flex-wrap gap-1.5 text-[15px]">
               {v.trame.reperes.map((r) => (
-                <li key={r} className="rounded-full bg-[#fff]/15 px-3 py-1">
+                <li key={r} className="rounded-full bg-ecran-texte/15 px-3 py-1">
                   {r}
                 </li>
               ))}
             </ul>
-            <p className="text-[#fff]/70">« {v.trame.verbatim.appel} »</p>
+            <p className="text-ecran-texte/70">« {v.trame.verbatim.appel} »</p>
           </div>
         ) : (
           <div ref={bande} className="will-change-transform">
@@ -240,10 +240,10 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
             type="button"
             aria-label={phase === "pause" ? "Reprendre" : "Pause"}
             onClick={() => envoyer({ type: "toucher" })}
-            className="absolute inset-0 grid place-items-center text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange"
+            className="absolute inset-0 grid place-items-center text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ecran-texte"
           >
             {phase === "pause" && (
-              <span className="absolute inset-0 grid place-items-center bg-[#000]/70">
+              <span className="absolute inset-0 grid place-items-center bg-ecran/70">
                 <span className="flex items-center gap-2">
                   <Icone nom="lecture" size={20} />
                   Touchez pour reprendre
@@ -257,17 +257,17 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
       {/* Image de la caméra (miroir) ou relecture de la prise. */}
       <div className="relative min-h-0 flex-1">
         <video ref={video} autoPlay muted playsInline className={cn("absolute inset-0 size-full -scale-x-100 object-cover", relecture && "invisible")} />
-        {relecture && <video src={relecture} controls playsInline className="absolute inset-0 size-full bg-[#000] object-contain" />}
+        {relecture && <video src={relecture} controls playsInline className="absolute inset-0 size-full bg-ecran object-contain" />}
 
         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3">
-          <span className="rounded-full bg-[#000]/60 px-3 py-1 font-mono text-xs">{v?.code}</span>
+          <span className="rounded-full bg-ecran/60 px-3 py-1 font-mono text-xs">{v?.code}</span>
           {filme ? (
-            <span className="flex items-center gap-2 rounded-full bg-[#000]/60 px-3 py-1 text-sm font-semibold tabular-nums">
+            <span className="flex items-center gap-2 rounded-full bg-ecran/60 px-3 py-1 text-sm font-semibold tabular-nums">
               <span className={cn("size-2.5 rounded-full bg-brique", phase === "enregistre" && "animate-pulse")} />
               {formatTemps(temps)}
             </span>
           ) : (
-            <button type="button" onClick={onFermer} aria-label="Fermer" className="grid size-11 place-items-center rounded-full bg-[#000]/60">
+            <button type="button" onClick={onFermer} aria-label="Fermer" className="grid size-11 place-items-center rounded-full bg-ecran/60">
               <Icone nom="fermer" size={20} />
             </button>
           )}
@@ -282,7 +282,7 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
         {phase === "refusee" && (
           <div className="absolute inset-0 grid place-items-center p-8 text-center">
             <div className="space-y-4">
-              <Icone nom="camera" size={40} className="mx-auto text-[#fff]/70" />
+              <Icone nom="camera" size={40} className="mx-auto text-ecran-texte/70" />
               <p className="text-lg font-semibold">Autorisez la caméra pour filmer ici.</p>
               <Bouton variante="secondaire" icone="reessayer" onClick={() => location.reload()}>
                 Réessayer
@@ -292,12 +292,12 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
         )}
 
         {(phase === "envoi" || phase === "rangee") && (
-          <div className="absolute inset-0 grid place-items-center bg-[#000]/75 p-8 text-center">
+          <div className="absolute inset-0 grid place-items-center bg-ecran/75 p-8 text-center">
             {phase === "envoi" ? (
               <div className="w-full max-w-[240px] space-y-3">
                 <p className="text-lg font-semibold">Rangement…</p>
-                <span className="block h-1.5 overflow-hidden rounded-full bg-[#fff]/20">
-                  <span className="block h-full rounded-full bg-orange transition-[width]" style={{ width: `${Math.max(8, progression)}%` }} />
+                <span className="block h-1.5 overflow-hidden rounded-full bg-ecran-texte/20">
+                  <span className="block h-full rounded-full bg-ecran-texte transition-[width]" style={{ width: `${Math.max(8, progression)}%` }} />
                 </span>
               </div>
             ) : (
@@ -306,7 +306,7 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
                   <Icone nom="coche" size={32} />
                 </span>
                 <p className="text-lg font-semibold">Rangée</p>
-                <p className="font-mono text-sm text-[#fff]/70">{rangee?.nom}</p>
+                <p className="font-mono text-sm text-ecran-texte/70">{rangee?.nom}</p>
                 {!rangee?.suivante && (
                   <Bouton
                     className="mt-2"
@@ -326,10 +326,10 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
       </div>
 
       {/* Commandes. */}
-      <div className="shrink-0 bg-[#000] px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
+      <div className="shrink-0 bg-ecran px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
         {phase === "relecture" || phase === "erreur" ? (
           <div className="space-y-2">
-            {phase === "erreur" && <p className="text-center text-sm text-ambre">{etat.message}</p>}
+            {phase === "erreur" && <p className="text-center text-sm font-semibold text-ecran-texte">{etat.message}</p>}
             <div className="flex gap-2">
               <Bouton variante="secondaire" taille="lg" icone="reessayer" className="flex-1" onClick={recommencer}>
                 Prise ratée, on recommence
@@ -342,16 +342,16 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
         ) : (
           <div className="flex items-center justify-between gap-3">
             <div role="group" aria-label="Vitesse du texte" className="flex w-auto shrink-0 items-center gap-1">
-              <button type="button" aria-label="Moins vite" onClick={() => setVitesse((x) => bornerVitesse(x - 0.1))} className="grid size-11 place-items-center rounded-full bg-[#fff]/10 text-lg font-bold">
+              <button type="button" aria-label="Moins vite" onClick={() => setVitesse((x) => bornerVitesse(x - 0.1))} className="grid size-11 place-items-center rounded-full bg-ecran-texte/10 text-lg font-bold">
                 −
               </button>
               <span className="w-10 text-center text-sm tabular-nums">{vitesse.toFixed(1).replace(".", ",")}×</span>
-              <button type="button" aria-label="Plus vite" onClick={() => setVitesse((x) => bornerVitesse(x + 0.1))} className="grid size-11 place-items-center rounded-full bg-[#fff]/10 text-lg font-bold">
+              <button type="button" aria-label="Plus vite" onClick={() => setVitesse((x) => bornerVitesse(x + 0.1))} className="grid size-11 place-items-center rounded-full bg-ecran-texte/10 text-lg font-bold">
                 +
               </button>
             </div>
             {filme ? (
-              <button type="button" aria-label="Arrêter" onClick={() => envoyer({ type: "arreter" })} className="grid size-[76px] place-items-center rounded-full border-4 border-[#fff]">
+              <button type="button" aria-label="Arrêter" onClick={() => envoyer({ type: "arreter" })} className="grid size-[76px] place-items-center rounded-full border-4 border-ecran-texte">
                 <span className="size-8 rounded-md bg-brique" />
               </button>
             ) : (
@@ -360,12 +360,12 @@ export function Enregistreur({ seanceId, versions, onFermer }: { seanceId: strin
                 aria-label="Filmer"
                 disabled={phase !== "pret"}
                 onClick={() => envoyer({ type: "demarrer" })}
-                className="grid size-[76px] place-items-center rounded-full border-4 border-[#fff] disabled:opacity-40"
+                className="grid size-[76px] place-items-center rounded-full border-4 border-ecran-texte disabled:opacity-40"
               >
                 <span className="size-[58px] rounded-full bg-brique" />
               </button>
             )}
-            <div className="min-w-10 shrink-0 text-right text-xs text-[#fff]/60">
+            <div className="min-w-10 shrink-0 text-right text-xs text-ecran-texte/60">
               {index + 1}/{versions.length}
             </div>
           </div>

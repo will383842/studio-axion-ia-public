@@ -68,3 +68,13 @@ export async function proposerPremierCommentaire(contenuSource: ContenuSourceTyp
   if (echecs.length > 0) throw new Error(`Premier commentaire refusé : ${echecs.join(" ; ")}`);
   return { mode: face.mode, texte, copier: face.copier, ...(face.transmettre ? { firstComment: texte } : {}) };
 }
+
+/**
+ * CAL-27 : premier commentaire PROPOSÉ pour un contenu importé à la main. Aucun fait ajouté (formulation du réseau,
+ * sans lien). TikTok : aucun, le commentaire n'y part pas avec la publication. Ne publie rien ; à relire et modifier.
+ */
+export function premierCommentaireImporte(reseau: IdReseau): string | null {
+  if (reseau === "tiktok") return null;
+  const texte = composerPremierCommentaire({ reseau });
+  return evaluerPremierCommentaire({ texte }, { reseau }).length === 0 ? texte : null;
+}

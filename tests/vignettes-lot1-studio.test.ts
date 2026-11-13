@@ -72,7 +72,7 @@ describe("vignettes lot 1 · garde du texte de couverture", () => {
   });
 
   // Relecture : une espace insécable, fine ou un caractère invisible ne doit pas faire passer un interdit (rendu identique).
-  it.each(["Aucun gain\u00a0garanti", "AUCUN\u202fGAIN GARANTI", "Aucun gain\tgaranti", "GRE\u200bNOBLE", "Gre\u00adnoble"])("refuse aussi « %s » (espaces et invisibles)", (texte) => {
+  it.each(["Aucun gain\u00a0garanti", "AUCUN\u202fGAIN GARANTI", "Aucun gain\tgaranti", "VILLE\u200bEXEMPLE", "Ville\u00adexemple"])("refuse aussi « %s » (espaces et invisibles)", (texte) => {
     expect(interditsVignette(texte).length).toBeGreaterThan(0);
   });
 

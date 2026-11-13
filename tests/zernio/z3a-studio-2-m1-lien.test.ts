@@ -3,6 +3,7 @@
  * Interrupteur PARCOURS_LIEN_GUIDE éteint par défaut : M1 v2 part alors octet pour octet comme avant.
  * Données 100 % fictives ; le jeton n'est jamais stocké ni journalisé ; repli exact sur M1 v2 si un élément manque.
  */
+import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
@@ -120,7 +121,7 @@ describe("3 · VRAI constructeur de corps d'envoi", () => {
   it("un lien sans signature est refusé avant le réseau (preuve que le test peut rougir)", async () => {
     const r = reel();
     const texte = rendreTexteMp("mp-m1-v4-1", { mot: "GUIDE", titre: TITRE, lien: `${PREFIXE}abc` })!;
-    const res = await r.p.repondreEnPrive({ idCompte: COMPTE, idPost: POST, idCommentaire: "com-1", texte });
+    const res = await r.p.repondreEnPrive({ nonOpposee: emettreJetonNonOpposee(), idCompte: COMPTE, idPost: POST, idCommentaire: "com-1", texte });
     expect(res.statut).toBe("refuse");
     expect(r.faux.appels.filter((a) => a.methode === "POST")).toHaveLength(0);
   });

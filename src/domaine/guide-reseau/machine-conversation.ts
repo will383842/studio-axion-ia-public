@@ -72,6 +72,8 @@ export interface Conversation {
   derniereActiviteLe?: string | null;
   /** Identifiant OPAQUE de ce dernier message de la personne (jamais d'identifiant de conversation brut). */
   idMessageDernier?: string | null;
+  /** Posé quand la personne s'est opposée ailleurs (autre réseau, registre) et que le site l'a constaté : facultatif, absent par défaut, sans effet sur les transitions. */
+  opposeeParSite?: boolean;
   /** Empreintes SHA-256 (hex) des jetons des liens réellement ENVOYÉS dans M1 v3 : la `ref` d'une confirmation du site en est une. Jamais le jeton, jamais le lien. */
   empreintesLien?: string[];
   /** Merci après la page : « en_vol » écrit AVANT l'envoi, jamais effacé. Une autre confirmation de la même personne ne déclenche pas un 2e merci. */
@@ -411,6 +413,10 @@ export function deciderCommentaire(
     const dernier = [...D].sort(
       (a, b) => (dateLue(a.etat.creeLe) ?? 0) - (dateLue(b.etat.creeLe) ?? 0),
     )[D.length - 1];
+    // Une cible non vide dont TOUTES les dates sont illisibles (hors `m1_refuse`, qui n'a pas de date d'envoi par nature) : un message
+    // est peut-être déjà parti, date inconnue. Jamais un premier envoi (échec fermé).
+    if (D.some((x) => x.etat.etat !== "m1_refuse"))
+      return { action: "public_seul", raison: "deja_envoye" };
     const refus =
       dernier.etat.etat === "m1_refuse"
         ? dateLue(dernier.etat.refuseLe ?? dernier.etat.creeLe)

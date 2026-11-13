@@ -74,3 +74,11 @@ describe("SuiviTravail · socle des suivis", () => {
     expect(rendre("termine", { progression: 100 })).not.toContain("Votre vidéo se fabrique");
   });
 });
+
+describe("SuiviFabrication · pas de titre propre (refonte R6)", () => {
+  it("ne rend aucun titre h2 : le titre vient de EnTeteSuivi, source unique PHRASES_SUIVI", () => {
+    const source = readFileSync(join(process.cwd(), "src/components/creation/SuiviFabrication.tsx"), "utf8");
+    expect(source).not.toMatch(/<h2\b/);
+    expect(source).not.toMatch(/enteteSuivi/);
+  });
+});

@@ -8,20 +8,24 @@ import { FeuilleBas } from "@/components/ui/FeuilleBas";
 import { Icone } from "@/components/ui/Icone";
 import { Tuile } from "@/components/ui/Tuile";
 import { cn } from "@/lib/cn";
-import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile } from "./navigation";
+import { useEcranAUnBoutonPrincipal, varianteNouvelleVideo } from "@/lib/ecran-principal";
+import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile, formatsCreer, type FormatNavigation } from "./navigation";
 
 /** Onglets du bas (mobile < 1024 px) : Accueil · Vidéos · ➕ · Écrire · Plus. */
-export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = false }: { actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
+export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false, aPublier = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
+  const ecranAPrincipal = useEcranAUnBoutonPrincipal();
   const chemin = usePathname();
   const [plus, setPlus] = useState(false);
   const [creer, setCreer] = useState(false);
+  // Feuille « Créer » : les formats actifs (hors essais réservés), chacun vers son écran de création.
+  const formatsActifs = formatsCreer(formats);
   const plusActif = tuilesPlusMobile(surLeSite, aPublier).some((t) => estActif(chemin, t));
 
   return (
     <>
       <nav
         aria-label="Menu principal (mobile)"
-        className="theme-sombre fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-fond/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+        className="theme-barre fixed inset-x-0 bottom-0 z-40 border-t border-trait bg-fond/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
       >
         <ul className="mx-auto grid h-[var(--hauteur-onglets-bas)] max-w-xl grid-cols-5 items-center px-2">
           {ONGLETS_BAS.map((o) => {
@@ -36,7 +40,10 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
                     aria-label="Créer"
                     aria-haspopup="dialog"
                     aria-expanded={creer}
-                    className="-mt-6 grid size-[60px] place-items-center rounded-full bg-orange text-sur-orange shadow-orange ring-4 ring-[#16120f] transition-transform active:scale-95"
+                    className={cn(
+                      "-mt-6 grid size-[60px] place-items-center rounded-full ring-4 ring-barre-fond transition-transform active:scale-95",
+                      varianteNouvelleVideo(ecranAPrincipal) === "plein" ? "bg-orange text-sur-orange shadow-orange" : "border-2 border-orange bg-barre-bouton-fond text-orange-vif hover:border-orange-vif",
+                    )}
                   >
                     <Icone nom="plus" size={28} strokeWidth={2.4} />
                   </button>
@@ -67,9 +74,12 @@ export function OngletsBas({ actionDeconnexion, surLeSite = false, aPublier = fa
       <FeuilleBas ouverte={creer} onOuverteChange={setCreer} titre="Créer">
         <div className="grid grid-cols-2 gap-3">
           <Tuile href="/nouvelle" icone="clap" libelle="Nouvelle vidéo" onClick={() => setCreer(false)} />
+          {formatsActifs.map((f) => (
+            <Tuile key={f.id} href={f.href} icone={f.icone} libelle={f.nom} onClick={() => setCreer(false)} />
+          ))}
           <Tuile href="/ecrire/atelier" icone="ecrire" libelle="Nouveau sujet" onClick={() => setCreer(false)} />
-          <Tuile href="/ecrire/matieres?ajout=matiere" icone="micro" libelle="+ Matière" onClick={() => setCreer(false)} />
-          <Tuile href="/ecrire/matieres?ajout=preuve" icone="certifie" libelle="+ Preuve" onClick={() => setCreer(false)} />
+          <Tuile href="/ecrire?onglet=matieres&ajout=matiere" icone="micro" libelle="+ Matière" onClick={() => setCreer(false)} />
+          <Tuile href="/ecrire?onglet=matieres&ajout=preuve" icone="certifie" libelle="+ Preuve" onClick={() => setCreer(false)} />
         </div>
       </FeuilleBas>
 

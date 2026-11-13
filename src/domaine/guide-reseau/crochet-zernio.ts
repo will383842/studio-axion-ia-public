@@ -282,7 +282,7 @@ export function corpsDemandeGuide(run: RunLu, cleIdempotence: string): string {
 }
 
 /** Aligné sur le schéma strict du site (`SchemaDemandeGuideReseau`) pour refuser localement ce que le site refuserait en 422. */
-export function runValide(r: unknown, motsConnus?: readonly string[]): r is RunLu {
+export function runValide(r: unknown, motsConnus?: readonly string[], guidesConnus: readonly string[] = GUIDES_RESEAU_CONNUS): r is RunLu {
   if (!r || typeof r !== "object") return false;
   const o = r as Record<string, unknown>;
   const locale = o.locale;
@@ -290,7 +290,7 @@ export function runValide(r: unknown, motsConnus?: readonly string[]): r is RunL
     typeof o.email === "string" && o.email.length > 0 && o.email.length <= 254 &&
     typeof o.mot === "string" && RE_MOT_GUIDE.test(o.mot) && (motsConnus === undefined || motsConnus.includes(o.mot.toUpperCase())) &&
     (RESEAUX_GUIDE as readonly string[]).includes(String(o.reseau)) &&
-    typeof o.guide === "string" && RE_GUIDE.test(o.guide) && GUIDES_RESEAU_CONNUS.includes(o.guide) &&
+    typeof o.guide === "string" && RE_GUIDE.test(o.guide) && guidesConnus.includes(o.guide) &&
     typeof o.versionTexteM1 === "string" && RE_VERSION_TEXTE.test(o.versionTexteM1) &&
     (locale === undefined || locale === "fr" || locale === "en") &&
     (o.occurredAt === undefined || (typeof o.occurredAt === "string" && RE_DATE_ISO.test(o.occurredAt) && Number.isFinite(Date.parse(o.occurredAt))))
