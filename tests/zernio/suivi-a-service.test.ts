@@ -118,6 +118,17 @@ describe("service", () => {
     expect(appels).toHaveLength(2);
   });
 
+  it("une ligne au mot d'une autre forme n'empêche pas la lecture ; la copie garde le compte", async () => {
+    const corps = { ...corpsOk, lignes: [...corpsOk.lignes, { ...corpsOk.lignes[0], mot: "ÉTÉ" }] };
+    pm.injecterTransportSite(site(async () => ({ statut: 200, corps })));
+    expect((await lire(T0)).siteDisponible).toBe(true);
+    const copie = await depots().parametres.obtenir(S.PARAM_SUIVI_MIROIR);
+    expect((copie?.valeur as { lignesIgnorees: number }).lignesIgnorees).toBe(1);
+    S.viderCacheTableauSuivi();
+    expect((await lire(T0 + MIN)).siteDisponible).toBe(true);
+    expect(appels).toHaveLength(1);
+  });
+
   it("cache mémoire de 60 s", async () => {
     pm.injecterTransportSite(site(async () => ({ statut: 200, corps: corpsOk })));
     const a = await lire(T0);

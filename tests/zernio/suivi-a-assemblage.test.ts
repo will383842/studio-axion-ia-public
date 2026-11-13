@@ -31,7 +31,7 @@ const conv = (o: Partial<ConversationSuivi> & { cle: string }): ConversationSuiv
 });
 const fenSite = (j7: number, j30: number, total: number) => ({ j7, j30, total });
 const ligneSite = (o: Record<string, unknown> = {}) => ({
-  mot: "essai",
+  mot: "ESSAI",
   reseau: "instagram",
   postRef: "post-1",
   versionTexte: "mp-m1-v4-1",
@@ -210,7 +210,8 @@ describe("lecture stricte du contrat du site", () => {
     ["version fausse", (c: any) => (c.v = 2)],
     ["lignes absentes", (c: any) => delete c.lignes],
     ["nombre en texte", (c: any) => (c.lignes[0].clics.total = "6")],
-    ["mot invalide", (c: any) => (c.lignes[0].mot = "x")],
+    ["mot qui n'est pas du texte", (c: any) => (c.lignes[0].mot = 5)],
+    ["mot absent", (c: any) => delete c.lignes[0].mot],
     ["même grain deux fois", (c: any) => c.lignes.push(ligneSite())],
   ])("%s → null pour toute la réponse", (_n, abimer) => {
     const c = corpsSite();
@@ -231,6 +232,30 @@ describe("lecture stricte du contrat du site", () => {
     expect(c!.publications.get(JSON.stringify(["ESSAI", "post-1"]))!.clics).toBe(7);
     expect(c!.publications.get(JSON.stringify(["ESSAI", "sans-publication"]))!.clics).toBe(3);
     expect(c!.versions.get(cleVersionSite("ESSAI", "mp-m1-v4-1"))).toBe(7);
+  });
+  it("mot d'une autre forme : la ligne est ignorée seule et comptée, le reste est gardé", () => {
+    const c = lireCompteursSite({
+      ...corpsSite(),
+      lignes: [
+        ligneSite({ mot: "ÉTÉ" }),
+        ligneSite({ mot: "ETE" }),
+        ligneSite({ mot: "ESSAIDEPLUSDEVINGTSIGNES" }),
+        ligneSite({ mot: "12345" }),
+        ligneSite({ mot: "essai" }),
+        ligneSite({ mot: "x" }),
+        ligneSite({ mot: "STOP" }),
+        ligneSite({ mot: "ESSAI" }),
+      ],
+    });
+    expect(c).not.toBeNull();
+    // « ETE » et « ESSAI » sont déjà au format du Studio ; les six autres sont écartées une à une.
+    expect(c!.lignes.map((l) => l.mot)).toEqual(["ETE", "ESSAI"]);
+    expect(c!.lignesIgnorees).toBe(6);
+  });
+  it("ÉTÉ et ETE ensemble : ÉTÉ écartée, ETE gardée, aucun rejet", () => {
+    const c = lireCompteursSite({ ...corpsSite(), lignes: [ligneSite({ mot: "ÉTÉ" }), ligneSite({ mot: "ETE" })] });
+    expect(c?.lignes).toHaveLength(1);
+    expect(c?.lignesIgnorees).toBe(1);
   });
   it.each([null, undefined, "x", 3, [], {}])("pas un contrat : %j → null", (v) =>
     expect(lireCompteursSite(v)).toBeNull(),
