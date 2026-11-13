@@ -142,6 +142,12 @@ interface EtatTableau {
   retouchee?: boolean;
   /** Délai de garde global : empreinte de l'état de la chaîne et depuis quand (ms) elle n'a pas changé. */
   garde?: { empreinte: string; depuis: number };
+  /**
+   * Pannes passagères de suite (service de rendu ou stockage qui ne répond pas) sans que la chaîne avance : leur nombre
+   * et l'instant (ISO) de la première. HORS de `journal`, `atteinte` et `fiche` : une panne ne change donc pas
+   * l'empreinte d'avancement (la garde de 45 min continue de compter). Remis à zéro dès qu'un tour avance.
+   */
+  pannes?: { nombre: number; depuis: string };
 }
 
 interface ProjetTableau {
@@ -289,6 +295,24 @@ const ARRETS: ReadonlySet<EtapeFabrication> = new Set(["script", "voix", "calage
 /** Une fiche refusée ne change pas en réessayant : la main revient à Will. */
 const NON_REESSAYABLES: ReadonlySet<EtapeFabrication> = new Set(["fiche", "script", "calage", "mise-en-page", "fin"]);
 const MARQUE_PAUSE = "tableau:pause";
+/** Après ce temps de pannes passagères sans le moindre progrès, la panne devient un échec (réessayable). */
+export const DELAI_PANNES_MS = 15 * 60_000;
+
+const CODES_RESEAU = new Set(["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN", "ENOTFOUND", "EPIPE", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT"]);
+
+/**
+ * Vrai pour une panne passagère : le serveur de rendu ne répond pas (`ErreurRendu` réessayable de code « indisponible »)
+ * ou le stockage est injoignable (erreur réseau). L'erreur d'origine peut être enveloppée (`cause`, y compris celle de
+ * `etape()`). Reconnue par ses traits, sans importer le client de rendu. Toute autre erreur reste un échec.
+ */
+function estPannePassagere(err: unknown, profondeur = 0): boolean {
+  if (!err || typeof err !== "object" || profondeur > 3) return false;
+  const e = err as { name?: unknown; message?: unknown; code?: unknown; erreur?: { code?: unknown; reessayable?: unknown }; cause?: unknown };
+  if (e.name === "ErreurRendu") return e.erreur?.code === "indisponible" && e.erreur?.reessayable === true;
+  if (typeof e.code === "string" && CODES_RESEAU.has(e.code)) return true;
+  if (e.name === "TimeoutError" || (e.name === "TypeError" && e.message === "fetch failed")) return true;
+  return estPannePassagere(e.cause, profondeur + 1);
+}
 
 /** Phrase montrée quand le dessin d'une scène rate (après un nouvel essai sous un autre identifiant). */
 export const PHRASE_SCENE_RATEE = "Le dessin d'une scène n'a pas abouti. Relancez : la voix déjà payée est gardée.";
@@ -311,20 +335,33 @@ function empreinteAvancement(etat: EtatTableau): string {
  * demande), sinon la chaîne relirait le même échec, gardé 24 h par `studio-rendu`. Les étapes faites (la voix payée
  * comprise) restent dans le journal : rien n'est repayé.
  */
-function relancerRendus(j: JournalFabrication | null): JournalFabrication | null {
+function relancerRendus(j: JournalFabrication | null, relance: number): JournalFabrication | null {
   if (!j) return j;
   const copie = structuredClone(j);
   type Suivi = { scenes?: JournalFabrication["scenes"]; composition?: JournalFabrication["composition"] };
   const relancer = (x: Suivi) => {
-    if (x.scenes) x.scenes.etat.cartes = x.scenes.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, veille: undefined } : c));
+    if (x.scenes) x.scenes.etat.cartes = x.scenes.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, pannes: undefined, veille: undefined } : c));
     if (x.composition?.etat.phase === "soumise") delete x.composition;
   };
   relancer(copie);
+  // Traitement du son qui a raté (3 essais usés) : reprise à l'analyse, le son brut et son plan gardés ; la demande repart
+  // sous un identifiant neuf (`-r<relance>`). Jamais `a-lire` ni `a-copier` : la lecture payée n'est pas refaite.
+  let sonRelance = false;
+  if (copie.voix?.etat.phase === "recette") {
+    copie.voix.etat = { phase: "a-analyser", brut: copie.voix.etat.brut };
+    sonRelance = true;
+  }
+  for (const r of Object.values(copie.recettes ?? {})) {
+    if (r?.etat.phase !== "recette") continue;
+    r.etat = { phase: "a-soumettre" };
+    sonRelance = true;
+  }
+  if (sonRelance) copie.relanceSon = relance;
   for (const sortie of Object.values(copie.sorties ?? {})) if (sortie) relancer(sortie);
   return copie;
 }
 
-type Issue = { type: "pause" } | { type: "fini"; compteRendu: CompteRenduFabrication } | { type: "echec"; cle: string; erreur: ErreurTravail };
+type Issue = { type: "pause"; panne?: { cle: string; erreur: ErreurTravail } } | { type: "fini"; compteRendu: CompteRenduFabrication } | { type: "echec"; cle: string; erreur: ErreurTravail };
 
 const texteDitDe = (brute: unknown) => {
   const scenes = (brute as { scenes?: unknown } | null)?.scenes;
@@ -409,17 +446,25 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsTableau
     if (etape && !pauseApresEtape) atteinte = Math.max(atteinte, ETAPES_FABRICATION.indexOf(etape) - 1);
     const apres: EtatTableau = { ...etat, journal, atteinte, ...(simule ? { echecSimuleFait: true } : {}) };
     if (pause) return { etat: apres, issue: { type: "pause" } };
+    const passagere = !simule && !(err instanceof ErreurFabrication && !err.imprevue) && estPannePassagere(err instanceof ErreurFabrication ? (err.cause ?? err) : err);
     const cle = etape ? etapeDuMoteur(etape) : undefined;
     const raisons = err instanceof ErreurFabrication ? err.raisons : [raisonDe(err)];
     const nom = etapesTableau(commande).find((e) => e.cle === cle)?.nom ?? "La fabrication";
-    const reessayable = simule || !etape || !NON_REESSAYABLES.has(etape);
+    // Un contrôle d'animation qui refuse la page : le même calcul redonnera le même refus, réessayer ne sert à rien.
+    const animationRefusee = !simule && err instanceof ErreurFabrication && err.etape === "scenes" && !err.imprevue;
+    const reessayable = !animationRefusee && (simule || !etape || !NON_REESSAYABLES.has(etape));
     const sceneRatee = !simule && etape === "scenes" && raisons.some((r) => r.startsWith("Rendu de la scène"));
     const erreur: ErreurTravail = {
-      code: simule ? "TABLEAU_ECHEC_SIMULE" : etape === "fiche" ? "TABLEAU_FICHE_REFUSEE" : sceneRatee ? "TABLEAU_SCENE_RATEE" : "TABLEAU_ECHEC",
+      code: simule ? "TABLEAU_ECHEC_SIMULE" : etape === "fiche" ? "TABLEAU_FICHE_REFUSEE" : animationRefusee ? "TABLEAU_ANIMATION_REFUSEE" : sceneRatee ? "TABLEAU_SCENE_RATEE" : "TABLEAU_ECHEC",
       reessayable,
-      messagePourWill: sceneRatee ? PHRASE_SCENE_RATEE : `${nom} n'a pas abouti. ${raisons.join(" ")}${reessayable ? " Vous pouvez réessayer cette étape seule." : " Modifiez la fiche de scènes, puis relancez."}`,
+      messagePourWill: animationRefusee
+        ? `L'animation d'une page ne tient pas sur la voix (${(raisons[0] ?? "").replace(/\.$/, "")}). Modifiez cette scène ; la voix déjà payée est gardée si le texte dit ne change pas.`
+        : sceneRatee
+          ? PHRASE_SCENE_RATEE
+          : `${nom} n'a pas abouti. ${raisons.join(" ")}${reessayable ? " Vous pouvez réessayer cette étape seule." : " Modifiez la fiche de scènes, puis relancez."}`,
       detailTechnique: raisonDe(err),
     };
+    if (passagere) return { etat: apres, issue: { type: "pause", panne: { cle: cle ?? "fiche", erreur } } };
     return { etat: apres, issue: { type: "echec", cle: cle ?? "fiche", erreur } };
   }
 }
@@ -687,7 +732,17 @@ export function creerMoteurMontageTableau(dependances: DependancesMoteurTableau 
 
       // 2. La chaîne, jusqu'à la prochaine étape faite ou la prochaine attente.
       const tour = await tourDeChaine(commande, outils, etat, travail.versionId);
+      const avantTour = empreinteAvancement(etat);
       etat = tour.etat;
+      // Pannes passagères : remises à zéro dès que le tour avance ; sinon comptées, et l'échec d'aujourd'hui après 15 min.
+      const avance = empreinteAvancement(etat) !== avantTour;
+      const { pannes: _pannes, ...sansPannes } = etat;
+      void _pannes;
+      if (tour.issue.type === "pause" && tour.issue.panne) {
+        const encore = !avance && etat.pannes ? etat.pannes : { nombre: 0, depuis: new Date(maintenant).toISOString() };
+        etat = { ...sansPannes, pannes: { nombre: encore.nombre + 1, depuis: encore.depuis } };
+        if (maintenant - Date.parse(encore.depuis) >= DELAI_PANNES_MS) return { travail: enEchec(travail, etat, tour.issue.panne.cle, tour.issue.panne.erreur, maintenant) };
+      } else if (avance) etat = sansPannes;
       if (tour.issue.type === "pause") {
         // Délai de garde global : l'état de la chaîne n'a pas changé depuis M minutes → échec lisible, reprise sans repayer.
         const empreinte = empreinteAvancement({ ...etat, garde: undefined });
@@ -713,10 +768,11 @@ export function creerMoteurMontageTableau(dependances: DependancesMoteurTableau 
       // L'étape en échec repart ; tout ce qui est fait reste fait (le journal garde chaque étape réussie). Les rendus
       // suivis repartent (pas l'échec gardé par le serveur) et le délai de garde global recommence.
       const etat = lireEtat(travail);
-      const { garde: _garde, ...sansGarde } = etat;
+      const { garde: _garde, pannes: _pannes, ...sansGarde } = etat;
       void _garde;
+      void _pannes;
       return {
-        ...avecEtat(travail, { ...sansGarde, journal: relancerRendus(etat.journal) }),
+        ...avecEtat(travail, { ...sansGarde, journal: relancerRendus(etat.journal, travail.tentatives) }),
         etapes: travail.etapes.map((e) => (e.statut === "echec" ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)),
         statut: "en_cours",
         erreur: undefined,

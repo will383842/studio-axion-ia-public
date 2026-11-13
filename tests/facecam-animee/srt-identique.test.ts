@@ -33,7 +33,7 @@ const remotionDisponible = (() => {
     return false;
   }
 })();
-const propre = (t: string) => t.replace(/[.,;:!?…«»"“”()]/g, "").trim().toUpperCase();
+const propre = (t: string) => t.replace(/^[.,;:!?…«»"“”()\s]+|[.,;:!?…«»"“”()\s]+$/g, "").toUpperCase();
 
 describe("srt-identique · segmentsSrtV4 = groupes dessinés par la v4", () => {
   for (const [nom, g, d] of [["plan d'essai", ESSAI, DUREE], ["plan de référence", planValide().groupes, planValide().duree]] as const) {
@@ -65,6 +65,21 @@ describe("srt-identique · segmentsSrtV4 = groupes dessinés par la v4", () => {
     expect(segmentsSrtV4(ESSAI, DUREE).some((s) => s.mots.some((m) => m.enValeur))).toBe(true);
   });
 
+  it("la copie `propre` : « 2,5 » reste « 2,5 », « fuite. » devient « FUITE » (le .srt garde le texte d'origine)", () => {
+    expect(propre("2,5")).toBe("2,5");
+    expect(propre("12:30")).toBe("12:30");
+    expect(propre("fuite.")).toBe("FUITE");
+    expect(propre("«oui»")).toBe("OUI");
+  });
+
+  it.skipIf(!remotionDisponible)("à l'image comme dans le .srt : « 2,5 » et « fuite. »", async () => {
+    const { groupesDuPlan } = await import("../../studio-rendu/compositions/interface-claire/VideoAnimeeV4");
+    const g = [{ mots: [{ w: "2,5", a: 0 }, { w: "fuite.", a: 0.5 }], fin: 1 }] as unknown as PlanFacecamAnimee["groupes"];
+    const image = groupesDuPlan(g, 2).flatMap((x) => x.mots.map((m) => m.mot));
+    expect(image).toContain("2,5");
+    expect(image).toContain("FUITE");
+  });
+
   it("la liste de mots de liaison est identique à la composition", async () => {
     const src = (await import("node:fs")).readFileSync("studio-rendu/compositions/interface-claire/motion-v4/communs/briques-v4.tsx", "utf8");
     const copie = (await import("node:fs")).readFileSync("src/moteurs/montage-facecam-animee/sous-titres-srt.ts", "utf8");
@@ -90,5 +105,31 @@ describe("srt-identique · resultatV4", () => {
   it("sans plan, ou plan sans groupe : sousTitres absent", () => {
     expect("sousTitres" in resultatV4(etat())).toBe(false);
     expect("sousTitres" in resultatV4(etat({ ...planValide(), groupes: [] }))).toBe(false);
+  });
+});
+
+describe("srt-identique · images au sous-titre masqué du plan validé (GV2-15, option a)", () => {
+  /**
+   * Choix du pilotage du 13/11, pris sous l'autorisation générale du fondateur de corriger les mots manquants des sous-titres ; il peut revenir dessus (option b de la relecture : règle d'avant pour `groupeDoubleV4`) : depuis GV2-15, un groupe n'est masqué que si la plaquette affiche déjà TOUS
+   * ses mots porteurs. Sur le plan validé de la répétition générale, 1287 images sont masquées (184 de moins qu'avec l'ancienne
+   * règle). Ce test fige ce nombre : tout changement de la règle de masquage doit être décidé, pas subi.
+   */
+  it.skipIf(!remotionDisponible)("plan validé de la répétition générale : 1287 images au sous-titre masqué (sur 2481)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const plan = JSON.parse(readFileSync("docs/facecam-animee-v4/repetition-generale/plan-realisateur.json", "utf8")) as PlanFacecamAnimee;
+    const { groupesDuPlan } = await import("../../studio-rendu/compositions/interface-claire/VideoAnimeeV4");
+    const { groupeDoubleV4 } = await import("../../studio-rendu/compositions/interface-claire/motion-v4/registre-v4");
+    const elements = [...(plan.elementsV4 ?? [])].sort((a, b) => a.debut - b.debut);
+    const groupes = groupesDuPlan(plan.groupes, plan.duree);
+    const FPS = 30;
+    const images = Math.ceil(plan.duree * FPS);
+    let masquees = 0;
+    for (let f = 0; f < images; f++) {
+      const t = f / FPS;
+      const g = groupes.find((x) => t >= x.debut - 1e-6 && t < x.fin - 1e-6);
+      if (g && groupeDoubleV4(elements, f, g.mots.map((m) => m.mot))) masquees++;
+    }
+    expect(images).toBe(2481);
+    expect(masquees).toBe(1287);
   });
 });

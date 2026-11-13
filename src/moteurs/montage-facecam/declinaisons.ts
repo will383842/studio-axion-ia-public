@@ -147,7 +147,7 @@ export function declinaisonsFinies(etat: Pick<EtatChaine, "declinaisons">): bool
 /* Pistes pré-cadrées par format                                       */
 /* ------------------------------------------------------------------ */
 
-const identifiant = (base: string, nom: string, essai: number) => `${base}-${nom}${essai ? `-e${essai}` : ""}`.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 200);
+const identifiant = (base: string, nom: string, essai: number, tour = 0) => `${base}-${nom}${tour > 0 ? `-t${tour}` : ""}${essai ? `-e${essai}` : ""}`.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 200);
 
 /**
  * Un tour des déclinaisons (appelé par la chaîne après la piste 9:16) : suit les travaux soumis, soumet la piste
@@ -225,7 +225,7 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
     const lut = c.styles.lut && c.styles.lut.id !== "aucune" ? c.medias?.[c.styles.lut.id] : undefined;
     const look = (c.entrees as { facecamLookWill?: { peauLab?: number[]; murLab?: number[] } } | undefined)?.facecamLookWill;
     // Mêmes réglages que la passe du 9:16 (chaîne, étape 5), seule la bande change.
-    d.passeLarge = await soumettre(d.passeLarge, (e) => identifiant(ctx.versionId, "passe-formats", e), {
+    d.passeLarge = await soumettre(d.passeLarge, (e) => identifiant(ctx.versionId, "passe-formats", e, etat.tour ?? 0), {
       source: await lire(prise.cle),
       depots: { image: await deposer(cle("image-10bits-formats.mp4"), "video/mp4") },
       parametres: {
@@ -255,7 +255,7 @@ export async function avancerDeclinaisons(etat: EtatChaine, c: CommandeFabricati
     // Passe élargie ratée : la prise est recadrée telle quelle (préparée), comme la piste 9:16 quand la passe rate.
     const imageSource = depuisLarge ? large!.fichierCle! : avecImage && !aElargir ? passe!.fichierCle! : null;
     const { largeur, hauteur } = DIMENSIONS_FACECAM[r];
-    d.cadrages[r] = await soumettre(d.cadrages[r], (e) => identifiant(ctx.travailId, `cadrage-${nom}`, e), {
+    d.cadrages[r] = await soumettre(d.cadrages[r], (e) => identifiant(ctx.travailId, `cadrage-${nom}`, e, etat.tour ?? 0), {
       source: imageSource ? await lire(imageSource) : await lire(prise.cle),
       depots: { montage: await deposer(cle(`montage-${nom}.mov`), "video/quicktime"), vignette: await deposer(cle(`vignette-${nom}.jpg`), "image/jpeg") },
       parametres: {
@@ -507,31 +507,26 @@ export async function avancerReexportFacecam(travail: Travail, commande: Command
     if (piste) for (const r of d.ratios) d.plans[r] = plansDuFormat(r, etat.plans!, d.source, piste);
     d.pisteLue = true;
   }
-  try {
-    await avancerDeclinaisons(etat, commande, ctx, deps);
-    // Puis l'habillage du format (mêmes sous-titres, mêmes cartes, composition finale), comme à la fabrication.
-    if (declinaisonsFinies(etat) && deps.habillage && d.repriseHabillage) {
-      if (!d.habillages) {
-        const h = d.repriseHabillage;
-        const simule = deps.facecam.mode === "simulation";
-        const cartes: CartePosee[] = [];
-        for (const m of h.cartesMonteur ?? []) {
-          const code = m.codeCle && deps.lireJsonGz && !simule ? ((await deps.lireJsonGz(m.codeCle).catch(() => null)) as CodeCarte | null) : null;
-          const posee = cartePosee(m, code, commande.intensite?.niveau);
-          if (posee) cartes.push(posee);
-        }
-        const lut = commande.styles.lut && commande.styles.lut.id !== "aucune" ? commande.medias?.[commande.styles.lut.id] : undefined;
-        await preparerHabillagesFormats(
-          etat,
-          { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(commande.styles.lut) / 100 } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
-          deps.habillage,
-        );
+  await avancerDeclinaisons(etat, commande, ctx, deps);
+  // Puis l'habillage du format (mêmes sous-titres, mêmes cartes, composition finale), comme à la fabrication.
+  if (declinaisonsFinies(etat) && deps.habillage && d.repriseHabillage) {
+    if (!d.habillages) {
+      const h = d.repriseHabillage;
+      const simule = deps.facecam.mode === "simulation";
+      const cartes: CartePosee[] = [];
+      for (const m of h.cartesMonteur ?? []) {
+        const code = m.codeCle && deps.lireJsonGz && !simule ? ((await deps.lireJsonGz(m.codeCle).catch(() => null)) as CodeCarte | null) : null;
+        const posee = cartePosee(m, code, commande.intensite?.niveau);
+        if (posee) cartes.push(posee);
       }
-      await avancerHabillagesFormats(etat, commande, ctx, deps.habillage);
+      const lut = commande.styles.lut && commande.styles.lut.id !== "aucune" ? commande.medias?.[commande.styles.lut.id] : undefined;
+      await preparerHabillagesFormats(
+        etat,
+        { dureeSec: h.dureeSec, mots: h.mots, coupesSec: h.coupesSec, ...(h.cartesMonteur?.length ? { cartes } : {}), ...(h.cartesAuto?.length ? { cartesAuto: h.cartesAuto } : {}), ...(h.cartesAutoRetirees?.length ? { cartesAutoRetirees: h.cartesAutoRetirees } : {}), ...(h.memoireCartes ? { memoireCartes: h.memoireCartes } : {}), ...(h.emphase?.length ? { emphase: h.emphase } : {}), versionSimple: !!commande.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(commande.styles.lut) / 100 } : {}), prefixeCartes: cleResultat(commande, ctx.versionId, "cartes") },
+        deps.habillage,
+      );
     }
-  } catch (e) {
-    // Panne imprévue (stockage, réseau) : on retentera au tour suivant, sans rien perdre.
-    void e;
+    await avancerHabillagesFormats(etat, commande, ctx, deps.habillage);
   }
   const fini = declinaisonsFinies(etat) && (!deps.habillage || !d.repriseHabillage || habillagesFormatsRegles(etat));
   const faits = d.ratios.filter((r) => d.cadrages[r]?.statut === "termine");

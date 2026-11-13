@@ -8,6 +8,11 @@
  */
 import type { MotHorodate } from "@/domaine/types";
 
+/** Durée au plus (s) d'un mot de tête ou de fin sans équivalent entendu. */
+const DUREE_MOT_SANS_EQUIVALENT_SEC = 0.3;
+/** Durée minimale (s) voulue par mot de tête quand la place manque. */
+const DUREE_MIN_MOT_SEC = 0.08;
+
 function forme(mot: string): string {
   return mot
     .toLowerCase()
@@ -45,6 +50,19 @@ function aligner(valides: string[], entendus: string[]): number[] {
   return lien;
 }
 
+/** Les mots [de, a) se partagent [debut, fin] au prorata de leurs lettres. */
+function partager(sortie: (MotHorodate | null)[], mots: string[], de: number, a: number, debut: number, fin: number): void {
+  const poids = (k: number) => Math.max(1, forme(mots[k]).length);
+  let total = 0;
+  for (let k = de; k < a; k++) total += poids(k);
+  let t = debut;
+  for (let k = de; k < a; k++) {
+    const part = ((fin - debut) * poids(k)) / total;
+    sortie[k] = { mot: mots[k], debutSec: +t.toFixed(3), finSec: +(t + part).toFixed(3) };
+    t += part;
+  }
+}
+
 /**
  * Horodatage des mots VALIDÉS (`motsValides`, dans l'ordre) depuis les mots ENTENDUS horodatés.
  * `enValeur` est recalculé par l'appelant ; le texte rendu est exactement `motsValides`.
@@ -54,7 +72,8 @@ export function reporterSurTexteValide(motsValides: string[], entendus: MotHorod
   if (entendus.length === motsValides.length) {
     return motsValides.map((mot, i) => ({ mot, debutSec: entendus[i].debutSec, finSec: entendus[i].finSec }));
   }
-  if (!entendus.length) return motsValides.map((mot) => ({ mot, debutSec: 0, finSec: 0 }));
+  // Aucun mot entendu : chaque mot reçoit une durée (jamais 0-0, la ligne ne serait jamais dessinée).
+  if (!entendus.length) return motsValides.map((mot, i) => ({ mot, debutSec: +(i * DUREE_MOT_SANS_EQUIVALENT_SEC).toFixed(3), finSec: +((i + 1) * DUREE_MOT_SANS_EQUIVALENT_SEC).toFixed(3) }));
   const lien = aligner(motsValides, entendus.map((e) => e.mot));
   const sortie: (MotHorodate | null)[] = motsValides.map((mot, i) => (lien[i] >= 0 ? { mot, debutSec: entendus[lien[i]].debutSec, finSec: entendus[lien[i]].finSec } : null));
   // Mots entendus sans équivalent, entre deux mots validés voisins : le premier s'allonge jusqu'à eux.
@@ -74,6 +93,27 @@ export function reporterSurTexteValide(motsValides: string[], entendus: MotHorod
     }
     let j = i;
     while (j < sortie.length && !sortie[j]) j++;
+    if (i === 0 && j < sortie.length) {
+      // Mots de tête sans équivalent : étalés AVANT le premier mot entendu (0,3 s au plus chacun, sans descendre sous 0) ;
+      // faute de place, ils partagent la durée du premier mot.
+      const premierMot = sortie[j]!;
+      if (premierMot.debutSec >= DUREE_MIN_MOT_SEC * j) {
+        const part = Math.min(DUREE_MOT_SANS_EQUIVALENT_SEC, premierMot.debutSec / j);
+        for (let k = 0; k < j; k++) sortie[k] = { mot: motsValides[k], debutSec: +(premierMot.debutSec - (j - k) * part).toFixed(3), finSec: +(premierMot.debutSec - (j - k - 1) * part).toFixed(3) };
+      } else {
+        const fin = premierMot.finSec > premierMot.debutSec ? premierMot.finSec : premierMot.debutSec + DUREE_MIN_MOT_SEC * (j + 1);
+        partager(sortie, motsValides, 0, j + 1, premierMot.debutSec, fin);
+      }
+      i = j;
+      continue;
+    }
+    if (j === sortie.length && i > 0) {
+      // Mots de fin sans équivalent : étalés après le dernier mot entendu (0,3 s au plus chacun).
+      const debut = sortie[i - 1]!.finSec;
+      for (let k = i; k < j; k++) sortie[k] = { mot: motsValides[k], debutSec: +(debut + (k - i) * DUREE_MOT_SANS_EQUIVALENT_SEC).toFixed(3), finSec: +(debut + (k - i + 1) * DUREE_MOT_SANS_EQUIVALENT_SEC).toFixed(3) };
+      i = j;
+      continue;
+    }
     let debut = i > 0 ? sortie[i - 1]!.finSec : entendus[0].debutSec;
     const fin = j < sortie.length ? sortie[j]!.debutSec : Math.max(entendus.at(-1)!.finSec, debut);
     let premier = i;

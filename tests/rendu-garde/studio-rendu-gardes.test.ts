@@ -121,3 +121,34 @@ describe("après un redémarrage", () => {
     expect(sortie).not.toContain("https://r2/depot");
   });
 });
+
+describe("erreurs sûres classées définitives (GV2-10)", () => {
+  it("disque plein (ENOSPC, par le code ou par le message) : non réessayable ; une erreur inconnue reste réessayable", () => {
+    const parCode = Object.assign(new Error("write failed"), { code: "ENOSPC" });
+    expect(motifEchec(parCode)).toEqual({ code: "inconnu", reessayable: false, message: "Le disque du serveur de rendu est plein." });
+    expect(motifEchec(new Error("ffmpeg: No space left on device"))).toMatchObject({ reessayable: false, message: "Le disque du serveur de rendu est plein." });
+    expect(motifEchec(new Error("quelque chose d'inattendu"))).toMatchObject({ code: "inconnu", reessayable: true });
+  });
+
+  it("deux dépassements du même identifiant de base : le premier est réessayable, le second non (même avec un suffixe de reprise)", async () => {
+    vi.useFakeTimers();
+    const op: Operation = () => new Promise(() => undefined);
+    const files = new FilesRendu({ operations: { composition: op }, creerDossier: dossierFactice });
+    files.soumettre(scene("vid1-e1", 0, 5_000));
+    await vi.advanceTimersByTimeAsync(12 * MIN);
+    await files.inactif();
+    expect(files.etat("vid1-e1")).toMatchObject({ statut: "echec", erreur: { reessayable: true } });
+    files.soumettre(scene("vid1-e1", 0, 5_000));
+    await vi.advanceTimersByTimeAsync(12 * MIN);
+    await files.inactif();
+    expect(files.etat("vid1-e1")).toEqual({ statut: "echec", erreur: { code: "indisponible", reessayable: false, message: "Le montage dépasse la durée maximale du serveur de rendu." } });
+    files.soumettre(scene("vid2", 0, 5_000));
+    await vi.advanceTimersByTimeAsync(12 * MIN);
+    await files.inactif();
+    expect(files.etat("vid2")).toMatchObject({ erreur: { reessayable: true } });
+    files.soumettre(scene("vid2-r3", 0, 5_000));
+    await vi.advanceTimersByTimeAsync(12 * MIN);
+    await files.inactif();
+    expect(files.etat("vid2-r3")).toMatchObject({ erreur: { reessayable: false } });
+  });
+});

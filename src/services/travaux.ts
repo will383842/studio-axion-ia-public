@@ -11,7 +11,7 @@ import "server-only";
 import type { CommandeFabrication, LigneCout, Montant, Notification, Plan, Ratio, Sortie, SuiteFabrication, Travail, VersionVideo, Video } from "@/domaine/types";
 import { TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
 import { familleDe } from "@/domaine/journal-echecs";
-import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, depenseDesEtapes, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
+import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, delaiSansAvancementMs, depenseDesEtapes, empreinteAvancement, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
 import { phraseLisible } from "@/lib/erreur-lisible";
@@ -531,13 +531,14 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
   // Mise en ligne (Will, 18/10) : un travail sorti de la file ne redevient jamais `en_file` (certains moteurs le
   // renvoient tant qu'aucune étape n'a commencé, alors que l'appel payant est déjà parti).
   const statut = sortie.travail.statut === "en_file" && actuel.statut === "en_cours" ? "en_cours" : sortie.travail.statut;
-  const travail: Travail = { ...sortie.travail, statut, reprise: undefined, estDemo: t.estDemo, urgent: actuel.urgent };
+  let travail: Travail = { ...sortie.travail, statut, reprise: undefined, estDemo: t.estDemo, urgent: actuel.urgent };
   // Relecture finale : les suites d'une fabrication terminée sont notées DANS cette écriture (jamais perdues par un arrêt).
   if (sortie.resultat && travail.statut === "termine" && travail.versionId) {
     const video = await d.videos.obtenir(travail.cibleId);
     const suites = video ? suitesDeFinition(travail, video) : [];
     if (suites.length) travail.finitionAFaire = suites;
   }
+  travail = gardeSansAvancement(travail, actuel, lu.moteur.id);
   await d.travaux.enregistrer(travail);
   // Un format ajouté ne touche ni le statut de la vidéo ni sa version : elle reste prête (et publiée).
   const reexport = t.type === "reexport";
@@ -585,14 +586,27 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
  * travail n'a pas été relancé entre-temps (la boucle l'attendait) : son résultat est écrit, la voix payée est gardée.
  * Arrêté ou relancé pendant ce temps : rien n'est réécrit, mais ce qui a été payé est enregistré en dépense.
  */
-export async function ecrireAvancementTardif(lu: InstantaneTravail, sortie: { travail: Travail; resultat?: ResultatFabrication }): Promise<{ ecrit: boolean; suites: SuiteFabrication[] }> {
+export async function ecrireAvancementTardif(lu: InstantaneTravail, sortie: { travail: Travail; resultat?: ResultatFabrication }, options?: { abandonne?: boolean }): Promise<{ ecrit: boolean; suites: SuiteFabrication[] }> {
   const actuel = await depots().travaux.obtenir(lu.travail.id);
   if (!actuel) return { ecrit: false, suites: [] };
-  if (actuel.tentatives !== lu.travail.tentatives || (actuel.statut !== "en_cours" && actuel.statut !== "en_file")) {
+  if (options?.abandonne || actuel.tentatives !== lu.travail.tentatives || (actuel.statut !== "en_cours" && actuel.statut !== "en_file")) {
     await enregistrerDepensePayee(actuel, await lignesPayeesDuTravail(lu.moteur, sortie.travail, lu.commande), { versionAussi: actuel.type !== "reexport" });
     return { ecrit: false, suites: [] };
   }
   return ecrireAvancement({ ...lu, travail: actuel }, sortie);
+}
+
+/**
+ * GV2-01 : refus revenu APRÈS le délai. L'erreur passagère a déjà été comptée au dépassement : rien à faire. Un refus
+ * définitif échoue le travail tout de suite, avec la phrase du refus (au lieu de tourner 24 h puis « Délai dépassé »).
+ * Rien non plus si le travail a changé entre-temps (arrêté, relancé) ou si l'appel a été abandonné (`abandonne`).
+ */
+export async function ecrirePanneTardive(lu: InstantaneTravail, erreur: unknown, options?: { abandonne?: boolean }): Promise<{ ecrit: boolean }> {
+  if (options?.abandonne) return { ecrit: false };
+  const actuel = await depots().travaux.obtenir(lu.travail.id);
+  if (!actuel || actuel.tentatives !== lu.travail.tentatives || actuel.statut !== lu.travail.statut) return { ecrit: false };
+  if (!lirePanne(erreur).definitive) return { ecrit: false };
+  return ecrirePanne({ ...lu, travail: actuel }, erreur);
 }
 
 /** Erreur jetée par un moteur ou un fournisseur : `reessayable: false` = refus définitif (pas de reprise). */
@@ -1031,4 +1045,127 @@ export function travailAfficheALAccueil(t: Pick<Travail, "statut" | "type">, vid
   // Vidéo prête : seul un échec de FABRICATION est périmé (la vidéo existe). Une retouche ou un recalque en échec reste visible.
   if (video.statut === "prete" && t.type === "fabrication") return false;
   return !plusRecent;
+}
+
+/* ------------------------------------------------------------------ */
+/* GV2-01 : chien de garde commun (appel qui ne revient jamais, plus d'avancement)  */
+/* ------------------------------------------------------------------ */
+
+/** Écart maximal entre deux observations de l'état d'un travail pour que « sans nouvelle » continue de compter. */
+const ECART_MAX_ENTRE_VUES_MS = 15 * 60_000;
+
+/** Âge maximal d'un appel resté « en vol » après son délai. Au-dessus des plus longues étapes légitimes (10 min). */
+export const AGE_MAX_EN_VOL_MS = 30 * 60_000;
+
+const cleEnVolDepuis = Symbol.for("studio-axion-ia.avancements-en-vol-depuis");
+const cleAbandonnes = Symbol.for("studio-axion-ia.avancements-abandonnes");
+const cleVoixSignalees = Symbol.for("studio-axion-ia.avancements-voix-signalees");
+type GlobalGarde = typeof globalThis & { [cleEnVolDepuis]?: Map<string, { depuis: number; lu: InstantaneTravail }>; [cleAbandonnes]?: Set<InstantaneTravail>; [cleVoixSignalees]?: Set<string> };
+
+/** Heure d'entrée des appels en vol après un délai dépassé (en mémoire, à côté de `avancementsEnVol()`). */
+export function avancementsEnVolDepuis(): Map<string, { depuis: number; lu: InstantaneTravail }> {
+  const g = globalThis as GlobalGarde;
+  g[cleEnVolDepuis] ??= new Map();
+  return g[cleEnVolDepuis];
+}
+/** Appels abandonnés (identifiés par leur lecture, pas par le seul travail : une nouvelle tentative ne les confond pas). */
+function appelsAbandonnes(): Set<InstantaneTravail> {
+  const g = globalThis as GlobalGarde;
+  g[cleAbandonnes] ??= new Set();
+  return g[cleAbandonnes];
+}
+function voixSignalees(): Set<string> {
+  const g = globalThis as GlobalGarde;
+  g[cleVoixSignalees] ??= new Set();
+  return g[cleVoixSignalees];
+}
+
+/**
+ * Après un délai dépassé : l'appel continue seul. Suit son retour (résultat écrit, refus définitif écrit, erreur
+ * journalisée jamais avalée) et tient à jour la marque « en vol » et son heure d'entrée.
+ */
+export function suivreRetourTardif(lu: InstantaneTravail, appel: Promise<{ travail: Travail; resultat?: ResultatFabrication }>, enVol: Map<string, Promise<void>>, retirerMarque: () => Promise<void>): void {
+  const id = lu.travail.id;
+  const retour: Promise<void> = appel
+    .then(
+      async (tardive) => {
+        const r = await sousVerrou(() => ecrireAvancementTardif(lu, tardive, { abandonne: appelsAbandonnes().has(lu) }));
+        await retirerMarque();
+        if (r.suites.length) await executerSuites(r.suites);
+      },
+      async (refus: unknown) => {
+        await sousVerrou(() => ecrirePanneTardive(lu, refus, { abandonne: appelsAbandonnes().has(lu) }));
+        await retirerMarque();
+      },
+    )
+    .catch((e: unknown) => journaliser("echec", `Retour tardif d'une étape non écrit : ${e instanceof Error ? e.name : "erreur"}`, { type: "video", id: lu.travail.cibleId }).catch(() => undefined))
+    .finally(() => {
+      appelsAbandonnes().delete(lu);
+      if (avancementsEnVolDepuis().get(id)?.lu === lu) {
+        avancementsEnVolDepuis().delete(id);
+        voixSignalees().delete(id);
+      }
+      if (enVol.get(id) === retour) enVol.delete(id);
+    });
+  enVol.set(id, retour);
+  avancementsEnVolDepuis().set(id, { depuis: Date.now(), lu });
+}
+
+/**
+ * En tête d'un tour : un appel en vol depuis plus de `AGE_MAX_EN_VOL_MS` est abandonné (panne réessayable comptée, le
+ * travail repart), SAUF si une lecture de voix (payée) est en vol pour lui : alors rien n'est relancé (jamais de voix
+ * payée deux fois), une seule ligne au journal. `voixEnVol` : décidé par la boucle (qui connaît la marque de voix).
+ */
+export async function abandonnerAppelsFiges(enVol: Map<string, Promise<void>>, voixEnVol: (lu: InstantaneTravail) => Promise<boolean>, instant: number = Date.now()): Promise<void> {
+  for (const [id, entree] of [...avancementsEnVolDepuis()]) {
+    if (instant - entree.depuis < AGE_MAX_EN_VOL_MS) continue;
+    if (await voixEnVol(entree.lu)) {
+      if (!voixSignalees().has(id)) {
+        voixSignalees().add(id);
+        await journaliser("fabrication", "Une lecture de voix ne répond plus depuis 30 min : elle n'est pas relancée (voix déjà payée)", { type: "video", id: entree.lu.travail.cibleId });
+      }
+      continue;
+    }
+    try {
+      await sousVerrou(async () => {
+        const actuel = await depots().travaux.obtenir(id);
+        if (actuel) await ecrirePanne({ ...entree.lu, travail: actuel }, { message: "L'étape ne répond plus depuis 30 min.", reessayable: true }, instant);
+      });
+    } catch (e) {
+      console.error("[studio] abandon d'un appel figé en échec", e instanceof Error ? e.name : "");
+      continue;
+    }
+    appelsAbandonnes().add(entree.lu);
+    enVol.delete(id);
+    avancementsEnVolDepuis().delete(id);
+    voixSignalees().delete(id);
+  }
+}
+
+/** Un travail du tour a levé une erreur : elle est journalisée, les autres travaux du tour continuent. */
+export async function signalerTravailEnErreur(lu: InstantaneTravail, e: unknown): Promise<void> {
+  console.error("[studio] travail en erreur dans le tour", lu.travail.id, e instanceof Error ? e.name : "");
+  await journaliser("echec", `Un travail a levé une erreur pendant le tour (il sera relu au tour suivant) : ${e instanceof Error ? e.name : "erreur"}`, { type: "video", id: lu.travail.cibleId }).catch(() => undefined);
+}
+
+/**
+ * Garde « plus d'avancement » : un travail `en_cours` dont l'empreinte d'état n'a pas changé depuis plus que le délai de
+ * son moteur échoue (`PANNE_SANS_NOUVELLE`, réessayable) ; la branche d'échec existante de `ecrireAvancement` fait le
+ * reste. Sinon, pose ou garde l'empreinte. Un travail en attente de crédit, ou sans délai (tableau), n'est pas gardé.
+ */
+function gardeSansAvancement(travail: Travail, actuel: Travail, moteurId: string, instant: number = Date.now()): Travail {
+  const delai = delaiSansAvancementMs(moteurId);
+  if (travail.statut !== "en_cours" || delai === null || actuel.reprise?.motif === "credit" || travail.reprise?.motif === "credit") return travail.garde ? { ...travail, garde: undefined } : travail;
+  const empreinte = empreinteAvancement(travail);
+  const iso = new Date(instant).toISOString();
+  // Un long trou entre deux observations (arrêt, mise en ligne, pause) ne compte pas comme « plus d'avancement ».
+  const vuMs = actuel.garde?.vu ? new Date(actuel.garde.vu).getTime() : instant;
+  const depuisMs = actuel.garde && actuel.garde.empreinte === empreinte && instant - vuMs <= ECART_MAX_ENTRE_VUES_MS ? new Date(actuel.garde.depuis).getTime() : NaN;
+  if (!Number.isFinite(depuisMs)) return { ...travail, garde: { empreinte, depuis: iso, vu: iso } };
+  if (instant - depuisMs <= delai) return { ...travail, garde: { empreinte, depuis: actuel.garde!.depuis, vu: iso } };
+  const minutes = Math.round((instant - depuisMs) / 60_000);
+  const enCours = travail.etapes.find((e) => e.statut === "en_cours") ?? travail.etapes.find((e) => e.statut === "en_attente");
+  const messagePourWill = `La fabrication n'a plus avancé depuis ${minutes} min. Vous pouvez réessayer.`;
+  const erreur = { code: "PANNE_SANS_NOUVELLE", message: messagePourWill, messagePourWill, reessayable: true };
+  return { ...travail, statut: "echec", erreur, garde: undefined, etapes: travail.etapes.map((e) => (e.cle === enCours?.cle ? { ...e, statut: "echec" as const, erreur } : e)) };
 }

@@ -49,7 +49,7 @@ import "./cas-concret-branchements";
 import "./tutoriel-branchements";
 import "./image-video";
 import "./facecam-animee";
-import { avecDelai, ecrireAvancement, ecrireAvancementTardif, ecrirePanne, executerSuites, lireTravauxAAvancer, rattraperFinitions, type ChoixMoteur, type SuiteFabrication } from "./travaux";
+import { abandonnerAppelsFiges, avecDelai, ecrireAvancement, ecrirePanne, executerSuites, lireTravauxAAvancer, rattraperFinitions, signalerTravailEnErreur, suivreRetourTardif, type ChoixMoteur, type SuiteFabrication } from "./travaux";
 
 export { boucleActive, etatBoucle } from "./_boucle-etat";
 
@@ -238,6 +238,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   if (finitions) await avecDelai(finitions, DELAI_SUITES_MS).catch(() => undefined);
   // 1. Lecture sous le verrou (aucun réseau). Un travail dont l'appel précédent est encore en vol attend son retour.
   const enVol = avancementsEnVol();
+  await abandonnerAppelsFiges(enVol, async (lu) => lectureDeVoixAuProgramme(lu.travail, lu.moteur) || !!(await lireParametre(cleLectureEnVol(lu.travail.id), null)));
   const lus = (await sousVerrou(() => lireTravauxAAvancer(Date.now(), options.choisirMoteur))).filter((lu) => !enVol.has(lu.travail.id));
   const suites: SuiteFabrication[] = [];
   // Audit D, B9 : chaque travail est « en vol » pendant TOUT son traitement (pas seulement après un délai dépassé) : si
@@ -259,18 +260,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
       await sousVerrou(() => ecrirePanne(lu, panne, Date.now()));
       // Délai dépassé : l'appel continue. Son résultat (la voix payée) sera écrit à son retour, jamais relancé avant.
       if ((panne as { delaiDepasse?: boolean } | null)?.delaiDepasse) {
-        const retour = appel
-          .then(
-            async (tardive) => {
-              const r = await sousVerrou(() => ecrireAvancementTardif(lu, tardive));
-              await retirerMarque();
-              if (r.suites.length) await executerSuites(r.suites);
-            },
-            () => retirerMarque(),
-          )
-          .catch(() => undefined)
-          .finally(() => enVol.delete(lu.travail.id));
-        enVol.set(lu.travail.id, retour);
+        suivreRetourTardif(lu, appel, enVol, retirerMarque);
       } else await retirerMarque();
       return;
     }
@@ -287,6 +277,8 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
       const marque = enVol.get(id);
       try {
         await traitement;
+      } catch (e) {
+        await signalerTravailEnErreur(lu, e);
       } finally {
         // Délai dépassé : `traiter` a remplacé la marque par l'attente du retour tardif ; elle reste.
         if (enVol.get(id) === marque) enVol.delete(id);
