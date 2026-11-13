@@ -1,6 +1,7 @@
 /** INSTA-A · port : lireSuiviInstagram. Aucun envoi réel : faux fetch. Données fictives. */
 import { describe, expect, it } from "vitest";
 import { creerPortInboxZernio } from "@/fournisseurs/zernio-inbox";
+import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { creerFauxClientZernio, type ReponsePreparee } from "./aides/faux-zernio";
 
 const COMPTES = ["exemple-compte-1"];
@@ -38,6 +39,13 @@ describe("insta-a · port suivi", () => {
       const res = await port.lireSuiviInstagram!(P);
       expect(res).toMatchObject({ statut: "panne", definitive: false });
     }
+  });
+  it("429 (débit) et envoi coupé : non définitives", async () => {
+    const { port } = fabrique([{ statut: 429, corps: {}, entetes: { "retry-after": "1" } }, { statut: 429, corps: {}, entetes: { "retry-after": "1" } }]);
+    expect(await port.lireSuiviInstagram!(P)).toMatchObject({ statut: "panne", definitive: false });
+    const { client } = creerFauxClientZernio([]);
+    const coupe = creerPortInboxZernio({ client: { ...client, suiviInstagram: async () => { throw new ErreurZernio("envoi-coupe", "coupé"); } }, comptesPermis: COMPTES });
+    expect(await coupe.lireSuiviInstagram!(P)).toEqual({ statut: "panne", definitive: false, code: "envoi-coupe" });
   });
   it("erreurs définitives : 401, 403, 404", async () => {
     for (const s of [401, 403, 404]) {
