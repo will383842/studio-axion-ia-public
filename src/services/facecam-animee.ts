@@ -25,6 +25,7 @@ import { brancherServicesFacecamAnimee, ID_MOTEUR_FACECAM_ANIMEE, lireEntreesFac
 import { EnCoursChaineV4, ErreurChaineV4, lireEtatV4, PRISE_MONTEE_V4, SORTIE_V4, type GardeV4, type OutilsChaineV4, type RecadrageV4 } from "@/moteurs/montage-facecam-animee/chaine-v4";
 import type { ReponseRealisateur, RequeteRealisateur } from "@/moteurs/montage-facecam-animee/realisateur";
 import { texteScript } from "@/domaine/derivations";
+import { GLOSSAIRE_FACECAM } from "@/moteurs/montage-facecam/glossaire";
 import { cleFichierRef, clesFichier, type CandidatSujet, type Confirmation, type NiveauSujet, type Precedent } from "@/domaine/sujets-traites";
 import { empreinteAvantControle, PHRASE_VERIFICATION_EN_COURS, phraseRefusEmpreinte, type DependancesAvantControle } from "./empreintes-fichiers";
 import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
@@ -175,7 +176,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           idTravail: appelId,
           source: await signerLecture(priseCle),
           depots: { transcription: await signerDepot(cleTranscription, "application/gzip") },
-          parametres: { glossaire: [], cles: { transcription: cleTranscription } },
+          parametres: { glossaire: GLOSSAIRE_FACECAM, cles: { transcription: cleTranscription } },
         });
       }
       // GV2-04 : « injoignable » est compté par la chaîne (30 min au plus) ; la file normale ne l'est jamais.
