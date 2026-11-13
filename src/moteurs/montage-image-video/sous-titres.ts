@@ -95,10 +95,24 @@ export function bandeSousTitres(format: FormatEcranIV = "9:16"): BandeSousTitres
 /** Un mot fort (orange) d'un intervalle : le mot orange de l'écran affiché à ce moment. */
 export type MotFort = { debutSec: number; finSec: number; mot: string };
 
+/** Signe seul que l'écriture du script colle au mot d'avant (« doutez ? », « 20 % », « 135 € »). */
+const SIGNE_ISOLE = /^[?!:;»%€…]+$/u;
+
+/** Recolle chaque signe isolé au mot précédent ; les heures restent celles de ce mot. Un signe sans mot avant reste seul. */
+function recollerSignesIsoles(mots: readonly MotHorodate[]): MotHorodate[] {
+  const res: MotHorodate[] = [];
+  for (const m of mots) {
+    const avant = res[res.length - 1];
+    if (avant && SIGNE_ISOLE.test(m.mot)) res[res.length - 1] = { ...avant, mot: `${avant.mot} ${m.mot}` };
+    else res.push({ ...m });
+  }
+  return res;
+}
+
 /** Sous-titres mot à mot d'une version : groupes de 2 à 4 mots, mot fort en orange, bande hors de toutes les zones masquées. */
 export function sousTitresIV(mots: readonly MotHorodate[], options: { reseaux: readonly ReseauIV[]; motsForts?: readonly MotFort[]; format?: FormatEcranIV }): SousTitresIV {
   const forts = (options.motsForts ?? []).map((f) => ({ ...f, cles: cleMot(f.mot).split(" ").filter(Boolean) }));
-  const groupes = grouperMots(recollerElisionsHorodatees([...mots]), { motsMin: 2, motsMax: 4 }).map((g) => ({
+  const groupes = grouperMots(recollerSignesIsoles(recollerElisionsHorodatees([...mots])), { motsMin: 2, motsMax: 4 }).map((g) => ({
     id: g.id,
     debutSec: g.debutSec,
     finSec: g.finSec,
