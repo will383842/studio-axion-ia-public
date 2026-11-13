@@ -63,7 +63,7 @@ describe("z1p · corps pur", () => {
   });
   it("TikTok : 5 champs à chaque envoi, valeurs permises, marque, consentement exigé", () => {
     const s = spec(corps({ reseau: "tiktok", consentementTiktok: true, votreMarque: true, niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE" }));
-    expect(s).toMatchObject({ contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: true, allowDuet: false, allowStitch: true, privacyLevel: "PUBLIC_TO_EVERYONE", commercialContentType: "brand_organic" });
+    expect(s).toMatchObject({ contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: false, allowDuet: false, allowStitch: false, privacyLevel: "PUBLIC_TO_EVERYONE", commercialContentType: "brand_organic" });
     expect(spec(corps({ reseau: "tiktok", consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" })).commercialContentType).toBeUndefined();
     // le niveau est choisi par la personne : absent ou non offert = refus
     refuse({ reseau: "tiktok", consentementTiktok: true });
