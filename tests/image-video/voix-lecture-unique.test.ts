@@ -595,3 +595,53 @@ describe("lecture unique · assemblage des pistes voix seule", () => {
     expect(c.piste.dureeSec).toBeLessThan(longues[0].dureeSec - 3);
   });
 });
+
+describe("lecture unique · mot ou nombre découpé autrement : aucun mot coupé, aucun mot retiré", () => {
+  /** Remplace `n` mots rendus à partir de `de` par `nouveaux`, collés (aucun blanc entre eux, comme un mot découpé). */
+  const remplacer = async (de: number, n: number, nouveaux: string[]) => {
+    const etat = await voixLue(monde());
+    const casse = structuredClone(etat);
+    const prise = casse.voix.corps.prise!;
+    if (prise.etat.phase !== "faite") throw new Error("inachevé");
+    const mots = prise.etat.audio.mots;
+    const d = mots[de].debutSec;
+    const f = mots[de + n - 1].finSec;
+    const pas = (f - d) / nouveaux.length;
+    mots.splice(de, n, ...nouveaux.map((mot, k) => ({ mot, debutSec: +(d + k * pas).toFixed(3), finSec: +(d + (k + 1) * pas).toFixed(3) })));
+    delete prise.brut;
+    return casse;
+  };
+
+  it("un mot du milieu du corps rendu en deux (« mi » « nuit. ») : les deux morceaux restent, aucun retrait", async () => {
+    const sons = sonsBrutsIV(await remplacer(4, 1, ["mi", "nuit."]));
+    expect(sons.corps.mots.map((x) => x.mot)).toContain("nuit.");
+    for (const l of Object.values(sons.lecture!)) expect(l.son.mots.map((x) => x.mot)).toContain("nuit.");
+    expect(sons.lecture!["fin-linkedin"].retraitsVoulus).toEqual([]);
+    expect(sons.lecture!["fin-linkedin"].motsCorps).toBe(14);
+  });
+
+  it("les deux derniers mots du corps rendus en trois (« 4 » « sec » « ondes. ») : la version LinkedIn garde « ondes. », coupe après lui", async () => {
+    const casse = await remplacer(11, 2, ["4", "sec", "ondes."]);
+    const li = sonsBrutsIV(casse).lecture!["fin-linkedin"];
+    expect(li.son.mots.at(-1)!.mot).toBe("ondes.");
+    expect(li.coupeEntreSec![0]).toBe(li.son.mots.at(-1)!.finSec);
+  });
+
+  it("un mot rendu de plus sans mot du texte entre deux mots alignés (« vingt ») : gardé, jamais retiré", async () => {
+    const casse = await remplacer(11, 2, ["vingt", "quatre", "heures."]);
+    const li = sonsBrutsIV(casse).lecture!["fin-linkedin"];
+    expect(li.son.mots.map((x) => x.mot).slice(-3)).toEqual(["vingt", "quatre", "heures."]);
+    expect(li.retraitsVoulus).toEqual([]);
+  });
+
+  it("coupe de version entre deux mots dont aucun ne s'écrit comme le script : refus « entree », sans relecture", async () => {
+    const casse = await remplacer(12, 2, ["secondeset"]);
+    expect(() => sonsBrutsIV(casse)).toThrowError(ErreurVoixIV);
+    try {
+      sonsBrutsIV(casse);
+    } catch (err) {
+      expect((err as ErreurVoixIV).controle).toBe("entree");
+      expect((err as ErreurVoixIV).relire).toBe(false);
+    }
+  });
+});

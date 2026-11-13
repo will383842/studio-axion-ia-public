@@ -98,3 +98,33 @@ describe("contrôle d'une prise : l'écart de mots n'est accepté que sur demand
     expect(controlerPrise({ texte, mots, accepterEcartDeMots: true })).toMatchObject({ rejet: "traine" });
   });
 });
+
+// Un mot du milieu du corps rendu en deux morceaux collés (aucun blanc dans le mot, comme un mot ou un nombre découpé).
+const couperUnMot: Alterer = (mots) => {
+  const k = mots.findIndex((x, i) => i >= 5 && /[\p{L}]{6,}/u.test(x.mot));
+  const m = mots[k];
+  const mi = +((m.debutSec + m.finSec) / 2).toFixed(3);
+  return [...mots.slice(0, k), { mot: m.mot.slice(0, 3), debutSec: m.debutSec, finSec: mi }, { mot: m.mot.slice(3), debutSec: mi, finSec: m.finSec }, ...mots.slice(k + 1)];
+};
+
+describe("voix qui découpe un mot en deux", () => {
+  it("un mot du corps rendu en deux morceaux : UNE lecture, vidéo prête, aucune relecture", async () => {
+    const { e, m } = await jusquAuBout(couperUnMot);
+    expect(e.refus).toBeUndefined();
+    expect(e.etape).toBe("prete");
+    expect(m.lus).toHaveLength(1);
+    expect(e.voix!.reparations ?? 0).toBe(0);
+  });
+});
+
+describe("option allumée : une hésitation reste refusée sous toutes ses écritures", () => {
+  const mot = (m: string, i: number): MotHorodate => ({ mot: m, debutSec: i * 0.3, finSec: i * 0.3 + 0.25 });
+  const texte = "Un e-mail propre vaut mieux.";
+  it.each(["euh", "euhh", "euuh", "heuu", "hum", "mmm", "hmmm", "Hmm,"])("« %s » inséré : refus « mots »", (h) => {
+    expect(controlerPrise({ texte, mots: ["Un", h, "e-mail", "propre", "vaut", "mieux."].map(mot), accepterEcartDeMots: true })).toMatchObject({ rejet: "mots" });
+  });
+  it("un mot redit (« e-mail e-mail ») : refus « mots » ; un mot fusionné reste accepté", () => {
+    expect(controlerPrise({ texte, mots: ["Un", "e-mail", "e-mail", "propre", "vaut", "mieux."].map(mot), accepterEcartDeMots: true })).toMatchObject({ rejet: "mots" });
+    expect(controlerPrise({ texte, mots: ["Un", "e-mailpropre", "vaut", "mieux."].map(mot), accepterEcartDeMots: true })).toEqual({ ok: true });
+  });
+});
