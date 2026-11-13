@@ -51,6 +51,7 @@ const lectureReelle: LectureSuivi = {
         (e) => e.fournisseur === "zernio" && e.type === TYPE_COMMENTAIRE,
       )
     ).map((e) => ({
+      idEvenement: texte(e.idEvenement),
       recuLe: e.recuLe,
       motSeul: texte(e.charge.motSeul),
       etat: texte(e.charge.etat),
@@ -163,10 +164,15 @@ async function compteursDuSite(env: Env, now: number): Promise<CompteursSite | n
           if (c) {
             dernierEchecMs = null;
             serieJournalisee = false;
-            await ecrireParametre(PARAM_SUIVI_MIROIR, {
-              luLe: now,
-              compteurs: compteursVersJson(c),
-            });
+            try {
+              await ecrireParametre(PARAM_SUIVI_MIROIR, {
+                luLe: now,
+                compteurs: compteursVersJson(c),
+              });
+            } catch {
+              // Écriture de la copie impossible : même pause d'une minute avant de rappeler le site.
+              dernierEchecMs = now;
+            }
             return c;
           }
           echec = `Lecture des compteurs du site refusée ou illisible (statut ${r.statut}).`;

@@ -15,16 +15,19 @@ const MIN = 60_000;
 const env = ENV_SITE_FICTIF as unknown as Record<string, string>;
 const corpsOk = {
   v: 1,
-  mots: [
+  genereLe: "2026-11-12T10:00:00.000Z",
+  lignes: [
     {
       mot: "ESSAI",
+      reseau: "instagram",
+      postRef: null,
+      versionTexte: null,
+      cible: "gde-essai01",
       formulaires: { j7: 1, j30: 1, total: 1 },
-      envoisEmail: { j7: 0, j30: 0, total: 0 },
+      envois: { j7: 0, j30: 0, total: 0 },
       clics: { j7: 2, j30: 2, total: 2 },
     },
   ],
-  publications: [],
-  versions: [],
 };
 const lecture = {
   evenements: async () => [{ recuLe: "2026-11-11T10:00:00.000Z", motSeul: "ESSAI" }],
@@ -63,7 +66,8 @@ describe("service", () => {
   it.each([
     ["panne (exception)", async () => { throw new Error("coupure"); }],
     ["404", async () => ({ statut: 404, corps: { erreur: "introuvable" } })],
-    ["forme fausse", async () => ({ statut: 200, corps: { v: 1, mots: [{ mot: "ESSAI" }] } })],
+    ["503", async () => ({ statut: 503, corps: { erreur: "base_indisponible" } })],
+    ["forme fausse", async () => ({ statut: 200, corps: { v: 1, genereLe: "x", lignes: [{ mot: "ESSAI" }] } })],
   ])("site en %s → siteDisponible false, aucune exception", async (_n, rep) => {
     pm.injecterTransportSite(site(rep as never));
     const t = await lire();
@@ -95,6 +99,23 @@ describe("service", () => {
     expect(appels).toHaveLength(3);
     S.viderCacheTableauSuivi();
     expect((await lire(T0 + 25 * 60 * MIN)).siteDisponible).toBe(false);
+  });
+
+  it("écriture de la copie impossible : le site est lu, puis pause d'une minute", async () => {
+    pm.injecterTransportSite(site(async () => ({ statut: 200, corps: corpsOk })));
+    const ecriture = vi
+      .spyOn(depots().parametres, "enregistrer")
+      .mockRejectedValue(new Error("base coupée"));
+    const t = await lire(T0);
+    expect(t.siteDisponible).toBe(true);
+    S.viderCacheTableauSuivi();
+    // Pas de copie, site en pause : pas de nouvel appel, aucune exception.
+    expect((await lire(T0 + 30_000)).siteDisponible).toBe(false);
+    expect(appels).toHaveLength(1);
+    S.viderCacheTableauSuivi();
+    ecriture.mockRestore();
+    expect((await lire(T0 + 61_000)).siteDisponible).toBe(true);
+    expect(appels).toHaveLength(2);
   });
 
   it("cache mémoire de 60 s", async () => {

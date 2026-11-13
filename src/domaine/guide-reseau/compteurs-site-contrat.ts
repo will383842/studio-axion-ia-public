@@ -1,21 +1,25 @@
 /**
  * SUI-A — contrat PUR de lecture des compteurs du site : POST /api/interne/compteurs-guide-reseau, corps { v: 1 }.
- * Aucun import serveur, aucun réseau. Lecture STRICTE : le moindre nombre non entier ou négatif, un champ manquant
- * ou une forme fausse → `null` pour TOUTE la réponse (jamais de demi-chiffre).
+ * 404 et 503 = site indisponible (traité par le service, comme tout statut autre que 200).
+ * Aucun import serveur, aucun réseau. Lecture STRICTE : le moindre nombre non entier (ou hors entiers sûrs) ou négatif,
+ * une fenêtre où j7 ≤ j30 ≤ total n'est pas respecté, un champ manquant ou une forme fausse → `null` pour TOUTE la réponse.
  *
- * Forme exacte attendue (version 1), tous les compteurs sont des entiers ≥ 0 :
+ * Forme exacte attendue (version 1) :
  * {
  *   "v": 1,
- *   "mots": [
- *     { "mot": "GUIDE",
+ *   "genereLe": "<date ISO, texte non vide>",
+ *   "lignes": [
+ *     { "mot": "GUIDE", "reseau": "<texte non vide>",
+ *       "postRef": "<texte non vide>" | null, "versionTexte": "<texte non vide>" | null,
+ *       "cible": "<texte non vide>",
  *       "formulaires": { "j7": 0, "j30": 0, "total": 0 },
- *       "envoisEmail": { "j7": 0, "j30": 0, "total": 0 },
- *       "clics":       { "j7": 0, "j30": 0, "total": 0 } } ],
- *   "publications": [ { "mot": "GUIDE", "postRef": "…", "formulaires": 0, "clics": 0 } ],
- *   "versions":     [ { "mot": "GUIDE", "versionTexte": "…", "clics": 0 } ]
+ *       "envois":      { "j7": 0, "j30": 0, "total": 0 },
+ *       "clics":       { "j7": 0, "j30": 0, "total": 0 } } ]
  * }
- * Le mot passe par `normaliserMot` (un mot invalide ou en double → null). `postRef` et `versionTexte` : texte non vide.
- * Les champs inconnus en plus sont ignorés et jamais gardés.
+ * Une ligne = un grain (mot, reseau, postRef, versionTexte, cible) ; deux lignes de même grain → null.
+ * Le mot passe par `normaliserMot` (un mot invalide → null). Les champs inconnus en plus sont ignorés et jamais gardés.
+ * Agrégation côté Studio (sommes de lignes) : par mot = toutes les lignes ; par publication = lignes de même (mot, postRef),
+ * `postRef` nul = « sans-publication » ; par version = lignes de même (mot, versionTexte non nul) pour les clics.
  */
 import { normaliserMot } from "./mot-normalise";
 
@@ -36,27 +40,49 @@ export interface CompteursPublicationSite {
   readonly formulaires: number;
   readonly clics: number;
 }
+export interface LigneSite {
+  readonly mot: string;
+  readonly reseau: string;
+  readonly postRef: string | null;
+  readonly versionTexte: string | null;
+  readonly cible: string;
+  readonly formulaires: FenetreSite;
+  readonly envois: FenetreSite;
+  readonly clics: FenetreSite;
+}
 export interface CompteursSite {
-  /** Clé = mot normalisé. */
+  readonly genereLe: string;
+  /** Lignes validées, telles que le site les a données. */
+  readonly lignes: readonly LigneSite[];
+  /** Clé = mot normalisé (somme de toutes ses lignes). */
   readonly mots: ReadonlyMap<string, CompteursMotSite>;
-  /** Clé = JSON.stringify([mot, postRef]). */
+  /** Clé = JSON.stringify([mot, postRef ou "sans-publication"]) (total, sans fenêtre). */
   readonly publications: ReadonlyMap<string, CompteursPublicationSite>;
-  /** Clé = JSON.stringify([mot, versionTexte]) → clics. */
+  /** Clé = JSON.stringify([mot, versionTexte]) → clics (total). */
   readonly versions: ReadonlyMap<string, number>;
 }
+
+const SANS_PUBLICATION_SITE = "sans-publication";
 
 const estObjet = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const entier = (v: unknown): v is number =>
-  typeof v === "number" && Number.isInteger(v) && v >= 0;
+  typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
 const texteNonVide = (v: unknown): v is string =>
   typeof v === "string" && v !== "";
 
 function fenetre(v: unknown): FenetreSite | null {
   if (!estObjet(v) || !entier(v.j7) || !entier(v.j30) || !entier(v.total))
     return null;
+  if (v.j7 > v.j30 || v.j30 > v.total) return null;
   return { j7: v.j7, j30: v.j30, total: v.total };
 }
+const somme = (a: FenetreSite, b: FenetreSite): FenetreSite => ({
+  j7: a.j7 + b.j7,
+  j30: a.j30 + b.j30,
+  total: a.total + b.total,
+});
+const ZERO: FenetreSite = { j7: 0, j30: 0, total: 0 };
 
 export const clePublicationSite = (mot: string, postRef: string): string =>
   JSON.stringify([mot, postRef]);
@@ -68,62 +94,68 @@ export function lireCompteursSite(corps: unknown): CompteursSite | null {
   if (
     !estObjet(corps) ||
     corps.v !== 1 ||
-    !Array.isArray(corps.mots) ||
-    !Array.isArray(corps.publications) ||
-    !Array.isArray(corps.versions)
+    !texteNonVide(corps.genereLe) ||
+    !Array.isArray(corps.lignes)
   )
     return null;
-  const mots = new Map<string, CompteursMotSite>();
-  for (const l of corps.mots) {
+  const lignes: LigneSite[] = [];
+  const grains = new Set<string>();
+  for (const l of corps.lignes) {
     if (!estObjet(l)) return null;
     const mot = normaliserMot(l.mot);
     const formulaires = fenetre(l.formulaires);
-    const envoisEmail = fenetre(l.envoisEmail);
+    const envois = fenetre(l.envois);
     const clics = fenetre(l.clics);
-    if (mot === null || !formulaires || !envoisEmail || !clics || mots.has(mot))
-      return null;
-    mots.set(mot, { formulaires, envoisEmail, clics });
-  }
-  const publications = new Map<string, CompteursPublicationSite>();
-  for (const l of corps.publications) {
-    if (!estObjet(l)) return null;
-    const mot = normaliserMot(l.mot);
     if (
       mot === null ||
-      !texteNonVide(l.postRef) ||
-      !entier(l.formulaires) ||
-      !entier(l.clics)
+      !texteNonVide(l.reseau) ||
+      !(l.postRef === null || texteNonVide(l.postRef)) ||
+      !(l.versionTexte === null || texteNonVide(l.versionTexte)) ||
+      !texteNonVide(l.cible) ||
+      !formulaires ||
+      !envois ||
+      !clics
     )
       return null;
-    const cle = clePublicationSite(mot, l.postRef);
-    if (publications.has(cle)) return null;
-    publications.set(cle, { formulaires: l.formulaires, clics: l.clics });
+    const grain = JSON.stringify([mot, l.reseau, l.postRef, l.versionTexte, l.cible]);
+    if (grains.has(grain)) return null;
+    grains.add(grain);
+    lignes.push({
+      mot,
+      reseau: l.reseau,
+      postRef: l.postRef,
+      versionTexte: l.versionTexte,
+      cible: l.cible,
+      formulaires,
+      envois,
+      clics,
+    });
   }
+  const mots = new Map<string, CompteursMotSite>();
+  const publications = new Map<string, CompteursPublicationSite>();
   const versions = new Map<string, number>();
-  for (const l of corps.versions) {
-    if (!estObjet(l)) return null;
-    const mot = normaliserMot(l.mot);
-    if (mot === null || !texteNonVide(l.versionTexte) || !entier(l.clics))
-      return null;
-    const cle = cleVersionSite(mot, l.versionTexte);
-    if (versions.has(cle)) return null;
-    versions.set(cle, l.clics);
+  for (const l of lignes) {
+    const m = mots.get(l.mot);
+    mots.set(l.mot, {
+      formulaires: somme(m?.formulaires ?? ZERO, l.formulaires),
+      envoisEmail: somme(m?.envoisEmail ?? ZERO, l.envois),
+      clics: somme(m?.clics ?? ZERO, l.clics),
+    });
+    const kp = clePublicationSite(l.mot, l.postRef ?? SANS_PUBLICATION_SITE);
+    const p = publications.get(kp);
+    publications.set(kp, {
+      formulaires: (p?.formulaires ?? 0) + l.formulaires.total,
+      clics: (p?.clics ?? 0) + l.clics.total,
+    });
+    if (l.versionTexte !== null) {
+      const kv = cleVersionSite(l.mot, l.versionTexte);
+      versions.set(kv, (versions.get(kv) ?? 0) + l.clics.total);
+    }
   }
-  return { mots, publications, versions };
+  return { genereLe: corps.genereLe, lignes, mots, publications, versions };
 }
 
 /** Forme sérialisable (copie en base) : le contrat se relit à la lecture de la copie. */
 export function compteursVersJson(c: CompteursSite): unknown {
-  return {
-    v: 1,
-    mots: [...c.mots].map(([mot, m]) => ({ mot, ...m })),
-    publications: [...c.publications].map(([cle, p]) => {
-      const [mot, postRef] = JSON.parse(cle) as [string, string];
-      return { mot, postRef, ...p };
-    }),
-    versions: [...c.versions].map(([cle, clics]) => {
-      const [mot, versionTexte] = JSON.parse(cle) as [string, string];
-      return { mot, versionTexte, clics };
-    }),
-  };
+  return { v: 1, genereLe: c.genereLe, lignes: c.lignes };
 }

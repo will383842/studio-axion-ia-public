@@ -61,6 +61,8 @@ export interface EvenementSuivi {
   readonly etat?: string | null;
   readonly idPostPlateforme?: string | null;
   readonly reseau?: string | null;
+  /** Identifiant d'événement : un même identifiant ne compte qu'une fois. */
+  readonly idEvenement?: string | null;
 }
 
 /** Une conversation, réduite. `cle` ne sert qu'à reconnaître une personne : elle ne ressort jamais. */
@@ -188,9 +190,14 @@ export function assemblerSuivi(
     return p;
   };
 
+  const vus = new Set<string>();
   for (const ev of evenements) {
     const mot = normaliserMot(ev.motSeul);
     if (mot === null) continue;
+    if (typeof ev.idEvenement === "string" && ev.idEvenement !== "") {
+      if (vus.has(ev.idEvenement)) continue;
+      vus.add(ev.idEvenement);
+    }
     const a = acc(mot);
     compter(a.commentaires, ev.recuLe, maintenantMs);
     publication(
@@ -243,7 +250,11 @@ export function assemblerSuivi(
       p.reseau = texteOuNull(c.reseau) ?? "inconnu";
     }
     p.creeLe = plusAncienne(p.creeLe, c.creeLe) ?? p.creeLe;
-    p.reponse ||= !SANS_REPONSE_PUBLIQUE.includes(c.etat);
+    // Sans état (vide ou absent) : pas une réponse publique.
+    p.reponse ||=
+      typeof c.etat === "string" &&
+      c.etat !== "" &&
+      !SANS_REPONSE_PUBLIQUE.includes(c.etat);
     if (!estRenvoi && m1Le !== null) {
       p.premier = true;
       p.m1Le = plusAncienne(p.m1Le, m1Le);
@@ -301,7 +312,9 @@ export function assemblerSuivi(
             : x.reseau < y.reseau ? -1 : x.reseau > y.reseau ? 1 : 0,
         )
         .map((p) => {
-          const s = compteursSite?.publications.get(clePublicationSite(mot, p.post));
+          const s = compteursSite?.publications.get(
+            clePublicationSite(mot, p.post),
+          );
           return {
             post: p.post,
             reseau: p.reseau,
