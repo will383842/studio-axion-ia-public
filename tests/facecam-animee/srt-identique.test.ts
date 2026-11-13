@@ -107,3 +107,29 @@ describe("srt-identique · resultatV4", () => {
     expect("sousTitres" in resultatV4(etat({ ...planValide(), groupes: [] }))).toBe(false);
   });
 });
+
+describe("srt-identique · images au sous-titre masqué du plan validé (GV2-15, option a)", () => {
+  /**
+   * Le fondateur accepte le nouveau rendu v4 : depuis GV2-15, un groupe n'est masqué que si la plaquette affiche déjà TOUS
+   * ses mots porteurs. Sur le plan validé de la répétition générale, 1287 images sont masquées (184 de moins qu'avec l'ancienne
+   * règle). Ce test fige ce nombre : tout changement de la règle de masquage doit être décidé, pas subi.
+   */
+  it.skipIf(!remotionDisponible)("plan validé de la répétition générale : 1287 images au sous-titre masqué (sur 2481)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const plan = JSON.parse(readFileSync("docs/facecam-animee-v4/repetition-generale/plan-realisateur.json", "utf8")) as PlanFacecamAnimee;
+    const { groupesDuPlan } = await import("../../studio-rendu/compositions/interface-claire/VideoAnimeeV4");
+    const { groupeDoubleV4 } = await import("../../studio-rendu/compositions/interface-claire/motion-v4/registre-v4");
+    const elements = [...(plan.elementsV4 ?? [])].sort((a, b) => a.debut - b.debut);
+    const groupes = groupesDuPlan(plan.groupes, plan.duree);
+    const FPS = 30;
+    const images = Math.ceil(plan.duree * FPS);
+    let masquees = 0;
+    for (let f = 0; f < images; f++) {
+      const t = f / FPS;
+      const g = groupes.find((x) => t >= x.debut - 1e-6 && t < x.fin - 1e-6);
+      if (g && groupeDoubleV4(elements, f, g.mots.map((m) => m.mot))) masquees++;
+    }
+    expect(images).toBe(2481);
+    expect(masquees).toBe(1287);
+  });
+});
