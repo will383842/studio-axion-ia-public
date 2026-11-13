@@ -34,8 +34,8 @@ describe("profils de sortie", () => {
     expect(p.aReverifier).toBe(true);
     expect(p.dureeReelMaxSec).toBe(REEL_FACEBOOK_DUREE_SEC.max);
   });
-  it("les deux tables du code divergent sur Facebook (180 s au registre, aucune durée à l'écriture) et la décision l'emporte", () => {
-    expect(obtenirReseau("facebook").dureeMaxSec).toBe(180);
+  it("Facebook : le registre (90 s, relevé L8-01) et le profil de sortie concordent ; la table d'écriture n'a aucune durée", () => {
+    expect(obtenirReseau("facebook").dureeMaxSec).toBe(90);
     expect(ECRITURE_RESEAUX.facebook.dureeMaxSec.valeur).toBeNull();
     expect(profilSortie("facebook", "video").dureeMaxSec).toBe(90);
   });
