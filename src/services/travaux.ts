@@ -136,8 +136,21 @@ export function versionPlusRecentePrete(versions: Pick<VersionVideo, "id" | "num
   return versions.find((v) => v.id !== versionId && v.choisie && v.statut === "prete" && v.numero > cible.numero) ?? null;
 }
 
-async function appliquerResultat(travail: Travail, resultat: ResultatFabrication): Promise<SuiteFabrication[]> {
+/** GV2-38 : note sur le travail qu'une écriture de la fin de fabrication est faite (sans effet si le travail ne porte pas de note). */
+async function noterFaitDeFin(travailId: string, fait: "depense" | "produits", ajout?: Montant): Promise<void> {
+  const t = await depots().travaux.obtenir(travailId);
+  if (t?.finAAppliquer && !t.finAAppliquer.faits.includes(fait)) await depots().travaux.enregistrer({ ...t, finAAppliquer: { ...t.finAAppliquer, faits: [...t.finAAppliquer.faits, fait], ...(ajout ? { ajout } : {}) } });
+}
+
+async function retirerNoteDeFin(travailId: string): Promise<void> {
+  const t = await depots().travaux.obtenir(travailId);
+  if (t?.finAAppliquer) await depots().travaux.enregistrer({ ...t, finAAppliquer: undefined });
+}
+
+async function appliquerResultat(travail: Travail, resultat: ResultatFabrication, options?: { rejeu?: boolean }): Promise<SuiteFabrication[]> {
   const d = depots();
+  const rejeu = options?.rejeu === true;
+  const faits = rejeu ? ((await d.travaux.obtenir(travail.id))?.finAAppliquer?.faits ?? travail.finAAppliquer?.faits ?? []) : [];
   const video = await d.videos.obtenir(travail.cibleId);
   if (!video || !travail.versionId) return [];
   // CORRECTEUR 1 — B1 : une retouche qui rend une vidéo de DÉMONSTRATION sur une vraie vidéo n'est jamais livrée.
@@ -174,12 +187,22 @@ async function appliquerResultat(travail: Travail, resultat: ResultatFabrication
   for (const s of sorties) await d.sorties.enregistrer(s);
   const coutReel: Montant = additionner(...resultat.lignesReelles.map((l) => l.total));
   // E2E-1 n° 3 : ce qui a déjà été enregistré pour ce travail (à un échec avant « Réessayer ») n'est pas recompté.
-  const deja = (await d.depenses.lister((x) => x.travailId === travail.id)).flatMap((x) => x.lignes);
+  const depensesDuTravail = await d.depenses.lister((x) => x.travailId === travail.id);
+  const deja = depensesDuTravail.flatMap((x) => x.lignes);
   const restantes = lignesRestantes(resultat.lignesReelles, deja);
-  const ajout: Montant = additionner(...restantes.map((l) => l.total));
-  if (restantes.length || !deja.length) await d.depenses.enregistrer({ id: nouvelId("dep"), videoId: video.id, travailId: travail.id, lignes: restantes, total: ajout, date: maintenant(), ...horodatage(), estDemo: video.estDemo });
-  // Lot « crédits » : le coût réel remplace la réservation.
-  await libererReservation(travail.id, "consommee");
+  let ajout: Montant = additionner(...restantes.map((l) => l.total));
+  // GV2-38 : au rejeu avec la dépense déjà écrite, le coût de la vidéo n'a pas encore été ajouté tant que la version
+  // n'est pas « prête » (il est écrit avec elle) : on ajoute alors ce que la dépense de fin avait ajouté (gardé dans la
+  // note). Format ajouté : jamais de double.
+  if (rejeu && faits.includes("depense") && travail.type !== "reexport" && (await d.versions.obtenir(travail.versionId))?.statut !== "prete") ajout = (await d.travaux.obtenir(travail.id))?.finAAppliquer?.ajout ?? ajout;
+  // GV2-38 : au rejeu, une dépense VIDE déjà écrite compte comme une dépense (jamais une seconde).
+  const aucuneDepense = rejeu ? !depensesDuTravail.length : !deja.length;
+  if (!(rejeu && faits.includes("depense"))) {
+    if (restantes.length || aucuneDepense) await d.depenses.enregistrer({ id: nouvelId("dep"), videoId: video.id, travailId: travail.id, lignes: restantes, total: ajout, date: maintenant(), ...horodatage(), estDemo: video.estDemo });
+    // Lot « crédits » : le coût réel remplace la réservation.
+    await libererReservation(travail.id, "consommee");
+    await noterFaitDeFin(travail.id, "depense", ajout);
+  }
   if (!video.estDemo) await surveillerBudget();
 
   // Format ajouté : seules la nouvelle sortie et sa dépense comptent. L'étape de publication,
@@ -189,14 +212,17 @@ async function appliquerResultat(travail: Travail, resultat: ResultatFabrication
     if (version) await d.versions.modifier(version.id, { coutReel: additionner(version.coutReel, ajout) });
     await d.videos.modifier(video.id, { coutReel: additionner(video.coutReel, ajout) });
     // Lot M4 : le format ajouté garde sa piste « sans texte » (recalque gratuit de ce format plus tard).
-    if (resultat.pistes?.length) await appliquerProduitsDuMoteur(video.id, travail.versionId, { pistes: resultat.pistes }, video.langue, video.estDemo);
+    if (resultat.pistes?.length && !(rejeu && faits.includes("produits"))) await appliquerProduitsDuMoteur(video.id, travail.versionId, { pistes: resultat.pistes }, video.langue, video.estDemo);
+    await noterFaitDeFin(travail.id, "produits");
     const ratios = resultat.sorties.map((s) => s.ratio).join(", ");
     await notifier({ type: "video-prete", titre: `Le format ${ratios} est prêt`, message: `« ${video.titre} »`, lien: `/videos/${video.id}`, estDemo: video.estDemo });
     await journaliser("fabrication", `Format ${ratios} ajouté : « ${video.titre} »`, { type: "video", id: video.id });
+    await retirerNoteDeFin(travail.id);
     return [];
   }
 
-  await appliquerProduitsDuMoteur(video.id, travail.versionId, resultat, video.langue, video.estDemo);
+  if (!(rejeu && faits.includes("produits"))) await appliquerProduitsDuMoteur(video.id, travail.versionId, resultat, video.langue, video.estDemo);
+  await noterFaitDeFin(travail.id, "produits");
   // Facecam lot E : clés R2, coupes et consignes dites recopiées dans `entrees.facecam` (Rétablir, fil, retouches).
   const projetFacecam = resultat.projetMontage as { moteur?: string; facecam?: Parameters<typeof entreesAvecLivraison>[1]; entrees?: { facecam: Record<string, unknown>; facecamMonteur?: Record<string, unknown> } } | undefined;
   if (projetFacecam?.moteur === "montage-facecam" && projetFacecam.entrees) {
@@ -263,6 +289,8 @@ async function appliquerResultat(travail: Travail, resultat: ResultatFabrication
   // Miniatures et textes du kit : générés HORS verrou (fournisseurs réels = appels réseau).
   // Générateur G6 : après une vidéo de version, hors verrou (versions par réseau à lancer, contrôles sur le temps réel).
   // Relecture finale : les suites sont déjà notées sur le travail, dans l'écriture de « terminé » (`ecrireAvancement`).
+  // GV2-38 : tout est enregistré, la note de fin à appliquer est retirée.
+  await retirerNoteDeFin(travail.id);
   return travail.finitionAFaire ?? suitesDeFinition(travail, video);
 }
 
@@ -280,7 +308,7 @@ async function refuserRetoucheDeDemonstration(travail: Travail, videoId: string,
   const d = depots();
   const { RETOUCHE_PAS_DISPONIBLE } = await import("./fabrication");
   const erreur = { code: "RETOUCHE_INDISPONIBLE", reessayable: false, messagePourWill: RETOUCHE_PAS_DISPONIBLE };
-  await d.travaux.enregistrer({ ...travail, statut: "echec", erreur, termineLe: undefined, finitionAFaire: undefined });
+  await d.travaux.enregistrer({ ...travail, statut: "echec", erreur, termineLe: undefined, finitionAFaire: undefined, finAAppliquer: undefined });
   if (travail.versionId && (await d.versions.obtenir(travail.versionId))) await d.versions.modifier(travail.versionId, { statut: "echec", choisie: false });
   const ret = await d.retouches.trouver((r) => r.travailId === travail.id);
   if (ret) await d.retouches.modifier(ret.id, { statut: "echec" });
@@ -347,6 +375,45 @@ export async function rattraperFinitions(): Promise<void> {
   for (const t of await depots().travaux.lister((x) => !!x.finitionAFaire?.length)) await executerSuites(t.finitionAFaire!);
   const notees = await depots().parametres.lister((p) => p.id.startsWith(PREFIXE_FINITION) && !!(p.valeur as { suites?: unknown } | null)?.suites);
   for (const p of notees) await executerSuites((p.valeur as { suites: SuiteFabrication[] }).suites);
+}
+
+/**
+ * GV2-38 — SOUS le verrou : une fin de fabrication interrompue (travail « terminé » portant `finAAppliquer`) est rejouée
+ * UNE SEULE fois. `rejouee` est écrit AVANT le rejeu : un arrêt pendant le rejeu ne rejoue jamais une troisième fois.
+ * Au second passage, `appliquerResultat` n'est PAS rappelé : une vidéo encore « en fabrication » passe en échec
+ * (« Réessayer » est possible) ; ni dépense ni réservation ne sont touchées (ce qui est payé est déjà écrit, ou le sera
+ * par « Réessayer »). Une erreur sur un travail ne bloque pas les autres. Renvoie les suites à exécuter hors verrou.
+ */
+export async function rejouerFinsInterrompues(): Promise<SuiteFabrication[]> {
+  const d = depots();
+  const suites: SuiteFabrication[] = [];
+  for (const lu of await d.travaux.lister((x) => x.statut === "termine" && !!x.finAAppliquer)) {
+    try {
+      const note = lu.finAAppliquer!;
+      if (!note.rejouee) {
+        const travail: Travail = { ...lu, finAAppliquer: { ...note, rejouee: true } };
+        await d.travaux.enregistrer(travail);
+        try {
+          suites.push(...(await appliquerResultat(travail, note.resultat, { rejeu: true })));
+          await journaliser("fabrication", `Fin de fabrication rejouée : « ${lu.titre} »`, { type: "video", id: lu.cibleId });
+        } catch (e) {
+          console.error("[studio] rejeu de la fin de fabrication en échec", lu.id, e instanceof Error ? e.name : "");
+        }
+        continue;
+      }
+      const video = await d.videos.obtenir(lu.cibleId);
+      if (video && video.statut === "en_fabrication") {
+        await d.videos.modifier(video.id, { statut: "echec" });
+        if (lu.versionId && (await d.versions.obtenir(lu.versionId))) await d.versions.modifier(lu.versionId, { statut: "echec" });
+        await notifier({ type: "echec", titre: "La fin de la fabrication n'a pas pu être enregistrée", message: "Vous pouvez réessayer.", lien: `/videos/${video.id}`, estDemo: video.estDemo });
+        await journaliser("echec", `Fin de fabrication non enregistrée : « ${lu.titre} »`, { type: "video", id: video.id });
+      }
+      await retirerNoteDeFin(lu.id);
+    } catch (e) {
+      console.error("[studio] reprise d'une fin de fabrication en échec", lu.id, e instanceof Error ? e.name : "");
+    }
+  }
+  return suites;
 }
 
 /**
@@ -537,6 +604,8 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
     const video = await d.videos.obtenir(travail.cibleId);
     const suites = video ? suitesDeFinition(travail, video) : [];
     if (suites.length) travail.finitionAFaire = suites;
+    // GV2-38 : le résultat du moteur est gardé dans la MÊME écriture que « terminé » (jamais « terminé » sans la note).
+    travail.finAAppliquer = { resultat: sortie.resultat, rejouee: false, faits: [] };
   }
   travail = gardeSansAvancement(travail, actuel, lu.moteur.id);
   await d.travaux.enregistrer(travail);
@@ -760,11 +829,13 @@ async function placesDansLaFile(): Promise<Map<string, { rang: number; debutEsti
  * Rien n'est modifié ni supprimé dans le dépôt : seule la COPIE rendue est allégée.
  */
 export function allegerTravail(t: Travail): Travail {
-  const p = t.parametres as Record<string, unknown> | undefined;
-  if (!p || !("tableau" in p)) return t;
+  // GV2-38 : la note de fin à appliquer (résultat du moteur) ne part jamais vers l'écran.
+  const sans: Travail = t.finAAppliquer ? { ...t, finAAppliquer: undefined } : t;
+  const p = sans.parametres as Record<string, unknown> | undefined;
+  if (!p || !("tableau" in p)) return sans;
   const { tableau: _gros, ...reste } = p;
   void _gros;
-  return { ...t, parametres: reste } as Travail;
+  return { ...sans, parametres: reste } as Travail;
 }
 
 /** Le filtre de listerTravaux, en y ajoutant (ou non) la cible : actifs + en échec + terminés (récents, ou tous). */
