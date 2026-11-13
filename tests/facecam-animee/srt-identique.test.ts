@@ -110,7 +110,7 @@ describe("srt-identique · resultatV4", () => {
 
 describe("srt-identique · images au sous-titre masqué du plan validé (GV2-15, option a)", () => {
   /**
-   * Le fondateur accepte le nouveau rendu v4 : depuis GV2-15, un groupe n'est masqué que si la plaquette affiche déjà TOUS
+   * Choix du pilotage du 13/11, pris sous l'autorisation générale du fondateur de corriger les mots manquants des sous-titres ; il peut revenir dessus (option b de la relecture : règle d'avant pour `groupeDoubleV4`) : depuis GV2-15, un groupe n'est masqué que si la plaquette affiche déjà TOUS
    * ses mots porteurs. Sur le plan validé de la répétition générale, 1287 images sont masquées (184 de moins qu'avec l'ancienne
    * règle). Ce test fige ce nombre : tout changement de la règle de masquage doit être décidé, pas subi.
    */
