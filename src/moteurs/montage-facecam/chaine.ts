@@ -33,7 +33,8 @@ import { horodaterMotsPrononces } from "@/briques/calage/report";
 import type { SourceMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { avancerDeclinaisons, avancerHabillagesFormats, bandeAvecDeclinaisons, declinaisonsFinies, habillagesFormatsRegles, preparerDeclinaisons, preparerHabillagesFormats, type EtatDeclinaisons } from "./declinaisons";
 import { avancerCompositions, type BaseComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
-import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
+import { ErreurRendu } from "@/fournisseurs/rendu/client";
+import type { VeilleRendu } from "@/fournisseurs/rendu/garde";
 import type { DemandeRendu } from "@/fournisseurs/types";
 import { multicameraPourComposition, type PisteMulticamera } from "@/briques/multicamera";
 import { corrigerMots, intensiteLutCommande, emphaseDuScript, habillageFacecam, type CartePosee, type HabillageFacecam } from "./habillage";
@@ -45,7 +46,7 @@ import { avancerEffetsChaine, bruitagesDemandes, commandeAvecVerre, effetsDesPas
 import type { CarteAutoFacecam, PassageFacecam } from "@/domaine/facecam";
 import { lireReglagesMonteur } from "./monteur/appliquer";
 import { coupesActives } from "./monteur/temps";
-import { aSoumettre, apresSoumission, prochaineSoumission, sansReprise, suiviSansEssai } from "./reprise";
+import { aSoumettre, apresSoumission, delaiSansProgresMs, lireCarteGardee, prochaineSoumission, sansReprise, sansVeille, suiviFige, suiviSansEssai, veilleProgres } from "./reprise";
 import { empreinte, etatPourRetouche, gardesDepuisCoupes, partiesARefaire, repriseDeLaChaine, signatureMontage, texteMonteDesGardes, VERSION_CONTROLES } from "./retouche";
 import { instantsDeControle, type InstantControle } from "./relecture";
 import { cartesDesPassages as cartesDe } from "./raccords";
@@ -80,6 +81,10 @@ export interface SuiviTravail {
   memeId?: boolean;
   /** Vérif V5 : resoumissions après un 404 (conteneur recréé sans ses travaux), 3 au plus. */
   relances?: number;
+  /** GV2-23 : dernière progression lue (travail « en cours »). */
+  derniereProgression?: number;
+  /** GV2-23 : depuis quand (ISO) la progression n'a pas changé ; au-delà du délai sans progrès, le travail est relancé. */
+  progresDepuis?: string;
 }
 
 export interface EtatChaine {
@@ -170,7 +175,7 @@ export interface EtatChaine {
 }
 
 export interface EtatHabillage {
-  cartes: { id: string; demande: DemandeRendu; statut: "soumise" | "faite" | "echec"; essais: number }[];
+  cartes: { id: string; demande: DemandeRendu; statut: "soumise" | "faite" | "echec"; essais: number; /** GV2-23 : délai de garde du rendu. */ veille?: VeilleRendu }[];
   /** Entrée de la composition (calculée une fois : mots montés, sous-titres, cartes) ; les cartes ratées en sont retirées. */
   base: BaseComposition;
   composition?: EtatMontage;
@@ -483,8 +488,12 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     const repris = suiviSansEssai(t, r, maintenant());
     if (repris) etat.travaux[nom] = repris;
     else if (r.statut === "termine") etat.travaux[nom] = { ...sansReprise(t), statut: "termine", progression: 100, resultat: r.resultat as unknown as Record<string, unknown> };
-    else if (r.statut === "en_cours") etat.travaux[nom] = { ...sansReprise(t), progression: r.progression };
-    else if (r.statut === "en_file") etat.travaux[nom] = sansReprise(t);
+    else if (r.statut === "en_cours") {
+      // GV2-23 : aucun progrès depuis le délai → échec réessayable (nouvelle soumission), jamais sur la durée totale.
+      const v = veilleProgres(sansReprise(t), r.progression, maintenant(), delaiSansProgresMs());
+      etat.travaux[nom] = v.fige ? suiviFige(t, v.depuisMin, ESSAIS_MAX) : v.suivi;
+    }
+    else if (r.statut === "en_file") etat.travaux[nom] = sansVeille(t);
     else if (r.statut === "echec") {
       // Panne réessayable du travail : on soumet à nouveau, ESSAIS_MAX fois au plus.
       const erreur = { code: r.erreur.code, message: r.erreur.message };
@@ -1004,10 +1013,11 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     // Cartes : suivies, une nouvelle demande au plus ; une carte ratée est retirée (« 1 élément non fait »).
     for (const carte of hab.cartes) {
       if (carte.statut !== "soumise") continue;
-      const s = await suivreRendu(outils.rendu(), carte.demande);
+      const s = await lireCarteGardee(outils.rendu(), carte, outils.garde);
       if (s.statut === "termine") carte.statut = "faite";
       else if (s.statut === "echec") {
         if (s.erreur.reessayable && carte.essais < 1) {
+          delete carte.veille;
           const signe = await outils.signer({}, [{ cle: carte.demande.sortie.cle, mime: "video/mp4" }]);
           carte.essais += 1;
           carte.demande = { ...carte.demande, idRendu: `${carte.demande.idRendu.replace(/-e\d+$/, "")}-e${carte.essais}`, sortie: { ...carte.demande.sortie, urlDepot: signe.depots[carte.demande.sortie.cle] ?? carte.demande.sortie.urlDepot } };
