@@ -35,21 +35,29 @@ describe("GV2-30 · relecture à l'identique : le texte écrit reste celui du fo
 });
 
 describe("GV2-30 · sous-titres : la ponctuation de fin d'écran est celle de la voix", () => {
-  it("chaque fin d'écran porte son point dans le texte des sous-titres (le groupement s'en sert pour ne pas mêler deux écrans)", async () => {
+  it("chaque fin de phrase d'écran porte son point dans les sous-titres ; une phrase coupée entre deux écrans n'en reçoit aucun", async () => {
     const d = doubles();
-    d.options.scriptValide = SCRIPT_V4_RECRUTEMENT;
+    // Écran 2 sans son point final (« … Oui, quinze minutes ») suivi d'un écran en majuscule (« Avant, … ») : une fin de phrase.
+    d.options.scriptValide = { ...SCRIPT_V4_RECRUTEMENT, ecrans: SCRIPT_V4_RECRUTEMENT.ecrans.map((e, i) => (i === 1 ? { ...e, texteDit: e.texteDit.trim().replace(/\.$/u, "") } : e)) };
     const r = await fabriquerCasConcret(d.options);
+    expect(r.fiche.ecrans[1].texteDit.trim().endsWith("minutes")).toBe(true);
     const fin = r.plan.fins[0];
     const ecransDuTexte = [...r.fiche.ecrans, ...fin.ecrans];
     const mots = (r.sousTitres ?? []).flatMap((s) => s.mots.map((m) => m.mot)).filter((m) => cleMot(m));
     let rang = 0;
     const sansPoint: string[] = [];
-    for (const e of ecransDuTexte) {
+    const pointInvente: string[] = [];
+    ecransDuTexte.forEach((e, i) => {
       rang += motsLus(e.texteDit).length;
       const dernier = mots[rang - 1];
-      if (!/[.?!…]["»”)\]]*$/u.test(dernier)) sansPoint.push(`${e.id} : « ${dernier} »`);
-    }
+      const suivant = ecransDuTexte[i + 1]?.texteDit.trim();
+      const coupee = !!suivant && /^\p{Ll}/u.test(suivant);
+      const ponctue = /[.?!…]["»”)\]]*$/u.test(dernier);
+      if (!coupee && !ponctue) sansPoint.push(`${e.id} : « ${dernier} »`);
+      if (coupee && ponctue && !/[.?!…]["»”)\]]*$/u.test(e.texteDit.trim())) pointInvente.push(`${e.id} : « ${dernier} »`);
+    });
     expect(sansPoint).toEqual([]);
+    expect(pointInvente).toEqual([]);
   });
 });
 
