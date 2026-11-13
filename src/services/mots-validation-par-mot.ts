@@ -110,8 +110,8 @@ type RaisonPreparation =
   | "site_injoignable"
   | "sans_cible"
   | "cible_introuvable"
-  | "cible_test"
   | "adresse_pas_encore"
+  | "cible_test"
   | "titre_cible_absent"
   | "texte_dictionnaire_incomplet";
 type Preparation =
@@ -135,7 +135,7 @@ async function preparer(o: {
   if (mot === MOT_GUIDE) return { ok: false, raison: "mot_guide_a_part" };
   const c = await cibleActuelleDuMot(o);
   if (!c.ok) return c;
-  // Une cible d'essai ou une page (adresse) n'est JAMAIS validable : « TEST ⇒ rien », et une page n'a pas encore de parcours.
+  // Une page (adresse) n'a pas encore de parcours, et une cible d'essai (TEST) ne doit jamais envoyer vers une vraie personne : rien n'est validé pour elles.
   if (c.test) return { ok: false, raison: "cible_test" };
   if (c.type === "adresse") return { ok: false, raison: "adresse_pas_encore" };
   const e = empreinteMot({
@@ -175,7 +175,7 @@ export async function etatValidationMot(o: {
   }
 }
 
-/** Vrai seulement si l'empreinte retenue est celle d'aujourd'hui ET si la cible actuelle n'est ni d'essai ni une adresse (seconde garde, après `preparer`). Ne lève jamais ; FERMÉ en cas de doute (lecture impossible, site injoignable, réseau inconnu, texte incomplet). */
+/** Vrai seulement si l'empreinte retenue est celle d'aujourd'hui. Ne lève jamais ; FERMÉ en cas de doute (lecture impossible, réseau inconnu, texte incomplet). */
 export async function motValidePour(o: {
   mot: string;
   reseau: ReseauAuto;
@@ -186,17 +186,19 @@ export async function motValidePour(o: {
 }): Promise<boolean> {
   try {
     if (!estAuto(o.reseau)) return false;
+    const v = (await lireRegistre())[cleDe(o.mot, o.reseau)];
+    if (!v) return false;
+    const e = empreinteMot(o);
+    if (!(e.ok && e.empreinte === v.empreinte && v.codeCible === o.codeCible))
+      return false;
+    // Seconde garde : la cible d'AUJOURD'HUI doit être celle validée, ni d'essai (TEST) ni une page (adresse). Site injoignable ou copie : faux.
     const c = await cibleActuelleDuMot({
       mot: o.mot,
       reseau: o.reseau,
       env: o.env,
       maintenantMs: o.maintenantMs,
     });
-    if (!c.ok || c.test || c.type === "adresse") return false;
-    const v = (await lireRegistre())[cleDe(o.mot, o.reseau)];
-    if (!v) return false;
-    const e = empreinteMot(o);
-    return e.ok && e.empreinte === v.empreinte && v.codeCible === o.codeCible;
+    return c.ok && !c.test && c.type === "guide" && c.code === o.codeCible;
   } catch {
     return false;
   }
@@ -257,8 +259,8 @@ export type RaisonValidation =
   | "site_injoignable"
   | "sans_cible"
   | "cible_introuvable"
-  | "cible_test"
   | "adresse_pas_encore"
+  | "cible_test"
   | "titre_cible_absent"
   | "texte_dictionnaire_incomplet"
   | "validation_perimee"
@@ -337,7 +339,7 @@ export type CodeRefusMotCompte =
 
 /**
  * Garde d'envoi pour un compte : `null` = le mot peut partir, sinon le code du refus. Fermé en cas de doute.
- * N'appelle JAMAIS `sousVerrou` : elle ne fait aucune écriture de validation (`lireCiblesSite` peut toutefois rafraîchir le miroir du site).
+ * N'appelle JAMAIS `sousVerrou`. Elle n'écrit aucune validation ; seule la lecture du site peut remettre à jour la copie (miroir) des cibles.
  */
 export async function verifierMotPourCompte(o: {
   mot: string;
