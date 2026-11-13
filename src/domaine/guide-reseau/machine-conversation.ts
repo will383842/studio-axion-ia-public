@@ -5,6 +5,7 @@ import { GROUPES_MP, type GroupeMp } from "./textes-mp";
 import { ESSAIS_MAX, EN_COURS_MAX, type Conduite } from "./crochet-zernio";
 import { ETATS_EN_COURS, type EtatParcours } from "./etats-parcours";
 import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
+import type { IssueSuivi } from "./suivi-instagram";
 
 export const DELAI_PERIME_MS = 24 * 3600_000;
 export const EXPIRATION_MS = 7 * 24 * 3600_000;
@@ -26,7 +27,8 @@ export const CODES_BLOCAGE = ["INBOX_REQUIRED", "message_allowance_exceeded", "a
 
 export { ETATS_EN_COURS, type EtatParcours };
 /** Etats où un message privé de la personne est pris en compte. */
-export const ETATS_MESSAGE_ACCEPTES: readonly EtatParcours[] = ["attente_email", "m1_a_verifier", "m1_en_vol", "m2_envoye"];
+const ETATS_IG_ATTENTE: readonly string[] = ["ig_attente_ok", "ig_pas_encore"];
+export const ETATS_MESSAGE_ACCEPTES: readonly EtatParcours[] = ["attente_email", "m1_a_verifier", "m1_en_vol", "m2_envoye", "ig_attente_ok", "ig_pas_encore"];
 
 /** État conservé par personne. JAMAIS : pseudo, texte, adresse, identifiant brut de personne ou de conversation (les alias sont des empreintes). `idCommentaire`, `idCompte` et `idPostPlateforme` restent bruts (commentaire, compte et publication de NOTRE côté). */
 export interface Conversation {
@@ -91,6 +93,24 @@ export interface Conversation {
   groupeM1?: "m1-lien" | "deja-envoye" | "lien-rappel";
   /** Titre lisible de la cible (jamais de donnée personnelle). */
   titreCible?: string;
+  /** Instagram « suivre le compte puis OK » (tous facultatifs, jamais écrits à `undefined`) : issue du suivi au moment du lien. */
+  suiviIg?: IssueSuivi;
+  /** Nombre de messages « OK » pris en compte pour ce parcours. */
+  okRecus?: number;
+  /** Date d'envoi du message « pas encore » (au plus un par parcours). */
+  pasEncoreLe?: string;
+  /** Date d'envoi du lien après le OK. */
+  lienIgLe?: string;
+  /** Identifiant OPAQUE du dernier message « OK » pris en compte (rejeu : sans effet). Jamais d'identifiant de personne. */
+  idMessageOk?: string;
+  /** Date du dernier envoi tenté dont l'issue peut être inconnue (états « en vol » / « à vérifier ») : compté dans le plafond par personne. */
+  essaiEnvoiLe?: string;
+  /** Lectures du suivi tombées en panne passagère pour ce parcours. */
+  essaisSuivi?: number;
+  /** Instagram, réglage allumé : dates (facultatives, jamais écrites à `undefined`) des autres messages envoyés à la personne, comptées dans le plafond par personne. */
+  adresseRefuseeLe?: string;
+  accuseLe?: string;
+  merciEssaiLe?: string;
 }
 
 /** Délai avant réduction des identifiants bruts d'un événement clos (D1 : 30 jours, assez pour les réessais et les vérifications à la main dans l'Inbox Zernio). */
@@ -136,7 +156,7 @@ export function m1AvecLien(v: string | null | undefined): boolean {
   if (v == null) return false;
   // Messages de renvoi avec lien : eux non plus ne déclenchent pas M2.
   // « lien-rappel » : appartenance au groupe du dictionnaire ; « déjà envoyé » : pas encore de groupe, on garde le préfixe.
-  return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || (GROUPES_MP["lien-rappel"] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-");
+  return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || (GROUPES_MP["lien-rappel"] as readonly string[]).includes(v) || (GROUPES_MP["ig-suivre"] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-");
 }
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
 export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee" | "version_inconnue_du_site";
@@ -148,7 +168,7 @@ export type EvenementMachine =
   | { t: "public"; res: ResultatEcritureInbox }
   | { t: "m1"; res: ResultatEcritureInbox; maintenantMs: number }
   | { t: "message"; idExpediteur: string | null; idCompte: string; idMessage: string; /** Message sortant / de notre compte (direction, isOwnAccount) : écho. */ sortant?: boolean }
-  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null }
+  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null; /** Instagram : le message ENTIER est un OK de la liste fermée (`estOkInstagram`). Absent = non reconnu. */ okIg?: boolean }
   | { t: "site"; conduite: Conduite; enCoursAvant: number }
   | { t: "orphelin"; essais: number }
   | { t: "texte_absent"; essais: number }
@@ -159,7 +179,8 @@ export type Action =
   | "ecarter" | "opposer" | "doute" | "demarrer" | "reprendre" | "silence"
   | "prive" | "reessayer" | "terminer" | "bloquer"
   | "lire" | "lire_opposition" | "reprendre_recu" | "orphelin_reessai" | "orphelin_lire" | "texte_reessai" | "texte_ignore" | "texte_panne_reessai" | "introuvable_reessai" | "introuvable_clore"
-  | "m2" | "demander_guide" | "guide_ok" | "site_reessai" | "site_refuse";
+  | "m2" | "demander_guide" | "guide_ok" | "site_reessai" | "site_refuse"
+  | "ig_ok" | "ig_non_reconnu";
 
 export interface Sortie {
   action: Action;
@@ -239,6 +260,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
     case "texte": {
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
+      // Instagram « suivre le compte puis OK » : liste FERMÉE de OK. Tout autre message (sans opposition ni doute) : rien ne part (le service décide, rien ne part ici).
+      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
       // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
       if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && !m1AvecLien(etat.versionTexteM1) ? { action: "m2" } : { action: "silence", raison: "silence" };
@@ -278,6 +301,9 @@ export function doitExpirer(c: Conversation, maintenantMs: number, enVol = false
     // STU-MENAGE : sans cela ces états « en cours » ne finissaient JAMAIS si leur événement était perdu ou clos autrement.
     // `nouveau` / `pub_ok` : la réponse privée de Meta n'est plus possible après 7 jours. `guide_demande` : le guide est parti par e-mail, seul le reçu manquait.
     case "nouveau": case "pub_ok": candidates = [c.creeLe]; break;
+    // Instagram : 7 jours après l'envoi de la demande (« pas encore » : après ce message).
+    case "ig_attente_ok": candidates = [c.m1Le, c.creeLe]; break;
+    case "ig_pas_encore": candidates = [c.pasEncoreLe, c.m1Le, c.creeLe]; break;
     case "guide_demande": candidates = [c.m1Le, c.creeLe]; break;
     default: return false;
   }
@@ -436,7 +462,7 @@ export function deciderCommentaire(
 }
 
 /**
- * Parcours à qui rattacher un message privé. Ordre : le `guide_demande` dont `idMessageGuide` est ce message › le plus récent
+ * Parcours à qui rattacher un message privé. Ordre : le `guide_demande` dont `idMessageGuide` est ce message › le plus récent parcours Instagram en attente du OK › le plus récent
  * (`m1Le ?? creeLe`) du même compte dans un état de ETATS_MESSAGE_ACCEPTES › le plus récent du même compte › le plus récent tout court.
  * `tous` = les parcours du même compte. `principal` est `null` si `tous` est vide (aucun repli sur un autre compte).
  */
@@ -444,6 +470,10 @@ export function choisirParcoursPourMessage(
   dossier: readonly EntreeParcours[],
   idMessage: string,
   idCompte: string,
+  /** Réglage Instagram allumé : les parcours Instagram en attente passent en premier. Éteint (défaut) : tri d'avant, ces états sont ignorés. */
+  igSuivre = false,
+  /** Le message CONTIENT une adresse e-mail : avec un parcours `attente_email`, il va à ce parcours (jamais au parcours Instagram en attente d'un OK). */
+  contientAdresse = false,
 ): { principal: EntreeParcours | null; tous: EntreeParcours[] } {
   const tous = dossier.filter((x) => x.etat.idCompte === idCompte);
   const recent = (l: readonly EntreeParcours[]): EntreeParcours | null =>
@@ -461,7 +491,10 @@ export function choisirParcoursPourMessage(
       (x) =>
         x.etat.etat === "guide_demande" && x.etat.idMessageGuide === idMessage,
     ) ??
-    recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat))) ??
+    // Un OK de la personne s'adresse d'abord aux parcours Instagram en attente (ces états n'existent que réglage allumé).
+    (igSuivre && contientAdresse ? recent(tous.filter((x) => x.etat.etat === "attente_email")) : null) ??
+    (igSuivre ? recent(tous.filter((x) => x.etat.etat === "ig_attente_ok" || x.etat.etat === "ig_pas_encore")) : null) ??
+    recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat) && (igSuivre || !ETATS_IG_ATTENTE.includes(x.etat.etat)))) ??
     recent(tous); // dossier sans parcours de ce compte : null, jamais un parcours d'un autre compte
   return { principal, tous };
 }
