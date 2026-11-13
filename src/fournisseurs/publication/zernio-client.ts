@@ -331,6 +331,9 @@ const ENTETES_API_PERMIS = new Set(["x-request-id"]);
 /** En-têtes supplémentaires permis sur le téléversement (jamais Authorization). */
 const ENTETES_TELEVERSEMENT_PERMIS = new Set<string>();
 
+/** Libellé de journal sans l'identifiant d'une personne : le dernier segment de follow-status est masqué. */
+const masquerPersonne = (chemin: string): string => chemin.replace(/(\/follow-status\/)[^/?]*/, "$1<personne>");
+
 const refus = (message: string, champs?: string[]) => new ErreurZernio("chemin-refuse", `${message} Rien n'a été envoyé.`, { champs });
 
 /** `publishNow` sous toutes ses formes (casse, tiret, souligné) dans un nom ou une valeur. */
@@ -471,7 +474,7 @@ export function verifierRequete(req: RequeteZernio, hotesTeleversement: Readonly
   verifierEntetes(req.entetes, ENTETES_API_PERMIS);
 
   const trouvee = ROUTES.find((r) => r.methode === methode && r.motif.test(chemin));
-  if (!trouvee) throw refus(`${methode} ${chemin} : hors de la liste fermée.`);
+  if (!trouvee) throw refus(`${methode} ${masquerPersonne(chemin)} : hors de la liste fermée.`);
 
   if (trouvee.route === "suivi-instagram") {
     const cles = Object.keys(req.query ?? {});
@@ -668,7 +671,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   }
 
   /** Détail technique d'une réponse en erreur : JAMAIS pour l'inbox (le corps peut redire une adresse ou un message de la personne). */
-  const detailReponse = (route: RouteZernio, corps: unknown): string | undefined => (ROUTES_INBOX.has(route) ? undefined : texteErreur(corps));
+  const detailReponse = (route: RouteZernio, corps: unknown): string | undefined => (ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : texteErreur(corps));
 
   /** Codes lus à plat dans un corps d'erreur (`code`, `error` court, `details.code`). */
   function codesDuCorps(corps: unknown): string[] {
@@ -719,7 +722,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   /** `depuisPromotion` : vrai seulement quand `promouvoir()` appelle, après son GET avant (jamais exporté). */
   async function requeteInterne<T = unknown>(req: RequeteZernio, depuisPromotion: boolean): Promise<ReponseZernio<T>> {
     const ecriture = estEcriture(req.methode);
-    const libelle = "urlTeleversement" in req ? "PUT <uploadUrl>" : `${req.methode} ${req.chemin}`;
+    const libelle = "urlTeleversement" in req ? "PUT <uploadUrl>" : `${req.methode} ${masquerPersonne(req.chemin)}`;
 
     // 1. Arrêt : interrupteur lu en premier, à chaque requête.
     if (ecriture && !(await envoiAutorise())) {
@@ -757,9 +760,9 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         journal.alerte("Zernio : appel sans réponse", { requete: libelle, delaiDepasse: delai });
         if (ecriture) {
           lectureRequise = true;
-          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) ? undefined : detail });
+          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail });
         }
-        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) ? undefined : detail });
+        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail });
       }
       journal.info("Zernio : réponse", { requete: libelle, statut: rep.status, dureeMs: maintenant() - debut });
 
