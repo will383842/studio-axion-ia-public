@@ -55,6 +55,7 @@ describe("lireCommentaireManuel", () => {
     expect(l("https://www.linkedin.com.evil.example/p")).toBeNull();
     expect(l("https://user:mdp@www.linkedin.com/p")).toBeNull();
     expect(l("pas un lien")).toBeNull();
+    expect(l("https://www.linkedin.com/posts/exemple-1?token=secret&u=1#frag")).toBe("https://www.linkedin.com/posts/exemple-1");
   });
   it("texte long : motSeul null ; phrase quelconque : null", () => {
     expect(lireCommentaireManuel(env("tiktok", { text: "GUIDE " + "a".repeat(300) }))!.motSeul).toBeNull();
@@ -65,6 +66,8 @@ describe("lireCommentaireManuel", () => {
     const p = lireCommentaireManuel(env("linkedin", { author: { id: "x", isOwnAccount: true } }))!;
     expect(p).toMatchObject({ proprio: true, motSeul: null, idAuteur: "acc_1" });
     expect(lireCommentaireManuel(env("linkedin", { author: { id: "acc_1" } }))!.proprio).toBe(true);
+    const e = env("linkedin", { author: { id: "plat_9" } }, { account: { accountId: "acc_1", platformAccountId: "plat_9", platform: "linkedin" } });
+    expect(lireCommentaireManuel(e)).toMatchObject({ proprio: true, motSeul: null, idAuteur: "acc_1" });
   });
   it("aucun champ texte brut dans le résultat", () => {
     const texte = "Mon adresse lecteur@example.com GUIDE";
