@@ -6,3 +6,5 @@ Choix : le CORRECTIF de la fiche (un seul lieu de validation, décision Q4) l'em
 Reste : brancher les données (raison, ressemblance, adresse de l'écran « À valider » ; non connue dans le code, passée par l'appelant) dans la page, fichiers interdits ici. À confirmer par le fondateur, comme dit la fiche. Aucun prix, aucun envoi.
 
 CORRECTIF (relecture z18) : fusion de usine/CAL-11c à jour (sans rebase). `hover:text-orange-vif` remplacé par `hover:text-accent` dans CarteProposition.tsx pour tenir COUL-01. Tests calendrier, cal-17, garde composants clients, COUL-01 : verts. tsc et eslint : aucune erreur nouvelle.
+
+CORRECTIF (fusion de master) : master (CAL-11b et CAL-11c fusionnées à plat) fusionné dans usine/CAL-17, sans rebase. Conflit de GrilleSemaine.tsx résolu : tout le contenu de master conservé, seules les props et le rendu des propositions CAL-17 ajoutés. Aucune classe orange ajoutée.
