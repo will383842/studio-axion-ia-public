@@ -764,6 +764,18 @@ export function calculerCoupes(e: EntreeCoupes): PlanCoupes {
   // 4 bis. (V6) Aucune phrase en double : la première fois est coupée (on garde le dernier essai, comme en mode texte).
   for (const d of doublesParmi(mots, statut.map((st, i) => (st === "garde" ? i : -1)).filter((i) => i >= 0), e.texteValide)) {
     for (const i of d.premier) statut[i] = "reprise";
+    // GV2-27 (bavardageStrict) : une suite commune coupée au milieu d'une phrase achevée laissait sa fin seule
+    // (« relancer vos clients. ») : le reste de cette première phrase, jusqu'à sa ponctuation finale, part avec elle.
+    if (r.bavardageStrict && !finitPhrase(mots[d.premier[d.premier.length - 1]].mot)) {
+      const reste: number[] = [];
+      for (let i = d.premier[d.premier.length - 1] + 1; i < d.second[0] && (statut[i] === "garde" || statut[i] === "hesitation"); i++) {
+        reste.push(i);
+        if (finitPhrase(mots[i].mot)) {
+          for (const k of reste) statut[k] = "reprise";
+          break;
+        }
+      }
+    }
   }
   // 7. (10/10) Phrases dites autrement, d'après les mots finalement gardés.
   if (mode === "texte") phrases = reconnaitreDitesAutrement(mots, statut, phrases, bornes, r.diteAutrementAuxBords);
