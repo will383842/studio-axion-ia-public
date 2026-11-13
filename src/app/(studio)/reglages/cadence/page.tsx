@@ -7,6 +7,8 @@ import {
   LIBELLES_PREMIER_COMMENTAIRE,
   lireHeure,
   nomReseauCadence,
+  regleSaisie,
+  SOURCE_SAISIE,
   RESEAUX_CADENCE,
   type ReglagesCadence,
   type ValeurRegle,
@@ -22,14 +24,7 @@ const nombre = (v: FormDataEntryValue | null): number | undefined => {
   const t = String(v ?? "").trim();
   return t === "" ? undefined : Number(t);
 };
-const SOURCE_SAISIE = "Modifiée par vous dans les Réglages";
 const FR_ETATS = ETATS_PREMIER_COMMENTAIRE as readonly string[];
-
-/** Garde la règle telle quelle si la saisie est identique ou vide ; sinon la valeur change et sa source devient « modifiée par vous », datée d'aujourd'hui. */
-function regleSaisie<T extends number | string>(actuelle: ValeurRegle<T>, saisie: T | undefined): ValeurRegle<T> {
-  if (saisie === undefined || (typeof saisie === "number" && !Number.isFinite(saisie)) || saisie === actuelle.valeur) return actuelle;
-  return { valeur: saisie, source: SOURCE_SAISIE, verifieLe: new Date().toISOString().slice(0, 10) };
-}
 
 /** Enregistre tout l'écran d'un coup : heures, quota, écart et règles par réseau. Rien n'est enregistré si une heure est illisible. */
 async function enregistrerEcran(donnees: FormData): Promise<void> {
@@ -69,7 +64,7 @@ const dateLisible = (d: string): string => d.split("-").reverse().join("/");
 function Provenance({ regle }: { regle: ValeurRegle<unknown> }) {
   return (
     <span className="text-xs text-texte-doux">
-      {regle.verifieLe ? `Vérifiée le ${dateLisible(regle.verifieLe)}` : "Pas encore vérifiée"} · Source : {regle.source}
+      {regle.verifieLe ? `${regle.source === SOURCE_SAISIE ? "Modifiée" : "Vérifiée"} le ${dateLisible(regle.verifieLe)}` : "Pas encore vérifiée"} · Source : {regle.source}
     </span>
   );
 }
