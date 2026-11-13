@@ -116,9 +116,15 @@ const EMPLACEMENT_LISIBLE: Readonly<Record<string, string>> = {
   bas: "EN BAS, sous le visage (visage entier)",
 };
 
+/** GV2-49 : quand choisir les plaquettes chiffrées (texte fixe d'une vidéo à l'autre : le cache de la consigne ne bouge pas). */
+const PRECISION_VALEURS_DITES_V4: Readonly<Record<string, string>> = {
+  GraphiqueBarres: " Choisissez-la SEULEMENT si 2 à 4 nombres sont dits (barres, champ « valeurs » : [{ \"valeur\": nombre dit, \"libelle\": 20 caractères au plus }]) ; chaque valeur doit être dite dans la fenêtre de la plaquette.",
+  JaugePourcentage: " Choisissez-la SEULEMENT si un pourcentage est dit (jauge).",
+};
+
 /** Le catalogue v4 (les 26 plaquettes ACTIVES seulement) lu par le réalisateur : une ligne par plaquette. */
 function blocElementsV4(): string {
-  return elementsV4Actifs().map((f) => `- ${f.id} — ${f.nom} (emplacement « ${f.slot} » : ${EMPLACEMENT_LISIBLE[f.slot]} ; ${v(f.dureeSec[0])} à ${v(f.dureeSec[1])} s ; au plus ${f.maxParVideo} par vidéo de 90 s). QUAND : ${f.quand} CONTENU : ${f.contenu}. CHAMPS : ${prise(f)}.`).join("\n");
+  return elementsV4Actifs().map((f) => `- ${f.id} — ${f.nom} (emplacement « ${f.slot} » : ${EMPLACEMENT_LISIBLE[f.slot]} ; ${v(f.dureeSec[0])} à ${v(f.dureeSec[1])} s ; au plus ${f.maxParVideo} par vidéo de 90 s). QUAND : ${f.quand} CONTENU : ${f.contenu}. CHAMPS : ${prise(f)}.${PRECISION_VALEURS_DITES_V4[f.id] ?? ""}`).join("\n");
 }
 
 /** Section « plaquettes v4 » de la consigne : le catalogue actif, les décisions fixes de Will, le rythme et la forme des champs. */
