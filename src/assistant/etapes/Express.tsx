@@ -17,7 +17,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { apercuAction, controlerScriptReluAction } from "@/app/(studio)/nouvelle/[format]/actions";
+import { apercuAction, controlerScriptReluAction, etatMontageReelAction } from "@/app/(studio)/nouvelle/[format]/actions";
 import { creerVersionDejaFilmeeAction } from "@/app/(studio)/envoyer/actions";
 import { abandonnerBrouillonAction } from "@/app/(studio)/videos/actions";
 import { detailCreditAction, garderEnAttenteAction } from "@/app/(studio)/nouvelle/[format]/actions-credits";
@@ -77,6 +77,18 @@ export function EtapeExpress(props: ProprietesEtape) {
   // Onglet de la feuille Script : « Mes scripts » et « Une idée » ouvrent chacun le leur (E2E-1 n° 3).
   const [ongletScript, setOngletScript] = useState<OngletScript | undefined>(undefined);
   const [apercu, setApercu] = useState<ApercuFabrication | null>(null);
+  // GV2-18 : avocat, la vidéo sera-t-elle réelle ou d'essai ? (lecture seule, dite avant le bouton)
+  const [etatMoteur, setEtatMoteur] = useState<{ reel: boolean; phrase: string } | null>(null);
+  useEffect(() => {
+    if (formatId !== "avocat") return;
+    let actif = true;
+    void etatMontageReelAction(formatId).then((r) => {
+      if (actif && r.ok) setEtatMoteur(r.donnees);
+    });
+    return () => {
+      actif = false;
+    };
+  }, [formatId]);
   // Brique 6 : relecture du script ouverte par « Fabriquer » (le texte du moment, les raisons à vérifier, la saisie reprise).
   const [relecture, setRelecture] = useState<{ blocs: BlocScript[]; raisons: string[]; modifications: DifferenceLigne[] } | null>(null);
   // Flèche retour de la relecture : les phrases retouchées sont gardées pour le prochain « Fabriquer ».
@@ -121,6 +133,8 @@ export function EtapeExpress(props: ProprietesEtape) {
 
   const texte = texteScript(brouillon.blocs);
   const aTexte = aDuTexte(brouillon.blocs);
+  // GV2-18 : la voix refuse plus de 5 000 caractères (somme des segments, approximation assumée).
+  const caracteres = brouillon.blocs.reduce((n, b) => n + b.segments.reduce((m, sg) => m + sg.texte.length, 0), 0);
   // Arrivée depuis une idée (E2E-1 n° 4) : un sujet, pas encore de texte.
   const idee = !aTexte ? brouillon.sujet.trim() : "";
   function ouvrirScript(onglet?: OngletScript) {
@@ -473,6 +487,14 @@ export function EtapeExpress(props: ProprietesEtape) {
           <Bouton taille="lg" pleineLargeur icone="clap" essai={fabricationEssai} disabled={boutonFabriquerGrise({ aTexte, formatId, budgetDepasse: !!apercu?.budget.depasse, refus: !!apercu?.refus })} chargement={lancement} onClick={() => void fabriquer()}>
             {!aTexte && scriptFacultatif(formatId) ? "Envoyer ma vidéo déjà filmée" : "Fabriquer"}
           </Bouton>
+          {formatId === "avocat" && etatMoteur && (
+            <p className="text-center text-xs text-texte-doux">{etatMoteur.reel ? "Montage réel" : `Vidéo d'essai : ${etatMoteur.phrase}`}</p>
+          )}
+          {caracteres > 5000 && (
+            <p role="alert" className="text-center text-xs text-ambre">
+              Votre texte dépasse 5 000 caractères : la voix le refusera. Raccourcissez-le.
+            </p>
+          )}
           {!aTexte && scriptFacultatif(formatId) ? (
             <p className="text-center text-xs text-texte-doux">Sans texte : vous envoyez votre vidéo déjà filmée.</p>
           ) : !aTexte ? (
