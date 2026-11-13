@@ -14,6 +14,7 @@ import { CompositionsCasConcret } from "./cas-concret/Compositions";
 import { CompositionsInterfaceClaire } from "./interface-claire/Compositions";
 import { CompositionsImageVideo } from "./image-video/Compositions";
 import { CompositionsVisuels } from "./visuels/Compositions";
+import { CompositionsInfographie } from "./visuels/infographie/Racine";
 import { PLAN_VIDE, PlanDeScenes, metaPlanDeScenes } from "./plan-scenes/PlanDeScenes";
 import { TutorielOutil, metaTutorielOutil } from "./plan-scenes/TutorielOutil";
 import { DEMO_FACECAM_VIDE, DemoFacecam, metaDemoFacecam } from "./demo-facecam/DemoFacecam";
@@ -152,6 +153,7 @@ export function Racine() {
       <CompositionsInterfaceClaire />
       <CompositionsImageVideo />
       <CompositionsVisuels />
+      <CompositionsInfographie />
     </>
   );
 }
