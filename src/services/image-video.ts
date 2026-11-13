@@ -336,15 +336,11 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   // Transcription et extraction d'images : conteneur `studio-aligneur` (routes existantes `transcrire` et `image`).
   const { fournisseurFacecam } = await import("@/fournisseurs/facecam");
   const facecam = fournisseurFacecam({ reel: true });
-  async function travailFacecam<R extends "transcrire" | "image">(route: R, idTravail: string, demande: () => Promise<{ source: string; depots?: Record<string, string>; parametres?: Record<string, unknown> }>, quoi: string, attenteMaxMs: number) {
-    const debut = Date.now();
+  async function travailFacecam<R extends "transcrire" | "image">(route: R, idTravail: string, demande: () => Promise<{ source: string; depots?: Record<string, string>; parametres?: Record<string, unknown> }>, quoi: string) {
+    // Un seul passage (comme le rendu) : soumis s'il est inconnu, relu une fois ; pas fini → attente, reprise au tour suivant.
     let e = await facecam.suivre(route, idTravail);
     if (e.statut === "echec" && e.erreur.travailInconnu) e = await facecam.soumettre(route, { idTravail, ...(await demande()) });
-    while (e.statut === "en_file" || e.statut === "en_cours") {
-      if (Date.now() - debut > attenteMaxMs) throw new RenduEnCoursIV(quoi);
-      await new Promise((ok) => setTimeout(ok, 5_000));
-      e = await facecam.suivre(route, idTravail);
-    }
+    if (e.statut === "en_file" || e.statut === "en_cours") throw new RenduEnCoursIV(quoi);
     if (e.statut === "echec") throw new Error(`${quoi} n'a pas abouti (${e.erreur.message}).`);
     return e.resultat;
   }
@@ -459,7 +455,6 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
           d.appelId,
           async () => ({ source: await signerLecture(d.cle), depots: { transcription: await signerDepot(cleTranscription, "application/gzip") }, parametres: { langue: d.langue, jusquaSec: d.jusquaSec, cles: { transcription: cleTranscription } } }),
           "La transcription de la voix",
-          10 * 60_000,
         );
         return { mots: ((r as { mots?: MotHorodate[] }).mots ?? []).filter((m) => m.debutSec <= d.jusquaSec) };
       },
@@ -467,7 +462,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         const depots = Object.fromEntries(await Promise.all(Object.entries(d.parametres.cles).map(async ([nom, cle]) => [nom, await signerDepot(cle, "image/jpeg")] as const)));
         // L'id dépend des instants (l'aligneur garde ses travaux 24 h) ; seules les images réellement listées sont déclarées.
         const id = idTravailControleIV(String(dep.videoId), d);
-        const r = await travailFacecam("image", id, async () => ({ source: await signerLecture(d.source), depots, parametres: d.parametres }), "L'extraction des images de contrôle", 10 * 60_000);
+        const r = await travailFacecam("image", id, async () => ({ source: await signerLecture(d.source), depots, parametres: d.parametres }), "L'extraction des images de contrôle");
         return { images: imagesExtraitesIV(r, d) };
       },
       lireImage: async (cle) => {
