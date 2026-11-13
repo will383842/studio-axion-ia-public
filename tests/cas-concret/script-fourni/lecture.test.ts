@@ -53,7 +53,7 @@ describe("étiquettes", () => {
 
 describe("nettoyage", () => {
   it("CRLF, lignes vides, puces de tête (tiret, point, astérisque, « 1. », « 1) »), espaces : rien n'est réécrit d'autre", () => {
-    const r = lireTexteFourni("- Un.\r\n\r\n• Deux.\n* Trois.\n1. Quatre.\n2) Cinq.\n   Six.   ", cas);
+    const r = lireTexteFourni("- Un.\r\n\r\n• Deux.\n* Trois.\n1) Quatre.\n2) Cinq.\n   Six.   ", cas);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.lignes.map((l) => l.texte)).toEqual(["Un.", "Deux.", "Trois.", "Quatre.", "Cinq.", "Six."]);
   });
@@ -62,6 +62,14 @@ describe("nettoyage", () => {
     const r = lireTexteFourni("Bon\u0000jour\u0007.\nDeux.\u001b", cas);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.lignes.map((l) => l.texte)).toEqual(["Bonjour.", "Deux."]);
+  });
+});
+
+describe("ligne sans mot", () => {
+  it("« --- », « *** », « … », un émoji seul : refus qui nomme la ligne ; « 60 » seul reste accepté", () => {
+    for (const l of ["---", "***", "…", "🙂", "- ---"]) expect(refus(`Une phrase.\n${l}\nAutre phrase.`)).toEqual(["Ligne 2 : cette ligne ne contient aucun mot à dire."]);
+    expect(refus("[accroche] ---")).toEqual(["Ligne 1 : cette ligne ne contient aucun mot à dire."]);
+    expect(refus("Une phrase.\n60\nAutre phrase.")).toEqual([]);
   });
 });
 

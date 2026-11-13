@@ -122,7 +122,7 @@ const champsCommuns = {
   fond: z.enum(FONDS),
   /** « axion-ia.com », en haut de la zone sûre (vérifiée par R09). */
   marque: texte(40),
-  texteDit: texte(400),
+  texteDit: texte(400).refine((t) => motsLus(t).length > 0, { error: "le texte dit n'a aucun mot à dire" }),
   avanceMs: avance,
   evenements: z.array(schemaEvenement),
   /** Éclair orange (trois moments clés par vidéo). */
