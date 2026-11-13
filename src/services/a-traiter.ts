@@ -118,6 +118,15 @@ export async function noterCopieCarte(id: string, dateIso: string, o: { depot?: 
   });
 }
 
+/**
+ * Relit UNE carte sous le verrou LOCAL (file dans l'ordre d'arrivée : un stop déjà en attente passe avant cette lecture).
+ * N'appelle jamais `sousVerrou` ; l'appelant ne doit pas l'appeler depuis l'intérieur de `sousVerrou`. Rend `null` si la carte est absente.
+ */
+export async function relireCarteSousVerrou(id: string, o: { depot?: DepotATraiter } = {}): Promise<CarteATraiter | null> {
+  const depot = o.depot ?? depotCourant;
+  return verrou(async () => (await depot.lire()).find((c) => c.idEvenement === id) ?? null);
+}
+
 /* ---- Fonctions pures ---- */
 const ECHAPPEMENTS: Record<string, string> = {
   "&": "&amp;",
