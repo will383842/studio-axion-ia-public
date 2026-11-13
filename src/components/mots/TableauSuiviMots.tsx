@@ -3,7 +3,7 @@
 // SUI-B — tableau du suivi chiffré par mot : une ligne par mot, choix de la fenêtre (7 jours / 30 jours / total).
 // Présentation pure : tout arrive en propriété. Les chiffres du site absents s'écrivent « — », jamais 0.
 import { useState } from "react";
-import { chiffreOuTiret, compteAffiche, libelleGagnees, type Fen, type TableauSuivi } from "./suivi-affichage";
+import { AU_MOINS_PARTOUT, chiffreOuTiret, compteAffiche, libelleGagnees, type Fen, type TableauSuivi } from "./suivi-affichage";
 
 type Fenetre = keyof Fen;
 
@@ -23,9 +23,9 @@ const COLONNES = [
   "Personnes gagnées",
 ];
 
-export function TableauSuiviMots({ suivi }: { suivi: TableauSuivi }) {
+export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi: TableauSuivi; partout?: boolean }) {
   const [fenetre, setFenetre] = useState<Fenetre>("j7");
-  const valeur = (f: Fen | null) => (f === null ? chiffreOuTiret(null) : compteAffiche(f[fenetre]));
+  const valeur = (f: Fen | null) => (f === null ? chiffreOuTiret(null) : compteAffiche(f[fenetre], partout));
   return (
     <section aria-label="Suivi chiffré par mot">
       {!suivi.siteDisponible && (
@@ -72,7 +72,7 @@ export function TableauSuiviMots({ suivi }: { suivi: TableauSuivi }) {
           <ul>
             {l.parPublication.map((p) => (
               <li key={`${p.reseau}-${p.post}`}>
-                {p.reseau} · {p.post} : {p.commentaires} commentaires, {p.premiersMessages} premiers messages,{" "}
+                {p.reseau} · {p.post} : {compteAffiche(p.commentaires, partout)} commentaires, {compteAffiche(p.premiersMessages, partout)} premiers messages,{" "}
                 {chiffreOuTiret(suivi.siteDisponible ? p.formulaires : null)} formulaires,{" "}
                 {chiffreOuTiret(suivi.siteDisponible ? p.clics : null)} clics, {libelleGagnees(p.auMoinsGagnees)}
               </li>
@@ -82,7 +82,7 @@ export function TableauSuiviMots({ suivi }: { suivi: TableauSuivi }) {
           <ul>
             {l.formulations.map((f) => (
               <li key={f.version}>
-                {f.version} : {f.envois} envois, {chiffreOuTiret(suivi.siteDisponible ? f.clics : null)} clics
+                {f.version} : {compteAffiche(f.envois, partout)} envois, {chiffreOuTiret(suivi.siteDisponible ? f.clics : null)} clics
               </li>
             ))}
           </ul>
