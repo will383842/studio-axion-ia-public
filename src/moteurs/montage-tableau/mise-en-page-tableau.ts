@@ -15,6 +15,7 @@
  * Les dessins sont des polylignes ordonnées (contour → remplissage → ombre) que l'outil trace (`ElementPlace.tableau`).
  */
 import { PALETTE } from "@/briques/charte/axion-2026";
+import { faitsDuScript, familleUnite } from "@/briques/faits-script";
 import { CHARTES_TABLEAU, type CharteTableau, type PoliceTableau, type StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import { INTERLIGNES_TABLEAU, couperTableau, coupeUnGroupe, largeurTableau } from "@/briques/tableau-scene/trois-styles/mesure";
 import { banderole, barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
@@ -233,7 +234,20 @@ export function themeDessin(texte: string, visuel?: string): Theme {
   if (mails) return "mails";
   if (temps) return "temps";
   if (a(/\b(vite|rapide|gagn)/)) return "rapide";
-  return "notes";
+  return themeParFaits(texte) ?? "notes";
+}
+
+/** GV2-53 : repli par les faits du script (durée, progression, liste, comparaison), à la place du défaut « notes ». */
+function themeParFaits(texte: string): Theme | null {
+  const mots = texte.split(/\s+/).filter((m) => m.length > 0).map((m) => ({ texte: m, debutMs: 0, finMs: 0 }));
+  const faits = faitsDuScript(mots);
+  const a = (t: string) => faits.some((f) => f.type === t);
+  if (faits.some((f) => f.type === "duree" || (f.type === "nombre" && f.unite !== undefined && familleUnite(f.unite) === "duree"))) return "temps";
+  // Aucun thème ne dessine une hausse : « flux » (de l'avant vers l'après) est le plus proche.
+  if (faits.some((f) => (f.type === "nombre" && f.unite === "%") || f.type === "passage")) return "flux";
+  if (a("liste") || a("etapes")) return "notes";
+  if (a("comparaison")) return "flux";
+  return null;
 }
 
 /** Le dessin d'un thème, en coordonnées de la maquette (1080 × 1920) ; la mise en page le recadre. */
