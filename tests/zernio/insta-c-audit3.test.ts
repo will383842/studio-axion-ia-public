@@ -157,6 +157,61 @@ describe("B2 · message clos « ignore » sans avoir été lu : le dossier Insta
   });
 });
 
+describe("C1 · message sans idConversation clos « ignore » : doute posé avant la clôture", () => {
+  it("« Stop » sans idConversation (lu nulle part), puis OK : rien ne part, doute posé", async () => {
+    const cle = await semer("1", "ig_attente_ok");
+    const eStop = await deposerMessage(depots, { idMessage: "msg-stop-1", avance: 1000, idConversation: null });
+    await pass(T0 + 60_000);
+    expect((await evt(eStop)).etat).toBe("ignore");
+    expect((await parcours()).find(([k]) => k === cle)![1].douteOpposition).toBe(true);
+    await message("msg-ok-1", 2 * 60_000);
+    await pass(T0 + 5 * 60_000);
+    expect(envois).toHaveLength(0);
+    expect(prives).toHaveLength(0);
+  });
+});
+
+describe("C2 · B2 : liste incomplète et texte absent posent aussi le doute", () => {
+  const fin = [60_000, 10 * 60_000, 40 * 60_000, 3 * H, 10 * H, 20 * H];
+  for (const [nom, lecture] of [
+    ["liste incomplète", () => ({ texte: null, postback: null, panne: true, codePanne: "liste-incomplete" })],
+    ["texte absent", () => ({ texte: null, postback: null })],
+  ] as const) {
+    it(`${nom} après les derniers essais, puis OK : rien ne part, doute posé, alerte`, async () => {
+      const cle = await semer("1", "ig_attente_ok");
+      lecturesParMessage["msg-x-1"] = lecture as any;
+      const eX = await message("msg-x-1", 1000);
+      for (const ms of fin) await pass(T0 + ms);
+      expect((await evt(eX)).etat).toBe("ignore");
+      expect((await parcours()).find(([k]) => k === cle)![1].douteOpposition).toBe(true);
+      expect(await alerte(/n'a pas pu être lu, la personne est mise en attente/)).toBe(1);
+      await message("msg-ok-1", 21 * H);
+      await pass(T0 + 22 * H);
+      expect(envois).toHaveLength(0);
+      expect(prives).toHaveLength(0);
+    });
+  }
+});
+
+describe("C3 · Stop arrivé pendant la lecture du suivi : rien ne part", () => {
+  it("le message non traité apparaît pendant lireSuiviInstagram : OK reporté, rien ne part, réservation relâchée", async () => {
+    const cle = await semer("1", "ig_attente_ok");
+    lecturesParMessage["msg-stop-1"] = () => ({ texte: null, postback: null, panne: true });
+    const eOk = await message("msg-ok-1", 1000);
+    const p = banc.port.port as any;
+    p.lireSuiviInstagram = async (a: any) => {
+      suivi.appels.push(a);
+      await message("msg-stop-1", 31_000); // le « Stop » arrive pendant la lecture du suivi
+      return suivi.defaut;
+    };
+    await pass(T0 + 40_000);
+    expect(envois).toHaveLength(0);
+    expect(prives).toHaveLength(0);
+    expect((await evt(eOk)).etat).toBe("a_reessayer");
+    expect((await parcours()).find(([k]) => k === cle)![1].etat).toBe("ig_attente_ok");
+  });
+});
+
 describe("m2 · m2Le écrit avant l'envoi, retiré si rien n'est parti", () => {
   it("M2 refusé net : m2Le absent après coup ; envoyé : m2Le présent", async () => {
     await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 100_000) });

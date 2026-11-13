@@ -1153,6 +1153,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // LECTURE AVANT LES GARDES, dans tous les états : un « stop » est toujours lu et enregistré (lire n'envoie rien).
   if (!idConversation) {
+    await douterSiInstagramEnAttente(cle, igSuivre, now);
     await clore(ev, "ignore", "conversation_inconnue");
     return "traite";
   }
@@ -1450,6 +1451,13 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     if (!(await reserverOuReporter(ev, idCompte, now))) {
       await restaurer(false); // l'événement est déjà reporté (plafond du compte ou compteur illisible)
       return "bloque";
+    }
+    // Un message de la personne a pu arriver pendant la lecture du suivi : revérifié juste avant l'envoi ; reporté, rien ne part, réservation relâchée.
+    if (await messageNonTraiteDeLaPersonne(ev, idCompte, idConversation, idExpediteur, idMessage)) {
+      await rendrePlaceEnvoi(idCompte, now);
+      await restaurer(false);
+      await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu");
+      return "traite";
     }
     const nonOpposee = await verifierPartout(env, choisi.cle, ev.charge, now, { doute: true }); // jeton JUSTE avant l'envoi
     if (!nonOpposee) {
