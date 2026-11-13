@@ -75,11 +75,21 @@ export function motifEchec(e: unknown): ErreurRendu["erreur"] {
   if (/target closed|session closed|browser has disconnected|browser closed|protocol error/i.test(brut)) {
     return { code: "indisponible", reessayable: true, message: `Le navigateur du rendu s'est fermé pendant le dessin (${court}).` };
   }
+  if (/\bENOSPC\b|no space left on device/i.test(brut) || (e as NodeJS.ErrnoException | null)?.code === "ENOSPC") {
+    return { code: "inconnu", reessayable: false, message: "Le disque du serveur de rendu est plein." };
+  }
   if (!court) return { code: "inconnu", reessayable: true, message: "Le rendu a échoué sans message." };
   return { code: "inconnu", reessayable: true, message: court };
 }
 
+/** Identifiant sans son suffixe de reprise (`-eN`, `-sN`, `-rN`) : un même montage repris garde le même identifiant de base. PUR. */
+export function idDeBase(idRendu: string): string {
+  return idRendu.replace(/-[esr]\d+$/, "");
+}
+
 export class FilesRendu {
+  /** Nombre de dépassements de délai par identifiant de base (en mémoire, comme le reste). */
+  private readonly depassements = new Map<string, number>();
   private readonly rendus = new Map<string, Entree>();
   private readonly attenteCourte: string[] = [];
   private readonly attenteLongue: string[] = [];
@@ -218,7 +228,14 @@ export class FilesRendu {
       entree.etat = { statut: "termine", sortieCle: demande.sortie.cle, ...(resultat.mesures ? { mesures: resultat.mesures } : {}) };
     } catch (e) {
       if (entree.etat.statut === "en_cours") {
-        const erreur = motifEchec(e);
+        let erreur = motifEchec(e);
+        if (depasse && e === erreurDelai) {
+          const base = idDeBase(demande.idRendu);
+          const nombre = (this.depassements.get(base) ?? 0) + 1;
+          this.depassements.set(base, nombre);
+          // Deuxième dépassement du même montage : un nouvel essai dépasserait encore, on s'arrête là.
+          if (nombre >= 2) erreur = { code: "indisponible", reessayable: false, message: "Le montage dépasse la durée maximale du serveur de rendu." };
+        }
         entree.etat = { statut: "echec", erreur };
         console.error(`[studio-rendu] échec ${demande.operation} ${demande.idRendu} : ${erreur.code} ${sansAdresses(erreur.message).slice(0, 300)}`);
       }
