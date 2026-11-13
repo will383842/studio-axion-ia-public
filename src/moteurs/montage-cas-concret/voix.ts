@@ -76,8 +76,8 @@ export function coeurDuBlanc(deSec: number, aSec: number): PauseAMesurer {
 const PONCTUATION_FINALE = /[.,;:!?…]["»”)\s ]*$/;
 const aDesLettres = (m: string) => cleMot(m).length > 0;
 
-/** Mots d'hésitation que la voix peut écrire (formes sans accent ni majuscule, comme `cleMot`). */
-const HESITATIONS = new Set(["euh", "heu", "eh", "hum", "hmm", "hem", "mmh", "mh", "ah", "oh", "ben", "bah", "bof"]);
+/** Mots d'hésitation que la voix peut écrire, lettres répétées comprises (« euuh », « hmmm ») ; formes sans accent ni majuscule, comme `cleMot`. */
+const HESITATION = /^(e+u+h+|h+e+u+h*|e+h+|h+u+m+|h+m+|h+e+m+|m{2,}h*|m+h+|a+h+|o+h+|b+e+n+|b+a+h+|b+o+f+)$/;
 
 interface MotDuTexte {
   mot: string;
@@ -165,12 +165,14 @@ export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[];
   // Tolérant : le rang des mots rendus et celui des mots du texte ne se correspondent plus quand les nombres diffèrent.
   const memesRangs = !tolerant || attendus.length === rendus.length;
   const dansLeTexte = tolerant ? new Set(attendus.map((a) => cleMot(a.mot))) : undefined;
+  // Tolérant : un mot rendu redit juste après lui-même (« e-mail e-mail ») est un bégaiement, sauf si le texte le redit aussi.
+  const begaie = (i: number) => i > 0 && !!rendus[i] && cleMot(rendus[i].mot) === cleMot(rendus[i - 1].mot) && !attendus.some((a, k) => k > 0 && cleMot(a.mot) === cleMot(rendus[i].mot) && cleMot(attendus[k - 1].mot) === cleMot(a.mot));
   for (let i = 0; i < n; i++) {
     const a = attendus[i];
     const r = rendus[i];
     if (a && r && cleMot(a.mot) === cleMot(r.mot)) continue;
     // Tolérant : seul un mot d'hésitation que le texte ne contient pas reste refusé (le contrôle des hésitations n'est pas assoupli).
-    if (tolerant && r && !(HESITATIONS.has(cleMot(r.mot)) && !dansLeTexte!.has(cleMot(r.mot)))) continue;
+    if (tolerant && r && !(HESITATION.test(cleMot(r.mot)) && !dansLeTexte!.has(cleMot(r.mot))) && !begaie(i)) continue;
     if (tolerant && !r) continue;
     const detail = !r ? `le mot « ${a.mot} » n'a pas été dit` : !a ? `le mot « ${r.mot} » est en trop` : `« ${r.mot} » a été dit au lieu de « ${a.mot} »`;
     return { rejet: "mots", phrase: phraseDe(i), detail };

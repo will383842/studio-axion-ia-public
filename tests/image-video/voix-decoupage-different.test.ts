@@ -116,3 +116,15 @@ describe("voix qui découpe un mot en deux", () => {
     expect(e.voix!.reparations ?? 0).toBe(0);
   });
 });
+
+describe("option allumée : une hésitation reste refusée sous toutes ses écritures", () => {
+  const mot = (m: string, i: number): MotHorodate => ({ mot: m, debutSec: i * 0.3, finSec: i * 0.3 + 0.25 });
+  const texte = "Un e-mail propre vaut mieux.";
+  it.each(["euh", "euhh", "euuh", "heuu", "hum", "mmm", "hmmm", "Hmm,"])("« %s » inséré : refus « mots »", (h) => {
+    expect(controlerPrise({ texte, mots: ["Un", h, "e-mail", "propre", "vaut", "mieux."].map(mot), accepterEcartDeMots: true })).toMatchObject({ rejet: "mots" });
+  });
+  it("un mot redit (« e-mail e-mail ») : refus « mots » ; un mot fusionné reste accepté", () => {
+    expect(controlerPrise({ texte, mots: ["Un", "e-mail", "e-mail", "propre", "vaut", "mieux."].map(mot), accepterEcartDeMots: true })).toMatchObject({ rejet: "mots" });
+    expect(controlerPrise({ texte, mots: ["Un", "e-mailpropre", "vaut", "mieux."].map(mot), accepterEcartDeMots: true })).toEqual({ ok: true });
+  });
+});
