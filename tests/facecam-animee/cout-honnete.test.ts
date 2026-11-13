@@ -4,7 +4,7 @@
  * après coup, le vrai coût payé s'affiche. Aucun appel réseau, aucun plafond ni prix changé.
  */
 import { describe, expect, it } from "vitest";
-import { dollarsFA, eurosFA, lignesCout, phrasePaye } from "@/components/formats/facecam-animee/cout";
+import { lignesCout, phrasePaye } from "@/components/formats/facecam-animee/cout";
 import { MAX_JETONS_REALISATEUR_V4, entreeRoleRealisateurV4, roleRealisateurV4 } from "@/moteurs/montage-facecam-animee/realisateur/role-v4";
 import { estimerOpusV4, motsPourEstimation } from "@/moteurs/montage-facecam-animee/realisateur/cout-v4";
 import { ESSAIS_MAX_REALISATEUR, messageAvecErreurs, messageRealisateur } from "@/moteurs/montage-facecam-animee/realisateur";
@@ -75,19 +75,22 @@ describe("Coût honnête · plafond de 4 $ par vidéo", () => {
 describe("Coût honnête · ce qui s'affiche", () => {
   const e = estimationDuLot([{ dureeSec: 80 }], PLAFOND, TAUX_USD_EUR_PAR_DEFAUT);
   const l = lignesCout(e);
-  it("pire cas, plafond en dollars et en euros, rendu et voix à 0 €", () => {
-    expect(l.pireCas).toContain(eurosFA(e.pireCasCentimesEur));
+  const MONTANT = /€|\$|euros?\b|dollars?\b|\bUSD\b|\bEUR\b|\d[.,]\d{2}/i;
+  it("pire cas en nombre d'essais, plafond annoncé, rendu et voix sans frais, et aucun montant à l'écran", () => {
     expect(l.pireCas).toContain("3 essais");
-    expect(l.plafond).toContain("4 $");
-    expect(l.plafond).toContain(eurosFA(e.plafondCentimesEur));
-    expect(l.autres).toContain("0 €");
+    expect(l.plafond).toMatch(/plafonn/);
+    expect(l.autres).toMatch(/rien à payer/);
+    expect(Object.values(l).join(" ")).not.toMatch(MONTANT);
+    // Le calcul serveur reste chiffré : le plafond et le pire cas sont toujours enregistrés.
+    expect(e.plafondCentimesEur).toBeGreaterThan(0);
+    expect(e.pireCasCentimesEur).toBeGreaterThan(0);
   });
   it("aucun mot interdit à l'écran", () => {
-    const tout = [...Object.values(l), phrasePaye(138), dollarsFA(4)].join(" ");
+    const tout = [...Object.values(l), phrasePaye()].join(" ");
     expect(tout).not.toMatch(/\b(job|render|prompt|token|api|upload|pipeline|workflow|mock|fictif|dashboard|avatar)\b|certifexemple|certifi|villeexemple/i);
   });
-  it("le vrai coût payé se dit en euros", () => {
-    expect(phrasePaye(200)).toBe(`Déjà payé : ${eurosFA(200)}`);
-    expect(eurosFA(200)).toMatch(/^2,00\s€$/);
+  it("le coût payé se dit sans montant", () => {
+    expect(phrasePaye()).toBe("Déjà payé");
+    expect(phrasePaye()).not.toMatch(MONTANT);
   });
 });

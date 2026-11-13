@@ -421,6 +421,27 @@ export function sigleLu(t: string): string {
   return t.replace(/(^|[^\p{L}.])(\p{Lu}{2,})(?=[^\p{L}]|$)/gu, (_, avant: string, s: string) => `${avant}${[...s].join(".")}.`).replace(/\.\.(?=\s|$)/g, ".").replace(/\.\s*\./g, ".");
 }
 
+/** Voyelles : un mot en capitales qui en a une se dit comme il s'écrit (« STOP », « OK »), sauf s'il est un sigle connu. */
+const A_UNE_VOYELLE = /[AEIOUYÀÂÄÉÈÊËÎÏÔÖÙÛÜŸŒÆ]/u;
+
+/** Les mots en capitales que `sigleLuFourni` épelle : les sigles connus de `sigles`, et les mots de 2 capitales ou plus sans voyelle. */
+export function siglesEpelesDuFourni(t: string, sigles: ReadonlySet<string>): string[] {
+  return [...t.matchAll(/(^|[^\p{L}.])(\p{Lu}{2,})(?=[^\p{L}]|$)/gu)].map((m) => m[2]).filter((s) => sigles.has(s) || !A_UNE_VOYELLE.test(s));
+}
+
+/**
+ * Variante de `sigleLu` pour le script fourni par le fondateur (gardé mot pour mot) : n'épelle que les sigles connus et les mots
+ * en capitales sans voyelle ; « STOP », « OK », « URSSAF » restent comme écrits ; « ... » est gardé.
+ */
+export function sigleLuFourni(t: string, sigles: ReadonlySet<string>): string {
+  return t.replace(/(^|[^\p{L}.])(\p{Lu}{2,})(?=[^\p{L}]|$)/gu, (tout: string, avant: string, s: string, decalage: number, entier: string) => {
+    if (!sigles.has(s) && A_UNE_VOYELLE.test(s)) return tout;
+    // Le point final du sigle épelé n'est pas doublé quand un point suit déjà (« CRM. » donne « C.R.M. », « CRM... » garde ses trois points).
+    const suite = entier.charAt(decalage + tout.length);
+    return `${avant}${[...s].join(".")}${suite === "." ? "" : "."}`;
+  });
+}
+
 const minusculeInitiale = (t: string) => (/^\p{Lu}{2,}/u.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1));
 const sansPointFinal = (t: string) => t.trim().replace(/[.,;:]+$/, "");
 const nombreLus = (t: string) => motsLus(t).length;

@@ -11,6 +11,7 @@
  *  Rien n'est supprimé : un événement traité reste en place avec son état.
  */
 import "server-only";
+import { lireCommentaireManuel } from "@/domaine/guide-reseau/commentaire-manuel";
 import type { EvenementFournisseur } from "@/domaine/types";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { cleIdempotence, RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
@@ -79,6 +80,21 @@ export function evenementsMotsActifs(env: Record<string, string | undefined> = p
   return v === "1" || v === "true";
 }
 
+/** Copies des constantes d'a-traiter-manuel (pas d'import : cycle avec mots-service) ; un test vérifie qu'elles restent égales. */
+export const PARAM_RESEAUX_MANUELS_CROCHET = "a_traiter.reseaux_manuels";
+export const TYPE_COMMENTAIRE_MANUEL_CROCHET = "zernio.commentaire_manuel";
+const PARAM_RESEAUX_MANUELS = PARAM_RESEAUX_MANUELS_CROCHET;
+const TYPE_COMMENTAIRE_MANUEL = TYPE_COMMENTAIRE_MANUEL_CROCHET;
+
+/** Réglage « réseaux manuels » (LinkedIn/TikTok) : ÉTEINT par défaut, allumé SEULEMENT par la valeur booléenne true ; toute panne = éteint. */
+async function reseauxManuelsAllumes(): Promise<boolean> {
+  try {
+    return (await lireParametre<unknown>(PARAM_RESEAUX_MANUELS, false)) === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Relit un run chez Zernio. Aucune implémentation réelle n'est branchée tant que le point d'accès n'est pas confirmé. */
 export interface RepereRun {
   /** `contact.id` et `trigger.text` du webhook `workflow.run.completed` (aucune adresse e-mail). */
@@ -139,11 +155,26 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: evt.type, charge: { idRun: evt.idRun, idContact: evt.idContact, motDeclencheur: evt.motDeclencheur, ...cles, etat: "a_faire", essais: 0, prochainEssaiLe: null, dernierCode: null } };
   } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
     // Réglage éteint : exactement comme avant (liste par défaut, aucune lecture du registre). Allumé : mots actifs du registre + GUIDE.
-    const c = (await motsMultiplesActifs()) ? lireEvenementCommentaire(enveloppe, await motsActifsDuRegistre()) : lireEvenementCommentaire(enveloppe);
+    const multiples = await motsMultiplesActifs();
+    // Le registre n'est lu qu'UNE fois : le même résultat sert aux deux lecteurs (une panne en milieu de route ne change pas la réponse).
+    const registre = multiples ? await motsActifsDuRegistre() : undefined;
+    const c = registre ? lireEvenementCommentaire(enveloppe, registre) : lireEvenementCommentaire(enveloppe);
+    if (c === null) {
+      // LinkedIn / TikTok (ATR-D) : le lecteur Facebook/Instagram ne lit rien ; seul un dépôt SANS texte peut suivre, jamais une réponse.
+      const m = lireCommentaireManuel(enveloppe, registre);
+      if (m && !m.proprio && m.motSeul !== null && (await reseauxManuelsAllumes())) {
+        // Charge SANS texte : identifiants opaques et mot seul canonique (contrat d'a-traiter-manuel).
+        const { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse } = m;
+        entite = { fournisseur: FOURNISSEUR, idEvenement, type: TYPE_COMMENTAIRE_MANUEL, charge: { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse, etat: "a_faire" } };
+        cleSecondaire = (e) => e.type === TYPE_COMMENTAIRE_MANUEL && e.charge.idCompte === idCompte && e.charge.idCommentaire === idCommentaire;
+      }
+      if (!entite) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    } else {
     // Rien à déposer : pas de mot seul, une réponse (sauf une opposition, mot ou phrase de listes fermées, jamais le texte brut), ou notre propre réponse publique. Aucun traitement métier ici.
     if (!c || c.proprio || c.motSeul === null || (c.estReponse && !estMotOpposition(c.motSeul)) || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.commentaire", charge: { ...c, etat: "a_faire" } };
     cleSecondaire = (e) => e.type === "zernio.commentaire" && e.charge.idCompte === c.idCompte && e.charge.idCommentaire === c.idCommentaire;
+    }
   } else if (enveloppe.event === TYPE_EVENEMENT_MESSAGE && evenementsMotsActifs(env)) {
     const m = lireEvenementMessage(enveloppe);
     // Message SANS bouton : déposé aussi (identifiants seulement, jamais le texte) ; l'écho de notre compte est écarté.

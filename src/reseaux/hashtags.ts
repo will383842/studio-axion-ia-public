@@ -105,3 +105,23 @@ export function validerFamille(reseau: IdReseau, saisie: string[]): ResultatFami
   if (liste.length > FAMILLE_MAXIMUM) return { ok: false, message: `${FAMILLE_MAXIMUM} mots-dièse au plus.` };
   return { ok: true, liste };
 }
+
+/**
+ * L3-14 : limite de mots-dièse par réseau, recopiée du relevé sourcé L8-01 (rubrique `plafond_mots_dieses`, couche
+ * « réseau »). Le relevé vit dans docs/ (hors de l'image Docker) : un test vérifie que cette table le reprend. Sans
+ * preuve ni nombre : « inconnu » (aucune valeur inventée). Instagram reste « inconnu » tant que rien n'est documenté.
+ */
+export type LimiteMotsDieses = number | "inconnu";
+
+export const LIMITES_MOTS_DIESES: Record<IdReseau, LimiteMotsDieses> = {
+  linkedin: "inconnu",
+  instagram: "inconnu",
+  facebook: "inconnu",
+  tiktok: "inconnu",
+  youtube: "inconnu",
+  "youtube-shorts": "inconnu",
+};
+
+export function limiteMotsDieses(reseau: IdReseau): LimiteMotsDieses {
+  return LIMITES_MOTS_DIESES[reseau];
+}

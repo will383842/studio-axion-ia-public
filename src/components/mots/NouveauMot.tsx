@@ -9,6 +9,9 @@ import type { ElementCatalogue } from "@/domaine/guide-reseau/cibles-contrat";
 import { ChoixCibleMot } from "./ChoixCibleMot";
 import { LIBELLES_MOTS as L } from "./tableau-mots-libelles";
 
+/** Identifiant fixe : un seul formulaire « nouveau mot » est affiché à la fois. */
+const ID_ERREUR = "nouveau-mot-erreur";
+
 export interface ProprietesNouveauMot {
   catalogue: readonly ElementCatalogue[];
   onCreer: (mot: string, codeCible: string) => void;
@@ -27,6 +30,8 @@ export function NouveauMot({
   const [cible, setCible] = useState<string | null>(null);
   const [locale, setLocale] = useState<string | null>(null);
   const phrase = locale ?? erreur;
+  // Seule l'erreur « mot vide » concerne le champ : les autres phrases parlent de la cible ou du site.
+  const motEnErreur = locale === L.nouveau.erreurMotVide;
 
   const envoyer = (e: FormEvent) => {
     e.preventDefault();
@@ -47,7 +52,8 @@ export function NouveauMot({
           value={mot}
           onChange={(e) => setMot(e.target.value)}
           autoComplete="off"
-          aria-invalid={phrase !== null || undefined}
+          aria-invalid={motEnErreur || undefined}
+          aria-describedby={motEnErreur ? ID_ERREUR : undefined}
         />
         <ChoixCibleMot
           catalogue={catalogue}
@@ -55,7 +61,11 @@ export function NouveauMot({
           onChoisir={setCible}
         />
         {phrase !== null && (
-          <p role="alert" className="text-sm font-semibold text-brique">
+          <p
+            id={ID_ERREUR}
+            role="alert"
+            className="text-sm font-semibold text-brique"
+          >
             {phrase}
           </p>
         )}

@@ -35,7 +35,15 @@ export const LIBELLES_MOTS = {
   pasDeChiffres: "Pas encore de chiffres",
   etatActif: "Actif",
   etatPause: "En pause",
-  tousReseaux: "Tous les réseaux",
+  etatBrouillon: "Brouillon",
+  ouvrir: "Ouvrir",
+  ouvrirLaFiche: (mot: string) => `Ouvrir la fiche du mot ${mot}`,
+  cibleDiffere:
+    "Ce mot n'a pas la même cible sur tous les réseaux : détail dans la fiche.",
+  alerteSynthese: (n: number) =>
+    n === 1
+      ? "1 mot a un problème de cible."
+      : `${n} mots ont un problème de cible.`,
   typeElement: { guide: "Guide", adresse: "Adresse de page" } satisfies Record<
     TypeElement,
     string
@@ -60,6 +68,8 @@ export const LIBELLES_MOTS = {
       `Le mot ${mot} enverra désormais : ${cible}.`,
     groupe: "Confirmation du changement de cible",
     rassurance: "Les chiffres restent sur le mot.",
+    rassuranceTextes:
+      "Ses textes devront être validés de nouveau : en attendant, ce mot n'envoie plus rien.",
     confirmer: "Confirmer le changement",
     annuler: "Annuler",
   },
@@ -70,7 +80,9 @@ export const LIBELLES_MOTS = {
     liste: "Cibles disponibles",
     aucune: "Aucune cible ne correspond à cette recherche.",
     choisie: "Choisie",
-    choisir: (titre: string) => `Choisir ${titre}`,
+    actuelle: "Cible actuelle",
+    dejaCible: "C'est déjà la cible de ce mot.",
+    limite: "Les 50 premières cibles sont affichées : précisez la recherche.",
   },
   nouveau: {
     titre: "Créer un mot",

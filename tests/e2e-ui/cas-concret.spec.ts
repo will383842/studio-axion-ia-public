@@ -106,7 +106,7 @@ async function saisirLeMot(page: Page, mot: string) {
 /** Dans la feuille ouverte : le mot, « Fabriquer la vidéo », le prix confirmé ; arrive sur la fiche de la vidéo. */
 async function fabriquer(page: Page, mot: string) {
   await saisirLeMot(page, mot);
-  await page.getByRole("button", { name: /Fabriquer la vidéo/ }).click();
+  await page.getByRole("button", { name: "Fabriquer", exact: true }).click();
   await page.getByRole("button", { name: /^Confirmer / }).click();
   await page.waitForURL(/\/videos\/[^/]+$/, { timeout: 60_000 });
 }

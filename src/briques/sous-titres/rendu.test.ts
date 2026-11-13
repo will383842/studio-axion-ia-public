@@ -49,6 +49,31 @@ describe("report de l'horodatage sur le texte validé", () => {
   });
 });
 
+describe("mots sans équivalent entendu : jamais de ligne sous une image", () => {
+  const texte = "Bonjour à tous, je vous explique comment contester une amende reçue la semaine dernière avant que le délai ne soit dépassé aujourd'hui.";
+  const tous = texte.split(/\s+/);
+  const entendus = (de: number, a: number) => tous.slice(de, a).map((x, i) => mot(x, 1 + i * 0.4, 1.35 + i * 0.4));
+  const verifier = (mots: ReturnType<typeof entendus>) => {
+    const segments = fabriquerSousTitres({ texte, dureeSec: 12, mots });
+    const srt = exporterSrt(segments);
+    expect(segments.flatMap((s) => s.mots)).toHaveLength(tous.length);
+    for (const s of segments) expect(s.finSec - s.debutSec).toBeGreaterThan(0.001);
+    const dansSrt = srt.split("\n\n").flatMap((b) => b.split("\n").slice(2).join(" ").split(/\s+/)).filter(Boolean);
+    expect(dansSrt).toHaveLength(tous.length);
+  };
+
+  it("la voix ne rend pas les 6 premiers mots", () => verifier(entendus(6, tous.length)));
+  it("la voix ne rend pas les 10 derniers mots", () => verifier(entendus(0, tous.length - 10)));
+  it("la voix ne rend aucun mot", () => verifier([]));
+  it("mots de tête : étalés avant le premier mot entendu, 0,3 s au plus chacun, sans descendre sous 0", () => {
+    const r = reporterSurTexteValide(["Bonjour", "à", "tous", "voici"], [mot("voici", 1, 1.5)]);
+    expect(r.slice(0, 3).every((x) => x.finSec - x.debutSec > 0 && x.finSec - x.debutSec <= 0.3 + 1e-9 && x.debutSec >= 0)).toBe(true);
+    expect(r[2].finSec).toBeLessThanOrEqual(1 + 1e-9);
+    const sansPlace = reporterSurTexteValide(["Bonjour", "à", "tous", "voici"], [mot("voici", 0, 0.5)]);
+    expect(sansPlace.every((x) => x.finSec > x.debutSec)).toBe(true);
+  });
+});
+
 describe("moteur de rendu unique (scène à l'instant t)", () => {
   const karaoke = seg({ mots: [mot("une", 0, 0.2), mot("personne", 0.2, 0.5, true), mot("à", 0.5, 0.6), mot("temps", 0.6, 0.8), mot("plein.", 0.8, 1.1)] });
 

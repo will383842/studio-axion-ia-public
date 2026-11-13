@@ -30,7 +30,7 @@ function tableDeVersions(brut: unknown, nom: string, registre: { id: string; ver
   return brut as Record<string, number>;
 }
 
-/** Valide les propriétés d'une toile reçues par studio-rendu. Les erreurs de version commencent par « Version de toile ». */
+/** Valide les propriétés d'une toile reçues par studio-rendu. Les erreurs de version commencent par « Version de toile » : « indisponible » (versions pas encore alignées) est réessayable, « absente » et « invalide » donnent un refus. */
 export function validerProprietesToile(brut: unknown): { toile: ToileSpecType; versions: VersionsToile } {
   if (!objetSimple(brut)) throw new Error("Propriétés de toile invalides : un objet est attendu");
   const inconnues = Object.keys(brut).filter((c) => c !== "toile" && c !== "versions");

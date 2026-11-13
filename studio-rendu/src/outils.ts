@@ -2,6 +2,7 @@
  * Outils communs des opérations : téléchargement d'une entrée (adresse R2 signée), dépôt du résultat
  * (PUT signé), exécution de FFmpeg / ffprobe avec priorité basse. Aucun état : tout passe par un dossier temporaire.
  */
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createReadStream, createWriteStream } from "node:fs";
 import { open, stat } from "node:fs/promises";
@@ -157,6 +158,49 @@ export function lectureLocale(format: FormatEntree): string[] {
   return ["-protocol_whitelist", "file", "-f", format];
 }
 
+/** Dernière erreur FFmpeg par commande (empreinte courte -> ligne technique), pour reconnaître une erreur qui se répète. */
+/** Sans paramètres d'adresse ni dossier temporaire (qui changent à chaque essai). PUR. */
+const sansVariables = (t: string) => t.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s?\u0000]*\S*/gi, (a) => a.replace(/\?.*$/, "")).replace(/studio-rendu-[A-Za-z0-9]+/g, "studio-rendu-X");
+
+const dernieresErreursFfmpeg = new Map<string, string>();
+
+/** Empreinte courte d'une commande : sans adresse signée ni dossier temporaire (qui changent à chaque essai). PUR. */
+export function empreinteCommande(commande: string, args: string[]): string {
+  const normalise = sansVariables([commande, ...args].join("\u0000"));
+  return createHash("sha1").update(normalise).digest("hex").slice(0, 12);
+}
+
+/**
+ * Erreur d'une commande FFmpeg/ffprobe terminée en échec. Disque plein : définitif. Même erreur deux fois de suite pour
+ * la même commande : définitif (un nouvel essai échouerait pareil). La ligne technique reste dans le journal.
+ */
+function erreurCommande(commande: string, args: string[], code: number | null, derniereLigne: string): ErreurRendu {
+  const technique = `${commande} a échoué (${code}) : ${derniereLigne}`;
+  if (/no space left on device/i.test(derniereLigne)) {
+    return new ErreurRendu({ code: "inconnu", reessayable: false, message: "Le disque du serveur de rendu est plein." });
+  }
+  const empreinte = empreinteCommande(commande, args);
+  const precedente = dernieresErreursFfmpeg.get(empreinte);
+  dernieresErreursFfmpeg.delete(empreinte);
+  dernieresErreursFfmpeg.set(empreinte, sansVariables(technique));
+  if (dernieresErreursFfmpeg.size > 200) dernieresErreursFfmpeg.delete(dernieresErreursFfmpeg.keys().next().value as string);
+  if (precedente === sansVariables(technique)) {
+    console.error(`[studio-rendu] même erreur répétée (${empreinte}) : ${sansAdresses(technique).slice(0, 300)}`);
+    return new ErreurRendu({ code: "inconnu", reessayable: false, message: "Le montage a échoué sur un fichier illisible." });
+  }
+  return new ErreurRendu({ code: "inconnu", reessayable: true, message: technique });
+}
+
+/**
+ * Erreur de `selectComposition` : refus définitif seulement si Remotion dit que la composition n'existe pas (texte
+ * « Could not find composition with ID … ») ; toute autre erreur (navigateur fermé, délai) est rendue telle quelle,
+ * donc réessayable. PUR.
+ */
+export function erreurSelectionComposition(id: string, e: Error): Error {
+  if (/could not find composition|found no composition/i.test(e.message)) return new ErreurRendu({ code: "refuse", reessayable: false, message: `Composition « ${id} » introuvable : ${e.message}` });
+  return e;
+}
+
 /** Lance une commande (FFmpeg, ffprobe) et renvoie sa sortie standard. */
 export function executer(commande: string, args: string[], signal?: AbortSignal): Promise<string> {
   return new Promise((ok, ko) => {
@@ -166,7 +210,7 @@ export function executer(commande: string, args: string[], signal?: AbortSignal)
     p.stdout.on("data", (d: Buffer) => (sortie += d.toString()));
     p.stderr.on("data", (d: Buffer) => (erreurs = (erreurs + d.toString()).slice(-4000)));
     p.on("error", (e) => ko(new ErreurRendu({ code: "inconnu", reessayable: true, message: `${commande} : ${e.message}` })));
-    p.on("close", (code) => (code === 0 ? ok(sortie) : ko(new ErreurRendu({ code: "inconnu", reessayable: true, message: `${commande} a échoué (${code}) : ${erreurs.split("\n").filter(Boolean).pop() ?? ""}` }))));
+    p.on("close", (code) => (code === 0 ? ok(sortie) : ko(erreurCommande(commande, args, code, erreurs.split("\n").filter(Boolean).pop() ?? ""))));
   });
 }
 
@@ -182,7 +226,7 @@ export function executerAvecErreurs(commande: string, args: string[], signal?: A
     p.stdout.on("data", (d: Buffer) => (sortie = (sortie + d.toString()).slice(-4_000_000)));
     p.stderr.on("data", (d: Buffer) => (erreurs = (erreurs + d.toString()).slice(-4_000_000)));
     p.on("error", (e) => ko(new ErreurRendu({ code: "inconnu", reessayable: true, message: `${commande} : ${e.message}` })));
-    p.on("close", (code) => (code === 0 ? ok({ sortie, erreurs }) : ko(new ErreurRendu({ code: "inconnu", reessayable: true, message: `${commande} a échoué (${code}) : ${erreurs.split(/\r?\n/).filter(Boolean).pop() ?? ""}` }))));
+    p.on("close", (code) => (code === 0 ? ok({ sortie, erreurs }) : ko(erreurCommande(commande, args, code, erreurs.split(/\r?\n/).filter(Boolean).pop() ?? ""))));
   });
 }
 

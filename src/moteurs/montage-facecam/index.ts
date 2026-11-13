@@ -173,16 +173,11 @@ function resultatPour(commande: CommandeFabrication): ResultatFabrication {
 /** Un tour de la chaîne réelle (lot B) : les étapes suivent les travaux ; à la fin, relecture puis résultat. */
 async function avancerAvecChaine(travail: Travail, commande: CommandeFabrication, deps: DependancesChaine, maintenant: number, relire?: DependancesMoteurFacecam["relire"]): Promise<{ travail: Travail; resultat?: ResultatFabrication }> {
   const precedent = travail.parametres?.chaine as EtatChaine;
-  let etat: EtatChaine;
-  try {
-    // Lot G : la vidéo finie est relue (images ciblées, 1 correction) à la fabrication en version complète seulement.
-    const relecture = (travail.type ?? "fabrication") === "fabrication" && versionSelonPlafond(commande) === "complete";
-    etat = await avancerChaine(precedent, commande, { travailId: travail.id, versionId: travail.versionId ?? commande.videoId, relecture }, deps);
-  } catch (e) {
-    // Panne imprévue (stockage, réseau) : on retentera au tour suivant, sans rien perdre.
-    etat = { ...precedent, sauts: precedent.sauts };
-    void e;
-  }
+  // Une panne imprévue (stockage, réseau) n'est plus avalée : elle sort, la boucle la compte (3 essais, puis toutes les
+  // 10 min, échec avec notification à 24 h). La chaîne travaille sur une copie : l'état du dernier tour réussi est gardé.
+  // Lot G : la vidéo finie est relue (images ciblées, 1 correction) à la fabrication en version complète seulement.
+  const relecture = (travail.type ?? "fabrication") === "fabrication" && versionSelonPlafond(commande) === "complete";
+  const etat: EtatChaine = await avancerChaine(precedent, commande, { travailId: travail.id, versionId: travail.versionId ?? commande.videoId, relecture }, deps);
   let etapes = etapesSelonChaine(travail.etapes, etat);
   const simple = versionSelonPlafond(commande) === "simple";
   if (etat.fini) {
@@ -210,6 +205,21 @@ async function avancerAvecChaine(travail: Travail, commande: CommandeFabrication
   };
   // Lot F1 : une sortie par format demandé en plus du 9:16 (inchangé), et de quoi en ajouter un plus tard.
   return fini ? { travail: suivant, resultat: completerAvecDeclinaisons(resultatChaine(commande, etat, simple), etat) } : { travail: suivant };
+}
+
+const MESSAGE_NON_RELIE = "Le serveur de montage n'est plus relié. Vous pouvez réessayer quand il sera revenu.";
+
+/** Le serveur de montage n'est plus relié : l'étape en cours passe en échec réessayable (code FACECAM_NON_RELIE). */
+function echecNonRelie(travail: Travail, maintenant: number): Travail {
+  const erreur = { code: "FACECAM_NON_RELIE", reessayable: true, messagePourWill: MESSAGE_NON_RELIE, detailTechnique: "Dépendances de la chaîne face caméra absentes (serveur de montage non relié)." };
+  const cible = travail.etapes.find((e) => e.statut !== "terminee" && e.statut !== "ignoree");
+  return {
+    ...travail,
+    etapes: travail.etapes.map((e) => (e === cible ? { ...e, statut: "echec" as const, progression: 50, erreur } : e)),
+    statut: "echec",
+    erreur,
+    modifieLe: new Date(maintenant).toISOString(),
+  };
 }
 
 export function creerMoteurMontageFacecam(dependances: DependancesMoteurFacecam = {}): MoteurVideo {
@@ -259,6 +269,8 @@ export function creerMoteurMontageFacecam(dependances: DependancesMoteurFacecam 
     async avancer(travail, commande, maintenant = Date.now()) {
       if (travail.statut === "termine" || travail.statut === "annule") return { travail };
       const deps = travail.parametres?.chaine ? chaineDe(commande, travail.id) : null;
+      // Un travail de la chaîne réelle dont le serveur de montage n'est plus relié : échec réessayable, jamais la démo.
+      if (travail.parametres?.chaine && !deps) return { travail: echecNonRelie(travail, maintenant) };
       // Lot F1 : format ajouté après coup, seules ses pistes pré-cadrées restent à faire.
       if (deps && travail.type === "reexport") return avancerReexportFacecam(travail, commande, deps, maintenant);
       if (deps) return avancerAvecChaine(travail, commande, deps, maintenant, relire);
@@ -299,9 +311,14 @@ export function creerMoteurMontageFacecam(dependances: DependancesMoteurFacecam 
     async reessayer(travail, maintenant = Date.now()) {
       const etatChaine = travail.parametres?.chaine as EtatChaine | undefined;
       if (etatChaine) {
-        // Chaîne : l'étape en échec repart (essais remis à zéro) ; tout ce qui est fait reste fait.
-        const travaux = Object.fromEntries(Object.entries(etatChaine.travaux).filter(([, t]) => t && t.statut !== "echec"));
-        return { ...travail, statut: "en_cours", erreur: undefined, tentatives: travail.tentatives + 1, modifieLe: new Date(maintenant).toISOString(), parametres: { ...travail.parametres, chaine: { ...etatChaine, travaux, echec: undefined } } };
+        // Chaîne : seule l'étape en échec repart (essais remis à zéro, identifiant neuf grâce à `tour`) ; tout ce qui est
+        // fait reste fait, et une brique sautée pour de bon (visages, passe image…) n'est pas resoumise.
+        const brique = etatChaine.echec?.brique;
+        const travaux = Object.fromEntries(Object.entries(etatChaine.travaux).filter(([cle, t]) => t && cle !== brique && !(t.statut === "echec" && t.erreur?.reessayable !== false)));
+        // Format ajouté après coup : le format en échec repart de zéro (le tour neuf donne des identifiants neufs).
+        const d = etatChaine.declinaisons;
+        const declinaisons = travail.type === "reexport" && d ? { ...d, rates: undefined, cadrages: Object.fromEntries(Object.entries(d.cadrages).filter(([r, t]) => t && !(t.statut === "echec" && (d.rates?.some((x) => x.ratio === r) ?? true)))) as typeof d.cadrages } : d;
+        return { ...travail, statut: "en_cours", erreur: undefined, tentatives: travail.tentatives + 1, modifieLe: new Date(maintenant).toISOString(), parametres: { ...travail.parametres, chaine: { ...etatChaine, travaux, ...(declinaisons ? { declinaisons } : {}), tour: (etatChaine.tour ?? 0) + 1, echec: undefined } } };
       }
       const durees = Object.fromEntries(travail.etapes.map((e) => [e.cle, e.planifie ? (e.planifie.fin - e.planifie.debut) / 1000 : 2]));
       // Les étapes terminées restent faites ; l'étape en échec et ses suites sont replanifiées, sans nouvel échec.

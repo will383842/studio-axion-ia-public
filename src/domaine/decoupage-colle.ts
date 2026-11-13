@@ -28,19 +28,49 @@ function couperLongue(phrase: string): string[] {
   return sortie;
 }
 
+/** GV2-18 : abréviations après lesquelles un point ne finit pas la phrase (« M. Dupont », « art. 12 », « cf. »). */
+const ABREVIATIONS = /^(?:M|Mme|Mlle|Dr|Me|Pr|[Aa]rt|p|cf|Cf|ex|Ex)\.$/;
+
+/** GV2-18 : un morceau finit-il sur une abréviation connue, une initiale (« J. »), ou « etc. » suivi d'une minuscule ? */
+function finitParUneAbreviation(morceau: string, suivant: string): boolean {
+  const dernier = morceau.split(" ").pop()!.replace(/^[«“"(\[]+/, "").replace(/^.*['’]/, "");
+  if (ABREVIATIONS.test(dernier) || /^\p{Lu}\.$/u.test(dernier)) return true;
+  return /^etc\.$/i.test(dernier) && /^\p{Ll}/u.test(suivant);
+}
+
+/** GV2-18 : coupe sur la ponctuation de fin, sans couper après une abréviation. Aucun mot n'est perdu. */
+function phrasesDeLaLigne(propre: string): string[] {
+  const sortie: string[] = [];
+  for (const m of propre.split(/(?<=[.?!…])\s+/).filter(Boolean)) {
+    const precedent = sortie[sortie.length - 1];
+    if (precedent !== undefined && finitParUneAbreviation(precedent, m)) sortie[sortie.length - 1] = `${precedent} ${m}`;
+    else sortie.push(m);
+  }
+  return sortie;
+}
+
+/**
+ * GV2-18 : la voix et les sous-titres disent la même chose. Balises `<…>` retirées (comme `texteHeygen`, avec une borne
+ * de 500 signes pour rester linéaire), marques de markdown `**`, `__` et `#` en début de ligne retirées. Un « < » isolé
+ * (« a < b ») est gardé.
+ */
+function sansBalisesNiMarkdown(texte: string): string {
+  return texte
+    .replace(/<\/?[a-z][^>]{0,500}>/gi, " ")
+    .replace(/\*\*|__/g, "")
+    .replace(/^[^\S\n]*#+[^\S\n]+/gm, "");
+}
+
 /** Une ligne → ses morceaux (phrases, puis morceaux d'une phrase trop longue). */
 function morceauxDeLaLigne(ligne: string): string[] {
   const propre = ligne.replace(/[^\S\n  ]+/g, " ").trim();
   if (!propre) return [];
-  return propre
-    .split(/(?<=[.?!…])\s+/)
-    .filter(Boolean)
-    .flatMap(couperLongue);
+  return phrasesDeLaLigne(propre).flatMap(couperLongue);
 }
 
 /** Le texte → ses paragraphes, chacun la liste de ses morceaux dans l'ordre. Les paragraphes vides sont ignorés. */
 export function paragraphesDuTexte(texte: string): string[][] {
-  return texte
+  return sansBalisesNiMarkdown(texte)
     .replace(/\r\n?/g, "\n")
     .split(/\n[^\S\n]*\n/)
     .map((p) => ouvrantsAvecLaSuite(p.split("\n").flatMap(morceauxDeLaLigne)))
