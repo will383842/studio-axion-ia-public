@@ -13,20 +13,27 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { controlerScriptAValiderAction, validerScriptAction } from "@/app/(studio)/cas-concret/actions";
 import { RelireScript } from "@/components/script/RelireScript";
 import { Bouton } from "@/components/ui/Bouton";
 import { notifier } from "@/components/ui/Toast";
+import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import type { PastilleControle, ResultatLancement, ScriptRelu } from "@/domaine/relecture-script";
 import { lignesDesEcrans, modificationsDesDifferences } from "@/moteurs/montage-cas-concret/relecture";
 import type { EcranApercu } from "@/moteurs/montage-cas-concret/script-valide";
-import { ADRESSE_RELANCE, lireIssue, PHRASES_ECRAN_RELANCE } from "./relance";
+import { ADRESSE_RELANCE, lireIssue, PHRASES_ECRAN_RELANCE, type IssueRelanceEcran } from "./relance";
+
+/** GV2-20 : « Utiliser mon script » (action serveur branchée par la page) : pose le script fourni puis relance. */
+export type UtiliserMonScript = (videoId: string) => Promise<{ ok: true; issue: IssueRelanceEcran } | { ok: false; message: string }>;
 
 const VERIFICATION_INDISPONIBLE: PastilleControle[] = [{ niveau: "alerte", texte: "Vérification indisponible. Elle sera refaite à la validation." }];
 
-export function ValidationScript({ videoId, travailId, ecrans, avertissements = [] }: { videoId: string; travailId: string; ecrans: readonly EcranApercu[]; avertissements?: readonly { rang: number; detail: string }[] }) {
+export function ValidationScript({ videoId, travailId, ecrans, avertissements = [], scriptFourniPlusRecent = false, utiliserMonScript }: { videoId: string; travailId: string; ecrans: readonly EcranApercu[]; avertissements?: readonly { rang: number; detail: string }[]; scriptFourniPlusRecent?: boolean; utiliserMonScript?: UtiliserMonScript }) {
   const router = useRouter();
+  /** GV2-20 : le script est validé mais la relance a été refusée : la raison, et le bouton « Reprendre cette étape ». */
+  const [refusRelance, setRefusRelance] = useState<string | null>(null);
+  const [enAttente, setEnAttente] = useState(false);
   const lignes = useMemo(() => lignesDesEcrans(ecrans), [ecrans]);
 
   const controler = useCallback(
@@ -45,7 +52,11 @@ export function ValidationScript({ videoId, travailId, ecrans, avertissements = 
       try {
         const reponse = await fetch(ADRESSE_RELANCE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ travailId }), cache: "no-store" });
         const issue = lireIssue(await reponse.json().catch(() => null));
-        if (issue.statut !== "relancee") return { ok: false, message: `Script validé. ${issue.statut === "refusee" ? issue.phrase : "Relancez l'étape pour fabriquer la vidéo."}` };
+        if (issue.statut !== "relancee") {
+          const raison = issue.statut === "refusee" ? issue.phrase : "Relancez l'étape pour fabriquer la vidéo.";
+          setRefusRelance(raison);
+          return { ok: false, message: `Script validé. ${raison}` };
+        }
       } catch {
         return { ok: false, message: PHRASES_ECRAN_RELANCE.injoignable };
       }
@@ -54,6 +65,44 @@ export function ValidationScript({ videoId, travailId, ecrans, avertissements = 
     },
     [videoId, travailId],
   );
+
+  /** « Relancer » : rappelle la relance existante (même adresse), sans rien revalider. */
+  const relancer = useCallback(async () => {
+    if (enAttente) return;
+    setEnAttente(true);
+    try {
+      const reponse = await fetch(ADRESSE_RELANCE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ travailId }), cache: "no-store" });
+      const issue = lireIssue(await reponse.json().catch(() => null));
+      if (issue.statut === "relancee") {
+        setRefusRelance(null);
+        notifier.succes("Relance envoyée : la vidéo se fabrique");
+        router.refresh();
+      } else setRefusRelance(issue.phrase);
+    } catch {
+      setRefusRelance(PHRASES_ECRAN_RELANCE.injoignable);
+    } finally {
+      setEnAttente(false);
+    }
+  }, [enAttente, router, travailId]);
+
+  /** « Utiliser mon script » : le script fourni plus récent devient celui de la vidéo, puis la relance part. */
+  const utiliser = useCallback(async () => {
+    if (!utiliserMonScript || enAttente) return;
+    setEnAttente(true);
+    try {
+      const r = await utiliserMonScript(videoId);
+      if (!r.ok) return setRefusRelance(r.message);
+      if (r.issue.statut === "relancee") {
+        setRefusRelance(null);
+        notifier.succes("Votre script est validé : la vidéo se fabrique");
+        router.refresh();
+      } else setRefusRelance(`Votre script est validé. ${r.issue.phrase}`);
+    } catch {
+      setRefusRelance(PHRASES_ECRAN_RELANCE.injoignable);
+    } finally {
+      setEnAttente(false);
+    }
+  }, [enAttente, router, utiliserMonScript, videoId]);
 
   return (
     <section id="valider-script" aria-label="Le script à valider" className="mt-4 space-y-3">
@@ -74,6 +123,19 @@ export function ValidationScript({ videoId, travailId, ecrans, avertissements = 
         </div>
       )}
       <RelireScript lignes={lignes} controler={controler} lancer={lancer} libelleLancer={(n) => (n ? "Valider le script modifié" : "Valider ce script")} apresLancement={() => router.refresh()} />
+      {scriptFourniPlusRecent && utiliserMonScript && (
+        <Bouton variante="secondaire" icone="ecrire" onClick={() => void utiliser()} chargement={enAttente}>
+          Utiliser mon script
+        </Bouton>
+      )}
+      {refusRelance && (
+        <div role="alert" className="space-y-2 text-sm text-brique">
+          <p>{refusRelance}</p>
+          <Bouton variante="secondaire" icone="reessayer" onClick={() => void relancer()} chargement={enAttente}>
+            {ACTIONS_FABRICATION.reprendreEtape}
+          </Bouton>
+        </div>
+      )}
       <Bouton asChild variante="fantome" icone="ecrire">
         <Link href="/cas-concret">Faire réécrire</Link>
       </Bouton>
