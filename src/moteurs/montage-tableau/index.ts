@@ -490,8 +490,9 @@ function qualiteDe(controles: CompteRenduFabrication["controles"], fin: CompteRe
     // Pas de fin validée : la vidéo est livrée sans écran de fin, et le rapport le dit (jamais un échec). Déjà dite par
     // la chaîne (fin sans appel de TikTok et Shorts) : pas deux fois.
     ...(fin && "absente" in fin && !(enPlus ?? []).some((a) => a.message === fin.absente) ? [{ code: "fin" as const, gravite: "info" as const, message: fin.absente }] : []),
-    // Repli de la recette : voix brute gardée (horodatages absents), dit au rapport.
-    ...(recette && !recette.appliquee && recette.raison ? [{ code: "synchronisation" as const, gravite: "info" as const, message: recette.raison }] : []),
+    // Repli de la recette : voix brute gardée (`appliquee: false`), ou recette réduite sans horodatage des mots
+    // (`partielle`, GV2-28 : sous-titres approximatifs, « attention »), dit au rapport.
+    ...(recette?.raison && (recette.partielle || !recette.appliquee) ? [{ code: "synchronisation" as const, gravite: recette.partielle ? ("attention" as const) : ("info" as const), message: recette.raison }] : []),
     // Bruitage introuvable retiré (repli sûr) : la vidéo est livrée sans ce son, et le rapport le dit.
     ...(enPlus ?? []),
   ];
