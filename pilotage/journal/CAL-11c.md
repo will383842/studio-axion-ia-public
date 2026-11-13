@@ -5,3 +5,5 @@ actions.ts NON modifié : une première version y ajoutait une action de groupe,
 Tests : rouge d'abord (exports absents), puis 548 tests calendrier verts. tsc et eslint : aucune erreur nouvelle.
 Reste : brancher le bouton et le panneau dans la page (fichiers interdits ici) ; glisser un contenu de « À placer » sur la grille demande un changement de GrilleSemaine (hors liste). Pas de jsdom : clics non simulés.
 Douteux : le panneau se place par bouton « Placer » avec un champ date, faute de pouvoir glisser vers la grille dans cette fiche.
+
+CORRECTIF (relecture z18) : fusion de usine/CAL-11b à jour (sans rebase). `hover:border-orange` remplacé par `hover:border-accent`. Bouton « Placer » : anti double clic (garde `creerGardePlacement`, bouton grisé, un second clic sur le même contenu est ignoré jusqu'à l'annulation), testé. « Déplacer » : le jour est remis à celui de l'entrée à l'ouverture. Tests calendrier, garde composants clients, COUL-01 : verts. tsc et eslint : aucune erreur nouvelle.

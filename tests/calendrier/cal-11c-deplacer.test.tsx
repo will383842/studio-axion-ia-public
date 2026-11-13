@@ -1,7 +1,7 @@
 /** CAL-11c · Bouton « Déplacer » (clavier, téléphone), panneau « À programmer », contenus liés. Aucun appel réel, rien n'est envoyé. */
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { BoutonDeplacer, HEURE_PLACEMENT, MESSAGE_RIEN_A_PLACER, PanneauAProgrammer, contenusLies, deciderPlacement } from "@/components/calendrier/DecalerEntree";
+import { BoutonDeplacer, HEURE_PLACEMENT, MESSAGE_RIEN_A_PLACER, PanneauAProgrammer, contenusLies, creerGardePlacement, deciderPlacement } from "@/components/calendrier/DecalerEntree";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
 
 const AUJ = "2026-11-11";
@@ -59,4 +59,13 @@ describe("CAL-11c · bouton « Déplacer »", () => {
     expect(renderToStaticMarkup(<BoutonDeplacer entree={ig} entrees={[ig]} aujourdhui={AUJ} onDeplacer={() => {}} onAnnuler={() => {}} />)).toBe("");
   });
   it("aucun prix", () => expect(renderToStaticMarkup(<PanneauAProgrammer contenus={[]} aujourdhui={AUJ} onPlacer={() => {}} />)).not.toMatch(/€|\$|prix|tarif/i));
+  it("anti double clic : un second « Placer » sur le même contenu est ignoré, jusqu'à l'annulation", () => {
+    const g = creerGardePlacement();
+    expect(g.tenter("a")).toBe(true);
+    expect(g.tenter("a")).toBe(false);
+    expect(g.tenter("b")).toBe(true);
+    g.retirer("a");
+    expect(g.deja("a")).toBe(false);
+    expect(g.tenter("a")).toBe(true);
+  });
 });
