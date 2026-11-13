@@ -217,7 +217,9 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
     statut: ok ? "prete" : "refusee",
     phrase: ok
       ? `La vidéo est prête pour ${nomReseaux(verdicts.map((x) => x.reseau))}${mentions.length ? ` (${mentions.length} remarque${mentions.length > 1 ? "s" : ""} sans gravité)` : ""}.`
-      : `La vidéo est refusée : ${phrases.length} défaut${phrases.length > 1 ? "s" : ""} à corriger. ${phrases[0]}`,
+      : partielle
+        ? `La vidéo est prête pour ${nomReseaux(parReseau.filter((x) => x.ok).map((x) => x.reseau))}${parReseau.some((x) => !x.ok) ? ` ; non livrée pour ${nomReseaux(parReseau.filter((x) => !x.ok).map((x) => x.reseau))}` : ""} : ${phrases[0]}`
+        : `La vidéo est refusée : ${phrases.length} défaut${phrases.length > 1 ? "s" : ""} à corriger. ${phrases[0]}`,
     phrases,
     mentions,
     generaux,

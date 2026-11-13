@@ -46,7 +46,11 @@ describe("livraison partielle (étape contrôles)", () => {
     // Facebook garde son Reel 9:16, sans le fil 4:5 refusé.
     expect(parReseau.facebook!.fichierCleFil).toBeUndefined();
     expect(parReseau.facebook!.texteFil).toBeUndefined();
-    expect(parReseau.facebook!.mention).toMatch(/fil 4:5/);
+    expect(parReseau.facebook!.mention).toMatch(/fil 4:5 n'est pas livré/);
+    // Une seule raison, la vraie : pas « le fil n'a pas été rendu ».
+    expect(parReseau.facebook!.mention).not.toMatch(/n'a pas été rendu/);
+    // Le bandeau ne dit pas « refusée » d'une vidéo livrée.
+    expect(fini.controles!.verdict!.phrase).toMatch(/^La vidéo est prête pour .*; non livrée pour LinkedIn/);
     // L'écran dit pourquoi.
     const carteLi = cartesReseaux(fini.livraison!).find((c) => c.reseau === "linkedin")!;
     expect(carteLi.ton).toBe("rouge");
