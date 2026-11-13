@@ -13,7 +13,8 @@ import type { Visuel } from "@/domaine/visuels/visuel";
 delete process.env.BUFFER_API_KEY;
 process.env.FOURNISSEUR_PUBLICATION = "simulation";
 vi.mock("next/headers", () => mockHeaders);
-vi.mock("next/navigation", () => mockNavigation);
+// useRouter, usePathname et useSearchParams : seulement pour rendre de vraies lignes de vidéos (R10).
+vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }), usePathname: () => "/a-publier", useSearchParams: () => new URLSearchParams() }));
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
@@ -110,6 +111,19 @@ describe("AP-01 · la page (d'après M5)", () => {
     expect(html).toMatch(/fam-carrousel/);
     expect(html).toMatch(/fam-infographie/);
     expect(html).not.toMatch(/orange/);
+  });
+
+  it("R10 : avec des vidéos ET un visuel, la section « Carrousels et infographies » est bien rendue (mutation M9)", async () => {
+    const { lignes } = await (await import("@/services/a-publier")).vueAPublier();
+    expect(lignes.length).toBeGreaterThan(0);
+    const html = renderToStaticMarkup(createElement(ListeAPublier, { lignes, visuels: [carte("carrousel", "vis_c")], filtre: "toutes" }));
+    expect(html).toContain("Carrousels et infographies");
+    expect(html).toContain('href="/carrousels/vis_c"');
+  });
+
+  it("R11 : la page passe bien les visuels à la liste (mutation M10)", () => {
+    const src = readFileSync("src/app/(studio)/a-publier/page.tsx", "utf8");
+    expect(src).toContain("visuels={visuels}");
   });
 
   it("R9 : la page s'appelle « À publier » pour tous les formats ; vide seulement sans vidéo ni visuel ; aucun prix, aucun chemin de PC", () => {
