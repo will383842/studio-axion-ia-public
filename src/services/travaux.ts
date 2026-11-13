@@ -609,6 +609,15 @@ export async function ecrirePanneTardive(lu: InstantaneTravail, erreur: unknown,
   return ecrirePanne({ ...lu, travail: actuel }, erreur);
 }
 
+/** GV2-22 : `RangeError`, ou `TypeError` qui n'est pas une coupure réseau (sous Node, `fetch` coupé lève `TypeError("fetch failed")`). */
+function estErreurDeProgrammation(e: unknown): boolean {
+  if (e instanceof RangeError) return true;
+  if (!(e instanceof TypeError)) return false;
+  if (/fetch|réseau|reseau|network|socket|ECONN|ETIMEDOUT/i.test(e.message)) return false;
+  const cause = (e as { cause?: unknown }).cause;
+  return !(cause instanceof Error || (typeof cause === "object" && cause !== null && "code" in cause));
+}
+
 /** Erreur jetée par un moteur ou un fournisseur : `reessayable: false` = refus définitif (pas de reprise). */
 function lirePanne(e: unknown): { message: string; definitive: boolean; pourWill?: string } {
   const x = e as { message?: string; messagePourWill?: string; reessayable?: boolean; erreur?: { reessayable?: boolean; message?: string } } | null;
@@ -617,7 +626,7 @@ function lirePanne(e: unknown): { message: string; definitive: boolean; pourWill
   // Vérification E2E n° 1 (parcours E) : la raison d'un refus définitif est gardée pour Will quand elle est déjà une
   // phrase simple (ErreurLisible, ErreurFournisseur.message, messagePourWill du moteur) ; sinon phrase fixe.
   const candidate = x?.messagePourWill ?? message;
-  return { message, definitive: reessayable === false, pourWill: phraseLisible(candidate) ? candidate.trim() : undefined };
+  return { message, definitive: reessayable === false || (reessayable === undefined && estErreurDeProgrammation(e)), pourWill: phraseLisible(candidate) ? candidate.trim() : undefined };
 }
 
 /**
@@ -688,7 +697,12 @@ export async function ecrirePanne(lu: InstantaneTravail, erreur: unknown, instan
   }
   const entreEnAttente = !!suite.reprise?.attenteDepuis && !t.reprise?.attenteDepuis;
   await d.travaux.enregistrer({ ...actuel, reprise: suite.reprise, modifieLe: iso });
-  if (entreEnAttente) await journaliser("fabrication", "Fabrication ralentie chez un outil : reprise automatique", { type: "video", id: t.cibleId });
+  if (entreEnAttente) {
+    await journaliser("fabrication", "Fabrication ralentie chez un outil : reprise automatique", { type: "video", id: t.cibleId });
+    // GV2-22 : le fondateur est prévenu dès l'entrée en attente (une seule fois par entrée), pas 24 h plus tard.
+    const outil = t.fournisseurUtilise ? ` (${nomFournisseur(fournisseurDeLErreur(erreur, t.fournisseurUtilise))})` : "";
+    await notifier({ type: "info", titre: "Une vidéo attend un outil", message: `Votre vidéo « ${t.titre} » attend un outil${outil} : elle reprendra seule.`, lien: `/videos/${t.cibleId}`, estDemo: t.estDemo });
+  }
   return { ecrit: true };
 }
 
