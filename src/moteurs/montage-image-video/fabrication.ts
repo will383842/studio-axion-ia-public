@@ -1241,7 +1241,7 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
 async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { concevoirWorkflow } = await import("./texte/conception");
   const { demande } = e;
-  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
+  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux, ...(demande.scriptColle === true ? { scriptColle: true } : {}) }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
   if (!t.ok) {
     if (t.motif === "budget" || t.motif === "plafond") return refuser(e, "lecture", plafond(), t.message);
     // Texte à reformuler : relancer le même texte donnerait le même refus ; panne ou sortie illisible : « Refaire » réessaie.
