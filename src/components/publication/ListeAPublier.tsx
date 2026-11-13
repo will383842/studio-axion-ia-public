@@ -52,7 +52,7 @@ function SectionVisuels({ visuels }: { visuels: CarteVisuelAPublier[] }) {
                 <span className="text-xs font-semibold text-texte-doux">{f.nom}</span>
               </div>
               <h3 className="min-w-0 text-sm font-semibold text-texte">{v.titre}</h3>
-              <p className="flex-1 text-xs text-texte-doux">{v.famille === "carrousel" ? (v.nbPages > 0 ? `${v.nbPages} ${v.nbPages > 1 ? "pages" : "page"} à faire défiler.` : "Pages à relire.") : "Une image unique."} Rien n'est envoyé sans votre accord.</p>
+              <p className="flex-1 text-xs text-texte-doux">{v.famille === "carrousel" ? (v.nbPages > 0 ? `${v.nbPages} ${v.nbPages > 1 ? "pages" : "page"} à faire défiler.` : "Pages à relire.") : "Une image unique."} {"Rien n'est envoyé sans votre accord."}</p>
               <Bouton asChild variante="secondaire" taille="md" className="self-stretch">
                 <Link href={v.lien}>{f.action}</Link>
               </Bouton>
