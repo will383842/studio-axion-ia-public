@@ -166,7 +166,7 @@ describe("voix · refus Q16 réparé par une lecture neuve, puis gardé avec rem
 
   it("8 · fin hésitante sans chaîne de secours (réseau hors `FINS_DE_SECOURS_IV`) : relue en lecture neuve", async () => {
     // Depuis le 19/10, tous les réseaux proposés (dont TikTok) ont une chaîne de secours : une fin sans chaîne ne peut venir que d'un réseau hors de cette table.
-    expect(FINS_DE_SECOURS_IV[RESEAU_SANS_CHAINE]).toBeUndefined();
+    expect((FINS_DE_SECOURS_IV as Readonly<Record<string, unknown>>)[RESEAU_SANS_CHAINE]).toBeUndefined();
     const e = etatCorps(segmentsVoixIV(fiche, planAvec([fin("fin-sans-chaine", [RESEAU_SANS_CHAINE], "Dis-moi tout.")])));
     e.voix.corps.prise = priseFaite();
     e.voix.corps.retenu = true;
