@@ -23,15 +23,19 @@ describe("ressemblance de recette (doc 72 § 6.1)", () => {
     expect(POIDS_AXES).toMatchObject({ ouverture: 3, recit: 2, camera: 2, apparition: 2, fond: 2, chiffres: 1.5, transitions: 1.5, rail: 1.5, objets: 1.5, texte: 1, fin: 1, matiere: 1, entete: 1, sousTitres: 1 });
   });
   it("le seuil est de 50 %", () => expect(SEUIL_RESSEMBLANCE).toBe(0.5));
-  it("caméra + matière seulement : 3 ÷ 22 (axes à un seul code tirable ignorés ; le fond, le rail, les objets et l'en-tête comptent)", () => {
+  it("caméra + matière seulement : 3 ÷ 21 (axes à un seul code tirable ignorés ; le fond, le rail, les objets et l'en-tête comptent ; GV2-52 : les sous-titres, éteints, ne pèsent rien)", () => {
     const s = ressemblanceRecette(R({}), { ...AUTRE, camera: "CAM-A", matiere: "MAT-A" });
-    expect(s).toBeCloseTo(3 / 22, 10);
+    expect(s).toBeCloseTo(3 / 21, 10);
     expect(Math.round(s * 100)).toBe(14);
+    // Tirage des sous-titres par version allumé : le poids du doc 72 § 6.1 revient (3 ÷ 22).
+    expect(ressemblanceRecette(R({}), { ...AUTRE, camera: "CAM-A", matiere: "MAT-A" }, true)).toBeCloseTo(3 / 22, 10);
   });
-  it("ne diffèrent que par la fin et les sous-titres : 16,5 ÷ 18,5 (CHI-A et APP-A communs, neutres, hors compte ; l'en-tête commun compte)", () => {
+  it("ne diffèrent que par la fin et les sous-titres : 16,5 ÷ 17,5 (CHI-A et APP-A communs, neutres, hors compte ; l'en-tête commun compte ; GV2-52 : les sous-titres, éteints, ne pèsent rien)", () => {
     const s = ressemblanceRecette(R({}), R({ fin: "FIN-B", sousTitres: "SOU-A" }));
-    expect(s).toBeCloseTo(16.5 / 18.5, 10);
-    expect(Math.round(s * 100)).toBe(89);
+    expect(s).toBeCloseTo(16.5 / 17.5, 10);
+    expect(Math.round(s * 100)).toBe(94);
+    // Tirage des sous-titres par version allumé : le poids du doc 72 § 6.1 revient (16,5 ÷ 18,5).
+    expect(ressemblanceRecette(R({}), R({ fin: "FIN-B", sousTitres: "SOU-A" }), true)).toBeCloseTo(16.5 / 18.5, 10);
   });
   it("les axes ajoutés (un seul code tirable) ne comptent pas ; une recette ancienne sans eux se compare", () => {
     const ancienne = { ...R({}) } as Partial<RecetteVarieteIV>;
