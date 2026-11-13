@@ -13,6 +13,9 @@ import { cleDeDepot } from "@/fournisseurs/r2/stockage";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import type { CarteFormat } from "./pourFormat";
 
+/** Pannes de suite (exceptions) au bout desquelles une carte est écartée. */
+const PANNES_MAX = 5;
+
 export interface CarteEnRendu {
   id: string;
   ratio: string;
@@ -23,6 +26,8 @@ export interface CarteEnRendu {
   cle: string;
   statut: "a-soumettre" | "soumise" | "faite" | "echec";
   essais: number;
+  /** Pannes (réseau, stockage) de suite ; absent = 0. Séparé de `essais`, qui ne compte que les échecs de rendu. */
+  pannes?: number;
   demande: DemandeRendu;
   /** Empreinte de la scène (option `parEmpreinte`) : la clé est alors `cleSceneParEmpreinte(…)`. */
   empreinte?: string;
@@ -136,6 +141,7 @@ export async function avancerCartesMotion(etat: EtatCartesMotion, outils: Outils
           s = lu.etat;
           if (lu.veille) c.veille = lu.veille;
         } else s = await suivreRendu(outils.rendu(), c.demande);
+        delete c.pannes; // une réponse lue : la série de pannes est finie
         if (s.statut === "echec") raison = s.erreur.message;
         if (s.statut === "termine") c.statut = "faite";
         else if (s.statut === "echec") {
@@ -148,9 +154,9 @@ export async function avancerCartesMotion(etat: EtatCartesMotion, outils: Outils
         }
       }
     } catch {
-      // Panne du service ou du stockage : une nouvelle tentative au tour suivant, puis la carte est écartée.
-      if (c.essais >= 1) c.statut = "echec";
-      else c.essais += 1;
+      // Panne du service ou du stockage : nouvelle tentative au tour suivant ; la carte n'est écartée qu'à 5 pannes de suite.
+      c.pannes = (c.pannes ?? 0) + 1;
+      if (c.pannes >= PANNES_MAX) c.statut = "echec";
     }
     if (etat.bloquant && c.statut === "echec") throw new ErreurSceneRatee(c.id, raison);
     cartes.push(c);
