@@ -59,7 +59,7 @@ export const SILENCE_BORNE_MIN_SEC = 0.3;
 /** Lecture unique : blanc mesuré exigé de chaque côté d'une phrase sautée (HeyGen en met 0,32 à 0,72 s après un point). */
 const SILENCE_PHRASE_SAUTEE_MIN_SEC = 0.1;
 
-const VERSION_ASSEMBLAGE = "assemblage-iv/3"; // /3 (25/10/2026) : phrase sautée dont le silence dépasse l'horodatage ; /2 (24/10/2026) : tempo ×1,05 au lieu de ×1,08
+const VERSION_ASSEMBLAGE = "assemblage-iv/4"; // /4 (GV2-16) : fondu de sortie après le dernier mot, silence de fin complété ; /3 (25/10/2026) : phrase sautée dont le silence dépasse l'horodatage ; /2 (24/10/2026) : tempo ×1,05 au lieu de ×1,08
 /** Tolérance de calcul sur les instants (secondes). */
 const EPS_INSTANT = 1e-6;
 const arrondi = (x: number) => +x.toFixed(4);
