@@ -1,7 +1,7 @@
 /**
  * LIA-D · transmission des oppositions dans le mode « un envoi par personne ET par mot » (réglage « plusieurs mots » allumé).
  * Preuves : (1) une opposition reçue pour UN mot vaut pour TOUS les mots et TOUS les réseaux de la personne ; (2) elle est transmise
- * au site/CRM par le chemin existant (`transmettreOppositions`, port et site FAUX) UNE seule fois, rejeu idempotent ; (3) rien n'est
+ * au site/CRM par le chemin existant (`transmettreOppositions`, port et site FAUX) UNE fois par parcours, rejeu idempotent ; (3) rien n'est
  * supprimé (mise à l'écart seulement). Données 100 % fictives (example.test) ; aucun réseau, aucun envoi réel. Aucun src modifié.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -121,7 +121,7 @@ describe("LIA-D · une opposition vaut pour TOUS les mots et TOUS les réseaux",
   });
 });
 
-describe("LIA-D · transmission au site/CRM par le chemin existant : une seule fois, rejeu idempotent", () => {
+describe("LIA-D · transmission au site/CRM par le chemin existant : une fois par parcours, rejeu idempotent", () => {
   it("voulu : une entrée de file par parcours ; chaque entrée est envoyée UNE fois, avec sa propre clé d'idempotence, corps strict signé", async () => {
     const cl = await semerDossier();
     await recevoirStop();
