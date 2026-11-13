@@ -456,6 +456,39 @@ describe("contrôles du fichier fini (GV2-35) : seuls « image noire au début �
     expect(d.compositionsSoumises().length).toBeGreaterThan(0);
   });
 
+  it("calage approché (« 3h » dit « trois heures ») : l'alerte arrive au rapport de la vidéo livrée, « attention »", async () => {
+    const ficheVar = structuredClone(reelle);
+    ficheVar.scenes[2].texteDit = ficheVar.scenes[2].texteDit.replace("exactement.", "exactement, en 3h.");
+    const d = doubles(ficheVar);
+    const voixBase = d.outils.voix.voix();
+    const voixDit = { ...voixBase, async lire(demande: Parameters<typeof voixBase.lire>[0]) {
+      const r = await voixBase.lire(demande);
+      return { ...r, mots: r.mots.flatMap((m) => (m.mot.startsWith("3h") ? [{ ...m, mot: "trois", finSec: (m.debutSec + m.finSec) / 2 }, { ...m, mot: "heures.", debutSec: (m.debutSec + m.finSec) / 2 }] : [m])) };
+    } };
+    d.outils.voix.voix = () => voixDit;
+    const fiches = new Map<string, FicheTableau>();
+    const cle = `studio/dev/fiches/${VIDEO}/1.json`;
+    fiches.set(cle, structuredClone(ficheVar));
+    const outils = async () => versOutils(d, fiches, { contexte: contexteReel(ficheVar), choisirFin: choisirFinTableau({}, { sorties, mot: "CONSIGNE" }) });
+    brancherServicesTableau({ outils });
+    const moteur = creerMoteurMontageTableau({ outils });
+    const commande: CommandeFabrication = {
+      ...commandeTableau({ videoId: VIDEO, fiche: ficheVar, texteScript: texteScriptDe(ficheVar), dureeSec: 60, centreSousTitresPct: 80, scenes: [], personnageId: "williams" }),
+      entrees: { tableau: { ficheScenesCle: cle, empreinte: "e1", version: 1, sorties, mot: "CONSIGNE", dejaVu: { coche: true, le: "2026-10-12" } } },
+    };
+    let t = await moteur.lancer(commande, { travailId: "trav-gv2-35b", versionId: "ver-gv2-35b", titre: "Consigne IA" });
+    let resultat: { noteQualite: { alertes: { code: string; gravite: string; message: string }[] }; sorties: { rapportQualite: { alertes: { message: string }[] } }[] } | undefined;
+    for (let n = 0; n < 200 && t.statut !== "termine" && t.statut !== "echec"; n++) {
+      const tour = await moteur.avancer(structuredClone(t), commande);
+      t = tour.travail;
+      resultat = (tour.resultat as typeof resultat) ?? resultat;
+    }
+    expect(t.statut, JSON.stringify(t.erreur)).toBe("termine");
+    expect(alertesDu(t).some((a) => a.code === "calage-approche")).toBe(true);
+    expect(resultat!.noteQualite.alertes.filter((a) => /^Calage approché/.test(a.message))).toEqual([expect.objectContaining({ gravite: "attention" })]);
+    for (const s of resultat!.sorties) expect(s.rapportQualite.alertes.some((a) => /^Calage approché/.test(a.message))).toBe(true);
+  });
+
   it("crête, image figée : alertes aussi, vidéo terminée", async () => {
     const { t } = await fabriquer({ creteVraieDbtp: 3, imagesFigeesHorsFin: 2 });
     expect(t.statut).toBe("termine");
