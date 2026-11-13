@@ -213,7 +213,7 @@ describe("S5a-suite R6 : débordement de la mémoire de 500 demandes", () => {
 });
 
 describe("S5a-suite R8 : la mémoire est propre à chaque processus", () => {
-  it("le dit dans les sources, aux deux endroits", () => {
+  it("indication seulement (pas une preuve de comportement) : la phrase figure dans les commentaires des deux sources", () => {
     for (const f of ["src/services/oppositions-mots.ts", "src/services/oppositions-import-site.ts"]) {
       expect(readFileSync(join(process.cwd(), f), "utf8")).toMatch(/propre à chaque processus/);
     }
