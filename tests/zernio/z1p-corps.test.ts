@@ -78,8 +78,8 @@ describe("z1p · corps pur", () => {
     expect(spec(corps({ ...f, format: "9:16", dureeSec: 61 })).contentType).toBeUndefined();
     expect(spec(corps({ ...f, format: "16:9", dureeSec: 30 })).contentType).toBeUndefined();
     const im = (n: number) => Array.from({ length: n }, (_, i) => ({ url: `https://x.test/${i}.png`, texteAlternatif: "Image d'exemple" }));
-    expect(corps({ images: im(10) }).mediaItems).toHaveLength(10);
-    refuse({ images: im(11) });
+    expect(corps({ images: im(20) }).mediaItems).toHaveLength(20);
+    refuse({ images: im(21) });
     refuse({ reseau: "linkedin", cible: "a:li:7", images: im(21) });
     expect(corps({ reseau: "linkedin", cible: "a:li:7", images: im(20) }).mediaItems).toHaveLength(20);
     refuse({ images: [{ url: "https://x.test/a.png", texteAlternatif: "  " }] });

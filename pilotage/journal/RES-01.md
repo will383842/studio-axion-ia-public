@@ -6,3 +6,4 @@
 - BLOQUÉ 2 : la garde de zone n'offre aucun moyen pour une branche usine/* (aucune exception par accord ; zernio-corps.ts n'est pas couvert par RC-40 ; tests/zernio jamais). Garde non modifiée.
 - Déjà rouge sur master : tests/reseaux/instantane-tables-formats.test.ts.
 - Aucune PR ouverte.
+- CORRECTIF (13/11) : par accord écrit complémentaire de la session propriétaire de tests/zernio, quatre lignes changées — e2e-02-fournisseur.test.ts:266-267 (21 images refusées, message « 20 images ») et z1p-corps.test.ts:81-82 (20 images acceptées, refuse(im(21))). origin/master fusionné. tests/zernio vert (163 fichiers), tsc/eslint sans erreur nouvelle sur les fichiers de la fiche. Garde de zone attendue ; instantane-tables-formats.test.ts non touché.
