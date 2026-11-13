@@ -10,6 +10,8 @@ import type { Resultat, VueMots } from "@/services/mots-service";
 import type { EtatBranchement } from "@/services/branchements-zernio";
 import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
 import { KitLinkedin } from "./KitLinkedin";
+import type { TableauSuivi } from "./suivi-affichage";
+import { TableauSuiviMots } from "./TableauSuiviMots";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
 import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
 
@@ -55,7 +57,7 @@ const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["ig-suivre", "
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
  * l’interrupteur est éteint, les gestes sont des simulations et l’écran le dit.
  */
-export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, comptes }: { vue: VueMots; comptes?: readonly string[]; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
+export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, comptes, suivi, suiviIndisponible }: { suivi?: TableauSuivi | null; suiviIndisponible?: boolean; vue: VueMots; comptes?: readonly string[]; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
   const [enCours, demarrer] = useTransition();
   const [heure, setHeure] = useState(String(vue.plafonds.heureCompte));
   const [jour, setJour] = useState(String(vue.plafonds.jourMot));
@@ -239,6 +241,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
           Enregistrer
         </Bouton>
       </Carte>
+      {suivi ? <TableauSuiviMots suivi={suivi} /> : suiviIndisponible ? <p role="status" className="text-sm text-texte-doux">Chiffres indisponibles pour l&apos;instant</p> : null}
     </div>
   );
 }
