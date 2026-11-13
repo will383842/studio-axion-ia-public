@@ -140,16 +140,33 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
   });
 
-  // VRAI DÉFAUT CONNU (relecture de la PR) : `mettreEnFileDossier` met en file UNE entrée par parcours (clé de conversation), donc trois mots
-  // donnent trois envois avec trois clés d'idempotence, alors que `oppositions-transmission.ts` promet « une entrée par personne ».
-  // Ce test décrit le comportement VOULU et échoue aujourd'hui (`it.fails`) ; la correction est faite ailleurs. Une fois corrigé, il passera au
-  // vert : retirer alors `.fails`, et mettre à jour les tests voisins qui figent aujourd'hui « trois envois ».
-  it.fails("VOULU : un seul « stop » = UNE seule transmission au site par personne, quel que soit le nombre de mots", async () => {
+  // DÉCISION figée (session propriétaire) : une transmission PAR PARCOURS. Les doublons sont acceptés, jamais de perte : une personne qui a donné
+  // une adresse différente pour chaque mot voit son « stop » transmis pour CHAQUE adresse. (Une variante « une seule par personne » existe sur une
+  // branche à part, non fusionnée : elle pouvait perdre un « stop ».)
+  it("DÉCISION : trois mots, trois adresses différentes : trois transmissions, une par adresse, aucun « stop » perdu", async () => {
+    const cl = await semerDossier();
+    const adresses = ["premiere@example.test", "deuxieme@example.test", "troisieme@example.test"];
+    const conv = await toutesLesConversations();
+    for (const [i, c] of cl.entries()) {
+      conv[c] = { ...conv[c], idMessageAdresse: `msg-adr-lia-d-${i}` };
+      await deposerMessage(depots, { idMessage: `msg-adr-lia-d-${i}`, idExpediteur: AUTEUR });
+    }
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, conv);
+    await recevoirStop();
+    lectureParMessage(banc.port, Object.fromEntries(adresses.map((a, i) => [`msg-adr-lia-d-${i}`, `Mon adresse : ${a}`])));
+    await transmettre();
+    expect(site.opp().map((x) => JSON.parse(x.corps).email).sort()).toEqual([...adresses].sort());
+    expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
+  });
+
+  it("DÉCISION : la même adresse pour trois mots donne trois transmissions (doublons acceptés), de clés d'idempotence différentes", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
     await transmettre();
-    expect(site.opp()).toHaveLength(1);
+    const corps = site.opp().map((x) => JSON.parse(x.corps));
+    expect(corps).toHaveLength(3);
+    expect(new Set(corps.map((c) => c.cleIdempotence)).size).toBe(3);
   });
 
   it("rejeu : passages répétés, redémarrage du processus, nouvelle mise en file, rattrapage : toujours trois envois en tout", async () => {
