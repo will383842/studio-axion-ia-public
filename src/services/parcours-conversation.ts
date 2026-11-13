@@ -23,8 +23,9 @@ import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCT
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
-import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, FENETRE_ENVOI_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
+import { choisirParcoursPourOk, deciderReponseInstagram, suiviDepuisPort, type EtatSuivi } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
 import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
@@ -41,6 +42,7 @@ import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
 import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
+import { instagramSuivreActif } from "./parcours-instagram";
 import { CHEMIN_DEMANDES_GUIDE, transportDuSite } from "./parcours-mot";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
 import { envoiZernioAutorise } from "./zernio";
@@ -465,7 +467,7 @@ async function cibleDuCommentaire(mot: string, reseau: string, d: DepsConversati
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }
 
-async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<"traite" | "bloque" | "leger"> {
+async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number, igSuivre = false): Promise<"traite" | "bloque" | "leger"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
   const reseau = String(c.reseau ?? "");
@@ -539,7 +541,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     }
     return repondrePubliqueSeule(ev, d, env, cles, trouvee.racine, idCommentaire, dec.raison, now);
   }
-  return etapesCommentaire(ev, d, env, r.cle!, now, cles, true);
+  return etapesCommentaire(ev, d, env, r.cle!, now, cles, true, igSuivre && reseau === "instagram");
 }
 
 /**
@@ -666,7 +668,7 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
   return { texte: choix.texte, version: choix.version, formulation: choix.version };
 }
 
-type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string };
+type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string };
 /**
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
@@ -763,7 +765,38 @@ async function preparerRenvoi(e: Conversation, d: DepsConversation, env: Env, cl
   return { texte, version: choix.version, formulationLien: choix.version, ...(e.refLienConv ? {} : { refLienConv: conv }), empreinteLien: createHash("sha256").update(jeton, "utf8").digest("hex") };
 }
 
-async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk, multi = false): Promise<"traite" | "bloque"> {
+/**
+ * Instagram « suivre le compte puis OK » : texte de la réponse privée UNIQUE. Formulation VALIDÉE (`formulationsValidees`, empreinte exacte) du groupe
+ * `ig-suivre`, figée par conversation ; titre de la cible, texte seul. Aucune formulation validée : `texte: null`, JAMAIS de repli vers un autre texte.
+ */
+async function preparerIgSuivre(e: Conversation, d: DepsConversation): Promise<PrepM1> {
+  const mot = e.mot ?? MOT;
+  const titre = e.titreCible ?? d.titreGuide;
+  const choix = choisirFormulation({
+    groupe: "ig-suivre",
+    cleConversation: e.cleIdempotenceGuide,
+    figee: e.formulations?.["ig-suivre"],
+    validees: await formulationsValidees(),
+    rendre: (v) => rendreTexteMp(v, { mot, titre }),
+    conforme: (t) => texteDuDictionnaire(t, false),
+  });
+  if (choix === null) return { texte: null, version: e.versionTexteM1 };
+  if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  return { texte: choix.texte, version: choix.version, formulationIg: choix.version };
+}
+const MESSAGE_IG_SUIVRE_ABSENT = "Instagram : aucune formulation « suivre le compte » validée dans Mots : aucun message ne part.";
+const MESSAGE_IG_LIEN_INDISPONIBLE = "Instagram : le lien ne peut pas partir (texte non validé ou version inconnue du site)";
+const MESSAGE_IG_PAS_ENCORE_ABSENT = "Instagram : aucune formulation « pas encore » validée dans Mots : ce message ne part pas.";
+const MESSAGE_IG_A_VERIFIER = "Un message privé Instagram a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.";
+/** Aucune formulation « suivre le compte » validée : rien ne part (ni public ni privé), commentaire clos, parcours refusé (même sortie que M1 sans texte). */
+async function cloreIgSuivreAbsent(ev: EvenementFournisseur, cle: string, now: number): Promise<"traite"> {
+  await alerter("ig_suivre_absente", MESSAGE_IG_SUIVRE_ABSENT, now);
+  await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: "validation_ig_absente" });
+  await clore(ev, "ecarte", "validation_ig_absente");
+  return "traite";
+}
+
+async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk, multi = false, ig = false): Promise<"traite" | "bloque"> {
   let e = await lireEtat(cle);
   const optsDoute = multi ? { doute: true } : {}; // mode allumé : le doute bloque aussi juste avant chaque envoi ; éteint : appels inchangés
   if (!e) return "traite";
@@ -774,6 +807,9 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "m1_refuse", "post_inconnu");
     return "traite";
   }
+  // Instagram « suivre le compte puis OK » : sans formulation validée, RIEN ne part (pas même la réponse publique). Un renvoi garde son chemin.
+  const igPremier = ig && e.nature !== "renvoi";
+  if (igPremier && e.etat === "nouveau" && (await preparerIgSuivre(e, d)).texte === null) return cloreIgSuivreAbsent(ev, cle, now);
   if (e.etat === "nouveau") {
     const texte = rendreTexteMp("mp-pub-igfb-v1", {});
     if (texte === null) {
@@ -817,8 +853,9 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "bloque";
   }
   // Renvoi (mode « plusieurs mots ») : jamais le texte qui demande l'adresse. Aucun texte validé, lien éteint ou version inconnue du site : refusé.
-  const m1 = e.nature === "renvoi" ? await preparerRenvoi(e, d, env, cles, now) : await preparerM1(e, d, env, cles, now);
+  const m1 = e.nature === "renvoi" ? await preparerRenvoi(e, d, env, cles, now) : igPremier ? await preparerIgSuivre(e, d) : await preparerM1(e, d, env, cles, now);
   const texteM1 = m1.texte;
+  if (texteM1 === null && igPremier) return cloreIgSuivreAbsent(ev, cle, now);
   if (texteM1 === null) {
     const codeRefus = e.nature === "renvoi" ? "renvoi_impossible" : "texte_incomplet";
     await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: codeRefus });
@@ -836,7 +873,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse ? { formulations: { ...e.formulations, ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse || m1.formulationIg ? { formulations: { ...e.formulations, ...(m1.formulationIg ? { "ig-suivre": m1.formulationIg } : {}), ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
@@ -846,7 +883,9 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   }
   const s = transition(e, { t: "m1", res, maintenantMs: now });
   await reagir(s, now);
-  await patcher(cle, s.patch ?? {});
+  // Instagram : le succès attend le OK de la personne (le lien ne part qu'après) ; les autres issues sont celles de M1.
+  const patchM1: Partial<Conversation> | undefined = igPremier && s.patch?.etat === "attente_email" ? { ...s.patch, etat: "ig_attente_ok" } : s.patch;
+  await patcher(cle, patchM1 ?? {});
   // B3 (a) : si Zernio rend l'identifiant de conversation ou de destinataire, l'alias est posé tout de suite (empreintes, jamais brut).
   const idsRendus = [res.idConversation, res.idDestinataire].filter((x): x is string => typeof x === "string" && x.length > 0).map((x) => empreintePersonne(cles.courante, ESPACE_CONVERSATION, x));
   if (idsRendus.length > 0) await noterAlias(cle, idsRendus);
@@ -855,7 +894,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (s.patch?.etat === "m1_a_verifier") await alerter("m1_a_verifier", "Un message privé a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
-  await clore(ev, String(s.patch?.etat ?? "termine"), s.code ?? null);
+  await clore(ev, String(patchM1?.etat ?? "termine"), s.code ?? null);
   return "traite";
 }
 
@@ -965,7 +1004,7 @@ async function retrouverDossier(cles: ClesOk, idS: string, idC: string | null, i
   return { cle: principal.cle, etat, tous: trouve.tous };
 }
 
-async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number, multi = false): Promise<"traite" | "bloque"> {
+async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number, multi = false, igSuivre = false): Promise<"traite" | "bloque"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
   const idMessage = String(c.idMessage ?? "");
@@ -1100,6 +1139,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "silence", "silence");
     return "traite";
   }
+  if (s.action === "ig_ok") return repondreOkInstagram(ev, d, env, cles, cle, etat.idCompte, idConversation, idMessage, idExpediteur!, igSuivre, now);
   if (s.action === "m2") {
     const m2 = await formuler({ groupe: "adresse-non-reconnue", e: etat, ancien: "mp-m2-v1", valeurs: {} });
     const texte = m2.texte;
@@ -1130,6 +1170,183 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   return demanderGuide(ev, d, env, cle, etat, idConversation, idMessage, adresse!, c, now, multi);
+}
+
+/* --- Instagram « suivre le compte puis OK » : réponse au OK de la personne ------------------------------------------ */
+const PAS_ENCORE = "ig-pas-encore" as const;
+const LIEN_RAPPEL = "lien-rappel" as const;
+/** Délai d'un nouvel essai quand le port demande d'attendre (comme `secondes` de la machine : plafonné à 1 h, 60 s par défaut). */
+const attenteDebit = (s: number | undefined): number => (typeof s === "number" && Number.isFinite(s) && s > 0 ? Math.min(Math.ceil(s) * 1000, 3600_000) : 60_000);
+const enAttenteOk = (e: Pick<Conversation, "etat">): boolean => e.etat === "ig_attente_ok" || e.etat === "ig_pas_encore";
+
+/**
+ * Un message de la personne alors qu'au moins un parcours attend son OK (réglage allumé). Ordre : (a) « stop partout » du dossier, doute compris ›
+ * (b) parcours à servir (au plus 3, les plus anciens) › (c) UNE lecture du suivi par événement, jamais gardée › (d) décision pure par parcours ›
+ * (e) texte (lien neuf ou « pas encore ») › (g) état « en vol » écrit AVANT, plafond, jeton « stop partout » juste avant, un seul envoi ›
+ * (h) issue. Un rejeu du même message (`idMessageOk`) n'envoie jamais rien. Aucun identifiant de personne n'est écrit ni journalisé.
+ */
+async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, cle: string, idCompte: string, idConversation: string, idMessage: string, idExpediteur: string, igSuivre: boolean, now: number): Promise<"traite" | "bloque"> {
+  if (!igSuivre) {
+    await clore(ev, "silence", "ig_eteint"); // retour arrière : un parcours d'attente resté en base ne reçoit rien
+    return "traite";
+  }
+  // (a) opposition ou doute, sur tout le dossier.
+  if (!(await verifierPartout(env, cle, ev.charge, now, { doute: true }))) {
+    const apres = await lireEtat(cle);
+    if (apres?.etat === "oppose") await mettreEnFileCle(cle, apres, cles.courante, now);
+    await clore(ev, "silence", "opposee");
+    return "traite";
+  }
+  const { entrees } = await lireDossier(racineDe(cle));
+  const doute = entrees.some((x) => x.etat.douteOpposition === true);
+  if (doute) {
+    await clore(ev, "silence", "doute_opposition");
+    return "traite";
+  }
+  // (b) parcours à servir, puis rejeu écarté.
+  const choisis = choisirParcoursPourOk(entrees.map((x) => ({ cle: x.cle, etat: x.etat.etat as string, creeLe: x.etat.creeLe, idCompte: x.etat.idCompte })), idCompte);
+  if (choisis.length === 0) {
+    await clore(ev, "silence", "etat");
+    return "traite";
+  }
+  const aServir = choisis.filter((x) => entrees.find((y) => y.cle === x.cle)?.etat.idMessageOk !== idMessage);
+  if (aServir.length === 0) {
+    await clore(ev, "silence", "deja_traite");
+    return "traite";
+  }
+  // (c) UNE lecture du suivi pour tout l'événement ; l'identifiant brut ne vit que dans cet appel. Méthode absente, exception ou forme inconnue : panne définitive.
+  let suivi: EtatSuivi;
+  try {
+    suivi = suiviDepuisPort(await d.port.lireSuiviInstagram?.({ idCompte, idUtilisateur: idExpediteur }));
+  } catch {
+    suivi = "panne_definitive";
+  }
+  let envoyes = 0;
+  let sansEnvoi: { etat: string; code: string } | null = null;
+  let reessaiSuiviMs: number | null = null;
+  for (const choisi of aServir) {
+    const avant = await lireEtat(choisi.cle);
+    if (!avant || !enAttenteOk(avant) || avant.idMessageOk === idMessage) continue;
+    // (d) décision pure : fenêtre de 24 h de Meta (avec marge) comptée depuis le dernier message de la personne.
+    const activite = Date.parse(avant.derniereActiviteLe ?? "");
+    const dec = deciderReponseInstagram({
+      etat: avant.etat as "ig_attente_ok" | "ig_pas_encore",
+      suivi,
+      essaisSuivi: avant.essaisSuivi ?? 0,
+      pasEncoreDejaEnvoye: avant.etat === "ig_pas_encore" || typeof avant.pasEncoreLe === "string",
+      douteOpposition: doute,
+      maintenantMs: now,
+      finFenetreMs: Number.isFinite(activite) ? activite + FENETRE_ENVOI_MS : null,
+    });
+    if (dec.action === "silence") {
+      sansEnvoi ??= { etat: "silence", code: dec.raison === "doute" ? "doute_opposition" : "hors_fenetre" };
+      continue;
+    }
+    if (dec.action === "reessayer_suivi") {
+      await patcher(choisi.cle, { essaisSuivi: (avant.essaisSuivi ?? 0) + 1 });
+      reessaiSuiviMs = reessaiSuiviMs === null ? dec.apresMs : Math.min(reessaiSuiviMs, dec.apresMs);
+      continue;
+    }
+    // (e) texte. Lien : mécanisme du renvoi (formulation validée, version connue du site, lien signé NEUF). « Pas encore » : formulation validée du groupe.
+    const groupe = dec.action === "lien" ? LIEN_RAPPEL : PAS_ENCORE;
+    let prep: PrepM1;
+    if (dec.action === "lien") prep = await preparerRenvoi({ ...avant, groupeM1: LIEN_RAPPEL }, d, env, cles, now);
+    else {
+      const choix = choisirFormulation({
+        groupe: PAS_ENCORE,
+        cleConversation: avant.cleIdempotenceGuide,
+        figee: avant.formulations?.[PAS_ENCORE],
+        validees: await formulationsValidees(),
+        rendre: (v) => rendreTexteMp(v, { mot: avant.mot ?? MOT, titre: avant.titreCible ?? d.titreGuide }),
+        conforme: (t) => texteDuDictionnaire(t, false),
+      });
+      prep = choix === null ? { texte: null, version: avant.versionTexteM1 } : { texte: choix.texte, version: choix.version, formulationIg: choix.version };
+    }
+    const texte = prep.texte;
+    if (texte === null) {
+      await alerter(dec.action === "lien" ? "ig_lien_indisponible" : "ig_pas_encore_absente", dec.action === "lien" ? MESSAGE_IG_LIEN_INDISPONIBLE : MESSAGE_IG_PAS_ENCORE_ABSENT, now);
+      sansEnvoi ??= { etat: "ignore", code: dec.action === "lien" ? "lien_indisponible" : "pas_encore_indisponible" };
+      continue;
+    }
+    // (g) « en vol » ÉCRIT AVANT (sous verrou) avec l'identifiant du message : un plantage ne produit jamais un 2e envoi, un rejeu n'en produit pas non plus.
+    const enVol = await ecrireEtat(choisi.cle, (e) => (e && enAttenteOk(e) ? { ...e, etat: "ig_envoi_en_vol", idMessageOk: idMessage, okRecus: (e.okRecus ?? 0) + 1, prochainEssaiLe: null } : undefined));
+    if (enVol?.etat !== "ig_envoi_en_vol" || enVol.idMessageOk !== idMessage) continue;
+    /** Remet l'état précédent (jamais d'état « oppose » rétrogradé) ; `garderOk` : le message reste consommé (refus net : pas de nouvel essai sur un rejeu). */
+    const restaurer = (garderOk: boolean, extra: Partial<Conversation> = {}) =>
+      ecrireEtat(choisi.cle, (e) => {
+        if (!e || e.etat !== "ig_envoi_en_vol") return undefined;
+        const { idMessageOk, okRecus, ...reste } = e;
+        const ok = garderOk ? { idMessageOk, okRecus } : { ...(avant.idMessageOk !== undefined ? { idMessageOk: avant.idMessageOk } : {}), ...(avant.okRecus !== undefined ? { okRecus: avant.okRecus } : {}) };
+        return { ...reste, ...ok, etat: avant.etat, ...extra };
+      });
+    if (!(await reserverOuReporter(ev, idCompte, now))) {
+      await restaurer(false); // l'événement est déjà reporté (plafond du compte ou compteur illisible)
+      return "bloque";
+    }
+    const nonOpposee = await verifierPartout(env, choisi.cle, ev.charge, now, { doute: true }); // jeton JUSTE avant l'envoi
+    if (!nonOpposee) {
+      await rendrePlaceEnvoi(idCompte, now);
+      await restaurer(false);
+      const apres = await lireEtat(choisi.cle);
+      if (apres?.etat === "oppose") await mettreEnFileCle(choisi.cle, apres, cles.courante, now);
+      await clore(ev, "silence", "opposee");
+      return "traite";
+    }
+    processus().enVol.add(choisi.cle);
+    let res: ResultatEcritureInbox;
+    try {
+      res = await appeler(() => d.port.envoyerMessage({ idCompte, idConversation, texte, cle: `${idMessage}|ig|${groupe}|${choisi.cle}`, nonOpposee }));
+    } finally {
+      processus().enVol.delete(choisi.cle);
+    }
+    const s = transition(avant, { t: "m1", res, maintenantMs: now });
+    await reagir(s, now);
+    // (h) issue.
+    if (res.statut === "envoye") {
+      envoyes++;
+      const quand = new Date(now).toISOString();
+      if (dec.action === "lien") {
+        await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol"
+          ? { ...e, etat: "attente_email", lienIgLe: quand, suiviIg: dec.issue, versionTexteM1: prep.version, dernierCode: null,
+              ...(prep.formulationLien ? { formulations: { ...e.formulations, [LIEN_RAPPEL]: prep.formulationLien } } : {}),
+              ...(prep.refLienConv ? { refLienConv: prep.refLienConv } : {}),
+              ...(prep.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), prep.empreinteLien].slice(-5) } : {}) }
+          : undefined));
+      } else {
+        await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol"
+          ? { ...e, etat: "ig_pas_encore", pasEncoreLe: quand, dernierCode: null, ...(prep.formulationIg ? { formulations: { ...e.formulations, [PAS_ENCORE]: prep.formulationIg } } : {}) }
+          : undefined));
+      }
+      continue;
+    }
+    if (res.statut === "a_verifier") {
+      // Issue inconnue : jamais un nouvel essai automatique.
+      await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol" ? { ...e, etat: "ig_a_verifier", dernierCode: res.code ?? "a_verifier" } : undefined));
+      await alerter("ig_a_verifier", MESSAGE_IG_A_VERIFIER, now);
+      sansEnvoi ??= { etat: "a_verifier", code: res.code ?? "a_verifier" };
+      continue;
+    }
+    if (res.statut === "a_reessayer") {
+      // Débit : état précédent restauré, rien n'est consommé ; le même événement revient plus tard (la décision dira « silence » hors fenêtre).
+      await restaurer(false, { dernierCode: res.code ?? "debit" });
+      await reporter(ev, now, attenteDebit(res.reessayerApresSec), res.code ?? "debit");
+      return "traite";
+    }
+    // Refus net ou échec définitif : état précédent restauré, code gardé. Un code de blocage ouvre le disjoncteur (`reagir`) et arrête tout.
+    await restaurer(true, { dernierCode: res.code ?? res.statut });
+    if (s.blocage) {
+      await clore(ev, "bloque", s.code ?? null);
+      return "traite";
+    }
+    sansEnvoi ??= { etat: res.statut, code: res.code ?? res.statut };
+  }
+  if (reessaiSuiviMs !== null && envoyes === 0) {
+    await reporter(ev, now, reessaiSuiviMs, "suivi_panne");
+    return "traite";
+  }
+  if (envoyes > 0) await clore(ev, "envoye", null);
+  else await clore(ev, sansEnvoi?.etat ?? "silence", sansEnvoi?.code ?? "deja_traite");
+  return "traite";
 }
 
 /** Codes des cibles `guide` actives et non d'essai du catalogue, plus `guide-ia`. Catalogue illisible : la liste par défaut. */
@@ -1322,9 +1539,15 @@ async function reprendreEnVol(now: number): Promise<void> {
   const touches = await sousVerrou(async () => {
     const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     const cles = Object.keys(conv).filter((k) => conv[k].etat === "m1_en_vol" && !vol.has(k));
-    if (cles.length === 0) return 0;
-    await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, ...Object.fromEntries(cles.map((k) => [k, { ...conv[k], etat: "m1_a_verifier", dernierCode: "redemarrage" }])) });
-    return cles.length;
+    // Instagram : un envoi « lien » ou « pas encore » en vol au redémarrage n'est JAMAIS renvoyé.
+    const clesIg = Object.keys(conv).filter((k) => conv[k].etat === "ig_envoi_en_vol" && !vol.has(k));
+    if (cles.length === 0 && clesIg.length === 0) return 0;
+    await ecrireParametre(PARAM_CONVERSATIONS, {
+      ...conv,
+      ...Object.fromEntries(cles.map((k) => [k, { ...conv[k], etat: "m1_a_verifier", dernierCode: "redemarrage" }])),
+      ...Object.fromEntries(clesIg.map((k) => [k, { ...conv[k], etat: "ig_a_verifier", dernierCode: "redemarrage" }])),
+    });
+    return cles.length + clesIg.length;
   });
   if (touches > 0) await alerter("m1_a_verifier", "Un message privé était en cours d'envoi lors d'un arrêt : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
 }
@@ -1448,6 +1671,8 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     }
     // Lu UNE fois par passage, puis passé en argument. Éteint (défaut, échec fermé) : le chemin historique.
     const multi = await motsMultiplesActifs();
+    // Lu UNE fois par passage, seulement si « plusieurs mots » est allumé (éteint : aucune lecture de plus). Éteint, absent ou illisible : faux.
+    const igSuivre = multi ? await instagramSuivreActif() : false;
     await reprendreEnVol(now);
     await expirerConversations({ env, maintenantMs: now });
     const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && !e.traite && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
@@ -1459,7 +1684,7 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
       if (restant <= 0) break;
       let issue: "traite" | "bloque" | "leger";
       try {
-        issue = ev.type === TYPE_COMMENTAIRE ? await (multi ? traiterCommentaireDossier : traiterCommentaire)(ev, d, env, k, now) : await traiterMessage(ev, d, env, k, now, multi);
+        issue = ev.type === TYPE_COMMENTAIRE ? await (multi ? traiterCommentaireDossier(ev, d, env, k, now, igSuivre) : traiterCommentaire(ev, d, env, k, now)) : await traiterMessage(ev, d, env, k, now, multi, igSuivre);
       } catch {
         // Registre illisible ou panne de base : nouvel essai plus tard, JAMAIS « non opposée » ni envoi.
         await reporter(ev, now, ATTENTE_REGISTRE_MS, "registre_illisible").catch(() => undefined);

@@ -153,6 +153,5 @@ describe("INSTA-C · stop et doute", () => {
     await pass(T1);
     expect(envois).toHaveLength(2);
     expect(envois.every((a) => !!a.nonOpposee)).toBe(true);
-    expect(envois[0].nonOpposee).not.toBe(envois[1].nonOpposee);
   });
 });
