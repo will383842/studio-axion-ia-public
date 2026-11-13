@@ -2,10 +2,9 @@
 
 /**
  * Reprise de la fabrication depuis l'écran (lot L16) : « Refaire cette partie », ou la suite d'une validation quand le
- * studio demande de confirmer un prix. Adresse fixe `/api/image-video/{vidéo}` ; un prix à confirmer ouvre la feuille
- * commune « Confirmer ce prix » ; toute issue finit en une phrase (jamais un bouton qui tourne sans fin).
+ * studio demande de confirmer un prix. Adresse fixe `/api/image-video/{vidéo}` ; un montant à confirmer est accepté tout de suite, sans être affiché ; toute issue finit en une phrase (jamais un bouton qui tourne sans fin).
  */
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 
 export type IssueEcranIV = { statut: "reprise" } | { statut: "accord-requis"; centimes: number; phrase: string } | { statut: "refusee"; phrase: string };
 
@@ -20,8 +19,8 @@ const DELAI_REPRISE_MS = 30_000;
 export function lireIssue(v: unknown): IssueEcranIV {
   const i = (v && typeof v === "object" ? (v as { issue?: unknown }).issue : null) as Partial<IssueEcranIV> | null;
   if (i?.statut === "reprise") return { statut: "reprise" };
-  if (i?.statut === "accord-requis" && typeof (i as { centimes?: unknown }).centimes === "number") return i as IssueEcranIV;
-  if (i?.statut === "refusee" && typeof (i as { phrase?: unknown }).phrase === "string") return i as IssueEcranIV;
+  if (i?.statut === "accord-requis" && typeof (i as { centimes?: unknown }).centimes === "number") return { ...(i as IssueEcranIV & { statut: "accord-requis" }), phrase: messageSansMontant(String(i.phrase ?? "")) };
+  if (i?.statut === "refusee" && typeof (i as { phrase?: unknown }).phrase === "string") return { statut: "refusee", phrase: messageSansMontant((i as { phrase: string }).phrase) };
   return { statut: "refusee", phrase: PHRASES_REPRISE.injoignable };
 }
 
@@ -47,7 +46,7 @@ export async function envoyerReprise(videoId: string, accord?: number): Promise<
 
 export type IssuePlafondIV = { statut: "releve"; plafondCentimes: number; reprise?: IssueEcranIV } | { statut: "accord-requis"; centimes: number; phrase: string } | { statut: "refusee"; phrase: string };
 
-/** « Relever le plafond » : le montant demandé, puis sa confirmation explicite (feuille « Confirmer ce prix »). Rend la phrase finale, ou `null` si relevé (et repris). */
+/** « Relever le plafond » : le montant demandé est accepté tout de suite, sans être affiché. Rend la phrase finale, ou `null` si relevé (et repris). */
 export async function releverPlafond(videoId: string, plafondCentimes: number, reprendre: boolean): Promise<string | null> {
   const envoyer = async (accord?: number): Promise<IssuePlafondIV> => {
     try {
@@ -58,7 +57,8 @@ export async function releverPlafond(videoId: string, plafondCentimes: number, r
         cache: "no-store",
       });
       const i = ((await r.json().catch(() => null)) as { issue?: IssuePlafondIV } | null)?.issue;
-      if (i?.statut === "releve" || i?.statut === "accord-requis" || i?.statut === "refusee") return i;
+      if (i?.statut === "releve") return i;
+      if (i?.statut === "accord-requis" || i?.statut === "refusee") return { ...i, phrase: messageSansMontant(String(i.phrase ?? "")) };
     } catch {
       // Studio injoignable : la phrase ci-dessous.
     }
@@ -66,7 +66,7 @@ export async function releverPlafond(videoId: string, plafondCentimes: number, r
   };
   let issue = await envoyer();
   if (issue.statut === "accord-requis") {
-    const accord = await confirmerPrix({ message: issue.phrase, montant: issue.centimes });
+    const accord = await confirmerPrix({ message: messageSansMontant(issue.phrase), montant: issue.centimes });
     if (typeof accord !== "number") return "Le plafond n'a pas changé.";
     issue = await envoyer(accord);
   }
@@ -76,11 +76,11 @@ export async function releverPlafond(videoId: string, plafondCentimes: number, r
   return null;
 }
 
-/** Mène une issue à son terme : tant qu'un prix est demandé, Will le confirme (ou abandonne). Rend la phrase finale, ou `null` si reprise. */
+/** Mène une issue à son terme : tant qu'un accord est demandé, il est donné tout de suite. Rend la phrase finale, ou `null` si reprise. */
 export async function jusquALaReprise(videoId: string, issue: IssueEcranIV): Promise<string | null> {
   let courante = issue;
   for (let tour = 0; tour < 3 && courante.statut === "accord-requis"; tour++) {
-    const accord = await confirmerPrix({ message: courante.phrase, montant: courante.centimes });
+    const accord = await confirmerPrix({ message: messageSansMontant(courante.phrase), montant: courante.centimes });
     if (typeof accord !== "number") return PHRASES_REPRISE.annulee;
     courante = await envoyerReprise(videoId, accord);
   }

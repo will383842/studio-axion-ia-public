@@ -22,6 +22,7 @@ import { cocherVerificationAction, programmerSujetAction, verificationsAvantProg
 import type { VerificationsVersion } from "@/services/publications";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { BoutonCopier } from "@/components/ui/BoutonCopier";
+import { PastilleEtapeEcrire } from "@/components/ecrire/PastilleEtapeEcrire";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
@@ -41,7 +42,7 @@ import { BoutonVideoHeygen } from "./VideoHeygen";
 import { BoutonMonterPrise, BoutonSecondeOuverture, CarteFabriquerLesN, EtatFabricationVersion, type EtatFabricationAffiche, type PlanFabricationAffiche } from "./FabricationReseaux";
 import { MiniGrille } from "./MiniGrille";
 import { MatieresSansAccord, SaisieMatiereSujet, type MatiereSansAccord } from "./SaisieMatiereSujet";
-import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
+import { avecConfirmationPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { formateurDate } from "@/lib/intl";
 
 export interface VersionAffichee {
@@ -201,7 +202,7 @@ export function FicheSujet(p: {
     demarrer(async () => {
       const r = await f();
       if (!r.ok) {
-        notifier.erreur(r.message ?? "Impossible pour l'instant.");
+        notifier.erreur(messageSansMontant(r.message ?? "Impossible pour l'instant."));
         return;
       }
       if (succes) notifier.succes(succes);
@@ -213,10 +214,10 @@ export function FicheSujet(p: {
     demarrer(async () => {
       const r = await ajouterDeclinaisonAction(p.id, { reseaux: p.reseauxSujet, ...options });
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
-      if (!r.donnees.ecrit) notifier.erreur(r.donnees.message ?? "Il manque une matière.");
+      if (!r.donnees.ecrit) notifier.erreur(messageSansMontant(r.donnees.message ?? "Il manque une matière."));
       // L'écriture se fait ensuite dans la boucle : rien n'est « écrit » à ce moment (vérification E2E n° 1, problème n° 1).
       else if (contexte.ecritureSimulee) notifier.essai(`${libelle} : écriture lancée, rien n'est payé`);
       else notifier.succes(`${libelle} : écriture lancée`);
@@ -251,6 +252,12 @@ export function FicheSujet(p: {
         )}
         {" · "}
         Type : <span className="font-semibold text-texte">{TYPES_AUTOMATISATION.find((t) => t.id === p.typeAutomatisation)?.libelle ?? "À classer"}</span>
+        {!p.archive && !p.lignes.length && (
+          <>
+            {" · "}
+            <PastilleEtapeEcrire etape="ecriture" />
+          </>
+        )}
       </p>
 
       {/* La grille, puis les onglets réseaux */}
@@ -269,8 +276,8 @@ export function FicheSujet(p: {
         {RESEAUX_DECLINAISON.map((r) => {
           const actif = p.reseauActif === r;
           return (
-            <Link key={r} href={`/ecrire/sujets/${p.id}?reseau=${r}`} scroll={false} aria-current={actif ? "page" : undefined} className={cn("grid size-11 place-items-center rounded-xl", actif && "bg-orange-doux ring-2 ring-orange")}>
-              <LogoReseau reseau={r} className={cn(actif && "border-orange text-orange-vif")} />
+            <Link key={r} href={`/ecrire/sujets/${p.id}?reseau=${r}`} scroll={false} aria-current={actif ? "page" : undefined} className={cn("grid size-11 place-items-center rounded-xl", actif && "bg-accent-doux ring-2 ring-accent")}>
+              <LogoReseau reseau={r} className={cn(actif && "border-accent text-accent")} />
             </Link>
           );
         })}
@@ -388,8 +395,8 @@ export function FicheSujet(p: {
             {p.ajouts.jeLis && <BoutonAjout icone="texte" libelle="Je lis" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, mode: "teleprompteur" }, "« Je lis »")} />}
             {p.ajouts.tu && <BoutonAjout icone="personne" libelle="Tu" disabled={enCours} onClick={() => ajouter({ formatId: p.ajouts.formatId, adresse: "tu" }, "« Tu »")} />}
             {p.ajouts.autresFormats.length > 0 && <BoutonAjout icone="grille" libelle="Autre format" disabled={enCours} onClick={() => setFeuille("format")} />}
-            <Link href="/ecrire/matieres?ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
-              <Icone nom="micro" size={16} className="text-orange-vif" />
+            <Link href="/ecrire?onglet=matieres&ajout=matiere" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-trait-fort px-4 text-sm font-semibold text-texte-doux hover:text-texte">
+              <Icone nom="micro" size={16} className="text-accent" />
               Matière
             </Link>
           </div>
@@ -443,6 +450,12 @@ export function FicheSujet(p: {
         </div>
       </details>
 
+      <details className="group rounded-carte border border-trait bg-surface-1 px-4 py-2" data-plus>
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-texte">
+          Plus
+          <Icone nom="chevron-bas" size={16} className="transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-3 pb-2">
       <div className="grid grid-cols-2 gap-2">
         <Bouton variante="secondaire" icone="calendrier" onClick={() => setFeuille("ordre")}>
           Ordre J à J+4
@@ -465,6 +478,8 @@ export function FicheSujet(p: {
           Archiver le sujet
         </button>
       )}
+        </div>
+      </details>
 
       {/* Placés AVANT la barre collée : sous elle, ils seraient cachés à l'écran (mobile). */}
       {aValider.length > 0 && limiteEnAttente && <p className="text-center text-xs text-ambre">Validez la limite ci-dessus.</p>}
@@ -501,7 +516,7 @@ export function FicheSujet(p: {
                 onClick={() => ajouter({ formatId: f.id, mode: f.modeParDefaut }, f.nom)}
                 className="flex min-h-14 w-full items-center gap-3 rounded-champ border border-trait bg-surface-2 px-4 text-left hover:border-trait-fort"
               >
-                <Icone nom={f.icone} size={18} className="text-orange-vif" />
+                <Icone nom={f.icone} size={18} className="text-accent" />
                 <span className="flex-1 font-semibold text-texte">{f.nom}</span>
                 {f.moteurAVenir && <span className="text-xs text-texte-faible">moteur à venir</span>}
               </button>
@@ -526,7 +541,7 @@ function LienVideoVersion({ videoId, fabrication }: { videoId: string; fabricati
   return (
     <Link
       href={`/videos/${videoId}`}
-      className={cn("ml-12 mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold underline-offset-4 hover:underline", attend ? "text-texte-doux" : "text-orange-vif")}
+      className={cn("ml-12 mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold underline-offset-4 hover:underline", attend ? "text-texte-doux" : "text-accent")}
     >
       <Icone nom={attend ? "horloge" : "film"} size={14} className={cn(attend && "animate-pulse")} />
       {attend ? "Vidéo en fabrication" : "Voir la vidéo"}
@@ -543,7 +558,7 @@ function BoutonAjout({ icone, libelle, onClick, disabled }: { icone: NomIcone; l
       onClick={onClick}
       className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait bg-surface-1 px-4 text-sm font-semibold text-texte hover:border-trait-fort hover:bg-surface-2 disabled:opacity-50"
     >
-      <Icone nom={icone} size={16} className="text-orange-vif" />
+      <Icone nom={icone} size={16} className="text-accent" />
       {libelle}
     </button>
   );
@@ -593,7 +608,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
               </li>
             ))}
             {v.trame.chiffres.map((c) => (
-              <li key={c} className="rounded-full border-2 border-orange px-3 py-1 font-bold text-orange-vif">
+              <li key={c} className="rounded-full border-2 border-accent px-3 py-1 font-bold text-accent">
                 {c}
               </li>
             ))}
@@ -621,7 +636,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
       <div className="flex flex-wrap gap-2">
         {/* B1 : sujet écrit depuis « Nouvelle vidéo » : le texte de CETTE version revient dans la vidéo, mot pour mot. */}
         {lienVideo && v.etat !== "a-completer" && (
-          <Bouton asChild icone="film">
+          <Bouton asChild variante="contour-orange" icone="film">
             <Link href={lienVideo}>Utiliser dans ma vidéo</Link>
           </Bouton>
         )}
@@ -643,7 +658,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
             href={`/ecrire/sujets/${sujetId}/relire?version=${v.id}&but=modifier`}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort"
           >
-            <Icone nom="ecrire" size={15} className="text-orange-vif" />
+            <Icone nom="ecrire" size={15} className="text-accent" />
             Relire et modifier
           </Link>
         )}
@@ -695,7 +710,7 @@ function DetailVersion({ v, sujetId, enCours, lancer }: { v: VersionAffichee; su
 function BoutonRetouche({ libelle, icone, onClick, disabled }: { libelle: string; icone: NomIcone; onClick: () => void; disabled?: boolean }) {
   return (
     <button type="button" disabled={disabled} onClick={onClick} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-trait px-3 text-sm font-semibold text-texte hover:border-trait-fort disabled:opacity-50">
-      <Icone nom={icone} size={15} className="text-orange-vif" />
+      <Icone nom={icone} size={15} className="text-accent" />
       {libelle}
     </button>
   );
@@ -725,8 +740,8 @@ function BoutonFabriquer({ sujetId, varianteId, formatId, prix: fab }: { sujetId
         <p className="mb-4 text-[15px] text-texte-doux">
           {resume?.essai ? "Une vidéo d'essai : rien n'est payé, et ce n'est pas encore votre vraie vidéo." : "La vidéo complète, avec votre double et votre voix."}
         </p>
-        {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{resume.messageEssai}</p>}
-        {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{fab.avatarParle}</p>}
+        {resume?.messageEssai && <p className="mb-3 text-sm text-texte-doux">{messageSansMontant(resume.messageEssai)}</p>}
+        {fab?.avatarParle && !resume?.essai && <p className="mb-3 text-sm font-semibold text-texte">{messageSansMontant(fab.avatarParle)}</p>}
         <Bouton asChild taille="lg" pleineLargeur icone="ecrire">
           <Link href={`/ecrire/sujets/${sujetId}/relire?version=${varianteId}${fab ? `&prix=${fab.centimes}` : ""}`}>Relire le script</Link>
         </Bouton>
@@ -770,7 +785,7 @@ function BoutonCorrigerLimite({ onCorriger }: { onCorriger: (texte: string) => v
           autoFocus
           placeholder="Sauf si…"
           aria-label="La limite"
-          className="block w-full resize-none rounded-champ border border-trait bg-surface-1 p-3 text-base text-texte outline-none focus:border-orange"
+          className="block w-full resize-none rounded-champ border border-trait bg-surface-1 p-3 text-base text-texte outline-none focus:border-accent"
         />
       </FeuilleBas>
     </>
@@ -813,7 +828,7 @@ function FeuilleOrdre({
           onClick={() =>
             demarrer(async () => {
               const r = await enregistrerOrdrePublicationAction(ordre);
-              if (!r.ok) notifier.erreur(r.message);
+              if (!r.ok) notifier.erreur(messageSansMontant(r.message));
               else {
                 notifier.succes("Ordre gardé pour les prochains sujets");
                 onOuverteChange(false);
@@ -828,7 +843,7 @@ function FeuilleOrdre({
       <ol className="space-y-2">
         {creneaux.map((c, i) => (
           <li key={c.reseau} className="flex min-h-14 items-center gap-3 rounded-champ border border-trait bg-surface-2 px-3">
-            <span className="w-10 font-titre text-sm text-orange-vif">J+{c.rang}</span>
+            <span className="w-10 font-titre text-sm text-accent">J+{c.rang}</span>
             <LogoReseau reseau={c.reseau} />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold text-texte">{obtenirReseau(c.reseau).nom}</span>
@@ -870,7 +885,7 @@ function CarteArretAjout({ id, manque, sansAccord }: { id: string; manque: { lib
           <MatieresSansAccord id={id} matieres={sansAccord} />
         </div>
       )}
-      <SaisieMatiereSujet id={id} libelleBouton="Ajouter et reprendre" messageSucces={ecritureSimulee ? "écriture relancée, rien n'est payé" : "écriture relancée"} essai={ecritureSimulee} />
+      <SaisieMatiereSujet id={id} variante="secondaire" libelleBouton="Ajouter et reprendre" messageSucces={ecritureSimulee ? "écriture relancée, rien n'est payé" : "écriture relancée"} essai={ecritureSimulee} />
     </Carte>
   );
 }
@@ -885,10 +900,11 @@ function CartePanneAjout({ id, message }: { id: string; message: string; supplem
         <Icone nom="attention" size={14} />
         L&apos;ajout s&apos;est arrêté
       </p>
-      <p className="text-[15px] text-texte">{message}</p>
+      <p className="text-[15px] text-texte">{messageSansMontant(message)}</p>
       <p className="mt-1 text-sm text-texte-faible">Ce qui est déjà écrit est gardé ; les autres sujets continuent.</p>
       <Bouton
         className="mt-3"
+        variante="secondaire"
         pleineLargeur
         icone="repeter"
         chargement={enCours}
@@ -897,7 +913,7 @@ function CartePanneAjout({ id, message }: { id: string; message: string; supplem
             // Relecture finale G1 : le supplément possible passe par la feuille « Confirmer ce prix ».
             const r = await avecConfirmationPrix(await reprendreEcritureArreteeAction(id), (accord) => reprendreEcritureArreteeAction(id, accord));
             if (!r.ok) {
-              if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(r.message);
+              if (r.code !== "CONFIRMATION_REQUISE") notifier.erreur(messageSansMontant(r.message));
             } else notifier.succes("L'écriture reprend");
             router.refresh();
           })
@@ -947,7 +963,7 @@ function CarteManque({ id, idee, manque, sansAccord }: { id: string; idee: strin
             const r = await garderEnIdeeAction(idee, id);
             if (!r.ok) {
               setGarde(false);
-              notifier.erreur(r.message);
+              notifier.erreur(messageSansMontant(r.message));
               return;
             }
             notifier.succes("Gardé dans vos idées");
@@ -994,7 +1010,7 @@ export function VerificationsDeLaVersion({ v, onCocher }: { v: VerificationsVers
         </>
       )}
       {v.licenceBloque && <p className="text-[13px] text-ambre">Une licence bloque cette vidéo : voyez « Droits » sur la vidéo.</p>}
-      <Link href={`/videos/${v.videoId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-orange-vif underline-offset-4 hover:underline">
+      <Link href={`/videos/${v.videoId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-accent underline-offset-4 hover:underline">
         Voir la vidéo
         <Icone nom="fleche-droite" size={14} />
       </Link>
@@ -1029,7 +1045,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
     setVerifs((x) => x?.map((y) => (y.videoId === v.videoId ? { ...y, manquantes: y.manquantes.filter((m) => m.cle !== cle) } : y)) ?? null);
     void cocherVerificationAction(sujetId, v.videoId, cle, true).then((r) => {
       if (r.ok) return;
-      notifier.erreur(r.message);
+      notifier.erreur(messageSansMontant(r.message));
       setVerifs((x) => x?.map((y) => (y.videoId === v.videoId ? v : y)) ?? null);
     });
   }
@@ -1037,7 +1053,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
     demarrer(async () => {
       const r = await programmerSujetAction(sujetId);
       if (!r.ok) {
-        notifier.erreur(r.message);
+        notifier.erreur(messageSansMontant(r.message));
         return;
       }
       const { programmees, ignorees, simulation } = r.donnees;
@@ -1046,7 +1062,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
         else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Buffer`, "Relisez et programmez dans Buffer.");
         else notifier.succes(`${programmees.length} version${programmees.length > 1 ? "s" : ""} programmée${programmees.length > 1 ? "s" : ""}`);
       }
-      if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${ignorees[0].message}`);
+      if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${messageSansMontant(ignorees[0].message)}`);
       onOuverteChange(false);
       router.refresh();
     });
@@ -1071,7 +1087,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       )}
       {!programmation.envoiSimule && programmation.modeBuffer === "brouillon" && (
         <p className="mb-4 flex items-center gap-2 rounded-2xl border border-trait bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
-          <Icone nom="envoyer" size={16} className="shrink-0 text-orange-vif" />
+          <Icone nom="envoyer" size={16} className="shrink-0 text-accent" />
           Chaque version part en brouillon dans Buffer, avec sa date : vous la programmez dans Buffer.
         </p>
       )}
@@ -1081,7 +1097,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
           return (
             <li key={c.code} className="rounded-champ border border-trait bg-surface-2 px-3">
               <div className="flex min-h-14 items-center gap-3">
-                <span className="w-10 font-titre text-sm text-orange-vif">J+{c.rang}</span>
+                <span className="w-10 font-titre text-sm text-accent">J+{c.rang}</span>
                 <LogoReseau reseau={c.reseau} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-mono text-xs text-texte-doux">{c.code}</span>
