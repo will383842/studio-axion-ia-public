@@ -1,4 +1,6 @@
 /** SUI-C : le tableau de suivi chiffré est branché dans /mots (session d'abord, panne sans casser l'écran). Valeurs fictives. */
+import { readFileSync } from "node:fs";
+import { redirect } from "next/navigation";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,11 +42,21 @@ vi.mock("@/services/auth", () => ({ exigerSession: () => exigerSession() }));
 vi.mock("@/services/suivi-mots", () => ({ lireTableauSuivi: () => lireTableauSuivi() }));
 vi.mock("@/services/mots-service", async (orig) => ({ ...(await orig<typeof import("@/services/mots-service")>()), lireVueMots: () => lireVueMots() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("next/navigation", async (orig) => ({ ...(await orig<typeof import("next/navigation")>()), useRouter: () => ({ refresh: vi.fn() }) }));
+// next/dynamic : le chargement à la demande est simulé de façon synchrone (le module est déjà résolu avant les rendus).
+vi.mock("next/dynamic", () => ({
+  default: (charger: () => Promise<unknown>) => {
+    let C: ((p: unknown) => unknown) | null = null;
+    void charger().then((m) => { C = (typeof m === "function" ? m : ((m as Record<string, unknown>).default ?? Object.values(m as object)[0])) as (p: unknown) => unknown; });
+    return (p: unknown) => (C ? C(p) : null);
+  },
+}));
 
 const { default: PageMots } = await import("@/app/(studio)/mots/page");
 const { EcranMots } = await import("@/components/mots/EcranMots");
 const { monter } = await import("../aides/crochets-factices");
+await import("@/components/mots/TableauSuiviMots");
+await new Promise((r) => setTimeout(r, 50));
 
 type Props = { vue: unknown; suivi?: unknown; suiviIndisponible?: boolean };
 const SERVICES = {} as never;
@@ -91,5 +103,18 @@ describe("SUI-C : branchement du suivi dans /mots", () => {
     expect(sans).toContain("hiffres indisponibles pour l");
     expect(sans).toContain('data-ecran="mots"');
     expect(sans).not.toContain("Suivi chiffré par mot");
+  });
+
+  it("R2 : une redirection levée pendant la lecture du suivi n'est pas avalée", async () => {
+    session = true;
+    lireTableauSuivi.mockImplementationOnce(async () => redirect("/connexion"));
+    await expect(PageMots()).rejects.toMatchObject({ digest: expect.stringContaining("NEXT_REDIRECT") });
+  });
+
+  it("R3 : le tableau est chargé à la demande (aucun import statique), message de panne conservé", () => {
+    const src = readFileSync(new URL("../../src/components/mots/EcranMots.tsx", import.meta.url), "utf8");
+    expect(src).not.toMatch(/^import[^\n]*TableauSuiviMots[^\n]*from/m);
+    expect(src).toMatch(/dynamic\(\s*\(\)\s*=>\s*import\(["']\.\/TableauSuiviMots["']\)/);
+    expect(src).toContain("hiffres indisponibles pour l");
   });
 });

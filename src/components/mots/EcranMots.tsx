@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, useTransition } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
@@ -11,9 +12,11 @@ import type { EtatBranchement } from "@/services/branchements-zernio";
 import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
 import { KitLinkedin } from "./KitLinkedin";
 import type { TableauSuivi } from "./suivi-affichage";
-import { TableauSuiviMots } from "./TableauSuiviMots";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
 import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
+
+/** Tableau de suivi chargé à la demande : il n'alourdit pas le premier affichage de /mots. */
+const TableauSuiviMots = dynamic(() => import("./TableauSuiviMots").then((m) => m.TableauSuiviMots), { ssr: false });
 
 /** Ce que l'écran appelle : en production les gestes de `mots-gestes`, dans les tests un faux. */
 export interface ServicesMots {
