@@ -12,6 +12,7 @@ import { VERSION_MESURE_VOIX } from "@/briques/voix-maitre/reference";
 import { empreintePriseVoix } from "@/moteurs/montage-image-video/emprunts";
 import type { PriseVoix } from "@/moteurs/montage-image-video/emprunts";
 import { ErreurVoixIV } from "@/moteurs/montage-image-video/voix";
+import { FINS_DE_SECOURS_IV } from "@/moteurs/montage-image-video/secours";
 import {
   avancerVoixIV,
   coutMaxLectureIV,
@@ -58,6 +59,7 @@ const priseFaite = (ecarts?: string[]) =>
     controle: { ok: true },
   }) as unknown as PriseVoix;
 
+const RESEAU_SANS_CHAINE = "reseau-sans-chaine";
 const etatCorps = (segments = segmentsVoixIV(fiche, planAvec([fin("fin-tiktok", ["tiktok"], "Dis-moi tout.")]))): EtatVoixIV => etatInitialVoixIV(segments);
 
 describe("voix · cas qui arrêtaient avant la lecture : plus aucun arrêt", () => {
@@ -162,8 +164,10 @@ describe("voix · refus Q16 réparé par une lecture neuve, puis gardé avec rem
     expect(r.reparations).toBe(1);
   });
 
-  it("8 · fin hésitante sans chaîne de secours (TikTok) : relue en lecture neuve", async () => {
-    const e = etatCorps();
+  it("8 · fin hésitante sans chaîne de secours (réseau hors `FINS_DE_SECOURS_IV`) : relue en lecture neuve", async () => {
+    // Depuis le 19/10, tous les réseaux proposés (dont TikTok) ont une chaîne de secours : une fin sans chaîne ne peut venir que d'un réseau hors de cette table.
+    expect((FINS_DE_SECOURS_IV as Readonly<Record<string, unknown>>)[RESEAU_SANS_CHAINE]).toBeUndefined();
+    const e = etatCorps(segmentsVoixIV(fiche, planAvec([fin("fin-sans-chaine", [RESEAU_SANS_CHAINE], "Dis-moi tout.")])));
     e.voix.corps.prise = priseFaite();
     e.voix.corps.retenu = true;
     e.voix.fins[0].prise = { ...priseFaite(), controle: { rejet: "son", phrase: "Dis-moi tout.", detail: "euh" } } as never;
@@ -252,7 +256,7 @@ describe("voix · reprise : le plafond de réparations est global, les fins de s
 
   it("fin déjà rejetée à sa dernière lecture : réparée par une lecture neuve (plafond global), pas de refus Q16", () => {
     const o = outils();
-    const { precedent, segments } = avecFinRejetee(o, ["tiktok"], 1);
+    const { precedent, segments } = avecFinRejetee(o, [RESEAU_SANS_CHAINE], 1);
     const repris = repriseVoixIV(precedent, segments, o);
     expect(repris.issue).toBeUndefined();
     expect(repris.reparations).toBe(2);
@@ -260,7 +264,7 @@ describe("voix · reprise : le plafond de réparations est global, les fins de s
     expect(repris.voix.fins[0].prise?.etat).toEqual({ phase: "a-lire" });
     expect(repris.remarques?.some((r) => r.includes("2/3"))).toBe(true);
     // Plafond épuisé : la fin est gardée avec une remarque, la voix n'est pas arrêtée.
-    const { precedent: p3, segments: s3 } = avecFinRejetee(o, ["tiktok"], REPARATIONS_VOIX_MAX_IV);
+    const { precedent: p3, segments: s3 } = avecFinRejetee(o, [RESEAU_SANS_CHAINE], REPARATIONS_VOIX_MAX_IV);
     const gardee = repriseVoixIV(p3, s3, o);
     expect(gardee.issue).toEqual({ statut: "faite" });
     expect(gardee.reparations).toBe(REPARATIONS_VOIX_MAX_IV);
@@ -350,7 +354,6 @@ describe("voix · assemblage : réparation dans la fabrication", () => {
 
   it.each([
     ["Q19 (piste sans aucun mot)", () => new ErreurVoixIV("Q19", "La piste voix seule x n'a aucun mot.")],
-    ["décompte de mots différent", () => new ErreurVoixIV("entree", "Les mots de la voix du corps (3) ne correspondent pas au script (4).", true)],
   ])("15 · %s : la voix est relue (une lecture payée de plus, réservée)", async (_nom, erreur) => {
     const { m, o, e } = demarrer();
     const base = o.assemblage.traiterVoix;
@@ -364,6 +367,19 @@ describe("voix · assemblage : réparation dans la fabrication", () => {
     expect(etat.voix?.reparations).toBe(1);
     expect(m.lus).toHaveLength(2);
     expect(reservationsVoix(etat)).toHaveLength(2);
+  });
+
+  it("15 bis · décompte de mots différent (GV2-09) : la voix n'est plus relue, rien de plus n'est payé", async () => {
+    const { m, o, e } = demarrer();
+    o.assemblage.traiterVoix = async () => {
+      throw new ErreurVoixIV("entree", "Les mots de la voix du corps (3) ne correspondent pas au script (4).", true);
+    };
+    const etat = await jusquAuBout(e, o);
+    expect(etat.etape).toBe("refusee");
+    expect(etat.refus?.code).toBe("IV_VOIX");
+    expect(etat.voix?.reparations).toBeUndefined();
+    expect(m.lus).toHaveLength(1);
+    expect(reservationsVoix(etat)).toHaveLength(1);
   });
 
   it("16 · argent : un identifiant d'appel distinct par lecture, jamais plus de 1 + 3 lectures (relances de ressemblance comprises)", async () => {
