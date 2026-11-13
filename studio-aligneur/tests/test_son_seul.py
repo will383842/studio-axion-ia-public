@@ -44,3 +44,42 @@ class SondeSonSeul(unittest.TestCase):
         open(vide, "w").write("pas un média")
         with self.assertRaises(media.ErreurTravail):
             media.sonder(vide, exiger_image=False)
+
+
+class FonduFinDuSon(unittest.TestCase):
+    """GV2-33 : le fondu final de `monter` est réglable (0,05 s par défaut, 0,12 s pour la face caméra)."""
+
+    FREQ = 48000
+
+    def _decroit(self, voix, duree_sec):
+        import numpy as np
+
+        n = int(duree_sec * self.FREQ)
+        fin = np.abs(voix[-n:])
+        # Enveloppe sur 10 tranches : strictement non croissante (le signal d'entrée est constant).
+        tranches = [float(t.mean()) for t in np.array_split(fin, 10)]
+        return all(a >= b - 1e-6 for a, b in zip(tranches, tranches[1:])) and tranches[-1] < 0.2 * tranches[0]
+
+    def _signal(self):
+        import numpy as np
+
+        return np.ones(self.FREQ * 2, dtype=np.float32)
+
+    def test_fondu_de_012_s(self):
+        import numpy as np
+        from aligneur import son
+
+        voix = son.monter(self._signal(), [{"debutSec": 0.0, "finSec": 2.0}], None, 0.12)
+        self.assertTrue(self._decroit(voix, 0.12))
+        # Juste avant les 0,12 dernières secondes, le signal est encore plein.
+        avant = voix[-int(0.12 * self.FREQ) - 10]
+        self.assertAlmostEqual(float(avant), 1.0, places=3)
+        self.assertGreater(float(np.abs(voix[-int(0.08 * self.FREQ)])), 0.2)
+
+    def test_fondu_par_defaut_005_s(self):
+        from aligneur import son
+
+        voix = son.monter(self._signal(), [{"debutSec": 0.0, "finSec": 2.0}], None)
+        self.assertTrue(self._decroit(voix, 0.05))
+        self.assertAlmostEqual(float(voix[-int(0.05 * self.FREQ) - 10]), 1.0, places=3)
+        self.assertEqual(son.FONDU_FIN_SEC, 0.05)
