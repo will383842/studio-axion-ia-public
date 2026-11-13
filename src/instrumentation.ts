@@ -86,12 +86,12 @@ export async function register() {
   void import("@/services/mots-service")
     .then((m) => m.pauserGuidesHorsListe(process.env))
     .catch(() => console.error("[studio] pause des guides hors liste en échec (code PAUSE_HORS_LISTE_ECHEC)"));
-  // GV2-22 : purge des dossiers temporaires de fabrication laissés par un processus tué (plus de 24 h).
+  // GV2-22 : effacement des dossiers temporaires de fabrication laissés par un processus tué (plus de 24 h).
   try {
-    const { purgerTemporaires } = await import("@/services/nettoyage-temporaires");
-    await purgerTemporaires(Date.now());
+    const { effacerTemporairesAnciens } = await import("@/services/nettoyage-temporaires");
+    await effacerTemporairesAnciens(Date.now());
   } catch {
-    console.error("[studio] purge des dossiers temporaires en échec (code PURGE_TEMPORAIRES_ECHEC)");
+    console.error("[studio] effacement des dossiers temporaires en échec (code NETTOYAGE_TEMPORAIRES_ECHEC)");
   }
   const { demarrerBoucleUnique } = await import("@/services/boucle");
   const fabrication = process.env.STUDIO_BOUCLE !== "0"; // « 0 » : coupure de secours (variable d'environnement)
