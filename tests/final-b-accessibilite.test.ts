@@ -55,9 +55,10 @@ describe("n° 14 — enregistreur plein écran", () => {
 });
 
 describe("n° 15 — focus visible", () => {
+  // Refonte R7 (maquette M4, règle 12/11 : l’orange d’accent passe à --accent) : l’anneau est en accent.
   it("écran Sujet : les champs sans contour propre ont un anneau quand on y écrit au clavier", () => {
     const sujet = code("src/components/generateur/EcranSujet.tsx");
-    expect(sujet.match(/has-\[textarea:focus-visible\]:outline-orange-vif/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(sujet.match(/has-\[textarea:focus-visible\]:outline-accent/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
   it("aperçu de LUT : focus visible du curseur invisible, et la page défile au doigt", () => {
     const lut = code("src/components/bibliotheque/EcranLut.tsx");

@@ -3,10 +3,11 @@ import { NON_PRECISE, classerContenus, type CleClassement } from "@/domaine/clas
 import type { ContenuBibliotheque, FiltresContenus as Filtres } from "@/domaine/filtres-contenus";
 import { estIdReseau } from "@/domaine/reseaux-video";
 import { STATUTS_COMMUNS, TYPES_CONTENU, libelleStatutCommun, type StatutCommun, type TypeContenu } from "@/domaine/taxonomie-contenu";
+import { nomCourtFormat, trouverFormat } from "@/formats";
 import { listerReseaux, obtenirReseau } from "@/reseaux";
 
 /**
- * Filtres de l'écran /contenus : type (les 3 familles), réseau, statut. Tout est dans l'adresse (liens, aucun état caché) :
+ * Filtres de l'écran /contenus : famille (Tout, Vidéos, Infographies, Carrousels), format (vidéos seulement, formats non réservés), réseau, étape. Tout est dans l'adresse (liens, aucun état caché) :
  * le partage et le rechargement rouvrent la même vue. Composant serveur ; une valeur inconnue de l'adresse est ignorée.
  */
 export const BASE_CONTENUS = "/contenus";
@@ -17,7 +18,13 @@ export interface FiltresLus extends Filtres {
   page: number;
 }
 
-export const PLURIEL_TYPE: Readonly<Record<TypeContenu, string>> = { video: "Vidéos", image: "Images", carrousel: "Carrousels" };
+export const PLURIEL_TYPE: Readonly<Record<TypeContenu, string>> = { video: "Vidéos", image: "Infographies", carrousel: "Carrousels" };
+
+/** Un format se filtre s'il est au registre et n'est pas réservé à Will (un format réservé n'apparaît jamais, ni dans les puces, ni dans l'adresse). */
+export function formatFiltrable(id: string): boolean {
+  const f = trouverFormat(id);
+  return !!f && !f.reserveAWill;
+}
 
 const premier = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
 
@@ -25,17 +32,19 @@ export function lireFiltresContenus(sp: ParametresContenus): FiltresLus {
   const type = premier(sp.type);
   const reseau = premier(sp.reseau);
   const statut = premier(sp.statut);
+  const format = premier(sp.format);
   const brut = Number(premier(sp.page));
   const page = Number.isFinite(brut) ? Math.min(PAGE_MAX, Math.max(1, Math.floor(brut))) : brut === Infinity ? PAGE_MAX : 1;
   const f: FiltresLus = { page };
   if (type && (TYPES_CONTENU as readonly string[]).includes(type)) f.type = type as TypeContenu;
   if (reseau && (reseau === NON_PRECISE || estIdReseau(reseau))) f.reseau = reseau as CleClassement;
   if (statut && (STATUTS_COMMUNS as readonly string[]).includes(statut)) f.statut = statut as StatutCommun;
+  if (format && formatFiltrable(format)) f.format = format;
   return f;
 }
 
 /** Adresse avec un changement ; `undefined` retire le paramètre. Les autres paramètres sont gardés ; changer un filtre revient à la page 1. */
-export function lienContenus(params: ParametresContenus, changement: { type?: string; reseau?: string; statut?: string; page?: string }): string {
+export function lienContenus(params: ParametresContenus, changement: { type?: string; reseau?: string; statut?: string; format?: string; page?: string }): string {
   const q = new URLSearchParams();
   const touchePage = "page" in changement;
   const change = Object.keys(changement).some((k) => k !== "page");
@@ -53,6 +62,8 @@ export interface ComptesContenus {
   types: Record<TypeContenu, number>;
   reseaux: { cle: CleClassement; nombre: number }[];
   statuts: { statut: StatutCommun; nombre: number }[];
+  /** Formats des vidéos présentes (registre), seulement ceux qui ont au moins un contenu. */
+  formats: { id: string; nom: string; nombre: number }[];
 }
 
 /** Compteurs des puces : les 3 types toujours là ; réseaux et statuts seulement s'ils ont au moins un contenu. */
@@ -66,8 +77,14 @@ export function compterContenus(contenus: readonly ContenuBibliotheque[]): Compt
     const nombre = contenus.filter((c) => c.statut === statut).length;
     return nombre > 0 ? [{ statut, nombre }] : [];
   });
-  return { types, reseaux, statuts };
+  const parFormat = new Map<string, number>();
+  for (const c of contenus) if (c.format && formatFiltrable(c.format)) parFormat.set(c.format, (parFormat.get(c.format) ?? 0) + 1);
+  const formats = [...parFormat].map(([id, nombre]) => ({ id, nom: nomCourtFormat({ id }), nombre })).sort((a, b) => b.nombre - a.nombre || a.nom.localeCompare(b.nom, "fr"));
+  return { types, reseaux, statuts, formats };
 }
+
+/** Couleur de la famille (jeton --fam-*) : l'image se range avec les infographies. */
+const POINT_FAMILLE: Readonly<Record<TypeContenu, string>> = { video: "bg-fam-video", carrousel: "bg-fam-carrousel", image: "bg-fam-infographie" };
 
 export const libelleReseauContenu = (cle: CleClassement): string => (cle === NON_PRECISE ? "Non précisé" : obtenirReseau(cle).nom);
 
@@ -76,17 +93,31 @@ const Nombre = ({ n }: { n: number }) => <span className="text-[11px] tabular-nu
 export function FiltresContenus({ params, filtres, comptes }: { params: ParametresContenus; filtres: Filtres; comptes: ComptesContenus }) {
   return (
     <div className="flex flex-col gap-4" data-testid="filtres-contenus">
-      <GroupeFiltres titre="Type">
+      <GroupeFiltres titre="Famille">
         <PuceLien href={lienContenus(params, { type: undefined })} actif={!filtres.type}>
-          Tous
+          Tout
         </PuceLien>
         {TYPES_CONTENU.map((t) => (
           <PuceLien key={t} href={lienContenus(params, { type: t })} actif={filtres.type === t}>
+            <span aria-hidden className={`size-2 rounded-[3px] ${POINT_FAMILLE[t]}`} />
             {PLURIEL_TYPE[t]}
             <Nombre n={comptes.types[t]} />
           </PuceLien>
         ))}
       </GroupeFiltres>
+      {(!filtres.type || filtres.type === "video") && (comptes.formats.length > 0 || filtres.format) && (
+        <GroupeFiltres titre="Format">
+          <PuceLien href={lienContenus(params, { format: undefined })} actif={!filtres.format}>
+            Tous
+          </PuceLien>
+          {comptes.formats.map(({ id, nom, nombre }) => (
+            <PuceLien key={id} href={lienContenus(params, { format: id })} actif={filtres.format === id}>
+              {nom}
+              <Nombre n={nombre} />
+            </PuceLien>
+          ))}
+        </GroupeFiltres>
+      )}
       {(comptes.reseaux.length > 0 || filtres.reseau) && (
         <GroupeFiltres titre="Réseau">
           <PuceLien href={lienContenus(params, { reseau: undefined })} actif={!filtres.reseau}>

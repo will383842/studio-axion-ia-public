@@ -111,7 +111,7 @@ export function OngletSousTitres({
     <div>
       <div className="mb-3 flex items-center gap-2">
         <p className="flex flex-1 items-center gap-2 text-sm text-texte-doux">
-          <Icone nom="curseurs" size={15} className="text-orange-vif" />
+          <Icone nom="curseurs" size={15} className="text-accent" />
           Touchez un mot pour le corriger.
         </p>
         {liens && (
@@ -144,12 +144,12 @@ export function OngletSousTitres({
         {segments.map((s, n) => {
           const actif = n === courant;
           return (
-            <li key={s.id} aria-current={actif || undefined} className={cn("flex items-start gap-2 px-2 py-1.5 transition-colors", actif && "bg-orange-doux")}>
+            <li key={s.id} aria-current={actif || undefined} className={cn("flex items-start gap-2 px-2 py-1.5 transition-colors", actif && "bg-accent-doux")}>
               <button
                 type="button"
                 onClick={() => allerAuTemps(s.debutSec)}
                 aria-label={`Lire à ${chrono(s.debutSec)}`}
-                className={cn("min-h-11 w-12 shrink-0 rounded-lg text-[11px] tabular-nums transition-colors hover:bg-surface-2", actif ? "font-bold text-orange-vif" : "text-texte-faible")}
+                className={cn("min-h-11 w-12 shrink-0 rounded-lg text-[11px] tabular-nums transition-colors hover:bg-surface-2", actif ? "font-bold text-accent" : "text-texte-faible")}
               >
                 {chrono(s.debutSec)}
               </button>
@@ -168,9 +168,9 @@ export function OngletSousTitres({
                     }}
                     className={cn(
                       "min-h-11 rounded-lg px-1.5 text-[16px] transition-colors hover:bg-surface-2",
-                      m.enValeur ? "font-bold text-orange-vif" : "text-texte",
-                      actif && t >= m.debutSec && t < m.finSec && "underline decoration-orange-vif decoration-2 underline-offset-4",
-                      cible?.segmentId === s.id && cible.index === i && "bg-orange-doux",
+                      m.enValeur ? "font-bold text-accent" : "text-texte",
+                      actif && t >= m.debutSec && t < m.finSec && "underline decoration-accent decoration-2 underline-offset-4",
+                      cible?.segmentId === s.id && cible.index === i && "bg-accent-doux",
                     )}
                   >
                     {m.mot}
@@ -191,7 +191,7 @@ export function OngletSousTitres({
       )}
 
       {recalquePossible && !appliquee && (corriges > 0 || correctionEnAttente) && (
-        <div className="mt-3 rounded-carte border border-orange/30 bg-surface-1 p-3">
+        <div className="mt-3 rounded-carte border border-accent/30 bg-surface-1 p-3">
           <p className="mb-2 text-sm text-texte-doux">La vidéo garde l&apos;ancien mot tant que vous n&apos;appliquez pas la correction.</p>
           <Bouton
             icone="coche"
@@ -213,9 +213,9 @@ export function OngletSousTitres({
       )}
 
       {ajoute && (
-        <div className="mt-3 rounded-carte border border-orange/30 bg-surface-1 p-3">
+        <div className="mt-3 rounded-carte border border-accent/30 bg-surface-1 p-3">
           <p className="mb-2 flex items-center gap-2 text-sm text-texte-doux">
-            <Icone nom="son" size={15} className="shrink-0 text-orange-vif" />
+            <Icone nom="son" size={15} className="shrink-0 text-accent" />
             <span>
               <span className="font-semibold text-texte">« {ajoute.mot} »</span> sera bien dit dans vos prochaines vidéos. Et dans celle-ci ?
             </span>
@@ -258,9 +258,9 @@ export function OngletSousTitres({
             setMalDit({ mot: motSeul(cible.mot), debutSec: cible.debutSec });
             setCible(null);
           }}
-          className="mt-3 flex min-h-12 w-full items-center gap-3 rounded-carte border border-trait bg-surface-2 px-3 text-left transition-colors hover:border-orange"
+          className="mt-3 flex min-h-12 w-full items-center gap-3 rounded-carte border border-trait bg-surface-2 px-3 text-left transition-colors hover:border-accent"
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-orange-doux text-orange-vif">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent-doux text-accent">
             <Icone nom="son" size={16} />
           </span>
           <span className="min-w-0 flex-1">

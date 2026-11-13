@@ -283,7 +283,7 @@ describe("D1 — Réglages › Connexions avec la configuration de production", 
     });
     // La carte Montage : interrupteurs éteints, le type avocat n'est pas monté pour de vrai. Le face caméra (format actif,
     // chaîne réelle allumée par défaut, serveur d'alignement posé) l'est, et seul lui.
-    expect((await carteMontage()).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Face caméra"]);
+    expect((await carteMontage()).montageReelPour?.filter((n) => n !== "L'erreur corrigée" && n !== "Cas concret")).toEqual(["Face caméra"]);
   });
 
   it("aucun double choisi : l'interrupteur « Montage réel » est grisé ET dit quoi faire ; le serveur refuse avec la même phrase", async () => {
@@ -465,7 +465,7 @@ describe("D3 — confirmer à chaque fabrication, puis fabrication de bout en bo
     await preparerVideo(tq, { sansIllustrations: true });
     await reglages.definirMontageReel("avocat", true);
     expect((await reglages.listerJournal(3)).map((e) => e.message).some((m) => /^Vidéos Type avocat : montage réel \(payant\)$/.test(m))).toBe(true);
-    expect((await carteMontage()).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Type avocat", "Face caméra"]);
+    expect((await carteMontage()).montageReelPour?.filter((n) => n !== "L'erreur corrigée" && n !== "Cas concret")).toEqual(["Type avocat", "Face caméra"]);
 
     const apercu = await fabrication.apercuFabrication(VIDEO);
     const total = apercu.estimation.total;
@@ -592,6 +592,6 @@ describe("D4 — une seule des deux allumée (production)", () => {
     expect(a.budget.double).toBeNull();
     expect((await fabrication.construireCommande(VIDEO)).moteurId).toBe("simulation");
     // Le type avocat n'est plus annoncé monté pour de vrai ; le face caméra (sans double) reste monté, lui.
-    expect((await carteMontage()).montageReelPour?.filter((n) => n !== "Tableau animé" && n !== "Cas concret")).toEqual(["Face caméra"]);
+    expect((await carteMontage()).montageReelPour?.filter((n) => n !== "L'erreur corrigée" && n !== "Cas concret")).toEqual(["Face caméra"]);
   });
 });

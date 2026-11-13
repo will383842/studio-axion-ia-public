@@ -42,14 +42,15 @@ export function LigneSurLeSite({ ligne }: { ligne: LigneEnLigne }) {
         <p className="truncate font-semibold text-texte">{ligne.titre}</p>
         <p className="text-sm text-texte-faible">
           {ligne.versionEnLigne !== undefined ? `Version ${ligne.versionEnLigne} · ` : ""}
-          {ilYA(ligne.modifieLe)} · Vues —
+          {ilYA(ligne.modifieLe)}
         </p>
         {echec && ligne.derniereErreur && <p className="mt-1 text-sm text-brique">{ligne.derniereErreur}</p>}
       </div>
       {echec ? <Pastille ton="brique">À reprendre</Pastille> : ligne.etat === "en-ligne" ? <Pastille ton="sauge">En ligne</Pastille> : <Pastille ton="ambre">En cours</Pastille>}
+      <Pastille ton="contour">Vues : pas encore disponibles</Pastille>
       {ligne.url && (
-        <a href={ligne.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold text-orange-vif hover:underline" aria-label={`Ouvrir la page de ${ligne.titre}`}>
-          Voir ↗
+        <a href={ligne.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold text-accent hover:underline" aria-label={`Ouvrir la page de ${ligne.titre}`}>
+          Voir la page
         </a>
       )}
       {echec && ligne.versionEnLigne === undefined && (

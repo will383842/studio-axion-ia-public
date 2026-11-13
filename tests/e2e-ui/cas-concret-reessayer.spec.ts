@@ -43,7 +43,7 @@ async function arreteeALEcriture(page: Page, mot: string) {
   await page.getByRole("button", { name: CAS_RECRUTEMENT }).click();
   await expect(page.getByRole("dialog")).toContainText("Votre vidéo");
   await page.getByRole("textbox", { name: "Le mot à commenter" }).fill(mot);
-  await page.getByRole("button", { name: /Fabriquer la vidéo/ }).click();
+  await page.getByRole("button", { name: "Fabriquer", exact: true }).click();
   await page.getByRole("button", { name: /^Confirmer / }).click();
   await page.waitForURL(/\/videos\/[^/]+$/, { timeout: 60_000 });
   await expect

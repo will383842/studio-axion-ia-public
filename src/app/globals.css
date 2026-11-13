@@ -1,36 +1,110 @@
 @import "tailwindcss";
 
 /*
- * Système de design « Studio » (PLAN B.5).
+ * Système de design « Studio » (PLAN B.5, refonte COUL-01).
  * TOUTES les couleurs passent par ces jetons. La palette Tailwind par défaut
  * est désactivée (--color-*: initial) : une classe comme bg-red-500 n'existe pas.
- * Changer d'ambiance = modifier ce bloc :root ET le bloc .theme-sombre (barres, aperçus de vidéo).
+ * Les NOMS des jetons ne changent jamais (d'autres écrans les emploient) : on change leurs valeurs.
+ * Changer d'ambiance = modifier ce bloc :root ET le bloc .theme-sombre (aperçus de vidéo).
+ * Table en français simple : docs/maquettes/COULEURS-COMMUNES.md.
  */
 :root {
-  --fond: #FAF9F5;
-  --surface-1: #FFFFFF;
-  --surface-2: #F0EEE6;
-  --surface-3: #E8E6DC;
-  --trait: #E8E6DC;
-  --trait-fort: #D1CFC5;
-  --texte: #141413;
-  --texte-doux: #4D4C48;
-  --texte-faible: #5E5D59; /* ≥ 4,5:1 sur toutes les surfaces claires */
-  --orange: #B23F16;
-  --orange-vif: #9A3412;
-  --orange-doux: rgb(178 63 22 / 0.10);
-  --sur-orange: #FFFFFF;
-  --sauge: #3F6B3A;
-  --sauge-doux: rgb(63 107 58 / 0.10);
-  --ambre: #7A4E0B;
-  --ambre-doux: rgb(122 78 11 / 0.10);
-  --brique: #A3261B;
-  --brique-doux: rgb(163 38 27 / 0.10);
-  --voile: rgb(20 20 19 / 0.45);
-  --lueur: radial-gradient(60% 60% at 50% 0%, rgb(178 63 22 / 0.08) 0%, rgb(178 63 22 / 0.03) 45%, transparent 75%);
-  --lueur-forte: radial-gradient(70% 70% at 50% 30%, rgb(178 63 22 / 0.14) 0%, rgb(178 63 22 / 0.05) 50%, transparent 80%);
-  --ombre-carte: 0 1px 2px rgb(20 20 19 / .06), 0 8px 24px -12px rgb(20 20 19 / .18);
-  --ombre-orange: 0 8px 24px -10px rgb(178 63 22 / .35);
+  /* Fonds et surfaces */
+  --fond: #f3f7fb;
+  --surface-1: #ffffff;
+  --surface-2: #eef3f8; /* un cran plus foncé que la carte : survol, bloc en retrait */
+  --surface-3: #e6edf4;
+  /* Traits */
+  --trait: #d6e0ea;
+  --trait-fort: #b3c2d1;
+  --trait-champ: #7b8fa3; /* bord des champs et des cases (3,3:1 sur blanc) */
+  /* Textes */
+  --texte: #14212e;
+  --texte-doux: #44566a;
+  --texte-faible: #566779; /* ≥ 4,5:1 sur toutes les surfaces claires */
+  /* Action principale : le seul orange plein de l'écran */
+  --orange: #b4512a;
+  --orange-vif: #a54623; /* survol du bouton, et texte orange (toujours le foncé) */
+  --orange-doux: rgb(180 81 42 / 0.1);
+  --sur-orange: #ffffff;
+  /* Accent : liens, onglet actif, contour de sélection, étape en cours */
+  --accent: #14507f;
+  --accent-doux: #e1effb;
+  --sur-accent: #ffffff;
+  /* Couleurs d'état */
+  --sauge: #2a6234;
+  --sauge-doux: #e3f0e2;
+  --ambre: #7a4f00;
+  --ambre-doux: #fbecc8;
+  --brique: #a8321c;
+  --brique-doux: #f9e0da;
+  /* Barre de gauche et onglets du bas (bleu ciel) */
+  --barre-fond: #a9d6f5;
+  --barre-trait: #86bfe8;
+  --barre-actif: #e4f3fd;
+  --barre-texte: #071f33;
+  --barre-doux: #0f2e47;
+  --barre-faible: #173650;
+  --barre-accent: #0f3a5c;
+  --barre-encre: #ffffff;
+  --barre-ok: #17602a;
+  --barre-bouton-fond: #ffffff; /* fond du bouton « Nouvelle vidéo » en contour (la barre redéfinit --surface-1) */
+  /* Familles de contenu (toujours avec le nom écrit à côté) */
+  --fam-video: #5b3cb0;
+  --fam-video-doux: #ece7fa;
+  --fam-carrousel: #56650f;
+  --fam-carrousel-doux: #edf0d4;
+  --fam-infographie: #8e3a80;
+  --fam-infographie-doux: #f6e4f2;
+  /* Les 9 statuts (mêmes couleurs que l'usine et le calendrier) */
+  /* Réseaux (CAL-06) : couleurs officielles, permises car outil interne. Jamais seules : picto et nom à côté. */
+  --res-linkedin: #0a66c2;
+  --res-instagram: #d6336c;
+  --res-facebook: #3b5bdb;
+  --res-tiktok: #0b8f8a;
+  --res-youtube: #cc0000;
+  --res-youtube-shorts: #cc0000;
+  --statut-brouillon-fond: var(--surface-3);
+  --statut-brouillon-texte: var(--texte-doux);
+  --statut-fabrication-fond: var(--accent-doux);
+  --statut-fabrication-texte: var(--accent);
+  --statut-valider-fond: var(--ambre-doux);
+  --statut-valider-texte: var(--ambre);
+  --statut-retouche-fond: var(--ambre-doux);
+  --statut-retouche-texte: var(--ambre);
+  --statut-accepte-fond: var(--sauge-doux);
+  --statut-accepte-texte: var(--sauge);
+  --statut-programme-fond: var(--sauge-doux);
+  --statut-programme-texte: var(--sauge);
+  --statut-publie-fond: var(--surface-1);
+  --statut-publie-texte: var(--texte-doux);
+  --statut-corriger-fond: var(--brique-doux);
+  --statut-corriger-texte: var(--brique);
+  --statut-refuse-fond: transparent;
+  --statut-refuse-texte: var(--texte-doux);
+  /* Cadre d'aperçu vidéo, message en bas d'écran, squelette de chargement */
+  --ecran: #16202b;
+  --ecran-texte: #f3f7fb;
+  --toast: #14212e;
+  --toast-texte: #ffffff;
+  --toast-accent: #9fd3f7;
+  --toast-ok: #8fd49a;
+  --toast-erreur: #ffa795;
+  --toast-alerte: #f0c27d;
+  --squelette: #c9d6e2; /* visible sur blanc (1,48:1) et sur --surface-2 (1,32:1) */
+  /* Charte de marque FIGÉE : sert à fabriquer du contenu (vidéos, marques). Ne change jamais avec l'interface. */
+  --charte-orange: #b23f16;
+  --charte-orange-vif: #9a3412;
+  --charte-ivoire: #faf9f5;
+  --charte-noir: #141413;
+  /* Ombres et voile : une seule ombre ; les halos orange sont neutralisés (noms gardés) */
+  --ombre: 0 1px 2px rgb(20 40 60 / 0.06), 0 6px 18px rgb(20 40 60 / 0.07);
+  --ombre-forte: 0 20px 60px rgb(15 30 45 / 0.3);
+  --ombre-carte: var(--ombre);
+  --ombre-orange: var(--ombre);
+  --voile: rgb(15 30 45 / 0.45);
+  --lueur: linear-gradient(transparent, transparent);
+  --lueur-forte: linear-gradient(transparent, transparent);
   --hauteur-onglets-bas: 72px;
   --largeur-barre: 264px;
   --largeur-barre-repliee: 72px;
@@ -38,34 +112,110 @@
   color-scheme: light;
 }
 
-/* Zones sombres (barre latérale, onglets du bas) : anciennes valeurs, mot pour mot. */
+/* Zones sombres (aperçus de vidéo, écran caméra) : bleuté, comme l'usine. */
 .theme-sombre {
-  --fond: #16120f;
-  --surface-1: #1f1a16;
-  --surface-2: #2a2420;
-  --surface-3: #342c27;
-  --trait: #3a322c;
-  --trait-fort: #4d433b;
-  --texte: #f3ede4;
-  --texte-doux: #b8ada0;
-  --texte-faible: #9a8f83; /* ≥ 4,5:1 sur --surface-2 (petits textes) */
-  --orange: #b4512a; /* 4,7:1 avec --sur-orange (WCAG AA texte normal) ; #e07040 reste pour lueurs et accents */
-  --orange-vif: #e07040;
-  --orange-doux: rgb(198 90 46 / 0.16);
+  --fond: #16202b;
+  --surface-1: #1d2833;
+  --surface-2: #24313e;
+  --surface-3: #2e3d4c;
+  --trait: #3a4a5b;
+  --trait-fort: #4a5b6c;
+  --trait-champ: #7d8fa1;
+  --texte: #eaf1f7;
+  --texte-doux: #bccad6;
+  --texte-faible: #a3b3c1; /* ≥ 4,5:1 sur --surface-2 (petits textes) */
+  --orange: #b4512a;
+  --orange-vif: #e98a62;
+  --orange-doux: rgb(233 138 98 / 0.16);
   --sur-orange: #fff6ec;
-  --sauge: #8fb08a;
-  --sauge-doux: rgb(143 176 138 / 0.16);
-  --ambre: #e3a64b;
-  --ambre-doux: rgb(227 166 75 / 0.16);
-  --brique: #e5735c; /* navigation 03/10 : ≥ 4,5:1 sur --brique-doux (axe, petites pastilles) ; était #d9664f */
-  --brique-doux: rgb(217 102 79 / 0.16);
-  --voile: rgb(10 8 6 / 0.72);
-  --lueur: radial-gradient(60% 60% at 50% 0%, rgb(224 112 64 / 0.18) 0%, rgb(224 112 64 / 0.06) 45%, transparent 75%);
-  --lueur-forte: radial-gradient(70% 70% at 50% 30%, rgb(224 112 64 / 0.32) 0%, rgb(198 90 46 / 0.1) 50%, transparent 80%);
-  --ombre-carte: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -16px rgb(0 0 0 / 0.6);
-  --ombre-orange: 0 10px 30px -10px rgb(224 112 64 / 0.55);
+  --accent: #8ecdf7;
+  --accent-doux: #17324a;
+  --sur-accent: #0a2236;
+  --sauge: #a9cfa3;
+  --sauge-doux: #1f3320;
+  --ambre: #f0c27d;
+  --ambre-doux: #3a2d14;
+  --brique: #f4a797;
+  --brique-doux: #40211a;
+  --barre-fond: #123a58;
+  --barre-trait: #1f5278;
+  --barre-actif: #1d4e72;
+  --barre-texte: #e8f4fd;
+  --barre-doux: #c5dcee;
+  --barre-faible: #b9d2e4;
+  --barre-accent: #8ecdf7;
+  --barre-encre: #0a2236;
+  --barre-ok: #7fd08a;
+  --barre-bouton-fond: #1d2833;
+  --fam-video: #c3b2f5;
+  --fam-video-doux: #2a2347;
+  --fam-carrousel: #cdd88a;
+  --fam-carrousel-doux: #2c3312;
+  --fam-infographie: #e7a9da;
+  --fam-infographie-doux: #3a2036;
+  --res-linkedin: #6fb3f2;
+  --res-instagram: #f08cb4;
+  --res-facebook: #9db0ff;
+  --res-tiktok: #5fd3cd;
+  --res-youtube: #ff7b7b;
+  --res-youtube-shorts: #ff7b7b;
+  --statut-brouillon-fond: var(--surface-3);
+  --statut-brouillon-texte: var(--texte-doux);
+  --statut-fabrication-fond: var(--accent-doux);
+  --statut-fabrication-texte: var(--accent);
+  --statut-valider-fond: var(--ambre-doux);
+  --statut-valider-texte: var(--ambre);
+  --statut-retouche-fond: var(--ambre-doux);
+  --statut-retouche-texte: var(--ambre);
+  --statut-accepte-fond: var(--sauge-doux);
+  --statut-accepte-texte: var(--sauge);
+  --statut-programme-fond: var(--sauge-doux);
+  --statut-programme-texte: var(--sauge);
+  --statut-publie-fond: var(--surface-1);
+  --statut-publie-texte: var(--texte-doux);
+  --statut-corriger-fond: var(--brique-doux);
+  --statut-corriger-texte: var(--brique);
+  --statut-refuse-fond: transparent;
+  --statut-refuse-texte: var(--texte-doux);
+  --ecran: #080c10;
+  --ecran-texte: #f3f7fb;
+  --toast: #27333f;
+  --toast-texte: #eaf1f7;
+  --toast-accent: #8ecdf7;
+  --toast-ok: #8fd49a;
+  --toast-erreur: #ffa795;
+  --toast-alerte: #f0c27d;
+  --squelette: #2d3a47;
+  --charte-orange: #b23f16;
+  --charte-orange-vif: #9a3412;
+  --charte-ivoire: #faf9f5;
+  --charte-noir: #141413;
+  --ombre: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 10px 28px -16px rgb(0 0 0 / 0.7);
+  --ombre-forte: 0 30px 60px -20px rgb(0 0 0 / 0.85);
+  --ombre-carte: var(--ombre);
+  --ombre-orange: var(--ombre);
+  --voile: rgb(4 8 12 / 0.72);
+  --lueur: linear-gradient(transparent, transparent);
+  --lueur-forte: linear-gradient(transparent, transparent);
   color-scheme: dark;
 }
+
+/* Barre de gauche et onglets du bas : les mêmes noms (texte, trait, surfaces) aux couleurs de la barre. */
+.theme-barre {
+  --fond: var(--barre-fond);
+  --surface-1: var(--barre-fond);
+  --surface-2: var(--barre-actif);
+  --surface-3: var(--barre-actif);
+  --trait: var(--barre-trait);
+  --trait-fort: var(--barre-trait);
+  --texte: var(--barre-texte);
+  --texte-doux: var(--barre-doux);
+  --texte-faible: var(--barre-faible);
+  --accent: var(--barre-accent);
+  --sur-accent: var(--barre-encre);
+}
+/* Le mot « Studio » du logo : sur le bleu ciel de la barre, l'orange ferait 3:1 ; on prend le bleu foncé de la barre (lisible). Ailleurs (connexion, page publique), il reste orange. */
+.theme-barre .logo-studio { color: var(--barre-accent); }
 
 @theme inline {
   --color-*: initial;
@@ -75,6 +225,7 @@
   --color-surface-3: var(--surface-3);
   --color-trait: var(--trait);
   --color-trait-fort: var(--trait-fort);
+  --color-trait-champ: var(--trait-champ);
   --color-texte: var(--texte);
   --color-texte-doux: var(--texte-doux);
   --color-texte-faible: var(--texte-faible);
@@ -82,6 +233,9 @@
   --color-orange-vif: var(--orange-vif);
   --color-orange-doux: var(--orange-doux);
   --color-sur-orange: var(--sur-orange);
+  --color-accent: var(--accent);
+  --color-accent-doux: var(--accent-doux);
+  --color-sur-accent: var(--sur-accent);
   --color-sauge: var(--sauge);
   --color-sauge-doux: var(--sauge-doux);
   --color-ambre: var(--ambre);
@@ -89,22 +243,53 @@
   --color-brique: var(--brique);
   --color-brique-doux: var(--brique-doux);
   --color-voile: var(--voile);
+  --color-barre-fond: var(--barre-fond);
+  --color-barre-trait: var(--barre-trait);
+  --color-barre-actif: var(--barre-actif);
+  --color-barre-texte: var(--barre-texte);
+  --color-barre-doux: var(--barre-doux);
+  --color-barre-faible: var(--barre-faible);
+  --color-barre-accent: var(--barre-accent);
+  --color-barre-encre: var(--barre-encre);
+  --color-barre-ok: var(--barre-ok);
+  --color-barre-bouton-fond: var(--barre-bouton-fond);
+  --color-fam-video: var(--fam-video);
+  --color-fam-video-doux: var(--fam-video-doux);
+  --color-fam-carrousel: var(--fam-carrousel);
+  --color-fam-carrousel-doux: var(--fam-carrousel-doux);
+  --color-fam-infographie: var(--fam-infographie);
+  --color-fam-infographie-doux: var(--fam-infographie-doux);
+  --color-ecran: var(--ecran);
+  --color-ecran-texte: var(--ecran-texte);
+  --color-toast: var(--toast);
+  --color-toast-texte: var(--toast-texte);
+  --color-toast-accent: var(--toast-accent);
+  --color-toast-ok: var(--toast-ok);
+  --color-toast-erreur: var(--toast-erreur);
+  --color-toast-alerte: var(--toast-alerte);
+  --color-squelette: var(--squelette);
+  --color-charte-orange: var(--charte-orange);
+  --color-charte-ivoire: var(--charte-ivoire);
+  --color-charte-noir: var(--charte-noir);
 
-  --font-titre: var(--police-titre), "Arial Black", sans-serif;
+  --font-titre: var(--police-titre), "Manrope", system-ui, sans-serif;
+  --font-archivo: var(--police-archivo), "Arial Black", sans-serif;
   --font-texte: var(--police-texte), system-ui, sans-serif;
   --font-sans: var(--police-texte), system-ui, sans-serif;
 
-  --radius-carte: 16px;
-  --radius-champ: 12px;
+  --radius-carte: 12px;
+  --radius-champ: 10px;
 
   --shadow-carte: var(--ombre-carte);
   --shadow-orange: var(--ombre-orange);
+  --shadow-studio: var(--ombre);
 
   --ease-studio: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
   html {
+    --police-titre: var(--police-texte); /* titres en Manrope gras (plus d'Archivo Black) */
     background: var(--fond);
     -webkit-tap-highlight-color: transparent;
   }
@@ -126,21 +311,58 @@
   h2,
   h3 {
     font-family: var(--font-titre);
-    letter-spacing: -0.01em;
-    line-height: 1.05;
+    font-weight: 800; /* Manrope gras (plus d'Archivo Black) */
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  /* Les classes font-titre n'avaient aucune graisse : Manrope gras partout. */
+  .font-titre {
+    font-weight: 800;
   }
   :focus-visible {
-    outline: 2px solid var(--orange-vif);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
   ::selection {
-    background: var(--orange);
-    color: var(--sur-orange);
+    background: var(--accent);
+    color: var(--sur-accent);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]) {
     cursor: pointer;
   }
+}
+
+/* Page publique d'un lien privé (/v/...) : charte du site public (ivoire, noir, terracotta), jamais le bleu du Studio.
+   Les noms de jetons sont redéfinis ici à partir de la charte FIGÉE ; les utilitaires (@theme inline) suivent. */
+.charte-publique {
+  --fond: var(--charte-ivoire);
+  --surface-1: #ffffff;
+  --surface-2: color-mix(in srgb, var(--charte-noir) 5%, var(--charte-ivoire));
+  --surface-3: color-mix(in srgb, var(--charte-noir) 9%, var(--charte-ivoire));
+  --trait: color-mix(in srgb, var(--charte-noir) 10%, var(--charte-ivoire));
+  --trait-fort: color-mix(in srgb, var(--charte-noir) 20%, var(--charte-ivoire));
+  --trait-champ: color-mix(in srgb, var(--charte-noir) 55%, var(--charte-ivoire));
+  --texte: var(--charte-noir);
+  --texte-doux: color-mix(in srgb, var(--charte-noir) 82%, var(--charte-ivoire));
+  --texte-faible: color-mix(in srgb, var(--charte-noir) 72%, var(--charte-ivoire));
+  --orange: var(--charte-orange);
+  --orange-vif: var(--charte-orange-vif);
+  --sur-orange: #ffffff;
+  --accent: var(--charte-noir);
+  --accent-doux: var(--surface-2);
+  --sur-accent: var(--charte-ivoire);
+  --ecran: var(--charte-noir);
+  --ecran-texte: var(--charte-ivoire);
+  --ombre: 0 1px 2px color-mix(in srgb, var(--charte-noir) 6%, transparent), 0 8px 24px -12px color-mix(in srgb, var(--charte-noir) 18%, transparent);
+  --ombre-carte: var(--ombre);
+  --ombre-orange: var(--ombre);
+  font-family: var(--font-texte), var(--police-texte), system-ui, sans-serif;
+  background: var(--charte-ivoire);
+  color: var(--charte-noir);
+}
+html:has(.charte-publique) {
+  background: var(--charte-ivoire);
 }
 
 @layer utilities {
@@ -152,9 +374,14 @@
   }
   .titre-affiche {
     font-family: var(--font-titre);
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: -0.005em;
-    line-height: 0.95;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  /* Halo terracotta en haut de la page publique (décision de Williams, 12/11) */
+  .halo-public {
+    background-image: radial-gradient(ellipse 60% 100% at 50% 0%, color-mix(in srgb, var(--charte-orange) 14%, transparent), transparent 70%);
   }
   .sans-barre {
     scrollbar-width: none;
@@ -193,7 +420,7 @@
 }
 
 .squelette {
-  background: linear-gradient(90deg, var(--surface-1) 0%, var(--surface-2) 50%, var(--surface-1) 100%);
+  background: linear-gradient(90deg, var(--surface-1) 0%, var(--squelette) 50%, var(--surface-1) 100%);
   background-size: 200% 100%;
   animation: miroiter 1.6s linear infinite;
 }

@@ -6,6 +6,7 @@
  * Jamais d'erreur brute rendue : un résultat typé, sans corps de réponse, sans texte ni adresse de la personne.
  */
 import { createHash } from "node:crypto";
+import { consommerJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
 import { estErreurZernio } from "./publication/zernio-erreurs";
 
@@ -58,14 +59,14 @@ export type SuiviInstagramLu = { statut: "suit" } | { statut: "ne_suit_pas" } | 
 export interface PortInboxZernio {
   /** Lecture seule du suivi (follow-status) : ne rend jamais ni nom, ni pseudo, ni identifiant. Facultative. */
   lireSuiviInstagram?(p: { idCompte: string; idUtilisateur: string }): Promise<SuiviInstagramLu>;
-  repondreCommentaire(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; cle: string }): Promise<ResultatEcritureInbox>;
-  repondreEnPrive(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; boutons?: BoutonPostback[] }): Promise<ResultatEcritureInbox>;
+  repondreCommentaire(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; cle: string; nonOpposee: JetonNonOpposee }): Promise<ResultatEcritureInbox>;
+  repondreEnPrive(p: { idCompte: string; idPost: string; idCommentaire: string; texte: string; boutons?: BoutonPostback[]; nonOpposee: JetonNonOpposee }): Promise<ResultatEcritureInbox>;
   /**
    * Retrouve d'abord par `idPlateforme` (= `id` de la liste), puis par l'ancien id (id/_id/messageId = idMessage), sinon par HORODATAGE
    * (entrant, createdAt/sentAt ≈ occurredAt à ±2 s, expéditeur concordant) : l'id interne du webhook n'est jamais celui de la liste.
    * Ne retient QUE les messages ENTRANTS de la personne (jamais nos messages sortants ni échos). Un message `metadata.standby` est rendu avec `veille: true`. */
   lireMessage(p: { idCompte: string; idConversation: string; idMessage: string; idPlateforme?: string; occurredAt?: string; idExpediteur?: string }): Promise<MessageLu>;
-  envoyerMessage(p: { idCompte: string; idConversation: string; texte: string; boutons?: BoutonPostback[]; cle: string }): Promise<ResultatEcritureInbox>;
+  envoyerMessage(p: { idCompte: string; idConversation: string; texte: string; boutons?: BoutonPostback[]; cle: string; nonOpposee: JetonNonOpposee }): Promise<ResultatEcritureInbox>;
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -170,6 +171,10 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
 
   const CODES_PASSAGERS: ReadonlySet<string> = new Set(["debit", "limite-incertaine", "a-verifier", "indisponible", "envoi-coupe", "lecture-requise"]);
 
+  /** Jeton « vérifié : non opposée » consommé UNE fois, AVANT tout appel réseau : absent, forgé ou déjà utilisé => refus fermé. */
+  const jetonRefuse = (j: unknown): boolean => !consommerJetonNonOpposee(j);
+  const refusSansJeton = (): Promise<ResultatEcritureInbox> => Promise.resolve({ statut: "refuse", code: "non-opposee-requis" });
+
   return {
     async lireSuiviInstagram(p) {
       if (!comptesPermis.includes(p.idCompte)) return { statut: "panne", definitive: true, code: "compte-non-permis" };
@@ -185,7 +190,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
     },
 
     repondreCommentaire: (p) =>
-      ecrire({
+      jetonRefuse(p.nonOpposee) ? refusSansJeton() : ecrire({
         methode: "POST",
         chemin: `/v1/inbox/comments/${p.idPost}`,
         corps: { accountId: p.idCompte, message: p.texte, commentId: p.idCommentaire },
@@ -194,6 +199,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
       }),
 
     repondreEnPrive: (p) => {
+      if (jetonRefuse(p.nonOpposee)) return refusSansJeton();
       const buttons = versBoutons(p.boutons);
       if (buttons) return Promise.resolve<ResultatEcritureInbox>({ statut: "refuse", code: "boutons-non-supportes" }); // la route privée ne documente que {accountId, message}
       return ecrire({
@@ -205,6 +211,7 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
     },
 
     envoyerMessage: (p) => {
+      if (jetonRefuse(p.nonOpposee)) return refusSansJeton();
       const buttons = versBoutons(p.boutons);
       return ecrire({
         methode: "POST",
