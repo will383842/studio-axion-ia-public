@@ -49,6 +49,14 @@ export interface ReglesCoupes {
   imagesParSec: number;
   /** Part des phrases du texte à retrouver ; en dessous, la vidéo est montée comme une vidéo libre. */
   phrasesTrouveesMin: number;
+  /** GV2-27 : fin (et début) mal entendus d'une prise lue : les mots dits collés à la dernière (première) phrase sont gardés. */
+  garderBordsMalEntendus: boolean;
+  /** GV2-27 : « une phrase par ligne » sans ponctuation : les retours à la ligne ouvrent aussi une phrase. */
+  phrasesParLigne: boolean;
+  /** GV2-27 : la première et la dernière phrase, et une suite de phrases non retrouvées, peuvent être « dites autrement ». */
+  diteAutrementAuxBords: boolean;
+  /** GV2-27 : vidéo libre, le bavardage et les reprises ne retirent plus une phrase réellement dite. */
+  bavardageStrict: boolean;
 }
 
 export const REGLES_COUPES_PAR_DEFAUT: ReglesCoupes = {
@@ -60,6 +68,10 @@ export const REGLES_COUPES_PAR_DEFAUT: ReglesCoupes = {
   chutesMax: 2,
   imagesParSec: 25,
   phrasesTrouveesMin: 0.6,
+  garderBordsMalEntendus: false,
+  phrasesParLigne: false,
+  diteAutrementAuxBords: false,
+  bavardageStrict: false,
 };
 
 export interface EntreeCoupes {
@@ -142,8 +154,8 @@ interface ChoixTexte {
   bornes: ({ premier: number; dernier: number } | null)[];
 }
 
-function choisirOccurrences(mots: MotHorodate[], texte: string, exclus: Set<number>): ChoixTexte {
-  const phrasesTexte = phrasesDuTexte(texte);
+function choisirOccurrences(mots: MotHorodate[], texte: string, exclus: Set<number>, parLigne = false): ChoixTexte {
+  const phrasesTexte = parLigne ? phrasesDuTexte(texte, { parLigne: true }) : phrasesDuTexte(texte);
   const dits = jetonsDits(mots, (i) => !exclus.has(i) && !estHesitation(mots[i].mot));
   const occ = phrasesTexte.map((p) => occurrences(tokens(p), dits));
   const choix: (Occurrence | null)[] = phrasesTexte.map(() => null);
@@ -171,6 +183,44 @@ function choisirOccurrences(mots: MotHorodate[], texte: string, exclus: Set<numb
     }),
     bornes: choix.map((o) => (o ? { premier: dits[o.debut].mot, dernier: dits[o.fin].mot } : null)),
   };
+}
+
+/** Blanc à partir duquel deux mots ne font plus la même phrase dite (seuil de `phrasesDites`). */
+const BLANC_PHRASE_SEC = 0.7;
+
+/**
+ * GV2-27 (`garderBordsMalEntendus`) : la dernière phrase retrouvée est « complète » dès son avant-dernier mot ; un mot
+ * mal entendu à la fin (« nous » pour « vous ») serait jeté. On étend la borne aux mots dits qui la suivent SANS blanc
+ * (moins de 0,7 s entre deux mots), tant que leur nombre ne dépasse pas celui des mots que la phrase n'a pas retrouvés.
+ * Même chose, à l'envers, au début pour la première phrase retrouvée. Les bornes sont modifiées sur place.
+ */
+function etendreBordsMalEntendus(mots: MotHorodate[], texte: string, exclus: Set<number>, bornes: ChoixTexte["bornes"], parLigne: boolean): void {
+  const phrases = phrasesDuTexte(texte, parLigne ? { parLigne: true } : undefined);
+  const compte = (i: number) => !exclus.has(i) && !estHesitation(mots[i].mot);
+  const manquants = (j: number) => {
+    const b = bornes[j]!;
+    const entendus = mots.slice(b.premier, b.dernier + 1).filter((_, k) => compte(b.premier + k)).flatMap((m) => tokens(m.mot)).length;
+    return Math.max(0, tokens(phrases[j]).length - entendus);
+  };
+  const dernierJ = bornes.reduce((acc, b, j) => (b ? j : acc), -1);
+  if (dernierJ >= 0) {
+    const b = bornes[dernierJ]!;
+    const suite: number[] = [];
+    for (let i = b.dernier + 1; i < mots.length && !exclus.has(i) && mots[i].debutSec - mots[i - 1].finSec < BLANC_PHRASE_SEC; i++) {
+      suite.push(i);
+      if (finitPhrase(mots[i].mot)) break;
+    }
+    const n = suite.filter(compte).length;
+    if (suite.length && n > 0 && n <= manquants(dernierJ)) b.dernier = suite[suite.length - 1];
+  }
+  const premierJ = bornes.findIndex((b) => b);
+  if (premierJ >= 0) {
+    const b = bornes[premierJ]!;
+    const suite: number[] = [];
+    for (let i = b.premier - 1; i >= 0 && !exclus.has(i) && mots[i + 1].debutSec - mots[i].finSec < BLANC_PHRASE_SEC && !finitPhrase(mots[i].mot); i--) suite.push(i);
+    const n = suite.filter(compte).length;
+    if (suite.length && n > 0 && n <= manquants(premierJ)) b.premier = suite[suite.length - 1];
+  }
 }
 
 /** Mots gardés regardés après un passage écarté pour y chercher son début redit (≈ une à deux phrases). */
@@ -237,14 +287,27 @@ function phrasesDites(mots: MotHorodate[], exclus: Set<number>): number[][] {
 
 const formeDe = (mots: MotHorodate[], idx: number[]) => idx.map((i) => tokens(mots[i].mot).join(" ")).join(" ").trim();
 
-function statutsLibres(mots: MotHorodate[], statut: Statut[], exclus: Set<number>): number[][] {
+/** GV2-27 : la phrase n'est faite QUE de mots de la liste de bavardage (« Ok c'est bon. »). */
+function toutEstDeLaListe(re: RegExp, forme: string): boolean {
+  const liste = re.source.slice(1, -2);
+  return new RegExp(`^${liste}\\b(?:\\s+${liste}\\b)*$`).test(forme);
+}
+
+const BLANC_BAVARDAGE_SEC = 0.8;
+
+function statutsLibres(mots: MotHorodate[], statut: Statut[], exclus: Set<number>, strict = false): number[][] {
   const phrases = phrasesDites(mots, exclus);
   const marquer = (idx: number[], s: Statut) => idx.forEach((i) => (statut[i] = s));
+  // GV2-27 (bavardageStrict) : une phrase n'est du bavardage que si elle est faite UNIQUEMENT de mots de la liste (4 mots
+  // au plus) ou séparée du reste par un blanc d'au moins 0,8 s (après elle pour l'installation du début, avant elle pour la fin).
+  const blancEntre = (a: number[], b: number[]) => mots[b[0]].debutSec - mots[a[a.length - 1]].finSec;
+  const bavardageDebut = (p: number) => !strict || (tokens(formeDe(mots, phrases[p])).length <= 4 && toutEstDeLaListe(BAVARDAGE_DEBUT, formeDe(mots, phrases[p]))) || blancEntre(phrases[p], phrases[p + 1]) >= BLANC_BAVARDAGE_SEC;
+  const bavardageFin = (p: number) => !strict || (tokens(formeDe(mots, phrases[p])).length <= 4 && toutEstDeLaListe(BAVARDAGE_FIN, formeDe(mots, phrases[p]))) || blancEntre(phrases[p - 1], phrases[p]) >= BLANC_BAVARDAGE_SEC;
   // Bavardage d'installation (phrases courtes du début et de la fin).
   let p0 = 0;
-  while (p0 < phrases.length - 1 && phrases[p0].length <= 8 && BAVARDAGE_DEBUT.test(formeDe(mots, phrases[p0]))) marquer(phrases[p0++], "debut");
+  while (p0 < phrases.length - 1 && phrases[p0].length <= 8 && BAVARDAGE_DEBUT.test(formeDe(mots, phrases[p0])) && bavardageDebut(p0)) marquer(phrases[p0++], "debut");
   let p1 = phrases.length - 1;
-  while (p1 > p0 && phrases[p1].length <= 6 && BAVARDAGE_FIN.test(formeDe(mots, phrases[p1]))) marquer(phrases[p1--], "fin");
+  while (p1 > p0 && phrases[p1].length <= 6 && BAVARDAGE_FIN.test(formeDe(mots, phrases[p1])) && bavardageFin(p1)) marquer(phrases[p1--], "fin");
   for (let p = p0; p <= p1; p++) {
     const idx = phrases[p];
     const forme = formeDe(mots, idx);
@@ -252,7 +315,8 @@ function statutsLibres(mots: MotHorodate[], statut: Statut[], exclus: Set<number
     const t = tokens(forme);
     // Début de phrase répété : « Si vous sentez que… / Si vous sentez que du temps vous échappe. »
     const prefixe = Math.min(3, t.length);
-    if (suivante.length >= prefixe && prefixe >= 2 && t.slice(0, prefixe).every((x, k) => x === suivante[k]) && t.length <= suivante.length + 2) {
+    const inachevee = !strict || !finitPhrase(mots[idx[idx.length - 1]].mot) || estMotInacheve(mots[idx[idx.length - 1]].mot) || t.length + 3 <= suivante.length;
+    if (inachevee && suivante.length >= prefixe && prefixe >= 2 && t.slice(0, prefixe).every((x, k) => x === suivante[k]) && t.length <= suivante.length + 2) {
       marquer(idx, "reprise");
       continue;
     }
@@ -413,7 +477,8 @@ function texteDitPropre(mots: string[], phraseTexte: string): string {
  * GARDÉ entre ses voisines en reprend assez de mots dans l'ordre (et ne dit pas surtout autre chose). Rien ne change
  * aux coupes : la phrase garde `debutSec` absent ; seul l'état et le texte des sous-titres sont ajoutés.
  */
-function reconnaitreDitesAutrement(mots: MotHorodate[], statut: Statut[], phrases: PhraseRetrouvee[], bornes: ChoixTexte["bornes"]): PhraseRetrouvee[] {
+function reconnaitreDitesAutrement(mots: MotHorodate[], statut: Statut[], phrases: PhraseRetrouvee[], bornes: ChoixTexte["bornes"], auxBords = false): PhraseRetrouvee[] {
+  if (auxBords) return reconnaitreDitesAutrementAuxBords(mots, statut, phrases, bornes);
   return phrases.map((p, j) => {
     const avant = bornes[j - 1];
     const apres = bornes[j + 1];
@@ -431,12 +496,79 @@ function reconnaitreDitesAutrement(mots: MotHorodate[], statut: Statut[], phrase
   });
 }
 
+/** Les mots d'un bord de prise sans le bavardage d'installation (début) ou de fin (« Voilà, c'est bon, coupe. »), phrase par phrase. */
+function sansBavardageDeBord(mots: MotHorodate[], idx: number[], debut: boolean): number[] {
+  const groupes: number[][] = [];
+  let cour: number[] = [];
+  idx.forEach((i, k) => {
+    if (cour.length && (k > 0 && mots[i].debutSec - mots[idx[k - 1]].finSec >= BLANC_PHRASE_SEC)) {
+      groupes.push(cour);
+      cour = [];
+    }
+    cour.push(i);
+    if (finitPhrase(mots[i].mot)) {
+      groupes.push(cour);
+      cour = [];
+    }
+  });
+  if (cour.length) groupes.push(cour);
+  if (debut) while (groupes.length && BAVARDAGE_DEBUT.test(formeDe(mots, groupes[0]))) groupes.shift();
+  else while (groupes.length && BAVARDAGE_FIN.test(formeDe(mots, groupes[groupes.length - 1]))) groupes.pop();
+  return groupes.flat();
+}
+
+/**
+ * GV2-27 (`diteAutrementAuxBords`) : même reconnaissance, mais le « voisin » d'une suite de phrases non retrouvées peut
+ * être le début ou la fin de la prise (première et dernière phrase), et la suite peut compter plusieurs phrases (même
+ * seuil de ressemblance, sur leur texte mis bout à bout). Le passage reconnu est GARDÉ (même s'il était classé début ou fin).
+ * Le texte dit est porté par la première phrase de la suite ; les suivantes reçoivent la même plage et un texte vide.
+ */
+function reconnaitreDitesAutrementAuxBords(mots: MotHorodate[], statut: Statut[], phrases: PhraseRetrouvee[], bornes: ChoixTexte["bornes"]): PhraseRetrouvee[] {
+  const sortie = [...phrases];
+  const poste = (i: number) => !estHesitation(mots[i].mot) && !estMotInacheve(mots[i].mot) && tokens(mots[i].mot).length > 0;
+  let debut = 0;
+  while (debut < phrases.length) {
+    if (bornes[debut]) {
+      debut++;
+      continue;
+    }
+    let fin = debut;
+    while (fin + 1 < phrases.length && !bornes[fin + 1]) fin++;
+    const premiereSuite = debut;
+    debut = fin + 1;
+    // Aucune phrase retrouvée du tout : pas de voisin, rien à reconnaître.
+    if (premiereSuite === 0 && fin === phrases.length - 1) continue;
+    const bordOuvert = premiereSuite === 0 || fin === phrases.length - 1;
+    const depart = premiereSuite === 0 ? -1 : bornes[premiereSuite - 1]!.dernier;
+    const arrivee = fin === phrases.length - 1 ? mots.length : bornes[fin + 1]!.premier;
+    const retenable = (i: number) => statut[i] === "garde" || (bordOuvert && (statut[i] === "debut" || statut[i] === "fin"));
+    let idx = range(depart + 1, arrivee).filter((i) => retenable(i) && poste(i));
+    if (bordOuvert) idx = sansBavardageDeBord(mots, idx, premiereSuite === 0);
+    if (!idx.length) continue;
+    const suite = phrases.slice(premiereSuite, fin + 1);
+    const dits = idx.flatMap((i) => tokens(mots[i].mot));
+    const attendus = suite.flatMap((p) => tokens(p.texte));
+    const n = communs(attendus, dits);
+    const recouvrement = n / Math.max(1, attendus.length);
+    if (recouvrement < REGLES_DITE_AUTREMENT.recouvrementMin || n / dits.length < REGLES_DITE_AUTREMENT.precisionMin) continue;
+    const texteDit = texteDitPropre(idx.map((i) => mots[i].mot), suite[suite.length - 1].texte);
+    if (!texteDit) continue;
+    // Le passage reconnu est gardé : ses mots ne sont plus un début ou une fin à jeter.
+    for (const i of idx) if (statut[i] === "debut" || statut[i] === "fin") statut[i] = "garde";
+    const ditAutrement = { debutSec: mots[idx[0]].debutSec, finSec: mots[idx[idx.length - 1]].finSec, recouvrement: +recouvrement.toFixed(2), texteDit };
+    suite.forEach((p, k) => {
+      sortie[premiereSuite + k] = { ...p, diteAutrement: k === 0 ? ditAutrement : { ...ditAutrement, texteDit: "" } };
+    });
+  }
+  return sortie;
+}
+
 /**
  * Le texte des sous-titres en mode texte : les phrases gardées au montage, dans l'ordre, et pour une phrase dite
  * autrement les mots réellement dits (calés ensuite sur leurs vrais instants, au lieu d'un trou).
  */
 export function texteDesSousTitres(phrases: PhraseRetrouvee[]): string {
-  return phrases.flatMap((p) => (p.debutSec !== undefined ? [p.texte] : p.diteAutrement ? [p.diteAutrement.texteDit] : [])).join(" ");
+  return phrases.flatMap((p) => (p.debutSec !== undefined ? [p.texte] : p.diteAutrement && p.diteAutrement.texteDit ? [p.diteAutrement.texteDit] : [])).join(" ");
 }
 
 /**
@@ -578,7 +710,8 @@ export function calculerCoupes(e: EntreeCoupes): PlanCoupes {
   const absorbees: { debutSec: number; finSec: number; idx: number[] }[] = [];
   let bornes: ChoixTexte["bornes"] = [];
   if (e.texteValide?.trim()) {
-    const choix = choisirOccurrences(mots, e.texteValide, exclus);
+    const choix = choisirOccurrences(mots, e.texteValide, exclus, r.phrasesParLigne);
+    if (r.garderBordsMalEntendus) etendreBordsMalEntendus(mots, e.texteValide, exclus, choix.bornes, r.phrasesParLigne);
     bornes = choix.bornes;
     const trouvees = choix.bornes.filter(Boolean).length;
     if (choix.phrases.length && trouvees / choix.phrases.length >= r.phrasesTrouveesMin) {
@@ -618,7 +751,7 @@ export function calculerCoupes(e: EntreeCoupes): PlanCoupes {
     }
   }
   if (mode === "libre") {
-    const dites = statutsLibres(mots, statut, exclus);
+    const dites = statutsLibres(mots, statut, exclus, r.bavardageStrict);
     debutsPhrases = dites
       .map((idx, index) => ({ idx, index }))
       .filter(({ idx }) => statut[idx[0]] === "garde")
@@ -633,7 +766,7 @@ export function calculerCoupes(e: EntreeCoupes): PlanCoupes {
     for (const i of d.premier) statut[i] = "reprise";
   }
   // 7. (10/10) Phrases dites autrement, d'après les mots finalement gardés.
-  if (mode === "texte") phrases = reconnaitreDitesAutrement(mots, statut, phrases, bornes);
+  if (mode === "texte") phrases = reconnaitreDitesAutrement(mots, statut, phrases, bornes, r.diteAutrementAuxBords);
 
   const gardes = statut.map((s, i) => (s === "garde" ? i : -1)).filter((i) => i >= 0);
   if (!gardes.length) return { ...vide, mode, texteNonRetrouve, consignes, phrases };
@@ -795,6 +928,39 @@ export function motsDuMontage(mots: MotHorodate[], gardes: Intervalle[]): MotHor
   return sortie;
 }
 
+/** Écart maximal dont une borne demandée peut être déplacée vers un blanc (GV2-27). */
+const RECALAGE_DEMANDE_SEC = 0.4;
+
+/**
+ * GV2-27 : une coupe demandée en secondes libres peut tomber au milieu d'un mot. Chaque borne est déplacée vers le MILIEU
+ * du blanc le plus proche entre deux mots (à 0,4 s au plus) ; sans blanc assez près, elle est laissée. Une coupe qui
+ * deviendrait vide est laissée telle quelle. Fonction pure, qui ne modifie pas ses entrées.
+ */
+export function recalerCoupesDemandees<T extends { debutSec: number; finSec: number }>(coupes: T[], motsPrise: MotHorodate[]): T[] {
+  const mots = [...motsPrise].sort((a, b) => a.debutSec - b.debutSec);
+  const milieux: number[] = [];
+  for (let i = 0; i + 1 < mots.length; i++) {
+    if (mots[i + 1].debutSec > mots[i].finSec) milieux.push((mots[i].finSec + mots[i + 1].debutSec) / 2);
+  }
+  const recaler = (t: number) => {
+    let meilleur = t;
+    let ecart = RECALAGE_DEMANDE_SEC + 1e-9;
+    for (const m of milieux) {
+      const d = Math.abs(m - t);
+      if (d < ecart) {
+        ecart = d;
+        meilleur = m;
+      }
+    }
+    return arrondi(meilleur);
+  };
+  return coupes.map((c) => {
+    const debutSec = recaler(c.debutSec);
+    const finSec = recaler(c.finSec);
+    return finSec > debutSec ? { ...c, debutSec, finSec } : c;
+  });
+}
+
 const minutes = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60) === 60 ? 59 : Math.round(s % 60)).padStart(2, "0")}`;
 
 /** « 3 passages retirés, 2:11 devient 1:34 » (blancs et hésitations comptés à part, ils ne sont pas des « passages »). */
@@ -820,6 +986,12 @@ export interface ControleCoupes {
    * rétablie par Will y apparaît aussi : c'est une alerte bloquante.
    */
   phrasesEnDouble: { texte: string; debutSec: number }[];
+  /**
+   * GV2-27 : mots dits juste hors du montage, aux deux bords : dont le début est à moins de 0,4 s après la fin gardée
+   * (le mot dépasse la fin gardée, même coupé en deux), ou dont la fin est à moins de 0,4 s avant le début gardé. Sans effet
+   * sur les coupes : « la voix allait continuer ». Les hésitations et les consignes ne comptent pas.
+   */
+  motsApresLaFin: number;
 }
 
 /** Les mots de la prise avec les recalages d'un plan (reprise absorbée) ; les autres mots sont rendus tels quels. */
@@ -870,12 +1042,20 @@ export function controlerCoupes(plan: PlanCoupes, motsPrise: MotHorodate[], reta
     const dits = dans.flatMap((m) => tokens(m.mot));
     return communs(attendus, dits) / Math.max(1, attendus.length) < 0.5;
   };
+  const premiereGarde = gardes[0];
+  const derniereGarde = gardes[gardes.length - 1];
+  const milieuDe = (m: MotHorodate) => (m.debutSec + m.finSec) / 2;
+  const motsApresLaFin = !premiereGarde ? 0 : mots.filter((m) => {
+    if (estHesitation(m.mot) || !tokens(m.mot).length || plan.consignes.some((c) => milieuDe(m) >= c.debutSec - 1e-3 && milieuDe(m) <= c.finSec + 1e-3)) return false;
+    return (m.finSec > derniereGarde.finSec + 1e-3 && m.debutSec < derniereGarde.finSec + 0.4) || (m.debutSec < premiereGarde.debutSec - 1e-3 && m.finSec > premiereGarde.debutSec - 0.4);
+  }).length;
   const ditAutrement = (p: PhraseRetrouvee) => p.debutSec === undefined && (diteEntendue(p) || plageDite(p));
   return {
     phrasesManquantes: texte.filter((p) => (p.debutSec === undefined ? !ditAutrement(p) : !phraseEntendue(p.debutSec, p.finSec!))).map((p) => p.index),
     phrasesDitesAutrement: texte.filter((p) => ditAutrement(p)).map((p) => p.index),
     consignesAudibles: plan.consignes.filter(recouvre),
     phrasesEnDouble: doublesDansLesGardes(mots, gardes, texteDuPlan(plan)).map((d) => ({ texte: d.texte, debutSec: mots[d.premier[0]].debutSec })),
+    motsApresLaFin,
     coupesDansUnMot: appliquees.filter((c) => motsGardes.some((m) => (c.debutSec > m.debutSec + 0.01 && c.debutSec < m.finSec - 0.01) || (c.finSec > m.debutSec + 0.01 && c.finSec < m.finSec - 0.01))).map((c) => c.id),
   };
 }
