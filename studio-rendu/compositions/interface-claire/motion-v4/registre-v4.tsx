@@ -335,7 +335,7 @@ export function groupeDoubleV4(elements: readonly ElementV4Plan[], f: number, mo
   const actif = elementEnCoursV4(elements, f);
   if (!actif) return false;
   const t = f / FPS_V4;
-  const lignesVisibles = (actif.lignes ?? []).filter((l) => t >= l.a - 1e-6).map((l) => l.texte);
+  const lignesVisibles = (actif.lignes ?? []).flatMap((l: { a: number; texte: string }) => (t >= l.a - 1e-6 ? [l.texte] : []));
   const posés = new Set([...(actif.mots ?? []), ...lignesVisibles].flatMap(jetons));
   if (actif.nombre !== undefined) posés.add(String(actif.nombre));
   const porteurs = motsGroupe.flatMap(jetons).filter((j) => !MOTS_OUTILS_MASQUAGE.has(j));
