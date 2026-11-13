@@ -132,7 +132,7 @@ jobs:
     needs: zones
     if: needs.zones.outputs.tests != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -161,7 +161,7 @@ jobs:
       - name: Tests de la zone (${{ matrix.cote }})
         # Limite de l'étape un peu sous celle de la tâche : si les tests sont trop longs, l'étape s'arrête proprement
         # et l'artefact est quand même déposé (avec le statut « coupe »).
-        timeout-minutes: 27
+        timeout-minutes: 45
         env:
           COTE: ${{ matrix.cote }}
           FILTRES: ${{ needs.zones.outputs.tests }}

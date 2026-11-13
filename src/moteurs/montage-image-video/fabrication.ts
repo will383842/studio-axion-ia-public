@@ -55,6 +55,7 @@ import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
 import { ecranVivantIV, ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
+import { ErreurCalageIV } from "./calage";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -276,6 +277,10 @@ export interface LivraisonReseauIV {
   reseau: ReseauIV;
   /** Version qui part : longue ou courte ; « aucune » = réseau non livré. */
   version: "longue" | "courte" | "aucune";
+  /** Présent quand le réseau n'est pas livré à cause d'un contrôle bloquant sur ses versions : la phrase du contrôle. */
+  refusControle?: string;
+  /** Fil Facebook 4:5 retiré par un contrôle bloquant (le Reel part) : la phrase du contrôle. */
+  refusControleFil?: string;
   /** Fichier principal (Facebook : le Reel 9:16). */
   fichierCle?: string;
   dureeSec?: number;
@@ -967,11 +972,15 @@ const LECTURES_VOIX_AU_PLUS = { corps: 3 * 2, fin: 2 * 2 };
  * relirait en payant le corps de toute vidéo reprise.
  */
 // Un état déjà payé suit SA version, jamais le drapeau (le remettre à `false` ne doit pas relire les voix « voix-iv/2 »).
-const lectureUniqueDe = (voix: Pick<EtatVoixIV, "version"> | undefined) => (voix ? voix.version === "voix-iv/2" : LECTURE_UNIQUE_IV);
+const lectureUniqueDe = (voix: Pick<EtatVoixIV, "version"> | undefined) => (voix ? voix.version === "voix-iv/2" || voix.version === "voix-iv/3" : LECTURE_UNIQUE_IV);
+// GV2-29 : point final au texte lu, seulement pour un état de voix NEUF ou déjà posé avec lui (« voix-iv/3 », ou segments
+// marqués `pointFinal` en segments séparés) ; jamais pour un « voix-iv/1 » ou « voix-iv/2 » déjà payé (aucune relecture).
+const pointFinalDe = (voix: Pick<EtatVoixIV, "version" | "segments"> | undefined) => (voix ? voix.version === "voix-iv/3" || voix.segments?.pointFinal === true : true);
+const optionsVoixDe = (voix: Pick<EtatVoixIV, "version" | "segments"> | undefined) => ({ lectureUnique: lectureUniqueDe(voix), pointFinal: pointFinalDe(voix) });
 
 /** Prix de la suite après la validation du script : voix (au caractère), écoute et relecture de chaque version. */
 export function prixSuiteIV(etat: Pick<EtatFabricationIV, "demande" | "caisse" | "voix">, fiche: FicheImage, plan: PlanDesFinsIV, tarifVoixCentimesParCaractere: number): PrixIV {
-  const segments = segmentsVoixIV(fiche, plan, { lectureUnique: lectureUniqueDe(etat.voix) });
+  const segments = segmentsVoixIV(fiche, plan, optionsVoixDe(etat.voix));
   const taux = etat.demande.tauxUsdEur;
   const voix = (n: number, k: number) => Math.ceil(n * k * tarifVoixCentimesParCaractere - 1e-9);
   const caracteresFins = segments.fins.reduce((s, f) => s + f.texte.length, 0);
@@ -1088,6 +1097,8 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     ...(e.variete ? { variete: recettePourVersion(e.variete.recette, v.reseaux, v.format ?? "9:16"), graine: e.demande.videoId } : {}),
     // GV-ST-03e : le style choisi par Will, pour que le contrôle Q22 mesure avec lui ; sans choix : aucune clé en plus.
     ...(e.demande.styleSousTitres?.valeur ? { styleSousTitres: e.demande.styleSousTitres } : {}),
+    // GV2-29 : sous-titres écrits comme le script et clôture après la voix, pour un état neuf seulement (clés de rendu des vidéos existantes inchangées).
+    ...(e.voix && pointFinalDe(e.voix) ? { texteEcrit: true as const } : {}),
   };
 }
 
@@ -1240,7 +1251,7 @@ async function pasLecture(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: 
 async function pasConceptionTexte(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { concevoirWorkflow } = await import("./texte/conception");
   const { demande } = e;
-  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
+  const t = await concevoirWorkflow({ videoId: demande.videoId, texte: demande.texte, reseaux: demande.reseaux, ...(demande.scriptColle === true ? { scriptColle: true } : {}) }, { appeler: o.lecture.appeler, budget: caisse.claude("lecture") });
   if (!t.ok) {
     if (t.motif === "budget" || t.motif === "plafond") return refuser(e, "lecture", plafond(), t.message);
     // Texte à reformuler : relancer le même texte donnerait le même refus ; panne ou sortie illisible : « Refaire » réessaie.
@@ -1415,7 +1426,7 @@ const DELAI_ESSAI_WAV_MS = 250;
 
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
   const { script, plan } = e;
-  const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: lectureUniqueDe(e.voix) });
+  const segments = segmentsVoixIV(script!.fiche, plan!, optionsVoixDe(e.voix));
   // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
   // plan de départ (le corps + chaque fin lue à part), quel que soit le texte (une fin de secours a un texte neuf).
   const premieresLectures = 1 + segments.fins.length;
@@ -1499,9 +1510,9 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
           await new Promise((r) => setTimeout(r, DELAI_ESSAI_WAV_MS * essai));
           continue;
         }
-        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) et le décompte de mots différent ;
+        // Une lecture neuve (payante) ne règle que la coupe, la piste sans mot (Q19) (plus un décompte de mots différent : le calage l'absorbe) ;
         // une erreur d'entrée qui ne dépend pas de la lecture (son d'une version absent…) est levée sans rien payer.
-        if (err.controle !== "coupe" && err.controle !== "Q19" && !err.relire) throw err;
+        if (err.controle !== "coupe" && err.controle !== "Q19") throw err;
         const refaite = relireLaVoixIV(e.voix, voixOutils, err.message);
         if (!refaite) throw err;
         e.voix = refaite;
@@ -1524,6 +1535,16 @@ async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Cai
   return passerA(e, "mise-en-scene");
 }
 
+/** Durée d'une mise en scène, ou `undefined` si le calage de la voix la refuse (`ErreurCalageIV`) ; toute autre erreur est levée. */
+function dureeSansPanneIV(duree: () => number): number | undefined {
+  try {
+    return duree();
+  } catch (err) {
+    if (err instanceof ErreurCalageIV) return undefined;
+    throw err;
+  }
+}
+
 async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<CourteIV[]> {
   const bruitages = o.bruitagesValides ?? BRUITAGES_V4_IV;
   const res: CourteIV[] = [];
@@ -1531,7 +1552,9 @@ async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Pr
   const detachables = chapitresDetachables(fiche).length;
   for (const piste of e.pistes!) {
     const longue: VersionIV = { id: piste.version, reseaux: piste.reseaux, courte: false, fiche, fin: finDe(e.plan!, piste.version), piste };
-    const duree = mettreEnSceneIV(sceneDe(e, longue, bruitages)).ligne.dureeSec;
+    // Un calage refusé n'est pas une panne de la voix : la version est jugée plus bas (mise en scène), sans version courte ici.
+    const duree = dureeSansPanneIV(() => mettreEnSceneIV(sceneDe(e, longue, bruitages)).ligne.dureeSec);
+    if (duree === undefined) continue;
     const besoin = piste.reseaux.filter((r) => verdictReseau(r, duree).version === "courte");
     if (!besoin.length) continue;
     let trouvee: CourteIV | null = null;
@@ -1546,7 +1569,11 @@ async function versionsCourtes(e: EtatFabricationIV, o: OutilsFabricationIV): Pr
         break;
       }
       const courte: VersionIV = { id: c.piste.version, reseaux: besoin, courte: true, fiche: c.fiche, fin: longue.fin, piste: c.piste, noeudsRetires: noeudsRetiresDe(e.carte!.carte, fiche, c.fiche) };
-      const dureeCourte = mettreEnSceneIV(sceneDe(e, courte, bruitages)).ligne.dureeSec;
+      const dureeCourte = dureeSansPanneIV(() => mettreEnSceneIV(sceneDe(e, courte, bruitages)).ligne.dureeSec);
+      if (dureeCourte === undefined) {
+        raison = "calage de la version courte refusé";
+        break;
+      }
       if (besoin.every((r) => verdictReseau(r, duree, dureeCourte).version !== "aucune")) trouvee = { version: piste.version, reseaux: besoin, resultat: c };
       else raison = `encore trop longue (${Math.round(dureeCourte)} s)`;
     }
@@ -1631,6 +1658,7 @@ export async function pasMiseEnScene(e: EtatFabricationIV, o: OutilsFabricationI
     else if (e.ecransAdaptes) delete e.ecransAdaptes[v.id];
     e.journal.push(...issue.journal);
     const r = issue.resultat;
+    for (const m of r.remarquesCalage ?? []) e.journal.push(`Remarque · voix (${nomVersion(v)}) : ${m}`);
     if (!ligne916 && (v.format ?? "9:16") === "9:16") ligne916 = r.ligne;
     if (issue.refus.length) phrases.push(...issue.refus.map((p) => `${nomVersion(v)} · ${p}`));
     scenes.push({ version: v.id, dureeSec: r.ligne.dureeSec, empreinte: empreinteDe(r.ligne) });
@@ -1794,8 +1822,23 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   e.journal.push(verdict.phrase);
   // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
   if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.", { phrases: verdict.phrases, reessayable: true });
-  if (!verdict.ok) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });
-  e.livraison = livraisonDe(e, verdict, publication, liens);
+  // Livraison partielle : une faute propre à certaines versions ne refuse plus toute la vidéo ; les réseaux dont les versions sont bonnes sont livrés.
+  const partielle = !verdict.ok && verdict.partielle;
+  if (!verdict.ok && !partielle) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });
+  const refuses = partielle ? verdict.parReseau.filter((x) => !x.ok) : [];
+  // Un fil 4:5 refusé (réseau livrable par son 9:16) est retiré de la livraison, avec une remarque.
+  const filsRetires = partielle ? verdict.parReseau.filter((x) => x.ok && x.versionsRefusees.length) : [];
+  const sansFilsRefuses = filsRetires.length ? { ...e, rendus: Object.fromEntries(Object.entries(e.rendus ?? {}).filter(([id]) => !filsRetires.some((x) => x.versionsRefusees.includes(id)))) } : e;
+  e.livraison = livraisonDe(sansFilsRefuses, verdict, publication, liens).map((l) => {
+    const r = refuses.find((x) => x.reseau === l.reseau);
+    if (r) return { reseau: l.reseau, version: "aucune" as const, refusControle: r.phrases.join(" "), mention: r.phrases.join(" ") };
+    const f = filsRetires.find((x) => x.reseau === l.reseau);
+    if (!f) return l;
+    const sansFil = { ...l };
+    delete sansFil.texteFil;
+    delete sansFil.consigneLienFil;
+    return { ...sansFil, refusControleFil: f.phrases.join(" "), mention: [l.mention, `Le fil 4:5 n'est pas livré : ${f.phrases.join(" ")}`].filter(Boolean).join(" ") };
+  });
   return passerA(e, "livraison");
 }
 
@@ -1856,7 +1899,7 @@ function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
   // Facebook : si seul le fil 4:5 manque, le Reel 9:16 qui existe est livré, avec une remarque sur le fil.
   const formatsFb = formatsDe(e.demande, "facebook");
   e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => {
-    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
+    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || l.refusControleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
     const remarque = "Le fil 4:5 n'a pas été rendu : le Reel 9:16 est livré, le fil est à refaire.";
     e.journal.push(`Remarque · Facebook : ${remarque}`);
     return { ...l, mention: [l.mention, remarque].filter(Boolean).join(" ") };

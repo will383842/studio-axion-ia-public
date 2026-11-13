@@ -268,6 +268,12 @@ export async function relireRendu(service: ServiceRendu, premiere: DemandeRendu,
 const VEILLES = new Map<string, VeilleRendu>();
 /** Au-delà, les plus anciennes veilles sont oubliées (une veille oubliée recommence son délai : la borne reste). */
 const VEILLES_MAX = 2_000;
+/** GV2-07 · Début du silence du serveur de rendu (heure, en ms) par demande, en mémoire du processus. */
+const SILENCES = new Map<string, number>();
+/** GV2-07 · Silence de suite toléré (attente) avant de rendre l'erreur. */
+const SILENCE_MAX_MS = 10 * 60_000;
+/** GV2-07 · Exception de transport du serveur de rendu (silence, 5xx, 429), lue par sa forme. */
+const muetDeTransport = (err: unknown) => err instanceof Error && err.name === "ErreurRendu" && (err as { erreur?: { code?: unknown } }).erreur?.code === "indisponible";
 
 /**
  * X10 · Service de rendu des demandes relues SANS état gardé par la chaîne (captures, recette et raccord de la voix,
@@ -280,17 +286,41 @@ const VEILLES_MAX = 2_000;
  * Une veille déclarée figée est gardée telle quelle : les passages suivants relisent le même échec et passent à l'essai
  * suivant (rien à garder dans la chaîne).
  */
-export function serviceRenduCasConcret(service: ServiceRendu, o: { garde: GardeRendu; relance?: number; veilles?: Map<string, VeilleRendu> }): ServiceRendu {
+export function serviceRenduCasConcret(service: ServiceRendu, o: { garde: GardeRendu; relance?: number; veilles?: Map<string, VeilleRendu>; silences?: Map<string, number> }): ServiceRendu {
   const veilles = o.veilles ?? VEILLES;
+  const silences = o.silences ?? SILENCES;
   const id = (x: string) => (o.relance ? `${x}-r${o.relance}` : x);
+  /**
+   * GV2-07 · Un serveur de rendu muet (exception « indisponible » du transport) fait ATTENDRE (`RenduEnCours`) au lieu
+   * d'échouer ; au bout de 10 min de silence de suite pour une même demande, l'erreur d'avant est rendue. Un ÉTAT
+   * « échec » (garde « sans nouvelle ») n'est pas une exception : il reste un échec.
+   */
+  const avecAttente = async <T>(cle: string, appel: () => Promise<T>): Promise<T> => {
+    try {
+      const r = await appel();
+      silences.delete(cle);
+      return r;
+    } catch (err) {
+      if (!muetDeTransport(err)) throw err;
+      const maintenant = (o.garde.maintenant ?? Date.now)();
+      const depuis = silences.get(cle) ?? maintenant;
+      if (maintenant - depuis >= SILENCE_MAX_MS) {
+        silences.delete(cle);
+        throw err;
+      }
+      if (!silences.has(cle) && silences.size >= VEILLES_MAX) silences.delete(silences.keys().next().value!);
+      silences.set(cle, depuis);
+      throw new RenduEnCours("Le serveur de rendu");
+    }
+  };
   return {
     soumettre: async (d) => {
-      const r = await service.soumettre({ ...d, idRendu: id(d.idRendu) });
+      const r = await avecAttente(id(d.idRendu), () => service.soumettre({ ...d, idRendu: id(d.idRendu) }));
       return { ...r, idRendu: d.idRendu };
     },
     etat: async (idRendu) => {
       const cle = id(idRendu);
-      const e = await service.etat(cle);
+      const e = await avecAttente(cle, () => service.etat(cle));
       if (e.statut === "inconnu") {
         veilles.delete(cle);
         return e;

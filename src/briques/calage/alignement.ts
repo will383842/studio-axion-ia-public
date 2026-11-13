@@ -18,7 +18,7 @@
  */
 import type { AlerteQualite, CauseApproximation, CommandeFabrication, MotHorodate, RapportAlignement } from "@/domaine/types";
 import type { DemandeAlignement, ResultatAlignement } from "@/fournisseurs/types";
-import { ecartMoyenMs, horodaterMotsPrononces, normaliser } from "./report";
+import { ecartMoyenMs, etalerSuitesSansHeure, horodaterMotsPrononces, normaliser } from "./report";
 
 /* ------------------------------------------------------------------ */
 /* Lot R6 : QUI est calé (constats C5 et C6)                            */
@@ -113,15 +113,9 @@ export function couvertureLettres(a: string[], b: string[]): number {
 function combler(mots: MotHorodate[], dureeSec: number): { mots: MotHorodate[]; combles: number } {
   const ok = mots.map((m) => (m as { aligne?: boolean }).aligne !== false && Number.isFinite(m.debutSec) && Number.isFinite(m.finSec) && m.finSec >= m.debutSec && m.debutSec >= 0 && m.debutSec <= dureeSec + 0.05);
   let combles = 0;
-  const sortie = mots.map((m, i) => {
-    if (ok[i]) return { mot: m.mot, debutSec: m.debutSec, finSec: m.finSec };
-    combles++;
-    let avant = 0;
-    for (let k = i - 1; k >= 0; k--) if (ok[k]) { avant = mots[k].finSec; break; }
-    let apres = avant;
-    for (let k = i + 1; k < mots.length; k++) if (ok[k]) { apres = mots[k].debutSec; break; }
-    return { mot: m.mot, debutSec: avant, finSec: Math.max(avant, apres) };
-  });
+  for (const bon of ok) if (!bon) combles++;
+  // Une suite de mots non alignés se partage l'intervalle entre ses voisins (jamais le même instant pour tous).
+  const sortie = etalerSuitesSansHeure(mots.map((m, i) => ({ mot: m.mot, debutSec: m.debutSec, finSec: m.finSec, sansHeure: !ok[i] })));
   return { mots: sortie, combles };
 }
 
@@ -152,6 +146,7 @@ export function appliquerAlignement(voix: MotHorodate[], resultat: ResultatAlign
   const reportes = horodaterMotsPrononces(
     voix.map((m) => m.mot),
     combles,
+    { etalerSansHeure: true },
   );
 
   // 3. Dans l'ordre et dans la durée.

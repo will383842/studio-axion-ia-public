@@ -205,5 +205,76 @@ export function planMinimalV4(entree: { mots: readonly MotTranscrit[]; horizon: 
     }
     if (!pose) break;
   }
+  // GV2-05 : un bout de prise qu'aucune plaquette ne couvre seule (H1b, H2a) est rattrapé en retouchant la fin.
+  if (elements.length && horizon - dernier().fin > 1e-6) {
+    const reparee = rattraperFin(elements, horizon, mots, usages, graine);
+    if (reparee) return reparee;
+  }
   return elements;
+}
+
+const EPS_FIN = 1e-6;
+/** Le plan finit à l'horizon (à 1e-6 près), commence à 0 et ses plaquettes sont contiguës. */
+const finitALHorizon = (els: readonly ElementV4Plan[], horizon: number) =>
+  els.length > 0 && Math.abs(els[0].debut) <= EPS_FIN && Math.abs(els[els.length - 1].fin - horizon) <= EPS_FIN && els.every((e, k) => k === 0 || Math.abs(e.debut - els[k - 1].fin) <= EPS_FIN);
+const dureeOk = (id: string, d: number) => {
+  const f = ficheV4(id);
+  return !!f && d >= f.dureeSec[0] - 1e-9 && d <= f.dureeSec[1] + 1e-9;
+};
+
+/**
+ * Le plan s'arrête avant `horizon` : la prise resterait seule à la fin (règles H1b et H2a, bloquantes). Sans toucher aux règles :
+ *  1. allonger la dernière plaquette jusqu'à l'horizon si sa fiche le permet ;
+ *  2. sinon la remplacer par une autre plaquette de la rotation qui couvre (dernière + reste) ;
+ *  3. sinon raccourcir l'avant-dernière pour que la dernière finisse à l'horizon.
+ * Rend le nouveau plan, ou null si aucune solution (le plan d'origine reste alors tel quel : la chaîne dira le refus).
+ */
+function rattraperFin(elements: readonly ElementV4Plan[], horizon: number, mots: readonly MotTranscrit[], usages: ReadonlyMap<string, number>, graine: number): ElementV4Plan[] | null {
+  const n = elements.length;
+  const derniere = elements[n - 1];
+  const avant = elements.slice(0, n - 1);
+  const refaire = (id: string, debut: number, fin: number): ElementV4Plan | null => {
+    const c = contenu(id, { debut, fin }, mots);
+    return c ? { id, debut, fin, ...c } : null;
+  };
+  const valide = (els: ElementV4Plan[]) => (finitALHorizon(els, horizon) ? els : null);
+
+  // 1. Allonger la dernière.
+  if (dureeOk(derniere.id, horizon - derniere.debut)) {
+    const e = refaire(derniere.id, derniere.debut, horizon);
+    const r = e && valide([...avant, e]);
+    if (r) return r;
+  }
+  // 2. La remplacer par une autre plaquette de la rotation (autre emplacement que l'avant-dernière, D14 respecté, jamais un plein cadre en fin de vidéo).
+  const precedente = avant[avant.length - 1];
+  const dejaPosees = (id: string) => (usages.get(id) ?? 0) - (id === derniere.id ? 1 : 0);
+  const autres = (["tete", "carte", "bas", "fenetre"] as const)
+    .flatMap((e) => decaler(ROTATION_PLAN_MINIMAL_V4[e], graine))
+    .filter((id) => id !== derniere.id && ficheV4(id) && dureeOk(id, horizon - derniere.debut))
+    .filter((id) => !precedente || (precedente.id !== id && ficheV4(precedente.id)?.slot !== ficheV4(id)?.slot))
+    .filter((id) => dejaPosees(id) < plafondParVideoV4(ficheV4(id)!, horizon))
+    .sort((x, y) => dejaPosees(x) - dejaPosees(y));
+  for (const id of autres) {
+    const e = refaire(id, derniere.debut, horizon);
+    const r = e && valide([...avant, e]);
+    if (r) return r;
+  }
+  // 3. Raccourcir l'avant-dernière : la dernière (la même, ou une autre plaquette de la rotation) commence plus tôt et finit à l'horizon.
+  if (precedente) {
+    const [minP, maxP] = ficheV4(precedente.id)!.dureeSec;
+    const candidates = [derniere.id, ...(["tete", "carte", "bas", "fenetre"] as const).flatMap((e) => decaler(ROTATION_PLAN_MINIMAL_V4[e], graine))]
+      .filter((id, k, l) => l.indexOf(id) === k && ficheV4(id))
+      .filter((id) => id === derniere.id || (precedente.id !== id && ficheV4(precedente.id)?.slot !== ficheV4(id)?.slot && dejaPosees(id) < plafondParVideoV4(ficheV4(id)!, horizon)));
+    for (const id of candidates) {
+      const [minD, maxD] = ficheV4(id)!.dureeSec;
+      for (let debut = r2(Math.max(precedente.debut + minP, horizon - maxD)); debut <= Math.min(precedente.debut + maxP, horizon - minD) + 1e-9; debut = r2(debut + 0.05)) {
+        if (!dureeOk(id, horizon - debut) || !dureeOk(precedente.id, debut - precedente.debut)) continue;
+        const p = refaire(precedente.id, precedente.debut, debut);
+        const d = refaire(id, debut, horizon);
+        const r = p && d && valide([...avant.slice(0, -1), p, d]);
+        if (r) return r;
+      }
+    }
+  }
+  return null;
 }

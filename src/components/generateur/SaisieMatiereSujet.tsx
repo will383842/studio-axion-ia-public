@@ -22,7 +22,7 @@ export interface MatiereSansAccord {
  * n'est pas citée : on le dit avant, pas après).
  */
 /** `essai` : Claude n'est pas relié, l'écriture est un essai (« rien n'est payé ») ; sinon elle est réelle (B9). */
-export function SaisieMatiereSujet({ id, libelleBouton, icone = "ecrire", messageSucces, essai = true }: { id: string; libelleBouton: string; icone?: "ecrire"; messageSucces: string; essai?: boolean }) {
+export function SaisieMatiereSujet({ id, libelleBouton, icone = "ecrire", messageSucces, essai = true, variante = "principal" }: { id: string; libelleBouton: string; icone?: "ecrire"; messageSucces: string; essai?: boolean; variante?: "principal" | "secondaire" }) {
   const router = useRouter();
   const [texte, setTexte] = useState("");
   const [typeTouche, setTypeTouche] = useState<TypeMatiere | undefined>();
@@ -52,6 +52,7 @@ export function SaisieMatiereSujet({ id, libelleBouton, icone = "ecrire", messag
       )}
       {type && accordRequis(type) && <Interrupteur icone="bouclier" libelle="J'ai son accord" detail={accord ? undefined : "Sans accord, elle n'est pas citée"} coche={accord} onChange={setAccord} />}
       <Bouton
+        variante={variante}
         pleineLargeur
         taille="lg"
         icone={icone}

@@ -15,7 +15,15 @@ export const FUSEAU_STUDIO = "Europe/Paris";
 export const ALT_MAX = 125;
 export const TITRE_DOCUMENT_MAX = 60;
 export const DOCUMENT_TAILLE_MAX = 100 * 1024 * 1024;
-export const IMAGES_MAX: Readonly<Record<string, number>> = { instagram: 10, facebook: 10, linkedin: 20, tiktok: 35 };
+/**
+ * Images au plus par post. Relevé officiel L8-01 (docs/reseaux/regles-officielles.json, lu le 2026-11-12, spec Zernio
+ * 1.429.1) : Instagram 20 éléments (schéma InstagramPlatformData), Facebook 10, LinkedIn 20, TikTok 35.
+ */
+export const IMAGES_MAX: Readonly<Record<string, number>> = { instagram: 20, facebook: 10, linkedin: 20, tiktok: 35 };
+/**
+ * Reel Facebook : on garde 60 s, par prudence. Deux sources divergent : le réseau (guide Meta, cité par la spec Zernio,
+ * page Meta non consultée) donne 3 à 90 s ; le diffuseur (Zernio) ne contrôle pas la durée. Relevé L8-01 du 2026-11-12.
+ */
 export const REEL_FACEBOOK_DUREE_SEC = { min: 3, max: 60 } as const;
 
 const SEGMENT = /^[A-Za-z0-9_-]{1,128}$/;
@@ -34,7 +42,11 @@ export interface CibleZernio {
 }
 
 /** Demande Zernio : la demande commune + le niveau de confidentialité TikTok choisi par la personne. */
-export type DemandeZernio = DemandePublication & { niveauConfidentialiteTiktok?: string };
+export type DemandeZernio = DemandePublication & {
+  niveauConfidentialiteTiktok?: string;
+  /** TikTok : cases d'interaction cochées par la personne. Absentes = décochées ; jamais recopiées des réglages du créateur. */
+  interactionsTiktok?: { commentaire?: boolean; duo?: boolean; collage?: boolean };
+};
 
 /** Le compte lu est-il un profil personnel LinkedIn ? Seules les valeurs explicites « personnel » comptent (sinon : non). */
 export function compteLinkedinEstProfil(compte: Record<string, unknown> | undefined): boolean {
@@ -219,9 +231,10 @@ export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsP
       Object.assign(specifique, {
         contentPreviewConfirmed: true,
         expressConsentGiven: true,
-        allowComment: createur.allowComment,
-        allowDuet: createur.allowDuet,
-        allowStitch: createur.allowStitch,
+        // Décochées par défaut ; cochées seulement si la personne les coche ET si le créateur les permet.
+        allowComment: d.interactionsTiktok?.commentaire === true && createur.allowComment,
+        allowDuet: d.interactionsTiktok?.duo === true && createur.allowDuet,
+        allowStitch: d.interactionsTiktok?.collage === true && createur.allowStitch,
         privacyLevel: niveauDeConfidentialite(createur, d.niveauConfidentialiteTiktok),
       });
       if (d.votreMarque) specifique.commercialContentType = "brand_organic";

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { tonEtatAffiche } from "./ton-etat-affiche";
 import { PastillesReseaux } from "@/components/videos/PastillesReseaux";
 import { BoutonValider } from "@/components/videos/BoutonValider";
 import { Bouton } from "@/components/ui/Bouton";
@@ -11,11 +12,64 @@ import { obtenirReseau } from "@/reseaux";
 import type { LigneAPublier } from "@/services/a-publier";
 import { FILTRES, nombreAffichees, TRANCHE, tranche, type FiltreListe } from "./liste-a-publier";
 import { compteursParReseau, deCeReseau, filtrerReseau, lienDetailReseau, lienListeReseau, lignesParReseau, reseauDepuis, reseauxPresents, sectionsParReseau, type ReseauListe } from "./liste-par-reseau";
+
+/** Forme d'une carte de visuel (même forme que `CarteVisuelAPublier` du service : la liste n'importe aucun service d'envoi). */
+export interface CarteVisuelAPublier {
+  famille: "carrousel" | "infographie";
+  id: string;
+  titre: string;
+  vignette: string | null;
+  nbPages: number;
+  lien: string;
+}
+
+const STYLE_FAMILLE = {
+  carrousel: { nom: "Carrousel", icone: "images", carte: "border-l-fam-carrousel", tuile: "bg-fam-carrousel-doux text-fam-carrousel", action: "Relire et valider" },
+  infographie: { nom: "Infographie", icone: "image", carte: "border-l-fam-infographie", tuile: "bg-fam-infographie-doux text-fam-infographie", action: "Contrôler et valider" },
+} as const;
+
+/**
+ * Carrousels et infographies validés, à côté des vidéos (maquette M5, « Prêt à partir »). Aucune action d'envoi : le visuel s'ouvre,
+ * se relit et se télécharge depuis sa fiche (l'envoi de plusieurs images dépend de la demande RC-40).
+ */
+function SectionVisuels({ visuels }: { visuels: CarteVisuelAPublier[] }) {
+  if (!visuels.length) return null;
+  return (
+    <section aria-label="Carrousels et infographies" className="space-y-2">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-texte">
+        Carrousels et infographies
+        <span className="text-xs font-normal text-texte-faible">{visuels.length}</span>
+      </h2>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {visuels.map((v) => {
+          const f = STYLE_FAMILLE[v.famille];
+          return (
+            <li key={v.id} className={cn("flex min-w-0 flex-col items-start gap-2 rounded-carte border border-l-[5px] border-trait bg-surface-1 p-4", f.carte)}>
+              <div className="flex items-center gap-2.5">
+                <span className={cn("relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg", f.tuile)}>
+                  {v.vignette ? <Image src={v.vignette} alt="" fill sizes="40px" className="object-cover" /> : <Icone nom={f.icone} size={20} />}
+                </span>
+                <span className="text-xs font-semibold text-texte-doux">{f.nom}</span>
+              </div>
+              <h3 className="min-w-0 text-sm font-semibold text-texte">{v.titre}</h3>
+              <p className="flex-1 text-xs text-texte-doux">{v.famille === "carrousel" ? (v.nbPages > 0 ? `${v.nbPages} ${v.nbPages > 1 ? "pages" : "page"} à faire défiler.` : "Pages à relire.") : "Une image unique."} {"Rien n'est envoyé sans votre accord."}</p>
+              <Bouton asChild variante="secondaire" taille="md" className="self-stretch">
+                <Link href={v.lien}>{f.action}</Link>
+              </Bouton>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 /**
  * La liste compacte, séparée par réseau : une ligne par vidéo POUR CE RÉSEAU (miniature, titre, état de ce réseau, format).
  * Une vidéo prévue pour deux réseaux apparaît dans les deux. Composant sans état : réseau, filtre et nombre de vidéos viennent de l'adresse.
  */
-export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauBrut }: { lignes: LigneAPublier[]; filtre: FiltreListe; affichees?: number; reseau?: string }) {
+export function ListeAPublier({ lignes, visuels = [], filtre, affichees: brut, reseau: reseauBrut }: { lignes: LigneAPublier[]; visuels?: CarteVisuelAPublier[]; filtre: FiltreListe; affichees?: number; reseau?: string }) {
+  // Seulement des carrousels ou des infographies : pas de réseaux ni de filtres de vidéos à montrer.
+  if (!lignes.length) return <SectionVisuels visuels={visuels} />;
   const affichees = nombreAffichees(String(brut ?? ""));
   const presents = reseauxPresents(lignes);
   const reseau = reseauDepuis(reseauBrut, presents);
@@ -29,13 +83,14 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
 
   return (
     <div className="space-y-4">
+      <SectionVisuels visuels={visuels} />
       <p className="text-sm font-semibold text-texte">
         {c.aEnvoyer} à envoyer
         {reseau !== "tous" && <span className="text-texte-doux"> sur {obtenirReseau(reseau).nom}</span>}
         {c.problemes > 0 && (
           <span className="text-texte-doux">
             {" · "}
-            <Link href={lienListeReseau(reseau, "problemes")} className="font-semibold text-orange-vif">
+            <Link href={lienListeReseau(reseau, "problemes")} className="font-semibold text-accent">
               {c.problemes === 1 ? "1 problème" : `${c.problemes} problèmes`}
             </Link>
           </span>
@@ -51,7 +106,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
               key={r}
               href={lienListeReseau(r, filtre)}
               aria-current={r === reseau ? "page" : undefined}
-              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold", r === reseau ? "border-orange bg-surface-2 text-texte" : "border-trait text-texte-doux hover:border-orange")}
+              className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold", r === reseau ? "border-accent bg-accent-doux text-texte" : "border-trait text-texte-doux hover:border-accent")}
             >
               {r !== "tous" && <LogoReseau reseau={r} taille="sm" />}
               {r === "tous" ? "Tous" : obtenirReseau(r).nom}
@@ -69,7 +124,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
             key={f.id}
             href={lienListeReseau(reseau, f.id)}
             aria-current={f.id === filtre ? "page" : undefined}
-            className={cn("flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold", f.id === filtre ? "border-orange bg-surface-2 text-texte" : "border-trait text-texte-doux hover:border-orange")}
+            className={cn("flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold", f.id === filtre ? "border-accent bg-accent-doux text-texte" : "border-trait text-texte-doux hover:border-accent")}
           >
             {f.libelle}
             <span className="text-xs text-texte-faible">{nombres[f.id]}</span>
@@ -107,7 +162,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                           {[ligne.typeVideo, format, etat.raison].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <Pastille ton={etat.ton}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
+                      <Pastille ton={tonEtatAffiche(etat.libelle, etat.ton)}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
                     </Link>
                     <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
                       <PastillesReseaux reseaux={ligne.reseauxVideo ?? [ligne.reseau]} precis={ligne.reseauxPrecis ?? true} />
@@ -129,7 +184,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
                   <p className="text-xs text-texte-faible">
                     {montrees.length} vidéos sur {s.lignes.length}
                   </p>
-                  <Link href={lienListeReseau(s.reseau, filtre, affichees + TRANCHE)} className="inline-flex min-h-11 items-center rounded-full border border-trait px-5 text-sm font-semibold text-texte hover:border-orange">
+                  <Link href={lienListeReseau(s.reseau, filtre, affichees + TRANCHE)} className="inline-flex min-h-11 items-center rounded-full border border-trait px-5 text-sm font-semibold text-texte hover:border-accent">
                     Voir 20 de plus
                   </Link>
                 </div>
@@ -143,7 +198,7 @@ export function ListeAPublier({ lignes, filtre, affichees: brut, reseau: reseauB
           {filtre !== "toutes" && c.toutes > 0 && (
             <>
               {" "}
-              <Link href={lienListeReseau(reseau, "toutes")} className="font-semibold text-orange-vif">
+              <Link href={lienListeReseau(reseau, "toutes")} className="font-semibold text-accent">
                 Voir toutes les vidéos
               </Link>
             </>
