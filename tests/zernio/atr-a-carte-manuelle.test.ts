@@ -24,6 +24,10 @@ describe("proposerCarte", () => {
   it.each(cas)("%s", (_n, o, attendu) => {
     expect(proposerCarte({ ...base, ...o })).toEqual(attendu);
   });
+  it("doute d'opposition (« STOPPER ») : silence, jamais de carte", () => {
+    expect(proposerCarte({ ...base, motSeul: "STOPPER" })).toEqual({ action: "silence", raison: "opposition" });
+    expect(proposerCarte({ ...base, motSeul: "ARRETMALADIE" })).toEqual({ action: "silence", raison: "opposition" });
+  });
   it("aucun résultat ne porte d'action d'envoi", () => {
     for (const [, o] of cas) expect(["silence", "carte"]).toContain(proposerCarte({ ...base, ...o }).action);
   });
@@ -41,6 +45,9 @@ describe("decisionCopie", () => {
   it("plafond 4 : trois copies passent, quatre non", () => {
     expect(decisionCopie([il(1), il(2), il(3)], T, 4)).toEqual({ ok: true });
     expect(decisionCopie([il(1), il(2), il(3), il(4)], T, 4).ok).toBe(false);
+  });
+  it("instant courant illisible : refus (échec fermé)", () => {
+    for (const t of [NaN, Infinity, undefined as never, "x" as never]) expect(decisionCopie([], t)).toEqual({ ok: false, raison: "plafond_24h" });
   });
   it("date illisible : compte (échec fermé)", () => {
     expect(decisionCopie(["n'importe quoi", il(1), il(2)], T)).toEqual({ ok: false, raison: "plafond_24h" });

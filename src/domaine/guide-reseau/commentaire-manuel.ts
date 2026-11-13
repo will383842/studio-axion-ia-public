@@ -39,6 +39,8 @@ function lienSur(v: unknown): string | null {
   try {
     const u = new URL(v);
     if (u.protocol !== "https:" || !HOTES_LIEN.includes(u.hostname) || u.username !== "" || u.password !== "" || u.port !== "") return null;
+    u.search = "";
+    u.hash = "";
     return u.toString();
   } catch {
     return null;
@@ -60,7 +62,7 @@ export function lireCommentaireManuel(env: EnveloppeZernio, motsConnus?: readonl
   // Un identifiant présent mais mal formé, ou un identifiant indispensable absent : on ne lit rien (fermé).
   if (!idCommentaire || !idCompte || idPost === null || idAuteur === null) return null;
   const repere = idPost === undefined ? `cm_${empreinteUrn(idCommentaire)}` : RE_URN.test(idPost) ? `li_${empreinteUrn(idPost)}` : idPost;
-  const proprio = auteur?.isOwnAccount === true || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== undefined && idAuteur === idCompte);
+  const proprio = auteur?.isOwnAccount === true || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== undefined && (idAuteur === idCompte || idAuteur === id(compte?.platformAccountId)));
   const texte = typeof c.text === "string" && c.text.length <= 200 ? c.text : null;
   const garde = texte === null ? null : motSeulDe(texte, motsConnus);
   const motSeul = garde === null ? null : estMotOpposition(garde) ? garde : normaliserMot(garde);

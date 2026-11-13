@@ -22,6 +22,14 @@ export const MOTIFS = [
 export type Motif = (typeof MOTIFS)[number];
 export type StatutATraiter = "a_traiter" | "fait" | "ignore";
 
+/** Pourquoi aucun message privé n'est proposé (liste fermée). */
+export type RaisonSansMessage =
+  | "tiktok_sans_message_prive"
+  | "textes_non_valides"
+  | "mot_en_pause"
+  | "mot_inconnu"
+  | "deja_traite_pour_ce_mot";
+
 export interface CarteATraiter {
   idEvenement: string;
   reseau: ReseauATraiter;
@@ -53,7 +61,7 @@ export interface CarteATraiter {
   /** LinkedIn/TikTok : le message privé est-il à fabriquer à la main, ou indisponible ? */
   message?: "a_fabriquer" | "indisponible";
   /** Pourquoi aucun message n'est proposé (valeur fermée, jamais un texte libre). */
-  raisonSansMessage?: string;
+  raisonSansMessage?: RaisonSansMessage;
   /** Instant (ISO 8601) où le message a été copié à la main, pour le plafond de 24 h. */
   copieLe?: string;
 }

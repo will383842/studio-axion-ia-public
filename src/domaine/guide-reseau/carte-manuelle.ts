@@ -1,6 +1,6 @@
 // File « À traiter » LinkedIn/TikTok : décision PURE de carte. Jamais une action d'envoi (RC-43 : ni réponse ni message automatique).
-import type { CarteATraiter } from "../../services/a-traiter-types";
-import { estMotOpposition } from "./opposition";
+import type { CarteATraiter, RaisonSansMessage } from "../../services/a-traiter-types";
+import { classerOpposition } from "./opposition";
 
 export type ReseauManuel = "linkedin_page" | "tiktok";
 export interface MotDuReseau {
@@ -8,8 +8,7 @@ export interface MotDuReseau {
   etat: "actif" | "pause";
   textesValides: boolean;
 }
-export type RaisonSansMessage =
-  | "tiktok_sans_message_prive" | "textes_non_valides" | "mot_en_pause" | "mot_inconnu" | "deja_traite_pour_ce_mot";
+export type { RaisonSansMessage };
 export type PropositionCarte =
   | { action: "silence"; raison: "opposition" | "personne_opposee" | "rien" }
   | {
@@ -29,7 +28,7 @@ export function proposerCarte(e: {
   dejaTraite: boolean;
 }): PropositionCarte {
   // Un stop gagne partout : opposition écrite, puis personne déjà opposée, avant toute autre lecture.
-  if (e.motSeul !== null && estMotOpposition(e.motSeul)) return { action: "silence", raison: "opposition" };
+  if (e.motSeul !== null && classerOpposition(e.motSeul) !== "non") return { action: "silence", raison: "opposition" };
   if (e.opposee) return { action: "silence", raison: "personne_opposee" };
   if (e.motSeul === null) return { action: "silence", raison: "rien" };
   const mot = e.motSeul.toUpperCase();
@@ -56,6 +55,7 @@ const JOUR_MS = 24 * 3600_000;
 export type DecisionCopie = { ok: true } | { ok: false; raison: "plafond_24h" };
 /** Plafond de copies sur 24 h glissantes. Une date illisible compte comme une copie récente (échec fermé). */
 export function decisionCopie(copiesIso: readonly string[], maintenantMs: number, plafond = 3): DecisionCopie {
+  if (typeof maintenantMs !== "number" || !Number.isFinite(maintenantMs)) return { ok: false, raison: "plafond_24h" };
   const recentes = copiesIso.filter((d) => {
     const t = typeof d === "string" ? Date.parse(d) : NaN;
     return !Number.isFinite(t) || maintenantMs - t < JOUR_MS;
