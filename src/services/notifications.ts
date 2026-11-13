@@ -81,12 +81,20 @@ export const PREFERENCES_PAR_DEFAUT: PreferencesNotifications = { videoPrete: tr
  * Enregistre une notification (cloche) et la met en file pour le téléphone / l'e-mail. Aucun appel réseau.
  * `options.email` (lot « crédits ») : l'e-mail part aussi, quel que soit le canal choisi (alertes graves de crédit).
  */
-export async function creerNotification(n: Omit<Notification, "id" | "creeLe" | "modifieLe" | "lue" | "envoi">, options: { email?: boolean; cloche?: boolean } = {}): Promise<Notification> {
+export async function creerNotification(n: Omit<Notification, "id" | "creeLe" | "modifieLe" | "lue" | "envoi">, options: { email?: boolean; cloche?: boolean; sansPush?: boolean } = {}): Promise<Notification> {
   // `emailForce` (lot « crédits ») : alerte grave (crédit sous 10 %, plus qu'une vidéo, clé refusée) : l'e-mail part aussi.
   // `cloche` : cloche seulement, jamais de push ni d'e-mail (aucune file d'envoi : la notification n'est pas diffusée).
-  const envoi: EnvoiNotification | undefined = n.estDemo || options.cloche ? undefined : { statut: "a-envoyer", essais: 0, ...(options.email ? { emailForce: true } : {}) };
+  const envoi: EnvoiNotification | undefined = n.estDemo || options.cloche ? undefined : { statut: "a-envoyer", essais: 0, ...(options.email ? { emailForce: true } : {}), ...(options.sansPush ? { sansPush: true as const } : {}) } as EnvoiSansPush;
   return depots().notifications.enregistrer({ id: nouvelId("not"), lue: false, ...horodatage(), ...n, ...(envoi ? { envoi } : {}) });
 }
+
+/** L0-09 · alerte « heure H » : cloche + e-mail forcé, JAMAIS de push (voir `diffuser`). Aucun appel réseau. */
+export async function alerterHeureH(a: { titre: string; message: string }): Promise<Notification> {
+  return creerNotification({ type: "publication", titre: a.titre, message: a.message, lien: "/calendrier" }, { email: true, sansPush: true });
+}
+
+/** Envoi marqué « jamais de push » : marqueur explicite posé à la création, lu par `diffuser` (pas de comparaison de titre). */
+type EnvoiSansPush = EnvoiNotification & { sansPush?: true };
 
 /** Canaux d'envoi d'une notification selon les préférences de Will (PUR). La cloche reçoit toujours tout. */
 export function canauxPour(n: Pick<Notification, "type" | "estDemo">, p: PreferencesNotifications, disponibles: { push: boolean }): { push: boolean; email: boolean; emailSiPushEchoue: boolean } {
@@ -163,7 +171,7 @@ async function diffuser(dependances: DependancesNotifications): Promise<{ push: 
   for (const n of dues) {
     const envoi = n.envoi!;
     const actifs = (await lireParametre<AbonnementPush[]>("push.abonnements", [])).filter((a) => !a.expireLe);
-    const canaux = envoi.emailForce ? { push: !!push && actifs.length > 0, email: true, emailSiPushEchoue: false } : canauxPour(n, preferences, { push: !!push && actifs.length > 0 });
+    const canaux = envoi.emailForce ? { push: !!push && actifs.length > 0 && (envoi as EnvoiSansPush).sansPush !== true, email: true, emailSiPushEchoue: false } : canauxPour(n, preferences, { push: !!push && actifs.length > 0 });
     if (!canaux.push && !canaux.email && !canaux.emailSiPushEchoue) {
       await ecrireEnvoi(n.id, { ...envoi, statut: "ignoree" });
       continue;
