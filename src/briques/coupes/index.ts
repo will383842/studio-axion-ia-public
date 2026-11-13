@@ -439,6 +439,45 @@ export function texteDesSousTitres(phrases: PhraseRetrouvee[]): string {
   return phrases.flatMap((p) => (p.debutSec !== undefined ? [p.texte] : p.diteAutrement ? [p.diteAutrement.texteDit] : [])).join(" ");
 }
 
+/**
+ * GV2-14 : le texte des sous-titres = TOUT ce qui est gardé dans le son, dans l'ordre de la prise. Une phrase retrouvée
+ * garde le texte du fondateur (orthographe du script) ; une phrase dite autrement, les mots dits ; un mot gardé hors de
+ * toute phrase (improvisation entre deux phrases du texte) est repris de la transcription (lexique de marque appliqué).
+ * Jamais les consignes au monteur ni les « euh ». `gardes` : les passages gardés COURANTS (coupes demandées après coup) ;
+ * sans eux, ceux du plan. Fonction pure : `texteDesSousTitres` et le calcul des coupes ne changent pas.
+ */
+export function texteSousTitresGardes(plan: { phrases: Pick<PhraseRetrouvee, "index" | "texte" | "debutSec" | "finSec" | "diteAutrement">[]; gardes: Intervalle[] } & Partial<Pick<PlanCoupes, "consignes" | "recalages">>, motsPrise: MotHorodate[], gardes?: Intervalle[]): string {
+  const g = gardes ?? plan.gardes;
+  const mots = appliquerRecalages(motsPrise, plan.recalages);
+  const milieu = (m: MotHorodate) => (m.debutSec + m.finSec) / 2;
+  const gardeA = (t: number) => g.some((x) => t >= x.debutSec - 1e-6 && t <= x.finSec + 1e-6);
+  const dansPlage = (m: MotHorodate, a: number, b: number) => milieu(m) >= a - 1e-3 && milieu(m) <= b + 1e-3;
+  const consigne = (m: MotHorodate) => (plan.consignes ?? []).some((c) => milieu(m) >= c.debutSec - 1e-3 && milieu(m) <= c.finSec + 1e-3);
+  const compte = (m: MotHorodate) => !estHesitation(m.mot) && !consigne(m) && tokens(m.mot).length > 0;
+  /** Plages de phrases (retrouvée : sa plage ; dite autrement : la plage des mots dits), avec le texte à écrire. */
+  const plages = plan.phrases.flatMap((p) => {
+    if (p.debutSec !== undefined && p.finSec !== undefined) return [{ debutSec: p.debutSec, finSec: p.finSec, texte: p.texte }];
+    return p.diteAutrement ? [{ debutSec: p.diteAutrement.debutSec, finSec: p.diteAutrement.finSec, texte: p.diteAutrement.texteDit }] : [];
+  });
+  const sortie: string[] = [];
+  const faites = new Set<number>();
+  for (const m of mots) {
+    if (!gardeA(milieu(m)) || !compte(m)) continue;
+    const k = plages.findIndex((x) => dansPlage(m, x.debutSec, x.finSec));
+    if (k < 0) {
+      sortie.push(...corrigerLexique([m.mot]));
+      continue;
+    }
+    if (faites.has(k)) continue;
+    faites.add(k);
+    // Phrase presque entièrement gardée : son texte tel quel ; entamée par une coupe : seulement les mots encore gardés.
+    const siens = mots.filter((x) => compte(x) && dansPlage(x, plages[k].debutSec, plages[k].finSec));
+    const gardesDeLaPhrase = siens.filter((x) => gardeA(milieu(x)));
+    sortie.push(...(gardesDeLaPhrase.length / siens.length >= 0.9 ? [plages[k].texte] : corrigerLexique(gardesDeLaPhrase.map((x) => x.mot))));
+  }
+  return sortie.join(" ");
+}
+
 /* ------------------------------------------------------------------ */
 /* Phrases fortes (chute gardée avant)                                 */
 /* ------------------------------------------------------------------ */
@@ -788,9 +827,24 @@ export function controlerCoupes(plan: PlanCoupes, motsPrise: MotHorodate[], reta
   };
   const diteEntendue = (p: PhraseRetrouvee) => !!p.diteAutrement && phraseEntendue(p.diteAutrement.debutSec, p.diteAutrement.finSec);
   const texte = plan.mode === "texte" ? plan.phrases : [];
+  // GV2-14 : une phrase non retrouvée (au moins la moitié de ses mots absents) dont la plage, entre ses voisines
+  // retrouvées, contient des mots gardés dits (suite de phrases dites autrement) n'est pas perdue : ses mots sont sous-titrés.
+  const plageDite = (p: PhraseRetrouvee) => {
+    if (p.debutSec !== undefined || p.diteAutrement) return false;
+    const avant = texte.filter((x) => x.index < p.index && x.debutSec !== undefined).pop();
+    const apres = texte.find((x) => x.index > p.index && x.debutSec !== undefined);
+    const debut = avant?.finSec ?? 0;
+    const fin = apres?.debutSec ?? plan.dureeSourceSec;
+    const attendus = tokens(p.texte);
+    const dans = motsGardes.filter((m) => !estHesitation(m.mot) && tokens(m.mot).length && m.debutSec >= debut - 1e-3 && m.finSec <= fin + 1e-3);
+    if (!dans.length) return false;
+    const dits = dans.flatMap((m) => tokens(m.mot));
+    return communs(attendus, dits) / Math.max(1, attendus.length) < 0.5;
+  };
+  const ditAutrement = (p: PhraseRetrouvee) => p.debutSec === undefined && (diteEntendue(p) || plageDite(p));
   return {
-    phrasesManquantes: texte.filter((p) => (p.debutSec === undefined ? !diteEntendue(p) : !phraseEntendue(p.debutSec, p.finSec!))).map((p) => p.index),
-    phrasesDitesAutrement: texte.filter((p) => p.debutSec === undefined && diteEntendue(p)).map((p) => p.index),
+    phrasesManquantes: texte.filter((p) => (p.debutSec === undefined ? !ditAutrement(p) : !phraseEntendue(p.debutSec, p.finSec!))).map((p) => p.index),
+    phrasesDitesAutrement: texte.filter((p) => ditAutrement(p)).map((p) => p.index),
     consignesAudibles: plan.consignes.filter(recouvre),
     phrasesEnDouble: doublesDansLesGardes(mots, gardes, texteDuPlan(plan)).map((d) => ({ texte: d.texte, debutSec: mots[d.premier[0]].debutSec })),
     coupesDansUnMot: appliquees.filter((c) => motsGardes.some((m) => (c.debutSec > m.debutSec + 0.01 && c.debutSec < m.finSec - 0.01) || (c.finSec > m.debutSec + 0.01 && c.finSec < m.finSec - 0.01))).map((c) => c.id),
