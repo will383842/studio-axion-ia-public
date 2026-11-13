@@ -18,7 +18,8 @@ import { PALETTE } from "@/briques/charte/axion-2026";
 import { CHARTES_TABLEAU, type CharteTableau, type PoliceTableau, type StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import { INTERLIGNES_TABLEAU, couperTableau, coupeUnGroupe, largeurTableau } from "@/briques/tableau-scene/trois-styles/mesure";
 import { banderole, barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
-import { boiteTraits, cadrer, ellipse, graineDe, minuter, plume, polyPts, rectArr, remplir, trait, tremble, type Plume, type TraitTableau } from "@/briques/tableau-scene/trois-styles/trace";
+import { boiteTraits, cadrer, densifier, ellipse, graineDe, minuter, plume, polyPts, rectArr, remplir, trait, tremble, type Plume, type Point, type TraitTableau } from "@/briques/tableau-scene/trois-styles/trace";
+import { GRILLE_DESSIN, TRACES_DESSINS } from "@/briques/dessins/traces";
 import type { ElementTableauPlace, ObjetTableau } from "@/briques/tableau-scene/trois-styles/types";
 import type { DecorGabarit } from "@/briques/tableau-scene/reference/types";
 import { cleMot, idBloc, idNumero, idVisuel } from "./fiche";
@@ -61,6 +62,8 @@ interface Geo {
   repli?: number;
   /** Bord gauche de la page (celui de la sortie, ou un peu plus à droite quand un décor déborderait de la zone sûre). */
   bord?: number;
+  /** GV2-41 : la page trace le dessin du registre choisi pour le script (sinon : le dessin du thème, comme avant). */
+  registre?: boolean;
 }
 
 /** Un bloc posé (haut = 0). */
@@ -942,6 +945,149 @@ function dessinHaut(P: Plume, theme: Theme, style: StyleTableau): TraitTableau[]
   }
 }
 
+/**
+ * GV2-41 : un chemin SVG du registre (grille 24) en suites de points. Commandes lues : M L H V C Q A Z et leurs formes
+ * relatives ; toute autre commande (ou un nombre manquant) : `null`, la page garde alors le dessin du thème.
+ */
+function cheminEnPoints(d: string): Point[][] | null {
+  const jetons = d.match(/[A-Za-z]|-?(?:\d+\.?\d*|\.\d+)/g);
+  if (!jetons) return null;
+  const nb: Record<string, number> = { M: 2, L: 2, H: 1, V: 1, C: 6, Q: 4, A: 7, Z: 0 };
+  const suites: Point[][] = [];
+  let cur: Point[] = [];
+  let x = 0;
+  let y = 0;
+  let x0 = 0;
+  let y0 = 0;
+  let i = 0;
+  let cmd = "";
+  while (i < jetons.length) {
+    if (/[A-Za-z]/.test(jetons[i])) cmd = jetons[i++];
+    else if (!cmd || cmd.toUpperCase() === "Z") return null;
+    const C = cmd.toUpperCase();
+    const rel = cmd !== C;
+    if (!(C in nb)) return null;
+    if (C === "Z") {
+      if (cur.length) cur.push([x0, y0]);
+      x = x0;
+      y = y0;
+      continue;
+    }
+    const a = jetons.slice(i, i + nb[C]).map(Number);
+    if (a.length < nb[C] || a.some((v) => !Number.isFinite(v))) return null;
+    i += nb[C];
+    const ox = rel ? x : 0;
+    const oy = rel ? y : 0;
+    if (C === "M") {
+      x = a[0] + ox;
+      y = a[1] + oy;
+      x0 = x;
+      y0 = y;
+      cur = [[x, y]];
+      suites.push(cur);
+      cmd = rel ? "l" : "L";
+      continue;
+    }
+    if (!cur.length) return null;
+    if (C === "L" || C === "H" || C === "V") {
+      x = C === "V" ? x : a[0] + ox;
+      y = C === "H" ? y : (C === "V" ? a[0] : a[1]) + oy;
+      cur.push([x, y]);
+    } else if (C === "C" || C === "Q") {
+      const pts: Point[] = [];
+      for (let k = 0; k < a.length; k += 2) pts.push([a[k] + ox, a[k + 1] + oy]);
+      const p0: Point = [x, y];
+      for (let k = 1; k <= 24; k++) {
+        const u = k / 24;
+        const v = 1 - u;
+        cur.push(
+          C === "C"
+            ? [v * v * v * p0[0] + 3 * v * v * u * pts[0][0] + 3 * v * u * u * pts[1][0] + u * u * u * pts[2][0], v * v * v * p0[1] + 3 * v * v * u * pts[0][1] + 3 * v * u * u * pts[1][1] + u * u * u * pts[2][1]]
+            : [v * v * p0[0] + 2 * v * u * pts[0][0] + u * u * pts[1][0], v * v * p0[1] + 2 * v * u * pts[0][1] + u * u * pts[1][1]],
+        );
+      }
+      [x, y] = pts[pts.length - 1];
+    } else {
+      const ex = a[5] + ox;
+      const ey = a[6] + oy;
+      cur.push(...arcEnPoints(x, y, a[0], a[1], a[2], a[3] !== 0, a[4] !== 0, ex, ey));
+      x = ex;
+      y = ey;
+    }
+  }
+  return suites.filter((t) => t.length > 1);
+}
+
+/** Arc SVG (paramétrage par les extrémités) en points, sans le point de départ. */
+function arcEnPoints(x1: number, y1: number, rx0: number, ry0: number, rotDeg: number, grand: boolean, balayage: boolean, x2: number, y2: number): Point[] {
+  let rx = Math.abs(rx0);
+  let ry = Math.abs(ry0);
+  if (!rx || !ry || (x1 === x2 && y1 === y2)) return [[x2, y2]];
+  const phi = (rotDeg * Math.PI) / 180;
+  const cp = Math.cos(phi);
+  const sp = Math.sin(phi);
+  const dx = (x1 - x2) / 2;
+  const dy = (y1 - y2) / 2;
+  const xp = cp * dx + sp * dy;
+  const yp = -sp * dx + cp * dy;
+  const L = (xp * xp) / (rx * rx) + (yp * yp) / (ry * ry);
+  if (L > 1) {
+    rx *= Math.sqrt(L);
+    ry *= Math.sqrt(L);
+  }
+  const num = rx * rx * ry * ry - rx * rx * yp * yp - ry * ry * xp * xp;
+  const den = rx * rx * yp * yp + ry * ry * xp * xp;
+  const co = (grand === balayage ? -1 : 1) * Math.sqrt(Math.max(0, num / den));
+  const cxp = (co * rx * yp) / ry;
+  const cyp = (-co * ry * xp) / rx;
+  const cx = cp * cxp - sp * cyp + (x1 + x2) / 2;
+  const cy = sp * cxp + cp * cyp + (y1 + y2) / 2;
+  const ang = (ux: number, uy: number, vx: number, vy: number) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+  const t1 = ang(1, 0, (xp - cxp) / rx, (yp - cyp) / ry);
+  let dt = ang((xp - cxp) / rx, (yp - cyp) / ry, (-xp - cxp) / rx, (-yp - cyp) / ry);
+  if (!balayage && dt > 0) dt -= Math.PI * 2;
+  if (balayage && dt < 0) dt += Math.PI * 2;
+  const n = Math.max(8, Math.ceil(Math.abs(dt) / (Math.PI / 24)));
+  const o: Point[] = [];
+  for (let k = 1; k <= n; k++) {
+    const t = t1 + (dt * k) / n;
+    o.push([cx + rx * Math.cos(t) * cp - ry * Math.sin(t) * sp, cy + rx * Math.cos(t) * sp + ry * Math.sin(t) * cp]);
+  }
+  o[o.length - 1] = [x2, y2];
+  return o;
+}
+
+/**
+ * GV2-41 : les traits du dessin du registre `idDessin` (grille 24 mise à l'échelle d'une boîte de la maquette), tracés à la
+ * main avec la plume de la page ; `null` si le dessin est inconnu ou si l'un de ses chemins n'est pas lisible
+ * (la page garde alors le dessin du thème).
+ */
+export function tracesDuRegistre(P: Plume, idDessin: string, style: StyleTableau): TraitTableau[] | null {
+  if (!Object.prototype.hasOwnProperty.call(TRACES_DESSINS, idDessin)) return null;
+  const noeuds = TRACES_DESSINS[idDessin as keyof typeof TRACES_DESSINS] as readonly (readonly [string, { d: string }])[];
+  const echelleGrille = 20;
+  const ox = 540 - (GRILLE_DESSIN * echelleGrille) / 2;
+  const oy = 640;
+  const epaisseur = 7;
+  const res: TraitTableau[] = [];
+  for (const [, { d }] of noeuds) {
+    const suites = cheminEnPoints(d);
+    if (!suites) return null;
+    for (const pts of suites) {
+      const mis: Point[] = pts.map(([px, py]) => [ox + px * echelleGrille, oy + py * echelleGrille]);
+      res.push(trait(tremble(P, densifier(mis, 6), 1.1), epaisseur, P.charte.encre));
+    }
+  }
+  void style;
+  return res.length ? res : null;
+}
+
+/** GV2-41 : le dessin du registre choisi pour le script, porté par la page (un visuel garde son chemin). */
+function dessinDuRegistre(c: ContenuPage): string | null {
+  const id = c.visuel ? undefined : c.dessins[0]?.e.dessinId;
+  return id && Object.prototype.hasOwnProperty.call(TRACES_DESSINS, id) ? id : null;
+}
+
 /** Des traits recadrés dans une zone, collés en haut (le bloc mesure ce que le dessin occupe vraiment). */
 function cadrerEnHaut(ts: TraitTableau[], r: RectPx, smax: number): TraitTableau[] {
   const c = cadrer(ts, r, smax);
@@ -960,11 +1106,14 @@ function dessinPage(g: Geo, c: ContenuPage, texte: string, suit?: string): Rang 
   const sceneId = c.visuel?.sceneId ?? c.dessins[0]?.sceneId ?? c.derniere.id;
   const colonneDroite = g.x0 > (g.bord ?? g.s.x0) + 1;
   const theme = themeDessin(texte, c.visuel?.v.id);
-  const cle = `${id}~${g.style}~${theme}~${colonneDroite ? "haut" : "large"}`;
+  const idRegistre = g.registre ? dessinDuRegistre(c) : null;
+  const cle = `${id}~${g.style}~${idRegistre ? `registre|${idRegistre}|` : ""}${theme}~${colonneDroite ? "haut" : "large"}`;
   let trace = DESSINS_TRACES.get(cle);
   if (!trace) {
     const P = plume(g.S, graineDe(`${id}~${g.style}`));
-    const traits = colonneDroite ? dessinHaut(P, theme, g.style) : dessinTheme(P, theme, g.style);
+    const duRegistre = idRegistre ? tracesDuRegistre(P, idRegistre, g.style) : null;
+    // Repli : le dessin du thème (comme avant) si le dessin du registre n'est pas lisible.
+    const traits = duRegistre ?? (colonneDroite ? dessinHaut(P, theme, g.style) : dessinTheme(P, theme, g.style));
     trace = { ts: traits, b: boiteTraits(traits) };
     if (DESSINS_TRACES.size > 500) DESSINS_TRACES.clear();
     DESSINS_TRACES.set(cle, trace);
@@ -1130,6 +1279,13 @@ function colonne(rangs: Rang[], haut: number, bas: number, k: number, f: number)
  * `null` si la page ne tient pas, même au plus petit.
  */
 export function poserPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut: number, bas: number): PageTableau | null {
+  // GV2-41 : d'abord le dessin du registre choisi pour le script (sans jamais retirer le dessin) ; s'il ne tient pas dans
+  // la page (ou ne la remplit pas à 85 %), la page se pose comme avant, avec le dessin du thème.
+  if (dessinDuRegistre(c)) return poserPageTableauAvec(c, s, style, haut, bas, true) ?? poserPageTableauAvec(c, s, style, haut, bas, false);
+  return poserPageTableauAvec(c, s, style, haut, bas, false);
+}
+
+function poserPageTableauAvec(c: ContenuPage, s: Sortie, style: StyleTableau, haut: number, bas: number, registre: boolean): PageTableau | null {
   const texte = [...c.groupes.flatMap((gr) => ("ligne" in gr ? [gr.ligne.l.texte] : "lignes" in gr ? gr.lignes.map((x) => x.l.texte) : gr.sorte === "comparaison" ? [gr.avant?.l.texte ?? "", gr.apres?.l.texte ?? ""] : [])), c.premiere.texteDit, c.derniere.texteDit].join(" ");
   // Une page d'exemple « avant / maintenant » se pose en une colonne (ses deux côtés y sont déjà côte à côte).
   const basse = s.W >= s.H * 0.99;
@@ -1144,12 +1300,12 @@ export function poserPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau,
       : portrait
         ? [{ deux: false, repli: 1 }, { deux: true, repli: 1 }, { deux: false, repli: 0.85 }, { deux: true, repli: 0.85 }, { deux: false, repli: 0.85, sansDessin: true }]
         : [{ deux: false, repli: 1 }, { deux: false, repli: 1, sansDessin: true }]
-  ).filter((x) => deuxPermis || !x.deux);
+  ).filter((x) => (deuxPermis || !x.deux) && !(registre && x.sansDessin));
   // Rien ne dépasse de la zone sûre (contrôle « Rien ne dépasse » de la fabrication) : quand un décor (surligneur,
   // ruban, carte, case) déborde du bord, la page se repose un peu plus étroite de ce côté (vidéo v-b2d772d28b97).
   const marges = { g: 0, d: 0 };
   for (let tour = 0; tour < 4; tour++) {
-    const r = essayerPageTableau(c, s, style, haut, bas, essais, texte, marges);
+    const r = essayerPageTableau(c, s, style, haut, bas, essais, texte, marges, registre);
     if (!r) return null;
     const u = union(r.poses.map((p) => p.enc));
     const g = Math.max(0, Math.ceil(s.zone.x - u.x));
@@ -1161,7 +1317,7 @@ export function poserPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau,
   return null;
 }
 
-function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut: number, bas: number, essais: { deux: boolean; repli: number; sansDessin?: boolean }[], texte: string, marges: { g: number; d: number }): PageTableau | null {
+function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut: number, bas: number, essais: { deux: boolean; repli: number; sansDessin?: boolean }[], texte: string, marges: { g: number; d: number }, registre = false): PageTableau | null {
   const S = CHARTES_TABLEAU[style];
   const k = s.k;
   const utile = bas - haut;
@@ -1170,7 +1326,7 @@ function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut
   for (const { deux, repli, sansDessin } of essais)
   for (let f = 1; f >= 0.6 - 1e-9; f -= 0.05) {
     const P = plume(S, graineDe(`${c.page}~${style}`));
-    const g: Geo = { s, S, style, k, f, x0, x1, haut, bas, P, repli, bord: x0 };
+    const g: Geo = { s, S, style, k, f, x0, x1, haut, bas, P, repli, bord: x0, ...(registre ? { registre } : {}) };
     // Deux colonnes : le texte prend un peu plus de la moitié.
     const avecTexteADroite = c.groupes.some((x) => x.sorte === "code" || x.sorte === "coche" || x.sorte === "liste" || x.sorte === "comparaison");
     const mil = Math.round(x0 + (x1 - x0) * (avecTexteADroite ? 0.46 : c.groupes.some((x) => x.sorte === "transformation") ? 0.56 : 0.5));
@@ -1185,6 +1341,7 @@ function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut
     const poses = cols.flatMap((x) => x!.poses);
     // Deux colonnes : chacune remplit sa hauteur ; la page compte la plus haute.
     const occupation = Math.max(...cols.map((x) => (x!.dessous - x!.dessus) / utile));
+    if (registre && occupation < REMPLISSAGE_TABLEAU.min) continue;
     return { poses, occupation: Math.round(occupation * 1e6) / 1e6, f };
   }
   return null;
