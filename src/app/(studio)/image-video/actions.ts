@@ -10,7 +10,7 @@ import type { CarteImage } from "@/domaine/image-video/carte";
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { ChoixFormule } from "@/moteurs/montage-image-video/regles";
-import { essayer, type Resultat } from "@/services/_commun";
+import { essayer, fournisseur, type Resultat } from "@/services/_commun";
 import { avecAccordAutomatique } from "@/services/mode-budget";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptImageVideo } from "@/services/image-video-scripts";
@@ -31,7 +31,11 @@ export async function deposerImageVideoAction(demande: DemandeDepotIV): Promise<
  * Pont « infographie → vidéo » (L7-34) : un clic crée la vidéo à partir de l'infographie DÉJÀ rendue, sans nouveau rendu. Éteint par
  * défaut (interrupteur « infographies ») ; le montant confirmé suit le même chemin que le dépôt d'une image.
  */
-const pontInfographie = creerPontImageVideo((demande, fichier) => deposerImageVideo(demande, { fichier: async () => fichier }));
+const pontInfographie = creerPontImageVideo(
+  (demande, fichier) => deposerImageVideo(demande, { fichier: async () => fichier }),
+  // Poids réel lu dans le stockage par le serveur ; stockage sans mesure : null, donc refus.
+  async (cle) => (await (await fournisseur("stockage")).tailleObjet?.(cle)) ?? null,
+);
 
 export async function creerVideoDepuisInfographieAction(rendu: InfographieRendue, options: OptionsPontImageVideo): Promise<Resultat<IssueDepotIV>> {
   const r = await essayer(async () => {

@@ -57,6 +57,26 @@ export function empreinteInfographie(spec: InfographieSpecType, gabarit: Gabarit
   return createHash("sha256").update(`${VERSION_RENDU}\ninfographie\nreseau=${reseau}\n${gabarit}\n${ratio}\n${canonique(spec)}`).digest("hex");
 }
 
+/** Clé de stockage d'une infographie : UNIQUE définition, partagée par la production et par la vérification du pont (jamais une clé libre). */
+export function cleInfographie(empreinte: string, reseau: Reseau): string {
+  return `studio/${segmentStockage()}/visuels/${empreinte.slice(0, 32)}/infographie-${reseau}.jpg`;
+}
+
+/** Poids maximal d'une image d'entrée d'« Image → vidéo » (même plafond que le dépôt d'une image : 25 Mo). */
+export const TAILLE_MAX_RENDU_OCTETS = 25 * 1024 * 1024;
+
+/**
+ * Vérifie côté serveur un rendu reçu du navigateur : empreinte SHA-256 en hexadécimal, réseau connu, ratio connu et clé EXACTEMENT celle que
+ * `produireInfographie` aurait écrite (extension comprise). Sinon : refus, avant tout dépôt.
+ */
+export function verifierRendu(rendu: InfographieRendue): void {
+  if (!rendu || typeof rendu !== "object" || !rendu.cle) throw new Error("Cette infographie n'a pas encore d'image");
+  if (typeof rendu.empreinte !== "string" || !/^[0-9a-f]{64}$/.test(rendu.empreinte)) throw new Error("Infographie refusée : empreinte invalide");
+  if (typeof rendu.reseau !== "string" || !Object.hasOwn(PROFILS_RESEAUX, rendu.reseau)) throw new Error("Infographie refusée : réseau inconnu");
+  if (typeof rendu.ratio !== "string" || !Object.hasOwn(FORMATS_INFOGRAPHIE, rendu.ratio)) throw new Error("Infographie refusée : ratio inconnu");
+  if (rendu.cle !== cleInfographie(rendu.empreinte, rendu.reseau)) throw new Error("Infographie refusée : clé de stockage inattendue");
+}
+
 export async function produireInfographie(demande: DemandeInfographie, deps: DependancesInfographies): Promise<InfographieRendue[]> {
   // Interrupteur d'abord : éteint, rien d'autre ne se passe.
   await exigerGenerateurAllume("infographies");
@@ -75,7 +95,7 @@ export async function produireInfographie(demande: DemandeInfographie, deps: Dep
     const rendus: InfographieRendue[] = [];
     for (const reseau of reseaux) {
       const empreinte = empreinteInfographie(spec, gabarit, ratio, reseau);
-      const cle = `studio/${segmentStockage()}/visuels/${empreinte.slice(0, 32)}/infographie-${reseau}.jpg`;
+      const cle = cleInfographie(empreinte, reseau);
       const requete: DemandeRendu = {
         idRendu: identifiantSur(`infographie-${empreinte.slice(0, 32)}`),
         operation: "image-fixe",
@@ -102,9 +122,9 @@ export async function produireInfographie(demande: DemandeInfographie, deps: Dep
 
 /**
  * Le fichier d'entrée d'« Image → vidéo » pour une infographie DÉJÀ rendue : la clé de stockage du rendu, rien n'est rendu de nouveau.
- * La taille est inconnue ici (0) ; le contrôle de poids du dépôt la laisse passer, l'image rendue étant celle du studio.
+ * `taille` est le poids RÉEL de l'objet stocké, mesuré par le serveur (jamais 0 par défaut) : le contrôle de poids du dépôt s'applique.
  */
-export function fichierImageVideo(rendu: InfographieRendue, maintenant: () => string = () => new Date().toISOString()): Fichier {
+export function fichierImageVideo(rendu: InfographieRendue, taille: number, maintenant: () => string = () => new Date().toISOString()): Fichier {
   const { largeur, hauteur } = FORMATS_INFOGRAPHIE[rendu.ratio];
   const date = maintenant();
   return {
@@ -112,7 +132,7 @@ export function fichierImageVideo(rendu: InfographieRendue, maintenant: () => st
     cleStockage: rendu.cle,
     nom: `infographie-${rendu.reseau}.jpg`,
     mime: "image/jpeg",
-    taille: 0,
+    taille,
     largeur,
     hauteur,
     origine: "fabrication",
@@ -134,25 +154,39 @@ export interface OptionsPontImageVideo {
 /**
  * Un clic = une vidéo : le dépôt reçoit le fichier de l'infographie rendue. Deux clics en même temps sur la même infographie et les
  * mêmes réseaux partagent un seul dépôt ; une fois fini (refus compris), un nouveau clic reste possible. Aucun rendu n'est soumis.
+ * Le rendu reçu du navigateur est vérifié ici (`verifierRendu`) avant tout dépôt, et son poids est mesuré par le serveur (`tailleDe`,
+ * injecté : `null` = objet introuvable) : absent, nul ou au-dessus du plafond, il est refusé. Le contrôle de poids n'est jamais sauté.
  */
-export function creerPontImageVideo(deposer: (demande: DemandeDepotIV, fichier: Fichier) => Promise<IssueDepotIV>) {
+export function creerPontImageVideo(
+  deposer: (demande: DemandeDepotIV, fichier: Fichier) => Promise<IssueDepotIV>,
+  tailleDe: (cle: string) => Promise<number | null>,
+) {
   const enCours = new Map<string, Promise<IssueDepotIV>>();
   return (rendu: InfographieRendue, options: OptionsPontImageVideo): Promise<IssueDepotIV> => {
-    if (!rendu.cle) return Promise.reject(new Error("Cette infographie n'a pas encore d'image"));
+    try {
+      verifierRendu(rendu);
+    } catch (e) {
+      return Promise.reject(e);
+    }
     const cle = `${rendu.empreinte}|${[...options.reseaux].sort().join(",")}`;
     const deja = enCours.get(cle);
     if (deja) return deja;
-    const fichier = fichierImageVideo(rendu);
-    const demande: DemandeDepotIV = {
-      fichierId: fichier.id,
-      reseaux: options.reseaux,
-      largeur: fichier.largeur!,
-      hauteur: fichier.hauteur!,
-      ...(options.offre ? { offre: options.offre } : {}),
-      ...(options.titre ? { titre: options.titre } : {}),
-      ...(typeof options.accordCentimes === "number" ? { accordCentimes: options.accordCentimes } : {}),
-    };
-    const p = deposer(demande, fichier).finally(() => enCours.delete(cle));
+    const p = (async () => {
+      const taille = await tailleDe(rendu.cle);
+      if (typeof taille !== "number" || !Number.isFinite(taille) || taille <= 0) throw new Error("Infographie refusée : image introuvable dans le stockage");
+      if (taille > TAILLE_MAX_RENDU_OCTETS) throw new Error("Infographie refusée : image trop lourde");
+      const fichier = fichierImageVideo(rendu, taille);
+      const demande: DemandeDepotIV = {
+        fichierId: fichier.id,
+        reseaux: options.reseaux,
+        largeur: fichier.largeur!,
+        hauteur: fichier.hauteur!,
+        ...(options.offre ? { offre: options.offre } : {}),
+        ...(options.titre ? { titre: options.titre } : {}),
+        ...(typeof options.accordCentimes === "number" ? { accordCentimes: options.accordCentimes } : {}),
+      };
+      return deposer(demande, fichier);
+    })().finally(() => enCours.delete(cle));
     enCours.set(cle, p);
     return p;
   };
