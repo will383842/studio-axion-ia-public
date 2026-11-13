@@ -396,7 +396,7 @@ async function ouAttente<S>(etat: S, tour: () => Promise<S>): Promise<S> {
 const entreeAbsente = (err: unknown) => !!err && typeof err === "object" && (err as { erreur?: { code?: unknown } }).erreur?.code === "fichier-inaccessible";
 
 /** Échec d'un rendu (`ErreurRendu`, lue par sa forme : elle porte l'erreur du serveur) : son message n'est jamais montré. */
-const panneDeRendu = (err: unknown) => !!err && typeof err === "object" && typeof (err as { erreur?: { code?: unknown } }).erreur?.code === "string";
+const panneDeRendu = (err: unknown) => !estRenduEnCours(err) && !!err && typeof err === "object" && typeof (err as { erreur?: { code?: unknown } }).erreur?.code === "string";
 
 /** Le rendu n'a plus donné de nouvelle (délai de garde, `fournisseurs/rendu/garde.ts`) : dit à Will en clair. */
 const sansNouvelle = (err: unknown) => /sans nouvelle/i.test(raisonDe(err));
@@ -426,7 +426,7 @@ export function relancerRendusCasConcret(j: JournalCasConcret | null, relance: n
   const autreId = (id: string) => `${id.replace(/(-[er]\d+)+$/, "")}-r${relance}`;
   // X12 : un journal écrit par une version antérieure du code (ou incomplet) ne fait jamais échouer « Réessayer ».
   if (Array.isArray(copie.ecrans?.etat?.cartes)) {
-    copie.ecrans.etat.cartes = copie.ecrans.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, veille: undefined, demande: { ...c.demande, idRendu: autreId(c.demande.idRendu) } } : c));
+    copie.ecrans.etat.cartes = copie.ecrans.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, pannes: undefined, veille: undefined, demande: { ...c.demande, idRendu: autreId(c.demande.idRendu) } } : c));
   }
   for (const m of Object.values(copie.montage ?? {})) {
     if (m?.etat?.phase !== "soumise") continue;
@@ -1035,8 +1035,11 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     });
     const enCours = journal.ecrans?.empreinte === cleEcrans ? journal.ecrans : null;
     const rendues = new Set(enCours?.rendues ?? []);
+    // GV2-07 : à la reprise, les cartes à soumettre reçoivent les propriétés FRAÎCHES (adresses de lecture re-signées : celles
+    // gardées expirent après 1 h). L'empreinte et la clé de l'étape ne changent pas (elles ignorent l'adresse).
+    const fraiches = new Map(cartes.map((c) => [c.id, c.parametres]));
     const depart =
-      enCours?.etat ??
+      (enCours ? { ...enCours.etat, cartes: enCours.etat.cartes.map((c) => (c.statut === "a-soumettre" && fraiches.has(c.id) ? { ...c, demande: { ...c.demande, parametres: fraiches.get(c.id) as unknown as Record<string, unknown> } } : c)) } : undefined) ??
       etatInitialCartesMotion(cartes, (c) => `cc-ecran-${c.id}`, { bloquant: true, parEmpreinte: { env: o.env, videoId: o.videoId, empreinte: (c) => (c as CarteFormat & { empreinte: string }).empreinte } });
     /** X10 : un écran raté est nommé par sa place (corps ou fin), jamais par son identifiant. */
     const ecranRate = (err: unknown) => {
