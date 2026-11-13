@@ -22,6 +22,7 @@
 import type { MotHorodate, ReglagesVoix } from "@/domaine/types";
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import { motsDits, texteDuCorps } from "@/domaine/image-video/fiche";
+import { alignement, cleMot } from "./calage";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
 import { versRemesure } from "@/briques/voix-maitre/machine";
 import { VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/voix-epinglee";
@@ -348,6 +349,7 @@ export function outilsVoixCasConcretIV(o: OutilsVoixIV): OutilsAvancerVoix {
       }
     },
     texteFige: true,
+    accepterEcartDeMots: true,
     reformuler: async () => ({ ok: false, raison: "un script validé par Will n'est jamais réécrit" }),
     assembler: async () => {
       throw new Error("L'assemblage de la voix du format passe par `assemblage.ts`.");
@@ -632,32 +634,76 @@ export interface SonLectureIV {
 
 const porteUneLettre = (m: MotHorodate) => /[\p{L}\p{N}]/u.test(m.mot);
 
-/** Sons des versions d'une lecture unique, coupés par heures de mots. REFUS « entree » si les mots ne collent pas au texte lu. */
+/**
+ * Rang, dans les mots rendus, de chaque mot du texte lu. Même nombre : le rang est le même. Nombres différents (mots
+ * fusionnés, nombre coupé en deux) : plus longue suite commune ; un mot du texte non retrouvé prend un mot rendu du même
+ * trou (au prorata), ou `null` si le trou n'a aucun mot rendu.
+ */
+function rangsRendus(attendus: readonly string[], rendus: readonly string[]): (number | null)[] {
+  if (attendus.length === rendus.length) return attendus.map((_, i) => i);
+  const ancres = new Map(alignement(attendus.map(cleMot), rendus.map(cleMot)));
+  const res: (number | null)[] = [];
+  for (let i = 0; i < attendus.length; i++) {
+    const j = ancres.get(i);
+    if (j !== undefined) {
+      res.push(j);
+      continue;
+    }
+    let a = i - 1;
+    while (a >= 0 && !ancres.has(a)) a--;
+    let b = i + 1;
+    while (b < attendus.length && !ancres.has(b)) b++;
+    const de = a >= 0 ? ancres.get(a)! + 1 : 0;
+    const jusqua = b < attendus.length ? ancres.get(b)! - 1 : rendus.length - 1;
+    const places = jusqua - de + 1;
+    if (places < 1) {
+      res.push(null);
+      continue;
+    }
+    const trou = b - a - 1;
+    res.push(de + Math.min(places - 1, Math.floor(((i - a - 1) * places) / trou)));
+  }
+  return res;
+}
+
+/** Sons des versions d'une lecture unique, coupés par heures de mots. REFUS « entree » si une borne de coupe n'a pas de mot rendu. */
 function sonsDeLecture(etat: EtatVoixIV, lecture: LectureUniqueIV): { corps: SonBrutIV; lecture: Record<string, SonLectureIV> } {
   const brut = brutDe(etat.voix.corps.prise, "lue d'un trait");
   const lettres = brut.mots.filter(porteUneLettre);
-  const attendus = motsDits(etat.voix.corps.texte).length;
-  if (lettres.length !== attendus) throw new ErreurVoixIV("entree", `Les mots de la voix lue d'un trait (${lettres.length}) ne correspondent pas au texte lu (${attendus}) : la vidéo ne peut pas être taillée.`, true);
-  if (lecture.motsCorps < 1 || lecture.motsCorps > lettres.length) throw new ErreurVoixIV("entree", "Le corps du script n'a aucun mot dans la voix lue d'un trait.");
+  const motsTexte = motsDits(etat.voix.corps.texte);
+  const attendus = motsTexte.length;
+  const rangs = rangsRendus(motsTexte, lettres.map((m) => m.mot));
+  if (lecture.motsCorps < 1 || lecture.motsCorps > attendus || lecture.motsCorps > attendus) throw new ErreurVoixIV("entree", "Le corps du script n'a aucun mot dans la voix lue d'un trait.");
+  /** Rangs rendus des mots gardés (texte), sans doublon : un mot rendu qui en porte deux n'est gardé qu'une fois ; un mot que la voix n'a pas dit n'a pas de heure à garder. */
+  const rendusGardes = (gardes: number[]): number[] => [...new Set(gardes.map((k) => rangs[k]).filter((r): r is number => r !== null && r !== undefined))];
   const taille = (gardes: number[]): SonLectureIV => {
-    const dernier = gardes[gardes.length - 1];
+    const dernierTexte = gardes[gardes.length - 1];
+    // La borne de la coupe (le dernier mot gardé) doit avoir un mot rendu : sinon on ne sait pas où couper.
+    if (rangs[dernierTexte] === null || rangs[dernierTexte] === undefined) throw new ErreurVoixIV("entree", `Les mots de la voix lue d'un trait (${lettres.length}) ne correspondent pas au texte lu (${attendus}) : le mot ${dernierTexte + 1} du script, où la version se termine, n'a aucun mot de la voix. La vidéo ne peut pas être taillée.`);
+    const g = rendusGardes(gardes);
+    const dernier = g[g.length - 1];
     const suivant = lettres[dernier + 1];
+    // Une borne tombe au milieu d'un mot rendu qui porte deux mots du texte : pas de coupe propre.
+    if (dernierTexte + 1 < attendus && rangs[dernierTexte + 1] === dernier) throw new ErreurVoixIV("entree", "Un mot de la voix lue d'un trait porte la fin de la version et le mot suivant du script : la vidéo ne peut pas être taillée.");
     const retraits: [number, number][] = [];
-    gardes.forEach((k, i) => {
-      if (i > 0 && k > gardes[i - 1] + 1) retraits.push([lettres[gardes[i - 1] + 1].debutSec, lettres[k - 1].finSec]);
+    g.forEach((k, i) => {
+      if (i > 0 && k > g[i - 1] + 1) retraits.push([lettres[g[i - 1] + 1].debutSec, lettres[k - 1].finSec]);
     });
     const coupeSec = suivant ? Math.max(lettres[dernier].finSec, +(suivant.debutSec - MARGE_COUPE_LECTURE_SEC).toFixed(4)) : undefined;
     return {
-      son: { fichierCle: brut.fichierCle, dureeSec: coupeSec ?? brut.dureeSec, mots: gardes.map((k) => lettres[k]) },
-      motsCorps: lecture.motsCorps,
+      son: { fichierCle: brut.fichierCle, dureeSec: coupeSec ?? brut.dureeSec, mots: g.map((k) => lettres[k]) },
+      motsCorps: rendusGardes(rang(0, lecture.motsCorps)).length,
       retraitsVoulus: retraits,
       ...(coupeSec !== undefined ? { coupeSec, coupeEntreSec: [lettres[dernier].finSec, suivant!.debutSec] as [number, number] } : {}),
     };
   };
-  const rang = (de: number, a: number) => Array.from({ length: Math.max(0, a - de) }, (_, i) => de + i);
   const versions: Record<string, SonLectureIV> = {};
-  for (const v of etat.segments.versions) versions[v.id] = taille([...rang(0, lecture.motsCorps), ...(lecture.fins[v.id] ?? []).flatMap(([a, b]) => rang(a, Math.min(b, lettres.length)))]);
+  for (const v of etat.segments.versions) versions[v.id] = taille([...rang(0, lecture.motsCorps), ...(lecture.fins[v.id] ?? []).flatMap(([a, b]) => rang(a, Math.min(b, attendus)))]);
   return { corps: taille(rang(0, lecture.motsCorps)).son, lecture: versions };
+}
+
+function rang(de: number, a: number): number[] {
+  return Array.from({ length: Math.max(0, a - de) }, (_, i) => de + i);
 }
 
 /**

@@ -465,12 +465,26 @@ describe("lecture unique · sons des versions taillés dans la lecture d'un trai
     expect(sonsBrutsIV(avec)).toEqual(sonsBrutsIV(etat));
   });
 
-  it("nombre de mots incohérent : refus « entree » clair, jamais une coupe au hasard", async () => {
+  it("un mot du corps que la voix n'a pas dit : la vidéo se taille quand même, sans mot inventé", async () => {
     const etat = await voixLue(monde());
     const casse = structuredClone(etat);
     const prise = casse.voix.corps.prise!;
     if (prise.etat.phase !== "faite") throw new Error("inachevé");
+    const retire = prise.etat.audio.mots[7].mot;
     prise.etat.audio.mots.splice(7, 1);
+    delete prise.brut;
+    const sons = sonsBrutsIV(casse);
+    expect(sons.lecture!["fin-linkedin"].son.mots.map((x) => x.mot)).not.toContain(retire === "" ? "?" : `__${retire}`);
+    expect(sons.lecture!["fin-linkedin"].son.mots).toHaveLength(sonsBrutsIV(etat).lecture!["fin-linkedin"].son.mots.length - 1);
+  });
+
+  it("nombre de mots incohérent : une borne de coupe sans mot de la voix → refus « entree » clair, sans relecture, jamais une coupe au hasard", async () => {
+    const etat = await voixLue(monde());
+    const casse = structuredClone(etat);
+    const prise = casse.voix.corps.prise!;
+    if (prise.etat.phase !== "faite") throw new Error("inachevé");
+    // Dernier mot du corps (où se termine la version LinkedIn) : la voix ne l'a pas dit.
+    prise.etat.audio.mots.splice(12, 1);
     delete prise.brut;
     expect(() => sonsBrutsIV(casse)).toThrowError(ErreurVoixIV);
     expect(() => sonsBrutsIV(casse)).toThrowError(/ne correspondent pas au texte lu/);
@@ -478,6 +492,7 @@ describe("lecture unique · sons des versions taillés dans la lecture d'un trai
       sonsBrutsIV(casse);
     } catch (err) {
       expect((err as ErreurVoixIV).controle).toBe("entree");
+      expect((err as ErreurVoixIV).relire).toBe(false);
     }
   });
 
