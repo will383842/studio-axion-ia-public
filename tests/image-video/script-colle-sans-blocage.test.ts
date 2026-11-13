@@ -9,9 +9,9 @@ import { verdictReseau } from "@/moteurs/montage-image-video/reseaux";
 import { dureeCibleDuScript } from "@/services/image-video-ecran";
 import { ajouterIV } from "@/domaine/image-video/reserve";
 import { avancerJusquAArretIV, etatInitialIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
-import { cleDuTexte } from "@/moteurs/montage-image-video/texte/conception";
+import { cleDuTexte, concevoirWorkflow } from "@/moteurs/montage-image-video/texte/conception";
 import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
-import { appelerConceptionEnSimulation } from "@/moteurs/montage-image-video/texte/simulation";
+import { appelerConceptionEnSimulation, CONCEPTION_VIDE } from "@/moteurs/montage-image-video/texte/simulation";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
 vi.setConfig({ testTimeout: 120_000 });
@@ -108,5 +108,22 @@ describe("B2 de bout en bout · script de 380 mots livré sur les réseaux", () 
       const l = (e.livraison as { reseau: string; fichierCle?: string }[]).find((x) => x.reseau === r);
       expect(l?.fichierCle, r).toBeTruthy();
     }
+  });
+});
+
+describe("GV2-19 · script sans automatisation en mode script", () => {
+  const CONSEILS = "Dormez huit heures chaque nuit. Marchez vingt minutes tous les jours. Buvez de l'eau avant chaque repas. Coupez les écrans le soir. Ces trois conseils changent tout.";
+  const budget = { reserver: async () => ({ ok: true as const }) };
+  it("pas de refus « hors-sujet » : carte minimale faite des phrases du script (5 étapes au plus)", async () => {
+    const r = await concevoirWorkflow({ videoId: "v-conseils", texte: CONSEILS, scriptColle: true }, { appeler: appelerConceptionEnSimulation(CONCEPTION_VIDE), budget });
+    expect(r.ok, JSON.stringify(r)).toBe(true);
+    if (!r.ok) return;
+    expect(r.appels).toBe(1);
+    expect(r.carte.noeuds.length).toBeGreaterThanOrEqual(3);
+    expect(r.carte.noeuds.length).toBeLessThanOrEqual(5);
+  });
+  it("hors mode script, le refus actuel est gardé", async () => {
+    const r = await concevoirWorkflow({ videoId: "v-idee", texte: CONSEILS }, { appeler: appelerConceptionEnSimulation(CONCEPTION_VIDE), budget });
+    expect(r).toMatchObject({ ok: false, motif: "hors-sujet" });
   });
 });
