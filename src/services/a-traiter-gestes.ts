@@ -2,6 +2,7 @@
 import "server-only";
 import { exigerSession } from "./auth";
 import { arreterDepuisCarte, ignorerCarte, lireVueATraiter, marquerCarteFaite } from "./a-traiter";
+import { copierMessageCarte, copierReponseCarte } from "./a-traiter-copie";
 
 export async function gesteLireATraiter() {
   await exigerSession();
@@ -18,4 +19,12 @@ export async function gesteCarteIgnorer(id: string) {
 export async function gesteCarteStop(id: string, compte: string) {
   await exigerSession();
   return arreterDepuisCarte(id, compte);
+}
+export async function gesteCopierMessage(id: string) {
+  await exigerSession();
+  return copierMessageCarte(id);
+}
+export async function gesteCopierReponse(id: string) {
+  await exigerSession();
+  return copierReponseCarte(id);
 }
