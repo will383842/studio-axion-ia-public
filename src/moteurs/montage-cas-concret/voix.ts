@@ -76,6 +76,9 @@ export function coeurDuBlanc(deSec: number, aSec: number): PauseAMesurer {
 const PONCTUATION_FINALE = /[.,;:!?…]["»”)\s ]*$/;
 const aDesLettres = (m: string) => cleMot(m).length > 0;
 
+/** Mots d'hésitation que la voix peut écrire (formes sans accent ni majuscule, comme `cleMot`). */
+const HESITATIONS = new Set(["euh", "heu", "eh", "hum", "hmm", "hem", "mmh", "mh", "ah", "oh", "ben", "bah", "bof"]);
+
 interface MotDuTexte {
   mot: string;
   /** Rang de la phrase dans le texte. */
@@ -148,17 +151,27 @@ export function pausesAMesurer(mots: readonly MotHorodate[], texte?: string): Pa
  * Contrôle PUR d'une prise : mots rendus ≠ mots du texte (casse, accents, ponctuation ignorés) → « mots » ; écart de plus
  * de 450 ms entre deux mots sans ponctuation → « traine » ; niveau au-dessus de −38 dB dans un blanc sans ponctuation de
  * plus de 300 ms (`niveauxPauses`, dans l'ordre de `pausesAMesurer`) → « son ». Le rejet nomme la phrase fautive.
+ * `accepterEcartDeMots` (éteint par défaut ; seul le format image → vidéo l'allume, son calage absorbe l'écart) : un mot
+ * découpé, fusionné ou écrit autrement n'est plus un rejet « mots » ; une hésitation écrite comme un mot (« euh ») en
+ * reste un, et les contrôles de blanc et de son restent entiers.
  */
-export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[]; niveauxPauses?: readonly number[] }): ControlePrise {
+export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[]; niveauxPauses?: readonly number[]; accepterEcartDeMots?: boolean }): ControlePrise {
   const { phrases, mots: attendus } = motsDuTexte(p.texte);
   const rendus = p.mots.filter((m) => aDesLettres(m.mot));
   const phraseDe = (i: number) => phrases[attendus[Math.min(i, attendus.length - 1)]?.phrase ?? 0] ?? p.texte.trim();
 
   const n = Math.max(attendus.length, rendus.length);
+  const tolerant = p.accepterEcartDeMots === true;
+  // Tolérant : le rang des mots rendus et celui des mots du texte ne se correspondent plus quand les nombres diffèrent.
+  const memesRangs = !tolerant || attendus.length === rendus.length;
+  const dansLeTexte = tolerant ? new Set(attendus.map((a) => cleMot(a.mot))) : undefined;
   for (let i = 0; i < n; i++) {
     const a = attendus[i];
     const r = rendus[i];
     if (a && r && cleMot(a.mot) === cleMot(r.mot)) continue;
+    // Tolérant : seul un mot d'hésitation que le texte ne contient pas reste refusé (le contrôle des hésitations n'est pas assoupli).
+    if (tolerant && r && !(HESITATIONS.has(cleMot(r.mot)) && !dansLeTexte!.has(cleMot(r.mot)))) continue;
+    if (tolerant && !r) continue;
     const detail = !r ? `le mot « ${a.mot} » n'a pas été dit` : !a ? `le mot « ${r.mot} » est en trop` : `« ${r.mot} » a été dit au lieu de « ${a.mot} »`;
     return { rejet: "mots", phrase: phraseDe(i), detail };
   }
@@ -166,17 +179,19 @@ export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[];
   // Un long blanc hors ponctuation n'est refusé que s'il n'a pas été mesuré : mesuré silencieux, la recette le resserre
   // (0,10 s entre deux mots), exactement comme la voix de la v4 validée par Will ; mesuré bruyant, c'est le refus « son ».
   const pauses = pausesAMesurer(rendus, p.texte);
+  const ponctueApres = (i: number) => (memesRangs ? attendus[i].ponctue : PONCTUATION_FINALE.test(rendus[i].mot));
+  const motDe = (i: number) => (memesRangs ? attendus[i].mot : rendus[i].mot);
   const mesure = (i: number) => {
     const k = pauses.findIndex((x) => x.apresMot === i);
     return k < 0 ? undefined : p.niveauxPauses?.[k];
   };
   for (let i = 0; i + 1 < rendus.length; i++) {
     const ecart = ecartMs(rendus[i], rendus[i + 1]);
-    if (!attendus[i].ponctue && ecart > ECART_MAX_MS && mesure(i) === undefined) return { rejet: "traine", phrase: phraseDe(i), detail: `blanc de ${ecart} ms après « ${attendus[i].mot} »` };
+    if (!ponctueApres(i) && ecart > ECART_MAX_MS && mesure(i) === undefined) return { rejet: "traine", phrase: phraseDe(i), detail: `blanc de ${ecart} ms après « ${motDe(i)} »` };
   }
 
   // L0b : un sigle coupé en deux à l'intérieur d'un seul mot rendu (« li… A » pour « l'I.A. »).
-  for (let i = 0; i < rendus.length; i++) {
+  for (let i = 0; memesRangs && i < rendus.length; i++) {
     const lettres = lettresDuSigle(attendus[i].mot);
     if (!lettres) continue;
     const blanc = Math.round((rendus[i].finSec - rendus[i].debutSec) * 1000) - DUREE_LETTRE_SIGLE_MS * lettres;
@@ -188,7 +203,7 @@ export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[];
     if (niveau !== undefined && niveau > NIVEAU_PAUSE_MAX_DB) {
       const i = pauses[k].apresMot;
       // Essais réels du 14/10 : un « blanc » à −17 dB entre deux mots est une hésitation (« euh ») que Will entend.
-      return { rejet: "son", phrase: phraseDe(i), detail: `hésitation ou souffle (${Math.round(niveau)} dB) après « ${attendus[i].mot} »` };
+      return { rejet: "son", phrase: phraseDe(i), detail: `hésitation ou souffle (${Math.round(niveau)} dB) après « ${motDe(i)} »` };
     }
   }
   return { ok: true };
@@ -269,6 +284,8 @@ export type OutilsAvancerVoix = OutilsVoixCasConcret & {
   arretSiRefusIdentique?: boolean;
   /** 08/11/2026 : garder la dernière lecture du corps malgré un rejet (au lieu d'arrêter) ; la phrase est dans `rapportVoix().corpsGardeMalgreRejet`. */
   garderLaLectureSiRefus?: boolean;
+  /** Éteint par défaut (cas concret). Image → vidéo l'allume : un mot découpé, fusionné ou écrit autrement n'est plus refusé (son calage l'absorbe), donc moins de relectures ; les hésitations restent refusées. */
+  accepterEcartDeMots?: boolean;
   avantLecture?: (lecture: LectureAPayer) => void | Promise<void>;
 };
 
@@ -385,13 +402,13 @@ async function tourDePrise(etat: EtatVoixCasConcret, prise: PriseVoix, nom: stri
     return { ...prise, etat: suivant, ...(brut ? { brut } : {}) };
   }
   const son = prise.brut ?? { fichierCle: prise.etat.audio.fichierCle, dureeSec: prise.etat.audio.dureeSec, mots: prise.etat.audio.mots };
-  let controle = controlerPrise({ texte: prise.texte, mots: son.mots });
+  let controle = controlerPrise({ texte: prise.texte, mots: son.mots, accepterEcartDeMots: o.accepterEcartDeMots });
   // Un long blanc (« traine ») est mesuré avant d'être jugé : silencieux, il est seulement resserré.
   if ("ok" in controle || controle.rejet === "traine") {
     const pauses = pausesAMesurer(son.mots, prise.texte);
     if (pauses.length) {
       const niveauxPauses = await o.mesurerPauses(son.fichierCle, pauses.map((x) => x.mesure));
-      controle = controlerPrise({ texte: prise.texte, mots: son.mots, niveauxPauses });
+      controle = controlerPrise({ texte: prise.texte, mots: son.mots, niveauxPauses, accepterEcartDeMots: o.accepterEcartDeMots });
     }
   }
   return { ...prise, controle };
