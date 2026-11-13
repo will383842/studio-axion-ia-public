@@ -618,6 +618,20 @@ export function texteLu(texte: string, prononciations: readonly { mot: string; p
   return prononciations.length ? substituerPrononciations(texte, [...prononciations]) : texte;
 }
 
+/**
+ * GV2-28 : le texte ENVOYÉ à la voix finit toujours par une ponctuation de fin (une phrase ouverte se lit mal). PUR.
+ * Guillemets fermants et espaces de fin ignorés ; `.`, `?`, `!`, `…` : texte rendu tel quel ; `,` `:` `;` `—` `–` final :
+ * remplacé par « . » ; sinon « . » ajouté. À n'appliquer QU'au texte qui part au fournisseur, jamais à celui d'une empreinte.
+ */
+export function avecPonctuationFinale(texte: string): string {
+  const fin = texte.replace(/\s+$/u, "");
+  const coeur = fin.replace(/["»”’'\s\u00a0\u202f]+$/u, "");
+  if (!coeur) return texte;
+  if (/[.?!…]$/u.test(coeur)) return texte;
+  if (/[,:;—–]$/u.test(coeur)) return `${coeur.slice(0, -1).replace(/\s+$/u, "")}.${fin.slice(coeur.length)}`;
+  return `${fin}.`;
+}
+
 /** Prix des lectures d'un plan (une voix unique : le texte de la fiche). */
 export function estimerVoixSorties(fiche: FicheTableau, plan: PlanVoixSorties, tarif: number, prononciations: readonly { mot: string; prononciation: string }[] = []): EstimationVoixSorties {
   const unique = texteLu(texteDitDe(fiche), prononciations).length;
