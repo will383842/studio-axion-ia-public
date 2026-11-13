@@ -81,7 +81,7 @@ export interface EtatChaineV4 {
   /** Prise horizontale : colonne 9:16 gardée (pixels de la prise) et visage dans cette colonne (fractions). */
   cadrage?: RecadrageV4;
   coupes?: { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[] };
-  realisation?: { version: "complete" | "simple"; essais: number; erreurs?: string[]; avertissements: number; phrase?: string; plan: PlanFacecamAnimee; /** GV-MD-03 : plan tel qu'Opus l'a rendu, gardé pour comparer quand le calage au mot est actif. */ planAvantCalage?: PlanFacecamAnimee };
+  realisation?: { version: "complete" | "simple"; /** GV2-04 : dernier filet, le repli sans vidéo a échoué et la version simple est livrée avec une alerte. */ filetSimple?: boolean; essais: number; erreurs?: string[]; avertissements: number; phrase?: string; plan: PlanFacecamAnimee; /** GV-MD-03 : plan tel qu'Opus l'a rendu, gardé pour comparer quand le calage au mot est actif. */ planAvantCalage?: PlanFacecamAnimee };
   /**
    * Étape « videos » (18/10) : fichiers préparés pour les plaquettes à vidéo, plaquettes RETIRÉES faute de vidéo littérale, manques,
    * dépense Claude du contrôle visuel (dollars) et résultat des contrôles du plan APRÈS retrait (rapport : rien n'est assoupli).
@@ -94,6 +94,10 @@ export interface EtatChaineV4 {
    */
   repliSansVideo?: { retirees: PlaquetteRetireeV4[]; manques: string[]; elementsPrecedents: ElementV4Plan[]; fait?: boolean; essais?: number };
   rendu?: { cle: string; vignetteCle: string; dureeSec: number; taille: number };
+  /** GV2-04 : tours de suite sans réponse du service de montage (remis à 0 dès qu'il répond). */
+  muets?: { rendu?: number };
+  /** GV2-04 : début (ISO) de la panne du conteneur de transcription ou de repérage du visage (la file normale n'est jamais comptée). */
+  injoignableDepuis?: { transcription?: string; visage?: string };
   /** Lot R2 : plan de scènes (option éteinte par défaut), gardé pour ne pas rappeler l'IA à la reprise. Absent : option éteinte ou pas encore composé. */
   planScenes?: MemoPlanVideo;
 }
@@ -128,7 +132,11 @@ export interface OutilsChaineV4 {
 
 /** Un travail extérieur tourne encore : rien n'a changé, le même pas sera refait au passage suivant. */
 export class EnCoursChaineV4 extends Error {
-  constructor(public readonly quoi: string) {
+  /**
+   * `etat` : état à ENREGISTRER dans le travail (compteurs de panne ; GV2-04). `nature` : « muet » = le service de montage n'a pas répondu à cette
+   * interrogation ; « injoignable » = le conteneur est injoignable (à distinguer de la file normale, qui n'est jamais comptée).
+   */
+  constructor(public readonly quoi: string, public readonly etat?: EtatChaineV4, public readonly nature?: "muet" | "injoignable") {
     super(`${quoi} est en cours.`);
     this.name = "EnCoursChaineV4";
   }
@@ -325,14 +333,66 @@ export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes
 
 /** Prise trop courte ou muette : aucune vidéo (phrase pour Will). */
 
+/** GV2-04 : une panne du service de montage au-delà de ce nombre de tours muets de suite (un tour toutes les 5 s ≈ 5 min) arrête la chaîne. */
+export const TOURS_MUETS_MAX_V4 = 60;
+/** GV2-04 : un conteneur de transcription ou de repérage injoignable plus longtemps que cela arrête la chaîne (la file normale n'est jamais comptée). */
+export const INJOIGNABLE_MAX_MS_V4 = 30 * 60 * 1000;
+
+const sansInjoignable = (etat: EtatChaineV4, cle: "transcription" | "visage"): EtatChaineV4 => {
+  if (!etat.injoignableDepuis?.[cle]) return etat;
+  const reste = { ...etat.injoignableDepuis };
+  delete reste[cle];
+  const sans = { ...etat };
+  delete sans.injoignableDepuis;
+  return Object.keys(reste).length ? { ...sans, injoignableDepuis: reste } : sans;
+};
+
+/** Pose ou lit le début de la panne du conteneur ; 30 min : échec réessayable. Une réponse (même « en file » ou « en cours ») remet le compte à zéro. */
+async function attendreInjoignable<T>(etat: EtatChaineV4, cle: "transcription" | "visage", maintenant: number, phraseEchec: string, appel: () => Promise<T>): Promise<T> {
+  try {
+    return await appel();
+  } catch (err) {
+    if (!(err instanceof EnCoursChaineV4)) throw err;
+    if (err.nature !== "injoignable") {
+      if (etat.injoignableDepuis?.[cle]) throw new EnCoursChaineV4(err.quoi, sansInjoignable(etat, cle));
+      throw err;
+    }
+    const depuis = etat.injoignableDepuis?.[cle] ?? new Date(maintenant).toISOString();
+    if (maintenant - new Date(depuis).getTime() > INJOIGNABLE_MAX_MS_V4) throw new ErreurChaineV4(phraseEchec, true, undefined, sansInjoignable(etat, cle));
+    throw new EnCoursChaineV4(err.quoi, { ...etat, injoignableDepuis: { ...etat.injoignableDepuis, [cle]: depuis } }, "injoignable");
+  }
+}
+
+/** Compte les tours muets de suite du service de montage (hors de l'outil : l'état de la chaîne est ici). Une réponse remet le compte à zéro. */
+async function compterMuets<T>(etat: EtatChaineV4, appel: () => Promise<T>): Promise<T> {
+  try {
+    return await appel();
+  } catch (err) {
+    if (!(err instanceof EnCoursChaineV4)) throw err;
+    const avant = etat.muets?.rendu ?? 0;
+    if (err.nature !== "muet") {
+      if (avant > 0) throw new EnCoursChaineV4(err.quoi, { ...etat, muets: { ...etat.muets, rendu: 0 } });
+      throw err;
+    }
+    const n = avant + 1;
+    if (n > TOURS_MUETS_MAX_V4) throw new ErreurChaineV4("Le service de montage ne répond plus depuis 5 minutes.", true, undefined, { ...etat, muets: { ...etat.muets, rendu: 0 } });
+    throw new EnCoursChaineV4(err.quoi, { ...etat, muets: { ...etat.muets, rendu: n } }, "muet");
+  }
+}
+
+/** Phrase de l'alerte quand la version simple est livrée en dernier filet. */
+export const PHRASE_FILET_SIMPLE_V4 = "Mise en scène simple : aucune vidéo d'illustration fidèle n'a été trouvée.";
+
 /** UN pas de la chaîne. */
-export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4): Promise<EtatChaineV4> {
+export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4, essai?: number, maintenant: number = Date.now()): Promise<EtatChaineV4> {
+  // GV2-04 : « Réessayer » repart sur de NOUVEAUX identifiants (les services gardent un échec sous l'ancien). Premier essai : identifiants inchangés.
+  const suffixe = essai !== undefined && essai > 1 ? `-e${essai}` : "";
   switch (etat.etape) {
     case "transcription": {
-      const t = await outils.transcrire({ priseCle: etat.demande.priseCle, appelId: `fa4-mots-${etat.demande.versionId}` });
+      const t = await attendreInjoignable(etat, "transcription", maintenant, "L'outil de transcription ne répond plus depuis 30 minutes.", () => outils.transcrire({ priseCle: etat.demande.priseCle, appelId: `fa4-mots-${etat.demande.versionId}${suffixe}` }));
       if (!t.mots.length) throw new ErreurChaineV4("Je n'entends aucun mot dans cette vidéo : vérifiez le son de la prise, puis déposez-la à nouveau.", false);
       const dims = t.largeurSource && t.hauteurSource ? { largeur: t.largeurSource, hauteur: t.hauteurSource } : {};
-      return { ...etat, etape: "coupes", transcription: { mots: t.mots, dureeSec: t.dureeSec, ...dims } };
+      return { ...sansInjoignable(etat, "transcription"), etape: "coupes", transcription: { mots: t.mots, dureeSec: t.dureeSec, ...dims } };
     }
     case "coupes": {
       const t = etat.transcription;
@@ -345,7 +405,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         let visage: Awaited<ReturnType<NonNullable<OutilsChaineV4["reperer"]>>> = null;
         if (outils.reperer) {
           try {
-            visage = await outils.reperer({ priseCle: etat.demande.priseCle, appelId: `fa4-visage-${etat.demande.versionId}` });
+            visage = await attendreInjoignable(etat, "visage", maintenant, "L'outil de repérage du visage ne répond plus depuis 30 minutes.", () => (outils.reperer as NonNullable<OutilsChaineV4["reperer"]>)({ priseCle: etat.demande.priseCle, appelId: `fa4-visage-${etat.demande.versionId}${suffixe}` }));
           } catch (e) {
             if (e instanceof EnCoursChaineV4) throw e;
             visage = null; // repérage raté : colonne centrée (la vidéo est quand même fabriquée)
@@ -353,7 +413,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         }
         cadrage = recadrageVerticalV4({ largeur: t.largeur as number, hauteur: t.hauteur as number }, visage);
       }
-      return { ...etat, etape: "mise-en-scene", coupes, ...(cadrage ? { cadrage } : {}) };
+      return { ...sansInjoignable(etat, "visage"), etape: "mise-en-scene", coupes, ...(cadrage ? { cadrage } : {}) };
     }
     case "mise-en-scene": {
       const [plafondAtteint, historique] = await Promise.all([outils.plafondClaudeAtteint(), outils.historique?.() ?? Promise.resolve([])]);
@@ -366,12 +426,17 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         { appeler: outils.appelerRealisateur },
       );
       if (repli) {
-        // Repli : seule une version complète et rendable est acceptée (jamais la version simple, jamais un contrôle assoupli).
-        // Pas d'appel Claude (plafond atteint, panne) : phrase dédiée, ce n'est pas un échec des contrôles.
-        if (r.essais === 0 || r.phrase === MENTION_PLAFOND_FACECAM_ANIMEE) throw new ErreurChaineV4("Le plafond Claude de cette vidéo est atteint : la mise en scène sans vidéo n'a pas pu être refaite. Reprendre la relancera quand Claude sera de nouveau disponible.", true, undefined, etat);
-        if (r.phrase === PHRASE_REALISATEUR_PANNE) throw new ErreurChaineV4("Claude est indisponible : la mise en scène sans vidéo n'a pas pu être refaite. Reprendre la relancera dans un instant.", true, (r.erreurs ?? []).slice(0, 2).join(" | "), etat);
+        // Repli : une version complète et rendable est acceptée. Sinon (refus, plafond, panne) : DERNIER FILET (GV2-04), la version simple, sans appel
+        // Claude, livrée avec une alerte. Si elle ne passe pas non plus les contrôles, l'échec reste (phrase claire, état gardé à la mise en scène).
+        const filet = async (erreur: ErreurChaineV4): Promise<EtatChaineV4> => {
+          const s = await realiser(entree, {});
+          if (s.version !== "simple" || !s.rendable || !s.plan.elementsV4?.length || plaquettesSansVideo(s.plan).length) throw erreur;
+          return { ...etat, etape: "videos", repliSansVideo: { ...repli, fait: true, essais: r.essais }, realisation: { version: "simple", filetSimple: true, essais: (etat.realisation?.essais ?? 0) + r.essais, avertissements: s.avertissements.length, phrase: PHRASE_FILET_SIMPLE_V4, plan: s.plan } };
+        };
+        if (r.essais === 0 || r.phrase === MENTION_PLAFOND_FACECAM_ANIMEE) return filet(new ErreurChaineV4("Le plafond Claude de cette vidéo est atteint : la mise en scène sans vidéo n'a pas pu être refaite. Reprendre la relancera quand Claude sera de nouveau disponible.", true, undefined, etat));
+        if (r.phrase === PHRASE_REALISATEUR_PANNE) return filet(new ErreurChaineV4("Claude est indisponible : la mise en scène sans vidéo n'a pas pu être refaite. Reprendre la relancera dans un instant.", true, (r.erreurs ?? []).slice(0, 2).join(" | "), etat));
         if (r.version !== "complete" || !r.rendable || !r.plan.elementsV4?.length) {
-          throw new ErreurChaineV4(phraseRepliEchecV4(repli.retirees), true, (r.erreurs ?? []).slice(0, 5).join(" | "), etat);
+          return filet(new ErreurChaineV4(phraseRepliEchecV4(repli.retirees), true, (r.erreurs ?? []).slice(0, 5).join(" | "), etat));
         }
         return { ...etat, etape: "videos", repliSansVideo: { ...repli, fait: true, essais: r.essais }, realisation: { version: r.version, essais: (etat.realisation?.essais ?? 0) + r.essais, avertissements: r.avertissements.length, phrase: phraseRepliOkV4(repli.retirees), ...planCaleV4(r.plan, etat.coupes?.mots, outils.calageAuMot) } };
       }
@@ -450,8 +515,9 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         return { ...etat, planScenes: memo };
       }
       const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: etat.planScenes.plan } : etat.realisation.plan;
-      const rendu = await outils.rendre({ idRendu: `fa4-${etat.demande.versionId}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes: etat.coupes.gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}) });
-      return { ...etat, etape: "prete", rendu };
+      const gardes = etat.coupes.gardes;
+      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}) }));
+      return { ...etat, ...(etat.muets ? { muets: { ...etat.muets, rendu: 0 } } : {}), etape: "prete", rendu };
     }
     case "prete":
       return etat;

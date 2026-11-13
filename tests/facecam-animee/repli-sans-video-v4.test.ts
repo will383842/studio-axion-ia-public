@@ -142,8 +142,27 @@ describe("R4 · l'étape « mise-en-scene » en repli", () => {
     expect(videos).not.toHaveBeenCalled();
   });
 
-  it("version simple : blocage réessayable avec une phrase claire, état gardé à la mise en scène", async () => {
+  it("version simple (GV2-04, dernier filet) : la vidéo est prête avec la version simple et l'alerte « attention » ; plus de blocage", async () => {
     vi.mocked(realiser).mockResolvedValueOnce(resultatRealiser("simple"));
+    const { o, rendre } = outils({ appelerRealisateur: vi.fn() });
+    const apres = await avancerChaineV4(etatRepli(), o);
+    expect(apres.etape).toBe("videos");
+    expect(apres.repliSansVideo?.fait).toBe(true);
+    expect(apres.realisation).toMatchObject({ version: "simple", filetSimple: true });
+    expect(apres.realisation?.plan.elementsV4?.length).toBeGreaterThan(0);
+    let etat = await avancerChaineV4(apres, o);
+    expect(etat.etape).toBe("rendu");
+    etat = await avancerChaineV4(etat, o);
+    expect(etat.etape).toBe("prete");
+    expect(rendre).toHaveBeenCalledTimes(1);
+    const res = resultatV4(etat);
+    expect(res.noteQualite.alertes).toEqual([{ code: "defaut-visuel", gravite: "attention", message: "Mise en scène simple : aucune vidéo d'illustration fidèle n'a été trouvée." }]);
+    expect(res.sorties[0].rapportQualite.alertes).toEqual(res.noteQualite.alertes);
+  });
+
+  it("version simple qui ne passe pas les contrôles non plus : l'échec actuel reste (phrase claire, état gardé à la mise en scène)", async () => {
+    vi.mocked(realiser).mockResolvedValueOnce(resultatRealiser("simple"));
+    vi.mocked(realiser).mockResolvedValueOnce({ ...resultatRealiser("simple"), rendable: false });
     const { o } = outils({ appelerRealisateur: vi.fn() });
     const erreur = await avancerChaineV4(etatRepli(), o).catch((e) => e);
     expect(erreur).toBeInstanceOf(ErreurChaineV4);
@@ -180,8 +199,9 @@ describe("R6 · la phrase d'échec ne montre jamais le texte de Claude", () => {
     expect(erreur.message).toMatch(/12,3 s/);
   });
 
-  it("repli raté : même règle pour la phrase du repli", async () => {
+  it("repli raté (et dernier filet raté aussi) : même règle pour la phrase du repli", async () => {
     vi.mocked(realiser).mockResolvedValueOnce(resultatRealiser("simple"));
+    vi.mocked(realiser).mockResolvedValueOnce({ ...resultatRealiser("simple"), rendable: false });
     const etat = etatRepli({ retirees: [{ rang: 0, id: "AvantApres", debut: 12.34, fin: 15, raison: "x" }] });
     const erreur = await avancerChaineV4({ ...etat, realisation }, outils({ appelerRealisateur: vi.fn() }).o).catch((e) => e);
     expect(erreur).toBeInstanceOf(ErreurChaineV4);
@@ -206,8 +226,14 @@ describe("R7 · coût honnête du repli", () => {
 });
 
 describe("Repli · cas particuliers", () => {
-  it("plafond Claude atteint pendant le repli : phrase dédiée, pas « n'a pas passé les contrôles »", async () => {
-    vi.mocked(realiser).mockImplementationOnce(async (entree, dep) => (await vi.importActual<typeof import("@/moteurs/montage-facecam-animee/realisateur")>("@/moteurs/montage-facecam-animee/realisateur")).realiser(entree, dep));
+  it("plafond Claude atteint pendant le repli : la version simple est livrée (GV2-04) ; si elle échoue aussi, phrase dédiée, pas « n'a pas passé les contrôles »", async () => {
+    const reel = () => vi.importActual<typeof import("@/moteurs/montage-facecam-animee/realisateur")>("@/moteurs/montage-facecam-animee/realisateur");
+    vi.mocked(realiser).mockImplementationOnce(async (entree, dep) => (await reel()).realiser(entree, dep));
+    const livre = await avancerChaineV4(etatRepli(), outils({ appelerRealisateur: vi.fn(), plafondClaudeAtteint: async () => true }).o);
+    expect(livre.realisation).toMatchObject({ version: "simple", filetSimple: true });
+    expect(livre.etape).toBe("videos");
+    vi.mocked(realiser).mockImplementationOnce(async (entree, dep) => (await reel()).realiser(entree, dep));
+    vi.mocked(realiser).mockResolvedValueOnce({ ...resultatRealiser("simple"), rendable: false });
     const erreur = await avancerChaineV4(etatRepli(), outils({ appelerRealisateur: vi.fn(), plafondClaudeAtteint: async () => true }).o).catch((e) => e);
     expect(erreur).toBeInstanceOf(ErreurChaineV4);
     expect(erreur.message).toMatch(/plafond Claude/i);
@@ -215,9 +241,14 @@ describe("Repli · cas particuliers", () => {
     expect(erreur.etat.etape).toBe("mise-en-scene");
   });
 
-  it("Claude en panne pendant le repli : « Claude est indisponible »", async () => {
-    vi.mocked(realiser).mockImplementationOnce(async (entree, dep) => (await vi.importActual<typeof import("@/moteurs/montage-facecam-animee/realisateur")>("@/moteurs/montage-facecam-animee/realisateur")).realiser(entree, dep));
+  it("Claude en panne pendant le repli : la version simple est livrée (GV2-04) ; si elle échoue aussi, « Claude est indisponible »", async () => {
+    const reel = () => vi.importActual<typeof import("@/moteurs/montage-facecam-animee/realisateur")>("@/moteurs/montage-facecam-animee/realisateur");
     const appelerRealisateur = vi.fn(async () => ({ ok: false as const, message: "panne" }));
+    vi.mocked(realiser).mockImplementationOnce(async (entree, dep) => (await reel()).realiser(entree, dep));
+    const livre = await avancerChaineV4(etatRepli(), outils({ appelerRealisateur }).o);
+    expect(livre.realisation).toMatchObject({ version: "simple", filetSimple: true });
+    vi.mocked(realiser).mockImplementationOnce(async (entree, dep) => (await reel()).realiser(entree, dep));
+    vi.mocked(realiser).mockResolvedValueOnce({ ...resultatRealiser("simple"), rendable: false });
     const erreur = await avancerChaineV4(etatRepli(), outils({ appelerRealisateur }).o).catch((e) => e);
     expect(erreur).toBeInstanceOf(ErreurChaineV4);
     expect(erreur.message).toMatch(/Claude est indisponible/);
