@@ -6,8 +6,12 @@ import { fabriquerTableau } from "../../src/moteurs/montage-tableau/fabriquer";
 import { ficheDemonstration } from "./regles/exemples";
 import { doubles } from "./fabriquer/doubles";
 
-/** Clé de composition relevée sur le code d'avant GV-ST-09 (mêmes entrées : fiche de démonstration, doubles). */
-const CLE_D_AVANT = "ecf147efa64efeca2e1a9bc7672a6e21";
+/**
+ * Clé de composition SANS le marqueur de GV-ST-09, pour la fiche de démonstration et les doubles. Relevée de nouveau
+ * après GV2-16 : la voix des doubles finit juste après son dernier mot, son silence de fin est donc complété et la durée
+ * change. Une vidéo existante reprend sa voix du journal (même durée) et garde sa clé : seul ce jeu d'essai change.
+ */
+const CLE_D_AVANT = "3851db02f185592fd0af7c8241000452";
 
 const cleDe = (d: ReturnType<typeof doubles>) => d.journal.valeur!.etapes.composition!.empreinte;
 

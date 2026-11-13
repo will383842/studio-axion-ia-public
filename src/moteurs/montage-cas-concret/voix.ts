@@ -18,10 +18,11 @@ import { createHash } from "node:crypto";
 import { jsonCanonique } from "@/briques/fiche-scenes";
 import { avancerVoixMaitre, type EtatVoixMaitre, type OutilsVoixMaitre } from "@/briques/voix-maitre/machine";
 import type { ReglesNettoyage } from "@/briques/voix-maitre/nettoyage";
-import type { MotHorodate, ReglagesVoix } from "@/domaine/types";
+import type { CauseApproximation, MotHorodate, ReglagesVoix } from "@/domaine/types";
 import type { FaitCas } from "@/formats/cas-concret/cas";
 import { cleMot, motsDe } from "./fiche";
 import type { MorceauAssemblage, OutilsVoixCasConcret, PauseAMesurer } from "./outils";
+import { planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, type PlanRaccordVoix } from "./recette-voix";
 
 /** Règles de blancs du format (plan § 4-f, fabrication à la main de la vidéo 1). */
 export const REGLES_BLANCS_CAS_CONCRET: ReglesNettoyage = { seuilMs: 220, cibleMs: [120, 120], fonduMs: [10, 20], respirationMs: [150, 250], teteMaxMs: 100 };
@@ -75,6 +76,9 @@ export function coeurDuBlanc(deSec: number, aSec: number): PauseAMesurer {
 
 const PONCTUATION_FINALE = /[.,;:!?…]["»”)\s ]*$/;
 const aDesLettres = (m: string) => cleMot(m).length > 0;
+
+/** Mots d'hésitation que la voix peut écrire, lettres répétées comprises (« euuh », « hmmm ») ; formes sans accent ni majuscule, comme `cleMot`. */
+const HESITATION = /^(e+u+h+|h+e+u+h*|e+h+|h+u+m+|h+m+|h+e+m+|m{2,}h*|m+h+|a+h+|o+h+|b+e+n+|b+a+h+|b+o+f+)$/;
 
 interface MotDuTexte {
   mot: string;
@@ -148,17 +152,29 @@ export function pausesAMesurer(mots: readonly MotHorodate[], texte?: string): Pa
  * Contrôle PUR d'une prise : mots rendus ≠ mots du texte (casse, accents, ponctuation ignorés) → « mots » ; écart de plus
  * de 450 ms entre deux mots sans ponctuation → « traine » ; niveau au-dessus de −38 dB dans un blanc sans ponctuation de
  * plus de 300 ms (`niveauxPauses`, dans l'ordre de `pausesAMesurer`) → « son ». Le rejet nomme la phrase fautive.
+ * `accepterEcartDeMots` (éteint par défaut ; seul le format image → vidéo l'allume, son calage absorbe l'écart) : un mot
+ * découpé, fusionné ou écrit autrement n'est plus un rejet « mots » ; une hésitation écrite comme un mot (« euh ») en
+ * reste un, et les contrôles de blanc et de son restent entiers.
  */
-export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[]; niveauxPauses?: readonly number[] }): ControlePrise {
+export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[]; niveauxPauses?: readonly number[]; accepterEcartDeMots?: boolean }): ControlePrise {
   const { phrases, mots: attendus } = motsDuTexte(p.texte);
   const rendus = p.mots.filter((m) => aDesLettres(m.mot));
   const phraseDe = (i: number) => phrases[attendus[Math.min(i, attendus.length - 1)]?.phrase ?? 0] ?? p.texte.trim();
 
   const n = Math.max(attendus.length, rendus.length);
+  const tolerant = p.accepterEcartDeMots === true;
+  // Tolérant : le rang des mots rendus et celui des mots du texte ne se correspondent plus quand les nombres diffèrent.
+  const memesRangs = !tolerant || attendus.length === rendus.length;
+  const dansLeTexte = tolerant ? new Set(attendus.map((a) => cleMot(a.mot))) : undefined;
+  // Tolérant : un mot rendu redit juste après lui-même (« e-mail e-mail ») est un bégaiement, sauf si le texte le redit aussi.
+  const begaie = (i: number) => i > 0 && !!rendus[i] && cleMot(rendus[i].mot) === cleMot(rendus[i - 1].mot) && !attendus.some((a, k) => k > 0 && cleMot(a.mot) === cleMot(rendus[i].mot) && cleMot(attendus[k - 1].mot) === cleMot(a.mot));
   for (let i = 0; i < n; i++) {
     const a = attendus[i];
     const r = rendus[i];
     if (a && r && cleMot(a.mot) === cleMot(r.mot)) continue;
+    // Tolérant : seul un mot d'hésitation que le texte ne contient pas reste refusé (le contrôle des hésitations n'est pas assoupli).
+    if (tolerant && r && !(HESITATION.test(cleMot(r.mot)) && !dansLeTexte!.has(cleMot(r.mot))) && !begaie(i)) continue;
+    if (tolerant && !r) continue;
     const detail = !r ? `le mot « ${a.mot} » n'a pas été dit` : !a ? `le mot « ${r.mot} » est en trop` : `« ${r.mot} » a été dit au lieu de « ${a.mot} »`;
     return { rejet: "mots", phrase: phraseDe(i), detail };
   }
@@ -166,17 +182,19 @@ export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[];
   // Un long blanc hors ponctuation n'est refusé que s'il n'a pas été mesuré : mesuré silencieux, la recette le resserre
   // (0,10 s entre deux mots), exactement comme la voix de la v4 validée par Will ; mesuré bruyant, c'est le refus « son ».
   const pauses = pausesAMesurer(rendus, p.texte);
+  const ponctueApres = (i: number) => (memesRangs ? attendus[i].ponctue : PONCTUATION_FINALE.test(rendus[i].mot));
+  const motDe = (i: number) => (memesRangs ? attendus[i].mot : rendus[i].mot);
   const mesure = (i: number) => {
     const k = pauses.findIndex((x) => x.apresMot === i);
     return k < 0 ? undefined : p.niveauxPauses?.[k];
   };
   for (let i = 0; i + 1 < rendus.length; i++) {
     const ecart = ecartMs(rendus[i], rendus[i + 1]);
-    if (!attendus[i].ponctue && ecart > ECART_MAX_MS && mesure(i) === undefined) return { rejet: "traine", phrase: phraseDe(i), detail: `blanc de ${ecart} ms après « ${attendus[i].mot} »` };
+    if (!ponctueApres(i) && ecart > ECART_MAX_MS && mesure(i) === undefined) return { rejet: "traine", phrase: phraseDe(i), detail: `blanc de ${ecart} ms après « ${motDe(i)} »` };
   }
 
   // L0b : un sigle coupé en deux à l'intérieur d'un seul mot rendu (« li… A » pour « l'I.A. »).
-  for (let i = 0; i < rendus.length; i++) {
+  for (let i = 0; memesRangs && i < rendus.length; i++) {
     const lettres = lettresDuSigle(attendus[i].mot);
     if (!lettres) continue;
     const blanc = Math.round((rendus[i].finSec - rendus[i].debutSec) * 1000) - DUREE_LETTRE_SIGLE_MS * lettres;
@@ -188,7 +206,7 @@ export function controlerPrise(p: { texte: string; mots: readonly MotHorodate[];
     if (niveau !== undefined && niveau > NIVEAU_PAUSE_MAX_DB) {
       const i = pauses[k].apresMot;
       // Essais réels du 14/10 : un « blanc » à −17 dB entre deux mots est une hésitation (« euh ») que Will entend.
-      return { rejet: "son", phrase: phraseDe(i), detail: `hésitation ou souffle (${Math.round(niveau)} dB) après « ${attendus[i].mot} »` };
+      return { rejet: "son", phrase: phraseDe(i), detail: `hésitation ou souffle (${Math.round(niveau)} dB) après « ${motDe(i)} »` };
     }
   }
   return { ok: true };
@@ -215,7 +233,7 @@ export interface PriseVoix {
   empreinte: string;
   etat: EtatVoixMaitre;
   /** Son BRUT (avant nettoyage), gardé dès qu'il est rangé : c'est lui que le contrôle mesure. */
-  brut?: { fichierCle: string; dureeSec: number; mots: MotHorodate[] };
+  brut?: { fichierCle: string; dureeSec: number; mots: MotHorodate[]; approximatif?: CauseApproximation };
   controle?: ControlePrise;
   /** Lecture neuve du même texte (2ᵉ, 3ᵉ…) : le fournisseur ignore son cache. */
   essai?: number;
@@ -269,6 +287,8 @@ export type OutilsAvancerVoix = OutilsVoixCasConcret & {
   arretSiRefusIdentique?: boolean;
   /** 08/11/2026 : garder la dernière lecture du corps malgré un rejet (au lieu d'arrêter) ; la phrase est dans `rapportVoix().corpsGardeMalgreRejet`. */
   garderLaLectureSiRefus?: boolean;
+  /** Éteint par défaut (cas concret). Image → vidéo l'allume : un mot découpé, fusionné ou écrit autrement n'est plus refusé (son calage l'absorbe), donc moins de relectures ; les hésitations restent refusées. */
+  accepterEcartDeMots?: boolean;
   avantLecture?: (lecture: LectureAPayer) => void | Promise<void>;
 };
 
@@ -364,7 +384,7 @@ function outilsMaitre(o: OutilsAvancerVoix, prise: PriseVoix, nom: string): Outi
 /** Son brut d'un état de la voix maître, une fois rangé (copié, calé) : à partir de l'analyse. */
 function brutDe(e: EtatVoixMaitre): PriseVoix["brut"] | undefined {
   if (e.phase !== "a-analyser" && e.phase !== "analyse" && e.phase !== "nettoyage") return undefined;
-  return { fichierCle: e.brut.fichierCle, dureeSec: e.brut.dureeSec, mots: e.brut.mots };
+  return { fichierCle: e.brut.fichierCle, dureeSec: e.brut.dureeSec, mots: e.brut.mots, ...(e.brut.approximatif ? { approximatif: e.brut.approximatif } : {}) };
 }
 
 /**
@@ -385,13 +405,13 @@ async function tourDePrise(etat: EtatVoixCasConcret, prise: PriseVoix, nom: stri
     return { ...prise, etat: suivant, ...(brut ? { brut } : {}) };
   }
   const son = prise.brut ?? { fichierCle: prise.etat.audio.fichierCle, dureeSec: prise.etat.audio.dureeSec, mots: prise.etat.audio.mots };
-  let controle = controlerPrise({ texte: prise.texte, mots: son.mots });
+  let controle = controlerPrise({ texte: prise.texte, mots: son.mots, accepterEcartDeMots: o.accepterEcartDeMots });
   // Un long blanc (« traine ») est mesuré avant d'être jugé : silencieux, il est seulement resserré.
   if ("ok" in controle || controle.rejet === "traine") {
     const pauses = pausesAMesurer(son.mots, prise.texte);
     if (pauses.length) {
       const niveauxPauses = await o.mesurerPauses(son.fichierCle, pauses.map((x) => x.mesure));
-      controle = controlerPrise({ texte: prise.texte, mots: son.mots, niveauxPauses });
+      controle = controlerPrise({ texte: prise.texte, mots: son.mots, niveauxPauses, accepterEcartDeMots: o.accepterEcartDeMots });
     }
   }
   return { ...prise, controle };
@@ -542,6 +562,8 @@ export interface SonAssemble {
   fichierCle: string;
   dureeSec: number;
   mots: readonly MotHorodate[];
+  /** GV2-30 : les heures des mots sont une ESTIMATION (aligneur simulé ou en échec) : le son n'est pas resserré sur elles. */
+  approximatif?: CauseApproximation;
 }
 
 const arrondi = (x: number) => +x.toFixed(4);
@@ -570,4 +592,36 @@ export function motsApresAssemblage(corps: SonAssemble, fin: SonAssemble, tempo:
   const decalage = coupeDuCorps(corps);
   const place = (m: MotHorodate, d: number): MotHorodate => ({ ...m, debutSec: arrondi((m.debutSec + d) / tempo), finSec: arrondi((m.finSec + d) / tempo) });
   return [...corps.mots.map((m) => place(m, 0)), ...fin.mots.map((m) => place(m, decalage))];
+}
+
+/**
+ * GV2-30 : plan du raccord quand les heures des mots ne sont qu'une ESTIMATION : aucun resserrage (il couperait sur de
+ * fausses heures), le corps puis la fin gardés ENTIERS ; les mots sont étalés à parts égales sur la durée réelle de
+ * chaque son (sous-titres approximatifs). Le tempo final de la recette reste appliqué comme pour une voix normale.
+ */
+export function planSonEntier(corps: SonAssemble, fin: SonAssemble): PlanRaccordVoix {
+  const base = planRaccordVoix(corps, fin);
+  const k = RECETTE_VOIX_CAS_CONCRET.filtres.atempo;
+  const etaler = (mots: readonly MotHorodate[], deSec: number, dureeSec: number): MotHorodate[] => {
+    const pas = dureeSec / Math.max(1, mots.length);
+    return mots.map((m, i) => ({ ...m, debutSec: arrondi(deSec + i * pas), finSec: arrondi(deSec + (i + 1) * pas) }));
+  };
+  const dureeCorps = corps.dureeSec / k;
+  const dureeSec = arrondi((corps.dureeSec + fin.dureeSec) / k);
+  const fondu = Math.min(RECETTE_VOIX_CAS_CONCRET.fin.fonduSortieSec, dureeSec);
+  return {
+    ...base,
+    morceaux: [
+      { source: 0, debutSec: 0, finSec: arrondi(corps.dureeSec) },
+      { source: 1, debutSec: 0, finSec: arrondi(fin.dureeSec) },
+    ],
+    mots: [...etaler(corps.mots, 0, dureeCorps), ...etaler(fin.mots, dureeCorps, fin.dureeSec / k)],
+    motsCorps: corps.mots.length,
+    raccordSec: arrondi(dureeCorps),
+    dureeResserreeSec: arrondi(corps.dureeSec + fin.dureeSec),
+    dureeSec,
+    debutFonduSortieSec: arrondi(Math.max(0, dureeSec - fondu)),
+    fonduSortieSec: arrondi(fondu),
+    silenceFinSec: 0,
+  };
 }

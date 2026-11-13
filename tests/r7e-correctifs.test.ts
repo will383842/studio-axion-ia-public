@@ -75,7 +75,7 @@ describe("n° 2 — fond uni, deux angles : décodeur choisi selon le format ré
 
 describe("n° 3 — l'avatar qui parle est dit sur chaque feuille de lancement payante", async () => {
   const { BoutonSecondeOuverture, CarteFabriquerLesN, EtatFabricationVersion } = await import("@/components/generateur/FabricationReseaux");
-  const PHRASE = "Votre avatar parle dans ces vidéos : environ 1,20 €, à confirmer.";
+  const PHRASE = "Votre avatar parle dans ces vidéos, à confirmer.";
   const plan = {
     mere: { code: "0002-AV-FB", reseau: "facebook" as const, dureeSec: 50 },
     versions: [
@@ -91,8 +91,14 @@ describe("n° 3 — l'avatar qui parle est dit sur chaque feuille de lancement p
     expect(renderToStaticMarkup(createElement(CarteFabriquerLesN, { sujetId: "s1", plan: { ...plan, avatarParle: PHRASE } }))).toContain(PHRASE);
     expect(renderToStaticMarkup(createElement(CarteFabriquerLesN, { sujetId: "s1", plan }))).not.toContain("Votre avatar parle");
   });
+  it("une phrase serveur qui porterait encore un montant est masquée à l'écran", () => {
+    const brute = "Votre avatar parle dans ces vidéos : environ 1,20 \u20ac, à confirmer.";
+    const html = renderToStaticMarkup(createElement(CarteFabriquerLesN, { sujetId: "s1", plan: { ...plan, avatarParle: brute } }));
+    expect(html).toContain("Votre avatar parle dans ces vidéos");
+    expect(html).not.toMatch(/1,20|\u20ac/);
+  });
   it("ROUGE — « Fabriquer en entier » et « 2e ouverture » : la phrase est dite avant le bouton", () => {
-    const une = "Votre avatar parle dans cette vidéo : environ 0,60 €, à confirmer.";
+    const une = "Votre avatar parle dans cette vidéo, à confirmer.";
     expect(renderToStaticMarkup(createElement(EtatFabricationVersion, { sujetId: "s1", etat: { videoId: "x", attendMere: false, attendConfirmation: true, coutComplet: "1,10 €", avatarParle: une, points: [], enCours: false } }))).toContain(une);
     expect(renderToStaticMarkup(createElement(BoutonSecondeOuverture, { sujetId: "s1", varianteId: "v1", prix: "1,10 €", avatarParle: une }))).toContain(une);
   });

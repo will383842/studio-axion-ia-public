@@ -29,6 +29,8 @@ ROUTES_FACECAM = ("transcrire", "visages", "image", "son", "segmenter")
 IDENT_VALIDE = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
 DOSSIER_PAR_DEFAUT = "/tmp/studio-aligneur-travaux"
 DUREE_GARDE_SEC = 24 * 3600
+# Durée maximale d'un travail lourd (60 min) : au-delà, échec réessayable et verrou rendu aux travaux suivants.
+DELAI_TRAVAIL_SEC = 60 * 60
 
 # executer(demande, dossier_du_travail, progression) → résultat (dict : clés R2 et mesures, jamais de données lourdes).
 Executant = Callable[[dict, str, Callable[[int], None]], dict]
@@ -52,8 +54,9 @@ def verifier_demande_facecam(d: Any) -> str | None:
 class TravauxFacecam:
     """Travaux sur disque, un fil de calcul : en_file → en_cours → termine | echec. Idempotent par (route, id)."""
 
-    def __init__(self, dossier: str = DOSSIER_PAR_DEFAUT, executants: dict[str, Executant] | None = None, horloge: Callable[[], float] = time.time, verrou_lourd: threading.Lock | None = None):
+    def __init__(self, dossier: str = DOSSIER_PAR_DEFAUT, executants: dict[str, Executant] | None = None, horloge: Callable[[], float] = time.time, verrou_lourd: threading.Lock | None = None, delai_travail: float = DELAI_TRAVAIL_SEC):
         self._dossier = dossier
+        self._delai_travail = delai_travail
         self._executants = dict(executants or {})
         self._horloge = horloge
         self._verrou = threading.Lock()
@@ -118,7 +121,9 @@ class TravauxFacecam:
             return 501, non_implemente(route)
         ident = demande["idTravail"]
         with self._verrou:
-            if self._lire(route, ident) is not None:
+            ancien = self._lire(route, ident)
+            # Un identifiant en échec peut être resoumis (l'ancien état est écrasé) ; en cours ou terminé : inchangé.
+            if ancien is not None and ancien.get("statut") != "echec":
                 return 202, {"idTravail": ident, "nouveau": False}
             self._ecrire(route, ident, {"statut": "en_file", "demande": demande})
         self._attente.put((route, demande))
@@ -136,18 +141,49 @@ class TravauxFacecam:
             ident = demande["idTravail"]
             dossier = self._chemin(route, ident)
 
-            def progression(p: int, route: str = route, ident: str = ident, demande: dict = demande) -> None:
-                self._ecrire(route, ident, {"statut": "en_cours", "progression": max(0, min(99, int(p))), "demande": demande})
+            abandonne = threading.Event()
+
+            def progression(p: int, route: str = route, ident: str = ident, demande: dict = demande, abandonne: threading.Event = abandonne) -> None:
+                if not abandonne.is_set():
+                    self._ecrire(route, ident, {"statut": "en_cours", "progression": max(0, min(99, int(p))), "demande": demande})
 
             try:
                 self.purger_anciens()
             except OSError:
                 pass
             progression(1)
+            boite: dict = {}
+            rendu = threading.Event()
+            garde = threading.Lock()
+            self._lourd.acquire()
+
+            def liberer(rendu: threading.Event = rendu, garde: threading.Lock = garde) -> None:
+                with garde:
+                    if not rendu.is_set():
+                        rendu.set()
+                        self._lourd.release()
+
+            def travail(route: str = route, demande: dict = demande, dossier: str = dossier, boite: dict = boite, progression: Callable[[int], None] = progression, abandonne: threading.Event = abandonne) -> None:
+                try:
+                    boite["resultat"] = self._executants[route](demande, dossier, progression)
+                except BaseException as e:  # noqa: BLE001 — rendue à la boucle, qui la type
+                    boite["panne"] = e
+                finally:
+                    liberer()
+
+            fil = threading.Thread(target=travail, daemon=True, name=f"travail-{route}-{ident[:40]}")
+            fil.start()
+            fil.join(self._delai_travail)
             try:
-                with self._lourd:
-                    resultat = self._executants[route](demande, dossier, progression)
-                self._ecrire(route, ident, {"statut": "termine", "resultat": resultat})
+                if fil.is_alive():
+                    abandonne.set()
+                    liberer()
+                    print(f"travail abandonné après {int(self._delai_travail)} s : {route}/{ident}", flush=True)
+                    self._ecrire(route, ident, {"statut": "echec", "erreur": {"code": "indisponible", "reessayable": True, "message": "Le calcul n'a pas abouti dans le temps imparti."}})
+                elif "panne" in boite:
+                    raise boite["panne"]
+                else:
+                    self._ecrire(route, ident, {"statut": "termine", "resultat": boite.get("resultat")})
             except MemoryError:
                 self._ecrire(route, ident, {"statut": "echec", "erreur": {"code": "indisponible", "reessayable": True, "message": "Mémoire insuffisante."}})
             except ErreurTravail as e:

@@ -50,7 +50,8 @@ export function etapesSelonChaine(etapes: EtapeTravail[], etat: EtatChaine): Eta
   const compo = hab?.composition?.["9:16"];
   const progressionCompo = compo?.phase === "faite" ? 100 : (compo as { progression?: number } | undefined)?.progression ?? 0;
   const parCle: Record<string, { statut: Statut; progression: number }> = {
-    reception: fait,
+    // Aucune vidéo reçue : l'échec « transcrire » se voit sur la première étape (sinon le travail resterait « en cours »).
+    reception: etat.echec?.brique === "transcrire" ? { statut: "echec", progression: 50 } : fait,
     coupes: etat.coupes ? fait : statutTravail(etat, "transcrire").statut === "en_attente" ? { statut: "en_attente", progression: 0 } : enCours(statutTravail(etat, "transcrire").progression),
     son: etat.echec?.brique === "son" ? { statut: "echec", progression: 50 } : statutTravail(etat, "son"),
     etalonnage: sautee("passe") || etat.travaux.passe?.statut === "termine" ? fait : etat.travaux.passe ? statutTravail(etat, "passe") : etat.travaux.visages ? enCours(Math.round(statutTravail(etat, "visages").progression / 3)) : { statut: "en_attente", progression: 0 },
@@ -68,7 +69,7 @@ export function etapesSelonChaine(etapes: EtapeTravail[], etat: EtatChaine): Eta
     if (!s) return e;
     const erreur =
       s.statut === "echec"
-        ? { code: "FACECAM_ECHEC", reessayable: etat.echec?.reessayable ?? true, messagePourWill: e.cle === "export" && etat.echec?.brique === "export" ? etat.echec.message : `${e.nom} n'a pas abouti. Vous pouvez réessayer.`, detailTechnique: etat.echec?.message ?? `Échec de l'étape « ${e.cle} ».` }
+        ? { code: "FACECAM_ECHEC", reessayable: etat.echec?.reessayable ?? true, messagePourWill: (e.cle === "export" && etat.echec?.brique === "export") || (e.cle === "reception" && etat.echec?.brique === "transcrire") ? etat.echec!.message : `${e.nom} n'a pas abouti. Vous pouvez réessayer.`, detailTechnique: etat.echec?.message ?? `Échec de l'étape « ${e.cle} ».` }
         : undefined;
     return { ...e, statut: s.statut, progression: s.progression, erreur, ...(s.statut === "terminee" ? { coutReel: ZERO } : {}) };
   });

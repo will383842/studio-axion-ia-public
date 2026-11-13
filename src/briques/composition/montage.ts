@@ -150,6 +150,7 @@ export async function demandeComposition(c: CommandeFabrication, ratio: Ratio, b
       son: { lufs: p.son.lufs, toleranceLufs: p.son.toleranceLufs, creteVraieMaxDbtp: p.son.creteVraieMaxDbtp, pauses: p.son.pauses },
       depots: { vignette: { urlDepot: signees.depots[vignetteCle], cle: vignetteCle }, ...(mode === "remixage" ? { master: { urlDepot: signees.depots[masterCle], cle: masterCle } } : {}) },
       ...(mode === "remixage" ? { remixage: { son: p.son } } : {}),
+      ...(mode === "remixage" && p.image.fonduFinSec ? { fonduFinSec: p.image.fonduFinSec } : {}),
     };
   }
   const demande: DemandeRendu = {

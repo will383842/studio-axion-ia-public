@@ -45,8 +45,8 @@ export const STRUCTURES_TABLEAU_ANIME: StructureRecette[] = [
 export const formatTableauAnime: DefinitionFormat = {
   id: "tableau-anime",
   version: 1,
-  nom: "Tableau animé",
-  nomCourt: "Tableau animé",
+  nom: "L'erreur corrigée",
+  nomCourt: "L'erreur corrigée",
   accroche: "Votre idée écrite et dessinée au trait",
   description: "Une voix, un tableau où le texte s'écrit et se dessine sous vos yeux. Aucun visage.",
   icone: "pinceau",
