@@ -413,6 +413,10 @@ export function deciderCommentaire(
     const dernier = [...D].sort(
       (a, b) => (dateLue(a.etat.creeLe) ?? 0) - (dateLue(b.etat.creeLe) ?? 0),
     )[D.length - 1];
+    // Une cible non vide dont TOUTES les dates sont illisibles (hors `m1_refuse`, qui n'a pas de date d'envoi par nature) : un message
+    // est peut-être déjà parti, date inconnue. Jamais un premier envoi (échec fermé).
+    if (D.some((x) => x.etat.etat !== "m1_refuse"))
+      return { action: "public_seul", raison: "deja_envoye" };
     const refus =
       dernier.etat.etat === "m1_refuse"
         ? dateLue(dernier.etat.refuseLe ?? dernier.etat.creeLe)

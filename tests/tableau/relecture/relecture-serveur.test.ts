@@ -282,7 +282,8 @@ describe("l'écran : le même « Relire le script » avant le découpage et avan
     expect(html.match(/aria-label="Relire le script"/g)).toHaveLength(1);
     expect(html.match(/aria-label="Modifier la phrase \d+"/g)).toHaveLength(f.scenes.length);
     expect(vu).toContain(`Page ${f.scenes[0].page}`);
-    expect(vu).toContain("Fabriquer la vidéo");
+    // Libellé unique « Fabriquer » : maquette M3 et décision du fondateur du 12/11.
+    expect(html).toMatch(/>\s*Fabriquer\s*</);
     expect(vu).not.toMatch(/€/);
     expect(vu).toContain("Autres corrections");
     expect(vu).not.toContain("Découper en scènes");
