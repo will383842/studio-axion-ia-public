@@ -81,6 +81,8 @@ interface EtatProcessus {
   dernierPassageMs: number | null;
   pauseJusquaMs: number;
   reponsesIllisibles: number;
+  /** Part des réponses illisibles déjà couverte par une alerte (un nombre seulement). */
+  reponsesIllisiblesAlertees: number;
 }
 /** Mémoire de processus, propre à chaque processus (un redémarrage repart de zéro). */
 const processus = (): EtatProcessus => {
@@ -90,6 +92,7 @@ const processus = (): EtatProcessus => {
     dernierPassageMs: null,
     pauseJusquaMs: 0,
     reponsesIllisibles: 0,
+    reponsesIllisiblesAlertees: 0,
   });
 };
 /** Remet à zéro l'état en mémoire (essais). */
@@ -100,12 +103,14 @@ export function reinitialiserImportOppositionsSite(): void {
 
 const estObjet = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
-const lireAlerteLe = (brut: unknown): number | null =>
-  estObjet(brut) &&
-  typeof brut.alerteLe === "number" &&
-  Number.isFinite(brut.alerteLe)
-    ? brut.alerteLe
-    : null;
+type CreneauAlerte = "alerteLe" | "alerteDebordementLe";
+const lireAlerteLe = (brut: unknown, champ: CreneauAlerte = "alerteLe"): number | null => {
+  const v = estObjet(brut) ? brut[champ] : undefined;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+};
+
+/** Le créneau du débordement n'est écrit que s'il existe (la forme du paramètre reste inchangée tant qu'aucun débordement n'a été signalé). */
+const creneauDebordement = (v: number | null): { alerteDebordementLe?: number } => (v === null ? {} : { alerteDebordementLe: v });
 
 /** Réponses 200 du site refusées par la lecture stricte, depuis le démarrage du processus (un nombre seulement). */
 export const reponsesIllisiblesSite = (): number => processus().reponsesIllisibles;
@@ -171,11 +176,12 @@ async function alerter(
   message: string,
   titre: string,
   now: number,
+  champ: CreneauAlerte = "alerteLe",
 ): Promise<boolean> {
   try {
     const marquee = await sousVerrou(async () => {
       const brut = await lireParametre<unknown>(PARAM_OPPOSITIONS_SITE, null);
-      const dernier = lireAlerteLe(brut);
+      const dernier = lireAlerteLe(brut, champ);
       if (
         dernier !== null &&
         now - dernier >= 0 &&
@@ -185,7 +191,8 @@ async function alerter(
       await ecrireParametre(PARAM_OPPOSITIONS_SITE, {
         v: 1,
         verifs: lireVerifs(brut),
-        alerteLe: now,
+        alerteLe: champ === "alerteLe" ? now : lireAlerteLe(brut),
+        ...creneauDebordement(champ === "alerteDebordementLe" ? now : lireAlerteLe(brut, "alerteDebordementLe")),
       });
       return true;
     });
@@ -217,6 +224,7 @@ const alerteDebordement = (nombre: number, now: number): Promise<boolean> =>
     `Trop de vérifications d'oppositions du site en attente : ${nombre} demande(s) ont été abandonnées. Les personnes concernées attendent (rien ne leur est envoyé) et seront revérifiées à leur prochain essai.`,
     "Demandes de vérification du site en débordement",
     now,
+    "alerteDebordementLe", // créneau propre : une alerte « échec » répétée ne la masque pas
   );
 const alerteSansConversation = (nombre: number, now: number): Promise<boolean> =>
   alerter(
@@ -226,7 +234,7 @@ const alerteSansConversation = (nombre: number, now: number): Promise<boolean> =
   );
 const alerteIllisibles = (nombre: number, now: number): Promise<boolean> =>
   alerter(
-    `Des références de lien illisibles bloquent des personnes : ${nombre} cas depuis la dernière alerte. Rien ne leur est envoyé.`,
+    `Des références de lien ou des réponses du site illisibles bloquent des personnes : ${nombre} cas depuis la dernière alerte. Rien ne leur est envoyé.`,
     "Références de lien illisibles",
     now,
   );
@@ -336,9 +344,13 @@ async function passage(env: Env, now: number, p: EtatProcessus): Promise<void> {
     throw e;
   }
   demanderVerificationSite(restantes); // tout ce qui n'a pas reçu de preuve reste demandé
-  const illisibles = refsIllisiblesSite();
-  if (illisibles > 0 && (await alerteIllisibles(illisibles, now)))
+  const refsIllisibles = refsIllisiblesSite();
+  const reponsesIllisibles = processus().reponsesIllisibles;
+  const illisibles = refsIllisibles + Math.max(0, reponsesIllisibles - processus().reponsesIllisiblesAlertees);
+  if (illisibles > 0 && (await alerteIllisibles(illisibles, now))) {
     acquitterRefsIllisiblesSite();
+    processus().reponsesIllisiblesAlertees = reponsesIllisibles;
+  }
   const abandonnees = debordementsSite();
   if (abandonnees > 0 && (await alerteDebordement(abandonnees, now)))
     acquitterDebordementsSite();
@@ -400,6 +412,7 @@ async function enregistrerLot(
         v: 1,
         verifs: Object.fromEntries(gardees),
         alerteLe: lireAlerteLe(brut),
+        ...creneauDebordement(lireAlerteLe(brut, "alerteDebordementLe")),
       });
     });
     for (const r of nonOpposees) restantes.delete(r);
