@@ -142,6 +142,12 @@ async function noterFaitDeFin(travailId: string, fait: "depense" | "produits", a
   if (t?.finAAppliquer && !t.finAAppliquer.faits.includes(fait)) await depots().travaux.enregistrer({ ...t, finAAppliquer: { ...t.finAAppliquer, faits: [...t.finAAppliquer.faits, fait], ...(ajout ? { ajout } : {}) } });
 }
 
+/** GV2-38 : ce que la dépense de fin ajoute au coût de la vidéo, noté AVANT la dépense (un arrêt juste après ne le perd pas). */
+async function noterAjoutDeFin(travailId: string, ajout: Montant): Promise<void> {
+  const t = await depots().travaux.obtenir(travailId);
+  if (t?.finAAppliquer && !t.finAAppliquer.ajout) await depots().travaux.enregistrer({ ...t, finAAppliquer: { ...t.finAAppliquer, ajout } });
+}
+
 async function retirerNoteDeFin(travailId: string): Promise<void> {
   const t = await depots().travaux.obtenir(travailId);
   if (t?.finAAppliquer) await depots().travaux.enregistrer({ ...t, finAAppliquer: undefined });
@@ -190,15 +196,17 @@ async function appliquerResultat(travail: Travail, resultat: ResultatFabrication
   const depensesDuTravail = await d.depenses.lister((x) => x.travailId === travail.id);
   const deja = depensesDuTravail.flatMap((x) => x.lignes);
   const restantes = lignesRestantes(resultat.lignesReelles, deja);
-  let ajout: Montant = additionner(...restantes.map((l) => l.total));
-  // GV2-38 : au rejeu avec la dépense déjà écrite, le coût de la vidéo n'a pas encore été ajouté tant que la version
-  // n'est pas « prête » (il est écrit avec elle) : on ajoute alors ce que la dépense de fin avait ajouté (gardé dans la
-  // note). Format ajouté : jamais de double.
-  if (rejeu && faits.includes("depense") && travail.type !== "reexport" && (await d.versions.obtenir(travail.versionId))?.statut !== "prete") ajout = (await d.travaux.obtenir(travail.id))?.finAAppliquer?.ajout ?? ajout;
+  const ajoutDepense: Montant = additionner(...restantes.map((l) => l.total));
+  let ajout: Montant = ajoutDepense;
+  // GV2-38 : au rejeu, tant que la vidéo n'est pas « prête » (son coût est écrit avec ce statut), on ajoute ce que la
+  // dépense de fin avait ajouté, noté AVANT la dépense (un arrêt entre la dépense et la note ne le perd pas). Format ajouté :
+  // jamais de double.
+  if (rejeu && travail.type !== "reexport" && video.statut !== "prete") ajout = (await d.travaux.obtenir(travail.id))?.finAAppliquer?.ajout ?? ajout;
   // GV2-38 : au rejeu, une dépense VIDE déjà écrite compte comme une dépense (jamais une seconde).
   const aucuneDepense = rejeu ? !depensesDuTravail.length : !deja.length;
   if (!(rejeu && faits.includes("depense"))) {
-    if (restantes.length || aucuneDepense) await d.depenses.enregistrer({ id: nouvelId("dep"), videoId: video.id, travailId: travail.id, lignes: restantes, total: ajout, date: maintenant(), ...horodatage(), estDemo: video.estDemo });
+    await noterAjoutDeFin(travail.id, ajout);
+    if (restantes.length || aucuneDepense) await d.depenses.enregistrer({ id: nouvelId("dep"), videoId: video.id, travailId: travail.id, lignes: restantes, total: ajoutDepense, date: maintenant(), ...horodatage(), estDemo: video.estDemo });
     // Lot « crédits » : le coût réel remplace la réservation.
     await libererReservation(travail.id, "consommee");
     await noterFaitDeFin(travail.id, "depense", ajout);
