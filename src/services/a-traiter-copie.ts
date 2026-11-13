@@ -137,21 +137,22 @@ export async function copierMessageCarte(id: string, o: OptionsCopie = {}): Prom
     }
     if (lien === null || !formeLienPageGuide(lien) || !GROUPES_MP[GROUPE_M1_LIEN].includes(choix.version)) return refus(P_LIEN);
 
-    // 5) sous verrou, AVANT de rendre le texte : date de copie sur la carte et dans le cumul (le plafond est relu sous verrou)
+    // 5) AVANT de rendre le texte : le cumul des dates est écrit sous le verrou général, SANS aucun appel au dépôt à l'intérieur
+    // (le dépôt reprend ce même verrou, qui n'est pas réentrant) ; la date sur la carte s'écrit ensuite, hors de ce verrou.
     const date = new Date(maintenantMs).toISOString();
-    const ecrit = await sousVerrou(async () => {
+    const noté = await sousVerrou(async () => {
       if (!decisionCopie(await dejaFaites(), maintenantMs).ok) return false;
-      const cartes = await depot.lire();
-      const courante = cartes.find((c) => c.idEvenement === id);
-      if (!courante || courante.statut !== "a_traiter" || courante.opposee) return false;
       const table = await lireParametre<Record<string, unknown>>(PARAM_COPIES_A_TRAITER, {});
       const suite: Record<string, unknown> = { ...table };
       for (const e of empreintes) suite[e] = [...(Array.isArray(table[e]) ? (table[e] as unknown[]) : []), date];
       await ecrireParametre(PARAM_COPIES_A_TRAITER, suite);
-      await depot.ecrire(cartes.map((c) => (c.idEvenement === id ? { ...c, copieLe: date } : c)));
       return true;
     });
-    if (!ecrit) return refus(P_PLAFOND);
+    if (!noté) return refus(P_PLAFOND);
+    const cartes = await depot.lire();
+    const courante = cartes.find((c) => c.idEvenement === id);
+    if (!courante || courante.statut !== "a_traiter" || courante.opposee) return refus(P_STOP);
+    await depot.ecrire(cartes.map((c) => (c.idEvenement === id ? { ...c, copieLe: date } : c)));
 
     // Rendu du texte (après l'écriture de la date)
     const texte = rendreTexteMp(choix.version, { mot, titre, lien });
