@@ -8,7 +8,7 @@ import { largeurMot, motsInsecables } from "../../../../../src/briques/visuels/l
 
 /** Ce dont la mise en page a besoin d'un bloc et d'un spec (structurel : le spec zod d'infographie y satisfait, et les paramètres restent typés même si le module du schéma n'est pas résolu). */
 interface BlocMisEnPage { readonly titre: string; readonly texte: string; readonly valeur?: string }
-interface SpecMisEnPage { readonly titre: string; readonly blocs: readonly BlocMisEnPage[] }
+export interface SpecMisEnPage { readonly titre: string; readonly blocs: readonly BlocMisEnPage[] }
 
 export type Gabarit = "chiffres-cles" | "etapes" | "comparaison";
 export type RatioInfographie = "1:1" | "9:16";
