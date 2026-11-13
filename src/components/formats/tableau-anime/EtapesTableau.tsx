@@ -72,7 +72,7 @@ export function EtapesTableau({
               <Icone nom="coche" size={14} className="mr-1.5 inline text-sauge" />
               {f.libelle} : prête
             </span>
-            <a href={f.url} download className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-orange-vif hover:underline">
+            <a href={f.url} download className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-accent hover:underline">
               Télécharger
             </a>
           </p>

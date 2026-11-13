@@ -16,7 +16,7 @@ import { PrevenirTelephone } from "@/components/fabrication/PrevenirTelephone";
 import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
-import { confirmerPrix } from "@/components/ui/ConfirmationPrix";
+import { confirmerPrix, messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { Pastille } from "@/components/ui/Pastille";
 import { notifier } from "@/components/ui/Toast";
 import type { CarteVideoLotIV, VueLotIV } from "@/services/image-video-lot";
@@ -56,8 +56,8 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
     setOccupe(true);
     try {
       const r = await f();
-      if (!r.ok) notifier.erreur(r.message ?? "Le studio ne répond pas. Réessayez.");
-      else if (r.donnees && typeof r.donnees === "object" && "phrase" in r.donnees) notifier.info(String((r.donnees as { phrase: unknown }).phrase));
+      if (!r.ok) notifier.erreur(messageSansMontant(r.message ?? "Le studio ne répond pas. Réessayez."));
+      else if (r.donnees && typeof r.donnees === "object" && "phrase" in r.donnees) notifier.info(messageSansMontant(String((r.donnees as { phrase: unknown }).phrase)));
       router.refresh();
     } finally {
       setOccupe(false);
@@ -76,9 +76,9 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
     setOccupe(true);
     try {
       const r = await refaireVideoDuLotAction(vue.id, c.rang, accord);
-      if (!r.ok) return void notifier.erreur(r.message);
+      if (!r.ok) return void notifier.erreur(messageSansMontant(r.message));
       if (r.donnees.statut === "lancee") return void router.push(`/image-video/${r.donnees.videoId}`);
-      notifier.erreur(r.donnees.statut === "refusee" ? r.donnees.phrase : "Recommencez dans un instant.");
+      notifier.erreur(r.donnees.statut === "refusee" ? messageSansMontant(r.donnees.phrase) : "Recommencez dans un instant.");
     } finally {
       setOccupe(false);
     }
@@ -126,7 +126,7 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="truncate text-[15px] font-semibold text-texte">{c.nom}</p>
                     <Pastille ton={c.pastille.ton}>{c.pastille.libelle}</Pastille>
-                    {c.motif && <p className="text-sm text-texte-doux">{c.motif}</p>}
+                    {c.motif && <p className="text-sm text-texte-doux">{messageSansMontant(c.motif)}</p>}
                   </div>
                   <div className="flex gap-2">
                     {c.voir && (
@@ -160,12 +160,12 @@ export function SuiviLot({ vue }: { vue: VueLotIV }) {
                   </Pastille>
                 </div>
                 {c.voir && c.statut === "faite" && (
-                  <Link href={c.voir} className="text-sm font-semibold text-orange-vif">
+                  <Link href={c.voir} className="text-sm font-semibold text-accent">
                     Voir
                   </Link>
                 )}
                 {c.nouvelle && (
-                  <Link href={c.nouvelle} className="text-sm font-semibold text-orange-vif">
+                  <Link href={c.nouvelle} className="text-sm font-semibold text-accent">
                     Voir la nouvelle
                   </Link>
                 )}

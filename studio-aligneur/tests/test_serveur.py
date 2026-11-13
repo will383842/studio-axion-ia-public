@@ -155,7 +155,8 @@ class TestDelaiCalcul(unittest.TestCase):
             f.soumettre({**DEMANDE, "idAlignement": "suivant-2", "texte": "suivant"})
             r = attendre(f, "fige-1", "echec")
             self.assertEqual(r["erreur"]["code"], "indisponible")
-            self.assertFalse(r["erreur"]["reessayable"])
+            # GV2-11 : le PREMIER abandon d'un identifiant est réessayable (avant : toujours non réessayable).
+            self.assertTrue(r["erreur"]["reessayable"])
             # La file est libérée : la demande suivante est calculée malgré le calcul figé.
             attendre(f, "suivant-2", "termine")
             self.assertFalse(f.en_bonne_sante())
@@ -176,6 +177,39 @@ class TestDelaiCalcul(unittest.TestCase):
             lacher.set()
             serveur.shutdown()
             serveur.server_close()
+
+    def test_echec_resoumis_puis_second_abandon_non_reessayable(self):
+        """GV2-11 : un identifiant en échec est accepté de nouveau ; le second abandon n'est plus réessayable."""
+        lacher = threading.Event()
+
+        def calculer(son, texte, reference):
+            if "fige" in texte:
+                lacher.wait(10)
+            return {"mots": [], "motsNonAlignes": 0, "modele": "essai", "dureeCalculSec": 0.0}
+
+        e = Essai()
+        f = FileAlignement(calculer, e.lire_son, delai_calcul=0.2)
+        try:
+            demande = {**DEMANDE, "idAlignement": "fige-9", "texte": "fige"}
+            self.assertTrue(f.soumettre(demande))
+            self.assertTrue(attendre(f, "fige-9", "echec")["erreur"]["reessayable"])
+            self.assertTrue(f.soumettre(demande), "un échec doit pouvoir être resoumis")
+            self.assertFalse(self._second(f))
+            # Un identifiant terminé reste refusé.
+            self.assertTrue(f.soumettre({**DEMANDE, "idAlignement": "ok-9", "texte": "ok"}))
+            attendre(f, "ok-9", "termine")
+            self.assertFalse(f.soumettre({**DEMANDE, "idAlignement": "ok-9", "texte": "ok"}))
+        finally:
+            lacher.set()
+
+    def _second(self, f):
+        fin = time.time() + 5
+        while time.time() < fin:
+            e = f.etat("fige-9")
+            if e and e["statut"] == "echec":
+                return e["erreur"]["reessayable"]
+            time.sleep(0.01)
+        raise AssertionError("second abandon jamais vu")
 
 
 if __name__ == "__main__":

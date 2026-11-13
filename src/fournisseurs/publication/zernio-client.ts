@@ -91,6 +91,7 @@ export type RouteZernio =
   | "promouvoir-post"
   | "remplacer-medias"
   | "analytics"
+  | "suivi-instagram"
   | RouteInboxZernio;
 
 export interface ReponseZernio<T = unknown> {
@@ -244,6 +245,8 @@ export interface ClientZernio {
   organisationsLinkedin(accountId: string): Promise<OrganisationLinkedinZernio[]>;
   infoCreateurTiktok(accountId: string): Promise<Record<string, unknown>>;
   limitePublicationInstagram(accountId: string): Promise<Record<string, unknown>>;
+  /** Lecture seule : cette personne suit-elle le compte ? `null` = inconnu. Ne rend jamais ni nom ni pseudo. */
+  suiviInstagram(accountId: string, idUtilisateur: string): Promise<{ suit: boolean | null }>;
   preparerTeleversement(d: { filename: string; contentType: string; size?: number }): Promise<TeleversementPrepareZernio>;
   televerser(d: { uploadUrl: string; corps: CorpsBinaire; contentType: string; contentLength: number }): Promise<void>;
   creerPost(corps: CorpsPostZernio, idempotence: string): Promise<ResultatCreationZernio>;
@@ -305,6 +308,7 @@ const ROUTES: readonly { methode: MethodeHttp; motif: RegExp; route: RouteZernio
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/linkedin-organizations$`), route: "organisations-linkedin" },
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/tiktok/creator-info$`), route: "createur-tiktok" },
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/instagram/publishing-limit$`), route: "limite-instagram" },
+  { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/follow-status/${SEGMENT_ID}$`), route: "suivi-instagram" },
   { methode: "POST", motif: /^\/v1\/media\/presign$/, route: "presign" },
   { methode: "POST", motif: /^\/v1\/posts$/, route: "creer-post" },
   { methode: "GET", motif: /^\/v1\/posts$/, route: "lister-posts" },
@@ -326,6 +330,9 @@ const ROUTES_IDEMPOTENCE_INBOX: ReadonlySet<RouteZernio> = new Set<RouteZernio>(
 const ENTETES_API_PERMIS = new Set(["x-request-id"]);
 /** En-têtes supplémentaires permis sur le téléversement (jamais Authorization). */
 const ENTETES_TELEVERSEMENT_PERMIS = new Set<string>();
+
+/** Libellé de journal sans l'identifiant d'une personne : le dernier segment de follow-status est masqué. */
+const masquerPersonne = (chemin: string): string => chemin.replace(/(\/follow-status\/)[^/?]*/, "$1<personne>");
 
 const refus = (message: string, champs?: string[]) => new ErreurZernio("chemin-refuse", `${message} Rien n'a été envoyé.`, { champs });
 
@@ -467,7 +474,12 @@ export function verifierRequete(req: RequeteZernio, hotesTeleversement: Readonly
   verifierEntetes(req.entetes, ENTETES_API_PERMIS);
 
   const trouvee = ROUTES.find((r) => r.methode === methode && r.motif.test(chemin));
-  if (!trouvee) throw refus(`${methode} ${chemin} : hors de la liste fermée.`);
+  if (!trouvee) throw refus(`${methode} ${masquerPersonne(chemin)} : hors de la liste fermée.`);
+
+  if (trouvee.route === "suivi-instagram") {
+    const cles = Object.keys(req.query ?? {});
+    if (cles.some((k) => k !== "refresh" || String(req.query?.[k]) !== "true")) throw refus("Suivi : seul le paramètre refresh=true est permis.");
+  }
 
   if (methode === "GET" && req.corps !== undefined) throw refus("Une lecture ne porte pas de corps.");
   if (estEcriture(methode) && req.query && Object.keys(req.query).length > 0) throw refus("Une écriture ne porte pas de paramètres de requête.");
@@ -659,7 +671,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   }
 
   /** Détail technique d'une réponse en erreur : JAMAIS pour l'inbox (le corps peut redire une adresse ou un message de la personne). */
-  const detailReponse = (route: RouteZernio, corps: unknown): string | undefined => (ROUTES_INBOX.has(route) ? undefined : texteErreur(corps));
+  const detailReponse = (route: RouteZernio, corps: unknown): string | undefined => (ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : texteErreur(corps));
 
   /** Codes lus à plat dans un corps d'erreur (`code`, `error` court, `details.code`). */
   function codesDuCorps(corps: unknown): string[] {
@@ -710,7 +722,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   /** `depuisPromotion` : vrai seulement quand `promouvoir()` appelle, après son GET avant (jamais exporté). */
   async function requeteInterne<T = unknown>(req: RequeteZernio, depuisPromotion: boolean): Promise<ReponseZernio<T>> {
     const ecriture = estEcriture(req.methode);
-    const libelle = "urlTeleversement" in req ? "PUT <uploadUrl>" : `${req.methode} ${req.chemin}`;
+    const libelle = "urlTeleversement" in req ? "PUT <uploadUrl>" : `${req.methode} ${masquerPersonne(req.chemin)}`;
 
     // 1. Arrêt : interrupteur lu en premier, à chaque requête.
     if (ecriture && !(await envoiAutorise())) {
@@ -748,9 +760,9 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         journal.alerte("Zernio : appel sans réponse", { requete: libelle, delaiDepasse: delai });
         if (ecriture) {
           lectureRequise = true;
-          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) ? undefined : detail });
+          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail });
         }
-        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) ? undefined : detail });
+        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail });
       }
       journal.info("Zernio : réponse", { requete: libelle, statut: rep.status, dureeMs: maintenant() - debut });
 
@@ -879,6 +891,12 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     async limitePublicationInstagram(accountId) {
       const { corps } = await requete({ methode: "GET", chemin: `/v1/accounts/${segment(accountId)}/instagram/publishing-limit` });
       return exigerObjet(corps, "limite Instagram");
+    },
+
+    async suiviInstagram(accountId, idUtilisateur) {
+      const { corps } = await requete({ methode: "GET", chemin: `/v1/accounts/${segment(accountId)}/follow-status/${segment(idUtilisateur)}`, query: { refresh: "true" } });
+      const v = typeof corps === "object" && corps !== null ? (corps as Record<string, unknown>).isFollower : undefined;
+      return { suit: v === true ? true : v === false ? false : null };
     },
 
     async preparerTeleversement(d) {

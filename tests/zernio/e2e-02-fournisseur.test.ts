@@ -263,8 +263,8 @@ describe("e2e-2 · premier commentaire, images[], texte alternatif, document Lin
     const { f, faux } = monter();
     await expect(f.envoyer(demande({ images: [{ url: "https://exemple-r2.test/a.png", texteAlternatif: "" }] }))).rejects.toThrow(/texte alternatif/);
     await expect(f.envoyer(demande({ images: [{ url: "https://exemple-r2.test/a.png", texteAlternatif: "x".repeat(126) }] }))).rejects.toThrow(/125/);
-    const onze = Array.from({ length: 11 }, (_v, i) => ({ url: `https://exemple-r2.test/${i}.png`, texteAlternatif: "ok" }));
-    await expect(f.envoyer(demande({ images: onze }))).rejects.toThrow(/10 images/);
+    const vingtEtUne = Array.from({ length: 21 }, (_v, i) => ({ url: `https://exemple-r2.test/${i}.png`, texteAlternatif: "ok" }));
+    await expect(f.envoyer(demande({ images: vingtEtUne }))).rejects.toThrow(/20 images/);
     expect(faux.appels).toHaveLength(0);
   });
 
@@ -288,12 +288,13 @@ describe("e2e-2 · premier commentaire, images[], texte alternatif, document Lin
     expect(faux.appels).toHaveLength(0);
   });
 
-  it("TikTok : consentements + allowComment/allowDuet/allowStitch toujours présents, reflets des réglages du créateur", async () => {
+  it("TikTok : consentements + allowComment/allowDuet/allowStitch toujours présents, décochés d'avance quels que soient les réglages du créateur", async () => {
     for (const reglage of [{ comment: true, duet: false, stitch: true }, { comment: false, duet: false, stitch: false }, { comment: true, duet: true, stitch: true }]) {
       const { f, faux } = monter({ tiktok: reglage });
       await f.envoyer(demande({ reseau: "tiktok", consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" }));
       const d = spec(faux).platforms[0].platformSpecificData!;
-      expect(d).toMatchObject({ contentPreviewConfirmed: true, expressConsentGiven: true, privacyLevel: "SELF_ONLY", allowComment: reglage.comment, allowDuet: reglage.duet, allowStitch: reglage.stitch });
+      expect(d).toMatchObject({ contentPreviewConfirmed: true, expressConsentGiven: true, privacyLevel: "SELF_ONLY", allowComment: false, allowDuet: false, allowStitch: false });
+      expect([d.allowComment, d.allowDuet, d.allowStitch].some(Boolean)).toBe(false); // nouvelle : aucune case cochée d'avance
       for (const cle of ["allowComment", "allowDuet", "allowStitch"]) expect(typeof d[cle]).toBe("boolean");
     }
   });
