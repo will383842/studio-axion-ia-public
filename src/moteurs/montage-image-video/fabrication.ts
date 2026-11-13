@@ -279,6 +279,8 @@ export interface LivraisonReseauIV {
   version: "longue" | "courte" | "aucune";
   /** Présent quand le réseau n'est pas livré à cause d'un contrôle bloquant sur ses versions : la phrase du contrôle. */
   refusControle?: string;
+  /** Fil Facebook 4:5 retiré par un contrôle bloquant (le Reel part) : la phrase du contrôle. */
+  refusControleFil?: string;
   /** Fichier principal (Facebook : le Reel 9:16). */
   fichierCle?: string;
   dureeSec?: number;
@@ -1835,7 +1837,7 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
     const sansFil = { ...l };
     delete sansFil.texteFil;
     delete sansFil.consigneLienFil;
-    return { ...sansFil, mention: [l.mention, `Le fil 4:5 n'est pas livré : ${f.phrases.join(" ")}`].filter(Boolean).join(" ") };
+    return { ...sansFil, refusControleFil: f.phrases.join(" "), mention: [l.mention, `Le fil 4:5 n'est pas livré : ${f.phrases.join(" ")}`].filter(Boolean).join(" ") };
   });
   return passerA(e, "livraison");
 }
@@ -1897,7 +1899,7 @@ function pasLivraison(e: EtatFabricationIV): EtatFabricationIV {
   // Facebook : si seul le fil 4:5 manque, le Reel 9:16 qui existe est livré, avec une remarque sur le fil.
   const formatsFb = formatsDe(e.demande, "facebook");
   e.livraison = (e.livraison ?? []).map((l): LivraisonReseauIV => {
-    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
+    if (l.reseau !== "facebook" || l.version === "aucune" || !l.fichierCle || l.fichierCleFil || l.refusControleFil || !formatsFb.includes("9:16") || !formatsFb.includes("4:5")) return l;
     const remarque = "Le fil 4:5 n'a pas été rendu : le Reel 9:16 est livré, le fil est à refaire.";
     e.journal.push(`Remarque · Facebook : ${remarque}`);
     return { ...l, mention: [l.mention, remarque].filter(Boolean).join(" ") };
