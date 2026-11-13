@@ -10,4 +10,12 @@ export const TOILES = {
   "fenetre-app": { largeur: 1000, hauteur: 700 },
   "bulle-chat": { largeur: 900, hauteur: 900 },
   legende: { largeur: 1000, hauteur: 300 },
+  compteur: { largeur: 800, hauteur: 460 },
+  jauge: { largeur: 800, hauteur: 460 },
+  "avant-apres": { largeur: 1000, hauteur: 520 },
+  barres: { largeur: 1000, hauteur: 640 },
+  etapes: { largeur: 1000, hauteur: 700 },
+  "liste-au-mot": { largeur: 1000, hauteur: 700 },
+  citation: { largeur: 1000, hauteur: 500 },
+  repere: { largeur: 1000, hauteur: 260 },
 } as const;
