@@ -165,7 +165,7 @@ describe("copie sur le vrai dépôt persistant", () => {
     await depot.ecrire([carte({ idEvenement: "evt-fictif-002" })]);
     expect(await A.noterCopieCarte("evt-fictif-001", "2026-01-01T00:00:00.000Z", { depot })).toBe(true);
     const l = await depot.lire();
-    expect(l.find((c) => c.idEvenement === "evt-fictif-001")).toEqual({ ...carte(), copieLe: "2026-01-01T00:00:00.000Z" });
+    expect(l.find((c) => c.idEvenement === "evt-fictif-001")).toEqual({ ...(carte() as Record<string, unknown>), copieLe: "2026-01-01T00:00:00.000Z" });
     expect(l.find((c) => c.idEvenement === "evt-fictif-002")).toEqual(carte({ idEvenement: "evt-fictif-002" }));
     await depot.ecrire([carte({ opposee: true })]);
     expect(await A.noterCopieCarte("evt-fictif-001", "x", { depot })).toBe(false);
