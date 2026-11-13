@@ -224,3 +224,17 @@ describe("GV2-34 · limites du dépôt alignées sur le montage", () => {
     expect(dep.lancer).not.toHaveBeenCalled();
   });
 });
+
+describe("GV2-34 · fin douce : une consigne dite après la dernière phrase reste coupée", () => {
+  it("la dernière garde s'arrête avant « Monteur, … » dit en fin de prise (avec et sans texte dit)", () => {
+    const consigne = ["Monteur,", "coupe", "la", "fin", "ici."].map((mot, i) => ({ ...BRUT[BRUT.length - 1], mot, debutSec: FIN_DERNIER_MOT + 2 + i * 0.4, finSec: FIN_DERNIER_MOT + 2.35 + i * 0.4 }));
+    const mots = [...BRUT, ...consigne];
+    for (const texteValide of [undefined, SCRIPT]) {
+      const sans = couperPriseV4({ mots, dureeSec: FIN_DERNIER_MOT + 6, texteValide });
+      const avec = couperPriseV4({ mots, dureeSec: FIN_DERNIER_MOT + 6, texteValide, finDouce: true });
+      expect(avec.gardes.at(-1)!.finSec).toBeLessThan(consigne[0].debutSec);
+      expect(avec.gardes.at(-1)!.finSec).toBeGreaterThanOrEqual(sans.gardes.at(-1)!.finSec);
+      expect(avec.mots).toHaveLength(sans.mots.length);
+    }
+  });
+});
