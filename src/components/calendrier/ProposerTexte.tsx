@@ -7,7 +7,8 @@
  */
 import { useState } from "react";
 import type { IdReseau } from "@/domaine/types";
-import { controlerTexteSaisi, type DemandeTexteImporte, type ResultatProposition, type TypeImporte } from "@/services/texte-post";
+import { controlerTexteSaisi } from "@/domaine/plan-editorial/controle-texte";
+import type { DemandeTexteImporte, ResultatProposition, TypeImporte } from "@/services/texte-post";
 
 export interface TexteReseau {
   texte: string;
