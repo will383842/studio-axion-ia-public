@@ -95,6 +95,43 @@ describe("panne passagère du serveur de rendu (GV2-06)", () => {
   });
 });
 
+describe("panne de rendu d'une carte de scène (GV2-08, B3 de la relecture)", () => {
+  it("une panne par tour (jamais deux dans le même avancer), puis la vidéo se termine", async () => {
+    const b = banc(ficheDemonstration);
+    const c = b.commande(ficheDemonstration);
+    const vrai = b.d.outils.scenes.rendu();
+    let cible: string | null = null;
+    let pannes = 0;
+    const service: ServiceRendu = {
+      soumettre: async (d) => {
+        const estScene = d.operation === "composition" && (d.parametres as { mode?: string }).mode === undefined;
+        if (estScene) {
+          cible ??= d.idRendu;
+          if (d.idRendu === cible && pannes < 6) {
+            pannes++;
+            throw new ErreurRendu({ code: "indisponible", reessayable: true, message: "indisponible" });
+          }
+        }
+        return vrai.soumettre(d);
+      },
+      etat: (id) => vrai.etat(id),
+    };
+    const t0 = await b.moteur.lancer(c, ctx("t-panne-carte"));
+    b.d.outils.scenes.rendu = () => service;
+    let t = t0;
+    let maxParTour = 0;
+    for (let n = 0; n < 60; n++) {
+      const avant = pannes;
+      t = (await b.moteur.avancer(JSON.parse(JSON.stringify(t)) as Travail, c, T0 + n * 1000)).travail;
+      maxParTour = Math.max(maxParTour, pannes - avant);
+      if (t.statut === "termine" || t.statut === "echec") break;
+    }
+    expect(maxParTour).toBeLessThanOrEqual(1);
+    expect(pannes).toBe(6);
+    expect(t.statut).toBe("termine");
+  });
+});
+
 describe("refus d'animation (GV2-06)", () => {
   it("une page qui reste vide 0,5 s : TABLEAU_ANIMATION_REFUSEE, non réessayable, le problème est nommé", async () => {
     const b0 = banc(ficheDemonstration);

@@ -203,7 +203,7 @@ export interface PreparationScenes<P extends ProprietesScene = ProprietesScene> 
  * ne soit de plus soumise ni faite (une carte soumise vaut 1, une carte faite 2), et sans nouvelle demande. Faux pour tout autre état.
  */
 function panneSurCartes(avant: unknown, apres: unknown): boolean {
-  type Carte = { statut?: string; essais?: number; demande?: { idRendu?: string } };
+  type Carte = { statut?: string; essais?: number; pannes?: number; demande?: { idRendu?: string } };
   const lire = (e: unknown) => {
     const cartes = (e as { cartes?: unknown } | null)?.cartes;
     return Array.isArray(cartes) ? (cartes as Carte[]) : null;
@@ -211,6 +211,8 @@ function panneSurCartes(avant: unknown, apres: unknown): boolean {
   const a = lire(avant);
   const b = lire(apres);
   if (!a || !b || a.length !== b.length) return false;
+  // GV2-08 : une panne attrapée par `rendu-cartes.ts` monte le compteur `pannes` de la carte (plus `essais`).
+  if (b.some((c, i) => (c.pannes ?? 0) > (a[i].pannes ?? 0))) return true;
   const points = (c: Carte) => (c.statut === "faite" ? 2 : c.statut === "soumise" ? 1 : 0);
   if (b.reduce((n, c) => n + points(c), 0) !== a.reduce((n, c) => n + points(c), 0)) return false;
   // Une panne garde la MÊME demande (identifiant inchangé) ; un nouvel essai décidé par la garde de rendu en prend une autre.
