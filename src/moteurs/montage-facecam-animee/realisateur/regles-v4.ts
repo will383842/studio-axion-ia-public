@@ -544,8 +544,12 @@ function repetitionHistoriqueV4(elements: readonly ElementResoluV4[], historique
   const differentes = [...new Set(elements.map((e) => e.fiche.id))];
   if (dejaPrises.size && differentes.length >= S.plaquettesMinPourReprise) {
     const reprises = differentes.filter((id) => dejaPrises.has(id));
-    if (reprises.length / differentes.length > S.partReprisePlaquettesMax) {
-      messages.push(`D17b — ${reprises.length} plaquettes différentes sur ${differentes.length} (${Math.round((100 * reprises.length) / differentes.length)} %) viennent déjà des ${S.videosRecentesPlaquettes} dernières vidéos (${reprises.join(", ")}) ; au plus ${Math.round(100 * S.partReprisePlaquettesMax)} % : remplacez-en par des plaquettes pas encore vues.`);
+    // GV2-47 : seuil tenable. Les plaquettes actives encore jamais prises disent la part de reprises qu'on ne peut pas éviter.
+    const neuvesPossibles = CATALOGUE_V4.filter((f) => f.actif && !dejaPrises.has(f.id)).length;
+    const partMinimaleAtteignable = Math.max(0, 1 - neuvesPossibles / differentes.length);
+    const seuil = Math.max(S.partReprisePlaquettesMax, partMinimaleAtteignable + 0.1);
+    if (reprises.length / differentes.length > seuil) {
+      messages.push(`D17b — ${reprises.length} plaquettes différentes sur ${differentes.length} (${Math.round((100 * reprises.length) / differentes.length)} %) viennent déjà des ${S.videosRecentesPlaquettes} dernières vidéos (${reprises.join(", ")}) ; au plus ${Math.round(100 * seuil)} % : remplacez-en par des plaquettes pas encore vues.`);
     }
   }
   return messages;
