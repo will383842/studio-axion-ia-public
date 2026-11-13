@@ -343,6 +343,36 @@ describe("4 · « stop » à n'importe quelle étape : plus rien ne part (répon
       expect(await cartes()).toHaveLength(1); // la carte « À traiter » du commentaire TikTok existe bien sans « stop »
     });
   });
+  describe("après la demande du guide et l'accusé, réglage « plusieurs mots » allumé : le GUIDE retapé à plus de 24 h ferait partir un renvoi, sauf après « stop »", () => {
+    beforeEach(async () => {
+      await allumerMotsMultiples();
+      await registreMots(["GUIDE", COMPTE]);
+      await allumerCartes();
+      await crochetCommentaire("GUIDE", { reseau: "facebook" });
+      await passer(T0, { env: ENV_LIEN });
+      lireTexteDe(ADRESSE);
+      await deposerMessage(depots, { idMessage: "msg-4-multi-adresse" });
+      await passer(T0 + 1000, { env: ENV_LIEN });
+    });
+    it("le « stop » coupe tout : le renvoi à 30 h ne part pas", async () => {
+      lireTexteDe("stop");
+      await deposerMessage(depots, { idMessage: "msg-4-multi-stop", avance: 4000 });
+      await passer(T0 + 5000, { env: ENV_LIEN });
+      expect((await lignesOpposition()).length).toBeGreaterThan(0);
+      const fige = instantane();
+      await toutEssayer();
+      expect(instantane()).toEqual(fige);
+      expect(await cartes()).toEqual([]);
+    });
+    it("(témoin) sans « stop », la même suite fait partir un renvoi à 30 h : le test est sensible", async () => {
+      const fige = instantane();
+      await toutEssayer();
+      const apres = instantane();
+      expect(apres.prive).toBeGreaterThan(fige.prive);
+      expect(apres.pub).toBeGreaterThan(fige.pub);
+      expect((await dossierDe(AUTEUR)).length).toBeGreaterThan(1);
+    });
+  });
   describe("carte À traiter : un commentaire TikTok déjà déposé AVANT le « stop » n'aboutit à aucune carte", () => {
     const sceneAvantStop = async () => {
       await allumerCartes();
@@ -441,6 +471,35 @@ describe("5 · opposition venue du site (vérification par personne) : rien ne p
     await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-5-2b", motSeul: "GUIDE", reseau: "facebook", ageMs: 1000 - 2 * H });
     await passerSite(T0 + 2 * H);
     expect(instantane()).toMatchObject({ pub: 1, prive: 1, envoyes: 0, site: 0 });
+  });
+  it("« plusieurs mots » allumé, guide livré, puis opposition du site : un GUIDE retapé à plus de 24 h ne renvoie rien ; le témoin sans opposition reçoit bien son renvoi", async () => {
+    await allumerMotsMultiples();
+    await registreMots(["GUIDE", COMPTE]); // ce mode lit le registre des mots
+    await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-5-5", motSeul: "GUIDE", reseau: "facebook", ageMs: 2000 });
+    await deposerCommentaire(depots, { idAuteur: A2, idCommentaire: "com-5-5b", motSeul: "GUIDE", reseau: "facebook", ageMs: 1000 });
+    await passerSite(T0);
+    const ref = (await dossierDe(AUTEUR))[0]?.refLienConv as string; // en mode « plusieurs mots » l'état est rangé sous `racine|…`
+    expect(ref).toMatch(/^c1_/);
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-5-liv-1", avance: 3000 });
+    await deposerMessage(depots, { idMessage: "msg-5-liv-2", idExpediteur: A2, idConversation: "conv-fictive-702", avance: 3000 });
+    await passerSite(T0 + 60_000);
+    await verifierSite(T0 + 61_000);
+    await passerSite(T0 + 120_000);
+    expect(banc.port.envoyes).toHaveLength(2); // livraison faite pour les deux personnes
+    opposees.add(ref); // la première personne s'oppose APRÈS la livraison
+    await verifierSite(T0 + 2 * H);
+    const avant = instantane();
+    await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-5-5c", motSeul: "GUIDE", reseau: "facebook", ageMs: 1000 - 25 * H });
+    await deposerCommentaire(depots, { idAuteur: A2, idCommentaire: "com-5-5d", motSeul: "GUIDE", reseau: "facebook", ageMs: 500 - 25 * H });
+    await passerSite(T0 + 25 * H); // preuve absente : les événements attendent la vérification par personne
+    await verifierSite(T0 + 25 * H + 1000);
+    await passerSite(T0 + 25 * H + 120_000);
+    await passerSite(T0 + 25 * H + 240_000);
+    // témoin : la personne sans opposition reçoit bien son renvoi (le test est sensible) ; la personne opposée ne reçoit rien
+    expect(instantane()).toEqual({ ...avant, pub: avant.pub + 1, prive: avant.prive + 1 });
+    expect(await dossierDe(A2)).toHaveLength(2);
+    expect(await dossierDe(AUTEUR)).toHaveLength(1);
   });
   it("(témoin) une autre personne, non opposée, est bien servie dans la même scène : le test est sensible", async () => {
     const ref = await ouvrir(AUTEUR, "com-5-3");
@@ -703,13 +762,10 @@ describe("9 · suivi chiffré par mot : chaque étape incrémente le bon compteu
     expect(banc.port.prive).toHaveLength(2);
     return stats(T0 + 26 * H);
   };
-  it("un renvoi (« déjà envoyé » 25 h plus tard) : 2 commentaires, 2 réponses publiques, mais UN seul premier message", async () => {
-    expect((await apresRenvoi()).GUIDE).toMatchObject({ commentaires: 2, reponsesPubliques: 2, premiersMessages: 1 });
+  it("un renvoi (« déjà envoyé » 25 h plus tard) : 2 commentaires, mais UN seul premier message et UNE réponse publique (comptée par personne)", async () => {
+    expect((await apresRenvoi()).GUIDE).toMatchObject({ commentaires: 2, reponsesPubliques: 1, premiersMessages: 1 });
   });
-  // DÉFAUT CONSTATÉ, NON CORRIGÉ ICI (aucun fichier de production touché) : `agregerStatsMots` regroupe par clé complète de conversation ;
-  // en mode « plusieurs mots », le renvoi est un second enregistrement `racine|…` de la MÊME personne et du MÊME mot, donc il est compté
-  // comme une 2e personne. Attendu : 1 personne. Quand le défaut sera corrigé, ce test passera et `it.fails` le fera rougir : retirer alors `.fails`.
-  it.fails("un renvoi ne devrait PAS compter comme une nouvelle personne (défaut connu : personnes = 2)", async () => {
+  it("un renvoi ne compte PAS comme une nouvelle personne : personnes = 1 (racine de clé commune, mode « plusieurs mots »)", async () => {
     expect((await apresRenvoi()).GUIDE.personnes).toBe(1);
   });
   it("deux personnes = deux personnes et deux premiers messages", async () => {
