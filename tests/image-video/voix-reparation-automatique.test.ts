@@ -350,7 +350,6 @@ describe("voix · assemblage : réparation dans la fabrication", () => {
 
   it.each([
     ["Q19 (piste sans aucun mot)", () => new ErreurVoixIV("Q19", "La piste voix seule x n'a aucun mot.")],
-    ["décompte de mots différent", () => new ErreurVoixIV("entree", "Les mots de la voix du corps (3) ne correspondent pas au script (4).", true)],
   ])("15 · %s : la voix est relue (une lecture payée de plus, réservée)", async (_nom, erreur) => {
     const { m, o, e } = demarrer();
     const base = o.assemblage.traiterVoix;
@@ -364,6 +363,19 @@ describe("voix · assemblage : réparation dans la fabrication", () => {
     expect(etat.voix?.reparations).toBe(1);
     expect(m.lus).toHaveLength(2);
     expect(reservationsVoix(etat)).toHaveLength(2);
+  });
+
+  it("15 bis · décompte de mots différent (GV2-09) : la voix n'est plus relue, rien de plus n'est payé", async () => {
+    const { m, o, e } = demarrer();
+    o.assemblage.traiterVoix = async () => {
+      throw new ErreurVoixIV("entree", "Les mots de la voix du corps (3) ne correspondent pas au script (4).", true);
+    };
+    const etat = await jusquAuBout(e, o);
+    expect(etat.etape).toBe("refusee");
+    expect(etat.refus?.code).toBe("IV_VOIX");
+    expect(etat.voix?.reparations).toBeUndefined();
+    expect(m.lus).toHaveLength(1);
+    expect(reservationsVoix(etat)).toHaveLength(1);
   });
 
   it("16 · argent : un identifiant d'appel distinct par lecture, jamais plus de 1 + 3 lectures (relances de ressemblance comprises)", async () => {
