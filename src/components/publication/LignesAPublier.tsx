@@ -21,8 +21,6 @@ import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
 import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPropose, etatPremierCommentaire, formatApercu, joursRestantsBrouillon, ligneCompteEtDate, mentionIAVisible, messageSucces, nomOutil, libelleEnvoiOutil, phraseBrouillonAProgrammer, phraseEchec, phraseEssais, type OutilAffiche } from "./finitions-envoi";
 import { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees, type CarteVideo } from "./regrouper-a-publier";
 
-/** Aucun orange dans « À publier » : l'ambre porte le « à faire ». Le mot reste écrit dans la pastille. */
-
 /** Valeur d'un <input type="datetime-local"> (heure locale). */
 function versLocal(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
