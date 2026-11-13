@@ -684,7 +684,9 @@ export type CodeAlerteQualite =
   /** Lot « intensité » (02/10) : plafond d'une fenêtre de 3 s dépassé, ou deux effets forts en même temps. */
   | "intensite"
   /** Tableau animé (12/10) : un bruitage introuvable a été retiré, la vidéo est fabriquée sans lui. */
-  | "bruitage";
+  | "bruitage"
+  /** GV2-21 : des mots du texte validé ne sont jamais dessinés en sous-titres (vidéo plus courte que la voix, mots perdus). */
+  | "sous-titres-incomplets";
 
 export interface AlerteQualite {
   code: CodeAlerteQualite;
