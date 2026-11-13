@@ -885,7 +885,7 @@ function CarteArretAjout({ id, manque, sansAccord }: { id: string; manque: { lib
           <MatieresSansAccord id={id} matieres={sansAccord} />
         </div>
       )}
-      <SaisieMatiereSujet id={id} libelleBouton="Ajouter et reprendre" messageSucces={ecritureSimulee ? "écriture relancée, rien n'est payé" : "écriture relancée"} essai={ecritureSimulee} />
+      <SaisieMatiereSujet id={id} variante="secondaire" libelleBouton="Ajouter et reprendre" messageSucces={ecritureSimulee ? "écriture relancée, rien n'est payé" : "écriture relancée"} essai={ecritureSimulee} />
     </Carte>
   );
 }
