@@ -120,6 +120,12 @@ describe("S5a-suite R2 : la réduction continue après un doute du site", () => 
     expect(await reduit(1)).toBe(true);
     expect(await reduit(2)).toBe(true);
   });
+  it("les doutes sont bornés à 50 par passage : pas d'avalanche de demandes au site, mémoire de 500 épargnée", async () => {
+    await semerEvenements(Array.from({ length: 80 }, (_, i) => ref(i)));
+    expect(await C.reduireIdentifiants({ env: ENV_RED, maintenantMs: T0 })).toBe(0);
+    expect(OPP.prendreDemandesSite(1_000_000)).toHaveLength(50);
+    expect(OPP.debordementsSite()).toBe(0);
+  });
   it("témoin : registre illisible => on ne réduit toujours plus rien dans le passage", async () => {
     await semerEvenements([null, null]);
     await Com.ecrireParametre(OPP.PARAM_OPPOSITIONS_MOTS, "pas une liste");

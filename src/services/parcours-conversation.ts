@@ -1401,13 +1401,14 @@ export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number 
   evenements.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
   let n = 0;
   let traites = 0;
+  let doutes = 0;
   for (const ev of evenements) {
     if (traites >= LOT_REDUCTION) break;
     try {
       if (await estOpposee(ev.charge)) continue; // la preuve de l'opposition reste intacte
     } catch (e) {
       // Doute du site pour CETTE personne (preuve manquante) : elle reste intacte, mais les suivantes ne sont pas abandonnées.
-      if (e instanceof ErreurOppositionIllisible && e.code === "site_a_verifier") continue;
+      if (e instanceof ErreurOppositionIllisible && e.code === "site_a_verifier" && ++doutes < LOT_REDUCTION) continue; // doutes bornés comme les réductions : pas d'avalanche de demandes au site
       break; // registre illisible : on ne réduit plus rien dans ce passage
     }
     traites++;
