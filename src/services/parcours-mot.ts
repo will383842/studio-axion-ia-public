@@ -156,10 +156,12 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
   } else if (enveloppe.event === TYPE_EVENEMENT_COMMENTAIRE && evenementsMotsActifs(env)) {
     // Réglage éteint : exactement comme avant (liste par défaut, aucune lecture du registre). Allumé : mots actifs du registre + GUIDE.
     const multiples = await motsMultiplesActifs();
-    const c = multiples ? lireEvenementCommentaire(enveloppe, await motsActifsDuRegistre()) : lireEvenementCommentaire(enveloppe);
+    // Le registre n'est lu qu'UNE fois : le même résultat sert aux deux lecteurs (une panne en milieu de route ne change pas la réponse).
+    const registre = multiples ? await motsActifsDuRegistre() : undefined;
+    const c = registre ? lireEvenementCommentaire(enveloppe, registre) : lireEvenementCommentaire(enveloppe);
     if (c === null) {
       // LinkedIn / TikTok (ATR-D) : le lecteur Facebook/Instagram ne lit rien ; seul un dépôt SANS texte peut suivre, jamais une réponse.
-      const m = lireCommentaireManuel(enveloppe, multiples ? await motsActifsDuRegistre() : undefined);
+      const m = lireCommentaireManuel(enveloppe, registre);
       if (m && !m.proprio && m.motSeul !== null && (await reseauxManuelsAllumes())) {
         // Charge SANS texte : identifiants opaques et mot seul canonique (contrat d'a-traiter-manuel).
         const { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse } = m;
