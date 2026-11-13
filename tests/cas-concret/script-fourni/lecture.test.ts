@@ -74,11 +74,11 @@ describe("ligne sans mot", () => {
 });
 
 describe("bornes", () => {
-  it("texte vide, pas un texte, plus de 4000 caractères, plus de 26 lignes, ligne de plus de 400 caractères", () => {
+  it("texte vide, pas un texte, plus de 4000 caractères, plus de 40 lignes, ligne de plus de 400 caractères", () => {
     expect(refus("  \n \n")[0]).toBe("Le script est vide : écrivez une ligne par écran.");
     expect(refus(12)[0]).toBe("Le script doit être un texte.");
     expect(refus("a".repeat(4001))[0]).toBe("Le script est trop long : 4000 caractères au plus (il en compte 4001).");
-    expect(refus(Array.from({ length: 27 }, (_, i) => `Phrase ${i}.`).join("\n"))[0]).toBe("Le script compte 27 lignes ; 26 au plus (une ligne = un écran).");
+    expect(refus(Array.from({ length: 41 }, (_, i) => `Phrase ${i}.`).join("\n"))[0]).toBe("Le script compte 41 lignes ; 40 au plus (une ligne = un écran).");
     expect(refus(["Bien.", "b".repeat(401)].join("\n"))[0]).toBe("Ligne 2 : la ligne compte 401 caractères ; 400 au plus. Coupez-la en deux lignes.");
     expect(refus("[accroche]")[0]).toBe("Ligne 1 : la ligne est vide après son étiquette ; écrivez la phrase dite.");
   });
