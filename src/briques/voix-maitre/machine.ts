@@ -151,6 +151,9 @@ async function adresses(o: OutilsVoixMaitre, cleEntree: string, cleSortie: strin
 /** Suffixe d'identifiant d'une série neuve de demandes (vide pour la série 0 : identifiants d'avant inchangés). */
 const suffixeSerie = (serie: number) => (serie > 0 ? `-s${serie}` : "");
 
+/** Échec posé par la garde « sans nouvelle » (`fournisseurs/rendu/garde.ts`) : l'appelant le dit en clair ; pas de série neuve. */
+const sansNouvelle = (e: { message: string }) => /sans nouvelle/i.test(e.message);
+
 /** Dernière série ratée : l'erreur n'est plus réessayable. */
 const erreurSeriesEpuisees = () => new ErreurRendu({ code: "inconnu", reessayable: false, message: "Le traitement de la voix a échoué plusieurs fois." });
 
@@ -251,6 +254,7 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
       // Trois essais ratés : série neuve (identifiant neuf), l'état de départ de la phase est RENDU (jamais levé, l'appelant
       // le garde) ; au-delà de `SERIES_RENDU_MAX` séries, erreur non réessayable. La voix n'est jamais relue.
       if (essai > ESSAIS_RENDU) {
+        if (sansNouvelle(e.erreur)) throw new ErreurRendu(e.erreur);
         if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
         return { phase: "a-remesurer", audio: etat.audio, rang: etat.rang, serie: (etat.serie ?? 0) + 1 };
       }
@@ -279,6 +283,7 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
       const essai = (etat.essai ?? 0) + 1;
       if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
       if (essai > ESSAIS_RENDU) {
+        if (sansNouvelle(e.erreur)) throw new ErreurRendu(e.erreur);
         if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
         return { phase: "a-mesurer", brut: etat.brut, texte: etat.texte, prises: etat.prises, serie: (etat.serie ?? 0) + 1 };
       }
@@ -364,6 +369,7 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
       const essai = (etat.essai ?? 0) + 1;
       if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
       if (essai > ESSAIS_RENDU) {
+        if (sansNouvelle(e.erreur)) throw new ErreurRendu(e.erreur);
         if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
         return { phase: "a-analyser", brut: etat.brut, serie: (etat.serie ?? 0) + 1 };
       }
@@ -384,6 +390,7 @@ export async function avancerVoixMaitre(etat: EtatVoixMaitre, o: OutilsVoixMaitr
       const essai = (etat.essai ?? 0) + 1;
       if (!e.erreur.reessayable) throw new ErreurRendu(e.erreur);
       if (essai > ESSAIS_RENDU) {
+        if (sansNouvelle(e.erreur)) throw new ErreurRendu(e.erreur);
         if ((etat.serie ?? 0) >= SERIES_RENDU_MAX) throw erreurSeriesEpuisees();
         return { phase: "a-analyser", brut: etat.brut, serie: (etat.serie ?? 0) + 1 };
       }
