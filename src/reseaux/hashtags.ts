@@ -8,7 +8,6 @@
  * le compte parle d'IA. Un réseau sans famille reste libre (comportement d'avant).
  */
 import type { IdReseau } from "@/domaine/types";
-import releve from "../../docs/reseaux/regles-officielles.json";
 
 /** Famille de Will pour TikTok (demande validée). */
 export const HASHTAGS_TIKTOK_PAR_DEFAUT: readonly string[] = ["#IA", "#intelligenceartificielle", "#IAentreprise", "#ChatGPT", "#formationIA"];
@@ -108,28 +107,21 @@ export function validerFamille(reseau: IdReseau, saisie: string[]): ResultatFami
 }
 
 /**
- * L3-14 : limite de mots-dièse par réseau, lue dans le relevé sourcé L8-01 (couche « réseau », rubrique
- * `plafond_mots_dieses`). Sans preuve ni nombre : « inconnu » (aucune valeur inventée). Instagram reste « inconnu »
- * tant que rien n'est documenté.
+ * L3-14 : limite de mots-dièse par réseau, recopiée du relevé sourcé L8-01 (rubrique `plafond_mots_dieses`, couche
+ * « réseau »). Le relevé vit dans docs/ (hors de l'image Docker) : un test vérifie que cette table le reprend. Sans
+ * preuve ni nombre : « inconnu » (aucune valeur inventée). Instagram reste « inconnu » tant que rien n'est documenté.
  */
 export type LimiteMotsDieses = number | "inconnu";
 
-type CelluleReleve = { valeur: string; preuve: string };
-const RESEAUX_RELEVE = releve.reseaux as Record<string, { reseau?: Record<string, CelluleReleve> } | undefined>;
+export const LIMITES_MOTS_DIESES: Record<IdReseau, LimiteMotsDieses> = {
+  linkedin: "inconnu",
+  instagram: "inconnu",
+  facebook: "inconnu",
+  tiktok: "inconnu",
+  youtube: "inconnu",
+  "youtube-shorts": "inconnu",
+};
 
 export function limiteMotsDieses(reseau: IdReseau): LimiteMotsDieses {
-  if (reseau === "instagram") return "inconnu";
-  const c = RESEAUX_RELEVE[reseau]?.reseau?.plafond_mots_dieses;
-  if (!c || c.preuve === "inconnu") return "inconnu";
-  const n = /^\s*(\d+)\s*(mots?-di[eè]se)?\s*(au plus|maximum)?\s*$/i.exec(c.valeur);
-  return n ? Number(n[1]) : "inconnu";
+  return LIMITES_MOTS_DIESES[reseau];
 }
-
-export const LIMITES_MOTS_DIESES: Record<IdReseau, LimiteMotsDieses> = {
-  linkedin: limiteMotsDieses("linkedin"),
-  instagram: limiteMotsDieses("instagram"),
-  facebook: limiteMotsDieses("facebook"),
-  tiktok: limiteMotsDieses("tiktok"),
-  youtube: limiteMotsDieses("youtube"),
-  "youtube-shorts": limiteMotsDieses("youtube-shorts"),
-};
