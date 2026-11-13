@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { FournisseurCopie } from "@/components/a-traiter/CarteATraiter";
 import { EcranATraiter } from "@/components/a-traiter/EcranATraiter";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { exigerSession } from "@/services/auth";
-import { gesteCarteFaite, gesteCarteIgnorer, gesteCarteStop, gesteLireATraiter } from "@/services/a-traiter-gestes";
+import { gesteCarteFaite, gesteCarteIgnorer, gesteCarteStop, gesteCopierMessage, gesteLireATraiter } from "@/services/a-traiter-gestes";
 
 export const metadata: Metadata = { title: "À traiter" };
 export const dynamic = "force-dynamic";
@@ -23,10 +24,16 @@ export default async function PageATraiter() {
     "use server";
     return gesteCarteStop(id, compte);
   }
+  async function copierMessage(id: string) {
+    "use server";
+    return gesteCopierMessage(id);
+  }
   return (
     <div>
       <EnTetePage titre="À traiter à la main" />
-      <EcranATraiter vue={vue} services={{ fait, ignorer, stop }} compte="" />
+      <FournisseurCopie services={{ message: copierMessage }}>
+        <EcranATraiter vue={vue} services={{ fait, ignorer, stop }} compte="" />
+      </FournisseurCopie>
     </div>
   );
 }
