@@ -140,6 +140,18 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
   });
 
+  // VRAI DÉFAUT CONNU (relecture de la PR) : `mettreEnFileDossier` met en file UNE entrée par parcours (clé de conversation), donc trois mots
+  // donnent trois envois avec trois clés d'idempotence, alors que `oppositions-transmission.ts` promet « une entrée par personne ».
+  // Ce test décrit le comportement VOULU et échoue aujourd'hui (`it.fails`) ; la correction est faite ailleurs. Une fois corrigé, il passera au
+  // vert : retirer alors `.fails`, et mettre à jour les tests voisins qui figent aujourd'hui « trois envois ».
+  it.fails("VOULU : un seul « stop » = UNE seule transmission au site par personne, quel que soit le nombre de mots", async () => {
+    await semerDossier();
+    await recevoirStop();
+    lireAdresse();
+    await transmettre();
+    expect(site.opp()).toHaveLength(1);
+  });
+
   it("rejeu : passages répétés, redémarrage du processus, nouvelle mise en file, rattrapage : toujours trois envois en tout", async () => {
     await semerDossier();
     await recevoirStop();
