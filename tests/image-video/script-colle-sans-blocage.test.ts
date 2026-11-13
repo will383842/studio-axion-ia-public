@@ -9,9 +9,9 @@ import { verdictReseau } from "@/moteurs/montage-image-video/reseaux";
 import { dureeCibleDuScript } from "@/services/image-video-ecran";
 import { ajouterIV } from "@/domaine/image-video/reserve";
 import { avancerJusquAArretIV, etatInitialIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
-import { cleDuTexte } from "@/moteurs/montage-image-video/texte/conception";
+import { cleDuTexte, concevoirWorkflow } from "@/moteurs/montage-image-video/texte/conception";
 import { lectureDeCarte } from "@/moteurs/montage-image-video/lecture/simulation";
-import { appelerConceptionEnSimulation } from "@/moteurs/montage-image-video/texte/simulation";
+import { appelerConceptionEnSimulation, CONCEPTION_VIDE } from "@/moteurs/montage-image-video/texte/simulation";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
 vi.setConfig({ testTimeout: 120_000 });
@@ -108,5 +108,49 @@ describe("B2 de bout en bout · script de 380 mots livré sur les réseaux", () 
       const l = (e.livraison as { reseau: string; fichierCle?: string }[]).find((x) => x.reseau === r);
       expect(l?.fichierCle, r).toBeTruthy();
     }
+  });
+});
+
+describe("GV2-19 · script sans automatisation en mode script", () => {
+  const CONSEILS = "Dormez huit heures chaque nuit. Marchez vingt minutes tous les jours. Buvez de l'eau avant chaque repas. Coupez les écrans le soir. Ces trois conseils changent tout.";
+  const budget = { reserver: async () => ({ ok: true as const }) };
+  it("pas de refus « hors-sujet » : carte minimale faite des phrases du script (5 étapes au plus)", async () => {
+    const r = await concevoirWorkflow({ videoId: "v-conseils", texte: CONSEILS, scriptColle: true }, { appeler: appelerConceptionEnSimulation(CONCEPTION_VIDE), budget });
+    expect(r.ok, JSON.stringify(r)).toBe(true);
+    if (!r.ok) return;
+    expect(r.appels).toBe(1);
+    expect(r.carte.noeuds.length).toBeGreaterThanOrEqual(3);
+    expect(r.carte.noeuds.length).toBeLessThanOrEqual(5);
+  });
+  it("hors mode script, le refus actuel est gardé", async () => {
+    const r = await concevoirWorkflow({ videoId: "v-idee", texte: CONSEILS }, { appeler: appelerConceptionEnSimulation(CONCEPTION_VIDE), budget });
+    expect(r).toMatchObject({ ok: false, motif: "hors-sujet" });
+  });
+});
+
+describe("GV2-19 · branchement du script collé dans la fabrication (piste d)", () => {
+  const CONSEILS = "Dormez huit heures chaque nuit. Marchez vingt minutes tous les jours. Buvez de l'eau avant chaque repas. Coupez les écrans le soir. Ces trois conseils changent tout.";
+  it("un script de conseils en mode script n'est plus refusé : carte proposée, puis prête après validation, un seul appel de lecture", async () => {
+    const m = monde();
+    const base = outilsSimules(carte, m);
+    const appelerConception = appelerConceptionEnSimulation(CONCEPTION_VIDE);
+    let appels = 0;
+    const o: OutilsFabricationIV = {
+      ...base,
+      lireImageSource: async () => {
+        throw new Error("aucun fichier image en mode script");
+      },
+      lecture: { convertir: async () => { throw new Error("aucune conversion"); }, appeler: async (role, entree) => { appels++; return appelerConception(role, entree); } },
+    };
+    const demande = demandeEssai(carte, { videoId: "v-conseils-bout", image: { cle: `texte:${cleDuTexte(CONSEILS)}` }, texte: CONSEILS, scriptColle: true, plafondCentimes: 50000 });
+    let e: EtatFabricationIV = await avancerJusquAArretIV(etatInitialIV(demande), o);
+    expect(e.refus, JSON.stringify(e.refus)).toBeUndefined();
+    expect(e.propositionCarte).toBeDefined();
+    e = await avancerJusquAArretIV(validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-27T08:00:00.000Z" }), o);
+    e = await avancerJusquAArretIV(validerScriptIV(e, { proposition: e.propositionScript!.empreinte, choixFormules: Object.fromEntries(e.propositionScript!.formules.map((f) => [f.cle, "garder" as const])) }), o);
+    for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee" && e.attente; i++) e = await avancerJusquAArretIV(e, o);
+    expect(e.refus, JSON.stringify(e.refus)).toBeUndefined();
+    expect(e.etape).toBe("prete");
+    expect(appels).toBe(1);
   });
 });

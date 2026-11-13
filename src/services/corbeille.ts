@@ -2,7 +2,7 @@
  * CORBEILLE de 30 jours (décision de Will du 18/10) : « Mettre à la corbeille » ne supprime rien ; la vidéo est
  * `archivee` avec une date `corbeilleLe`, restaurable tant que 30 jours ne sont pas passés, puis supprimée pour de bon
  * (même suppression que « Supprimer définitivement » : dépenses gardées). Une archivée SANS `corbeilleLe` n'est JAMAIS
- * purgée. Mêmes refus que la suppression : fabrication en cours, publication programmée, envoi vers Buffer incertain.
+ * purgée. Mêmes refus que la suppression : fabrication en cours, publication programmée, envoi incertain vers un outil de publication.
  */
 import "server-only";
 import { estChezUnOutil } from "@/domaine/outil-publication";
@@ -53,7 +53,7 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
   const pagesRetirees = (await Promise.all((await lire()).map((v) => d.kits.trouver((k) => k.videoId === v.id)))).filter((k) => !!k?.site && sonSurLeSite.has(k.site.etat)).length;
   await retirerAvantSuppression((await lire()).map((v) => v.id));
   const instant = maintenant();
-  const { videos, brouillonsBuffer } = await sousVerrou(async () => {
+  const { videos, brouillonsExternes } = await sousVerrou(async () => {
     const aMettre = await lire();
     exiger(aMettre);
     await refuser(aMettre);
@@ -79,11 +79,11 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
       throw e;
     }
     const ensemble = new Set(aMettre.map((v) => v.id));
-    const brouillonsBuffer = await d.publications.compter((p) => ensemble.has(videoIdSure(p) ?? "") && estChezUnOutil(p) && !!p.idExterne && p.statut === "brouillon");
-    return { videos: aMettre, brouillonsBuffer };
+    const brouillonsExternes = await d.publications.compter((p) => ensemble.has(videoIdSure(p) ?? "") && estChezUnOutil(p) && !!p.idExterne && p.statut === "brouillon");
+    return { videos: aMettre, brouillonsExternes };
   });
   if (videos.length) await journaliser("video", videos.length > 1 ? `${videos.length} vidéos mises à la corbeille` : `Vidéo mise à la corbeille : « ${videos[0].titre} »`, videos.length === 1 ? { type: "video", id: videos[0].id } : undefined);
-  return { mises: videos.length, brouillonsBuffer, pagesRetirees };
+  return { mises: videos.length, brouillonsBuffer: brouillonsExternes, pagesRetirees };
 }
 
 /** Les vidéos des 30 derniers jours, la plus récemment mise de côté d'abord. */

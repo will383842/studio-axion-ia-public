@@ -574,6 +574,7 @@ export function cartesReseaux(livraison: readonly LivraisonReseauIV[]): CarteRes
     .map((l) => {
       const nom = nomReseau(l.reseau);
       const base = { reseau: l.reseau, nom, ...(l.dureeSec ? { duree: `${Math.round(l.dureeSec)} s` } : {}) };
+      if (l.version === "aucune" && l.refusControle) return { ...base, ton: "rouge" as const, phrase: `Ce réseau n'a pas été livré : ${l.refusControle}` };
       if (l.version === "aucune") return { ...base, ton: "rouge" as const, phrase: l.mention ?? `Pas de version pour ${nom}.` };
       const phrase = l.version === "courte" ? "Version courte, prête à publier." : l.mention ? `Prête, ${l.mention.replace(/[.\s]+$/, "")}.` : "Prête à publier.";
       return {

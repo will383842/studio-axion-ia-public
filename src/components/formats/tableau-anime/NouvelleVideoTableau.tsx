@@ -29,6 +29,7 @@ import {
 } from "@/app/(studio)/tableau/nouvelle/actions";
 import { BoutonImporterTexte } from "@/assistant/express/BoutonImporterTexte";
 import { RelireScript } from "@/components/script/RelireScript";
+import { BarreEtapesCommune } from "@/components/ui/BarreEtapesCommune";
 import { Bouton } from "@/components/ui/Bouton";
 import { CaseACocher } from "@/components/ui/CaseACocher";
 import { Champ } from "@/components/ui/Champ";
@@ -61,6 +62,14 @@ type Saisie = Omit<DonneesScriptTableau, "structure" | "finId" | "motsDouleur"> 
 
 /** Ce que l'écran remplit depuis des choix enregistrés ou proposés par le générateur. */
 const saisieDe = (d: DonneesScriptTableau): Saisie => ({ ...d, finId: d.finId ?? "", mot: d.mot ?? "", motsDouleur: (d.motsDouleur ?? []).join(", ") });
+
+/** Les quatre étapes de la barre (maquette M3, décision du 12/11) : Le texte, Les scènes, Relire, Fabrication. */
+const ETAPES_TABLEAU = [
+  { cle: "texte", libelle: "Le texte" },
+  { cle: "scenes", libelle: "Les scènes" },
+  { cle: "relire", libelle: "Relire" },
+  { cle: "fabrication", libelle: "Fabrication" },
+];
 
 /** Socle qualité commun, en OBSERVATION : pastilles « info » sous le texte relu, sans appel, sans effet sur les contrôles. */
 const observerTexte = (lignes: LigneScript[]) => evaluerQualite(depuisLignesTableau(lignes), RECETTE_TABLEAU).pastilles;
@@ -123,6 +132,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   }));
   const [refus, setRefus] = useState<string[] | null>(null);
   const [phrase, setPhrase] = useState<string | null>(null);
+  /** Le dernier refus d'enregistrement vient d'un texte qui n'est plus celui du fondateur : « Reprendre mon texte » est proposé. */
+  const [texteChange, setTexteChange] = useState(false);
   /** Texte d'un sujet déjà traité : le refus du serveur et ce qui repart tel quel avec « Refaire quand même » (texte, prix, repère relu). */
   const [refusSujet, setRefusSujet] = useState<{ refus: RefusSujetTraite; avec: Saisie; accord: number | true; relu: string; cle: string } | null>(null);
   const [corrections, setCorrections] = useState<Record<string, CorrectionScene>>({});
@@ -148,6 +159,10 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   const fin = ecran.fins.find((f) => f.id === saisie.finId);
   /** Le texte dit se relit tant qu'aucune fiche n'existe (ensuite, c'est la fiche, sauf texte modifié à redécouper). */
   const relireTexte = relecture && (!b?.fiche || relireApresFiche);
+  /** Étape courante de la barre : le texte tant qu'il n'y a pas de fiche ou que le texte modifié se relit ; les scènes pendant un découpage ou une correction de la fiche ; sinon la relecture avant fabrication. */
+  const etapeCourante = !b?.fiche ? (b?.tache?.type === "decoupage" && (b.tache.statut === "en-attente" || b.tache.statut === "en-cours") ? 1 : 0) : relireApresFiche ? 0 : corriger ? 1 : 2;
+  const barreEtapes = <BarreEtapesCommune etapes={ETAPES_TABLEAU} courante={etapeCourante} />;
+
   /** Une tâche de fond tourne : les boutons qui lancent ou modifient attendent (le serveur refuse aussi). */
   const occupe = b?.tache?.statut === "en-attente" || b?.tache?.statut === "en-cours";
   const injoignable = "Le studio ne répond pas pour l'instant. Rien n'est perdu : réessayez dans un instant.";
@@ -263,6 +278,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   function enregistrer() {
     if (!b) return;
     setPhrase(null);
+    setTexteChange(false);
     demarrer(async () => {
       const scenes = Object.values(corrections);
       const r = await corrigerFicheTableauAction(b.videoId, entete ? { scenes, ...entete } : scenes).catch(() => null);
@@ -271,6 +287,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
       if (r.donnees.statut === "refusee") {
         setPhrase(r.donnees.phrase);
         setRefus(r.donnees.problemes.map((p) => p.message));
+        setTexteChange(r.donnees.code === "TEXTE_FONDATEUR_CHANGE");
         return;
       }
       notifier.succes("Corrections enregistrées", "La version précédente est gardée.");
@@ -281,6 +298,24 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
       setCorriger(false);
       router.refresh();
     });
+  }
+
+  /** « Reprendre mon texte » : le texte d'origine du fondateur est remis dans les scènes (mêmes coupures), à enregistrer. */
+  function reprendreMonTexte() {
+    if (!b?.fiche) return;
+    const mots = b.donnees.texte.split(/\s+/).filter(Boolean);
+    let debut = 0;
+    const reprises: Record<string, CorrectionScene> = {};
+    b.fiche.scenes.forEach((s, i) => {
+      const n = i === b.fiche!.scenes.length - 1 ? mots.length - debut : s.texteDit.split(/\s+/).filter(Boolean).length;
+      reprises[s.id] = { ...corrections[s.id], sceneId: s.id, texteDit: mots.slice(debut, debut + n).join(" ") };
+      debut += n;
+    });
+    setCorrections((c) => ({ ...c, ...reprises }));
+    setPhrase(null);
+    setRefus(null);
+    setTexteChange(false);
+    setCorriger(true);
   }
 
   /** La case « déjà vu » : cochée, elle est datée du jour et gardée dans le brouillon (la fabrication la reçoit). */
@@ -345,6 +380,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
 
   if (!chemin) {
     return (
+      <div className="space-y-4">
+      {barreEtapes}
       <section aria-label="Pour commencer" className="grid gap-3 sm:grid-cols-2">
         <Bouton variante="secondaire" icone="ecrire" taille="lg" pleineLargeur onClick={() => { setOrigine((o) => origineApresSaisie(o, "bouton", saisie.texte, referenceClaude)); setChemin("texte"); }}>
           J&apos;ai déjà mon texte
@@ -353,12 +390,14 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
           Écrire le script pour moi
         </Bouton>
       </section>
+      </div>
     );
   }
 
   if (chemin === "ecrire") {
     return (
       <div className="space-y-4">
+        {barreEtapes}
         <div className="flex justify-end">
           <Bouton variante="fantome" onClick={() => { setOrigine((o) => origineApresSaisie(o, "bouton", saisie.texte, referenceClaude)); setChemin("texte"); }}>
             J&apos;ai déjà mon texte
@@ -377,6 +416,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
 
   return (
     <div className="space-y-8">
+      {barreEtapes}
       {suivi}
       {!b?.fiche && (
         <div className="flex justify-end">
@@ -497,6 +537,13 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
         {(phrase || refus) && (
           <div role="alert" className="rounded-2xl border border-brique/40 bg-brique-doux px-4 py-3 text-[15px] text-texte">
             {phrase && <p>{messageSansMontant(phrase)}</p>}
+            {texteChange && (
+              <div className="mt-3">
+                <Bouton variante="secondaire" icone="ecrire" disabled={occupe} onClick={reprendreMonTexte}>
+                  Reprendre mon texte
+                </Bouton>
+              </div>
+            )}
             {refus && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-texte-doux">
                 {refus.slice(0, 6).map((x, i) => (
@@ -618,7 +665,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
             prixCentimes={b.voix === "reutilisee" ? 0 : b.coutVoixCentimes}
             prixDejaPaye={b.voix === "reutilisee"}
             debit={debitDe(b.donnees.texte)}
-            libelleLancer={b.voix === "reutilisee" ? "Fabriquer la vidéo (voix déjà faite)" : "Fabriquer la vidéo"}
+            libelleLancer={b.voix === "reutilisee" ? "Fabriquer (voix déjà faite)" : "Fabriquer"}
             bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : !dejaVu ? RAISON_CASE_DEJA_VU : b.raisonFabriquerCase ? null : b.raisonFabriquer}
           />
         </section>

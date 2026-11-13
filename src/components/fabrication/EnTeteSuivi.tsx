@@ -6,8 +6,11 @@ import type { EtatSuivi } from "@/components/creation/SuiviFabrication";
  * `sansTemps` : l'écran dit déjà le temps (rang dans la file, heure de fin) sous la barre, l'en-tête n'en promet pas un autre.
  * Jamais de `<h1>` : l'écran qui l'accueille a déjà le sien.
  */
-export function EnTeteSuivi({ etat, pret, message, sansTemps }: { etat: EtatSuivi; pret?: string | null; message?: string; sansTemps?: boolean }) {
-  const { titre, phrase } = PHRASES_SUIVI[etat];
+export function EnTeteSuivi({ etat, pret, message, sansTemps, titre: titreForce, phrase: phraseForcee }: { etat: EtatSuivi; pret?: string | null; message?: string; sansTemps?: boolean; titre?: string; phrase?: string }) {
+  // `titre` / `phrase` : pour un suivi qui n'est pas une fabrication de vidéo (script, découpage) ; sans eux, mots communs inchangés.
+  const communs = PHRASES_SUIVI[etat];
+  const titre: string = titreForce ?? communs.titre;
+  const phrase: string = phraseForcee ?? communs.phrase;
   const ligne = etat === "en-cours" ? (sansTemps ? phrase : `${pret ?? "Encore quelques minutes"} · ${phrase}`) : etat === "coincee" || etat === "arretee" ? (message ?? phrase) : phrase;
   return (
     <div data-etat={etat} aria-live="polite">

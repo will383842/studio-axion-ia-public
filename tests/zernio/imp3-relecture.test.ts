@@ -8,6 +8,7 @@ import type { PostZernio } from "../../src/fournisseurs/publication/zernio-clien
 import { creerFauxClientZernio, postExemple, type AppelEnregistre, type ReponsePreparee } from "./aides/faux-zernio";
 import { ecrireParametre } from "../../src/services/_commun";
 import { PARAM_ENVOI_CALENDRIER } from "../../src/services/zernio";
+import { REGLAGE_EDITORIALE_ACTIVE } from "../../src/services/promotion-envois";
 
 const buf = (n: number, p: Partial<PostBuffer> = {}): PostBuffer => ({ id: `post-exemple-${n}`, canalId: "canal-ig", texte: `Texte ${n}`, dateUtc: `2026-11-0${2 + (n % 5)}T1${n % 10}:00:00Z`, statut: "draft", medias: [], ...p });
 const jumeau = (b: PostBuffer, p: Partial<PostZernio> = {}): PostZernio =>
@@ -38,7 +39,7 @@ function zernio(posts: PostZernio[]) {
 const puts = (z: ReturnType<typeof zernio>) => z.faux.appels.filter((a) => a.methode === "PUT").length;
 
 // Précondition L7-08 : la promotion exige le réglage du calendrier, fermé par défaut ; ce fichier teste la promotion, il l'ouvre.
-beforeEach(async () => { await ecrireParametre(PARAM_ENVOI_CALENDRIER, true); });
+beforeEach(async () => { await ecrireParametre(PARAM_ENVOI_CALENDRIER, true); await ecrireParametre(REGLAGE_EDITORIALE_ACTIVE, true); });
 
 describe("IMP-3 relecture · garde positive (promotion)", () => {
   it.each(["needs_approval", "error", "scheduled", "sent"])("jumeau Buffer au statut %s : buffer-actif, aucun PUT", async (statut) => {

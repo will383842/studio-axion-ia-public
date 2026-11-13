@@ -377,7 +377,7 @@ describe.each([
     expect(await depots().videos.compter()).toBe(videos + 1);
   });
 
-  it(temoin(indicatif, "« Fabriquer la vidéo » sans accord : le prix ne l'arrête plus, jamais accord-requis"), async () => {
+  it(temoin(indicatif, "« Fabriquer » sans accord : le prix ne l'arrête plus, jamais accord-requis"), async () => {
     // Brouillon découpé (fiche valide), case « déjà vu » cochée, avec le prix accepté à la main (service, hors action).
     const relu = repereTexte(donneesTableau.texte);
     const prix = await creationTableau.decouperScriptTableau(donneesTableau, { relu, accord: 999_999 }, { aujourdhui: AUJOURDHUI_EXEMPLES });
