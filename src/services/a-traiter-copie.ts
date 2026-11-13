@@ -12,7 +12,7 @@ import { GROUPES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
 import { ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
-import { aTraiterActif, type DepotATraiter } from "./a-traiter";
+import { aTraiterActif, noterCopieCarte, type DepotATraiter } from "./a-traiter";
 import { extraitLisible, type CarteATraiter } from "./a-traiter-types";
 import { personneOpposeePartout } from "./oppositions-mots";
 import { formulationsValidees } from "./mots-service";
@@ -137,21 +137,22 @@ export async function copierMessageCarte(id: string, o: OptionsCopie = {}): Prom
     }
     if (lien === null || !formeLienPageGuide(lien) || !GROUPES_MP[GROUPE_M1_LIEN].includes(choix.version)) return refus(P_LIEN);
 
-    // 5) sous verrou, AVANT de rendre le texte : date de copie sur la carte et dans le cumul (le plafond est relu sous verrou)
+    // 5) AUCUN appel au dépôt dans `sousVerrou` (verrou global, non réentrant : le dépôt persistant le reprend => interblocage).
+    // Ordre : stop revérifié ; cumul des dates sous `sousVerrou` (paramètre seul) ; date sur la carte (verrou local d'a-traiter.ts) ;
+    // puis seulement le rendu. Si la carte refuse (stop posé entre-temps), aucun texte n'est rendu.
     const date = new Date(maintenantMs).toISOString();
-    const ecrit = await sousVerrou(async () => {
+    const recontrole = await carteSure(id, o);
+    if ("phrase" in recontrole) return refus(recontrole.phrase);
+    const cumule = await sousVerrou(async () => {
       if (!decisionCopie(await dejaFaites(), maintenantMs).ok) return false;
-      const cartes = await depot.lire();
-      const courante = cartes.find((c) => c.idEvenement === id);
-      if (!courante || courante.statut !== "a_traiter" || courante.opposee) return false;
       const table = await lireParametre<Record<string, unknown>>(PARAM_COPIES_A_TRAITER, {});
       const suite: Record<string, unknown> = { ...table };
       for (const e of empreintes) suite[e] = [...(Array.isArray(table[e]) ? (table[e] as unknown[]) : []), date];
       await ecrireParametre(PARAM_COPIES_A_TRAITER, suite);
-      await depot.ecrire(cartes.map((c) => (c.idEvenement === id ? { ...c, copieLe: date } : c)));
       return true;
     });
-    if (!ecrit) return refus(P_PLAFOND);
+    if (!cumule) return refus(P_PLAFOND);
+    if (!(await noterCopieCarte(id, date, { depot }))) return refus(P_STOP);
 
     // Rendu du texte (après l'écriture de la date)
     const texte = rendreTexteMp(choix.version, { mot, titre, lien });
