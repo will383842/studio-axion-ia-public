@@ -14,7 +14,8 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { completerFiche, HAUTEURS_BARRES_SANS_FAIT, type FicheFixe } from "./champs-du-cas";
-import { couper, dureeDiteMs, dureesDesFins, ficheParGabarit, sigleLu } from "./ecriture";
+import { couper, dureeDiteMs, dureesDesFins, ficheParGabarit, sigleLuFourni, siglesEpelesDuFourni } from "./ecriture";
+import { SIGLES_PERMIS } from "./gardes-textes-cas";
 import { regrouperFins } from "./etapes";
 import {
   cleMot,
@@ -101,7 +102,7 @@ function formeDeEtiquette(brut: string): { forme: FormeLigne; etapeCas?: number 
 /* Lecture du texte                                                      */
 /* ------------------------------------------------------------------ */
 
-export type LectureFournie = { ok: true; lignes: LigneFournie[] } | { ok: false; refus: RefusFourni[] };
+export type LectureFournie = { ok: true; lignes: LigneFournie[]; remarques?: string[] } | { ok: false; refus: RefusFourni[] };
 
 /**
  * Le texte de Will, en lignes typées. `cas` (facultatif) sert à reconnaître la partie humaine d'une ligne sans étiquette.
@@ -112,6 +113,8 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
   if (texte.length > TEXTE_FOURNI_MAX) return { ok: false, refus: [{ message: `Le script est trop long : ${TEXTE_FOURNI_MAX} caractères au plus (il en compte ${texte.length}).` }] };
   const brutes = texte
     .replace(/\r\n?/g, "\n")
+    // La tabulation devient une espace (« alerte⇥arrive » ne se colle pas) ; les autres caractères de contrôle sont retirés.
+    .replace(/\t/g, " ")
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, "")
     .split("\n")
@@ -121,9 +124,14 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
   if (brutes.length > LIGNES_FOURNIES_MAX) return { ok: false, refus: [{ message: `Le script compte ${brutes.length} lignes ; ${LIGNES_FOURNIES_MAX} au plus (une ligne = un écran).` }] };
 
   const refus: RefusFourni[] = [];
+  const remarquesLecture: string[] = [];
+  // Un nombre de tête suivi d'un point n'est un numéro de liste que si TOUTES les lignes commencent par un numéro.
+  const listeNumerotee = brutes.every((b) => /^\d{1,2}[.)]\s+/.test(b));
   const lignes = brutes.map((brut, i) => {
     const rang = i + 1;
-    let t = brut.replace(/^(?:[-–—•*·]\s+|\d{1,2}[.)]\s+)/, "").trim();
+    let t = brut.replace(/^(?:[-–—•*·]\s+|\d{1,2}\)\s+)/, "").trim();
+    if (listeNumerotee) t = t.replace(/^\d{1,2}\.\s+/, "").trim();
+    else if (/^\d{1,2}\.\s+/.test(t)) remarquesLecture.push(`Ligne ${rang} : le nombre de tête est gardé comme texte.`);
     let forme: FormeLigne | null = null;
     let etapeCas: number | undefined;
     const e = /^\[\s*([^\]]*?)\s*\]\s*/.exec(t);
@@ -137,6 +145,7 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
       t = t.slice(e[0].length).trim();
     }
     if (!t) refus.push({ ligne: rang, message: `Ligne ${rang} : la ligne est vide après son étiquette ; écrivez la phrase dite.` });
+    else if (!motsLus(t).length) refus.push({ ligne: rang, message: `Ligne ${rang} : cette ligne ne contient aucun mot à dire.` });
     if (t.length > LIGNE_FOURNIE_MAX) refus.push({ ligne: rang, message: `Ligne ${rang} : la ligne compte ${t.length} caractères ; ${LIGNE_FOURNIE_MAX} au plus. Coupez-la en deux lignes.` });
     return { rang, forme, etapeCas, texte: t, explicite: forme !== null };
   });
@@ -208,7 +217,7 @@ export function lireTexteFourni(texte: unknown, cas?: Pick<CasConcret, "resteHum
     }
     sortie.push({ rang: l.rang, forme, texte: l.texte, explicite: l.explicite, ...(etapeCas ? { etapeCas } : {}) });
   }
-  return refus.length ? { ok: false, refus } : { ok: true, lignes: sortie };
+  return refus.length ? { ok: false, refus } : { ok: true, lignes: sortie, ...(remarquesLecture.length ? { remarques: remarquesLecture } : {}) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -255,12 +264,19 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
   const lu = lireTexteFourni(texte, cas);
   if (!lu.ok) return lu;
   const refus: RefusFourni[] = [];
-  const remarquesFiche: string[] = [];
+  const remarquesFiche: string[] = [...(lu.remarques ?? [])];
   const non = (l: LigneFournie, message: string) => void refus.push({ ligne: l.rang, message: `Ligne ${l.rang} : ${message}` });
   const ecrans: Brouillon[] = [];
 
   lu.lignes.forEach((l, i) => {
-    const dit = sigleLu(l.texte);
+    const dit = sigleLuFourni(l.texte, SIGLES_PERMIS);
+    for (const s of siglesEpelesDuFourni(l.texte, SIGLES_PERMIS)) remarquesFiche.push(`Ligne ${l.rang} : « ${s} » sera épelé.`);
+    // Une ligne coupée au milieu d'une phrase : la voix y marque un arrêt (point forcé entre deux écrans).
+    const suivante = lu.lignes[i + 1];
+    if (suivante && !/[.?!…]["»”)]*$/.test(l.texte.trim()) && /^\p{Ll}/u.test(suivante.texte)) remarquesFiche.push(`Ligne ${l.rang} : cette ligne ne finit pas une phrase, la voix marquera un arrêt.`);
+    const coupe = (affiche: string) => {
+      if (nombreLus(affiche) > MOTS_MAX.ligne) remarquesFiche.push(`Ligne ${l.rang} : le texte affiché à l'écran sera raccourci à ${MOTS_MAX.ligne} mots (la voix dit tout).`);
+    };
     const fond = i % 2 === 0 ? "sombre" : "ivoire";
     const commun = { fond, avanceMs: 0, texteDit: dit };
     const etapeDuCas = l.etapeCas ? cas.etapes[l.etapeCas - 1] : undefined;
@@ -299,7 +315,7 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
         if (bons) {
           let depuis = 0;
           const donnes = morceaux.slice(0, 6).map((m, k) => {
-            const r = rangDe(dit, sigleLu(m), depuis);
+            const r = rangDe(dit, sigleLuFourni(m, SIGLES_PERMIS), depuis);
             depuis = r + 1;
             return [`tache-${k + 1}`, r] as [string, number];
           });
@@ -331,6 +347,7 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
       case "detail": {
         if (!etapeDuCas) return non(l, `le cas n'a que ${cas.etapes.length} étape${cas.etapes.length > 1 ? "s" : ""} ; ce détail ne complète aucune étape.`);
         const objet = etapeDuCas.visuel.sorte === "objet" ? etapeDuCas.visuel.objet : (etapeDuCas.visuel.repli ?? "telephone-capture");
+        coupe(sansPointsDeSigle(sansPointFinal(l.texte)));
         ecrans.push({ ...commun, type: "objet", titre: couper(etapeDuCas.titre, MOTS_MAX.titre), ligne: couper(sansPointsDeSigle(sansPointFinal(l.texte)), MOTS_MAX.ligne), visuel: { sorte: "objet", objet }, evenements: evenements(dit, [], ["ligne", ...relaisDuVisuel(objet)]) });
         return;
       }
@@ -349,6 +366,7 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
         return;
       }
       case "resultat": {
+        coupe(sansPointsDeSigle(sansPointFinal(l.texte.replace(/^r[ée]sultat\s*:?\s*/i, ""))));
         ecrans.push({
           ...commun,
           type: "resultat",
@@ -363,6 +381,7 @@ export function ficheBruteDuTexteFourni(texte: unknown, cas: CasConcret): FicheD
       }
       case "question": {
         if (!/\?\s*$/.test(l.texte)) return non(l, "la question finale doit finir par un point d'interrogation (« ? »).");
+        coupe(l.texte);
         const question = nombreLus(l.texte) <= 8 ? sansPointsDeSigle(l.texte) : `${couper(sansPointsDeSigle(sansPointFinal(l.texte)), 8)} ?`;
         ecrans.push({ ...commun, type: "question", lignes: ["Et chez vous,", "dans votre entreprise"], question, evenements: evenements(dit, [["titre-2", 4], ["question", 9]], []) });
         return;
