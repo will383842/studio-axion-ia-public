@@ -207,7 +207,10 @@ export const DEBIT_VOIX_ESTIME_MOTS_PAR_SEC = 4.4;
  * Contrôles des sous-titres (B.5) : débordement de la zone libre (mesure réelle de chaque groupe à sa taille de
  * rendu), phrase trop dense pour être lue (seuil `SEUIL_MOTS_PAR_SECONDE` de `src/domaine/lecture.ts` ; le débit de voix estimé ne sert qu'à estimer une durée manquante), chevauchement avec l'encadré de titre. Jamais bloquant.
  */
-export function controlerSousTitres(donnees: DonneesCalque, options: { texte?: string; occupe?: ContexteMelange["occupe"] } = {}): AlerteQualite[] {
+export function controlerSousTitres(
+  donnees: DonneesCalque,
+  options: { texte?: string; occupe?: ContexteMelange["occupe"]; dureeVideoSec?: number; fps?: number; motsScript?: string[]; motsVoulusMasques?: number } = {},
+): AlerteQualite[] {
   const alertes: AlerteQualite[] = [];
   const debordants = donnees.segments.filter((s) => {
     const el = elementDe(donnees, s, s.finSec);
@@ -221,7 +224,43 @@ export function controlerSousTitres(donnees: DonneesCalque, options: { texte?: s
   }
   const chevauche = donnees.segments.filter((s) => (options.occupe ?? []).some((o) => o.debutSec < s.finSec && o.finSec > s.debutSec && ((o.zone === "haut" && s.position === "haut") || (o.zone === "bas" && s.position === "bas"))));
   if (chevauche.length) alertes.push({ code: "zone-protegee", gravite: "info", message: "Un sous-titre croise l'encadré de titre." });
+  if (options.motsScript) {
+    const manquants = motsJamaisAffiches(donnees.segments, options.motsScript, options.dureeVideoSec, options.fps ?? 30);
+    if (manquants.length > (options.motsVoulusMasques ?? 0)) {
+      const extrait = manquants.slice(0, 8).join(" ") + (manquants.length > 8 ? " …" : "");
+      alertes.push({ code: "sous-titres-incomplets", gravite: "attention", message: `${manquants.length} mot(s) du texte jamais affiché(s) : « ${extrait} ».` });
+    }
+  }
   return alertes;
+}
+
+/** Mot sans casse ni ponctuation (comparaison script / lignes dessinées). */
+const formeDuMot = (m: string) => m.toLowerCase().normalize("NFC").replace(/[^\p{L}\p{N}]+/gu, "");
+const formesDe = (t: string) => t.split(/[\s\u00a0\u202f]+/).map(formeDuMot).filter(Boolean);
+
+/**
+ * Mots du script absents des lignes réellement dessinées (dans l'ordre, plus longue suite commune). Une ligne est
+ * dessinée si elle dure au moins une image avant la fin de la vidéo et commence au moins 3 images avant celle-ci.
+ */
+export function motsJamaisAffiches(segments: SegmentSousTitres[], motsScript: string[], dureeVideoSec: number | undefined, fps: number): string[] {
+  const image = 1 / Math.max(1, fps);
+  const fin = dureeVideoSec ?? Infinity;
+  const dessines = segments
+    .filter((s) => Math.min(s.finSec, fin) - s.debutSec >= image - 1e-9 && s.debutSec <= fin - 3 * image + 1e-9)
+    .sort((a, b) => a.debutSec - b.debutSec)
+    .flatMap((s) => s.mots.flatMap((m) => formesDe(m.mot)));
+  const script = motsScript.flatMap((m) => formesDe(m).map((forme) => ({ forme, mot: m })));
+  const n = script.length;
+  const k = dessines.length;
+  const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(k + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = k - 1; j >= 0; j--) lcs[i][j] = script[i].forme === dessines[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+  const manquants: string[] = [];
+  for (let i = 0, j = 0; i < n; ) {
+    if (j < k && script[i].forme === dessines[j]) { i++; j++; }
+    else if (j < k && lcs[i][j + 1] >= lcs[i + 1][j]) j++;
+    else { manquants.push(script[i].mot); i++; }
+  }
+  return manquants;
 }
 
 /** Durée réelle de chaque phrase du texte, depuis les mots horodatés (même découpage que `phrasesDe`). */
