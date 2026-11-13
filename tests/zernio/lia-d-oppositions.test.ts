@@ -8,7 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleParcours } from "@/domaine/guide-reseau/cles-parcours";
 import { lireClesEmpreinte } from "@/domaine/guide-reseau/empreinte-personne";
-import { AUTEUR, banc, C, Com, COMPTE, depots, graineConv, MS, nettoyer, passer, pm, preparer, T0, toutesLesConversations } from "./filet-guide/_amorce";
+import { AUTEUR, banc, C, Com, COMPTE, depots, graineConv, MS, nettoyer, passer, pm, preparer, T0, toutesLesConversations, toutLeStockage } from "./filet-guide/_amorce";
 import { ADRESSE_FICTIVE, cleConversation, deposerCommentaire, deposerMessage, ENV, evenement } from "./aides/conversation";
 import { CHEMIN_OPP, H, MIN, lectureParMessage, siteDouble } from "./aides/oppositions";
 
@@ -51,8 +51,7 @@ const lireAdresse = () => lectureParMessage(banc.port, { [MSG_ADRESSE]: `Mon adr
 const transmettre = (ms = T0) => OT.transmettreOppositions({ port: banc.port.port, env: ENV, maintenantMs: ms });
 const file = () => Com.lireParametre<Record<string, any>>(OT.PARAM_OPPOSITIONS_FILE, {});
 const compter = () => ({ pub: banc.port.pub.length, prive: banc.port.prive.length, envoyes: banc.port.envoyes.length });
-const stockage = async (): Promise<string> =>
-  JSON.stringify([await depots().parametres.lister(() => true), await depots().evenements.lister(() => true), await depots().evenementsFournisseurs.lister(() => true)]);
+const stockage = (): Promise<string> => toutLeStockage();
 
 beforeEach(async () => {
   await preparer();
@@ -123,7 +122,7 @@ describe("LIA-D · une opposition vaut pour TOUS les mots et TOUS les réseaux",
 });
 
 describe("LIA-D · transmission au site/CRM par le chemin existant : une seule fois, rejeu idempotent", () => {
-  it("une entrée de file par parcours ; chaque entrée est envoyée UNE fois, avec sa propre clé d'idempotence, corps strict signé", async () => {
+  it("voulu : une entrée de file par parcours ; chaque entrée est envoyée UNE fois, avec sa propre clé d'idempotence, corps strict signé", async () => {
     const cl = await semerDossier();
     await recevoirStop();
     expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
@@ -140,19 +139,37 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
   });
 
-  // VRAI DÉFAUT CONNU (relecture de la PR) : `mettreEnFileDossier` met en file UNE entrée par parcours (clé de conversation), donc trois mots
-  // donnent trois envois avec trois clés d'idempotence, alors que `oppositions-transmission.ts` promet « une entrée par personne ».
-  // Ce test décrit le comportement VOULU et échoue aujourd'hui (`it.fails`) ; la correction est faite ailleurs. Une fois corrigé, il passera au
-  // vert : retirer alors `.fails`, et mettre à jour les tests voisins qui figent aujourd'hui « trois envois ».
-  it.fails("VOULU : un seul « stop » = UNE seule transmission au site par personne, quel que soit le nombre de mots", async () => {
-    await semerDossier();
+  // DÉCISION DU 13/11 : le comportement actuel est VOULU. Une transmission PAR PARCOURS (clé de conversation), donc parfois des doublons pour
+  // la même personne, mais JAMAIS de perte : une personne qui a donné des adresses différentes selon les mots doit voir son « stop » transmis
+  // pour chacune. On ne passe PAS à « une transmission par personne ».
+  it("voulu : une transmission par parcours, jamais de perte, doublons acceptés (décision du 13/11)", async () => {
+    const cl = await semerDossier();
     await recevoirStop();
     lireAdresse();
     await transmettre();
-    expect(site.opp()).toHaveLength(1);
+    expect(site.opp()).toHaveLength(MOTS.length);
+    expect(Object.keys(await file()).sort()).toEqual([...cl].sort());
   });
 
-  it("rejeu : passages répétés, redémarrage du processus, nouvelle mise en file, rattrapage : toujours trois envois en tout", async () => {
+  it("voulu : une personne, deux parcours, DEUX adresses différentes : le « stop » est transmis pour LES DEUX adresses (décision du 13/11)", async () => {
+    const cl = await semerDossier();
+    const conv = await toutesLesConversations();
+    // Le 2e parcours (BETA) porte une autre adresse, dans un autre message ; le 3e est retiré du dossier de départ pour n'avoir que deux parcours.
+    delete conv[cl[2]];
+    conv[cl[1]] = { ...conv[cl[1]], idMessageAdresse: "msg-adr-lia-d-2" };
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, conv);
+    await deposerMessage(depots, { idMessage: "msg-adr-lia-d-2", idExpediteur: AUTEUR });
+    const AUTRE = "autre.personne@example.test";
+    lectureParMessage(banc.port, { [MSG_ADRESSE]: `Mon adresse : ${ADRESSE_FICTIVE}, merci.`, "msg-adr-lia-d-2": `Plutôt : ${AUTRE}, merci.` });
+    await recevoirStop();
+    await transmettre();
+    const emails = site.opp().map((x) => JSON.parse(x.corps).email).sort();
+    expect(emails).toEqual([ADRESSE_FICTIVE, AUTRE].sort());
+    expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
+    expect(site.invalides).toEqual([]);
+  });
+
+  it("voulu : rejeu (passages répétés, redémarrage, nouvelle mise en file, rattrapage) : toujours un envoi par parcours, trois en tout, jamais plus", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
@@ -170,7 +187,7 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     expect(JSON.stringify(await file())).toBe(avant);
   });
 
-  it("panne puis reprise : la même clé et les MÊMES octets sont rejoués, puis une seule réussite par parcours", async () => {
+  it("voulu : panne puis reprise : la même clé et les MÊMES octets sont rejoués, puis une seule réussite par parcours", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
@@ -188,7 +205,7 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     expect(Object.values(await file()).every((e) => e.etat === "transmise")).toBe(true);
   });
 
-  it("deux passages simultanés : trois envois, pas six", async () => {
+  it("voulu : deux passages simultanés : un envoi par parcours (trois), pas six", async () => {
     await semerDossier();
     await recevoirStop();
     lireAdresse();
@@ -201,7 +218,9 @@ describe("LIA-D · transmission au site/CRM par le chemin existant : une seule f
     await recevoirStop();
     lireAdresse();
     await transmettre();
-    expect(await stockage()).not.toContain("example.test");
+    const tout = await stockage();
+    expect(tout.length).toBeGreaterThan(100);
+    expect(tout).not.toContain("example.test");
   });
 });
 

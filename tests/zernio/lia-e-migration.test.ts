@@ -242,6 +242,21 @@ describe("LIA-E · une opposition ancienne n'est jamais perdue", () => {
   });
 });
 
+describe("LIA-E · anciens états de fin : jamais de renvoi, jamais de perte", () => {
+  for (const ancienEtat of ["reduit", "expire", "perime", "m1_a_verifier"]) {
+    it(`ancien enregistrement \`${ancienEtat}\` : aucun premier envoi, enregistrement intact à l'octet près`, async () => {
+      const e = ancien(ancienEtat);
+      await semerAncien(e);
+      const evt = await commenter(`com-ancien-${ancienEtat}`);
+      await passer(T0);
+      expect(compter().prive).toBe(0);
+      expect(compter().envoyes).toBe(0);
+      expect(await toutesLesConversations()).toEqual({ [racine()]: e });
+      expect(String((await evenement(depots, evt)).charge.etat)).not.toBe("");
+    });
+  }
+});
+
 describe("LIA-E · enregistrement illisible : « au moindre doute rien ne part »", () => {
   const illisibles: Array<[string, unknown]> = [
     ["une chaîne", "corrompu"],
