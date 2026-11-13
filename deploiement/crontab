@@ -11,6 +11,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Vérif V5 : surveillance mémoire (chaque conteneur du studio à 85 % de sa limite) et disque (85 %), alerte e-mail au plus
 # une fois par heure et par cause. Journal : /opt/studio-axion-ia/surveillance/surveillance.log.
+# L5-08 : la même tâche prévient aussi si /api/sante ne répond pas 200 ou si la dernière sauvegarde réussie a plus de 36 h
+# (alerte externe sans IA ; le texte de l'alerte ne contient ni clé ni adresse e-mail).
 */5 * * * * root mkdir -p /opt/studio-axion-ia/surveillance && /bin/bash /opt/studio-axion-ia/source/deploiement/surveiller.sh >/dev/null 2>>/opt/studio-axion-ia/surveillance/cron.log
 
 # Vérif V5 : nettoyage sûr du disque (images sans nom, vieux cache de construction, dossiers temporaires de plus de
