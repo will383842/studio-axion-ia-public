@@ -100,7 +100,8 @@ const REGISTRE_D_AVANT = [
     codeClassement: "FB",
     ratios: ["9:16", "4:5", "1:1", "16:9"],
     ratioPrefere: "9:16",
-    dureeMaxSec: 90,
+    // Fiche L1-01 : le registre porte 180 s pour Facebook (la décision de 90 s vit dans le profil de sortie, pas ici).
+    dureeMaxSec: 180,
     export: { resolution: { "9:16": "1080x1920", "1:1": "1080x1080", "4:5": "1080x1350", "16:9": "1920x1080" }, fps: 30, debitMbps: 10, codec: "h264" },
     niveauSonoreLufs: -14,
     zonesProtegees: { "9:16": { haut: 14, droite: 16, bas: 30, gauche: 6 } },
