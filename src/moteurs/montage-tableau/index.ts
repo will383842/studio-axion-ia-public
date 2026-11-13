@@ -340,7 +340,7 @@ function relancerRendus(j: JournalFabrication | null, relance: number): JournalF
   const copie = structuredClone(j);
   type Suivi = { scenes?: JournalFabrication["scenes"]; composition?: JournalFabrication["composition"] };
   const relancer = (x: Suivi) => {
-    if (x.scenes) x.scenes.etat.cartes = x.scenes.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, veille: undefined } : c));
+    if (x.scenes) x.scenes.etat.cartes = x.scenes.etat.cartes.map((c) => (c.statut === "soumise" || c.statut === "echec" ? { ...c, statut: "a-soumettre" as const, essais: 0, pannes: undefined, veille: undefined } : c));
     if (x.composition?.etat.phase === "soumise") delete x.composition;
   };
   relancer(copie);
