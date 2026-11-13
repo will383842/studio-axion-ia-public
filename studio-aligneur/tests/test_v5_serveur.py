@@ -179,5 +179,17 @@ class TestDisque(unittest.TestCase):
         bloque.set()
 
 
+class TestDelaiCommande(unittest.TestCase):
+    """GV2-11 : une commande qui dort plus que le délai échoue en « ne répond plus » (réessayable)."""
+
+    def test_commande_trop_longue(self):
+        from aligneur.media import ErreurTravail, executer
+
+        with self.assertRaises(ErreurTravail) as c:
+            executer(["sleep", "5"], timeout=0.2)
+        self.assertIn("ne répond plus", c.exception.message)
+        self.assertTrue(c.exception.reessayable)
+
+
 if __name__ == "__main__":
     unittest.main()

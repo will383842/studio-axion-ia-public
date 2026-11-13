@@ -26,6 +26,8 @@ export interface CreneauEditorial {
   /** Une vidéo OU un visuel, jamais les deux. */
   videoId?: string;
   visuelId?: string;
+  /** Texte et premier commentaire proposés puis retenus à l'ajout (CAL-27), par réseau : à relire avant toute validation. */
+  textes?: Partial<Record<IdReseau, { texte: string; premierCommentaire: string }>>;
   statut: StatutPlan;
   /** Nombre de décalages subis ; ne diminue jamais. */
   decalages: number;

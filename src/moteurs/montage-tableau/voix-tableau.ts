@@ -55,7 +55,10 @@ function voixBrute(brut: AudioBrut, o: OutilsVoixMaitre, recette: RecetteVoixTab
   };
 }
 
-async function soumettreRecette(o: OutilsVoixMaitre, brut: AudioBrut, plan: PlanRecetteVoix, recette: RecetteVoixTableau, essai = 0): Promise<DemandeRendu> {
+/** Identifiant d'une demande de son : `-recette`, `-recette-e<essai>`, et `-r<relance>` après un « Relancer » (le premier passage garde le sien). */
+const idRecette = (idBase: string, essai: number, relance: number) => `${essai ? `${idBase}-recette-e${essai}` : `${idBase}-recette`}${relance > 0 ? `-r${relance}` : ""}`;
+
+async function soumettreRecette(o: OutilsVoixMaitre, brut: AudioBrut, plan: PlanRecetteVoix, recette: RecetteVoixTableau, essai = 0, relance = 0): Promise<DemandeRendu> {
   const s = o.stockage();
   const sortieCle = o.cle("audio-maitre.wav");
   const entree = s.urlLectureDuree ? await s.urlLectureDuree(brut.fichierCle, 3600) : await s.urlLecture(brut.fichierCle);
@@ -65,7 +68,7 @@ async function soumettreRecette(o: OutilsVoixMaitre, brut: AudioBrut, plan: Plan
     throw o.erreurStockage ? o.erreurStockage(message) : new Error(message);
   }
   const audio = /^https?:\/\//.test(entree) ? entree : `https://simulation.invalid${entree.startsWith("/") ? "" : "/"}${entree}`;
-  const demande: DemandeRendu = { idRendu: essai ? `${o.idBase}-recette-e${essai}` : `${o.idBase}-recette`, operation: "nettoyage-audio", file: "courte", entrees: { audio }, sortie: { urlDepot: depot, cle: sortieCle }, parametres: parametresRecette(plan, recette) };
+  const demande: DemandeRendu = { idRendu: idRecette(o.idBase, essai, relance), operation: "nettoyage-audio", file: "courte", entrees: { audio }, sortie: { urlDepot: depot, cle: sortieCle }, parametres: parametresRecette(plan, recette) };
   await o.rendu().soumettre(demande);
   return demande;
 }
@@ -74,7 +77,7 @@ async function soumettreRecette(o: OutilsVoixMaitre, brut: AudioBrut, plan: Plan
  * Une phase de la voix du tableau. `o.caler` doit rendre `false` (la recette suit l'horodatage de la voix) ; l'appelant
  * le pose (`fabriquer.ts`).
  */
-export async function avancerVoixTableau(etat: EtatVoixTableau, o: OutilsVoixMaitre, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU): Promise<EtatVoixTableau> {
+export async function avancerVoixTableau(etat: EtatVoixTableau, o: OutilsVoixMaitre, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU, relance = 0): Promise<EtatVoixTableau> {
   if (etat.phase === "a-analyser") {
     const brut = etat.brut;
     if (brut.approximatif) return voixBrute(brut, o, recette, REPLI_SANS_HORODATAGE);
@@ -84,14 +87,14 @@ export async function avancerVoixTableau(etat: EtatVoixTableau, o: OutilsVoixMai
     } catch (err) {
       return voixBrute(brut, o, recette, `${err instanceof Error ? err.message : String(err)} La voix brute est gardée.`);
     }
-    return { phase: "recette", brut, plan, demande: await soumettreRecette(o, brut, plan, recette) };
+    return { phase: "recette", brut, plan, demande: await soumettreRecette(o, brut, plan, recette, 0, relance) };
   }
   if (etat.phase === "recette") {
     const e = await suivreRendu(o.rendu(), etat.demande);
     if (e.statut === "echec") {
       const essai = (etat.essai ?? 0) + 1;
       if (!e.erreur.reessayable || essai > ESSAIS_RENDU) throw new ErreurRendu(e.erreur);
-      return { ...etat, essai, demande: await soumettreRecette(o, etat.brut, etat.plan, recette, essai) };
+      return { ...etat, essai, demande: await soumettreRecette(o, etat.brut, etat.plan, recette, essai, relance) };
     }
     if (e.statut !== "termine") return etat;
     const brut = etat.brut;
@@ -154,7 +157,7 @@ export interface CompteVariante {
   caracteres: number;
 }
 
-async function soumettreRaccord(o: OutilsVoixMaitre, corps: AudioBrut, fin: AudioBrut | undefined, plan: PlanRaccordVoix, recette: RecetteVoixTableau, essai = 0): Promise<DemandeRendu> {
+async function soumettreRaccord(o: OutilsVoixMaitre, corps: AudioBrut, fin: AudioBrut | undefined, plan: PlanRaccordVoix, recette: RecetteVoixTableau, essai = 0, relance = 0): Promise<DemandeRendu> {
   const s = o.stockage();
   const sortieCle = o.cle("audio-maitre.wav");
   const lire = async (cle: string) => (s.urlLectureDuree ? await s.urlLectureDuree(cle, 3600) : await s.urlLecture(cle));
@@ -167,7 +170,7 @@ async function soumettreRaccord(o: OutilsVoixMaitre, corps: AudioBrut, fin: Audi
     throw o.erreurStockage ? o.erreurStockage(message) : new Error(message);
   }
   const entrees: Record<string, string> = { audio: adresse(entree), ...(entree2 !== null ? { audio2: adresse(entree2) } : {}) };
-  const demande: DemandeRendu = { idRendu: essai ? `${o.idBase}-recette-e${essai}` : `${o.idBase}-recette`, operation: "nettoyage-audio", file: "courte", entrees, sortie: { urlDepot: depot, cle: sortieCle }, parametres: parametresRaccord(plan, recette) };
+  const demande: DemandeRendu = { idRendu: idRecette(o.idBase, essai, relance), operation: "nettoyage-audio", file: "courte", entrees, sortie: { urlDepot: depot, cle: sortieCle }, parametres: parametresRaccord(plan, recette) };
   await o.rendu().soumettre(demande);
   return demande;
 }
@@ -177,7 +180,7 @@ async function soumettreRaccord(o: OutilsVoixMaitre, corps: AudioBrut, fin: Audi
  * le traitement final commun de `studio-rendu`. Sans phrase de fin, c'est la recette du corps seul. Repli sans
  * horodatage des mots : la voix brute du corps est gardée (et le dit), comme la voix unique.
  */
-export async function avancerRecetteVariante(etat: EtatRecetteVariante, sources: { corps: AudioBrut; fin?: AudioBrut }, compte: CompteVariante, o: OutilsVoixMaitre, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU): Promise<EtatRecetteVariante> {
+export async function avancerRecetteVariante(etat: EtatRecetteVariante, sources: { corps: AudioBrut; fin?: AudioBrut }, compte: CompteVariante, o: OutilsVoixMaitre, recette: RecetteVoixTableau = RECETTE_VOIX_TABLEAU, relance = 0): Promise<EtatRecetteVariante> {
   const { corps, fin } = sources;
   if (etat.phase === "a-soumettre") {
     if (!fin && corps.approximatif) {
@@ -185,14 +188,14 @@ export async function avancerRecetteVariante(etat: EtatRecetteVariante, sources:
       return { phase: "faite", audio: { ...brute.audio, coutCentimes: compte.coutCentimes, caracteres: compte.caracteres } };
     }
     const plan = planRaccordVoix(corps, fin, recette);
-    return { phase: "recette", plan, demande: await soumettreRaccord(o, corps, fin, plan, recette) };
+    return { phase: "recette", plan, demande: await soumettreRaccord(o, corps, fin, plan, recette, 0, relance) };
   }
   if (etat.phase === "recette") {
     const e = await suivreRendu(o.rendu(), etat.demande);
     if (e.statut === "echec") {
       const essai = (etat.essai ?? 0) + 1;
       if (!e.erreur.reessayable || essai > ESSAIS_RENDU) throw new ErreurRendu(e.erreur);
-      return { ...etat, essai, demande: await soumettreRaccord(o, corps, fin, etat.plan, recette, essai) };
+      return { ...etat, essai, demande: await soumettreRaccord(o, corps, fin, etat.plan, recette, essai, relance) };
     }
     if (e.statut !== "termine") return etat;
     return {
