@@ -18,10 +18,11 @@ import { createHash } from "node:crypto";
 import { jsonCanonique } from "@/briques/fiche-scenes";
 import { avancerVoixMaitre, type EtatVoixMaitre, type OutilsVoixMaitre } from "@/briques/voix-maitre/machine";
 import type { ReglesNettoyage } from "@/briques/voix-maitre/nettoyage";
-import type { MotHorodate, ReglagesVoix } from "@/domaine/types";
+import type { CauseApproximation, MotHorodate, ReglagesVoix } from "@/domaine/types";
 import type { FaitCas } from "@/formats/cas-concret/cas";
 import { cleMot, motsDe } from "./fiche";
 import type { MorceauAssemblage, OutilsVoixCasConcret, PauseAMesurer } from "./outils";
+import { planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, type PlanRaccordVoix } from "./recette-voix";
 
 /** Règles de blancs du format (plan § 4-f, fabrication à la main de la vidéo 1). */
 export const REGLES_BLANCS_CAS_CONCRET: ReglesNettoyage = { seuilMs: 220, cibleMs: [120, 120], fonduMs: [10, 20], respirationMs: [150, 250], teteMaxMs: 100 };
@@ -232,7 +233,7 @@ export interface PriseVoix {
   empreinte: string;
   etat: EtatVoixMaitre;
   /** Son BRUT (avant nettoyage), gardé dès qu'il est rangé : c'est lui que le contrôle mesure. */
-  brut?: { fichierCle: string; dureeSec: number; mots: MotHorodate[] };
+  brut?: { fichierCle: string; dureeSec: number; mots: MotHorodate[]; approximatif?: CauseApproximation };
   controle?: ControlePrise;
   /** Lecture neuve du même texte (2ᵉ, 3ᵉ…) : le fournisseur ignore son cache. */
   essai?: number;
@@ -383,7 +384,7 @@ function outilsMaitre(o: OutilsAvancerVoix, prise: PriseVoix, nom: string): Outi
 /** Son brut d'un état de la voix maître, une fois rangé (copié, calé) : à partir de l'analyse. */
 function brutDe(e: EtatVoixMaitre): PriseVoix["brut"] | undefined {
   if (e.phase !== "a-analyser" && e.phase !== "analyse" && e.phase !== "nettoyage") return undefined;
-  return { fichierCle: e.brut.fichierCle, dureeSec: e.brut.dureeSec, mots: e.brut.mots };
+  return { fichierCle: e.brut.fichierCle, dureeSec: e.brut.dureeSec, mots: e.brut.mots, ...(e.brut.approximatif ? { approximatif: e.brut.approximatif } : {}) };
 }
 
 /**
@@ -561,6 +562,8 @@ export interface SonAssemble {
   fichierCle: string;
   dureeSec: number;
   mots: readonly MotHorodate[];
+  /** GV2-30 : les heures des mots sont une ESTIMATION (aligneur simulé ou en échec) : le son n'est pas resserré sur elles. */
+  approximatif?: CauseApproximation;
 }
 
 const arrondi = (x: number) => +x.toFixed(4);
@@ -589,4 +592,36 @@ export function motsApresAssemblage(corps: SonAssemble, fin: SonAssemble, tempo:
   const decalage = coupeDuCorps(corps);
   const place = (m: MotHorodate, d: number): MotHorodate => ({ ...m, debutSec: arrondi((m.debutSec + d) / tempo), finSec: arrondi((m.finSec + d) / tempo) });
   return [...corps.mots.map((m) => place(m, 0)), ...fin.mots.map((m) => place(m, decalage))];
+}
+
+/**
+ * GV2-30 : plan du raccord quand les heures des mots ne sont qu'une ESTIMATION : aucun resserrage (il couperait sur de
+ * fausses heures), le corps puis la fin gardés ENTIERS ; les mots sont étalés à parts égales sur la durée réelle de
+ * chaque son (sous-titres approximatifs). Le tempo final de la recette reste appliqué comme pour une voix normale.
+ */
+export function planSonEntier(corps: SonAssemble, fin: SonAssemble): PlanRaccordVoix {
+  const base = planRaccordVoix(corps, fin);
+  const k = RECETTE_VOIX_CAS_CONCRET.filtres.atempo;
+  const etaler = (mots: readonly MotHorodate[], deSec: number, dureeSec: number): MotHorodate[] => {
+    const pas = dureeSec / Math.max(1, mots.length);
+    return mots.map((m, i) => ({ ...m, debutSec: arrondi(deSec + i * pas), finSec: arrondi(deSec + (i + 1) * pas) }));
+  };
+  const dureeCorps = corps.dureeSec / k;
+  const dureeSec = arrondi((corps.dureeSec + fin.dureeSec) / k);
+  const fondu = Math.min(RECETTE_VOIX_CAS_CONCRET.fin.fonduSortieSec, dureeSec);
+  return {
+    ...base,
+    morceaux: [
+      { source: 0, debutSec: 0, finSec: arrondi(corps.dureeSec) },
+      { source: 1, debutSec: 0, finSec: arrondi(fin.dureeSec) },
+    ],
+    mots: [...etaler(corps.mots, 0, dureeCorps), ...etaler(fin.mots, dureeCorps, fin.dureeSec / k)],
+    motsCorps: corps.mots.length,
+    raccordSec: arrondi(dureeCorps),
+    dureeResserreeSec: arrondi(corps.dureeSec + fin.dureeSec),
+    dureeSec,
+    debutFonduSortieSec: arrondi(Math.max(0, dureeSec - fondu)),
+    fonduSortieSec: arrondi(fondu),
+    silenceFinSec: 0,
+  };
 }
