@@ -30,18 +30,21 @@ const conv = (o: Partial<ConversationSuivi> & { cle: string }): ConversationSuiv
   ...o,
 });
 const fenSite = (j7: number, j30: number, total: number) => ({ j7, j30, total });
+const ligneSite = (o: Record<string, unknown> = {}) => ({
+  mot: "essai",
+  reseau: "instagram",
+  postRef: "post-1",
+  versionTexte: "mp-m1-v4-1",
+  cible: "gde-essai01",
+  formulaires: fenSite(1, 2, 3),
+  envois: fenSite(1, 1, 2),
+  clics: fenSite(4, 5, 6),
+  ...o,
+});
 const corpsSite = () => ({
   v: 1,
-  mots: [
-    {
-      mot: "essai",
-      formulaires: fenSite(1, 2, 3),
-      envoisEmail: fenSite(1, 1, 2),
-      clics: fenSite(4, 5, 6),
-    },
-  ],
-  publications: [{ mot: "essai", postRef: "post-1", formulaires: 3, clics: 6 }],
-  versions: [{ mot: "essai", versionTexte: "mp-m1-v4-1", clics: 6 }],
+  genereLe: "2026-11-12T10:00:00.000Z",
+  lignes: [ligneSite()],
 });
 const evs: EvenementSuivi[] = [
   { recuLe: il(1), motSeul: "ESSAI", idPostPlateforme: "post-1", reseau: "instagram" },
@@ -114,6 +117,23 @@ describe("assemblage", () => {
     expect(l.parPublication[0].auMoinsGagnees).toBe(1);
   });
 
+  it("conversation sans état : pas de réponse publique", () => {
+    const l = assemblerSuivi(
+      [],
+      [conv({ cle: RACINE_A, etat: "" }), conv({ cle: RACINE_B, etat: undefined as never })],
+      null,
+      T0,
+    ).lignes[0];
+    expect(l.reponsesPubliques.total).toBe(0);
+    expect(l.premiersMessages.total).toBe(2);
+  });
+
+  it("commentaires dédoublonnés par identifiant d'événement", () => {
+    const e = (id: string | null): EvenementSuivi => ({ recuLe: il(1), motSeul: "ESSAI", idEvenement: id });
+    const l = assemblerSuivi([e("ev1"), e("ev1"), e("ev2"), e(null), e(null)], [], null, T0).lignes[0];
+    expect(l.commentaires.total).toBe(4);
+  });
+
   it("champs Instagram absents = 0 (lecture tolérante)", () => {
     const l = assemblerSuivi([], [conv({ cle: RACINE_A })], null, T0).lignes[0];
     expect(l.instagram.reponsesOk.total).toBe(0);
@@ -147,6 +167,7 @@ describe("assemblage", () => {
     expect(t.siteDisponible).toBe(true);
     const l = t.lignes.find((x) => x.mot === "ESSAI")!;
     expect(l.formulaires).toEqual(fenSite(1, 2, 3));
+    expect(l.envoisEmail).toEqual(fenSite(1, 1, 2));
     expect(l.clics).toEqual(fenSite(4, 5, 6));
     const p1 = l.parPublication.find((p) => p.post === "post-1")!;
     expect(p1).toMatchObject({ reseau: "instagram", commentaires: 1, premiersMessages: 1, formulaires: 3, clics: 6 });
@@ -176,18 +197,40 @@ describe("assemblage", () => {
 describe("lecture stricte du contrat du site", () => {
   it("forme correcte acceptée", () => expect(lireCompteursSite(corpsSite())).not.toBeNull());
   it.each([
-    ["négatif", (c: any) => (c.mots[0].clics.j7 = -1)],
-    ["décimal", (c: any) => (c.publications[0].clics = 1.5)],
-    ["champ manquant", (c: any) => delete c.mots[0].envoisEmail],
+    ["négatif", (c: any) => (c.lignes[0].clics.j7 = -1)],
+    ["décimal", (c: any) => (c.lignes[0].formulaires.total = 1.5)],
+    ["hors entiers sûrs", (c: any) => (c.lignes[0].clics.total = 2 ** 60)],
+    ["j7 > j30", (c: any) => (c.lignes[0].clics = fenSite(5, 4, 6))],
+    ["j30 > total", (c: any) => (c.lignes[0].clics = fenSite(1, 7, 6))],
+    ["champ manquant", (c: any) => delete c.lignes[0].envois],
+    ["postRef absent (ni texte ni null)", (c: any) => delete c.lignes[0].postRef],
+    ["versionTexte vide", (c: any) => (c.lignes[0].versionTexte = "")],
+    ["cible absente", (c: any) => delete c.lignes[0].cible],
+    ["genereLe absent", (c: any) => delete c.genereLe],
     ["version fausse", (c: any) => (c.v = 2)],
-    ["version absente du tableau", (c: any) => delete c.versions],
-    ["nombre en texte", (c: any) => (c.versions[0].clics = "3")],
-    ["mot invalide", (c: any) => (c.mots[0].mot = "x")],
-    ["mot en double", (c: any) => c.mots.push({ ...c.mots[0] })],
+    ["lignes absentes", (c: any) => delete c.lignes],
+    ["nombre en texte", (c: any) => (c.lignes[0].clics.total = "6")],
+    ["mot invalide", (c: any) => (c.lignes[0].mot = "x")],
+    ["même grain deux fois", (c: any) => c.lignes.push(ligneSite())],
   ])("%s → null pour toute la réponse", (_n, abimer) => {
     const c = corpsSite();
     abimer(c);
     expect(lireCompteursSite(c)).toBeNull();
+  });
+  it("postRef et versionTexte nuls acceptés ; sommes par mot, publication, version", () => {
+    const c = lireCompteursSite({
+      ...corpsSite(),
+      lignes: [
+        ligneSite(),
+        ligneSite({ reseau: "facebook", clics: fenSite(1, 1, 1) }),
+        ligneSite({ postRef: null, versionTexte: null, cible: "adr-essai0000001", clics: fenSite(0, 0, 3) }),
+      ],
+    });
+    expect(c).not.toBeNull();
+    expect(c!.mots.get("ESSAI")!.clics).toEqual(fenSite(5, 6, 10));
+    expect(c!.publications.get(JSON.stringify(["ESSAI", "post-1"]))!.clics).toBe(7);
+    expect(c!.publications.get(JSON.stringify(["ESSAI", "sans-publication"]))!.clics).toBe(3);
+    expect(c!.versions.get(cleVersionSite("ESSAI", "mp-m1-v4-1"))).toBe(7);
   });
   it.each([null, undefined, "x", 3, [], {}])("pas un contrat : %j → null", (v) =>
     expect(lireCompteursSite(v)).toBeNull(),
