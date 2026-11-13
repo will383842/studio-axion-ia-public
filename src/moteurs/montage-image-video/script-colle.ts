@@ -10,6 +10,7 @@
  * script écrit par l'IA (Q04 chiffre ou bloc de l'image non dit, Q06 phrase-choc, Q07, Q09, Q10, chapitres) ne bloquent
  * jamais un script que Will a écrit : ce serait lui réclamer des mots.
  */
+import { faitsDuScript, type Fait } from "@/briques/faits-script";
 import { complexiteDe } from "@/domaine/image-video/complexite";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { motsDits, schemaFicheImage, VERSION_FICHE_IMAGE, type AccrocheFiche, type EcranFiche, type FicheImage, type Partie, type Scene } from "@/domaine/image-video/fiche";
@@ -235,6 +236,48 @@ function refsDesEcrans(carte: CarteImage, partiesEcrans: readonly Partie[], text
   return refs;
 }
 
+/** Mots dits d'un écran, avec des heures fictives (les faits du script ne lisent que l'ordre des mots). */
+const motsPourFaits = (texteDit: string) => motsDits(texteDit).map((texte, i) => ({ texte, debutMs: i * 300, finMs: i * 300 + 250 }));
+
+/** Le nombre porté par un fait, ou rien. */
+const nombresDe = (faits: readonly Fait[]) => faits.filter((f) => f.type === "nombre");
+
+/** Le texte d'écran avec son nombre dit en orange (`*20*`), quand ce nombre y est écrit tel quel ; sinon inchangé. */
+function avecNombreOrange(texte: string, motNombre: string): string {
+  const nu = motNombre.replace(/[.,!?:;…]+$/u, "");
+  if (!nu || texte.includes("*")) return texte;
+  const i = texte.search(new RegExp(`(^|\\s)${nu.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[\\s.,!?:;…])`, "u"));
+  if (i < 0) return texte;
+  const debut = texte[i] === " " || /\s/u.test(texte[i]!) ? i + 1 : i;
+  return `${texte.slice(0, debut)}*${nu}*${texte.slice(debut + nu.length)}`;
+}
+
+/** Pour un écran du milieu du récit : ce que ses faits montrent le mieux (chiffre, bandeau, nuée), sinon rien (règle d'avant). */
+function sceneDesFaits(faits: readonly Fait[], carte: CarteImage, refs: readonly string[], texteDit: string): { scene: Scene; refs: string[]; motNombre?: number; coches?: { mot: number; ref: string }[] } | null {
+  const nombres = nombresDe(faits);
+  const passage = faits.find((f) => f.type === "passage");
+  if (nombres.length || passage) {
+    if (nombres.length >= 2) {
+      // Bandeau : seulement si chaque nombre dit est un chiffre de la carte (le bandeau montre des chiffres de la carte).
+      const ids = nombres.flatMap((f) => (f.type === "nombre" ? carte.chiffres.filter((ch) => new RegExp(`(^|\\D)${f.valeur}(\\D|$)`).test(ch.brut)).map((ch) => ch.id) : []));
+      const distincts = [...new Set(ids)];
+      if (distincts.length >= 2) return { scene: "bandeau-chiffres", refs: [...refs, ...distincts] };
+    }
+    const premier = passage ?? nombres[0]!;
+    const mot = premier.type === "passage" ? premier.apres.surMot : premier.type === "nombre" ? premier.surMot : undefined;
+    return { scene: "chiffre", refs: [...refs], ...(mot !== undefined ? { motNombre: mot } : {}) };
+  }
+  const liste = faits.find((f) => f.type === "liste" || f.type === "etapes");
+  if (liste && (liste.type === "liste" || liste.type === "etapes")) {
+    const source = carte.noeuds.find((n) => refs.includes(n.id) && (n.quantite ?? 0) >= 2 && (n.role === "declencheur" || n.role === "source"));
+    if (source && texteDit) {
+      const coches = liste.elements.flatMap((el, k) => (refs[k] ? [{ mot: el.surMot, ref: refs[k]! }] : []));
+      return { scene: "nuee", refs: [...refs], coches };
+    }
+  }
+  return null;
+}
+
 const familleDe = (t: string): AccrocheFiche["famille"] => (/\d/.test(t) ? "chiffre" : /\?/.test(t) ? "question" : "situation");
 
 /** La fiche du script collé (PUR). Les mots dits des écrans, mis bout à bout, sont ceux du script. */
@@ -248,15 +291,27 @@ export function ficheDuScriptColle(script: string, carte: CarteImage): FicheImag
     const partie = parties[i]!;
     const r = refs[i]!;
     const nbDits = motsDits(texteDit).length;
-    const scene: Scene = partie === "accroche" ? "accroche" : partie === "phrase-choc" ? "phrase-choc" : r.length ? "toile" : "titre";
+    const regle: Scene = partie === "accroche" ? "accroche" : partie === "phrase-choc" ? "phrase-choc" : r.length ? "toile" : "titre";
+    // GV2-50 : au milieu du récit, la scène vient des faits du script (nombre, passage, liste) ; sinon la règle d'avant.
+    const faits = partie === "accroche" || partie === "phrase-choc" ? null : sceneDesFaits(faitsDuScript(motsPourFaits(texteDit)), carte, r, texteDit);
+    const scene: Scene = faits?.scene ?? regle;
+    const refsEcran = faits?.refs ?? r;
+    const affiche = texteAffiche(texteDit);
+    const motsAffiches = motsDits(texteDit);
+    const textesEcran = scene === "toile" ? [] : [scene === "chiffre" && faits?.motNombre !== undefined ? avecNombreOrange(affiche, motsAffiches[faits.motNombre] ?? "") : affiche];
+    const surMot: EcranFiche["surMot"] = faits?.coches?.length
+      ? faits.coches.slice(0, 12).map((g) => ({ mot: Math.min(nbDits - 1, g.mot), action: "coche" as const, ref: g.ref }))
+      : scene === "chiffre" && faits?.motNombre !== undefined
+        ? [{ mot: Math.min(nbDits - 1, faits.motNombre), action: "compte" as const }]
+        : r.slice(0, 12).map((ref, k) => ({ mot: Math.min(nbDits - 1, Math.floor((k * nbDits) / r.length)), action: "apparait" as const, ref }));
     return {
       id: idEcran(i),
       partie,
       scene,
-      refs: r,
+      refs: refsEcran,
       texteDit,
-      textesEcran: scene === "toile" ? [] : [texteAffiche(texteDit)],
-      surMot: r.slice(0, 12).map((ref, k) => ({ mot: Math.min(nbDits - 1, Math.floor((k * nbDits) / r.length)), action: "apparait" as const, ref })),
+      textesEcran,
+      surMot,
       fond: FOND_PAR_PARTIE[partie],
     };
   });
