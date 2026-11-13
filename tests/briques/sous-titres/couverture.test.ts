@@ -31,6 +31,17 @@ describe("GV2-21 : durée minimale d'une ligne", () => {
     expect(segs.flatMap((s) => s.mots).length).toBe(22);
   });
 
+  it("une ligne impossible à corriger n'arrête pas la garde des lignes suivantes", () => {
+    const mots: MotHorodate[] = [];
+    let t = 0;
+    for (let i = 0; i < 20; i++) {
+      const d = i < 8 ? 0.03 : 0.3;
+      mots.push({ mot: `m${i}`, debutSec: +t.toFixed(3), finSec: +(t + d).toFixed(3) });
+      t += d;
+    }
+    const segs = grouperMots(mots);
+    expect(segs.filter((s, i) => i > 0 && s.finSec - s.debutSec < 0.2 - 1e-6)).toEqual([]);
+  });
   it("jamais d'affichage pendant un vrai blanc long", () => {
     const mots = [...voix(4, 0.05), ...voix(4, 0.05, 2)];
     const segs = grouperMots(mots);
