@@ -88,13 +88,71 @@ export const schemaLegende = z.strictObject({
   style: z.enum(["bandeau", "etiquette", "titre"]),
 });
 
+/* Pièces « de données » (GV2-45) : chaque élément arrive sur un mot dit. `surMot` = indice du mot dans le minutage du plan ;
+ * `aMs` = instant de ce mot depuis le début de la scène, posé par le code (`poserInstantsSurMot`), jamais par le modèle. */
+const surMot = z.number().int().min(0);
+const aMs = z.number().min(0).optional();
+const valeurAvecMot = { valeur: z.number().finite(), unite: z.string().trim().max(8).optional(), surMot, aMs };
+
+export const schemaCompteur = z.strictObject({
+  valeur: z.number().finite(),
+  unite: z.string().trim().min(1).max(8).optional(),
+  libelle: texteCourt(40).optional(),
+  surMot,
+  aMs,
+});
+
+export const schemaJauge = z.strictObject({
+  valeur: z.number().min(0).max(100),
+  libelle: texteCourt(40).optional(),
+  surMot,
+  aMs,
+});
+
+export const schemaAvantApres = z.strictObject({
+  avant: z.strictObject(valeurAvecMot),
+  apres: z.strictObject(valeurAvecMot),
+  titre: texteCourt(40).optional(),
+});
+
+export const schemaBarres = z.strictObject({
+  barres: z.array(z.strictObject({ libelle: texteCourt(20), valeur: z.number().min(0).finite(), surMot, aMs })).min(2).max(4),
+  unite: z.string().trim().min(1).max(8).optional(),
+});
+
+const elementAuMot = z.strictObject({ texte: texteCourt(40), surMot, aMs });
+
+export const schemaEtapes = z.strictObject({
+  elements: z.array(elementAuMot).min(2).max(6),
+});
+
+export const schemaListeAuMot = z.strictObject({
+  titre: texteCourt(40).optional(),
+  elements: z.array(elementAuMot).min(2).max(6),
+});
+
+export const schemaCitation = z.strictObject({
+  texte: texteCourt(120),
+  auteur: texteCourt(30).optional(),
+  surMot,
+  aMs,
+});
+
+export const GENRES_REPERE = ["lieu", "date", "duree"] as const;
+export const schemaRepere = z.strictObject({
+  genre: z.enum(GENRES_REPERE),
+  texte: texteCourt(30),
+  surMot,
+  aMs,
+});
+
 export interface DefinitionBrique<S extends z.ZodType = z.ZodType> {
   id: string;
   nom: string;
   /** Ce que montre la brique (repris dans la consigne du générateur). */
   description: string;
   /** Famille, pour le repli vers la pièce la plus proche. */
-  famille: "geste" | "chiffre" | "interface" | "texte";
+  famille: "geste" | "chiffre" | "interface" | "texte" | "donnee";
   /** Noms approchés qui désignent cette brique (repli d'un nom inconnu). */
   alias: string[];
   /** Taille de dessin (px) ; le rendu la met à l'échelle dans la zone de la scène. */
@@ -240,6 +298,109 @@ export const CATALOGUE_BRIQUES = {
     schema: schemaLegende,
     exemple: { texte: "Le devis part tout seul", sousTexte: "", style: "bandeau" },
   }),
+  compteur: brique({
+    id: "compteur",
+    nom: "Compteur",
+    description: "Un nombre dit avec son unité, qui monte d'un coup jusqu'à la valeur dite, au moment où le mot est prononcé.",
+    famille: "donnee",
+    alias: ["nombre", "decompte", "total"],
+    toile: TOILES["compteur"],
+    schema: schemaCompteur,
+    exemple: { valeur: 40, unite: "%", libelle: "de temps gagné", surMot: 0, aMs: 400 },
+  }),
+  jauge: brique({
+    id: "jauge",
+    nom: "Jauge",
+    description: "Une part de 0 à 100 % annoncée dans la voix (taux, avancement), qui se remplit jusqu'à la valeur dite.",
+    famille: "donnee",
+    alias: ["pourcentage", "taux", "avancement", "progression"],
+    toile: TOILES["jauge"],
+    schema: schemaJauge,
+    exemple: { valeur: 72, libelle: "des demandes traitées", surMot: 0, aMs: 400 },
+  }),
+  "avant-apres": brique({
+    id: "avant-apres",
+    nom: "Avant / après",
+    description: "Deux valeurs opposées, avant puis après, chacune montrée au mot où elle est dite.",
+    famille: "donnee",
+    alias: ["comparaison", "avant", "apres", "versus"],
+    toile: TOILES["avant-apres"],
+    schema: schemaAvantApres,
+    exemple: {
+      titre: "Temps de réponse",
+      avant: { valeur: 48, unite: "h", surMot: 0, aMs: 300 },
+      apres: { valeur: 12, unite: "min", surMot: 3, aMs: 1500 },
+    },
+  }),
+  barres: brique({
+    id: "barres",
+    nom: "Barres comparées",
+    description: "2 à 4 grandeurs comparées côte à côte, chaque barre poussant au mot où sa valeur est dite.",
+    famille: "donnee",
+    alias: ["comparer", "classement", "ecart"],
+    toile: TOILES["barres"],
+    schema: schemaBarres,
+    exemple: {
+      unite: "h",
+      barres: [
+        { libelle: "Avant", valeur: 12, surMot: 0, aMs: 300 },
+        { libelle: "Maintenant", valeur: 3, surMot: 2, aMs: 1100 },
+      ],
+    },
+  }),
+  etapes: brique({
+    id: "etapes",
+    nom: "Étapes",
+    description: "Une suite d'étapes numérotées (2 à 6), chacune apparaissant quand elle est nommée dans la voix.",
+    famille: "donnee",
+    alias: ["etape", "parcours", "procedure", "marche a suivre"],
+    toile: TOILES["etapes"],
+    schema: schemaEtapes,
+    exemple: {
+      elements: [
+        { texte: "Le client appelle", surMot: 0, aMs: 300 },
+        { texte: "L'assistant répond", surMot: 3, aMs: 1200 },
+        { texte: "Le devis part", surMot: 6, aMs: 2100 },
+      ],
+    },
+  }),
+  "liste-au-mot": brique({
+    id: "liste-au-mot",
+    nom: "Liste au mot",
+    description: "Une liste annoncée (2 à 6 éléments) qui se remplit : chaque ligne arrive au mot où elle est dite.",
+    famille: "donnee",
+    alias: ["enumeration", "points", "liste a puces", "checklist"],
+    toile: TOILES["liste-au-mot"],
+    schema: schemaListeAuMot,
+    exemple: {
+      titre: "Ce qui est inclus",
+      elements: [
+        { texte: "Devis automatique", surMot: 0, aMs: 300 },
+        { texte: "Relances par SMS", surMot: 2, aMs: 1000 },
+        { texte: "Agenda à jour", surMot: 4, aMs: 1800 },
+      ],
+    },
+  }),
+  citation: brique({
+    id: "citation",
+    nom: "Citation",
+    description: "Une phrase rapportée (parole d'un client, d'un avis), avec son auteur, qui apparaît au mot où elle commence.",
+    famille: "donnee",
+    alias: ["temoignage", "avis", "verbatim"],
+    toile: TOILES["citation"],
+    schema: schemaCitation,
+    exemple: { texte: "Je ne rate plus aucun appel.", auteur: "Un plombier", surMot: 0, aMs: 300 },
+  }),
+  repere: brique({
+    id: "repere",
+    nom: "Repère",
+    description: "Un lieu, une date ou une durée dite à voix haute, posée en repère court au moment où elle est dite.",
+    famille: "donnee",
+    alias: ["lieu", "date", "duree", "localisation"],
+    toile: TOILES["repere"],
+    schema: schemaRepere,
+    exemple: { genre: "lieu", texte: "Lyon", surMot: 0, aMs: 300 },
+  }),
 } as const;
 
 export type IdPiece = keyof typeof CATALOGUE_BRIQUES;
@@ -248,6 +409,43 @@ export type ParametresPiece<K extends IdPiece> = z.infer<(typeof CATALOGUE_BRIQU
 
 export function estPiece(id: unknown): id is IdPiece {
   return typeof id === "string" && Object.hasOwn(CATALOGUE_BRIQUES, id);
+}
+
+type Mot = { debutMs: number };
+type AvecMot = { surMot: number; aMs?: number };
+
+/**
+ * Pose `aMs` (instant du mot depuis le début de la scène, jamais négatif) sur chaque élément des pièces « de données »
+ * d'après son `surMot`. Fonction pure : renvoie une copie. Un `surMot` hors du minutage est laissé tel quel (le rendu
+ * répartit alors les éléments à égalité).
+ */
+export function poserInstantsSurMot<T>(piece: IdPiece, parametres: T, mots: readonly Mot[], debutSceneMs: number): T {
+  if (!parametres || typeof parametres !== "object") return parametres;
+  const poser = <E extends AvecMot>(e: E): E => {
+    const mot = mots[e.surMot];
+    return mot ? { ...e, aMs: Math.max(0, mot.debutMs - debutSceneMs) } : { ...e };
+  };
+  const p = structuredClone(parametres) as Record<string, unknown>;
+  switch (piece) {
+    case "compteur":
+    case "jauge":
+    case "citation":
+    case "repere":
+      return poser(p as unknown as AvecMot) as unknown as T;
+    case "avant-apres":
+      p.avant = poser(p.avant as AvecMot);
+      p.apres = poser(p.apres as AvecMot);
+      return p as T;
+    case "barres":
+      p.barres = (p.barres as AvecMot[]).map(poser);
+      return p as T;
+    case "etapes":
+    case "liste-au-mot":
+      p.elements = (p.elements as AvecMot[]).map(poser);
+      return p as T;
+    default:
+      return parametres;
+  }
 }
 
 function normaliser(s: string): string {
