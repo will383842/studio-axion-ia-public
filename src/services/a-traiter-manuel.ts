@@ -3,6 +3,11 @@
  * Règles : jamais de réponse ni de message automatique (aucun appel au port, aucun import du port ni des branchements) ;
  * un stop gagne partout ; au moindre doute (registre illisible, secret absent) rien n'est écrit et l'événement est repris plus tard ;
  * rien n'est supprimé ; les cartes ne contiennent jamais de texte libre (extrait = le mot seul). Journaux : compteurs seulement.
+ * CONTRAT DU FUTUR PRODUCTEUR des événements `zernio.commentaire_manuel` (charge : etat « a_faire », reseau, repere, idCompte, idAuteur, motSeul, proprio) :
+ *  - `motSeul` doit déjà porter la forme canonique d'un « stop » (y compris en phrase, ex. « stop, merci ») : ce service ne relit aucun texte ;
+ *  - `idAuteur` doit être renseigné : sans lui l'opposition ne peut être inscrite et l'événement est clos « écarté », sans carte ni opposition ;
+ *  - au raccord : `injecterDepotATraiter(creerDepotParametre())` au démarrage (le dépôt par défaut d'a-traiter.ts est une mémoire de processus),
+ *    et chaque écrivain lit puis écrit sous le même verrou (la fusion du dépôt garde les cartes, mais la version écrite l'emporte).
  * Réglage neuf = ÉTEINT : seule la valeur booléenne `true` l'allume (absent, illisible ou autre valeur = éteint).
  */
 import "server-only";
