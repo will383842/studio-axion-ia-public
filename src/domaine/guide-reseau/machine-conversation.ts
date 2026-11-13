@@ -107,6 +107,10 @@ export interface Conversation {
   essaiEnvoiLe?: string;
   /** Lectures du suivi tombées en panne passagère pour ce parcours. */
   essaisSuivi?: number;
+  /** Instagram, réglage allumé : dates (facultatives, jamais écrites à `undefined`) des autres messages envoyés à la personne, comptées dans le plafond par personne. */
+  adresseRefuseeLe?: string;
+  accuseLe?: string;
+  merciEssaiLe?: string;
 }
 
 /** Délai avant réduction des identifiants bruts d'un événement clos (D1 : 30 jours, assez pour les réessais et les vérifications à la main dans l'Inbox Zernio). */
@@ -468,6 +472,8 @@ export function choisirParcoursPourMessage(
   idCompte: string,
   /** Réglage Instagram allumé : les parcours Instagram en attente passent en premier. Éteint (défaut) : tri d'avant, ces états sont ignorés. */
   igSuivre = false,
+  /** Le message CONTIENT une adresse e-mail : avec un parcours `attente_email`, il va à ce parcours (jamais au parcours Instagram en attente d'un OK). */
+  contientAdresse = false,
 ): { principal: EntreeParcours | null; tous: EntreeParcours[] } {
   const tous = dossier.filter((x) => x.etat.idCompte === idCompte);
   const recent = (l: readonly EntreeParcours[]): EntreeParcours | null =>
@@ -486,6 +492,7 @@ export function choisirParcoursPourMessage(
         x.etat.etat === "guide_demande" && x.etat.idMessageGuide === idMessage,
     ) ??
     // Un OK de la personne s'adresse d'abord aux parcours Instagram en attente (ces états n'existent que réglage allumé).
+    (igSuivre && contientAdresse ? recent(tous.filter((x) => x.etat.etat === "attente_email")) : null) ??
     (igSuivre ? recent(tous.filter((x) => x.etat.etat === "ig_attente_ok" || x.etat.etat === "ig_pas_encore")) : null) ??
     recent(tous.filter((x) => ETATS_MESSAGE_ACCEPTES.includes(x.etat.etat) && (igSuivre || !ETATS_IG_ATTENTE.includes(x.etat.etat)))) ??
     recent(tous); // dossier sans parcours de ce compte : null, jamais un parcours d'un autre compte
