@@ -197,6 +197,53 @@ export async function validerScriptCasConcret(videoId: Id, dependances: { mainte
   return { casId: cas.id, valideLe, modifie: modifications.length > 0 };
 }
 
+/**
+ * GV2-20 · le script FOURNI du cas (« Mon script ») enregistré APRÈS la mise en attente de la vidéo, s'il existe et vaut
+ * encore pour la version courante du cas ; `null` sinon. `depuis` : date de la mise en attente (la date du script est un
+ * jour : enregistré le jour même, il compte). Lecture seule, jamais d'exception.
+ */
+export async function scriptFourniPlusRecent(casId: string, depuis: string): Promise<ScriptValide | null> {
+  try {
+    const script = await scriptValideDuStudio(casId);
+    if (!script?.fourni || script.valideLe < depuis.slice(0, 10)) return null;
+    const cas = await trouverCasConnu(casId);
+    return cas && !problemesScriptValide(script, cas).length ? script : null;
+  } catch {
+    return null;
+  }
+}
+
+/** La date de mise en attente d'un travail (dernière modification connue). */
+const miseEnAttenteDe = (travail: Pick<Travail, "modifieLe" | "creeLe">): string => String(travail.modifieLe ?? travail.creeLe ?? "");
+
+/**
+ * GV2-20 · « Utiliser mon script » : le script fourni plus récent devient le script de la vidéo en attente (même chemin que
+ * `validerScriptCasConcret`, avec ce script), puis la fabrication est relancée par la fonction de relance existante. Une
+ * relance refusée ou à confirmer est rendue telle quelle (`issue`) : le script reste posé, l'écran propose « Relancer ».
+ */
+export async function validerScriptFourniPourVideo(
+  videoId: Id,
+  dependances: { maintenant?: number; accord?: number | true; relancer?: (travailId: Id, accord?: number | true) => Promise<import("./cas-concret-relance").IssueRelanceCasConcret> } = {},
+): Promise<{ casId: string; valideLe: string; issue: import("./cas-concret-relance").IssueRelanceCasConcret }> {
+  await exigerSession();
+  const travail = await travailDeLaVideo(videoId);
+  const ecrite = ficheDuTravail(travail);
+  if (!travail || !ecrite || !attendValidation(travail)) throw new ErreurStudio("SCRIPT_PAS_A_VALIDER", "Aucun script n'attend votre validation pour cette vidéo.");
+  const fourni = await scriptFourniPlusRecent(ecrite.casId, miseEnAttenteDe(travail));
+  if (!fourni) throw new ErreurStudio("SCRIPT_FOURNI_ABSENT", "Aucun script de votre part n'a été enregistré depuis la mise en attente.");
+  const cas = await casDeLaVideo(videoId, ecrite.casId);
+  if (!cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
+  const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString().slice(0, 10);
+  const texteFourni = fourni.texteFourni;
+  const fiche = ficheARelire(fourni, cas);
+  await verrouScripts(() => garderNouvelleVersion(cas, scriptDeFiche(fiche, { versionCas: cas.version, valideLe, source: `Vidéo ${videoId} : script fourni par le fondateur, validé pour cette vidéo.`, videoId, fourni: true, ...(texteFourni ? { texteFourni } : {}) })));
+  const { enregistrerScriptDuBrouillon } = await import("./videos");
+  await enregistrerScriptDuBrouillon(videoId, blocsScriptDesEcrans(fiche.ecrans, videoId));
+  await journaliser("cas-concret", `Script fourni validé pour la vidéo : ${cas.titre}`, { type: "video", id: videoId });
+  const relancer = dependances.relancer ?? (await import("./cas-concret-relance")).relancerEtapeCasConcret;
+  return { casId: cas.id, valideLe, issue: await relancer(travail.id, dependances.accord) };
+}
+
 /* ------------------------------------------------------------------ */
 /* Brique 3 : relire et modifier le script, versions validées            */
 /* ------------------------------------------------------------------ */
