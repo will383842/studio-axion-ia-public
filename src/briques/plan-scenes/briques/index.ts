@@ -13,6 +13,7 @@ import { FrappeClavier } from "./FrappeClavier";
 import { Graphique } from "./Graphique";
 import { Legende } from "./Legende";
 import { ListeCrm } from "./ListeCrm";
+import { AvantApres, Barres, Citation, Compteur, Etapes, Jauge, ListeAuMot, Repere } from "./PiecesDonnees";
 import { TableauDeBord } from "./TableauDeBord";
 import { ZoomCamera, transformZoom } from "./ZoomCamera";
 
@@ -29,6 +30,14 @@ export const RENDUS_BRIQUES: Record<IdPiece, RenduBrique> = {
   "fenetre-app": FenetreApp as RenduBrique,
   "bulle-chat": BulleChat as RenduBrique,
   legende: Legende as RenduBrique,
+  compteur: Compteur as RenduBrique,
+  jauge: Jauge as RenduBrique,
+  "avant-apres": AvantApres as RenduBrique,
+  barres: Barres as RenduBrique,
+  etapes: Etapes as RenduBrique,
+  "liste-au-mot": ListeAuMot as RenduBrique,
+  citation: Citation as RenduBrique,
+  repere: Repere as RenduBrique,
 };
 
 export { transformZoom };
