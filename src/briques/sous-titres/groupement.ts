@@ -157,13 +157,57 @@ export function grouperUnites(mots: MotHorodate[], options: Partial<OptionsGroup
 export function grouperMots(mots: MotHorodate[], options: Partial<OptionsGroupement> = {}): SegmentSousTitres[] {
   const o = { ...GROUPEMENT_PAR_DEFAUT, ...options };
   const groupes = grouperUnites(mots, o);
-  return groupes.map((g, i) => {
+  return garderVisibilite(groupes.map((g, i) => {
     const d = debut(g);
     const naturelle = fin(g);
     const suivant = groupes[i + 1] ? debut(groupes[i + 1]) : Infinity;
     const finSec = suivant - naturelle <= o.blancSec ? suivant : Math.min(suivant, Math.max(naturelle, d + o.dureeMinSec));
     return { id: `st-${g[0].index}`, debutSec: arrondi(d), finSec: arrondi(finSec === Infinity ? Math.max(naturelle, d + o.dureeMinSec) : finSec), mots: g.flatMap((u) => u.mots) };
-  });
+  }), o);
+}
+
+/** Durée sous laquelle une ligne est jugée trop brève pour être vue (6 images à 30 i/s). */
+const VISIBLE_MIN_SEC = 0.2;
+
+/**
+ * GV2-21 : une ligne affichée moins de 0,2 s est fusionnée avec sa voisine (la précédente, sinon la suivante) si la
+ * longueur maximale le permet ; sinon elle prend du temps à sa voisine, sans que celle-ci descende sous 0,2 s.
+ * Jamais de fusion à travers un vrai blanc (> `blancSec`) : rien n'est affiché pendant un blanc.
+ */
+function garderVisibilite(segments: SegmentSousTitres[], o: OptionsGroupement): SegmentSousTitres[] {
+  const s = segments.map((x) => ({ ...x }));
+  const court = (x: SegmentSousTitres) => x.finSec - x.debutSec < VISIBLE_MIN_SEC - 1e-9;
+  const contigus = (a: SegmentSousTitres, b: SegmentSousTitres) => b.debutSec - a.finSec <= o.blancSec + 1e-9;
+  const tient = (mots: MotHorodate[]) => mots.length <= o.motsMax && (!o.largeurMaxPx || !o.mesurer || o.mesurer(mots.map((m) => m.mot)) <= o.largeurMaxPx);
+  for (let garde = 0; garde < segments.length * 4; garde++) {
+    const i = s.findIndex((x, k) => s.length > 1 && court(x) && (k < s.length - 1 || k > 0));
+    if (i < 0) break;
+    const cur = s[i];
+    const prec = i > 0 && contigus(s[i - 1], cur) ? s[i - 1] : undefined;
+    const suiv = i < s.length - 1 && contigus(cur, s[i + 1]) ? s[i + 1] : undefined;
+    const voisine = prec ?? suiv;
+    if (!voisine) break;
+    const besoin = VISIBLE_MIN_SEC - (cur.finSec - cur.debutSec);
+    if (tient(prec ? [...prec.mots, ...cur.mots] : [...cur.mots, ...suiv!.mots])) {
+      if (prec) {
+        prec.mots = [...prec.mots, ...cur.mots];
+        prec.finSec = Math.max(prec.finSec, cur.finSec);
+        s.splice(i, 1);
+      } else {
+        suiv!.mots = [...cur.mots, ...suiv!.mots];
+        suiv!.id = cur.id;
+        suiv!.debutSec = Math.min(cur.debutSec, suiv!.debutSec);
+        s.splice(i, 1);
+      }
+    } else if (prec && prec.finSec - prec.debutSec - besoin >= VISIBLE_MIN_SEC - 1e-9) {
+      prec.finSec = arrondi(prec.finSec - besoin);
+      cur.debutSec = arrondi(prec.finSec);
+    } else if (suiv && suiv.finSec - suiv.debutSec - besoin >= VISIBLE_MIN_SEC - 1e-9) {
+      suiv.debutSec = arrondi(suiv.debutSec + besoin);
+      cur.finSec = arrondi(suiv.debutSec);
+    } else break;
+  }
+  return s;
 }
 
 function arrondi(s: number): number {
