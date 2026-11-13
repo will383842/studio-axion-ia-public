@@ -1420,6 +1420,8 @@ export interface Travail extends EntiteBase {
    * écrites dans la MÊME écriture que « terminé » ; chacune est retirée une fois faite (seules les ratées sont rejouées).
    */
   finitionAFaire?: SuiteFabrication[];
+  /** Chien de garde « plus d'avancement » (GV2-01) : empreinte de l'état, heure depuis laquelle elle n'a pas changé, dernière fois où elle a été vue. */
+  garde?: { empreinte: string; depuis: string; vu?: string };
 }
 
 /** Ce qui se fait APRÈS l'écriture d'une fabrication terminée, hors verrou (appels réseau possibles). */
