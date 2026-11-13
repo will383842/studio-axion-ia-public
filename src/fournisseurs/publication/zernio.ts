@@ -32,7 +32,7 @@ export interface OptionsPublicationZernio {
   lirePremierCommentaireCoupe?: () => Promise<unknown>;
 }
 
-const DELAI_LECTURE_COUPE_MS = 1500;
+const DELAI_LECTURE_COUPE_MS = 500;
 
 /** Lecture à chaque envoi, sans jamais bloquer : exception, lenteur ou valeur illisible = faux (le premier commentaire part). */
 async function premierCommentaireCoupe(lecture: () => Promise<unknown>): Promise<boolean> {
@@ -115,7 +115,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
     capacites: { asynchrone: false, accordExige: false },
 
     async envoyer(demande: DemandeZernio) {
-      const coupe = await premierCommentaireCoupe(options.lirePremierCommentaireCoupe ?? lireReglagePremierCommentaireCoupe);
+      // Lecture lancée tout de suite, jamais attendue ici (ne rejette jamais) : elle se fait pendant les appels réseau ci-dessous.
+      const coupeP = premierCommentaireCoupe(options.lirePremierCommentaireCoupe ?? lireReglagePremierCommentaireCoupe);
       const hex = cleHex(demande);
       const d: DemandeZernio = { ...demande, cleEnvoi: hex };
       const instant = maintenant();
@@ -123,7 +124,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       // 1. Tout refus pur, avant le réseau (TikTok : réglages fictifs prudents, remplacés par les vrais ensuite).
       const niveau = d.niveauConfidentialiteTiktok ?? "";
       const prudent: CreateurTiktok = { privacyLevels: [niveau], allowComment: false, allowDuet: false, allowStitch: false };
-      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, premierCommentaireCoupe: coupe });
+      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true });
       // LinkedIn profil : prouvé par la lecture du compte (jamais présumé).
       const profilLinkedinProuve = cible.profilLinkedin ? compteLinkedinEstProfil((await client.listerComptes()).find((c) => c._id === cible.accountId)) : false;
       const demandes = mediasDemandes(d);
@@ -131,6 +132,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const createurTiktok = plateformeZernio(d.reseau) === "tiktok" ? lireCreateurTiktok(await client.infoCreateurTiktok(cible.accountId)) : undefined;
       const hotesPublics = new Set<string>();
       const medias = await televerserMedias(client, lire, demandes, hotesPublics);
+      // Seule attente de la lecture : juste avant la création (au plus 500 ms, en pratique déjà terminée).
+      const coupe = await coupeP;
       const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe });
       // 3. Création, clé d'idempotence neutre.
       let resultat;
