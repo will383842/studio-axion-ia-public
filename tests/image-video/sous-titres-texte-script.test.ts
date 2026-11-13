@@ -23,7 +23,9 @@ const SONDE = "Vous doutez ? Un bon PV, puis un pépin : 135 € perdus, soit 20
 const fiche: FicheImage = { ...base, ecrans: base.ecrans.map((e, i) => (i === 0 ? { ...e, texteDit: SONDE } : i === 1 ? { ...e, texteDit: "Le cœur du sujet." } : e)) };
 const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins.find((f) => f.reseaux.includes("youtube-shorts"))!;
 const voix = pisteSimulee(fiche, fin.muet ? null : fin);
-const res = mettreEnSceneIV({ carte, fiche, voix, fin, reseaux: fin.reseaux, bruitagesValides: VALIDES });
+const res = mettreEnSceneIV({ carte, fiche, voix, fin, reseaux: fin.reseaux, bruitagesValides: VALIDES, texteEcrit: true });
+/** Vidéo existante (sans `texteEcrit`) : la ligne d'avant, mots de la voix et clôture à 1,5 s de la fin. */
+const avant = mettreEnSceneIV({ carte, fiche, voix, fin, reseaux: fin.reseaux, bruitagesValides: VALIDES });
 const lignes = res.ligne.sousTitres.groupes.map((g) => g.mots.map((m) => m.mot).join(" "));
 const tout = lignes.join(" | ");
 
@@ -65,5 +67,12 @@ describe("bruitage de clôture après la voix", () => {
     expect(cloture).toBeDefined();
     expect(cloture.debutSec).toBeGreaterThanOrEqual(res.ligne.finVoixSec + 0.3 - 1e-6);
     expect(cloture.debutSec).toBeGreaterThanOrEqual(res.ligne.dureeSec - CLOTURE_AVANT_FIN_SEC - 1e-6);
+  });
+});
+
+describe("vidéo existante (sans texteEcrit) : ligne d'avant", () => {
+  it("sous-titres des mots de la voix et clôture à CLOTURE_AVANT_FIN_SEC de la fin", () => {
+    expect(avant.ligne.sousTitres.groupes.flatMap((g) => g.mots.map((m) => m.mot))).toEqual(voix.mots.map((m) => m.mot).filter((x) => x));
+    expect(avant.ligne.bruitages.find((b) => b.planId === "cloture")!.debutSec).toBeCloseTo(avant.ligne.dureeSec - CLOTURE_AVANT_FIN_SEC, 2);
   });
 });
