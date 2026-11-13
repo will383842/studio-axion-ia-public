@@ -184,7 +184,7 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
  * Jugement d'un plafond PAR VIDÉO ou par sujet (centimes du pire cas : déjà engagé + cet appel). PUR côté décision :
  *  - sous le plafond : "ok" ;
  *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
- *  - mode indicatif, quel que soit le dépassement : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif),
+ *  - mode indicatif, quel que soit le dépassement : "ok" après avoir prévenu le fondateur (journal + une cloche par jour et par motif),
  *    SANS arrêt : le prix ne bloque jamais.
  */
 export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque"> {
