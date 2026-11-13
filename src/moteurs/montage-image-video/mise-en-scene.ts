@@ -534,6 +534,32 @@ export function ficheMiseEnScene(fiche: FicheImage, carte: CarteImage): FicheIma
   return { ...fiche, ecrans: fiche.ecrans.map((e) => (aGarder(e) ? { ...e, scene: gardee(e) } : sansBenefice(e) ? { ...e, scene: "toile" as const } : momentVide(e) ? { ...e, scene: "titre" as const } : e)) };
 }
 
+/**
+ * Mots des sous-titres : ceux du script ÉCRIT (calage par rang), avec les heures de la voix, signes isolés compris
+ * (« ? », « : », « € »… que `motsDits` ne compte pas) ; « cœur » reste « cœur ». Les heures ne bougent pas : un signe
+ * prend celles du mot qui le précède (le sous-titre le recolle). Si les mots écrits ne correspondent pas au calage, repli
+ * sur les mots de la voix.
+ */
+function motsEcritsHorodates(fiche: Pick<FicheImage, "ecrans">, fin: NonNullable<EntreeMiseEnSceneIV["fin"]> | null, calage: CalageIV): MotHorodate[] {
+  const textes = [...fiche.ecrans.map((e) => e.texteDit), ...(fin ? [fin.question?.dit ?? "", ...fin.appels.map((a) => a.dit)] : [])];
+  const cales = [...calage.ecrans.flatMap((e) => e.mots), ...calage.fin];
+  const res: MotHorodate[] = [];
+  let k = 0;
+  for (const t of textes) {
+    for (const jeton of t.split(/\s+/).filter(Boolean)) {
+      if (/[\p{L}\p{N}]/u.test(jeton)) {
+        const m = cales[k++];
+        if (!m) return [...calage.voix];
+        res.push({ mot: jeton, debutSec: m.debutSec, finSec: m.finSec });
+      } else if (res.length) {
+        const avant = res[res.length - 1];
+        res.push({ mot: jeton, debutSec: avant.debutSec, finSec: avant.finSec });
+      }
+    }
+  }
+  return k === cales.length && res.length ? res : [...calage.voix];
+}
+
 /** Met en scène une version. Rend toujours la ligne de temps et le rapport des contrôles (`ok` = aucun bloquant). */
 export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnSceneIV {
   const { carte } = entree;
@@ -598,10 +624,10 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
 
   // 10. Sous-titres mot à mot, mot fort orange.
   const forts: MotFort[] = plans.flatMap((p) => p.textes.flatMap((t) => [...t.matchAll(/\*([^*]+)\*/g)].map((m) => ({ debutSec: p.debut, finSec: p.fin, mot: m[1] }))));
-  const sousTitres = sousTitresIV(calage.voix, { reseaux: entree.reseaux, motsForts: forts, ...(format === "4:5" ? { format } : {}) });
+  const sousTitres = sousTitresIV(motsEcritsHorodates(fiche, fin, calage), { reseaux: entree.reseaux, motsForts: forts, ...(format === "4:5" ? { format } : {}) });
 
   // 11. Bruitages (L4).
-  const poses = poserBruitagesIV({ evenements, dureeSec, valides: entree.bruitagesValides, ...(entree.graine !== undefined ? { graine: entree.graine } : {}) });
+  const poses = poserBruitagesIV({ evenements, dureeSec, finVoixSec: finVoix, valides: entree.bruitagesValides, ...(entree.graine !== undefined ? { graine: entree.graine } : {}) });
 
   const chiffresDits = chiffresDitsDesEcrans();
   // 12. Queue de fin : du dernier mot des sous-titres (ce qui « parle » pour l'image figée) à la fin de la vidéo.
