@@ -1159,16 +1159,16 @@ describe("moteur « montage-image-video » (contrat MoteurVideo)", () => {
 
   it("GV2-36 · une remarque de fin de voix sort en tête, en « attention » ; les autres restent « info »", () => {
     const etat = {
-      controles: { transcriptions: {}, relectures: {}, verdict: { ok: true, phrase: "ok", phrases: [], mentions: ["Un peu longue.", "Piste voix seule A · la dernière phrase risque d'être coupée.", "Voix gardée malgré une remarque : x"] } },
+      controles: { transcriptions: {}, relectures: {}, verdict: { ok: true, phrase: "ok", phrases: [], mentions: ["Un peu longue.", "Piste voix seule A · la dernière phrase risque d'être coupée.", "Voix gardée malgré une remarque : x", "Instagram · Fin dite en entier : la voix finit 1,2 s avant la fin de la vidéo (1,5 s au moins)."] } },
       livraison: [],
       rendus: {},
       caisse: { reservations: [] },
       journal: [],
     } as unknown as EtatFabricationIV;
     const alertes = resultatDe(etat, T0).noteQualite.alertes;
-    expect(alertes.map((a) => a.gravite)).toEqual(["attention", "attention", "info"]);
+    expect(alertes.map((a) => a.gravite)).toEqual(["attention", "attention", "attention", "info"]);
     expect(alertes[0].message).toMatch(/dernière phrase risque d'être coupée/);
-    expect(alertes[2].message).toBe("Un peu longue.");
+    expect(alertes[3].message).toBe("Un peu longue.");
   });
 
   it("estime en LigneCout, total cohérent ; étapes enchaînées", async () => {
