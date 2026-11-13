@@ -806,10 +806,11 @@ const retirerEssaiEnvoi = (cle: string) =>
     delete reste.essaiEnvoiLe;
     return reste;
   });
-/** Un message entrant plus ancien de la même personne n'est pas encore traité (« stop » en panne de lecture, introuvable, texte absent…) : il peut être une opposition. Au moindre doute : oui. */
+/** Un message entrant de la même personne n'est pas encore traité (« stop » en panne de lecture, introuvable, texte absent…), QUELLE QUE SOIT SA DATE : il peut être une opposition
+ *  (webhooks dans le désordre, horloge décalée). Au moindre doute, y compris une date illisible : oui. Seul l'événement lui-même est écarté. */
 const ATTENTE_STOP_ANTERIEUR_MS = 60_000;
-async function messageAnterieurNonTraite(ev: EvenementFournisseur, idCompte: string, idConversation: string, idExpediteur: string, idMessage: string): Promise<boolean> {
-  const recu = Date.parse(ev.recuLe);
+const ATTENTE_ALERTE_OK_MS = 10 * 60_000;
+async function messageNonTraiteDeLaPersonne(ev: EvenementFournisseur, idCompte: string, idConversation: string, idExpediteur: string, idMessage: string): Promise<boolean> {
   const autres = await depots().evenementsFournisseurs.lister((x) => x.fournisseur === FOURNISSEUR && x.type === TYPE_MESSAGE && !x.traite && x.id !== ev.id);
   return autres.some((x) => {
     const c = x.charge;
@@ -817,11 +818,19 @@ async function messageAnterieurNonTraite(ev: EvenementFournisseur, idCompte: str
     if (typeof c.idCompte === "string" && c.idCompte !== idCompte) return false;
     const conv = typeof c.idConversation === "string" && c.idConversation ? c.idConversation : null;
     const exp = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : null;
-    if ((conv !== null || exp !== null) && conv !== idConversation && exp !== idExpediteur) return false;
-    const t = Date.parse(x.recuLe);
-    return Number.isNaN(t) || Number.isNaN(recu) || t <= recu;
+    return !((conv !== null || exp !== null) && conv !== idConversation && exp !== idExpediteur);
   });
 }
+/** Message clos « ignore » SANS avoir été lu alors qu'un parcours Instagram attend le OK (réglage allumé) : doute sur le dossier, plus rien ne part à la personne. Aucune donnée supprimée. */
+async function douterSiInstagramEnAttente(cle: string | null, igSuivre: boolean, now: number): Promise<void> {
+  if (!cle || !igSuivre) return;
+  const { entrees } = await lireDossier(racineDe(cle));
+  const concernes = entrees.filter((x) => x.etat.etat === "ig_attente_ok" || x.etat.etat === "ig_pas_encore" || x.etat.etat === "ig_a_verifier");
+  if (concernes.length === 0) return;
+  for (const x of concernes) await patcher(x.cle, { douteOpposition: true });
+  await alerter("ig_message_non_lu", "Instagram : un message n'a pas pu être lu, la personne est mise en attente par prudence.", now);
+}
+
 /** Aucune formulation « suivre le compte » validée : rien ne part (ni public ni privé), commentaire clos, parcours refusé (même sortie que M1 sans texte). */
 async function cloreIgSuivreAbsent(ev: EvenementFournisseur, cle: string, now: number): Promise<"traite"> {
   await alerter("ig_suivre_absente", MESSAGE_IG_SUIVRE_ABSENT, now);
@@ -964,7 +973,7 @@ const pannesSite = (code: string): boolean => code === "injoignable" || code ===
  * `veille` : le message a été écrit pendant la reprise humaine : l'appelant le lit mais n'y répond jamais.
  */
 const ESSAIS_LISTE_INCOMPLETE = 6;
-async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte: string, idConversation: string, idMessage: string, now: number, plafonner: boolean): Promise<{ texte: string; veille: boolean } | null> {
+async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte: string, idConversation: string, idMessage: string, now: number, plafonner: boolean, cleDossier: string | null = null, igSuivre = false): Promise<{ texte: string; veille: boolean } | null> {
   const c = ev.charge;
   const occurredAt = typeof c.occurredAt === "string" ? c.occurredAt : undefined;
   const idExpediteur = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : undefined;
@@ -979,6 +988,7 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
     const n = Number(c.pannesLecture ?? 0);
     if (plafonner && lu.codePanne === "liste-incomplete" && n + 1 >= ESSAIS_LISTE_INCOMPLETE) {
       await alerter("liste_incomplete", "La lecture d'un message privé est abandonnée : liste Zernio trop longue ou incomplète (6 essais). L'événement est clos sans réponse ; à vérifier dans l'Inbox Zernio.", now);
+      await douterSiInstagramEnAttente(cleDossier, igSuivre, now);
       await clore(ev, "ignore", "liste_incomplete");
       return null;
     }
@@ -995,14 +1005,20 @@ async function lireTexte(ev: EvenementFournisseur, d: DepsConversation, idCompte
     const n = Number(c.essaisIntrouvable ?? 0);
     const s = transition(null, { t: "texte_introuvable", essais: n });
     if (s.action === "introuvable_reessai") await reporter(ev, now, s.apresMs ?? 5 * 60_000, "message_introuvable", { essaisIntrouvable: n + 1 });
-    else await clore(ev, "ignore", "introuvable");
+    else {
+      await douterSiInstagramEnAttente(cleDossier, igSuivre, now);
+      await clore(ev, "ignore", "introuvable");
+    }
     return null;
   }
   if (lu.texte === null) {
     const n = Number(c.essaisTexte ?? 0);
     const s = transition(null, { t: "texte_absent", essais: n });
     if (s.action === "texte_reessai") await reporter(ev, now, s.apresMs ?? 30_000, "texte_absent", { essaisTexte: n + 1 });
-    else await clore(ev, "ignore", "texte_absent");
+    else {
+      await douterSiInstagramEnAttente(cleDossier, igSuivre, now);
+      await clore(ev, "ignore", "texte_absent");
+    }
     return null;
   }
   return { texte: lu.texte, veille: lu.veille === true };
@@ -1140,7 +1156,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "ignore", "conversation_inconnue");
     return "traite";
   }
-  const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now, s0.action !== "lire_opposition");
+  const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now, s0.action !== "lire_opposition", cle, igSuivre);
   if (!lu) return "traite";
   // Réglage allumé : un message qui CONTIENT une adresse e-mail va au parcours `attente_email` s'il en existe un, jamais au parcours Instagram en attente d'un OK.
   if (multi && igSuivre && enAttenteOk(etat) && extraireAdresse(lu.texte) !== null) {
@@ -1240,6 +1256,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       }
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
+    // m2Le écrit AVANT l'envoi (comme accuseLe) : une issue inconnue compte dans le plafond ; retiré plus bas si rien n'est parti.
+    const m2Avant = etat.m2Le;
+    if (igSuivre && etat.reseau === "instagram") await patcher(cle, { m2Le: new Date(now).toISOString() });
     // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
     if (m2.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, "adresse-non-reconnue": m2.formulation } });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage, nonOpposee: nonOpposeeM2 }));
@@ -1247,6 +1266,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await reagir(sm, now);
     // M2 compté dès qu'il est parti ou d'issue inconnue (jamais deux fois) ; un refus net ne compte pas.
     if (res.statut === "envoye" || res.statut === "a_verifier") await patcher(cle, { m2Envoye: true, m2Le: new Date(now).toISOString(), etat: etat.etat === "attente_email" ? "m2_envoye" : etat.etat });
+    else if (igSuivre && etat.reseau === "instagram") await ecrireEtat(cle, (e) => { if (!e) return undefined; const r = { ...e }; if (m2Avant === undefined) delete r.m2Le; else r.m2Le = m2Avant; return r; });
     await clore(ev, res.statut, res.code ?? null);
     return "traite";
   }
@@ -1326,7 +1346,9 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   }
   // V1 : un message plus ancien de la même personne, pas encore traité (« Stop » en panne de lecture, introuvable, texte absent…), peut être une opposition :
   // avant toute lecture du suivi et toute réservation d'envoi (lien comme « pas encore »), le OK attend. Les étapes qui précèdent n'envoient rien. Rien n'est consommé, rien ne part ; le « Stop » lu ensuite gagne.
-  if (await messageAnterieurNonTraite(ev, idCompte, idConversation, idExpediteur, idMessage)) {
+  if (await messageNonTraiteDeLaPersonne(ev, idCompte, idConversation, idExpediteur, idMessage)) {
+    const recuLe = Date.parse(ev.recuLe);
+    if (!Number.isFinite(recuLe) || now - recuLe > ATTENTE_ALERTE_OK_MS) await alerter("ig_message_en_attente", "Instagram : un OK attend depuis plus de 10 minutes qu'un autre message de la personne soit lu ; rien ne part tant que ce message n'est pas traité.", now);
     await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu");
     return "traite";
   }
