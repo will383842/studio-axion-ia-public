@@ -25,7 +25,7 @@
 import type { AlerteQualite, CommandeFabrication, MotHorodate, SegmentSousTitres } from "@/domaine/types";
 import { lireEntreesFacecam, type CoupeFacecam, type EntreesFacecam } from "@/domaine/facecam";
 import type { DemandeFacecam, EtatTravailFacecam, FournisseurFacecam, RouteFacecam } from "@/fournisseurs/facecam/client";
-import { appliquerRecalages, calculerCoupes, controlerCoupes, motsDuMontage, resumeCoupes, texteDesSousTitres, versConsignesFacecam, type ConsigneReperee, type Intervalle, type RecalageMot } from "@/briques/coupes";
+import { appliquerRecalages, calculerCoupes, controlerCoupes, motsDuMontage, resumeCoupes, versConsignesFacecam, type ConsigneReperee, type Intervalle, type PhraseRetrouvee, type RecalageMot } from "@/briques/coupes";
 import { appliquerZooms, controlerRealisation, realiser, type PisteVisage, type PlanCamera } from "@/briques/realisation";
 import type { FournisseurAlignement } from "@/fournisseurs/types";
 import { appliquerAlignement, demandeAlignement } from "@/briques/calage/alignement";
@@ -46,7 +46,7 @@ import type { CarteAutoFacecam, PassageFacecam } from "@/domaine/facecam";
 import { lireReglagesMonteur } from "./monteur/appliquer";
 import { coupesActives } from "./monteur/temps";
 import { aSoumettre, apresSoumission, prochaineSoumission, sansReprise, suiviSansEssai } from "./reprise";
-import { empreinte, etatPourRetouche, gardesDepuisCoupes, partiesARefaire, repriseDeLaChaine, signatureMontage, VERSION_CONTROLES } from "./retouche";
+import { empreinte, etatPourRetouche, gardesDepuisCoupes, partiesARefaire, repriseDeLaChaine, signatureMontage, texteMonteDesGardes, VERSION_CONTROLES } from "./retouche";
 import { instantsDeControle, type InstantControle } from "./relecture";
 import { cartesDesPassages as cartesDe } from "./raccords";
 import type { PassageMonteur } from "./monteur/appliquer";
@@ -108,6 +108,13 @@ export interface EtatChaine {
      * phrase dite autrement y est remplacée par les mots dits (10/10 : avant, elle manquait et laissait un trou).
      */
     texteMonte?: string;
+    /**
+     * GV2-14 : de quoi recalculer `texteMonte` quand les passages gardés changent (coupe demandée après coup) : les phrases
+     * du texte réduites, et les mots de la prise tels que transcrits (avant `recalages`). Absents d'un ancien état : le
+     * `texteMonte` figé est gardé tel quel.
+     */
+    phrases?: Pick<PhraseRetrouvee, "index" | "texte" | "debutSec" | "finSec" | "diteAutrement">[];
+    motsPrise?: MotHorodate[];
     /** Mode texte : mots recalés sur la prise complète d'une reprise absorbée par l'alignement forcé (10/10). */
     recalages?: RecalageMot[];
     /** Vérif V2 : transcription RECALÉE déposée sur R2 (reprise absorbée), livrée à la vidéo à la place de l'originale. */
@@ -420,6 +427,8 @@ export function alertesControles(ctrl: ControlesMontage | undefined, mesures: Me
   // 10/10 : une phrase dite autrement n'est pas perdue ; simple information (sous-titres d'après la parole).
   if (coupes?.phrasesDitesAutrement?.length) a.push({ code: "export", gravite: "info", message: `${coupes.phrasesDitesAutrement.length} phrase(s) dite(s) autrement : sous-titres d'après la parole.` });
   if (coupes?.phrasesEnDouble?.length) a.push({ code: "export", gravite: "bloquant", message: `${coupes.phrasesEnDouble.length} passage(s) entendu(s) deux fois : « ${coupes.phrasesEnDouble[0].texte.slice(0, 60)} ».` });
+  // GV2-14 : `texteNonRetrouve` n'existe que si un texte a été fourni ; la vidéo libre voulue ne déclenche rien.
+  if (coupes?.texteNonRetrouve) a.push({ code: "synchronisation", gravite: "attention", message: "Votre texte n'a pas été retrouvé dans la vidéo : les sous-titres suivent la parole." });
   if (consignesAudibles) a.push({ code: "export", gravite: "bloquant", message: `${consignesAudibles} consigne(s) « Monteur » encore audible(s).` });
   return a;
 }
@@ -529,7 +538,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     const duree = Number(resultat?.dureeSec) || prise.dureeSec;
     // Transcription libre (Whisper) rendue EN PLUS d'un alignement forcé : elle situe exactement une reprise absorbée.
     const motsLibres = Array.isArray(resultat?.motsLibres) ? (resultat.motsLibres as MotHorodate[]) : undefined;
-    if (rate("transcrire")) sauter("Les coupes", "La transcription n'a pas abouti : la vidéo est gardée entière.");
+    if (rate("transcrire")) sauter("Les coupes", "La transcription n'a pas abouti : la vidéo est gardée entière, sans sous-titres.");
     const texte = c.script.texteComplet?.trim();
     const plan = calculerCoupes({ mots: m, dureeSec: duree, ...(texte ? { texteValide: texte } : {}), ...(motsLibres?.length ? { motsLibres } : {}) });
     // Les coupes déjà rétablies par Will (retouche) restent rétablies ; celles qu'il a demandées (« coupe ce passage »)
@@ -551,9 +560,13 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
         const ctrl = controlerCoupes(plan, m, [...retablies]);
         return { phrasesManquantes: ctrl.phrasesManquantes, phrasesEnDouble: ctrl.phrasesEnDouble, ...(ctrl.phrasesDitesAutrement.length ? { phrasesDitesAutrement: ctrl.phrasesDitesAutrement } : {}) };
       })(),
-      ...(plan.mode === "texte" ? { texteMonte: texteDesSousTitres(plan.phrases) } : {}),
       ...(plan.recalages.length ? { recalages: plan.recalages } : {}),
     };
+    if (plan.mode === "texte") {
+      etat.coupes.phrases = plan.phrases.map((p) => ({ index: p.index, texte: p.texte, ...(p.debutSec !== undefined ? { debutSec: p.debutSec, finSec: p.finSec } : {}), ...(p.diteAutrement ? { diteAutrement: p.diteAutrement } : {}) }));
+      etat.coupes.motsPrise = m;
+      etat.coupes.texteMonte = texteMonteDesGardes(etat.coupes, gardes);
+    }
     // Vérif V2 (10/10) : la vidéo garde la transcription RECALÉE (le monteur, aux demandes de Will après coup, relit la
     // transcription livrée : sans recalage, les mots repris tombaient dans la première tentative coupée et disparaissaient).
     if (plan.recalages.length && deps.ecrireJsonGz && !simule) {
@@ -580,6 +593,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       if (demandees.length && !etat.travaux.son) {
         const gardes = gardesDepuisCoupes(coupesActives({ coupes: { auto: coupes.liste, retablies: entrees.coupes.retablies } }, demandees), coupes.dureeSourceSec);
         etat.coupes = { ...coupes, gardes, dureeSortieSec: +gardes.reduce((s, g) => s + g.finSec - g.debutSec, 0).toFixed(3) };
+        // GV2-14 : les sous-titres suivent les coupes demandées.
+        if (etat.coupes.mode === "texte") etat.coupes.texteMonte = texteMonteDesGardes(etat.coupes, gardes);
       }
     } catch {
       etat.monteur = { statut: "fait", cartes: [] };
@@ -869,7 +884,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     const depose = etat.mots?.cle && deps.lireJsonGz && !simule ? ((await deps.lireJsonGz(etat.mots.cle).catch(() => null)) as { mots?: MotHorodate[] } | null) : null;
     if (Array.isArray(depose?.mots)) return depose.mots;
     const montes = motsDuMontage(termine("transcrire") ? await motsDeLaTranscription() : [], etat.coupes!.gardes);
-    return etat.coupes!.texteMonte && montes.length ? horodaterMotsPrononces(etat.coupes!.texteMonte.split(/\s+/).filter(Boolean), montes) : montes;
+    const texteMonte = texteMonteDesGardes(etat.coupes!, etat.coupes!.gardes);
+    return texteMonte && montes.length ? horodaterMotsPrononces(texteMonte.split(/\s+/).filter(Boolean), montes) : montes;
   }
 
   async function habiller(outils: OutilsMontage): Promise<void> {
@@ -1046,14 +1062,15 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     const montes = motsDuMontage(termine("transcrire") ? await motsDeLaTranscription() : [], coupes.gardes);
     const duree = coupes.dureeSortieSec;
     // Texte validé horodaté par la transcription (orthographe du texte, jamais celle de Whisper : « Certifexemple »).
-    const voix = coupes.texteMonte && montes.length ? horodaterMotsPrononces(coupes.texteMonte.split(/\s+/).filter(Boolean), montes) : montes;
+    const texteMonte = texteMonteDesGardes(coupes, coupes.gardes);
+    const voix = texteMonte && montes.length ? horodaterMotsPrononces(texteMonte.split(/\s+/).filter(Boolean), montes) : montes;
     let mots = voix;
-    let source: NonNullable<EtatChaine["mots"]>["source"] = coupes.texteMonte ? "texte" : "transcription";
-    if (deps.alignement && deps.alignement.mode !== "simulation" && coupes.texteMonte && voix.length) {
+    let source: NonNullable<EtatChaine["mots"]>["source"] = texteMonte ? "texte" : "transcription";
+    if (deps.alignement && deps.alignement.mode !== "simulation" && texteMonte && voix.length) {
       const suivi = etat.mots;
       if (!suivi) {
         const sonCle = (etat.travaux.son?.resultat as { fichierCle?: string } | undefined)?.fichierCle ?? cle("son.flac");
-        const demande = demandeAlignement({ idBase: `${ctx.travailId}-facecam`, audio: await lire(sonCle), texte: coupes.texteMonte, reference: voix });
+        const demande = demandeAlignement({ idBase: `${ctx.travailId}-facecam`, audio: await lire(sonCle), texte: texteMonte, reference: voix });
         try {
           await deps.alignement.soumettre(demande);
           etat.mots = { statut: "soumis", id: demande.idAlignement, essais: 0 };
@@ -1129,6 +1146,7 @@ export function livraisonChaine(etat: EtatChaine): {
   const coupes = etat.coupes;
   const consignesAudibles = coupes ? coupes.consignes.filter((x) => coupes.gardes.some((g) => x.finSec > g.debutSec + 0.02 && x.debutSec < g.finSec - 0.02)).length : 0;
   const alertes = alertesControles(montage?.controles, passe?.mesures, coupes, consignesAudibles);
+  if (etat.travaux.transcrire?.statut === "echec") alertes.push({ code: "synchronisation", gravite: "attention", message: "Vidéo sans sous-titres : la transcription n'a pas abouti." });
   for (const s of etat.sauts) alertes.push({ code: "export", gravite: "attention", message: `1 élément non fait — ${s.brique} : ${s.message}` });
   return {
     montageCle: montage?.fichierCle,
