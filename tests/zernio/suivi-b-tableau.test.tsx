@@ -34,7 +34,7 @@ const base = (siteDisponible: boolean, gagnees = 3): TableauSuivi => ({
   ],
 });
 
-const rendu = (s: TableauSuivi) => renderToStaticMarkup(<TableauSuiviMots suivi={s} />);
+const rendu = (s: TableauSuivi, partout?: boolean) => renderToStaticMarkup(<TableauSuiviMots suivi={s} partout={partout} />);
 
 describe("TableauSuiviMots", () => {
   it("écrit « au moins 3 » et « aucune vue pour l'instant » pour 0", () => {
@@ -78,6 +78,16 @@ describe("TableauSuiviMots", () => {
     expect(derniere()).toBe("au moins 4");
     (bouton("Total").props.onClick as () => void)();
     expect(derniere()).toBe("au moins 5");
+  });
+  it("réglage « au moins partout » : tableau, détail par publication et par formulation", () => {
+    const html = rendu(base(true, 3), true);
+    expect(html).toContain("<td>au moins 1</td>");
+    expect(html).toContain("au moins 1 commentaires, au moins 2 premiers messages");
+    expect(html).toContain("A : au moins 4 envois");
+    const normal = rendu(base(true, 3), false);
+    expect(normal).toContain("1 commentaires, 2 premiers messages");
+    expect(normal).toContain("A : 4 envois");
+    expect(normal).not.toContain("au moins 4 envois");
   });
   it("ni le HTML rendu ni les sources ne contiennent le mot interdit", () => {
     const motif = new RegExp(["ab", "onn"].join(""), "i");
