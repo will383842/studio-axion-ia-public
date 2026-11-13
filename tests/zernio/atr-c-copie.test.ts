@@ -143,6 +143,16 @@ describe("copierMessageCarte", () => {
     expect(evenements).toEqual(["ecriture", "rendu"]);
   });
 
+  it("un dépôt qui reprend le verrou général ne provoque pas d'interblocage", async () => {
+    const lire = depot.lire.bind(depot);
+    const ecrire = depot.ecrire.bind(depot);
+    depot.lire = () => Com.sousVerrou(lire);
+    depot.ecrire = (c) => Com.sousVerrou(() => ecrire(c));
+    const r = await Promise.race([copier(), new Promise<string>((res) => setTimeout(() => res("interblocage"), 3000))]);
+    expect(r).not.toBe("interblocage");
+    expect((r as { ok: boolean }).ok).toBe(true);
+  });
+
   it("sans dépôt fourni ou interrupteur éteint : refus, rien n'est écrit", async () => {
     expect((await Copie.copierMessageCarte("evt-fictif-001", { env: ENV, maintenantMs: T0 })).ok).toBe(false);
     expect((await copier({ env: { ...ENV, A_TRAITER_ENABLED: "0" } })).ok).toBe(false);
