@@ -159,11 +159,14 @@ export function lectureLocale(format: FormatEntree): string[] {
 }
 
 /** Dernière erreur FFmpeg par commande (empreinte courte -> ligne technique), pour reconnaître une erreur qui se répète. */
+/** Sans paramètres d'adresse ni dossier temporaire (qui changent à chaque essai). PUR. */
+const sansVariables = (t: string) => t.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s?\u0000]*\S*/gi, (a) => a.replace(/\?.*$/, "")).replace(/studio-rendu-[A-Za-z0-9]+/g, "studio-rendu-X");
+
 const dernieresErreursFfmpeg = new Map<string, string>();
 
 /** Empreinte courte d'une commande : sans adresse signée ni dossier temporaire (qui changent à chaque essai). PUR. */
 export function empreinteCommande(commande: string, args: string[]): string {
-  const normalise = [commande, ...args].join("\u0000").replace(/[a-z][a-z0-9+.-]*:\/\/[^\s?\u0000]*\S*/gi, (a) => a.replace(/\?.*$/, "")).replace(/studio-rendu-[A-Za-z0-9]+/g, "studio-rendu-X");
+  const normalise = sansVariables([commande, ...args].join("\u0000"));
   return createHash("sha1").update(normalise).digest("hex").slice(0, 12);
 }
 
@@ -179,9 +182,9 @@ function erreurCommande(commande: string, args: string[], code: number | null, d
   const empreinte = empreinteCommande(commande, args);
   const precedente = dernieresErreursFfmpeg.get(empreinte);
   dernieresErreursFfmpeg.delete(empreinte);
-  dernieresErreursFfmpeg.set(empreinte, technique);
+  dernieresErreursFfmpeg.set(empreinte, sansVariables(technique));
   if (dernieresErreursFfmpeg.size > 200) dernieresErreursFfmpeg.delete(dernieresErreursFfmpeg.keys().next().value as string);
-  if (precedente === technique) {
+  if (precedente === sansVariables(technique)) {
     console.error(`[studio-rendu] même erreur répétée (${empreinte}) : ${sansAdresses(technique).slice(0, 300)}`);
     return new ErreurRendu({ code: "inconnu", reessayable: false, message: "Le montage a échoué sur un fichier illisible." });
   }
