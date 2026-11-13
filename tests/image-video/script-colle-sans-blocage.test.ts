@@ -127,3 +127,30 @@ describe("GV2-19 · script sans automatisation en mode script", () => {
     expect(r).toMatchObject({ ok: false, motif: "hors-sujet" });
   });
 });
+
+describe("GV2-19 · branchement du script collé dans la fabrication (piste d)", () => {
+  const CONSEILS = "Dormez huit heures chaque nuit. Marchez vingt minutes tous les jours. Buvez de l'eau avant chaque repas. Coupez les écrans le soir. Ces trois conseils changent tout.";
+  it("un script de conseils en mode script n'est plus refusé : carte proposée, puis prête après validation, un seul appel de lecture", async () => {
+    const m = monde();
+    const base = outilsSimules(carte, m);
+    const appelerConception = appelerConceptionEnSimulation(CONCEPTION_VIDE);
+    let appels = 0;
+    const o: OutilsFabricationIV = {
+      ...base,
+      lireImageSource: async () => {
+        throw new Error("aucun fichier image en mode script");
+      },
+      lecture: { convertir: async () => { throw new Error("aucune conversion"); }, appeler: async (role, entree) => { appels++; return appelerConception(role, entree); } },
+    };
+    const demande = demandeEssai(carte, { videoId: "v-conseils-bout", image: { cle: `texte:${cleDuTexte(CONSEILS)}` }, texte: CONSEILS, scriptColle: true, plafondCentimes: 50000 });
+    let e: EtatFabricationIV = await avancerJusquAArretIV(etatInitialIV(demande), o);
+    expect(e.refus, JSON.stringify(e.refus)).toBeUndefined();
+    expect(e.propositionCarte).toBeDefined();
+    e = await avancerJusquAArretIV(validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-27T08:00:00.000Z" }), o);
+    e = await avancerJusquAArretIV(validerScriptIV(e, { proposition: e.propositionScript!.empreinte, choixFormules: Object.fromEntries(e.propositionScript!.formules.map((f) => [f.cle, "garder" as const])) }), o);
+    for (let i = 0; i < 20 && e.etape !== "prete" && e.etape !== "refusee" && e.attente; i++) e = await avancerJusquAArretIV(e, o);
+    expect(e.refus, JSON.stringify(e.refus)).toBeUndefined();
+    expect(e.etape).toBe("prete");
+    expect(appels).toBe(1);
+  });
+});
