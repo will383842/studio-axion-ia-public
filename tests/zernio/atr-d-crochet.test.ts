@@ -18,7 +18,6 @@ const SECRET = "secret-fictif-atr-d-crochet";
 const ENV = { MOTS_ENABLED: "1", ZERNIO_WEBHOOK_SECRET: SECRET };
 const T = Date.parse("2026-10-18T10:00:10.000Z");
 const TEXTE = "GUIDE";
-const PHRASE_LIBRE = "GUIDE texte-libre-fictif-xyz";
 let n = 0;
 
 const corpsDe = (plateforme: string, o: { id?: string; idCom?: string; texte?: string } = {}) => {
@@ -71,16 +70,19 @@ describe("réglage éteint (défaut) : aucun dépôt", () => {
 describe("réglage vrai", () => {
   beforeEach(async () => { await Com.ecrireParametre(PARAM_RESEAUX_MANUELS, true); });
 
-  for (const [plateforme, reseau] of [["linkedin", "linkedin_page"], ["tiktok", "tiktok"]] as const) it(`${plateforme} : un événement déposé, charge sans texte`, async () => {
-    const r = await envoyer(corpsDe(plateforme, { texte: PHRASE_LIBRE.replace(" texte-libre-fictif-xyz", "") }));
+  for (const [plateforme, reseau] of [["linkedin", "linkedin_page"], ["tiktok", "tiktok"]] as const) it(`${plateforme} : un événement déposé, charge sans texte (mot ET phrase envoyés)`, async () => {
+    // Vrai commentaire : le mot d'opposition ET une phrase (liste fermée) ; le dépôt existe, la phrase n'y est jamais.
+    const PHRASE = "merci";
+    const r = await envoyer(corpsDe(plateforme, { texte: `Stop, ${PHRASE}` }));
     expect(r).toEqual({ statut: 200, corps: { recu: true } });
     const l = await deposes();
     expect(l).toHaveLength(1);
     expect(l[0].type).toBe("zernio.commentaire_manuel");
     expect(l[0].traite).toBe(false);
-    expect(l[0].charge).toMatchObject({ etat: "a_faire", reseau, motSeul: "GUIDE", proprio: false });
+    expect(l[0].charge).toMatchObject({ etat: "a_faire", reseau, motSeul: "STOP", proprio: false });
     expect(Object.keys(l[0].charge)).not.toContain("texte");
-    expect(JSON.stringify(l[0])).not.toContain("texte-libre");
+    expect(JSON.stringify(l[0]).toLowerCase()).not.toContain(PHRASE);
+    expect(JSON.stringify(l[0]).toLowerCase()).not.toContain("stop,");
   });
 
   it("la charge ne contient pas le texte du commentaire (même long ou libre)", async () => {
@@ -159,5 +161,34 @@ describe("aucun appel au port d'envoi", () => {
     await Com.ecrireParametre(PARAM_RESEAUX_MANUELS, true);
     for (const p of ["linkedin", "tiktok", "facebook", "instagram"]) await envoyer(corpsDe(p));
     expect(port.appels).toBe(0);
+  });
+});
+
+describe("ATR-D R1 : une seule lecture du registre par commentaire", () => {
+  const lectures = () => vi.mocked(depots().parametres.obtenir).mock.calls.filter((a) => String(a[0]) === "mots.registre").length;
+  const ecrireRegistre = async () => {
+    await Com.ecrireParametre("parcours.mots_multiples", true);
+    await Com.ecrireParametre("mots.registre", { "PROMO|c1": { mot: "PROMO", compte: "c1", etat: "actif" } });
+  };
+  it("LinkedIn, réglage multiple : le registre n'est lu qu'une fois", async () => {
+    await Com.ecrireParametre(PARAM_RESEAUX_MANUELS, true);
+    await ecrireRegistre();
+    vi.spyOn(depots().parametres, "obtenir");
+    await envoyer(corpsDe("linkedin", { texte: "PROMO" }));
+    expect(lectures()).toBe(1);
+    expect(await deposes()).toHaveLength(1);
+  });
+  it("Facebook sans mot, panne du registre à la 2e lecture : réponse et dépôt inchangés", async () => {
+    await ecrireRegistre();
+    const reel = depots().parametres.obtenir.bind(depots().parametres);
+    let n = 0;
+    vi.spyOn(depots().parametres, "obtenir").mockImplementation(async (cle: string) => {
+      if (cle === "mots.registre" && ++n >= 2) throw new Error("registre en panne");
+      return reel(cle);
+    });
+    const r = await envoyer(corpsDe("facebook", { texte: "super article, bravo" }));
+    expect(r).toEqual({ statut: 200, corps: { recu: true } });
+    expect(await deposes()).toEqual([]);
+    expect(lectures()).toBe(1);
   });
 });
