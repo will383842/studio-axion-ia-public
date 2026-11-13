@@ -45,7 +45,7 @@ import { lecturesVoixMaxDuReglage } from "./voix-ressemblance";
 import { relireFicheTableau, type PointRelecture } from "@/moteurs/montage-tableau/relecture";
 import { descriptionSortie, sortiesDesReseaux, type IdSortie } from "@/moteurs/montage-tableau/formats-sortie";
 import { DESCRIPTIONS_STRUCTURES, STRUCTURES_TABLEAU, STYLE_PAR_DEFAUT_TABLEAU, STYLE_REFERENCE_2, STYLE_REFERENCE_3, validerFicheTableau, type ElementTableau, type FicheTableau, type StructureTableau } from "@/moteurs/montage-tableau/fiche";
-import type { ContexteTableau } from "@/moteurs/montage-tableau/regles";
+import { regleTexteMotPourMot, type ContexteTableau } from "@/moteurs/montage-tableau/regles";
 import {
   RESEAUX_SCRIPT,
   RESEAUX_SCRIPT_INFOS,
@@ -1020,7 +1020,10 @@ function lireCorrections(brut: unknown): CorrectionScene[] {
   });
 }
 
-export type IssueCorrectionTableau = { statut: "enregistree"; version: number } | { statut: "refusee"; phrase: string; problemes: ProblemeFiche[] };
+/** Code du refus « la fiche corrigée ne redit pas le texte du fondateur » : l'écran propose « Reprendre mon texte ». */
+export const CODE_TEXTE_FONDATEUR_CHANGE = "TEXTE_FONDATEUR_CHANGE";
+
+export type IssueCorrectionTableau = { statut: "enregistree"; version: number } | { statut: "refusee"; phrase: string; problemes: ProblemeFiche[]; code?: typeof CODE_TEXTE_FONDATEUR_CHANGE };
 
 /** Correction de l'en-tête de la fiche : la douleur et ses mots (règles « douleur en tête » et « geste fort »). */
 export interface CorrectionEntete {
@@ -1048,7 +1051,7 @@ async function ficheCorrigee(
   actuelle: FicheTableau,
   correctionsBrutes: unknown,
   aujourdhui: string | undefined,
-): Promise<{ ok: true; fiche: FicheTableau; donnees: DonneesScriptTableau } | { ok: false; phrase: string; problemes: ProblemeFiche[] }> {
+): Promise<{ ok: true; fiche: FicheTableau; donnees: DonneesScriptTableau } | { ok: false; phrase: string; problemes: ProblemeFiche[]; code?: typeof CODE_TEXTE_FONDATEUR_CHANGE }> {
   const scenes = Array.isArray(correctionsBrutes) ? correctionsBrutes : (correctionsBrutes as { scenes?: unknown } | null)?.scenes;
   const entete = lireEntete(correctionsBrutes);
   // Mots forts remis en forme comme au découpage : une ligne réécrite à la main ne doit pas bloquer l'enregistrement.
@@ -1063,6 +1066,12 @@ async function ficheCorrigee(
   const motsDouleur = entete.motsDouleur !== undefined ? nettoyerMotsDouleur(entete.motsDouleur) : (brouillon.donnees.motsDouleur ?? []);
   const corrigee = remettreEnForme({ ...coupee.fiche, douleur }, { motsDouleur });
   const texte = texteDitDe(corrigee);
+  // Texte du fondateur : une fiche « à corriger » enregistrée SANS toucher au texte dit ne remplace jamais en silence
+  // son texte d'origine par celui que le modèle a changé. Une modification volontaire du texte reste acceptée.
+  if (brouillon.donnees.origine === "will" && brouillon.versions.at(-1)?.origine === "decoupage-a-corriger" && texteDitDe(actuelle) === texte && texte !== brouillon.donnees.texte) {
+    const [ecart] = regleTexteMotPourMot(corrigee, { texteScript: brouillon.donnees.texte } as ContexteTableau);
+    if (ecart) return { ok: false, phrase: `Le texte de la fiche n'est plus le vôtre : ${ecart.detail.replace("le script validé dit", "votre texte dit")} Rien n'a été enregistré.`, problemes: [], code: CODE_TEXTE_FONDATEUR_CHANGE };
+  }
   if (motsDouleur.length > MOTS_DOULEUR_MAX) return { ok: false, phrase: `Donnez ${MOTS_DOULEUR_MAX} mots de la douleur au plus.`, problemes: [] };
   const absent = motsDouleur.find((m) => !motsPleins(m).length || !contientExpression(texte, m));
   if (absent) return { ok: false, phrase: `Le mot de la douleur « ${absent} » n'est pas dit dans le texte : recopiez-le tel qu'il est dit, ou retirez-le.`, problemes: [] };
@@ -1089,7 +1098,7 @@ export async function corrigerFicheTableau(videoId: Id, correctionsBrutes: unkno
   const actuelle = brouillon.versions.at(-1)?.fiche;
   if (!actuelle) return { statut: "refusee", phrase: "Découpez d'abord le script en scènes.", problemes: [] };
   const r = await ficheCorrigee(brouillon, actuelle, correctionsBrutes, dependances.aujourdhui);
-  if (!r.ok) return { statut: "refusee", phrase: r.phrase, problemes: r.problemes };
+  if (!r.ok) return { statut: "refusee", phrase: r.phrase, problemes: r.problemes, ...(r.code ? { code: r.code } : {}) };
   // Le texte dit corrigé devient le script de la vidéo (les règles exigent l'un égal à l'autre).
   const version = await ajouterVersion(video.id, r.fiche, "correction", r.donnees);
   // Un découpage refusé dont la fiche vient d'être corrigée n'est plus « refusé » : son bandeau et ses motifs s'effacent.
