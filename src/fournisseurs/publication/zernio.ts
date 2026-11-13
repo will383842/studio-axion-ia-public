@@ -140,7 +140,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
         if (e instanceof ErreurZernio && e.code === "a-verifier") {
           // État inconnu : lire d'abord. Trouvé = envoi réussi ; sinon l'envoi reste « à vérifier » (aucun renvoi automatique).
           const trouve = await retrouver(hex);
-          if (trouve) return { idExterne: trouve._id, via: "zernio" as const, statut: statutDepuisZernio(trouve.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+          if (trouve) return { idExterne: trouve._id, via: "zernio" as const, statut: statutDepuisZernio(trouve.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d, coupe) };
         }
         if (e instanceof ErreurZernio && e.code === "doublon" && e.existingPostId) {
           // Le doublon est jugé par compte : le post d'origine peut être celui d'une autre page. On relit et on compare la clé.
@@ -150,7 +150,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
           } catch {
             origine = undefined;
           }
-          if (origine?.metadata?.studioCle === hex) return { idExterne: origine._id, via: "zernio" as const, statut: statutDepuisZernio(origine.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+          if (origine?.metadata?.studioCle === hex) return { idExterne: origine._id, via: "zernio" as const, statut: statutDepuisZernio(origine.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d, coupe) };
           // Clé différente ou post illisible : pas de conclusion « envoyé », l'envoi reste à vérifier (identifiant non transmis).
           throw new ErreurZernio("doublon", e.message, { statut: e.statut, detailTechnique: e.detailTechnique });
         }
@@ -163,7 +163,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
           detailTechnique: resultat.echecs.map((x) => `${x.platform}: ${x.errorCategory ?? "?"}`).join("; "),
         });
       }
-      return { idExterne: resultat.post._id, via: "zernio" as const, statut: corps.isDraft ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+      return { idExterne: resultat.post._id, via: "zernio" as const, statut: corps.isDraft ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d, coupe) };
     },
 
     async listerCanaux() {
@@ -214,7 +214,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
   };
 }
 
-function commentaire(d: DemandePublication): { premierCommentaire?: "transmis" | "a-la-main" } {
-  if (!d.premierCommentaire?.trim()) return {};
+function commentaire(d: DemandePublication, coupe: boolean): { premierCommentaire?: "transmis" | "a-la-main" } {
+  // Premier commentaire coupé : rien n'est parti, donc rien n'est annoncé (ni « transmis » ni « à la main »).
+  if (coupe || !d.premierCommentaire?.trim()) return {};
   return { premierCommentaire: premierCommentaireTransmissibleZernio(d.reseau) ? "transmis" : "a-la-main" };
 }
