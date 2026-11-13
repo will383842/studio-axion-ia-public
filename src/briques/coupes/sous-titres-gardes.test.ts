@@ -70,3 +70,18 @@ describe("texteSousTitresGardes", () => {
     expect(mots_(t)).not.toContain("euh");
   });
 });
+
+describe("texteSousTitresGardes · fin de phrase mal transcrite", () => {
+  it("un mot de fin mal transcrit (hors des bornes de la phrase) n'est jamais écrit en double", () => {
+    const T = ["Bonjour, je suis Paul, fondateur de Certifexemple.", "Nous avons automatisé toutes les relances de nos clients en deux semaines.", "Appelez-nous dès aujourd'hui."];
+    const prise = mots(dire("Bonjour je suis Paul fondateur de Certifexemple", 1, 4), dire("Nous avons automatisé toutes les relances de nos clients en deux sème haines", 4.5, 9), dire("Appelez-nous dès aujourd'hui", 9.5, 11));
+    const p = calculerCoupes({ mots: prise, dureeSec: 12, texteValide: T.join(" ") });
+    expect(texteSousTitresGardes(p, prise)).toBe(T.join(" "));
+  });
+  it("une marque coupée en deux par la transcription n'est pas répétée", () => {
+    const T = ["Bonjour, je suis Paul, fondateur de Certifexemple.", "Nous avons automatisé toutes les relances de nos clients en deux semaines.", "Appelez-nous dès aujourd'hui."];
+    const prise = mots(dire("Bonjour je suis Paul fondateur de certif exemple", 1, 4), dire("Nous avons automatisé toutes les", 4.5, 6.5), dire("nous avons automatisé toutes les relances de nos clients en deux semaines", 7, 11), dire("Appelez-nous dès aujourd'hui", 11.5, 13));
+    const p = calculerCoupes({ mots: prise, dureeSec: 15, texteValide: T.join(" ") });
+    expect(texteSousTitresGardes(p, prise)).toBe(T.join(" "));
+  });
+});
