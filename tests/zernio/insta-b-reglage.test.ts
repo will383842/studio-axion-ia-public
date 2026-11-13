@@ -44,5 +44,5 @@ describe("garde : seuls les lecteurs prévus lisent le réglage", () => {
   it("seuls les lecteurs prévus lisent le réglage", () =>
     expect(fichiers.filter((f) => /parcours\.instagram_suivre|parcours-instagram|instagramSuivreActif|PARAM_INSTAGRAM_SUIVRE/.test(readFileSync(f, "utf8")))).toEqual(LECTEURS_PREVUS));
   it("le module annonce son état éteint", () =>
-    expect(readFileSync(MODULE, "utf8")).toContain("ÉTEINT PAR DÉFAUT, aucun code de production ne le lit encore"));
+    expect(readFileSync(MODULE, "utf8")).toContain("ÉTEINT PAR DÉFAUT ; seul lecteur de production : parcours-conversation (INSTA-C)"));
 });

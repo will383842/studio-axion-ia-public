@@ -91,3 +91,61 @@ export function choisirParcoursPourOk<T extends { cle: string; etat: string; cre
     .slice(0, Math.max(0, max))
     .map((x) => x.p);
 }
+
+/* --- « OK » de la personne : liste FERMÉE ---------------------------------------------------------------------------- */
+const OK_RECONNUS: ReadonlySet<string> = new Set(["ok", "okay", "oki", "oui", "c est fait", "fait", "voila", "done", "👍", "✅", "ok c est fait", "oui c est fait"]);
+/** Minuscules, sans accents, apostrophes en espaces, sans ponctuation finale, espaces réduits. */
+function normaliserOk(texte: string): string {
+  return texte
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’‘`´]/g, " ")
+    .replace(/[\s.!,;:…]+$/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+/** Vrai SEULEMENT si le message ENTIER est l'un des OK de la liste fermée (après normalisation). Tout autre texte : faux. */
+export function estOkInstagram(texte: unknown): boolean {
+  return typeof texte === "string" && OK_RECONNUS.has(normaliserOk(texte));
+}
+
+/* --- Plafond par personne ---------------------------------------------------------------------------------------------- */
+/** Messages Instagram de ce parcours au plus par personne et par 24 h (suivre le compte, « pas encore », lien). */
+export const PLAFOND_IG_PERSONNE = 3;
+const ETATS_ENVOI_INCERTAIN: readonly string[] = ["m1_en_vol", "m1_a_verifier", "ig_envoi_en_vol", "ig_a_verifier"];
+const FENETRE_PLAFOND_IG_MS = 24 * 3600_000;
+export interface LimitePersonneIg {
+  nombre: number;
+  atteint: boolean;
+  /** Date (ms) à partir de laquelle un envoi redevient possible ; `null` si le plafond n'est pas atteint. */
+  repriseMs: number | null;
+}
+/**
+ * Compte, sur TOUS les parcours du dossier, `m1Le`, `pasEncoreLe` et `lienIgLe` de moins de 24 h. Une date présente mais illisible
+ * compte comme un envoi à l'instant même (échec fermé). Atteint à `PLAFOND_IG_PERSONNE` ou plus.
+ */
+export function limitePersonneIg(
+  parcours: readonly { etat?: string; creeLe?: string | null; essaiEnvoiLe?: string | null; m1Le?: string | null; pasEncoreLe?: string | null; lienIgLe?: string | null }[],
+  maintenantMs: number,
+): LimitePersonneIg {
+  const dates: number[] = [];
+  for (const p of parcours) {
+    // Issue inconnue ou envoi interrompu (le message est peut-être parti, aucune date de succès) : compté à la date de l'essai (échec fermé).
+    if (p.etat !== undefined && ETATS_ENVOI_INCERTAIN.includes(p.etat)) {
+      const t = Date.parse(p.essaiEnvoiLe ?? p.creeLe ?? "");
+      const quand = Number.isNaN(t) ? maintenantMs : t;
+      if (maintenantMs - quand < FENETRE_PLAFOND_IG_MS) dates.push(quand);
+    }
+    for (const v of [p.m1Le, p.pasEncoreLe, p.lienIgLe]) {
+      if (typeof v !== "string") continue;
+      const t = Date.parse(v);
+      const quand = Number.isNaN(t) ? maintenantMs : t;
+      if (maintenantMs - quand < FENETRE_PLAFOND_IG_MS) dates.push(quand);
+    }
+  }
+  dates.sort((a, b) => a - b);
+  const nombre = dates.length;
+  if (nombre < PLAFOND_IG_PERSONNE) return { nombre, atteint: false, repriseMs: null };
+  return { nombre, atteint: true, repriseMs: dates[nombre - PLAFOND_IG_PERSONNE] + FENETRE_PLAFOND_IG_MS };
+}
