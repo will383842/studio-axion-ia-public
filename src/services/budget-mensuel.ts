@@ -184,15 +184,15 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
  * Jugement d'un plafond PAR VIDÉO ou par sujet (centimes du pire cas : déjà engagé + cet appel). PUR côté décision :
  *  - sous le plafond : "ok" ;
  *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
- *  - mode indicatif, jusqu'à 5 × le plafond : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif) ;
- *  - mode indicatif, au-delà : "ok" aussi (même alerte, SANS arrêt : le prix ne bloque jamais).
+ *  - mode indicatif, quel que soit le dépassement : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif),
+ *    SANS arrêt : le prix ne bloque jamais.
  */
 export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque"> {
   const plafond = centimesDuPlafond(plafondUsd);
   if (totalCentimes <= plafond) return "ok";
   if (!indicatif) return "bloque";
   await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatifClaude(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
-  // 08/11/2026 : plus d'arrêt à 5 × ; le dépassement prévient, la fabrication continue.
+  // NEW-ARG-04 : plus d'arrêt pour un prix, quel que soit le multiple ; le dépassement prévient, la fabrication continue.
   return "ok";
 }
 
