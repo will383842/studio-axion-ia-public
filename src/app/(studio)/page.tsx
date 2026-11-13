@@ -39,11 +39,10 @@ function salutation(): string {
  */
 export default async function PageAccueil() {
   await exigerSession();
-  const [r, credits, ecrire, mesuresASaisir, facecamAEnvoyer, creditClaude] = await Promise.all([resumeAccueil(), resumeCreditsAccueil(), compteursGenerateur(), compterMesuresASaisir(), versionsFacecamAEnvoyer(), vueCreditClaude().catch((e) => {
+  const [r, credits, ecrire, mesuresASaisir, facecamAEnvoyer, creditClaude, limite] = await Promise.all([resumeAccueil(), resumeCreditsAccueil(), compteursGenerateur(), compterMesuresASaisir(), versionsFacecamAEnvoyer(), vueCreditClaude().catch((e) => {
       console.error("[accueil] crédit Claude restant illisible", e);
       return null;
-    })]);
-  const limite = await etatLimiteAppels();
+    }), etatLimiteAppels()]);
   const aujourdhui: { libelle: string; nombre: number; icone: NomIcone; href: string }[] = [
     // « Vidéos » : les tuiles d'Écrire comptent des SCRIPTS sous les mêmes mots (E2E-1 n° 8).
     { libelle: "Vidéos à relire", nombre: r.aujourdhui.nbARelire, icone: "oeil", href: "/videos?etape=a_relire" },
