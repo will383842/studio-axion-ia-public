@@ -47,7 +47,7 @@ export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, c
           <b className="text-texte">Ressemble à :</b> {proche}
         </span>
       )}
-      <Link href={lienAValider} className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-orange-vif">
+      <Link href={lienAValider} className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
         Voir dans « À valider »
       </Link>
     </div>
