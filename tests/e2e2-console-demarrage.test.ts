@@ -68,6 +68,6 @@ describe("E2E-2 données n° 8 · réessais au démarrage et sonde de santé", (
     expect(await delaiDepasse(Promise.resolve("ok"), 20)).toBe("ok");
   });
   it("sans base (tests, développement) la sonde dit « memoire », en bonne santé", async () => {
-    expect(await etatSante()).toEqual({ ok: true, base: "memoire", boucle: "inactive", version: expect.any(String), bases: expect.objectContaining({ etat: "non-defini" }) });
+    expect(await etatSante()).toEqual({ ok: true, base: "memoire", boucle: "inactive", version: expect.any(String), bases: expect.objectContaining({ etat: "non-defini" }), travauxFiges: 0, plusVieuxEnCoursMin: 0 });
   });
 });
