@@ -103,4 +103,14 @@ describe("GV2-25 · un .srt par réseau dans le zip", () => {
     const sans = await zipAvec("instagram", {});
     expect(avant).toBe(sans);
   });
+  it("tableau : un mot corrigé par le fondateur dans les sous-titres prime sur la liste du réseau", async () => {
+    const toutes = await depots().videos.lister(() => true);
+    const projet = { moteur: "montage-tableau", tableau: { sorties: [{ format: "vertical", ratio: "9:16", reseaux: ["instagram"], sousTitres: seg("Écrivez GIUDE en commentaire.") }] } };
+    const avant = await zipAvec("instagram", projet);
+    expect(derniereLigne(avant!)).toBe("Écrivez GIUDE en commentaire.");
+    const video = (await depots().videos.lister((v) => v.etapeEditoriale === "validee"))[0] ?? toutes[0];
+    await depots().sousTitres.enregistrer({ id: "st-corrige", videoId: video.id, versionId: video.versionChoisieId!, langue: "fr", version: 99, segments: seg("Écrivez GUIDE en commentaire."), creeLe: new Date().toISOString(), modifieLe: new Date().toISOString() } as never);
+    const apres = await zipAvec("instagram", projet);
+    expect(derniereLigne(apres!)).toBe("Écrivez GUIDE en commentaire.");
+  });
 });
