@@ -54,7 +54,6 @@ const REG_MOTS = async (mots: string[], inactifs: string[] = []) => {
   for (const m of mots) reg[`${m}|${COMPTE}`] = { mot: m, compte: COMPTE, etat: inactifs.includes(m) ? "inactif" : "actif", idWorkflow: null, raison: null, modifieLe: "x" };
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, reg);
 };
-const texteDe = (id: string, defaut: string) => () => (lecturesParMessage[id] ? lecturesParMessage[id]!() : { texte: defaut, postback: null });
 
 beforeEach(async () => {
   await preparer();
@@ -69,8 +68,9 @@ beforeEach(async () => {
   p.envoyerMessage = async (a: any) => (envois.push(a), env(a));
   p.lireMessage = async (a: any) => {
     const f = lecturesParMessage[a.idMessage];
-    return f ? f() : { texte: "OK", postback: null };
+    return f ? f() : { texte: banc.port.reponses.texte(), postback: null };
   };
+  banc.port.reponses.texte = () => "OK";
   await Com.ecrireParametre(MM.PARAM_MOTS_MULTIPLES, true);
   await Com.ecrireParametre(IG.PARAM_INSTAGRAM_SUIVRE, true);
   await validerFormulationsAuParcours(FORM);
@@ -144,12 +144,13 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     await pass(T1 + 120_000);
     // 1 (m1 d'issue inconnue, déjà parti) + reçu (1) + 2e mot (1) = 3 : le 3e mot ne part pas.
     expect(total()).toBeLessThanOrEqual(2);
-    expect(prives.length).toBe(1);
+    expect(envois.length).toBe(1); // le reçu de l'adresse
+    expect(prives.length).toBe(1); // « suivre le compte » du 2e mot
     expect((await evt(e2)).etat).not.toBe("a_reessayer");
     expect((await evt(e3)).dernierCode).toBe("plafond_personne");
   });
 
-  const troisRecents = (extra: Record<string, unknown> = {}) => semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, m1Le: iso(T0 - 100_000), pasEncoreLe: iso(T0 - 90_000), lienIgLe: iso(T0 - 80_000), ...extra });
+  const troisRecents = (extra: Record<string, unknown> = {}) => semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 100_000), pasEncoreLe: iso(T0 - 90_000), lienIgLe: iso(T0 - 80_000), ...extra });
 
   it("M2 (adresse non reconnue) : atteint, rien ne part, événement écarté (plafond_personne)", async () => {
     await troisRecents();
@@ -184,7 +185,7 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
   });
 
   it("accusé de réception : sous le plafond, il part et sa date est écrite (accuseLe), jamais undefined", async () => {
-    await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, m1Le: iso(T0 - H) });
+    await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - H) });
     banc.port.reponses.texte = () => "a@exemple.test";
     await message("msg-adresse-1");
     await pass(T1);
@@ -204,7 +205,7 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
   });
 
   it("adresse refusée par le site (422) : sous le plafond, le message part et sa date est écrite (adresseRefuseeLe)", async () => {
-    await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, m1Le: iso(T0 - H) });
+    await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - H) });
     banc.site.reponses = () => ({ statut: 422, corps: {} });
     banc.port.reponses.texte = () => "a@exemple.test";
     await message("msg-adresse-1");
@@ -221,6 +222,41 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     expect(suivi.appels).toHaveLength(0);
     expect(envois).toHaveLength(0);
     expect((await evt(e)).dernierCode).toBe("plafond_personne");
+  });
+});
+
+describe("V2 · une date d'essai réservée avant l'envoi ne compte pas quand rien n'est parti", () => {
+  it("lien refusé par un débit : l'essai est remis comme avant ; au nouvel essai (2 autres messages comptés) le lien part", async () => {
+    await semer("1", "ig_attente_ok", { m1Le: iso(T0 - H) });
+    await semer("2", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 30 * H), lienIgLe: iso(T0 - 30 * 60_000) });
+    banc.port.reponses.envoyer = () => ({ statut: "a_reessayer", code: "debit", reessayerApresSec: 90 });
+    const e = await message("msg-ok-1");
+    await pass(T1);
+    expect((await evt(e)).etat).toBe("a_reessayer");
+    expect((await parcours()).find(([, c]) => c.guide === "gde-111111")![1].essaiEnvoiLe).toBeUndefined();
+    banc.port.reponses.envoyer = () => ({ statut: "envoye" });
+    await pass(T1 + 90_000);
+    expect(envois).toHaveLength(2);
+    expect((await parcours()).find(([, c]) => c.guide === "gde-111111")![1].etat).toBe("attente_email");
+  });
+
+  it("réponse privée à un commentaire refusée par un débit : l'essai n'est pas gardé ; au nouvel essai la demande de suivre le compte part", async () => {
+    await REG_MOTS(["GUIDE", "DEUX"]);
+    await semer("2", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 30 * H), lienIgLe: iso(T0 - 30 * 60_000), pasEncoreLe: iso(T0 - 20 * 60_000) });
+    etat.catalogue = {
+      catalogue: ["guide-ia", "gde-b"].map((code) => ({ code, type: "guide", titre: `Titre ${code}`, actif: true, test: false })),
+      liaisons: [{ mot: "DEUX", reseau: "tous", codeCible: "gde-b", actif: true }], luLe: T0, ignores: 0, depuisCopie: false,
+    };
+    await REG_MOTS(["GUIDE", "DEUX"]);
+    banc.port.reponses.prive = () => ({ statut: "a_reessayer", code: "debit", reessayerApresSec: 30 });
+    const e = await deposerCommentaire(depots, { idCommentaire: "com-ig-2", motSeul: "DEUX", reseau: "instagram" });
+    await pass(T0);
+    expect((await evt(e)).etat).toBe("a_reessayer");
+    expect((await parcours()).filter(([, c]) => c.essaiEnvoiLe !== undefined)).toHaveLength(0);
+    banc.port.reponses.prive = () => ({ statut: "envoye" });
+    await pass(T0 + 2 * 60_000);
+    expect(prives.length).toBeGreaterThanOrEqual(2);
+    expect((await evt(e)).etat).toBe("ig_attente_ok");
   });
 });
 
@@ -245,7 +281,7 @@ describe("m3 · réglage allumé : un message avec une adresse va au parcours at
     const e = await message("msg-adresse-1");
     await pass(T1);
     expect((await evt(e)).dernierCode).not.toBe("ok_non_reconnu");
-    expect((await parcours()).find(([, c]) => c.mot === "GUIDE")![1].etat).toBe("guide_demande");
+    expect((await parcours()).find(([, c]) => c.mot === "GUIDE")![1].etat).toBe("termine"); // demande de guide faite, accusé envoyé
     expect((await parcours()).find(([, c]) => c.mot === "MOT1")![1].etat).toBe("ig_attente_ok");
     expect(banc.site.vus.length).toBeGreaterThan(0);
   });

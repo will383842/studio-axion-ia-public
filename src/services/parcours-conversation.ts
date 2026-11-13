@@ -25,7 +25,7 @@ import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmp
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, FENETRE_ENVOI_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
-import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi } from "@/domaine/guide-reseau/suivi-instagram";
+import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
 import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
@@ -791,6 +791,37 @@ const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_
 const MESSAGE_IG_OK_NON_RECONNU = "Instagram : réponse non reconnue après la demande de suivre le compte : rien n'est parti.";
 const MESSAGE_IG_PLAFOND_PERSONNE = "Instagram : une personne a déjà reçu 3 messages en 24 h : le suivant attend ou est écarté, rien n'est parti.";
 const MESSAGE_IG_A_VERIFIER = "Un message privé Instagram a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.";
+/** Plafond par personne (3 messages Instagram en 24 h), lu sur TOUT le dossier de la personne. */
+const plafondIg = async (cle: string, now: number): Promise<LimitePersonneIg> => limitePersonneIg((await lireDossier(racineDe(cle))).entrees.map((x) => x.etat), now);
+/** Plafond atteint : le message est-il encore servable à la reprise (la fenêtre de 23 h de Meta reste ouverte) ? Date illisible : non (jamais de report sans fin). */
+const encoreServable = (lim: LimitePersonneIg, activiteLe: string | null | undefined): boolean => {
+  const a = Date.parse(activiteLe ?? "");
+  return lim.repriseMs !== null && Number.isFinite(a) && lim.repriseMs < a + FENETRE_ENVOI_MS;
+};
+/** L'envoi n'a pas eu lieu (refus net, débit) : la date d'essai réservée avant l'envoi ne compte plus dans le plafond. */
+const retirerEssaiEnvoi = (cle: string) =>
+  ecrireEtat(cle, (e) => {
+    if (!e || e.essaiEnvoiLe === undefined) return undefined;
+    const reste = { ...e };
+    delete reste.essaiEnvoiLe;
+    return reste;
+  });
+/** Un message entrant plus ancien de la même personne n'est pas encore traité (« stop » en panne de lecture, introuvable, texte absent…) : il peut être une opposition. Au moindre doute : oui. */
+const ATTENTE_STOP_ANTERIEUR_MS = 60_000;
+async function messageAnterieurNonTraite(ev: EvenementFournisseur, idCompte: string, idConversation: string, idExpediteur: string, idMessage: string): Promise<boolean> {
+  const recu = Date.parse(ev.recuLe);
+  const autres = await depots().evenementsFournisseurs.lister((x) => x.fournisseur === FOURNISSEUR && x.type === TYPE_MESSAGE && !x.traite && x.id !== ev.id);
+  return autres.some((x) => {
+    const c = x.charge;
+    if (c.idMessage === idMessage) return false; // le même message (rejeu) : traité par `idMessageOk`
+    if (typeof c.idCompte === "string" && c.idCompte !== idCompte) return false;
+    const conv = typeof c.idConversation === "string" && c.idConversation ? c.idConversation : null;
+    const exp = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : null;
+    if ((conv !== null || exp !== null) && conv !== idConversation && exp !== idExpediteur) return false;
+    const t = Date.parse(x.recuLe);
+    return Number.isNaN(t) || Number.isNaN(recu) || t <= recu;
+  });
+}
 /** Aucune formulation « suivre le compte » validée : rien ne part (ni public ni privé), commentaire clos, parcours refusé (même sortie que M1 sans texte). */
 async function cloreIgSuivreAbsent(ev: EvenementFournisseur, cle: string, now: number): Promise<"traite"> {
   await alerter("ig_suivre_absente", MESSAGE_IG_SUIVRE_ABSENT, now);
@@ -815,7 +846,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   if (igPremier && e.etat === "nouveau" && (await preparerIgSuivre(e, d)).texte === null) return cloreIgSuivreAbsent(ev, cle, now);
   // Plafond PAR PERSONNE (3 messages Instagram en 24 h, tous parcours) : avant toute réservation d'envoi, réponse publique comprise.
   if (ig && (e.etat === "nouveau" || e.etat === "pub_ok")) { // renvois compris
-    const lim = limitePersonneIg((await lireDossier(racineDe(cle))).entrees.map((x) => x.etat), now);
+    const lim = await plafondIg(cle, now);
     if (lim.atteint) {
       const recu = Date.parse(ev.recuLe);
       const reprise = lim.repriseMs;
@@ -906,6 +937,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   // Instagram : le succès attend le OK de la personne (le lien ne part qu'après) ; les autres issues sont celles de M1.
   const patchM1: Partial<Conversation> | undefined = igPremier && s.patch?.etat === "attente_email" ? { ...s.patch, etat: "ig_attente_ok" } : s.patch;
   await patcher(cle, patchM1 ?? {});
+  if (ig && res.statut !== "envoye" && res.statut !== "a_verifier") await retirerEssaiEnvoi(cle); // rien n'est parti : la date d'essai réservée ne compte pas
   // B3 (a) : si Zernio rend l'identifiant de conversation ou de destinataire, l'alias est posé tout de suite (empreintes, jamais brut).
   const idsRendus = [res.idConversation, res.idDestinataire].filter((x): x is string => typeof x === "string" && x.length > 0).map((x) => empreintePersonne(cles.courante, ESPACE_CONVERSATION, x));
   if (idsRendus.length > 0) await noterAlias(cle, idsRendus);
@@ -1009,12 +1041,12 @@ async function mettreEnFileCle(cle: string, etat: Conversation, cleHmac: CleEmpr
 }
 
 /** Mode « plusieurs mots » : dossier de la personne, puis le parcours à qui rattacher le message (`choisirParcoursPourMessage`). `null` = aucun parcours de ce compte (orphelin). */
-async function retrouverDossier(cles: ClesOk, idS: string, idC: string | null, idMessage: string, idCompte: string, igSuivre = false): Promise<{ cle: string; etat: Conversation; tous: string[] } | null> {
+async function retrouverDossier(cles: ClesOk, idS: string, idC: string | null, idMessage: string, idCompte: string, igSuivre = false, contientAdresse = false): Promise<{ cle: string; etat: Conversation; tous: string[] } | null> {
   const trouve = await sousVerrou(async () => {
     const { conv, alias } = await lireTout();
     const t = chercherRacine(formesDe(cles, idS), idC ? formesDe(cles, idC) : [], conv, alias);
     if (!t) return null;
-    const ch = choisirParcoursPourMessage(dossierDe(t.racine, conv), idMessage, idCompte, igSuivre);
+    const ch = choisirParcoursPourMessage(dossierDe(t.racine, conv), idMessage, idCompte, igSuivre, contientAdresse);
     return ch.principal ? { t, principal: ch.principal, tous: ch.tous.map((x) => x.cle) } : null;
   });
   if (!trouve) return null;
@@ -1071,10 +1103,10 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     } else await clore(ev, "ignore", "orphelin");
     return "traite";
   }
-  const { cle } = trouve;
+  let { cle } = trouve;
   // Avant tout envoi, même pour une personne opposée (sans effet d'envoi). Mode « plusieurs mots » : sur TOUS les parcours du même compte (la fenêtre de 24 h est celle de la personne).
   for (const k of trouve.tous ?? [cle]) await noterActivite(k, ev, now);
-  const etat = trouve.etat;
+  let etat = trouve.etat;
   const s0 = transition(etat, { t: "message", idExpediteur, idCompte, idMessage, sortant });
   if (s0.action === "silence") {
     // Déjà « oppose » (un réessai après un échec de mise en file) : la mise en file, idempotente, est refaite avant de clore.
@@ -1101,7 +1133,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "ignore", "conversation_inconnue");
       return "traite";
     }
-    return envoyerRecu(ev, d, env, cle, etat, idConversation, idMessage, now);
+    return envoyerRecu(ev, d, env, cle, etat, idConversation, idMessage, now, igSuivre);
   }
   // LECTURE AVANT LES GARDES, dans tous les états : un « stop » est toujours lu et enregistré (lire n'envoie rien).
   if (!idConversation) {
@@ -1110,6 +1142,14 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   const lu = await lireTexte(ev, d, etat.idCompte, idConversation, idMessage, now, s0.action !== "lire_opposition");
   if (!lu) return "traite";
+  // Réglage allumé : un message qui CONTIENT une adresse e-mail va au parcours `attente_email` s'il en existe un, jamais au parcours Instagram en attente d'un OK.
+  if (multi && igSuivre && enAttenteOk(etat) && extraireAdresse(lu.texte) !== null) {
+    const autre = await retrouverDossier(cles, idExpediteur!, idConversation, idMessage, idCompte, true, true);
+    if (autre && autre.cle !== cle) {
+      cle = autre.cle;
+      etat = autre.etat;
+    }
+  }
   // Classé UNE fois : opposition claire, doute, ou rien.
   const classe = classerOpposition(lu.texte);
   if (s0.action === "lire_opposition") {
@@ -1138,7 +1178,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     return "traite";
   }
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
-  const bloque = await garde(d, env, etat.idCompte, etat.reseau, etat);
+  // Parcours Instagram en attente d'un OK (réglage allumé) : la garde de CHAQUE parcours décide dans `repondreOkInstagram` (rien d'autre ne part ici).
+  const bloque = igSuivre && enAttenteOk(etat) ? null : await garde(d, env, etat.idCompte, etat.reseau, etat);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -1188,6 +1229,16 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "hors_fenetre", "hors_fenetre");
       return "traite";
     }
+    // Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h, M2 compris. Atteint : rien ne part ; reporté si encore servable, sinon écarté.
+    if (igSuivre && etat.reseau === "instagram") {
+      const lim = await plafondIg(cle, now);
+      if (lim.atteint) {
+        await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+        if (lim.repriseMs !== null && encoreServable(lim, (await lireEtat(cle))?.derniereActiviteLe)) await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_personne");
+        else await clore(ev, "ecarte", "plafond_personne");
+        return "traite";
+      }
+    }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
     if (m2.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, "adresse-non-reconnue": m2.formulation } });
@@ -1199,7 +1250,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, res.statut, res.code ?? null);
     return "traite";
   }
-  return demanderGuide(ev, d, env, cle, etat, idConversation, idMessage, adresse!, c, now, multi);
+  return demanderGuide(ev, d, env, cle, etat, idConversation, idMessage, adresse!, c, now, multi, igSuivre);
 }
 
 /* --- Instagram « suivre le compte puis OK » : réponse au OK de la personne ------------------------------------------ */
@@ -1240,8 +1291,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     await clore(ev, "silence", "etat");
     return "traite";
   }
-  const dejaServis = entrees.filter((x) => x.etat.idMessageOk === idMessage).length;
-  const aServir = enAttente.filter((x) => entrees.find((y) => y.cle === x.cle)?.etat.idMessageOk !== idMessage).slice(0, Math.max(0, REPONSES_IG_MAX_PAR_MESSAGE - dejaServis));
+  const aServir = parcoursAServir(entrees, enAttente, idMessage, REPONSES_IG_MAX_PAR_MESSAGE);
   if (aServir.length === 0) {
     await clore(ev, "silence", "deja_traite");
     return "traite";
@@ -1257,6 +1307,27 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   if (!fenetreOuverte) {
     for (const x of aServir) await consommer(x.cle);
     await clore(ev, "silence", "hors_fenetre");
+    return "traite";
+  }
+  // Plafond PAR PERSONNE calculé UNE fois AVANT la lecture du suivi : atteint, rien ne part et rien n'est lu (reporté si encore servable, sinon écarté).
+  const limiteAvant = await plafondIg(cle, now);
+  if (limiteAvant.atteint) {
+    await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+    let attente: number | null = null;
+    for (const x of aServir) {
+      if (limiteAvant.repriseMs !== null && encoreServable(limiteAvant, entrees.find((y) => y.cle === x.cle)?.etat.derniereActiviteLe)) {
+        const ms = Math.max(1000, limiteAvant.repriseMs - now);
+        attente = attente === null ? ms : Math.min(attente, ms);
+      } else await consommer(x.cle);
+    }
+    if (attente !== null) await reporter(ev, now, attente, "plafond_personne");
+    else await clore(ev, "ecarte", "plafond_personne");
+    return "traite";
+  }
+  // V1 : un message plus ancien de la même personne, pas encore traité (« Stop » en panne de lecture, introuvable, texte absent…), peut être une opposition :
+  // avant toute lecture du suivi et toute réservation d'envoi (lien comme « pas encore »), le OK attend. Les étapes qui précèdent n'envoient rien. Rien n'est consommé, rien ne part ; le « Stop » lu ensuite gagne.
+  if (await messageAnterieurNonTraite(ev, idCompte, idConversation, idExpediteur, idMessage)) {
+    await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu");
     return "traite";
   }
   // (c) UNE lecture du suivi pour tout l'événement ; l'identifiant brut ne vit que dans cet appel. Méthode absente, exception ou forme inconnue : panne définitive.
@@ -1307,7 +1378,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       continue;
     }
     // Plafond PAR PERSONNE (3 messages Instagram en 24 h, tous parcours), relu à chaque parcours : avant toute réservation d'envoi.
-    const limite = limitePersonneIg((await lireDossier(racineDe(choisi.cle))).entrees.map((x) => x.etat), now);
+    const limite = await plafondIg(choisi.cle, now);
     if (limite.atteint) {
       await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
       if (limite.repriseMs !== null && Number.isFinite(activite) && limite.repriseMs < activite + FENETRE_ENVOI_MS) {
@@ -1348,9 +1419,11 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     const restaurer = (garderOk: boolean, extra: Partial<Conversation> = {}) =>
       ecrireEtat(choisi.cle, (e) => {
         if (!e || e.etat !== "ig_envoi_en_vol") return undefined;
-        const { idMessageOk, okRecus, ...reste } = e;
+        // Rien n'est parti : la date d'essai réservée avant l'envoi est remise comme avant (elle ne compte pas dans le plafond par personne).
+        const { idMessageOk, okRecus, essaiEnvoiLe, ...reste } = e;
+        void essaiEnvoiLe;
         const ok = garderOk ? { idMessageOk, okRecus } : { ...(avant.idMessageOk !== undefined ? { idMessageOk: avant.idMessageOk } : {}), ...(avant.okRecus !== undefined ? { okRecus: avant.okRecus } : {}) };
-        return { ...reste, ...ok, etat: avant.etat, ...extra };
+        return { ...reste, ...ok, ...(avant.essaiEnvoiLe !== undefined ? { essaiEnvoiLe: avant.essaiEnvoiLe } : {}), etat: avant.etat, ...extra };
       });
     if (!(await reserverOuReporter(ev, idCompte, now))) {
       await restaurer(false); // l'événement est déjà reporté (plafond du compte ou compteur illisible)
@@ -1440,7 +1513,7 @@ async function guidesDuCatalogue(env: Env, now: number): Promise<readonly string
   }
 }
 
-async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, adresse: string, c: Record<string, unknown>, now: number, multi = false): Promise<"traite" | "bloque"> {
+async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, adresse: string, c: Record<string, unknown>, now: number, multi = false, igSuivre = false): Promise<"traite" | "bloque"> {
   const site = transportDuSite(env);
   const p = processus();
   if (!site || now < p.ouvertJusqua) {
@@ -1528,7 +1601,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   }
   // Z2 : le site refuse l'ADRESSE (422) : UN seul message demande de la vérifier (jamais deux, rien si opposée, plafond respecté).
   // AVANT de passer l'état à « site_refuse » : si le plafond reporte l'événement, l'état est intact et le réessai reprend ici.
-  if (s.action === "site_refuse" && s.code === "422" && (await prevenirAdresseRefusee(ev, d, env, cle, etat, idConversation, idMessage, now)) === "bloque") {
+  if (s.action === "site_refuse" && s.code === "422" && (await prevenirAdresseRefusee(ev, d, env, cle, etat, idConversation, idMessage, now, igSuivre)) === "bloque") {
     // Le refus est connu : on le note pour que le réessai ne rappelle PAS le site (une seule demande au site par refus).
     await patcher(cle, { adresseRefuseeEnAttente: true });
     return "bloque";
@@ -1548,11 +1621,11 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
     return "traite";
   }
   const maj = await lireEtat(cle);
-  return envoyerRecu(ev, d, env, cle, maj ?? etat, idConversation, idMessage, now);
+  return envoyerRecu(ev, d, env, cle, maj ?? etat, idConversation, idMessage, now, igSuivre);
 }
 
 /** Z2 : message unique « vérifiez votre adresse ». « bloque » = plafond atteint (l'événement est reporté, rien n'est consommé). */
-async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"fait" | "bloque"> {
+async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number, igSuivre = false): Promise<"fait" | "bloque"> {
   if ((await lireEtat(cle))?.adresseRefuseeEnvoyee === true) return "fait";
   const nonOpposeeAdresse = await verifierPartout(env, cle, ev.charge, now);
   if (!nonOpposeeAdresse) return "fait";
@@ -1576,15 +1649,29 @@ async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversat
     return "fait";
   }
   if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  // Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h. Atteint : rien ne part ; reporté (« bloque ») si encore servable, sinon abandonné.
+  const ig = igSuivre && etat.reseau === "instagram";
+  if (ig) {
+    const lim = await plafondIg(cle, now);
+    if (lim.atteint) {
+      await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+      if (lim.repriseMs !== null && encoreServable(lim, etatCourant.derniereActiviteLe)) {
+        await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_personne");
+        return "bloque";
+      }
+      await patcher(cle, { adresseRefuseeEnvoyee: true, dernierCode: "plafond_personne" });
+      return "fait";
+    }
+  }
   if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
   // Formulation figée et message marqués AVANT l'envoi : même si l'issue est inconnue ou si l'écriture de l'état échoue plus loin, le message ne repart pas.
-  await patcher(cle, { adresseRefuseeEnvoyee: true, formulations: { ...etatCourant.formulations, "adresse-refusee": choix.version } });
+  await patcher(cle, { adresseRefuseeEnvoyee: true, ...(ig ? { adresseRefuseeLe: new Date(now).toISOString() } : {}), formulations: { ...etatCourant.formulations, "adresse-refusee": choix.version } });
   const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte: choix.texte, cle: idMessage, nonOpposee: nonOpposeeAdresse }));
   await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
   return "fait";
 }
 
-async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number): Promise<"traite" | "bloque"> {
+async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number, igSuivre = false): Promise<"traite" | "bloque"> {
   const recu = await formuler({ groupe: "recu", e: (await lireEtat(cle)) ?? etat, ancien: "mp-recu-v2", valeurs: { titre: etat.titreCible ?? d.titreGuide } });
   const texte = recu.texte;
   let code: string | null = "texte_incomplet";
@@ -1600,9 +1687,24 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
       await clore(ev, "termine", "hors_fenetre");
       return "traite";
     }
+    // Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h. Atteint : l'accusé ne part pas (reporté si encore servable, sinon le parcours se termine sans lui).
+    const ig = igSuivre && etat.reseau === "instagram";
+    if (ig) {
+      const lim = await plafondIg(cle, now);
+      if (lim.atteint) {
+        await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+        if (lim.repriseMs !== null && encoreServable(lim, ((await lireEtat(cle)) ?? etat).derniereActiviteLe)) {
+          await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_personne");
+          return "traite";
+        }
+        await patcher(cle, { etat: "termine", dernierCode: "plafond_personne" });
+        await clore(ev, "termine", "plafond_personne");
+        return "traite";
+      }
+    }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
-    // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte.
-    if (recu.formulation) await patcher(cle, { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, recu: recu.formulation } });
+    // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte. La date d'essai (plafond par personne) est écrite avant l'envoi.
+    if (recu.formulation || ig) await patcher(cle, { ...(recu.formulation ? { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, recu: recu.formulation } } : {}), ...(ig ? { accuseLe: new Date(now).toISOString() } : {}) });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage, nonOpposee: nonOpposeeRecu }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);
@@ -1724,17 +1826,33 @@ export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number 
   // Conversation close depuis plus de 30 jours (sauf `oppose`) : l'identifiant brut du commentaire n'a plus d'usage (la reprise n'existe qu'en nouveau / pub_ok).
   const aReduire = await sousVerrou(async () => {
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    // Date de clôture inconnue : on retient la PLUS RÉCENTE des dates de l'état (conservateur). Aucune date lisible : jamais réduit.
+    const dateRecente = (c: Conversation): number | null => {
+      const dates = [c.creeLe, c.m1Le, c.m2Le, c.refuseLe, c.derniereActiviteLe, c.occurredAt].map((x) => (typeof x === "string" ? Date.parse(x) : NaN)).filter((d) => Number.isFinite(d));
+      return dates.length > 0 ? Math.max(...dates) : null;
+    };
+    // Conversation close depuis plus de 30 jours (sauf `oppose`) : l'identifiant brut du commentaire n'a plus d'usage (la reprise n'existe qu'en nouveau / pub_ok).
     const cles = Object.keys(tout).filter((k) => {
       const c = tout[k];
       if (!FINIS_REDUCTIBLES.includes(c.etat) || c.idCommentaire === "reduit") return false;
-      // Date de clôture inconnue : on retient la PLUS RÉCENTE des dates de l'état (conservateur). Aucune date lisible : jamais réduit.
-      const dates = [c.creeLe, c.m1Le, c.m2Le, c.refuseLe, c.derniereActiviteLe, c.occurredAt].map((x) => (typeof x === "string" ? Date.parse(x) : NaN)).filter((d) => Number.isFinite(d));
       if (c.alias?.some((a) => clesOpposees.has(a)) || clesOpposees.has(k)) return false;
-      return dates.length > 0 && now - Math.max(...dates) >= DELAI_REDUCTION_MS;
+      const t = dateRecente(c);
+      return t !== null && now - t >= DELAI_REDUCTION_MS;
     });
-    // `idMessageOk` (identifiant brut du dernier OK Instagram) part avec les autres identifiants bruts, au bout des mêmes 30 jours.
-    if (cles.length > 0) await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, ...Object.fromEntries(cles.map((k) => { const reste = { ...tout[k] }; delete reste.idMessageOk; return [k, { ...reste, idCommentaire: "reduit" }]; })) });
-    return cles.length;
+    // Parcours `oppose` : sa preuve (état, identifiant du commentaire) reste intacte, mais `idMessageOk` (identifiant brut du dernier OK Instagram) part aussi au bout de 30 jours.
+    const clesOppose = Object.keys(tout).filter((k) => {
+      const t = tout[k].etat === "oppose" && tout[k].idMessageOk !== undefined ? dateRecente(tout[k]) : null;
+      return t !== null && now - t >= DELAI_REDUCTION_MS;
+    });
+    // `idMessageOk` part avec les autres identifiants bruts, au bout des mêmes 30 jours.
+    if (cles.length > 0 || clesOppose.length > 0) {
+      await ecrireParametre(PARAM_CONVERSATIONS, {
+        ...tout,
+        ...Object.fromEntries(cles.map((k) => { const reste = { ...tout[k] }; delete reste.idMessageOk; return [k, { ...reste, idCommentaire: "reduit" }]; })),
+        ...Object.fromEntries(clesOppose.map((k) => { const reste = { ...tout[k] }; delete reste.idMessageOk; return [k, reste]; })),
+      });
+    }
+    return cles.length + clesOppose.length;
   });
   n += aReduire;
   if (n > 0) await journaliser("parcours_conversation", `${n} identifiants réduits.`);
@@ -1914,6 +2032,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
     const k = lireClesEmpreinte(env);
     if (!k.ok) return rapport;
     const multi = await motsMultiplesActifs(); // lu une fois par passage
+    const igSuivre = multi ? await instagramSuivreActif() : false; // plafond Instagram par personne : seulement réglage allumé
     // 4. Lecture-réservation.
     const lecture = await appelerSite(env, CHEMIN_CONFIRMATIONS, { schemaVersion: 1, limite: LOT_CONFIRMATIONS });
     const liste = lecture && lecture.statut === 200 && typeof lecture.corps === "object" && lecture.corps !== null ? (lecture.corps as { confirmations?: unknown }).confirmations : undefined;
@@ -1930,7 +2049,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
       }
       let issue: "envoye" | "fait" | "garde";
       try {
-        issue = await traiterConfirmation(r, d, env, k, now, multi);
+        issue = await traiterConfirmation(r, d, env, k, now, multi, igSuivre);
       } catch {
         // Vérification impossible (registre illisible…) : ce merci n'est PAS envoyé (fermé), les autres continuent ; le site le re-proposera.
         await journaliser("parcours_conversation", "Merci : verification_impossible (non envoyé, sans accusé).");
@@ -1948,7 +2067,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
 /** Gardes qui valent pour tout le Studio : elles arrêtent la boucle des mercis. Les autres (compte, mot, réseau) sont propres à une conversation. */
 const GARDES_GLOBALES = new Set(["tout_arrete", "disjoncteur_ferme", "validation_perimee", "lecture_impossible", "cles_absentes"]);
 /** Une confirmation, dans l'ordre. `garde` : un blocage a mis fin au passage (rien n'est écrit pour cette ref). */
-async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number, multi = false): Promise<"envoye" | "fait" | "garde"> {
+async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k: ClesOk, now: number, multi = false, igSuivre = false): Promise<"envoye" | "fait" | "garde"> {
   // b. Déjà au registre : aucun envoi, accusé seulement s'il manque. JAMAIS DEUX FOIS LA MÊME REF.
   if ((await lireJournalMerci())[ref]) {
     await accuserMerci(env, ref, now);
@@ -1995,6 +2114,17 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
     if (issue === "deja_remercie") return "fait";
     return "fait";
   }
+  // g bis. Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h, merci compris. Atteint : rien ne part ; encore servable à la reprise : ni envoi ni
+  // accusé (le site re-proposera) ; sinon « non envoyé » avec accusé (jamais un merci hors plafond).
+  const ig = igSuivre && conv.etat.reseau === "instagram";
+  if (ig) {
+    const lim = await plafondIg(cle, now);
+    if (lim.atteint) {
+      await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+      if (encoreServable(lim, conv.etat.derniereActiviteLe)) return "fait";
+      return (await terminer("non_envoye", "plafond_personne", cle), "fait");
+    }
+  }
   // h. Plafond d'envois : ni envoi ni accusé si atteint (on reviendra).
   const reserve = await reserverEnvoi(conv.etat.idCompte, now);
   if (reserve !== "ok") {
@@ -2007,7 +2137,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     if (j[ref] || tout[cle]?.merciEtat) return false;
     await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: { cle, etat: "en_vol" as const, issue: "en_vol", accuse: false, le: new Date(now).toISOString(), essaisAccuse: 0, prochainAccuseLe: null } });
-    await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: "en_vol" as const } });
+    await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: "en_vol" as const, ...(ig ? { merciEssaiLe: new Date(now).toISOString() } : {}) } });
     return true;
   });
   if (!pris) {
