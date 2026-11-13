@@ -328,11 +328,16 @@ export function bandeSousTitresV4(elements: readonly ElementV4Plan[], f: number)
 }
 
 const jetons = (t: string) => t.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^A-Z0-9]+/).filter((x) => x.length >= 3 || /^\d+$/.test(x));
-/** Vrai si un mot du groupe de sous-titres est déjà affiché par la plaquette en cours : le groupe est alors masqué (jamais un mot en double à l'écran). */
+/** Mots-outils qui ne portent pas le sens : ignorés pour décider de masquer un groupe (liste séparée de `LIAISON`, qui sert au découpage des groupes). */
+const MOTS_OUTILS_MASQUAGE = new Set(["DE", "DU", "DES", "LA", "LE", "LES", "UN", "UNE", "ET", "EN", "AU", "AUX", "QUE", "QUI", "SUR", "POUR", "PAR", "MON", "MA", "MES", "SES", "VOS", "VOTRE", "CE", "CA", "JE", "IL", "ON", "OU", "SE", "NE", "VOUS", "NOUS", "AVEC", "DANS", "PAS", "EST", "SON", "NOS", "LEUR"]);
+/** Vrai si la plaquette en cours affiche déjà TOUS les mots porteurs du groupe (et il en a au moins un) : le groupe est alors masqué (jamais un mot en double à l'écran). */
 export function groupeDoubleV4(elements: readonly ElementV4Plan[], f: number, motsGroupe: readonly string[]): boolean {
   const actif = elementEnCoursV4(elements, f);
   if (!actif) return false;
-  const posés = new Set([...(actif.mots ?? []), ...(actif.lignes ?? []).map((l) => l.texte)].flatMap(jetons));
+  const t = f / FPS_V4;
+  const lignesVisibles = (actif.lignes ?? []).filter((l) => t >= l.a - 1e-6).map((l) => l.texte);
+  const posés = new Set([...(actif.mots ?? []), ...lignesVisibles].flatMap(jetons));
   if (actif.nombre !== undefined) posés.add(String(actif.nombre));
-  return motsGroupe.flatMap(jetons).some((j) => posés.has(j));
+  const porteurs = motsGroupe.flatMap(jetons).filter((j) => !MOTS_OUTILS_MASQUAGE.has(j));
+  return porteurs.length > 0 && porteurs.every((j) => posés.has(j));
 }
