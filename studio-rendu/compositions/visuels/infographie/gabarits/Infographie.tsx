@@ -1,10 +1,9 @@
 /** Image d'une infographie : dessine la mise en page pure (`mise-en-page.ts`). Le JSX ne vit que dans des fonctions appelées au rendu. */
 import { AbsoluteFill } from "remotion";
-import type { InfographieSpecType } from "../../../../../src/domaine/visuels/schema-infographie";
 import { GRAISSE_TITRE, POLICE_CORPS, POLICE_TITRE } from "../../commun/constantes";
-import { INTERLIGNE_INFOGRAPHIE, miseEnPageInfographie, type Gabarit, type RatioInfographie } from "./mise-en-page";
+import { INTERLIGNE_INFOGRAPHIE, miseEnPageInfographie, type Gabarit, type RatioInfographie, type SpecMisEnPage } from "./mise-en-page";
 
-export type ProprietesInfographie = { spec: InfographieSpecType; gabarit: Gabarit; ratio: RatioInfographie };
+export type ProprietesInfographie = { spec: SpecMisEnPage; gabarit: Gabarit; ratio: RatioInfographie };
 
 export function Infographie({ spec, gabarit, ratio }: ProprietesInfographie) {
   const m = miseEnPageInfographie(gabarit, ratio, spec);

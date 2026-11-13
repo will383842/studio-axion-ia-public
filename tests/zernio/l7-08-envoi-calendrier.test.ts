@@ -19,6 +19,7 @@ beforeAll(async () => {
 
 const Z = await import("@/services/zernio");
 const { ecrireParametre } = await import("@/services/_commun");
+const { REGLAGE_EDITORIALE_ACTIVE } = await import("@/services/promotion-envois");
 const { envoyerParOutilAction } = await import("@/services/a-publier-zernio");
 const { promouvoirBrouillons } = await import("@/services/import-buffer/promotion");
 const { creerFauxClientZernio } = await import("./aides/faux-zernio");
@@ -31,6 +32,7 @@ beforeEach(async () => {
   reinitialiserRequete();
   Z.injecterClientZernio(null);
   await auth.seConnecter(MDP, false);
+  await ecrireParametre(REGLAGE_EDITORIALE_ACTIVE, true); // L7-08 : porte éditoriale allumée ; ce fichier teste les deux autres réglages.
 });
 afterEach(() => Z.injecterClientZernio(null));
 
