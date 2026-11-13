@@ -63,7 +63,7 @@ describe("z1p · corps pur", () => {
   });
   it("TikTok : 5 champs à chaque envoi, valeurs permises, marque, consentement exigé", () => {
     const s = spec(corps({ reseau: "tiktok", consentementTiktok: true, votreMarque: true, niveauConfidentialiteTiktok: "PUBLIC_TO_EVERYONE" }));
-    expect(s).toMatchObject({ contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: true, allowDuet: false, allowStitch: true, privacyLevel: "PUBLIC_TO_EVERYONE", commercialContentType: "brand_organic" });
+    expect(s).toMatchObject({ contentPreviewConfirmed: true, expressConsentGiven: true, allowComment: false, allowDuet: false, allowStitch: false, privacyLevel: "PUBLIC_TO_EVERYONE", commercialContentType: "brand_organic" });
     expect(spec(corps({ reseau: "tiktok", consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" })).commercialContentType).toBeUndefined();
     // le niveau est choisi par la personne : absent ou non offert = refus
     refuse({ reseau: "tiktok", consentementTiktok: true });
@@ -78,8 +78,8 @@ describe("z1p · corps pur", () => {
     expect(spec(corps({ ...f, format: "9:16", dureeSec: 61 })).contentType).toBeUndefined();
     expect(spec(corps({ ...f, format: "16:9", dureeSec: 30 })).contentType).toBeUndefined();
     const im = (n: number) => Array.from({ length: n }, (_, i) => ({ url: `https://x.test/${i}.png`, texteAlternatif: "Image d'exemple" }));
-    expect(corps({ images: im(10) }).mediaItems).toHaveLength(10);
-    refuse({ images: im(11) });
+    expect(corps({ images: im(20) }).mediaItems).toHaveLength(20);
+    refuse({ images: im(21) });
     refuse({ reseau: "linkedin", cible: "a:li:7", images: im(21) });
     expect(corps({ reseau: "linkedin", cible: "a:li:7", images: im(20) }).mediaItems).toHaveLength(20);
     refuse({ images: [{ url: "https://x.test/a.png", texteAlternatif: "  " }] });
