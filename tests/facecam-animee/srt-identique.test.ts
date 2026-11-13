@@ -33,7 +33,7 @@ const remotionDisponible = (() => {
     return false;
   }
 })();
-const propre = (t: string) => t.replace(/[.,;:!?…«»"“”()]/g, "").trim().toUpperCase();
+const propre = (t: string) => t.replace(/^[.,;:!?…«»"“”()\s]+|[.,;:!?…«»"“”()\s]+$/g, "").toUpperCase();
 
 describe("srt-identique · segmentsSrtV4 = groupes dessinés par la v4", () => {
   for (const [nom, g, d] of [["plan d'essai", ESSAI, DUREE], ["plan de référence", planValide().groupes, planValide().duree]] as const) {
@@ -63,6 +63,21 @@ describe("srt-identique · segmentsSrtV4 = groupes dessinés par la v4", () => {
     expect(textes).toContain("partent,");
     expect(textes.join(" ")).not.toMatch(/certifexemple|gain|garanti/i);
     expect(segmentsSrtV4(ESSAI, DUREE).some((s) => s.mots.some((m) => m.enValeur))).toBe(true);
+  });
+
+  it("la copie `propre` : « 2,5 » reste « 2,5 », « fuite. » devient « FUITE » (le .srt garde le texte d'origine)", () => {
+    expect(propre("2,5")).toBe("2,5");
+    expect(propre("12:30")).toBe("12:30");
+    expect(propre("fuite.")).toBe("FUITE");
+    expect(propre("«oui»")).toBe("OUI");
+  });
+
+  it.skipIf(!remotionDisponible)("à l'image comme dans le .srt : « 2,5 » et « fuite. »", async () => {
+    const { groupesDuPlan } = await import("../../studio-rendu/compositions/interface-claire/VideoAnimeeV4");
+    const g = [{ mots: [{ w: "2,5", a: 0 }, { w: "fuite.", a: 0.5 }], fin: 1 }] as unknown as PlanFacecamAnimee["groupes"];
+    const image = groupesDuPlan(g, 2).flatMap((x) => x.mots.map((m) => m.mot));
+    expect(image).toContain("2,5");
+    expect(image).toContain("FUITE");
   });
 
   it("la liste de mots de liaison est identique à la composition", async () => {
