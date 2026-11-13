@@ -41,6 +41,7 @@ import { surveillerCredits } from "./credits";
 import { synchroniserEtatsBuffer } from "./buffer";
 import { synchroniserEtatsZernio } from "./zernio";
 import { diffuserNotifications } from "./notifications";
+import { annexeAutorisee } from "./limite-appels";
 // Facecam lot E : raccords de la chaîne vidéo (agent monteur, Décor IA, relecture), posés au chargement.
 import "./facecam-branchements";
 import "./avocat-branchements";
@@ -127,7 +128,7 @@ export async function lancerAnnexe(nom: string, f: () => Promise<unknown>, atten
   const enVol = annexesEnVol();
   if (enVol.has(nom)) return;
   const p = Promise.resolve()
-    .then(f)
+    .then(async () => ((await annexeAutorisee(nom)) ? f() : undefined))
     .then(
       () => undefined,
       (e: unknown) => console.error(`[studio] ${nom} en échec`, e instanceof Error ? e.name : "erreur"),

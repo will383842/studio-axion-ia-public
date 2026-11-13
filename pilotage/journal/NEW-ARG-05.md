@@ -1,0 +1,8 @@
+# NEW-ARG-05 : limite technique d'appels par jour (terminé, PR brouillon empilée sur usine/L0-09, elle-même sur usine/L7-08)
+- Fait : src/services/limite-appels.ts (nouveau, toute la logique), BandeauLimiteAppels.tsx (nouveau), bandeau branché dans l'Accueil (page.tsx), tests/new-arg-05-limite-appels.test.ts (7 tests).
+- boucle.ts : diff minimal (un import, un appel dans `lancerAnnexe`). travaux.ts et fabrication.ts non touchés. master fusionné dans la branche (sans rebase).
+- Limite : nombre de lancements de tâches automatiques de la boucle par jour (heure de Paris) : lots d'images, tableau animé, comité éditorial, parcours mot et conversation. Les lancements manuels ne passent jamais par là ; les autres annexes (crédits, notifications, synchronisations) ne sont jamais freinées.
+- Interrupteur neuf `limite_appels.active`, faux par défaut : éteint, aucune lecture du compte ni écriture. Réglage `limite_appels.par_jour` (200 par défaut). Une erreur de lecture laisse passer.
+- Message dans le Studio : bandeau de l'Accueil (même habillage que le bandeau des crédits), vouvoiement, mots simples, aucun montant. Pas d'alerte cloche (notifications.ts hors fichiers autorisés).
+- À vérifier / reste : le message « dans l'usine » demande une fiche sœur côté usine. Les travaux de fabrication déjà en file (travaux.ts) ne sont pas freinés : hors fichiers autorisés ; le « compte » est un compte de lancements, pas d'appels fournisseurs réels.
+- Tests : fiche + tests/boucle*.test.ts + tests/zernio/garde-composants-clients.test.ts verts. tsc : aucune erreur nouvelle (erreurs préexistantes docs/ et tests/zernio). eslint : 0 erreur, sans eslint-disable. Aucun appel réel, aucun prix.

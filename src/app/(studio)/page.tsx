@@ -13,6 +13,8 @@ import { resumeAccueil } from "@/services/accueil";
 import { resumeCreditsAccueil } from "@/services/credits";
 import { vueCreditClaude } from "@/services/credit-claude";
 import { BandeauCredits } from "./_accueil/BandeauCredits";
+import { BandeauLimiteAppels } from "./_accueil/BandeauLimiteAppels";
+import { etatLimiteAppels } from "@/services/limite-appels";
 import { CarteCredits } from "./_accueil/CarteCredits";
 import { CarteCreditClaude } from "./_accueil/CarteCreditClaude";
 import { EnCours } from "./_accueil/EnCours";
@@ -41,6 +43,7 @@ export default async function PageAccueil() {
       console.error("[accueil] crédit Claude restant illisible", e);
       return null;
     })]);
+  const limite = await etatLimiteAppels();
   const aujourdhui: { libelle: string; nombre: number; icone: NomIcone; href: string }[] = [
     // « Vidéos » : les tuiles d'Écrire comptent des SCRIPTS sous les mêmes mots (E2E-1 n° 8).
     { libelle: "Vidéos à relire", nombre: r.aujourdhui.nbARelire, icone: "oeil", href: "/videos?etape=a_relire" },
@@ -101,6 +104,7 @@ export default async function PageAccueil() {
           </h2>
           <div className="space-y-4">
             <BandeauCredits cartes={credits.cartes} />
+            <BandeauLimiteAppels atteinte={limite.atteinte} />
 
             {/* Plan facecam v4 (lot D) : envoi en pause et vidéos face caméra à envoyer (rien sinon). */}
             <RappelsEnvoi aEnvoyer={facecamAEnvoyer} />
