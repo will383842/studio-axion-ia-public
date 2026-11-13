@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MotHorodate } from "@/domaine/types";
-import { calculerCoupes, controlerCoupes, recalerCoupesDemandees } from "./index";
+import { calculerCoupes, controlerCoupes, motsDuMontage, recalerCoupesDemandees } from "./index";
 import { phrasesDuTexte } from "./texte";
 
 /** Pose les mots d'une phrase régulièrement dans [debut, fin] (le dernier mot finit à `fin`). */
@@ -91,6 +91,19 @@ describe("GV2-27 · lignes sans ponctuation (phrasesParLigne, sonde J)", () => {
 });
 
 describe("GV2-27 · bavardage strict (sonde A3 G1, vidéo libre)", () => {
+  it("paire de la sonde A3 « Vous n'avez pas le temps de… » : jamais une fin de phrase laissée seule", () => {
+    const mots = [
+      ...dire("Top trois des erreurs sur vos devis.", 1, 4),
+      ...dire("Vous n'avez pas le temps de relancer vos clients.", 4.3, 7.5),
+      ...dire("Vous n'avez pas le temps de chiffrer vos devis.", 7.8, 11),
+      ...dire("Stop aux devis perdus.", 11.3, 13),
+    ];
+    const plan = calculerCoupes({ mots, dureeSec: 14, regles: { bavardageStrict: true } });
+    const monte = motsDuMontage(mots, plan.gardes).map((m) => m.mot).join(" ");
+    expect(monte).not.toContain("relancer");
+    expect(monte).toContain("Vous n'avez pas le temps de chiffrer vos devis.");
+    expect(monte).toContain("Top trois des erreurs sur vos devis.");
+  });
   const prise = (extra: MotHorodate[] = []) => [
     ...dire("Top trois des erreurs sur vos devis.", 1, 4),
     ...dire("Vous perdez des clients faute de relance.", 4.3, 7),
