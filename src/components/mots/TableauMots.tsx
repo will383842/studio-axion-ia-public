@@ -2,7 +2,7 @@
 
 // MG-4 — tableau des mots : une ligne par mot. Présentation pure : données et gestes arrivent en propriétés,
 // aucun service serveur, aucun appel réseau. Changer la cible passe toujours par une confirmation.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { EtatVide } from "@/components/ui/EtatVide";
@@ -27,6 +27,8 @@ export interface ProprietesTableauMots {
   etats?: Record<string, EtatMotVue>;
   /** Ouvre la fiche du mot (bouton « Ouvrir »). */
   onOuvrirMot?: (mot: string) => void;
+  /** Boutons « Ouvrir » par mot : l'écran y remet le focus quand il ferme la fiche. */
+  refsOuvrir?: RefObject<Record<string, HTMLButtonElement | null>>;
 }
 
 interface GroupeMot {
@@ -94,6 +96,7 @@ export function TableauMots({
   onChangerCible,
   etats,
   onOuvrirMot,
+  refsOuvrir,
 }: ProprietesTableauMots) {
   // Mot en cours de changement, puis (après un choix) la cible à confirmer.
   const [motEnEdition, setMotEnEdition] = useState<string | null>(null);
@@ -308,6 +311,9 @@ export function TableauMots({
                           <Bouton
                             variante="secondaire"
                             aria-label={L.ouvrirLaFiche(mot)}
+                            ref={(b) => {
+                              if (refsOuvrir) refsOuvrir.current[mot] = b;
+                            }}
                             onClick={() => onOuvrirMot(mot)}
                           >
                             {L.ouvrir}

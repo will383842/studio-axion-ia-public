@@ -3,7 +3,7 @@
 // R4 — fiche d'un mot : ce qu'il envoie, ses textes réseau par réseau, ses comptes, ses chiffres.
 // Présentation pure : tout arrive en propriétés. `services` = gestes DÉJÀ protégés par une confirmation
 // (voir gestes-mots-cibles.ts) : aucun geste ne part sans un « oui ».
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
 import { LogoReseau } from "@/components/ui/LogoReseau";
@@ -30,6 +30,8 @@ export interface ProprietesFicheMot {
   apercu: ApercuTextesVue | null;
   services: GestesMotsCibles;
   onFermer: () => void;
+  /** Titre de la fiche : l'écran lui donne le focus à l'ouverture. */
+  titreRef?: Ref<HTMLHeadingElement>;
 }
 
 type ApercuOk = Extract<ApercuReseauVue, { ok: true }>;
@@ -63,7 +65,11 @@ function LigneChiffres({
   const cellule = (cle: keyof Fenetres) => (
     <td role="cell" className="px-2 py-1 align-top text-texte">
       <span className="font-semibold">
-        {auMoins ? F.chiffres.auMoins(f[cle]) : String(f[cle])}
+        {auMoins
+          ? f[cle] === 0
+            ? F.chiffres.aucuneVue
+            : F.chiffres.auMoins(f[cle])
+          : String(f[cle])}
       </span>
       {aVerifier && aVerifier[cle] > 0 && (
         <span className="block text-xs text-texte-doux">
@@ -205,7 +211,7 @@ function SectionTextes({
                       <Bouton
                         variante="secondaire"
                         onClick={() =>
-                          void services.valider(resume.mot, r.reseau, r)
+                          lancer(services.valider(resume.mot, r.reseau, r))
                         }
                       >
                         {T.valider(NOM_RESEAU[r.reseau])}
@@ -222,11 +228,18 @@ function SectionTextes({
   );
 }
 
-function titreCible(apercu: ApercuTextesVue | null, c: CompteDuMot): string {
-  if (apercu === null || !apercu.ok) return "";
-  const ok = apercu.reseaux.filter((r): r is ApercuOk => r.ok);
-  return (ok.find((r) => r.reseau === c.reseau) ?? ok[0])?.cible.titre ?? "";
+/** Titre de la cible de CE réseau, jamais celui d'un autre réseau ; `null` tant qu'il n'est pas connu. */
+export function titreCible(
+  apercu: ApercuTextesVue | null,
+  c: CompteDuMot,
+): string | null {
+  if (apercu === null || !apercu.ok || c.reseau === null) return null;
+  const r = apercu.reseaux.find((x) => x.reseau === c.reseau);
+  return r !== undefined && r.ok ? r.cible.titre : null;
 }
+
+/** Les gestes ne rejettent jamais ; ceci garde une promesse oubliée sans erreur non gérée. */
+const lancer = (p: Promise<unknown>) => void p.catch(() => undefined);
 
 function SectionComptes({
   resume,
@@ -244,6 +257,7 @@ function SectionComptes({
     <ul className="m-0 flex list-none flex-col gap-2 p-0">
       {resume.comptes.map((c) => {
         const nom = c.nom ?? c.compte;
+        const titre = titreCible(apercu, c);
         return (
           <li
             key={c.compte}
@@ -266,13 +280,11 @@ function SectionComptes({
             >
               {C.etat[c.etat]}
             </Pastille>
-            {c.activable && (
+            {c.activable && titre !== null && (
               <Bouton
                 variante="secondaire"
                 aria-label={C.activerLe(resume.mot, nom)}
-                onClick={() =>
-                  void services.activer(resume.mot, c, titreCible(apercu, c))
-                }
+                onClick={() => lancer(services.activer(resume.mot, c, titre))}
               >
                 {C.activer}
               </Bouton>
@@ -281,7 +293,7 @@ function SectionComptes({
               <Bouton
                 variante="secondaire"
                 aria-label={C.pauseLe(resume.mot, nom)}
-                onClick={() => void services.mettreEnPause(resume.mot, c)}
+                onClick={() => lancer(services.mettreEnPause(resume.mot, c))}
               >
                 {C.pause}
               </Bouton>
@@ -343,11 +355,18 @@ export function FicheMot({
   apercu,
   services,
   onFermer,
+  titreRef,
 }: ProprietesFicheMot) {
   return (
     <Carte data-carte="fiche-mot" as="section" aria-label={F.titre(resume.mot)}>
       <div className="flex flex-col gap-5">
-        <h3 className="text-base text-texte">{F.titre(resume.mot)}</h3>
+        <h3
+          ref={titreRef}
+          tabIndex={-1}
+          className="text-base text-texte outline-none"
+        >
+          {F.titre(resume.mot)}
+        </h3>
         <section className="flex flex-col gap-2">
           <Titre>{F.envoie.titre}</Titre>
           <SectionEnvoie apercu={apercu} resume={resume} />
