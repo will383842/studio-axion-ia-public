@@ -2,11 +2,21 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
+import { preparerMotDePasse } from "./helpers/g1a";
 
+vi.mock("next/headers", () => mockHeaders);
+vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
-const { reinitialiserDepots } = await import("@/donnees/memoire");
+const { DEMANDE_MODELE } = await import("./tableau-scripts/modele-valide");
+const auth = await import("@/services/auth");
+const creation = await import("@/services/tableau-creation");
+const taches = await import("@/services/tableau-taches");
+const boucle = await import("@/services/boucle");
+const { etatBoucle } = await import("@/services/_boucle-etat");
+const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const L = await import("@/services/limite-appels");
 const { BandeauLimiteAppels } = await import("@/app/(studio)/_accueil/BandeauLimiteAppels");
@@ -14,7 +24,20 @@ const { BandeauLimiteAppels } = await import("@/app/(studio)/_accueil/BandeauLim
 const T0 = Date.parse("2027-03-10T10:00:00Z");
 const JOUR = 24 * 3_600_000;
 
-beforeEach(() => reinitialiserDepots());
+const MDP = "limite-appels";
+beforeAll(async () => {
+  await preparerMotDePasse(MDP);
+});
+beforeEach(() => {
+  reinitialiserDepots();
+  reinitialiserRequete();
+  taches.tachesEnCours().clear();
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 async function allumer(limite: number) {
   await ecrireParametre(L.PARAM_LIMITE_ACTIVE, true);
@@ -61,16 +84,41 @@ describe("NEW-ARG-05 · limite d'appels", () => {
     await viaBoucle(MOT, { actif: true, traites: 4, envoyes: 4, definitifs: 0, aReessayer: 0, ecartes: 0 });
     expect(await compte()).toBe(4);
   });
-  it("jamais le manuel : limite atteinte, les réveils manuels du tableau et des lots partent par `lancerAnnexe`", async () => {
+  it("jamais le manuel : limite atteinte, « Reprendre » une tâche du tableau la fait quand même tourner (vrai chemin `reveillerTaches`)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.useFakeTimers({ toFake: ["Date"] }); // le vrai chemin lit l'heure du jour : on la fixe sur le jour du compte
+    vi.setSystemTime(T0);
+    vi.stubGlobal("fetch", (async () => { throw new Error("réseau interdit"); }) as typeof fetch);
+    await auth.seConnecter(MDP, false);
+    // Une écriture du tableau arrêtée sur erreur, à reprendre à la main.
+    const prix = (await creation.ecranCreationTableau()).ecriture.coutCentimes;
+    const r = await creation.ecrireScriptTableau({ ...DEMANDE_MODELE, vraiCas: null }, { accord: prix }, { client: { simule: true, appeler: async () => { throw new Error("panne"); } } });
+    if (r.statut !== "en-cours") throw new Error(JSON.stringify(r));
+    await taches.modifierTache(r.videoId, null, (t) => t && { ...t, statut: "erreur", enVol: undefined, message: "arrêt" });
+    // Limite allumée et atteinte : l'automatique est freiné.
     await allumer(1);
     expect(await viaBoucle(COMITE, envoye)).toBe(1);
-    expect(await viaBoucle(COMITE, envoye)).toBe(0); // limite atteinte : l'automatique est freiné
-    const { lancerAnnexe } = await import("@/services/boucle");
-    for (const nom of ["tâches du tableau animé", "lots d'images", "parcours de conversation", "notifications", "surveillance des crédits"]) {
-      const f = vi.fn(async () => undefined);
-      await lancerAnnexe(nom, f, 5_000); // chemin réel, même appel que `reveillerTaches`
-      expect(f, nom).toHaveBeenCalledTimes(1);
+    expect(await viaBoucle(COMITE, envoye)).toBe(0);
+    expect((await L.etatLimiteAppels(T0)).atteinte).toBe(true);
+    // La boucle tourne dans ce processus et tient son verrou : « Reprendre » la réveille tout de suite.
+    const etat = etatBoucle();
+    const avant = { active: etat.active, verrouTenu: etat.verrouTenu };
+    etat.active = true;
+    etat.verrouTenu = true;
+    try {
+      expect(await creation.reprendreTacheTableau(r.videoId, prix)).toMatchObject({ statut: "en-cours" });
+      const annexe = boucle.annexesEnVol().get(taches.NOM_ANNEXE_TABLEAU);
+      expect(annexe, "l'annexe du tableau n'a pas été lancée").toBeDefined();
+      await annexe;
+    } finally {
+      etat.active = avant.active;
+      etat.verrouTenu = avant.verrouTenu;
     }
+    // La tâche a été travaillée (Claude n'est pas relié : elle s'arrête sur une réponse claire, elle n'attend plus).
+    const t = creation.lireBrouillonTableau((await depots().videos.obtenir(r.videoId))!)!.tache!;
+    expect(t.statut).not.toBe("en-attente");
+    // Le compte n'a pas bougé : le manuel n'est ni freiné ni compté.
+    expect(await compte()).toBe(1);
     for (const nom of ["tâches du tableau animé", "lots d'images", "parcours de conversation"]) expect(L.ANNEXES_AUTOMATIQUES).not.toContain(nom);
   }, 60_000);
   it("le compte repart à zéro au changement de jour à Paris (pas à minuit UTC)", async () => {
