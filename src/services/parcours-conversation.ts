@@ -34,7 +34,7 @@ import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publicat
 import type { MessageLu, PortInboxZernio, ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import { signerAppel } from "@/fournisseurs/site/signature";
 import { formulationsValidees, lireGardes, PARAM_VALIDATION_MERCI, ouvrirDisjoncteurMotsExterne, PARAM_REGISTRE_MOTS, PARAM_VALIDATION_GUIDE_PARCOURS } from "./mots-service";
-import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, personneOpposeePartout } from "./oppositions-mots";
+import { empreintesOpposees, enregistrerOpposition, enregistrerOppositionPersonne, ErreurOppositionIllisible, personneOpposeePartout } from "./oppositions-mots";
 import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
@@ -1405,7 +1405,9 @@ export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number 
     if (traites >= LOT_REDUCTION) break;
     try {
       if (await estOpposee(ev.charge)) continue; // la preuve de l'opposition reste intacte
-    } catch {
+    } catch (e) {
+      // Doute du site pour CETTE personne (preuve manquante) : elle reste intacte, mais les suivantes ne sont pas abandonnées.
+      if (e instanceof ErreurOppositionIllisible && e.code === "site_a_verifier") continue;
       break; // registre illisible : on ne réduit plus rien dans ce passage
     }
     traites++;
