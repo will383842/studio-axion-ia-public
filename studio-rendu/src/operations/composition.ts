@@ -35,7 +35,7 @@ import { mesurerFinVideo } from "../composition/fin-video.js";
 import { fichierEntree, remplacerReferences } from "../composition/entrees.js";
 import { servirDossier } from "../composition/serveur-fichiers.js";
 import { compositionFacecamV4 } from "./facecam-v4.js";
-import { deposer, executer, executerAvecErreurs, exigerAdressePermise, FFMPEG, FFPROBE, sansAdresses, telecharger } from "../outils.js";
+import { deposer, erreurSelectionComposition, executer, executerAvecErreurs, exigerAdressePermise, FFMPEG, FFPROBE, sansAdresses, telecharger } from "../outils.js";
 import { lireCubeFichier } from "../lut.js";
 import { coeursDisponibles, paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
 import { chargerClientLambda, configLambda, rendreSurLambda } from "../remotion-lambda.js";
@@ -50,7 +50,7 @@ async function compositionEssai(demande: DemandeRendu, contexte: ContexteOperati
   const { makeCancelSignal, renderMedia, selectComposition } = await import("@remotion/renderer");
   const serveUrl = await paquetCompositions();
   const choisie = await selectComposition({ serveUrl, id, inputProps: proprietes }).catch((e: Error) => {
-    throw new ErreurRendu({ code: "refuse", reessayable: false, message: `Composition « ${id} » introuvable : ${e.message}` });
+    throw erreurSelectionComposition(id, e);
   });
   const { cancelSignal, cancel } = makeCancelSignal();
   contexte.signal.addEventListener("abort", () => cancel());

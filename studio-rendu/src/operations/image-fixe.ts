@@ -8,8 +8,8 @@
  */
 import { join } from "node:path";
 import { remplacerReferences } from "../composition/entrees.js";
-import { ErreurRendu, type Operation } from "../contrat.js";
-import { deposer } from "../outils.js";
+import type { Operation } from "../contrat.js";
+import { deposer, erreurSelectionComposition } from "../outils.js";
 import { paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
 
 export const imageFixe: Operation = async (demande, contexte) => {
@@ -20,7 +20,7 @@ export const imageFixe: Operation = async (demande, contexte) => {
   const serveUrl = await paquetCompositions();
   contexte.progression(20);
   const composition = await selectComposition({ serveUrl, id, inputProps: proprietes }).catch((e: Error) => {
-    throw new ErreurRendu({ code: "refuse", reessayable: false, message: `Composition « ${id} » introuvable : ${e.message}` });
+    throw erreurSelectionComposition(id, e);
   });
   const sortie = join(contexte.dossier, "image.png");
   await renderStill({ ...REGLAGES_RENDU, composition, serveUrl, output: sortie, frame: Number(demande.parametres.image ?? 0), inputProps: proprietes });

@@ -16,6 +16,7 @@
  * entrées) : la version suivante repart de là.
  */
 import type { CommandeFabrication } from "@/domaine/types";
+import { texteSousTitresGardes } from "@/briques/coupes";
 import { lireEntreesFacecam, type EntreesFacecam, type ImageFacecam } from "@/domaine/facecam";
 import type { DefinitionEtapeMoteur } from "../types";
 import type { CleTravailChaine, EtatChaine, SuiviTravail } from "./chaine";
@@ -230,6 +231,8 @@ export function etatPourRetouche(reprise: RepriseChaine, commande: Pick<Commande
         dureeSortieSec: +gardes.reduce((s, g) => s + g.finSec - g.debutSec, 0).toFixed(3),
         resume: resumerCoupes(facecam, duree, reglages.coupesDemandees).phrase,
       };
+      // GV2-14 : le texte des sous-titres suit les passages gardés (les mots sont recalés dessus juste après).
+      if (etat.coupes.mode === "texte") etat.coupes.texteMonte = texteMonteDesGardes(etat.coupes, gardes);
     }
     delete etat.plans;
     delete etat.mots;
@@ -296,4 +299,13 @@ function declinaisonsSansHabillage(d: NonNullable<EtatChaine["declinaisons"]>): 
   void _r;
   void _x;
   return reste;
+}
+
+/**
+ * GV2-14 : le texte des sous-titres d'après les passages gardés COURANTS, quand l'état garde les phrases et les mots de
+ * la prise ; sinon (ancien état) le `texteMonte` figé, comme avant.
+ */
+export function texteMonteDesGardes(coupes: NonNullable<EtatChaine["coupes"]>, gardes: Intervalle[]): string | undefined {
+  if (coupes.mode !== "texte" || !coupes.phrases || !coupes.motsPrise) return coupes.texteMonte;
+  return texteSousTitresGardes({ phrases: coupes.phrases, gardes, consignes: coupes.consignes, recalages: coupes.recalages }, coupes.motsPrise, gardes);
 }

@@ -117,7 +117,7 @@ export const formatImageVideo: DefinitionFormat = {
   moteur: ID_MOTEUR_IMAGE_VIDEO,
   reseauxConseilles: [...RESEAUX_IMAGE_VIDEO],
   exemples: [],
-  aFournir: ["Une infographie (PNG, JPEG ou WebP, 800 px de côté au moins)"],
+  aFournir: ["Une infographie (PNG, JPEG ou WebP, 800 px de côté au moins), déposée ou venue d'un clic depuis une infographie du studio"],
   migrerReglages: migrationIdentite,
   pieces: {
     habillage: "charte-duo/1",

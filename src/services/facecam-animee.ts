@@ -178,10 +178,14 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           parametres: { glossaire: [], cles: { transcription: cleTranscription } },
         });
       }
-      if (e.statut === "en_file" || e.statut === "en_cours" || (e.statut === "echec" && e.erreur.injoignable)) throw new EnCoursChaineV4("La transcription");
+      // GV2-04 : « injoignable » est compté par la chaîne (30 min au plus) ; la file normale ne l'est jamais.
+      if (e.statut === "echec" && e.erreur.injoignable) throw new EnCoursChaineV4("La transcription", undefined, "injoignable");
+      if (e.statut === "en_file" || e.statut === "en_cours") throw new EnCoursChaineV4("La transcription");
       if (e.statut === "echec") throw new ErreurChaineV4("La transcription de votre vidéo n'a pas abouti. Vous pouvez réessayer.", e.erreur.reessayable, e.erreur.message);
       const r = e.resultat;
-      const brut = Array.isArray(r.mots) ? r.mots : ((await lireJsonGz<MotHorodate[] | { mots?: MotHorodate[] }>(r.transcriptionCle).catch(() => null)) ?? []);
+      const brut = Array.isArray(r.mots) ? r.mots : await lireJsonGz<MotHorodate[] | { mots?: MotHorodate[] }>(r.transcriptionCle).catch(() => null);
+      // GV2-04 : une lecture ratée n'est pas « aucun mot » (échec définitif) : réessayable.
+      if (brut === null || brut === undefined) throw new ErreurChaineV4("La transcription n'a pas pu être relue.", true);
       const mots = Array.isArray(brut) ? brut : (brut.mots ?? []);
       return { mots, dureeSec: r.dureeSec, ...(r.largeurSource && r.hauteurSource ? { largeurSource: r.largeurSource, hauteurSource: r.hauteurSource } : {}) };
     },
@@ -200,7 +204,8 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           parametres: { cles: { piste: clePiste, points: clePoints } },
         });
       }
-      if (e.statut === "en_file" || e.statut === "en_cours" || (e.statut === "echec" && e.erreur.injoignable)) throw new EnCoursChaineV4("Le cadrage");
+      if (e.statut === "echec" && e.erreur.injoignable) throw new EnCoursChaineV4("Le cadrage", undefined, "injoignable");
+      if (e.statut === "en_file" || e.statut === "en_cours") throw new EnCoursChaineV4("Le cadrage");
       // Visage introuvable (ou repérage raté) : colonne centrée, la vidéo est quand même fabriquée.
       if (e.statut === "echec") return null;
       return visageDeLaPiste(await lireJsonGz<Parameters<typeof visageDeLaPiste>[0]>(e.resultat.pisteVisageCle).catch(() => null));
@@ -286,7 +291,14 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         ...(recadrage ? { recadrage } : {}),
         ...(videos?.length ? { videos: await Promise.all(videos.map(async (v) => ({ nom: v.nom, url: await signerLecture(v.cle) }))) } : {}),
       });
-      const e = await client.suivreRendu(rendu, demande);
+      let e: Awaited<ReturnType<typeof client.suivreRendu>>;
+      try {
+        e = await client.suivreRendu(rendu, demande);
+      } catch (err) {
+        // GV2-04 : une panne passagère du service de montage (silence, 5xx) attend ; la chaîne compte les tours muets (60 au plus).
+        if ((err as { reessayable?: boolean } | null)?.reessayable === true) throw new EnCoursChaineV4("Le montage", undefined, "muet");
+        throw err;
+      }
       if (e.statut === "termine") {
         const m = e.mesures ?? {};
         return { cle: e.sortieCle || sortieCle, vignetteCle, dureeSec: Number(m.dureeSec) || plan.duree, taille: Number(m.taille) || 0 };

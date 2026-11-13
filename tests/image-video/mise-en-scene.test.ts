@@ -545,10 +545,27 @@ describe("calage sur la voix (heures de la piste voix seule, tempo final)", () =
     expect(cale.partCalee).toBeGreaterThan(0.99);
   });
 
-  it("une voix qui ne suit pas le script est refusée (moins de 90 % des mots retrouvés)", () => {
+  it("même nombre de mots, écrits autrement (un sur quatre) : calé par rang, pas d'exception, une remarque", () => {
     const fiche = FICHES_SIMULEES["essai-c"];
     const voix = heuresSimulees(fiche.ecrans.map((e) => e.texteDit)).map((m, k) => (k % 4 === 0 ? { ...m, mot: `autre${k}` } : m));
-    expect(() => calerFiche(fiche, { mots: voix, motsCorps: voix.length })).toThrow(ErreurCalageIV);
+    const cale = calerFiche(fiche, { mots: voix, motsCorps: voix.length });
+    const mots = cale.ecrans.flatMap((e) => e.mots);
+    expect(mots).toHaveLength(voix.length);
+    mots.forEach((m, k) => expect([m.debutSec, m.finSec]).toEqual([voix[k].debutSec, voix[k].finSec]));
+    expect(cale.partCalee).toBeLessThan(0.9);
+    expect(cale.remarques).toEqual([`La voix écrit autrement ${voix.filter((_, k) => k % 4 === 0).length} mots du script : vérifiez les sous-titres.`]);
+  });
+
+  it("nombres de mots différents et alignement sous 90 % : la voix ne suit pas le script, exception", () => {
+    const fiche = FICHES_SIMULEES["essai-c"];
+    const voix = heuresSimulees(fiche.ecrans.map((e) => e.texteDit)).map((m, k) => (k % 4 === 0 ? { ...m, mot: `autre${k}` } : m));
+    expect(() => calerFiche(fiche, { mots: voix.slice(0, -1), motsCorps: voix.length - 1 })).toThrow(ErreurCalageIV);
+  });
+
+  it("voix qui suit le script : aucune remarque", () => {
+    const fiche = FICHES_SIMULEES["essai-c"];
+    const voix = heuresSimulees(fiche.ecrans.map((e) => e.texteDit));
+    expect(calerFiche(fiche, { mots: voix, motsCorps: voix.length }).remarques).toEqual([]);
   });
 
   it("une voix bien plus lente que prévu : le contrôle du rythme refuse la ligne de temps plutôt que de la livrer", () => {
