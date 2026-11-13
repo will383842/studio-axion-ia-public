@@ -7,6 +7,7 @@ import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
+import { CarteProposition } from "./CarteProposition";
 import type { TableLibelles } from "./PastilleStatutPlan";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, MonogrammeReseau, estVerrouillee, heureLisible, jourLisible, nomReseau, styleReseau, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
@@ -72,6 +73,13 @@ export interface ProprietesGrilleSemaine {
   onDeplacer?: (entree: EntreeCarte, jour: string) => void;
   /** CAL-11b : appelée par « Annuler » (bandeau de 10 secondes) avec la carte et son ancien jour ; l'appelant remet la date. */
   onAnnulerDeplacement?: (entree: EntreeCarte, jourAvant: string) => void;
+  /**
+   * CAL-17 : propositions de l'équipe IA, montrées en cartes pointillées « Proposée » dans la case de leur réseau et de leur jour.
+   * Jamais déplaçables ni programmables ici. Sans `lienAValider`, rien n'est montré.
+   */
+  propositions?: readonly { entree: EntreeCarte; pourquoi?: string; ressembleA?: string }[];
+  /** CAL-17 : écran « À valider » de l'usine, seul lieu de validation. */
+  lienAValider?: string;
   className?: string;
 }
 
@@ -306,7 +314,7 @@ function GrilleSemaineGlissable(p: ProprietesGrilleSemaine) {
   return corpsGrille(p, g);
 }
 
-function corpsGrille( { semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, densite, lienPlus, onVoirPlus, libellesEtat, tropProches, alertes, manquesParJour, aCompleter, filtresActifs, className }: ProprietesGrilleSemaine, g: Glisse | undefined) {
+function corpsGrille( { semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirEntree, lienJour, onOuvrirJour, lienAjout, onAjouter, attendu, maxParCase, densite, lienPlus, onVoirPlus, libellesEtat, tropProches, alertes, manquesParJour, aCompleter, filtresActifs, propositions, lienAValider, className }: ProprietesGrilleSemaine, g: Glisse | undefined) {
   const glissable = Boolean(g);
   const saisie = g?.saisie;
   if (reseaux.length === 0) return <div className={cn(VIDE, className)}>Aucun réseau affiché. Rallumez un réseau ci-dessus.</div>;
@@ -470,6 +478,10 @@ function corpsGrille( { semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALEND
                   >
                     {(limite !== null && cartes.length > limite ? cartes.slice(0, limite) : cartes).map(carteDe)}
                     {limite !== null && cartes.length > limite && voirPlus(reseau, jour, cartes.slice(limite))}
+                    {lienAValider &&
+                      propositions
+                        ?.filter((p) => p.entree.reseau === reseau && p.entree.jour === jour)
+                        .map((p) => <CarteProposition key={p.entree.cle} entree={p.entree} pourquoi={p.pourquoi} ressembleA={p.ressembleA} lienAValider={lienAValider} />)}
                     {!estPasse && peutAjouter && ajout(jour, reseau, creneauVide)}
                   </div>
                 );
