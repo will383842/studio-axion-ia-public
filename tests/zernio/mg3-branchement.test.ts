@@ -291,13 +291,13 @@ describe("correctifs de relecture", () => {
     expect(apres[`CONVERSATION|${FB}`].etat).toBe("pause");
     expect(apres[`CONVERSATION|${IG}`].etat).toBe("actif");
   });
-  it("« plusieurs mots » allumé : un mot autre que GUIDE n'est pas activable tant que l'activation est fermée", async () => {
+  it("« plusieurs mots » allumé : un mot autre que GUIDE n'est activable que sur Facebook, textes validés (PR-B ouvre l'activation)", async () => {
     await ecrireParametre("parcours.mots_multiples", true);
     const vue = await lireVueMotsCibles({ lignes: [] });
     expect(vue!.plusieursMotsAllume).toBe(true);
     const tous1 = vue!.mots.find((m) => m.mot === "TOUS1")!;
-    expect(tous1.comptes.find((x) => x.compte === FB)).toMatchObject({ activable: false, raison: "activation_pas_encore_ouverte" });
-    expect(phraseRefus("activation_pas_encore_ouverte")).toBe("L’envoi des mots autres que GUIDE n’est pas encore ouvert : il arrive avec le prochain lot.");
+    expect(tous1.comptes.find((x) => x.compte === FB)).toMatchObject({ activable: false, raison: "textes_non_valides_reseau" });
+    expect(tous1.comptes.find((x) => x.compte === IG)).toMatchObject({ activable: false, raison: "instagram_pas_encore" });
   });
   it("GUIDE déjà actif sur un compte : pas activable pour ce compte", async () => {
     const vue = await lireVueMotsCibles({ lignes: [ligne("GUIDE", FB, "actif")[1]] });
@@ -316,7 +316,7 @@ describe("chaque raison a sa phrase", () => {
   const CODES = [
     "plusieurs_mots_eteint", "activation_par_la_fiche", "textes_non_valides_reseau", "reseau_a_la_main", "reseau_du_compte_inconnu",
     "cible_test", "adresse_pas_encore", "site_injoignable", "sans_cible", "cible_introuvable", "mot_guide_a_part", "titre_cible_absent",
-    "mot_reserve", "activation_pas_encore_ouverte", "cible_guide_figee", "mot_existe", "mot_invalide", "validation_perimee", "lecture_impossible",
+    "mot_reserve", "instagram_pas_encore", "cible_guide_figee", "mot_existe", "mot_invalide", "validation_perimee", "lecture_impossible",
   ];
   it.each(CODES)("%s", (code) => {
     expect(Object.hasOwn(PHRASES_REFUS, code)).toBe(true);
