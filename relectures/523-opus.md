@@ -2,10 +2,11 @@
 
 Tête relue : `05a0930f` (usine/RC-14). Lecture seule ; mutations rejouées dans une copie jetable.
 
-**Verdict : À CORRIGER.** Un seul point bloquant au regard du critère « jamais un faux vert » (point 1 ci-dessous), correctif de quelques lignes. Tout le reste est conforme. Fusion possible dès ce point corrigé (et un test ajouté).
+**Verdict : À CORRIGER.** Deux points, chacun corrigeable en quelques lignes : un faux vert sur date illisible (point 1) et une règle recopiée qui aggrave une garde existante (point 2). Le reste est conforme. **Fusion : non en l'état ; possible dès ces deux points corrigés** (avec un test pour le point 1).
 
 ## Points à corriger
 1. `src/domaine/alertes/registre.ts:85` (alerte `visuel-manquant`) : une entrée du calendrier dont la date est **illisible** est silencieusement écartée de la fenêtre J..J+7. Rejoué : calendrier `[{ jour: "13/11/2026", aVisuel: false }, …entrées valides avec visuel]` → `visuel-manquant` = **ok** (faux vert). Attendu : « non évalué » dès qu'une entrée a une date illisible (ecartJours = null), sauf si un manque certain donne déjà « alerte ». Ajouter le test correspondant.
+2. `src/domaine/alertes/jours.ts:4-9` : `JOUR_MS = 86_400_000` et le calcul du jour de Paris (`Intl.DateTimeFormat` Europe/Paris) sont **recopiés** alors qu'ils existent dans `src/lib/dates.ts:7` (`JOUR_MS`) et `src/lib/dates.ts:64` (`cleJour`, jour AAAA-MM-JJ à Paris, via `formateurDate`). Effet mesuré : la garde `tests/garde-regle-unique.test.ts` (« une règle chiffrée écrite une seule fois », déjà rouge sur master) passe de 8 à **9 copies** de `JOUR_MS` (nouvelle ligne fautive `src/domaine/alertes/jours.ts:4`). Correctif : importer `JOUR_MS` et `cleJour` de `@/lib/dates` (`jourParis = cleJour`) ; garder l'horloge injectée.
 
 ## Remarques (non bloquantes)
 - `registre.ts:69` (trous J+7/J+2) : une date illisible est aussi ignorée ; ici l'effet est prudent (au pire une alerte de trou de trop, jamais un faux vert). Envisager « non évalué » si une date est illisible, par cohérence.
@@ -25,4 +26,4 @@ Tête relue : `05a0930f` (usine/RC-14). Lecture seule ; mutations rejouées dans
 7. Aucune suppression de données de personnes. OK.
 8. Mutations (copie jetable) : seuil 80→81 : 1 test rouge ; « non-evalue » → « ok » dans seuil.ts : 5 rouges ; NON_EVALUE → ok dans registre.ts : 8 rouges ; import + appel de `envoyerPush` dans le service : 1 rouge. Restauré : 29/29 verts. OK.
 9. Aucun `.skip` / `.only`, aucun nom de personne dans le diff. OK.
-10. `pnpm install --frozen-lockfile` ok ; `vitest run tests/alertes` : 43/43 verts ; eslint propre sur les fichiers du lot ; `tsc --noEmit` : 146 erreurs, aucune dans les fichiers du lot (aucun fichier existant modifié, donc aucune nouvelle). Suite complète : voir ci-dessous.
+10. `pnpm install --frozen-lockfile` ok ; `vitest run tests/alertes` : 43/43 verts ; eslint propre sur les fichiers du lot ; `tsc --noEmit` : 146 erreurs, aucune dans les fichiers du lot (aucun fichier existant modifié, donc aucune nouvelle). Tests existants : les 45 fichiers de tests qui balaient `src/` (gardes de structure) rejoués sur master et sur la branche : **19 échecs identiques des deux côtés** (préexistants, hors PR) ; seule différence de contenu : la copie supplémentaire de `JOUR_MS` (point 2). Aucun test existant ne passe du vert au rouge. La suite complète (> 20 min dans ce conteneur) n'a pas été menée à son terme ; aucun fichier existant n'étant modifié ni importé par le lot, seules ces gardes pouvaient être touchées.
