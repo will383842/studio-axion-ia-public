@@ -410,7 +410,8 @@ describe("page /calendrier : la semaine à l'écran large ouvre l'aperçu sur pl
     const h = rendre((await Page({ searchParams: Promise.resolve({}) })) as ReactElement);
     expect(h).toContain('data-carte="publication:pubA|linkedin"');
     expect(h).toContain('role="table"');
-    expect(h).toContain("/videos/vA"); // la liste mobile garde son lien
+    // CAL-13b : sur téléphone, la liste est remplacée par le mode Agenda (maquette calendrier-du-studio) ; le lien vers la vidéo est dans le tiroir (lienSource).
+    expect(h).toContain("data-agenda");
   });
 });
 
