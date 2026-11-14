@@ -8,3 +8,10 @@
 - Lint propre sur les fichiers ajoutés ; tsc : 146 erreurs, identiques à master, aucune dans autonomie-usine*.
 - Suite : lots B (écran), C (garde, après ARG-ORIGINE-USINE), D (image→vidéo) importent ce module.
 - Contrôle anti-fuite : aucun prénom ni nom de personne dans le diff.
+
+## Correctif relecture Opus (PR 524) : bloquants 1 et 2 corrigés, point 4 fait
+- À traiter par les lots suivants / l'auditeur (notes, non codées) :
+  - 5 : ré-accord d'une clé « consommée sans dépense rattachée » = remplace l'ancien coût au lieu de l'additionner (conforme § 2.4) ; l'auditeur vérifie que le lot E rattache les dépenses et que les clés `appel-…` restent uniques.
+  - 6 : `lireAccord`/`lireEngagement` : une ligne corrompue compte 0 / « absent » ; « en cas de doute, le plus haut » voudrait un refus (risque faible, code de confiance seul).
+  - 7 : `vueAutonomieUsine` éteint → `plafondCents: 0` : le lot B ne peut pas préremplir le dernier plafond (confort).
+  - 8 : `jugerSousPlafondUsine` renvoie `effectif: 0` si le besoin est illisible (sans effet : `ok` vaut false).

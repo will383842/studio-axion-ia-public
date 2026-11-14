@@ -17,7 +17,7 @@ import { centimes, formaterMontant } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { depenseComptee, jourParis, montantPaye, moisParis } from "./couts";
-import { budgetIndicatifPour, budgetIndicatifPourVideo } from "./mode-budget";
+import { budgetIndicatifPour, origineDeLaVideo } from "./mode-budget";
 import { creerNotification } from "./notifications";
 
 /* --- Réglage ----------------------------------------------------------- */
@@ -90,7 +90,13 @@ export function normaliserOrigine(v: unknown): "studio" | "usine" {
 /* --- Verrou des crédits (marqueur) ------------------------------------- */
 
 const marqueurVerrou = new AsyncLocalStorage<true>();
-/** Exécute `f` en marquant qu'on est sous le verrou des crédits (credits.ts enveloppe `sousVerrouCredits` avec, lot C). */
+/**
+ * Marqueur « on est sous le verrou des crédits ». ATTENTION : ce marqueur seul ne protège RIEN (deux appels simultanés
+ * sous le seul marqueur passent tous les deux et l'index du mois perd une clé). Il n'est valable que posé par
+ * `sousVerrouCredits` (credits.ts : file du processus + verrou consultatif Postgres), seul appelant autorisé (test de
+ * structure). Lot C : AsyncLocalStorage est HÉRITÉ par toute tâche détachée lancée dans la section ; aucune tâche lancée
+ * sans attente (« fire and forget ») dans `sousVerrouCredits` ne doit inscrire un accord, elle verrait le marqueur après la fin du verrou.
+ */
 export function dansVerrouCredits<T>(f: () => Promise<T>): Promise<T> {
   return marqueurVerrou.run(true, f);
 }
@@ -259,8 +265,10 @@ export async function alerterPlafondUsine(o: { refus: boolean; apres: number; pl
 
 /** Accord sans clic : budget indicatif (Studio) OU origine Usine avec l'autonomie allumée. Utilisée par le lot D. */
 export async function accordSansClicPour(origine: unknown, videoId?: string): Promise<boolean> {
-  const o = normaliserOrigine(origine);
-  const indicatif = videoId ? await budgetIndicatifPourVideo(videoId, o) : await budgetIndicatifPour(o);
+  // Origine non transmise + vidéo connue : on lit l'origine figée sur la vidéo (illisible = Usine), JAMAIS « studio » par défaut.
+  const brute = origine === undefined && videoId ? await origineDeLaVideo(videoId) : origine;
+  const o = normaliserOrigine(brute);
+  const indicatif = await budgetIndicatifPour(o);
   if (indicatif) return true;
   return o === "usine" && (await lireAutonomieUsine()).etat === "active";
 }
