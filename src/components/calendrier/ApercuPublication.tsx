@@ -83,6 +83,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const nom = a.nomReseau;
 
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
+    // Une touche déjà traitée plus bas (flèches du carrousel, Échap de la vue agrandie) ne change pas de publication.
+    if (e.defaultPrevented) return;
     if (e.key === "Escape") {
       e.preventDefault();
       onFermer();
@@ -95,15 +97,18 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
-      {entree.type === "carrousel" || ((entree.type === "video" || entree.type === "infographie") && a.media.url) ? (
-        <ApercuMedia type={entree.type} url={a.media.url} poster={a.media.poster} pages={entree.media?.pages} />
+      {entree.type === "carrousel" || (a.media.genre === "video" && a.media.url) || (entree.type === "infographie" && a.media.url) ? (
+        <ApercuMedia key={entree.cle} type={a.media.genre === "video" ? "video" : entree.type === "infographie" ? "infographie" : "carrousel"} url={a.media.url} poster={a.media.poster} pages={entree.media?.pages} />
       ) : a.media.genre === "image" && a.media.url ? (
         // eslint-disable-next-line @next/next/no-img-element -- adresse libre d'un visuel du Studio, montrée entière
         <img src={a.media.url} alt={`Visuel de la publication ${nom}`} className="max-h-[60vh] w-full object-contain" />
       ) : (
         <span>Visuel à venir</span>
       )}
-      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange">{a.texte}</p>}
+      {a.disposition === "legende-sur-media" && a.texte && (
+        // Carrousel : la légende se lit sous les boutons de pages, sans les recouvrir.
+        <p className={cn("whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange", entree.type === "carrousel" ? "w-full" : "absolute inset-x-0 bottom-0")}>{a.texte}</p>
+      )}
     </div>
   );
   const texte = (

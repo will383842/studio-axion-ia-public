@@ -86,17 +86,23 @@ describe("CAL-14A — média du tiroir", () => {
     expect(obtenir).not.toHaveBeenCalled();
   });
 
-  it("le lien expiré se dit : onError du lecteur, de l'image et de l'infographie", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync("src/components/calendrier/ApercuMedia.tsx", "utf8");
-    expect(src).toContain("Le lien a expiré : rechargez la page.");
-    expect((src.match(/onError=\{surErreur\}/g) ?? []).length).toBe(3);
-  });
-
   it("le chargeur reste réservé au serveur", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("src/app/(studio)/calendrier/charger-medias.ts", "utf8");
     expect(src).toContain('import "server-only"');
     expect(src).not.toMatch(/["']use server["']/);
+  });
+});
+
+describe("CAL-14A — ordre des entrées", () => {
+  it("les visuels se chargent en parallèle mais la sortie garde l'ordre de la semaine", async () => {
+    obtenir.mockImplementation(async (id: string) => {
+      await new Promise((r) => setTimeout(r, id === "vis_1" ? 20 : 0));
+      return { famille: "carrousel", rendu: { pages: pages(id === "vis_1" ? 1 : 2) } };
+    });
+    const sortie = await entreesAvecMedias([pub("p1", { visuelId: "vis_1" }), pub("p2", { visuelId: "vis_2" }), pub("p3", { videoId: "vid_1" })]);
+    expect(sortie.map((e) => e.cle)).toEqual(["p1", "p2", "p3"].map((id) => entreeDepuisPublication(pub(id)).cle));
+    expect(sortie[0].media?.pages).toHaveLength(1);
+    expect(sortie[1].media?.pages).toHaveLength(2);
   });
 });

@@ -52,13 +52,14 @@ export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<E
       return base;
     }
   };
-  const sortie: EntreeApercu[] = [];
-  for (const p of semaine) {
-    try {
-      sortie.push(await entree(p));
-    } catch {
-      sortie.push(entreeDepuisPublication(p));
-    }
-  }
-  return sortie;
+  // En parallèle, mais l'ordre de sortie reste celui de la semaine (les index sont alignés pour filtrerParTexte).
+  return Promise.all(
+    semaine.map(async (p) => {
+      try {
+        return await entree(p);
+      } catch {
+        return entreeDepuisPublication(p);
+      }
+    }),
+  );
 }
