@@ -93,7 +93,7 @@ describe("AUT-D : Studio inchangé", () => {
   it("Studio (ou origine absente, vidéo sans version) : autonomie allumée sans effet, le budget indicatif vaut accord comme avant", async () => {
     await allumer(5000);
     for (const o of [await outils("studio"), await outils()]) expect(await o.budget.reserver(DEPENSE)).toEqual({ ok: true });
-    expect(reservations).toEqual([{ origine: "studio", accord: 40 }, { origine: undefined, accord: 40 }]);
+    expect(reservations).toEqual([{ origine: "studio", accord: 40 }, { origine: "studio", accord: 40 }]);
   });
 
   it("Studio : la décision du script avance sans accord de prix (historique)", async () => {
@@ -137,19 +137,19 @@ describe("AUT-D correction : une seule origine pour l'accord et la réservation"
     expect(reservations).toEqual([]);
   });
 
-  it("origine « Usine » (casse), allumée : accord sans clic ET réservation sous l'origine donnée (normalisée en Usine par la caisse)", async () => {
+  it("cas A, origine « Usine » (casse), allumée : accord sans clic ET réservation sous l'origine NORMALISÉE « usine »", async () => {
     await allumer(5000);
     const o = await outils("Usine");
     expect(await o.budget.reserver(DEPENSE)).toEqual({ ok: true });
-    expect(reservations).toHaveLength(1);
-    expect(reservations[0].origine).toBe("Usine");
+    expect(reservations).toEqual([{ origine: "usine", accord: 40 }]);
   });
 
-  it("« Usine » (casse), éteint : PHRASE_ACCORD_ABSENT_IV si l'indicatif ne couvre pas, rien réservé de plus", async () => {
-    const o = await outils("Usine");
-    const r = await o.budget.reserver(DEPENSE);
-    if (r.ok === false) expect(r).toEqual({ ok: false, message: PHRASE_ACCORD_ABSENT_IV });
-    expect(reservations.every((x) => x.origine === "Usine")).toBe(true);
+  it("cas C, « Usine » (casse) ou origine lue sur la vidéo, interrupteur éteint : PHRASE_ACCORD_ABSENT_IV, rien réservé", async () => {
+    await versionDeLaVideo("usine");
+    for (const o of [await outils("Usine"), await outils(), await outils("usine")]) {
+      expect(await o.budget.reserver(DEPENSE)).toEqual({ ok: false, message: PHRASE_ACCORD_ABSENT_IV });
+    }
+    expect(reservations).toEqual([]);
   });
 
   it("Studio explicite, allumé, vidéo d'origine « usine » par ailleurs : inchangé, réservation « studio »", async () => {
