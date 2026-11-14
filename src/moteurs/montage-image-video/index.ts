@@ -343,7 +343,9 @@ function suivant(travail: Travail, etat: EtatFabricationIV, maintenant: number):
 
 export function resultatDe(etat: EtatFabricationIV, maintenant: number): ResultatFabrication {
   const mentions = etat.controles?.verdict?.mentions ?? [];
-  const alertes: AlerteQualite[] = mentions.map((message) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message }));
+  // Les mentions de fin de voix sortent en tête, en « attention » ; les autres restent « info ».
+  const finDeVoix = (m: string) => /dernière phrase risque d'être coupée|dernière phrase n'est pas dite jusqu'au bout|Voix gardée malgré une remarque|Fin dite en entier/.test(m);
+  const alertes: AlerteQualite[] = [...mentions.filter(finDeVoix), ...mentions.filter((m) => !finDeVoix(m))].map((message) => ({ code: "defaut-visuel" as const, gravite: finDeVoix(message) ? ("attention" as const) : ("info" as const), message }));
   const note = Math.max(60, 90 - 3 * mentions.length);
   // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.
   const livrees = (etat.livraison ?? []).filter((l) => l.fichierCle);
@@ -441,6 +443,8 @@ export function creerMoteurMontageImageVideo(dep: DependancesMoteurImageVideo = 
         outils = (await fabrique()?.(commande, travail.id, { relance: Math.max(0, travail.tentatives - 1) })) ?? null;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        // Panne passagère : on relève l'erreur, la boucle fait ses essais espacés (rien n'est acquis à ce moment). Seul un refus net échoue tout de suite.
+        if ((err as { reessayable?: unknown } | null)?.reessayable !== false) throw err;
         return { travail: { ...suivant(travail, etat, maintenant), statut: "echec", erreur: { code: "IV_NON_RELIE", reessayable: true, messagePourWill: `${message} Vous pouvez réessayer.` } } };
       }
       if (!outils) return { travail: { ...suivant(travail, etat, maintenant), statut: "echec", erreur: { code: "IV_NON_RELIE", reessayable: true, messagePourWill: NON_RELIE } } };

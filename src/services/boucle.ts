@@ -50,7 +50,7 @@ import "./cas-concret-branchements";
 import "./tutoriel-branchements";
 import "./image-video";
 import "./facecam-animee";
-import { abandonnerAppelsFiges, avecDelai, ecrireAvancement, ecrirePanne, executerSuites, lireTravauxAAvancer, rattraperFinitions, signalerTravailEnErreur, suivreRetourTardif, type ChoixMoteur, type SuiteFabrication } from "./travaux";
+import { abandonnerAppelsFiges, avecDelai, ecrireAvancement, ecrirePanne, executerSuites, lireTravauxAAvancer, rattraperFinitions, rejouerFinsInterrompues, signalerTravailEnErreur, suivreRetourTardif, type ChoixMoteur, type SuiteFabrication } from "./travaux";
 
 export { boucleActive, etatBoucle } from "./_boucle-etat";
 
@@ -237,6 +237,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   await solderLecturesInterrompues();
   const finitions = rattraperFinitionsUneFois();
   if (finitions) await avecDelai(finitions, DELAI_SUITES_MS).catch(() => undefined);
+  await avecDelai(executerSuites(await sousVerrou(() => rejouerFinsInterrompues()).catch(() => [] as SuiteFabrication[])), DELAI_SUITES_MS).catch(() => undefined);
   // 1. Lecture sous le verrou (aucun réseau). Un travail dont l'appel précédent est encore en vol attend son retour.
   const enVol = avancementsEnVol();
   await abandonnerAppelsFiges(enVol, async (lu) => lectureDeVoixAuProgramme(lu.travail, lu.moteur) || !!(await lireParametre(cleLectureEnVol(lu.travail.id), null)));
