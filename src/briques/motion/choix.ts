@@ -49,6 +49,15 @@ const UNITE = String.raw`(?:(h|heures?|min(?:utes?)?|s(?:econdes?)?|jours?|semai
 
 const valeurDe = (x: string) => NOMBRES[x.toLowerCase()] ?? Number(x.replace(",", "."));
 const uniteDe = (x: string) => UNITES[x.toLowerCase().replace(/\s+/g, " ")] ?? x;
+/** Famille d'une unité déjà normalisée par `uniteDe` : deux unités de familles différentes ne se comparent pas. */
+export function familleUnite(u: string): "duree" | "pourcent" | "argent" | "clients" | "fois" | null {
+  if (["h", "min", "s", "jours", "semaines", "mois", "ans"].includes(u)) return "duree";
+  if (u === "%") return "pourcent";
+  if (u === "€") return "argent";
+  if (u === "clients") return "clients";
+  if (u === "fois") return "fois";
+  return null;
+}
 const majuscule = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const propre = (s: string) => majuscule(s.replace(/\s+/g, " ").replace(/^[\s,;:.–—-]+|[\s,;:.–—-]+$/g, "").trim());
 
@@ -77,14 +86,24 @@ export function iconePour(texte: string): NomIcone | undefined {
 
 /** Avant / après : « de 12 h à 3 h », « 12 h au lieu de… », « on passe de 12 heures à 3 heures ». */
 function avantApres(phrase: string): ChoixModele | null {
-  const re = new RegExp(String.raw`(?:de|d')\s*${NOMBRE}\s*${UNITE}?[^.?!]{0,30}?\s(?:à|a|en)\s+(?:seulement\s+|plus que\s+|juste\s+)?${NOMBRE}\s*${UNITE}`, "i");
-  const m = re.exec(phrase) ?? new RegExp(String.raw`${NOMBRE}\s*${UNITE}\s*(?:→|->|au lieu de|contre)\s*${NOMBRE}\s*${UNITE}?`, "i").exec(phrase);
+  const re = new RegExp(String.raw`(?:de|d')\s*${NOMBRE}\s*${UNITE}?[^.?!]{0,30}?\s(à|a|en)\s+(?:seulement\s+|plus que\s+|juste\s+)?${NOMBRE}\s*${UNITE}`, "i");
+  const premier = re.exec(phrase);
+  const m = premier ?? new RegExp(String.raw`${NOMBRE}\s*${UNITE}\s*(?:→|->|au lieu de|contre)\s*${NOMBRE}\s*${UNITE}?`, "i").exec(phrase);
   if (!m) return null;
-  const [, v1, u1, v2, u2] = m;
+  const [, v1, u1, ...reste] = m;
+  const liaison = premier ? reste[0] : undefined;
+  const [v2, u2] = premier ? reste.slice(1) : reste;
   const unite = uniteDe(u2 ?? u1 ?? "");
   const avant = valeurDe(v1);
   const apres = valeurDe(v2);
   if (!Number.isFinite(avant) || !Number.isFinite(apres) || avant === apres) return null;
+  // Jamais de barres qui comparent des choses de nature différente (« 30 % en trois mois »).
+  const unite1 = u1 ? uniteDe(u1) : undefined;
+  const famille1 = unite1 ? familleUnite(unite1) : null;
+  const famille2 = familleUnite(unite);
+  if (famille1 && famille2 && famille1 !== famille2) return null;
+  // Avec « en », seules deux unités identiques sont un vrai passage (« de 12 h en 3 h »).
+  if (liaison && liaison.toLowerCase() === "en" && (!unite1 || unite1 !== unite)) return null;
   const sujet = phrase
     .slice(0, m.index)
     .replace(/\b(on|vous|je|nous)\s+(passe[sz]?|passons|êtes|suis)\b.*$/i, "")

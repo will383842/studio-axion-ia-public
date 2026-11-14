@@ -104,7 +104,8 @@ RÈGLES (le script est refusé sinon) :
 - Image très complexe (<chapitres> non vide) : "chapitres" reprend ces chapitres dans l'ordre, repères « 1/3 », « 2/3 », « 3/3 », couvrant toute l'explication ; un chapitre non essentiel commence et finit sur une phrase complète, et RIEN après lui n'y renvoie (ni ses blocs, ni « comme on l'a vu »).
 
 FORME (JSON seul, aucun texte autour, aucun champ en plus) :
-{ "version": "fiche-image/1", "empreinteCarte": <empreinte_carte>, "accroches": [{ "famille", "texteDit", "textesEcran" }, { … }], "ecrans": [{ "id": "e01"…, "partie", "scene", "refs": [ids des noeuds, liens, chiffres ou groupes de la carte ; jamais titre, sousTitre, pied, phraseChoc ni un nom de scene], "texteDit", "textesEcran": [], "surMot": [{ "mot" (rang du mot dit, 0 = premier), "action", "ref"? }], "fond": "sombre" | "ivoire" }], "questionCommentaire": { "texteDit", "texteEcran" }, "chapitres": [{ "repere", "titre", "ecrans": [ids], "essentiel" }] }
+{ "version": "fiche-image/1", "empreinteCarte": <empreinte_carte>, "accroches": [{ "famille", "texteDit", "textesEcran" }, { … }], "ecrans": [{ "id": "e01"…, "partie", "scene", "refs": [ids des noeuds, liens, chiffres ou groupes de la carte ; jamais titre, sousTitre, pied, phraseChoc ni un nom de scene], "texteDit", "textesEcran": [], "surMot": [{ "mot" (rang du mot dit, 0 = premier), "action": "apparait" | "coche" | "compte", "ref"? }], "fond": "sombre" | "ivoire" }], "questionCommentaire": { "texteDit", "texteEcran" }, "chapitres": [{ "repere", "titre", "ecrans": [ids], "essentiel" }] }
+Actions sur un mot : « apparait » fait paraître l'élément sur ce mot ; « coche » coche le bloc "ref" (un bloc « fait ») sur ce mot ; « compte » lance le compteur d'un écran « chiffre » sur le mot qui dit le nombre.
 Scènes : ${liste(SCENES)} (seulement celles de <scenes>).`;
 
 const NIVEAUX_CIBLE_IV: Record<Ciblage["niveau"], string> = { metier: "métier", secteur: "secteur", taille: "taille d'entreprise" };

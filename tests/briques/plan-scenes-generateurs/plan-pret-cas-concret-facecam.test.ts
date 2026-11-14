@@ -21,6 +21,7 @@ import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
 import { tranchePlan } from "@/briques/plan-scenes-generateurs/tranche";
 import { planPourVideo, type MotEnSecondes } from "@/briques/plan-scenes-generateurs/video";
 import { schemaPlanStrict, schemaSceneStrict, type PlanValide } from "@/briques/plan-scenes/schema";
+import { devantLeVisage } from "@/briques/plan-scenes/zones";
 
 const SEGMENTS: SegmentCale[] = [
   { texte: "Votre devis part en trois minutes sans aucune relance manuelle.", debutMs: 0, finMs: 3000 },
@@ -31,7 +32,8 @@ const FORMAT = { largeur: 1080, hauteur: 1920, fps: 25 as const };
 
 /**
  * Mots des trois phrases (10, 9 et 10 mots : indices 0 à 28), un mot toutes les 0,3 s, chacun durant 0,25 s.
- * Les phrases finissent par un point : le plan de repli coupe donc aux indices 9 et 18.
+ * GV2-43 : le plan de repli pose une scène par fait du script : « trois minutes » (indices 4-5), « 12 secondes »
+ * (17-18) et « 42 » (25).
  */
 const MOTS_SECONDES: MotEnSecondes[] = SEGMENTS.flatMap((s) => s.texte.split(/\s+/)).map((texte, i) => ({ texte, debutSec: i * 0.3, finSec: i * 0.3 + 0.25 }));
 
@@ -63,12 +65,16 @@ function verifierPlanPret(plan: PlanValide | null, facecam: boolean): PlanValide
     expect(s.finMs).toBeLessThanOrEqual(p.dureeMs);
     finPrecedente = s.finMs;
     expect(s.empreinte).toMatch(/^[0-9a-f]{16}$/);
-    // Face caméra : jamais devant le visage.
-    if (facecam) expect(s.position).toBe("bas");
+    // Face caméra : jamais devant le visage (GV2-43 : bas et haut alternés).
+    if (facecam) {
+      expect(["bas", "haut"]).toContain(s.position);
+      expect(devantLeVisage(s.position)).toBe(false);
+    }
   }
-  // Les phrases 2 et 3 portent un chiffre : scènes aux indices 10 à 18 et 19 à 28 (la phrase 1, longue et sans chiffre, reste à l'existant).
-  expect(p.scenes.map((s) => s.mots.premier)).toEqual([10, 19]);
-  expect(p.scenes.map((s) => s.mots.dernier)).toEqual([18, 28]);
+  // GV2-43 : une scène par fait dit, posée sur les mots du fait.
+  expect(p.scenes.map((s) => s.mots.premier)).toEqual([4, 17, 25]);
+  expect(p.scenes.map((s) => s.mots.dernier)).toEqual([5, 18, 25]);
+  expect(p.scenes.map((s) => s.piece)).toEqual(["repere", "repere", "compteur"]);
   return p;
 }
 
@@ -82,8 +88,8 @@ describe("plan de scènes prêt : cas concret (réglage simulé à true)", () =>
   it("adaptateur : plan du stock non vide, calé sur des mots existants, sans chevauchement, sans IA", async () => {
     const r = await adapterPlan({ generateur: "cas-concret", script: SEGMENTS.map((s) => s.texte).join(" "), segments: SEGMENTS, format: FORMAT, facecam: false });
     expect(r.source).toBe("stock");
-    // La phrase 1 (légende de 10 mots) est laissée à l'existant.
-    expect(r.laissees).toEqual(["s1"]);
+    // GV2-43 : le stock ne pose que des pièces de données sur les faits ; aucune légende longue à laisser.
+    expect(r.laissees).toEqual([]);
     verifierPlanPret(r.plan, false);
     // Les mots du plan sont ceux du script, dans l'ordre.
     expect(r.plan!.mots.map((m) => m.texte).join(" ")).toBe(SEGMENTS.map((s) => s.texte).join(" "));
@@ -91,15 +97,19 @@ describe("plan de scènes prêt : cas concret (réglage simulé à true)", () =>
 
   it("chaîne du cas concret : une tranche par écran qui porte une scène, décalée à 0, sans IA", async () => {
     const r = await planScenesCasConcret({ groupes: GROUPES });
-    // Écran 1 : aucune scène retenue ; écrans 2 et 3 : une scène chacun.
-    expect(Object.keys(r.tranches).sort()).toEqual(["corps/e2", "corps/e3"]);
+    // GV2-43 : chaque écran dit un fait (« trois minutes », « 12 secondes », « 42 devis ») : une tranche par écran.
+    expect(Object.keys(r.tranches).sort()).toEqual(["corps/e1", "corps/e2", "corps/e3"]);
     expect(r.memo.corps!.plan).not.toBeNull();
     for (const t of Object.values(r.tranches)) {
       expect(schemaPlanStrict.safeParse(t).success).toBe(true);
-      expect(t.scenes).toHaveLength(1);
-      expect(t.scenes[0]!.debutMs).toBe(0);
-      expect(t.scenes[0]!.niveau).toBe(1);
+      expect(t.scenes.length).toBeGreaterThan(0);
+      for (const s of t.scenes) {
+        expect(s.debutMs).toBeGreaterThanOrEqual(0);
+        expect(s.finMs).toBeLessThanOrEqual(t.dureeMs);
+        expect(s.niveau).toBe(1);
+      }
     }
+    expect(r.tranches["corps/e1"]!.dureeMs).toBe(3000);
     expect(r.tranches["corps/e2"]!.dureeMs).toBe(3000);
     expect(r.tranches["corps/e3"]!.dureeMs).toBe(3500);
     // Mémo : même entrée, le plan gardé est réutilisé tel quel.
