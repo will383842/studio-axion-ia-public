@@ -15,7 +15,8 @@
  * Aucune musique, jamais : le plan v4 n'a pas de piste de sons (les plaquettes jouent leurs bruitages) et le service de rendu refuse un plan
  * qui en porterait.
  */
-import { appliquerRecalages, calculerCoupes, motsDuMontage, versPrise } from "@/briques/coupes";
+import { appliquerRecalages, calculerCoupes, controlerCoupes, corrigerLexique, motsDuMontage, versPrise, type PhraseRetrouvee, type PlanCoupes } from "@/briques/coupes";
+import { estHesitation, tokens } from "@/briques/coupes/texte";
 import { horodaterMotsPrononces } from "@/briques/calage/report";
 import { DUREE_MIN_SEC } from "@/domaine/facecam-parcours";
 import type { ElementV4Plan, PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
@@ -25,6 +26,7 @@ import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generat
 import { MENTION_PLAFOND_FACECAM_ANIMEE } from "./index";
 import { PHRASE_REALISATEUR_PANNE, realiser, type DependancesRealisateur, type EntreeRealisateur, type HistoriqueVideo, type MotTranscrit } from "./realisateur";
 import { controlerDiversiteV4, estRendableV4 } from "./realisateur/regles-v4";
+import { indicesMotsInterditsEcran } from "./realisateur/mots";
 import { plaquettesSansVideo, retirerPlaquettesSansVideo, type PlaquetteRetireeV4 } from "./videos-v4";
 import { ESSAIS_REPLI_SANS_VIDEO_V4, IDS_PLAQUETTES_A_VIDEO_V4, elementsPourRepliV4, erreursRepliV4, nomsRetireesV4, phraseRepliEchecV4, phraseRepliOkV4 } from "./repli-sans-video-v4";
 
@@ -62,6 +64,34 @@ export interface GardeV4 {
   finSec: number;
 }
 
+/** GV2-24 : ce que le rapport dit des sous-titres (calculé aux coupes ; jamais un échec). */
+export interface ControleSousTitresV4 {
+  /** Un texte a été fourni mais pas retrouvé dans la prise : les sous-titres viennent de ce qui a été entendu. */
+  texteNonRetrouve: boolean;
+  /** Phrases du texte absentes du montage (`controlerCoupes`). */
+  phrasesManquantes: number;
+  /** Phrases dites autrement (information, pas d'alerte). */
+  ditesAutrement: number;
+  /** Passages gardés de plus de 1,2 s sans aucun mot sous-titré, début et fin compris (`compterTrousV4`). */
+  trous: number;
+  /** Mots dits retirés des sous-titres par la liste des mots interdits à l'écran. */
+  motsInterdits: number;
+}
+
+/** GV2-24 : seuil des trous de transcription (prise de référence : plus long blanc entre deux mots montés 0,3 s). */
+export const TROU_SOUS_TITRES_V4_SEC = 1.2;
+
+/** GV2-24 : nombre de passages de plus de 1,2 s sans aucun mot, sur la ligne de temps montée (début et fin compris). PUR. */
+export function compterTrousV4(mots: readonly MotTranscrit[], dureeSec: number): number {
+  let trous = 0;
+  let t = 0;
+  for (const m of [...mots].sort((x, y) => x.a - y.a)) {
+    if (m.a - t > TROU_SOUS_TITRES_V4_SEC) trous++;
+    t = Math.max(t, m.f);
+  }
+  return dureeSec - t > TROU_SOUS_TITRES_V4_SEC ? trous + 1 : trous;
+}
+
 export interface DemandeChaineV4 {
   videoId: string;
   versionId: string;
@@ -80,7 +110,7 @@ export interface EtatChaineV4 {
   transcription?: { mots: MotHorodate[]; dureeSec: number; largeur?: number; hauteur?: number };
   /** Prise horizontale : colonne 9:16 gardée (pixels de la prise) et visage dans cette colonne (fractions). */
   cadrage?: RecadrageV4;
-  coupes?: { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[] };
+  coupes?: { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[]; /** GV2-24 : absent des anciens états (aucune alerte de sous-titres). */ controle?: ControleSousTitresV4 };
   realisation?: { version: "complete" | "simple"; /** GV2-04 : dernier filet, le repli sans vidéo a échoué et la version simple est livrée avec une alerte. */ filetSimple?: boolean; essais: number; erreurs?: string[]; avertissements: number; phrase?: string; plan: PlanFacecamAnimee; /** GV-MD-03 : plan tel qu'Opus l'a rendu, gardé pour comparer quand le calage au mot est actif. */ planAvantCalage?: PlanFacecamAnimee };
   /**
    * Étape « videos » (18/10) : fichiers préparés pour les plaquettes à vidéo, plaquettes RETIRÉES faute de vidéo littérale, manques,
@@ -93,7 +123,8 @@ export interface EtatChaineV4 {
    * (`repli-sans-video-v4.ts`). `fait` : le repli a réussi (pas de second repli) ; `essais` : appels Claude du repli.
    */
   repliSansVideo?: { retirees: PlaquetteRetireeV4[]; manques: string[]; elementsPrecedents: ElementV4Plan[]; fait?: boolean; essais?: number };
-  rendu?: { cle: string; vignetteCle: string; dureeSec: number; taille: number };
+  /** GV2-34 : `lufs`, `picVraiDbtp` et `dureeMonteeSec` sont les vraies mesures du rendu (absentes des anciens états : rapport d'avant). */
+  rendu?: { cle: string; vignetteCle: string; dureeSec: number; taille: number; lufs?: number; picVraiDbtp?: number; dureeMonteeSec?: number };
   /** GV2-04 : tours de suite sans réponse du service de montage (remis à 0 dès qu'il répond). */
   muets?: { rendu?: number };
   /** GV2-04 : début (ISO) de la panne du conteneur de transcription ou de repérage du visage (la file normale n'est jamais comptée). */
@@ -107,6 +138,8 @@ export interface OutilsChaineV4 {
   planScenes?: { appeler?: AppelClaude };
   /** GV-MD-03 : calage des animations sur le début du mot dit. ÉTEINT par défaut (absent ou faux : plan d'Opus inchangé, rendu des vidéos existantes identique). */
   calageAuMot?: boolean;
+  /** GV2-34 : fin douce (dernier passage prolongé, fondu de sortie du son). ÉTEINT par défaut (absent ou faux : coupes et filtre identiques à la répétition validée). */
+  finDouce?: boolean;
   /** Transcription horodatée au mot de la prise brute (temps de la prise). Lève `EnCoursChaineV4` tant qu'elle n'est pas finie. */
   transcrire(d: { priseCle: string; appelId: string }): Promise<{ mots: MotHorodate[]; dureeSec: number; largeurSource?: number; hauteurSource?: number }>;
   /**
@@ -127,7 +160,7 @@ export interface OutilsChaineV4 {
    */
   videos?(d: { videoId: string; plan: PlanFacecamAnimee; mots: MotTranscrit[] }): Promise<{ plan: PlanFacecamAnimee; fichiers: FichierVideoV4[]; manques: string[]; depenseUsd?: number; choix?: ChoixVideoV4[] }>;
   /** Rendu de la vidéo par le service de rendu (lève `EnCoursChaineV4` tant qu'il tourne). `videos` : fichiers d'illustration à envoyer avec la demande. */
-  rendre(d: { idRendu: string; priseCle: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; recadrage?: RecadrageV4; videos?: FichierVideoV4[] }): Promise<{ cle: string; vignetteCle: string; dureeSec: number; taille: number }>;
+  rendre(d: { idRendu: string; priseCle: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; recadrage?: RecadrageV4; videos?: FichierVideoV4[]; /** GV2-34 : seulement quand le réglage est allumé. */ finDouce?: boolean }): Promise<{ cle: string; vignetteCle: string; dureeSec: number; taille: number; lufs?: number; picVraiDbtp?: number; dureeMonteeSec?: number }>;
 }
 
 /** Un travail extérieur tourne encore : rien n'a changé, le même pas sera refait au passage suivant. */
@@ -206,16 +239,43 @@ export function recadrageVerticalV4(prise: { largeur: number; hauteur: number },
   };
 }
 
+/** GV2-34 : marge gardée après le dernier mot quand la fin douce est allumée (secondes). */
+export const MARGE_FIN_DOUCE_V4_SEC = 0.6;
+
+/** GV2-34 : borne arrondie VERS LE HAUT à la grille de 30 i/s ; jamais au-delà de la prise (alors la grille juste en dessous). PUR. */
+export function arrondiHautV4(finSec: number, dureePriseSec: number): number {
+  const haut = Math.ceil(finSec * GRILLE_V4 - 1e-6) / GRILLE_V4;
+  return haut <= dureePriseSec + 1e-9 ? haut : Math.floor(dureePriseSec * GRILLE_V4 + 1e-6) / GRILLE_V4;
+}
+
+/**
+ * GV2-34 : prolonge (jamais ne raccourcit) la dernière garde jusqu'à 0,6 s après le dernier mot DE CETTE GARDE, sans jamais
+ * atteindre un mot coupé qui suit (consigne au monteur, reprise : une image de marge avant lui) ni dépasser la prise. PUR.
+ */
+export function prolongerFinV4<G extends { debutSec: number; finSec: number }>(gardes: readonly G[], mots: readonly MotHorodate[], dureePriseSec: number): G[] {
+  if (!gardes.length || !mots.length) return [...gardes];
+  const derniere = gardes[gardes.length - 1];
+  const milieu = (m: MotHorodate) => (m.debutSec + m.finSec) / 2;
+  const dedans = mots.filter((m) => milieu(m) >= derniere.debutSec && milieu(m) <= derniere.finSec);
+  if (!dedans.length) return [...gardes];
+  const dernierMot = Math.max(...dedans.map((m) => m.finSec));
+  const limite = Math.min(dureePriseSec, ...mots.filter((m) => milieu(m) > derniere.finSec).map((m) => m.debutSec - 1 / GRILLE_V4));
+  const fin = Math.max(derniere.finSec, Math.min(dernierMot + MARGE_FIN_DOUCE_V4_SEC, limite));
+  return [...gardes.slice(0, -1), { ...derniere, finSec: fin }];
+}
+
 /**
  * COUPES DE LA PRISE pour le rendu v4 (même calcul que la répétition générale validée, `outils/facecam-animee-v4/preparer-prise.ts`) :
  * `calculerCoupes` (silences, reprises, consignes) → intervalles gardés recalés sur la grille de 30 i/s → mots de la vidéo MONTÉE sur ces
  * intervalles (avec l'orthographe du texte dit quand Will l'a donné). PUR.
  */
-export function couperPriseV4(e: { mots: MotHorodate[]; dureeSec: number; texteValide?: string }): { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[] } {
+export function couperPriseV4(e: { mots: MotHorodate[]; dureeSec: number; texteValide?: string; /** GV2-34 : fin douce, éteinte si absent. */ finDouce?: boolean }): { gardes: GardeV4[]; dureeSec: number; mots: MotTranscrit[]; controle: ControleSousTitresV4 } {
   const texteValide = e.texteValide?.trim() || undefined;
-  const plan = calculerCoupes({ mots: e.mots, dureeSec: e.dureeSec, ...(texteValide ? { texteValide } : {}) });
+  const plan0 = calculerCoupes({ mots: e.mots, dureeSec: e.dureeSec, ...(texteValide ? { texteValide } : {}) });
+  // GV2-34 (réglage allumé seulement) : le dernier passage gardé va jusqu'à 0,6 s après le dernier mot quand la prise le permet.
+  const plan = e.finDouce ? { ...plan0, gardes: prolongerFinV4(plan0.gardes, e.mots, e.dureeSec) } : plan0;
   const mots = appliquerRecalages(e.mots, plan.recalages);
-  const gardes = plan.gardes.map((g) => ({ debutSec: Math.round(g.debutSec * GRILLE_V4) / GRILLE_V4, finSec: Math.round(g.finSec * GRILLE_V4) / GRILLE_V4, debutOrigine: g.debutSec, finOrigine: g.finSec })).filter((g) => g.finSec > g.debutSec);
+  const gardes = plan.gardes.map((g) => ({ debutSec: Math.round(g.debutSec * GRILLE_V4) / GRILLE_V4, finSec: e.finDouce && g === plan.gardes[plan.gardes.length - 1] ? arrondiHautV4(g.finSec, e.dureeSec) : Math.round(g.finSec * GRILLE_V4) / GRILLE_V4, debutOrigine: g.debutSec, finOrigine: g.finSec })).filter((g) => g.finSec > g.debutSec);
   const debuts: number[] = [];
   let cumul = 0;
   for (const g of gardes) {
@@ -235,20 +295,119 @@ export function couperPriseV4(e: { mots: MotHorodate[]; dureeSec: number; texteV
     const f = versMontee(m.finSec, milieu);
     return a === null || f === null ? null : { w: m.mot, a, f: Math.max(f, r3(a + 0.04)) };
   };
-  let montes = mots.map(enMontee).filter((x): x is MotTranscrit => x !== null);
-  const phrases = plan.phrases.filter((p) => p.debutSec !== undefined).map((p) => p.texte);
+  // GV2-24 : vidéo libre (ou texte non retrouvé) : mots de la transcription, lexique de marque appliqué.
+  let montes = lexiqueV4(mots.flatMap((m, rang) => { const x = enMontee(m); return x ? [{ rang, x }] : []; }));
+  const retrouvees = plan.phrases.filter((p) => p.debutSec !== undefined);
+  const phrases = retrouvees.map((p) => p.texte);
   if (texteValide && phrases.length) {
     // Orthographe du texte dit posée sur les instants de la voix (chaîne réelle du studio), puis ramenée sur la grille de 30 i/s.
     const motsTexte = horodaterMotsPrononces(phrases.join(" ").split(/\s+/).filter(Boolean), motsDuMontage(mots, plan.gardes));
+    // GV2-24 : la phrase (rang dans `retrouvees`) de chaque mot du texte.
+    const rangs = retrouvees.flatMap((p, k) => p.texte.split(/\s+/).filter(Boolean).map(() => k));
+    const phraseDe = new Map<MotTranscrit, number>();
+    const sansDuree = new Set<MotTranscrit>();
     const avecTexte = motsTexte
-      .map((m) => {
+      .map((m, i) => {
         const brut = versPrise(m.debutSec, plan.gardes);
-        return enMontee({ mot: m.mot, debutSec: brut, finSec: Math.max(versPrise(m.finSec, plan.gardes), brut + 0.04) });
+        const x = enMontee({ mot: m.mot, debutSec: brut, finSec: Math.max(versPrise(m.finSec, plan.gardes), brut + 0.04) });
+        if (x) phraseDe.set(x, rangs[i]);
+        if (x && m.finSec - m.debutSec < 1e-6) sansDuree.add(x);
+        return x;
       })
       .filter((x): x is MotTranscrit => x !== null);
-    if (avecTexte.length) montes = avecTexte;
+    if (avecTexte.length) montes = completerParLaVoixV4(avecTexte, phraseDe, sansDuree, retrouvees, mots, plan, enMontee);
   }
-  return { gardes: gardes.map((g) => ({ debutSec: g.debutSec, finSec: g.finSec })), dureeSec: r3(cumul), mots: montes };
+  // GV2-24 : contrôle pour le rapport (alertes « attention » dans `resultatV4`).
+  const nonRetrouve = !!texteValide && (plan.texteNonRetrouve || !phrases.length);
+  const ctrl = texteValide && !nonRetrouve ? controlerCoupes(plan, e.mots) : undefined;
+  const controle: ControleSousTitresV4 = { texteNonRetrouve: nonRetrouve, phrasesManquantes: ctrl?.phrasesManquantes.length ?? 0, ditesAutrement: ctrl?.phrasesDitesAutrement.length ?? 0, trous: compterTrousV4(montes, cumul), motsInterdits: indicesMotsInterditsEcran(montes).size };
+  return { gardes: gardes.map((g) => ({ debutSec: g.debutSec, finSec: g.finSec })), dureeSec: r3(cumul), mots: montes, controle };
+}
+
+/**
+ * GV2-24 : lexique de marque sur des mots de la voix (« Action IA » → « Axion-IA ») : 1 à 3 mots QUI SE SUIVENT dans la prise (`rang`)
+ * deviennent un mot, du début du premier à la fin du dernier. Les autres mots sont rendus tels quels.
+ */
+export function lexiqueV4(liste: { rang: number; x: MotTranscrit }[]): MotTranscrit[] {
+  const sortie: MotTranscrit[] = [];
+  for (let i = 0; i < liste.length; ) {
+    let n = 1;
+    for (const k of [3, 2]) {
+      const g = liste.slice(i, i + k);
+      if (n === 1 && g.length === k && g[k - 1].rang - g[0].rang === k - 1 && corrigerLexique(g.map((v) => v.x.w)).length === 1) n = k;
+    }
+    const groupe = liste.slice(i, i + n).map((v) => v.x);
+    sortie.push(n === 1 ? { ...groupe[0], w: corrigerLexique([groupe[0].w])[0] } : { w: corrigerLexique(groupe.map((x) => x.w))[0], a: groupe[0].a, f: groupe[n - 1].f });
+    i += n;
+  }
+  return sortie;
+}
+
+/** GV2-24 : formes comparables d'un mot (minuscules sans accents, chiffres en lettres : « 2. » → « deux »). */
+const formesV4 = (mot: string) => tokens(mot).join("");
+const bigrammesV4 = (s: string) => new Set(Array.from({ length: Math.max(0, s.length - 1) }, (_, i) => s.slice(i, i + 2)));
+/** GV2-24 : proximité de deux écritures (bigrammes communs, 0 à 1) ; même règle que `texteSousTitresGardes` (GV2-14). */
+function proximiteV4(a: string, b: string): number {
+  const A = bigrammesV4(a);
+  const B = bigrammesV4(b);
+  let n = 0;
+  for (const x of A) if (B.has(x)) n++;
+  return A.size + B.size ? (2 * n) / (A.size + B.size) : 0;
+}
+
+/**
+ * GV2-24 : sous-titres avec un texte fourni. Les mots du texte (`texte`, orthographe du fondateur, instants de `horodaterMotsPrononces`)
+ * ne bougent pas ; on RETIRE ceux que la voix ne dit pas et on AJOUTE les mots de la voix gardés que le texte ne couvre pas.
+ * Zone d'une phrase retrouvée : les mots de la voix dont le milieu est dans sa plage (temps de la prise), plus une suite hors phrase
+ * « absorbée » (collée à moins de 1,5 s et proche, en lettres, des mots de la phrase non entendus : même règle que GV2-14).
+ *  - mot du texte gardé : sans lettres (« ? »), ou il recouvre dans le temps un mot de la zone de SA phrase ET un mot de cette zone
+ *    a la même forme ou une écriture voisine (proximité ≥ 0,5 ; « 2. » / « Deux, », « weekend » / « week-ends ») ;
+ *  - mot de la voix couvert : il est absorbé, ou il est dans la plage d'une phrase retrouvée et un mot du texte gardé le recouvre ;
+ *  - jamais ajoutés : « euh », consignes au monteur, ponctuation seule.
+ * Les mots ajoutés passent par le lexique de marque (1 à 3 mots qui se suivent → 1 mot ; début du premier, fin du dernier).
+ */
+function completerParLaVoixV4(texte: MotTranscrit[], phraseDe: Map<MotTranscrit, number>, sansDuree: Set<MotTranscrit>, retrouvees: PhraseRetrouvee[], motsPrise: MotHorodate[], plan: PlanCoupes, enMontee: (m: MotHorodate) => MotTranscrit | null): MotTranscrit[] {
+  const milieu = (m: MotHorodate) => (m.debutSec + m.finSec) / 2;
+  const dansPlage = (m: MotHorodate, p: { debutSec?: number; finSec?: number }) => p.debutSec !== undefined && p.finSec !== undefined && milieu(m) >= p.debutSec - 1e-3 && milieu(m) <= p.finSec + 1e-3;
+  const recouvre = (x: MotTranscrit, y: MotTranscrit) => x.a < y.f - 1e-6 && x.f > y.a + 1e-6;
+  const dites = plan.phrases.flatMap((p) => (p.debutSec === undefined && p.diteAutrement ? [p.diteAutrement] : []));
+  const compte = (m: MotHorodate) => formesV4(m.mot).length > 0 && !estHesitation(m.mot) && !plan.consignes.some((c) => dansPlage(m, c));
+  const voix = motsPrise.flatMap((m, rang) => {
+    const x = enMontee(m);
+    return x && compte(m) ? [{ m, rang, x, phrase: retrouvees.findIndex((p) => dansPlage(m, p)) }] : [];
+  });
+  // Suites hors phrase absorbées (GV2-14) : rattachées à la phrase voisine.
+  const nonEntendus = (p: PhraseRetrouvee) => {
+    const dits = new Set(motsPrise.filter((x) => dansPlage(x, p)).flatMap((x) => tokens(x.mot)));
+    return tokens(p.texte).filter((t) => !dits.has(t)).join("");
+  };
+  const hors = voix.filter((v) => v.phrase < 0 && !dites.some((p) => dansPlage(v.m, p)));
+  const absorbes = new Set<number>();
+  for (let i = 0; i < hors.length; ) {
+    let j = i;
+    while (j + 1 < hors.length && hors[j + 1].rang === hors[j].rang + 1) j++;
+    const suite = hors.slice(i, j + 1);
+    const debut = suite[0].m.debutSec;
+    const fin = suite[suite.length - 1].m.finSec;
+    const k = retrouvees.findIndex((p) => (debut >= p.finSec! - 1e-3 && debut - p.finSec! < 1.5) || (fin <= p.debutSec! + 1e-3 && p.debutSec! - fin < 1.5));
+    const manque = k >= 0 ? nonEntendus(retrouvees[k]) : "";
+    if (manque && proximiteV4(suite.map((x) => formesV4(x.m.mot)).join(""), manque) >= 0.5)
+      for (const x of suite) {
+        absorbes.add(x.rang);
+        x.phrase = k;
+      }
+    i = j + 1;
+  }
+  const gardes = texte.filter((t) => {
+    const f = formesV4(t.w);
+    if (!f) return true;
+    const zone = voix.filter((v) => v.phrase === phraseDe.get(t));
+    return zone.some((v) => recouvre(t, v.x)) && (!sansDuree.has(t) || zone.some((v) => formesV4(v.m.mot) === f || proximiteV4(formesV4(v.m.mot), f) >= 0.5));
+  });
+  const libres = voix.filter((v) => !absorbes.has(v.rang) && !(v.phrase >= 0 && gardes.some((t) => recouvre(t, v.x))));
+  const ajoutes = lexiqueV4(libres);
+  if (!ajoutes.length && gardes.length === texte.length) return texte;
+  return [...gardes, ...ajoutes].sort((x, y) => x.a - y.a || x.f - y.f);
 }
 
 /** GV-MD-03 : avance d'une animation sur le début du mot qu'elle illustre (s), comme les autres générateurs. */
@@ -397,7 +556,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
     case "coupes": {
       const t = etat.transcription;
       if (!t) return { ...etat, etape: "transcription" };
-      const coupes = couperPriseV4({ mots: t.mots, dureeSec: t.dureeSec, texteValide: etat.demande.texteValide });
+      const coupes = couperPriseV4({ mots: t.mots, dureeSec: t.dureeSec, texteValide: etat.demande.texteValide, ...(outils.finDouce ? { finDouce: true } : {}) });
       if (coupes.dureeSec < DUREE_MIN_SEC || !coupes.mots.length) throw new ErreurChaineV4("Après les coupes, il reste moins de 5 secondes de parole : la vidéo est trop courte pour être animée.", false);
       // Prise horizontale : cadre vertical fixe sur le visage (repérage extérieur repris au passage suivant tant qu'il tourne).
       let cadrage = etat.cadrage;
@@ -516,7 +675,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       }
       const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: etat.planScenes.plan } : etat.realisation.plan;
       const gardes = etat.coupes.gardes;
-      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}) }));
+      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}), ...(outils.finDouce ? { finDouce: true } : {}) }));
       return { ...etat, ...(etat.muets ? { muets: { ...etat.muets, rendu: 0 } } : {}), etape: "prete", rendu };
     }
     case "prete":

@@ -25,10 +25,10 @@
 import type { AlerteQualite, CommandeFabrication, MotHorodate, SegmentSousTitres } from "@/domaine/types";
 import { lireEntreesFacecam, type CoupeFacecam, type EntreesFacecam } from "@/domaine/facecam";
 import type { DemandeFacecam, EtatTravailFacecam, FournisseurFacecam, RouteFacecam } from "@/fournisseurs/facecam/client";
-import { appliquerRecalages, calculerCoupes, controlerCoupes, motsDuMontage, resumeCoupes, versConsignesFacecam, type ConsigneReperee, type Intervalle, type PhraseRetrouvee, type RecalageMot } from "@/briques/coupes";
+import { appliquerRecalages, calculerCoupes, controlerCoupes, motsDuMontage, recalerCoupesDemandees, resumeCoupes, versConsignesFacecam, type ConsigneReperee, type Intervalle, type PhraseRetrouvee, type RecalageMot } from "@/briques/coupes";
 import { appliquerZooms, controlerRealisation, realiser, type PisteVisage, type PlanCamera } from "@/briques/realisation";
 import type { FournisseurAlignement } from "@/fournisseurs/types";
-import { appliquerAlignement, demandeAlignement } from "@/briques/calage/alignement";
+import { appliquerAlignement, demandeAlignement, ESSAIS_ALIGNEMENT } from "@/briques/calage/alignement";
 import { horodaterMotsPrononces } from "@/briques/calage/report";
 import type { SourceMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { avancerDeclinaisons, avancerHabillagesFormats, bandeAvecDeclinaisons, declinaisonsFinies, habillagesFormatsRegles, preparerDeclinaisons, preparerHabillagesFormats, type EtatDeclinaisons } from "./declinaisons";
@@ -104,6 +104,8 @@ export interface EtatChaine {
     dureeSortieSec: number;
     resume: string;
     phrasesManquantes: number[];
+    /** GV2-33 : mots dits juste après la fin gardée (ou juste avant le début gardé) : peut-être coupés. */
+    motsApresLaFin?: number;
     /** (10/10) Phrases du texte dites autrement, gardées au montage : sous-titrées d'après la parole, jamais bloquantes. */
     phrasesDitesAutrement?: number[];
     /** V6 : suites de mots entendues deux fois dans le montage (contrôle « aucune phrase en double »). */
@@ -130,7 +132,7 @@ export interface EtatChaine {
    * Mots de la vidéo MONTÉE (temps du montage) pour les sous-titres et l'agent monteur : le texte validé calé sur le son
    * monté par l'aligneur existant, sinon les mots de la transcription remis sur le temps du montage.
    */
-  mots?: { statut: "soumis" | "fait"; id?: string; essais: number; cle?: string; source?: "aligneur" | "transcription" | "texte"; nombre?: number };
+  mots?: { statut: "soumis" | "fait"; id?: string; essais: number; cle?: string; source?: "aligneur" | "transcription" | "texte"; nombre?: number; /** GV2-33 : le calage fin a été tenté (jusqu'à 3 demandes) et n'a pas abouti. */ calageEchoue?: boolean };
   /**
    * Lot D : cartes posées par l'agent monteur (temps du montage ; le code sur mesure reste sur R2). Lot G : `entrees`
    * = `facecam` et `facecamMonteur` rendus par le monteur à la fabrication (gardés sur la version).
@@ -172,6 +174,8 @@ export interface EtatChaine {
   declinaisons?: EtatDeclinaisons;
   /** Vérif V2 : tours de suite où `studio-rendu` n'a pas répondu (redémarrage) ; absent dès qu'il répond. */
   renduInjoignable?: number;
+  /** GV2-33 : tours d'attente (6 au plus) quand le travail « visages » a réussi mais que la piste du visage n'a pas pu être lue. */
+  attentePiste?: { plans?: number; effets?: number };
 }
 
 export interface EtatHabillage {
@@ -296,6 +300,9 @@ export interface DependancesChaine {
 
 /** Essais d'un travail de la chaîne (aussi ceux des déclinaisons, lot F1 : règle écrite une seule fois). */
 export const ESSAIS_MAX = 2;
+
+/** GV2-33 : tours d'attente (au plus) quand la piste du visage n'a pas pu être lue alors que le travail « visages » a réussi. */
+const ATTENTE_PISTE_TOURS = 6;
 
 /**
  * Vérif V2 (10/10) : tours sans réponse de `studio-rendu` tolérés (≈ 5 min à un tour toutes les 5 s) avant un échec
@@ -434,6 +441,8 @@ export function alertesControles(ctrl: ControlesMontage | undefined, mesures: Me
   if (coupes?.phrasesEnDouble?.length) a.push({ code: "export", gravite: "bloquant", message: `${coupes.phrasesEnDouble.length} passage(s) entendu(s) deux fois : « ${coupes.phrasesEnDouble[0].texte.slice(0, 60)} ».` });
   // GV2-14 : `texteNonRetrouve` n'existe que si un texte a été fourni ; la vidéo libre voulue ne déclenche rien.
   if (coupes?.texteNonRetrouve) a.push({ code: "synchronisation", gravite: "attention", message: "Votre texte n'a pas été retrouvé dans la vidéo : les sous-titres suivent la parole." });
+  // GV2-33 : un mot dit juste après la fin gardée a peut-être été coupé.
+  if ((coupes?.motsApresLaFin ?? 0) > 0) a.push({ code: "fin", gravite: "attention", message: "Un mot dit juste après la fin gardée a peut-être été coupé." });
   if (consignesAudibles) a.push({ code: "export", gravite: "bloquant", message: `${consignesAudibles} consigne(s) « Monteur » encore audible(s).` });
   return a;
 }
@@ -548,12 +557,22 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     // Transcription libre (Whisper) rendue EN PLUS d'un alignement forcé : elle situe exactement une reprise absorbée.
     const motsLibres = Array.isArray(resultat?.motsLibres) ? (resultat.motsLibres as MotHorodate[]) : undefined;
     if (rate("transcrire")) sauter("Les coupes", "La transcription n'a pas abouti : la vidéo est gardée entière, sans sous-titres.");
-    const texte = c.script.texteComplet?.trim();
-    const plan = calculerCoupes({ mots: m, dureeSec: duree, ...(texte ? { texteValide: texte } : {}), ...(motsLibres?.length ? { motsLibres } : {}) });
+    // GV2-33 : le texte validé garde ses retours à la ligne (un segment par ligne) quand le script a des blocs.
+    const lignes = (c.script.blocs ?? []).flatMap((b) => b.segments.map((x) => x.texte.trim())).filter(Boolean);
+    const texte = lignes.length ? lignes.join("\n") : c.script.texteComplet?.trim();
+    // GV2-33 : fin posée (marge 0,45 s, face caméra seulement : la face caméra animée garde 0,28 s) et options de coupes allumées.
+    const plan = calculerCoupes({
+      mots: m,
+      dureeSec: duree,
+      ...(texte ? { texteValide: texte } : {}),
+      ...(motsLibres?.length ? { motsLibres } : {}),
+      regles: { margeFinSec: 0.45, garderBordsMalEntendus: true, phrasesParLigne: true, diteAutrementAuxBords: true, bavardageStrict: true },
+    });
     // Les coupes déjà rétablies par Will (retouche) restent rétablies ; celles qu'il a demandées (« coupe ce passage »)
     // s'ajoutent (lot G : avant, elles étaient ignorées par la chaîne).
     const retablies = new Set(entrees.coupes.retablies);
-    const demandees = lireReglagesMonteur(c.entrees).coupesDemandees;
+    // GV2-33 : une coupe demandée en secondes libres est recalée sur un blanc avant de calculer les gardes.
+    const demandees = recalerCoupesDemandees(lireReglagesMonteur(c.entrees).coupesDemandees, m);
     const liste = plan.coupes;
     const gardes = demandees.length ? gardesDepuisCoupes(coupesActives({ coupes: { auto: liste, retablies: [...retablies] } }, demandees), plan.dureeSourceSec) : retablies.size ? gardesSans(liste, retablies, plan.dureeSourceSec) : plan.gardes;
     etat.coupes = {
@@ -567,7 +586,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       resume: resumeCoupes(plan, [...retablies]),
       ...(() => {
         const ctrl = controlerCoupes(plan, m, [...retablies]);
-        return { phrasesManquantes: ctrl.phrasesManquantes, phrasesEnDouble: ctrl.phrasesEnDouble, ...(ctrl.phrasesDitesAutrement.length ? { phrasesDitesAutrement: ctrl.phrasesDitesAutrement } : {}) };
+        return { phrasesManquantes: ctrl.phrasesManquantes, motsApresLaFin: ctrl.motsApresLaFin, phrasesEnDouble: ctrl.phrasesEnDouble, ...(ctrl.phrasesDitesAutrement.length ? { phrasesDitesAutrement: ctrl.phrasesDitesAutrement } : {}) };
       })(),
       ...(plan.recalages.length ? { recalages: plan.recalages } : {}),
     };
@@ -598,7 +617,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       c.entrees = entreesEffectives();
       entrees = lireEntreesFacecam(c.entrees);
       // V6 : « coupe ce passage » dit pendant la prise vaut dès la première fabrication (avant : seulement en retouche).
-      const demandees = lireReglagesMonteur(c.entrees).coupesDemandees;
+      const demandees = recalerCoupesDemandees(lireReglagesMonteur(c.entrees).coupesDemandees, termine("transcrire") ? await motsDeLaTranscription() : []);
       if (demandees.length && !etat.travaux.son) {
         const gardes = gardesDepuisCoupes(coupesActives({ coupes: { auto: coupes.liste, retablies: entrees.coupes.retablies } }, demandees), coupes.dureeSourceSec);
         etat.coupes = { ...coupes, gardes, dureeSortieSec: +gardes.reduce((s, g) => s + g.finSec - g.debutSec, 0).toFixed(3) };
@@ -624,6 +643,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
         ...(debut && debut.finSec >= 1.5 ? { plaqueSec: [0.3, Math.min(3.3, debut.finSec - 0.3)] } : {}),
         // Lot G : réglages du son demandés au monteur (débruitage, plus / moins fort) ; par défaut, rien ne change.
         ...(reglagesSon.nettoyer === false || reglagesSon.volume !== "normal" ? { voix: { nettoyer: reglagesSon.nettoyer, volume: reglagesSon.volume } } : {}),
+        // GV2-33 : fin de voix posée (fondu de 0,12 s au lieu de 0,05 s).
+        fonduFinSec: 0.12,
         cles: { son: cle("son.flac") },
       },
     });
@@ -635,10 +656,19 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
 
   // 4. Réalisation (dès les coupes et les visages ; visages ratés : cadre centré).
   const visages = etat.travaux.visages?.resultat as { pisteVisageCle?: string; pointsCle?: string; largeurSource?: number; hauteurSource?: number } | undefined;
-  if (etat.coupes && !etat.plans && (termine("visages") || rate("visages"))) {
+  realisation: if (etat.coupes && !etat.plans && (termine("visages") || rate("visages"))) {
     let piste: PisteVisage | null = null;
-    if (termine("visages") && visages?.pisteVisageCle && deps.lireJsonGz && !simule) piste = ((await deps.lireJsonGz(visages.pisteVisageCle).catch(() => null)) as PisteVisage | null) ?? null;
-    if (rate("visages")) sauter("Le cadrage du visage", "Le visage n'a pas été suivi : cadre centré.");
+    let pisteIllisible = false;
+    if (termine("visages") && visages?.pisteVisageCle && deps.lireJsonGz && !simule) {
+      piste = ((await deps.lireJsonGz(visages.pisteVisageCle).catch(() => null)) as PisteVisage | null) ?? null;
+      pisteIllisible = !piste;
+    }
+    // GV2-33 : le travail « visages » a réussi mais la piste n'a pas pu être lue : on attend (6 tours au plus) avant de cadrer au centre.
+    if (pisteIllisible && (etat.attentePiste?.plans ?? 0) < ATTENTE_PISTE_TOURS) {
+      etat.attentePiste = { ...etat.attentePiste, plans: (etat.attentePiste?.plans ?? 0) + 1 };
+      break realisation;
+    }
+    if (rate("visages") || pisteIllisible) sauter("Le cadrage du visage", "Le visage n'a pas été suivi : cadre centré.");
     const sourceDim = piste?.largeurSource && piste.hauteurSource ? { largeur: piste.largeurSource, hauteur: piste.hauteurSource } : dimensionsSource(etat);
     const m = termine("transcrire") ? await motsDeLaTranscription() : [];
     const r = realiser({ gardes: etat.coupes.gardes, mots: m, piste, source: sourceDim, rythme: "equilibre" });
@@ -900,6 +930,12 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
   async function habiller(outils: OutilsMontage): Promise<void> {
     const montage = etat.travaux.cadrage?.resultat as { fichierCle?: string; dureeSec?: number; vignetteCle?: string } | undefined;
     if (!etat.habillage) {
+      // GV2-33 : effets spéciaux demandés, travail « visages » réussi, piste illisible : on attend (6 tours au plus) avant de les préparer sans elle.
+      const pisteEffets = etat.monteur?.effets?.length ? await lirePisteDesEffets() : { piste: null, illisible: false };
+      if (pisteEffets.illisible && (etat.attentePiste?.effets ?? 0) < ATTENTE_PISTE_TOURS) {
+        etat.attentePiste = { ...etat.attentePiste, effets: (etat.attentePiste?.effets ?? 0) + 1 };
+        return;
+      }
       // Vérif V1 : mots corrigés dans les sous-titres depuis le fil, réappliqués à chaque habillage.
       const mots = corrigerMots(await motsMontesActuels(), lireReglagesMonteur(c.entrees).correctionsSousTitres).mots;
       const dureeSec = Number(montage?.dureeSec) || etat.coupes!.dureeSortieSec;
@@ -976,7 +1012,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
         demandes.push({ id: carte.id, demande, statut: "soumise", essais: 0 });
       }
       // Lot I : effets spéciaux (après les cartes) ; leur carte révélée part avec les autres cartes.
-      const fx = etat.monteur?.effets?.length ? await effetsDeLaChaine(montage, coupesSec, dureeSec, outils) : null;
+      const fx = etat.monteur?.effets?.length ? await effetsDeLaChaine(montage, coupesSec, dureeSec, outils, pisteEffets) : null;
       // V6 : bruitages demandés au monteur (banque du studio), posés au mixage avec ceux des effets.
       const bruitages = [...(fx?.bruitages ?? []), ...bruitagesDemandes(lireReglagesMonteur(c.entrees).son.bruitages, dureeSec)];
       for (const carte of fx?.cartes ?? []) {
@@ -1042,9 +1078,16 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
   }
 
   /** Lot I : effets spéciaux préparés (piste `/visages`, coupes actives, cadre des plans, raccords, lumière). */
-  async function effetsDeLaChaine(montage: { fichierCle?: string; vignetteCle?: string } | undefined, coupesSec: number[], dureeSec: number, outils: OutilsMontage) {
-    const v = etat.travaux.visages?.resultat as { pisteVisageCle?: string; largeurSource?: number; hauteurSource?: number } | undefined;
-    const piste = termine("visages") && v?.pisteVisageCle && deps.lireJsonGz ? (((await deps.lireJsonGz(v.pisteVisageCle).catch(() => null)) as PisteVisage | null) ?? null) : null;
+  /** GV2-33 : piste du visage pour les effets ; `illisible` = le travail « visages » a réussi mais la lecture a échoué. */
+  async function lirePisteDesEffets(): Promise<{ piste: PisteVisage | null; illisible: boolean }> {
+    const v = etat.travaux.visages?.resultat as { pisteVisageCle?: string } | undefined;
+    if (!(termine("visages") && v?.pisteVisageCle && deps.lireJsonGz)) return { piste: null, illisible: false };
+    const piste = ((await deps.lireJsonGz(v.pisteVisageCle).catch(() => null)) as PisteVisage | null) ?? null;
+    return { piste, illisible: !piste };
+  }
+
+  async function effetsDeLaChaine(montage: { fichierCle?: string; vignetteCle?: string } | undefined, coupesSec: number[], dureeSec: number, outils: OutilsMontage, lue: { piste: PisteVisage | null; illisible: boolean }) {
+    const piste = lue.piste;
     const vignette = deps.lireImageRvb ? await deps.lireImageRvb(montage?.vignetteCle ?? cle("vignette.jpg")).catch(() => null) : null;
     const fx = await preparerEffetsChaine(
       {
@@ -1063,7 +1106,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       outils,
     );
     etat.monteur = { ...etat.monteur!, effets: fx.passages };
-    if (fx.rates) sauter("Un effet spécial", "La main n'a pas été trouvée assez longtemps : la vidéo est livrée sans l'effet (« Refaire l'effet » sur Votre vidéo).");
+    if (fx.rates && lue.illisible) sauter("Un effet spécial", "La piste du visage n'a pas pu être lue : la vidéo est livrée sans l'effet (« Refaire l'effet » sur Votre vidéo).");
+    else if (fx.rates) sauter("Un effet spécial", "La main n'a pas été trouvée assez longtemps : la vidéo est livrée sans l'effet (« Refaire l'effet » sur Votre vidéo).");
     return fx;
   }
 
@@ -1076,6 +1120,9 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     const voix = texteMonte && montes.length ? horodaterMotsPrononces(texteMonte.split(/\s+/).filter(Boolean), montes) : montes;
     let mots = voix;
     let source: NonNullable<EtatChaine["mots"]>["source"] = texteMonte ? "texte" : "transcription";
+    // GV2-33 : essais faits et calage non abouti (dit sur la vidéo, jamais bloquant).
+    let essais = 0;
+    let calageEchoue = false;
     if (deps.alignement && deps.alignement.mode !== "simulation" && texteMonte && voix.length) {
       const suivi = etat.mots;
       if (!suivi) {
@@ -1085,16 +1132,34 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
           await deps.alignement.soumettre(demande);
           etat.mots = { statut: "soumis", id: demande.idAlignement, essais: 0 };
         } catch {
-          etat.mots = { statut: "fait", essais: 0, source, nombre: mots.length };
+          etat.mots = { statut: "fait", essais: 0, source, nombre: mots.length, calageEchoue: true };
         }
         return;
       }
+      essais = suivi.essais;
       const r = await deps.alignement.suivre(suivi.id!).catch(() => null);
       if (!r || r.statut === "en_file" || r.statut === "en_cours") return;
+      if (r.statut === "echec") {
+        // GV2-33 : échec réessayable → nouvelle demande (identifiant `-eN`), 3 au plus ; sinon le calage est dit non abouti.
+        calageEchoue = true;
+        if (r.erreur.reessayable && essais + 1 < ESSAIS_ALIGNEMENT) {
+          const sonCle = (etat.travaux.son?.resultat as { fichierCle?: string } | undefined)?.fichierCle ?? cle("son.flac");
+          const demande = demandeAlignement({ idBase: `${ctx.travailId}-facecam`, essai: essais + 1, audio: await lire(sonCle), texte: texteMonte, reference: voix });
+          try {
+            await deps.alignement.soumettre(demande);
+            etat.mots = { statut: "soumis", id: demande.idAlignement, essais: essais + 1 };
+            return;
+          } catch {
+            // La nouvelle demande n'est pas partie : le calage reste non abouti.
+          }
+        }
+      }
       if (r.statut === "termine") {
         const cale = appliquerAlignement(voix, r.resultat, duree);
         mots = cale.mots;
         if (cale.rapport.source !== "voix") source = "aligneur";
+        // GV2-33 : calage rendu mais refusé par les garde-fous : non abouti aussi (dit, sans nouvelle demande).
+        else calageEchoue = true;
       }
       // Échec du calage : on garde l'horodatage de la transcription (jamais bloquant).
     }
@@ -1103,7 +1168,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     if (deps.ecrireJsonGz && !simule) {
       depose = await deps.ecrireJsonGz(cleMots, { version: 1, source, mots }).then(() => true, () => false);
     }
-    etat.mots = { statut: "fait", essais: 0, source, nombre: mots.length, ...(depose ? { cle: cleMots } : {}) };
+    etat.mots = { statut: "fait", essais, source, nombre: mots.length, ...(calageEchoue ? { calageEchoue: true } : {}), ...(depose ? { cle: cleMots } : {}) };
   }
 }
 
@@ -1157,6 +1222,8 @@ export function livraisonChaine(etat: EtatChaine): {
   const consignesAudibles = coupes ? coupes.consignes.filter((x) => coupes.gardes.some((g) => x.finSec > g.debutSec + 0.02 && x.debutSec < g.finSec - 0.02)).length : 0;
   const alertes = alertesControles(montage?.controles, passe?.mesures, coupes, consignesAudibles);
   if (etat.travaux.transcrire?.statut === "echec") alertes.push({ code: "synchronisation", gravite: "attention", message: "Vidéo sans sous-titres : la transcription n'a pas abouti." });
+  // GV2-33 : le calage fin a été tenté et n'a pas abouti : dit, jamais bloquant.
+  if (etat.mots?.calageEchoue) alertes.push({ code: "synchronisation", gravite: "attention", message: "Sous-titres posés sur la transcription : le calage fin n'a pas abouti." });
   for (const s of etat.sauts) alertes.push({ code: "export", gravite: "attention", message: `1 élément non fait — ${s.brique} : ${s.message}` });
   return {
     montageCle: montage?.fichierCle,

@@ -188,7 +188,7 @@ def boucle(ton, longueur: int):
     return sortie[:longueur]
 
 
-def monter(signal, gardes: list[dict], ton=None):
+def monter(signal, gardes: list[dict], ton=None, fondu_fin_sec: float = FONDU_FIN_SEC):
     """Assemble les passages gardés : fondu de 15 ms de part et d'autre de chaque coupe, ton de pièce dans le creux."""
     import numpy as np
 
@@ -213,8 +213,8 @@ def monter(signal, gardes: list[dict], ton=None):
     env = np.concatenate(enveloppes)
     if ton is not None and len(ton):
         voix = voix + boucle(ton, len(voix)) * (1.0 - env)
-    # Fin : 50 ms de fondu (v4 n° 23).
-    ff = min(len(voix), int(FONDU_FIN_SEC * FREQUENCE))
+    # Fin : 50 ms de fondu par défaut (v4 n° 23) ; GV2-33 : réglable (0,12 s pour la face caméra).
+    ff = min(len(voix), int(fondu_fin_sec * FREQUENCE))
     if ff > 0:
         voix[-ff:] *= np.linspace(1, 0, ff, dtype=np.float32)
     return voix
@@ -285,7 +285,9 @@ def executer_son(demande: dict, dossier: str, progression: Callable[[int], None]
     if isinstance(gardes, list) and gardes:
         plaque = parametre(demande, "plaqueSec")
         ton = ton_de_piece(propre, tuple(plaque) if isinstance(plaque, list) and len(plaque) == 2 else None)
-        propre = monter(propre, [g for g in gardes if isinstance(g, dict)], ton)
+        fondu = parametre(demande, "fonduFinSec")
+        fondu = float(fondu) if isinstance(fondu, (int, float)) and not isinstance(fondu, bool) and 0 <= fondu <= 1 else FONDU_FIN_SEC
+        propre = monter(propre, [g for g in gardes if isinstance(g, dict)], ton, fondu)
     if len(propre) < FREQUENCE // 10:
         raise ErreurTravail("refuse", "Son trop court après les coupes.", False)
     monte = ecrire_wav(os.path.join(dossier, "monte.wav"), propre)

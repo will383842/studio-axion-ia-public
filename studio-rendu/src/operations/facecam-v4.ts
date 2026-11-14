@@ -47,6 +47,8 @@ export interface ParametresFacecamV4 {
   vignette?: { urlDepot: string; cle: string };
   /** Prise horizontale : colonne gardée (pixels de la prise après rotation) et taille de sortie. */
   recadrage?: RecadrageMontageV4;
+  /** GV2-34 : fin douce (fondu de sortie du son, micro-fondus aux raccords). Absent : filtre identique à la répétition validée. */
+  finDouce?: boolean;
 }
 
 export interface RecadrageMontageV4 {
@@ -72,13 +74,25 @@ const MEDIA = /\.(wav|mp4|woff2|ttf|png)$/i;
  * Filtre FFmpeg du montage de la prise (intervalles gardés, 30 i/s, voix comprise). Avec `recadrage` (prise horizontale) : la colonne
  * gardée, fixe, ramenée à la taille de sortie ; sans : identique à la répétition validée, au caractère près. PUR.
  */
-export function filtreMontageV4(gardes: readonly GardeV4[], recadrage?: RecadrageMontageV4): string {
+export function filtreMontageV4(gardes: readonly GardeV4[], recadrage?: RecadrageMontageV4, finDouce?: boolean): string {
   const coupes =
-    gardes.map((g, i) => `[0:v]trim=start=${g.debutSec}:end=${g.finSec},setpts=PTS-STARTPTS,fps=30[v${i}];[0:a]atrim=start=${g.debutSec}:end=${g.finSec},asetpts=PTS-STARTPTS[a${i}];`).join("") +
+    gardes.map((g, i) => `[0:v]trim=start=${g.debutSec}:end=${g.finSec},setpts=PTS-STARTPTS,fps=30[v${i}];[0:a]atrim=start=${g.debutSec}:end=${g.finSec},asetpts=PTS-STARTPTS${finDouce ? fondusSegmentV4(g, i, gardes.length) : ""}[a${i}];`).join("") +
     gardes.map((_, i) => `[v${i}][a${i}]`).join("");
   if (!recadrage) return coupes + `concat=n=${gardes.length}:v=1:a=1[v][a]`;
   const r = recadrage;
   return coupes + `concat=n=${gardes.length}:v=1:a=1[vc][a];[vc]crop=${r.largeur}:${r.hauteur}:${r.x}:0,scale=${r.sortieLargeur}:${r.sortieHauteur}:flags=lanczos,setsar=1[v]`;
+}
+
+/** GV2-34 : fondus du son d'un segment (réglage allumé) : 10 ms aux raccords, 0,15 s de sortie sur le dernier. Segment trop court : aucun micro-fondu. PUR. */
+export const FONDU_SORTIE_V4_SEC = 0.15;
+export const MICRO_FONDU_V4_SEC = 0.01;
+function fondusSegmentV4(g: GardeV4, rang: number, total: number): string {
+  const duree = g.finSec - g.debutSec;
+  const n = (x: number) => +x.toFixed(3);
+  const dernier = rang === total - 1;
+  const entree = rang > 0 && duree >= 0.05 ? `,afade=t=in:st=0:d=${MICRO_FONDU_V4_SEC}` : "";
+  if (dernier) return `${entree},afade=t=out:st=${n(Math.max(0, duree - FONDU_SORTIE_V4_SEC))}:d=${FONDU_SORTIE_V4_SEC}`;
+  return `${entree}${duree >= 0.05 ? `,afade=t=out:st=${n(duree - MICRO_FONDU_V4_SEC)}:d=${MICRO_FONDU_V4_SEC}` : ""}`;
 }
 
 /** Lit le recadrage demandé (entiers pairs, colonne verticale) ; absent ou invalide : `undefined` (refus si présent mais faux). PUR. */
@@ -174,7 +188,7 @@ export function lireParametresFacecamV4(p: Record<string, unknown>): ParametresF
   const recadrage = lireRecadrageV4(p.recadrage);
   // Refus précoce, avant tout téléchargement : une plaquette à vidéo sans ses médias ne se rend pas (phrase qui cite la plaquette et l'instant).
   controlerMediasPlaquettesV4(plan.elementsV4);
-  return { mode: "facecam-v4", plan, gardes, ...(recadrage ? { recadrage } : {}), crf: typeof p.crf === "number" ? p.crf : undefined, debitMax: typeof p.debitMax === "string" && /^\d+k$/.test(p.debitMax) ? p.debitMax : undefined, ...(vignette ? { vignette } : {}) };
+  return { mode: "facecam-v4", plan, gardes, ...(recadrage ? { recadrage } : {}), ...(p.finDouce === true ? { finDouce: true } : {}), crf: typeof p.crf === "number" ? p.crf : undefined, debitMax: typeof p.debitMax === "string" && /^\d+k$/.test(p.debitMax) ? p.debitMax : undefined, ...(vignette ? { vignette } : {}) };
 }
 
 /** Remplit `dossier` de liens vers les médias v4 (noms uniques : un doublon de nom est une erreur de déploiement). */
@@ -222,7 +236,7 @@ export async function compositionFacecamV4(demande: DemandeRendu, contexte: Cont
   const brute = join(dossier, "prise-brute.mp4");
   await telecharger(url, brute, contexte.signal);
   const script = join(dossier, "filtre-montage-v4.txt");
-  await writeFile(script, filtreMontageV4(p.gardes, p.recadrage));
+  await writeFile(script, filtreMontageV4(p.gardes, p.recadrage, p.finDouce));
   const montee = join(medias, PRISE_MONTEE_V4);
   await executer(FFMPEG, ["-hide_banner", "-v", "error", "-y", "-i", brute, "-filter_complex_script", script, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-crf", "17", "-preset", "fast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", montee], contexte.signal);
   const dureeMonteeSec = await dureeFichier(montee, contexte.signal);

@@ -46,6 +46,8 @@ export interface LigneControleTableau {
   scenes?: string[];
   /** Sorties en cause (libellés), quand plusieurs sorties sont relues. */
   sorties?: string[];
+  /** Échec bloquant d'avant le montage devenu simple alerte sur la vidéo déjà faite (`apresMontage`). */
+  declasse?: boolean;
 }
 
 /**
@@ -103,6 +105,12 @@ export interface EntreeControleTableau {
   sorties?: readonly SortieRelue[];
   /** Sorties qui n'ont pas pu être préparées (fiche propre impossible à construire) : un échec bloquant chacune. */
   sortiesImpossibles?: readonly string[];
+  /**
+   * Contrôle fait APRÈS le montage, sur la vidéo livrée (voix payée, scènes rendues, fichier déposé) : seuls « image noire
+   * au début » et « durée de plus de 180 s » restent bloquants ; volume, crête, image figée, passages noirs avant la fin
+   * et mise en page de la sortie deviennent des alertes « attention » (GV2-35).
+   */
+  apresMontage?: boolean;
 }
 
 export interface OutilsControleTableau {
@@ -495,6 +503,20 @@ function reunirSorties(parSortie: { libelle: string; lignes: LigneControleTablea
 
 const aucun = (famille: FamilleControle, libelle: string, raison: string): LigneControleTableau => ligne(famille, libelle, true, "non-fait", raison);
 
+/** Contrôles de la vidéo finie qui ne jettent plus une vidéo faite : signalés « attention » (le reste du fichier garde son poids). */
+const LIBELLES_SIGNALES_APRES_MONTAGE = new Set(["Volume du son", "Crête du son", "Image figée"]);
+
+/** Après le montage : l'échec bloquant de ces contrôles devient une alerte, la ligne reste dans le rapport. */
+function declasserApresMontage(lignes: LigneControleTableau[], e: EntreeControleTableau): LigneControleTableau[] {
+  if (!e.apresMontage) return lignes;
+  const imageNoireAuDebut = !!e.mesures?.imageNoireTete;
+  return lignes.map((l) => {
+    if (l.etat !== "echoue" || !l.bloquant) return l;
+    const signale = l.famille === "mise-en-page" || LIBELLES_SIGNALES_APRES_MONTAGE.has(l.libelle) || (l.libelle === "Image noire" && !imageNoireAuDebut);
+    return signale ? { ...l, bloquant: false, declasse: true } : l;
+  });
+}
+
 function assembler(lignes: LigneControleTableau[]): RapportControleTableau {
   const bloquants = lignes.filter((l) => l.etat === "echoue" && l.bloquant);
   const indicatifs = lignes.filter((l) => l.etat === "echoue" && !l.bloquant);
@@ -543,7 +565,7 @@ export async function controlerVideoTableau(entree: EntreeControleTableau, outil
   const premiere = faites.find((f) => f.mise);
   if (premiere?.mise) lignes.push(...(await relire(premiere.ficheSortie, premiere.mise, outils)));
   else lignes.push(ligne("relecture", "Relecture des images clés", false, "non-fait", "Relecture non faite : pas de mise en page."));
-  return assembler(lignes);
+  return assembler(declasserApresMontage(lignes, entree));
 }
 
 /** Mesures du fichier seules (fiche ou mise en page indisponible) : réutilise la brique sans mise en page. */

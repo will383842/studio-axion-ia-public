@@ -25,6 +25,7 @@ import { brancherServicesFacecamAnimee, ID_MOTEUR_FACECAM_ANIMEE, lireEntreesFac
 import { EnCoursChaineV4, ErreurChaineV4, lireEtatV4, PRISE_MONTEE_V4, SORTIE_V4, type GardeV4, type OutilsChaineV4, type RecadrageV4 } from "@/moteurs/montage-facecam-animee/chaine-v4";
 import type { ReponseRealisateur, RequeteRealisateur } from "@/moteurs/montage-facecam-animee/realisateur";
 import { texteScript } from "@/domaine/derivations";
+import { GLOSSAIRE_FACECAM } from "@/moteurs/montage-facecam/glossaire";
 import { cleFichierRef, clesFichier, type CandidatSujet, type Confirmation, type NiveauSujet, type Precedent } from "@/domaine/sujets-traites";
 import { empreinteAvantControle, PHRASE_VERIFICATION_EN_COURS, phraseRefusEmpreinte, type DependancesAvantControle } from "./empreintes-fichiers";
 import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
@@ -44,6 +45,8 @@ export const PARAM_PLAFOND_CLAUDE_FA = "facecamAnimee.plafondClaudeUsd";
 export const PLAFOND_CLAUDE_FA_USD = 4;
 /** GV-MD-03b : calage des animations sur le début du mot dit. ÉTEINT par défaut (allumé seulement si la valeur vaut exactement `true`). */
 export const PARAM_CALAGE_AU_MOT_FA = "facecamAnimee.calageAuMot";
+/** GV2-34 : fin douce du montage (dernier passage prolongé, fondu de sortie du son). ÉTEINT par défaut (allumé seulement si la valeur vaut exactement `true`). */
+export const PARAM_FIN_DOUCE_FA = "facecamAnimee.finDouce";
 export const PREFIXE_ETAPE_FA = "Face caméra animée ·";
 /** Contrôle visuel des vidéos d'illustration (Sonnet) : plafond propre par vidéo finale, 0,60 $ (décision de Will du 18/10) ; défini avec les autres plafonds propres. */
 export { PARAM_PLAFOND_VIDEOS_FA, PREFIXE_ETAPE_VIDEOS_FA };
@@ -106,7 +109,7 @@ export function visageDeLaPiste(piste: { echantillons?: { yeuxX?: number; yeuxY?
 }
 
 /** Demande au service de rendu pour une vidéo v4. PUR. */
-export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; sortie: { urlDepot: string; cle: string }; vignette: { urlDepot: string; cle: string }; recadrage?: RecadrageV4; videos?: { nom: string; url: string }[] }) {
+export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; sortie: { urlDepot: string; cle: string }; vignette: { urlDepot: string; cle: string }; recadrage?: RecadrageV4; videos?: { nom: string; url: string }[]; finDouce?: boolean }) {
   return {
     idRendu: d.idRendu,
     operation: "composition" as const,
@@ -120,6 +123,7 @@ export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFa
       gardes: d.gardes,
       vignette: d.vignette,
       // Prise horizontale : colonne 9:16 fixe sur le visage, ramenée à 1080 × 1920 au montage (aucun zoom en plus).
+      ...(d.finDouce ? { finDouce: true } : {}),
       ...(d.recadrage ? { recadrage: { x: d.recadrage.x, largeur: d.recadrage.largeur, hauteur: d.recadrage.hauteur, sortieLargeur: SORTIE_V4.largeur, sortieHauteur: SORTIE_V4.hauteur } } : {}),
     },
   };
@@ -161,9 +165,18 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     calageAuMot = false;
   }
 
+  // GV2-34 : éteint par défaut ; une lecture en échec vaut éteint (coupes et filtre des vidéos existantes inchangés).
+  let finDouce = false;
+  try {
+    finDouce = (await lireParametre<unknown>(PARAM_FIN_DOUCE_FA, false)) === true;
+  } catch {
+    finDouce = false;
+  }
+
   return {
     ...(planScenes ? { planScenes } : {}),
     ...(calageAuMot ? { calageAuMot } : {}),
+    ...(finDouce ? { finDouce } : {}),
     async transcrire({ priseCle, appelId }) {
       if (dep.transcrire) return dep.transcrire({ priseCle, appelId });
       const [{ fournisseurFacecam }, { lireJsonGz }] = await Promise.all([import("@/fournisseurs/facecam"), import("./monteur-facecam")]);
@@ -175,7 +188,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           idTravail: appelId,
           source: await signerLecture(priseCle),
           depots: { transcription: await signerDepot(cleTranscription, "application/gzip") },
-          parametres: { glossaire: [], cles: { transcription: cleTranscription } },
+          parametres: { glossaire: GLOSSAIRE_FACECAM, cles: { transcription: cleTranscription } },
         });
       }
       // GV2-04 : « injoignable » est compté par la chaîne (30 min au plus) ; la file normale ne l'est jamais.
@@ -278,7 +291,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         });
       return fournirVideosV4({ videoId: dep.videoId, plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd });
     },
-    async rendre({ idRendu, priseCle, plan, gardes, recadrage, videos }) {
+    async rendre({ idRendu, priseCle, plan, gardes, recadrage, videos, finDouce }) {
       const sortieCle = cleFA(`${idRendu}.mp4`);
       const vignetteCle = cleFA(`${idRendu}.jpg`);
       const demande = demandeRenduV4({
@@ -289,6 +302,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         sortie: { urlDepot: await signerDepot(sortieCle, "video/mp4"), cle: sortieCle },
         vignette: { urlDepot: await signerDepot(vignetteCle, "image/jpeg"), cle: vignetteCle },
         ...(recadrage ? { recadrage } : {}),
+        ...(finDouce ? { finDouce: true } : {}),
         ...(videos?.length ? { videos: await Promise.all(videos.map(async (v) => ({ nom: v.nom, url: await signerLecture(v.cle) }))) } : {}),
       });
       let e: Awaited<ReturnType<typeof client.suivreRendu>>;
@@ -301,7 +315,10 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
       }
       if (e.statut === "termine") {
         const m = e.mesures ?? {};
-        return { cle: e.sortieCle || sortieCle, vignetteCle, dureeSec: Number(m.dureeSec) || plan.duree, taille: Number(m.taille) || 0 };
+        // GV2-34 : les vraies mesures du son et de la durée montée, quand le rendu les donne (nombres finis seulement).
+        const mesure = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
+        const [lufs, picVraiDbtp, dureeMonteeSec] = [mesure(m.lufs), mesure(m.picVraiDbtp), mesure(m.dureeMonteeSec)];
+        return { cle: e.sortieCle || sortieCle, vignetteCle, dureeSec: Number(m.dureeSec) || plan.duree, taille: Number(m.taille) || 0, ...(lufs !== undefined ? { lufs } : {}), ...(picVraiDbtp !== undefined ? { picVraiDbtp } : {}), ...(dureeMonteeSec !== undefined ? { dureeMonteeSec } : {}) };
       }
       if (e.statut === "echec") throw new ErreurChaineV4("Le montage de la vidéo n'a pas abouti. Vous pouvez réessayer.", e.erreur.reessayable, e.erreur.message);
       throw new EnCoursChaineV4("Le montage");
@@ -320,8 +337,13 @@ export const PHRASES_FA = Object.freeze({
   fichier: "Ce fichier n'est pas arrivé. Envoyez-le à nouveau.",
   pasUneVideo: "Déposez une vidéo (MP4 ou MOV, filmée à l'iPhone).",
   tropCourte: "Cette vidéo est trop courte (moins de 5 secondes).",
+  tropLourd: "Ce fichier dépasse 4 Go : le montage ne pourra pas le lire. Exportez-le en plus léger.",
+  texteTropLong: "Ce texte dépasse 20 000 caractères : raccourcissez-le (ou retirez-le) avant de déposer la vidéo.",
   sansAccord: "« Face caméra animée » est en essai : donnez votre accord d'essai réel pour lancer une vraie vidéo.",
 });
+
+/** GV2-34 : taille que le service de rendu accepte (4 Go, `studio-rendu/src/outils.ts`) ; le dépôt la refuse avant le montage. */
+export const TAILLE_MAX_MONTAGE_FA = 4 * 1024 ** 3;
 
 export interface DemandeDepotFA {
   fichierId: string;
@@ -447,6 +469,10 @@ export async function deposerFacecamAnimee(d: DemandeDepotFA, dep: DependancesDe
   }
   if (!estPriseVideoFA(fichier)) return { statut: "refusee", phrase: PHRASES_FA.pasUneVideo };
   if (!(Number(d.dureeSec) >= 5)) return { statut: "refusee", phrase: PHRASES_FA.tropCourte };
+  // GV2-34 : le montage refuse toute entrée de plus de 4 Go (dernière étape, déjà payée) : refus ICI, avant tout appel payant.
+  if (Number(fichier.taille) > TAILLE_MAX_MONTAGE_FA) return { statut: "refusee", phrase: PHRASES_FA.tropLourd };
+  // GV2-34 : un texte dit trop long est refusé avec une phrase claire, plus coupé en silence.
+  if ((d.texte?.trim().length ?? 0) > TEXTE_DIT_MAX_FA) return { statut: "refusee", phrase: PHRASES_FA.texteTropLong };
   let accord = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_FA, false)))();
   if (accord !== true && d.accordEssai === true) {
     // Accord donné sur l'écran : gardé (réglage), comme pour « Image → vidéo ».

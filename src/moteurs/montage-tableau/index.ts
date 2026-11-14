@@ -760,7 +760,7 @@ export function creerMoteurMontageTableau(dependances: DependancesMoteurTableau 
       const r = tour.issue.compteRendu;
       if (r.controles.verdict === "bloque") {
         const etatControle = { ...etat, atteinte: ETAPES_FABRICATION.indexOf("controles") - 1 };
-        return { travail: enEchec(travail, etatControle, "controle", { code: "TABLEAU_CONTROLES_BLOQUANTS", reessayable: false, messagePourWill: `La vérification bloque la livraison (${r.controles.resume}). ${r.controles.phrases.join(" ")}` }, maintenant) };
+        return { travail: enEchec(travail, etatControle, "controle", { code: "TABLEAU_CONTROLES_BLOQUANTS", reessayable: false, messagePourWill: `La vidéo est faite mais ${r.controles.bloquants.map((l) => `${l.libelle.toLowerCase()} : ${l.raison.replace(/\.$/, "")}`).join(" ; ") || r.controles.resume.toLowerCase()} : elle reste téléchargeable sur sa page.` }, maintenant) };
       }
       return { travail: suivant(travail, etat, statuts(travail, etat), maintenant), resultat: resultatDe(commande, r, etat) };
     },
