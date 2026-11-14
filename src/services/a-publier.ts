@@ -91,7 +91,7 @@ export interface LigneAPublier {
   commentaireTransmissible: boolean;
   /** Selon l'outil du réseau : posé tout seul, transmis mais à confirmer (Zernio : Facebook, LinkedIn), ou à poser à la main (bouton Copier). */
   commentaireEtat?: "auto" | "a-confirmer" | "a-la-main";
-  /** Compte Buffer : celui mémorisé, les comptes à cocher, ou ce qui manque. Jamais deviné. */
+  /** Compte de l'outil d'envoi (Zernio ou Buffer) : celui mémorisé, les comptes à cocher, ou ce qui manque. Jamais deviné. */
   compte: ComptesReseauEnvoi;
   /** Vérifications « Avant de publier » encore à cocher. */
   manquantes: { cle: CleAvant; libelle: string }[];

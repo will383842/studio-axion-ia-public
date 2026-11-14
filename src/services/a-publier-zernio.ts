@@ -123,7 +123,7 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     } catch {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
     }
-    // Les comptes que l'écran envoie sont ceux de Buffer : on les traduit en comptes Zernio (par le nom), sans jamais les passer tels quels.
+    // Les comptes que l'écran envoie sont soit déjà ceux de Zernio (liste des comptes Zernio) : passés tels quels, soit ceux de Buffer : traduits en comptes Zernio par le nom.
     const traduits = options.comptes ? await traduireSelectionVersZernio(service, reseau, options.comptes, (await canauxEnregistres())?.canaux ?? []) : undefined;
     const r = await envoyerReel("zernio", service, kit, [reseau], dateIso, traduits ? { [reseau]: traduits } : {}, { [reseau]: options.premierCommentaire ?? "" }, true, {
       ...(reseau === "tiktok" ? { consentementTiktok: options.accordTiktok === true } : {}),
