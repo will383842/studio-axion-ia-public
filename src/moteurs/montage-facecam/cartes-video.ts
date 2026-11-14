@@ -218,7 +218,10 @@ export function texteCarteMotion(carte: CarteMotionTous): string {
 
 /** Vérif V1 : identifiant STABLE d'une carte automatique, tiré de son contenu (le même après une coupe ou un rétablissement). */
 export function idCarteAuto(carte: CarteMotionTous): string {
-  const t = `${carte.modele}|${texteCarteMotion(carte)}`;
+  // GV2-40 : la carte automatique « problème / solution » n'a plus l'étiquette écrite en dur ; son identifiant reste celui
+  // d'avant (étiquette comprise) pour qu'une carte déjà retirée sur une vidéo existante reste retirée.
+  const ancienne = carte.modele === "probleme-solution" && !("etiquetteSolution" in carte.donnees);
+  const t = `${carte.modele}|${texteCarteMotion(ancienne ? ({ ...carte, donnees: { ...carte.donnees, etiquetteSolution: "La vraie première étape" } } as CarteMotionTous) : carte)}`;
   let h = 0x811c9dc5;
   for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 0x01000193) >>> 0;
   return `auto-${h.toString(16).padStart(8, "0")}`;
