@@ -9,6 +9,7 @@ import { lierMot, lireCiblesSite } from "./cibles-site";
 import { activerMotLocal, activerMotParcours, injecterVerificationMotParcours, PARAM_REGISTRE_MOTS, type LigneMot, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, validerFormulation, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
 import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
+import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { MOT_GUIDE } from "@/domaine/guide-reseau/empreinte-mot";
 import { lireParametre } from "./_commun";
 import { apercuTextesMot, validerTextesMot, verifierMotPourCompte, type ApercuReseau } from "./mots-validation-par-mot";
@@ -127,6 +128,8 @@ const non = (raison: string, phrase?: string): ResultatMotCible => ({ ok: false,
 /** Crée un mot : liaison « tous les réseaux » vers une cible ACTIVE du catalogue. Aucun texte validé, aucun compte activé : le mot reste brouillon. */
 export async function gesteCreerMot(mot: string, codeCible: string): Promise<ResultatMotCible> {
   await exigerSession();
+  // STOP et les autres mots d'opposition sont réservés (normaliserMot les rejette : on les reconnaît avant).
+  if (estMotOpposition(mot)) return non("mot_reserve");
   const m = normaliserMot(mot);
   if (m === null) return non("mot_invalide");
   if (m === MOT_GUIDE) return non("mot_reserve");
@@ -141,16 +144,21 @@ export async function gesteCreerMot(mot: string, codeCible: string): Promise<Res
   return r.ok ? { ok: true, raison: "mot_cree" } : non("site_refuse", r.phrase);
 }
 
-/** Pause de chaque ligne LOCALE active d'un mot (jamais d'effacement). Renvoie le nombre de comptes mis en pause. */
-async function pauserLignesLocalesDuMot(mot: string): Promise<number> {
+/** Pause de chaque ligne LOCALE active d'un mot (jamais d'effacement). Renvoie le nombre de comptes mis en pause et le nombre de lignes actives posées chez Zernio (non touchées). */
+async function pauserLignesLocalesDuMot(mot: string): Promise<{ enPause: number; chezZernio: number }> {
   const registre = await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {});
-  let n = 0;
+  let enPause = 0;
+  let chezZernio = 0;
   for (const l of Object.values(registre)) {
-    if (l.mot !== mot || l.etat !== "actif" || l.idWorkflow) continue;
+    if (l.mot !== mot || l.etat !== "actif") continue;
+    if (l.idWorkflow) {
+      chezZernio++;
+      continue;
+    }
     const r = await mettreEnPauseLocal({ mot, compte: l.compte, confirmeParOperateur: true });
-    if (r.issue === "execute") n++;
+    if (r.issue === "execute") enPause++;
   }
-  return n;
+  return { enPause, chezZernio };
 }
 
 /**
@@ -171,8 +179,10 @@ export async function gesteChangerCible(mot: string, codeCible: string): Promise
   if (!cible.actif) return non("cible_inactive");
   const etapes: Array<"tous" | (typeof propres)[number]["reseau"]> = ["tous", ...propres.map((l) => l.reseau)];
   let faites = 0;
+  let partie = false;
   let echec: string | null = null;
   for (const reseau of etapes) {
+    partie = true; // une demande est partie : même si la réponse est incertaine (phrase incertaine, 5xx, réponse perdue), le site a pu la prendre
     const r = await lierMot({ mot: m, reseau, codeCible: cible.code });
     if (!r.ok) {
       echec = r.phrase;
@@ -180,9 +190,11 @@ export async function gesteChangerCible(mot: string, codeCible: string): Promise
     }
     faites++;
   }
-  // Un changement est parti : les textes validés ne correspondent plus à la cible, on met le mot en pause avant tout.
-  const enPause = faites > 0 ? await pauserLignesLocalesDuMot(m) : 0;
-  const pause = enPause > 0 ? ` Le mot a été mis en pause sur ${enPause} compte(s) : validez ses textes puis réactivez-le.` : "";
+  // Un changement est parti (ou a pu partir) : les textes validés ne correspondent plus à la cible, on met le mot en pause avant tout.
+  const { enPause, chezZernio } = partie ? await pauserLignesLocalesDuMot(m) : { enPause: 0, chezZernio: 0 };
+  const pause =
+    (enPause > 0 ? ` Le mot a été mis en pause sur ${enPause} compte(s) : validez ses textes puis réactivez-le.` : "") +
+    (chezZernio > 0 ? ` ${chezZernio} ligne(s) posée(s) chez Zernio restent actives : mettez-les en pause depuis la pause habituelle.` : "");
   if (echec !== null)
     return non("site_refuse", `La cible n'a changé que sur ${faites} réseau(x) sur ${etapes.length} : ${echec}${pause}`);
   return { ok: true, raison: "cible_changee", ...(pause ? { phrase: `Cible changée.${pause}` } : {}) };
@@ -207,9 +219,11 @@ export async function gesteActiverMot(mot: string, compte: string): Promise<Resu
   return activerMotParcours({ mot, compte, confirmeParOperateur: true });
 }
 
-/** Pause d'un mot sur un compte : ligne posée chez Zernio = pause habituelle, sinon pause locale. Rien n'est supprimé. */
+/** Pause LOCALE d'un mot sur un compte : une ligne posée chez Zernio est refusée (pause habituelle). Rien n'est supprimé. */
 export async function gestePauseMot(mot: string, compte: string): Promise<Resultat> {
   await exigerSession();
-  const ligne = (await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {}))[`${mot}|${compte}`];
-  return ligne?.idWorkflow ? mettreEnPause({ mot, compte, confirmeParOperateur: true }) : mettreEnPauseLocal({ mot, compte, confirmeParOperateur: true });
+  if (normaliserMot(mot) !== mot) return { issue: "refuse", raison: "mot_invalide" };
+  if (!comptesParcours().includes(compte)) return { issue: "refuse", raison: "compte_hors_liste" };
+  // Jamais d'appel Zernio d'ici : une ligne posée chez Zernio est refusée par `mettreEnPauseLocal` (`ligne_zernio`).
+  return mettreEnPauseLocal({ mot, compte, confirmeParOperateur: true });
 }

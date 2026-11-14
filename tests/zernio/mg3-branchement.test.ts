@@ -120,7 +120,7 @@ describe("créer un mot", () => {
   it("GUIDE est réservé, STOP est refusé : aucune écriture", async () => {
     expect(await G.gesteCreerMot("GUIDE", "gde-essai01")).toMatchObject({ ok: false, raison: "mot_reserve" });
     expect(await G.gesteCreerMot("guide", "gde-essai01")).toMatchObject({ ok: false, raison: "mot_reserve" });
-    expect(await G.gesteCreerMot("STOP", "gde-essai01")).toMatchObject({ ok: false, raison: "mot_invalide" });
+    expect(await G.gesteCreerMot("STOP", "gde-essai01")).toMatchObject({ ok: false, raison: "mot_reserve" });
     expect(ecritures()).toHaveLength(0);
   });
   it("un mot neuf : UNE liaison « tous » vers la cible, rien d'autre", async () => {
@@ -252,11 +252,71 @@ describe("vue de l'écran", () => {
   });
 });
 
+describe("correctifs de relecture", () => {
+  const zernio = (l: [string, LigneMot]): [string, LigneMot] => [l[0], { ...l[1], idWorkflow: "wf-x", raison: "zernio" }];
+  it("pause d'une ligne posée chez Zernio : refus ligne_zernio, ni exécuteur Zernio ni fetch", async () => {
+    const executeur = vi.fn(async () => {
+      throw new Error("appel Zernio interdit");
+    });
+    S.injecterExecuteurMots(executeur);
+    await poserRegistre(zernio(ligne("TOUS1", FB, "actif")));
+    const r = await G.gestePauseMot("TOUS1", FB);
+    expect(r).toMatchObject({ issue: "refuse", raison: "ligne_zernio" });
+    expect(phraseRefus("ligne_zernio")).toBe("Ce mot est posé chez Zernio : utilisez la pause habituelle.");
+    expect(executeur).not.toHaveBeenCalled();
+    expect(reseau).not.toHaveBeenCalled();
+    expect((await registre())[`TOUS1|${FB}`].etat).toBe("actif");
+  });
+  it("pause : mot non normalisé ou compte hors liste refusés", async () => {
+    expect(await G.gestePauseMot("tous1", FB)).toMatchObject({ issue: "refuse", raison: "mot_invalide" });
+    expect(await G.gestePauseMot("TOUS1", "compte-inconnu")).toMatchObject({ issue: "refuse", raison: "compte_hors_liste" });
+  });
+  it("changer la cible, réponse incertaine (5xx) : les lignes locales actives sont quand même mises en pause", async () => {
+    site.liaisons.push({ mot: "conversation", reseau: "tous", codeCible: "gde-essai01", actif: true });
+    await poserRegistre(ligne("CONVERSATION", FB, "actif"));
+    brancher(async (req) => (req.methode === "POST" ? { statut: 503, corps: {} } : site.transport(req)));
+    const r = await G.gesteChangerCible("CONVERSATION", "gde-essai03");
+    expect(r.ok).toBe(false);
+    expect(r.phrase).toContain("mis en pause sur 1 compte(s)");
+    expect((await registre())[`CONVERSATION|${FB}`].etat).toBe("pause");
+  });
+  it("changer la cible : les lignes actives posées chez Zernio sont signalées, non touchées", async () => {
+    site.liaisons.push({ mot: "conversation", reseau: "tous", codeCible: "gde-essai01", actif: true });
+    await poserRegistre(ligne("CONVERSATION", FB, "actif"), zernio(ligne("CONVERSATION", IG, "actif")));
+    const r = await G.gesteChangerCible("CONVERSATION", "gde-essai03");
+    expect(r.ok).toBe(true);
+    expect(r.phrase).toContain("mis en pause sur 1 compte(s)");
+    expect(r.phrase).toContain("1 ligne(s) posée(s) chez Zernio restent actives : mettez-les en pause depuis la pause habituelle.");
+    const apres = await registre();
+    expect(apres[`CONVERSATION|${FB}`].etat).toBe("pause");
+    expect(apres[`CONVERSATION|${IG}`].etat).toBe("actif");
+  });
+  it("« plusieurs mots » allumé : un mot autre que GUIDE n'est pas activable tant que l'activation est fermée", async () => {
+    await ecrireParametre("parcours.mots_multiples", true);
+    const vue = await lireVueMotsCibles({ lignes: [] });
+    expect(vue!.plusieursMotsAllume).toBe(true);
+    const tous1 = vue!.mots.find((m) => m.mot === "TOUS1")!;
+    expect(tous1.comptes.find((x) => x.compte === FB)).toMatchObject({ activable: false, raison: "activation_pas_encore_ouverte" });
+    expect(phraseRefus("activation_pas_encore_ouverte")).toBe("L’envoi des mots autres que GUIDE n’est pas encore ouvert : il arrive avec le prochain lot.");
+  });
+  it("GUIDE déjà actif sur un compte : pas activable pour ce compte", async () => {
+    const vue = await lireVueMotsCibles({ lignes: [ligne("GUIDE", FB, "actif")[1]] });
+    const guide = vue!.mots.find((m) => m.mot === "GUIDE")!;
+    expect(guide.comptes.find((x) => x.compte === FB)).toMatchObject({ etat: "actif", activable: false, raison: null });
+    expect(guide.comptes.find((x) => x.compte === IG)).toMatchObject({ activable: true });
+  });
+  it("STOP et les mots d'opposition : mot_reserve, aucune écriture", async () => {
+    for (const m of ["STOP", "stop", "ARRETEZ", "Désinscrire"]) expect(await G.gesteCreerMot(m, "gde-essai01")).toMatchObject({ ok: false, raison: "mot_reserve" });
+    expect(phraseRefus("mot_reserve")).toContain("GUIDE ou mot d’opposition comme STOP");
+    expect(ecritures()).toHaveLength(0);
+  });
+});
+
 describe("chaque raison a sa phrase", () => {
   const CODES = [
     "plusieurs_mots_eteint", "activation_par_la_fiche", "textes_non_valides_reseau", "reseau_a_la_main", "reseau_du_compte_inconnu",
     "cible_test", "adresse_pas_encore", "site_injoignable", "sans_cible", "cible_introuvable", "mot_guide_a_part", "titre_cible_absent",
-    "mot_reserve", "cible_guide_figee", "mot_existe", "mot_invalide", "validation_perimee", "lecture_impossible",
+    "mot_reserve", "activation_pas_encore_ouverte", "cible_guide_figee", "mot_existe", "mot_invalide", "validation_perimee", "lecture_impossible",
   ];
   it.each(CODES)("%s", (code) => {
     expect(Object.hasOwn(PHRASES_REFUS, code)).toBe(true);
