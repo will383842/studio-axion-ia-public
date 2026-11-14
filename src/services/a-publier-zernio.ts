@@ -101,6 +101,8 @@ export interface OptionsEnvoiParOutil {
  */
 export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, dateIso: string, options: OptionsEnvoiParOutil): Promise<Resultat<{ nombre: number; problemes: string[] }>> {
   await exigerSession();
+  // L7-06-4-3 : un choix explicite « buffer » venu du client est refusé, sans aucun effet (rien lu, rien écrit, aucun appel, aucun journal).
+  if (options.outil === "buffer") return { ok: false, message: "Cet outil n'est plus disponible pour un envoi : rien n'est parti.", code: "OUTIL_REFUSE" };
   const nbChoisis = options.comptes?.length ?? 0;
   const journal = { action: "envoyerParOutilAction", outil: options.outil, reseau, contenuId: videoId };
   const r = await essayer(async () => {
