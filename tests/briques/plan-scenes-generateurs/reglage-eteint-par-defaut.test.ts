@@ -1,10 +1,13 @@
 /**
- * GV-MD-04 — Garde de la règle de fer « éteint par défaut » pour le plan de scènes des trois générateurs (cas concret,
- * face caméra, face caméra animée). Le réglage est une valeur en base : seul le booléen exact `true` l'allume. Ce test ne
+ * GV-MD-04 — Garde de la règle de fer « éteint par défaut » pour le plan de scènes de la face caméra animée (depuis GV2-55,
+ * le cas concret et le face caméra sont allumés par défaut). Le réglage est une valeur en base : seul le booléen exact `true` l'allume. Ce test ne
  * lit aucune base : la lecture est un double injecté. Il n'allume rien et ne change aucun défaut.
  */
 import { describe, expect, it } from "vitest";
-import { CLES_REGLAGE_PLAN_SCENES, GENERATEURS_PLAN, planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
+import { CLES_REGLAGE_PLAN_SCENES, GENERATEURS_PLAN, planScenesActif, type IdGenerateurPlan } from "@/briques/plan-scenes-generateurs/reglage";
+
+// Depuis GV2-55, seule la face caméra animée reste éteinte par défaut (les deux autres : reglage-allume-par-defaut.test.ts).
+const ETEINTS: IdGenerateurPlan[] = ["facecam-animee"];
 
 describe("plan de scènes : réglage éteint par défaut", () => {
   it("les trois générateurs et leurs trois clés de réglage sont ceux attendus", () => {
@@ -17,7 +20,7 @@ describe("plan de scènes : réglage éteint par défaut", () => {
   });
 
   it("la lecture se fait avec la bonne clé et la valeur par défaut false", async () => {
-    for (const g of GENERATEURS_PLAN) {
+    for (const g of ETEINTS) {
       const lectures: Array<[string, unknown]> = [];
       await planScenesActif(g, async (id, defaut) => (lectures.push([id, defaut]), defaut));
       expect(lectures).toEqual([[CLES_REGLAGE_PLAN_SCENES[g], false]]);
@@ -25,14 +28,14 @@ describe("plan de scènes : réglage éteint par défaut", () => {
   });
 
   it("sans réglage posé (la lecture rend le défaut) : éteint", async () => {
-    for (const g of GENERATEURS_PLAN) {
+    for (const g of ETEINTS) {
       expect(await planScenesActif(g, async (_id, defaut) => defaut)).toBe(false);
     }
   });
 
   it("valeur étrange : éteint (seul le booléen true allume)", async () => {
     const etranges: unknown[] = ["oui", "true", "1", 1, 0, null, undefined, {}, [], [true], { valeur: true }, "", false];
-    for (const g of GENERATEURS_PLAN) {
+    for (const g of ETEINTS) {
       for (const v of etranges) {
         expect(await planScenesActif(g, async () => v)).toBe(false);
       }
@@ -40,18 +43,18 @@ describe("plan de scènes : réglage éteint par défaut", () => {
   });
 
   it("lecture en échec (exception ou promesse refusée) : éteint, sans exception", async () => {
-    for (const g of GENERATEURS_PLAN) {
+    for (const g of ETEINTS) {
       expect(await planScenesActif(g, async () => { throw new Error("base indisponible"); })).toBe(false);
       expect(await planScenesActif(g, () => Promise.reject(new Error("base indisponible")))).toBe(false);
     }
   });
 
   it("seul true allume, et chaque générateur est indépendant des deux autres", async () => {
-    for (const g of GENERATEURS_PLAN) {
+    for (const g of ETEINTS) {
       expect(await planScenesActif(g, async () => true)).toBe(true);
       // Seule la clé du générateur testé est posée : les deux autres restent éteints.
       const seulCelui = async (id: string, defaut: unknown) => (id === CLES_REGLAGE_PLAN_SCENES[g] ? true : defaut);
-      for (const autre of GENERATEURS_PLAN) {
+      for (const autre of ETEINTS) {
         expect(await planScenesActif(autre, seulCelui)).toBe(autre === g);
       }
     }
