@@ -39,8 +39,9 @@ const planLlm = (req: RequeteClaude) => {
 };
 
 describe("réglage : désactivé par défaut", () => {
+  // Depuis GV2-55, le cas concret et le face caméra sont allumés par défaut (reglage-allume-par-defaut.test.ts) : cette boucle ne garde que la face caméra animée.
   it("chaque générateur a sa clé et reste éteint sans la valeur exacte true", async () => {
-    for (const g of GENERATEURS_PLAN) {
+    for (const g of GENERATEURS_PLAN.filter((x) => x === "facecam-animee")) {
       const cle = CLES_REGLAGE_PLAN_SCENES[g];
       expect(cle).toMatch(/^planScenes\./);
       expect(await planScenesActif(g, async (_id, defaut) => defaut)).toBe(false);
