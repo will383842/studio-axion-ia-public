@@ -190,10 +190,13 @@ const MESSAGES_GARDE: Record<string, string> = {
 const GARDES_MOT_CLOSES: readonly string[] = ["plusieurs_mots_eteint", "instagram_pas_encore"];
 const messageRefusMot = (code: string, mot: string): string => (code === "validation_absente" ? `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.` : (MESSAGES_GARDE[code] ?? "Une garde de sécurité bloque les envois."));
 /** Garde « plusieurs mots éteint » / « Instagram pas encore » : alerte puis clôture « ecarte / garde_… ». Vrai si l'événement est clos. */
-async function cloreSiGardeMotDurable(ev: EvenementFournisseur, bloque: string | null, now: number): Promise<boolean> {
+async function cloreSiGardeMotDurable(ev: EvenementFournisseur, bloque: string | null, now: number, etat?: Pick<Conversation, "etat">): Promise<boolean> {
   if (bloque === null || !GARDES_MOT_CLOSES.includes(bloque)) return false;
   await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
   await clore(ev, "ecarte", `garde_${bloque}`);
+  // Une conversation déjà en « guide_demande » ne bouge pas (rien n'est effacé) : l'opérateur doit savoir qu'elle reste en attente. Aucune identité, aucun texte.
+  if (etat?.etat === "guide_demande")
+    await journaliser("parcours_conversation", `Une conversation reste en guide_demande : la garde ${bloque} a clos l'événement, aucun message n'est parti. Elle expirera sous 7 jours sans envoi (rien n'est effacé) ; pour la servir, rallumer le réglage ou corriger le mot puis relancer la personne à la main.`);
   return true;
 }
 
@@ -970,7 +973,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "ecarte", "validation_absente");
     return "traite";
   }
-  if (await cloreSiGardeMotDurable(ev, bloque, now)) return "traite";
+  if (await cloreSiGardeMotDurable(ev, bloque, now, e)) return "traite";
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -1204,7 +1207,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   if (s0.action === "reprendre_recu") {
     // Envoi sortant : soumis aux gardes.
     const bloque = await garde(d, env, etat.idCompte, etat.reseau, etat, now);
-    if (await cloreSiGardeMotDurable(ev, bloque, now)) return "traite";
+    if (await cloreSiGardeMotDurable(ev, bloque, now, etat)) return "traite";
     if (bloque) {
       await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
       await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -1262,7 +1265,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
   // Parcours Instagram en attente d'un OK (réglage allumé) : la garde de CHAQUE parcours décide dans `repondreOkInstagram` (rien d'autre ne part ici).
   const bloque = igSuivre && enAttenteOk(etat) ? null : await garde(d, env, etat.idCompte, etat.reseau, etat, now);
-  if (await cloreSiGardeMotDurable(ev, bloque, now)) return "traite";
+  if (await cloreSiGardeMotDurable(ev, bloque, now, etat)) return "traite";
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -2011,6 +2014,13 @@ export const PARAM_MERCI_JOURNAL = "parcours.merci.journal";
 export const CHEMIN_CONFIRMATIONS = "/api/interne/confirmations-page-guide";
 export const CHEMIN_CONFIRMATIONS_ISSUE = "/api/interne/confirmations-page-guide/issue";
 const LOT_CONFIRMATIONS = 10;
+/** Plafond de la lecture élargie quand des merci reportés (site illisible) occupent la tête du lot : jamais plus de merci lus que cela d'un coup. */
+const LOT_CONFIRMATIONS_MAX = 50;
+/** Retire les reports échus : la mémoire ne garde que les merci encore à attendre (une ref que le site ne propose plus s'efface). */
+function viderMercisReportesEchus(now: number): void {
+  const reportes = processus().mercisReportes;
+  for (const r of Object.keys(reportes)) if (reportes[r] <= now) delete reportes[r];
+}
 /** Délais entre deux essais d'accusé (puis 6 h, sans fin). */
 const ATTENTES_ACCUSE_MS = [60_000, 5 * 60_000, 15 * 60_000, 3600_000, 6 * 3600_000] as const;
 const RE_REF_CONFIRMATION = /^[A-Za-z0-9_-]{8,80}$/;
@@ -2120,6 +2130,7 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
   try {
     const now = d.maintenantMs ?? Date.now();
     await reprendreMercisEnVol(now);
+    viderMercisReportesEchus(now);
     // 2. Accusés en retard (échéance passée), même interrupteur éteint.
     const dus = Object.entries(await lireJournalMerci()).filter(([, e]) => !e.accuse && e.etat !== "en_vol" && (e.prochainAccuseLe === null || e.prochainAccuseLe <= now)).map(([r]) => r);
     for (const r of dus) if (await accuserMerci(env, r, now)) rapport.accuses++;
@@ -2129,30 +2140,48 @@ export async function traiterMercis(d: DepsConversation): Promise<RapportMerci> 
     if (!k.ok) return rapport;
     const multi = await motsMultiplesActifs(); // lu une fois par passage
     const igSuivre = multi ? await instagramSuivreActif() : false; // plafond Instagram par personne : seulement réglage allumé
-    // 4. Lecture-réservation.
-    const lecture = await appelerSite(env, CHEMIN_CONFIRMATIONS, { schemaVersion: 1, limite: LOT_CONFIRMATIONS });
-    const liste = lecture && lecture.statut === 200 && typeof lecture.corps === "object" && lecture.corps !== null ? (lecture.corps as { confirmations?: unknown }).confirmations : undefined;
-    if (!Array.isArray(liste)) {
-      await alerter("merci_site", "Le site ne répond pas pour les merci après la page : rien n'est envoyé, nouvel essai au prochain passage.", now);
-      return rapport;
-    }
-    for (const el of liste.slice(0, LOT_CONFIRMATIONS)) {
-      rapport.lues++;
-      const r = typeof el === "object" && el !== null ? (el as { ref?: unknown }).ref : undefined;
-      if (typeof r !== "string" || !RE_REF_CONFIRMATION.test(r)) {
-        await journaliser("parcours_conversation", "Merci : confirmation_illisible (ignorée, sans accusé).");
+    // 4. Lecture-réservation. Les merci REPORTÉS (site illisible) sont sautés ; ils occupent pourtant la tête du lot du site : la lecture est élargie
+    // d'autant (plafonnée) pour ne pas laisser 10 merci reportés boucher les merci GUIDE derrière. Aucun reporté : lecture inchangée (limite 10).
+    const reportsActifs = () => Object.keys(p.mercisReportes).length;
+    let limite = Math.min(LOT_CONFIRMATIONS_MAX, LOT_CONFIRMATIONS + reportsActifs());
+    const vus = new Set<string>();
+    for (let tour = 0; tour < 2; tour++) {
+      const lecture = await appelerSite(env, CHEMIN_CONFIRMATIONS, { schemaVersion: 1, limite });
+      const liste = lecture && lecture.statut === 200 && typeof lecture.corps === "object" && lecture.corps !== null ? (lecture.corps as { confirmations?: unknown }).confirmations : undefined;
+      if (!Array.isArray(liste)) {
+        await alerter("merci_site", "Le site ne répond pas pour les merci après la page : rien n'est envoyé, nouvel essai au prochain passage.", now);
+        return rapport;
+      }
+      let utiles = 0; // merci réellement traités dans ce tour (ni sautés, ni reportés, ni illisibles)
+      for (const el of liste.slice(0, limite)) {
+        const r = typeof el === "object" && el !== null ? (el as { ref?: unknown }).ref : undefined;
+        if (typeof r === "string" && vus.has(r)) continue;
+        rapport.lues++;
+        if (typeof r !== "string" || !RE_REF_CONFIRMATION.test(r)) {
+          await journaliser("parcours_conversation", "Merci : confirmation_illisible (ignorée, sans accusé).");
+          continue;
+        }
+        vus.add(r);
+        if (p.mercisReportes[r] !== undefined && now < p.mercisReportes[r]) continue; // reporté : sauté sans rien lire
+        let issue: "envoye" | "fait" | "garde";
+        try {
+          issue = await traiterConfirmation(r, d, env, k, now, multi, igSuivre);
+        } catch {
+          // Vérification impossible (registre illisible…) : ce merci n'est PAS envoyé (fermé), les autres continuent ; le site le re-proposera.
+          await journaliser("parcours_conversation", "Merci : verification_impossible (non envoyé, sans accusé).");
+          continue;
+        }
+        if (issue === "garde") return rapport; // la garde a bloqué : ni envoi ni accusé, le site re-proposera
+        if (issue === "envoye") rapport.envoyes++;
+        if (p.mercisReportes[r] === undefined) utiles++;
+      }
+      // Lot plein dont rien n'a pu être traité (tout est reporté) : une seule relecture élargie, pour atteindre les merci derrière.
+      const elargie = Math.min(LOT_CONFIRMATIONS_MAX, LOT_CONFIRMATIONS + reportsActifs());
+      if (tour === 0 && utiles === 0 && liste.length >= limite && elargie > limite) {
+        limite = elargie;
         continue;
       }
-      let issue: "envoye" | "fait" | "garde";
-      try {
-        issue = await traiterConfirmation(r, d, env, k, now, multi, igSuivre);
-      } catch {
-        // Vérification impossible (registre illisible…) : ce merci n'est PAS envoyé (fermé), les autres continuent ; le site le re-proposera.
-        await journaliser("parcours_conversation", "Merci : verification_impossible (non envoyé, sans accusé).");
-        continue;
-      }
-      if (issue === "garde") return rapport; // la garde a bloqué : ni envoi ni accusé, le site re-proposera
-      if (issue === "envoye") rapport.envoyes++;
+      break;
     }
   } finally {
     p.mercisEnCours = false;

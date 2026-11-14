@@ -28,6 +28,9 @@ import { reinitialiserDepots } from "@/donnees/memoire";
 import { compteCibleValide } from "@/app/(studio)/calendrier/compte-cible";
 import { monter, trouver } from "../aides/crochets-factices";
 
+// Le faux `react` garde ses états d'un test à l'autre : on le remet à zéro avant chaque test.
+beforeEach(() => { monter(() => null, {}).rendre(); });
+
 const canal = (id: string, service: string, deconnecte = false) => ({ id, organisationId: "o", nom: id, service, deconnecte });
 
 describe("CAL-14C : compte cible choisi par le chargeur", () => {
@@ -108,6 +111,12 @@ describe("CAL-15 : rafraîchissement après un ajout", () => {
     expect((await ajouterEntree({ ...base, jour: "2026-13-45", cle: "r3" })).ok).toBe(false);
     expect((await ajouterEntree({ ...base, jour: "2026-11-01", cle: "r4" })).ok).toBe(false);
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+  it("si revalidatePath lève, l'ajout répond quand même ok: true (l'écriture a eu lieu)", async () => {
+    const d = reinitialiserDepots();
+    vi.mocked(revalidatePath).mockImplementationOnce(() => { throw new Error("cache en panne"); });
+    expect((await ajouterEntree({ ...base, cle: "r6" })).ok).toBe(true);
+    expect(await d.creneauxEditoriaux.lister()).toHaveLength(1);
   });
   it("le rejeu d'une même clé ne rafraîchit pas une seconde fois", async () => {
     await ajouterEntree({ ...base, cle: "r5" });

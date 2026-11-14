@@ -120,6 +120,22 @@ describe("décaler : rafraîchissement de la page", () => {
   });
 });
 
+describe("décaler : rejeu et rafraîchissement", () => {
+  beforeEach(() => vi.mocked(revalidatePath).mockClear());
+  it("le rejeu d'un décalage ne rafraîchit pas : un second appel avec la même clé ne rappelle pas revalidatePath", async () => {
+    await ajouter({ id: "c1" });
+    expect(await decalerEntree({ id: "c1", nouveauJour: "2026-12-10", raison: "test", cle: "k1" })).toMatchObject({ ok: true });
+    expect(await decalerEntree({ id: "c1", nouveauJour: "2026-12-10", raison: "test", cle: "k1" })).toMatchObject({ ok: true });
+    expect(revalidatePath).toHaveBeenCalledTimes(1);
+  });
+  it("si revalidatePath lève, le décalage répond quand même ok: true (l'écriture a eu lieu)", async () => {
+    await ajouter({ id: "c1" });
+    vi.mocked(revalidatePath).mockImplementationOnce(() => { throw new Error("cache en panne"); });
+    expect(await decalerEntree({ id: "c1", nouveauJour: "2026-12-10", raison: "test", cle: "k1" })).toMatchObject({ ok: true });
+    expect((await d.creneauxEditoriaux.obtenir("c1"))?.decalages).toBe(1);
+  });
+});
+
 describe("décaler : raison bornée", () => {
   it("201 caractères sont refusés, 200 acceptés, vide refusé", async () => {
     await ajouter({ id: "c1" });

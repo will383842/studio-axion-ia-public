@@ -53,7 +53,9 @@ export async function decalerEntree(saisie: SaisieDecalage): Promise<ResultatDec
     const c = await d.creneaux.obtenir(saisie.id);
     if (!c) return { ok: false, message: `Entrée introuvable : ${saisie.id}` };
     // Un rejeu de clé déjà journalisée est rendu par le service, avant tout contrôle de date (le créneau a déjà bougé).
-    const rejeu = await depots().journalDecalages.obtenir(`decalage:${saisie.id}:${saisie.cle}`);
+    // Les lignes du journal s'appellent `decalage:<créneau>:<clé>#<rang>` : on cherche par préfixe.
+    const prefixeRejeu = `decalage:${saisie.id}:${saisie.cle}#`;
+    const rejeu = (await depots().journalDecalages.lister((l: { id: string }) => l.id.startsWith(prefixeRejeu))).length > 0;
     if (rejeu) return { ok: true, donnees: await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison, cle: saisie.cle }, maintenant()) };
     if (c.statut === "publie") return { ok: false, message: "Cette entrée est publiée : elle ne se décale pas." };
     if (c.statut === "archive") return { ok: false, message: "Cette entrée est archivée : elle ne se décale pas." };
@@ -67,7 +69,8 @@ export async function decalerEntree(saisie: SaisieDecalage): Promise<ResultatDec
     const nouvelles = heures.length ? heures.map((h) => instantParis(saisie.nouveauJour, heureAffichageParis(h))) : [instantParis(saisie.nouveauJour, "23:59")];
     if (nouvelles.some((h) => Date.parse(h) <= maintenantMs)) return { ok: false, message: "Ce jour est passé : choisissez une date à venir." };
     const donnees = await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison, cle: saisie.cle }, maintenant());
-    revalidatePath("/calendrier");
+    // Le rafraîchissement est secondaire : l'écriture a eu lieu, un échec ici ne doit pas la faire passer pour ratée.
+    try { revalidatePath("/calendrier"); } catch { /* muet */ }
     return { ok: true, donnees };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Décalage impossible." };

@@ -365,6 +365,24 @@ export type CodeRefusMotCompte =
   | "lecture_impossible";
 
 /**
+ * Garde d'ACTIVATION d'un autre mot sur un compte : Facebook seulement (Instagram : « instagram_pas_encore », comme la garde d'envoi),
+ * puis toute la garde d'envoi par compte (textes validés pour CE réseau, cible active et non d'essai). N'appelle JAMAIS `sousVerrou`.
+ */
+export async function verifierActivationMot(o: {
+  mot: string;
+  compte: string;
+  env?: Env;
+  maintenantMs?: number;
+}): Promise<CodeRefusMotCompte | "instagram_pas_encore" | null> {
+  try {
+    if ((await reseauDuCompte(o.compte)) === "instagram") return "instagram_pas_encore";
+  } catch {
+    return "lecture_impossible";
+  }
+  return verifierMotPourCompte(o);
+}
+
+/**
  * Garde d'envoi pour un compte : `null` = le mot peut partir, sinon le code du refus. Fermé en cas de doute.
  * N'appelle JAMAIS `sousVerrou`. Elle n'écrit aucune validation ; seule la lecture du site peut remettre à jour la copie (miroir) des cibles.
  */
