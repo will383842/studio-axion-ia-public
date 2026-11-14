@@ -16,7 +16,7 @@ const etat = vi.hoisted(() => ({ multi: true, ig: true as boolean | "reel", lect
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: () => true }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => null }));
-vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true }));
+vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true, validationPourEnvoi: async () => null }));
 vi.mock("@/services/parcours-mots-multiples", async (orig) => ({ ...(await orig<Record<string, unknown>>()), motsMultiplesActifs: async () => (etat.lecturesMulti++, etat.multi) }));
 vi.mock("@/services/parcours-instagram", async (orig) => ({ ...(await orig<Record<string, unknown>>()), instagramSuivreActif: async (o?: unknown) => (etat.lecturesIg++, etat.ig === "reel" ? (await orig<any>()).instagramSuivreActif(o) : etat.ig) }));
 
