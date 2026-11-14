@@ -110,6 +110,9 @@ describe("2 · Instagram : pas encore", () => {
     await passer(T0, { env: ENV_LIEN });
     expect(instantane()).toEqual(RIEN);
     expect((await decrire(id)).startsWith("ecarte/")).toBe(true);
+    // Le refus réel est annoncé (Instagram n'est pas « pas de textes validés »).
+    const alertes = (await depots().evenements.lister((e: any) => /ALERTE/.test(e.message))).map((e: any) => e.message as string);
+    expect(alertes.some((m) => /Instagram n'est pas encore pris en charge/.test(m))).toBe(true);
   });
 });
 
@@ -133,9 +136,12 @@ describe("4 · cible test, de type adresse ou inactive : rien", () => {
     ["inactive", { actif: false }],
   ])("cible %s", async (_n, o) => {
     site.catalogue = catalogue(o as any);
-    await com("CHATGPT");
+    const id = await com("CHATGPT");
     await passer(T0, { env: ENV_LIEN });
     expect(instantane()).toEqual(RIEN);
+    // Mutable : le refus vient bien du contrôle de cible (et non d'une garde plus loin), l'événement est clos et la vérification par mot n'est jamais atteinte.
+    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(espion.appels).toBe(0);
   });
 });
 
