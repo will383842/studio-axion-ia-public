@@ -16,14 +16,17 @@ import { RECETTE_COMPOSITION_FACECAM } from "@/moteurs/montage-facecam/habillage
 
 const TEXTE = "Bonjour, je suis Will. Aujourd'hui je vous parle de la formation. Beaucoup de dirigeants pensent que l'intelligence artificielle est réservée aux grands groupes. C'est faux. Avec un financement OPCO, la formation peut être prise en charge.";
 
-function commande(entrees: Record<string, unknown> = {}): CommandeFabrication {
+/** GV2-43 : le plan du stock ne pose une scène que sur un fait du script ; ce texte en porte deux (« 5 heures », « 30 % »). */
+const TEXTE_AVEC_FAITS = `${TEXTE} En moyenne, une PME gagne 5 heures par semaine. Et elle réduit ses relances de 30 %.`;
+
+function commande(entrees: Record<string, unknown> = {}, texte = TEXTE): CommandeFabrication {
   return {
     videoId: "v-fc",
     formatId: "facecam",
     moteurId: "montage-facecam",
     ratios: ["9:16"],
     dureeCibleSec: 60,
-    script: { blocs: [], texteComplet: TEXTE },
+    script: { blocs: [], texteComplet: texte },
     distribution: [{ role: "Face caméra", source: "rush" }],
     prises: [{ id: "p1", partie: "version", cle: "studio/prod/rush/v-fc/prise-1.mov", mime: "video/quicktime", dureeSec: 60, segmentIds: [] }],
     briques: { etalonnage: true, "sous-titres": true, "mention-ia": false },
@@ -76,7 +79,7 @@ describe("Facecam · plan de scènes", () => {
 
   it("allumé (stock seulement) : plan valide, face caméra (rien devant le visage), posé dans la composition 9:16", async () => {
     const outils = outilsRendu();
-    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outils, planScenes: async () => ({}) });
+    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outils, planScenes: async () => ({}) }, commande({}, TEXTE_AVEC_FAITS));
     expect(etat.fini).toBe(true);
     const plan = composition(outils).image.planScenes;
     expect(plan).toBeDefined();
@@ -85,9 +88,17 @@ describe("Facecam · plan de scènes", () => {
     if (lu.success) {
       expect(lu.data.facecam).toBe(true);
       expect(lu.data.format).toEqual({ largeur: 1080, hauteur: 1920, fps: 25 });
+      expect(lu.data.scenes.length).toBeGreaterThan(0);
       expect(lu.data.scenes.every((s) => ["bas", "haut"].includes(s.position) && s.niveau === 1)).toBe(true);
     }
     expect(etat.planScenes?.plan).toEqual(plan);
+  });
+
+  it("allumé (stock seulement), script sans aucun fait : aucun plan posé, la vidéo sort comme avant", async () => {
+    const outils = outilsRendu();
+    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outils, planScenes: async () => ({}) });
+    expect(etat.fini).toBe(true);
+    expect(composition(outils).image.planScenes).toBeUndefined();
   });
 
   it("allumé avec le LLM simulé : UN appel, gardé dans l'état", async () => {
