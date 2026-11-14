@@ -146,7 +146,7 @@ describe("image → vidéo : voix simulée en production refusée avant toute d�
       expect(reserver.mock.calls[0][2]).toBe(150);
     });
 
-    it("le lanceur, Usine : sans accord de Will sur le prix, aucune réservation", async () => {
+    it("le lanceur, Usine : sans accord du fondateur sur le prix, aucune réservation", async () => {
       const reserver = vi.spyOn(credits, "verifierEtReserverSelonOrigine").mockResolvedValue(undefined as never);
       const reserverUsine = vi.spyOn(credits, "reserverPourUsine").mockResolvedValue(undefined as never);
       const outils = await outilsImageVideo({ videoId: "v4", travailId: "t4", production: true, accordDuScriptExige: true, origine: "usine" });

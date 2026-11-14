@@ -192,6 +192,14 @@ describe("A3 (D2) · au-delà du seuil, la confirmation porte le MONTANT", () =>
     return travailId;
   }
 
+  /** Le travail en échec devient une commande de l'Usine : `reessayerTravail` lit l'origine sur la version du travail. */
+  async function enUsine(travailId: string): Promise<void> {
+    const t = await depots().travaux.obtenir(travailId);
+    const v = t?.versionId ? await depots().versions.obtenir(t.versionId) : null;
+    expect(v).toBeTruthy();
+    await depots().versions.modifier(v!.id, { commande: { ...v!.commande, origine: "usine" } } as never);
+  }
+
   /** Budget du mois de l'Usine posé (large) : sans lui, l'Usine est refusée pour une autre raison que la confirmation. */
   async function budgetUsineLarge(): Promise<void> {
     const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
@@ -216,32 +224,54 @@ describe("A3 (D2) · au-delà du seuil, la confirmation porte le MONTANT", () =>
     const r = await travaux.reessayerTravail(travailId);
     expect(r.statut).not.toBe("echec");
     expect(JSON.stringify(await depots().evenements.lister())).toMatch(/accepté sans confirmation/);
-    // Usine : confirmation toujours exigée, le message dit le prix et l'écran reçoit le montant.
+    // Usine : confirmation toujours exigée, sur le vrai chemin « Réessayer » : le message dit le prix, l'écran reçoit le montant.
+    const usineId = await travailEnEchec();
+    await enUsine(usineId);
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
     await budgetUsineLarge();
+    const errUsine = await travaux.reessayerTravail(usineId).catch((e: unknown) => e);
+    expect(errUsine).toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    // Le message du seuil (src/services/credits.ts:345) ne cite plus le prix en euros : le prix en euros reste prouvé par le double réel plus bas.
+    expect((errUsine as Error).message).toMatch(/coûte plus que d'habitude/);
+    const montantUsine = (errUsine as { montant?: number }).montant;
+    expect(montantUsine).toBeGreaterThan(0);
+    const ecranUsine = await commun.essayer(() => travaux.reessayerTravail(usineId));
+    expect(ecranUsine).toMatchObject({ ok: false, code: "CONFIRMATION_REQUISE", montant: montantUsine });
+    // Garde commune, en plus : montant porté, double réel = prix en euros.
     const err = await credits.verifierBudgetEtCredits(estimation250(), undefined, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
     expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
-    // Le double réel : le message dit le prix en euros (seuil haut, la garde R7 parle).
     await ecrireParametre("budget.seuilConfirmation", { centimes: 1_000_000, devise: "EUR" });
     const errDouble = await credits.verifierBudgetEtCredits(estimationDouble(250), undefined, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
     expect(errDouble).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
     expect((errDouble as Error).message).toMatch(/2,50\s?€/);
-    // Le résultat d'une action le transporte jusqu'à l'écran.
     const ecran = await commun.essayer(() => credits.verifierBudgetEtCredits(estimationDouble(250), undefined, "Cette vidéo", { origine: "usine" }));
     expect(ecran).toMatchObject({ ok: false, code: "CONFIRMATION_REQUISE", montant: 250 });
   });
 
-  it("montant confirmé plus bas que le prix du jour : studio = la relance part sans confirmation ; Usine = refusé (nouveau prix), montant juste : passe", async () => {
+  it("montant confirmé plus bas que le prix du jour : studio = la relance part sans confirmation ; Usine = refusé (nouveau prix), montant juste : la relance part", async () => {
+    const studioId = await travailEnEchec();
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
+    const rs = await travaux.reessayerTravail(studioId);
+    expect(rs.statut).not.toBe("echec");
+    // Usine, vrai chemin « Réessayer ».
     const travailId = await travailEnEchec();
+    await enUsine(travailId);
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
     await budgetUsineLarge();
-    const bas = await credits.verifierBudgetEtCredits(estimation250(), 249, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
-    expect(bas).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
+    const montant = ((await travaux.reessayerTravail(travailId).catch((e: unknown) => e)) as { montant: number }).montant;
+    expect(montant).toBeGreaterThan(0);
+    const bas = await travaux.reessayerTravail(travailId, { confirme: montant - 1 }).catch((e: unknown) => e);
+    expect(bas).toMatchObject({ code: "CONFIRMATION_REQUISE", montant });
     expect((bas as Error).message).toMatch(/Le prix a changé/);
-    await expect(credits.verifierBudgetEtCredits(estimation250(), 250, "Cette vidéo", { origine: "usine" })).resolves.toBeUndefined();
-    // Studio : le travail est encore en échec jusque-là, puis la relance part d'elle-même.
     expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
-    const r = await travaux.reessayerTravail(travailId);
+    const r = await travaux.reessayerTravail(travailId, { confirme: montant });
     expect(r.statut).not.toBe("echec");
+    // Garde commune, en plus.
+    const total = { centimes: 250, devise: "EUR" as const };
+    const basGarde = await credits.verifierBudgetEtCredits(estimation250(), 249, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
+    expect(basGarde).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
+    expect((basGarde as Error).message).toMatch(/Le prix a changé/);
+    await expect(credits.verifierBudgetEtCredits({ lignes: [], total }, 250, "Cette vidéo", { origine: "usine" })).resolves.toBeUndefined();
   });
 
   it("au-delà du seuil : studio = accord au prix du jour ; Usine = CONFIRMATION_REQUISE avec un montant (garde commune)", async () => {
