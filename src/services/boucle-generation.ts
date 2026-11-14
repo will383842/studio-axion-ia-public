@@ -1417,7 +1417,7 @@ const cleOperation = (operationId: string) => `generateur.fabrication.${operatio
  * de fabrication, voix et prononciations existantes), rattachée à la version (`reseau`, `varianteId`). Le pré-vol de la
  * brique Crédits est celui de `lancerFabrication`. Un identifiant d'opération rend le double toucher inoffensif.
  */
-export async function fabriquerVariante(varianteId: Id, options: { operationId: string; lancer: boolean; prixConfirme?: AccordPrix }): Promise<{ videoId: Id; travailId?: Id; enAttente?: string }> {
+export async function fabriquerVariante(varianteId: Id, options: { operationId: string; lancer: boolean; prixConfirme?: AccordPrix; origine?: OrigineLancement }): Promise<{ videoId: Id; travailId?: Id; enAttente?: string }> {
   await exigerSession();
   const deja = await lireParametre<{ videoId: Id; travailId?: Id } | null>(cleOperation(options.operationId), null);
   if (deja) return deja;
@@ -1431,7 +1431,7 @@ export async function fabriquerVariante(varianteId: Id, options: { operationId: 
     // refus remonte tel quel et rien n'est créé.
     const { verifierAvantDeCreer } = await import("./fabrication-reseaux");
     // CORRECTEUR 1 — B6 : au-delà du seuil, la confirmation du prix vient de l'écran.
-    await verifierAvantDeCreer([v.id], { confirme: accordPropre(options.prixConfirme) });
+    await verifierAvantDeCreer([v.id], { confirme: accordPropre(options.prixConfirme), origine: options.origine });
   }
   const resultat = await sousVerrou(async (): Promise<{ videoId: Id; travailId?: Id; cree: boolean }> => {
     const encore = await lireParametre<{ videoId: Id; travailId?: Id } | null>(cleOperation(options.operationId), null);
@@ -1460,7 +1460,7 @@ export async function fabriquerVariante(varianteId: Id, options: { operationId: 
   try {
     // Paquet 4 (D2) : le montant confirmé a été contrôlé juste avant la création (`verifierAvantDeCreer`) ; il repart
     // tel quel (seconde relecture, R2 : `true` ne couvre plus un prix au-delà du seuil).
-    t = await lancerVideoDeVersion(resultat.videoId, accordPropre(options.prixConfirme));
+    t = await lancerVideoDeVersion(resultat.videoId, accordPropre(options.prixConfirme), options.origine);
   } catch (e) {
     // E2E-2 parcours n° 2 : un lancement REFUSÉ (budget du mois, crédit insuffisant…) ne laisse pas de brouillon
     // rattaché à la version (la ligne n'offrait plus que « Vidéo », grisée sans raison) : la version redevient

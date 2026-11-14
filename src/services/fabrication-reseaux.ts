@@ -699,10 +699,10 @@ export async function verifierAvantDeFabriquerLesN(scriptMaitreId: Id, options: 
  * ou la hausse du budget (`surveillerCredits` prévient, l'Accueil la lance). Tout autre refus remonte tel quel.
  * À appeler par « Fabriquer cette version » (`fabriquerVariante`) à la place de `lancerFabrication`.
  */
-export async function lancerVideoDeVersion(videoId: Id, confirme: AccordPrix = false): Promise<{ travailId?: Id; enAttente?: string }> {
+export async function lancerVideoDeVersion(videoId: Id, confirme: AccordPrix = false, origine?: OrigineLancement): Promise<{ travailId?: Id; enAttente?: string }> {
   const { lancerFabrication } = await import("./fabrication");
   try {
-    return { travailId: (await lancerFabrication(videoId, { confirme })).travailId };
+    return { travailId: (await lancerFabrication(videoId, { confirme, ...(origine ? { origine } : {}) })).travailId };
   } catch (e) {
     if (!(e instanceof ErreurStudio) || !CODES_ATTENTE.includes(e.code)) throw e;
     return { enAttente: await mettreEnAttenteDeCredit(videoId, e, confirme) };
@@ -734,7 +734,7 @@ async function mettreEnAttenteDeCredit(videoId: Id, e: ErreurStudio, confirme: A
  * n'est créé, le bouton reste) ; un refus au lancement même (course, crédit qui baisse) ne laisse jamais d'impasse : la
  * mère attend du crédit et repart d'elle-même, ses versions la suivent.
  */
-export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: string; lancer: boolean; ratiosOption?: Ratio[]; totalConfirme?: number }): Promise<{ mereVideoId: Id; videoIds: Id[]; travailId?: Id; enAttente?: string }> {
+export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: string; lancer: boolean; ratiosOption?: Ratio[]; totalConfirme?: number; origine?: OrigineLancement }): Promise<{ mereVideoId: Id; videoIds: Id[]; travailId?: Id; enAttente?: string }> {
   await exigerSession();
   const deja = await lireParametre<{ mereVideoId: Id; videoIds: Id[]; travailId?: Id; lance?: boolean; enAttente?: string } | null>(cleOperation(options.operationId), null);
   if (deja && (deja.lance || !options.lancer)) return deja;
@@ -748,7 +748,7 @@ export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: 
   const montant: AccordPrix = typeof options.totalConfirme === "number" ? accordPropre(options.totalConfirme) : false;
   let prixConfirme: AccordPrix = false;
   // Rien n'est créé si le budget du mois ou un crédit ne suffit pas pour ce qui est annoncé.
-  if (options.lancer && !deja) prixConfirme = await verifierAvantDeFabriquerLesN(scriptMaitreId, { ratiosOption: options.ratiosOption, totalConfirme: options.totalConfirme });
+  if (options.lancer && !deja) prixConfirme = await verifierAvantDeFabriquerLesN(scriptMaitreId, { ratiosOption: options.ratiosOption, totalConfirme: options.totalConfirme, origine: options.origine });
   else if (deja) prixConfirme = montant;
   const resultat = await sousVerrou(async () => {
     const encore = await lireParametre<{ mereVideoId: Id; videoIds: Id[] } | null>(cleOperation(options.operationId), null);
@@ -785,7 +785,7 @@ export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: 
   let travailId: Id | undefined;
   let enAttente: string | undefined;
   if (mereVideo?.statut === "brouillon") {
-    const r = await lancerVideoDeVersion(resultat.mereVideoId, prixConfirme);
+    const r = await lancerVideoDeVersion(resultat.mereVideoId, prixConfirme, options.origine);
     travailId = r.travailId;
     enAttente = r.enAttente;
   } else if (mereVideo?.statut === "prete") await lancerVariantesEnAttente(resultat.mereVideoId);
@@ -793,7 +793,7 @@ export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: 
   for (const vid of resultat.videoIds.slice(1)) {
     const v = await d.videos.obtenir(vid);
     if (v?.statut === "brouillon" && !v.lancementEnAttente && declinaisonDe(v)?.role === "complete" && !declinaisonDe(v)?.attendConfirmation) {
-      enAttente ??= (await lancerVideoDeVersion(vid, prixConfirme)).enAttente;
+      enAttente ??= (await lancerVideoDeVersion(vid, prixConfirme, options.origine)).enAttente;
     }
   }
   await journaliser("fabrication", enAttente ? `Fabriquer les ${resultat.videoIds.length} : en attente (${enAttente})` : `Fabriquer les ${resultat.videoIds.length} : la mère part, ${resultat.videoIds.length - 1} version(s) suivront`, { type: "video", id: resultat.mereVideoId });

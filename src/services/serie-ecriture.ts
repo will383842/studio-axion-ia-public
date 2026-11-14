@@ -23,9 +23,9 @@ import { exigerSession } from "./auth";
 import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-generation";
 import { resumeBudget } from "./couts";
 import { claudeBranche, depenseGenerationUsd, ecritureEnEssai, engageClaudeDuMoisCentimes, plafondChaineUsd, plafondMensuelClaudeUsd, taux } from "./generation-claude";
-import { signalerDepassementIndicatif } from "./budget-mensuel";
+import { signalerDepassementIndicatif, type OrigineLancement } from "./budget-mensuel";
 import { ajouterIdee } from "./idees";
-import { accordAutomatique, budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif, budgetIndicatifPour } from "./mode-budget";
 import { depots, ErreurStudio, ecrireParametre, journaliser, lireParametre, maintenant } from "./_commun";
 
 /** Au plus 20 idées d'un geste. */
@@ -153,7 +153,7 @@ function reglagesPropres(r: ReglagesSerie): ReglagesSerie {
  * feuille. Au-delà du seuil de confirmation du budget, la série ne part pas si ce total manque ou s'il est plus bas que
  * le prix maximum d'aujourd'hui de ce qui partirait (`CONFIRMATION_REQUISE`, rien n'est créé). Jamais confirmé d'office.
  */
-export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reglages: ReglagesSerie, cle: string, totalConfirme?: number, partirontConfirme?: number): Promise<{ serie: Serie; plan: PlanSerie }> {
+export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reglages: ReglagesSerie, cle: string, totalConfirme?: number, partirontConfirme?: number, origine?: OrigineLancement): Promise<{ serie: Serie; plan: PlanSerie }> {
   await exigerSession();
   if (!/^[A-Za-z0-9_-]{6,60}$/.test(String(cle))) throw new ErreurStudio("SERIE", "Demande illisible. Réessayez.");
   const r = reglagesPropres(reglages);
@@ -167,7 +167,7 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
     if (!idees.length) throw new ErreurStudio("IDEE_VIDE", "Choisissez au moins une idée.");
     if (idees.length > MAX_SERIE) throw new ErreurStudio("SERIE_LONGUE", `${MAX_SERIE} idées au plus d'un coup.`);
     const plan = await planSerie(idees.length);
-    await exigerTotalConfirme(plan, totalConfirme, partirontConfirme);
+    await exigerTotalConfirme(plan, totalConfirme, partirontConfirme, origine);
     const d = depots();
     const elements: ElementSerie[] = [];
     for (const [i, x] of idees.entries()) {
@@ -208,13 +208,14 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
  * venir d'un plan de MÊME TAILLE (relecture paquet 4, exactitude petit défaut 5 : le total d'un autre plan ne vaut pas ;
  * seconde relecture, R4 : une taille absente ne vaut pas non plus).
  */
-async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | undefined, partirontConfirme?: number): Promise<void> {
+async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | undefined, partirontConfirme?: number, origine?: OrigineLancement): Promise<void> {
   if (plan.essai || plan.partiront === 0) return;
   const { seuilConfirmation } = await resumeBudget();
   if (plan.totalPartant.centimes <= seuilConfirmation.centimes) return;
   // L2-13c : le fondateur n'est jamais refusé pour un montant. Au-dessus du seuil, la série part ; une alerte (journal + cloche,
   // une fois par jour) le dit SANS aucun montant. Seul le mode bloquant (qui n'existe plus) garde la confirmation ci-dessous.
-  if (await budgetIndicatif()) {
+  // ARG-ORIGINE-USINE : jamais pour une série de l'Usine (elle reste bloquante) ; sans origine : le Studio, inchangé.
+  if (await budgetIndicatifPour(origine)) {
     await signalerDepassementIndicatif("serie-seuil", "Série au-dessus du seuil habituel (elle part)", "Rien n'est arrêté : la série part sans confirmation. Réglages > Budget pour ajuster le repère.");
     return;
   }
@@ -222,7 +223,7 @@ async function exigerTotalConfirme(plan: PlanSerie, totalConfirme: number | unde
   const memeTaille = partirontConfirme === plan.partiront;
   // Mode indicatif : le prix du jour vaut accord (journal + cloche) ; bloquant : l'accord reçu est rendu inchangé.
   const vu = memeTaille && typeof totalConfirme === "number" && Number.isFinite(totalConfirme) ? totalConfirme : false;
-  const accord = await accordAutomatique(vu, plan.totalPartant.centimes, { signaler: vu === false || vu < plan.totalPartant.centimes });
+  const accord = await accordAutomatique(vu, plan.totalPartant.centimes, { origine, signaler: vu === false || vu < plan.totalPartant.centimes });
   const confirme = typeof accord === "number" && Number.isFinite(accord) && accord >= plan.totalPartant.centimes;
   if (!confirme) throw new ErreurStudio("CONFIRMATION_REQUISE", `Ces ${plan.partiront} écritures coûtent plus que d'habitude. Confirmez pour continuer.`, plan.totalPartant.centimes);
 }
