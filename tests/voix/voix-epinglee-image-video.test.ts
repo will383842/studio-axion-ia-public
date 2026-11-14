@@ -122,20 +122,20 @@ describe("image → vidéo : voix simulée en production refusée avant toute d�
     beforeEach(() => { etatFournisseurs.modeVoix = "reel"; });
 
     it("une vidéo : réserve le prix de la voix, au nom de la vidéo et du travail", async () => {
-      const reserver = vi.spyOn(credits, "verifierEtReserver").mockResolvedValue(undefined as never);
+      const reserver = vi.spyOn(credits, "verifierEtReserverSelonOrigine").mockResolvedValue(undefined as never);
       const outils = await outilsImageVideo({ videoId: "v1", travailId: "t1", production: true });
       expect(await outils.budget.reserver({ ...demandeVoix })).toEqual({ ok: true });
       expect(reserver).toHaveBeenCalledTimes(1);
-      expect(reserver.mock.calls[0][1]).toBe(150);
-      expect(reserver.mock.calls[0][3]).toEqual({ videoId: "v1", travailId: "t1" });
+      expect(reserver.mock.calls[0][2]).toBe(150);
+      expect(reserver.mock.calls[0][4]).toEqual({ videoId: "v1", travailId: "t1" });
     });
 
     it("une vidéo d'un lot : réserve au prix accordé pour le lot", async () => {
-      const reserver = vi.spyOn(credits, "verifierEtReserver").mockResolvedValue(undefined as never);
+      const reserver = vi.spyOn(credits, "verifierEtReserverSelonOrigine").mockResolvedValue(undefined as never);
       const outils = await outilsImageVideo({ videoId: "v2", travailId: "t2", production: true, accordLotCentimes: 220 });
       expect(await outils.budget.reserver({ ...demandeVoix })).toEqual({ ok: true });
       expect(reserver).toHaveBeenCalledTimes(1);
-      expect(reserver.mock.calls[0][1]).toBe(220);
+      expect(reserver.mock.calls[0][2]).toBe(220);
     });
 
     it("le lanceur, studio : sans accord écrit sur le prix, le prix du jour vaut accord (décision du 08/11), la réservation part", async () => {
