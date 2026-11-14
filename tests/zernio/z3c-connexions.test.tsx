@@ -58,10 +58,11 @@ describe("z3c · cartes de compte", () => {
     expect(html).toContain("Brouillon d’abord");
   });
 
-  it("compte à reconnecter : pastille « À reconnecter bientôt » ; Buffer désactivé s'il n'y a pas de compte chez Buffer", () => {
+  it("compte à reconnecter : pastille « À reconnecter bientôt » ; aucun retour vers l'ancien outil proposé", () => {
     const html = rendre({ etat: "normal", donnees: etat({ comptes: [compte("tiktok", 1, { relie: false, existeChezBuffer: false })] }) });
     expect(html).toContain("À reconnecter bientôt");
-    expect(html).toMatch(/<button[^>]*\sdisabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Ancien outil/);
+    expect(html).not.toContain("Ancien outil");
+    expect(html).toContain("Nouvel outil");
   });
 
   it("le changement de routage appelle le bon service avec le bon réseau", async () => {
@@ -99,7 +100,7 @@ describe("z3c · prochaine étape de la bascule", () => {
     const html = rendre({ etat: "normal", donnees: etat({ comptes }) });
     expect(html).toContain("Compte exemple tiktok 6 publie encore par l’ancien outil");
     expect(html).toContain("Les 5 autres comptes passent déjà par le nouvel outil.");
-    expect(html).toContain("jusqu’au 20/11");
+    expect(html).not.toContain("jusqu’au 20/11");
     expect(html).toContain("Passer Compte exemple tiktok 6 sur le nouvel outil");
   });
 
