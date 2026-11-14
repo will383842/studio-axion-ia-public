@@ -6,6 +6,7 @@
  * monte du bas sur téléphone. Un jour sans publication le dit en une phrase. Aujourd'hui est marqué et amené à l'écran.
  * Disposition, mots et couleurs : la maquette validée (docs/maquettes/calendrier/calendrier-du-studio.html).
  */
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
@@ -13,7 +14,8 @@ import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regrou
 import { ApercuPublication } from "./ApercuPublication";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, jourLisible, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
-import { LIBELLES_ESSAI, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
+import type { TableLibelles } from "./PastilleStatutPlan";
+import { LIBELLES_ENVOI, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
 
 export interface ProprietesVueAgenda {
   entrees: readonly EntreeApercu[];
@@ -25,6 +27,8 @@ export interface ProprietesVueAgenda {
   criteres?: CriteresFiltre;
   /** Changement de date demandé dans le tiroir. Absent : le tiroir dit d'ouvrir la vue Semaine. */
   onChangerDate?: (jour: string, entree: EntreeApercu) => void;
+  /** Adresse de la vue Jour d'un jour (AAAA-MM-JJ). Fournie : le titre du jour devient un lien. Absente : simple titre. */
+  lienJour?: (jour: string) => string;
   className?: string;
 }
 
@@ -36,11 +40,14 @@ const PHRASE_JOUR_PASSE = "Vous n'aviez rien prévu ce jour-là.";
 const PHRASE_FILTRE = "Aucune publication avec ces filtres.";
 const PHRASE_ILLISIBLE = "Semaine illisible. Revenez à aujourd'hui.";
 
+/** Les mots de l'envoi par Buffer sont partagés avec la grille (apercu-reseau.ts). */
+export const LIBELLES_AGENDA: TableLibelles = LIBELLES_ENVOI;
+
 /** Bouton d'au moins 38 px de haut (maquette) : un doigt l'atteint sans viser. */
 const CARTE = "min-h-[38px] break-words";
 
 /** La semaine en liste, jour par jour. */
-export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerDate, className }: ProprietesVueAgenda): ReactNode {
+export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerDate, lienJour, className }: ProprietesVueAgenda): ReactNode {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const aujourdhuiRef = useRef<HTMLElement | null>(null);
@@ -96,8 +103,17 @@ export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerD
               className={cn("min-w-0 scroll-mt-2 rounded-xl border bg-surface-1 p-2", estAujourdhui ? "border-orange bg-surface-2" : "border-trait")}
             >
               <h3 id={`agenda-${jour}`} className={cn("mb-2 break-words text-sm font-bold capitalize", estAujourdhui ? "text-orange-vif" : "text-texte-doux")}>
-                {libelleJour(jour)}
-                {estAujourdhui && <span className="font-semibold normal-case"> · aujourd&apos;hui</span>}
+                {lienJour ? (
+                  <Link href={lienJour(jour)} aria-label={`Ouvrir la journée du ${libelleJour(jour)}`} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
+                    {libelleJour(jour)}
+                    {estAujourdhui && <span className="font-semibold normal-case">&nbsp;· aujourd&apos;hui</span>}
+                  </Link>
+                ) : (
+                  <>
+                    {libelleJour(jour)}
+                    {estAujourdhui && <span className="font-semibold normal-case"> · aujourd&apos;hui</span>}
+                  </>
+                )}
               </h3>
               {duJour.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-trait-fort p-3 text-center text-sm text-texte-doux">{masque ? PHRASE_FILTRE : passe ? PHRASE_JOUR_PASSE : PHRASE_JOUR_A_VENIR}</p>
@@ -105,7 +121,9 @@ export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerD
                 <ul className="m-0 flex min-w-0 list-none flex-col gap-2 p-0">
                   {duJour.map((e) => (
                     <li key={e.cle} className="min-w-0">
-                      <CarteEntreeCalendrier entree={e} avecTitre libellesEtat={LIBELLES_ESSAI} onOuvrir={ouvrir} className={CARTE} />
+                      <CarteEntreeCalendrier entree={e} avecTitre libellesEtat={LIBELLES_AGENDA} onOuvrir={ouvrir} className={CARTE} />
+                      {/* Le compte visé (deux LinkedIn, deux Facebook), comme sur l'ancienne liste (lot R1b). */}
+                      {e.canalNom && <p data-compte="" className="mt-0.5 min-w-0 truncate px-1.5 text-xs text-texte-faible">· {e.canalNom}</p>}
                     </li>
                   ))}
                 </ul>

@@ -86,6 +86,8 @@ export interface EntreeFiche extends EntreeCarte {
   premierCommentaire?: string;
   /** Vrai dès que l'entrée a été confiée à l'outil de publication : son texte ne se modifie plus ici. */
   confiee?: boolean;
+  /** Vrai : l'envoi n'a jamais été reçu par Buffer (rien n'est parti, aucun refus du réseau). */
+  envoiAbsent?: boolean;
   /** Ce qui manque ou ce que le réseau a répondu, en une phrase. */
   message?: string;
   /** Qui a écrit le texte ; absent : une personne (ajout manuel, jamais bloqué). */
@@ -126,7 +128,7 @@ export const PHRASES_VERROU: Readonly<Record<RaisonVerrou, string>> = {
  * Ce que l'état veut dire, en une phrase. « Partira seule » ne s'écrit que si l'envoi est allumé (`envoiAllume`,
  * faux par défaut) : sinon la fiche dit « envoi éteint ».
  */
-export function phraseEtat(entree: Pick<EntreeFiche, "etat" | "jour" | "heure">, options: { envoiAllume?: boolean } = {}): string {
+export function phraseEtat(entree: Pick<EntreeFiche, "etat" | "jour" | "heure" | "envoiAbsent">, options: { envoiAllume?: boolean } = {}): string {
   switch (entree.etat) {
     case "programme": {
       if (options.envoiAllume !== true) return "Programmé, envoi éteint : rien ne partira tant que l'envoi n'est pas allumé.";
@@ -137,7 +139,11 @@ export function phraseEtat(entree: Pick<EntreeFiche, "etat" | "jour" | "heure">,
     case "publie":
       return PHRASES_VERROU.publiee;
     case "a_corriger":
-      return "Le réseau l'a refusée. Rien n'est parti.";
+      return entree.envoiAbsent ? "L'envoi n'est pas arrivé jusqu'à Buffer. Rien n'est parti." : "Le réseau l'a refusée. Rien n'est parti.";
+    case "en_cours":
+      return "Un envoi est en cours. Attendez sa fin avant de modifier.";
+    case "brouillon_buffer":
+      return "Brouillon déposé dans Buffer. Rien ne part tant que vous ne l'avez pas validé là-bas.";
     case "idee":
       return "Idée de l'IA. Elle ne partira jamais sans vous.";
     case "brouillon":

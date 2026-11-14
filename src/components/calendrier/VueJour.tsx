@@ -1,6 +1,6 @@
 import { CarteEntreeCalendrier, estVerrouillee, heureLisible, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { LIBELLES_ESSAI } from "./apercu-reseau";
+import { LIBELLES_ENVOI } from "./apercu-reseau";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 
@@ -54,7 +54,7 @@ export function VueJour({ jour, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIE
   const sansHeure = duJour.filter((e) => heureLisible(e.heure) === null);
   const carte = (e: EntreeCarte) => (
     <li key={e.cle}>
-      <CarteEntreeCalendrier entree={e} libellesEtat={LIBELLES_ESSAI} avecTitre verrouillee={estVerrouillee(e, aujourdhui)} href={lienEntree?.(e)} />
+      <CarteEntreeCalendrier entree={e} libellesEtat={LIBELLES_ENVOI} avecTitre verrouillee={estVerrouillee(e, aujourdhui)} href={lienEntree?.(e)} />
     </li>
   );
   const vide = duJour.length === 0;
