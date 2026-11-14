@@ -261,13 +261,17 @@ async function changeAdresse(o: OptionsGeneration): Promise<boolean> {
  * `lancerGeneration(brief)` (B.3.6) : crée le sujet, fait l'étape 0, et soit s'arrête à 0 € (manque, sans numéro),
  * soit réserve le choix et met l'écriture dans la boucle. Rien n'est appelé chez Claude dans cette requête.
  */
-export async function lancerGeneration(entree: BriefSujet | { scriptMaitreId: Id }): Promise<ResultatLancement> {
+export async function lancerGeneration(entreeAvecOrigine: (BriefSujet | { scriptMaitreId: Id }) & { origine?: OrigineLancement }): Promise<ResultatLancement> {
   await exigerSession();
+  // ARG-ORIGINE-USINE : l'origine n'est pas un champ du sujet ; elle est FIGÉE dans les options de l'écriture (absente : Studio, inchangé).
+  const { origine: origineRecue, ...entree } = entreeAvecOrigine;
+  // B1 : seule la valeur « usine » est retenue ; toute autre (chaîne, objet…) est ignorée, jamais écrite.
+  const origine: OrigineLancement | undefined = origineRecue === "usine" ? "usine" : undefined;
   const m0 = "scriptMaitreId" in entree ? await depots().scriptsMaitres.obtenir(entree.scriptMaitreId) : await creerSujet(entree);
   if (!m0) throw new ErreurStudio("INTROUVABLE", "Ce sujet n'existe plus.");
   // Lot L5 : un NOUVEAU sujet est recontrôlé sous le verrou, au moment de prendre son numéro (deux demandes simultanées).
   const controle = "scriptMaitreId" in entree ? undefined : { confirmationSujet: entree.confirmationSujet };
-  return lancerSurSujet(m0, { mode: m0.brief.modeParDefaut ?? formatGenerateur(m0.brief.formatId).recette.modeParDefaut, adresse: m0.brief.adresseParDefaut, formatId: m0.brief.formatId, reseaux: m0.brief.reseaux }, "sujet", controle);
+  return lancerSurSujet(m0, { mode: m0.brief.modeParDefaut ?? formatGenerateur(m0.brief.formatId).recette.modeParDefaut, adresse: m0.brief.adresseParDefaut, formatId: m0.brief.formatId, reseaux: m0.brief.reseaux, ...(origine ? { origine } : {}) }, "sujet", controle);
 }
 
 /** Vérif A1 : le chemin d'un texte collé gardé mot pour mot (« Nouvelle vidéo », étape Script, onglet « Coller »). */
@@ -1417,7 +1421,7 @@ const cleOperation = (operationId: string) => `generateur.fabrication.${operatio
  * de fabrication, voix et prononciations existantes), rattachée à la version (`reseau`, `varianteId`). Le pré-vol de la
  * brique Crédits est celui de `lancerFabrication`. Un identifiant d'opération rend le double toucher inoffensif.
  */
-export async function fabriquerVariante(varianteId: Id, options: { operationId: string; lancer: boolean; prixConfirme?: AccordPrix }): Promise<{ videoId: Id; travailId?: Id; enAttente?: string }> {
+export async function fabriquerVariante(varianteId: Id, options: { operationId: string; lancer: boolean; prixConfirme?: AccordPrix; origine?: OrigineLancement }): Promise<{ videoId: Id; travailId?: Id; enAttente?: string }> {
   await exigerSession();
   const deja = await lireParametre<{ videoId: Id; travailId?: Id } | null>(cleOperation(options.operationId), null);
   if (deja) return deja;
@@ -1431,7 +1435,7 @@ export async function fabriquerVariante(varianteId: Id, options: { operationId: 
     // refus remonte tel quel et rien n'est créé.
     const { verifierAvantDeCreer } = await import("./fabrication-reseaux");
     // CORRECTEUR 1 — B6 : au-delà du seuil, la confirmation du prix vient de l'écran.
-    await verifierAvantDeCreer([v.id], { confirme: accordPropre(options.prixConfirme) });
+    await verifierAvantDeCreer([v.id], { confirme: accordPropre(options.prixConfirme), origine: options.origine });
   }
   const resultat = await sousVerrou(async (): Promise<{ videoId: Id; travailId?: Id; cree: boolean }> => {
     const encore = await lireParametre<{ videoId: Id; travailId?: Id } | null>(cleOperation(options.operationId), null);
@@ -1460,7 +1464,7 @@ export async function fabriquerVariante(varianteId: Id, options: { operationId: 
   try {
     // Paquet 4 (D2) : le montant confirmé a été contrôlé juste avant la création (`verifierAvantDeCreer`) ; il repart
     // tel quel (seconde relecture, R2 : `true` ne couvre plus un prix au-delà du seuil).
-    t = await lancerVideoDeVersion(resultat.videoId, accordPropre(options.prixConfirme));
+    t = await lancerVideoDeVersion(resultat.videoId, accordPropre(options.prixConfirme), options.origine);
   } catch (e) {
     // E2E-2 parcours n° 2 : un lancement REFUSÉ (budget du mois, crédit insuffisant…) ne laisse pas de brouillon
     // rattaché à la version (la ligne n'offrait plus que « Vidéo », grisée sans raison) : la version redevient
