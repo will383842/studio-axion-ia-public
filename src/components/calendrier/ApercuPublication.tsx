@@ -17,7 +17,7 @@ import { RESEAUX_CALENDRIER } from "./BarreFiltres";
 import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
-import { LIBELLES_ESSAI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
 import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
@@ -105,7 +105,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       <p className="mt-1 text-xs text-texte-faible">Format : {a.formatLibelle}</p>
 
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">
-        <PastilleStatutPlan etat={entree.etat} libelles={LIBELLES_ESSAI} />
+        <PastilleStatutPlan etat={entree.etat} libelles={LIBELLES_ENVOI} />
         <span>{a.phraseEtat}</span>
       </div>
       {entree.message && <p className="mt-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{entree.message}</p>}
@@ -266,7 +266,7 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
 
   return (
     <>
-      <GrilleSemaine semaineDu={semaineDu} aujourdhui={aujourdhui} entrees={visibles} reseaux={reseaux} libellesEtat={LIBELLES_ESSAI} onOuvrirEntree={ouvrir} />
+      <GrilleSemaine semaineDu={semaineDu} aujourdhui={aujourdhui} entrees={visibles} reseaux={reseaux} libellesEtat={LIBELLES_ENVOI} onOuvrirEntree={ouvrir} />
       {courante && (
         <ApercuPublication
           entree={courante}
