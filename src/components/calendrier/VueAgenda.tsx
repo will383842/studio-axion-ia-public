@@ -15,7 +15,7 @@ import { ApercuPublication } from "./ApercuPublication";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, jourLisible, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
 import type { TableLibelles } from "./PastilleStatutPlan";
-import { LIBELLES_ESSAI, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ENVOI, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
 
 export interface ProprietesVueAgenda {
   entrees: readonly EntreeApercu[];
@@ -40,13 +40,8 @@ const PHRASE_JOUR_PASSE = "Vous n'aviez rien prévu ce jour-là.";
 const PHRASE_FILTRE = "Aucune publication avec ces filtres.";
 const PHRASE_ILLISIBLE = "Semaine illisible. Revenez à aujourd'hui.";
 
-/** Mots de l'envoi par Buffer que le téléphone disait déjà (« Envoi en cours », « À vérifier », « Brouillon dans Buffer »), plus l'essai. */
-export const LIBELLES_AGENDA: TableLibelles = {
-  ...LIBELLES_ESSAI,
-  en_cours: { libelle: "Envoi en cours", ton: "neutre" },
-  a_verifier: { libelle: "À vérifier", ton: "ambre" },
-  brouillon_buffer: { libelle: "Brouillon dans Buffer", ton: "neutre" },
-};
+/** Les mots de l'envoi par Buffer sont partagés avec la grille (apercu-reseau.ts). */
+export const LIBELLES_AGENDA: TableLibelles = LIBELLES_ENVOI;
 
 /** Bouton d'au moins 38 px de haut (maquette) : un doigt l'atteint sans viser. */
 const CARTE = "min-h-[38px] break-words";
