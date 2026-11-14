@@ -519,6 +519,7 @@ async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string,
   const el = r.element;
   if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
   // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ; sinon inconnue, comme avant.
+  // GUIDE ne lit jamais PARCOURS_ESSAI_COMPTES : une cible d'essai liée à GUIDE reste inconnue.
   if (el.test) return cibleEssaiPermise(env, idCompte, reseauSite(reseau)) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue" };
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
@@ -734,6 +735,21 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
 
 type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string };
 /**
+ * Vrai si la cible de la conversation est d'essai AUJOURD'HUI (catalogue du site), même si la conversation a été créée avant.
+ * GUIDE (`guide-ia`) n'est jamais une cible d'essai et ne lit pas le catalogue. Catalogue absent : faux (la garde d'envoi, qui relit la cible du jour, a déjà refusé un mot non-GUIDE sans catalogue) ; lecture en erreur : vrai.
+ */
+async function cibleEstEssaiAujourdhui(e: Conversation, env: Env, now: number): Promise<boolean> {
+  if ((e.mot ?? MOT) === MOT && e.guide === "guide-ia") return false;
+  try {
+    const site = await lireCiblesSite({ env, maintenantMs: now });
+    if (site === null) return false;
+    return site.catalogue.some((x) => x.code === e.guide && x.test);
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
@@ -750,7 +766,8 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
     return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
   };
   // Cible d'essai : jamais de lien ni de jeton (la page du site la refuse) ; la personne donne son adresse en message privé.
-  if (e.cibleEssai === true) return repli("cible_essai");
+  // Le drapeau figé à la création ne suffit pas : la cible du jour (catalogue) est relue, elle a pu passer en essai depuis.
+  if (e.cibleEssai === true || (await cibleEstEssaiAujourdhui(e, env, now))) return repli("cible_essai");
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -802,7 +819,7 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
 async function preparerRenvoi(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<PrepM1> {
   const impossible = { texte: null, version: e.versionTexteM1 };
   const groupe = e.groupeM1 === "deja-envoye" || e.groupeM1 === "lien-rappel" ? e.groupeM1 : null;
-  if (e.cibleEssai === true || groupe === null || !parcoursLienGuideActif(env)) return impossible;
+  if (e.cibleEssai === true || groupe === null || !parcoursLienGuideActif(env) || (await cibleEstEssaiAujourdhui(e, env, now))) return impossible;
   const secret = lireSecretLien(env);
   if (secret === null) return impossible;
   const mot = e.mot ?? MOT;

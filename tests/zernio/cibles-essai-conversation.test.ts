@@ -14,11 +14,16 @@ import {
 const site = vi.hoisted(() => ({
   versions: new Set<string>(["mp-m1-v4-1", "mp-deja-envoye-v1-1", "mp-lien-v3-1"]),
   catalogue: null as unknown,
+  /** Si défini : catalogue servi dès la lecture n°`apres`+1 (la cible passe en test juste après la création de la conversation). */
+  apresPub: null as unknown,
+  apres: 1,
+  lectures: 0,
 }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => site.versions.has(v) }));
-vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => site.catalogue }));
+vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => (++site.lectures > site.apres && site.apresPub ? site.apresPub : site.catalogue) }));
 
+vi.mock("@/services/notifications", async (orig) => ({ ...(await orig<Record<string, unknown>>()), creerNotification: vi.fn(async () => undefined) }));
 const { PARAM_MOTS_MULTIPLES } = await import("@/services/parcours-mots-multiples");
 const V = await import("@/services/mots-validation-par-mot");
 
@@ -73,10 +78,13 @@ beforeEach(async () => {
   await Com.ecrireParametre(PARAM_MOTS_MULTIPLES, true);
   await registreMots(["GUIDE", COMPTE], [MOT, COMPTE]);
   await validerEssai(ENV_X);
+  site.lectures = 0;
 });
 afterEach(() => {
   nettoyer();
   vi.useRealTimers();
+  site.apresPub = null;
+  site.lectures = 0;
 });
 
 describe("S1 · variable absente ou vide : la cible d'essai est refusée comme aujourd'hui", () => {
@@ -245,5 +253,41 @@ describe("S10 · journaux et stockage sans adresse ni jeton", () => {
     expect(tout).not.toContain(ADRESSE);
     expect(tout).not.toContain("?j=");
     expect(tout).not.toContain(SECRET_LIEN);
+  });
+});
+
+describe("Corrections après audit", () => {
+  it("A · M1 : conversation créée sur cible normale, cible passée en test avant le M1 : aucun lien, aucun jeton, repli cible_essai", async () => {
+    site.catalogue = catalogue({ test: false });
+    await validerEssai({ ...ENV_LIEN });
+    site.apresPub = catalogue({ test: true });
+    site.apres = 1; // 1re lecture (création de la conversation) : cible normale ; ensuite : cible d'essai (compte listé, validation d'essai renouvelée ci-dessous)
+    site.lectures = 0;
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    expect(banc.port.prive).toHaveLength(1);
+    const m1 = banc.port.prive[0].texte as string;
+    expect(m1).not.toMatch(/https?:\/\//);
+    expect(m1).not.toContain("?j=");
+    const [conv] = await convs();
+    expect(conv.empreintesLien).toBeUndefined();
+    expect(conv.refLienConv).toBeUndefined();
+  });
+  it("A · renvoi : cible normale à la création, passée en test ensuite : renvoi_impossible, aucun message", async () => {
+    site.catalogue = catalogue({ test: false });
+    await validerEssai({ ...ENV_LIEN });
+    await com(MOT, { idCommentaire: "com-a-1" });
+    await passer(T0, { env: ENV_X });
+    expect(banc.port.prive[0].texte).toMatch(/\?j=/);
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-a-adresse" });
+    await passer(T0 + 1000, { env: ENV_X });
+    site.apresPub = catalogue({ test: true });
+    site.apres = site.lectures + 1; // 1re lecture (création de la conversation) : cible normale ; ensuite : cible d'essai
+    const avant = banc.port.prive.length;
+    const evt = await com(MOT, { idCommentaire: "com-a-2", ageMs: 1000 - 25 * H });
+    await passer(T0 + 25 * H, { env: ENV_X });
+    expect(banc.port.prive).toHaveLength(avant);
+    expect(await decrire(evt)).toBe("m1_refuse/renvoi_impossible");
   });
 });
