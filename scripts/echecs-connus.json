@@ -28,6 +28,11 @@
       "note": "déjà rouge sur master (écran sans prix, NEW-ARG-04 PR 481 ; le test attend encore « environ N,NN € ») ; fiche de suite chez la session usine"
     },
     {
+      "fichier": "tests/c1-argent-b6-confirmation.test.ts",
+      "nom": "B6 · garde : aucune confirmation de dépense écrite en dur ni `confirme: true` ni `verifierBudgetEtCredits(…, true, …)` dans le code du studio",
+      "note": "fiche usine ARG-R7-SUITE, cause : `confirme: true` écrit en dur dans src/components/mots/gestes-mots-cibles.ts (zone du parcours viral mots-*, hors périmètre de la fiche), à retirer à la correction"
+    },
+    {
       "fichier": "tests/e2e-verif1-ef-reessayer-redemarrage.test.ts",
       "nom": "E2 — redémarrage du serveur en plein travail (montage réel allumé) redémarrage pendant le rendu du double (accepté par HeyGen, pas encore relu) : reprise sans rien repayer, jusqu'au brouillon Buffer",
       "note": "déjà rouge sur master : le test vise Buffer, mais la PR 440 (L7-06) a fait de Zernio l outil d envoi par défaut ; les assertions d argent (reprise sans repayer) passent ; fiche usine ARG-TESTS-SUITE, à retirer à la correction"
