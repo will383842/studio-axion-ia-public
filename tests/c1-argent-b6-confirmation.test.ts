@@ -55,20 +55,39 @@ async function sujetValide(): Promise<string> {
 /** Seuil de confirmation très bas : tout lancement payant le dépasse. */
 const seuilBas = () => ecrireParametre("budget.seuilConfirmation", { centimes: 1, devise: "EUR" });
 
-describe("B6 · « Fabriquer les N » : le TOTAL du lot est confirmé à l'écran", () => {
-  it("sans total confirmé : CONFIRMATION_REQUISE, rien n'est créé", async () => {
+/** Budget du mois de l'Usine posé (large) : sans lui, l'Usine est refusée pour une autre raison que la confirmation. */
+async function budgetUsineLarge(): Promise<void> {
+  const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+  const { moisParis } = await import("@/services/couts");
+  await ecrireParametre("budget.mensuel", { centimes: 100_000, devise: "EUR" });
+  await reglerBudgetUsine({ budget_mensuel_cents: 100_000, mois: moisParis() });
+}
+
+describe("B6 · « Fabriquer les N » : studio = le prix du jour vaut accord ; Usine = total confirmé exigé", () => {
+  it("studio sans total confirmé : la fabrication part (décision du 08/11), journalisée « accepté sans confirmation »", async () => {
     const id = await sujetValide();
     await seuilBas();
     const videosAvant = await depots().videos.compter();
-    await expect(fr.fabriquerLesN(id, { operationId: "op-b6-a", lancer: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect(await depots().videos.compter()).toBe(videosAvant);
+    const r = await fr.fabriquerLesN(id, { operationId: "op-b6-a", lancer: true });
+    expect(r.mereVideoId).toBeTruthy();
+    expect(await depots().videos.compter()).toBeGreaterThan(videosAvant);
+    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/accepté sans confirmation/);
   }, 60_000);
 
-  it("total confirmé plus bas que le vrai total (prix changé) : CONFIRMATION_REQUISE", async () => {
+  it("Usine sans total confirmé : CONFIRMATION_REQUISE toujours exigée", async () => {
     const id = await sujetValide();
     await seuilBas();
+    await budgetUsineLarge();
+    await expect(fr.verifierAvantDeFabriquerLesN(id, { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+  }, 60_000);
+
+  it("Usine : total confirmé plus bas que le vrai total (prix changé) : CONFIRMATION_REQUISE ; total juste : elle passe", async () => {
+    const id = await sujetValide();
+    await seuilBas();
+    await budgetUsineLarge();
     const plan = (await fr.planFabricationSujet(id))!;
-    await expect(fr.fabriquerLesN(id, { operationId: "op-b6-b", lancer: true, totalConfirme: plan.total.centimes - 1 })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(fr.verifierAvantDeFabriquerLesN(id, { origine: "usine", totalConfirme: plan.total.centimes - 1 })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(fr.verifierAvantDeFabriquerLesN(id, { origine: "usine", totalConfirme: plan.total.centimes })).resolves.toBeDefined();
   }, 60_000);
 
   it("total confirmé = total affiché : la mère part", async () => {
@@ -80,16 +99,19 @@ describe("B6 · « Fabriquer les N » : le TOTAL du lot est confirmé à l'écra
   }, 60_000);
 });
 
-describe("B6 · « Fabriquer cette version » : confirmation venue de l'écran", () => {
-  it("au-delà du seuil sans confirmation : CONFIRMATION_REQUISE ; confirmée : elle part", async () => {
+describe("B6 · « Fabriquer cette version » : studio = prix du jour vaut accord ; Usine = montant exigé", () => {
+  it("studio au-delà du seuil sans confirmation : elle part ; Usine : CONFIRMATION_REQUISE, le montant vu confirme", async () => {
     const id = await sujetValide();
     await seuilBas();
     const v = (await depots().variantes.lister((x) => x.scriptMaitreId === id && x.etat === "validee"))[0];
-    const refus = await bg.fabriquerVariante(v.id, { operationId: "op-b6-v1", lancer: true }).catch((e: { code?: string; montant?: number }) => e);
+    await budgetUsineLarge();
+    // Usine : refus avec le montant ; `true` ne suffit pas (paquet 4, R2) ; le montant vu passe.
+    const refus = await fr.verifierAvantDeCreer([v.id], { origine: "usine" }).catch((e: { code?: string; montant?: number }) => e);
     expect(refus).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    // Seconde relecture paquet 4 (R2) : au-delà du seuil, c'est le MONTANT vu qui confirme (`true` ne suffit plus).
-    await expect(bg.fabriquerVariante(v.id, { operationId: "op-b6-v1b", lancer: true, prixConfirme: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    const r = await bg.fabriquerVariante(v.id, { operationId: "op-b6-v2", lancer: true, prixConfirme: (refus as { montant: number }).montant });
+    await expect(fr.verifierAvantDeCreer([v.id], { origine: "usine", confirme: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(fr.verifierAvantDeCreer([v.id], { origine: "usine", confirme: (refus as { montant: number }).montant })).resolves.toBeDefined();
+    // Studio : le prix du jour vaut accord, la fabrication part sans confirmation.
+    const r = await bg.fabriquerVariante(v.id, { operationId: "op-b6-v1", lancer: true });
     expect(r.travailId ?? r.enAttente).toBeTruthy();
   }, 60_000);
 });
