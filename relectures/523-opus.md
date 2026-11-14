@@ -1,4 +1,4 @@
-# Relecture PR 523 (RC-14 : registre d'alertes unique) : À CORRIGER (mineur), fusion possible après un petit correctif
+# Relecture PR 523 (RC-14 : registre d'alertes unique) : À CORRIGER — fusion non en l'état, possible après 2 petits correctifs
 
 Tête relue : `05a0930f` (usine/RC-14). Lecture seule ; mutations rejouées dans une copie jetable.
 
