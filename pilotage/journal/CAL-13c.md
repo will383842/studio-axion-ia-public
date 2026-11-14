@@ -1,0 +1,13 @@
+# CAL-13c : l'état réel des envois sur la grille
+- Fait : la grille ordinateur (semaine et mois) passe par le même calcul d'état que le téléphone. `etatAffiche` (dans `apercu-reseau.ts`) : envoi refusé, absent ou échec = « À corriger » ; à vérifier ; en cours ; brouillon dans Buffer ; l'essai reste « Essai ». `entreeDepuisPublication` l'utilise, donc page, grille, Agenda, tiroir et vue mois disent la même chose. Les mots (`LIBELLES_ENVOI`) sont partagés (VueAgenda les ré-exporte sous `LIBELLES_AGENDA`) et passés à la grille et au tiroir de la semaine. `etatTelephone` disparaît de page.tsx.
+- Effet à connaître : le panneau « À faire » compte aussi un envoi refusé comme « à corriger » (même état partout).
+- Aucun bouton retiré, aucun appel serveur nouveau, aucun prix.
+- Test : `tests/calendrier/cal-13c-etat-grille.test.tsx` (rendu de la page : semaine et mois, plus le calcul).
+- Reste (non branché, faute de données dans les fichiers autorisés) :
+  - Filtres : bouton « Filtrer » en plus (plus de 6 commandes) et état client sans adresse ; il faut un filtre dans l'adresse (types, états, mot cherché) et un fichier de page hors liste.
+  - PretAPartir : exige les publications à contrôler au format du service `pret-a-partir` (texte complet, visuel, réglages par réseau) que la page ne charge pas.
+  - DecalerEntree : demande l'action serveur de report ; déjà portée par le glisser de la grille.
+  - ApercuMedia : demande des liens de lecture signés et les pages de carrousel, absents des données de la page.
+  - AjouterEntreeProposant : demande le compte cible et l'action serveur de proposition ; « + Ajouter » mène toujours à la vue Jour.
+  - VueVide « vide » : inchangé (donnée « aucun contenu planifié » absente).
+- Rendu non vérifié dans un navigateur.

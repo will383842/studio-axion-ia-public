@@ -15,13 +15,12 @@ import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFa
 import { ReserveAPlacer } from "@/components/calendrier/ReserveAPlacer";
 import { VueJour, debutDeTexte } from "@/components/calendrier/VueJour";
 import type { IdReseau } from "@/domaine/types";
-import { entreeDepuisPublication } from "@/components/calendrier/apercu-reseau";
+import { entreeDepuisPublication, etatAffiche } from "@/components/calendrier/apercu-reseau";
 import { cleJour } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { adresseVueJour, plageMois, plageSemaine } from "@/lib/calendrier-plages";
 import { GrilleMois } from "@/components/calendrier/GrilleMois";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
-import { etatDepuisStatut } from "@/components/calendrier/PastilleStatutPlan";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
 
@@ -58,17 +57,6 @@ function suiteReseaux(actifs: readonly IdReseau[]): string {
 function avecReseaux(base: string, actifs: readonly IdReseau[]): string {
   const suite = suiteReseaux(actifs);
   return !suite ? base : base.includes("?") ? `${base}${suite}` : `${base}?${suite.slice(1)}`;
-}
-
-/** Ce que disait l'ancienne ligne mobile (libellePublication) : l'envoi par Buffer, puis le statut. Les essais gardent leur état « essai ». */
-function etatTelephone(p: Parameters<typeof entreeDepuisPublication>[0] & { etatEnvoi?: string }): string {
-  const base = entreeDepuisPublication(p).etat;
-  if (p.via === "simulation") return base;
-  if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent" || p.statut === "echec") return "a_corriger";
-  if (p.etatEnvoi === "a-verifier") return "a_verifier";
-  if (p.etatEnvoi === "en-cours") return "en_cours";
-  if (p.via === "buffer" && p.statut === "brouillon") return "brouillon_buffer";
-  return base;
 }
 
 /** « + Ajouter » mène à la journée d'aujourd'hui, en attendant le formulaire d'ajout (CAL-26b). */
@@ -123,12 +111,13 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
     return { cle: e.cle, etat: e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
   });
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
+  // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
   const entreesSemaine = semaine.map(entreeDepuisPublication);
   // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
   const criteres: CriteresFiltre = { reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs, types: [], etats: [] };
   const visibles = filtrerEntrees(entreesSemaine, criteres);
   // Sur téléphone, les états disent ce que disait l'ancienne ligne (envoi refusé, à vérifier…).
-  const entreesAgenda = semaine.map((p) => ({ ...entreeDepuisPublication(p), etat: etatTelephone(p) }));
+  const entreesAgenda = entreesSemaine;
   // Les essais (rien n'a été envoyé) ne comptent pas comme des publications, ni pour le bandeau, ni pour l'alerte.
   const visiblesReelles = visibles.filter((e) => e.etat !== "essai");
   const total = visiblesReelles.length;
@@ -231,7 +220,7 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs }: { plage: R
   const essais = toutes.filter((p) => p.via === "simulation").length;
   // Une entrée par publication réelle, rangée sous la clé du jour déjà calculée (jour de Paris) ; les essais restent à part.
   const entrees: EntreeCarte[] = plage.jours.flatMap((j) =>
-    (parJour.get(j) ?? []).filter((p) => p.via !== "simulation").map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatDepuisStatut(p.statut) ?? ("inconnu" as const) })),
+    (parJour.get(j) ?? []).filter((p) => p.via !== "simulation").map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatAffiche(p) })),
   );
   const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}${suite}`;
   return (
