@@ -11,6 +11,7 @@ vi.stubGlobal("fetch", envoi.fetch);
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { reinitialiserGardePourEssai } = await import("@/usine/garde-porte");
+const { decaler } = await import("@/services/plan-editorial");
 const { POST } = await import("@/app/api/usine/programmations/route");
 
 const SECRET = "s".repeat(24) + "SECRET-ESSAI-porte-1234567";
@@ -66,28 +67,63 @@ describe("critère 1 : une programmation crée une entrée « usine » à valide
   });
 });
 
-describe("critère 2 : la date du fondateur n'est pas écrasée", () => {
-  async function entreeDuFondateur(extra: Record<string, unknown> = {}) {
+describe("critère 2 : la date du fondateur n'est jamais écrasée (pas de révision)", () => {
+  it("refuse entreeId (400 champ_invalide) : une entrée du fondateur garde sa date, rien n'est créé", async () => {
     await depots().creneauxEditoriaux.enregistrer({
       id: "entree-fondateur-1", jourVise: "2026-12-20", heuresParReseau: { linkedin: "2026-12-20T09:00:00.000Z" }, compteCible: "compte-fictif-1",
-      videoId: "v-fictive", statut: "a_valider", decalages: 0, origine: "vous", ...extra,
+      videoId: "v-fictive", statut: "a_valider", decalages: 0, origine: "vous",
     });
-  }
-  it("une entrée choisie par le fondateur garde sa date", async () => {
-    await entreeDuFondateur();
     const r = await POST(appel(programmation({ entreeId: "entree-fondateur-1" })));
-    expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ etat: "date_du_fondateur_conservee", deja: true });
+    expect(r.status).toBe(400);
+    expect((await r.json()).code).toBe("champ_invalide");
     const l = await creneaux();
     expect(l).toHaveLength(1);
     expect(l[0]).toMatchObject({ jourVise: "2026-12-20", origine: "vous", heuresParReseau: { linkedin: "2026-12-20T09:00:00.000Z" } });
   });
-  it("une entrée sans origine (d'avant) est celle du fondateur : protégée aussi", async () => {
-    await entreeDuFondateur({ origine: undefined });
-    await POST(appel(programmation({ entreeId: "entree-fondateur-1" })));
+  it("entreeId visant une entrée usine : refusé aussi, la date n'est pas révisée", async () => {
+    await POST(appel(programmation()));
+    const r = await POST(appel(programmation({ cle: "prog-essai-0002", jour: "2026-12-11", instant: "2026-12-11T08:30:00.000Z", entreeId: "prog-prog-essai-0001" })));
+    expect(r.status).toBe(400);
     const l = await creneaux();
     expect(l).toHaveLength(1);
-    expect(l[0].jourVise).toBe("2026-12-20");
+    expect(l[0]).toMatchObject({ jourVise: "2026-12-10", heuresParReseau: { linkedin: "2026-12-10T08:30:00.000Z" } });
+  });
+  it("après un décalage du fondateur sur une entrée d'origine usine, un rejeu de la même clé (même avec une autre date) ne touche pas la date", async () => {
+    await POST(appel(programmation()));
+    const decale = await decaler(
+      { creneaux: depots().creneauxEditoriaux, journal: depots().journalDecalages },
+      "prog-prog-essai-0001", { nouveauJour: "2026-12-15", raison: "choix du fondateur", cle: "decalage-essai-1" }, "2026-12-02T10:00:00.000Z",
+    );
+    expect(decale.jourVise).toBe("2026-12-15");
+    expect(decale.decalages).toBe(1);
+    const avant = (await creneaux())[0];
+    const r = await POST(appel(programmation({ jour: "2026-12-11", instant: "2026-12-11T08:30:00.000Z" })));
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ etat: "recue", deja: true });
+    const l = await creneaux();
+    expect(l).toHaveLength(1);
+    expect(l[0]).toEqual(avant);
+    expect(l[0].jourVise).toBe("2026-12-15");
+    expect(l[0].decalages).toBe(1);
+  });
+});
+
+describe("« Tout arrêter »", () => {
+  it("USINE_TOUT_ARRETER actif : 423 tout_arrete, rien n'est écrit (même avec une clé déjà connue)", async () => {
+    vi.stubEnv("USINE_TOUT_ARRETER", "1");
+    const r = await POST(appel(programmation()));
+    expect(r.status).toBe(423);
+    expect((await r.json()).code).toBe("tout_arrete");
+    expect(await creneaux()).toHaveLength(0);
+    vi.stubEnv("USINE_TOUT_ARRETER", "");
+    expect((await POST(appel(programmation()))).status).toBe(201);
+    vi.stubEnv("USINE_TOUT_ARRETER", "1");
+    expect((await POST(appel(programmation({ jour: "2026-12-12", instant: "2026-12-12T08:30:00.000Z" })))).status).toBe(423);
+    expect((await creneaux())[0].jourVise).toBe("2026-12-10");
+  });
+  it("éteint (vide, 0, false, non) : la programmation passe", async () => {
+    vi.stubEnv("USINE_TOUT_ARRETER", "0");
+    expect((await POST(appel(programmation()))).status).toBe(201);
   });
 });
 
@@ -100,12 +136,22 @@ describe("critère 3 : jamais de statut venant de l'usine, jeton exigé, rejeu s
     }
     expect(await creneaux()).toHaveLength(0);
   });
-  it("un rejeu de la même clé ne crée aucun doublon", async () => {
+  it("un rejeu de la même clé ne crée aucun doublon (même 3 fois, même avec un corps différent)", async () => {
     await POST(appel(programmation()));
     const r = await POST(appel(programmation()));
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ etat: "recue", deja: true });
-    expect(await creneaux()).toHaveLength(1);
+    await POST(appel(programmation({ jour: "2026-12-11", instant: "2026-12-11T08:30:00.000Z" })));
+    const l = await creneaux();
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatchObject({ statut: "a_valider", jourVise: "2026-12-10" });
+  });
+  it("un rejeu termine une création restée à « propose » (panne entre les deux écritures)", async () => {
+    await POST(appel(programmation()));
+    const [c] = await creneaux();
+    await depots().creneauxEditoriaux.enregistrer({ ...c, statut: "propose" });
+    await POST(appel(programmation()));
+    expect((await creneaux())[0].statut).toBe("a_valider");
   });
   it("un rejeu ne ramène pas en arrière une entrée que le fondateur a déjà décalée ou validée", async () => {
     await POST(appel(programmation()));
@@ -121,16 +167,5 @@ describe("critère 3 : jamais de statut venant de l'usine, jeton exigé, rejeu s
     expect((await POST(appel(programmation({ videoId: "v", visuelId: "i" })))).status).toBe(400);
     expect((await POST(appel(programmation({ surprise: 1 })))).status).toBe(400);
     expect(await creneaux()).toHaveLength(0);
-  });
-});
-
-describe("révision d'une date posée par l'usine", () => {
-  it("une entrée d'origine usine encore à valider reçoit la nouvelle date par défaut, sans changer de statut", async () => {
-    await POST(appel(programmation()));
-    const r = await POST(appel(programmation({ cle: "prog-essai-0002", jour: "2026-12-11", instant: "2026-12-11T08:30:00.000Z", entreeId: "prog-prog-essai-0001" })));
-    expect(r.status).toBe(200);
-    const l = await creneaux();
-    expect(l).toHaveLength(1);
-    expect(l[0]).toMatchObject({ statut: "a_valider", origine: "usine", jourVise: "2026-12-11" });
   });
 });

@@ -10,6 +10,7 @@ import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
  * « a_valider » ; rien ne part chez le diffuseur (aucun envoi). La date choisie par le fondateur l'emporte. L'usine
  * n'écrit jamais de statut : tout champ de statut (ou de validation) est refusé par `garderPorte` (400 `champ_invalide`).
  * Le jeton est vérifié par `garderPorte`. Rejeu : la même clé ne crée jamais une seconde entrée.
+ * Pas de révision : un champ `entreeId` est refusé (400 `champ_invalide`, champ inconnu) ; « Tout arrêter » actif : 423, rien n'est écrit.
  */
 export const dynamic = "force-dynamic";
 
@@ -19,12 +20,23 @@ const CLE_VALIDE = /^[A-Za-z0-9._:-]{8,100}$/;
 const INSTANT_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/;
 const NOM_COURT = /^[A-Za-z0-9._:-]{1,100}$/;
 
+/** Même règle que l'appel 1 (commandes) : vide, 0, false ou non : éteint ; toute autre valeur : actif (dans le doute, on arrête). */
+function toutArreterActif(): boolean {
+  const v = (process.env.USINE_TOUT_ARRETER ?? "").trim().toLowerCase();
+  return !["", "0", "false", "non"].includes(v);
+}
+
 export async function POST(requete: NextRequest) {
-  const porte = await garderPorte(requete, { route: ROUTE, champs: ["cle", "reseau", "jour", "instant", "compteCible", "videoId", "visuelId", "repere", "entreeId"] });
+  const porte = await garderPorte(requete, { route: ROUTE, champs: ["cle", "reseau", "jour", "instant", "compteCible", "videoId", "visuelId", "repere"] });
   if (!porte.ok) return porte.reponse;
   let statut = 200;
   try {
-    const { cle, reseau, jour, instant, compteCible, videoId, visuelId, repere, entreeId } = porte.corps;
+    // « Tout arrêter » passe avant tout : rien n'est lu ni écrit.
+    if (toutArreterActif()) {
+      statut = 423;
+      return reponseErreur(423, "Tout est arrêté : la programmation est refusée.", "tout_arrete");
+    }
+    const { cle, reseau, jour, instant, compteCible, videoId, visuelId, repere } = porte.corps;
     const refus = (message: string) => {
       statut = 400;
       return reponseErreur(400, `Champ invalide : ${message}`, "champ_invalide");
@@ -34,13 +46,13 @@ export async function POST(requete: NextRequest) {
     if (typeof jour !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(jour) || new Date(`${jour}T00:00:00Z`).toISOString().slice(0, 10) !== jour) return refus("jour doit être AAAA-MM-JJ.");
     if (typeof instant !== "string" || !INSTANT_UTC.test(instant) || Number.isNaN(Date.parse(instant))) return refus("instant doit être un instant ISO en UTC.");
     if (typeof compteCible !== "string" || !NOM_COURT.test(compteCible)) return refus("compteCible.");
-    for (const [nom, v] of [["videoId", videoId], ["visuelId", visuelId], ["repere", repere], ["entreeId", entreeId]] as const) if (v !== undefined && (typeof v !== "string" || !NOM_COURT.test(v))) return refus(`${nom}.`);
+    for (const [nom, v] of [["videoId", videoId], ["visuelId", visuelId], ["repere", repere]] as const) if (v !== undefined && (typeof v !== "string" || !NOM_COURT.test(v))) return refus(`${nom}.`);
     if (videoId !== undefined && visuelId !== undefined) return refus("une vidéo ou un visuel, pas les deux.");
 
     const d = depots();
     const r = await recevoirProgrammation(
       { creneaux: d.creneauxEditoriaux, journal: d.journalDecalages },
-      { cle, reseau: reseau as IdReseau, jour, instant, compteCible, videoId: videoId as string | undefined, visuelId: visuelId as string | undefined, repere: repere as string | undefined, entreeId: entreeId as string | undefined },
+      { cle, reseau: reseau as IdReseau, jour, instant, compteCible, videoId: videoId as string | undefined, visuelId: visuelId as string | undefined, repere: repere as string | undefined },
       new Date().toISOString(),
     );
     statut = r.etat === "recue" && !r.deja ? 201 : 200;
