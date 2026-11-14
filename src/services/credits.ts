@@ -60,6 +60,7 @@ import { depots, ecrireParametre, ErreurStudio, fournisseurSimule, horodatage, j
 import { exigerSession } from "./auth";
 import { ajusterEngagement, engagerBudget, libererEngagement, moisParis, reactiverEngagement, resumeBudget } from "./couts";
 import { creerNotification } from "./notifications";
+import { alerterPlafondUsine, dansVerrouCredits, inscrireAccordUsine, jugerSousPlafondUsine, lireAutonomieUsine, normaliserOrigine } from "./autonomie-usine";
 import { choisirSourceClaude, lireReglageSourcesClaude, remettreEnService } from "./source-claude";
 import { controlerBudgetDuMois, type OrigineLancement } from "./budget-mensuel";
 import { formateurNombre } from "@/lib/intl";
@@ -319,8 +320,11 @@ export async function verifierBudgetEtCredits(
   estimation: Pick<Estimation, "lignes" | "total">,
   accord: AccordPrix,
   quoi: string,
-  options: { doubleDejaConfirme?: boolean; origine?: OrigineLancement; travailId?: Id; automatique?: boolean; videoId?: Id } = {},
+  options: { doubleDejaConfirme?: boolean; origine?: unknown; travailId?: Id; automatique?: boolean; videoId?: Id; cleUsine?: string } = {},
 ): Promise<void> {
+  // AUT-C : origine normalisée (absente ou « studio » : Studio, inchangé ; toute autre valeur : Usine, échec fermé).
+  const usine = normaliserOrigine(options.origine) === "usine";
+  const origine: OrigineLancement | undefined = usine ? "usine" : (options.origine as OrigineLancement | undefined);
   // Lot R2 : une ligne `facultative` (textes des réseaux) ne bloque jamais ; elle reste engagée (verifierEtReserver).
   // L1-09 : au centime supérieur (pire cas, aucune fraction dans la somme du mois).
   const bloquant = Math.ceil(centimesBloquants(estimation));
@@ -332,16 +336,31 @@ export async function verifierBudgetEtCredits(
   const ancienneRegleRefusait =
     (bloquant > seuilPrix && !accordCouvre(accordRecu, bloquant, seuilPrix)) ||
     (partDoubleReel(estimation.lignes) !== null && !accordCouvre(accordRecu, typeof accordRecu === "number" ? bloquant : 0, seuilPrix) && !options.doubleDejaConfirme);
-  const confirme = await accordAutomatique(accordRecu, bloquant, { origine: options.origine, videoId: options.videoId, signaler: ancienneRegleRefusait });
+  let confirme = await accordAutomatique(accordRecu, bloquant, { origine, videoId: options.videoId, signaler: ancienneRegleRefusait });
+  // AUT-C (plan § 2.4 étapes 1-3) : Usine ET autonomie allumée : jugement contre le plafond du mois (lecture seule), AVANT tout le reste.
+  // Montant illisible (NaN) : on laisse `controlerBudgetDuMois` répondre `BUDGET_ILLISIBLE`, avant tout jugement.
+  const sousPlafond = usine && Number.isFinite(bloquant) && (await lireAutonomieUsine()).etat === "active";
+  const cleUsine = options.cleUsine ?? options.travailId;
+  if (sousPlafond) {
+    const j = await jugerSousPlafondUsine({ cle: cleUsine, besoin: bloquant });
+    if (!j.ok) {
+      const eur = (c: number) => formaterMontant({ centimes: c, devise: "EUR" });
+      await journaliser("budget", `Refus de l'Usine (plafond du mois) : ${quoi} — utilisé ${eur(j.utilise)} sur ${eur(j.plafond)} ce mois, demandé ${eur(bloquant)}.`, cleUsine ? { type: "travail", id: cleUsine } : undefined);
+      await alerterPlafondUsine({ refus: true, apres: j.apres, plafond: j.plafond, mois: j.mois });
+      throw new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond du mois de l'Usine atteint : cette commande le dépasserait, rien n'est parti. Relevez le plafond dans Réglages.");
+    }
+    // L'accord automatique couvre le seuil de confirmation ET le double réel (R7) : il vaut le montant bloquant, au moins.
+    confirme = Math.max(bloquant, typeof accordRecu === "number" ? accordRecu : 0);
+  }
   // L1-09 : plafond du mois (réglé dans le studio), puis budget de l'Usine pour une commande de l'Usine ; illisible → refus.
-  await controlerBudgetDuMois(bloquant, { origine: options.origine, travailId: options.travailId });
+  await controlerBudgetDuMois(bloquant, { origine, travailId: options.travailId, ...(sousPlafond ? { sousPlafondUsine: true } : {}) });
   const budget = await resumeBudget();
   // Relecture paquet 4 (D2) : la confirmation porte le MONTANT (centimes d'euro), à l'écran et au retour. Un montant
   // confirmé plus bas que le prix du jour est refusé : Will revoit le nouveau prix.
   // Mode indicatif (commande de l'utilisateur) : `confirme` vaut déjà le prix du jour (accordAutomatique), la confirmation au-dessus
   // du seuil ne refuse donc plus, que le lancement soit automatique ou fait à la main. `seuilIndicatif` ne fait que dispenser
   // un lancement AUTOMATIQUE d'une commande qui garderait un accord insuffisant. Mode bloquant et Usine : confirmation exigée.
-  const seuilIndicatif = options.automatique === true && options.origine !== "usine" && (await budgetIndicatif());
+  const seuilIndicatif = options.automatique === true && origine !== "usine" && (await budgetIndicatif());
   if (!seuilIndicatif && bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
     const message = typeof confirme === "number" ? "Le prix a changé : confirmez pour continuer." : `${quoi} coûte plus que d'habitude : confirmez pour continuer.`;
     throw new ErreurStudio("CONFIRMATION_REQUISE", message, bloquant);
@@ -352,8 +371,10 @@ export async function verifierBudgetEtCredits(
   if (double && !accordCouvre(confirme, typeof confirme === "number" ? bloquant : 0, budget.seuilConfirmation.centimes) && !options.doubleDejaConfirme) {
     throw new ErreurStudio("CONFIRMATION_REQUISE", phraseAvatarParle(double), bloquant);
   }
-  await controlerCredits(lignesBloquantes(estimation.lignes), quoi, options.origine);
-
+  await controlerCredits(lignesBloquantes(estimation.lignes), quoi, origine);
+  // AUT-C (étape 6) : l'accord ne s'inscrit qu'EN DERNIER (un refus au-dessus ne consomme rien) et seulement si la clé est connue.
+  // Sans clé (pré-vol hors verrou) : décision seule, aucune écriture ; la réservation se fait au vrai lancement, sous verrou.
+  if (sousPlafond && cleUsine) await inscrireAccordUsine({ cle: cleUsine, besoin: bloquant, quoi, ...(options.videoId ? { videoId: options.videoId } : {}) });
 }
 
 /** Solde disponible (solde − réservations actives) de chaque fournisseur des lignes, comparé à l'estimation + 20 %. */
@@ -393,7 +414,8 @@ type AvecVerrouCredits = typeof globalThis & { [cleVerrouCredits]?: Promise<unkn
 async function sousVerrouCredits<T>(f: () => Promise<T>): Promise<T> {
   const g = globalThis as AvecVerrouCredits;
   const avant = g[cleVerrouCredits] ?? Promise.resolve();
-  const suite = avant.catch(() => undefined).then(() => sousVerrouCreditsPartage(f));
+  // AUT-C : le marqueur `dansVerrouCredits` n'est posé qu'ICI, une fois la file du processus ET le verrou Postgres tenus.
+  const suite = avant.catch(() => undefined).then(() => sousVerrouCreditsPartage(() => dansVerrouCredits(f)));
   g[cleVerrouCredits] = suite.catch(() => undefined);
   return suite;
 }
@@ -444,7 +466,7 @@ export async function reserverLot(lotId: string, lignes: LigneCout[], total: { c
     const d = depots();
     if (!options.reprise && (await d.reservations.trouver((r) => r.travailId === travailId))) return;
     // L3-01 : l'origine du lot (absente : Will dans le studio) ; « usine » exige le budget du mois de l'Usine.
-    await verifierBudgetEtCredits({ lignes, total }, accord, "Ce lot", { origine: options.origine });
+    await verifierBudgetEtCredits({ lignes, total }, accord, "Ce lot", { origine: options.origine, cleUsine: travailId });
     if (options.reprise) {
       for (const b of await besoinsDeLEstimation(lignesBloquantes(lignes))) {
         const existante = await d.reservations.trouver((r) => r.travailId === travailId && r.fournisseur === b.fournisseur);
