@@ -5,7 +5,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { TEXTES_MP } from "@/domaine/guide-reseau/textes-mp";
 import type { RequeteSignee } from "@/fournisseurs/site/types";
 import fixture from "./aides/confirmations-page-guide.v1.json";
 import { COMPTE, ENV, T0, TITRE, cleConversation, fauxPort, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
