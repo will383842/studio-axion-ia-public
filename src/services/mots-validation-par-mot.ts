@@ -198,7 +198,13 @@ export async function motValidePour(o: {
       env: o.env,
       maintenantMs: o.maintenantMs,
     });
-    return c.ok && !c.test && c.type === "guide" && c.code === o.codeCible;
+    return (
+      c.ok &&
+      !c.test &&
+      c.type === "guide" &&
+      c.code === o.codeCible &&
+      c.titre === o.titre
+    );
   } catch {
     return false;
   }
