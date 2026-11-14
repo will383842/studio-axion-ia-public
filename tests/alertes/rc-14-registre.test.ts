@@ -100,6 +100,35 @@ describe("RC-14 : trous du calendrier J+7 et J+2", () => {
   });
 });
 
+describe("RC-14 : date illisible dans le calendrier", () => {
+  const illisible = { jour: "13/11/2026", aVisuel: false as boolean | null };
+  it("visuel manquant : date illisible + entrées valides avec visuel : non évalué (jamais ok)", () => {
+    const s = saines();
+    s.calendrier = [illisible, ...s.calendrier!];
+    expect(niveau(s, "visuel-manquant")).toBe("non-evalue");
+  });
+  it("visuel manquant : date illisible + une entrée certaine sans visuel : alerte", () => {
+    const s = saines();
+    s.calendrier = [illisible, { jour: jourPlus(3), aVisuel: false }, ...s.calendrier!];
+    expect(niveau(s, "visuel-manquant")).toBe("alerte");
+  });
+  it("visuel manquant : toutes les dates valides avec visuel : ok", () => {
+    expect(niveau(saines(), "visuel-manquant")).toBe("ok");
+  });
+  it("trous J+7 / J+2 : date illisible : non évalué (jamais ok)", () => {
+    const s = saines();
+    s.calendrier = [illisible, ...s.calendrier!];
+    expect(niveau(s, "trou-j7")).toBe("non-evalue");
+    expect(niveau(s, "trou-j2")).toBe("non-evalue");
+  });
+  it("trous : un jour vide certain sans date illisible reste une alerte ; tout rempli reste ok", () => {
+    const s = saines();
+    s.calendrier = s.calendrier!.filter((e) => e.jour !== jourPlus(7));
+    expect(niveau(s, "trou-j7")).toBe("alerte");
+    expect(niveau(saines(), "trou-j7")).toBe("ok");
+  });
+});
+
 describe("RC-14 : visuel manquant", () => {
   it("visuel présent partout : ok", () => expect(niveau(saines(), "visuel-manquant")).toBe("ok"));
   it("une publication des 7 prochains jours sans visuel : alerte", () => {
