@@ -135,7 +135,7 @@ describe("À publier — le détail et le retour à la liste", () => {
     const h = renderToStaticMarkup(createElement(LignesAPublier, { vue: vue([ligne("v-1", "instagram"), ligne("v-1", "facebook")]), retour: "/a-publier?filtre=envoyees" }));
     expect(h).toContain("<video");
     expect(texte(h)).toContain("J'ai regardé la vidéo, tout est en règle");
-    expect(texte(h).match(/Mettre en brouillon dans Buffer/g)?.length).toBe(2);
+    expect(texte(h).match(/Mettre en brouillon dans Zernio/g)?.length).toBe(2);
     expect(h).not.toMatch(/<details[^>]*\bopen\b/);
   });
 
