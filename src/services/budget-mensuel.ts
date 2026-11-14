@@ -217,8 +217,10 @@ async function alerterUneFoisParJour(motif: string, texte: { titre: string; mess
  * Commande de l'Usine : REFUSÉE dès qu'il manque une borne (jamais « passe ») : un montant reçu de l'Usine, un plafond du
  * studio, ou un quota réellement appliqué (couple réseau/type gardé sur le chemin de fabrication) la borne. `reseau` et `type`
  * (facultatifs) désignent le couple de la commande : un quota qui le couvre est appliqué ici (une unité par travail).
+ * AUT-C `sousPlafondUsine` : l'Usine est en automatique sous le plafond du fondateur (`usine.autonomie`) : ce plafond est la borne,
+ * donc `BUDGET_USINE_ABSENT` et `BUDGET_USINE_SANS_BORNE` sautent ; le plafond du Studio, le budget et les quotas de l'Usine restent opposés.
  */
-export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id; reseau?: string; type?: string } = {}): Promise<void> {
+export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id; reseau?: string; type?: string; sousPlafondUsine?: boolean } = {}): Promise<void> {
   // Mode indicatif (commande du fondateur seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
   const indicatif = await budgetIndicatifPour(options.origine);
   let plafond: number | null;
@@ -245,11 +247,14 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
   }
   if (options.origine !== "usine") return;
   const usine = await lireBudgetUsine();
-  if (!usine) {
+  // AUT-C : sous le plafond autonomie du fondateur (`sousPlafondUsine`), le plafond EST la borne : `BUDGET_USINE_ABSENT` et
+  // `BUDGET_USINE_SANS_BORNE` ne refusent plus. Le plafond du Studio, le budget et les quotas que l'Usine s'est donnés restent opposés.
+  const sousPlafond = options.sousPlafondUsine === true;
+  if (!usine && !sousPlafond) {
     await alerterRefus("usine-absent");
     throw new ErreurStudio("BUDGET_USINE_ABSENT", "Aucun budget du mois reçu de l'Usine : rien ne part.");
   }
-  if (usine.budget_mensuel_cents !== null && utilise + besoin > usine.budget_mensuel_cents) {
+  if (usine && usine.budget_mensuel_cents !== null && utilise + besoin > usine.budget_mensuel_cents) {
     await alerterRefus("usine-atteint");
     throw new ErreurStudio("BUDGET_MENSUEL_ATTEINT", "Le budget du mois réglé dans l'Usine serait dépassé : rien ne part.");
   }
@@ -259,8 +264,8 @@ export async function controlerBudgetDuMois(besoinCentimes: number, options: { o
   const couvert = (r: string, t: string) => quotas.some((q) => q.reseau === r && q.type === t);
   // Un quota ne borne que s'il est réellement appliqué : couple de la commande CONNU et couvert. Couple inconnu ou quota absent :
   // aucune borne (jamais « passe » par défaut pour l'origine usine) ; les quotas par défaut ne valent pas borne.
-  const borne = usine.budget_mensuel_cents !== null || plafond !== null || (couple && couvert(reseau, type));
-  if (!borne) {
+  const borne = (usine !== null && usine.budget_mensuel_cents !== null) || plafond !== null || (couple && couvert(reseau, type));
+  if (!borne && !sousPlafond) {
     await alerterRefus("usine-sans-borne");
     throw new ErreurStudio("BUDGET_USINE_SANS_BORNE", "Aucune limite ne s'applique à cette commande de l'Usine : rien ne part.");
   }

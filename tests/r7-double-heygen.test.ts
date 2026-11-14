@@ -387,23 +387,54 @@ describe("rendu du double réel dans le moteur avocat (code conservé, autorisé
 describe("garde-fous de dépense du double réel", () => {
   const ligne = (etape: string, fournisseur: string, c: number) => ({ etape, fournisseur, unite: "seconde" as const, quantite: 1, prixUnitaire: { centimes: c, devise: "EUR" as const }, total: { centimes: c, devise: "EUR" as const }, nature: "estime" as const });
 
-  it("double réel : studio = prix du jour vaut accord (journalisé) ; Usine = confirmation TOUJOURS exigée", async () => {
+  const estimationDouble = () => ({ lignes: [ligne("Double, angle principal", "heygen", 150)], total: { centimes: 150, devise: "EUR" as const } });
+  const allumerAutonomie = (plafondCents: number) => ecrireParametre("usine.autonomie", { actif: true, plafondCents, le: new Date().toISOString(), version: 1 });
+
+  it("double réel : studio = prix du jour vaut accord (journalisé) ; Usine, interrupteur ÉTEINT = confirmation TOUJOURS exigée (inchangé)", async () => {
     const { verifierBudgetEtCredits } = await import("@/services/credits");
     const { partDoubleReel } = await import("@/moteurs/montage-avocat/double");
-    const estimation = { lignes: [ligne("Double, angle principal", "heygen", 150)], total: { centimes: 150, devise: "EUR" as const } };
+    const estimation = estimationDouble();
     expect(partDoubleReel(estimation.lignes)).toEqual({ centimes: 150, devise: "EUR" });
     // Studio (décision du fondateur, 08/11) : le prix du jour vaut accord, mais la dépense est tracée.
     await expect(verifierBudgetEtCredits(estimation, undefined, "Cette vidéo")).resolves.toBeUndefined();
     expect(JSON.stringify(await depots().evenements.lister())).toMatch(/accepté sans confirmation/);
-    // Usine : la garde R7 tient, quel que soit le seuil.
+    // Usine, autonomie éteinte (par défaut) : la garde R7 tient, quel que soit le seuil.
     const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
     const { moisParis } = await import("@/services/couts");
     await reglerBudgetUsine({ budget_mensuel_cents: 1_000, mois: moisParis() });
     await expect(verifierBudgetEtCredits(estimation, undefined, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: "Votre avatar parle dans cette vidéo : environ 1,50\u00a0€, à confirmer." });
     await expect(verifierBudgetEtCredits(estimation, false, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    // Interrupteur explicitement éteint ou plafond à 0 : même refus.
+    await ecrireParametre("usine.autonomie", { actif: false, plafondCents: 1_000, le: new Date().toISOString(), version: 1 });
+    await expect(verifierBudgetEtCredits(estimation, undefined, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
     // Le double d'essai (simulation) ne demande rien de plus.
     expect(partDoubleReel([ligne("Double, angle principal", "simulation", 150)])).toBeNull();
     await expect(verifierBudgetEtCredits({ lignes: [ligne("Double, angle principal", "simulation", 150)], total: { centimes: 150, devise: "EUR" } }, undefined, "Cette vidéo")).resolves.toBeUndefined();
+    expect(heygen.requetes.filter((r) => r.methode === "POST")).toEqual([]);
+  });
+
+  it("double réel, Usine, autonomie ALLUMÉE, plafond 10 € : double à 1,50 € accordé sans confirmation, journalisé, registre inscrit", async () => {
+    const { reserverPourUsine } = await import("@/services/credits");
+    const { moisParis } = await import("@/services/couts");
+    await allumerAutonomie(1_000);
+    await expect(reserverPourUsine(estimationDouble(), undefined, "Cette vidéo", { travailId: "trv-r7-auto" })).resolves.toBeUndefined();
+    const accord = await depots().parametres.obtenir("usine.autonomie.accord.trv-r7-auto");
+    expect(JSON.stringify(accord)).toMatch(/"centimes":150/);
+    expect(JSON.stringify(await depots().parametres.obtenir(`usine.autonomie.index.${moisParis()}`))).toMatch(/trv-r7-auto/);
+    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/Accord automatique de l'Usine/);
+    expect(heygen.requetes.filter((r) => r.methode === "POST")).toEqual([]);
+  });
+
+  it("double réel, Usine, autonomie ALLUMÉE, plafond 1 € : USINE_PLAFOND_ATTEINT, aucune réservation, aucun POST HeyGen", async () => {
+    const { reserverPourUsine } = await import("@/services/credits");
+    const { moisParis } = await import("@/services/couts");
+    await allumerAutonomie(100);
+    const avant = await depots().reservations.compter();
+    await expect(reserverPourUsine(estimationDouble(), undefined, "Cette vidéo", { travailId: "trv-r7-plafond" })).rejects.toMatchObject({ code: "USINE_PLAFOND_ATTEINT" });
+    expect(await depots().reservations.compter()).toBe(avant);
+    expect(await depots().parametres.obtenir("budget.engage.trv-r7-plafond")).toBeFalsy();
+    expect(await depots().parametres.obtenir("usine.autonomie.accord.trv-r7-plafond")).toBeFalsy();
+    expect(await depots().parametres.obtenir(`usine.autonomie.index.${moisParis()}`)).toBeFalsy();
     expect(heygen.requetes.filter((r) => r.methode === "POST")).toEqual([]);
   });
 

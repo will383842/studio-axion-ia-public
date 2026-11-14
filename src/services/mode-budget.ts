@@ -30,7 +30,10 @@ export async function modeBudget(): Promise<ModeBudget> {
   return "indicatif";
 }
 
-/** Indicatif pour CETTE commande : jamais pour une commande de l'Usine (elle reste bloquante). */
+/**
+ * Indicatif pour CETTE commande : jamais pour une commande de l'Usine. L'Usine : accord automatique sous plafond si `usine.autonomie`
+ * est allumée (AUT-C, `verifierBudgetEtCredits`) ; sinon bloquante (mode confirmation). Cette fonction ne change pas : `false` pour l'Usine.
+ */
 export async function budgetIndicatifPour(origine?: string | null): Promise<boolean> {
   return origine !== "usine" && (await budgetIndicatif());
 }
