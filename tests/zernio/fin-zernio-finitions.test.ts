@@ -142,6 +142,8 @@ describe("FIN-ZERNIO 1 · bout en bout en simulation : Instagram présélectionn
   });
 
   it("Buffer inchangé : le canal présélectionné part tel quel, en brouillon, une seule création", async () => {
+    // Routage « buffer » explicite : ce test vise Buffer (le défaut est Zernio).
+    await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
     const buffer = fauxBuffer({});
     vi.stubGlobal("fetch", buffer.appeler);
     const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [CANAUX.instagram] } });
