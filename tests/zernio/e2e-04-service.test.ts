@@ -144,17 +144,22 @@ describe("e2e-4 · envoi Zernio en brouillon par le service", () => {
 
 /* ------------------------------------------------------------------ (3) anti-doublon entre outils */
 describe("e2e-4 · anti-doublon entre outils", () => {
-  it("L7-06-4-3 : un envoi « buffer » demandé par le client est refusé (OUTIL_REFUSE), Buffer n'est pas appelé", async () => {
+  it("déjà envoyé par Buffer : Zernio refuse (phrase claire), Zernio n'est pas appelé", async () => {
     const r1 = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(r1).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
-    expect(buffer.mutations()).toHaveLength(0);
+    expect(r1.ok).toBe(true);
+    expect(buffer.mutations().length).toBe(1);
+    const r2 = await envoyerZernio();
+    expect(r2.ok).toBe(false);
+    expect(JSON.stringify(r2)).toContain("Déjà envoyée par Buffer pour ce réseau.");
     expect(posts()).toHaveLength(0);
+    expect(buffer.mutations().length).toBe(1);
   });
 
   it("déjà envoyé par Zernio : Buffer refuse, aucune seconde mutation Buffer", async () => {
     expect((await envoyerZernio()).ok).toBe(true);
     const r2 = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(r2).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    expect(r2.ok).toBe(false);
+    expect(JSON.stringify(r2)).toContain("Déjà envoyée par Zernio pour ce réseau.");
     expect(buffer.mutations()).toHaveLength(0);
   });
 
@@ -167,11 +172,11 @@ describe("e2e-4 · anti-doublon entre outils", () => {
   });
 
   it("changer de date ne contourne pas le garde : toujours « déjà envoyée »", async () => {
-    expect(await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" })).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
     const autreDate = new Date(Date.parse(DEMAIN) + 24 * 3600_000).toISOString();
     const r = await envoyerParOutilAction(VIDEO, "instagram", autreDate, { outil: "zernio" });
-    expect(r.ok).toBe(true);
-    expect(posts()).toHaveLength(1);
+    expect(r.ok).toBe(false);
+    expect(posts()).toHaveLength(0);
   });
 
   it("réponse perdue (coupure réseau) puis relecture : post retrouvé par sa clé, jamais deux posts", async () => {
@@ -206,7 +211,7 @@ describe("e2e-4 · anti-doublon entre outils", () => {
     expect(posts().length).toBe(avant);
     // Buffer reste bloqué tant que l'envoi Zernio est « à vérifier ».
     const rb = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(rb).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    expect(rb.ok).toBe(false);
     expect(buffer.mutations()).toHaveLength(0);
   });
 });
@@ -237,11 +242,11 @@ describe("e2e-4 · « Tout arrêter »", () => {
     expect(appelsZernio.filter((a) => a.methode !== "GET")).toHaveLength(0);
   });
 
-  it("l'arrêt n'affecte pas le refus de Buffer : toujours OUTIL_REFUSE, aucune mutation Buffer", async () => {
+  it("l'arrêt n'affecte pas Buffer (réglage propre à Zernio) : Buffer reste utilisable", async () => {
     await actions.arreterToutAction();
     const r = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(r).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
-    expect(buffer.mutations()).toHaveLength(0);
+    expect(r.ok).toBe(true);
+    expect(buffer.mutations()).toHaveLength(1);
   });
 });
 
@@ -319,7 +324,7 @@ describe("e2e-4 · synchronisation : un post publié chez Zernio passe à « Pub
   });
 
   it("un post Buffer n'est jamais relu chez Zernio, un post Zernio déjà publié ne repasse pas en brouillon", async () => {
-    expect(await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" })).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
     const avant = appelsZernio.length;
     expect((await synchroniserEtatsZernio({ force: true, instant: Date.now() })).lues).toBe(0);
     // Seule la lecture des comptes (alertes jetons, STU-JETONS) est permise : aucune lecture de post.

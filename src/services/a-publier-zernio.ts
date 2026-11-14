@@ -14,7 +14,7 @@ import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
 import { journaliserEnvoi } from "./journal-envoi";
-import { lireRoutage } from "./routage-publication";
+import { lireRoutage, outilDeEnvoi } from "./routage-publication";
 import { envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { traduireSelectionVersZernio } from "./zernio-cibles";
 
@@ -86,6 +86,10 @@ export async function complementsAPublier(): Promise<Record<string, ComplementLi
   return sortie;
 }
 
+function refuserOutil(): Resultat<never> {
+  return { ok: false, message: "Cet outil n'est pas disponible pour cet envoi : rien n'est parti.", code: "OUTIL_REFUSE" };
+}
+
 export interface OptionsEnvoiParOutil {
   outil: OutilPublication;
   comptes?: string[];
@@ -96,17 +100,30 @@ export interface OptionsEnvoiParOutil {
 }
 
 /**
- * Envoi d'un réseau par l'outil choisi POUR CE CONTENU. Buffer : le chemin habituel. Zernio : mêmes gardes (session, vidéo
+ * Envoi d'un réseau par l'outil de CE CONTENU. Buffer : le chemin habituel, seulement si la configuration (serveur) route ce réseau
+ * chez Buffer ; sinon refus `OUTIL_REFUSE`. Zernio : mêmes gardes (session, vidéo
  * prête, ni exemple ni essai) puis `envoyerReel("zernio", …)` ; le serveur refuse TikTok sans accord et une date passée.
  */
 export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, dateIso: string, options: OptionsEnvoiParOutil): Promise<Resultat<{ nombre: number; problemes: string[] }>> {
   await exigerSession();
-  // L7-06-4-3 : un choix explicite « buffer » venu du client est refusé, sans aucun effet (rien lu, rien écrit, aucun appel, aucun journal).
-  if (options.outil === "buffer") return { ok: false, message: "Cet outil n'est plus disponible pour un envoi : rien n'est parti.", code: "OUTIL_REFUSE" };
+  // L7-06-4-3 : le client ne CHOISIT plus Buffer, le serveur route. Absent ou « zernio » : chemin Zernio. « buffer » : accepté
+  // seulement si la configuration lue ici (outilDeEnvoi) place ce réseau chez Buffer. Tout autre cas (casse, espaces, vide,
+  // null, valeur inconnue, configuration Zernio) : refus avant tout effet (rien écrit, aucun appel, aucun journal d'envoi).
+  const demande: unknown = options?.outil;
+  if (demande !== undefined && demande !== "zernio" && demande !== "buffer") return refuserOutil();
+  if (demande === "buffer") {
+    let configure: OutilPublication | undefined;
+    try {
+      configure = await outilDeEnvoi(reseau);
+    } catch {
+      configure = undefined;
+    }
+    if (configure !== "buffer") return refuserOutil();
+  }
   const nbChoisis = options.comptes?.length ?? 0;
   const journal = { action: "envoyerParOutilAction", outil: options.outil, reseau, contenuId: videoId };
   const r = await essayer(async () => {
-    if (options.outil === "buffer") {
+    if (demande === "buffer") {
       const r = await envoyerVersBuffer(videoId, [reseau], dateIso, { comptes: options.comptes ? { [reseau]: options.comptes } : {}, premiersCommentaires: { [reseau]: options.premierCommentaire ?? "" }, avecPremierCommentaire: true });
       return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
     }
@@ -134,7 +151,7 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
   });
   // Trace sans texte ni compte (voir journal-envoi.ts) : le code du refus, ou « OK » si quelque chose est parti.
-  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.nombre > 0 ? "OK" : "AUCUN_ENVOI", nbComptes: r.donnees.nombre, ...(options.outil === "zernio" ? { brouillon: true } : {}) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: nbChoisis });
+  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.nombre > 0 ? "OK" : "AUCUN_ENVOI", nbComptes: r.donnees.nombre, ...(demande === "zernio" ? { brouillon: true } : {}) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: nbChoisis });
   return r;
 }
 
