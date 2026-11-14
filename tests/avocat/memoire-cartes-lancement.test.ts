@@ -69,10 +69,38 @@ describe("memoireCartesAvocat", () => {
 describe("entreesAvocatDuLancement", () => {
   const ligne = { entrees: {} } as never;
 
-  it("réglage éteint : sortie vide et aucune lecture des versions", async () => {
+  const regler = (valeur: unknown) => depots().parametres.enregistrer({ id: PARAM_MOTION_AVOCAT, valeur, creeLe: "x", modifieLe: "x" } as never);
+
+  it("sans réglage : allumée par défaut (GV2-51), avec la mémoire quand elle existe", async () => {
+    expect(await entreesAvocatDuLancement(ligne)).toEqual({ avocatMotionCommune: { actif: true } });
+    await version("v1", "A", "2026-01-01T10:00:00Z", [c("9:16", 1, "liste")]);
+    expect(await entreesAvocatDuLancement(ligne)).toEqual({ avocatMotionCommune: { actif: true, dejaServis: ["liste"], ouverturePrecedente: "liste" } });
+  });
+
+  it("coupe-circuit : réglage `false` → sortie vide, aucune lecture des versions", async () => {
+    await regler(false);
     const lire = vi.spyOn(depots().versions, "lister");
     expect(await entreesAvocatDuLancement(ligne)).toEqual({});
     expect(lire).not.toHaveBeenCalled();
+  });
+
+  it("coupe-circuit : réglage `{ actif: false }` → sortie vide", async () => {
+    await regler({ actif: false });
+    expect(await entreesAvocatDuLancement(ligne)).toEqual({});
+  });
+
+  it("valeur étrange → allumée ; l'habitude est gardée", async () => {
+    await regler("n'importe quoi");
+    expect(await entreesAvocatDuLancement(ligne)).toEqual({ avocatMotionCommune: { actif: true } });
+    await regler({ habitude: ["sobre"] });
+    expect(await entreesAvocatDuLancement(ligne)).toEqual({ avocatMotionCommune: { actif: true, habitude: ["sobre"] } });
+  });
+
+  it("lecture du réglage en panne → allumée, mémoire vide", async () => {
+    const vrai = depots().parametres.obtenir.bind(depots().parametres);
+    vi.spyOn(depots().parametres, "obtenir").mockImplementation((id: string) => (id === PARAM_MOTION_AVOCAT ? Promise.reject(new Error("panne")) : vrai(id)));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await entreesAvocatDuLancement(ligne)).toEqual({ avocatMotionCommune: { actif: true } });
   });
 
   it("réglage allumé sans historique : comme avant (actif seul)", async () => {
