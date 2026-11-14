@@ -410,9 +410,15 @@ export type DimensionComparee = (typeof DIMENSIONS_COMPAREES)[number];
 export function valeurDimension(t: Tirage, d: DimensionComparee): string {
   switch (d) {
     case "miseEnPage":
-      return TYPES_MIS_EN_PAGE.map((x) => t.miseEnPage[x]).join(",");
+      // GV2-52 : une valeur de L2 n'est jamais dessinée (`jeuDeLEcran`) : elle compte comme « aucune ».
+      return TYPES_MIS_EN_PAGE.map((x) => {
+        const v = t.miseEnPage[x];
+        return v !== undefined && (MISES_EN_PAGE as readonly string[]).includes(v) ? "aucune" : v;
+      }).join(",");
     case "transitions":
-      return t.transitions.map((x) => `${x.moment}:${x.type}`).join(",");
+      // GV2-52 : « raccord-objet » n'est pas dessiné comme transition (c'est le raccord L6, `VARIANTES_RENDUES`) ; on ne sait pas
+      // ce qui le remplace à l'écran : il compte comme « non-rendue », égale à toute autre transition non dessinée.
+      return t.transitions.map((x) => `${x.moment}:${VARIANTES_RENDUES.transition!.includes(x.type) ? x.type : "non-rendue"}`).join(",");
     case "camera":
       return t.camera.style;
     default:

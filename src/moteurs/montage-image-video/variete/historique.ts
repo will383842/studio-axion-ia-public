@@ -3,7 +3,7 @@
  * PLUS RÉCENTE à la plus ancienne (le lot F la lit dans les travaux prêts). Une recette est acceptée si :
  *  1. son ouverture n'est celle d'aucune des 3 dernières vidéos ;
  *  2. sa combinaison ouverture + récit + caméra n'est celle d'aucune des 10 dernières ;
- *  3. sa ressemblance (poids du doc 72 § 6.1) est sous 60 % avec chacune des 10 dernières.
+ *  3. sa ressemblance (poids du doc 72 § 6.1) est sous 50 % avec chacune des 10 dernières.
  * Si rien ne passe, `meilleurRepliIV` prend la moins ressemblante : jamais de blocage.
  */
 import { REFERENCES, type AxeVariete, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
