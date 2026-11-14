@@ -76,7 +76,7 @@ describe("action reglerAutonomieUsineAction", () => {
     await auth.seConnecter(MDP, false);
     const r = await reglerAutonomieUsineAction(true, 0);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.message).toBe(TEXTES_AUTONOMIE_USINE.zeroAllume);
+    if (!r.ok) expect(r.message).toMatch(/Pour allumer l.Usine en automatique, indiquez un plafond du mois sup\u00e9rieur \u00e0 0/);
     expect(await reglage()).toBeNull();
   });
 

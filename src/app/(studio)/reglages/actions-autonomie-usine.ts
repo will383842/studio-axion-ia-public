@@ -15,7 +15,7 @@ export async function reglerAutonomieUsineAction(actif: boolean, plafondEuros: n
   return essayer(async () => {
     if (typeof actif !== "boolean") throw new ErreurStudio("CHAMP_INVALIDE", "L'interrupteur doit être allumé ou éteint.");
     if (typeof plafondEuros !== "number" || !Number.isFinite(plafondEuros) || plafondEuros < 0 || plafondEuros > 100_000) {
-      throw new ErreurStudio("CHAMP_INVALIDE", "Indiquez un plafond du mois entre 0 et 100 000 €.");
+      throw new ErreurStudio("CHAMP_INVALIDE", "Indiquez un plafond du mois compris entre zéro et cent mille euros.");
     }
     const plafondCents = Math.round(plafondEuros * 100);
     await reglerAutonomieUsine({ actif, plafondCents });
