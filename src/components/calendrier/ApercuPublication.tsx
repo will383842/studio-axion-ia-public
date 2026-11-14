@@ -14,11 +14,13 @@ import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
-import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
+import { PretAPartir } from "./PretAPartir";
+import type { CodeControle } from "@/services/pret-a-partir";
 import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
 import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
 import { TiroirAccessible } from "./TiroirAccessible";
@@ -40,6 +42,33 @@ export interface ProprietesApercuPublication {
   tonMessage?: "alerte" | "info";
   /** Mot-clé, guide et commentaires (RC-38), fournis par l'appelant ; montrés seulement sur Instagram et Facebook (CAL-04). */
   mots?: MotsPublication | null;
+}
+
+/** Geste du bouton « Copier » du tiroir : presse-papiers du navigateur, sans appel serveur ; sans presse-papiers, rien ne se passe. */
+function copierDansLePressePapiers(texte: string): void {
+  try {
+    void navigator.clipboard?.writeText(texte).catch(() => undefined);
+  } catch {
+    /* presse-papiers indisponible */
+  }
+}
+
+/**
+ * « Prêt à partir ? » d'une entrée, à partir de ce qu'elle porte déjà (réseau, texte, hashtags du texte, date, type, premier
+ * commentaire s'il est connu). Le fichier décrit et le mot ne sont pas dans ces données : « à vérifier à la main », jamais inventés.
+ */
+function pretAPartirDe(entree: EntreeApercu) {
+  // Heure illisible ou absente : pas d'instant (la ligne « Il manque la date et l'heure » reste), jamais « 00:00 » inventé.
+  const heure = heureLisible(entree.heure);
+  const instant = jourLisible(entree.jour) && heure ? `${entree.jour}T${heure}` : null;
+  const averifier: CodeControle[] = ["fichier"];
+  const commentaireConnu = typeof entree.premierCommentaire === "string" && entree.premierCommentaire.trim() !== "";
+  if (!commentaireConnu) averifier.push("premier-commentaire");
+  if (accepteReponseAutomatique(entree.reseau)) averifier.push("mot");
+  return {
+    averifier,
+    publications: [{ reseau: entree.reseau, texte: entree.texte, hashtags: extraireHashtags(entree.texte ?? ""), premierCommentaire: entree.premierCommentaire, instant, typeContenu: entree.type }],
+  };
 }
 
 const CHAMP_DE_SAISIE = new Set(["INPUT", "TEXTAREA", "SELECT"]);
@@ -152,6 +181,10 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
           </section>
         )
       )}
+
+      <div className="mt-3">
+        <PretAPartir {...pretAPartirDe(entree)} onCopier={copierDansLePressePapiers} />
+      </div>
 
       <div className="mt-3">
         <label htmlFor="apercu-date" className="text-sm font-bold text-texte">
