@@ -248,12 +248,19 @@ export function arrondiHautV4(finSec: number, dureePriseSec: number): number {
   return haut <= dureePriseSec + 1e-9 ? haut : Math.floor(dureePriseSec * GRILLE_V4 + 1e-6) / GRILLE_V4;
 }
 
-/** GV2-34 : prolonge (jamais ne raccourcit) la dernière garde jusqu'à 0,6 s après le dernier mot, dans la limite de la prise. PUR. */
-export function prolongerFinV4<G extends { finSec: number }>(gardes: readonly G[], mots: readonly MotHorodate[], dureePriseSec: number): G[] {
+/**
+ * GV2-34 : prolonge (jamais ne raccourcit) la dernière garde jusqu'à 0,6 s après le dernier mot DE CETTE GARDE, sans jamais
+ * atteindre un mot coupé qui suit (consigne au monteur, reprise : une image de marge avant lui) ni dépasser la prise. PUR.
+ */
+export function prolongerFinV4<G extends { debutSec: number; finSec: number }>(gardes: readonly G[], mots: readonly MotHorodate[], dureePriseSec: number): G[] {
   if (!gardes.length || !mots.length) return [...gardes];
-  const dernierMot = Math.max(...mots.map((m) => m.finSec));
   const derniere = gardes[gardes.length - 1];
-  const fin = Math.max(derniere.finSec, Math.min(dernierMot + MARGE_FIN_DOUCE_V4_SEC, dureePriseSec));
+  const milieu = (m: MotHorodate) => (m.debutSec + m.finSec) / 2;
+  const dedans = mots.filter((m) => milieu(m) >= derniere.debutSec && milieu(m) <= derniere.finSec);
+  if (!dedans.length) return [...gardes];
+  const dernierMot = Math.max(...dedans.map((m) => m.finSec));
+  const limite = Math.min(dureePriseSec, ...mots.filter((m) => milieu(m) > derniere.finSec).map((m) => m.debutSec - 1 / GRILLE_V4));
+  const fin = Math.max(derniere.finSec, Math.min(dernierMot + MARGE_FIN_DOUCE_V4_SEC, limite));
   return [...gardes.slice(0, -1), { ...derniere, finSec: fin }];
 }
 

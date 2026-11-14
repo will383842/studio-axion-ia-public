@@ -8,6 +8,7 @@
  * - Sans clé : le fournisseur n'est pas inscrit (voir `inscription.ts`), la simulation reste.
  */
 import { cleEnvoiPublication } from "@/domaine/outil-publication";
+import { CLE_PREMIER_COMMENTAIRE_COUPE } from "@/domaine/interrupteurs/registre";
 import type { StatutPublication } from "@/domaine/types";
 import type { CanalPublication, DemandePublication, EtatPublicationExterne, FournisseurPublication } from "../types";
 import { creerClientZernio, enteteIdempotenceStudio, type ClientZernio, type OptionsClientZernio, type PostZernio } from "./zernio-client";
@@ -27,7 +28,26 @@ export interface OptionsPublicationZernio {
   maintenant?: () => number;
   /** Pages Facebook jamais ciblées (tests) ; sinon la liste du dépôt. */
   pagesInterdites?: PagesInterdites;
+  /** Lecture du réglage « premier commentaire coupé » (tests) ; sinon la lecture du réglage en base. */
+  lirePremierCommentaireCoupe?: () => Promise<unknown>;
 }
+
+const DELAI_LECTURE_COUPE_MS = 500;
+
+/** Lecture à chaque envoi, sans jamais bloquer : exception, lenteur ou valeur illisible = faux (le premier commentaire part). */
+async function premierCommentaireCoupe(lecture: () => Promise<unknown>): Promise<boolean> {
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const attente = new Promise<undefined>((r) => { minuteur = setTimeout(() => r(undefined), DELAI_LECTURE_COUPE_MS); });
+    return (await Promise.race([lecture(), attente])) === true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(minuteur);
+  }
+}
+
+const lireReglagePremierCommentaireCoupe = async (): Promise<unknown> => (await import("@/services/_commun")).lireParametre<unknown>(CLE_PREMIER_COMMENTAIRE_COUPE, false);
 
 /** Statut Studio d'un statut Zernio. */
 export function statutDepuisZernio(statut: string | undefined): StatutPublication {
@@ -95,6 +115,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
     capacites: { asynchrone: false, accordExige: false },
 
     async envoyer(demande: DemandeZernio) {
+      // Lecture lancée tout de suite, jamais attendue ici (ne rejette jamais) : elle se fait pendant les appels réseau ci-dessous.
+      const coupeP = premierCommentaireCoupe(options.lirePremierCommentaireCoupe ?? lireReglagePremierCommentaireCoupe);
       const hex = cleHex(demande);
       const d: DemandeZernio = { ...demande, cleEnvoi: hex };
       const instant = maintenant();
@@ -110,7 +132,9 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const createurTiktok = plateformeZernio(d.reseau) === "tiktok" ? lireCreateurTiktok(await client.infoCreateurTiktok(cible.accountId)) : undefined;
       const hotesPublics = new Set<string>();
       const medias = await televerserMedias(client, lire, demandes, hotesPublics);
-      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve });
+      // Seule attente de la lecture : juste avant la création (au plus 500 ms, en pratique déjà terminée).
+      const coupe = await coupeP;
+      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe });
       // 3. Création, clé d'idempotence neutre.
       let resultat;
       try {
@@ -119,7 +143,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
         if (e instanceof ErreurZernio && e.code === "a-verifier") {
           // État inconnu : lire d'abord. Trouvé = envoi réussi ; sinon l'envoi reste « à vérifier » (aucun renvoi automatique).
           const trouve = await retrouver(hex);
-          if (trouve) return { idExterne: trouve._id, via: "zernio" as const, statut: statutDepuisZernio(trouve.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+          if (trouve) return { idExterne: trouve._id, via: "zernio" as const, statut: statutDepuisZernio(trouve.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d, coupe) };
         }
         if (e instanceof ErreurZernio && e.code === "doublon" && e.existingPostId) {
           // Le doublon est jugé par compte : le post d'origine peut être celui d'une autre page. On relit et on compare la clé.
@@ -129,7 +153,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
           } catch {
             origine = undefined;
           }
-          if (origine?.metadata?.studioCle === hex) return { idExterne: origine._id, via: "zernio" as const, statut: statutDepuisZernio(origine.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+          if (origine?.metadata?.studioCle === hex) return { idExterne: origine._id, via: "zernio" as const, statut: statutDepuisZernio(origine.status) === "brouillon" ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d, coupe) };
           // Clé différente ou post illisible : pas de conclusion « envoyé », l'envoi reste à vérifier (identifiant non transmis).
           throw new ErreurZernio("doublon", e.message, { statut: e.statut, detailTechnique: e.detailTechnique });
         }
@@ -142,7 +166,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
           detailTechnique: resultat.echecs.map((x) => `${x.platform}: ${x.errorCategory ?? "?"}`).join("; "),
         });
       }
-      return { idExterne: resultat.post._id, via: "zernio" as const, statut: corps.isDraft ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d) };
+      return { idExterne: resultat.post._id, via: "zernio" as const, statut: corps.isDraft ? ("brouillon" as const) : ("programmee" as const), ...commentaire(d, coupe) };
     },
 
     async listerCanaux() {
@@ -193,7 +217,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
   };
 }
 
-function commentaire(d: DemandePublication): { premierCommentaire?: "transmis" | "a-la-main" } {
-  if (!d.premierCommentaire?.trim()) return {};
+function commentaire(d: DemandePublication, coupe: boolean): { premierCommentaire?: "transmis" | "a-la-main" } {
+  // Premier commentaire coupé : rien n'est parti, donc rien n'est annoncé (ni « transmis » ni « à la main »).
+  if (coupe || !d.premierCommentaire?.trim()) return {};
   return { premierCommentaire: premierCommentaireTransmissibleZernio(d.reseau) ? "transmis" : "a-la-main" };
 }

@@ -184,11 +184,20 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const renduSuspect = (v: VersionAControlerIV) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => l.code === "Q24" && l.etat !== "reussi" && (bloque(l) || l.details.some((d) => /image noire|largeur|hauteur/.test(d))));
   const relectures: Record<string, RelectureFinale> = { ...(e.deja?.relectures ?? {}) };
   const relues = new Map<string, Awaited<ReturnType<typeof relireVersionIV>>>();
+  // Pas à pas : une extraction des images encore en cours est une attente (reprise au tour suivant), jamais « images finales non relues ».
+  let attenteExtraction: unknown = null;
+  const oRelecture: OutilsPorteIV = o.pasAPas
+    ? { ...o, extraireImages: (d) => o.extraireImages(d).catch((err: unknown) => { if ((err as { enCours?: unknown } | null)?.enCours === true || ["RenduEnCoursIV", "RenduEnCours"].includes((err as { name?: unknown } | null)?.name as string)) attenteExtraction = err; throw err; }) }
+    : o;
   for (const [i, v] of e.versions.entries()) {
     const r = await relireVersionIV(
       { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcouteV.get(v.version), renduSuspect: renduSuspect(v) },
-      o,
+      oRelecture,
     );
+    if (attenteExtraction) {
+      o.pasAPas!.garder({ transcriptions, relectures });
+      throw attenteExtraction;
+    }
     appelsPayes += r.appels;
     const nouvelleRelecture = !!r.relecture && !!r.cle && !relectures[r.cle];
     if (r.relecture && r.cle) relectures[r.cle] = r.relecture;

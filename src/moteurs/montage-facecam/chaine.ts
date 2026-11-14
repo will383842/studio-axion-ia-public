@@ -1158,6 +1158,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
         const cale = appliquerAlignement(voix, r.resultat, duree);
         mots = cale.mots;
         if (cale.rapport.source !== "voix") source = "aligneur";
+        // GV2-33 : calage rendu mais refusé par les garde-fous : non abouti aussi (dit, sans nouvelle demande).
+        else calageEchoue = true;
       }
       // Échec du calage : on garde l'horodatage de la transcription (jamais bloquant).
     }

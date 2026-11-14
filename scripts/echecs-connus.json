@@ -21,6 +21,11 @@
       "fichier": "tests/image-video/fabrication-lecture-unique.test.ts",
       "nom": "lecture unique · fabrication bout en bout A → B → A, segments séparés (voix-iv/1) : chaque lecture a sa PROPRE réservation, jamais une lecture sans réservation (clé déjà prise)",
       "note": "déjà rouge sur master le 13/11 ; plafond des lectures payées sur le chemin A → B → A (audit A5 F4), non atteignable en production (rouvrirScriptIV sans appelant) ; zone argent, attend la décision du fondateur (plan V2, point 8 des accords) ; à retirer dès la correction"
+    },
+    {
+      "fichier": "tests/image-video/moteur.test.ts",
+      "nom": "reprise après erreur, sans repayer 15/10 · fin Facebook hors référence en mesure v2 (v-dd3049053f88, trav-f2b26bba35ac) : fin de secours 19/10 · fin Instagram hors référence (v-6a3b74364711) : fin de secours, puis relecture de la seule fin (b) secours Instagram refusé à son tour → l'écran propose de relire seulement cette fin ; UNE lecture neuve du même texte (essai ≥ 3), vidéo prête si elle est bonne",
+      "note": "déjà rouge sur master (écran sans prix, NEW-ARG-04 PR 481 ; le test attend encore « environ N,NN € ») ; fiche de suite chez la session usine"
     }
   ]
 }
