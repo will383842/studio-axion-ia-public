@@ -29,6 +29,16 @@ import type { DependancesBranchementsCasConcret } from "@/services/cas-concret-b
 const MDP = "cas-concret-script";
 const VIDEO = "v-03";
 const CAS = "rappels-rendez-vous";
+/**
+ * « Maintenant » du test : la date réelle, lue UNE fois. Le service compare le jour du script à la date réelle de la mise
+ * en attente du travail (SCRIPT_FOURNI_ABSENT) : une date figée ferait dériver le test. Toutes les dates en découlent.
+ */
+const MAINTENANT = Date.now();
+const JOUR_MS = 86_400_000;
+/** Date ISO complète, `jours` jours avant (négatif) ou après (positif) MAINTENANT. */
+const isoJours = (jours: number) => new Date(MAINTENANT + jours * JOUR_MS).toISOString();
+/** Jour (AAAA-MM-JJ) correspondant. */
+const jourJours = (jours: number) => isoJours(jours).slice(0, 10);
 const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"] as const;
 
 function renduImmediat() {
@@ -126,7 +136,7 @@ const textePropre = async () => (await departMonScript(CAS)).texte;
 describe("GV2-20 · script fourni plus récent que la mise en attente", () => {
   it("aucun script fourni enregistré : rien n'est proposé, et la validation du script fourni est refusée sans relance", async () => {
     await videoEnAttente();
-    expect(await scripts.scriptFourniPlusRecent(CAS, "2026-10-01")).toBeNull();
+    expect(await scripts.scriptFourniPlusRecent(CAS, jourJours(-44))).toBeNull();
     const relancer = vi.fn();
     await expect(scripts.validerScriptFourniPourVideo(VIDEO, { relancer })).rejects.toMatchObject({ code: "SCRIPT_FOURNI_ABSENT" });
     expect(relancer).not.toHaveBeenCalled();
@@ -134,28 +144,28 @@ describe("GV2-20 · script fourni plus récent que la mise en attente", () => {
 
   it("script fourni enregistré après la mise en attente : il est rendu ; enregistré avant : rien", async () => {
     await videoEnAttente();
-    await enregistrerScriptFourni(CAS, await textePropre(), { maintenant: Date.UTC(2026, 10, 13) });
-    const trouve = await scripts.scriptFourniPlusRecent(CAS, "2026-11-12T08:00:00.000Z");
-    expect(trouve).toMatchObject({ casId: CAS, fourni: true, valideLe: "2026-11-13" });
-    expect(await scripts.scriptFourniPlusRecent(CAS, "2026-11-14T08:00:00.000Z")).toBeNull();
-    expect(await scripts.scriptFourniPlusRecent("autre-cas", "2026-11-12")).toBeNull();
+    await enregistrerScriptFourni(CAS, await textePropre(), { maintenant: MAINTENANT });
+    const trouve = await scripts.scriptFourniPlusRecent(CAS, isoJours(-2));
+    expect(trouve).toMatchObject({ casId: CAS, fourni: true, valideLe: jourJours(0) });
+    expect(await scripts.scriptFourniPlusRecent(CAS, isoJours(2))).toBeNull();
+    expect(await scripts.scriptFourniPlusRecent("autre-cas", jourJours(-2))).toBeNull();
   });
 
   it("un script validé NON fourni n'est jamais proposé comme « mon script »", async () => {
     await videoEnAttente();
-    await scripts.validerScriptCasConcret(VIDEO, { maintenant: Date.UTC(2026, 10, 13) });
-    expect(await scripts.scriptFourniPlusRecent(CAS, "2026-11-01")).toBeNull();
+    await scripts.validerScriptCasConcret(VIDEO, { maintenant: MAINTENANT });
+    expect(await scripts.scriptFourniPlusRecent(CAS, jourJours(-13))).toBeNull();
   });
 
   it("validerScriptFourniPourVideo pose CE script sur la vidéo (onglet Script) puis relance le travail en attente", async () => {
     const arrete = await videoEnAttente();
     const texte = await textePropre();
-    await enregistrerScriptFourni(CAS, texte, { maintenant: Date.UTC(2026, 10, 13) });
+    await enregistrerScriptFourni(CAS, texte, { maintenant: MAINTENANT });
     const relancer = vi.fn(async () => ({ statut: "relancee" as const, travailId: arrete.id }));
-    const r = await scripts.validerScriptFourniPourVideo(VIDEO, { maintenant: Date.UTC(2026, 10, 13), relancer });
+    const r = await scripts.validerScriptFourniPourVideo(VIDEO, { maintenant: MAINTENANT, relancer });
     expect(relancer).toHaveBeenCalledTimes(1);
     expect(relancer).toHaveBeenCalledWith(arrete.id, undefined);
-    expect(r).toMatchObject({ casId: CAS, valideLe: "2026-11-13", issue: { statut: "relancee" } });
+    expect(r).toMatchObject({ casId: CAS, valideLe: jourJours(0), issue: { statut: "relancee" } });
     const garde = (await scripts.scriptValideDuStudio(CAS))!;
     expect(garde.fourni).toBe(true);
     expect(garde.texteFourni).toBe(texte);
@@ -165,9 +175,9 @@ describe("GV2-20 · script fourni plus récent que la mise en attente", () => {
 
   it("relance refusée : le script est quand même posé, la phrase du refus est rendue pour l'écran", async () => {
     await videoEnAttente();
-    await enregistrerScriptFourni(CAS, await textePropre(), { maintenant: Date.UTC(2026, 10, 13) });
+    await enregistrerScriptFourni(CAS, await textePropre(), { maintenant: MAINTENANT });
     const relancer = vi.fn(async () => ({ statut: "refusee" as const, phrase: "Pas maintenant." }));
-    const r = await scripts.validerScriptFourniPourVideo(VIDEO, { maintenant: Date.UTC(2026, 10, 13), relancer });
+    const r = await scripts.validerScriptFourniPourVideo(VIDEO, { maintenant: MAINTENANT, relancer });
     expect(r.issue).toEqual({ statut: "refusee", phrase: "Pas maintenant." });
   });
 });

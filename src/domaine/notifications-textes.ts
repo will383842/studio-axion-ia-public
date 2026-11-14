@@ -11,3 +11,9 @@ export function phraseFinDeLotIV(r: { faites: number; misesDeCote: number }): st
   const faites = `${r.faites} ${r.faites > 1 ? "faites" : "faite"}`;
   return r.misesDeCote > 0 ? `Lot terminé : ${faites}, ${r.misesDeCote} ${r.misesDeCote > 1 ? "mises de côté" : "mise de côté"}` : `Lot terminé : ${faites}`;
 }
+
+/** L0-09 · alerte « heure H » : un brouillon du calendrier n'est pas encore promu à l'approche de son heure. Mots simples. */
+export const TEXTE_ALERTE_HEURE_H = {
+  titre: "Une publication n'est pas prête pour son heure",
+  message: (jour: string, heure: string): string => `La publication prévue le ${jour} à ${heure} n'est pas encore promue. Regardez le calendrier.`,
+} as const;

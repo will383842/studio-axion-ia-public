@@ -19,12 +19,27 @@ lire_env() {
   printf '%s' "$ligne"
 }
 
+# L5-08 : rien de secret dans le texte d'une alerte (il part par e-mail et reste dans des boîtes de réception) :
+# la valeur de chaque variable EMAIL_SECOURS_* (exportée, sinon lue dans le .env) est masquée, puis toute adresse
+# e-mail, puis tout long jeton (32 caractères ou plus d'affilée de lettres, chiffres, « _ », « + », « / », « = » ; les tirets le coupent, un nom de conteneur reste lisible).
+nettoyer_message() {
+  local texte="$1" v valeur
+  for v in "${ALERTE_VARIABLES[@]}"; do
+    valeur="${!v:-}"
+    [ -n "$valeur" ] || valeur="$(lire_env "$v")"
+    [ -n "$valeur" ] && texte="${texte//"$valeur"/[valeur masquée]}"
+  done
+  printf '%s' "$texte" | sed -E 's|[[:alnum:]._%+-]+@[[:alnum:].-]+|[adresse masquée]|g; s|[A-Za-z0-9_+/=]{32,}|[jeton masqué]|g'
+}
+
 envoyer_alerte() {
   local titre="$1" message="$2" options=() v
   for v in "${ALERTE_VARIABLES[@]}"; do
     export "$v=$(lire_env "$v")"
     options+=(-e "$v")
   done
+  titre="$(nettoyer_message "$titre")"
+  message="$(nettoyer_message "$message")"
   docker run --rm -i --memory 256m --entrypoint node "${options[@]}" \
     -v "$ICI/copier-r2.mjs:/copie/copier-r2.mjs:ro" "${STUDIO_IMAGE_NODE:-studio-axion-ia:local}" /copie/copier-r2.mjs alerte "$titre" "$message" </dev/null
 }
