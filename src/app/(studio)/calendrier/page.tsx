@@ -67,6 +67,18 @@ function lireFiltres(p: { types?: Brut; etats?: Brut; q?: Brut }): CriteresFiltr
   return { types: TYPES_CONNUS.filter((t) => types.has(t)), etats: ETATS_CONNUS.filter((e) => etats.has(e)), motCle: q.trim().slice(0, MOT_MAX) };
 }
 
+/** Le texte sur lequel le mot cherché porte, le même dans toutes les vues : titre de la vidéo et texte de la publication. */
+const texteRecherche = (p: { video?: { titre?: string | null } | null; texte?: string | null }): string => [p.video?.titre, p.texte].filter(Boolean).join(" ");
+
+/**
+ * Filtre les entrées par tous les critères, le mot cherché compris, en cherchant le mot sur `texteRecherche` (et non sur le titre
+ * affiché, qui change d'une vue à l'autre). Le titre des entrées rendues n'est pas modifié ; le mot est retiré des critères suivants.
+ */
+function filtrerParTexte<T extends EntreeCarte>(entrees: readonly T[], textes: readonly string[], criteres: CriteresFiltre): T[] {
+  const copies = entrees.map((e, i) => ({ ...e, titre: textes[i], origine: e }));
+  return filtrerEntrees(copies, criteres).map((c) => c.origine);
+}
+
 /** « &reseaux=… » à ajouter aux adresses quand un filtre est actif ; rien si les quatre réseaux sont allumés. */
 function suiteReseaux(actifs: readonly IdReseau[]): string {
   return actifs.length === RESEAUX_CALENDRIER.length ? "" : `&reseaux=${actifs.join(",")}`;
@@ -135,10 +147,13 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   });
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
   // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
-  const entreesSemaine = semaine.map(entreeDepuisPublication);
+  const entreesBrutes = semaine.map(entreeDepuisPublication);
   // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
-  const criteres: CriteresFiltre = { ...filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs };
-  const visibles = filtrerEntrees(entreesSemaine, criteres);
+  const criteresComplets: CriteresFiltre = { ...filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs };
+  // Le mot est déjà appliqué ici (sur titre + texte) : la grille et l'Agenda reçoivent des critères SANS mot, sinon ils refiltreraient sur le titre seul.
+  const criteres: CriteresFiltre = { ...criteresComplets, motCle: "" };
+  const entreesSemaine = filtrerParTexte(entreesBrutes, semaine.map(texteRecherche), criteresComplets);
+  const visibles = entreesSemaine;
   // Les essais (rien n'a été envoyé) ne comptent pas comme des publications, ni pour le bandeau, ni pour l'alerte.
   const visiblesReelles = visibles.filter((e) => e.etat !== "essai");
   const total = visiblesReelles.length;
@@ -205,14 +220,13 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
 function PageJour({ jour, reseauxActifs, filtres, calendrier }: { jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[] }) {
   const aujourdhui = cleJour(new Date());
   // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
-  const entrees = filtrerEntrees(
-    calendrier
-      .flatMap((j) => j.publications)
-      .filter((p) => cleJour(p.date) === jour)
-      .map((p) => {
-        const e = entreeDepuisPublication(p);
-        return { ...e, titre: debutDeTexte(p.texte) || e.titre };
-      }),
+  const duJour = calendrier.flatMap((j) => j.publications).filter((p) => cleJour(p.date) === jour);
+  const entrees = filtrerParTexte(
+    duJour.map((p) => {
+      const e = entreeDepuisPublication(p);
+      return { ...e, titre: debutDeTexte(p.texte) || e.titre };
+    }),
+    duJour.map(texteRecherche),
     filtres,
   );
   const suiteF = suiteFiltres(filtres);
@@ -248,7 +262,8 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres }: {
   const toutes: (EntreeCarte & { essai: boolean })[] = plage.jours.flatMap((j) =>
     (parJour.get(j) ?? []).map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatAffiche(p), titre: p.video?.titre, essai: p.via === "simulation" })),
   );
-  const gardees = filtrerEntrees(toutes, filtres);
+  const textesMois = plage.jours.flatMap((j) => (parJour.get(j) ?? []).map(texteRecherche));
+  const gardees = filtrerParTexte(toutes, textesMois, filtres);
   const entrees: EntreeCarte[] = gardees.filter((e) => !e.essai);
   const total = entrees.filter((e) => e.jour.startsWith(plage.mois)).length;
   const essais = gardees.length - entrees.length;

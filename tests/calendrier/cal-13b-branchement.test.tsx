@@ -44,7 +44,9 @@ describe("CAL-13b — branchements dans page.tsx", () => {
     expect(page).toMatch(/hidden min-\[861px\]:block[^]*?<SemaineAvecApercu[^>]*criteres=\{criteres\}/);
   });
   it("les critères des filtres (réseaux allumés, plus types, états et mot de l'adresse — CAL-13d) sont passés à la grille", () => {
-    expect(page).toMatch(/const criteres: CriteresFiltre = \{ \.\.\.filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length \? undefined : reseauxActifs \}/);
+    expect(page).toMatch(/const criteresComplets: CriteresFiltre = \{ \.\.\.filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length \? undefined : reseauxActifs \}/);
+    // Le mot est appliqué avant (titre + texte) : la grille et l'Agenda reçoivent des critères sans mot.
+    expect(page).toMatch(/const criteres: CriteresFiltre = \{ \.\.\.criteresComplets, motCle: "" \}/);
   });
   it("états vides : semaine passée et filtre vide", () => {
     expect(page).toMatch(/<VueVide etat="semaine-passee"/);

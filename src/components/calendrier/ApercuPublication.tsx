@@ -44,12 +44,23 @@ export interface ProprietesApercuPublication {
   mots?: MotsPublication | null;
 }
 
+/** Geste du bouton « Copier » du tiroir : presse-papiers du navigateur, sans appel serveur ; sans presse-papiers, rien ne se passe. */
+function copierDansLePressePapiers(texte: string): void {
+  try {
+    void navigator.clipboard?.writeText(texte).catch(() => undefined);
+  } catch {
+    /* presse-papiers indisponible */
+  }
+}
+
 /**
  * « Prêt à partir ? » d'une entrée, à partir de ce qu'elle porte déjà (réseau, texte, hashtags du texte, date, type, premier
  * commentaire s'il est connu). Le fichier décrit et le mot ne sont pas dans ces données : « à vérifier à la main », jamais inventés.
  */
 function pretAPartirDe(entree: EntreeApercu) {
-  const instant = jourLisible(entree.jour) ? `${entree.jour}T${heureLisible(entree.heure) ?? "00:00"}` : null;
+  // Heure illisible ou absente : pas d'instant (la ligne « Il manque la date et l'heure » reste), jamais « 00:00 » inventé.
+  const heure = heureLisible(entree.heure);
+  const instant = jourLisible(entree.jour) && heure ? `${entree.jour}T${heure}` : null;
   const averifier: CodeControle[] = ["fichier"];
   const commentaireConnu = typeof entree.premierCommentaire === "string" && entree.premierCommentaire.trim() !== "";
   if (!commentaireConnu) averifier.push("premier-commentaire");
@@ -172,7 +183,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       )}
 
       <div className="mt-3">
-        <PretAPartir {...pretAPartirDe(entree)} />
+        <PretAPartir {...pretAPartirDe(entree)} onCopier={copierDansLePressePapiers} />
       </div>
 
       <div className="mt-3">

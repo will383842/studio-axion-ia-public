@@ -78,7 +78,10 @@ describe("CAL-13d — Filtrer lit l'adresse", () => {
   it("un filtre qui masque tout montre « filtre-vide »", async () => {
     const h = await pageAvec({ q: "introuvable" });
     expect(compte(h)).toBe("0");
-    expect(h).toMatch(/filtre|Aucune publication ne correspond|Tout afficher/i);
+    expect(h).toContain('data-etat="filtre-vide"');
+    expect(h).toContain("Aucune publication ne correspond à ce filtre.");
+    // Sans filtre, ce texte est absent.
+    expect(await pageAvec({})).not.toContain("Aucune publication ne correspond à ce filtre.");
   });
 
   it("le panneau « À faire » garde tout, même filtré", async () => {
