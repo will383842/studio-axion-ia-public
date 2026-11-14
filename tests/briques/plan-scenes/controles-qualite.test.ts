@@ -157,3 +157,26 @@ describe("plan juste et dix scripts", () => {
     console.log(lignes.join("\n"));
   });
 });
+
+describe("plan déjà validé (version prête relue, retouche) : les contrôles ne touchent pas ses scènes", () => {
+  const m = mots("Le devis part tout seul chaque soir sans aucune relance de votre part");
+  // Scène d'un plan ANCIEN : en « bas » sur la bande des sous-titres, finie 3 s après son dernier mot.
+  const ancienne = { ...scene("a", "legende", { texte: "Le devis part tout seul", sousTexte: "", style: "bandeau" }, 0, 4, "bas"), debutMs: 0, finMs: 4800 };
+  it("une scène qui porte son empreinte garde exactement son empreinte, sans remarque des six codes", () => {
+    const premier = validerPlan(plan([ancienne], m), { mots: m, format: FORMAT });
+    expect(codes(premier)).toContain("SOUS_TITRES");
+    const stocke = { ...plan([{ ...ancienne, empreinte: "0000000000000000" }], m) };
+    const empreinteAttendue = validerPlan(stocke, { mots: m, format: FORMAT }).plan.scenes[0]!.empreinte;
+    const relu = validerPlan({ ...stocke, scenes: [{ ...ancienne, empreinte: empreinteAttendue }] }, { mots: m, format: FORMAT });
+    expect(relu.plan.scenes).toHaveLength(1);
+    expect(relu.plan.scenes[0]!.position).toBe("bas");
+    expect(relu.plan.scenes[0]!.finMs).toBe(4800);
+    expect(relu.plan.scenes[0]!.empreinte).toBe(empreinteAttendue);
+    expect(codes(relu).filter((c) => SIX.includes(c))).toEqual([]);
+  });
+  it("relire deux fois un plan validé ne change aucune empreinte", () => {
+    const une = validerPlan(plan([ancienne], m), { mots: m, format: FORMAT }).plan;
+    const deux = validerPlan(une, { mots: m, format: FORMAT }).plan;
+    expect(deux.scenes.map((s) => s.empreinte)).toEqual(une.scenes.map((s) => s.empreinte));
+  });
+});

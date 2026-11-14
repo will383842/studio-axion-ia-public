@@ -1812,7 +1812,7 @@ export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly Bruitage
 
 /** Remarques de la voix (« Voix gardée malgré une remarque », piste dont la dernière phrase risque d'être coupée) : elles vont aussi aux mentions, pas seulement au journal. */
 function remarquesDeFinDeVoixIV(e: EtatFabricationIV): string[] {
-  return [...new Set([...(e.voix?.remarques ?? []), ...(e.pistes ?? []).flatMap((p) => (p.remarque ? [p.remarque] : []))])];
+  return [...new Set([...(e.voix?.remarques ?? []).filter((r) => r.startsWith("Voix gardée malgré une remarque")), ...(e.pistes ?? []).flatMap((p) => (p.remarque ? [p.remarque] : []))])];
 }
 
 async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
@@ -1935,7 +1935,8 @@ export async function avancerJusquAArretIV(etat: EtatFabricationIV, outils: Outi
     await o.garder?.(suivant);
     const immobile = JSON.stringify(suivant) === JSON.stringify(e);
     e = suivant;
-    if (estFinieIV(e) || e.attente || immobile) return e;
+    // GV2-36 : la main rendue entre deux contrôles (« continuent au tour suivant ») n'est pas un arrêt : on continue.
+    if (estFinieIV(e) || (e.attente && e.attente !== "Les vérifications finales continuent au tour suivant.") || immobile) return e;
   }
   return e;
 }

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
-import { Icone } from "@/components/ui/Icone";
-import { LogoReseau } from "@/components/ui/LogoReseau";
-import { Pastille } from "@/components/ui/Pastille";
-import { libellePublication } from "@/domaine/buffer";
+import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regroupement";
+import { AlerteProximite } from "@/components/calendrier/AlerteProximite";
+import { BandeauAujourdhui } from "@/components/calendrier/BandeauAujourdhui";
+import { VueAgenda } from "@/components/calendrier/VueAgenda";
+import { VueVide } from "@/components/calendrier/VueVide";
 import { SemaineAvecApercu } from "@/components/calendrier/ApercuPublication";
 import { RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
 import { libellePeriode } from "@/components/calendrier/BarreVue";
@@ -15,14 +15,12 @@ import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFa
 import { ReserveAPlacer } from "@/components/calendrier/ReserveAPlacer";
 import { VueJour, debutDeTexte } from "@/components/calendrier/VueJour";
 import type { IdReseau } from "@/domaine/types";
-import { entreeDepuisPublication } from "@/components/calendrier/apercu-reseau";
-import { cn } from "@/lib/cn";
-import { cleJour, heure } from "@/lib/dates";
+import { entreeDepuisPublication, etatAffiche } from "@/components/calendrier/apercu-reseau";
+import { cleJour } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { adresseVueJour, plageMois, plageSemaine } from "@/lib/calendrier-plages";
 import { GrilleMois } from "@/components/calendrier/GrilleMois";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
-import { etatDepuisStatut } from "@/components/calendrier/PastilleStatutPlan";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
 
@@ -30,11 +28,8 @@ export const metadata: Metadata = { title: "Calendrier" };
 export const dynamic = "force-dynamic";
 
 const FUSEAU = "Europe/Paris";
-const jourSemaine = new Intl.DateTimeFormat("fr-FR", { weekday: "short", timeZone: FUSEAU });
-const jourMois = new Intl.DateTimeFormat("fr-FR", { day: "numeric", timeZone: FUSEAU });
 const moisAnnee = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: FUSEAU });
 
-const libelleJourLong = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: FUSEAU });
 const libelleMois = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
 
 /** « AAAA-MM-JJ » réel, ou « AAAA-MM » (→ le 1er) ; sinon null. */
@@ -73,11 +68,9 @@ function moisVoisin(mois: string, delta: number): string {
   return d.toISOString().slice(0, 7);
 }
 
-type Pub = JourCalendrier["publications"][number];
-
 /**
- * CALENDRIER (AV2.4-2) — niveau 3 : semaine par semaine. Liste par jour sur mobile,
- * 7 colonnes sur ordinateur, « À programmer » en bas.
+ * CALENDRIER (AV2.4-2) — niveau 3 : semaine par semaine. Mode Agenda (liste par jour) à 860 px et moins,
+ * 7 colonnes au-delà, « À programmer » en bas.
  * Les publications « simulation » ne sont JAMAIS montrées comme programmées (pastille Essai).
  */
 export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string; reseaux?: string }> }) {
@@ -111,14 +104,25 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const aujourdhui = aujourdhuiCle;
   // Les essais (rien n'a été envoyé) ne comptent pas comme des publications : ils sont annoncés à part.
   const semaine = jours.flatMap((j) => parJour.get(cleJour(j)) ?? []);
-  const total = semaine.filter((p) => p.via !== "simulation").length;
-  const essais = semaine.length - total;
   const adresseSemaine = dateDemandee ? `/calendrier?vue=semaine&date=${dateDemandee}` : decalageDemande ? `/calendrier?semaine=${decalageDemande}` : "/calendrier";
   // « À faire » : à corriger, à valider, brouillons ; les essais n'y sont pas.
   const aFaire = semaine.filter((p) => p.via !== "simulation").map((p) => {
     const e = entreeDepuisPublication(p);
-    return { cle: e.cle, etat: e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
+    // Un brouillon Buffer reste un brouillon à compléter pour le panneau.
+    return { cle: e.cle, etat: e.etat === "brouillon_buffer" ? "brouillon" : e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
   });
+  // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
+  // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
+  const entreesSemaine = semaine.map(entreeDepuisPublication);
+  // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
+  const criteres: CriteresFiltre = { reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs, types: [], etats: [] };
+  const visibles = filtrerEntrees(entreesSemaine, criteres);
+  // Les essais (rien n'a été envoyé) ne comptent pas comme des publications, ni pour le bandeau, ni pour l'alerte.
+  const visiblesReelles = visibles.filter((e) => e.etat !== "essai");
+  const total = visiblesReelles.length;
+  const essais = visibles.length - total;
+  const semainePassee = plage.jours[6] < aujourdhui;
+  const lienAujourdhui = `/calendrier${suite ? `?${suite.slice(1)}` : ""}`;
   const libelleSemaine = decalage === 0 ? "Cette semaine" : decalage === 1 ? "Semaine prochaine" : decalage === -1 ? "Semaine dernière" : `${moisAnnee.format(jours[0])} – ${moisAnnee.format(jours[6])}`;
 
   return (
@@ -142,78 +146,31 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         }}
       />
       <PanneauAFaire entrees={aFaire} />
+      {jours.some((j) => cleJour(j) === aujourdhui) && <BandeauAujourdhui entrees={visiblesReelles} aujourdhui={aujourdhui} />}
+      <AlerteProximite entrees={visiblesReelles} className="mb-3" />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">
         {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
         {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
       </p>
 
-      {/* Mobile : liste par jour */}
-      <ol className="space-y-4 lg:hidden">
-        {jours.map((j) => {
-          const cle = cleJour(j);
-          const pubs = parJour.get(cle) ?? [];
-          const estAujourdhui = cle === aujourdhui;
-          if (!pubs.length && !estAujourdhui) return null;
-          return (
-            <li key={cle} className="flex gap-3">
-              {/* Un clic sur un jour ouvre la vue du jour (heure par heure). */}
-              <Link href={`/calendrier?vue=jour&date=${cle}${suite}`} aria-label={`Ouvrir la journée du ${libelleJourLong.format(j)}`} className={cn("flex w-12 shrink-0 flex-col items-center self-start rounded-2xl py-2", estAujourdhui ? "bg-orange text-sur-orange" : "bg-surface-1 text-texte-doux")}>
-                <span className="text-[11px] font-bold uppercase">{jourSemaine.format(j).replace(".", "")}</span>
-                <span className="font-titre text-xl tabular-nums">{jourMois.format(j)}</span>
-              </Link>
-              <ul className="min-w-0 flex-1 space-y-2">
-                {pubs.length ? pubs.map((p) => <LignePublication key={p.id} p={p} />) : <li className="flex min-h-14 items-center text-sm text-texte-faible">Rien de prévu.</li>}
-              </ul>
-            </li>
-          );
-        })}
-      </ol>
-      {/* « Libre » seulement quand rien n'est listé, essais compris (E2E-1 n° 16). */}
+      {/* Mobile (860 px et moins) : mode Agenda, la semaine en liste jour par jour (CAL-12b) ; un appui ouvre le tiroir. */}
+      <div className="min-[861px]:hidden">
+        <VueAgenda entrees={entreesSemaine} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} lienJour={(j) => adresseVueJour(j, suite)} />
+      </div>
+      {/* « Libre » seulement quand rien n'est listé, essais compris (E2E-1 n° 16). Sur téléphone l'Agenda le dit déjà jour par jour : ordinateur seulement. */}
       {semaine.length === 0 && !jours.some((j) => cleJour(j) === aujourdhui) && (
-        <div className="lg:hidden">
-          <EtatVide compact icone="calendrier" titre="Semaine libre" phrase="Rien de prévu cette semaine." />
-        </div>
+        <div className="hidden min-[861px]:block">{semainePassee ? <VueVide etat="semaine-passee" lienAujourdhui={lienAujourdhui} /> : <EtatVide compact icone="calendrier" titre="Semaine libre" phrase="Rien de prévu cette semaine." />}</div>
       )}
+      {/* Des publications existent mais les filtres les masquent toutes. */}
+      {semaine.length > 0 && visibles.length === 0 && <VueVide etat="filtre-vide" lienTout={adresseSemaine} />}
 
       {/* Ordinateur : la semaine en couloirs ; un clic sur une carte ouvre l'aperçu à droite, sans quitter le calendrier (RC-36). */}
-      <div className="hidden lg:block">
-        <SemaineAvecApercu entrees={semaine.map(entreeDepuisPublication)} semaineDu={lundiCle} aujourdhui={aujourdhui} />
+      <div className="hidden min-[861px]:block">
+        <SemaineAvecApercu entrees={entreesSemaine} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} />
       </div>
 
       <ReserveAPlacer contenus={aProgrammer.map((v) => ({ id: v.id, titre: v.titre, vignette: v.vignette }))} />
     </div>
-  );
-}
-
-/** Lot R1 : le libellé dit ce qui est vrai (« Brouillon dans Buffer », « À vérifier », « Essai »…). */
-function EtatPublication({ p }: { p: Pub }) {
-  const { libelle, ton } = libellePublication(p);
-  return (
-    <Pastille ton={ton} className={ton === "orange" ? "text-texte" : undefined}>
-      {libelle}
-    </Pastille>
-  );
-}
-
-function LignePublication({ p }: { p: Pub }) {
-  return (
-    <li>
-      <Link href={`/videos/${p.videoId}`} className="flex min-h-16 items-center gap-3 rounded-2xl border border-trait bg-surface-1 p-2 pr-3 transition-colors hover:border-trait-fort">
-        <span className="relative aspect-[9/16] w-10 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-          {p.video?.vignette && <Image src={p.video.vignette} alt="" fill sizes="40px" className="object-cover" />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-texte">{p.video?.titre}</span>
-          <span className="flex min-w-0 items-center gap-1.5 text-xs text-texte-faible">
-            <LogoReseau reseau={p.reseau} taille="sm" />
-            <span className="shrink-0">{heure(p.date)}</span>
-            {/* Lot R1b : le compte visé (deux LinkedIn, deux Facebook). */}
-            {p.canalNom && <span className="min-w-0 truncate">· {p.canalNom}</span>}
-          </span>
-        </span>
-        <EtatPublication p={p} />
-      </Link>
-    </li>
   );
 }
 
@@ -262,7 +219,7 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs }: { plage: R
   const essais = toutes.filter((p) => p.via === "simulation").length;
   // Une entrée par publication réelle, rangée sous la clé du jour déjà calculée (jour de Paris) ; les essais restent à part.
   const entrees: EntreeCarte[] = plage.jours.flatMap((j) =>
-    (parJour.get(j) ?? []).filter((p) => p.via !== "simulation").map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatDepuisStatut(p.statut) ?? ("inconnu" as const) })),
+    (parJour.get(j) ?? []).filter((p) => p.via !== "simulation").map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatAffiche(p) })),
   );
   const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}${suite}`;
   return (

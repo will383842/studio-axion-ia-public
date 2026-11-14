@@ -2,6 +2,7 @@
  * GV2-40 : les cartes automatiques n'affichent plus rien de faux (avant/après aux unités différentes,
  * sur-titre vide, étiquette écrite en dur).
  */
+import { cartesAutoDeLaVideo } from "@/moteurs/montage-facecam/cartes-video";
 import { describe, expect, it } from "vitest";
 import { choisirModele } from "@/briques/motion/choix";
 import { choisirModeleTous } from "@/briques/motion/choix-etendu";
@@ -76,5 +77,17 @@ describe("GV2-40 · les dix scripts de contrôle", () => {
       if (c!.modele === "icone-mot") expect((c!.donnees as { surTitre: string }).surTitre.trim()).not.toMatch(/^pas$/i);
       if (c!.modele === "probleme-solution") expect(c!.donnees).not.toHaveProperty("etiquetteSolution");
     }
+  });
+});
+
+describe("GV2-40 · vidéos existantes : une carte problème / solution retirée reste retirée", () => {
+  const PHRASE_PS = "On veut colmater en ajoutant un outil de plus, une embauche de plus, alors que la vraie première étape, c'est de noter les demandes.";
+  const motsPs = PHRASE_PS.split(" ").map((mot, i) => ({ mot, debutSec: 2 + i * 0.35, finSec: 2 + i * 0.35 + 0.3 }));
+  it("identifiant stable inchangé (auto-64f7c567, celui de la base) et carte toujours retirée", () => {
+    const sans = cartesAutoDeLaVideo(motsPs, 60).vues.find((v) => v.modele === "probleme-solution");
+    expect(sans?.idStable).toBe("auto-64f7c567");
+    expect(sans?.carte.donnees).not.toHaveProperty("etiquetteSolution");
+    const avec = cartesAutoDeLaVideo(motsPs, 60, [], [], ["auto-64f7c567"]).vues.find((v) => v.modele === "probleme-solution");
+    expect(avec?.etat).toBe("retiree");
   });
 });
