@@ -65,23 +65,33 @@ export function motsDesSegments(segments: SegmentCale[]): MotMinute[] {
   return sortie;
 }
 
-/** Une légende courte (≤ 5 mots) est un accent ; une légende plus longue reste aux sous-titres et cartes existants. */
+/** Mots de liaison : une légende qui finit par l'un d'eux est un fragment de phrase. */
+const MOTS_DE_LIAISON = new Set(["de", "du", "des", "d", "à", "au", "aux", "par", "pour", "le", "la", "les", "l", "un", "une", "et", "ou", "en", "sur", "avec", "dans", "que", "qui", "ce", "se", "sans", "sous", "mais", "donc"]);
+
+/** Une légende de 2 à 5 mots qui ne finit pas par un mot de liaison est un accent ; sinon elle reste aux sous-titres et cartes existants. */
 function estRetenue(s: ScenePlan): boolean {
   const famille = CATALOGUE_BRIQUES[s.piece as IdPiece].famille;
   if (famille !== "texte") return true;
-  const texte = (s.parametres as { texte?: string }).texte ?? "";
-  return texte.split(/\s+/).filter(Boolean).length <= 5;
+  const mots = ((s.parametres as { texte?: string }).texte ?? "").split(/\s+/).filter(Boolean);
+  if (mots.length < 2 || mots.length > 5) return false;
+  const dernier = mots.at(-1)!.toLowerCase().replace(/[.,;:!?…»"”)]+$/, "").replace(/['’]$/, "");
+  return !MOTS_DE_LIAISON.has(dernier.replace(/^.*['’]/, ""));
 }
 
 /** Repli d'un niveau pour UNE scène : la pièce niveau 1 de la scène, sinon la pièce du stock au même endroit. */
-function replierScene(s: ScenePlan, stock: ScenePlan[], remarques: Remarque[]): ScenePlan {
+function replierScene(s: ScenePlan, stock: ScenePlan[], remarques: Remarque[]): ScenePlan | null {
   const sansCalques = { ...s, niveau: 1 as const, calques: undefined, code: undefined } as ScenePlan;
   if (s.niveau !== 3 && schemaSceneStrict.safeParse(s).success) return s;
   if (schemaSceneStrict.safeParse(sansCalques).success && s.niveau !== 3) {
     remarques.push({ code: "REPLI_NIVEAU_1", sceneId: s.id, message: "Composition de la scène trop fragile : pièce simple à la place." });
     return sansCalques;
   }
-  const proche = stock.find((x) => x.debutMs <= s.debutMs && s.debutMs < x.finMs) ?? stock[0]!;
+  const proche = stock.find((x) => x.debutMs <= s.debutMs && s.debutMs < x.finMs) ?? stock[0];
+  if (!proche) {
+    // Le stock n'a aucune scène (aucun fait dans le script) : la scène fragile est laissée à l'existant.
+    remarques.push({ code: "SCENE_RETIREE", sceneId: s.id, message: "Scène fragile retirée : le stock n'a rien à mettre à sa place." });
+    return null;
+  }
   remarques.push({ code: "REPLI_NIVEAU_1", sceneId: s.id, message: "Scène de remplacement tirée du stock (niveau 1)." });
   return { ...proche, id: s.id, mots: s.mots, debutMs: s.debutMs, finMs: s.finMs, position: s.position } as ScenePlan;
 }
@@ -109,7 +119,8 @@ export async function adapterPlan(e: EntreeAdaptateur, deps: DependancesAdaptate
   const laissees: string[] = [];
   for (const s of base.scenes) {
     const sure = replierScene(s, stock.plan.scenes, remarques);
-    if (estRetenue(sure)) retenues.push(sure);
+    if (!sure) laissees.push(s.id);
+    else if (estRetenue(sure)) retenues.push(sure);
     else laissees.push(s.id);
   }
   if (!retenues.length) return { plan: null, remarques, source, laissees };

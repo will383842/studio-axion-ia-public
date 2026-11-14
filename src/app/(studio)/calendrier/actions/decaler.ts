@@ -4,6 +4,7 @@
  * Actions serveur du calendrier (L4-06) : décaler une entrée future. Chaque action commence par exigerSession().
  * Aucun appel au fournisseur. Fichier propre à ce geste : actions.ts ne garde que les deux actions de la fiche d'entrée.
  */
+import { revalidatePath } from "next/cache";
 import { exigerSession } from "@/services/auth";
 import { depots, maintenant } from "@/services/_commun";
 import { decaler, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
@@ -65,7 +66,9 @@ export async function decalerEntree(saisie: SaisieDecalage): Promise<ResultatDec
     if (dejaPassee) return { ok: false, message: "Cette entrée est passée : elle ne se décale pas." };
     const nouvelles = heures.length ? heures.map((h) => instantParis(saisie.nouveauJour, heureAffichageParis(h))) : [instantParis(saisie.nouveauJour, "23:59")];
     if (nouvelles.some((h) => Date.parse(h) <= maintenantMs)) return { ok: false, message: "Ce jour est passé : choisissez une date à venir." };
-    return { ok: true, donnees: await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison, cle: saisie.cle }, maintenant()) };
+    const donnees = await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison, cle: saisie.cle }, maintenant());
+    revalidatePath("/calendrier");
+    return { ok: true, donnees };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Décalage impossible." };
   }
