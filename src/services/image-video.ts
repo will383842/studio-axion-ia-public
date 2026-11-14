@@ -35,6 +35,7 @@ import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture"
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
+import { accordSansClicPour } from "./autonomie-usine";
 import { accordAutomatique, budgetIndicatifPourVideo, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
 import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
@@ -298,7 +299,8 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
       if (d.fournisseur === "heygen" && dep.accordDuScriptExige) {
         const accord = accordDeLaDecision((await decisionsGardees())?.script);
         // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, Will ne valide jamais un prix à la main.
-        if (accord === null && !indicatifIV) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
+        // AUT-D : l'Usine avec l'autonomie allumée vaut accord aussi ; la réservation qui suit applique le plafond du mois.
+        if (accord === null && !indicatifIV && !(await accordSansClicPour(dep.origine, String(dep.videoId)))) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
         accordManquant = accord === null;
         accordVoix = accord ?? d.centimes;
       } else if (d.fournisseur === "heygen") accordVoix = accordDeLaVoixIV(d.centimes, dep.accordLotCentimes);
@@ -351,7 +353,8 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
     script: async () => {
       const d = (await decisionsGardees())?.script ?? null;
       // Lanceur : une décision sans accord du prix n'avance pas la fabrication (le lanceur reste à la porte).
-      return (dep.accordDuScriptExige && !indicatifIV && accordDeLaDecision(d) === null ? null : d) as never;
+      if (dep.accordDuScriptExige && !indicatifIV && accordDeLaDecision(d) === null && !(await accordSansClicPour(dep.origine, String(dep.videoId)))) return null as never;
+      return d as never;
     },
   };
 
