@@ -336,33 +336,51 @@ function listesParalleles(mots: MotCarte[], phrases: Phrase[], dureeVideo: numbe
   return sortie;
 }
 
-const UNITES: Record<string, string> = { minute: "min", minutes: "min", min: "min", heure: "h", heures: "h", h: "h", jour: "jours", jours: "jours", semaine: "semaines", semaines: "semaines", mois: "mois", an: "ans", ans: "ans", "%": "%", euros: "€", euro: "€", "€": "€", clients: "clients" };
+const UNITES: Record<string, string> = { minute: "min", minutes: "min", min: "min", heure: "h", heures: "h", h: "h", jour: "jours", jours: "jours", semaine: "semaines", semaines: "semaines", mois: "mois", an: "ans", ans: "ans", "%": "%", pourcent: "%", euros: "€", euro: "€", "€": "€", clients: "clients" };
 const NOMBRES_LETTRES: Record<string, number> = { deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, douze: 12, quinze: 15, vingt: 20, trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100 };
 /** Qualificatifs d'un chiffre repris tels quels sur la carte (« gratuit », « en visio »). */
 const QUALIFICATIFS = /\b(gratuite?s?|offerte?s?|sans engagement|en visio|en ligne|par t[ée]l[ée]phone|en pr[ée]sentiel|par (?:jour|semaine|mois|an)|en moyenne|chaque (?:jour|semaine|mois))\b/gi;
+
+/** Un mot qui n'est que le signe « % » (ponctuation de fin tolérée). */
+const SIGNE_POURCENT = /^%[\s.,;:!?)»”"]*$/;
+/**
+ * Un nombre et son unité à partir du mot `k` de la phrase, l'unité étant lue sur le mot BRUT (GV2-44) : `nu()` efface le
+ * « % », donc « 40% » (collé), « 40 % » (séparé), « 40 pour cent » et « quarante pourcent » n'étaient jamais reconnus.
+ * Rend aussi le nombre de mots pris (nombre + unité).
+ */
+function nombreEtUnite(mots: MotCarte[], idx: number[], k: number): { valeur: number; unite: string; nbMots: number } | null {
+  const brut = mots[idx[k]].mot.trim();
+  const colle = /^(\d+(?:[.,]\d+)?)\s*%[\s.,;:!?)»”"]*$/.exec(brut);
+  if (colle) return { valeur: Number(colle[1].replace(",", ".")), unite: "%", nbMots: 1 };
+  const lu = normaliser(brut).replace(/[^a-z0-9'.,-]/g, "").replace(/[.,;:]+$/, "");
+  // « 1.500 » ou « 12.000 » : le point sépare les milliers (1500, 12000), jamais une décimale.
+  const valeur = /^\d{1,3}(?:\.\d{3})+$/.test(lu) ? Number(lu.replace(/\./g, "")) : /^\d+(?:[.,]\d+)?$/.test(lu) ? Number(lu.replace(",", ".")) : NOMBRES_LETTRES[nu(brut)];
+  if (!valeur || k + 1 >= idx.length) return null;
+  const suivant = mots[idx[k + 1]].mot.trim();
+  if (SIGNE_POURCENT.test(suivant)) return { valeur, unite: "%", nbMots: 2 };
+  const s = nu(suivant);
+  if (s === "pour" && k + 2 < idx.length && nu(mots[idx[k + 2]].mot) === "cent") return { valeur, unite: "%", nbMots: 3 };
+  const unite = UNITES[s];
+  return unite ? { valeur, unite, nbMots: 2 } : null;
+}
 
 /** Un chiffre et son unité, avec ce qui le qualifie (« Un premier diagnostic gratuit de 45 minutes en visio »). */
 function chiffres(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: ReglesCartesAuto): CarteAuto[] {
   const sortie: CarteAuto[] = [];
   const dejaDits = new Set<string>();
-  const valeurDe = (i: number) => {
-    const brut = nu(mots[i].mot);
-    return /^\d+(?:[.,]\d+)?$/.test(brut) ? Number(brut.replace(",", ".")) : NOMBRES_LETTRES[brut];
-  };
   for (const p of phrases) {
     // Plusieurs chiffres dans la phrase : c'est un graphique (règles des 13 modèles), pas un chiffre seul.
-    if (p.idx.filter((i, k) => valeurDe(i) && UNITES[nu(mots[p.idx[k + 1]]?.mot ?? "")]).length >= 2) continue;
-    for (let k = 0; k + 1 < p.idx.length; k++) {
-      const brut = nu(mots[p.idx[k]].mot);
-      const valeur = /^\d+(?:[.,]\d+)?$/.test(brut) ? Number(brut.replace(",", ".")) : NOMBRES_LETTRES[brut];
-      const unite = UNITES[nu(mots[p.idx[k + 1]].mot)];
-      if (!valeur || !unite) continue;
+    if (p.idx.filter((_, k) => nombreEtUnite(mots, p.idx, k)).length >= 2) continue;
+    for (let k = 0; k < p.idx.length; k++) {
+      const lu = nombreEtUnite(mots, p.idx, k);
+      if (!lu) continue;
+      const { valeur, unite, nbMots } = lu;
       const cle = `${valeur} ${unite}`;
       if (dejaDits.has(cle)) break; // le même chiffre redit plus loin n'a pas de seconde carte
       dejaDits.add(cle);
       const texte = texteDe(p.idx.map((i) => mots[i]));
       const qualifs = [...new Set((texte.match(QUALIFICATIFS) ?? []).map((q) => q.toLowerCase()))];
-      const apres = texteDe(p.idx.slice(k + 2).map((i) => mots[i])).split(/\s+/).slice(0, 6).join(" ");
+      const apres = texteDe(p.idx.slice(k + nbMots).map((i) => mots[i])).split(/\s+/).slice(0, 6).join(" ");
       const libelle = qualifs.length ? qualifs.join(" · ") : apres.toLowerCase();
       if (!porteDuSens(libelle)) continue;
       // Sur-titre : le nom que le chiffre mesure (« Premier diagnostic »), sans les qualificatifs.
@@ -383,6 +401,227 @@ function chiffres(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: Re
         score: 8,
       });
       break;
+    }
+  }
+  return sortie;
+}
+
+/* ------------------------------------------------------------------ */
+/* Ce que le script donne (GV2-44) : liste annoncée, « d'un côté / de l'autre », étapes                */
+/* ------------------------------------------------------------------ */
+
+/** Les mots dits, sans casse ni accents (« d'horaires » → « d », « horaires »). */
+const jetons = (t: string) => normaliser(t).split(/[^a-z0-9]+/).filter(Boolean);
+/** Vrai si CHAQUE mot de chaque texte posé sur la carte est un mot dit (sans casse ni accents) : sinon aucune carte. */
+function toutDit(textes: string[], mots: MotCarte[]): boolean {
+  const dits = new Set(mots.flatMap((m) => jetons(m.mot)));
+  return textes.every((t) => jetons(t).length > 0 && jetons(t).every((j) => dits.has(j)));
+}
+const sansApostrophe = (mot: string) => nu(mot).replace(/'/g, "");
+const NOMBRES_ANNONCES: Record<string, number> = { deux: 2, trois: 3, quatre: 4, cinq: 5 };
+
+/**
+ * Liste annoncée par un nombre : « Les 4 erreurs … : pas de photos, pas d'horaires, aucun avis, aucune réponse. » ou
+ * « Trois questions à poser … : qui fait le travail, combien de temps ça dure, et comment on arrête. » Les éléments sont
+ * exactement les morceaux dits après les deux-points (virgules, et « et » devant le dernier) ; la carte n'est posée que
+ * si leur nombre égale le nombre annoncé (2 à 5 : le modèle liste n'en accepte pas plus).
+ */
+function listesAnnoncees(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: ReglesCartesAuto): CarteAuto[] {
+  const sortie: CarteAuto[] = [];
+  for (const p of phrases) {
+    const idx = p.idx;
+    // Les deux-points : collés au mot (« Google : » ou « Google: ») ou seuls.
+    const dp = idx.findIndex((i) => /:$/.test(mots[i].mot.trim()));
+    if (dp < 2) continue;
+    // Le nombre annoncé : dans les trois premiers mots, suivi d'un nom (jamais d'une unité : « 40 % »).
+    const kNombre = idx.slice(0, Math.min(3, dp)).findIndex((i) => {
+      const lu = nu(mots[i].mot);
+      return /^\d{1,2}$/.test(lu) ? Number(lu) >= 2 && Number(lu) <= 5 : lu in NOMBRES_ANNONCES;
+    });
+    if (kNombre < 0) continue;
+    const motNombre = mots[idx[kNombre]];
+    const nom = mots[idx[kNombre + 1]];
+    if (!nom || nombreEtUnite(mots, idx, kNombre) || !porteDuSens(nom.mot) || /^:+$/.test(nom.mot.trim()) || dp - kNombre > 12) continue;
+    const annonce = /^\d{1,2}$/.test(nu(motNombre.mot)) ? Number(nu(motNombre.mot)) : NOMBRES_ANNONCES[nu(motNombre.mot)];
+    // Les morceaux après les deux-points. « et » ne coupe que s'il suit la dernière virgule (« A, B et C »).
+    const corps = idx.slice(dp + 1).filter((i) => !/^:+$/.test(mots[i].mot.trim()));
+    if (corps.some((i) => /:$/.test(mots[i].mot.trim()))) continue;
+    const derniereVirgule = corps.reduce((a, i, q) => (/[,;]$/.test(mots[i].mot.trim()) ? q : a), -1);
+    const morceaux: number[][] = [];
+    let cour: number[] = [];
+    corps.forEach((i, q) => {
+      if (nu(mots[i].mot) === "et" && q > derniereVirgule) {
+        // Le « et » de la fin ne fait jamais partie d'un élément (« …, et comment on arrête »).
+        if (cour.length) morceaux.push(cour);
+        cour = [];
+        return;
+      }
+      cour.push(i);
+      if (/[,;]$/.test(mots[i].mot.trim())) {
+        morceaux.push(cour);
+        cour = [];
+      }
+    });
+    if (cour.length) morceaux.push(cour);
+    const gardes = morceaux.filter((m) => m.length);
+    if (gardes.length !== annonce) continue;
+    const elements = gardes.map((m) => ({ texte: texteDe(m.map((i) => mots[i]), true), t: mots[m[0]].debutSec }));
+    if (elements.some((e) => !porteDuSens(e.texte) || e.texte.length > 60 || e.texte.split(/\s+/).length > 9)) continue;
+    const titre = texteDe([motNombre, nom]);
+    if (!toutDit([...elements.map((e) => e.texte), titre], mots)) continue;
+    // Le dernier élément doit tomber dans la carte (8 s au plus) : elle s'ouvre un peu plus tard si besoin.
+    const debut = Math.max(motNombre.debutSec - 0.2, elements[elements.length - 1].t - (r.dureeSec[1] - 1.8));
+    if (debut > elements[0].t) continue;
+    const b = bornes(debut, mots[idx[idx.length - 1]].finSec, dureeVideo, r);
+    sortie.push({
+      ...b,
+      carte: { modele: "liste", donnees: { titre, elements: elements.map((e) => ({ texte: e.texte, icone: iconePour(e.texte), aSec: rel(e.t, b.debutSec) })) } },
+      raison: "une liste annoncée par un nombre",
+      score: 9,
+    });
+  }
+  return sortie;
+}
+
+/** « d'un côté » : le mot d'indice `q` est « côté », précédé de « d'un ». */
+function estUnCote(mots: MotCarte[], idx: number[], q: number): boolean {
+  if (sansApostrophe(mots[idx[q]].mot) !== "cote" || q < 1) return false;
+  return [q >= 2 ? sansApostrophe(mots[idx[q - 2]].mot) : "", sansApostrophe(mots[idx[q - 1]].mot)].join("").endsWith("dun");
+}
+/** « de l'autre (côté) » qui se termine au mot d'indice `q` : nombre de mots pris par « l'autre (côté) », 0 si ce n'en est pas un. */
+function finDeLAutre(mots: MotCarte[], idx: number[], q: number): number {
+  if (!sansApostrophe(mots[idx[q]].mot).endsWith("autre") || q < 1) return 0;
+  const trois = [q >= 2 ? sansApostrophe(mots[idx[q - 2]].mot) : "", sansApostrophe(mots[idx[q - 1]].mot), sansApostrophe(mots[idx[q]].mot)].join("");
+  if (!trois.endsWith("delautre")) return 0;
+  return idx[q + 1] !== undefined && sansApostrophe(mots[idx[q + 1]].mot) === "cote" ? 2 : 1;
+}
+
+/** Titre d'une colonne (la proposition jusqu'à la première virgule, 4 mots au plus) et ses points (« lent mais solide »). */
+function colonneDite(mots: MotCarte[], m: number[]): { titre: string; points: string[] } | null {
+  const coupe = m.findIndex((i) => /[,;:]$/.test(mots[i].mot.trim()));
+  const tete = coupe < 0 ? m : m.slice(0, coupe + 1);
+  const titre = texteDe(tete.map((i) => mots[i]));
+  if (!titre || tete.length > 4 || !porteDuSens(titre)) return null;
+  const reste = coupe < 0 ? [] : m.slice(coupe + 1);
+  // Les points : ce qui suit dans la même phrase, coupé sur « mais », « et » et les virgules ; un morceau trop long : aucun point.
+  const morceaux: number[][] = [];
+  let cour: number[] = [];
+  for (const i of reste) {
+    if (/^(mais|et)$/.test(nu(mots[i].mot))) {
+      if (cour.length) morceaux.push(cour);
+      cour = [];
+      continue;
+    }
+    cour.push(i);
+    if (/[,;]$/.test(mots[i].mot.trim())) {
+      morceaux.push(cour);
+      cour = [];
+    }
+  }
+  if (cour.length) morceaux.push(cour);
+  const points = morceaux.map((x) => texteDe(x.map((i) => mots[i])));
+  if (points.length > 4 || points.some((x) => !x || x.split(/\s+/).length > 4 || x.length > 30 || !porteDuSens(x))) return { titre, points: [] };
+  return { titre, points };
+}
+
+/**
+ * « D'un côté X, lent mais solide. De l'autre Y, rapide mais chère. » (deux phrases voisines, ou une seule) : une carte
+ * deux-colonnes dont les titres sont les mots dits de chaque côté et les points ce qui suit dans la même phrase.
+ */
+function deuxCotes(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: ReglesCartesAuto): CarteAuto[] {
+  const sortie: CarteAuto[] = [];
+  for (let k = 0; k < phrases.length; k++) {
+    const a = phrases[k];
+    const qa = a.idx.findIndex((_, q) => estUnCote(mots, a.idx, q));
+    if (qa < 0) continue;
+    // « De l'autre » : plus loin dans la même phrase, sinon en tête de la phrase suivante.
+    let phraseB = a;
+    let qb = a.idx.findIndex((_, q) => q > qa && finDeLAutre(mots, a.idx, q) > 0);
+    if (qb < 0) {
+      const suivante = phrases[k + 1];
+      if (!suivante) continue;
+      phraseB = suivante;
+      qb = suivante.idx.findIndex((_, q) => q < 4 && finDeLAutre(mots, suivante.idx, q) > 0);
+      if (qb < 0) continue;
+    }
+    const memePhrase = phraseB === a;
+    // Début du « de l'autre » : « de » seul juste avant, ou « de » + « l' » avant « autre ».
+    const debutDe = sansApostrophe(mots[phraseB.idx[Math.max(0, qb - 1)]].mot) === "de" ? qb - 1 : qb - 2;
+    const gauche = colonneDite(mots, memePhrase ? a.idx.slice(qa + 1, Math.max(qa + 1, debutDe)) : a.idx.slice(qa + 1));
+    const droite = colonneDite(mots, phraseB.idx.slice(qb + 1 + (finDeLAutre(mots, phraseB.idx, qb) - 1)));
+    if (!gauche || !droite) continue;
+    if (!toutDit([gauche.titre, droite.titre, ...gauche.points, ...droite.points], mots)) continue;
+    const b = bornes(mots[a.idx[0]].debutSec, mots[phraseB.idx[phraseB.idx.length - 1]].finSec, dureeVideo, r);
+    const aDroite = rel(mots[phraseB.idx[Math.max(0, debutDe)]].debutSec, b.debutSec);
+    sortie.push({
+      ...b,
+      carte: {
+        modele: "deux-colonnes",
+        donnees: {
+          gauche: { titre: gauche.titre, points: gauche.points },
+          droite: { titre: droite.titre, points: droite.points },
+          commun: { points: [] },
+          aSecDroite: aDroite,
+          aSecCommun: +Math.min(aDroite + 0.6, r.dureeSec[1]).toFixed(3),
+        },
+      },
+      raison: "deux côtés opposés",
+      score: 8.5,
+    });
+    if (!memePhrase) k++;
+  }
+  return sortie;
+}
+
+/** Marqueur d'étape au mot `q` : « premier » (d'abord), « suite » (ensuite, puis…) ou « dernier » (enfin…), et sa longueur en mots. */
+function marqueurEtape(mots: MotCarte[], idx: number[], q: number): { genre: "premier" | "suite" | "dernier"; nbMots: number } | null {
+  const s0 = sansApostrophe(mots[idx[q]].mot);
+  const s1 = q + 1 < idx.length ? sansApostrophe(mots[idx[q + 1]].mot) : "";
+  if (s0 === "dabord" || s0 === "premierement") return { genre: "premier", nbMots: 1 };
+  if (s0 === "d" && s1 === "abord") return { genre: "premier", nbMots: 2 };
+  if (["ensuite", "puis", "deuxiemement", "troisiemement", "quatriemement"].includes(s0)) return { genre: "suite", nbMots: 1 };
+  if (s0 === "enfin" || s0 === "finalement") return { genre: "dernier", nbMots: 1 };
+  if (s0 === "pour" && s1 === "finir") return { genre: "dernier", nbMots: 2 };
+  return null;
+}
+
+/**
+ * « d'abord trier, ensuite répondre, enfin classer » (au moins 3 marqueurs, le premier étant « d'abord » ou
+ * « premièrement », dans une même phrase ou deux phrases voisines) : une ligne de temps dont chaque étape est le verbe
+ * ou le groupe dit après son marqueur (5 mots au plus).
+ */
+function ligneDeTempsDite(mots: MotCarte[], phrases: Phrase[], dureeVideo: number, r: ReglesCartesAuto): CarteAuto[] {
+  const sortie: CarteAuto[] = [];
+  const essayer = (idx: number[]): CarteAuto | null => {
+    const marques = idx.flatMap((_, q) => {
+      const m = marqueurEtape(mots, idx, q);
+      return m ? [{ q, ...m }] : [];
+    });
+    if (marques.length < 3 || marques.length > 6 || marques[0].genre !== "premier") return null;
+    const etapes = marques.map((m, n) => {
+      const fin = n + 1 < marques.length ? marques[n + 1].q : idx.length;
+      const corps = idx.slice(m.q + m.nbMots, fin);
+      return { texte: texteDe(corps.map((i) => mots[i])), t: corps.length ? mots[corps[0]].debutSec : NaN };
+    });
+    if (etapes.some((e) => !e.texte || e.texte.split(/\s+/).length > 5 || e.texte.length > 40 || !porteDuSens(e.texte) || !Number.isFinite(e.t))) return null;
+    if (!toutDit(etapes.map((e) => e.texte), mots)) return null;
+    const b = bornes(mots[idx[marques[0].q]].debutSec, mots[idx[idx.length - 1]].finSec, dureeVideo, r);
+    return { ...b, carte: { modele: "ligne-de-temps", donnees: { etapes: etapes.map((e) => ({ titre: e.texte, icone: iconePour(e.texte), aSec: rel(e.t, b.debutSec) })) } }, raison: "des étapes dites dans l'ordre", score: 8 };
+  };
+  for (let k = 0; k < phrases.length; k++) {
+    const seule = essayer(phrases[k].idx);
+    if (seule) {
+      sortie.push(seule);
+      continue;
+    }
+    const suivante = phrases[k + 1];
+    if (!suivante) continue;
+    // Deux phrases voisines : le premier marqueur doit être dans la première.
+    if (!phrases[k].idx.some((_, q) => marqueurEtape(mots, phrases[k].idx, q)?.genre === "premier")) continue;
+    const deux = essayer([...phrases[k].idx, ...suivante.idx]);
+    if (deux) {
+      sortie.push(deux);
+      k++;
     }
   }
   return sortie;
@@ -673,7 +912,7 @@ export function planifierCartesAuto(motsBruts: MotCarte[], dureeVideoSec: number
     if (o !== c) origines.set(o, c);
     return o;
   };
-  const sures = fusionnerTitresEtChiffres([listesNumerotees, listesParalleles, listesDeNoms, appelALAction, chiffres, titresNommes, problemesSolutions, corrections].flatMap((f) => f(mots, phrases, dureeVideoSec, r))).map(ouvrir);
+  const sures = fusionnerTitresEtChiffres([listesNumerotees, listesParalleles, listesAnnoncees, listesDeNoms, appelALAction, chiffres, deuxCotes, ligneDeTempsDite, titresNommes, problemesSolutions, corrections].flatMap((f) => f(mots, phrases, dureeVideoSec, r))).map(ouvrir);
   const retenues: CarteAuto[] = [];
   /** Fin la plus courte acceptable : 3 s de carte, et au plus 0,6 s avant la fin du dernier mot illustré. */
   const finMin = (c: CarteAuto) => Math.max(c.debutSec + r.dureeSec[0], (c.finDitSec ?? c.finSec) - 0.6);

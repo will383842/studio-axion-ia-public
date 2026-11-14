@@ -14,12 +14,20 @@ describe("validateur du plan : remarques et réparation par repli, jamais de ref
     expect(schemaPlanStrict.safeParse(r.plan).success).toBe(true);
   });
 
-  it("n'importe quoi en entrée : un plan de repli rendable et une remarque", () => {
+  it("n'importe quoi en entrée : un plan de repli sans scène (jamais de légende inventée) et une remarque", () => {
     for (const brut of [null, 42, "texte", { scenes: "non" }]) {
       const r = validerPlan(brut);
-      expect(schemaPlanStrict.safeParse(r.plan).success).toBe(true);
-      expect(r.remarques.length).toBeGreaterThan(0);
+      expect(r.plan.scenes).toEqual([]);
+      expect(JSON.stringify(r.plan)).not.toContain("Axion IA");
+      expect(r.remarques.some((x) => x.code === "PLAN_ILLISIBLE")).toBe(true);
     }
+  });
+
+  it("n'importe quoi en entrée, avec un script qui donne un fait : une scène du stock posée sur le fait", () => {
+    const mots = "On passe de 2 heures à 20 minutes".split(" ").map((texte, i) => ({ texte, debutMs: i * 400, finMs: i * 400 + 400 }));
+    const r = validerPlan(null, { mots });
+    expect(schemaPlanStrict.safeParse(r.plan).success).toBe(true);
+    expect(r.plan.scenes.map((s) => s.piece)).toEqual(["avant-apres"]);
   });
 
   it("durées liées aux mots : début/fin recalés sur le minutage, remarque", () => {

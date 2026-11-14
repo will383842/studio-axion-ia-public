@@ -23,14 +23,32 @@ export interface MemoPlanVideo {
   remarques: Remarque[];
 }
 
-/** Phrases : coupées à la ponctuation forte, ou toutes les 12 mots au plus. */
+/** Au-delà de ce nombre de mots, une phrase est coupée à la virgule la plus proche. */
+const MOTS_PHRASE_MAX = 30;
+
+/** Phrases : coupées à la ponctuation forte ; une phrase de plus de 30 mots est coupée à la virgule la plus proche du 30e mot. */
 export function segmenterEnPhrases(mots: MotMinute[]): SegmentCale[] {
   const segments: SegmentCale[] = [];
+  const pousser = (groupe: MotMinute[]) => {
+    if (groupe.length) segments.push({ texte: groupe.map((x) => x.texte).join(" "), debutMs: groupe[0]!.debutMs, finMs: groupe.at(-1)!.finMs, mots: groupe });
+  };
+  const decouper = (phrase: MotMinute[]) => {
+    let reste = phrase;
+    while (reste.length > MOTS_PHRASE_MAX) {
+      let coupe = -1;
+      reste.forEach((m, i) => {
+        if (i < reste.length - 1 && /[,;]$/.test(m.texte) && (coupe < 0 || Math.abs(i - (MOTS_PHRASE_MAX - 1)) < Math.abs(coupe - (MOTS_PHRASE_MAX - 1)))) coupe = i;
+      });
+      if (coupe < 0) break;
+      pousser(reste.slice(0, coupe + 1));
+      reste = reste.slice(coupe + 1);
+    }
+    pousser(reste);
+  };
   let debut = 0;
   mots.forEach((m, i) => {
-    if (/[.!?…]$/.test(m.texte) || i - debut >= 11 || i === mots.length - 1) {
-      const groupe = mots.slice(debut, i + 1);
-      segments.push({ texte: groupe.map((x) => x.texte).join(" "), debutMs: groupe[0]!.debutMs, finMs: m.finMs, mots: groupe });
+    if (/[.!?…]$/.test(m.texte) || i === mots.length - 1) {
+      decouper(mots.slice(debut, i + 1));
       debut = i + 1;
     }
   });

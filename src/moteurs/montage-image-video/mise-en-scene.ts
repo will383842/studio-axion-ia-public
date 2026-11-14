@@ -781,6 +781,10 @@ function elementsDe(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>, c
         els.push(nouvelEl(c, "ligne", p.chiffres.some((k) => toutesCles.has(k)) ? "chiffre" : "objet", p.t, { texte: p.texte, chiffres: p.chiffres, couverts: p.couverts, groupe: `${e.id}-l${i}`, ...(ref ? { ref } : {}) }));
       }
     });
+    // GV2-50 : « compte » sur un écran qui montre un chiffre dit : le compteur démarre sur le mot de la fiche.
+    const compte = e.scene === "chiffre" ? e.surMot.find((s) => s.action === "compte" && s.mot >= 0 && s.mot < c.mots.length) : undefined;
+    const ligneChiffre = compte ? els.find((x) => x.role === "ligne" && x.chiffres.length > 0) : undefined;
+    if (compte && ligneChiffre) ligneChiffre.t = heureMot(c, compte.mot);
     return trier(els);
   }
 
@@ -905,7 +909,9 @@ function elementsToile(c: Ctx, carte: CarteImage, parId: Map<string, NoeudCarte>
     // Bloc « fait » : icône coche, « ✓ », ou libellé qui le dit fait (clôturé, résolu, validé, terminé).
     if (!(n.icone && iconeDe(n.icone) === "coche") && !/✓|cl[oô]tur|r[ée]solu|valid[ée]|termin[ée]/iu.test(`${n.libelle} ${n.detail ?? ""}`)) continue;
     const kf = c.ecrits.findIndex((m, k) => heureMot(c, k) >= x.t + 0.2 && /^(fait|faite|ferm|clotur|clôtur|résol|resol|trouv|régl|regl)/iu.test(m));
-    const t = kf >= 0 ? heureMot(c, kf) + 0.1 : x.t + 0.6;
+    // GV2-50 : « coche » de la fiche sur ce nœud, dit après son apparition : la coche tombe sur ce mot.
+    const gesteCoche = c.e.surMot.find((s) => s.action === "coche" && s.ref === n.id && s.mot >= 0 && s.mot < c.mots.length && heureMot(c, s.mot) > x.t + 0.1);
+    const t = gesteCoche ? heureMot(c, gesteCoche.mot) : kf >= 0 ? heureMot(c, kf) + 0.1 : x.t + 0.6;
     if (t < c.fin - 0.05) els.push(nouvelEl(c, "coche", "coche", t, { ref: n.id }));
   }
   // Chiffre dit porté par un nœud déjà posé : il claque sur son mot (accent).
