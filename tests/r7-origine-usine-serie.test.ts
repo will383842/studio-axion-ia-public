@@ -74,4 +74,15 @@ describe("série : l'origine « usine » exige la confirmation, le Studio non", 
     expect(generations.length).toBe(2);
     for (const g of generations) expect((await lireParametre<{ origine?: string } | null>(`generateur.chaine-options.${g.id}`, null))?.origine).toBeUndefined();
   });
+
+  it("B1 : lancerGeneration ignore toute origine autre que « usine » (rien n'est écrit dans les options)", async () => {
+    const ids: string[] = [];
+    for (const [i, origine] of ["x", { a: 1 }].entries()) {
+      const r = await bg.lancerGeneration({ idee: SUJETS_BANC[i]!.idee, reseaux: [...RESEAUX_DECLINAISON], formatId: "avocat", origine } as never);
+      ids.push(r.scriptMaitreId);
+    }
+    const gens = await depots().generations.lister();
+    expect(gens.length).toBe(2);
+    for (const g of gens) expect((await lireParametre<{ origine?: unknown } | null>(`generateur.chaine-options.${g.id}`, null))?.origine).toBeUndefined();
+  });
 });
