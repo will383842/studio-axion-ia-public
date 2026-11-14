@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { OUTILS, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { serviceBuffer } from "@/domaine/buffer";
-import { cleZernioPresente, comptesZernioEnregistres, PARAM_ARRET_ZERNIO, PARAM_ENVOI_CALENDRIER, testerZernio } from "@/services/zernio";
+import { cleZernioPresente, comptesZernioEnregistres, editorialeActive, PARAM_ARRET_ZERNIO, PARAM_EDITORIALE_ACTIVE, PHRASE_EDITORIALE, PARAM_ENVOI_CALENDRIER, testerZernio } from "@/services/zernio";
 import { canauxEnregistres } from "@/services/buffer";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
 import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
@@ -51,6 +51,8 @@ export interface EtatConnexionsZernio {
   arretActif: boolean;
   /** L7-08 : réglage séparé de l'envoi du calendrier (lecture seule ici). Absent = éteint. */
   envoiCalendrierOuvert?: boolean;
+  /** L7-08 : réglage `publication.editoriale_active` (lecture seule ici). Absent = éteint. */
+  editorialeActive?: boolean;
   comptes: CompteVue[];
   budget: BudgetInfo;
 }
@@ -99,7 +101,7 @@ function nombreOuNul(v: unknown): number | null {
 export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexionsZernio>> {
   await exigerSession();
   return essayer(async () => {
-    const [enregistres, routage, canaux, modes, bascules, tests, budgetBrut, autorise, calendrier] = await Promise.all([
+    const [enregistres, routage, canaux, modes, bascules, tests, budgetBrut, autorise, calendrier, editoriale] = await Promise.all([
       comptesZernioEnregistres(),
       lireRoutage(),
       canauxEnregistres(),
@@ -109,6 +111,7 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
       lireParametre<Partial<BudgetInfo> | null>(PARAM_BUDGET, null),
       lireParametre<boolean>(PARAM_ARRET_ZERNIO, true),
       lireParametre<boolean>(PARAM_ENVOI_CALENDRIER, false),
+      editorialeActive(),
     ]);
     const comptes: CompteVue[] = (enregistres?.comptes ?? [])
       .filter((c) => RESEAUX_CONNUS.includes(c.reseau as IdReseau))
@@ -132,7 +135,7 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
       })
       .sort((a, b) => ORDRE(a.reseau) - ORDRE(b.reseau) || a.nom.localeCompare(b.nom, "fr"));
     const budget: BudgetInfo = { zernio: nombreOuNul(budgetBrut?.zernio), buffer: nombreOuNul(budgetBrut?.buffer), finBuffer: typeof budgetBrut?.finBuffer === "string" ? budgetBrut.finBuffer : "20/11" };
-    return { cleAbsente: !cleZernioPresente(), arretActif: autorise === false, envoiCalendrierOuvert: calendrier === true, comptes, budget };
+    return { cleAbsente: !cleZernioPresente(), arretActif: autorise === false, envoiCalendrierOuvert: calendrier === true, editorialeActive: editoriale, comptes, budget };
   });
 }
 
@@ -193,6 +196,28 @@ export async function reprendreToutAction(): Promise<Resultat> {
   return essayer(async () => {
     await ecrireParametre(PARAM_ARRET_ZERNIO, true);
     await journaliser("reglages", "Reprise : les envois sont rétablis");
+    rafraichir();
+    return undefined;
+  });
+}
+
+/** Geste explicite : allume la publication éditoriale (écrit le booléen seul ; ne touche ni `zernio.envoi_autorise` ni l'envoi du calendrier). */
+export async function allumerEditorialeAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, true);
+    await journaliser("reglages", PHRASE_EDITORIALE.allumee);
+    rafraichir();
+    return undefined;
+  });
+}
+
+/** Éteint la publication éditoriale (état par défaut). */
+export async function eteindreEditorialeAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, false);
+    await journaliser("reglages", PHRASE_EDITORIALE.eteinte);
     rafraichir();
     return undefined;
   });

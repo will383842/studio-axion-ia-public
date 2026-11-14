@@ -360,4 +360,19 @@ describe("GV2-33 : calage réessayé et dit, fin posée, bords mal entendus", ()
     const fin = etat.coupes!.gardes[etat.coupes!.gardes.length - 1].finSec;
     expect(fin).toBeGreaterThanOrEqual(dernier.finSec);
   });
+
+  it("calage terminé mais rejeté par les garde-fous → une seule demande, vidéo livrée avec l'alerte", async () => {
+    const { deps, demandes } = depsAlignement(0);
+    const alignement = deps.alignement as unknown as { suivre: (id: string) => Promise<unknown> };
+    // Un calage à 5 s de la voix porte sur un autre son : les garde-fous le refusent.
+    alignement.suivre = async (id) => {
+      const ref = demandes.find((d) => d.idAlignement === id)?.reference ?? [];
+      return { statut: "termine", resultat: { mots: ref.map((m) => ({ ...m, debutSec: m.debutSec + 5, finSec: m.finSec + 5 })), motsNonAlignes: 0, modele: "essai", dureeCalculSec: 1 } };
+    };
+    const etat = await tours(deps);
+    expect(etat.fini).toBe(true);
+    expect(demandes).toHaveLength(1);
+    expect(etat.mots?.source).not.toBe("aligneur");
+    expect(livraisonChaine(etat).alertes).toContainEqual({ code: "synchronisation", gravite: "attention", message: "Sous-titres posés sur la transcription : le calage fin n'a pas abouti." });
+  });
 });

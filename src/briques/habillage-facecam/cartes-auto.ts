@@ -353,7 +353,8 @@ function nombreEtUnite(mots: MotCarte[], idx: number[], k: number): { valeur: nu
   const colle = /^(\d+(?:[.,]\d+)?)\s*%[\s.,;:!?)»”"]*$/.exec(brut);
   if (colle) return { valeur: Number(colle[1].replace(",", ".")), unite: "%", nbMots: 1 };
   const lu = normaliser(brut).replace(/[^a-z0-9'.,-]/g, "").replace(/[.,;:]+$/, "");
-  const valeur = /^\d+(?:[.,]\d+)?$/.test(lu) ? Number(lu.replace(",", ".")) : NOMBRES_LETTRES[nu(brut)];
+  // « 1.500 » ou « 12.000 » : le point sépare les milliers (1500, 12000), jamais une décimale.
+  const valeur = /^\d{1,3}(?:\.\d{3})+$/.test(lu) ? Number(lu.replace(/\./g, "")) : /^\d+(?:[.,]\d+)?$/.test(lu) ? Number(lu.replace(",", ".")) : NOMBRES_LETTRES[nu(brut)];
   if (!valeur || k + 1 >= idx.length) return null;
   const suivant = mots[idx[k + 1]].mot.trim();
   if (SIGNE_POURCENT.test(suivant)) return { valeur, unite: "%", nbMots: 2 };

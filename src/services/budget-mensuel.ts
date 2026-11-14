@@ -1,14 +1,14 @@
 /**
  * PLAFOND MENSUEL GLOBAL ET BUDGET DE L'USINE (L1-09 ; porte v2, § 3 quater, appel 5). Serveur seulement, aucun appel réseau.
- *  - Le PLAFOND du mois (`budget.mensuel`, centimes d'euro entiers) se règle UNIQUEMENT dans le studio, par Will
- *    connecté (`definirBudget`). Il borne la commande de Will et le budget de l'Usine, et reste gardé à la dépense
+ *  - Le PLAFOND du mois (`budget.mensuel`, centimes d'euro entiers) se règle UNIQUEMENT dans le studio, par le fondateur
+ *    connecté (`definirBudget`). Il borne la commande du fondateur et le budget de l'Usine, et reste gardé à la dépense
  *    (`controlerBudgetDuMois`) ; il ne borne PAS `plafond_cents`, borné par le plafond d'UN SUJET de la chaîne active (L3-0).
  *  - Le BUDGET DE L'USINE (`budget.usine.<AAAA-MM>`) est écrit par un seul endroit, `reglerBudgetUsine` (la porte du
  *    lot 3 l'appellera après sa garde par secret). Toujours ≤ plafond du studio : un secret volé ne suffit pas à tout
  *    dépenser. Sans budget reçu pour le mois de Paris en cours, aucune fabrication commandée par l'Usine ne part.
  *  - La garde dure est `controlerBudgetDuMois`, appelée par le passage commun (`verifierBudgetEtCredits`, sous le verrou
  *    des crédits) : dépensé du mois + engagé (pire cas des travaux en cours, hors ce travail s'il reprend) + ce
- *    lancement > plafond → refus avant toute réservation, et alerte à Will (cloche, une fois par jour et par motif).
+ *    lancement > plafond → refus avant toute réservation, et alerte au fondateur (cloche, une fois par jour et par motif).
  *  - Réglage illisible (absent de forme, négatif, non entier, texte) → refus : jamais « pas de plafond ».
  */
 import "server-only";
@@ -149,7 +149,7 @@ export async function verifierPlafondCommande(plafondCents: unknown): Promise<nu
 
 /* --- Garde dure du passage commun ---------------------------------------- */
 
-/** D'où vient le lancement : Will dans le studio (par défaut, inchangé) ou une commande de l'Usine. */
+/** D'où vient le lancement : le fondateur dans le studio (par défaut, inchangé) ou une commande de l'Usine. */
 export type OrigineLancement = "studio" | "usine";
 
 type MotifRefus = "plafond" | "usine-atteint" | "usine-absent" | "usine-sans-borne" | "usine-quota";
@@ -161,7 +161,7 @@ const ALERTES: Record<MotifRefus, { titre: string; message: string }> = {
   "usine-absent": { titre: "Commande de l'Usine refusée : aucun budget reçu pour ce mois", message: "Rien n'est parti. Réglez le budget du mois dans l'Usine." },
 };
 
-/** Alerte à Will (cloche + file d'envoi), une fois par jour et par motif. Une panne de l'alerte ne change jamais le refus. */
+/** Alerte au fondateur (cloche + file d'envoi), une fois par jour et par motif. Une panne de l'alerte ne change jamais le refus. */
 async function alerterRefus(motif: MotifRefus): Promise<void> {
   await alerterUneFoisParJour(motif, ALERTES[motif]);
 }
@@ -184,19 +184,19 @@ export async function signalerDepassementIndicatif(motif: string, titre: string,
  * Jugement d'un plafond PAR VIDÉO ou par sujet (centimes du pire cas : déjà engagé + cet appel). PUR côté décision :
  *  - sous le plafond : "ok" ;
  *  - mode bloquant, plafond dépassé : "bloque" (refus comme avant) ;
- *  - mode indicatif, jusqu'à 5 × le plafond : "ok" après avoir prévenu Will (journal + une cloche par jour et par motif) ;
- *  - mode indicatif, au-delà : "ok" aussi (même alerte, SANS arrêt : le prix ne bloque jamais).
+ *  - mode indicatif, quel que soit le dépassement : "ok" après avoir prévenu le fondateur (journal + une cloche par jour et par motif),
+ *    SANS arrêt : le prix ne bloque jamais.
  */
 export async function jugerPlafond(totalCentimes: number, plafondUsd: number, indicatif: boolean, quoi: string, sujet?: string, affichage: { tauxUsdEur?: number; sansPrix?: boolean } = {}): Promise<"ok" | "bloque"> {
   const plafond = centimesDuPlafond(plafondUsd);
   if (totalCentimes <= plafond) return "ok";
   if (!indicatif) return "bloque";
   await signalerDepassementIndicatif("video", "Prix annoncé dépassé (la vidéo continue)", `${quoi} : ${messageAuDelaDuBudgetIndicatifClaude(affichage.sansPrix || affichage.tauxUsdEur === undefined ? undefined : formaterMontant(centimes(centimesDuPlafond(plafondUsd * affichage.tauxUsdEur))))}`, sujet);
-  // 08/11/2026 : plus d'arrêt à 5 × ; le dépassement prévient, la fabrication continue.
+  // NEW-ARG-04 : plus d'arrêt pour un prix, quel que soit le multiple ; le dépassement prévient, la fabrication continue.
   return "ok";
 }
 
-/** `type` : "budget" (refus, canaux de Will) ; "credit" = cloche seule (jamais de push ni d'e-mail : cloches indicatives). */
+/** `type` : "budget" (refus, canaux du fondateur) ; "credit" = cloche seule (jamais de push ni d'e-mail : cloches indicatives). */
 async function alerterUneFoisParJour(motif: string, texte: { titre: string; message: string }, type: "budget" | "credit" = "budget"): Promise<void> {
   try {
     const cle = `budget.refus.${jourParis()}.${motif}`;
@@ -219,7 +219,7 @@ async function alerterUneFoisParJour(motif: string, texte: { titre: string; mess
  * (facultatifs) désignent le couple de la commande : un quota qui le couvre est appliqué ici (une unité par travail).
  */
 export async function controlerBudgetDuMois(besoinCentimes: number, options: { origine?: OrigineLancement; travailId?: Id; reseau?: string; type?: string } = {}): Promise<void> {
-  // Mode indicatif (commande de Will seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
+  // Mode indicatif (commande du fondateur seulement) : le plafond du mois est un repère, jamais un refus. L'Usine reste bloquante.
   const indicatif = await budgetIndicatifPour(options.origine);
   let plafond: number | null;
   try {
