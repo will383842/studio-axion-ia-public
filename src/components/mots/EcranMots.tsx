@@ -11,9 +11,15 @@ import type { Resultat, VueMots } from "@/services/mots-service";
 import type { EtatBranchement } from "@/services/branchements-zernio";
 import type { ElementATraiter, KitLinkedinProfil } from "@/services/mots-kit";
 import { KitLinkedin } from "./KitLinkedin";
+import type { EtatReglagesParcours, ReglageParcours, ResultatReglage } from "@/services/parcours-reglages";
 import type { TableauSuivi } from "./suivi-affichage";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
 import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
+
+const TEXTE_MOTS_MULTIPLES = "Allumé : une même personne peut recevoir plusieurs mots (3 au plus en 24 h) et, si elle redemande un guide déjà envoyé, un renvoi avec un lien neuf. Éteint : un seul mot par personne. Éteindre éteint aussi Instagram.";
+const TEXTE_INSTAGRAM = "Allumé : sur Instagram, un commentaire reçoit UNE réponse privée qui demande de suivre le compte puis d’écrire OK ; le lien part quand la personne suit le compte. Éteint : aucun message Instagram de ce parcours ne part. Demande que le mode plusieurs mots soit allumé.";
+const PHRASE_ALLUMER_MOTS_MULTIPLES = "Allumer le mode plusieurs mots ? Les personnes pourront recevoir plusieurs mots et des renvois avec un lien neuf. Vous pouvez l’éteindre en un clic.";
+const PHRASE_ALLUMER_INSTAGRAM = "Allumer « Instagram : suivre le compte puis OK » ? Les commentaires Instagram recevront une réponse privée qui demande de suivre le compte puis d’écrire OK. Vous pouvez l’éteindre en un clic.";
 
 /** Tableau de suivi chargé à la demande : il n'alourdit pas le premier affichage de /mots. */
 const TableauSuiviMots = dynamic(() => import("./TableauSuiviMots").then((m) => m.TableauSuiviMots));
@@ -29,6 +35,8 @@ export interface ServicesMots {
   validerGuide?(): Promise<{ ok: boolean; raison: string }>;
   /** Valide UNE formulation d'un message privé : le client n'envoie qu'un nom de version, le serveur la contrôle contre le dictionnaire. */
   validerFormulation?(version: string): Promise<{ ok: boolean; raison: string }>;
+  /** Interrupteurs du parcours (plusieurs mots, Instagram) : le client n'envoie qu'un nom et un booléen. */
+  reglerParcours?(reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage>;
   refermerDisjoncteur(): Promise<{ ok: boolean }>;
   reglerPlafonds(p: { heureCompte?: number; jourMot?: number }): Promise<unknown>;
 }
@@ -67,7 +75,7 @@ const LIBELLES_RENVOI: Readonly<Record<string, string>> = {
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
  * l’interrupteur est éteint, les gestes sont des simulations et l’écran le dit.
  */
-export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, comptes, suivi, suiviIndisponible }: { suivi?: TableauSuivi | null; suiviIndisponible?: boolean; vue: VueMots; comptes?: readonly string[]; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
+export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, comptes, suivi, suiviIndisponible, reglages }: { reglages?: EtatReglagesParcours | null; suivi?: TableauSuivi | null; suiviIndisponible?: boolean; vue: VueMots; comptes?: readonly string[]; services: ServicesMots; onChange?: () => void; branchement?: EtatBranchement | null; kitLinkedin?: { kit: KitLinkedinProfil | null; file: readonly ElementATraiter[] } }) {
   const [enCours, demarrer] = useTransition();
   const [heure, setHeure] = useState(String(vue.plafonds.heureCompte));
   const [jour, setJour] = useState(String(vue.plafonds.jourMot));
@@ -105,6 +113,15 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
     onChange?.();
   };
 
+  const basculer = async (reglage: ReglageParcours, allume: boolean) => {
+    if (!services.reglerParcours) return;
+    if (allume && !window.confirm(reglage === "mots_multiples" ? PHRASE_ALLUMER_MOTS_MULTIPLES : PHRASE_ALLUMER_INSTAGRAM)) return;
+    const r = await services.reglerParcours(reglage, allume);
+    if (r.ok) notifier.succes(allume ? "Allumé." : "Éteint.");
+    else notifier.erreur(r.raison === "plusieurs_mots_eteint" ? "Allumez d’abord le mode plusieurs mots." : "Non modifié.");
+    onChange?.();
+  };
+
   return (
     <div className="flex flex-col gap-4" data-ecran="mots">
       <Carte className="flex flex-wrap items-center gap-3">
@@ -125,6 +142,40 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
           ) : (
             <p className="mt-1 text-sm text-texte-doux">À compléter sur le serveur : {branchement.codes.join(", ")}.</p>
           )}
+        </Carte>
+      )}
+
+      {reglages && services.reglerParcours && (
+        <Carte data-carte="reglages-parcours">
+          <h3 className="text-base text-texte">Réglages du parcours</h3>
+          <ul className="mt-2 flex flex-col gap-4">
+            <li className="flex flex-col gap-2" data-reglage="mots_multiples">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="min-w-0 flex-1 text-sm font-semibold text-texte">Mode plusieurs mots</span>
+                <Pastille ton={reglages.motsMultiples ? "sauge" : "neutre"}>{reglages.motsMultiples ? "Allumé" : "Éteint"}</Pastille>
+                <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(() => basculer("mots_multiples", !reglages.motsMultiples))}>
+                  {reglages.motsMultiples ? "Éteindre" : "Allumer"}
+                </Bouton>
+              </div>
+              <p className="text-sm text-texte-doux">{TEXTE_MOTS_MULTIPLES}</p>
+            </li>
+            <li className="flex flex-col gap-2" data-reglage="instagram_suivre">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="min-w-0 flex-1 text-sm font-semibold text-texte">Instagram : suivre le compte puis OK</span>
+                <Pastille ton={reglages.instagramSuivre ? "sauge" : "neutre"}>{reglages.instagramSuivre ? "Allumé" : "Éteint"}</Pastille>
+                <Bouton
+                  variante="secondaire"
+                  chargement={enCours}
+                  disabled={!reglages.instagramSuivre && !reglages.motsMultiples}
+                  onClick={() => demarrer(() => basculer("instagram_suivre", !reglages.instagramSuivre))}
+                >
+                  {reglages.instagramSuivre ? "Éteindre" : "Allumer"}
+                </Bouton>
+              </div>
+              {!reglages.instagramSuivre && !reglages.motsMultiples && <p className="text-sm text-ambre" data-raison="plusieurs_mots_eteint">Impossible à allumer : le mode plusieurs mots est éteint.</p>}
+              <p className="text-sm text-texte-doux">{TEXTE_INSTAGRAM}</p>
+            </li>
+          </ul>
         </Carte>
       )}
 

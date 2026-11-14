@@ -14,4 +14,18 @@ export const VERSIONS_M1_ACCEPTEES_PAR_LE_SITE: readonly string[] = ["mp-m1-v3"]
 /** Formulations du groupe « m1-lien » pas encore connues du site : elles ne partent pas avec un lien. */
 export const VERSIONS_M1_EN_ATTENTE_DU_SITE: readonly string[] = ["mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4"];
 
-export const siteAccepteVersionM1 = (version: string): boolean => VERSIONS_M1_ACCEPTEES_PAR_LE_SITE.includes(version);
+/**
+ * Formulations VALIDÉES qui portent un lien (`[LIEN]`), au-delà de `mp-m1-v3` : celles des groupes « m1-lien » (premier message),
+ * « lien-rappel » (rappel Instagram et renvoi) et « deja-envoye » (renvoi). LISTE FERMÉE, déduite de `contrats/dictionnaire-textes-mp.v2.json`
+ * (toute version du dictionnaire qui contient `[LIEN]` dans l'un de ces trois groupes) ; le site les accepte dans le jeton (`version_m1`).
+ * `mp-lien-v2`, `mp-pub-linkedin-v1` et `mp-pub-tiktok-v1` portent aussi un lien mais ne sont dans aucun de ces groupes : jamais choisies, donc absentes.
+ * Les listes ci-dessus restent telles quelles : un test figé compare la première à la copie des versions du jeton connues du site.
+ */
+export const VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE: readonly string[] = [
+  "mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4",
+  "mp-lien-v3-1", "mp-lien-v3-2", "mp-lien-v3-3",
+  "mp-deja-envoye-v1-1", "mp-deja-envoye-v1-2", "mp-deja-envoye-v1-3",
+];
+
+export const siteAccepteVersionM1 = (version: string): boolean =>
+  VERSIONS_M1_ACCEPTEES_PAR_LE_SITE.includes(version) || VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE.includes(version);
