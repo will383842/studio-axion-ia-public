@@ -10,7 +10,7 @@ import { deposerCommentaire, deposerMessage, validerFormulationsAuParcours } fro
 const etat = vi.hoisted(() => ({ catalogue: null as unknown }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => etat.catalogue }));
-vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true }));
+vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true, validationPourEnvoi: async () => null }));
 
 const MM = await import("@/services/parcours-mots-multiples");
 const IG = await import("@/services/parcours-instagram");

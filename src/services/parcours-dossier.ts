@@ -32,6 +32,7 @@ import {
   type DecisionCommentaire,
 } from "@/domaine/guide-reseau/machine-conversation";
 import { ecrireParametre, lireParametre, sousVerrou } from "./_commun";
+import { verifierMotPourEnvoi } from "./mots-validation-par-mot";
 import { enregistrerOppositionPersonne } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 
@@ -41,6 +42,30 @@ import { mettreEnFileOpposition } from "./oppositions-transmission";
  */
 export function textesValidesPourLeMot(mot: string, cible: string): boolean {
   return mot.toUpperCase() === "GUIDE" && cible === "guide-ia";
+}
+
+export type RefusValidationEnvoi =
+  | "validation_absente"
+  | "instagram_pas_encore"
+  | "cibles_illisibles";
+
+/**
+ * Garde de validation avant tout envoi : `null` = peut partir.
+ * GUIDE : synchrone, AUCUN appel au site (comportement actuel : seule la cible `guide-ia` part).
+ * Autre mot : Facebook seulement (Instagram : « instagram_pas_encore »), puis la validation par mot + la cible du jour (`verifierMotPourEnvoi`).
+ */
+export async function validationPourEnvoi(
+  mot: string,
+  reseau: string | null,
+  codeCible: string,
+  titre: string,
+  env?: Record<string, string | undefined>,
+  maintenantMs?: number,
+): Promise<RefusValidationEnvoi | null> {
+  if (mot.toUpperCase() === "GUIDE")
+    return codeCible === "guide-ia" ? null : "validation_absente";
+  if (reseau !== "facebook") return "instagram_pas_encore";
+  return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs });
 }
 
 /** Messages privés à NOTRE initiative (premier envoi ou renvoi) par personne et par 24 h. Les réponses dans la fenêtre (M2, reçu, merci, adresse refusée) ne comptent pas. */

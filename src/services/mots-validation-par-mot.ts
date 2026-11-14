@@ -1,5 +1,5 @@
 /**
- * Validation des textes PAR MOT et PAR RÉSEAU (garde d'envoi). SANS EFFET : aucun code de production ne l'appelle encore.
+ * Validation des textes PAR MOT et PAR RÉSEAU (garde d'envoi). `verifierMotPourEnvoi` est appelée par la garde d'envoi (parcours-dossier).
  *
  * L'opérateur voit les textes d'un mot pour un réseau, avec la cible actuelle du site ; sa validation retient une empreinte
  * (mot + réseau + cible + titre + textes actifs). Si la cible, son titre ou un texte du dictionnaire change, l'empreinte change :
@@ -175,6 +175,50 @@ export async function etatValidationMot(o: {
   }
 }
 
+export type RefusEnvoiMot = "cibles_illisibles" | "validation_absente";
+
+/**
+ * Garde d'envoi d'un mot autre que GUIDE : `null` = peut partir. « cibles_illisibles » : le site est injoignable ou seule la copie répond
+ * (rien n'est décidé : l'appelant REPORTE). « validation_absente » : tout autre doute (pas de validation, validation périmée, cible
+ * d'essai, page, autre cible, autre titre, réseau inconnu) : l'appelant CLOT. Ne lève jamais ; n'appelle jamais `sousVerrou`.
+ */
+export async function verifierMotPourEnvoi(o: {
+  mot: string;
+  reseau: ReseauAuto;
+  codeCible: string;
+  titre: string;
+  env?: Env;
+  maintenantMs?: number;
+}): Promise<RefusEnvoiMot | null> {
+  try {
+    if (!estAuto(o.reseau)) return "validation_absente";
+    const v = (await lireRegistre())[cleDe(o.mot, o.reseau)];
+    if (!v) return "validation_absente";
+    const e = empreinteMot(o);
+    if (!(e.ok && e.empreinte === v.empreinte && v.codeCible === o.codeCible))
+      return "validation_absente";
+    // Seconde garde : la cible d'AUJOURD'HUI doit être celle validée, ni d'essai (TEST) ni une page (adresse). Site injoignable ou copie : illisible.
+    const c = await cibleActuelleDuMot({
+      mot: o.mot,
+      reseau: o.reseau,
+      env: o.env,
+      maintenantMs: o.maintenantMs,
+    });
+    if (!c.ok)
+      return c.raison === "site_injoignable"
+        ? "cibles_illisibles"
+        : "validation_absente";
+    return !c.test &&
+      c.type === "guide" &&
+      c.code === o.codeCible &&
+      c.titre === o.titre
+      ? null
+      : "validation_absente";
+  } catch {
+    return "validation_absente";
+  }
+}
+
 /** Vrai seulement si l'empreinte retenue est celle d'aujourd'hui. Ne lève jamais ; FERMÉ en cas de doute (lecture impossible, réseau inconnu, texte incomplet). */
 export async function motValidePour(o: {
   mot: string;
@@ -184,30 +228,7 @@ export async function motValidePour(o: {
   env?: Env;
   maintenantMs?: number;
 }): Promise<boolean> {
-  try {
-    if (!estAuto(o.reseau)) return false;
-    const v = (await lireRegistre())[cleDe(o.mot, o.reseau)];
-    if (!v) return false;
-    const e = empreinteMot(o);
-    if (!(e.ok && e.empreinte === v.empreinte && v.codeCible === o.codeCible))
-      return false;
-    // Seconde garde : la cible d'AUJOURD'HUI doit être celle validée, ni d'essai (TEST) ni une page (adresse). Site injoignable ou copie : faux.
-    const c = await cibleActuelleDuMot({
-      mot: o.mot,
-      reseau: o.reseau,
-      env: o.env,
-      maintenantMs: o.maintenantMs,
-    });
-    return (
-      c.ok &&
-      !c.test &&
-      c.type === "guide" &&
-      c.code === o.codeCible &&
-      c.titre === o.titre
-    );
-  } catch {
-    return false;
-  }
+  return (await verifierMotPourEnvoi(o)) === null;
 }
 
 export type ApercuReseau =
