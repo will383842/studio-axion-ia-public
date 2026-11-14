@@ -78,4 +78,14 @@ describe.each([["mot unique", false], ["plusieurs mots", true]])("premier messag
     expect(ev.charge).toMatchObject({ etat: "oppose", dernierCode: "opposition" });
     expect(envoisSortants()).toBe(0);
   });
+
+  it("nouveau sans garde + 8 jours : ni réponse publique ni message privé, conversation expirée", async () => {
+    await registre("actif");
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(AUTEUR)]: graineConv("nouveau", { idCommentaire: "com-tardif" }) });
+    const id = await deposerCommentaire(depots, { reseau: "facebook", ageMs: 8 * J, idCommentaire: "com-tardif" });
+    await passer(T0);
+    expect((await evenement(depots, id)).charge).toMatchObject({ etat: "perime" });
+    expect(envoisSortants()).toBe(0);
+    expect(await etatsApres()).toEqual(["expire"]);
+  });
 });

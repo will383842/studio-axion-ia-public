@@ -380,7 +380,8 @@ async function perimeSousGarde(ev: EvenementFournisseur, now: number): Promise<b
   const enCours = Object.entries(conv).filter(([, e]) => e.idCommentaire === idCommentaire && (e.etat === "nouveau" || e.etat === "pub_ok"));
   if (enCours.length > 0) {
     if (!tropTardPourPremierMp(ev, now)) return false;
-    for (const [cle] of enCours) await patcher(cle, { etat: "expire", prochainEssaiLe: null });
+    // Écriture sous verrou, état revérifié : une conversation passée entre-temps à un autre état n'est jamais écrasée.
+    for (const [cle] of enCours) await ecrireEtat(cle, (e) => (e && (e.etat === "nouveau" || e.etat === "pub_ok") ? { ...e, etat: "expire", prochainEssaiLe: null } : e));
   }
   await clore(ev, "perime", "perime");
   return true;
@@ -899,6 +900,12 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
       return "traite";
     }
   }
+  // Commentaire de plus de 7 jours : ni réponse publique (elle annoncerait un message privé qui ne viendra pas) ni message privé. La conversation passe à `expire` (rien n'est effacé).
+  if ((e.etat === "nouveau" || e.etat === "pub_ok") && tropTardPourPremierMp(ev, now)) {
+    await patcher(cle, { etat: "expire", prochainEssaiLe: null });
+    await clore(ev, "perime", "perime");
+    return "traite";
+  }
   if (e.etat === "nouveau") {
     const texte = rendreTexteMp("mp-pub-igfb-v1", {});
     if (texte === null) {
@@ -928,12 +935,6 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   }
   if (e.etat !== "pub_ok") {
     await clore(ev, "silence", "etat");
-    return "traite";
-  }
-  // Premier message privé d'un commentaire de plus de 7 jours : Meta ne l'autorise plus. Rien ne part, la conversation passe à `expire` (rien n'est effacé).
-  if (tropTardPourPremierMp(ev, now)) {
-    await patcher(cle, { etat: "expire", prochainEssaiLe: null });
-    await clore(ev, "perime", "perime");
     return "traite";
   }
   const bloque = await garde(d, env, idCompte, e.reseau, e);
