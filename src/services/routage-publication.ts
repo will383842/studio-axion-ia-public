@@ -66,13 +66,13 @@ function refusOutil(outil: OutilPublication): ErreurStudio {
  * doit exister. Sinon refus clair : jamais l'autre outil à sa place.
  */
 export async function outilDeEnvoi(reseau: IdReseau, compte?: string | null): Promise<OutilPublication> {
-  const outil = outilPour(await lireRoutage(), reseau, compte);
+  const t = await lireRoutage(); // une seule lecture du routage pour tout le calcul
+  const outil = outilPour(t, reseau, compte);
   if (outil === "zernio") {
     if (!cleZernioPresente()) throw refusOutil("zernio");
     return outil;
   }
   // Seul un « buffer » déjà enregistré mène ici : clé exigée, jamais de repli silencieux.
-  const t = await lireRoutage();
   const explicite = [compte ? `${reseau}:${compte}` : null, reseau].some((c) => !!c && Object.hasOwn(t, c) && t[c] === "buffer");
   if (explicite && !bufferRelie()) throw refusOutil("buffer");
   return outil;

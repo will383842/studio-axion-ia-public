@@ -16,6 +16,7 @@ import { PastilleEssai } from "@/components/ui/PastilleEssai";
 import { notifier } from "@/components/ui/Toast";
 import { libelleComptes } from "@/domaine/comptes-envoi";
 import { LIBELLES_ENVOI } from "@/domaine/libelles";
+import { estAncienOutil, outilsProposes } from "@/domaine/outil-publication";
 import { envoyerParOutilAction, marquerEnvoiVerifieAction, type ComplementLigne } from "@/services/a-publier-zernio";
 import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
 import { actionPrincipale, barreSelection, blocPremierCommentaire, choixOutilPropose, etatPremierCommentaire, formatApercu, joursRestantsBrouillon, ligneCompteEtDate, mentionIAVisible, messageSucces, nomOutil, libelleEnvoiOutil, phraseBrouillonAProgrammer, phraseEchec, phraseEssais, type OutilAffiche } from "./finitions-envoi";
@@ -667,6 +668,12 @@ function DetailEnvoi({
       <div className="text-xs text-texte-faible">
         <p>
           {LIBELLES_ENVOI.envoyerPar} {nomOutil(outil)}
+          {estAncienOutil(c.outil) && (
+            <>
+              {" "}
+              <Pastille ton="ambre">Ancien outil</Pastille>
+            </>
+          )}
           {choixOutilPropose(c) && (
             <>
               {" · "}
@@ -679,10 +686,10 @@ function DetailEnvoi({
         {choix && choixOutilPropose(c) && (
           <fieldset id={`${id}-outils`} className="mt-1 space-y-1">
             <legend className="sr-only">Envoi par</legend>
-            {(["zernio"] as const).map((o) => (
-              <label key={o} className="flex min-h-11 items-center gap-2 text-sm text-texte">
-                <input type="radio" name={`${id}-outil`} className="size-5" checked={outil === o} onChange={() => setOutil(o)} />
-                {nomOutil(o)} ({LIBELLES_ENVOI.recommande})
+            {outilsProposes(c.outil).map((o) => (
+              <label key={o.outil} className="flex min-h-11 items-center gap-2 text-sm text-texte">
+                <input type="radio" name={`${id}-outil`} className="size-5" checked={outil === o.outil} disabled={o.desactive} onChange={() => setOutil(o.outil)} />
+                {nomOutil(o.outil)} ({o.ancien ? "ancien outil" : LIBELLES_ENVOI.recommande}{o.actuel ? ", outil actuel" : ""})
               </label>
             ))}
             <p>{LIBELLES_ENVOI.pourCeContenu}</p>
