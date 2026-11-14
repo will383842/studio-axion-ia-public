@@ -1935,7 +1935,8 @@ export async function avancerJusquAArretIV(etat: EtatFabricationIV, outils: Outi
     await o.garder?.(suivant);
     const immobile = JSON.stringify(suivant) === JSON.stringify(e);
     e = suivant;
-    if (estFinieIV(e) || e.attente || immobile) return e;
+    // GV2-36 : la main rendue entre deux contrôles (« continuent au tour suivant ») n'est pas un arrêt : on continue.
+    if (estFinieIV(e) || (e.attente && e.attente !== "Les vérifications finales continuent au tour suivant.") || immobile) return e;
   }
   return e;
 }
