@@ -131,11 +131,11 @@ async function oppositionsEnAttente(): Promise<boolean> {
 }
 
 let depotATraiterInjecte = false;
-/** Dépôt persistant des cartes injecté une seule fois (idempotent), puis traitement du lot manuel. Éteint = retour immédiat, aucune lecture. */
 /** Copie de l'interrupteur d'a-traiter (exactement « 1 » ou « true »), testée AVANT tout import : éteint = aucun import ni dépôt. Un test garde l'égalité des noms. */
 export const VARIABLE_A_TRAITER_BOUCLE = "A_TRAITER_ENABLED";
 const aTraiterAllumeSansImport = (env: Env): boolean => env[VARIABLE_A_TRAITER_BOUCLE] === "1" || env[VARIABLE_A_TRAITER_BOUCLE] === "true";
 
+/** Dépôt persistant des cartes injecté une seule fois (idempotent), puis traitement du lot manuel. Éteint = retour immédiat, aucune lecture. */
 async function passageATraiterManuel(env: Env, now: number): Promise<void> {
   if (!aTraiterAllumeSansImport(env)) return;
   // Au plus une fois par 15 s (horodate propre ; une horloge qui recule ne bloque pas).

@@ -59,9 +59,9 @@ export async function promouvoirBrouillons(o: OptionsPromotion): Promise<Resulta
   const suivi = o.suivi ?? new SuiviDebitImport();
   const attendre = o.attendre ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const res: ResultatPromotion = { aBlanc, lignes: [], violations: [] };
-  // L7-08 : de vraies promotions exigent les DEUX réglages ouverts (refus avant tout appel).
-  if (!aBlanc && !(await (await import("../zernio")).envoiPublicationCalendrierAutorise())) {
-    res.refusLot = "envoi du calendrier fermé (réglages zernio.envoi_autorise et zernio.envoi_calendrier_autorise) : rien n'a été promu";
+  // L7-08 : de vraies promotions exigent les TROIS réglages ouverts, publication éditoriale comprise (refus avant tout appel).
+  if (!aBlanc && !(await (await import("../zernio")).publicationEditorialeAutorisee())) {
+    res.refusLot = "publication du calendrier fermée (réglages zernio.envoi_autorise, zernio.envoi_calendrier_autorise et publication éditoriale) : rien n'a été promu";
     return res;
   }
   const buffer = new Map(o.postsBuffer.map((p) => [p.id, p]));

@@ -11,7 +11,7 @@ const mise = (v: (typeof MISES_EN_PAGE)[number]) => Object.fromEntries(TYPES_MIS
 describe("GV2-52 · différences visibles du cas concret", () => {
   it("deux tirages qui ne diffèrent que par la mise en page de L2 et « raccord-objet » : 0 différence", () => {
     const a: Tirage = { ...base, miseEnPage: mise("v4-centree"), transitions: [{ moment: "bascule", type: "raccord-objet" }] };
-    const b: Tirage = { ...base, miseEnPage: mise("plein-cadre"), transitions: [{ moment: "bascule", type: "raccord-objet" }, { moment: "fin", type: "raccord-objet" }].slice(0, 1) };
+    const b: Tirage = { ...base, miseEnPage: mise("plein-cadre"), transitions: [{ moment: "bascule", type: "raccord-objet" }] };
     expect(differences(a, b)).toBe(0);
     const c: Tirage = { ...base, miseEnPage: mise("gauche"), transitions: [{ moment: "bascule", type: "raccord-objet" }] };
     expect(differences(a, c)).toBe(0);
@@ -25,7 +25,7 @@ describe("GV2-52 · différences visibles du cas concret", () => {
   });
 
   it("4 dimensions rendues différentes : la règle est tenue", () => {
-    const b: Tirage = { ...base, ouverture: "chiffre-choc", structure: "resultat-d-abord", jeuAnimation: "zoom", fondFort: !base.fondFort } as Tirage;
+    const b: Tirage = { ...base, ouverture: "chiffre-choc", structure: "resultat-d-abord", jeuAnimation: "zoom", fondFort: base.fondFort === 0 ? 1 : 0 };
     expect(differences(base, b)).toBeGreaterThanOrEqual(DIFFERENCES_MIN);
   });
 
