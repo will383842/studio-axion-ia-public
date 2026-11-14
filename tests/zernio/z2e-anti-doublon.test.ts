@@ -37,6 +37,8 @@ beforeEach(async () => {
   await exemplesCommeVraies(depots(), { plusExemples: true });
   reinitialiserRequete();
   await auth.seConnecter("essai-z2e-doublon", false);
+  // Ces tests visent Buffer : routage « buffer » explicite (le défaut est Zernio).
+  await (await import("@/services/_commun")).ecrireParametre("publication.routage", { instagram: "buffer" });
   buffer = fauxBuffer({});
   vi.stubGlobal("fetch", buffer.appeler);
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);

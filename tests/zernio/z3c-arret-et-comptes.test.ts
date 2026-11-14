@@ -91,7 +91,7 @@ describe("z3c · un geste sur un compte ne touche que ce compte", () => {
     const a1 = apres.donnees.comptes.find((c) => c.cle === p1.cle)!;
     const a2 = apres.donnees.comptes.find((c) => c.cle === p2.cle)!;
     expect([a2.outil, a2.mode]).toEqual(["zernio", "programmer"]);
-    expect([a1.outil, a1.mode]).toEqual(["buffer", "brouillon"]);
+    expect([a1.outil, a1.mode]).toEqual(["zernio", "brouillon"]);
     expect(a1.basculeLe).toBeNull();
     expect(Object.keys(await lireRoutage())).toEqual([p2.cle]);
   });

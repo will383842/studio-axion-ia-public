@@ -66,7 +66,6 @@ export function CarteCompte({ compte, services, onChange }: { compte: CompteVue;
           valeur={compte.outil}
           onChange={(o) => demarrer(async () => void (await gestes.publiePar(compte.cle, o)))}
           options={[
-            { valeur: "buffer", libelle: "Ancien outil", desactive: !compte.existeChezBuffer, raison: "Ce compte n’existe pas dans l’ancien outil." },
             { valeur: "zernio", libelle: "Nouvel outil" },
           ]}
         />
@@ -97,7 +96,7 @@ export function CarteBascule({ comptes, services, onChange }: { comptes: CompteV
         <>
           <p className="mt-1 text-[15px] font-semibold text-texte">{restant.nom} publie encore par l’ancien outil</p>
           <p className="mt-1 text-sm text-texte-doux">
-            {autres === 1 ? "Le 1 autre compte passe déjà par le nouvel outil." : `Les ${autres} autres comptes passent déjà par le nouvel outil.`} Vous pourrez revenir à l’ancien outil en un geste jusqu’au 20/11.
+            {autres === 1 ? "Le 1 autre compte passe déjà par le nouvel outil." : `Les ${autres} autres comptes passent déjà par le nouvel outil.`}
           </p>
           <div className="mt-3">
             <Bouton

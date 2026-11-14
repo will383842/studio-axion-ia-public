@@ -1,18 +1,33 @@
 import { Icone } from "@/components/ui/Icone";
-import { controlerPretAPartir, type OptionsControle, type PublicationAControler } from "@/services/pret-a-partir";
+import { controlerPretAPartir, type CodeControle, type OptionsControle, type PublicationAControler } from "@/services/pret-a-partir";
 
 export interface ProprietesPretAPartir extends OptionsControle {
   /** Une publication par réseau choisi. */
   publications: readonly PublicationAControler[];
   /** Geste du bouton « Copier » (rendu client) : reçoit le texte à copier. */
   onCopier?: (texte: string) => void;
+  /** Points que les données de l'entrée ne portent pas (média décrit, premier commentaire, mot) : au lieu d'un « il manque » inventé, la ligne dit « à vérifier à la main ». */
+  averifier?: readonly CodeControle[];
 }
+
+const A_VERIFIER: Partial<Record<CodeControle, string>> = {
+  fichier: "Le fichier (vidéo, image ou PDF) est à vérifier à la main.",
+  "premier-commentaire": "Le premier commentaire est à vérifier à la main.",
+  mot: "Le mot à commenter est à vérifier à la main.",
+};
 
 const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts" };
 
 /** Liste « Prêt à partir ? » du tiroir : ce qui manque, réseau par réseau. Informe, n'empêche rien. */
-export function PretAPartir({ publications, mots, onCopier }: ProprietesPretAPartir) {
-  const blocs = publications.map((p) => ({ p, lignes: controlerPretAPartir(p, { mots }) }));
+export function PretAPartir({ publications, mots, onCopier, averifier = [] }: ProprietesPretAPartir) {
+  const blocs = publications.map((p) => ({
+    p,
+    lignes: [
+      ...controlerPretAPartir(p, { mots }).filter((l) => !averifier.includes(l.code)),
+      // Pas de premier commentaire sur TikTok : rien à vérifier de ce côté.
+      ...averifier.filter((code) => A_VERIFIER[code] && !(code === "premier-commentaire" && p.reseau === "tiktok")).map((code) => ({ code, message: A_VERIFIER[code] as string, copier: undefined as string | undefined })),
+    ],
+  }));
   return (
     <section aria-label="Prêt à partir ?" className="rounded-xl border border-trait bg-surface-1 p-3 text-sm text-texte">
       <h3 className="mb-2 font-extrabold">Prêt à partir ?</h3>

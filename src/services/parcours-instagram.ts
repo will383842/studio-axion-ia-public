@@ -3,7 +3,7 @@
  * Échec FERMÉ : lecture impossible, valeur absente ou mal formée => éteint. Seule la valeur `true` allume.
  */
 import "server-only";
-import { lireParametre } from "./_commun";
+import { ecrireParametre, lireParametre } from "./_commun";
 
 export const PARAM_INSTAGRAM_SUIVRE = "parcours.instagram_suivre";
 
@@ -23,4 +23,9 @@ export async function instagramSuivreActif(options?: Options): Promise<boolean> 
   } catch {
     return false;
   }
+}
+
+/** Écriture du réglage (seule voie : l'interrupteur de /mots, via `parcours-conversation`). Mémoire ET base, par la couche de données normale. */
+export async function ecrireInstagramSuivre(allume: boolean): Promise<void> {
+  await ecrireParametre(PARAM_INSTAGRAM_SUIVRE, allume);
 }
