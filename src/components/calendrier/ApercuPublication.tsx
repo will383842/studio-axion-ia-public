@@ -18,6 +18,7 @@ import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisibl
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
+import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { PretAPartir } from "./PretAPartir";
 import type { CodeControle } from "@/services/pret-a-partir";
@@ -94,10 +95,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
-      {a.media.genre === "video" && a.media.url ? (
-        <video controls preload="metadata" poster={a.media.poster ?? undefined} src={a.media.url} className="max-h-[60vh] w-full bg-voile">
-          <track kind="captions" />
-        </video>
+      {entree.type === "carrousel" || ((entree.type === "video" || entree.type === "infographie") && a.media.url) ? (
+        <ApercuMedia type={entree.type} url={a.media.url} poster={a.media.poster} pages={entree.media?.pages} />
       ) : a.media.genre === "image" && a.media.url ? (
         // eslint-disable-next-line @next/next/no-img-element -- adresse libre d'un visuel du Studio, montrée entière
         <img src={a.media.url} alt={`Visuel de la publication ${nom}`} className="max-h-[60vh] w-full object-contain" />

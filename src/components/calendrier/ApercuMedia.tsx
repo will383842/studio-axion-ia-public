@@ -23,6 +23,9 @@ const BOUTON = "min-h-[44px] min-w-[44px] rounded-[10px] border border-trait-for
 export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuMedia): ReactNode {
   const [page, setPage] = useState(0);
   const [grand, setGrand] = useState(false);
+  // Un lien signé a expiré (ou le fichier est illisible) : on le dit, au lieu de laisser un cadre vide.
+  const [expire, setExpire] = useState(false);
+  const surErreur = () => setExpire(true);
   // Le bouton qui a ouvert la fenêtre : le focus y revient à la fermeture.
   const declencheur = useRef<HTMLButtonElement | null>(null);
   const t = TYPES_CONTENU[type];
@@ -52,12 +55,14 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
     declencheur.current?.focus();
   };
 
+  const phraseExpire = <p role="status">Le lien a expiré : rechargez la page.</p>;
+
   if (type === "video") {
     return (
       <section aria-label="Vidéo">
         {etiquette}
-        {url ? (
-          <video controls preload="metadata" poster={poster ?? undefined} src={url} className="max-h-[60vh] w-full rounded-[10px] bg-voile">
+        {url && expire ? phraseExpire : url ? (
+          <video onError={surErreur} controls preload="metadata" poster={poster ?? undefined} src={url} className="max-h-[60vh] w-full rounded-[10px] bg-voile">
             Votre navigateur ne sait pas lire cette vidéo.
           </video>
         ) : (
@@ -73,9 +78,11 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
         {etiquette}
         {total === 0 ? (
           <p role="status">Les pages ne sont pas encore prêtes : le carrousel pourra être feuilleté dans un instant.</p>
+        ) : expire ? (
+          phraseExpire
         ) : (
           <>
-            <img src={pages[courante]} alt={`Carrousel, page ${courante + 1} sur ${total}`} className="max-h-[60vh] w-full rounded-[10px] bg-voile object-contain" />
+            <img onError={surErreur} src={pages[courante]} alt={`Carrousel, page ${courante + 1} sur ${total}`} className="max-h-[60vh] w-full rounded-[10px] bg-voile object-contain" />
             <div className="flex items-center justify-between gap-2">
               <button type="button" className={BOUTON} disabled={courante === 0} onClick={() => aller(courante - 1)}>Page précédente</button>
               <p role="status" aria-live="polite">Page {courante + 1} sur {total}</p>
@@ -90,9 +97,11 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
   return (
     <section aria-label="Infographie">
       {etiquette}
-      {url ? (
+      {url && expire ? (
+        phraseExpire
+      ) : url ? (
         <>
-          <img src={url} alt="Infographie de la publication" className="max-h-[60vh] w-full rounded-[10px] bg-voile object-contain" />
+          <img onError={surErreur} src={url} alt="Infographie de la publication" className="max-h-[60vh] w-full rounded-[10px] bg-voile object-contain" />
           <button type="button" ref={declencheur} className={BOUTON} onClick={() => setGrand(true)}>Agrandir l&apos;infographie</button>
           {grand && (
             <div
