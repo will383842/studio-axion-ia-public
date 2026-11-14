@@ -132,9 +132,9 @@ async function lireEngagement(cle: string): Promise<EngagementLu | null> {
   const e = await lireParametre<EngagementLu | null>(cleEngagement(cle), null);
   return e && typeof e === "object" && Number.isFinite(e.centimes) && (e.statut === "active" || e.statut === "liberee" || e.statut === "consommee") ? e : null;
 }
-/** Dépenses comptées rattachées à la clé (travail) : somme réellement payée (simulé retiré) et nombre de dépenses. */
+/** Dépenses comptées rattachées à la clé (travail, ou appel Claude : `appelId`, AUT-E) : somme réellement payée (simulé retiré) et nombre de dépenses. */
 async function payeDeLaCle(cle: string): Promise<{ paye: number; nb: number }> {
-  const deps = await depots().depenses.lister((d) => d.travailId === cle && depenseComptee(d));
+  const deps = await depots().depenses.lister((d) => (d.travailId === cle || d.appelId === cle) && depenseComptee(d));
   return { paye: deps.reduce((s, d) => s + montantPaye(d).centimes, 0), nb: deps.length };
 }
 
