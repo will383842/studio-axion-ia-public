@@ -520,7 +520,7 @@ async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string,
   if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
   // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ; sinon inconnue, comme avant.
   // GUIDE ne lit jamais PARCOURS_ESSAI_COMPTES : une cible d'essai liée à GUIDE reste inconnue.
-  if (el.test) return cibleEssaiPermise(env, idCompte, reseauSite(reseau)) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue" };
+  if (el.test) return mot !== MOT && cibleEssaiPermise(env, idCompte, reseauSite(reseau)) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue" };
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }

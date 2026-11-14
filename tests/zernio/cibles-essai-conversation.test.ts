@@ -290,4 +290,18 @@ describe("Corrections après audit", () => {
     expect(banc.port.prive).toHaveLength(avant);
     expect(await decrire(evt)).toBe("m1_refuse/renvoi_impossible");
   });
+  it("B · mot GUIDE avec cible marquée test : inconnue, sans lire PARCOURS_ESSAI_COMPTES", async () => {
+    const c = catalogue();
+    (c.catalogue as any[])[0].test = true;
+    site.catalogue = c;
+    const lectures = { n: 0 };
+    const env: Record<string, string | undefined> = { ...ENV_LIEN };
+    Object.defineProperty(env, "PARCOURS_ESSAI_COMPTES", { enumerable: false, get: () => (lectures.n++, COMPTE) });
+    // une liaison GUIDE explicite vers une cible de test
+    (c.liaisons as any[])[0] = { mot: "GUIDE", reseau: "tous", codeCible: CODE, actif: true };
+    const id = await com("GUIDE");
+    await passer(T0, { env });
+    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(lectures.n).toBe(0);
+  });
 });
