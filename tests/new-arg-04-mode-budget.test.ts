@@ -66,7 +66,7 @@ describe("NEW-ARG-04 : les garde-fous restent", () => {
 
   it("R7 : le plafond de lectures de voix (nombre d'appels) agit : la 4e lecture d'un même texte est refusée, un autre texte reste permis", () => {
     expect(fabriquer.LECTURES_VOIX_MAX_INDICATIF).toBe(3);
-    const prise = (n: number, p = "corps") => ({ prise: p, lecture: n, empreinte: `e${n}`, caracteres: 10, coutCentimes: 1 });
+    const prise = (n: number, p = "corps") => ({ prise: p, lecture: n, empreinte: `e${n}`, caracteres: 10, coutCentimes: 1, fournisseur: "simulation" });
     const budget = { indicatif: { lecturesVoixMax: fabriquer.LECTURES_VOIX_MAX_INDICATIF } };
     const payees = [prise(1), prise(2), prise(3)];
     expect(() => fabriquer.verifierPartVoix(budget, payees.slice(0, 2), { prise: "corps", texte: "t" })).not.toThrow();
