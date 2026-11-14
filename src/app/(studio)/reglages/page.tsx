@@ -17,6 +17,8 @@ import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { tauxValide } from "@/components/reglages/montants-euros";
 import { Credits } from "@/components/reglages/Credits";
 import { CreditClaude } from "@/components/reglages/CreditClaude";
+import { AutonomieUsine } from "@/components/reglages/AutonomieUsine";
+import { vueAutonomieUsine } from "@/services/autonomie-usine";
 import { vueCreditClaude } from "@/services/credit-claude";
 import { ReglageDouble } from "@/components/reglages/Double";
 import { vueRenduDouble } from "@/services/rendu-double";
@@ -120,6 +122,7 @@ export default async function PageReglages() {
   const chaine = await lireChaineReglee();
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
+  const autonomieUsine = await vueAutonomieUsine();
   const infos = aPropos();
   const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
 
@@ -276,6 +279,11 @@ export default async function PageReglages() {
                   <CreditClaude vue={creditClaude} tauxUsdEur={tauxUsdEur} />
                 </div>
               )}
+            </CartePliante>
+          </Apparition>
+          <Apparition index={2}>
+            <CartePliante id="usine-automatique" icone="jauge" titre="L'Usine en automatique" resume="Un plafond du mois, réglé par vous ; éteinte par défaut">
+              <AutonomieUsine vue={autonomieUsine} />
             </CartePliante>
           </Apparition>
           <Apparition index={2}>
