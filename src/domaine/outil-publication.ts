@@ -16,6 +16,25 @@ export function outilDe(p: Pick<Publication, "via">): OutilPublication | null {
   return (OUTILS as readonly string[]).includes(p.via) ? (p.via as OutilPublication) : null;
 }
 
+/** Un compte encore routé chez Buffer : l'écran le signale par la pastille « Ancien outil ». */
+export function estAncienOutil(outil: OutilPublication | string | null | undefined): boolean {
+  return outil === "buffer";
+}
+
+/**
+ * Un outil est-il sélectionnable dans « Changer » ? Buffer ne l'est PAS pour un compte routé chez Zernio, tant que le serveur ne refuse pas
+ * `outil: "buffer"` (L7-06 suite 4.3, bloqué) : sinon l'envoi partirait par Buffer en contournant les gardes du chemin Zernio.
+ * Pour un compte encore chez Buffer, les deux restent sélectionnables.
+ */
+export function outilSelectionnable(outil: OutilPublication, actuel: OutilPublication): boolean {
+  return !(outil === "buffer" && actuel !== "buffer");
+}
+
+/** Les outils proposés dans « Changer » : toujours les deux (Zernio d'abord), l'outil actuel marqué ; Buffer visible mais désactivé pour un compte Zernio. */
+export function outilsProposes(actuel: OutilPublication): { outil: OutilPublication; actuel: boolean; ancien: boolean; desactive: boolean }[] {
+  return (["zernio", "buffer"] as const).map((outil) => ({ outil, actuel: outil === actuel, ancien: estAncienOutil(outil), desactive: !outilSelectionnable(outil, actuel) }));
+}
+
 /** La publication est-elle chez un outil externe (via ∈ {buffer, zernio}) ? */
 export function estChezUnOutil(p: Pick<Publication, "via">): boolean {
   return outilDe(p) !== null;
