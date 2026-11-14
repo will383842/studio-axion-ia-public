@@ -261,13 +261,15 @@ async function changeAdresse(o: OptionsGeneration): Promise<boolean> {
  * `lancerGeneration(brief)` (B.3.6) : crée le sujet, fait l'étape 0, et soit s'arrête à 0 € (manque, sans numéro),
  * soit réserve le choix et met l'écriture dans la boucle. Rien n'est appelé chez Claude dans cette requête.
  */
-export async function lancerGeneration(entree: BriefSujet | { scriptMaitreId: Id }): Promise<ResultatLancement> {
+export async function lancerGeneration(entreeAvecOrigine: (BriefSujet | { scriptMaitreId: Id }) & { origine?: OrigineLancement }): Promise<ResultatLancement> {
   await exigerSession();
+  // ARG-ORIGINE-USINE : l'origine n'est pas un champ du sujet ; elle est FIGÉE dans les options de l'écriture (absente : Studio, inchangé).
+  const { origine, ...entree } = entreeAvecOrigine;
   const m0 = "scriptMaitreId" in entree ? await depots().scriptsMaitres.obtenir(entree.scriptMaitreId) : await creerSujet(entree);
   if (!m0) throw new ErreurStudio("INTROUVABLE", "Ce sujet n'existe plus.");
   // Lot L5 : un NOUVEAU sujet est recontrôlé sous le verrou, au moment de prendre son numéro (deux demandes simultanées).
   const controle = "scriptMaitreId" in entree ? undefined : { confirmationSujet: entree.confirmationSujet };
-  return lancerSurSujet(m0, { mode: m0.brief.modeParDefaut ?? formatGenerateur(m0.brief.formatId).recette.modeParDefaut, adresse: m0.brief.adresseParDefaut, formatId: m0.brief.formatId, reseaux: m0.brief.reseaux }, "sujet", controle);
+  return lancerSurSujet(m0, { mode: m0.brief.modeParDefaut ?? formatGenerateur(m0.brief.formatId).recette.modeParDefaut, adresse: m0.brief.adresseParDefaut, formatId: m0.brief.formatId, reseaux: m0.brief.reseaux, ...(origine ? { origine } : {}) }, "sujet", controle);
 }
 
 /** Vérif A1 : le chemin d'un texte collé gardé mot pour mot (« Nouvelle vidéo », étape Script, onglet « Coller »). */

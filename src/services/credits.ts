@@ -763,7 +763,7 @@ export async function lancerVideosEnAttente(): Promise<{ lancees: string[] }> {
       // sauf pour une version par réseau (« Fabriquer les N », `fabrication-reseaux`), qui ne passe pas par l'assistant.
       const { scriptRelu } = v.lancementEnAttente!;
       const exigerScriptRelu = !!scriptRelu || (!v.varianteId && (await relectureExigee(v.id)));
-      await lancerFabrication(v.id, { confirme: v.lancementEnAttente!.confirme, confirmationDifferee: { moteurId: v.lancementEnAttente!.moteurId }, ...(scriptRelu ? { scriptRelu } : {}), exigerScriptRelu });
+      await lancerFabrication(v.id, { confirme: v.lancementEnAttente!.confirme, confirmationDifferee: { moteurId: v.lancementEnAttente!.moteurId }, ...(scriptRelu ? { scriptRelu } : {}), exigerScriptRelu, ...(v.lancementEnAttente!.origine ? { origine: v.lancementEnAttente!.origine } : {}) });
     } catch (e) {
       if (e instanceof ErreurStudio && (e.code === "CREDIT_INSUFFISANT" || e.code === "CLE_REFUSEE" || e.code === "BUDGET_DEPASSE")) break;
       if (e instanceof ErreurStudio) {

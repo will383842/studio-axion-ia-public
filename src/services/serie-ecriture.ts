@@ -186,7 +186,7 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
         continue;
       }
       try {
-        const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId, ciblage: r.ciblage, typeAutomatisation: r.typeAutomatisation });
+        const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId, ciblage: r.ciblage, typeAutomatisation: r.typeAutomatisation, ...(origine ? { origine } : {}) });
         if (x.ideeId) await d.idees.modifier(x.ideeId, { scriptMaitreId: lance.scriptMaitreId });
         elements.push({ texte: x.texte, ideeId: x.ideeId, scriptMaitreId: lance.scriptMaitreId, sort: "parti" });
       } catch (e) {

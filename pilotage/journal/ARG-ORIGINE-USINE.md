@@ -23,3 +23,13 @@ Chaque fichier source remis à l'état de master, le test neuf du trou devient r
 - `planSerie` calcule son plan avec `budgetIndicatif()` sans origine : une série de l'Usine n'est donc pas bornée par le budget dans le plan (seule la confirmation est exigée). Hors fiche : à décider.
 - Aucun appelant de l'Usine ne passe encore `origine: "usine"` à `lancerSerie`, `fabriquerLesN` ou `fabriquerVariante` ; la garde est prête, le branchement reste à faire côté Usine.
 - Rouges déjà présents sur master (inchangés) : `c1-argent-b6-confirmation` (garde « confirme: true »), `c5-serie-ecriture` (2 tests).
+
+## Correcteur (relecture Opus 520) : l'origine ne se perd plus APRÈS le geste
+
+- **A1 série** : `lancerGeneration` n'avait en réalité aucun moyen de recevoir l'origine (elle n'était jamais écrite dans les options de l'écriture). Elle accepte maintenant `origine` (hors du sujet, figée dans les options) ; chaque écriture d'une série « usine » la porte. Sans origine : rien n'est écrit, Studio inchangé.
+- **A2 `fabriquerLesN`** : l'origine est mémorisée dans la déclinaison (avec `prixConfirme`), retransmise à `lancerFabricationConfirmee` quand la version part après sa mère, et gardée si elle passe en attente de crédit.
+- **A3 attente de crédit** : `lancementEnAttente` garde `origine` (`lancerVideoDeVersion`, `lancerVariantesEnAttente`), et `lancerVideosEnAttente` la retransmet à `lancerFabrication`. Couvre la mère, les versions et `fabriquerVariante`.
+- **M1** : assertion « la version créée a `commande.origine === "usine"` » ; **M3** : `empechementLeve` passe l'origine déjà figée à `manquesPour`.
+- **Non fait, volontairement** : M2 (`planSerie`, décision du fondateur) ; « Reprendre » (`reprendreEcriture`, `reprendreEcritureArretee`, `devisReprise`) identique à master.
+- **Mutations rejouées (rouges)** : origine retirée de la série (1 rouge), des versions en attente (mémorisation et retransmission : 1 rouge chacune), de la relance après attente de crédit (1 rouge), de `lancerVideoDeVersion` (3 rouges).
+- **Vérifié** : 22 fichiers r7-*, paquet4-*, c1-argent-b6, garde-fous-*, c5-serie : mêmes 5 rouges que master, aucun nouveau. tsc : 146 erreurs comme master, aucune dans les fichiers touchés. Lint : 0 erreur.
