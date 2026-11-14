@@ -77,6 +77,11 @@ export const LIBELLES_FICHE = {
       plusieurs_mots_eteint: PHRASE_PLUSIEURS_MOTS_ETEINT,
       cible_test: "Cible d'essai (TEST) : elle ne s'active pas ici.",
       sans_cible: "Choisissez d'abord une cible.",
+      cible_introuvable: "La cible n'est plus au catalogue ou elle est désactivée : choisissez-en une autre.",
+      site_injoignable: "Le site ne répond pas : l'activation reprendra quand il répondra.",
+      adresse_pas_encore: "Une adresse de page n'est pas encore envoyée par message privé : seuls les guides partent.",
+      validation_perimee: "Les textes ont changé depuis la validation : validez-les de nouveau.",
+      lecture_impossible: "Les réglages sont illisibles pour le moment : rien n'a changé.",
     } as Record<string, string>,
   },
   chiffres: {
