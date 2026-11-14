@@ -71,15 +71,16 @@ const refusAmbigu = (nom: string, homonymes: CanalPublication[]) =>
 const normaliserNom = (nom: string) => nom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 /**
- * Présélection de l'écran (identifiants de canaux BUFFER) → cibles de ZERNIO, par le service et le nom du compte.
- * Aucun identifiant ne passe d'un outil à l'autre : un compte Buffer sans homologue de même nom n'est jamais deviné.
+ * Présélection de l'écran → cibles de ZERNIO.
+ * Les identifiants déjà Zernio (listés par le service, ni déconnectés ni interdits) passent tels quels ; ceux de Buffer sont traduits par le service et le nom du compte.
+ * Un identifiant inconnu des deux côtés, ou un compte Buffer sans homologue de même nom, n'est jamais deviné.
  * - rien de présélectionné : `undefined` (le choix habituel de Zernio s'applique : le seul compte, sinon refus clair) ;
  * - un seul compte présélectionné sans homologue : `undefined` aussi (Zernio retombe sur son seul compte du réseau, ou refuse s'ils sont plusieurs) ;
  * - plusieurs comptes dont un sans homologue : le marqueur, donc refus (rien ne part sur un autre compte que ceux choisis).
  * Fonction sans effet de bord : elle lit la liste des comptes de Zernio, rien d'autre.
  */
-export async function traduireSelectionVersZernio(service: FournisseurPublication, reseau: IdReseau, choisisBuffer: string[] | undefined, canauxBuffer: CanalPublication[]): Promise<string[] | undefined> {
-  const ids = [...new Set((choisisBuffer ?? []).filter((c) => typeof c === "string" && c.trim()))];
+export async function traduireSelectionVersZernio(service: FournisseurPublication, reseau: IdReseau, choisis: string[] | undefined, canauxBuffer: CanalPublication[]): Promise<string[] | undefined> {
+  const ids = [...new Set((choisis ?? []).filter((c) => typeof c === "string" && c.trim()))];
   if (!ids.length) return undefined;
   if (!service.listerCanaux) return [SELECTION_NON_TRADUITE];
   const plateforme = plateformeZernio(reseau);

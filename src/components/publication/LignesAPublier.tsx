@@ -467,7 +467,7 @@ function PanneauReseau({
           {commentaire.trim() && etatPremierCommentaire(outilChoisi ?? complement?.outil, l.reseau) === "a-la-main" && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par {nomOutil(outilChoisi ?? complement?.outil)} : rien ne sera envoyé, posez-le à la main (bouton Copier dans l’aperçu).</p>}
 
           <div className="space-y-1">
-            <span className="block text-xs font-semibold text-texte-doux">Compte Buffer</span>
+            <span className="block text-xs font-semibold text-texte-doux">Compte {complement || outilChoisi ? nomOutil(outilChoisi ?? complement?.outil) : "Buffer"}</span>
             {l.compte.nom && <span className="text-texte">{l.compte.nom}</span>}
             {avecChoix && (
               <div className="flex flex-wrap gap-2">
