@@ -304,4 +304,23 @@ describe("Corrections après audit", () => {
     expect(await decrire(id)).toBe("ecarte/cible_inconnue");
     expect(lectures.n).toBe(0);
   });
+  it("C · repli cible_essai : journal seulement, aucune notification ; un autre code garde son alerte", async () => {
+    const { creerNotification } = await import("@/services/notifications");
+    const notif = vi.mocked(creerNotification);
+    notif.mockClear();
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    expect(banc.port.prive).toHaveLength(1);
+    expect(notif).not.toHaveBeenCalled();
+    const journal = (await depots().evenements.lister(() => true)).map((e: any) => e.message as string).join("\n");
+    expect(journal).toContain("cible_essai");
+    expect(journal).not.toContain("ALERTE");
+    // témoin : GUIDE avec secret absent => repli secret_lien_absent => alerte conservée
+    nettoyer(); await preparer(); await validerFormulationsAuParcours(FORMULATIONS);
+    site.catalogue = catalogue(); await Com.ecrireParametre(PARAM_MOTS_MULTIPLES, true); await registreMots(["GUIDE", COMPTE]);
+    notif.mockClear();
+    await com("GUIDE", { idCommentaire: "com-c-2" });
+    await passer(T0, { env: { ...ENV_LIEN, GUIDES_RESEAU_LIEN_SECRET: undefined } });
+    expect(notif).toHaveBeenCalled();
+  });
 });
