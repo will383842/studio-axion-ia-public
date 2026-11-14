@@ -254,6 +254,8 @@ beforeEach(async () => {
   // Garde-fous budget (15/10) : ce parcours ne porte pas sur le pire cas de la chaîne (testé dans garde-fous-budget).
   injecterPireCasChainePourEssai(0);
   reinitialiserDepots();
+  // GV2-51 : motion commune de l'avocat allumée par défaut ; ce test la coupe (coupe-circuit `false`), il ne porte pas sur les cartes.
+  await depots().parametres.enregistrer({ id: "avocat.motionCommune", valeur: false, creeLe: "x", modifieLe: "x" } as never);
   reinitialiserRequete();
   R.appels = [];
   R.pannes.clear();

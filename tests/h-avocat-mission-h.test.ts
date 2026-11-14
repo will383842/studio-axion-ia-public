@@ -18,7 +18,7 @@ import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/nex
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 
-const { reinitialiserDepots } = await import("@/donnees/memoire");
+const { depots, reinitialiserDepots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const fabrication = await import("@/services/fabrication");
 const { creerMoteurMontageAvocat } = await import("@/moteurs/montage-avocat");
@@ -109,6 +109,8 @@ const SEGMENTS = [
 const DITS = ["Vous recevez un pé vé de cent trente-cinq euros ?", "Surtout, ne le payez pas tout de suite.", "Je vous explique pourquoi, en trois points."];
 
 async function commande(entrees: Record<string, unknown> = {}): Promise<CommandeFabrication> {
+  // GV2-51 : la motion commune est allumée par défaut ; ce test la coupe (coupe-circuit `false`) pour garder « options absentes ».
+  await depots().parametres.enregistrer({ id: "avocat.motionCommune", valeur: false, creeLe: "x", modifieLe: "x" } as never);
   const c0 = await fabrication.construireCommande("v-03");
   const blocs: BlocScript[] = [
     { id: "b1", blocRecette: "accroche", segments: [SEGMENTS[0]] },
