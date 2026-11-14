@@ -204,7 +204,7 @@ describe("3 · écran /mots", () => {
       apres.formulations!.filter((f) => f.valide).map((f) => f.version),
     ).toEqual(["mp-deja-envoye-v1-2"]);
   });
-  it("EcranMots affiche les 4 groupes, chaque texte, et « pas encore branché » sur ces 4 groupes seulement", async () => {
+  it("EcranMots affiche les 4 groupes, chaque texte, « pas encore branché » sur pub-commentaire seul, libellés exacts pour le renvoi et Instagram", async () => {
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { createElement } = await import("react");
     const { EcranMots } = await import("@/components/mots/EcranMots");
@@ -226,9 +226,20 @@ describe("3 · écran /mots", () => {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#x27;");
     for (const v of NOUVELLES) expect(html, v).toContain(esc(brut(v).texte));
-    for (const g of Object.keys(GROUPES)) {
+    for (const g of ["pub-commentaire"]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
       expect(bloc, g).toContain("pas encore branché");
+    }
+    for (const g of ["deja-envoye", "lien-rappel"]) {
+      const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
+      expect(bloc, g).not.toContain("pas encore branché");
+      expect(bloc, g).toContain("renvoi du mode plusieurs mots");
+      expect(bloc, g).not.toContain("réglage Instagram sera allumé");
+    }
+    for (const g of ["ig-suivre", "ig-pas-encore"]) {
+      const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
+      expect(bloc, g).not.toContain("pas encore branché");
+      expect(bloc, g).toContain("Branché sur Instagram, mais éteint");
     }
     for (const g of [
       "m1-lien",
@@ -240,10 +251,6 @@ describe("3 · écran /mots", () => {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
       expect(bloc, g).not.toContain("pas encore branché");
     }
-    const rappel = html
-      .split(`data-groupe="lien-rappel"`)[1]
-      .split("data-groupe=")[0];
-    expect(rappel.match(/pas encore branché/g)).toHaveLength(1);
     expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12);
   });
 });
