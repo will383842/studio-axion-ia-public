@@ -5,11 +5,20 @@
  */
 import "server-only";
 import { exigerSession } from "./auth";
-import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, validerFormulation, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
+import { lierMot, lireCiblesSite } from "./cibles-site";
+import { activerMotLocal, activerMotParcours, injecterVerificationMotParcours, PARAM_REGISTRE_MOTS, type LigneMot, chargerTextesFichier, mettreEnPauseLocal, lireVueMots, mettreEnPause, validerGuideParcours, validerAdresseRefusee, validerFormulation, poserMot, poserMotDepuisFichier, validerMot, poserStopCompte, reactiverMot, refermerDisjoncteur, reglerPlafonds, type Resultat, type VueMots } from "./mots-service";
 import type { SaisieMot } from "./mots-textes";
+import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
+import { MOT_GUIDE } from "@/domaine/guide-reseau/empreinte-mot";
+import { lireParametre } from "./_commun";
+import { apercuTextesMot, validerTextesMot, verifierMotPourCompte, type ApercuReseau } from "./mots-validation-par-mot";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
 import type { EtatReglagesParcours, ReglageParcours, ResultatReglage } from "./parcours-reglages";
+
+// R5 : un mot autre que GUIDE ne s'active que si la garde d'envoi par compte (textes validés, cible, réseau) le permet.
+// Sans cette injection, l'activation d'un tel mot est refusée (`mot_non_valide`).
+injecterVerificationMotParcours(verifierMotPourCompte);
 
 export async function gesteLireMots(): Promise<VueMots> {
   await exigerSession();
@@ -101,4 +110,106 @@ export async function gesteLireReglagesParcours(): Promise<EtatReglagesParcours>
 export async function gesteReglerParcours(reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> {
   await exigerSession();
   return (await import("./parcours-conversation")).reglerParcours(reglage, allume);
+}
+
+/* ------------------------------------------------------------------ */
+/* R5 · mots et cibles (créer un mot, choisir sa cible, activer par compte) */
+/* ------------------------------------------------------------------ */
+
+/** Résultat d'un geste « mot et cible » : un code stable ; `phrase` seulement si elle vient du site ou du geste lui-même. L'action serveur met la phrase. */
+export interface ResultatMotCible {
+  ok: boolean;
+  raison: string;
+  phrase?: string;
+}
+const non = (raison: string, phrase?: string): ResultatMotCible => ({ ok: false, raison, ...(phrase ? { phrase } : {}) });
+
+/** Crée un mot : liaison « tous les réseaux » vers une cible ACTIVE du catalogue. Aucun texte validé, aucun compte activé : le mot reste brouillon. */
+export async function gesteCreerMot(mot: string, codeCible: string): Promise<ResultatMotCible> {
+  await exigerSession();
+  const m = normaliserMot(mot);
+  if (m === null) return non("mot_invalide");
+  if (m === MOT_GUIDE) return non("mot_reserve");
+  const site = await lireCiblesSite();
+  // Site injoignable, ou simple copie : on n'écrit pas (aucune nouvelle liaison depuis une copie).
+  if (site === null || site.depuisCopie) return non("site_injoignable");
+  if (site.liaisons.some((l) => l.actif && l.mot === m)) return non("mot_existe");
+  const cible = typeof codeCible === "string" ? site.catalogue.find((e) => e.code === codeCible) : undefined;
+  if (!cible) return non("cible_inconnue");
+  if (!cible.actif) return non("cible_inactive");
+  const r = await lierMot({ mot: m, reseau: "tous", codeCible: cible.code });
+  return r.ok ? { ok: true, raison: "mot_cree" } : non("site_refuse", r.phrase);
+}
+
+/** Pause de chaque ligne LOCALE active d'un mot (jamais d'effacement). Renvoie le nombre de comptes mis en pause. */
+async function pauserLignesLocalesDuMot(mot: string): Promise<number> {
+  const registre = await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {});
+  let n = 0;
+  for (const l of Object.values(registre)) {
+    if (l.mot !== mot || l.etat !== "actif" || l.idWorkflow) continue;
+    const r = await mettreEnPauseLocal({ mot, compte: l.compte, confirmeParOperateur: true });
+    if (r.issue === "execute") n++;
+  }
+  return n;
+}
+
+/**
+ * Change la cible d'un mot : « tous les réseaux », puis chaque ligne propre à un réseau. Arrêt au premier échec (phrase des changements faits).
+ * Dès qu'un changement est passé, les comptes actifs du mot sont mis EN PAUSE (rien n'est supprimé) : les textes sont à valider de nouveau.
+ */
+export async function gesteChangerCible(mot: string, codeCible: string): Promise<ResultatMotCible> {
+  await exigerSession();
+  const m = normaliserMot(mot);
+  if (m === null) return non("mot_invalide");
+  if (m === MOT_GUIDE) return non("cible_guide_figee");
+  const site = await lireCiblesSite();
+  if (site === null || site.depuisCopie) return non("site_injoignable");
+  const propres = site.liaisons.filter((l) => l.actif && l.mot === m && l.reseau !== "tous");
+  if (!site.liaisons.some((l) => l.actif && l.mot === m)) return non("mot_inconnu");
+  const cible = typeof codeCible === "string" ? site.catalogue.find((e) => e.code === codeCible) : undefined;
+  if (!cible) return non("cible_inconnue");
+  if (!cible.actif) return non("cible_inactive");
+  const etapes: Array<"tous" | (typeof propres)[number]["reseau"]> = ["tous", ...propres.map((l) => l.reseau)];
+  let faites = 0;
+  let echec: string | null = null;
+  for (const reseau of etapes) {
+    const r = await lierMot({ mot: m, reseau, codeCible: cible.code });
+    if (!r.ok) {
+      echec = r.phrase;
+      break;
+    }
+    faites++;
+  }
+  // Un changement est parti : les textes validés ne correspondent plus à la cible, on met le mot en pause avant tout.
+  const enPause = faites > 0 ? await pauserLignesLocalesDuMot(m) : 0;
+  const pause = enPause > 0 ? ` Le mot a été mis en pause sur ${enPause} compte(s) : validez ses textes puis réactivez-le.` : "";
+  if (echec !== null)
+    return non("site_refuse", `La cible n'a changé que sur ${faites} réseau(x) sur ${etapes.length} : ${echec}${pause}`);
+  return { ok: true, raison: "cible_changee", ...(pause ? { phrase: `Cible changée.${pause}` } : {}) };
+}
+
+/** Les textes d'un mot, réseau par réseau (lecture seule). */
+export async function gesteApercuTextesMot(mot: string): Promise<ApercuReseau[]> {
+  await exigerSession();
+  return apercuTextesMot({ mot });
+}
+
+/** Valide les textes d'un mot pour un réseau : l'empreinte vue doit être celle recalculée à l'instant. Rien n'est envoyé. */
+export async function gesteValiderTextesMot(mot: string, reseau: string, empreinteVue: string): Promise<{ ok: boolean; raison: string }> {
+  await exigerSession();
+  return validerTextesMot({ mot, reseau, empreinteVue, confirmeParOperateur: true });
+}
+
+/** Active un mot sur un compte, en local : GUIDE par son geste dédié, tout autre mot par le parcours (garde d'envoi injectée, « plusieurs mots » fermé). */
+export async function gesteActiverMot(mot: string, compte: string): Promise<Resultat> {
+  await exigerSession();
+  if (mot === MOT_GUIDE) return gesteActiverMotLocal(compte);
+  return activerMotParcours({ mot, compte, confirmeParOperateur: true });
+}
+
+/** Pause d'un mot sur un compte : ligne posée chez Zernio = pause habituelle, sinon pause locale. Rien n'est supprimé. */
+export async function gestePauseMot(mot: string, compte: string): Promise<Resultat> {
+  await exigerSession();
+  const ligne = (await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {}))[`${mot}|${compte}`];
+  return ligne?.idWorkflow ? mettreEnPause({ mot, compte, confirmeParOperateur: true }) : mettreEnPauseLocal({ mot, compte, confirmeParOperateur: true });
 }
