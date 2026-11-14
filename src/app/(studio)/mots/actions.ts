@@ -4,11 +4,12 @@
  * Actions serveur de l'écran « Mots » (/mots). Chacune passe par `mots-gestes`, qui EXIGE la session avant tout (sans session :
  * refus, rien n'est lu ni écrit). `confirmeParOperateur` n'y est vrai que parce que la session a été exigée ; la confirmation
  * visible (fenêtre du navigateur) est demandée par l'écran avant l'appel. « Activer » et « Pause » du mot GUIDE LOCAL ne parlent
- * jamais à Zernio. Aucun interrupteur n'est allumé ici.
+ * jamais à Zernio. Seule exception : les deux interrupteurs du parcours (plusieurs mots, Instagram), allumés uniquement sur geste confirmé de l'opérateur.
  */
 import { revalidatePath } from "next/cache";
-import { gesteActiverMotLocal, gesteValiderMotGuide, gesteValiderFormulation, gesteMettreEnPause, gesteMettreEnPauseLocal, gesteReactiver, gesteRefermerDisjoncteur, gesteReglerPlafonds } from "@/services/mots-gestes";
+import { gesteActiverMotLocal, gesteValiderMotGuide, gesteValiderFormulation, gesteMettreEnPause, gesteMettreEnPauseLocal, gesteReactiver, gesteRefermerDisjoncteur, gesteReglerPlafonds, gesteReglerParcours } from "@/services/mots-gestes";
 import type { Resultat } from "@/services/mots-service";
+import type { ReglageParcours, ResultatReglage } from "@/services/parcours-reglages";
 
 const rafraichir = () => revalidatePath("/mots");
 
@@ -51,6 +52,12 @@ export async function validerMotGuideAction(): Promise<{ ok: boolean; raison: st
 /** Une formulation = un geste. Le client n'envoie qu'un nom de version ; le serveur la contrôle contre le dictionnaire (aucun texte transmis). */
 export async function validerFormulationAction(version: string): Promise<{ ok: boolean; raison: string }> {
   const r = await gesteValiderFormulation(version);
+  rafraichir();
+  return r;
+}
+/** Interrupteurs du parcours : le client n'envoie qu'un nom de réglage et un booléen ; Instagram refusé si plusieurs mots est éteint. */
+export async function reglerParcoursAction(reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> {
+  const r = await gesteReglerParcours(reglage, allume);
   rafraichir();
   return r;
 }

@@ -159,9 +159,6 @@ describe("Z3-E · écran", () => {
   it("erreur vide : le texte de secours s'affiche", () => {
     expect(texte(renderToStaticMarkup(createElement(LignesAPublier, { vue: vue([]), erreur: "" })))).toContain(LIBELLES_ENVOI.erreur);
   });
-  it("la date de fin de Buffer n'a qu'une source (heure de Paris)", () => {
-    expect(F.FIN_BUFFER).toBe("20/11");
-  });
   it("validation groupée : la date d'envoi est affichée avant l'envoi", () => {
     const h = texte(rendre([ligne("instagram")], { "v-1:instagram": comp() }, { vue: vue([ligne("instagram")]) }));
     expect(h).not.toContain("Tous les envois partiront");

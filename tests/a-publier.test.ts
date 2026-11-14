@@ -19,6 +19,8 @@ process.env.FOURNISSEUR_STOCKAGE = "r2";
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 // « Image → vidéo » : la livraison du réseau, pilotée par chaque test (aucun fichier image-video n'est lu).
+// Clé factice posée avant l'inscription des fournisseurs : Zernio est inscrit, son client est un faux (aucun appel réseau).
+vi.hoisted(() => { process.env.ZERNIO_API_KEY = "cle-factice-essai"; });
 const iv = vi.hoisted(() => ({ travail: null as unknown }));
 vi.mock("@/services/image-video-carte", () => ({ travailImageVideo: async () => iv.travail }));
 
@@ -32,8 +34,10 @@ const VIDEO = "v-15";
 const apub = await import("@/services/a-publier");
 const pc = await import("@/services/premier-commentaire");
 const { ID_MOTEUR_CAS_CONCRET } = await import("@/moteurs/montage-cas-concret");
-const service = (await import("@/fournisseurs")).resoudreFournisseur("publication", null);
 const nav = await import("@/components/coquille/navigation");
+// L7-06 : Zernio est l'outil d'envoi par défaut ; faux client, aucun envoi réel.
+const { injecterClientZernio } = await import("@/services/zernio");
+const { creerFauxClientZernio } = await import("./zernio/aides/faux-zernio");
 
 beforeAll(async () => {
   await preparerMotDePasse(MDP);
@@ -47,6 +51,8 @@ beforeEach(async () => {
   await auth.seConnecter(MDP, false);
   iv.travail = null;
   vi.restoreAllMocks();
+  delete process.env.ZERNIO_API_KEY;
+  injecterClientZernio(null);
 });
 
 const JOUR = 86_400_000;
@@ -88,14 +94,14 @@ describe("À publier", () => {
     expect(await depots().publications.compter((p) => p.videoId === VIDEO)).toBe(0);
   });
 
-  it("une vidéo en simulation ne part pas : envoyer reste un essai, jamais programmée", async () => {
+  it("une vidéo en simulation ne part pas : sans outil relié, l'envoi est refusé, rien n'est enregistré ni programmé", async () => {
     await depots().videos.modifier(VIDEO, { etapeEditoriale: "validee" });
     for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
-    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], new Date(Date.now() + 86_400_000).toISOString(), { premiersCommentaires: { instagram: "Le lien" } });
-    expect(r.simulation).toBe(true);
-    expect(r.publications[0]).toMatchObject({ via: "simulation", statut: "brouillon" });
+    // L7-06 : le défaut est Zernio ; sans sa clé, refus clair, jamais un autre outil à sa place.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], new Date(Date.now() + 86_400_000).toISOString(), { premiersCommentaires: { instagram: "Le lien" } })).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
+    expect(await depots().publications.compter((p) => p.videoId === VIDEO)).toBe(0);
     const ligne = (await apub.vueAPublier()).lignes.find((l) => l.cle === `${VIDEO}:instagram`);
-    expect(ligne?.etat).toMatchObject({ libelle: "Essai" });
+    expect(ligne?.etat).not.toMatchObject({ libelle: "Programmée" });
   });
 
   it("menu : « Vidéos validées » (ex « À publier », décision de Williams du 08/11) à côté du calendrier seulement quand le réglage est allumé", () => {
@@ -152,15 +158,20 @@ describe("À publier", () => {
     expect(await pc.premierCommentaireDeVideo(VIDEO, "instagram", variante)).toBe("Du film image");
   });
 
-  it("chemin simulé : le premier commentaire est transmis à service.envoyer", async () => {
+  it("premier commentaire : transmis à l'outil d'envoi par défaut (Zernio), vide = rien transmis", async () => {
     await depots().videos.modifier(VIDEO, { etapeEditoriale: "validee" });
     for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
-    const envoyer = vi.spyOn(service, "envoyer");
+    process.env.ZERNIO_API_KEY = "cle-factice-essai";
+    injecterClientZernio(creerFauxClientZernio().client);
+    const zernio = (await import("@/fournisseurs")).fournisseurParId("publication", "zernio");
+    vi.spyOn(zernio, "listerCanaux").mockResolvedValue([{ id: "canal-li", organisationId: "org-exemple", nom: "Exemple LI", service: "linkedin", genre: "page", deconnecte: false }]);
+    const envoyer = vi.spyOn(zernio, "envoyer").mockResolvedValue({ idExterne: "ext-1", via: "zernio", statut: "programmee" });
     const date = new Date(Date.now() + JOUR).toISOString();
-    await pub.envoyerVersBuffer(VIDEO, ["instagram"], date, { premiersCommentaires: { instagram: "  Le lien  " } });
-    expect(envoyer.mock.calls[0][0]).toMatchObject({ reseau: "instagram", premierCommentaire: "Le lien" });
-    // Un commentaire vide : rien n'est transmis.
-    await pub.envoyerVersBuffer(VIDEO, ["instagram"], date, { premiersCommentaires: { instagram: "" } });
+    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], date, { premiersCommentaires: { linkedin: "  Le lien  " } });
+    expect(envoyer.mock.calls[0][0]).toMatchObject({ reseau: "linkedin", premierCommentaire: "Le lien" });
+    // Un commentaire vide : rien n'est transmis (la première publication est retirée : le même envoi n'est pas rejoué).
+    for (const p of await depots().publications.lister((x) => x.videoId === VIDEO)) await depots().publications.supprimer(p.id);
+    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], date, { premiersCommentaires: { linkedin: "" } });
     expect(envoyer.mock.calls[1][0]).not.toHaveProperty("premierCommentaire");
   });
 });
