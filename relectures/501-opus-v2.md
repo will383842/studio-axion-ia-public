@@ -14,7 +14,7 @@ Branche `usine/ATR-01`, tête `50a20de2` (avant : `01565bbf`), relue le 14/11/20
    | « ne m'écrivez plus GUIDE » | `opposition_douteuse` | `opposition_douteuse` | 0 / 0 |
 
    Tests : `tests/a-traiter/atr-01-entree.test.ts:107-115` (les 3 textes, avec la raison exacte).
-2. **`idContact` manquant : aucune carte, registre non lu** (`a-traiter-entree.ts:99`). Sondes `null`, `undefined` et `""` avec un registre qui répond `true` : `contact_inconnu`, registre lu 0 fois, 0 écriture. Test : `atr-01-entree.test.ts:123-133` (il compte les lectures du registre).
+2. **`idContact` manquant : aucune carte, registre non lu** (`a-traiter-entree.ts:99`). Sondes `null`, `undefined` et `""` avec un registre qui répond `true` : `contact_inconnu`, registre lu 0 fois, 0 écriture. Test : `atr-01-entree.test.ts:124-133` (il compte les lectures du registre).
 3. **Tests séparés pour « stop »** : texte « stop » avec le mot GUIDE (`:93-98`), puis mot STOP avec un texte neutre (`:100-105`). M1 (on retire le contrôle du texte) est **tuée** (4 échecs). M2 (on retire le contrôle du mot) est **tuée** (1 échec).
 4. **Journal** (`pilotage/journal/ATR-01.md:7-9`) : la liste des mutations correspond à ce que j'ai rejoué, et l'ancienne affirmation fausse est corrigée explicitement. Il reste une phrase imprécise aux lignes 5-6 (voir les points non bloquants).
 
@@ -28,7 +28,7 @@ Tuées : texte retiré (M1), mot retiré (M2), doute limité au mot, doute retir
 - Aucune écriture vers un réseau : le module a un seul import, `@/domaine/guide-reseau/opposition` (fonction pure). `PortsEntree` n'expose que `file.existe/ajouter` et `oppositions.estOpposee`.
 - Aucune suppression de données de personne : aucun port pour effacer ou supprimer. La carte ne garde ni l'identifiant, ni l'e-mail, ni le pseudo.
 - Aucun nom de personne : seulement des adresses `@exemple.fr` et des identifiants fictifs.
-- Les corrections secondaires demandées sont faites : `file.ajouter` est documenté comme idempotent sur `idEvenement` (`:42-43`). L'extrait est stocké en texte brut, à échapper à l'affichage. Le lien est limité à `linkedin.com`, `tiktok.com` et à leurs sous-domaines, en https (`:76-82`).
+- Les corrections secondaires demandées sont faites : `file.ajouter` est documenté comme idempotent sur `idEvenement` (`:42`). L'extrait est stocké en texte brut, à échapper à l'affichage. Le lien est limité à `linkedin.com`, `tiktok.com` et à leurs sous-domaines, en https (`:76-82`).
 
 ## Points non bloquants
 1. `tests/a-traiter/atr-01-entree.test.ts:117-121` : le test « mot douteux » utilise `GUIDE STOP`, que `RE_MOT` rejette déjà (`donnee_invalide`), et il ne vérifie que `issue === "ignore"`. Si on retire le doute sur le mot, ce test passe encore. Avec cette mutation, un mot d'un seul tenant comme `STOPPER` créerait une carte. Le comportement actuel est correct (sondes ci-dessus). Il faudrait ajouter un test avec `mot: "STOPPER"`, texte « GUIDE », qui attend la raison `opposition_douteuse`.
