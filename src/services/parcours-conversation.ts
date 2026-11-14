@@ -355,8 +355,36 @@ async function clore(ev: EvenementFournisseur, etat: string, code: string | null
   await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : ${etat} (${code ?? "-"}).`);
 }
 async function reporter(ev: EvenementFournisseur, now: number, apresMs: number, code: string, extra: Record<string, unknown> = {}): Promise<void> {
+  const memeCause = ev.charge.dernierCode === code; // même cause qu'au report précédent : le report se fait, mais le journal ne répète pas la ligne
   await depots().evenementsFournisseurs.modifier(ev.id, { traite: false, charge: { ...ev.charge, ...extra, etat: "a_reessayer", dernierCode: code, prochainEssaiLe: now + apresMs } });
-  await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : a_reessayer (${code}).`);
+  if (!memeCause) await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : a_reessayer (${code}).`);
+}
+
+/** Meta n'autorise la réponse privée à un commentaire que 7 jours : au-delà, jamais de premier message privé (même âge que le recuLe de l'événement). */
+export const DELAI_MAX_PREMIER_MP_MS = 7 * 24 * 3600_000;
+const tropTardPourPremierMp = (ev: EvenementFournisseur, now: number): boolean => {
+  const age = now - Date.parse(ev.recuLe);
+  return Number.isFinite(age) && age > DELAI_MAX_PREMIER_MP_MS;
+};
+
+/**
+ * Commentaire bloqué par une garde durable depuis plus de 24 h, sans conversation (nouveau / pub_ok) sur ce même commentaire : il se périme
+ * au lieu d'être reporté à vie. Lecture SEULE (jamais `retrouver`, qui peut écrire un alias). Une conversation qui attend sa réponse publique garde son report,
+ * sauf après 7 jours : la conversation passe alors à `expire` (un état est écrit, rien n'est effacé) et l'événement est clos « perime » ; aucun message ne part.
+ */
+async function perimeSousGarde(ev: EvenementFournisseur, now: number): Promise<boolean> {
+  const age = now - Date.parse(ev.recuLe);
+  if (!Number.isFinite(age) || age <= DELAI_PERIME_MS) return false;
+  const idCommentaire = String(ev.charge.idCommentaire ?? "");
+  const { conv } = await lireTout();
+  const enCours = Object.entries(conv).filter(([, e]) => e.idCommentaire === idCommentaire && (e.etat === "nouveau" || e.etat === "pub_ok"));
+  if (enCours.length > 0) {
+    if (!tropTardPourPremierMp(ev, now)) return false;
+    // Écriture sous verrou, état revérifié : une conversation passée entre-temps à un autre état n'est jamais écrasée.
+    for (const [cle] of enCours) await ecrireEtat(cle, (e) => (e && (e.etat === "nouveau" || e.etat === "pub_ok") ? { ...e, etat: "expire", prochainEssaiLe: null } : e));
+  }
+  await clore(ev, "perime", "perime");
+  return true;
 }
 
 /** Réaction commune à un résultat d'écriture : INBOX_REQUIRED / quota / 401 ouvrent le disjoncteur des mots, avec alerte. */
@@ -408,6 +436,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const bloque = await garde(d, env, idCompte, reseau);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    if (await perimeSousGarde(ev, now)) return "traite";
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
@@ -509,6 +538,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code });
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    if (await perimeSousGarde(ev, now)) return "traite";
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
@@ -869,6 +899,12 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
       await clore(ev, "ecarte", "plafond_personne");
       return "traite";
     }
+  }
+  // Commentaire de plus de 7 jours : ni réponse publique (elle annoncerait un message privé qui ne viendra pas) ni message privé. La conversation passe à `expire` (rien n'est effacé).
+  if ((e.etat === "nouveau" || e.etat === "pub_ok") && tropTardPourPremierMp(ev, now)) {
+    await patcher(cle, { etat: "expire", prochainEssaiLe: null });
+    await clore(ev, "perime", "perime");
+    return "traite";
   }
   if (e.etat === "nouveau") {
     const texte = rendreTexteMp("mp-pub-igfb-v1", {});
