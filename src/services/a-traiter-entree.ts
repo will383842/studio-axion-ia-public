@@ -3,9 +3,9 @@
  * Une seule fonction à brancher : `recevoirCommentaire`, appelée plus tard par le webhook (session parcours viral).
  * Ce module n'importe rien d'un réseau ni de zernio* / mots-* : la file durable (L7-26) et le registre d'opposition (RC-40)
  * arrivent par des interfaces injectées minimales (`PortsEntree`). Aucune écriture vers un réseau, aucune réponse publiée.
- * Aucune donnée de personne dans la carte : jamais d'identifiant ni de pseudo, seulement un extrait court échappé.
+ * Aucune donnée de personne dans la carte : jamais d'identifiant ni de pseudo, seulement un extrait court en texte brut nettoyé (à échapper à l'affichage, jamais ici).
  */
-import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
+import { classerOpposition } from "@/domaine/guide-reseau/opposition";
 
 export const RESEAUX_ENTREE = ["linkedin", "tiktok"] as const;
 export type ReseauEntree = (typeof RESEAUX_ENTREE)[number];
@@ -39,6 +39,7 @@ export interface CarteEntree {
 export interface PortsEntree {
   file: {
     existe(idEvenement: string): Promise<boolean>;
+    /** DOIT être idempotent sur `idEvenement` (contrainte unique de la file L7-26) : deux livraisons simultanées ne créent qu'une carte. */
     ajouter(carte: CarteEntree): Promise<void>;
   };
   oppositions: { estOpposee(idContact: string): Promise<boolean> };
@@ -46,10 +47,19 @@ export interface PortsEntree {
 
 export type ResultatEntree =
   | { issue: "carte_creee" }
-  | { issue: "ignore"; raison: "reseau_non_gere" | "sans_mot" | "deja_recu" | "opposition" | "donnee_invalide" }
+  | {
+      issue: "ignore";
+      raison:
+        | "reseau_non_gere"
+        | "sans_mot"
+        | "deja_recu"
+        | "opposition"
+        | "opposition_douteuse" // doute : aucune carte, l'appelant alerte l'opérateur
+        | "contact_inconnu" // pas d'identifiant : registre non consultable, aucune carte
+        | "donnee_invalide";
+    }
   | { issue: "reessai"; raison: "registre_illisible" };
 
-const ECHAPPEMENTS: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const RE_ID = /^[A-Za-z0-9._:|-]{1,100}$/;
 const RE_MOT = /^[A-Z0-9]{2,20}$/;
 
@@ -60,19 +70,16 @@ function extrait(texte: string): string {
     .replace(/@[\p{L}\p{N}_.]+/gu, "…")
     .replace(/\s+/g, " ")
     .trim();
-  let s = "";
-  for (const c of net) {
-    const e = ECHAPPEMENTS[c] ?? c;
-    if (s.length + e.length > EXTRAIT_MAX) break;
-    s += e;
-  }
-  return s;
+  return Array.from(net).slice(0, EXTRAIT_MAX).join("");
 }
+
+const HOTES_RESEAU = ["linkedin.com", "tiktok.com"];
 
 const lienSur = (l: string | null | undefined): string | null => {
   if (!l) return null;
   try {
-    return new URL(l).protocol === "https:" ? l : null;
+    const u = new URL(l);
+    return u.protocol === "https:" && HOTES_RESEAU.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`)) ? l : null;
   } catch {
     return null;
   }
@@ -81,17 +88,19 @@ const lienSur = (l: string | null | undefined): string | null => {
 export async function recevoirCommentaire(c: CommentaireRecu, ports: PortsEntree): Promise<ResultatEntree> {
   if (!(RESEAUX_ENTREE as readonly string[]).includes(c.reseau)) return { issue: "ignore", raison: "reseau_non_gere" };
   if (!RE_ID.test(c.idEvenement ?? "") || !RE_ID.test(c.post ?? "")) return { issue: "ignore", raison: "donnee_invalide" };
-  // « stop » : silence, aucune carte (même sans identifiant de personne).
-  if (estMotOpposition(c.mot) || estMotOpposition(c.texte)) return { issue: "ignore", raison: "opposition" };
+  // Opposition claire ou doute (mot ou texte) : silence, aucune carte, même sans identifiant de personne.
+  const classes = [classerOpposition(c.mot), classerOpposition(c.texte)];
+  if (classes.includes("opposition")) return { issue: "ignore", raison: "opposition" };
+  if (classes.some((k) => k !== "non")) return { issue: "ignore", raison: "opposition_douteuse" };
   const mot = c.mot ? c.mot.trim().toUpperCase() : "";
   if (!mot) return { issue: "ignore", raison: "sans_mot" };
   if (!RE_MOT.test(mot)) return { issue: "ignore", raison: "donnee_invalide" };
-  if (c.idContact) {
-    try {
-      if (await ports.oppositions.estOpposee(c.idContact)) return { issue: "ignore", raison: "opposition" };
-    } catch {
-      return { issue: "reessai", raison: "registre_illisible" }; // doute : rien d'écrit, l'événement sera rejoué
-    }
+  // Sans identifiant, le registre ne peut pas être consulté : dans le doute, rien n'est écrit.
+  if (!c.idContact) return { issue: "ignore", raison: "contact_inconnu" };
+  try {
+    if (await ports.oppositions.estOpposee(c.idContact)) return { issue: "ignore", raison: "opposition" };
+  } catch {
+    return { issue: "reessai", raison: "registre_illisible" }; // doute : rien d'écrit, l'événement sera rejoué
   }
   if (await ports.file.existe(c.idEvenement)) return { issue: "ignore", raison: "deja_recu" };
   await ports.file.ajouter({
