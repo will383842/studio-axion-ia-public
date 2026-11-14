@@ -36,6 +36,7 @@ import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
 import { creerLecteurPlausible, type LecteurVisites } from "@/fournisseurs/mesures/plausible";
 import { depots, filtreExemples, journaliser } from "./_commun";
 import { exigerSession } from "./auth";
+import { bufferGele } from "./buffer-gel";
 import { cleZernioPresente, clientZernio } from "./zernio";
 import { versionsExemplesAvantPublication, videosExemplesMesurees } from "./mesures-exemples";
 
@@ -179,6 +180,8 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
   await exigerSession();
   const instant = options.instant ?? new Date();
   const lecteurBuffer = options.buffer ?? creerLecteurBuffer();
+  // Lot A1 : gelé → aucune lecture de chiffres chez Buffer (même avec un lecteur injecté). Zernio et liens suivis : inchangés.
+  const gele = await bufferGele();
   const lecteurZernio = options.zernio ?? lecteurZernioParDefaut();
   const lecteurVisites = options.visites ?? creerLecteurPlausible();
   const bilan: BilanImport = {
@@ -203,6 +206,7 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
       }
       continue;
     }
+    if (gele) continue;
     try {
       const s = await lecteurBuffer.lire(p.idExterne);
       if (!s) continue;
@@ -241,6 +245,7 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
 
   if (bilan.zernio.pasPretes) bilan.zernio.message = LIBELLE_PAS_PRETES;
   else if (bilan.zernio.nonLisibles) bilan.zernio.message = LIBELLE_NON_LISIBLE;
+  if (gele) bilan.buffer.message = "L'ancien outil est gelé : ses chiffres ne sont plus relus (les relevés déjà gardés restent).";
   if (bilan.buffer.ajoutees || bilan.visites.ajoutees || bilan.zernio.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par Buffer, ${bilan.zernio.ajoutees} lus chez Zernio, ${bilan.visites.ajoutees} par lien suivi`);
   return bilan;
 }
