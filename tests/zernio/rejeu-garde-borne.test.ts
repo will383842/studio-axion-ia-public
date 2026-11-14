@@ -37,6 +37,25 @@ describe.each([["mot unique", false], ["plusieurs mots", true]])("rejeu borné �
     expect(ev.charge).toMatchObject({ etat: "perime", dernierCode: "perime" });
     expect(envoisSortants()).toBe(0);
     expect(await toutesLesConv()).toEqual({});
+    expect(await Com.lireParametre(C.PARAM_CONVERSATIONS_ALIAS, {})).toEqual({}); // lecture seule : aucun alias écrit
+  });
+
+  it("6 · opposition (« stop ») sur un commentaire de plus de 24 h, garde bloquante : l'opposition passe avant la garde (oppose, pas perime)", async () => {
+    await bloquer();
+    const id = await deposerCommentaire(depots, { reseau: "facebook", ageMs: 25 * H, motSeul: "STOP" });
+    await passer(T0);
+    const ev = await evenement(depots, id);
+    expect(ev.traite).toBe(true);
+    expect(ev.charge).toMatchObject({ etat: "oppose", dernierCode: "opposition" });
+  });
+
+  it("7 · commentaire récent, garde bloquante : reporté, jamais périmé", async () => {
+    await bloquer();
+    const id = await deposerCommentaire(depots, { reseau: "facebook" });
+    await passer(T0);
+    const ev = await evenement(depots, id);
+    expect(ev.traite).toBe(false);
+    expect(ev.charge).toMatchObject({ etat: "a_reessayer", dernierCode: CODE });
   });
 
   it("2 · une fois périmé, registre actif et validation présente : aucun appel au port", async () => {
