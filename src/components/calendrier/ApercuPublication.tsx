@@ -14,11 +14,14 @@ import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
-import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
+import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
+import { PretAPartir } from "./PretAPartir";
+import type { CodeControle } from "@/services/pret-a-partir";
 import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
 import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
 import { TiroirAccessible } from "./TiroirAccessible";
@@ -42,6 +45,33 @@ export interface ProprietesApercuPublication {
   mots?: MotsPublication | null;
 }
 
+/** Geste du bouton « Copier » du tiroir : presse-papiers du navigateur, sans appel serveur ; sans presse-papiers, rien ne se passe. */
+function copierDansLePressePapiers(texte: string): void {
+  try {
+    void navigator.clipboard?.writeText(texte).catch(() => undefined);
+  } catch {
+    /* presse-papiers indisponible */
+  }
+}
+
+/**
+ * « Prêt à partir ? » d'une entrée, à partir de ce qu'elle porte déjà (réseau, texte, hashtags du texte, date, type, premier
+ * commentaire s'il est connu). Le fichier décrit et le mot ne sont pas dans ces données : « à vérifier à la main », jamais inventés.
+ */
+function pretAPartirDe(entree: EntreeApercu) {
+  // Heure illisible ou absente : pas d'instant (la ligne « Il manque la date et l'heure » reste), jamais « 00:00 » inventé.
+  const heure = heureLisible(entree.heure);
+  const instant = jourLisible(entree.jour) && heure ? `${entree.jour}T${heure}` : null;
+  const averifier: CodeControle[] = ["fichier"];
+  const commentaireConnu = typeof entree.premierCommentaire === "string" && entree.premierCommentaire.trim() !== "";
+  if (!commentaireConnu) averifier.push("premier-commentaire");
+  if (accepteReponseAutomatique(entree.reseau)) averifier.push("mot");
+  return {
+    averifier,
+    publications: [{ reseau: entree.reseau, texte: entree.texte, hashtags: extraireHashtags(entree.texte ?? ""), premierCommentaire: entree.premierCommentaire, instant, typeContenu: entree.type }],
+  };
+}
+
 const CHAMP_DE_SAISIE = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 const BOUTON = "min-h-[38px] rounded-[10px] border border-trait-fort bg-surface-2 px-3 py-1.5 text-sm font-bold text-texte hover:bg-surface-3";
 
@@ -53,6 +83,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const nom = a.nomReseau;
 
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
+    // Une touche déjà traitée plus bas (flèches du carrousel, Échap de la vue agrandie) ne change pas de publication.
+    if (e.defaultPrevented) return;
     if (e.key === "Escape") {
       e.preventDefault();
       onFermer();
@@ -65,17 +97,18 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
-      {a.media.genre === "video" && a.media.url ? (
-        <video controls preload="metadata" poster={a.media.poster ?? undefined} src={a.media.url} className="max-h-[60vh] w-full bg-voile">
-          <track kind="captions" />
-        </video>
+      {entree.type === "carrousel" || (a.media.genre === "video" && a.media.url) || (entree.type === "infographie" && a.media.url) ? (
+        <ApercuMedia key={entree.cle} type={a.media.genre === "video" ? "video" : entree.type === "infographie" ? "infographie" : "carrousel"} url={a.media.url} poster={a.media.poster} pages={entree.media?.pages} />
       ) : a.media.genre === "image" && a.media.url ? (
         // eslint-disable-next-line @next/next/no-img-element -- adresse libre d'un visuel du Studio, montrée entière
         <img src={a.media.url} alt={`Visuel de la publication ${nom}`} className="max-h-[60vh] w-full object-contain" />
       ) : (
         <span>Visuel à venir</span>
       )}
-      {a.disposition === "legende-sur-media" && a.texte && <p className="absolute inset-x-0 bottom-0 whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange">{a.texte}</p>}
+      {a.disposition === "legende-sur-media" && a.texte && (
+        // Carrousel : la légende se lit sous les boutons de pages, sans les recouvrir.
+        <p className={cn("whitespace-pre-line bg-voile p-3 text-left text-sm font-semibold text-sur-orange", entree.type === "carrousel" ? "w-full" : "absolute inset-x-0 bottom-0")}>{a.texte}</p>
+      )}
     </div>
   );
   const texte = (
@@ -152,6 +185,10 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
           </section>
         )
       )}
+
+      <div className="mt-3">
+        <PretAPartir {...pretAPartirDe(entree)} onCopier={copierDansLePressePapiers} />
+      </div>
 
       <div className="mt-3">
         <label htmlFor="apercu-date" className="text-sm font-bold text-texte">

@@ -202,13 +202,13 @@ export const RENDUS_V4: Readonly<Record<string, Rendu>> = Object.freeze({
     return <CarteStatuts palette={PALETTE_V4} duree={D} decl={lignes.map((l) => Math.max(3, im(e, l.a)))} fin={e.instants?.[0] !== undefined ? im(e, e.instants[0]) : undefined} roles={roles} titre={mot(e, lignes.length)} pastille={e.mots?.[lignes.length + 1] ?? ""} puces="pictos" />;
   },
   GraphiqueBarres: (e, _c, D) => {
-    const decl = (e.instants ?? []).map((t) => Math.max(3, im(e, t)));
+    const decl = (e.instants ?? []).map((t: number) => Math.max(3, im(e, t)));
     // Sans mot pour la puce (« deux fois » pas dit) : son instant est repoussé après la sortie, elle ne s'affiche jamais.
     while (decl.length < 3) decl.push(D + 60);
     // GV2-49 : avec `valeurs` dites, les hauteurs sont proportionnelles à ces valeurs ; sans (plan ancien), barres par défaut du composant.
-    const dites = e.valeurs?.map((x) => x.valeur) ?? [];
+    const dites = e.valeurs?.map((x: { valeur: number }) => x.valeur) ?? [];
     const max = Math.max(...dites);
-    const barres = dites.length && max > 0 ? dites.map((x) => x / max) : undefined;
+    const barres = dites.length && max > 0 ? dites.map((x: number) => x / max) : undefined;
     return <GraphiqueBarres palette={PALETTE_V4} duree={D} decl={decl} titre={mot(e, 0)} puce={e.mots?.[1] ?? ""} pastille="" {...(barres ? { barres } : {})} />;
   },
   CarteCalendrier: (e, _c, D) => <CarteCalendrier palette={PALETTE_V4} duree={D} decl={(e.instants ?? []).map((t) => Math.max(3, im(e, t)))} titre={mot(e)} pastille="" jours="points" />,
