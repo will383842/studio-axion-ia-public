@@ -81,6 +81,6 @@ describe("R1 — bloc Buffer (Réglages)", () => {
     expect(libelleEnvoi(undefined, true)).toBe("Envoyer");
     expect(libelleEnvoi("brouillon", true)).toBe("Envoyer");
     expect(libelleEnvoi("brouillon", false)).toBe("Envoyer en brouillon");
-    expect(libelleEnvoi("programmer", false)).toBe("Programmer dans Buffer");
+    expect(libelleEnvoi("programmer", false)).toBe("Programmer dans Zernio");
   });
 });

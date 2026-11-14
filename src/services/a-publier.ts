@@ -16,6 +16,7 @@ import { lireRoutage } from "./routage-publication";
 import { depots, ecrireParametre, ErreurStudio, filtreExemples, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { vueEnvoiBuffer } from "./buffer";
+import { canauxZernioEnregistres, comptesACocherZernio } from "./comptes-envoi-zernio";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
 import { casesRequises } from "@/formats";
 import { LIBELLES_VERIFICATIONS, listerAPublier, obtenirKit, reseauxParDefaut, texteAEnvoyer, verificationsManquantes } from "./publications";
@@ -90,7 +91,7 @@ export interface LigneAPublier {
   commentaireTransmissible: boolean;
   /** Selon l'outil du réseau : posé tout seul, transmis mais à confirmer (Zernio : Facebook, LinkedIn), ou à poser à la main (bouton Copier). */
   commentaireEtat?: "auto" | "a-confirmer" | "a-la-main";
-  /** Compte Buffer : celui mémorisé, les comptes à cocher, ou ce qui manque. Jamais deviné. */
+  /** Compte de l'outil d'envoi (Zernio ou Buffer) : celui mémorisé, les comptes à cocher, ou ce qui manque. Jamais deviné. */
   compte: ComptesReseauEnvoi;
   /** Vérifications « Avant de publier » encore à cocher. */
   manquantes: { cle: CleAvant; libelle: string }[];
@@ -158,6 +159,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
   const envoi = await vueEnvoiBuffer();
   const parDefaut = await reseauxParDefaut();
   const routage = await lireRoutage().catch(() => ({}));
+  const canauxZernio = (await canauxZernioEnregistres().catch(() => null))?.canaux;
   const lignes: LigneAPublier[] = [];
   for (const carte of [...validees, ...recentes]) {
     const kit = await obtenirKit(carte.id);
@@ -179,6 +181,8 @@ export async function vueAPublier(): Promise<VueAPublier> {
       else if (video?.estDemo) [blocage, blocageVideo] = ["Vidéo d'exemple : elle ne part pas sur vos réseaux.", true];
       else if (!r.sortieConseillee) blocage = `Aucun fichier au bon format pour ${r.nom}.`;
       else blocage = r.avertissements.find((a) => a.code === "trop-longue" || a.code === "ratio-absent")?.message;
+      // Outil d'envoi Zernio : les comptes à cocher sont ceux de Zernio (Buffer n'a pas à être relié) ; sinon ceux de Buffer.
+      const compte = (outilPour(routage, reseau) === "zernio" ? comptesACocherZernio(reseau, canauxZernio) : undefined) ?? envoi?.comptes[reseau] ?? {};
       lignes.push({
         famille: "video",
         cle: `${carte.id}:${reseau}`,
@@ -198,14 +202,14 @@ export async function vueAPublier(): Promise<VueAPublier> {
         ...(commentaire ? { premierCommentaire: commentaire } : {}),
         commentaireTransmissible: premierCommentaireTransmissible(reseau),
         commentaireEtat: etatPremierCommentaire(outilPour(routage, reseau), reseau),
-        compte: envoi?.comptes[reseau] ?? {},
+        compte,
         manquantes: manquantes.map((cle) => ({ cle, libelle: LIBELLES_VERIFICATIONS[cle] })),
         casesRequises: casesRequises(kit.mentionIAActive),
         coches: kit.avantDePublier,
         ...(blocage ? { blocage } : {}),
         ...(blocageVideo ? { blocageVideo } : {}),
         ...(kit.variante?.sujetId ? { sujetId: kit.variante.sujetId } : {}),
-        etat: etatDe(derniere, deCeReseau.filter(occupeBuffer), envoi?.comptes[reseau]?.choix),
+        etat: etatDe(derniere, deCeReseau.filter(occupeBuffer), compte.choix),
         reseauxVideo: kit.variante ? [kit.variante.reseau] : deLaVideo.reseaux,
         reseauxPrecis: kit.variante ? true : deLaVideo.precis,
         ...(deLaVideo.telechargementSeul ? { telechargementSeul: true } : {}),

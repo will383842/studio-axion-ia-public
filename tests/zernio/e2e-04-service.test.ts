@@ -93,6 +93,8 @@ beforeEach(async () => {
   injecterClientZernio(null);
   process.env.ZERNIO_API_KEY = CLE_FICTIVE;
   await auth.seConnecter("essai-e2e-service", false);
+  // Les tests qui visent Buffer l'ont choisi explicitement pour Instagram (le défaut est Zernio).
+  await (await import("@/services/_commun")).ecrireParametre("publication.routage", { instagram: "buffer" });
   buffer = fauxBuffer({});
   sorties = [];
   for (const n of ["log", "info", "warn", "error", "debug"] as const) {
