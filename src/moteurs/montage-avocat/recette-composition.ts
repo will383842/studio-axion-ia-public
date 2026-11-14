@@ -27,6 +27,8 @@ export const RECETTE_COMPOSITION_AVOCAT: RecetteComposition = {
   nomDecorRepli: "Halo orange",
   // Correcteur réel 2 : vraie fin, l'image et le son s'éteignent (sauf option « fin en boucle »).
   fonduFinMaxSec: 1,
+  // GV2-37 : le fondu commence 0,5 s après le dernier mot (la queue du mot n'est plus coupée).
+  fonduFinApresMotSec: 0.5,
   // Plan « large » hors 9:16 : 4:5 ≈ 85 %, 1:1 ≈ 72 % de la hauteur (B.7, réglé sur capture au lot M4).
   reductionLarge: REDUCTION_LARGE_AVOCAT,
   // 4:5 et 1:1 : le double, réduit et ancré en bas, a le visage plus haut dans l'image ; à 48 %, la ligne tomberait

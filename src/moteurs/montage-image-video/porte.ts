@@ -26,7 +26,21 @@ import { verdictReseau, type VerdictReseauIV } from "./reseaux";
 /** Codes qui dépendent de l'écoute ou de la relecture (attendus « non vérifiés » avant elles). */
 const CODES_APRES_ECOUTE: ReadonlySet<string> = new Set(["Q06", "Q08bis", "CHIFFRES", "Q17", "Q18", "Q19", "Q26"]);
 
-export type OutilsPorteIV = OutilsEcouteIV & Omit<OutilsRelectureIV, "budget">;
+/** Contrôles pas à pas : chaque transcription et chaque relecture obtenue est confiée à l'appelant (`garder`) puis la main est rendue. */
+export interface PasAPasPorteIV {
+  garder: (obtenu: { transcriptions: Record<string, MotHorodate[]>; relectures: Record<string, RelectureFinale> }) => void;
+}
+
+export type OutilsPorteIV = OutilsEcouteIV & Omit<OutilsRelectureIV, "budget"> & { pasAPas?: PasAPasPorteIV };
+
+/** Main rendue entre deux contrôles : une attente (`enCours`), reprise au tour suivant avec ce qui est déjà obtenu. */
+class ControleSuivantIV extends Error {
+  readonly enCours = true;
+  constructor() {
+    super("Les vérifications finales continuent au tour suivant.");
+    this.name = "RenduEnCoursIV";
+  }
+}
 
 export interface EntreePorteIV extends Omit<ContexteControlesIV, "ficheValidee"> {
   videoId: string;
@@ -154,8 +168,14 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
       o,
     );
     if (r.appelPaye) appelsPayes++;
+    const nouvelle = !!r.transcription?.length && !transcriptions[v.piste.empreinte];
     if (r.transcription?.length) transcriptions[v.piste.empreinte] = r.transcription;
     ecoutes.set(v.version, r);
+    // Pas à pas : la transcription obtenue est gardée tout de suite, puis la main est rendue.
+    if (nouvelle && o.pasAPas) {
+      o.pasAPas.garder({ transcriptions, relectures: { ...(e.deja?.relectures ?? {}) } });
+      throw new ControleSuivantIV();
+    }
   }
   const refusEcouteV = new Map(e.versions.map((v) => [v.version, refusAvantV.get(v.version)! || controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => bloque(l) && l.code !== "Q26")]));
 
@@ -164,14 +184,29 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const renduSuspect = (v: VersionAControlerIV) => controlerVersionIV(v, ctx, mesures(v, { ecoute: ecoutes.get(v.version) })).some((l) => l.code === "Q24" && l.etat !== "reussi" && (bloque(l) || l.details.some((d) => /image noire|largeur|hauteur/.test(d))));
   const relectures: Record<string, RelectureFinale> = { ...(e.deja?.relectures ?? {}) };
   const relues = new Map<string, Awaited<ReturnType<typeof relireVersionIV>>>();
-  for (const v of e.versions) {
+  // Pas à pas : une extraction des images encore en cours est une attente (reprise au tour suivant), jamais « images finales non relues ».
+  let attenteExtraction: unknown = null;
+  const oRelecture: OutilsPorteIV = o.pasAPas
+    ? { ...o, extraireImages: (d) => o.extraireImages(d).catch((err: unknown) => { if ((err as { enCours?: unknown } | null)?.enCours === true || ["RenduEnCoursIV", "RenduEnCours"].includes((err as { name?: unknown } | null)?.name as string)) attenteExtraction = err; throw err; }) }
+    : o;
+  for (const [i, v] of e.versions.entries()) {
     const r = await relireVersionIV(
       { videoId: e.videoId, version: v.version, reseaux: v.reseaux, carte: e.carte, fichierCle: v.fichier.cle, ...(v.fichier.empreinte ? { empreinteFichier: v.fichier.empreinte } : {}), instants: instants.get(v.version)!, deja: relectures, depenseAutorisee: !refusEcouteV.get(v.version), renduSuspect: renduSuspect(v) },
-      o,
+      oRelecture,
     );
+    if (attenteExtraction) {
+      o.pasAPas!.garder({ transcriptions, relectures });
+      throw attenteExtraction;
+    }
     appelsPayes += r.appels;
+    const nouvelleRelecture = !!r.relecture && !!r.cle && !relectures[r.cle];
     if (r.relecture && r.cle) relectures[r.cle] = r.relecture;
     relues.set(v.version, r);
+    // Pas à pas : la relecture obtenue est gardée tout de suite ; la main est rendue sauf après la dernière version.
+    if (nouvelleRelecture && o.pasAPas) {
+      o.pasAPas.garder({ transcriptions, relectures });
+      if (i < e.versions.length - 1) throw new ControleSuivantIV();
+    }
   }
 
   // 4. Lignes finales, sur TOUTES les versions.

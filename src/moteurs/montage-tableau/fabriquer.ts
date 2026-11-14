@@ -168,7 +168,7 @@ export const SERIES_FICHIER_INACCESSIBLE_TABLEAU = 1;
 export interface AlerteJournal {
   etape: EtapeFabrication;
   sortie?: IdSortie;
-  code: "bruitage-introuvable" | "entree-introuvable" | "composition-arretee" | "fin-sans-appel" | "sortie-manquante" | "fin-non-propre" | "sous-titres-repli";
+  code: "bruitage-introuvable" | "entree-introuvable" | "composition-arretee" | "fin-sans-appel" | "sortie-manquante" | "fin-non-propre" | "sous-titres-repli" | "calage-approche" | "controle-fichier";
   message: string;
   entree?: string;
   cle?: string;
@@ -944,6 +944,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
   const fichePrincipale = principale?.fiche ?? fiche;
   const contexteDe = (f: FicheTableau): ContexteTableau => (f === fiche ? o.contexte : { ...o.contexte, texteScript: texteDitDe(f) });
   const calage = await etape("calage", empreinte("calage", fichePrincipale, audio.mots, audio.dureeSec, prononciations, contexteDe(fichePrincipale)), async () => caler(fichePrincipale, audio));
+  noterAlertesCalage(calage);
 
   // 5 à 9, pour CHAQUE sortie (format d'image) : la voix et le calage ci-dessus servent à toutes. La sortie
   // « vertical » garde les clés de journal et les empreintes d'avant (reprise d'un journal d'avant intacte).
@@ -1008,10 +1009,18 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
   };
 
   /** Cale une fiche (celle de la vidéo ou d'une variante) sur les mots de sa voix. */
-  async function caler(f: FicheTableau, a: Pick<AudioVoixTableau, "mots" | "dureeSec">): Promise<{ fiche: FicheTableau; elements: ElementCale[] }> {
+  async function caler(f: FicheTableau, a: Pick<AudioVoixTableau, "mots" | "dureeSec">): Promise<{ fiche: FicheTableau; elements: ElementCale[]; alertes?: string[] }> {
     const r = calerFicheTableau(f, a.mots, { contexte: contexteDe(f), prononciations, dureeSec: a.dureeSec });
     if (!r.ok) throw new ErreurFabrication("calage", f === fiche ? r.problemes : r.problemes.map((x) => `Fin propre à TikTok et Shorts · ${x}`));
-    return { fiche: r.fiche, elements: r.elements };
+    return { fiche: r.fiche, elements: r.elements, ...(r.alertes?.length ? { alertes: r.alertes } : {}) };
+  }
+
+  /** Calage approché (chiffres et symboles) : l'alerte va au rapport, la vidéo se fait (GV2-35). */
+  function noterAlertesCalage(c: { alertes?: string[] }, sortie?: IdSortie): void {
+    for (const message of c.alertes ?? []) {
+      noterAlerte({ etape: "calage", ...(sortie ? { sortie } : {}), code: "calage-approche", message });
+      dire(`Alerte : ${message}`);
+    }
   }
 
   /**
@@ -1162,6 +1171,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     const audioS: AudioVoixTableau = autreVoix ? audiosVariantes[variante.id] : audio;
     const ficheS = variante?.fiche ?? fiche;
     const calageS = autreVoix ? await etape("calage", empreinte("calage", ficheS, audioS.mots, audioS.dureeSec, prononciations, contexteDe(ficheS), id), async () => caler(ficheS, audioS), store, nomEtape) : calage;
+    if (autreVoix) noterAlertesCalage(calageS, id);
     const finVoixMs = calageS.fiche.scenes.at(-1)?.finMs ?? 0;
     const blocs2 = estStyleBlocs2(calageS.fiche);
     // « blocs/2 » et « reference/1 » : pas de scène de fin ajoutée, la dernière scène (écran d'appel, dernière page) en
@@ -1255,6 +1265,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // Repli sûr : un bruitage dont le fichier est introuvable est retiré (la vidéo se fabrique sans lui, avec une alerte).
     const sons = blocs2 ? await retirerBruitagesIntrouvables(bruitagesTableau(proprietes, dureeSec), o.montage.lisible) : null;
     const alertesSortie: AlerteQualite[] = [];
+    // Calage approché (chiffres et symboles, GV2-35) : dit sur la sortie livrée, donc au rapport de la vidéo.
+    for (const message of calageS.alertes ?? []) alertesSortie.push({ code: "synchronisation", gravite: "attention", message });
     // TikTok et Shorts sans fin validée, LinkedIn : la vidéo se termine sans appel, et le rapport le dit.
     if (sansAppelAuMot(id) && finRetenue && "absente" in finRetenue) {
       alertesSortie.push({ code: "fin", gravite: "attention", message: finRetenue.absente });
@@ -1359,11 +1371,20 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         ...(o.dejaVu ? { dejaVu: o.dejaVu } : {}),
         ...(o.leveeVariete ? { leveeVariete: o.leveeVariete } : {}),
         mesures: composition.mesures,
+        // Après le montage : la voix est payée, les scènes rendues, le fichier déposé (GV2-35).
+        apresMontage: true,
         // La mise en page de CETTE sortie (format, écran d'appel, bulles), celle qui a été rendue.
         sorties: [{ id, libelle: format.libelle, fiche: calageS.fiche, options: { preuves, ...(imageVerticale ? {} : { format: image }), ...(appel ? { appel } : {}) } }],
       },
       o.relireImagesCles ? { relireImagesCles: o.relireImagesCles } : {},
     );
+    // Les contrôles du fichier fini déclassés en alertes : dits sur la sortie livrée et au rapport, sans jeter la vidéo.
+    for (const l of controles.indicatifs.filter((x) => x.declasse)) {
+      const message = `${l.libelle} : ${l.raison}`;
+      alertesSortie.push({ code: l.libelle === "Volume du son" || l.libelle === "Crête du son" ? "niveau-sonore" : "defaut-visuel", gravite: "attention", message });
+      noterAlerte({ etape: "controles", ...(nomEtape ? { sortie: nomEtape } : {}), code: "controle-fichier", message });
+      dire(`Alerte : ${message}`);
+    }
     const controleFichier = controlerSortie(image, composition.mesures as Record<string, number | undefined>, { finPropre: !!RECETTE_COMPOSITION_TABLEAU.finPropre });
     // 14/10 : une fin qui s'arrête net est dite (alerte de la sortie), sans bloquer l'export.
     if (RECETTE_COMPOSITION_TABLEAU.finPropre && controleFinDesMesures(composition.mesures as Record<string, number | undefined>).defauts.length) {

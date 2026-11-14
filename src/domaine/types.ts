@@ -1422,6 +1422,11 @@ export interface Travail extends EntiteBase {
    * écrites dans la MÊME écriture que « terminé » ; chacune est retirée une fois faite (seules les ratées sont rejouées).
    */
   finitionAFaire?: SuiteFabrication[];
+  /**
+   * GV2-38 : résultat du moteur gardé avec « terminé » (même écriture) tant que la fin de fabrication n'est pas
+   * entièrement enregistrée. `faits` : écritures déjà faites ; `rejouee` : le rejeu a déjà eu lieu (jamais un troisième).
+   */
+  finAAppliquer?: { resultat: import("@/moteurs/types").ResultatFabrication; rejouee: boolean; faits: ("depense" | "produits")[]; /** Ce que la dépense de fin a ajouté au coût de la vidéo (reporté tel quel si le rejeu a lieu avant que la vidéo soit écrite). */ ajout?: Montant };
   /** Chien de garde « plus d'avancement » (GV2-01) : empreinte de l'état, heure depuis laquelle elle n'a pas changé, dernière fois où elle a été vue. */
   garde?: { empreinte: string; depuis: string; vu?: string };
 }

@@ -275,3 +275,104 @@ describe("Vérif V2 — les cartes du 9:16 partent avant celles des formats seco
     expect(Math.max(...principales)).toBeLessThan(Math.min(...formats));
   });
 });
+
+describe("GV2-33 : calage réessayé et dit, fin posée, bords mal entendus", () => {
+  function depsAlignement(echecs: number, motsTranscription?: (mots: { mot: string; debutSec: number; finSec: number }[]) => { mot: string; debutSec: number; finSec: number }[]) {
+    const facecam = creerFacecamSimule();
+    const demandes: { idAlignement: string; texte: string; reference?: { mot: string; debutSec: number; finSec: number }[] }[] = [];
+    const alignement = {
+      id: "studio-aligneur",
+      type: "alignement",
+      mode: "reel",
+      async soumettre(d: (typeof demandes)[number]) {
+        demandes.push(d);
+      },
+      async suivre(id: string) {
+        const numero = demandes.findIndex((d) => d.idAlignement === id);
+        if (numero < echecs) return { statut: "echec", erreur: { code: "indisponible", reessayable: true, message: "Calage dépassé." } };
+        const ref = demandes[numero].reference ?? [];
+        return { statut: "termine", resultat: { mots: ref.map((m) => ({ ...m, debutSec: m.debutSec + 0.02, finSec: m.finSec + 0.02 })), motsNonAlignes: 0, modele: "essai", dureeCalculSec: 1 } };
+      },
+    } as unknown as DependancesChaine["alignement"];
+    const deps: DependancesChaine = {
+      facecam: {
+        ...facecam,
+        mode: "reel",
+        soumettre: (route, d) => facecam.soumettre(route, route === "transcrire" ? { ...d, parametres: { ...d.parametres, texte: TEXTE } } : d),
+        suivre: async (route, id) => {
+          const r = await facecam.suivre(route, id);
+          if (route === "transcrire" && r.statut === "termine") {
+            // Prise plus longue que la voix : de la place après le dernier mot pour la marge de fin.
+            const brut = (r.resultat as { mots: { mot: string; debutSec: number; finSec: number }[] }).mots;
+            const mots = motsTranscription ? motsTranscription(brut) : brut;
+            return { ...r, resultat: { ...r.resultat, mots, dureeSec: Math.max(...mots.map((m) => m.finSec)) + 5 } };
+          }
+          return r;
+        },
+      },
+      urlLecture: async (cle) => `https://r2.exemple/lire/${cle}`,
+      urlDepot: async (cle) => `https://r2.exemple/deposer/${cle}`,
+      lireJsonGz: async () => null,
+      alignement,
+      ecrireJsonGz: async () => undefined,
+    };
+    return { deps, demandes, facecam };
+  }
+  async function tours(deps: DependancesChaine) {
+    let etat = etatChaineInitial();
+    for (let i = 0; i < 40 && !etat.fini && !etat.echec; i++) etat = await avancerChaine(etat, commande(), { travailId: "t-v2", versionId: "ver-1" }, deps);
+    return etat;
+  }
+
+  it("calage « dépassé » une fois puis réussi → source « aligneur », second identifiant -e1", async () => {
+    const { deps, demandes } = depsAlignement(1);
+    const etat = await tours(deps);
+    expect(etat.fini).toBe(true);
+    expect(demandes.map((d) => d.idAlignement)).toEqual(["t-v2-facecam-alignement", "t-v2-facecam-alignement-e1"]);
+    expect(etat.mots?.source).toBe("aligneur");
+    expect(livraisonChaine(etat).alertes.some((a) => a.message.includes("calage fin n'a pas abouti"))).toBe(false);
+  });
+
+  it("trois échecs → vidéo livrée avec l'alerte, trois demandes au plus", async () => {
+    const { deps, demandes } = depsAlignement(99);
+    const etat = await tours(deps);
+    expect(etat.fini).toBe(true);
+    expect(demandes.map((d) => d.idAlignement)).toEqual(["t-v2-facecam-alignement", "t-v2-facecam-alignement-e1", "t-v2-facecam-alignement-e2"]);
+    expect(etat.mots?.source).not.toBe("aligneur");
+    expect(livraisonChaine(etat).alertes).toContainEqual({ code: "synchronisation", gravite: "attention", message: "Sous-titres posés sur la transcription : le calage fin n'a pas abouti." });
+  });
+
+  it("la dernière coupe commence 0,45 s après le dernier mot", async () => {
+    const { deps } = depsAlignement(0);
+    const etat = await tours(deps);
+    const mots = (etat.travaux.transcrire!.resultat as { mots: { finSec: number }[] }).mots;
+    const dernierMot = Math.max(...mots.map((m) => m.finSec));
+    const fin = etat.coupes!.gardes[etat.coupes!.gardes.length - 1].finSec;
+    expect(fin - dernierMot).toBeCloseTo(0.45, 2);
+  });
+
+  it("un dernier mot mal entendu n'est plus coupé", async () => {
+    const { deps } = depsAlignement(0, (mots) => mots.map((m, i) => (i === mots.length - 1 ? { ...m, mot: "gratouille" } : m)));
+    const etat = await tours(deps);
+    const mots = (etat.travaux.transcrire!.resultat as { mots: { mot: string; finSec: number }[] }).mots;
+    const dernier = mots[mots.length - 1];
+    expect(dernier.mot).toBe("gratouille");
+    const fin = etat.coupes!.gardes[etat.coupes!.gardes.length - 1].finSec;
+    expect(fin).toBeGreaterThanOrEqual(dernier.finSec);
+  });
+
+  it("calage terminé mais rejeté par les garde-fous → une seule demande, vidéo livrée avec l'alerte", async () => {
+    const { deps, demandes } = depsAlignement(0);
+    const alignement = deps.alignement as unknown as { suivre: (id: string) => Promise<unknown> };
+    // Un calage à 5 s de la voix porte sur un autre son : les garde-fous le refusent.
+    alignement.suivre = async (id) => {
+      const ref = demandes.find((d) => d.idAlignement === id)?.reference ?? [];
+      return { statut: "termine", resultat: { mots: ref.map((m) => ({ ...m, debutSec: m.debutSec + 5, finSec: m.finSec + 5 })), motsNonAlignes: 0, modele: "essai", dureeCalculSec: 1 } };
+    };
+    const etat = await tours(deps);
+    expect(etat.fini).toBe(true);
+    expect(demandes).toHaveLength(1);
+    expect(etat.mots?.source).not.toBe("aligneur");
+    expect(livraisonChaine(etat).alertes).toContainEqual({ code: "synchronisation", gravite: "attention", message: "Sous-titres posés sur la transcription : le calage fin n'a pas abouti." });
+  });
+});

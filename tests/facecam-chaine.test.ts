@@ -211,4 +211,61 @@ describe("chaîne vidéo face caméra (lot B)", () => {
     expect(dependancesChaineParDefaut(commande({ facecamAligneurReel: true }), {})).toBeNull();
     expect(dependancesChaineParDefaut(commande({ facecamAligneurReel: true }), { STUDIO_ALIGNEUR_URL: "http://studio-aligneur:4200" })?.facecam.mode).toBe("reel");
   });
+  describe("GV2-33 : piste du visage relue avant de cadrer au centre, fondu final de la voix", () => {
+    const piste = {
+      version: 1,
+      largeurSource: 3840,
+      hauteurSource: 2160,
+      imagesParSec: 5,
+      visageTrouvePct: 100,
+      echantillons: Array.from({ length: 300 }, (_, i) => ({ t: i / 5, yeuxX: 2600, yeuxY: 800, boite: [2450, 600, 300, 400], bouche: 0.2, confiance: 1 })),
+    };
+    function depsAvecPiste(lecturesEnPanne: number | "toujours") {
+      const facecam = creerFacecamSimule();
+      const lectures: string[] = [];
+      const deps: DependancesChaine = {
+        facecam: { ...facecam, mode: "reel", soumettre: (route, d) => facecam.soumettre(route, route === "transcrire" ? { ...d, parametres: { ...d.parametres, texte: TEXTE } } : d) },
+        urlLecture: async (cle) => `https://r2.exemple/lire/${cle}`,
+        urlDepot: async (cle) => `https://r2.exemple/deposer/${cle}`,
+        lireJsonGz: async (cle) => {
+          if (!cle.endsWith("visage.json.gz")) return null;
+          lectures.push(cle);
+          return lecturesEnPanne === "toujours" || lectures.length <= lecturesEnPanne ? null : piste;
+        },
+      };
+      return { facecam, deps, lectures };
+    }
+    async function tours(deps: DependancesChaine, max = 60) {
+      let etat = etatChaineInitial();
+      const c = commande();
+      let n = 0;
+      for (; n < max && !etat.fini && !etat.echec; n++) etat = await avancerChaine(etat, c, { travailId: "t-1", versionId: "ver-1" }, deps);
+      return { etat, n };
+    }
+
+    it("lecture de la piste en panne 2 tours puis réussie → cadres suivis, aucune mention de cadre centré", async () => {
+      const { deps, lectures } = depsAvecPiste(2);
+      const { etat } = await tours(deps);
+      expect(etat.fini).toBe(true);
+      expect(lectures.length).toBeGreaterThanOrEqual(3);
+      expect(etat.sauts.map((s) => s.brique)).not.toContain("Le cadrage du visage");
+      expect(etat.plans!.length).toBeGreaterThan(0);
+    });
+
+    it("lecture en panne durable → après 6 tours d'attente, cadre centré AVEC la mention ; la vidéo est livrée", async () => {
+      const { deps, lectures } = depsAvecPiste("toujours");
+      const { etat } = await tours(deps);
+      expect(etat.fini).toBe(true);
+      expect(etat.sauts).toContainEqual({ brique: "Le cadrage du visage", message: "Le visage n'a pas été suivi : cadre centré." });
+      expect(lectures.length).toBeGreaterThanOrEqual(7);
+      expect(etat.plans!.length).toBeGreaterThan(0);
+    });
+
+    it("la demande /son porte fonduFinSec: 0.12", async () => {
+      const { deps, facecam } = depsAvecPiste(0);
+      await tours(deps);
+      const son = facecam.soumises.find((s) => s.route === "son")!.demande;
+      expect(son.parametres?.fonduFinSec).toBe(0.12);
+    });
+  });
 });

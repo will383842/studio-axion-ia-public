@@ -47,6 +47,8 @@ export interface RecetteComposition {
   nomDecorRepli: string;
   /** Correcteur réel 2 : fondu de fin au noir, au plus ces secondes, jamais avant le dernier mot. Absent : aucun. */
   fonduFinMaxSec?: number;
+  /** GV2-37 : le fondu de fin commence au plus tôt ce nombre de secondes APRÈS le dernier mot. Absent : 0 (comportement d'avant). */
+  fonduFinApresMotSec?: number;
   /**
    * 11/10, tableau animé (ajout pur) : bords sûrs à l'export — conversion RVB sûre (`ParametresExport.conversionRvbSure`,
    * contre la bande noire de 8 px au bord droit du FFmpeg 8.1.1) et mesure des bords noirs du fichier exporté

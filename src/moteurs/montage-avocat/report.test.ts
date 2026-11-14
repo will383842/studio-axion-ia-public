@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { horodaterTexte } from "@/domaine/derivations";
-import { ecartMoyenMs, horodaterMotsPrononces, preparerTexteVoix, reporterHorodatages } from "./report";
+import { ecartMoyenMs, horodaterMotsPrononces, preparerTexteVoix, preparerTexteVoixDit, reporterHorodatages } from "./report";
 
 const SEGMENTS = [
   { id: "s1", texte: "Vous recevez un PV de 135 € ?" },
@@ -70,5 +70,62 @@ describe("report des horodatages du texte prononcé sur le texte validé (B.4, B
     const b = [{ mot: "Bonjour", debutSec: 0.04, finSec: 0.44 }, { mot: "Will", debutSec: 0.54, finSec: 0.84 }];
     expect(ecartMoyenMs(a, b)).toBe(40);
     expect(ecartMoyenMs(a, a)).toBe(0);
+  });
+});
+
+describe("GV2-37 : chaque segment lu finit par une ponctuation dans le texte envoyé à la voix", () => {
+  it("un point à la fin de chaque segment sans ponctuation, « : » final devient un point", () => {
+    const t = preparerTexteVoix(
+      [
+        { id: "a", texte: "Votre patron lit vos mails ?" },
+        { id: "b", texte: "Il n'en a pas le droit" },
+        { id: "c", texte: "Voici comment réagir" },
+      ],
+      [],
+    );
+    expect(t.texte).toBe("Votre patron lit vos mails\u00a0? Il n'en a pas le droit. Voici comment réagir.");
+    expect(preparerTexteVoix([{ id: "a", texte: "Voici la règle :" }], []).texte).toBe("Voici la règle.");
+  });
+
+  it("la ponctuation d'un mot du dictionnaire est gardée derrière un guillemet fermant", () => {
+    const pv = [{ mot: "PV", prononciation: "pé vé" }];
+    expect(preparerTexteVoix([{ id: "a", texte: 'Il a dit "PV."' }], pv).texte).toBe('Il a dit "pé vé."');
+    expect(preparerTexteVoix([{ id: "a", texte: "Il a dit « PV. »" }], pv).texte).toBe("Il a dit «\u00a0pé vé.\u00a0»");
+  });
+
+  it("les heures reportées sont identiques avec ou sans point final ajouté", () => {
+    const segments = [
+      { id: "a", texte: "Votre patron lit vos mails ?" },
+      { id: "b", texte: "Il n'en a pas le droit" },
+    ];
+    const t = preparerTexteVoix(segments, []);
+    const dits = horodaterTexte("Votre patron lit vos mails\u00a0? Il n'en a pas le droit", 4);
+    const avant = reporterHorodatages({ ...t, motsPrononces: t.motsValides.map((m) => m.mot) }, dits);
+    expect(reporterHorodatages(t, dits)).toEqual(avant);
+  });
+
+  it("un script déjà ponctuel donne le même texte qu'avant", () => {
+    expect(preparerTexteVoix(SEGMENTS, PRONONCIATIONS).texte).toBe("Vous recevez un pé vé de cent trente-cinq euros\u00a0? Surtout, ne le payez pas.");
+  });
+
+  it("une phrase coupée entre deux segments (suivant en minuscule) ne reçoit pas de point au milieu", () => {
+    const coupee = [
+      { id: "a", texte: "Mais un mail marqué" },
+      { id: "b", texte: "« personnel » est protégé, même sur" },
+      { id: "c", texte: "l'ordinateur du bureau" },
+    ];
+    expect(preparerTexteVoix(coupee, []).texte).toBe("Mais un mail marqué «\u00a0personnel\u00a0» est protégé, même sur l'ordinateur du bureau.");
+    expect(preparerTexteVoixDit(coupee, new Map(coupee.map((s) => [s.id, s.texte]))).texte).toBe(preparerTexteVoix(coupee, []).texte);
+    expect(preparerTexteVoix([{ id: "a", texte: "Une phrase longue," }, { id: "b", texte: "qui continue ici" }], []).texte).toBe("Une phrase longue, qui continue ici.");
+  });
+
+  it("preparerTexteVoixDit donne le même texte que preparerTexteVoix", () => {
+    const segments = [
+      { id: "a", texte: "Bonjour à tous" },
+      { id: "b", texte: "Je suis avocat" },
+    ];
+    const dits = new Map([["a", "Bonjour à tous"], ["b", "Je suis avocat"]]);
+    expect(preparerTexteVoixDit(segments, dits).texte).toBe("Bonjour à tous. Je suis avocat.");
+    expect(preparerTexteVoix(segments, []).texte).toBe("Bonjour à tous. Je suis avocat.");
   });
 });

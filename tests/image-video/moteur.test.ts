@@ -29,7 +29,7 @@ import {
   type EtatFabricationIV,
   type OutilsFabricationIV,
 } from "@/moteurs/montage-image-video/fabrication";
-import { CODE_CARTE_A_VALIDER, CODE_SCRIPT_A_VALIDER, creerMoteurMontageImageVideo, moteurMontageImageVideo, PHRASE_FORMAT_MASQUE } from "@/moteurs/montage-image-video";
+import { CODE_CARTE_A_VALIDER, CODE_SCRIPT_A_VALIDER, creerMoteurMontageImageVideo, moteurMontageImageVideo, PHRASE_FORMAT_MASQUE, resultatDe } from "@/moteurs/montage-image-video";
 import { formatGenerateur, listerFormats } from "@/formats";
 import { codeDuFormat } from "@/formats/registre-codes";
 import { idMoteurDeCommande, moteurExiste, obtenirMoteur } from "@/moteurs";
@@ -1142,6 +1142,33 @@ describe("moteur « montage-image-video » (contrat MoteurVideo)", () => {
     expect(resultat!.sorties).toHaveLength(1);
     expect(resultat!.sorties[0].ratio).toBe("9:16");
     expect(moteur.lignesPayees?.(t, c)).toEqual([expect.objectContaining({ etape: "Voix", nature: "reel", fournisseur: "heygen-simule" })]);
+  });
+
+  it("GV2-36 · préparation : une panne passagère est relevée (la boucle réessaie), un refus net échoue tout de suite", async () => {
+    const carte = carteFixe("C");
+    const c = commande(carte);
+    const panne = creerMoteurMontageImageVideo({ outils: async () => { throw new Error("réseau coupé"); }, numeroVersion: async () => 42 });
+    const t = await panne.lancer(c, CONTEXTE);
+    await expect(panne.avancer(t, c, T0)).rejects.toThrow("réseau coupé");
+    const net = creerMoteurMontageImageVideo({ outils: async () => { throw Object.assign(new Error("clé refusée"), { reessayable: false }); }, numeroVersion: async () => 42 });
+    const t2 = await net.lancer(c, CONTEXTE);
+    const r = await net.avancer(t2, c, T0);
+    expect(r.travail.statut).toBe("echec");
+    expect(r.travail.erreur).toMatchObject({ code: "IV_NON_RELIE", reessayable: true });
+  });
+
+  it("GV2-36 · une remarque de fin de voix sort en tête, en « attention » ; les autres restent « info »", () => {
+    const etat = {
+      controles: { transcriptions: {}, relectures: {}, verdict: { ok: true, phrase: "ok", phrases: [], mentions: ["Un peu longue.", "Piste voix seule A · la dernière phrase risque d'être coupée.", "Voix gardée malgré une remarque : x", "Instagram · Fin dite en entier : la voix finit 1,2 s avant la fin de la vidéo (1,5 s au moins)."] } },
+      livraison: [],
+      rendus: {},
+      caisse: { reservations: [] },
+      journal: [],
+    } as unknown as EtatFabricationIV;
+    const alertes = resultatDe(etat, T0).noteQualite.alertes;
+    expect(alertes.map((a) => a.gravite)).toEqual(["attention", "attention", "attention", "info"]);
+    expect(alertes[0].message).toMatch(/dernière phrase risque d'être coupée/);
+    expect(alertes[3].message).toBe("Un peu longue.");
   });
 
   it("estime en LigneCout, total cohérent ; étapes enchaînées", async () => {
