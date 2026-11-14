@@ -7,7 +7,9 @@
  * jamais à Zernio. Seule exception : les deux interrupteurs du parcours (plusieurs mots, Instagram), allumés uniquement sur geste confirmé de l'opérateur.
  */
 import { revalidatePath } from "next/cache";
-import { gesteActiverMotLocal, gesteValiderMotGuide, gesteValiderFormulation, gesteMettreEnPause, gesteMettreEnPauseLocal, gesteReactiver, gesteRefermerDisjoncteur, gesteReglerPlafonds, gesteReglerParcours } from "@/services/mots-gestes";
+import { gesteActiverMot, gesteApercuTextesMot, gesteChangerCible, gesteCreerMot, gestePauseMot, gesteValiderTextesMot, type ResultatMotCible, gesteActiverMotLocal, gesteValiderMotGuide, gesteValiderFormulation, gesteMettreEnPause, gesteMettreEnPauseLocal, gesteReactiver, gesteRefermerDisjoncteur, gesteReglerPlafonds, gesteReglerParcours } from "@/services/mots-gestes";
+import { phraseDuCode, versApercuVue, versResultatGeste } from "@/services/mots-cibles-vue";
+import type { ApercuTextesVue, ReseauAutoVue, ResultatGesteVue, ResultatSimpleVue } from "@/domaine/guide-reseau/vue-mots-cibles";
 import type { Resultat } from "@/services/mots-service";
 import type { ReglageParcours, ResultatReglage } from "@/services/parcours-reglages";
 
@@ -60,4 +62,37 @@ export async function reglerParcoursAction(reglage: ReglageParcours, allume: boo
   const r = await gesteReglerParcours(reglage, allume);
   rafraichir();
   return r;
+}
+
+/* R5 · mots et cibles : une action par geste, la session est exigée dans le geste, les phrases sont écrites ICI (côté serveur). */
+const phraseSimple = (r: ResultatMotCible, phraseReussie: string): ResultatSimpleVue => ({ ok: r.ok, phrase: r.ok ? (r.phrase ?? phraseReussie) : (r.phrase ?? phraseDuCode(r.raison)) });
+
+export async function creerMotAction(mot: string, codeCible: string): Promise<ResultatSimpleVue> {
+  const r = await gesteCreerMot(mot, codeCible);
+  rafraichir();
+  return phraseSimple(r, "Mot créé en brouillon.");
+}
+export async function changerCibleAction(mot: string, codeCible: string): Promise<ResultatSimpleVue> {
+  const r = await gesteChangerCible(mot, codeCible);
+  rafraichir();
+  return phraseSimple(r, "Cible changée.");
+}
+export async function apercuTextesMotAction(mot: string): Promise<ApercuTextesVue> {
+  return versApercuVue(await gesteApercuTextesMot(mot));
+}
+/** Le client n'envoie que le mot, le réseau et l'empreinte qu'il a vue : aucun texte. */
+export async function validerTextesMotAction(mot: string, reseau: ReseauAutoVue, empreinteVue: string): Promise<ResultatSimpleVue> {
+  const r = await gesteValiderTextesMot(mot, reseau, empreinteVue);
+  rafraichir();
+  return { ok: r.ok, phrase: r.ok ? "Textes validés. Rien n'a été envoyé." : phraseDuCode(r.raison) };
+}
+export async function activerMotAction(mot: string, compte: string): Promise<ResultatGesteVue> {
+  const r = await gesteActiverMot(mot, compte);
+  rafraichir();
+  return versResultatGeste(r, "Mot activé sur ce compte.");
+}
+export async function pauseMotAction(mot: string, compte: string): Promise<ResultatGesteVue> {
+  const r = await gestePauseMot(mot, compte);
+  rafraichir();
+  return versResultatGeste(r, "Mot mis en pause sur ce compte. Rien n'est supprimé.");
 }
