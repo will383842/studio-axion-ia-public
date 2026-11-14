@@ -9,6 +9,7 @@ import { activerMotLocal, chargerTextesFichier, mettreEnPauseLocal, lireVueMots,
 import type { SaisieMot } from "./mots-textes";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
+import type { EtatReglagesParcours, ReglageParcours, ResultatReglage } from "./parcours-reglages";
 
 export async function gesteLireMots(): Promise<VueMots> {
   await exigerSession();
@@ -88,4 +89,16 @@ export async function gesteValiderFormulation(version: string): Promise<{ ok: bo
 export async function gesteComptesGuide(): Promise<string[]> {
   await exigerSession();
   return comptesParcours();
+}
+
+/** Lecture des deux interrupteurs du parcours (session exigée) : deux booléens. */
+export async function gesteLireReglagesParcours(): Promise<EtatReglagesParcours> {
+  await exigerSession();
+  // Import différé (comme branchements-zernio) : aucun autre fichier de src n'importe statiquement le parcours.
+  return (await import("./parcours-conversation")).lireReglagesParcours();
+}
+/** Bascule d'un interrupteur du parcours (session exigée avant tout) : le client n'envoie qu'un nom et un booléen. */
+export async function gesteReglerParcours(reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> {
+  await exigerSession();
+  return (await import("./parcours-conversation")).reglerParcours(reglage, allume);
 }

@@ -42,6 +42,7 @@ import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
 import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
+import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
 import { instagramSuivreActif } from "./parcours-instagram";
 import { CHEMIN_DEMANDES_GUIDE, transportDuSite } from "./parcours-mot";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
@@ -2271,3 +2272,13 @@ async function idConversationDuDernierMessage(e: Conversation): Promise<string |
   const c = await chargeDuDernierMessage(e);
   return typeof c?.idConversation === "string" && c.idConversation ? c.idConversation : null;
 }
+
+/** Interrupteurs de /mots (« plusieurs mots », « Instagram ») : ce fichier est le seul de production qui cite les deux modules de réglage. */
+const ACCES_REGLAGES = {
+  lire: async (): Promise<EtatReglagesParcours> => ({ motsMultiples: await motsMultiplesActifs(), instagramSuivre: await instagramSuivreActif() }),
+  // Import différé : l'écriture n'est évaluée qu'au moment de basculer un interrupteur.
+  ecrireMotsMultiples: async (allume: boolean): Promise<void> => (await import("./parcours-mots-multiples")).ecrireMotsMultiples(allume),
+  ecrireInstagramSuivre: async (allume: boolean): Promise<void> => (await import("./parcours-instagram")).ecrireInstagramSuivre(allume),
+};
+export const lireReglagesParcours = (): Promise<EtatReglagesParcours> => ACCES_REGLAGES.lire();
+export const reglerParcours = (reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> => appliquerReglageParcours(ACCES_REGLAGES, reglage, allume);
