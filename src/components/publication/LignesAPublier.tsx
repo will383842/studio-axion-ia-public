@@ -688,7 +688,7 @@ function DetailEnvoi({
             <legend className="sr-only">Envoi par</legend>
             {outilsProposes(c.outil).map((o) => (
               <label key={o.outil} className="flex min-h-11 items-center gap-2 text-sm text-texte">
-                <input type="radio" name={`${id}-outil`} className="size-5" checked={outil === o.outil} onChange={() => setOutil(o.outil)} />
+                <input type="radio" name={`${id}-outil`} className="size-5" checked={outil === o.outil} disabled={o.desactive} onChange={() => setOutil(o.outil)} />
                 {nomOutil(o.outil)} ({o.ancien ? "ancien outil" : LIBELLES_ENVOI.recommande}{o.actuel ? ", outil actuel" : ""})
               </label>
             ))}

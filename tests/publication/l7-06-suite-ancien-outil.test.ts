@@ -18,7 +18,7 @@ vi.mock("@/services/a-publier-zernio", () => ({ envoyerParOutilAction: async () 
 
 const { LignesAPublier } = await import("@/components/publication/LignesAPublier");
 const { CarteCompte } = await import("@/components/reglages/BlocZernio");
-const { estAncienOutil, outilsProposes } = await import("@/domaine/outil-publication");
+const { estAncienOutil, outilsProposes, outilSelectionnable } = await import("@/domaine/outil-publication");
 
 const CASES = ["image", "son", "sousTitres", "mentionIA", "droits"] as const;
 const ligne = { famille: "video", cle: "v-1:instagram", videoId: "v-1", titre: "Titre", jaquette: null, lecture: "/v.mp4", reseau: "instagram", reseauNom: "Instagram", texte: "Phrase", motsDiese: [], apercu: "Phrase", premierCommentaire: "", commentaireTransmissible: true, compte: { nom: "Compte", memorises: ["c1"] }, manquantes: [], casesRequises: [...CASES], coches: Object.fromEntries(CASES.map((c) => [c, true])) } as unknown as LigneAPublier;
@@ -45,9 +45,15 @@ describe("L7-06 suite · 4.4 pastille « Ancien outil »", () => {
 
 describe("L7-06 suite · 4.5 « Changer d'outil » propose deux outils", () => {
   it("les deux outils, Zernio d'abord, l'actuel marqué (Zernio actuel)", () => {
-    expect(outilsProposes("zernio")).toEqual([{ outil: "zernio", actuel: true, ancien: false }, { outil: "buffer", actuel: false, ancien: true }]);
+    expect(outilsProposes("zernio")).toEqual([{ outil: "zernio", actuel: true, ancien: false, desactive: false }, { outil: "buffer", actuel: false, ancien: true, desactive: true }]);
   });
   it("les deux outils, l'actuel marqué (Buffer actuel)", () => {
-    expect(outilsProposes("buffer")).toEqual([{ outil: "zernio", actuel: false, ancien: false }, { outil: "buffer", actuel: true, ancien: true }]);
+    expect(outilsProposes("buffer")).toEqual([{ outil: "zernio", actuel: false, ancien: false, desactive: false }, { outil: "buffer", actuel: true, ancien: true, desactive: false }]);
+  });
+  it("Buffer n'est sélectionnable que pour un compte encore chez Buffer (4.3 non fait côté serveur)", () => {
+    expect(outilSelectionnable("buffer", "zernio")).toBe(false);
+    expect(outilSelectionnable("buffer", "buffer")).toBe(true);
+    expect(outilSelectionnable("zernio", "zernio")).toBe(true);
+    expect(outilSelectionnable("zernio", "buffer")).toBe(true);
   });
 });

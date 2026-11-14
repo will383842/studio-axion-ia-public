@@ -21,9 +21,18 @@ export function estAncienOutil(outil: OutilPublication | string | null | undefin
   return outil === "buffer";
 }
 
-/** Les outils proposés dans « Changer » : toujours les deux (Zernio d'abord), l'outil actuel marqué. Un choix à une seule option n'en est pas un. */
-export function outilsProposes(actuel: OutilPublication): { outil: OutilPublication; actuel: boolean; ancien: boolean }[] {
-  return (["zernio", "buffer"] as const).map((outil) => ({ outil, actuel: outil === actuel, ancien: estAncienOutil(outil) }));
+/**
+ * Un outil est-il sélectionnable dans « Changer » ? Buffer ne l'est PAS pour un compte routé chez Zernio, tant que le serveur ne refuse pas
+ * `outil: "buffer"` (L7-06 suite 4.3, bloqué) : sinon l'envoi partirait par Buffer en contournant les gardes du chemin Zernio.
+ * Pour un compte encore chez Buffer, les deux restent sélectionnables.
+ */
+export function outilSelectionnable(outil: OutilPublication, actuel: OutilPublication): boolean {
+  return !(outil === "buffer" && actuel !== "buffer");
+}
+
+/** Les outils proposés dans « Changer » : toujours les deux (Zernio d'abord), l'outil actuel marqué ; Buffer visible mais désactivé pour un compte Zernio. */
+export function outilsProposes(actuel: OutilPublication): { outil: OutilPublication; actuel: boolean; ancien: boolean; desactive: boolean }[] {
+  return (["zernio", "buffer"] as const).map((outil) => ({ outil, actuel: outil === actuel, ancien: estAncienOutil(outil), desactive: !outilSelectionnable(outil, actuel) }));
 }
 
 /** La publication est-elle chez un outil externe (via ∈ {buffer, zernio}) ? */
