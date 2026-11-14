@@ -121,7 +121,8 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
       ...(saisie.visuelId ? { visuelId: saisie.visuelId } : {}),
       ...(saisie.textes?.[saisie.reseau]?.texte?.trim() ? { textes: { [saisie.reseau]: saisie.textes[saisie.reseau]! } } : {}),
     }, maintenant());
-    revalidatePath("/calendrier");
+    // Le rafraîchissement est secondaire : l'écriture a eu lieu, un échec ici ne doit pas la faire passer pour ratée.
+    try { revalidatePath("/calendrier"); } catch { /* muet */ }
     return { ok: true, donnees: c, ...(avertissement ? { avertissement } : {}) };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Ajout impossible." };
