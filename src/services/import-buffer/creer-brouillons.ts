@@ -53,6 +53,8 @@ export interface ResultatBrouillons {
   violations: ViolationGrille[];
   /** Corps prêts (à blanc : montrés, jamais envoyés). */
   corps: Map<string, CorpsPostZernio>;
+  /** L7-08 : la création réelle est refusée avant tout appel au diffuseur (publication éditoriale éteinte ou envoi fermé). */
+  refusLot?: string;
 }
 
 export interface OptionsBrouillons {
@@ -148,6 +150,11 @@ export async function creerBrouillons(o: OptionsBrouillons): Promise<ResultatBro
   const suivi = o.suivi ?? new SuiviDebitImport();
   const attendre = o.attendre ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const res: ResultatBrouillons = { aBlanc, lot: o.lot, lignes: [], violations: [], corps: new Map() };
+  // L7-08 : une vraie création de brouillons exige les TROIS réglages ouverts ; sinon aucun appel au diffuseur (pas même une lecture).
+  if (!aBlanc && !(await (await import("../zernio")).publicationEditorialeAutorisee())) {
+    res.refusLot = "publication du calendrier fermée (réglages zernio.envoi_autorise, zernio.envoi_calendrier_autorise et publication éditoriale) : aucun brouillon créé";
+    return res;
+  }
   // LinkedIn profil : prouvé par la lecture des comptes en mode réel (comme Z1-P) ; à blanc, aucun réseau (non prouvé).
   const aProfil = !!table?.lignes.some((l) => l.reseau === "linkedin" && analyserCible(l.cible).profilLinkedin);
   const comptes = !aBlanc && aProfil ? await o.client.listerComptes() : [];

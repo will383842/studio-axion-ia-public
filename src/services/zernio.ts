@@ -27,6 +27,9 @@ export const PARAM_ARRET_ZERNIO = "zernio.envoi_autorise";
 /** L7-08 · interrupteur SÉPARÉ de l'envoi des publications du calendrier. FERMÉ par défaut (absent = fermé). Le parcours GUIDE ne le lit jamais. */
 export const PARAM_ENVOI_CALENDRIER = "zernio.envoi_calendrier_autorise";
 
+/** L7-08 · réglage ÉDITORIAL, séparé de `zernio.envoi_autorise` (que le parcours GUIDE lit). FAUX par défaut : absent = faux. Même nom que dans `promotion-envois.ts`. */
+export const PARAM_EDITORIALE_ACTIVE = "publication.editoriale_active";
+
 /** Jour (AAAA-MM-JJ, UTC) de la dernière alerte envoyée, par sujet : une alerte par sujet et par jour. */
 export const PARAM_ALERTES_JETONS_ZERNIO = "zernio.alertes_jetons";
 
@@ -75,6 +78,26 @@ export async function envoiCalendrierAutorise(): Promise<boolean> {
 /** Envoi de publications (calendrier, promotion) : exige les DEUX réglages ouverts. Le GUIDE n'utilise pas cette porte. */
 export async function envoiPublicationCalendrierAutorise(): Promise<boolean> {
   return (await envoiZernioAutorise()) && (await envoiCalendrierAutorise());
+}
+
+/** Relu à chaque appel. Seul `true` ouvre : absent, faux, autre valeur ou lecture impossible = fermé. */
+export async function editorialeActive(): Promise<boolean> {
+  try {
+    return (await lireParametre<boolean>(PARAM_EDITORIALE_ACTIVE, false)) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Phrases claires pour l'écran et le journal : l'état éteint est le défaut. */
+export const PHRASE_EDITORIALE = {
+  eteinte: "La publication éditoriale est éteinte : aucun brouillon ni envoi du calendrier ne part.",
+  allumee: "La publication éditoriale est allumée : le calendrier peut créer des brouillons et les promouvoir, si les autres réglages d'envoi sont ouverts.",
+} as const;
+
+/** Création de brouillons et promotion du calendrier : exige les TROIS réglages ouverts (envoi général, calendrier, éditorial). Le GUIDE n'utilise pas cette porte. */
+export async function publicationEditorialeAutorisee(): Promise<boolean> {
+  return (await editorialeActive()) && (await envoiPublicationCalendrierAutorise().catch(() => false));
 }
 
 let clientInjecte: ClientZernio | null = null;
