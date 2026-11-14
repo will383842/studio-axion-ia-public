@@ -1,5 +1,5 @@
 /**
- * Réglage « Instagram : suivre le compte puis répondre OK ». ÉTEINT PAR DÉFAUT, aucun code de production ne le lit encore.
+ * Réglage « Instagram : suivre le compte puis répondre OK ». ÉTEINT PAR DÉFAUT ; seul lecteur de production : parcours-conversation (INSTA-C), une fois par passage.
  * Échec FERMÉ : lecture impossible, valeur absente ou mal formée => éteint. Seule la valeur `true` allume.
  */
 import "server-only";

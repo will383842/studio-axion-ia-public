@@ -361,7 +361,11 @@ export function resultatDe(etat: EtatFabricationIV, maintenant: number): Resulta
     projetMontage: {
       moteur: ID_MOTEUR_IV,
       imageVideo: {
-        livraison: etat.livraison,
+        // Chaque livraison garde les sous-titres de son rendu (une version courte et une longue n'ont pas la même fin).
+        livraison: etat.livraison?.map((l) => {
+          const sousTitres = Object.values(etat.rendus ?? {}).find((r) => !!l.fichierCle && r.cle === l.fichierCle)?.sousTitres;
+          return sousTitres?.length ? { ...l, sousTitres } : l;
+        }),
         carte: etat.carte,
         fiche: etat.script?.fiche,
         verdict: etat.controles?.verdict,

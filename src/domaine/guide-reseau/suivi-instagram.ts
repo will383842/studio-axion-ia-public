@@ -91,3 +91,101 @@ export function choisirParcoursPourOk<T extends { cle: string; etat: string; cre
     .slice(0, Math.max(0, max))
     .map((x) => x.p);
 }
+
+/* --- « OK » de la personne : liste FERMÉE ---------------------------------------------------------------------------- */
+const OK_RECONNUS: ReadonlySet<string> = new Set(["ok", "okay", "oki", "oui", "c est fait", "fait", "voila", "done", "👍", "✅", "ok c est fait", "oui c est fait"]);
+/** Minuscules, sans accents, apostrophes en espaces, sans ponctuation finale, espaces réduits. */
+function normaliserOk(texte: string): string {
+  return texte
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’‘`´]/g, " ")
+    .replace(/[\s.!,;:…]+$/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+/** Vrai SEULEMENT si le message ENTIER est l'un des OK de la liste fermée (après normalisation). Tout autre texte : faux. */
+export function estOkInstagram(texte: unknown): boolean {
+  return typeof texte === "string" && OK_RECONNUS.has(normaliserOk(texte));
+}
+
+/* --- Sélection des parcours d'un OK (pure) ----------------------------------------------------------------------------- */
+/**
+ * Parmi les parcours en attente (déjà triés : les plus anciens d'abord), ceux que CE message sert encore : ceux qu'il a déjà servis (`idMessageOk`)
+ * sont écartés ET comptent dans le maximum par message (un rejeu après un débit ne sert jamais plus de `max` parcours pour un seul OK).
+ */
+export function parcoursAServir<T extends { cle: string }>(
+  entrees: readonly { cle: string; etat: { idMessageOk?: string } }[],
+  enAttente: readonly T[],
+  idMessage: string,
+  max: number,
+): T[] {
+  const servi = (cle: string): boolean => entrees.find((y) => y.cle === cle)?.etat.idMessageOk === idMessage;
+  const dejaServis = entrees.filter((x) => x.etat.idMessageOk === idMessage).length;
+  return enAttente.filter((x) => !servi(x.cle)).slice(0, Math.max(0, max - dejaServis));
+}
+
+/* --- Plafond par personne ---------------------------------------------------------------------------------------------- */
+/** Messages Instagram au plus par personne et par 24 h : TOUS ceux envoyés à la personne (suivre le compte, « pas encore », lien, merci, accusé, adresse refusée, M2). */
+export const PLAFOND_IG_PERSONNE = 3;
+const ETATS_ENVOI_INCERTAIN: readonly string[] = ["m1_en_vol", "m1_a_verifier", "ig_envoi_en_vol", "ig_a_verifier"];
+const FENETRE_PLAFOND_IG_MS = 24 * 3600_000;
+export interface LimitePersonneIg {
+  nombre: number;
+  atteint: boolean;
+  /** Date (ms) à partir de laquelle un envoi redevient possible ; `null` si le plafond n'est pas atteint. */
+  repriseMs: number | null;
+}
+type ParcoursPlafond = {
+  etat?: string;
+  reseau?: string | null;
+  creeLe?: string | null;
+  essaiEnvoiLe?: string | null;
+  m1Le?: string | null;
+  pasEncoreLe?: string | null;
+  lienIgLe?: string | null;
+  m2Le?: string | null;
+  adresseRefuseeLe?: string | null;
+  accuseLe?: string | null;
+  merciEssaiLe?: string | null;
+  merciLe?: string | null;
+};
+/**
+ * Compte, sur TOUS les parcours Instagram du dossier, chaque message de moins de 24 h : `m1Le`, `pasEncoreLe`, `lienIgLe`, `m2Le`, `adresseRefuseeLe`,
+ * `accuseLe`, le merci (`merciEssaiLe`, à défaut `merciLe`) et tout essai d'issue inconnue (`essaiEnvoiLe`, QUEL QUE SOIT l'état, sauf pour un parcours qui porte
+ * déjà une date de succès hors des états d'issue incertaine). Une date présente mais illisible compte comme un envoi à l'instant même (échec fermé). Atteint à `PLAFOND_IG_PERSONNE`.
+ * Un parcours d'un autre réseau n'est jamais compté.
+ */
+export function limitePersonneIg(parcours: readonly ParcoursPlafond[], maintenantMs: number): LimitePersonneIg {
+  const dates: number[] = [];
+  const ajouter = (v: unknown): number | null => {
+    if (typeof v !== "string") return null;
+    const t = Date.parse(v);
+    const quand = Number.isNaN(t) ? maintenantMs : t;
+    if (maintenantMs - quand < FENETRE_PLAFOND_IG_MS) dates.push(quand);
+    return t;
+  };
+  for (const p of parcours) {
+    if (typeof p.reseau === "string" && p.reseau !== "instagram") continue;
+    const succes = [p.m1Le, p.pasEncoreLe, p.lienIgLe].map((v) => (typeof v === "string" ? Date.parse(v) : NaN));
+    for (const v of [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.m2Le, p.adresseRefuseeLe, p.accuseLe]) ajouter(v);
+    ajouter(typeof p.merciEssaiLe === "string" ? p.merciEssaiLe : p.merciLe);
+    // Essai d'issue inconnue ou interrompu (le message est peut-être parti sans date de succès) : compté à la date de l'essai (échec fermé), dans tous les états
+    // (après `m1_a_verifier`, l'état peut avoir changé). Seul un parcours qui porte déjà une date de succès hors des états d'issue incertaine ne compte pas deux fois.
+    const incertain = p.etat !== undefined && ETATS_ENVOI_INCERTAIN.includes(p.etat);
+    const avecSucces = succes.some((t) => !Number.isNaN(t));
+    if (typeof p.essaiEnvoiLe === "string") {
+      if (incertain || !avecSucces) ajouter(p.essaiEnvoiLe);
+    } else if (incertain) {
+      // Ancien enregistrement sans date d'essai : la création du parcours.
+      const t = Date.parse(p.creeLe ?? "");
+      const quand = Number.isNaN(t) ? maintenantMs : t;
+      if (maintenantMs - quand < FENETRE_PLAFOND_IG_MS) dates.push(quand);
+    }
+  }
+  dates.sort((a, b) => a - b);
+  const nombre = dates.length;
+  if (nombre < PLAFOND_IG_PERSONNE) return { nombre, atteint: false, repriseMs: null };
+  return { nombre, atteint: true, repriseMs: dates[nombre - PLAFOND_IG_PERSONNE] + FENETRE_PLAFOND_IG_MS };
+}

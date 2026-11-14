@@ -6,11 +6,12 @@
  */
 import "server-only";
 import { sourceDesBases } from "@/donnees/bases-usine";
-import { sonderBase } from "@/donnees/memoire";
+import { depots, sonderBase } from "@/donnees/memoire";
 import { delaiDepasse } from "@/lib/demarrage";
 import { versionDuCode } from "@/lib/version-code";
 import { ecrireParametre, lireParametre } from "./_commun";
 import { etatBoucle, type EtatBoucle } from "./_boucle-etat";
+import { sonderPublication, type EtatSondePublication } from "./sonde-publication";
 
 /** Aucun tour terminé depuis plus longtemps : boucle déclarée bloquée. */
 export const BOUCLE_MUETTE_MAX_MS = 3 * 60_000;
@@ -54,19 +55,38 @@ export async function enregistrerEmpreinteBasesAttendue(empreinte: string): Prom
 }
 
 /** `version` : le commit en ligne (`versionDuCode`), « inconnu » si l'image a été construite sans lui. */
-export type EtatSante = { ok: boolean; base: "ok" | "memoire" | "injoignable"; boucle: EtatBoucleSante; version: string; bases: EtatBasesSante };
+export type EtatSante = { ok: boolean; base: "ok" | "memoire" | "injoignable"; boucle: EtatBoucleSante; version: string; bases: EtatBasesSante; travauxFiges: number; plusVieuxEnCoursMin: number; publication: EtatSondePublication };
+
+/** Budget propre de la sonde de publication (informative) : court, lancé en parallèle de la base. */
+export const DELAI_SONDE_PUBLICATION_MS = 1000;
+
+/** GV2-22 : lecture seule des travaux « en_cours » ; ne change jamais `ok`. Une lecture en échec rend 0 et 0. */
+async function etatTravaux(): Promise<{ travauxFiges: number; plusVieuxEnCoursMin: number }> {
+  try {
+    const maintenant = Date.now();
+    const enCours = await depots().travaux.lister((t) => t.statut === "en_cours");
+    const figes = enCours.filter((t) => maintenant - Date.parse(t.modifieLe) > 2 * 3600_000).length;
+    const plusVieux = enCours.reduce((m, t) => Math.max(m, maintenant - Date.parse(t.creeLe)), 0);
+    return { travauxFiges: figes, plusVieuxEnCoursMin: Math.floor(plusVieux / 60_000) };
+  } catch {
+    return { travauxFiges: 0, plusVieuxEnCoursMin: 0 };
+  }
+}
 
 /** Une base qui ne répond pas en 3 s est déclarée injoignable (la sonde de Docker coupe à 5 s). */
-export async function etatSante(delaiMs = 3000): Promise<EtatSante> {
+export async function etatSante(delaiMs = 3000, options: { sonde?: () => Promise<{ etat: EtatSondePublication }> } = {}): Promise<EtatSante> {
   const boucle = santeBoucle(etatBoucle());
   const boucleOk = boucle !== "bloquee" && boucle !== "verrou-ailleurs";
   const version = versionDuCode(process.env);
   const embarquee = sourceDesBases().empreinte;
+  // L5-07 : la sonde de publication est informative. Lente ou en échec = « inconnu » ; elle n'agit JAMAIS sur `ok` ni sur le statut HTTP.
+  // Lancée EN PARALLÈLE de la base (jamais en série : le budget de la sonde de Docker, 5 s, reste tenu), avec un délai propre et court.
+  const publicationP = delaiDepasse((options.sonde ?? sonderPublication)(), Math.min(delaiMs, DELAI_SONDE_PUBLICATION_MS)).then((r) => r.etat, (): EtatSondePublication => "inconnu");
   try {
     const base = await delaiDepasse(sonderBase(), delaiMs);
     const attendue = await delaiDepasse(lireParametre<string | null>(CLE_EMPREINTE_BASES, null), delaiMs).catch(() => null);
-    return { ok: boucleOk, base, boucle, version, bases: santeBases(embarquee, attendue) };
+    return { ok: boucleOk, base, boucle, version, bases: santeBases(embarquee, attendue), ...(await etatTravaux()), publication: await publicationP };
   } catch {
-    return { ok: false, base: "injoignable", boucle, version, bases: santeBases(embarquee, null) };
+    return { ok: false, base: "injoignable", boucle, version, bases: santeBases(embarquee, null), travauxFiges: 0, plusVieuxEnCoursMin: 0, publication: await publicationP };
   }
 }
