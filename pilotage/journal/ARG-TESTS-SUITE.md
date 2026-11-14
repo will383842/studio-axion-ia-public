@@ -21,3 +21,4 @@ Fiche : tests d'argent seulement (aucun fichier de `src/**` modifié).
 
 ## Point d'attention
 La PR 503 modifie aussi `tests/reseaux/t5-prix-plafond.test.ts` (2 lignes dans `beforeEach`) : conflit possible à la fusion, à résoudre en gardant les deux changements.
+- Les 2 entrées temporaires de scripts/echecs-connus.json (E2 redémarrage et T5 prix plafond) sont retirées : les deux tests corrigés passent, comparer-echecs sort VERT.
