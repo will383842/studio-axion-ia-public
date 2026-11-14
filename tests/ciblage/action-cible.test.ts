@@ -38,4 +38,13 @@ describe("creerSujetAction : cible obligatoire", () => {
     await creerSujetAction({ ...(base as object), ciblage: { niveau: "taille", libelle: "TPE", origine: "saisie" }, typeAutomatisation: "n-importe-quoi" } as never);
     expect((lancerGeneration.mock.calls[0]![0] as { typeAutomatisation?: string }).typeAutomatisation).toBeUndefined();
   });
+  it("B1 : une clé `origine` forgée par le navigateur n'atteint jamais lancerGeneration", async () => {
+    const { creerSujetAction } = await import("@/app/(studio)/ecrire/sujets/actions");
+    for (const origine of ["usine", "x", { a: 1 }]) {
+      lancerGeneration.mockClear();
+      await creerSujetAction({ ...(base as object), ciblage: { niveau: "taille", libelle: "TPE", origine: "saisie" }, origine } as never);
+      expect(lancerGeneration).toHaveBeenCalledTimes(1);
+      expect(lancerGeneration.mock.calls[0]![0]).not.toHaveProperty("origine");
+    }
+  });
 });
