@@ -65,6 +65,8 @@ vi.mock("@/services/parcours-dossier", async (orig) => {
     ...reel,
     textesValidesPourLeMot: (mot: string, cible: string) =>
       etat.parMot ? true : reel.textesValidesPourLeMot(mot, cible),
+    validationPourEnvoi: (...a: unknown[]) =>
+      etat.parMot ? null : reel.validationPourEnvoi(...a),
   };
 });
 vi.mock("@/services/oppositions-mots", async (orig) => {

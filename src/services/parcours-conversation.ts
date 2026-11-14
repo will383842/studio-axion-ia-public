@@ -40,8 +40,9 @@ import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
-import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot } from "./parcours-dossier";
+import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
+import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
 import { instagramSuivreActif } from "./parcours-instagram";
 import { CHEMIN_DEMANDES_GUIDE, transportDuSite } from "./parcours-mot";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
@@ -144,13 +145,18 @@ async function motsActifsDuCompte(compte: string): Promise<string[]> {
   return Object.keys(reg).filter((k) => k.endsWith(fin) && k.length > fin.length && reg[k]?.etat === "actif").map((k) => k.slice(0, -fin.length).toUpperCase());
 }
 /** `null` = tout est permis. Sinon le code de la garde qui bloque (rien ne part). Une panne de lecture bloque aussi (échec fermé). */
-async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: string, parcours?: Pick<Conversation, "mot" | "guide">): Promise<string | null> {
+async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: string, parcours?: Pick<Conversation, "mot" | "guide" | "titreCible">): Promise<string | null> {
   try {
     if (!(await envoiZernioAutorise())) return "tout_arrete";
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ferme";
     // Enregistrement du mode « plusieurs mots » (champ `mot` présent) : la ligne du SON mot ; une cible autre que `guide-ia` n'a pas encore de validation : fermé.
     if (!(await motActif(parcours?.mot ?? MOT, idCompte))) return "mot_inactif";
-    if (parcours?.mot !== undefined && !textesValidesPourLeMot(parcours.mot, parcours.guide)) return "validation_absente";
+    if (parcours?.mot !== undefined && parcours.mot.toUpperCase() !== MOT) {
+      // Mot autre que GUIDE : seulement si le réglage « plusieurs mots » est allumé (durable), puis validation PAR MOT et cible du jour (jamais sous `sousVerrou`).
+      if (!(await motsMultiplesActifs())) return "plusieurs_mots_eteint";
+      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env);
+      if (refus !== null) return refus;
+    } else if (parcours?.mot !== undefined && !textesValidesPourLeMot(parcours.mot, parcours.guide)) return "validation_absente";
     // La validation de l'opérateur est liée aux textes réellement envoyés : revérifiée ici, à chaque garde (échec fermé).
     const e = empreinteGuideParcours(d.titreGuide ?? "");
     const v = await lireParametre<{ empreinte?: string } | null>(PARAM_VALIDATION_GUIDE_PARCOURS, null);
@@ -172,6 +178,9 @@ const MESSAGES_GARDE: Record<string, string> = {
   cles_absentes: "Le secret d'empreinte des personnes est absent ou invalide : aucun message privé ne part.",
   lecture_impossible: "Les réglages des mots sont illisibles : aucun message privé ne part.",
   validation_absente: "Ce mot n'a pas de textes validés : aucun message ne part pour ce mot.",
+  plusieurs_mots_eteint: "Le réglage « plusieurs mots » est éteint : aucun message ne part pour un mot autre que GUIDE.",
+  instagram_pas_encore: "Instagram n'est pas encore pris en charge pour ce mot : aucun message ne part pour ce mot.",
+  cibles_illisibles: "Les cibles du site sont illisibles : aucun message ne part pour ce mot, nouvel essai plus tard.",
   validation_perimee: "Les textes du mot GUIDE ont changé depuis leur validation (ou ne sont pas validés) : aucun message ne part. Revalidez-les dans Mots.",
 };
 
@@ -529,13 +538,18 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     return "traite";
   }
   // 3 bis. Textes validés pour ce mot et cette cible ? Sinon l'événement est CLOS (jamais remis en attente : il bloquerait les GUIDE du lot).
-  if (!textesValidesPourLeMot(mot, cible.code)) {
+  const refusEnvoi = await validationPourEnvoi(mot, reseauSite(reseau), cible.code, cible.titre, env, now);
+  if (refusEnvoi === "cibles_illisibles") {
+    await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+    return "bloque";
+  }
+  if (refusEnvoi !== null) {
     await alerter(`validation_absente:${mot}`, `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.`, now);
-    await clore(ev, "ecarte", "validation_absente");
+    await clore(ev, "ecarte", refusEnvoi);
     return "leger";
   }
   // 4. Garde par mot (ligne `mot|compte` active ; textes validés pour `guide-ia`, fermé pour toute autre cible).
-  const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code });
+  const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code, titreCible: cible.titre });
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     if (await perimeSousGarde(ev, now)) return "traite";
@@ -817,7 +831,7 @@ async function preparerIgSuivre(e: Conversation, d: DepsConversation): Promise<P
 const MESSAGE_IG_SUIVRE_ABSENT = "Instagram : aucune formulation « suivre le compte » validée dans Mots : aucun message ne part.";
 const MESSAGE_IG_LIEN_INDISPONIBLE = "Instagram : le lien ne peut pas partir (texte non validé ou version inconnue du site)";
 const MESSAGE_IG_PAS_ENCORE_ABSENT = "Instagram : aucune formulation « pas encore » validée dans Mots : ce message ne part pas.";
-const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente"];
+const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente", "plusieurs_mots_eteint", "instagram_pas_encore"];
 const MESSAGE_IG_OK_NON_RECONNU = "Instagram : réponse non reconnue après la demande de suivre le compte : rien n'est parti.";
 const MESSAGE_IG_PLAFOND_PERSONNE = "Instagram : une personne a déjà reçu 3 messages en 24 h : le suivant attend ou est écarté, rien n'est parti.";
 const MESSAGE_IG_A_VERIFIER = "Un message privé Instagram a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.";
@@ -2271,3 +2285,13 @@ async function idConversationDuDernierMessage(e: Conversation): Promise<string |
   const c = await chargeDuDernierMessage(e);
   return typeof c?.idConversation === "string" && c.idConversation ? c.idConversation : null;
 }
+
+/** Interrupteurs de /mots (« plusieurs mots », « Instagram ») : ce fichier est le seul de production qui cite les deux modules de réglage. */
+const ACCES_REGLAGES = {
+  lire: async (): Promise<EtatReglagesParcours> => ({ motsMultiples: await motsMultiplesActifs(), instagramSuivre: await instagramSuivreActif() }),
+  // Import différé : l'écriture n'est évaluée qu'au moment de basculer un interrupteur.
+  ecrireMotsMultiples: async (allume: boolean): Promise<void> => (await import("./parcours-mots-multiples")).ecrireMotsMultiples(allume),
+  ecrireInstagramSuivre: async (allume: boolean): Promise<void> => (await import("./parcours-instagram")).ecrireInstagramSuivre(allume),
+};
+export const lireReglagesParcours = (): Promise<EtatReglagesParcours> => ACCES_REGLAGES.lire();
+export const reglerParcours = (reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> => appliquerReglageParcours(ACCES_REGLAGES, reglage, allume);

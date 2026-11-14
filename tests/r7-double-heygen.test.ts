@@ -387,13 +387,20 @@ describe("rendu du double réel dans le moteur avocat (code conservé, autorisé
 describe("garde-fous de dépense du double réel", () => {
   const ligne = (etape: string, fournisseur: string, c: number) => ({ etape, fournisseur, unite: "seconde" as const, quantite: 1, prixUnitaire: { centimes: c, devise: "EUR" as const }, total: { centimes: c, devise: "EUR" as const }, nature: "estime" as const });
 
-  it("ROUGE — confirmation : un double réel exige TOUJOURS la confirmation du prix, même sous le seuil", async () => {
+  it("double réel : studio = prix du jour vaut accord (journalisé) ; Usine = confirmation TOUJOURS exigée", async () => {
     const { verifierBudgetEtCredits } = await import("@/services/credits");
     const { partDoubleReel } = await import("@/moteurs/montage-avocat/double");
     const estimation = { lignes: [ligne("Double, angle principal", "heygen", 150)], total: { centimes: 150, devise: "EUR" as const } };
     expect(partDoubleReel(estimation.lignes)).toEqual({ centimes: 150, devise: "EUR" });
-    await expect(verifierBudgetEtCredits(estimation, undefined, "Cette vidéo")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: "Votre avatar parle dans cette vidéo : environ 1,50\u00a0€, à confirmer." });
-    await expect(verifierBudgetEtCredits(estimation, false, "Cette vidéo")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    // Studio (décision du fondateur, 08/11) : le prix du jour vaut accord, mais la dépense est tracée.
+    await expect(verifierBudgetEtCredits(estimation, undefined, "Cette vidéo")).resolves.toBeUndefined();
+    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/accepté sans confirmation/);
+    // Usine : la garde R7 tient, quel que soit le seuil.
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    const { moisParis } = await import("@/services/couts");
+    await reglerBudgetUsine({ budget_mensuel_cents: 1_000, mois: moisParis() });
+    await expect(verifierBudgetEtCredits(estimation, undefined, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: "Votre avatar parle dans cette vidéo : environ 1,50\u00a0€, à confirmer." });
+    await expect(verifierBudgetEtCredits(estimation, false, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
     // Le double d'essai (simulation) ne demande rien de plus.
     expect(partDoubleReel([ligne("Double, angle principal", "simulation", 150)])).toBeNull();
     await expect(verifierBudgetEtCredits({ lignes: [ligne("Double, angle principal", "simulation", 150)], total: { centimes: 150, devise: "EUR" } }, undefined, "Cette vidéo")).resolves.toBeUndefined();

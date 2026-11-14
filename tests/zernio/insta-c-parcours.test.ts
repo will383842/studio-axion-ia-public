@@ -13,7 +13,7 @@ const etat = vi.hoisted(() => ({ versionsSite: new Set<string>(), catalogue: nul
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => etat.versionsSite.has(v) }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => etat.catalogue }));
-vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true }));
+vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true, validationPourEnvoi: async () => null }));
 
 const MM = await import("@/services/parcours-mots-multiples");
 const IG = await import("@/services/parcours-instagram");

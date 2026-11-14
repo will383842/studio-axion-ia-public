@@ -15,6 +15,9 @@ vi.mock("@/services/auth", () => ({ exigerSession: () => exigerSession() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/services/mots-service", async (orig) => ({ ...(await orig<typeof import("@/services/mots-service")>()), activerMotLocal: (d: unknown) => activerMotLocal(d), mettreEnPauseLocal: (d: unknown) => mettreEnPauseLocal(d), lireVueMots: () => lireVueMots() }));
 
+const lireVueMotsCibles = vi.fn(async (_o: unknown): Promise<unknown> => null);
+vi.mock("@/services/mots-cibles-vue", () => ({ lireVueMotsCibles: (o: unknown) => lireVueMotsCibles(o) }));
+
 const actions = await import("@/app/(studio)/mots/actions");
 const { default: PageMots } = await import("@/app/(studio)/mots/page");
 
@@ -45,6 +48,16 @@ describe("/mots : session exigée", () => {
     expect(lireVueMots).toHaveBeenCalledTimes(1);
     expect(el.props.vue).toBeDefined();
     expect("branchement" in el.props).toBe(true);
+  });
+
+  it("avec session : si la vue « mots et cibles » lève une erreur, l'écran d'avant s'affiche (pas de plantage)", async () => {
+    session = true;
+    lireVueMotsCibles.mockRejectedValueOnce(new Error("panne de lecture"));
+    const { EcranMotsConnecte } = await import("@/components/mots/EcranMotsConnecte");
+    const el = (await PageMots()) as { type: unknown; props: { motsCibles: unknown; vue: unknown } };
+    expect(el.type).toBe(EcranMotsConnecte);
+    expect(el.props.motsCibles).toBeNull();
+    expect(el.props.vue).toBeDefined();
   });
 
   it("avec session : Activer appelle activerMotLocal (GUIDE, confirmé par l'opérateur)", async () => {

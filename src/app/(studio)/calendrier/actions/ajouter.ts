@@ -6,12 +6,14 @@
  * - Un ajout manuel n'est jamais bloqué : seule une erreur de format refuse. Le passé, une proximité ou un quota atteint avertissent et se confirment d'un clic.
  * - Idempotent : la clé du formulaire donne l'identifiant, un double clic ne crée qu'un créneau.
  */
+import { revalidatePath } from "next/cache";
 import type { IdReseau } from "@/domaine/types";
 import { exigerSession } from "@/services/auth";
 import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut, creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 import { validerProposition } from "@/domaine/plan-editorial/statuts";
 import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
+import { compteCibleValide } from "../compte-cible";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
 
 export interface SaisieEntree {
@@ -86,6 +88,7 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
   const heure = saisie.heure ?? "09:00";
   if (!JOUR.test(saisie.jour) || !jourExiste(saisie.jour)) return { ok: false, message: "Jour invalide (AAAA-MM-JJ attendu)." };
   if (!HEURE.test(heure)) return { ok: false, message: "Heure invalide (HH:MM attendu)." };
+  if (!compteCibleValide(saisie.compteCible)) return { ok: false, message: "Compte cible invalide." };
   if (!CLE.test(saisie.cle ?? "")) return { ok: false, message: "Clé de formulaire invalide." };
   const { instant, avertissement } = resoudreHeureParis(saisie.jour, heure);
   try {
@@ -118,6 +121,7 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
       ...(saisie.visuelId ? { visuelId: saisie.visuelId } : {}),
       ...(saisie.textes?.[saisie.reseau]?.texte?.trim() ? { textes: { [saisie.reseau]: saisie.textes[saisie.reseau]! } } : {}),
     }, maintenant());
+    revalidatePath("/calendrier");
     return { ok: true, donnees: c, ...(avertissement ? { avertissement } : {}) };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Ajout impossible." };

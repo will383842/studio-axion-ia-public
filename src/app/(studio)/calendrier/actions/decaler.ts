@@ -4,6 +4,7 @@
  * Actions serveur du calendrier (L4-06) : décaler une entrée future. Chaque action commence par exigerSession().
  * Aucun appel au fournisseur. Fichier propre à ce geste : actions.ts ne garde que les deux actions de la fiche d'entrée.
  */
+import { revalidatePath } from "next/cache";
 import { exigerSession } from "@/services/auth";
 import { depots, maintenant } from "@/services/_commun";
 import { decaler, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
@@ -16,6 +17,7 @@ function jourExiste(j: string): boolean {
   const t = new Date(Date.UTC(a, m - 1, d));
   return t.getUTCFullYear() === a && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
+const RAISON_MAX = 200;
 const CLE = /^[A-Za-z0-9_-]{1,64}$/;
 
 function depotsPlan(): DepotsPlan {
@@ -43,13 +45,16 @@ export async function decalerEntree(saisie: SaisieDecalage): Promise<ResultatDec
   await exigerSession();
   if (!JOUR.test(saisie.nouveauJour ?? "") || !jourExiste(saisie.nouveauJour)) return { ok: false, message: "Jour invalide (AAAA-MM-JJ attendu)." };
   if (!CLE.test(saisie.cle ?? "")) return { ok: false, message: "Clé de formulaire invalide." };
+  const raison = (saisie.raison ?? "").trim();
+  if (raison.length === 0) return { ok: false, message: "Indiquez une raison." };
+  if (raison.length > RAISON_MAX) return { ok: false, message: `La raison est trop longue (${RAISON_MAX} caractères au plus).` };
   try {
     const d = depotsPlan();
     const c = await d.creneaux.obtenir(saisie.id);
     if (!c) return { ok: false, message: `Entrée introuvable : ${saisie.id}` };
     // Un rejeu de clé déjà journalisée est rendu par le service, avant tout contrôle de date (le créneau a déjà bougé).
     const rejeu = await depots().journalDecalages.obtenir(`decalage:${saisie.id}:${saisie.cle}`);
-    if (rejeu) return { ok: true, donnees: await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison: saisie.raison, cle: saisie.cle }, maintenant()) };
+    if (rejeu) return { ok: true, donnees: await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison, cle: saisie.cle }, maintenant()) };
     if (c.statut === "publie") return { ok: false, message: "Cette entrée est publiée : elle ne se décale pas." };
     if (c.statut === "archive") return { ok: false, message: "Cette entrée est archivée : elle ne se décale pas." };
     if (c.statut === "programme" || c.statut === "echec") return { ok: false, message: "Cette entrée est déjà confiée au diffuseur. Retirez-la d'abord, puis décalez-la." };
@@ -61,7 +66,9 @@ export async function decalerEntree(saisie: SaisieDecalage): Promise<ResultatDec
     if (dejaPassee) return { ok: false, message: "Cette entrée est passée : elle ne se décale pas." };
     const nouvelles = heures.length ? heures.map((h) => instantParis(saisie.nouveauJour, heureAffichageParis(h))) : [instantParis(saisie.nouveauJour, "23:59")];
     if (nouvelles.some((h) => Date.parse(h) <= maintenantMs)) return { ok: false, message: "Ce jour est passé : choisissez une date à venir." };
-    return { ok: true, donnees: await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison: saisie.raison, cle: saisie.cle }, maintenant()) };
+    const donnees = await decaler(d, saisie.id, { nouveauJour: saisie.nouveauJour, raison, cle: saisie.cle }, maintenant());
+    revalidatePath("/calendrier");
+    return { ok: true, donnees };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Décalage impossible." };
   }
