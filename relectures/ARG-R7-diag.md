@@ -72,12 +72,12 @@ Ce qui reste dur (vérifié dans le code) :
   la garde R7 (`credits.ts:348-353`) lève `CONFIRMATION_REQUISE` « Votre avatar parle dans cette vidéo : environ 1,50 €, à
   confirmer. » Vérifié par exécution (attendu réaligné ci-dessous, vert), et **discriminant** : garde R7 neutralisée dans une
   copie jetable → l'attendu réaligné devient rouge.
-- **Origine illisible** traitée comme l'Usine (échec fermé) : `mode-budget.ts:46-55`.
+- **Origine illisible** traitée comme l'Usine (échec fermé) : `mode-budget.ts:42-51`.
 - **Interrupteur du rendu avatar** éteint par défaut (`src/fournisseurs/heygen/visage.ts:79`, `src/moteurs/montage-avocat/index.ts:462`) ;
   le double d'essai refusé en montage réel (tests « ROUGE — montage réel… » et « côté console… » toujours verts).
 - **Plafond de secondes** envoyées : 1,5 × les secondes annoncées (`src/moteurs/montage-avocat/double.ts:136`, test vert).
 - **Solde réel HeyGen** (`controlerCredits`, `credits.ts:354`) et idempotence des réservations (tests verts).
-- Trace : chaque prix accepté sans confirmation est journalisé + cloche (`mode-budget.ts:125-131`).
+- Trace : chaque prix accepté sans confirmation est journalisé + cloche (`mode-budget.ts:125-136`).
 
 Risque résiduel (voulu, à connaître) : pour une commande du studio, le coût d'un double réel n'est plus borné que par le solde
 HeyGen, le plafond 1,5 × secondes et le budget du mois (lui-même « indicatif »). Le geste qui engage la dépense est le clic de
@@ -85,7 +85,7 @@ lancement, plus une confirmation du montant.
 
 ## 5. Attendu réaligné proposé (PAS de skip) — vérifié vert, 19/19
 
-Remplacer le cas `tests/r7-double-heygen.test.ts:386-397` par :
+Remplacer le cas `tests/r7-double-heygen.test.ts:388-399` par :
 
 ```ts
   it("double réel : studio = prix du jour vaut accord (journalisé) ; Usine = confirmation TOUJOURS exigée", async () => {
