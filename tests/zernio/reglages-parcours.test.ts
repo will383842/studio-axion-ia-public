@@ -41,6 +41,19 @@ describe("réglages du parcours sur /mots", () => {
     expect(await IG.instagramSuivreActif()).toBe(false);
   });
 
+  it("éteindre plusieurs mots écrit TOUJOURS Instagram à faux, même si l'état lu disait déjà faux", async () => {
+    const { appliquerReglageParcours } = await import("@/services/parcours-reglages");
+    const ecrits: boolean[] = [];
+    let mm = true;
+    const acces = {
+      lire: async () => ({ motsMultiples: mm, instagramSuivre: false }),
+      ecrireMotsMultiples: async (v: boolean) => { mm = v; },
+      ecrireInstagramSuivre: async (v: boolean) => { ecrits.push(v); },
+    };
+    expect((await appliquerReglageParcours(acces, "mots_multiples", false)).ok).toBe(true);
+    expect(ecrits).toEqual([false]);
+  });
+
   it("nom ou valeur invalides : refusés, rien n'est écrit", async () => {
     // @ts-expect-error nom hors liste
     expect(await G.gesteReglerParcours("autre", true)).toMatchObject({ ok: false, raison: "reglage_inconnu" });
