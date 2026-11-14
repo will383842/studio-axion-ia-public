@@ -161,6 +161,9 @@ services:
       PARCOURS_LIEN_GUIDE: ${PARCOURS_LIEN_GUIDE:-}
       GUIDES_RESEAU_LIEN_SECRET: ${GUIDES_RESEAU_LIEN_SECRET:-}
       LIEN_GUIDE_COMPTES: ${LIEN_GUIDE_COMPTES:-}
+      # Interrupteurs des oppositions (transmission par référence, import depuis le site) : INERTES tant que vides.
+      OPPOSITIONS_PAR_REF_ENABLED: ${OPPOSITIONS_PAR_REF_ENABLED:-}
+      OPPOSITIONS_SITE_IMPORT_ENABLED: ${OPPOSITIONS_SITE_IMPORT_ENABLED:-}
       # Message de remerciement après la page guide, et réduction des identifiants bruts après clôture : INERTES tant que vides.
       PARCOURS_MERCI_ENABLED: ${PARCOURS_MERCI_ENABLED:-}
       PARCOURS_REDUCTION_IDS: ${PARCOURS_REDUCTION_IDS:-}
