@@ -126,6 +126,13 @@ async function journal(): Promise<string[]> {
   return (await depots().evenements.lister()).map((e) => e.message);
 }
 /** Suite « finition » de la PREMIÈRE fabrication (la seule où Claude écrit tout seul). */
+/** Une version de la vidéo, commandée par l'Usine : `origineDeLaVideo` la lit, la vidéo reste bloquante. */
+async function versionUsine(videoId: string): Promise<void> {
+  const modele = (await depots().versions.lister())[0];
+  const date = new Date().toISOString();
+  await depots().versions.enregistrer({ ...(modele ?? {}), id: `ver-usine-${videoId}`, videoId, numero: 99, commande: { ...(modele?.commande ?? {}), origine: "usine" }, creeLe: date, modifieLe: date } as never);
+}
+
 const suite = (v: Video) => travaux.executerSuites([{ type: "finition", videoId: v.id, titre: v.titre, ratio: v.ratios[0], textes: true }]);
 
 describe("R2 · dépense rattachée à la vidéo", () => {
@@ -203,12 +210,22 @@ describe("R2 · dépense rattachée à la vidéo", () => {
     expect((await depots().notifications.lister()).filter((x) => x.type === "credit" && /Claude du mois/.test(x.titre))).toHaveLength(1);
   });
 
-  it("pré-vol : crédit Claude suivi insuffisant → aucun appel", async () => {
+  it("pré-vol, studio : un crédit Claude seulement SUIVI (recharges déclarées) est un repère, les textes partent (décision du 08/11)", async () => {
     const appels = await brancherClaude({ sansRecharge: true });
     await credits.declarerRecharge("anthropic", 1);
     const v = await videoSansKit();
     await suite(v);
+    expect(appels).toHaveLength(PAR_DEFAUT.length);
+  });
+
+  it("pré-vol, Usine : vidéo commandée par l'Usine sans budget reçu → aucun appel, rien n'est payé", async () => {
+    const appels = await brancherClaude({ sansRecharge: true });
+    await credits.declarerRecharge("anthropic", 1);
+    const v = await videoSansKit();
+    await versionUsine(v.id);
+    await suite(v);
     expect(appels).toHaveLength(0);
+    expect((await pub.obtenirKit(v.id))!.reseaux.every((r) => r.origine === "essai")).toBe(true);
   });
 
   it("Claude refuse pour facturation : réservation rendue, aucune dépense, le texte d'essai reste", async () => {
@@ -613,10 +630,19 @@ describe("R2 2ᵉ relecture (a) · les textes des réseaux ne bloquent JAMAIS la
     await expect(fabrication.lancerFabrication(v.id)).resolves.toMatchObject({ travailId: expect.any(String) });
   });
 
-  it("à la fin, sans crédit Claude : aucun appel, les textes restent en version d'essai", async () => {
+  it("à la fin, studio sans crédit Claude suivi : les textes partent quand même (repère, jamais un blocage)", async () => {
     const appels = await brancherClaude({ sansRecharge: true });
     await credits.declarerRecharge("anthropic", 1);
     const v = await videoSansKit();
+    await suite(v);
+    expect(appels).toHaveLength(PAR_DEFAUT.length);
+  });
+
+  it("à la fin, Usine sans budget reçu : aucun appel, les textes restent en version d'essai", async () => {
+    const appels = await brancherClaude({ sansRecharge: true });
+    await credits.declarerRecharge("anthropic", 1);
+    const v = await videoSansKit();
+    await versionUsine(v.id);
     await suite(v);
     expect(appels).toHaveLength(0);
     expect((await pub.obtenirKit(v.id))!.reseaux.every((r) => r.origine === "essai")).toBe(true);
