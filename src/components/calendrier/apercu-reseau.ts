@@ -178,6 +178,7 @@ export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {
     reseau: p.reseau as EntreeApercu["reseau"],
     type: estVideo ? "video" : "image",
     etat: etatAffiche(p),
+    envoiAbsent: p.via !== "simulation" && p.etatEnvoi === "absent" ? true : undefined,
     heure: heureDeParis(p.date),
     titre: p.video?.titre,
     texte: p.texte,
@@ -192,8 +193,8 @@ export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {
  * échec = « à corriger » ; à vérifier ; en cours ; brouillon dans Buffer), puis le statut. Un essai garde son état « essai ».
  */
 export function etatAffiche(p: Pick<PublicationApercu, "statut" | "via" | "etatEnvoi">): string {
-  const base = p.via === "simulation" ? "essai" : (etatDepuisStatut(p.statut) ?? "inconnu");
-  if (p.via === "simulation") return base;
+  if (p.via === "simulation") return "essai";
+  const base = etatDepuisStatut(p.statut) ?? "inconnu";
   if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent" || p.statut === "echec") return "a_corriger";
   if (p.etatEnvoi === "a-verifier") return "a_verifier";
   if (p.etatEnvoi === "en-cours") return "en_cours";

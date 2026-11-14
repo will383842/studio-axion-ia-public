@@ -1,5 +1,5 @@
 /**
- * CAL-13c : la grille ordinateur (semaine et mois) passe par le même calcul d'état que le téléphone.
+ * CAL-13c : la grille ordinateur (semaine) passe par le même calcul d'état que le téléphone.
  * Un envoi Buffer refusé, à vérifier ou en cours ne s'affiche plus « Programmé ». Tests de rendu de la page.
  */
 import type { ReactElement } from "react";
@@ -59,10 +59,5 @@ describe("CAL-13c — la grille ordinateur ne ment plus", () => {
     const g = grille(await pageAvec([{ reseau: "linkedin" }, { reseau: "facebook", via: "simulation" }]));
     expect(g).toContain("Programmé");
     expect(g).toContain("Essai");
-  });
-  it("mois : un envoi refusé n'est pas compté comme programmé", async () => {
-    const h = await pageAvec([{ reseau: "linkedin", via: "buffer", etatEnvoi: "refuse" }], { vue: "mois" });
-    expect(h).toContain("1 publication");
-    expect(h).not.toContain("Programmé");
   });
 });

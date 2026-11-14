@@ -108,7 +108,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   // « À faire » : à corriger, à valider, brouillons ; les essais n'y sont pas.
   const aFaire = semaine.filter((p) => p.via !== "simulation").map((p) => {
     const e = entreeDepuisPublication(p);
-    return { cle: e.cle, etat: e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
+    // Un brouillon Buffer reste un brouillon à compléter pour le panneau.
+    return { cle: e.cle, etat: e.etat === "brouillon_buffer" ? "brouillon" : e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
   });
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
   // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
@@ -116,8 +117,6 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
   const criteres: CriteresFiltre = { reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs, types: [], etats: [] };
   const visibles = filtrerEntrees(entreesSemaine, criteres);
-  // Sur téléphone, les états disent ce que disait l'ancienne ligne (envoi refusé, à vérifier…).
-  const entreesAgenda = entreesSemaine;
   // Les essais (rien n'a été envoyé) ne comptent pas comme des publications, ni pour le bandeau, ni pour l'alerte.
   const visiblesReelles = visibles.filter((e) => e.etat !== "essai");
   const total = visiblesReelles.length;
@@ -156,7 +155,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
 
       {/* Mobile (860 px et moins) : mode Agenda, la semaine en liste jour par jour (CAL-12b) ; un appui ouvre le tiroir. */}
       <div className="min-[861px]:hidden">
-        <VueAgenda entrees={entreesAgenda} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} lienJour={(j) => adresseVueJour(j, suite)} />
+        <VueAgenda entrees={entreesSemaine} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} lienJour={(j) => adresseVueJour(j, suite)} />
       </div>
       {/* « Libre » seulement quand rien n'est listé, essais compris (E2E-1 n° 16). Sur téléphone l'Agenda le dit déjà jour par jour : ordinateur seulement. */}
       {semaine.length === 0 && !jours.some((j) => cleJour(j) === aujourdhui) && (
