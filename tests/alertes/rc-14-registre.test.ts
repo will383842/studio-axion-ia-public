@@ -223,3 +223,12 @@ describe("RC-14 : service, cloche seulement, jamais de push", () => {
     }
   });
 });
+
+describe("RC-14 : règle du jour écrite une seule fois", () => {
+  it("jours.ts importe JOUR_MS et cleJour de @/lib/dates, sans les recopier", () => {
+    const src = readFileSync(join(process.cwd(), "src/domaine/alertes/jours.ts"), "utf8");
+    expect(src).toMatch(/import \{[^}]*\bJOUR_MS\b[^}]*\} from "@\/lib\/dates"/);
+    expect(src).not.toMatch(/\bJOUR_MS\s*=/);
+    expect(src).not.toMatch(/Intl\.DateTimeFormat/);
+  });
+});
