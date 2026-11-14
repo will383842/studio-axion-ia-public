@@ -46,6 +46,7 @@ function jourExiste(j: string): boolean {
   return t.getUTCFullYear() === a && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 const CLE = /^[A-Za-z0-9_-]{1,64}$/;
+const COMPTE = /^[A-Za-z0-9:_.-]{1,80}$/;
 
 const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 /** Instant ISO → jour et heure de Paris (jamais UTC). */
@@ -86,6 +87,7 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
   const heure = saisie.heure ?? "09:00";
   if (!JOUR.test(saisie.jour) || !jourExiste(saisie.jour)) return { ok: false, message: "Jour invalide (AAAA-MM-JJ attendu)." };
   if (!HEURE.test(heure)) return { ok: false, message: "Heure invalide (HH:MM attendu)." };
+  if (typeof saisie.compteCible !== "string" || !COMPTE.test(saisie.compteCible)) return { ok: false, message: "Compte cible invalide." };
   if (!CLE.test(saisie.cle ?? "")) return { ok: false, message: "Clé de formulaire invalide." };
   const { instant, avertissement } = resoudreHeureParis(saisie.jour, heure);
   try {
