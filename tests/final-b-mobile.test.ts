@@ -60,8 +60,12 @@ describe("n° 10 — textes longs dans des éléments étroits", () => {
     expect(apercu).not.toMatch(/<span className="absolute right-1 top-1">\s*<Pastille/);
   });
   it("calendrier : le nom du compte se tronque au lieu de pousser la ligne", () => {
-    expect(calendrier).toMatch(/<span className="flex min-w-0 items-center gap-1\.5 text-xs text-texte-faible">/);
-    expect(calendrier).toMatch(/<span className="min-w-0 truncate">· \{p\.canalNom\}<\/span>/);
+    // CAL-13b : la liste mobile devient le mode Agenda (VueAgenda), dont les cartes se coupent (min-w-0 break-words) au lieu de pousser la ligne.
+    expect(calendrier).toMatch(/<VueAgenda /);
+    const agenda = readFileSync("src/components/calendrier/VueAgenda.tsx", "utf8");
+    expect(agenda).toContain("min-h-[38px] break-words");
+    // Le compte visé (deux LinkedIn, deux Facebook) reste lu et se tronque : voir aussi le rendu dans tests/calendrier/cal-13b-branchement.test.tsx.
+    expect(agenda).toMatch(/\{e\.canalNom && <p [^>]*min-w-0 truncate[^>]*>· \{e\.canalNom\}<\/p>\}/);
   });
   it("une adresse collée passe à la ligne (body + blocs de texte libre), sans toucher pastilles et boutons", () => {
     const body = css.match(/ body \{[^}]*\}/)?.[0] ?? "";

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cocherAvantDePublierAction, envoyerVersBufferAction, modifierTexteKitAction } from "@/app/(studio)/videos/actions";
 import { programmerSujetAction } from "@/app/(studio)/mesures/actions";
 import { Bouton } from "@/components/ui/Bouton";
+import { Icone } from "@/components/ui/Icone";
 import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
 import { tonEtatAffiche } from "./ton-etat-affiche";
@@ -154,8 +155,14 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
   const lienTelechargement = `/api/telechargements/video?video=${encodeURIComponent(carte.videoId)}${reseauTelechargement ? `&reseau=${reseauTelechargement}` : ""}`;
 
   return (
-    <li className="rounded-carte border border-trait bg-surface-1 p-4">
+    <li className="rounded-carte border border-l-[5px] border-trait border-l-fam-video bg-surface-1 p-4">
       <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-fam-video-doux text-fam-video">
+            <Icone nom="film" size={20} />
+          </span>
+          <span className="text-xs font-semibold text-texte-doux">Vidéo</span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href={`/videos/${carte.videoId}`} className="min-w-0 text-base font-semibold text-texte hover:underline">
             {carte.titre}
