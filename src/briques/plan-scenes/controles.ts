@@ -71,6 +71,8 @@ export interface ContexteControles {
   stock?: ScenePlan[];
   /** Scènes sans plage de mots donnée (elle vaut alors 0 à 0 par défaut) : leur plage est celle des mots dits pendant qu'elles sont à l'écran. */
   sansPlage?: ReadonlySet<string>;
+  /** Scènes déjà validées (plan relu d'une version, retouche) : jamais modifiées ni retirées, mais comptées pour la densité et la répétition. */
+  figees?: ReadonlySet<string>;
   /** Début de la scène qui suit (ms), s'il y en a une : limite la durée de celle-ci. */
   debutSuivantMs?: number;
 }
@@ -353,25 +355,26 @@ const duree = (s: ScenePlan) => s.finMs - s.debutMs;
 export const PIECES_DE_DONNEES: readonly string[] = ["compteur", "jauge", "avant-apres", "barres", "etapes", "liste-au-mot", "citation", "repere"];
 const estDonnee = (s: ScenePlan) => PIECES_DE_DONNEES.includes(s.piece);
 
-export function controlerDensite(toutes: ScenePlan[]): ResultatControlePlan {
+export function controlerDensite(toutes: ScenePlan[], figees: ReadonlySet<string> = new Set()): ResultatControlePlan {
   const gardees = toutes.filter(estDonnee);
   const remarques: ResultatControlePlan["remarques"] = [];
   const retirer = (s: ScenePlan) => {
     gardees.splice(gardees.indexOf(s), 1);
     remarques.push({ code: "DENSITE", sceneId: s.id, message: "Trop de scènes à la suite : la plus courte est retirée." });
   };
-  const plusCourte = (liste: ScenePlan[]) => liste.reduce((a, b) => (duree(b) < duree(a) || (duree(b) === duree(a) && b.debutMs > a.debutMs) ? b : a));
+  const libres = (liste: ScenePlan[]) => liste.filter((x) => !figees.has(x.id));
+  const plusCourte = (liste: ScenePlan[]) => libres(liste).reduce((a, b) => (duree(b) < duree(a) || (duree(b) === duree(a) && b.debutMs > a.debutMs) ? b : a));
   for (;;) {
     const dansLaFenetre = (s: ScenePlan) => gardees.filter((x) => x.debutMs >= s.debutMs && x.debutMs < s.debutMs + SEUILS_CONTROLES.FENETRE_MS);
     const fenetre = gardees.find((s) => {
       const l = dansLaFenetre(s);
-      return l.length > SEUILS_CONTROLES.MAX_PAR_FENETRE && l.reduce((t, x) => t + duree(x), 0) > SEUILS_CONTROLES.OCCUPATION_MAX_MS;
+      return l.length > SEUILS_CONTROLES.MAX_PAR_FENETRE && libres(l).length > 0 && l.reduce((t, x) => t + duree(x), 0) > SEUILS_CONTROLES.OCCUPATION_MAX_MS;
     });
     if (fenetre) {
       retirer(plusCourte(dansLaFenetre(fenetre)));
       continue;
     }
-    const serree = gardees.findIndex((s, i) => i > 0 && s.debutMs - gardees[i - 1]!.debutMs < SEUILS_CONTROLES.ECART_MIN_MS);
+    const serree = gardees.findIndex((s, i) => i > 0 && s.debutMs - gardees[i - 1]!.debutMs < SEUILS_CONTROLES.ECART_MIN_MS && libres([gardees[i - 1]!, s]).length > 0);
     if (serree > 0) {
       retirer(plusCourte([gardees[serree - 1]!, gardees[serree]!]));
       continue;
@@ -389,7 +392,7 @@ const cleDePiece = (s: ScenePlan): string => {
   return s.piece === "repere" && typeof p?.genre === "string" ? `repere:${p.genre}` : s.piece;
 };
 
-export function controlerRepetition(scenes: ScenePlan[]): ResultatControlePlan {
+export function controlerRepetition(scenes: ScenePlan[], figees: ReadonlySet<string> = new Set()): ResultatControlePlan {
   const gardees: ScenePlan[] = [];
   const sortie: ScenePlan[] = [];
   const remarques: ResultatControlePlan["remarques"] = [];
@@ -400,7 +403,11 @@ export function controlerRepetition(scenes: ScenePlan[]): ResultatControlePlan {
       continue;
     }
     const cle = cleDePiece(s);
-    if (gardees.length && cleDePiece(gardees.at(-1)!) === cle && s.debutMs - gardees.at(-1)!.finMs < SEUILS_CONTROLES.REPETITION_ECART_MAX_MS) {
+    if (figees.has(s.id)) {
+      gardees.push(s);
+      sortie.push(s);
+      compte.set(cle, (compte.get(cle) ?? 0) + 1);
+    } else if (gardees.length && cleDePiece(gardees.at(-1)!) === cle && s.debutMs - gardees.at(-1)!.finMs < SEUILS_CONTROLES.REPETITION_ECART_MAX_MS) {
       remarques.push({ code: "REPETITION", sceneId: s.id, message: "Même pièce deux fois de suite : la seconde est retirée." });
     } else if ((compte.get(cle) ?? 0) >= SEUILS_CONTROLES.MAX_MEME_PIECE) {
       remarques.push({ code: "REPETITION", sceneId: s.id, message: `Même pièce déjà vue ${SEUILS_CONTROLES.MAX_MEME_PIECE} fois : retirée.` });
@@ -422,6 +429,10 @@ export function appliquerControles(entree: ScenePlan[], contexte: Omit<ContexteC
   const parScene = (controle: (s: ScenePlan, c: ContexteControles) => ResultatControle) => {
     const sortie: ScenePlan[] = [];
     scenes.forEach((s, i) => {
+      if (contexte.figees?.has(s.id)) {
+        sortie.push(s);
+        return;
+      }
       const r = controle(s, { ...contexte, debutSuivantMs: scenes[i + 1]?.debutMs });
       if (r.remarque) remarques.push({ ...r.remarque, sceneId: s.id });
       if (r.scene) sortie.push(r.scene);
@@ -433,7 +444,7 @@ export function appliquerControles(entree: ScenePlan[], contexte: Omit<ContexteC
   parScene(controlerDebordement);
   parScene(controlerSousTitres);
   for (const plan of [controlerDensite, controlerRepetition]) {
-    const r = plan(scenes);
+    const r = plan(scenes, contexte.figees);
     scenes = r.scenes;
     remarques.push(...r.remarques);
   }
