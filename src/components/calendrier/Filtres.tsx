@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { basculer, nombreFiltres, type CriteresFiltre } from "@/domaine/calendrier/regroupement";
 import { TYPES_CONTENU, type TypeContenu } from "./CarteEntreeCalendrier";
@@ -13,6 +14,16 @@ export interface ProprietesFiltres {
   /** États en plus des six par défaut (table CAL-10) : leurs clés s'ajoutent au groupe État. */
   libellesEtat?: TableLibelles;
   className?: string;
+  /** Liens ou textes ajoutés en bas du panneau (ex. « Mes textes »), pour garder une seule commande « Filtrer » en haut d'écran. */
+  enPlus?: ReactNode;
+  /** Vrai : « Effacer les filtres (N) » se range dans le panneau au lieu de s'ajouter à la barre (au plus six commandes). */
+  effacerDansLePanneau?: boolean;
+}
+
+/** Les filtres (hors réseaux) sous forme de suite d'adresse « &types=…&etats=…&q=… » ; chaîne vide s'il n'y en a aucun. */
+export function suiteFiltres(criteres: Pick<CriteresFiltre, "types" | "etats" | "motCle">): string {
+  const mot = (criteres.motCle ?? "").trim();
+  return `${criteres.types.length ? `&types=${criteres.types.join(",")}` : ""}${criteres.etats.length ? `&etats=${criteres.etats.join(",")}` : ""}${mot ? `&q=${encodeURIComponent(mot)}` : ""}`;
 }
 
 const CASE = "inline-flex min-h-[44px] items-center gap-1.5 rounded-[9px] border border-trait-fort px-2.5 text-sm font-semibold text-texte sm:min-h-[38px]";
@@ -22,11 +33,16 @@ const BOUTON = "inline-flex min-h-[44px] cursor-pointer items-center rounded-[10
  * Bouton « Filtrer » qui ouvre deux groupes de cases, Type et État, combinables, plus un mot cherché.
  * Dès qu'un filtre est actif, « Effacer les filtres (N) » apparaît et remet tout à zéro (les réseaux ne bougent pas).
  */
-export function Filtres({ criteres, onChanger, libellesEtat, className }: ProprietesFiltres) {
+export function Filtres({ criteres, onChanger, libellesEtat, className, enPlus, effacerDansLePanneau = false }: ProprietesFiltres) {
   const etats = [...ETATS_CALENDRIER, ...Object.keys(libellesEtat ?? {}).filter((cle) => !(ETATS_CALENDRIER as readonly string[]).includes(cle))];
   const nombre = nombreFiltres(criteres);
   const libelleEffacer = `Effacer les filtres (${nombre})`;
   const effacer = () => onChanger({ ...criteres, types: [], etats: [], motCle: "" });
+  const boutonEffacer = (
+    <button type="button" aria-label={libelleEffacer} onClick={effacer} className={BOUTON}>
+      {libelleEffacer}
+    </button>
+  );
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-1.5", className)}>
       <details className="relative">
@@ -58,13 +74,11 @@ export function Filtres({ criteres, onChanger, libellesEtat, className }: Propri
             Mot cherché
             <input type="search" value={criteres.motCle ?? ""} onChange={(ev) => onChanger({ ...criteres, motCle: ev.target.value })} className="mt-1 block min-h-[44px] w-full rounded-[9px] border border-trait-fort bg-surface-1 px-2 font-normal text-texte sm:min-h-[38px]" />
           </label>
+          {nombre > 0 && effacerDansLePanneau && <div className="mt-2">{boutonEffacer}</div>}
+          {enPlus}
         </div>
       </details>
-      {nombre > 0 && (
-        <button type="button" aria-label={libelleEffacer} onClick={effacer} className={BOUTON}>
-          {libelleEffacer}
-        </button>
-      )}
+      {nombre > 0 && !effacerDansLePanneau && boutonEffacer}
     </span>
   );
 }
