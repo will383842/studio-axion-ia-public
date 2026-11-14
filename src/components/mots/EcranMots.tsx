@@ -116,9 +116,13 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
   const basculer = async (reglage: ReglageParcours, allume: boolean) => {
     if (!services.reglerParcours) return;
     if (allume && !window.confirm(reglage === "mots_multiples" ? PHRASE_ALLUMER_MOTS_MULTIPLES : PHRASE_ALLUMER_INSTAGRAM)) return;
-    const r = await services.reglerParcours(reglage, allume);
-    if (r.ok) notifier.succes(allume ? "Allumé." : "Éteint.");
-    else notifier.erreur(r.raison === "plusieurs_mots_eteint" ? "Allumez d’abord le mode plusieurs mots." : "Non modifié.");
+    try {
+      const r = await services.reglerParcours(reglage, allume);
+      if (r.ok) notifier.succes(allume ? "Allumé." : "Éteint.");
+      else notifier.erreur(r.raison === "plusieurs_mots_eteint" ? "Allumez d’abord le mode plusieurs mots." : "Non modifié.");
+    } catch {
+      notifier.erreur("Non modifié.");
+    }
     onChange?.();
   };
 

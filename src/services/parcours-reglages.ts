@@ -5,7 +5,10 @@
  * Chaque bascule est journalisée (type « mots »), sans aucune donnée personnelle.
  */
 import "server-only";
-import { journaliser } from "./_commun";
+import { creerVerrou, journaliser } from "./_commun";
+
+/** Une bascule à la fois (un seul processus Studio) : pas de course entre deux interrupteurs. */
+const verrou = creerVerrou();
 
 /** Lecture et écriture des deux réglages, injectées par `parcours-conversation` (seul fichier de production autorisé à citer les modules des réglages). */
 export interface AccesReglages {
@@ -24,7 +27,9 @@ export type ResultatReglage = { ok: true; etat: EtatReglagesParcours } | { ok: f
 const LIBELLES: Record<ReglageParcours, string> = { mots_multiples: "Mode plusieurs mots", instagram_suivre: "Instagram : suivre le compte puis OK" };
 
 /** Fixe un réglage (le client n'envoie qu'un nom et un booléen). Appelé seulement par un geste qui a exigé la session. */
-export async function appliquerReglageParcours(acces: AccesReglages, reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> {
+export const appliquerReglageParcours = (acces: AccesReglages, reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> => verrou(() => appliquer(acces, reglage, allume));
+
+async function appliquer(acces: AccesReglages, reglage: ReglageParcours, allume: boolean): Promise<ResultatReglage> {
   const avant = await acces.lire();
   if (reglage !== "mots_multiples" && reglage !== "instagram_suivre") return { ok: false, raison: "reglage_inconnu", etat: avant };
   if (typeof allume !== "boolean") return { ok: false, raison: "reglage_inconnu", etat: avant };
@@ -32,7 +37,7 @@ export async function appliquerReglageParcours(acces: AccesReglages, reglage: Re
   if (reglage === "mots_multiples") await acces.ecrireMotsMultiples(allume);
   else await acces.ecrireInstagramSuivre(allume);
   // Éteindre « plusieurs mots » éteint aussi Instagram : Instagram ne tourne jamais sans lui.
-  const coupeInstagram = reglage === "mots_multiples" && !allume && avant.instagramSuivre;
+  const coupeInstagram = reglage === "mots_multiples" && !allume; // toujours écrire « éteint », même si la lecture disait déjà éteint
   if (coupeInstagram) await acces.ecrireInstagramSuivre(false);
   const apres = await acces.lire();
   const attendu = reglage === "mots_multiples" ? apres.motsMultiples === allume : apres.instagramSuivre === allume;

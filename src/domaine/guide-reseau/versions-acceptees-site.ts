@@ -1,17 +1,16 @@
-// LISTE UNIQUE des versions du 1er message (avec lien) que le SITE accepte déjà dans le jeton (`version_m1`).
-// Une formulation absente de cette liste part SANS lien (message sans lien + alerte cloche), jamais avec un jeton que le site ne connaît pas.
+// LISTES des versions du 1er message (avec lien) que le SITE accepte dans le jeton (`version_m1`).
+// FAIT FOI : `siteAccepteVersionM1`, en bas de ce fichier = union de VERSIONS_M1_ACCEPTEES_PAR_LE_SITE et de VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE.
+// Une formulation absente des deux listes part SANS lien (message sans lien + alerte cloche), jamais avec un jeton que le site ne connaît pas.
+// Le site en production accepte les versions de VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE (copie de contrôle : tests/zernio/aides/versions-lien-jeton-site.ts).
 //
-// POUR METTRE À JOUR : quand la PR du site qui ajoute des versions est DÉPLOYÉE, déplacer la version de
-// VERSIONS_M1_EN_ATTENTE_DU_SITE vers VERSIONS_M1_ACCEPTEES_PAR_LE_SITE, PUIS (trois gestes) :
-//   1. déplacer la version dans ce fichier ;
-//   2. l'ajouter à `tests/zernio/aides/versions-m1-jeton-site.ts` avec le nouveau commit du site ;
-//   3. retirer l'exigence « v4 absentes de la copie du site » de `tests/zernio/formulations-multiples.test.ts` (elle rougit sinon, voulu).
-// Le test `tests/zernio/formulations-multiples.test.ts` (« 1 bis ») rougit si une formulation du groupe « m1-lien » n'est dans aucune des deux listes.
+// VERSIONS_M1_ACCEPTEES_PAR_LE_SITE et VERSIONS_M1_EN_ATTENTE_DU_SITE sont GARDÉES TELLES QUELLES uniquement parce qu'un test figé
+// (`formulations-multiples`, « 1 bis ») les compare à l'ancienne copie du site : ne pas s'y fier pour savoir ce qui part avec un lien.
+// POUR AJOUTER UNE VERSION : l'ajouter à VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE ET à la copie de contrôle du site (le test `versions-lien-site` rougit sinon).
 
 /** Versions que le site connaît aujourd'hui. */
 export const VERSIONS_M1_ACCEPTEES_PAR_LE_SITE: readonly string[] = ["mp-m1-v3"];
 
-/** Formulations du groupe « m1-lien » pas encore connues du site : elles ne partent pas avec un lien. */
+/** HISTORIQUE (test figé) : ces v4 étaient en attente du site ; elles sont désormais acceptées via VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE. */
 export const VERSIONS_M1_EN_ATTENTE_DU_SITE: readonly string[] = ["mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4"];
 
 /**
