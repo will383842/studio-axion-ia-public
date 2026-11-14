@@ -47,11 +47,16 @@ export const MAX_DEMANDES_SITE = 500;
 interface MemoireSite {
   demandes: Set<string>;
   refsIllisibles: number;
+  debordements: number;
 }
-/** Mémoire de processus (survit au rechargement des modules) : demandes en attente et références illisibles vues. */
+/**
+ * Mémoire de processus (survit au rechargement des modules) : demandes en attente, références illisibles vues, demandes retirées par le
+ * plafond. Elle est propre à chaque processus : deux processus (ou un redémarrage) ne partagent rien, aucune demande ne passe de l'un à
+ * l'autre. Sans gravité : une demande perdue est refaite au prochain essai de la personne (refus fermé), la base ne dépend pas d'elle.
+ */
 const memoireSite = (): MemoireSite => {
   const g = globalThis as { __studioOppositionsSite?: MemoireSite };
-  return (g.__studioOppositionsSite ??= { demandes: new Set<string>(), refsIllisibles: 0 });
+  return (g.__studioOppositionsSite ??= { demandes: new Set<string>(), refsIllisibles: 0, debordements: 0 });
 };
 /** Demande la vérification de ces références (conformes seulement). Bornée : la plus ancienne est retirée ; journal sans référence. */
 export function demanderVerificationSite(refs: Iterable<string>): void {
@@ -67,6 +72,7 @@ export function demanderVerificationSite(refs: Iterable<string>): void {
       retirees++;
     }
   }
+  if (retirees > 0) m.debordements += retirees;
   if (retirees > 0) void journaliser("parcours_conversation", "Demandes de vérification du site : plafond atteint, les plus anciennes sont retirées.").catch(() => undefined);
 }
 /** Prend (et retire) jusqu'à `n` demandes, les plus anciennes d'abord. */
@@ -81,11 +87,17 @@ export function reinitialiserDemandesSite(): void {
   const m = memoireSite();
   m.demandes.clear();
   m.refsIllisibles = 0;
+  m.debordements = 0;
 }
 /** Nombre de références illisibles vues depuis la dernière alerte (un nombre seulement). */
 export const refsIllisiblesSite = (): number => memoireSite().refsIllisibles;
 export const acquitterRefsIllisiblesSite = (): void => {
   memoireSite().refsIllisibles = 0;
+};
+/** Demandes retirées par le plafond de 500 depuis la dernière alerte (un nombre seulement). */
+export const debordementsSite = (): number => memoireSite().debordements;
+export const acquitterDebordementsSite = (): void => {
+  memoireSite().debordements = 0;
 };
 /** Lit le paramètre : forme invalide ou version différente de 1 => table vide (tout fermé), sans erreur. Entrées non conformes écartées. */
 export function lireVerifs(brut: unknown): Record<string, number> {

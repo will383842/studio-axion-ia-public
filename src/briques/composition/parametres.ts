@@ -381,7 +381,10 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (calqueFinal) {
   try {
     const occupe = encadreActif && instantsEncadre ? [{ debutSec: instantsEncadre.de, finSec: instantsEncadre.a, zone: "haut" as const }] : [];
-    for (const a of controlerSousTitres(calqueFinal, { texte: c.script.texteComplet, occupe })) {
+    // GV2-21 : les mots masqués exprès (cartes, montants) sont comptés avant/après masquage, pour ne pas être signalés.
+    const nbMots = (l: { mots: unknown[] }[]) => l.reduce((n, x) => n + x.mots.length, 0);
+    const motsVoulusMasques = Math.max(0, nbMots(segments) - nbMots(segmentsImage));
+    for (const a of controlerSousTitres(calqueFinal, { texte: c.script.texteComplet, occupe, dureeVideoSec: e.dureeSec, fps, motsScript: c.script.texteComplet.split(/\s+/).filter(Boolean), motsVoulusMasques })) {
       if (!alertes.some((x) => x.code === a.code && x.message === a.message)) alertes.push(a);
     }
   } catch { /* contrôle informatif : ne bloque jamais la composition */ }

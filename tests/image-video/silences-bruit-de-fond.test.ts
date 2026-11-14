@@ -438,7 +438,7 @@ describe.skipIf(!FFMPEG_PRESENT)("RÉPÉTITION GÉNÉRALE · lecture unique : br
 
     // Une seule lecture HeyGen, d'un trait, et un seul brut converti.
     const voix = etat.voix!;
-    expect(voix.version).toBe("voix-iv/2");
+    expect(voix.version).toBe("voix-iv/3");
     expect(m.lus).toEqual([voix.segments.corps]);
     expect(compte.conversions).toBe(1);
     const lecture = voix.segments.lecture!;

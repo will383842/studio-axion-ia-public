@@ -504,6 +504,8 @@ export type ParametresDemandeComposition =
        * recopiée telle quelle ; le nouveau master est déposé (`depots.master`). Gratuit.
        */
       remixage?: { son: ParametresSon };
+      /** GV2-32 (ajout facultatif) : fondu de fin de la composition d'origine, gardé par le son refait (remixage). */
+      fonduFinSec?: number;
     };
 
 /** Préfixe d'une référence à une entrée de la demande (remplacée par une adresse locale dans `studio-rendu`). */
