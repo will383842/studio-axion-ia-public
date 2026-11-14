@@ -69,6 +69,8 @@ function trou(horizon: number): DefinitionAlerte["evaluer"] {
     const jours = sources.calendrier.map((e) => ecartJours(aujourdhui, e.jour));
     const publications = jours.filter((j) => j === horizon).length;
     const niveau = evaluerSeuil(publications, { seuil: 0, sens: "au-plus" });
+    // Une date illisible pourrait être celle du jour visé : le trou n'est alors pas certain, donc « non évalué ».
+    if (jours.some((j) => j === null)) return NON_EVALUE("au moins une date du calendrier est illisible");
     return { niveau, detail: niveau === "alerte" ? `rien de prévu à J+${horizon}` : `une publication est prévue à J+${horizon}` };
   };
 }
@@ -87,6 +89,8 @@ export const REGISTRE: DefinitionAlerte[] = [
       const sans = proches.filter((e) => e.aVisuel === false).length;
       const inconnus = proches.filter((e) => e.aVisuel === null || e.aVisuel === undefined).length;
       if (sans) return { niveau: evaluerSeuil(sans, { seuil: 1, sens: "au-moins" }), detail: `${sans} publication(s) des ${SEUILS.visuelManquantJours} prochains jours sans visuel` };
+      const datesIllisibles = sources.calendrier.some((e) => ecartJours(aujourdhui, e.jour) === null);
+      if (datesIllisibles) return NON_EVALUE("au moins une date du calendrier est illisible");
       if (inconnus) return NON_EVALUE("visuel inconnu pour au moins une publication");
       return { niveau: "ok", detail: "tous les visuels sont présents" };
     },
