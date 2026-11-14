@@ -33,3 +33,10 @@ Chaque fichier source remis à l'état de master, le test neuf du trou devient r
 - **Non fait, volontairement** : M2 (`planSerie`, décision du fondateur) ; « Reprendre » (`reprendreEcriture`, `reprendreEcritureArretee`, `devisReprise`) identique à master.
 - **Mutations rejouées (rouges)** : origine retirée de la série (1 rouge), des versions en attente (mémorisation et retransmission : 1 rouge chacune), de la relance après attente de crédit (1 rouge), de `lancerVideoDeVersion` (3 rouges).
 - **Vérifié** : 22 fichiers r7-*, paquet4-*, c1-argent-b6, garde-fous-*, c5-serie : mêmes 5 rouges que master, aucun nouveau. tsc : 146 erreurs comme master, aucune dans les fichiers touchés. Lint : 0 erreur.
+
+## Correcteur (relecture Opus 520, 2e tour) : B1, l'origine ne vient jamais du navigateur
+
+- **B1** : `creerSujetAction` retire désormais la clé `origine` du brief reçu (à côté de `origineUsine`) ; `lancerGeneration` ne retient que `origine === "usine"` (toute autre valeur est ignorée, rien n'est écrit dans les options).
+- **Tests** : `action-cible` (avec `origine` = « usine », « x », un objet : l'appel à `lancerGeneration` n'a pas de clé `origine`) ; `r7-origine-usine-serie` (origine « x » ou objet : aucune origine écrite dans `generateur.chaine-options.<id>`).
+- **Mutations rejouées (rouges)** : retrait du `delete` dans l'action (1 rouge) ; retrait du filtre dans `lancerGeneration` (1 rouge). Code restauré.
+- **Inchangé** : « Reprendre » (`reprendreEcriture`, `reprendreEcritureArretee`, `devisReprise`) et Studio. Mêmes 5 rouges que master, aucun nouveau ; lint 0 erreur ; tsc 146 erreurs comme avant, aucune dans les fichiers touchés.

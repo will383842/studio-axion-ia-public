@@ -264,7 +264,9 @@ async function changeAdresse(o: OptionsGeneration): Promise<boolean> {
 export async function lancerGeneration(entreeAvecOrigine: (BriefSujet | { scriptMaitreId: Id }) & { origine?: OrigineLancement }): Promise<ResultatLancement> {
   await exigerSession();
   // ARG-ORIGINE-USINE : l'origine n'est pas un champ du sujet ; elle est FIGÉE dans les options de l'écriture (absente : Studio, inchangé).
-  const { origine, ...entree } = entreeAvecOrigine;
+  const { origine: origineRecue, ...entree } = entreeAvecOrigine;
+  // B1 : seule la valeur « usine » est retenue ; toute autre (chaîne, objet…) est ignorée, jamais écrite.
+  const origine: OrigineLancement | undefined = origineRecue === "usine" ? "usine" : undefined;
   const m0 = "scriptMaitreId" in entree ? await depots().scriptsMaitres.obtenir(entree.scriptMaitreId) : await creerSujet(entree);
   if (!m0) throw new ErreurStudio("INTROUVABLE", "Ce sujet n'existe plus.");
   // Lot L5 : un NOUVEAU sujet est recontrôlé sous le verrou, au moment de prendre son numéro (deux demandes simultanées).
