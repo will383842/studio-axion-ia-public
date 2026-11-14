@@ -100,9 +100,9 @@ export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerD
               aria-current={estAujourdhui ? "date" : undefined}
               aria-labelledby={`agenda-${jour}`}
               ref={estAujourdhui ? aujourdhuiRef : undefined}
-              className={cn("min-w-0 scroll-mt-2 rounded-xl border bg-surface-1 p-2", estAujourdhui ? "border-orange bg-surface-2" : "border-trait")}
+              className={cn("min-w-0 scroll-mt-2 rounded-xl border bg-surface-1 p-2", estAujourdhui ? "border-accent bg-surface-2" : "border-trait")}
             >
-              <h3 id={`agenda-${jour}`} className={cn("mb-2 break-words text-sm font-bold capitalize", estAujourdhui ? "text-orange-vif" : "text-texte-doux")}>
+              <h3 id={`agenda-${jour}`} className={cn("mb-2 break-words text-sm font-bold capitalize", estAujourdhui ? "text-accent" : "text-texte-doux")}>
                 {lienJour ? (
                   <Link href={lienJour(jour)} aria-label={`Ouvrir la journée du ${libelleJour(jour)}`} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
                     {libelleJour(jour)}
