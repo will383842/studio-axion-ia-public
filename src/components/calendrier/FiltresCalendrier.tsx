@@ -40,8 +40,20 @@ function useRouteurOuNul() {
 export function FiltresCalendrier({ criteres, base, children }: ProprietesFiltresCalendrier) {
   const routeur = useRouteurOuNul();
   const [mot, setMot] = useState(criteres.motCle ?? "");
+  // Cases : état local, pour que des clics en rafale partent chacun des cases déjà cochées (l'adresse met un instant à revenir).
+  const [cases, setCases] = useState({ types: criteres.types, etats: criteres.etats });
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (minuteur.current) clearTimeout(minuteur.current); }, []);
+  // Le mot ou les cases ont changé SANS passer par le champ (« Tout afficher », bouton Retour…) : on se remet d'accord avec l'adresse.
+  // Pendant une frappe (minuteur en attente), la saisie reste maîtresse.
+  useEffect(() => { if (!minuteur.current) setMot(criteres.motCle ?? ""); }, [criteres.motCle]);
+  // Même resynchronisation pour les cases, faite pendant le rendu (aucun effet) quand les types ou états de l'adresse changent.
+  const cleAdresse = `${criteres.types.join(",")}|${criteres.etats.join(",")}`;
+  const [cleVue, setCleVue] = useState(cleAdresse);
+  if (cleVue !== cleAdresse) {
+    setCleVue(cleAdresse);
+    setCases({ types: criteres.types, etats: criteres.etats });
+  }
 
   const aller = (c: CriteresFiltre) => {
     const adresse = adresseAvecFiltres(base, c);
@@ -50,10 +62,17 @@ export function FiltresCalendrier({ criteres, base, children }: ProprietesFiltre
   };
   const onChanger = (nouveaux: CriteresFiltre) => {
     if (minuteur.current) clearTimeout(minuteur.current);
+    minuteur.current = null;
     const motChange = (nouveaux.motCle ?? "") !== mot;
     setMot(nouveaux.motCle ?? "");
-    if (motChange) minuteur.current = setTimeout(() => aller(nouveaux), PAUSE_FRAPPE_MS);
-    else aller(nouveaux);
+    setCases({ types: nouveaux.types, etats: nouveaux.etats });
+    // Un mot qui se vide (« Effacer les filtres », champ vidé) navigue tout de suite ; une frappe attend sa pause.
+    if (motChange && (nouveaux.motCle ?? "") !== "") {
+      minuteur.current = setTimeout(() => {
+        minuteur.current = null;
+        aller(nouveaux);
+      }, PAUSE_FRAPPE_MS);
+    } else aller(nouveaux);
   };
-  return <Filtres criteres={{ ...criteres, motCle: mot }} onChanger={onChanger} libellesEtat={LIBELLES_ENVOI} enPlus={children} effacerDansLePanneau />;
+  return <Filtres criteres={{ ...criteres, ...cases, motCle: mot }} onChanger={onChanger} libellesEtat={LIBELLES_ENVOI} enPlus={children} effacerDansLePanneau />;
 }
