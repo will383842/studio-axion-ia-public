@@ -54,6 +54,22 @@ async function allume(param: string): Promise<Record<string, unknown> | null> {
 }
 
 /**
+ * Motion commune : allumée par défaut (GV2-51). Seul `false` (booléen exact) ou `{ actif: false }` la coupe (coupe-circuit) ;
+ * absente, `true`, `{ actif: true }` ou toute valeur étrange : allumée. Une lecture qui échoue : allumée, sans habitude.
+ */
+async function motionAllumeeParDefaut(param: string): Promise<Record<string, unknown> | null> {
+  try {
+    const v = await lireParametre<unknown>(param, null);
+    if (v === false) return null;
+    if (v && typeof v === "object" && !Array.isArray(v)) return (v as { actif?: unknown }).actif === false ? null : (v as Record<string, unknown>);
+    return {};
+  } catch (e) {
+    console.warn("[studio] réglage de la motion avocat illisible, allumée par défaut :", e instanceof Error ? e.message : e);
+    return {};
+  }
+}
+
+/**
  * Mémoire des cartes animées déjà servies par l'avocat : les modèles posés dans les 5 dernières vidéos avocat prêtes
  * (hors la vidéo en cours), la plus récente d'abord, une version par vidéo ; et le modèle qui a ouvert la dernière.
  * Cartes en échec ignorées ; seules celles du premier ratio rencontré comptent (pas de doublon par ratio). Une lecture
@@ -85,13 +101,13 @@ export async function memoireCartesAvocat(videoIdEnCours?: string): Promise<{ de
 }
 
 /**
- * Réglages de l'avocat figés au lancement (le moteur ne lit pas les réglages). Tous coupés par défaut : rien n'est
- * ajouté à la commande. Les consignes du monteur viennent de la vidéo (`entrees.avocatConsignes` : fil, consignes
+ * Réglages de l'avocat figés au lancement (le moteur ne lit pas les réglages). Motion commune allumée par défaut (le fondateur
+ * l'a voulu, `false` la coupe) ; monteur et multicaméra coupés par défaut : rien n'est ajouté à la commande. Les consignes du monteur viennent de la vidéo (`entrees.avocatConsignes` : fil, consignes
  * dites relevées dans une transcription libre).
  */
 export async function entreesAvocatDuLancement(video: Pick<Video, "entrees"> & Partial<Pick<Video, "id">>): Promise<Record<string, unknown>> {
   const sortie: Record<string, unknown> = {};
-  const motion = await allume(PARAM_MOTION_AVOCAT);
+  const motion = await motionAllumeeParDefaut(PARAM_MOTION_AVOCAT);
   if (motion) {
     const memoire = await memoireCartesAvocat(video.id);
     sortie[ENTREE_MOTION_AVOCAT] = {

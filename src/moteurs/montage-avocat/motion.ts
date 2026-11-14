@@ -1,7 +1,7 @@
 /**
  * ADAPTATEUR « MOTION DESIGN COMMUN » DU FORMAT AVOCAT (mission H). PUR.
  *
- * Option FACULTATIVE, figée au lancement depuis le réglage caché `avocat.motionCommune` (coupé par défaut) :
+ * Option FACULTATIVE, figée au lancement depuis le réglage caché `avocat.motionCommune` (allumé par défaut ; `false` le coupe) :
  * `commande.entrees.avocatMotionCommune`. Absente : `null` partout, l'avocat est monté EXACTEMENT comme avant.
  *
  * Allumée : aux endroits où l'avocat pose aujourd'hui ses illustrations et ses titres à l'écran (annotations
@@ -17,7 +17,7 @@ import type { PlanProduit } from "../types";
 
 /** Clé de la commande (figée au lancement par le service, comme `facecamDecorIa`). */
 export const ENTREE_MOTION_AVOCAT = "avocatMotionCommune";
-/** Réglage caché (aucun écran), coupé par défaut. */
+/** Réglage caché (aucun écran), allumé par défaut ; `false` le coupe. */
 export const PARAM_MOTION_AVOCAT = "avocat.motionCommune";
 
 export interface OptionMotionAvocat {
