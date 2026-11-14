@@ -17,7 +17,7 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const bg = await import("@/services/boucle-generation");
 const gc = await import("@/services/generation-claude");
-const { ecrireParametre } = await import("@/services/_commun");
+const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { RESEAUX_DECLINAISON } = await import("@/reseaux/codes");
 const serie = await import("@/services/serie-ecriture");
 
@@ -59,11 +59,19 @@ describe("série : l'origine « usine » exige la confirmation, le Studio non", 
     expect(await depots().scriptsMaitres.compter()).toBe(0);
     const { serie: s } = await serie.lancerSerie(idees(2), REGLAGES, "serie-usine-1", plan.totalPartant.centimes, plan.partiront, "usine");
     expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti"]);
+    // A1 : l'origine est FIGÉE sur chaque génération créée (c'est elle que relisent la garde et la réserve de la chaîne).
+    const generations = await depots().generations.lister();
+    expect(generations.length).toBe(2);
+    for (const g of generations) expect((await lireParametre<{ origine?: string } | null>(`generateur.chaine-options.${g.id}`, null))?.origine).toBe("usine");
   });
 
   it("Studio (sans origine) : la série part sans confirmation, et c'est journalisé", async () => {
     const { serie: s } = await serie.lancerSerie(idees(2), REGLAGES, "serie-studio-1");
     expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti"]);
     expect(JSON.stringify(await depots().evenements.lister())).toMatch(/sans confirmation/);
+    // A1 : sans origine, rien n'est écrit côté Studio.
+    const generations = await depots().generations.lister();
+    expect(generations.length).toBe(2);
+    for (const g of generations) expect((await lireParametre<{ origine?: string } | null>(`generateur.chaine-options.${g.id}`, null))?.origine).toBeUndefined();
   });
 });

@@ -93,6 +93,8 @@ export interface DeclinaisonVideo {
    * confirmé (un ancien `true` ne couvre plus un prix au-delà du seuil).
    */
   prixConfirme?: AccordPrix;
+  /** ARG-ORIGINE-USINE : origine du lancement (« usine »), gardée avec la version pour qu'elle la garde quand elle part après sa mère. Absente : Studio. */
+  origine?: OrigineLancement;
   /** 2e ouverture : rang de l'essai d'accroche (fichier `-A2`) et son ouverture. */
   essaiAccroche?: number;
   accrocheId?: Id;
@@ -705,18 +707,18 @@ export async function lancerVideoDeVersion(videoId: Id, confirme: AccordPrix = f
     return { travailId: (await lancerFabrication(videoId, { confirme, ...(origine ? { origine } : {}) })).travailId };
   } catch (e) {
     if (!(e instanceof ErreurStudio) || !CODES_ATTENTE.includes(e.code)) throw e;
-    return { enAttente: await mettreEnAttenteDeCredit(videoId, e, confirme) };
+    return { enAttente: await mettreEnAttenteDeCredit(videoId, e, confirme, origine) };
   }
 }
 
 /** La vidéo attend du crédit (ou le budget) : brouillon « lancer dès que possible », notification avec la raison. */
-async function mettreEnAttenteDeCredit(videoId: Id, e: ErreurStudio, confirme: AccordPrix): Promise<string> {
+async function mettreEnAttenteDeCredit(videoId: Id, e: ErreurStudio, confirme: AccordPrix, origine?: OrigineLancement): Promise<string> {
   const d = depots();
   const video = await d.videos.obtenir(videoId);
   if (!video) throw e;
   const { fournisseurDeLErreur } = await import("./credits");
   // Correcteur R8 n° 1 : l'accord vient d'être donné, pour le moteur du moment (gardé avec l'attente).
-  const attente = { depuis: video.lancementEnAttente?.depuis ?? maintenant(), fournisseur: e.code === "BUDGET_DEPASSE" ? "budget" : fournisseurDeLErreur(e, "heygen"), confirme, moteurId: await moteurDuFormat(video.formatId) };
+  const attente = { depuis: video.lancementEnAttente?.depuis ?? maintenant(), fournisseur: e.code === "BUDGET_DEPASSE" ? "budget" : fournisseurDeLErreur(e, "heygen"), confirme, moteurId: await moteurDuFormat(video.formatId), ...(origine ? { origine } : {}) };
   await d.videos.modifier(videoId, { lancementEnAttente: attente });
   const raison = raisonAttente(attente)!;
   const v = video.varianteId ? await d.variantes.obtenir(video.varianteId) : null;
@@ -779,7 +781,7 @@ export async function fabriquerLesN(scriptMaitreId: Id, options: { operationId: 
   for (const vid of resultat.videoIds.slice(1)) {
     const v = await d.videos.obtenir(vid);
     const decl = declinaisonDe(v);
-    if (v?.statut === "brouillon" && decl?.attendMere) await d.videos.modifier(vid, { entrees: { ...v.entrees, [CLE]: { ...decl, moteurConfirme: await moteurDuFormat(v.formatId), prixConfirme } } });
+    if (v?.statut === "brouillon" && decl?.attendMere) await d.videos.modifier(vid, { entrees: { ...v.entrees, [CLE]: { ...decl, moteurConfirme: await moteurDuFormat(v.formatId), prixConfirme, ...(options.origine ? { origine: options.origine } : {}) } } });
   }
   const mereVideo = await d.videos.obtenir(resultat.mereVideoId);
   let travailId: Id | undefined;
@@ -884,7 +886,7 @@ async function lancerVariantesEnAttente(mereVideoId: Id): Promise<number> {
     // CORRECTEUR 1 — B6 : l'accord est celui donné par Will sur le total de « Fabriquer les N », gardé avec la version.
     const confirme = decl.prixConfirme ?? !!decl.moteurConfirme;
     try {
-      await lancerFabricationConfirmee(video.id, { confirme, confirmationDifferee: { moteurId: decl.moteurConfirme } });
+      await lancerFabricationConfirmee(video.id, { confirme, confirmationDifferee: { moteurId: decl.moteurConfirme }, ...(decl.origine ? { origine: decl.origine } : {}) });
       await d.videos.modifier(video.id, { entrees: { ...((await d.videos.obtenir(video.id))?.entrees ?? {}), [CLE]: { ...decl, attendMere: false } } });
       n++;
     } catch (e) {
@@ -896,7 +898,7 @@ async function lancerVariantesEnAttente(mereVideoId: Id): Promise<number> {
         const { fournisseurDeLErreur } = await import("./credits");
         const actuelle = (await d.videos.obtenir(video.id)) ?? video;
         await d.videos.modifier(video.id, {
-          lancementEnAttente: { depuis: actuelle.lancementEnAttente?.depuis ?? maintenant(), fournisseur: e.code === "BUDGET_DEPASSE" ? "budget" : fournisseurDeLErreur(e, "heygen"), confirme, ...(decl.moteurConfirme ? { moteurId: decl.moteurConfirme } : {}) },
+          lancementEnAttente: { depuis: actuelle.lancementEnAttente?.depuis ?? maintenant(), fournisseur: e.code === "BUDGET_DEPASSE" ? "budget" : fournisseurDeLErreur(e, "heygen"), confirme, ...(decl.moteurConfirme ? { moteurId: decl.moteurConfirme } : {}), ...(decl.origine ? { origine: decl.origine } : {}) },
           entrees: { ...actuelle.entrees, [CLE]: { ...decl, attendMere: false } },
         });
         await creerNotification({ type: "credit", titre: `${v.code} attend du crédit`, message: `${e.message} Elle partira dès que le crédit le permettra.`, lien: `/ecrire/sujets/${v.scriptMaitreId}`, estDemo: video.estDemo });

@@ -823,7 +823,7 @@ export async function reprendreGenerationsEnAttenteCredit(options: { gesteDeWill
     const a = await lireParametre<Attente | null>(paramAttente(g.id), null);
     if (!a) continue;
     const demande = Math.ceil(a.estimationUsd * 100 * (1 + MARGE_CREDITS));
-    const leve = await empechementLeve(a, ctx, await indicatifDeLEcriture(g.id));
+    const leve = await empechementLeve(a, ctx, await indicatifDeLEcriture(g.id), await origineDeLEcriture(g.id));
     if (!leve) {
       if (a.prete) await ecrireParametre(paramAttente(g.id), { ...a, prete: undefined } satisfies Attente);
       continue;
@@ -858,7 +858,7 @@ async function contexteEmpechement(): Promise<ContexteEmpechement> {
 }
 
 /** L'empêchement d'une écriture en attente a-t-il disparu (recharge, limite du mois, budget, seuil, crédit) ? Sans effet. */
-async function empechementLeve(a: Attente, ctx: ContexteEmpechement, indicatif = false): Promise<boolean> {
+async function empechementLeve(a: Attente, ctx: ContexteEmpechement, indicatif = false, origine?: OrigineLancement): Promise<boolean> {
   const demande = Math.ceil(a.estimationUsd * 100 * (1 + MARGE_CREDITS));
   // Mode indicatif (commande de Will) : la limite du mois, le budget restant et le seuil de confirmation sont des repères ;
   // seul compte le crédit réel (recharge ou compte prêt après un refus de facturation, solde lu chez le fournisseur).
@@ -868,14 +868,19 @@ async function empechementLeve(a: Attente, ctx: ContexteEmpechement, indicatif =
     (indicatif || !(a.motif === "seuil" && (a.lignes[0]?.total.centimes ?? 0) > ctx.budget.seuilConfirmation.centimes)) &&
     (indicatif || ctx.engage.depense + ctx.engage.reserve + demande <= ctx.plafondCentimes) &&
     (indicatif || !(a.lignes[0] && a.lignes[0].total.centimes > ctx.budget.restant.centimes)) &&
-    !(await manquesPour(a.lignes)).manques.length
+    !(await manquesPour(a.lignes, origine)).manques.length
   );
 }
 
 /** Mode indicatif pour CETTE écriture : l'origine figée à son lancement (jamais l'Usine) et le réglage `budget.mode`. */
 async function indicatifDeLEcriture(generationId: Id): Promise<boolean> {
+  return budgetIndicatifPour(await origineDeLEcriture(generationId));
+}
+
+/** L'origine figée au lancement de cette écriture (absente : Studio, inchangé). */
+async function origineDeLEcriture(generationId: Id): Promise<OrigineLancement | undefined> {
   const o = await lireParametre<{ origine?: OrigineLancement } | null>(`generateur.chaine-options.${generationId}`, null);
-  return budgetIndicatifPour(o?.origine);
+  return o?.origine;
 }
 
 const paramRepriseDeWill = (generationId: Id) => `generateur.repriseDeWill.${generationId}`;
@@ -897,7 +902,7 @@ async function repriseDeWill(generationId: Id): Promise<boolean> {
  */
 export async function ecritureDebloquee(generationId: Id): Promise<boolean> {
   const a = await lireParametre<Attente | null>(paramAttente(generationId), null);
-  return !!a && (await empechementLeve(a, await contexteEmpechement(), await indicatifDeLEcriture(generationId)));
+  return !!a && (await empechementLeve(a, await contexteEmpechement(), await indicatifDeLEcriture(generationId), await origineDeLEcriture(generationId)));
 }
 
 /** L'écriture POURRAIT reprendre : elle attend le geste de Will. Une notification, pas plus. */
