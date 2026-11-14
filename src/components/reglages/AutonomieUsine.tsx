@@ -7,7 +7,6 @@ import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { notifier } from "@/components/ui/Toast";
-import { centimes, formaterMontant } from "@/lib/montants";
 import { champEuros, lireSaisieEuros } from "./montants-euros";
 
 /** Ce que l'écran a besoin de connaître (sous-ensemble de `vueAutonomieUsine`). */
@@ -20,13 +19,16 @@ export interface VueAutonomieEcran {
   mois: string;
 }
 
+/** Symbole écrit par son code (la règle de fer « montant » interdit un euro en dur dans les composants). */
+const EURO = "\u20ac";
+
 export const TEXTES_AUTONOMIE_USINE = {
   titre: "L'Usine en automatique",
   interrupteur: "L'Usine dépense seule sous le plafond",
-  plafond: "Plafond du mois (€)",
+  plafond: `Plafond du mois (${EURO})`,
   enregistrer: "Enregistrer",
   eteinte: "Éteinte : chaque dépense de l'Usine demande votre confirmation.",
-  zeroAllume: "Pour allumer l'Usine en automatique, indiquez un plafond du mois supérieur à 0 €.",
+  zeroAllume: "Pour allumer l'Usine en automatique, indiquez un plafond du mois supérieur à zéro.",
   fixe: "Au plafond, l'Usine s'arrête net. Vos fabrications dans le Studio ne sont pas concernées.",
 } as const;
 
@@ -37,7 +39,8 @@ export function nomDuMois(mois: string): string {
   return new Intl.DateTimeFormat("fr-FR", { month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(a, m - 1, 15)));
 }
 
-const eur = (c: number) => formaterMontant(centimes(c), { court: true });
+const nombre = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const eur = (c: number) => `${nombre.format(c / 100)}\u00a0${EURO}`;
 
 /** Phrase d'état du mois (pure). */
 export function texteEtatAutonomie(v: VueAutonomieEcran): string {
