@@ -212,6 +212,37 @@ describe("GV2-38 · fin de fabrication rejouée une seule fois", () => {
     expect(await travaux.rejouerFinsInterrompues()).toEqual([]);
   });
 
+  it("arrêt juste après la dépense de fin (avant la note « depense ») : une dépense, un solde, coût de la vidéo exact", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { travailId, unTour, coutAvant } = await lancer(moteur([LIGNE]), () =>
+      erreurUneFois(depots().travaux, "enregistrer", (a) => (a[0] as { cibleId?: string }).cibleId === "v-04" && !!(a[0] as { finAAppliquer?: { faits: string[] } }).finAAppliquer?.faits.includes("depense")),
+    );
+    let c = await constats(travailId);
+    expect(c.t.finAAppliquer?.faits).toEqual([]);
+    expect(c.deps.filter((x) => x.lignes.some((l) => l.etape === "Finition"))).toHaveLength(1);
+    await unTour();
+    c = await constats(travailId);
+    expect(c.video.statut).toBe("prete");
+    expect(c.t.finAAppliquer).toBeUndefined();
+    expect(c.deps.filter((x) => x.lignes.some((l) => l.etape === "Finition"))).toHaveLength(1);
+    expect(c.reservations.map((r) => r.statut)).toEqual(["consommee"]);
+    expect(c.video.coutReel).toEqual(additionner(coutAvant, ...c.deps.flatMap((x) => x.lignes).map((l) => l.total)));
+  });
+
+  it("arrêt entre la version « prête » et la vidéo : coût de la vidéo exact après rejeu", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { travailId, unTour, coutAvant } = await lancer(moteur([LIGNE]), () => erreurUneFois(depots().videos, "modifier", (a) => a[0] === "v-04" && (a[1] as { statut?: string } | undefined)?.statut === "prete"));
+    let c = await constats(travailId);
+    expect(c.version.statut).toBe("prete");
+    expect(c.video.statut).toBe("en_fabrication");
+    await unTour();
+    c = await constats(travailId);
+    expect(c.video.statut).toBe("prete");
+    expect(c.deps.filter((x) => x.lignes.some((l) => l.etape === "Finition"))).toHaveLength(1);
+    expect(c.reservations.map((r) => r.statut)).toEqual(["consommee"]);
+    expect(c.video.coutReel).toEqual(additionner(coutAvant, ...c.deps.flatMap((x) => x.lignes).map((l) => l.total)));
+  });
+
   it("la note n'alourdit pas ce qui part vers l'écran", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { travailId } = await lancer(moteur([LIGNE]), (versionId) => erreurUneFois(depots().sousTitres, "enregistrer", (a) => (a[0] as { versionId?: string }).versionId === versionId));

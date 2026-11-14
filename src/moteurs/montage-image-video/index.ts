@@ -344,7 +344,7 @@ function suivant(travail: Travail, etat: EtatFabricationIV, maintenant: number):
 export function resultatDe(etat: EtatFabricationIV, maintenant: number): ResultatFabrication {
   const mentions = etat.controles?.verdict?.mentions ?? [];
   // Les mentions de fin de voix sortent en tête, en « attention » ; les autres restent « info ».
-  const finDeVoix = (m: string) => /dernière phrase risque d'être coupée|Voix gardée malgré une remarque|Q19/.test(m);
+  const finDeVoix = (m: string) => /dernière phrase risque d'être coupée|dernière phrase n'est pas dite jusqu'au bout|Voix gardée malgré une remarque|Fin dite en entier/.test(m);
   const alertes: AlerteQualite[] = [...mentions.filter(finDeVoix), ...mentions.filter((m) => !finDeVoix(m))].map((message) => ({ code: "defaut-visuel" as const, gravite: finDeVoix(message) ? ("attention" as const) : ("info" as const), message }));
   const note = Math.max(60, 90 - 3 * mentions.length);
   // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.

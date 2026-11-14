@@ -1265,6 +1265,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // Repli sûr : un bruitage dont le fichier est introuvable est retiré (la vidéo se fabrique sans lui, avec une alerte).
     const sons = blocs2 ? await retirerBruitagesIntrouvables(bruitagesTableau(proprietes, dureeSec), o.montage.lisible) : null;
     const alertesSortie: AlerteQualite[] = [];
+    // Calage approché (chiffres et symboles, GV2-35) : dit sur la sortie livrée, donc au rapport de la vidéo.
+    for (const message of calageS.alertes ?? []) alertesSortie.push({ code: "synchronisation", gravite: "attention", message });
     // TikTok et Shorts sans fin validée, LinkedIn : la vidéo se termine sans appel, et le rapport le dit.
     if (sansAppelAuMot(id) && finRetenue && "absente" in finRetenue) {
       alertesSortie.push({ code: "fin", gravite: "attention", message: finRetenue.absente });

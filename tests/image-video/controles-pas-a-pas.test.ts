@@ -104,4 +104,29 @@ describe("GV2-36 · contrôles pas à pas", () => {
     expect(e.etape).toBe("prete");
     expect(gardees).toBeGreaterThanOrEqual(1);
   });
+
+  it("extraction des images « en cours » : attente, puis relecture faite (jamais « images finales non relues »)", async () => {
+    const carte = carteFixe("C");
+    const ref = await mener(etatInitialIV(demandeEssai(carte)), outilsSimules(carte, monde()));
+    const base = outilsSimules(carte, monde());
+    let restantes = 1;
+    const o: OutilsFabricationIV = {
+      ...base,
+      controles: {
+        ...base.controles,
+        extraireImages: async (d) => {
+          if (restantes > 0) {
+            restantes--;
+            throw new RenduEnCoursIV("L'extraction des images de contrôle");
+          }
+          return base.controles.extraireImages(d);
+        },
+      },
+    };
+    const { e, attentes } = await mener(etatInitialIV(demandeEssai(carte)), o);
+    expect(attentes - ref.attentes).toBe(1);
+    expect(e.controles?.relectures).toEqual(ref.e.controles?.relectures);
+    expect(e.controles?.verdict).toEqual(ref.e.controles?.verdict);
+    expect(e.controles?.verdict?.mentions.join(" ")).not.toMatch(/images finales non relues/);
+  });
 });

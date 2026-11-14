@@ -108,6 +108,17 @@ describe("GV2-37 : chaque segment lu finit par une ponctuation dans le texte env
     expect(preparerTexteVoix(SEGMENTS, PRONONCIATIONS).texte).toBe("Vous recevez un pé vé de cent trente-cinq euros\u00a0? Surtout, ne le payez pas.");
   });
 
+  it("une phrase coupée entre deux segments (suivant en minuscule) ne reçoit pas de point au milieu", () => {
+    const coupee = [
+      { id: "a", texte: "Mais un mail marqué" },
+      { id: "b", texte: "« personnel » est protégé, même sur" },
+      { id: "c", texte: "l'ordinateur du bureau" },
+    ];
+    expect(preparerTexteVoix(coupee, []).texte).toBe("Mais un mail marqué «\u00a0personnel\u00a0» est protégé, même sur l'ordinateur du bureau.");
+    expect(preparerTexteVoixDit(coupee, new Map(coupee.map((s) => [s.id, s.texte]))).texte).toBe(preparerTexteVoix(coupee, []).texte);
+    expect(preparerTexteVoix([{ id: "a", texte: "Une phrase longue," }, { id: "b", texte: "qui continue ici" }], []).texte).toBe("Une phrase longue, qui continue ici.");
+  });
+
   it("preparerTexteVoixDit donne le même texte que preparerTexteVoix", () => {
     const segments = [
       { id: "a", texte: "Bonjour à tous" },
