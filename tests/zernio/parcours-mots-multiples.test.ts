@@ -59,6 +59,8 @@ describe("garde : liste fermée des lecteurs du réglage", () => {
     "src/services/parcours-dossier.ts",
     "src/services/parcours-mot.ts",
     "src/services/branchements-zernio.ts",
+    // R5 : lecture seule, pour dire à l'écran /mots si le réglage est allumé (ne l'écrit ni ne l'ouvre).
+    "src/services/mots-cibles-vue.ts",
   ];
   const parcourir = (d: string): string[] =>
     readdirSync(d).flatMap((n) => {
