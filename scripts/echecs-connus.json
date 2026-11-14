@@ -26,6 +26,16 @@
       "fichier": "tests/image-video/moteur.test.ts",
       "nom": "reprise après erreur, sans repayer 15/10 · fin Facebook hors référence en mesure v2 (v-dd3049053f88, trav-f2b26bba35ac) : fin de secours 19/10 · fin Instagram hors référence (v-6a3b74364711) : fin de secours, puis relecture de la seule fin (b) secours Instagram refusé à son tour → l'écran propose de relire seulement cette fin ; UNE lecture neuve du même texte (essai ≥ 3), vidéo prête si elle est bonne",
       "note": "déjà rouge sur master (écran sans prix, NEW-ARG-04 PR 481 ; le test attend encore « environ N,NN € ») ; fiche de suite chez la session usine"
+    },
+    {
+      "fichier": "tests/e2e-verif1-ef-reessayer-redemarrage.test.ts",
+      "nom": "E2 — redémarrage du serveur en plein travail (montage réel allumé) redémarrage pendant le rendu du double (accepté par HeyGen, pas encore relu) : reprise sans rien repayer, jusqu'au brouillon Buffer",
+      "note": "déjà rouge sur master : le test vise Buffer, mais la PR 440 (L7-06) a fait de Zernio l outil d envoi par défaut ; les assertions d argent (reprise sans repayer) passent ; fiche usine ARG-TESTS-SUITE, à retirer à la correction"
+    },
+    {
+      "fichier": "tests/reseaux/t5-prix-plafond.test.ts",
+      "nom": "T5 · « Fabriquer les N » (moteur avocat, hors T5) : tout en 9:16, prix annoncé = contrôlé annoncé = contrôlé au lancement, réel dans la marge de la simulation (≤ annoncé × 1,1) ; aucune sortie en 4:5, même LinkedIn",
+      "note": "instable sur master (3 rouges sur 45 lancements) : le videoId est aléatoire, le réel simulé varie de x0,94 à x1,118 pour une marge de x1,1 ; prix annoncés identiques ; fiche usine ARG-TESTS-SUITE, à retirer à la correction"
     }
   ]
 }
