@@ -40,7 +40,7 @@ describe("CAL-13b — branchements dans page.tsx", () => {
     }
   });
   it("vue Agenda sur téléphone (860 px et moins), grille sur ordinateur", () => {
-    expect(page).toMatch(/min-\[861px\]:hidden[^]*?<VueAgenda entrees=\{entreesAgenda\}[^>]*criteres=\{criteres\}/);
+    expect(page).toMatch(/min-\[861px\]:hidden[^]*?<VueAgenda entrees=\{entreesSemaine\}[^>]*criteres=\{criteres\}/);
     expect(page).toMatch(/hidden min-\[861px\]:block[^]*?<SemaineAvecApercu[^>]*criteres=\{criteres\}/);
   });
   it("les critères des filtres (réseaux allumés) sont passés à la grille", () => {
