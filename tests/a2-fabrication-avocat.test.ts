@@ -137,10 +137,14 @@ describe("A2 · coût affiché et confirmation : mêmes règles à l'écran et a
     expect(d.genre).not.toBe("budget");
   });
 
-  it("une ligne réellement payée compte toujours : budget dépassé si elle dépasse le restant", async () => {
+  it("une ligne réellement payée compte toujours : studio = repère (la fabrication part) ; Usine = budget dépassé si elle dépasse le restant", async () => {
     await ecrireParametre("budget.mensuel", centimes(10));
     const estimation = { lignes: [{ etape: "Voix", fournisseur: "heygen", unite: "caractere", quantite: 1000, prixUnitaire: centimes(1), total: centimes(50), nature: "estime" }], total: centimes(50) } as never;
-    await expect(verifierBudgetEtCredits(estimation, true, "Cette vidéo")).rejects.toThrow(/budget du mois serait dépassé/i);
+    // Studio (décision du fondateur, 08/11) : le plafond du mois est un repère, le prix ne bloque jamais.
+    await expect(verifierBudgetEtCredits(estimation, true, "Cette vidéo")).resolves.toBeUndefined();
+    // Usine : le plafond du mois reste bloquant.
+    await expect(verifierBudgetEtCredits(estimation, true, "Cette vidéo", { origine: "usine" })).rejects.toMatchObject({ code: "BUDGET_DEPASSE" });
+    await expect(verifierBudgetEtCredits(estimation, true, "Cette vidéo", { origine: "usine" })).rejects.toThrow(/budget du mois serait dépassé/i);
   });
 });
 
