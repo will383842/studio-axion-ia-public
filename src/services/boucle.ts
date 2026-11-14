@@ -41,6 +41,7 @@ import { surveillerCredits } from "./credits";
 import { synchroniserEtatsBuffer } from "./buffer";
 import { synchroniserEtatsZernio } from "./zernio";
 import { diffuserNotifications } from "./notifications";
+import { lancerSousLimite } from "./limite-appels";
 // Facecam lot E : raccords de la chaîne vidéo (agent monteur, Décor IA, relecture), posés au chargement.
 import "./facecam-branchements";
 import "./avocat-branchements";
@@ -127,7 +128,7 @@ export async function lancerAnnexe(nom: string, f: () => Promise<unknown>, atten
   const enVol = annexesEnVol();
   if (enVol.has(nom)) return;
   const p = Promise.resolve()
-    .then(f)
+    .then(() => lancerSousLimite(nom, f))
     .then(
       () => undefined,
       (e: unknown) => console.error(`[studio] ${nom} en échec`, e instanceof Error ? e.name : "erreur"),
@@ -316,6 +317,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   await lancerAnnexe("lots d'images", async () => (await import("./image-video-lot")).avancerLotsIV(), DELAI_ANNEXE_MS);
   // Audit D, B10 : la file des notifications est en base ; un envoi raté est réessayé aux tours suivants.
   await lancerAnnexe("notifications", () => diffuserNotifications(), DELAI_ANNEXE_MS);
+  void lancerAnnexe("surveillance heure H", async () => (await import("./surveillance-heure-h")).surveillerHeureH(), 0);
 }
 
 /** Un tour de boucle (sauté si un autre est en cours). */
