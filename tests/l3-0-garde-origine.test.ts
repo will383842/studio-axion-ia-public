@@ -107,7 +107,15 @@ describe("2. l'origine « usine » est écrite en dur à un seul endroit", () =>
   it("dans credits.ts, `reserverPourUsine` fixe « usine » et l'aiguillage n'y mène que par elle", () => {
     const source = lire(credits_ts);
     expect(corps(source, "export function reserverPourUsine")).toMatch(/verifierEtReserver\([^)]*origine:\s*"usine"/);
-    expect(corps(source, "export function verifierEtReserverSelonOrigine")).toMatch(/origine === "usine" \? reserverPourUsine\(/);
+    const aiguillage = corps(source, "export function verifierEtReserverSelonOrigine");
+    // AUT-F : l'aiguillage n'envoie vers `reserverPourUsine` QUE par l'origine NORMALISÉE (une origine inattendue vaut Usine, jamais Studio).
+    expect(aiguillage).toMatch(/normaliserOrigine\(origine\) === "usine" \? reserverPourUsine\(/);
+    // Jamais de comparaison brute : ni `origine === "usine"` ni `origine !== "usine"` sans normalisation.
+    expect(aiguillage.replace(/normaliserOrigine\(origine\)/g, "")).not.toMatch(/origine\s*[!=]==\s*["']usine["']/);
+    // `depenserSelonOrigine` n'aiguille pas lui-même : il passe par l'aiguillage normalisé.
+    const depense = corps(source, "export async function depenserSelonOrigine");
+    expect(depense).toMatch(/verifierEtReserverSelonOrigine\(/);
+    expect(depense).not.toMatch(/["']usine["']/);
   });
 
   it("`verifierEtReserver` transmet l'origine à la garde `verifierBudgetEtCredits`", () => {
