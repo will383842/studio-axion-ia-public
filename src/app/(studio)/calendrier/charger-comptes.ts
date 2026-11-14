@@ -1,11 +1,11 @@
 import "server-only";
 import type { IdReseau } from "@/domaine/types";
+import { compteCibleValide } from "./compte-cible";
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
+import { pageInterdite } from "@/fournisseurs/publication/zernio-pages-interdites";
 import { canauxZernioEnregistres } from "@/services/comptes-envoi-zernio";
 
 const COMPTE_PAR_DEFAUT = "compte-studio";
-/** Même forme que celle exigée par l'action d'ajout : un identifiant qui n'y entre pas n'est jamais proposé. */
-const FORME_COMPTE = /^[A-Za-z0-9:_.-]{1,80}$/;
 
 /**
  * Compte cible de chaque réseau pour un ajout manuel. Lecture seule : les comptes gardés au dernier « Tester » (aucun appel fournisseur).
@@ -20,8 +20,8 @@ export async function comptesCibles(reseaux: IdReseau[]): Promise<Partial<Record
     for (const r of reseaux) {
       try {
         const plateforme = plateformeZernio(r);
-        const dispo = canaux.filter((c) => c.service === plateforme && !c.deconnecte);
-        if (dispo.length === 1 && FORME_COMPTE.test(dispo[0].id)) resultat[r] = dispo[0].id;
+        const dispo = canaux.filter((c) => c.service === plateforme && !c.deconnecte && !(c.service === "facebook" && pageInterdite(c.id.includes(":fb:") ? c.id.split(":fb:")[1] : undefined, c.nom)));
+        if (dispo.length === 1 && compteCibleValide(dispo[0].id)) resultat[r] = dispo[0].id;
       } catch {
         // Réseau que Zernio ne porte pas : valeur par défaut.
       }
