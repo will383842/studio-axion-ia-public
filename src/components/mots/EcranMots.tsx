@@ -54,7 +54,14 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["pub-commentaire", "Réponse publique au commentaire"],
 ];
 /** Groupes proposés (série 6) : à relire et valider, mais aucun envoi n'est encore branché dessus. */
-const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore", "deja-envoye", "pub-commentaire", "lien-rappel"]);
+const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["pub-commentaire"]);
+/** Groupes branchés sur Instagram (PR 467), mais tant que le réglage Instagram est éteint rien ne part. */
+const GROUPES_INSTAGRAM_ETEINTS: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore"]);
+/** Groupes du renvoi du mode « plusieurs mots » (tous réseaux) : libellé propre à chacun. */
+const LIBELLES_RENVOI: Readonly<Record<string, string>> = {
+  "deja-envoye": "Branché sur le renvoi du mode plusieurs mots : rien ne part tant que ce réglage est éteint.",
+  "lien-rappel": "Branché : renvoi du mode plusieurs mots (tous réseaux) et rappel Instagram ; rien ne part tant que ces réglages sont éteints.",
+};
 
 /**
  * Écran « Mots » : liste, état, pause / réactivation, plafonds. Peu de texte. Tout est éteint par défaut : tant que
@@ -139,6 +146,8 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
             <div key={groupe} className="mt-3" data-groupe={groupe}>
               <h4 className="text-sm font-semibold text-texte">{titre}</h4>
               {GROUPES_PAS_ENCORE_BRANCHES.has(groupe) && <p className="mt-1 text-sm text-texte-doux">Ce groupe n’est pas encore branché : ces formulations sont des propositions, rien n’est envoyé avec.</p>}
+              {GROUPES_INSTAGRAM_ETEINTS.has(groupe) && <p className="mt-1 text-sm text-texte-doux">Branché sur Instagram, mais éteint : ces textes partiront seulement quand le réglage Instagram sera allumé.</p>}
+              {LIBELLES_RENVOI[groupe] && <p className="mt-1 text-sm text-texte-doux">{LIBELLES_RENVOI[groupe]}</p>}
               <ul className="mt-2 flex flex-col gap-3">
                 {(vue.formulations ?? []).filter((f) => f.groupe === groupe).map((f) => (
                   <li key={f.version} className="flex flex-col gap-2" data-formulation={f.version}>
