@@ -84,8 +84,39 @@ describe.each([["mot unique", false], ["plusieurs mots", true]])("premier messag
     await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(AUTEUR)]: graineConv("nouveau", { idCommentaire: "com-tardif" }) });
     const id = await deposerCommentaire(depots, { reseau: "facebook", ageMs: 8 * J, idCommentaire: "com-tardif" });
     await passer(T0);
-    expect((await evenement(depots, id)).charge).toMatchObject({ etat: "perime" });
+    const ev = await evenement(depots, id);
+    expect(ev.traite).toBe(true);
+    expect(ev.charge).toMatchObject({ etat: "perime", dernierCode: "perime" });
+    expect(banc.port.pub).toHaveLength(0);
+    expect(banc.port.prive).toHaveLength(0);
     expect(envoisSortants()).toBe(0);
     expect(await etatsApres()).toEqual(["expire"]);
+  });
+
+  it("conversation passée en m1_en_vol entre la lecture et l'écriture (garde + 8 jours) : non écrasée", async () => {
+    await bloquer();
+    await semer();
+    const cle = cleConversation(AUTEUR);
+    const p = depots().parametres;
+    const obtenir = p.obtenir.bind(p);
+    let fait = false;
+    let derniere: { valeur?: unknown } | null = null;
+    // `lireTout` lit les conversations puis les alias, hors verrou : on change l'état juste entre cette lecture et l'écriture qui suit.
+    vi.spyOn(p, "obtenir").mockImplementation(async (id: string) => {
+      const r = await obtenir(id);
+      if (id === C.PARAM_CONVERSATIONS) {
+        derniere = r as { valeur?: unknown } | null;
+      } else if (id === "parcours.conversations.alias" && !fait && derniere && (derniere.valeur as Record<string, { etat: string }>)[cle]?.etat === "pub_ok") {
+        fait = true;
+        const m = derniere.valeur as Record<string, Record<string, unknown>>;
+        const actuel = await obtenir(C.PARAM_CONVERSATIONS);
+        await p.enregistrer({ ...actuel!, valeur: { ...m, [cle]: { ...m[cle], etat: "m1_en_vol" } } });
+      }
+      return r;
+    });
+    await deposerCommentaire(depots, { reseau: "facebook", ageMs: 8 * J, idCommentaire: "com-tardif" });
+    await passer(T0);
+    expect(fait).toBe(true);
+    expect(await etatsApres()).toEqual(["m1_en_vol"]);
   });
 });
