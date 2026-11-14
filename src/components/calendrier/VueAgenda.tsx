@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { plageSemaine } from "@/lib/calendrier-plages";
+import { adresseVueJour, plageSemaine } from "@/lib/calendrier-plages";
 import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regroupement";
 import { ApercuPublication } from "./ApercuPublication";
 import { libelleJour } from "./BarreVue";
@@ -29,6 +29,8 @@ export interface ProprietesVueAgenda {
   onChangerDate?: (jour: string, entree: EntreeApercu) => void;
   /** Adresse de la vue Jour d'un jour (AAAA-MM-JJ). Fournie : le titre du jour devient un lien. Absente : simple titre. */
   lienJour?: (jour: string) => string;
+  /** Version sérialisable de lienJour (une chaîne, pas une fonction) : seule utilisable depuis une page serveur. Ajoutée à /calendrier?vue=jour&date=… */
+  suiteJour?: string;
   className?: string;
 }
 
@@ -47,7 +49,7 @@ export const LIBELLES_AGENDA: TableLibelles = LIBELLES_ENVOI;
 const CARTE = "min-h-[38px] break-words";
 
 /** La semaine en liste, jour par jour. */
-export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerDate, lienJour, className }: ProprietesVueAgenda): ReactNode {
+export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerDate, lienJour, suiteJour, className }: ProprietesVueAgenda): ReactNode {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const aujourdhuiRef = useRef<HTMLElement | null>(null);
@@ -103,8 +105,8 @@ export function VueAgenda({ entrees, semaineDu, aujourdhui, criteres, onChangerD
               className={cn("min-w-0 scroll-mt-2 rounded-xl border bg-surface-1 p-2", estAujourdhui ? "border-accent bg-surface-2" : "border-trait")}
             >
               <h3 id={`agenda-${jour}`} className={cn("mb-2 break-words text-sm font-bold capitalize", estAujourdhui ? "text-accent" : "text-texte-doux")}>
-                {lienJour ? (
-                  <Link href={lienJour(jour)} aria-label={`Ouvrir la journée du ${libelleJour(jour)}`} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
+                {lienJour || suiteJour !== undefined ? (
+                  <Link href={lienJour ? lienJour(jour) : adresseVueJour(jour, suiteJour)} aria-label={`Ouvrir la journée du ${libelleJour(jour)}`} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
                     {libelleJour(jour)}
                     {estAujourdhui && <span className="font-semibold normal-case">&nbsp;· aujourd&apos;hui</span>}
                   </Link>

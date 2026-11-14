@@ -200,7 +200,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
 
       {/* Mobile (860 px et moins) : mode Agenda, la semaine en liste jour par jour (CAL-12b) ; un appui ouvre le tiroir. */}
       <div className="min-[861px]:hidden">
-        <VueAgenda entrees={entreesSemaine} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} lienJour={(j) => adresseVueJour(j, suite)} />
+        <VueAgenda entrees={entreesSemaine} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} suiteJour={suite} />
       </div>
       {/* « Libre » seulement quand rien n'est listé, essais compris (E2E-1 n° 16). Sur téléphone l'Agenda le dit déjà jour par jour : ordinateur seulement. */}
       {semaine.length === 0 && !jours.some((j) => cleJour(j) === aujourdhui) && (
