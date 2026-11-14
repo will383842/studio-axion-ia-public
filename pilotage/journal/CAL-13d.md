@@ -1,0 +1,13 @@
+# CAL-13d : Filtres et « Prêt à partir ? » branchés dans le calendrier
+- Fait : « Filtrer » ouvre les vraies cases (types, états, mot cherché). Les critères vivent dans l'adresse (`?types=…&etats=…&q=…`, en plus de `?reseaux=`). `page.tsx` les lit côté serveur (valeurs inconnues ignorées, mot borné à 100 signes) et les passe à la grille, à l'Agenda, au compteur, à la vue mois (cartes et compteur) et à la vue Jour. Le panneau « À faire » garde tout. YouTube sans filtre et l'état « filtre-vide » sont inchangés.
+- Pont client : `FiltresCalendrier.tsx` relie `onChanger` à la navigation (vue, date et réseaux gardés dans `base`). Les cases agissent aussitôt, le mot cherché après 400 ms de pause. Hors application (rendu de test), la navigation se fait par l'adresse.
+- Six commandes au plus : « Filtrer » reste la même commande ; « Mes textes » et « Afficher tous les réseaux » passent dans son panneau, « Effacer les filtres (N) » aussi (option `effacerDansLePanneau`). Les flèches, « Aujourd'hui », Semaine/Mois et les réseaux gardent maintenant les filtres.
+- Prêt à partir ? : montré dans le tiroir d'une publication, construit depuis l'entrée (réseau, texte, hashtags du texte, date, type, premier commentaire s'il existe) avec `controlerPretAPartir`, sans `mots`. Le fichier, le premier commentaire inconnu et le mot (réseaux à réponse automatique) disent « à vérifier à la main » (nouvelle option `averifier`) : rien n'est inventé. Lecture seule, aucun appel serveur.
+- Choix tranché : en vue mois et vue Jour, seuls types, états et mot filtrent ; le filtre des réseaux garde son comportement actuel dans ces vues. Le mot cherché porte sur le titre de la vidéo (mois) ou le début du texte (jour), comme en semaine sur le titre.
+- Test : `tests/calendrier/cal-13d-filtres-pret-a-partir.test.tsx` (rendu de la page avec filtres dans l'adresse, pont, tiroir). Test modifié : `cal-13b-branchement` (la ligne `criteres` lue dans le source contient maintenant les filtres de l'adresse).
+- Reste (non branché, volontairement) :
+  - ApercuMedia : liens de lecture signés et pages de carrousel absents des données de la page.
+  - DecalerEntree : créneaux du plan (`CreneauPlan`) absents ; le glisser de la grille couvre le report.
+  - AjouterEntree : compte cible et action serveur de proposition absents ; « + Ajouter » mène à la vue Jour.
+  - Prêt à partir ? : média décrit et premier commentaire (publications Buffer) ne sont pas dans les données de la page ; ils restent « à vérifier ».
+- Rendu non vérifié dans un navigateur.

@@ -8,6 +8,10 @@ import { BandeauAujourdhui } from "@/components/calendrier/BandeauAujourdhui";
 import { VueAgenda } from "@/components/calendrier/VueAgenda";
 import { VueVide } from "@/components/calendrier/VueVide";
 import { SemaineAvecApercu } from "@/components/calendrier/ApercuPublication";
+import { suiteFiltres } from "@/components/calendrier/Filtres";
+import { LIBELLES_ENVOI } from "@/components/calendrier/apercu-reseau";
+import { TYPES_CONTENU, type TypeContenu } from "@/components/calendrier/CarteEntreeCalendrier";
+import { ETATS_CALENDRIER } from "@/components/calendrier/PastilleStatutPlan";
 import { RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
 import { libellePeriode } from "@/components/calendrier/BarreVue";
 import { EnTeteCalendrier } from "@/components/calendrier/EnTeteCalendrier";
@@ -48,14 +52,29 @@ function lireReseaux(brut: string | string[] | undefined): IdReseau[] {
   return RESEAUX_CALENDRIER.filter((r) => demandes.has(r));
 }
 
+const TYPES_CONNUS = Object.keys(TYPES_CONTENU) as TypeContenu[];
+const ETATS_CONNUS: readonly string[] = [...ETATS_CALENDRIER, ...Object.keys(LIBELLES_ENVOI)];
+const MOT_MAX = 100;
+
+type Brut = string | string[] | undefined;
+const liste = (brut: Brut) => (brut === undefined ? [] : (Array.isArray(brut) ? brut.join(",") : brut).split(",").map((v) => v.trim()));
+
+/** Filtres d'après ?types=a,b&etats=a,b&q=mot : valeurs inconnues ignorées, ordre de la maquette, mot borné. Sans réseaux (voir `lireReseaux`). */
+function lireFiltres(p: { types?: Brut; etats?: Brut; q?: Brut }): CriteresFiltre {
+  const types = new Set(liste(p.types));
+  const etats = new Set(liste(p.etats));
+  const q = (Array.isArray(p.q) ? p.q[0] : p.q) ?? "";
+  return { types: TYPES_CONNUS.filter((t) => types.has(t)), etats: ETATS_CONNUS.filter((e) => etats.has(e)), motCle: q.trim().slice(0, MOT_MAX) };
+}
+
 /** « &reseaux=… » à ajouter aux adresses quand un filtre est actif ; rien si les quatre réseaux sont allumés. */
 function suiteReseaux(actifs: readonly IdReseau[]): string {
   return actifs.length === RESEAUX_CALENDRIER.length ? "" : `&reseaux=${actifs.join(",")}`;
 }
 
 /** Ajoute le filtre des réseaux à une adresse du calendrier (rien si les quatre sont allumés). */
-function avecReseaux(base: string, actifs: readonly IdReseau[]): string {
-  const suite = suiteReseaux(actifs);
+function avecReseaux(base: string, actifs: readonly IdReseau[], filtres = ""): string {
+  const suite = suiteReseaux(actifs) + filtres;
   return !suite ? base : base.includes("?") ? `${base}${suite}` : `${base}?${suite.slice(1)}`;
 }
 
@@ -73,21 +92,24 @@ function moisVoisin(mois: string, delta: number): string {
  * 7 colonnes au-delà, « À programmer » en bas.
  * Les publications « simulation » ne sont JAMAIS montrées comme programmées (pastille Essai).
  */
-export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string; reseaux?: string }> }) {
+export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string; reseaux?: string; types?: Brut; etats?: Brut; q?: Brut }> }) {
   await exigerSession();
   const params = await searchParams;
   const dateDemandee = lireDate(params.date);
   const reseauxActifs = lireReseaux(params.reseaux);
-  const suite = suiteReseaux(reseauxActifs);
+  const filtres = lireFiltres(params);
+  const suiteF = suiteFiltres(filtres);
+  // Les adresses gardent réseaux ET filtres ; `base` = la vue sans filtres (le pont y ajoute types, états, mot).
+  const suite = suiteReseaux(reseauxActifs) + suiteF;
   if (params.vue === "jour") {
     const jour = dateDemandee ?? cleJour(new Date());
     // Journée de Paris, de minuit à minuit (23 h ou 25 h le jour d'un changement d'heure).
     const finIso = new Date(new Date(instantParis(ajouterJoursParis(jour, 1), "00:00")).getTime() - 1).toISOString();
-    return <PageJour jour={jour} reseauxActifs={reseauxActifs} calendrier={await listerCalendrier(instantParis(jour, "00:00"), finIso)} />;
+    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={await listerCalendrier(instantParis(jour, "00:00"), finIso)} />;
   }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
-    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} reseauxActifs={reseauxActifs} />;
+    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} reseauxActifs={reseauxActifs} filtres={filtres} />;
   }
   const aujourdhuiCle = cleJour(new Date());
   const decalageDemande = Math.max(-52, Math.min(52, Number.parseInt(params.semaine ?? "0", 10) || 0));
@@ -97,7 +119,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const lundiCle = plage.jours[0];
   const decalage = Math.round((Date.parse(`${lundiCle}T12:00:00Z`) - Date.parse(`${plageSemaine(aujourdhuiCle).jours[0]}T12:00:00Z`)) / (7 * 86_400_000));
   // Avec ?date=, la navigation reste portée par ?date= (pas de saut si la date dépasse ±52 semaines).
-  const lienSemaine = (delta: number) => (dateDemandee ? `/calendrier?vue=semaine&date=${ajouterJoursParis(lundiCle, delta * 7)}` : `/calendrier?semaine=${decalageDemande + delta}`);
+  const lienSemaine = (delta: number) => avecReseaux(dateDemandee ? `/calendrier?vue=semaine&date=${ajouterJoursParis(lundiCle, delta * 7)}` : `/calendrier?semaine=${decalageDemande + delta}`, reseauxActifs, suiteF);
   const jours = plage.jours.map((j) => new Date(`${j}T12:00:00Z`));
   const [calendrier, aProgrammer] = await Promise.all([listerCalendrier(plage.debutIso, plage.finIso), listerAProgrammer()]);
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
@@ -115,7 +137,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
   const entreesSemaine = semaine.map(entreeDepuisPublication);
   // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
-  const criteres: CriteresFiltre = { reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs, types: [], etats: [] };
+  const criteres: CriteresFiltre = { ...filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs };
   const visibles = filtrerEntrees(entreesSemaine, criteres);
   // Les essais (rien n'a été envoyé) ne comptent pas comme des publications, ni pour le bandeau, ni pour l'alerte.
   const visiblesReelles = visibles.filter((e) => e.etat !== "essai");
@@ -123,6 +145,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const essais = visibles.length - total;
   const semainePassee = plage.jours[6] < aujourdhui;
   const lienAujourdhui = `/calendrier${suite ? `?${suite.slice(1)}` : ""}`;
+  const baseSemaine = avecReseaux(adresseSemaine, reseauxActifs);
   const libelleSemaine = decalage === 0 ? "Cette semaine" : decalage === 1 ? "Semaine prochaine" : decalage === -1 ? "Semaine dernière" : `${moisAnnee.format(jours[0])} – ${moisAnnee.format(jours[6])}`;
 
   return (
@@ -133,8 +156,9 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         vue="semaine"
         periode={libelleSemaine}
         reseauxActifs={reseauxActifs}
-        lienReseau={(r) => avecReseaux(adresseSemaine, basculerReseau(reseauxActifs, r))}
-        lienTout={adresseSemaine}
+        lienReseau={(r) => avecReseaux(adresseSemaine, basculerReseau(reseauxActifs, r), suiteF)}
+        lienTout={avecReseaux(adresseSemaine, [...RESEAUX_CALENDRIER], suiteF)}
+        filtres={{ criteres: filtres, base: baseSemaine }}
         lienAjouter={lienAjouter()}
         liens={{
           precedent: lienSemaine(-1),
@@ -178,18 +202,22 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
  * Vue du jour (CAL-02) : heure par heure, publications de tous les réseaux, créneaux libres.
  * Le jour est celui de Paris.
  */
-function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxActifs: IdReseau[]; calendrier: JourCalendrier[] }) {
+function PageJour({ jour, reseauxActifs, filtres, calendrier }: { jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[] }) {
   const aujourdhui = cleJour(new Date());
   // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
-  const entrees = calendrier
-    .flatMap((j) => j.publications)
-    .filter((p) => cleJour(p.date) === jour)
-    .map((p) => {
-      const e = entreeDepuisPublication(p);
-      return { ...e, titre: debutDeTexte(p.texte) || e.titre };
-    });
+  const entrees = filtrerEntrees(
+    calendrier
+      .flatMap((j) => j.publications)
+      .filter((p) => cleJour(p.date) === jour)
+      .map((p) => {
+        const e = entreeDepuisPublication(p);
+        return { ...e, titre: debutDeTexte(p.texte) || e.titre };
+      }),
+    filtres,
+  );
+  const suiteF = suiteFiltres(filtres);
   const liens = new Map(entrees.map((e) => [e.cle, e.lienSource]));
-  const adresse = (vue: "jour" | "semaine" | "mois", date: string, actifs: readonly IdReseau[] = reseauxActifs) => `/calendrier?vue=${vue}&date=${date}${suiteReseaux(actifs)}`;
+  const adresse = (vue: "jour" | "semaine" | "mois", date: string, actifs: readonly IdReseau[] = reseauxActifs) => `/calendrier?vue=${vue}&date=${date}${suiteReseaux(actifs)}${suiteF}`;
   return (
     <div>
       <EnTetePage titre="Calendrier" />
@@ -200,6 +228,7 @@ function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxAc
         lienReseau={(r) => adresse("jour", jour, basculerReseau(reseauxActifs, r))}
         lienTout={adresse("jour", jour, [...RESEAUX_CALENDRIER])}
         lienAjouter={lienAjouter()}
+        filtres={{ criteres: filtres, base: `/calendrier?vue=jour&date=${jour}${suiteReseaux(reseauxActifs)}` }}
         liens={{ precedent: adresse("jour", ajouterJoursParis(jour, -1)), suivant: adresse("jour", ajouterJoursParis(jour, 1)), aujourdhui: adresse("jour", aujourdhui), semaine: adresse("semaine", jour), mois: adresse("mois", jour) }}
       />
       <Link href={adresse("semaine", jour)} className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-texte-doux underline underline-offset-4">
@@ -211,16 +240,18 @@ function PageJour({ jour, reseauxActifs, calendrier }: { jour: string; reseauxAc
 }
 
 /** Vue mois : grille de 6 semaines (lundi d'abord), jours hors mois estompés. */
-function VueMois({ plage, repere, calendrier, suite, reseauxActifs }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string; reseauxActifs: IdReseau[] }) {
+function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre }) {
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
   const aujourdhui = cleJour(new Date());
-  const total = plage.jours.filter((j) => j.startsWith(plage.mois)).flatMap((j) => parJour.get(j) ?? []).filter((p) => p.via !== "simulation").length;
-  const toutes = plage.jours.flatMap((j) => parJour.get(j) ?? []);
-  const essais = toutes.filter((p) => p.via === "simulation").length;
-  // Une entrée par publication réelle, rangée sous la clé du jour déjà calculée (jour de Paris) ; les essais restent à part.
-  const entrees: EntreeCarte[] = plage.jours.flatMap((j) =>
-    (parJour.get(j) ?? []).filter((p) => p.via !== "simulation").map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatAffiche(p) })),
+  // Une entrée par publication, rangée sous la clé du jour déjà calculée (jour de Paris), puis passée aux filtres (types, états, mot).
+  // Les essais restent à part : ce ne sont pas des publications.
+  const toutes: (EntreeCarte & { essai: boolean })[] = plage.jours.flatMap((j) =>
+    (parJour.get(j) ?? []).map((p, i) => ({ cle: `publication:${p.id ?? `${j}-${i}`}|${p.reseau}`, jour: j, reseau: p.reseau as IdReseau, type: p.videoId ? ("video" as const) : ("image" as const), etat: etatAffiche(p), titre: p.video?.titre, essai: p.via === "simulation" })),
   );
+  const gardees = filtrerEntrees(toutes, filtres);
+  const entrees: EntreeCarte[] = gardees.filter((e) => !e.essai);
+  const total = entrees.filter((e) => e.jour.startsWith(plage.mois)).length;
+  const essais = gardees.length - entrees.length;
   const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}${suite}`;
   return (
     <div>
@@ -229,8 +260,9 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs }: { plage: R
         vue="mois"
         periode={libellePeriode("mois", plage.mois)}
         reseauxActifs={reseauxActifs}
-        lienReseau={(r) => `/calendrier?vue=mois&date=${plage.mois}${suiteReseaux(basculerReseau(reseauxActifs, r))}`}
-        lienTout={`/calendrier?vue=mois&date=${plage.mois}`}
+        lienReseau={(r) => `/calendrier?vue=mois&date=${plage.mois}${suiteReseaux(basculerReseau(reseauxActifs, r))}${suiteFiltres(filtres)}`}
+        lienTout={`/calendrier?vue=mois&date=${plage.mois}${suiteFiltres(filtres)}`}
+        filtres={{ criteres: filtres, base: `/calendrier?vue=mois&date=${plage.mois}${suiteReseaux(reseauxActifs)}` }}
         lienAjouter={lienAjouter()}
         liens={{
           precedent: lienMois(-1),
