@@ -18,6 +18,14 @@ import { SUJETS_BANC } from "../generateur/banc/registre-banc-g4";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
+// Déterminisme : l'identifiant d'une vidéo entre dans le « réel » simulé (hache(étape + videoId), ×0,90 à ×1,09 par
+// ligne). Des identifiants aléatoires faisaient varier le résultat d'une exécution à l'autre : suite fixe, remise à
+// zéro avant chaque essai. Aucun seuil ni plafond n'est modifié.
+const SUITE_IDS = vi.hoisted(() => ({ n: 0 }));
+vi.mock("@/lib/ids", async (orig) => ({
+  ...(await orig<typeof import("@/lib/ids")>()),
+  nouvelId: (prefixe: string) => `${prefixe}-t5${String(++SUITE_IDS.n).padStart(9, "0")}`,
+}));
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
@@ -45,6 +53,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  SUITE_IDS.n = 0;
   reinitialiserDepots();
   reinitialiserRequete();
   bg.suspendreBoucleGeneration(true);
@@ -231,8 +240,11 @@ describe("T5 · « Fabriquer les N » (moteur avocat, hors T5) : tout en 9:16, p
       expect(v.ratios, v.titre).toEqual(["9:16"]);
     }
     vi.useFakeTimers({ toFake: ["Date"] });
+    // Horloge fixe (plus de Date.now réel) : 5 s de plus à chaque tour.
+    let horloge = T0;
     for (let i = 0; i < 400; i++) {
-      vi.setSystemTime(Date.now() + 5_000);
+      horloge += 5_000;
+      vi.setSystemTime(horloge);
       await boucle.tourDeBoucle();
       const vids = await Promise.all(res.videoIds.map((x) => depots().videos.obtenir(x)));
       if (vids.every((x) => x?.statut === "prete")) break;
