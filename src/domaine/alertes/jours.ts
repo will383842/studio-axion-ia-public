@@ -1,13 +1,10 @@
 /**
  * RC-14 : calcul de jours (Paris), pur. Aucune horloge ici : l'instant est toujours fourni par l'appelant.
  */
-const JOUR_MS = 86_400_000;
-const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" });
+import { JOUR_MS, cleJour } from "@/lib/dates";
 
-/** Jour de Paris (AAAA-MM-JJ) d'un instant. */
-export function jourParis(d: Date): string {
-  return FORMAT_PARIS.format(d);
-}
+/** Jour de Paris (AAAA-MM-JJ) d'un instant : règle unique de `@/lib/dates`. */
+export const jourParis = cleJour;
 function numeroJour(jour: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(jour);
   if (!m) return null;
