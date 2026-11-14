@@ -83,6 +83,10 @@ describe("GV2-44 · pourcentages", () => {
   it("une virgule décimale reste une virgule décimale (« 2,5 heures » n'est pas 25 heures)", () => {
     expect(carte40("Cela prend 2,5 heures chaque semaine pour tout vérifier à la main.")?.donnees).toMatchObject({ valeur: 2.5, unite: "h" });
   });
+
+  it("un point de milliers reste un point de milliers (« 1.500 euros » n'est pas 1,5 €)", () => {
+    expect(carte40("Ce logiciel coûte 1.500 euros par an, sans engagement pour votre entreprise.")?.donnees).toMatchObject({ valeur: 1500, decimales: 0, unite: "€" });
+  });
 });
 
 describe("GV2-44 · pas de carte fausse", () => {

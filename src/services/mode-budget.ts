@@ -1,8 +1,8 @@
 /**
- * MODE DU BUDGET : un seul interrupteur, `budget.mode` = "indicatif" | "bloquant" (décision de Will, 23/10).
+ * MODE DU BUDGET : un seul interrupteur, `budget.mode` = "indicatif" | "bloquant" (décision du fondateur, 23/10).
  *  - « indicatif » : les montants (plafond du mois, seuil de confirmation, plafonds par vidéo, solde deviné de fal.ai) sont
- *    des REPÈRES. Au-delà, le studio journalise et prévient Will (cloche, une fois par jour et par motif), puis continue.
- *    Sur les chemins Claude et le lot d'images, plus aucun arrêt de sécurité ; ailleurs, un arrêt à 5 × le prix annoncé subsiste encore.
+ *    des REPÈRES. Au-delà, le studio journalise et prévient le fondateur (cloche, une fois par jour et par motif), puis continue.
+ *    Plus aucun arrêt pour un prix (NEW-ARG-04) : ni à 5 × le prix annoncé, ni ailleurs. Seuls les garde-fous en nombre d'appels restent.
  *  - « bloquant » : comportement d'avant, tous les seuils refusent. Retour en arrière : réglage `budget.mode` = "bloquant".
  * Ce qui reste dur dans les DEUX modes : les gardes de l'Usine, le solde réel HeyGen / ElevenLabs, les
  * plafonds anti-boucle (retouches, lectures de voix) et l'idempotence des réservations.
@@ -19,10 +19,13 @@ import { depots, ecrireParametre, journaliser, lireParametre } from "./_commun";
 export type ModeBudget = "indicatif" | "bloquant";
 export const CLE_MODE_BUDGET = "budget.mode";
 
-/** Multiple du prix annoncé au-delà duquel une vidéo (ou un sujet) s'arrête, même en mode indicatif. */
+/**
+ * OBSOLÈTE (NEW-ARG-04) : plus aucun arrêt ne repose sur ce multiple du prix. Valeur conservée UNIQUEMENT parce que des fichiers
+ * hors de cette fiche l'importent encore (generation-claude, image-video, cas-concret-branchements) : à retirer avec eux.
+ */
 export const FACTEUR_SECURITE_BUDGET = 5;
 
-/** Décision de Williams (08/11/2026) : le budget est inopérant. Le mode « bloquant » n'existe plus : ni réglage, ni variable ne le rétablit. */
+/** Décision du fondateur (08/11/2026) : le budget est inopérant. Le mode « bloquant » n'existe plus : ni réglage, ni variable ne le rétablit. */
 export async function modeBudget(): Promise<ModeBudget> {
   return "indicatif";
 }
@@ -42,7 +45,7 @@ export async function origineDeLaVideo(videoId: string): Promise<"studio" | "usi
     const derniere = versions.sort((a, b) => b.numero - a.numero)[0];
     return derniere?.commande?.origine === "usine" ? "usine" : "studio";
   } catch {
-    // Échec fermé : une origine illisible est traitée comme l'Usine (bloquante), jamais comme une commande de Will.
+    // Échec fermé : une origine illisible est traitée comme l'Usine (bloquante), jamais comme une commande du fondateur.
     return "usine";
   }
 }
@@ -71,13 +74,13 @@ export async function budgetIndicatif(): Promise<boolean> {
   return (await modeBudget()) === "indicatif";
 }
 
-/** Phrase de l'arrêt de sécurité (5 × le prix annoncé) ; `prixAnnonce` : le prix annoncé déjà écrit en euros, s'il est connu. */
-export function messageArretSecurite(prixAnnonce?: string): string {
-  return `Arrêt de sécurité : cette fabrication dépasserait 5 fois le prix annoncé${prixAnnonce ? ` (${prixAnnonce})` : ""}, rien de plus n'est payé.`;
+/** Phrase de l'arrêt de sécurité en NOMBRE D'APPELS : elle ne cite aucun prix (le paramètre est ignoré, gardé pour les appelants). */
+export function messageArretSecurite(_prixAnnonce?: string): string {
+  return "Arrêt de sécurité : trop d'appels répétés pour cette fabrication, rien de plus n'est lancé.";
 }
 /** Phrase d'un dépassement du budget indicatif : la fabrication continue. */
 export function messageAuDelaDuBudgetIndicatif(prixAnnonce?: string): string {
-  return `Au-delà du budget indicatif${prixAnnonce ? ` (${prixAnnonce})` : ""} : la fabrication continue, arrêt de sécurité à ${FACTEUR_SECURITE_BUDGET} fois le prix annoncé.`;
+  return `Au-delà du budget indicatif${prixAnnonce ? ` (${prixAnnonce})` : ""} : la fabrication continue.`;
 }
 /** Chemins Claude (textes, face caméra, écriture) : le prix ne bloque jamais, plus aucun arrêt de sécurité n'existe. */
 export function messageAuDelaDuBudgetIndicatifClaude(prixAnnonce?: string): string {

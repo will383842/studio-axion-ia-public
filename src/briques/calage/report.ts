@@ -75,7 +75,9 @@ export function motsValidesDe(segments: SegmentTexte[]): MotValide[] {
  * ajouté ici. Les heures ne changent pas : `normaliser` retire la ponctuation.
  */
 function ponctuerFinsDeSegments(segments: SegmentTexte[], motsValides: MotValide[], motsPrononces: string[], groupes: Groupe[]): void {
-  for (const s of segments) {
+  for (const [k, s] of segments.entries()) {
+    // Phrase coupée entre deux segments (ligne de PDF, phrase longue coupée) : le segment suivant commence par une minuscule, pas de point.
+    if (k + 1 < segments.length && /^[\s«“"(\[]*\p{Ll}/u.test(segments[k + 1].texte)) continue;
     let dernier = -1;
     for (const m of motsValides) if (m.segmentId === s.id) dernier = m.index;
     if (dernier < 0) continue;
