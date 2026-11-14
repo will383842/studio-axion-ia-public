@@ -29,10 +29,20 @@ export interface EntreeApercu extends EntreeFiche {
   campagne?: string;
   /** Lien vers la vidéo d'origine (ouvre sa page ; ne publie rien). */
   lienSource?: string;
+  /** Nom du compte visé (deux LinkedIn, deux Facebook) ; absent : aucune ligne. */
+  canalNom?: string;
 }
 
 /** Un essai (rien n'est envoyé) n'est jamais montré comme programmé : il a son propre état et son propre mot. */
 export const LIBELLES_ESSAI: TableLibelles = { essai: { libelle: "Essai", ton: "ambre" } };
+
+/** Mots de l'envoi par Buffer (« Envoi en cours », « À vérifier », « Brouillon dans Buffer »), plus l'essai : un seul tableau pour la grille et l'Agenda. */
+export const LIBELLES_ENVOI: TableLibelles = {
+  ...LIBELLES_ESSAI,
+  en_cours: { libelle: "Envoi en cours", ton: "neutre" },
+  a_verifier: { libelle: "À vérifier", ton: "ambre" },
+  brouillon_buffer: { libelle: "Brouillon dans Buffer", ton: "neutre" },
+};
 
 /** Où se place le texte par rapport au visuel, sur chaque réseau. */
 export type Disposition = "texte-dessus" | "media-dessus" | "legende-sur-media";
@@ -153,22 +163,41 @@ export interface PublicationApercu {
   videoId?: string;
   visuelId?: string;
   video?: { titre: string; vignette: string | null; video: string | null } | null;
+  /** Nom du compte visé (lot R1b). */
+  canalNom?: string;
+  /** État de l'envoi par Buffer (« refuse », « absent », « a-verifier », « en-cours »…), s'il y en a un. */
+  etatEnvoi?: string;
 }
 
 /** Une publication du calendrier → l'entrée de l'aperçu. Jour et heure sont ceux de Paris. */
 export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {
   const estVideo = Boolean(p.videoId);
-  const etat = p.via === "simulation" ? "essai" : (etatDepuisStatut(p.statut) ?? "inconnu");
   return {
     cle: `publication:${p.id}|${p.reseau}`,
     jour: cleJour(p.date),
     reseau: p.reseau as EntreeApercu["reseau"],
     type: estVideo ? "video" : "image",
-    etat,
+    etat: etatAffiche(p),
+    envoiAbsent: p.via !== "simulation" && p.etatEnvoi === "absent" ? true : undefined,
     heure: heureDeParis(p.date),
     titre: p.video?.titre,
     texte: p.texte,
     media: estVideo ? { genre: "video", url: p.video?.video ?? null, poster: p.video?.vignette ?? null } : { genre: "image", url: p.video?.vignette ?? null },
     lienSource: estVideo ? `/videos/${p.videoId}` : undefined,
+    canalNom: p.canalNom || undefined,
   };
+}
+
+/**
+ * L'état affiché d'une publication, le même sur téléphone, en semaine et en mois : l'envoi par Buffer d'abord (refusé, absent ou
+ * échec = « à corriger » ; à vérifier ; en cours ; brouillon dans Buffer), puis le statut. Un essai garde son état « essai ».
+ */
+export function etatAffiche(p: Pick<PublicationApercu, "statut" | "via" | "etatEnvoi">): string {
+  if (p.via === "simulation") return "essai";
+  const base = etatDepuisStatut(p.statut) ?? "inconnu";
+  if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent" || p.statut === "echec") return "a_corriger";
+  if (p.etatEnvoi === "a-verifier") return "a_verifier";
+  if (p.etatEnvoi === "en-cours") return "en_cours";
+  if (p.via === "buffer" && p.statut === "brouillon") return "brouillon_buffer";
+  return base;
 }

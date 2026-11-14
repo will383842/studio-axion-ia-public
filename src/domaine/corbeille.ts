@@ -13,12 +13,12 @@ export function phraseSuppressionDans(jours: number): string {
   return jours <= 0 ? "Supprimée aujourd'hui" : jours === 1 ? "Supprimée dans 1 jour" : `Supprimée dans ${jours} jours`;
 }
 
-/** Message après « Mettre à la corbeille » : restaurable 30 jours, et les brouillons laissés dans Buffer. */
-export function messageCorbeille(mises: number, brouillonsBuffer: number, pagesRetirees = 0): string {
+/** Message après « Mettre à la corbeille » : restaurable 30 jours, et les brouillons laissés chez l'outil d'envoi. */
+export function messageCorbeille(mises: number, brouillonsExternes: number, pagesRetirees = 0): string {
   const base = `${mises > 1 ? `${mises} vidéos mises à la corbeille` : "Vidéo mise à la corbeille"}. Restaurable pendant ${JOURS_CORBEILLE} jours.`;
-  const buffer = brouillonsBuffer ? ` ${brouillonsBuffer} brouillon${brouillonsBuffer > 1 ? "s restent" : " reste"} dans Buffer ou Zernio : à supprimer dans l'outil concerné.` : "";
+  const externes = brouillonsExternes ? ` ${brouillonsExternes} brouillon${brouillonsExternes > 1 ? "s restent" : " reste"} dans Buffer ou Zernio : à supprimer dans l'outil concerné.` : "";
   const site = pagesRetirees ? ` ${pagesRetirees > 1 ? `${pagesRetirees} pages du site sont retirées` : "La page du site est retirée"} : à republier après la restauration.` : "";
-  return `${base}${buffer}${site}`;
+  return `${base}${externes}${site}`;
 }
 
 /** « Annuler cette vidéo » n'existe que pour une vidéo NON TERMINÉE : jamais une prête, jamais une déjà archivée. */

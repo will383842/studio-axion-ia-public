@@ -157,7 +157,10 @@ export function agregerStatsMots(
   >();
   for (const c of conversations) {
     const mot = normaliserMot(c.mot) ?? MOT_PAR_DEFAUT;
-    const cle = JSON.stringify([c.cle, mot]);
+    // Même personne = même racine de clé (avant le premier « | ») : un renvoi rangé sous `racine|…` ne compte pas deux fois.
+    const barre = c.cle.indexOf("|");
+    const racine = barre === -1 ? c.cle : c.cle.slice(0, barre);
+    const cle = JSON.stringify([racine, mot]);
     const incertain = ETATS_INCERTAINS.includes(c.etat);
     const erreur = ETATS_ERREUR_CONVERSATION.includes(c.etat);
     // Un envoi incertain n'est jamais compté comme envoyé, même si une date d'envoi est écrite.
