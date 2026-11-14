@@ -49,6 +49,8 @@ export async function creerSujetAction(brief: BriefSujet): Promise<Resultat<{ id
     delete reste.estDemo;
     // `origineUsine` non plus : l'écran ne l'envoie jamais (l'Usine passe par `ecrireSujetDeLUsine`, côté serveur) et une clé forgée fausserait la comparaison.
     delete reste.origineUsine;
+    // B1 : `origine` (Usine) ne vient JAMAIS du navigateur : `lancerGeneration` la figerait dans les options de l'écriture.
+    delete (reste as { origine?: unknown }).origine;
     delete reste.typeAutomatisation;
     const confirmation = confirmationPropre(confirmationSujet);
     try {

@@ -802,7 +802,7 @@ export interface Video extends EntiteBase {
    * `moteurId` : le moteur annoncé quand Will a confirmé (correcteur R8 n° 1 ; absent sur les anciennes attentes).
    * `scriptRelu` : empreinte du texte relu dans l'assistant (brique 6) ; la relance l'exige de nouveau (absente : rien).
    */
-  lancementEnAttente?: { depuis: DateIso; fournisseur: string; confirme: AccordPrix; moteurId?: string; scriptRelu?: string };
+  lancementEnAttente?: { depuis: DateIso; fournisseur: string; confirme: AccordPrix; moteurId?: string; scriptRelu?: string; origine?: "studio" | "usine" };
   /* --- Générateur de scripts, lot G1a (plan v5 B.2.2, ajouts purs) --- */
   /** Réseau de la version d'où vient cette vidéo. */
   reseau?: IdReseau;
