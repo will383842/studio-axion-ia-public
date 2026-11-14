@@ -12,15 +12,15 @@ describe("z1t · outil de publication", () => {
     expect(estChezUnOutil({ via: "zernio" } as never)).toBe(true);
     expect(estChezUnOutil({ via: "simulation" } as never)).toBe(false);
   });
-  it("outilPour : défaut Buffer, clé la plus précise gagnante", () => {
-    expect(outilPour({}, "linkedin", "exemple")).toBe("buffer");
-    expect(outilPour(undefined, "linkedin")).toBe("buffer");
+  it("outilPour : défaut Zernio, clé la plus précise gagnante", () => {
+    expect(outilPour({}, "linkedin", "exemple")).toBe("zernio");
+    expect(outilPour(undefined, "linkedin")).toBe("zernio");
     expect(outilPour({ linkedin: "zernio" }, "linkedin", "exemple")).toBe("zernio");
     expect(outilPour({ linkedin: "zernio", "linkedin:exemple": "buffer" }, "linkedin", "exemple")).toBe("buffer");
     expect(outilPour({ linkedin: "buffer", "linkedin:exemple": "zernio" }, "linkedin", "exemple")).toBe("zernio");
-    expect(outilPour({ "linkedin:exemple": "zernio" }, "linkedin", "autre")).toBe("buffer");
-    expect(outilPour({ linkedin: "inconnu" }, "linkedin")).toBe("buffer");
-    expect(outilPour({ constructor: "zernio" }, "toString")).toBe("buffer");
+    expect(outilPour({ "linkedin:exemple": "zernio" }, "linkedin", "autre")).toBe("zernio");
+    expect(outilPour({ linkedin: "inconnu" }, "linkedin")).toBe("zernio");
+    expect(outilPour({ constructor: "buffer" }, "toString")).toBe("zernio");
   });
   it("cleEnvoiPublication est stable et neutre", () => {
     const a = cleEnvoiPublication("video-exemple", "linkedin", "2026-01-01T10:00:00Z", "exemple");
