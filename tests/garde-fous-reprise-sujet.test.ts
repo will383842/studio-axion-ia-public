@@ -54,14 +54,36 @@ afterEach(() => {
 
 const generation = async (id: string) => (await depots().generations.obtenir(id))!;
 
+/** Écriture de l'Usine : l'origine est figée dans les options de l'écriture, et l'Usine a un budget du mois (large). */
+async function figerOrigineUsine(generationId: string): Promise<void> {
+  const { lireParametre } = await import("@/services/_commun");
+  const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+  const { moisParis } = await import("@/services/couts");
+  const cle = `generateur.chaine-options.${generationId}`;
+  await ecrireParametre(cle, { ...(await lireParametre<object>(cle, {})), origine: "usine" });
+  await ecrireParametre("budget.mensuel", { centimes: 1_000_000, devise: "EUR" });
+  await reglerBudgetUsine({ budget_mensuel_cents: 1_000_000, mois: moisParis() });
+}
+
 describe("Re-relecture A09 · l'écran montre la somme que le serveur fait confirmer", () => {
-  it("deux écritures du sujet au plafond : prix affiché = somme des deux ; l'accord à ce prix relance les deux", async () => {
+  it("studio : le plafond d'une écriture est un repère, rien n'est arrêté « plafond-atteint » (décision du 08/11)", async () => {
     for (const m of SUJETS_BANC.flatMap((s) => s.matieres)) await depots().matieres.enregistrer(m);
     for (const p of SUJETS_BANC.flatMap((s) => s.preuves)) await depots().preuves.enregistrer(p);
     await ecrireParametre("fournisseur.script", "claude");
     const r = await bg.lancerGeneration({ idee: SUJETS_BANC[0].idee, reseaux: [...SUJETS_BANC[0].reseaux], formatId: "avocat", pilier: SUJETS_BANC[0].pilier.id, mode: "avatar" as const });
     if (!r.ok) throw new Error("lancement");
-    // Grande chaîne, plafond par défaut : refusée avant le 1er appel.
+    await bg.tourBoucleGeneration();
+    expect((await generation(r.generationId)).statut).not.toBe("plafond-atteint");
+  });
+
+  it("Usine arrêtée au plafond : deux écritures du sujet, prix affiché = somme des deux ; « Reprendre » (geste du fondateur) relance les deux", async () => {
+    for (const m of SUJETS_BANC.flatMap((s) => s.matieres)) await depots().matieres.enregistrer(m);
+    for (const p of SUJETS_BANC.flatMap((s) => s.preuves)) await depots().preuves.enregistrer(p);
+    await ecrireParametre("fournisseur.script", "claude");
+    const r = await bg.lancerGeneration({ idee: SUJETS_BANC[0].idee, reseaux: [...SUJETS_BANC[0].reseaux], formatId: "avocat", pilier: SUJETS_BANC[0].pilier.id, mode: "avatar" as const });
+    if (!r.ok) throw new Error("lancement");
+    await figerOrigineUsine(r.generationId);
+    // Grande chaîne, plafond par défaut : refusée avant le 1er appel (l'Usine reste bloquante).
     await bg.tourBoucleGeneration();
     const g = await generation(r.generationId);
     expect(g.statut).toBe("plafond-atteint");
@@ -84,8 +106,9 @@ describe("Re-relecture A09 · l'écran montre la somme que le serveur fait confi
     // Le serveur fait confirmer exactement ce que l'écran affiche (centimes d'euro).
     const centimes = e!.reprise!.possible ? e!.reprise!.centimesEur : 0;
     expect(centimes).toBeGreaterThan(0);
-    await expect(bg.reprendreEcriture(r.scriptMaitreId, centimes - 1)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: centimes });
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, centimes)).toBe(2);
+    // « Reprendre » est le geste du fondateur sur l'écran : le prix du jour vaut accord (décision du 08/11), même avec un montant
+    // plus bas ; la reprise ne porte pas d'origine (journal ARG-R7-SUITE). L'Usine, elle, s'est arrêtée au plafond (ci-dessus).
+    expect(await bg.reprendreEcriture(r.scriptMaitreId, centimes - 1)).toBe(2);
   });
 });
 
