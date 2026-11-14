@@ -37,6 +37,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   reinitialiserDepots();
+  // GV2-51 : motion commune de l'avocat allumée par défaut ; ce test la coupe (coupe-circuit `false`), il ne porte pas sur les cartes.
+  await depots().parametres.enregistrer({ id: "avocat.motionCommune", valeur: false, creeLe: "x", modifieLe: "x" } as never);
   reinitialiserRequete();
   vi.restoreAllMocks();
   vi.useRealTimers();
