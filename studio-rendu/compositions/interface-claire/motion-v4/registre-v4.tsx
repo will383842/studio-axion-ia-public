@@ -202,10 +202,14 @@ export const RENDUS_V4: Readonly<Record<string, Rendu>> = Object.freeze({
     return <CarteStatuts palette={PALETTE_V4} duree={D} decl={lignes.map((l) => Math.max(3, im(e, l.a)))} fin={e.instants?.[0] !== undefined ? im(e, e.instants[0]) : undefined} roles={roles} titre={mot(e, lignes.length)} pastille={e.mots?.[lignes.length + 1] ?? ""} puces="pictos" />;
   },
   GraphiqueBarres: (e, _c, D) => {
-    const decl = (e.instants ?? []).map((t) => Math.max(3, im(e, t)));
+    const decl = (e.instants ?? []).map((t: number) => Math.max(3, im(e, t)));
     // Sans mot pour la puce (« deux fois » pas dit) : son instant est repoussé après la sortie, elle ne s'affiche jamais.
     while (decl.length < 3) decl.push(D + 60);
-    return <GraphiqueBarres palette={PALETTE_V4} duree={D} decl={decl} titre={mot(e, 0)} puce={e.mots?.[1] ?? ""} pastille="" />;
+    // GV2-49 : avec `valeurs` dites, les hauteurs sont proportionnelles à ces valeurs ; sans (plan ancien), barres par défaut du composant.
+    const dites = e.valeurs?.map((x: { valeur: number }) => x.valeur) ?? [];
+    const max = Math.max(...dites);
+    const barres = dites.length && max > 0 ? dites.map((x: number) => x / max) : undefined;
+    return <GraphiqueBarres palette={PALETTE_V4} duree={D} decl={decl} titre={mot(e, 0)} puce={e.mots?.[1] ?? ""} pastille="" {...(barres ? { barres } : {})} />;
   },
   CarteCalendrier: (e, _c, D) => <CarteCalendrier palette={PALETTE_V4} duree={D} decl={(e.instants ?? []).map((t) => Math.max(3, im(e, t)))} titre={mot(e)} pastille="" jours="points" />,
   CarteComparaison: (e, _c, D) => (
@@ -214,8 +218,12 @@ export const RENDUS_V4: Readonly<Record<string, Rendu>> = Object.freeze({
 
   /* Lot 3 : chiffres, preuves, carrousel */
   JaugePourcentage: (e, _c, D) => {
-    const n = e.nombre ?? 100;
-    return <JaugePourcentage palette={PALETTE_V4} titre={mot(e)} valeurs={[Math.round(n * 0.12), Math.round(n * 0.38), Math.round(n * 0.69), n]} duree={D} mots={(e.instants ?? []).map((t) => im(e, t))} ding />;
+    // GV2-49 : AUCUN palier inventé : la jauge ne montre que la valeur DITE (le composant veut au moins 2 sauts, les deux portent la même valeur).
+    // Sans nombre dit : elle reste au repos à 0 et ne monte pas à 100.
+    const sauts = (e.instants ?? []).map((t) => im(e, t));
+    const n = e.nombre ?? 0;
+    const premier = sauts[0] ?? 4;
+    return <JaugePourcentage palette={PALETTE_V4} titre={mot(e)} valeurs={[n, n]} duree={D} mots={[premier, Math.max(premier + 6, sauts[sauts.length - 1] ?? 0)]} ding />;
   },
   PileNotifications: (e, _c, D) => {
     const lignes = e.lignes ?? [];

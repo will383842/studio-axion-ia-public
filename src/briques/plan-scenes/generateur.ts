@@ -12,6 +12,8 @@ import { CATALOGUE_BRIQUES } from "./catalogue";
 import { VERSION_PLAN_SCENES, type FormatPlan, type MotMinute, type PlanValide } from "./schema";
 import { planDeRepli, validerPlan, type Remarque } from "./validateur";
 import { POSITIONS, TRANSITIONS, ZONE_VISAGE } from "./zones";
+import { faitsDuScript } from "../faits-script/extraire";
+import type { Fait } from "../faits-script/types";
 import { z } from "zod";
 
 /** Modèle du générateur de plan (réglable ici). */
@@ -26,6 +28,10 @@ export interface EntreeGenerateurPlan {
   mots: MotMinute[];
   format: FormatPlan;
   facecam: boolean;
+  /** Faits du script (GV2-48) : calculés par `faitsDuScript` sur les mots si absents. */
+  faits?: Fait[];
+  /** Pièces déjà servies dans les vidéos récentes, à éviter. */
+  piecesRecentes?: string[];
 }
 
 export interface ResultatGenerateurPlan {
@@ -41,8 +47,12 @@ export function consignePlan(): string {
     .map((d) => `- ${d.id} (${d.nom}) : ${d.description}\n  paramètres (exemple) : ${JSON.stringify(d.exemple)}\n  schéma : ${JSON.stringify(z.toJSONSchema(d.schema))}`)
     .join("\n");
   return [
-    "Vous composez le PLAN DE SCÈNES d'une vidéo Axion IA : du motion design de fausse interface logicielle, au mot près.",
-    "Le script de Williams fait foi : ne changez aucun mot, ne retirez aucune phrase.",
+    "Vous composez le PLAN DE SCÈNES d'une vidéo Axion IA : des animations de données et d'interface, calées au mot près.",
+    "Le script du fondateur fait foi : ne changez aucun mot, ne retirez aucune phrase.",
+    "Chaque élément visible porte `surMot`, l'indice du mot dit qui le fait apparaître. N'écrivez jamais `aMs`.",
+    "N'affichez aucun nombre ni aucun texte qui ne soit pas dans la liste des faits ou dans les mots de la scène.",
+    "Préférez les pièces de données quand un fait existe ; n'utilisez la fausse interface que si le script parle d'un logiciel.",
+    "Évitez les pièces listées comme récentes.",
     "Chaque scène couvre des mots consécutifs (indices du minutage, `mots.premier` et `mots.dernier`) ; son `debutMs` est celui du premier mot, son `finMs` au moins la fin du dernier mot et au plus le début de la scène suivante.",
     "Niveaux : 1 = une pièce du catalogue (`piece` + `parametres`) ; 2 = une composition de calques (`calques` : pièces posées dans une zone, décalées de `debutMs` depuis le début de la scène ; un calque `zoom-camera` agrandit les autres), avec toujours une `piece` niveau 1 de repli ; n'utilisez pas le niveau 3.",
     `Positions : ${POSITIONS.join(", ")}. En face caméra, rien devant le visage (zone x ${ZONE_VISAGE.x}–${ZONE_VISAGE.x + ZONE_VISAGE.largeur} %, y ${ZONE_VISAGE.y}–${ZONE_VISAGE.y + ZONE_VISAGE.hauteur} %) : utilisez « bas » ou « haut ».`,
@@ -53,13 +63,22 @@ export function consignePlan(): string {
   ].join("\n");
 }
 
+/** Une ligne par fait : type, mots (indices), puis les valeurs (JSON, sans les champs déjà dits). */
+function ligneDeFait(f: Fait): string {
+  const { type, mots, ...valeurs } = f;
+  return `${type}\t${mots.premier}-${mots.dernier}\t${JSON.stringify(valeurs)}`;
+}
+
 export function construireRequetePlan(e: EntreeGenerateurPlan, precedents: { reponse: string; motif: string }[] = []): RequeteClaude {
+  const faits = e.faits ?? faitsDuScript(e.mots);
   const demande = [
     `Format : ${e.format.largeur} × ${e.format.hauteur}, 25 i/s. Face caméra : ${e.facecam ? "oui" : "non"}.`,
     "Script :",
     e.script,
     "Minutage des mots (indice, texte, début ms, fin ms) :",
     e.mots.map((m, i) => `${i}\t${m.texte}\t${m.debutMs}\t${m.finMs}`).join("\n"),
+    ...(faits.length ? ["Faits du script (type, mots, valeurs) :", ...faits.map(ligneDeFait)] : []),
+    ...(e.piecesRecentes?.length ? [`Pièces récentes à éviter : ${e.piecesRecentes.join(", ")}`] : []),
   ].join("\n");
   const messages: RequeteClaude["messages"] = [{ role: "user", contenu: demande }];
   for (const p of precedents) {
