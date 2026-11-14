@@ -30,13 +30,11 @@ import type { StatsMotChiffrees } from "@/domaine/guide-reseau/stats-mots";
 import { PHRASES_REFUS } from "@/components/mots/etat-mots";
 import { lireCiblesSite } from "./cibles-site";
 import type { LigneMot, Resultat } from "./mots-service";
-import { apercuTextesMot, etatValidationMot, verifierMotPourCompte, type ApercuReseau } from "./mots-validation-par-mot";
+import { apercuTextesMot, etatValidationMot, verifierActivationMot, type ApercuReseau } from "./mots-validation-par-mot";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { lireStatsMots } from "./stats-mots";
 import { comptesZernioEnregistres } from "./zernio";
 
-/** Miroir de `reglageFerme` (mots-service) : à passer à `false` seulement avec l'ouverture de l'activation (lot à part). */
-const ACTIVATION_AUTRES_MOTS_FERMEE = true;
 const AUTO: readonly ReseauAutoVue[] = ["facebook", "instagram"];
 const estAuto = (r: string | null): r is ReseauAutoVue => r === "facebook" || r === "instagram";
 
@@ -95,9 +93,8 @@ async function raisonDuCompte(o: { mot: string; compte: string; reseau: ReseauCo
   // Le mot GUIDE a ses propres gardes (validation à part), rejouées par le geste d'activation.
   if (o.mot === MOT_GUIDE) return null;
   if (!o.plusieurs) return "plusieurs_mots_eteint";
-  // `activerMotParcours` est fermé (réglage non câblé) : tant qu'il l'est, aucun mot autre que GUIDE n'est « activable », même avec « plusieurs mots » allumé.
-  if (ACTIVATION_AUTRES_MOTS_FERMEE) return "activation_pas_encore_ouverte";
-  return verifierMotPourCompte({ mot: o.mot, compte: o.compte });
+  // Mêmes gardes que le geste d'activation (Facebook seulement, textes validés pour ce réseau, cible active non d'essai).
+  return verifierActivationMot({ mot: o.mot, compte: o.compte });
 }
 
 /**
