@@ -15,7 +15,7 @@ import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
 import { journaliserEnvoi } from "./journal-envoi";
 import { lireRoutage } from "./routage-publication";
-import { envoiCalendrierAutorise, envoiZernioAutorise } from "./zernio";
+import { envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { traduireSelectionVersZernio } from "./zernio-cibles";
 
 export type EtatComplement = "aucun" | "brouillon" | "programmee" | "publiee" | "echec";
@@ -111,7 +111,7 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     }
     // « Tout arrêter » (ancien réglage fermé) garde son chemin et son message d'avant (refus du fournisseur, ligne « refusé ») ;
     // le nouveau refus ne vise que « ancien ouvert, calendrier pas encore ouvert ».
-    if ((await envoiZernioAutorise()) && !(await envoiCalendrierAutorise())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir) : rien n'est parti.");
+    if ((await envoiZernioAutorise()) && !(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
     const kit = await obtenirKit(videoId);
     if (!kit) throw new ErreurStudio("PAS_PRETE", "La vidéo n'est pas prête.");
     if (!kit.publiable) throw new ErreurStudio("AVANT_DE_PUBLIER", "Cochez d'abord « J'ai regardé la vidéo, tout est en règle ».");
