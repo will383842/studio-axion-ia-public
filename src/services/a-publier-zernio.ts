@@ -4,11 +4,11 @@
  * choisi POUR UN CONTENU. Rien n'est modifié dans `publications.ts` : on n'appelle que ses fonctions exportées.
  * Le nom de l'outil vient du catalogue (libelles.ts), jamais d'un bouton. Aucune clé, aucun identifiant réel ici.
  */
-import { FIN_BUFFER_ISO, outilDe, outilPour, type OutilPublication } from "@/domaine/outil-publication";
+import { outilDe, outilPour, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, Publication } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { Resultat } from "./_commun";
-import { depots, ErreurStudio, essayer, maintenant } from "./_commun";
+import { depots, ErreurStudio, essayer } from "./_commun";
 import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
@@ -64,7 +64,6 @@ export async function complementsAPublier(): Promise<Record<string, ComplementLi
   const vue = await vueAPublier();
   const routage = await lireRoutage();
   const modeBuffer = await lireModeBuffer();
-  const avantFin = Date.parse(maintenant()) <= Date.parse(FIN_BUFFER_ISO);
   const relie = bufferRelie();
   const sortie: Record<string, ComplementLigne> = {};
   for (const l of vue.lignes) {
@@ -80,7 +79,7 @@ export async function complementsAPublier(): Promise<Record<string, ComplementLi
       ...(derniere?.etatEnvoi === "a-verifier" ? { aVerifierId: derniere.id } : {}),
       ...(etat === "publiee" && derniere?.urlPubliee ? { lien: derniere.urlPubliee } : {}),
       essai: outil === "zernio" || modeBuffer === "brouillon",
-      bufferDisponible: relie && avantFin && outilPour(routage, l.reseau) === "buffer",
+      bufferDisponible: relie && outilPour(routage, l.reseau) === "buffer",
       aussiSur: vue.lignes.filter((x) => x.videoId === l.videoId && x.reseau !== l.reseau).map((x) => ({ reseau: x.reseau, nom: x.reseauNom })),
     };
   }
@@ -124,7 +123,7 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     } catch {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
     }
-    // Les comptes que l'écran envoie sont ceux de Buffer : on les traduit en comptes Zernio (par le nom), sans jamais les passer tels quels.
+    // Les comptes que l'écran envoie sont soit déjà ceux de Zernio (liste des comptes Zernio) : passés tels quels, soit ceux de Buffer : traduits en comptes Zernio par le nom.
     const traduits = options.comptes ? await traduireSelectionVersZernio(service, reseau, options.comptes, (await canauxEnregistres())?.canaux ?? []) : undefined;
     const r = await envoyerReel("zernio", service, kit, [reseau], dateIso, traduits ? { [reseau]: traduits } : {}, { [reseau]: options.premierCommentaire ?? "" }, true, {
       ...(reseau === "tiktok" ? { consentementTiktok: options.accordTiktok === true } : {}),

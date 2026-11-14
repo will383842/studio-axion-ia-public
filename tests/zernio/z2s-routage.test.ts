@@ -1,4 +1,4 @@
-/** Z2-S · routage : défaut Buffer, clé la plus précise, refus sans clé, aucun repli silencieux. */
+/** Z2-S · routage : défaut Zernio, clé la plus précise, refus sans clé, aucun repli silencieux. */
 import { hash } from "@node-rs/argon2";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -30,15 +30,17 @@ beforeEach(async () => {
 });
 
 describe("z2s · routage", () => {
-  it("défaut {} = Buffer partout", async () => {
+  it("défaut {} = Zernio partout (clé posée) ; sans clé, refus clair", async () => {
     expect(await lireRoutage()).toEqual({});
-    expect(await outilDeEnvoi("instagram")).toBe("buffer");
+    await expect(outilDeEnvoi("instagram")).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
+    injecterClientZernio(creerFauxClientZernio().client);
+    expect(await outilDeEnvoi("instagram")).toBe("zernio");
   });
   it("Zernio sans clé : refus clair, jamais un repli vers Buffer", async () => {
     await expect(definirRoutage("instagram", "zernio")).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
     expect(await lireRoutage()).toEqual({});
   });
-  it("la clé la plus précise gagne ; retour à Buffer en un geste", async () => {
+  it("la clé la plus précise gagne ; retour au défaut en un geste", async () => {
     injecterClientZernio(creerFauxClientZernio().client);
     await definirRoutage("instagram", "zernio");
     // Finitions : choisir Buffer sans sa clé est refusé comme pour Zernio ; le cas permis (clé présente) est dans z2s-routage-buffer-relie.test.ts.
@@ -54,9 +56,9 @@ describe("z2s · routage", () => {
     expect(await outilDeEnvoi("instagram", "autre")).toBe("zernio");
     // Choix explicite de Buffer sans sa clé : refus clair, pas de repli vers Zernio.
     await expect(outilDeEnvoi("instagram", "exemple")).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
-    expect(await outilDeEnvoi("tiktok")).toBe("buffer");
+    expect(await outilDeEnvoi("tiktok")).toBe("zernio");
     await definirRoutage("instagram", null);
-    expect(await outilDeEnvoi("instagram", "autre")).toBe("buffer");
+    expect(await outilDeEnvoi("instagram", "autre")).toBe("zernio");
   });
   it("routé vers Zernio, la clé disparaît : refus à l'envoi", async () => {
     injecterClientZernio(creerFauxClientZernio().client);

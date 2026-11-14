@@ -12,6 +12,14 @@ import type { LigneAPublier, VueAPublier } from "@/services/a-publier";
 
 delete process.env.BUFFER_API_KEY;
 process.env.FOURNISSEUR_PUBLICATION = "simulation";
+// L7-06 : Zernio est l'outil d'envoi par défaut. Clé factice posée avant l'inscription des fournisseurs ; le client est un faux (aucun réseau).
+vi.hoisted(() => { process.env.ZERNIO_API_KEY = "cle-factice-essai"; });
+// Stockage R2 configuré (signature locale, aucun appel).
+process.env.R2_ACCOUNT_ID = "compte-essai";
+process.env.R2_ACCESS_KEY_ID = "ACCES-ESSAI";
+process.env.R2_SECRET_ACCESS_KEY = "secret-essai";
+process.env.R2_BUCKET = "seau-essai";
+process.env.FOURNISSEUR_STOCKAGE = "r2";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ refresh: () => undefined, push: () => undefined, replace: () => undefined }) }));
@@ -23,6 +31,9 @@ const { casesAChanger, rapportLecteur, regrouperParVideo, toutesCochees } = awai
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const pub = await import("@/services/publications");
+const { fournisseurParId } = await import("@/fournisseurs");
+const { injecterClientZernio } = await import("@/services/zernio");
+const { creerFauxClientZernio } = await import("./zernio/aides/faux-zernio");
 
 const CASES = ["image", "son", "sousTitres", "mentionIA", "droits"] as const;
 const AUCUNE = { image: false, son: false, sousTitres: false, mentionIA: false, droits: false };
@@ -73,7 +84,7 @@ describe("À publier simplifiée — affichage", () => {
     const h = html(vue([ligne("v-1", "instagram"), ligne("v-1", "facebook")]));
     const t = texte(h);
     expect(t).toContain("J'ai regardé la vidéo, tout est en règle");
-    expect(t.match(/Mettre en brouillon dans Buffer/g)?.length).toBe(2);
+    expect(t.match(/Mettre en brouillon dans Zernio/g)?.length).toBe(2);
     expect(t).not.toMatch(/Mettre le sujet en brouillon|Programmer programme|Programmer. programme/);
   });
 
@@ -121,6 +132,7 @@ describe("À publier simplifiée — le serveur garde ses gardes", () => {
     await preparerMotDePasse(MDP);
   });
   beforeEach(async () => {
+    vi.restoreAllMocks();
     reinitialiserDepots();
     await exemplesCommeVraies(depots(), { plusExemples: true });
     reinitialiserRequete();
@@ -134,12 +146,19 @@ describe("À publier simplifiée — le serveur garde ses gardes", () => {
     expect(await depots().publications.compter((p) => p.videoId === VIDEO)).toBe(0);
   });
 
-  it("une vérification manquante suffit à refuser ; toutes cochées, l'envoi passe (essai)", async () => {
+  it("une vérification manquante suffit à refuser ; toutes cochées, l'envoi passe (faux client Zernio, rien de réel)", async () => {
+    injecterClientZernio(creerFauxClientZernio().client);
+    const zernio = fournisseurParId("publication", "zernio");
+    vi.spyOn(zernio, "listerCanaux").mockResolvedValue([{ id: "canal-ig", organisationId: "org-exemple", nom: "Exemple IG", service: "instagram", deconnecte: false }]);
+    const envoyer = vi.spyOn(zernio, "envoyer").mockResolvedValue({ idExterne: "ext-1", via: "zernio", statut: "programmee" });
     for (const c of CASES.filter((x) => x !== "droits")) await pub.cocherAvantDePublier(VIDEO, c, true);
     await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], demain())).rejects.toThrow(/vérification/);
+    expect(envoyer).not.toHaveBeenCalled();
     await pub.cocherAvantDePublier(VIDEO, "droits", true);
     const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], demain());
-    expect(r.simulation).toBe(true);
+    expect(r.publications).toHaveLength(1);
+    expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "envoye" });
+    expect(envoyer).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -166,7 +185,7 @@ describe("À publier — petits défauts de la relecture", () => {
   it("le bouton d'envoi du réseau ouvert est désactivé tant que les cases sont décochées, actif une fois cochées", () => {
     const rendre = (coches: Record<string, boolean>) =>
       renderToStaticMarkup(createElement(LignesAPublier, { vue: vue([ligne("v-1", "instagram", { coches })]), reseauOuvert: "instagram" }));
-    const bouton = (h: string) => h.match(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Mettre en brouillon dans Buffer/)![0].match(/<button[^>]*>/)![0];
+    const bouton = (h: string) => h.match(/<button[^>]*>(?:(?!<\/button>)[\s\S])*Mettre en brouillon dans Zernio/)![0].match(/<button[^>]*>/)![0];
     expect(bouton(rendre({ ...AUCUNE }))).toContain('disabled=""');
     expect(bouton(rendre(Object.fromEntries(CASES.map((c) => [c, true]))))).not.toContain('disabled=""');
   });
