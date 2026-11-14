@@ -360,17 +360,28 @@ async function reporter(ev: EvenementFournisseur, now: number, apresMs: number, 
   if (!memeCause) await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : a_reessayer (${code}).`);
 }
 
+/** Meta n'autorise la réponse privée à un commentaire que 7 jours : au-delà, jamais de premier message privé (même âge que le recuLe de l'événement). */
+export const DELAI_MAX_PREMIER_MP_MS = 7 * 24 * 3600_000;
+const tropTardPourPremierMp = (ev: EvenementFournisseur, now: number): boolean => {
+  const age = now - Date.parse(ev.recuLe);
+  return Number.isFinite(age) && age > DELAI_MAX_PREMIER_MP_MS;
+};
+
 /**
  * Commentaire bloqué par une garde durable depuis plus de 24 h, sans conversation (nouveau / pub_ok) sur ce même commentaire : il se périme
- * au lieu d'être reporté à vie. Lecture SEULE (jamais `retrouver`, qui peut écrire un alias). Une conversation qui attend sa réponse publique garde son report.
+ * au lieu d'être reporté à vie. Lecture SEULE (jamais `retrouver`, qui peut écrire un alias). Une conversation qui attend sa réponse publique garde son report,
+ * sauf après 7 jours : la conversation passe alors à `expire` (un état est écrit, rien n'est effacé) et l'événement est clos « perime » ; aucun message ne part.
  */
 async function perimeSousGarde(ev: EvenementFournisseur, now: number): Promise<boolean> {
   const age = now - Date.parse(ev.recuLe);
   if (!Number.isFinite(age) || age <= DELAI_PERIME_MS) return false;
   const idCommentaire = String(ev.charge.idCommentaire ?? "");
   const { conv } = await lireTout();
-  const enCours = Object.values(conv).some((e) => e.idCommentaire === idCommentaire && (e.etat === "nouveau" || e.etat === "pub_ok"));
-  if (enCours) return false;
+  const enCours = Object.entries(conv).filter(([, e]) => e.idCommentaire === idCommentaire && (e.etat === "nouveau" || e.etat === "pub_ok"));
+  if (enCours.length > 0) {
+    if (!tropTardPourPremierMp(ev, now)) return false;
+    for (const [cle] of enCours) await patcher(cle, { etat: "expire", prochainEssaiLe: null });
+  }
   await clore(ev, "perime", "perime");
   return true;
 }
@@ -917,6 +928,12 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   }
   if (e.etat !== "pub_ok") {
     await clore(ev, "silence", "etat");
+    return "traite";
+  }
+  // Premier message privé d'un commentaire de plus de 7 jours : Meta ne l'autorise plus. Rien ne part, la conversation passe à `expire` (rien n'est effacé).
+  if (tropTardPourPremierMp(ev, now)) {
+    await patcher(cle, { etat: "expire", prochainEssaiLe: null });
+    await clore(ev, "perime", "perime");
     return "traite";
   }
   const bloque = await garde(d, env, idCompte, e.reseau, e);
