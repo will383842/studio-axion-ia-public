@@ -101,6 +101,8 @@ interface EtatProcessus {
   /** Merci (par `ref`) dont l'envoi est en cours dans CE processus. */
   merciEnVol: Set<string>;
   mercisEnCours: boolean;
+  /** Merci (par `ref`) reporté parce que le site est illisible : instant avant lequel on n'y touche pas. */
+  mercisReportes: Record<string, number>;
   alertes: Record<string, number>;
   pannes: number;
   ouvertJusqua: number;
@@ -108,7 +110,7 @@ interface EtatProcessus {
 const CLE_PROCESSUS = Symbol.for("studio-axion-ia.parcours-conversation");
 function processus(): EtatProcessus {
   const g = globalThis as typeof globalThis & { [CLE_PROCESSUS]?: EtatProcessus };
-  return (g[CLE_PROCESSUS] ??= { enCours: false, enVol: new Set(), merciEnVol: new Set(), mercisEnCours: false, alertes: {}, pannes: 0, ouvertJusqua: 0 });
+  return (g[CLE_PROCESSUS] ??= { enCours: false, enVol: new Set(), merciEnVol: new Set(), mercisEnCours: false, mercisReportes: {}, alertes: {}, pannes: 0, ouvertJusqua: 0 });
 }
 /** Tests : simule un redémarrage du processus (plus rien « en vol », gardes en mémoire remises à zéro). */
 export function reinitialiserParcoursConversation(): void {
@@ -145,7 +147,7 @@ async function motsActifsDuCompte(compte: string): Promise<string[]> {
   return Object.keys(reg).filter((k) => k.endsWith(fin) && k.length > fin.length && reg[k]?.etat === "actif").map((k) => k.slice(0, -fin.length).toUpperCase());
 }
 /** `null` = tout est permis. Sinon le code de la garde qui bloque (rien ne part). Une panne de lecture bloque aussi (échec fermé). */
-async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: string, parcours?: Pick<Conversation, "mot" | "guide" | "titreCible">): Promise<string | null> {
+async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: string, parcours?: Pick<Conversation, "mot" | "guide" | "titreCible">, maintenantMs?: number): Promise<string | null> {
   try {
     if (!(await envoiZernioAutorise())) return "tout_arrete";
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ferme";
@@ -154,7 +156,7 @@ async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: st
     if (parcours?.mot !== undefined && parcours.mot.toUpperCase() !== MOT) {
       // Mot autre que GUIDE : seulement si le réglage « plusieurs mots » est allumé (durable), puis validation PAR MOT et cible du jour (jamais sous `sousVerrou`).
       if (!(await motsMultiplesActifs())) return "plusieurs_mots_eteint";
-      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env);
+      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env, maintenantMs);
       if (refus !== null) return refus;
     } else if (parcours?.mot !== undefined && !textesValidesPourLeMot(parcours.mot, parcours.guide)) return "validation_absente";
     // La validation de l'opérateur est liée aux textes réellement envoyés : revérifiée ici, à chaque garde (échec fermé).
@@ -183,6 +185,17 @@ const MESSAGES_GARDE: Record<string, string> = {
   cibles_illisibles: "Les cibles du site sont illisibles : aucun message ne part pour ce mot, nouvel essai plus tard.",
   validation_perimee: "Les textes du mot GUIDE ont changé depuis leur validation (ou ne sont pas validés) : aucun message ne part. Revalidez-les dans Mots.",
 };
+
+/** Gardes DURABLES propres à un mot : l'événement est CLOS (jamais reporté : une adresse ne doit pas partir des jours après un rallumage). L'état et les données restent. */
+const GARDES_MOT_CLOSES: readonly string[] = ["plusieurs_mots_eteint", "instagram_pas_encore"];
+const messageRefusMot = (code: string, mot: string): string => (code === "validation_absente" ? `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.` : (MESSAGES_GARDE[code] ?? "Une garde de sécurité bloque les envois."));
+/** Garde « plusieurs mots éteint » / « Instagram pas encore » : alerte puis clôture « ecarte / garde_… ». Vrai si l'événement est clos. */
+async function cloreSiGardeMotDurable(ev: EvenementFournisseur, bloque: string | null, now: number): Promise<boolean> {
+  if (bloque === null || !GARDES_MOT_CLOSES.includes(bloque)) return false;
+  await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+  await clore(ev, "ecarte", `garde_${bloque}`);
+  return true;
+}
 
 /* --- État par personne (sous verrou) -------------------------------------------------------------------------- */
 type Conversations = Record<string, Conversation>;
@@ -544,12 +557,12 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     return "bloque";
   }
   if (refusEnvoi !== null) {
-    await alerter(`validation_absente:${mot}`, `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.`, now);
+    await alerter(`${refusEnvoi}:${mot}`, messageRefusMot(refusEnvoi, mot), now);
     await clore(ev, "ecarte", refusEnvoi);
     return "leger";
   }
   // 4. Garde par mot (ligne `mot|compte` active ; textes validés pour `guide-ia`, fermé pour toute autre cible).
-  const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code, titreCible: cible.titre });
+  const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code, titreCible: cible.titre }, now);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     if (await perimeSousGarde(ev, now)) return "traite";
@@ -951,12 +964,13 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "silence", "etat");
     return "traite";
   }
-  const bloque = await garde(d, env, idCompte, e.reseau, e);
+  const bloque = await garde(d, env, idCompte, e.reseau, e, now);
   if (bloque === "validation_absente") {
     await alerter(`validation_absente:${e.mot ?? MOT}`, `Le mot ${e.mot ?? MOT} n'a pas de textes validés : aucun message ne part pour ce mot.`, now);
     await clore(ev, "ecarte", "validation_absente");
     return "traite";
   }
+  if (await cloreSiGardeMotDurable(ev, bloque, now)) return "traite";
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -1189,7 +1203,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const opposerEnPrive_ = multi ? opposerEnPriveDossier : opposerEnPrive;
   if (s0.action === "reprendre_recu") {
     // Envoi sortant : soumis aux gardes.
-    const bloque = await garde(d, env, etat.idCompte, etat.reseau, etat);
+    const bloque = await garde(d, env, etat.idCompte, etat.reseau, etat, now);
+    if (await cloreSiGardeMotDurable(ev, bloque, now)) return "traite";
     if (bloque) {
       await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
       await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -1246,7 +1261,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
   // Parcours Instagram en attente d'un OK (réglage allumé) : la garde de CHAQUE parcours décide dans `repondreOkInstagram` (rien d'autre ne part ici).
-  const bloque = igSuivre && enAttenteOk(etat) ? null : await garde(d, env, etat.idCompte, etat.reseau, etat);
+  const bloque = igSuivre && enAttenteOk(etat) ? null : await garde(d, env, etat.idCompte, etat.reseau, etat, now);
+  if (await cloreSiGardeMotDurable(ev, bloque, now)) return "traite";
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
@@ -1440,7 +1456,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       continue;
     }
     // Garde de CE parcours (mot actif, textes validés, comptes, clés) revérifiée avant toute écriture « en vol » : bloqué, on passe au suivant sans rien envoyer.
-    const bloque = await garde(d, env, avant.idCompte, avant.reseau, avant);
+    const bloque = await garde(d, env, avant.idCompte, avant.reseau, avant, now);
     if (bloque) {
       await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
       if (GARDES_DURABLES_PARCOURS.includes(bloque)) {
@@ -2153,6 +2169,12 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
     await accuserMerci(env, ref, now);
     return "fait";
   }
+  // Merci reporté (site illisible) : on n'y touche pas avant l'échéance ; les autres merci continuent.
+  const report = processus().mercisReportes[ref];
+  if (report !== undefined) {
+    if (now < report) return "fait";
+    delete processus().mercisReportes[ref];
+  }
   // c. Retrouver la conversation par l'empreinte du jeton envoyé dans M1 v3.
   const conv = await sousVerrou(async () => {
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
@@ -2173,9 +2195,14 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   // d bis. Réglage éteint (retour arrière) : un parcours de dossier `racine|…` ne reçoit AUCUN merci (silence strict) ; l'accusé dû au site suit la règle des merci non envoyés.
   if (!multi && racineDe(cle) !== cle) return (await terminer("non_envoye", "dossier_eteint", cle), "fait");
   // e. Garde (« Tout arrêter », disjoncteur, mot actif, validation du guide…) : si elle bloque, ni envoi ni accusé.
-  const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau, conv.etat);
+  const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau, conv.etat, now);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
+    // Site illisible : le merci est REPORTÉ (report propre à cette ref, rien d'écrit, pas d'accusé), sans arrêter la file des autres merci.
+    if (bloque === "cibles_illisibles") {
+      processus().mercisReportes[ref] = now + ATTENTE_CATALOGUE_MS;
+      return "fait";
+    }
     // Garde GLOBALE : fin du passage, ni envoi ni accusé (le site re-proposera). Garde propre à CETTE conversation :
     // on la clôt sans envoi (accusé), sinon la même ref resterait en tête et bloquerait tous les autres mercis.
     if (GARDES_GLOBALES.has(bloque)) return "garde";
