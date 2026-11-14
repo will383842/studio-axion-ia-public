@@ -79,6 +79,13 @@ function elementsDe(p: PageSpec): number | undefined {
 /** Famille de mise en page d'un type : celle du registre, seule source ; le type lui-même s'il n'y est pas. */
 export const familleDePage = (type: string): string => (Object.hasOwn(PAGES, type) ? PAGES[type as TypePage].famille : type);
 
+/**
+ * Types dont chaque élément porte un rang dessiné en rangées (« 01 », « 02 », « 03 ») : liste, étapes, questions. Deux pages de ces types à
+ * la suite se lisent comme une seule longue liste, quelle que soit leur famille au registre (T06 et T23 « liste », T20 « etapes ») : refusées.
+ */
+const TYPES_NUMEROTES: readonly string[] = ["T06", "T20", "T23"];
+export const pageNumerotee = (p: { type?: string }): boolean => p.type !== undefined && TYPES_NUMEROTES.includes(p.type);
+
 export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
   const res: ControlePorte[] = [];
   const { pages } = spec;
@@ -103,6 +110,8 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     } else if (familleDePage(avant.type) === familleDePage(p.type)) {
       const famille = familleDePage(p.type);
       res.push({ code: "FAMILLE", niveau: "rouge", page: i + 1, phrase: `Pages ${i} et ${i + 1} : deux mises en page de même famille (« ${famille} » : ${avant.type} puis ${p.type}) à la suite ; intercalez une page d'une autre famille.` });
+    } else if (pageNumerotee(avant) && pageNumerotee(p)) {
+      res.push({ code: "FAMILLE", niveau: "rouge", page: i + 1, phrase: `Pages ${i} et ${i + 1} : deux listes numérotées (01, 02, 03 : ${avant.type} puis ${p.type}) à la suite ; intercalez une page d'une autre forme.` });
     }
   });
 
@@ -120,8 +129,10 @@ export function controlesStructure(spec: CarrouselSpecType): ControlePorte[] {
     if (fixes.includes(dessin) && pages[premiere - 1].type === "T26" && pages[page - 1].type === "T26") continue;
     if (signales.has(`${dessin}@${page}`)) continue;
     signales.add(`${dessin}@${page}`);
+    // Les mini-maquettes de T20 sont choisies par le code d'après le texte des étapes : on change le texte, ou on retire la variante.
+    const remede = dessin.startsWith("maquette-") ? "reformulez les étapes ou retirez la variante" : "choisissez-en un autre";
     const nom = dessin.startsWith("icone-") ? `l'icône « ${dessin.slice(6)} »` : dessin.startsWith("maquette-") ? `la mini-maquette « ${dessin.slice(9)} »` : `l'illustration ${dessin}`;
-    res.push({ code: "DESSIN_DOUBLE", niveau: "rouge", page, phrase: `Page ${page} : ${nom} est déjà dessinée ${premiere === page ? "sur cette page" : `page ${premiere}`} ; un même dessin ne revient jamais dans un carrousel, choisissez-en un autre.` });
+    res.push({ code: "DESSIN_DOUBLE", niveau: "rouge", page, phrase: `Page ${page} : ${nom} est déjà dessinée ${premiere === page ? "sur cette page" : `page ${premiere}`} ; un même dessin ne revient jamais dans un carrousel, ${remede}.` });
   }
 
   // Un nombre écrit dans un titre (« 3 QUESTIONS ») est celui des éléments réels de la page (L7).
