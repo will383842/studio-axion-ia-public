@@ -33,8 +33,8 @@ process.env.FOURNISSEUR_VISAGE = "heygen";
 process.env.FOURNISSEUR_VOIX = "heygen";
 process.env.ANTHROPIC_API_KEY = CLE_ESSAI_CLAUDE;
 process.env.FOURNISSEUR_TEXTE_RESEAUX = "claude";
-process.env.BUFFER_API_KEY = "cle-buffer-essai-verif1-ef";
-process.env.FOURNISSEUR_PUBLICATION = "buffer";
+// Zernio est le canal d'envoi par défaut (PR 440) : clé factice, faux client, aucun appel réel.
+process.env.ZERNIO_API_KEY = "cle-factice-essai";
 process.env.R2_ACCOUNT_ID = "compte-essai";
 process.env.R2_ACCESS_KEY_ID = "ACCES-ESSAI";
 process.env.R2_SECRET_ACCESS_KEY = "secret-essai";
@@ -214,6 +214,8 @@ const credits = await import("@/services/credits");
 const gc = await import("@/services/generation-claude");
 const bg = await import("@/services/boucle-generation");
 const doublesHeygen = await import("@/services/doubles-heygen");
+const { injecterClientZernio } = await import("@/services/zernio");
+const { creerFauxClientZernio } = await import("./zernio/aides/faux-zernio");
 const { ecrireParametre, ErreurStudio, sousVerrou } = await import("@/services/_commun");
 const renduDouble = await import("@/services/rendu-double");
 const { creerMoteurMontageAvocat } = await import("@/moteurs/montage-avocat");
@@ -268,6 +270,7 @@ beforeEach(async () => {
   R.telechargementsRefuses = 0;
   R.echecsCibles.clear();
   R.buffer = fauxBuffer();
+  injecterClientZernio(creerFauxClientZernio().client); // jamais le vrai client Zernio : aucun appel réseau
   vi.stubGlobal("fetch", reseau);
   bg.suspendreBoucleGeneration(true);
   await auth.seConnecter(MDP, false);
@@ -276,6 +279,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  injecterClientZernio(null);
   expect(INATTENDUES.splice(0)).toEqual([]);
   credits.injecterLecteursPourEssai(null);
   injecterPireCasChainePourEssai(null);
@@ -352,6 +356,9 @@ async function lancer() {
 async function finirEtPublier() {
   const kit = (await pub.obtenirKit(VIDEO))!;
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
+  const zernio = (await import("@/fournisseurs")).fournisseurParId("publication", "zernio");
+  vi.spyOn(zernio, "listerCanaux").mockResolvedValue([{ id: "canal-ig", organisationId: "org-exemple", nom: "Exemple IG", service: "instagram", genre: "compte", deconnecte: false }]);
+  vi.spyOn(zernio, "envoyer").mockResolvedValue({ idExterne: "ext-1", via: "zernio", statut: "programmee" });
   let envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
   if (envoi.publications[0].etatEnvoi === "a-verifier") envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
   return { kit, envoi };
@@ -490,7 +497,7 @@ describe("E1 — panne puis « Réessayer » (montage réel allumé)", () => {
 /* ------------------------------------------------------------------ */
 
 describe("E2 — redémarrage du serveur en plein travail (montage réel allumé)", () => {
-  it("redémarrage pendant le rendu du double (accepté par HeyGen, pas encore relu) : reprise sans rien repayer, jusqu'au brouillon Buffer", async () => {
+  it("redémarrage pendant le rendu du double (accepté par HeyGen, pas encore relu) : reprise sans rien repayer, jusqu'à l'envoi par Zernio (canal par défaut)", async () => {
     await preparer();
     R.suivisAvantFin = 3;
     const { travailId } = await lancer();
@@ -514,7 +521,7 @@ describe("E2 — redémarrage du serveur en plein travail (montage réel allumé
     const { kit, envoi } = await finirEtPublier();
     expect([...claude.appels].sort()).toEqual(["instagram", "linkedin", "tiktok", "youtube-shorts"]);
     expect(kit.reseaux.find((r) => r.reseau === "instagram")!.texte).toMatch(/question juridique/);
-    expect(envoi.publications[0]).toMatchObject({ via: "buffer", statut: "brouillon", etatEnvoi: "envoye" });
+    expect(envoi.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "envoye" });
   });
 
   it("redémarrage à CHAQUE tour (pire cas) : la vidéo va au bout, voix lue une fois, chaque pièce du double rendue une fois", async () => {
