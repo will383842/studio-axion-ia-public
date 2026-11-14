@@ -192,38 +192,67 @@ describe("A3 (D2) · au-delà du seuil, la confirmation porte le MONTANT", () =>
     return travailId;
   }
 
-  it("« Réessayer » : le message dit le prix en euros et l'écran reçoit le montant", async () => {
+  /** Budget du mois de l'Usine posé (large) : sans lui, l'Usine est refusée pour une autre raison que la confirmation. */
+  async function budgetUsineLarge(): Promise<void> {
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    await ecrireParametre("budget.mensuel", { centimes: 1_000_000, devise: "EUR" });
+    await reglerBudgetUsine({ budget_mensuel_cents: 1_000_000, mois: couts.moisParis() });
+  }
+  const estimation250 = () => {
+    const total = { centimes: 250, devise: "EUR" as const };
+    return { lignes: [{ etape: "Essai", fournisseur: "simulation", unite: "appel" as const, quantite: 1, prixUnitaire: total, total, nature: "estime" as const }], total };
+  };
+
+  /** Estimation avec un double réel HeyGen : sa confirmation dit le prix en euros (garde R7, sous le seuil aussi). */
+  const estimationDouble = (centimes: number) => {
+    const total = { centimes, devise: "EUR" as const };
+    return { lignes: [{ etape: "Double, angle principal", fournisseur: "heygen", unite: "seconde" as const, quantite: 1, prixUnitaire: total, total, nature: "estime" as const }], total };
+  };
+
+  it("« Réessayer » : studio = le prix du jour vaut accord, la relance part (journalisé) ; Usine = prix en euros et montant pour l'écran", async () => {
     const travailId = await travailEnEchec();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-    const err = await travaux.reessayerTravail(travailId).catch((e: unknown) => e);
-    expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    expect((err as Error).message).toMatch(/\d+,\d{2}\s?€/);
-    const montant = (err as { montant?: number }).montant;
-    expect(montant).toBeGreaterThan(0);
+    // Studio (décision du fondateur, 08/11) : aucune confirmation, la relance part.
+    const r = await travaux.reessayerTravail(travailId);
+    expect(r.statut).not.toBe("echec");
+    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/accepté sans confirmation/);
+    // Usine : confirmation toujours exigée, le message dit le prix et l'écran reçoit le montant.
+    await budgetUsineLarge();
+    const err = await credits.verifierBudgetEtCredits(estimation250(), undefined, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
+    // Le double réel : le message dit le prix en euros (seuil haut, la garde R7 parle).
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 1_000_000, devise: "EUR" });
+    const errDouble = await credits.verifierBudgetEtCredits(estimationDouble(250), undefined, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
+    expect(errDouble).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
+    expect((errDouble as Error).message).toMatch(/2,50\s?€/);
     // Le résultat d'une action le transporte jusqu'à l'écran.
-    const r = await commun.essayer(() => travaux.reessayerTravail(travailId));
-    expect(r).toMatchObject({ ok: false, code: "CONFIRMATION_REQUISE", montant });
+    const ecran = await commun.essayer(() => credits.verifierBudgetEtCredits(estimationDouble(250), undefined, "Cette vidéo", { origine: "usine" }));
+    expect(ecran).toMatchObject({ ok: false, code: "CONFIRMATION_REQUISE", montant: 250 });
   });
 
-  it("montant confirmé plus bas que le prix du jour : refusé (nouveau prix) ; montant juste : la relance part", async () => {
+  it("montant confirmé plus bas que le prix du jour : studio = la relance part sans confirmation ; Usine = refusé (nouveau prix), montant juste : passe", async () => {
     const travailId = await travailEnEchec();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
-    const montant = ((await travaux.reessayerTravail(travailId).catch((e: unknown) => e)) as { montant: number }).montant;
-    const bas = await travaux.reessayerTravail(travailId, { confirme: montant - 1 }).catch((e: unknown) => e);
-    expect(bas).toMatchObject({ code: "CONFIRMATION_REQUISE", montant });
+    await budgetUsineLarge();
+    const bas = await credits.verifierBudgetEtCredits(estimation250(), 249, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
+    expect(bas).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
     expect((bas as Error).message).toMatch(/Le prix a changé/);
+    await expect(credits.verifierBudgetEtCredits(estimation250(), 250, "Cette vidéo", { origine: "usine" })).resolves.toBeUndefined();
+    // Studio : le travail est encore en échec jusque-là, puis la relance part d'elle-même.
     expect((await depots().travaux.obtenir(travailId))?.statut).toBe("echec");
-    const r = await travaux.reessayerTravail(travailId, { confirme: montant });
+    const r = await travaux.reessayerTravail(travailId);
     expect(r.statut).not.toBe("echec");
   });
 
-  it("chaque CONFIRMATION_REQUISE du seuil porte un montant (garde commune)", async () => {
+  it("au-delà du seuil : studio = accord au prix du jour ; Usine = CONFIRMATION_REQUISE avec un montant (garde commune)", async () => {
     await ecrireParametre("budget.seuilConfirmation", { centimes: 100, devise: "EUR" });
     const total = { centimes: 250, devise: "EUR" as const };
-    const err = await credits.verifierBudgetEtCredits({ lignes: [{ etape: "Essai", fournisseur: "simulation", unite: "appel", quantite: 1, prixUnitaire: total, total, nature: "estime" }], total }, false, "Cette vidéo").catch((e: unknown) => e);
+    await expect(credits.verifierBudgetEtCredits(estimation250(), false, "Cette vidéo")).resolves.toBeUndefined();
+    await budgetUsineLarge();
+    const err = await credits.verifierBudgetEtCredits(estimation250(), false, "Cette vidéo", { origine: "usine" }).catch((e: unknown) => e);
     expect(err).toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 250 });
-    expect((err as Error).message).toMatch(/2,50\s?€/);
-    await expect(credits.verifierBudgetEtCredits({ lignes: [], total }, 250, "Cette vidéo")).resolves.toBeUndefined();
+    expect((err as Error).message).toMatch(/coûte plus que d'habitude/);
+    await expect(credits.verifierBudgetEtCredits({ lignes: [], total }, 250, "Cette vidéo", { origine: "usine" })).resolves.toBeUndefined();
   });
 });
 
@@ -259,13 +288,30 @@ describe("A4 (petit défaut 1) · plafond fal.ai : contrôle et réservation d'u
 });
 
 /* ------------------------------------------------------------------ */
-describe("Petit défaut 3 · seuil plus bas que le pire cas d'une étape d'écriture : attente claire, pas une panne", () => {
-  it("rien ne part, l'écriture ATTEND (« seuil ») avec une phrase claire, et reprend quand le seuil est relevé", async () => {
+describe("Petit défaut 3 · seuil plus bas que le pire cas d'une étape d'écriture : studio = elle part ; Usine = attente claire, pas une panne", () => {
+  it("studio : le seuil est un repère, l'écriture part (Claude est appelé), aucune attente « seuil »", async () => {
     await brancherClaude();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
     const r = await bg.lancerGeneration({ idee: IDEES[0], reseaux: REGLAGES.reseaux, formatId: "avocat", adresse: "vous", mode: "avatar", objectif: "notoriete" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
+    await bg.tourBoucleGeneration();
+    expect(appelsClaude.length).toBeGreaterThan(0);
+    expect((await depots().generations.obtenir(r.generationId))?.statut).not.toBe("en-attente-credit");
+    expect((await bg.etatEcriture(r.scriptMaitreId))?.attenteSeuil).toBeNull();
+  });
+
+  it("Usine : rien ne part, l'écriture ATTEND (« seuil ») avec une phrase claire, et reprend quand le seuil est relevé", async () => {
+    await brancherClaude();
+    await ecrireParametre("budget.seuilConfirmation", { centimes: 0, devise: "EUR" });
+    const r = await bg.lancerGeneration({ idee: IDEES[0], reseaux: REGLAGES.reseaux, formatId: "avocat", adresse: "vous", mode: "avatar", objectif: "notoriete" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    // L'origine « usine » est figée dans les options de l'écriture, comme à un vrai lancement de l'Usine.
+    const cle = `generateur.chaine-options.${r.generationId}`;
+    await ecrireParametre(cle, { ...(await commun.lireParametre<object>(cle, {})), origine: "usine" });
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    await reglerBudgetUsine({ budget_mensuel_cents: 1_000_000, mois: couts.moisParis() });
     await bg.tourBoucleGeneration();
     expect(appelsClaude).toHaveLength(0);
     const g = await depots().generations.obtenir(r.generationId);
@@ -284,15 +330,28 @@ describe("Petit défaut 3 · seuil plus bas que le pire cas d'une étape d'écri
 });
 
 /* ------------------------------------------------------------------ */
-describe("Petit défaut 5 · série : le total confirmé doit venir d'un plan de même taille", () => {
-  it("total d'un autre plan (taille différente) : CONFIRMATION_REQUISE, rien n'est créé", async () => {
+describe("Petit défaut 5 · série : studio = part au prix du jour ; Usine = confirmation exigée pour le total du plan", () => {
+  it("studio, total d'un autre plan (taille différente) : la série part (journal « serie-seuil »), aucune confirmation", async () => {
     await brancherClaude();
     const prix = (await bg.prixLancement()).centimes;
     await ecrireParametre("budget.seuilConfirmation", { centimes: prix, devise: "EUR" });
     const textes = IDEES.slice(0, 2);
-    // Total largement suffisant, mais confirmé pour un plan de 5 écritures.
-    await expect(serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-relecture-taille", 100 * prix, 5)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 2 * prix });
-    expect(await depots().generations.compter((g) => !g.estDemo)).toBe(0);
-    expect(appelsClaude).toHaveLength(0);
+    const r = await serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-relecture-taille", 100 * prix, 5);
+    expect(r.plan.totalPartant.centimes).toBe(2 * prix);
+    expect(await depots().generations.compter((g) => !g.estDemo)).toBeGreaterThan(0);
+    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/serie-seuil/);
+  });
+
+  it("Usine : le total du plan (2 écritures) au-dessus du seuil exige la confirmation, montant juste : passe", async () => {
+    await brancherClaude();
+    const prix = (await bg.prixLancement()).centimes;
+    await ecrireParametre("budget.seuilConfirmation", { centimes: prix, devise: "EUR" });
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    await reglerBudgetUsine({ budget_mensuel_cents: 1_000_000, mois: couts.moisParis() });
+    const total = { centimes: 2 * prix, devise: "EUR" as const };
+    const estimation = { lignes: [{ etape: "Écriture", fournisseur: "simulation", unite: "appel" as const, quantite: 2, prixUnitaire: { centimes: prix, devise: "EUR" as const }, total, nature: "estime" as const }], total };
+    await expect(credits.verifierBudgetEtCredits(estimation, undefined, "Ces 2 écritures", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 2 * prix });
+    await expect(credits.verifierBudgetEtCredits(estimation, 2 * prix - 1, "Ces 2 écritures", { origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: 2 * prix });
+    await expect(credits.verifierBudgetEtCredits(estimation, 2 * prix, "Ces 2 écritures", { origine: "usine" })).resolves.toBeUndefined();
   });
 });

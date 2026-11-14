@@ -138,12 +138,22 @@ describe("image → vidéo : voix simulée en production refusée avant toute d�
       expect(reserver.mock.calls[0][1]).toBe(220);
     });
 
-    it("le lanceur : sans accord de Will sur le prix, aucune réservation", async () => {
-      const reserver = vi.spyOn(credits, "verifierEtReserver").mockResolvedValue(undefined as never);
+    it("le lanceur, studio : sans accord écrit sur le prix, le prix du jour vaut accord (décision du 08/11), la réservation part", async () => {
+      const reserver = vi.spyOn(credits, "verifierEtReserverSelonOrigine").mockResolvedValue(undefined as never);
       const outils = await outilsImageVideo({ videoId: "v3", travailId: "t3", production: true, accordDuScriptExige: true });
+      expect(await outils.budget.reserver({ ...demandeVoix })).toEqual({ ok: true });
+      expect(reserver).toHaveBeenCalledTimes(1);
+      expect(reserver.mock.calls[0][2]).toBe(150);
+    });
+
+    it("le lanceur, Usine : sans accord de Will sur le prix, aucune réservation", async () => {
+      const reserver = vi.spyOn(credits, "verifierEtReserverSelonOrigine").mockResolvedValue(undefined as never);
+      const reserverUsine = vi.spyOn(credits, "reserverPourUsine").mockResolvedValue(undefined as never);
+      const outils = await outilsImageVideo({ videoId: "v4", travailId: "t4", production: true, accordDuScriptExige: true, origine: "usine" });
       const r = await outils.budget.reserver({ ...demandeVoix });
       expect(r).toEqual({ ok: false, message: expect.stringMatching(/pas été accordé/) });
       expect(reserver).not.toHaveBeenCalled();
+      expect(reserverUsine).not.toHaveBeenCalled();
     });
   });
 });
