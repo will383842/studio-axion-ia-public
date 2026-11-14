@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 const AVEC_RENDU = existsSync("studio-rendu/node_modules/remotion/dist/esm/index.mjs");
 let imageCourante = 60;
 vi.mock("../../studio-rendu/node_modules/remotion/dist/esm/index.mjs", async (origine) => {
-  const vrai = await origine<typeof import("../../studio-rendu/node_modules/remotion")>();
+  const vrai = await origine<Record<string, unknown>>()/* remotion n'est pas installé dans le contrôle tsc : type neutre, le simulacre garde le vrai module à l'exécution */;
   // @ts-expect-error le react de studio-rendu n'a pas de types ici
   const { createElement: element, Fragment } = (await import("../../studio-rendu/node_modules/react/index.js")) as typeof import("react");
   return { ...vrai, Sequence: (p: { children?: React.ReactNode }) => element(Fragment, null, p.children), Audio: () => null, useCurrentFrame: () => imageCourante, useVideoConfig: () => ({ fps: 30, width: 1080, height: 1920, durationInFrames: 90, id: "essai", defaultProps: {}, props: {}, defaultCodec: null }) };

@@ -4,17 +4,17 @@
  * choisi POUR UN CONTENU. Rien n'est modifié dans `publications.ts` : on n'appelle que ses fonctions exportées.
  * Le nom de l'outil vient du catalogue (libelles.ts), jamais d'un bouton. Aucune clé, aucun identifiant réel ici.
  */
-import { FIN_BUFFER_ISO, outilDe, outilPour, type OutilPublication } from "@/domaine/outil-publication";
+import { outilDe, outilPour, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, Publication } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { Resultat } from "./_commun";
-import { depots, ErreurStudio, essayer, maintenant } from "./_commun";
+import { depots, ErreurStudio, essayer } from "./_commun";
 import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
 import { envoyerReel, envoyerVersBuffer, obtenirKit, videoEnEssai } from "./publications";
 import { journaliserEnvoi } from "./journal-envoi";
-import { lireRoutage } from "./routage-publication";
+import { lireRoutage, outilDeEnvoi } from "./routage-publication";
 import { envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { traduireSelectionVersZernio } from "./zernio-cibles";
 
@@ -64,7 +64,6 @@ export async function complementsAPublier(): Promise<Record<string, ComplementLi
   const vue = await vueAPublier();
   const routage = await lireRoutage();
   const modeBuffer = await lireModeBuffer();
-  const avantFin = Date.parse(maintenant()) <= Date.parse(FIN_BUFFER_ISO);
   const relie = bufferRelie();
   const sortie: Record<string, ComplementLigne> = {};
   for (const l of vue.lignes) {
@@ -80,11 +79,15 @@ export async function complementsAPublier(): Promise<Record<string, ComplementLi
       ...(derniere?.etatEnvoi === "a-verifier" ? { aVerifierId: derniere.id } : {}),
       ...(etat === "publiee" && derniere?.urlPubliee ? { lien: derniere.urlPubliee } : {}),
       essai: outil === "zernio" || modeBuffer === "brouillon",
-      bufferDisponible: relie && avantFin && outilPour(routage, l.reseau) === "buffer",
+      bufferDisponible: relie && outilPour(routage, l.reseau) === "buffer",
       aussiSur: vue.lignes.filter((x) => x.videoId === l.videoId && x.reseau !== l.reseau).map((x) => ({ reseau: x.reseau, nom: x.reseauNom })),
     };
   }
   return sortie;
+}
+
+function refuserOutil(): Resultat<never> {
+  return { ok: false, message: "Cet outil n'est pas disponible pour cet envoi : rien n'est parti.", code: "OUTIL_REFUSE" };
 }
 
 export interface OptionsEnvoiParOutil {
@@ -97,15 +100,30 @@ export interface OptionsEnvoiParOutil {
 }
 
 /**
- * Envoi d'un réseau par l'outil choisi POUR CE CONTENU. Buffer : le chemin habituel. Zernio : mêmes gardes (session, vidéo
+ * Envoi d'un réseau par l'outil de CE CONTENU. Buffer : le chemin habituel, seulement si la configuration (serveur) route ce réseau
+ * chez Buffer ; sinon refus `OUTIL_REFUSE`. Zernio : mêmes gardes (session, vidéo
  * prête, ni exemple ni essai) puis `envoyerReel("zernio", …)` ; le serveur refuse TikTok sans accord et une date passée.
  */
 export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, dateIso: string, options: OptionsEnvoiParOutil): Promise<Resultat<{ nombre: number; problemes: string[] }>> {
   await exigerSession();
+  // L7-06-4-3 : le client ne CHOISIT plus Buffer, le serveur route. Absent ou « zernio » : chemin Zernio. « buffer » : accepté
+  // seulement si la configuration lue ici (outilDeEnvoi) place ce réseau chez Buffer. Tout autre cas (casse, espaces, vide,
+  // null, valeur inconnue, configuration Zernio) : refus avant tout effet (rien écrit, aucun appel, aucun journal d'envoi).
+  const demande: unknown = options?.outil;
+  if (demande !== undefined && demande !== "zernio" && demande !== "buffer") return refuserOutil();
+  if (demande === "buffer") {
+    let configure: OutilPublication | undefined;
+    try {
+      configure = await outilDeEnvoi(reseau);
+    } catch {
+      configure = undefined;
+    }
+    if (configure !== "buffer") return refuserOutil();
+  }
   const nbChoisis = options.comptes?.length ?? 0;
   const journal = { action: "envoyerParOutilAction", outil: options.outil, reseau, contenuId: videoId };
   const r = await essayer(async () => {
-    if (options.outil === "buffer") {
+    if (demande === "buffer") {
       const r = await envoyerVersBuffer(videoId, [reseau], dateIso, { comptes: options.comptes ? { [reseau]: options.comptes } : {}, premiersCommentaires: { [reseau]: options.premierCommentaire ?? "" }, avecPremierCommentaire: true });
       return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
     }
@@ -124,7 +142,7 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     } catch {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
     }
-    // Les comptes que l'écran envoie sont ceux de Buffer : on les traduit en comptes Zernio (par le nom), sans jamais les passer tels quels.
+    // Les comptes que l'écran envoie sont soit déjà ceux de Zernio (liste des comptes Zernio) : passés tels quels, soit ceux de Buffer : traduits en comptes Zernio par le nom.
     const traduits = options.comptes ? await traduireSelectionVersZernio(service, reseau, options.comptes, (await canauxEnregistres())?.canaux ?? []) : undefined;
     const r = await envoyerReel("zernio", service, kit, [reseau], dateIso, traduits ? { [reseau]: traduits } : {}, { [reseau]: options.premierCommentaire ?? "" }, true, {
       ...(reseau === "tiktok" ? { consentementTiktok: options.accordTiktok === true } : {}),
@@ -133,7 +151,7 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
     return { nombre: r.publications.length, problemes: (r.problemes ?? []).map((p) => p.message) };
   });
   // Trace sans texte ni compte (voir journal-envoi.ts) : le code du refus, ou « OK » si quelque chose est parti.
-  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.nombre > 0 ? "OK" : "AUCUN_ENVOI", nbComptes: r.donnees.nombre, ...(options.outil === "zernio" ? { brouillon: true } : {}) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: nbChoisis });
+  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.nombre > 0 ? "OK" : "AUCUN_ENVOI", nbComptes: r.donnees.nombre, ...(demande === "zernio" ? { brouillon: true } : {}) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: nbChoisis });
   return r;
 }
 
