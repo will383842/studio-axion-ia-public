@@ -53,7 +53,7 @@ import type { LecteurCredit, TestConnexion } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
 import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
-import { accordAutomatique, budgetIndicatif } from "./mode-budget";
+import { accordAutomatique, budgetIndicatif, budgetIndicatifPour } from "./mode-budget";
 import { partDoubleReel, phraseAvatarParle } from "@/domaine/double-reel";
 import type { Estimation } from "@/moteurs";
 import { depots, ecrireParametre, ErreurStudio, fournisseurSimule, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
@@ -288,11 +288,12 @@ export async function besoinsDeLEstimation(lignes: LigneCout[], marge: number = 
 }
 
 /** Manques de crédit pour ces lignes (vide : tout est couvert). Lit les soldes réels s'ils datent de plus de 5 min. */
-export async function manquesPour(lignes: LigneCout[]): Promise<{ manques: Manque[]; besoins: BesoinFournisseur[]; refusees: string[] }> {
+export async function manquesPour(lignes: LigneCout[], origine?: OrigineLancement): Promise<{ manques: Manque[]; besoins: BesoinFournisseur[]; refusees: string[] }> {
   const besoins = await besoinsDeLEstimation(lignes);
   const disponibles: Record<string, number | null> = {};
   const refusees: string[] = [];
-  const indicatif = await budgetIndicatif();
+  // ARG-ORIGINE-USINE : l'Usine reste bloquante, son solde suivi (fal.ai) est donc opposé comme un solde lu ; sans origine : studio, inchangé.
+  const indicatif = await budgetIndicatifPour(origine);
   for (const b of besoins) {
     const s = await soldeFournisseur(b.fournisseur, FRAICHEUR_PREVOL_MS);
     // Mode indicatif : un solde seulement SUIVI (fal.ai : recharges déclarées moins dépenses) est un repère deviné, jamais opposé.
@@ -351,13 +352,13 @@ export async function verifierBudgetEtCredits(
   if (double && !accordCouvre(confirme, typeof confirme === "number" ? bloquant : 0, budget.seuilConfirmation.centimes) && !options.doubleDejaConfirme) {
     throw new ErreurStudio("CONFIRMATION_REQUISE", phraseAvatarParle(double), bloquant);
   }
-  await controlerCredits(lignesBloquantes(estimation.lignes), quoi);
+  await controlerCredits(lignesBloquantes(estimation.lignes), quoi, options.origine);
 
 }
 
 /** Solde disponible (solde − réservations actives) de chaque fournisseur des lignes, comparé à l'estimation + 20 %. */
-async function controlerCredits(lignes: LigneCout[], quoi: string): Promise<void> {
-  const { manques, refusees } = await manquesPour(lignes);
+async function controlerCredits(lignes: LigneCout[], quoi: string, origine?: OrigineLancement): Promise<void> {
+  const { manques, refusees } = await manquesPour(lignes, origine);
   if (refusees.length) {
     throw new ErreurStudio("CLE_REFUSEE", `${nomFournisseur(refusees[0])} refuse la clé du studio : remplacez-la, puis « Tester la connexion » dans Réglages > Connexions.`);
   }
