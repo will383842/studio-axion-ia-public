@@ -312,6 +312,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   void lancerAnnexe("cas traités", async () => (await import("./cas-concret-traites")).inscrireLesCasDejaTraites(), 0);
   // Corbeille (18/10) : supprime les vidéos à la corbeille depuis 30 jours ou plus (au plus une fois par heure, sans session).
   void lancerAnnexe("corbeille", async () => (await import("./corbeille")).purgerCorbeille(), 0);
+  void lancerAnnexe("rendus de carrousels", async () => (await import("@/visuels/services/boucle-rendu")).reprendreRendusDeLaBoucle(), 0);
   // Image → vidéo, lot d'images (réglage éteint par défaut : sans lot en cours, ce tour ne fait rien) : le séquenceur lance
   // la vidéo suivante, une seule fabrication à la fois, sans session.
   await lancerAnnexe("lots d'images", async () => (await import("./image-video-lot")).avancerLotsIV(), DELAI_ANNEXE_MS);
