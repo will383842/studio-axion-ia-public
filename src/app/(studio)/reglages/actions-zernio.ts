@@ -13,6 +13,8 @@ import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { serviceBuffer } from "@/domaine/buffer";
 import { cleZernioPresente, comptesZernioEnregistres, editorialeActive, PARAM_ARRET_ZERNIO, PARAM_EDITORIALE_ACTIVE, PHRASE_EDITORIALE, PARAM_ENVOI_CALENDRIER, testerZernio } from "@/services/zernio";
 import { canauxEnregistres } from "@/services/buffer";
+import { fournisseurParId } from "@/fournisseurs";
+import { enregistrerCanauxZernio } from "@/services/comptes-envoi-zernio";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
 import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
@@ -149,6 +151,12 @@ export async function testerComptesZernioAction(): Promise<Resultat<{ message: s
     const tests: Record<string, { testeLe: string; actif: boolean }> = {};
     for (const [id, actif] of Object.entries(r.etats)) tests[id] = { testeLe, actif };
     await ecrireParametre(PARAM_TESTS, tests);
+    // Les cibles (pages Facebook, organisations) servent à l'écran « À publier » : lues ici, jamais depuis l'écran. Un échec n'ôte rien au test.
+    try {
+      await enregistrerCanauxZernio(fournisseurParId("publication", "zernio"));
+    } catch {
+      /* la liste précédente reste en base */
+    }
     rafraichir();
     return { message: r.message };
   });
