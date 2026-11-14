@@ -12,14 +12,14 @@ import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { MOT_GUIDE } from "@/domaine/guide-reseau/empreinte-mot";
 import { lireParametre } from "./_commun";
-import { apercuTextesMot, validerTextesMot, verifierMotPourCompte, type ApercuReseau } from "./mots-validation-par-mot";
+import { apercuTextesMot, validerTextesMot, verifierActivationMot, type ApercuReseau } from "./mots-validation-par-mot";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
 import type { EtatReglagesParcours, ReglageParcours, ResultatReglage } from "./parcours-reglages";
 
 // R5 : un mot autre que GUIDE ne s'active que si la garde d'envoi par compte (textes validés, cible, réseau) le permet.
 // Sans cette injection, l'activation d'un tel mot est refusée (`mot_non_valide`).
-injecterVerificationMotParcours(verifierMotPourCompte);
+injecterVerificationMotParcours(verifierActivationMot);
 
 export async function gesteLireMots(): Promise<VueMots> {
   await exigerSession();
@@ -53,6 +53,12 @@ export async function gesteMettreEnPause(mot: string, compte: string): Promise<R
 }
 export async function gesteReactiver(mot: string, compte: string): Promise<Resultat> {
   await exigerSession();
+  // Une ligne LOCALE d'un autre mot que GUIDE se réactive par l'activation complète (réglage « plusieurs mots », textes validés, cible, Facebook seulement) : rien n'est effacé.
+  // GUIDE et les lignes posées chez Zernio gardent leur chemin habituel.
+  if (mot !== MOT_GUIDE) {
+    const ligne = (await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {}))[`${mot}|${compte}`];
+    if (ligne && !ligne.idWorkflow) return activerMotParcours({ mot, compte, confirmeParOperateur: true });
+  }
   return reactiverMot({ mot, compte, confirmeParOperateur: true });
 }
 export async function gesteRefermerDisjoncteur(): Promise<{ ok: boolean }> {
