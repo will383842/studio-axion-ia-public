@@ -61,6 +61,8 @@ describe("garde : liste fermée des lecteurs du réglage", () => {
     "src/services/branchements-zernio.ts",
     // R5 : lecture seule, pour dire à l'écran /mots si le réglage est allumé (ne l'écrit ni ne l'ouvre).
     "src/services/mots-cibles-vue.ts",
+    // PR-B : l'activation d'un mot autre que GUIDE relit le réglage à chaque appel (par la fonction, jamais par la clé).
+    "src/services/mots-service.ts",
   ];
   const parcourir = (d: string): string[] =>
     readdirSync(d).flatMap((n) => {
