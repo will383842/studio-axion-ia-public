@@ -190,6 +190,67 @@ describe("origine", () => {
   });
 });
 
+describe("AUT-F : l'aiguillage d'origine normalise l'origine (jamais Studio par défaut)", () => {
+  const ILLISIBLES: unknown[] = [null, "Usine", "", {}];
+  const aiguiller = (origine: unknown, c: number, d = demande()) => credits.verifierEtReserverSelonOrigine(origine as never, estimation(c), undefined, "Cette vidéo", d);
+  const depenser = (origine: unknown, c: number, payer: () => Promise<string>) => credits.depenserSelonOrigine(origine as never, estimation(c), undefined, "Cette vidéo", demande(), payer);
+
+  it("allumé, plafond 1 centime : null, « Usine », « » et {} → USINE_PLAFOND_ATTEINT (aiguillage ET dépense d'un coup), rien n'est écrit", async () => {
+    await allumer(1);
+    for (const origine of ILLISIBLES) {
+      await expect(aiguiller(origine, 5_000), JSON.stringify(origine)).rejects.toMatchObject({ code: "USINE_PLAFOND_ATTEINT" });
+      const payer = vi.fn(async () => "payé");
+      await expect(depenser(origine, 5_000, payer), JSON.stringify(origine)).rejects.toMatchObject({ code: "USINE_PLAFOND_ATTEINT" });
+      expect(payer).not.toHaveBeenCalled();
+    }
+    await registreVide();
+  });
+
+  it("allumé, sous plafond : une origine illisible passe par l'Usine (accord inscrit au registre), jamais par le Studio", async () => {
+    await allumer(10_000);
+    for (const origine of ILLISIBLES) {
+      const d = demande();
+      await aiguiller(origine, 500, d);
+      expect(await accordDe(d.travailId), JSON.stringify(origine)).not.toBeNull();
+    }
+    expect(await index()).toHaveLength(4);
+    expect(await depenser(null, 500, async () => "payé")).toBe("payé");
+    expect(await index()).toHaveLength(5);
+  });
+
+  it("interrupteur ÉTEINT : origine illisible → BUDGET_USINE_ABSENT (aiguillage et dépense d'un coup), l'appel payant ne part pas", async () => {
+    for (const origine of ILLISIBLES) {
+      await expect(aiguiller(origine, 500), JSON.stringify(origine)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+      const payer = vi.fn(async () => "payé");
+      await expect(depenser(origine, 500, payer), JSON.stringify(origine)).rejects.toMatchObject({ code: "BUDGET_USINE_ABSENT" });
+      expect(payer).not.toHaveBeenCalled();
+    }
+    await registreVide();
+  });
+
+  it("Studio explicite (« studio » ou absente) : inchangé, ni jugement ni registre, même plafond de l'Usine à 1 centime", async () => {
+    await allumer(1);
+    for (const origine of ["studio", undefined]) {
+      const d = demande();
+      await expect(aiguiller(origine, 500, d), String(origine)).resolves.toBeUndefined();
+      expect(await accordDe(d.travailId)).toBeNull();
+      expect(await lireParametre(`budget.engage.${d.travailId}`, null)).toMatchObject({ centimes: 500, statut: "active" });
+    }
+    expect(await depenser(undefined, 500, async () => "payé")).toBe("payé");
+    await registreVide();
+  });
+
+  it("seuilIndicatif sur l'origine NORMALISÉE : origine null + automatique + budget de l'Usine reçu, interrupteur éteint → CONFIRMATION_REQUISE (jamais dispensée comme le Studio)", async () => {
+    await reglerBudgetUsine({ budget_mensuel_cents: 100_000 });
+    const direct = credits.verifierBudgetEtCredits(estimation(3_000), undefined, "Cette vidéo", { origine: null, automatique: true, travailId: "trv-seuil-1" });
+    await expect(direct).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(credits.verifierEtReserverSelonOrigine(null as never, estimation(3_000), undefined, "Cette vidéo", demande(), { automatique: true })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    // Témoin : le Studio, lui, reste dispensé (mode indicatif, lancement automatique).
+    await expect(credits.verifierEtReserverSelonOrigine("studio", estimation(3_000), undefined, "Cette vidéo", demande(), { automatique: true })).resolves.toBeUndefined();
+    await registreVide();
+  });
+});
+
 describe("reprise, lot, libération", () => {
   it("reprise (reactiverSelonOrigine) du même travail : pas de double compte", async () => {
     await allumer(4_000);
