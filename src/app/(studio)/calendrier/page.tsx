@@ -23,6 +23,11 @@ import { entreeDepuisPublication, etatAffiche } from "@/components/calendrier/ap
 import { cleJour } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { adresseVueJour, plageMois, plageSemaine } from "@/lib/calendrier-plages";
+import { entreesAvecMedias } from "./charger-medias";
+import { chargerPlanDuJour, type CreneauDuJour } from "./charger-plan";
+import { comptesCibles } from "./charger-comptes";
+import { PlanDuJour } from "@/components/calendrier/PlanDuJour";
+import { AjouterDuJour } from "@/components/calendrier/AjouterDuJour";
 import { GrilleMois } from "@/components/calendrier/GrilleMois";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
@@ -117,7 +122,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
     const jour = dateDemandee ?? cleJour(new Date());
     // Journée de Paris, de minuit à minuit (23 h ou 25 h le jour d'un changement d'heure).
     const finIso = new Date(new Date(instantParis(ajouterJoursParis(jour, 1), "00:00")).getTime() - 1).toISOString();
-    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={await listerCalendrier(instantParis(jour, "00:00"), finIso)} />;
+    const [calendrier, plan, comptes] = await Promise.all([listerCalendrier(instantParis(jour, "00:00"), finIso), chargerPlanDuJour(jour, cleJour(new Date())), comptesCibles(reseauxActifs)]);
+    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={calendrier} plan={plan} comptes={comptes} />;
   }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
@@ -147,7 +153,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   });
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
   // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
-  const entreesBrutes = semaine.map(entreeDepuisPublication);
+  const entreesBrutes = await entreesAvecMedias(semaine);
   // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
   const criteresComplets: CriteresFiltre = { ...filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs };
   // Le mot est déjà appliqué ici (sur titre + texte) : la grille et l'Agenda reçoivent des critères SANS mot, sinon ils refiltreraient sur le titre seul.
@@ -217,7 +223,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
  * Vue du jour (CAL-02) : heure par heure, publications de tous les réseaux, créneaux libres.
  * Le jour est celui de Paris.
  */
-function PageJour({ jour, reseauxActifs, filtres, calendrier }: { jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[] }) {
+function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes }: { jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[]; plan: CreneauDuJour[]; comptes: Partial<Record<IdReseau, string>> }) {
   const aujourdhui = cleJour(new Date());
   // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
   const duJour = calendrier.flatMap((j) => j.publications).filter((p) => cleJour(p.date) === jour);
@@ -249,6 +255,8 @@ function PageJour({ jour, reseauxActifs, filtres, calendrier }: { jour: string; 
         ← Retour à la semaine
       </Link>
       <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} lienEntree={(e) => liens.get(e.cle) ?? null} />
+      {jour >= aujourdhui && <AjouterDuJour jour={jour} aujourdhui={aujourdhui} reseaux={reseauxActifs} comptes={comptes} />}
+      <PlanDuJour creneaux={plan} aujourdhui={aujourdhui} />
     </div>
   );
 }
