@@ -43,9 +43,11 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === "ArrowRight") {
       e.preventDefault();
+      e.stopPropagation();
       aller(courante + 1);
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
+      e.stopPropagation();
       aller(courante - 1);
     }
   };
@@ -110,8 +112,10 @@ export function ApercuMedia({ type, url, poster, pages = [] }: ProprietesApercuM
               aria-label="Infographie en taille réelle"
               className="fixed inset-0 z-50 overflow-auto bg-voile p-4"
               onKeyDown={(e) => {
+                if (e.defaultPrevented) return;
                 if (e.key === "Escape") {
                   e.preventDefault();
+                  e.stopPropagation();
                   fermer();
                 } else if (e.key === "Tab") {
                   // Fenêtre modale : « Fermer » est son seul élément à focus, le focus ne sort pas vers la page.
