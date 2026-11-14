@@ -342,10 +342,18 @@ describe("B · interrupteurs ALLUMÉS (« Votre avatar parle » + « Montage ré
     const { videoId } = await scriptEnregistre(texte);
     await allumer(videoId);
     const apercu = await fabrication.apercuFabrication(videoId);
-    expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: true });
-    // Le prix est exigé (garde R8), puis la fabrication part, en production.
-    await expect(enProduction(() => fabrication.lancerFabrication(videoId))).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
-    const { travailId, versionId } = await enProduction(() => fabrication.lancerFabrication(videoId, { confirme: apercu.estimation.total.centimes }));
+    // Studio : le prix du jour vaut accord (décision du fondateur, 08/11), aucune confirmation exigée.
+    expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: false });
+    // Usine : la garde R8 tient, la confirmation du prix est TOUJOURS exigée (rien n'est créé tant qu'elle manque).
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    const { moisParis } = await import("@/services/couts");
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("budget.mensuel", { centimes: 1_000_000, devise: "EUR" });
+    await reglerBudgetUsine({ budget_mensuel_cents: 1_000_000, mois: moisParis() });
+    await expect(enProduction(() => fabrication.lancerFabrication(videoId, { origine: "usine" }))).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    await expect(enProduction(() => fabrication.lancerFabrication(videoId, { origine: "usine", confirme: false }))).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
+    // Studio : la fabrication part sans confirmation, en production.
+    const { travailId, versionId } = await enProduction(() => fabrication.lancerFabrication(videoId));
     expect((await depots().versions.obtenir(versionId))!.commande.moteurId).toBe("montage-avocat");
     const travail = await jusquAuBout(travailId);
     expect(travail.statut).toBe("termine");
