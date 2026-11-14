@@ -1,7 +1,7 @@
 /**
- * MODE DU BUDGET : un seul interrupteur, `budget.mode` = "indicatif" | "bloquant" (décision de Will, 23/10).
+ * MODE DU BUDGET : un seul interrupteur, `budget.mode` = "indicatif" | "bloquant" (décision du fondateur, 23/10).
  *  - « indicatif » : les montants (plafond du mois, seuil de confirmation, plafonds par vidéo, solde deviné de fal.ai) sont
- *    des REPÈRES. Au-delà, le studio journalise et prévient Will (cloche, une fois par jour et par motif), puis continue.
+ *    des REPÈRES. Au-delà, le studio journalise et prévient le fondateur (cloche, une fois par jour et par motif), puis continue.
  *    Plus aucun arrêt pour un prix (NEW-ARG-04) : ni à 5 × le prix annoncé, ni ailleurs. Seuls les garde-fous en nombre d'appels restent.
  *  - « bloquant » : comportement d'avant, tous les seuils refusent. Retour en arrière : réglage `budget.mode` = "bloquant".
  * Ce qui reste dur dans les DEUX modes : les gardes de l'Usine, le solde réel HeyGen / ElevenLabs, les
@@ -25,7 +25,7 @@ export const CLE_MODE_BUDGET = "budget.mode";
  */
 export const FACTEUR_SECURITE_BUDGET = 5;
 
-/** Décision de Williams (08/11/2026) : le budget est inopérant. Le mode « bloquant » n'existe plus : ni réglage, ni variable ne le rétablit. */
+/** Décision du fondateur (08/11/2026) : le budget est inopérant. Le mode « bloquant » n'existe plus : ni réglage, ni variable ne le rétablit. */
 export async function modeBudget(): Promise<ModeBudget> {
   return "indicatif";
 }
@@ -45,7 +45,7 @@ export async function origineDeLaVideo(videoId: string): Promise<"studio" | "usi
     const derniere = versions.sort((a, b) => b.numero - a.numero)[0];
     return derniere?.commande?.origine === "usine" ? "usine" : "studio";
   } catch {
-    // Échec fermé : une origine illisible est traitée comme l'Usine (bloquante), jamais comme une commande de Will.
+    // Échec fermé : une origine illisible est traitée comme l'Usine (bloquante), jamais comme une commande du fondateur.
     return "usine";
   }
 }
