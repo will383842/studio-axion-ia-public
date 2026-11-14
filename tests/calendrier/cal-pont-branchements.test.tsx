@@ -37,16 +37,16 @@ describe("CAL-14P0 — pont du calendrier", () => {
     const reel = await rendre({ vue: "jour" });
     vi.resetModules();
     vi.doMock("@/components/calendrier/PlanDuJour", () => ({ PlanDuJour: () => null }));
-    vi.doMock("@/components/calendrier/AjouterDuJour", () => ({ AjouterDuJour: () => null }));
     vi.doMock("@/app/(studio)/calendrier/charger-plan", () => ({ chargerPlanDuJour: async () => [] }));
     vi.doMock("@/app/(studio)/calendrier/charger-comptes", () => ({ comptesCibles: async () => ({}) }));
     const avant = await rendre({ vue: "jour" });
     vi.doUnmock("@/components/calendrier/PlanDuJour");
-    vi.doUnmock("@/components/calendrier/AjouterDuJour");
     vi.doUnmock("@/app/(studio)/calendrier/charger-plan");
     vi.doUnmock("@/app/(studio)/calendrier/charger-comptes");
     expect(reel).toBe(avant);
     expect(reel).toContain("Retour à la semaine");
+    // CAL-14C : le bouton d'ajout n'est plus vide ; le jour courant le montre.
+    expect(reel).toContain("+ Ajouter ce jour-là");
   });
 
   it("vue semaine : même HTML qu'avant (chargeur de médias vide)", async () => {
