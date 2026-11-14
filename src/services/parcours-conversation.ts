@@ -40,6 +40,7 @@ import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
+import { cibleEssaiPermise } from "@/domaine/guide-reseau/cibles-essai";
 import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
@@ -156,7 +157,7 @@ async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: st
     if (parcours?.mot !== undefined && parcours.mot.toUpperCase() !== MOT) {
       // Mot autre que GUIDE : seulement si le réglage « plusieurs mots » est allumé (durable), puis validation PAR MOT et cible du jour (jamais sous `sousVerrou`).
       if (!(await motsMultiplesActifs())) return "plusieurs_mots_eteint";
-      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env, maintenantMs);
+      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env, maintenantMs, idCompte);
       if (refus !== null) return refus;
     } else if (parcours?.mot !== undefined && !textesValidesPourLeMot(parcours.mot, parcours.guide)) return "validation_absente";
     // La validation de l'opérateur est liée aux textes réellement envoyés : revérifiée ici, à chaque garde (échec fermé).
@@ -506,17 +507,19 @@ async function aUnDossierComposite(cles: ClesOk, idBrut: string, clesConnues: re
 
 /* --- Commentaire, mode « plusieurs mots » (réglage allumé) --------------------------------------------------------- */
 const ATTENTE_CATALOGUE_MS = 60_000;
-type CibleDuMot = { genre: "ok"; code: string; titre: string } | { genre: "inconnue" } | { genre: "illisible" };
+type CibleDuMot = { genre: "ok"; code: string; titre: string; essai?: true } | { genre: "inconnue" } | { genre: "illisible" };
 
 /** Cible d'un mot. GUIDE sans catalogue (ou sans liaison pour GUIDE) : `guide-ia` + titre du serveur. Autre mot, catalogue illisible : « illisible » (reporté). */
-async function cibleDuCommentaire(mot: string, reseau: string, d: DepsConversation, env: Env, now: number): Promise<CibleDuMot> {
+async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string, d: DepsConversation, env: Env, now: number): Promise<CibleDuMot> {
   const site = await lireCiblesSite({ env, maintenantMs: now });
   const titreServeur = d.titreGuide ?? "";
   if (site === null) return mot === MOT ? { genre: "ok", code: "guide-ia", titre: titreServeur } : { genre: "illisible" };
   const r = cibleDuMot(mot, reseauSite(reseau) ?? "tous", site.liaisons, site.catalogue);
   if (mot === MOT && r.source === null) return { genre: "ok", code: "guide-ia", titre: titreServeur };
   const el = r.element;
-  if (!el || !el.actif || el.test || el.type === "adresse") return { genre: "inconnue" };
+  if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
+  // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ; sinon inconnue, comme avant.
+  if (el.test) return cibleEssaiPermise(env, idCompte, reseauSite(reseau)) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue" };
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }
@@ -543,7 +546,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   }
   // 3. Cible du mot.
   const mot = String(c.motSeul).trim().toUpperCase();
-  const cible = await cibleDuCommentaire(mot, reseau, d, env, now);
+  const cible = await cibleDuCommentaire(mot, reseau, idCompte, d, env, now);
   if (cible.genre === "illisible") {
     await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
     return "bloque";
@@ -554,7 +557,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     return "traite";
   }
   // 3 bis. Textes validés pour ce mot et cette cible ? Sinon l'événement est CLOS (jamais remis en attente : il bloquerait les GUIDE du lot).
-  const refusEnvoi = await validationPourEnvoi(mot, reseauSite(reseau), cible.code, cible.titre, env, now);
+  const refusEnvoi = await validationPourEnvoi(mot, reseauSite(reseau), cible.code, cible.titre, env, now, idCompte);
   if (refusEnvoi === "cibles_illisibles") {
     await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
     return "bloque";
@@ -582,7 +585,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   const idCommentaire = String(c.idCommentaire ?? "");
   const r = await reserverParcours({
     cles, idAuteur: auteur, idCommentaire, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now, code: cible.code,
-    creer: ({ cleGuide, nature, groupeM1 }) => ({ ...etatNeuf("nouveau", c, d, cleGuide, now), guide: cible.code, mot, nature, groupeM1, ...(cible.titre ? { titreCible: cible.titre } : {}) }),
+    creer: ({ cleGuide, nature, groupeM1 }) => ({ ...etatNeuf("nouveau", c, d, cleGuide, now), guide: cible.code, mot, nature, groupeM1, ...(cible.titre ? { titreCible: cible.titre } : {}), ...(cible.essai ? { cibleEssai: true } : {}) }),
   });
   const dec = r.decision;
   if (dec.action === "silence") {
@@ -696,6 +699,7 @@ const RAISONS_REPLI_LIEN: Record<Exclude<CodeRepliLien, "lien_eteint">, string> 
   lien_trop_long: "lien trop long",
   forme_refusee: "lien de forme non permise",
   version_inconnue_du_site: "le site ne connaît pas encore cette formulation",
+  cible_essai: "cible d'essai : jamais de lien",
 };
 const LONGUEUR_MAX_M1_LIEN = 1000;
 const RE_NOM_COURT_COMPTE = /^[a-z0-9_]{2,40}$/;
@@ -745,6 +749,8 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
     const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot, titre } });
     return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
   };
+  // Cible d'essai : jamais de lien ni de jeton (la page du site la refuse) ; la personne donne son adresse en message privé.
+  if (e.cibleEssai === true) return repli("cible_essai");
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -796,7 +802,7 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
 async function preparerRenvoi(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<PrepM1> {
   const impossible = { texte: null, version: e.versionTexteM1 };
   const groupe = e.groupeM1 === "deja-envoye" || e.groupeM1 === "lien-rappel" ? e.groupeM1 : null;
-  if (groupe === null || !parcoursLienGuideActif(env)) return impossible;
+  if (e.cibleEssai === true || groupe === null || !parcoursLienGuideActif(env)) return impossible;
   const secret = lireSecretLien(env);
   if (secret === null) return impossible;
   const mot = e.mot ?? MOT;
@@ -1602,11 +1608,11 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
 }
 
 /** Codes des cibles `guide` actives et non d'essai du catalogue, plus `guide-ia`. Catalogue illisible : la liste par défaut. */
-async function guidesDuCatalogue(env: Env, now: number): Promise<readonly string[]> {
+export async function guidesDuCatalogue(env: Env, now: number, compte?: string): Promise<readonly string[]> {
   try {
     const site = await lireCiblesSite({ env, maintenantMs: now });
     if (site === null) return GUIDES_RESEAU_CONNUS;
-    return [...new Set(["guide-ia", ...site.catalogue.filter((x) => x.type === "guide" && x.actif && !x.test).map((x) => x.code)])];
+    return [...new Set(["guide-ia", ...site.catalogue.filter((x) => x.type === "guide" && x.actif && (!x.test || cibleEssaiPermise(env, compte, "facebook"))).map((x) => x.code)])];
   } catch {
     return GUIDES_RESEAU_CONNUS;
   }
@@ -1631,7 +1637,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   const run: RunLu = { email: adresse, mot: etat.mot ?? MOT, reseau: etat.reseau, guide: etat.guide, versionTexteM1: etat.versionTexteM1, occurredAt };
   const cleEnvoi = RE_CLE_IDEMPOTENCE.test(etat.cleIdempotenceGuide) ? etat.cleIdempotenceGuide : "";
   // Mode allumé : guides connus = cibles `guide` actives et non d'essai du catalogue (+ `guide-ia`) ; catalogue illisible : liste par défaut. Éteint : appel inchangé.
-  const guidesConnus = multi ? await guidesDuCatalogue(env, now) : undefined;
+  const guidesConnus = multi ? await guidesDuCatalogue(env, now, etat.cibleEssai === true && etat.reseau === "facebook" ? etat.idCompte : undefined) : undefined;
   if (!(guidesConnus ? runValide(run, undefined, guidesConnus) : runValide(run)) || !cleEnvoi) {
     await patcher(cle, { etat: "site_refuse", dernierCode: "run_invalide" });
     await alerter("site_refuse", "Le site a refusé une demande de guide (données invalides). La personne ne recevra pas le guide.", now);
