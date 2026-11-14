@@ -13,10 +13,12 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const A = await import("@/services/autonomie-usine");
+const { moisParis } = await import("@/services/couts");
+const { maintenant } = await import("@/services/_commun");
 
 const MDP = "aut-a-registre";
 const eur = (c: number) => ({ centimes: c, devise: "EUR" as const });
-const MOIS = () => new Date().toISOString().slice(0, 7);
+const MOIS = () => moisParis(maintenant());
 
 beforeAll(async () => {
   process.env.SESSION_SECRET = "k".repeat(48);
@@ -121,6 +123,28 @@ describe("origine", () => {
   });
   it("null, « », « Usine », objet, nombre, « usine » → usine", () => {
     for (const v of [null, "", "Usine", {}, 0, 1, "usine", "STUDIO", " studio"]) expect(A.normaliserOrigine(v)).toBe("usine");
+  });
+});
+
+describe("accord sans clic : origine non transmise", () => {
+  async function videoOrigine(id: string, origine: "usine" | "studio") {
+    const d = new Date().toISOString();
+    await depots().versions.enregistrer({ id: `ver-${id}`, videoId: id, numero: 1, commande: { origine, entrees: {} }, creeLe: d, modifieLe: d } as never);
+  }
+  it("vidéo d'origine Usine, origine non transmise, autonomie éteinte → false", async () => {
+    await videoOrigine("v-o1", "usine");
+    expect(await A.accordSansClicPour(undefined, "v-o1")).toBe(false);
+  });
+  it("vidéo d'origine Usine, origine non transmise, autonomie allumée → true", async () => {
+    await videoOrigine("v-o2", "usine");
+    await allumer(1000);
+    expect(await A.accordSansClicPour(undefined, "v-o2")).toBe(true);
+  });
+  it("origine transmise « studio » l'emporte sur la vidéo ; vidéo Studio non transmise suit le budget indicatif", async () => {
+    await videoOrigine("v-o3", "usine");
+    await videoOrigine("v-o4", "studio");
+    const { budgetIndicatifPourVideo } = await import("@/services/mode-budget");
+    expect(await A.accordSansClicPour(undefined, "v-o4")).toBe(await budgetIndicatifPourVideo("v-o4", undefined));
   });
 });
 
@@ -291,7 +315,7 @@ describe("inscrireAccordUsine", () => {
     await expect(sousVerrou(() => A.inscrireAccordUsine({ cle: "trv-i3", besoin: 1, quoi: "vidéo" }))).rejects.toBeTruthy();
     expect(await depots().parametres.obtenir("usine.autonomie.accord.trv-i3")).toBeFalsy();
   });
-  it("deux accords simultanés sous un même verrou logique : jamais au-dessus du plafond", async () => {
+  it("deux accords SÉQUENTIELS : le second est refusé au plafond (ne prouve aucune simultanéité ; la vraie course relève de autonomie-usine-course.test.ts, lot C)", async () => {
     await allumer(1000);
     const un = () => sousVerrou(() => A.inscrireAccordUsine({ cle: "trv-p1", besoin: 600, quoi: "a" }));
     await un();

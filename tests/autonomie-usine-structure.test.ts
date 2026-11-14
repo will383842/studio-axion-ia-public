@@ -72,6 +72,13 @@ describe("structure de l'autonomie de l'Usine", () => {
     expect(fonctions.sort()).toEqual(["alerterPlafondUsine", "inscrireAccordUsine", "reglerAutonomieUsine"].sort());
   });
 
+  it("`dansVerrouCredits(` n'est appelé que dans src/services/credits.ts (le marqueur seul n'est pas un verrou)", () => {
+    const fautifs = fichiers("src")
+      .filter((f) => f !== FICHIER && f !== "src/services/credits.ts")
+      .filter((f) => /dansVerrouCredits\s*\(/.test(sansCommentaires(lire(f))));
+    expect(fautifs).toEqual([]);
+  });
+
   it("le fichier ne fait aucun appel réseau", () => {
     expect(sansCommentaires(lire(FICHIER))).not.toMatch(/\bfetch\(|https?:\/\//);
   });
