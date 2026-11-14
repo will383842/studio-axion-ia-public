@@ -12,7 +12,7 @@ const etat = vi.hoisted(() => ({ appels: 0, opposeeDepuis: null as number | null
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: () => true }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => null }));
-vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true }));
+vi.mock("@/services/parcours-dossier", async (orig) => ({ ...(await orig<Record<string, any>>()), textesValidesPourLeMot: () => true, validationPourEnvoi: async () => null }));
 vi.mock("@/services/oppositions-mots", async (orig) => {
   const reel = await orig<Record<string, any>>();
   return {
