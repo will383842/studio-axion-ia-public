@@ -360,7 +360,7 @@ export async function verifierBudgetEtCredits(
   // Mode indicatif (commande de l'utilisateur) : `confirme` vaut déjà le prix du jour (accordAutomatique), la confirmation au-dessus
   // du seuil ne refuse donc plus, que le lancement soit automatique ou fait à la main. `seuilIndicatif` ne fait que dispenser
   // un lancement AUTOMATIQUE d'une commande qui garderait un accord insuffisant. Mode bloquant et Usine : confirmation exigée.
-  const seuilIndicatif = options.automatique === true && origine !== "usine" && (await budgetIndicatif());
+  const seuilIndicatif = options.automatique === true && !usine && (await budgetIndicatif());
   if (!seuilIndicatif && bloquant > budget.seuilConfirmation.centimes && !accordCouvre(confirme, bloquant, budget.seuilConfirmation.centimes)) {
     const message = typeof confirme === "number" ? "Le prix a changé : confirmez pour continuer." : `${quoi} coûte plus que d'habitude : confirmez pour continuer.`;
     throw new ErreurStudio("CONFIRMATION_REQUISE", message, bloquant);
@@ -543,14 +543,15 @@ export function reserverPourUsine(estimation: Pick<Estimation, "lignes" | "total
 }
 
 /**
- * L3-0 : aiguillage d'un code qui reçoit l'origine du lancement (écriture, textes de vidéo, décors…) : « usine » passe
- * par `reserverPourUsine`, tout le reste par `verifierEtReserver` (défaut manuel de Will, inchangé). Seul endroit hors
+ * L3-0 : aiguillage d'un code qui reçoit l'origine du lancement (écriture, textes de vidéo, décors…) : l'origine est NORMALISÉE
+ * (`normaliserOrigine`, AUT-F : une origine inattendue vaut Usine, jamais Studio) ; « usine » passe
+ * par `reserverPourUsine`, seuls l'absence d'origine et « studio » vont par `verifierEtReserver` (défaut manuel de Will, inchangé). Seul endroit hors
  * de ce fichier où l'origine devient un choix de chemin ; le test structurel `l3-0-garde-origine` (tests/l3-0-garde-origine.test.ts) y veille.
  * L3-01 : ce test tient aussi la liste FERMÉE de tous les sites de dépense du dépôt (§ 3 : garde, pré-vol, crochet ou hors
  * porte, chacun avec sa raison) ; un site nouveau, ou une garde qui reçoit une origine écrite en dur, le fait rougir.
  */
 export function verifierEtReserverSelonOrigine(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id }, options: { automatique?: boolean } = {}): Promise<void> {
-  return origine === "usine" ? reserverPourUsine(estimation, confirme, quoi, demande) : verifierEtReserver(estimation, confirme, quoi, demande, { automatique: options.automatique });
+  return normaliserOrigine(origine) === "usine" ? reserverPourUsine(estimation, confirme, quoi, demande) : verifierEtReserver(estimation, confirme, quoi, demande, { automatique: options.automatique });
 }
 
 /**
