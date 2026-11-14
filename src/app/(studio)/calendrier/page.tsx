@@ -60,6 +60,17 @@ function avecReseaux(base: string, actifs: readonly IdReseau[]): string {
   return !suite ? base : base.includes("?") ? `${base}${suite}` : `${base}?${suite.slice(1)}`;
 }
 
+/** Ce que disait l'ancienne ligne mobile (libellePublication) : l'envoi par Buffer, puis le statut. Les essais gardent leur état « essai ». */
+function etatTelephone(p: Parameters<typeof entreeDepuisPublication>[0] & { etatEnvoi?: string }): string {
+  const base = entreeDepuisPublication(p).etat;
+  if (p.via === "simulation") return base;
+  if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent" || p.statut === "echec") return "a_corriger";
+  if (p.etatEnvoi === "a-verifier") return "a_verifier";
+  if (p.etatEnvoi === "en-cours") return "en_cours";
+  if (p.via === "buffer" && p.statut === "brouillon") return "brouillon_buffer";
+  return base;
+}
+
 /** « + Ajouter » mène à la journée d'aujourd'hui, en attendant le formulaire d'ajout (CAL-26b). */
 const lienAjouter = () => `/calendrier?vue=jour&date=${cleJour(new Date())}`;
 
@@ -70,8 +81,8 @@ function moisVoisin(mois: string, delta: number): string {
 }
 
 /**
- * CALENDRIER (AV2.4-2) — niveau 3 : semaine par semaine. Liste par jour sur mobile,
- * 7 colonnes sur ordinateur, « À programmer » en bas.
+ * CALENDRIER (AV2.4-2) — niveau 3 : semaine par semaine. Mode Agenda (liste par jour) à 860 px et moins,
+ * 7 colonnes au-delà, « À programmer » en bas.
  * Les publications « simulation » ne sont JAMAIS montrées comme programmées (pastille Essai).
  */
 export default async function PageCalendrier({ searchParams }: { searchParams: Promise<{ semaine?: string; vue?: string; date?: string; reseaux?: string }> }) {
@@ -105,8 +116,6 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const aujourdhui = aujourdhuiCle;
   // Les essais (rien n'a été envoyé) ne comptent pas comme des publications : ils sont annoncés à part.
   const semaine = jours.flatMap((j) => parJour.get(cleJour(j)) ?? []);
-  const total = semaine.filter((p) => p.via !== "simulation").length;
-  const essais = semaine.length - total;
   const adresseSemaine = dateDemandee ? `/calendrier?vue=semaine&date=${dateDemandee}` : decalageDemande ? `/calendrier?semaine=${decalageDemande}` : "/calendrier";
   // « À faire » : à corriger, à valider, brouillons ; les essais n'y sont pas.
   const aFaire = semaine.filter((p) => p.via !== "simulation").map((p) => {
@@ -115,8 +124,15 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   });
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
   const entreesSemaine = semaine.map(entreeDepuisPublication);
-  const criteres: CriteresFiltre = { reseaux: reseauxActifs, types: [], etats: [] };
+  // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
+  const criteres: CriteresFiltre = { reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs, types: [], etats: [] };
   const visibles = filtrerEntrees(entreesSemaine, criteres);
+  // Sur téléphone, les états disent ce que disait l'ancienne ligne (envoi refusé, à vérifier…).
+  const entreesAgenda = semaine.map((p) => ({ ...entreeDepuisPublication(p), etat: etatTelephone(p) }));
+  // Les essais (rien n'a été envoyé) ne comptent pas comme des publications, ni pour le bandeau, ni pour l'alerte.
+  const visiblesReelles = visibles.filter((e) => e.etat !== "essai");
+  const total = visiblesReelles.length;
+  const essais = visibles.length - total;
   const semainePassee = plage.jours[6] < aujourdhui;
   const lienAujourdhui = `/calendrier${suite ? `?${suite.slice(1)}` : ""}`;
   const libelleSemaine = decalage === 0 ? "Cette semaine" : decalage === 1 ? "Semaine prochaine" : decalage === -1 ? "Semaine dernière" : `${moisAnnee.format(jours[0])} – ${moisAnnee.format(jours[6])}`;
@@ -142,8 +158,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         }}
       />
       <PanneauAFaire entrees={aFaire} />
-      {jours.some((j) => cleJour(j) === aujourdhui) && <BandeauAujourdhui entrees={entreesSemaine} aujourdhui={aujourdhui} />}
-      <AlerteProximite entrees={visibles} className="mb-3" />
+      {jours.some((j) => cleJour(j) === aujourdhui) && <BandeauAujourdhui entrees={visiblesReelles} aujourdhui={aujourdhui} />}
+      <AlerteProximite entrees={visiblesReelles} className="mb-3" />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">
         {moisAnnee.format(jours[0])} – {moisAnnee.format(jours[6])} · {total} publication{total > 1 ? "s" : ""}
         {essais > 0 && ` · ${essais} essai${essais > 1 ? "s" : ""}`}
@@ -151,11 +167,11 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
 
       {/* Mobile (860 px et moins) : mode Agenda, la semaine en liste jour par jour (CAL-12b) ; un appui ouvre le tiroir. */}
       <div className="min-[861px]:hidden">
-        <VueAgenda entrees={entreesSemaine} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} />
+        <VueAgenda entrees={entreesAgenda} semaineDu={lundiCle} aujourdhui={aujourdhui} criteres={criteres} lienJour={(j) => adresseVueJour(j, suite)} />
       </div>
-      {/* « Libre » seulement quand rien n'est listé, essais compris (E2E-1 n° 16). */}
+      {/* « Libre » seulement quand rien n'est listé, essais compris (E2E-1 n° 16). Sur téléphone l'Agenda le dit déjà jour par jour : ordinateur seulement. */}
       {semaine.length === 0 && !jours.some((j) => cleJour(j) === aujourdhui) && (
-        <div className="min-[861px]:hidden">{semainePassee ? <VueVide etat="semaine-passee" lienAujourdhui={lienAujourdhui} /> : <EtatVide compact icone="calendrier" titre="Semaine libre" phrase="Rien de prévu cette semaine." />}</div>
+        <div className="hidden min-[861px]:block">{semainePassee ? <VueVide etat="semaine-passee" lienAujourdhui={lienAujourdhui} /> : <EtatVide compact icone="calendrier" titre="Semaine libre" phrase="Rien de prévu cette semaine." />}</div>
       )}
       {/* Des publications existent mais les filtres les masquent toutes. */}
       {semaine.length > 0 && visibles.length === 0 && <VueVide etat="filtre-vide" lienTout={adresseSemaine} />}

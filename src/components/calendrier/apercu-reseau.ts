@@ -29,6 +29,8 @@ export interface EntreeApercu extends EntreeFiche {
   campagne?: string;
   /** Lien vers la vidéo d'origine (ouvre sa page ; ne publie rien). */
   lienSource?: string;
+  /** Nom du compte visé (deux LinkedIn, deux Facebook) ; absent : aucune ligne. */
+  canalNom?: string;
 }
 
 /** Un essai (rien n'est envoyé) n'est jamais montré comme programmé : il a son propre état et son propre mot. */
@@ -153,6 +155,8 @@ export interface PublicationApercu {
   videoId?: string;
   visuelId?: string;
   video?: { titre: string; vignette: string | null; video: string | null } | null;
+  /** Nom du compte visé (lot R1b). */
+  canalNom?: string;
 }
 
 /** Une publication du calendrier → l'entrée de l'aperçu. Jour et heure sont ceux de Paris. */
@@ -170,5 +174,6 @@ export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {
     texte: p.texte,
     media: estVideo ? { genre: "video", url: p.video?.video ?? null, poster: p.video?.vignette ?? null } : { genre: "image", url: p.video?.vignette ?? null },
     lienSource: estVideo ? `/videos/${p.videoId}` : undefined,
+    canalNom: p.canalNom || undefined,
   };
 }

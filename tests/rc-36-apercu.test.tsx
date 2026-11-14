@@ -410,8 +410,22 @@ describe("page /calendrier : la semaine à l'écran large ouvre l'aperçu sur pl
     const h = rendre((await Page({ searchParams: Promise.resolve({}) })) as ReactElement);
     expect(h).toContain('data-carte="publication:pubA|linkedin"');
     expect(h).toContain('role="table"');
-    // CAL-13b : sur téléphone, la liste est remplacée par le mode Agenda (maquette calendrier-du-studio) ; le lien vers la vidéo est dans le tiroir (lienSource).
+    // CAL-13b : sur téléphone, la liste est remplacée par le mode Agenda (maquette calendrier-du-studio).
     expect(h).toContain("data-agenda");
+  });
+
+  it("sur téléphone, une carte de l'Agenda ouvre le tiroir, et le lien vers la vidéo y reste accessible", async () => {
+    const { VueAgenda } = await import("@/components/calendrier/VueAgenda");
+    const { CarteEntreeCalendrier } = await import("@/components/calendrier/CarteEntreeCalendrier");
+    const e = entree({ cle: "publication:pubA|linkedin", jour: "2026-11-12", lienSource: "/videos/vA" });
+    const m = monter(VueAgenda as (p: unknown) => ReactNode, { entrees: [e], semaineDu: "2026-11-09", aujourdhui: AUJOURDHUI });
+    const cartes = trouver(m.rendre(), (x) => x.type === CarteEntreeCalendrier);
+    expect(cartes).toHaveLength(1);
+    expect(trouver(m.rendre(), (x) => x.type === ApercuPublication)).toHaveLength(0); // tiroir fermé
+    (cartes[0].props.onOuvrir as (c: Entree) => void)(e);
+    const tiroir = trouver(m.rendre(), (x) => x.type === ApercuPublication);
+    expect(tiroir).toHaveLength(1);
+    expect(rendre(tiroir[0] as ReactElement)).toContain('href="/videos/vA"');
   });
 });
 
