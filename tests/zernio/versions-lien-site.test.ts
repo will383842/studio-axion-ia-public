@@ -7,8 +7,9 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE, VERSIONS_M1_ACCEPTEES_PAR_LE_SITE, siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { cleParcours } from "@/domaine/guide-reseau/cles-parcours";
-import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, graineConv, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
-import { cleConversation, deposerMessage, validerFormulationsAuParcours } from "./aides/conversation";
+import { ADRESSE, AUTEUR, banc, C, Com, COMPTE, depots, ENV, graineConv, lireTexteDe, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
+import { VERSIONS_LIEN_JETON_SITE } from "./aides/versions-lien-jeton-site";
+import { cleConversation, deposerCommentaire, deposerMessage, validerFormulationsAuParcours } from "./aides/conversation";
 
 const etat = vi.hoisted(() => ({ catalogue: null as unknown }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -108,5 +109,41 @@ describe("versions avec lien acceptées par le site", () => {
     const d = JSON.parse(readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url), "utf8")) as { groupes: Record<string, string[]>; textes: Record<string, { texte: string }> };
     const attendu = ["m1-lien", "lien-rappel", "deja-envoye"].flatMap((g) => d.groupes[g]).filter((v) => d.textes[v].texte.includes("[LIEN]"));
     expect([...VRAIE_LISTE].sort()).toEqual([...attendu, "mp-m1-v3"].sort());
+  });
+});
+
+describe("liste du Studio comparée à la copie du site (non circulaire)", () => {
+  it("chaque version à lien acceptée par le Studio figure dans la copie des versions connues du site, et inversement", () => {
+    for (const v of VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE) expect(VERSIONS_LIEN_JETON_SITE, v).toContain(v);
+    expect([...VERSIONS_LIEN_JETON_SITE].sort()).toEqual([...VERSIONS_AVEC_LIEN_ACCEPTEES_PAR_LE_SITE].sort());
+  });
+});
+
+describe("premier message et renvoi avec la VRAIE liste (Facebook)", () => {
+  const lien = (t: string) => /https:\/\/[^\s]+j=[A-Za-z0-9_.-]+/.exec(t)?.[0];
+  const FORM_FB = (m1: string, dej: string) => ["mp-m1-v4-1", "mp-adresse-refusee-v3-1", "mp-lien-v3-1", m1, dej].filter((v, i, a) => a.indexOf(v) === i);
+  it.each(["mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4"])("premier message m1-lien avec %s validée : part avec un lien, sans repli « version inconnue du site »", async (v) => {
+    await validerFormulationsAuParcours([v, "mp-adresse-refusee-v3-1"]);
+    await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-fb-1", motSeul: "GUIDE", reseau: "facebook" });
+    await pass(T0);
+    expect(prives.length + envois.length).toBeGreaterThan(0);
+    const texte = (prives[0] ?? envois[0]).texte as string;
+    expect(lien(texte)).toBeTruthy();
+    expect(await un()).toMatchObject({ etat: "attente_email", versionTexteM1: v });
+    expect(await depots().notifications.lister((n: any) => /sans lien \(le site ne connaît pas/.test(n.message))).toHaveLength(0);
+  });
+  it.each(["mp-deja-envoye-v1-1", "mp-deja-envoye-v1-2", "mp-deja-envoye-v1-3"])("renvoi « déjà envoyé » avec %s validée (livré il y a plus de 24 h) : message court avec un lien neuf", async (v) => {
+    await validerFormulationsAuParcours(FORM_FB("mp-m1-v4-1", v));
+    await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-fb-1", motSeul: "GUIDE", reseau: "facebook" });
+    await pass(T0);
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-fb-adresse" });
+    await pass(T0 + 1000);
+    const avant = prives.length;
+    await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-fb-2", motSeul: "GUIDE", reseau: "facebook", ageMs: 1000 - 25 * H });
+    await pass(T0 + 25 * H);
+    expect(prives.length).toBe(avant + 1);
+    expect(lien(prives[avant].texte)).toBeTruthy();
+    expect(Object.values(await toutesLesConversations()).find((x: any) => x.nature === "renvoi")).toMatchObject({ groupeM1: "deja-envoye" });
   });
 });
