@@ -19,3 +19,7 @@
 3. Tests : cas A (« Usine » allumé → réservation « usine »), cas C (éteint → refus, rien réservé), cas B et Studio conservés. Mutations rejouées (rouges, restaurées) : origine brute à la réservation ; `accordSansClicPour` → `budgetIndicatifPourVideo`.
 4. `credits.ts` non touché (point 2 levé par AUT-F, PR 546).
 5. Le mode indicatif (`budgetIndicatifPourVideo`) et `accordAutomatique` reçoivent aussi l'origine résolue : « Usine » en casse n'ouvre plus l'accord par l'indicatif (constat n°6 de la première section, levé).
+
+## Correction 3 (relecture Opus PR 559, points 1 et 2)
+1. Point 1 (double lecture Studio) : levé par la correction précédente de la branche (origine résolue et normalisée une seule fois ; `budgetIndicatifPourVideo` reçoit alors une origine définie, donc ne relit pas la vidéo). Mesuré : 1 lecture de versions à la construction des outils, comme master (l'ancienne tête 1d2d439 en faisait 2). Aucun changement de source ici.
+2. Point 2 : 3 tests ajoutés (16 au total) : pré-vol « usine » (transcription puis Claude) au cas B ; pré-vol Studio inchangé ; comptage des lectures du chemin Studio. Mutation origine brute au pré-vol : rouge ; restauré, vert.

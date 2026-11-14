@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ErreurStudio } from "@/services/_commun";
 
 const reservations: Array<{ origine: unknown; accord: unknown }> = [];
+const prevols: Array<{ origine: unknown }> = [];
 let refus: ErreurStudio | null = null;
 
 vi.mock("@/fournisseurs", async (orig) => {
@@ -22,7 +23,14 @@ vi.mock("@/services/credits", async (orig) => {
       reservations.push({ origine, accord });
       if (refus) throw refus;
     },
+    verifierBudgetEtCredits: async (_e: unknown, _c: unknown, _q: unknown, options?: { origine?: unknown }) => {
+      prevols.push({ origine: options?.origine });
+    },
   };
+});
+vi.mock("@/services/depense-claude-video", async (orig) => {
+  const m = await orig<typeof import("@/services/depense-claude-video")>();
+  return { ...m, claudeTextesActif: async () => true };
 });
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
@@ -42,6 +50,7 @@ const allumer = (plafondCents: number) => ecrireParametre("usine.autonomie", { a
 beforeEach(() => {
   reinitialiserDepots();
   reservations.length = 0;
+  prevols.length = 0;
   refus = null;
 });
 
@@ -158,5 +167,38 @@ describe("AUT-D correction : une seule origine pour l'accord et la réservation"
     const o = await outils("studio");
     expect(await o.budget.reserver(DEPENSE)).toEqual({ ok: true });
     expect(reservations).toEqual([{ origine: "studio", accord: 40 }]);
+  });
+});
+
+describe("AUT-D correction : pré-vol (Claude, transcription) sous la même origine résolue", () => {
+  const PREVOL = (fournisseur: "transcription" | "anthropic") => ({ videoId: VIDEO, appelId: `iv-${fournisseur}-1`, etape: "script" as const, fournisseur, centimes: 10 });
+
+  it("cas B (commande sans origine, vidéo d'origine « usine ») : le pré-vol reçoit « usine », pour la transcription puis pour Claude", async () => {
+    await versionDeLaVideo("usine");
+    const o = await outils();
+    for (const f of ["transcription", "anthropic"] as const) expect(await o.budget.reserver(PREVOL(f) as never)).toEqual({ ok: true });
+    expect(prevols).toEqual([{ origine: "usine" }, { origine: "usine" }]);
+  });
+
+  it("origine donnée « studio » : le pré-vol la garde telle quelle (inchangé)", async () => {
+    await versionDeLaVideo("usine");
+    const o = await outils("studio");
+    await o.budget.reserver(PREVOL("transcription") as never);
+    expect(prevols).toEqual([{ origine: "studio" }]);
+  });
+
+  it("chemin Studio, origine absente : la vidéo n'est lue qu'une fois par la décision d'origine (pas de relecture en plus)", async () => {
+    await versionDeLaVideo("studio");
+    const lister = depots().versions.lister.bind(depots().versions);
+    let lectures = 0;
+    const espion = vi.spyOn(depots().versions, "lister").mockImplementation(((...a: unknown[]) => { lectures++; return (lister as (...x: unknown[]) => unknown)(...a); }) as never);
+    try {
+      const avant = lectures;
+      await outils();
+      // Construction des outils : 1 lecture d'origine (master : 4 au total sur ce chemin, dont 3 ailleurs que dans cette fonction).
+      expect(lectures - avant).toBe(1);
+    } finally {
+      espion.mockRestore();
+    }
   });
 });
