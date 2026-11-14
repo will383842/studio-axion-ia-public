@@ -59,6 +59,8 @@ beforeEach(async () => {
   await exemplesCommeVraies(depots(), { plusExemples: true });
   reinitialiserRequete();
   await auth.seConnecter(MDP, false);
+  // Ces tests visent Buffer : on le choisit explicitement pour chaque réseau (le défaut de l'outil est Zernio).
+  await (await import("@/services/_commun")).ecrireParametre("publication.routage", { instagram: "buffer", tiktok: "buffer", linkedin: "buffer" });
   brancher();
 });
 
