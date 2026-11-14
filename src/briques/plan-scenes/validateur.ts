@@ -11,9 +11,10 @@ import { z } from "zod";
 import { CHARTE_AXION, POLICE_AXION, TEINTES_INTERDITES } from "../jetons-motion";
 import { faitsDuScript, familleUnite, type ElementFait, type Fait } from "../faits-script";
 import { CATALOGUE_BRIQUES, pieceLaPlusProche, poserInstantsSurMot, type IdPiece } from "./catalogue";
+import { appliquerControles } from "./controles";
 import { avecEmpreintes } from "./empreinte";
 import { schemaFormat, schemaMot, schemaPlanBrut, VERSION_PLAN_SCENES, type Calque, type FormatPlan, type HabillagePlan, type MotMinute, type Niveau, type PlanValide, type ScenePlan } from "./schema";
-import { devantLeVisage, POSITIONS, POSITION_SURE_FACECAM, SCENE_MIN_MS, TRANSITIONS, TRANSITION_MAX_MS, TRANSITION_MIN_MS, type Position } from "./zones";
+import { devantLeVisage, POSITIONS, POSITION_SURE_FACECAM, SCENE_MIN_MS, TRANSITIONS, TRANSITION_MAX_MS, TRANSITION_MIN_MS, type Position, type Rectangle } from "./zones";
 
 /** Niveau 3 (code libre) : désactivé par défaut. Même activé, il n'est pas encore rendu : repli d'un niveau. */
 export const CODE_LIBRE_ACTIF = false;
@@ -39,6 +40,12 @@ export type CodeRemarque =
   | "DEVANT_LE_VISAGE"
   | "TRANSITION_ADOUCIE"
   | "TEXTE_COUPE"
+  | "LITTERALITE"
+  | "TEXTE_TROP_LONG"
+  | "TROP_COURT"
+  | "SOUS_TITRES"
+  | "DENSITE"
+  | "REPETITION"
   | "LLM_ILLISIBLE"
   | "LLM_INDISPONIBLE";
 
@@ -56,6 +63,8 @@ export interface ContexteValidation {
   facecam?: boolean;
   /** Durée totale imposée (ms) ; sinon celle du plan, au moins la fin du dernier mot. */
   dureeMs?: number;
+  /** Bande des sous-titres (en % de l'image) que les scènes ne couvrent pas ; défaut `BANDE_SOUS_TITRES_DEFAUT`. */
+  bandeSousTitres?: Rectangle;
 }
 
 export interface ResultatValidation {
@@ -300,6 +309,10 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
   }
 
   const ids = new Set<string>();
+  /** Scènes qui n'ont pas donné de plage de mots (contrôles de qualité : on lit alors les mots dits pendant la scène). */
+  const sansPlage = new Set<string>();
+  /** Scènes déjà validées (elles portent une `empreinte`) : plan relu d'une version, retouche. Les contrôles de qualité ne les touchent pas. */
+  const figees = new Set<string>();
   const scenes: ScenePlan[] = [];
   let finPrecedente = 0;
   p.scenes.forEach((sBrut, index) => {
@@ -313,10 +326,12 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
       id = `${id}-${k}`;
     }
     ids.add(id);
+    if (typeof s.empreinte === "string") figees.add(id);
     const signaler = (code: CodeRemarque, message: string) => noter(code, message, id);
 
     // Mots couverts et durées.
     const ms = estObjet(s.mots) ? s.mots : {};
+    if (nombre(ms.premier) === undefined || nombre(ms.dernier) === undefined) sansPlage.add(id);
     let premier = Math.max(0, Math.floor(nombre(ms.premier) ?? 0));
     let dernier = Math.max(premier, Math.floor(nombre(ms.dernier) ?? premier));
     if (mots.length) {
@@ -434,7 +449,20 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
   });
   if (scenes.length === 0) {
     noter("PLAN_ILLISIBLE", "Aucune scène utilisable : plan simple de repli.");
-    return planDeRepli({ mots, format, facecam, dureeMs });
+    const repli = planDeRepli({ mots, format, facecam, dureeMs });
+    return { ...repli, scenes: controlerLaQualite(repli.scenes, { mots, format, facecam, dureeMs: repli.dureeMs, bandeSousTitres: contexte.bandeSousTitres, sansPlage }, noter) };
   }
-  return { version: VERSION_PLAN_SCENES, format, facecam, dureeMs: Math.max(dureeMs, scenes.at(-1)!.finMs), habillage, mots, scenes };
+  const gardees = controlerLaQualite(scenes, { mots, format, facecam, dureeMs, bandeSousTitres: contexte.bandeSousTitres, sansPlage, figees }, noter);
+  return { version: VERSION_PLAN_SCENES, format, facecam, dureeMs: Math.max(dureeMs, gardees.at(-1)?.finMs ?? 0), habillage, mots, scenes: gardees };
+}
+
+/**
+ * Contrôles de qualité (GV2-46) après les réparations : littéralité, temps de lecture, débordement, sous-titres, densité,
+ * répétition ; puis les instants des mots sur chaque scène gardée. Des remarques, jamais de refus du plan entier.
+ */
+function controlerLaQualite(scenes: ScenePlan[], c: { mots: MotMinute[]; format: FormatPlan; facecam: boolean; dureeMs: number; bandeSousTitres?: Rectangle; sansPlage?: ReadonlySet<string>; figees?: ReadonlySet<string> }, noter: Noter): ScenePlan[] {
+  const stock = c.mots.length ? planDeRepli({ mots: c.mots, format: c.format, facecam: c.facecam, dureeMs: c.dureeMs }).scenes : [];
+  const r = appliquerControles(scenes, { ...c, stock });
+  for (const x of r.remarques) noter(x.code, x.message, x.sceneId);
+  return r.scenes.map((s) => (c.figees?.has(s.id) ? s : ({ ...s, parametres: poserInstantsSurMot(s.piece, s.parametres, c.mots, s.debutMs) } as ScenePlan)));
 }
