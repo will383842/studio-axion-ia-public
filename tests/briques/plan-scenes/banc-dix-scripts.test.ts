@@ -200,7 +200,7 @@ describe("banc dix scripts : avec un faux fournisseur (une scène par fait, plus
       if (brut) expect(c.remarques.map((r) => r.code), nom).toContain("LITTERALITE");
       // Le reste du plan est gardé : au moins une scène de fait par fait que le stock retient.
       const attendu = stock.find((x) => x.numero === c.numero && x.facecam === c.facecam)!.plan;
-      if (attendu) expect(c.plan?.scenes.length ?? 0, `${nom} : scènes de faits perdues`).toBeGreaterThanOrEqual(1);
+      if (attendu) expect(c.plan?.scenes.length ?? 0, `${nom} : scènes de faits perdues`).toBeGreaterThanOrEqual(attendu.scenes.length);
     }
     expect(pieges).toBeGreaterThan(0);
   });
