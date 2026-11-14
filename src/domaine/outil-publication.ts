@@ -16,6 +16,16 @@ export function outilDe(p: Pick<Publication, "via">): OutilPublication | null {
   return (OUTILS as readonly string[]).includes(p.via) ? (p.via as OutilPublication) : null;
 }
 
+/** Un compte encore routé chez Buffer : l'écran le signale par la pastille « Ancien outil ». */
+export function estAncienOutil(outil: OutilPublication | string | null | undefined): boolean {
+  return outil === "buffer";
+}
+
+/** Les outils proposés dans « Changer » : toujours les deux (Zernio d'abord), l'outil actuel marqué. Un choix à une seule option n'en est pas un. */
+export function outilsProposes(actuel: OutilPublication): { outil: OutilPublication; actuel: boolean; ancien: boolean }[] {
+  return (["zernio", "buffer"] as const).map((outil) => ({ outil, actuel: outil === actuel, ancien: estAncienOutil(outil) }));
+}
+
 /** La publication est-elle chez un outil externe (via ∈ {buffer, zernio}) ? */
 export function estChezUnOutil(p: Pick<Publication, "via">): boolean {
   return outilDe(p) !== null;

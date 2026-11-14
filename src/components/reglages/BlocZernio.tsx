@@ -8,7 +8,7 @@ import { LogoReseau } from "@/components/ui/LogoReseau";
 import { Pastille } from "@/components/ui/Pastille";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
-import type { OutilPublication } from "@/domaine/outil-publication";
+import { estAncienOutil, type OutilPublication } from "@/domaine/outil-publication";
 import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 
 /** « 03/11 » : jour et mois, en UTC pour ne dépendre d'aucun fuseau. */
@@ -59,6 +59,7 @@ export function CarteCompte({ compte, services, onChange }: { compte: CompteVue;
         <Pastille ton={etat.ton} icone={etat.icone}>
           {etat.libelle}
         </Pastille>
+        {estAncienOutil(compte.outil) && <Pastille ton="ambre">Ancien outil</Pastille>}
       </div>
       <div className="mt-3 flex flex-col gap-3">
         <SelecteurPastilles
