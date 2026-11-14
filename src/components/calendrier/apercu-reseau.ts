@@ -20,6 +20,8 @@ export interface VisuelApercu {
   poster?: string | null;
   /** « 9:16 », « 4:5 »… ; absent : le format préféré du réseau. */
   ratio?: string;
+  /** Visuel (carrousel, infographie) : une adresse signée par page, dans l'ordre. */
+  pages?: readonly string[];
 }
 
 /** Une entrée telle que le panneau la montre : la fiche (texte, premier commentaire), plus le visuel et la campagne. */

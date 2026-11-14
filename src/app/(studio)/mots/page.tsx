@@ -3,7 +3,7 @@ import { unstable_rethrow } from "next/navigation";
 import { EcranMotsConnecte } from "@/components/mots/EcranMotsConnecte";
 import { exigerSession } from "@/services/auth";
 import { etatBranchementZernio } from "@/services/branchements-zernio";
-import { gesteComptesGuide, gesteLireMots } from "@/services/mots-gestes";
+import { gesteComptesGuide, gesteLireMots, gesteLireReglagesParcours } from "@/services/mots-gestes";
 import { gesteLireTableauSuivi } from "@/services/suivi-mots-gestes";
 
 export const metadata: Metadata = { title: "Mots" };
@@ -14,6 +14,7 @@ export default async function PageMots() {
   await exigerSession();
   const vue = await gesteLireMots();
   const comptes = await gesteComptesGuide();
+  const reglages = await gesteLireReglagesParcours();
   // Le suivi chiffré se lit côté serveur, session déjà vérifiée ; une panne n'enlève rien d'autre à l'écran.
   let suivi: Awaited<ReturnType<typeof gesteLireTableauSuivi>> | null = null;
   try {
@@ -23,5 +24,5 @@ export default async function PageMots() {
     unstable_rethrow(e);
     suivi = null;
   }
-  return <EcranMotsConnecte vue={vue} comptes={comptes} branchement={etatBranchementZernio()} suivi={suivi} suiviIndisponible={suivi === null} />;
+  return <EcranMotsConnecte vue={vue} comptes={comptes} branchement={etatBranchementZernio()} suivi={suivi} reglages={reglages} suiviIndisponible={suivi === null} />;
 }
