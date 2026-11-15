@@ -16,3 +16,7 @@ Base : origin/master = 98af97a52d48927986b01dcd886b3a4e13caa8f5
 - (f) mutations : couts « remplacer » → rouge ; autonomie-usine « ajouter » ignoré → rouge ; credits clé = travailId → rouge ;
   MAIS clé = travailId (ou clé retirée) AUX 4 SITES → nouveau test VERT (non détecté). Suites voisines en cours.
 - (g) tsc 146 = 146 (aucune nouvelle), eslint des fichiers touchés propre ; aucun nom de personne, aucun montant codé en dur ajouté.
+- (g) FAILLE : 2 tests EXISTANTS verts sur master deviennent ROUGES sur la PR (attendent `demande` strictement égale à
+  `{ videoId, travailId }`, reçoivent en plus `cleUsine`) : `tests/voix/voix-epinglee-image-video.test.ts:130` et
+  `tests/cas-concret/services/branchements/branchements.test.ts:205-210`. Le journal annonce le contraire.
+- (f) mutation « clé = travailId » AUX 4 SITES : nouveau test vert ; les 2 seuls tests de site qui voient la demande sont déjà rouges.
