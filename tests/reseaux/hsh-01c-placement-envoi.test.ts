@@ -56,7 +56,7 @@ const texteDAvant = (r: { texte: string; motsDiese: string[] }, entete?: string)
   [entete ? `${entete}\n${r.texte}` : r.texte, r.motsDiese.filter((m) => !estInterdit(m)).join(" ")].filter(Boolean).join("\n\n");
 
 beforeAll(async () => { await preparerMotDePasse(MDP); });
-beforeEach(async () => {
+async function remettreAZero() {
   vi.restoreAllMocks();
   reinitialiserDepots();
   await exemplesCommeVraies(depots(), { plusExemples: true });
@@ -64,7 +64,8 @@ beforeEach(async () => {
   await auth.seConnecter(MDP, false);
   lire.commentaireDeLaVideo = undefined;
   envoyer = brancherZernio();
-});
+}
+beforeEach(remettreAZero);
 
 describe("réglage par défaut : texte inchangé octet pour octet", () => {
   it("texteAEnvoyer : mêmes octets qu'avant, avec ou sans en-tête de série, avec un mot-dièse fourre-tout", () => {
@@ -123,16 +124,19 @@ describe("aperçu final dans le kit", () => {
     const li = kit.reseaux.find((x) => x.reseau === "linkedin")! as import("@/services/publications").VueKitReseauApercu;
     expect(li.apercuEnvoi).toBeDefined();
     await cocherTout();
-    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { avecPremierCommentaire: true });
+    // Comme la feuille du kit : aucune option ; le commentaire de la vidéo ne part pas, l'aperçu le signale à poser à la main.
+    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN);
     expect(demande(0).texte).toBe(li.apercuEnvoi!.texte);
     expect(demande(0).premierCommentaire).toBe(li.apercuEnvoi!.premierCommentaire);
+    expect(li.apercuEnvoi!.aPoserALaMain).toBe(COMMENTAIRE);
   });
 
   it("envoi SANS options (comme la feuille du kit) : l'aperçu égale ce qui part, commentaire de la vidéo signalé à la main", async () => {
     for (const reglage of ["texte", "premier-commentaire"] as const) {
+      // Un envoi déjà parti n'est pas rejoué : chaque réglage repart d'un état neuf.
+      await remettreAZero();
       await definirPlacement("linkedin", reglage);
       lire.commentaireDeLaVideo = COMMENTAIRE;
-      envoyer.mockClear();
       const kit = (await pub.obtenirKit(VIDEO))!;
       const li = (kit.reseaux.find((x) => x.reseau === "linkedin")! as import("@/services/publications").VueKitReseauApercu).apercuEnvoi!;
       await cocherTout();
