@@ -7,7 +7,10 @@ export const MOTS_OPPOSITION: readonly string[] = [
   "DESINSCRIRE", "DESINSCRIPTION", "DESINSCRIVEZ", "DESABONNER", "DESABONNEZ", "DESABONNEMENT",
 ];
 /** Phrases d'opposition (mots consécutifs, cherchées avant les mots). */
-export const PHRASES_OPPOSITION: readonly string[] = ["NE M ECRIVEZ PLUS", "NE ME CONTACTEZ PLUS", "NE M ENVOYEZ PLUS", "PLUS DE MESSAGES", "LAISSEZ MOI TRANQUILLE", "JE M OPPOSE", "JE ME OPPOSE", "M OPPOSE", "ME OPPOSE", "OPPOSITION", "OPPOSE", "OPPOSER"];
+export const PHRASES_OPPOSITION: readonly string[] = ["NE M ECRIVEZ PLUS", "NE ME CONTACTEZ PLUS", "NE M ENVOYEZ PLUS", "PLUS DE MESSAGES", "LAISSEZ MOI TRANQUILLE",
+  // Formes plus longues AVANT « JE M OPPOSE » (la première qui correspond l'emporte).
+  "JE M OPPOSE AU TRAITEMENT DE MES DONNEES", "JE M OPPOSE A LA COLLECTE", "JE M Y OPPOSE", "JE SUIS OPPOSE E", "JE SUIS OPPOSEE", "JE SUIS OPPOSE", "OPPOSEE",
+  "JE M OPPOSE", "JE ME OPPOSE", "M OPPOSE", "ME OPPOSE", "OPPOSITION", "OPPOSE", "OPPOSER"];
 /** Mots sans portée qui peuvent accompagner une opposition. */
 export const NEUTRES_OPPOSITION: readonly string[] = [
   "MERCI", "BEAUCOUP", "SVP", "STP", "S", "IL", "VOUS", "TE", "PLAIT", "OK", "NON", "BONJOUR", "BONSOIR", "SALUT", "TOUT", "CA", "CELA", "LE", "LES", "DES",
@@ -80,4 +83,19 @@ export function estMotOpposition(texte: string | null | undefined): boolean {
 export function formeCanonique(texte: string | null | undefined): string | null {
   if (typeof texte !== "string") return null;
   return analyser(texte).trouves[0] ?? null;
+}
+
+/** Racines d'un refus ou d'une demande de retrait (« je refuse », « supprimez mes données », « je suis contre », « opose » faute de frappe). */
+const RACINES_REFUS: readonly string[] = ["SUPPRIM", "EFFAC", "REFUS", "RETIR", "CONTRE", "OPOSE"];
+const EXPRESSIONS_REFUS: readonly (readonly string[])[] = [["NON", "MERCI"], ["NE", "VEUX", "PAS"], ["NE", "VOULAIS", "PAS"]];
+
+/**
+ * Le texte exprime-t-il un refus ou une demande de retrait (sans être une opposition claire) ? PUR.
+ * Sert en attente d'adresse : une réponse SANS adresse de ce genre ne doit jamais déclencher la relance « adresse non reconnue » (doute à la place).
+ */
+export function exprimeUnRefus(texte: string | null | undefined): boolean {
+  if (typeof texte !== "string") return false;
+  const mots = motsDe(texte);
+  if (mots.some((m) => RACINES_REFUS.some((r) => m.startsWith(r)))) return true;
+  return EXPRESSIONS_REFUS.some((e) => mots.some((_, i) => e.every((m, k) => mots[i + k] === m)));
 }
