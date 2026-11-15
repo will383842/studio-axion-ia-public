@@ -29,6 +29,12 @@ const CHOIX: { valeur: Placement; libelle: string }[] = [
 ];
 
 /** « Où placer vos hashtags » : un choix par réseau, à côté de « Vos hashtags ». */
+/** « 2026-10-03 » devient « 03/10/2026 » (français simple, pas de format technique). */
+function dateFrancaise(date: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : date;
+}
+
 export function PlacementHashtags({ reseaux }: { reseaux: InfoReseauPlacement[] }) {
   return (
     <div className="mt-5 border-t border-trait pt-5" data-testid="placement-hashtags">
@@ -62,7 +68,10 @@ function LignePlacement({ info }: { info: InfoReseauPlacement }) {
     });
   }
 
-  const repli = valeur === "premier-commentaire" ? info.diffuseurs.filter((d) => !d.possible && d.repli) : [];
+  const repliBrut = valeur === "premier-commentaire" ? info.diffuseurs.filter((d) => !d.possible && d.repli) : [];
+  // Même phrase pour les deux outils : on ne l'affiche qu'une fois, sans nom d'outil.
+  const repliIdentique = repliBrut.length > 1 && repliBrut.every((d) => d.repli === repliBrut[0].repli);
+  const repli = repliIdentique ? [{ ...repliBrut[0], nom: "" }] : repliBrut;
 
   return (
     <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start">
@@ -81,7 +90,7 @@ function LignePlacement({ info }: { info: InfoReseauPlacement }) {
         </div>
         {repli.map((d) => (
           <p key={d.nom} className="mt-2 text-xs text-texte-faible">
-            {info.diffuseurs.length > 1 ? `${d.nom} : ` : ""}
+            {info.diffuseurs.length > 1 && d.nom ? `${d.nom} : ` : ""}
             {d.repli}
           </p>
         ))}
@@ -89,7 +98,7 @@ function LignePlacement({ info }: { info: InfoReseauPlacement }) {
           {info.diffuseurs.map((d) => (
             <li key={d.nom} className="text-xs text-texte-faible">
               {info.diffuseurs.length > 1 ? `${d.nom} : ` : ""}
-              {d.source.niveau === "sourcé" ? `Source : ${d.source.texte} (${d.source.date}).` : "Hypothèse : cette règle n'a pas encore de source."}
+              {d.source.niveau === "sourcé" ? `Source : documentation de l'outil, vérifiée le ${dateFrancaise(d.source.date)}.` : "Hypothèse : cette règle n'a pas encore de source."}
             </li>
           ))}
         </ul>

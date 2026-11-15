@@ -92,11 +92,6 @@ function Rubrique({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
-/**
- * RÉGLAGES — cinq rubriques dans l'ordre d'usage (Williams, 08/11) : Votre compte · Vidéos et voix · Publication ·
- * Services reliés · Avancé (replié). Une rangée de liens en haut mène à chaque rubrique. Aucun identifiant, clé de
- * réglage ni comportement n'a changé : seuls le rangement et les libellés visibles.
- */
 const NOMS_PLACEMENT: Record<ReseauPlacement, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok" };
 const OUTILS_PLACEMENT: { id: OutilPlacement; nom: string }[] = [{ id: "buffer", nom: "Outil principal" }, { id: "zernio", nom: "Second outil" }];
 
@@ -118,6 +113,11 @@ function infosPlacement(placements: Record<ReseauPlacement, ChoixPlacement>): In
   }));
 }
 
+/**
+ * RÉGLAGES — cinq rubriques dans l'ordre d'usage (Williams, 08/11) : Votre compte · Vidéos et voix · Publication ·
+ * Services reliés · Avancé (replié). Une rangée de liens en haut mène à chaque rubrique. Aucun identifiant, clé de
+ * réglage ni comportement n'a changé : seuls le rangement et les libellés visibles.
+ */
 export default async function PageReglages() {
   await exigerSession();
   // Plan facecam v4 (lot D) : « Mes habitudes de montage » n'apparaît qu'une fois le format face caméra ouvert.
