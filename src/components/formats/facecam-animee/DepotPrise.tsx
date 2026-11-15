@@ -247,7 +247,7 @@ export function DepotPrise({ accordDejaDonne }: { accordDejaDonne: boolean }) {
                       <Link href={pr.lien} className="underline">
                         {pr.titre}
                       </Link>{" "}
-                      <span className="text-texte-doux">le {new Date(pr.le).toLocaleDateString("fr-FR")}</span>
+                      <span className="text-texte-doux">le {new Date(pr.le).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}</span>
                     </li>
                   ))}
                 </ul>
