@@ -62,9 +62,9 @@ export function AvisVideoEssai() {
 }
 
 /**
- * Feuille « Envoyer vers Buffer » : réseaux + date. En simulation (défaut), ESSAI : rien n'est envoyé, la publication
- * est notée « simulation » et n'apparaît jamais comme programmée (AV2.4-4). En réel (lot R1) : brouillon dans Buffer
- * par défaut (Will programme dans Buffer), compte de chaque réseau lu en base (jamais un appel à Buffer à l'affichage).
+ * Feuille « Envoyer » : réseaux + date. En simulation (défaut), ESSAI : rien n'est envoyé, la publication
+ * est notée « simulation » et n'apparaît jamais comme programmée (AV2.4-4). En réel (lot R1) : brouillon dans Zernio
+ * par défaut (le fondateur programme dans Zernio), compte de chaque réseau lu en base (aucun appel réseau à l'affichage).
  * Lot R1b : un réseau à plusieurs comptes (deux LinkedIn) montre une case par compte ; Will coche l'un, l'autre ou les
  * deux. Par défaut, son dernier choix ; sans dernier choix, aucun de ces comptes n'est coché.
  */
@@ -72,7 +72,7 @@ export function FeuilleEnvoyerBuffer() {
   const router = useRouter();
   const { feuille, ouvrir, kit, videoId, reseauxParDefaut, publiable, envoiBuffer } = useVideo();
   // Ce qui empêche un réseau de partir (une seule règle) : fichier trop long ou sans le bon format d'image, ou, en réel
-  // (lot R1), aucun compte Buffer (ou un compte déconnecté).
+  // (lot R1), aucun compte Zernio (ou un compte déconnecté).
   const raisonBlocage = useCallback(
     (reseau: IdReseau) => kit?.reseaux.find((r) => r.reseau === reseau)?.avertissements.find((a) => a.code === "trop-longue" || a.code === "ratio-absent")?.message ?? envoiBuffer?.comptes[reseau]?.probleme,
     [kit, envoiBuffer],
@@ -211,7 +211,7 @@ export function FeuilleEnvoyerBuffer() {
           {envoiBuffer.mode === "brouillon" ? "Brouillon dans Zernio : rien ne part tant que vous ne l'avez pas programmé dans Zernio." : "La vidéo partira à la date choisie."}
         </p>
       )}
-      {/* Équipe 7 : Buffer ne sait pas déclarer « Votre marque » : le geste est rappelé, en grand. */}
+      {/* Équipe 7 : l'outil ne sait pas déclarer « Votre marque » : le geste est rappelé, en grand. */}
       {kit.votreMarque.cochee && reseaux.includes("tiktok") && (
         <div role="note" className="mb-5 flex items-start gap-3 rounded-2xl border border-ambre/50 bg-ambre-doux p-3.5">
           <Icone nom="certifie" size={22} className="mt-0.5 shrink-0 text-ambre" />

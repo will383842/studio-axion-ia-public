@@ -7,7 +7,6 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { CartePliante } from "@/components/reglages/CartePliante";
 import { RefaireToutesLesVignettes } from "@/components/videos/RefaireToutesLesVignettes";
 import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
-import { BlocBuffer } from "@/components/reglages/BlocBuffer";
 import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier";
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
@@ -31,7 +30,6 @@ import { lirePlacements } from "@/services/placement-hashtags";
 import { ChangerMotDePasse, ListeAppareils } from "@/components/reglages/Securite";
 import { ilYA } from "@/lib/dates";
 import { listerSessions } from "@/services/auth";
-import { vueBuffer } from "@/services/buffer";
 import { vueCles, vueCredits } from "@/services/credits";
 import { aPropos, listerConnexions, listerJournal, lireReglages } from "@/services/reglages";
 import { exigerSession } from "@/services/auth";
@@ -125,7 +123,7 @@ export default async function PageReglages() {
   await exigerSession();
   // Plan facecam v4 (lot D) : « Mes habitudes de montage » n'apparaît qu'une fois le format face caméra ouvert.
   const avecMonteur = trouverFormat("facecam")?.statut === "actif";
-  const [reglages, connexions, sessions, journal, veille, credits, cles, site, buffer, double, monteur, creditClaude] = await Promise.all([
+  const [reglages, connexions, sessions, journal, veille, credits, cles, site, double, monteur, creditClaude] = await Promise.all([
     lireReglages(),
     listerConnexions(),
     listerSessions(),
@@ -134,7 +132,6 @@ export default async function PageReglages() {
     vueCredits(),
     vueCles(),
     lireVueSite(),
-    vueBuffer(),
     vueRenduDouble(),
     vueReglagesMonteur(),
     vueCreditClaude().catch((e) => {
@@ -267,12 +264,6 @@ export default async function PageReglages() {
                 </span>
                 <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
               </Link>
-            </CartePliante>
-          </Apparition>
-          {/* Lot R1 : envoi programmé, lu en base, aucun appel au service à l'affichage. */}
-          <Apparition index={4}>
-            <CartePliante id="envoi-programme" icone="envoyer" titre="Envoi programmé" resume="Comment les vidéos partent">
-              <BlocBuffer vue={buffer} />
             </CartePliante>
           </Apparition>
           {/* YouTube Shorts : tout éteint par défaut, lu en base (aucun appel au service à l'affichage). */}
