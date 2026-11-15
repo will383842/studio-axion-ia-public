@@ -61,7 +61,7 @@ describe("RC-25 · valeur d'abord (avertissement)", () => {
   });
 
   it("fenêtre de 30 jours : une offre ancienne n'est plus comptée", () => {
-    const hist = [pub("o1", "2026-10-01", "offre")];
+    const hist = [pub("o1", "2026-10-01", "offre"), pub("v1", "2026-10-02", "valeur")];
     const r = verifierValeurDAbord(hist, pub("o2", "2026-12-12", "offre"));
     expect(r.avertissements).toEqual([]);
   });
