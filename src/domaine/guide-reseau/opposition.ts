@@ -7,7 +7,7 @@ export const MOTS_OPPOSITION: readonly string[] = [
   "DESINSCRIRE", "DESINSCRIPTION", "DESINSCRIVEZ", "DESABONNER", "DESABONNEZ", "DESABONNEMENT",
 ];
 /** Phrases d'opposition (mots consécutifs, cherchées avant les mots). */
-export const PHRASES_OPPOSITION: readonly string[] = ["NE M ECRIVEZ PLUS", "NE ME CONTACTEZ PLUS", "NE M ENVOYEZ PLUS", "PLUS DE MESSAGES", "LAISSEZ MOI TRANQUILLE"];
+export const PHRASES_OPPOSITION: readonly string[] = ["NE M ECRIVEZ PLUS", "NE ME CONTACTEZ PLUS", "NE M ENVOYEZ PLUS", "PLUS DE MESSAGES", "LAISSEZ MOI TRANQUILLE", "JE M OPPOSE", "JE ME OPPOSE", "M OPPOSE", "ME OPPOSE", "OPPOSITION", "OPPOSE", "OPPOSER"];
 /** Mots sans portée qui peuvent accompagner une opposition. */
 export const NEUTRES_OPPOSITION: readonly string[] = [
   "MERCI", "BEAUCOUP", "SVP", "STP", "S", "IL", "VOUS", "TE", "PLAIT", "OK", "NON", "BONJOUR", "BONSOIR", "SALUT", "TOUT", "CA", "CELA", "LE", "LES", "DES",
@@ -16,7 +16,7 @@ export const NEUTRES_OPPOSITION: readonly string[] = [
 /** Négations : leur présence rend toute opposition douteuse (« ne vous arrêtez pas »). */
 export const NEGATIONS: readonly string[] = ["NE", "N", "PAS", "JAMAIS", "SANS", "SURTOUT"];
 /** Un mot qui commence ainsi, sans être un mot d'opposition, rend le texte douteux (« stopper », « arrêt maladie »). */
-const RACINES_DOUTE: readonly string[] = ["STOP", "ARRET", "DESINSCRI", "DESABONN"];
+const RACINES_DOUTE: readonly string[] = ["STOP", "ARRET", "DESINSCRI", "DESABONN", "OPPOS"];
 
 export type ClasseOpposition = "opposition" | "doute" | "non";
 const LONGUEUR_MAX = 80;
