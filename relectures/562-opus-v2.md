@@ -37,3 +37,9 @@ Base : origin/master = 98af97a52d48927986b01dcd886b3a4e13caa8f5 (= merge-base)
   Observation (non bloquante, inatteignable par les 4 sites qui tirent un `nouvelId` par appel) : la MÊME clé de voix
   rejouée deux fois → 2 « ok », registre +200 une fois, engagement +400 ; l'écart est du côté prudent pour l'engagement,
   mais le registre ne compte qu'une lecture si les deux étaient payées. L'idempotence reste aux appelants (journal).
+- (c) OK : mutations appliquées une à une sur la PR, suites `tests/autonomie-usine-cle-depense*.test.ts` (13 tests) :
+  clé = travailId aux 4 sites → ROUGE (4) ; clé retirée aux 4 sites → ROUGE (4) ; clé = travailId sur un seul site
+  (tutoriel) → ROUGE (1) ; `couts.ts` « remplacer » (`dejaEngage = 0`) → ROUGE (2) ; `autonomie-usine.ts` « ajouter » ignoré
+  → ROUGE (2) ; suppression du maintien dans le temps (`autonomie-usine.ts:146-150`) → ROUGE (2) ; `credits.ts`
+  `cumuler: false` → ROUGE (1). La détection des 4 sites est une lecture du source (regex), pas un appel réel : suffisant
+  pour la mutation demandée.
