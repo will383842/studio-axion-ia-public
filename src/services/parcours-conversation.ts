@@ -1276,8 +1276,8 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Classé UNE fois : opposition claire, doute, ou rien.
   let classe = classerOpposition(lu.texte);
-  // En attente d'adresse : un refus ou une demande de retrait SANS adresse passe en doute (jamais la relance « adresse non reconnue »).
-  if (classe === "non" && s0.action !== "lire_opposition" && (etat.etat === "attente_email" || etat.etat === "m2_envoye") && extraireAdresse(lu.texte) === null && exprimeUnRefus(lu.texte)) classe = "doute";
+  // Dans tout état accepté sauf les états Instagram « OK » : un refus ou une demande de retrait SANS adresse passe en doute (jamais la relance « adresse non reconnue »).
+  if (classe === "non" && s0.action !== "lire_opposition" && etat.etat !== "ig_attente_ok" && etat.etat !== "ig_pas_encore" && extraireAdresse(lu.texte) === null && exprimeUnRefus(lu.texte)) classe = "doute";
   if (s0.action === "lire_opposition") {
     // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition ; un doute alerte, l'état reste inchangé.
     if (classe === "opposition") await opposerEnPrive_(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
