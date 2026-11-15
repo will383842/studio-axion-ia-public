@@ -69,6 +69,16 @@ describe("repereDePublication", () => {
     await d.creneauxEditoriaux.enregistrer({ id: "manuel-1", jourVise: "2026-12-12", heuresParReseau: { linkedin: "2026-12-12T08:00:00.000Z" }, compteCible: "c", videoId: "v-fictive", statut: "propose", decalages: 0, repereUsine: "usine:X" });
     expect(await repereDePublication(publication("publiee"), d)).toBeNull();
   });
+
+  it("commande avec visuelId (créneau cmd- sans vidéo) + publication de visuel sans videoId : null", async () => {
+    const d = depots();
+    const visuelSeul: Record<string, unknown> = commande({ visuelId: "visuel-fictif" });
+    delete visuelSeul.videoId;
+    expect((await POST(appel(visuelSeul))).status).toBe(201);
+    const c = (await d.creneauxEditoriaux.obtenir("cmd-essai-repere-0001"))!;
+    expect(c.videoId).toBeUndefined();
+    expect(await repereDePublication(publication("publiee", { videoId: undefined }), d)).toBeNull();
+  });
 });
 
 describe("ligneReleveUsine", () => {
