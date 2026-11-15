@@ -48,7 +48,7 @@ describe("journal du chat de retouche", () => {
 
   it("(f) garde statique : aucun import d'argent ni de Claude en valeur", () => {
     const src = readFileSync(join(process.cwd(), "src/services/retouche-chat/journal.ts"), "utf8");
-    const imports = [...src.matchAll(/^\s*import\s[^;]*?from\s+["']([^"']+)["']/gms)].map((m) => m[1]);
+    const imports = [...src.matchAll(/^\s*import\s[^;]*?from\s+["']([^"']+)["']/gm)].map((m) => m[1]);
     const interdits = /credits|budget-mensuel|mode-budget|autonomie-usine|couts|cle-depense-usine|depense-claude|generation-claude|image-video|fournisseurs\/claude\/client/;
     expect(imports.filter((i) => interdits.test(i))).toEqual([]);
   });
