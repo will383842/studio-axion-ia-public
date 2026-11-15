@@ -4,6 +4,9 @@
  *
  *   node copier-r2.mjs envoyer <nom> < fichier.sql.gz   → studio/sauvegardes/<nom> dans le seau R2 (R2_BUCKET)
  *   node copier-r2.mjs alerte "<titre>" "<message>"      → e-mail ZeptoMail (EMAIL_SECOURS_*), si configuré
+ *   node copier-r2.mjs lister <source|secours>           → une ligne JSON {"cle","taille"} par objet du seau (ListObjectsV2 paginé)
+ *   node copier-r2.mjs medias-delta                      → copie dans R2_BUCKET_SECOURS les objets de R2_BUCKET qui y manquent ;
+ *                                                          dernière ligne {"copies","deja","echecs"} ; sortie 0 (aucun échec), 1, 3 (secours absent)
  *
  * Aucune nouvelle clé : les variables R2_* et EMAIL_SECOURS_* du studio (/opt/studio-axion-ia/.env), passées par
  * l'environnement (jamais sur la ligne de commande). Aucune dépendance : signature V4 identique à celle du studio
@@ -134,10 +137,108 @@ export async function envoyerAlerte({ env, titre, message, appeler = fetch }) {
   }
 }
 
+/* --- Médias : lister et copier le delta vers le seau de secours (jamais de DELETE, jamais d'écrasement) --- */
+
+/** R2_BUCKET_SECOURS (ou une variable R2_*) absent : sortie 3, aucune requête n'est faite. */
+export class ErreurSecoursAbsent extends Error {}
+
+function configSeau(env, cible) {
+  const base = configR2(env);
+  if (!base) throw new ErreurSecoursAbsent("variables R2_* incomplètes (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET)");
+  if (cible === "source") return base;
+  const secours = env.R2_BUCKET_SECOURS?.trim();
+  if (!secours) throw new ErreurSecoursAbsent("R2_BUCKET_SECOURS absent : le seau de secours n'est pas configuré, aucune copie n'est faite");
+  return { ...base, seau: secours };
+}
+
+function deséchapperXml(s) {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+}
+
+/** Liste tous les objets d'un seau (« source » ou « secours »), pages ListObjectsV2 suivies. Renvoie [{ cle, taille }]. */
+export async function listerObjets({ env, cible, appeler = fetch, maintenant = () => new Date() }) {
+  const config = configSeau(env, cible);
+  const identifiants = { cleAcces: config.cleAcces, secret: config.secret, region: "auto" };
+  const objets = [];
+  let jeton = null;
+  for (let page = 0; page < 100_000; page++) {
+    const parametres = { "list-type": "2", ...(jeton ? { "continuation-token": jeton } : {}) };
+    const adresse = signerAdresse(identifiants, { methode: "GET", hote: config.hote, chemin: `/${config.seau}`, parametres, expireSec: 3600, date: maintenant() });
+    const r = await appeler(adresse, { method: "GET", signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) throw new Error(`R2 a répondu ${r.status} à la liste du seau ${cible}`);
+    const xml = await r.text();
+    for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+      const cle = /<Key>([\s\S]*?)<\/Key>/.exec(m[1])?.[1];
+      const taille = /<Size>(\d+)<\/Size>/.exec(m[1])?.[1];
+      if (cle === undefined || taille === undefined) throw new Error("réponse de liste illisible");
+      objets.push({ cle: deséchapperXml(cle), taille: Number(taille) });
+    }
+    const suite = /<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/.exec(xml)?.[1];
+    if (!/<IsTruncated>true<\/IsTruncated>/.test(xml) || !suite) return objets;
+    jeton = deséchapperXml(suite);
+  }
+  throw new Error("liste du seau interminable : arrêt par sécurité");
+}
+
+export function lignesListe(objets) {
+  return objets.map((o) => JSON.stringify({ cle: o.cle, taille: o.taille })).join("\n");
+}
+
+/**
+ * Copie dans le seau de secours les seuls objets absents. Même clé et même taille : ignoré (deja) ;
+ * même clé et autre taille : échec, rien n'est remplacé. Un échec n'arrête pas les autres copies.
+ * Renvoie { copies, deja, echecs }. `journal` reçoit un message par échec (jamais de secret).
+ */
+export async function copierDelta({ env, appeler = fetch, maintenant = () => new Date(), journal = () => {} }) {
+  const source = configSeau(env, "source");
+  const secours = configSeau(env, "secours");
+  const identifiants = { cleAcces: source.cleAcces, secret: source.secret, region: "auto" };
+  const adresse = (config, methode, cle) => signerAdresse(identifiants, { methode, hote: config.hote, chemin: `/${config.seau}/${cle}`, expireSec: 3600, date: maintenant() });
+  const [objetsSource, objetsSecours] = [await listerObjets({ env, cible: "source", appeler, maintenant }), await listerObjets({ env, cible: "secours", appeler, maintenant })];
+  const presents = new Map(objetsSecours.map((o) => [o.cle, o.taille]));
+  const bilan = { copies: 0, deja: 0, echecs: 0 };
+  for (const objet of objetsSource) {
+    try {
+      const distante = presents.get(objet.cle);
+      if (distante !== undefined) {
+        if (distante === objet.taille) bilan.deja++;
+        else {
+          bilan.echecs++;
+          journal(`${objet.cle} existe déjà dans le seau de secours avec une autre taille (${distante} au lieu de ${objet.taille}) : rien n'est écrasé`);
+        }
+        continue;
+      }
+      const lecture = await appeler(adresse(source, "GET", objet.cle), { method: "GET", signal: AbortSignal.timeout(DELAI_RESEAU_MS) });
+      if (!lecture.ok) throw new Error(`lecture refusée (${lecture.status})`);
+      const contenu = Buffer.from(await lecture.arrayBuffer());
+      if (contenu.length !== objet.taille) throw new Error(`lecture incomplète (${contenu.length} octets au lieu de ${objet.taille})`);
+      const envoi = await appeler(adresse(secours, "PUT", objet.cle), {
+        method: "PUT",
+        body: contenu,
+        headers: { "content-length": String(contenu.length) },
+        signal: AbortSignal.timeout(DELAI_RESEAU_MS),
+      });
+      if (!envoi.ok) throw new Error(`envoi refusé (${envoi.status})`);
+      const verif = await appeler(adresse(secours, "HEAD", objet.cle), { method: "HEAD", signal: AbortSignal.timeout(60_000) });
+      if (!verif.ok || Number(verif.headers.get("content-length")) !== objet.taille) throw new Error("copie incomplète au contrôle de taille");
+      bilan.copies++;
+    } catch (e) {
+      bilan.echecs++;
+      journal(`${objet.cle} : ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  return bilan;
+}
+
 async function lireEntree() {
   const morceaux = [];
   for await (const m of process.stdin) morceaux.push(m);
   return Buffer.concat(morceaux);
+}
+
+function secoursAbsent(e) {
+  console.error(`ÉCHEC : ${e.message}`);
+  return 3;
 }
 
 async function principal(args) {
@@ -152,7 +253,27 @@ async function principal(args) {
     console.log(ok ? "alerte envoyée par e-mail" : "alerte NON envoyée (EMAIL_SECOURS_* absent ou refusé)");
     return 0;
   }
-  console.error('usage : node copier-r2.mjs envoyer <nom> < fichier   |   node copier-r2.mjs alerte "<titre>" "<message>"');
+  if (mode === "lister" && reste.length === 1 && (reste[0] === "source" || reste[0] === "secours")) {
+    try {
+      const objets = await listerObjets({ env: process.env, cible: reste[0] });
+      if (objets.length) console.log(lignesListe(objets));
+      return 0;
+    } catch (e) {
+      if (e instanceof ErreurSecoursAbsent) return secoursAbsent(e);
+      throw e;
+    }
+  }
+  if (mode === "medias-delta" && reste.length === 0) {
+    try {
+      const bilan = await copierDelta({ env: process.env, journal: (m) => console.error(`ÉCHEC : ${m}`) });
+      console.log(JSON.stringify(bilan));
+      return bilan.echecs === 0 ? 0 : 1;
+    } catch (e) {
+      if (e instanceof ErreurSecoursAbsent) return secoursAbsent(e);
+      throw e;
+    }
+  }
+  console.error('usage : node copier-r2.mjs envoyer <nom> < fichier   |   node copier-r2.mjs alerte "<titre>" "<message>"   |   node copier-r2.mjs lister <source|secours>   |   node copier-r2.mjs medias-delta');
   return 2;
 }
 
