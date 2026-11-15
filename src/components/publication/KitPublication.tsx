@@ -22,6 +22,7 @@ import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { obtenirReseau, verifierPourReseau } from "@/reseaux";
 import type { VueKitReseau } from "@/services/vues";
+import type { ApercuEnvoi } from "@/services/publications";
 import { useVideo } from "./ContexteVideo";
 import { SerieEtMarque } from "./SerieEtMarque";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
@@ -408,6 +409,8 @@ function EditeurReseau({ r, credits }: { r: VueKitReseau; credits: string[] }) {
         )}
       </ul>
 
+      <ApercuFinal apercu={(r as VueKitReseau & { apercuEnvoi?: ApercuEnvoi }).apercuEnvoi} aJour={!modifie} />
+
       {versionIci && <ChampsVersion v={versionIci} />}
 
       <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
@@ -458,6 +461,47 @@ function EditeurReseau({ r, credits }: { r: VueKitReseau; credits: string[] }) {
           </Bouton>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Aperçu final, avant « Valider » : le texte et le premier commentaire tels qu'ils partiraient, hashtags placés selon le réglage.
+ * Lecture seule : rien ne part d'ici. Calculé sur le texte enregistré : pendant une saisie non enregistrée, l'écran le dit.
+ */
+function ApercuFinal({ apercu, aJour }: { apercu: ApercuEnvoi | undefined; aJour: boolean }) {
+  if (!apercu) return null;
+  return (
+    <div className="mt-4 space-y-3 rounded-champ border border-trait bg-surface-2 p-3" aria-label="Aperçu de ce qui sera envoyé">
+      <p className="text-xs font-bold text-texte-doux">Ce qui sera envoyé, après « Valider »</p>
+      {!aJour && <p className="text-xs text-texte-faible">Cet aperçu suit le texte enregistré : il se met à jour dès que votre saisie est enregistrée.</p>}
+      <div>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-texte-doux">Texte final</span>
+          <BoutonCopier texte={apercu.texte} compact />
+        </div>
+        <p className="whitespace-pre-line break-words text-sm text-texte">{apercu.texte}</p>
+      </div>
+      {apercu.premierCommentaire && (
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-texte-doux">Premier commentaire final</span>
+            <BoutonCopier texte={apercu.premierCommentaire} compact />
+          </div>
+          <p className="whitespace-pre-line break-words text-sm text-texte">{apercu.premierCommentaire}</p>
+        </div>
+      )}
+      {apercu.aPoserALaMain && (
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-texte-doux">Premier commentaire : à poser à la main</span>
+            <BoutonCopier texte={apercu.aPoserALaMain} compact />
+          </div>
+          <p className="whitespace-pre-line break-words text-sm text-texte">{apercu.aPoserALaMain}</p>
+        </div>
+      )}
+      {apercu.repli && <p className="text-xs text-ambre">{apercu.repli}</p>}
+      {apercu.message && <p className="text-xs text-ambre">{apercu.message}</p>}
     </div>
   );
 }
