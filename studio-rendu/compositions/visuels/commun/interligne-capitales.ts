@@ -22,24 +22,27 @@ const HAUT_ENCRE: Readonly<Record<string, number>> = { "$": 0.834, "(": 0.765, "
 /** Bas de l'encre (em sous la ligne de base) des signes qui descendent. */
 const BAS_ENCRE: Readonly<Record<string, number>> = { "$": 0.106, "(": 0.144, ")": 0.144, ",": 0.165, "/": 0.109, ";": 0.165, "@": 0.223, "Q": 0.054, "[": 0.144, "\\": 0.109, "]": 0.144, "_": 0.14, "g": 0.211, "j": 0.204, "p": 0.204, "q": 0.204, "y": 0.204, "{": 0.144, "|": 0.234, "}": 0.144, "\u00a1": 0.204, "\u00a6": 0.137, "\u00a7": 0.146, "\u00b5": 0.204, "\u00b8": 0.204, "\u00bf": 0.222, "\u00c7": 0.201, "\u00d8": 0.043, "\u00e7": 0.204, "\u00f8": 0.025, "\u00fd": 0.204, "\u00fe": 0.204, "\u00ff": 0.204, "\u201a": 0.165, "\u201e": 0.165, "\u2192": 0.066 };
 
-/** Haut de l'encre d'une ligne (em au-dessus de la ligne de base). */
-export function hautEncre(ligne: string): number {
-  return Math.max(HAUT_CAPITALE, ...[...ligne].map((c) => HAUT_ENCRE[c] ?? 0));
+/** Mesure réelle de l'encre d'une ligne (em au-dessus et au-dessous de la ligne de base), relevée dans la police chargée (Manrope 800). */
+export type MesureEncre = (ligne: string) => { haut: number; bas: number };
+
+/** Haut de l'encre d'une ligne (em au-dessus de la ligne de base) : le plus grand de la table et de la mesure réelle `encre`. */
+export function hautEncre(ligne: string, encre?: MesureEncre): number {
+  return Math.max(HAUT_CAPITALE, ...[...ligne].map((c) => HAUT_ENCRE[c] ?? 0), encre?.(ligne).haut ?? 0);
 }
 
 /** Bas de l'encre d'une ligne (em sous la ligne de base). */
-export function basEncre(ligne: string): number {
-  return Math.max(BAS_CAPITALE, ...[...ligne].map((c) => BAS_ENCRE[c] ?? 0));
+export function basEncre(ligne: string, encre?: MesureEncre): number {
+  return Math.max(BAS_CAPITALE, ...[...ligne].map((c) => BAS_ENCRE[c] ?? 0), encre?.(ligne).bas ?? 0);
 }
 
 /** Écarts d'encre (em) entre chaque ligne et la suivante, à l'interligne donné : négatif = les lettres se touchent. */
-export function ecartsEncre(lignes: readonly string[], interligne: number): number[] {
-  return lignes.slice(1).map((l, i) => interligne - basEncre(lignes[i]) - hautEncre(l));
+export function ecartsEncre(lignes: readonly string[], interligne: number, encre?: MesureEncre): number[] {
+  return lignes.slice(1).map((l, i) => interligne - basEncre(lignes[i], encre) - hautEncre(l, encre));
 }
 
 /** Interligne d'un titre : le plus petit (au moins `INTERLIGNE_MIN`) qui laisse `ECART_ENCRE` entre chaque paire de lignes voisines. */
-export function interligneCapitales(lignes: readonly string[]): number {
-  const besoin = Math.max(0, ...lignes.slice(1).map((l, i) => basEncre(lignes[i]) + hautEncre(l) + ECART_ENCRE));
+export function interligneCapitales(lignes: readonly string[], encre?: MesureEncre): number {
+  const besoin = Math.max(0, ...lignes.slice(1).map((l, i) => basEncre(lignes[i], encre) + hautEncre(l, encre) + ECART_ENCRE));
   return Math.max(INTERLIGNE_MIN, Math.ceil(besoin * 100) / 100);
 }
 
@@ -48,11 +51,11 @@ export function interligneCapitales(lignes: readonly string[]): number {
  * jambages en bas) et, en bas, la zone de contenu de la police (`ASCENDANTE + DESCENDANTE` = 1,366 em, plus haute qu'une ligne serrée) que
  * Chromium compte dans la hauteur défilable : sans elle, une zone qui coupe ce qui dépasse croirait le titre coupé.
  */
-export function depassementsEncre(lignes: readonly string[], interligne: number): { haut: number; bas: number } {
+export function depassementsEncre(lignes: readonly string[], interligne: number, encre?: MesureEncre): { haut: number; bas: number } {
   if (lignes.length === 0) return { haut: 0, bas: 0 };
   const base = interligne / 2 + (ASCENDANTE - DESCENDANTE) / 2;
   const zoneContenu = (ASCENDANTE + DESCENDANTE - interligne) / 2;
-  return { haut: Math.max(0, hautEncre(lignes[0]) - base), bas: Math.max(0, base + basEncre(lignes[lignes.length - 1]) - interligne, zoneContenu) };
+  return { haut: Math.max(0, hautEncre(lignes[0], encre) - base), bas: Math.max(0, base + basEncre(lignes[lignes.length - 1], encre) - interligne, zoneContenu) };
 }
 
 /** Marge (px) à garder sous un texte d'une ligne ou plus pour que la zone de contenu de la police (plus haute qu'un interligne serré) ne dépasse pas du cadre. */
