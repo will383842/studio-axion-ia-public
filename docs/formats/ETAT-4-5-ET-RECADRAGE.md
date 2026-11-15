@@ -34,6 +34,6 @@ Remarque : le face caméra déclare le 9:16 seul dans son générateur, mais ses
 ## Ce qui bloque
 
 - **T9 · non fait** : la face caméra animée ne déclare que le 9:16 (`src/formats/facecam-animee/index.ts:41`), et son rendu est figé en 1080 × 1920 (`SORTIE_V4` dans `src/moteurs/montage-facecam-animee/chaine-v4.ts`, ligne 199).
-- **T10 · non fait** : le cas concret ne déclare que le 9:16 (`src/formats/cas-concret/index.ts:112`) et passe par la même sortie figée en 1080 × 1920.
+- **T10 · non fait** : le cas concret ne déclare que le 9:16 (`src/formats/cas-concret/index.ts:112`) et passe par son propre moteur, `src/moteurs/montage-cas-concret/index.ts`, qui écrit la résolution en dur (`resolution: "1080x1920"`, ligne 814), et non par `SORTIE_V4` de `chaine-v4.ts`.
 
 Les deux demandent de toucher le moteur de montage, le service de rendu et la composition : fiche à part, après décision. Rien n'a été supprimé.

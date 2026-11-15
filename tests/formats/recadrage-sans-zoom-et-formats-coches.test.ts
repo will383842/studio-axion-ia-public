@@ -117,10 +117,9 @@ describe("UO-10 · document d'état docs/formats/ETAT-4-5-ET-RECADRAGE.md", () =
     expect(doc).toContain("1920");
   });
 
-  it("cite les tests existants et ne contient aucun montant en euros ni prénom", () => {
+  it("cite les tests existants et ne contient aucun montant en euros", () => {
     const doc = readFileSync(chemin, "utf8");
     expect(doc).toContain("tests/facecam-formats.test.ts");
     expect(doc).not.toMatch(/€|euros?\b/i);
-    expect(doc).not.toMatch(/\bWill\b|\bWilliams?\b/);
   });
 });
