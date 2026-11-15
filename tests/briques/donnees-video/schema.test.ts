@@ -38,7 +38,19 @@ const erreurs = (e: unknown) => {
   expect(r.ok).toBe(false);
   return r.ok ? [] : r.erreurs;
 };
-const clone = () => structuredClone(complet());
+type Champs = { [cle: string]: string | number | undefined };
+type Brouillon = {
+  [cle: string]: unknown;
+  version: string;
+  titre: string;
+  periode: Champs;
+  indicateurs: Champs[];
+  series: Array<Champs & { points: Champs[] }>;
+  comparaisons: Champs[];
+  alertes: Champs[];
+  calculs: Champs[];
+};
+const clone = (): Brouillon => structuredClone(complet()) as unknown as Brouillon;
 
 describe("tableau-de-bord.v1 — exemples valides", () => {
   it("accepte un exemple minimal", () => {
@@ -53,7 +65,7 @@ describe("tableau-de-bord.v1 — exemples valides", () => {
 
 describe("tableau-de-bord.v1 — refus", () => {
   it("refuse un champ inconnu à chaque niveau", () => {
-    const niveaux: Array<(d: any) => void> = [
+    const niveaux: Array<(d: Brouillon) => void> = [
       (d) => (d.extra = 1),
       (d) => (d.periode.extra = 1),
       (d) => (d.indicateurs[0].extra = 1),
@@ -64,67 +76,67 @@ describe("tableau-de-bord.v1 — refus", () => {
       (d) => (d.calculs[0].extra = 1),
     ];
     for (const modifier of niveaux) {
-      const d: any = clone();
+      const d = clone();
       modifier(d);
       expect(erreurs(d).length).toBeGreaterThan(0);
     }
   });
   it("refuse une série à un seul point", () => {
-    const d: any = clone();
+    const d = clone();
     d.series[0].points = [{ x: "S1", valeur: 1 }];
     expect(erreurs(d).join(" ")).toMatch(/point/i);
   });
   it("refuse plus de 12 points", () => {
-    const d: any = clone();
+    const d = clone();
     d.series[0].points = Array.from({ length: 13 }, (_, i) => ({ x: `P${i}`, valeur: i }));
     expect(erreurs(d).join(" ")).toMatch(/12/);
   });
   it("refuse une unité absente", () => {
-    const d: any = clone();
+    const d = clone();
     delete d.indicateurs[0].unite;
     expect(erreurs(d).join(" ")).toMatch(/unité/i);
   });
   it("refuse une comparaison vers un id inexistant", () => {
-    const d: any = clone();
+    const d = clone();
     d.comparaisons[0].apres = "inconnu";
     expect(erreurs(d).join(" ")).toMatch(/inconnu/);
   });
   it("refuse un sens inconnu", () => {
-    const d: any = clone();
+    const d = clone();
     d.indicateurs[0].sens = "stable";
     expect(erreurs(d).length).toBeGreaterThan(0);
   });
   it("refuse une version autre que v1", () => {
-    const d: any = clone();
+    const d = clone();
     d.version = "tableau-de-bord.v2";
     expect(erreurs(d).join(" ")).toMatch(/version/i);
   });
   it("refuse un courriel dans un libellé", () => {
-    const d: any = clone();
+    const d = clone();
     d.indicateurs[0].libelle = "Écrire à nom@exemple.fr";
     expect(erreurs(d).join(" ")).toMatch(/courriel/i);
   });
   it("refuse un numéro de téléphone dans un libellé", () => {
-    const d: any = clone();
+    const d = clone();
     d.titre = "Appeler le 06 12 34 56 78";
     expect(erreurs(d).join(" ")).toMatch(/téléphone/i);
   });
   it("refuse des caractères hors liste blanche", () => {
-    const d: any = clone();
+    const d = clone();
     d.titre = "Titre <script>";
     expect(erreurs(d).length).toBeGreaterThan(0);
   });
   it("refuse un id d'indicateur dupliqué, une alerte ou une formule vers un id inexistant", () => {
-    const a: any = clone();
+    const a = clone();
     a.indicateurs[1].id = "visites";
     expect(erreurs(a).join(" ")).toMatch(/deux fois/);
-    const b: any = clone();
+    const b = clone();
     b.alertes[0].indicateurId = "nulle-part";
     expect(erreurs(b).join(" ")).toMatch(/nulle-part/);
-    const c: any = clone();
+    const c = clone();
     c.calculs[0].formule = "visites ** fantome";
     expect(erreurs(c).length).toBeGreaterThan(0);
-    const e: any = clone();
+    const e = clone();
     e.calculs[0].formule = "visites + fantome";
     expect(erreurs(e).join(" ")).toMatch(/fantome/);
   });
