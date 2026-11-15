@@ -199,6 +199,13 @@ beforeEach(async () => {
   R.buffer = fauxBuffer();
   vi.stubGlobal("fetch", reseau);
   await auth.seConnecter(MDP, false);
+  // Buffer est gelé par défaut (PR 561) : ce parcours teste l'envoi Buffer, dégel posé dans la base d'essai uniquement ; le même réglage existe en production mais n'est pas touché ici.
+  await ecrireParametre("buffer.gele", false);
+  // Le routage par défaut est Zernio (L7-06) : ces parcours testent l'envoi par Buffer, on l'y route explicitement (réseau par réseau).
+  await ecrireParametre("publication.routage", Object.fromEntries((await import("@/reseaux")).listerReseaux().map((r) => [r.id, "buffer"])));
+  // Motion commune allumée par défaut (GV2-51) : ses cartes passent aussi par l'opération « composition » et prendraient
+  // la panne simulée ; R8 garde son sens (composition principale) en la coupant par le coupe-circuit.
+  await ecrireParametre("avocat.motionCommune", false);
   credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, (async () => { throw new Error("réseau interdit"); }) as typeof fetch)], ["anthropic"]);
   brancherClaude();
 });
@@ -266,19 +273,18 @@ async function parcours() {
   expect(avocat.prix.total.centimes).toBeGreaterThan(0);
   await reglages.definirMontageReel("avocat", true);
 
-  // 2. Avant le lancement : le prix de CETTE vidéo, confirmation exigée.
+  // 2. Avant le lancement : le prix de CETTE vidéo, SANS confirmation ni validation de prix (décision du fondateur).
   const apercu = await fabrication.apercuFabrication(VIDEO);
-  expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: true });
+  expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: false });
   // RELECTURE FINAL3 (UI2) : interrupteur allumé (par exemple dans un autre onglet) : l'Aperçu du moment n'est jamais un
   // « Essai gratuit », et « Fabriquer l'essai » (`manquesAcceptes`) ne part pas sans la feuille du prix (ni sans qui
-  // parle et la voix) ; le serveur refuse de toute façon un lancement sans accord (ligne suivante).
+  // parle et la voix) ; en mode indicatif le serveur prend le prix du jour comme accord (il ne refuse qu'en mode bloquant).
   expect(apercu.essaiGratuit).toBe(false);
   for (const manques of [[], ["plateau", "voix"]] as const) {
     const decision = decisionLancement({ coutCentimes: apercu.estimation.total.centimes, seuilCentimes: apercu.budget.seuil.centimes, resteCentimes: apercu.budget.restant.centimes, aVerifier: [], montageReel: apercu.budget.montageReel, double: !!apercu.budget.double, manques: [...manques], essaiGratuit: apercu.essaiGratuit, manquesAcceptes: true });
     expect(["confirmer", "completer", "budget"]).toContain(decision.genre);
   }
-  await expect(fabrication.lancerFabrication(VIDEO)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: "Cette vidéo sera montée pour de vrai (payant). Confirmez pour continuer." });
-  const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO, { confirme: true });
+  const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO);
   const version = (await depots().versions.obtenir(versionId))!;
   expect(version.commande.moteurId).toBe("montage-avocat");
 
@@ -375,7 +381,7 @@ describe("R8 — montage réel allumé : le chemin complet, de bout en bout", ()
   it("ROUGE — retour arrière en un geste : les vidéos suivantes repartent en essai, la vidéo lancée garde son moteur, rien n'est effacé", async () => {
     await preparer();
     await reglages.definirMontageReel("avocat", true);
-    const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO, { confirme: true });
+    const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO);
     const avant = { versions: await depots().versions.compter(), travaux: await depots().travaux.compter(), visages: await depots().visages.compter() };
     // Un geste : repasser en essai.
     await reglages.definirMontageReel("avocat", false);
