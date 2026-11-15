@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "normalisation": "NFKD, sans accents, minuscules, apostrophes droites",
+  "regles": [
+    {
+      "id": "abonne",
+      "description": "abonné, abonnement… (dire « suivre le compte »)",
+      "motif": "\\babonn",
+      "exemples": [
+        "abonné",
+        "abonnement"
+      ]
+    },
+    {
+      "id": "grenoble",
+      "description": "Grenoble",
+      "motif": "grenoble",
+      "exemples": [
+        "Grenoble"
+      ]
+    },
+    {
+      "id": "aucun-gain-garanti",
+      "description": "« Aucun gain garanti »",
+      "motif": "aucun\\s+gain\\s+garanti",
+      "exemples": [
+        "Aucun gain garanti"
+      ]
+    },
+    {
+      "id": "garanti",
+      "description": "garanti, garantie, garantissons…",
+      "motif": "\\bgaranti",
+      "exemples": [
+        "garanti",
+        "garantissons"
+      ]
+    },
+    {
+      "id": "certifie",
+      "description": "certifié, certification…",
+      "motif": "\\bcertifi",
+      "exemples": [
+        "certifiée",
+        "certification"
+      ]
+    },
+    {
+      "id": "qualiopi",
+      "description": "Qualiopi",
+      "motif": "qualiopi",
+      "exemples": [
+        "Qualiopi"
+      ]
+    },
+    {
+      "id": "tutoiement",
+      "description": "tutoiement : tu, toi, te, ta, tes, t'",
+      "motif": "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'",
+      "exemples": [
+        "Tu peux",
+        "pour toi",
+        "je t'explique"
+      ]
+    },
+    {
+      "id": "pourcentage",
+      "description": "promesse chiffrée : %",
+      "motif": "%",
+      "exemples": [
+        "30 %"
+      ]
+    },
+    {
+      "id": "euro",
+      "description": "promesse chiffrée : €",
+      "motif": "€",
+      "exemples": [
+        "100 €"
+      ]
+    },
+    {
+      "id": "x-fois",
+      "description": "promesse chiffrée : « x fois », « 3 fois »",
+      "motif": "\\bx\\s*fois\\b|\\b\\d+\\s*fois\\b",
+      "exemples": [
+        "x fois mieux",
+        "3 fois plus"
+      ]
+    },
+    {
+      "id": "double",
+      "description": "promesse chiffrée : doubler, tripler…",
+      "motif": "\\b(?:doubl|tripl)",
+      "exemples": [
+        "doubler",
+        "triplé"
+      ]
+    }
+  ]
+}
