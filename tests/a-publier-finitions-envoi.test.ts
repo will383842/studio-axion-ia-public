@@ -26,11 +26,11 @@ describe("ligne compte + date", () => {
 });
 
 describe("message de succès", () => {
-  it("brouillon : dit l'état Brouillon dans Buffer", () => {
-    expect(messageSucces("brouillon", 1)).toContain("brouillon dans Buffer");
+  it("brouillon : dit l'état Brouillon dans Zernio", () => {
+    expect(messageSucces("brouillon", 1)).toContain("brouillon dans Zernio");
   });
   it("programmé : dit programmée", () => {
-    expect(messageSucces("programmer", 2)).toContain("programmée dans Buffer sur 2 comptes");
+    expect(messageSucces("programmer", 2)).toContain("programmée dans Zernio sur 2 comptes");
   });
 });
 

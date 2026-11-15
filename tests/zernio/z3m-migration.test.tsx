@@ -6,10 +6,9 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { EcranMigration } from "@/components/migration/EcranMigration";
-import { Criteres } from "@/components/migration/Criteres";
 import { FenetreLot } from "@/components/migration/FenetreLot";
-import { Heros } from "@/components/migration/Heros";
-import { compter, critereResiliation, postsConfirmables, type CompteMigration, type PostMigration, type PublicationReelle } from "@/components/migration/logique";
+import { EtatBuffer, Heros } from "@/components/migration/Heros";
+import { compter, postsConfirmables, type CompteMigration, type PostMigration, type PublicationReelle } from "@/components/migration/logique";
 import { confirmerRetraitEtProgrammation, PLAFOND_IDS_PAR_APPEL, RAISON_NON_BRANCHE, serviceNonBranche, type ServiceImport } from "@/components/migration/services";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 
@@ -17,7 +16,6 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string
 
 const MAINT = new Date("2026-11-10T09:00:00Z");
 const post = (id: string, etat: PostMigration["etat"], reseau: PostMigration["reseau"] = "linkedin", datePrevue = "2026-11-15T10:00:00Z", cJuste?: boolean): PostMigration => ({ id, reseau, titre: `Exemple ${id}`, datePrevue, etat, cJuste });
-const pub = (jour: string, o: Partial<PublicationReelle> = {}): PublicationReelle => ({ jour, premierCommentaire: true, lienVerifie: true, aVerifier: false, ...o });
 const compte = (reseau: CompteMigration["reseau"], publications: PublicationReelle[]): CompteMigration => ({ id: `exemple-${reseau}`, libelle: `Compte ${reseau}`, reseau, publications });
 const POSTS = [post("a", "laisse-buffer", "instagram", "2026-11-12T10:00:00Z"), post("b", "verifie-zernio"), post("c", "a-verifier"), post("d", "restant", "facebook", "2026-11-25T10:00:00Z")];
 
@@ -38,34 +36,19 @@ describe("z3m · comptages", () => {
   });
 });
 
-describe("z3m · critereResiliation", () => {
-  const jours = ["2026-11-06", "2026-11-07", "2026-11-08", "2026-11-09", "2026-11-10"];
-  it("rempli", () => expect(critereResiliation(compte("instagram", [pub(jours[0]), pub(jours[4], { premierCommentaire: false })])).rempli).toBe(true));
-  it("non rempli : sans premier commentaire", () => {
-    const r = critereResiliation(compte("instagram", [pub(jours[0], { premierCommentaire: false }), pub(jours[4], { premierCommentaire: false })]));
-    expect(r.premierComm).toBe("non");
-    expect(r.rempli).toBe(false);
+describe("z3m · Buffer résilié", () => {
+  it("la carte dit la vérité : résilié, tout passe par Zernio, aucune date ni compte à rebours", () => {
+    const t = renderToStaticMarkup(<EtatBuffer />).replace(/<[^>]+>/g, " ");
+    expect(t).toContain("Buffer est résilié.");
+    expect(t).toContain("Toutes les publications passent par Zernio.");
+    expect(t).not.toMatch(/jours?|Date limite|18\/11|20\/11|mercredi|vendredi/);
   });
-  it("non rempli : un post à vérifier ou un lien non vérifié", () => {
-    expect(critereResiliation(compte("facebook", [pub(jours[0]), pub(jours[4], { aVerifier: true })])).rempli).toBe(false);
-    expect(critereResiliation(compte("facebook", [pub(jours[0]), pub(jours[4], { lienVerifie: false })])).rempli).toBe(false);
-  });
-  it("TikTok : premier commentaire sans objet", () => {
-    const r = critereResiliation(compte("tiktok", [pub(jours[0], { premierCommentaire: false }), pub(jours[4], { premierCommentaire: false })]));
-    expect(r.premierComm).toBe("sans-objet");
-    expect(r.rempli).toBe(true);
-  });
-  it("moins de 5 jours ou moins de 2 publications : non rempli", () => {
-    const r = critereResiliation(compte("linkedin", [pub(jours[0]), pub(jours[3])]));
-    expect(r.jours).toMatchObject({ n: 4, requis: 5, ok: false });
-    expect(r.rempli).toBe(false);
-    expect(critereResiliation(compte("linkedin", [pub(jours[0])])).publications.ok).toBe(false);
-    expect(critereResiliation(compte("linkedin", [])).rempli).toBe(false);
-  });
-  it("tableau : texte masqué accessible", () => {
-    const html = renderToStaticMarkup(<Criteres comptes={[compte("tiktok", [])]} />);
-    expect(html).toContain("sans objet");
-    expect(html).toContain("sr-only");
+  it("aucun écran n'annonce une résiliation à faire", () => {
+    for (const html of [renderToStaticMarkup(<EcranMigration vue={{ etat: "normal", donnees: { posts: POSTS, comptes: [compte("instagram", [])] } }} maintenant={MAINT} />), renderToStaticMarkup(<EcranMigration vue={{ etat: "vide" }} maintenant={MAINT} />)]) {
+      const t = html.replace(/<[^>]+>/g, " ");
+      expect(t).not.toMatch(/Date limite|Critères pour résilier|Résiliation de Buffer|Prélèvement évité|sans votre ordre/);
+      expect(t).toContain("Buffer est résilié");
+    }
   });
 });
 
@@ -120,14 +103,14 @@ describe("z3m · 4 états et langue", () => {
   };
   it("normal", () => {
     expect(vues.normal).toContain("Les 4 posts de Buffer passent chez Zernio");
-    expect(vues.normal).toContain("Rien n’est retiré de Buffer sans votre ordre.");
+    expect(vues.normal).toContain("Buffer est résilié. Toutes les publications passent par Zernio.");
     expect(vues.normal).toContain("Vérifier le lot B · 1 post");
-    expect(vues.normal).toContain("8 jours");
-    expect(vues.normal).toContain("Mode essai");
+        expect(vues.normal).toContain("Mode essai");
   });
   it("vide", () => {
     expect(vues.vide).toContain("La bascule n’a pas commencé");
     expect(vues.vide).toContain("Voir les connexions");
+    expect(vues.vide).toContain("Buffer est résilié");
   });
   it("chargement", () => expect(vues.chargement).toContain('aria-busy="true"'));
   it("erreur", () => expect(vues.erreur).toContain('role="alert"'));

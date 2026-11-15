@@ -140,7 +140,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
         return;
       }
       const { programmees, ignorees, modeBuffer: mode } = r.donnees;
-      if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Buffer · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
+      if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Zernio · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
       if (ignorees.length) notifier.erreur(ignorees[0].message);
       if (programmees.length && retour) router.push(retour);
       else router.refresh();
@@ -249,7 +249,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
                 </Bouton>
                 <p className="text-xs text-texte-faible">
                   Envoie toutes les versions prêtes du sujet, chacune à son créneau, sans premier commentaire.
-                  {modeBuffer === "programmer" ? "" : " En mode brouillon, rien n'est programmé : relisez et programmez dans Buffer."}
+                  {modeBuffer === "programmer" ? "" : " En mode brouillon, rien n'est programmé : relisez et programmez dans Zernio."}
                 </p>
               </div>
             )}

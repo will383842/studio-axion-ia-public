@@ -115,7 +115,7 @@ export function FeuilleEnvoyerBuffer() {
       <FeuilleBas
         ouverte={feuille === "buffer"}
         onOuverteChange={(o) => ouvrir(o ? "buffer" : null)}
-        titre="Envoyer vers Buffer"
+        titre="Préparer dans Zernio"
         pied={
           <Bouton taille="lg" pleineLargeur variante="secondaire" icone="coche" onClick={() => ouvrir(null)}>
             Compris
@@ -141,9 +141,9 @@ export function FeuilleEnvoyerBuffer() {
         return;
       }
       const n = r.donnees.nombre;
-      if (r.donnees.simulation) notifier.essai("rien n'a été envoyé à Buffer");
+      if (r.donnees.simulation) notifier.essai("rien n'a été envoyé à Zernio");
       // Un envoi par compte coché (deux LinkedIn = deux comptes) : on compte des comptes, pas des réseaux.
-      else if (n && r.donnees.mode === "brouillon") notifier.succes(`Brouillon dans Buffer · ${libelleComptes(n)}`, "Relisez et programmez dans Buffer.");
+      else if (n && r.donnees.mode === "brouillon") notifier.succes(`Brouillon dans Zernio · ${libelleComptes(n)}`, "Relisez et programmez dans Zernio.");
       else if (n) notifier.succes(`Programmée sur ${libelleComptes(n)}`);
       const autres = r.donnees.problemes.length - 1;
       if (r.donnees.problemes.length) notifier.erreur(r.donnees.problemes[0], autres > 0 ? `Et ${autres} autre${autres > 1 ? "s" : ""} compte${autres > 1 ? "s" : ""} à revoir.` : undefined);
@@ -208,7 +208,7 @@ export function FeuilleEnvoyerBuffer() {
       {!kit.envoiSimule && envoiBuffer && (
         <p className="mb-5 flex items-center gap-2 rounded-2xl border border-trait bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
           <Icone nom="envoyer" size={16} className="shrink-0 text-orange-vif" />
-          {envoiBuffer.mode === "brouillon" ? "Brouillon dans Buffer : rien ne part tant que vous ne l'avez pas programmé dans Buffer." : "La vidéo partira à la date choisie."}
+          {envoiBuffer.mode === "brouillon" ? "Brouillon dans Zernio : rien ne part tant que vous ne l'avez pas programmé dans Zernio." : "La vidéo partira à la date choisie."}
         </p>
       )}
       {/* Équipe 7 : Buffer ne sait pas déclarer « Votre marque » : le geste est rappelé, en grand. */}

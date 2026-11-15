@@ -1,4 +1,4 @@
-import { compter, DATE_LIMITE_RESILIATION, joursAvantDateLimite, type PostMigration } from "./logique";
+import { compter, type PostMigration } from "./logique";
 
 /** Héros « Avancement » : un gros chiffre, une barre à 3 segments, la légende et la ligne de total. */
 export function Heros({ posts }: { posts: PostMigration[] }) {
@@ -34,19 +34,13 @@ export function Heros({ posts }: { posts: PostMigration[] }) {
   );
 }
 
-/** Carte « Date limite pour résilier Buffer » : jours restants et critères remplis. */
-export function DateLimite({ maintenant, remplis, comptes }: { maintenant: Date; remplis: number; comptes: number }) {
-  const j = joursAvantDateLimite(maintenant);
+/** Carte d'état : Buffer est résilié, la publication passe par Zernio. Rien à faire, aucune date. */
+export function EtatBuffer() {
   return (
-    <section aria-labelledby="mig-limite" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
-      <h2 id="mig-limite" className="text-base sm:text-sm font-semibold text-texte-doux">Date limite pour résilier Buffer</h2>
-      <p className="mt-1 text-2xl font-bold text-texte">
-        {j} jour{j > 1 ? "s" : ""} · mercredi {DATE_LIMITE_RESILIATION.slice(8)} novembre
-      </p>
-      <p className="mt-1 text-base sm:text-sm text-texte-doux">Dernier jour possible : jeudi 19/11. Le prélèvement du vendredi 20/11 est alors évité.</p>
-      <p className="mt-2 text-base sm:text-sm font-semibold text-texte">
-        Critères remplis : {remplis} compte{remplis > 1 ? "s" : ""} sur {comptes}.
-      </p>
+    <section aria-labelledby="mig-buffer" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
+      <h2 id="mig-buffer" className="text-base sm:text-sm font-semibold text-texte-doux">Buffer</h2>
+      <p className="mt-1 text-2xl font-bold text-texte">Buffer est résilié.</p>
+      <p className="mt-1 text-base sm:text-sm text-texte-doux">Toutes les publications passent par Zernio.</p>
     </section>
   );
 }

@@ -1058,8 +1058,8 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       }
       const { programmees, ignorees, simulation } = r.donnees;
       if (programmees.length) {
-        if (simulation) notifier.essai("rien n'a été envoyé à Buffer");
-        else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Buffer`, "Relisez et programmez dans Buffer.");
+        if (simulation) notifier.essai("rien n'a été envoyé à Zernio");
+        else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Zernio`, "Relisez et programmez dans Zernio.");
         else notifier.succes(`${programmees.length} version${programmees.length > 1 ? "s" : ""} programmée${programmees.length > 1 ? "s" : ""}`);
       }
       if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${messageSansMontant(ignorees[0].message)}`);
@@ -1088,7 +1088,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       {!programmation.envoiSimule && programmation.modeBuffer === "brouillon" && (
         <p className="mb-4 flex items-center gap-2 rounded-2xl border border-trait bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
           <Icone nom="envoyer" size={16} className="shrink-0 text-accent" />
-          Chaque version part en brouillon dans Buffer, avec sa date : vous la programmez dans Buffer.
+          Chaque version part en brouillon dans Zernio, avec sa date : vous la programmez dans Zernio.
         </p>
       )}
       <ol className="space-y-2">
