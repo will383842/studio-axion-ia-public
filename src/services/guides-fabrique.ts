@@ -5,13 +5,15 @@
  * INACTIVE (l'allumage reste un geste séparé).
  *
  * Le texte qui part au site est TOUJOURS relu dans l'enregistrement du Studio (version validée), jamais pris d'un client ;
- * l'empreinte est recalculée avec `guide-contenu.ts`. Une version n'est « fabriquée » que sur un 201 du site.
+ * l'empreinte est recalculée avec `guide-contenu.ts`. Une version n'est « fabriquée » que sur un 201 ou un 200 `{ok:true}` du site.
+ * Le chemin du PDF est DÉRIVÉ ici (`guides-reseau/<code>/v<version>.pdf`) : le site ne le renvoie pas.
  * Dépendances injectables (essais sans base ni réseau). La session est exigée par les actions serveur avant d'arriver ici.
  * Reste avant tout allumage (voir TODO de guides-redaction.ts) : plafond mensuel Claude et suivi des dépenses.
  */
 import "server-only";
 import {
   PREFIXE_PARAM_FABRIQUE,
+  cheminPdfDuGuide,
   codeGuideDuMot,
   controlerRelecture,
   corpsContenuGuide,
@@ -20,7 +22,8 @@ import {
 import { empreinteGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { PREFIXE_PARAM_REDACTION, STATUT_A_VALIDER, STATUT_VALIDE, identifiantMot, redigerBrouillonGuide, type ResultatRedaction, type VersionBrouillon } from "./guides-redaction";
 import { envoyerContenuGuide, type ResultatEnvoiContenu } from "./guides-fabrique-site";
-import { creerElementCatalogue, delierMot, type ResultatCreation, type ResultatEcriture } from "./cibles-site";
+import { PARAM_CIBLES_MIROIR, creerElementCatalogue, delierMot, lireCiblesSite, type ResultatCreation, type ResultatEcriture } from "./cibles-site";
+import { motVersSite, type LiaisonMot } from "@/domaine/guide-reseau/cibles-contrat";
 import type { CorpsContenuGuide } from "@/domaine/guides-pdf/guide-fabrique";
 
 type Env = Record<string, string | undefined>;
@@ -34,6 +37,8 @@ export interface DepsFabrique {
   rediger: (mot: string) => Promise<ResultatRedaction>;
   envoyer: (corps: CorpsContenuGuide) => Promise<ResultatEnvoiContenu>;
   creerElement: (o: { titre: string; cheminPdf: string; code: string }) => Promise<ResultatCreation>;
+  /** Liaisons du site, lues À NEUF (jamais la copie) ; `null` si le site n'a pas pu être lu. */
+  lireLiaisons: () => Promise<LiaisonMot[] | null>;
   /** Écrit la ligne mot → guide avec `actif: false`. */
   lierInactif: (o: { mot: string; codeCible: string }) => Promise<ResultatEcriture>;
 }
@@ -48,6 +53,13 @@ async function depsReelles(): Promise<DepsFabrique> {
     rediger: (mot) => redigerBrouillonGuide(mot),
     envoyer: (corps) => envoyerContenuGuide({ corps }),
     creerElement: (o) => creerElementCatalogue({ type: "guide", ...o }),
+    lireLiaisons: async () => {
+      // La copie du site peut avoir jusqu'à 10 min : on la marque « à relire » pour lire le site lui-même.
+      const copie = await commun.depots().parametres.obtenir(PARAM_CIBLES_MIROIR);
+      if (copie && typeof copie.valeur === "object" && copie.valeur !== null) await commun.ecrireParametre(PARAM_CIBLES_MIROIR, { ...(copie.valeur as object), aRelire: true });
+      const c = await lireCiblesSite();
+      return c && !c.depuisCopie ? c.liaisons : null;
+    },
     // « delierMot » écrit la ligne avec actif=false : c'est exactement une liaison inactive.
     lierInactif: (o) => delierMot({ mot: o.mot, reseau: "tous", codeCible: o.codeCible }),
   };
@@ -56,7 +68,7 @@ async function depsReelles(): Promise<DepsFabrique> {
 export type RaisonRefus =
   | "ecran_eteint" | "mot_invalide" | "indisponible" | "aucun_brouillon" | "version_inconnue" | "pas_la_derniere" | "deja_valide"
   | "relecture_requise" | "texte_invalide" | "texte_refuse" | "pas_valide" | "texte_modifie" | "deja_fabrique" | "en_cours"
-  | "pas_fabrique" | "pas_de_pdf" | "titre_trop_court" | "deja_rattache" | "site" | "redaction";
+  | "pas_fabrique" | "titre_trop_court" | "deja_rattache" | "mot_deja_en_service" | "liaisons_illisibles" | "site" | "redaction";
 
 export type ResultatGeste<T = object> = ({ ok: true; phrase: string } & T) | { ok: false; raison: RaisonRefus; phrase: string; regle?: string };
 
@@ -76,7 +88,8 @@ const PHRASES: Record<Exclude<RaisonRefus, "site" | "redaction">, string> = {
   deja_fabrique: "Cette version est déjà fabriquée.",
   en_cours: "Un geste est déjà en cours pour ce mot : patientez.",
   pas_fabrique: "Fabriquez d'abord le PDF.",
-  pas_de_pdf: "Le site n'a pas indiqué où se trouve le PDF : il ne peut pas être rattaché. Fabriquez-le de nouveau.",
+  mot_deja_en_service: "Ce mot envoie déjà un guide en service : rien n'a été écrit. Désactivez d'abord ce guide si vous voulez le remplacer.",
+  liaisons_illisibles: "Le Studio n'a pas pu lire les liaisons actuelles du site : rien n'a été écrit. Réessayez dans un moment.",
   titre_trop_court: "Le titre du guide est trop court pour le catalogue (3 caractères au moins).",
   deja_rattache: "Ce guide est déjà rattaché au mot.",
 };
@@ -214,7 +227,7 @@ export async function validerGuide(o: { mot: string; version: number; contenu: u
   return r === OCCUPE ? refus("en_cours") : r;
 }
 
-/** Geste 4 : « Fabriquer le PDF » = envoi du texte validé à la route signée du site. « Fabriqué » seulement sur un 201. */
+/** Geste 4 : « Fabriquer le PDF » = envoi du texte validé à la route signée du site. « Fabriqué » sur un 201 ou un 200 `{ok:true}`. */
 export async function fabriquerPdf(o: { mot: string }, deps?: DepsFabrique): Promise<ResultatGeste<{ cheminPdf: string | null; pages: number | null }>> {
   const p = await preparer(o.mot, deps);
   if (estRefus(p)) return p;
@@ -233,18 +246,20 @@ export async function fabriquerPdf(o: { mot: string }, deps?: DepsFabrique): Pro
     if (!c.ok || empreinteGuide(c.contenu) !== valide.empreinte) return refus("texte_modifie");
     if (etat && etat.version === valide.version && etat.sha256Texte === valide.empreinte) return refus("deja_fabrique");
     const code = codeGuideDuMot(p.id);
+    const chemin = cheminPdfDuGuide(code, valide.version);
+    if (chemin === null) return refus("indisponible");
     const r = await p.d.envoyer(corpsContenuGuide(code, valide.version, c.contenu));
     if (r.issue !== "fabrique") {
       await journaliser(p.d, "guide_fabrication_refusee", `issue=${r.issue} version=${valide.version}`);
       return { ok: false, raison: "site", phrase: r.phrase };
     }
     try {
-      await p.d.ecrireParametre(PREFIXE_PARAM_FABRIQUE + p.id, { version: valide.version, sha256Texte: valide.empreinte, code, cheminPdf: r.cheminPdf, pages: r.pages, fabriqueLe: p.d.maintenant() } satisfies EtatFabrique);
+      await p.d.ecrireParametre(PREFIXE_PARAM_FABRIQUE + p.id, { version: valide.version, sha256Texte: valide.empreinte, code, cheminPdf: chemin, pages: r.pages, fabriqueLe: p.d.maintenant() } satisfies EtatFabrique);
     } catch {
       return { ok: false, raison: "indisponible", phrase: "Le PDF a été fabriqué par le site, mais le Studio n'a pas pu le noter : refaites « Fabriquer le PDF » (il ne sera pas fabriqué deux fois)." };
     }
     await journaliser(p.d, "guide_fabrique", `version=${valide.version} empreinte=${valide.empreinte.slice(0, 12)}`);
-    return { ok: true, cheminPdf: r.cheminPdf, pages: r.pages, phrase: "PDF fabriqué. Vérifiez l'aperçu avant de le rattacher au mot." };
+    return { ok: true, cheminPdf: chemin, pages: r.pages, phrase: "PDF fabriqué. Vérifiez l'aperçu avant de le rattacher au mot." };
   });
   return r === OCCUPE ? refus("en_cours") : r;
 }
@@ -262,12 +277,24 @@ export async function rattacherGuide(o: { mot: string }, deps?: DepsFabrique): P
     } catch {
       return refus("indisponible");
     }
-    if (!etat || !valide || etat.version !== valide.version) return refus("pas_fabrique");
-    if (!etat.cheminPdf) return refus("pas_de_pdf");
+    if (!etat || !valide || etat.version !== valide.version || etat.sha256Texte !== valide.empreinte) return refus("pas_fabrique");
     if (etat.rattacheLe) return refus("deja_rattache");
     if (valide.contenu.titre.length < 3) return refus("titre_trop_court");
+    const chemin = cheminPdfDuGuide(etat.code, etat.version);
+    if (chemin === null) return refus("indisponible");
+    // La liaison (mot, « tous ») du site est REMPLACÉE par l'écriture : on lit l'existante avant de rien écrire.
+    const motSite = motVersSite(o.mot);
+    if (motSite === null) return refus("mot_invalide");
+    let liaisons: LiaisonMot[] | null;
+    try {
+      liaisons = await p.d.lireLiaisons();
+    } catch {
+      liaisons = null;
+    }
+    if (liaisons === null) return refus("liaisons_illisibles");
+    if (liaisons.some((l) => l.mot === motSite && l.reseau === "tous" && l.actif)) return refus("mot_deja_en_service");
     // Même code qu'à la fabrication : rejouer ne crée jamais un second élément.
-    const cree = await p.d.creerElement({ titre: valide.contenu.titre, cheminPdf: etat.cheminPdf, code: etat.code });
+    const cree = await p.d.creerElement({ titre: valide.contenu.titre, cheminPdf: chemin, code: etat.code });
     if (!cree.ok) return { ok: false, raison: "site", phrase: cree.phrase };
     const lie = await p.d.lierInactif({ mot: o.mot.trim(), codeCible: etat.code });
     if (!lie.ok) return { ok: false, raison: "site", phrase: `Le guide est au catalogue, mais la liaison avec le mot n'a pas été faite. ${lie.phrase}` };
@@ -277,7 +304,7 @@ export async function rattacherGuide(o: { mot: string }, deps?: DepsFabrique): P
       return refus("indisponible");
     }
     await journaliser(p.d, "guide_rattache", `version=${etat.version} inactif`);
-    return { ok: true, phrase: "Guide rattaché au mot, sans l'allumer. L'allumage reste un geste séparé." };
+    return { ok: true, phrase: "Guide rattaché au mot, sans l'allumer : la fiche du catalogue est créée active (le site refuse de lier un mot à une fiche inactive), mais la liaison mot → guide est inactive. L'allumage reste un geste séparé." };
   });
   return r === OCCUPE ? refus("en_cours") : r;
 }
