@@ -9,6 +9,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Échec : ligne « ÉCHEC » dans /opt/studio-axion-ia/sauvegardes/sauvegardes.log, fichier DERNIER-ECHEC, e-mail d'alerte.
 30 3 * * * root /bin/bash /opt/studio-axion-ia/source/deploiement/sauvegarder.sh >>/opt/studio-axion-ia/sauvegardes/cron.log 2>&1
 
+# L2-12b : sauvegarde nocturne des médias (copie du seau R2 vers le seau de secours R2_BUCKET_SECOURS ; ne supprime ni
+# n'écrase jamais rien). Échec ou seau absent : ligne « ÉCHEC » dans sauvegardes-medias.log et e-mail d'alerte.
+0 4 * * * root /bin/bash /opt/studio-axion-ia/source/deploiement/sauvegarder-medias.sh >>/opt/studio-axion-ia/sauvegardes/cron-medias.log 2>&1
+
 # Vérif V5 : surveillance mémoire (chaque conteneur du studio à 85 % de sa limite) et disque (85 %), alerte e-mail au plus
 # une fois par heure et par cause. Journal : /opt/studio-axion-ia/surveillance/surveillance.log.
 # L5-08 : la même tâche prévient aussi si /api/sante ne répond pas 200 ou si la dernière sauvegarde réussie a plus de 36 h
