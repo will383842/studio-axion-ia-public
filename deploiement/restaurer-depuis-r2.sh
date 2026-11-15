@@ -22,8 +22,12 @@ DOSSIER_TELECHARGEMENT="${STUDIO_DOSSIER_REPRISE:-$RACINE/sauvegardes/reprise}"
 FICHIER="" CLE="" EXECUTER=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --fichier) FICHIER="${2:-}"; shift 2 ;;
-    --cle) CLE="${2:-}"; shift 2 ;;
+    --fichier|--cle)
+      if [ $# -lt 2 ] || [ -z "$2" ] || [ "${2#--}" != "$2" ]; then
+        echo "Option $1 : une valeur est attendue juste après (voir l'en-tête du script)." >&2; exit 2
+      fi
+      if [ "$1" = "--fichier" ]; then FICHIER="$2"; else CLE="$2"; fi
+      shift 2 ;;
     --executer) EXECUTER=1; shift ;;
     *) echo "Option inconnue : $1 (voir l'en-tête du script)." >&2; exit 2 ;;
   esac
