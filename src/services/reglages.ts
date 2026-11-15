@@ -1,6 +1,7 @@
 /** RÉGLAGES (B.8 #17) : exemples, mention IA, réseaux, notifications, connexions, journal. */
 import "server-only";
 import type { Evenement, IdReseau, MentionIA, Visage } from "@/domaine/types";
+import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { MENTION_IA_PAR_DEFAUT } from "@/domaine/derivations";
 import { resoudreVisagesParAngle, visagePourFormat } from "@/domaine/distribution";
 import { choixFournisseur, etatConnexion, optionsConnexion, resoudreFournisseur, TYPES_FOURNISSEURS } from "@/fournisseurs";
@@ -44,7 +45,7 @@ export async function lireReglages(): Promise<Reglages> {
   return {
     afficherExemples: await lireParametre("afficherExemples", true),
     mentionIA: await lireParametre("mentionIA.parDefaut", MENTION_IA_PAR_DEFAUT),
-    reseauxParDefaut: await lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]),
+    reseauxParDefaut: await lireParametre<IdReseau[]>("reseaux.parDefaut", reseauxParDefautNeufs()),
     notifications: await lireParametre<PreferencesNotifications>("notifications", PREFERENCES_PAR_DEFAUT),
     notificationsServeur: await vueNotifications(),
     hashtags: await lireFamilles(),
@@ -316,7 +317,7 @@ export async function moteurAuLancement(formatId: string): Promise<string> {
 
 /** Prix d'une vidéo de 45 s montée pour de vrai, aux réseaux par défaut et au taux du studio (second angle compris). */
 export async function prixMontageReel(formatId: string): Promise<PrixVideoReelle> {
-  const reseaux = await lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
+  const reseaux = await lireParametre<IdReseau[]>("reseaux.parDefaut", reseauxParDefautNeufs());
   // INTÉGRATION FINALE : les illustrations fabriquées (fal.ai) comptent quand la fabrication est branchée.
   const illus = (await fournisseur("illustration")) as { fabrication?: unknown };
   // 14/10 (voix de référence) : la voix de l'avocat peut être lue 2 fois par défaut, 3 au plus à 2 relances (contrôle de ressemblance) : le prix

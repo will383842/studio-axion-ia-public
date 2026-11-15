@@ -40,6 +40,7 @@ import { codeDeErreur, journaliserEnvoi } from "./journal-envoi";
 import { canauxEnregistres, cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
 import { exigerYoutubeZernioPret } from "./youtube-zernio";
+import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
 import { adresseRelaisBuffer } from "./relais-buffer";
 import { versCarte } from "./presentation";
@@ -341,7 +342,7 @@ function donneesDe(s: SourceTextes, reseau: IdReseau, regles: Awaited<ReturnType
 }
 
 export async function reseauxParDefaut(): Promise<IdReseau[]> {
-  return lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
+  return lireParametre<IdReseau[]>("reseaux.parDefaut", reseauxParDefautNeufs());
 }
 
 /**
