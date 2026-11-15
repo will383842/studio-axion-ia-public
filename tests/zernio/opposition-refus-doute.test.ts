@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe("D2/N2 · nouvelles formes d'opposition", () => {
-  it.each(["Je m'y oppose", "JE M'Y OPPOSE.", "Je m'oppose à la collecte", "je m oppose a la collecte !", "Je m'oppose au traitement de mes données", "Je suis opposé(e)", "Je suis opposée", "Je suis opposé", "Opposée", "opposee"])("« %s » → opposition", (t) => {
+  it.each(["Je m'y oppose", "JE M'Y OPPOSE.", "Je m'oppose à la collecte", "je m oppose a la collecte !", "Je m'oppose au traitement de mes données", "Je m'oppose à la collecte de mes données", "Je m'oppose à la collecte de données", "Je m'oppose au traitement", "Je m'oppose au traitement de mes données personnelles", "Je suis opposé(e)", "Je suis opposée", "Je suis opposé", "Opposée", "opposee"])("« %s » → opposition", (t) => {
     expect(classerOpposition(t)).toBe("opposition");
   });
   it.each(["Je ne m'oppose pas", "Pas d'opposition", "Je ne m'y oppose pas"])("« %s » → doute (rien ne part)", (t) => {
@@ -56,10 +56,10 @@ describe("D2/N2 · nouvelles formes d'opposition", () => {
 });
 
 describe("D1/N1 · refus sans adresse", () => {
-  it.each(["Non merci", "Je refuse", "Je suis contre", "Je ne veux pas", "Supprimez mes données", "Effacez tout", "Retirez-moi", "Je m'opose", "Non, merci !"])("« %s » exprime un refus", (t) => {
+  it.each(["Non merci", "Je refuse", "Je suis contre", "Je ne veux pas", "Supprimez mes données", "Effacez tout", "Retirez-moi", "Je m'opose", "Non, merci !", "Je n'en veux pas", "Je veux pas", "Non", "Nan merci", "Pas intéressé", "Je ne souhaite pas", "Non je préfère pas"])("« %s » exprime un refus", (t) => {
     expect(exprimeUnRefus(t)).toBe(true);
   });
-  it.each(["Mon adresse est a@example.test", "Je veux le guide", "Merci !"])("« %s » n'est pas un refus", (t) => {
+  it.each(["Mon adresse est a@example.test", "Je veux le guide", "Merci !", "Ne vous arrêtez pas", "Stop, merci", "Bonjour", "Oui non"])("« %s » n'est pas un refus", (t) => {
     expect(exprimeUnRefus(t)).toBe(false);
   });
   it.each(["Non merci", "Je refuse", "Je suis contre", "Je ne veux pas", "Supprimez mes données", "Je m'opose"])("« %s » en attente d'adresse : pause + alerte, jamais « adresse non reconnue »", async (texte) => {
@@ -75,6 +75,25 @@ describe("D1/N1 · refus sans adresse", () => {
     expect((await etatDe())?.douteOpposition).toBe(true);
     expect((await etatDe())?.m2Envoye).not.toBe(true);
     expect(await journal(/doute|ALERTE/i)).toBeGreaterThan(0);
+  });
+  it.each(["m1_a_verifier", "m1_en_vol"])("« Non merci » en état %s : doute, aucune relance M2", async (etat) => {
+    const { graineConv } = await import("./filet-guide/_amorce");
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation("auteur-fictif-400")]: graineConv(etat, { idCommentaire: "com-graine" }) });
+    port.reponses.texte = () => "Non merci";
+    await deposerMessage(depots, { idMessage: "m-nm" });
+    await passer(T0 + 1000);
+    expect(port.prive.length).toBe(0);
+    expect((await etatDe())?.douteOpposition).toBe(true);
+    expect((await etatDe())?.m2Envoye).not.toBe(true);
+  });
+  it("« Non » avec une adresse valide garde son comportement (demande de guide, pas de doute)", async () => {
+    await validerFormulationsAuParcours(["mp-m1-v5-3"]);
+    await deposerCommentaire(depots, {});
+    await passer();
+    port.reponses.texte = () => `Non ${ADRESSE_FICTIVE}`;
+    await deposerMessage(depots, { idMessage: "m-non-adr" });
+    await passer(T0 + 1000);
+    expect(site.vus.length).toBe(1);
   });
   it("une vraie réponse avec adresse reste traitée comme avant (demande de guide, pas de doute)", async () => {
     await validerFormulationsAuParcours(["mp-m1-v5-3"]);
