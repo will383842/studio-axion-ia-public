@@ -6,7 +6,7 @@
  * AUCUN rendu vidéo, aucun appel à Claude, aucun réseau.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 /** Les dépendances de studio-rendu ne sont pas installées par les contrôles obligatoires de GitHub : le bloc 4 se saute alors (avec avertissement). */
@@ -35,8 +35,6 @@ const { RENDUS_V4 } = AVEC_RENDU ? await import("../../studio-rendu/compositions
 
 const DOSSIER = "tests/facecam-animee/fixtures/chantier4";
 const lire = (nom: string) => readFileSync(`${DOSSIER}/${nom}`, "utf8");
-/** Production initiale des fixtures seulement (jamais en régénération : voir l'en-tête). */
-const GENERER = process.env.C4_U4_GENERER === "1";
 const sha = (t: string) => createHash("sha256").update(t).digest("hex");
 
 const HISTORIQUE_FIXE: HistoriqueVideo[] = [
@@ -47,12 +45,10 @@ const HISTORIQUE_FIXE: HistoriqueVideo[] = [
 describe("C4-U4.0 · bloc 1 : consigne du réalisateur figée", () => {
   it("sans historique", () => {
     const t = consigneRealisateur();
-    if (GENERER) writeFileSync(`${DOSSIER}/consigne-sans-historique.txt`, t);
     expect(t).toBe(lire("consigne-sans-historique.txt"));
   });
   it("avec un historique fixe de 2 vidéos (consigne et bloc v4)", () => {
     const t = `${consigneRealisateur(HISTORIQUE_FIXE)}\n=====BLOC-HISTORIQUE-V4=====\n${blocHistoriqueV4(HISTORIQUE_FIXE)}\n`;
-    if (GENERER) writeFileSync(`${DOSSIER}/consigne-avec-historique.txt`, t);
     expect(t).toBe(lire("consigne-avec-historique.txt"));
   });
 });
@@ -70,7 +66,6 @@ describe("C4-U4.0 · bloc 2 : repli sans vidéo figé", () => {
     ok: phraseRepliOkV4(retirees), echec: phraseRepliEchecV4(retirees),
   });
   it("même résultat que l'instantané", () => {
-    if (GENERER) writeFileSync(`${DOSSIER}/repli.json`, `${JSON.stringify(instantane(), null, 2)}\n`);
     expect(JSON.parse(JSON.stringify(instantane()))).toEqual(JSON.parse(lire("repli.json")));
   });
 });
@@ -97,7 +92,6 @@ describe("C4-U4.0 · bloc 3 : contrôles v4 figés", () => {
     sousTitres: CATALOGUE_V4.map((f) => [f.id, erreursSousTitresV4(f)]).filter(([, e]) => (e as string[]).length),
   });
   it("liste d'erreurs identique à l'instantané", () => {
-    if (GENERER) writeFileSync(`${DOSSIER}/controles.json`, `${JSON.stringify(instantane(), null, 2)}\n`);
     expect(JSON.parse(JSON.stringify(instantane()))).toEqual(JSON.parse(lire("controles.json")));
   });
   it("les trois plans fautifs lèvent bien D0, V1 et H1", () => {
@@ -128,16 +122,19 @@ describe("C4-U4.0 · bloc 4 : 26 rendus à 3 images", () => {
     imageCourante = image;
     return renderToStaticMarkup(createElement("div", null, (RENDUS_V4[e.id] as unknown as (e: ElementV4Plan, c: never, d: number) => React.ReactNode)(e, { duree: 30, fps: 30 } as never, 90)));
   };
-  const IMAGES = [0, 45, 89] as const;
-  const empreintes = (): Record<string, string[]> => Object.fromEntries(CATALOGUE_V4.map((f) => [f.id, IMAGES.map((i) => sha(rendre(elementDe(f), i)))]));
+  /** Images relatives à la durée de CHAQUE élément (début différé au quart car plusieurs plaquettes entrent après l'image 14, milieu, fin du rendu) : d = durée en images, jamais une image fixe après la sortie. */
+  const imagesDe = (e: ElementV4Plan): number[] => { const d = Math.max(3, Math.round((e.fin - e.debut) * 30)); return [Math.floor(d / 4), Math.floor(d / 2), d - 1]; };
+  const VIDE = sha("<div></div>");
+  const empreintes = (): Record<string, string[]> => Object.fromEntries(CATALOGUE_V4.map((f) => { const e = elementDe(f); return [f.id, imagesDe(e).map((i) => sha(rendre(e, i)))]; }));
 
   describe.skipIf(!AVEC_RENDU)("empreintes sha256", () => {
     it("26 × 3 empreintes identiques au fichier figé", () => {
       const actuel = empreintes();
-      if (GENERER) writeFileSync(`${DOSSIER}/empreintes-rendus.json`, `${JSON.stringify(actuel, null, 2)}\n`);
-      const fige = JSON.parse(lire("empreintes-rendus.json")) as Record<string, string[]>;
+        const fige = JSON.parse(lire("empreintes-rendus.json")) as Record<string, string[]>;
       expect(Object.keys(fige)).toHaveLength(26);
       expect(actuel).toEqual(fige);
+      // Aucun rendu ne doit être un « <div></div> » vide : une plaquette vide ne prouve rien.
+      expect(Object.values(actuel).flat().filter((h) => h === VIDE)).toEqual([]);
     });
   });
 });
