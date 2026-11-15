@@ -59,7 +59,7 @@ export function BoutonAnnuler({
                     return;
                   }
                   setOuverte(false);
-                  const { mises, centimes, brouillonsBuffer, pagesRetirees, refus } = r.donnees;
+                  const { mises, centimes, brouillonsExternes, pagesRetirees, refus } = r.donnees;
                   const montant = "";
                   if (!mises) {
                     // Fabrication arrêtée, mais la corbeille a refusé : on le dit, la vidéo reste là.
@@ -68,7 +68,7 @@ export function BoutonAnnuler({
                     return;
                   }
                   const paye = centimes ? " Les étapes déjà faites sont gardées." : "";
-                  notifier.succes("Vidéo annulée", `${messageCorbeille(mises, brouillonsBuffer, pagesRetirees)}${depense ? paye : ""}`);
+                  notifier.succes("Vidéo annulée", `${messageCorbeille(mises, brouillonsExternes, pagesRetirees)}${depense ? paye : ""}`);
                   if (apres) router.push(apres);
                   else router.refresh();
                 })
