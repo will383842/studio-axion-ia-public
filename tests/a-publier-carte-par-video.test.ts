@@ -74,7 +74,7 @@ describe("À publier simplifiée — affichage", () => {
     expect(h).not.toMatch(/<details[^>]*\bopen\b/);
     expect(h).toContain("Voir le détail");
     const t = texte(h);
-    for (const m of ["Phrase du post", "Premier commentaire", "Compte Buffer", "Date", "Avant de publier", "Sous-titres", "Mention IA", "Droits"]) expect(t).toContain(m);
+    for (const m of ["Phrase du post", "Premier commentaire", "Compte Zernio", "Date", "Avant de publier", "Sous-titres", "Mention IA", "Droits"]) expect(t).toContain(m);
     // Le panneau du réseau est masqué tant qu'on n'a pas cliqué sur son bouton.
     expect(h).toMatch(/aria-expanded="false"/);
     expect(h).toMatch(/id="reseau-v-1-instagram"[^>]*hidden/);
