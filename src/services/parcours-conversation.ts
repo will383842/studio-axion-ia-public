@@ -28,7 +28,7 @@ import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau
 import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
-import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { GROUPES_MP, rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { choisirFormulation, EQUIVALENTS_FIGES } from "@/domaine/guide-reseau/formulations";
 import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
@@ -762,6 +762,19 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   const choisie: { version?: string } = {};
   // Le repli demande l'adresse e-mail : une formulation validée du groupe « m1-adresse » si elle existe, sinon mp-m1-v2 (inchangé).
   const repli = async (code: CodeRepliLien) => {
+    // Version avec mention d'information RGPD (groupe « m1-adresse-rgpd ») : prise SEULEMENT si le fondateur l'a validée sur /mots (empreinte exacte)
+    // et si la conversation n'est pas déjà figée sur une autre version (jamais de changement de texte en cours de conversation). Sinon : inchangé.
+    const figeeAdresse = e.formulations?.["m1-adresse"];
+    if (!figeeAdresse || GROUPES_MP["m1-adresse-rgpd"].includes(figeeAdresse as IdTexteMp)) {
+      const r = choisirFormulation({
+        groupe: "m1-adresse-rgpd",
+        cleConversation: e.cleIdempotenceGuide,
+        figee: figeeAdresse,
+        validees: await formulationsValidees(),
+        rendre: (v) => rendreTexteMp(v, { mot, titre }),
+      });
+      if (r !== null) return { texte: r.texte, version: r.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), formulationAdresse: r.version };
+    }
     const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot, titre } });
     return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
   };
