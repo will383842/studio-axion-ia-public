@@ -1,14 +1,16 @@
 {
-  "version": 1,
+  "version": 2,
   "normalisation": "NFKD, sans accents, minuscules, apostrophes droites",
   "regles": [
     {
       "id": "abonne",
-      "description": "abonné, abonnement… (dire « suivre le compte »)",
-      "motif": "\\babonn",
+      "description": "abonné, abonnement, désabonner, réabonnement… (dire « suivre le compte »)",
+      "motif": "abonn",
       "exemples": [
         "abonné",
-        "abonnement"
+        "abonnement",
+        "désabonner",
+        "réabonnement"
       ]
     },
     {
@@ -55,12 +57,14 @@
     },
     {
       "id": "tutoiement",
-      "description": "tutoiement : tu, toi, te, ta, tes, t'",
-      "motif": "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'",
+      "description": "tutoiement : tu, toi, te, ta, tes, t', ton compte/entreprise/activité/site/équipe/métier/guide",
+      "motif": "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'|\\bton\\s+(?:compte|entreprise|activite|site|equipe|metier|guide)\\b",
       "exemples": [
         "Tu peux",
         "pour toi",
-        "je t'explique"
+        "je t'explique",
+        "ton entreprise",
+        "Ton activité"
       ]
     },
     {
@@ -95,6 +99,46 @@
       "exemples": [
         "doubler",
         "triplé"
+      ]
+    },
+    {
+      "id": "euros-mot",
+      "description": "promesse chiffrée : « euro(s) », « eur »",
+      "motif": "\\beuros?\\b|\\beur\\b",
+      "exemples": [
+        "100 euros",
+        "un euro",
+        "50 EUR"
+      ]
+    },
+    {
+      "id": "pour-cent",
+      "description": "promesse chiffrée : « pour cent », « pourcent »",
+      "motif": "pour\\s*cent|pourcent",
+      "exemples": [
+        "trente pour cent",
+        "dix pourcent"
+      ]
+    },
+    {
+      "id": "n-fois-plus",
+      "description": "promesse chiffrée : « deux fois plus », « dix fois mieux »…",
+      "motif": "\\b(?:deux|trois|quatre|cinq|dix|cent)\\s+fois\\s+(?:plus|mieux|moins)",
+      "exemples": [
+        "deux fois plus",
+        "dix fois mieux",
+        "cent fois moins"
+      ]
+    },
+    {
+      "id": "multiplicateur",
+      "description": "promesse chiffrée : « x2 », « 3x », « ×5 »",
+      "motif": "[x\\u00D7]\\s*\\d|\\d\\s*[x\\u00D7]\\b",
+      "exemples": [
+        "x2",
+        "3x",
+        "×5",
+        "3 x"
       ]
     }
   ]

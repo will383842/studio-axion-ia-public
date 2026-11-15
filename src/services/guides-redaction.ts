@@ -2,20 +2,27 @@
  * GUIDES PDF (lot G2) · rédaction d'un BROUILLON de guide par Claude. INERTE : tant que `GUIDES_REDACTION_ENABLED` n'est pas
  * exactement « true » (lu à l'exécution, valeur bornée), AUCUN appel, AUCUNE écriture.
  *
- * Chaîne : mot → appel Claude (modèle claude-sonnet-5-5, client existant `envoyerMessage`, clé choisie par le socle des
+ * Chaîne : mot → appel Claude (modèle claude-sonnet-5-5, client Claude existant via `fournisseurs/claude/appel-redaction`, clé choisie par le socle des
  * sources Claude : aucune clé dans le code) → lecture du JSON → schéma et contrôle du texte (G1) → enregistrement dans un
  * paramètre VERSIONNÉ `guides.redaction.<mot>` au statut « À valider ». Jamais « validé » ici : seule la relecture
  * humaine (écran G5) validera. Le journal ne contient ni texte du guide, ni clé, ni donnée de personne (seulement le code de
  * l'événement, la version, l'empreinte raccourcie, l'identifiant de la règle en cas de refus).
- * Ce lot n'écrit PAS dans le suivi des dépenses Claude (à brancher avec l'écran G5) : un seul appel par geste, jamais en boucle.
+ * TODO G5 (obligatoire avant tout allumage) : ce lot n'écrit PAS dans le suivi des dépenses Claude et ne lit PAS le plafond
+ * mensuel. G5 doit brancher le plafond mensuel Claude (contrôle avant l'appel) ET `depenses.enregistrer` (coût réel après
+ * l'appel), ainsi qu'un verrou « un appel à la fois par mot » (deux gestes simultanés sur le même mot se marcheraient dessus :
+ * versions en double, deux appels payés). D'ici là : un seul appel par geste, jamais en boucle, et l'interrupteur éteint.
  */
 import "server-only";
-import { controlerTexteGuide, empreinteGuide, schemaContenuGuide, type ContenuGuide } from "@/domaine/guide-reseau/guide-contenu";
-import { envoyerMessage, extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
+import { contientCaractereInterdit, controlerTexteGuide, empreinteGuide, schemaContenuGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
+import { appelerClaudeRedaction } from "@/fournisseurs/claude/appel-redaction";
+import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
 
 export const VARIABLE_INTERRUPTEUR_GUIDES_REDACTION = "GUIDES_REDACTION_ENABLED";
 export const MODELE_REDACTION_GUIDE = "claude-sonnet-5-5";
 export const STATUT_A_VALIDER = "À valider";
+export const STATUT_VALIDE = "Validé";
+export const MAX_VERSIONS_CONSERVEES = 50;
+export const MAX_VERSIONS_REFUS = 1000;
 export const PREFIXE_PARAM_REDACTION = "guides.redaction.";
 const LONGUEUR_MAX_MOT = 60;
 const LONGUEUR_MAX_INTERRUPTEUR = 16;
@@ -40,7 +47,7 @@ export interface DepsRedaction {
 
 export interface VersionBrouillon {
   version: number;
-  statut: typeof STATUT_A_VALIDER;
+  statut: string;
   empreinte: string;
   modele: string;
   creeLe: string;
@@ -49,18 +56,20 @@ export interface VersionBrouillon {
 
 export type ResultatRedaction =
   | { ok: true; version: number; statut: typeof STATUT_A_VALIDER; empreinte: string }
-  | { ok: false; raison: "interrupteur_eteint" | "mot_invalide" | "cle_absente" | "panne_claude" | "reponse_illisible" | "texte_refuse" | "enregistrement_echec"; regle?: string };
+  | { ok: false; raison: "interrupteur_eteint" | "mot_invalide" | "cle_absente" | "panne_claude" | "reponse_illisible" | "texte_refuse" | "enregistrement_echec" | "dependances_indisponibles" | "trop_de_versions"; regle?: string };
 
 /** Dépendances réelles, importées à l'usage (rien ne touche la base ni le réseau à l'import). */
 async function depsReelles(): Promise<DepsRedaction> {
   const commun = await import("./_commun");
   return {
     choisirCle: async () => {
+      // Comme generation-claude.ts : même choix de source, mêmes clés visibles. Import différé (cycle).
       const { choisirSourceClaude } = await import("./source-claude");
-      const choix = await choisirSourceClaude();
+      const { envClaude } = await import("./generation-claude");
+      const choix = await choisirSourceClaude([], envClaude());
       return choix.etat === "pret" ? choix.cle : null;
     },
-    appeler: (requete, cle) => envoyerMessage(requete, { cle }),
+    appeler: appelerClaudeRedaction,
     lireParametre: async (id) => (await commun.depots().parametres.obtenir(id))?.valeur ?? null,
     ecrireParametre: commun.ecrireParametre,
     journaliser: (type, message) => commun.journaliser(type, message),
@@ -72,7 +81,7 @@ async function depsReelles(): Promise<DepsRedaction> {
 function identifiantMot(mot: unknown): string | null {
   if (typeof mot !== "string") return null;
   const brut = mot.trim();
-  if (!brut || brut.length > LONGUEUR_MAX_MOT || /[\u0000-\u001F\u007F-\u009F]/.test(brut)) return null;
+  if (!brut || brut.length > LONGUEUR_MAX_MOT || contientCaractereInterdit(brut)) return null;
   const id = brut.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return id || null;
 }
@@ -89,12 +98,30 @@ const CONSIGNE = [
  * `deps` : injectable pour les essais (faux client Claude, mémoire).
  */
 export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): Promise<ResultatRedaction> {
-  const d = deps ?? (await depsReelles());
-  if (!guidesRedactionActif(d.env ?? process.env)) return { ok: false, raison: "interrupteur_eteint" };
+  // 1. L'interrupteur se lit AVANT tout chargement : éteint, rien n'est importé ni touché.
+  if (!guidesRedactionActif(deps?.env ?? process.env)) return { ok: false, raison: "interrupteur_eteint" };
+  // 2. Les dépendances se chargent dans un try : une panne d'import ou de base devient un résultat d'échec.
+  let d: DepsRedaction;
+  try {
+    d = deps ?? (await depsReelles());
+  } catch {
+    return { ok: false, raison: "dependances_indisponibles" };
+  }
   const id = identifiantMot(mot);
   if (!id) return { ok: false, raison: "mot_invalide" };
+  // Le mot envoyé à Claude est le mot VALIDÉ (même filtre que le schéma), jamais une version non filtrée.
   const cle = await d.choisirCle().catch(() => null);
   if (!cle) return { ok: false, raison: "cle_absente" };
+
+  const cleParam = PREFIXE_PARAM_REDACTION + id;
+  let versions: VersionBrouillon[];
+  try {
+    const existant = await d.lireParametre(cleParam);
+    versions = Array.isArray((existant as { versions?: unknown } | null)?.versions) ? [...(existant as { versions: VersionBrouillon[] }).versions] : [];
+  } catch {
+    return { ok: false, raison: "enregistrement_echec" };
+  }
+  if (versions.length >= MAX_VERSIONS_REFUS) return { ok: false, raison: "trop_de_versions" };
 
   let brut: string;
   try {
@@ -132,18 +159,24 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
   }
 
   try {
-    const cleParam = PREFIXE_PARAM_REDACTION + id;
-    const existant = await d.lireParametre(cleParam);
-    const versions: VersionBrouillon[] = Array.isArray((existant as { versions?: unknown } | null)?.versions) ? [...(existant as { versions: VersionBrouillon[] }).versions] : [];
     const version = versions.reduce((m, v) => Math.max(m, v.version), 0) + 1;
     const empreinte = empreinteGuide(contenu);
     versions.push({ version, statut: STATUT_A_VALIDER, empreinte, modele: MODELE_REDACTION_GUIDE, creeLe: d.maintenant(), contenu });
-    await d.ecrireParametre(cleParam, { versions });
+    await d.ecrireParametre(cleParam, { versions: garderDernieres(versions) });
     await journaliserSansDonnee(d, "guide_redaction_ok", `version=${version} empreinte=${empreinte.slice(0, 12)}`);
     return { ok: true, version, statut: STATUT_A_VALIDER, empreinte };
   } catch {
     return { ok: false, raison: "enregistrement_echec" };
   }
+}
+
+/** Garde les 50 dernières versions, plus la dernière version validée si elle est plus ancienne. Ordre croissant conservé. */
+function garderDernieres(versions: VersionBrouillon[]): VersionBrouillon[] {
+  if (versions.length <= MAX_VERSIONS_CONSERVEES) return versions;
+  const recentes = versions.slice(-MAX_VERSIONS_CONSERVEES);
+  const derniereValidee = [...versions].reverse().find((v) => v.statut === STATUT_VALIDE);
+  if (!derniereValidee || recentes.includes(derniereValidee)) return recentes;
+  return [derniereValidee, ...recentes.slice(1)];
 }
 
 async function journaliserSansDonnee(d: DepsRedaction, type: string, message: string): Promise<void> {

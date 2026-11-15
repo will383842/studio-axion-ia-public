@@ -7,7 +7,7 @@ import {
   jsonCanoniqueGuide,
   schemaContenuGuide,
   type ContenuGuide,
-} from "@/domaine/guide-reseau/guide-contenu";
+} from "@/domaine/guides-pdf/guide-contenu";
 
 /** Vecteur FIXE, calculé à part (Python) : à recopier tel quel dans le site (même empreinte des deux côtés). */
 const CONTENU_VECTEUR = {
@@ -48,7 +48,23 @@ describe("G1 · schéma du contenu d'un guide", () => {
   it("refuse clé inconnue, caractères de contrôle et bidirectionnels", () => {
     expect(schemaContenuGuide.safeParse({ ...bon(), extra: 1 }).success).toBe(false);
     expect(schemaContenuGuide.safeParse({ ...bon(), titre: "a\u0000b" }).success).toBe(false);
-    expect(schemaContenuGuide.safeParse({ ...bon(), titre: "a‮b" }).success).toBe(false);
+    expect(schemaContenuGuide.safeParse({ ...bon(), titre: "a\u202Eb" }).success).toBe(false);
+  });
+  it("refuse les caractères invisibles et bidirectionnels, dans tous les champs", () => {
+    const invisibles = ["\u00AD", "\u061C", "\u180E", "\u200B", "\u200C", "\u200D", "\u200E", "\u200F", "\u2028", "\u2029", "\u202A", "\u202E", "\u2060", "\u2066", "\u2069", "\u206F", "\uFEFF"];
+    for (const c of invisibles) {
+      expect(schemaContenuGuide.safeParse({ ...bon(), titre: `a${c}b` }).success).toBe(false);
+      expect(schemaContenuGuide.safeParse({ titre: "T", sections: [{ titre: "S", paragraphes: [`a${c}b`], puces: [] }] }).success).toBe(false);
+      expect(schemaContenuGuide.safeParse({ titre: "T", sections: [{ titre: "S", paragraphes: ["x"], puces: [`a${c}b`] }] }).success).toBe(false);
+    }
+  });
+  it("refuse abo\u200Bnné, abon\u00ADné, Gre\u200Dnoble (contournement des mots interdits)", () => {
+    for (const mot of ["abo\u200Bnné", "abon\u00ADné", "Gre\u200Dnoble"]) {
+      expect(schemaContenuGuide.safeParse({ ...bon(), titre: mot }).success).toBe(false);
+    }
+  });
+  it("accepte les espaces insécables et les caractères accentués usuels", () => {
+    expect(schemaContenuGuide.safeParse({ ...bon(), titre: "Étape\u00A0un\u202Fici « à voir »" }).success).toBe(true);
   });
 });
 
@@ -65,6 +81,7 @@ describe("G1 · JSON canonique et empreinte", () => {
   });
 });
 
+const texteGuide = (texte: string): ContenuGuide => ({ titre: "Titre", sections: [{ titre: "S", paragraphes: [texte], puces: [] }] });
 const refus = (texte: string) => controlerTexteGuide({ titre: "Titre", sections: [{ titre: "S", paragraphes: [texte], puces: [] }] });
 
 describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
@@ -72,6 +89,8 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
     ["abonne", "Pour suivre, l'abonné reçoit", "abonne"],
     ["abonne", "ABONNEMENT mensuel", "abonne"],
     ["abonne", "Les abonnés", "abonne"],
+    ["abonne", "Pour se désabonner", "abonne"],
+    ["abonne", "Le réabonnement", "abonne"],
     ["grenoble", "Basé à Grenoble", "grenoble"],
     ["grenoble", "GRENOBLE", "grenoble"],
     ["aucun-gain-garanti", "Aucun gain garanti", "aucun-gain-garanti"],
@@ -89,6 +108,20 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
     ["pourcentage", "Gagnez 30 %", "pourcentage"],
     ["pourcentage", "50%", "pourcentage"],
     ["euro", "Pour 100 €", "euro"],
+    ["euros-mot", "Cela coûte 100 euros", "euros-mot"],
+    ["euros-mot", "Un euro", "euros-mot"],
+    ["euros-mot", "50 EUR", "euros-mot"],
+    ["pour-cent", "Trente pour cent de mieux", "pour-cent"],
+    ["pour-cent", "Dix pourcent", "pour-cent"],
+    ["n-fois-plus", "Deux fois plus vite", "n-fois-plus"],
+    ["n-fois-plus", "Dix fois mieux", "n-fois-plus"],
+    ["n-fois-plus", "Cent fois moins cher", "n-fois-plus"],
+    ["multiplicateur", "Résultat x2", "multiplicateur"],
+    ["multiplicateur", "Un gain de 3x", "multiplicateur"],
+    ["multiplicateur", "Un gain \u00D75", "multiplicateur"],
+    ["tutoiement", "Présente ton entreprise", "tutoiement"],
+    ["tutoiement", "Ton activité grandit", "tutoiement"],
+    ["tutoiement", "Sur ton site", "tutoiement"],
     ["x-fois", "Dix fois plus : 3 fois mieux", "x-fois"],
     ["x-fois", "Résultat x fois meilleur", "x-fois"],
     ["double", "Vous allez doubler", "double"],
@@ -103,7 +136,7 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
         expect(r.regle).toBe(attendu);
         expect(JSON.stringify(r)).not.toContain(texte); // jamais d'extrait
       }
-      expect(id).toBeTruthy();
+      expect(controlerTexteGuide(texteGuide(texte))).toEqual({ ok: false, regle: id });
     });
   }
   it("contrôle aussi le titre, le titre de section et les puces", () => {
@@ -114,18 +147,21 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
   it("accepte un texte propre (vouvoiement, « suivre le compte »)", () => {
     expect(refus("Suivez le compte pour recevoir la suite. Vous pouvez relire chaque étape.").ok).toBe(true);
     expect(refus("Une démarche simple et honnête.").ok).toBe(true);
+    expect(refus("Le ton de la voix reste posé, sans promesse.").ok).toBe(true);
+    expect(refus("Un ton chaleureux et clair.").ok).toBe(true);
   });
 });
 
 describe("G1 · fixture partagée des mots interdits", () => {
   const fixture = JSON.parse(readFileSync(new URL("./fixtures/guide-mots-interdits.json", import.meta.url), "utf8"));
   it("est identique à la liste exportée (à copier à l'identique dans le site)", () => {
-    expect(fixture).toEqual({ version: 1, normalisation: "NFKD, sans accents, minuscules, apostrophes droites", regles: REGLES_MOTS_INTERDITS });
+    expect(fixture).toEqual({ version: 2, normalisation: "NFKD, sans accents, minuscules, apostrophes droites", regles: REGLES_MOTS_INTERDITS });
   });
   it("chaque règle de la fixture compile et reconnaît ses exemples", () => {
     for (const r of fixture.regles) {
       expect(() => new RegExp(r.motif, "u")).not.toThrow();
       expect(r.exemples.length).toBeGreaterThan(0);
+      for (const exemple of r.exemples) expect(controlerTexteGuide(texteGuide(exemple))).toEqual({ ok: false, regle: r.id });
     }
   });
 });

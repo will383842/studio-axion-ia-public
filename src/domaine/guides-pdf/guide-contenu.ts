@@ -12,15 +12,24 @@ import { z } from "zod";
 
 export const BORNES_GUIDE = { sections: 20, titre: 120, paragraphes: 15, paragrapheCar: 1500, puces: 10, puceCar: 300, totalCar: 40_000 } as const;
 
-/** Caractères de contrôle (C0, DEL, C1) et marques bidirectionnelles : refusés partout. */
-const INTERDITS_CARACTERES = /[\u0000-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/;
+/**
+ * Caractères refusés partout : contrôle (C0, DEL, C1) et invisibles ou bidirectionnels (trait d'union conditionnel, marque
+ * de lettre arabe, séparateur mongol, espaces de largeur nulle, marques gauche-droite, séparateurs de ligne et de
+ * paragraphe, formatage bidirectionnel, joint de mot, opérateurs invisibles, BOM). Écrits en \uXXXX : jamais le caractère
+ * lui-même dans le code. Ce même filtre sert au schéma ET au mot envoyé à Claude.
+ */
+const INTERDITS_CARACTERES = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/;
+
+export function contientCaractereInterdit(s: string): boolean {
+  return INTERDITS_CARACTERES.test(s);
+}
 
 const texte = (max: number) =>
   z
     .string()
     .min(1)
     .max(max)
-    .refine((s) => !INTERDITS_CARACTERES.test(s), "caractère interdit");
+    .refine((s) => !contientCaractereInterdit(s), "caractère interdit");
 
 export const schemaSectionGuide = z
   .object({
@@ -69,25 +78,29 @@ export interface RegleMotInterdit {
 
 /** Liste unique, dans l'ordre d'application. Copie exacte dans le site (fixture partagée). */
 export const REGLES_MOTS_INTERDITS: RegleMotInterdit[] = [
-  { id: "abonne", description: "abonné, abonnement… (dire « suivre le compte »)", motif: "\\babonn", exemples: ["abonné", "abonnement"] },
+  { id: "abonne", description: "abonné, abonnement, désabonner, réabonnement… (dire « suivre le compte »)", motif: "abonn", exemples: ["abonné", "abonnement", "désabonner", "réabonnement"] },
   { id: "grenoble", description: "Grenoble", motif: "grenoble", exemples: ["Grenoble"] },
   { id: "aucun-gain-garanti", description: "« Aucun gain garanti »", motif: "aucun\\s+gain\\s+garanti", exemples: ["Aucun gain garanti"] },
   { id: "garanti", description: "garanti, garantie, garantissons…", motif: "\\bgaranti", exemples: ["garanti", "garantissons"] },
   { id: "certifie", description: "certifié, certification…", motif: "\\bcertifi", exemples: ["certifiée", "certification"] },
   { id: "qualiopi", description: "Qualiopi", motif: "qualiopi", exemples: ["Qualiopi"] },
-  { id: "tutoiement", description: "tutoiement : tu, toi, te, ta, tes, t'", motif: "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'", exemples: ["Tu peux", "pour toi", "je t'explique"] },
+  { id: "tutoiement", description: "tutoiement : tu, toi, te, ta, tes, t', ton compte/entreprise/activité/site/équipe/métier/guide", motif: "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'|\\bton\\s+(?:compte|entreprise|activite|site|equipe|metier|guide)\\b", exemples: ["Tu peux", "pour toi", "je t'explique", "ton entreprise", "Ton activité"] },
   { id: "pourcentage", description: "promesse chiffrée : %", motif: "%", exemples: ["30 %"] },
   { id: "euro", description: "promesse chiffrée : €", motif: "€", exemples: ["100 €"] },
   { id: "x-fois", description: "promesse chiffrée : « x fois », « 3 fois »", motif: "\\bx\\s*fois\\b|\\b\\d+\\s*fois\\b", exemples: ["x fois mieux", "3 fois plus"] },
   { id: "double", description: "promesse chiffrée : doubler, tripler…", motif: "\\b(?:doubl|tripl)", exemples: ["doubler", "triplé"] },
+  { id: "euros-mot", description: "promesse chiffrée : « euro(s) », « eur »", motif: "\\beuros?\\b|\\beur\\b", exemples: ["100 euros", "un euro", "50 EUR"] },
+  { id: "pour-cent", description: "promesse chiffrée : « pour cent », « pourcent »", motif: "pour\\s*cent|pourcent", exemples: ["trente pour cent", "dix pourcent"] },
+  { id: "n-fois-plus", description: "promesse chiffrée : « deux fois plus », « dix fois mieux »…", motif: "\\b(?:deux|trois|quatre|cinq|dix|cent)\\s+fois\\s+(?:plus|mieux|moins)", exemples: ["deux fois plus", "dix fois mieux", "cent fois moins"] },
+  { id: "multiplicateur", description: "promesse chiffrée : « x2 », « 3x », « ×5 »", motif: "[x\\u00D7]\\s*\\d|\\d\\s*[x\\u00D7]\\b", exemples: ["x2", "3x", "\u00D75", "3 x"] },
 ];
 
 /** NFKD, sans accents, minuscules, apostrophes droites. */
 export function normaliserPourControle(s: string): string {
   return s
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[‘’ʼ]/g, "'")
+    .replace(/[\u0300-\u036F]/g, "")
+    .replace(/[\u2018\u2019\u02BC]/g, "'")
     .toLowerCase();
 }
 

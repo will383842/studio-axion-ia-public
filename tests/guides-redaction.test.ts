@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-import { empreinteGuide } from "@/domaine/guide-reseau/guide-contenu";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { empreinteGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { ErreurClaude } from "@/fournisseurs/claude/client";
-import { MODELE_REDACTION_GUIDE, guidesRedactionActif, redigerBrouillonGuide, type DepsRedaction } from "@/services/guides-redaction";
+import { MAX_VERSIONS_CONSERVEES, MAX_VERSIONS_REFUS, MODELE_REDACTION_GUIDE, STATUT_VALIDE, guidesRedactionActif, redigerBrouillonGuide, type DepsRedaction } from "@/services/guides-redaction";
 
 const contenuBon = { titre: "Réussir son premier essai", sections: [{ titre: "Préparer", paragraphes: ["Vous commencez par relire le sujet."], puces: ["Un point"] }] };
 
@@ -101,7 +101,7 @@ describe("G2 · rédaction", () => {
     expect(appeler).not.toHaveBeenCalled();
   });
   it("mot invalide (vide, trop long, caractères de contrôle) : aucun appel", async () => {
-    for (const mot of ["", "   ", "a".repeat(61), "a\u0000b", "x\ny"]) {
+    for (const mot of ["", "   ", "a".repeat(61), "a\u0000b", "x\ny", "abo\u200Bnné", "abon\u00ADné", "Gre\u200Dnoble", "a\u202Eb", "a\uFEFFb"]) {
       const { d, appeler } = deps(JSON.stringify(contenuBon));
       expect(await redigerBrouillonGuide(mot, d)).toMatchObject({ ok: false, raison: "mot_invalide" });
       expect(appeler).not.toHaveBeenCalled();
@@ -118,5 +118,61 @@ describe("G2 · rédaction", () => {
   it("échec d'écriture du paramètre : résultat d'échec, pas d'exception", async () => {
     const { d } = deps(JSON.stringify(contenuBon), { ecrireParametre: async () => { throw new Error("base"); } });
     expect(await redigerBrouillonGuide("essai", d)).toMatchObject({ ok: false, raison: "enregistrement_echec" });
+  });
+});
+
+describe("G2 · versions : 50 gardées, refus au-delà de 1000", () => {
+  const ancienne = (version: number, statut = "À valider") => ({ version, statut, empreinte: "e", modele: "m", creeLe: "t", contenu: contenuBon });
+  const cle = "guides.redaction.essai";
+  it("garde les 50 dernières versions", async () => {
+    const { d, magasin } = deps(JSON.stringify(contenuBon));
+    magasin.set(cle, { versions: Array.from({ length: 60 }, (_, i) => ancienne(i + 1)) });
+    const r = await redigerBrouillonGuide("essai", d);
+    expect(r).toMatchObject({ ok: true, version: 61 });
+    const v = (magasin.get(cle) as { versions: { version: number }[] }).versions;
+    expect(MAX_VERSIONS_CONSERVEES).toBe(50);
+    expect(v).toHaveLength(50);
+    expect(v[0].version).toBe(12);
+    expect(v[49].version).toBe(61);
+  });
+  it("garde toujours la dernière version validée, même très ancienne", async () => {
+    const { d, magasin } = deps(JSON.stringify(contenuBon));
+    magasin.set(cle, { versions: Array.from({ length: 60 }, (_, i) => ancienne(i + 1, i === 2 ? STATUT_VALIDE : "À valider")) });
+    await redigerBrouillonGuide("essai", d);
+    const v = (magasin.get(cle) as { versions: { version: number; statut: string }[] }).versions;
+    expect(v).toHaveLength(50);
+    expect(v.some((x) => x.version === 3 && x.statut === STATUT_VALIDE)).toBe(true);
+    expect(v[v.length - 1].version).toBe(61);
+    expect(v.map((x) => x.version)).toEqual([...v.map((x) => x.version)].sort((a, b) => a - b));
+  });
+  it("refuse au-delà de 1000 versions : aucun appel, rien d'écrit", async () => {
+    const { d, appeler, magasin } = deps(JSON.stringify(contenuBon));
+    const avant = { versions: Array.from({ length: MAX_VERSIONS_REFUS + 1 }, (_, i) => ancienne(i + 1)) };
+    magasin.set(cle, avant);
+    expect(await redigerBrouillonGuide("essai", d)).toMatchObject({ ok: false, raison: "trop_de_versions" });
+    expect(appeler).not.toHaveBeenCalled();
+    expect(magasin.get(cle)).toBe(avant);
+  });
+});
+
+describe("G2 · « ne lève jamais » : interrupteur lu avant le chargement des dépendances", () => {
+  afterEach(() => {
+    vi.doUnmock("@/services/_commun");
+    vi.resetModules();
+    vi.unstubAllEnvs();
+  });
+  it("éteint : les dépendances réelles ne sont PAS chargées", async () => {
+    vi.resetModules();
+    vi.doMock("@/services/_commun", () => { throw new Error("chargé alors que l'interrupteur est éteint"); });
+    vi.stubEnv("GUIDES_REDACTION_ENABLED", "");
+    const { redigerBrouillonGuide: rediger } = await import("@/services/guides-redaction");
+    expect(await rediger("essai")).toMatchObject({ ok: false, raison: "interrupteur_eteint" });
+  });
+  it("allumé mais dépendances indisponibles : résultat d'échec, pas d'exception", async () => {
+    vi.resetModules();
+    vi.doMock("@/services/_commun", () => { throw new Error("base absente"); });
+    vi.stubEnv("GUIDES_REDACTION_ENABLED", "true");
+    const { redigerBrouillonGuide: rediger } = await import("@/services/guides-redaction");
+    expect(await rediger("essai")).toMatchObject({ ok: false, raison: "dependances_indisponibles" });
   });
 });
