@@ -93,9 +93,8 @@ const credits = await import("@/services/credits");
 const gc = await import("@/services/generation-claude");
 const { ecrireParametre, fournisseur } = await import("@/services/_commun");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
-const { casesEnvoi, casesParDefaut, ciblesDepuisCases } = await import("@/domaine/comptes-envoi");
 const { RAPPEL_VOTRE_MARQUE } = await import("@/domaine/votre-marque");
-const { HASHTAGS_TIKTOK_PAR_DEFAUT, cleMotDiese } = await import("@/reseaux/hashtags");
+const { HASHTAGS_TIKTOK_PAR_DEFAUT } = await import("@/reseaux/hashtags");
 
 const MDP = "essai-e2e-verif1-a2";
 const VIDEO = "v-15";
@@ -189,24 +188,23 @@ async function sortiesSurR2() {
 const cocher = async () => {
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 };
-const entrees = () => R.buffer && (R.buffer as ReturnType<typeof fauxBuffer>).mutations().map((m) => m.variables.input as { channelId: string; text: string; saveToDraft: boolean; mode: string; dueAt?: string; assets: { video: { url: string } }[] });
 const fb = () => R.buffer as ReturnType<typeof fauxBuffer>;
-const motsDieseDe = (texte: string) => texte.match(/#[\p{L}\p{N}_]+/gu) ?? [];
 
 /* ------------------------------------------------------------------ */
 /* Réglages : la base suffit                                            */
 /* ------------------------------------------------------------------ */
 
 describe("A2 — la configuration de production en base suffit", () => {
-  it("textes des réseaux = Claude et publication = Buffer, par le seul réglage en base (sans FOURNISSEUR_TEXTE_RESEAUX ni FOURNISSEUR_PUBLICATION)", async () => {
+  it("textes des réseaux = Claude par le seul réglage en base ; publication « buffer » en base n'est plus un fournisseur d'envoi (L0-13a) : jamais Buffer, simulation tant que Zernio n'est pas relié", async () => {
     expect(process.env.FOURNISSEUR_TEXTE_RESEAUX).toBeUndefined();
     expect(process.env.FOURNISSEUR_PUBLICATION).toBeUndefined();
     expect((await fournisseur("texte-reseaux")).id).toBe("claude");
-    expect((await fournisseur("publication")).id).toBe("buffer");
+    expect((await fournisseur("publication")).id).not.toBe("buffer");
+    expect((await fournisseur("publication")).id).toBe("simulation");
     expect(await gc.claudeActif("texte-reseaux")).not.toBeNull();
     const cartes = await reglages.listerConnexions();
     expect(cartes.find((c) => c.type === "texte-reseaux")?.etat).toBe("relie");
-    expect(cartes.find((c) => c.type === "publication")?.etat).toBe("relie");
+    expect(cartes.find((c) => c.type === "publication")?.etat).not.toBe("relie");
     expect(cartes.find((c) => c.type === "notification")?.etat).toBe("relie");
     expect((await notifs.canauxActifs()).push).not.toBeNull();
     expect((await notifs.canauxActifs()).email).not.toBeNull();
@@ -234,7 +232,7 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     await travaux.executerSuites([{ type: "finition", videoId: VIDEO, titre: "Essai A2", ratio: "9:16", textes: true }]);
     expect([...claude.appels].sort()).toEqual(["facebook", "linkedin", "tiktok"]);
     const kit = (await pub.obtenirKit(VIDEO))!;
-    expect(kit.envoiSimule).toBe(false);
+    expect(kit.envoiSimule).toBe(true); // L0-13a : Buffer n'est plus un fournisseur d'envoi, la publication reste en simulation sans Zernio
     for (const r of ["linkedin", "facebook", "tiktok"] as const) expect(kit.reseaux.find((x) => x.reseau === r)!.origine).toBe("claude");
     // Hashtags fixes : LinkedIn dans sa famille ; TikTok dans la sienne, au moins 3, jamais un fourre-tout.
     const li = kit.reseaux.find((x) => x.reseau === "linkedin")!;
@@ -251,71 +249,27 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toMatchObject({ code: "AVANT_DE_PUBLIER" });
     await cocher();
 
-    // 3. « Tester » Buffer (Réglages) : comptes lus et gardés en base ; la feuille d'envoi ne lit que la base.
-    await buf.testerBuffer();
-    const vue = (await buf.vueEnvoiBuffer())!;
-    expect(vue.mode).toBe("brouillon");
-    const cases = casesEnvoi(kit.reseaux.map((r) => ({ reseau: r.reseau, nom: r.nom })), vue.comptes);
-    // Deux LinkedIn et deux Facebook : une case par compte, AUCUNE cochée d'office (sans mémoire).
-    expect(cases.filter((c) => c.reseau === "linkedin")).toHaveLength(2);
-    expect(cases.filter((c) => c.reseau === "facebook")).toHaveLength(2);
-    expect(casesParDefaut(cases, ["linkedin", "facebook"], vue.comptes)).toEqual([]);
+    // 3. L0-13a : « Tester » Buffer refuse (Buffer n'est plus relié), aucun appel, aucune lecture de comptes.
+    await expect(buf.testerBuffer()).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
 
-    // 4. LinkedIn : Will coche la PAGE.
-    const ciblesLi = ciblesDepuisCases([`linkedin:${CANAUX.linkedinPage}`], cases);
-    const a = await pub.envoyerVersBuffer(VIDEO, ciblesLi.reseaux, DEMAIN, { comptes: ciblesLi.comptes });
-    expect(a).toMatchObject({ simulation: false, mode: "brouillon" });
-    expect(a.publications).toHaveLength(1);
-    expect(a.publications[0]).toMatchObject({ reseau: "linkedin", canalId: CANAUX.linkedinPage, via: "buffer", statut: "brouillon", etatEnvoi: "envoye" });
-    // 5. Facebook : Will coche le SECOND compte.
-    const ciblesFb = ciblesDepuisCases([`facebook:${CANAUX.facebook2}`], cases);
-    const b = await pub.envoyerVersBuffer(VIDEO, ciblesFb.reseaux, DEMAIN, { comptes: ciblesFb.comptes });
-    expect(b.publications[0]).toMatchObject({ reseau: "facebook", canalId: CANAUX.facebook2, statut: "brouillon", etatEnvoi: "envoye" });
-    // 6. TikTok (un seul compte) : la vidéo « Votre marque ».
-    const c = await pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN);
-    expect(c.publications[0]).toMatchObject({ reseau: "tiktok", canalId: TIKTOK.id, statut: "brouillon", votreMarque: true });
-
-    // Ce que Buffer a reçu : le compte choisi, en brouillon, jamais « partager maintenant ».
-    const recu = entrees()!;
-    expect(recu.map((e) => e.channelId)).toEqual([CANAUX.linkedinPage, CANAUX.facebook2, TIKTOK.id]);
-    for (const e of recu) {
-      expect(e.saveToDraft).toBe(true);
-      expect(e.mode).not.toBe("shareNow");
-      expect(e.assets[0].video.url).toMatch(/^https:\/\/[^/]+\/api\/media-buffer\/[^/]+\/video\.mp4$/);
-      // En-tête de série en première ligne, sur tous les réseaux.
-      expect(e.text.split("\n")[0]).toBe(`${SERIE} · ép. 2`);
-      expect(motsDieseDe(e.text).some((m) => /fyp|viral|pourtoi|foryou/i.test(m))).toBe(false);
-    }
-    expect(motsDieseDe(recu[0].text).every((m) => FAMILLE_LINKEDIN.map(cleMotDiese).includes(cleMotDiese(m)))).toBe(true);
-    expect(motsDieseDe(recu[2].text).length).toBeGreaterThanOrEqual(3);
-    expect(motsDieseDe(recu[2].text).every((m) => HASHTAGS_TIKTOK_PAR_DEFAUT.map(cleMotDiese).includes(cleMotDiese(m)))).toBe(true);
-    // Chez Buffer : trois brouillons, rien de programmé ni publié.
-    expect([...fb().posts.values()].map((p) => p.status)).toEqual(["draft", "draft", "draft"]);
-    // Le choix est mémorisé pour la fois suivante (et « Programmer les N »).
-    const vue2 = (await buf.vueEnvoiBuffer())!;
-    expect(vue2.comptes.linkedin?.memorises).toEqual([CANAUX.linkedinPage]);
-    expect(vue2.comptes.facebook?.memorises).toEqual([CANAUX.facebook2]);
-
-    // 7. Renvoi (double toucher, même date) : aucun second brouillon, et l'épisode ne bouge pas.
-    const a2 = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } });
-    expect(a2.publications[0].id).toBe(a.publications[0].id);
-    expect(fb().mutations()).toHaveLength(3);
+    // 4. Aucun envoi ne peut partir par Buffer, quel que soit le compte coché : refus, 0 appel, 0 brouillon, 0 publication écrite.
+    const refus = /Zernio n'est pas relié|Buffer|OUTIL/i;
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(refus);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["facebook"], DEMAIN, { comptes: { facebook: [CANAUX.facebook2] } })).rejects.toThrow(refus);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN)).rejects.toThrow(refus);
+    expect(fb().mutations()).toHaveLength(0);
+    expect(fb().posts.size).toBe(0);
+    expect(await depots().publications.lister((p) => p.videoId === VIDEO)).toHaveLength(0);
+    // Renvoi (double toucher) : toujours refusé, l'épisode ne bouge pas.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(refus);
+    expect(fb().mutations()).toHaveLength(0);
     expect((await depots().videos.obtenir(VIDEO))!.episodeSerie).toBe(2);
     expect((await depots().series.obtenir(serie.id))!.dernierEpisode).toBe(2);
     expect((await pub.obtenirKit(VIDEO))!.serie?.episode).toBe(2);
     // Rattacher à nouveau à la même série ne donne pas un nouveau numéro.
     expect((await series.rattacherVideo(VIDEO, serie.id)).episode).toBe(2);
-
-    // 8. Notification « Votre marque » : une seule (TikTok), le geste exact, ni « Essai » ni « publiée ».
-    const rappels = await depots().notifications.lister((n) => n.titre.includes("Votre marque"));
-    expect(rappels).toHaveLength(1);
-    expect(rappels[0]).toMatchObject({ titre: "TikTok : vidéo « Votre marque »", message: `${RAPPEL_VOTRE_MARQUE}, avant de publier le brouillon.` });
-    // Diffusion (boucle de fond) : Will a activé son téléphone → poussée ; puis e-mail choisi → e-mail de secours.
-    await notifs.enregistrerAbonnementPush({ endpoint: "https://fcm.googleapis.com/fcm/send/essai-a2", keys: { p256dh: "BEssaiP256dh", auth: "essai-auth" } }, "iPhone");
-    const r1 = await notifs.diffuserNotifications({ envoyerPush: envoyerPushDouble });
-    expect(r1.push).toBeGreaterThanOrEqual(1);
-    expect(pousses.map((p) => p.titre)).toContain("TikTok : vidéo « Votre marque »");
-    expect(R.emails).toHaveLength(0); // le téléphone a reçu : pas d'e-mail en plus
+    // Aucun envoi : aucun rappel « Votre marque ».
+    expect(await depots().notifications.lister((n) => n.titre.includes("Votre marque"))).toHaveLength(0);
     expect(R.inattendus).toEqual([]);
   });
 
@@ -323,17 +277,13 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     await videoDeWill();
     await sortiesSurR2();
     await cocher();
-    const avant = (await buf.vueEnvoiBuffer())!;
-    // Rien de lu : aucune case par compte (une seule case « LinkedIn »).
-    expect(avant.comptes.linkedin).toEqual({});
-    const kit = (await pub.obtenirKit(VIDEO))!;
-    expect(casesEnvoi(kit.reseaux.map((r) => ({ reseau: r.reseau, nom: r.nom })), avant.comptes).filter((c) => c.reseau === "linkedin")).toEqual([{ cle: "linkedin", reseau: "linkedin", libelle: "LinkedIn" }]);
-    // GÊNE : la phrase demande de « choisir le compte en envoyant une vidéo », mais la feuille (non rafraîchie après une
-    // erreur, FeuilleEnvoyerBuffer.tsx:95-98) n'offre toujours qu'une case « LinkedIn » : Will doit recharger la page.
-    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN)).rejects.toThrow(/Plusieurs comptes LinkedIn dans Buffer : choisissez le compte LinkedIn une première fois, en envoyant une vidéo\./);
+    // L0-13a : Buffer n'est plus inscrit : aucune feuille de comptes Buffer, aucune lecture.
+    expect(await buf.vueEnvoiBuffer()).toBeNull();
+    // Le premier envoi est refusé, rien ne part chez Buffer, aucune lecture de comptes déclenchée.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN)).rejects.toThrow(/Zernio n'est pas relié|Buffer|OUTIL/i);
     expect(fb().mutations()).toHaveLength(0);
-    // Les comptes ont été lus pendant l'envoi : après rechargement, une case par compte.
-    expect((await buf.vueEnvoiBuffer())!.comptes.linkedin?.choix).toHaveLength(2);
+    expect(fb().appels).toHaveLength(0);
+    expect(await buf.vueEnvoiBuffer()).toBeNull();
   });
 
   it("le téléphone ne répond pas : l'e-mail de secours part (ZeptoMail doublé), au bon destinataire", async () => {
@@ -341,7 +291,10 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     await sortiesSurR2();
     await series.definirVotreMarque(VIDEO, true);
     await cocher();
-    await pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN);
+    // L0-13a : l'envoi par Buffer est refusé (aucun appel) ; le rappel « Votre marque » est posé directement pour garder le test de l'e-mail de secours.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN)).rejects.toThrow(/Zernio n'est pas relié|Buffer|OUTIL/i);
+    expect(fb().mutations()).toHaveLength(0);
+    await notifs.creerNotification({ type: "publication", titre: "TikTok : vidéo « Votre marque »", message: `${RAPPEL_VOTRE_MARQUE}, avant de publier le brouillon.`, lien: `/videos/${VIDEO}` });
     await notifs.enregistrerAbonnementPush({ endpoint: "https://fcm.googleapis.com/fcm/send/essai-a2b", keys: { p256dh: "BEssaiP256dh", auth: "essai-auth" } }, "iPhone");
     const muet = (async () => ({ envoyes: 0, expires: [] as string[] })) as unknown as typeof envoyerPushDouble;
     const r = await notifs.diffuserNotifications({ envoyerPush: muet });
@@ -421,7 +374,7 @@ describe("A2 — aujourd'hui (« Montage réel » éteint) : la vidéo est une v
     // CORRIGÉ aussi : Claude n'écrit (ni ne fait payer) aucun texte pour une vidéo d'essai.
     expect(claude.appels).toHaveLength(0);
     await cocherFab();
-    await expect(pub.envoyerVersBuffer(FAB, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(/essai|démonstration/i);
+    await expect(pub.envoyerVersBuffer(FAB, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(/essai|démonstration|Zernio n'est pas relié/i);
     expect(fb().mutations()).toHaveLength(0);
   });
 
@@ -435,7 +388,7 @@ describe("A2 — aujourd'hui (« Montage réel » éteint) : la vidéo est une v
     const EXEMPLE = "v-15";
     for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(EXEMPLE, c, true);
     expect((await depots().videos.obtenir(EXEMPLE))!.estDemo).toBe(true);
-    await expect(pub.envoyerVersBuffer(EXEMPLE, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(/exemple/i);
+    await expect(pub.envoyerVersBuffer(EXEMPLE, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(/exemple|Zernio n'est pas relié/i);
     expect(fb().mutations()).toHaveLength(0);
   });
 });
