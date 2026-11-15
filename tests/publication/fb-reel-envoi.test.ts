@@ -132,8 +132,9 @@ describe("FB-REEL-b · Facebook reçoit la vidéo comme Reel", () => {
     await fixerSorties(ratio, dureeSec);
     const kit = await pub.obtenirKit(VIDEO);
     const fb = kit!.reseaux.find((x) => x.reseau === "facebook")!;
-    expect(fb.avertissements.some((a) => /Reel Facebook/.test(a))).toBe(true);
-    for (const autre of kit!.reseaux.filter((x) => x.reseau !== "facebook")) expect(autre.avertissements.some((a) => /Reel Facebook/.test(a))).toBe(false);
+    expect(fb.avertissements.some((a) => /Reel Facebook/.test(a.message))).toBe(true);
+    for (const autre of kit!.reseaux.filter((x) => x.reseau !== "facebook")) expect(autre.avertissements.some((a) => /Reel Facebook/.test(a.message))).toBe(false);
+    expect(fb.avertissements.some((a) => a.code === "trop-longue" || a.code === "ratio-absent")).toBe(false);
     const r = await envoyerFacebook();
     expect(r.ok).toBe(true);
     expect(posts()).toHaveLength(1);
@@ -143,6 +144,6 @@ describe("FB-REEL-b · Facebook reçoit la vidéo comme Reel", () => {
   it("dans les limites : aucun avertissement Reel", async () => {
     await fixerSorties("9:16", 30);
     const fb = (await pub.obtenirKit(VIDEO))!.reseaux.find((x) => x.reseau === "facebook")!;
-    expect(fb.avertissements.some((a) => /Reel Facebook/.test(a))).toBe(false);
+    expect(fb.avertissements.some((a) => /Reel Facebook/.test(a.message))).toBe(false);
   });
 });

@@ -440,7 +440,8 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
         avertissements: [
           ...verifierPourReseau(r, { dureeSec, ratios: detail.video.ratios, texte: t.texte, motsDiese: t.motsDiese, sortieEnvoyee: sortie ?? null }),
           // Reel Facebook : prévenu avant la validation, sans bloquer la saisie ni l'envoi.
-          ...(r.id === "facebook" && sortie ? [avertissementReelFacebook({ format: sortie.ratio, dureeSec: sortie.dureeSec })].filter((a): a is string => a !== null) : []),
+          // Code NON bloquant à dessein (« trop-longue » et « ratio-absent » bloqueraient l'envoi) : le code propre au Reel demande le registre des réseaux, hors fiche.
+          ...(r.id === "facebook" && sortie ? [avertissementReelFacebook({ format: sortie.ratio, dureeSec: sortie.dureeSec })].filter((m): m is string => m !== null).map((message) => ({ code: "legende-trop-longue" as const, message })) : []),
         ],
         etiquetteIA: r.etiquetteIA,
         sortieConseillee: sortie,
