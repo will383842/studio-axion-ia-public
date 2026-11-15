@@ -30,4 +30,12 @@ describe("etatChaineYoutube", () => {
     expect(etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "N" }] })).toEqual({ etat: "relie", nom: "N" });
     expect(etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "N", actif: "non" }] })).toEqual({ etat: "relie", nom: "N" });
   });
+  it("plusieurs chaînes : « au moins une active » l'emporte, même si la première est déconnectée", () => {
+    const r = etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "Ancienne", actif: false }, { id: "b", reseau: "youtube", nom: "Nouvelle", actif: true }] });
+    expect(r).toEqual({ etat: "relie", nom: "Nouvelle" });
+  });
+  it("plusieurs chaînes toutes déconnectées : « deconnecte »", () => {
+    const r = etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "A", actif: false }, { id: "b", reseau: "youtube", nom: "B", actif: false }] });
+    expect(r).toEqual({ etat: "deconnecte", nom: "A" });
+  });
 });

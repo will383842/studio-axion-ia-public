@@ -23,6 +23,8 @@ export const TEXTES_YOUTUBE = {
   chaineAbsente: "Aucune chaîne YouTube n'est reliée pour l'instant : rien ne peut partir.",
   chaineInconnue: "L'état de la chaîne n'est pas encore connu : utilisez « Tester » dans « Vos comptes de publication ».",
   interrupteur: "Envoyer les Shorts sur YouTube",
+  confirmerAllumagePublic: "Oui, je veux allumer l'envoi : les Shorts seront publics tout de suite, visibles de tout le monde.",
+  cocherAllumagePublic: "Cochez d'abord la confirmation « public » pour allumer l'envoi.",
 } as const;
 
 const VISIBILITES: { valeur: VisibiliteYoutube; libelle: string }[] = [
@@ -65,6 +67,7 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
   const [b, setB] = useState<Brouillon>(vue.reglages ?? { categorieId: "" });
   const [actif, setActif] = useState(vue.actif);
   const [confirmePublic, setConfirmePublic] = useState(false);
+  const [confirmeAllumage, setConfirmeAllumage] = useState(false);
   // Recalage sur la base après router.refresh() (réglage d'état pendant le rendu, sans effet).
   const [baseVue, setBaseVue] = useState(vue);
   const [baseChangee, setBaseChangee] = useState(false);
@@ -109,10 +112,17 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
     appeler(() => enregistrerReglagesYoutubeAction(complet), "Réglages enregistrés", undefined, () => setConfirmePublic(false));
   }
 
+  // Allumer alors que la visibilité enregistrée est « public » : confirmation explicite, vérifiée aussi côté serveur.
+  const allumagePublic = !actif && vue.reglages?.visibilite === "public";
+
   function changerEnvoi(v: boolean) {
+    if (v && allumagePublic && !confirmeAllumage) {
+      notifier.erreur(TEXTES_YOUTUBE.cocherAllumagePublic);
+      return;
+    }
     const avant = actif;
     setActif(v);
-    appeler(() => definirYoutubeActifAction(v), v ? "Envoi allumé" : "Envoi éteint", () => setActif(avant));
+    appeler(() => definirYoutubeActifAction(v, v && allumagePublic ? confirmeAllumage : undefined), v ? "Envoi allumé" : "Envoi éteint", () => setActif(avant), () => setConfirmeAllumage(false));
   }
 
   const chaine = vue.chaine;
@@ -242,6 +252,12 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
           desactive={interrupteur.desactive}
           onChange={changerEnvoi}
         />
+        {allumagePublic && (
+          <label className="mt-2 flex min-h-12 items-start gap-3 text-sm text-texte">
+            <input type="checkbox" className="mt-1 size-5 shrink-0" checked={confirmeAllumage} onChange={(e) => setConfirmeAllumage(e.target.checked)} />
+            <span>{TEXTES_YOUTUBE.confirmerAllumagePublic}</span>
+          </label>
+        )}
         {interrupteur.raison && vue.reglages && !modifie && !enCours && (
           <p role="status" className="mt-2 text-sm text-ambre">
             {interrupteur.raison}

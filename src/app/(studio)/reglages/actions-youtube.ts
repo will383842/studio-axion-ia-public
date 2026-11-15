@@ -14,12 +14,12 @@ export async function enregistrerReglagesYoutubeAction(reglages: unknown): Promi
   });
 }
 
-/** Seul le booléen exact est accepté (`true` allume). */
-export async function definirYoutubeActifAction(allume: unknown): Promise<Resultat> {
+/** Seul le booléen exact est accepté (`true` allume). `confirmerPublic` : seul `true` exact confirme (exigé si la visibilité enregistrée est « public »). */
+export async function definirYoutubeActifAction(allume: unknown, confirmerPublic?: unknown): Promise<Resultat> {
   await exigerSession();
   return essayer(async () => {
     if (allume !== true && allume !== false) throw new ErreurStudio("CHOIX_INCONNU", "Ce choix n'existe pas.");
-    await definirYoutubeActif(allume);
+    await definirYoutubeActif(allume, confirmerPublic === true);
     revalidatePath("/reglages");
     return undefined;
   });

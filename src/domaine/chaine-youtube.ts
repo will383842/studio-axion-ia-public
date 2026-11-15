@@ -15,9 +15,12 @@ export function etatChaineYoutube(brut: unknown): EtatChaineYoutube {
   if (!brut || typeof brut !== "object") return { etat: "inconnu" };
   const comptes = (brut as { comptes?: unknown }).comptes;
   if (!Array.isArray(comptes)) return { etat: "inconnu" };
-  const yt = comptes.find((c): c is { reseau: string; nom?: unknown; actif?: unknown } => !!c && typeof c === "object" && (c as { reseau?: unknown }).reseau === "youtube");
-  if (!yt) return { etat: "absent" };
-  const nom = typeof yt.nom === "string" && yt.nom.trim() ? yt.nom : "YouTube";
+  // La publication choisit le compte par cible (une cible par chaîne) : plusieurs chaînes possibles, aucune « chaîne unique ».
+  // On retient donc « au moins une chaîne active » : une chaîne déconnectée ne masque pas une chaîne reliée.
+  const yts = comptes.filter((c): c is { reseau: string; nom?: unknown; actif?: unknown } => !!c && typeof c === "object" && (c as { reseau?: unknown }).reseau === "youtube");
+  if (yts.length === 0) return { etat: "absent" };
+  const nomDe = (c: { nom?: unknown }) => (typeof c.nom === "string" && c.nom.trim() ? c.nom : "YouTube");
   // `actif` absent (anciens enregistrements) = inconnu : on garde « relié » ; seul `false` dit « déconnecté ».
-  return yt.actif === false ? { etat: "deconnecte", nom } : { etat: "relie", nom };
+  const active = yts.find((c) => c.actif !== false);
+  return active ? { etat: "relie", nom: nomDe(active) } : { etat: "deconnecte", nom: nomDe(yts[0]) };
 }

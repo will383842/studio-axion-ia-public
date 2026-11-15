@@ -16,6 +16,8 @@ const { PROPOSITION_YOUTUBE } = await import("@/fournisseurs/publication/zernio-
 
 const MDP = "essai-ecran-youtube";
 const appelsReseau: string[] = [];
+const COMPTES_YT = (...c: { id?: string; nom?: string; actif?: boolean }[]) => ({ lusLe: "2026-11-15T10:00:00Z", comptes: c.map((x, i) => ({ id: x.id ?? `exemple-yt-${i}`, reseau: "youtube", nom: x.nom ?? "Ma chaîne", ...(x.actif === undefined ? {} : { actif: x.actif }) })) });
+const relierChaine = () => ecrireParametre("zernio.comptes", COMPTES_YT({}));
 
 beforeAll(async () => {
   await preparerMotDePasse(MDP);
@@ -79,6 +81,7 @@ describe("actions serveur", () => {
   });
   it("allumer puis éteindre avec réglages", async () => {
     await enregistrerReglagesYoutubeAction({ ...PROPOSITION_YOUTUBE, visibilite: "private" });
+    await relierChaine();
     expect((await definirYoutubeActifAction(true)).ok).toBe(true);
     expect((await vueYoutubeZernio()).actif).toBe(true);
     expect((await definirYoutubeActifAction(false)).ok).toBe(true);
@@ -89,5 +92,70 @@ describe("actions serveur", () => {
     reinitialiserRequete();
     await expect(enregistrerReglagesYoutubeAction({ ...PROPOSITION_YOUTUBE })).rejects.toBeTruthy();
     expect(await lireParametre("zernio.youtube_reglages", null)).toBeNull();
+  });
+});
+
+describe("allumer : garde côté serveur (chaîne et confirmation « public »)", () => {
+  const prive = { ...PROPOSITION_YOUTUBE, visibilite: "private" as const };
+  const publique = { ...PROPOSITION_YOUTUBE, visibilite: "public" as const };
+  const actifEnBase = () => lireParametre("zernio.youtube_actif", "absent");
+
+  it.each([
+    ["comptes jamais lus (inconnu)", null],
+    ["aucune chaîne YouTube (absent)", { lusLe: "x", comptes: [{ id: "a", reseau: "instagram", nom: "I" }] }],
+    ["chaîne déconnectée", COMPTES_YT({ actif: false })],
+  ])("%s : allumer refusé avec un message clair, rien d'écrit", async (_n, comptes) => {
+    await enregistrerReglagesYoutubeAction(prive);
+    if (comptes) await ecrireParametre("zernio.comptes", comptes);
+    const r = await definirYoutubeActifAction(true);
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.message).toMatch(/YouTube : impossible d'allumer/);
+    expect(await actifEnBase()).toBe("absent");
+  });
+  it("éteindre reste possible même sans chaîne reliée", async () => {
+    await ecrireParametre("zernio.youtube_actif", true);
+    expect((await definirYoutubeActifAction(false)).ok).toBe(true);
+    expect(await actifEnBase()).toBe(false);
+  });
+  it("plusieurs chaînes : une chaîne déconnectée n'empêche pas d'allumer si une autre est active", async () => {
+    await enregistrerReglagesYoutubeAction(prive);
+    await ecrireParametre("zernio.comptes", COMPTES_YT({ actif: false, nom: "Ancienne" }, { nom: "Nouvelle" }));
+    expect((await vueYoutubeZernio()).chaine).toEqual({ etat: "relie", nom: "Nouvelle" });
+    expect((await definirYoutubeActifAction(true)).ok).toBe(true);
+  });
+  it("plusieurs chaînes toutes déconnectées : refus", async () => {
+    await enregistrerReglagesYoutubeAction(prive);
+    await ecrireParametre("zernio.comptes", COMPTES_YT({ actif: false }, { actif: false }));
+    expect((await definirYoutubeActifAction(true)).ok).toBe(false);
+  });
+  it("visibilité « public » : allumer sans confirmation refusé", async () => {
+    await enregistrerReglagesYoutubeAction(publique);
+    await relierChaine();
+    const r = await definirYoutubeActifAction(true);
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.message).toMatch(/public/);
+    expect(await actifEnBase()).toBe("absent");
+  });
+  it.each(["true", 1, false, null])("visibilité « public » : confirmation %j n'est pas `true` : refus", async (c) => {
+    await enregistrerReglagesYoutubeAction(publique);
+    await relierChaine();
+    expect((await definirYoutubeActifAction(true, c)).ok).toBe(false);
+    expect(await actifEnBase()).toBe("absent");
+  });
+  it("visibilité « public » : confirmation `true` exacte : allumé", async () => {
+    await enregistrerReglagesYoutubeAction(publique);
+    await relierChaine();
+    expect((await definirYoutubeActifAction(true, true)).ok).toBe(true);
+    expect(await actifEnBase()).toBe(true);
+  });
+  it("visibilité « privé » : aucune confirmation exigée", async () => {
+    await enregistrerReglagesYoutubeAction(prive);
+    await relierChaine();
+    expect((await definirYoutubeActifAction(true)).ok).toBe(true);
+  });
+  it("éteindre en « public » ne demande aucune confirmation", async () => {
+    await enregistrerReglagesYoutubeAction(publique);
+    await ecrireParametre("zernio.youtube_actif", true);
+    expect((await definirYoutubeActifAction(false)).ok).toBe(true);
   });
 });
