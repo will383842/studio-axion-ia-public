@@ -3,7 +3,10 @@
  * Décision du fondateur (14/11) : l'Usine dépense sans confirmation sous UN plafond mensuel que le fondateur règle lui-même.
  *  - Réglage `usine.autonomie` = { actif, plafondCents, le, version } : ÉTEINT par défaut ; absent, 0 ou illisible = mode
  *    confirmation actuel (échec fermé, jamais « sans limite »). Aucun défaut chiffré dans le code.
- *  - Écrit en UN SEUL endroit, `reglerAutonomieUsine`, qui exige la session du fondateur (jamais la porte de l'Usine).
+ *  - Décision du 15/11 : le plafond se règle DANS l'Usine. Il arrive par la porte (appel 5, `reglerBudgetUsine`) et n'est écrit que
+ *    par `recevoirAutonomieUsine`, dans la clé `usine.autonomie.porte`. Dès que cette clé existe (même illisible), elle est la seule
+ *    source lue (bascule à sens unique) ; l'ancienne clé `usine.autonomie` n'est alors plus lue, mais jamais effacée ni réécrite.
+ *    `reglerAutonomieUsine` (session du fondateur) reste en place, inchangé, jusqu'à son retrait (S6).
  *  - Registre des accords (`usine.autonomie.index.<mois>`, `usine.autonomie.accord.<cle>`) écrit UNIQUEMENT sous le verrou
  *    des crédits (`inscrireAccordUsine` refuse `VERROU_REQUIS` sinon). Le statut n'est pas écrit : il se lit dans
  *    l'engagement existant `budget.engage.<cle>` : aucune clôture n'écrit le registre.
@@ -23,6 +26,8 @@ import { creerNotification } from "./notifications";
 /* --- Réglage ----------------------------------------------------------- */
 
 const CLE_REGLAGE = "usine.autonomie";
+/** Dernier plafond reçu de l'Usine par la porte. Écrit par `recevoirAutonomieUsine` seulement. Sa présence fait basculer la lecture. */
+const CLE_PORTE = "usine.autonomie.porte";
 /** Même borne que `definirBudgetAction` : 100 000 € en centimes. */
 const PLAFOND_MAX_CENTIMES = 10_000_000;
 /** Même délai que `ORPHELIN_MS` (couts.ts) : un lancement sans engagement ne compte plus après 15 min, sauf ce qui est payé. */
@@ -41,14 +46,8 @@ interface ReglageAutonomie {
 
 const plafondValide = (p: unknown): p is number => typeof p === "number" && Number.isSafeInteger(p) && p >= 0 && p <= PLAFOND_MAX_CENTIMES;
 
-/** Lecture du réglage. Toute forme imprévue (texte, flottant, négatif, `actif` non booléen) = mode confirmation. */
-export async function lireAutonomieUsine(): Promise<AutonomieUsine> {
-  let brut: unknown;
-  try {
-    brut = await lireParametre<unknown>(CLE_REGLAGE, null);
-  } catch {
-    return { etat: "confirmation", raison: "illisible" };
-  }
+/** Interprète une valeur brute de réglage. Toute forme imprévue (texte, flottant, négatif, `actif` non booléen) = mode confirmation. */
+function interpreter(brut: unknown): AutonomieUsine {
   if (brut === null || brut === undefined) return { etat: "confirmation", raison: "absent" };
   if (typeof brut !== "object" || Array.isArray(brut)) return { etat: "confirmation", raison: "illisible" };
   const r = brut as Record<string, unknown>;
@@ -56,6 +55,71 @@ export async function lireAutonomieUsine(): Promise<AutonomieUsine> {
   if (!r.actif) return { etat: "confirmation", raison: "eteint" };
   if (r.plafondCents === 0) return { etat: "confirmation", raison: "zero" };
   return { etat: "active", plafondCents: r.plafondCents };
+}
+
+/**
+ * Lecture du réglage. Si `usine.autonomie.porte` existe (même illisible), c'est la SEULE source : illisible = mode confirmation,
+ * jamais un retour à l'ancienne clé. Sinon, l'ancienne clé `usine.autonomie`, lue exactement comme avant.
+ */
+export async function lireAutonomieUsine(): Promise<AutonomieUsine> {
+  let recu: unknown;
+  try {
+    recu = await lireParametre<unknown>(CLE_PORTE, null);
+  } catch {
+    return { etat: "confirmation", raison: "illisible" };
+  }
+  if (recu !== null && recu !== undefined) return interpreter(recu);
+  let brut: unknown;
+  try {
+    brut = await lireParametre<unknown>(CLE_REGLAGE, null);
+  } catch {
+    return { etat: "confirmation", raison: "illisible" };
+  }
+  return interpreter(brut);
+}
+
+/**
+ * PUR. Contrôle la paire reçue par la porte (`automatique`, `plafond_automatique_cents`) : les deux ensemble ou aucun ; booléen ;
+ * centimes entiers 0..10 000 000 ; allumer avec 0 refusé. ÉTEINDRE n'est jamais refusé pour un montant valide (0 permis).
+ * Rend `null` si la paire est absente, le champ fautif sinon. Aucun lien avec le plafond global du Studio.
+ */
+export function controlerPaireAutonomie(automatique: unknown, plafondCents: unknown): { champ: string; message: string } | null | { actif: boolean; plafondCents: number } {
+  if (automatique === undefined && plafondCents === undefined) return null;
+  if (automatique === undefined) return { champ: "automatique", message: "Les champs automatique et plafond_automatique_cents vont toujours ensemble." };
+  if (plafondCents === undefined) return { champ: "plafond_automatique_cents", message: "Les champs automatique et plafond_automatique_cents vont toujours ensemble." };
+  if (typeof automatique !== "boolean") return { champ: "automatique", message: "L'interrupteur doit être vrai ou faux." };
+  if (!plafondValide(plafondCents)) return { champ: "plafond_automatique_cents", message: "Le plafond doit être un nombre entier de centimes, entre 0 et 10 000 000." };
+  if (automatique && plafondCents <= 0) return { champ: "plafond_automatique_cents", message: "Pour allumer, le plafond doit être supérieur à 0." };
+  return { actif: automatique, plafondCents };
+}
+
+/**
+ * SEUL point d'écriture de `usine.autonomie.porte`, appelé SEULEMENT par `reglerBudgetUsine`, derrière `garderPorte` : aucune
+ * session ici. Revalide la paire (rien n'est écrit si elle est refusée). Rejeu identique : rien n'est écrit, ni journalisé, ni sonné
+ * (`deja: true`). Sinon : cloche de type `budget` SANS montant et SANS `{ cloche: true }` (elle part sur le téléphone : c'est la
+ * parade au secret de porte volé), ligne de journal (montant permis), puis écriture. La trace précède l'écriture : un changement sans
+ * trace est pire qu'une trace sans changement (un rejeu après panne écrit alors le changement et sonne de nouveau).
+ * Ne touche JAMAIS `usine.autonomie`, le registre, les engagements, les dépenses ni le journal existant. `version` est celle du
+ * FORMAT de la clé, pas un ordre d'envoi.
+ */
+export async function recevoirAutonomieUsine(demande: { actif: boolean; plafondCents: number }): Promise<{ deja: boolean }> {
+  const controle = controlerPaireAutonomie(demande.actif, demande.plafondCents);
+  if (controle === null || "champ" in controle) throw new ErreurStudio("CHAMP_INVALIDE", controle === null ? "Le plafond reçu est incomplet." : controle.message);
+  const { actif, plafondCents } = controle;
+  const actuel = await lireParametre<unknown>(CLE_PORTE, null);
+  const a = actuel as Partial<ReglageAutonomie> | null;
+  if (a && typeof a === "object" && a.actif === actif && a.plafondCents === plafondCents) return { deja: true };
+  const avant = await lireAutonomieUsine();
+  const message = !actif
+    ? "L'Usine ne dépense plus seule : la confirmation reste demandée. Le plafond se règle dans l'Usine."
+    : avant.etat === "active"
+      ? "Le plafond du mois a changé. Le plafond se règle dans l'Usine."
+      : "L'Usine peut maintenant dépenser seule sous son plafond du mois. Le plafond se règle dans l'Usine.";
+  await creerNotification({ type: "budget", titre: "L'Usine a changé son plafond du mois", message, lien: "/" });
+  await journaliser("budget", actif ? `Usine en automatique : plafond reçu de l'Usine, allumée, plafond ${formaterMontant(centimes(plafondCents))} par mois` : "Usine en automatique : plafond reçu de l'Usine, éteinte (retour au mode confirmation)");
+  const valeur: ReglageAutonomie = { actif, plafondCents, le: maintenant(), version: 1 };
+  await ecrireParametre(CLE_PORTE, valeur);
+  return { deja: false };
 }
 
 /**
@@ -228,7 +292,7 @@ export async function inscrireAccordUsine(demande: { cle: string; besoin: number
   if (!j.ok) {
     await journaliser("budget", `Refus de l'Usine (plafond du mois) : ${quoi} — utilisé ${euros(j.utilise)} sur ${euros(j.plafond)} ce mois, demandé ${euros(Math.ceil(besoin))}.`, entite);
     await alerterPlafondUsine({ refus: true, apres: j.apres, plafond: j.plafond, mois: j.mois });
-    throw new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond du mois de l'Usine atteint : cette commande le dépasserait, rien n'est parti. Relevez le plafond dans Réglages.");
+    throw new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond du mois de l'Usine atteint : cette commande le dépasserait, rien n'est parti. Le plafond se règle dans l'Usine.");
   }
   const precedent = await lireAccord(cle);
   const accord: AccordUsine = { cle, mois: j.mois, centimes: j.effectif, quoi, ...(videoId ? { videoId } : {}), le: maintenant(), n: (precedent?.n ?? 0) + 1 };
@@ -253,14 +317,14 @@ export async function alerterPlafondUsine(o: { refus: boolean; apres: number; pl
     if (o.refus) {
       const cle = `budget.refus.${jourParis()}.usine-plafond`;
       if (await lireParametre<boolean>(cle, false)) return;
-      await creerNotification({ type: "budget", titre: "Usine arrêtée : plafond du mois atteint", message: "Rien n'est parti. Réglages pour relever le plafond.", lien: "/reglages#usine-automatique" });
+      await creerNotification({ type: "budget", titre: "Usine arrêtée : plafond du mois atteint", message: "Rien n'est parti. Le plafond se règle dans l'Usine.", lien: "/" });
       await ecrireParametre(cle, true);
       return;
     }
     if (o.plafond <= 0 || o.apres * 100 < o.plafond * 80) return;
     const cle = `usine.autonomie.alerte80.${o.mois}`;
     if (await lireParametre<boolean>(cle, false)) return;
-    await creerNotification({ type: "budget", titre: "Usine : 80 % du plafond du mois utilisé", message: "Elle s'arrêtera net au plafond. Réglages pour le relever.", lien: "/reglages#usine-automatique" });
+    await creerNotification({ type: "budget", titre: "Usine : 80 % du plafond du mois utilisé", message: "Elle s'arrêtera net au plafond. Le plafond se règle dans l'Usine.", lien: "/" });
     await ecrireParametre(cle, true);
   } catch {
     /* la décision ne dépend jamais de l'alerte */
