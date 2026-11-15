@@ -49,7 +49,7 @@ describe("G6 · passage allumé", () => {
   it("un GET signé par guide, jamais d'écriture vers le site, aucun écart quand tout concorde", async () => {
     const m = monter(() => ({ statut: 200, corps: [ligne(A, 1)] }));
     const r = await reconcilierGuides(m.d);
-    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [] });
+    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [], codesRestants: 0 });
     expect(m.appels).toHaveLength(1);
     expect(m.appels[0].methode).toBe("GET");
     expect(m.appels[0].corps).toBe("");
@@ -67,7 +67,7 @@ describe("G6 · passage allumé", () => {
   it("ignore une ligne d'un autre guide et les lignes illisibles, en les comptant", async () => {
     const m = monter(() => ({ statut: 200, corps: [ligne(A, 1), ligne(B, 1), { x: 1 }] }));
     const r = await reconcilierGuides(m.d);
-    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [] });
+    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [], codesRestants: 0 });
     expect((m.magasin.get(PARAM_RECONCILIATION) as { lignesIgnorees: number }).lignesIgnorees).toBe(2);
   });
   it("plusieurs guides : un appel chacun, dans l'ordre des codes", async () => {
@@ -84,7 +84,7 @@ describe("G6 · passage allumé", () => {
   });
   it("aucun guide au Studio : aucun appel", async () => {
     const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => [] });
-    expect(await reconcilierGuides(m.d)).toEqual({ ok: true, etat: "compare", ecarts: [] });
+    expect(await reconcilierGuides(m.d)).toEqual({ ok: true, etat: "compare", ecarts: [], codesRestants: 0 });
     expect(m.transport).not.toHaveBeenCalled();
   });
 });
@@ -96,12 +96,12 @@ describe("G6 · pannes du site", () => {
     expect(m.appels).toHaveLength(1);
     expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ etat: "site_pas_pret", ecarts: [] });
   });
-  it("404 de route absente : les écarts déjà connus ne sont PAS remplacés par une liste vide", async () => {
+  it("404 de route absente : l'ancien dernierPassage est gardé, les écarts déjà connus ne sont PAS remplacés par une liste vide", async () => {
     const m = monter(() => ({ statut: 404, corps: null }));
     const connus = [{ type: "manquant_au_site", code: A, version: 1 }];
     m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: "2026-11-14T00:00:00.000Z", etat: "compare", guidesLus: 1, lignesIgnorees: 0, ecarts: connus, ecartsTronques: false });
     expect(await reconcilierGuides(m.d)).toEqual({ ok: true, etat: "site_pas_pret" });
-    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ etat: "site_pas_pret", dernierPassage: "2026-11-15T10:00:00.000Z", guidesLus: 1, ecarts: connus });
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ etat: "site_pas_pret", dernierPassage: "2026-11-14T00:00:00.000Z", guidesLus: 1, ecarts: connus });
   });
   it("404 isolé sur le 2e code : passage arrêté en « site pas prêt », écarts connus gardés", async () => {
     const m = monter((r) => (r.chemin.endsWith(B) ? { statut: 404, corps: null } : { statut: 200, corps: [] }), { studio: async () => [{ code: A, version: 1, empreinte: h("a") }, { code: B, version: 1, empreinte: h("a") }] });
@@ -112,7 +112,7 @@ describe("G6 · pannes du site", () => {
   });
   it("contrat : code inconnu du site = 200 + liste vide → « manquant_au_site » (ce n'est pas un 404)", async () => {
     const m = monter(() => ({ statut: 200, corps: [] }));
-    expect(await reconcilierGuides(m.d)).toEqual({ ok: true, etat: "compare", ecarts: [{ type: "manquant_au_site", code: A, version: 1, empreinteStudio: "a".repeat(12) }] });
+    expect(await reconcilierGuides(m.d)).toEqual({ ok: true, etat: "compare", ecarts: [{ type: "manquant_au_site", code: A, version: 1, empreinteStudio: "a".repeat(12) }], codesRestants: 0 });
     expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ etat: "compare" });
   });
   it("503 : site indisponible, les écarts connus et le dernier passage sont gardés", async () => {
@@ -181,7 +181,30 @@ describe("G6 · plafond de codes par passage", () => {
     }, { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
     const r = await reconcilierGuides(m.d);
     expect(m.appels).toHaveLength(200);
-    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [] });
-    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ etat: "compare", guidesLus: 200, ecarts: [] });
+    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [], codesRestants: 5 });
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ etat: "compare", guidesLus: 200, ecarts: [], codesRestants: 5, curseur: codes[199] });
+  });
+  it("rotation : le 2e passage reprend après le curseur, atteint les codes au-delà de 200, puis boucle au début", async () => {
+    const codes = Array.from({ length: 205 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter((r) => ({ statut: 200, corps: [ligne(decodeURIComponent(r.chemin.split("code=")[1]), 1)] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    await reconcilierGuides(m.d);
+    m.appels.length = 0;
+    const r2 = await reconcilierGuides(m.d);
+    const vus = m.appels.map((a) => decodeURIComponent(a.chemin.split("code=")[1]));
+    expect(vus).toHaveLength(200);
+    expect(vus.slice(0, 5)).toEqual(codes.slice(200)); // les 5 derniers, jamais vus avant
+    expect(vus[5]).toBe(codes[0]); // puis boucle au début
+    expect(r2).toMatchObject({ ok: true, codesRestants: 5 });
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ curseur: codes[194] });
+  });
+  it("les écarts des codes non interrogés sont conservés, ceux des codes interrogés sont recalculés", async () => {
+    const codes = Array.from({ length: 205 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    const ancienLoin = { type: "empreinte_differente", code: codes[202], version: 1 };
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 0, lignesIgnorees: 0, ecarts: [ancienLoin, { type: "empreinte_differente", code: codes[0], version: 1 }], ecartsTronques: false, curseur: null, codesRestants: 5 });
+    const r = await reconcilierGuides(m.d);
+    expect(r.ok && r.etat === "compare" && r.ecarts).toContainEqual(ancienLoin);
+    expect(r.ok && r.etat === "compare" && r.ecarts.filter((e) => e.code === codes[0])).toHaveLength(1);
+    expect(r.ok && r.etat === "compare" && r.ecarts.filter((e) => e.type === "empreinte_differente")).toHaveLength(1 + 0);
   });
 });
