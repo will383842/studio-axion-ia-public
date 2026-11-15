@@ -11,7 +11,7 @@ Vous allez fabriquer **5 vidéos** du format « L'erreur corrigée ». Pour chac
 - Rien ne part sur vos réseaux sans votre accord. Vous pouvez donc essayer sans crainte.
 - Si un écran ne ressemble pas à ce guide, ne forcez pas. Notez l'écran et passez à « Si ça bloque ».
 
-- [ ] Je suis connecté au studio.
+- [ ] La connexion au studio est faite.
 - [ ] Je vois la page d'accueil.
 
 ## Les 5 vidéos de la recette
@@ -75,12 +75,15 @@ Contrôles :
 
 ### D. Fabriquer
 
-1. Cliquez sur **Fabriquer**.
-2. Patientez. Vous voyez « Fabrication en cours ».
-3. Ne relancez pas pendant l'attente. Le studio dit « Un travail est en cours : attendez qu'il se termine ».
+1. Cochez la case « Ce conseil n'est pas en première page d'une recherche ». Cherchez d'abord le sujet sur Google : si le même conseil apparaît en première page, la vidéo n'apporte rien. Tant que la case n'est pas cochée, le bouton **Fabriquer** reste grisé.
+2. Cliquez sur **Fabriquer**.
+3. Le studio demande une confirmation avant de fabriquer. Lisez, puis cliquez sur **Confirmer**.
+4. Patientez. Vous voyez « Fabrication en cours ».
+5. Ne relancez pas pendant l'attente. Le studio dit « Un travail est en cours : attendez qu'il se termine ».
 
 Ce que vous devez voir :
 
+- Le bouton **Fabriquer** devient actif une fois la case cochée.
 - Le statut **En fabrication**, puis **Prête**.
 - Le titre « Votre vidéo est prête ».
 
@@ -90,7 +93,7 @@ Contrôles :
 
 ### E. Regarder la vidéo
 
-1. Ouvrez la vidéo depuis **Mes vidéos**.
+1. Dans le menu, cliquez sur **Mes contenus**, puis sur **Vidéos**. Ouvrez votre vidéo.
 2. Regardez-la en entier, avec le son.
 
 Points à vérifier :
@@ -102,7 +105,7 @@ Points à vérifier :
 
 ### F. Relire, valider et prévoir la publication
 
-1. Ouvrez la page **À publier**.
+1. Dans le menu, cliquez sur **Vidéos validées** : la page s'appelle « À publier ».
 2. Trouvez la vidéo. Cliquez sur **Contrôler et valider**.
 3. Cochez ce que vous avez vérifié, dont « J'ai regardé la vidéo, tout est en règle ».
 4. Choisissez le réseau, puis la date.
@@ -130,10 +133,11 @@ Contrôles :
 | « Le studio ne répond pas pour l'instant. Rien n'est perdu : réessayez dans un instant. » | Attendez une minute, puis recommencez. Votre texte est gardé. |
 | « Ce sujet est déjà traité. » | Changez le texte pour un autre sujet, ou gardez-le tel quel. |
 | « Un travail est en cours : attendez qu'il se termine. » | Ne cliquez pas deux fois. Attendez la fin. |
-| Statut **À corriger** | Cliquez sur **Reprendre la fiche** ou **Corriger la fiche**. La voix déjà payée est gardée. |
-| « Rien n'est prêt à partir » dans À publier | La vidéo n'est pas encore terminée. Retournez dans **Mes vidéos** et regardez son statut. |
+| Le bouton **Fabriquer** est grisé, avec « Cochez d'abord « Ce conseil n'est pas en première page d'une recherche ». » | Cherchez le sujet sur Google, puis cochez la case « Ce conseil n'est pas en première page d'une recherche ». |
+| Statut **À corriger** | Cliquez sur **Reprendre la fiche** ou **Corriger la fiche**. La voix déjà faite est gardée. |
+| « Rien n'est prêt à partir » dans À publier | La vidéo n'est pas encore terminée. Retournez dans **Mes contenus**, puis **Vidéos**, et regardez son statut. |
 | « Cochez d'abord « J'ai regardé la vidéo, tout est en règle » » | Regardez la vidéo, puis cochez la case. |
-| La page À publier est introuvable | Elle n'est pas allumée. Prévenez la personne qui gère le studio. |
+| L'entrée **Vidéos validées** (page « À publier ») est introuvable | Elle n'est pas allumée. Prévenez la personne qui gère le studio. |
 | Autre chose | Faites une capture d'écran, notez l'heure et la vidéo concernée, puis arrêtez-vous. |
 
 Si vous hésitez : ne publiez pas. Notez et demandez.
