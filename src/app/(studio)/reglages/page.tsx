@@ -24,6 +24,10 @@ import { ReglageDouble } from "@/components/reglages/Double";
 import { vueRenduDouble } from "@/services/rendu-double";
 import { InterrupteurExemples, ReglagesMentionIA, ReglagesNotifications, ReglagesReseaux } from "@/components/reglages/Preferences";
 import { VosHashtags } from "@/components/reglages/VosHashtags";
+import { PlacementHashtags } from "@/components/reglages/PlacementHashtags";
+import type { InfoReseauPlacement } from "@/components/reglages/PlacementHashtags";
+import { placerHashtags, premierCommentairePossible, REGLES_PLACEMENT, RESEAUX_PLACEMENT, type OutilPlacement, type PlacementHashtags as ChoixPlacement, type ReseauPlacement } from "@/reseaux/placement-hashtags";
+import { lirePlacements } from "@/services/placement-hashtags";
 import { ChangerMotDePasse, ListeAppareils } from "@/components/reglages/Securite";
 import { ilYA } from "@/lib/dates";
 import { listerSessions } from "@/services/auth";
@@ -93,6 +97,27 @@ function Rubrique({ id, children }: { id: string; children: ReactNode }) {
  * Services reliés · Avancé (replié). Une rangée de liens en haut mène à chaque rubrique. Aucun identifiant, clé de
  * réglage ni comportement n'a changé : seuls le rangement et les libellés visibles.
  */
+const NOMS_PLACEMENT: Record<ReseauPlacement, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok" };
+const OUTILS_PLACEMENT: { id: OutilPlacement; nom: string }[] = [{ id: "buffer", nom: "Outil principal" }, { id: "zernio", nom: "Second outil" }];
+
+/** HSH-01b : ce que l'écran du placement des hashtags affiche, réseau par réseau (phrase de repli et source ou « hypothèse »). */
+function infosPlacement(placements: Record<ReseauPlacement, ChoixPlacement>): InfoReseauPlacement[] {
+  return RESEAUX_PLACEMENT.map((reseau) => ({
+    reseau,
+    nom: NOMS_PLACEMENT[reseau],
+    placement: placements[reseau],
+    diffuseurs: OUTILS_PLACEMENT.map(({ id, nom }) => {
+      const regle = REGLES_PLACEMENT[reseau][id];
+      return {
+        nom,
+        possible: premierCommentairePossible(reseau, id),
+        repli: placerHashtags({ reseau, outil: id, placement: "premier-commentaire", texte: "", motsDiese: ["#a"] }).repli,
+        source: regle.niveau === "sourcé" ? { niveau: "sourcé" as const, texte: regle.source, date: regle.date } : { niveau: "hypothèse" as const },
+      };
+    }),
+  }));
+}
+
 export default async function PageReglages() {
   await exigerSession();
   // Plan facecam v4 (lot D) : « Mes habitudes de montage » n'apparaît qu'une fois le format face caméra ouvert.
@@ -211,6 +236,7 @@ export default async function PageReglages() {
               <ReglagesReseaux initiaux={reglages.reseauxParDefaut} />
               {/* Équipe 7 : la famille de mots-dièse de chaque réseau (TikTok préremplie). */}
               <VosHashtags initiales={reglages.hashtags} />
+              <PlacementHashtags reseaux={infosPlacement(await lirePlacements())} />
               <InterrupteurAPublier key={String(aPublierAllumee)} initial={aPublierAllumee} />
             </CartePliante>
           </Apparition>
