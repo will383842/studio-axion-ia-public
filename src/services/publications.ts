@@ -457,6 +457,19 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
       };
     });
   const serie = await serieDeVideo(detail.video);
+  // G7a (B.5.5) : chaque version porte son lien suivi (calculé s'il n'est pas écrit dans la version).
+  const varianteVue = variante
+    ? {
+        id: variante.id,
+        code: variante.code,
+        reseau: variante.reseau,
+        version: variante.version,
+        numero: variante.numero,
+        titre: variante.titre,
+        sujetId: variante.scriptMaitreId,
+        champs: { ...variante.publication, lienSuivi: variante.publication.lienSuivi ?? lienDeVersion(await lireParametre<string>("publication.pageSuivie", PAGE_SUIVIE_PAR_DEFAUT), variante) },
+      }
+    : undefined;
   // Aperçu final avant « Valider » : le texte et le premier commentaire tels qu'ils partiraient, hashtags placés. Rien n'est envoyé d'ici.
   const placements = await lirePlacements();
   const reseaux: VueKitReseauApercu[] = [];
@@ -464,7 +477,7 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
     let apercuEnvoi: ApercuEnvoi | undefined;
     try {
       const outil = await outilDeEnvoi(r.reseau);
-      const prevu = (await premierCommentaireDeVideo(videoId, r.reseau, variante))?.trim();
+      const prevu = (await premierCommentaireDeVideo(videoId, r.reseau, varianteVue))?.trim();
       const { texte, premierCommentaire, repli, message } = placerPourEnvoi(r, serie?.entete, { outil, placement: placementDe(placements, r.reseau), commentaire: prevu });
       apercuEnvoi = { texte, ...(premierCommentaire ? { premierCommentaire } : {}), ...(repli ? { repli } : {}), ...(message ? { message } : {}) };
     } catch {
@@ -494,18 +507,7 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
     // TEST-UI-REEL U8 (CORRECTEUR UI2) : même règle que le refus du serveur (`envoyerVersBuffer`), dite dès la feuille.
     videoEssai: !detail.video.estDemo && ((await videoEnEssai(detail.video)) || (await fichiersDeDemonstration(reseaux.map((r) => r.sortieConseillee?.fichierId)))),
     // G7a (B.5.5) : chaque version porte son lien suivi (calculé s'il n'est pas écrit dans la version).
-    variante: variante
-      ? {
-          id: variante.id,
-          code: variante.code,
-          reseau: variante.reseau,
-          version: variante.version,
-          numero: variante.numero,
-          titre: variante.titre,
-          sujetId: variante.scriptMaitreId,
-          champs: { ...variante.publication, lienSuivi: variante.publication.lienSuivi ?? lienDeVersion(await lireParametre<string>("publication.pageSuivie", PAGE_SUIVIE_PAR_DEFAUT), variante) },
-        }
-      : undefined,
+    variante: varianteVue,
   };
 }
 
