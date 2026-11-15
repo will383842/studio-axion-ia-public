@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { empreinteGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { ErreurClaude } from "@/fournisseurs/claude/client";
-import { MAX_VERSIONS_CONSERVEES, MAX_VERSIONS_REFUS, MODELE_REDACTION_GUIDE, STATUT_VALIDE, guidesRedactionActif, redigerBrouillonGuide, type DepsRedaction } from "@/services/guides-redaction";
+import { MAX_VERSIONS_CONSERVEES, PREFIXE_PARAM_REDACTION, MAX_VERSIONS_REFUS, MODELE_REDACTION_GUIDE, STATUT_VALIDE, guidesRedactionActif, redigerBrouillonGuide, type DepsRedaction } from "@/services/guides-redaction";
 
 const contenuBon = { titre: "Réussir son premier essai", sections: [{ titre: "Préparer", paragraphes: ["Vous commencez par relire le sujet."], puces: ["Un point"] }] };
 
@@ -107,6 +108,19 @@ describe("G2 · rédaction", () => {
       expect(appeler).not.toHaveBeenCalled();
     }
   });
+  it("deux mots à collision de forme donnent deux clés distinctes (Été/ete, C++/C), un même mot la même clé", async () => {
+    const cles = async (mot: string) => {
+      const { d, magasin } = deps(JSON.stringify(contenuBon));
+      expect(await redigerBrouillonGuide(mot, d)).toMatchObject({ ok: true });
+      return [...magasin.keys()].filter((k) => k.startsWith(PREFIXE_PARAM_REDACTION));
+    };
+    const [ete, ete2, cpp, c, etePlain] = [await cles("Été"), await cles("Été"), await cles("C++"), await cles("C"), await cles("ete")];
+    expect(ete).toHaveLength(1);
+    expect(ete2).toEqual(ete);
+    expect(etePlain).not.toEqual(ete);
+    expect(cpp).not.toEqual(c);
+    expect(ete[0]).toMatch(/^guides\.redaction\.ete-[0-9a-f]{8}$/);
+  });
   it("journal sans donnée de personne ni texte du guide ni clé", async () => {
     const { d, journal } = deps(JSON.stringify(contenuBon));
     await redigerBrouillonGuide("essai", d);
@@ -123,7 +137,7 @@ describe("G2 · rédaction", () => {
 
 describe("G2 · versions : 50 gardées, refus au-delà de 1000", () => {
   const ancienne = (version: number, statut = "À valider") => ({ version, statut, empreinte: "e", modele: "m", creeLe: "t", contenu: contenuBon });
-  const cle = "guides.redaction.essai";
+  const cle = `guides.redaction.essai-${createHash("sha256").update("essai").digest("hex").slice(0, 8)}`;
   it("garde les 50 dernières versions", async () => {
     const { d, magasin } = deps(JSON.stringify(contenuBon));
     magasin.set(cle, { versions: Array.from({ length: 60 }, (_, i) => ancienne(i + 1)) });
@@ -158,6 +172,7 @@ describe("G2 · versions : 50 gardées, refus au-delà de 1000", () => {
 describe("G2 · « ne lève jamais » : interrupteur lu avant le chargement des dépendances", () => {
   afterEach(() => {
     vi.doUnmock("@/services/_commun");
+    vi.doUnmock("@/fournisseurs/claude/appel-redaction");
     vi.resetModules();
     vi.unstubAllEnvs();
   });
@@ -167,6 +182,15 @@ describe("G2 · « ne lève jamais » : interrupteur lu avant le chargement des 
     vi.stubEnv("GUIDES_REDACTION_ENABLED", "");
     const { redigerBrouillonGuide: rediger } = await import("@/services/guides-redaction");
     expect(await rediger("essai")).toMatchObject({ ok: false, raison: "interrupteur_eteint" });
+  });
+  it("éteint avec de vraies dépendances : la consigne n'est JAMAIS envoyée à Claude", async () => {
+    vi.resetModules();
+    const appeler = vi.fn(async () => ({ texte: "{}" }));
+    vi.doMock("@/fournisseurs/claude/appel-redaction", () => ({ appelerClaudeRedaction: appeler }));
+    vi.stubEnv("GUIDES_REDACTION_ENABLED", "false");
+    const { redigerBrouillonGuide: rediger } = await import("@/services/guides-redaction");
+    expect(await rediger("essai")).toMatchObject({ ok: false, raison: "interrupteur_eteint" });
+    expect(appeler).not.toHaveBeenCalled();
   });
   it("allumé mais dépendances indisponibles : résultat d'échec, pas d'exception", async () => {
     vi.resetModules();

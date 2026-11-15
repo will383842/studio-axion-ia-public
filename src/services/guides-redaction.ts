@@ -13,6 +13,7 @@
  * versions en double, deux appels payés). D'ici là : un seul appel par geste, jamais en boucle, et l'interrupteur éteint.
  */
 import "server-only";
+import { createHash } from "node:crypto";
 import { contientCaractereInterdit, controlerTexteGuide, empreinteGuide, schemaContenuGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { appelerClaudeRedaction } from "@/fournisseurs/claude/appel-redaction";
 import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
@@ -82,8 +83,11 @@ function identifiantMot(mot: unknown): string | null {
   if (typeof mot !== "string") return null;
   const brut = mot.trim();
   if (!brut || brut.length > LONGUEUR_MAX_MOT || contientCaractereInterdit(brut)) return null;
-  const id = brut.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return id || null;
+  const base = brut.normalize("NFKD").replace(/[\u0300-\u036F]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!base) return null;
+  // Suffixe d'empreinte du mot d'origine (NFC, minuscules) : « Été » et « ete », « C++ » et « C » ne partagent jamais la même clé.
+  const empreinte = createHash("sha256").update(brut.normalize("NFC").toLowerCase(), "utf8").digest("hex").slice(0, 8);
+  return `${base}-${empreinte}`;
 }
 
 const CONSIGNE = [
