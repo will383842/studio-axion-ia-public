@@ -544,10 +544,10 @@ describe("10 · écran /mots", () => {
     const html = rendu(vue);
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
     for (const t of [...M1_VALIDES, ...AR_VALIDES]) expect(html, t.slice(0, 30)).toContain(esc(t));
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 1);
-    expect(html.match(/Non validée/g)).toHaveLength(7 + 13 + 12 + 1);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2);
+    expect(html.match(/Non validée/g)).toHaveLength(7 + 13 + 12 + 2);
     const html2 = rendu(vue2);
     expect(html2.match(/Validée/g)).toHaveLength(1);
-    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13 + 12 + 1);
+    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13 + 12 + 2);
   });
 });
