@@ -1,11 +1,28 @@
 # Relecture PR 562 (lot AUT-G) — Opus, v2
 
-VERDICT PROVISOIRE : en cours (tendance : À CORRIGER — voir (f))
+VERDICT : À CORRIGER (tête dd4e1b9515cb670bfe914c72c47a8920fc3ea66a)
+
+1. (f) — 2 tests EXISTANTS, verts sur master, sont ROUGES sur la PR (déjà signalé en v1, non traité par dd4e1b95) ;
+   ni modifiés, ni listés dans `scripts/echecs-connus.json`, mais la règle « tests existants verts » est violée :
+   - `tests/voix/voix-epinglee-image-video.test.ts:130` : `toEqual({ videoId: "v1", travailId: "t1" })` reçoit en plus `cleUsine`
+     (site `src/services/image-video.ts:323`).
+   - `tests/cas-concret/services/branchements/branchements.test.ts:205` : même `toEqual` dans le faux `verifierEtReserver` ;
+     l'exception fait échouer le travail → `expected 'echec' to be 'termine'` (ligne 209) (site `src/services/cas-concret-branchements.ts:687`).
+   Gravité : BLOQUANTE pour la fusion (suite rouge), sans risque d'argent. Piste : seul l'ajout attendu de `cleUsine` les fait
+   rougir ; il faut une décision explicite du responsable pour RENFORCER ces 2 assertions (ex. `{ videoId, travailId,
+   cleUsine: expect.stringMatching(/^t1#voix-/) }`, qui ferait aussi tenir la clé par un vrai appel et pas seulement par une
+   regex du source) — ou toute autre voie qui laisse ces 2 tests verts sans les affaiblir.
+
+Tout le reste est OK : la FAILLE HAUTE de la v1 est corrigée (b), les mutations rougissent (c), concurrence (d) et Studio (e)
+sans régression, tsc 146 = 146, eslint propre, aucun nom de personne ni montant codé en dur.
+
+Suite complète (vitest, master vs PR, même machine) : master 27 485 verts / 274 rouges ; PR 27 496 verts / 276 rouges ;
+différence = +13 nouveaux tests AUT-G verts et EXACTEMENT les 2 rouges ci-dessus ; aucun autre test ne change d'état.
 
 Tête relue : origin/usine/AUT-G = dd4e1b9515cb670bfe914c72c47a8920fc3ea66a
 Base : origin/master = 98af97a52d48927986b01dcd886b3a4e13caa8f5 (= merge-base)
 
-## Avancement
+## Détail par point
 
 - Diff : exactement les 10 fichiers attendus, aucun autre.
 - (f) FAILLE (déjà signalée en v1, NON corrigée par dd4e1b95) : 2 tests existants verts sur master (27/27) sont ROUGES sur la PR :
@@ -43,3 +60,8 @@ Base : origin/master = 98af97a52d48927986b01dcd886b3a4e13caa8f5 (= merge-base)
   → ROUGE (2) ; suppression du maintien dans le temps (`autonomie-usine.ts:146-150`) → ROUGE (2) ; `credits.ts`
   `cumuler: false` → ROUGE (1). La détection des 4 sites est une lecture du source (regex), pas un appel réel : suffisant
   pour la mutation demandée.
+- (f) Bilan : tsc 146 = 146 (liste d'erreurs identique à master, aux numéros de ligne près) ; eslint des 9 fichiers .ts
+  touchés : propre ; aucun test existant modifié, aucune assertion affaiblie, `scripts/echecs-connus.json` inchangé ;
+  aucun nom de personne dans les lignes ajoutées ; aucun montant codé en dur dans `src/` (les 20 € ne sont écrits que dans
+  les dépôts mémoire des essais). MAIS les 2 tests rouges ci-dessus → FAILLE (voir verdict).
+- Sondes jetables (non poussées) : `sonde-562-studio` (24 scénarios master/PR) et `sonde-562-argent` (16 cas a/b/d), tous verts sur la PR.
