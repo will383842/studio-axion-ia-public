@@ -87,8 +87,11 @@ describe("cas-10-tableau", () => {
     const sup = supplementsSousTitresTableau({ st, mise, ratio: "9:16", verticale: true, dynamiques: true });
     const base = segmentsDe(st.style.valeur, st.gabarit);
     const segments = sousTitresDynamiquesTableau(base, { st, intensite: "equilibre", dureeSec: DUREE });
-    const calque0 = donneesCalque({ segments, base: st.base, ratio: "9:16", style: st.style.valeur, ...(st.gabarit ? {} : {}) });
-    const calque: DonneesCalque = { ...calque0, ...(sup.glissementSousTitres === false ? { glissement: false as const } : {}), ...(sup.bandeFondSousTitres ? { bandeFond: sup.bandeFondSousTitres } : {}), ...(st.style.valeur.encre ? { encre: true } : {}) };
+    // Comme `parametres.ts` : un style à encre passe ses couleurs (texte, accent, contour = page) ; `facteurOmbre` = 1
+    // (encre, ou aucun décor dans ce test : `sousTitresSurDecor(undefined)` rend 1).
+    const encre = st.style.valeur.encre;
+    const calque0 = donneesCalque({ segments, base: st.base, ratio: "9:16", style: st.style.valeur, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) });
+    const calque: DonneesCalque = { ...calque0, facteurOmbre: 1, ...(sup.glissementSousTitres === false ? { glissement: false as const } : {}), ...(sup.bandeFondSousTitres ? { bandeFond: sup.bandeFondSousTitres } : {}), ...(st.style.valeur.encre ? { encre: true } : {}) };
     return { style: { id: st.style.id, gabarit: st.gabarit, base: st.base, accents: st.accents, motsEnValeur: st.motsEnValeur, positionPct: st.positionPct, bandeFond: st.bandeFond, echelle: st.echelle }, supplements: arrondi(sup), bandeCalque: arrondi(bandeDuCalque(mise, calque)), ...figer(calque, segments), dimensions: { l: fs.largeur, h: fs.hauteur } };
   };
   it("blocs/2 (fond d'avant : Encre)", () => expect(arrondi(sous({ habillage: "blocs/2" } as never))).toMatchSnapshot());

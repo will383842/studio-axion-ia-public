@@ -174,7 +174,7 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
     {
       "scene": {
         "cle": "st-0",
-        "couleurSoulignement": "#D97757",
+        "couleurSoulignement": "#141413",
         "decalageYPx": 0,
         "echelle": 1,
         "espacePx": 16.8,
@@ -203,25 +203,25 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
         },
         "mots": [
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "Votre",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "patron",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "peut-il",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "lire",
@@ -238,7 +238,7 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
     {
       "scene": {
         "cle": "st-4",
-        "couleurSoulignement": "#D97757",
+        "couleurSoulignement": "#141413",
         "decalageYPx": 0,
         "echelle": 1,
         "espacePx": 21.84,
@@ -267,13 +267,13 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
         },
         "mots": [
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "vos",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "mails ?",
@@ -290,7 +290,7 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
     {
       "scene": {
         "cle": "st-6",
-        "couleurSoulignement": "#D97757",
+        "couleurSoulignement": "#141413",
         "decalageYPx": 0,
         "echelle": 1,
         "espacePx": 21.84,
@@ -319,19 +319,19 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
         },
         "mots": [
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "Oui,",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "mais",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "jamais",
@@ -348,7 +348,7 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
     {
       "scene": {
         "cle": "st-4",
-        "couleurSoulignement": "#D97757",
+        "couleurSoulignement": "#141413",
         "decalageYPx": 0,
         "echelle": 1,
         "espacePx": 21.84,
@@ -377,13 +377,13 @@ exports[`cas-10-tableau > blocs/2 (fond d'avant : Encre) 1`] = `
         },
         "mots": [
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "vos",
           },
           {
-            "couleur": "#FAF9F5",
+            "couleur": "#141413",
             "opacite": 1,
             "souligne": 0,
             "texte": "mails ?",
