@@ -55,7 +55,8 @@ function brancherReseauSimule(surmesure?: (a: AppelEnregistre) => ReponsePrepare
         if (s) return s;
       }
       if (a.methode === "GET" && a.url.endsWith("/v1/accounts")) return { statut: 200, corps: COMPTES };
-      if (a.methode === "GET" && /\/v1\/accounts\/exemple-compte-fb\/facebook-page/.test(a.url)) return { statut: 200, corps: { pages: [{ id: "exemple-page-1", name: "Page exemple", isDefault: true }], selectedPageId: "exemple-page-1" } };
+      if (a.methode === "GET" && /\/v1\/accounts\/exemple-compte-fb\/facebook-page/.test(a.url)) return { statut: 200, corps: { pages: [{ id: "exemple-page-1", name: "Page exemple" }], selectedPageId: "exemple-page-1" } };
+      if (a.methode === "GET" && /\/v1\/accounts\/exemple-compte-li\/linkedin-organizations/.test(a.url)) return { statut: 200, corps: { organizations: [{ id: "12345", name: "Organisation exemple" }] } };
       return undefined;
     },
   });
@@ -256,7 +257,7 @@ describe("b4 · envoi YouTube Shorts par le service", () => {
     const cas: { reseau: "instagram" | "facebook" | "linkedin" | "tiktok"; compte: string; options: Record<string, unknown> }[] = [
       { reseau: "instagram", compte: "exemple-compte-1", options: {} },
       { reseau: "facebook", compte: "exemple-compte-fb:fb:exemple-page-1", options: {} },
-      { reseau: "linkedin", compte: "exemple-compte-li", options: {} },
+      { reseau: "linkedin", compte: "exemple-compte-li:li:12345", options: {} },
       { reseau: "tiktok", compte: "exemple-compte-tt", options: { accordTiktok: true } },
     ];
     const corpsParEtat: Record<string, unknown[]> = { eteint: [], allume: [] };
@@ -285,9 +286,11 @@ describe("b4 · envoi YouTube Shorts par le service", () => {
       }
     }
     expect(corpsParEtat.allume).toEqual(corpsParEtat.eteint);
-    // Au moins Instagram et TikTok sont réellement partis sur ce banc.
+    // Instagram, Facebook et LinkedIn sont réellement partis sur ce banc.
     expect(corpsParEtat.eteint[0]).not.toBeNull();
-    expect(corpsParEtat.eteint[3]).not.toBeNull();
+    expect(corpsParEtat.eteint[1]).not.toBeNull();
+    expect(corpsParEtat.eteint[2]).not.toBeNull();
+    // TikTok : le banc du service n'offre pas le niveau de confidentialité (refus d'avant le lot, identique des deux côtés) ; voir b5 pour son corps.
   });
 
   it("(h bis) demande au fournisseur : format et dureeSec transmis pour YouTube Shorts seulement", async () => {

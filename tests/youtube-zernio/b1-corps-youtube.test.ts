@@ -16,7 +16,7 @@ const base = (p: Partial<DemandeZernio> = {}): DemandeZernio => ({
   dureeSec: 30,
   ...p,
 });
-const corps = (p: Partial<DemandeZernio> = {}, reglages: ReglagesYoutube | undefined = PROPOSITION_YOUTUBE) => corpsPostZernio(base(p), { maintenant: MAINTENANT, ...(reglages ? { youtube: reglages } : {}) });
+const corps = (p: Partial<DemandeZernio> = {}, reglages: ReglagesYoutube | null = PROPOSITION_YOUTUBE) => corpsPostZernio(base(p), { maintenant: MAINTENANT, ...(reglages ? { youtube: reglages } : {}) });
 const spec = (c: ReturnType<typeof corps>) => c.platforms[0].platformSpecificData as Record<string, unknown>;
 const avec = (r: Partial<ReglagesYoutube>): ReglagesYoutube => ({ ...PROPOSITION_YOUTUBE, ...r });
 
@@ -91,7 +91,7 @@ describe("b1 · corps YouTube Shorts", () => {
   });
 
   it("sans réglages : refus net", () => {
-    expect(() => corps({}, undefined)).toThrow(/réglages .* pas été choisis/);
+    expect(() => corps({}, null)).toThrow(/réglages .* pas été choisis/);
   });
 
   it("images ou document : refus (seule une vidéo est publiée)", () => {

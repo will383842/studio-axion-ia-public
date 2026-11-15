@@ -56,6 +56,21 @@ describe("b5 · porte du fournisseur", () => {
     expect(lireYoutube).not.toHaveBeenCalled();
   });
 
+  it("TikTok n'appelle JAMAIS lireYoutube : corps sans aucune clé YouTube, identique interrupteur allumé ou non", async () => {
+    const corpsPour = async (actif: boolean) => {
+      const serveur = serveurSimule();
+      const { client, faux } = creerFauxClientZernio(serveur.repondre);
+      const lireYoutube = vi.fn(async () => ({ actif, reglages: PRET.reglages }));
+      const f = creerPublicationZernio(CLE_FICTIVE, { clientPret: client, lire, maintenant: () => MAINT, lireYoutube });
+      await f.envoyer({ reseau: "tiktok", texte: "Texte d'exemple", date: DATE, fichierCle: "https://exemple-r2.test/v.mp4", cible: "exemple-compte-tt", cleEnvoi: cleN(3, "tiktok"), consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" });
+      expect(lireYoutube).not.toHaveBeenCalled();
+      return JSON.stringify(creations(faux)[0].json);
+    };
+    const eteint = await corpsPour(false);
+    expect(await corpsPour(true)).toBe(eteint);
+    expect(eteint).not.toMatch(/youtube|categoryId|madeForKids|containsSyntheticMedia/);
+  });
+
   it("tout prêt : 1 POST, plateforme youtube, réglages lus en base (pas la proposition)", async () => {
     const serveur = serveurSimule();
     const { client, faux } = creerFauxClientZernio(serveur.repondre);

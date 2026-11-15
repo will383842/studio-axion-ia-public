@@ -10,6 +10,7 @@ import { motsInterditsEnvoiZernio } from "./mots-interdits-envoi";
 import { pageInterdite } from "./zernio-pages-interdites";
 import { ErreurZernio } from "./zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, type CorpsPostZernio, type MediaItemZernio, type PlateformePostZernio } from "./zernio-client";
+import { DESCRIPTION_YOUTUBE_OCTETS_MAX, SHORT_DUREE_MAX_SEC, SHORT_FORMATS, titreYoutubeDepuisStudio, type ReglagesYoutube } from "./zernio-youtube";
 
 export const FUSEAU_STUDIO = "Europe/Paris";
 export const ALT_MAX = 125;
@@ -114,9 +115,9 @@ function exigerSansMotInterdit(texte: string, quoi: string): void {
   if (mots.length) throw new ErreurZernio("mot-interdit", `${quoi} contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.`, { detailTechnique: `mots interdits : ${mots.join(", ")}` });
 }
 
-const RESEAUX_PLATEFORME: Readonly<Record<string, string>> = { instagram: "instagram", facebook: "facebook", linkedin: "linkedin", tiktok: "tiktok" };
+const RESEAUX_PLATEFORME: Readonly<Record<string, string>> = { instagram: "instagram", facebook: "facebook", linkedin: "linkedin", tiktok: "tiktok", "youtube-shorts": "youtube" };
 
-/** Plateforme Zernio d'un réseau du Studio (YouTube n'est pas porté par Zernio). */
+/** Plateforme Zernio d'un réseau du Studio. YouTube Shorts : youtube (lot B) ; YouTube long n'est pas porté. */
 export function plateformeZernio(reseau: string): string {
   const p = RESEAUX_PLATEFORME[reseau];
   if (!p) throw refus("Ce réseau n'est pas pris en charge par Zernio.");
@@ -143,12 +144,15 @@ export interface OptionsCorps {
   profilLinkedinProuve?: boolean;
   /** Interrupteur « Premier commentaire » : `true` = le premier commentaire n'entre pas dans le corps. Sert uniquement à couper. */
   premierCommentaireCoupe?: boolean;
+  /** YouTube Shorts : réglages lus en base par l'appelant ; absents = refus. */
+  youtube?: ReglagesYoutube;
 }
 
 /** Médias demandés, sans adresse Zernio : sert au téléversement et au corps. Types : image | video | document. */
 export function mediasDemandes(d: DemandePublication): MediaItemZernio[] {
   const plateforme = plateformeZernio(d.reseau);
   if (d.document) {
+    if (plateforme === "youtube") throw refus("YouTube Shorts : seule une vidéo est publiée.");
     if (plateforme !== "linkedin") throw refus("Un document PDF n'est publié que sur LinkedIn.");
     if (d.images?.length) throw refus("LinkedIn : un seul type de média par publication (document ou images).");
     const titre = (d.document.titre ?? "").replace(/\s+/g, " ").trim();
@@ -158,6 +162,7 @@ export function mediasDemandes(d: DemandePublication): MediaItemZernio[] {
     if (d.tailleOctets !== undefined && d.tailleOctets > DOCUMENT_TAILLE_MAX) throw refus("Le document dépasse 100 Mo.");
     return [{ type: "document", url: d.document.url, title: titre, mimeType: "application/pdf" }];
   }
+  if (plateforme === "youtube" && d.images?.length) throw refus("YouTube Shorts : seule une vidéo est publiée.");
   const images = d.images ?? [];
   if (images.length) {
     const max = IMAGES_MAX[plateforme];
@@ -223,6 +228,29 @@ export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsP
       if (type === "document") specifique.documentTitle = demandes[0].title;
       if (commentaire) specifique.firstComment = commentaire;
       break;
+    case "youtube": {
+      const r = options.youtube;
+      if (!r) throw refus("YouTube : les réglages (visibilité, catégorie…) n'ont pas été choisis.");
+      if (type !== "video") throw refus("YouTube Shorts : seule une vidéo est publiée.");
+      const duree = d.dureeSec;
+      if (!d.format || !SHORT_FORMATS.includes(d.format) || duree === undefined || !Number.isFinite(duree) || duree <= 0 || duree > SHORT_DUREE_MAX_SEC) {
+        throw refus("YouTube Shorts : la vidéo doit être verticale (9:16) et durer 3 minutes au plus.");
+      }
+      if (Buffer.byteLength(d.texte, "utf8") > DESCRIPTION_YOUTUBE_OCTETS_MAX) throw refus("YouTube : la description dépasse 5 000 octets.");
+      if (/[<>]/.test(d.texte)) throw refus("YouTube : la description ne peut pas contenir < ni >.");
+      if (r.titre === "studio") {
+        const t = titreYoutubeDepuisStudio(d.titre, d.texte);
+        if (!t) throw refus("YouTube : le titre manque.");
+        if (/[<>]/.test(t)) throw refus("YouTube : le titre ne peut pas contenir < ni >.");
+        exigerSansMotInterdit(t, "Le titre YouTube");
+        specifique.title = t;
+      }
+      specifique.visibility = r.visibilite;
+      specifique.categoryId = r.categorieId;
+      specifique.madeForKids = r.pourEnfants;
+      specifique.containsSyntheticMedia = r.synthetique === "oui" ? true : r.synthetique === "non" ? false : d.contenuIA === true;
+      break; // jamais firstComment, playlistId, notifySubscribers ni tags
+    }
     case "tiktok": {
       if (d.consentementTiktok !== true) throw refus("TikTok : la case de consentement n'est pas cochée.");
       if (d.contenuIA && type !== "video") throw refus("TikTok : la mention IA ne s'applique qu'à une vidéo.");
