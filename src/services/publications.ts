@@ -34,6 +34,8 @@ import { depots, ErreurStudio, filtreExemples, fournisseur, fournisseurSimule, h
 import { etatStockage } from "./etat-branchements";
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
+import { placerHashtags, RESEAUX_PLACEMENT, type PlacementHashtags, type ReseauPlacement, type SortiePlacement } from "@/reseaux/placement-hashtags";
+import { lirePlacements } from "./placement-hashtags";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
 import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
@@ -422,7 +424,7 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   const dureeSec = dureeDeLaVideo(detail.video.dureeCibleSec, detail.sorties.find((s) => s.ratio === detail.video.ratios[0]) ?? detail.sorties[0]).sec;
   // Vidéos sur le site (lot S4) : lien de la page et chapitres dans la description YouTube, réglage éteint par défaut.
   const pageSite = await pagePourYoutube(videoId);
-  const reseaux = listerReseaux()
+  const reseauxBruts = listerReseaux()
     .sort((a, b) => Number(parDefaut.includes(b.id)) - Number(parDefaut.includes(a.id)))
     // Générateur (G1b) : le réseau de la version s'ouvre en premier.
     .sort((a, b) => Number(b.id === variante?.reseau) - Number(a.id === variante?.reseau))
@@ -454,10 +456,25 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
         prixReecriture: prix[r.id],
       };
     });
+  const serie = await serieDeVideo(detail.video);
+  // Aperçu final avant « Valider » : le texte et le premier commentaire tels qu'ils partiraient, hashtags placés. Rien n'est envoyé d'ici.
+  const placements = await lirePlacements();
+  const reseaux: VueKitReseauApercu[] = [];
+  for (const r of reseauxBruts) {
+    let apercuEnvoi: ApercuEnvoi | undefined;
+    try {
+      const outil = await outilDeEnvoi(r.reseau);
+      const prevu = (await premierCommentaireDeVideo(videoId, r.reseau, variante))?.trim();
+      const { texte, premierCommentaire, repli, message } = placerPourEnvoi(r, serie?.entete, { outil, placement: placementDe(placements, r.reseau), commentaire: prevu });
+      apercuEnvoi = { texte, ...(premierCommentaire ? { premierCommentaire } : {}), ...(repli ? { repli } : {}), ...(message ? { message } : {}) };
+    } catch {
+      // L'aperçu est une aide : s'il manque, le kit s'affiche quand même et l'envoi recalcule tout.
+    }
+    reseaux.push(apercuEnvoi ? { ...r, apercuEnvoi } : r);
+  }
   const cases = kit.avantDePublier;
   const format = trouverFormat(detail.video.formatId);
   const mentionActive = format ? mentionIAActive(format, detail.video) : true;
-  const serie = await serieDeVideo(detail.video);
   return {
     videoId,
     reseaux,
@@ -781,12 +798,12 @@ async function envoyerVersBufferInterne(
   const d = depots();
   const publications: Publication[] = [];
   const commentairesALaMain: IdReseau[] = [];
+  const placements = await lirePlacements();
   for (const reseau of reseaux) {
     const r = kitVue.reseaux.find((x) => x.reseau === reseau);
     if (!r) continue;
-    const texte = texteAEnvoyer(r, kitVue.serie?.entete);
+    const { texte, commentaire } = await preparerEnvoi(kitVue, r, options.premiersCommentaires?.[reseau], !!options.avecPremierCommentaire, "buffer", placements);
     const marque = reseau === "tiktok" && kitVue.votreMarque.cochee;
-    const commentaire = await commentairePour(kitVue, reseau, options.premiersCommentaires?.[reseau], !!options.avecPremierCommentaire);
     if (commentaire.aLaMain) commentairesALaMain.push(reseau);
     const envoi = await service.envoyer({ reseau, texte, date: dateIso, fichierCle: r.sortieConseillee?.url ?? "", ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), ...(marque ? { votreMarque: true } : {}) });
     const pub: Publication = {
@@ -845,9 +862,52 @@ function verifierTextesAEnvoyer(reseau: IdReseau, texte: string, titre: string |
  * Texte publié : l'en-tête de série (équipe 7, « Série · ép. 3 »), le texte du kit puis ses mots-dièse. Dernier filet :
  * un mot-dièse fourre-tout (#fyp, #viral, #pourtoi, #foryou) ne part jamais, quelle que soit l'origine du texte.
  */
-export function texteAEnvoyer(r: { texte: string; motsDiese: string[] }, entete?: string): string {
-  const motsDiese = r.motsDiese.filter((m) => !estInterdit(m));
-  return [entete ? `${entete}\n${r.texte}` : r.texte, motsDiese.join(" ")].filter(Boolean).join("\n\n");
+export function texteAEnvoyer(r: { texte: string; motsDiese: string[]; reseau?: IdReseau }, entete?: string, contexte: ContexteEnvoi = {}): string {
+  return placerPourEnvoi(r, entete, contexte).texte;
+}
+
+/** Réglage et outil d'un envoi ; sans rien, le comportement d'avant : hashtags à la fin du texte. */
+export interface ContexteEnvoi {
+  outil?: OutilPublication;
+  placement?: PlacementHashtags;
+  /** Premier commentaire déjà prévu (conservé, les hashtags s'y ajoutent si le réglage le demande). */
+  commentaire?: string;
+}
+
+/** Ce que le fondateur verra (et ce qui partira) pour un réseau : texte final et premier commentaire final, hashtags placés. */
+export type ApercuEnvoi = Pick<SortiePlacement, "texte" | "premierCommentaire" | "repli" | "message">;
+
+/** Le kit, avec l'aperçu final de chaque réseau (champ ajouté ici : `vues.ts` n'est pas dans la fiche). */
+export type VueKitReseauApercu = VueKitReseau & { apercuEnvoi?: ApercuEnvoi };
+
+/** Placement d'un réseau : seuls LinkedIn, Instagram, Facebook et TikTok ont un réglage, les autres restent « texte ». */
+export function placementDe(placements: Partial<Record<ReseauPlacement, PlacementHashtags>>, reseau: IdReseau): PlacementHashtags {
+  return (RESEAUX_PLACEMENT as readonly string[]).includes(reseau) ? (placements[reseau as ReseauPlacement] ?? "texte") : "texte";
+}
+
+/**
+ * Texte final et premier commentaire final : la règle pure `placerHashtags`, avec l'en-tête de série devant le texte. Dernier filet :
+ * un mot-dièse fourre-tout (#fyp, #viral, #pourtoi, #foryou) ne part jamais. Sans réseau connu, les hashtags restent à la fin du texte.
+ */
+function placerPourEnvoi(r: { texte: string; motsDiese: string[]; reseau?: IdReseau }, entete: string | undefined, c: ContexteEnvoi): SortiePlacement {
+  const texte = entete ? `${entete}\n${r.texte}` : r.texte;
+  if (!r.reseau) {
+    const mots = r.motsDiese.filter((m) => !estInterdit(m));
+    return { texte: [texte, mots.join(" ")].filter(Boolean).join("\n\n") };
+  }
+  return placerHashtags({ reseau: r.reseau, outil: c.outil ?? "buffer", placement: c.placement ?? "texte", texte, motsDiese: r.motsDiese, ...(c.commentaire !== undefined ? { commentaire: c.commentaire } : {}) });
+}
+
+/**
+ * Texte et premier commentaire d'un réseau à l'envoi : le commentaire prévu (celui de l'écran, sinon celui de la vidéo si l'appelant
+ * le demande) reçoit les hashtags si le réglage le veut ET si l'outil le transmet ; sinon ils restent dans le texte.
+ */
+async function preparerEnvoi(kitVue: VueKit, r: VueKitReseau, surcharge: string | undefined, avecVideo: boolean, outil: OutilPublication, placements: Partial<Record<ReseauPlacement, PlacementHashtags>>) {
+  const prevu = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, r.reseau, kitVue.variante) : undefined))?.trim();
+  const sortie = placerPourEnvoi(r, kitVue.serie?.entete, { outil, placement: placementDe(placements, r.reseau), commentaire: prevu });
+  // Le commentaire final passe par le même contrôle que d'habitude (transmis, ou à poser à la main et filtré).
+  const commentaire = await commentairePour(kitVue, r.reseau, sortie.premierCommentaire, false, outil);
+  return { texte: sortie.texte, commentaire, sortie };
 }
 
 /**
@@ -966,6 +1026,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
   // Seuls les comptes cochés ET validés (réseau envoyé, compte connu de ce réseau) sont mémorisés.
   const valides: Partial<Record<IdReseau, string[]>> = {};
   const aPoserALaMain = new Set<IdReseau>();
+  const placements = await lirePlacements();
   for (const reseau of reseaux) {
     const r = kitVue.reseaux.find((x) => x.reseau === reseau);
     if (!r) continue;
@@ -976,9 +1037,8 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
     const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const nomReseau = obtenirReseau(reseau).nom;
-    const commentaire = await commentairePour(kitVue, reseau, commentaires[reseau], avecVideo, outil);
+    const { texte, commentaire } = await preparerEnvoi(kitVue, r, commentaires[reseau], avecVideo, outil, placements);
     if (commentaire.aLaMain) aPoserALaMain.add(reseau);
-    const texte = texteAEnvoyer(r, kitVue.serie?.entete);
     verifierTextesAEnvoyer(reseau, texte, r.titre);
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
