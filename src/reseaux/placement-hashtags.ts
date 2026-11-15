@@ -2,7 +2,7 @@
  * HSH-01a · PLACEMENT DES HASHTAGS : à la fin du texte ou dans le premier commentaire, par réseau. PUR.
  *
  * Défaut « texte » partout (comportement d'avant). Le premier commentaire n'est pris que si l'outil de publication le
- * transmet pour ce réseau (fonctions de Buffer et de Zernio IMPORTÉES, jamais recopiées ; TikTok : jamais) ; sinon les
+ * transmet pour ce réseau (fonctions des deux outils IMPORTÉES, jamais recopiées ; TikTok : jamais) ; sinon les
  * hashtags restent dans le texte et `repli` le dit en français. Nombre et interdits sont contrôlés quel que soit
  * l'emplacement ; un dépassement rend un message, jamais une exception.
  */
@@ -33,6 +33,9 @@ export type RegleSourcee =
   | { niveau: "sourcé"; source: string; date: string }
   | { niveau: "hypothèse"; source: null; date: null };
 
+/** Source neutre (affichée à l'écran) : schéma de l'outil daté du 03/10/2026, pas encore le relevé L8-01. */
+const SOURCE_SCHEMA = "Schéma de l'outil de publication, relevé du 03/10/2026 (hors relevé L8-01) : premier commentaire (Instagram, Facebook, LinkedIn)";
+
 const HYPOTHESE: RegleSourcee = { niveau: "hypothèse", source: null, date: null };
 
 /**
@@ -41,15 +44,15 @@ const HYPOTHESE: RegleSourcee = { niveau: "hypothèse", source: null, date: null
  */
 export const REGLES_PLACEMENT: Readonly<Record<ReseauPlacement, Readonly<Record<OutilPlacement, RegleSourcee>>>> = {
   linkedin: {
-    buffer: { niveau: "sourcé", source: "Schéma Buffer : champ firstComment (instagram, facebook, linkedin)", date: "2026-10-03" },
+    buffer: { niveau: "sourcé", source: SOURCE_SCHEMA, date: "2026-10-03" },
     zernio: HYPOTHESE,
   },
   instagram: {
-    buffer: { niveau: "sourcé", source: "Schéma Buffer : champ firstComment (instagram, facebook, linkedin)", date: "2026-10-03" },
+    buffer: { niveau: "sourcé", source: SOURCE_SCHEMA, date: "2026-10-03" },
     zernio: HYPOTHESE,
   },
   facebook: {
-    buffer: { niveau: "sourcé", source: "Schéma Buffer : champ firstComment (instagram, facebook, linkedin)", date: "2026-10-03" },
+    buffer: { niveau: "sourcé", source: SOURCE_SCHEMA, date: "2026-10-03" },
     zernio: HYPOTHESE,
   },
   tiktok: { buffer: HYPOTHESE, zernio: HYPOTHESE },
@@ -94,12 +97,16 @@ export function placerHashtags(e: EntreePlacement): SortiePlacement {
   const [min, max] = bornes(e.reseau);
 
   const interdits = e.motsDiese.filter((m) => estInterdit(m));
-  if (interdits.length) messages.push(`${interdits.join(", ")} écarté${interdits.length > 1 ? "s" : ""} : ce mot-dièse n'aide pas à comprendre votre sujet.`);
-  let mots = e.motsDiese.filter((m) => !estInterdit(m));
+  if (interdits.length) messages.push(
+      interdits.length > 1
+        ? `${interdits.join(", ")} écartés : ces mots-dièse n'aident pas à comprendre votre sujet.`
+        : `${interdits[0]} écarté : ce mot-dièse n'aide pas à comprendre votre sujet.`,
+    );
+  const mots = e.motsDiese.filter((m) => !estInterdit(m));
 
   if (mots.length > max) {
-    messages.push(`${mots.length} mots-dièse : ${max} au plus pour ce réseau, les premiers sont gardés.`);
-    mots = mots.slice(0, max);
+    // Jamais de coupe silencieuse : le texte de la personne garde tous ses mots-dièse, seul le message avertit.
+    messages.push(`${mots.length} mots-dièse : ${max} au plus pour ce réseau, tous sont gardés, à vous de les réduire.`);
   } else if (mots.length < min) {
     messages.push(`${mots.length} mot${mots.length > 1 ? "s" : ""}-dièse : ${min} au moins pour ce réseau.`);
   }

@@ -51,7 +51,7 @@ describe("HSH-01a · règle pure placerHashtags", () => {
         for (const [nom, n] of [["0", 0], ["maximum", max], ["maximum + 1", max + 1]] as const) {
           it(`${reseau} · ${outil} · ${placement} · ${nom} (${n})`, () => {
             const r = placerHashtags({ reseau, outil, placement, texte: TEXTE, motsDiese: mots(n) });
-            const gardes = Math.min(n, max);
+            const gardes = n;
             const ligne = mots(gardes).join(" ");
             const ailleurs = placement === "premier-commentaire" && transmissible(reseau, outil);
             if (gardes === 0) {
@@ -96,6 +96,29 @@ describe("HSH-01a · règle pure placerHashtags", () => {
     const r = placerHashtags({ reseau: "instagram", outil: "buffer", placement: "texte", texte: TEXTE, motsDiese: ["#fyp", "#sujeta"] });
     expect(r.texte).toBe(`${TEXTE}\n\n#sujeta`);
     expect(r.message).toMatch(/#fyp/);
+  });
+
+  it("interdits : accord au singulier et au pluriel", () => {
+    const un = placerHashtags({ reseau: "instagram", outil: "buffer", placement: "texte", texte: TEXTE, motsDiese: ["#fyp", "#sujeta"] });
+    expect(un.message).toMatch(/écarté : ce mot-dièse n'aide pas/);
+    const deux = placerHashtags({ reseau: "instagram", outil: "buffer", placement: "texte", texte: TEXTE, motsDiese: ["#fyp", "#viral", "#sujeta"] });
+    expect(deux.message).toMatch(/écartés : ces mots-dièse n'aident pas/);
+  });
+
+  it("au-delà du maximum : aucun mot-dièse supprimé, message présent", () => {
+    for (const reseau of RESEAUX) {
+      const n = maximum(reseau) + 3;
+      const r = placerHashtags({ reseau, outil: "zernio", placement: "texte", texte: TEXTE, motsDiese: mots(n) });
+      expect(r.texte).toBe(`${TEXTE}\n\n${mots(n).join(" ")}`);
+      expect(r.message).toMatch(/au plus/);
+    }
+  });
+
+  it("la source ne nomme aucun outil de publication résilié", () => {
+    for (const reseau of RESEAUX) for (const outil of OUTILS) {
+      const g = REGLES_PLACEMENT[reseau][outil];
+      if (g.niveau === "sourcé") expect(g.source).not.toMatch(/buffer/i);
+    }
   });
 
   it("chaque règle porte source et date, sinon « hypothèse »", () => {
