@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { ecrireParametre, lireParametre } from "@/services/_commun";
-import { avecOrigineFournisseur, reserverQuota } from "@/services/plafond-fournisseur";
+import { lireBudgetUsine, plafondStudioCentimes } from "@/services/budget-mensuel";
+import { resumeBudget } from "@/services/couts";
+import { avecOrigineFournisseur, lireQuotasUsine, reserverQuota } from "@/services/plafond-fournisseur";
 import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 
 /**
@@ -11,6 +13,11 @@ import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
  *  - Quota atteint : l'excédent est MIS DE CÔTÉ (« usine-visuel-cote:<cle> », 202, code « quota_atteint »), jamais refusé :
  *    le fondateur le débloque d'un clic. Aucun appel au fournisseur.
  *  - Rejeu (même `cle`) : aucune seconde unité consommée, aucun doublon.
+ *  - Budget de l'usine du mois absent ou épuisé (ou plafond du studio atteint) : refus propre « budget_epuise » (409, sans montant,
+ *    jamais 402), avant toute réservation de quota. Couple réseau/type SANS quota défini : refus « quota_absent » (422), échec fermé :
+ *    jamais « passe » sans borne pour l'origine usine. Le fondateur (origine « studio ») n'est jamais concerné.
+ *  - Une unité de quota est consommée sous la clé « visuel:<cle> » dès la commande enregistrée ; la fabrication en aval réserve sous
+ *    « budget:<travailId> » : au branchement, réutiliser la même clé pour éviter un double décompte.
  *  - « Tout arrêter » (`USINE_TOUT_ARRETER`, même lecture que la porte des commandes) : 423, rien n'est écrit.
  */
 export const dynamic = "force-dynamic";
@@ -47,6 +54,21 @@ export async function POST(requete: NextRequest) {
 
     if (await lireParametre(`${PREFIXE_COMMANDE}${cle}`, null)) return reponseJson(200, { etat: "recue", deja: true });
     if (await lireParametre(`${PREFIXE_COTE}${cle}`, null)) return reponseJson(200, { etat: "mise_de_cote", code: "quota_atteint", deja: true });
+
+    // Budget : lecture seule (le passage commun `controlerBudgetDuMois` n'est pas touché). Absent ou épuisé : refus avant tout quota.
+    const usine = await lireBudgetUsine();
+    const plafond = await plafondStudioCentimes();
+    const vue = await resumeBudget();
+    const utilise = vue.depense.centimes + vue.engage.centimes;
+    if (!usine || (usine.budget_mensuel_cents !== null && utilise >= usine.budget_mensuel_cents) || (plafond !== null && utilise >= plafond)) {
+      statut = 409;
+      return reponseErreur(409, "Le budget du mois est épuisé : la commande n'est pas prise.", "budget_epuise");
+    }
+    // Échec fermé : aucun quota défini pour ce couple réseau/type = aucune borne = refus.
+    if (!(await lireQuotasUsine()).some((q) => q.reseau === reseau && q.type === type)) {
+      statut = 422;
+      return reponseErreur(422, "Aucune limite n'est réglée pour ce réseau et ce type : la commande n'est pas prise.", "quota_absent");
+    }
 
     // Même clé d'idempotence que les autres gardes : un rejeu ne consomme jamais une seconde unité.
     const reservation = await avecOrigineFournisseur("usine", () => reserverQuota(reseau, type, `visuel:${cle}`));

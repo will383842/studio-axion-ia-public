@@ -11,6 +11,7 @@ const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { reinitialiserGardePourEssai } = await import("@/usine/garde-porte");
 const { lireParametre, ecrireParametre } = await import("@/services/_commun");
 const { CLE_QUOTAS_USINE } = await import("@/services/plafond-fournisseur");
+const { moisParis } = await import("@/services/couts");
 const { POST } = await import("@/app/api/usine/visuels/route");
 
 const SECRET = "s".repeat(24) + "SECRET-ESSAI-porte-1234567";
@@ -37,7 +38,12 @@ beforeEach(async () => {
   });
   vi.stubGlobal("fetch", fetchEspion);
   await ecrireParametre(CLE_QUOTAS_USINE, [{ periode: "jour", reseau: "instagram", type: "image", limite: 1 }]);
+  await budgetEnQuantites();
 });
+async function budgetEnQuantites(): Promise<void> {
+  const mois = moisParis();
+  await ecrireParametre(`budget.usine.${mois}`, { en_quantites: true, mois, le: "2026-01-01T00:00:00.000Z" });
+}
 
 describe("garde de la porte", () => {
   it("sans jeton : 401", async () => {
@@ -58,6 +64,41 @@ describe("garde de la porte", () => {
     expect((await POST(appel(commande({ reseau: "" })))).status).toBe(400);
     expect((await POST(appel(commande({ type: 12 })))).status).toBe(400);
     expect((await POST(appel(commande({ montant: 5 })))).status).toBe(400);
+  });
+});
+
+describe("budget et couple sans quota (échec fermé)", () => {
+  it("aucun budget reçu de l'usine : « budget_epuise », rien n'est écrit, ni 402 ni montant", async () => {
+    reinitialiserDepots();
+    await ecrireParametre(CLE_QUOTAS_USINE, [{ periode: "jour", reseau: "instagram", type: "image", limite: 5 }]);
+    const r = await POST(appel(commande()));
+    expect(r.status).toBe(409);
+    const corps = await r.json();
+    expect(JSON.stringify(corps)).toContain("budget_epuise");
+    expect(JSON.stringify(Object.values(corps))).not.toMatch(MONTANT);
+    expect(await lireParametre("usine-visuel-commande:visuel-essai-0001", null)).toBeNull();
+    expect(fetchEspion).not.toHaveBeenCalled();
+  });
+  it("budget de l'usine à zéro (et plafond du studio à zéro) : « budget_epuise » avant toute réservation de quota", async () => {
+    const mois = moisParis();
+    await ecrireParametre(`budget.usine.${mois}`, { budget_mensuel_cents: 0, mois, le: "2026-01-01T00:00:00.000Z" });
+    await ecrireParametre("budget.mensuel", { centimes: 0 });
+    const r = await POST(appel(commande()));
+    expect(r.status).toBe(409);
+    expect(JSON.stringify(await r.json())).toContain("budget_epuise");
+    // aucune unité consommée : le budget rétabli, la commande passe encore sous le quota de 1
+    await budgetEnQuantites();
+    await ecrireParametre("budget.mensuel", null);
+    expect((await POST(appel(commande()))).status).toBe(201);
+  });
+  it("couple réseau/type sans quota défini : refusé (422 « quota_absent »), jamais accepté sans borne", async () => {
+    for (const cle of ["visuel-essai-0010", "visuel-essai-0011", "visuel-essai-0012"]) {
+      const r = await POST(appel(commande({ cle, reseau: "tiktok", type: "video" })));
+      expect(r.status).toBe(422);
+      expect(JSON.stringify(await r.json())).toContain("quota_absent");
+      expect(await lireParametre(`usine-visuel-commande:${cle}`, null)).toBeNull();
+    }
+    expect(fetchEspion).not.toHaveBeenCalled();
   });
 });
 
