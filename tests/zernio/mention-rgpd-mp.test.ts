@@ -119,7 +119,7 @@ describe("2 · le gardien : la validation du fondateur", () => {
 });
 
 describe("3 · le corps envoyé au site ne change pas", () => {
-  const corpsApresAdresse = async (validees: readonly string[], perimee = false) => {
+  const corpsApresAdresse = async (validees: readonly string[], perimee = false): Promise<Record<string, unknown> | undefined> => {
     reinitialiserDepots();
     C.reinitialiserParcoursConversation();
     pm.reinitialiserGardesParcours();
@@ -139,7 +139,7 @@ describe("3 · le corps envoyé au site ne change pas", () => {
     const o = (typeof brutCorps === "string" ? JSON.parse(brutCorps) : brutCorps) as Record<string, unknown> | undefined;
     // La clé d'idempotence est propre à chaque conversation d'essai (non rejouable d'un essai à l'autre) : seul son format est contrôlé.
     expect(String(o?.cleIdempotence)).toMatch(/^[0-9a-f]{64}$/);
-    return o && { ...o, cleIdempotence: "<clé>" };
+    return o ? { ...o, cleIdempotence: "<clé>" } : undefined;
   };
   it("non validée : même corps, octet pour octet, que sans la nouvelle version ; champs transmis connus ; jamais de référence de commentaire", async () => {
     const avant = await corpsApresAdresse(["mp-m1-v5-3"]);
