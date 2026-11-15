@@ -43,12 +43,13 @@ describe("L7-06 suite · 4.4 pastille « Ancien outil »", () => {
   });
 });
 
-describe("L7-06 suite · 4.5 « Changer d'outil » propose deux outils", () => {
-  it("les deux outils, Zernio d'abord, l'actuel marqué (Zernio actuel)", () => {
-    expect(outilsProposes("zernio")).toEqual([{ outil: "zernio", actuel: true, ancien: false, desactive: false }, { outil: "buffer", actuel: false, ancien: true, desactive: true }]);
+describe("L7-06 suite · 4.5 « Changer d'outil » ne propose plus que Zernio (L0-13a)", () => {
+  it("Zernio seul, marqué actuel (Zernio actuel)", () => {
+    expect(outilsProposes("zernio")).toEqual([{ outil: "zernio", actuel: true, ancien: false, desactive: false }]);
   });
-  it("les deux outils, l'actuel marqué (Buffer actuel)", () => {
-    expect(outilsProposes("buffer")).toEqual([{ outil: "zernio", actuel: false, ancien: false, desactive: false }, { outil: "buffer", actuel: true, ancien: true, desactive: false }]);
+  it("Zernio seul, non marqué actuel pour un compte encore lu chez Buffer ; Buffer n'est jamais proposé", () => {
+    expect(outilsProposes("buffer")).toEqual([{ outil: "zernio", actuel: false, ancien: false, desactive: false }]);
+    expect(outilsProposes("buffer").some((o) => o.outil === "buffer")).toBe(false);
   });
   it("Buffer n'est sélectionnable que pour un compte encore chez Buffer (4.3 non fait côté serveur)", () => {
     expect(outilSelectionnable("buffer", "zernio")).toBe(false);

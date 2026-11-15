@@ -253,15 +253,15 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     await expect(buf.testerBuffer()).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
 
     // 4. Aucun envoi ne peut partir par Buffer, quel que soit le compte coché : refus, 0 appel, 0 brouillon, 0 publication écrite.
-    const refus = /Zernio n'est pas relié|Buffer|OUTIL/i;
-    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(refus);
-    await expect(pub.envoyerVersBuffer(VIDEO, ["facebook"], DEMAIN, { comptes: { facebook: [CANAUX.facebook2] } })).rejects.toThrow(refus);
-    await expect(pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN)).rejects.toThrow(refus);
+    const refus = { code: "ZERNIO_NON_RELIE" };
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toMatchObject(refus);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["facebook"], DEMAIN, { comptes: { facebook: [CANAUX.facebook2] } })).rejects.toMatchObject(refus);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN)).rejects.toMatchObject(refus);
     expect(fb().mutations()).toHaveLength(0);
     expect(fb().posts.size).toBe(0);
     expect(await depots().publications.lister((p) => p.videoId === VIDEO)).toHaveLength(0);
     // Renvoi (double toucher) : toujours refusé, l'épisode ne bouge pas.
-    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(refus);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toMatchObject(refus);
     expect(fb().mutations()).toHaveLength(0);
     expect((await depots().videos.obtenir(VIDEO))!.episodeSerie).toBe(2);
     expect((await depots().series.obtenir(serie.id))!.dernierEpisode).toBe(2);
@@ -280,7 +280,7 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     // L0-13a : Buffer n'est plus inscrit : aucune feuille de comptes Buffer, aucune lecture.
     expect(await buf.vueEnvoiBuffer()).toBeNull();
     // Le premier envoi est refusé, rien ne part chez Buffer, aucune lecture de comptes déclenchée.
-    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN)).rejects.toThrow(/Zernio n'est pas relié|Buffer|OUTIL/i);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN)).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
     expect(fb().mutations()).toHaveLength(0);
     expect(fb().appels).toHaveLength(0);
     expect(await buf.vueEnvoiBuffer()).toBeNull();
@@ -292,7 +292,7 @@ describe("A2 — vidéo prête → kit Claude → comptes LinkedIn puis Facebook
     await series.definirVotreMarque(VIDEO, true);
     await cocher();
     // L0-13a : l'envoi par Buffer est refusé (aucun appel) ; le rappel « Votre marque » est posé directement pour garder le test de l'e-mail de secours.
-    await expect(pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN)).rejects.toThrow(/Zernio n'est pas relié|Buffer|OUTIL/i);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["tiktok"], DEMAIN)).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
     expect(fb().mutations()).toHaveLength(0);
     await notifs.creerNotification({ type: "publication", titre: "TikTok : vidéo « Votre marque »", message: `${RAPPEL_VOTRE_MARQUE}, avant de publier le brouillon.`, lien: `/videos/${VIDEO}` });
     await notifs.enregistrerAbonnementPush({ endpoint: "https://fcm.googleapis.com/fcm/send/essai-a2b", keys: { p256dh: "BEssaiP256dh", auth: "essai-auth" } }, "iPhone");

@@ -493,7 +493,7 @@ describe("D3 — confirmer à chaque fabrication, puis fabrication de bout en bo
     // 4. Brouillon Buffer (publication réglée EN BASE).
     for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
     // L0-13a : « buffer » en base n'est plus un fournisseur d'envoi : refus (Zernio non relié), aucun appel Buffer, aucune publication écrite.
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toThrow(/Zernio n'est pas relié|Buffer|OUTIL/i);
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
     expect((R.buffer as ReturnType<typeof fauxBuffer>).mutations()).toHaveLength(0);
     expect(await depots().publications.lister((p) => p.videoId === VIDEO)).toHaveLength(0);
 

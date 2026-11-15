@@ -9,4 +9,4 @@ Ils posent `FOURNISSEUR_PUBLICATION=buffer` ou la clé Buffer et attendent le fo
 - `tests/e2e-verif1-a2-publication.test.ts`
 - `tests/e2e-verif1-d-interrupteurs.test.ts`
 
-Demande : les ajouter à L0-13a (ou L0-13g) avant reprise. Aucun n'a été modifié. Détail : `pilotage/journal/L0-13a.md`.
+Décision « accord L0-13 » du fondateur : ces 5 tests SONT modifiés (commit c77631af), dans le sens « Buffer ne peut plus envoyer ». Reste à les inscrire dans `fichiers_autorises` de la fiche. Détail : `pilotage/journal/L0-13a.md`.
