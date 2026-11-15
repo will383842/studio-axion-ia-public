@@ -11,7 +11,7 @@
  * CONTRAT AVEC LE SITE : un code inconnu du site → 200 avec une liste VIDE (le Studio en tire « manquant_au_site »). Un 404
  * signifie donc « route absente » SEULEMENT (site pas prêt, pas une erreur) : il ne dit rien d'un code précis, il ne vide donc
  * jamais les écarts déjà connus (ils sont conservés tels quels, seul l'état change). 503 ou délai = site indisponible.
- * Au-delà de MAX_GUIDES_PAR_PASSAGE codes, seules les versions Studio des codes réellement interrogés sont comparées. Résultat mémorisé dans `guides.reconciliation` (dernier passage et écarts, sans aucun texte).
+ * Au-delà de MAX_GUIDES_PAR_PASSAGE codes, le passage tourne (curseur) et seules les versions Studio des codes réellement interrogés sont comparées. Résultat mémorisé dans `guides.reconciliation` (dernier passage et écarts, sans aucun texte).
  */
 import "server-only";
 import { comparerVersions, lireVersionsSite, type Ecart, type VersionSite, type VersionStudio } from "@/domaine/guides-pdf/reconciliation";
@@ -56,10 +56,14 @@ export interface MemoireReconciliation {
   lignesIgnorees: number;
   ecarts: Ecart[];
   ecartsTronques: boolean;
+  /** Dernier code traité au passage précédent : le passage suivant reprend après lui (boucle au début). */
+  curseur: string | null;
+  /** Nombre de codes non interrogés à ce passage (plafond atteint) : l'écran peut dire « N guides pas encore revus ». */
+  codesRestants: number;
 }
 
 export type ResultatReconciliation =
-  | { ok: true; etat: "compare"; ecarts: Ecart[] }
+  | { ok: true; etat: "compare"; ecarts: Ecart[]; codesRestants: number }
   | { ok: true; etat: "site_pas_pret" }
   | { ok: false; raison: "interrupteur_eteint" | "site_non_relie" | "site_indisponible" | "reponse_illisible" | "studio_illisible" | "dependances_indisponibles" };
 
@@ -164,12 +168,20 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   } catch {
     return { ok: false, raison: "studio_illisible" };
   }
-  const codes = [...new Set(studio.map((v) => v.code))].sort().slice(0, MAX_GUIDES_PAR_PASSAGE);
   const ancien = await d.lireParametre(PARAM_RECONCILIATION).catch(() => null);
+  const anc = (typeof ancien === "object" && ancien !== null ? ancien : {}) as Partial<MemoireReconciliation>;
+  const curseurAvant = typeof anc.curseur === "string" ? anc.curseur : null;
+  // Rotation : au plus MAX codes, en reprenant après le dernier code traité au passage précédent ; boucle au début.
+  const tous = [...new Set(studio.map((v) => v.code))].sort();
+  const debut = curseurAvant === null ? -1 : tous.findIndex((c) => c > curseurAvant);
+  const rang = debut === -1 ? tous : [...tous.slice(debut), ...tous.slice(0, debut)];
+  const codes = rang.slice(0, MAX_GUIDES_PAR_PASSAGE);
+  const codesRestants = tous.length - codes.length;
+  const curseur = codes.length > 0 ? codes[codes.length - 1] : curseurAvant;
   const garder = (etat: EtatReconciliation): MemoireReconciliation => {
     const a = (typeof ancien === "object" && ancien !== null ? ancien : {}) as Partial<MemoireReconciliation>;
-    // Un échec ne change ni le dernier passage terminé ni les écarts connus : seul l'état dit que le dernier essai a échoué.
-    return { dernierPassage: typeof a.dernierPassage === "string" ? a.dernierPassage : null, etat, guidesLus: a.guidesLus ?? 0, lignesIgnorees: a.lignesIgnorees ?? 0, ecarts: Array.isArray(a.ecarts) ? a.ecarts : [], ecartsTronques: a.ecartsTronques === true };
+    // Un échec ne change ni le dernier passage terminé ni les écarts connus ni le curseur : seul l'état dit que le dernier essai a échoué.
+    return { dernierPassage: typeof a.dernierPassage === "string" ? a.dernierPassage : null, etat, guidesLus: a.guidesLus ?? 0, lignesIgnorees: a.lignesIgnorees ?? 0, ecarts: Array.isArray(a.ecarts) ? a.ecarts : [], ecartsTronques: a.ecartsTronques === true, curseur: curseurAvant, codesRestants: typeof a.codesRestants === "number" ? a.codesRestants : 0 };
   };
 
   const deSite: VersionSite[] = [];
@@ -177,8 +189,8 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   for (const code of codes) {
     const l = await lireUnGuide(d, site, code);
     if (l.kind === "pas_pret") {
-      // Route absente : on garde les écarts déjà connus (jamais remplacés par une liste vide) ; seul l'état et l'instant changent.
-      await memoriser({ ...garder("site_pas_pret"), dernierPassage: new Date(d.maintenantMs()).toISOString() });
+      // Route absente : comme pour tout échec, on garde les écarts connus ET l'ancien dernier passage ; seul l'état change.
+      await memoriser(garder("site_pas_pret"));
       await journal("guides_reconciliation", "site pas prêt (route absente)");
       return { ok: true, etat: "site_pas_pret" };
     }
@@ -201,15 +213,21 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   }
   // Au-delà du plafond, un code non interrogé n'a aucune ligne côté site : le comparer donnerait un faux « manquant_au_site ».
   const interroges = new Set(codes);
-  const ecarts = comparerVersions(studio.filter((v) => interroges.has(v.code)), deSite);
+  const nouveaux = comparerVersions(studio.filter((v) => interroges.has(v.code)), deSite);
+  // Les écarts des codes non interrogés à ce passage sont conservés tels quels (tant que le guide existe encore au Studio).
+  const presents = new Set(tous);
+  const conserves = (Array.isArray(anc.ecarts) ? anc.ecarts : []).filter((e) => !interroges.has(e.code) && presents.has(e.code));
+  const ecarts = [...conserves, ...nouveaux];
   await memoriser({
     dernierPassage: new Date(d.maintenantMs()).toISOString(),
     etat: "compare",
     guidesLus: codes.length,
     lignesIgnorees: ignorees,
     ecarts: ecarts.slice(0, MAX_ECARTS_MEMORISES),
-    ecartsTronques: ecarts.length > MAX_ECARTS_MEMORISES,
+    ecartsTronques: ecarts.length > MAX_ECARTS_MEMORISES || (anc.ecartsTronques === true && codesRestants > 0),
+    curseur,
+    codesRestants,
   });
-  await journal("guides_reconciliation", `ecarts=${ecarts.length} guides=${codes.length}`);
-  return { ok: true, etat: "compare", ecarts };
+  await journal("guides_reconciliation", `ecarts=${ecarts.length} guides=${codes.length} restants=${codesRestants}`);
+  return { ok: true, etat: "compare", ecarts, codesRestants };
 }
