@@ -33,6 +33,8 @@ export function choisirFormulation(o: {
   validees: ReadonlySet<string>;
   rendre: (version: IdTexteMp) => string | null;
   conforme?: (texte: string) => boolean;
+  /** Vrai : en l'absence de version figée, la DERNIÈRE version validée du groupe est prise (pas de répartition par rang). Une seule validée : même résultat. */
+  derniereValidee?: boolean;
 }): ChoixFormulation | null {
   const liste = GROUPES_MP[o.groupe];
   const essayer = (v: IdTexteMp): string | null => {
@@ -50,6 +52,13 @@ export function choisirFormulation(o: {
   if (figee) {
     const t = essayer(figee);
     if (t !== null) return { version: figee, texte: t, figeeAbandonnee: false };
+  }
+  if (o.derniereValidee) {
+    for (let i = liste.length - 1; i >= 0; i--) {
+      const t = essayer(liste[i]);
+      if (t !== null) return { version: liste[i], texte: t, figeeAbandonnee: !!figee };
+    }
+    return null;
   }
   const depart = rangFormulation(o.groupe, o.cleConversation, liste.length);
   for (let i = 0; i < liste.length; i++) {

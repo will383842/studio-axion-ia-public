@@ -769,6 +769,7 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
       const r = choisirFormulation({
         groupe: "m1-adresse-rgpd",
         cleConversation: e.cleIdempotenceGuide,
+        derniereValidee: true, // plusieurs versions validées : la plus récente ; une seule (v6-1) : inchangé
         figee: figeeAdresse,
         validees: await formulationsValidees(),
         rendre: (v) => rendreTexteMp(v, { mot, titre }),

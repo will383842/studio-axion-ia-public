@@ -49,7 +49,7 @@ describe("1 · le texte proposé", () => {
     expect(brut(NOUVELLE)).toBeDefined();
     expect(brut(NOUVELLE).version).toBe(NOUVELLE);
     expect(brut(NOUVELLE).statut).toBe("actif");
-    expect((GROUPES_MP as Record<string, readonly string[]>)[GROUPE]).toEqual([NOUVELLE]);
+    expect((GROUPES_MP as Record<string, readonly string[]>)[GROUPE]).toEqual([NOUVELLE, "mp-m1-v6-2"]);
     expect(GROUPES_MP["m1-adresse"]).toEqual(["mp-m1-v5-1", "mp-m1-v5-2", "mp-m1-v5-3", "mp-m1-v5-4"]);
   });
   it("garde les 4 éléments de la mention : origine de la demande, finalité, droit d'opposition, contact", () => {
