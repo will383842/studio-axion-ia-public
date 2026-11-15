@@ -19,6 +19,7 @@
  *  - la MISE EN PAGE des instants clés (Q21) : elle lit `studio-rendu/…/emprise.ts`, que `src/` ne peut pas importer.
  * Conversion de l'image en PNG et tuiles : FFmpeg local s'il est installé (comme `facecam-branchements`), sinon refus.
  */
+import { nouvelId } from "@/lib/ids";
 import "server-only";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -319,7 +320,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
       try {
         // L3-01 : la voix est contrôlée, réservée et engagée sous le verrou des crédits avec l'origine de la commande ;
         // Claude n'a ici qu'un pré-vol (sa réservation se fait dans `executerRolePourVideo`, avec la même origine).
-        if (d.fournisseur === "heygen") await credits.verifierEtReserverSelonOrigine(origineResolueIV, { lignes, total: lignes[0].total }, accordVoix, "Cette vidéo", { videoId: dep.videoId, travailId: dep.travailId });
+        if (d.fournisseur === "heygen") await credits.verifierEtReserverSelonOrigine(origineResolueIV, { lignes, total: lignes[0].total }, accordVoix, "Cette vidéo", { videoId: dep.videoId, travailId: dep.travailId, cleUsine: `${dep.travailId}#${nouvelId("voix")}` });
         else await credits.verifierBudgetEtCredits({ lignes, total: lignes[0].total }, d.centimes, "Cette vidéo", { origine: origineResolueIV });
         return { ok: true };
       } catch (err) {

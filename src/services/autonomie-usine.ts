@@ -185,12 +185,12 @@ export interface JugementUsine {
  * LECTURE SEULE. `apres` = utilisé du mois HORS cette clé + besoin effectif. Une reprise recompte ce qui est déjà payé + le
  * reste. Égalité au plafond ACCEPTÉE. Autonomie non active ou besoin illisible : refus (échec fermé).
  */
-export async function jugerSousPlafondUsine(demande: { cle?: string; besoin: number }): Promise<JugementUsine> {
+export async function jugerSousPlafondUsine(demande: { cle?: string; besoin: number; ajouter?: boolean }): Promise<JugementUsine> {
   const mois = moisParis(maintenant());
   const reglage = await lireAutonomieUsine();
   const plafond = reglage.etat === "active" ? reglage.plafondCents : 0;
   const utilise = await usageDuMoisUsine(mois);
-  const { cle, besoin } = demande;
+  const { cle, besoin, ajouter } = demande;
   if (reglage.etat !== "active" || typeof besoin !== "number" || !Number.isFinite(besoin) || besoin < 0) return { ok: false, effectif: 0, utilise, apres: utilise, plafond, mois };
   const pire = Math.ceil(besoin);
   let utiliseHors = utilise;
@@ -201,7 +201,8 @@ export async function jugerSousPlafondUsine(demande: { cle?: string; besoin: num
       if (accord.mois === mois) utiliseHors = utilise - (await usageDeLaCle(cle));
       const e = await lireEngagement(cle);
       const { paye } = await payeDeLaCle(cle);
-      effectif = Math.max(pire, e && e.statut === "active" ? e.centimes : 0) + paye;
+      // AUT-G : `ajouter` = une dépense de plus sur une clé déjà accordée : elle s'ajoute à ce que la clé occupe déjà.
+      effectif = ajouter ? (await usageDeLaCle(cle)) + pire : Math.max(pire, e && e.statut === "active" ? e.centimes : 0) + paye;
     }
   }
   const apres = utiliseHors + effectif;
@@ -212,11 +213,11 @@ export async function jugerSousPlafondUsine(demande: { cle?: string; besoin: num
  * Inscrit l'accord de l'Usine. REFUSE `VERROU_REQUIS` hors `dansVerrouCredits`. Rejuge puis écrit dans la même section
  * critique (c'est la réservation atomique) ; refus : `USINE_PLAFOND_ATTEINT`, rien n'est écrit.
  */
-export async function inscrireAccordUsine(demande: { cle: string; besoin: number; quoi: string; videoId?: string }): Promise<JugementUsine> {
+export async function inscrireAccordUsine(demande: { cle: string; besoin: number; quoi: string; videoId?: string; ajouter?: boolean }): Promise<JugementUsine> {
   if (!estDansVerrouCredits()) throw new ErreurStudio("VERROU_REQUIS", "L'accord de l'Usine ne s'inscrit que sous le verrou des crédits.");
-  const { cle, besoin, quoi, videoId } = demande;
+  const { cle, besoin, quoi, videoId, ajouter } = demande;
   const entite = videoId ? { type: "video", id: videoId } : { type: "travail", id: cle };
-  const j = await jugerSousPlafondUsine({ cle, besoin });
+  const j = await jugerSousPlafondUsine({ cle, besoin, ...(ajouter ? { ajouter: true } : {}) });
   const reglage = await lireAutonomieUsine();
   if (reglage.etat !== "active") throw new ErreurStudio("AUTONOMIE_ETEINTE", "L'Usine n'est pas en automatique : la confirmation reste demandée.");
   if (!j.ok) {

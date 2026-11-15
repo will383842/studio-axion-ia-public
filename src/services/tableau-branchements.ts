@@ -14,6 +14,7 @@
  * sources de chiffres et les bulles de preuve viendront avec les écrans (TB-21). La case « déjà vu » est cochée à la
  * création et lue dans les entrées de la commande par le moteur.
  */
+import { nouvelId } from "@/lib/ids";
 import "server-only";
 import { brancherServicesTableau, ID_MOTEUR_TABLEAU, type OutilsTableau } from "@/moteurs/montage-tableau";
 import type { ResumeVisuel } from "@/briques/variete";
@@ -125,7 +126,7 @@ brancherServicesTableau({
           const total = centimes(e.centimes);
           const voix = b.voix.fournisseurVoix ?? "voix";
           // L3-01 : contrôle, réservation et engagement sous le verrou des crédits, avec l'origine de la commande.
-          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: voix, unite: "caractere", quantite: e.caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, e.centimes, "Cette vidéo", { videoId: c.videoId, travailId });
+          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: voix, unite: "caractere", quantite: e.caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, e.centimes, "Cette vidéo", { videoId: c.videoId, travailId, cleUsine: `${travailId}#${nouvelId("voix")}` });
         },
       },
     };

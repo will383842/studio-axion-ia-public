@@ -84,14 +84,17 @@ const cleEngagement = (travailId: Id) => `budget.engage.${travailId}`;
 const ORPHELIN_MS = 15 * 60_000;
 
 /** Engage `montant` pour ce travail (appelé sous le verrou des crédits, juste après le contrôle). */
-export async function engagerBudget(travailId: Id, montant: Montant, videoId?: Id): Promise<void> {
+export async function engagerBudget(travailId: Id, montant: Montant, videoId?: Id, options: { cumuler?: boolean } = {}): Promise<void> {
   if (montant.centimes <= 0) return;
+  // AUT-G : `cumuler` (dépense de l'Usine sur un travail déjà engagé, ex. lecture de voix) AJOUTE à l'engagement actif au lieu de l'écraser.
+  const avant = options.cumuler ? await lireParametre<EngagementBudget | null>(cleEngagement(travailId), null) : null;
+  const dejaEngage = avant && avant.statut === "active" ? avant.centimes : 0;
   const encore: Id[] = [];
   for (const id of await lireParametre<Id[]>(CLE_INDEX_ENGAGEMENTS, [])) {
     if (id !== travailId && (await engagementCompte(id)) > 0) encore.push(id);
   }
   // L1-09 : pire cas, au centime supérieur (jamais de fraction de centime dans la somme du mois).
-  const e: EngagementBudget = { centimes: centimesAuSuperieur(montant.centimes), le: maintenant(), statut: "active", videoId };
+  const e: EngagementBudget = { centimes: dejaEngage + centimesAuSuperieur(montant.centimes), le: maintenant(), statut: "active", videoId };
   await ecrireParametre(cleEngagement(travailId), e);
   await ecrireParametre(CLE_INDEX_ENGAGEMENTS, [...encore, travailId]);
 }

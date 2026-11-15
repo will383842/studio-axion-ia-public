@@ -11,6 +11,7 @@
  *  - Rien n'est construit tant qu'un travail du tutoriel n'avance pas ; sans personnage ou sans rendu réel : `null`, le
  *    travail reste en pause claire.
  */
+import { nouvelId } from "@/lib/ids";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 
@@ -38,7 +39,7 @@ brancherServicesTutoriel({
         avantLecture: async () => {
           const caracteres = (c.script.texteComplet ?? "").length;
           const total = centimes(Math.ceil(caracteres * TARIF_VOIX_CENTIMES_PAR_CARACTERE));
-          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: b.voix.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId });
+          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: b.voix.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId, cleUsine: `${travailId}#${nouvelId("voix")}` });
         },
       },
       claude: async () => {
