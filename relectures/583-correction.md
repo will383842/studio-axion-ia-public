@@ -1,0 +1,1 @@
+PR 583 (usine/L6-06) : points 1, 2, 3 et 5 corrigés (budget_epuise 409, quota_absent 422 en échec fermé, 3 tests ajoutés, clé de quota documentée), commit b8dc38ed ; 12/12 tests verts, tsc/eslint propres ; point 4 laissé au pilotage.
