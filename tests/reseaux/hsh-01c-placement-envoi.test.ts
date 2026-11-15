@@ -123,16 +123,16 @@ describe("aperçu final dans le kit", () => {
     const li = kit.reseaux.find((x) => x.reseau === "linkedin")! as import("@/services/publications").VueKitReseauApercu;
     expect(li.apercuEnvoi).toBeDefined();
     await cocherTout();
-    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { avecPremierCommentaire: true });
+    await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN);
     expect(demande(0).texte).toBe(li.apercuEnvoi!.texte);
     expect(demande(0).premierCommentaire).toBe(li.apercuEnvoi!.premierCommentaire);
+    expect(li.apercuEnvoi!.premierCommentaire).toBe("#Entrepreneur #PME #IA");
   });
 
-  it("envoi SANS options (comme la feuille du kit) : l'aperçu égale ce qui part, commentaire de la vidéo signalé à la main", async () => {
-    for (const reglage of ["texte", "premier-commentaire"] as const) {
+  for (const reglage of ["texte", "premier-commentaire"] as const) {
+    it(`envoi SANS options (comme la feuille du kit), réglage « ${reglage} » : l'aperçu égale ce qui part, commentaire de la vidéo à la main`, async () => {
       await definirPlacement("linkedin", reglage);
       lire.commentaireDeLaVideo = COMMENTAIRE;
-      envoyer.mockClear();
       const kit = (await pub.obtenirKit(VIDEO))!;
       const li = (kit.reseaux.find((x) => x.reseau === "linkedin")! as import("@/services/publications").VueKitReseauApercu).apercuEnvoi!;
       await cocherTout();
@@ -141,8 +141,8 @@ describe("aperçu final dans le kit", () => {
       expect(demande(0).premierCommentaire).toBe(li.premierCommentaire);
       if (reglage === "texte") expect(li.premierCommentaire).toBeUndefined();
       expect(li.aPoserALaMain).toBe(COMMENTAIRE);
-    }
-  });
+    });
+  }
 
   it("avec le réglage par défaut, l'aperçu de chaque réseau est le texte d'avant", async () => {
     const kit = (await pub.obtenirKit(VIDEO))!;
