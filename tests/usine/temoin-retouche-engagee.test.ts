@@ -106,12 +106,12 @@ describe("témoin D2-A · 2. choix de version sur une vidéo programmée", () =>
     expect((await depots().publications.obtenir("pub-temoin"))!.statut).toBe("programmee");
   });
 
-  it("accepte même une version d'une AUTRE vidéo (trou)", async () => {
+  it("refuse une version d'une AUTRE vidéo (INTROUVABLE, N-15) et ne change rien", async () => {
     const { versionId } = await engager("programmee");
     const autre = (await depots().videos.lister((x) => x.id !== VIDEO))[0];
     const etrangere = await autreVersion(autre.id, "ver-etrangere", versionId);
-    await videos.choisirVersion(VIDEO, etrangere.id); // CHANGERA : N-15 (version d'une autre vidéo refusée)
-    expect((await depots().videos.obtenir(VIDEO))!.versionChoisieId).toBe("ver-etrangere"); // CHANGERA : N-15
+    await expect(videos.choisirVersion(VIDEO, etrangere.id)).rejects.toMatchObject({ code: "INTROUVABLE" });
+    expect((await depots().videos.obtenir(VIDEO))!.versionChoisieId).toBe(versionId);
     expect((await depots().versions.obtenir("ver-etrangere"))!.videoId).toBe(autre.id);
   });
 });
@@ -125,23 +125,22 @@ describe("témoin D2-A · 3. chat « revenir » sur une vidéo engagée", () => 
     expect(r.status).toBe(401);
   });
 
-  it("répond « revenue » et change la version choisie d'une vidéo programmée", async () => {
+  it("voie sans générateur fermée (403, C7-02) : la version choisie d'une vidéo programmée ne change pas", async () => {
     const { versionId } = await engager("programmee");
     await autreVersion(VIDEO, "ver-temoin-2", versionId);
     const avant = await instantane();
     const r = await POST(requete({ action: "revenir", videoId: VIDEO, versionId: "ver-temoin-2" }));
-    expect(r.status).toBe(200); // CHANGERA : C7-02 (porte du chat) et N-22 (refus sur vidéo programmée)
-    expect(await r.json()).toEqual({ statut: "revenue", versionId: "ver-temoin-2" });
-    expect((await depots().videos.obtenir(VIDEO))!.versionChoisieId).toBe("ver-temoin-2"); // CHANGERA : N-22
+    expect(r.status).toBe(403); // interrupteur `retoucheChat.sansGenerateur` éteint ; CHANGERA : N-22 si l'interrupteur est allumé
+    expect((await depots().videos.obtenir(VIDEO))!.versionChoisieId).toBe(versionId);
     expect(await instantane()).toEqual(avant);
   });
 
-  it("accepte aussi une version d'une autre vidéo (trou)", async () => {
+  it("refuse aussi une version d'une autre vidéo (403 interrupteur éteint ; 404 s'il est allumé, N-15)", async () => {
     const { versionId } = await engager("programmee");
     const autre = (await depots().videos.lister((x) => x.id !== VIDEO))[0];
     await autreVersion(autre.id, "ver-etrangere", versionId);
     const r = await POST(requete({ action: "revenir", videoId: VIDEO, versionId: "ver-etrangere" }));
-    expect(r.status).toBe(200); // CHANGERA : N-15
-    expect((await depots().videos.obtenir(VIDEO))!.versionChoisieId).toBe("ver-etrangere"); // CHANGERA : N-15
+    expect(r.status).toBe(403);
+    expect((await depots().videos.obtenir(VIDEO))!.versionChoisieId).toBe(versionId);
   });
 });
