@@ -8,10 +8,17 @@ import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
 
 /**
  * Geste « Mettre en stock » : met un texte de côté dans « Mes textes ».
- * Ne déplace, n'archive et ne supprime jamais la source. La clé de rejeu (une par source) évite le doublon au double clic.
+ * Ne déplace, n'archive et ne supprime jamais la source. La clé de rejeu (source + empreinte du texte) évite le doublon au double clic, et un texte modifié reçoit une nouvelle clé.
  */
-export async function mettreEnStock(texte: string, cle: string) {
-  return creerEntreeStockAction({ texte, reseaux: [...RESEAUX_TAXONOMIE], priorite: "normale", cle });
+/** Empreinte courte (FNV-1a 32 bits) du texte nettoyé : la clé change quand le texte change. */
+export function empreinteTexte(texte: string): string {
+  let h = 0x811c9dc5;
+  for (const c of texte.trim()) h = Math.imul(h ^ c.codePointAt(0)!, 0x01000193) >>> 0;
+  return h.toString(36);
+}
+
+export async function mettreEnStock(texte: string, source: string) {
+  return creerEntreeStockAction({ texte, reseaux: [...RESEAUX_TAXONOMIE], priorite: "normale", cle: `${source}-${empreinteTexte(texte)}` });
 }
 
 async function lancer(texte: string, cle: string) {

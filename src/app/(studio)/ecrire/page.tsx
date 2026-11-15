@@ -31,7 +31,6 @@ import { Onglets } from "@/components/ui/Onglets";
 import { listerSujets, valeursFiltresGenerateur } from "@/services/generateur";
 import { listerIdees } from "@/services/idees";
 import { listerScripts } from "@/services/scripts";
-import { estActif } from "@/domaine/stock-messages";
 import { depots } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { usineActive } from "@/services/usine-porte";
@@ -79,7 +78,7 @@ export default async function PageEcrire({ searchParams }: { searchParams: Promi
   ]);
   // Équipe 7 : séries reconnaissables (bandeau au-dessus des sujets).
   const series = await listerSeries();
-  const mesTextes = await depots().stockMessages.lister(estActif);
+  const mesTextes = await depots().stockMessages.lister((m) => !m.archiveLe);
   const filtreMatieres = sp.type === "preuves" || TYPES_MATIERE.includes(sp.type as TypeMatiere) ? (sp.type as TypeMatiere | "preuves") : "tout";
   const ajoutMatiere = sp.ajout === "matiere" || sp.ajout === "vrac" || sp.ajout === "preuve" ? sp.ajout : undefined;
   const filtreCiblage = lireFiltreCiblage(sp);

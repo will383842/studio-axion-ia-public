@@ -2,10 +2,10 @@
 
 /** RC-31 : stock de messages à faire passer. Chaque action commence par exigerSession(). Rien n'est supprimé : on archive. */
 import { revalidatePath } from "next/cache";
-import { verifierSaisieStock, creerEntreeStock, archiverMessage, planifierEntree, type MessageStock, type PrioriteStock } from "@/domaine/stock-messages";
+import { verifierSaisieStock, creerEntreeStock, estActif, archiverMessage, planifierEntree, type MessageStock, type PrioriteStock } from "@/domaine/stock-messages";
 import type { IdReseau } from "@/domaine/types";
 import { nouvelId } from "@/lib/ids";
-import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
+import { depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 
 export async function creerEntreeStockAction(e: {
@@ -36,6 +36,8 @@ export async function creerEntreeStockAction(e: {
           (existante.format ?? undefined) === (saisie.format ?? undefined) &&
           JSON.stringify(existante.reseaux ?? []) === JSON.stringify(saisie.reseaux);
         if (!memes) throw new Error("Cette saisie a déjà servi pour un autre message : rechargez la page.");
+        // Même texte déjà archivé, planifié ou publié : pas de faux succès, on le dit clairement.
+        if (!estActif(existante)) throw new ErreurStudio("DEJA_PLACE", "Ce texte est déjà placé ou archivé.");
         return existante;
       }
     }

@@ -27,7 +27,7 @@ const { depots } = await import("@/services/_commun");
 const { creerEntreeStock, estActif, archiverMessage } = await import("@/domaine/stock-messages");
 const { default: Page } = await import("../src/app/(studio)/ecrire/page");
 const actions = await import("../src/app/(studio)/ecrire/stock/actions");
-const { mettreEnStock } = await import("../src/components/ecrire/BoutonMettreEnStock");
+const { mettreEnStock, elementMettreEnStock } = await import("../src/components/ecrire/BoutonMettreEnStock");
 
 const rendre = async (params: Record<string, string>) => renderToStaticMarkup(await Page({ searchParams: Promise.resolve(params) }));
 const lire = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
@@ -85,8 +85,9 @@ describe("STK-02 : geste « Mettre en stock »", () => {
   });
 
   it("est branché dans le menu des idées et sur la fiche d'un script", () => {
-    expect(lire("src/components/ecrire/OngletIdees.tsx")).toContain("BoutonMettreEnStock");
-    expect(lire("src/components/ecrire/FicheScript.tsx")).toContain("BoutonMettreEnStock");
+    expect(lire("src/components/ecrire/OngletIdees.tsx")).toMatch(/elementMettreEnStock\(i\.texte, `idee-\$\{i\.id\}`\)/);
+    expect(lire("src/components/ecrire/FicheScript.tsx")).toMatch(/elementMettreEnStock\(texteScript\(script\.blocs\), `script-\$\{script\.id\}`\)/);
+    expect(elementMettreEnStock("Un texte", "idee-1")).toMatchObject({ libelle: "Mettre en stock" });
   });
 
   it("ne déplace ni n'archive : l'idée reste dans « Idées », l'entrée n'apparaît pas dans « Idées »", async () => {
@@ -97,6 +98,37 @@ describe("STK-02 : geste « Mettre en stock »", () => {
     expect(stock.every((m) => !m.archiveLe)).toBe(true);
     expect(stock).toHaveLength(1);
     expect(idees).not.toContain(stock[0].id);
+  });
+});
+
+describe("STK-02 : texte modifié, archivé ou planifié", () => {
+  it("un texte modifié remis en stock depuis la même source crée une nouvelle entrée", async () => {
+    const r1 = await mettreEnStock("Premier jet", "script-s1");
+    const r2 = await mettreEnStock("Premier jet corrigé", "script-s1");
+    expect(r1.ok && r2.ok).toBe(true);
+    expect(await depots().stockMessages.lister()).toHaveLength(2);
+  });
+
+  it("un texte déjà archivé ou planifié ne renvoie pas de faux succès", async () => {
+    const r = await mettreEnStock("Texte placé", "idee-i9");
+    const id = r.ok ? r.donnees.id : "";
+    await actions.archiverEntreeStockAction(id);
+    const r2 = await mettreEnStock("Texte placé", "idee-i9");
+    expect(r2).toEqual(expect.objectContaining({ ok: false, message: "Ce texte est déjà placé ou archivé." }));
+    const p = await mettreEnStock("Texte planifié", "idee-i10");
+    await actions.planifierEntreeStockAction(p.ok ? p.donnees.id : "", "creneau-1");
+    const p2 = await mettreEnStock("Texte planifié", "idee-i10");
+    expect(p2.ok).toBe(false);
+  });
+
+  it("les filtres « Planifié » et « Publié » montrent les entrées planifiées ; les archivées restent cachées", async () => {
+    const a = await mettreEnStock("Texte à planifier", "idee-i11");
+    await actions.planifierEntreeStockAction(a.ok ? a.donnees.id : "", "creneau-1");
+    const b = await mettreEnStock("Texte à archiver", "idee-i12");
+    await actions.archiverEntreeStockAction(b.ok ? b.donnees.id : "");
+    const h = await rendre({ onglet: "mes-textes" });
+    expect(h).not.toContain("Texte archivé");
+    expect(h).not.toContain("Texte à archiver");
   });
 });
 
