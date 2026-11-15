@@ -1,0 +1,5 @@
+# Relecture PR 570 — DUREE-PAR-RESEAU
+
+VERDICT PROVISOIRE : en cours
+
+Tête relue : f2a624b45d0f338aee35be8111266f0c0a80077e
