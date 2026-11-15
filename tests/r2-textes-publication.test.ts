@@ -143,7 +143,7 @@ describe("R2 · dépense rattachée à la vidéo", () => {
     const deps = await depensesClaude(v.id);
     expect(deps).toHaveLength(PAR_DEFAUT.length);
     for (const d of deps) expect(d.lignes[0]).toMatchObject({ fournisseur: "anthropic", nature: "reel" });
-    expect(deps.map((d) => d.lignes[0].etape).sort()).toEqual(["Texte de publication · Instagram", "Texte de publication · LinkedIn", "Texte de publication · TikTok", "Texte de publication · YouTube Shorts"]);
+    expect(deps.map((d) => d.lignes[0].etape).sort()).toEqual(["Texte de publication · Instagram", "Texte de publication · LinkedIn", "Texte de publication · TikTok"]);
     const res = await depots().reservations.lister((r) => r.videoId === v.id);
     expect(res).toHaveLength(PAR_DEFAUT.length);
     expect(res.every((r) => r.statut === "consommee" && r.fournisseur === "anthropic")).toBe(true);
@@ -300,14 +300,14 @@ describe("R2 · rien d'inventé, la fin ajoutée par le code", () => {
 });
 
 describe("R2 · un texte retouché à la main n'est JAMAIS écrasé", () => {
-  it("retouché avant la suite : Claude ne l'écrit pas (3 appels), la retouche reste", async () => {
+  it("retouché avant la suite : Claude ne l'écrit pas (2 appels), la retouche reste", async () => {
     const appels = await brancherClaude();
     const v = await videoSansKit();
     await pub.obtenirKit(v.id);
     await pub.modifierTexteKit(v.id, "linkedin", "Mon texte à moi.", ["#moi"]);
     await suite(v);
     expect(appels.map((a) => a.reseau)).not.toContain("linkedin");
-    expect(appels).toHaveLength(3);
+    expect(appels).toHaveLength(PAR_DEFAUT.length - 1);
     const k = (await pub.obtenirKit(v.id))!.reseaux.find((r) => r.reseau === "linkedin")!;
     expect(k).toMatchObject({ texte: "Mon texte à moi.", origine: "main" });
   });
