@@ -33,3 +33,4 @@
   **toutes font rougir au moins un test**. Seule survivante : `=== "ok"` → `!== "alerte"`, mutation équivalente (valeur déjà garantie finie).
 - Tests RC-15 : 13/13 ; dossier tests/alertes : 62/62 sur la fusion à blanc.
 - `tsc --noEmit` : 146 erreurs sur master, 146 après fusion, aucune dans les fichiers RC-15 (non régressé). `eslint` propre sur les deux fichiers.
+- Suite vitest complète : non concluante (arrêtée à la limite de temps de 30 min) ; seul le dossier tests/alertes a été vérifié.
