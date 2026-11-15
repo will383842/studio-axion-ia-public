@@ -22,7 +22,7 @@ import { cleJour } from "@/lib/dates";
 import { dureeDeLaVideo } from "@/domaine/duree-video";
 import { avertissementReelFacebook } from "@/domaine/reel-facebook";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
-import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
+import { listerReseaux, obtenirReseau, verifierPourReseau, type AvertissementReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer, refusDoublonEntreOutils, serviceBuffer, type ComptesPourReseau } from "@/domaine/buffer";
 import { cleEnvoiPublication, estChezUnOutil, outilDe, type OutilPublication } from "@/domaine/outil-publication";
@@ -388,6 +388,9 @@ async function verserTextesDeVersion(kit: KitPublication, deVersion: TextesDeVer
   });
 }
 
+/** Code de l'avertissement Reel Facebook (ni légende ni blocage). Cast : l'union du registre est hors fiche. */
+export const CODE_AVERTISSEMENT_REEL_FACEBOOK = "reel-facebook-hors-regles" as unknown as AvertissementReseau["code"];
+
 /** Kit prêt à afficher : textes, compteurs, avertissements, cases « Avant de publier ». */
 export async function obtenirKit(videoId: string): Promise<VueKit | null> {
   const detail = await obtenirVideo(videoId);
@@ -440,8 +443,9 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
         avertissements: [
           ...verifierPourReseau(r, { dureeSec, ratios: detail.video.ratios, texte: t.texte, motsDiese: t.motsDiese, sortieEnvoyee: sortie ?? null }),
           // Reel Facebook : prévenu avant la validation, sans bloquer la saisie ni l'envoi.
-          // Code NON bloquant à dessein (« trop-longue » et « ratio-absent » bloqueraient l'envoi) : le code propre au Reel demande le registre des réseaux, hors fiche.
-          ...(r.id === "facebook" && sortie ? [avertissementReelFacebook({ format: sortie.ratio, dureeSec: sortie.dureeSec })].filter((m): m is string => m !== null).map((message) => ({ code: "legende-trop-longue" as const, message })) : []),
+          // Code propre au Reel, NON bloquant à dessein (« trop-longue » et « ratio-absent » bloqueraient l'envoi).
+          // Dette : l'union AvertissementReseau (src/reseaux/index.ts, hors fiche) ne le liste pas encore ; à y ajouter.
+          ...(r.id === "facebook" && sortie ? [avertissementReelFacebook({ format: sortie.ratio, dureeSec: sortie.dureeSec })].filter((m): m is string => m !== null).map((message) => ({ code: CODE_AVERTISSEMENT_REEL_FACEBOOK, message })) : []),
         ],
         etiquetteIA: r.etiquetteIA,
         sortieConseillee: sortie,

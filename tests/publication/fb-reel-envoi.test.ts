@@ -1,6 +1,7 @@
 /**
  * FB-REEL-b · envoi Facebook (Reel) avec Zernio SIMULÉ (même banc que tests/zernio/e2e-04-service.test.ts).
  * Aucune vraie clé, aucun appel réseau, compte fictif.
+ * Fournisseur « simulation » : le routage Zernio passe par le choix de l'outil, pas par cette variable.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -10,7 +11,7 @@ import { CLE_FICTIVE, postExemple, type AppelEnregistre, type ReponsePreparee } 
 import { serveurSimule } from "../zernio/aides/serveur-simule";
 
 process.env.ZERNIO_API_KEY = CLE_FICTIVE;
-process.env.FOURNISSEUR_PUBLICATION = "buffer";
+process.env.FOURNISSEUR_PUBLICATION = "simulation";
 process.env.R2_ACCOUNT_ID = "compte-essai";
 process.env.R2_ACCESS_KEY_ID = "ACCES-ESSAI";
 process.env.R2_SECRET_ACCESS_KEY = "secret-essai";
@@ -135,6 +136,9 @@ describe("FB-REEL-b · Facebook reçoit la vidéo comme Reel", () => {
     expect(fb.avertissements.some((a) => /Reel Facebook/.test(a.message))).toBe(true);
     for (const autre of kit!.reseaux.filter((x) => x.reseau !== "facebook")) expect(autre.avertissements.some((a) => /Reel Facebook/.test(a.message))).toBe(false);
     expect(fb.avertissements.some((a) => a.code === "trop-longue" || a.code === "ratio-absent")).toBe(false);
+    const reel = fb.avertissements.find((a) => /Reel Facebook/.test(a.message))!;
+    expect(reel.code).toBe(pub.CODE_AVERTISSEMENT_REEL_FACEBOOK);
+    expect(reel.code).not.toBe("legende-trop-longue");
     const r = await envoyerFacebook();
     expect(r.ok).toBe(true);
     expect(posts()).toHaveLength(1);
@@ -145,5 +149,12 @@ describe("FB-REEL-b · Facebook reçoit la vidéo comme Reel", () => {
     await fixerSorties("9:16", 30);
     const fb = (await pub.obtenirKit(VIDEO))!.reseaux.find((x) => x.reseau === "facebook")!;
     expect(fb.avertissements.some((a) => /Reel Facebook/.test(a.message))).toBe(false);
+  });
+});
+
+describe("FB-REEL-b · correction relecture 582", () => {
+  it("le banc n'évoque plus l'ancien fournisseur", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync(new URL(import.meta.url), "utf8").toLowerCase().includes("buf" + "fer")).toBe(false);
   });
 });
