@@ -20,4 +20,14 @@ describe("etatChaineYoutube", () => {
   it("liste abîmée : inconnu, jamais d'exception", () => {
     expect(etatChaineYoutube({ lusLe: "x", comptes: "oups" })).toEqual({ etat: "inconnu" });
   });
+  it("compte déconnecté chez le fournisseur (actif: false) : « deconnecte »", () => {
+    const r = etatChaineYoutube({ lusLe: "x", comptes: [{ id: "exemple-compte-yt", reseau: "youtube", nom: "Ma chaîne", actif: false }] });
+    expect(r).toEqual({ etat: "deconnecte", nom: "Ma chaîne" });
+    expect(JSON.stringify(r)).not.toContain("exemple-compte-yt");
+  });
+  it("actif: true ou absent (anciens enregistrements) : « relie »", () => {
+    expect(etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "N", actif: true }] })).toEqual({ etat: "relie", nom: "N" });
+    expect(etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "N" }] })).toEqual({ etat: "relie", nom: "N" });
+    expect(etatChaineYoutube({ lusLe: "x", comptes: [{ id: "a", reseau: "youtube", nom: "N", actif: "non" }] })).toEqual({ etat: "relie", nom: "N" });
+  });
 });

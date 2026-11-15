@@ -73,6 +73,50 @@ describe("suggestion de visibilité, ligne d'état, détail de l'interrupteur", 
   });
 });
 
+describe("suite : interrupteur, chaîne, détail, confirmation", () => {
+  const prive = { ...PROPOSITION_YOUTUBE, visibilite: "private" as const };
+  it("chaîne absente ou inconnue : interrupteur grisé, éteint, avec explication", () => {
+    for (const [chaine, phrase] of [
+      [{ etat: "absent" }, "Impossible d'allumer : aucune chaîne YouTube n'est reliée."],
+      [{ etat: "inconnu" }, "Impossible d'allumer : l'état de la chaîne n'est pas connu."],
+    ] as const) {
+      const h = rendre({ actif: false, reglages: prive, chaine });
+      expect(h).toMatch(/role="switch"[^>]*\sdisabled=""/);
+      expect(texte(h)).toContain(phrase);
+    }
+  });
+  it("chaîne reliée + réglages enregistrés : interrupteur utilisable", () => {
+    const h = rendre({ actif: false, reglages: prive, chaine: { etat: "relie", nom: "Ma chaîne" } });
+    expect(h).not.toMatch(/role="switch"[^>]*\sdisabled=""/);
+  });
+  it("chaîne déconnectée : affichée « déconnectée », jamais « reliée », interrupteur grisé", () => {
+    const h = rendre({ actif: false, reglages: prive, chaine: { etat: "deconnecte", nom: "Ma chaîne" } });
+    expect(texte(h)).toContain("Chaîne déconnectée : Ma chaîne.");
+    expect(texte(h)).not.toContain("Chaîne reliée");
+    expect(h).toMatch(/role="switch"[^>]*\sdisabled=""/);
+  });
+  it("allumé sans réglages valides : le détail dit que l'envoi est bloqué, sans « Éteint »", () => {
+    const t = texte(rendre({ actif: true, reglages: null, chaine: { etat: "relie", nom: "X" } }));
+    expect(t).toContain("Allumé, mais rien ne part");
+    expect(t).not.toContain("Éteint : rien ne part vers YouTube.");
+  });
+  it("allumé : le détail ne parle plus d'« Éteint »", () => {
+    const t = texte(rendre({ actif: true, reglages: prive, chaine: { etat: "relie", nom: "X" } }));
+    expect(t).toContain("Allumé : les Shorts partent en Privé.");
+    expect(t).not.toContain("Éteint :");
+  });
+  it("case de confirmation absente tant que rien n'est modifié", () => {
+    const h = rendre({ actif: true, reglages: prive, chaine: { etat: "relie", nom: "X" } });
+    expect(h).not.toContain("size-5 shrink-0");
+  });
+  it("la carte prévoit la confirmation « public » et le recalage (code)", () => {
+    const src = readFileSync("src/components/reglages/CarteYoutubeShorts.tsx", "utf8");
+    expect(src).toContain("confirmationPublicRequise");
+    expect(src).toContain("recalerFormulaire");
+    expect(src).toMatch(/exigeConfirmation && !confirmePublic/);
+  });
+});
+
 describe("textes et conventions", () => {
   const source = readFileSync("src/components/reglages/CarteYoutubeShorts.tsx", "utf8");
   it("aucun jargon ni identifiant brut affiché", () => {
