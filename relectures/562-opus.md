@@ -47,3 +47,11 @@ VERDICT PROVISOIRE : en cours — la branche a bougé pendant la relecture (e1f6
 Méthode : clone neuf, vrai `credits.ts`, dépôts en mémoire, lecteurs de solde vides, 0 €, sondes jetables non poussées
 (`zz-sonde-562*.test.ts`, horloge simulée pour les 15 min et le changement de mois). La suite complète (> 1 h) n'a pas pu finir
 dans le temps imparti : remplacée par les 181 fichiers qui touchent l'argent, l'Usine et les 4 sites, rejoués sur les deux arbres.
+
+## Relecture de la tête f190b47a (avancement)
+
+- Points 1 et 2 corrigés : sonde b1bis (travail en cours, +16 min) → 5 € REFUSÉE, usage 19 € ; les 2 tests existants revenus au vert sans modification.
+- Studio : 6 cas identiques à master, 163 lectures. Mois / `BUDGET_USINE_ABSENT` identiques.
+- Mutations M1-M7 toutes rouges (y compris clé = travailId dans `cle-depense-usine.ts`, site qui retire la clé, branche « parent » retirée, Studio qui reçoit une clé).
+- Fin de travail : consommée → usage = payé exact (1700) ; échec → la part libérée sort (aucune fuite).
+- Suites ciblées (182 fichiers) en cours.
