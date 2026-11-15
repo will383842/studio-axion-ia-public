@@ -28,13 +28,13 @@ const CHOIX: { valeur: Placement; libelle: string }[] = [
   { valeur: "premier-commentaire", libelle: "Dans le premier commentaire" },
 ];
 
-/** « Où placer vos hashtags » : un choix par réseau, à côté de « Vos hashtags ». */
 /** « 2026-10-03 » devient « 03/10/2026 » (français simple, pas de format technique). */
 function dateFrancaise(date: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : date;
 }
 
+/** « Où placer vos hashtags » : un choix par réseau, à côté de « Vos hashtags ». */
 export function PlacementHashtags({ reseaux }: { reseaux: InfoReseauPlacement[] }) {
   return (
     <div className="mt-5 border-t border-trait pt-5" data-testid="placement-hashtags">
