@@ -58,7 +58,8 @@ export function depuisEditable(e: ContenuEditable): ContenuGuide {
     titre: e.titre.trim(),
     sections: e.sections.map((s) => ({
       titre: s.titre.trim(),
-      paragraphes: nettoyer(s.paragraphes.split(/\n\s*\n/)),
+      // Un retour à la ligne simple dans un paragraphe devient une espace (le contrôle des caractères refuse les sauts de ligne).
+      paragraphes: nettoyer(s.paragraphes.split(/\n\s*\n/).map((x) => x.replace(/\s*[\r\n]+\s*/g, " "))),
       puces: nettoyer(s.puces.split("\n")),
     })),
   };

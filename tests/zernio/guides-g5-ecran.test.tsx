@@ -27,6 +27,11 @@ describe("conversions du texte relu", () => {
     expect(saisi).toEqual({ titre: "T", sections: [{ titre: "S", paragraphes: ["Un.", "Deux."], puces: ["a", "b"] }] });
     expect(controlerRelecture(saisi).ok).toBe(true);
   });
+  it("un retour à la ligne simple dans un paragraphe devient une espace (le contrôle C0 ne bute plus)", () => {
+    const saisi = depuisEditable({ titre: "T", sections: [{ titre: "S", paragraphes: "Première ligne\nsuite du même paragraphe.\r\nEncore.\n\nDeuxième.", puces: "a" }] });
+    expect(saisi.sections[0].paragraphes).toEqual(["Première ligne suite du même paragraphe. Encore.", "Deuxième."]);
+    expect(controlerRelecture(saisi).ok).toBe(true);
+  });
   it("étape atteinte", () => {
     expect(etapeAtteinte(null)).toBe(0);
     expect(etapeAtteinte({ derniere: { statut: "À valider" }, fabrique: null })).toBe(1);
@@ -52,12 +57,12 @@ describe("écran de départ", () => {
 });
 
 describe("langage et branchement", () => {
-  it("jamais « abonné », jamais le nom de ville interdit, jamais « Aucun gain garanti » en clair", () => {
+  it("jamais « abonné », jamais le nom de ville interdit, jamais la promesse de gain interdite en clair", () => {
     for (const f of FICHIERS) {
       const t = readFileSync(f, "utf8").toLowerCase();
       expect(t, f).not.toMatch(/abonn[eé]/);
       expect(t, f).not.toContain(J("gren", "oble"));
-      expect(t, f).not.toContain("aucun gain garanti");
+      expect(t, f).not.toContain(J("aucun gain ", "garanti"));
     }
   });
   it("l'onglet n'existe que si l'interrupteur est allumé ; la page lit l'interrupteur", () => {
