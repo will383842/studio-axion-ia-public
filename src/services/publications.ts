@@ -20,6 +20,7 @@ import { commandeEnEssai } from "@/moteurs";
 import { estCleDemo } from "@/domaine/miniatures";
 import { cleJour } from "@/lib/dates";
 import { dureeDeLaVideo } from "@/domaine/duree-video";
+import { avertissementReelFacebook } from "@/domaine/reel-facebook";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
 import { listerReseaux, obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
@@ -436,7 +437,11 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
         titre: t.titre,
         longueurMax: r.legende.longueurMax,
         // T4 : « Aucun format d'image adapté » lit les fichiers FAITS (le fichier envoyé), plus les formats prévus.
-        avertissements: verifierPourReseau(r, { dureeSec, ratios: detail.video.ratios, texte: t.texte, motsDiese: t.motsDiese, sortieEnvoyee: sortie ?? null }),
+        avertissements: [
+          ...verifierPourReseau(r, { dureeSec, ratios: detail.video.ratios, texte: t.texte, motsDiese: t.motsDiese, sortieEnvoyee: sortie ?? null }),
+          // Reel Facebook : prévenu avant la validation, sans bloquer la saisie ni l'envoi.
+          ...(r.id === "facebook" && sortie ? [avertissementReelFacebook({ format: sortie.ratio, dureeSec: sortie.dureeSec })].filter((a): a is string => a !== null) : []),
+        ],
         etiquetteIA: r.etiquetteIA,
         sortieConseillee: sortie,
         ...(sortie ? { fichierEnvoye: libelleFichierEnvoye(sortie) } : {}),
@@ -974,8 +979,8 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
       prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}),
-        // Seul YouTube Shorts a besoin du format et de la durée (garde « vrai Short ») : les autres réseaux n'en reçoivent pas.
-        ...(reseau === "youtube-shorts" ? { format: r.sortieConseillee.ratio, dureeSec: r.sortieConseillee.dureeSec } : {}) });
+        // YouTube Shorts (garde « vrai Short ») et Facebook (Reel) ont besoin du format et de la durée : les autres réseaux n'en reçoivent pas.
+        ...(reseau === "youtube-shorts" || reseau === "facebook" ? { format: r.sortieConseillee.ratio, dureeSec: r.sortieConseillee.dureeSec } : {}) });
     }
   }
   // Le choix de l'opérateur est proposé la fois suivante (et sert à « Programmer les N »).
