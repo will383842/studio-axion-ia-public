@@ -1,6 +1,6 @@
 /**
  * Écran « Guides » (lot G5) · textes et conversions PURES (sans React). Langage simple pour le fondateur :
- * jamais « abonné », on dit « suivre le compte ».
+ * pour la suite d'un compte, on dit « suivre le compte ».
  */
 import type { ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
 
