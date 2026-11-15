@@ -51,7 +51,7 @@ describe("date visée et validation du sujet", () => {
   it("sans date visée : aucun champ inventé, état « propose »", async () => {
     const s = await gen.creerSujet({ idee: "Devis rapides", reseaux: ["linkedin"], formatId: formatId() });
     const relu = await depots().scriptsMaitres.obtenir(s.id);
-    expect(relu?.dateVisee).toBeUndefined();
+    expect(gen.dateViseeDuSujet(relu!)).toBeUndefined();
     expect(gen.etatValidationDuSujet(relu!)).toBe("propose");
   });
 
@@ -62,7 +62,7 @@ describe("date visée et validation du sujet", () => {
 
   it("un ancien sujet sans les nouveaux champs se charge et se liste", async () => {
     const s = await gen.creerSujet({ idee: "Ancien sujet", reseaux: ["linkedin"], formatId: formatId() });
-    const { dateVisee: _d, etatValidation: _e, ...ancien } = (await depots().scriptsMaitres.obtenir(s.id))!;
+    const { dateVisee: _d, etatValidation: _e, ...ancien } = (await depots().scriptsMaitres.obtenir(s.id))! as import("@/services/generateur").ChampsDateSujet & typeof s;
     await depots().scriptsMaitres.enregistrer(ancien as typeof s);
     const relu = await depots().scriptsMaitres.obtenir(s.id);
     expect(relu).toBeDefined();
