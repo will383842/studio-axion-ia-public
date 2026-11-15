@@ -24,6 +24,7 @@ function banc(env: Record<string, string> = {}) {
   const lancer = (args: string[]) => {
     const r = spawnSync("bash", [SCRIPT, ...args], {
       env: {
+        NODE_ENV: "test", // requis par le type ProcessEnv ; le reste de l'environnement reste réduit (hermétique)
         PATH: process.env.PATH ?? "",
         STUDIO_RACINE: racine,
         STUDIO_ENV_FICHIER: join(d, "absent.env"),
