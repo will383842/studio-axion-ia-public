@@ -12,7 +12,7 @@ const { PROPOSITION_YOUTUBE } = await import("@/fournisseurs/publication/zernio-
 type Vue = import("@/domaine/chaine-youtube").VueYoutube;
 const VIDE: Vue = { actif: false, reglages: null, chaine: { etat: "inconnu" } };
 const rendre = (vue: Vue) => renderToStaticMarkup(createElement(CarteYoutubeShorts, { vue }));
-const texte = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+const texte = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/\s+/g, " ");
 
 describe("état par défaut : tout éteint", () => {
   const h = rendre(VIDE);

@@ -7,6 +7,8 @@ import "server-only";
 import { CLE_REGLAGES_YOUTUBE, CLE_YOUTUBE_ACTIF, lireReglagesYoutube, PROPOSITION_YOUTUBE, youtubeActifBrut, type ReglagesYoutube } from "@/fournisseurs/publication/zernio-youtube";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
+import { etatChaineYoutube, type VueYoutube } from "@/domaine/chaine-youtube";
+import { comptesZernioEnregistres } from "./zernio";
 
 export { PROPOSITION_YOUTUBE };
 
@@ -49,4 +51,10 @@ export async function definirYoutubeActif(allume: boolean): Promise<void> {
   if (allume === true && !(await reglagesYoutubeEnBase())) throw new ErreurStudio("YOUTUBE_REGLAGES", "YouTube : choisissez d'abord la visibilité, la catégorie et les mentions : rien n'a été allumé.");
   await ecrireParametre(CLE_YOUTUBE_ACTIF, allume === true);
   await journaliser("reglages", `YouTube Shorts : envoi ${allume === true ? "allumé" : "éteint"}`);
+}
+
+/** Ce que la carte Réglages affiche : tout est lu en base (aucun appel réseau). Lecture en panne : éteint, rien, inconnu. */
+export async function vueYoutubeZernio(): Promise<VueYoutube> {
+  const chaine = await comptesZernioEnregistres().then(etatChaineYoutube, () => etatChaineYoutube(null));
+  return { actif: await youtubeZernioActif(), reglages: await reglagesYoutubeEnBase(), chaine };
 }
