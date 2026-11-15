@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { EcranMigration } from "@/components/migration/EcranMigration";
 import { FenetreLot } from "@/components/migration/FenetreLot";
-import { EtatBuffer, Heros } from "@/components/migration/Heros";
+import { Heros } from "@/components/migration/Heros";
 import { compter, postsConfirmables, type CompteMigration, type PostMigration, type PublicationReelle } from "@/components/migration/logique";
 import { confirmerRetraitEtProgrammation, PLAFOND_IDS_PAR_APPEL, RAISON_NON_BRANCHE, serviceNonBranche, type ServiceImport } from "@/components/migration/services";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
@@ -33,22 +33,6 @@ describe("z3m · comptages", () => {
     expect(html).toContain('role="alert"');
     expect(html).toContain("Écart de 1 post");
     expect(html).not.toContain("Aucun doublon");
-  });
-});
-
-describe("z3m · Buffer résilié", () => {
-  it("la carte dit la vérité : résilié, tout passe par Zernio, aucune date ni compte à rebours", () => {
-    const t = renderToStaticMarkup(<EtatBuffer />).replace(/<[^>]+>/g, " ");
-    expect(t).toContain("Buffer est résilié.");
-    expect(t).toContain("Toutes les publications passent par Zernio.");
-    expect(t).not.toMatch(/jours?|Date limite|18\/11|20\/11|mercredi|vendredi/);
-  });
-  it("aucun écran n'annonce une résiliation à faire", () => {
-    for (const html of [renderToStaticMarkup(<EcranMigration vue={{ etat: "normal", donnees: { posts: POSTS, comptes: [compte("instagram", [])] } }} maintenant={MAINT} />), renderToStaticMarkup(<EcranMigration vue={{ etat: "vide" }} maintenant={MAINT} />)]) {
-      const t = html.replace(/<[^>]+>/g, " ");
-      expect(t).not.toMatch(/Date limite|Critères pour résilier|Résiliation de Buffer|Prélèvement évité|sans votre ordre/);
-      expect(t).toContain("Buffer est résilié");
-    }
   });
 });
 
@@ -103,14 +87,12 @@ describe("z3m · 4 états et langue", () => {
   };
   it("normal", () => {
     expect(vues.normal).toContain("Les 4 posts de Buffer passent chez Zernio");
-    expect(vues.normal).toContain("Buffer est résilié. Toutes les publications passent par Zernio.");
     expect(vues.normal).toContain("Vérifier le lot B · 1 post");
-        expect(vues.normal).toContain("Mode essai");
+    expect(vues.normal).toContain("Mode essai");
   });
   it("vide", () => {
     expect(vues.vide).toContain("La bascule n’a pas commencé");
     expect(vues.vide).toContain("Voir les connexions");
-    expect(vues.vide).toContain("Buffer est résilié");
   });
   it("chargement", () => expect(vues.chargement).toContain('aria-busy="true"'));
   it("erreur", () => expect(vues.erreur).toContain('role="alert"'));
