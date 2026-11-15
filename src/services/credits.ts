@@ -320,7 +320,7 @@ export async function verifierBudgetEtCredits(
   estimation: Pick<Estimation, "lignes" | "total">,
   accord: AccordPrix,
   quoi: string,
-  options: { doubleDejaConfirme?: boolean; origine?: unknown; travailId?: Id; automatique?: boolean; videoId?: Id; cleUsine?: string } = {},
+  options: { doubleDejaConfirme?: boolean; origine?: unknown; travailId?: Id; automatique?: boolean; videoId?: Id; cleUsine?: string; ajouter?: boolean } = {},
 ): Promise<void> {
   // AUT-C : origine normalisée (absente ou « studio » : Studio, inchangé ; toute autre valeur : Usine, échec fermé).
   const usine = normaliserOrigine(options.origine) === "usine";
@@ -342,7 +342,7 @@ export async function verifierBudgetEtCredits(
   const sousPlafond = usine && Number.isFinite(bloquant) && (await lireAutonomieUsine()).etat === "active";
   const cleUsine = options.cleUsine ?? options.travailId;
   if (sousPlafond) {
-    const j = await jugerSousPlafondUsine({ cle: cleUsine, besoin: bloquant });
+    const j = await jugerSousPlafondUsine({ cle: cleUsine, besoin: bloquant, ...(options.ajouter ? { ajouter: true } : {}) });
     if (!j.ok) {
       const eur = (c: number) => formaterMontant({ centimes: c, devise: "EUR" });
       await journaliser("budget", `Refus de l'Usine (plafond du mois) : ${quoi} — utilisé ${eur(j.utilise)} sur ${eur(j.plafond)} ce mois, demandé ${eur(bloquant)}.`, cleUsine ? { type: "travail", id: cleUsine } : undefined);
@@ -374,7 +374,7 @@ export async function verifierBudgetEtCredits(
   await controlerCredits(lignesBloquantes(estimation.lignes), quoi, origine);
   // AUT-C (étape 6) : l'accord ne s'inscrit qu'EN DERNIER (un refus au-dessus ne consomme rien) et seulement si la clé est connue.
   // Sans clé (pré-vol hors verrou) : décision seule, aucune écriture ; la réservation se fait au vrai lancement, sous verrou.
-  if (sousPlafond && cleUsine) await inscrireAccordUsine({ cle: cleUsine, besoin: bloquant, quoi, ...(options.videoId ? { videoId: options.videoId } : {}) });
+  if (sousPlafond && cleUsine) await inscrireAccordUsine({ cle: cleUsine, besoin: bloquant, quoi, ...(options.ajouter ? { ajouter: true } : {}), ...(options.videoId ? { videoId: options.videoId } : {}) });
 }
 
 /** Solde disponible (solde − réservations actives) de chaque fournisseur des lignes, comparé à l'estimation + 20 %. */
@@ -429,15 +429,19 @@ export async function verifierEtReserver(
   estimation: Pick<Estimation, "lignes" | "total">,
   confirme: AccordPrix,
   quoi: string,
-  demande: { videoId?: Id; travailId: Id },
-  options: { origine?: OrigineLancement; automatique?: boolean } = {},
+  demande: { videoId?: Id; travailId: Id; cleUsine?: string },
+  options: { origine?: OrigineLancement; automatique?: boolean; ajouter?: boolean } = {},
 ): Promise<void> {
+  // AUT-G : la clé de registre propre à une dépense (`travailId#appel`) n'existe que pour l'Usine ; le Studio ne la voit jamais.
+  const usine = normaliserOrigine(options.origine) === "usine";
+  const cleUsine = usine ? demande.cleUsine : undefined;
   await sousVerrouCredits(async () => {
     // L1-09 : `origine: "usine"` exige le budget du mois reçu de l'Usine ; sans origine, la commande de Will (inchangée).
-    await verifierBudgetEtCredits(estimation, confirme, quoi, { origine: options.origine, travailId: demande.travailId, automatique: options.automatique, videoId: demande.videoId });
-    await reserverCredits({ ...demande, lignes: estimation.lignes });
+    await verifierBudgetEtCredits(estimation, confirme, quoi, { origine: options.origine, travailId: demande.travailId, automatique: options.automatique, videoId: demande.videoId, ...(cleUsine ? { cleUsine } : {}), ...(usine && options.ajouter ? { ajouter: true } : {}) });
+    await reserverCredits({ videoId: demande.videoId, travailId: demande.travailId, lignes: estimation.lignes });
     // E2E-2 argent n° 5 : l'estimation est ENGAGÉE sur le budget du mois jusqu'à la fin (restant = budget − dépensé − engagé).
-    await engagerBudget(demande.travailId, estimation.total, demande.videoId);
+    // AUT-G : une dépense de l'Usine à clé propre (ou ajoutée) S'AJOUTE à l'engagement actif du travail ; Studio : remplace, inchangé.
+    await engagerBudget(demande.travailId, estimation.total, demande.videoId, { cumuler: usine && (!!cleUsine || options.ajouter === true) });
   });
 }
 
@@ -538,8 +542,8 @@ export async function libererLot(lotId: string): Promise<void> {
  * sans budget du mois reçu de l'Usine → `BUDGET_USINE_ABSENT`, budget atteint → `BUDGET_MENSUEL_ATTEINT`, avant toute
  * réservation. L'appelant ne peut pas choisir l'origine ; la dépense manuelle de Will (`verifierEtReserver`) ne change pas.
  */
-export function reserverPourUsine(estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id }): Promise<void> {
-  return verifierEtReserver(estimation, confirme, quoi, demande, { origine: "usine" });
+export function reserverPourUsine(estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id; cleUsine?: string }, options: { ajouter?: boolean } = {}): Promise<void> {
+  return verifierEtReserver(estimation, confirme, quoi, demande, { origine: "usine", ...(options.ajouter ? { ajouter: true } : {}) });
 }
 
 /**
@@ -550,8 +554,8 @@ export function reserverPourUsine(estimation: Pick<Estimation, "lignes" | "total
  * L3-01 : ce test tient aussi la liste FERMÉE de tous les sites de dépense du dépôt (§ 3 : garde, pré-vol, crochet ou hors
  * porte, chacun avec sa raison) ; un site nouveau, ou une garde qui reçoit une origine écrite en dur, le fait rougir.
  */
-export function verifierEtReserverSelonOrigine(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id }, options: { automatique?: boolean } = {}): Promise<void> {
-  return normaliserOrigine(origine) === "usine" ? reserverPourUsine(estimation, confirme, quoi, demande) : verifierEtReserver(estimation, confirme, quoi, demande, { automatique: options.automatique });
+export function verifierEtReserverSelonOrigine(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id; cleUsine?: string }, options: { automatique?: boolean; ajouter?: boolean } = {}): Promise<void> {
+  return normaliserOrigine(origine) === "usine" ? reserverPourUsine(estimation, confirme, quoi, demande, { ajouter: options.ajouter }) : verifierEtReserver(estimation, confirme, quoi, demande, { automatique: options.automatique });
 }
 
 /**
@@ -560,8 +564,10 @@ export function verifierEtReserverSelonOrigine(origine: OrigineLancement | undef
  * PUIS `payer`. La réservation et l'engagement sont toujours rendus à la fin : « consommee » si `payer` a abouti (l'appelant
  * a enregistré la dépense réelle DANS `payer`), « liberee » sinon. Un refus ne lance jamais `payer`.
  */
-export async function depenserSelonOrigine<T>(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id }, payer: () => Promise<T>): Promise<T> {
-  await verifierEtReserverSelonOrigine(origine, estimation, confirme, quoi, demande);
+export async function depenserSelonOrigine<T>(origine: OrigineLancement | undefined, estimation: Pick<Estimation, "lignes" | "total">, confirme: AccordPrix, quoi: string, demande: { videoId?: Id; travailId: Id; cleUsine?: string }, payer: () => Promise<T>): Promise<T> {
+  // AUT-G : pour l'Usine, deux dépenses simultanées sur la même clé s'ADDITIONNENT (usage et engagement) ; la garde ne les
+  // déduplique pas : l'idempotence (un `nouvelId` par dépense) reste aux appelants. Studio : inchangé.
+  await verifierEtReserverSelonOrigine(origine, estimation, confirme, quoi, demande, { ajouter: true });
   let paye = false;
   try {
     const r = await payer();

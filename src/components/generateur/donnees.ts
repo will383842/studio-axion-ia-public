@@ -7,6 +7,7 @@ import type { SujetClassable, FormatClassable } from "@/domaine/classement-gener
 import { libelleLigneGrille, nomFormatGenerateur } from "@/domaine/libelles";
 import type { ScriptMaitre } from "@/domaine/types";
 import { formatGenerateur, listerFormats, trouverFormat } from "@/formats";
+import { dureeViseeFormat } from "@/domaine/duree-par-reseau";
 import { codeDuFormat } from "@/formats/registre-codes";
 
 export interface LigneGrilleAffichee extends Pick<LigneGrille, "formatId" | "mode" | "adresse" | "cases"> {
@@ -66,12 +67,12 @@ export function codesParFormat(): Record<string, string> {
 }
 
 /** Formats que le générateur sait écrire (code de classement et recette résolue) ; « bientôt » = moteur à venir. */
-export function formatsEcrivables(): { id: string; nom: string; icone: import("@/components/ui/Icone").NomIcone; statut: string; modes: import("@/domaine/types").ModeDiction[]; modeParDefaut: import("@/domaine/types").ModeDiction }[] {
+export function formatsEcrivables(): { id: string; nom: string; icone: import("@/components/ui/Icone").NomIcone; statut: string; modes: import("@/domaine/types").ModeDiction[]; modeParDefaut: import("@/domaine/types").ModeDiction; dureeViseeSec?: number }[] {
   const sortie = [];
   for (const f of formatsDEcriture()) {
     try {
       const g = formatGenerateur(f.id);
-      sortie.push({ id: f.id, nom: nomFormatGenerateur(f.nomCourt), icone: f.icone, statut: f.statut, modes: g.recette.modesDiction, modeParDefaut: g.recette.modeParDefaut });
+      sortie.push({ id: f.id, nom: nomFormatGenerateur(f.nomCourt), icone: f.icone, statut: f.statut, modes: g.recette.modesDiction, modeParDefaut: g.recette.modeParDefaut, dureeViseeSec: dureeViseeFormat(f.durees) });
     } catch {
       // Sans code de classement : pas encore écrivable par le générateur.
     }

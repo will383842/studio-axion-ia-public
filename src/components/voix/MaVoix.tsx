@@ -137,7 +137,7 @@ function AjoutCourt({ libelle, onAjouter, enfants }: { libelle: string; onAjoute
 }
 
 function jour(iso?: string): string {
-  return iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+  return iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Paris" }) : "";
 }
 
 export interface DonneesMaVoix {

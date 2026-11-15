@@ -61,11 +61,12 @@ export async function validationPourEnvoi(
   titre: string,
   env?: Record<string, string | undefined>,
   maintenantMs?: number,
+  compte?: string,
 ): Promise<RefusValidationEnvoi | null> {
   if (mot.toUpperCase() === "GUIDE")
     return codeCible === "guide-ia" ? null : "validation_absente";
   if (reseau !== "facebook") return "instagram_pas_encore";
-  return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs });
+  return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs, ...(compte !== undefined ? { compte } : {}) });
 }
 
 /** Messages privés à NOTRE initiative (premier envoi ou renvoi) par personne et par 24 h. Les réponses dans la fenêtre (M2, reçu, merci, adresse refusée) ne comptent pas. */
