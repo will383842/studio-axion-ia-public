@@ -27,7 +27,7 @@ let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
 const passer = (ms = T0) => C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: ms });
 const etatDe = async () => (await Com.lireParametre<Record<string, { douteOpposition?: boolean; formulations?: Record<string, string>; m2Envoye?: boolean }>>(C.PARAM_CONVERSATIONS, {}))[cleConversation("auteur-fictif-400")];
-const journal = async (re: RegExp) => (await depots().evenements.lister((x: any) => re.test(x.message))).length;
+const journal = async (re: RegExp) => (await depots().evenements.lister((x: { message: string }) => re.test(x.message))).length;
 
 beforeEach(async () => {
   controle.refuserRgpd = false;
