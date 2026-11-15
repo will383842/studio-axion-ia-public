@@ -48,9 +48,11 @@ describe.each(ECRANS)("maquette %s", (ecran) => {
   it("scripts en ligne seulement (validés par le fondateur le 14/11) : ni <script src=, ni appel réseau", () => {
     const html = lire(ecran);
     expect(html).not.toMatch(/<script[^>]*\bsrc\s*=/i);
-    const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join("\n");
-    expect(scripts).not.toMatch(/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon|EventSource)\b/);
-    expect(scripts).not.toMatch(/\bimport\s*\(/);
+    // Tout le HTML est inspecté (scripts, mais aussi attributs d'événement : onclick=, onload=, etc.).
+    const sansEspaceDeNoms = html.replace(/\bxmlns(?::\w+)?\s*=\s*["'][^"']*["']/gi, " ");
+    expect(sansEspaceDeNoms).not.toMatch(/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon|EventSource)\b/);
+    expect(sansEspaceDeNoms).not.toMatch(/\bimport\s*\(/);
+    expect(sansEspaceDeNoms).not.toMatch(/https?:\/\//i);
   });
 
   it("porte la mention « Maquette fictive : rien n'est branché, rien ne part »", () => {
