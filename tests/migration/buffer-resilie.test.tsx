@@ -43,6 +43,24 @@ describe("Buffer résilié · écran Migration", () => {
   });
 });
 
+describe("Buffer résilié · écran Migration sans date ni « avant la bascule »", () => {
+  it("les plages de lots sont neutres et les intitulés inchangés", async () => {
+    const { resumerLots } = await import("@/components/migration/logique");
+    const lots = resumerLots(POSTS);
+    expect(lots.map((l) => l.intitule)).toEqual(["Lot A · Instagram et Facebook", "Lot B · LinkedIn", "Lot C · tous réseaux"]);
+    for (const l of lots) expect(l.plage).not.toMatch(/\d{1,2}\/\d{1,2}|novembre/);
+    expect(lots[0].plage).toBe("posts déjà prévus");
+    expect(lots[2].plage).toBe("posts à venir");
+  });
+  it("aucune date ni « avant la bascule » dans l'écran, comptages inchangés", () => {
+    const t = texte(renderToStaticMarkup(<EcranMigration vue={{ etat: "normal", donnees: { posts: POSTS, comptes: [] } }} maintenant={MAINT} />));
+    expect(t).not.toMatch(/20\/11|18 novembre|20 novembre|avant la bascule/);
+    expect(t).toContain("laissé à Buffer (non repris, Buffer résilié)".replace("laissé", "laissés"));
+    expect(t).toMatch(/1 restants/);
+    expect(t).toMatch(/1 \+ 1 \+ 1 \+ 1 = 4 posts/);
+  });
+});
+
 describe("Buffer résilié · mode d'envoi affiché", () => {
   beforeEach(async () => {
     const { hash } = await import("@node-rs/argon2");
