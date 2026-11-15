@@ -1,0 +1,45 @@
+{
+  "ids": [
+    "AvantApres",
+    "MosaiqueVideos",
+    "duel-video"
+  ],
+  "essais": 2,
+  "elements": [
+    {
+      "id": "AvantApres",
+      "debut": 4,
+      "fin": 7,
+      "mots": [
+        "AVANT",
+        "APRÈS"
+      ],
+      "recherches": [
+        "artisan qui charge un camion"
+      ]
+    },
+    {
+      "id": "EtiquetteTete",
+      "debut": 8,
+      "fin": 9.5,
+      "mots": [
+        "DEVIS"
+      ]
+    },
+    {
+      "id": "MosaiqueVideos",
+      "debut": 10,
+      "fin": 13,
+      "recherches": [
+        "a",
+        "b"
+      ]
+    }
+  ],
+  "erreurs": [
+    "D16 — élément v4 1 « AvantApres » (Avant / après) à 4,0 s : aucune vidéo fidèle à ce que Will dit n'a été trouvée ; remplacez-la par une plaquette sans vidéo qui montre littéralement ce qui est dit (FenetreTelephone, FenetreDouble, CarrouselFeuillete ou un autre emplacement sans vidéo), sans « recherches ». Gardez V6, V7, H1 et H2.",
+    "D16 — élément v4 3 « MosaiqueVideos » à 10,0 s : plaquette à vidéo interdite dans ce plan ; remplacez-la par une plaquette sans vidéo, sans « recherches »."
+  ],
+  "ok": "Aucune vidéo fidèle n'a été trouvée pour la plaquette « Avant / après » à 4,0 s : la mise en scène a été refaite sans vidéo d'illustration.",
+  "echec": "Je n'ai pas trouvé de vidéo fidèle à ce que vous dites pour la plaquette « Avant / après » à 4,0 s, et la mise en scène refaite sans vidéo n'a pas passé les contrôles : la vidéo n'est pas fabriquée. Reprendre relance la mise en scène sans vidéo."
+}
