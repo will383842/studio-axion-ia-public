@@ -11,3 +11,5 @@ Corrige la FAILLE 1 et le point 5 de `relectures/audit-usine-argent.md`.
 
 Limites connues (hors lot) : une clé `travailId#appel` sans engagement propre ne compte que pendant le délai « en vol » (15 min), puis ce qui est payé sous le travail ; `libererReservation(travailId)` d'une dépense libère l'engagement du travail entier.
 Vérifs : lint propre ; tsc 146 (aucune nouvelle) ; suites autonomie-usine, l3-0*, l3-01*, r7, budget-indicatif, garde-fous : seuls les 4 rouges déjà connus de l'audit.
+
+Correctif (relecture Opus) : la clé `travailId#appel` n'a pas d'engagement propre (il est écrit sous `travailId`) ; après 15 min, `usageDeLaCle` la ramenait à ce qui est payé (0) et la part des voix sortait du registre. Désormais, sans engagement propre, une clé `…#…` reste comptée (accord, ou payé s'il est plus haut) TANT QUE l'engagement de son travail est actif. Tests ajoutés : `tests/autonomie-usine-cle-depense-temps.test.ts` (horloge +16 et +60 min : 5 € et 18 € refusées ; forme de la clé aux 4 sites de voix, rouge si clé = travailId). Rouge sans le correctif, rouge sous mutation d'un site.

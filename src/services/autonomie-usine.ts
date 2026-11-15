@@ -143,6 +143,11 @@ export async function usageDeLaCle(cle: string): Promise<number> {
   const accord = await lireAccord(cle);
   if (!accord) return 0;
   const e = await lireEngagement(cle);
+  // AUT-G : une clé de dépense `travailId#appel` n'a pas d'engagement propre : elle vit tant que l'engagement de son travail est actif.
+  if (!e && cle.includes("#") && !cle.startsWith("lot:")) {
+    const parent = await lireEngagement(cle.slice(0, cle.indexOf("#")));
+    if (parent && parent.statut === "active") return Math.max(accord.centimes, (await payeDeLaCle(cle)).paye);
+  }
   const lot = cle.startsWith("lot:");
   if (lot && e && e.statut !== "active") return 0;
   if (lot && e) return Math.max(0, e.centimes);
