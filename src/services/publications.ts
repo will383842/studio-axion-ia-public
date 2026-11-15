@@ -39,6 +39,8 @@ import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
 import { codeDeErreur, journaliserEnvoi } from "./journal-envoi";
 import { canauxEnregistres, cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
+import { exigerYoutubeZernioPret } from "./youtube-zernio";
+import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
 import { adresseRelaisBuffer } from "./relais-buffer";
 import { versCarte } from "./presentation";
@@ -340,7 +342,7 @@ function donneesDe(s: SourceTextes, reseau: IdReseau, regles: Awaited<ReturnType
 }
 
 export async function reseauxParDefaut(): Promise<IdReseau[]> {
-  return lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
+  return lireParametre<IdReseau[]>("reseaux.parDefaut", reseauxParDefautNeufs());
 }
 
 /**
@@ -942,13 +944,15 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     // Refus SERVEUR avant tout envoi : TikTok sans case cochée, et date qui ne serait pas dans le futur (elle publierait aussitôt).
     if (reseaux.includes("tiktok") && extras.consentementTiktok !== true) throw new ErreurStudio("TIKTOK_CASE", "TikTok : cochez la case de consentement avant l'envoi.");
     if (!(Date.parse(dateIso) > Date.parse(maintenant()))) throw new ErreurStudio("DATE_PASSEE", "Choisissez une date à venir : une date passée publierait aussitôt.");
+    // YouTube Shorts (lot B) : éteint par défaut ; refus net AVANT la préparation, donc avant toute réservation d'envoi.
+    if (reseaux.includes("youtube-shorts")) await exigerYoutubeZernioPret();
   }
   // Programmée directement : Buffer doit pouvoir lire la vidéo jusqu'à la publication (adresse signée 7 jours).
   if (outil === "buffer" && mode === "programmer" && Date.parse(dateIso) > Date.parse(maintenant()) + (DUREE_URL_BUFFER_SEC - 3600) * 1000) {
     throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon dans Buffer.");
   }
   // 1. Préparation complète avant le moindre envoi : un envoi par compte (un seul texte par réseau, pour tous ses comptes).
-  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean }[] = [];
+  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean; format?: string; dureeSec?: number }[] = [];
   // Seuls les comptes cochés ET validés (réseau envoyé, compte connu de ce réseau) sont mémorisés.
   const valides: Partial<Record<IdReseau, string[]>> = {};
   const aPoserALaMain = new Set<IdReseau>();
@@ -969,7 +973,9 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
-      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}) });
+      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}),
+        // Seul YouTube Shorts a besoin du format et de la durée (garde « vrai Short ») : les autres réseaux n'en reçoivent pas.
+        ...(reseau === "youtube-shorts" ? { format: r.sortieConseillee.ratio, dureeSec: r.sortieConseillee.dureeSec } : {}) });
     }
   }
   // Le choix de l'opérateur est proposé la fois suivante (et sert à « Programmer les N »).
@@ -1058,6 +1064,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
           reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi,
           ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}),
           ...(p.votreMarque ? { votreMarque: true } : {}),
+          ...(p.format !== undefined && p.dureeSec !== undefined ? { format: p.format, dureeSec: p.dureeSec } : {}),
           // Autre outil : cible explicite, consentement TikTok de CET envoi, mention IA (le fournisseur ne la pose que là où un champ existe).
           ...(outil !== "buffer" ? { cible: p.canal.id, consentementTiktok: extras.consentementTiktok === true, ...(extras.contenuIA ? { contenuIA: true } : {}), ...(extras.niveauConfidentialiteTiktok ? { niveauConfidentialiteTiktok: extras.niveauConfidentialiteTiktok } : {}) } : {}),
         });

@@ -18,6 +18,7 @@ export const CLES_PRODUCTION = [
 export const INTERRUPTEURS_PRODUCTION = [
   { cle: "zernio.envoi_autorise", libelle: "Envoi vers Zernio autorisé (arrêt global)", parDefaut: true },
   { cle: "zernio.envoi_calendrier_autorise", libelle: "Envoi des publications du calendrier", parDefaut: false },
+  { cle: "zernio.youtube_actif", libelle: "Envoi des YouTube Shorts", parDefaut: false },
 ] as const;
 
 export type EtatProduction = {
