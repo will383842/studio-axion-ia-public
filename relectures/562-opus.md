@@ -1,8 +1,36 @@
 # Relecture PR 562 (lot AUT-G) — Opus
 
-VERDICT PROVISOIRE : en cours — la branche a bougé pendant la relecture (e1f6822f → f190b47a, 3 commits). Ce qui suit vaut pour e1f6822f ; relecture de f190b47a en cours.
+## VERDICT : OK — FUSION POSSIBLE sur la tête complète `f190b47a96aca2cdd94c06db4e3349abac68a10e`
 
-## Verdict sur e1f6822f : À CORRIGER
+(base master `98af97a5`. La branche a bougé pendant la relecture : e1f6822f → f190b47a (3 commits). Sur e1f6822f j'avais conclu
+À CORRIGER, voir l'historique plus bas ; les 3 commits corrigent les points bloquants, revérifiés sur f190b47a.)
+
+Remarques NON bloquantes (à reprendre dans un lot ultérieur) :
+1. FAIBLE — même clé, deux `depenserSelonOrigine` en vol : dès que la première se clôt, la seconde sort du registre
+   (sonde b3 : usage 0, une 3e de 7 € acceptée). Non atteignable aujourd'hui (tous les appelants tirent une clé `nouvelId`).
+2. FAIBLE — `tests/autonomie-usine-cle-depense.test.ts`, cas 2, exige `usage < 1900` sur la ré-réservation par la clé du travail :
+   il fige l'ancien défaut (il rougira si ce chemin est un jour corrigé) et ne détecte pas, malgré son titre, le retour à « remplacer ».
+3. INFO — même `cleUsine` passée deux fois : registre 1×, engagement du travail 2× (sur-compte prudent). Après « Réessayer »,
+   les anciennes clés de voix recomptent leur accord (sur-compte prudent, jamais de dépassement).
+4. INFO — `pilotage/journal/AUT-G.md` garde la ligne « Limites connues … ne compte que pendant 15 min », devenue fausse.
+
+## Points demandés (tête f190b47a)
+
+| Point | Résultat |
+|---|---|
+| Diff | OK — les 9 fichiers attendus + 2 de plus, justifiés : `src/services/cle-depense-usine.ts` (clé seulement pour l'Usine) et `tests/autonomie-usine-cle-depense-temps.test.ts`. `scripts/echecs-connus.json` intact. |
+| (a) sonde audit 15 € + 2×2 € + 18 € | OK — 18 € REFUSÉ `USINE_PLAFOND_ATTEINT`, usage 19 €, engagé 19 € (master : accepté, 37 €). |
+| (b) clé par dépense, cumul, libération, fuites | OK — cumul correct ; +16 min et +60 min, travail en cours : usage reste 19 €, 5 € refusée (faille de e1f6822f corrigée) ; fin consommée : usage = payé exact (17 €) ; échec : la part libérée sort ; échec d'une dépense : 0 € d'usage et d'engagement ; libérer `K3` laisse `K2` intact. |
+| (c) double clic / simultanées | OK — même `travailId` 2× : 1 accord, 1 engagement ; `Promise.all` à 1 centime du plafond : l'une passe, l'autre `USINE_PLAFOND_ATTEINT`, jamais > 2000. Remarques 1 et 3. |
+| (d) Studio strictement inchangé | OK — origine absente / « studio » × interrupteur allumé / éteint / absent : résultats, engagement et **163 lectures** identiques à master ; aux 4 sites la demande Studio ne contient plus aucun champ `cleUsine`. |
+| (e) changement de mois, `BUDGET_USINE_ABSENT` | OK — mois neuf : usage 0, commande acceptée ; plafond éteint ou absent : `BUDGET_USINE_ABSENT`, 0 engagé (comme master). |
+| (f) mutations | OK — toutes ROUGES : couts « remplacer » ; autonomie-usine `ajouter` ignoré ; credits clé = `travailId` ; `depenserSelonOrigine` sans `ajouter` ; clé = `travailId` dans `cle-depense-usine.ts` ; un site qui retire la clé ; branche « travail parent engagé » retirée ; Studio qui reçoit une clé. |
+| (g) tests, lint, tsc, noms, montants | OK — 182 fichiers de tests (argent, Usine, 4 sites) rejoués master vs f190b47a : 0 nouveau rouge, 56 rouges communs déjà sur master ; les 2 tests rougis par e1f6822f revenus au vert sans modification ; tsc 146 = 146 ; eslint propre ; aucun nom de personne, aucun montant codé en dur ajouté dans `src/`. |
+
+Méthode : clone neuf, vrai `credits.ts`, dépôts en mémoire, lecteurs de solde vides, 0 €, sondes jetables non poussées
+(horloge simulée). Suite complète > 1 h non terminée dans le temps imparti : remplacée par les 182 fichiers ciblés, sur les deux arbres.
+
+## Historique — verdict sur la tête précédente e1f6822f : À CORRIGER (points 1 à 3 depuis corrigés)
 
 1. **HAUTE — le plafond reste dépassable au bout de 15 min.** Les clés de voix `travailId#voix_…` n'ont ni engagement ni dépense
    à leur nom : `usageDeLaCle` (`src/services/autonomie-usine.ts:150-153`) ne les compte que pendant `LANCEMENT_EN_VOL_MS`
@@ -48,10 +76,3 @@ Méthode : clone neuf, vrai `credits.ts`, dépôts en mémoire, lecteurs de sold
 (`zz-sonde-562*.test.ts`, horloge simulée pour les 15 min et le changement de mois). La suite complète (> 1 h) n'a pas pu finir
 dans le temps imparti : remplacée par les 181 fichiers qui touchent l'argent, l'Usine et les 4 sites, rejoués sur les deux arbres.
 
-## Relecture de la tête f190b47a (avancement)
-
-- Points 1 et 2 corrigés : sonde b1bis (travail en cours, +16 min) → 5 € REFUSÉE, usage 19 € ; les 2 tests existants revenus au vert sans modification.
-- Studio : 6 cas identiques à master, 163 lectures. Mois / `BUDGET_USINE_ABSENT` identiques.
-- Mutations M1-M7 toutes rouges (y compris clé = travailId dans `cle-depense-usine.ts`, site qui retire la clé, branche « parent » retirée, Studio qui reçoit une clé).
-- Fin de travail : consommée → usage = payé exact (1700) ; échec → la part libérée sort (aucune fuite).
-- Suites ciblées (182 fichiers) en cours.
