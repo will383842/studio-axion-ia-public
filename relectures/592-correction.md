@@ -1,0 +1,1 @@
+PR 592 corrigée (3 points : source en français simple avec date JJ/MM/AAAA, repli TikTok affiché une seule fois, bloc remonté au-dessus du commentaire de PageReglages) : 1 commit ajouté sur usine/HSH-01b, 3 tests ajoutés, tests/reseaux 301 verts, tsc et eslint sans erreur sur les fichiers touchés, echecs-connus.json inchangé.
