@@ -199,7 +199,7 @@ beforeEach(async () => {
   R.buffer = fauxBuffer();
   vi.stubGlobal("fetch", reseau);
   await auth.seConnecter(MDP, false);
-  // Buffer est gelé par défaut (PR 561) : ce parcours teste l'envoi Buffer, on le dégèle par le réglage (valable aussi en production).
+  // Buffer est gelé par défaut (PR 561) : ce parcours teste l'envoi Buffer, dégel posé dans la base d'essai uniquement ; le même réglage existe en production mais n'est pas touché ici.
   await ecrireParametre("buffer.gele", false);
   // Le routage par défaut est Zernio (L7-06) : ces parcours testent l'envoi par Buffer, on l'y route explicitement (réseau par réseau).
   await ecrireParametre("publication.routage", Object.fromEntries((await import("@/reseaux")).listerReseaux().map((r) => [r.id, "buffer"])));
