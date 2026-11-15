@@ -109,7 +109,12 @@ export async function programmerAction(donnees: FormData): Promise<void> {
       publications: d.publications,
       visuels: d.visuels,
     };
-    await programmerEnUnClic(passerelle, id, typeof jour === "string" ? jour : "", maintenant());
+    try {
+      await programmerEnUnClic(passerelle, id, typeof jour === "string" ? jour : "", maintenant());
+    } catch (e) {
+      if (e instanceof ErreurVisuel) throw e;
+      throw new ErreurVisuel("PROGRAMMER_REFUSE", e instanceof Error ? e.message : "Programmation refusée");
+    }
   });
 }
 

@@ -3,6 +3,7 @@ import { TEXTES_FIXES } from "../../../../src/briques/visuels/textes-fixes";
 import { pourManrope } from "../../../../src/briques/visuels/typographie-francaise";
 import { couperPhrase } from "../../../../src/briques/visuels/variante-t21";
 import { COULEURS, LARGEUR_TEXTE, LARGEUR_TITRE_BORNE, MARGE, PAGE, POLICE_CORPS, TITRE_MAX_COUVERTURE } from "../commun/constantes";
+import { margeBasTexte } from "../commun/interligne-capitales";
 import { Zone } from "../commun/controle-debordement";
 import { Dessin } from "../commun/Picto";
 import type { SpecVisuel } from "../commun/types";
@@ -54,6 +55,7 @@ function Bulle({ pleine }: { pleine: boolean }) {
 
 /** Taille de la phrase en grand : celle validée en rendu réel et mise en ligne le 24/10 (fin de phrase orange, aucune ligne hors colonne). */
 const TAILLE_PHRASE = 116;
+const INTERLIGNE_PHRASE = 1.1;
 
 /**
  * Variante typographique : la phrase d'invitation en grand, sans dessin (aucun rond) ; la fin de phrase en orange (`couperPhrase`, avec ou
@@ -62,7 +64,7 @@ const TAILLE_PHRASE = 116;
 function PhraseEnGrand() {
   const { debut, fin } = couperPhrase(TEXTES_FIXES.t21Ligne);
   return (
-    <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLE_PHRASE, lineHeight: 1.1, letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
+    <div style={{ maxWidth: largeurTexteMax(MARGE, BORD_DROIT_TEXTE_BAS), fontFamily: POLICE_CORPS, fontWeight: 700, fontSize: TAILLE_PHRASE, lineHeight: INTERLIGNE_PHRASE, paddingBottom: margeBasTexte(TAILLE_PHRASE, INTERLIGNE_PHRASE), letterSpacing: -1.5, textWrap: "balance", color: COULEURS.creme }}>
       {debut && `${pourManrope(debut)} `}
       <span style={{ color: COULEURS.orange }}>{fin}</span>
     </div>

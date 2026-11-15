@@ -233,6 +233,18 @@ export async function deposerSession(contenu: string, deps: DependancesCarrousel
   return demarrer({ type: "session" }, { type: "paquet-session", contenu }, "Carrousel depuis une session", createHash("sha256").update(contenu).digest("hex"), deps);
 }
 
+/** Erreur du rendu pour les réseaux → phrase claire (jamais « Un souci est survenu »). Fonction PURE ; le message interne est masqué et borné. */
+export function erreurPreparationReseaux(e: unknown): ErreurVisuel {
+  if (e instanceof ErreurVisuel) return e;
+  const message = masquerSecrets(e instanceof Error ? e.message : String(e)).slice(0, 300);
+  if (/absente/i.test(message)) return refus("RESEAUX_INDISPONIBLE", message);
+  if (/déborde|ne tient pas|zone réservée|empiète|chevauche|texte sous \d+ px|jambage/i.test(message)) return refus("RESEAUX_MISE_EN_PAGE", message);
+  if (/^Carrousel trop long pour/.test(message)) return refus("RESEAUX_TROP_DE_PAGES", message);
+  if (/éteint/i.test(message)) return refus("GENERATEUR_ETEINT", PHRASE_GENERATEUR_ETEINT);
+  if ((e as { reessayable?: unknown } | null)?.reessayable === true || /pas fini à temps|n'est pas relié|Version de composition/i.test(message)) return refus("RESEAUX_INDISPONIBLE", message);
+  return refus("RESEAUX_ECHEC", message);
+}
+
 /**
  * « Préparer pour les réseaux » (L2-05) : fiche VALIDÉE seulement. Instagram/Facebook = N JPEG sans PDF ; LinkedIn = UN document PDF.
  * Renseigne `reseaux` et `versions` ; le statut ne bouge pas. Générateur éteint ou fiche non validée : refus avant tout rendu.
@@ -248,10 +260,16 @@ export async function preparerPourReseaux(id: string, reseaux: readonly Reseau[]
     return v.spec;
   };
   const spec = verifier(await lireVisuel(id, deps));
-  const versions = await deps.rendreReseaux(spec, demandes);
-  for (const v of versions) {
-    // Contrat : LinkedIn = un PDF ; Meta (Instagram, Facebook) = des images seules.
-    if (v.cadre === "linkedin" ? !v.pdfCle : v.pdfCle !== null) throw new Error("Le rendu pour les réseaux ne respecte pas le format attendu");
+  let versions: Awaited<ReturnType<DependancesCarrousels["rendreReseaux"]>>;
+  try {
+    versions = await deps.rendreReseaux(spec, demandes);
+    for (const v of versions) {
+      // Contrat : LinkedIn = un PDF ; Meta (Instagram, Facebook) = des images seules.
+      if (v.cadre === "linkedin" ? !v.pdfCle : v.pdfCle !== null) throw new Error("Le rendu pour les réseaux ne respecte pas le format attendu");
+    }
+  } catch (e) {
+    journaliserEchec(id, e);
+    throw erreurPreparationReseaux(e);
   }
   await deps.verrou(async () => {
     verifier(await lireVisuel(id, deps));

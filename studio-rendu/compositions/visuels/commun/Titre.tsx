@@ -31,6 +31,9 @@ export const MOT_SEUL_GRAND_TITRE = 5;
 /** Grands titres : on ne garde une ligne de moins que si le corps y reste à 97 % du plus grand (le style C vise le plus grand corps). */
 export const TOLERANCE_GRAND_TITRE = 0.97;
 
+/** Marge (px) par ligne retirée de la hauteur offerte à la mise en lignes : l'arrondi de chaque ligne au pixel près. */
+const ARRONDI_PAR_LIGNE_PX = 1;
+
 /** Attend que la police soit réellement chargée : jamais de mesure avec une police de secours. */
 function attendrePolice(): Promise<void> {
   return avecDelai(policeTitrePrete(), DELAI_POLICE_MS, () => `Police Inter Display Black non chargée après ${DELAI_POLICE_MS / 1000} s : titre non mesurable (${etatPolices()})`);
@@ -67,7 +70,7 @@ export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = 
       .then(() => {
         const contexte = document.createElement("canvas").getContext("2d");
         if (!contexte) throw new Error("Canvas 2D indisponible : titre non mesurable");
-        const choix = mettreEnLignesCapitales(capitales, (lignes, taille) => mesurerLignes(contexte, lignes, taille), { maxLignes, hauteurMax, cible: largeur, hauteur: hauteurTitre, ...(min ? { min } : {}), ...(max ? { max } : {}), ...(grand ? { motSeulMin: MOT_SEUL_GRAND_TITRE, toleranceCorps: TOLERANCE_GRAND_TITRE } : {}) });
+        const choix = mettreEnLignesCapitales(capitales, (lignes, taille) => mesurerLignes(contexte, lignes, taille), { maxLignes, hauteurMax: hauteurMax - maxLignes * ARRONDI_PAR_LIGNE_PX, cible: largeur, hauteur: hauteurTitre, ...(min ? { min } : {}), ...(max ? { max } : {}), ...(grand ? { motSeulMin: MOT_SEUL_GRAND_TITRE, toleranceCorps: TOLERANCE_GRAND_TITRE } : {}) });
         if (vivant) setMise(choix);
         continueRender(attente);
       })
