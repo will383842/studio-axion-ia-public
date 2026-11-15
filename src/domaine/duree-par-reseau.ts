@@ -5,7 +5,6 @@
  */
 import { REEL_FACEBOOK_DUREE_SEC } from "@/fournisseurs/publication/zernio-corps";
 import type { DureesFormat } from "@/formats/types";
-import releve from "../../docs/reseaux/regles-officielles.json";
 
 export const RESEAUX_DUREE = ["tiktok", "instagram", "youtube-shorts", "linkedin", "facebook"] as const;
 export type ReseauDuree = (typeof RESEAUX_DUREE)[number];
@@ -26,21 +25,15 @@ export interface LimiteDuree {
   source: SourceLimite | null;
 }
 
-interface CelluleReleve { valeur?: string; url?: string | null; date?: string | null }
+/**
+ * Source de la limite Facebook : copie de la cellule docs/reseaux/regles-officielles.json (le dossier docs/ n'est pas dans
+ * l'image de build). Le test lit le relevé et échoue si cette copie s'en écarte ou si la cellule perd sa preuve.
+ */
+export const SOURCE_FACEBOOK_DUREE: SourceLimite = { cellule: "reseaux.facebook.reseau.format_video", url: "https://zernio.com/openapi.json", date: "2026-11-12" };
 
-function cellule(reseau: string, cle: string): CelluleReleve | undefined {
-  const r = (releve.reseaux as unknown as Record<string, { reseau?: Record<string, CelluleReleve> } | undefined>)[reseau];
-  return r?.reseau?.[cle];
-}
-
-/** Limite de durée vidéo d'un réseau et sa source. Chiffre seulement si la cellule de preuve existe, avec URL et date. */
+/** Limite de durée vidéo d'un réseau et sa source. Chiffre seulement pour un réseau dont la cellule de preuve est copiée ici. */
 export function limiteDureeReseau(reseau: string): LimiteDuree {
-  if (reseau === "facebook") {
-    const c = cellule("facebook", "format_video");
-    if (c?.valeur && c.valeur !== "inconnu" && c.url && c.date) {
-      return { reseau, limiteSec: REEL_FACEBOOK_DUREE_SEC.max, source: { cellule: "reseaux.facebook.reseau.format_video", url: c.url, date: c.date } };
-    }
-  }
+  if (reseau === "facebook") return { reseau, limiteSec: REEL_FACEBOOK_DUREE_SEC.max, source: SOURCE_FACEBOOK_DUREE };
   return { reseau, limiteSec: null, source: null };
 }
 

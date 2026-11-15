@@ -55,6 +55,8 @@ describe("durée visée et limite d'un réseau (aucun appel réel)", () => {
       expect(c!.valeur).not.toBe("inconnu");
       expect(c!.url).toBeTruthy();
       expect(c!.date).toBeTruthy();
+      expect(l.source?.url).toBe(c!.url);
+      expect(l.source?.date).toBe(c!.date);
     }
   });
 });
