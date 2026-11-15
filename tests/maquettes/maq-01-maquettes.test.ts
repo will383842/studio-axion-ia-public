@@ -6,6 +6,18 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+// Motifs privés : lus à l'exécution dans un fichier fourni hors dépôt (variable INTERDITS_PUBLIC_FICHIER), jamais écrits ici.
+// Sans fichier (variable absente ou chemin introuvable), le contrôle est ignoré.
+const FICHIER_INTERDITS = process.env.INTERDITS_PUBLIC_FICHIER;
+const MOTIFS_PRIVES: RegExp[] =
+  FICHIER_INTERDITS && existsSync(FICHIER_INTERDITS)
+    ? readFileSync(FICHIER_INTERDITS, "utf8")
+        .split("\n")
+        .map((m) => m.trim())
+        .filter(Boolean)
+        .map((m) => new RegExp(m, "i"))
+    : [];
+
 const RACINE = process.cwd();
 const ECRANS = ["a-publier", "stock", "infographie", "ecrans-sans-prix"] as const;
 const chemin = (e: string) => join(RACINE, "docs/maquettes", e, "index.html");
@@ -22,13 +34,23 @@ function texteVisible(html: string): string {
 }
 
 describe.each(ECRANS)("maquette %s", (ecran) => {
-  it("existe et s'ouvre sans serveur (un seul fichier, pas de script externe)", () => {
+  it("existe et s'ouvre sans serveur : aucune ressource externe (polices comprises), aucun lien absolu", () => {
     expect(existsSync(chemin(ecran))).toBe(true);
     const html = lire(ecran);
     expect(html).toMatch(/<title>[^<]+<\/title>/);
-    expect(html).not.toMatch(/<script[^>]+\bsrc=/i);
-    expect(html).not.toMatch(/\b(fetch|XMLHttpRequest|WebSocket|sendBeacon)\b/);
-    expect(html).not.toMatch(/(?:src|href|action)=["'](?!https:\/\/fonts\.(?:googleapis|gstatic)\.com|#)(?:https?:)?\/\//i);
+    expect(html).not.toMatch(/fonts\.(?:googleapis|gstatic)\.com/i);
+    expect(html).not.toMatch(/(?:src|href|action)\s*=\s*["'](?:https?:)?\/\//i);
+    expect(html).not.toMatch(/@import|url\(\s*["']?(?:https?:)?\/\//i);
+    expect(html).not.toMatch(/<link[^>]+rel\s*=\s*["']?(?:stylesheet|preconnect|dns-prefetch|preload)/i);
+    expect(html).not.toMatch(/href\s*=\s*["']\//i);
+  });
+
+  it("scripts en ligne seulement (validés par le fondateur le 14/11) : ni <script src=, ni appel réseau", () => {
+    const html = lire(ecran);
+    expect(html).not.toMatch(/<script[^>]*\bsrc\s*=/i);
+    const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join("\n");
+    expect(scripts).not.toMatch(/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon|EventSource)\b/);
+    expect(scripts).not.toMatch(/\bimport\s*\(/);
   });
 
   it("porte la mention « Maquette fictive : rien n'est branché, rien ne part »", () => {
@@ -37,7 +59,7 @@ describe.each(ECRANS)("maquette %s", (ecran) => {
 
   it("n'affiche aucun montant en euros ou en dollars", () => {
     const t = texteVisible(lire(ecran));
-    expect(t).not.toMatch(/[€£]/);
+    expect(t).not.toMatch(/[€£$]/);
     expect(t).not.toMatch(/\d\s*(?:\$|USD|EUR|euros?|dollars?)/i);
     expect(t).not.toMatch(/(?:\$|USD|EUR)\s*\d/i);
     expect(t).not.toMatch(/\b(?:prix|tarif|facture|abonnement)\b/i);
@@ -45,7 +67,7 @@ describe.each(ECRANS)("maquette %s", (ecran) => {
 
   it("vouvoie : aucun tutoiement dans les textes", () => {
     const t = texteVisible(lire(ecran));
-    expect(t).not.toMatch(/(?<![\p{L}\p{N}])(?:tu|toi|ton|ta|tes|t')(?![\p{L}\p{N}])/iu);
+    expect(t).not.toMatch(/(?<![\p{L}\p{N}])(?:tu|toi|ton|ta|tes|t'|tiens|peux|veux|as|es)(?![\p{L}\p{N}])/iu);
     expect(t).not.toMatch(/\b(?:clique|choisis|ajoute|glisse|importe|écris|crée|regarde)\b/i);
     expect(t).toMatch(/\bvous\b|\bvotre\b|\bvos\b/i);
   });
@@ -74,6 +96,16 @@ describe.each(ECRANS)("maquette %s", (ecran) => {
     expect(t).not.toMatch(/message automatique/i);
     expect(t).not.toMatch(/zernio/i);
     expect(lire(ecran)).not.toMatch(/[\w.+-]+@(?!exemple\.fr)[\w-]+\.\w+/);
+  });
+
+  it("ne cite aucun motif privé (noms de personnes, dépôt privé) : motifs lus hors dépôt, contrôle ignoré sans fichier", () => {
+    if (MOTIFS_PRIVES.length === 0) return;
+    const html = lire(ecran);
+    for (const m of MOTIFS_PRIVES) expect(html).not.toMatch(m);
+  });
+
+  it("n'affiche aucune étiquette « Essai » (évoquerait une offre payante)", () => {
+    expect(texteVisible(lire(ecran))).not.toMatch(/\bEssai\b/i);
   });
 
   it("ne propose aucune suppression (on archive)", () => {
