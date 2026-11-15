@@ -36,7 +36,7 @@ describe("etatCacheScenes", () => {
     const r = await etatCacheScenes("vid", { ...ports, listerObjets: async () => { throw new Error("R2 down"); } }, "rendus/");
     expect(r).toEqual({ etat: null, raison: expect.stringContaining("R2 down") });
     const r2 = await etatCacheScenes("vid", { ...ports, lireVersions: async () => { throw new Error("base"); } }, "p/");
-    expect(r2.etat).toBeNull();
+    expect("etat" in r2 && r2.etat).toBeNull();
   });
   it("garde statique : lecture seule", () => {
     const src = readFileSync("src/services/retouche-segments/cache.ts", "utf8");
