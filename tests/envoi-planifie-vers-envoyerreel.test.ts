@@ -27,8 +27,6 @@ vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
-const H = 3_600_000;
-const MIN = 60_000;
 const NOW0 = Date.parse("2026-11-20T08:00:00Z");
 
 function doublure(): Depot<EnvoiPlanifie> {
@@ -155,6 +153,21 @@ describe("L5-02a · envoi depuis le créneau (vidéo)", () => {
     expect(r2.lignes[0].etat).toBe("a-verifier");
   });
 
+  it("vrai plantage du processus entre la création chez le diffuseur et l'écriture locale : relecture, 0 POST, « deja-cree »", async () => {
+    const m = monter();
+    const cle = cleEnvoi("v1", "facebook", 1);
+    // État laissé par un processus mort : « en-cours » écrit, post déjà présent chez le faux diffuseur, jamais marqué « cree ».
+    m.etats.table.set(`creation:${cle}`, "en-cours");
+    m.posts.set("post-existant", postExemple({ _id: "post-existant", status: "draft", metadata: { origine: "studio", studioCle: cle } }));
+    const r = await tourEnvoisCalendrier(m.deps);
+    expect(m.faux.appels.filter((a) => a.methode === "POST")).toHaveLength(0);
+    expect(m.deps.outilsAppeles).toEqual([]);
+    expect(m.faux.appels.some((a) => a.methode === "GET" && a.url.includes("/v1/posts"))).toBe(true);
+    expect(r.lignes[0].etat).toBe("deja-cree");
+    expect(m.etats.table.get(`creation:${cle}`)).toBe("cree");
+    expect(m.posts.size).toBe(1);
+  });
+
   it("réponse perdue (envoi coupé en route) : « à vérifier », plus aucun appel pour cette entrée", async () => {
     const m = monter({ erreurApresCreation: new ErreurZernio("indisponible", "délai dépassé", { reessayable: true }) });
     const r1 = await tourEnvoisCalendrier(m.deps);
@@ -211,8 +224,6 @@ describe("L5-02a · envoi depuis le créneau (vidéo)", () => {
     await tourEnvoisCalendrier(m.deps);
     expect(m.appelsDiffuseur()).toBe(0);
     expect(m.notifications.filter((n) => n.motif === "a-reprogrammer")).toHaveLength(1);
-    expect(30 * MIN).toBeGreaterThan(20 * MIN);
-    expect(H).toBeGreaterThan(0);
   });
 
   it("TikTok sans consentement ou sans niveau : aucun brouillon, une seule notification « à compléter »", async () => {

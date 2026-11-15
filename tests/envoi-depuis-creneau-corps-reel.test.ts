@@ -3,32 +3,13 @@
  * OpenAPI. Premier commentaire : seulement là où la plateforme l'admet ; LinkedIn : aucune réponse automatique.
  */
 import { existsSync, readFileSync } from "node:fs";
+import Ajv from "ajv";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { corpsPostZernio, premierCommentaireTransmissibleZernio, type DemandeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { corpsBrouillonCreneau } from "@/services/envoi-depuis-creneau";
 
 const CHEMIN = resolve(process.cwd(), "docs/zernio/openapi-extrait-1.418.1.json");
-const spec = existsSync(CHEMIN) ? JSON.parse(readFileSync(CHEMIN, "utf8")) : null;
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function erreurs(sch: any, v: unknown, chemin: string, racine: any): string[] {
-  if (sch?.$ref) return erreurs(racine.components.schemas[String(sch.$ref).split("/").pop()!], v, chemin, racine);
-  if (!sch || v === undefined) return [];
-  const types: string[] = ([] as string[]).concat(sch.type ?? []);
-  const reel = v === null ? "null" : Array.isArray(v) ? "array" : Number.isInteger(v) ? "integer" : typeof v;
-  if (types.length && !types.includes(reel) && !(reel === "integer" && types.includes("number"))) return [`${chemin}: type ${reel}, attendu ${types}`];
-  if (sch.enum && !sch.enum.includes(v)) return [`${chemin}: valeur hors énumération`];
-  if (Array.isArray(v)) return v.flatMap((x, i) => erreurs(sch.items, x, `${chemin}[${i}]`, racine));
-  if (reel === "object" && sch.properties) {
-    const o = v as Record<string, unknown>;
-    return [
-      ...(sch.required ?? []).filter((k: string) => o[k] === undefined).map((k: string) => `${chemin}.${k}: requis`),
-      ...Object.keys(o).flatMap((k) => (k in sch.properties ? erreurs(sch.properties[k], o[k], `${chemin}.${k}`, racine) : [`${chemin}.${k}: champ inconnu du schéma`])),
-    ];
-  }
-  return [];
-}
 
 const MAINTENANT = Date.parse("2026-11-20T08:00:00Z");
 const CREATEUR = { privacyLevels: ["PUBLIC_TO_EVERYONE"], allowComment: true, allowDuet: true, allowStitch: false };
@@ -57,10 +38,18 @@ describe("L5-02a · corps réel du brouillon", () => {
     expect(JSON.stringify(c)).not.toMatch(/autoReply|autoDm|reponseAuto|replyTo/i);
   });
 
-  it.skipIf(!spec)("corps validés par l'extrait OpenAPI Zernio", () => {
+  it("corps validés par l'extrait OpenAPI Zernio (ajv) ; le fichier d'extrait doit exister", () => {
+    expect(existsSync(CHEMIN), `extrait OpenAPI manquant : ${CHEMIN}`).toBe(true);
+    const spec = JSON.parse(readFileSync(CHEMIN, "utf8"));
     const racine = spec.paths["/v1/posts"].post.requestBody.content["application/json"].schema;
+    // Les schémas de plateforme de l'extrait n'ont que des champs facultatifs : un `oneOf` y est toujours ambigu pour ajv.
+    // Seul ce nœud passe en `anyOf` (le corps doit satisfaire au moins un schéma de plateforme) ; le reste est validé tel quel.
+    const psd = racine.properties.platforms.items.properties.platformSpecificData;
+    if (psd?.oneOf) { psd.anyOf = psd.oneOf; delete psd.oneOf; }
+    const ajv = new Ajv({ strict: false, allErrors: true });
+    const valider = ajv.compile({ ...racine, components: spec.components });
     for (const r of ["facebook", "linkedin", "instagram", "tiktok"]) {
-      expect(erreurs(racine, corps(r), r, spec), r).toEqual([]);
+      expect(valider(corps(r)), `${r} : ${ajv.errorsText(valider.errors)}`).toBe(true);
     }
   });
 });
