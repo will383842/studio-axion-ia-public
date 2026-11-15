@@ -1,0 +1,1 @@
+- PR 580 : 3 points corrigés (clé liée au texte, message « déjà placé ou archivé », filtres Planifié/Publié alimentés), test « branché » renforcé ; 52/52 tests ciblés, tsc/eslint propres ; commit 19fb0747 sur usine/STK-02.
