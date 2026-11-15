@@ -96,8 +96,9 @@ const PHRASES_REDACTION: Record<string, string> = {
 
 // Un geste à la fois par mot (en mémoire : un redémarrage repart libre). Évite deux appels payés ou deux rendus simultanés.
 const enCours = new Set<string>();
-async function exclusif<T>(id: string, f: () => Promise<T>): Promise<T | ResultatGeste<never>> {
-  if (enCours.has(id)) return refus("en_cours");
+const OCCUPE = Symbol("occupe");
+async function exclusif<T>(id: string, f: () => Promise<T>): Promise<T | typeof OCCUPE> {
+  if (enCours.has(id)) return OCCUPE;
   enCours.add(id);
   try {
     return await f();
@@ -178,7 +179,7 @@ export async function redigerGuide(mot: string, deps?: DepsFabrique): Promise<Re
   const p = await preparer(mot, deps);
   if (estRefus(p)) return p;
   const r = await exclusif(p.id, () => p.d.rediger(mot));
-  if (estRefus(r)) return r;
+  if (r === OCCUPE) return refus("en_cours");
   if (!r.ok) return { ok: false, raison: "redaction", phrase: PHRASES_REDACTION[r.raison] ?? PHRASES.indisponible, ...(r.regle ? { regle: r.regle } : {}) };
   return { ok: true, version: r.version, phrase: `Brouillon n° ${r.version} prêt. Relisez-le en entier avant de le valider.` };
 }
@@ -210,14 +211,14 @@ export async function validerGuide(o: { mot: string; version: number; contenu: u
       return refus("indisponible");
     }
   });
-  return r;
+  return r === OCCUPE ? refus("en_cours") : r;
 }
 
 /** Geste 4 : « Fabriquer le PDF » = envoi du texte validé à la route signée du site. « Fabriqué » seulement sur un 201. */
 export async function fabriquerPdf(o: { mot: string }, deps?: DepsFabrique): Promise<ResultatGeste<{ cheminPdf: string | null; pages: number | null }>> {
   const p = await preparer(o.mot, deps);
   if (estRefus(p)) return p;
-  return exclusif(p.id, async (): Promise<ResultatGeste<{ cheminPdf: string | null; pages: number | null }>> => {
+  const r = await exclusif(p.id, async (): Promise<ResultatGeste<{ cheminPdf: string | null; pages: number | null }>> => {
     let valide: VersionBrouillon | null;
     let etat: EtatFabrique | null;
     try {
@@ -245,13 +246,14 @@ export async function fabriquerPdf(o: { mot: string }, deps?: DepsFabrique): Pro
     await journaliser(p.d, "guide_fabrique", `version=${valide.version} empreinte=${valide.empreinte.slice(0, 12)}`);
     return { ok: true, cheminPdf: r.cheminPdf, pages: r.pages, phrase: "PDF fabriqué. Vérifiez l'aperçu avant de le rattacher au mot." };
   });
+  return r === OCCUPE ? refus("en_cours") : r;
 }
 
 /** Geste 5 : « Rattacher au mot » = ajout au catalogue du site + liaison mot → guide INACTIVE. N'allume rien. */
 export async function rattacherGuide(o: { mot: string }, deps?: DepsFabrique): Promise<ResultatGeste<object>> {
   const p = await preparer(o.mot, deps);
   if (estRefus(p)) return p;
-  return exclusif(p.id, async (): Promise<ResultatGeste<object>> => {
+  const r = await exclusif(p.id, async (): Promise<ResultatGeste<object>> => {
     let etat: EtatFabrique | null;
     let valide: VersionBrouillon | null;
     try {
@@ -277,4 +279,5 @@ export async function rattacherGuide(o: { mot: string }, deps?: DepsFabrique): P
     await journaliser(p.d, "guide_rattache", `version=${etat.version} inactif`);
     return { ok: true, phrase: "Guide rattaché au mot, sans l'allumer. L'allumage reste un geste séparé." };
   });
+  return r === OCCUPE ? refus("en_cours") : r;
 }
