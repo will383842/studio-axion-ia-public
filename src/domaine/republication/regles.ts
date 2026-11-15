@@ -24,20 +24,26 @@ export const RESEAUX_REPUBLICATION: readonly IdReseau[] = ["tiktok", "instagram"
 
 const hyp = <T>(valeur: T): ValeurSourcee<T> => ({ statut: "hypothese", valeur });
 
-export const REGLES_REPUBLICATION: Readonly<Record<IdReseau, RegleRepublication>> = {
+export const REGLES_REPUBLICATION: Readonly<Record<IdReseau, RegleRepublication>> = Object.freeze({
   tiktok: { delaiMinJours: hyp(30), seuilPerformance: hyp(500), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: true },
   instagram: { delaiMinJours: hyp(30), seuilPerformance: hyp(500), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
   "youtube-shorts": { delaiMinJours: hyp(60), seuilPerformance: hyp(1000), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
   youtube: { delaiMinJours: hyp(90), seuilPerformance: hyp(1000), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
   linkedin: { delaiMinJours: hyp(45), seuilPerformance: hyp(300), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
   facebook: { delaiMinJours: hyp(45), seuilPerformance: hyp(300), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
-};
+});
 
+function reseauConnu(reseau: unknown): reseau is IdReseau {
+  return typeof reseau === "string" && Object.prototype.hasOwnProperty.call(REGLES_REPUBLICATION, reseau);
+}
+
+/** Erreur explicite si le réseau est inconnu (donnée lue en base ou reçue d'une API). */
 export function regleRepublication(reseau: IdReseau): RegleRepublication {
+  if (!reseauConnu(reseau)) throw new Error(`réseau inconnu : ${String(reseau)}`);
   return REGLES_REPUBLICATION[reseau];
 }
 
-export type MotifRefusRepublication = "contenu-identique" | "filigrane" | "delai-trop-court";
+export type MotifRefusRepublication = "contenu-identique" | "filigrane" | "delai-trop-court" | "reseau-inconnu" | "date-invalide";
 
 export interface EntreeRepublication {
   readonly reseau: IdReseau;
@@ -59,7 +65,10 @@ export interface VerdictRepublication {
 const JOUR_MS = 24 * 3600 * 1000;
 
 export function evaluerRepublication(e: EntreeRepublication): VerdictRepublication {
-  const r = regleRepublication(e.reseau);
+  // Prudence : une donnée invalide refuse la republication au lieu de la laisser passer ou de planter.
+  if (!reseauConnu(e.reseau)) return { autorise: false, motifs: ["reseau-inconnu"] };
+  if (!Number.isFinite(e.datePublication) || !Number.isFinite(e.maintenant)) return { autorise: false, motifs: ["date-invalide"] };
+  const r = REGLES_REPUBLICATION[e.reseau];
   const motifs: MotifRefusRepublication[] = [];
   if (r.refuseIdentique && e.identique) motifs.push("contenu-identique");
   if (r.refuseFiligrane && e.filigrane) motifs.push("filigrane");

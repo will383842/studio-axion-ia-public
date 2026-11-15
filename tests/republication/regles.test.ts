@@ -17,7 +17,7 @@ describe("règles de republication", () => {
       const r = REGLES_REPUBLICATION[id];
       expect(r.delaiMinJours.statut === "hypothese" || (r.delaiMinJours.statut === "source" && r.delaiMinJours.source.length > 0)).toBe(true);
       expect(r.delaiMinJours.valeur).toBeGreaterThan(0);
-      expect(r.seuilPerformance.statut).toBe("hypothese");
+      expect(r.seuilPerformance.statut === "hypothese" || (r.seuilPerformance.statut === "source" && r.seuilPerformance.source.length > 0)).toBe(true);
     }
   });
 
@@ -58,5 +58,26 @@ describe("règles de republication", () => {
     const copie = { ...e };
     expect(evaluerRepublication(e)).toEqual(evaluerRepublication(e));
     expect(e).toEqual(copie);
+  });
+
+  it("refuse (sans laisser passer) une date invalide", () => {
+    const base = { reseau: "tiktok" as const, identique: false, filigrane: false };
+    for (const [datePublication, maintenant] of [[Number.NaN, ORIGINE + 400 * JOUR], [ORIGINE, Number.NaN], [ORIGINE, Number.POSITIVE_INFINITY]]) {
+      const v = evaluerRepublication({ ...base, datePublication, maintenant });
+      expect(v.autorise).toBe(false);
+      expect(v.motifs).toEqual(["date-invalide"]);
+    }
+  });
+
+  it("refuse proprement un réseau inconnu, et regleRepublication lève une erreur explicite", () => {
+    for (const reseau of ["x", "constructor", "__proto__"]) {
+      const v = evaluerRepublication({ reseau: reseau as never, datePublication: ORIGINE, maintenant: ORIGINE + 400 * JOUR, identique: false, filigrane: false });
+      expect(v).toEqual({ autorise: false, motifs: ["reseau-inconnu"] });
+      expect(() => regleRepublication(reseau as never)).toThrow(`réseau inconnu : ${reseau}`);
+    }
+  });
+
+  it("les règles sont figées à l'exécution", () => {
+    expect(Object.isFrozen(REGLES_REPUBLICATION)).toBe(true);
   });
 });
