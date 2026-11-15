@@ -4,7 +4,7 @@
  * Seule l'empreinte HACHÉE (SHA-256 de chaque racine du sujet) est rangée : aucun mot en clair, aucun texte. Le filtre
  * s'applique côté Studio sur les sujets proposés par l'usine ; rien n'est envoyé à l'usine (ni texte, ni empreinte), aucun
  * fournisseur n'est appelé. Le stock est une donnée du fondateur : ce service n'efface jamais rien (ajout et mise à jour d'état
- * seulement). Une lecture illisible vaut « rien ».
+ * seulement) ; une valeur existante qui n'est pas une liste n'est jamais écrasée (écriture refusée). Une lecture illisible vaut « rien ».
  */
 import "server-only";
 import { createHash } from "node:crypto";
@@ -79,7 +79,12 @@ export async function rangerSignatureStock(m: { id: string; texte: string; signa
   try {
     return await verrou(async () => {
       const brut = await lireParametre<unknown>(CLE_SIGNATURES_STOCK, []);
-      // une valeur illisible est écrasée seulement si elle n'est pas une liste ; une liste garde TOUTES ses lignes
+      // jamais de suppression : une valeur existante qui n'est pas une liste n'est JAMAIS écrasée (refus signalé) ;
+      // une liste garde TOUTES ses lignes, même non conformes
+      if (brut !== undefined && brut !== null && !Array.isArray(brut)) {
+        console.error("[studio] signatures du stock : valeur existante illisible (non liste), non écrasée");
+        return false;
+      }
       const liste: unknown[] = Array.isArray(brut) ? [...brut] : [];
       const rang = liste.findIndex((x) => estSignature(x) && x.id === m.id);
       if (rang >= 0) {

@@ -72,4 +72,37 @@ describe("RC-34 signatures du stock", () => {
     await ecrireParametre(stock.CLE_SIGNATURES_STOCK, "illisible");
     expect(await stock.signaturesDuStock()).toEqual([]);
   });
+
+  it("jamais de suppression : une valeur qui n'est pas une liste n'est jamais écrasée (refus, ancienne valeur intacte)", async () => {
+    const ancienne = { objet: "inconnu" };
+    await ecrireParametre(stock.CLE_SIGNATURES_STOCK, ancienne);
+    const erreur = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await stock.rangerSignatureStock({ id: "m1", texte: MESSAGE, etat: "planifie" })).toBe(false);
+    expect(erreur).toHaveBeenCalled();
+    erreur.mockRestore();
+    expect(await lireParametre(stock.CLE_SIGNATURES_STOCK, null)).toEqual(ancienne);
+    await ecrireParametre(stock.CLE_SIGNATURES_STOCK, "illisible");
+    expect(await stock.rangerSignatureStock({ id: "m2", texte: MESSAGE, etat: "publie" })).toBe(false);
+    expect(await lireParametre(stock.CLE_SIGNATURES_STOCK, null)).toBe("illisible");
+  });
+
+  it("jamais de suppression : les lignes non conformes d'une liste sont conservées à l'écriture", async () => {
+    const etrangeres = [{ ancien: "format" }, 42];
+    await ecrireParametre(stock.CLE_SIGNATURES_STOCK, etrangeres);
+    expect(await stock.rangerSignatureStock({ id: "m1", texte: MESSAGE, etat: "planifie" })).toBe(true);
+    const brut = (await lireParametre<unknown[]>(stock.CLE_SIGNATURES_STOCK, [])) as unknown[];
+    expect(brut).toHaveLength(3);
+    expect(brut.slice(0, 2)).toEqual(etrangeres);
+    expect((brut[2] as { id: string }).id).toBe("m1");
+    expect(await stock.rangerSignatureStock({ id: "m1", texte: MESSAGE, etat: "publie" })).toBe(true);
+    expect(((await lireParametre<unknown[]>(stock.CLE_SIGNATURES_STOCK, [])) as unknown[]).slice(0, 2)).toEqual(etrangeres);
+  });
+
+  it("jamais de rétrogradation : rejeu « planifie » après « publie », l'état reste « publie »", async () => {
+    await stock.rangerSignatureStock({ id: "m1", texte: MESSAGE, etat: "publie" });
+    expect(await stock.rangerSignatureStock({ id: "m1", texte: MESSAGE, etat: "planifie" })).toBe(true);
+    const l = (await stock.signaturesDuStock()) as { id: string; etat: string }[];
+    expect(l).toHaveLength(1);
+    expect(l[0].etat).toBe("publie");
+  });
 });
