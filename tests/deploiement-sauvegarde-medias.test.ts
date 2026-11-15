@@ -119,7 +119,7 @@ describe("L2-12a · medias-delta", () => {
 
 describe("L2-12a · ligne de commande (aucun réseau)", () => {
   const lancer = (args: string[], env: Record<string, string>) =>
-    spawnSync(process.execPath, ["deploiement/copier-r2.mjs", ...args], { env: { PATH: process.env.PATH ?? "", ...env }, encoding: "utf8", timeout: 20_000 });
+    spawnSync(process.execPath, ["deploiement/copier-r2.mjs", ...args], { env: { PATH: process.env.PATH ?? "", ...env } as unknown as NodeJS.ProcessEnv, encoding: "utf8" as const, timeout: 20_000 });
 
   it("medias-delta sans R2_BUCKET_SECOURS : code 3, message clair, sans secret", () => {
     const { R2_BUCKET_SECOURS: _omis, ...sansSecours } = ENV;
