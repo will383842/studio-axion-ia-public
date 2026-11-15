@@ -123,10 +123,19 @@ describe("mettre à la corbeille", () => {
     expect((await d.videos.obtenir(ID))!.statut).not.toBe("archivee");
   });
 
-  it("dit combien de brouillons restent dans Buffer", async () => {
+  it("dit combien de brouillons restent chez l'outil d'envoi (clé et alias L0-13)", async () => {
     await depots().publications.enregistrer({ id: "pub-b", videoId: ID, reseau: "tiktok", statut: "brouillon", via: "buffer", idExterne: "buf-1", date: new Date(t0 + JOUR).toISOString(), ...H } as never);
     const r = await corbeille.mettreALaCorbeille([ID]);
-    expect(r).toMatchObject({ mises: 1, brouillonsBuffer: 1 });
+    expect(r).toMatchObject({ mises: 1, brouillonsExternes: 1, brouillonsBuffer: 1 });
+  });
+
+  it("compte aussi les brouillons de l'historique « zernio » ; rien n'est supprimé en base", async () => {
+    await depots().publications.enregistrer({ id: "pub-b", videoId: ID, reseau: "tiktok", statut: "brouillon", via: "buffer", idExterne: "buf-1", date: new Date(t0 + JOUR).toISOString(), ...H } as never);
+    await depots().publications.enregistrer({ id: "pub-z", videoId: ID, reseau: "instagram", statut: "brouillon", via: "zernio", idExterne: "zer-1", date: new Date(t0 + JOUR).toISOString(), ...H } as never);
+    const r = await corbeille.mettreALaCorbeille([ID]);
+    expect(r).toMatchObject({ brouillonsExternes: 2, brouillonsBuffer: 2 });
+    expect(await depots().publications.obtenir("pub-b")).toBeTruthy();
+    expect(await depots().publications.obtenir("pub-z")).toBeTruthy();
   });
 
   it("exige une session", async () => {
