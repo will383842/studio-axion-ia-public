@@ -1,6 +1,8 @@
 /**
- * AUT-A — structure : le réglage `usine.autonomie` n'a qu'un seul point d'écriture et n'est joignable ni par la porte de
- * l'Usine ni par ses modules ; il exige la session du fondateur. Lecture de fichiers seulement, aucun réseau, 0 €.
+ * AUT-A — structure : le réglage `usine.autonomie` n'a qu'un seul point d'écriture (`reglerAutonomieUsine`, session du fondateur) et
+ * n'est joignable ni par la porte de l'Usine ni par ses modules. Depuis le 15/11 (S1), le plafond reçu de l'Usine a son propre point
+ * d'écriture, `recevoirAutonomieUsine`, qui n'écrit QUE `usine.autonomie.porte` et n'est appelé que par `budget-mensuel.ts` (derrière
+ * la garde de la porte) ; `reglerAutonomieUsine` reste injoignable depuis la porte. Lecture de fichiers seulement, aucun réseau, 0 €.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -69,7 +71,39 @@ describe("structure de l'autonomie de l'Usine", () => {
     const fonctions = [...t.matchAll(/export (?:async )?function (\w+)[\s\S]*?(?=\nexport |\n(?:async )?function |$)/g)]
       .filter((m) => /ecrireParametre\(/.test(m[0]))
       .map((m) => m[1]);
-    expect(fonctions.sort()).toEqual(["alerterPlafondUsine", "inscrireAccordUsine", "reglerAutonomieUsine"].sort());
+    expect(fonctions.sort()).toEqual(["alerterPlafondUsine", "inscrireAccordUsine", "recevoirAutonomieUsine", "reglerAutonomieUsine"].sort());
+  });
+
+  it("`usine.autonomie.porte` n'est écrite que dans recevoirAutonomieUsine, qui n'a pas de session et n'écrit pas l'ancienne clé", () => {
+    const t = sansCommentaires(lire(FICHIER));
+    const debut = t.indexOf("export async function recevoirAutonomieUsine");
+    expect(debut).toBeGreaterThan(-1);
+    const fin = t.indexOf("export async function reglerAutonomieUsine", debut);
+    const corps = t.slice(debut, fin);
+    const hors = t.slice(0, debut) + t.slice(fin);
+    expect(corps).toMatch(/ecrireParametre\(CLE_PORTE,/);
+    expect(corps).not.toMatch(/ecrireParametre\(CLE_REGLAGE/);
+    expect(corps).not.toMatch(/exigerSession/);
+    expect(corps).not.toMatch(/reglerAutonomieUsine/);
+    // nulle part ailleurs dans le fichier : ni écriture de la clé de la porte, ni suppression
+    expect(hors).not.toMatch(/ecrireParametre\(CLE_PORTE/);
+    expect(t).not.toMatch(/supprimer|effacer|\.retirer\(/);
+    // aucun autre fichier de src ne cite la clé (elle n'y est donc jamais écrite)
+    const citent = fichiers("src").filter((f) => f !== FICHIER).filter((f) => /usine\.autonomie\.porte/.test(sansCommentaires(lire(f))));
+    expect(citent).toEqual([]);
+  });
+
+  it("recevoirAutonomieUsine n'est appelée que depuis budget-mensuel.ts ; reglerAutonomieUsine n'est joignable ni depuis src/app/api/** ni depuis budget-mensuel.ts", () => {
+    const appelants = fichiers("src").filter((f) => f !== FICHIER).filter((f) => /recevoirAutonomieUsine/.test(sansCommentaires(lire(f))));
+    expect(appelants).toEqual(["src/services/budget-mensuel.ts"]);
+    const budget = sansCommentaires(lire("src/services/budget-mensuel.ts"));
+    expect(budget).not.toMatch(/reglerAutonomieUsine|actions-autonomie-usine/);
+    const portes = fichiers("src/app/api").filter((f) => /reglerAutonomieUsine|actions-autonomie-usine/.test(sansCommentaires(lire(f))));
+    expect(portes).toEqual([]);
+    // seuls la définition et l'écran (session) peuvent citer reglerAutonomieUsine (une liste de permis : le retrait de l'écran, S2, la laisse verte)
+    const permis = new Set(["src/app/(studio)/reglages/actions-autonomie-usine.ts", "src/components/reglages/AutonomieUsine.tsx", FICHIER]);
+    const intrus = fichiers("src").filter((f) => /reglerAutonomieUsine/.test(sansCommentaires(lire(f)))).filter((f) => !permis.has(f));
+    expect(intrus).toEqual([]);
   });
 
   it("`dansVerrouCredits(` n'est appelé que dans src/services/credits.ts (le marqueur seul n'est pas un verrou)", () => {

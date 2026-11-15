@@ -347,7 +347,7 @@ export async function verifierBudgetEtCredits(
       const eur = (c: number) => formaterMontant({ centimes: c, devise: "EUR" });
       await journaliser("budget", `Refus de l'Usine (plafond du mois) : ${quoi} — utilisé ${eur(j.utilise)} sur ${eur(j.plafond)} ce mois, demandé ${eur(bloquant)}.`, cleUsine ? { type: "travail", id: cleUsine } : undefined);
       await alerterPlafondUsine({ refus: true, apres: j.apres, plafond: j.plafond, mois: j.mois });
-      throw new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond du mois de l'Usine atteint : cette commande le dépasserait, rien n'est parti. Relevez le plafond dans Réglages.");
+      throw new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond du mois de l'Usine atteint : cette commande le dépasserait, rien n'est parti. Le plafond se règle dans l'Usine.");
     }
     // L'accord automatique couvre le seuil de confirmation ET le double réel (R7) : il vaut le montant bloquant, au moins.
     confirme = Math.max(bloquant, typeof accordRecu === "number" ? accordRecu : 0);
