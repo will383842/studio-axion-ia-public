@@ -105,7 +105,7 @@ beforeEach(async () => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   brancherReseauSimule();
-  await (await import("@/fournisseurs")).fournisseurParId("publication", "zernio").publicationsRecentes?.({ canalId: "exemple-compte-yt", depuis: "2000-01-01T00:00:00Z" });
+  await (await import("@/fournisseurs")).fournisseurParId("publication", "zernio").publicationsRecentes?.({ organisationId: "exemple-organisation", canalId: "exemple-compte-yt", depuis: "2000-01-01T00:00:00Z" });
   appelsZernio.length = 0;
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });
@@ -304,7 +304,7 @@ describe("b4 · envoi YouTube Shorts par le service", () => {
     decalageMs += 10 * 60_000;
     vi.setSystemTime(Date.now() + 10 * 60_000);
     await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "zernio" });
-    const demande = envoyer.mock.calls.at(-1)![0] as Record<string, unknown>;
+    const demande = envoyer.mock.calls.at(-1)![0] as unknown as Record<string, unknown>;
     expect(demande.reseau).toBe("instagram");
     expect("format" in demande).toBe(false);
     expect("dureeSec" in demande).toBe(false);

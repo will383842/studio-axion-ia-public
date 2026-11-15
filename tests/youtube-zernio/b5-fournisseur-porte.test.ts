@@ -62,7 +62,7 @@ describe("b5 · porte du fournisseur", () => {
       const { client, faux } = creerFauxClientZernio(serveur.repondre);
       const lireYoutube = vi.fn(async () => ({ actif, reglages: PRET.reglages }));
       const f = creerPublicationZernio(CLE_FICTIVE, { clientPret: client, lire, maintenant: () => MAINT, lireYoutube });
-      await f.envoyer({ reseau: "tiktok", texte: "Texte d'exemple", date: DATE, fichierCle: "https://exemple-r2.test/v.mp4", cible: "exemple-compte-tt", cleEnvoi: cleN(3, "tiktok"), consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" });
+      await f.envoyer({ reseau: "tiktok", texte: "Texte d'exemple", date: DATE, fichierCle: "https://exemple-r2.test/v.mp4", cible: "exemple-compte-tt", cleEnvoi: cleN(3, "tiktok"), consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" } as Parameters<typeof f.envoyer>[0]);
       expect(lireYoutube).not.toHaveBeenCalled();
       return JSON.stringify(creations(faux)[0].json);
     };

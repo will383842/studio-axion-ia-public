@@ -62,7 +62,7 @@ describe("b1 · corps YouTube Shorts", () => {
 
   it("description : plus de 5 000 octets (accents comptés) refusée ; 5 000 acceptée ; < ou > refusés", () => {
     expect(() => corps({ texte: "é".repeat(2501) })).toThrow(/5 000 octets/);
-    expect(corps({ texte: "é".repeat(2500) }).content.length).toBe(2500);
+    expect(corps({ texte: "é".repeat(2500) }).content?.length).toBe(2500);
     expect(() => corps({ texte: "a".repeat(5001) })).toThrow(/5 000 octets/);
     expect(() => corps({ texte: "voir -> ici" })).toThrow(/< ni >/);
     expect(() => corps({ texte: "a < b" })).toThrow(/< ni >/);
