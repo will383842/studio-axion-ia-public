@@ -20,6 +20,9 @@ describe("RC-15 — médiane du compte", () => {
     expect(medianeCompte([-4, 2, 4, 6])).toBe(4);
     expect(medianeCompte([-1, -2])).toBeNull();
   });
+  it("une vue à zéro reste lisible : comptée par la médiane", () => {
+    expect(medianeCompte([0, 0, 5])).toBe(0);
+  });
 });
 
 describe("RC-15 — A17 décolle (> 2 × médiane à H+2, au moins 10 relevés)", () => {
@@ -47,6 +50,9 @@ describe("RC-15 — A17 décolle (> 2 × médiane à H+2, au moins 10 relevés)"
     expect(evaluerDecolle(pub(-5), 100)).toMatchObject({ niveau: "non-evalue", statut: "non-evalue" });
     expect(evaluerDecolle(pub(-1), 100).niveau).toBe("non-evalue");
   });
+  it("0 vue reste lisible : évalué, pas d'alerte", () => {
+    expect(evaluerDecolle(pub(0, 10), 100)).toMatchObject({ id: "A17", niveau: "ok", statut: "fiable" });
+  });
 });
 
 describe("RC-15 — A16 chute (< 50 % de la médiane sur 3 publications)", () => {
@@ -71,6 +77,9 @@ describe("RC-15 — A16 chute (< 50 % de la médiane sur 3 publications)", () =>
   it("vues négatives : illisible, non évalué (jamais une alerte de chute)", () => {
     expect(evaluerChute([pub(-1), pub(-1), pub(-1)], 100)).toMatchObject({ niveau: "non-evalue", statut: "non-evalue" });
     expect(evaluerChute([pub(1), pub(-1), pub(1)], 100).niveau).toBe("non-evalue");
+  });
+  it("0 vue reste lisible : une chute à zéro vue déclenche l'alerte", () => {
+    expect(evaluerChute([pub(0, 10), pub(0, 10), pub(0, 10)], 100)).toMatchObject({ id: "A16", niveau: "alerte", statut: "fiable" });
   });
 });
 
