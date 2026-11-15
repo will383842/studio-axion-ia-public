@@ -85,7 +85,7 @@ export function KitPublication() {
     { cle: "telecharger", icone: "telecharger", libelle: "Télécharger", detail: `${sorties.length} format${sorties.length > 1 ? "s" : ""}` },
     { cle: "partager", icone: "lien", libelle: "Lien privé", detail: actifs ? `${actifs} actif${actifs > 1 ? "s" : ""}` : "Aucun" },
     // TEST-UI-REEL U8 : une vidéo d'essai ne part pas : le raccourci le dit avant même d'ouvrir la feuille.
-    { cle: "buffer", icone: "envoyer", libelle: "Buffer", detail: kit.videoEssai ? "Vidéo d'essai" : "Programmer", essai: kit.envoiSimule || kit.videoEssai },
+    { cle: "buffer", icone: "envoyer", libelle: "Zernio", detail: kit.videoEssai ? "Vidéo d'essai" : "Préparer", essai: kit.envoiSimule || kit.videoEssai },
   ];
 
   return (

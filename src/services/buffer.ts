@@ -18,7 +18,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
-import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
+import { estChezUnOutil, outilDe, outilPour, type RoutagePublication } from "@/domaine/outil-publication";
 import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, memeSource, videoIdSure } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
@@ -55,6 +55,18 @@ export interface CanauxEnregistres {
 
 export async function lireModeBuffer(): Promise<ModeEnvoiPublication> {
   return (await lireParametre<string>(PARAM_MODE, "brouillon")) === "programmer" ? "programmer" : "brouillon";
+}
+
+/**
+ * Mode d'envoi À AFFICHER. Le réglage « programmer » ne vaut que pour Buffer ; Zernio crée toujours un brouillon
+ * (publications.ts). Tant qu'aucun réseau n'est routé vers Buffer (défaut : Zernio partout), on dit « brouillon ».
+ * Lit le routage directement (routage-publication.ts importe zernio.ts, qui importe ce fichier : pas de cycle).
+ */
+export async function lireModeAffiche(): Promise<ModeEnvoiPublication> {
+  const mode = await lireModeBuffer();
+  if (mode === "brouillon") return mode;
+  const routage = await lireParametre<RoutagePublication>("publication.routage", {});
+  return listerReseaux().some((r) => outilPour(routage, r.id) === "buffer") ? mode : "brouillon";
 }
 
 export async function canauxEnregistres(): Promise<CanauxEnregistres | null> {
@@ -258,7 +270,7 @@ export async function vueEnvoiBuffer(): Promise<VueEnvoiBuffer | null> {
     // Comptes jamais lus : ils le seront au premier envoi, rien n'est bloqué d'avance.
     else comptes[r.reseau] = r.compte ? { nom: r.compte.nom } : vue.lusLe ? { probleme: r.probleme } : {};
   }
-  return { mode: vue.mode, comptes };
+  return { mode: await lireModeAffiche(), comptes };
 }
 
 /* ------------------------------------------------------------------ */

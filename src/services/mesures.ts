@@ -29,7 +29,7 @@ import { exigerSession } from "./auth";
 import { obtenirSujet, synchroniserEtats } from "./generateur";
 import { envoyerVersBuffer, obtenirKit } from "./publications";
 import { occupeBuffer } from "@/domaine/buffer";
-import { lireModeBuffer } from "./buffer";
+import { lireModeAffiche } from "./buffer";
 import { formateurDate } from "@/lib/intl";
 
 /* ------------------------------------------------------------------ */
@@ -221,7 +221,7 @@ export async function planProgrammerSujet(scriptMaitreId: Id, options: { formatI
     creneaux: planProgrammation(options.jourJ ?? jourJParDefaut(), retenues, ordreValide(ordre), heures),
     autresFormats: autres.length,
     envoiSimule: await fournisseurSimule("publication"),
-    modeBuffer: await lireModeBuffer(),
+    modeBuffer: await lireModeAffiche(),
   };
 }
 

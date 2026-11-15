@@ -141,7 +141,7 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
           </Bouton>
           <Bouton chargement>Chargement</Bouton>
           <Bouton variante="secondaire" icone="envoyer" essai onClick={() => notifier.essai("rien n'a été envoyé à Buffer")}>
-            Envoyer vers Buffer
+            Préparer dans Zernio
           </Bouton>
           <Bouton taille="xl" iconeDroite="fleche-droite">
             Très grand
@@ -326,7 +326,7 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
             declencheur={<BoutonIcone icone="menu" libelle="Plus d'actions" variante="secondaire" />}
             elements={[
               { libelle: "Renommer", icone: "ecrire", onSelect: () => undefined },
-              { libelle: "Envoyer vers Buffer", icone: "envoyer", essai: true, onSelect: () => undefined },
+              { libelle: "Préparer dans Zernio", icone: "envoyer", essai: true, onSelect: () => undefined },
               { libelle: "Décliner", icone: "repeter", bientot: true, onSelect: () => undefined },
               "separateur",
               { libelle: "Archiver", icone: "archive", danger: true, onSelect: () => undefined },
