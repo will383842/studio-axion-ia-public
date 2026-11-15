@@ -44,7 +44,7 @@
  * Rien n'est importé hors de `src/` (l'image du studio ne contient ni `scripts/` ni `studio-rendu/`) ; les modules
  * lourds (crédits, dépense Claude) sont chargés à la demande, quand un travail du format avance.
  */
-import { nouvelId } from "@/lib/ids";
+import { cleDepenseUsine } from "./cle-depense-usine";
 import "server-only";
 import { createHash } from "node:crypto";
 import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
@@ -684,7 +684,7 @@ export async function outilsCasConcret(c: CommandeFabrication, travailId: Id, de
       verifierEtReserver: async (e) => {
         const total = centimes(e.centimes);
         const lignes: LigneCout[] = [{ etape: "voix", fournisseur: voix.fournisseur, unite: "caractere", quantite: e.caracteres, prixUnitaire: centimes(tarifCentimesParCaractere), total, nature: "estime" }];
-        await reserverVoix({ lignes, total }, e.centimes, "Cette vidéo", { videoId: c.videoId, travailId, cleUsine: `${travailId}#${nouvelId("voix")}` });
+        await reserverVoix({ lignes, total }, e.centimes, "Cette vidéo", { videoId: c.videoId, travailId, ...cleDepenseUsine(c.origine, travailId) });
       },
       // Mode indicatif : le contrôle par montant de la part voix est remplacé par un compteur de lectures (3 par texte).
       ...((await (await import("./mode-budget")).budgetIndicatifPour(c.origine)) ? { indicatif: { lecturesVoixMax: (await import("@/moteurs/montage-cas-concret/fabriquer")).LECTURES_VOIX_MAX_INDICATIF, facteurSecurite: (await import("./mode-budget")).FACTEUR_SECURITE_BUDGET, signaler: async (message: string) => (await import("./budget-mensuel")).signalerDepassementIndicatif("video", "Prix de la voix dépassé (la vidéo continue)", message, c.videoId) } } : {}),

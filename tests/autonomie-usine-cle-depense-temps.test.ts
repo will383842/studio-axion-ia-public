@@ -57,11 +57,21 @@ describe("AUT-G : la part des voix reste au registre tant que le travail est eng
   }
 });
 
-describe("AUT-G : les 4 sites de voix passent une clé `travailId#…` à la réservation", () => {
+describe("AUT-G : les 4 sites de voix passent une clé `travailId#…` à la réservation (Usine seulement)", () => {
   for (const f of ["image-video", "tableau-branchements", "cas-concret-branchements", "tutoriel-branchements"]) {
-    it(`${f}.ts : cleUsine = \`\${travailId}#\${nouvelId("voix")}\``, () => {
+    it(`${f}.ts : ...cleDepenseUsine(origine, travailId)`, () => {
       const src = readFileSync(`src/services/${f}.ts`, "utf8");
-      expect(src).toMatch(/cleUsine:\s*`\$\{(?:dep\.)?travailId\}#\$\{nouvelId\("voix"\)\}`/);
+      expect(src).toMatch(/\.\.\.cleDepenseUsine\([\w.]+,\s*(?:dep\.)?travailId\)/);
+      expect(src).not.toMatch(/cleUsine:\s*`/);
     });
   }
+  it("cle-depense-usine.ts : clé `travailId#voix-…` unique par appel pour l'Usine ; rien du tout (pas même undefined) pour le Studio", async () => {
+    const { cleDepenseUsine } = await import("@/services/cle-depense-usine");
+    const a = cleDepenseUsine("usine", "T").cleUsine;
+    const b = cleDepenseUsine("usine", "T").cleUsine;
+    expect(a).toMatch(/^T#voix-/);
+    expect(a).not.toBe(b);
+    expect(cleDepenseUsine("Usine", "T").cleUsine).toMatch(/^T#voix-/);
+    for (const o of [undefined, "studio"]) expect(Object.keys(cleDepenseUsine(o, "T"))).toEqual([]);
+  });
 });
