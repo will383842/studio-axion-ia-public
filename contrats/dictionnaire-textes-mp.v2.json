@@ -302,7 +302,7 @@
     "mp-m1-v6-2": {
       "version": "mp-m1-v6-2",
       "statut": "actif",
-      "texte": "Bonjour ! Merci pour votre commentaire. Pour vous envoyer le guide « [TITRE DU GUIDE] », répondez-moi ici avec votre adresse e-mail. Axion IA note le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes, aussi longtemps que votre fiche de contact (durée précisée dans la notice). Vous pouvez vous y opposer, y accéder ou demander leur effacement en nous écrivant ici. Détails : https://axion-ia.com/fr/politique-confidentialite (section « Origine des demandes de guide »)."
+      "texte": "Bonjour ! Merci pour votre commentaire. Pour vous envoyer le guide « [TITRE DU GUIDE] », répondez-moi ici avec votre adresse e-mail. Axion IA note le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes, et les garde aussi longtemps que votre fiche de contact. Pour vous y opposer ou demander l'effacement de ces informations, écrivez-moi ici. Pour vos autres droits, dont l'accès : https://axion-ia.com/fr/politique-confidentialite (rubrique « Vos droits »)."
     }
   }
 }

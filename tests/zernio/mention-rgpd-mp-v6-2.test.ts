@@ -51,17 +51,15 @@ describe("1 · le texte proposé", () => {
     expect((GROUPES_MP as Record<string, readonly string[]>)["m1-adresse-rgpd"]).toEqual([V1, V2]);
     expect(brut(V1).texte).toBe("Bonjour ! Merci pour votre commentaire, ça fait plaisir. Pour vous envoyer le guide « [TITRE DU GUIDE] », il me suffit de votre adresse e-mail : répondez-moi simplement ici. Nous notons le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes. Ces informations sont gardées aussi longtemps que votre fiche de contact. Vous pouvez vous y opposer à tout moment en nous écrivant ici.");
   });
-  it("dit qui, pourquoi, combien de temps, les droits, et renvoie vers la politique de confidentialité", () => {
+  it("dit qui, pourquoi, combien de temps, ne promet en message privé que l'opposition et l'effacement, et renvoie vers la politique", () => {
     const t = brut(V2).texte;
     expect(t).toContain("Axion IA");
     expect(t).toMatch(/note le mot, le réseau et la publication/);
-    expect(t).toMatch(/pour savoir d'où viennent les demandes/);
-    expect(t).toMatch(/aussi longtemps que votre fiche de contact/);
-    expect(t).toMatch(/précisée dans la notice/);
-    expect(t).toMatch(/opposer/);
-    expect(t).toMatch(/accéder/);
-    expect(t).toMatch(/effacement/);
-    expect(t).toContain("https://axion-ia.com/fr/politique-confidentialite (section « Origine des demandes de guide »)");
+    expect(t).toMatch(/pour savoir d'où viennent les demandes, et les garde aussi longtemps que votre fiche de contact/);
+    expect(t).not.toMatch(/précisée dans la notice/);
+    expect(t).toMatch(/opposer ou demander l'effacement de ces informations, écrivez-moi ici/);
+    expect(t).toMatch(/autres droits, dont l'accès : https:\/\/axion-ia\.com\/fr\/politique-confidentialite \(rubrique « Vos droits »\)/);
+    expect(t).not.toMatch(/y accéder|accéder, |Origine des demandes/);
     expect(t.match(/https?:\/\//g)).toHaveLength(1); // un seul lien
   });
   it("aucun mot interdit, aucun nom de personne, aucune promesse", () => {
@@ -120,6 +118,9 @@ describe("3 · le parcours", () => {
     await passer();
     expect((await etatDe())?.formulations).toEqual({ "m1-adresse": V1 });
     await validerFormulationsAuParcours([V1, V2]);
+    await passer(T0 + 60_000); // le traitement repasse sur la conversation après la validation de v6-2
     expect((await etatDe())?.formulations?.["m1-adresse"]).toBe(V1);
+    expect((await etatDe())?.versionTexteM1).not.toBe(V2);
+    expect(port.prive.some((m) => m.texte === rendu(V2))).toBe(false);
   });
 });
