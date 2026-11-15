@@ -6,8 +6,12 @@
  *
  * Côté Studio : les versions « Validé » rangées sous `guides.redaction.<id>` dont la valeur porte un `code` (gde-…).
  * Côté site : GET /api/interne/guides-reseau/versions?code=gde-… (même signature HMAC que les autres routes signées ; le
- * chemin signé est celui de la requête, requête comprise). 404 = route absente = « site pas prêt » (pas une erreur) ; 503 ou
- * délai = site indisponible. Résultat mémorisé dans `guides.reconciliation` (dernier passage et écarts, sans aucun texte).
+ * chemin signé est celui de la requête, requête comprise).
+ *
+ * CONTRAT AVEC LE SITE : un code inconnu du site → 200 avec une liste VIDE (le Studio en tire « manquant_au_site »). Un 404
+ * signifie donc « route absente » SEULEMENT (site pas prêt, pas une erreur) : il ne dit rien d'un code précis, il ne vide donc
+ * jamais les écarts déjà connus (ils sont conservés tels quels, seul l'état change). 503 ou délai = site indisponible.
+ * Au-delà de MAX_GUIDES_PAR_PASSAGE codes, seules les versions Studio des codes réellement interrogés sont comparées. Résultat mémorisé dans `guides.reconciliation` (dernier passage et écarts, sans aucun texte).
  */
 import "server-only";
 import { comparerVersions, lireVersionsSite, type Ecart, type VersionSite, type VersionStudio } from "@/domaine/guides-pdf/reconciliation";
@@ -119,7 +123,7 @@ async function lireUnGuide(d: DepsReconciliation, site: { transport: TransportSi
   } finally {
     clearTimeout(minuteur);
   }
-  if (r.statut === 404) return { kind: "pas_pret" };
+  if (r.statut === 404) return { kind: "pas_pret" }; // route absente (contrat : un code inconnu répond 200 + liste vide)
   if (r.statut !== 200) return { kind: "indisponible" }; // 503, 5xx, 401, 429… : rien n'est comparé
   const lu = lireVersionsSite(r.corps);
   return lu ? { kind: "ok", versions: lu.versions, ignorees: lu.ignorees } : { kind: "illisible" };
@@ -173,7 +177,8 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   for (const code of codes) {
     const l = await lireUnGuide(d, site, code);
     if (l.kind === "pas_pret") {
-      await memoriser({ dernierPassage: new Date(d.maintenantMs()).toISOString(), etat: "site_pas_pret", guidesLus: 0, lignesIgnorees: 0, ecarts: [], ecartsTronques: false });
+      // Route absente : on garde les écarts déjà connus (jamais remplacés par une liste vide) ; seul l'état et l'instant changent.
+      await memoriser({ ...garder("site_pas_pret"), dernierPassage: new Date(d.maintenantMs()).toISOString() });
       await journal("guides_reconciliation", "site pas prêt (route absente)");
       return { ok: true, etat: "site_pas_pret" };
     }
@@ -194,7 +199,9 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
     }
     ignorees += l.ignorees;
   }
-  const ecarts = comparerVersions(studio, deSite);
+  // Au-delà du plafond, un code non interrogé n'a aucune ligne côté site : le comparer donnerait un faux « manquant_au_site ».
+  const interroges = new Set(codes);
+  const ecarts = comparerVersions(studio.filter((v) => interroges.has(v.code)), deSite);
   await memoriser({
     dernierPassage: new Date(d.maintenantMs()).toISOString(),
     etat: "compare",
