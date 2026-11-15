@@ -3,3 +3,6 @@
 VERDICT PROVISOIRE : en cours
 
 Tête examinée : `c46e034e92aafe22a822ad5fa863c45ae7be9cba`
+
+## Avancement
+- Sondes e-mail dissimulé et mutations : faites (détails au verdict final).
