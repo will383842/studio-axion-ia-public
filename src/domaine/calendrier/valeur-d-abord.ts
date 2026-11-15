@@ -44,7 +44,7 @@ export type ExceptionMotivee = {
   readonly date: string;
 };
 
-export type CodeAvertissement = "trop-d-offres" | "offres-de-suite";
+export type CodeAvertissement = "trop-d-offres" | "offres-de-suite" | "jour-invalide";
 
 export type AvertissementValeur = {
   readonly code: CodeAvertissement;
@@ -92,36 +92,62 @@ export function verifierValeurDAbord(
   const sans = { avertissements: [], journal: [], exceptionRefusee: false, bloquant: false } as const;
   if (candidate.nature !== "offre") return sans;
 
-  const duCompte = historique
-    .filter((p) => p.compte === candidate.compte)
+  const bruts: { code: CodeAvertissement; message: string }[] = [];
+  const valideJour = (j: string) => Number.isFinite(ms(j));
+  if (!valideJour(candidate.jour)) {
+    bruts.push({ code: "jour-invalide", message: `Jour invalide « ${candidate.jour} » pour la candidate ${candidate.id} : règle non évaluée.` });
+    return finaliser(bruts, candidate, exception);
+  }
+
+  // Même compte, hors la candidate elle-même (même id), et jamais APRÈS elle (calendrier planifié).
+  const duCompteBrut = historique.filter((p) => p.compte === candidate.compte && p.id !== candidate.id);
+  const invalides = duCompteBrut.filter((p) => !valideJour(p.jour));
+  if (invalides.length > 0) {
+    bruts.push({
+      code: "jour-invalide",
+      message: `Jour invalide ignoré pour ${invalides.map((p) => p.id).join(", ")} sur ${candidate.compte} : ces publications ne sont pas comptées.`,
+    });
+  }
+  const duCompte = duCompteBrut
+    .filter((p) => valideJour(p.jour) && ms(p.jour) <= ms(candidate.jour))
     .sort((a, b) => ms(a.jour) - ms(b.jour));
 
   // Fenêtre la plus stricte : les 19 dernières + la candidate = 20 ; et 30 jours glissants.
+  // Fenêtre de 30 jours, bornes incluses : de J-30 (inclus) à J, jour de la candidate (inclus).
   const parNombre = duCompte.slice(-(HYPOTHESE_D4.fenetrePublications - 1));
   const limiteJour = ms(candidate.jour) - HYPOTHESE_D4.fenetreJours * JOUR_MS;
-  const parJours = duCompte.filter((p) => ms(p.jour) > limiteJour);
+  const parJours = duCompte.filter((p) => ms(p.jour) >= limiteJour);
   const fenetre = parNombre.filter((p) => parJours.includes(p));
   const offres = fenetre.filter((p) => p.nature === "offre").length;
 
-  const bruts: { code: CodeAvertissement; message: string }[] = [];
   const max = maxOffres(candidate.famille);
   if (offres + 1 > max) {
     bruts.push({
       code: "trop-d-offres",
-      message: `Cette offre porterait à ${offres + 1} les offres récentes sur ${candidate.compte} (au plus ${max}).`,
+      message: `Cette offre porterait à ${offres + 1} les offres récentes sur ${candidate.compte} (au plus ${max} ; hypothèse en attente de D-4).`,
     });
   }
   const derniere = duCompte[duCompte.length - 1];
   if (deSuiteInterdit(candidate.famille) && derniere?.nature === "offre") {
     bruts.push({ code: "offres-de-suite", message: `Deux offres de suite sur ${candidate.compte}.` });
   }
-  if (bruts.length === 0) return sans;
+  return finaliser(bruts, candidate, exception);
+}
 
+function finaliser(
+  bruts: readonly { code: CodeAvertissement; message: string }[],
+  candidate: PublicationValeur,
+  exception?: ExceptionMotivee,
+): ResultatValeurDAbord {
+  if (bruts.length === 0) return { avertissements: [], journal: [], exceptionRefusee: false, bloquant: false };
+  // Exception traçable : motif, auteur ET date (valide) non vides.
   const motif = exception?.motif.trim() ?? "";
-  const valide = exception !== undefined && motif.length > 0;
+  const par = exception?.par.trim() ?? "";
+  const date = exception?.date.trim() ?? "";
+  const valide = exception !== undefined && motif.length > 0 && par.length > 0 && date.length > 0 && Number.isFinite(ms(date));
   const avertissements = bruts.map((b) => ({ ...b, leveeParException: valide }));
   const journal: EntreeJournalException[] = valide
-    ? [{ publicationId: candidate.id, compte: candidate.compte, codes: bruts.map((b) => b.code), motif, par: exception.par, date: exception.date }]
+    ? [{ publicationId: candidate.id, compte: candidate.compte, codes: bruts.map((b) => b.code), motif, par, date }]
     : [];
   return { avertissements, journal, exceptionRefusee: exception !== undefined && !valide, bloquant: false };
 }

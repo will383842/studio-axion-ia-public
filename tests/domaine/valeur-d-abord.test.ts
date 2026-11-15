@@ -97,4 +97,50 @@ describe("RC-25 · valeur d'abord (avertissement)", () => {
     const hist = Object.freeze([...valeurs(3)]);
     expect(() => verifierValeurDAbord(hist, pub("o", "2026-12-10", "offre"))).not.toThrow();
   });
+
+  it("point 1 : une offre datée après la candidate n'est pas comptée", () => {
+    const r = verifierValeurDAbord([pub("futur", "2026-12-20", "offre")], pub("o", "2026-12-01", "offre"));
+    expect(r.avertissements).toEqual([]);
+  });
+
+  it("point 2 : exception sans auteur ou sans date : refusée, rien de journalisé", () => {
+    const hist = [pub("o1", "2026-12-04", "offre")];
+    for (const exc of [
+      { motif: "ok", par: "", date: "2026-12-05" },
+      { motif: "ok", par: "le fondateur", date: "" },
+      { motif: "ok", par: "le fondateur", date: "pas-une-date" },
+    ]) {
+      const r = verifierValeurDAbord(hist, pub("o2", "2026-12-05", "offre"), exc);
+      expect(r.exceptionRefusee).toBe(true);
+      expect(r.journal).toEqual([]);
+      expect(r.avertissements.every((a) => !a.leveeParException)).toBe(true);
+    }
+  });
+
+  it("point 3 : la fenêtre de 30 jours inclut J-30 exactement, pas J-31", () => {
+    const pile = verifierValeurDAbord([pub("o1", "2026-11-01", "offre")], pub("o2", "2026-12-01", "offre"));
+    expect(pile.avertissements.map((a) => a.code)).toContain("trop-d-offres");
+    const hors = verifierValeurDAbord([pub("o1", "2026-10-31", "offre"), pub("v", "2026-11-15", "valeur")], pub("o2", "2026-12-01", "offre"));
+    expect(hors.avertissements).toEqual([]);
+  });
+
+  it("point 4 : un jour invalide donne un avertissement explicite", () => {
+    const hist = ["a", "b", "c"].map((id) => pub(id, "xx", "offre", "FA", "page"));
+    const r = verifierValeurDAbord(hist, pub("d", "2026-12-07", "offre", "FA", "page"));
+    expect(r.avertissements.map((a) => a.code)).toContain("jour-invalide");
+    const c = verifierValeurDAbord([], pub("e", "xx", "offre"));
+    expect(c.avertissements.map((a) => a.code)).toEqual(["jour-invalide"]);
+  });
+
+  it("point 5 : la candidate déjà dans l'historique n'est pas comptée deux fois", () => {
+    const o = pub("o", "2026-12-05", "offre");
+    const r = verifierValeurDAbord([...valeurs(3), o], o);
+    expect(r.avertissements).toEqual([]);
+  });
+
+  it("point 6 : le message de la valeur D-4 précise l'hypothèse", () => {
+    const r = verifierValeurDAbord([pub("o1", "2026-12-04", "offre")], pub("o2", "2026-12-08", "offre"));
+    const m = r.avertissements.find((a) => a.code === "trop-d-offres")?.message ?? "";
+    expect(m).toContain("hypothèse en attente de D-4");
+  });
 });
