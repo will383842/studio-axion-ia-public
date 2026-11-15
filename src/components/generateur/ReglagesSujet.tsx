@@ -9,6 +9,7 @@ import { SelecteurPastilles, type OptionPastille } from "@/components/ui/Selecte
 import { ADRESSES, BUTS_SUJET, QUI_PARLE } from "@/domaine/libelles";
 import type { Adresse, ModeDiction, ObjectifSujet, ReseauDeclinaison } from "@/domaine/types";
 import { cn } from "@/lib/cn";
+import { AlerteDureeReseau } from "@/components/publication/AlerteDureeReseau";
 import { obtenirReseau } from "@/reseaux";
 import { RESEAUX_DECLINAISON } from "@/reseaux/codes";
 
@@ -20,6 +21,8 @@ export interface FormatEcrivable {
   statut: string;
   modes: ModeDiction[];
   modeParDefaut: ModeDiction;
+  /** Durée visée (s) : cible par défaut, sinon borne haute de la zone ; absente : inconnue. */
+  dureeViseeSec?: number;
 }
 
 type Reglage = "format" | "reseaux" | "adresse" | "qui" | "but";
@@ -68,6 +71,7 @@ export function ReglagesSujet({ r }: { r: EtatReglagesSujet }) {
           {BUTS_SUJET[r.but].libelle}
         </TuileReglage>
       </section>
+      <AlerteDureeReseau reseaux={r.reseaux} dureeSec={r.format?.dureeViseeSec} />
 
       <FeuilleReglage
         ouverte={feuille === "format"}

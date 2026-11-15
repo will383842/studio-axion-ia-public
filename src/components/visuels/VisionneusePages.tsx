@@ -134,7 +134,7 @@ export function Visionneuse({
   }, []);
 
   if (!page) return null;
-  const bouton = "rounded-champ border border-trait bg-surface-1 px-4 py-2 text-sm font-semibold text-texte";
+  const bouton = "min-h-11 rounded-champ border border-trait bg-surface-1 px-4 py-2 text-sm font-semibold text-texte";
   return (
     <div
       ref={boite}

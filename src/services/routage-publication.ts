@@ -2,6 +2,7 @@
  * ROUTAGE DE LA PUBLICATION (lot Z2-S, D2) : quel outil (Buffer ou Zernio) porte un réseau, ou un compte d'un réseau.
  * Réglage `publication.routage` : { "<reseau>": outil, "<reseau>:<compteCode>": outil } ; la clé la plus précise gagne.
  * Défaut {} = Zernio partout (un « buffer » déjà enregistré reste lu). Sans clé du fournisseur choisi : refus clair, jamais un repli silencieux vers l'autre outil.
+ * Lot A1 : Buffer gelé → ni choix de Buffer, ni envoi par Buffer (refus `BUFFER_GELE`), jamais Zernio à sa place.
  * La bascule se fait réseau par réseau ; le retour à Buffer tient en un geste (on retire la clé ou on la met à « buffer »).
  */
 import "server-only";
@@ -11,6 +12,7 @@ import { fournisseurParId } from "@/fournisseurs";
 import { listerReseaux } from "@/reseaux";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
+import { bufferGele, erreurGel } from "./buffer-gel";
 import { cleZernioPresente } from "./zernio";
 
 export const PARAM_ROUTAGE = "publication.routage";
@@ -40,6 +42,8 @@ export async function definirRoutage(cle: string, outil: OutilPublication | null
   else {
     if (outil === "zernio" && !cleZernioPresente()) throw refusOutil("zernio");
     // Choix explicite de Buffer sans sa clé : même refus clair que pour Zernio (finitions Z2-S). Le retour au défaut (null) reste libre.
+    // Lot A1 : l'ancien outil gelé ne peut plus être choisi. Retirer une clé (null) ou choisir Zernio reste libre.
+    if (outil === "buffer" && (await bufferGele())) throw erreurGel();
     if (outil === "buffer" && !bufferRelie()) throw refusOutil("buffer");
     suivant[cle] = outil;
   }
@@ -72,6 +76,8 @@ export async function outilDeEnvoi(reseau: IdReseau, compte?: string | null): Pr
     if (!cleZernioPresente()) throw refusOutil("zernio");
     return outil;
   }
+  // Lot A1 : un « buffer » enregistré mène ici ; gelé → refus net, rien ne part, aucun autre outil à sa place.
+  if (await bufferGele()) throw erreurGel();
   // Seul un « buffer » déjà enregistré mène ici : clé exigée, jamais de repli silencieux.
   const explicite = [compte ? `${reseau}:${compte}` : null, reseau].some((c) => !!c && Object.hasOwn(t, c) && t[c] === "buffer");
   if (explicite && !bufferRelie()) throw refusOutil("buffer");

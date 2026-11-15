@@ -18,6 +18,7 @@ import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisibl
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
+import { AlerteDureeReseau } from "@/components/publication/AlerteDureeReseau";
 import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { PretAPartir } from "./PretAPartir";
@@ -136,6 +137,11 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       </h2>
       <p className="text-xs text-texte-faible">{a.dateDite}</p>
       <p className="mt-1 text-xs text-texte-faible">Format : {a.formatLibelle}</p>
+      {entree.media?.genre === "video" && (
+        <div className="mt-1">
+          <AlerteDureeReseau reseaux={[entree.reseau]} dureeSec={entree.media.dureeSec} />
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">
         <PastilleStatutPlan etat={entree.etat} libelles={LIBELLES_ENVOI} />

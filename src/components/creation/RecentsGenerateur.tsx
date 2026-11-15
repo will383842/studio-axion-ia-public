@@ -18,7 +18,7 @@ export interface RecentGenerateur {
 
 /** « 18 oct., 14:05 ». */
 export function dateRecent(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 }
 
 function Liste({ elements, courant, deuxColonnes }: { elements: RecentGenerateur[]; courant?: string; deuxColonnes?: boolean }) {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Bouton } from "@/components/ui/Bouton";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
+import { PastilleReseau } from "@/components/ui/PastilleStatut";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { BoutonProgrammerVisuel, jourParDefautParis } from "@/components/visuels/BoutonProgrammerVisuel";
@@ -70,10 +72,10 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
         <form action={preparerReseauxAction} aria-label="Préparer pour les réseaux" className="mb-6 flex flex-col gap-2 rounded-champ border border-trait bg-surface-1 px-3.5 py-3">
           <input type="hidden" name="id" value={fiche.id} />
           <h2 className="text-sm font-semibold text-texte-doux">Préparer pour les réseaux</h2>
-          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked /> LinkedIn (un document PDF)</label>
-          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked /> Instagram (images JPEG)</label>
-          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" /> Facebook (images JPEG)</label>
-          <button type="submit" className="self-start rounded-champ border border-trait px-3 py-1.5 text-sm font-semibold text-texte">Préparer pour les réseaux</button>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked className="accent-accent" /> <PastilleReseau reseau="linkedin" /> (un document PDF)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked className="accent-accent" /> <PastilleReseau reseau="instagram" /> (images JPEG)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" className="accent-accent" /> <PastilleReseau reseau="facebook" /> (images JPEG)</label>
+          <Bouton type="submit" variante="secondaire" className="self-start">Préparer pour les réseaux</Bouton>
         </form>
       )}
       {fiche.statut === "valide" && <BoutonProgrammerVisuel id={fiche.id} action={programmerAction} jourParDefaut={jourParDefautParis(new Date().toISOString())} />}

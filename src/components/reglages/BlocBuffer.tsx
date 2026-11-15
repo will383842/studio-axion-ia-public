@@ -16,6 +16,7 @@ import type { VueBuffer } from "@/services/buffer";
 
 /** État affiché : la vérité (clé posée et Buffer choisi), jamais une promesse. */
 function etat(vue: VueBuffer): { libelle: string; ton: "sauge" | "ambre" | "brique"; phrase: string } {
+  if (vue.gele) return { libelle: "Gelé", ton: "ambre", phrase: "L'ancien outil de programmation est gelé en lecture seule : le studio ne l'appelle plus. Ses comptes restent gardés pour l'envoi par le nouvel outil." };
   if (vue.relie) return { libelle: "Relié", ton: "sauge", phrase: vue.mode === "brouillon" ? "Les vidéos arrivent en brouillon dans l'outil de programmation : vous les relisez et les programmez là-bas." : "Les vidéos partent à la date choisie dans le studio." };
   if (!vue.clePresente) return { libelle: "À relier", ton: "brique", phrase: "Il manque la clé de l'outil de programmation sur le serveur. D'ici là, rien ne part : c'est un essai." };
   return { libelle: "Essai", ton: "ambre", phrase: "La clé est posée. Choisissez cet outil dans « Publication » pour que les vidéos partent vraiment." };
@@ -25,6 +26,7 @@ function etat(vue: VueBuffer): { libelle: string; ton: "sauge" | "ambre" | "briq
  * Réglages > Connexions > Buffer (lot R1) : état, mode (brouillon d'abord), compte de chaque réseau, « Tester ».
  * Lot R1b : un réseau à plusieurs comptes se choisit À CHAQUE ENVOI ; ici, seulement le compte proposé par défaut.
  * Tout vient de la base (`vueBuffer`) : afficher ce bloc n'appelle jamais Buffer ; seul « Tester » le fait.
+ * Lot A1 : gelé → pastille « Gelé », « Tester » coupé. Mode et comptes proposés restent actifs.
  */
 export function BlocBuffer({ vue }: { vue: VueBuffer }) {
   const router = useRouter();
@@ -124,7 +126,7 @@ export function BlocBuffer({ vue }: { vue: VueBuffer }) {
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Bouton variante="secondaire" icone="actualiser" chargement={test} disabled={!vue.relie} onClick={tester}>
+        <Bouton variante="secondaire" icone="actualiser" chargement={test} disabled={!vue.relie || vue.gele === true} onClick={tester}>
           Tester
         </Bouton>
         <span className="text-xs text-texte-faible">{vue.lusLe ? `Comptes lus ${ilYA(vue.lusLe)}` : "Comptes pas encore lus"}</span>
