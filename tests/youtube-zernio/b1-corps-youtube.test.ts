@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { corpsPostZernio, plateformeZernio, type DemandeZernio } from "@/fournisseurs/publication/zernio-corps";
+import { corpsPostZernio, mediasDemandes, plateformeZernio, type DemandeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { PROPOSITION_YOUTUBE, type ReglagesYoutube } from "@/fournisseurs/publication/zernio-youtube";
 import { MOT_INTERDIT } from "../zernio/aides/faux-zernio";
 
@@ -97,6 +97,12 @@ describe("b1 · corps YouTube Shorts", () => {
   it("images ou document : refus (seule une vidéo est publiée)", () => {
     expect(() => corps({ images: [{ url: "https://x.test/a.png", texteAlternatif: "Image d'exemple" }] })).toThrow(/seule une vidéo/);
     expect(() => corps({ document: { url: "https://x.test/a.pdf", titre: "Doc" } })).toThrow(/seule une vidéo/);
+  });
+
+  it("mediasDemandes (qui sert au téléversement) refuse images et document pour YouTube Shorts, avant tout corps", () => {
+    expect(() => mediasDemandes(base({ images: [{ url: "https://x.test/a.png", texteAlternatif: "Image d'exemple" }] }))).toThrow(/seule une vidéo/);
+    expect(() => mediasDemandes(base({ document: { url: "https://x.test/a.pdf", titre: "Doc" } }))).toThrow(/seule une vidéo/);
+    expect(mediasDemandes(base())).toEqual([{ type: "video", url: "https://exemple-r2.test/video.mp4" }]);
   });
 
   it("format et durée : 16:9, 1:1, absent ; 181, 0, NaN, négative, absente : refus ; 180 accepté", () => {
