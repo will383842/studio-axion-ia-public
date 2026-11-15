@@ -270,9 +270,9 @@ async function parcours() {
   expect(avocat.prix.total.centimes).toBeGreaterThan(0);
   await reglages.definirMontageReel("avocat", true);
 
-  // 2. Avant le lancement : le prix de CETTE vidéo, confirmation exigée.
+  // 2. Avant le lancement : le prix de CETTE vidéo, SANS confirmation ni validation de prix (décision du fondateur).
   const apercu = await fabrication.apercuFabrication(VIDEO);
-  expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: true });
+  expect(apercu.budget).toMatchObject({ montageReel: true, confirmationRequise: false });
   // RELECTURE FINAL3 (UI2) : interrupteur allumé (par exemple dans un autre onglet) : l'Aperçu du moment n'est jamais un
   // « Essai gratuit », et « Fabriquer l'essai » (`manquesAcceptes`) ne part pas sans la feuille du prix (ni sans qui
   // parle et la voix) ; le serveur refuse de toute façon un lancement sans accord (ligne suivante).
@@ -281,8 +281,7 @@ async function parcours() {
     const decision = decisionLancement({ coutCentimes: apercu.estimation.total.centimes, seuilCentimes: apercu.budget.seuil.centimes, resteCentimes: apercu.budget.restant.centimes, aVerifier: [], montageReel: apercu.budget.montageReel, double: !!apercu.budget.double, manques: [...manques], essaiGratuit: apercu.essaiGratuit, manquesAcceptes: true });
     expect(["confirmer", "completer", "budget"]).toContain(decision.genre);
   }
-  await expect(fabrication.lancerFabrication(VIDEO)).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", message: "Cette vidéo sera montée pour de vrai (payant). Confirmez pour continuer." });
-  const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO, { confirme: true });
+  const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO);
   const version = (await depots().versions.obtenir(versionId))!;
   expect(version.commande.moteurId).toBe("montage-avocat");
 
@@ -379,7 +378,7 @@ describe("R8 — montage réel allumé : le chemin complet, de bout en bout", ()
   it("ROUGE — retour arrière en un geste : les vidéos suivantes repartent en essai, la vidéo lancée garde son moteur, rien n'est effacé", async () => {
     await preparer();
     await reglages.definirMontageReel("avocat", true);
-    const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO, { confirme: true });
+    const { travailId, versionId } = await fabrication.lancerFabrication(VIDEO);
     const avant = { versions: await depots().versions.compter(), travaux: await depots().travaux.compter(), visages: await depots().visages.compter() };
     // Un geste : repasser en essai.
     await reglages.definirMontageReel("avocat", false);
