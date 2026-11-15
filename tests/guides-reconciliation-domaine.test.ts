@@ -91,4 +91,14 @@ describe("G6 · lireVersionsSite", () => {
     delete sans.sha256Pdf;
     expect(lireVersionsSite([sans])?.versions[0].sha256Pdf).toBeNull();
   });
+
+  it("pdf_incoherent : prêt mais sha256Pdf null, absent ou non hexadécimal de 64 signes", () => {
+    for (const mauvais of [null, "", "b".repeat(63), "b".repeat(65), "z".repeat(64), `${"b".repeat(63)} `, 12 as unknown as string]) {
+      expect(comparerVersions([st(A, 1)], [si(A, 1, { sha256Pdf: mauvais })]), String(mauvais)).toEqual([{ type: "pdf_incoherent", code: A, version: 1 }]);
+    }
+  });
+  it("pdf_incoherent : un sha256Pdf valide (64 hexadécimaux, majuscules admises) ne déclenche rien ; « en_cours » sans PDF non plus", () => {
+    expect(comparerVersions([st(A, 1)], [si(A, 1, { sha256Pdf: "AbCdEf0123456789".repeat(4) })])).toEqual([]);
+    expect(comparerVersions([st(A, 1)], [si(A, 1, { statut: "en_cours", sha256Pdf: null, tailleOctets: 0 })])).toEqual([]);
+  });
 });

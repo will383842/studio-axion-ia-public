@@ -42,6 +42,8 @@ const RE_CODE = /^(gde|adr)-[a-z0-9-]{6,24}$|^guide-ia$/;
 export const courteEmpreinte = (e: unknown): string => (typeof e === "string" && /^[0-9a-f]{12,}$/i.test(e) ? e.slice(0, 12).toLowerCase() : "?");
 const codeSur = (c: unknown): string => (typeof c === "string" && RE_CODE.test(c) ? c : "?");
 const versionSure = (v: unknown): number => (typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : -1);
+/** Empreinte SHA-256 du PDF : exactement 64 caractères hexadécimaux. */
+const RE_SHA256 = /^[0-9a-f]{64}$/i;
 const cle = (code: string, version: number): string => `${code}\u0000${version}`;
 
 function indexer<T extends { code: string; version: number }>(lignes: readonly T[]): Map<string, T> {
@@ -77,7 +79,11 @@ export function comparerVersions(studio: readonly VersionStudio[], site: readonl
     if (typeof l.empreinte !== "string" || typeof autre.sha256Texte !== "string" || l.empreinte.toLowerCase() !== autre.sha256Texte.toLowerCase())
       ecarts.push({ type: "empreinte_differente", code, version, empreinteStudio, empreinteSite });
     if (autre.statut === "echec") ecarts.push({ type: "echec_au_site", code, version });
-    else if (autre.statut === "pret" && !(typeof autre.tailleOctets === "number" && Number.isFinite(autre.tailleOctets) && autre.tailleOctets > 0))
+    else if (
+      autre.statut === "pret" &&
+      // « pret » exige un PDF complet : taille positive ET empreinte du PDF (null, absente ou non hexadécimale de 64 signes = incohérent).
+      !(typeof autre.tailleOctets === "number" && Number.isFinite(autre.tailleOctets) && autre.tailleOctets > 0 && typeof autre.sha256Pdf === "string" && RE_SHA256.test(autre.sha256Pdf))
+    )
       ecarts.push({ type: "pdf_incoherent", code, version });
   }
   for (const [k, l] of t) {
