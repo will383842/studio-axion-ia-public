@@ -14,11 +14,12 @@ export const BORNES_GUIDE = { sections: 20, titre: 120, paragraphes: 15, paragra
 
 /**
  * Caractères refusés partout : contrôle (C0, DEL, C1) et invisibles ou bidirectionnels (trait d'union conditionnel, marque
- * de lettre arabe, séparateur mongol, espaces de largeur nulle, marques gauche-droite, séparateurs de ligne et de
+ * de lettre arabe, fillers hangul, sélecteurs de variation, étiquettes U+E0000–U+E007F, séparateur mongol, espaces de largeur nulle, marques gauche-droite, séparateurs de ligne et de
  * paragraphe, formatage bidirectionnel, joint de mot, opérateurs invisibles, BOM). Écrits en \uXXXX : jamais le caractère
  * lui-même dans le code. Ce même filtre sert au schéma ET au mot envoyé à Claude.
  */
-const INTERDITS_CARACTERES = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/;
+const INTERDITS_CARACTERES =
+  /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u2028-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0\u{E0000}-\u{E0FFF}]|\p{Default_Ignorable_Code_Point}/u;
 
 export function contientCaractereInterdit(s: string): boolean {
   return INTERDITS_CARACTERES.test(s);
@@ -29,7 +30,8 @@ const texte = (max: number) =>
     .string()
     .min(1)
     .max(max)
-    .refine((s) => !contientCaractereInterdit(s), "caractère interdit");
+    .refine((s) => !contientCaractereInterdit(s), "caractère interdit")
+    .refine((s) => s.isWellFormed(), "demi-caractère Unicode isolé");
 
 export const schemaSectionGuide = z
   .object({
@@ -87,12 +89,12 @@ export const REGLES_MOTS_INTERDITS: RegleMotInterdit[] = [
   { id: "tutoiement", description: "tutoiement : tu, toi, te, ta, tes, t', ton compte/entreprise/activité/site/équipe/métier/guide", motif: "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'|\\bton\\s+(?:compte|entreprise|activite|site|equipe|metier|guide)\\b", exemples: ["Tu peux", "pour toi", "je t'explique", "ton entreprise", "Ton activité"] },
   { id: "pourcentage", description: "promesse chiffrée : %", motif: "%", exemples: ["30 %"] },
   { id: "euro", description: "promesse chiffrée : €", motif: "€", exemples: ["100 €"] },
-  { id: "x-fois", description: "promesse chiffrée : « x fois », « 3 fois »", motif: "\\bx\\s*fois\\b|\\b\\d+\\s*fois\\b", exemples: ["x fois mieux", "3 fois plus"] },
+  { id: "x-fois", description: "promesse chiffrée : « x fois » (la lettre x)", motif: "\\bx\\s*fois\\b", exemples: ["x fois mieux", "x fois plus"] },
   { id: "double", description: "promesse chiffrée : doubler, tripler…", motif: "\\b(?:doubl|tripl)", exemples: ["doubler", "triplé"] },
   { id: "euros-mot", description: "promesse chiffrée : « euro(s) », « eur »", motif: "\\beuros?\\b|\\beur\\b", exemples: ["100 euros", "un euro", "50 EUR"] },
-  { id: "pour-cent", description: "promesse chiffrée : « pour cent », « pourcent »", motif: "pour\\s*cent|pourcent", exemples: ["trente pour cent", "dix pourcent"] },
-  { id: "n-fois-plus", description: "promesse chiffrée : « deux fois plus », « dix fois mieux »…", motif: "\\b(?:deux|trois|quatre|cinq|dix|cent)\\s+fois\\s+(?:plus|mieux|moins)", exemples: ["deux fois plus", "dix fois mieux", "cent fois moins"] },
-  { id: "multiplicateur", description: "promesse chiffrée : « x2 », « 3x », « ×5 »", motif: "[x\\u00D7]\\s*\\d|\\d\\s*[x\\u00D7]\\b", exemples: ["x2", "3x", "\u00D75", "3 x"] },
+  { id: "pour-cent", description: "promesse chiffrée : « pour cent », « pourcent »", motif: "\\bpour\\s*cent\\b|\\bpourcent", exemples: ["trente pour cent", "dix pourcent"] },
+  { id: "n-fois-plus", description: "promesse chiffrée : « deux fois plus », « dix fois mieux »…", motif: "\\b(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|cent|mille)\\s*fois\\s+(?:plus|mieux|moins)", exemples: ["deux fois plus", "dix fois mieux", "cent fois moins", "3 fois plus", "10 fois mieux"] },
+  { id: "multiplicateur", description: "promesse chiffrée : « x2 », « x10 », « 3x », « ×5 » collés (« 1080 x 1920 », « x64 », « Max 3 » restent permis)", motif: "\\bx(?!(?:64|86)\\b)\\d+\\b|\\b\\d+x\\b|(?<!\\d\\s*)\\u00D7\\s*\\d", exemples: ["x2", "x10", "3x", "\u00D75"] },
 ];
 
 /** NFKD, sans accents, minuscules, apostrophes droites. */

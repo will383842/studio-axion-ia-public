@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "normalisation": "NFKD, sans accents, minuscules, apostrophes droites",
   "regles": [
     {
@@ -85,11 +85,11 @@
     },
     {
       "id": "x-fois",
-      "description": "promesse chiffrée : « x fois », « 3 fois »",
-      "motif": "\\bx\\s*fois\\b|\\b\\d+\\s*fois\\b",
+      "description": "promesse chiffrée : « x fois » (la lettre x)",
+      "motif": "\\bx\\s*fois\\b",
       "exemples": [
         "x fois mieux",
-        "3 fois plus"
+        "x fois plus"
       ]
     },
     {
@@ -114,7 +114,7 @@
     {
       "id": "pour-cent",
       "description": "promesse chiffrée : « pour cent », « pourcent »",
-      "motif": "pour\\s*cent|pourcent",
+      "motif": "\\bpour\\s*cent\\b|\\bpourcent",
       "exemples": [
         "trente pour cent",
         "dix pourcent"
@@ -123,22 +123,24 @@
     {
       "id": "n-fois-plus",
       "description": "promesse chiffrée : « deux fois plus », « dix fois mieux »…",
-      "motif": "\\b(?:deux|trois|quatre|cinq|dix|cent)\\s+fois\\s+(?:plus|mieux|moins)",
+      "motif": "\\b(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|cent|mille)\\s*fois\\s+(?:plus|mieux|moins)",
       "exemples": [
         "deux fois plus",
         "dix fois mieux",
-        "cent fois moins"
+        "cent fois moins",
+        "3 fois plus",
+        "10 fois mieux"
       ]
     },
     {
       "id": "multiplicateur",
-      "description": "promesse chiffrée : « x2 », « 3x », « ×5 »",
-      "motif": "[x\\u00D7]\\s*\\d|\\d\\s*[x\\u00D7]\\b",
+      "description": "promesse chiffrée : « x2 », « x10 », « 3x », « ×5 » collés (« 1080 x 1920 », « x64 », « Max 3 » restent permis)",
+      "motif": "\\bx(?!(?:64|86)\\b)\\d+\\b|\\b\\d+x\\b|(?<!\\d\\s*)\\u00D7\\s*\\d",
       "exemples": [
         "x2",
+        "x10",
         "3x",
-        "×5",
-        "3 x"
+        "×5"
       ]
     }
   ]

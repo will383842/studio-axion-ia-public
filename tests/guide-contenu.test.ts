@@ -4,6 +4,7 @@ import {
   REGLES_MOTS_INTERDITS,
   controlerTexteGuide,
   empreinteGuide,
+  contientCaractereInterdit,
   jsonCanoniqueGuide,
   schemaContenuGuide,
   type ContenuGuide,
@@ -62,6 +63,19 @@ describe("G1 · schéma du contenu d'un guide", () => {
     for (const mot of ["abo\u200Bnné", "abon\u00ADné", "Gre\u200Dnoble"]) {
       expect(schemaContenuGuide.safeParse({ ...bon(), titre: mot }).success).toBe(false);
     }
+  });
+  it("refuse les sélecteurs de variation, fillers hangul et étiquettes Unicode (abo\\uFE00nné…)", () => {
+    for (const c of ["\uFE00", "\uFE0F", "\u115F", "\u1160", "\u3164", "\uFFA0", "\u{E0001}", "\u{E0041}", "\u{E007F}"]) {
+      expect(contientCaractereInterdit(`a${c}b`)).toBe(true);
+      expect(schemaContenuGuide.safeParse({ ...bon(), titre: `abo${c}nné` }).success).toBe(false);
+      expect(schemaContenuGuide.safeParse({ titre: "T", sections: [{ titre: "S", paragraphes: [`a${c}b`], puces: [] }] }).success).toBe(false);
+    }
+  });
+  it("refuse les demi-caractères Unicode isolés, accepte les paires valides", () => {
+    expect(schemaContenuGuide.safeParse({ ...bon(), titre: "a\uD800b" }).success).toBe(false);
+    expect(schemaContenuGuide.safeParse({ ...bon(), titre: "a\uDC00" }).success).toBe(false);
+    expect(schemaContenuGuide.safeParse({ titre: "T", sections: [{ titre: "S", paragraphes: ["x\uD83D"], puces: [] }] }).success).toBe(false);
+    expect(schemaContenuGuide.safeParse({ ...bon(), titre: "Un \u{1F600} valide" }).success).toBe(true);
   });
   it("accepte les espaces insécables et les caractères accentués usuels", () => {
     expect(schemaContenuGuide.safeParse({ ...bon(), titre: "Étape\u00A0un\u202Fici « à voir »" }).success).toBe(true);
@@ -122,7 +136,10 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
     ["tutoiement", "Présente ton entreprise", "tutoiement"],
     ["tutoiement", "Ton activité grandit", "tutoiement"],
     ["tutoiement", "Sur ton site", "tutoiement"],
-    ["x-fois", "Dix fois plus : 3 fois mieux", "x-fois"],
+    ["n-fois-plus", "Dix fois plus : 3 fois mieux", "n-fois-plus"],
+    ["n-fois-plus", "Résultat 3 fois plus rapide", "n-fois-plus"],
+    ["multiplicateur", "Un résultat x3", "multiplicateur"],
+    ["multiplicateur", "Un gain de x10", "multiplicateur"],
     ["x-fois", "Résultat x fois meilleur", "x-fois"],
     ["double", "Vous allez doubler", "double"],
     ["double", "Un chiffre triplé", "double"],
@@ -144,6 +161,15 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
     expect(controlerTexteGuide({ titre: "T", sections: [{ titre: "Abonnés", paragraphes: ["x"], puces: [] }] }).ok).toBe(false);
     expect(controlerTexteGuide({ titre: "T", sections: [{ titre: "S", paragraphes: ["x"], puces: ["Qualiopi"] }] }).ok).toBe(false);
   });
+  it("accepte les textes propres qui ressemblaient à des promesses (pour centraliser, 3 fois par semaine, formats)", () => {
+    for (const t of ["Pour centraliser vos idées", "Publiez 3 fois par semaine", "Format 1080 x 1920", "Format 1080x1920", "Max 3 hashtags", "Sur X 2 publications", "Windows 10 x64", "Une taille de 1080 \u00D7 1920"]) {
+      expect(refus(t)).toEqual({ ok: true });
+    }
+    expect(refus("Trois fois par semaine suffit").ok).toBe(true);
+  });
+  it("refuse toujours les vraies promesses chiffrées (x3, 3 fois plus)", () => {
+    for (const t of ["Résultat x3", "3 fois plus de vues", "10 fois mieux", "Gain x10"]) expect(refus(t).ok).toBe(false);
+  });
   it("accepte un texte propre (vouvoiement, « suivre le compte »)", () => {
     expect(refus("Suivez le compte pour recevoir la suite. Vous pouvez relire chaque étape.").ok).toBe(true);
     expect(refus("Une démarche simple et honnête.").ok).toBe(true);
@@ -155,7 +181,7 @@ describe("G1 · mots interdits, un par un (accents, majuscules)", () => {
 describe("G1 · fixture partagée des mots interdits", () => {
   const fixture = JSON.parse(readFileSync(new URL("./fixtures/guide-mots-interdits.json", import.meta.url), "utf8"));
   it("est identique à la liste exportée (à copier à l'identique dans le site)", () => {
-    expect(fixture).toEqual({ version: 2, normalisation: "NFKD, sans accents, minuscules, apostrophes droites", regles: REGLES_MOTS_INTERDITS });
+    expect(fixture).toEqual({ version: 3, normalisation: "NFKD, sans accents, minuscules, apostrophes droites", regles: REGLES_MOTS_INTERDITS });
   });
   it("chaque règle de la fixture compile et reconnaît ses exemples", () => {
     for (const r of fixture.regles) {
