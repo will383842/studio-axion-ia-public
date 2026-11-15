@@ -8,7 +8,8 @@ import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import type { VueYoutube } from "@/domaine/chaine-youtube";
-import { lireReglagesYoutube, PROPOSITION_YOUTUBE, type ReglagesYoutube, type SourceTitreYoutube, type SynthetiqueYoutube, type VisibiliteYoutube } from "@/fournisseurs/publication/zernio-youtube";
+import { appliquerSuggestions, detailInterrupteur, reglagesModifies, TEXTES_LOGIQUE_YOUTUBE } from "./youtube-logique";
+import { lireReglagesYoutube, PROPOSITION_YOUTUBE, type SourceTitreYoutube, type SynthetiqueYoutube, type VisibiliteYoutube } from "@/fournisseurs/publication/zernio-youtube";
 
 export const TEXTES_YOUTUBE = {
   rappel: "Seuls les Shorts verticaux de 3 minutes au plus, 10 par jour et par compte.",
@@ -20,8 +21,6 @@ export const TEXTES_YOUTUBE = {
   chaineAbsente: "Aucune chaîne YouTube n'est reliée pour l'instant : rien ne peut partir.",
   chaineInconnue: "L'état de la chaîne n'est pas encore connu : utilisez « Tester » dans « Vos comptes de publication ».",
   interrupteur: "Envoyer les Shorts sur YouTube",
-  interrupteurDetail: "Éteint : rien ne part vers YouTube. Allumé : les Shorts partent avec les réglages enregistrés ci-dessus.",
-  interrupteurSansReglages: "Enregistrez d'abord vos réglages pour pouvoir l'allumer.",
 } as const;
 
 const VISIBILITES: { valeur: VisibiliteYoutube; libelle: string }[] = [
@@ -66,6 +65,7 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
   const [enCours, demarrer] = useTransition();
   const complet = lireReglagesYoutube(b);
   const sugg = PROPOSITION_YOUTUBE;
+  const modifie = reglagesModifies(b, vue.reglages);
   const categories = b.categorieId && !CATEGORIES.some((c) => c.id === b.categorieId) ? [...CATEGORIES, { id: b.categorieId, libelle: libelleCategorie(b.categorieId) }] : CATEGORIES;
 
   function appeler(action: () => Promise<{ ok: boolean; message?: string }>, succes: string, retour?: () => void) {
@@ -115,7 +115,7 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
       <div className="space-y-1">
         <SelecteurPastilles<VisibiliteYoutube> libelle="Qui peut voir le Short" options={pastilles(VISIBILITES)} valeur={b.visibilite} onChange={(v) => setB((s) => ({ ...s, visibilite: v }))} />
         <p className="text-xs text-texte-faible">
-          {TEXTES_YOUTUBE.suggestion} : {libelleDe(VISIBILITES, sugg.visibilite)}
+          {TEXTES_YOUTUBE.suggestion} : {TEXTES_LOGIQUE_YOUTUBE.suggestionVisibilite}
         </p>
       </div>
       {b.visibilite === "public" && (
@@ -176,20 +176,25 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Bouton type="button" variante="secondaire" disabled={enCours} onClick={() => setB({ ...(sugg as ReglagesYoutube) })}>
+        <Bouton type="button" variante="secondaire" disabled={enCours} onClick={() => setB((s) => appliquerSuggestions(s))}>
           {TEXTES_YOUTUBE.utiliserSuggestions}
         </Bouton>
         <Bouton type="button" disabled={enCours || !complet} onClick={enregistrer}>
           Enregistrer ces réglages
         </Bouton>
       </div>
+      {modifie && (
+        <p role="status" className="text-sm font-semibold text-ambre">
+          {TEXTES_LOGIQUE_YOUTUBE.nonEnregistre}
+        </p>
+      )}
 
       <div className="border-t border-trait pt-3">
         <Interrupteur
           libelle={TEXTES_YOUTUBE.interrupteur}
-          detail={vue.reglages ? TEXTES_YOUTUBE.interrupteurDetail : `${TEXTES_YOUTUBE.interrupteurDetail} ${TEXTES_YOUTUBE.interrupteurSansReglages}`}
+          detail={detailInterrupteur(vue.reglages)}
           coche={actif}
-          desactive={enCours || (!vue.reglages && !actif)}
+          desactive={enCours || (!vue.reglages && !actif) || (modifie && !actif)}
           onChange={changerEnvoi}
         />
       </div>

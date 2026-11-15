@@ -55,6 +55,7 @@ import { trouverFormat } from "@/formats";
 import { SurLeSite } from "@/components/reglages/SurLeSite";
 import { lireReglagesSite } from "@/services/site-videos";
 import { CarteYoutubeShorts } from "@/components/reglages/CarteYoutubeShorts";
+import { resumeCarteYoutube } from "@/components/reglages/youtube-logique";
 import { vueYoutubeZernio } from "@/services/youtube-zernio";
 import { RUBRIQUES } from "./rubriques";
 
@@ -250,7 +251,7 @@ export default async function PageReglages() {
           </Apparition>
           {/* YouTube Shorts : tout éteint par défaut, lu en base (aucun appel au service à l'affichage). */}
           <Apparition index={5}>
-            <CartePliante id="youtube-shorts" icone="video" titre="YouTube Shorts" resume="Éteint : rien ne part vers YouTube tant que vous ne l'allumez pas">
+            <CartePliante id="youtube-shorts" icone="video" titre="YouTube Shorts" resume={resumeCarteYoutube(youtube.actif)}>
               <CarteYoutubeShorts vue={youtube} />
             </CartePliante>
           </Apparition>

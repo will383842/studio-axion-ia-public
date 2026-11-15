@@ -57,6 +57,22 @@ describe("réglages enregistrés", () => {
   });
 });
 
+describe("suggestion de visibilité, ligne d'état, détail de l'interrupteur", () => {
+  it("la suggestion de visibilité invite à choisir « Privé » pour le premier essai, jamais Public", () => {
+    const t = texte(rendre(VIDE));
+    expect(t).toContain("Suggestion : Pour un premier essai, choisissez « Privé ».");
+    expect(t).not.toContain("Suggestion : Public");
+  });
+  it("formulaire identique aux réglages enregistrés : pas de ligne « pas encore enregistrés »", () => {
+    const h = rendre({ actif: true, reglages: { ...PROPOSITION_YOUTUBE, visibilite: "private" }, chaine: { etat: "inconnu" } });
+    expect(texte(h)).not.toContain("pas encore enregistrés");
+  });
+  it("le détail de l'interrupteur dit la visibilité enregistrée", () => {
+    const h = rendre({ actif: true, reglages: { ...PROPOSITION_YOUTUBE, visibilite: "private" }, chaine: { etat: "inconnu" } });
+    expect(texte(h)).toContain("Allumé : les Shorts partent en Privé");
+  });
+});
+
 describe("textes et conventions", () => {
   const source = readFileSync("src/components/reglages/CarteYoutubeShorts.tsx", "utf8");
   it("aucun jargon ni identifiant brut affiché", () => {
