@@ -40,8 +40,26 @@ beforeEach(async () => {
   await auth.seConnecter(MDP, false);
 });
 
-/** Exceptions datées : (moteur, contrôle, date). Remplies après le premier passage sur `master` ; vides = tout conforme. */
-const EXCEPTIONS: ExceptionConformite[] = [];
+/** Exceptions datées : (moteur, contrôle, date). Relevées au premier passage sur `master` (15/11/2026). */
+const EXCEPTIONS: ExceptionConformite[] = [
+  { moteur: "simulation", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
+  { moteur: "montage-avocat", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
+  { moteur: "montage-facecam", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
+  { moteur: "montage-facecam-animee", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
+  { moteur: "montage-tableau", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec au lieu de rester en pause" },
+  { moteur: "montage-cas-concret", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec au lieu de rester en pause" },
+  { moteur: "montage-facecam", controle: "sortie-conforme", date: "15/11/2026", motif: "moteur squelette : la sortie porte une clé /demo/ hors simulation" },
+  { moteur: "montage-facecam-animee", controle: "sortie-conforme", date: "15/11/2026", motif: "moteur squelette : la sortie porte une clé /demo/ hors simulation" },
+  { moteur: "montage-demo-facecam", controle: "contrat-commun", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-demo-facecam", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-demo-facecam", controle: "origine-usine", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-demo-facecam", controle: "sortie-conforme", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-image-video", controle: "contrat-commun", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-image-video", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-image-video", controle: "origine-usine", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-image-video", controle: "sortie-conforme", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
+  { moteur: "montage-image-video", controle: "ratios-du-format", date: "15/11/2026", motif: "le format déclare 4:5 absent des capacités du moteur (9:16 seul)" },
+];
 
 const depuisV03 = (formatId: string, moteurId: string, ratios: ("9:16")[] = ["9:16"]) => async (): Promise<CommandeFabrication> => {
   const c = await construireCommande("v-03");
@@ -55,6 +73,8 @@ const tableau = bancTableau(ficheDemonstration);
 const tutoriel = creerMoteurTutorielOutil({ outils: une(outilsDoubles({ voix: [], claude: [], rendus: [] })) });
 
 interface Cas {
+  /** Le moteur câblé sur les doubles (celui du registre n'a pas d'outils dans un test). Absent : celui du registre. */
+  moteur?: MoteurVideo;
   fabriquer: () => Promise<CommandeFabrication>;
   sansPrix?: boolean;
   sansFournisseur?: () => MoteurVideo;
@@ -65,9 +85,9 @@ const CAS: Record<string, Cas> = {
   "montage-avocat": { fabriquer: async () => construireCommande("v-03") },
   "montage-facecam": { fabriquer: depuisV03("facecam", "montage-facecam"), sansPrix: true },
   "montage-facecam-animee": { fabriquer: depuisV03("facecam-animee", "montage-facecam-animee"), sansPrix: true },
-  "montage-tableau": { fabriquer: async () => tableau.commande(ficheDemonstration), sansPrix: true, sansFournisseur: () => tableauSans.moteur },
-  "montage-cas-concret": { fabriquer: async () => cas.commande(), sansFournisseur: () => casSans.moteur },
-  "montage-tutoriel-outil": { fabriquer: async () => commandeTutoriel(), sansPrix: true, sansFournisseur: () => creerMoteurTutorielOutil({ outils: async () => null }) },
+  "montage-tableau": { moteur: tableau.moteur, fabriquer: async () => tableau.commande(ficheDemonstration), sansPrix: true, sansFournisseur: () => tableauSans.moteur },
+  "montage-cas-concret": { moteur: cas.moteur, fabriquer: async () => cas.commande(), sansFournisseur: () => casSans.moteur },
+  "montage-tutoriel-outil": { moteur: tutoriel, fabriquer: async () => commandeTutoriel(), sansPrix: true, sansFournisseur: () => creerMoteurTutorielOutil({ outils: async () => null }) },
   "montage-demo-facecam": { fabriquer: async () => commandeTutoriel() },
   "montage-image-video": { fabriquer: async () => commandeTutoriel() },
 };
@@ -75,7 +95,6 @@ void creerMoteurMontageCasConcret;
 void creerMoteurMontageTableau;
 void creerMoteurMontageDemoFacecam;
 void creerMoteurMontageImageVideo;
-void tutoriel;
 
 for (const moteur of listerMoteurs()) {
   const c = CAS[moteur.id];
@@ -83,7 +102,7 @@ for (const moteur of listerMoteurs()) {
     describe(`conformité — ${moteur.id}`, () => it("moteur sans commande fabriquée par doubles : à ajouter ici", () => expect.fail(`aucun cas pour « ${moteur.id} »`)));
     continue;
   }
-  testerGenerateur(moteur, c.fabriquer, { sansPrix: c.sansPrix, exceptions: EXCEPTIONS, moteurSansFournisseur: c.sansFournisseur });
+  testerGenerateur(c.moteur ?? moteur, c.fabriquer, { sansPrix: c.sansPrix, exceptions: EXCEPTIONS, moteurSansFournisseur: c.sansFournisseur });
 }
 
 describe("refus d'un moteur non conforme (preuve)", () => {
