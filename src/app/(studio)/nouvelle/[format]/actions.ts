@@ -178,9 +178,15 @@ export async function lancerFabricationAction(
       // Une vidéo qui ne peut pas partir (essai en production) ne pose pas la question : même refus que le lancement.
       if (a.refus) throw new ErreurStudio("SIMULATION_EN_PRODUCTION", a.refus);
     }, { texteRetouche });
+    // UO-09 : contrôle gratuit des formats à CHAQUE lancement ; informe seulement, ne bloque rien. Calculé AVANT le départ et
+    // protégé : une erreur du contrôle est journalisée et ne devient jamais un échec de la fabrication.
+    let alertesFormat: AlerteFormat[] = [];
+    try {
+      if (format) alertesFormat = controlerFormatsAuLancement({ ratios: format.ratios, reseaux: format.reseauxConseilles });
+    } catch (erreur) {
+      console.error("[studio] contrôle des formats au lancement non fait", erreur);
+    }
     const r = await lancerFabrication(videoId, { confirme, scriptRelu: relu, exigerScriptRelu });
-    // UO-09 : contrôle gratuit des formats à CHAQUE lancement ; informe seulement, ne bloque rien.
-    const alertesFormat = format ? controlerFormatsAuLancement({ ratios: format.ratios, reseaux: format.reseauxConseilles }) : [];
     // Le décor choisi devient l'habitude du format (catalogue des décors : « mémorisé par format et par modèle »).
     await memoriserDecor(videoId);
     // Le oui est gardé sur la version d'origine (comme « relire puis lancer »), seulement une fois la fabrication partie.
