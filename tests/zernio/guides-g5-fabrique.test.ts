@@ -85,7 +85,7 @@ describe("réponses du site", () => {
 describe("client signé (faux fetch)", () => {
   const corps = corpsContenuGuide("gde-abc123def456", 1, CONTENU);
   it("poste sur la bonne route avec une signature valide", async () => {
-    const f = vi.fn(async (...a: [string | URL | Request, RequestInit?]) => (a, new Response(JSON.stringify({ cheminPdf: "/guides/a.pdf", pages: 2 }), { status: 201 })));
+    const f = vi.fn(async (_u: string | URL | Request, _i?: RequestInit) => (void _u, void _i, new Response(JSON.stringify({ cheminPdf: "/guides/a.pdf", pages: 2 }), { status: 201 })));
     const r = await envoyerContenuGuide({ corps, env: ENV, fetch: f as unknown as typeof fetch, maintenantMs: 1_800_000_000_000 });
     expect(r).toMatchObject({ issue: "fabrique", cheminPdf: "/guides/a.pdf" });
     const [url, init] = f.mock.calls[0];
