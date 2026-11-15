@@ -29,7 +29,7 @@ describe("REF-CARR-PDF : carrousels", () => {
 
   it("« Préparer pour les réseaux » est un Bouton secondaire (pas de bouton écrit à la main)", () => {
     const s = lire("src/app/(studio)/carrousels/[id]/page.tsx");
-    expect(s).toContain('<Bouton type="submit" variante="secondaire" className="self-start">Préparer pour les réseaux</Bouton>');
+    expect(s).toMatch(/<Bouton[^>]*variante="secondaire"[^>]*>\s*Préparer pour les réseaux\s*<\/Bouton>/);
     expect(s).not.toMatch(/<button/);
     expect(s).toContain("PastilleReseau");
   });
@@ -49,5 +49,7 @@ describe("REF-CARR-PDF : carrousels", () => {
     expect(h).toContain("À valider");
     const v = renderToStaticMarkup(createElement(CarteCarrousel, { carrousel: { ...base, statut: "valide", libelleStatut: "Validé" } }));
     expect(v).toContain("Validé");
+    expect(v).not.toContain("data-statut=");
+    expect(v).toContain('data-famille="carrousel"');
   });
 });
