@@ -133,7 +133,30 @@ export async function prendreEpisode(scriptMaitreId: Id): Promise<number | undef
 /* Sujet : création (brouillon)                                        */
 /* ------------------------------------------------------------------ */
 
-export interface BriefSujet {
+/** Validation d'un sujet venu de l'usine : « propose » par défaut, « valide » seulement par décision explicite. */
+export type EtatValidationSujet = "propose" | "valide";
+
+/** Les deux champs que le sujet transporte en plus (facultatifs : un ancien sujet ne les a pas). */
+export interface ChampsDateSujet {
+  /** Jour visé (AAAA-MM-JJ, Europe/Paris). */
+  dateVisee?: string;
+  etatValidation?: EtatValidationSujet;
+}
+
+const FORME_JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Jour visé du sujet, ou rien si absent ou mal formé (jamais fatal). */
+export function dateViseeDuSujet(s: ChampsDateSujet | object): string | undefined {
+  const v = (s as ChampsDateSujet).dateVisee;
+  return typeof v === "string" && FORME_JOUR.test(v) && !Number.isNaN(Date.parse(v)) ? v : undefined;
+}
+
+/** État de validation du sujet : « propose » par défaut (ancien sujet, valeur absente ou inconnue). */
+export function etatValidationDuSujet(s: ChampsDateSujet | object): EtatValidationSujet {
+  return (s as ChampsDateSujet).etatValidation === "valide" ? "valide" : "propose";
+}
+
+export interface BriefSujet extends ChampsDateSujet {
   idee: string;
   /** Facultative ; devient une matière, toujours utilisée. */
   phraseWill?: string;
@@ -204,10 +227,13 @@ export async function creerSujet(brief: BriefSujet, options: OptionsControleSuje
   const refaire = await apprentissageActif();
   // Cible : celle de l'écran, sinon déduite de la phrase libre ; sans cible, une remarque (jamais une erreur : une vidéo n'est jamais bloquée).
   const ciblage = brief.ciblage ?? (brief.cible ? deduireCiblage(brief.cible) ?? undefined : undefined);
-  const m: ScriptMaitre = {
+  const dateVisee = dateViseeDuSujet(brief);
+  const m: ScriptMaitre & ChampsDateSujet = {
     id: nouvelId("suj"),
     version: 1,
     origineUsine: brief.origineUsine,
+    ...(dateVisee ? { dateVisee } : {}),
+    etatValidation: etatValidationDuSujet(brief),
     brief: {
       idee: brief.idee.trim(),
       phraseWill: brief.phraseWill?.trim() || undefined,
