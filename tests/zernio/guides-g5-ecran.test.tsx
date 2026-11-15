@@ -4,9 +4,19 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { attendre, monter, texteDe, trouver } from "../aides/crochets-factices";
 import { EcranGuides, type ServicesGuides } from "@/components/mots/EcranGuides";
 import { depuisEditable, etapeAtteinte, versEditable } from "@/components/mots/guides-logique";
 import { controlerRelecture } from "@/domaine/guides-pdf/guide-fabrique";
+
+// Crochets factices actifs seulement quand `faux.actif` : les autres tests gardent le vrai React (rendu statique).
+const faux = vi.hoisted(() => ({ actif: false }));
+vi.mock("react", async (o) => {
+  const vrai = await o<typeof import("react")>();
+  const f = (await import("../aides/crochets-factices")).crochets;
+  const choisir = <T,>(nom: keyof typeof f) => ((...a: unknown[]) => ((faux.actif ? f[nom] : vrai[nom as keyof typeof vrai]) as (...x: unknown[]) => T)(...a));
+  return { ...vrai, useState: choisir("useState"), useRef: choisir("useRef"), useMemo: choisir("useMemo"), useCallback: choisir("useCallback"), useEffect: choisir("useEffect"), useTransition: choisir("useTransition"), useId: () => "id-fixe" };
+});
 
 const J = (a: string, b: string) => a + b;
 const FICHIERS = [
@@ -38,6 +48,12 @@ describe("conversions du texte relu", () => {
     expect(etapeAtteinte({ derniere: { statut: "Validé" }, fabrique: null })).toBe(2);
     expect(etapeAtteinte({ derniere: { statut: "Validé" }, fabrique: { rattache: false } })).toBe(3);
     expect(etapeAtteinte({ derniere: { statut: "Validé" }, fabrique: { rattache: true } })).toBe(4);
+  });
+  it("étape « rattaché » : seulement si la version rattachée est la dernière", () => {
+    expect(etapeAtteinte({ derniere: { statut: "Validé", version: 1 }, fabrique: { rattache: true, version: 1 } })).toBe(4);
+    expect(etapeAtteinte({ derniere: { statut: "Validé", version: 2 }, fabrique: { rattache: true, version: 1 } })).toBe(2);
+    expect(etapeAtteinte({ derniere: { statut: "Validé", version: 2 }, fabrique: { rattache: false, version: 1 } })).toBe(2);
+    expect(etapeAtteinte({ derniere: { statut: "Validé", version: 2 }, fabrique: { rattache: false, version: 2 } })).toBe(3);
   });
 });
 
@@ -77,5 +93,45 @@ describe("langage et branchement", () => {
     expect(corps).toHaveLength(5);
     for (const c of corps) expect(c.indexOf("await exigerSession()")).toBeGreaterThan(-1);
     for (const c of corps) expect(c.indexOf("await exigerSession()")).toBeLessThan(c.search(/lireGuideDuMot|redigerGuide\(|validerGuide\(|fabriquerPdf\(|rattacherGuide\(/));
+  });
+});
+
+describe("version fabriquée et version la plus récente", () => {
+  const contenu = (t: string) => ({ titre: t, sections: [{ titre: "Partie", paragraphes: ["Un."], puces: [] }] });
+  async function afficher(derniereVersion: number, fabriqueVersion: number) {
+    faux.actif = true;
+    try {
+      const lire = vi.fn(async () => ({
+        ok: true as const,
+        phrase: "",
+        vue: {
+          derniere: { version: derniereVersion, statut: "Validé", contenu: contenu(`Texte v${derniereVersion}`) },
+          fabrique: { version: fabriqueVersion, cheminPdf: "guides-reseau/x/v.pdf", pages: 2, rattache: false },
+        },
+      }));
+      const m = monter(EcranGuides, { mots: ["facture"], services: { ...services, lire } as unknown as ServicesGuides });
+      const champ = trouver(m.rendre(), (e) => e.type === "input")[0];
+      (champ.props.onChange as (e: unknown) => void)({ target: { value: "facture" } });
+      (trouver(m.rendre(), (e) => e.type === "input")[0].props.onKeyDown as (e: unknown) => void)({ key: "Enter" });
+      await attendre();
+      const arbre = m.rendre();
+      const bouton = (debut: string) => trouver(arbre, (e) => typeof e.props.onClick === "function" && texteDe(e.props.children).includes(debut))[0];
+      return { fabriquer: bouton("4."), rattacher: bouton("5."), apercu: trouver(arbre, (e) => e.props["aria-label"] === "Texte du guide fabriqué")[0] };
+    } finally {
+      faux.actif = false;
+    }
+  }
+  it("v1 fabriquée + v2 validée : « Fabriquer » actif, aperçu absent, « Rattacher » absent", async () => {
+    const r = await afficher(2, 1);
+    expect(r.fabriquer).toBeDefined();
+    expect(r.fabriquer.props.disabled).toBe(false);
+    expect(r.apercu).toBeUndefined();
+    expect(r.rattacher).toBeUndefined();
+  });
+  it("v1 fabriquée = dernière : « Fabriquer » grisé, aperçu présent, « Rattacher » présent", async () => {
+    const r = await afficher(1, 1);
+    expect(r.fabriquer.props.disabled).toBe(true);
+    expect(r.apercu).toBeDefined();
+    expect(r.rattacher).toBeDefined();
   });
 });

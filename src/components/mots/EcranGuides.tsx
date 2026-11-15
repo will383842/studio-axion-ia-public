@@ -81,6 +81,8 @@ export function EcranGuides({ mots, services, onChange }: { mots: readonly strin
   const derniere = vue?.derniere ?? null;
   const aRelire = derniere !== null && derniere.statut !== "Validé";
   const fabrique = vue?.fabrique ?? null;
+  // Le texte montré et le rattachement ne valent que pour la version fabriquée = la dernière (validée) ; sinon le serveur répond « pas_fabrique ».
+  const fabriqueALaDerniere = fabrique !== null && derniere !== null && fabrique.version === derniere.version;
 
   function majSection(i: number, champ: "titre" | "paragraphes" | "puces", v: string) {
     setEdition((e) => (e ? { ...e, sections: e.sections.map((s, j) => (j === i ? { ...s, [champ]: v } : s)) } : e));
@@ -171,7 +173,7 @@ export function EcranGuides({ mots, services, onChange }: { mots: readonly strin
               <p role="status" className="text-sm text-texte">
                 Version {derniere.version} validée.
               </p>
-              <Bouton type="button" disabled={enCours || !!fabrique} onClick={() => geste(() => services.fabriquer(mot))}>
+              <Bouton type="button" disabled={enCours || (!!fabrique && fabrique.version === derniere.version)} onClick={() => geste(() => services.fabriquer(mot))}>
                 4. {T.fabriquer}
               </Bouton>
               <p className="text-xs text-texte-faible">{T.fabriquerAide}</p>
@@ -184,6 +186,7 @@ export function EcranGuides({ mots, services, onChange }: { mots: readonly strin
               <p role="status" className="text-sm text-texte">
                 {T.pdfFabrique} {fabrique.pages ? `${fabrique.pages} pages.` : ""} {fabrique.cheminPdf ? `Fichier : ${fabrique.cheminPdf}` : ""}
               </p>
+              {fabriqueALaDerniere && (
               <article className="space-y-2 rounded-carte border border-trait bg-surface-2 p-3 text-sm text-texte" aria-label="Texte du guide fabriqué">
                 <p className="font-semibold">{derniere.contenu.titre}</p>
                 {derniere.contenu.sections.map((s) => (
@@ -202,18 +205,19 @@ export function EcranGuides({ mots, services, onChange }: { mots: readonly strin
                   </div>
                 ))}
               </article>
+              )}
               {fabrique.rattache ? (
                 <p role="status" className="text-sm font-semibold text-texte">
                   {T.rattache}
                 </p>
-              ) : (
+              ) : fabriqueALaDerniere && derniere.statut === "Validé" ? (
                 <div className="space-y-1">
                   <Bouton type="button" disabled={enCours} onClick={() => geste(() => services.rattacher(mot))}>
                     5. {T.rattacher}
                   </Bouton>
                   <p className="text-xs text-texte-faible">{T.rattacherAide}</p>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </section>

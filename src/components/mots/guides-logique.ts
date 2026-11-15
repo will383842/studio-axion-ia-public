@@ -28,10 +28,12 @@ export const TEXTES_GUIDES = {
 } as const;
 
 /** Étape atteinte (0 à 4) : sert à montrer où en est le guide. */
-export function etapeAtteinte(v: { derniere: { statut: string } | null; fabrique: { rattache: boolean } | null } | null): number {
+export function etapeAtteinte(v: { derniere: { statut: string; version?: number } | null; fabrique: { rattache: boolean; version?: number } | null } | null): number {
   if (!v || !v.derniere) return 0;
-  if (v.fabrique?.rattache) return 4;
-  if (v.fabrique) return 3;
+  // « Rattaché » ne compte que si la version rattachée est la dernière.
+  const ALaDerniere = v.fabrique?.version === undefined || v.derniere.version === undefined || v.fabrique.version === v.derniere.version;
+  if (v.fabrique?.rattache && ALaDerniere) return 4;
+  if (v.fabrique && ALaDerniere) return 3;
   return v.derniere.statut === "Validé" ? 2 : 1;
 }
 
