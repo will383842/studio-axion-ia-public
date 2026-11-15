@@ -40,7 +40,7 @@ export async function creerEntreeStockAction(e: {
       }
     }
     const entree = await depots().stockMessages.enregistrer(creerEntreeStock({ ...saisie, texte, id }, maintenant()));
-    revalidatePath("/ecrire/stock");
+    revalidatePath("/ecrire");
     return entree;
   });
 }
@@ -51,7 +51,7 @@ export async function planifierEntreeStockAction(id: string, creneauId: string):
     const m = await depots().stockMessages.obtenir(id);
     if (!m) throw new Error("Ce message n'est plus dans le stock.");
     const r = await depots().stockMessages.enregistrer(planifierEntree(m, creneauId));
-    revalidatePath("/ecrire/stock");
+    revalidatePath("/ecrire");
     return r;
   });
 }
@@ -62,7 +62,7 @@ export async function archiverEntreeStockAction(id: string): Promise<Resultat<Me
     const m = await depots().stockMessages.obtenir(id);
     if (!m) throw new Error("Ce message n'est plus dans le stock.");
     const r = await depots().stockMessages.enregistrer(archiverMessage(m, maintenant()));
-    revalidatePath("/ecrire/stock");
+    revalidatePath("/ecrire");
     return r;
   });
 }

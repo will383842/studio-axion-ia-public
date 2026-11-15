@@ -95,7 +95,8 @@ describe("STK-02 : geste « Mettre en stock »", () => {
     expect(idees).toContain("Idée du jour");
     const stock = await depots().stockMessages.lister();
     expect(stock.every((m) => !m.archiveLe)).toBe(true);
-    expect(idees.match(/Idée du jour/g)?.length).toBe(idees.match(/Idée du jour/g)?.length);
+    expect(stock).toHaveLength(1);
+    expect(idees).not.toContain(stock[0].id);
   });
 });
 
@@ -109,6 +110,7 @@ describe("STK-02 : actions du stock", () => {
     expect(exigerSession).toHaveBeenCalledTimes(3);
     expect(revalider.mock.calls.filter(([p]) => p === "/ecrire")).toHaveLength(3);
     const src = lire("src/app/(studio)/ecrire/stock/actions.ts");
-    expect(src.match(/export async function \w+[^{]*\{\s*await exigerSession\(\);/g)).toHaveLength(3);
+    expect(src.match(/export async function/g)).toHaveLength(3);
+    expect(src.match(/\{\n  await exigerSession\(\);/g)).toHaveLength(3);
   });
 });
