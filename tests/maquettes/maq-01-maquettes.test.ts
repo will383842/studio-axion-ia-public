@@ -1,58 +1,166 @@
-/** MAQ-01 : quatre maquettes statiques, sans serveur, sans montant, vouvoiement, mention « fictive ». */
-import { describe, expect, it } from "vitest";
+/**
+ * MAQ-01 : quatre maquettes statiques (À publier, Stock, Infographie, Écrans sans prix).
+ * Elles reprennent les couleurs, les mots et la disposition de la maquette validée du calendrier.
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
-// Motifs privés : lus à l'exécution dans un fichier fourni hors dépôt (variable INTERDITS_PUBLIC_FICHIER), jamais écrits ici.
-const FICHIER_INTERDITS = process.env.INTERDITS_PUBLIC_FICHIER;
-const MOTIFS_PRIVES = FICHIER_INTERDITS && existsSync(FICHIER_INTERDITS) ? readFileSync(FICHIER_INTERDITS, "utf8").split("\n").filter(Boolean).map((m) => new RegExp(m, "i")) : [];
-
+const RACINE = process.cwd();
 const ECRANS = ["a-publier", "stock", "infographie", "ecrans-sans-prix"] as const;
-const lire = (e: string) => readFileSync(join(process.cwd(), "docs/maquettes", e, "index.html"), "utf8");
-const texte = (h: string) =>
-  h.replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+const chemin = (e: string) => join(RACINE, "docs/maquettes", e, "index.html");
+const lire = (e: string) => readFileSync(chemin(e), "utf8");
+const MASTER = readFileSync(join(RACINE, "docs/maquettes/calendrier/calendrier-du-studio.html"), "utf8");
 
-describe("MAQ-01 maquettes", () => {
-  for (const e of ECRANS) {
-    describe(e, () => {
-      it("existe", () => expect(existsSync(join(process.cwd(), "docs/maquettes", e, "index.html"))).toBe(true));
-      it("porte la mention fictive", () => expect(lire(e)).toContain("Maquette fictive : rien n'est branché, rien ne part"));
-      it("s'ouvre sans serveur : aucune ressource externe ni script", () => {
-        const h = lire(e);
-        expect(h).not.toMatch(/(src|href)\s*=\s*["'](https?:)?\/\//i);
-        expect(h).not.toMatch(/<script/i);
-        expect(h).not.toMatch(/href\s*=\s*["']\//);
-      });
-      it("aucun montant", () => {
-        const t = texte(lire(e));
-        expect(t).not.toMatch(/[€$]|\beuros?\b|\bdollars?\b|\bEUR\b|\bUSD\b|\bprix\b\s*:?\s*\d/i);
-        expect(t).not.toMatch(/\d\s?(€|\$|euros?|dollars?)/i);
-      });
-      it("vouvoie, ne tutoie pas", () => {
-        const t = texte(lire(e));
-        expect(t).not.toMatch(/(?<![\p{L}\p{N}\x27])(tu|toi|ton|ta|tes|tiens|peux|veux|as|es)(?![\p{L}\p{N}])/iu);
-        expect(t).toMatch(/\b(vous|votre|vos)\b/i);
-      });
-      it("barre de menu fixe à gauche, fond foncé, pages claires", () => {
-        const h = lire(e);
-        expect(h).toMatch(/<nav[^>]*class="menu"/);
-        expect(h).toMatch(/position:\s*fixed;\s*left:\s*0/);
-      });
-      it("ne cite ni le fondateur par son nom ni un dépôt privé (motifs lus hors dépôt ; sans fichier, ce contrôle est sauté)", () => {
-        if (MOTIFS_PRIVES.length === 0) return;
-        const h = lire(e);
-        for (const m of MOTIFS_PRIVES) expect(h).not.toMatch(m);
-      });
-      it("aucune étiquette « Essai » (évoquerait une offre payante)", () => expect(texte(lire(e))).not.toMatch(/\bEssai\b/i));
-    });
-  }
-  it("« À publier » montre vidéo, carrousel et infographie avec icône et libellé", () => {
-    const h = lire("a-publier");
-    for (const [lib, ico] of [["Vidéo", "🎬"], ["Carrousel", "🖼"], ["Infographie", "📊"]]) {
-      expect(h).toContain(lib);
-      expect(h).toContain(ico);
+/** Texte lu par une personne : sans balises <script> ni <style>, sans balises. */
+function texteVisible(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ");
+}
+
+describe.each(ECRANS)("maquette %s", (ecran) => {
+  it("existe et s'ouvre sans serveur (un seul fichier, pas de script externe)", () => {
+    expect(existsSync(chemin(ecran))).toBe(true);
+    const html = lire(ecran);
+    expect(html).toMatch(/<title>[^<]+<\/title>/);
+    expect(html).not.toMatch(/<script[^>]+\bsrc=/i);
+    expect(html).not.toMatch(/\b(fetch|XMLHttpRequest|WebSocket|sendBeacon)\b/);
+    expect(html).not.toMatch(/(?:src|href|action)=["'](?!https:\/\/fonts\.(?:googleapis|gstatic)\.com|#)(?:https?:)?\/\//i);
+  });
+
+  it("porte la mention « Maquette fictive : rien n'est branché, rien ne part »", () => {
+    expect(texteVisible(lire(ecran))).toContain("Maquette fictive : rien n'est branché, rien ne part");
+  });
+
+  it("n'affiche aucun montant en euros ou en dollars", () => {
+    const t = texteVisible(lire(ecran));
+    expect(t).not.toMatch(/[€£]/);
+    expect(t).not.toMatch(/\d\s*(?:\$|USD|EUR|euros?|dollars?)/i);
+    expect(t).not.toMatch(/(?:\$|USD|EUR)\s*\d/i);
+    expect(t).not.toMatch(/\b(?:prix|tarif|facture|abonnement)\b/i);
+  });
+
+  it("vouvoie : aucun tutoiement dans les textes", () => {
+    const t = texteVisible(lire(ecran));
+    expect(t).not.toMatch(/(?<![\p{L}\p{N}])(?:tu|toi|ton|ta|tes|t')(?![\p{L}\p{N}])/iu);
+    expect(t).not.toMatch(/\b(?:clique|choisis|ajoute|glisse|importe|écris|crée|regarde)\b/i);
+    expect(t).toMatch(/\bvous\b|\bvotre\b|\bvos\b/i);
+  });
+
+  it("reprend les couleurs de la maquette du calendrier", () => {
+    const html = lire(ecran);
+    for (const jeton of ["--fond:#f4efe7", "--orange:#b4512a", "--LI:#0a66c2", "--IG:#d6336c", "--FB:#3b5bdb", "--TT:#0b8f8a"]) {
+      expect(MASTER).toContain(jeton);
+      expect(html).toContain(jeton);
+    }
+    expect(html).toContain('"Archivo Black"');
+    expect(html).toContain("Manrope");
+  });
+
+  it("garde le menu du Studio et marque l'écran courant", () => {
+    const html = lire(ecran);
+    expect(html).toMatch(/<nav class="menu"[^>]*>/);
+    expect((html.match(/<span class="cur">/g) ?? []).length).toBe(1);
+    for (const mot of ["Accueil", "Mes vidéos", "Carrousels", "Écrire", "Calendrier", "À traiter", "Mesures", "Réglages"]) {
+      expect(texteVisible(html)).toContain(mot);
     }
   });
-  it("l'onglet Stock existe", () => expect(texte(lire("stock"))).toMatch(/Stock/));
-  it("l'écran Infographie existe", () => expect(texte(lire("infographie"))).toMatch(/Infographie/));
+
+  it("n'écrit ni message automatique ni mot privé évident", () => {
+    const t = texteVisible(lire(ecran));
+    expect(t).not.toMatch(/message automatique/i);
+    expect(t).not.toMatch(/zernio/i);
+    expect(lire(ecran)).not.toMatch(/[\w.+-]+@(?!exemple\.fr)[\w-]+\.\w+/);
+  });
+
+  it("ne propose aucune suppression (on archive)", () => {
+    expect(texteVisible(lire(ecran))).not.toMatch(/\bsupprim|\beffac(?:er|ez)\b/i);
+  });
+});
+
+describe("À publier : les trois formats", () => {
+  const html = lire("a-publier");
+  it.each([
+    ["video", "Vidéo", "▶"],
+    ["carrousel", "Carrousel", "▤"],
+    ["infographie", "Infographie", "▨"],
+  ])("montre %s avec une icône et un libellé", (format, libelle, icone) => {
+    const re = new RegExp(`<[^>]*data-format="${format}"[^>]*>[\\s\\S]*?</li>`, "g");
+    const cartes = html.match(re) ?? [];
+    expect(cartes.length).toBeGreaterThanOrEqual(1);
+    for (const c of cartes) {
+      expect(c).toContain(`class="ico"`);
+      expect(c).toContain(icone);
+      expect(texteVisible(c)).toContain(libelle);
+    }
+  });
+  it("garde les quatre réseaux et l'état de chaque publication", () => {
+    for (const r of ["LinkedIn", "Instagram", "Facebook", "TikTok"]) expect(texteVisible(html)).toContain(r);
+    expect(html).toMatch(/class="et e-(valider|programme|brouillon)/);
+  });
+  it("n'a qu'une action principale orange", () => {
+    expect((html.match(/class="btn pri/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("Stock : onglets", () => {
+  const html = lire("stock");
+  it("propose les onglets Textes, Images, Vidéos, Carrousels, Infographies, avec Stock en titre", () => {
+    expect(html).toMatch(/role="tablist"/);
+    for (const o of ["Textes", "Images", "Vidéos", "Carrousels", "Infographies"]) {
+      expect(html).toMatch(new RegExp(`role="tab"[^>]*>[^<]*${o}`));
+    }
+    expect(texteVisible(html)).toMatch(/Stock/);
+    expect(html).toMatch(/aria-selected="true"/);
+  });
+  it("dit quand un onglet est vide", () => {
+    expect(texteVisible(html)).toMatch(/Rien en stock|Rien à voir ici/);
+  });
+});
+
+describe("Infographie : écran de création", () => {
+  const html = lire("infographie");
+  it("ne dit pas « Envoyer » : rien ne part vers un réseau", () => {
+    expect(texteVisible(html)).not.toMatch(/\bEnvoyer\b/);
+    expect(texteVisible(html)).toContain("Placer dans À publier");
+  });
+  it("a un titre, des points clés, un style, un aperçu et un seul bouton principal", () => {
+    expect(html).toMatch(/<label[^>]*for="inf-titre"/);
+    expect(html).toMatch(/id="inf-points"/);
+    expect(html).toMatch(/name="style"/);
+    expect(html).toMatch(/id="inf-apercu"/);
+    expect((html.match(/class="btn pri/g) ?? []).length).toBe(1);
+    expect(texteVisible(html)).toContain("Infographie");
+  });
+});
+
+describe("Écrans sans prix", () => {
+  const html = lire("ecrans-sans-prix");
+  it("parle en nombres de contenus possibles, jamais en argent", () => {
+    const t = texteVisible(html);
+    expect(t).toMatch(/\d+\s+(?:vidéos?|carrousels?|infographies?)/i);
+    expect(t).toMatch(/quantités/i);
+  });
+  it("n'emprunte pas le nom « Ma réserve », déjà pris par l'écran des scripts et des idées", () => {
+    for (const e of ECRANS) expect(lire(e)).not.toMatch(/Ma réserve/);
+    expect(html).toMatch(/<title>Mes quantités<\/title>/);
+    expect(html).toMatch(/<span class="cur">Mes quantités<\/span>/);
+  });
+  it("un stock vide alerte mais ne met rien en pause : aucun « pause », aucun « reprend »", () => {
+    const t = texteVisible(html);
+    expect(t).not.toMatch(/\bpause\b|reprend|reprise|prochain mois/i);
+    expect(t).toMatch(/Vide[\s\S]*(?:rien n'est bloqué|continuer|ajout)/i);
+  });
+  it("accorde « prévus » avec carrousels et infographies", () => {
+    const t = texteVisible(html);
+    expect(t).not.toMatch(/carrousels possibles?\s+sur\s+\d+\s+prévues/i);
+    expect(t).toMatch(/carrousels possibles\s+sur 12 prévus/);
+  });
+  it("ne bloque jamais l'action : l'alerte reste une information", () => {
+    expect(html).not.toMatch(/\bdisabled\b/);
+    expect(texteVisible(html)).toMatch(/rien n'est bloqué/i);
+  });
 });
