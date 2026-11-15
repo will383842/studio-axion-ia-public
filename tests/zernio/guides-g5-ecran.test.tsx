@@ -115,7 +115,7 @@ describe("version fabriquée et version la plus récente", () => {
       (trouver(m.rendre(), (e) => e.type === "input")[0].props.onKeyDown as (e: unknown) => void)({ key: "Enter" });
       await attendre();
       const arbre = m.rendre();
-      const bouton = (debut: string) => trouver(arbre, (e) => typeof e.props.onClick === "function" && texteDe(e.props.children).includes(debut))[0];
+      const bouton = (debut: string) => trouver(arbre, (e) => typeof e.props.onClick === "function" && texteDe(e.props.children as never).includes(debut))[0];
       return { fabriquer: bouton("4."), rattacher: bouton("5."), apercu: trouver(arbre, (e) => e.props["aria-label"] === "Texte du guide fabriqué")[0] };
     } finally {
       faux.actif = false;
