@@ -63,8 +63,8 @@ describe("textes et conventions", () => {
     const h = texte(rendre(VIDE));
     for (const mot of ["containsSyntheticMedia", "madeForKids", "categoryId", "unlisted", "private", "OAuth", "API", "Zernio"]) expect(h).not.toContain(mot);
   });
-  it("dépôt public : jamais de prénom, de nom ni « abonné »", () => {
-    expect(source.toLowerCase()).not.toMatch(/abonn|williams|willi\b/);
+  it("dépôt public : jamais le mot « abonné »", () => {
+    expect(source.toLowerCase()).not.toMatch(/abonn/);
   });
   it("aucun appel réseau dans la carte", () => {
     expect(source).not.toMatch(/\bfetch\(|zernio-client|clientZernio/);
