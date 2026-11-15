@@ -20,6 +20,13 @@ function fichiers(dossier: string): string[] {
   });
 }
 
+/** Retire les commentaires, puis liste tous les spécifieurs d'import/export (multi-ligne et dynamiques compris). */
+export function specifieursImportes(source: string): string[] {
+  const sans = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const motifs = [/\bfrom\s+["']([^"']+)["']/g, /\bimport\s*\(\s*["']([^"']+)["']/g, /\bimport\s+["']([^"']+)["']/g];
+  return motifs.flatMap((m) => [...sans.matchAll(m)].map((r) => r[1]));
+}
+
 describe("contrat commun de la bibliothèque vidéo (types seuls)", () => {
   it("(a) cleUsageExtrait compose la clé", () => {
     expect(cleUsageExtrait("e1", "p2")).toBe("extrait:e1:p2");
@@ -47,18 +54,22 @@ describe("contrat commun de la bibliothèque vidéo (types seuls)", () => {
       "generation-claude", "image-video",
     ];
     for (const f of fichiers(join(RACINE, "src/briques/bibliotheque-video"))) {
-      const texte = readFileSync(f, "utf8")
-        .split("\n").filter((l) => /^\s*(import|export)\b.*\bfrom\b|^\s*import\s+["']/.test(l)).join("\n");
-      expect(texte, f).not.toMatch(/studio-rendu/);
+      const specs = specifieursImportes(readFileSync(f, "utf8"));
+      for (const sp of specs) expect(sp, `${f} importe studio-rendu`).not.toMatch(/studio-rendu/);
       for (const nom of argent) {
-        expect(texte, `${f} importe ${nom}`).not.toMatch(
-          new RegExp(`from\\s+["'][^"']*/(services|domaine)/${nom}(-[a-z-]+)?["']`),
-        );
+        for (const sp of specs) {
+          expect(sp, `${f} importe ${nom}`).not.toMatch(new RegExp(`/(services|domaine)/${nom}(-[a-z-]+)?$`));
+        }
       }
     }
     for (const f of fichiers(join(RACINE, "studio-rendu"))) {
       if (f.includes("node_modules")) continue;
       expect(readFileSync(f, "utf8"), f).not.toMatch(/bibliotheque-video/);
     }
+  });
+
+  it("(d') la garde attrape un import multi-ligne et un import dynamique", () => {
+    const multi = 'import {\n  type X,\n} from "@/services/credits";\n// import y from "@/services/couts";\nconst m = await import("../studio-rendu/a");\nimport "@/services/budget-mensuel";';
+    expect(specifieursImportes(multi)).toEqual(["@/services/credits", "../studio-rendu/a", "@/services/budget-mensuel"]);
   });
 });

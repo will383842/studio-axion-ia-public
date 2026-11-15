@@ -55,7 +55,7 @@ export interface BlocExtraits {
 export interface BlocHabillage { partCoupesFranchesMin: number; pleinCadrePermis: boolean; fondsAnimes: boolean; lumieres: boolean }
 
 /** Chantier 5. Réservé : aucune fiche ne le lit tant que V4 est suspendu. */
-export interface BlocCalques { texteDerriereMax: number }
+export interface BlocCalques { texteDerriereMax: number }           // 1, au plus 2.
 
 /** Extrait : aligné sur la fiche du chantier 3. */
 export interface CandidatExtrait extends Candidat {
@@ -73,7 +73,7 @@ export interface EntreeBibliotheque {
   version: "bibliotheque-video/1"; profil: ProfilVideo;
   recents: Pick<UsageMemoire, "capacite" | "cle" | "videoId">[];
   graine: string; figeeLe: string;
-  choix?: Choix[];
+  choix?: Choix[];                       // ex. la signature du style de sous-titres tirée au lancement
 }
 
 /** Sources de mémoire. */
