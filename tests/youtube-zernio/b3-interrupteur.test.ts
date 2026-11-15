@@ -77,6 +77,7 @@ describe("b3 · interrupteur YouTube Shorts", () => {
   it("definirReglagesYoutube valide puis definirYoutubeActif : true + journal sans prénom ni nom", async () => {
     await yt.definirReglagesYoutube({ ...PROPOSITION_YOUTUBE, visibilite: "private" });
     expect(await lire(REGLAGES)).toEqual({ ...PROPOSITION_YOUTUBE, visibilite: "private" });
+    await ecrireParametre("zernio.comptes", { lusLe: "2026-11-15T10:00:00Z", comptes: [{ id: "exemple-compte-yt", reseau: "youtube", nom: "Ma chaîne" }] });
     await yt.definirYoutubeActif(true);
     expect(await lire(ACTIF)).toBe(true);
     await yt.definirYoutubeActif(false);

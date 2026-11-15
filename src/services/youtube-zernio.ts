@@ -45,10 +45,23 @@ export async function definirReglagesYoutube(r: unknown): Promise<void> {
   await journaliser("reglages", `Réglages YouTube choisis par le fondateur : visibilité ${lus.visibilite}, catégorie ${lus.categorieId}, synthétique ${lus.synthetique}, enfants ${lus.pourEnfants ? "oui" : "non"}, titre ${lus.titre}`);
 }
 
-/** Allume ou éteint l'envoi. Allumer exige des réglages valides déjà enregistrés. */
-export async function definirYoutubeActif(allume: boolean): Promise<void> {
+/**
+ * Allume ou éteint l'envoi. Éteindre est toujours possible. Allumer exige, côté serveur : des réglages valides enregistrés,
+ * une chaîne YouTube « reliée » (au moins une chaîne active dans les comptes enregistrés), et, si la visibilité enregistrée
+ * est « public », une confirmation explicite (`confirmerPublic === true`).
+ */
+export async function definirYoutubeActif(allume: boolean, confirmerPublic: boolean = false): Promise<void> {
   await exigerSession();
-  if (allume === true && !(await reglagesYoutubeEnBase())) throw new ErreurStudio("YOUTUBE_REGLAGES", "YouTube : choisissez d'abord la visibilité, la catégorie et les mentions : rien n'a été allumé.");
+  if (allume === true) {
+    const reglages = await reglagesYoutubeEnBase();
+    if (!reglages) throw new ErreurStudio("YOUTUBE_REGLAGES", "YouTube : choisissez d'abord la visibilité, la catégorie et les mentions : rien n'a été allumé.");
+    const chaine = await comptesZernioEnregistres().then(etatChaineYoutube, () => etatChaineYoutube(null));
+    if (chaine.etat !== "relie") {
+      const raison = chaine.etat === "absent" ? "aucune chaîne YouTube n'est reliée" : chaine.etat === "deconnecte" ? "la chaîne YouTube est déconnectée" : "l'état de la chaîne YouTube n'est pas connu (utilisez « Tester » dans « Vos comptes de publication »)";
+      throw new ErreurStudio("YOUTUBE_CHAINE", `YouTube : impossible d'allumer, ${raison} : rien n'a été allumé.`);
+    }
+    if (reglages.visibilite === "public" && confirmerPublic !== true) throw new ErreurStudio("YOUTUBE_PUBLIC", "YouTube : la visibilité enregistrée est « public » ; confirmez que les prochains Shorts seront publics tout de suite : rien n'a été allumé.");
+  }
   await ecrireParametre(CLE_YOUTUBE_ACTIF, allume === true);
   await journaliser("reglages", `YouTube Shorts : envoi ${allume === true ? "allumé" : "éteint"}`);
 }
