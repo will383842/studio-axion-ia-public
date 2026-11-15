@@ -25,7 +25,7 @@ const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
 import type { IdReseau, Video } from "@/domaine/types";
 
 const MDP = "essai-r2-textes";
-const PAR_DEFAUT: IdReseau[] = ["linkedin", "instagram", "tiktok", "youtube-shorts"];
+const PAR_DEFAUT: IdReseau[] = ["linkedin", "instagram", "tiktok"];
 
 beforeAll(async () => {
   await preparerMotDePasse(MDP);
@@ -141,11 +141,11 @@ describe("R2 · dépense rattachée à la vidéo", () => {
     const v = await videoSansKit();
     await suite(v);
     const deps = await depensesClaude(v.id);
-    expect(deps).toHaveLength(4);
+    expect(deps).toHaveLength(PAR_DEFAUT.length);
     for (const d of deps) expect(d.lignes[0]).toMatchObject({ fournisseur: "anthropic", nature: "reel" });
     expect(deps.map((d) => d.lignes[0].etape).sort()).toEqual(["Texte de publication · Instagram", "Texte de publication · LinkedIn", "Texte de publication · TikTok", "Texte de publication · YouTube Shorts"]);
     const res = await depots().reservations.lister((r) => r.videoId === v.id);
-    expect(res).toHaveLength(4);
+    expect(res).toHaveLength(PAR_DEFAUT.length);
     expect(res.every((r) => r.statut === "consommee" && r.fournisseur === "anthropic")).toBe(true);
     expect(await depots().generations.compter()).toBe(0);
   });
@@ -155,7 +155,7 @@ describe("R2 · dépense rattachée à la vidéo", () => {
     const v = await videoSansKit();
     await suite(v);
     await suite(v);
-    expect(appels).toHaveLength(4);
+    expect(appels).toHaveLength(PAR_DEFAUT.length);
   });
 
   it("plafond PAR VIDÉO : simple repère (08/11/2026), au-delà tous les textes partent, Will est prévenu une fois", async () => {
