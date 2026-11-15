@@ -20,3 +20,9 @@ Reste à vérifier : le lancement local de `tests/publication/ tests/zernio/ tes
 - HSH-01c : rien n'est touché dans `texteAEnvoyer`, `commentairePour` ni les types exportés. Les seuls ajouts sont une entrée dans le tableau `avertissements` et une condition sur `prets`, donc aucun contrat n'est glissé.
 - `scripts/echecs-connus.json` inchangé. Aucun nom de personne.
 - Contrôles GitHub : 9 sur 9 verts sur 0587303 (règles de fer, garde des fichiers autorisés, eslint et tsc, next build, tests touchés et nouveaux, etc.).
+
+## Complément : tests locaux (après le verdict, qui ne change pas)
+- `tests/publication/fb-reel-envoi.test.ts` + `fb-reel.test.ts` : 20 sur 20 verts.
+- Sonde jetable, non poussée : avec la ligne `FOURNISSEUR_PUBLICATION = "buffer"` retirée, `fb-reel-envoi.test.ts` reste vert (7 sur 7). La ligne est donc inutile, et la retirer suffit pour le point 1.
+- `tests/youtube-zernio/` en entier : 7 fichiers, 69 tests, tous verts.
+- `tests/zernio/` : les 198 fichiers ensemble dépassent le temps disponible ici (2 essais coupés au bout de 10 et 20 min, sans échec affiché). Le sous-ensemble des 25 fichiers qui parlent de Facebook ou de Reel est vert (435 sur 435). Le lancement de `tests/zernio/` en entier reste à faire, à la CI ou sur une machine plus rapide.
