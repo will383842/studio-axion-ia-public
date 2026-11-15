@@ -491,6 +491,15 @@ function ApercuFinal({ apercu, aJour }: { apercu: ApercuEnvoi | undefined; aJour
           <p className="whitespace-pre-line break-words text-sm text-texte">{apercu.premierCommentaire}</p>
         </div>
       )}
+      {apercu.aPoserALaMain && (
+        <div>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-texte-doux">Premier commentaire : à poser à la main</span>
+            <BoutonCopier texte={apercu.aPoserALaMain} compact />
+          </div>
+          <p className="whitespace-pre-line break-words text-sm text-texte">{apercu.aPoserALaMain}</p>
+        </div>
+      )}
       {apercu.repli && <p className="text-xs text-ambre">{apercu.repli}</p>}
       {apercu.message && <p className="text-xs text-ambre">{apercu.message}</p>}
     </div>

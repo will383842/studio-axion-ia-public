@@ -477,9 +477,11 @@ export async function obtenirKit(videoId: string): Promise<VueKit | null> {
     let apercuEnvoi: ApercuEnvoi | undefined;
     try {
       const outil = await outilDeEnvoi(r.reseau);
-      const prevu = (await premierCommentaireDeVideo(videoId, r.reseau, varianteVue))?.trim();
-      const { texte, premierCommentaire, repli, message } = placerPourEnvoi(r, serie?.entete, { outil, placement: placementDe(placements, r.reseau), commentaire: prevu });
-      apercuEnvoi = { texte, ...(premierCommentaire ? { premierCommentaire } : {}), ...(repli ? { repli } : {}), ...(message ? { message } : {}) };
+      // Mêmes entrées que l'envoi depuis la feuille du kit (sans options) : aucun commentaire écrit à l'écran, celui de la vidéo n'est pas lu.
+      const { texte, commentaire, sortie } = await preparerEnvoi({ videoId, variante: varianteVue, serie } as unknown as VueKit, r, undefined, false, outil, placements);
+      const deLaVideo = (await premierCommentaireDeVideo(videoId, r.reseau, varianteVue))?.trim();
+      // Le commentaire de la vidéo ne part pas d'ici : il est signalé « à poser à la main » au lieu d'être présenté comme final.
+      apercuEnvoi = { texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), ...(sortie.repli ? { repli: sortie.repli } : {}), ...(sortie.message ? { message: sortie.message } : {}), ...(deLaVideo ? { aPoserALaMain: deLaVideo } : {}) };
     } catch {
       // L'aperçu est une aide : s'il manque, le kit s'affiche quand même et l'envoi recalcule tout.
     }
@@ -877,7 +879,10 @@ export interface ContexteEnvoi {
 }
 
 /** Ce que le fondateur verra (et ce qui partira) pour un réseau : texte final et premier commentaire final, hashtags placés. */
-export type ApercuEnvoi = Pick<SortiePlacement, "texte" | "premierCommentaire" | "repli" | "message">;
+export type ApercuEnvoi = Pick<SortiePlacement, "texte" | "premierCommentaire" | "repli" | "message"> & {
+  /** Premier commentaire de la vidéo : il ne part pas avec l'envoi du kit, il est à poser à la main. */
+  aPoserALaMain?: string;
+};
 
 /** Le kit, avec l'aperçu final de chaque réseau (champ ajouté ici : `vues.ts` n'est pas dans la fiche). */
 export type VueKitReseauApercu = VueKitReseau & { apercuEnvoi?: ApercuEnvoi };
