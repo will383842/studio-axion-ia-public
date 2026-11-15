@@ -54,6 +54,9 @@ import { optionRetiree } from "@/briques/options-payantes";
 import { trouverFormat } from "@/formats";
 import { SurLeSite } from "@/components/reglages/SurLeSite";
 import { lireReglagesSite } from "@/services/site-videos";
+import { CarteYoutubeShorts } from "@/components/reglages/CarteYoutubeShorts";
+import { resumeCarteYoutube } from "@/components/reglages/youtube-logique";
+import { vueYoutubeZernio } from "@/services/youtube-zernio";
 import { RUBRIQUES } from "./rubriques";
 
 export const metadata: Metadata = { title: "Réglages" };
@@ -123,6 +126,7 @@ export default async function PageReglages() {
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
   const autonomieUsine = await vueAutonomieUsine();
+  const youtube = await vueYoutubeZernio();
   const infos = aPropos();
   const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
 
@@ -245,8 +249,14 @@ export default async function PageReglages() {
               <BlocBuffer vue={buffer} />
             </CartePliante>
           </Apparition>
-          {/* Vidéos sur le site (lot S1) : un interrupteur par type de vidéo, tous éteints. */}
+          {/* YouTube Shorts : tout éteint par défaut, lu en base (aucun appel au service à l'affichage). */}
           <Apparition index={5}>
+            <CartePliante id="youtube-shorts" icone="video" titre="YouTube Shorts" resume={resumeCarteYoutube(youtube.actif)}>
+              <CarteYoutubeShorts vue={youtube} />
+            </CartePliante>
+          </Apparition>
+          {/* Vidéos sur le site (lot S1) : un interrupteur par type de vidéo, tous éteints. */}
+          <Apparition index={6}>
             <CartePliante id="sur-le-site" icone="film" titre="Sur le site" resume="Les types de vidéo qui peuvent aller sur votre site">
               <SurLeSite lignes={lignesSite} />
             </CartePliante>
