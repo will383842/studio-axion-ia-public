@@ -18,8 +18,8 @@ export function Heros({ posts }: { posts: PostMigration[] }) {
       <ul className="mt-3 grid gap-1 text-base sm:text-sm text-texte-doux">
         <li>{c.verifies} vérifiés et programmés chez Zernio</li>
         <li>{c.aVerifier} recréés, à vérifier par vous</li>
-        <li>{c.restants} restants (après le 20/11)</li>
-        <li>{c.laissesBuffer} laissés à Buffer (partent avant la bascule)</li>
+        <li>{c.restants} restants</li>
+        <li>{c.laissesBuffer} laissés à Buffer (non repris, Buffer résilié)</li>
       </ul>
       {c.ecart === 0 ? (
         <p className="mt-3 text-base sm:text-sm font-semibold text-texte">

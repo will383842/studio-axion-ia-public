@@ -79,9 +79,9 @@ export interface ResumeLot {
 }
 
 const INFO_LOT: Record<CodeLot, { intitule: string; plage: string }> = {
-  A: { intitule: "Lot A · Instagram et Facebook", plage: "posts prévus jusqu’au 20/11" },
-  B: { intitule: "Lot B · LinkedIn", plage: "posts prévus jusqu’au 20/11" },
-  C: { intitule: "Lot C · tous réseaux", plage: "posts prévus après le 20/11" },
+  A: { intitule: "Lot A · Instagram et Facebook", plage: "posts déjà prévus" },
+  B: { intitule: "Lot B · LinkedIn", plage: "posts déjà prévus" },
+  C: { intitule: "Lot C · tous réseaux", plage: "posts à venir" },
 };
 
 export function resumerLots(posts: PostMigration[]): ResumeLot[] {
