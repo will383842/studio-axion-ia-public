@@ -29,7 +29,7 @@ const cleRefus = (id: Id) => `corbeille.refusNotifie.${id}`;
  * `garde` : prédicat optionnel (ex. « toujours non terminée »), appliqué à la lecture ET rejoué SOUS LE VERROU ; une vidéo
  * qui ne le satisfait plus (fabrication terminée entre-temps) n'est pas mise de côté et sa page du site n'est pas retirée.
  */
-export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolean): Promise<{ mises: number; brouillonsBuffer: number; pagesRetirees: number }> {
+export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolean): Promise<{ mises: number; brouillonsExternes: number; brouillonsBuffer: number; pagesRetirees: number }> {
   await exigerSession();
   const d = depots();
   const { refusSuppression } = await import("./suppression-video");
@@ -83,7 +83,8 @@ export async function mettreALaCorbeille(ids: Id[], garde?: (v: Video) => boolea
     return { videos: aMettre, brouillonsExternes };
   });
   if (videos.length) await journaliser("video", videos.length > 1 ? `${videos.length} vidéos mises à la corbeille` : `Vidéo mise à la corbeille : « ${videos[0].titre} »`, videos.length === 1 ? { type: "video", id: videos[0].id } : undefined);
-  return { mises: videos.length, brouillonsBuffer: brouillonsExternes, pagesRetirees };
+  // brouillonsBuffer : alias L0-13, retiré par L0-13h (même valeur que brouillonsExternes).
+  return { mises: videos.length, brouillonsExternes, brouillonsBuffer: brouillonsExternes, pagesRetirees };
 }
 
 /** Les vidéos des 30 derniers jours, la plus récemment mise de côté d'abord. */

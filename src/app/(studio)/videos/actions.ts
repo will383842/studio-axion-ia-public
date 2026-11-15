@@ -106,7 +106,7 @@ export async function desarchiverVideosAction(ids: string[]): Promise<Resultat> 
 }
 
 /** « Mettre à la corbeille » : restaurable 30 jours, puis supprimée. Mêmes refus que la suppression (fabrication, publication programmée). */
-export async function mettreALaCorbeilleAction(ids: string[]): Promise<Resultat<{ mises: number; brouillonsBuffer: number; pagesRetirees: number }>> {
+export async function mettreALaCorbeilleAction(ids: string[]): Promise<Resultat<{ mises: number; brouillonsExternes: number; brouillonsBuffer: number; pagesRetirees: number }>> {
   await exigerSession();
   return essayer(async () => {
     const r = await mettreALaCorbeille(ids);
@@ -121,13 +121,13 @@ export async function mettreALaCorbeilleAction(ids: string[]): Promise<Resultat<
  * « Annuler cette vidéo » : la met à la corbeille (restaurable 30 jours). Fabrication en cours : `travailId` l'arrête d'abord.
  * Une vidéo prête est refusée ; mêmes refus que la corbeille (publication programmée, envoi Buffer incertain).
  */
-export async function annulerVideoAction(videoId: string, travailId?: string): Promise<Resultat<{ mises: number; centimes: number; brouillonsBuffer: number; pagesRetirees: number; refus?: string }>> {
+export async function annulerVideoAction(videoId: string, travailId?: string): Promise<Resultat<{ mises: number; centimes: number; brouillonsExternes: number; brouillonsBuffer: number; pagesRetirees: number; refus?: string }>> {
   await exigerSession();
   return essayer(async () => {
     const r = await annulerVideo(videoId, travailId ? { travailId } : {});
     rafraichir(videoId);
     revalidatePath("/");
-    return { mises: r.mises, centimes: r.centimes, brouillonsBuffer: r.brouillonsBuffer, pagesRetirees: r.pagesRetirees, refus: r.refus };
+    return { mises: r.mises, centimes: r.centimes, brouillonsExternes: r.brouillonsExternes, brouillonsBuffer: r.brouillonsBuffer, pagesRetirees: r.pagesRetirees, refus: r.refus };
   });
 }
 
@@ -138,7 +138,7 @@ export async function listerANettoyerAction(): Promise<Resultat<{ id: string; ti
 }
 
 /** « Nettoyer » confirmé : met TOUTES les vidéos cochées à la corbeille (celles qui ne sont plus éligibles sont ignorées). */
-export async function nettoyerVideosAction(ids: string[]): Promise<Resultat<{ mises: number; refusees: number; ignorees: number; brouillonsBuffer: number; pagesRetirees: number; messages: string[] }>> {
+export async function nettoyerVideosAction(ids: string[]): Promise<Resultat<{ mises: number; refusees: number; ignorees: number; brouillonsExternes: number; brouillonsBuffer: number; pagesRetirees: number; messages: string[] }>> {
   await exigerSession();
   return essayer(async () => {
     const r = await nettoyerVideos(ids);

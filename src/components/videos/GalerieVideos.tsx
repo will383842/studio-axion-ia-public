@@ -224,7 +224,7 @@ export function GalerieVideos({
         notifier.erreur(r.message);
         return;
       }
-      notifier.succes(messageCorbeille(r.donnees.mises, r.donnees.brouillonsBuffer, r.donnees.pagesRetirees));
+      notifier.succes(messageCorbeille(r.donnees.mises, r.donnees.brouillonsExternes, r.donnees.pagesRetirees));
       quitterSelection();
       router.refresh();
     });
