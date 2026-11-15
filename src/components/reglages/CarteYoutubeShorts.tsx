@@ -8,7 +8,7 @@ import { Interrupteur } from "@/components/ui/Interrupteur";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { notifier } from "@/components/ui/Toast";
 import type { VueYoutube } from "@/domaine/chaine-youtube";
-import { appliquerSuggestions, detailInterrupteur, reglagesModifies, TEXTES_LOGIQUE_YOUTUBE } from "./youtube-logique";
+import { appliquerSuggestions, confirmationPublicRequise, detailInterrupteur, etatInterrupteur, memesReglages, recalerFormulaire, reglagesModifies, TEXTES_LOGIQUE_YOUTUBE } from "./youtube-logique";
 import { lireReglagesYoutube, PROPOSITION_YOUTUBE, type SourceTitreYoutube, type SynthetiqueYoutube, type VisibiliteYoutube } from "@/fournisseurs/publication/zernio-youtube";
 
 export const TEXTES_YOUTUBE = {
@@ -18,6 +18,8 @@ export const TEXTES_YOUTUBE = {
   utiliserSuggestions: "Remplir avec les suggestions",
   avertissementPublic: "Public : chaque Short sera visible de tout le monde dès sa publication. Pour un premier essai, choisissez plutôt « Privé ».",
   chaineRelie: "Chaîne reliée",
+  chaineDeconnectee: "Chaîne déconnectée",
+  reprendre: "Reprendre les réglages enregistrés",
   chaineAbsente: "Aucune chaîne YouTube n'est reliée pour l'instant : rien ne peut partir.",
   chaineInconnue: "L'état de la chaîne n'est pas encore connu : utilisez « Tester » dans « Vos comptes de publication ».",
   interrupteur: "Envoyer les Shorts sur YouTube",
@@ -62,13 +64,26 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
   const idCategorie = useId();
   const [b, setB] = useState<Brouillon>(vue.reglages ?? { categorieId: "" });
   const [actif, setActif] = useState(vue.actif);
+  const [confirmePublic, setConfirmePublic] = useState(false);
+  // Recalage sur la base après router.refresh() (réglage d'état pendant le rendu, sans effet).
+  const [baseVue, setBaseVue] = useState(vue);
+  const [baseChangee, setBaseChangee] = useState(false);
   const [enCours, demarrer] = useTransition();
+  if (baseVue !== vue) {
+    setBaseVue(vue);
+    if (vue.actif !== baseVue.actif) setActif(vue.actif);
+    const r = recalerFormulaire(b, baseVue.reglages, vue.reglages);
+    if (r.brouillon !== b) setB(r.brouillon);
+    if (!memesReglages(baseVue.reglages, vue.reglages)) setBaseChangee(r.avertir);
+  }
   const complet = lireReglagesYoutube(b);
   const sugg = PROPOSITION_YOUTUBE;
   const modifie = reglagesModifies(b, vue.reglages);
+  const exigeConfirmation = confirmationPublicRequise(actif, vue.reglages, b);
+  const interrupteur = etatInterrupteur({ enCours, actif, reglages: vue.reglages, modifie, chaine: vue.chaine });
   const categories = b.categorieId && !CATEGORIES.some((c) => c.id === b.categorieId) ? [...CATEGORIES, { id: b.categorieId, libelle: libelleCategorie(b.categorieId) }] : CATEGORIES;
 
-  function appeler(action: () => Promise<{ ok: boolean; message?: string }>, succes: string, retour?: () => void) {
+  function appeler(action: () => Promise<{ ok: boolean; message?: string }>, succes: string, retour?: () => void, apres?: () => void) {
     demarrer(async () => {
       let r;
       try {
@@ -84,13 +99,14 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
         return;
       }
       notifier.succes(succes);
+      apres?.();
       router.refresh();
     });
   }
 
   function enregistrer() {
-    if (!complet) return;
-    appeler(() => enregistrerReglagesYoutubeAction(complet), "Réglages enregistrés");
+    if (!complet || (exigeConfirmation && !confirmePublic)) return;
+    appeler(() => enregistrerReglagesYoutubeAction(complet), "Réglages enregistrés", undefined, () => setConfirmePublic(false));
   }
 
   function changerEnvoi(v: boolean) {
@@ -107,13 +123,17 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
       <p className="text-sm text-texte-doux">{TEXTES_YOUTUBE.rappel}</p>
 
       <p role="status" className="text-sm text-texte">
-        {chaine.etat === "relie" ? `${TEXTES_YOUTUBE.chaineRelie} : ${chaine.nom}.` : chaine.etat === "absent" ? TEXTES_YOUTUBE.chaineAbsente : TEXTES_YOUTUBE.chaineInconnue}
+        {chaine.etat === "relie" ? `${TEXTES_YOUTUBE.chaineRelie} : ${chaine.nom}.` : chaine.etat === "deconnecte" ? `${TEXTES_YOUTUBE.chaineDeconnectee} : ${chaine.nom}.` : chaine.etat === "absent" ? TEXTES_YOUTUBE.chaineAbsente : TEXTES_YOUTUBE.chaineInconnue}
       </p>
 
       <p className="text-xs text-texte-doux">{TEXTES_YOUTUBE.suggestionAide}</p>
 
       <div className="space-y-1">
-        <SelecteurPastilles<VisibiliteYoutube> libelle="Qui peut voir le Short" options={pastilles(VISIBILITES)} valeur={b.visibilite} onChange={(v) => setB((s) => ({ ...s, visibilite: v }))} />
+        <SelecteurPastilles<VisibiliteYoutube> libelle="Qui peut voir le Short" options={pastilles(VISIBILITES)} valeur={b.visibilite} onChange={(v) => {
+            setB((s) => ({ ...s, visibilite: v }));
+            setConfirmePublic(false);
+          }}
+        />
         <p className="text-xs text-texte-faible">
           {TEXTES_YOUTUBE.suggestion} : {TEXTES_LOGIQUE_YOUTUBE.suggestionVisibilite}
         </p>
@@ -122,6 +142,14 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
         <p role="alert" className="rounded-carte border border-ambre bg-surface-2 p-3 text-sm font-semibold text-ambre">
           {TEXTES_YOUTUBE.avertissementPublic}
         </p>
+      )}
+      {exigeConfirmation && (
+        <label className="flex min-h-12 items-start gap-3 text-sm text-texte">
+          <input type="checkbox" className="mt-1 size-5 shrink-0" checked={confirmePublic} onChange={(e) => setConfirmePublic(e.target.checked)} />
+          <span>
+            L&apos;envoi est allumé : en enregistrant, les prochains Shorts seront publics tout de suite. {TEXTES_LOGIQUE_YOUTUBE.confirmerPublic}
+          </span>
+        </label>
       )}
 
       <div className="space-y-1">
@@ -179,7 +207,7 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
         <Bouton type="button" variante="secondaire" disabled={enCours} onClick={() => setB((s) => appliquerSuggestions(s))}>
           {TEXTES_YOUTUBE.utiliserSuggestions}
         </Bouton>
-        <Bouton type="button" disabled={enCours || !complet} onClick={enregistrer}>
+        <Bouton type="button" disabled={enCours || !complet || (exigeConfirmation && !confirmePublic)} onClick={enregistrer}>
           Enregistrer ces réglages
         </Bouton>
       </div>
@@ -188,15 +216,37 @@ export function CarteYoutubeShorts({ vue }: { vue: VueYoutube }) {
           {TEXTES_LOGIQUE_YOUTUBE.nonEnregistre}
         </p>
       )}
+      {modifie && baseChangee && (
+        <div role="alert" className="space-y-2 rounded-carte border border-ambre bg-surface-2 p-3 text-sm text-texte">
+          <p>{TEXTES_LOGIQUE_YOUTUBE.baseChangee}</p>
+          <Bouton
+            type="button"
+            variante="secondaire"
+            disabled={enCours}
+            onClick={() => {
+              setB(vue.reglages ?? { categorieId: "" });
+              setBaseChangee(false);
+              setConfirmePublic(false);
+            }}
+          >
+            {TEXTES_YOUTUBE.reprendre}
+          </Bouton>
+        </div>
+      )}
 
       <div className="border-t border-trait pt-3">
         <Interrupteur
           libelle={TEXTES_YOUTUBE.interrupteur}
-          detail={detailInterrupteur(vue.reglages)}
+          detail={detailInterrupteur(actif, vue.reglages)}
           coche={actif}
-          desactive={enCours || (!vue.reglages && !actif) || (modifie && !actif)}
+          desactive={interrupteur.desactive}
           onChange={changerEnvoi}
         />
+        {interrupteur.raison && vue.reglages && !modifie && !enCours && (
+          <p role="status" className="mt-2 text-sm text-ambre">
+            {interrupteur.raison}
+          </p>
+        )}
       </div>
     </div>
   );
