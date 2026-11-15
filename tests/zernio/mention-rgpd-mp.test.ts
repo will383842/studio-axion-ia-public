@@ -62,7 +62,7 @@ describe("1 · le texte proposé", () => {
     expect(t).toContain("[titre du guide]");
     expect(t).toMatch(/adresse e-mail/); // le message demande toujours l'adresse
   });
-  it("ne contient aucun mot interdit (abonné, Grenoble, gain garanti, stop, automatique, prix) ni adresse e-mail ni jargon", () => {
+  it("ne contient aucun mot interdit (abonné, nom de ville interdit, gain garanti, stop, automatique, prix) ni adresse e-mail ni jargon", () => {
     const t = brut(NOUVELLE).texte;
     expect(t).not.toMatch(new RegExp(J("abonn"), "i"));
     expect(t.toLowerCase()).not.toContain(J("gren", "oble"));
