@@ -159,6 +159,7 @@ services:
       STUDIO_EMPREINTE_SECRET_ANCIEN: ${STUDIO_EMPREINTE_SECRET_ANCIEN:-}
       # Lien de la page guide dans le 1er message privé : INERTE tant que l'interrupteur est vide. Le secret du lien doit avoir la même valeur que GUIDES_RESEAU_LIEN_SECRET côté site (posé par saisie masquée, jamais dans un dépôt). Comptes : « idCompteZernio=nom_court » séparés par des virgules.
       PARCOURS_LIEN_GUIDE: ${PARCOURS_LIEN_GUIDE:-}
+      PARCOURS_ESSAI_COMPTES: ${PARCOURS_ESSAI_COMPTES:-}
       GUIDES_RESEAU_LIEN_SECRET: ${GUIDES_RESEAU_LIEN_SECRET:-}
       LIEN_GUIDE_COMPTES: ${LIEN_GUIDE_COMPTES:-}
       # Interrupteurs des oppositions (transmission par référence, import depuis le site) : INERTES tant que vides.

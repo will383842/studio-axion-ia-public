@@ -29,7 +29,7 @@ export function FormatAttendu({ aide }: { aide: AideFormat }) {
   }
   return (
     <details className="rounded-carte border border-trait bg-surface-1">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 text-sm font-semibold text-texte hover:text-orange-vif">Format attendu</summary>
+      <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 text-sm font-semibold text-texte hover:text-accent">Format attendu</summary>
       <div className="flex flex-col gap-4 border-t border-trait p-4 text-sm text-texte-doux">
         <p>
           Le texte est un JSON avec : la version du paquet, le sujet, le titre, une phrase « pourquoi » par page, et le carrousel (texte alternatif et de {aide.pagesMin} à {aide.pagesMax} pages). La première page est une couverture, la dernière est la page sombre T21. Aucun lien, aucun chiffre.
@@ -138,7 +138,7 @@ export function FormulaireNouveauCarrousel({
               onClick={() => setEntree(v)}
               className={cn(
                 "min-h-12 rounded-carte border px-4 text-left text-[15px] font-semibold transition-colors",
-                entree === v ? "border-orange bg-orange-doux text-orange-vif" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort",
+                entree === v ? "border-accent bg-accent-doux text-accent" : "border-trait bg-surface-1 text-texte-doux hover:border-trait-fort",
               )}
             >
               {l}
@@ -186,7 +186,7 @@ export function FormulaireNouveauCarrousel({
           value={sujet}
           onChange={(e) => setSujet(e.target.value)}
           placeholder="Par exemple : cinq erreurs à éviter au lancement"
-          className="min-h-12 rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte placeholder:text-texte-faible focus:border-orange"
+          className="min-h-12 rounded-champ border border-trait bg-surface-1 px-3.5 text-[15px] text-texte placeholder:text-texte-faible focus:border-accent"
         />
         <p className="text-xs text-texte-faible">Le texte est un exemple d&apos;essai, écrit sur un modèle du studio : votre sujet sert de titre quand il s&apos;y prête.</p>
         <Bouton type="submit" icone="etincelles" disabled={grise} aria-describedby={pourquoiGrise} className="self-start">
@@ -212,7 +212,7 @@ export function FormulaireNouveauCarrousel({
             setErreur(e.target.value === "" || v.ok ? undefined : v.message);
           }}
           aria-invalid={!!erreur || phrases.length > 0 || undefined}
-          className="rounded-champ border border-trait bg-surface-1 px-3.5 py-3 font-mono text-sm text-texte focus:border-orange"
+          className="rounded-champ border border-trait bg-surface-1 px-3.5 py-3 font-mono text-sm text-texte focus:border-accent"
         />
         <label htmlFor="carrousel-fichier" className="text-sm font-semibold text-texte-doux">
           Ou choisissez un fichier .json (64 Ko au plus)
