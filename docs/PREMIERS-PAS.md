@@ -77,7 +77,7 @@ Contrôles :
 
 1. Cochez la case « Ce conseil n'est pas en première page d'une recherche ». Cherchez d'abord le sujet sur Google : si le même conseil apparaît en première page, la vidéo n'apporte rien. Tant que la case n'est pas cochée, le bouton **Fabriquer** reste grisé.
 2. Cliquez sur **Fabriquer**.
-3. Le studio demande une confirmation avant de fabriquer. Lisez, puis cliquez sur **Confirmer**.
+3. Après le clic sur **Fabriquer**, la fabrication démarre directement, sans fenêtre de confirmation.
 4. Patientez. Vous voyez « Fabrication en cours ».
 5. Ne relancez pas pendant l'attente. Le studio dit « Un travail est en cours : attendez qu'il se termine ».
 
