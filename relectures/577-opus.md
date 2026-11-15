@@ -26,8 +26,8 @@ Relecture en lecture seule, le 15/11/2026, sur un clone neuf ; tête obtenue par
 
 ## Remarques non bloquantes (suites possibles, hors fiche)
 
-1. `deploiement/copier-r2.mjs:197` — gravité faible : même clé et même taille mais contenu différent est compté `deja` (conforme au contrat, qui ne compare que la taille). Rien n'est écrasé, mais la divergence n'est pas signalée ; une comparaison d'ETag ou de somme serait plus sûre.
-2. `deploiement/copier-r2.mjs:209` — gravité faible : le PUT vers le secours n'est pas conditionnel (`If-None-Match: *`). Si un objet apparaissait dans le secours entre la liste et le PUT (autre écrivain), il serait remplacé. Risque très faible (seul le cron écrit dans ce seau).
-3. `deploiement/copier-r2.mjs:148` — gravité faible : `R2_BUCKET_SECOURS` égal à `R2_BUCKET` n'est pas refusé ; la copie « réussit » avec 0 copie et aucun secours réel n'existe. Refuser ce cas (sortie 3) éviterait une fausse assurance.
-4. `deploiement/copier-r2.mjs:204` — gravité faible : chaque objet est lu entièrement en mémoire avant envoi ; une très grosse vidéo pourrait dépasser la mémoire du conteneur jetable. Le `Content-Type` d'origine n'est pas recopié.
+1. `deploiement/copier-r2.mjs:204` — gravité faible : même clé et même taille mais contenu différent est compté `deja` (conforme au contrat, qui ne compare que la taille). Rien n'est écrasé, mais la divergence n'est pas signalée ; une comparaison d'ETag ou de somme serait plus sûre.
+2. `deploiement/copier-r2.mjs:216` — gravité faible : le PUT vers le secours n'est pas conditionnel (`If-None-Match: *`). Si un objet apparaissait dans le secours entre la liste et le PUT (autre écrivain), il serait remplacé. Risque très faible (seul le cron écrit dans ce seau).
+3. `deploiement/copier-r2.mjs:149` — gravité faible : `R2_BUCKET_SECOURS` égal à `R2_BUCKET` n'est pas refusé ; la copie « réussit » avec 0 copie et aucun secours réel n'existe. Refuser ce cas (sortie 3) éviterait une fausse assurance.
+4. `deploiement/copier-r2.mjs:213` — gravité faible : chaque objet est lu entièrement en mémoire avant envoi ; une très grosse vidéo pourrait dépasser la mémoire du conteneur jetable. Le `Content-Type` d'origine n'est pas recopié.
 5. Description de PR : la syntaxe Markdown de `lister <source|secours>` est cassée (cosmétique).
