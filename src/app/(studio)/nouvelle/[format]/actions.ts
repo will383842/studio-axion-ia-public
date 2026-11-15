@@ -23,6 +23,7 @@ import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import { lignesApres, lignesDesBlocs } from "@/domaine/relecture-assistant";
 import { scriptReluDe, type DifferenceLigne, type PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptAssistant } from "@/services/relecture-assistant";
+import { controlerFormatsAuLancement, type AlerteFormat } from "@/domaine/formats/controle-lancement";
 
 export interface OrigineBrouillon {
   modeleId?: string;
@@ -147,7 +148,7 @@ export async function lancerFabricationAction(
   confirme: AccordPrix,
   scriptRelu?: string,
   voyant?: { malgreVoyant?: boolean },
-): Promise<Resultat<{ travailId: string; versionId: string }>> {
+): Promise<Resultat<{ travailId: string; versionId: string; alertesFormat?: AlerteFormat[] }>> {
   await exigerSession();
   return essayer(async () => {
     // Texte venu d'une version du générateur : second oui si son voyant est rouge (VOYANT_ROUGE, rien créé ni payé).
@@ -178,6 +179,8 @@ export async function lancerFabricationAction(
       if (a.refus) throw new ErreurStudio("SIMULATION_EN_PRODUCTION", a.refus);
     }, { texteRetouche });
     const r = await lancerFabrication(videoId, { confirme, scriptRelu: relu, exigerScriptRelu });
+    // UO-09 : contrôle gratuit des formats à CHAQUE lancement ; informe seulement, ne bloque rien.
+    const alertesFormat = format ? controlerFormatsAuLancement({ ratios: format.ratios, reseaux: format.reseauxConseilles }) : [];
     // Le décor choisi devient l'habitude du format (catalogue des décors : « mémorisé par format et par modèle »).
     await memoriserDecor(videoId);
     // Le oui est gardé sur la version d'origine (comme « relire puis lancer »), seulement une fois la fabrication partie.
@@ -189,7 +192,7 @@ export async function lancerFabricationAction(
         console.error("[studio] trace du oui voyant non écrite", erreur);
       }
     }
-    return r;
+    return alertesFormat.length > 0 ? { ...r, alertesFormat } : r;
   });
 }
 
