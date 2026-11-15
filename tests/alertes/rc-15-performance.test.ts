@@ -15,6 +15,11 @@ describe("RC-15 — médiane du compte", () => {
     expect(medianeCompte([])).toBeNull();
     expect(medianeCompte([null])).toBeNull();
   });
+  it("une valeur négative est illisible : ignorée par la médiane", () => {
+    expect(medianeCompte([-4, 2, 3])).toBe(2.5);
+    expect(medianeCompte([-4, 2, 4, 6])).toBe(4);
+    expect(medianeCompte([-1, -2])).toBeNull();
+  });
 });
 
 describe("RC-15 — A17 décolle (> 2 × médiane à H+2, au moins 10 relevés)", () => {
@@ -38,6 +43,10 @@ describe("RC-15 — A17 décolle (> 2 × médiane à H+2, au moins 10 relevés)"
     expect(evaluerDecolle(pub(500), 0).niveau).toBe("non-evalue");
     expect(evaluerDecolle(pub(null), 100).niveau).toBe("non-evalue");
   });
+  it("vues négatives : illisible, non évalué", () => {
+    expect(evaluerDecolle(pub(-5), 100)).toMatchObject({ niveau: "non-evalue", statut: "non-evalue" });
+    expect(evaluerDecolle(pub(-1), 100).niveau).toBe("non-evalue");
+  });
 });
 
 describe("RC-15 — A16 chute (< 50 % de la médiane sur 3 publications)", () => {
@@ -58,6 +67,10 @@ describe("RC-15 — A16 chute (< 50 % de la médiane sur 3 publications)", () =>
   it("médiane inconnue ou vues inconnues : non évalué", () => {
     expect(evaluerChute([pub(1), pub(1), pub(1)], null).niveau).toBe("non-evalue");
     expect(evaluerChute([pub(1), pub(null), pub(1)], 100).niveau).toBe("non-evalue");
+  });
+  it("vues négatives : illisible, non évalué (jamais une alerte de chute)", () => {
+    expect(evaluerChute([pub(-1), pub(-1), pub(-1)], 100)).toMatchObject({ niveau: "non-evalue", statut: "non-evalue" });
+    expect(evaluerChute([pub(1), pub(-1), pub(1)], 100).niveau).toBe("non-evalue");
   });
 });
 
