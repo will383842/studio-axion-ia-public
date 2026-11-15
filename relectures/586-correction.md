@@ -1,0 +1,1 @@
+PR 586 (HSH-01a) corrigée : 3 points du verdict Opus traités (mots-dièse en trop gardés avec message, source neutre sans Buffer et hors relevé L8-01 signalé, accord des interdits), 59 tests verts, tsc/eslint propres, echecs-connus.json inchangé.
