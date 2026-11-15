@@ -102,7 +102,7 @@ export interface ProgrammationAffichee {
   creneaux: { code: string; reseau: ReseauDeclinaison; jour: string; heure?: string; heureParDefaut: boolean; decaleWeekEnd: boolean; rang: number }[];
   autresFormats: number;
   envoiSimule: boolean;
-  /** Lot R1 : envoi réel en brouillon dans Buffer (défaut) ou programmé directement. */
+  /** Lot R1 : envoi réel en brouillon dans Zernio (défaut) ou programmé directement. */
   modeBuffer?: ModeEnvoiPublication;
 }
 
@@ -1020,7 +1020,7 @@ export function VerificationsDeLaVersion({ v, onCocher }: { v: VerificationsVers
 
 /**
  * « Programmer les N » (lot G7a, B.5.5) : un format à la fois, chaque version sur SON réseau, ordre J à J+4 ; un toucher
- * pour confirmer. Chaque envoi suit l'interrupteur de Buffer (essai tant que l'envoi réel n'est pas activé).
+ * pour confirmer. Chaque envoi suit l'interrupteur de l'envoi (essai tant que l'envoi réel n'est pas activé).
  */
 function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }: { ouverte: boolean; onOuverteChange: (v: boolean) => void; sujetId: string; programmation: ProgrammationAffichee }) {
   const router = useRouter();
