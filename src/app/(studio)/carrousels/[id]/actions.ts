@@ -10,9 +10,10 @@ import { programmerEnUnClic } from "@/components/visuels/BoutonProgrammerVisuel"
 import { normaliserLegende, verifierLegende } from "@/components/visuels-texte/compteur";
 import { texteDesPages } from "@/domaine/ecriture-post/contenu-source";
 import { texteDeterministeVisuel } from "@/generateur/roles/publication-visuel";
-import { depots, journaliser, maintenant } from "@/services/_commun";
+import { depots, journaliser, maintenant, sousVerrou } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
-import type { DepotsPasserelle } from "@/services/plan-vers-publication";
+import { appliquerLot } from "@/donnees/memoire";
+import { retirerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 import { ErreurVisuel, lancerRendu, lireVisuel, preparerPourReseaux, PHRASE_GENERATEUR_ETEINT, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { mettreALaCorbeille, restaurer } from "@/visuels/services/corbeille";
 import { codeErreur, dependancesCarrousels, lireIdFormulaire } from "@/visuels/services/production";
@@ -198,4 +199,26 @@ export async function reecrireLegendeAction(donnees: FormData): Promise<void> {
   }
   revalidatePath(`/carrousels/${id}`);
   redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : ""}`);
+}
+
+/** « Retirer du calendrier » : défait la programmation tant que rien n'est parti (lignes du Studio seulement). */
+export async function retirerDuCalendrierAction(donnees: FormData): Promise<void> {
+  await exigerSession();
+  await agir(donnees, async (id) => {
+    if (donnees.get("confirmation") !== "retirer") throw new ErreurVisuel("RETIRER_REFUSE", "Confirmez d'abord le retrait.");
+    const d = depots();
+    const passerelle: DepotsPasserelle = {
+      creneaux: d.creneauxEditoriaux as unknown as DepotsPasserelle["creneaux"],
+      journal: d.journalDecalages,
+      publications: d.publications,
+      visuels: d.visuels,
+      evenements: d.evenements,
+    };
+    try {
+      await sousVerrou(() => retirerVisuel(passerelle, id, maintenant(), appliquerLot));
+    } catch (e) {
+      if (e instanceof ErreurVisuel) throw e;
+      throw new ErreurVisuel("RETIRER_REFUSE", e instanceof Error ? e.message : "Retrait refusé");
+    }
+  });
 }

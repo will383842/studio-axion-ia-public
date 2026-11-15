@@ -115,6 +115,7 @@ const PHRASES_CODES: Record<string, string> = {
   PROGRAMMER_SANS_RESEAU: "Ce carrousel n'est pas encore prêt pour les réseaux. Cliquez d'abord sur « Préparer pour les réseaux », puis sur « Programmer ».",
   PROGRAMMER_DATE: "Ce jour est vide, invalide ou déjà passé, ou l'heure de publication est dépassée. Choisissez un jour à venir, puis cliquez sur « Programmer ».",
   PROGRAMMER_REFUSE: "Ce carrousel ne peut pas être programmé maintenant : il doit être validé et ne pas être déjà programmé à une autre date.",
+  RETIRER_REFUSE: "Ce carrousel ne peut pas être retiré du calendrier maintenant : une publication est passée, déjà publiée ou confiée à l'outil de publication.",
   INCONNUE: GENERIQUE,
 };
 

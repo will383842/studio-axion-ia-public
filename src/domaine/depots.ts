@@ -94,6 +94,8 @@ export interface Depot<T extends { id: Id }> {
   /**
    * Efface pour de bon (true : il existait). Rien n'est purgé automatiquement : seule la suppression MANUELLE d'une
    * vidéo par Will, confirmée, s'en sert (décision du 17/10, `supprimerVideoDefinitivement`). Partout ailleurs : archiver.
+   * Seconde exception : `retirerVisuel` (plan-vers-publication) efface, en un lot avec trace au journal, les Publications `manuel`
+   * jamais envoyées d'un carrousel retiré du calendrier.
    */
   supprimer(id: Id): Promise<boolean>;
   compter(filtre?: (e: T) => boolean): Promise<number>;
