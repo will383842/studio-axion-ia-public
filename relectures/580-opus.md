@@ -18,7 +18,7 @@
 ## Remarques (non bloquantes)
 
 - `tests/stk-02-mes-textes.test.tsx` : le test « est branché » ne vérifie que la présence de la chaîne `BoutonMettreEnStock` dans le chemin d'import. Il ne prouve pas que le menu contient l'entrée. On peut le renforcer.
-- `tests/stk-02-mes-textes.test.tsx:20` : la doublure reprend l'identifiant existant `listerTextesW…` de `src/services/voix.ts`, qui contient un prénom. Ce nom existe déjà dans `src` et la doublure en a besoin. Il n'est pas créé par la PR, mais le renommer serait à prévoir à part, pour un dépôt public.
+- `tests/stk-02-mes-textes.test.tsx:19` : la doublure reprend l'identifiant existant `listerTextesW…` de `src/services/voix.ts`, qui contient un prénom. Ce nom existe déjà dans `src` et la doublure en a besoin. Il n'est pas créé par la PR, mais le renommer serait à prévoir à part, pour un dépôt public.
 - `page.tsx` lit le stock à chaque affichage d'Écrire, quel que soit l'onglet ouvert, et appelle `depots()` directement depuis la page. Il y a des précédents ; le coût est faible.
 - Point soulevé par la PR : le libellé « Mettre en stock » contient le mot « stock ». Ce libellé est imposé par la fiche (critère 3) et l'arbitrage revient au pilotage. Je ne le bloque pas.
 
