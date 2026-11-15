@@ -1,6 +1,8 @@
 # Relecture PR 562 (lot AUT-G) — Opus
 
-## VERDICT : À CORRIGER — tête relue `f190b47a96aca2cdd94c06db4e3349abac68a10e` (usine/AUT-G), base master `98af97a5`
+VERDICT PROVISOIRE : en cours — la branche a bougé pendant la relecture (e1f6822f → f190b47a, 3 commits). Ce qui suit vaut pour e1f6822f ; relecture de f190b47a en cours.
+
+## Verdict sur e1f6822f : À CORRIGER
 
 1. **HAUTE — le plafond reste dépassable au bout de 15 min.** Les clés de voix `travailId#voix_…` n'ont ni engagement ni dépense
    à leur nom : `usageDeLaCle` (`src/services/autonomie-usine.ts:150-153`) ne les compte que pendant `LANCEMENT_EN_VOL_MS`
