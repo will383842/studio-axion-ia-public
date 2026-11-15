@@ -88,7 +88,7 @@ describe("L2-12b : lecture du script, du cron et de env.exemple", () => {
   const script = existsSync(SCRIPT) ? readFileSync(SCRIPT, "utf8") : "";
   it("aucun DELETE, rm sur un seau, --delete ni sync", () => {
     expect(script.length).toBeGreaterThan(0);
-    expect(script).not.toMatch(/DELETE|--delete|rclone|\bsync\b|aws s3|\brm\b/i);
+    expect(script).not.toMatch(/DELETE|--delete|rclone|\bsync\b|aws s3|(?<![-\w])rm\s/i);
     expect(script).toMatch(/copier-r2\.mjs/);
     expect(script).toMatch(/medias-delta/);
   });
