@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { deciderBoucle, type SceneBoucle } from "../../../src/briques/fins/boucle";
 
@@ -33,5 +35,20 @@ describe("fin en boucle (X1-11)", () => {
     const copie = JSON.stringify(sc);
     expect(deciderBoucle(sc)).toEqual(deciderBoucle(sc));
     expect(JSON.stringify(sc)).toBe(copie);
+  });
+  it("éteint = identique : aucune source n'importe fins/boucle ni deciderBoucle", () => {
+    const lister = (d: string): string[] =>
+      readdirSync(d).flatMap((n) => {
+        if (n === "node_modules" || n === "dist") return [];
+        const c = join(d, n);
+        return statSync(c).isDirectory() ? lister(c) : /\.(ts|tsx)$/.test(n) ? [c] : [];
+      });
+    const sources = [...lister("src"), ...lister("studio-rendu/src")].filter((f) => !f.replace(/\\/g, "/").endsWith("src/briques/fins/boucle.ts"));
+    expect(sources.length).toBeGreaterThan(0);
+    for (const f of sources) {
+      const code = readFileSync(f, "utf8");
+      expect(code, f).not.toMatch(/fins\/boucle|deciderBoucle/);
+    }
+    expect(readFileSync("src/briques/fins/index.ts", "utf8")).not.toMatch(/boucle/);
   });
 });
