@@ -90,7 +90,7 @@ export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: strin
     throw new RefusArgentRedaction(refus);
   }
 
-  // Réservé : à partir d'ici, la réservation est TOUJOURS rendue (finally), et toute dépense possible est comptée.
+  // Réservé : la réservation est rendue après l'écriture de la dépense (ou libérée si rien n'a coûté) ; toute dépense possible est comptée.
   let cout = 0;
   let nature: "reel" | "estime" = "reel";
   try {
@@ -106,13 +106,14 @@ export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: strin
     }
     throw e;
   } finally {
-    try {
-      if (cout > 0) {
-        const l = [gc.ligne(ETAPE_DEPENSE_REDACTION_GUIDE, cout, t, nature)];
-        await commun.depots().depenses.enregistrer({ id: nouvelId("dep"), travailId: appelId, lignes: l, total: l[0]!.total, date: commun.maintenant(), sourceClaude: actif.source, ...commun.horodatage() });
-      }
-    } finally {
-      await credits.libererReservation(appelId, cout > 0 ? "consommee" : "liberee");
+    if (cout > 0) {
+      // Dépense d'abord : si son écriture lève, la réservation reste ACTIVE (donc comptée dans la limite du mois)
+      // et l'erreur remonte — même règle que executerRoleFacture et comite-editorial.
+      const l = [gc.ligne(ETAPE_DEPENSE_REDACTION_GUIDE, cout, t, nature)];
+      await commun.depots().depenses.enregistrer({ id: nouvelId("dep"), travailId: appelId, lignes: l, total: l[0]!.total, date: commun.maintenant(), sourceClaude: actif.source, ...commun.horodatage() });
+      await credits.libererReservation(appelId, "consommee");
+    } else {
+      await credits.libererReservation(appelId, "liberee");
     }
   }
 }

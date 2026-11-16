@@ -4,7 +4,8 @@
  * `fetch` (fausse clé, aucun réseau). Vérifie :
  *  (a) limite du mois atteinte → refus propre, AUCUN appel au client Claude, rien d'écrit, aucune réservation qui reste ;
  *  (b) appel réussi → une dépense enregistrée (modèle, jetons → coût), réservation « consommee » ; coupure après envoi →
- *      pire cas compté en dépense estimée ; refus net de Claude → rien compté, réservation rendue ;
+ *      pire cas compté en dépense estimée ; refus net de Claude → rien compté, réservation rendue ; écriture de la
+ *      dépense en panne après un appel payé → réservation laissée ACTIVE (toujours comptée dans la limite du mois) ;
  *  (c) interrupteurs éteints (`GUIDES_REDACTION_ENABLED`, `GUIDES_FABRIQUE_ECRAN`) → rien : ni appel, ni dépense, ni réservation.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -129,6 +130,19 @@ describe("0a · (b) chaque appel compte dans le suivi des dépenses", () => {
     expect(deps).toHaveLength(1);
     expect(deps[0]!.lignes[0]!.nature).toBe("estime");
     expect((await reservationsGuide()).map((x) => x.statut)).toEqual(["consommee"]);
+    expect(await brouillon("essai")).toBeNull();
+  });
+
+  it("appel payé mais écriture de la dépense en panne : la réservation reste ACTIVE (toujours comptée), l'erreur remonte", async () => {
+    const espion = vi.spyOn(depots().depenses, "enregistrer").mockRejectedValue(new Error("base en panne"));
+    const r = await redigerBrouillonGuide("essai");
+    expect(r).toMatchObject({ ok: false });
+    expect(appels).toHaveLength(1);
+    expect(espion).toHaveBeenCalledTimes(1);
+    espion.mockRestore();
+    expect(await depensesGuide()).toEqual([]);
+    expect((await reservationsGuide()).map((x) => x.statut)).toEqual(["active"]);
+    expect((await gc.engageClaudeDuMoisCentimes()).reserve).toBeGreaterThan(0);
     expect(await brouillon("essai")).toBeNull();
   });
 
