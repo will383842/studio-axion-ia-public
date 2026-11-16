@@ -26,7 +26,8 @@ export interface OptionsControle {
 /** Défauts de SEO-02 qui bloquent (champ vide, mot interdit, liste fermée, signature) ; les autres se corrigent (orange). */
 const BLOQUANT = /champ vide|mot interdit|hors liste fermée|signature|valeur en double/;
 
-const TEMOIGNAGE = /t[eé]moignage|ils nous font confiance|avis (?:de nos )?clients?/i;
+const TEMOIGNAGE = /t[eé]moignage|ils nous font confiance|avis (?:de nos )?(?:v[eé]rifi|positif|clients?)|clients? satisfaits?|\d+(?:[,.]\d+)?\s*\/\s*(?:5|10)\b|[★⭐]|[eé]toiles?\b/i;
+const SUPERLATIF = /(?<![\p{L}])(?:(?:le|la|les)\s+meilleur(?:e|es|s)?|n[°o]\s?1|in[ée]gal[ée]e?s?|imbattables?|incomparables?)(?![\p{L}])/iu;
 const FORMULE_VAGUE = /(?<![\p{L}])(?:ici|notre solution)(?![\p{L}])/iu;
 
 /** Tous les textes visibles de la fiche, avec leur champ (pour les contrôles transversaux). */
@@ -89,7 +90,7 @@ export function controlerSeo(contenu: ContenuFiche, options: OptionsControle = {
   }
   for (const [champ, texte] of textes) {
     if (TEMOIGNAGE.test(texte)) ajouter(champ, "rouge", `${champ} : pas de témoignage ni d'avis client sans accord écrit.`);
-    if (classementDans(texte) !== undefined) ajouter(champ, "orange", `${champ} : pas de superlatif ni de classement (« meilleur », « leader »…) sans preuve.`);
+    if (classementDans(texte) !== undefined || SUPERLATIF.test(texte)) ajouter(champ, "orange", `${champ} : pas de superlatif ni de classement (« meilleur », « leader »…) sans preuve.`);
   }
 
   // Un chiffre n'est permis que s'il existe au moins une source valide (adresse https, date AAAA-MM-JJ).
