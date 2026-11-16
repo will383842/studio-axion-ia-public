@@ -1,6 +1,8 @@
+import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { ChatRetouche } from "@/components/retouche-chat/ChatRetouche";
 import { estGenerateurRetouche } from "@/services/retouche-chat/generateurs";
-import { retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
+import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
+import { lireParametre } from "@/services/_commun";
 
 /**
  * CHAT DE RETOUCHE D'UN GÉNÉRATEUR (lot R3) — posé sur l'écran résultat d'Avocat, d'Image → vidéo et de Facecam animée.
@@ -8,12 +10,18 @@ import { retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-s
  */
 export async function RetoucheChatGenerateur({ videoId, formatId, versionId }: { videoId: string; formatId: string; versionId?: string }) {
   if (!estGenerateurRetouche(formatId) || !(await retoucheChatActifServeur(formatId))) return null;
+  // R1-09 : « coller des opérations », éteint par défaut (seul `true` exact allume ; lecture en échec = éteint).
+  let coller: { plan: PlanValide } | undefined;
+  if ((await lireParametre<unknown>("retoucheChat.coller", false).catch(() => false)) === true) {
+    const version = await portsGenerateurStudio(formatId).lireVersionChoisie(videoId).catch(() => null);
+    if (version?.plan) coller = { plan: version.plan };
+  }
   return (
     <section aria-labelledby={`retoucher-${videoId}`} className="space-y-3">
       <h2 id={`retoucher-${videoId}`} className="text-xs font-bold uppercase tracking-wider text-texte-faible">
         Retoucher par message
       </h2>
-      <ChatRetouche videoId={videoId} generateur={formatId} {...(versionId ? { versionInitialeId: versionId } : {})} />
+      <ChatRetouche videoId={videoId} generateur={formatId} {...(versionId ? { versionInitialeId: versionId } : {})} {...(coller ? { coller } : {})} />
     </section>
   );
 }

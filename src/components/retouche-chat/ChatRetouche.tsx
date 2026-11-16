@@ -7,6 +7,8 @@
  */
 import { useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
+import type { PlanValide } from "@/briques/plan-scenes/schema";
+import { CollerOperations } from "./CollerOperations";
 
 export type EnvoiRetouche = (corps: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
@@ -27,7 +29,7 @@ interface Message {
   texte: string;
 }
 
-export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer = envoiParDefaut }: { videoId: string; versionInitialeId?: string; /** Lot R3 : générateur de la vidéo (adaptateur de retouche propre à lui). */ generateur?: string; envoyer?: EnvoiRetouche }) {
+export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer = envoiParDefaut, coller }: { videoId: string; versionInitialeId?: string; /** Lot R3 : générateur de la vidéo (adaptateur de retouche propre à lui). */ generateur?: string; envoyer?: EnvoiRetouche; /** R1-09 : absent = rendu inchangé ; présent = zone « coller des opérations ». */ coller?: { plan: PlanValide } }) {
   const [saisie, setSaisie] = useState("");
   const [historique, setHistorique] = useState<Message[]>([]);
   const [apercu, setApercu] = useState<Apercu | null>(null);
@@ -115,6 +117,7 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
           Envoyer
         </Bouton>
       </form>
+      {coller ? <CollerOperations videoId={videoId} plan={coller.plan} envoyer={envoyer} {...(generateur ? { generateur } : {})} /> : null}
       {versions.length > 1 ? (
         <Bouton variante="fantome" onClick={revenir} disabled={occupe}>
           Revenir à la version d&apos;avant
