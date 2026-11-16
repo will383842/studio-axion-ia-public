@@ -1,7 +1,7 @@
 /** CAL-28 · Panneau « Mes textes » : glisser un texte sur un jour, ou cliquer dessus. Données fictives, aucun appel réel, rien n'est enregistré ici. */
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { GesteTexte, PanneauMesTextes, demandeDepuisClic, demandeDepuisDepot, textesAPlacer } from "@/components/calendrier/PanneauMesTextes";
+import { PanneauMesTextes, TYPE_GLISSER_TEXTE, debutGlisser, demandeDepuisClic, demandeDepuisDepot, demandeDepuisTransfert, textesAPlacer } from "@/components/calendrier/PanneauMesTextes";
 import type { MessageStock } from "@/domaine/stock-messages";
 
 const AUJ = "2026-11-11";
@@ -13,25 +13,25 @@ describe("CAL-28 · glisser sur un jour", () => {
     expect(demandeDepuisDepot(a, { jour: "2026-11-14", reseau: "instagram" }, AUJ)).toEqual({ ok: true, demande: { texteId: "a", texte: "Texte a", jour: "2026-11-14", reseau: "instagram" } });
   });
   it("un jour passé est refusé", () => expect(demandeDepuisDepot(a, { jour: "2026-11-10", reseau: "linkedin" }, AUJ).ok).toBe(false));
-  it("le geste ouvre l'ajout une seule fois", () => {
-    const onAjouter = vi.fn();
-    const g = new GesteTexte(AUJ, onAjouter);
-    g.saisir(a);
-    expect(g.lacher({ jour: "2026-11-14", reseau: "tiktok" }).ok).toBe(true);
-    expect(g.lacher({ jour: "2026-11-14", reseau: "tiktok" }).ok).toBe(false);
-    expect(onAjouter).toHaveBeenCalledTimes(1);
-    expect(onAjouter).toHaveBeenCalledWith({ texteId: "a", texte: "Texte a", jour: "2026-11-14", reseau: "tiktok" });
+  it("début du glisser : seul l'identifiant du texte est transporté, en copie", () => {
+    const poser = vi.fn();
+    const transfert = { setData: poser, effectAllowed: "" };
+    debutGlisser(a, transfert);
+    expect(poser).toHaveBeenCalledWith(TYPE_GLISSER_TEXTE, "a");
+    expect(transfert.effectAllowed).toBe("copy");
   });
-  it("un geste annulé ou un dépôt refusé n'ouvre rien", () => {
-    const onAjouter = vi.fn();
-    const g = new GesteTexte(AUJ, onAjouter);
-    g.saisir(a);
-    g.annuler();
-    g.lacher({ jour: "2026-11-14", reseau: "linkedin" });
-    g.saisir(a);
-    g.lacher({ jour: "2026-11-01", reseau: "linkedin" });
-    expect(onAjouter).not.toHaveBeenCalled();
+  it("glisser puis déposer : on retrouve texte, jour et réseau de la case", () => {
+    let transporte = "";
+    debutGlisser(a, { setData: (_t, v) => { transporte = v; }, effectAllowed: "" });
+    expect(demandeDepuisTransfert(transporte, [a, t("b")], { jour: "2026-11-14", reseau: "tiktok" }, AUJ)).toEqual({ ok: true, demande: { texteId: "a", texte: "Texte a", jour: "2026-11-14", reseau: "tiktok" } });
   });
+  it("identifiant inconnu, vide ou déjà sorti de « Mes textes » : refusé", () => {
+    const cible = { jour: "2026-11-14", reseau: "linkedin" as const };
+    expect(demandeDepuisTransfert("zzz", [a], cible, AUJ).ok).toBe(false);
+    expect(demandeDepuisTransfert("", [a], cible, AUJ).ok).toBe(false);
+    expect(demandeDepuisTransfert("p", [t("p", { etat: "planifie" })], cible, AUJ).ok).toBe(false);
+  });
+  it("dépôt sur un jour passé : refusé, rien n'est demandé", () => expect(demandeDepuisTransfert("a", [a], { jour: "2026-11-01", reseau: "linkedin" }, AUJ).ok).toBe(false));
 });
 
 describe("CAL-28 · clic sur un texte", () => {
@@ -61,8 +61,7 @@ describe("CAL-28 · le panneau", () => {
     expect(html).not.toContain("Texte p");
   });
   it("chaque texte est glissable ET cliquable (le clic remplace le glisser sur téléphone)", () => {
-    expect(html).toContain('draggable="true"');
-    expect(html).toContain("<button");
+    expect(html).toMatch(/<button[^>]*draggable="true"/);
   });
   it("rien d'affiché quand il n'y a aucun texte à placer", () => {
     expect(renderToStaticMarkup(<PanneauMesTextes textes={[]} aujourdhui={AUJ} onAjouter={() => {}} />)).toBe("");
