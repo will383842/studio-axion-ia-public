@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PROFILS_DU_CODE } from "@/briques/bibliotheque-video/profils";
+import type { IdCapacite } from "@/briques/bibliotheque-video/types";
 import { DECLARATIONS } from "@/generateurs/declaration";
 
 /** FIX-DECL : `consomme` de demo-facecam doit égaler exactement les capacités `permis: true` de son profil. */
@@ -22,6 +23,6 @@ describe("déclaration demo-facecam (FIX-DECL)", () => {
   it("consomme ne contient aucun doublon ni capacité interdite par le profil", () => {
     const consomme = DECLARATIONS["demo-facecam"].consomme;
     expect(new Set(consomme).size).toBe(consomme.length);
-    for (const id of consomme) expect(profil.capacites[id]?.permis, id).toBe(true);
+    for (const id of consomme) expect(profil.capacites[id as IdCapacite]?.permis, id).toBe(true);
   });
 });
