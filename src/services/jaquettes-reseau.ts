@@ -7,7 +7,7 @@
  */
 import "server-only";
 import type { Fichier, Id, IdReseau, Miniature, Ratio, Sortie, Video } from "@/domaine/types";
-import { dimensionsMiniature, estCleDemo, titreSansCodeInterne } from "@/domaine/miniatures";
+import { dimensionsMiniature, estCleDemo, motCleCouverture, titreSansCodeInterne } from "@/domaine/miniatures";
 import { jaquettesAttendues, jaquettesPretesDomaine, type VerdictJaquettes } from "@/domaine/jaquettes-reseau";
 import { GABARIT_IMAGE_VIDEO, GABARIT_IMAGE_VIDEO_RATIO, INSTANT_PREMIERE_IMAGE_SEC, rangDeVideo } from "@/domaine/vignettes";
 import { segmentStockage, VALIDITE_ADRESSES_RENDU_SEC } from "@/fournisseurs/rendu/commun";
@@ -72,6 +72,8 @@ export async function fabriquerJaquettes(videoId: Id, reseaux: readonly IdReseau
   if (!video) return [];
   const sorties = await sortiesDe(video);
   const existantes = await jaquettesDe(videoId);
+  // Les vignettes normales d'abord : `creerMiniaturesSiAbsentes` s'arrête dès qu'une miniature existe, une jaquette ne doit pas les empêcher.
+  if (!(await d.miniatures.compter((m) => m.videoId === videoId && !m.reseau))) return [];
   const outil = await fournisseur("miniature");
   const titre = titreSansCodeInterne(video.titre);
   const faites: Miniature[] = [];
@@ -87,7 +89,7 @@ export async function fabriquerJaquettes(videoId: Id, reseaux: readonly IdReseau
         const source = sortie ? await sourceDe(video, sortie, a.reseau) : null;
         if (!source) continue;
         const texte = video.couvertureVignette?.texte.trim() ?? "";
-        propositions = await outil.proposer({ videoId, titre, nombre: 1, source, couverture: { texte, motCle: texte ? video.couvertureVignette?.motCle.trim() ?? "" : "", titreCentre: true } });
+        propositions = await outil.proposer({ videoId, titre, nombre: 1, source, couverture: { texte, motCle: texte ? video.couvertureVignette?.motCle.trim() || motCleCouverture(texte) : "", titreCentre: true } });
       }
     } catch (e) {
       console.error("[studio] jaquette en échec", e instanceof Error ? e.name : "erreur");
@@ -109,7 +111,7 @@ export async function fabriquerJaquettes(videoId: Id, reseaux: readonly IdReseau
       origine: video.estDemo ? "demo" : "rendu",
       ...(p.incrustee ? { incrustee: true } : {}),
       ...(p.instantSec !== undefined ? { instantSec: p.instantSec } : {}),
-      ...(video.estDemo ? {} : { gabarit: GABARIT_IMAGE_VIDEO_RATIO }),
+      ...(!video.estDemo && p.gabarit ? { gabarit: GABARIT_IMAGE_VIDEO_RATIO } : {}),
       ...horodatage(),
     };
     faites.push(await d.miniatures.enregistrer(m));

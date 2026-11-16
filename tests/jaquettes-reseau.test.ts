@@ -13,6 +13,7 @@ import { jaquettesAttendues, jaquettesPretesDomaine, ratioCibleJaquette, choisir
 
 const appels: { titre: string; nombre: number; source?: { ratio: Ratio; gabarit?: string; depots: { cle: string }[] }; couverture?: unknown }[] = [];
 let cles: string[] = [];
+let sansGabarit = false;
 let modeOutil: "reel" | "simulation" = "reel";
 
 vi.mock("@/services/_commun", async (orig) => {
@@ -26,7 +27,7 @@ vi.mock("@/services/_commun", async (orig) => {
         async proposer(d: (typeof appels)[number]) {
           appels.push(d);
           const cle = cles.shift() ?? `studio/dev/videos/v/miniatures/${d.source?.depots[0]?.cle ?? "x"}.jpg`;
-          return [{ fichierCle: cle, titre: d.titre }];
+          return [{ fichierCle: cle, titre: d.titre, ...(sansGabarit ? {} : { gabarit: "image-video-v3" }) }];
         },
       };
     },
@@ -37,15 +38,16 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const service = await import("@/services/jaquettes-reseau");
 
 const T = "2026-11-16T10:00:00.000Z";
-async function preparer(opts: { ratios: Ratio[]; estDemo?: boolean; titre?: string }): Promise<Video> {
+async function preparer(opts: { ratios: Ratio[]; estDemo?: boolean; titre?: string; sansMiniature?: boolean; couverture?: { texte: string; motCle: string; fixee: boolean } }): Promise<Video> {
   const d = depots();
-  const video = { id: "vid-j", titre: opts.titre ?? "0005-FC-TT-L · Facturer en retard — v5", estDemo: opts.estDemo ?? false, ratios: [opts.ratios[0]], versionChoisieId: "ver-j", statut: "prete", creeLe: T, modifieLe: T } as unknown as Video;
+  const video = { id: "vid-j", titre: opts.titre ?? "0005-FC-TT-L · Facturer en retard — v5", estDemo: opts.estDemo ?? false, ratios: [opts.ratios[0]], versionChoisieId: "ver-j", couvertureVignette: opts.couverture, statut: "prete", creeLe: T, modifieLe: T } as unknown as Video;
   await d.videos.enregistrer(video);
   for (const r of opts.ratios) {
     const f = { id: `f-${r}`, cleStockage: `studio/dev/videos/vid-j/sortie-${r.replace(":", "x")}.mp4`, nom: "s.mp4", mime: "video/mp4", taille: 1, largeur: dimensionsMiniature(r).largeur, hauteur: dimensionsMiniature(r).hauteur, origine: "fabrication", statut: "pret", dureeSec: 30, creeLe: T, modifieLe: T };
     await d.fichiers.enregistrer(f as never);
     await d.sorties.enregistrer({ id: `s-${r}`, videoId: "vid-j", versionId: "ver-j", ratio: r, resolution: "x", fichierId: f.id, vignetteFichierId: "", dureeSec: 30, creeLe: T, modifieLe: T } as never);
   }
+  if (!opts.sansMiniature) await d.miniatures.enregistrer({ id: "mini-normale", videoId: "vid-j", fichierId: "f-" + opts.ratios[0], titre: "n", choisie: true, ratio: opts.ratios[0], creeLe: T, modifieLe: T } as never);
   return video;
 }
 
@@ -54,6 +56,7 @@ beforeEach(() => {
   appels.length = 0;
   cles = [];
   modeOutil = "reel";
+  sansGabarit = false;
 });
 
 describe("UO-11 domaine · tailles lues, jamais écrites en dur", () => {
@@ -119,6 +122,7 @@ describe("UO-11 service · fabrication par le faux fournisseur", () => {
     // Idempotent : un deuxième passage n'en ajoute aucune.
     expect(await service.fabriquerJaquettes("vid-j", reseaux)).toHaveLength(0);
     expect(await depots().miniatures.compter((m) => m.videoId === "vid-j" && !!m.reseau)).toBe(3);
+    expect((await depots().miniatures.obtenir("mini-normale"))?.choisie).toBe(true);
     expect((await service.jaquettesPretes((await depots().videos.obtenir("vid-j"))!, reseaux)).pretes).toBe(true);
   });
 
@@ -127,7 +131,7 @@ describe("UO-11 service · fabrication par le faux fournisseur", () => {
     cles = ["demo/miniatures/mini-1.jpg"]; // le faux fournisseur tente une image de démo
     const faites = await service.fabriquerJaquettes("vid-j", ["tiktok"]);
     expect(faites).toHaveLength(0); // écartée : jamais une démo sur une vraie vidéo
-    expect(await depots().miniatures.compter((m) => m.videoId === "vid-j")).toBe(0);
+    expect(await depots().miniatures.compter((m) => m.videoId === "vid-j" && !!m.reseau)).toBe(0);
     cles = [];
     await service.fabriquerJaquettes("vid-j", ["tiktok"]);
     const a = appels[appels.length - 1];
@@ -144,7 +148,29 @@ describe("UO-11 service · fabrication par le faux fournisseur", () => {
     await service.fabriquerJaquettes("vid-j", ["tiktok"]);
     const ancienne = await depots().miniatures.obtenir("ancienne");
     expect(ancienne?.choisie).toBe(true);
-    expect(await depots().miniatures.compter((m) => m.videoId === "vid-j")).toBe(2);
+    expect(await depots().miniatures.compter((m) => m.videoId === "vid-j")).toBe(3);
+  });
+
+  it("sans miniature normale d'abord, aucune jaquette n'est fabriquée (elle empêcherait les vignettes normales)", async () => {
+    await preparer({ ratios: ["9:16"], sansMiniature: true });
+    expect(await service.fabriquerJaquettes("vid-j", ["tiktok"])).toHaveLength(0);
+    expect(appels).toHaveLength(0);
+    expect(await depots().miniatures.compter((m) => m.videoId === "vid-j")).toBe(0);
+  });
+
+  it("couverture : texte saisi sans mot clé, le mot clé reçu n'est pas vide (comme la vignette de marque)", async () => {
+    await preparer({ ratios: ["9:16"], couverture: { texte: "Facturer en retard", motCle: "", fixee: true } });
+    await service.fabriquerJaquettes("vid-j", ["tiktok"]);
+    const c = appels[appels.length - 1].couverture as { texte: string; motCle: string };
+    expect(c.texte).toBe("Facturer en retard");
+    expect(c.motCle).not.toBe("");
+  });
+
+  it("le marqueur « image de la vidéo » n'est posé que si le fournisseur rend son gabarit", async () => {
+    sansGabarit = true;
+    await preparer({ ratios: ["9:16"] });
+    const [m] = await service.fabriquerJaquettes("vid-j", ["tiktok"]);
+    expect(m.gabarit).toBeUndefined();
   });
 
   it("jaquettesPretes(video) est faux avec la phrase française nommant le réseau tant qu'une jaquette manque", async () => {
