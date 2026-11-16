@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { listerFormats } from "@/formats";
 import { CATALOGUE_CAPACITES } from "@/briques/bibliotheque-video/catalogue";
+import { PROFILS_DU_CODE } from "@/briques/bibliotheque-video/profils";
 import { famille } from "@/domaine/vignettes";
 import { DECLARATIONS, declarationDuFormat } from "@/generateurs/declaration";
 
@@ -35,6 +36,13 @@ describe("déclaration unique des générateurs (G1-05a)", () => {
   it("capacités consommées ∈ catalogue", () => {
     const ids = new Set<string>(CATALOGUE_CAPACITES.map((l) => l.id));
     for (const d of Object.values(DECLARATIONS)) for (const c of d.consomme) expect(ids.has(c), `${d.formatId} ${c}`).toBe(true);
+  });
+
+  it("recoupement : consomme == capacités permis: true des profils du code (6 formats profilés)", () => {
+    for (const [id, profil] of Object.entries(PROFILS_DU_CODE)) {
+      const permises = Object.entries(profil.capacites).filter(([, v]) => v?.permis === true).map(([k]) => k).sort();
+      expect([...DECLARATIONS[id].consomme].sort(), id).toEqual(permises);
+    }
   });
 
   it("objets figés", () => {
