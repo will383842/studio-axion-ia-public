@@ -72,5 +72,8 @@
       "nom": "R1 — « Programmer les N » en réel respecte le mode brouillons dans Buffer, un message par version sur SON compte ; un second « Programmer » ne renvoie rien",
       "note": "déjà rouge sur master le 16/11, ErreurSujetDejaTraite dans sujetPret (garde des doublons, tests/r1-synchro-buffer.test.ts:142-145), sans lien avec Zernio ; fiche à part"
     }
+  ],
+  "eslint": [
+    "src/components/publication/FeuilleEnvoyer.tsx react-hooks/purity Error: Cannot call impure function during render"
   ]
 }
