@@ -46,6 +46,7 @@ export const ID = {
   planScenesFacecam: "plan-scenes.facecam",
   planScenesFacecamAnimee: "plan-scenes.facecam-animee",
   planScenesTutorielOutil: "plan-scenes.tutoriel-outil", // N-02
+  planScenesDemoFacecam: "plan-scenes.demo-facecam", // G3-11
   // transition
   transitionCoupe: "transition.coupe",
   transitionCasConcret: "transition.cas-concret",
