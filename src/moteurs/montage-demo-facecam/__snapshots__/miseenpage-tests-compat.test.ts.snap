@@ -1,0 +1,4454 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > constantes de la démo 1`] = `
+{
+  "DUREE_CARTE_FIN_MS": 2500,
+  "FPS_DEMO": 25,
+  "ID_COMPOSITION_DEMO_FACECAM": "DemoFacecam",
+  "RATIO_MAITRE_DEMO": "4:5",
+  "TAILLES_DEMO": {
+    "16:9": {
+      "hauteur": 1080,
+      "largeur": 1920,
+    },
+    "1:1": {
+      "hauteur": 1080,
+      "largeur": 1080,
+    },
+    "4:5": {
+      "hauteur": 1350,
+      "largeur": 1080,
+    },
+    "9:16": {
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+  },
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > groupes de sous-titres 1`] = `
+[
+  {
+    "debutMs": 0,
+    "finMs": 1600,
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 330,
+        "texte": "Bonjour",
+      },
+      {
+        "debutMs": 400,
+        "finMs": 730,
+        "texte": "je",
+      },
+      {
+        "debutMs": 800,
+        "finMs": 1130,
+        "texte": "vous",
+      },
+      {
+        "debutMs": 1200,
+        "finMs": 1530,
+        "texte": "montre",
+      },
+    ],
+  },
+  {
+    "debutMs": 1600,
+    "finMs": 2800,
+    "mots": [
+      {
+        "debutMs": 1600,
+        "finMs": 1930,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 2000,
+        "finMs": 2330,
+        "texte": "on",
+      },
+      {
+        "debutMs": 2400,
+        "finMs": 2730,
+        "texte": "crée",
+      },
+    ],
+  },
+  {
+    "debutMs": 2800,
+    "finMs": 3600,
+    "mots": [
+      {
+        "debutMs": 2800,
+        "finMs": 3130,
+        "texte": "un",
+      },
+      {
+        "debutMs": 3200,
+        "finMs": 3530,
+        "texte": "devis",
+      },
+    ],
+  },
+  {
+    "debutMs": 3600,
+    "finMs": 4400,
+    "mots": [
+      {
+        "debutMs": 3600,
+        "finMs": 3930,
+        "texte": "dans",
+      },
+      {
+        "debutMs": 4000,
+        "finMs": 4330,
+        "texte": "Axion",
+      },
+    ],
+  },
+  {
+    "debutMs": 4400,
+    "finMs": 5600,
+    "mots": [
+      {
+        "debutMs": 4400,
+        "finMs": 4730,
+        "texte": "en",
+      },
+      {
+        "debutMs": 4800,
+        "finMs": 5130,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5200,
+        "finMs": 5530,
+        "texte": "clics.",
+      },
+    ],
+  },
+  {
+    "debutMs": 5600,
+    "finMs": 6400,
+    "mots": [
+      {
+        "debutMs": 5600,
+        "finMs": 5930,
+        "texte": "Je",
+      },
+      {
+        "debutMs": 6000,
+        "finMs": 6330,
+        "texte": "clique",
+      },
+    ],
+  },
+  {
+    "debutMs": 6400,
+    "finMs": 7200,
+    "mots": [
+      {
+        "debutMs": 6400,
+        "finMs": 6730,
+        "texte": "sur",
+      },
+      {
+        "debutMs": 6800,
+        "finMs": 7130,
+        "texte": "nouveau",
+      },
+    ],
+  },
+  {
+    "debutMs": 7200,
+    "finMs": 8000,
+    "mots": [
+      {
+        "debutMs": 7200,
+        "finMs": 7530,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 7600,
+        "finMs": 7930,
+        "texte": "puis",
+      },
+    ],
+  },
+  {
+    "debutMs": 8000,
+    "finMs": 8800,
+    "mots": [
+      {
+        "debutMs": 8000,
+        "finMs": 8330,
+        "texte": "je",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8730,
+        "texte": "choisis",
+      },
+    ],
+  },
+  {
+    "debutMs": 8800,
+    "finMs": 9600,
+    "mots": [
+      {
+        "debutMs": 8800,
+        "finMs": 9130,
+        "texte": "le",
+      },
+      {
+        "debutMs": 9200,
+        "finMs": 9530,
+        "texte": "client",
+      },
+    ],
+  },
+  {
+    "debutMs": 9600,
+    "finMs": 10400,
+    "mots": [
+      {
+        "debutMs": 9600,
+        "finMs": 9930,
+        "texte": "et",
+      },
+      {
+        "debutMs": 10000,
+        "finMs": 10330,
+        "texte": "voilà",
+      },
+    ],
+  },
+  {
+    "debutMs": 10400,
+    "finMs": 11200,
+    "mots": [
+      {
+        "debutMs": 10400,
+        "finMs": 10730,
+        "texte": "le",
+      },
+      {
+        "debutMs": 10800,
+        "finMs": 11130,
+        "texte": "devis",
+      },
+    ],
+  },
+  {
+    "debutMs": 11200,
+    "finMs": 11930,
+    "mots": [
+      {
+        "debutMs": 11200,
+        "finMs": 11530,
+        "texte": "est",
+      },
+      {
+        "debutMs": 11600,
+        "finMs": 11930,
+        "texte": "prêt.",
+      },
+    ],
+  },
+]
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > mise en page 1:1 1`] = `
+{
+  "disposition": "haut-bas",
+  "ecran": {
+    "hauteur": 540,
+    "largeur": 1080,
+    "x": 0,
+    "y": 0,
+  },
+  "facecam": {
+    "hauteur": 540,
+    "largeur": 1080,
+    "x": 0,
+    "y": 540,
+  },
+  "hauteur": 1080,
+  "largeur": 1080,
+  "ratio": "1:1",
+  "sousTitres": {
+    "hauteur": 92,
+    "largeur": 994,
+    "x": 43,
+    "y": 432,
+  },
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > mise en page 4:5 1`] = `
+{
+  "disposition": "haut-bas",
+  "ecran": {
+    "hauteur": 676,
+    "largeur": 1080,
+    "x": 0,
+    "y": 0,
+  },
+  "facecam": {
+    "hauteur": 674,
+    "largeur": 1080,
+    "x": 0,
+    "y": 676,
+  },
+  "hauteur": 1350,
+  "largeur": 1080,
+  "ratio": "4:5",
+  "sousTitres": {
+    "hauteur": 115,
+    "largeur": 994,
+    "x": 43,
+    "y": 541,
+  },
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > mise en page 9:16 1`] = `
+{
+  "disposition": "haut-bas",
+  "ecran": {
+    "hauteur": 960,
+    "largeur": 1080,
+    "x": 0,
+    "y": 0,
+  },
+  "facecam": {
+    "hauteur": 960,
+    "largeur": 1080,
+    "x": 0,
+    "y": 960,
+  },
+  "hauteur": 1920,
+  "largeur": 1080,
+  "ratio": "9:16",
+  "sousTitres": {
+    "hauteur": 163,
+    "largeur": 994,
+    "x": 43,
+    "y": 768,
+  },
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > mise en page 16:9 1`] = `
+{
+  "disposition": "cote-a-cote",
+  "ecran": {
+    "hauteur": 1080,
+    "largeur": 960,
+    "x": 0,
+    "y": 0,
+  },
+  "facecam": {
+    "hauteur": 1080,
+    "largeur": 960,
+    "x": 960,
+    "y": 0,
+  },
+  "hauteur": 1080,
+  "largeur": 1920,
+  "ratio": "16:9",
+  "sousTitres": {
+    "hauteur": 184,
+    "largeur": 883,
+    "x": 38,
+    "y": 864,
+  },
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 1:1 avec un style de sous-titres 1`] = `
+{
+  "calqueSousTitres": {
+    "base": "karaoke",
+    "couleurs": {
+      "accent": "#D97757",
+      "contour": "#141413",
+      "texte": "#FAF9F5",
+    },
+    "hauteur": 1080,
+    "largeur": 1080,
+    "largeurMaxPx": 907,
+    "plansPoitrine": undefined,
+    "positions": {
+      "basPct": 44.26,
+      "hautPct": 13,
+      "milieuPct": 48,
+      "poitrinePct": 44.26,
+    },
+    "segments": [
+      {
+        "debutSec": 0,
+        "finSec": 1.6,
+        "id": "st-0",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 0,
+            "enValeur": undefined,
+            "finSec": 0.33,
+            "mot": "Bonjour",
+          },
+          {
+            "debutSec": 0.4,
+            "enValeur": undefined,
+            "finSec": 0.73,
+            "mot": "je",
+          },
+          {
+            "debutSec": 0.8,
+            "enValeur": undefined,
+            "finSec": 1.13,
+            "mot": "vous",
+          },
+          {
+            "debutSec": 1.2,
+            "enValeur": undefined,
+            "finSec": 1.53,
+            "mot": "montre",
+          },
+        ],
+        "position": "auto",
+        "souligne": 0,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 1.6,
+        "finSec": 2.8,
+        "id": "st-4",
+        "importance": 3,
+        "inclinaison": 4,
+        "mots": [
+          {
+            "debutSec": 1.6,
+            "enValeur": undefined,
+            "finSec": 1.93,
+            "mot": "comment",
+          },
+          {
+            "debutSec": 2,
+            "enValeur": undefined,
+            "finSec": 2.33,
+            "mot": "on",
+          },
+          {
+            "debutSec": 2.4,
+            "enValeur": undefined,
+            "finSec": 2.73,
+            "mot": "crée",
+          },
+        ],
+        "position": "milieu",
+        "souligne": null,
+        "style": "impact",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 2.8,
+        "finSec": 3.6,
+        "id": "st-7",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 2.8,
+            "enValeur": undefined,
+            "finSec": 3.13,
+            "mot": "un",
+          },
+          {
+            "debutSec": 3.2,
+            "enValeur": undefined,
+            "finSec": 3.53,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 3.6,
+        "finSec": 4.4,
+        "id": "st-9",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 3.6,
+            "enValeur": undefined,
+            "finSec": 3.93,
+            "mot": "dans",
+          },
+          {
+            "debutSec": 4,
+            "enValeur": undefined,
+            "finSec": 4.33,
+            "mot": "Axion",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 4.4,
+        "finSec": 5.6,
+        "id": "st-11",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 4.4,
+            "enValeur": undefined,
+            "finSec": 4.73,
+            "mot": "en",
+          },
+          {
+            "debutSec": 4.8,
+            "enValeur": undefined,
+            "finSec": 5.13,
+            "mot": "trois",
+          },
+          {
+            "debutSec": 5.2,
+            "enValeur": undefined,
+            "finSec": 5.53,
+            "mot": "clics.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 5.6,
+        "finSec": 6.4,
+        "id": "st-14",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 5.6,
+            "enValeur": undefined,
+            "finSec": 5.93,
+            "mot": "Je",
+          },
+          {
+            "debutSec": 6,
+            "enValeur": undefined,
+            "finSec": 6.33,
+            "mot": "clique",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 6.4,
+        "finSec": 7.2,
+        "id": "st-16",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 6.4,
+            "enValeur": undefined,
+            "finSec": 6.73,
+            "mot": "sur",
+          },
+          {
+            "debutSec": 6.8,
+            "enValeur": undefined,
+            "finSec": 7.13,
+            "mot": "nouveau",
+          },
+        ],
+        "position": "auto",
+        "souligne": 1,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 7.2,
+        "finSec": 8,
+        "id": "st-18",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 7.2,
+            "enValeur": undefined,
+            "finSec": 7.53,
+            "mot": "devis",
+          },
+          {
+            "debutSec": 7.6,
+            "enValeur": undefined,
+            "finSec": 7.93,
+            "mot": "puis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8,
+        "finSec": 8.8,
+        "id": "st-20",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8,
+            "enValeur": undefined,
+            "finSec": 8.33,
+            "mot": "je",
+          },
+          {
+            "debutSec": 8.4,
+            "enValeur": undefined,
+            "finSec": 8.73,
+            "mot": "choisis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8.8,
+        "finSec": 9.6,
+        "id": "st-22",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8.8,
+            "enValeur": undefined,
+            "finSec": 9.13,
+            "mot": "le",
+          },
+          {
+            "debutSec": 9.2,
+            "enValeur": undefined,
+            "finSec": 9.53,
+            "mot": "client",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 9.6,
+        "finSec": 10.4,
+        "id": "st-24",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 9.6,
+            "enValeur": undefined,
+            "finSec": 9.93,
+            "mot": "et",
+          },
+          {
+            "debutSec": 10,
+            "enValeur": undefined,
+            "finSec": 10.33,
+            "mot": "voilà",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 10.4,
+        "finSec": 11.2,
+        "id": "st-26",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 10.4,
+            "enValeur": undefined,
+            "finSec": 10.73,
+            "mot": "le",
+          },
+          {
+            "debutSec": 10.8,
+            "enValeur": undefined,
+            "finSec": 11.13,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 11.2,
+        "finSec": 11.93,
+        "id": "st-28",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 11.2,
+            "enValeur": undefined,
+            "finSec": 11.53,
+            "mot": "est",
+          },
+          {
+            "debutSec": 11.6,
+            "enValeur": undefined,
+            "finSec": 11.93,
+            "mot": "prêt.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+    ],
+    "tailleRelative": 1,
+  },
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1080,
+  "images": 375,
+  "largeur": 1080,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "haut-bas",
+    "ecran": {
+      "hauteur": 540,
+      "largeur": 1080,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 540,
+      "largeur": 1080,
+      "x": 0,
+      "y": 540,
+    },
+    "hauteur": 1080,
+    "largeur": 1080,
+    "ratio": "1:1",
+    "sousTitres": {
+      "hauteur": 92,
+      "largeur": 994,
+      "x": 43,
+      "y": 432,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 960,
+    "largeur": 1920,
+    "x": 0,
+    "y": 60,
+  },
+  "recadrageFacecam": {
+    "hauteur": 540,
+    "largeur": 1080,
+    "x": 0,
+    "y": 1380,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 1:1 sans style 1`] = `
+{
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1080,
+  "images": 375,
+  "largeur": 1080,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "haut-bas",
+    "ecran": {
+      "hauteur": 540,
+      "largeur": 1080,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 540,
+      "largeur": 1080,
+      "x": 0,
+      "y": 540,
+    },
+    "hauteur": 1080,
+    "largeur": 1080,
+    "ratio": "1:1",
+    "sousTitres": {
+      "hauteur": 92,
+      "largeur": 994,
+      "x": 43,
+      "y": 432,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 960,
+    "largeur": 1920,
+    "x": 0,
+    "y": 60,
+  },
+  "recadrageFacecam": {
+    "hauteur": 540,
+    "largeur": 1080,
+    "x": 0,
+    "y": 1380,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 4:5 avec un style de sous-titres 1`] = `
+{
+  "calqueSousTitres": {
+    "base": "karaoke",
+    "couleurs": {
+      "accent": "#D97757",
+      "contour": "#141413",
+      "texte": "#FAF9F5",
+    },
+    "hauteur": 1350,
+    "largeur": 1080,
+    "largeurMaxPx": 993,
+    "plansPoitrine": undefined,
+    "positions": {
+      "basPct": 44.33,
+      "hautPct": 9,
+      "milieuPct": 48,
+      "poitrinePct": 44.33,
+    },
+    "segments": [
+      {
+        "debutSec": 0,
+        "finSec": 1.6,
+        "id": "st-0",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 0,
+            "enValeur": undefined,
+            "finSec": 0.33,
+            "mot": "Bonjour",
+          },
+          {
+            "debutSec": 0.4,
+            "enValeur": undefined,
+            "finSec": 0.73,
+            "mot": "je",
+          },
+          {
+            "debutSec": 0.8,
+            "enValeur": undefined,
+            "finSec": 1.13,
+            "mot": "vous",
+          },
+          {
+            "debutSec": 1.2,
+            "enValeur": undefined,
+            "finSec": 1.53,
+            "mot": "montre",
+          },
+        ],
+        "position": "auto",
+        "souligne": 0,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 1.6,
+        "finSec": 2.8,
+        "id": "st-4",
+        "importance": 3,
+        "inclinaison": 4,
+        "mots": [
+          {
+            "debutSec": 1.6,
+            "enValeur": undefined,
+            "finSec": 1.93,
+            "mot": "comment",
+          },
+          {
+            "debutSec": 2,
+            "enValeur": undefined,
+            "finSec": 2.33,
+            "mot": "on",
+          },
+          {
+            "debutSec": 2.4,
+            "enValeur": undefined,
+            "finSec": 2.73,
+            "mot": "crée",
+          },
+        ],
+        "position": "milieu",
+        "souligne": null,
+        "style": "impact",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 2.8,
+        "finSec": 3.6,
+        "id": "st-7",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 2.8,
+            "enValeur": undefined,
+            "finSec": 3.13,
+            "mot": "un",
+          },
+          {
+            "debutSec": 3.2,
+            "enValeur": undefined,
+            "finSec": 3.53,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 3.6,
+        "finSec": 4.4,
+        "id": "st-9",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 3.6,
+            "enValeur": undefined,
+            "finSec": 3.93,
+            "mot": "dans",
+          },
+          {
+            "debutSec": 4,
+            "enValeur": undefined,
+            "finSec": 4.33,
+            "mot": "Axion",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 4.4,
+        "finSec": 5.6,
+        "id": "st-11",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 4.4,
+            "enValeur": undefined,
+            "finSec": 4.73,
+            "mot": "en",
+          },
+          {
+            "debutSec": 4.8,
+            "enValeur": undefined,
+            "finSec": 5.13,
+            "mot": "trois",
+          },
+          {
+            "debutSec": 5.2,
+            "enValeur": undefined,
+            "finSec": 5.53,
+            "mot": "clics.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 5.6,
+        "finSec": 6.4,
+        "id": "st-14",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 5.6,
+            "enValeur": undefined,
+            "finSec": 5.93,
+            "mot": "Je",
+          },
+          {
+            "debutSec": 6,
+            "enValeur": undefined,
+            "finSec": 6.33,
+            "mot": "clique",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 6.4,
+        "finSec": 7.2,
+        "id": "st-16",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 6.4,
+            "enValeur": undefined,
+            "finSec": 6.73,
+            "mot": "sur",
+          },
+          {
+            "debutSec": 6.8,
+            "enValeur": undefined,
+            "finSec": 7.13,
+            "mot": "nouveau",
+          },
+        ],
+        "position": "auto",
+        "souligne": 1,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 7.2,
+        "finSec": 8,
+        "id": "st-18",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 7.2,
+            "enValeur": undefined,
+            "finSec": 7.53,
+            "mot": "devis",
+          },
+          {
+            "debutSec": 7.6,
+            "enValeur": undefined,
+            "finSec": 7.93,
+            "mot": "puis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8,
+        "finSec": 8.8,
+        "id": "st-20",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8,
+            "enValeur": undefined,
+            "finSec": 8.33,
+            "mot": "je",
+          },
+          {
+            "debutSec": 8.4,
+            "enValeur": undefined,
+            "finSec": 8.73,
+            "mot": "choisis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8.8,
+        "finSec": 9.6,
+        "id": "st-22",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8.8,
+            "enValeur": undefined,
+            "finSec": 9.13,
+            "mot": "le",
+          },
+          {
+            "debutSec": 9.2,
+            "enValeur": undefined,
+            "finSec": 9.53,
+            "mot": "client",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 9.6,
+        "finSec": 10.4,
+        "id": "st-24",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 9.6,
+            "enValeur": undefined,
+            "finSec": 9.93,
+            "mot": "et",
+          },
+          {
+            "debutSec": 10,
+            "enValeur": undefined,
+            "finSec": 10.33,
+            "mot": "voilà",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 10.4,
+        "finSec": 11.2,
+        "id": "st-26",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 10.4,
+            "enValeur": undefined,
+            "finSec": 10.73,
+            "mot": "le",
+          },
+          {
+            "debutSec": 10.8,
+            "enValeur": undefined,
+            "finSec": 11.13,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 11.2,
+        "finSec": 11.93,
+        "id": "st-28",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 11.2,
+            "enValeur": undefined,
+            "finSec": 11.53,
+            "mot": "est",
+          },
+          {
+            "debutSec": 11.6,
+            "enValeur": undefined,
+            "finSec": 11.93,
+            "mot": "prêt.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+    ],
+    "tailleRelative": 1,
+  },
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1350,
+  "images": 375,
+  "largeur": 1080,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "haut-bas",
+    "ecran": {
+      "hauteur": 676,
+      "largeur": 1080,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 674,
+      "largeur": 1080,
+      "x": 0,
+      "y": 676,
+    },
+    "hauteur": 1350,
+    "largeur": 1080,
+    "ratio": "4:5",
+    "sousTitres": {
+      "hauteur": 115,
+      "largeur": 994,
+      "x": 43,
+      "y": 541,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 1080,
+    "largeur": 1725.44,
+    "x": 97.28,
+    "y": 0,
+  },
+  "recadrageFacecam": {
+    "hauteur": 674,
+    "largeur": 1080,
+    "x": 0,
+    "y": 1246,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 4:5 sans style 1`] = `
+{
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1350,
+  "images": 375,
+  "largeur": 1080,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "haut-bas",
+    "ecran": {
+      "hauteur": 676,
+      "largeur": 1080,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 674,
+      "largeur": 1080,
+      "x": 0,
+      "y": 676,
+    },
+    "hauteur": 1350,
+    "largeur": 1080,
+    "ratio": "4:5",
+    "sousTitres": {
+      "hauteur": 115,
+      "largeur": 994,
+      "x": 43,
+      "y": 541,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 1080,
+    "largeur": 1725.44,
+    "x": 97.28,
+    "y": 0,
+  },
+  "recadrageFacecam": {
+    "hauteur": 674,
+    "largeur": 1080,
+    "x": 0,
+    "y": 1246,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 9:16 avec un style de sous-titres 1`] = `
+{
+  "calqueSousTitres": {
+    "base": "karaoke",
+    "couleurs": {
+      "accent": "#D97757",
+      "contour": "#141413",
+      "texte": "#FAF9F5",
+    },
+    "hauteur": 1920,
+    "largeur": 1080,
+    "largeurMaxPx": 691,
+    "plansPoitrine": undefined,
+    "positions": {
+      "basPct": 44.24,
+      "hautPct": 19,
+      "milieuPct": 48,
+      "poitrinePct": 44.24,
+    },
+    "segments": [
+      {
+        "debutSec": 0,
+        "finSec": 0.4,
+        "id": "st-0",
+        "importance": 3,
+        "inclinaison": 4,
+        "mots": [
+          {
+            "debutSec": 0,
+            "enValeur": undefined,
+            "finSec": 0.33,
+            "mot": "Bonjour",
+          },
+        ],
+        "position": "milieu",
+        "souligne": null,
+        "style": "impact",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 0.4,
+        "finSec": 1.6,
+        "id": "st-1",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 0.4,
+            "enValeur": undefined,
+            "finSec": 0.73,
+            "mot": "je",
+          },
+          {
+            "debutSec": 0.8,
+            "enValeur": undefined,
+            "finSec": 1.13,
+            "mot": "vous",
+          },
+          {
+            "debutSec": 1.2,
+            "enValeur": undefined,
+            "finSec": 1.53,
+            "mot": "montre",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 1.6,
+        "finSec": 2.8,
+        "id": "st-4",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 1.6,
+            "enValeur": undefined,
+            "finSec": 1.93,
+            "mot": "comment",
+          },
+          {
+            "debutSec": 2,
+            "enValeur": undefined,
+            "finSec": 2.33,
+            "mot": "on",
+          },
+          {
+            "debutSec": 2.4,
+            "enValeur": undefined,
+            "finSec": 2.73,
+            "mot": "crée",
+          },
+        ],
+        "position": "auto",
+        "souligne": 0,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 2.8,
+        "finSec": 3.6,
+        "id": "st-7",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 2.8,
+            "enValeur": undefined,
+            "finSec": 3.13,
+            "mot": "un",
+          },
+          {
+            "debutSec": 3.2,
+            "enValeur": undefined,
+            "finSec": 3.53,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 3.6,
+        "finSec": 4.4,
+        "id": "st-9",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 3.6,
+            "enValeur": undefined,
+            "finSec": 3.93,
+            "mot": "dans",
+          },
+          {
+            "debutSec": 4,
+            "enValeur": undefined,
+            "finSec": 4.33,
+            "mot": "Axion",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 4.4,
+        "finSec": 5.6,
+        "id": "st-11",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 4.4,
+            "enValeur": undefined,
+            "finSec": 4.73,
+            "mot": "en",
+          },
+          {
+            "debutSec": 4.8,
+            "enValeur": undefined,
+            "finSec": 5.13,
+            "mot": "trois",
+          },
+          {
+            "debutSec": 5.2,
+            "enValeur": undefined,
+            "finSec": 5.53,
+            "mot": "clics.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 5.6,
+        "finSec": 6.4,
+        "id": "st-14",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 5.6,
+            "enValeur": undefined,
+            "finSec": 5.93,
+            "mot": "Je",
+          },
+          {
+            "debutSec": 6,
+            "enValeur": undefined,
+            "finSec": 6.33,
+            "mot": "clique",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 6.4,
+        "finSec": 7.2,
+        "id": "st-16",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 6.4,
+            "enValeur": undefined,
+            "finSec": 6.73,
+            "mot": "sur",
+          },
+          {
+            "debutSec": 6.8,
+            "enValeur": undefined,
+            "finSec": 7.13,
+            "mot": "nouveau",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 7.2,
+        "finSec": 8,
+        "id": "st-18",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 7.2,
+            "enValeur": undefined,
+            "finSec": 7.53,
+            "mot": "devis",
+          },
+          {
+            "debutSec": 7.6,
+            "enValeur": undefined,
+            "finSec": 7.93,
+            "mot": "puis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8,
+        "finSec": 8.8,
+        "id": "st-20",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8,
+            "enValeur": undefined,
+            "finSec": 8.33,
+            "mot": "je",
+          },
+          {
+            "debutSec": 8.4,
+            "enValeur": undefined,
+            "finSec": 8.73,
+            "mot": "choisis",
+          },
+        ],
+        "position": "auto",
+        "souligne": 1,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8.8,
+        "finSec": 9.6,
+        "id": "st-22",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8.8,
+            "enValeur": undefined,
+            "finSec": 9.13,
+            "mot": "le",
+          },
+          {
+            "debutSec": 9.2,
+            "enValeur": undefined,
+            "finSec": 9.53,
+            "mot": "client",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 9.6,
+        "finSec": 10.4,
+        "id": "st-24",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 9.6,
+            "enValeur": undefined,
+            "finSec": 9.93,
+            "mot": "et",
+          },
+          {
+            "debutSec": 10,
+            "enValeur": undefined,
+            "finSec": 10.33,
+            "mot": "voilà",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 10.4,
+        "finSec": 11.2,
+        "id": "st-26",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 10.4,
+            "enValeur": undefined,
+            "finSec": 10.73,
+            "mot": "le",
+          },
+          {
+            "debutSec": 10.8,
+            "enValeur": undefined,
+            "finSec": 11.13,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 11.2,
+        "finSec": 11.93,
+        "id": "st-28",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 11.2,
+            "enValeur": undefined,
+            "finSec": 11.53,
+            "mot": "est",
+          },
+          {
+            "debutSec": 11.6,
+            "enValeur": undefined,
+            "finSec": 11.93,
+            "mot": "prêt.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+    ],
+    "tailleRelative": 1,
+  },
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1920,
+  "images": 375,
+  "largeur": 1080,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "haut-bas",
+    "ecran": {
+      "hauteur": 960,
+      "largeur": 1080,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 960,
+      "largeur": 1080,
+      "x": 0,
+      "y": 960,
+    },
+    "hauteur": 1920,
+    "largeur": 1080,
+    "ratio": "9:16",
+    "sousTitres": {
+      "hauteur": 163,
+      "largeur": 994,
+      "x": 43,
+      "y": 768,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 1080,
+    "largeur": 1215,
+    "x": 352.5,
+    "y": 0,
+  },
+  "recadrageFacecam": {
+    "hauteur": 960,
+    "largeur": 1080,
+    "x": 0,
+    "y": 960,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 9:16 sans style 1`] = `
+{
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1920,
+  "images": 375,
+  "largeur": 1080,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "haut-bas",
+    "ecran": {
+      "hauteur": 960,
+      "largeur": 1080,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 960,
+      "largeur": 1080,
+      "x": 0,
+      "y": 960,
+    },
+    "hauteur": 1920,
+    "largeur": 1080,
+    "ratio": "9:16",
+    "sousTitres": {
+      "hauteur": 163,
+      "largeur": 994,
+      "x": 43,
+      "y": 768,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 1080,
+    "largeur": 1215,
+    "x": 352.5,
+    "y": 0,
+  },
+  "recadrageFacecam": {
+    "hauteur": 960,
+    "largeur": 1080,
+    "x": 0,
+    "y": 960,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 16:9 avec un style de sous-titres 1`] = `
+{
+  "calqueSousTitres": {
+    "base": "karaoke",
+    "couleurs": {
+      "accent": "#D97757",
+      "contour": "#141413",
+      "texte": "#FAF9F5",
+    },
+    "hauteur": 1080,
+    "largeur": 1920,
+    "largeurMaxPx": 1612,
+    "plansPoitrine": undefined,
+    "positions": {
+      "basPct": 81,
+      "hautPct": 13,
+      "milieuPct": 48,
+      "poitrinePct": 51,
+    },
+    "segments": [
+      {
+        "debutSec": 0,
+        "finSec": 1.6,
+        "id": "st-0",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 0,
+            "enValeur": undefined,
+            "finSec": 0.33,
+            "mot": "Bonjour",
+          },
+          {
+            "debutSec": 0.4,
+            "enValeur": undefined,
+            "finSec": 0.73,
+            "mot": "je",
+          },
+          {
+            "debutSec": 0.8,
+            "enValeur": undefined,
+            "finSec": 1.13,
+            "mot": "vous",
+          },
+          {
+            "debutSec": 1.2,
+            "enValeur": undefined,
+            "finSec": 1.53,
+            "mot": "montre",
+          },
+        ],
+        "position": "auto",
+        "souligne": 0,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 1.6,
+        "finSec": 2.8,
+        "id": "st-4",
+        "importance": 3,
+        "inclinaison": 4,
+        "mots": [
+          {
+            "debutSec": 1.6,
+            "enValeur": undefined,
+            "finSec": 1.93,
+            "mot": "comment",
+          },
+          {
+            "debutSec": 2,
+            "enValeur": undefined,
+            "finSec": 2.33,
+            "mot": "on",
+          },
+          {
+            "debutSec": 2.4,
+            "enValeur": undefined,
+            "finSec": 2.73,
+            "mot": "crée",
+          },
+        ],
+        "position": "milieu",
+        "souligne": null,
+        "style": "impact",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 2.8,
+        "finSec": 3.6,
+        "id": "st-7",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 2.8,
+            "enValeur": undefined,
+            "finSec": 3.13,
+            "mot": "un",
+          },
+          {
+            "debutSec": 3.2,
+            "enValeur": undefined,
+            "finSec": 3.53,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 3.6,
+        "finSec": 4.4,
+        "id": "st-9",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 3.6,
+            "enValeur": undefined,
+            "finSec": 3.93,
+            "mot": "dans",
+          },
+          {
+            "debutSec": 4,
+            "enValeur": undefined,
+            "finSec": 4.33,
+            "mot": "Axion",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 4.4,
+        "finSec": 5.6,
+        "id": "st-11",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 4.4,
+            "enValeur": undefined,
+            "finSec": 4.73,
+            "mot": "en",
+          },
+          {
+            "debutSec": 4.8,
+            "enValeur": undefined,
+            "finSec": 5.13,
+            "mot": "trois",
+          },
+          {
+            "debutSec": 5.2,
+            "enValeur": undefined,
+            "finSec": 5.53,
+            "mot": "clics.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 5.6,
+        "finSec": 6.4,
+        "id": "st-14",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 5.6,
+            "enValeur": undefined,
+            "finSec": 5.93,
+            "mot": "Je",
+          },
+          {
+            "debutSec": 6,
+            "enValeur": undefined,
+            "finSec": 6.33,
+            "mot": "clique",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 6.4,
+        "finSec": 7.2,
+        "id": "st-16",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 6.4,
+            "enValeur": undefined,
+            "finSec": 6.73,
+            "mot": "sur",
+          },
+          {
+            "debutSec": 6.8,
+            "enValeur": undefined,
+            "finSec": 7.13,
+            "mot": "nouveau",
+          },
+        ],
+        "position": "auto",
+        "souligne": 1,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 7.2,
+        "finSec": 8,
+        "id": "st-18",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 7.2,
+            "enValeur": undefined,
+            "finSec": 7.53,
+            "mot": "devis",
+          },
+          {
+            "debutSec": 7.6,
+            "enValeur": undefined,
+            "finSec": 7.93,
+            "mot": "puis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8,
+        "finSec": 8.8,
+        "id": "st-20",
+        "importance": 1,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8,
+            "enValeur": undefined,
+            "finSec": 8.33,
+            "mot": "je",
+          },
+          {
+            "debutSec": 8.4,
+            "enValeur": undefined,
+            "finSec": 8.73,
+            "mot": "choisis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 8.8,
+        "finSec": 9.6,
+        "id": "st-22",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 8.8,
+            "enValeur": undefined,
+            "finSec": 9.13,
+            "mot": "le",
+          },
+          {
+            "debutSec": 9.2,
+            "enValeur": undefined,
+            "finSec": 9.53,
+            "mot": "client",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 9.6,
+        "finSec": 10.4,
+        "id": "st-24",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 9.6,
+            "enValeur": undefined,
+            "finSec": 9.93,
+            "mot": "et",
+          },
+          {
+            "debutSec": 10,
+            "enValeur": undefined,
+            "finSec": 10.33,
+            "mot": "voilà",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 10.4,
+        "finSec": 11.2,
+        "id": "st-26",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 10.4,
+            "enValeur": undefined,
+            "finSec": 10.73,
+            "mot": "le",
+          },
+          {
+            "debutSec": 10.8,
+            "enValeur": undefined,
+            "finSec": 11.13,
+            "mot": "devis",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+      {
+        "debutSec": 11.2,
+        "finSec": 11.93,
+        "id": "st-28",
+        "importance": 0,
+        "inclinaison": 0,
+        "mots": [
+          {
+            "debutSec": 11.2,
+            "enValeur": undefined,
+            "finSec": 11.53,
+            "mot": "est",
+          },
+          {
+            "debutSec": 11.6,
+            "enValeur": undefined,
+            "finSec": 11.93,
+            "mot": "prêt.",
+          },
+        ],
+        "position": "auto",
+        "souligne": null,
+        "style": "base",
+        "verrouille": false,
+      },
+    ],
+    "tailleRelative": 1,
+  },
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1080,
+  "images": 375,
+  "largeur": 1920,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "cote-a-cote",
+    "ecran": {
+      "hauteur": 1080,
+      "largeur": 960,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 1080,
+      "largeur": 960,
+      "x": 960,
+      "y": 0,
+    },
+    "hauteur": 1080,
+    "largeur": 1920,
+    "ratio": "16:9",
+    "sousTitres": {
+      "hauteur": 184,
+      "largeur": 883,
+      "x": 38,
+      "y": 864,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 1080,
+    "largeur": 960,
+    "x": 480,
+    "y": 0,
+  },
+  "recadrageFacecam": {
+    "hauteur": 1215,
+    "largeur": 1080,
+    "x": 0,
+    "y": 705,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;
+
+exports[`Filet G3-12 : démo facecam, propriétés figées en 4:5, 9:16, 1:1, 16:9 > propriétés 16:9 sans style 1`] = `
+{
+  "carteFin": {
+    "sousTitre": "axion-ia.com",
+    "titre": "Axion IA",
+  },
+  "clics": [
+    {
+      "ms": 6000,
+      "x": 62,
+      "y": 44,
+    },
+  ],
+  "decalageEcranSec": 0.4,
+  "dureeParoleMs": 12500,
+  "fps": 25,
+  "hauteur": 1080,
+  "images": 375,
+  "largeur": 1920,
+  "legendes": [
+    {
+      "debutMs": 1000,
+      "finMs": 3000,
+      "texte": "Nouveau devis",
+    },
+  ],
+  "miseEnPage": {
+    "disposition": "cote-a-cote",
+    "ecran": {
+      "hauteur": 1080,
+      "largeur": 960,
+      "x": 0,
+      "y": 0,
+    },
+    "facecam": {
+      "hauteur": 1080,
+      "largeur": 960,
+      "x": 960,
+      "y": 0,
+    },
+    "hauteur": 1080,
+    "largeur": 1920,
+    "ratio": "16:9",
+    "sousTitres": {
+      "hauteur": 184,
+      "largeur": 883,
+      "x": 38,
+      "y": 864,
+    },
+  },
+  "plan": {
+    "scenes": [],
+    "version": "plan-scenes-1",
+  },
+  "recadrageEcran": {
+    "hauteur": 1080,
+    "largeur": 960,
+    "x": 480,
+    "y": 0,
+  },
+  "recadrageFacecam": {
+    "hauteur": 1215,
+    "largeur": 1080,
+    "x": 0,
+    "y": 705,
+  },
+  "sourceEcran": {
+    "hauteur": 1080,
+    "largeur": 1920,
+  },
+  "sourceFacecam": {
+    "hauteur": 1920,
+    "largeur": 1080,
+  },
+  "sousTitres": [
+    {
+      "debutMs": 0,
+      "finMs": 1600,
+      "mots": [
+        {
+          "debutMs": 0,
+          "finMs": 330,
+          "texte": "Bonjour",
+        },
+        {
+          "debutMs": 400,
+          "finMs": 730,
+          "texte": "je",
+        },
+        {
+          "debutMs": 800,
+          "finMs": 1130,
+          "texte": "vous",
+        },
+        {
+          "debutMs": 1200,
+          "finMs": 1530,
+          "texte": "montre",
+        },
+      ],
+    },
+    {
+      "debutMs": 1600,
+      "finMs": 2800,
+      "mots": [
+        {
+          "debutMs": 1600,
+          "finMs": 1930,
+          "texte": "comment",
+        },
+        {
+          "debutMs": 2000,
+          "finMs": 2330,
+          "texte": "on",
+        },
+        {
+          "debutMs": 2400,
+          "finMs": 2730,
+          "texte": "crée",
+        },
+      ],
+    },
+    {
+      "debutMs": 2800,
+      "finMs": 3600,
+      "mots": [
+        {
+          "debutMs": 2800,
+          "finMs": 3130,
+          "texte": "un",
+        },
+        {
+          "debutMs": 3200,
+          "finMs": 3530,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 3600,
+      "finMs": 4400,
+      "mots": [
+        {
+          "debutMs": 3600,
+          "finMs": 3930,
+          "texte": "dans",
+        },
+        {
+          "debutMs": 4000,
+          "finMs": 4330,
+          "texte": "Axion",
+        },
+      ],
+    },
+    {
+      "debutMs": 4400,
+      "finMs": 5600,
+      "mots": [
+        {
+          "debutMs": 4400,
+          "finMs": 4730,
+          "texte": "en",
+        },
+        {
+          "debutMs": 4800,
+          "finMs": 5130,
+          "texte": "trois",
+        },
+        {
+          "debutMs": 5200,
+          "finMs": 5530,
+          "texte": "clics.",
+        },
+      ],
+    },
+    {
+      "debutMs": 5600,
+      "finMs": 6400,
+      "mots": [
+        {
+          "debutMs": 5600,
+          "finMs": 5930,
+          "texte": "Je",
+        },
+        {
+          "debutMs": 6000,
+          "finMs": 6330,
+          "texte": "clique",
+        },
+      ],
+    },
+    {
+      "debutMs": 6400,
+      "finMs": 7200,
+      "mots": [
+        {
+          "debutMs": 6400,
+          "finMs": 6730,
+          "texte": "sur",
+        },
+        {
+          "debutMs": 6800,
+          "finMs": 7130,
+          "texte": "nouveau",
+        },
+      ],
+    },
+    {
+      "debutMs": 7200,
+      "finMs": 8000,
+      "mots": [
+        {
+          "debutMs": 7200,
+          "finMs": 7530,
+          "texte": "devis",
+        },
+        {
+          "debutMs": 7600,
+          "finMs": 7930,
+          "texte": "puis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8000,
+      "finMs": 8800,
+      "mots": [
+        {
+          "debutMs": 8000,
+          "finMs": 8330,
+          "texte": "je",
+        },
+        {
+          "debutMs": 8400,
+          "finMs": 8730,
+          "texte": "choisis",
+        },
+      ],
+    },
+    {
+      "debutMs": 8800,
+      "finMs": 9600,
+      "mots": [
+        {
+          "debutMs": 8800,
+          "finMs": 9130,
+          "texte": "le",
+        },
+        {
+          "debutMs": 9200,
+          "finMs": 9530,
+          "texte": "client",
+        },
+      ],
+    },
+    {
+      "debutMs": 9600,
+      "finMs": 10400,
+      "mots": [
+        {
+          "debutMs": 9600,
+          "finMs": 9930,
+          "texte": "et",
+        },
+        {
+          "debutMs": 10000,
+          "finMs": 10330,
+          "texte": "voilà",
+        },
+      ],
+    },
+    {
+      "debutMs": 10400,
+      "finMs": 11200,
+      "mots": [
+        {
+          "debutMs": 10400,
+          "finMs": 10730,
+          "texte": "le",
+        },
+        {
+          "debutMs": 10800,
+          "finMs": 11130,
+          "texte": "devis",
+        },
+      ],
+    },
+    {
+      "debutMs": 11200,
+      "finMs": 11930,
+      "mots": [
+        {
+          "debutMs": 11200,
+          "finMs": 11530,
+          "texte": "est",
+        },
+        {
+          "debutMs": 11600,
+          "finMs": 11930,
+          "texte": "prêt.",
+        },
+      ],
+    },
+  ],
+  "surlignages": [],
+  "zooms": [
+    {
+      "debutMs": 400,
+      "facteur": 1.8,
+      "finMs": 4000,
+      "x": 70,
+      "y": 30,
+    },
+    {
+      "debutMs": 8500,
+      "facteur": 1.5,
+      "finMs": 10500,
+      "x": 40,
+      "y": 50,
+    },
+  ],
+}
+`;

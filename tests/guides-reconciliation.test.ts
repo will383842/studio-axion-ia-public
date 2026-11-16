@@ -207,4 +207,74 @@ describe("G6 · plafond de codes par passage", () => {
     expect(r.ok && r.etat === "compare" && r.ecarts.filter((e) => e.code === codes[0])).toHaveLength(1);
     expect(r.ok && r.etat === "compare" && r.ecarts.filter((e) => e.type === "empreinte_differente")).toHaveLength(1 + 0);
   });
+  it("ecartsTronques retombe à faux quand le passage a bouclé (tour complet) et que rien ne dépasse le plafond", async () => {
+    const codes = Array.from({ length: 205 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 200, lignesIgnorees: 0, ecarts: [], ecartsTronques: true, codesRevusDepuisTroncature: 10, curseur: codes[199], codesRestants: 5 });
+    await reconcilierGuides(m.d);
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ ecartsTronques: false });
+  });
+  it("ecartsTronques reste levé tant que le tour n'est pas complet (pas de bouclage)", async () => {
+    const codes = Array.from({ length: 205 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 0, lignesIgnorees: 0, ecarts: [], ecartsTronques: true, curseur: null, codesRestants: 5 });
+    await reconcilierGuides(m.d);
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ ecartsTronques: true });
+  });
+  it("au-delà de 500 écarts, ce sont les plus RÉCENTS (ceux de ce passage) qui sont gardés", async () => {
+    const codes = Array.from({ length: 205 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    const vieux = Array.from({ length: 600 }, (_, i) => ({ type: "empreinte_differente", code: codes[200 + (i % 5)], version: 100 + i }));
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 0, lignesIgnorees: 0, ecarts: vieux, ecartsTronques: false, curseur: null, codesRestants: 5 });
+    await reconcilierGuides(m.d);
+    const mem = m.magasin.get(PARAM_RECONCILIATION) as { ecarts: { type: string }[]; ecartsTronques: boolean };
+    expect(mem.ecarts).toHaveLength(500);
+    expect(mem.ecarts.filter((e) => e.type === "manquant_au_site")).toHaveLength(200);
+    expect((mem.ecarts as unknown as { version: number }[]).slice(0, 300).map((e) => e.version)).toEqual(Array.from({ length: 300 }, (_, i) => 400 + i));
+    expect(mem.ecartsTronques).toBe(true);
+  });
+  it("indicateur : la boucle de la rotation ne le baisse pas si des codes coupés n'ont pas été revus (1 000 codes)", async () => {
+    const codes = Array.from({ length: 1000 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 200, lignesIgnorees: 0, ecarts: [], ecartsTronques: true, curseur: codes[899], codesRestants: 800 });
+    await reconcilierGuides(m.d);
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ ecartsTronques: true, codesRevusDepuisTroncature: 200 });
+  });
+  it("indicateur : retombe une fois tous les codes revus depuis la coupure", async () => {
+    const codes = Array.from({ length: 1000 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 200, lignesIgnorees: 0, ecarts: [], ecartsTronques: true, codesRevusDepuisTroncature: 800, curseur: codes[899], codesRestants: 800 });
+    await reconcilierGuides(m.d);
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ ecartsTronques: false });
+  });
+});
+
+describe("G6 · cas limites", () => {
+  const codes = Array.from({ length: 205 }, (_, i) => `gde-cle${String(i).padStart(4, "0")}`);
+  const avecVieux = async (n: number) => {
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => codes.map((c) => ({ code: c, version: 1, empreinte: h("a") })) });
+    const vieux = Array.from({ length: n }, (_, i) => ({ type: "empreinte_differente", code: codes[200 + (i % 5)], version: 100 + i }));
+    m.magasin.set(PARAM_RECONCILIATION, { dernierPassage: null, etat: "compare", guidesLus: 0, lignesIgnorees: 0, ecarts: vieux, ecartsTronques: false, curseur: null, codesRestants: 5 });
+    await reconcilierGuides(m.d);
+    return m.magasin.get(PARAM_RECONCILIATION) as { ecarts: { version: number }[]; ecartsTronques: boolean };
+  };
+  it("liste vide : aucun appel, aucun écart, indicateur faux", async () => {
+    const m = monter(() => ({ statut: 200, corps: [] }), { studio: async () => [] });
+    const r = await reconcilierGuides(m.d);
+    expect(r).toEqual({ ok: true, etat: "compare", ecarts: [], codesRestants: 0 });
+    expect(m.appels).toHaveLength(0);
+    expect(m.magasin.get(PARAM_RECONCILIATION)).toMatchObject({ ecarts: [], ecartsTronques: false });
+  });
+  it("exactement 500 écarts : 500 gardés, indicateur faux", async () => {
+    const mem = await avecVieux(300); // 300 anciens + 200 nouveaux
+    expect(mem.ecarts).toHaveLength(500);
+    expect(mem.ecartsTronques).toBe(false);
+  });
+  it("501 écarts : 500 gardés, indicateur vrai, le plus ancien perdu", async () => {
+    const mem = await avecVieux(301);
+    expect(mem.ecarts).toHaveLength(500);
+    expect(mem.ecartsTronques).toBe(true);
+    expect(mem.ecarts.some((e) => e.version === 100)).toBe(false);
+    expect(mem.ecarts[0].version).toBe(101);
+  });
 });

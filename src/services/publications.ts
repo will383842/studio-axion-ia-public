@@ -25,7 +25,7 @@ import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
 import { listerReseaux, obtenirReseau, verifierPourReseau, type AvertissementReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer, refusDoublonEntreOutils, serviceBuffer, type ComptesPourReseau } from "@/domaine/buffer";
-import { cleEnvoiPublication, estChezUnOutil, outilDe, type OutilPublication } from "@/domaine/outil-publication";
+import { cleEnvoiPublication, estChezUnOutil, OUTILS_ENVOI, outilDe, type OutilPublication } from "@/domaine/outil-publication";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
 import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
@@ -769,7 +769,6 @@ async function envoyerVersBufferInterne(
     if ((video && (await videoEnEssai(video))) || fichiers.some((f) => estCleDemo(f?.cleStockage))) {
       throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
     }
-    if (parOutil.has("buffer") && service.mode === "simulation") throw new ErreurStudio("BUFFER_NON_RELIE", "L'outil de publication de certains de ces réseaux n'est pas relié : l'envoi est refusé.");
     // Un groupe par outil. Si un groupe lève une erreur alors qu'un autre est déjà parti, l'erreur devient un problème
     // (l'écran dit ce qui est parti) ; si rien n'est parti, l'erreur est rendue telle quelle.
     const resultats: Awaited<ReturnType<typeof envoyerReel>>[] = [];
@@ -1014,6 +1013,8 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
   const videoId = kitVue.videoId;
   // KIT-CC-IV : le refus « textes manquants » couvre aussi l'envoi direct (Zernio) : rien ne part sans le texte de la version.
   await refuserSiTextesManquants(videoId, kitVue, reseaux);
+  // L0-13a : Buffer ne peut plus envoyer. Refus avant toute préparation ou écriture, même par appel direct.
+  if (!(OUTILS_ENVOI as readonly string[]).includes(outil)) throw new ErreurStudio("OUTIL_RETIRE", "Buffer n'est plus utilisable pour envoyer : l'envoi passe par Zernio. Rien n'est parti.");
   // Phrases neutres : le nom de Buffer ne s'écrit que pour Buffer ; ailleurs « l'outil de publication ».
   const lui = outil === "buffer" ? "Buffer" : "l'outil de publication";
   const mode: ModeEnvoiPublication = outil === "buffer" ? await lireModeBuffer() : "brouillon";

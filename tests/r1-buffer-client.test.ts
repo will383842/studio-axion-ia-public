@@ -133,11 +133,11 @@ describe("client : lectures sur réponses RÉELLES enregistrées (anonymisées)"
     expect(statsDepuisReponseBuffer({ data: { post: { id: "x", metrics: [{ type: "averageTimeWatched", value: 11.4 }, { type: "viewers", value: 40 }] } } }).valeurs).toMatchObject({ dureeMoyenneVueSec: 11.4, portee: 40 });
   });
 
-  it("inscription : rien sans clé ; « buffer » avec la clé", () => {
+  it("inscription (L0-13a) : rien sans clé ; Buffer jamais inscrit, même avec sa clé ; seul Zernio avec la sienne", () => {
     expect(publicationBuffer({})).toEqual({});
     expect(publicationBuffer({ BUFFER_API_KEY: "   " })).toEqual({});
-    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: CLE }))).toEqual(["buffer"]);
-    expect(publicationBuffer({ BUFFER_API_KEY: CLE }).buffer.mode).toBe("reel");
+    expect(publicationBuffer({ BUFFER_API_KEY: CLE })).toEqual({});
+    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: CLE, ZERNIO_API_KEY: "cle-zernio-de-test-0001" }))).toEqual(["zernio"]);
   });
 });
 
