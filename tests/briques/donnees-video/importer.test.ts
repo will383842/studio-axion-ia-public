@@ -45,6 +45,15 @@ describe("importerTableauDeBord", () => {
   it("« 1,234 » avec « ; » → refus ambigu aussi", () => {
     expect(messages(importerTableauDeBord(`${IND}vues;Vues;1,234;%;1;hausse-bonne\n`, "csv", META))[0]).toContain("ambigu");
   });
+  it("« 1,234 % » et « 1,234% » avec « ; » → refus ambigu", () => {
+    for (const v of ["1,234 %", "1,234%", "1.234 %"]) {
+      expect(messages(importerTableauDeBord(`${IND}vues;Vues;${v};%;1;hausse-bonne\n`, "csv", META))[0]).toContain("ambigu");
+    }
+  });
+  it("« 12,5 » avec séparateur « , » → refus ambigu", () => {
+    const r = importerTableauDeBord('id,libelle,valeur,unite,precision,sens\nvues,Vues,"12,5",%,1,hausse-bonne\n', "csv", META);
+    expect(messages(r)[0]).toContain("ambigu");
+  });
   it("201 Ko → refus", () => {
     const r = importerTableauDeBord("a".repeat(TAILLE_MAX_OCTETS + 1), "json");
     expect(messages(r)).toEqual(["Fichier trop gros : 200 Ko au plus."]);

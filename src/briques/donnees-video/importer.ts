@@ -81,7 +81,7 @@ function lireNombre(brut: string, sep: string, ligne: number, colonne: number): 
   const t = brut.trim();
   const ou = `ligne ${ligne}, colonne ${colonne}`;
   if (sep === "," && t.includes(",")) return { ok: false, message: `Nombre ambigu (${ou}) : « ${t} » avec « , » comme séparateur ; utilisez « ; » ou le point décimal.` };
-  if (AMBIGU.test(t.replace(/[\s  ]/g, ""))) return { ok: false, message: `Nombre ambigu (${ou}) : « ${t} » peut être un millier ou un décimal.` };
+  if (AMBIGU.test(t.replace(/[\s\u00a0\u202f%]/g, ""))) return { ok: false, message: `Nombre ambigu (${ou}) : « ${t} » peut être un millier ou un décimal.` };
   const n = lireNombreFr(t);
   if (Number.isNaN(n)) return { ok: false, message: `Nombre illisible (${ou}) : « ${t} ».` };
   return { ok: true, n };
