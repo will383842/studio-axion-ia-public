@@ -2,6 +2,7 @@
 // Lecture seule, aucun réseau : reconnaît la licence d'un fichier LICENSE local.
 // Usage : node outils/licences/verifier-licence.mjs <fichier>
 import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const MOTIFS = [
   ["Apache-2.0", /apache license[\s,]*version 2\.0/i],
@@ -11,15 +12,19 @@ const MOTIFS = [
   ["Unlicense", /this is free and unencumbered software released into the public domain/i],
   ["OFL-1.1", /sil open font license,? version 1\.1/i],
 ];
-const REFUS = /attribution|sharealike|noncommercial|noderivative|gnu (general|lesser) public|mozilla public|creative commons/i;
+// Marqueurs de crédit ou de copyleft. Pas de « attribution » seul : le texte Apache-2.0 contient « attribution notices ».
+const REFUS = /\bCC[ -]?BY\b|creative commons attribution|attribution(-| )(sharealike|noncommercial|noderivs)|sharealike|noncommercial|noderiv|gnu (general|lesser|affero) public|mozilla public/i;
 
 export function reconnaitre(texte) {
-  for (const [nom, re] of MOTIFS) if (re.test(texte)) return nom;
-  return null;
+  // Un marqueur de crédit ou de copyleft refuse d'office (licence mixte comprise).
+  if (REFUS.test(texte)) return null;
+  const trouvees = MOTIFS.filter(([, re]) => re.test(texte)).map(([nom]) => nom);
+  // Licence multiple : validation humaine, donc refus.
+  return trouvees.length === 1 ? trouvees[0] : null;
 }
 
 const fichier = process.argv[2];
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (!fichier) { console.error("Usage : verifier-licence.mjs <fichier LICENSE>"); process.exit(2); }
   let texte;
   try { texte = readFileSync(fichier, "utf8"); } catch (e) { console.error(`REFUS : lecture impossible (${e.message})`); process.exit(2); }
