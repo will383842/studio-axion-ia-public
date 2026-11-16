@@ -5,8 +5,8 @@
  * RELEVÉ — où le plan de scènes est gardé après la fabrication (générateur par générateur) :
  * - Démo facecam : OUI, relisible. Le plan validé est dans `projetMontage.reprise.plan` (`src/moteurs/montage-demo-facecam/index.ts:129,135`,
  *   `RepriseDemo.plan`) ; la lecture sûre existe déjà : `lireRepriseDemo` (`src/moteurs/montage-demo-facecam/chaine.ts:389-391`, exige `plan.scenes` tableau).
- * - Tutoriel d'outil : OUI, relisible. Le plan est dans `projetMontage.tutoriel.plan` (`src/moteurs/montage-tutoriel-outil/index.ts:197-199`),
- *   lu par `lireProjetTutoriel` (`src/moteurs/montage-tutoriel-outil/index.ts:142-143`).
+ * - Tutoriel d'outil : OUI, relisible. Le plan de scènes est dans `projetMontage.tutoriel.plan.plan` (`PlanRetenu` : `src/moteurs/montage-tutoriel-outil/chaine.ts:86-87` ; `index.ts:197-199`),
+ *   lu par `lireProjetTutoriel` (vérifie `p.plan?.plan`, `index.ts:142-144`).
  * - Cas concret : NON (aucune supposition). Le plan n'existe que si le réglage `planScenes.casConcret` est allumé (éteint par défaut,
  *   `src/moteurs/montage-cas-concret/index.ts:109-110`, `fabriquer.ts:1070-1073`) ; il n'est gardé que comme mémo interne par groupe
  *   (`fabriquer.ts:1081`, `plan-scenes.ts:32`) en temps relatif au groupe, et n'est pas posé dans `projetMontage`.
