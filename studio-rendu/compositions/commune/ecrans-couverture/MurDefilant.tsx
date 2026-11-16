@@ -8,6 +8,7 @@ import { AbsoluteFill, OffthreadVideo, useCurrentFrame, useVideoConfig } from "r
 import { CHARTE_AXION, FAMILLE_CSS_AXION, couleursSur, type FondAxion } from "../../../../src/briques/jetons-motion";
 import { BORNES_ARCHIVE, type Rect } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 import { chargerManrope } from "../../plan-scenes/PlanDeScenes";
+import { murDefilant } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 export type SourceArchive = { src?: string; debutImage?: number };
 
 function Vignette({ r, src, debutImage, fond }: { r: Rect; src?: string; debutImage?: number; fond: FondAxion }) {
@@ -20,7 +21,6 @@ function Vignette({ r, src, debutImage, fond }: { r: Rect; src?: string; debutIm
   );
 }
 
-import { murDefilant } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 export type ProprietesMurDefilant = { sources?: SourceArchive[]; fond?: FondAxion };
 export function MurDefilant({ sources = [], fond = "noir" }: ProprietesMurDefilant) {
   chargerManrope();

@@ -8,6 +8,7 @@ import { AbsoluteFill, OffthreadVideo, useCurrentFrame, useVideoConfig } from "r
 import { CHARTE_AXION, FAMILLE_CSS_AXION, couleursSur, type FondAxion } from "../../../../src/briques/jetons-motion";
 import { BORNES_ARCHIVE, type Rect } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 import { chargerManrope } from "../../plan-scenes/PlanDeScenes";
+import { triptyque } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 export type SourceArchive = { src?: string; debutImage?: number };
 
 function Vignette({ r, src, debutImage, fond }: { r: Rect; src?: string; debutImage?: number; fond: FondAxion }) {
@@ -20,8 +21,8 @@ function Vignette({ r, src, debutImage, fond }: { r: Rect; src?: string; debutIm
   );
 }
 
-import { triptyque } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 export type ProprietesTriptyque = { sources?: SourceArchive[]; fond?: FondAxion; duree?: number };
+// Convention : `rotation` est l'angle signé de l'ouverture (bords extérieurs vers le spectateur) ; en CSS, rotateY(+θ) recule le bord droit, d'où le signe moins.
 export function Triptyque({ sources = [], fond = "noir", duree }: ProprietesTriptyque) {
   chargerManrope();
   const frame = useCurrentFrame();
@@ -32,7 +33,7 @@ export function Triptyque({ sources = [], fond = "noir", duree }: ProprietesTrip
   return (
     <AbsoluteFill style={{ background: CHARTE_AXION[fond], fontFamily: FAMILLE_CSS_AXION, perspective }}>
       {cartes.map((r, i) => (
-        <div key={i} style={{ position: "absolute", inset: 0, transform: `rotateY(${r.rotation}deg)`, transformOrigin: `${r.x + r.largeur / 2}px 50%`, transformStyle: "preserve-3d" }}>
+        <div key={i} style={{ position: "absolute", inset: 0, transform: `rotateY(${-r.rotation}deg)`, transformOrigin: `${r.x + r.largeur / 2}px 50%`, transformStyle: "preserve-3d" }}>
           <Vignette r={{ ...r, rotation: 0 }} src={s[i]?.src} debutImage={s[i]?.debutImage} fond={fond} />
         </div>
       ))}

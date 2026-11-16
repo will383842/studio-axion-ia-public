@@ -86,6 +86,15 @@ describe("C11-E3 · grilles de couverture", () => {
     }
   });
 
+  it("triptyque : convention concave (ouverture signée, pièce applique −rotation)", () => {
+    const [g, c, d] = triptyque(L, H, 3, 1).cartes;
+    expect(g.rotation).toBeLessThan(0);
+    expect(c.rotation).toBe(0);
+    expect(d.rotation).toBeGreaterThan(0);
+    const src = readFileSync(join(__dirname, "..", "..", "..", "studio-rendu/compositions/commune/ecrans-couverture/Triptyque.tsx"), "utf8");
+    expect(src).toContain("rotateY(${-r.rotation}deg)");
+  });
+
   it("frise : tête à 0 au début, à la largeur utile à la fin, monotone", () => {
     expect(friseMontage(L, H, 5, 0).tete.avance).toBe(0);
     const fin = friseMontage(L, H, 5, 1);
@@ -122,7 +131,7 @@ describe("C11-E3 · grilles de couverture", () => {
     expect(JSON.stringify(friseMontage(L, H, 6, 0.4))).toBe(JSON.stringify(friseMontage(L, H, 6, 0.4)));
   });
 
-  it("les sept fichiers : aucun « @/ », rien n'importe les pièces", () => {
+  it("les sept fichiers existent : aucun « @/ », aucun bezier littéral, ni BandeVideo ni FenetrePleinCadre", () => {
     const fichiers = [
       "src/briques/motion/ecrans-couverture/grilles.ts",
       ...["GrilleElue", "MurDefilant", "CatalogueFormats", "Triptyque", "FriseMontage"].map((n) => `studio-rendu/compositions/commune/ecrans-couverture/${n}.tsx`),

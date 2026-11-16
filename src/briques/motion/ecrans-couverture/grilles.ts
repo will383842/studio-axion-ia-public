@@ -92,7 +92,10 @@ export function catalogueFormats(largeur: number, hauteur: number, n: number, t:
   });
 }
 
-/** Triptyque concave : 3 cartes, celles des bords tournées de ∓/±18° (rotateY), centre de face. */
+/**
+ * Triptyque concave : 3 cartes, celles des bords tournées de −18 / +18° (rotateY), centre de face.
+ * Convention : `rotation` = angle signé d'ouverture vers le spectateur (bords extérieurs devant) ; la pièce applique rotateY(−rotation) car, en CSS, rotateY(+θ) recule le bord droit.
+ */
 export function triptyque(largeur: number, hauteur: number, n: number, t: number) {
   void n; // toujours 3 cartes
   const w = largeur * 0.28;

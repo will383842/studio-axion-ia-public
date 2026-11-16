@@ -8,6 +8,7 @@ import { AbsoluteFill, OffthreadVideo, useCurrentFrame, useVideoConfig } from "r
 import { CHARTE_AXION, FAMILLE_CSS_AXION, couleursSur, type FondAxion } from "../../../../src/briques/jetons-motion";
 import { BORNES_ARCHIVE, type Rect } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 import { chargerManrope } from "../../plan-scenes/PlanDeScenes";
+import { grilleElue } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 export type SourceArchive = { src?: string; debutImage?: number };
 
 function Vignette({ r, src, debutImage, fond }: { r: Rect; src?: string; debutImage?: number; fond: FondAxion }) {
@@ -20,7 +21,6 @@ function Vignette({ r, src, debutImage, fond }: { r: Rect; src?: string; debutIm
   );
 }
 
-import { grilleElue } from "../../../../src/briques/motion/ecrans-couverture/grilles";
 export type ProprietesGrilleElue = { sources?: SourceArchive[]; elue?: number; fond?: FondAxion; duree?: number };
 export function GrilleElue({ sources = [], elue = 0, fond = "ivoire", duree }: ProprietesGrilleElue) {
   chargerManrope();
@@ -29,7 +29,8 @@ export function GrilleElue({ sources = [], elue = 0, fond = "ivoire", duree }: P
   const t = frame / Math.max(1, (duree ? duree * fps : durationInFrames) - 1);
   const s = sources.slice(0, BORNES_ARCHIVE.grille);
   const rects = grilleElue(width, height, s.length, Math.min(1, t), elue);
-  const ordre = rects.map((r, i) => i).sort((a, b) => Number(a === Math.min(Math.max(Math.floor(elue) || 0, 0), rects.length - 1)) - Number(b === Math.min(Math.max(Math.floor(elue) || 0, 0), rects.length - 1)));
+  const indiceElu = Math.min(Math.max(Math.floor(elue) || 0, 0), rects.length - 1);
+  const ordre = rects.map((r, i) => i).sort((a, b) => Number(a === indiceElu) - Number(b === indiceElu));
   return (
     <AbsoluteFill style={{ background: CHARTE_AXION[fond], fontFamily: FAMILLE_CSS_AXION }}>
       {ordre.map((i) => <Vignette key={i} r={rects[i]} src={s[i]?.src} debutImage={s[i]?.debutImage} fond={fond} />)}
