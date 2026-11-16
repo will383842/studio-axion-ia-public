@@ -126,7 +126,9 @@ describe("validation : un geste est requis", () => {
     const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
     if (!r.ok) throw new Error("proposition attendue");
     expect(redaction.valider(r.proposition.id, { validationEcrite: true }).ok).toBe(true);
-    expect(redaction.valider(r.proposition.id, { validationEcrite: true }).ok).toBe(false);
+    const second = redaction.valider(r.proposition.id, { validationEcrite: true });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.erreurs.join(" ")).toContain("déjà été appliquée");
     expect(redaction.valider("PROP-404", { validationEcrite: true }).ok).toBe(false);
   });
   it("une proposition en défaut ne peut pas être validée", async () => {
@@ -143,7 +145,9 @@ describe("validation : un geste est requis", () => {
     const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
     if (!r.ok) throw new Error("proposition attendue");
     fiches.modifier("AUTO-014", { gain: t(100, "autre") });
-    expect(redaction.valider(r.proposition.id, { validationEcrite: true }).ok).toBe(false);
+    const v = redaction.valider(r.proposition.id, { validationEcrite: true });
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.erreurs.join(" ")).toContain("La fiche a changé");
   });
 });
 
@@ -169,11 +173,49 @@ describe("aucune donnée de personne", () => {
       expect(fiches.lire("AUTO-014")?.resume).toBeUndefined();
     });
   }
-  it("contrôle aussi les questions, sous-titres et textes alternatifs", async () => {
-    const q = brouillonValide();
-    q.textesAlternatifs = [`${t(90, "image")} contact@exemple.fr`];
-    const { redaction } = monter(q);
-    expect((await redaction.proposer("AUTO-014", { script: SCRIPT })).ok).toBe(false);
+  it("le script est aussi masqué des noms interdits (accents, casse) et des pseudonymes", async () => {
+    const { redaction, appels } = monter(undefined, ["Dominique Exemplaire"]);
+    await redaction.proposer("AUTO-014", { script: "Merci à DOMINIQUE exemplaire et à dominique Éxemplaire, suivez @pseudo_test pour la suite." });
+    expect(appels[0].script).not.toMatch(/exemplaire|pseudo_test/i);
+    expect(appels[0].script).toContain("[masqué]");
+  });
+  it("transmet les consignes de la marque au fournisseur", async () => {
+    const { redaction, appels } = monter();
+    await redaction.proposer("AUTO-014", { script: SCRIPT });
+    expect(appels[0].consignes?.join(" ")).toContain("Vouvoyez");
+  });
+  const champs: Array<[string, (b: BrouillonFournisseur) => void]> = [
+    ["une question", (b) => (b.questions[0].question = `${t(50, "Question")} marie@exemple.fr ?`.padEnd(70, "x"))],
+    ["une réponse", (b) => (b.questions[1].reponse = `${b.questions[1].reponse} Appelez le 06 12 34 56 78.`)],
+    ["un sous-titre", (b) => (b.sousTitres[0].texte = `${t(40, "Partie")} @pseudo`)],
+    ["un texte alternatif", (b) => (b.textesAlternatifs = [`${t(90, "image")} contact@exemple.fr`])],
+    ["le gain (pseudonyme)", (b) => (b.gain = `${t(90, "gain")} @pseudo_test`)],
+  ];
+  for (const [nom, alterer] of champs) {
+    it(`refuse une donnée de personne dans ${nom}`, async () => {
+      const b = brouillonValide();
+      alterer(b);
+      const { redaction } = monter(b);
+      expect((await redaction.proposer("AUTO-014", { script: SCRIPT })).ok).toBe(false);
+    });
+  }
+});
+
+describe("champs déjà remplis : rien n'est supprimé sans confirmation", () => {
+  it("refuse sans confirmation, liste les champs, et garde les images décoratives après confirmation", async () => {
+    const { redaction, fiches } = monter();
+    fiches.modifier("AUTO-014", { sousTitres: [{ niveau: 2, texte: t(40, "Main") }], images: [{ alt: "", decorative: true }] });
+    const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
+    if (!r.ok) throw new Error("proposition attendue");
+    expect(r.proposition.champsDejaRemplis).toEqual(["sousTitres", "images"]);
+    const refuse = redaction.valider(r.proposition.id, { validationEcrite: true });
+    expect(refuse.ok).toBe(false);
+    if (!refuse.ok) expect(refuse.erreurs.join(" ")).toContain("sousTitres");
+    expect(fiches.lire("AUTO-014")?.sousTitres?.[0].texte).toBe(t(40, "Main"));
+    expect(redaction.valider(r.proposition.id, { validationEcrite: true, remplacerExistant: true }).ok).toBe(true);
+    const images = fiches.lire("AUTO-014")?.images ?? [];
+    expect(images.some((i) => i.decorative && i.alt === "")).toBe(true);
+    expect(images.some((i) => !i.decorative)).toBe(true);
   });
 });
 

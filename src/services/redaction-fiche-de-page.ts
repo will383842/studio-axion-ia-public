@@ -16,7 +16,16 @@ import type { creerServiceFichesDePage } from "@/services/fiche-de-page";
 
 type ServiceFiches = ReturnType<typeof creerServiceFichesDePage>;
 
-export interface DemandeRedaction { script: string }
+/** Consignes toujours transmises au fournisseur : la marque (vouvoiement, pas de prix, pas de personne). */
+export const CONSIGNES_REDACTION = [
+  "Vouvoyez le lecteur.",
+  "Le gain d'abord, sans jargon.",
+  "Aucun prix, aucune promesse de résultat chiffré, aucun mot « certifié » ni « garanti ».",
+  "Aucune donnée de personne (nom, e-mail, téléphone, pseudonyme).",
+  "Résumé de 200 à 320 caractères ; 3 à 6 questions ; textes alternatifs de 80 à 125 caractères.",
+] as const;
+
+export interface DemandeRedaction { script: string; consignes?: readonly string[] }
 
 /** Ce que le fournisseur d'écriture rend : texte brut, jamais enregistré tel quel. */
 export interface BrouillonFournisseur {
@@ -37,6 +46,8 @@ export interface Proposition {
   contenu: BrouillonFournisseur;
   /** Défauts relevés (noms de champs seulement). Une proposition en défaut ne peut pas être validée. */
   defauts: Defaut[];
+  /** Champs déjà remplis dans la fiche : ils ne sont remplacés que sur confirmation explicite (`remplacerExistant`). */
+  champsDejaRemplis: string[];
 }
 
 export type Resultat<T> = { ok: true } & T | { ok: false; erreurs: string[] };
@@ -92,6 +103,22 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
   const nouvelId = options.nouvelId ?? (() => `PROP-${++compteur}`);
   const propositions = new Map<string, { proposition: Proposition; empreinte: string; appliquee: boolean }>();
 
+  /** Masque les noms interdits (sans tenir compte des accents ni de la casse), les pseudonymes et les coordonnées. */
+  const masquerTout = (texte: string): string => {
+    let out = masquerCoordonnees(texte).replace(new RegExp(RE_PSEUDO.source, "gu"), "[masqué]");
+    for (const n of noms) {
+      const norm = out.split("").map((c) => (sansAccent(c)[0] ?? c)).join("");
+      let res = "";
+      let i = 0;
+      for (let j = norm.indexOf(n, 0); j !== -1; j = norm.indexOf(n, i)) {
+        res += out.slice(i, j) + "[masqué]";
+        i = j + n.length;
+      }
+      out = res + out.slice(i);
+    }
+    return out;
+  };
+
   const empreinteDe = (idFiche: string) => JSON.stringify(fiches.lire(idFiche) ?? null);
 
   const contientPersonne = (texte: string): boolean => {
@@ -120,14 +147,19 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
       if (typeof demande?.script !== "string" || demande.script.trim() === "") return refus("Script vide : rien à rédiger.");
       let brut: unknown;
       try {
-        brut = await fournisseur.rediger({ script: masquerCoordonnees(demande.script) });
+        brut = await fournisseur.rediger({ script: masquerTout(demande.script), consignes: CONSIGNES_REDACTION });
       } catch {
         return refus("Le fournisseur d'écriture n'a pas répondu : aucune proposition.");
       }
       if (!formeOk(brut)) return refus("La réponse du fournisseur n'a pas la forme attendue : aucune proposition.");
       const contenu = structuredClone(brut);
       if (toutesLesChaines(contenu).some(contientPersonne)) return refus("Le texte proposé contenait une donnée de personne : il est écarté.");
-      const proposition: Proposition = { id: nouvelId(), idFiche, statut: "a_relire", contenu, defauts: defautsDe(contenu) };
+      const f = fiches.lire(idFiche);
+      const deja = [
+        f?.resume ? "resume" : "", f?.gain ? "gain" : "", f?.questions?.length ? "questions" : "",
+        f?.sousTitres?.length ? "sousTitres" : "", f?.images?.length ? "images" : "",
+      ].filter(Boolean);
+      const proposition: Proposition = { id: nouvelId(), idFiche, statut: "a_relire", contenu, defauts: defautsDe(contenu), champsDejaRemplis: deja };
       propositions.set(proposition.id, { proposition, empreinte: empreinteDe(idFiche), appliquee: false });
       return { ok: true, proposition: structuredClone(proposition) };
     },
@@ -138,20 +170,25 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
     },
 
     /** Geste de validation : applique la proposition à la fiche, qui reste un BROUILLON (rien n'est publié). */
-    valider(id: string, geste: { validationEcrite: boolean }): Resultat<object> {
+    valider(id: string, geste: { validationEcrite: boolean; remplacerExistant?: boolean }): Resultat<object> {
       const p = propositions.get(id);
       if (!p) return refus("Proposition introuvable.");
       if (geste?.validationEcrite !== true) return refus("Rien n'est enregistré sans validation écrite du fondateur.");
       if (p.appliquee) return refus("Cette proposition a déjà été appliquée.");
       if (p.proposition.defauts.length > 0) return refus("La proposition a des défauts à corriger : elle ne peut pas être validée.");
       if (empreinteDe(p.proposition.idFiche) !== p.empreinte) return refus("La fiche a changé depuis la proposition : demandez-en une nouvelle.");
+      const deja = p.proposition.champsDejaRemplis;
+      if (deja.length > 0 && geste.remplacerExistant !== true) {
+        return refus(`Des champs sont déjà remplis (${deja.join(", ")}) : confirmez explicitement leur remplacement.`);
+      }
       const c = p.proposition.contenu;
+      const decoratives = (fiches.lire(p.proposition.idFiche)?.images ?? []).filter((i) => i.decorative);
       const r = fiches.modifier(p.proposition.idFiche, {
         resume: c.resume,
         gain: c.gain,
         questions: c.questions,
         sousTitres: c.sousTitres,
-        images: c.textesAlternatifs.map((alt) => ({ alt, decorative: false })),
+        images: [...c.textesAlternatifs.map((alt) => ({ alt, decorative: false })), ...decoratives],
       });
       if (!r.ok) return refus(...r.erreurs);
       p.appliquee = true;
