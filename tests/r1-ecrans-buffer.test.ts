@@ -5,76 +5,23 @@
  *  - vouvoiement, mots simples, aucune mention « IA » imposée ;
  *  - le bouton d'envoi dit ce qui va VRAIMENT se passer.
  */
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import type { VueBuffer } from "@/services/buffer";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined, replace: () => undefined }) }));
-vi.mock("@/app/(studio)/reglages/actions-buffer", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 
-const { BlocBuffer } = await import("@/components/reglages/BlocBuffer");
 const { libelleEnvoi } = await import("@/components/publication/FeuilleEnvoyerBuffer");
 
-const CLE = "cle-buffer-valeur-secrete-1234";
-const vue = (x: Partial<VueBuffer> = {}): VueBuffer => ({
-  relie: true,
-  clePresente: true,
-  mode: "brouillon",
-  lusLe: new Date(Date.now() - 5 * 60_000).toISOString(),
-  comptes: [],
-  reseaux: [
-    { reseau: "instagram", nom: "Instagram", compte: { id: "ig", nom: "Axion IA", source: "auto" }, candidats: [{ id: "ig", nom: "Axion IA" }] },
-    { reseau: "linkedin", nom: "LinkedIn", proposes: [], candidats: [{ id: "li1", nom: "Williams", genre: "profile" }, { id: "li2", nom: "Axion IA", genre: "page" }] },
-    { reseau: "tiktok", nom: "TikTok", probleme: "Aucun compte TikTok n'est relié dans Buffer.", candidats: [] },
-  ],
-  ...x,
-});
-const rendre = (v: VueBuffer) => renderToStaticMarkup(createElement(BlocBuffer, { vue: v }));
-const texte = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
-
-describe("R1 — bloc Buffer (Réglages)", () => {
-  // Décision de Williams du 08/11 : jamais « Zernio », « Buffer » ni « API » dans un libellé visible des Réglages.
-  it("aucun libellé du bloc ne nomme l'outil ni « API » (décision de Williams du 08/11)", () => {
-    // Le problème d'un compte vient du domaine (message partagé avec « À publier ») : hors du périmètre de ce contrôle.
-    const reseaux = vue().reseaux.map((r) => ({ ...r, probleme: undefined }));
-    for (const v of [vue({ reseaux }), vue({ reseaux, relie: false, clePresente: false }), vue({ reseaux, relie: false, clePresente: true })]) {
-      expect(texte(rendre(v))).not.toMatch(/zernio|buffer|\bapi\b/i);
-    }
+describe("R1 — bloc Buffer (Réglages) retiré en L0-13c", () => {
+  it("Réglages ne rend plus de bloc Buffer : fichiers retirés, page sans BlocBuffer ni vueBuffer", () => {
+    const page = readFileSync("src/app/(studio)/reglages/page.tsx", "utf8");
+    expect(page).not.toMatch(/BlocBuffer|vueBuffer/);
+    expect(existsSync("src/components/reglages/BlocBuffer.tsx")).toBe(false);
   });
 
-  // Libellés mis à jour selon la décision de Williams du 08/11 : jamais « Buffer », « Zernio » ni « API » dans un libellé visible.
-  it("relié, brouillon par défaut : la phrase, le choix du mode, les comptes, les problèmes, le choix LinkedIn", () => {
-    const t = texte(rendre(vue()));
-    expect(t).toContain("Relié");
-    expect(t).toContain("Les vidéos arrivent en brouillon dans l'outil de programmation : vous les relisez et les programmez là-bas.");
-    expect(t).toContain("Brouillon dans l'outil");
-    expect(t).toContain("Programmer directement");
-    expect(t).toContain("Axion IA");
-    expect(t).toContain("Aucun compte TikTok n'est relié dans Buffer.");
-    expect(t).toContain("Compte LinkedIn proposé par défaut");
-    // Lot R1b : deux comptes ne sont pas un problème, Will choisit à chaque envoi.
-    expect(t).toContain("2 comptes : vous choisissez à chaque envoi");
-    expect(t).toContain("Profil");
-    expect(t).toContain("Page");
-    expect(t).toContain("Tester");
-  });
-
-  it("sans clé : « À relier », « il manque la clé Buffer » (jamais un nom de réglage ni une valeur) ; clé posée mais non choisie : « Essai »", () => {
-    const sans = texte(rendre(vue({ relie: false, clePresente: false })));
-    expect(sans).toContain("À relier");
-    expect(sans).toContain("Il manque la clé de l'outil de programmation sur le serveur.");
-    expect(sans).not.toMatch(/BUFFER_API_KEY|\b[A-Z][A-Z0-9_]{3,}\b/);
-    expect(texte(rendre(vue({ relie: false, clePresente: true })))).toContain("Essai");
-    expect(rendre(vue())).not.toContain(CLE);
-  });
-
-  it("mots simples, vouvoiement, aucune mention « IA » imposée", () => {
-    for (const v of [vue(), vue({ mode: "programmer" }), vue({ relie: false, clePresente: false })]) {
-      const t = texte(rendre(v)).replace(/Axion IA/g, "");
-      expect(t).not.toMatch(/\bIA\b|intelligence artificielle|\btu\b|\bton\b|\btes\b|GraphQL|API\b|token/i);
-    }
+  it("la feuille d'envoi ne nomme plus Buffer à l'écran", () => {
+    for (const mode of [undefined, "brouillon", "programmer"] as const) expect(libelleEnvoi(mode, false)).not.toMatch(/buffer/i);
   });
 
   it("le bouton d'envoi dit ce qui va vraiment se passer", () => {

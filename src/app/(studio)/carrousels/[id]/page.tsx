@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Bouton } from "@/components/ui/Bouton";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
+import { PastilleReseau } from "@/components/ui/PastilleStatut";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { BoutonProgrammerVisuel, jourParDefautParis } from "@/components/visuels/BoutonProgrammerVisuel";
@@ -13,7 +15,7 @@ import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesCarrousels, phraseDuCode } from "@/visuels/services/production";
 import { ficheCarrousel } from "@/visuels/services/vues";
 import { libellePages } from "@/domaine/visuels/statuts";
-import { corbeilleAction, preparerReseauxAction, programmerAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, validerAction } from "./actions";
+import { corbeilleAction, preparerReseauxAction, programmerAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, retirerDuCalendrierAction, validerAction } from "./actions";
 
 export const metadata: Metadata = { title: "Carrousel" };
 export const dynamic = "force-dynamic";
@@ -70,13 +72,24 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
         <form action={preparerReseauxAction} aria-label="Préparer pour les réseaux" className="mb-6 flex flex-col gap-2 rounded-champ border border-trait bg-surface-1 px-3.5 py-3">
           <input type="hidden" name="id" value={fiche.id} />
           <h2 className="text-sm font-semibold text-texte-doux">Préparer pour les réseaux</h2>
-          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked /> LinkedIn (un document PDF)</label>
-          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked /> Instagram (images JPEG)</label>
-          <label className="text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" /> Facebook (images JPEG)</label>
-          <button type="submit" className="self-start rounded-champ border border-trait px-3 py-1.5 text-sm font-semibold text-texte">Préparer pour les réseaux</button>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked className="accent-accent" /> <PastilleReseau reseau="linkedin" /> (un document PDF)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked className="accent-accent" /> <PastilleReseau reseau="instagram" /> (images JPEG)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" className="accent-accent" /> <PastilleReseau reseau="facebook" /> (images JPEG)</label>
+          <Bouton type="submit" variante="secondaire" className="self-start">Préparer pour les réseaux</Bouton>
         </form>
       )}
       {fiche.statut === "valide" && <BoutonProgrammerVisuel id={fiche.id} action={programmerAction} jourParDefaut={jourParDefautParis(new Date().toISOString())} />}
+      {fiche.statut === "programme" && (
+        <details className="mb-6 rounded-champ border border-trait bg-surface-1 px-3.5 py-3">
+          <summary className="min-h-11 cursor-pointer text-sm font-semibold text-texte">Retirer du calendrier</summary>
+          <p className="mt-2 text-sm text-texte">Retirer ce carrousel du calendrier ? Ses publications prévues sur tous les réseaux seront retirées. Rien n&apos;est encore parti. Le carrousel reste dans vos carrousels : vous pourrez le programmer de nouveau.</p>
+          <form action={retirerDuCalendrierAction} className="mt-3">
+            <input type="hidden" name="id" value={fiche.id} />
+            <input type="hidden" name="confirmation" value="retirer" />
+            <Bouton type="submit" variante="secondaire">Oui, retirer du calendrier</Bouton>
+          </form>
+        </details>
+      )}
       <BarreValidation id={fiche.id} actionsPermises={fiche.actionsPermises} actions={ACTIONS} pdfUrl={fiche.pdfUrl} pdfTelechargement={fiche.pdfTelechargement} />
     </ConteneurPage>
   );

@@ -74,6 +74,23 @@ describe("programmer en un clic", () => {
     await expect(programmerEnUnClic(d2, "vis_9", "2026-11-25", T0)).rejects.toThrow(/introuvable/i);
     expect(await d2.creneaux.lister()).toHaveLength(0);
   });
+
+  it("chaque refus porte son code (phrase claire côté écran)", async () => {
+    const codeDe = async (p: Promise<unknown>) => ((await p.then(() => null, (e: unknown) => e)) as { code?: string } | null)?.code;
+    const d = await monter({ reseaux: [] });
+    expect(await codeDe(programmerEnUnClic(d, "vis_1", "2026-11-25", T0))).toBe("PROGRAMMER_SANS_RESEAU");
+    const d2 = await monter();
+    expect(await codeDe(programmerEnUnClic(d2, "vis_1", "2026-11-01", T0))).toBe("PROGRAMMER_DATE");
+    expect(await codeDe(programmerEnUnClic(d2, "vis_9", "2026-11-25", T0))).toBe("INTROUVABLE");
+    const d3 = await monter({ statut: "a_valider" });
+    expect(await codeDe(programmerEnUnClic(d3, "vis_1", "2026-11-25", T0))).toBe("PROGRAMMER_REFUSE");
+  });
+
+  it("actions.ts relance les ErreurVisuel et n'ajoute rien de diffusion", () => {
+    const src = readFileSync("src/app/(studio)/carrousels/[id]/actions.ts", "utf8");
+    expect(src).toContain('new ErreurVisuel("PROGRAMMER_REFUSE"');
+    expect(src).not.toMatch(/fournisseur|diffus|fetch\(/);
+  });
 });
 
 describe("heure de Paris (frontière de minuit et créneaux déjà passés)", () => {

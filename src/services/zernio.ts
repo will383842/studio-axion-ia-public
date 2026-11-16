@@ -136,7 +136,8 @@ export function versErreurStudioZernio(e: unknown): ErreurStudio {
 
 export interface ComptesZernioEnregistres {
   lusLe: string;
-  comptes: { id: string; reseau: string; nom: string }[];
+  /** `actif` : `isActive` lu chez le fournisseur ; absent = inconnu (enregistrements anciens). */
+  comptes: { id: string; reseau: string; nom: string; actif?: boolean }[];
 }
 
 export async function comptesZernioEnregistres(): Promise<ComptesZernioEnregistres | null> {
@@ -154,7 +155,7 @@ export async function testerZernio(): Promise<{ message: string; comptes: number
     await journaliser("publication", `Zernio, lecture des comptes : ${erreur.message}`);
     throw erreur;
   }
-  const comptes = liste.map((c) => ({ id: c._id, reseau: c.platform, nom: c.displayName ?? c.username ?? c.platform }));
+  const comptes = liste.map((c) => ({ id: c._id, reseau: c.platform, nom: c.displayName ?? c.username ?? c.platform, ...(typeof c.isActive === "boolean" ? { actif: c.isActive } : {}) }));
   await ecrireParametre(PARAM_COMPTES_ZERNIO, { lusLe: maintenant(), comptes } satisfies ComptesZernioEnregistres);
   await journaliser("reglages", `Zernio testé : ${comptes.length} compte(s) relié(s)`);
   const reseaux = [...new Set(comptes.map((c) => c.reseau))].join(", ");

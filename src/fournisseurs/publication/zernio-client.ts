@@ -517,7 +517,7 @@ const JOUR = 24 * HEURE;
 /** Posts par compte et par heure (vélocité Zernio). */
 export const POSTS_PAR_HEURE_ET_COMPTE = 25;
 /** Posts par jour, par compte et par réseau (TikTok : 15 vidéos et 15 photos). */
-export const POSTS_PAR_JOUR: Readonly<Record<string, number>> = { instagram: 100, facebook: 100, linkedin: 50, "tiktok-video": 15, "tiktok-photo": 15 };
+export const POSTS_PAR_JOUR: Readonly<Record<string, number>> = { instagram: 100, facebook: 100, linkedin: 50, "tiktok-video": 15, "tiktok-photo": 15, youtube: 10 };
 
 export interface OptionsLimiteurDebit {
   nombreComptes: number;

@@ -12,12 +12,13 @@
  * - Synchronisation (boucle de fond, toutes les 15 min, HORS verrou pour le réseau) : brouillon → programmée → publiée
  *   (+ lien de la publication) ou échec (+ notification) ; un envoi « à vérifier » est relu, jamais renvoyé à l'aveugle.
  * - Rien n'est jamais effacé chez Buffer ; ici, une publication change d'état, elle n'est jamais supprimée.
+ * - Lot A1 : gelé par défaut (`buffer.gele`, voir `buffer-gel.ts`) : plus aucun appel à Buffer.
  */
 import "server-only";
 import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
-import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
+import { estChezUnOutil, outilDe, outilPour, type RoutagePublication } from "@/domaine/outil-publication";
 import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, memeSource, videoIdSure } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
@@ -27,6 +28,7 @@ import { cleDans } from "@/fournisseurs/mesures/commun";
 import { listerReseaux, obtenirReseau } from "@/reseaux";
 import { depots, ecrireParametre, ErreurStudio, fournisseur, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
+import { bufferGele, erreurGel } from "./buffer-gel";
 import { synchroniserEtats } from "./generateur";
 import { creerNotification } from "./notifications";
 
@@ -53,6 +55,18 @@ export interface CanauxEnregistres {
 
 export async function lireModeBuffer(): Promise<ModeEnvoiPublication> {
   return (await lireParametre<string>(PARAM_MODE, "brouillon")) === "programmer" ? "programmer" : "brouillon";
+}
+
+/**
+ * Mode d'envoi À AFFICHER. Le réglage « programmer » ne vaut que pour Buffer ; Zernio crée toujours un brouillon
+ * (publications.ts). Tant qu'aucun réseau n'est routé vers Buffer (défaut : Zernio partout), on dit « brouillon ».
+ * Lit le routage directement (routage-publication.ts importe zernio.ts, qui importe ce fichier : pas de cycle).
+ */
+export async function lireModeAffiche(): Promise<ModeEnvoiPublication> {
+  const mode = await lireModeBuffer();
+  if (mode === "brouillon") return mode;
+  const routage = await lireParametre<RoutagePublication>("publication.routage", {});
+  return listerReseaux().some((r) => outilPour(routage, r.id) === "buffer") ? mode : "brouillon";
 }
 
 export async function canauxEnregistres(): Promise<CanauxEnregistres | null> {
@@ -86,6 +100,8 @@ export function cleEnvoiBuffer(videoId: Id, reseau: IdReseau, dateIso: string, c
 
 /** Relit les comptes chez Buffer et les garde en base. RÉSEAU : jamais depuis un écran. */
 export async function actualiserCanauxBuffer(): Promise<CanauxEnregistres> {
+  // Lot A1 : gelé → jamais de lecture chez Buffer ; `buffer.canaux` reste tel quel (figé, toujours lu).
+  if (await bufferGele()) throw erreurGel();
   const f = await publicationReelle();
   if (!f?.listerCanaux) throw new ErreurStudio("BUFFER_NON_RELIE", "Buffer n'est pas relié : la publication reste en essai.");
   let canaux: CanalPublication[];
@@ -196,6 +212,8 @@ export interface VueBuffer {
   lusLe?: string;
   comptes: { id: string; nom: string; service: string; deconnecte: boolean }[];
   reseaux: VueCompteReseau[];
+  /** Lot A1 : l'ancien outil est gelé (lecture seule) ; l'écran le dit et coupe « Tester ». */
+  gele?: boolean;
 }
 
 /** Réglages, bloc Buffer : uniquement ce qui est en base. N'appelle JAMAIS Buffer. */
@@ -206,6 +224,7 @@ export async function vueBuffer(): Promise<VueBuffer> {
   return {
     relie: !!(await publicationReelle()),
     clePresente: !!cleDans(process.env, VARIABLE_CLE_BUFFER),
+    gele: await bufferGele(),
     mode: await lireModeBuffer(),
     lusLe: lus?.lusLe,
     comptes: canaux.map((c) => ({ id: c.id, nom: c.nom, service: c.service, deconnecte: c.deconnecte })),
@@ -251,7 +270,7 @@ export async function vueEnvoiBuffer(): Promise<VueEnvoiBuffer | null> {
     // Comptes jamais lus : ils le seront au premier envoi, rien n'est bloqué d'avance.
     else comptes[r.reseau] = r.compte ? { nom: r.compte.nom } : vue.lusLe ? { probleme: r.probleme } : {};
   }
-  return { mode: vue.mode, comptes };
+  return { mode: await lireModeAffiche(), comptes };
 }
 
 /* ------------------------------------------------------------------ */
@@ -291,6 +310,8 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
   const p = await d.publications.obtenir(publicationId);
   const outil = p ? outilDe(p) : null;
   if (!p || !outil || (p.etatEnvoi !== "a-verifier" && p.etatEnvoi !== "en-cours") || !p.canalId || !p.envoiCommenceLe) return p;
+  // Lot A1 : un envoi Buffer n'est plus relu (il reste « à vérifier » ; sortie manuelle `marquerEnvoiVerifie`). Zernio : inchangé.
+  if (outil === "buffer" && (await bufferGele())) return p;
   // Chaque outil se relit lui-même ; la cible Zernio « compte:fb:page » se compare par son compte (le fournisseur rend le compte).
   let f: FournisseurPublication | null = null;
   try {
@@ -386,7 +407,9 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
       if (apres && apres.etatEnvoi !== p.etatEnvoi) r.changees++;
     }
   };
-  if (!f?.lireEtat) {
+  // Lot A1 : gelé → SEULEMENT la relecture des envois incertains (Zernio relu, Buffer laissé tel quel), puis fin :
+  // ni comptes (étape 0), ni états Buffer (étape 2).
+  if (!f?.lireEtat || (await bufferGele())) {
     await relireEnvoisIncertains();
     return r;
   }

@@ -11,7 +11,7 @@ import type { IdReseau } from "@/domaine/types";
 import { exigerSession } from "@/services/auth";
 import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut, creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
-import { validerProposition } from "@/domaine/plan-editorial/statuts";
+import { validerEntree as validerEntreeService } from "@/services/valider-entree";
 import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { compteCibleValide } from "../compte-cible";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
@@ -129,19 +129,23 @@ export async function ajouterEntree(saisie: SaisieEntree): Promise<ResultatAjout
   }
 }
 
-/** Geste du fondateur : « propose » → « valide ». Ne programme ni ne publie : la reprise par le diffuseur se fait ailleurs. */
+/** Geste du fondateur : « propose » → « valide ». Passe par le service unique de CAL-21 ; l'envoi n'est branché qu'en L5-02b (rien ne part d'ici). */
 export async function validerEntree(id: string): Promise<Resultat<CreneauPlan>> {
   const session = await exigerSession();
   return essayer(async () => {
     const d = depotsPlan();
-    const c = await d.creneaux.obtenir(id);
-    if (!c) throw new Error(`Créneau introuvable : ${id}`);
-    if (c.statut === "valide") return c;
-    if (c.statut === "propose") await changerStatut(d, id, "a_valider", "studio", maintenant());
-    // Validation tracée (date et auteur) : seule voie permise depuis « a_valider » (règle du domaine).
-    const a = (await d.creneaux.obtenir(id))!;
-    const r = validerProposition(a, "studio", maintenant(), session.id);
-    if (!r.ok) throw new Error(r.raison);
-    return d.creneaux.enregistrer(r.creneau);
+    const r = await validerEntreeService(
+      {
+        obtenir: (x) => d.creneaux.obtenir(x),
+        enregistrer: (c) => d.creneaux.enregistrer(c),
+        versAValider: async (x) => { await changerStatut(d, x, "a_valider", "studio", maintenant()); },
+        reglagesOuverts: async () => false,
+      },
+      id,
+      session.id,
+      new Date(maintenant()),
+    );
+    if (!r.ok) throw new Error(r.message);
+    return r.creneau;
   });
 }

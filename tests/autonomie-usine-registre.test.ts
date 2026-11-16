@@ -355,7 +355,7 @@ describe("journal, cloche 80 % et cloche plafond", () => {
     const c = (await cloches()).filter((n) => /80 %/.test(n.titre));
     expect(c).toHaveLength(1);
     expect(c[0].titre).toBe("Usine : 80 % du plafond du mois utilisé");
-    expect(c[0].lien).toBe("/reglages#usine-automatique");
+    expect(c[0].lien).toBe("/");
     expect(`${c[0].titre} ${c[0].message}`).not.toMatch(/€|\d+[,.]\d{2}|euro/i);
     // le mois suivant : une nouvelle cloche est permise
     vi.useFakeTimers();
@@ -369,7 +369,7 @@ describe("journal, cloche 80 % et cloche plafond", () => {
     const c = (await cloches()).filter((n) => /plafond du mois atteint/.test(n.titre));
     expect(c).toHaveLength(1);
     expect(c[0].titre).toBe("Usine arrêtée : plafond du mois atteint");
-    expect(c[0].message).toBe("Rien n'est parti. Réglages pour relever le plafond.");
+    expect(c[0].message).toBe("Rien n'est parti. Le plafond se règle dans l'Usine.");
     expect(`${c[0].titre} ${c[0].message}`).not.toMatch(/€|\d/);
     vi.useFakeTimers();
     vi.setSystemTime(new Date(Date.now() + 2 * 24 * 3600_000));

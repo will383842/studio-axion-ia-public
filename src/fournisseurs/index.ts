@@ -91,10 +91,15 @@ export interface ChoixFournisseur {
   source: "base" | "environnement" | "defaut";
 }
 
+/** L0-13a : « buffer » demandé pour la publication (base ou environnement) est lu comme « zernio », jamais comme la simulation. La valeur stockée n'est pas réécrite. */
+function demandeLue(type: TypeFournisseur, demande: string): string {
+  return type === "publication" && demande === "buffer" ? "zernio" : demande;
+}
+
 export function choixFournisseur(type: TypeFournisseur, valeurEnBase?: string | null): ChoixFournisseur {
-  if (valeurEnBase) return { demande: valeurEnBase, source: "base" };
+  if (valeurEnBase) return { demande: demandeLue(type, valeurEnBase), source: "base" };
   const env = process.env[cleEnv(type)];
-  if (env) return { demande: env, source: "environnement" };
+  if (env) return { demande: demandeLue(type, env), source: "environnement" };
   return { demande: "simulation", source: "defaut" };
 }
 

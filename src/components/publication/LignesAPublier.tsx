@@ -140,7 +140,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
         return;
       }
       const { programmees, ignorees, modeBuffer: mode } = r.donnees;
-      if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Buffer · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
+      if (programmees.length) notifier.succes(mode === "brouillon" ? `Brouillon dans Zernio · ${libelleComptes(programmees.length)}` : `Programmée sur ${libelleComptes(programmees.length)}`);
       if (ignorees.length) notifier.erreur(ignorees[0].message);
       if (programmees.length && retour) router.push(retour);
       else router.refresh();
@@ -249,7 +249,7 @@ function CarteDeVideo({ carte, envoiSimule, modeBuffer, retour, reseauOuvert, su
                 </Bouton>
                 <p className="text-xs text-texte-faible">
                   Envoie toutes les versions prêtes du sujet, chacune à son créneau, sans premier commentaire.
-                  {modeBuffer === "programmer" ? "" : " En mode brouillon, rien n'est programmé : relisez et programmez dans Buffer."}
+                  {modeBuffer === "programmer" ? "" : " En mode brouillon, rien n'est programmé : relisez et programmez dans Zernio."}
                 </p>
               </div>
             )}
@@ -468,7 +468,7 @@ function PanneauReseau({
           {commentaire.trim() && etatPremierCommentaire(outilChoisi ?? complement?.outil, l.reseau) === "a-la-main" && <p className="text-sm text-texte-doux">{l.reseauNom} ne reçoit pas le premier commentaire par {nomOutil(outilChoisi ?? complement?.outil)} : rien ne sera envoyé, posez-le à la main (bouton Copier dans l’aperçu).</p>}
 
           <div className="space-y-1">
-            <span className="block text-xs font-semibold text-texte-doux">Compte {complement || outilChoisi ? nomOutil(outilChoisi ?? complement?.outil) : "Buffer"}</span>
+            <span className="block text-xs font-semibold text-texte-doux">Compte {complement || outilChoisi ? nomOutil(outilChoisi ?? complement?.outil) : nomOutil(undefined)}</span>
             {l.compte.nom && <span className="text-texte">{l.compte.nom}</span>}
             {avecChoix && (
               <div className="flex flex-wrap gap-2">

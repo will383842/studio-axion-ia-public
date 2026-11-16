@@ -11,6 +11,7 @@ import { CATALOGUE_BRIQUES } from "@/briques/plan-scenes/catalogue";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { POSITIONS, TRANSITIONS } from "@/briques/plan-scenes/zones";
 import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
+import { lireParRegles } from "./lecture-regles";
 import { lireOperations } from "./schema";
 
 export const MODELE_RETOUCHE_CHAT = "claude-opus-5-5";
@@ -84,7 +85,7 @@ function filtrerScript(operations: OperationRetouche[], phrase: string, remarque
   return gardees;
 }
 
-export async function comprendreDemande(e: { phrase: string; plan: PlanValide }, appeler: AppelClaude): Promise<ResultatComprendre> {
+export async function comprendreDemande(e: { phrase: string; plan: PlanValide }, appeler: AppelClaude, options: { lectureRegles?: boolean } = {}): Promise<ResultatComprendre> {
   const phrase = e.phrase.trim();
   const remarques: string[] = [];
   if (!phrase) return { operations: [], remarques: ["Écrivez ce que vous voulez changer."], source: "simple" };
@@ -99,6 +100,13 @@ export async function comprendreDemande(e: { phrase: string; plan: PlanValide },
     if (!operations.length && !remarques.length) remarques.push("Je n'ai trouvé aucune retouche dans cette demande : précisez la scène ou l'élément à changer.");
     return { operations, remarques, source: "llm" };
   } catch {
+    if (options.lectureRegles === true) {
+      const lues = lireParRegles(phrase, e.plan);
+      const operations = lues.length ? lues : lectureSimple(phrase);
+      remarques.push("Lecture de votre demande sans IA.");
+      if (!operations.length) remarques.push("Je n'ai pas pu lire votre demande : reformulez-la ou précisez la scène.");
+      return { operations, remarques, source: "simple" };
+    }
     const operations = lectureSimple(phrase);
     remarques.push(operations.length ? "Lecture simple de votre demande (l'IA n'a pas répondu)." : "Je n'ai pas pu lire votre demande : reformulez-la ou précisez la scène.");
     return { operations, remarques, source: "simple" };

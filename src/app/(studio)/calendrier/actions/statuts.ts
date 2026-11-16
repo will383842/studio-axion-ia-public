@@ -5,10 +5,11 @@
  * Chaque action commence par exigerSession(). Aucun appel au diffuseur : rien ne part d'ici, rien n'est supprimé
  * (un refus archive). Le verrou du passé (jour de Paris) et du publié est vérifié ici, côté serveur.
  */
+import { validerEntree as validerEntreeService } from "@/services/valider-entree";
 import { exigerSession } from "@/services/auth";
 import { depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut } from "@/services/plan-editorial";
-import { estPasse, heurePassee, refuserProposition, transitionner, validerProposition } from "@/domaine/plan-editorial/statuts";
+import { estPasse, heurePassee, refuserProposition, transitionner } from "@/domaine/plan-editorial/statuts";
 import type { CreneauPlan, DepotsPlan } from "@/services/plan-editorial";
 
 const MOTIF_MAX = 500;
@@ -40,11 +41,19 @@ export async function accepterEntree(id: string): Promise<Resultat<CreneauPlan>>
     if (lu && lu.statut !== "publie" && (estPasse(lu.jourVise, new Date()) || heurePassee(lu.heuresParReseau, new Date()))) throw new ErreurStudio("HEURE_PASSEE", PHRASE_HEURE_PASSEE);
     const c = await lireModifiable(id);
     if (c.statut !== "propose" && c.statut !== "a_valider") throw new Error("Seule une idée ou une entrée à valider peut être acceptée.");
-    if (c.statut === "propose") await changerStatut(d, id, "a_valider", "studio", maintenant());
-    const a = (await d.creneaux.obtenir(id))!;
-    const r = validerProposition(a, "studio", maintenant(), session.id);
-    if (!r.ok) throw new Error(r.raison);
-    return d.creneaux.enregistrer(r.creneau);
+    const r = await validerEntreeService(
+      {
+        obtenir: (x) => d.creneaux.obtenir(x),
+        enregistrer: (x) => d.creneaux.enregistrer(x),
+        versAValider: async (x) => { await changerStatut(d, x, "a_valider", "studio", maintenant()); },
+        reglagesOuverts: async () => false,
+      },
+      id,
+      session.id,
+      new Date(maintenant()),
+    );
+    if (!r.ok) throw new Error(r.message);
+    return r.creneau;
   });
 }
 

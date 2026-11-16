@@ -2,12 +2,12 @@
  * ROUTAGE DE LA PUBLICATION (lot Z2-S, D2) : quel outil (Buffer ou Zernio) porte un réseau, ou un compte d'un réseau.
  * Réglage `publication.routage` : { "<reseau>": outil, "<reseau>:<compteCode>": outil } ; la clé la plus précise gagne.
  * Défaut {} = Zernio partout (un « buffer » déjà enregistré reste lu). Sans clé du fournisseur choisi : refus clair, jamais un repli silencieux vers l'autre outil.
- * La bascule se fait réseau par réseau ; le retour à Buffer tient en un geste (on retire la clé ou on la met à « buffer »).
+ * L0-13a : Buffer est résilié. Choisir « buffer » est refusé (`OUTIL_RETIRE`) ; un « buffer » déjà en base reste LU (jamais effacé,
+ * jamais réécrit) mais est traité comme absent à l'envoi : le réseau part par le défaut Zernio, clé exigée.
  */
 import "server-only";
-import { OUTILS, outilPour, type OutilPublication, type RoutagePublication } from "@/domaine/outil-publication";
+import { OUTILS, OUTILS_ENVOI, outilPour, type OutilPublication, type RoutagePublication } from "@/domaine/outil-publication";
 import type { IdReseau } from "@/domaine/types";
-import { fournisseurParId } from "@/fournisseurs";
 import { listerReseaux } from "@/reseaux";
 import { ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
@@ -34,13 +34,13 @@ export async function definirRoutage(cle: string, outil: OutilPublication | null
     throw new ErreurStudio("RESEAU_INCONNU", "Réseau ou compte inconnu.");
   }
   if (outil !== null && !(OUTILS as readonly string[]).includes(outil)) throw new ErreurStudio("OUTIL_INCONNU", "Outil inconnu.");
+  // L0-13a : refus avant toute lecture ou écriture du réglage.
+  if (outil !== null && !(OUTILS_ENVOI as readonly string[]).includes(outil)) throw new ErreurStudio("OUTIL_RETIRE", "Buffer n'est plus utilisable pour envoyer : choisissez Zernio. Rien n'a été changé.");
   const actuel = await lireRoutage();
   const suivant = { ...actuel };
   if (outil === null) delete suivant[cle];
   else {
     if (outil === "zernio" && !cleZernioPresente()) throw refusOutil("zernio");
-    // Choix explicite de Buffer sans sa clé : même refus clair que pour Zernio (finitions Z2-S). Le retour au défaut (null) reste libre.
-    if (outil === "buffer" && !bufferRelie()) throw refusOutil("buffer");
     suivant[cle] = outil;
   }
   await ecrireParametre(PARAM_ROUTAGE, suivant);
@@ -48,32 +48,19 @@ export async function definirRoutage(cle: string, outil: OutilPublication | null
   return suivant;
 }
 
-function bufferRelie(): boolean {
-  try {
-    fournisseurParId("publication", "buffer");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function refusOutil(outil: OutilPublication): ErreurStudio {
-  return new ErreurStudio(outil === "zernio" ? "ZERNIO_NON_RELIE" : "BUFFER_NON_RELIE", `${NOMS_OUTILS[outil]} n'est pas relié (clé absente) : l'envoi est refusé, aucun autre outil n'est utilisé à sa place.`);
+  return new ErreurStudio("ZERNIO_NON_RELIE", `${NOMS_OUTILS[outil]} n'est pas relié (clé absente) : l'envoi est refusé, aucun autre outil n'est utilisé à sa place.`);
 }
 
 /**
- * L'outil qui portera cet envoi. Buffer : le fournisseur « buffer » doit être inscrit (clé posée) ; Zernio : sa clé
- * doit exister. Sinon refus clair : jamais l'autre outil à sa place.
+ * L'outil qui portera cet envoi : toujours Zernio (L0-13a). Une valeur « buffer » lue en base est traitée comme absente
+ * (la clé moins précise ou le défaut s'appliquent) et n'est jamais réécrite. Sans clé Zernio : refus clair.
  */
 export async function outilDeEnvoi(reseau: IdReseau, compte?: string | null): Promise<OutilPublication> {
   const t = await lireRoutage(); // une seule lecture du routage pour tout le calcul
-  const outil = outilPour(t, reseau, compte);
-  if (outil === "zernio") {
-    if (!cleZernioPresente()) throw refusOutil("zernio");
-    return outil;
-  }
-  // Seul un « buffer » déjà enregistré mène ici : clé exigée, jamais de repli silencieux.
-  const explicite = [compte ? `${reseau}:${compte}` : null, reseau].some((c) => !!c && Object.hasOwn(t, c) && t[c] === "buffer");
-  if (explicite && !bufferRelie()) throw refusOutil("buffer");
+  const sansBuffer: RoutagePublication = {};
+  for (const [cle, valeur] of Object.entries(t)) if ((OUTILS_ENVOI as readonly string[]).includes(valeur)) sansBuffer[cle] = valeur;
+  const outil = outilPour(sansBuffer, reseau, compte);
+  if (!cleZernioPresente()) throw refusOutil("zernio");
   return outil;
 }

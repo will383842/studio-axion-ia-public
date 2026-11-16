@@ -15,6 +15,8 @@ import { definirRenduDouble } from "@/services/rendu-double";
 import { ajouterPageSuivie, relireMaintenant, reglerSite, retirerPageSuivie } from "@/services/source-axion";
 import { envoyerEssai, type ResultatEssai } from "@/services/notifications";
 import { definirFamille } from "@/services/hashtags";
+import { definirPlacement } from "@/services/placement-hashtags";
+import type { PlacementHashtags, ReseauPlacement } from "@/reseaux/placement-hashtags";
 
 function rafraichir() {
   revalidatePath("/reglages");
@@ -225,6 +227,16 @@ export async function definirFamilleAction(reseau: IdReseau, liste: string[]): P
   await exigerSession();
   return essayer(async () => {
     const r = await definirFamille(reseau, liste);
+    rafraichir();
+    return r;
+  });
+}
+
+/** HSH-01b : où placer les hashtags d'un réseau (Réglages › Mes réseaux). */
+export async function definirPlacementAction(reseau: ReseauPlacement, placement: PlacementHashtags): Promise<Resultat<PlacementHashtags>> {
+  await exigerSession();
+  return essayer(async () => {
+    const r = await definirPlacement(reseau, placement);
     rafraichir();
     return r;
   });

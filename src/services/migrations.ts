@@ -37,6 +37,7 @@ import { etape20Exemples } from "./migrations/etape-20-exemples";
 import { etape21SourceAxion } from "./migrations/etape-21-source-axion";
 import { etape22Ciblage } from "./migrations/etape-22-ciblage";
 import { etape23PlanEditorial } from "./migrations/etape-23-plan-editorial";
+import { etape24ReseauxSansYoutube } from "./migrations/etape-24-reseaux-sans-youtube";
 
 export const VERSION_MIGRATION_MOTEUR_AVOCAT = 1;
 
@@ -293,6 +294,8 @@ export async function migrerDonnees(d: Depots, maintenant: string = new Date().t
     ["ciblage", etape22Ciblage],
     // 23 : plan éditorial (L1-07) — chaque publication existante reçoit un créneau, publications intactes.
     ["plan-editorial", etape23PlanEditorial],
+    // 24 : lot C, YouTube Shorts retiré des réseaux par défaut, ancienne valeur gardée
+    ["reseaux-sans-youtube", etape24ReseauxSansYoutube],
   ] as const) {
     const resume = await etape(d, maintenant);
     if (!resume) continue;
@@ -314,7 +317,7 @@ export async function migrerDonnees(d: Depots, maintenant: string = new Date().t
   return rapport;
 }
 
-const LIBELLES_ETAPES: Record<string, string> = { "mes-images": "Mes images", "decors-realistes": "décors", bruitages: "bruitages", credits: "crédits", calage: "calage", "source-axion": "votre site", ciblage: "ciblage des scripts", "plan-editorial": "plan éditorial" };
+const LIBELLES_ETAPES: Record<string, string> = { "mes-images": "Mes images", "decors-realistes": "décors", bruitages: "bruitages", credits: "crédits", calage: "calage", "source-axion": "votre site", ciblage: "ciblage des scripts", "plan-editorial": "plan éditorial", "reseaux-sans-youtube": "réseaux par défaut" };
 
 /** Étapes qui écrivent déjà leur événement « migration » elles-mêmes. */
 const ETAPES_AVEC_EVENEMENT = new Set<string>(["prononciations", "veille", "exemples"]);

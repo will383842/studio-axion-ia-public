@@ -20,9 +20,10 @@ describe("corbeille · textes", () => {
     expect(phraseSuppressionDans(12)).toBe("Supprimée dans 12 jours");
     expect(phraseSuppressionDans(1)).toBe("Supprimée dans 1 jour");
   });
-  it("message de confirmation : restaurable 30 jours, brouillons Buffer", () => {
+  it("message de confirmation : restaurable 30 jours, brouillons chez l'outil d'envoi", () => {
     expect(messageCorbeille(1, 0)).toBe("Vidéo mise à la corbeille. Restaurable pendant 30 jours.");
-    expect(messageCorbeille(2, 3)).toBe("2 vidéos mises à la corbeille. Restaurable pendant 30 jours. 3 brouillons restent dans Buffer ou Zernio : à supprimer dans l'outil concerné.");
+    expect(messageCorbeille(1, 1)).toContain("1 brouillon reste chez l'outil d'envoi : à supprimer dans l'outil.");
+    expect(messageCorbeille(2, 3)).toBe("2 vidéos mises à la corbeille. Restaurable pendant 30 jours. 3 brouillons restent chez l'outil d'envoi : à supprimer dans l'outil.");
   });
 });
 

@@ -53,6 +53,7 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["m1-lien", "Premier message avec le lien"],
   ["adresse-refusee", "Adresse refusée"],
   ["m1-adresse", "Premier message sans lien (on demande l'adresse e-mail)"],
+  ["m1-adresse-rgpd", "Premier message sans lien avec la mention d'information (à valider par le fondateur)"],
   ["recu", "Accusé de réception"],
   ["adresse-non-reconnue", "Adresse non reconnue (on la redemande)"],
   ["lien-rappel", "Rappel avec le lien"],

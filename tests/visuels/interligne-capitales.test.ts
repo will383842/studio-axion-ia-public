@@ -5,8 +5,9 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ECART_ENCRE, ecartsEncre, INTERLIGNE_MIN, interligneCapitales } from "../../studio-rendu/compositions/visuels/commun/interligne-capitales";
-import { collisionsInterligne } from "../../studio-rendu/compositions/visuels/commun/zones";
+import { ECART_ENCRE, ecartsEncre, INTERLIGNE_MIN, interligneCapitales, type MesureEncre } from "../../studio-rendu/compositions/visuels/commun/interligne-capitales";
+import { TITRE_MIN_COUVERTURE, TITRE_MIN_MESSAGE, TITRE } from "../../studio-rendu/compositions/visuels/commun/constantes";
+import { collisionsInterligne, ECART_ENCRE_PX } from "../../studio-rendu/compositions/visuels/commun/zones";
 
 const DEFAUT = ["IDÉE REÇUE,", "RÉALITÉ"];
 /** Interligne fixe d'avant ART-1. */
@@ -53,5 +54,33 @@ describe("mesure du rendu : collisions entre lignes de titre", () => {
     const src = readFileSync(new URL("../../studio-rendu/compositions/visuels/mesure/MesureVisuelPage.tsx", import.meta.url), "utf8");
     expect(src).toContain("collisionsInterligne(");
     expect(src).toContain("encreDesTitres(");
+  });
+});
+
+describe("REF-CARR-RESEAUX-2 : encre réelle de Manrope", () => {
+  const T21 = ["ÉCRIVEZ-NOUS", "EN MESSAGE PRIVÉ"];
+  const grandeEncre: MesureEncre = (l) => (l.includes("É") ? { haut: 0.99, bas: 0.02 } : { haut: 0, bas: 0 });
+
+  it("(a) une mesure d'encre plus haute que la table ouvre l'interligne et garde ECART_ENCRE entre les lignes", () => {
+    const interligne = interligneCapitales(T21, grandeEncre);
+    expect(interligne).toBeGreaterThanOrEqual(0.02 + 0.99 + ECART_ENCRE);
+    for (const e of ecartsEncre(T21, interligne, grandeEncre)) expect(e).toBeGreaterThanOrEqual(ECART_ENCRE - 1e-9);
+  });
+
+  it("(b) sans mesure, les résultats sont ceux d'avant", () => {
+    expect(interligneCapitales(DEFAUT)).toBe(interligneCapitales(DEFAUT, undefined));
+    expect(ecartsEncre(DEFAUT, 1.1)).toEqual(ecartsEncre(DEFAUT, 1.1, undefined));
+    expect(interligneCapitales(["ABC", "DEF"])).toBe(INTERLIGNE_MIN);
+  });
+
+  it("(c) une mesure plus petite que la table ne fait jamais baisser l'interligne", () => {
+    const petite: MesureEncre = () => ({ haut: 0.5, bas: 0 });
+    expect(interligneCapitales(DEFAUT, petite)).toBeGreaterThanOrEqual(interligneCapitales(DEFAUT));
+    expect(interligneCapitales(T21, petite)).toBeGreaterThanOrEqual(interligneCapitales(T21));
+  });
+
+  it("(d) garde : ECART_ENCRE au plus petit corps de titre dépasse la tolérance de la mesure du rendu", () => {
+    const plusPetit = Math.min(TITRE.min, TITRE_MIN_COUVERTURE, TITRE_MIN_MESSAGE);
+    expect(ECART_ENCRE * plusPetit).toBeGreaterThan(ECART_ENCRE_PX);
   });
 });

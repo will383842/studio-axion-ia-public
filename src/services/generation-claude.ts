@@ -675,7 +675,7 @@ export async function executerRoleFacture<S extends z.ZodType>(generationId: Id,
       } catch (e) {
         // L3-0 : écriture commandée par l'Usine sans budget reçu (ou budget atteint) : refus net, rien n'est payé et la
         // génération n'attend pas (une reprise automatique perdrait l'origine). L'Usine recommande après avoir réglé son budget.
-        if (e instanceof ErreurStudio && (e.code === "BUDGET_USINE_ABSENT" || e.code === "BUDGET_MENSUEL_ATTEINT")) return { ok: false, arret: "budget-usine", message: e.message };
+        if (e instanceof ErreurStudio && (e.code === "BUDGET_USINE_ABSENT" || e.code === "BUDGET_MENSUEL_ATTEINT" || e.code === "USINE_PLAFOND_ATTEINT")) return { ok: false, arret: "budget-usine", message: e.message };
         if (e instanceof ErreurStudio && (e.code === "CREDIT_INSUFFISANT" || e.code === "BUDGET_DEPASSE")) {
           return mettreEnAttente(g, { motif: e.code === "BUDGET_DEPASSE" ? "budget" : "credit", estimationUsd: estimation, lignes, message: e.message });
         }
@@ -720,7 +720,7 @@ export async function executerRoleFacture<S extends z.ZodType>(generationId: Id,
         const rep = r.reponse;
         const cout = coutReelUsd(rep);
         const lignesReelles = [ligne(`Écriture · ${role.id}`, cout, t, "reel")];
-        const depenseEnr: DepenseEnregistree = { id: nouvelId("dep"), scriptMaitreId: g.scriptMaitreId, lignes: lignesReelles, total: lignesReelles[0].total, date: maintenant(), estDemo: g.estDemo, sourceClaude: actif.source, ...horodatage() };
+        const depenseEnr: DepenseEnregistree = { id: nouvelId("dep"), scriptMaitreId: g.scriptMaitreId, lignes: lignesReelles, total: lignesReelles[0].total, date: maintenant(), estDemo: g.estDemo, sourceClaude: actif.source, appelId, ...horodatage() };
         await d.depenses.enregistrer(depenseEnr);
         await libererReservation(appelId, "consommee");
         const resultat: GenerationScript["etapes"][number]["resultat"] =

@@ -2,12 +2,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AReprogrammer } from "./AReprogrammer";
-import { Criteres } from "./Criteres";
 import { FenetreLot } from "./FenetreLot";
 import { Frise, jalonsPour } from "./Frise";
-import { DateLimite, Heros } from "./Heros";
+import { EtatBuffer, Heros } from "./Heros";
 import { Lots } from "./Lots";
-import { compter, critereResiliation, lotDe, resumerLots, type CodeLot, type DonneesMigration } from "./logique";
+import { compter, lotDe, resumerLots, type CodeLot, type DonneesMigration } from "./logique";
 import { serviceNonBranche, type ComparaisonPost, type ServiceImport } from "./services";
 
 export type VueMigration =
@@ -23,7 +22,7 @@ function Entete({ total }: { total?: number }) {
     <header>
       <h1 className="text-2xl text-texte">Migration</h1>
       <p className="mt-1 text-texte-doux">Les {total ?? "—"} posts de Buffer passent chez Zernio, sans rien perdre ni publier deux fois.</p>
-      <p className="mt-2 text-base sm:text-sm font-semibold text-texte">Rien n’est retiré de Buffer sans votre ordre.</p>
+      <p className="mt-2 text-base sm:text-sm font-semibold text-texte">Buffer est résilié. Toutes les publications passent par Zernio.</p>
       <p className="text-base sm:text-sm text-texte-doux">Chaque post est d’abord recréé en brouillon, puis vérifié.</p>
     </header>
   );
@@ -61,7 +60,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
         <Entete />
         <section className="rounded-carte border border-trait bg-surface-1 p-5 text-center">
           <h2 className="text-lg text-texte">La bascule n’a pas commencé</h2>
-          <p className="mt-2 text-texte-doux">Elle démarre dès que les 6 comptes sont reliés dans Zernio. Date limite pour résilier Buffer : mercredi 18 novembre.</p>
+          <p className="mt-2 text-texte-doux">Elle démarre dès que les 6 comptes sont reliés dans Zernio. Buffer est résilié : toutes les publications passent par Zernio.</p>
           <Link href="/reglages" className="mt-4 inline-flex min-h-12 items-center rounded-full bg-orange px-5 font-semibold text-sur-orange">Voir les connexions</Link>
         </section>
         {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode essai : la clé Zernio n’est pas renseignée.</p>}
@@ -69,10 +68,9 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
     );
   }
 
-  const { posts, comptes } = vue.donnees;
+  const { posts } = vue.donnees;
   const c = compter(posts);
   const lots = resumerLots(posts);
-  const remplis = comptes.filter((x) => critereResiliation(x).rempli).length;
   const aReprogrammer = posts.filter((p) => Date.parse(p.datePrevue) < maintenant.getTime() && (p.etat === "a-verifier" || p.etat === "restant"));
   const lotAVerifier = lots.find((l) => l.code !== "C" && posts.some((p) => lotDe(p) === l.code && p.etat === "a-verifier"));
   const nbAVerifier = lotAVerifier ? posts.filter((p) => lotDe(p) === lotAVerifier.code && p.etat === "a-verifier").length : 0;
@@ -83,7 +81,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
     <Coquille>
       <Entete total={c.total} />
       <Heros posts={posts} />
-      <DateLimite maintenant={maintenant} remplis={remplis} comptes={comptes.length} />
+      <EtatBuffer />
       <section aria-labelledby="mig-suite" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
         <h2 id="mig-suite" className="text-base sm:text-sm font-semibold text-texte-doux">Prochaine étape · vous</h2>
         {lotAVerifier ? (
@@ -98,7 +96,6 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
       </section>
       <Frise jalons={jalonsPour(maintenant)} />
       <Lots lots={lots} onOuvrir={setLotOuvert} />
-      <Criteres comptes={comptes} />
       <AReprogrammer posts={aReprogrammer} />
       {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode essai : la clé Zernio n’est pas renseignée.</p>}
       {lotOuvert && (
