@@ -97,6 +97,25 @@ describe("fusionnerMemoires", () => {
   });
 });
 
+describe("doublon avec `le` différents : le plus récent gagne, quel que soit l'ordre", () => {
+  it("fusionnerMemoires : même clé exacte dans deux sources", () => {
+    const vieux = u("a", "2026-01-01T00:00:00.000Z");
+    const recent = u("a", "2026-01-09T00:00:00.000Z");
+    const ab = fusionnerMemoires([[vieux], [recent]], fen(2));
+    const ba = fusionnerMemoires([[recent], [vieux]], fen(2));
+    expect(ab).toEqual(ba);
+    expect(ab).toEqual([recent]);
+  });
+  it("choixFigesDesVersions : deux versions prêtes du même videoId", () => {
+    const v1 = v({ videoId: "x", creeLe: "2026-01-01T00:00:00.000Z", commande: cmd([A]) });
+    const v2 = v({ videoId: "x", creeLe: "2026-02-01T00:00:00.000Z", commande: cmd([A]) });
+    const r = choixFigesDesVersions([v1, v2]);
+    expect(r).toHaveLength(1);
+    expect(r[0].le).toBe("2026-02-01T00:00:00.000Z");
+    expect(choixFigesDesVersions([v2, v1])).toEqual(r);
+  });
+});
+
 describe("versRecents", () => {
   it("projette et garde l'ordre", () => {
     expect(versRecents([u("a", "2026-01-01", "x"), u("b", "2026-01-02", "y")])).toEqual([

@@ -26,10 +26,13 @@ function choixDe(conteneur: unknown): unknown[] {
   return bv.choix;
 }
 
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const ordreTotal = (a: UsageMemoire, b: UsageMemoire) =>
+  cmp(b.le, a.le) || cmp(a.videoId, b.videoId) || cmp(a.capacite, b.capacite) || cmp(a.cle, b.cle) || cmp(a.source, b.source);
+
 /** Choix figés des versions prêtes (commande et projet de montage). Ne lève jamais. */
 export function choixFigesDesVersions(versions: readonly VersionPourMemoire[]): UsageMemoire[] {
-  const sortie: UsageMemoire[] = [];
-  const vus = new Set<string>();
+  const uniques = new Map<string, UsageMemoire>();
   for (const version of versions) {
     try {
       if (version.statut !== "prete") continue;
@@ -40,18 +43,17 @@ export function choixFigesDesVersions(versions: readonly VersionPourMemoire[]): 
         const c = lireChoix(brut);
         if (!c) continue;
         const k = JSON.stringify([c.capacite, c.cle, version.videoId]);
-        if (vus.has(k)) continue;
-        vus.add(k);
-        sortie.push({ capacite: c.capacite, cle: c.cle, videoId: version.videoId, source: "bibliotheque-video", le: version.creeLe });
+        const existant = uniques.get(k);
+        if (existant && !(version.creeLe > existant.le)) continue;
+        uniques.set(k, { capacite: c.capacite, cle: c.cle, videoId: version.videoId, source: "bibliotheque-video", le: version.creeLe });
       }
     } catch {
       /* version illisible : ignorée seule */
     }
   }
-  return sortie;
+  // Tri stable : le plus récent d'abord, puis videoId ; l'ordre des choix d'une même version est conservé.
+  return [...uniques.values()].sort((a, b) => cmp(b.le, a.le) || cmp(a.videoId, b.videoId));
 }
-
-const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Réunit les sources, sans doublon exact, ordre total, fenêtre en vidéos récentes.
@@ -64,10 +66,12 @@ export function fusionnerMemoires(
 ): UsageMemoire[] {
   if (!(fenetre.fenetreVideos > 0)) return [];
   const uniques = new Map<string, UsageMemoire>();
-  for (const s of sources) for (const x of s) uniques.set(JSON.stringify([x.capacite, x.cle, x.videoId, x.source]), x);
-  const tries = [...uniques.values()].sort(
-    (a, b) => cmp(b.le, a.le) || cmp(a.videoId, b.videoId) || cmp(a.capacite, b.capacite) || cmp(a.cle, b.cle) || cmp(a.source, b.source),
-  );
+  for (const s of sources) for (const x of s) {
+    const k = JSON.stringify([x.capacite, x.cle, x.videoId, x.source]);
+    const existant = uniques.get(k);
+    if (!existant || x.le > existant.le) uniques.set(k, x);
+  }
+  const tries = [...uniques.values()].sort(ordreTotal);
   const recentes = new Map<string, string>();
   for (const x of tries) if (!recentes.has(x.videoId)) recentes.set(x.videoId, x.le);
   const gardees = new Set(
