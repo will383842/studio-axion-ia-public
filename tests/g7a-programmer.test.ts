@@ -142,11 +142,11 @@ describe("« Programmer les N » déverrouillé", () => {
 
   it("le verrou « Bientôt » a disparu de la fiche sujet et de la feuille Buffer", () => {
     const racine = join(__dirname, "..");
-    for (const f of ["src/components/generateur/FicheSujet.tsx", "src/components/publication/FeuilleEnvoyerBuffer.tsx"]) {
+    for (const f of ["src/components/generateur/FicheSujet.tsx", "src/components/publication/FeuilleEnvoyer.tsx"]) {
       const s = readFileSync(join(racine, f), "utf8");
       expect(s).not.toMatch(/la mesure des résultats doit être branchée/);
     }
-    expect(readFileSync(join(racine, "src/components/publication/FeuilleEnvoyerBuffer.tsx"), "utf8")).toMatch(/\?programmer=1/);
+    expect(readFileSync(join(racine, "src/components/publication/FeuilleEnvoyer.tsx"), "utf8")).toMatch(/\?programmer=1/);
   });
 });
 
