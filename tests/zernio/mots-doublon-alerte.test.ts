@@ -91,7 +91,7 @@ describe("doublon : blocage insensible à la casse et aux accents, avec l'état"
   });
   it("mot présent seulement au registre (aucune liaison au site) : refusé aussi, casse et accents ignorés", async () => {
     await poserRegistre(ligne("ORPHELIN", FB, "actif"));
-    expect(await A.creerMotAction("Orphelín", "gde-essai01")).toEqual({ ok: false, phrase: phraseExiste("actif") });
+    expect(await A.creerMotAction("Orphelín", "gde-essai01")).toEqual({ ok: false, phrase: "Ce mot existe encore au registre (état : actif) ; il ne peut pas être recréé." });
     expect(ecritures()).toHaveLength(0);
   });
   it("l'état « actif » l'emporte sur « pause » quand les comptes diffèrent", async () => {
@@ -108,6 +108,8 @@ describe("cible partagée : alerte visible, non bloquante", () => {
     expect(r.phrase).toContain("Mot créé en brouillon.");
     expect(r.phrase).toContain("Attention");
     expect(r.phrase).toContain("TOUS1");
+    expect(r.phrase).toContain("Une même personne pourrait recevoir ce guide deux fois (une fois par mot).");
+    expect(r.phrase).not.toContain("deux guides différents");
     expect(ecritures()).toHaveLength(1);
   });
   it("aucune alerte si l'autre mot n'est pas actif (brouillon ou pause)", async () => {

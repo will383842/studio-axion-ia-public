@@ -12,7 +12,7 @@ import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { MOT_GUIDE } from "@/domaine/guide-reseau/empreinte-mot";
 import { lireParametre } from "./_commun";
-import { etatSiMotExiste, motEstActif, motsActifsSurCible, phraseCiblePartagee, phraseMotExiste, PHRASE_MOT_ACTIF_PAUSE_D_ABORD } from "@/domaine/guide-reseau/mots-doublons";
+import { etatSiMotExiste, motEstActif, motEstAuTableau, motsActifsSurCible, phraseCiblePartagee, phraseMotExiste, PHRASE_MOT_ACTIF_PAUSE_D_ABORD } from "@/domaine/guide-reseau/mots-doublons";
 import { apercuTextesMot, validerTextesMot, verifierActivationMot, type ApercuReseau } from "./mots-validation-par-mot";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
@@ -146,7 +146,7 @@ export async function gesteCreerMot(mot: string, codeCible: string): Promise<Res
   // Doublon : même mot (casse et accents ignorés) au tableau OU au registre, quel que soit son état. Blocage, aucune écriture.
   const registre = Object.values(await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {}));
   const etatExistant = etatSiMotExiste(m, site.liaisons, registre);
-  if (etatExistant !== null) return non("mot_existe", phraseMotExiste(etatExistant));
+  if (etatExistant !== null) return non("mot_existe", phraseMotExiste(etatExistant, !motEstAuTableau(m, site.liaisons)));
   const cible = typeof codeCible === "string" ? site.catalogue.find((e) => e.code === codeCible) : undefined;
   if (!cible) return non("cible_inconnue");
   if (!cible.actif) return non("cible_inactive");
@@ -176,7 +176,8 @@ async function pauserLignesLocalesDuMot(mot: string): Promise<{ enPause: number;
 
 /**
  * Change la cible d'un mot : « tous les réseaux », puis chaque ligne propre à un réseau. Arrêt au premier échec (phrase des changements faits).
- * Dès qu'un changement est passé, les comptes actifs du mot sont mis EN PAUSE (rien n'est supprimé) : les textes sont à valider de nouveau.
+ * Un mot ACTIF est refusé d'emblée (pause d'abord). Si un changement est parti malgré tout (activation simultanée), les comptes locaux actifs
+ * du mot sont mis EN PAUSE (rien n'est supprimé) : les textes sont à valider de nouveau.
  */
 export async function gesteChangerCible(mot: string, codeCible: string): Promise<ResultatMotCible> {
   await exigerSession();
@@ -206,7 +207,8 @@ export async function gesteChangerCible(mot: string, codeCible: string): Promise
     }
     faites++;
   }
-  // Un changement est parti (ou a pu partir) : les textes validés ne correspondent plus à la cible, on met le mot en pause avant tout.
+  // Filet de sécurité : le mot n'était pas actif au contrôle, mais il a pu être activé entre-temps. Si un changement est parti (ou a pu partir),
+  // les textes validés ne correspondent plus à la cible : on met alors en pause ses lignes locales actives.
   const { enPause, chezZernio } = partie ? await pauserLignesLocalesDuMot(m) : { enPause: 0, chezZernio: 0 };
   const pause =
     (enPause > 0 ? ` Le mot a été mis en pause sur ${enPause} compte(s) : validez ses textes puis réactivez-le.` : "") +

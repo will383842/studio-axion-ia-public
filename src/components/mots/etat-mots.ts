@@ -1,5 +1,6 @@
 /** Libellés de l'écran « Mots » (PUR, français simple). Tout est éteint par défaut. */
 import type { Tonalite } from "@/domaine/libelles";
+import { PHRASE_MOT_ACTIF_PAUSE_D_ABORD } from "@/domaine/guide-reseau/mots-doublons";
 import type { EtatMot } from "@/services/mots-service";
 
 export const ETATS_MOT: Record<EtatMot, { libelle: string; ton: Tonalite }> = {
@@ -59,7 +60,7 @@ export const PHRASES_REFUS: Record<string, string> = {
   instagram_pas_encore: "Instagram n’est pas encore pris en charge pour ce mot : seul Facebook peut l’activer pour l’instant.",
   cible_guide_figee: "La cible du mot GUIDE ne se change pas ici pour l'instant.",
   mot_existe: "Ce mot existe déjà. Ouvrez sa fiche pour le modifier.",
-  mot_actif_pause_d_abord: "Ce mot est actif : mettez-le en pause avant de changer sa cible.",
+  mot_actif_pause_d_abord: PHRASE_MOT_ACTIF_PAUSE_D_ABORD,
   mot_inconnu: "Ce mot n’est pas dans le tableau.",
   site_refuse: "Le site n’a pas accepté la demande.",
   interrupteur_eteint: "Éteint : rien n’a été envoyé (simulation).",

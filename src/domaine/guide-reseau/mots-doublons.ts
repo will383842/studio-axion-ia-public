@@ -48,7 +48,17 @@ export function motsActifsSurCible(codeCible: string, motCourant: string, liaiso
   return [...sur].filter((m) => m !== courant && motEstActif(m, registre)).sort();
 }
 
-export const phraseMotExiste = (etat: EtatMotDoublon): string => `Ce mot existe déjà (état : ${etat}). Ouvrez sa fiche pour le modifier.`;
+/** Le mot a-t-il une liaison active au tableau du site (donc une fiche à ouvrir) ? */
+export const motEstAuTableau = (mot: string, liaisons: readonly LiaisonCible[]): boolean => {
+  const k = cleDoublon(mot);
+  return liaisons.some((l) => l.actif && cleDoublon(l.mot) === k);
+};
+
+/** Phrase de refus d'un doublon : sans fiche à ouvrir quand le mot n'existe plus qu'au registre (liaison du site retirée). */
+export const phraseMotExiste = (etat: EtatMotDoublon, auRegistreSeulement = false): string =>
+  auRegistreSeulement
+    ? `Ce mot existe encore au registre (état : ${etat}) ; il ne peut pas être recréé.`
+    : `Ce mot existe déjà (état : ${etat}). Ouvrez sa fiche pour le modifier.`;
 export const PHRASE_MOT_ACTIF_PAUSE_D_ABORD = "Ce mot est actif : mettez-le en pause avant de changer sa cible.";
 export const phraseCiblePartagee = (mots: readonly string[]): string =>
-  mots.length === 0 ? "" : ` Attention : cette cible est déjà utilisée par ${mots.length > 1 ? "d'autres mots actifs" : "un autre mot actif"} (${mots.join(", ")}). Une même personne pourrait recevoir deux guides différents.`;
+  mots.length === 0 ? "" : ` Attention : cette cible est déjà utilisée par ${mots.length > 1 ? "d'autres mots actifs" : "un autre mot actif"} (${mots.join(", ")}). Une même personne pourrait recevoir ce guide deux fois (une fois par mot).`;
