@@ -20,6 +20,8 @@ export interface ObjetEssai {
 
 /** Boîte en % : dans la zone sûre commune aux réseaux ? Ratio sans zone connue : `ok` faux (non-fait), jamais réussi. */
 export function boiteDansZoneSure(boite: Rectangle, ratio: Ratio, reseaux: IdReseau[]): { ok: boolean; raison: string } {
+  // Sortie sans `reseaux` : `zoneSureDe` rend null, donc tout objet inscrit est refusé (non-fait). À garder en tête
+  // quand le premier objet entrera dans OBJETS_NEUFS sur un moteur dont les sorties n'ont pas de `reseaux`.
   const r = controleZoneSure(
     { boites: [{ role: "marque", couleur: "#000000", fond: "#ffffff", x: boite.x / 100, y: boite.y / 100, largeur: boite.largeur / 100, hauteur: boite.hauteur / 100 }] } as Parameters<typeof controleZoneSure>[0],
     zoneSureDe(ratio, reseaux),
