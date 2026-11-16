@@ -11,6 +11,13 @@ import { ErreurRendu, type ContexteOperation, type DemandeRendu } from "../contr
 import { deposer, erreurSelectionComposition } from "../outils.js";
 import { paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
 
+/** Part de `@remotion/renderer` utilisée ici (typée à la main, voir l'import dynamique plus bas). */
+interface RendererLocal {
+  makeCancelSignal: () => { cancelSignal: unknown; cancel: () => void };
+  renderMedia: (options: Record<string, unknown>) => Promise<unknown>;
+  selectComposition: (options: { serveUrl: string; id: string; inputProps: Record<string, unknown> }) => Promise<{ fps: number; durationInFrames: number; id: string }>;
+}
+
 export interface OptionsPlage {
   compositionId: string;
   proprietes: Record<string, unknown>;
@@ -50,7 +57,9 @@ export async function compositionPlage(demande: DemandeRendu, contexte: Contexte
   const pre = optionsPlage(demande.parametres);
   if (!pre.ok) refuser(pre.message);
   const proprietes = { ...pre.options.proprietes, ...demande.entrees };
-  const { makeCancelSignal, renderMedia, selectComposition } = await import("@remotion/renderer");
+  // Nom passé par variable : le paquet n'est pas installé pour le contrôle de types racine (pas de TS2307 neuf).
+  const nomRenderer: string = "@remotion/renderer";
+  const { makeCancelSignal, renderMedia, selectComposition } = (await import(nomRenderer)) as RendererLocal;
   const serveUrl = await paquetCompositions();
   const choisie = await selectComposition({ serveUrl, id: pre.options.compositionId, inputProps: proprietes }).catch((e: Error) => {
     throw erreurSelectionComposition(pre.options.compositionId, e);
@@ -61,7 +70,7 @@ export async function compositionPlage(demande: DemandeRendu, contexte: Contexte
   contexte.signal.addEventListener("abort", () => cancel());
   const sortie = join(contexte.dossier, "video.mp4");
   const crf = controle.options.crf === undefined ? {} : { crf: controle.options.crf, colorSpace: "bt709" as const };
-  await renderMedia({ ...REGLAGES_RENDU, composition: choisie, serveUrl, codec: controle.options.codec, ...crf, frameRange: controle.options.frameRange, outputLocation: sortie, inputProps: proprietes, cancelSignal, onProgress: ({ progress }) => contexte.progression(progress * 95) });
+  await renderMedia({ ...REGLAGES_RENDU, composition: choisie, serveUrl, codec: controle.options.codec, ...crf, frameRange: controle.options.frameRange, outputLocation: sortie, inputProps: proprietes, cancelSignal, onProgress: ({ progress }: { progress: number }) => contexte.progression(progress * 95) });
   await deposer(demande.sortie.urlDepot, sortie, "video/mp4", contexte.signal);
   const [debut, fin] = controle.options.frameRange;
   return { mesures: { images: fin - debut + 1, fps: choisie.fps, debut, fin } };
