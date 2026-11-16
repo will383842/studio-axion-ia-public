@@ -53,31 +53,43 @@ async function cartesAvocat(videoIdEnCours: string | undefined): Promise<{ usage
   return { usages, videos: retenues.length };
 }
 
-/** Les 5 dernières vidéos qui ont un plan v4 (un travail par vidéo, le plus récent), hors la vidéo en cours. */
-async function travauxV4(videoIdEnCours: string | undefined) {
+type EtatV4 = NonNullable<ReturnType<typeof lireEtatV4>>;
+interface TravailV4Lu { videoId: string; le: string; etat: EtatV4 }
+
+/** Travaux v4 lisibles, hors la vidéo en cours (état illisible : ignoré seul). */
+async function travauxV4(videoIdEnCours: string | undefined): Promise<TravailV4Lu[]> {
   const travaux = (await depots().travaux.lister((t) => t.fournisseurUtilise === ID_MOTEUR_FACECAM_ANIMEE && t.cibleId !== videoIdEnCours)) as Travail[];
-  const vus = new Set<string>();
-  const lus: { videoId: string; le: string; etat: NonNullable<ReturnType<typeof lireEtatV4>> }[] = [];
+  const lus: TravailV4Lu[] = [];
   for (const t of travaux) {
     try {
       const etat = lireEtatV4(t.parametres?.facecamAnimeeV4);
       if (etat) lus.push({ videoId: t.cibleId ?? t.id, le: t.creeLe ?? "", etat });
     } catch { /* état illisible : ignoré seul */ }
   }
-  return lus.sort((a, b) => b.le.localeCompare(a.le)).filter((x) => (vus.has(x.videoId) ? false : (vus.add(x.videoId), true)));
+  return lus;
+}
+
+/** Ordre exact de `historique()` (facecam-animee.ts:243-253) : FILTRE d'abord, puis tri `creeLe` décroissant, un travail par vidéo (le plus récent), 5 au plus. */
+function cinqDernieres(lus: TravailV4Lu[], garde: (e: EtatV4) => boolean): TravailV4Lu[] {
+  const vus = new Set<string>();
+  return lus
+    .filter((x) => garde(x.etat))
+    .sort((a, b) => b.le.localeCompare(a.le))
+    .filter((x) => (vus.has(x.videoId) ? false : (vus.add(x.videoId), true)))
+    .slice(0, 5);
 }
 
 async function lectureV4(videoIdEnCours: string | undefined): Promise<{ familles: UsageMemoire[]; extraits: UsageMemoire[]; videosFamilles: number; videosExtraits: number }> {
   const tous = await travauxV4(videoIdEnCours);
-  const avecPlan = tous.filter((x) => x.etat.realisation?.plan?.elementsV4?.length).slice(0, 5);
+  const avecPlan = cinqDernieres(tous, (e) => !!e.realisation?.plan?.elementsV4?.length);
   const familles: UsageMemoire[] = [];
   for (const x of avecPlan) {
     const plan = x.etat.realisation?.plan;
     if (!plan) continue;
     for (const f of historiqueDuPlan(plan).familles ?? []) familles.push({ capacite: ID.motionPlaquettesV4, cle: `famille:${f}`, videoId: x.videoId, source: "v4-familles", le: x.le });
   }
-  // Même lecture que les familles : mêmes travaux, 5 au plus. `source` : « pexels », « pixabay » ; la valeur « axion » n'existe pas encore sur master (rien n'est filtré dessus).
-  const avecChoix = tous.filter((x) => x.etat.videos?.choix?.length).slice(0, 5);
+  // Extraits : même règle (filtre « avec choix » avant tri et déduplication, 5 au plus). `source` : « pexels », « pixabay » ; la valeur « axion » n'existe pas encore sur master (rien n'est filtré dessus).
+  const avecChoix = cinqDernieres(tous, (e) => !!e.videos?.choix?.length);
   const extraits: UsageMemoire[] = [];
   for (const x of avecChoix)
     for (const c of x.etat.videos?.choix ?? []) extraits.push({ capacite: ID.ecranClipV4, cle: `${c.source}:${c.id}`, videoId: x.videoId, source: "v4-extraits", le: x.le });

@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { lireMemoiresA } = await import("@/services/bibliotheque-video-memoires");
 const { memoireCartesAvocat } = await import("@/services/avocat-branchements");
+const { historiqueDuPlan } = await import("@/moteurs/montage-facecam-animee/realisateur/regles");
+const { lireEtatV4 } = await import("@/moteurs/montage-facecam-animee/chaine-v4");
 const { PROFONDEUR_MEMOIRE } = await import("@/briques/bibliotheque-video/profondeurs");
 
 const FEN = { fenetreVideos: 50, portee: "globale" as const };
@@ -49,6 +51,46 @@ describe("v4", () => {
     expect(ex.every((u) => u.capacite === "ecran.clip-v4")).toBe(true);
     expect(r.profondeurs["v4-extraits"]).toBe(5);
     expect(r.usages.some((u) => u.source === "avocat-cartes")).toBe(false);
+  });
+});
+
+describe("familles v4", () => {
+  // Les familles viennent des cartes / fenêtres / calques (apparitionsDuPlan) ; `elementsV4` rend le plan « v4 » pour le filtre.
+  const planDe = (n: number) => ({
+    cartes: [{ debut: n % 2 ? 0 : 1, fin: 2, contenu: { type: "liste" }, entree: "pop" }],
+    fenetres: [{ debut: 3, fin: 4, recherche: "r", video: false }],
+    calques: Array.from({ length: n }, (_, i) => ({ debut: n % 2 ? 1 : 0, fin: 2 + i, type: "etiquette" })),
+    elementsV4: [{ id: "x", debut: 0 }],
+  });
+  const famillesDe = (r: { usages: { source: string; videoId: string; cle: string }[] }, videoId: string) =>
+    r.usages.filter((u) => u.source === "v4-familles" && u.videoId === videoId).map((u) => u.cle.replace("famille:", ""));
+
+  it("familles de historiqueDuPlan pour chaque vidéo, 5 vidéos au plus", async () => {
+    for (let n = 1; n <= 6; n++) await depots().travaux.enregistrer(travailV4(n, `vid${n}`, { facecamAnimeeV4: etatV4(planDe(n)) }));
+    const r = await lireMemoiresA({ formatId: "facecam-animee", fenetre: FEN_FORMAT });
+    const fam = r.usages.filter((u) => u.source === "v4-familles");
+    expect(new Set(fam.map((u) => u.videoId))).toEqual(new Set(["vid2", "vid3", "vid4", "vid5", "vid6"]));
+    expect(r.profondeurs["v4-familles"]).toBe(5);
+    // Référence : exactement ce que fait `historique()` d'origine (plan relu par lireEtatV4, puis historiqueDuPlan).
+    // `fusionnerMemoires` (C1-U5) retire les doublons exacts et trie : on compare donc les familles distinctes de chaque vidéo.
+    const attendu = (n: number) => {
+      const plan = lireEtatV4(etatV4(planDe(n)))?.realisation?.plan;
+      if (!plan) throw new Error("plan illisible");
+      return [...new Set(historiqueDuPlan(plan).familles)].sort();
+    };
+    expect(attendu(2)).toEqual(["carte", "etiquette", "fenetre"]);
+    for (let n = 2; n <= 6; n++) expect([...famillesDe(r, `vid${n}`)].sort()).toEqual(attendu(n));
+  });
+
+  it("travail récent sans plan + travail ancien avec plan : la vidéo compte (filtre avant déduplication)", async () => {
+    await depots().travaux.enregistrer(travailV4(1, "vidA", { facecamAnimeeV4: etatV4(planDe(1), [{ fichier: "f", source: "pexels", id: "pA", scene: "s" }]) }));
+    await depots().travaux.enregistrer(travailV4(5, "vidA", { facecamAnimeeV4: etatV4({ cartes: [], fenetres: [], calques: [] }) }));
+    const r = await lireMemoiresA({ formatId: "facecam-animee", fenetre: FEN_FORMAT });
+    expect(r.profondeurs["v4-familles"]).toBe(1);
+    expect([...famillesDe(r, "vidA")].sort()).toEqual(["carte", "etiquette", "fenetre"]);
+    // Extraits : le même filtre « avec choix » avant déduplication.
+    expect(r.profondeurs["v4-extraits"]).toBe(1);
+    expect(r.usages.filter((u) => u.source === "v4-extraits").map((u) => u.cle)).toEqual(["pexels:pA"]);
   });
 });
 
