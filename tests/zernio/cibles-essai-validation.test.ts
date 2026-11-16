@@ -132,9 +132,18 @@ describe("S2 · verifierMotPourCompte / activation", () => {
     expect(await activation(ENV_X, IG)).toBe("instagram_pas_encore");
     expect(await activation(avec(`${X},${IG}`), IG)).toBe("instagram_pas_encore");
   });
-  it("cible d'essai, compte Facebook non listé : cible_test (réserve #709)", async () => {
-    expect(await pourCompte(avec(`${X}`), Y)).toBe("cible_test");
-    expect(await activation(avec(`${X}`), Y)).toBe("cible_test");
+  it("compte Facebook LISTÉ mais aucun auteur listé, cible d'essai validée : cible_test (réserve #709)", async () => {
+    const env = { ...base, PARCOURS_ESSAI_COMPTES: X };
+    expect((await valider(env, "facebook")).raison).toBe("valide");
+    expect(await pourCompte(env, X)).toBe("cible_test");
+    expect(await activation(env, X)).toBe("cible_test");
+  });
+  it("activation Instagram, site injoignable : refus fermé instagram_pas_encore (T3a)", async () => {
+    const env = avec(`${X},${IG}`);
+    expect((await valider(env, "instagram")).raison).toBe("valide");
+    site.etat.panne = true;
+    CS.reinitialiserEtatCiblesSite();
+    expect(await activation(env, IG)).toBe("instagram_pas_encore");
   });
   it("compte inconnu : refus", async () => {
     expect(await pourCompte(avec("compte-absent-zzz"), "compte-absent-zzz")).toBe("reseau_du_compte_inconnu");
