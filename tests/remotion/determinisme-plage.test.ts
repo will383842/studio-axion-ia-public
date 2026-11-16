@@ -30,29 +30,35 @@ const DELAI = 15 * 60_000;
 const SEUIL_DECALAGE_SON_S = 1 / 25;
 const ffmpegPresent = spawnSync("ffmpeg", ["-version"]).status === 0;
 
-function navigateur(): string | null {
-  if (process.env.STUDIO_RENDU_NAVIGATEUR) return process.env.STUDIO_RENDU_NAVIGATEUR;
+/** Chromium du poste, ou `null` s'il n'y en a pas (le test est alors SAUTÉ : jamais de téléchargement de navigateur par Remotion). */
+function trouverNavigateur(): string | null {
+  const env = process.env.STUDIO_RENDU_NAVIGATEUR;
+  if (env) return existsSync(env) ? env : null;
   const base = "/opt/pw-browsers";
   if (!existsSync(base)) return null;
   const dossier = readdirSync(base).filter((d) => d.startsWith("chromium-")).sort().pop();
-  if (!dossier) return null;
-  for (const sous of ["chrome-linux/chrome", "chrome-linux64/chrome"]) {
-    const p = join(base, dossier, sous);
-    if (existsSync(p)) return p;
+  if (dossier) {
+    for (const sous of ["chrome-linux/chrome", "chrome-linux64/chrome"]) {
+      const p = join(base, dossier, sous);
+      if (existsSync(p)) return p;
+    }
   }
-  return null;
+  const direct = join(base, "chromium");
+  return existsSync(direct) ? direct : null;
 }
+const NAVIGATEUR = trouverNavigateur();
+if (ACTIF && !NAVIGATEUR) console.log("[G10-06] aucun Chromium local trouvé (STUDIO_RENDU_NAVIGATEUR ou /opt/pw-browsers) : test sauté, rien n'est téléchargé.");
 
 const somme = (fichier: string) => createHash("sha256").update(readFileSync(fichier)).digest("hex");
 
-describe.skipIf(!ACTIF)("déterminisme d'une plage rendue (opt-in, rendu local)", () => {
+describe.skipIf(!ACTIF || !NAVIGATEUR)("déterminisme d'une plage rendue (opt-in, rendu local)", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let R: any;
   let serveUrl = "";
   let tmp = "";
   let serveur: Server | undefined;
   let mediasBase = "";
-  const reglagesNav = () => ({ browserExecutable: navigateur(), chromiumOptions: { gl: "swangle" as const } });
+  const reglagesNav = () => ({ browserExecutable: NAVIGATEUR as string, chromiumOptions: { gl: "swangle" as const } });
 
   beforeAll(async () => {
     tmp = mkdtempSync(join(tmpdir(), "determinisme-plage-"));
@@ -79,13 +85,23 @@ describe.skipIf(!ACTIF)("déterminisme d'une plage rendue (opt-in, rendu local)"
     if (tmp) rmSync(tmp, { recursive: true, force: true });
   });
 
-  /** Image N du rendu entier (renderStill) contre image N d'une plage limitée autour de N (renderFrames + frameRange). */
+  /**
+   * Référence = rendu ENTIER (`renderFrames` SANS `frameRange`, une fois par composition) ; on compare (assertion) l'image N de cette
+   * référence à l'image N d'une plage limitée autour de N. `renderStill` n'est gardé qu'en ligne notée (info, sans échec) : il rend dans un
+   * onglet neuf, ce qui donne ~1 niveau d'écart sur quelques pixels sans rapport avec la plage (sonde du relecteur : 68,8 dB).
+   */
   async function compare(id: string, inputProps: Record<string, unknown>, images: number[]) {
     const composition = await R.selectComposition({ serveUrl, id, inputProps, ...reglagesNav() });
+    const nomImage = (dossier: string, n: number) => readdirSync(dossier).find((f) => new RegExp(`(^|[^0-9])0*${n}\\.png$`).test(f));
+    const dossierEntier = join(tmp, `${id}-entier`);
+    await R.renderFrames({
+      composition, serveUrl, inputProps, imageFormat: "png", outputDir: dossierEntier,
+      onStart: () => {}, onFrameUpdate: () => {}, ...reglagesNav(),
+    });
     const resultats: string[] = [];
     for (const n of images) {
-      const entier = join(tmp, `${id}-entier-${n}.png`);
-      await R.renderStill({ composition, serveUrl, frame: n, output: entier, inputProps, imageFormat: "png", ...reglagesNav() });
+      const entier = nomImage(dossierEntier, n);
+      expect(entier, `image ${n} absente du rendu entier`).toBeTruthy();
       const dossier = join(tmp, `${id}-plage-${n}`);
       const debut = Math.max(0, n - 2);
       const fin = Math.min(composition.durationInFrames - 1, n + 2);
@@ -93,15 +109,15 @@ describe.skipIf(!ACTIF)("déterminisme d'une plage rendue (opt-in, rendu local)"
         composition, serveUrl, inputProps, imageFormat: "png", outputDir: dossier, frameRange: [debut, fin],
         onStart: () => {}, onFrameUpdate: () => {}, ...reglagesNav(),
       });
-      const fichierPlage = readdirSync(dossier).find((f) => new RegExp(`(^|[^0-9])0*${n}\\.png$`).test(f));
+      const fichierPlage = nomImage(dossier, n);
       expect(fichierPlage, `image ${n} absente de la plage`).toBeTruthy();
-      const identique = somme(entier) === somme(join(dossier, fichierPlage!));
+      const identique = somme(join(dossierEntier, entier!)) === somme(join(dossier, fichierPlage!));
       resultats.push(`${n}:${identique ? "identique" : "DIFFERENTE"}`);
-      console.log(`[G10-06] ${id} image ${n} : ${identique ? "pixels identiques" : "pixels DIFFÉRENTS"}`);
-      // Témoin : le même renderStill deux fois (si différent, le rendu n'est pas déterministe même sans plage).
-      const temoin = join(tmp, `${id}-temoin-${n}.png`);
-      await R.renderStill({ composition, serveUrl, frame: n, output: temoin, inputProps, imageFormat: "png", ...reglagesNav() });
-      console.log(`[G10-06] ${id} image ${n} : témoin (même image rendue 2 fois) ${somme(entier) === somme(temoin) ? "identique" : "DIFFÉRENT"}`);
+      console.log(`[G10-06] ${id} image ${n} : plage ${debut}-${fin} contre rendu entier : ${identique ? "pixels identiques" : "pixels DIFFÉRENTS"}`);
+      // Info seulement (sans échec) : renderStill (onglet neuf) contre le rendu entier.
+      const still = join(tmp, `${id}-still-${n}.png`);
+      await R.renderStill({ composition, serveUrl, frame: n, output: still, inputProps, imageFormat: "png", ...reglagesNav() });
+      console.log(`[G10-06] ${id} image ${n} : (info) renderStill ${somme(still) === somme(join(dossierEntier, entier!)) ? "identique" : "différent"} du rendu entier`);
     }
     // Toutes les images sont mesurées et notées avant d'échouer.
     expect(resultats.filter((r) => r.endsWith("DIFFERENTE")), `${id} : ${resultats.join(" ")}`).toEqual([]);
@@ -123,7 +139,10 @@ describe.skipIf(!ACTIF)("déterminisme d'une plage rendue (opt-in, rendu local)"
     // Propriétés d'exemple = defaultProps de la composition (aucune propriété passée, rien n'est modifié).
     const composition = await R.selectComposition({ serveUrl, id: "InterfaceClaireFaceCameraV4", inputProps: { mediasBase }, ...reglagesNav() });
     const total: number = composition.durationInFrames;
-    await compare("InterfaceClaireFaceCameraV4", { mediasBase }, [0, Math.floor(total / 2), Math.min(total - 1, 31)]);
+    // Raccord = début de la 1re carte du plan par défaut : `PLAN_GALERIE.cartes[0].debut` = 9,45 s (studio-rendu/compositions/interface-claire/plan-galerie.ts:29).
+    // Image calculée depuis le plan lu dans la composition (fps de la composition), +1 = juste après le raccord.
+    const raccord = Math.round(composition.props.cartes[0].debut * composition.fps);
+    await compare("InterfaceClaireFaceCameraV4", { mediasBase }, [0, Math.floor(total / 2), Math.min(total - 1, raccord + 1)]);
   }, DELAI);
 
   it.skipIf(!ffmpegPresent)("son : décalage au raccord d'une plage avec audio (noté, seuil ≤ 1 image)", async () => {
