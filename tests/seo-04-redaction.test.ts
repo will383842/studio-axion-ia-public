@@ -180,7 +180,10 @@ describe("aucune donnée de personne", () => {
       const { redaction, fiches } = monter(sortie, ["Dominique Exemplaire"]);
       const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
       expect(r.ok).toBe(false);
-      if (!r.ok) expect(r.erreurs.join(" ")).not.toMatch(/marie|06 12|Dominique/);
+      if (!r.ok) {
+        expect(r.erreurs.join(" ")).toMatch(/donnée de personne/);
+        expect(r.erreurs.join(" ")).not.toMatch(/marie|06 12|Dominique/);
+      }
       expect(fiches.lire("AUTO-014")?.resume).toBeUndefined();
     });
   }
@@ -210,6 +213,7 @@ describe("aucune donnée de personne", () => {
       expect(appels[0].script).toContain("[masqué]");
       expect(appels[0].script).not.toMatch(/exemplaire|p\u0301/i);
       expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.erreurs.join(" ")).toMatch(/donnée de personne/);
     });
   }
   it("les propriétés en trop du fournisseur n'entrent ni dans la proposition ni dans la fiche", async () => {
@@ -241,7 +245,42 @@ describe("aucune donnée de personne", () => {
       const b = brouillonValide();
       alterer(b);
       const { redaction } = monter(b);
-      expect((await redaction.proposer("AUTO-014", { script: SCRIPT })).ok).toBe(false);
+      const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.erreurs.join(" ")).toMatch(/donnée de personne/);
+    });
+  }
+  it("les limites de mot : « Anne » n'abîme ni « année » ni « annexe »", async () => {
+    const g = brouillonValide();
+    g.resume = `${phrases(1, 100)} Cette année, l'annexe du guide explique la démarche. ${phrases(1, 100)}`.slice(0, 260);
+    const { redaction, appels } = monter(g, ["Anne"]);
+    const r = await redaction.proposer("AUTO-014", { script: "Cette année, l'annexe décrit la démarche. Merci à Anne Martin." });
+    expect(appels[0].script).toContain("année");
+    expect(appels[0].script).toContain("annexe");
+    expect(appels[0].script).not.toMatch(/\bAnne\b/);
+    expect(r.ok).toBe(true);
+  });
+  const contournements: Array<[string, string]> = [
+    ["trait d'union", "Anne-Martin"],
+    ["tiret long", "Anne\u2014Martin"],
+    ["trait d'union insécable", "Anne\u2011Martin"],
+    ["ordre inversé", "Martin Anne"],
+    ["initiale", "A. Martin"],
+    ["prénom seul", "Anne"],
+    ["nom seul", "MARTIN"],
+    ["caractère invisible entre les mots", "Anne\u200BMartin"],
+    ["caractère invisible dans un mot", "An\u200Bne"],
+  ];
+  for (const [nom, v] of contournements) {
+    it(`filtre non contournable : ${nom}`, async () => {
+      const g = brouillonValide();
+      g.resume = `${v} présente la démarche. ${phrases(1, 150)}`;
+      const { redaction, appels } = monter(g, ["Anne Martin"]);
+      const r = await redaction.proposer("AUTO-014", { script: `Merci à ${v} pour la démonstration.` });
+      expect(appels[0].script).toContain("[masqué]");
+      expect(appels[0].script).not.toMatch(/martin|anne|an\u200Bne/i);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.erreurs.join(" ")).toMatch(/donnée de personne/);
     });
   }
 });
