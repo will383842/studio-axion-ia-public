@@ -119,7 +119,7 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin", proposer
 
       {reseauxAvecComptes.length > 0 && (
         <fieldset>
-          <legend>1 bis. Sur quel compte ? (aucun n'est coché d'avance)</legend>
+          <legend>1 bis. Sur quel compte ? (aucun n&apos;est coché d&apos;avance)</legend>
           {reseauxAvecComptes.map((r) =>
             casesEnvoi([{ reseau: r, nom: RESEAUX.find((x) => x.id === r)?.nom ?? r }], comptesReseau).map((c) => (
               <label key={c.cle}>
