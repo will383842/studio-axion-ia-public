@@ -12,7 +12,8 @@
  */
 import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types";
 import { baseRetenue, controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
-import { positionsVerticales } from "@/briques/sous-titres/largeur";
+import { lireEntreeBandeau, poserBandeauNom } from "@/briques/sous-titres/bandeau-nom";
+import { positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
 import type { BandeFondSousTitres, DonneesCalque } from "@/briques/sous-titres/scene";
 import { sousTitresSurDecor } from "@/domaine/decors";
 import type { AlerteQualite, AngleVisage, CommandeFabrication, IdReseau, MotHorodate, SegmentSousTitres } from "@/domaine/types";
@@ -350,8 +351,11 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   const colonnesCote = (e.misesEnPage ?? []).filter((mp) => mp.mode === "cote" && mp.geometrie.cote).map((mp) => ({ debutSec: mp.debutSec, finSec: mp.finSec, centrePct: e.positionSousTitresPct ?? recette.centreSousTitres[ratio] ?? 60, colonne: { gauchePx: mp.geometrie.cote!.xPersonne, largeurPx: mp.geometrie.cote!.largeurPersonne } }));
   const jonctionsEcrans = e.ecransPartages?.length ? e.ecransPartages.map((ep) => ({ debutSec: ep.debutSec, finSec: ep.finSec, ...(ep.ligne ? { centrePct: ep.ligne.centrePct, ...(ep.ligne.colonne ? { colonne: ep.ligne.colonne } : {}) } : { centrePct: centreJonctionPct(hauteurHaut, hauteur) }) })) : undefined;
   const jonctions = jonctionsEcrans || colonnesCote.length ? [...(jonctionsEcrans ?? []), ...colonnesCote] : undefined;
+  // C2-U11 : bandeau « nom et fonction » (entrée figée au lancement, absente = rien ; sans sous-titres, pas de bandeau).
+  const entreeBandeau = lireEntreeBandeau(c.entrees);
+  const bandeauNom = entreeBandeau && avecSousTitres ? poserBandeauNom({ ...entreeBandeau, dureeVideoSec: e.dureeSec, encadreFinSec: instantsEncadre?.a, largeur, hauteur, zone: zoneDe(ratio, reseaux), basPct: positionsVerticales(ratio, reseaux).basPct }) ?? undefined : undefined;
   const calque = (ouverture?: DonneesCalque["ouverture"]): DonneesCalque | undefined =>
-    avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}) } : undefined;
+    avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}), ...(bandeauNom ? { bandeauNom } : {}) } : undefined;
   let sousTitres = calque();
 
   // Encadré d'ouverture SOUS les sous-titres réellement dessinés (≥ 80 px), au-dessus de la zone protégée du bas
