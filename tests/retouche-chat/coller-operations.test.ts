@@ -25,6 +25,9 @@ import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatG
 
 const plan = validerPlan(PLAN_DEMO, { mots: PLAN_DEMO.mots, format: PLAN_DEMO.format, facecam: false }).plan;
 const rendre = async () => renderToStaticMarkup((await RetoucheChatGenerateur({ videoId: "v", formatId: "avocat" }))!);
+/** HTML témoin figé : rendu par le code de master 7611c14 (avant R1-09), `videoId: "v"`, générateur « avocat », réglage absent. */
+const TEMOIN_CHAT = "<section aria-label=\"Retoucher la vidéo\" class=\"flex flex-col gap-3\"><ol aria-live=\"polite\" class=\"flex flex-col gap-2\"></ol><form class=\"flex gap-2\"><label class=\"sr-only\" for=\"retouche-v\">Que voulez-vous changer ?</label><input id=\"retouche-v\" placeholder=\"Que voulez-vous changer ?\" class=\"min-h-11 flex-1 rounded-lg border border-trait bg-surface-1 px-3 text-sm\" value=\"\"/><button type=\"submit\" class=\"relative inline-flex select-none items-center justify-center rounded-full font-semibold transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-studio active:scale-[0.98] disabled:pointer-events-none disabled:border-surface-3 disabled:bg-surface-3 disabled:text-texte-faible disabled:shadow-none disabled:opacity-100 bg-surface-1 text-texte hover:bg-surface-2 border border-trait-fort min-h-11 px-4 text-sm gap-2\" disabled=\"\">Envoyer</button></form></section>";
+const TEMOIN_GENERATEUR = "<section aria-labelledby=\"retoucher-v\" class=\"space-y-3\"><h2 id=\"retoucher-v\" class=\"text-xs font-bold uppercase tracking-wider text-texte-faible\">Retoucher par message</h2><section aria-label=\"Retoucher la vidéo\" class=\"flex flex-col gap-3\"><ol aria-live=\"polite\" class=\"flex flex-col gap-2\"></ol><form class=\"flex gap-2\"><label class=\"sr-only\" for=\"retouche-v\">Que voulez-vous changer ?</label><input id=\"retouche-v\" placeholder=\"Que voulez-vous changer ?\" class=\"min-h-11 flex-1 rounded-lg border border-trait bg-surface-1 px-3 text-sm\" value=\"\"/><button type=\"submit\" class=\"relative inline-flex select-none items-center justify-center rounded-full font-semibold transition-[background-color,color,border-color,transform,box-shadow] duration-200 ease-studio active:scale-[0.98] disabled:pointer-events-none disabled:border-surface-3 disabled:bg-surface-3 disabled:text-texte-faible disabled:shadow-none disabled:opacity-100 bg-surface-1 text-texte hover:bg-surface-2 border border-trait-fort min-h-11 px-4 text-sm gap-2\" disabled=\"\">Envoyer</button></form></section></section>";
 const id0 = plan.scenes[0]!.id;
 
 beforeEach(() => {
@@ -37,8 +40,8 @@ beforeEach(() => {
 describe("ChatRetouche", () => {
   it("sans `coller` : HTML identique au témoin ; avec : la zone apparaît", () => {
     const temoin = renderToStaticMarkup(createElement(ChatRetouche, { videoId: "v", generateur: "avocat" }));
-    expect(renderToStaticMarkup(createElement(ChatRetouche, { videoId: "v", generateur: "avocat", coller: undefined }))).toBe(temoin);
-    expect(temoin).not.toContain("Collez ici les opérations");
+    expect(temoin).toBe(TEMOIN_CHAT);
+    expect(renderToStaticMarkup(createElement(ChatRetouche, { videoId: "v", generateur: "avocat", coller: undefined }))).toBe(TEMOIN_CHAT);
     const avec = renderToStaticMarkup(createElement(ChatRetouche, { videoId: "v", generateur: "avocat", coller: { plan } }));
     expect(avec).toContain("Collez ici les opérations");
     expect(avec).toContain("Copier le plan");
@@ -47,9 +50,7 @@ describe("ChatRetouche", () => {
 
 describe("RetoucheChatGenerateur et réglage retoucheChat.coller", () => {
   it("absent : même HTML qu'aujourd'hui, aucune lecture de plan", async () => {
-    const h = await rendre();
-    expect(h).toContain("Que voulez-vous changer ?");
-    expect(h).not.toContain("Collez ici les opérations");
+    expect(await rendre()).toBe(TEMOIN_GENERATEUR);
     expect(etat.lectures).toBe(0);
   });
   it("`true` : la zone est présente ; `\"true\"` (chaîne) : absente", async () => {
@@ -73,6 +74,10 @@ describe("aperçu du collage (dans le navigateur)", () => {
       expect(r.operations).toHaveLength(1);
       expect(r.impact.phrase).toMatch(/scène/);
     }
+  });
+  it("tableau nu collé : lu comme la liste d'opérations", () => {
+    const r = apercuCollage(plan, `[{"type":"ajuster-zoom","sceneId":"${id0}","facteur":1.5},{"type":"ajuster-zoom","sceneId":"${id0}","facteur":1.2}]`);
+    expect(r.ok && r.operations).toHaveLength(2);
   });
   it("texte illisible : message de relecture", () => {
     const r = apercuCollage(plan, "pas du json");

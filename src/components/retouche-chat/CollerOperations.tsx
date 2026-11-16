@@ -21,12 +21,14 @@ export type ApercuCollage = { ok: true; operations: OperationRetouche[]; remarqu
 
 /** Extrait le JSON du texte collé (bloc ``` ou texte autour), le relit strictement et mesure l'impact. Le filtre « modifier-script » est celui de la route, pas d'ici. */
 export function apercuCollage(plan: PlanValide, texte: string): ApercuCollage {
-  const debut = texte.indexOf("{");
-  const fin = texte.lastIndexOf("}");
-  const debutTab = texte.indexOf("[");
+  const accolade = texte.indexOf("{");
+  const crochet = texte.indexOf("[");
+  const tableau = crochet >= 0 && (accolade < 0 || crochet < accolade);
+  const debut = tableau ? crochet : accolade;
+  const fin = tableau ? texte.lastIndexOf("]") : texte.lastIndexOf("}");
   let brut: unknown;
   try {
-    brut = JSON.parse(debut >= 0 && fin > debut ? texte.slice(debut, fin + 1) : texte.slice(debutTab, texte.lastIndexOf("]") + 1));
+    brut = JSON.parse(debut >= 0 && fin > debut ? texte.slice(debut, fin + 1) : texte);
   } catch {
     return { ok: false, message: ILLISIBLE };
   }
