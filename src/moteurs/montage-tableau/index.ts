@@ -47,6 +47,7 @@ type ResultatFabrication = import("@/moteurs/types").ResultatFabrication;
 
 export { ENTREE_TABLEAU, etapesTableau, lireEntreesTableau, type EntreesTableau, type VoixPayee } from "./etapes";
 export { CATALOGUE_RETOUCHES, apercuRetouche, type ApercuRetouche, type ContexteRetouche, type OperationRetouche } from "./retouches";
+export { segmentsTableau, type SegmentTableau } from "./segments";
 
 export const ID_MOTEUR_TABLEAU = "montage-tableau";
 
