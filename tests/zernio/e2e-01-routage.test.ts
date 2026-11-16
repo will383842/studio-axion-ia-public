@@ -1,6 +1,6 @@
 /**
- * E2E-1 · routage par réseau Buffer → Zernio (simulation : aucune vraie clé, aucun appel réseau).
- * Défaut {} = Zernio partout ; garder UN réseau chez Buffer ne change pas les autres ; retour au défaut possible.
+ * E2E-1 · routage par réseau, Zernio seul outil d'envoi (L0-13a) (simulation : aucune vraie clé, aucun appel réseau).
+ * Défaut {} = Zernio partout ; Buffer refusé (OUTIL_RETIRE) ; retour au défaut possible.
  */
 import { hash } from "@node-rs/argon2";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,42 +48,43 @@ describe("e2e-1 · routage par réseau", () => {
     expect(await outilDeEnvoi("instagram", "exemple-compte")).toBe("zernio");
   });
 
-  it("garder UN réseau (Instagram) chez Buffer ne change pas les autres", async () => {
-    await definirRoutage("instagram", "buffer");
-    expect(await lireRoutage()).toEqual({ instagram: "buffer" });
-    expect(await tous()).toEqual({ instagram: "buffer", facebook: "zernio", linkedin: "zernio", tiktok: "zernio" });
-    // Aussi pour un compte précis d'Instagram (la clé « instagram » s'applique), jamais pour un autre réseau.
-    expect(await outilDeEnvoi("instagram", "exemple-compte")).toBe("buffer");
-    expect(await outilDeEnvoi("facebook", "exemple-compte")).toBe("zernio");
+  it("choisir Buffer pour un réseau est refusé (OUTIL_RETIRE) : rien n'est écrit, les autres réseaux restent chez Zernio", async () => {
+    await expect(definirRoutage("instagram", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
+    expect(await lireRoutage()).toEqual({});
+    expect(await tous()).toEqual({ instagram: "zernio", facebook: "zernio", linkedin: "zernio", tiktok: "zernio" });
+    expect(await outilDeEnvoi("instagram", "exemple-compte")).toBe("zernio");
   });
 
-  it("retour au défaut : en retirant la clé, puis en choisissant « zernio » explicitement", async () => {
-    await definirRoutage("instagram", "buffer");
+  it("retour au défaut : en retirant la clé, puis en choisissant « zernio » explicitement ; « buffer » refusé à chaque fois", async () => {
+    await definirRoutage("instagram", "zernio");
     await definirRoutage("instagram", null);
     expect(await lireRoutage()).toEqual({});
     expect(await tous()).toEqual({ instagram: "zernio", facebook: "zernio", linkedin: "zernio", tiktok: "zernio" });
 
-    await definirRoutage("instagram", "buffer");
+    await expect(definirRoutage("instagram", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
     await definirRoutage("instagram", "zernio");
     expect(await lireRoutage()).toEqual({ instagram: "zernio" });
     expect(await outilDeEnvoi("instagram")).toBe("zernio");
   });
 
-  it("bascule possible aller-retour plusieurs fois, sans effet sur les autres réseaux", async () => {
+  it("bascule aller-retour : Zernio puis défaut, Buffer refusé à chaque tour, sans effet sur les autres réseaux", async () => {
     for (let i = 0; i < 3; i++) {
-      await definirRoutage("instagram", "buffer");
-      expect(await outilDeEnvoi("instagram")).toBe("buffer");
+      await definirRoutage("instagram", "zernio");
+      await expect(definirRoutage("instagram", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
+      expect(await outilDeEnvoi("instagram")).toBe("zernio");
       expect(await outilDeEnvoi("linkedin")).toBe("zernio");
       await definirRoutage("instagram", null);
       expect(await outilDeEnvoi("instagram")).toBe("zernio");
     }
   });
 
-  it("le choix d'un compte précis n'affecte ni les autres comptes ni les autres réseaux", async () => {
-    await definirRoutage("instagram:exemple", "buffer");
-    expect(await outilDeEnvoi("instagram", "exemple")).toBe("buffer");
+  it("le choix d'un compte précis chez Buffer est refusé ; chez Zernio il n'affecte ni les autres comptes ni les autres réseaux", async () => {
+    await expect(definirRoutage("instagram:exemple", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
+    expect(await lireRoutage()).toEqual({});
+    await definirRoutage("instagram:exemple", "zernio");
+    expect(await lireRoutage()).toEqual({ "instagram:exemple": "zernio" });
+    expect(await outilDeEnvoi("instagram", "exemple")).toBe("zernio");
     expect(await outilDeEnvoi("instagram", "autre")).toBe("zernio");
-    expect(await outilDeEnvoi("instagram")).toBe("zernio");
     expect(await outilDeEnvoi("facebook", "exemple")).toBe("zernio");
   });
 
@@ -95,16 +96,19 @@ describe("e2e-1 · routage par réseau", () => {
     expect(await outilDeEnvoi("facebook")).toBe("zernio");
   });
 
-  it("Zernio sans clé : refus clair à la bascule ET à l'envoi, jamais un repli silencieux vers Buffer", async () => {
+  it("Zernio sans clé : refus clair à la bascule ET à l'envoi ; un « buffer » déjà en base part par Zernio, clé exigée (aucun repli vers Buffer)", async () => {
     await definirRoutage("instagram", "zernio");
-    await definirRoutage("facebook", "buffer");
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("publication.routage", { instagram: "zernio", facebook: "buffer" });
     injecterClientZernio(null);
     delete process.env.ZERNIO_API_KEY;
     await expect(outilDeEnvoi("instagram")).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
-    // Le réseau explicitement chez Buffer reste chez Buffer, sans erreur.
-    expect(await outilDeEnvoi("facebook")).toBe("buffer");
+    await expect(outilDeEnvoi("facebook")).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
     await expect(definirRoutage("linkedin", "zernio")).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
+    // L'ancienne valeur reste en base, jamais réécrite.
     expect(await lireRoutage()).toEqual({ instagram: "zernio", facebook: "buffer" });
+    injecterClientZernio(creerFauxClientZernio().client);
+    expect(await outilDeEnvoi("facebook")).toBe("zernio");
   });
 
   it("réseau, compte ou outil inconnus refusés sans rien écrire", async () => {

@@ -1,5 +1,5 @@
 # TESTS CIBLÉS « CAS CONCRET » : informatif, NON BLOQUANT (ne jamais l'ajouter aux contrôles exigés de la protection de `main`).
-# Liste fixe de tests verts. Exclus car rouges ou instables : services/boucle, x7/avant-prix, s1e, x9/montant, x6, prix/prix-au-plus, r1-relecture, r1-synchro-buffer (rouges sur master, à remettre au vert par un lot dédié).
+# Liste fixe de tests verts. Exclus car rouges ou instables : services/boucle, x7/avant-prix, s1e, x9/montant, x6, prix/prix-au-plus, r1-relecture, r1-synchro (rouges sur master, à remettre au vert par un lot dédié).
 # Pas de tsc ni d'eslint complets (erreurs de types préexistantes). Aucun secret.
 name: tests-cibles
 
@@ -55,6 +55,9 @@ on:
       - "src/app/api/usine/**"
       - "src/proxy.ts"
       - "tests/porte-usine-garde-budget.test.ts"
+      - "tests/l1-09-budget-mensuel.test.ts"
+      - "tests/corbeille.test.ts"
+      - "tests/corbeille-ui.test.ts"
       - "src/services/a-publier*"
       - "src/services/publications.ts"
       - "src/components/publication/LignesAPublier.tsx"
@@ -65,13 +68,11 @@ on:
       - "src/app/(studio)/a-publier/**"
       - "src/components/reglages/InterrupteurAPublier.tsx"
       - "tests/a-publier*.test.ts"
-      - "tests/l1-10-buffer-premier-commentaire.test.ts"
-      - "tests/r1-ecrans-buffer.test.ts"
-      - "src/services/relais-buffer.ts"
-      - "src/lib/jeton-media-buffer.ts"
-      - "src/app/api/media-buffer/**"
-      - "tests/relais-buffer.test.ts"
-      - "tests/relais-buffer-proxy.test.ts"
+      - "tests/l1-10-*.test.ts"
+      - "src/services/relais-*.ts"
+      - "src/lib/jeton-media-*.ts"
+      - "src/app/api/media-*/**"
+      - "tests/relais-*.test.ts"
       - "tests/zernio/**"
       - "src/services/mots-*.ts"
       - "src/services/oppositions-mots.ts"
@@ -141,16 +142,19 @@ jobs:
             tests/empreintes-controle.test.ts \
             tests/sujets-traites/reglage-garde.test.ts \
             tests/porte-usine-garde-budget.test.ts \
+            tests/l1-09-budget-mensuel.test.ts \
+            tests/corbeille.test.ts \
+            tests/corbeille-ui.test.ts \
             tests/a-publier.test.ts \
             tests/a-publier-premier-commentaire.test.ts \
-            tests/l1-10-buffer-premier-commentaire.test.ts \
-            tests/r1-ecrans-buffer.test.ts \
+            tests/l1-10-*.test.ts \
+            tests/r1-ecrans-*.test.ts \
+            tests/r1-*-client.test.ts \
             tests/a-publier-carte-par-video.test.ts \
             tests/a-publier-liste.test.ts \
             tests/a-publier-par-reseau.test.ts \
-            tests/relais-buffer.test.ts \
-            tests/relais-buffer-proxy.test.ts \
-            tests/buffer-mots-interdits-envoi.test.ts \
+            tests/relais-*.test.ts \
+            tests/*-mots-interdits-envoi.test.ts \
             tests/a-publier-finitions-envoi.test.ts \
             tests/a-publier-mots-interdits-envoi.test.ts
       - name: Charte et v4 exacte
@@ -162,11 +166,11 @@ jobs:
             tests/cas-concret/variete/l7-socle.test.ts \
             tests/cas-concret/compositions/lot2.test.ts \
             tests/cas-concret/compositions/lot3.test.ts
-      - name: Tests z0 (contrat Zernio) et r1 (envoi, client Buffer)
+      - name: Tests z0 (contrat Zernio) et r1 (envoi)
         run: |
           pnpm exec vitest run \
             tests/zernio \
             tests/guide-reseau \
             tests/site-videos/s4-signature.test.ts \
             tests/zernio/z3m-migration.test.tsx \
-            r1-envoi-reel r1-buffer-client
+            r1-envoi-reel

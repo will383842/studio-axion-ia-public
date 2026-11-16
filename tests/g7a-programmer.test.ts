@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { matiere, preparerMotDePasse } from "./helpers/g1a";
-import { planProgrammation, versionsAProgrammer, type VersionProgrammable } from "@/domaine/mesures";
+import { controlerCreneauManuel, planProgrammation, versionsAProgrammer, type VersionProgrammable } from "@/domaine/mesures";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -163,5 +163,147 @@ describe("même garde que la feuille Buffer", () => {
     const r = await mes.programmerSujet(s.id, { jourJ: "2026-10-05" });
     expect(r.programmees).toHaveLength(0);
     expect(r.ignorees).toEqual([expect.objectContaining({ reseau: "tiktok" })]);
+  });
+});
+
+describe("L3-18 : « Programmer les N » tient compte des autres sujets (pur)", () => {
+  it("un autre sujet LinkedIn à J+3 09:00 : le second est décalé au jour libre suivant, avec un motif en français", () => {
+    // J = lundi 5 octobre 2026 : LinkedIn J+3 = jeudi 8 à 9 h (7 h UTC, heure d'été).
+    const autres = [{ reseau: "linkedin" as const, date: "2026-10-08T07:00:00.000Z" }];
+    const c = planProgrammation("2026-10-05", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, autres).find((x) => x.reseau === "linkedin")!;
+    // J+4 (vendredi 9) est le jour de Facebook : on saute au premier jour libre du plan, lundi 12.
+    expect(c.jour).toBe("2026-10-12");
+    expect(c.date).toBe("2026-10-12T07:00:00.000Z");
+    expect(c.motif).toMatch(/autre sujet.*LinkedIn|LinkedIn.*autre sujet/);
+    expect(c.motif).toMatch(/jeudi/);
+  });
+
+  it("sans autre sujet à ce créneau, rien n'est décalé et aucun motif", () => {
+    const autres = [{ reseau: "linkedin" as const, date: "2026-10-09T07:00:00.000Z" }, { reseau: "tiktok" as const, date: "2026-10-08T07:00:00.000Z" }];
+    const c = planProgrammation("2026-10-05", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, autres).find((x) => x.reseau === "linkedin")!;
+    expect(c).toMatchObject({ jour: "2026-10-08", date: "2026-10-08T07:00:00.000Z" });
+    expect(c.motif).toBeUndefined();
+  });
+
+  it("un décalage qui tombe un samedi : AVERTISSEMENT sur LinkedIn, jamais un refus ; Vous pouvez confirmer", () => {
+    const r = controlerCreneauManuel("linkedin", "2026-10-10", "09:00", []);
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.join(" ")).toMatch(/samedi/);
+    expect(r.avertissements.join(" ")).toMatch(/vous pouvez confirmer/i);
+    expect(r.date).toBe("2026-10-10T07:00:00.000Z");
+  });
+
+  it("un décalage manuel est revalidé contre les autres sujets : avertissement, pas de refus", () => {
+    const r = controlerCreneauManuel("linkedin", "2026-10-08", "09:00", [{ reseau: "linkedin", date: "2026-10-08T07:00:00.000Z" }]);
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.join(" ")).toMatch(/autre sujet/);
+    expect(controlerCreneauManuel("tiktok", "2026-10-10", "09:00", []).avertissements).toEqual([]);
+  });
+});
+
+describe("L3-18 (corrections) : décalage fiable (pur)", () => {
+  const cinq = (extra: Partial<VersionProgrammable> = {}) => CINQ.map((r, i) => v(`0042-AV-${i}`, r, extra));
+  const li = (jourJ: string, autres: { reseau: (typeof CINQ)[number]; date: string }[]) => planProgrammation(jourJ, cinq(), undefined, {}, autres).find((x) => x.reseau === "linkedin")!;
+
+  it("samedi LinkedIn puis conflit le lundi : l'avertissement dit le jour FINAL (mardi), jamais « lundi »", () => {
+    // J = mercredi 7 : LinkedIn J+3 = samedi 10 → lundi 12 ; un autre sujet LinkedIn le lundi 12 à 9 h → mardi 13.
+    const c = li("2026-10-07", [{ reseau: "linkedin", date: "2026-10-12T07:00:00.000Z" }]);
+    expect(c.jour).toBe("2026-10-13");
+    expect(c.avertissement).toMatch(/mardi/);
+    expect(c.avertissement).not.toMatch(/lundi/);
+    expect(c.avertissement).toMatch(/Vous pouvez confirmer/);
+  });
+
+  it("aucun jour libre trouvé : on garde le jour d'origine, pas de faux motif « décalée », un avertissement à confirmer", () => {
+    const autres: { reseau: "linkedin"; date: string }[] = [];
+    for (let i = 0; i < 150; i++) autres.push({ reseau: "linkedin", date: new Date(Date.UTC(2026, 9, 1 + i, 7, 0)).toISOString() });
+    const c = li("2026-10-05", autres);
+    expect(c.jour).toBe("2026-10-08");
+    expect(c.date).toBe("2026-10-08T07:00:00.000Z");
+    expect(c.motif ?? "").not.toMatch(/décalée au/);
+    expect(c.avertissement).toMatch(/Vous pouvez confirmer/);
+  });
+
+  it("un autre sujet LinkedIn le même jour à une AUTRE heure (9 h 30) : conflit vu, version décalée", () => {
+    const c = li("2026-10-05", [{ reseau: "linkedin", date: "2026-10-08T07:30:00.000Z" }]);
+    expect(c.jour).not.toBe("2026-10-08");
+    expect(c.motif).toMatch(/autre sujet/);
+  });
+
+  it("le décalage ne tombe jamais sur le jour d'un autre réseau du MÊME sujet", () => {
+    // LinkedIn J+3 = jeudi 8 (pris) ; J+4 = vendredi 9 = jour de Facebook → on va au premier jour libre du plan : lundi 12.
+    const plan = planProgrammation("2026-10-05", cinq(), undefined, {}, [{ reseau: "linkedin", date: "2026-10-08T07:00:00.000Z" }]);
+    const jours = plan.map((x) => x.jour);
+    expect(new Set(jours).size).toBe(jours.length);
+    expect(plan.find((x) => x.reseau === "linkedin")!.jour).toBe("2026-10-12");
+  });
+
+  it("le motif nomme le réseau (TikTok, YouTube Shorts), pas « ce réseau »", () => {
+    const tk = planProgrammation("2026-10-05", cinq(), undefined, {}, [{ reseau: "tiktok", date: "2026-10-05T07:00:00.000Z" }]).find((x) => x.reseau === "tiktok")!;
+    expect(tk.motif).toMatch(/TikTok/);
+    expect(tk.motif).not.toMatch(/ce réseau/);
+    const yt = planProgrammation("2026-10-05", cinq(), undefined, {}, [{ reseau: "youtube-shorts", date: "2026-10-07T07:00:00.000Z" }]).find((x) => x.reseau === "youtube-shorts")!;
+    expect(yt.motif).toMatch(/YouTube Shorts/);
+  });
+
+  it("décalage manuel : un autre sujet le même jour à une autre heure est signalé, avec le nom du réseau", () => {
+    const r = controlerCreneauManuel("tiktok", "2026-10-08", "09:00", [{ reseau: "tiktok", date: "2026-10-08T15:30:00.000Z" }]);
+    expect(r.avertissements.join(" ")).toMatch(/autre sujet.*TikTok|TikTok.*autre sujet/);
+  });
+});
+
+describe("L3-18 : le plan lit les autres sujets (essai, aucun appel réel)", () => {
+  it("un brouillon LinkedIn d'un autre sujet à J+3 09:00 décale la version LinkedIn, avec le motif", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-03T10:00:00Z"));
+    onTestFinished(() => void vi.useRealTimers());
+    const id = await sujetPret();
+    const t = new Date().toISOString();
+    await depots().publications.enregistrer({ id: "pub-autre", videoId: "v-03", varianteId: "autre-variante", reseau: "linkedin", statut: "programmee", via: "simulation", date: "2026-10-08T07:00:00.000Z", texte: "", creeLe: t, modifieLe: t } as never);
+    const plan = await mes.planProgrammerSujet(id, { jourJ: "2026-10-05" });
+    const li = plan.creneaux.find((c) => c.reseau === "linkedin")!;
+    expect(li.jour).toBe("2026-10-12");
+    expect(li.motif).toBeTruthy();
+    expect(plan.creneaux.find((c) => c.reseau === "tiktok")?.motif).toBeUndefined();
+  });
+
+  it("un autre sujet sans varianteId (même réseau, même jour, autre heure) décale aussi ; un sujet déjà passé, non", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-03T10:00:00Z"));
+    onTestFinished(() => void vi.useRealTimers());
+    const id = await sujetPret();
+    const t = new Date().toISOString();
+    await depots().publications.enregistrer({ id: "pub-libre", videoId: "v-03", reseau: "linkedin", statut: "programmee", via: "simulation", date: "2026-10-08T13:30:00.000Z", texte: "", creeLe: t, modifieLe: t } as never);
+    await depots().publications.enregistrer({ id: "pub-passee", videoId: "v-04", reseau: "tiktok", statut: "publiee", via: "simulation", date: "2026-10-01T07:00:00.000Z", texte: "", creeLe: t, modifieLe: t } as never);
+    const plan = await mes.planProgrammerSujet(id, { jourJ: "2026-10-05" });
+    expect(plan.creneaux.find((c) => c.reseau === "linkedin")!.motif).toMatch(/LinkedIn/);
+    expect(plan.creneaux.find((c) => c.reseau === "tiktok")?.motif).toBeUndefined();
+  });
+
+  it("décalage manuel : un jour ou une heure qui n'existent pas sont refusés (INVALIDE)", async () => {
+    const id = await sujetPret();
+    for (const [jour, heure] of [["2026-13-45", "09:00"], ["2026-02-30", "09:00"], ["2026-10-08", "25:99"], ["2026-10-08", "24:00"]]) {
+      await expect(mes.controlerDecalageManuel(id, "linkedin", jour, heure)).rejects.toMatchObject({ code: "INVALIDE" });
+    }
+    await expect(mes.controlerDecalageManuel(id, "linkedin", "2026-10-08", "23:59")).resolves.toMatchObject({ ok: true });
+  });
+
+  it("aucun texte ne promet un choix « en prendre un autre » que l'écran ne permet pas : seul « Confirmer » existe", () => {
+    const c = planProgrammation("2026-10-07", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, [{ reseau: "linkedin", date: "2026-10-12T07:00:00.000Z" }]).find((x) => x.reseau === "linkedin")!;
+    expect(c.avertissement).toMatch(/Vous pouvez confirmer/);
+    expect(c.avertissement).not.toMatch(/en prendre un autre/);
+    const m = controlerCreneauManuel("linkedin", "2026-10-10", "09:00", []);
+    expect(m.avertissements.join(" ")).not.toMatch(/en prendre un autre/);
+  });
+
+  it("aucun prénom de personne dans les commentaires de mesures.ts (dépôt public)", () => {
+    const src = readFileSync(join(__dirname, "..", "src/domaine/mesures.ts"), "utf8");
+    const prenom = ["Wi", "ll"].join(""); // jamais écrit en clair dans le dépôt public
+    expect(src).not.toMatch(new RegExp(`\\b${prenom}`));
+  });
+
+  it("l'envoi de mesures.ts reste branché sur envoyerVersBuffer (non modifié par cette fiche)", () => {
+    const src = readFileSync(join(__dirname, "..", "src/services/mesures.ts"), "utf8");
+    expect(src).toMatch(/envoyerVersBuffer\(c\.videoId, \[c\.reseau\], c\.date\)/);
   });
 });

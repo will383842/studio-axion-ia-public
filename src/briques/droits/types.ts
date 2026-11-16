@@ -3,7 +3,7 @@
  * Une entrée par pièce (dessin, son, musique, stylo, police, capture de preuve), un fichier par entrée dans `registre/`.
  */
 
-export const TYPES_PIECE = ["dessin", "son", "musique", "stylo", "police", "capture-preuve"] as const;
+export const TYPES_PIECE = ["dessin", "son", "musique", "stylo", "police", "capture-preuve", "icone", "animation"] as const;
 export type TypePiece = (typeof TYPES_PIECE)[number];
 
 export interface EntreeDroit {
@@ -19,4 +19,22 @@ export interface EntreeDroit {
   date: string;
   /** Péremption facultative, AAAA-MM-JJ : le droit n'est plus valide à cette date et après. */
   perimeLe?: string;
+  /** Famille d'icônes ou d'animations (ex. « feather »). Facultatif (C6-H16). */
+  famille?: string;
+  /** Version figée de la source importée. */
+  versionFigee?: string;
+  /** Identifiant SPDX de la licence (ne sert qu'aux imports). */
+  spdx?: string;
+  /** Chemin du fichier de licence copié dans le dépôt. */
+  fichierLicence?: string;
+  /** Adresse de la source. */
+  adresseSource?: string;
+  /** Adresse du texte de la licence. */
+  adresseLicence?: string;
+  /** Littéral : aucun crédit n'est exigé. */
+  creditRequis?: false;
+  /** Nombre d'éléments importés. */
+  nbElements?: number;
+  /** Chemin du manifeste des éléments. */
+  manifeste?: string;
 }

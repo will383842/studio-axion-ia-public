@@ -93,7 +93,7 @@ beforeEach(async () => {
   injecterClientZernio(null);
   process.env.ZERNIO_API_KEY = CLE_FICTIVE;
   await auth.seConnecter("essai-e2e-service", false);
-  // Les tests qui visent Buffer l'ont choisi explicitement pour Instagram (le défaut est Zernio).
+  // Ancien choix « buffer » déjà en base (L0-13a) : lu comme absent, Instagram part par Zernio ; la valeur n'est jamais réécrite.
   await (await import("@/services/_commun")).ecrireParametre("publication.routage", { instagram: "buffer" });
   buffer = fauxBuffer({});
   sorties = [];
@@ -144,23 +144,21 @@ describe("e2e-4 · envoi Zernio en brouillon par le service", () => {
 
 /* ------------------------------------------------------------------ (3) anti-doublon entre outils */
 describe("e2e-4 · anti-doublon entre outils", () => {
-  it("déjà envoyé par Buffer : Zernio refuse (phrase claire), Zernio n'est pas appelé", async () => {
-    const r1 = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(r1.ok).toBe(true);
-    expect(buffer.mutations().length).toBe(1);
+  it("historique : déjà envoyé par Buffer (publication « buffer » lue) : Zernio refuse (phrase claire), Zernio n'est pas appelé", async () => {
+    await depots().publications.enregistrer({ id: "pub-exemple-b", videoId: VIDEO, reseau: "instagram", statut: "brouillon", via: "buffer", date: DEMAIN, texte: "exemple", etatEnvoi: "envoye", idExterne: "exemple-b", creeLe: DEMAIN, modifieLe: DEMAIN } as never);
     const r2 = await envoyerZernio();
     expect(r2.ok).toBe(false);
     expect(JSON.stringify(r2)).toContain("Déjà envoyée par Buffer pour ce réseau.");
     expect(posts()).toHaveLength(0);
-    expect(buffer.mutations().length).toBe(1);
+    expect(buffer.mutations()).toHaveLength(0);
   });
 
-  it("déjà envoyé par Zernio : Buffer refuse, aucune seconde mutation Buffer", async () => {
+  it("déjà envoyé par Zernio : Buffer est refusé (OUTIL_REFUSE), aucune mutation Buffer, aucun second post Zernio", async () => {
     expect((await envoyerZernio()).ok).toBe(true);
     const r2 = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(r2.ok).toBe(false);
-    expect(JSON.stringify(r2)).toContain("Déjà envoyée par Zernio pour ce réseau.");
+    expect(r2).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
     expect(buffer.mutations()).toHaveLength(0);
+    expect(posts()).toHaveLength(1);
   });
 
   it("second clic sur Zernio : un seul post chez Zernio, une seule ligne dans le Studio", async () => {
@@ -172,10 +170,11 @@ describe("e2e-4 · anti-doublon entre outils", () => {
   });
 
   it("changer de date ne contourne pas le garde : toujours « déjà envoyée »", async () => {
-    await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
+    await depots().publications.enregistrer({ id: "pub-exemple-b", videoId: VIDEO, reseau: "instagram", statut: "brouillon", via: "buffer", date: DEMAIN, texte: "exemple", etatEnvoi: "envoye", idExterne: "exemple-b", creeLe: DEMAIN, modifieLe: DEMAIN } as never);
     const autreDate = new Date(Date.parse(DEMAIN) + 24 * 3600_000).toISOString();
     const r = await envoyerParOutilAction(VIDEO, "instagram", autreDate, { outil: "zernio" });
-    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ ok: false });
+    expect(JSON.stringify(r)).toContain("Déjà envoyée par Buffer pour ce réseau.");
     expect(posts()).toHaveLength(0);
   });
 
@@ -209,9 +208,9 @@ describe("e2e-4 · anti-doublon entre outils", () => {
     const avant = posts().length;
     await envoyerZernio();
     expect(posts().length).toBe(avant);
-    // Buffer reste bloqué tant que l'envoi Zernio est « à vérifier ».
+    // Buffer est refusé (OUTIL_REFUSE), et Zernio reste bloqué par l'envoi « à vérifier » (pas de second post).
     const rb = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(rb.ok).toBe(false);
+    expect(rb).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
     expect(buffer.mutations()).toHaveLength(0);
   });
 });
@@ -242,11 +241,13 @@ describe("e2e-4 · « Tout arrêter »", () => {
     expect(appelsZernio.filter((a) => a.methode !== "GET")).toHaveLength(0);
   });
 
-  it("l'arrêt n'affecte pas Buffer (réglage propre à Zernio) : Buffer reste utilisable", async () => {
+  it("l'arrêt ne rouvre pas Buffer : refusé (OUTIL_REFUSE) arrêt actif comme après la reprise, aucune mutation Buffer", async () => {
     await actions.arreterToutAction();
-    const r = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
-    expect(r.ok).toBe(true);
-    expect(buffer.mutations()).toHaveLength(1);
+    expect(await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" })).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    await actions.reprendreToutAction();
+    expect(await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" })).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    expect(buffer.mutations()).toHaveLength(0);
+    expect(posts()).toHaveLength(0);
   });
 });
 
@@ -324,7 +325,7 @@ describe("e2e-4 · synchronisation : un post publié chez Zernio passe à « Pub
   });
 
   it("un post Buffer n'est jamais relu chez Zernio, un post Zernio déjà publié ne repasse pas en brouillon", async () => {
-    await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "buffer" });
+    await depots().publications.enregistrer({ id: "pub-exemple-b", videoId: VIDEO, reseau: "instagram", statut: "brouillon", via: "buffer", date: DEMAIN, texte: "exemple", etatEnvoi: "envoye", idExterne: "exemple-b", creeLe: DEMAIN, modifieLe: DEMAIN } as never);
     const avant = appelsZernio.length;
     expect((await synchroniserEtatsZernio({ force: true, instant: Date.now() })).lues).toBe(0);
     // Seule la lecture des comptes (alertes jetons, STU-JETONS) est permise : aucune lecture de post.
