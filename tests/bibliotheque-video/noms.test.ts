@@ -35,6 +35,8 @@ const IDENTIFIANTS_PLAN = [
   "cadrage.camera-cas-concret", "cadrage.zoom-v4", "motion.avis-client",
   // AM-08 / AM-09
   "texte.sortie-animee", "texte.escalier",
+  // G2-02
+  "texte.sous-titres", "plan-scenes.generique", "son.pose", "etalonnage.lut",
 ];
 
 const FAMILLES_ATTENDUES = [
