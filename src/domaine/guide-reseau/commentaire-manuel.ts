@@ -68,7 +68,7 @@ export function lireCommentaireManuel(env: EnveloppeZernio, motsConnus?: readonl
   const garde = texte === null ? null : motSeulDe(texte, motsConnus);
   const motSeul = garde; // forme canonique déjà rendue par `motSeulDe` : pas de nouvelle normalisation
   const classe = typeof c.text === "string" ? classerOpposition(c.text.slice(0, 2000)) : "non";
-  const doute = !proprio && motSeul === null && classe === "doute";
+  const doute = !proprio && motSeul === null && (classe === "doute" || classe === "opposition"); // « opposition » sans mot seul : texte de plus de 200 caractères
   return {
     idCommentaire,
     idCompte,

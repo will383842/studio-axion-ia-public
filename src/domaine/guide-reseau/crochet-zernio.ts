@@ -204,7 +204,7 @@ export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: reado
   // `motSeulDe` rend déjà la forme canonique (mot configuré ou opposition) : on ne re-normalise JAMAIS le texte brut.
   const motSeul = gardé;
   const classe = texte !== null ? classerOpposition(texte.slice(0, 2000)) : "non";
-  const doute = !propre && motSeul === null && classe === "doute";
+  const doute = !propre && motSeul === null && (classe === "doute" || classe === "opposition"); // « opposition » sans mot seul : texte de plus de 200 caractères
   const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
   return {
     idCommentaire,
