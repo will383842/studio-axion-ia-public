@@ -35,12 +35,14 @@ describe("bibliothèque d'icônes (C6-H17a)", () => {
     }
   });
 
-  it("tous les noms sont préfixés « lucide: » et aucun n'est une marque", () => {
+  it("tous les noms sont préfixés par leur jeu (lucide, phosphor, material) et aucun n'est une marque", () => {
     for (const nom of Object.keys(ICONES_BIBLIOTHEQUE)) {
-      expect(nom.startsWith("lucide:"), nom).toBe(true);
-      expect(MARQUES).not.toContain(nom.slice("lucide:".length));
-      expect(jeuDe(nom)).toBe("lucide");
+      const jeu = nom.slice(0, nom.indexOf(":"));
+      expect(["lucide", "phosphor", "material"], nom).toContain(jeu);
+      expect(MARQUES).not.toContain(nom.slice(jeu.length + 1).replace(/~duotone$/, ""));
+      expect(jeuDe(nom)).toBe(jeu);
     }
+    expect(Object.keys(ICONES_BIBLIOTHEQUE).filter((n) => n.startsWith("lucide:"))).toHaveLength(43);
     expect(jeuDe("coche")).toBeUndefined();
     expect(Object.isFrozen(ICONES_BIBLIOTHEQUE)).toBe(true);
   });
@@ -50,7 +52,10 @@ describe("bibliothèque d'icônes (C6-H17a)", () => {
     expect(d).toBeDefined();
     expect(admissibleEnAutomatique(d!)).toBe(true);
     expect((d as { creditRequis?: boolean }).creditRequis).not.toBe(true);
-    expect(DROITS[DROITS.length - 1]!.id).toBe("icones-bibliotheque-lucide");
+    // E-6 : les entrées de droits des icônes de bibliothèque sont en fin de registre, dans l'ordre d'arrivée des jeux.
+    const ids = DROITS.map((e) => e.id);
+    expect(ids.indexOf("icones-bibliotheque-lucide")).toBeLessThan(ids.indexOf("icones-bibliotheque-phosphor"));
+    expect(ids.slice(-2)).toEqual(["icones-bibliotheque-phosphor", "icones-bibliotheque-material"]);
   });
 
   it("LICENCE-Lucide.txt contient l'ISC entière, le MIT de Feather et une date", () => {
