@@ -143,6 +143,7 @@ jobs:
             tests/a-publier-premier-commentaire.test.ts \
             tests/l1-10-*.test.ts \
             tests/r1-ecrans-*.test.ts \
+            tests/r1-*-client.test.ts \
             tests/a-publier-carte-par-video.test.ts \
             tests/a-publier-liste.test.ts \
             tests/a-publier-par-reseau.test.ts \

@@ -85,6 +85,7 @@ describe("L0-13b : workflow tests-cibles sans motif Buffer", () => {
       "tests/" + MOTIF_BUFFER + "-mots-interdits-envoi.test.ts",
       "tests/l1-10-" + MOTIF_BUFFER + "-premier-commentaire.test.ts",
       "tests/r1-ecrans-" + MOTIF_BUFFER + ".test.ts",
+      "tests/r1-" + MOTIF_BUFFER + "-client.test.ts",
     ]) expect(vises.has(f), f).toBe(true);
     const paths = motifsPaths();
     for (const f of [
@@ -95,5 +96,22 @@ describe("L0-13b : workflow tests-cibles sans motif Buffer", () => {
       "tests/relais-" + MOTIF_BUFFER + "-proxy.test.ts",
       "tests/l1-10-" + MOTIF_BUFFER + "-premier-commentaire.test.ts",
     ]) expect(paths.some((p) => echappe(p).test(f)), f).toBe(true);
+  });
+  it("gèle l'ensemble exact des fichiers lancés par chaque joker (un ajout futur doit échouer ici)", () => {
+    const B = MOTIF_BUFFER;
+    const gel: Record<string, string[]> = {
+      "tests/l1-10-*.test.ts": [`tests/l1-10-${B}-premier-commentaire.test.ts`],
+      "tests/relais-*.test.ts": [`tests/relais-${B}-proxy.test.ts`, `tests/relais-${B}.test.ts`],
+      "tests/r1-ecrans-*.test.ts": [`tests/r1-ecrans-${B}.test.ts`],
+      "tests/r1-*-client.test.ts": [`tests/r1-${B}-client.test.ts`],
+      "tests/*-mots-interdits-envoi.test.ts": ["tests/a-publier-mots-interdits-envoi.test.ts", `tests/${B}-mots-interdits-envoi.test.ts`],
+    };
+    const lances = argumentsVitest();
+    for (const [joker, attendus] of Object.entries(gel)) {
+      expect(lances, joker).toContain(joker);
+      expect(fichiersVises(joker).sort(), joker).toEqual([...attendus].sort());
+    }
+    const jokersLances = lances.filter((j) => j.includes("*") && !j.startsWith("tests/zernio"));
+    expect(jokersLances.sort()).toEqual(Object.keys(gel).sort());
   });
 });
