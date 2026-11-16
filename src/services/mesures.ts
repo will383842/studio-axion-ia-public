@@ -16,6 +16,7 @@ import {
   lienDeVersion,
   PAGE_SUIVIE_PAR_DEFAUT,
   controlerCreneauManuel,
+  type CreneauOccupe,
   planProgrammation,
   versionsAProgrammer,
   type CreneauVersion,
@@ -37,7 +38,7 @@ import { formateurDate } from "@/lib/intl";
 /* Lien suivi                                                          */
 /* ------------------------------------------------------------------ */
 
-/** Page du site vers laquelle pointent les liens suivis (`publication.pageSuivie`, réglage de Will). */
+/** Page du site vers laquelle pointent les liens suivis (`publication.pageSuivie`, réglage des Réglages). */
 export async function pageSuivie(): Promise<string> {
   return lireParametre<string>("publication.pageSuivie", PAGE_SUIVIE_PAR_DEFAUT);
 }
@@ -182,7 +183,7 @@ export interface PlanProgrammation {
   /** Versions prêtes d'autres formats (programmées au toucher suivant, un format à la fois). */
   autresFormats: number;
   envoiSimule: boolean;
-  /** Lot R1 : envoi réel en brouillon dans Buffer (défaut) ou programmé directement (choix de Will). */
+  /** Lot R1 : envoi réel en brouillon dans Buffer (défaut) ou programmé directement (votre choix). */
   modeBuffer: ModeEnvoiPublication;
 }
 
@@ -216,8 +217,8 @@ export async function planProgrammerSujet(scriptMaitreId: Id, options: { formatI
   const retenues = versionsAProgrammer(programmables, { formatId: options.formatId, dejaEnvoyees });
   const formatRetenu = retenues[0]?.formatId;
   const autres = programmables.filter((v) => v.etatCase === "en-video" && !!v.videoId && !dejaEnvoyees.has(v.id) && v.formatId !== formatRetenu);
-  // L3-18 : ce qui est déjà prévu pour d'AUTRES sujets (même réseau, pas encore passé) décale le créneau, avec un motif.
-  const occupes = (await depots().publications.lister((p) => !!p.varianteId && !ids.has(p.varianteId) && p.date >= instant && (p.statut === "programmee" || p.statut === "brouillon"))).map((p) => ({ reseau: p.reseau as ReseauDeclinaison, date: p.date }));
+  // L3-18 : ce qui est déjà prévu pour d'AUTRES sujets décale le créneau, avec un motif.
+  const occupes = await creneauxOccupesParAutres(vue, instant);
   const [ordre, heures] = await Promise.all([lireParametre<string[]>("publication.ordreParDefaut", []), lireParametre<Partial<Record<ReseauDeclinaison, string>>>("publication.heureParReseau", {})]);
   return {
     formatId: formatRetenu,
@@ -228,21 +229,38 @@ export async function planProgrammerSujet(scriptMaitreId: Id, options: { formatI
   };
 }
 
+/**
+ * Ce qui est déjà prévu pour d'AUTRES sujets, pas encore passé : programmé, brouillon, ou envoi en cours chez l'outil
+ * (même sans variante rattachée). Les versions et vidéos de CE sujet (`vue.versions`) sont exclues, dans les deux usages.
+ */
+async function creneauxOccupesParAutres(vue: NonNullable<Awaited<ReturnType<typeof obtenirSujet>>>, instant: string): Promise<CreneauOccupe[]> {
+  const siennes = new Set(vue.versions.map((x) => x.variante.id));
+  const sesVideos = new Set(vue.versions.map((x) => x.videoId).filter((x): x is string => !!x));
+  const pubs = await depots().publications.lister((p) => !(p.varianteId && siennes.has(p.varianteId)) && !(p.videoId && sesVideos.has(p.videoId)) && p.date >= instant && (p.statut === "programmee" || p.statut === "brouillon" || occupeBuffer(p)));
+  return pubs.map((p) => ({ reseau: p.reseau as ReseauDeclinaison, date: p.date }));
+}
+
+/** Jour et heure RÉELS (pas seulement le gabarit) : « 2026-13-45 » ou « 25:99 » sont refusés. */
+function jourHeureValides(jour: string, heure: string): boolean {
+  const j = /^(\d{4})-(\d{2})-(\d{2})$/.exec(jour);
+  const h = /^(\d{2}):(\d{2})$/.exec(heure);
+  if (!j || !h || Number(h[1]) > 23 || Number(h[2]) > 59) return false;
+  const d = new Date(Date.UTC(Number(j[1]), Number(j[2]) - 1, Number(j[3])));
+  return d.getUTCFullYear() === Number(j[1]) && d.getUTCMonth() === Number(j[2]) - 1 && d.getUTCDate() === Number(j[3]);
+}
+
 /** L3-18 : décalage manuel d'un créneau, revalidé contre les autres sujets. Avertissements seulement, jamais de refus. */
 export async function controlerDecalageManuel(scriptMaitreId: Id, reseau: ReseauDeclinaison, jour: string, heure: string): Promise<{ ok: true; date: string; avertissements: string[] }> {
   await exigerSession();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || !/^\d{2}:\d{2}$/.test(heure)) throw new ErreurStudio("INVALIDE", "Indiquez un jour et une heure valides.");
+  if (!jourHeureValides(jour, heure)) throw new ErreurStudio("INVALIDE", "Indiquez un jour et une heure valides.");
   const vue = await obtenirSujet(scriptMaitreId);
   if (!vue) throw new ErreurStudio("INTROUVABLE", "Ce sujet n'existe plus.");
-  const instant = maintenant();
-  const siennes = new Set(vue.versions.map((x) => x.variante.id));
-  const occupes = (await depots().publications.lister((p) => !!p.varianteId && !siennes.has(p.varianteId) && p.date >= instant && (p.statut === "programmee" || p.statut === "brouillon"))).map((p) => ({ reseau: p.reseau as ReseauDeclinaison, date: p.date }));
-  return controlerCreneauManuel(reseau, jour, heure, occupes);
+  return controlerCreneauManuel(reseau, jour, heure, await creneauxOccupesParAutres(vue, maintenant()));
 }
 
 export interface ResultatProgrammation {
   simulation: boolean;
-  /** Lot R1 : les envois réels sont partis en brouillon dans Buffer (Will les programme dans Buffer). */
+  /** Lot R1 : les envois réels sont partis en brouillon dans Buffer (vous les programmez dans Buffer). */
   modeBuffer?: ModeEnvoiPublication;
   /** Lot R1b : `compte`, le compte Buffer visé quand le réseau en a plusieurs (deux comptes = deux lignes). */
   programmees: { code: string; reseau: ReseauDeclinaison; date: string; publicationId: Id; compte?: string }[];
@@ -260,7 +278,7 @@ export async function programmerSujet(scriptMaitreId: Id, options: { formatId?: 
       // Même garde que la feuille Buffer : un fichier trop long ou sans le bon format d'image ne part pas.
       const bloquant = (await obtenirKit(c.videoId))?.reseaux.find((x) => x.reseau === c.reseau)?.avertissements.find((a) => a.code === "trop-longue" || a.code === "ratio-absent");
       if (bloquant) throw new ErreurStudio("RESEAU", bloquant.message);
-      // Lot R1b : sans comptes cochés, le compte mémorisé du réseau (dernier choix de Will) ; aucun pour un réseau à
+      // Lot R1b : sans comptes cochés, le compte mémorisé du réseau (votre dernier choix) ; aucun pour un réseau à
       // plusieurs comptes → ce réseau est mis de côté (« choisissez le compte LinkedIn une première fois »).
       const envoi = await envoyerVersBuffer(c.videoId, [c.reseau], c.date);
       // Lot R1 : seul un envoi que Buffer a confirmé compte comme programmé ; « à vérifier » est dit, à part.

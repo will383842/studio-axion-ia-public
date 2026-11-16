@@ -171,8 +171,9 @@ describe("L3-18 : « Programmer les N » tient compte des autres sujets (pur)", 
     // J = lundi 5 octobre 2026 : LinkedIn J+3 = jeudi 8 à 9 h (7 h UTC, heure d'été).
     const autres = [{ reseau: "linkedin" as const, date: "2026-10-08T07:00:00.000Z" }];
     const c = planProgrammation("2026-10-05", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, autres).find((x) => x.reseau === "linkedin")!;
-    expect(c.jour).toBe("2026-10-09");
-    expect(c.date).toBe("2026-10-09T07:00:00.000Z");
+    // J+4 (vendredi 9) est le jour de Facebook : on saute au premier jour libre du plan, lundi 12.
+    expect(c.jour).toBe("2026-10-12");
+    expect(c.date).toBe("2026-10-12T07:00:00.000Z");
     expect(c.motif).toMatch(/autre sujet.*LinkedIn|LinkedIn.*autre sujet/);
     expect(c.motif).toMatch(/jeudi/);
   });
@@ -261,7 +262,7 @@ describe("L3-18 : le plan lit les autres sujets (essai, aucun appel réel)", () 
     await depots().publications.enregistrer({ id: "pub-autre", videoId: "v-03", varianteId: "autre-variante", reseau: "linkedin", statut: "programmee", via: "simulation", date: "2026-10-08T07:00:00.000Z", texte: "", creeLe: t, modifieLe: t } as never);
     const plan = await mes.planProgrammerSujet(id, { jourJ: "2026-10-05" });
     const li = plan.creneaux.find((c) => c.reseau === "linkedin")!;
-    expect(li.jour).toBe("2026-10-09");
+    expect(li.jour).toBe("2026-10-12");
     expect(li.motif).toBeTruthy();
     expect(plan.creneaux.find((c) => c.reseau === "tiktok")?.motif).toBeUndefined();
   });
@@ -288,7 +289,7 @@ describe("L3-18 : le plan lit les autres sujets (essai, aucun appel réel)", () 
   });
 
   it("aucun texte ne promet un choix « en prendre un autre » que l'écran ne permet pas : seul « Confirmer » existe", () => {
-    const c = li("2026-10-07", [{ reseau: "linkedin", date: "2026-10-12T07:00:00.000Z" }]);
+    const c = planProgrammation("2026-10-07", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, [{ reseau: "linkedin", date: "2026-10-12T07:00:00.000Z" }]).find((x) => x.reseau === "linkedin")!;
     expect(c.avertissement).toMatch(/Vous pouvez confirmer/);
     expect(c.avertissement).not.toMatch(/en prendre un autre/);
     const m = controlerCreneauManuel("linkedin", "2026-10-10", "09:00", []);
