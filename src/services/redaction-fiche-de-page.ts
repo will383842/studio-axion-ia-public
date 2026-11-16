@@ -101,9 +101,24 @@ const refus = (...erreurs: string[]): { ok: false; erreurs: string[] } => ({ ok:
 
 export function creerRedactionFicheDePage(options: OptionsRedaction) {
   const { fournisseur, fiches } = options;
-  const noms = (options.nomsInterdits ?? []).map((n) => sansAccent(n.normalize("NFC")).trim().split(/\s+/).filter(Boolean).join(" ")).filter((n) => n !== "");
-  /** Un nom reconnu quels que soient la casse, les accents (NFC ou NFD) et les blancs entre les mots. */
-  const reNoms = noms.map((n) => new RegExp(n.split(" ").map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"), "gu"));
+  const SEP = "[\\s\\-\u2010-\u2015]+";
+  const PARTICULES = new Set(["de", "du", "la", "le", "les", "des", "van", "von", "der", "den", "el", "al", "d", "l"]);
+  const echapper = (m: string) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const noms = (options.nomsInterdits ?? []).map((n) => sansAccent(n.normalize("NFC")).trim().split(/[\s\-\u2010-\u2015]+/).filter(Boolean).join(" ")).filter((n) => n !== "");
+  /**
+   * Un nom est reconnu quels que soient la casse, les accents (NFC ou NFD), les blancs ou traits d'union entre les mots,
+   * l'ordre, l'initiale du prénom ; chaque mot est aussi reconnu seul (SEO-01 interdit le prénom seul et le nom seul).
+   * Limites de mot Unicode : « Anne » n'abîme pas « année » ni « annexe ».
+   */
+  const reNoms = noms.flatMap((n) => {
+    const mots = n.split(" ").map(echapper);
+    const motifs = [mots.join(SEP), [...mots].reverse().join(SEP)];
+    if (mots.length > 1) motifs.push(`${mots[0][0]}\\.?${SEP}${mots.slice(1).join(SEP)}`);
+    for (const m of n.split(" ")) if (!PARTICULES.has(m)) motifs.push(echapper(m));
+    return [...new Set(motifs)].map((m) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${m})(?![\\p{L}\\p{N}])`, "gu"));
+  });
+  /** Un caractère invisible (\p{Cf}) n'est jamais un séparateur : le texte est testé sans lui et avec un blanc à sa place. */
+  const variantesSansInvisible = (texte: string): string[] => [texte.replace(/\p{Cf}/gu, ""), texte.replace(/\p{Cf}/gu, " ")];
   const plat = (texte: string): string => texte.normalize("NFC").split("").map((c) => sansAccent(c)[0] ?? c).join("");
   let compteur = 0;
   const nouvelId = options.nouvelId ?? (() => `PROP-${++compteur}`);
@@ -113,6 +128,8 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
   const masquerTout = (texte: string): string => {
     let out = masquerCoordonnees(texte).replace(new RegExp(RE_PSEUDO.source, "gu"), "[masqué]");
     out = out.normalize("NFC");
+    const [colle, espace] = variantesSansInvisible(out);
+    out = reNoms.some((re) => new RegExp(re.source, "u").test(plat(colle))) ? colle : espace;
     for (const re of reNoms) {
       const norm = plat(out);
       let res = "";
@@ -130,8 +147,10 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
 
   const contientPersonne = (texte: string): boolean => {
     if (new RegExp(RE_EMAIL.source, "u").test(texte) || new RegExp(RE_TEL.source).test(texte) || RE_PSEUDO.test(texte)) return true;
-    const net = plat(texte);
-    return reNoms.some((re) => new RegExp(re.source, "u").test(net));
+    return variantesSansInvisible(texte).some((v) => {
+      const net = plat(v);
+      return reNoms.some((re) => new RegExp(re.source, "u").test(net));
+    });
   };
 
   function defautsDe(b: BrouillonFournisseur): Defaut[] {
