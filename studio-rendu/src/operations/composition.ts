@@ -35,6 +35,7 @@ import { mesurerFinVideo } from "../composition/fin-video.js";
 import { fichierEntree, remplacerReferences } from "../composition/entrees.js";
 import { servirDossier } from "../composition/serveur-fichiers.js";
 import { compositionFacecamV4 } from "./facecam-v4.js";
+import { compositionPlage } from "./plage-images.js";
 import { deposer, erreurSelectionComposition, executer, executerAvecErreurs, exigerAdressePermise, FFMPEG, FFPROBE, sansAdresses, telecharger } from "../outils.js";
 import { lireCubeFichier } from "../lut.js";
 import { coeursDisponibles, paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
@@ -397,6 +398,8 @@ export const composition: Operation = async (demande, contexte) => {
   const p = demande.parametres as Partial<ParametresDemandeComposition> & { mode?: string };
   // Face caméra animée v4 (Lot I) : opération à part (prise montée + médias servis + composition `InterfaceClaireFaceCameraV4`).
   if ((demande.parametres as { mode?: unknown }).mode === "facecam-v4") return compositionFacecamV4(demande, contexte);
+  // Plage d'images d'une composition (G10-01), toujours en local.
+  if ((demande.parametres as { mode?: unknown }).mode === "plage") return compositionPlage(demande, contexte);
   if (p.mode !== "complet" && p.mode !== "recalque") return compositionEssai(demande, contexte);
   const params = p as ParametresDemandeComposition;
   const debut = Date.now();
