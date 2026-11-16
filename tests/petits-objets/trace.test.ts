@@ -2,11 +2,30 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { cheminCercle, cheminFleche } from "../../studio-rendu/compositions/commune/motion/MotionCaptureAnnotee";
+import { readFileSync } from "node:fs";
+import { transformSync } from "esbuild";
 import { cheminCercleObjet, cheminFlecheObjet, TraceSvg } from "../../src/briques/motion/petits-objets/TraceSvg";
 import { IMAGES_ENTREE, IMAGES_SORTIE, phaseObjet } from "../../src/briques/motion/petits-objets/progres";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import type { TonObjet } from "../../src/briques/motion/petits-objets/contrat";
+
+/**
+ * Les formes d'origine sont lues dans le source de MotionCaptureAnnotee.tsx (pointCercle, cheminCercle, cheminFleche)
+ * puis exécutées telles quelles : on n'importe pas le module, qui tire `remotion` (absent du `node_modules` racine
+ * en CI) et ferait entrer studio-rendu dans le contrôle de types racine.
+ */
+function formesOrigine() {
+  const source = readFileSync(new URL("../../studio-rendu/compositions/commune/motion/MotionCaptureAnnotee.tsx", import.meta.url), "utf8");
+  const debut = source.indexOf("export function pointCercle");
+  const fin = source.indexOf("/** Position de l'étiquette");
+  if (debut < 0 || fin <= debut) throw new Error("formes d'origine introuvables dans MotionCaptureAnnotee.tsx");
+  const js = transformSync(source.slice(debut, fin).replace(/export function/g, "function"), { loader: "ts" }).code;
+  return new Function(`${js}\nreturn { cheminCercle, cheminFleche };`)() as {
+    cheminCercle: (x: number, y: number, l: number, h: number, graine?: number) => string;
+    cheminFleche: (x: number, y: number, l: number, h: number, W: number, H: number) => unknown;
+  };
+}
+const { cheminCercle, cheminFleche } = formesOrigine();
 
 const TONS: TonObjet[] = ["neutre", "accent", "valide", "erreur"];
 const JEUX: [number, number, number, number, number][] = [
