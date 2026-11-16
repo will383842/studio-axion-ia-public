@@ -42,9 +42,9 @@ const { traduireSelectionVersZernio, SELECTION_NON_TRADUITE } = await import("@/
 const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
 const ZERNIO_IG = "zernio-compte-ig-1";
-const ANCIEN_IG = "buffer-canal-ig-1";
+const ANCIEN_IG = "ancien-canal-ig-1";
 const canal = (id: string, nom: string, service = "instagram", organisationId = "zernio"): CanalPublication => ({ id, organisationId, nom, service, deconnecte: false });
-const ANCIENNE_LISTE = [canal(ANCIEN_IG, "Exemple IG", "instagram", "org-buffer"), canal("buffer-canal-ig-2", "Autre IG", "instagram", "org-buffer")];
+const ANCIENNE_LISTE = [canal(ANCIEN_IG, "Exemple IG", "instagram", "ancien-org"), canal("ancien-canal-ig-2", "Autre IG", "instagram", "ancien-org")];
 
 let demandes: DemandePublication[] = [];
 let leve: ErreurZernio | null = null;
@@ -93,11 +93,11 @@ describe("FIN-ZERNIO 1 · traduction de la présélection (pure)", () => {
     expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [], ANCIENNE_LISTE)).toBeUndefined();
   });
   it("un seul compte coché absent de la liste : refus, jamais de repli sur le seul compte du réseau", async () => {
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", ["buffer-canal-ig-2"], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", ["ancien-canal-ig-2"], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
   });
   it("plusieurs comptes dont un absent de la liste : marqueur de refus", async () => {
     canauxZernio = [canal(ZERNIO_IG, "Exemple IG")];
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [ZERNIO_IG, "buffer-canal-ig-2"], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [ZERNIO_IG, "ancien-canal-ig-2"], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
   });
   it("homonymes chez Zernio : l'ancien identifiant n'est pas traduit, refus (jamais un tirage)", async () => {
     canauxZernio = [canal("z-aaaaaa", "Exemple IG"), canal("z-bbbbbb", "Exemple IG")];
@@ -138,7 +138,7 @@ describe("FIN-ZERNIO 1 · bout en bout en simulation : Instagram présélectionn
     expect(demandes).toHaveLength(0);
   });
 
-  it("Un ancien routage « buffer » est lu comme Zernio (compte Zernio coché), aucune création Buffer", async () => {
+  it("Un ancien routage mémorisé est lu comme Zernio (compte Zernio coché), aucune création chez l'ancien outil", async () => {
     // Valeur « buffer » déjà en base : lue comme absente (L0-13a), jamais réécrite.
     etat.zernio = fauxZernio();
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
