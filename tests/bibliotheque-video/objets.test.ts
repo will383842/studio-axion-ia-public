@@ -1,0 +1,122 @@
+/** C9-03 : famille `objet` au catalogue : 12 lignes `prevu`, jamais permises. */
+import { describe, expect, it } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { CAPACITES_OBJET } from "@/briques/motion/petits-objets/contrat";
+import { CATALOGUE_CAPACITES, ID } from "@/briques/bibliotheque-video/catalogue";
+import { LIGNES_OBJETS } from "@/briques/bibliotheque-video/catalogue/objets";
+import { PROFILS_DU_CODE, profilNeutre } from "@/briques/bibliotheque-video/profils";
+import { porteCapacite } from "@/briques/bibliotheque-video/moteur";
+import type { IdCapacite } from "@/briques/bibliotheque-video/types";
+
+const racine = process.cwd();
+const IDS_OBJET = Object.values(ID).filter((i) => i.startsWith("objet.")) as IdCapacite[];
+
+/** Lignes (id|etat) du catalogue sur master avant C9-03, hors `objet.*`. */
+const HORS_OBJET_MASTER = [
+  "texte.mot-dit-accent|prod",
+  "texte.sous-titres-v4|prod",
+  "texte.surlignage-marqueur|eteint",
+  "texte.style-varie|eteint",
+  "texte.pastille-axion|coulisse",
+  "texte.pave|prevu",
+  "texte.nom-outil|prevu",
+  "texte.nom-outil-autonome|prevu",
+  "texte.bandeau-nom|prevu",
+  "texte.repere-epaule|prevu",
+  "texte.sortie-animee|prevu",
+  "texte.escalier|prevu",
+  "ecran.clip-v4|prod",
+  "ecran.mosaique-extraits|prevu",
+  "ecran.telephone-extrait|prevu",
+  "calque.texte-derriere-double|absent",
+  "calque.texte-derriere-prise|absent",
+  "plan-scenes.cas-concret|prod",
+  "plan-scenes.facecam|eteint",
+  "plan-scenes.tutoriel-outil|prod",
+  "plan-scenes.demo-facecam|prod",
+  "plan-scenes.facecam-animee|eteint",
+  "transition.coupe|prod",
+  "transition.cas-concret|prod",
+  "transition.image-video|prod",
+  "transition.commune|prevu",
+  "transition.style-montage|prevu",
+  "fond.vivant|prevu",
+  "fond.lumiere|prevu",
+  "etalonnage.lut-clair-obscur|prod",
+  "etalonnage.lut-naturel-selfie|prod",
+  "etalonnage.lut-doux|demande",
+  "etalonnage.lut-nuit|demande",
+  "etalonnage.lut-nouvelle|prevu",
+  "son.banque-studio|prod",
+  "son.v4|prod",
+  "son.registre-commun|prevu",
+  "son.familles-etendues|prevu",
+  "son.sur-transition|prevu",
+  "motion.cartes-communes|prod",
+  "motion.plaquettes-v4|prod",
+  "motion.icones-bibliotheque|prevu",
+  "motion.icones-animees|prevu",
+  "motion.lottie|prevu",
+  "texte.logo-outil|prevu",
+  "cadrage.zoom-classique|prod",
+  "cadrage.zoom-avocat|prod",
+  "cadrage.zoom-demo|prod",
+  "cadrage.camera-cas-concret|prod",
+  "cadrage.zoom-v4|absent",
+  "motion.avis-client|prevu",
+  "texte.sous-titres|prevu",
+  "plan-scenes.generique|prevu",
+  "son.pose|prevu",
+  "etalonnage.lut|prevu",
+  "motion.v4-coulisse.LogoOutil|coulisse",
+  "motion.v4-coulisse.Equation|coulisse",
+  "motion.v4-coulisse.FriseEtapes|coulisse",
+  "motion.v4-coulisse.FilEtape|coulisse",
+  "motion.v4-coulisse.AvisEtoiles|coulisse",
+  "motion.v4-coulisse.PageWebDefile|coulisse",
+  "motion.v4-coulisse.FenetrePleinCadre|coulisse",
+  "motion.v4-coulisse.BandeVideo|coulisse",
+  "motion.v4-coulisse.CercleEpaule|coulisse",
+  "motion.v4-coulisse.mot-derriere|coulisse",
+  "motion.v4-coulisse.element-barre-pictos|coulisse",
+  "motion.v4-coulisse.appel-final-pile|coulisse",
+  "motion.v4-coulisse.panneau-fin|coulisse",
+];
+
+describe("famille objet (C9-03)", () => {
+  it("les 12 ids de LIGNES_OBJETS = CAPACITES_OBJET du socle, tous prevu", () => {
+    expect(LIGNES_OBJETS.map((l) => l.id).sort()).toEqual([...CAPACITES_OBJET].sort());
+    expect(IDS_OBJET.sort()).toEqual([...CAPACITES_OBJET].sort());
+    expect(LIGNES_OBJETS.every((l) => l.etat === "prevu" && l.chantier === "9")).toBe(true);
+    expect(LIGNES_OBJETS.find((l) => l.id === "objet.emoji")?.note).toBe("attend W-K / W-14");
+  });
+
+  it("aucune ligne objet.* hors de objets.ts", () => {
+    const dir = join(racine, "src/briques/bibliotheque-video/catalogue");
+    for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts") && n !== "objets.ts")) {
+      expect(readFileSync(join(dir, f), "utf8"), f).not.toMatch(/objet\./);
+    }
+    expect(CATALOGUE_CAPACITES.filter((l) => l.id.startsWith("objet.")).map((l) => l.id).sort()).toEqual([...CAPACITES_OBJET].sort());
+  });
+
+  it("aucun profil ne permet une capacité objet", () => {
+    for (const p of [...Object.values(PROFILS_DU_CODE), profilNeutre("podcast")]) {
+      for (const id of IDS_OBJET) expect(p.capacites[id]?.permis === true, `${p.id} ${id}`).toBe(false);
+    }
+  });
+
+  it("porte : sans entrée, ou avec un profil sans liste, rien d'objet n'est permis", () => {
+    for (const id of IDS_OBJET) {
+      expect(porteCapacite({}, id)).toEqual({ bibliotheque: false });
+      const entree = { bibliothequeVideo: { version: "bibliotheque-video/1", profil: profilNeutre("podcast"), recents: [], graine: "g", figeeLe: "2026-11-16T00:00:00.000Z" } };
+      const r = porteCapacite(entree, id);
+      expect(r.bibliotheque === true ? r.permis : false).toBe(false);
+    }
+  });
+
+  it("éteint = identique : le catalogue hors objet.* est celui de master", () => {
+    const hors = CATALOGUE_CAPACITES.filter((l) => !l.id.startsWith("objet.")).map((l) => `${l.id}|${l.etat}`);
+    expect(hors).toEqual(HORS_OBJET_MASTER);
+  });
+});

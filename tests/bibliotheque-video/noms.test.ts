@@ -39,6 +39,8 @@ const IDENTIFIANTS_PLAN = [
   "texte.sortie-animee", "texte.escalier",
   // G2-02
   "texte.sous-titres", "plan-scenes.generique", "son.pose", "etalonnage.lut",
+  // C9-03
+  "objet.trait", "objet.marque", "objet.etiquette", "objet.appel", "objet.chiffre", "objet.etape", "objet.cartes", "objet.schema", "objet.ecran", "objet.reseau-schema", "objet.manuscrit", "objet.emoji",
 ];
 
 const FAMILLES_ATTENDUES = [

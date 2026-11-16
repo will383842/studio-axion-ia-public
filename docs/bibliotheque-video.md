@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 68 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 80 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -61,6 +61,18 @@ Le catalogue compte 68 capacités. L'état dit où elle en est : prod (déjà ut
 | `cadrage.camera-cas-concret` | prod | 8 | AM-16 |  |
 | `cadrage.zoom-v4` | absent | 8 | AM-16 | attend W-6 |
 | `motion.avis-client` | prevu | 8 | AM-16 |  |
+| `objet.trait` | prevu | 9 | D3 § C |  |
+| `objet.marque` | prevu | 9 | D3 § C |  |
+| `objet.etiquette` | prevu | 9 | D3 § C |  |
+| `objet.appel` | prevu | 9 | D3 § C |  |
+| `objet.chiffre` | prevu | 9 | D3 § C |  |
+| `objet.etape` | prevu | 9 | D3 § C |  |
+| `objet.cartes` | prevu | 9 | D3 § C |  |
+| `objet.schema` | prevu | 9 | D3 § C |  |
+| `objet.ecran` | prevu | 9 | D3 § C |  |
+| `objet.reseau-schema` | prevu | 9 | D3 § C |  |
+| `objet.manuscrit` | prevu | 9 | D3 § C |  |
+| `objet.emoji` | prevu | 9 | D3 § C | attend W-K / W-14 |
 | `texte.sous-titres` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `plan-scenes.generique` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `son.pose` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
@@ -98,7 +110,7 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 
 - Profil : `cas-concret/1`, version 1.
 - Permis : `cadrage.camera-cas-concret`, `plan-scenes.cas-concret`, `transition.cas-concret`.
-- Refusé : `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo), `transition.commune` (au plus 1 par vidéo).
+- Refusé : `objet.appel`, `objet.cartes`, `objet.chiffre`, `objet.ecran`, `objet.emoji`, `objet.etape`, `objet.etiquette`, `objet.manuscrit`, `objet.marque`, `objet.reseau-schema`, `objet.schema`, `objet.trait`, `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo), `transition.commune` (au plus 1 par vidéo).
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 
@@ -114,7 +126,7 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 
 - Profil : `facecam/1`, version 1.
 - Permis : `cadrage.zoom-classique`, `transition.coupe`.
-- Refusé : `etalonnage.lut-nouvelle` (au plus 1 par vidéo), `fond.lumiere` (au plus 1 par vidéo), `fond.vivant` (au plus 1 par vidéo), `plan-scenes.facecam` (au plus 1 par vidéo), `texte.repere-epaule` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
+- Refusé : `etalonnage.lut-nouvelle` (au plus 1 par vidéo), `fond.lumiere` (au plus 1 par vidéo), `fond.vivant` (au plus 1 par vidéo), `objet.appel`, `objet.cartes`, `objet.chiffre`, `objet.ecran`, `objet.emoji`, `objet.etape`, `objet.etiquette`, `objet.manuscrit`, `objet.marque`, `objet.reseau-schema`, `objet.schema`, `objet.trait`, `plan-scenes.facecam` (au plus 1 par vidéo), `texte.repere-epaule` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 
