@@ -15,6 +15,7 @@ const position = z.enum(POSITIONS);
 const transition = z.enum(TRANSITIONS);
 const texte = z.string().trim().min(1).max(120);
 const parametres = z.record(z.string(), z.unknown()).optional();
+const indiceMot = z.number().int().min(0).max(100_000);
 const point = z.strictObject({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) });
 
 export const schemaOperation = z.discriminatedUnion("type", [
@@ -35,6 +36,11 @@ export const schemaOperation = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("ajouter-dynamisme"), sceneIds: z.array(id).max(40).optional(), intensite: z.enum(["leger", "fort"]) }),
   z.strictObject({ type: z.literal("ajuster-zoom"), sceneId: id, facteur: z.number().min(1).max(2.5).optional(), cible: point.optional(), moment: z.number().min(0).max(0.8).optional() }),
   z.strictObject({ type: z.literal("modifier-script"), ancien: texte, nouveau: z.string().trim().max(120) }),
+  z.strictObject({ type: z.literal("couper-mots"), premier: indiceMot, dernier: indiceMot }),
+  z.strictObject({ type: z.literal("changer-sous-titre"), motIndex: indiceMot, nouveau: z.string().trim().min(1).max(60) }),
+  z.strictObject({ type: z.literal("retirer-scene"), sceneId: id }),
+  z.strictObject({ type: z.literal("changer-son"), sceneId: id, sonId: z.string().min(1).max(80) }),
+  z.strictObject({ type: z.literal("deplacer"), sceneId: id, apresSceneId: id }),
 ]);
 
 /** Au plus 20 opérations par demande. */
