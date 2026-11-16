@@ -1,5 +1,7 @@
 /**
- * Empreinte des 4 textes RÉELLEMENT envoyés par le parcours du mot GUIDE (réponse publique, M1, M2, reçu). Module PUR : il
+ * Empreinte des 4 textes du parcours du mot GUIDE (réponse publique, M1, M2, reçu). Attention : la réponse publique couverte ici est
+ * le texte historique « mp-pub-igfb-v1 ». Sur Facebook, dès qu'une formulation « pub-commentaire » est validée, c'est elle qui part et
+ * elle n'est PAS couverte par cette empreinte (Instagram garde l'ancien texte). Module PUR : il
  * n'importe que le dictionnaire et node:crypto (jamais mots-service : boucle d'imports). Les rendus sont identiques, appel
  * pour appel, à ceux de `parcours-conversation` ; la validation de l'opérateur et la garde du parcours calculent la même chose.
  */

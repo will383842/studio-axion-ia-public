@@ -63,7 +63,8 @@ describe("réponse publique : formulation validée", () => {
     await validerFormulationsAuParcours(["mp-m1-v4-1", ...PUB]);
     await deposerCommentaire(depots, { reseau: "instagram" });
     await passer();
-    if (port.pub.length > 0) expect(port.pub[0].texte).toBe(ANCIEN);
+    expect(port.pub.length).toBeGreaterThan(0); // une réponse publique part bien : sans cela le test ne prouverait rien
+    expect(port.pub[0].texte).toBe(ANCIEN);
     expect((await etatDe())?.formulations?.["pub-commentaire"]).toBeUndefined();
   });
 });
