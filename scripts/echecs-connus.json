@@ -74,6 +74,6 @@
     }
   ],
   "eslint": [
-    "src/components/publication/FeuilleEnvoyer.tsx react-hooks/purity Error: Cannot call impure function during render"
+    "src/components/publication/FeuilleEnvoyer.tsx react-hooks/purity Error: Cannot call impure function during render\n\n`Date.now` is an impure functi"
   ]
 }
