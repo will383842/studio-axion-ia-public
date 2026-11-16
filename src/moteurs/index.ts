@@ -37,7 +37,7 @@ const MOTEURS: Record<IdMoteur, MoteurVideo> = {
   // Face caméra animée (lot A) : squelette, désigné par le seul `format.moteur` du format facecam-animee.
   "montage-facecam-animee": moteurMontageFacecamAnimee,
   "montage-image-video": moteurMontageImageVideo,
-  // Lot G : vitrines, le rendu n'est pas branché (le travail est mis en pause claire).
+  // Lot G : vitrines. Rendu branché ; sans serveurs reliés, pause claire ; formats masqués.
   "montage-tutoriel-outil": moteurMontageTutorielOutil,
   "montage-demo-facecam": moteurMontageDemoFacecam,
 };

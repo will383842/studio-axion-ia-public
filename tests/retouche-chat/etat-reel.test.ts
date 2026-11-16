@@ -1,6 +1,6 @@
 /**
  * C7-01 : FIGE l'état réel du chat de retouche (constat, aucune correction).
- * C7-02 changera les attentes 1 (porte fermée par défaut) : aujourd'hui la voie sans `generateur` répond sans aucun interrupteur.
+ * C7-02 a fermé la porte : constat 1 mis à jour (voie sans `generateur` = 403 tant que `retoucheChat.sansGenerateur` n'est pas `true`).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLAN_DEMO } from "@/briques/plan-scenes/demo";
@@ -16,6 +16,7 @@ vi.mock("@/services/retouche-chat/generateurs-studio", () => ({
   },
 }));
 vi.mock("@/services/_commun", () => ({
+  lireParametre: async (_id: string, defaut: unknown) => defaut,
   horodatage: () => ({ creeLe: "2026-11-08T00:00:00.000Z", modifieLe: "2026-11-08T00:00:00.000Z" }),
   depots: () => ({
     videos: { obtenir: async (id: string) => etat.videos.get(id) ?? null },
@@ -42,13 +43,14 @@ describe("état réel du chat de retouche (constat)", () => {
     etat.versions.set("v1", { id: "v1", videoId: "vid", numero: 1, commande: {}, projetMontage: { tutoriel: { plan: { plan: PLAN_DEMO } } } });
   });
 
-  it("1. sans générateur : la route répond (aperçu, appliquer, revenir) par portsStudio(), sans aucun interrupteur", async () => {
-    const a = await POST(requete({ action: "apercu", videoId: "vid", demande: "ajoute du dynamisme" }));
-    expect(a.status).toBe(200);
-    const r = await POST(requete({ action: "revenir", videoId: "vid", versionId: "v1" }));
-    expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ statut: "revenue", versionId: "v1" });
-    expect(etat.choix).toEqual(["v1"]);
+  it("1. sans générateur, interrupteur éteint : aperçu, appliquer et revenir répondent 403, aucun port construit", async () => {
+    const corps = [
+      { action: "apercu", videoId: "vid", demande: "ajoute du dynamisme" },
+      { action: "appliquer", videoId: "vid", demande: "ajoute du dynamisme", operations: [] },
+      { action: "revenir", videoId: "vid", versionId: "v1" },
+    ];
+    for (const c of corps) expect((await POST(requete(c))).status).toBe(403);
+    expect(etat.choix).toEqual([]);
     expect(etat.appelsGenerateur).toEqual([]);
   });
 

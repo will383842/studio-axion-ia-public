@@ -8,12 +8,12 @@ describe("z1p · inscription et catalogue", () => {
     expect(publicationZernio({ ZERNIO_API_KEY: "   " })).toEqual({});
     expect(publicationBuffer({})).toEqual({});
   });
-  it("avec la clé : « zernio » seul ; Buffer indépendant, aucun repli", () => {
+  it("avec la clé : « zernio » seul ; Buffer n'est plus inscrit, même avec sa clé (L0-13a)", () => {
     const e = publicationZernio({ ZERNIO_API_KEY: "exemple-cle-fictive-0001" });
     expect(Object.keys(e)).toEqual(["zernio"]);
     expect(e.zernio).toMatchObject({ id: "zernio", type: "publication", mode: "reel" });
-    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: "exemple-cle-fictive-0002" }))).toEqual(["buffer"]);
-    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: "a-exemple", ZERNIO_API_KEY: "b-exemple" })).sort()).toEqual(["buffer", "zernio"]);
+    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: "exemple-cle-fictive-0002" }))).toEqual([]);
+    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: "a-exemple", ZERNIO_API_KEY: "b-exemple" }))).toEqual(["zernio"]);
   });
   it("catalogue : entrée zernio", () => {
     const z = CATALOGUE.publication.find((i) => i.id === "zernio")!;
