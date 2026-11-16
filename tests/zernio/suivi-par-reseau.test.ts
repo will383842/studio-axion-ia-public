@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { lireCompteursSite } from "@/domaine/guide-reseau/compteurs-site-contrat";
 import { assemblerSuivi, type ConversationSuivi, type EvenementSuivi } from "@/domaine/guide-reseau/suivi-mots";
 import { classerReseau } from "@/domaine/guide-reseau/suivi-par-reseau";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TableauSuiviMots } from "@/components/mots/TableauSuiviMots";
 import { totalReseaux, type Fen } from "@/components/mots/suivi-affichage";
 
 const T0 = Date.UTC(2026, 10, 12, 10, 0, 0);
@@ -100,9 +103,32 @@ describe("parReseau", () => {
     expect(totalReseaux(x.parReseau!, "clics", "total")).toBe(12);
     expect(x.envoisEmail).toEqual({ j7: 3, j30: 7, total: 15 });
   });
-  it("mot présent mais parReseau vide", () => {
-    const x = assemblerSuivi([ev(undefined, "1")], [], null, T0);
-    const vide = { ...x.lignes[0], parReseau: [] };
-    expect(totalReseaux(vide.parReseau, "commentaires", "total")).toBe(0);
+  it("ancien enregistrement du service sans ventilation : l'écran dit « Pas encore de chiffres par réseau »", () => {
+    const x = assemblerSuivi([ev("facebook", "1")], [], null, T0);
+    const { parReseau: _retire, ...ancienne } = x.lignes[0];
+    expect(_retire!.length).toBeGreaterThan(0);
+    const html = renderToStaticMarkup(createElement(TableauSuiviMots, { suivi: { ...x, lignes: [ancienne] } }));
+    expect(html).toContain("Pas encore de chiffres par réseau");
+    expect(html).not.toContain("Détail par réseau");
+  });
+  it("écran : « Personnes gagnées » sur toutes les lignes, le Total égale la somme des lignes visibles", () => {
+    const cs = [
+      { ...conv(1, "instagram"), suiviIg: "gagne", lienIgLe: il(1) },
+      { ...conv(2, "facebook"), suiviIg: "gagne", lienIgLe: il(1) },
+      { ...conv(3, "facebook"), suiviIg: "gagne", lienIgLe: il(1) },
+    ];
+    const x = assemblerSuivi([], cs, null, T0);
+    const html = renderToStaticMarkup(createElement(TableauSuiviMots, { suivi: x }));
+    expect(html).toContain("Personnes gagnées (compte Instagram)");
+    const tableau = html.slice(html.indexOf("Détail par réseau"));
+    const corps = tableau.slice(tableau.indexOf("<tbody>"), tableau.indexOf("</tbody>"));
+    const lignes = [...corps.matchAll(/<tr>.*?<\/tr>/g)].map((m) => [...m[0].matchAll(/<t[dh][^>]*>(.*?)<\/t[dh]>/g)].map((c) => c[1]));
+    const derniere = (t: string[]) => t[t.length - 1];
+    const somme = lignes.map(derniere).map((v) => Number(/\d+/.exec(v)?.[0] ?? 0)).reduce((a, b) => a + b, 0);
+    expect(lignes.map(derniere).every((v) => v.startsWith("au moins"))).toBe(true);
+    const pied = tableau.slice(tableau.indexOf("<tfoot>"));
+    const totalAffiche = Number(/au moins (\d+)/.exec(pied)?.[1]);
+    expect(somme).toBe(3);
+    expect(totalAffiche).toBe(somme);
   });
 });

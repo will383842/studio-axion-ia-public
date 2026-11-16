@@ -91,7 +91,7 @@ export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi:
                   <th scope="col">Premiers messages</th>
                   <th scope="col">E-mails envoyés</th>
                   <th scope="col">Clics</th>
-                  <th scope="col">Personnes gagnées</th>
+                  <th scope="col">Personnes gagnées (compte Instagram)</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,8 +102,8 @@ export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi:
                     <td>{compteAffiche(r.premiersMessages[fenetre], partout)}</td>
                     <td>{valeur(suivi.siteDisponible ? r.envoisEmail : null)}</td>
                     <td>{valeur(suivi.siteDisponible ? r.clics : null)}</td>
-                    {/* « Personnes gagnées » = personnes gagnées côté Instagram : affiché sur la seule ligne Instagram (le total reste la somme). */}
-                    <td>{r.reseau === "instagram" ? libelleGagnees(r.gagnees[fenetre]) : chiffreOuTiret(null)}</td>
+                    {/* Personnes gagnées sur le compte Instagram, rangées selon le réseau d'origine de la conversation : visibles sur toutes les lignes, le total en est la somme. */}
+                    <td>{libelleGagnees(r.gagnees[fenetre])}</td>
                   </tr>
                 ))}
               </tbody>
