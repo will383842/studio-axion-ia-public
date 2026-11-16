@@ -28,15 +28,19 @@ let sortie: Sortie;
 let pack: string;
 let charte: string;
 
-function fauxSimpleIcons(opts: { version?: string; license?: unknown; sansLicence?: boolean } = {}) {
+type FormatSI = "objet" | "tableau-data-souligne" | "tableau-data";
+function fauxSimpleIcons(opts: { version?: string; license?: unknown; sansLicence?: boolean; format?: FormatSI } = {}) {
   const dir = join(tmp, "simple-icons");
+  const format = opts.format ?? "objet";
+  const dossierData = join(dir, format === "tableau-data" ? "data" : "_data");
   mkdirSync(join(dir, "icons"), { recursive: true });
-  mkdirSync(join(dir, "_data"), { recursive: true });
+  mkdirSync(dossierData, { recursive: true });
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "simple-icons", version: opts.version ?? "13.0.0", license: "CC0-1.0" }));
-  writeFileSync(join(dir, "icons", "forme.svg"), SVG);
-  const icone: Record<string, unknown> = { title: "Forme", slug: "forme", hex: "112233", source: "https://exemple.invalid" };
+  writeFileSync(join(dir, "icons", "formeneutre.svg"), SVG);
+  // Comme le vrai fichier : pas de champ `slug`, il se déduit du titre (« Forme Neutre » → formeneutre).
+  const icone: Record<string, unknown> = { title: "Forme Neutre", hex: "112233", source: "https://exemple.invalid" };
   if (!opts.sansLicence) icone.license = opts.license ?? { type: "CC0-1.0", url: "https://creativecommons.org/publicdomain/zero/1.0/" };
-  writeFileSync(join(dir, "_data", "simple-icons.json"), JSON.stringify({ icons: [icone] }));
+  writeFileSync(join(dossierData, "simple-icons.json"), JSON.stringify(format === "objet" ? { icons: [icone] } : [icone]));
   return dir;
 }
 
@@ -79,7 +83,7 @@ describe("récupération locale d'un logo d'outil (C8-L03)", () => {
   it("paquet simple-icons en version exacte : accepté", () => {
     const r = recuperer({
       id: "forme",
-      source: { type: "simple-icons", chemin: fauxSimpleIcons(), version: "13.0.0", slug: "forme" },
+      source: { type: "simple-icons", chemin: fauxSimpleIcons(), version: "13.0.0", slug: "formeneutre" },
       charte,
       sortie,
       date: "2026-11-15",
@@ -88,10 +92,22 @@ describe("récupération locale d'un logo d'outil (C8-L03)", () => {
     expect(existsSync(join(sortie.fichiers, "forme.svg"))).toBe(true);
   });
 
+  it.each<FormatSI>(["objet", "tableau-data-souligne", "tableau-data"])("paquet simple-icons au format %s : accepté (slug déduit du titre)", (format) => {
+    const r = recuperer({ id: "formeneutre", source: { type: "simple-icons", chemin: fauxSimpleIcons({ format }), version: "13.0.0", slug: "formeneutre" }, charte, sortie, date: "2026-11-15" });
+    expect("refus" in r).toBe(false);
+    expect(existsSync(join(sortie.fichiers, "formeneutre.svg"))).toBe(true);
+  });
+
+  it("licence non CC0 avec sortie explicite DANS le dépôt : refusée", () => {
+    const r = recuperer(dossier({ licence: "Charte propriétaire", sortie: { fichiers: join(RACINE, "tmp-refus", "fichiers"), preuves: join(RACINE, "tmp-refus", "PREUVES") } }));
+    expect("refus" in r && r.refus).toMatch(/dépôt/i);
+    expect(existsSync(join(RACINE, "tmp-refus"))).toBe(false);
+  });
+
   it("licence Simple Icons autre que CC0 : refusée, rien d'écrit", () => {
     const r = recuperer({
       id: "forme",
-      source: { type: "simple-icons", chemin: fauxSimpleIcons({ license: { type: "custom", url: "https://exemple.invalid" } }), version: "13.0.0", slug: "forme" },
+      source: { type: "simple-icons", chemin: fauxSimpleIcons({ license: { type: "custom", url: "https://exemple.invalid" } }), version: "13.0.0", slug: "formeneutre" },
       charte,
       sortie,
       date: "2026-11-15",
@@ -112,14 +128,14 @@ describe("récupération locale d'un logo d'outil (C8-L03)", () => {
   });
 
   it.each(["^13.0.0", "~13.0.0", "13", "13.x", "latest", "*", ">=13.0.0", ""])("version non figée « %s » : refusée", (version) => {
-    const r = recuperer({ id: "forme", source: { type: "simple-icons", chemin: fauxSimpleIcons(), version, slug: "forme" }, charte, sortie, date: "2026-11-15" });
+    const r = recuperer({ id: "forme", source: { type: "simple-icons", chemin: fauxSimpleIcons(), version, slug: "formeneutre" }, charte, sortie, date: "2026-11-15" });
     expect("refus" in r && r.refus).toMatch(/version/i);
     const r2 = recuperer(dossier({ source: { type: "dossier", chemin: pack, fichier: "forme.svg", version } }));
     expect("refus" in r2 && r2.refus).toMatch(/version/i);
   });
 
   it("version demandée différente de celle du paquet : refusée", () => {
-    const r = recuperer({ id: "forme", source: { type: "simple-icons", chemin: fauxSimpleIcons({ version: "13.1.0" }), version: "13.0.0", slug: "forme" }, charte, sortie, date: "2026-11-15" });
+    const r = recuperer({ id: "forme", source: { type: "simple-icons", chemin: fauxSimpleIcons({ version: "13.1.0" }), version: "13.0.0", slug: "formeneutre" }, charte, sortie, date: "2026-11-15" });
     expect("refus" in r && r.refus).toMatch(/version/i);
   });
 
@@ -173,7 +189,9 @@ describe("récupération locale d'un logo d'outil (C8-L03)", () => {
   });
 
   it("aucun vrai logo ni vraie preuve dans le dépôt", () => {
-    expect(existsSync(join(RACINE, "src", "briques", "motion", "logos-outils", "fichiers"))).toBe(false);
+    const fichiers = join(RACINE, "src", "briques", "motion", "logos-outils", "fichiers");
+    expect(existsSync(join(fichiers, "forme.svg"))).toBe(false);
+    expect(existsSync(join(fichiers, "formeneutre.svg"))).toBe(false);
     expect(existsSync(join(RACINE, "outils", "logos-outils", "PREUVES", "LISEZMOI.md"))).toBe(true);
   });
 });

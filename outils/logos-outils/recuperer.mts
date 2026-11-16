@@ -47,6 +47,24 @@ const CC0 = /^CC0(-1\.0)?$/i;
 const BASE = join(process.cwd(), "src", "briques", "motion", "logos-outils");
 export const SORTIE_PUBLIQUE = { fichiers: join(BASE, "fichiers"), preuves: join(process.cwd(), "outils", "logos-outils", "PREUVES") };
 
+/** Règle `titleToSlug` du `sdk.mjs` de simple-icons, recopiée (rien n'est importé). */
+export const titreVersSlug = (titre: string) =>
+  titre
+    .toLowerCase()
+    .replaceAll("+", "plus")
+    .replaceAll(".", "dot")
+    .replaceAll("&", "and")
+    .replace(/đ/g, "d")
+    .replace(/ħ/g, "h")
+    .replace(/ı/g, "i")
+    .replace(/ĸ/g, "k")
+    .replace(/ŀ/g, "l")
+    .replace(/ł/g, "l")
+    .replace(/ß/g, "ss")
+    .replace(/ŧ/g, "t")
+    .normalize("NFD")
+    .replace(/[^a-z0-9]/g, "");
+
 const sha256 = (t: Buffer | string) => createHash("sha256").update(t).digest("hex");
 const refus = (m: string): { refus: string } => ({ refus: m });
 const dateParis = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Paris" }).format(new Date());
@@ -82,16 +100,19 @@ export function recuperer(e: EntreeRecuperation): ResultatRecuperation {
     if (meta.name !== "simple-icons") return refus("le dossier n'est pas le paquet simple-icons");
     if (meta.version !== e.source.version) return refus(`version du paquet (${meta.version}) différente de la version demandée (${e.source.version})`);
     if (!ID_LOGO.test(e.source.slug ?? "")) return refus("slug invalide");
-    const donnees = join(e.source.chemin, "_data", "simple-icons.json");
-    if (!estFichier(donnees)) return refus("_data/simple-icons.json absent");
-    let icones: { slug?: string; title?: string; license?: { type?: string } }[];
+    // Trois formats réels : 13.x `_data/simple-icons.json` = { icons: [...] } ; 14.x `_data/` = tableau ; 15.x+ `data/` = tableau.
+    const donnees = [join(e.source.chemin, "_data", "simple-icons.json"), join(e.source.chemin, "data", "simple-icons.json")].find(estFichier);
+    if (!donnees) return refus("simple-icons.json absent (_data/ ou data/)");
+    let icones: { slug?: string; title?: string; license?: { type?: string } }[] | undefined;
     try {
-      icones = JSON.parse(readFileSync(donnees, "utf8")).icons;
+      const brut = JSON.parse(readFileSync(donnees, "utf8"));
+      icones = Array.isArray(brut) ? brut : brut?.icons;
     } catch {
-      return refus("_data/simple-icons.json illisible");
+      return refus("simple-icons.json illisible");
     }
-    const icone = Array.isArray(icones) ? icones.find((i) => (i.slug ?? "") === e.source.slug) : undefined;
-    if (!icone) return refus("icône absente de _data/simple-icons.json");
+    // Le vrai fichier n'a `slug` que pour les exceptions : sinon il se déduit du titre.
+    const icone = Array.isArray(icones) ? icones.find((i) => (i.slug ?? (typeof i.title === "string" ? titreVersSlug(i.title) : "")) === e.source.slug) : undefined;
+    if (!icone) return refus("icône absente de simple-icons.json");
     licence = icone.license?.type ?? meta.license ?? "";
     if (!CC0.test(licence)) return refus(`licence Simple Icons « ${licence || "inconnue"} » : seule CC0 entre dans le dépôt public`);
     fichierSvg = join(e.source.chemin, "icons", `${e.source.slug}.svg`);
@@ -109,7 +130,12 @@ export function recuperer(e: EntreeRecuperation): ResultatRecuperation {
   if (!estFichier(fichierSvg)) return refus("fichier SVG introuvable");
 
   const sortie = e.sortie ?? SORTIE_PUBLIQUE;
-  if (!e.sortie && !CC0.test(licence)) return refus("licence non CC0 : sortie hors dépôt public obligatoire (option sortie)");
+  if (!CC0.test(licence)) {
+    if (!e.sortie) return refus("licence non CC0 : sortie hors dépôt public obligatoire (option sortie)");
+    if ([e.sortie.fichiers, e.sortie.preuves].some((d) => d === process.cwd() || estDans(process.cwd(), d))) {
+      return refus("licence non CC0 : la sortie ne doit pas être située dans le dépôt public");
+    }
+  }
 
   const brut = readFileSync(fichierSvg);
   const empreinte = sha256(brut);
