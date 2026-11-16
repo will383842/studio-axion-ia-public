@@ -29,6 +29,17 @@ describe("etapesTutoriel", () => {
     const r = etapesTutoriel({ script: s, mots: motsDe(s), dureeSec: 60 });
     expect(r.etapes.map((e) => e.libelle)).toEqual(["Ouvrez", "Cliquez", "Exportez"]);
   });
+  it("« Étape 1. » suivi d'un point : libellés sans le marqueur, rangs justes", () => {
+    const s = "Étape 1. Ouvrez l'outil. Étape 2. Cliquez.";
+    const r = etapesTutoriel({ script: s, mots: motsDe(s), dureeSec: 60 });
+    expect(r.etapes.map((e) => e.libelle)).toEqual(["Ouvrez l'outil", "Cliquez"]);
+    expect(r.etapes.map((e) => [e.premierMot, e.dernierMot])).toEqual([[0, 3], [4, 6]]);
+  });
+  it("« l'outil » compte pour un seul mot (découpe aux espaces)", () => {
+    const s = "D'abord ouvrez l'outil. Ensuite cliquez.";
+    const r = etapesTutoriel({ script: s, mots: motsDe(s), dureeSec: 60 });
+    expect(r.etapes[0].dernierMot).toBe(2);
+  });
   it("sans marqueur : 2 paragraphes → 2 étapes", () => {
     const s = "Ouvrez l'outil et connectez-vous.\n\nCliquez sur Importer.";
     expect(etapesTutoriel({ script: s, mots: motsDe(s), dureeSec: 60 }).etapes).toHaveLength(2);

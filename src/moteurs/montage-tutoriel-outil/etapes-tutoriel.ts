@@ -65,7 +65,7 @@ function phrases(script: string): Phrase[] {
       // « 1. Ouvrez » : le point d'une numérotation ne termine pas la phrase.
       const fusion: string[] = [];
       for (let i = 0; i < morceaux.length; i++) {
-        if (/^\d{1,2}[.)]$/.test(morceaux[i]) && i + 1 < morceaux.length) {
+        if (/^(?:étape\s*)?\d{1,2}[.)]$/iu.test(morceaux[i]) && i + 1 < morceaux.length) {
           fusion.push(`${morceaux[i]} ${morceaux[i + 1]}`);
           i++;
         } else fusion.push(morceaux[i]);
