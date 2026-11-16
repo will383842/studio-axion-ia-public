@@ -3,8 +3,9 @@
  * Faux dépôt, faux envoi : aucun appel réel, aucun réglage écrit, données fictives.
  */
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
-import { validerEntree, PHRASE_HEURE_PASSEE_VALIDATION, type DepsValiderEntree } from "@/services/valider-entree";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { reinitialiserDepots } from "@/donnees/memoire";
+import { validerEntree, validerEntreeServeur, PHRASE_HEURE_PASSEE_VALIDATION, type DepsValiderEntree } from "@/services/valider-entree";
 import type { CreneauPlan } from "@/services/plan-editorial";
 import type { LigneCreneau } from "@/services/envoi-depuis-creneau";
 
@@ -106,4 +107,58 @@ describe("CAL-21 · les deux actions passent par le service", () => {
       expect(src).not.toMatch(/validerProposition\s*\(/);
     });
   }
+});
+
+describe("CAL-21 suite · réglages absents", () => {
+  it("réglages absents, illisibles ou autres que `true` : 0 appel au faux diffuseur, validation acquise", async () => {
+    for (const valeur of [undefined, null, "true", 1]) {
+      const f = faux(creneau());
+      f.deps.reglagesOuverts = async () => valeur as unknown as boolean;
+      const r = await validerEntree(f.deps, "c1", "f", MAINT);
+      expect(r.ok).toBe(true);
+      expect(f.envoyer).toHaveBeenCalledTimes(0);
+      expect(f.lire()!.statut).toBe("valide");
+    }
+    const g = faux(creneau());
+    g.deps.reglagesOuverts = async () => { throw new Error("réglage illisible"); };
+    expect((await validerEntree(g.deps, "c1", "f", MAINT)).ok).toBe(true);
+    expect(g.envoyer).toHaveBeenCalledTimes(0);
+  });
+
+  it("validerEntreeServeur est exporté (fonction à deux arguments)", () => {
+    expect(typeof validerEntreeServeur).toBe("function");
+    expect(validerEntreeServeur.length).toBe(2);
+  });
+});
+
+describe("CAL-21 suite · validerEntreeServeur (dépôts en mémoire)", () => {
+  let d: ReturnType<typeof reinitialiserDepots>;
+  beforeEach(() => { d = reinitialiserDepots(); vi.useFakeTimers({ now: MAINT }); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+  it("id inconnu : message exact de CAL-21, pas « Un souci est survenu »", async () => {
+    const r = await validerEntreeServeur("inconnu", "fondateur-1");
+    expect(r).toMatchObject({ ok: false, message: "Cette entrée est introuvable.", code: "validation_refusee" });
+  });
+
+  it("créneau « propose » à heure passée : message exact, rien d'écrit", async () => {
+    await d.creneauxEditoriaux.enregistrer(creneau({ jourVise: "2026-11-20", heuresParReseau: { linkedin: "2026-11-20T08:00:00.000Z" } }));
+    const r = await validerEntreeServeur("c1", "fondateur-1");
+    expect(r).toMatchObject({ ok: false, message: PHRASE_HEURE_PASSEE_VALIDATION });
+    expect((await d.creneauxEditoriaux.obtenir("c1"))!.statut).not.toBe("valide");
+  });
+
+  it("créneau « propose » futur : validé par `par`, jamais `programme`, 0 envoi", async () => {
+    const fetchEspion = vi.spyOn(globalThis, "fetch");
+    await d.creneauxEditoriaux.enregistrer(creneau());
+    const r = await validerEntreeServeur("c1", "fondateur-1");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.donnees.statut).toBe("valide");
+    expect(r.donnees.valideePar).toBe("fondateur-1");
+    const l = (await d.creneauxEditoriaux.obtenir("c1"))!;
+    expect(l.statut).toBe("valide");
+    expect(l.statut).not.toBe("programme");
+    expect(fetchEspion).not.toHaveBeenCalled();
+  });
 });
