@@ -52,6 +52,10 @@
       "mp-pub-v2-1",
       "mp-pub-v2-2",
       "mp-pub-v2-3"
+    ],
+    "m1-adresse-rgpd": [
+      "mp-m1-v6-1",
+      "mp-m1-v6-2"
     ]
   },
   "textes": {
@@ -289,6 +293,16 @@
       "version": "mp-pub-v2-3",
       "statut": "actif",
       "texte": "Bien reçu, merci beaucoup ! Le guide est en route, dans vos messages privés."
+    },
+    "mp-m1-v6-1": {
+      "version": "mp-m1-v6-1",
+      "statut": "actif",
+      "texte": "Bonjour ! Merci pour votre commentaire, ça fait plaisir. Pour vous envoyer le guide « [TITRE DU GUIDE] », il me suffit de votre adresse e-mail : répondez-moi simplement ici. Nous notons le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes. Ces informations sont gardées aussi longtemps que votre fiche de contact. Vous pouvez vous y opposer à tout moment en nous écrivant ici."
+    },
+    "mp-m1-v6-2": {
+      "version": "mp-m1-v6-2",
+      "statut": "actif",
+      "texte": "Bonjour ! Merci pour votre commentaire. Pour vous envoyer le guide « [TITRE DU GUIDE] », répondez-moi ici avec votre adresse e-mail. Axion IA note le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes, et les garde aussi longtemps que votre fiche de contact. Pour vous y opposer ou demander l'effacement de ces informations, écrivez-moi ici. Pour vos autres droits, dont l'accès : https://axion-ia.com/fr/politique-confidentialite (rubrique « Vos droits »)."
     }
   }
 }

@@ -1,0 +1,90 @@
+{
+  "seuils": {
+    "imagesVisagePartielMax": 3,
+    "couvertureAvantSec": 5,
+    "pleinCadreAvantSec": 8,
+    "premierElementAvantSec": 0.75,
+    "coupsMin60": 2,
+    "coupsMax60": 4,
+    "ecartCoupsSec": 8,
+    "coupAvantFinSec": 6,
+    "densiteMin": 2.2,
+    "fenetreDensiteSec": 5,
+    "calmeMaxSec": 0.75,
+    "priseSeuleMaxSec": 0.5,
+    "priseSeulePartMax": 0.03,
+    "memeGabaritMaxSec": 5.5,
+    "changementMoyenMaxSec": 3.5,
+    "diversiteSec": 30,
+    "diversiteMin": 8,
+    "fenetreApparitions": 5,
+    "emplacementsDansFenetre": 3,
+    "statistiqueMin": 10,
+    "tolerance": 0.05,
+    "ouverturesRecentesVideos": 3,
+    "videosRecentesPlaquettes": 2,
+    "partReprisePlaquettesMax": 0.6,
+    "plaquettesMinPourReprise": 5
+  },
+  "codes": [
+    "D0",
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V5",
+    "V6",
+    "V7",
+    "V8",
+    "H1",
+    "H1b",
+    "H2"
+  ],
+  "resolutionReference": [],
+  "suiteReference": [
+    "V3c — la première plaquette entre à 1,00 s ; une étiquette ou un objet au-dessus de la tête entre dès 0 à 0,75 s.",
+    "V6b — élément v4 1 « EtiquetteTete » à 1,00 s puis élément v4 2 « Interjection » à 4,00 s : même emplacement « tete » deux fois de suite ; les emplacements tournent (tête, carte haute, fenêtre, plein cadre, bas).",
+    "H1a — densité de 0 événements par seconde sur la fenêtre de 5 s qui commence à 5,00 s ; 2,2 au moins (cible 2,6) : rapprochez les plaquettes ou choisissez-en de plus vivantes.",
+    "H1b — rien ne change à l'écran pendant 15,10 s à partir de 4,90 s ; 0,75 s au plus : plus aucune plaquette entre 4,90 s et la fin (20,00 s) : ajoutez-en une avant 5,60 s.",
+    "H2a — Will est seul à l'écran pendant 1,00 s (de 0,00 s à 1,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+    "H2a — Will est seul à l'écran pendant 1,50 s (de 2,50 s à 4,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+    "H2a — Will est seul à l'écran pendant 15,00 s (de 5,00 s à 20,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+    "H2b — Will est seul à l'écran 87,5 % du temps ; 3 % au plus.",
+    "D15g — élément v4 1 « EtiquetteTete » à 1,00 s : « illustre » manquant ; recopiez les mots EXACTS de la transcription que cette plaquette représente.",
+    "D15g — élément v4 2 « Interjection » à 4,00 s : « illustre » manquant ; recopiez les mots EXACTS de la transcription que cette plaquette représente."
+  ],
+  "d0": {
+    "resolution": [
+      "D0 — élément v4 1 : « PlaquetteQuiNexistePas » n'existe pas dans le catalogue v4 (26 plaquettes actives)."
+    ],
+    "rendable": false
+  },
+  "v1": {
+    "suite": [
+      "V1b — élément v4 1 « EtiquetteTete » à 1,00 s : le visage est à moitié caché pendant 9 images au passage ; 3 images au plus (0,1 s, tolérance de Will quand une grande fenêtre passe).",
+      "V1c — élément v4 1 « EtiquetteTete » à 1,00 s : une plaquette qui laisse le visage entier ne le touche jamais (9 images de visage partiel).",
+      "V3c — la première plaquette entre à 1,00 s ; une étiquette ou un objet au-dessus de la tête entre dès 0 à 0,75 s.",
+      "H1a — densité de 0 événements par seconde sur la fenêtre de 5 s qui commence à 2,40 s ; 2,2 au moins (cible 2,6) : rapprochez les plaquettes ou choisissez-en de plus vivantes.",
+      "H1b — rien ne change à l'écran pendant 17,70 s à partir de 2,30 s ; 0,75 s au plus : plus aucune plaquette entre 2,30 s et la fin (20,00 s) : ajoutez-en une avant 3,00 s.",
+      "H2a — Will est seul à l'écran pendant 1,00 s (de 0,00 s à 1,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+      "H2a — Will est seul à l'écran pendant 17,50 s (de 2,50 s à 20,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+      "H2b — Will est seul à l'écran 92,5 % du temps ; 3 % au plus.",
+      "D15g — élément v4 1 « EtiquetteTete » à 1,00 s : « illustre » manquant ; recopiez les mots EXACTS de la transcription que cette plaquette représente."
+    ],
+    "rendable": false
+  },
+  "h1": {
+    "resolution": [],
+    "suite": [
+      "V3c — la première plaquette entre à 9,00 s ; une étiquette ou un objet au-dessus de la tête entre dès 0 à 0,75 s.",
+      "H1a — densité de 0 événements par seconde sur la fenêtre de 5 s qui commence à 0,00 s ; 2,2 au moins (cible 2,6) : rapprochez les plaquettes ou choisissez-en de plus vivantes.",
+      "H1b — rien ne change à l'écran pendant 9,70 s à partir de 10,30 s ; 0,75 s au plus : plus aucune plaquette entre 10,30 s et la fin (20,00 s) : ajoutez-en une avant 11,00 s.",
+      "H2a — Will est seul à l'écran pendant 9,00 s (de 0,00 s à 9,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+      "H2a — Will est seul à l'écran pendant 9,50 s (de 10,50 s à 20,00 s) ; 0,5 s au plus d'affilée : une plaquette entre dans l'image où la précédente sort.",
+      "H2b — Will est seul à l'écran 92,5 % du temps ; 3 % au plus.",
+      "D15g — élément v4 1 « EtiquetteTete » à 9,00 s : « illustre » manquant ; recopiez les mots EXACTS de la transcription que cette plaquette représente."
+    ],
+    "rendable": false
+  },
+  "sousTitres": []
+}

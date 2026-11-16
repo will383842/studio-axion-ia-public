@@ -1,0 +1,147 @@
+{
+  "version": 3,
+  "normalisation": "NFKD, sans accents, minuscules, apostrophes droites",
+  "regles": [
+    {
+      "id": "abonne",
+      "description": "abonné, abonnement, désabonner, réabonnement… (dire « suivre le compte »)",
+      "motif": "abonn",
+      "exemples": [
+        "abonné",
+        "abonnement",
+        "désabonner",
+        "réabonnement"
+      ]
+    },
+    {
+      "id": "grenoble",
+      "description": "Grenoble",
+      "motif": "grenoble",
+      "exemples": [
+        "Grenoble"
+      ]
+    },
+    {
+      "id": "aucun-gain-garanti",
+      "description": "« Aucun gain garanti »",
+      "motif": "aucun\\s+gain\\s+garanti",
+      "exemples": [
+        "Aucun gain garanti"
+      ]
+    },
+    {
+      "id": "garanti",
+      "description": "garanti, garantie, garantissons…",
+      "motif": "\\bgaranti",
+      "exemples": [
+        "garanti",
+        "garantissons"
+      ]
+    },
+    {
+      "id": "certifie",
+      "description": "certifié, certification…",
+      "motif": "\\bcertifi",
+      "exemples": [
+        "certifiée",
+        "certification"
+      ]
+    },
+    {
+      "id": "qualiopi",
+      "description": "Qualiopi",
+      "motif": "qualiopi",
+      "exemples": [
+        "Qualiopi"
+      ]
+    },
+    {
+      "id": "tutoiement",
+      "description": "tutoiement : tu, toi, te, ta, tes, t', ton compte/entreprise/activité/site/équipe/métier/guide",
+      "motif": "\\b(?:tu|toi|te|ta|tes)\\b|\\bt'|\\bton\\s+(?:compte|entreprise|activite|site|equipe|metier|guide)\\b",
+      "exemples": [
+        "Tu peux",
+        "pour toi",
+        "je t'explique",
+        "ton entreprise",
+        "Ton activité"
+      ]
+    },
+    {
+      "id": "pourcentage",
+      "description": "promesse chiffrée : %",
+      "motif": "%",
+      "exemples": [
+        "30 %"
+      ]
+    },
+    {
+      "id": "euro",
+      "description": "promesse chiffrée : €",
+      "motif": "€",
+      "exemples": [
+        "100 €"
+      ]
+    },
+    {
+      "id": "x-fois",
+      "description": "promesse chiffrée : « x fois » (la lettre x)",
+      "motif": "\\bx\\s*fois\\b",
+      "exemples": [
+        "x fois mieux",
+        "x fois plus"
+      ]
+    },
+    {
+      "id": "double",
+      "description": "promesse chiffrée : doubler, tripler…",
+      "motif": "\\b(?:doubl|tripl)",
+      "exemples": [
+        "doubler",
+        "triplé"
+      ]
+    },
+    {
+      "id": "euros-mot",
+      "description": "promesse chiffrée : « euro(s) », « eur »",
+      "motif": "\\beuros?\\b|\\beur\\b",
+      "exemples": [
+        "100 euros",
+        "un euro",
+        "50 EUR"
+      ]
+    },
+    {
+      "id": "pour-cent",
+      "description": "promesse chiffrée : « pour cent », « pourcent »",
+      "motif": "\\bpour\\s*cent\\b|\\bpourcent",
+      "exemples": [
+        "trente pour cent",
+        "dix pourcent"
+      ]
+    },
+    {
+      "id": "n-fois-plus",
+      "description": "promesse chiffrée : « deux fois plus », « dix fois mieux »…",
+      "motif": "\\b(?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|cent|mille)\\s*fois\\s+(?:plus|mieux|moins)",
+      "exemples": [
+        "deux fois plus",
+        "dix fois mieux",
+        "cent fois moins",
+        "3 fois plus",
+        "10 fois mieux"
+      ]
+    },
+    {
+      "id": "multiplicateur",
+      "description": "promesse chiffrée : « x2 », « x10 », « 3x », « ×5 » collés (« 1080 x 1920 », « x64 », « Max 3 » restent permis)",
+      "motif": "\\bx(?!(?:64|86)\\b)\\d+\\b|\\b\\d+x\\b|(?<!\\d\\s*)\\u00D7\\s*\\d",
+      "exemples": [
+        "x2",
+        "x10",
+        "3x",
+        "×5"
+      ]
+    }
+  ]
+}

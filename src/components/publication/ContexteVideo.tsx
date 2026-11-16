@@ -7,7 +7,7 @@ import { notifier } from "@/components/ui/Toast";
 import type { IdReseau, KitPublication, Partage, Ratio } from "@/domaine/types";
 import { casesRequises } from "@/formats";
 import type { VueKit } from "@/services/vues";
-import type { VueEnvoiBuffer } from "@/services/buffer";
+import type { VueEnvoiZernio } from "@/services/comptes-envoi-zernio";
 
 export type CleAvantDePublier = keyof KitPublication["avantDePublier"];
 export type FeuilleVideo = "telecharger" | "partager" | "buffer" | null;
@@ -41,8 +41,8 @@ export interface DonneesVideo {
   fabricationSimulee: boolean;
   /** Le rédacteur des textes de publication est une simulation (« Réécrire » en Essai). */
   textesSimules: boolean;
-  /** Lot R1 : envoi réel par Buffer (mode, compte de chaque réseau) ; absent ou null en simulation. Lu en base seulement. */
-  envoiBuffer?: VueEnvoiBuffer | null;
+  /** Lot R1 : envoi réel par Zernio (mode, compte de chaque réseau) ; absent ou null en simulation. Lu en base seulement. */
+  envoiBuffer?: VueEnvoiZernio | null;
   /** Cases déjà vérifiées par le rapport de qualité (simulé). */
   verifiesAuto: Partial<Record<CleAvantDePublier, boolean>>;
 }

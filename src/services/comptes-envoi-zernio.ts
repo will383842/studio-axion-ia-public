@@ -4,12 +4,13 @@
  * Zernio lus au dernier « Tester » (Réglages) et gardés en base. L'écran ne lit JAMAIS Zernio : il ne fait que relire cette liste.
  * Les identifiants vivent en base sur le serveur, jamais dans le dépôt.
  */
-import type { CompteEnvoi, ComptesReseauEnvoi } from "@/domaine/comptes-envoi";
-import type { IdReseau } from "@/domaine/types";
+import type { CompteEnvoi, ComptesEnvoi, ComptesReseauEnvoi } from "@/domaine/comptes-envoi";
+import { listerReseaux } from "@/reseaux";
+import type { IdReseau, ModeEnvoiPublication } from "@/domaine/types";
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { pageInterdite } from "@/fournisseurs/publication/zernio-pages-interdites";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
-import { ecrireParametre, lireParametre, maintenant } from "./_commun";
+import { ecrireParametre, fournisseur, lireParametre, maintenant } from "./_commun";
 
 export const PARAM_CANAUX_ZERNIO = "zernio.canaux";
 
@@ -49,4 +50,37 @@ export function comptesACocherZernio(reseau: IdReseau, canaux: readonly CanalPub
   if (!choix.length) return undefined;
   if (choix.length === 1 && reseau !== "facebook") return undefined;
   return { choix, memorises: [] };
+}
+
+/** Ce que la feuille d'envoi de la fiche vidéo sait des comptes : lu en base, jamais chez Zernio ni chez Buffer. */
+export interface VueEnvoiZernio {
+  /** Zernio crée toujours un brouillon : le mode affiché est donc « brouillon ». */
+  mode: ModeEnvoiPublication;
+  comptes: ComptesEnvoi;
+}
+
+/**
+ * Feuille d'envoi de la fiche vidéo (L0-13c). Comptes = copie en base des comptes ZERNIO (`zernio.canaux`), jamais `buffer.canaux`.
+ * Un réseau sans compte Zernio relié dit « Reliez ce compte dans Zernio ». null en simulation. Aucun appel réseau.
+ */
+export async function vueEnvoiZernio(): Promise<VueEnvoiZernio | null> {
+  if ((await fournisseur("publication")).mode === "simulation") return null;
+  const canaux = (await canauxZernioEnregistres().catch(() => null))?.canaux;
+  const comptes: ComptesEnvoi = {};
+  for (const r of listerReseaux()) {
+    const aCocher = comptesACocherZernio(r.id, canaux);
+    if (aCocher) {
+      comptes[r.id] = aCocher;
+      continue;
+    }
+    let plateforme: string | undefined;
+    try {
+      plateforme = plateformeZernio(r.id);
+    } catch {
+      plateforme = undefined;
+    }
+    const relies = (canaux ?? []).filter((c) => c.service === plateforme && !c.deconnecte);
+    comptes[r.id] = relies.length === 1 ? { nom: relies[0].nom } : { probleme: "Reliez ce compte dans Zernio" };
+  }
+  return { mode: "brouillon", comptes };
 }

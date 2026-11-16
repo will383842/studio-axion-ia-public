@@ -10,6 +10,7 @@ import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { cleJour } from "@/lib/dates";
 import { validerProposition } from "@/domaine/plan-editorial/statuts";
 import { changerStatut, creerCreneau, type CreneauPlan } from "@/services/plan-editorial";
+import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 
 /** Heure de publication (Paris) par réseau : fixe, le fondateur peut décaler ensuite depuis le calendrier. */
@@ -40,28 +41,42 @@ async function validerParLeFondateur(d: DepotsPasserelle, creneauId: string, mai
 }
 
 /**
+ * Identifiant du créneau à utiliser pour ce visuel : `cre_<id>`, puis `cre_<id>-2`, `-3`… si le précédent a été retiré
+ * du calendrier (archivé avec `retireLe`). Rend le premier identifiant absent ou non retiré.
+ */
+export async function idCreneauDuVisuel(d: DepotsPasserelle, visuelId: string): Promise<string> {
+  for (let n = 1; n <= 50; n++) {
+    const id = n === 1 ? `cre_${visuelId}` : `cre_${visuelId}-${n}`;
+    const c = await d.creneaux.obtenir(id);
+    // Seul un créneau archivé PAR UN RETRAIT (`retireLe`) laisse la place : un créneau refusé puis archivé reste refusé.
+    if (!c || c.statut !== "archive" || !c.retireLe) return id;
+  }
+  throw new ErreurVisuel("PROGRAMMER_REFUSE", "Trop de retraits du calendrier pour ce carrousel : programmation refusée.");
+}
+
+/**
  * Crée (ou retrouve) le créneau du visuel validé et le programme. Idempotent : id de créneau stable par visuel.
  * Les vérifications du visuel, des réseaux et des heures se font avant toute écriture. Le créneau est validé AVANT les refus de
  * `programmerVisuel` (ex. visuel déjà programmé ailleurs) : s'il refuse, le créneau reste « valide » mais aucune Publication n'est créée.
  */
 export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, jour: string, maintenant: string): Promise<{ creneauId: string }> {
   const v = await d.visuels.obtenir(visuelId);
-  if (!v) throw new Error(`Visuel introuvable : ${visuelId}`);
-  if (v.statut !== "valide" && v.statut !== "programme") throw new Error(`Visuel non validé (statut « ${v.statut} ») : il ne peut pas être programmé.`);
-  if (!v.reseaux || v.reseaux.length === 0) throw new Error("Aucun réseau préparé : utiliser d'abord « Préparer pour les réseaux ».");
-  const creneauId = `cre_${v.id}`;
+  if (!v) throw new ErreurVisuel("INTROUVABLE", `Visuel introuvable : ${visuelId}`);
+  if (v.statut !== "valide" && v.statut !== "programme") throw new ErreurVisuel("PROGRAMMER_REFUSE", `Visuel non validé (statut « ${v.statut} ») : il ne peut pas être programmé.`);
+  if (!v.reseaux || v.reseaux.length === 0) throw new ErreurVisuel("PROGRAMMER_SANS_RESEAU", "Aucun réseau préparé : utiliser d'abord « Préparer pour les réseaux ».");
+  const creneauId = await idCreneauDuVisuel(d, v.id);
   const existant = await d.creneaux.obtenir(creneauId);
   if (existant) {
     // Créneau déjà créé : l'heure peut être passée depuis le premier clic ; jamais de Publication « programmée » dans le passé.
     const passes = Object.entries(existant.heuresParReseau).filter(([, h]) => Date.parse(h) <= Date.parse(maintenant)).map(([r]) => r);
-    if (passes.length > 0) throw new Error(`Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
+    if (passes.length > 0) throw new ErreurVisuel("PROGRAMMER_DATE", `Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
   } else {
-    if (!JOUR.test(jour) || Number.isNaN(Date.parse(jour))) throw new Error("Jour invalide (AAAA-MM-JJ attendu).");
-    if (jour < jourDeParis(maintenant)) throw new Error("Jour invalide : il est déjà passé.");
+    if (!JOUR.test(jour) || Number.isNaN(Date.parse(jour))) throw new ErreurVisuel("PROGRAMMER_DATE", "Jour invalide (AAAA-MM-JJ attendu).");
+    if (jour < jourDeParis(maintenant)) throw new ErreurVisuel("PROGRAMMER_DATE", "Jour invalide : il est déjà passé.");
     const heuresParReseau: Partial<Record<IdReseau, string>> = {};
     for (const r of v.reseaux) heuresParReseau[r] = instantParis(jour, HEURES[r]!);
     const passes = v.reseaux.filter((r) => Date.parse(heuresParReseau[r]!) <= Date.parse(maintenant));
-    if (passes.length > 0) throw new Error(`Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
+    if (passes.length > 0) throw new ErreurVisuel("PROGRAMMER_DATE", `Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
     await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_CIBLE, visuelId: v.id }, maintenant);
   }
   await validerParLeFondateur(d, creneauId, maintenant);

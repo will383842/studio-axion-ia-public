@@ -14,7 +14,8 @@ import { validerProprietesPage, type SpecValide } from "../proprietes-page";
  */
 
 /** À changer quand la composition ou le rendu changent : les anciens rendus ne servent plus. */
-export const VERSION_RENDU = "visuel-page/10";
+// visuel-page/12 : encre mesurée dans Manrope (interligne des titres).
+export const VERSION_RENDU = "visuel-page/12";
 export const TAILLE_TEXTE_MIN_PX = 26;
 export const DELAI_RENDU_MS = 180_000;
 /** Une page à la fois (×1 et ×2 ensemble) : le plus simple pour ne pas saturer le navigateur de la file courte (partagée avec les miniatures). */

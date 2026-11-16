@@ -5,6 +5,8 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { adoucir, couleursSur, entre, FAMILLE_CSS_AXION, msEnImages, progression } from "../jetons-motion";
+import type { PlanHabille } from "../motion/habillage-commun/types";
+import { IDS_TRANSITIONS_COMMUNES, TRANSITIONS_COMMUNES, type IdTransitionCommune } from "../motion/habillage-commun/transitions";
 import { RENDUS_BRIQUES, transformZoom } from "./briques";
 import type { IdPiece } from "./catalogue";
 import type { Calque, PlanValide, SceneValide } from "./schema";
@@ -25,7 +27,7 @@ function enPx(r: Rectangle, largeur: number, hauteur: number): Rectangle {
 }
 
 /** Effet d'une transition à l'avancement `t` (0 : invisible, 1 : en place). Doux, sans dépassement. */
-function effet(transition: Transition, t: number): CSSProperties {
+export function effet(transition: Transition, t: number): CSSProperties {
   const r = (n: number) => Math.round(n * 100) / 100;
   switch (transition) {
     case "glisse-haut":
@@ -79,7 +81,17 @@ function Scene({ scene, plan, image }: { scene: SceneValide; plan: PlanValide; i
   const dT = Math.max(1, msEnImages(scene.transition.dureeMs, fps));
   const tEntree = progression(local, 0, dT, adoucir);
   const tSortie = 1 - progression(local, duree - dT, dT, adoucir);
-  const style = tEntree < 1 ? effet(scene.transition.entree, tEntree) : tSortie < 1 ? effet(scene.transition.sortie, tSortie) : {};
+  // C6-H3 : champ posé seulement par C6-H4, derrière `habillage.transitionsPlanScenes` (éteint). `TRANSITIONS` de `zones.ts:9` n'est jamais allongé.
+  const habillageCommun = (plan as PlanHabille).habillageCommun;
+  const boiteTransition = { largeur: ZONES[scene.position].largeur * largeur / 100, hauteur: ZONES[scene.position].hauteur * hauteur / 100 };
+  const commune = (sens: "entree" | "sortie", t: number): CSSProperties | null => {
+    const id = habillageCommun?.transitions?.[scene.id]?.[sens];
+    if (!id || !(IDS_TRANSITIONS_COMMUNES as readonly string[]).includes(id)) return null;
+    const def = TRANSITIONS_COMMUNES[id as IdTransitionCommune];
+    if (def.emprise === "plein-cadre" && habillageCommun?.pleinCadrePermis !== true) return null;
+    return def.style(t, sens, boiteTransition);
+  };
+  const style = tEntree < 1 ? (commune("entree", tEntree) ?? effet(scene.transition.entree, tEntree)) : tSortie < 1 ? (commune("sortie", tSortie) ?? effet(scene.transition.sortie, tSortie)) : {};
   const boite = enPx(ZONES[scene.position], largeur, hauteur);
   const etiquette = scene.texte && scene.piece !== "legende" && scene.position !== "haut" && scene.position !== "plein";
   return (

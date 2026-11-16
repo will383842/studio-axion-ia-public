@@ -3,13 +3,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
 import { exemplesCommeVraies } from "../helpers/videos-reelles";
 import { preparerMotDePasse } from "../helpers/g1a";
-import { fauxBuffer } from "../helpers/r1-buffer";
 import { occupeBuffer, refusDoublonEntreOutils } from "@/domaine/buffer";
 import { ErreurZernio, type CodeErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import type { FournisseurPublication } from "@/fournisseurs/types";
 
-process.env.BUFFER_API_KEY = "exemple-cle-fictive-ne-pas-utiliser-0002";
-process.env.FOURNISSEUR_PUBLICATION = "buffer";
+process.env.FOURNISSEUR_PUBLICATION = "zernio";
 process.env.R2_ACCOUNT_ID = "compte-essai";
 process.env.R2_ACCESS_KEY_ID = "ACCES-ESSAI";
 process.env.R2_SECRET_ACCESS_KEY = "secret-essai";
@@ -25,7 +23,8 @@ const pub = await import("@/services/publications");
 
 const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
-let buffer: ReturnType<typeof fauxBuffer>;
+/** Aucun appel réel : tout fetch global est compté et refusé. */
+const appelsReseau: string[] = [];
 
 beforeAll(async () => {
   await preparerMotDePasse("essai-z2e-doublon");
@@ -37,10 +36,11 @@ beforeEach(async () => {
   await exemplesCommeVraies(depots(), { plusExemples: true });
   reinitialiserRequete();
   await auth.seConnecter("essai-z2e-doublon", false);
-  // Ces tests visent Buffer : routage « buffer » explicite (le défaut est Zernio).
-  await (await import("@/services/_commun")).ecrireParametre("publication.routage", { instagram: "buffer" });
-  buffer = fauxBuffer({});
-  vi.stubGlobal("fetch", buffer.appeler);
+  appelsReseau.length = 0;
+  vi.stubGlobal("fetch", async (url: unknown) => {
+    appelsReseau.push(String(url));
+    throw new Error("aucun appel réel dans ce test");
+  });
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });
 
@@ -59,14 +59,32 @@ describe("z2e · anti-doublon entre outils", () => {
     expect(refusDoublonEntreOutils([{ via: "buffer", statut: "echec", etatEnvoi: "refuse" }], "zernio")).toBeNull();
   });
 
-  it("contenu déjà parti par l'autre outil sur ce réseau : refus, aucun appel au réseau", async () => {
+  it("historique : contenu déjà parti par Buffer sur ce réseau (publication « buffer » lue) : Zernio refuse, aucun envoi", async () => {
     await depots().publications.enregistrer({
-      id: "pub-exemple-z", videoId: VIDEO, reseau: "instagram", statut: "brouillon", via: "zernio", date: DEMAIN, texte: "exemple",
+      id: "pub-exemple-b", videoId: VIDEO, reseau: "instagram", statut: "brouillon", via: "buffer", date: DEMAIN, texte: "exemple",
       etatEnvoi: "envoye", idExterne: "exemple-post", creeLe: DEMAIN, modifieLe: DEMAIN,
     } as never);
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "DEJA_CHEZ_UN_AUTRE_OUTIL", message: "Déjà envoyée par Zernio pour ce réseau." });
-    expect(buffer.mutations()).toHaveLength(0);
+    const jamais = fauxZernio(new ErreurZernio("refuse", "ne doit pas être appelé"));
+    const envoyer = vi.spyOn(jamais, "envoyer");
+    const kit = (await pub.obtenirKit(VIDEO))!;
+    await expect(pub.envoyerReel("zernio", jamais, kit, ["instagram"], DEMAIN, {}, {}, false)).rejects.toMatchObject({ message: "Déjà envoyée par Buffer pour ce réseau." });
+    expect(envoyer).not.toHaveBeenCalled();
+    expect(appelsReseau).toHaveLength(0);
   });
+
+  it("envoyerVersBuffer garde son nom mais n'envoie plus par Buffer : sans clé Zernio, refus ZERNIO_NON_RELIE, aucun appel réseau", async () => {
+    delete process.env.ZERNIO_API_KEY;
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
+    expect(await depots().publications.lister((x) => x.videoId === VIDEO)).toHaveLength(0);
+    expect(appelsReseau).toHaveLength(0);
+  });
+
+  /** Envoi direct par Buffer : refusé avant toute préparation (L0-13a), rien n'est écrit, rien ne part. */
+  async function buffer_refuse() {
+    const kit = (await pub.obtenirKit(VIDEO))!;
+    await expect(pub.envoyerReel("buffer", fauxZernio(new ErreurZernio("refuse", "jamais appelé")), kit, ["instagram"], DEMAIN, {}, {}, false)).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
+    expect(appelsReseau).toHaveLength(0);
+  }
 
   /** Faux outil Zernio dont l'envoi lève l'erreur donnée (après écriture côté outil). */
   function fauxZernio(leve: ErreurZernio): FournisseurPublication {
@@ -85,26 +103,26 @@ describe("z2e · anti-doublon entre outils", () => {
     return pub.envoyerReel("zernio", fauxZernio(leve), kit, ["instagram"], DEMAIN, {}, {}, false);
   }
 
-  it("réponse 2xx illisible chez Zernio : « à vérifier », puis Buffer sur ce réseau est refusé", async () => {
+  it("réponse 2xx illisible chez Zernio : « à vérifier », puis Buffer est refusé (OUTIL_RETIRE)", async () => {
     const r = await envoyerZernio(new ErreurZernio("reponse-invalide", "illisible", { statut: 200 }));
     expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "a-verifier" });
     expect(JSON.stringify(r.problemes)).not.toMatch(/Buffer|Zernio/);
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "DEJA_CHEZ_UN_AUTRE_OUTIL", message: "Déjà envoyée par Zernio pour ce réseau." });
-    expect(buffer.mutations()).toHaveLength(0);
+    await buffer_refuse();
+    expect(await depots().publications.lister((x) => x.videoId === VIDEO)).toHaveLength(1);
   });
 
-  it("doublon (409) arrivé jusqu'au service : « à vérifier » (le fournisseur a déjà comparé la clé), Buffer refusé ensuite", async () => {
+  it("doublon (409) arrivé jusqu'au service : « à vérifier » (le fournisseur a déjà comparé la clé), Buffer refusé ensuite (OUTIL_RETIRE)", async () => {
     const r = await envoyerZernio(new ErreurZernio("doublon", "identique", { statut: 409 }));
     expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "a-verifier" });
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ message: "Déjà envoyée par Zernio pour ce réseau." });
+    await buffer_refuse();
   });
 
-  it("creerPost répond 2xx avec une plateforme en échec : « à vérifier » (jamais refusé), Buffer refusé ensuite", async () => {
+  it("creerPost répond 2xx avec une plateforme en échec : « à vérifier » (jamais refusé), Buffer refusé ensuite (OUTIL_RETIRE)", async () => {
     const r = await envoyerZernio(new ErreurZernio("creation-incomplete", "incomplet", { statut: 200 }));
     expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "a-verifier" });
     const ecrites = await depots().publications.lister((x) => x.via === "zernio");
     expect(occupeBuffer(ecrites[0])).toBe(true);
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "DEJA_CHEZ_UN_AUTRE_OUTIL", message: "Déjà envoyée par Zernio pour ce réseau." });
+    await buffer_refuse();
   });
 
   it("refus sans statut levé avant le réseau reste un refus ; « refuse » avec un statut 2xx ou 5xx n'en est pas un", async () => {
@@ -116,10 +134,10 @@ describe("z2e · anti-doublon entre outils", () => {
   it("doublon (409) sans identifiant : « à vérifier », jamais « refusé »", async () => {
     const r = await envoyerZernio(new ErreurZernio("doublon", "identique", { statut: 409 }));
     expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "a-verifier" });
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ message: "Déjà envoyée par Zernio pour ce réseau." });
+    await buffer_refuse();
   });
 
-  it("refus net (4xx) : « refusé », message neutre à l'écran, Buffer reste possible", async () => {
+  it("refus net (4xx) : « refusé », message neutre à l'écran, ce refus ne bloque pas un nouvel essai", async () => {
     const codes: CodeErreurZernio[] = ["refuse"];
     for (const code of codes) {
       await expect(envoyerZernio(new ErreurZernio(code, "Zernio a refusé la demande.", { statut: 400 }))).rejects.toMatchObject({ message: "L'outil de publication a refusé l'envoi : rien n'est parti." });

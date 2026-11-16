@@ -33,6 +33,16 @@
       "note": "fiche usine ARG-R7-SUITE, cause : `confirme: true` écrit en dur dans src/components/mots/gestes-mots-cibles.ts (zone du parcours viral mots-*, hors périmètre de la fiche), à retirer à la correction"
     },
     {
+      "fichier": "tests/l3-0-garde-origine.test.ts",
+      "nom": "2. l'origine « usine » est écrite en dur à un seul endroit aucun fichier hors credits.ts ne fixe `origine: \"usine\"`",
+      "note": "échec antérieur sur master depuis les lots AUT-A/AUT-C ; à réparer dans un lot dédié"
+    },
+    {
+      "fichier": "tests/l3-0-garde-origine.test.ts",
+      "nom": "3. L3-01 : liste exhaustive des sites de dépense (fermée) chaque appel d'une porte d'argent hors de credits.ts est dans la liste, au bon nombre (un site nouveau : rouge)",
+      "note": "échec antérieur sur master depuis les lots AUT-A/AUT-C ; à réparer dans un lot dédié"
+    },
+    {
       "fichier": "tests/g7a-programmer.test.ts",
       "nom": "« Programmer les N » déverrouillé le plan propose les 5 versions dans l'ordre J à J+4, puis chacune part sur SON réseau avec sa version (essai)",
       "note": "déjà rouge sur master le 16/11, clé Zernio absente en CI (« Zernio n'est pas relié (clé absente) ») ; correction durable = faux client Zernio, fiche à part"
@@ -60,7 +70,7 @@
     {
       "fichier": "tests/r1-synchro-buffer.test.ts",
       "nom": "R1 — « Programmer les N » en réel respecte le mode brouillons dans Buffer, un message par version sur SON compte ; un second « Programmer » ne renvoie rien",
-      "note": "déjà rouge sur master le 16/11, clé Zernio absente en CI (« Zernio n'est pas relié (clé absente) ») ; correction durable = faux client Zernio, fiche à part"
+      "note": "déjà rouge sur master le 16/11, ErreurSujetDejaTraite dans sujetPret (garde des doublons, tests/r1-synchro-buffer.test.ts:142-145), sans lien avec Zernio ; fiche à part"
     }
   ]
 }

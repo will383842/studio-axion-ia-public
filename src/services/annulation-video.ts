@@ -39,7 +39,7 @@ const aNettoyer = (v: Video, maintenantMs: number, enAttente: Set<Id>) =>
  * « Annuler cette vidéo » : la met à la corbeille. Pour une fabrication en cours, `travailId` est le travail à arrêter
  * d'abord ; sans lui, la fabrication en cours est refusée (« arrêtez-la d'abord »).
  */
-export async function annulerVideo(videoId: Id, options: { travailId?: Id } = {}): Promise<{ mises: number; brouillonsBuffer: number; pagesRetirees: number; centimes: number; refus?: string }> {
+export async function annulerVideo(videoId: Id, options: { travailId?: Id } = {}): Promise<{ mises: number; brouillonsExternes: number; brouillonsBuffer: number; pagesRetirees: number; centimes: number; refus?: string }> {
   await exigerSession();
   const video = await depots().videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
@@ -60,7 +60,7 @@ export async function annulerVideo(videoId: Id, options: { travailId?: Id } = {}
     return { ...r, centimes };
   } catch (e) {
     // Fabrication déjà arrêtée (étapes payées) : on dit ce qui s'est passé au lieu d'une simple erreur.
-    if (options.travailId && e instanceof ErreurStudio) return { mises: 0, brouillonsBuffer: 0, pagesRetirees: 0, centimes, refus: e.message };
+    if (options.travailId && e instanceof ErreurStudio) return { mises: 0, brouillonsExternes: 0, brouillonsBuffer: 0, pagesRetirees: 0, centimes, refus: e.message };
     throw e;
   }
 }
@@ -80,7 +80,7 @@ export async function listerANettoyer(): Promise<VueVideoCarte[]> {
  * Met à la corbeille les vidéos cochées. Chaque id est relu : une vidéo prête, en fabrication, trop récente ou déjà à la
  * corbeille est IGNORÉE. Une vidéo refusée (publication programmée…) reste, les autres partent.
  */
-export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refusees: number; ignorees: number; brouillonsBuffer: number; pagesRetirees: number; messages: string[] }> {
+export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refusees: number; ignorees: number; brouillonsExternes: number; brouillonsBuffer: number; pagesRetirees: number; messages: string[] }> {
   await exigerSession();
   const d = depots();
   const maintenantMs = Date.now();
@@ -89,7 +89,7 @@ export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refuse
   const eligibles = lues.filter((v) => aNettoyer(v, maintenantMs, enAttente)).slice(0, PLAFOND_NETTOYAGE);
   let mises = 0;
   let refusees = 0;
-  let brouillonsBuffer = 0;
+  let brouillonsExternes = 0;
   let pagesRetirees = 0;
   let tardives = 0;
   const messages: string[] = [];
@@ -98,7 +98,7 @@ export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refuse
       // Garde rejouée sous le verrou : devenue prête (ou retouchée) entre la relecture et la corbeille, la vidéo est ignorée.
       const r = await mettreALaCorbeille([v.id], (x) => aNettoyer(x, maintenantMs, enAttente));
       mises += r.mises;
-      brouillonsBuffer += r.brouillonsBuffer;
+      brouillonsExternes += r.brouillonsExternes;
       pagesRetirees += r.pagesRetirees;
     } catch (e) {
       if (!(e instanceof ErreurStudio)) throw e;
@@ -109,5 +109,5 @@ export async function nettoyerVideos(ids: Id[]): Promise<{ mises: number; refuse
       }
     }
   }
-  return { mises, refusees, ignorees: new Set(ids).size - eligibles.length + tardives, brouillonsBuffer, pagesRetirees, messages };
+  return { mises, refusees, ignorees: new Set(ids).size - eligibles.length + tardives, brouillonsExternes, brouillonsBuffer: brouillonsExternes, pagesRetirees, messages };
 }

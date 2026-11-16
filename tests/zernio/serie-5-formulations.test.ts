@@ -174,7 +174,7 @@ describe("1 · dictionnaire", () => {
         "utf8",
       ),
     );
-    expect(Object.keys(d.textes).length).toBe(22 + 13 + 12);
+    expect(Object.keys(d.textes).length).toBe(22 + 13 + 12 + 2); // +2 : mp-m1-v6-1 et mp-m1-v6-2 (mention RGPD, proposées)
     expect(d.version).toBe(5); // série 6 : 12 formulations de plus
     expect(brut("mp-m1-v2").texte).toBe(
       "Message automatique envoyé par Axion IA. Merci pour votre commentaire « [MOT] ». Pour vous envoyer le guide « [TITRE DU GUIDE] » par e-mail, répondez à ce message avec votre adresse e-mail.",
@@ -341,7 +341,7 @@ describe("4 · écran /mots", () => {
     const avant = await MS.lireVueMots();
     const versions = avant.formulations!.map((f) => f.version as string);
     for (const v of NOUVELLES) expect(versions, v).toContain(v);
-    expect(avant.formulations!).toHaveLength(7 + 13 + 12);
+    expect(avant.formulations!).toHaveLength(7 + 13 + 12 + 2);
     expect(avant.formulations!.every((f) => !f.valide)).toBe(true);
     expect(
       await actions.validerFormulationAction("mp-recu-v3-2"),
@@ -384,7 +384,7 @@ describe("4 · écran /mots", () => {
       "lien-rappel",
     ])
       expect(html, g).toContain(`data-groupe="${g}"`);
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2);
   });
 });
 

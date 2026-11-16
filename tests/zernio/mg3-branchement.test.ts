@@ -134,7 +134,7 @@ describe("créer un mot", () => {
   });
   it("un mot qui existe déjà : phrase du tableau, aucune écriture", async () => {
     const r = await A.creerMotAction("tous1", "gde-essai01");
-    expect(r).toEqual({ ok: false, phrase: "Ce mot existe déjà : changez sa cible depuis le tableau." });
+    expect(r).toEqual({ ok: false, phrase: "Ce mot existe déjà (état : brouillon). Ouvrez sa fiche pour le modifier." });
     expect(ecritures()).toHaveLength(0);
   });
   it("cible absente ou désactivée : phrase du site", async () => {
@@ -156,13 +156,13 @@ describe("créer un mot", () => {
 });
 
 describe("changer la cible d'un mot", () => {
-  it("relie « tous » puis chaque ligne propre, met les lignes locales actives en pause, ne supprime aucune clé", async () => {
+  it("relie « tous » puis chaque ligne propre (mot en pause), ne supprime aucune clé", async () => {
     site.liaisons.push({ mot: "conversation", reseau: "tous", codeCible: "gde-essai01", actif: true });
     site.liaisons.push({ mot: "conversation", reseau: "instagram", codeCible: "gde-essai01", actif: true });
-    await poserRegistre(ligne("CONVERSATION", FB, "actif"), ligne("CONVERSATION", IG, "actif"), ligne("CONVERSATION", LI, "pause"), ligne("TOUS1", FB, "actif"));
+    await poserRegistre(ligne("CONVERSATION", FB, "pause"), ligne("CONVERSATION", IG, "pause"), ligne("CONVERSATION", LI, "pause"), ligne("TOUS1", FB, "actif"));
     const cles = Object.keys(await registre()).sort();
     const r = await A.changerCibleAction("CONVERSATION", "gde-essai03");
-    expect(r).toEqual({ ok: true, phrase: "Cible changée. Le mot a été mis en pause sur 2 compte(s) : validez ses textes puis réactivez-le." });
+    expect(r).toEqual({ ok: true, phrase: "Cible changée." });
     expect(ecritures().map((p) => JSON.parse(p.corps).reseau)).toEqual(["tous", "instagram"]);
     const apres = await registre();
     expect(Object.keys(apres).sort()).toEqual(cles);
@@ -176,10 +176,10 @@ describe("changer la cible d'un mot", () => {
     expect(r).toEqual({ ok: false, phrase: "La cible du mot GUIDE ne se change pas ici pour l'instant." });
     expect(ecritures()).toHaveLength(0);
   });
-  it("arrêt au premier échec : phrase des changements faits, et pause quand même", async () => {
+  it("arrêt au premier échec : phrase des changements faits", async () => {
     site.liaisons.push({ mot: "conversation", reseau: "tous", codeCible: "gde-essai01", actif: true });
     site.liaisons.push({ mot: "conversation", reseau: "instagram", codeCible: "gde-essai01", actif: true });
-    await poserRegistre(ligne("CONVERSATION", FB, "actif"));
+    await poserRegistre(ligne("CONVERSATION", FB, "pause"));
     let posts = 0;
     brancher(async (req) => {
       if (req.methode === "POST" && ++posts === 2) return { statut: 422, corps: { ok: false, erreur: "reception_eteinte" } };
@@ -188,7 +188,6 @@ describe("changer la cible d'un mot", () => {
     const r = await A.changerCibleAction("CONVERSATION", "gde-essai03");
     expect(r.ok).toBe(false);
     expect(r.phrase).toContain("1 réseau(x) sur 2");
-    expect(r.phrase).toContain("mis en pause sur 1 compte(s)");
     expect(posts).toBe(2);
     expect((await registre())[`CONVERSATION|${FB}`].etat).toBe("pause");
   });
@@ -271,25 +270,22 @@ describe("correctifs de relecture", () => {
     expect(await G.gestePauseMot("tous1", FB)).toMatchObject({ issue: "refuse", raison: "mot_invalide" });
     expect(await G.gestePauseMot("TOUS1", "compte-inconnu")).toMatchObject({ issue: "refuse", raison: "compte_hors_liste" });
   });
-  it("changer la cible, réponse incertaine (5xx) : les lignes locales actives sont quand même mises en pause", async () => {
+  it("changer la cible, réponse incertaine (5xx) : le mot en pause reste en pause", async () => {
     site.liaisons.push({ mot: "conversation", reseau: "tous", codeCible: "gde-essai01", actif: true });
-    await poserRegistre(ligne("CONVERSATION", FB, "actif"));
+    await poserRegistre(ligne("CONVERSATION", FB, "pause"));
     brancher(async (req) => (req.methode === "POST" ? { statut: 503, corps: {} } : site.transport(req)));
     const r = await G.gesteChangerCible("CONVERSATION", "gde-essai03");
     expect(r.ok).toBe(false);
-    expect(r.phrase).toContain("mis en pause sur 1 compte(s)");
     expect((await registre())[`CONVERSATION|${FB}`].etat).toBe("pause");
   });
-  it("changer la cible : les lignes actives posées chez Zernio sont signalées, non touchées", async () => {
+  it("changer la cible : un mot actif (ligne locale ou posée chez Zernio) est refusé, rien n'est touché", async () => {
     site.liaisons.push({ mot: "conversation", reseau: "tous", codeCible: "gde-essai01", actif: true });
     await poserRegistre(ligne("CONVERSATION", FB, "actif"), zernio(ligne("CONVERSATION", IG, "actif")));
+    const avant = await registre();
     const r = await G.gesteChangerCible("CONVERSATION", "gde-essai03");
-    expect(r.ok).toBe(true);
-    expect(r.phrase).toContain("mis en pause sur 1 compte(s)");
-    expect(r.phrase).toContain("1 ligne(s) posée(s) chez Zernio restent actives : mettez-les en pause depuis la pause habituelle.");
-    const apres = await registre();
-    expect(apres[`CONVERSATION|${FB}`].etat).toBe("pause");
-    expect(apres[`CONVERSATION|${IG}`].etat).toBe("actif");
+    expect(r).toMatchObject({ ok: false, raison: "mot_actif_pause_d_abord" });
+    expect(ecritures()).toHaveLength(0);
+    expect(await registre()).toEqual(avant);
   });
   it("« plusieurs mots » allumé : un mot autre que GUIDE n'est activable que sur Facebook, textes validés (PR-B ouvre l'activation)", async () => {
     await ecrireParametre("parcours.mots_multiples", true);

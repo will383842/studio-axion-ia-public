@@ -29,7 +29,7 @@ export function formatPourIdeeUsine(format: string | undefined): string {
 
 export async function ecrireSujetDeLUsine(
   idee: IdeeUsine,
-  options: { reseaux: string[]; typeContenu: TypeContenuUsine },
+  options: { reseaux: string[]; typeContenu: TypeContenuUsine; dateVisee?: string },
 ): Promise<{ id: string; rappelUsine: boolean }> {
   const reseaux = RESEAUX_DECLINAISON.filter((r) => options.reseaux.includes(r)) as ReseauDeclinaison[];
   const choisis = reseaux.length ? reseaux : ([...RESEAUX_DECLINAISON] as ReseauDeclinaison[]);
@@ -93,6 +93,7 @@ export async function ecrireSujetDeLUsine(
       formatId,
       matiereIdsImposees: matiereIds,
       origineUsine: origine,
+      ...(options.dateVisee ? { dateVisee: options.dateVisee } : {}),
     },
     { dejaControle: true },
   );

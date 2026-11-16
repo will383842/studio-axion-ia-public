@@ -55,6 +55,7 @@ import type {
 } from "@/domaine/types";
 import { noterScriptSync, scriptSimuleSync } from "@/fournisseurs/simulation/script";
 import { composerLegende, motsDiesePour, phraseDuree } from "@/domaine/textes-publication";
+import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { travailSimule } from "@/moteurs/simulation";
 import { centimes } from "@/lib/montants";
 import { codePartage } from "@/lib/ids";
@@ -827,7 +828,7 @@ export function creerDonneesDemo(maintenantMs: number = Date.now()): DonneesDemo
     p("budget.seuilConfirmation", centimes(2000)),
     p("afficherExemples", true),
     p("mentionIA.parDefaut", MENTION_IA_PAR_DEFAUT),
-    p("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]),
+    p("reseaux.parDefaut", reseauxParDefautNeufs()),
     p("notifications", { videoPrete: true, echec: true, budget: true, canal: "console" }),
   ];
 
