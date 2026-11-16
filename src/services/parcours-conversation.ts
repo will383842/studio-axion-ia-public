@@ -634,7 +634,7 @@ async function textePublic(reseau: string, cleConversation: string, figee?: stri
       figee,
       validees: await formulationsValidees(),
       rendre: (v) => rendreTexteMp(v, {}),
-      conforme: (t) => texteDuDictionnaire(t, false),
+      conforme: (t) => texteDuDictionnaire(t, true),
     });
     if (choix !== null) return { texte: choix.texte, formulation: choix.version };
   }
