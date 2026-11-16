@@ -89,17 +89,17 @@ describe("machine : mots actifs en paramètre", () => {
 describe("crochet : mots connus en paramètre", () => {
   it("défaut = valeurs actuelles", () => {
     expect(MOTS_DECLENCHEURS_CONNUS).toEqual(["GUIDE"]);
-    expect(motSeulDe("guide")).toBe("guide");
+    expect(motSeulDe("guide")).toBe("GUIDE");
     expect(motSeulDe("ia")).toBeNull();
     expect(motSeulDe("stop")).toBe("STOP");
   });
   it("même jugement que normaliserMot : accents et ponctuation de bord ignorés, résultat identique pour « Guidé » et « GUIDE ! »", () => {
-    expect(motSeulDe("Guidé")).toBe("Guidé");
-    expect(motSeulDe("GUIDE !")).toBe("GUIDE !");
-    expect(motSeulDe("GUIDE😀")).toBe("GUIDE😀");
+    expect(motSeulDe("Guidé")).toBe("GUIDE");
+    expect(motSeulDe("GUIDE !")).toBe("GUIDE");
+    expect(motSeulDe("GUIDE😀")).toBe("GUIDE");
     for (const t of ["Guidé", "GUIDE !", "guide", "GUIDE", " guide "]) expect(motSeulDe(t) !== null).toBe(normaliserMot(t) === "GUIDE");
     expect(motSeulDe("guide ia")).toBeNull();
-    expect(motSeulDe(" guide ")).toBe("guide");
+    expect(motSeulDe(" guide ")).toBe("GUIDE");
   });
   it("commentaire : « Guidé » et « GUIDE ! » donnent le même motSeul normalisé (GUIDE) ; stop reste prioritaire", () => {
     const corps = (text: string) => lireEnveloppe(JSON.stringify({ id: "e1", event: "comment.received", timestamp: 1_800_000_000, account: { accountId: "cpt", platform: "facebook" }, comment: { id: "c1", text, author: { id: "a1" } } }))!;
@@ -110,7 +110,7 @@ describe("crochet : mots connus en paramètre", () => {
   });
   it("liste étendue : IA gardé, texte hors liste jamais gardé, stop prioritaire", () => {
     const l = ["GUIDE", "IA"];
-    expect(motSeulDe("ia", l)).toBe("ia");
+    expect(motSeulDe("ia", l)).toBe("IA");
     expect(motSeulDe("bonjour", l)).toBeNull();
     expect(motSeulDe("0612345678", l)).toBeNull();
     expect(motSeulDe("stop", l)).toBe("STOP");
