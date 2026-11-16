@@ -24,6 +24,8 @@ export interface PlageExtrait {
   etat: EtatPlageExtrait;
   /** Renseignée quand l'état n'est pas « utilisable ». */
   raisonExclusion?: string;
+  ecarteeLe?: string; // gestes de Williams, jamais réécrits par la tâche
+  valideeLe?: string;
 }
 
 /** Fiche d'une vidéo livrée. */
