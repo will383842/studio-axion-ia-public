@@ -37,6 +37,8 @@ export interface EntreeCarte {
   mediaId?: string | null;
   /** Repère posé par l'usine sur le créneau (sert à l'alerte de proximité). */
   signatureUsine?: string;
+  /** Nom court du compte (« Page », « Profil »), seulement pour un réseau à plusieurs comptes (LinkedIn, Facebook). */
+  compte?: string;
 }
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
@@ -142,9 +144,9 @@ export function cartesDepuisEntrees(entrees: readonly EntreeCalendrier[], option
   });
 }
 
-/** Ce qu'un lecteur d'écran dit de la carte : réseau, type, heure, état. */
+/** Ce qu'un lecteur d'écran dit de la carte : réseau, compte, type, heure, état. */
 export function libelleCarte(entree: EntreeCarte, libellesEtat?: TableLibelles): string {
-  return [nomReseau(entree.reseau), TYPES_CONTENU[entree.type]?.libelle, heureLisible(entree.heure), libelleEtat(entree.etat, libellesEtat).libelle].filter(Boolean).join(", ");
+  return [nomReseau(entree.reseau), entree.compte, TYPES_CONTENU[entree.type]?.libelle, heureLisible(entree.heure), libelleEtat(entree.etat, libellesEtat).libelle].filter(Boolean).join(", ");
 }
 
 export interface ProprietesCarteEntreeCalendrier {
@@ -167,7 +169,21 @@ export interface ProprietesCarteEntreeCalendrier {
 }
 
 /**
- * Carte courte d'une publication : picto du réseau et heure, type (icône et libellé), état.
+ * « + » d'une case du calendrier : ouvre le formulaire d'ajout avec le réseau et le jour déjà cochés.
+ * Une case passée n'a pas de « + » (rien à ajouter dans le passé depuis la grille) ; aujourd'hui en garde un.
+ * Les jours sont des chaînes AAAA-MM-JJ de Paris, comparables telles quelles.
+ */
+export function PlusCase({ jour, aujourdhui, reseau, onOuvrir, className }: { jour: string; aujourdhui: string; reseau: IdReseau; onOuvrir: (choix: { jour: string; reseau: IdReseau }) => void; className?: string }) {
+  if (!jourLisible(jour) || !jourLisible(aujourdhui) || jour < aujourdhui) return null;
+  return (
+    <button type="button" data-plus-case onClick={() => onOuvrir({ jour, reseau })} aria-label={`Ajouter une publication ${nomReseau(reseau)} le ${jour}`} className={cn("grid min-h-6 min-w-6 place-items-center rounded-md border border-dashed border-trait-fort text-sm font-bold text-texte-doux hover:text-texte", className)}>
+      +
+    </button>
+  );
+}
+
+/**
+ * Carte courte d'une publication, en trois lignes : (1) picto du réseau, heure et compte, (2) type, (3) état.
  * Le liseré de gauche prend la couleur du réseau (`--c`) ; l'état d'idée est en pointillé.
  */
 export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verrouillee, tropProche, alerte, href, onOuvrir, className }: ProprietesCarteEntreeCalendrier) {
@@ -184,9 +200,14 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
   const commun = { "data-carte": entree.cle, "data-reseau": entree.reseau, "data-etat": entree.etat, style: styleReseau(entree.reseau), className: classes, "aria-label": libelle };
   const contenu: ReactNode = (
     <>
-      <span className="flex items-center gap-1.5">
+      <span data-ligne="1" className="flex items-center gap-1.5">
         <PictoReseau reseau={entree.reseau} taille="sm" className="text-xs font-bold text-texte" />
         {heure && <span className="text-sm font-extrabold tabular-nums text-texte">{heure}</span>}
+        {entree.compte && (
+          <span data-compte className="whitespace-nowrap rounded-full border border-trait-fort bg-surface-2 px-1.5 text-[11px] font-bold text-texte">
+            {entree.compte}
+          </span>
+        )}
         {alerte && (
           <span data-alerte-carte title={alerte} className="ml-auto text-texte-doux">
             <Icone nom="attention" size={12} />
@@ -198,11 +219,11 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
           </span>
         )}
       </span>
-      <span className="mb-1 mt-0.5 flex items-center gap-1 text-xs font-semibold text-texte-doux">
+      <span data-ligne="2" className="mb-1 mt-0.5 flex items-center gap-1 text-xs font-semibold text-texte-doux">
         <Icone nom={type.icone} size={12} />
         {type.libelle}
       </span>
-      <span className="flex flex-wrap gap-1">
+      <span data-ligne="3" className="flex flex-wrap gap-1">
         <PastilleStatutPlan etat={entree.etat} libelles={libellesEtat} />
         {tropProche && (
           <Pastille ton="ambre" icone="attention">
