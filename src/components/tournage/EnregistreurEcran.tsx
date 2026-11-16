@@ -142,7 +142,7 @@ export function EnregistreurEcran({ onTermine }: { onTermine: (prise: Blob) => v
             muted
             playsInline
             aria-label="Aperçu de votre écran"
-            className="aspect-video w-full rounded-xl bg-black object-contain"
+            className="aspect-video w-full rounded-xl bg-ecran object-contain"
           />
           <Bouton variante="danger" taille="lg" onClick={arreter} aria-label="Arrêter">
             Arrêter
@@ -152,7 +152,7 @@ export function EnregistreurEcran({ onTermine }: { onTermine: (prise: Blob) => v
 
       {phase === "termine" && (
         <>
-          {apercu && <video src={apercu} controls playsInline aria-label="Relecture de la prise" className="aspect-video w-full rounded-xl bg-black object-contain" />}
+          {apercu && <video src={apercu} controls playsInline aria-label="Relecture de la prise" className="aspect-video w-full rounded-xl bg-ecran object-contain" />}
           <Bouton variante="secondaire" icone="reessayer" onClick={recommencer}>
             Recommencer
           </Bouton>
