@@ -956,6 +956,8 @@ export interface Miniature extends EntiteBase {
   variante?: number;
   /** Marqueur de gabarit : absent ou « axion-v2 » (carte-titre) = ancienne, qu'« Refaire les vignettes » remplace sans l'effacer ; « image-video-v3 » = vraie image du début de la vidéo. */
   gabarit?: "axion-v2" | "image-video-v3" | "image-video-v3b";
+  /** UO-11 (ajout pur, facultatif) : le réseau pour lequel cette jaquette a été faite ; absent : miniature d'avant, sans réseau. */
+  reseau?: IdReseau;
 }
 
 /**
