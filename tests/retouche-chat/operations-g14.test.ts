@@ -52,7 +52,7 @@ describe("G14-02 : liste, schéma strict, portées, export", () => {
 describe("G14-02 : appliquer", () => {
   it("opérations d'aujourd'hui : plan identique au caractère près (liste vide)", () => {
     const p = plan0();
-    expect(JSON.stringify(appliquerOperations(p, []).plan)).toBe(JSON.stringify(appliquerOperations(p, []).plan));
+    expect(JSON.stringify(appliquerOperations(p, []).plan)).toBe(JSON.stringify(p));
     const r = appliquerOperations(p, [{ type: "ajuster-zoom", sceneId: "s2", facteur: 1.3 }]);
     expect(r.operations).toHaveLength(1);
   });
