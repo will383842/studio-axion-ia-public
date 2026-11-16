@@ -287,10 +287,12 @@ describe("L3-18 : le plan lit les autres sujets (essai, aucun appel réel)", () 
     await expect(mes.controlerDecalageManuel(id, "linkedin", "2026-10-08", "23:59")).resolves.toMatchObject({ ok: true });
   });
 
-  it("la feuille « Programmer » branche le contrôle manuel et le bouton de confirmation", () => {
-    const src = readFileSync(join(__dirname, "..", "src/components/generateur/FicheSujet.tsx"), "utf8");
-    expect(src).toMatch(/controlerDecalageAction/);
-    expect(src).toMatch(/Confirmer ce choix/);
+  it("aucun texte ne promet un choix « en prendre un autre » que l'écran ne permet pas : seul « Confirmer » existe", () => {
+    const c = li("2026-10-07", [{ reseau: "linkedin", date: "2026-10-12T07:00:00.000Z" }]);
+    expect(c.avertissement).toMatch(/Vous pouvez confirmer/);
+    expect(c.avertissement).not.toMatch(/en prendre un autre/);
+    const m = controlerCreneauManuel("linkedin", "2026-10-10", "09:00", []);
+    expect(m.avertissements.join(" ")).not.toMatch(/en prendre un autre/);
   });
 
   it("aucun prénom de personne dans les commentaires de mesures.ts (dépôt public)", () => {
