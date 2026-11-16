@@ -830,7 +830,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduCasConcret, eta
         ...(r.ecriture?.scriptValide || etat.retouche?.texteFige ? { texteFige: true as const } : {}),
         // Mesures du fichier de CHAQUE fin (dimensions, volume, crête…) : la fiche vidéo les montre réseau par réseau.
         // L0d : et ses sous-titres (export .srt / .vtt par réseau, `services/sous-titres-par-reseau.ts`).
-        fins: r.fins.map((f) => ({ id: f.id, reseaux: f.reseaux, fichierCle: f.fichierCle, dureeSec: f.dureeSec, mesures: f.mesures, ...(f.sousTitres?.length ? { sousTitres: f.sousTitres } : {}) })),
+        fins: r.fins.map((f) => ({ id: f.id, reseaux: f.reseaux, fichierCle: f.fichierCle, dureeSec: f.dureeSec, mesures: f.mesures, ...(f.sousTitres?.length ? { sousTitres: f.sousTitres } : {}), ...(f.masterCle ? { masterCle: f.masterCle } : {}) })),
         liens: r.liens,
         rapport: { verdict: r.rapport.verdict, resume: reserves.resume, phrases: reserves.phrases },
         // Traçabilité (demande de Will du 12/10).
