@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { TYPES_OPERATIONS_RETOUCHE } from "@/briques/operations";
 import { CATALOGUE_RETOUCHES } from "@/moteurs/montage-tableau/retouches";
-import { estGratuite, garderPortee, porteesDe, PORTEE_CAS_CONCRET, PORTEE_CHAT, PORTEE_MOTEURS, PORTEE_TABLEAU } from "@/briques/retouche-portee";
+import { estGratuite, garderPortee, PHRASES, porteesDe, PORTEE_CAS_CONCRET, PORTEE_CHAT, PORTEE_MOTEURS, PORTEE_TABLEAU } from "@/briques/retouche-portee";
 
 const cles = (o: object) => Object.keys(o).sort();
 
@@ -36,10 +36,17 @@ describe("garde", () => {
     expect(garderPortee("chat", ["modifier-script"], { voixPermise: true }).ok).toBe(true);
     expect(garderPortee("moteurs", ["refaireSegmentVoix", "remplacerIllustration"], { voixPermise: true }).ok).toBe(false);
   });
+  it("refuse changerAngle (moteurs) : second angle rendu par passages", () => expect(garderPortee("moteurs", [{ type: "changerAngle" }]).ok).toBe(false));
   it("phrases sans € ni chiffre", () => {
     for (const t of ["refaireSegmentVoix", "remplacerIllustration"] as const) {
       const r = garderPortee("moteurs", [t]);
-      if (!r.ok) expect(r.phrase).not.toMatch(/[€$\d]/);
+      expect(r.ok).toBe(false);
+      expect(r.ok ? "" : r.phrase).not.toMatch(/[€$\d]/);
+    }
+    expect(Object.keys(PHRASES).sort()).toEqual(["claude", "ia", "voix"]);
+    for (const p of Object.values(PHRASES)) {
+      expect(p).toMatch(/payante/);
+      expect(p).not.toMatch(/[€$\d]/);
     }
   });
   it("porteesDe et estGratuite", () => {

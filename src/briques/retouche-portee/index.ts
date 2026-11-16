@@ -49,7 +49,7 @@ export const estGratuite = (portees: readonly PorteeOperation[]): boolean => por
 
 export type ResultatGarde = { ok: true; portees: PorteeOperation[] } | { ok: false; portees: PorteeOperation[]; phrase: string };
 
-const PHRASES: Readonly<Record<"voix" | "claude" | "ia", string>> = {
+export const PHRASES: Readonly<Record<"voix" | "claude" | "ia", string>> = {
   voix: "Cette retouche refait la voix : elle est payante et n'est pas faite ici.",
   claude: "Cette retouche demande un appel à Claude : elle est payante et n'est pas faite ici.",
   ia: "Cette retouche demande une image, un avatar ou un clip IA : elle est payante et n'est pas faite ici.",

@@ -34,7 +34,9 @@ export const PORTEE_CHAT: Readonly<Record<TypeOperationRetouche, PorteeOperation
  */
 export const PORTEE_MOTEURS: Readonly<Record<OperationMontage["type"], PorteeOperation>> = {
   remplacerIllustration: "ia",
-  changerAngle: "scenes",
+  // Passer un plan en « face » hors d'un passage déjà rendu demande un nouveau rendu d'avatar : le second angle n'est rendu que par passages
+  // (`src/moteurs/montage-avocat/index.ts:128`, `:847-851`, `:1216-1217`), donc `ia` par prudence. `changerCadrage` = recadrage du même webm (`scenes`).
+  changerAngle: "ia",
   changerCadrage: "scenes",
   deplacerIncrustation: "scenes",
   corrigerMot: "scenes",
