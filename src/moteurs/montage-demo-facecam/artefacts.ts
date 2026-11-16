@@ -34,7 +34,19 @@ const lirePistes = (v: unknown): PistesEcran | undefined => {
   };
 };
 
-const lireStyle = (v: unknown): StyleSousTitresDemo | undefined => (objet(v) && Array.isArray(v.prononciations) ? (v as unknown as StyleSousTitresDemo) : undefined);
+const texte = (v: unknown): v is string => typeof v === "string" && v.length > 0;
+
+/** Style relu : prononciations bien formées seules gardées ; style/base/intensité gardés seulement si ce sont des chaînes. */
+const lireStyle = (v: unknown): StyleSousTitresDemo | undefined => {
+  if (!objet(v) || !Array.isArray(v.prononciations)) return undefined;
+  const prononciations = v.prononciations.filter((p) => objet(p) && typeof p.mot === "string" && typeof p.prononciation === "string") as unknown as StyleSousTitresDemo["prononciations"];
+  return {
+    prononciations,
+    ...(texte(v.style) ? { style: v.style as StyleSousTitresDemo["style"] } : {}),
+    ...(texte(v.base) ? { base: v.base as StyleSousTitresDemo["base"] } : {}),
+    ...(texte(v.intensite) ? { intensite: v.intensite as StyleSousTitresDemo["intensite"] } : {}),
+  };
+};
 
 /** Artefacts du montage qui vient de finir (seuls les présents sont renvoyés). */
 export function artefactsDemo(etat: EtatDemo, entrees: EntreesDemo, commande: CommandeFabrication): ArtefactsDemo {
