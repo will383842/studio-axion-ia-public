@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MARQUEURS } from "@/briques/sous-titres/marqueur";
+import { COULEURS_DUO } from "@/briques/habillage/charte-duo";
 import { autoriserTexte } from "@/briques/charte/axion-2026";
 import type { RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { CarteImage } from "@/domaine/image-video/carte";
@@ -31,7 +32,7 @@ function ligne(code: RecetteVarieteIV["sousTitres"]) {
 describe("C2-U5bis · image → vidéo (prêt, non branché)", () => {
   it("constantes inchangées", () => {
     expect(VARIANTE_PAR_VERSION).toBe(false);
-    expect(SURLIGNAGE_CAS_CONCRET.fond).toBeTruthy();
+    expect(SURLIGNAGE_CAS_CONCRET).toEqual({ fond: COULEURS_DUO.orangeVif, texte: COULEURS_DUO.encre, fondClair: COULEURS_DUO.orange, texteClair: COULEURS_DUO.ivoire });
   });
   it("sans 2e argument (et avec false) : identique à master pour SOU-B/C/D/E", () => {
     for (const code of ["SOU-B", "SOU-C", "SOU-D", "SOU-E"] as const) {

@@ -7,6 +7,7 @@ import { ID } from "@/briques/bibliotheque-video/noms";
 import { profilNeutre } from "@/briques/bibliotheque-video/profils";
 import type { EntreeBibliotheque, ProfilVideo } from "@/briques/bibliotheque-video/types";
 import { VERSION_BIBLIOTHEQUE } from "@/briques/bibliotheque-video/version";
+import { COULEURS_DUO } from "@/briques/habillage/charte-duo";
 import { autoriserTexte } from "@/briques/charte/axion-2026";
 import { MARQUEURS } from "@/briques/sous-titres/marqueur";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
@@ -44,11 +45,14 @@ async function optionsRecues(entreesEnPlus?: Record<string, unknown>): Promise<R
   return captures[0];
 }
 
+/** Retire les fonctions (outils injectés) : le reste doit être égal en profondeur. */
+const sansFonctions = (o: Record<string, unknown>) => JSON.parse(JSON.stringify(o)) as unknown;
+
 describe("C2-U5bis · constantes inchangées", () => {
   it("VARIANTE_PAR_VIDEO et VARIANTE_PAR_VERSION restent à false ; SURLIGNAGE_CAS_CONCRET garde sa valeur", () => {
     expect(VARIANTE_PAR_VIDEO).toBe(false);
     expect(VARIANTE_PAR_VERSION).toBe(false);
-    expect(SURLIGNAGE_CAS_CONCRET).toEqual({ fond: SURLIGNAGE_CAS_CONCRET.fond, texte: SURLIGNAGE_CAS_CONCRET.texte, fondClair: SURLIGNAGE_CAS_CONCRET.fondClair, texteClair: SURLIGNAGE_CAS_CONCRET.texteClair });
+    expect(SURLIGNAGE_CAS_CONCRET).toEqual({ fond: COULEURS_DUO.orangeVif, texte: COULEURS_DUO.encre, fondClair: COULEURS_DUO.orange, texteClair: COULEURS_DUO.ivoire });
     expect(surlignageCasConcret(surligne, true)).toEqual({ surlignage: SURLIGNAGE_CAS_CONCRET });
   });
 });
@@ -76,6 +80,7 @@ describe("C2-U5bis · index.ts : options passées à fabriquerCasConcret", () =>
       const o = await optionsRecues(entree(p));
       expect(Object.keys(o)).not.toContain("styleVarie");
       expect(Object.keys(o).sort()).toEqual(Object.keys(sans).sort());
+      expect(sansFonctions(o)).toEqual(sansFonctions(sans));
     }
   });
   it("capacité permise : styleVarie === true", async () => {
