@@ -25,6 +25,9 @@ export const CONSIGNES_REDACTION = [
   "Résumé de 200 à 320 caractères ; 3 à 6 questions ; textes alternatifs de 80 à 125 caractères.",
 ] as const;
 
+/** Ce que l'appelant fournit : le script seul. Les consignes de la marque sont ajoutées par le service. */
+export interface DemandeScript { script: string }
+/** Ce que reçoit le fournisseur : script masqué + consignes de la marque. */
 export interface DemandeRedaction { script: string; consignes?: readonly string[] }
 
 /** Ce que le fournisseur d'écriture rend : texte brut, jamais enregistré tel quel. */
@@ -55,8 +58,8 @@ export type Resultat<T> = { ok: true } & T | { ok: false; erreurs: string[] };
 export interface OptionsRedaction {
   fournisseur: FournisseurEcriture;
   fiches: ServiceFiches;
-  /** Noms de personnes à ne jamais laisser passer (liste fournie par l'appelant, jamais écrite en dur ici). */
-  nomsInterdits?: string[];
+  /** Noms de personnes à ne jamais laisser passer (liste OBLIGATOIRE et non vide, fournie par l'appelant, jamais écrite en dur ici). */
+  nomsInterdits: string[];
   nouvelId?: () => string;
 }
 
@@ -98,7 +101,10 @@ const refus = (...erreurs: string[]): { ok: false; erreurs: string[] } => ({ ok:
 
 export function creerRedactionFicheDePage(options: OptionsRedaction) {
   const { fournisseur, fiches } = options;
-  const noms = (options.nomsInterdits ?? []).map(sansAccent).filter((n) => n !== "");
+  const noms = (options.nomsInterdits ?? []).map((n) => sansAccent(n.normalize("NFC")).trim().split(/\s+/).filter(Boolean).join(" ")).filter((n) => n !== "");
+  /** Un nom reconnu quels que soient la casse, les accents (NFC ou NFD) et les blancs entre les mots. */
+  const reNoms = noms.map((n) => new RegExp(n.split(" ").map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"), "gu"));
+  const plat = (texte: string): string => texte.normalize("NFC").split("").map((c) => sansAccent(c)[0] ?? c).join("");
   let compteur = 0;
   const nouvelId = options.nouvelId ?? (() => `PROP-${++compteur}`);
   const propositions = new Map<string, { proposition: Proposition; empreinte: string; appliquee: boolean }>();
@@ -106,13 +112,14 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
   /** Masque les noms interdits (sans tenir compte des accents ni de la casse), les pseudonymes et les coordonnées. */
   const masquerTout = (texte: string): string => {
     let out = masquerCoordonnees(texte).replace(new RegExp(RE_PSEUDO.source, "gu"), "[masqué]");
-    for (const n of noms) {
-      const norm = out.split("").map((c) => (sansAccent(c)[0] ?? c)).join("");
+    out = out.normalize("NFC");
+    for (const re of reNoms) {
+      const norm = plat(out);
       let res = "";
       let i = 0;
-      for (let j = norm.indexOf(n, 0); j !== -1; j = norm.indexOf(n, i)) {
-        res += out.slice(i, j) + "[masqué]";
-        i = j + n.length;
+      for (const m of norm.matchAll(re)) {
+        res += out.slice(i, m.index) + "[masqué]";
+        i = m.index + m[0].length;
       }
       out = res + out.slice(i);
     }
@@ -123,8 +130,8 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
 
   const contientPersonne = (texte: string): boolean => {
     if (new RegExp(RE_EMAIL.source, "u").test(texte) || new RegExp(RE_TEL.source).test(texte) || RE_PSEUDO.test(texte)) return true;
-    const net = sansAccent(texte);
-    return noms.some((n) => net.includes(n));
+    const net = plat(texte);
+    return reNoms.some((re) => new RegExp(re.source, "u").test(net));
   };
 
   function defautsDe(b: BrouillonFournisseur): Defaut[] {
@@ -142,7 +149,8 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
 
   return {
     /** Propose un brouillon à relire. N'écrit rien dans la fiche. */
-    async proposer(idFiche: string, demande: DemandeRedaction): Promise<Resultat<{ proposition: Proposition }>> {
+    async proposer(idFiche: string, demande: DemandeScript): Promise<Resultat<{ proposition: Proposition }>> {
+      if (noms.length === 0) return refus("Liste de noms interdits absente : aucune proposition sans ce filtre.");
       if (!fiches.lire(idFiche)) return refus("Fiche introuvable.");
       if (typeof demande?.script !== "string" || demande.script.trim() === "") return refus("Script vide : rien à rédiger.");
       let brut: unknown;
@@ -152,7 +160,14 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
         return refus("Le fournisseur d'écriture n'a pas répondu : aucune proposition.");
       }
       if (!formeOk(brut)) return refus("La réponse du fournisseur n'a pas la forme attendue : aucune proposition.");
-      const contenu = structuredClone(brut);
+      // Reconstruit des seuls champs connus : une propriété en trop du fournisseur n'entre jamais dans la proposition.
+      const contenu: BrouillonFournisseur = {
+        resume: brut.resume,
+        gain: brut.gain,
+        questions: brut.questions.map((q) => ({ question: q.question, reponse: q.reponse })),
+        sousTitres: brut.sousTitres.map((x) => ({ niveau: x.niveau, texte: x.texte })),
+        textesAlternatifs: [...brut.textesAlternatifs],
+      };
       if (toutesLesChaines(contenu).some(contientPersonne)) return refus("Le texte proposé contenait une donnée de personne : il est écarté.");
       const f = fiches.lire(idFiche);
       const deja = [

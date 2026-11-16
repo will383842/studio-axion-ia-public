@@ -47,13 +47,14 @@ function fournisseurSimule(sortie: BrouillonFournisseur | (() => never) = brouil
   return { f, appels };
 }
 
-function monter(sortie?: BrouillonFournisseur | (() => never), nomsInterdits: string[] = []) {
-  const fiches = creerServiceFichesDePage({ depot: creerDepotMemoire(), maintenant: () => "2026-11-20" });
+function monter(sortie?: BrouillonFournisseur | (() => never), nomsInterdits: string[] = ["Dominique Exemplaire"]) {
+  const depot = creerDepotMemoire();
+  const fiches = creerServiceFichesDePage({ depot, maintenant: () => "2026-11-20" });
   fiches.creer("AUTO-014", "relances-clients-automatiques");
   const { f, appels } = fournisseurSimule(sortie);
   let n = 0;
   const redaction = creerRedactionFicheDePage({ fournisseur: f, fiches, nomsInterdits, nouvelId: () => `PROP-${++n}` });
-  return { fiches, redaction, appels };
+  return { fiches, redaction, appels, depot };
 }
 
 const SCRIPT = "Bonjour. Voici comment relancer vos clients sans rien oublier, étape par étape.";
@@ -113,13 +114,23 @@ describe("validation : un geste est requis", () => {
     expect(fiche?.robots).toBe("noindex,nofollow");
   });
   it("ne touche jamais aux champs du fondateur (fond, limites, auteur, sources)", async () => {
-    const { redaction, fiches } = monter();
+    const { redaction, fiches, depot } = monter();
+    const fond = {
+      pourQui: ["Une petite agence", "Un cabinet de conseil"],
+      limites: ["Elle ne rédige pas de réponse personnalisée."],
+      auteur: "Équipe Axion-IA",
+      relecteur: "Équipe Axion-IA",
+      sources: [{ intitule: "Source datée", adresse: "https://exemple.org/a", dateConsultation: "2026-11-20" }],
+    };
+    fiches.modifier("AUTO-014", fond);
     const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
     if (!r.ok) throw new Error("proposition attendue");
-    redaction.valider(r.proposition.id, { validationEcrite: true });
-    const interne = fiches.controler("AUTO-014");
-    expect(interne.ok && interne.defauts.some((d) => d.champ === "limites")).toBe(true);
-    expect(interne.ok && interne.defauts.some((d) => d.champ === "pourQui")).toBe(true);
+    expect(redaction.valider(r.proposition.id, { validationEcrite: true }).ok).toBe(true);
+    const apres = depot.lire("AUTO-014"); // le service cache ces champs avant validation : on lit le dépôt
+    expect(apres?.pourQui).toEqual(fond.pourQui);
+    expect(apres?.limites).toEqual(fond.limites);
+    expect(apres?.auteur).toBe(fond.auteur);
+    expect(apres?.sources).toEqual(fond.sources);
   });
   it("une proposition ne s'applique qu'une fois ; une proposition inconnue est refusée", async () => {
     const { redaction } = monter();
@@ -179,6 +190,40 @@ describe("aucune donnée de personne", () => {
     expect(appels[0].script).not.toMatch(/exemplaire|pseudo_test/i);
     expect(appels[0].script).toContain("[masqué]");
   });
+  it("refuse toute proposition sans liste de noms interdits", async () => {
+    const { redaction, appels } = monter(undefined, []);
+    expect((await redaction.proposer("AUTO-014", { script: SCRIPT })).ok).toBe(false);
+    expect(appels).toHaveLength(0);
+  });
+  const variantes: Array<[string, string]> = [
+    ["espaces multiples", "Dominique   Exemplaire"],
+    ["retour à la ligne", "Dominique\nExemplaire"],
+    ["accent décomposé", "Dominique Exemplaire".replace("p", "p\u0301")],
+    ["casse et accents", "DOMINÍQUE éxemplaire"],
+  ];
+  for (const [nom, v] of variantes) {
+    it(`masque le nom du script et refuse un texte proposé : ${nom}`, async () => {
+      const g = brouillonValide();
+      g.resume = `${v} présente la démarche. ${phrases(1, 150)}`;
+      const { redaction, appels } = monter(g, ["Dominique Exemplaire", "Dominique Éxemplaire"]);
+      const r = await redaction.proposer("AUTO-014", { script: `Merci à ${v} pour la démonstration.` });
+      expect(appels[0].script).toContain("[masqué]");
+      expect(appels[0].script).not.toMatch(/exemplaire|p\u0301/i);
+      expect(r.ok).toBe(false);
+    });
+  }
+  it("les propriétés en trop du fournisseur n'entrent ni dans la proposition ni dans la fiche", async () => {
+    const b = brouillonValide() as unknown as Record<string, unknown>;
+    (b.questions as Array<Record<string, unknown>>)[0].contact = "jeanne.dupont@exemple.fr";
+    (b.sousTitres as Array<Record<string, unknown>>)[0].auteur = "Dominique Exemplaire";
+    b.extra = "jeanne.dupont@exemple.fr";
+    const { redaction, fiches } = monter(b as unknown as BrouillonFournisseur);
+    const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
+    if (!r.ok) throw new Error("proposition attendue");
+    expect(JSON.stringify(r.proposition)).not.toMatch(/exemple\.fr|Exemplaire/);
+    redaction.valider(r.proposition.id, { validationEcrite: true });
+    expect(JSON.stringify(fiches.lire("AUTO-014"))).not.toMatch(/exemple\.fr|Exemplaire/);
+  });
   it("transmet les consignes de la marque au fournisseur", async () => {
     const { redaction, appels } = monter();
     await redaction.proposer("AUTO-014", { script: SCRIPT });
@@ -233,7 +278,7 @@ describe("règles de la marque", () => {
       const { redaction } = monter(g);
       const r = await redaction.proposer("AUTO-014", { script: SCRIPT });
       if (!r.ok) throw new Error("proposition attendue");
-      expect(r.proposition.defauts.some((d) => d.champ === "gain")).toBe(true);
+      expect(r.proposition.defauts.some((d) => d.champ === "gain" && /mot interdit/.test(d.message))).toBe(true);
       expect(redaction.valider(r.proposition.id, { validationEcrite: true }).ok).toBe(false);
     });
   }
