@@ -5,6 +5,11 @@ import { LIBELLE_SUJET_EXTRAIT, MOTIF_APPELS_OFFRES, sujetDuMoment } from "@/bri
 describe("X4-02 sujets des extraits", () => {
   it("la liste officielle n'est pas modifiée (12 types)", () => {
     expect(TYPES_AUTOMATISATION).toHaveLength(12);
+    expect(TYPES_AUTOMATISATION.map((t) => t.id)).toEqual([
+      "devis-factures", "relances-impayes", "emails-messages", "comptes-rendus",
+      "rendez-vous-planning", "recrutement", "suivi-commercial", "documents-signatures",
+      "publication-contenu", "donnees-ia-sure", "former-equipes", "trouver-quoi-automatiser",
+    ]);
     expect(TYPES_AUTOMATISATION.map((t) => t.id)).not.toContain("appels-offres");
   });
 
