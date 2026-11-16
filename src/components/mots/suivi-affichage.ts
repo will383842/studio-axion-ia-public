@@ -24,7 +24,28 @@ export interface LigneSuiviMot {
     auMoinsGagnees: number;
   }[];
   formulations: { version: string; envois: number; clics: number | null }[];
+  /** Ventilation par réseau ; absente sur un ancien enregistrement = rien à afficher. */
+  parReseau?: LigneReseau[];
 }
+
+export interface LigneReseau {
+  reseau: string;
+  commentaires: Fen;
+  premiersMessages: Fen;
+  envoisEmail: Fen | null;
+  clics: Fen | null;
+  gagnees: Fen;
+}
+
+const NOMS_RESEAUX: Record<string, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  linkedin: "LinkedIn",
+  tiktok: "TikTok",
+  autre: "Autre réseau",
+  non_precise: "Non précisé",
+};
+export const nomReseau = (cle: string): string => NOMS_RESEAUX[cle] ?? "Autre réseau";
 
 export interface TableauSuivi {
   genereLe: string;
@@ -47,4 +68,13 @@ export function libelleGagnees(n: number): string {
 /** Une valeur absente (chiffre non disponible) s'écrit « — », jamais 0. */
 export function chiffreOuTiret(n: number | null | undefined): string {
   return n === null || n === undefined ? "—" : String(n);
+}
+
+/** Somme d'une colonne sur les réseaux affichés (le total est toujours la somme des lignes). */
+export function totalReseaux(
+  lignes: readonly LigneReseau[],
+  colonne: "commentaires" | "premiersMessages" | "envoisEmail" | "clics" | "gagnees",
+  fenetre: keyof Fen,
+): number {
+  return lignes.reduce((t, l) => t + (l[colonne]?.[fenetre] ?? 0), 0);
 }

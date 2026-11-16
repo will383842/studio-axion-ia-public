@@ -11,6 +11,7 @@ import {
   type CompteursSite,
 } from "./compteurs-site-contrat";
 import { normaliserMot } from "./mot-normalise";
+import { classerReseau, ORDRE_RESEAUX } from "./suivi-par-reseau";
 
 const JOUR_MS = 86_400_000;
 export const MOT_PAR_DEFAUT_SUIVI = "GUIDE";
@@ -46,6 +47,17 @@ export interface LigneSuiviMot {
     auMoinsGagnees: number;
   }[];
   formulations: { version: string; envois: number; clics: number | null }[];
+  /** Ventilation par réseau (agrégats). Les réseaux sans aucune donnée sont absents. Site indisponible : e-mails et clics à null. */
+  parReseau: LigneReseau[];
+}
+
+export interface LigneReseau {
+  reseau: string;
+  commentaires: Fen;
+  premiersMessages: Fen;
+  envoisEmail: Fen | null;
+  clics: Fen | null;
+  gagnees: Fen;
 }
 
 export interface TableauSuivi {
@@ -124,6 +136,7 @@ interface Personne {
   okRecus: number;
   post: string;
   reseau: string;
+  reseauBrut: string | null;
   versions: Set<string>;
   envoye: boolean;
 }
@@ -149,6 +162,7 @@ interface Acc {
     }
   >;
   versions: Map<string, Set<string>>;
+  reseaux: Map<string, { commentaires: Fen; premiersMessages: Fen; gagnees: Fen }>;
 }
 
 export function assemblerSuivi(
@@ -175,6 +189,7 @@ export function assemblerSuivi(
           inconnu: vide(),
           publications: new Map(),
           versions: new Map(),
+          reseaux: new Map(),
         }),
       );
     return a;
@@ -190,6 +205,13 @@ export function assemblerSuivi(
     return p;
   };
 
+  const reseauDe = (a: Acc, brut: unknown) => {
+    const cle = classerReseau(brut);
+    let r = a.reseaux.get(cle);
+    if (!r) a.reseaux.set(cle, (r = { commentaires: vide(), premiersMessages: vide(), gagnees: vide() }));
+    return r;
+  };
+
   const vus = new Set<string>();
   for (const ev of evenements) {
     const mot = normaliserMot(ev.motSeul);
@@ -200,6 +222,7 @@ export function assemblerSuivi(
     }
     const a = acc(mot);
     compter(a.commentaires, ev.recuLe, maintenantMs);
+    compter(reseauDe(a, ev.reseau).commentaires, ev.recuLe, maintenantMs);
     publication(
       a,
       texteOuNull(ev.idPostPlateforme) ?? SANS_PUBLICATION,
@@ -241,6 +264,7 @@ export function assemblerSuivi(
         okRecus: 0,
         post: texteOuNull(c.idPostPlateforme) ?? SANS_PUBLICATION,
         reseau: texteOuNull(c.reseau) ?? "inconnu",
+        reseauBrut: texteOuNull(c.reseau),
         versions: new Set<string>(),
         envoye: false,
       } satisfies Personne & { racine: string });
@@ -248,6 +272,7 @@ export function assemblerSuivi(
     if (plusAncienne(p.creeLe, c.creeLe) === c.creeLe && c.creeLe !== p.creeLe) {
       p.post = texteOuNull(c.idPostPlateforme) ?? SANS_PUBLICATION;
       p.reseau = texteOuNull(c.reseau) ?? "inconnu";
+      p.reseauBrut = texteOuNull(c.reseau);
     }
     p.creeLe = plusAncienne(p.creeLe, c.creeLe) ?? p.creeLe;
     // Sans état (vide ou absent) : pas une réponse publique.
@@ -282,9 +307,14 @@ export function assemblerSuivi(
     if (p.renvoi) compter(a.renvois, p.renvoiLe, maintenantMs);
     if (p.okRecus > 0) compter(a.reponsesOk, p.lienIgLe, maintenantMs);
     const pub = publication(a, p.post, p.reseau);
-    if (p.premier) pub.premiersMessages++;
+    const rs = reseauDe(a, p.reseauBrut);
+    if (p.premier) {
+      pub.premiersMessages++;
+      compter(rs.premiersMessages, p.m1Le, maintenantMs);
+    }
     if (p.suivi === "gagne") {
       compter(a.gagnees, p.lienIgLe, maintenantMs);
+      compter(rs.gagnees, p.lienIgLe, maintenantMs);
       pub.gagnees++;
     } else if (p.suivi === "deja_suivi")
       compter(a.dejaSuivi, p.lienIgLe, maintenantMs);
@@ -334,6 +364,27 @@ export function assemblerSuivi(
             ? (compteursSite.versions.get(cleVersionSite(mot, version)) ?? 0)
             : null,
         }));
+      const somme = (f: Fen[]): Fen =>
+        f.reduce((t, x) => ({ j7: t.j7 + x.j7, j30: t.j30 + x.j30, total: t.total + x.total }), vide());
+      const lignesSite = (compteursSite?.lignes ?? []).filter((l) => l.mot === mot);
+      const cles = new Set<string>([...a.reseaux.keys(), ...lignesSite.map((l) => classerReseau(l.reseau))]);
+      const parReseau: LigneReseau[] = [...cles]
+        .sort((x, y) => ORDRE_RESEAUX.indexOf(x) - ORDRE_RESEAUX.indexOf(y))
+        .map((cle) => {
+          const r = a.reseaux.get(cle);
+          const l = lignesSite.filter((x) => classerReseau(x.reseau) === cle);
+          return {
+            reseau: cle,
+            commentaires: copie(r?.commentaires ?? vide()),
+            premiersMessages: copie(r?.premiersMessages ?? vide()),
+            envoisEmail: compteursSite ? somme(l.map((x) => x.envois)) : null,
+            clics: compteursSite ? somme(l.map((x) => x.clics)) : null,
+            gagnees: copie(r?.gagnees ?? vide()),
+          };
+        })
+        .filter((r) =>
+          [r.commentaires, r.premiersMessages, r.envoisEmail, r.clics, r.gagnees].some((f) => f !== null && f.total > 0),
+        );
       return {
         mot,
         commentaires: copie(a.commentaires),
@@ -353,6 +404,7 @@ export function assemblerSuivi(
         auMoinsGagnees: a.gagnees.total,
         parPublication,
         formulations,
+        parReseau,
       };
     });
   return {

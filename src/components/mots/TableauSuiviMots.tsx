@@ -3,7 +3,7 @@
 // SUI-B — tableau du suivi chiffré par mot : une ligne par mot, choix de la fenêtre (7 jours / 30 jours / total).
 // Présentation pure : tout arrive en propriété. Les chiffres du site absents s'écrivent « — », jamais 0.
 import { useState } from "react";
-import { AU_MOINS_PARTOUT, chiffreOuTiret, compteAffiche, libelleGagnees, type Fen, type TableauSuivi } from "./suivi-affichage";
+import { AU_MOINS_PARTOUT, chiffreOuTiret, compteAffiche, libelleGagnees, nomReseau, totalReseaux, type Fen, type TableauSuivi } from "./suivi-affichage";
 
 type Fenetre = keyof Fen;
 
@@ -78,6 +78,46 @@ export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi:
               </li>
             ))}
           </ul>
+          <h4>Par réseau</h4>
+          {(l.parReseau ?? []).length === 0 ? (
+            <p>Pas encore de chiffres par réseau</p>
+          ) : (
+            <table>
+              <caption>Détail par réseau, {l.mot}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Réseau</th>
+                  <th scope="col">Commentaires</th>
+                  <th scope="col">Premiers messages</th>
+                  <th scope="col">E-mails envoyés</th>
+                  <th scope="col">Clics</th>
+                  <th scope="col">Personnes gagnées</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(l.parReseau ?? []).map((r) => (
+                  <tr key={r.reseau}>
+                    <th scope="row">{nomReseau(r.reseau)}</th>
+                    <td>{compteAffiche(r.commentaires[fenetre], partout)}</td>
+                    <td>{compteAffiche(r.premiersMessages[fenetre], partout)}</td>
+                    <td>{valeur(suivi.siteDisponible ? r.envoisEmail : null)}</td>
+                    <td>{valeur(suivi.siteDisponible ? r.clics : null)}</td>
+                    <td>{libelleGagnees(r.gagnees[fenetre])}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Total</th>
+                  <td>{compteAffiche(totalReseaux(l.parReseau ?? [], "commentaires", fenetre), partout)}</td>
+                  <td>{compteAffiche(totalReseaux(l.parReseau ?? [], "premiersMessages", fenetre), partout)}</td>
+                  <td>{chiffreOuTiret(suivi.siteDisponible ? totalReseaux(l.parReseau ?? [], "envoisEmail", fenetre) : null)}</td>
+                  <td>{chiffreOuTiret(suivi.siteDisponible ? totalReseaux(l.parReseau ?? [], "clics", fenetre) : null)}</td>
+                  <td>{libelleGagnees(totalReseaux(l.parReseau ?? [], "gagnees", fenetre))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
           <h4>Par formulation</h4>
           <ul>
             {l.formulations.map((f) => (
