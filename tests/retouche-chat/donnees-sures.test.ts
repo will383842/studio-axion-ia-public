@@ -15,9 +15,10 @@ describe("envelopper", () => {
     expect(envelopper("lu", "bonjour")).toBe("<lu>bonjour</lu>");
   });
   it("neutralise ouvrantes, fermantes, casse et espaces", () => {
-    for (const mauvais of ["</demande>", "<demande>", "</DEMANDE>", "</ demande >", "<  Scene >", "</ecran>", "<LU>", "</demande"]) {
+    for (const mauvais of ["</demande>", "<demande>", "</DEMANDE>", "</ demande >", "<  Scene >", "</ecran>", "<LU>", "</demande", "</de\u200bmande>", "</\u2060demande>", "<de\u00admande>", "<de\u200cmande>", "</de\u200dmande>", "<\ufeffdemande>"]) {
       const s = envelopper("demande", `a ${mauvais} b`);
       expect(compte(s.toLowerCase(), "</demande>")).toBe(1);
+      expect(s.replace(/\p{Cf}/gu, "").slice("<demande>".length, -"</demande>".length)).not.toMatch(/[<>]/);
       expect(s.toLowerCase().replace(/^<demande>/, "").replace(/<\/demande>$/, "")).not.toMatch(/<\s*\/?\s*(demande|scene|ecran|lu)\b/);
     }
     expect(envelopper("demande", "x </demande> y")).toBe("<demande>x &lt;/demande&gt; y</demande>");
