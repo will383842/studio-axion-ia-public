@@ -4,6 +4,8 @@
  * Zod (objet strict : tout champ inconnu est refusé), un exemple valide (démo, repli), une toile de dessin (le rendu la
  * met à l'échelle dans sa zone) et des alias pour retrouver la pièce la plus proche d'un nom approché.
  * Le rendu React est dans `./briques/` (composants purs, sans Zod) : ce fichier n'est lu que côté studio.
+ *
+ * Porte C9-33 : la famille objet est fermée tant que `objetsPermis` est vide (défaut). Les pièces arrivent avec C9-34 ; la liste vient de `porteCapacite` (C1-U10) par C9-35.
  */
 import { z } from "zod";
 import { TOILES } from "./toiles";
@@ -152,7 +154,7 @@ export interface DefinitionBrique<S extends z.ZodType = z.ZodType> {
   /** Ce que montre la brique (repris dans la consigne du générateur). */
   description: string;
   /** Famille, pour le repli vers la pièce la plus proche. */
-  famille: "geste" | "chiffre" | "interface" | "texte" | "donnee";
+  famille: "geste" | "chiffre" | "interface" | "texte" | "donnee" | "objet";
   /** Noms approchés qui désignent cette brique (repli d'un nom inconnu). */
   alias: string[];
   /** Taille de dessin (px) ; le rendu la met à l'échelle dans la zone de la scène. */
@@ -456,14 +458,17 @@ function normaliser(s: string): string {
  * Pièce la plus proche d'un nom approché (alias), sinon d'après le texte de la scène : un chiffre → carte KPI, sinon
  * légende. Jamais `undefined` : il y a toujours une pièce de repli.
  */
-export function pieceLaPlusProche(nom: unknown, texte?: string): IdPiece {
-  if (estPiece(nom)) return nom;
+export function pieceLaPlusProche(nom: unknown, texte?: string, objetsPermis: readonly string[] = []): IdPiece {
+  const permise = (def: DefinitionBrique) => def.famille !== "objet" || objetsPermis.includes(def.id);
+  if (estPiece(nom) && permise(CATALOGUE_BRIQUES[nom] as DefinitionBrique)) return nom;
   if (typeof nom === "string" && nom.trim()) {
     const n = normaliser(nom);
-    for (const def of Object.values(CATALOGUE_BRIQUES)) {
+    for (const def of Object.values(CATALOGUE_BRIQUES) as DefinitionBrique[]) {
+      if (!permise(def)) continue;
       if (normaliser(def.id) === n || def.alias.some((a) => normaliser(a) === n)) return def.id as IdPiece;
     }
-    for (const def of Object.values(CATALOGUE_BRIQUES)) {
+    for (const def of Object.values(CATALOGUE_BRIQUES) as DefinitionBrique[]) {
+      if (!permise(def)) continue;
       if (def.alias.some((a) => n.split(" ").includes(normaliser(a)))) return def.id as IdPiece;
     }
   }

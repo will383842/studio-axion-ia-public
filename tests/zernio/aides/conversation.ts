@@ -71,7 +71,18 @@ export const cleConversation = (id: string): string => {
 };
 
 let n = 0;
-export async function deposerCommentaire(depots: () => any, o: { idAuteur?: string; idCommentaire?: string; motSeul?: string | null; proprio?: boolean; estReponse?: boolean; idCompte?: string; idPost?: string | null; ageMs?: number; reseau?: string } = {}): Promise<string> {
+/**
+ * T2 : sur Instagram, le parcours ne sert que les auteurs d'essai tant que `parcours.instagram_public` n'est pas exactement `true`.
+ * Les tests de parcours existants (auteur fictif quelconque, réseau Instagram par défaut) ouvrent donc le réglage dans leur préparation ; aucune attente n'est modifiée.
+ * Seul tests/zernio/ig-restreint.test.ts passe `"intact"` pour garder le réglage tel qu'il l'a posé (absent ou valeur d'essai).
+ */
+export async function ouvrirInstagramPourLesTests(reglage?: "intact"): Promise<void> {
+  if (reglage === "intact") return;
+  const { ecrireParametre } = await import("@/services/_commun");
+  await ecrireParametre("parcours.instagram_public", true);
+}
+export async function deposerCommentaire(depots: () => any, o: { idAuteur?: string; idCommentaire?: string; motSeul?: string | null; proprio?: boolean; estReponse?: boolean; idCompte?: string; idPost?: string | null; ageMs?: number; reseau?: string; reglageInstagram?: "intact" } = {}): Promise<string> {
+  await ouvrirInstagramPourLesTests(o.reglageInstagram);
   const idEvenement = `evt-com-${++n}`;
   const m = new Date(T0 - (o.ageMs ?? 1000)).toISOString();
   await depots().evenementsFournisseurs.enregistrer({
@@ -80,7 +91,8 @@ export async function deposerCommentaire(depots: () => any, o: { idAuteur?: stri
   });
   return idEvenement;
 }
-export async function deposerMessage(depots: () => any, o: { idExpediteur?: string; idConversation?: string | null; idMessage?: string; idCompte?: string; occurredAt?: string; avance?: number } = {}): Promise<string> {
+export async function deposerMessage(depots: () => any, o: { idExpediteur?: string; idConversation?: string | null; idMessage?: string; idCompte?: string; occurredAt?: string; avance?: number; reglageInstagram?: "intact" } = {}): Promise<string> {
+  await ouvrirInstagramPourLesTests(o.reglageInstagram);
   const idEvenement = `evt-msg-${++n}`;
   const m = new Date(T0 - 500 + (o.avance ?? 0)).toISOString();
   await depots().evenementsFournisseurs.enregistrer({

@@ -52,3 +52,20 @@ describe("compte listé et Facebook seulement", () => {
     expect(cibleEssaiPermise({ [V]: "compte-fb-essai" }, X, "facebook")).toBe(false);
   });
 });
+
+import { auteurEssaiPermis, auteursEssai } from "@/domaine/guide-reseau/cibles-essai";
+describe("auteurs d'essai (PARCOURS_ESSAI_AUTEURS)", () => {
+  const A = "auteur-fictif-001";
+  const B = "auteur-fictif-002";
+  it("listés : permis ; autre, vide, absent : refusé", () => {
+    const env = { PARCOURS_ESSAI_AUTEURS: ` ${A} , ${B} ` };
+    expect(auteursEssai(env)).toEqual([A, B]);
+    expect(auteurEssaiPermis(env, A)).toBe(true);
+    expect(auteurEssaiPermis(env, "auteur-fictif-009")).toBe(false);
+    expect(auteurEssaiPermis(env, "")).toBe(false);
+    expect(auteurEssaiPermis(env, undefined)).toBe(false);
+  });
+  it.each([[undefined], [""], ["*"], [`${A},`], [`${A},a b`], [`${A},a*`], [`${A},${B},auteur-fictif-003,auteur-fictif-004`]])("%s : fermé", (v) => {
+    expect(auteurEssaiPermis({ PARCOURS_ESSAI_AUTEURS: v }, A)).toBe(false);
+  });
+});

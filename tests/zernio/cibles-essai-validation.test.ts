@@ -19,7 +19,7 @@ const base = { ...ENV_SITE_FICTIF, PARCOURS_CONVERSATION_TITRE_GUIDE: "Titre ser
 const X = "compte-fb-essai-x";
 const Y = "compte-fb-autre-y";
 const IG = "compte-ig-essai";
-const avec = (v: string | undefined) => (v === undefined ? base : { ...base, PARCOURS_ESSAI_COMPTES: v });
+const avec = (v: string | undefined) => (v === undefined ? base : { ...base, PARCOURS_ESSAI_COMPTES: v, PARCOURS_ESSAI_AUTEURS: "auteur-fictif-400" });
 const ENV_X = avec(X);
 const MOT = "ESSAICONV";
 const CODE_ESSAI = "gde-essai05";
@@ -38,8 +38,8 @@ const valider = async (env: Env, reseau: "facebook" | "instagram", mot = MOT) =>
 };
 const pourCompte = (env: Env, compte: string, mot = MOT) => V.verifierMotPourCompte({ mot, compte, env, maintenantMs: ms() });
 const activation = (env: Env, compte: string) => V.verifierActivationMot({ mot: MOT, compte, env, maintenantMs: ms() });
-const pourEnvoi = (env: Env, compte?: string, reseau: "facebook" | "instagram" = "facebook") =>
-  V.verifierMotPourEnvoi({ mot: MOT, reseau, codeCible: CODE_ESSAI, titre: TITRE_ESSAI, env, maintenantMs: ms(), ...(compte !== undefined ? { compte } : {}) });
+const pourEnvoi = (env: Env, compte?: string, reseau: "facebook" | "instagram" = "facebook", auteurEssaiOk = true) =>
+  V.verifierMotPourEnvoi({ mot: MOT, reseau, codeCible: CODE_ESSAI, titre: TITRE_ESSAI, env, maintenantMs: ms(), ...(compte !== undefined ? { compte } : {}), ...(auteurEssaiOk ? { auteurEssaiOk: true } : {}) });
 
 beforeEach(async () => {
   reinitialiserDepots();
@@ -130,6 +130,9 @@ describe("S3 · verifierMotPourEnvoi", () => {
   });
   it("autre compte : validation_absente", async () => {
     expect(await pourEnvoi(ENV_X, Y)).toBe("validation_absente");
+  });
+  it("auteur non revérifié par l'appelant (auteurEssaiOk absent) : validation_absente même pour le compte listé", async () => {
+    expect(await pourEnvoi(ENV_X, X, "facebook", false)).toBe("validation_absente");
   });
   it("cible inactive : validation_absente même pour le compte listé", async () => {
     site.cibles.find((c) => c.code === CODE_ESSAI)!.actif = false;

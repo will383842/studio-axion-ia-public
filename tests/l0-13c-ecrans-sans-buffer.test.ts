@@ -61,7 +61,7 @@ describe("L0-13c · comptes de la feuille d'envoi : Zernio, jamais Buffer, aucun
 
 describe("L0-13c · sources des écrans", () => {
   const CINQ = [
-    "src/components/publication/FeuilleEnvoyerBuffer.tsx",
+    "src/components/publication/FeuilleEnvoyer.tsx",
     "src/components/publication/BarreActionsVideo.tsx",
     "src/components/publication/KitPublication.tsx",
     "src/components/generateur/FicheSujet.tsx",
@@ -84,8 +84,9 @@ describe("L0-13c · sources des écrans", () => {
     expect(lire(f)).not.toMatch(/Buffer · Programmer|brouillon dans Buffer|Publier \(Buffer\)/);
   });
 
-  it("la feuille garde son nom et sa fonction", () => {
-    expect(lire(CINQ[0])).toContain("export function FeuilleEnvoyerBuffer");
+  it("la feuille `FeuilleEnvoyer` existe et garde sa fonction", () => {
+    expect(lire(CINQ[0])).toContain("export function FeuilleEnvoyer");
+    expect(existsSync("src/components/publication/FeuilleEnvoyerBuffer.tsx")).toBe(false);
   });
 
   it("la fiche vidéo lit les comptes Zernio, pas Buffer", () => {
