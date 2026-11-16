@@ -26,7 +26,7 @@ import type { MotMinute, PlanValide } from "@/briques/plan-scenes/schema";
 import { grouperMots } from "@/briques/sous-titres/groupement";
 import { lireEntreesDemo, type EntreesDemo } from "./entrees";
 import { decalageParLesMots, DUREE_CARTE_FIN_MS, FPS_DEMO, miseEnPageDemo, RATIO_MAITRE_DEMO, recadrage, type RatioDemo } from "./mise-en-page";
-import { pistesEcran, planPourCalque } from "./pistes";
+import { pistesEcran, planPourCalque, type PistesEcran } from "./pistes";
 import { ID_COMPOSITION_DEMO_FACECAM, type GroupeSousTitre, type ProprietesDemoFacecam } from "./proprietes";
 
 export const ESSAIS_MAX_DEMO = 3;
@@ -376,6 +376,10 @@ export interface RepriseDemo {
   sorties: EtatDemo["sorties"];
   /** Empreinte des consignes de la version (zooms, clics, légendes, carte de fin). */
   signatureConsignes: string;
+  /** G3-01 (facultatifs) : mots de l'écran, pistes et style des sous-titres du premier montage. */
+  motsEcran?: MotHorodate[];
+  pistes?: PistesEcran;
+  styleSousTitres?: StyleSousTitresDemo;
 }
 
 export function signatureConsignes(entrees: EntreesDemo): string {
