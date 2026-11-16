@@ -41,6 +41,10 @@ export interface EntreeRecuperation {
 export type ResultatRecuperation = { sha256: string; fichier: string; dossierPreuve: string } | { refus: string };
 
 const ID_LOGO = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** Slug SOURCE de simple-icons : certains vrais slugs contiennent « _ » (l'id de sortie garde ID_LOGO). */
+const SLUG_SOURCE = /^[a-z0-9_]+$/;
+/** Un seul `<title>` sans `<` dans le texte, juste après la balise `<svg …>` (format réel de Simple Icons). */
+const TITRE_SVG = /^(\s*<svg[^>]*>)\s*<title>[^<]*<\/title>/;
 const VERSION_EXACTE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$|^\d{4}-\d{2}-\d{2}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CC0 = /^CC0(-1\.0)?$/i;
@@ -99,7 +103,7 @@ export function recuperer(e: EntreeRecuperation): ResultatRecuperation {
     }
     if (meta.name !== "simple-icons") return refus("le dossier n'est pas le paquet simple-icons");
     if (meta.version !== e.source.version) return refus(`version du paquet (${meta.version}) différente de la version demandée (${e.source.version})`);
-    if (!ID_LOGO.test(e.source.slug ?? "")) return refus("slug invalide");
+    if (!SLUG_SOURCE.test(e.source.slug ?? "")) return refus("slug invalide");
     // Trois formats réels : 13.x `_data/simple-icons.json` = { icons: [...] } ; 14.x `_data/` = tableau ; 15.x+ `data/` = tableau.
     const donnees = [join(e.source.chemin, "_data", "simple-icons.json"), join(e.source.chemin, "data", "simple-icons.json")].find(estFichier);
     if (!donnees) return refus("simple-icons.json absent (_data/ ou data/)");
@@ -142,8 +146,12 @@ export function recuperer(e: EntreeRecuperation): ResultatRecuperation {
   if (e.empreinteAttendue !== undefined && e.empreinteAttendue.toLowerCase() !== empreinte) {
     return refus("empreinte qui ne correspond pas à l'empreinte attendue");
   }
-  const a = assainirSvg(brut.toString("utf8"));
+  // Le titre de Simple Icons est retiré avant l'assainisseur (qui refuse `<title>`, C8-L02, non modifié).
+  const texte = brut.toString("utf8").replace(TITRE_SVG, "$1");
+  const a = assainirSvg(texte);
   if ("refus" in a) return refus(`refus de l'assainisseur : ${a.refus}`);
+  const ecrit = Buffer.from(texte, "utf8");
+  const empreinteEcrite = sha256(ecrit);
 
   const dossierPreuve = join(sortie.preuves, `${e.id}-${date}`);
   const cible = join(sortie.fichiers, `${e.id}.svg`);
@@ -152,15 +160,16 @@ export function recuperer(e: EntreeRecuperation): ResultatRecuperation {
 
   mkdirSync(sortie.fichiers, { recursive: true });
   mkdirSync(dossierPreuve, { recursive: true });
-  writeFileSync(cible, brut);
-  if (sha256(readFileSync(cible)) !== empreinte) return refus("empreinte qui ne correspond pas après copie");
+  writeFileSync(cible, ecrit);
+  if (sha256(readFileSync(cible)) !== empreinteEcrite) return refus("empreinte qui ne correspond pas après copie");
   const nomCharte = `charte${/\.[A-Za-z0-9]{1,5}$/.exec(e.charte)?.[0] ?? ""}`;
   copyFileSync(e.charte, join(dossierPreuve, nomCharte));
   const preuve = {
     id: e.id,
     source: origine,
     version: e.source.version,
-    sha256: empreinte,
+    sha256: empreinteEcrite,
+    sha256Source: empreinte,
     date,
     licence,
     charte: nomCharte,
@@ -168,7 +177,7 @@ export function recuperer(e: EntreeRecuperation): ResultatRecuperation {
     luParUnHumain: false,
   };
   writeFileSync(join(dossierPreuve, "preuve.json"), `${JSON.stringify(preuve, null, 2)}\n`);
-  return { sha256: empreinte, fichier: cible, dossierPreuve };
+  return { sha256: empreinteEcrite, fichier: cible, dossierPreuve };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

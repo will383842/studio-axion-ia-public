@@ -21,6 +21,8 @@ const { recuperer } = (await import(/* @vite-ignore */ RECUPERER)) as {
 };
 
 const SVG = `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h20v20H2z"/></svg>`;
+const SVG_SI = `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Forme Neutre</title><path d="M2 2h20v20H2z"/></svg>`;
+const SVG_SI_SANS_TITRE = `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h20v20H2z"/></svg>`;
 const sha = (t: string) => createHash("sha256").update(t).digest("hex");
 
 let tmp: string;
@@ -29,14 +31,14 @@ let pack: string;
 let charte: string;
 
 type FormatSI = "objet" | "tableau-data-souligne" | "tableau-data";
-function fauxSimpleIcons(opts: { version?: string; license?: unknown; sansLicence?: boolean; format?: FormatSI } = {}) {
+function fauxSimpleIcons(opts: { svg?: string; slugIcone?: string; version?: string; license?: unknown; sansLicence?: boolean; format?: FormatSI } = {}) {
   const dir = join(tmp, "simple-icons");
   const format = opts.format ?? "objet";
   const dossierData = join(dir, format === "tableau-data" ? "data" : "_data");
   mkdirSync(join(dir, "icons"), { recursive: true });
   mkdirSync(dossierData, { recursive: true });
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "simple-icons", version: opts.version ?? "13.0.0", license: "CC0-1.0" }));
-  writeFileSync(join(dir, "icons", "formeneutre.svg"), SVG);
+  writeFileSync(join(dir, "icons", `${opts.slugIcone ?? "formeneutre"}.svg`), opts.svg ?? SVG_SI);
   // Comme le vrai fichier : pas de champ `slug`, il se déduit du titre (« Forme Neutre » → formeneutre).
   const icone: Record<string, unknown> = { title: "Forme Neutre", hex: "112233", source: "https://exemple.invalid" };
   if (!opts.sansLicence) icone.license = opts.license ?? { type: "CC0-1.0", url: "https://creativecommons.org/publicdomain/zero/1.0/" };
@@ -96,6 +98,52 @@ describe("récupération locale d'un logo d'outil (C8-L03)", () => {
     const r = recuperer({ id: "formeneutre", source: { type: "simple-icons", chemin: fauxSimpleIcons({ format }), version: "13.0.0", slug: "formeneutre" }, charte, sortie, date: "2026-11-15" });
     expect("refus" in r).toBe(false);
     expect(existsSync(join(sortie.fichiers, "formeneutre.svg"))).toBe(true);
+  });
+
+  const siEntree = (svg: string, extra: Partial<Entree> = {}): Entree => ({
+    id: "formeneutre",
+    source: { type: "simple-icons", chemin: fauxSimpleIcons({ svg }), version: "13.0.0", slug: "formeneutre" },
+    charte,
+    sortie,
+    date: "2026-11-15",
+    ...extra,
+  });
+
+  it("simple-icons au vrai format (<title> après <svg>) : accepté, <title> absent du fichier écrit, deux empreintes", () => {
+    const r = recuperer(siEntree(SVG_SI));
+    expect("refus" in r).toBe(false);
+    if ("refus" in r) return;
+    const ecrit = readFileSync(join(sortie.fichiers, "formeneutre.svg"), "utf8");
+    expect(ecrit).not.toMatch(/<title>/);
+    expect(ecrit).toBe(SVG_SI_SANS_TITRE);
+    expect(r.sha256).toBe(sha(SVG_SI_SANS_TITRE));
+    const preuve = JSON.parse(readFileSync(join(r.dossierPreuve, "preuve.json"), "utf8"));
+    expect(preuve.sha256).toBe(sha(SVG_SI_SANS_TITRE));
+    expect(preuve.sha256Source).toBe(sha(SVG_SI));
+  });
+
+  it("<title> ailleurs, ou deux <title> : refusé", () => {
+    const ailleurs = `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 2h20v20H2z"/><title>Forme Neutre</title></svg>`;
+    const deux = SVG_SI.replace("<title>Forme Neutre</title>", "<title>A</title><title>B</title>");
+    expect("refus" in recuperer(siEntree(ailleurs))).toBe(true);
+    expect("refus" in recuperer(siEntree(deux))).toBe(true);
+    expect(existsSync(sortie.fichiers)).toBe(false);
+  });
+
+  it("empreinteAttendue est vérifiée sur le fichier brut (avec <title>)", () => {
+    const mauvaise = recuperer(siEntree(SVG_SI, { empreinteAttendue: sha(SVG_SI_SANS_TITRE) }));
+    expect("refus" in mauvaise && mauvaise.refus).toMatch(/empreinte/i);
+    expect(existsSync(sortie.fichiers)).toBe(false);
+    expect("refus" in recuperer(siEntree(SVG_SI, { empreinteAttendue: sha(SVG_SI) }))).toBe(false);
+  });
+
+  it("slug source avec « _ » (vrai slug simple-icons) : accepté ; l'id de sortie reste strict", () => {
+    const chemin = fauxSimpleIcons({ svg: SVG_SI, slugIcone: "forme_neutre" });
+    const dataFile = join(chemin, "_data", "simple-icons.json");
+    writeFileSync(dataFile, JSON.stringify({ icons: [{ title: "Forme Neutre", slug: "forme_neutre", license: { type: "CC0-1.0" } }] }));
+    const r = recuperer({ id: "forme-neutre", source: { type: "simple-icons", chemin, version: "13.0.0", slug: "forme_neutre" }, charte, sortie, date: "2026-11-15" });
+    expect("refus" in r).toBe(false);
+    expect("refus" in recuperer({ id: "forme_neutre", source: { type: "simple-icons", chemin, version: "13.0.0", slug: "forme_neutre" }, charte, sortie, date: "2026-11-16" })).toBe(true);
   });
 
   it("licence non CC0 avec sortie explicite DANS le dépôt : refusée", () => {
