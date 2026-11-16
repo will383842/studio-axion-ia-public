@@ -31,6 +31,8 @@ import {
 
 export const PARAM_RESEAUX_MANUELS = "a_traiter.reseaux_manuels";
 export const TYPE_COMMENTAIRE_MANUEL = "zernio.commentaire_manuel";
+/** Extrait FIXE de la carte d'un doute d'opposition : aucun texte du commentaire n'y entre. */
+export const EXTRAIT_DOUTE = "Demande d'arrêt possible : à vérifier, rien n'est proposé";
 const LOT_MAX = 20;
 const ATTENTE_REPORT_MS = 5 * 60_000;
 
@@ -130,9 +132,37 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
   const motsDuReseau = await motsActifsPourReseau(reseau === "tiktok" ? "tiktok" : "linkedin");
   const empreintes = idAuteur ? empreintesDe(idAuteur) : [];
   const dejaTraite = motSeul !== null && dejaTraitePourMot(await o.depot.lire(), empreintes, motSeul);
-  const p = proposerCarte({ reseau, motSeul, motsDuReseau, opposee, dejaTraite });
+  const p = proposerCarte({ reseau, motSeul, motsDuReseau, opposee, dejaTraite, doute: c.doute === true });
   if (p.action === "silence") {
     await clore(ev, p.raison);
+    return "traite";
+  }
+  if (p.action === "carte_doute") {
+    // Doute d'opposition (le mot seul est null, le texte n'est jamais relu) : JAMAIS d'opposition inscrite, d'envoi ni de réponse.
+    // Carte « À traiter » en valeurs existantes : mot null, opposée (l'interface n'offre que « classer »), extrait FIXE (aucun texte du commentaire).
+    const r = await enregistrerATraiter(
+      {
+        idEvenement: ev.idEvenement,
+        reseau: reseau === "tiktok" ? "tiktok" : "linkedin",
+        post: String(c.repere ?? ""),
+        lienPost: texte(c.lienPost),
+        mot: null,
+        motif: "mot_manuel",
+        commentaire: EXTRAIT_DOUTE,
+        reponse: null,
+        opposee: true,
+        idContact: idAuteur,
+        idCompte: texte(c.idCompte) ?? undefined,
+        cible: texte(c.repere) ?? undefined,
+        message: "indisponible",
+      },
+      { env: o.env, depot: o.depot },
+    );
+    if (r.issue === "simule") {
+      await reporter(ev, o.maintenantMs);
+      return "reporte";
+    }
+    await clore(ev, r.issue === "refuse" ? "refuse" : "doute_opposition");
     return "traite";
   }
   const reponse = p.reponseAProposer ? await reponseValidee(p.mot) : null;
