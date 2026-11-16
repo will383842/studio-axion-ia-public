@@ -168,7 +168,7 @@ export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_n
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
 
 export type EvenementMachine =
-  | { t: "commentaire"; idCommentaire: string; proprio: boolean; idAuteur: string | null; idCompte: string; motSeul: string | null; estReponse: boolean; ageMs: number; maintenantMs: number }
+  | { t: "commentaire"; idCommentaire: string; proprio: boolean; idAuteur: string | null; idCompte: string; motSeul: string | null; /** Doute d'opposition en commentaire (crochet) : rien ne part. */ doute?: boolean; estReponse: boolean; ageMs: number; maintenantMs: number }
   | { t: "public"; res: ResultatEcritureInbox }
   | { t: "m1"; res: ResultatEcritureInbox; maintenantMs: number }
   | { t: "message"; idExpediteur: string | null; idCompte: string; idMessage: string; /** Message sortant / de notre compte (direction, isOwnAccount) : écho. */ sortant?: boolean }
@@ -207,6 +207,7 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       if (ev.idAuteur === null || ev.idAuteur === ev.idCompte) return { action: "ecarter", raison: "auteur_compte" };
       // Une opposition (liste fermée) compte MÊME postée en réponse à un commentaire : testée AVANT d'écarter les réponses.
       if (ev.motSeul !== null && estMotOpposition(ev.motSeul)) return { action: "opposer" };
+      if (ev.doute === true) return { action: "doute" };
       if (ev.estReponse) return { action: "ecarter", raison: "reponse" };
       if (ev.motSeul === null) return { action: "ecarter", raison: "mot" };
       // Jamais de repli « mot inconnu → GUIDE » : seul le mot GUIDE ou une opposition a un effet.

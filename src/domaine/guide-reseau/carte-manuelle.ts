@@ -11,6 +11,7 @@ export interface MotDuReseau {
 export type { RaisonSansMessage };
 export type PropositionCarte =
   | { action: "silence"; raison: "opposition" | "personne_opposee" | "rien" }
+  | { action: "carte_doute" }
   | {
       action: "carte";
       motif: "mot_manuel" | "mot_inconnu";
@@ -25,11 +26,14 @@ export function proposerCarte(e: {
   motSeul: string | null;
   motsDuReseau: readonly MotDuReseau[];
   opposee: boolean;
+  /** Doute d'opposition lu par le crochet (jamais porté par `motSeul`). */
+  doute?: boolean;
   dejaTraite: boolean;
 }): PropositionCarte {
   // Un stop gagne partout : opposition écrite, puis personne déjà opposée, avant toute autre lecture.
   if (e.motSeul !== null && classerOpposition(e.motSeul) !== "non") return { action: "silence", raison: "opposition" };
   if (e.opposee) return { action: "silence", raison: "personne_opposee" };
+  if (e.doute === true) return { action: "carte_doute" };
   if (e.motSeul === null) return { action: "silence", raison: "rien" };
   const mot = e.motSeul.toUpperCase();
   const connu = e.motsDuReseau.find((m) => m.mot.toUpperCase() === mot);

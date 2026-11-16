@@ -291,6 +291,32 @@ export function passerDossierOppose(
   });
 }
 
+/**
+ * Doute d'opposition (commentaire) : pose `douteOpposition: true` sur chaque enregistrement du dossier qui n'est PAS `oppose` (état, dates, alias,
+ * prochain essai INCHANGÉS). Sans enregistrement, en crée un sous la racine via `neuf`. Aucune écriture au registre, aucune file, rien d'effacé.
+ */
+export function douterDossier(
+  racine: string,
+  neuf: () => Conversation,
+): Promise<EntreeDossier[]> {
+  return sousVerrou(async () => {
+    const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    const liste = dossierDe(racine, conv);
+    if (liste.length === 0) {
+      const e = neuf();
+      await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, [racine]: e });
+      return [{ cle: racine, etat: e }];
+    }
+    const touches = liste.filter((x) => x.etat.etat !== "oppose");
+    if (touches.length === 0) return [];
+    const suite = Object.fromEntries(
+      touches.map((x) => [x.cle, { ...x.etat, douteOpposition: true }]),
+    );
+    await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, ...suite });
+    return touches.map((x) => ({ cle: x.cle, etat: suite[x.cle] }));
+  });
+}
+
 /** Met en file le « stop » de CHAQUE enregistrement du dossier (idempotent, une entrée par enregistrement ; sans effet sans adresse ni page transmise). Hors verrou. */
 export async function mettreEnFileDossier(
   entrees: readonly EntreeDossier[],
