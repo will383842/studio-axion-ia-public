@@ -81,3 +81,62 @@ export function motsOutils(segment: { mots: { mot: string }[] }, debutDePhrase?:
   }
   return [];
 }
+
+/**
+ * C2-U9 : étiquette d'outil AUTONOME, en grand, à la première mention d'un outil (texte seul, aucun logo : le logo viendra
+ * par `logoId`, C8-L12). Éteinte : cette constante passe à `true` par une PR d'une ligne, après le geste de Williams et un
+ * rendu témoin. Tant qu'elle vaut `false`, `etiquettesAutonomes` ne rend rien et aucun champ n'est posé : rendu identique.
+ */
+export const ETIQUETTE_OUTIL_AUTONOME = false;
+
+/** Réglages (secondes ; taille en px à 1 080 de large). Pastille aux couleurs de `ETIQUETTE` (paires de la charte). */
+export const ETIQUETTE_AUTONOME = {
+  dureeSec: 1.2,
+  fonduSec: 0.2,
+  /** Pas avant 0,8 s : même règle que le bandeau, le spectateur voit d'abord l'image. */
+  debutMinSec: 0.8,
+  maxParVideo: 3,
+  tailleBasePx: 96,
+  margeXEm: 0.3,
+  margeYEm: 0.14,
+  rayonEm: 0.3,
+} as const;
+
+export interface EtiquetteOutilPosee {
+  /** `id` stable de l'outil (`NomOutil.id`). */
+  id: string;
+  /** Nom en capitales, tel qu'il s'écrit. */
+  texte: string;
+  debutSec: number;
+  finSec: number;
+}
+
+const rencontre = (debut: number, fin: number, a?: { debutSec: number; finSec: number }) => !!a && debut < a.finSec && fin > a.debutSec;
+
+/**
+ * Pose les étiquettes : une par outil et par vidéo (la première mention qui peut s'afficher), au plus 3, jamais avant
+ * 0,8 s, ni pendant le bandeau, ni pendant l'encadré d'ouverture, ni en chevauchement d'une autre étiquette, ni au-delà
+ * de la vidéo. `actif` vaut `ETIQUETTE_OUTIL_AUTONOME` par défaut : éteint, la liste est vide.
+ */
+export function etiquettesAutonomes(
+  segments: { debutSec: number; finSec: number; mots: { mot: string; debutSec?: number }[] }[],
+  dureeSec: number,
+  options: { actif?: boolean; bandeau?: { debutSec: number; finSec: number }; ouvertureFinSec?: number } = {},
+): EtiquetteOutilPosee[] {
+  if (!(options.actif ?? ETIQUETTE_OUTIL_AUTONOME)) return [];
+  const posees: EtiquetteOutilPosee[] = [];
+  for (const s of segments) {
+    if (posees.length >= ETIQUETTE_AUTONOME.maxParVideo) break;
+    const trouve = motsOutils(s)[0];
+    if (!trouve || posees.some((p) => p.id === trouve.id)) continue;
+    const debutSec = Math.max(ETIQUETTE_AUTONOME.debutMinSec, s.mots[trouve.debut].debutSec ?? s.debutSec);
+    const finSec = debutSec + ETIQUETTE_AUTONOME.dureeSec;
+    if (finSec > dureeSec + 1e-9) continue;
+    if (rencontre(debutSec, finSec, options.bandeau)) continue;
+    if (options.ouvertureFinSec !== undefined && debutSec < options.ouvertureFinSec - 1e-6) continue;
+    if (posees.some((p) => rencontre(debutSec, finSec, p))) continue;
+    const o = NOMS_OUTILS.find((n) => n.id === trouve.id)!;
+    posees.push({ id: o.id, texte: o.affiche.toUpperCase(), debutSec: +debutSec.toFixed(3), finSec: +finSec.toFixed(3) });
+  }
+  return posees;
+}

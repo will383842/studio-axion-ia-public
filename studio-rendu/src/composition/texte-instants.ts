@@ -7,7 +7,7 @@
  * `incrustationsAuTemps`) et on ne fait dessiner au navigateur qu'une image par suite d'états égaux ; FFmpeg la
  * répète ensuite (`concat` + `fps`). Le rendu est identique, image pour image.
  */
-import { sceneAuTemps } from "../../../src/briques/sous-titres/scene.js";
+import { etiquetteAuTemps, sceneAuTemps } from "../../../src/briques/sous-titres/scene.js";
 import { bandeauAuTemps } from "../../../src/briques/sous-titres/bandeau-nom.js";
 import { encadreVisible, incrustationsAuTemps, type ProprietesTexteComposition } from "../../../src/briques/composition/scene.js";
 
@@ -26,7 +26,8 @@ export function empreinteTexte(p: Pick<ProprietesTexteComposition, "sousTitres" 
     : null;
   const inc = incrustationsAuTemps(p.incrustations, t).map((i) => p.incrustations.indexOf(i));
   const bandeau = p.sousTitres?.bandeauNom ? bandeauAuTemps(p.sousTitres.bandeauNom, t) : null;
-  return JSON.stringify([sous, encadreVisible(p.encadre, t), inc, ...(bandeau ? [[bandeau.visible, +bandeau.opacite.toFixed(4), +bandeau.decalageXPx.toFixed(2)]] : [])]);
+  const etiquette = p.sousTitres?.etiquettesOutils ? etiquetteAuTemps(p.sousTitres, t) : null;
+  return JSON.stringify([sous, encadreVisible(p.encadre, t), inc, ...(bandeau ? [[bandeau.visible, +bandeau.opacite.toFixed(4), +bandeau.decalageXPx.toFixed(2)]] : []), ...(etiquette ? [[etiquette.id, +etiquette.opacite.toFixed(4)]] : [])]);
 }
 
 /** Suites d'images égales : une image rendue par suite, à l'instant de sa première image. */

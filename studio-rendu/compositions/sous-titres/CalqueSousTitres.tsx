@@ -5,7 +5,7 @@
  */
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { bandeauAuTemps, cssBandeauNom } from "../../../src/briques/sous-titres/bandeau-nom";
-import { cssBandeFond, cssElement, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { cssBandeFond, cssElement, cssEtiquetteOutil, etiquetteAuTemps, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
 import { chargerPolices, FAMILLES } from "./polices";
 
@@ -23,6 +23,8 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
   if (donnees.encre || donnees.pastille) chargerPoliceTitre();
   // C2-U10 : bandeau « nom et fonction » (ajout pur) ; champ absent : rien de plus.
   if (donnees.bandeauNom) chargerPolices(["Manrope ExtraBold", "Manrope SemiBold"]);
+  // C2-U9 : étiquette d'outil autonome (ajout pur) ; champ absent : rien de plus.
+  if (donnees.etiquettesOutils?.length) chargerPolices(["Manrope ExtraBold"]);
   const image = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = instantSec ?? image / fps + decalageSec;
@@ -38,12 +40,20 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
       <div style={cssBandeau.filet} />
     </div>
   ) : null;
-  if (!el) return <AbsoluteFill>{bande}{bandeauNom}</AbsoluteFill>;
+  const etiquette = donnees.etiquettesOutils ? etiquetteAuTemps(donnees, t) : null;
+  const cssEtiquette = etiquette ? cssEtiquetteOutil(etiquette, donnees, `"${FAMILLES["Manrope ExtraBold"]}"`) : null;
+  const etiquetteOutil = cssEtiquette ? (
+    <div style={cssEtiquette.conteneur}>
+      <div style={cssEtiquette.texte}>{etiquette?.texte}</div>
+    </div>
+  ) : null;
+  if (!el) return <AbsoluteFill>{bande}{bandeauNom}{etiquetteOutil}</AbsoluteFill>;
   const css = cssElement(el, donnees, `"${donnees.encre || donnees.pastille ? FAMILLE_TITRE : FAMILLES[el.police]}"`);
   return (
     <AbsoluteFill>
       {bande}
       {bandeauNom}
+      {etiquetteOutil}
       <div style={css.conteneur}>
         <div style={css.ligne}>
           {el.mots.map((m, i) => (
