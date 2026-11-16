@@ -17,7 +17,7 @@ export interface SegmentTableau {
 /** Segments d'une sortie (verticale si `sortie` absente) ; `[]` si le journal manque, est d'une autre version ou si l'étape « scenes » n'est pas faite. */
 export function segmentsTableau(journal: JournalFabrication | null, sortie?: IdSortie): SegmentTableau[] {
   if (!journal || journal.version !== VERSION_FABRICATION) return [];
-  const etapes = sortie === undefined ? journal.etapes : journal.sorties?.[sortie]?.etapes;
+  const etapes = sortie === undefined || sortie === "vertical" ? journal.etapes : journal.sorties?.[sortie]?.etapes;
   const faite: EtapeFaite | undefined = etapes?.scenes;
   const temps = (faite?.sortie as { temps?: unknown } | undefined)?.temps;
   if (!Array.isArray(temps)) return [];

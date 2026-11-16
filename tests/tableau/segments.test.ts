@@ -54,7 +54,10 @@ describe("segmentsTableau", () => {
     expect(carre.length).toBeGreaterThan(0);
     for (const s of carre) expect(s.empreinte.startsWith("carre-")).toBe(true);
     expect(carre.map((s) => s.empreinte).every((e, i) => e === nomFichier(carre[i].cle))).toBe(true);
-    expect(segmentsTableau(j, "vertical").every((s) => !s.empreinte.startsWith("carre-"))).toBe(true);
+    const vertical = segmentsTableau(j, "vertical");
+    expect(vertical).toEqual(segmentsTableau(j));
+    expect(vertical).toHaveLength(ficheDemonstration.scenes.length + 1);
+    expect(vertical.every((s) => !s.empreinte.startsWith("carre-"))).toBe(true);
     expect(segmentsTableau(j, "horizontal")).toEqual([]);
   });
 });
