@@ -80,11 +80,14 @@ describe("S4 · validerTextesMot / aperçu", () => {
     expect(a).toMatchObject({ ok: true });
     expect((await valider(ENV_X, "facebook")).raison).toBe("valide");
   });
-  it("Instagram : toujours cible_test", async () => {
-    expect((await valider(ENV_X, "instagram")).raison).toBe("cible_test");
-    expect((await valider(avec(`${X},${IG}`), "instagram")).raison).toBe("cible_test");
+  it("Instagram : cible d'essai validable quand la liste n'est pas vide (T3a) ; liste vide : cible_test", async () => {
+    expect((await valider(ENV_X, "instagram")).raison).toBe("valide");
+    expect((await valider(avec(`${X},${IG}`), "instagram")).raison).toBe("valide");
     const i = (await apercu(avec(`${X},${IG}`))).find((r) => r.reseau === "instagram")!;
-    expect(i).toMatchObject({ ok: false, raison: "cible_test" });
+    expect(i).toMatchObject({ ok: true });
+    expect((await valider(avec(undefined), "instagram")).raison).toBe("cible_test");
+    const j = (await apercu(avec(undefined))).find((r) => r.reseau === "instagram")!;
+    expect(j).toMatchObject({ ok: false, raison: "cible_test" });
   });
   it("une cible d'essai de type adresse reste refusée", async () => {
     site.cibles.push({ code: "adr-essai0000009", type: "adresse", titre: "Page", actif: true, test: true, url: "https://exemple.test/p" });
@@ -105,10 +108,33 @@ describe("S2 · verifierMotPourCompte / activation", () => {
     expect(await pourCompte(ENV_X, Y)).toBe("cible_test");
     expect(await activation(ENV_X, Y)).toBe("cible_test");
   });
-  it("compte listé mais Instagram : instagram_pas_encore à l'activation, cible_test ailleurs", async () => {
+  it("compte Instagram listé, cible d'essai, textes Instagram non validés : textes_non_valides_reseau (T3a)", async () => {
     const env = avec(`${X},${IG}`);
+    expect(await activation(env, IG)).toBe("textes_non_valides_reseau");
+    expect(await pourCompte(env, IG)).toBe("textes_non_valides_reseau");
+  });
+  it("compte Instagram listé, textes Instagram validés : activation permise (T3a)", async () => {
+    const env = avec(`${X},${IG}`);
+    expect((await valider(env, "instagram")).raison).toBe("valide");
+    expect(await activation(env, IG)).toBeNull();
+    expect(await pourCompte(env, IG)).toBeNull();
+  });
+  it("compte Instagram NON listé : instagram_pas_encore à l'activation, cible_test ailleurs (T3a)", async () => {
+    expect(await activation(ENV_X, IG)).toBe("instagram_pas_encore");
+    expect(await pourCompte(ENV_X, IG)).toBe("cible_test");
+  });
+  it("compte Instagram listé sans auteur listé : instagram_pas_encore à l'activation (T3a)", async () => {
+    const env = { ...base, PARCOURS_ESSAI_COMPTES: `${X},${IG}` };
     expect(await activation(env, IG)).toBe("instagram_pas_encore");
-    expect(await pourCompte(env, IG)).toBe("cible_test");
+  });
+  it("cible vraie (non test) sur compte Instagram : instagram_pas_encore à l'activation (T3a)", async () => {
+    site.cibles.find((c) => c.code === CODE_ESSAI)!.test = false;
+    expect(await activation(ENV_X, IG)).toBe("instagram_pas_encore");
+    expect(await activation(avec(`${X},${IG}`), IG)).toBe("instagram_pas_encore");
+  });
+  it("cible d'essai, compte Facebook non listé : cible_test (réserve #709)", async () => {
+    expect(await pourCompte(avec(`${X}`), Y)).toBe("cible_test");
+    expect(await activation(avec(`${X}`), Y)).toBe("cible_test");
   });
   it("compte inconnu : refus", async () => {
     expect(await pourCompte(avec("compte-absent-zzz"), "compte-absent-zzz")).toBe("reseau_du_compte_inconnu");
@@ -142,8 +168,19 @@ describe("S3 · verifierMotPourEnvoi", () => {
     site.cibles.find((c) => c.code === CODE_ESSAI)!.titre = "Autre titre";
     expect(await pourEnvoi(ENV_X, X)).toBe("validation_absente");
   });
-  it("Instagram : jamais, même compte listé", async () => {
-    expect(await pourEnvoi(avec(`${X},${IG}`), IG, "instagram")).toBe("validation_absente");
+  it("Instagram, sans essaiSeulement : comme Facebook (le filtre « essai seulement » est à l'appelant)", async () => {
+    const env = avec(`${X},${IG}`);
+    expect((await valider(env, "instagram")).raison).toBe("valide");
+    expect(await pourEnvoi(env, IG, "instagram")).toBeNull();
+  });
+  it("Instagram, essaiSeulement : cible d'essai + compte + auteur listés → peut partir ; vraie cible → instagram_pas_encore (T3a)", async () => {
+    const env = avec(`${X},${IG}`);
+    expect((await valider(env, "instagram")).raison).toBe("valide");
+    const ei = (e: Env) => V.verifierMotPourEnvoi({ mot: MOT, reseau: "instagram", codeCible: CODE_ESSAI, titre: TITRE_ESSAI, env: e, maintenantMs: ms(), compte: IG, auteurEssaiOk: true, essaiSeulement: true });
+    expect(await ei(env)).toBeNull();
+    site.cibles.find((c) => c.code === CODE_ESSAI)!.test = false;
+    expect((await valider(env, "instagram")).raison).toBe("valide");
+    expect(await ei(env)).toBe("instagram_pas_encore");
   });
   it("une cible NON d'essai part toujours sans compte (inchangé)", async () => {
     site.cibles.find((c) => c.code === CODE_ESSAI)!.test = false;

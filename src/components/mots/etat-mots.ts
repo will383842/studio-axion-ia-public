@@ -57,7 +57,7 @@ export const PHRASES_REFUS: Record<string, string> = {
   mot_guide_a_part: "Les textes du mot GUIDE se valident dans le bloc « Mot GUIDE », plus bas sur cette page.",
   titre_cible_absent: "Le titre de la cible manque : rien n’est validé.",
   mot_reserve: "Ce mot est réservé (GUIDE ou mot d’opposition comme STOP) : choisissez-en un autre.",
-  instagram_pas_encore: "Instagram n’est pas encore pris en charge pour ce mot : seul Facebook peut l’activer pour l’instant.",
+  instagram_pas_encore: "Instagram n'est pas encore pris en charge pour ce mot : seules les cibles d'essai peuvent l'activer.",
   cible_guide_figee: "La cible du mot GUIDE ne se change pas ici pour l'instant.",
   mot_existe: "Ce mot existe déjà. Ouvrez sa fiche pour le modifier.",
   mot_actif_pause_d_abord: PHRASE_MOT_ACTIF_PAUSE_D_ABORD,
