@@ -7,6 +7,7 @@
 import { largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
 import { PAVE } from "./pave";
+import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
 import { ETIQUETTE } from "./noms-outils";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
 import type { StylePastille } from "./pastille";
@@ -84,6 +85,8 @@ export interface DonneesCalque {
   plaques?: Record<string, number>;
   /** C2-U8 : mots-outils étiquetés de chaque groupe (id du segment → premier indice et nombre de mots). Absent : aucune étiquette. */
   motsOutils?: Record<string, { debut: number; longueur: number }>;
+  /** C2-U10 : bandeau « nom et fonction » (pièce non branchée) ; pendant sa tenue, un groupe « bas » se pose comme « auto ». Absent : rien ne change. */
+  bandeauNom?: BandeauNomRendu;
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -173,7 +176,8 @@ export function segmentAuTemps(segments: SegmentSousTitres[], t: number): Segmen
   return segments.find((s) => t >= s.debutSec && t < s.finSec) ?? null;
 }
 
-function centrePct(d: DonneesCalque, position: PositionGroupeSousTitres | undefined, t: number, debutGroupeSec = t): number {
+function centrePct(d: DonneesCalque, positionDemandee: PositionGroupeSousTitres | undefined, t: number, debutGroupeSec = t): number {
+  const position = positionDemandee === "bas" && bandeauActif(d.bandeauNom, t) ? "auto" : positionDemandee;
   if (position === "haut") return d.positions.hautPct;
   if (position === "bas") return d.positions.basPct;
   const jonction = d.passagesJonction?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6);
