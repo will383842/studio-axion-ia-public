@@ -1,5 +1,5 @@
 /**
- * DONNÉES SÛRES POUR LE CHAT DE RETOUCHE (S3-04, absorbe C7-06) — tout texte venu de la vidéo ou de Williams est une
+ * DONNÉES SÛRES POUR LE CHAT DE RETOUCHE (S3-04, absorbe C7-06) — tout texte venu de la vidéo ou de l'utilisateur est une
  * DONNÉE balisée, jamais une consigne. Une fausse balise (ouvrante, fermante, casse ou espaces variés) dans le texte est
  * neutralisée ; la réponse du LLM est relue contre la liste fermée des opérations. Pur : aucun appel, aucun effet.
  * Non branché : `comprendre.ts` reste intact, le branchement attend W1 (Claude dans le chat).
