@@ -3,7 +3,7 @@
  * Une entrée par pièce (dessin, son, musique, stylo, police, capture de preuve), un fichier par entrée dans `registre/`.
  */
 
-export const TYPES_PIECE = ["dessin", "son", "musique", "stylo", "police", "capture-preuve", "icone", "animation"] as const;
+export const TYPES_PIECE = ["dessin", "son", "musique", "stylo", "police", "capture-preuve", "icone", "animation", "logo-outil"] as const;
 export type TypePiece = (typeof TYPES_PIECE)[number];
 
 export interface EntreeDroit {

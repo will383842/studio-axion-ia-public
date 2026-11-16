@@ -30,6 +30,7 @@ import { lutIdentite } from "../../src/lib/lut3d.js";
 import { ecrireCube } from "../../src/lib/qc-lut.js";
 import { argumentsExport, argumentsMaster, grapheCouleurs, lireExport, listeConcatTexte, moovAvantMdat, sourceGrain } from "./composition/ffmpeg.js";
 import { argumentsImageFfmpeg, type FichiersImage } from "./composition/image-ffmpeg.js";
+import { grapheEcranDivise } from "./composition/graphe-ecran-divise.js";
 import { controlerCouleurs, ecartCouleurs, mesurerCouleurs, type Zone } from "./composition/couleurs.js";
 import { mesurerVmaf, noterEtRelancer } from "./operations/composition.js";
 import { argumentsEtalonnageVideo, filtreEtalonnage } from "./operations/etalonnage.js";
@@ -286,6 +287,8 @@ export function controles(dossier: string): { nom: string; executer: () => Promi
       await exportDe("master10.mov", "liste.txt", EXPORT_DEGRADE, "export10-degrade.mp4")();
       await relanceDegrade(dossier);
     } },
+    // G11-08 : graphe « visage + écran » (écran divisé), exécuté sur prise.mp4 (visage) et carte.mp4 (écran) ; aucun chemin de production ne l'appelle.
+    { nom: "graphe écran divisé (grapheEcranDivise, visage + écran)", executer: ff(["-i", "prise.mp4", "-i", "carte.mp4", "-filter_complex", grapheEcranDivise({ largeur: W, hauteur: H, rectEcran: { x: 0, y: 0, largeur: W, hauteur: H / 2 }, rectVisage: { x: 0, y: H / 2, largeur: W, hauteur: H / 2 }, fps: FPS }), "-map", "[sortie]", "-frames:v", "5", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "ecran-divise.mp4"]) },
   ];
 }
 

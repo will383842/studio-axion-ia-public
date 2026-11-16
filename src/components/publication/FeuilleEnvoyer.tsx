@@ -68,7 +68,7 @@ export function AvisVideoEssai() {
  * Lot R1b : un réseau à plusieurs comptes (deux LinkedIn) montre une case par compte ; Will coche l'un, l'autre ou les
  * deux. Par défaut, son dernier choix ; sans dernier choix, aucun de ces comptes n'est coché.
  */
-export function FeuilleEnvoyerBuffer() {
+export function FeuilleEnvoyer() {
   const router = useRouter();
   const { feuille, ouvrir, kit, videoId, reseauxParDefaut, publiable, envoiBuffer } = useVideo();
   // Ce qui empêche un réseau de partir (une seule règle) : fichier trop long ou sans le bon format d'image, ou, en réel

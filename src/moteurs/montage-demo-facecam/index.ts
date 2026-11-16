@@ -12,7 +12,7 @@
 import type { AlerteQualite, CommandeFabrication, EtapeTravail, LigneCout, Travail } from "@/domaine/types";
 import { ZERO } from "@/lib/montants";
 import { listerReseaux } from "@/reseaux";
-import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ResultatFabrication, SortieProduite } from "../types";
+import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ResultatFabrication, SortieProduite } from "../types";
 import { fabriquerPasEncoreBranche, type DefinitionVitrine } from "../montage-vitrines/pause";
 import { avancerChaineDemo, etatDemoInitial, etatPourRetoucheDemo, groupesSousTitres, lireRepriseDemo, ratiosDemo, signatureConsignes, type DependancesDemo, type EtatDemo, type RepriseDemo } from "./chaine";
 import { dependancesDemoParDefaut } from "./dependances";
@@ -213,12 +213,15 @@ export function creerMoteurMontageDemoFacecam(dependances: { chaine?: (c: Comman
       const travaux = Object.fromEntries(Object.entries(etat.travaux).filter(([, t]) => t.statut !== "echec"));
       return { ...travail, statut: "en_cours", erreur: undefined, tentatives: travail.tentatives + 1, modifieLe: new Date(maintenant).toISOString(), parametres: { ...travail.parametres, demo: { ...etat, travaux, echec: undefined } } };
     },
-    async retoucher({ commande, contexte, parent }) {
+    async retoucher({ commande, contexte, parent, operations }) {
       const reprise = lireRepriseDemo(parent?.projetMontage);
       const ctx = { ...contexte, type: "retouche" as const };
       // Version d'avant sans reprise : tout est refait (jamais un refus).
       if (!reprise) return lancerAvec(ETAPES_FABRICATION, etatDemoInitial())(commande, ctx);
-      return lancerAvec(ETAPES_RETOUCHE, etatPourRetoucheDemo(reprise, commande))(commande, ctx);
+      // D4-F2 : la dernière opération `planScenes` remplace le plan des entrées ; `etatPourRetoucheDemo` le revalide.
+      const op = operations?.filter((o): o is Extract<OperationMontage, { type: "planScenes" }> => o.type === "planScenes").at(-1);
+      const c = op ? { ...commande, entrees: { ...commande.entrees, demoFacecam: { ...(commande.entrees?.demoFacecam as Record<string, unknown> | undefined), plan: op.plan } } } : commande;
+      return lancerAvec(ETAPES_RETOUCHE, etatPourRetoucheDemo(reprise, c as CommandeFabrication))(commande, ctx);
     },
     async reexporter({ commande, contexte, cible, parent }) {
       // Un format de plus : la reprise sert telle quelle, seul ce format est rendu.

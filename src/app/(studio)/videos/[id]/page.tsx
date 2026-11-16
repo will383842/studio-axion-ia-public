@@ -73,6 +73,7 @@ import { OptionsPayantesVideo } from "@/components/options-payantes/CarteOptionP
 import { cartesEnAttente } from "@/services/options-payantes";
 import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BlocSurLeSite } from "@/components/videos/fiche/BlocSurLeSite";
+import { LibererPlace } from "@/components/videos/fiche/LibererPlace";
 
 export const dynamic = "force-dynamic";
 
@@ -267,6 +268,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
             <EnTeteSection titre="Historique" />
             <OngletHistorique versions={d.versions} publications={d.publications} versionCouranteId={d.versionCourante?.id} />
           </section>
+          <LibererPlace videoId={v.id} />
         </OngletDetails>
       ),
     },

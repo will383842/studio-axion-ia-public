@@ -104,6 +104,7 @@ beforeEach(async () => {
   pm.injecterTransportSite(site.transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
+  await Com.ecrireParametre("parcours.instagram_public", true); // T2 : Instagram ouvert pour ce test (préparation seulement, aucune attente modifiée)
   await Com.ecrireParametre(PARAM_VALIDATION, { empreinte: empreinteMerci() });
   await poserPersonne();
 });
@@ -517,5 +518,28 @@ describe("16 · M1 v3 garde l'empreinte du jeton envoyé (le rapprochement avec 
     const e = await etatDe();
     expect(e.empreintesLien).toEqual([createHash("sha256").update(j).digest("hex")]);
     expect(JSON.stringify(await Com.lireParametre(C.PARAM_CONVERSATIONS, {}))).not.toContain(j);
+  });
+});
+
+describe("essai · merci d'une conversation d'essai : l'auteur est revérifié", () => {
+  const marquerEssai = async () => {
+    const conv = await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {});
+    const cle = cleConversation(A);
+    conv[cle] = { ...conv[cle], cibleEssai: true };
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, conv);
+  };
+  it("témoin : auteur listé, le merci part", async () => {
+    await marquerEssai();
+    confirmer(ref(1));
+    await passer(T0, { ...ENV_MERCI, PARCOURS_ESSAI_AUTEURS: A });
+    expect(merciEnvoyes()).toHaveLength(1);
+  });
+  it("auteur retiré de la liste : aucun merci, entrée non_envoye garde_essai_auteur_refuse", async () => {
+    await marquerEssai();
+    confirmer(ref(1));
+    await passer(T0, { ...ENV_MERCI, PARCOURS_ESSAI_AUTEURS: B });
+    expect(merciEnvoyes()).toHaveLength(0);
+    expect(port.envoyes).toHaveLength(0);
+    expect((await lireJournal())[ref(1)]).toMatchObject({ etat: "non_envoye" });
   });
 });
