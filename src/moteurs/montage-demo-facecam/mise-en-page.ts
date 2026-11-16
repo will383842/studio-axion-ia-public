@@ -171,3 +171,52 @@ export function decalageParLesMots(facecam: readonly MotDate[], ecran: readonly 
   const moyenne = concordantes.reduce((s, e) => s + e, 0) / concordantes.length;
   return { decalageSec: Math.round(moyenne * 1000) / 1000, ancres: concordantes.length };
 }
+
+/* --- Passages : moments où la disposition change (G3-02) ------------------------------------------------------- */
+
+export type DispositionPassage = "moitie" | "ecran-plein" | "facecam-plein";
+const DISPOSITIONS_PASSAGE: readonly string[] = ["moitie", "ecran-plein", "facecam-plein"];
+
+export interface PassageDemo {
+  debutMs: number;
+  finMs: number;
+  disposition: DispositionPassage;
+}
+
+/** Passages valides, triés, bornés à 0, sans chevauchement (le premier gagne). Tout ce qui est mal formé est écarté. PUR. */
+export function normaliserPassages(brut: unknown): PassageDemo[] {
+  if (!Array.isArray(brut)) return [];
+  const bons: PassageDemo[] = [];
+  for (const p of brut as unknown[]) {
+    if (!p || typeof p !== "object") continue;
+    const { debutMs, finMs, disposition } = p as Record<string, unknown>;
+    if (typeof debutMs !== "number" || typeof finMs !== "number" || !Number.isFinite(debutMs) || !Number.isFinite(finMs)) continue;
+    if (typeof disposition !== "string" || !DISPOSITIONS_PASSAGE.includes(disposition)) continue;
+    const d = Math.max(0, debutMs);
+    if (finMs <= d) continue;
+    bons.push({ debutMs: d, finMs, disposition: disposition as DispositionPassage });
+  }
+  bons.sort((a, b) => a.debutMs - b.debutMs);
+  const sortie: PassageDemo[] = [];
+  for (const p of bons) if (!sortie.length || p.debutMs >= sortie[sortie.length - 1].finMs) sortie.push(p);
+  return sortie;
+}
+
+const RECT_VIDE: RectPx = { x: 0, y: 0, largeur: 0, hauteur: 0 };
+
+/**
+ * Mise en page à l'instant `ms`. Sans passage (champ absent, vide, ou `ms` hors de tout passage) : exactement
+ * `miseEnPageDemo(ratio)`, la moitié / moitié actuelle. PUR.
+ */
+export function miseEnPageA(ratio: RatioDemo, passages: unknown, ms: number): MiseEnPageDemo {
+  const base = miseEnPageDemo(ratio);
+  const actif = normaliserPassages(passages).find((p) => ms >= p.debutMs && ms < p.finMs);
+  if (!actif || actif.disposition === "moitie") return base;
+  const toile: RectPx = { x: 0, y: 0, largeur: base.largeur, hauteur: base.hauteur };
+  if (actif.disposition === "ecran-plein") {
+    const sousTitres: RectPx = { x: Math.round(base.largeur * 0.04), y: Math.round(base.hauteur * 0.8), largeur: Math.round(base.largeur * 0.92), hauteur: Math.round(base.hauteur * 0.17) };
+    return { ...base, ecran: toile, facecam: RECT_VIDE, sousTitres };
+  }
+  // Facecam plein : rien d'autre que le visage, donc ni écran ni sous-titres.
+  return { ...base, ecran: RECT_VIDE, facecam: toile, sousTitres: RECT_VIDE };
+}
