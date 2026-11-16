@@ -9,12 +9,12 @@ export interface OptionsLimiteur {
   maintenant: () => number;
 }
 
-/** Au plus `maxParFenetre` demandes par `fenetreMs` et par clé ; les vieilles entrées sont purgées. */
+/** Au plus `maxParFenetre` demandes par `fenetreMs` et par clé ; les vieilles entrées sont oubliées. */
 export function creerLimiteur(options: OptionsLimiteur) {
   const { maxParFenetre, fenetreMs, maintenant } = options;
   const parCle = new Map<string, number[]>();
 
-  const purger = (now: number) => {
+  const oublierLesVieilles = (now: number) => {
     for (const [cle, dates] of parCle) {
       const vives = dates.filter((d) => now - d < fenetreMs);
       if (vives.length === 0) parCle.delete(cle);
@@ -25,7 +25,7 @@ export function creerLimiteur(options: OptionsLimiteur) {
   return {
     verifier(cle: string): VerdictLimite {
       const now = maintenant();
-      purger(now);
+      oublierLesVieilles(now);
       const dates = parCle.get(cle) ?? [];
       if (dates.length >= maxParFenetre) {
         const reessayerDansSec = Math.max(1, Math.ceil((dates[0] + fenetreMs - now) / 1000));
