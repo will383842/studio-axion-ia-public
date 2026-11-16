@@ -196,6 +196,7 @@ export function donneesCalque(entree: {
   const ratio = entree.ratio ?? "9:16";
   const { largeur, hauteur } = dimensions(ratio);
   const reseaux = entree.reseaux ?? [];
+  const cibleMarqueur = entree.style?.texteEcran?.marqueur?.cible;
   return {
     largeur,
     hauteur,
@@ -212,6 +213,7 @@ export function donneesCalque(entree: {
     // Lot L3b (ajout pur) : surlignage au lieu du trait, seulement quand le style le porte.
     ...(entree.style?.surlignage ? { surlignage: entree.style.surlignage } : {}),
     ...(!entree.style?.surlignage && entree.style?.texteEcran?.marqueur ? { surlignage: MARQUEURS[entree.style.texteEcran.marqueur.teinte] } : {}),
+    ...(cibleMarqueur === "expression" || cibleMarqueur === "mot-dit" ? { cibleMarqueur } : {}),
   };
 }
 

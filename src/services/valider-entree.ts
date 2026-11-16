@@ -86,3 +86,32 @@ export async function validerEntree(deps: DepsValiderEntree, id: string, par: st
   }
   return { ok: true, creneau: valide, ...(envoi ? { envoi } : {}), libelle: "Programmé, envoi éteint : rien ne partira tant que l'envoi n'est pas allumé." };
 }
+
+/**
+ * Câblage serveur (CAL-21 suite) : construit les dépendances réelles et appelle `validerEntree`, comme l'action `validerEntree` d'ajouter.ts.
+ * Réglages fermés par défaut et aucun envoi branché : rien ne part d'ici, jamais de statut `programme`.
+ * Les services serveur sont chargés à l'appel pour que le service ci-dessus reste pur (tout injecté).
+ */
+export async function validerEntreeServeur(id: string, par: string): Promise<{ ok: true; donnees: CreneauPlan } | { ok: false; message: string; code?: string; montant?: number }> {
+  const { depots, essayer, maintenant, ErreurStudio } = await import("@/services/_commun");
+  const { changerStatut } = await import("@/services/plan-editorial");
+  type Depots = import("@/services/plan-editorial").DepotsPlan;
+  return essayer(async () => {
+    const d = depots();
+    const dp: Depots = { creneaux: d.creneauxEditoriaux as Depots["creneaux"], journal: d.journalDecalages as unknown as Depots["journal"] };
+    const r = await validerEntree(
+      {
+        obtenir: (x) => dp.creneaux.obtenir(x),
+        enregistrer: (c) => dp.creneaux.enregistrer(c),
+        versAValider: async (x) => { await changerStatut(dp, x, "a_valider", "studio", maintenant()); },
+        reglagesOuverts: async () => false,
+      },
+      id,
+      par,
+      new Date(maintenant()),
+    );
+    // Le refus de CAL-21 (vouvoiement) doit arriver tel quel à l'écran : ErreurStudio, pas une erreur inconnue.
+    if (!r.ok) throw new ErreurStudio("validation_refusee", r.message);
+    return r.creneau;
+  });
+}
