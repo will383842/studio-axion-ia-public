@@ -1,8 +1,8 @@
 /**
- * À TRAITER · traitement des commentaires LinkedIn et TikTok (file manuelle). RIEN n'est branché au crochet dans ce lot.
+ * À TRAITER · traitement des commentaires LinkedIn et TikTok (file manuelle).
  * Règles : jamais de réponse ni de message automatique (aucun appel au port, aucun import du port ni des branchements) ;
  * un stop gagne partout ; au moindre doute (registre illisible, secret absent) rien n'est écrit et l'événement est repris plus tard ;
- * rien n'est supprimé ; les cartes ne contiennent jamais de texte libre (extrait = le mot seul). Journaux : compteurs seulement.
+ * rien n'est supprimé ; les cartes ne contiennent jamais de texte libre (extrait = le mot seul, ou un extrait fixe pour un doute). Journaux : compteurs seulement.
  * CONTRAT DU FUTUR PRODUCTEUR des événements `zernio.commentaire_manuel` (charge : etat « a_faire », reseau, repere, idCompte, idAuteur, motSeul, proprio) :
  *  - `motSeul` doit déjà porter la forme canonique d'un « stop » (y compris en phrase, ex. « stop, merci ») : ce service ne relit aucun texte ;
  *  - `idAuteur` doit être renseigné : sans lui l'opposition ne peut être inscrite et l'événement est clos « écarté », sans carte ni opposition ;

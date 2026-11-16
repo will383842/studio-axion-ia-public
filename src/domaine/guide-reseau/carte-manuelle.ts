@@ -20,7 +20,7 @@ export type PropositionCarte =
       raisonSansMessage: RaisonSansMessage | null;
     };
 
-/** Doute d'opposition : rien n'est proposé ni persisté (type local, volontairement hors de `PropositionCarte` pour ne pas élargir les appelants existants). */
+/** Doute d'opposition : une carte opposée à extrait fixe est persistée (type local, volontairement hors de `PropositionCarte` pour ne pas élargir les appelants existants). */
 export type PropositionCarteDoute = { action: "carte_doute" };
 interface EntreeCarte {
   reseau: ReseauManuel;
