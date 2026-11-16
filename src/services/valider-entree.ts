@@ -93,7 +93,7 @@ export async function validerEntree(deps: DepsValiderEntree, id: string, par: st
  * Les services serveur sont chargés à l'appel pour que le service ci-dessus reste pur (tout injecté).
  */
 export async function validerEntreeServeur(id: string, par: string): Promise<{ ok: true; donnees: CreneauPlan } | { ok: false; message: string; code?: string; montant?: number }> {
-  const { depots, essayer, maintenant } = await import("@/services/_commun");
+  const { depots, essayer, maintenant, ErreurStudio } = await import("@/services/_commun");
   const { changerStatut } = await import("@/services/plan-editorial");
   type Depots = import("@/services/plan-editorial").DepotsPlan;
   return essayer(async () => {
@@ -108,9 +108,10 @@ export async function validerEntreeServeur(id: string, par: string): Promise<{ o
       },
       id,
       par,
-      new Date(),
+      new Date(maintenant()),
     );
-    if (!r.ok) throw new Error(r.message);
+    // Le refus de CAL-21 (vouvoiement) doit arriver tel quel à l'écran : ErreurStudio, pas une erreur inconnue.
+    if (!r.ok) throw new ErreurStudio("validation_refusee", r.message);
     return r.creneau;
   });
 }
