@@ -42,7 +42,7 @@ def zone_de_bord(masque, noyau: int = 9):
 
 def mesures_image(masque) -> dict:
     """Cheveux/mains : incertitude moyenne dans le tiers haut (tête, cheveux) et le tiers bas (mains) de l'anneau de bord.
-    Fuite autour de la tête : masque allumé loin du corps, dans le tiers haut, hors de la plus grande composante."""
+    Fuite autour de la tête : masque allumé loin du corps, dans la moitié haute, hors de la plus grande composante."""
     import cv2
     import numpy as np
     m = np.asarray(masque)
@@ -141,6 +141,24 @@ def mesurer(chemin: str, segmenter, methode: str, dossier_controle: str | None =
     }
 
 
+def racine_du_depot() -> str:
+    """Dossier contenant .git en remontant depuis ce fichier ; à défaut, deux niveaux au-dessus de etudes/."""
+    d = os.path.dirname(os.path.realpath(__file__))
+    while True:
+        if os.path.exists(os.path.join(d, ".git")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ".."))
+        d = parent
+
+
+def sortie_dans_le_depot(sortie: str) -> bool:
+    racine = racine_du_depot()
+    s = os.path.realpath(sortie)
+    return s == racine or s.startswith(racine + os.sep)
+
+
 def principal(argv=None) -> int:
     p = argparse.ArgumentParser(prog="banc_segmentation", add_help=False, description=AIDE)
     p.add_argument("prise", nargs="?")
@@ -153,6 +171,9 @@ def principal(argv=None) -> int:
     if a.aide or not a.prise:
         print(AIDE)
         return 0
+    if a.sortie and sortie_dans_le_depot(a.sortie):
+        print("Refus : --sortie doit être HORS du dépôt (aucune image de prise ne doit y être écrite), ex. --sortie /tmp/banc", file=sys.stderr)
+        return 2
     segmenter = segmenteur_fond_uni() if a.methode == "fond-uni" else segmenteur_mediapipe(a.modele)
     res = mesurer(a.prise, segmenter, a.methode, a.sortie, a.max_images)
     texte = json.dumps(res, indent=2, ensure_ascii=False)

@@ -38,6 +38,23 @@ class TestBancSansDependances(unittest.TestCase):
                         self.assertNotIn("etudes", fh.read(), f)
 
 
+class TestSortieHorsDepot(unittest.TestCase):
+    def test_sortie_dans_le_depot_refusee(self):
+        banc = charger()
+        cible = os.path.join(banc.racine_du_depot(), "studio-aligneur", "controle_refuse_test")
+        self.assertFalse(os.path.exists(cible))
+        r = subprocess.run([sys.executable, BANC, "prise_absente.avi", "--methode", "fond-uni", "--sortie", cible],
+                           capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("HORS du dépôt", r.stderr)
+        self.assertFalse(os.path.exists(cible))
+
+    def test_sortie_temporaire_acceptee(self):
+        banc = charger()
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(banc.sortie_dans_le_depot(d))
+
+
 @unittest.skipIf(cv2 is None, "numpy / cv2 absents")
 class TestBancSurVideoSynthetique(unittest.TestCase):
     def test_json_complet(self):
