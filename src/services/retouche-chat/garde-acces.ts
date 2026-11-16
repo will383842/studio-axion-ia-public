@@ -25,3 +25,20 @@ export async function versionDeLaVideo(
     return false;
   }
 }
+
+/**
+ * N-22 : `true` si la vidéo est programmée ou publiée (elle ne se retouche plus ici). Lit la seule vidéo ;
+ * vidéo absente ou lecture en échec = `true` (prudent : refus).
+ */
+export async function videoEnDiffusion(
+  videoId: string,
+  obtenir: (id: string) => Promise<{ etapeEditoriale?: string } | null | undefined>,
+): Promise<boolean> {
+  try {
+    const v = await obtenir(videoId);
+    if (!v) return true;
+    return v.etapeEditoriale === "programmee" || v.etapeEditoriale === "publiee";
+  } catch {
+    return true;
+  }
+}
