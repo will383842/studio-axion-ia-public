@@ -76,6 +76,7 @@ import { plafondClaudeDuMoisAtteint } from "./plafond-claude";
 import "./facecam-branchements";
 // Mission H : raccords facultatifs de l'avocat (motion commune, monteur, multicaméra), coupés par défaut.
 import { entreesAvocatDuLancement } from "./avocat-branchements";
+import { entreeBibliothequeDuLancement } from "./bibliotheque-video";
 import { ENTREE_RESSEMBLANCE_VOIX, lignesVoixMaquetteRestantes } from "@/briques/voix-maitre/reference";
 import { reglageRessemblanceVoix } from "./voix-ressemblance";
 import { entreesDuLook } from "@/moteurs/montage-facecam/look";
@@ -432,6 +433,7 @@ async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: st
       // lancement : le prix (lectures au plus) et la chaîne lisent le même. Avocat (décision de Will du 14/10) : maquette
       // ET montage final.
       ...(format.id === "tableau-anime" || format.id === "cas-concret" || format.id === "avocat" ? { [ENTREE_RESSEMBLANCE_VOIX]: await reglageRessemblanceVoix() } : {}),
+      ...(await entreeBibliothequeDuLancement(video, { estimation: !!options.sansPlans })),
     },
     reglages: reglages.reglages,
     plans: plans.map((p) => ({
