@@ -102,7 +102,8 @@ export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi:
                     <td>{compteAffiche(r.premiersMessages[fenetre], partout)}</td>
                     <td>{valeur(suivi.siteDisponible ? r.envoisEmail : null)}</td>
                     <td>{valeur(suivi.siteDisponible ? r.clics : null)}</td>
-                    <td>{libelleGagnees(r.gagnees[fenetre])}</td>
+                    {/* « Personnes gagnées » = abonnés Instagram gagnés : affiché sur la seule ligne Instagram (le total reste la somme). */}
+                    <td>{r.reseau === "instagram" ? libelleGagnees(r.gagnees[fenetre]) : chiffreOuTiret(null)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -111,8 +112,8 @@ export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi:
                   <th scope="row">Total</th>
                   <td>{compteAffiche(totalReseaux(l.parReseau ?? [], "commentaires", fenetre), partout)}</td>
                   <td>{compteAffiche(totalReseaux(l.parReseau ?? [], "premiersMessages", fenetre), partout)}</td>
-                  <td>{chiffreOuTiret(suivi.siteDisponible ? totalReseaux(l.parReseau ?? [], "envoisEmail", fenetre) : null)}</td>
-                  <td>{chiffreOuTiret(suivi.siteDisponible ? totalReseaux(l.parReseau ?? [], "clics", fenetre) : null)}</td>
+                  <td>{suivi.siteDisponible ? compteAffiche(totalReseaux(l.parReseau ?? [], "envoisEmail", fenetre), partout) : chiffreOuTiret(null)}</td>
+                  <td>{suivi.siteDisponible ? compteAffiche(totalReseaux(l.parReseau ?? [], "clics", fenetre), partout) : chiffreOuTiret(null)}</td>
                   <td>{libelleGagnees(totalReseaux(l.parReseau ?? [], "gagnees", fenetre))}</td>
                 </tr>
               </tfoot>

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { lireCompteursSite } from "@/domaine/guide-reseau/compteurs-site-contrat";
 import { assemblerSuivi, type ConversationSuivi, type EvenementSuivi } from "@/domaine/guide-reseau/suivi-mots";
 import { classerReseau } from "@/domaine/guide-reseau/suivi-par-reseau";
-import { totalReseaux } from "@/components/mots/suivi-affichage";
+import { totalReseaux, type Fen } from "@/components/mots/suivi-affichage";
 
 const T0 = Date.UTC(2026, 10, 12, 10, 0, 0);
 const il = (j: number) => new Date(T0 - j * 86_400_000).toISOString();
@@ -13,6 +13,10 @@ const ev = (reseau: string | null | undefined, id: string): EvenementSuivi => ({
 const conv = (n: number, reseau: string | null | undefined): ConversationSuivi => ({
   cle: `${String(n).repeat(64)}:x`, mot: "ESSAI", nature: "premier", etat: "m1_envoye",
   creeLe: il(2), m1Le: il(2), idPostPlateforme: "p1", reseau,
+});
+const lsFen = (reseau: string, cible: string, envois: Fen, clics: Fen) => ({
+  mot: "ESSAI", reseau, postRef: "p1", versionTexte: null, cible,
+  formulaires: f(0, 0, 0), envois, clics,
 });
 const f = (j7: number, j30: number, total: number) => ({ j7, j30, total });
 const site = (lignes: Record<string, unknown>[]) =>
@@ -26,6 +30,8 @@ describe("classerReseau", () => {
   it("classe, sans exception", () => {
     expect(classerReseau(" TikTok ")).toBe("tiktok");
     expect(classerReseau("mastodon")).toBe("autre");
+    expect(classerReseau("linkedin_page")).toBe("linkedin");
+    expect(classerReseau("page_guide")).toBe("non_precise");
     for (const v of [null, undefined, "", "  ", 3, {}]) expect(classerReseau(v)).toBe("non_precise");
   });
 });
@@ -61,8 +67,42 @@ describe("parReseau", () => {
     expect(x.every((y) => y.envoisEmail === null && y.clics === null)).toBe(true);
     expect(x.find((y) => y.reseau === "facebook")!.commentaires.total).toBe(2);
   });
-  it("aucune donnée par réseau : liste vide, et aucun nom ni clé dans la sortie", () => {
+  it("aucune donnée par réseau : liste vide ; chaque ligne n'a que les clés d'agrégats", () => {
     expect(assemblerSuivi([], [], null, T0).lignes).toEqual([]);
-    expect(JSON.stringify(l.parReseau)).not.toMatch(/x"|1111/);
+    for (const x of l.parReseau!)
+      expect(Object.keys(x).sort()).toEqual(["clics", "commentaires", "envoisEmail", "gagnees", "premiersMessages", "reseau"]);
+  });
+  it("linkedin_page du Studio est rangé sous LinkedIn", () => {
+    const x = assemblerSuivi([ev("linkedin_page", "9")], [], site([ls("linkedin_page", "c9", 2, 1)]), T0).lignes[0];
+    expect(x.parReseau!.map((y) => y.reseau)).toEqual(["linkedin"]);
+    expect(x.parReseau![0].envoisEmail!.total).toBe(2);
+  });
+  it("personnes gagnées : la somme des réseaux égale le total", () => {
+    const cs = [
+      { ...conv(1, "instagram"), suiviIg: "gagne", lienIgLe: il(1) },
+      { ...conv(2, "facebook"), suiviIg: "gagne", lienIgLe: il(10) },
+      { ...conv(3, "instagram"), suiviIg: "deja_suivi", lienIgLe: il(1) },
+    ];
+    const x = assemblerSuivi([], cs, null, T0).lignes[0];
+    for (const fen of ["j7", "j30", "total"] as const)
+      expect(totalReseaux(x.parReseau!, "gagnees", fen)).toBe(x.instagram.gagnees[fen]);
+    expect(x.instagram.gagnees).toEqual({ j7: 1, j30: 2, total: 2 });
+  });
+  it("fixture du site où j7, j30 et total diffèrent : sommes par fenêtre", () => {
+    const s2 = site([
+      lsFen("facebook", "a", f(1, 3, 6), f(0, 2, 5)),
+      lsFen("tiktok", "b", f(2, 4, 9), f(1, 1, 7)),
+    ]);
+    const x = assemblerSuivi([ev("facebook", "1")], [], s2, T0).lignes[0];
+    expect(totalReseaux(x.parReseau!, "envoisEmail", "j7")).toBe(3);
+    expect(totalReseaux(x.parReseau!, "envoisEmail", "j30")).toBe(7);
+    expect(totalReseaux(x.parReseau!, "envoisEmail", "total")).toBe(15);
+    expect(totalReseaux(x.parReseau!, "clics", "total")).toBe(12);
+    expect(x.envoisEmail).toEqual({ j7: 3, j30: 7, total: 15 });
+  });
+  it("mot présent mais parReseau vide", () => {
+    const x = assemblerSuivi([ev(undefined, "1")], [], null, T0);
+    const vide = { ...x.lignes[0], parReseau: [] };
+    expect(totalReseaux(vide.parReseau, "commentaires", "total")).toBe(0);
   });
 });
