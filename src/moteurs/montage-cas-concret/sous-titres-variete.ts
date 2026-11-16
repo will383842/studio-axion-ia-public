@@ -14,6 +14,7 @@
  */
 import { zonesEcran } from "@/briques/ecrans-motion";
 import { COULEURS_DUO } from "@/briques/habillage/charte-duo";
+import { MARQUEURS } from "@/briques/sous-titres/marqueur";
 import type { SurlignageSousTitres, VariationSousTitres } from "@/briques/sous-titres";
 import { BANDE_SOUS_TITRES_CAS_CONCRET, ZONE_PLEINE_IMAGE_CAS_CONCRET } from "@/formats/cas-concret";
 import type { Tirage } from "./variete";
@@ -46,6 +47,9 @@ export const SURLIGNAGE_CAS_CONCRET: SurlignageSousTitres = Object.freeze({
   texteClair: COULEURS_DUO.ivoire,
 });
 
+/** C2-U5bis : teinte fixe du surlignage sur le chemin neuf (charte ; le tirage décide seulement s'il y a surlignage). */
+export const MARQUEUR_STYLE_VARIE: SurlignageSousTitres = MARQUEURS.terracotta;
+
 /**
  * Hauteur « haute » : centre de la ligne à 1,75 % de la hauteur sous le HAUT de la bande des sous-titres (v4 : 2,5 %),
  * soit ≈ 14 px plus haut sur 1 920. Une ligne de base (60 px, interligne 1,1) y tient encore entière dans la bande : le
@@ -62,9 +66,10 @@ export function centreSousTitresCasConcret(t?: TirageSousTitres | null, actif: b
 }
 
 /** Champ à ajouter au style des sous-titres : `{ surlignage }` pour l'accent « surlignage », sinon rien. */
-export function surlignageCasConcret(t?: TirageSousTitres | null, actif: boolean = VARIANTE_PAR_VIDEO): { surlignage?: SurlignageSousTitres } {
+export function surlignageCasConcret(t?: TirageSousTitres | null, actif: boolean = VARIANTE_PAR_VIDEO, marqueur?: SurlignageSousTitres): { surlignage?: SurlignageSousTitres } {
   if (!actif) return {};
-  return t?.accent === "surlignage" ? { surlignage: SURLIGNAGE_CAS_CONCRET } : {};
+  // C2-U5bis : sur le chemin neuf (capacité `texte.style-varie`), le marqueur de la charte remplace `SURLIGNAGE_CAS_CONCRET`.
+  return t?.accent === "surlignage" ? { surlignage: marqueur ?? SURLIGNAGE_CAS_CONCRET } : {};
 }
 
 /** Variation du mélange (sens du premier Impact, réglages) ; `{}` quand inclinaison et intensité sont celles de la v4. */
