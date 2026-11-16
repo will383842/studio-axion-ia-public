@@ -41,7 +41,7 @@ describe("imagePlanAuTemps", () => {
     expect(imagePlanAuTemps(plan, (imageCoupe - 1) / fps)).toBe(imageCoupe - 1);
     expect(imagePlanAuTemps(plan, -0.04)).toBeNull();
     // trou entre deux scènes (la scène 0 finit avant le début de la 1) : aucune image
-    const trou = plan.scenes[0].finMs / 1000;
+    const trou = Math.ceil((plan.scenes[0].finMs * fps) / 1000) / fps;
     expect(imagePlanAuTemps(plan, trou)).toBeNull();
     expect(imagePlanAuTemps(plan, plan.dureeMs / 1000 + 5)).toBeNull();
   });
