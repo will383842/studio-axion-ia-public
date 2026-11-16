@@ -5,31 +5,42 @@
  */
 import { continueRender, delayRender } from "remotion";
 import type { NomPolice } from "../../../src/briques/sous-titres/mesure";
+import manropeBold from "../../../src/briques/sous-titres/polices/Manrope-Bold.ttf";
 import manropeExtraBold from "../../../src/briques/sous-titres/polices/Manrope-ExtraBold.ttf";
 import manropeMedium from "../../../src/briques/sous-titres/polices/Manrope-Medium.ttf";
+import manropeSemiBold from "../../../src/briques/sous-titres/polices/Manrope-SemiBold.ttf";
 
 /** Nom CSS de chaque police dans le rendu (une famille par fichier : aucune synthèse de graisse). */
 export const FAMILLES: Record<NomPolice, string> = {
+  "Manrope Bold": "Axion Manrope Bold",
   "Manrope ExtraBold": "Axion Manrope ExtraBold",
   "Manrope Medium": "Axion Manrope Medium",
+  "Manrope SemiBold": "Axion Manrope SemiBold",
 };
 
 const FICHIERS: Record<NomPolice, string> = {
+  "Manrope Bold": manropeBold,
   "Manrope ExtraBold": manropeExtraBold,
   "Manrope Medium": manropeMedium,
+  "Manrope SemiBold": manropeSemiBold,
 };
 
-let chargement: Promise<void> | null = null;
+/** Une promesse par police : une police déjà demandée n'est pas rechargée. */
+const chargements = new Map<NomPolice, Promise<void>>();
 
-/** Charge les deux graisses de Manrope une fois par page de rendu. */
-export function chargerPolices(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Polices des sous-titres");
-  chargement = Promise.all(
-    (Object.keys(FICHIERS) as NomPolice[]).map(async (nom) => {
-      const face = new FontFace(FAMILLES[nom], `url(${FICHIERS[nom]})`);
-      await face.load();
-      document.fonts.add(face);
-    }),
-  ).then(() => continueRender(attente));
+/** Charge à la demande les graisses voulues (par défaut Medium et ExtraBold), une fois par page de rendu. */
+export function chargerPolices(noms: readonly NomPolice[] = ["Manrope Medium", "Manrope ExtraBold"]): void {
+  if (typeof document === "undefined") return;
+  for (const nom of noms) {
+    if (chargements.has(nom)) continue;
+    const attente = delayRender(`Police des sous-titres : ${nom}`);
+    chargements.set(
+      nom,
+      (async () => {
+        const face = new FontFace(FAMILLES[nom], `url(${FICHIERS[nom]})`);
+        await face.load();
+        document.fonts.add(face);
+      })().then(() => continueRender(attente)),
+    );
+  }
 }

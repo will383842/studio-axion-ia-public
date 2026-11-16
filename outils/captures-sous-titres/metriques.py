@@ -10,7 +10,7 @@ from fontTools.varLib import instancer
 
 DOSSIER = "src/briques/sous-titres/polices"
 vf = os.path.join(DOSSIER, "Manrope-Variable.ttf")
-INSTANCES = {"Manrope Medium": ("Manrope-Medium.ttf", 500), "Manrope ExtraBold": ("Manrope-ExtraBold.ttf", 800)}
+INSTANCES = {"Manrope Medium": ("Manrope-Medium.ttf", 500), "Manrope SemiBold": ("Manrope-SemiBold.ttf", 600), "Manrope Bold": ("Manrope-Bold.ttf", 700), "Manrope ExtraBold": ("Manrope-ExtraBold.ttf", 800)}
 for nom, (fichier, graisse) in INSTANCES.items():
     chemin = os.path.join(DOSSIER, fichier)
     if not os.path.exists(chemin):
