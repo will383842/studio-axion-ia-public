@@ -98,7 +98,7 @@ describe("langage et branchement", () => {
 
 describe("version fabriquée et version la plus récente", () => {
   const contenu = (t: string) => ({ titre: t, sections: [{ titre: "Partie", paragraphes: ["Un."], puces: [] }] });
-  async function afficher(derniereVersion: number, fabriqueVersion: number) {
+  async function afficher(derniereVersion: number, fabriqueVersion: number, rattache = false) {
     faux.actif = true;
     try {
       const lire = vi.fn(async () => ({
@@ -106,7 +106,7 @@ describe("version fabriquée et version la plus récente", () => {
         phrase: "",
         vue: {
           derniere: { version: derniereVersion, statut: "Validé", contenu: contenu(`Texte v${derniereVersion}`) },
-          fabrique: { version: fabriqueVersion, cheminPdf: "guides-reseau/x/v.pdf", pages: 2, rattache: false },
+          fabrique: { version: fabriqueVersion, cheminPdf: "guides-reseau/x/v.pdf", pages: 2, rattache },
         },
       }));
       const m = monter(EcranGuides, { mots: ["facture"], services: { ...services, lire } as unknown as ServicesGuides });
@@ -116,7 +116,8 @@ describe("version fabriquée et version la plus récente", () => {
       await attendre();
       const arbre = m.rendre();
       const bouton = (debut: string) => trouver(arbre, (e) => typeof e.props.onClick === "function" && texteDe(e.props.children as never).includes(debut))[0];
-      return { fabriquer: bouton("4."), rattacher: bouton("5."), apercu: trouver(arbre, (e) => e.props["aria-label"] === "Texte du guide fabriqué")[0] };
+      const statuts = trouver(arbre, (e) => e.props.role === "status").map((e) => texteDe(e.props.children as never));
+      return { statuts, fabriquer: bouton("4."), rattacher: bouton("5."), apercu: trouver(arbre, (e) => e.props["aria-label"] === "Texte du guide fabriqué")[0] };
     } finally {
       faux.actif = false;
     }
@@ -133,5 +134,11 @@ describe("version fabriquée et version la plus récente", () => {
     expect(r.fabriquer.props.disabled).toBe(true);
     expect(r.apercu).toBeDefined();
     expect(r.rattacher).toBeDefined();
+  });
+  it("rattaché : le message dit la version rattachée, même quand ce n'est pas la dernière", async () => {
+    const ancien = await afficher(2, 1, true);
+    expect(ancien.statuts.some((t) => t.includes("Rattaché au mot") && t.includes("version 1"))).toBe(true);
+    const courant = await afficher(2, 2, true);
+    expect(courant.statuts.some((t) => t.includes("Rattaché au mot") && t.includes("version 2"))).toBe(true);
   });
 });

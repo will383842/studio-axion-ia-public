@@ -81,7 +81,7 @@ export function EcranGuides({ mots, services, onChange }: { mots: readonly strin
   const derniere = vue?.derniere ?? null;
   const aRelire = derniere !== null && derniere.statut !== "Validé";
   const fabrique = vue?.fabrique ?? null;
-  // Le texte montré et le rattachement ne valent que pour la version fabriquée = la dernière (validée) ; sinon le serveur répond « pas_fabrique ».
+  // L'aperçu du texte et le bouton « Rattacher » n'existent que si la version fabriquée est la dernière (validée) ; sinon le serveur répond « pas_fabrique ». Le message « Rattaché » dit, lui, la version réellement rattachée (même ancienne).
   const fabriqueALaDerniere = fabrique !== null && derniere !== null && fabrique.version === derniere.version;
 
   function majSection(i: number, champ: "titre" | "paragraphes" | "puces", v: string) {
@@ -208,7 +208,7 @@ export function EcranGuides({ mots, services, onChange }: { mots: readonly strin
               )}
               {fabrique.rattache ? (
                 <p role="status" className="text-sm font-semibold text-texte">
-                  {T.rattache}
+                  {T.rattache(fabrique.version)}
                 </p>
               ) : fabriqueALaDerniere && derniere.statut === "Validé" ? (
                 <div className="space-y-1">

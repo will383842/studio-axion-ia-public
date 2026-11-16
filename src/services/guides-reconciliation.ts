@@ -49,7 +49,7 @@ export interface DepsReconciliation {
 export type EtatReconciliation = "compare" | "site_pas_pret" | "site_indisponible" | "site_non_relie" | "reponse_illisible";
 
 export interface MemoireReconciliation {
-  /** Instant ISO du dernier passage terminé (comparaison faite, ou site pas prêt). */
+  /** Instant ISO du dernier passage terminé par une comparaison (un échec ou un site pas prêt ne le change pas). */
   dernierPassage: string | null;
   etat: EtatReconciliation;
   guidesLus: number;
@@ -217,14 +217,17 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   // Les écarts des codes non interrogés à ce passage sont conservés tels quels (tant que le guide existe encore au Studio).
   const presents = new Set(tous);
   const conserves = (Array.isArray(anc.ecarts) ? anc.ecarts : []).filter((e) => !interroges.has(e.code) && presents.has(e.code));
+  // Anciens d'abord, écarts de CE passage à la fin : si le plafond coupe, on garde les plus récents.
   const ecarts = [...conserves, ...nouveaux];
+  // Le passage a bouclé (il a repris au début après avoir atteint la fin) : un tour complet est fait, l'ancienne coupure n'est plus à signaler.
+  const aBoucle = curseurAvant !== null && codes.some((c) => c <= curseurAvant);
   await memoriser({
     dernierPassage: new Date(d.maintenantMs()).toISOString(),
     etat: "compare",
     guidesLus: codes.length,
     lignesIgnorees: ignorees,
-    ecarts: ecarts.slice(0, MAX_ECARTS_MEMORISES),
-    ecartsTronques: ecarts.length > MAX_ECARTS_MEMORISES || (anc.ecartsTronques === true && codesRestants > 0),
+    ecarts: ecarts.slice(-MAX_ECARTS_MEMORISES),
+    ecartsTronques: ecarts.length > MAX_ECARTS_MEMORISES || (anc.ecartsTronques === true && codesRestants > 0 && !aBoucle),
     curseur,
     codesRestants,
   });
