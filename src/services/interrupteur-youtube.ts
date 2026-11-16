@@ -1,34 +1,38 @@
 /**
- * Interrupteur YouTube (UO-12) : lit le réglage et l'état déjà enregistré. Aucun appel au diffuseur, aucune écriture.
- * Éteint par défaut ; non branché dans l'envoi (zone Zernio, fiche à part).
+ * Prêt-à-allumer YouTube (UO-12) : lit l'interrupteur existant `zernio.youtube_actif` et l'état déjà enregistré.
+ * Aucun appel au diffuseur, aucune écriture, aucun second interrupteur. Éteint par défaut ; non branché dans l'envoi.
  */
 import "server-only";
-import { CLE_YOUTUBE_ACTIF, interrupteurAllume, verifierYoutubePret, youtubeEnvoiPermis, type VerificationYoutube } from "@/domaine/youtube-pret";
+import { RESEAUX_YOUTUBE, verifierYoutubePret, youtubeEnvoiPermis, type VerificationYoutube } from "@/domaine/youtube-pret";
 import type { IdReseau } from "@/domaine/types";
+import { CLE_YOUTUBE_ACTIF, youtubeActifBrut } from "@/fournisseurs/publication/zernio-youtube";
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { lireParametre } from "./_commun";
 import { canauxZernioEnregistres } from "./comptes-envoi-zernio";
 
-/** Panne ou valeur autre que `true` = éteint. */
+/** Panne ou valeur autre que `true` = éteint (même clé et même règle que `youtubeZernioActif`). */
 export async function lireYoutubeActif(): Promise<boolean> {
   try {
-    return interrupteurAllume(await lireParametre<unknown>(CLE_YOUTUBE_ACTIF, false));
+    return youtubeActifBrut(await lireParametre<unknown>(CLE_YOUTUBE_ACTIF, false));
   } catch {
     return false;
   }
 }
 
-function priseEnCharge(): boolean {
-  try {
-    plateformeZernio("youtube");
-    return true;
-  } catch {
-    return false;
-  }
+/** Réseaux YouTube que le diffuseur accepte, testés un par un. */
+function reseauxPrisEnCharge(): IdReseau[] {
+  return RESEAUX_YOUTUBE.filter((r) => {
+    try {
+      plateformeZernio(r);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /** Comptes déjà gardés en base (dernier « Tester ») : aucun appel réseau. */
-export async function verifierYoutubePretDepuisBase(): Promise<VerificationYoutube> {
+export async function verifierYoutubePretDepuisBase(reseau: IdReseau): Promise<VerificationYoutube> {
   let chaine = false;
   try {
     const enregistres = await canauxZernioEnregistres();
@@ -36,12 +40,12 @@ export async function verifierYoutubePretDepuisBase(): Promise<VerificationYoutu
   } catch {
     chaine = false;
   }
-  return verifierYoutubePret({ chaineRelieeChezDiffuseur: chaine, priseEnChargeParDiffuseur: priseEnCharge() });
+  return verifierYoutubePret({ chaineRelieeChezDiffuseur: chaine, reseauxPrisEnCharge: reseauxPrisEnCharge() }, reseau);
 }
 
 export async function youtubeEnvoiPermisDepuisBase(reseau: IdReseau): Promise<boolean> {
   try {
-    return youtubeEnvoiPermis(reseau, await lireYoutubeActif(), await verifierYoutubePretDepuisBase());
+    return youtubeEnvoiPermis(reseau, await lireYoutubeActif(), await verifierYoutubePretDepuisBase(reseau));
   } catch {
     return false;
   }
