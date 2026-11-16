@@ -73,7 +73,8 @@ describe("ZERNIO-COMPTES (b) · un seul compte coché absent de la liste", () =>
     expect(demandes).toHaveLength(0);
   });
   it("même sur un réseau à un seul compte : pas de repli sur ce compte", async () => {
-    expect((await tenterEnvoi(faux([FB1]), "facebook", [ANCIEN])).ok).toBe(false);
+    // Instagram n'a qu'un seul compte : sans règle de refus, le repli sur ce compte unique ferait partir l'envoi.
+    expect((await tenterEnvoi(faux([IG]), "instagram", [ANCIEN])).ok).toBe(false);
     expect(demandes).toHaveLength(0);
   });
 });
@@ -105,8 +106,22 @@ describe("ZERNIO-COMPTES (d) · rien de coché : règles habituelles", () => {
     expect(r.ok).toBe(false);
   });
   it("page interdite retirée de la liste", async () => {
-    const { empreinteNomPage, PAGES_FACEBOOK_INTERDITES } = await import("@/fournisseurs/publication/zernio-pages-interdites");
-    expect(empreinteNomPage).toBeTypeOf("function");
-    expect(PAGES_FACEBOOK_INTERDITES.empreintesNom.every((e) => /^[0-9a-f]{64}$/.test(e))).toBe(true);
+    const { PAGES_FACEBOOK_INTERDITES } = await import("@/fournisseurs/publication/zernio-pages-interdites");
+    // Une vraie page interdite (par son identifiant) passe dans le faux Zernio, à côté d'une page autorisée.
+    const interdite = canal(`exemple-fb-1:fb:${PAGES_FACEBOOK_INTERDITES.ids[0]}`, "Page exemple interdite", "facebook", { genre: "page" });
+    const service = faux([FB1, interdite]);
+    expect((await service.listerCanaux!()).map((c) => c.id)).toContain(interdite.id);
+    // Cochée seule ou avec une page valide : traduction refusée, jamais ciblée, jamais acceptée, rien ne part.
+    for (const coches of [[interdite.id], [FB1.id, interdite.id]]) {
+      expect(await traduireSelectionVersZernio(service, "facebook", coches, [])).not.toContain(interdite.id);
+      const r = await tenterEnvoi(service, "facebook", coches);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.code).toBe("CIBLE_INCONNUE");
+    }
+    expect(demandes).toHaveLength(0);
+    // La page autorisée part, la page interdite n'est jamais visée.
+    const ok = await tenterEnvoi(service, "facebook", [FB1.id]);
+    expect(ok.ok && ok.canaux.map((c) => c.id)).toEqual([FB1.id]);
+    expect(demandes.map((d) => d.cible)).toEqual([FB1.id]);
   });
 });
