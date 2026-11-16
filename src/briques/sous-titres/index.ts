@@ -22,6 +22,7 @@ import { sourceMotif } from "@/domaine/prononciations";
 import { grouperMots, recalerSurCoupes, sansChevauchement, type OptionsGroupement } from "./groupement";
 import { dimensions, largeurLibrePx, positionsVerticales } from "./largeur";
 import { melanger, reporterVerrouilles, type ContexteMelange, type VariationSousTitres } from "./melange";
+import { MARQUEURS } from "./marqueur";
 import { largeurLigne } from "./mesure";
 import { reporterSurTexteValide } from "./report";
 import { elementDe, largeurElement, type DonneesCalque, type SurlignageSousTitres } from "./scene";
@@ -41,6 +42,7 @@ import type {
 export * from "./groupement";
 export * from "./largeur";
 export * from "./melange";
+export * from "./marqueur";
 export * from "./mesure";
 export * from "./pastille";
 export * from "./report";
@@ -194,6 +196,7 @@ export function donneesCalque(entree: {
   const ratio = entree.ratio ?? "9:16";
   const { largeur, hauteur } = dimensions(ratio);
   const reseaux = entree.reseaux ?? [];
+  const cibleMarqueur = entree.style?.texteEcran?.marqueur?.cible;
   return {
     largeur,
     hauteur,
@@ -209,6 +212,8 @@ export function donneesCalque(entree: {
     ...(entree.style?.pastille === "axion" ? { pastille: PASTILLE_AXION } : entree.style?.pastille === "axion-ardoise" ? { pastille: PASTILLE_AXION_ARDOISE } : {}),
     // Lot L3b (ajout pur) : surlignage au lieu du trait, seulement quand le style le porte.
     ...(entree.style?.surlignage ? { surlignage: entree.style.surlignage } : {}),
+    ...(!entree.style?.surlignage && entree.style?.texteEcran?.marqueur ? { surlignage: MARQUEURS[entree.style.texteEcran.marqueur.teinte] } : {}),
+    ...(cibleMarqueur === "expression" || cibleMarqueur === "mot-dit" ? { cibleMarqueur } : {}),
   };
 }
 
