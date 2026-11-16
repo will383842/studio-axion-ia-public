@@ -1,7 +1,8 @@
 /**
  * Importe un jeu d'icônes en DONNÉES (aucune dépendance) : « toujours copier, jamais installer » (C6-H17a).
- *   node scripts/motion/importer-icones.mjs --jeu lucide|phosphor|material --source <dossier du paquet extrait> --liste <json nom-français → nom d'origine> --version X.Y.Z [--sha256 <empreinte de l'archive>] [--sortie <fichier>]
+ *   node scripts/motion/importer-icones.mjs --jeu lucide|phosphor|material|tabler|heroicons|iconoir --source <dossier du paquet extrait> --liste <json nom-français → nom d'origine> --version X.Y.Z [--sha256 <empreinte de l'archive>] [--sortie <fichier>]
  * Jeux (C6-H17b) : lucide (ISC + MIT Feather, icons/<nom>.svg), phosphor (MIT ; graisses regular et duotone, suffixe « ~duotone »), material (Apache-2.0 ; Material Symbols « outlined », un seul paquet).
+ * Jeux au trait (C9-29) : tabler (MIT, icons/outline), heroicons (MIT, 24/outline), iconoir (MIT, icons/regular) ; `trait: true` : fill="none" et stroke="currentColor" sur chaque nœud (pas de remplissage ajouté), arrondis du <svg> reportés ; l'épaisseur est ramenée à 2 plus tard par `harmoniser`.
  * Refuse si le LICENSE de la source n'est pas celui attendu pour le jeu (texte comparé à la copie du dépôt). Déterministe.
  * Liste des SPDX admis : lue dans src/briques/droits/licences.ts (une seule source).
  * Option `--spdx-depuis <info.json>` (Iconify) : lit `info.license.spdx` et refuse ce qui n'est pas admis. Écrite, non utilisée.
@@ -37,6 +38,24 @@ const JEUX = {
     variantes: [{ dossier: "outlined", fin: "", nom: "" }],
     entete: (v, sha) => `ICÔNES MATERIAL SYMBOLS (outlined) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, @material-symbols/svg-400 ${v}, sha256 ${sha}, Apache-2.0 : voir LICENCE-MaterialSymbols-Apache2.txt. Ne pas modifier à la main.`,
   },
+  tabler: {
+    licence: (t) => /^MIT License/.test(t) && /Permission is hereby granted, free of charge/.test(t),
+    attendu: "MIT", copie: "LICENCE-Tabler-MIT.txt", sortie: "tabler.ts", constante: "TABLER_BIBLIOTHEQUE", trait: true,
+    variantes: [{ dossier: "icons/outline", fin: "", nom: "" }],
+    entete: (v, sha) => `ICÔNES TABLER (trait) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, @tabler/icons ${v}, sha256 ${sha}, MIT : voir LICENCE-Tabler-MIT.txt. Ne pas modifier à la main.`,
+  },
+  heroicons: {
+    licence: (t) => /^MIT License/.test(t) && /Permission is hereby granted, free of charge/.test(t),
+    attendu: "MIT", copie: "LICENCE-Heroicons-MIT.txt", sortie: "heroicons.ts", constante: "HEROICONS_BIBLIOTHEQUE", trait: true,
+    variantes: [{ dossier: "24/outline", fin: "", nom: "" }],
+    entete: (v, sha) => `ICÔNES HEROICONS (trait) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, heroicons ${v}, sha256 ${sha}, MIT : voir LICENCE-Heroicons-MIT.txt. Ne pas modifier à la main.`,
+  },
+  iconoir: {
+    licence: (t) => /^MIT License/.test(t) && /Permission is hereby granted, free of charge/.test(t),
+    attendu: "MIT", copie: "LICENCE-Iconoir-MIT.txt", sortie: "iconoir.ts", constante: "ICONOIR_BIBLIOTHEQUE", trait: true,
+    variantes: [{ dossier: "icons/regular", fin: "", nom: "" }],
+    entete: (v, sha) => `ICÔNES ICONOIR (trait) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, iconoir ${v}, sha256 ${sha}, MIT : voir LICENCE-Iconoir-MIT.txt. Ne pas modifier à la main.`,
+  },
 };
 const COULEURS_SANS = new Set(["none", "currentcolor"]);
 
@@ -63,7 +82,7 @@ if (spdxDepuis) {
   if (!SPDX_ADMIS.includes(spdx)) refuser(`SPDX « ${spdx} » absent des licences sans crédit`);
 }
 const def = JEUX[jeu];
-if (!def) refuser(`jeu inconnu « ${jeu} » : lucide, phosphor ou material`);
+if (!def) refuser(`jeu inconnu « ${jeu} » : lucide, phosphor, material, tabler, heroicons ou iconoir`);
 if (!SPDX_ADMIS.includes(def.attendu)) refuser(`SPDX « ${def.attendu} » absent des licences sans crédit`);
 if (!source || !listeChemin || !version) refuser("--source, --liste et --version sont obligatoires");
 if (jeu !== "lucide" && !arg("sha256")) refuser("--sha256 (empreinte de l'archive) est obligatoire : la preuve de droits en dépend");
@@ -80,7 +99,8 @@ if (existsSync(copie)) {
 } else if (jeu !== "lucide") refuser(`${def.copie} absent du dépôt : rien n'entre sans le texte de licence copié et daté`);
 
 const liste = JSON.parse(readFileSync(listeChemin, "utf8"));
-const plein = jeu !== "lucide"; // Phosphor et Material : glyphes à remplissage, la couleur vient de currentColor
+const trait = def.trait === true; // Tabler, Heroicons, Iconoir : jeux au trait
+const plein = jeu !== "lucide" && !trait; // Phosphor et Material : glyphes à remplissage, la couleur vient de currentColor
 const entrees = [];
 for (const [nom, origine] of Object.entries(liste)) for (const v of def.variantes) entrees.push([`${nom}${v.nom}`, origine, v]);
 entrees.sort(([a], [b]) => (a < b ? -1 : 1));
@@ -99,18 +119,26 @@ for (const [nom, origine, v] of entrees) {
     viewBox = `0 0 ${l} ${h}`;
     decalage = `translate(${-x0} ${-y0})`;
   }
+  const arrondis = {};
+  for (const k of ["stroke-linecap", "stroke-linejoin"]) { const r = new RegExp(`<svg[^>]*\\s${k}="([^"]+)"`).exec(svg)?.[1]; if (r) arrondis[k] = r; }
   const noeuds = [];
   for (const m of svg.matchAll(/<(\w+)\s([^>]*?)\/>/g)) {
     const balise = m[1];
     if (balise === "svg") continue;
     if (!BALISES.includes(balise)) refuser(`balise non prise en charge « ${balise} » : ${origine}`);
     const attrs = {};
+    if (trait && balise === "path" && /\bd="M0 0h24v24H0z"/.test(m[2]) && /\bstroke="none"/.test(m[2])) continue; // carré de fond Tabler
     for (const a of m[2].matchAll(/([\w:-]+)="([^"]*)"/g)) {
       let val = a[2];
       if ((a[1] === "fill" || a[1] === "stroke") && !COULEURS_SANS.has(val.toLowerCase())) val = "currentColor";
       attrs[a[1]] = val;
     }
     if (plein && attrs.fill === undefined) attrs.fill = "currentColor";
+    if (trait) {
+      if (attrs.fill === undefined) attrs.fill = "none";
+      if (attrs.stroke === undefined) attrs.stroke = "currentColor";
+      for (const [k, v] of Object.entries(arrondis)) if (attrs[k] === undefined) attrs[k] = v;
+    }
     if (decalage) attrs.transform = decalage;
     noeuds.push([balise, attrs]);
   }
