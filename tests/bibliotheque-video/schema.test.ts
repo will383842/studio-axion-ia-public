@@ -9,6 +9,14 @@ import {
   schemaEntreeBibliotheque,
 } from "@/briques/bibliotheque-video/schema";
 
+type Noeud = { [cle: string]: unknown };
+// Écrit `valeur` au bout de `chemin` dans un objet de test (sans `any`).
+const poser = (racine: unknown, chemin: (string | number)[], valeur: unknown): void => {
+  let cur = racine as Noeud;
+  for (const k of chemin.slice(0, -1)) cur = cur[k] as Noeud;
+  cur[chemin[chemin.length - 1]] = valeur;
+};
+
 const profilMinimal = () => ({
   id: "p1", formatId: "f1", version: 1,
   capacites: { "texte.surlignage": { permis: true } },
@@ -72,38 +80,38 @@ describe("schéma strict et lireEntreeBibliotheque", () => {
   });
 
   it("strict : champ en trop partout → null", () => {
-    const cas: ((e: any) => void)[] = [
-      (e) => { e.extra = 1; },
-      (e) => { e.profil.extra = 1; },
-      (e) => { e.profil.blocs.texteEcran.extra = 1; },
-      (e) => { e.profil.blocs.extraits.extra = 1; },
-      (e) => { e.profil.blocs.habillage.extra = 1; },
-      (e) => { e.profil.blocs.calques.extra = 1; },
-      (e) => { e.profil.capacites["texte.surlignage"].extra = 1; },
-      (e) => { e.profil.plafonds.extra = 1; },
-      (e) => { e.profil.memoire.extra = 1; },
-      (e) => { e.recents[0].extra = 1; },
-      (e) => { e.choix[0].extra = 1; },
+    const cas: (string | number)[][] = [
+      ["extra"],
+      ["profil", "extra"],
+      ["profil", "blocs", "texteEcran", "extra"],
+      ["profil", "blocs", "extraits", "extra"],
+      ["profil", "blocs", "habillage", "extra"],
+      ["profil", "blocs", "calques", "extra"],
+      ["profil", "capacites", "texte.surlignage", "extra"],
+      ["profil", "plafonds", "extra"],
+      ["profil", "memoire", "extra"],
+      ["recents", 0, "extra"],
+      ["choix", 0, "extra"],
     ];
-    for (const m of cas) {
+    for (const chemin of cas) {
       const e = clone(entreeComplete());
-      m(e);
+      poser(e, chemin, 1);
       expect(lireEntreeBibliotheque(avec(e))).toBeNull();
     }
   });
 
   it("mauvaise version → null", () => {
-    const e: any = clone(entreeMinimale());
-    e.version = "bibliotheque-video/2";
+    const e = clone(entreeMinimale());
+    poser(e, ["version"], "bibliotheque-video/2");
     expect(lireEntreeBibliotheque(avec(e))).toBeNull();
   });
 
   it("identifiant de capacité sans point → null (capacites, choix)", () => {
-    const a: any = clone(entreeMinimale());
-    a.profil.capacites = { surlignage: { permis: true } };
+    const a = clone(entreeMinimale());
+    poser(a, ["profil", "capacites"], { surlignage: { permis: true } });
     expect(lireEntreeBibliotheque(avec(a))).toBeNull();
-    const b: any = clone(entreeComplete());
-    b.choix[0].capacite = "surlignage";
+    const b = clone(entreeComplete());
+    poser(b, ["choix", 0, "capacite"], "surlignage");
     expect(lireEntreeBibliotheque(avec(b))).toBeNull();
   });
 
@@ -112,16 +120,16 @@ describe("schéma strict et lireEntreeBibliotheque", () => {
     expect(() => lireEntreeBibliotheque(piege)).not.toThrow();
     expect(lireEntreeBibliotheque(piege)).toBeNull();
 
-    const interne: any = clone(entreeMinimale());
+    const interne = clone(entreeMinimale());
     Object.defineProperty(interne, "graine", { get() { throw new Error("boum"); }, enumerable: true });
     expect(() => lireEntreeBibliotheque(avec(interne))).not.toThrow();
     expect(lireEntreeBibliotheque(avec(interne))).toBeNull();
 
-    const circ: any = clone(entreeMinimale());
-    circ.profil.self = circ;
+    const circ = clone(entreeMinimale());
+    poser(circ, ["profil", "self"], circ);
     expect(() => lireEntreeBibliotheque(avec(circ))).not.toThrow();
     expect(lireEntreeBibliotheque(avec(circ))).toBeNull();
-    const circ2: any = {}; circ2.bibliothequeVideo = circ2;
+    const circ2: Noeud = {}; circ2.bibliothequeVideo = circ2;
     expect(() => lireEntreeBibliotheque(circ2)).not.toThrow();
     expect(lireEntreeBibliotheque(circ2)).toBeNull();
 
