@@ -157,7 +157,7 @@ describe("SEO-03 · niveaux et motifs", () => {
     c.resume = `${phrases(2, 260)} Grenoble.`;
     const r = controlerSeo(c);
     expect(r.niveau).toBe("rouge");
-    expect(r.motifs.some((m) => m.champ === "resume" && /ville/i.test(m.message))).toBe(true);
+    expect(r.motifs.some((m) => m.champ === "resume" && /expression interdite/i.test(m.message))).toBe(true);
   });
 
   it("noms interdits passés en option (prénom du fondateur) : rouge, sans les citer", () => {
