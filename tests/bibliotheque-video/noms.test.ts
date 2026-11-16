@@ -25,6 +25,7 @@ const IDENTIFIANTS_PLAN = [
   "calque.texte-derriere-double", "calque.texte-derriere-prise",
   "plan-scenes.cas-concret", "plan-scenes.facecam", "plan-scenes.facecam-animee",
   "plan-scenes.tutoriel-outil", // N-02
+  "plan-scenes.demo-facecam", // G3-11
   "transition.coupe", "transition.cas-concret", "transition.image-video", "transition.commune",
   "transition.style-montage", "fond.vivant", "fond.lumiere",
   "etalonnage.lut-clair-obscur", "etalonnage.lut-naturel-selfie", "etalonnage.lut-doux", "etalonnage.lut-nuit",
