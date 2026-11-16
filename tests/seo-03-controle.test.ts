@@ -287,4 +287,21 @@ describe("SEO-03 · reprise de la relecture (tour 1)", () => {
     d.pagesLiees = [{ texte: "Trier les demandes entrantes", adresse: "formation-qualiopi-rapide" }, d.pagesLiees![1]];
     expect(controlerSeo(d).motifs.some((m) => m.champ === "pagesLiees" && m.niveau === "rouge" && /mot interdit/i.test(m.message))).toBe(true);
   });
+
+  it("superlatif seul : orange ; « au plus vite » reste propre", () => {
+    for (const suite of ["le meilleur outil pour relancer", "un outil imbattable", "n° 1 des relances"]) {
+      const r = controlerSeo(avecGain(suite));
+      expect(r.motifs.some((m) => m.champ === "gain" && /superlatif/i.test(m.message)), suite).toBe(true);
+    }
+    expect(controlerSeo(avecGain("relancez au plus vite")).niveau).toBe("vert");
+  });
+
+  it("avis non prouvés : rouge, même avec une source valide", () => {
+    const source = [{ intitule: "Étude publique", adresse: "https://exemple.fr/etude", dateConsultation: "2026-11-01" }];
+    for (const suite of ["avis vérifiés", "clients satisfaits", "★★★★★", "Note 4,8/5", "cinq étoiles"]) {
+      const c = avecGain(suite);
+      c.sources = source;
+      expect(controlerSeo(c).niveau, suite).toBe("rouge");
+    }
+  });
 });
