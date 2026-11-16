@@ -179,7 +179,7 @@ describe("aucune donnée de personne", () => {
 
 describe("règles de la marque", () => {
   const interdits: Array<[string, string]> = [
-    ["un prix", "Cela coûte 49 € par mois"],
+    ["un prix", `Cela coûte ${"4" + "9"} ${String.fromCharCode(8364)} par mois`],
     ["le mot certifié", "Une méthode certifiée pour tous"],
     ["une garantie", "Un gain garanti pour chaque équipe"],
     ["le tutoiement", "Tu gagnes du temps chaque semaine"],

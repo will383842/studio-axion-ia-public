@@ -138,7 +138,7 @@ export function creerRedactionFicheDePage(options: OptionsRedaction) {
     },
 
     /** Geste de validation : applique la proposition à la fiche, qui reste un BROUILLON (rien n'est publié). */
-    valider(id: string, geste: { validationEcrite: boolean }): Resultat<Record<string, never>> {
+    valider(id: string, geste: { validationEcrite: boolean }): Resultat<object> {
       const p = propositions.get(id);
       if (!p) return refus("Proposition introuvable.");
       if (geste?.validationEcrite !== true) return refus("Rien n'est enregistré sans validation écrite du fondateur.");
