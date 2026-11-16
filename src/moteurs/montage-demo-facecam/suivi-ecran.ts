@@ -36,13 +36,13 @@ const fini = (v: unknown): v is number => typeof v === "number" && Number.isFini
 const borner = (v: number) => Math.min(100, Math.max(0, v));
 const arrondi = (v: number) => Math.round(v * 100) / 100;
 
-/** Le zoom (fenêtre de temps + zone visible autour du centre) montre-t-il une zone privée ? */
+/** Le zoom (fenêtre de temps + zone visible depuis l'origine du zoom) montre-t-il une zone privée ? */
 function montreZonePrivee(zones: readonly ZoneSuivi[], debutMs: number, finMs: number, x: number, y: number, facteur: number): boolean {
-  const demi = 50 / facteur;
-  const gauche = Math.max(0, x - demi);
-  const droite = Math.min(100, x + demi);
-  const haut = Math.max(0, y - demi);
-  const bas = Math.min(100, y + demi);
+  // Le moteur zoome avec transformOrigin "x% y%" (mise-en-page.ts) : la zone visible n'est pas centrée sur le clic.
+  const gauche = x - x / facteur;
+  const droite = x + (100 - x) / facteur;
+  const haut = y - y / facteur;
+  const bas = y + (100 - y) / facteur;
   return zones.some(
     (z) =>
       z.debutMs < finMs && z.finMs > debutMs &&

@@ -57,6 +57,21 @@ describe("pistesDepuisSuivi", () => {
     expect(r.zooms).toHaveLength(1);
     expect(r.zooms[0].debutMs).toBeGreaterThanOrEqual(10000);
   });
+  it("zoom à origine décentrée : la zone visible est [x − x/f, x + (100 − x)/f], pas x ± 50/f", () => {
+    // Clic en (10,10), facteur 1,6 : x visible = [3,75 ; 66,25] → la zone privée 50-60 serait grossie : pas de zoom, le clic reste.
+    const zone: ZoneSuivi = { debutMs: 0, finMs: 10000, x: 50, y: 10, largeur: 10, hauteur: 10, motif: "mot de passe" };
+    const r = pistesDepuisSuivi(suivi([{ tMs: 3000, x: 10, y: 10 }], [zone]), { facteur: 1.6 });
+    expect(r.clics).toEqual([{ ms: 3000, x: 10, y: 10 }]);
+    expect(r.zooms).toEqual([]);
+    // Même chose en vertical, et côté opposé (clic en bas à droite : visible = [x − x/f, 100]).
+    const zoneV: ZoneSuivi = { debutMs: 0, finMs: 10000, x: 10, y: 50, largeur: 10, hauteur: 10, motif: "mot de passe" };
+    expect(pistesDepuisSuivi(suivi([{ tMs: 3000, x: 10, y: 10 }], [zoneV]), { facteur: 1.6 }).zooms).toEqual([]);
+    const zoneBas: ZoneSuivi = { debutMs: 0, finMs: 10000, x: 40, y: 40, largeur: 10, hauteur: 10, motif: "mot de passe" };
+    expect(pistesDepuisSuivi(suivi([{ tMs: 3000, x: 90, y: 90 }], [zoneBas]), { facteur: 1.6 }).zooms).toEqual([]);
+    // Zone hors de la partie visible (clic 10/10, visible x ≤ 66,25) : le zoom reste.
+    const loin: ZoneSuivi = { debutMs: 0, finMs: 10000, x: 80, y: 80, largeur: 10, hauteur: 10, motif: "mot de passe" };
+    expect(pistesDepuisSuivi(suivi([{ tMs: 3000, x: 10, y: 10 }], [loin]), { facteur: 1.6 }).zooms).toHaveLength(1);
+  });
   it("ne modifie pas l'entrée ; clics non triés acceptés", () => {
     const s = suivi([{ tMs: 9000, x: 1, y: 1 }, { tMs: 1000, x: 2, y: 2 }]);
     const copie = JSON.parse(JSON.stringify(s));
