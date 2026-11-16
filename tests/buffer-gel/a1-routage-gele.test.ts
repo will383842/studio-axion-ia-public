@@ -1,5 +1,6 @@
 /**
- * LOT A1 — routage : Buffer gelé ne peut plus être CHOISI ni porter un envoi (`BUFFER_GELE`), jamais Zernio à sa place.
+ * LOT A1 puis L0-13a (accord L0-13 du fondateur) — routage : Buffer ne peut plus être CHOISI (`OUTIL_RETIRE`) ni porter un envoi,
+ * qu'il soit gelé ou non ; un « buffer » déjà en base est lu comme absent (Zernio) et jamais réécrit.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -50,8 +51,8 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("A1 · routage, Buffer gelé", () => {
-  it("choisir Buffer est refusé (`BUFFER_GELE`) et le routage reste inchangé", async () => {
-    await expect(definirRoutage("instagram", "buffer")).rejects.toMatchObject({ code: "BUFFER_GELE" });
+  it("choisir Buffer est refusé (`OUTIL_RETIRE`) et le routage reste inchangé", async () => {
+    await expect(definirRoutage("instagram", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
     expect(await lireRoutage()).toEqual({});
   });
 
@@ -60,18 +61,18 @@ describe("A1 · routage, Buffer gelé", () => {
     expect(await definirRoutage("instagram", null)).toEqual({});
   });
 
-  it("un routage « buffer » déjà enregistré : refus net, et un autre réseau reste sur Zernio", async () => {
+  it("un routage « buffer » déjà enregistré : lu comme Zernio, jamais réécrit, un autre réseau reste sur Zernio", async () => {
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
-    await expect(outilDeEnvoi("instagram")).rejects.toMatchObject({ code: "BUFFER_GELE" });
+    expect(await outilDeEnvoi("instagram")).toBe("zernio");
+    expect(await lireRoutage()).toEqual({ instagram: "buffer" });
     expect(await outilDeEnvoi("linkedin")).toBe("zernio");
   });
 
-  it("`envoyerVersBuffer` : rejet `BUFFER_GELE`, 0 appel Buffer, 0 publication créée", async () => {
+  it("`envoyerVersBuffer` (alias de l'envoi commun) : 0 appel Buffer, aucune publication créée via Buffer", async () => {
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
-    const avant = (await depots().publications.lister()).length;
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "BUFFER_GELE" });
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN).catch(() => undefined);
     expect(buffer.appels.length).toBe(0);
-    expect((await depots().publications.lister()).length).toBe(avant);
+    expect((await depots().publications.lister()).filter((p) => p.via === "buffer")).toEqual([]);
   });
 
   it("`envoyerParOutilAction(…, {outil:\"buffer\"})` : refus `OUTIL_REFUSE`, 0 appel", async () => {
@@ -81,9 +82,10 @@ describe("A1 · routage, Buffer gelé", () => {
     expect(buffer.appels.length).toBe(0);
   });
 
-  it("CONTRÔLE : dégelé (`buffer.gele=false`), Buffer peut être choisi", async () => {
+  it("CONTRÔLE : même dégelé (`buffer.gele=false`), Buffer ne peut pas être choisi", async () => {
     await ecrireParametre("buffer.gele", false);
-    expect(await definirRoutage("instagram", "buffer")).toEqual({ instagram: "buffer" });
-    expect(await outilDeEnvoi("instagram")).toBe("buffer");
+    await expect(definirRoutage("instagram", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
+    expect(await lireRoutage()).toEqual({});
+    expect(await outilDeEnvoi("instagram")).toBe("zernio");
   });
 });

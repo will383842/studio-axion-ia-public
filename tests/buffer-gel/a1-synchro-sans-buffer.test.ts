@@ -56,9 +56,9 @@ describe("A1 · synchronisation gelée", () => {
     expect((await depots().publications.obtenir("pub-averifier"))!.modifieLe).toBe(MIDI);
   });
 
-  it("CONTRÔLE : réglage `buffer.gele=false` → le banc voit des appels", async () => {
+  it("CONTRÔLE (L0-13a) : réglage `buffer.gele=false` → Buffer n'étant plus inscrit, toujours 0 appel", async () => {
     await ecrireParametre("buffer.gele", false);
     await buf.synchroniserEtatsBuffer({ force: true });
-    expect(buffer.appels.length).toBeGreaterThan(0);
+    expect(buffer.appels.length).toBe(0);
   });
 });
