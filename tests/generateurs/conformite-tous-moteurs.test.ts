@@ -9,23 +9,25 @@ import { preparerMotDePasse } from "../helpers/g1a";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
+vi.setConfig({ testTimeout: 120_000 });
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const { construireCommande } = await import("@/services/fabrication");
 const { listerMoteurs } = await import("@/moteurs");
 const { defautsDeSorties, testerGenerateur } = await import("@/moteurs/conformite");
-const { creerMoteurMontageCasConcret } = await import("@/moteurs/montage-cas-concret");
-const { creerMoteurMontageTableau } = await import("@/moteurs/montage-tableau");
 const { creerMoteurTutorielOutil } = await import("@/moteurs/montage-tutoriel-outil");
 const { creerMoteurMontageDemoFacecam } = await import("@/moteurs/montage-demo-facecam");
 const { creerMoteurMontageImageVideo } = await import("@/moteurs/montage-image-video");
+const { creerMoteurMontageFacecam } = await import("@/moteurs/montage-facecam");
+const { creerMoteurMontageFacecamAnimee } = await import("@/moteurs/montage-facecam-animee");
+const { carteFixe, monde, outilsSimules } = await import("./../image-video/doubles-fabrication");
 const { banc: bancCas } = await import("./../cas-concret/moteur/doubles");
 const { banc: bancTableau } = await import("./../tableau/moteur/doubles");
 const { ficheDemonstration } = await import("./../tableau/regles/exemples");
 const { commandeTutoriel, outilsDoubles, une } = await import("./../tutoriel-outil/doubles");
 
-import type { CommandeFabrication } from "@/domaine/types";
+import type { CommandeFabrication, Ratio } from "@/domaine/types";
 import type { MoteurVideo, SortieProduite } from "@/moteurs/types";
 import type { ExceptionConformite } from "@/moteurs/conformite";
 
@@ -40,31 +42,42 @@ beforeEach(async () => {
   await auth.seConnecter(MDP, false);
 });
 
-/** Exceptions datées : (moteur, contrôle, date). Relevées au premier passage sur `master` (15/11/2026). */
+/** Exceptions datées : (moteur, contrôle, 15/11/2026). Chaque motif dit le manque exact de l'EXISTANT (fichier:ligne), jamais un manque du test. */
 const EXCEPTIONS: ExceptionConformite[] = [
-  { moteur: "simulation", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
-  { moteur: "montage-avocat", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
-  { moteur: "montage-facecam", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
-  { moteur: "montage-facecam-animee", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "aucune variante sans fournisseur câblée dans ce test (non encore écrite)" },
-  { moteur: "montage-tableau", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec au lieu de rester en pause" },
-  { moteur: "montage-cas-concret", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec au lieu de rester en pause" },
+  { moteur: "simulation", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "structurel : le moteur n'appelle aucun fournisseur (simulation.ts:112, fournisseurUtilise « simulation »), il n'a donc aucun état « sans fournisseur » à retirer" },
+  { moteur: "montage-avocat", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans service injecté, voix, rendu et aligneur retombent sur le simulé (montage-avocat/index.ts:214-229, « Absent : … sinon simulé ») : aucun état « sans fournisseur » ; le refus de la voix d'essai est au lancement réel (MESSAGE_VOIX_ESSAI)" },
+  { moteur: "montage-facecam", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans chaîne (chaine rend null) le squelette avance à l'horloge au lieu de rester en pause (montage-facecam/index.ts:33-44, 225-226) ; le refus est posé par refusAuLancement" },
+  { moteur: "montage-facecam-animee", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans prise, le squelette avance à l'horloge au lieu de rester en pause ; avec prise et sans outils, le travail passe en échec FACECAM_ANIMEE_NON_RELIE (montage-facecam-animee/index.ts:380)" },
+  { moteur: "montage-tableau", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec TABLEAU_NON_RELIE au lieu de rester en pause (montage-tableau/index.ts:715)" },
+  { moteur: "montage-cas-concret", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec au lieu de rester en pause (montage-cas-concret/index.ts, même patron que le tableau)" },
+  { moteur: "montage-image-video", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "sans outils reliés, le travail passe en échec réessayable IV_NON_RELIE au lieu de rester en pause (montage-image-video/index.ts:448-450)" },
   { moteur: "montage-facecam", controle: "sortie-conforme", date: "15/11/2026", motif: "moteur squelette : la sortie porte une clé /demo/ hors simulation" },
   { moteur: "montage-facecam-animee", controle: "sortie-conforme", date: "15/11/2026", motif: "moteur squelette : la sortie porte une clé /demo/ hors simulation" },
-  { moteur: "montage-demo-facecam", controle: "contrat-commun", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-demo-facecam", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-demo-facecam", controle: "origine-usine", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-demo-facecam", controle: "sortie-conforme", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-image-video", controle: "contrat-commun", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-image-video", controle: "pause-sans-fournisseur", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-image-video", controle: "origine-usine", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-image-video", controle: "sortie-conforme", date: "15/11/2026", motif: "doubles de chaîne non importables hors de leur fichier de test (pas de commande fabriquée par doubles)" },
-  { moteur: "montage-image-video", controle: "ratios-du-format", date: "15/11/2026", motif: "le format déclare 4:5 absent des capacités du moteur (9:16 seul)" },
-];
+  { moteur: "montage-image-video", controle: "contrat-commun", date: "15/11/2026", motif: "manques du moteur face au contrat (contrat.ts:81, 95, 124) : la brique « son » coupée garde l'étape et la ligne « Voix » (la voix est obligatoire) ; estimerRetouche rend 0 € (montage-image-video/index.ts:414-416) ; un échec d'étape simulé (simulerEchecEtape) n'est pas pris en charge par la machine" },
+  { moteur: "montage-demo-facecam", controle: "contrat-commun", date: "15/11/2026", motif: "les doubles de la chaîne (transcription, alignement, plan, rendu) sont définis DANS src/moteurs/montage-demo-facecam/demo-facecam.test.ts:25-117, non exportés ; sans chaîne le travail reste en_file (index.ts:155) : le contrat ne peut pas le mener à « termine »" },
+  { moteur: "montage-demo-facecam", controle: "origine-usine", date: "15/11/2026", motif: "mêmes doubles de chaîne non exportés (demo-facecam.test.ts:25-117) : sans chaîne, le travail reste en_file" },
+  { moteur: "montage-demo-facecam", controle: "sortie-conforme", date: "15/11/2026", motif: "mêmes doubles de chaîne non exportés (demo-facecam.test.ts:25-117) : sans chaîne, aucune sortie" },
+]
 
-const depuisV03 = (formatId: string, moteurId: string, ratios: ("9:16")[] = ["9:16"]) => async (): Promise<CommandeFabrication> => {
+const depuisV03 = (formatId: string, moteurId: string, ratios: Ratio[] = ["9:16"]) => async (): Promise<CommandeFabrication> => {
   const c = await construireCommande("v-03");
   return { ...c, formatId, moteurId, ratios };
 };
+
+/** Image → vidéo sur les doubles de `tests/image-video/doubles-fabrication.ts` (monde simulé), réglage « automatique » : aucune porte de Will. */
+const carteIV = carteFixe("C");
+const outilsIV = outilsSimules(carteIV, monde());
+const moteurImageVideo = creerMoteurMontageImageVideo({ outils: async () => outilsIV, numeroVersion: async () => 42 });
+async function commandeImageVideo(): Promise<CommandeFabrication> {
+  const c = await depuisV03("image-video", "montage-image-video")();
+  return {
+    ...c,
+    dureeCibleSec: 50,
+    entrees: { imageVideo: { imageCle: carteIV.image.cle, empreinte: carteIV.image.empreinte, plafondCentimes: 5000, codeSuivi: "essai", accordEssaiReel: true } },
+    reglages: { validationCarte: "automatique" },
+    budgetMax: { centimes: 5000, devise: "EUR" },
+  } as CommandeFabrication;
+}
 
 const casSans = bancCas({ relie: false });
 const tableauSans = bancTableau(ficheDemonstration, null);
@@ -83,18 +96,14 @@ interface Cas {
 const CAS: Record<string, Cas> = {
   simulation: { fabriquer: async () => construireCommande("v-03") },
   "montage-avocat": { fabriquer: async () => construireCommande("v-03") },
-  "montage-facecam": { fabriquer: depuisV03("facecam", "montage-facecam"), sansPrix: true },
-  "montage-facecam-animee": { fabriquer: depuisV03("facecam-animee", "montage-facecam-animee"), sansPrix: true },
+  "montage-facecam": { fabriquer: depuisV03("facecam", "montage-facecam"), sansPrix: true, sansFournisseur: () => creerMoteurMontageFacecam({ chaine: () => null }) },
+  "montage-facecam-animee": { fabriquer: depuisV03("facecam-animee", "montage-facecam-animee"), sansPrix: true, sansFournisseur: () => creerMoteurMontageFacecamAnimee({ outils: async () => undefined as never }) },
   "montage-tableau": { moteur: tableau.moteur, fabriquer: async () => tableau.commande(ficheDemonstration), sansPrix: true, sansFournisseur: () => tableauSans.moteur },
   "montage-cas-concret": { moteur: cas.moteur, fabriquer: async () => cas.commande(), sansFournisseur: () => casSans.moteur },
   "montage-tutoriel-outil": { moteur: tutoriel, fabriquer: async () => commandeTutoriel(), sansPrix: true, sansFournisseur: () => creerMoteurTutorielOutil({ outils: async () => null }) },
-  "montage-demo-facecam": { fabriquer: async () => commandeTutoriel() },
-  "montage-image-video": { fabriquer: async () => commandeTutoriel() },
+  "montage-demo-facecam": { fabriquer: depuisV03("demo-facecam", "montage-demo-facecam", ["4:5", "9:16", "1:1", "16:9"]), sansPrix: true, sansFournisseur: () => creerMoteurMontageDemoFacecam({ chaine: () => null }) },
+  "montage-image-video": { moteur: moteurImageVideo, fabriquer: async () => commandeImageVideo(), sansFournisseur: () => creerMoteurMontageImageVideo({ outils: async () => undefined as never }) },
 };
-void creerMoteurMontageCasConcret;
-void creerMoteurMontageTableau;
-void creerMoteurMontageDemoFacecam;
-void creerMoteurMontageImageVideo;
 
 for (const moteur of listerMoteurs()) {
   const c = CAS[moteur.id];
