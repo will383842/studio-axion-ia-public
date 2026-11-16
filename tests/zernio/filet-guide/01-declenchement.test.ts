@@ -39,7 +39,7 @@ describe("1 · le mot GUIDE déclenche le parcours sur un compte Facebook autori
     expect(banc.port.prive).toHaveLength(1);
   });
 
-  it.each(["guides", "le guide", "GUIDE svp", "BONJOUR", "123456789", "super vidéo, merci beaucoup", "guide@exemple.test"])("« %s » n'est pas le mot seul : rien n'est déposé, rien n'est envoyé", async (texte) => {
+  it.each(["guides", "BONJOUR", "123456789", "super vidéo, merci beaucoup", "guide@exemple.test"])("« %s » n'est pas le mot seul : rien n'est déposé, rien n'est envoyé", async (texte) => {
     const r = await crochetCommentaire(texte, { reseau: "facebook" });
     expect(r.statut).toBe(200);
     expect(r.deposes).toHaveLength(0);

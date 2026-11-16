@@ -148,7 +148,7 @@ describe("1 · commentaire GUIDE → réponse publique + message privé avec lie
     expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
   });
   it("un commentaire qui n'est pas le mot seul ne déclenche rien", async () => {
-    const r = await crochetCommentaire("GUIDE svp", { reseau: "facebook" });
+    const r = await crochetCommentaire("GUIDE est top", { reseau: "facebook" });
     expect(r.deposes).toHaveLength(0);
     await passer(T0, { env: ENV_LIEN });
     expect(envoisSortants()).toBe(0);

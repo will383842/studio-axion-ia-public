@@ -59,7 +59,8 @@ describe("lireCommentaireManuel", () => {
   });
   it("texte long : motSeul null ; phrase quelconque : null", () => {
     expect(lireCommentaireManuel(env("tiktok", { text: "GUIDE " + "a".repeat(300) }))!.motSeul).toBeNull();
-    expect(lireCommentaireManuel(env("tiktok", { text: "je veux le guide merci beaucoup" }), ["GUIDE"])!.motSeul).toBeNull();
+    expect(lireCommentaireManuel(env("tiktok", { text: "le guide est nul" }), ["GUIDE"])!.motSeul).toBeNull();
+    expect(lireCommentaireManuel(env("tiktok", { text: "je veux le guide merci beaucoup" }), ["GUIDE"])!.motSeul).toBe("GUIDE");
   });
   it("opposition : forme canonique ; notre propre commentaire : proprio, motSeul null", () => {
     expect(lireCommentaireManuel(env("linkedin", { text: "Stop, merci" }))!.motSeul).toBe("STOP");
