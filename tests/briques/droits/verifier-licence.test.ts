@@ -1,3 +1,4 @@
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { reconnaitre } from "../../../outils/licences/verifier-licence.mjs";
 
@@ -35,5 +36,27 @@ describe("verifier-licence : reconnaître", () => {
     ["texte inconnu", "Tous droits réservés."],
   ])("refuse %s", (_n, texte) => {
     expect(reconnaitre(texte)).toBeNull();
+  });
+});
+
+describe("verifier-licence : vrais fichiers du dépôt (lecture seule)", () => {
+  const lire = (p: string) => readFileSync(p, "utf8");
+  it.each([
+    ["src/briques/sous-titres/polices/OFL-Manrope.txt", "OFL-1.1"],
+    ["studio-rendu/compositions/interface-claire/sons/LICENCE-Kenney-CC0.txt", "CC0-1.0"],
+    ["studio-rendu/compositions/commune/polices/LICENCE-PermanentMarker-Apache-2.0.txt", "Apache-2.0"],
+    ["studio-rendu/compositions/visuels/icones/LICENCE-Lucide-ISC.txt", null],
+  ])("%s -> %s", (chemin, attendu) => {
+    expect(reconnaitre(lire(chemin))).toBe(attendu);
+  });
+
+  it("ISC coupé sur deux lignes", () => {
+    expect(reconnaitre("Permission to use, copy, modify, and/or distribute this software for any\npurpose with or without fee is hereby granted")).toBe("ISC");
+  });
+  it("tous les OFL-*.txt du dépôt sont reconnus", () => {
+    const dossier = "studio-rendu/compositions/commune/polices";
+    const fichiers = readdirSync(dossier).filter((f) => /^OFL-.*\.txt$/.test(f));
+    expect(fichiers.length).toBeGreaterThan(5);
+    for (const f of fichiers) expect(reconnaitre(lire(`${dossier}/${f}`))).toBe("OFL-1.1");
   });
 });
