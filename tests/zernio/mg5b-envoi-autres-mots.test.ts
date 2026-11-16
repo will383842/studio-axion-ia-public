@@ -140,7 +140,7 @@ describe("4 · cible test, de type adresse ou inactive : rien", () => {
     await passer(T0, { env: ENV_LIEN });
     expect(instantane()).toEqual(RIEN);
     // Mutable : le refus vient bien du contrôle de cible (et non d'une garde plus loin), l'événement est clos et la vérification par mot n'est jamais atteinte.
-    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(await decrire(id)).toBe("ecarte/essai_auteur_refuse");
     expect(espion.appels).toBe(0);
   });
 });
