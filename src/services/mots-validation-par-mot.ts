@@ -137,8 +137,8 @@ async function preparer(o: {
   const c = await cibleActuelleDuMot(o);
   if (!c.ok) return c;
   // Une page (adresse) n'a pas encore de parcours, et une cible d'essai (TEST) ne doit jamais envoyer vers une vraie personne : rien n'est validé pour elles.
-  // Exception d'essai : Facebook seulement et liste de comptes d'essai non vide (PARCOURS_ESSAI_COMPTES) ; Instagram garde « cible_test ».
-  if (c.test && !(o.reseau === "facebook" && essaiActif(o.env ?? process.env)))
+  // Exception d'essai : Facebook ou Instagram et liste de comptes d'essai non vide (PARCOURS_ESSAI_COMPTES).
+  if (c.test && !((o.reseau === "facebook" || o.reseau === "instagram") && essaiActif(o.env ?? process.env)))
     return { ok: false, raison: "cible_test" };
   if (c.type === "adresse") return { ok: false, raison: "adresse_pas_encore" };
   const e = empreinteMot({
@@ -178,7 +178,7 @@ export async function etatValidationMot(o: {
   }
 }
 
-export type RefusEnvoiMot = "cibles_illisibles" | "validation_absente";
+export type RefusEnvoiMot = "cibles_illisibles" | "validation_absente" | "instagram_pas_encore";
 
 /**
  * Garde d'envoi d'un mot autre que GUIDE : `null` = peut partir. « cibles_illisibles » : le site est injoignable ou seule la copie répond
@@ -196,6 +196,8 @@ export async function verifierMotPourEnvoi(o: {
   compte?: string;
   /** Vrai seulement si l'appelant a revérifié que l'auteur de la conversation d'essai est toujours listé (PARCOURS_ESSAI_AUTEURS). Absent = cible d'essai refusée. */
   auteurEssaiOk?: boolean;
+  /** Vrai : seule une cible d'essai (test) peut partir ; une vraie cible rend « instagram_pas_encore » (Instagram : les vrais mots restent fermés). */
+  essaiSeulement?: boolean;
 }): Promise<RefusEnvoiMot | null> {
   try {
     if (!estAuto(o.reseau)) return "validation_absente";
@@ -215,6 +217,7 @@ export async function verifierMotPourEnvoi(o: {
       return c.raison === "site_injoignable"
         ? "cibles_illisibles"
         : "validation_absente";
+    if (o.essaiSeulement === true && !c.test) return "instagram_pas_encore";
     const essaiPermis =
       o.compte !== undefined &&
       o.auteurEssaiOk === true &&
@@ -376,7 +379,8 @@ export type CodeRefusMotCompte =
   | "lecture_impossible";
 
 /**
- * Garde d'ACTIVATION d'un autre mot sur un compte : Facebook seulement (Instagram : « instagram_pas_encore », comme la garde d'envoi),
+ * Garde d'ACTIVATION d'un autre mot sur un compte : Facebook ; Instagram seulement si la cible du jour est d'ESSAI (test), le compte est listé
+ * (PARCOURS_ESSAI_COMPTES) et au moins un auteur est listé (sinon « instagram_pas_encore », comme la garde d'envoi),
  * puis toute la garde d'envoi par compte (textes validés pour CE réseau, cible active et non d'essai). N'appelle JAMAIS `sousVerrou`.
  */
 export async function verifierActivationMot(o: {
@@ -386,7 +390,12 @@ export async function verifierActivationMot(o: {
   maintenantMs?: number;
 }): Promise<CodeRefusMotCompte | "instagram_pas_encore" | null> {
   try {
-    if ((await reseauDuCompte(o.compte)) === "instagram") return "instagram_pas_encore";
+    if ((await reseauDuCompte(o.compte)) === "instagram") {
+      const env = o.env ?? process.env;
+      const c = await cibleActuelleDuMot({ mot: o.mot, reseau: "instagram", env, maintenantMs: o.maintenantMs });
+      if (!(c.ok && c.test && cibleEssaiPermise(env, o.compte, "instagram") && auteursEssai(env).length > 0))
+        return "instagram_pas_encore";
+    }
   } catch {
     return "lecture_impossible";
   }
