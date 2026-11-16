@@ -277,4 +277,14 @@ describe("SEO-03 · reprise de la relecture (tour 1)", () => {
     expect(rouge({ ...propre(), besoins: ["ne-rien-oublier", "ne-rien-oublier"] })).toBe(true);
     expect(controlerSeo({ ...propre(), metaDescription: t(100, "meta") }).niveau).toBe("orange");
   });
+
+  it("mots interdits dans l'adresse publique : rouge avec le motif « mot interdit »", () => {
+    const c = propre();
+    c.slug = "relances-clients-certifiees";
+    const r = controlerSeo(c);
+    expect(r.motifs.some((m) => m.champ === "slug" && m.niveau === "rouge" && /mot interdit/i.test(m.message))).toBe(true);
+    const d = propre();
+    d.pagesLiees = [{ texte: "Trier les demandes entrantes", adresse: "formation-qualiopi-rapide" }, d.pagesLiees![1]];
+    expect(controlerSeo(d).motifs.some((m) => m.champ === "pagesLiees" && m.niveau === "rouge" && /mot interdit/i.test(m.message))).toBe(true);
+  });
 });
