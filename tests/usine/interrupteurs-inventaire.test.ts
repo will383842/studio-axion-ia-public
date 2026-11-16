@@ -5,6 +5,13 @@
  * Trois sources : (1) la table figée ci-dessous ; (2) les fichiers purs importés (réglages plan de scènes, retouche chat) ;
  * (3) le texte de `src/**` (clés littérales passées à `lireParametre`). Une clé neuve absente de la table doit être éteinte
  * par défaut (seul `true` allume, R-9). Aucune lecture de la base, aucun import de fichier d'argent.
+ *
+ * Limite connue : le filet ne voit que les clés littérales et les clés passées par constante `const NOM = "clé"`. Un appel à
+ * clé VARIABLE (`lireParametre(cle, true)` où `cle` vient d'une liste ou d'un gabarit) lui échappe : ces listes sont donc
+ * inventoriées une à une ci-dessous (REGLAGES_CAS_CONCRET, CLES_INTERRUPTEURS_ECRITURE, INTERRUPTEURS_PUBLICATION, gabarits
+ * `moteur.*`). Restent volontairement HORS table, car ce sont des marques de dédoublonnage et non des interrupteurs :
+ * `credits.*.${id}` (cleRefusee, lancementPret, expiration), `budget.engage.*`, la `cle` de budget-mensuel.ts:232,
+ * autonomie-usine.ts:319 et :326, mode-budget.ts:108 et plafond-fournisseur.ts:74.
  */
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -85,6 +92,23 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "couverture.titreParDefaut", etat: "eteint", appel: "src/services/miniatures.ts", declare: "src/domaine/vignettes.ts", motif: /lireParametre<boolean>\(REGLAGE_TITRE_COUVERTURE, false\)\) !== true/ },
   { cle: "generateur.apprentissage", etat: "eteint", appel: "src/services/apprentissage.ts", declare: "src/domaine/apprentissage.ts", motif: /lireParametre<boolean>\(PARAM_APPRENTISSAGE, false\)\) === true/ },
   { cle: "sujets.garde", etat: "valeur", appel: "src/services/sujets-traites.ts", motif: /lireParametre<unknown>\(REGLAGE_GARDE_SUJETS, "bloquant"\)/ },
+  { cle: "zernio.envoi_calendrier_autorise", etat: "eteint", appel: "src/services/zernio.ts", motif: /PARAM_ENVOI_CALENDRIER, false\)\) === true/ },
+  { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
+  { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },
+  { cle: "adaptations_reseaux.actif", etat: "eteint", appel: "src/services/interrupteurs-ecriture.ts", motif: /lireParametre<unknown>\(cle, false\)\) === true/ },
+  { cle: "casConcret.porteB", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
+  { cle: "casConcret.retouches", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
+  { cle: "casConcret.documentPromis", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
+  { cle: "casConcret.ecranFourni", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
+  { cle: "casConcret.releves", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
+  { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
+  { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
+];
+
+/** Gabarits de clés construites par format (`moteur.${formatId}.…`, src/services/reglages.ts, zone interdite : lecture du texte). */
+const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp }[] = [
+  { gabarit: "moteur.*.jeLis", etat: "eteint", appel: "src/services/reglages.ts", motif: /lireParametre<boolean>\(`moteur\.\$\{formatId\}\.jeLis`, false\)\) === true/ },
+  { gabarit: "moteur.*.montageReel", etat: "eteint", appel: "src/services/reglages.ts", motif: /lireParametre<boolean>\(`moteur\.\$\{formatId\}\.montageReel`, false\)\) === true/ },
 ];
 
 const ENV: { nom: string; fichier: string }[] = [
@@ -189,6 +213,32 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
       const decl = c.declare ?? c.appel;
       expect(lire(decl), `${c.cle} : clé disparue de ${decl}`).toContain(`"${c.cle}"`);
     }
+  });
+
+  it("listes lues par clé variable : chaque clé de la liste est dans la table (casConcret, écriture, publication)", () => {
+    const cles = toutesCles();
+    const cst = toutesConstantes();
+    const casConcret = lire("src/services/cas-concret-reglages.ts").match(/REGLAGES_CAS_CONCRET = \{([^}]*)\}/)![1];
+    const idsCas = [...casConcret.matchAll(/:\s*"([^"]+)"/g)].map((x) => x[1]);
+    expect(idsCas).toHaveLength(7);
+    for (const k of idsCas) expect(cles.has(k), `REGLAGES_CAS_CONCRET : ${k} absente de la table`).toBe(true);
+    const ecriture = lire("src/services/interrupteurs-ecriture.ts").match(/CLES_INTERRUPTEURS_ECRITURE = \[([^\]]*)\]/)![1];
+    const idsEcr = [...ecriture.matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    expect(idsEcr).toHaveLength(4);
+    for (const k of idsEcr) expect(cles.has(k), `CLES_INTERRUPTEURS_ECRITURE : ${k} absente de la table`).toBe(true);
+    const registre = lire("src/domaine/interrupteurs/registre.ts");
+    const idsPub = [...registre.matchAll(/\bcle:\s*([A-Z][A-Z0-9_]*)/g)].flatMap((x) => [...(cst.get(x[1]) ?? [])]);
+    expect(idsPub.sort()).toEqual(["publication.editoriale_active", "publication.premier_commentaire_coupe"]);
+    for (const k of idsPub) expect(cles.has(k), `INTERRUPTEURS_PUBLICATION : ${k} absente de la table`).toBe(true);
+    expect(lire("src/services/publication-editoriale-interrupteurs.ts")).toMatch(/lireParametre<unknown>\(cle, false\)/);
+  });
+
+  it("a_traiter.reseaux_manuels : aussi lue par parcours-mot.ts avec son défaut éteint", () => {
+    expect(lire("src/services/parcours-mot.ts")).toMatch(/PARAM_RESEAUX_MANUELS, false\)\) === true/);
+  });
+
+  it("clés par format (gabarits moteur.*) : texte lu, défaut éteint constaté", () => {
+    for (const g of GABARITS) expect(lire(g.appel), `${g.gabarit} : appel introuvable dans ${g.appel}`).toMatch(g.motif);
   });
 
   it("variables d'environnement : lues dans le texte", () => {
