@@ -6,12 +6,22 @@
  * (3) le texte de `src/**` (clés littérales passées à `lireParametre`). Une clé neuve absente de la table doit être éteinte
  * par défaut (seul `true` allume, R-9). Aucune lecture de la base, aucun import de fichier d'argent.
  *
- * Limite connue : le filet ne voit que les clés littérales et les clés passées par constante `const NOM = "clé"`. Un appel à
- * clé VARIABLE (`lireParametre(cle, true)` où `cle` vient d'une liste ou d'un gabarit) lui échappe : ces listes sont donc
- * inventoriées une à une ci-dessous (REGLAGES_CAS_CONCRET, CLES_INTERRUPTEURS_ECRITURE, INTERRUPTEURS_PUBLICATION, gabarits
- * `moteur.*`). Restent volontairement HORS table, car ce sont des marques de dédoublonnage et non des interrupteurs :
- * `credits.*.${id}` (cleRefusee, lancementPret, expiration), `budget.engage.*`, la `cle` de budget-mensuel.ts:232,
- * autonomie-usine.ts:319 et :326, mode-budget.ts:108 et plafond-fournisseur.ts:74.
+ * Le filet refuse, pour une clé neuve, un défaut `true` OU un défaut objet allumé (`{ actif: true }`, forme de `site.reglages`),
+ * que la clé soit littérale, passée par constante `const NOM = "clé"` ou écrite en gabarit `` `x.${id}` ``.
+ *
+ * Limites connues du filet : (a) un appel à clé VARIABLE (`lireParametre(cle, true)` où `cle` vient d'une liste, d'un
+ * paramètre ou d'une fonction `cleX(id)`) lui échappe : ces listes et gabarits sont donc inventoriés un à un ci-dessous
+ * (REGLAGES_CAS_CONCRET, CLES_INTERRUPTEURS_ECRITURE, INTERRUPTEURS_PUBLICATION, INTERRUPTEURS_PRODUCTION, gabarits `moteur.*`,
+ * `siteGenerateurs.*`, `siteAuto.*`, `illustrations.economique.*`) ; (b) une lecture par fonction-enveloppe à défaut `null` ou
+ * `undefined` dont l'enveloppe décide « allumé si absent » (`motionAllumeeParDefaut` d'avocat-branchements.ts, `bufferGele`,
+ * `lireReglageRessemblance`) ne peut pas être jugée par le filet : ces cas sont constatés un à un dans PAR_CONSTANTE ;
+ * (c) les lectures directes `depots().parametres.obtenir(id)` (hors `lireParametre`) ne sont pas vues.
+ * Restent volontairement HORS table, car ce sont des marques de dédoublonnage, des mémoires ou des valeurs, et non des
+ * interrupteurs : `credits.*.${id}` (cleRefusee, lancementPret, expiration, epuise, test, rapprochement, alertes),
+ * `budget.engage.*`, la `cle` de budget-mensuel.ts:232, autonomie-usine.ts:319 et :326, mode-budget.ts:108,
+ * plafond-fournisseur.ts:74, `cleAlerteBudget()` (couts.ts), `paramRepriseDeWill(id)` (drapeau d'un seul tour,
+ * generation-claude.ts), et les mémoires/données (`*.validations`, `*.lots`, `parcours.conversations*`, `zernio.bascules`,
+ * `zernio.mode_envoi`, `zernio.tests`, etc.).
  */
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -21,7 +31,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7). */
 const LITTERALES: Record<string, Etat> = {
   afficherExemples: "allume",
   "alignement.voixSynthese": "eteint",
@@ -47,6 +57,7 @@ const LITTERALES: Record<string, Etat> = {
   "publication.pageSuivie": "valeur",
   "publication.routage": "valeur",
   "push.abonnements": "valeur",
+  "retoucheChat.coller": "eteint",
   "reseaux.parDefaut": "valeur",
   "site.lienDansYoutube": "eteint",
   "style.faconDeParler": "valeur",
@@ -59,7 +70,7 @@ const LITTERALES: Record<string, Etat> = {
  * Clés passées par constante : lues dans le TEXTE (jamais importé). `appel` : fichier où la clé est lue ; `declare` : fichier
  * de la déclaration de la constante (par défaut `appel`) ; `motif` doit figurer dans `appel` et contient le DÉFAUT constaté.
  */
-type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string };
+type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
@@ -103,12 +114,84 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "casConcret.releves", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
   { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
   { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
+  // Montage avocat (voisin de zone interdite) : lecture du texte seulement, jamais d'import.
+  {
+    cle: "avocat.motionCommune",
+    etat: "allume",
+    appel: "src/services/avocat-branchements.ts",
+    declare: "src/moteurs/montage-avocat/motion.ts",
+    motif: /motionAllumeeParDefaut\(PARAM_MOTION_AVOCAT\)/,
+    aussi: [["src/services/avocat-branchements.ts", /async function motionAllumeeParDefaut[\s\S]*?lireParametre<unknown>\(param, null\);\s*if \(v === false\) return null;/]],
+  },
+  {
+    cle: "avocat.monteur",
+    etat: "eteint",
+    appel: "src/services/avocat-branchements.ts",
+    declare: "src/moteurs/montage-avocat/monteur.ts",
+    motif: /await allume\(PARAM_MONTEUR_AVOCAT\)/,
+    aussi: [["src/services/avocat-branchements.ts", /async function allume\(param: string\)[\s\S]*?lireParametre<unknown>\(param, null\);\s*if \(v === true\) return \{\};/]],
+  },
+  { cle: "site.reglages", etat: "allume", appel: "src/services/source-axion.ts", motif: /lireParametre<ReglagesSite>\(PARAM_REGLAGES, \{ actif: true \}\)/ },
+  { cle: "matieres.rappelHebdo", etat: "eteint", appel: "src/services/matieres.ts", motif: /lireParametre\(CLE_RAPPEL, \{ actif: false \}\)/ },
+  { cle: "retoucheChat.sansGenerateur", etat: "eteint", appel: "src/services/retouche-chat/garde-acces.ts", motif: /lire\(CLE_REGLAGE_SANS_GENERATEUR, false\)\) === true/ },
+  {
+    cle: "buffer.gele",
+    etat: "allume",
+    appel: "src/services/buffer-gel.ts",
+    motif: /lireParametre<unknown>\(PARAM_GELE, undefined\);\s*if \(v === false\) return false;/,
+  },
+  {
+    cle: "voix.ressemblance",
+    etat: "allume",
+    appel: "src/services/voix-ressemblance.ts",
+    declare: "src/briques/voix-maitre/reference.ts",
+    motif: /lireReglageRessemblance\(await lireParametre<unknown>\(PARAM_RESSEMBLANCE_VOIX, null\)\)/,
+    aussi: [["src/briques/voix-maitre/reference.ts", /RESSEMBLANCE_VOIX_PAR_DEFAUT[^=]*= Object\.freeze\(\{ actif: true/]],
+  },
+  {
+    cle: "facecam.decorIa",
+    etat: "eteint",
+    appel: "src/services/decor-ia.ts",
+    motif: /lireReglageBrut\(await lireParametre<unknown>\(PARAM_DECOR_IA, null\)\)/,
+    aussi: [["src/services/decor-ia.ts", /actif: o\.actif === true/]],
+  },
+  {
+    cle: "facecam.effetRealiste",
+    etat: "eteint",
+    appel: "src/services/effet-realiste-ia.ts",
+    motif: /lireParametre<\{ reel\?: unknown \}>\(PARAM_REGLAGE_EFFET, \{\}\);\s*return \{ reel: r\?\.reel === true \}/,
+  },
 ];
 
-/** Gabarits de clés construites par format (`moteur.${formatId}.…`, src/services/reglages.ts, zone interdite : lecture du texte). */
-const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp }[] = [
+/**
+ * Gabarits de clés construites (`moteur.${formatId}.…`, src/services/reglages.ts, zone interdite : lecture du texte ;
+ * `siteGenerateurs.${formatId}` et `siteAuto.${formatId}`, site-videos.ts ; `illustrations.economique.${videoId}`, choix par
+ * vidéo, défaut `null` qui retombe sur le réglage général éteint). `declare` : motif de la fabrique de la clé.
+ */
+const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; declare?: RegExp }[] = [
   { gabarit: "moteur.*.jeLis", etat: "eteint", appel: "src/services/reglages.ts", motif: /lireParametre<boolean>\(`moteur\.\$\{formatId\}\.jeLis`, false\)\) === true/ },
   { gabarit: "moteur.*.montageReel", etat: "eteint", appel: "src/services/reglages.ts", motif: /lireParametre<boolean>\(`moteur\.\$\{formatId\}\.montageReel`, false\)\) === true/ },
+  {
+    gabarit: "siteGenerateurs.*",
+    etat: "eteint",
+    appel: "src/services/site-videos.ts",
+    motif: /lireParametre<boolean>\(cleSiteGenerateur\(formatId\), false\)\) === true/,
+    declare: /cleSiteGenerateur = \(formatId: string\) => `siteGenerateurs\.\$\{formatId\}`/,
+  },
+  {
+    gabarit: "siteAuto.*",
+    etat: "eteint",
+    appel: "src/services/site-videos.ts",
+    motif: /lireParametre<boolean>\(cleSiteAuto\(f\.id\), false\)\) === true/,
+    declare: /cleSiteAuto = \(formatId: string\) => `siteAuto\.\$\{formatId\}`/,
+  },
+  {
+    gabarit: "illustrations.economique.*",
+    etat: "eteint",
+    appel: "src/services/illustrations.ts",
+    motif: /lireParametre<boolean \| null>\(cleEconomique\(videoId\), null\);\s*return v \?\? \(await lireParametre<boolean>\("illustrations\.economique", false\)\)/,
+    declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
+  },
 ];
 
 const ENV: { nom: string; fichier: string }[] = [
@@ -136,24 +219,31 @@ export function constantesDansTexte(texte: string, dans = new Map<string, Set<st
   return dans;
 }
 
-/** Extrait { clé → défauts littéraux } des appels `lireParametre("clé", défaut)` ou `lireParametre(CONSTANTE, défaut)` d'un texte. */
+/**
+ * Extrait { clé → défauts littéraux } des appels `lireParametre("clé", défaut)`, `lireParametre(CONSTANTE, défaut)` ou
+ * `` lireParametre(`x.${id}`, défaut) `` (gabarit : chaque `${…}` devient `*`) d'un texte. Un défaut objet est gardé entier.
+ */
 export function cleDansTexte(texte: string, constantes: Map<string, Set<string>> = new Map()): Map<string, string[]> {
   const m = new Map<string, string[]>();
   const ajoute = (cle: string, d?: string) => m.set(cle, [...(m.get(cle) ?? []), (d ?? "").trim()]);
-  const re = /\blireParametre(?:<[^()]*?>)?\(\s*(?:"([^"]+)"|([A-Z][A-Z0-9_]*))\s*(?:,\s*([^,)\n]*(?:\([^)]*\))?))?/g;
+  const re = /\blireParametre(?:<[^()]*?>)?\(\s*(?:"([^"]+)"|([A-Z][A-Z0-9_]*)|`([^`]+)`)\s*(?:,\s*(\{[^}]*\}|[^,)\n]*(?:\([^)]*\))?))?/g;
   for (const x of texte.matchAll(re)) {
-    if (x[1]) ajoute(x[1], x[3]);
-    else for (const cle of constantes.get(x[2]) ?? []) ajoute(cle, x[3]);
+    if (x[1]) ajoute(x[1], x[4]);
+    else if (x[3]) ajoute(x[3].replace(/\$\{[^}]*\}/g, "*"), x[4]);
+    else for (const cle of constantes.get(x[2]) ?? []) ajoute(cle, x[4]);
   }
   return m;
 }
 
-/** Refuse toute clé neuve (hors table) dont un défaut littéral est `true` (clé littérale ou passée par constante). */
+/** Un défaut allume-t-il ? `true`, ou un objet `{ …, actif: true, … }`. */
+export const defautAllume = (d: string) => d === "true" || (d.startsWith("{") && /\bactif\s*:\s*true\b/.test(d));
+
+/** Refuse toute clé neuve (hors table) dont un défaut littéral allume (`true` ou `{ actif: true }`). */
 export function interrupteursNeufsAllumes(texte: string, connues: Set<string>, constantes?: Map<string, Set<string>>): string[] {
   const refus: string[] = [];
   const cst = constantesDansTexte(texte, new Map([...(constantes ?? new Map())].map(([k, v]) => [k, new Set(v)])));
   for (const [cle, defauts] of cleDansTexte(texte, cst)) {
-    if (!connues.has(cle) && defauts.includes("true")) refus.push(`${cle} : interrupteur neuf allumé par défaut : interdit (R-9)`);
+    if (!connues.has(cle) && defauts.some(defautAllume)) refus.push(`${cle} : interrupteur neuf allumé par défaut : interdit (R-9)`);
   }
   return refus;
 }
@@ -171,6 +261,7 @@ const toutesCles = () =>
     ...PAR_CONSTANTE.map((c) => c.cle),
     ...Object.keys(PLAN_SCENES),
     ...Object.keys(RETOUCHE),
+    ...GABARITS.map((g) => g.gabarit),
   ]);
 
 describe("Inventaire des interrupteurs (G7-06)", () => {
@@ -212,6 +303,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
       expect(lire(c.appel), `${c.cle} : appel avec son défaut introuvable dans ${c.appel}`).toMatch(c.motif);
       const decl = c.declare ?? c.appel;
       expect(lire(decl), `${c.cle} : clé disparue de ${decl}`).toContain(`"${c.cle}"`);
+      for (const [f, m] of c.aussi ?? []) expect(lire(f), `${c.cle} : règle du défaut introuvable dans ${f}`).toMatch(m);
     }
   });
 
@@ -237,8 +329,23 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(lire("src/services/parcours-mot.ts")).toMatch(/PARAM_RESEAUX_MANUELS, false\)\) === true/);
   });
 
-  it("clés par format (gabarits moteur.*) : texte lu, défaut éteint constaté", () => {
-    for (const g of GABARITS) expect(lire(g.appel), `${g.gabarit} : appel introuvable dans ${g.appel}`).toMatch(g.motif);
+  it("site-videos.ts : `siteAuto.*` aussi lu à la mise en ligne automatique avec son défaut éteint", () => {
+    expect(lire("src/services/site-videos.ts")).toMatch(/lireParametre<boolean>\(cleSiteAuto\(video\.formatId\), false\)\) !== true/);
+  });
+
+  it("interrupteurs d'envoi affichés (INTERRUPTEURS_PRODUCTION, etat-production.ts) : chacun dans la table, même défaut", () => {
+    const texte = lire("src/services/etat-production.ts").match(/INTERRUPTEURS_PRODUCTION = \[([\s\S]*?)\] as const/)![1];
+    const lignes = [...texte.matchAll(/cle: "([^"]+)"[^}]*parDefaut: (true|false)/g)].map((x) => [x[1], x[2]] as const);
+    expect(lignes).toHaveLength(3);
+    const etats = new Map(PAR_CONSTANTE.map((c) => [c.cle, c.etat]));
+    for (const [cle, d] of lignes) expect(etats.get(cle), `INTERRUPTEURS_PRODUCTION : ${cle}`).toBe(d === "true" ? "allume" : "eteint");
+  });
+
+  it("clés par format (gabarits moteur.*, siteGenerateurs.*, siteAuto.*, illustrations.economique.*) : texte lu, défaut constaté", () => {
+    for (const g of GABARITS) {
+      expect(lire(g.appel), `${g.gabarit} : appel introuvable dans ${g.appel}`).toMatch(g.motif);
+      if (g.declare) expect(lire(g.appel), `${g.gabarit} : fabrique de la clé introuvable`).toMatch(g.declare);
+    }
   });
 
   it("variables d'environnement : lues dans le texte", () => {
@@ -260,11 +367,25 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     ]);
   });
 
+  it("faux fichier neuf à défaut objet allumé `lireParametre(PARAM_X, { actif: true })` : refusé", () => {
+    const refus = ["x.actif : interrupteur neuf allumé par défaut : interdit (R-9)"];
+    expect(interrupteursNeufsAllumes(`const PARAM_X = "x.actif";\nlireParametre<R>(PARAM_X, { actif: true })`, toutesCles())).toEqual(refus);
+    expect(interrupteursNeufsAllumes(`lireParametre("x.actif", { mode: "a", actif: true, n: 2 })`, toutesCles())).toEqual(refus);
+    expect(interrupteursNeufsAllumes(`const PARAM_X = "x.actif";\nlireParametre(PARAM_X, { actif: false })`, toutesCles())).toEqual([]);
+    // Défaut objet allumé d'une clé constatée allumée (site.reglages) : accepté.
+    expect(interrupteursNeufsAllumes(`const PARAM_REGLAGES = "site.reglages";\nlireParametre(PARAM_REGLAGES, { actif: true })`, toutesCles())).toEqual([]);
+  });
+
+  it("faux fichier neuf à clé en gabarit `` lireParametre(`x.${id}.actif`, true) `` : refusé", () => {
+    expect(interrupteursNeufsAllumes("lireParametre<boolean>(`x.${id}.actif`, true)", toutesCles())).toEqual(["x.*.actif : interrupteur neuf allumé par défaut : interdit (R-9)"]);
+    expect(interrupteursNeufsAllumes("lireParametre<boolean>(`siteAuto.${id}`, false)", toutesCles())).toEqual([]);
+  });
+
   it("clé existante allumée (afficherExemples) : acceptée car constatée dans la table", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les 30 clés littérales de master sont toutes dans la table", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(30);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(31);
   });
 });
