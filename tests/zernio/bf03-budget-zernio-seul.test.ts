@@ -15,7 +15,7 @@ const MDP = "essai-bf03-123";
 beforeAll(async () => {
   process.env.SESSION_SECRET = "s".repeat(48);
   const empreinte = await hash(MDP, { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 });
-  process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
+  process.env.STUDIO_PASSWORD_HASH_B64 = btoa(empreinte);
 });
 
 const actions = await import("@/app/(studio)/reglages/actions-zernio");
