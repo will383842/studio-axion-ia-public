@@ -15,7 +15,10 @@ import { obtenirReseau } from "@/reseaux";
 import { reseauxDeCommande } from "@/briques/declinaison";
 import { VoixNonEpingleeError } from "@/briques/voix-maitre/voix-epinglee";
 import { ErreurRendu } from "@/fournisseurs/rendu/client";
-import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ParentRetouche, ResultatFabrication } from "../types";
+import type { PlanValide } from "@/briques/plan-scenes/schema";
+import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
+import { validerPlan } from "@/briques/plan-scenes/validateur";
+import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
 import { avancerEtape, ErreurTutoriel, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
@@ -270,10 +273,26 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
   }
 
   /** Travail repris d'une version d'avant : son script, sa voix et son plan, jamais repayés. */
-  function etatDepuisParent(commande: CommandeFabrication, parent: ParentRetouche | undefined, ratios?: Ratio[]): EtatTutoriel {
+  function etatDepuisParent(commande: CommandeFabrication, parent: ParentRetouche | undefined, ratios?: Ratio[], operations?: OperationMontage[]): EtatTutoriel {
     const p = lireProjetTutoriel(parent?.projetMontage);
     const e = etatInitial(commande);
-    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan: p.plan?.plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}) };
+    const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
+    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}) };
+  }
+
+  /**
+   * R3-01 : la dernière opération `planScenes` remplace le plan d'avant. Ignorée (plan d'avant gardé) si ses mots ou
+   * son format diffèrent (sinon `pasPlan` rappellerait Claude, payant) ou si le plan est illisible.
+   */
+  function planRetouche(parent: PlanValide, operations?: OperationMontage[]): PlanValide {
+    const op = operations?.filter((o): o is Extract<OperationMontage, { type: "planScenes" }> => o.type === "planScenes").at(-1);
+    if (!op) return parent;
+    const brut = op.plan as { mots?: unknown; format?: unknown } | null | undefined;
+    if (!brut || typeof brut !== "object") return parent;
+    if (brut.mots !== undefined && jsonCanonique(brut.mots) !== jsonCanonique(parent.mots)) return parent;
+    if (brut.format !== undefined && jsonCanonique(brut.format) !== jsonCanonique(parent.format)) return parent;
+    const r = validerPlan(op.plan, { mots: parent.mots, format: parent.format, facecam: false, dureeMs: parent.dureeMs });
+    return r.remarques.some((x) => x.code === "PLAN_ILLISIBLE") ? parent : r.plan;
   }
 
   return {
@@ -300,9 +319,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
       void _e;
       return { ...reste, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
     },
-    retoucher: async ({ commande, contexte, parent }) => {
+    retoucher: async ({ commande, contexte, parent, operations }) => {
       const ctx = { ...contexte, type: "retouche" as const };
-      return nouveauTravail(etapesDe(commande), ctx, commande, etatDepuisParent(commande, parent));
+      return nouveauTravail(etapesDe(commande), ctx, commande, etatDepuisParent(commande, parent, undefined, operations));
     },
     reexporter: async ({ commande, contexte, cible, parent }) => {
       const ratio = "ratio" in cible ? cible.ratio : obtenirReseau(cible.reseau).ratioPrefere;
