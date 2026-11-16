@@ -31,6 +31,9 @@ import { ecrireCube } from "../../src/lib/qc-lut.js";
 import { argumentsExport, argumentsMaster, grapheCouleurs, lireExport, listeConcatTexte, moovAvantMdat, sourceGrain } from "./composition/ffmpeg.js";
 import { argumentsImageFfmpeg, type FichiersImage } from "./composition/image-ffmpeg.js";
 import { grapheEcranDivise } from "./composition/graphe-ecran-divise.js";
+import { argumentsRecollage, controleRecollage, listeConcat, verifierRecollable } from "./composition/recollage.js";
+import { argumentsRecollables } from "./composition/reglages-recollables.js";
+import type { SondeFfprobe } from "./composition/empreinte-encodage.js";
 import { controlerCouleurs, ecartCouleurs, mesurerCouleurs, type Zone } from "./composition/couleurs.js";
 import { mesurerVmaf, noterEtRelancer } from "./operations/composition.js";
 import { argumentsEtalonnageVideo, filtreEtalonnage } from "./operations/etalonnage.js";
@@ -215,6 +218,12 @@ async function verifierGardeFouCouleurs(dossier: string): Promise<void> {
   if (casse.couleursAberrantes !== 1) throw new Error(`export aux couleurs aberrantes NON détecté : ${JSON.stringify(casse)}`);
 }
 
+/** PURE (G11-04). Arguments d'un mini-export recollable : image clé toutes les 25 images, étiquettes BT.709 (sans elles, `recollable` refuse), réglages recollables, sortie en dernier. */
+export function argumentsMiniExportRecollable(source: string, debutSec: number, dureeSec: number, sortie: string): string[] {
+  const base = ["-ss", String(debutSec), "-i", source, "-t", String(dureeSec), "-an", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-g", "25", "-keyint_min", "25", "-sc_threshold", "0", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  return [...argumentsRecollables(base), sortie];
+}
+
 /** Les contrôles, dans l'ordre (chacun lit les fichiers des précédents, dans `dossier`). */
 export function controles(dossier: string): { nom: string; executer: () => Promise<unknown> }[] {
   const ff = (args: string[]) => () => lancer(["-hide_banner", "-nostdin", "-y", ...args], dossier);
@@ -289,6 +298,25 @@ export function controles(dossier: string): { nom: string; executer: () => Promi
     } },
     // G11-08 : graphe « visage + écran » (écran divisé), exécuté sur prise.mp4 (visage) et carte.mp4 (écran) ; aucun chemin de production ne l'appelle.
     { nom: "graphe écran divisé (grapheEcranDivise, visage + écran)", executer: ff(["-i", "prise.mp4", "-i", "carte.mp4", "-filter_complex", grapheEcranDivise({ largeur: W, hauteur: H, rectEcran: { x: 0, y: 0, largeur: W, hauteur: H / 2 }, rectVisage: { x: 0, y: H / 2, largeur: W, hauteur: H / 2 }, fps: FPS }), "-map", "[sortie]", "-frames:v", "5", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "ecran-divise.mp4"]) },
+    // G11-04 : preuve réelle du recollage aux images clés ; aucun chemin de production ne l'appelle.
+    { nom: "recollage de deux mini-exports recollables (G11-04 : -c copy, mêmes images, temps croissants, son posé une fois)", executer: async () => {
+      const sonde = async (f: string) => JSON.parse(await executer(FFPROBE, ["-v", "error", "-show_streams", "-show_format", "-of", "json", join(dossier, f)])) as SondeFfprobe;
+      const images = async (f: string) => Number((await executer(FFPROBE, ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", join(dossier, f)])).trim());
+      await ff(argumentsMiniExportRecollable("prise.mp4", 0, 0.6, "recol-a.mp4"))();
+      await ff(argumentsMiniExportRecollable("prise.mp4", 0.6, 0.6, "recol-b.mp4"))();
+      const v = verifierRecollable(await sonde("recol-a.mp4"), await sonde("recol-b.mp4"));
+      if (!v.ok) throw new Error(`non recollable : ${v.raisons.join(" ; ")}`);
+      const attendu = (await images("recol-a.mp4")) + (await images("recol-b.mp4"));
+      await writeFile(join(dossier, "recol.txt"), listeConcat([{ chemin: "recol-a.mp4", dureeSec: 0.6 }, { chemin: "recol-b.mp4", dureeSec: 0.6 }]));
+      await ff(argumentsRecollage("recol.txt", "recolle.mp4"))();
+      const temps = (await executer(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0", join(dossier, "recolle.mp4")])).split(/\r?\n/).filter(Boolean).map(Number);
+      const r = controleRecollage({ images: attendu, tempsSec: [] }, { images: await images("recolle.mp4"), tempsSec: temps });
+      if (!r.ok) throw new Error(`recollage refusé : ${r.raisons.join(" ; ")}`);
+      await ff(["-i", "recolle.mp4", "-i", "voix.wav", "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-shortest", "recolle-son.mp4"])();
+      const f = await sonde("recolle-son.mp4");
+      const nb = (t: string) => (f.streams ?? []).filter((x: { codec_type?: string }) => x.codec_type === t).length;
+      if (nb("video") !== 1 || nb("audio") !== 1) throw new Error(`attendu 1 flux vidéo et 1 audio, trouvé ${nb("video")} et ${nb("audio")}`);
+    } },
   ];
 }
 
