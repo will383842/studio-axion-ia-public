@@ -17,7 +17,12 @@ export interface EntreeChoixV4 {
 }
 
 const sansAccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const mots = (s: string) => sansAccent(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+/** Mots vides recopiés de `recherche.ts` (non modifié), comparés APRÈS retrait des accents : « à » → « a », « où » → « ou ». */
+const MOTS_VIDES = new Set([
+  "le", "la", "les", "l", "un", "une", "des", "de", "du", "d", "et", "ou", "a", "au", "aux", "en", "dans", "sur", "pour", "par", "avec",
+  "the", "an", "of", "and", "or", "in", "on", "to", "for", "with",
+]);
+const mots = (s: string) => sansAccent(s).split(/[^\p{L}\p{N}]+/u).filter((m) => m && !MOTS_VIDES.has(m));
 
 /** Hachage simple (FNV-1a 32 bits), stable. */
 function hache(s: string): number {

@@ -1,6 +1,7 @@
 /** Extraits maison v4 (C4-U4.2) : choisir un extrait par les mots du thème. Pur, sans réseau. */
 import { describe, expect, it } from "vitest";
 import { choisirExtraitV4, type CandidatChoixV4 } from "@/moteurs/montage-facecam-animee/extraits-maison/choisir";
+import { lireRechercheAxion } from "@/moteurs/montage-facecam-animee/extraits-maison/recherche";
 import { cleUsageExtrait } from "@/briques/bibliotheque-video/types";
 
 const cand = (id: string, o: Partial<CandidatChoixV4> = {}): CandidatChoixV4 => ({
@@ -61,5 +62,12 @@ describe("choisirExtraitV4 · règles", () => {
     expect(r.debutSec).toBeGreaterThanOrEqual(5);
     expect(r.debutSec + r.longueurSec).toBeLessThanOrEqual(9 + 1e-9);
     expect(r.longueurSec).toBeGreaterThanOrEqual(3);
+  });
+  it("mots vides désaccentués (« à » → « a ») ne comptent pas : seuil d'un mot plein", () => {
+    const recherche = lireRechercheAxion("axion: voyage à Lisbonne")!;
+    const c = cand("c", { texte: "il a fait beau" });
+    expect(choisirExtraitV4({ ...base, recherche, candidats: [c] })).toBeNull();
+    const ok = cand("o", { texte: "voyage en train" });
+    expect(choisirExtraitV4({ ...base, recherche, candidats: [c, ok] })?.extrait.id).toBe("o");
   });
 });
