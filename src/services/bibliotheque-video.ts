@@ -30,11 +30,14 @@ export async function entreeBibliothequeDuLancement(
     const demande = { formatId: video.formatId, videoIdEnCours: video.id, fenetre: profil.memoire };
     let usages: UsageMemoire[] = [];
     try {
-      const a = await lireMemoiresA(demande);
-      await lireMemoiresB(demande); // lecture seule, sans usage catalogué (tout est « hors catalogue »)
-      usages = fusionnerMemoires([a.usages], profil.memoire);
+      usages = fusionnerMemoires([(await lireMemoiresA(demande)).usages], profil.memoire);
     } catch (e) {
-      console.warn("[studio] mémoire de la bibliothèque vidéo illisible :", e instanceof Error ? e.message : e);
+      console.warn("[studio] mémoire A de la bibliothèque vidéo illisible :", e instanceof Error ? e.message : e);
+    }
+    try {
+      await lireMemoiresB(demande); // lecture seule, sans usage catalogué (tout est « hors catalogue »)
+    } catch (e) {
+      console.warn("[studio] mémoire B de la bibliothèque vidéo illisible :", e instanceof Error ? e.message : e);
     }
     const entree: EntreeBibliotheque = {
       version: VERSION_BIBLIOTHEQUE,

@@ -2,6 +2,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const { mem } = vi.hoisted(() => ({ mem: { B: false } }));
+vi.mock("@/services/bibliotheque-video-memoires", async (orig) => {
+  const reel = await orig<typeof import("@/services/bibliotheque-video-memoires")>();
+  return { ...reel, lireMemoiresB: (d: never) => (mem.B ? Promise.reject(new Error("boum B")) : reel.lireMemoiresB(d)) };
+});
+
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const commun = await import("@/services/_commun");
 const { entreeBibliothequeDuLancement, lecteurDepuisEntree } = await import("@/services/bibliotheque-video");
@@ -18,7 +24,7 @@ const versionFigee = (n: number, cle: string) => ({
   commande: { formatId: "cas-concret", entrees: { bibliothequeVideo: { choix: [{ capacite: "texte.style-varie", cle }] } } },
 }) as never;
 
-beforeEach(() => { reinitialiserDepots(); });
+beforeEach(() => { reinitialiserDepots(); mem.B = false; });
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("réglage éteint ou illisible → {} sans aucune clé", () => {
@@ -91,10 +97,17 @@ describe("réglage allumé", () => {
     expect(new Set(entree?.recents.map((r) => r.videoId)).size).toBe(fenetre);
   });
 
-  it("une mémoire qui lève : entrée construite, autres sources gardées", async () => {
+  it("mémoire A qui lève : entrée construite", async () => {
+    await commun.ecrireParametre(CLE, true);
+    vi.spyOn(depots().versions, "lister").mockRejectedValue(new Error("boum"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(lireEntreeBibliotheque(await entreeBibliothequeDuLancement(video))).not.toBeNull();
+  });
+
+  it("mémoire B qui lève : entrée construite, recents de A gardés", async () => {
     await commun.ecrireParametre(CLE, true);
     await depots().versions.enregistrer(versionFigee(1, "s1"));
-    vi.spyOn(depots().travaux, "lister").mockRejectedValue(new Error("boum"));
+    mem.B = true;
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const entree = lireEntreeBibliotheque(await entreeBibliothequeDuLancement(video));
     expect(entree).not.toBeNull();

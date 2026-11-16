@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { etatCapacite } from "@/briques/bibliotheque-video/catalogue";
+import { PREFIXE_COULISSE_V4 } from "@/briques/bibliotheque-video/noms";
 import { appliquerReglage } from "@/briques/bibliotheque-video/permissions";
 import { profilDuFormat } from "@/briques/bibliotheque-video/profils";
 import type { ReglageBibliotheque } from "@/briques/bibliotheque-video/reglage";
@@ -31,12 +33,16 @@ describe("appliquerReglage", () => {
 
   it("coulisse, absent, verrouillée (id ou famille) : ignorées", () => {
     const base = profilDuFormat("cas-concret");
-    const coulisse = "motion.v4-coulisse.demo" as IdCapacite;
+    const coulisse = `${PREFIXE_COULISSE_V4}LogoOutil` as IdCapacite;
+    expect(etatCapacite(coulisse)).toBe("coulisse");
     const profil: ProfilVideo = {
       ...base,
       capacites: { ...base.capacites, [coulisse]: { permis: false }, "calque.texte-derriere-double": { permis: false }, "etalonnage.lut-clair-obscur": { permis: false } },
       verrous: ["etalonnage", "texte.surlignage-marqueur"],
     };
+    expect(profil.verrous).not.toContain(coulisse);
+    const seule = appliquerReglage(profil, reglage(coulisse));
+    expect(seule.capacites[coulisse]?.permis).toBe(false);
     const r = appliquerReglage(profil, reglage(coulisse, "calque.texte-derriere-double", "etalonnage.lut-clair-obscur", "texte.surlignage-marqueur"));
     expect(r.capacites).toEqual(profil.capacites);
   });
