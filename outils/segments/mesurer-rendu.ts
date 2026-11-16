@@ -12,6 +12,9 @@
  * rien n'est écrit dans le dépôt, rien n'est envoyé, aucun téléchargement.
  */
 
+import { resolve as resoudre } from "node:path";
+import { fileURLToPath } from "node:url";
+
 export type GenreMesure = "scene" | "entier" | "final";
 
 export interface MesureRendu {
@@ -91,8 +94,11 @@ async function principal(args: string[]): Promise<void> {
   const { spawnSync } = await import("node:child_process");
   const { createRequire } = await import("node:module");
   const exigerRendu = createRequire(resolve("studio-rendu", "package.json"));
-  const { bundle } = exigerRendu("@remotion/bundler") as typeof import("@remotion/bundler");
-  const { renderMedia, selectComposition } = exigerRendu("@remotion/renderer") as typeof import("@remotion/renderer");
+  const { bundle } = exigerRendu("@remotion/bundler") as { bundle: (o: { entryPoint: string }) => Promise<string> };
+  const { renderMedia, selectComposition } = exigerRendu("@remotion/renderer") as {
+    renderMedia: (o: Record<string, unknown>) => Promise<unknown>;
+    selectComposition: (o: Record<string, unknown>) => Promise<{ durationInFrames: number } & Record<string, unknown>>;
+  };
 
   const dossier = mkdtempSync(join(tmpdir(), "mesure-rendu-"));
   const serveUrl = await bundle({ entryPoint: resolve("studio-rendu", "compositions", "index.ts") });
@@ -123,6 +129,8 @@ async function principal(args: string[]): Promise<void> {
         const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", fiche.passageFinal.entree, "-c:v", "libx264", "-crf", "18", "-c:a", "aac", sortie]);
         if (r.status === 0) {
           mesures.push({ nom: `${fiche.composition} · passage final`, genre: "final", images: composition.durationInFrames, ms: Date.now() - t0, octets: statSync(sortie).size });
+        } else {
+          console.error(`passage final ignoré pour ${fiche.composition} : ffmpeg a échoué (code ${r.status ?? "inconnu"}) ${String(r.stderr ?? "").trim()}`);
         }
       }
       console.log(`\n### ${fiche.composition}\n`);
@@ -133,7 +141,7 @@ async function principal(args: string[]): Promise<void> {
   }
 }
 
-if (import.meta.main) {
+if (process.argv[1] && resoudre(process.argv[1]) === fileURLToPath(import.meta.url)) {
   principal(process.argv.slice(2)).catch((e) => {
     console.error(e instanceof Error ? e.message : e);
     process.exit(1);
