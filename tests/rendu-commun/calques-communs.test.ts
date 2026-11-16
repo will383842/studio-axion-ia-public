@@ -19,9 +19,11 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 const { createElement } = AVEC_RENDU ? ((await import("../../studio-rendu/node_modules/react/index.js")) as typeof import("react")) : ({} as typeof import("react"));
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
 const { renderToStaticMarkup } = AVEC_RENDU ? ((await import("../../studio-rendu/node_modules/react-dom/server.js")) as typeof import("react-dom/server")) : ({} as typeof import("react-dom/server"));
-const SOUS_TITRES = AVEC_RENDU ? await import("../../studio-rendu/compositions/sous-titres/CalqueSousTitres") : null;
-const PLAN_SCENES = AVEC_RENDU ? await import("../../studio-rendu/compositions/plan-scenes/CalquePlanScenes") : null;
-const COMMUN = AVEC_RENDU ? await import("../../studio-rendu/compositions/commune/CalquesCommuns") : null;
+// Chemin calculé : tsc (projet racine, qui exclut studio-rendu) ne suit pas ces imports, donc ne cherche pas `remotion` hors de studio-rendu.
+const chemin = (c: string) => `../../studio-rendu/compositions/${c}`;
+const SOUS_TITRES = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("sous-titres/CalqueSousTitres")) : null;
+const PLAN_SCENES = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan-scenes/CalquePlanScenes")) : null;
+const COMMUN = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("commune/CalquesCommuns")) : null;
 
 const SCRIPT = "Aujourd'hui je vous montre comment j'ai généré 12 000 euros de chiffre d'affaires en 30 jours. Résultat : 87 % de clients satisfaits et 3 fois plus de demandes.";
 const MOTS: MotEnSecondes[] = SCRIPT.split(" ").map((texte, i) => ({ texte, debutSec: i * 0.4, finSec: i * 0.4 + 0.35 }));
