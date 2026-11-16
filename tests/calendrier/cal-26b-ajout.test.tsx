@@ -85,6 +85,17 @@ describe("formulaire d'ajout : quatre questions", () => {
     expect(ajouterEntree.mock.calls[0]![0]).toMatchObject({ compteCible: "compte-fictif" });
   });
 
+  it("aucun réseau coché : rien n'est soumis, pas de succès, message au vouvoiement", async () => {
+    ajouterEntree.mockClear();
+    const m = monter(AjouterEntree, { ...base, reseau: "linkedin" as const });
+    (champ(m, "reseau", "linkedin").props.onChange as (e: unknown) => void)({ target: { checked: false } });
+    await soumettre(m);
+    expect(ajouterEntree).not.toHaveBeenCalled();
+    const texte = texteDe(m.rendre());
+    expect(texte).toContain("Cochez au moins un réseau.");
+    expect(texte).not.toMatch(/Ajouté|publications ajoutées|à valider avant tout envoi/);
+  });
+
   it("une date passée : avertissement confirmable, jamais un refus", async () => {
     ajouterEntree.mockClear();
     ajouterEntree.mockResolvedValueOnce({ ok: false, message: "x", aConfirmer: "passe", avertissement: "Ce jour est passé." });

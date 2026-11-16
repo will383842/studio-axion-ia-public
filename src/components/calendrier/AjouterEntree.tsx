@@ -62,6 +62,12 @@ export function AjouterEntree({ jour, compteCible, reseau = "linkedin", proposer
 
   async function envoyer(confirmation?: "passe" | "proximite" | "quota") {
     if (enCours) return;
+    if (cibles().length === 0) {
+      setNombre(0);
+      setNonEnvoye(null);
+      setRetour({ ok: false, message: "Cochez au moins un réseau." } as ResultatAjout);
+      return;
+    }
     if (confirmation === "passe") confirme.current.passe = true;
     if (confirmation === "proximite" || confirmation === "quota") confirme.current.proximite = true;
     setEnCours(true);
