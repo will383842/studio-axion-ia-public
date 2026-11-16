@@ -25,6 +25,24 @@ export async function instagramSuivreActif(options?: Options): Promise<boolean> 
   }
 }
 
+/**
+ * Réglage « Instagram ouvert au public ». ÉTEINT PAR DÉFAUT ; seul lecteur de production : parcours-conversation (INSTA-C).
+ * Tant qu'il n'est pas exactement `true`, Instagram ne sert QUE les auteurs listés dans PARCOURS_ESSAI_AUTEURS. Échec FERMÉ.
+ * AUCUN écrivain : l'ouverture au public sera un geste serveur décidé plus tard par le fondateur.
+ */
+export const PARAM_INSTAGRAM_PUBLIC = "parcours.instagram_public";
+
+export async function instagramPublicActif(options?: Options): Promise<boolean> {
+  try {
+    const lire =
+      options?.lire ??
+      (() => lireParametre<unknown>(PARAM_INSTAGRAM_PUBLIC, false));
+    return estVraie(await lire());
+  } catch {
+    return false;
+  }
+}
+
 /** Écriture du réglage (seule voie : l'interrupteur de /mots, via `parcours-conversation`). Mémoire ET base, par la couche de données normale. */
 export async function ecrireInstagramSuivre(allume: boolean): Promise<void> {
   await ecrireParametre(PARAM_INSTAGRAM_SUIVRE, allume);

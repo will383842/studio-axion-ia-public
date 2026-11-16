@@ -251,6 +251,7 @@ describe("LIA-0 · comportement actuel figé (réglage éteint)", () => {
       },
     });
     const b = TEXTES_MP["mp-merci-v1"];
+    await Com.ecrireParametre("parcours.instagram_public", true); // T2 : Instagram ouvert pour ce test (préparation seulement, aucune attente modifiée)
     await Com.ecrireParametre("parcours.validation.merci", {
       empreinte: createHash("sha256")
         .update(`${b.version}\n${b.texte}`)

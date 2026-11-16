@@ -62,6 +62,7 @@ export const remettreCompteurEvenements = (): void => { nEvt = 0; };
 export async function crochetCommentaire(texte: string, o: { reseau?: "instagram" | "facebook"; idAuteur?: string } = {}): Promise<{ statut: number; deposes: Array<Record<string, any>> }> {
   const corps0 = JSON.parse(readFileSync(new URL("../fixtures/comment-received-forme-reelle.json", import.meta.url), "utf8"));
   const n = ++nEvt;
+  if ((o.reseau ?? "facebook") === "instagram") await Com.ecrireParametre("parcours.instagram_public", true); // T2 : Instagram ouvert pour ce test (préparation seulement)
   corps0.id = `evt_fictif_filet_${n}`;
   corps0.account.platform = o.reseau ?? "facebook";
   corps0.comment.id = `com-fictif-filet-${n}`;

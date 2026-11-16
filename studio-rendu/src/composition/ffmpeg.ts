@@ -12,6 +12,7 @@
  */
 import type { ParametresCouleurs, ParametresExport } from "../../../src/briques/composition/scene.js";
 import { etapeNoirBlanc } from "../../../src/briques/motion/habillage-commun/noir-blanc.js";
+import { argumentsRecollables } from "./reglages-recollables.js";
 
 /** Expression de temps FFmpeg « dans l'une des plages [a, b) ». */
 export function expressionPlages(plages: [number, number][]): string {
@@ -126,9 +127,9 @@ export function grapheExport(source10bits = false, e: { master: string; texte: s
  * mesuré sur la démonstration au même débit, la ressemblance à l'image d'origine (SSIM) est la même qu'en `medium`
  * (0,9887 contre 0,9879 : le grain domine) pour un encodage 2 fois plus court.
  */
-export function reglagesVideo(e: ParametresExport): string[] {
+export function reglagesVideo(e: ParametresExport, options?: { recollable?: boolean }): string[] {
   const debit = modeExport(e) === "crf" ? ["-crf", String(e.crf ?? 17)] : ["-b:v", `${e.debitKbps}k`];
-  return [
+  const reglages = [
     "-c:v", "libx264", "-preset", "faster", "-profile:v", "high", "-level:v", "4.1",
     ...debit, "-maxrate", `${e.debitMaxKbps}k`, "-bufsize", `${Math.round(e.debitMaxKbps * 1.5)}k`,
     "-g", String(e.fps * 2), "-keyint_min", String(e.fps * 2), "-sc_threshold", "0", "-flags", "+cgop", "-bf", "2",
@@ -136,6 +137,8 @@ export function reglagesVideo(e: ParametresExport): string[] {
     "-x264-params", `colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv${e.source10bits ? ":aq-mode=3" : ""}`,
     "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
   ];
+  // G11-03 : option facultative, éteinte (absente ou fausse : tableau d'avant, inchangé).
+  return options?.recollable === true ? argumentsRecollables(reglages) : reglages;
 }
 
 /**

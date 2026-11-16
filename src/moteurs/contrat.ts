@@ -8,6 +8,11 @@
 import { describe, expect, it } from "vitest";
 import type { CommandeFabrication, Ratio } from "@/domaine/types";
 import type { MoteurVideo } from "./types";
+import { bibliothequeDeLaCommande, porteCapacite } from "@/briques/bibliotheque-video/moteur";
+import { ID } from "@/briques/bibliotheque-video/noms";
+import { profilNeutre } from "@/briques/bibliotheque-video/profils";
+import type { EntreeBibliotheque } from "@/briques/bibliotheque-video/types";
+import { VERSION_BIBLIOTHEQUE } from "@/briques/bibliotheque-video/version";
 
 const T0 = Date.UTC(2026, 9, 1, 9, 0, 0);
 
@@ -184,3 +189,33 @@ export function testerMoteurVideo(moteur: MoteurVideo, fabriquerCommande: () => 
     });
   });
 }
+
+/**
+ * C1-U10 (ajout pur) : un moteur qui ne lit pas la bibliothèque se comporte pareil avec ou sans entrée `bibliothequeVideo`.
+ * Même fabrique de commande que `testerMoteurVideo`. À appeler depuis un fichier *.test.ts.
+ */
+export function testerMoteurSansBibliotheque(moteur: MoteurVideo, fabriquerCommande: () => Promise<CommandeFabrication>) {
+  describe(`contrat « sans bibliothèque » — ${moteur.id}`, () => {
+    it("commande sans entrée bibliothèque", async () => {
+      const c = await fabriquerCommande();
+      expect(bibliothequeDeLaCommande(c)).toBeNull();
+      expect(porteCapacite(c.entrees, ID.texteStyleVarie)).toEqual({ bibliotheque: false });
+    });
+
+    it("estimation et graphe identiques avec ou sans entrée", async () => {
+      const c = await fabriquerCommande();
+      const avec = { ...c, entrees: { ...c.entrees, bibliothequeVideo: ENTREE_FIXTURE } };
+      expect(await moteur.estimer(avec)).toEqual(await moteur.estimer(c));
+      expect(moteur.etapes(avec)).toEqual(moteur.etapes(c));
+    });
+  });
+}
+
+/** Une entrée valide, construite avec le profil neutre. */
+const ENTREE_FIXTURE: EntreeBibliotheque = {
+  version: VERSION_BIBLIOTHEQUE,
+  profil: profilNeutre("contrat"),
+  recents: [],
+  graine: "graine-contrat",
+  figeeLe: "2026-11-16",
+};
