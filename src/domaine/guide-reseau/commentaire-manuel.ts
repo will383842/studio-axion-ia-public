@@ -3,6 +3,7 @@
 // Règle RC-43 : sur LinkedIn et TikTok, JAMAIS de réponse ni de message automatique ; ce module ne fait que lire.
 import { createHash } from "node:crypto";
 import { type EnveloppeZernio, TYPE_EVENEMENT_COMMENTAIRE, motSeulDe } from "./crochet-zernio";
+import { classerOpposition } from "./opposition";
 
 const RE_OPAQUE = /^[A-Za-z0-9_-]{1,128}$/;
 const RE_URN = /^urn:li:[A-Za-z]+:[A-Za-z0-9_(),:-]{1,160}$/;
@@ -20,6 +21,8 @@ export interface CommentaireManuel {
   proprio: boolean;
   /** Forme d'opposition canonique ou mot normalisé ; sinon null. Le texte brut n'est JAMAIS gardé. */
   motSeul: string | null;
+  /** Présent (true) SEULEMENT pour un doute d'opposition ; jamais porté par `motSeul`, jamais de texte. Sinon OMIS. */
+  doute?: true;
   estReponse: boolean;
 }
 
@@ -64,6 +67,8 @@ export function lireCommentaireManuel(env: EnveloppeZernio, motsConnus?: readonl
   const texte = typeof c.text === "string" && c.text.length <= 200 ? c.text : null;
   const garde = texte === null ? null : motSeulDe(texte, motsConnus);
   const motSeul = garde; // forme canonique déjà rendue par `motSeulDe` : pas de nouvelle normalisation
+  const classe = typeof c.text === "string" ? classerOpposition(c.text.slice(0, 2000)) : "non";
+  const doute = !proprio && motSeul === null && classe === "doute";
   return {
     idCommentaire,
     idCompte,
@@ -73,6 +78,7 @@ export function lireCommentaireManuel(env: EnveloppeZernio, motsConnus?: readonl
     idAuteur: proprio ? idCompte : (idAuteur ?? null),
     proprio,
     motSeul: proprio ? null : motSeul,
+    ...(doute ? { doute: true as const } : {}),
     estReponse: c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== ""),
   };
 }
