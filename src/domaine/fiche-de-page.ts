@@ -25,10 +25,11 @@ export const STATUTS = ["brouillon", "a_valider", "valide", "publie"] as const;
 export type StatutFiche = (typeof STATUTS)[number];
 
 export const AUTEUR_PAR_DEFAUT = "Équipe Axion-IA";
+export const RELECTEUR_PAR_DEFAUT = "Équipe Axion-IA";
 export const CHEMIN_PAGES = "/automatisations";
 
 /** Champs que remplit le fondateur (document SEO-01, colonne « Remplit ») : jamais exposés avant validation. */
-export const CHAMPS_REMPLIS_PAR_LE_FONDATEUR = ["pourQui", "avantApres", "limites", "auteur", "sources"] as const;
+export const CHAMPS_REMPLIS_PAR_LE_FONDATEUR = ["pourQui", "avantApres", "limites", "auteur", "relecteur", "sources"] as const;
 
 export interface QuestionReponse { question: string; reponse: string }
 export interface SousTitre { niveau: 2 | 3; texte: string }
@@ -59,20 +60,24 @@ export interface ContenuFiche {
   images?: ImageFiche[];
   imagePartage?: { largeur: number; hauteur: number };
   auteur?: string;
+  relecteur?: string;
   sources?: SourceFiche[];
 }
 
 export const CLES_CONTENU: readonly (keyof ContenuFiche)[] = [
   "slug", "titre", "metaDescription", "h1", "resume", "gain", "pourQui", "avantApres", "commentCaMarche", "sousTitres",
   "questions", "limites", "type", "besoins", "pagesLiees", "appelAction", "transcription", "video", "images",
-  "imagePartage", "auteur", "sources",
+  "imagePartage", "auteur", "relecteur", "sources",
 ];
 
 /** Fiche stockée : identifiant (1), contenu, dates (23), statut (27). */
 export interface FicheDePage extends ContenuFiche {
   id: string;
   statut: StatutFiche;
-  datePublication: string;
+  /** Vrai dès que la page a été publiée une fois : l'adresse ne change alors plus jamais (champ 2). */
+  dejaPublie?: boolean;
+  /** Vide tant que la page n'est pas publiée (la publication est hors périmètre de SEO-02). */
+  datePublication?: string;
   dateMiseAJour: string;
 }
 
@@ -200,6 +205,8 @@ export function controlerFiche(f: ContenuFiche): Defaut[] {
   if (liste("pagesLiees", f.pagesLiees, 2, 4, "Pages liées")) {
     for (const p of f.pagesLiees) {
       if (p.texte.trim() === "" || /cliquez ici|en savoir plus|ici$/i.test(p.texte.trim())) ko("pagesLiees", "Pages liées : texte de lien descriptif attendu.");
+      const mp = motInterdit(p.texte);
+      if (mp) ko("pagesLiees", `Pages liées : mot interdit (${mp}).`);
       if (!slugValide(p.adresse)) ko("pagesLiees", "Pages liées : adresse de page invalide.");
       if (f.slug && p.adresse === f.slug) ko("pagesLiees", "Pages liées : une page ne se lie pas à elle-même.");
     }
@@ -216,6 +223,8 @@ export function controlerFiche(f: ContenuFiche): Defaut[] {
   else {
     if (f.video.titre.length === 0 || f.video.titre.length > 60) ko("video", "Vidéo : titre de 1 à 60 caractères.");
     if (f.video.description.length === 0 || f.video.description.length > 160) ko("video", "Vidéo : description de 1 à 160 caractères.");
+    const mv = motInterdit(`${f.video.titre} ${f.video.description}`);
+    if (mv) ko("video", `Vidéo : mot interdit (${mv}).`);
     if (!Number.isInteger(f.video.dureeSec) || f.video.dureeSec <= 0) ko("video", "Vidéo : durée en secondes, entier positif.");
   }
   // 20
@@ -223,6 +232,8 @@ export function controlerFiche(f: ContenuFiche): Defaut[] {
   else {
     for (const i of f.images) {
       if (i.decorative ? i.alt !== "" : !dans(i.alt.length, 80, 125)) ko("images", "Images : alt de 80 à 125 caractères, vide si l'image est décorative.");
+      const mi = motInterdit(i.alt);
+      if (mi) ko("images", `Images : mot interdit (${mi}).`);
     }
   }
   // 21
@@ -230,12 +241,15 @@ export function controlerFiche(f: ContenuFiche): Defaut[] {
   else if (f.imagePartage.largeur !== 1200 || f.imagePartage.hauteur !== 630) ko("imagePartage", "Image de partage : 1200×630 px.");
   // 22
   if (f.auteur !== AUTEUR_PAR_DEFAUT) ko("auteur", `Auteur : la signature est « ${AUTEUR_PAR_DEFAUT} » (nom de rôle, jamais un nom de personne).`);
+  if (f.relecteur !== RELECTEUR_PAR_DEFAUT) ko("relecteur", `Relecteur : la signature est « ${RELECTEUR_PAR_DEFAUT} » (nom de rôle, jamais un nom de personne).`);
   // 24
   if (!f.sources) ko("sources", "Sources : champ vide (liste vide permise).");
   else {
     if (f.sources.length > 5) ko("sources", "Sources : 5 au plus.");
     for (const s of f.sources) {
       if (!/^https:\/\/\S+$/.test(s.adresse) || s.intitule.trim() === "") ko("sources", "Sources : intitulé et adresse https attendus.");
+      const ms = motInterdit(s.intitule);
+      if (ms) ko("sources", `Sources : mot interdit (${ms}).`);
       if (!dateValide(s.dateConsultation)) ko("sources", "Sources : date de consultation AAAA-MM-JJ attendue.");
     }
   }

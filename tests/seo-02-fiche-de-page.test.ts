@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AUTEUR_PAR_DEFAUT,
+  RELECTEUR_PAR_DEFAUT,
   BESOINS_ENTREPRISE,
   CHAMPS_REMPLIS_PAR_LE_FONDATEUR,
   STATUTS,
@@ -55,6 +56,7 @@ function contenuValide(): ContenuFiche {
     images: [{ alt: t(100, "image"), decorative: false }],
     imagePartage: { largeur: 1200, hauteur: 630 },
     auteur: AUTEUR_PAR_DEFAUT,
+    relecteur: RELECTEUR_PAR_DEFAUT,
     sources: [],
   };
 }
@@ -63,6 +65,9 @@ function serviceEtId() {
   const svc = creerServiceFichesDePage({ depot: creerDepotMemoire(), maintenant: () => "2026-11-20" });
   const r = svc.creer("AUTO-014", "relances-clients-automatiques");
   if (!r.ok) throw new Error(r.erreurs.join());
+  // les deux pages liées existent (aucun lien cassé)
+  svc.creer("AUTO-020", "trier-demandes-entrantes");
+  svc.creer("AUTO-021", "comptes-rendus-automatiques");
   return svc;
 }
 
@@ -74,7 +79,7 @@ describe("listes fermées et constantes", () => {
     expect(AUTEUR_PAR_DEFAUT).toBe("Équipe Axion-IA");
   });
   it("champs remplis par le fondateur : fond, limites, auteur, sources", () => {
-    expect([...CHAMPS_REMPLIS_PAR_LE_FONDATEUR].sort()).toEqual(["auteur", "avantApres", "limites", "pourQui", "sources"]);
+    expect([...CHAMPS_REMPLIS_PAR_LE_FONDATEUR].sort()).toEqual(["auteur", "avantApres", "limites", "pourQui", "relecteur", "sources"]);
   });
 });
 
@@ -133,6 +138,7 @@ describe("contrôle des 27 champs", () => {
     ["image décorative avec alt", (c) => (c.images = [{ alt: t(100), decorative: true }]), "images"],
     ["image de partage 1200×600", (c) => (c.imagePartage = { largeur: 1200, hauteur: 600 }), "imagePartage"],
     ["auteur autre que la signature d'équipe", (c) => (c.auteur = "Quelqu'un"), "auteur"],
+    ["relecteur autre que la signature d'équipe", (c) => (c.relecteur = "Quelqu'un"), "relecteur"],
     ["6 sources", (c) => (c.sources = Array.from({ length: 6 }, () => ({ intitule: "Source", adresse: "https://exemple.fr/a", dateConsultation: "2026-11-01" }))), "sources"],
     ["source sans https", (c) => (c.sources = [{ intitule: "S", adresse: "ftp://x", dateConsultation: "2026-11-01" }]), "sources"],
     ["source : date de consultation fausse", (c) => (c.sources = [{ intitule: "S", adresse: "https://exemple.fr", dateConsultation: "2026-13-45" }]), "sources"],
@@ -145,6 +151,18 @@ describe("contrôle des 27 champs", () => {
     ["besoin en double", (c) => (c.besoins = ["ne-rien-oublier", "ne-rien-oublier"]), "besoins"],
     ["type hors liste", (c) => (c.type = "inconnu" as never), "type"],
   ];
+  const interdits: Array<[string, (c: ContenuFiche, m: string) => void, string]> = [
+    ["texte de page liée", (c, m) => (c.pagesLiees![0]!.texte = m), "pagesLiees"],
+    ["titre de vidéo", (c, m) => (c.video = { ...c.video!, titre: m }), "video"],
+    ["description de vidéo", (c, m) => (c.video = { ...c.video!, description: m }), "video"],
+    ["alt d'image", (c, m) => (c.images = [{ alt: `${m} ${t(90)}`, decorative: false }]), "images"],
+    ["intitulé de source", (c, m) => (c.sources = [{ intitule: m, adresse: "https://exemple.fr/a", dateConsultation: "2026-11-01" }]), "sources"],
+  ];
+  it.each(interdits)("mot interdit dans : %s", (_nom, modif, champ) => {
+    const c = contenuValide();
+    modif(c, "Équipe certifiée Qualiopi");
+    expect(controlerFiche(c)).toContainEqual({ champ, message: expect.stringMatching(/mot interdit/) });
+  });
   it.each(cas)("%s", (_nom, modif, champ) => {
     const c = contenuValide();
     modif(c);
@@ -158,9 +176,8 @@ describe("contrôle des 27 champs", () => {
     ["tutoiement", "Tu gagnes du temps avec toi."],
   ])("mot interdit : %s", (_nom, texte) => {
     const c = contenuValide();
-    c.gain = texte.padEnd(100, " suite").slice(0, 100);
     c.gain = `${texte} ${t(Math.max(0, 80 - texte.length - 1))}`.slice(0, 140).padEnd(80, "e");
-    expect(controlerFiche(c).map((d) => d.champ)).toContain("gain");
+    expect(controlerFiche(c)).toContainEqual({ champ: "gain", message: expect.stringMatching(/mot interdit/) });
   });
   it("la décoration permet un alt vide", () => {
     const c = contenuValide();
@@ -202,7 +219,6 @@ describe("service : une fiche, un statut, rien d'exposé avant validation", () =
     expect(JSON.stringify(svc.lire("AUTO-014"))).not.toMatch(/SECRET|LIMITE-/);
     for (const k of CHAMPS_REMPLIS_PAR_LE_FONDATEUR) expect(svc.lire("AUTO-014")).not.toHaveProperty(k);
     // passage à valider : encore rien d'exposé
-    c.limites = ["LIMITE-SECRETE ne fait pas le café."];
     const s = svc.soumettre("AUTO-014");
     expect(s.ok).toBe(true);
     expect(JSON.stringify(s)).not.toMatch(/SECRET|LIMITE-/);
@@ -266,7 +282,7 @@ describe("service : une fiche, un statut, rien d'exposé avant validation", () =
     expect(svc.lire("AUTO-014")?.dateMiseAJour).toBe("2026-11-20");
     svc.modifier("AUTO-014", { gain: t(101) });
     expect(svc.lire("AUTO-014")?.dateMiseAJour).toBe("2026-11-25");
-    expect(svc.lire("AUTO-014")?.datePublication).toBe("2026-11-20");
+    expect(svc.lire("AUTO-014")?.datePublication).toBeUndefined();
   });
   it("l'adresse ne change plus après publication", () => {
     const depot = creerDepotMemoire();
@@ -276,10 +292,32 @@ describe("service : une fiche, un statut, rien d'exposé avant validation", () =
     depot.ecrire({ ...f, statut: "publie" });
     expect(svc.modifier("AUTO-014", { slug: "autre-adresse-propre" }).ok).toBe(false);
   });
+  it("l'adresse reste verrouillée après une première publication, même si une modification a ramené en brouillon", () => {
+    const depot = creerDepotMemoire();
+    const svc = creerServiceFichesDePage({ depot, maintenant: () => "2026-11-20" });
+    svc.creer("AUTO-014", "relances-clients-automatiques");
+    depot.ecrire({ ...depot.lire("AUTO-014")!, statut: "publie" });
+    expect(svc.modifier("AUTO-014", { gain: t(100) }).ok).toBe(true);
+    expect(svc.lire("AUTO-014")?.statut).toBe("brouillon");
+    expect(svc.modifier("AUTO-014", { slug: "autre-adresse-propre" }).ok).toBe(false);
+    expect(svc.lire("AUTO-014")?.slug).toBe("relances-clients-automatiques");
+  });
+  it("soumettre refuse un titre déjà pris et un lien vers une page inexistante", () => {
+    const svc = serviceEtId();
+    svc.modifier("AUTO-020", { titre: contenuValide().titre });
+    svc.modifier("AUTO-014", contenuValide());
+    const r = svc.soumettre("AUTO-014");
+    expect(!r.ok && r.erreurs.join(" ")).toMatch(/déjà utilisé/);
+    svc.modifier("AUTO-020", { titre: t(52, "Autre") });
+    svc.modifier("AUTO-014", { pagesLiees: [{ texte: "Page absente du site", adresse: "page-absente-du-site" }, contenuValide().pagesLiees![1]!] });
+    const r2 = svc.soumettre("AUTO-014");
+    expect(!r2.ok && r2.erreurs.join(" ")).toMatch(/lien cassé/);
+    svc.modifier("AUTO-014", { pagesLiees: contenuValide().pagesLiees });
+    expect(svc.soumettre("AUTO-014").ok).toBe(true);
+  });
   it("modifier l'adresse vers une adresse déjà prise est refusé", () => {
     const svc = serviceEtId();
-    svc.creer("AUTO-015", "trier-demandes-entrantes");
-    expect(svc.modifier("AUTO-015", { slug: "relances-clients-automatiques" }).ok).toBe(false);
+    expect(svc.modifier("AUTO-020", { slug: "relances-clients-automatiques" }).ok).toBe(false);
   });
   it("la vue renvoyée est une copie : la modifier ne change pas la fiche stockée", () => {
     const svc = serviceEtId();
@@ -296,7 +334,7 @@ describe("le hub est un classement, pas un champ", () => {
     svc.modifier("AUTO-014", contenuValide());
     svc.soumettre("AUTO-014");
     svc.valider("AUTO-014", { validationEcrite: true });
-    svc.creer("AUTO-015", "trier-demandes-entrantes"); // brouillon : absent
+    svc.creer("AUTO-015", "autre-page-en-brouillon"); // brouillon : absent
     const h = svc.hub();
     expect(h.parType["relances-et-suivi"]).toEqual(["AUTO-014"]);
     expect(h.parBesoin["ne-rien-oublier"]).toEqual(["AUTO-014"]);

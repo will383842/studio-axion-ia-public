@@ -17,6 +17,7 @@ import {
   robotsDe,
   slugValide,
   type Classement,
+  type Defaut,
   type ContenuFiche,
   type FicheDePage,
 } from "@/domaine/fiche-de-page";
@@ -79,7 +80,7 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
       if (slugPris(slug)) return refus("Adresse déjà prise : une adresse est unique.");
       const jour = aujourdhui();
       if (!dateValide(jour)) return refus("Date du jour invalide.");
-      const f: FicheDePage = { id, slug, statut: "brouillon", datePublication: jour, dateMiseAJour: jour };
+      const f: FicheDePage = { id, slug, statut: "brouillon", dateMiseAJour: jour };
       depot.ecrire(f);
       return { ok: true, fiche: vueDe(f) };
     },
@@ -93,7 +94,7 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
       if (champs.type !== undefined && !(TYPES_AUTOMATISATION as readonly string[]).includes(champs.type)) return refus("Type d'automatisation : valeur hors liste fermée.");
       if (champs.besoins !== undefined && champs.besoins.some((b) => !(BESOINS_ENTREPRISE as readonly string[]).includes(b))) return refus("Besoin d'entreprise : valeur hors liste fermée.");
       if (champs.slug !== undefined && champs.slug !== f.slug) {
-        if (f.statut === "publie") return refus("Adresse : elle ne change jamais après publication.");
+        if (f.statut === "publie" || f.dejaPublie) return refus("Adresse : elle ne change jamais après publication.");
         if (!slugValide(champs.slug)) return refus("Adresse : 3 à 6 mots, minuscules, tirets, sans date.");
         if (slugPris(champs.slug, id)) return refus("Adresse déjà prise : une adresse est unique.");
       }
@@ -107,6 +108,7 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
       }
       if (change) {
         suivante.dateMiseAJour = aujourdhui();
+        if (f.statut === "publie") suivante.dejaPublie = true;
         suivante.statut = "brouillon"; // une validation ne couvre pas un texte modifié depuis
         depot.ecrire(suivante);
       }
@@ -119,7 +121,7 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
     },
 
     /** Défauts à corriger (noms de champs seulement, jamais le contenu). */
-    controler(id: string): Resultat<VueFiche> | { ok: true; defauts: Array<{ champ: string; message: string }> } {
+    controler(id: string): { ok: true; defauts: Defaut[] } | { ok: false; erreurs: string[] } {
       const f = depot.lire(id);
       if (!f) return refus("Fiche introuvable.");
       return { ok: true, defauts: controlerFiche(f) };
@@ -131,6 +133,10 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
       if (!f) return refus("Fiche introuvable.");
       if (f.statut !== "brouillon") return refus("Seul un brouillon peut être soumis.");
       const defauts = controlerFiche(f);
+      const autres = depot.tous().filter((x) => x.id !== id);
+      if (f.titre && autres.some((x) => x.titre === f.titre)) defauts.push({ champ: "titre", message: "Titre de page : déjà utilisé par une autre page (un titre par page)." });
+      const adresses = new Set(autres.map((x) => x.slug));
+      if (f.pagesLiees?.some((p) => !adresses.has(p.adresse))) defauts.push({ champ: "pagesLiees", message: "Pages liées : une adresse ne correspond à aucune page (aucun lien cassé)." });
       if (defauts.length > 0) return refus(...defauts.map((d) => d.message));
       f.statut = "a_valider";
       depot.ecrire(f);
