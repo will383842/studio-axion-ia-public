@@ -23,21 +23,22 @@ describe("empreinteCasConcret", () => {
     const e = empreinteCasConcret("v1", LE, m);
     expect(e).toEqual({
       version: VERSION_EMPREINTE, videoId: "v1", formatId: "cas-concret", le: LE,
-      axes: { ouverture: ["chiffre-geant"], recit: ["resultat-d-abord"], dosage: ["autre:cas-concret:glissement"], camera: ["douce"], transitions: ["eclair", "poussee"] },
+      axes: { ouverture: ["chiffre-geant"], recit: ["resultat-d-abord"], dosage: ["autre:cas-concret:glissement"], camera: ["douce"], transitions: ["eclair", "poussee"], sousTitres: ["appuyes"] },
     });
   });
   it("sans habillage : caméra, transitions et jeu d'animation tirés mais non dessinés n'apparaissent pas", () => {
     const e = empreinteCasConcret("v1", LE, mise({}, { e01: { camera: "zoom-lent", transition: "poussee" } }));
-    expect(e.axes).toEqual({ ouverture: ["chiffre-geant"], recit: ["resultat-d-abord"] });
+    expect(e.axes).toEqual({ ouverture: ["chiffre-geant"], recit: ["resultat-d-abord"], sousTitres: ["appuyes"] });
   });
   it("une variante hors VARIANTES_RENDUES (raccord-objet) n'apparaît pas", () => {
     const e = empreinteCasConcret("v1", LE, mise({ habille: true }, { e01: { transition: "raccord-objet" } }));
     expect(e.axes.transitions).toBeUndefined();
   });
-  it("sous-titres : comptés seulement si l'interrupteur est vrai et la mise ne les dit pas sans variante", () => {
-    expect(empreinteCasConcret("v1", LE, mise()).axes.sousTitres).toBeUndefined();
+  it("sous-titres : comptés si l'interrupteur est vrai OU si la mise ne les dit pas sans variante (comme le rendu)", () => {
+    expect(empreinteCasConcret("v1", LE, mise()).axes.sousTitres).toEqual(["appuyes"]);
+    expect(empreinteCasConcret("v1", LE, mise({}, {}, { sousTitresSansVariante: true })).axes.sousTitres).toBeUndefined();
     expect(empreinteCasConcret("v1", LE, mise(), true).axes.sousTitres).toEqual(["appuyes"]);
-    expect(empreinteCasConcret("v1", LE, mise({}, {}, { sousTitresSansVariante: true }), true).axes.sousTitres).toBeUndefined();
+    expect(empreinteCasConcret("v1", LE, mise({}, {}, { sousTitresSansVariante: true }), true).axes.sousTitres).toEqual(["appuyes"]);
   });
   it("même entrée → même sortie ; mise illisible : empreinte vide", () => {
     const m = mise({ habille: true }, { e01: { transition: "eclair" } });

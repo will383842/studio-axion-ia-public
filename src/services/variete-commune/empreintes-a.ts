@@ -42,8 +42,8 @@ function dessinee(mise: Mise, dim: DimensionEcran, valeur: unknown): valeur is s
 
 /**
  * Empreinte d'une vidéo du cas concret depuis son tirage EFFECTIF : une dimension tirée mais non dessinée n'apparaît pas.
- * Sous-titres : comptés seulement si `variantesSousTitres` (défaut `VARIANTE_PAR_VIDEO`) est vrai et que la mise ne les
- * déclare pas sans variante (`sousTitresSansVariante`). Mise illisible (`null`) : aucun axe.
+ * Sous-titres : comptés si `variantesSousTitres` (défaut `VARIANTE_PAR_VIDEO`) est vrai OU si la mise ne les déclare pas
+ * sans variante (`sousTitresSansVariante`), comme le rendu réel (`fabriquer.ts`). Mise illisible (`null`) : aucun axe.
  */
 export function empreinteCasConcret(videoId: string, le: string, mise: Mise | null | undefined, variantesSousTitres: boolean = VARIANTE_PAR_VIDEO): EmpreinteVideo {
   const axes: Axes = {};
@@ -55,7 +55,7 @@ export function empreinteCasConcret(videoId: string, le: string, mise: Mise | nu
     if (t.habille === true) ajouter(axes, "dosage", [versCommun("cas-concret", "dosage", t.jeuAnimation)]);
     if (ecrans.some((e) => dessinee(mise, "camera", e.camera) && e.camera !== "aucun")) ajouter(axes, "camera", [versCommun("cas-concret", "camera", t.camera.style)]);
     ajouter(axes, "transitions", ecrans.flatMap((e) => (dessinee(mise, "transition", e.transition) ? [versCommun("cas-concret", "transitions", e.transition)] : [])));
-    if (variantesSousTitres && mise.sousTitresSansVariante !== true) ajouter(axes, "sousTitres", [SOUS_TITRES_CC[t.sousTitres.intensite] ?? `autre:cas-concret:${t.sousTitres.intensite}`]);
+    if (variantesSousTitres || mise.sousTitresSansVariante !== true) ajouter(axes, "sousTitres", [SOUS_TITRES_CC[t.sousTitres.intensite] ?? `autre:cas-concret:${t.sousTitres.intensite}`]);
   }
   return empreinte(videoId, "cas-concret", le, axes);
 }
