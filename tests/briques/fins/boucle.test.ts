@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { deciderBoucle, type SceneBoucle } from "../../../src/briques/fins/boucle";
 
-const motion = (debutMs: number, finMs: number, fond = "creme", etat = "e0"): SceneBoucle => ({ type: "motion", debutMs, finMs, fond, etatEntree: etat, finEtat: "ef" });
+const motion = (debutMs: number, finMs: number, fond = "creme", etat = "e0"): SceneBoucle => ({ type: "motion", debutMs, finMs, fond, etatEntree: etat });
 
 describe("fin en boucle (X1-11)", () => {
   it("refuse une face caméra dans la dernière seconde", () => {
@@ -43,7 +43,7 @@ describe("fin en boucle (X1-11)", () => {
         const c = join(d, n);
         return statSync(c).isDirectory() ? lister(c) : /\.(ts|tsx)$/.test(n) ? [c] : [];
       });
-    const sources = [...lister("src"), ...lister("studio-rendu/src")].filter((f) => !f.replace(/\\/g, "/").endsWith("src/briques/fins/boucle.ts"));
+    const sources = [...lister("src"), ...lister("studio-rendu")].filter((f) => !f.replace(/\\/g, "/").endsWith("src/briques/fins/boucle.ts"));
     expect(sources.length).toBeGreaterThan(0);
     for (const f of sources) {
       const code = readFileSync(f, "utf8");

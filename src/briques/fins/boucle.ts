@@ -14,7 +14,6 @@ export interface SceneBoucle {
   fond: string;
   /** État d'entrée de la scène (ce que le spectateur voit à son premier instant). */
   etatEntree: string;
-  finEtat?: string;
 }
 
 export const FENETRE_BOUCLE_MS = 1000;
