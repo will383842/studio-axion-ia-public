@@ -1664,6 +1664,10 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   return "traite";
 }
 
+/** Compte d'essai à transmettre à `guidesDuCatalogue` : seulement pour une conversation d'essai Facebook dont l'auteur est TOUJOURS listé ; sinon `undefined` (aucun guide d'essai). */
+export function compteEssaiPourGuides(env: Env, etat: Pick<Conversation, "cibleEssai" | "reseau" | "idCompte">, cle: string): string | undefined {
+  return etat.cibleEssai === true && etat.reseau === "facebook" && auteurEssaiToujoursListe(env, cle) ? etat.idCompte : undefined;
+}
 /** Codes des cibles `guide` actives et non d'essai du catalogue, plus `guide-ia`. Catalogue illisible : la liste par défaut. */
 export async function guidesDuCatalogue(env: Env, now: number, compte?: string): Promise<readonly string[]> {
   try {
@@ -1694,7 +1698,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   const run: RunLu = { email: adresse, mot: etat.mot ?? MOT, reseau: etat.reseau, guide: etat.guide, versionTexteM1: etat.versionTexteM1, occurredAt };
   const cleEnvoi = RE_CLE_IDEMPOTENCE.test(etat.cleIdempotenceGuide) ? etat.cleIdempotenceGuide : "";
   // Mode allumé : guides connus = cibles `guide` actives et non d'essai du catalogue (+ `guide-ia`) ; catalogue illisible : liste par défaut. Éteint : appel inchangé.
-  const guidesConnus = multi ? await guidesDuCatalogue(env, now, etat.cibleEssai === true && etat.reseau === "facebook" && auteurEssaiToujoursListe(env, cle) ? etat.idCompte : undefined) : undefined;
+  const guidesConnus = multi ? await guidesDuCatalogue(env, now, compteEssaiPourGuides(env, etat, cle)) : undefined;
   if (!(guidesConnus ? runValide(run, undefined, guidesConnus) : runValide(run)) || !cleEnvoi) {
     await patcher(cle, { etat: "site_refuse", dernierCode: "run_invalide" });
     await alerter("site_refuse", "Le site a refusé une demande de guide (données invalides). La personne ne recevra pas le guide.", now);

@@ -372,6 +372,50 @@ describe("S11 · auteur d'essai : une cible TEST n'est servie qu'à un auteur li
   });
 });
 
+describe("S13 · garde() ligne « auteur d'essai » isolée, guides d'essai, reprise de commentaire", () => {
+  const AUTRE_AUTEUR = "auteur-fictif-401";
+  const ENV_RETIRE = { ...ENV_X, PARCOURS_ESSAI_AUTEURS: AUTRE_AUTEUR };
+  it("conversation d'essai dont la cible n'est plus test, auteur retiré : seule la vérification d'auteur de garde() refuse (la validation n'exige plus l'essai)", async () => {
+    site.catalogue = catalogue({ test: false });
+    await validerEssai({ ...ENV_LIEN });
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    const [conv] = await convs();
+    const cle = Object.keys(await toutesLesConversations())[0];
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: { ...conv, cibleEssai: true } });
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-s13-adresse" });
+    await passer(T0 + 1000, { env: ENV_RETIRE });
+    expect(demandes()).toHaveLength(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+  });
+  it("compteEssaiPourGuides : le compte n'est transmis que pour un auteur toujours listé (Facebook, cible d'essai)", async () => {
+    const [conv] = await (async () => { await com(MOT); await passer(T0, { env: ENV_X }); return convs(); })();
+    const cle = Object.keys(await toutesLesConversations())[0];
+    expect(conv.cibleEssai).toBe(true);
+    expect(C.compteEssaiPourGuides(ENV_X, conv, cle)).toBe(COMPTE);
+    expect(C.compteEssaiPourGuides(ENV_RETIRE, conv, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides({ ...ENV_X, PARCOURS_ESSAI_AUTEURS: "" }, conv, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, cibleEssai: undefined }, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, reseau: "instagram" }, cle)).toBeUndefined();
+  });
+  it("reprise d'un commentaire (état pub_ok), cible redevenue normale, auteur retiré : seule la garde de la reprise refuse, événement clos sans report", async () => {
+    site.catalogue = catalogue({ test: false });
+    await validerEssai({ ...ENV_LIEN });
+    const id = await com(MOT);
+    await passer(T0, { env: ENV_X });
+    const cle = Object.keys(await toutesLesConversations())[0];
+    const [conv] = await convs();
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: { ...conv, etat: "pub_ok", cibleEssai: true, m1Le: undefined } });
+    const e = await evenement(depots, id);
+    await depots().evenementsFournisseurs.enregistrer({ ...e, traite: false, charge: { ...e.charge, etat: "a_faire", dernierCode: undefined } });
+    const avant = banc.port.prive.length;
+    await passer(T0 + 1000, { env: ENV_RETIRE });
+    expect(banc.port.prive).toHaveLength(avant);
+    expect(await decrire(id)).toBe("ecarte/garde_essai_auteur_refuse");
+  });
+});
+
 describe("S12 · envois de SUITE : l'auteur est revérifié à chaque envoi", () => {
   const AUTRE_AUTEUR = "auteur-fictif-401";
   const ENV_RETIRE = { ...ENV_X, PARCOURS_ESSAI_AUTEURS: AUTRE_AUTEUR };
