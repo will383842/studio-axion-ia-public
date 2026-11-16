@@ -7,7 +7,7 @@ describe("fin en boucle (X1-11)", () => {
   it("refuse une face caméra dans la dernière seconde", () => {
     const d = deciderBoucle([motion(0, 5000), { ...motion(5000, 9000), type: "face-camera" }]);
     expect(d.boucle).toBe(false);
-    expect(d.raison).toBe("visage-fin");
+    expect(d).toMatchObject({ boucle: false, raison: "visage-fin" });
   });
   it("refuse une face caméra dans la première seconde", () => {
     const d = deciderBoucle([{ ...motion(0, 4000), type: "face-camera" }, motion(4000, 9000)]);
