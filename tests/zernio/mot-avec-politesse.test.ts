@@ -52,6 +52,13 @@ describe("ponctuation AVANT le mot : refus prudent (décision écrite)", () => {
   // Avant #708 ces formes donnaient GUIDE ; refusées depuis, choix prudent retenu (une mention ou une commande n'est pas une demande).
   it.each(["@GUIDE", "@guide merci", "...GUIDE", "…GUIDE", "/guide", "./guide", "\\guide"])("%j → null", (t) => expect(motSeulDe(t, REG)).toBeNull());
   it("appel direct : « stop please » n'est pas un déclencheur", () => expect(motAvecPolitesse("stop please", REG)).toBeNull());
+  // Garde `classerOpposition(texte) !== "non"` : « stop please » est classé « opposition », donc l'appel ci-dessus ne distingue pas `!== "non"` de `=== "doute"`
+  // (le registre REG ne contient pas STOP : le mot est de toute façon refusé plus loin). Ici le mot d'opposition EST dans le registre :
+  // seule la garde `!== "non"` renvoie null ; la mutation `=== "doute"` laisserait passer « OPPOSE ».
+  it("appel direct : une opposition dont le mot est au registre → null (garde !== \"non\")", () => {
+    expect(classerOpposition("oppose")).toBe("opposition");
+    expect(motAvecPolitesse("oppose", ["OPPOSE"])).toBeNull();
+  });
 });
 
 describe("asymétrie figée : ponctuation APRÈS le mot acceptée", () => {
