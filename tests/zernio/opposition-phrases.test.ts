@@ -182,9 +182,11 @@ describe("11 · commentaires", () => {
     expect((await evenement(depots, id)).charge.etat).toBe("oppose");
     expect(envoisSortants()).toBe(0);
   });
-  it("« GUIDE stop » : non déposé", async () => {
+  it("« GUIDE stop » : déposé comme DOUTE (doute: true, motSeul null, sans texte) : plus invisible (PR B)", async () => {
     const r = await crochetCommentaire("GUIDE stop");
-    expect(r.deposes).toHaveLength(0);
+    expect(r.deposes).toHaveLength(1);
+    expect(r.deposes[0]).toMatchObject({ doute: true, motSeul: null });
+    expect(JSON.stringify(r.deposes[0]).toLowerCase()).not.toContain("stop");
   });
 });
 

@@ -41,7 +41,8 @@ import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
 import { auteurEssaiPermis, auteursEssai, cibleEssaiPermise, essaiActif } from "@/domaine/guide-reseau/cibles-essai";
-import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
+import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
+import { chercherRacine, douterDossier, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
 import { instagramPublicActif, instagramSuivreActif } from "./parcours-instagram";
@@ -134,6 +135,8 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
 
 /** Alerte FIXE d'un doute sur une demande d'arrêt : ni texte, ni identifiant. Sujet propre à l'événement : un 2e doute n'est pas masqué par le délai d'une heure. */
 const MESSAGE_DOUTE_OPPOSITION = "Un message privé contient peut-être une demande d'arrêt. Rien n'a été envoyé ; la conversation est en pause. À vérifier dans l'Inbox Zernio.";
+/** Alerte FIXE d'un doute dans un COMMENTAIRE : ni texte, ni identifiant. Sujet propre à l'événement. */
+const MESSAGE_DOUTE_COMMENTAIRE = "Un commentaire contient peut-être une demande d'arrêt. Rien ne sera envoyé à cette personne ; son parcours est en pause. À vérifier dans les commentaires (Zernio).";
 const signalerDoute = (ev: EvenementFournisseur, now: number): Promise<void> => alerter(`doute:${ev.idEvenement}`, MESSAGE_DOUTE_OPPOSITION, now);
 
 /* --- Gardes avant toute action sortante ----------------------------------------------------------------------- */
@@ -454,6 +457,24 @@ async function appeler<T extends ResultatEcritureInbox>(f: () => Promise<T>): Pr
   }
 }
 
+/** Entrée créée seulement si la personne n'a AUCUN enregistrement : expirée, en doute, sans prochain essai (rien ne partira). Aucun texte. */
+const neufDoute = (ev: EvenementFournisseur, c: Record<string, unknown>, d: DepsConversation, cles: ClesOk, now: number) => (): Conversation => ({
+  ...etatNeuf("expire", c, d, cleIdempotenceOpaque(cles.courante, "guide", ev.idEvenement), now),
+  douteOpposition: true,
+  dernierCode: "doute_opposition",
+  prochainEssaiLe: null,
+});
+/** Clôture d'un commentaire en doute : tout le dossier déjà « oppose » (aucune entrée touchée) = silence « opposee » sans alerte ; sinon alerte fixe + silence « doute_opposition ». */
+async function cloreDoute(ev: EvenementFournisseur, entrees: readonly unknown[], now: number): Promise<"traite"> {
+  if (entrees.length === 0) {
+    await clore(ev, "silence", "opposee");
+    return "traite";
+  }
+  await alerter(`doute_com:${ev.idEvenement}`, MESSAGE_DOUTE_COMMENTAIRE, now);
+  await clore(ev, "silence", "doute_opposition");
+  return "traite";
+}
+
 async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
@@ -462,7 +483,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
   const age = now - Date.parse(ev.recuLe);
   // Péremption de 24 h : jamais ici (sans conversation connue, `transition(null, …)` la ferait valoir même pour un événement REPORTÉ
   // dont la réponse publique est déjà publiée). Elle est jugée plus bas, seulement quand aucune conversation n'existe.
-  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), estReponse: c.estReponse === true, ageMs: 0, maintenantMs: now });
+  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), doute: c.doute === true, estReponse: c.estReponse === true, ageMs: 0, maintenantMs: now });
   if (filtre.action === "ecarter") {
     await clore(ev, filtre.raison === "perime" ? "perime" : "ecarte", filtre.raison ?? null);
     return "traite";
@@ -480,6 +501,13 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     if (apres) await mettreEnFileOpposition(cleEtat, apres, cles.courante, now);
     await clore(ev, "oppose", "opposition");
     return "traite";
+  }
+  // Doute d'opposition : pause de tout le dossier + alerte fixe. AVANT toute garde, vérification ou chemin de démarrage : rien ne part. Ni registre, ni file, ni site.
+  if (filtre.action === "doute") {
+    const connu = await retrouver(cles, idAuteur!);
+    const cleDossier = connu?.cle ?? cle;
+    const entrees = await douterDossier(racineDe(cleDossier), neufDoute(ev, c, d, cles, now));
+    return cloreDoute(ev, entrees, now);
   }
   // Instagram : auteur non listé et réglage public éteint = clos tout de suite (jamais reporté), sans alerte.
   if (await igHorsEssai(env, reseau, idAuteur)) {
@@ -522,7 +550,7 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     // Clé d'idempotence calculée UNE fois ici, stockée : jamais recalculée (la rotation du secret la changerait).
     await ecrireEtat(cleEtat, (e) => ({ ...etatNeuf("nouveau", c, d, cleIdempotenceOpaque(cles.courante, "guide", String(c.idCommentaire)), now), alias: e?.alias ?? [] })); // les alias déjà connus sont conservés
   }
-  return etapesCommentaire(ev, d, env, cleEtat, now, cles, false);
+  return etapesCommentaire(ev, d, env, cleEtat, now, cles);
 }
 
 /** Vrai si un dossier `racine|…` existe pour une des formes de la personne (ou pour la cible d'un de ses alias). Lecture seule. */
@@ -566,7 +594,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   const idAuteur = texteDe(c.idAuteur);
   const age = now - Date.parse(ev.recuLe);
   // 1. Filtre comme aujourd'hui, avec les mots actifs du compte.
-  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), estReponse: c.estReponse === true, ageMs: 0, maintenantMs: now }, await motsActifsDuCompte(idCompte));
+  const filtre = transition(null, { t: "commentaire", idCommentaire: String(c.idCommentaire ?? ""), proprio: c.proprio === true, idAuteur, idCompte, motSeul: texteDe(c.motSeul), doute: c.doute === true, estReponse: c.estReponse === true, ageMs: 0, maintenantMs: now }, await motsActifsDuCompte(idCompte));
   if (filtre.action === "ecarter") {
     await clore(ev, filtre.raison === "perime" ? "perime" : "ecarte", filtre.raison ?? null);
     return "traite";
@@ -578,6 +606,11 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     await opposerDossier({ racine: trouvee.racine, idsBruts: [auteur], cles: cles.courante, env, maintenantMs: now, neuf: () => etatNeuf("oppose", c, d, cleIdempotenceOpaque(cles.courante, "guide", ev.idEvenement), now) });
     await clore(ev, "oppose", "opposition");
     return "traite";
+  }
+  // 2 ter. Doute d'opposition : pause de tout le dossier + alerte fixe, AVANT tout chemin de démarrage ou d'envoi.
+  if (filtre.action === "doute") {
+    const entrees = await douterDossier(trouvee.racine, neufDoute(ev, c, d, cles, now));
+    return cloreDoute(ev, entrees, now);
   }
   // 2 bis. Instagram : auteur non listé et réglage public éteint = clos tout de suite (jamais reporté), sans alerte.
   if (await igHorsEssai(env, reseau, auteur)) {
@@ -649,7 +682,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     }
     return repondrePubliqueSeule(ev, d, env, cles, trouvee.racine, idCommentaire, dec.raison, now);
   }
-  return etapesCommentaire(ev, d, env, r.cle!, now, cles, true, igSuivre && reseau === "instagram");
+  return etapesCommentaire(ev, d, env, r.cle!, now, cles, igSuivre && reseau === "instagram");
 }
 
 /**
@@ -1013,9 +1046,9 @@ async function cloreIgSuivreAbsent(ev: EvenementFournisseur, cle: string, now: n
   return "traite";
 }
 
-async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk, multi = false, ig = false): Promise<"traite" | "bloque"> {
+async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk, ig = false): Promise<"traite" | "bloque"> {
   let e = await lireEtat(cle);
-  const optsDoute = multi ? { doute: true } : {}; // mode allumé : le doute bloque aussi juste avant chaque envoi ; éteint : appels inchangés
+  const optsDoute = { doute: true }; // les DEUX modes : un doute bloque aussi la réponse publique et le M1 (y compris en réessai) ; seul M2 passe { m2: true }
   if (!e) return "traite";
   const { idCompte } = e;
   const idPost = e.idPostPlateforme;
@@ -2136,7 +2169,9 @@ export async function traiterConversations(d: DepsConversation): Promise<Rapport
     await reprendreEnVol(now);
     await expirerConversations({ env, maintenantMs: now });
     const dus = await depots().evenementsFournisseurs.lister((e) => e.fournisseur === FOURNISSEUR && (e.type === TYPE_COMMENTAIRE || e.type === TYPE_MESSAGE) && !e.traite && (typeof e.charge.prochainEssaiLe !== "number" || e.charge.prochainEssaiLe <= now));
-    dus.sort((a, b) => String(a.recuLe).localeCompare(String(b.recuLe)));
+    // Tri stable : un stop ou un doute (commentaire) passe AVANT un GUIDE du même lot, puis par date de réception.
+    const prioritaire = (e: EvenementFournisseur): number => (e.type === TYPE_COMMENTAIRE && (e.charge.doute === true || estMotOpposition(texteDe(e.charge.motSeul))) ? 0 : 1);
+    dus.sort((a, b) => prioritaire(a) - prioritaire(b) || String(a.recuLe).localeCompare(String(b.recuLe)));
     // Les événements clos sans aucun envoi (mot sans textes validés) ne comptent pas dans le lot : ils ne prennent pas la place des GUIDE. Borne dure : 10 lots.
     let restant = LOT_MAX_PAR_PASSAGE_CONVERSATION;
     // Éteint : exactement le lot historique (aucune boucle à plusieurs lots). Allumé seulement : jusqu'à 10 lots.
