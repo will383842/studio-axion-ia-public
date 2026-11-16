@@ -5,6 +5,8 @@ import { apercevoirRetouche, appliquerRetouche, revenirAVersion } from "@/servic
 import { estGenerateurRetouche } from "@/services/retouche-chat/generateurs";
 import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
 import { portsStudio } from "@/services/retouche-chat/studio";
+import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
+import { depots, lireParametre } from "@/services/_commun";
 
 /**
  * CHAT DE RETOUCHE (lot R1) : `apercu` (comprend la phrase, dit l'impact, n'écrit rien), `appliquer` (re-rend les seules
@@ -27,6 +29,12 @@ export async function POST(requete: NextRequest) {
   // Lot R3 : un générateur nommé n'est servi que si son réglage `retoucheChat.*` est allumé (éteint par défaut).
   if (c.generateur !== undefined && !estGenerateurRetouche(c.generateur)) return NextResponse.json({ erreur: "Générateur inconnu." }, { status: 400 });
   if (c.generateur !== undefined && !(await retoucheChatActifServeur(c.generateur))) return NextResponse.json({ erreur: "La retouche par chat n'est pas activée pour ce générateur." }, { status: 403 });
+  // C7-02 : sans générateur nommé, la voie reste fermée (403) tant que `retoucheChat.sansGenerateur` n'est pas `true`.
+  if (c.generateur === undefined && !(await sansGenerateurActif((id, defaut) => lireParametre<unknown>(id, defaut)))) return NextResponse.json({ erreur: "La retouche par chat n'est pas activée." }, { status: 403 });
+  // C7-02 : `revenir` ne vise qu'une version de la même vidéo (avant tout port).
+  if (c.action === "revenir" && !(await versionDeLaVideo(c.videoId, c.versionId, (id) => depots().versions.obtenir(id)))) return NextResponse.json({ erreur: "Cette version n'appartient pas à cette vidéo." }, { status: 404 });
+  // N-22 : une vidéo programmée ou publiée ne se retouche pas (`appliquer`, `revenir`) ; `apercu` n'écrit rien.
+  if (c.action !== "apercu" && (await videoEnDiffusion(c.videoId, (id) => depots().videos.obtenir(id)))) return NextResponse.json({ erreur: "Cette vidéo est programmée ou publiée : elle ne se retouche pas ici." }, { status: 409 });
   const ports = c.generateur !== undefined ? portsGenerateurStudio(c.generateur) : portsStudio();
   if (c.action === "apercu") return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, ports));
   if (c.action === "appliquer") return NextResponse.json(await appliquerRetouche(c.videoId, { demande: c.demande, operations: c.operations }, ports));

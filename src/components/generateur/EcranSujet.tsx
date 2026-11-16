@@ -307,7 +307,7 @@ export function EcranSujet({
       {!plusieurs && !refus && avis.pour === idee.trim() && avis.sujets.length > 0 && (
         <p className="flex items-center gap-1.5 px-1 text-sm font-semibold text-ambre" role="status">
           <Icone nom="attention" size={14} />
-          Un sujet proche existe déjà : n° {avis.sujets[0]!.numero} le {formateurDate("fr-FR", { day: "2-digit", month: "2-digit" }).format(new Date(avis.sujets[0]!.le))}
+          Un sujet proche existe déjà : n° {avis.sujets[0]!.numero} le {formateurDate("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Paris" }).format(new Date(avis.sujets[0]!.le))}
         </p>
       )}
 

@@ -32,6 +32,8 @@ const auth = await import("@/services/auth");
 const pub = await import("@/services/publications");
 const { definirRoutage } = await import("@/services/routage-publication");
 const { fournisseurParId } = await import("@/fournisseurs");
+const { ecrireParametre } = await import("@/services/_commun");
+const { PROPOSITION_YOUTUBE } = await import("@/fournisseurs/publication/zernio-youtube");
 const { injecterClientZernio } = await import("@/services/zernio");
 const { creerFauxClientZernio } = await import("./zernio/aides/faux-zernio");
 
@@ -90,9 +92,13 @@ describe("envoi réel : mot interdit", () => {
     expect(await publications()).toBe(0);
   });
 
-  it("titre YouTube refusé (YouTube part par Buffer, choix explicite) : même erreur, rien d'envoyé", async () => {
+  it("titre YouTube refusé (L0-13a : choisir Buffer est refusé ; l'envoi par Zernio refuse le titre) : même erreur, rien d'envoyé", async () => {
     await cocherTout();
-    await definirRoutage("youtube-shorts", "buffer");
+    // L0-13a : Buffer n'est plus un choix d'envoi : refus net, rien d'écrit.
+    await expect(definirRoutage("youtube-shorts", "buffer")).rejects.toMatchObject({ name: "ErreurStudio", code: "OUTIL_RETIRE" });
+    // YouTube part désormais par Zernio : interrupteur et réglages posés pour que seul le titre interdit refuse l'envoi.
+    await ecrireParametre("zernio.youtube_actif", true);
+    await ecrireParametre("zernio.youtube_reglages", { ...PROPOSITION_YOUTUBE, visibilite: "private" });
     const buffer = fauxBuffer({ canauxEnPlus: [YOUTUBE_BUFFER] });
     vi.stubGlobal("fetch", buffer.appeler);
     await pub.modifierTexteKit(VIDEO, "youtube-shorts", "Un texte propre", [], `Formation ${INTERDIT}`);

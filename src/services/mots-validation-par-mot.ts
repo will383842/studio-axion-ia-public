@@ -22,6 +22,7 @@ import {
   type TypeElement,
 } from "@/domaine/guide-reseau/cibles-contrat";
 import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
+import { auteursEssai, cibleEssaiPermise, essaiActif } from "@/domaine/guide-reseau/cibles-essai";
 import { titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import {
   ecrireParametre,
@@ -136,7 +137,9 @@ async function preparer(o: {
   const c = await cibleActuelleDuMot(o);
   if (!c.ok) return c;
   // Une page (adresse) n'a pas encore de parcours, et une cible d'essai (TEST) ne doit jamais envoyer vers une vraie personne : rien n'est validé pour elles.
-  if (c.test) return { ok: false, raison: "cible_test" };
+  // Exception d'essai : Facebook seulement et liste de comptes d'essai non vide (PARCOURS_ESSAI_COMPTES) ; Instagram garde « cible_test ».
+  if (c.test && !(o.reseau === "facebook" && essaiActif(o.env ?? process.env)))
+    return { ok: false, raison: "cible_test" };
   if (c.type === "adresse") return { ok: false, raison: "adresse_pas_encore" };
   const e = empreinteMot({
     mot,
@@ -189,6 +192,10 @@ export async function verifierMotPourEnvoi(o: {
   titre: string;
   env?: Env;
   maintenantMs?: number;
+  /** Compte d'envoi : sert seulement à permettre une cible d'essai (liste PARCOURS_ESSAI_COMPTES, Facebook). Absent = cible d'essai refusée comme avant. */
+  compte?: string;
+  /** Vrai seulement si l'appelant a revérifié que l'auteur de la conversation d'essai est toujours listé (PARCOURS_ESSAI_AUTEURS). Absent = cible d'essai refusée. */
+  auteurEssaiOk?: boolean;
 }): Promise<RefusEnvoiMot | null> {
   try {
     if (!estAuto(o.reseau)) return "validation_absente";
@@ -208,7 +215,11 @@ export async function verifierMotPourEnvoi(o: {
       return c.raison === "site_injoignable"
         ? "cibles_illisibles"
         : "validation_absente";
-    return !c.test &&
+    const essaiPermis =
+      o.compte !== undefined &&
+      o.auteurEssaiOk === true &&
+      cibleEssaiPermise(o.env ?? process.env, o.compte, o.reseau);
+    return (!c.test || essaiPermis) &&
       c.type === "guide" &&
       c.code === o.codeCible &&
       c.titre === o.titre
@@ -408,7 +419,13 @@ export async function verifierMotPourCompte(o: {
     });
     if (!c.ok)
       return c.raison === "cible_introuvable" ? "cible_introuvable" : c.raison;
-    if (c.test) return "cible_test";
+    // Activation (aucun envoi, aucun auteur connu) : au moins un auteur d'essai doit être listé ; l'auteur est revérifié à CHAQUE envoi (garde).
+    if (
+      c.test &&
+      (!cibleEssaiPermise(o.env ?? process.env, o.compte, reseau) ||
+        auteursEssai(o.env ?? process.env).length === 0)
+    )
+      return "cible_test";
     if (c.type === "adresse") return "adresse_pas_encore";
     const v = (await lireRegistre())[cleDe(mot, reseau)];
     if (!v) return "textes_non_valides_reseau";

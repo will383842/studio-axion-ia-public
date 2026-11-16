@@ -7,6 +7,7 @@ import "server-only";
 import { exporterSrt, exporterVtt } from "@/briques/sous-titres";
 import { nomFichier, numeroSur4, titreCourt, versionsCourantes } from "@/domaine/derivations-generateur";
 import { texteScript } from "@/domaine/derivations";
+import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { type Id, type IdReseau, type ReseauDeclinaison, type SegmentSousTitres, type Video, videoIdSure } from "@/domaine/types";
 import { reseauxDeLaVideo } from "@/domaine/reseaux-video";
 import { creerZip } from "@/lib/zip";
@@ -170,7 +171,7 @@ export async function contenuArchiveValidees(reseau: IdReseau): Promise<ContenuA
   await exigerSession();
   const d = depots();
   const exemples = await filtreExemples<{ estDemo?: boolean }>();
-  const parDefaut = await lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
+  const parDefaut = await lireParametre<IdReseau[]>("reseaux.parDefaut", reseauxParDefautNeufs());
   const validees = await d.videos.lister((v) => exemples(v) && v.statut === "prete" && !v.corbeilleLe && v.etapeEditoriale === "validee");
   const entrees: EntreeArchive[] = [];
   const pris = new Set<string>();

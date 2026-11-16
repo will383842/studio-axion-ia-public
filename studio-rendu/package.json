@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@remotion/bundler": "4.0.532",
+    "@remotion/paths": "4.0.532",
     "@remotion/renderer": "4.0.532",
+    "@remotion/shapes": "4.0.532",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "remotion": "4.0.532",

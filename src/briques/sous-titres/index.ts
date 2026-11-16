@@ -15,23 +15,35 @@ import type {
   SegmentSousTitres,
   ValeurStyleSousTitres,
 } from "@/domaine/types";
+import type { CibleMarqueur, ReglagesTexteEcran, TeinteMarqueur } from "@/domaine/texte-ecran";
 import { motsSousTitres } from "@/domaine/derivations";
 import { phrasesTropDenses } from "@/domaine/lecture";
 import { sourceMotif } from "@/domaine/prononciations";
 import { grouperMots, recalerSurCoupes, sansChevauchement, type OptionsGroupement } from "./groupement";
 import { dimensions, largeurLibrePx, positionsVerticales } from "./largeur";
 import { melanger, reporterVerrouilles, type ContexteMelange, type VariationSousTitres } from "./melange";
+import { MARQUEURS } from "./marqueur";
 import { largeurLigne } from "./mesure";
 import { reporterSurTexteValide } from "./report";
 import { elementDe, largeurElement, type DonneesCalque, type SurlignageSousTitres } from "./scene";
 import { baseDe, couleursDepuisMarque, gabaritDe, GABARITS, type CouleursSousTitres } from "./style";
+import { motsAPlaque } from "./pave";
 import { PASTILLE_AXION, PASTILLE_AXION_ARDOISE } from "./pastille";
 import { normaliser } from "./typographie";
-import type { BaseRendu, GabaritRendu, SegmentRendu, StyleBibliothequeRendu } from "./types-rendu";
+import type {
+  BaseRendu,
+  CibleMarqueurRendu,
+  GabaritRendu,
+  ReglagesTexteEcranRendu,
+  SegmentRendu,
+  StyleBibliothequeRendu,
+  TeinteMarqueurRendu,
+} from "./types-rendu";
 
 export * from "./groupement";
 export * from "./largeur";
 export * from "./melange";
+export * from "./marqueur";
 export * from "./mesure";
 export * from "./pastille";
 export * from "./report";
@@ -50,7 +62,10 @@ const verifierTypes: [
   Egaux<BaseSousTitres, GabaritRendu>,
   Egaux<GabaritSousTitres, GabaritRendu>,
   ValeurStyleSousTitres extends StyleBibliothequeRendu ? true : false,
-] = [true, true, true, true];
+  Egaux<ReglagesTexteEcran, ReglagesTexteEcranRendu>,
+  Egaux<TeinteMarqueur, TeinteMarqueurRendu>,
+  Egaux<CibleMarqueur, CibleMarqueurRendu>,
+] = [true, true, true, true, true, true, true];
 void verifierTypes;
 
 export interface DemandeSousTitres {
@@ -182,10 +197,13 @@ export function donneesCalque(entree: {
   const ratio = entree.ratio ?? "9:16";
   const { largeur, hauteur } = dimensions(ratio);
   const reseaux = entree.reseaux ?? [];
+  const cibleMarqueur = entree.style?.texteEcran?.marqueur?.cible;
+  const segmentsPropres = sansChevauchement(entree.segments);
+  const regleePave = entree.style?.texteEcran?.pave?.mots;
   return {
     largeur,
     hauteur,
-    segments: sansChevauchement(entree.segments),
+    segments: segmentsPropres,
     // GV-ST-08a : `BaseRendu` (types-rendu.ts, hors liste) n'admet encore que karaoke/minimal ; à élargir par GV-ST-08b.
     base: entree.base as BaseRendu,
     couleurs: entree.couleurs ?? couleursDepuisMarque(entree.marque, entree.style?.jetonEmphase ?? "orange-vif"),
@@ -197,6 +215,10 @@ export function donneesCalque(entree: {
     ...(entree.style?.pastille === "axion" ? { pastille: PASTILLE_AXION } : entree.style?.pastille === "axion-ardoise" ? { pastille: PASTILLE_AXION_ARDOISE } : {}),
     // Lot L3b (ajout pur) : surlignage au lieu du trait, seulement quand le style le porte.
     ...(entree.style?.surlignage ? { surlignage: entree.style.surlignage } : {}),
+    ...(!entree.style?.surlignage && entree.style?.texteEcran?.marqueur ? { surlignage: MARQUEURS[entree.style.texteEcran.marqueur.teinte] } : {}),
+    ...(cibleMarqueur === "expression" || cibleMarqueur === "mot-dit" ? { cibleMarqueur } : {}),
+    // C2-U7a (ajout pur) : mot-clé en pavé, seulement quand le style le porte.
+    ...(regleePave ? { plaques: Object.fromEntries(segmentsPropres.flatMap((s) => { const k = motsAPlaque(s, regleePave)[0]; return k === undefined ? [] : [[s.id, k] as const]; })) } : {}),
   };
 }
 

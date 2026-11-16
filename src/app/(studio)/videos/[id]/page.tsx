@@ -49,7 +49,7 @@ import { estimerReexport } from "@/services/fabrication";
 import { exemplesModification, historiqueModifications } from "@/services/modifications";
 import { commandeEnEssai, moteurDeCommande } from "@/moteurs";
 import { obtenirVideo } from "@/services/videos";
-import { vueEnvoiBuffer } from "@/services/buffer";
+import { vueEnvoiZernio } from "@/services/comptes-envoi-zernio";
 import { AttenteFacecam } from "@/components/facecam/AttenteFacecam";
 import { EncartFormatFacecam } from "@/components/facecam/EncartFormatFacecam";
 import { VotreVideoFacecam } from "@/components/facecam/VotreVideoFacecam";
@@ -73,6 +73,7 @@ import { OptionsPayantesVideo } from "@/components/options-payantes/CarteOptionP
 import { cartesEnAttente } from "@/services/options-payantes";
 import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BlocSurLeSite } from "@/components/videos/fiche/BlocSurLeSite";
+import { LibererPlace } from "@/components/videos/fiche/LibererPlace";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ const compact = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFra
  * Lecteur au ratio réel + versions, note de qualité, « Avant de publier », KIT DE PUBLICATION,
  * Lot F (08/11) : la vidéo d'abord, titre sobre, puis Valider · Télécharger · Lien privé et les pastilles de réseau ;
  * seules Durée et Vues en chiffres, sujet replié, 6 onglets : Publier · Retouches · Sous-titres · Texte · Résultats · Détails.
- * Actions collées en bas : Télécharger · Lien privé · Publier (Buffer, en Essai).
+ * Actions collées en bas : Télécharger · Lien privé · Publier (en Essai).
  */
 export default async function PageVideo({ params }: { params: Promise<{ id: string }> }) {
   // Session vérifiée ICI, avant toute lecture : le layout est rendu en parallèle (cookie révoqué → aucune donnée).
@@ -115,8 +116,8 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
     // Prononciations ajoutées APRÈS la fabrication pour un mot de la vidéo (lot A1, n° 9).
     prete ? prononciationsAjouteesDepuisVideo(id) : Promise.resolve([]),
   ]);
-  // Lot R1 : mode et comptes Buffer, lus en base (la page n'appelle jamais Buffer).
-  const envoiBuffer = prete ? await vueEnvoiBuffer() : null;
+  // Lot R1 : mode et comptes Zernio, lus en base (la page n'appelle aucun réseau).
+  const envoiBuffer = prete ? await vueEnvoiZernio() : null;
   // Plan facecam v4 (lot D) : « Votre vidéo » face caméra (null pour tous les autres formats : page inchangée).
   const facecam = v.formatId === "facecam" ? await vueVotreVideo(v.id) : null;
   // « Demander une modification » (17/10) : exemples que le format et la vidéo permettent vraiment.
@@ -267,6 +268,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
             <EnTeteSection titre="Historique" />
             <OngletHistorique versions={d.versions} publications={d.publications} versionCouranteId={d.versionCourante?.id} />
           </section>
+          <LibererPlace videoId={v.id} />
         </OngletDetails>
       ),
     },

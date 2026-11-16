@@ -24,11 +24,11 @@ import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, orig
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, FENETRE_ENVOI_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
-import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
+import { classerOpposition, exprimeUnRefus, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
-import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { GROUPES_MP, rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { choisirFormulation, EQUIVALENTS_FIGES } from "@/domaine/guide-reseau/formulations";
 import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
@@ -40,6 +40,7 @@ import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
+import { auteurEssaiPermis, auteursEssai, cibleEssaiPermise, essaiActif } from "@/domaine/guide-reseau/cibles-essai";
 import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
@@ -147,7 +148,11 @@ async function motsActifsDuCompte(compte: string): Promise<string[]> {
   return Object.keys(reg).filter((k) => k.endsWith(fin) && k.length > fin.length && reg[k]?.etat === "actif").map((k) => k.slice(0, -fin.length).toUpperCase());
 }
 /** `null` = tout est permis. Sinon le code de la garde qui bloque (rien ne part). Une panne de lecture bloque aussi (échec fermé). */
-async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: string, parcours?: Pick<Conversation, "mot" | "guide" | "titreCible">, maintenantMs?: number): Promise<string | null> {
+async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: string, parcours?: Pick<Conversation, "mot" | "guide" | "titreCible" | "cibleEssai">, maintenantMs?: number, cleEtat?: string): Promise<string | null> {
+  // Conversation d'essai : l'auteur doit être TOUJOURS listé (PARCOURS_ESSAI_AUTEURS), vérifié à chaque envoi par l'empreinte de la clé d'état. Clé absente ou clés illisibles : fermé.
+  // Une cible devenue « test » après coup n'est servie, elle aussi, qu'à un auteur listé : le résultat sert aussi à la validation par mot.
+  const auteurEssaiOk = cleEtat !== undefined && auteurEssaiToujoursListe(env, cleEtat);
+  if (parcours?.cibleEssai === true && !auteurEssaiOk) return "essai_auteur_refuse";
   try {
     if (!(await envoiZernioAutorise())) return "tout_arrete";
     if ((await lireGardes()).disjoncteur.ouvert) return "disjoncteur_ferme";
@@ -156,7 +161,7 @@ async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: st
     if (parcours?.mot !== undefined && parcours.mot.toUpperCase() !== MOT) {
       // Mot autre que GUIDE : seulement si le réglage « plusieurs mots » est allumé (durable), puis validation PAR MOT et cible du jour (jamais sous `sousVerrou`).
       if (!(await motsMultiplesActifs())) return "plusieurs_mots_eteint";
-      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env, maintenantMs);
+      const refus = await validationPourEnvoi(parcours.mot, reseauSite(reseau), parcours.guide, parcours.titreCible ?? "", env, maintenantMs, idCompte, auteurEssaiOk);
       if (refus !== null) return refus;
     } else if (parcours?.mot !== undefined && !textesValidesPourLeMot(parcours.mot, parcours.guide)) return "validation_absente";
     // La validation de l'opérateur est liée aux textes réellement envoyés : revérifiée ici, à chaque garde (échec fermé).
@@ -171,7 +176,15 @@ async function garde(d: DepsConversation, env: Env, idCompte: string, reseau: st
   if (!lireClesEmpreinte(env).ok) return "cles_absentes";
   return null;
 }
+/** Vrai si la clé d'état (ou sa racine de dossier) est l'empreinte d'un auteur listé, sous l'une des clés connues. Aucun identifiant n'est lu ni journalisé. */
+function auteurEssaiToujoursListe(env: Env, cleEtat: string): boolean {
+  const k = lireClesEmpreinte(env);
+  if (!k.ok) return false;
+  const attendues = new Set(auteursEssai(env).flatMap((a) => formesConversation(k, a)));
+  return attendues.has(cleEtat) || attendues.has(racineDe(cleEtat));
+}
 const MESSAGES_GARDE: Record<string, string> = {
+  essai_auteur_refuse: "Une conversation d'essai n'est plus servie : son auteur n'est pas (ou plus) dans la liste d'essai. Rien n'est envoyé.",
   tout_arrete: "« Tout arrêter » est actif : aucun message privé ne part.",
   disjoncteur_ferme: "Le disjoncteur des mots est ouvert : aucun message privé ne part.",
   mot_inactif: "Le mot GUIDE n'est pas actif pour ce compte : aucun message privé ne part.",
@@ -187,7 +200,7 @@ const MESSAGES_GARDE: Record<string, string> = {
 };
 
 /** Gardes DURABLES propres à un mot : l'événement est CLOS (jamais reporté : une adresse ne doit pas partir des jours après un rallumage). L'état et les données restent. */
-const GARDES_MOT_CLOSES: readonly string[] = ["plusieurs_mots_eteint", "instagram_pas_encore"];
+const GARDES_MOT_CLOSES: readonly string[] = ["plusieurs_mots_eteint", "instagram_pas_encore", "essai_auteur_refuse"];
 const messageRefusMot = (code: string, mot: string): string => (code === "validation_absente" ? `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.` : (MESSAGES_GARDE[code] ?? "Une garde de sécurité bloque les envois."));
 /** Garde « plusieurs mots éteint » / « Instagram pas encore » : alerte puis clôture « ecarte / garde_… ». Vrai si l'événement est clos. */
 async function cloreSiGardeMotDurable(ev: EvenementFournisseur, bloque: string | null, now: number, etat?: Pick<Conversation, "etat">): Promise<boolean> {
@@ -506,17 +519,24 @@ async function aUnDossierComposite(cles: ClesOk, idBrut: string, clesConnues: re
 
 /* --- Commentaire, mode « plusieurs mots » (réglage allumé) --------------------------------------------------------- */
 const ATTENTE_CATALOGUE_MS = 60_000;
-type CibleDuMot = { genre: "ok"; code: string; titre: string } | { genre: "inconnue" } | { genre: "illisible" };
+type CibleDuMot = { genre: "ok"; code: string; titre: string; essai?: true } | { genre: "inconnue"; essaiRefuse?: true } | { genre: "illisible" };
 
 /** Cible d'un mot. GUIDE sans catalogue (ou sans liaison pour GUIDE) : `guide-ia` + titre du serveur. Autre mot, catalogue illisible : « illisible » (reporté). */
-async function cibleDuCommentaire(mot: string, reseau: string, d: DepsConversation, env: Env, now: number): Promise<CibleDuMot> {
+async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string, idAuteur: string | null | undefined, d: DepsConversation, env: Env, now: number): Promise<CibleDuMot> {
   const site = await lireCiblesSite({ env, maintenantMs: now });
   const titreServeur = d.titreGuide ?? "";
   if (site === null) return mot === MOT ? { genre: "ok", code: "guide-ia", titre: titreServeur } : { genre: "illisible" };
   const r = cibleDuMot(mot, reseauSite(reseau) ?? "tous", site.liaisons, site.catalogue);
   if (mot === MOT && r.source === null) return { genre: "ok", code: "guide-ia", titre: titreServeur };
   const el = r.element;
-  if (!el || !el.actif || el.test || el.type === "adresse") return { genre: "inconnue" };
+  if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
+  // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ET un auteur listé (PARCOURS_ESSAI_AUTEURS) ; sinon inconnue, comme avant.
+  // GUIDE ne lit jamais PARCOURS_ESSAI_COMPTES : une cible d'essai liée à GUIDE reste inconnue.
+  // Silence (essaiRefuse) seulement si l'essai est actif ET le mot n'est pas GUIDE : sinon la liaison est suspecte, l'alerte « liaisons » est conservée.
+  if (el.test) {
+    if (mot !== MOT && cibleEssaiPermise(env, idCompte, reseauSite(reseau)) && auteurEssaiPermis(env, idAuteur)) return { genre: "ok", code: el.code, titre: el.titre, essai: true };
+    return mot !== MOT && essaiActif(env) ? { genre: "inconnue", essaiRefuse: true } : { genre: "inconnue" };
+  }
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }
@@ -543,18 +563,23 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   }
   // 3. Cible du mot.
   const mot = String(c.motSeul).trim().toUpperCase();
-  const cible = await cibleDuCommentaire(mot, reseau, d, env, now);
+  const cible = await cibleDuCommentaire(mot, reseau, idCompte, auteur, d, env, now);
   if (cible.genre === "illisible") {
     await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
     return "bloque";
   }
   if (cible.genre === "inconnue") {
+    if (cible.essaiRefuse === true) {
+      // Cible d'essai, auteur ou compte non listé : silence, sans l'alerte « liaisons » (la liaison est correcte). Aucun identifiant.
+      await clore(ev, "ecarte", "essai_auteur_refuse");
+      return "traite";
+    }
     await alerter("cible_inconnue", "Un mot est lié à une cible introuvable, désactivée ou de type adresse : le commentaire est écarté, rien n'est envoyé. Vérifiez les liaisons dans Mots.", now);
     await clore(ev, "ecarte", "cible_inconnue");
     return "traite";
   }
   // 3 bis. Textes validés pour ce mot et cette cible ? Sinon l'événement est CLOS (jamais remis en attente : il bloquerait les GUIDE du lot).
-  const refusEnvoi = await validationPourEnvoi(mot, reseauSite(reseau), cible.code, cible.titre, env, now);
+  const refusEnvoi = await validationPourEnvoi(mot, reseauSite(reseau), cible.code, cible.titre, env, now, idCompte, auteurEssaiPermis(env, auteur));
   if (refusEnvoi === "cibles_illisibles") {
     await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
     return "bloque";
@@ -565,7 +590,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
     return "leger";
   }
   // 4. Garde par mot (ligne `mot|compte` active ; textes validés pour `guide-ia`, fermé pour toute autre cible).
-  const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code, titreCible: cible.titre }, now);
+  const bloque = await garde(d, env, idCompte, reseau, { mot, guide: cible.code, titreCible: cible.titre, ...(cible.essai ? { cibleEssai: true as const } : {}) }, now, empreintePersonne(cles.courante, ESPACE_CONVERSATION, auteur));
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     if (await perimeSousGarde(ev, now)) return "traite";
@@ -582,7 +607,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   const idCommentaire = String(c.idCommentaire ?? "");
   const r = await reserverParcours({
     cles, idAuteur: auteur, idCommentaire, ageMs: Number.isFinite(age) ? age : 0, maintenantMs: now, code: cible.code,
-    creer: ({ cleGuide, nature, groupeM1 }) => ({ ...etatNeuf("nouveau", c, d, cleGuide, now), guide: cible.code, mot, nature, groupeM1, ...(cible.titre ? { titreCible: cible.titre } : {}) }),
+    creer: ({ cleGuide, nature, groupeM1 }) => ({ ...etatNeuf("nouveau", c, d, cleGuide, now), guide: cible.code, mot, nature, groupeM1, ...(cible.titre ? { titreCible: cible.titre } : {}), ...(cible.essai ? { cibleEssai: true } : {}) }),
   });
   const dec = r.decision;
   if (dec.action === "silence") {
@@ -618,6 +643,24 @@ async function verifierRacine(env: Env, cles: ClesOk, racine: string, charge: Re
   return { source: "opposee" };
 }
 
+/**
+ * Réponse publique au commentaire. Facebook : formulation du groupe « pub-commentaire » VALIDÉE par le fondateur (choix stable par personne, figé dans
+ * l'état s'il y en a un) ; sinon, ou sur tout autre réseau, l'ancien texte « mp-pub-igfb-v1 », inchangé. Jamais une formulation non validée.
+ */
+async function textePublic(reseau: string, cleConversation: string, figee?: string | null): Promise<{ texte: string | null; formulation?: string }> {
+  if (reseau === "facebook") {
+    const choix = choisirFormulation({
+      groupe: "pub-commentaire",
+      cleConversation,
+      figee,
+      validees: await formulationsValidees(),
+      rendre: (v) => rendreTexteMp(v, {}),
+      conforme: (t) => texteDuDictionnaire(t, true),
+    });
+    if (choix !== null) return { texte: choix.texte, formulation: choix.version };
+  }
+  return { texte: rendreTexteMp("mp-pub-igfb-v1", {}) };
+}
 /** Réponse publique SEULE (cible déjà servie, en cours, plafond par personne) : aucun enregistrement, aucun message privé. Plafond par heure respecté. */
 async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, racine: string, idCommentaire: string, raison: string, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
@@ -633,7 +676,7 @@ async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversati
     await clore(ev, "silence", "deja_traite");
     return "traite";
   }
-  const texte = rendreTexteMp("mp-pub-igfb-v1", {});
+  const { texte } = await textePublic(texteDe(c.reseau) ?? "", racine);
   if (texte === null) {
     await clore(ev, "ignore", "texte_incomplet");
     return "traite";
@@ -696,6 +739,7 @@ const RAISONS_REPLI_LIEN: Record<Exclude<CodeRepliLien, "lien_eteint">, string> 
   lien_trop_long: "lien trop long",
   forme_refusee: "lien de forme non permise",
   version_inconnue_du_site: "le site ne connaît pas encore cette formulation",
+  cible_essai: "cible d'essai : jamais de lien",
 };
 const LONGUEUR_MAX_M1_LIEN = 1000;
 const RE_NOM_COURT_COMPTE = /^[a-z0-9_]{2,40}$/;
@@ -730,6 +774,21 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
 
 type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string };
 /**
+ * Vrai si la cible de la conversation est d'essai AUJOURD'HUI (catalogue du site), même si la conversation a été créée avant.
+ * GUIDE (`guide-ia`) n'est jamais une cible d'essai et ne lit pas le catalogue. Catalogue absent : faux (la garde d'envoi, qui relit la cible du jour, a déjà refusé un mot non-GUIDE sans catalogue) ; lecture en erreur : vrai.
+ */
+async function cibleEstEssaiAujourdhui(e: Conversation, env: Env, now: number): Promise<boolean> {
+  if ((e.mot ?? MOT) === MOT && e.guide === "guide-ia") return false;
+  try {
+    const site = await lireCiblesSite({ env, maintenantMs: now });
+    if (site === null) return false;
+    return site.catalogue.some((x) => x.code === e.guide && x.test);
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Choisit le texte de M1. Le jeton et le lien ne vivent que dans cette fonction (variables locales) : ni état, ni journal, ni alerte.
  * Le premier contrôle qui échoue donne le code de repli et M1 v2 part, exactement comme avant.
  */
@@ -742,9 +801,29 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   const choisie: { version?: string } = {};
   // Le repli demande l'adresse e-mail : une formulation validée du groupe « m1-adresse » si elle existe, sinon mp-m1-v2 (inchangé).
   const repli = async (code: CodeRepliLien) => {
+    // Version avec mention d'information RGPD (groupe « m1-adresse-rgpd ») : prise SEULEMENT si le fondateur l'a validée sur /mots (empreinte exacte)
+    // et si la conversation n'est pas déjà figée sur une autre version (jamais de changement de texte en cours de conversation). Sinon : inchangé.
+    const figeeAdresse = e.formulations?.["m1-adresse"];
+    if (!figeeAdresse || GROUPES_MP["m1-adresse-rgpd"].includes(figeeAdresse as IdTexteMp)) {
+      const r = choisirFormulation({
+        groupe: "m1-adresse-rgpd",
+        cleConversation: e.cleIdempotenceGuide,
+        derniereValidee: true, // plusieurs versions validées : la plus récente ; une seule (v6-1) : inchangé
+        figee: figeeAdresse,
+        validees: await formulationsValidees(),
+        rendre: (v) => rendreTexteMp(v, { mot, titre }),
+        conforme: (t) => texteDuDictionnaire(t, false),
+      });
+      // Conversation figée sur la version RGPD dont la validation a été retirée : même journal que pour les autres versions (aucune donnée personnelle).
+      if (figeeAdresse && (r === null || r.figeeAbandonnee)) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+      if (r !== null) return { texte: r.texte, version: r.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), formulationAdresse: r.version };
+    }
     const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot, titre } });
     return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
   };
+  // Cible d'essai : jamais de lien ni de jeton (la page du site la refuse) ; la personne donne son adresse en message privé.
+  // Le drapeau figé à la création ne suffit pas : la cible du jour (catalogue) est relue, elle a pu passer en essai depuis.
+  if (e.cibleEssai === true || (await cibleEstEssaiAujourdhui(e, env, now))) return repli("cible_essai");
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -796,7 +875,7 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
 async function preparerRenvoi(e: Conversation, d: DepsConversation, env: Env, cles: ClesOk, now: number): Promise<PrepM1> {
   const impossible = { texte: null, version: e.versionTexteM1 };
   const groupe = e.groupeM1 === "deja-envoye" || e.groupeM1 === "lien-rappel" ? e.groupeM1 : null;
-  if (groupe === null || !parcoursLienGuideActif(env)) return impossible;
+  if (e.cibleEssai === true || groupe === null || !parcoursLienGuideActif(env) || (await cibleEstEssaiAujourdhui(e, env, now))) return impossible;
   const secret = lireSecretLien(env);
   if (secret === null) return impossible;
   const mot = e.mot ?? MOT;
@@ -847,7 +926,7 @@ async function preparerIgSuivre(e: Conversation, d: DepsConversation): Promise<P
 const MESSAGE_IG_SUIVRE_ABSENT = "Instagram : aucune formulation « suivre le compte » validée dans Mots : aucun message ne part.";
 const MESSAGE_IG_LIEN_INDISPONIBLE = "Instagram : le lien ne peut pas partir (texte non validé ou version inconnue du site)";
 const MESSAGE_IG_PAS_ENCORE_ABSENT = "Instagram : aucune formulation « pas encore » validée dans Mots : ce message ne part pas.";
-const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente", "plusieurs_mots_eteint", "instagram_pas_encore"];
+const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente", "plusieurs_mots_eteint", "instagram_pas_encore", "essai_auteur_refuse"];
 const MESSAGE_IG_OK_NON_RECONNU = "Instagram : réponse non reconnue après la demande de suivre le compte : rien n'est parti.";
 const MESSAGE_IG_PLAFOND_PERSONNE = "Instagram : une personne a déjà reçu 3 messages en 24 h : le suivant attend ou est écarté, rien n'est parti.";
 const MESSAGE_IG_A_VERIFIER = "Un message privé Instagram a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.";
@@ -937,7 +1016,8 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (e.etat === "nouveau") {
-    const texte = rendreTexteMp("mp-pub-igfb-v1", {});
+    const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.["pub-commentaire"]);
+    const texte = pub.texte;
     if (texte === null) {
       await patcher(cle, { etat: "pub_ok", dernierCode: "texte_incomplet" });
     } else {
@@ -954,7 +1034,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
         await clore(ev, "bloque", s.code ?? null);
         return "traite";
       }
-      await patcher(cle, s.patch ?? {});
+      await patcher(cle, { ...(s.patch ?? {}), ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
       if (s.action === "reessayer") {
         await reporter(ev, now, s.apresMs ?? 30_000, s.code ?? "a_reessayer");
         return "traite";
@@ -967,7 +1047,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "silence", "etat");
     return "traite";
   }
-  const bloque = await garde(d, env, idCompte, e.reseau, e, now);
+  const bloque = await garde(d, env, idCompte, e.reseau, e, now, cle);
   if (bloque === "validation_absente") {
     await alerter(`validation_absente:${e.mot ?? MOT}`, `Le mot ${e.mot ?? MOT} n'a pas de textes validés : aucun message ne part pour ce mot.`, now);
     await clore(ev, "ecarte", "validation_absente");
@@ -997,7 +1077,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   if (!(await reserverOuReporter(ev, idCompte, now))) return "bloque"; // réservation avant tout changement d'état
   if (m1.codeRepli && m1.codeRepli !== "lien_eteint") {
     await journaliser("parcours_conversation", `Lien du 1er message non utilisé : ${m1.codeRepli}.`);
-    await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
+    if (m1.codeRepli !== "cible_essai") await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
   await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, ...(ig ? { essaiEnvoiLe: new Date(now).toISOString() } : {}), versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse || m1.formulationIg ? { formulations: { ...e.formulations, ...(m1.formulationIg ? { "ig-suivre": m1.formulationIg } : {}), ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
@@ -1206,7 +1286,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   const opposerEnPrive_ = multi ? opposerEnPriveDossier : opposerEnPrive;
   if (s0.action === "reprendre_recu") {
     // Envoi sortant : soumis aux gardes.
-    const bloque = await garde(d, env, etat.idCompte, etat.reseau, etat, now);
+    const bloque = await garde(d, env, etat.idCompte, etat.reseau, etat, now, cle);
     if (await cloreSiGardeMotDurable(ev, bloque, now, etat)) return "traite";
     if (bloque) {
       await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
@@ -1236,7 +1316,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     }
   }
   // Classé UNE fois : opposition claire, doute, ou rien.
-  const classe = classerOpposition(lu.texte);
+  let classe = classerOpposition(lu.texte);
+  // Dans tout état accepté sauf les états Instagram « OK » : un refus ou une demande de retrait SANS adresse passe en doute (jamais la relance « adresse non reconnue »).
+  if (classe === "non" && s0.action !== "lire_opposition" && etat.etat !== "ig_attente_ok" && etat.etat !== "ig_pas_encore" && extraireAdresse(lu.texte) === null && exprimeUnRefus(lu.texte)) classe = "doute";
   if (s0.action === "lire_opposition") {
     // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition ; un doute alerte, l'état reste inchangé.
     if (classe === "opposition") await opposerEnPrive_(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
@@ -1264,7 +1346,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   }
   // Seules les actions sortantes (M2, appel au site, accusé) restent soumises aux gardes ; l'événement attend, rien n'est perdu.
   // Parcours Instagram en attente d'un OK (réglage allumé) : la garde de CHAQUE parcours décide dans `repondreOkInstagram` (rien d'autre ne part ici).
-  const bloque = igSuivre && enAttenteOk(etat) ? null : await garde(d, env, etat.idCompte, etat.reseau, etat, now);
+  const bloque = igSuivre && enAttenteOk(etat) ? null : await garde(d, env, etat.idCompte, etat.reseau, etat, now, cle);
   if (await cloreSiGardeMotDurable(ev, bloque, now, etat)) return "traite";
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
@@ -1459,7 +1541,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       continue;
     }
     // Garde de CE parcours (mot actif, textes validés, comptes, clés) revérifiée avant toute écriture « en vol » : bloqué, on passe au suivant sans rien envoyer.
-    const bloque = await garde(d, env, avant.idCompte, avant.reseau, avant, now);
+    const bloque = await garde(d, env, avant.idCompte, avant.reseau, avant, now, choisi.cle);
     if (bloque) {
       await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
       if (GARDES_DURABLES_PARCOURS.includes(bloque)) {
@@ -1601,12 +1683,16 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   return "traite";
 }
 
+/** Compte d'essai à transmettre à `guidesDuCatalogue` : seulement pour une conversation d'essai Facebook dont l'auteur est TOUJOURS listé ; sinon `undefined` (aucun guide d'essai). */
+export function compteEssaiPourGuides(env: Env, etat: Pick<Conversation, "cibleEssai" | "reseau" | "idCompte">, cle: string): string | undefined {
+  return etat.cibleEssai === true && etat.reseau === "facebook" && auteurEssaiToujoursListe(env, cle) ? etat.idCompte : undefined;
+}
 /** Codes des cibles `guide` actives et non d'essai du catalogue, plus `guide-ia`. Catalogue illisible : la liste par défaut. */
-async function guidesDuCatalogue(env: Env, now: number): Promise<readonly string[]> {
+export async function guidesDuCatalogue(env: Env, now: number, compte?: string): Promise<readonly string[]> {
   try {
     const site = await lireCiblesSite({ env, maintenantMs: now });
     if (site === null) return GUIDES_RESEAU_CONNUS;
-    return [...new Set(["guide-ia", ...site.catalogue.filter((x) => x.type === "guide" && x.actif && !x.test).map((x) => x.code)])];
+    return [...new Set(["guide-ia", ...site.catalogue.filter((x) => x.type === "guide" && x.actif && (!x.test || cibleEssaiPermise(env, compte, "facebook"))).map((x) => x.code)])];
   } catch {
     return GUIDES_RESEAU_CONNUS;
   }
@@ -1631,7 +1717,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   const run: RunLu = { email: adresse, mot: etat.mot ?? MOT, reseau: etat.reseau, guide: etat.guide, versionTexteM1: etat.versionTexteM1, occurredAt };
   const cleEnvoi = RE_CLE_IDEMPOTENCE.test(etat.cleIdempotenceGuide) ? etat.cleIdempotenceGuide : "";
   // Mode allumé : guides connus = cibles `guide` actives et non d'essai du catalogue (+ `guide-ia`) ; catalogue illisible : liste par défaut. Éteint : appel inchangé.
-  const guidesConnus = multi ? await guidesDuCatalogue(env, now) : undefined;
+  const guidesConnus = multi ? await guidesDuCatalogue(env, now, compteEssaiPourGuides(env, etat, cle)) : undefined;
   if (!(guidesConnus ? runValide(run, undefined, guidesConnus) : runValide(run)) || !cleEnvoi) {
     await patcher(cle, { etat: "site_refuse", dernierCode: "run_invalide" });
     await alerter("site_refuse", "Le site a refusé une demande de guide (données invalides). La personne ne recevra pas le guide.", now);
@@ -2224,7 +2310,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   // d bis. Réglage éteint (retour arrière) : un parcours de dossier `racine|…` ne reçoit AUCUN merci (silence strict) ; l'accusé dû au site suit la règle des merci non envoyés.
   if (!multi && racineDe(cle) !== cle) return (await terminer("non_envoye", "dossier_eteint", cle), "fait");
   // e. Garde (« Tout arrêter », disjoncteur, mot actif, validation du guide…) : si elle bloque, ni envoi ni accusé.
-  const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau, conv.etat, now);
+  const bloque = await garde(d, env, conv.etat.idCompte, conv.etat.reseau, conv.etat, now, cle);
   if (bloque) {
     await alerter(`garde:${bloque}`, MESSAGES_GARDE[bloque] ?? "Une garde de sécurité bloque les envois.", now);
     // Site illisible : le merci est REPORTÉ (report propre à cette ref, rien d'écrit, pas d'accusé), sans arrêter la file des autres merci.

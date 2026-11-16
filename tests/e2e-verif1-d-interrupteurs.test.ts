@@ -199,6 +199,10 @@ beforeEach(async () => {
   R.buffer = fauxBuffer();
   vi.stubGlobal("fetch", reseau);
   await auth.seConnecter(MDP, false);
+  // Buffer est gelé par défaut (PR 561) : ce parcours teste l'envoi Buffer, dégel posé dans la base d'essai uniquement ; le même réglage existe en production mais n'est pas touché ici.
+  await ecrireParametre("buffer.gele", false);
+  // Le routage par défaut est Zernio (L7-06) : ces parcours testent l'envoi par Buffer, on l'y route explicitement (réseau par réseau).
+  await ecrireParametre("publication.routage", Object.fromEntries((await import("@/reseaux")).listerReseaux().map((r) => [r.id, "buffer"])));
   for (const [k, v] of Object.entries(REGLAGES_EN_BASE)) await ecrireParametre(k, v);
   await ecrireParametre("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
   credits.injecterLecteursPourEssai([creerLecteurAnthropic({ ANTHROPIC_API_KEY: CLE_ESSAI_CLAUDE }, (async () => { throw new Error("réseau interdit"); }) as typeof fetch)], ["anthropic"]);
@@ -278,7 +282,7 @@ describe("D1 — Réglages › Connexions avec la configuration de production", 
       miniature: "relie/base",
       etalonnage: "relie/base",
       son: "relie/base",
-      publication: "relie/base",
+      publication: "a-relier/base", // L0-13a : « buffer » en base n'est plus un fournisseur d'envoi (Zernio non relié)
       "texte-reseaux": "relie/base",
     });
     // La carte Montage : interrupteurs éteints, le type avocat n'est pas monté pour de vrai. Le face caméra (format actif,
@@ -488,10 +492,10 @@ describe("D3 — confirmer à chaque fabrication, puis fabrication de bout en bo
 
     // 4. Brouillon Buffer (publication réglée EN BASE).
     for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
-    let envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
-    if (envoi.publications[0].etatEnvoi === "a-verifier") envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
-    expect(envoi.simulation).toBe(false);
-    expect(envoi.publications[0]).toMatchObject({ via: "buffer", statut: "brouillon" });
+    // L0-13a : « buffer » en base n'est plus un fournisseur d'envoi : refus (Zernio non relié), aucun appel Buffer, aucune publication écrite.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
+    expect((R.buffer as ReturnType<typeof fauxBuffer>).mutations()).toHaveLength(0);
+    expect(await depots().publications.lister((p) => p.videoId === VIDEO)).toHaveLength(0);
 
     // 5. Payé : la voix et le double au nom de HeyGen ; le payé reste proche du montant confirmé.
     const couts = await coutsDeLaVideo(VIDEO);

@@ -77,7 +77,7 @@ describe("1 · dictionnaire", () => {
     }
     const d = JSON.parse(readFileSync(CHEMIN, "utf8"));
     expect(d.version).toBe(5);
-    expect(Object.keys(d.textes).length).toBe(35 + 12);
+    expect(Object.keys(d.textes).length).toBe(35 + 12 + 2); // +2 : mp-m1-v6-1 et mp-m1-v6-2 (mention RGPD, proposées, hors série 6)
     expect(Object.keys(d.groupes)).toEqual([
       "m1-lien",
       "adresse-refusee",
@@ -86,6 +86,7 @@ describe("1 · dictionnaire", () => {
       "adresse-non-reconnue",
       "lien-rappel",
       ...Object.keys(GROUPES),
+      "m1-adresse-rgpd", // proposé après la série 6 (mention RGPD), en fin de liste
     ]);
   });
   it("chaque groupe a 3 textes distincts, de tournure différente (pas la même première phrase)", () => {
@@ -104,7 +105,7 @@ describe("1 · dictionnaire", () => {
     };
     const anciens = Object.fromEntries(
       Object.entries(d.textes).filter(
-        ([k]) => !(NOUVELLES as readonly string[]).includes(k),
+        ([k]) => !(NOUVELLES as readonly string[]).includes(k) && k !== "mp-m1-v6-1" && k !== "mp-m1-v6-2",
       ),
     );
     expect(Object.keys(anciens)).toHaveLength(35);
@@ -194,7 +195,7 @@ describe("3 · écran /mots", () => {
     const avant = await MS.lireVueMots();
     const versions = avant.formulations!.map((f) => f.version as string);
     for (const v of NOUVELLES) expect(versions, v).toContain(v);
-    expect(avant.formulations!).toHaveLength(7 + 13 + 12);
+    expect(avant.formulations!).toHaveLength(7 + 13 + 12 + 2);
     expect(avant.formulations!.every((f) => !f.valide)).toBe(true);
     expect(
       await actions.validerFormulationAction("mp-deja-envoye-v1-2"),
@@ -204,7 +205,7 @@ describe("3 · écran /mots", () => {
       apres.formulations!.filter((f) => f.valide).map((f) => f.version),
     ).toEqual(["mp-deja-envoye-v1-2"]);
   });
-  it("EcranMots affiche les 4 groupes, chaque texte, « pas encore branché » sur pub-commentaire seul, libellés exacts pour le renvoi et Instagram", async () => {
+  it("EcranMots affiche les 4 groupes, chaque texte, pub-commentaire branché (plus de mention « pas encore branché »), libellés exacts pour le renvoi et Instagram", async () => {
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { createElement } = await import("react");
     const { EcranMots } = await import("@/components/mots/EcranMots");
@@ -228,7 +229,7 @@ describe("3 · écran /mots", () => {
     for (const v of NOUVELLES) expect(html, v).toContain(esc(brut(v).texte));
     for (const g of ["pub-commentaire"]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
-      expect(bloc, g).toContain("pas encore branché");
+      expect(bloc, g).not.toContain("pas encore branché"); // branché depuis la PR « réponse publique » (Facebook, formulation validée)
     }
     for (const g of ["deja-envoye", "lien-rappel"]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
@@ -251,6 +252,6 @@ describe("3 · écran /mots", () => {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
       expect(bloc, g).not.toContain("pas encore branché");
     }
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2);
   });
 });

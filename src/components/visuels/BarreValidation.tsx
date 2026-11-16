@@ -52,7 +52,7 @@ export function BarreValidation({ id, actionsPermises, actions, pdfUrl: pdfBrut,
       </div>
       {permises.includes("refuser") && (
         <details className="group rounded-carte border border-trait bg-surface-1">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 text-sm font-semibold text-texte hover:text-orange-vif">Refuser</summary>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 text-sm font-semibold text-texte hover:text-accent">Refuser</summary>
           <form action={actions.refuser} className="flex flex-col gap-3 border-t border-trait p-4">
             <input type="hidden" name="id" value={id} />
             <label className="text-sm font-semibold text-texte-doux" htmlFor={`motif-${id}`}>

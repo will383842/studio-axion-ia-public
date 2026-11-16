@@ -3,9 +3,10 @@
 /** Actions du lot G7a : saisie des mesures J+3 / J+7 et « Programmer les N ». Chacune commence par exigerSession(). */
 import { revalidatePath } from "next/cache";
 import type { SaisieMesures } from "@/domaine/mesures";
+import type { ReseauDeclinaison } from "@/domaine/types";
 import { essayer, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
-import { enregistrerMesures, programmerSujet, type ResultatProgrammation } from "@/services/mesures";
+import { controlerDecalageManuel, enregistrerMesures, programmerSujet, type ResultatProgrammation } from "@/services/mesures";
 import { cocherAvantDePublier, verificationsAvantProgrammer, type VerificationsVersion } from "@/services/publications";
 
 export async function enregistrerMesuresAction(publicationId: string, saisie: SaisieMesures): Promise<Resultat> {
@@ -44,5 +45,14 @@ export async function programmerSujetAction(sujetId: string, formatId?: string):
     revalidatePath("/calendrier");
     revalidatePath("/");
     return r;
+  });
+}
+
+/** Décalage manuel d'un créneau : revalidé, avertissements seulement (Vous pouvez confirmer). Rien n'est envoyé. */
+export async function controlerDecalageAction(sujetId: string, reseau: ReseauDeclinaison, jour: string, heure: string): Promise<Resultat<{ date: string; avertissements: string[] }>> {
+  await exigerSession();
+  return essayer(async () => {
+    const { date, avertissements } = await controlerDecalageManuel(sujetId, reseau, jour, heure);
+    return { date, avertissements };
   });
 }

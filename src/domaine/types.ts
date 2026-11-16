@@ -231,6 +231,7 @@ export type TypeElement =
   | "profil-son"
   | "decor"
   | "accessoire"
+  | "source-extraits"
   /** Ancien type, lisible le temps de la migration vers `decor` (mode teinte). N'est plus proposé. */
   | "fond";
 
@@ -257,6 +258,7 @@ export type ValeurElement =
   | { type: "police"; famille: string; usage: "titre" | "texte" }
   | { type: "lut"; formatFichier: "cube"; tailleCube: number; intensiteParDefaut: number; avantFichierId?: Id; apresFichierId?: Id }
   | ValeurStyleSousTitres
+  | { type: "source-extraits"; fiche: import("./archive-extraits").FicheSourceExtraits }
   | { type: "illustration-image" | "illustration-video" }
   | { type: "musique"; ambiance: string; tempoBpm: number; dureeSec: number }
   | {
@@ -333,6 +335,7 @@ export interface ValeurStyleSousTitres {
    * le groupe dans une pastille pleine, le mot dit en orange clair. Absent : inchangé.
    */
   pastille?: "axion" | "axion-ardoise";
+  texteEcran?: import("./texte-ecran").ReglagesTexteEcran;
 }
 
 /** Style de montage (B.2). */
@@ -1486,6 +1489,8 @@ export interface DepenseEnregistree extends EntiteBase {
   scriptMaitreId?: Id;
   /** Compte Claude qui a réellement répondu (absent : compte 1, comme avant). */
   sourceClaude?: SourceClaude;
+  /** AUT-E : appel Claude (`appel-…`) qui a produit cette dépense ; sert seulement à compter l'appel au coût réel. Champ neutre : ne change pas `depenseComptee`. */
+  appelId?: Id;
 }
 
 /* ------------------------------------------------------------------ */

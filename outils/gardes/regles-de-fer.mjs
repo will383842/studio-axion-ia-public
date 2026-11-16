@@ -81,11 +81,6 @@ export const EXCEPTIONS = {
     "src/services/zernio.ts": 1,
     "src/visuels/services/corbeille.ts": 5
   },
-  "date-buffer": {
-    "src/app/(studio)/reglages/actions-zernio.ts": 1,
-    "src/components/migration/EcranMigration.tsx": 1,
-    "src/components/migration/Frise.tsx": 1
-  },
   "push": {
     "src/components/coquille/EnregistrementPwa.tsx": 3,
     "src/fournisseurs/catalogue.ts": 1,

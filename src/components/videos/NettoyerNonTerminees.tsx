@@ -74,11 +74,11 @@ export function NettoyerNonTerminees({ formatId }: { formatId?: string }) {
                     return;
                   }
                   setOuverte(false);
-                  const { mises, refusees, brouillonsBuffer, pagesRetirees, messages } = r.donnees;
+                  const { mises, refusees, brouillonsExternes, pagesRetirees, messages } = r.donnees;
                   // Le message de CHAQUE refus (publication programmée, versions en attente…), pas une phrase en dur.
                   const reste = refusees ? ` ${refusees} vidéo${refusees > 1 ? "s sont restées" : " est restée"} : ${messages.join(" ")}` : "";
                   if (!mises) notifier.erreur(reste.trim() || "Rien n'a été mis à la corbeille.");
-                  else notifier.succes("Nettoyage fait", `${messageCorbeille(mises, brouillonsBuffer, pagesRetirees)}${reste}`);
+                  else notifier.succes("Nettoyage fait", `${messageCorbeille(mises, brouillonsExternes, pagesRetirees)}${reste}`);
                   router.refresh();
                 })
               }

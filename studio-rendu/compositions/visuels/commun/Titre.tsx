@@ -5,7 +5,7 @@ import { avecDelai, DELAI_DELAYRENDER_MS, DELAI_POLICE_MS, etatPolices } from ".
 import type { MiseEnLignes } from "./ajustement";
 import { enCapitales, mettreEnLignesCapitales } from "./capitales";
 import { COULEURS, GRAISSE_TITRE, LARGEUR_TEXTE, POLICE_TITRE } from "./constantes";
-import { depassementsEncre, interligneCapitales } from "./interligne-capitales";
+import { depassementsEncre, interligneCapitales, type MesureEncre } from "./interligne-capitales";
 
 interface Proprietes {
   texte: string;
@@ -31,6 +31,9 @@ export const MOT_SEUL_GRAND_TITRE = 5;
 /** Grands titres : on ne garde une ligne de moins que si le corps y reste à 97 % du plus grand (le style C vise le plus grand corps). */
 export const TOLERANCE_GRAND_TITRE = 0.97;
 
+/** Marge (px) par ligne retirée de la hauteur offerte à la mise en lignes : l'arrondi de chaque ligne au pixel près. */
+const ARRONDI_PAR_LIGNE_PX = 1;
+
 /** Attend que la police soit réellement chargée : jamais de mesure avec une police de secours. */
 function attendrePolice(): Promise<void> {
   return avecDelai(policeTitrePrete(), DELAI_POLICE_MS, () => `Police Inter Display Black non chargée après ${DELAI_POLICE_MS / 1000} s : titre non mesurable (${etatPolices()})`);
@@ -42,10 +45,25 @@ function mesurerLignes(contexte: CanvasRenderingContext2D, lignes: string[], tai
   return Math.max(...lignes.map((l) => contexte.measureText(l).width));
 }
 
+/** Encre réelle d'une ligne dans Manrope 800 (canvas, corps 1000 px : em = valeur / 1000), mise en cache. La police est reposée à chaque appel : `mesurerLignes` change `font`. */
+function creerMesureEncre(contexte: CanvasRenderingContext2D): MesureEncre {
+  const cache = new Map<string, { haut: number; bas: number }>();
+  return (ligne) => {
+    contexte.font = `${GRAISSE_TITRE} 1000px "${FAMILLE_TITRE}"`;
+    let mesure = cache.get(ligne);
+    if (!mesure) {
+      const m = contexte.measureText(ligne);
+      mesure = { haut: m.actualBoundingBoxAscent / 1000, bas: m.actualBoundingBoxDescent / 1000 };
+      cache.set(ligne, mesure);
+    }
+    return mesure;
+  };
+}
+
 /** Hauteur (px) d'un titre en capitales : lignes à l'interligne calculé, plus l'encre qui dépasse en haut (accents) et en bas (jambages). */
-function hauteurTitre(lignes: string[], taille: number): number {
-  const interligne = interligneCapitales(lignes);
-  const d = depassementsEncre(lignes, interligne);
+function hauteurTitre(lignes: string[], taille: number, encre?: MesureEncre): number {
+  const interligne = interligneCapitales(lignes, encre);
+  const d = depassementsEncre(lignes, interligne, encre);
   return taille * (lignes.length * interligne + d.haut + d.bas);
 }
 
@@ -57,7 +75,7 @@ function hauteurTitre(lignes: string[], taille: number): number {
 export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = COULEURS.encre, largeur = LARGEUR_TEXTE, min, max, grand = false }: Proprietes) {
   chargerPoliceTitre();
   const [attente] = useState(() => delayRender(`Ajustement du titre « ${texte.slice(0, 24)} »`, { timeoutInMilliseconds: DELAI_DELAYRENDER_MS }));
-  const [mise, setMise] = useState<MiseEnLignes | null>(null);
+  const [mise, setMise] = useState<(MiseEnLignes & { interligne: number; haut: number; bas: number }) | null>(null);
   // Capitales : le texte est passé en capitales AVANT la mesure (elles sont plus larges que les minuscules), jamais seulement au dessin.
   const capitales = enCapitales(texte);
 
@@ -67,8 +85,12 @@ export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = 
       .then(() => {
         const contexte = document.createElement("canvas").getContext("2d");
         if (!contexte) throw new Error("Canvas 2D indisponible : titre non mesurable");
-        const choix = mettreEnLignesCapitales(capitales, (lignes, taille) => mesurerLignes(contexte, lignes, taille), { maxLignes, hauteurMax, cible: largeur, hauteur: hauteurTitre, ...(min ? { min } : {}), ...(max ? { max } : {}), ...(grand ? { motSeulMin: MOT_SEUL_GRAND_TITRE, toleranceCorps: TOLERANCE_GRAND_TITRE } : {}) });
-        if (vivant) setMise(choix);
+        const encre = creerMesureEncre(contexte);
+        const choix = mettreEnLignesCapitales(capitales, (lignes, taille) => mesurerLignes(contexte, lignes, taille), { maxLignes, hauteurMax: hauteurMax - maxLignes * ARRONDI_PAR_LIGNE_PX, cible: largeur, hauteur: (lignes, taille) => hauteurTitre(lignes, taille, encre), ...(min ? { min } : {}), ...(max ? { max } : {}), ...(grand ? { motSeulMin: MOT_SEUL_GRAND_TITRE, toleranceCorps: TOLERANCE_GRAND_TITRE } : {}) });
+        // Même encre pour l'ajustement et pour le dessin : l'interligne et les dépassements se calculent ici, une fois.
+        const interligne = interligneCapitales(choix.lignes, encre);
+        const d = depassementsEncre(choix.lignes, interligne, encre);
+        if (vivant) setMise({ ...choix, interligne, haut: d.haut, bas: d.bas });
         continueRender(attente);
       })
       .catch((e: unknown) => {
@@ -81,12 +103,11 @@ export function Titre({ texte, maxLignes, hauteurMax, accent = false, couleur = 
   }, [capitales, maxLignes, hauteurMax, attente, largeur, min, max, grand]);
 
   if (!mise) return <div data-titre-attente="" style={{ width: largeur, height: hauteurMax }} />;
-  const interligne = interligneCapitales(mise.lignes);
-  const encre = depassementsEncre(mise.lignes, interligne);
+  const { interligne } = mise;
   return (
     <div
       data-titre-taille={mise.taille}
-      style={{ width: largeur, paddingTop: Math.ceil(encre.haut * mise.taille), paddingBottom: Math.ceil(encre.bas * mise.taille), fontFamily: POLICE_TITRE, fontWeight: GRAISSE_TITRE, fontSize: mise.taille, lineHeight: interligne, color: couleur }}
+      style={{ width: largeur, paddingTop: Math.ceil(mise.haut * mise.taille), paddingBottom: Math.ceil(mise.bas * mise.taille), fontFamily: POLICE_TITRE, fontWeight: GRAISSE_TITRE, fontSize: mise.taille, lineHeight: interligne, color: couleur }}
     >
       {mise.lignes.map((ligne, i) => (
         <div key={i} style={{ whiteSpace: "nowrap", color: accent && i === mise.lignes.length - 1 ? COULEURS.orange : couleur }}>

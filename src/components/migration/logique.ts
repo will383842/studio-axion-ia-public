@@ -1,6 +1,6 @@
 /**
  * Z3-M · logique PURE de l'écran Migration (aucun réseau, aucune horloge cachée) :
- * comptages, écart de somme, critères de résiliation, lots, confirmation. Tout vient des données reçues.
+ * comptages, écart de somme, lots, confirmation. Tout vient des données reçues.
  */
 
 export type Reseau = "instagram" | "facebook" | "linkedin" | "tiktok";
@@ -38,10 +38,8 @@ export interface DonneesMigration {
   comptes: CompteMigration[];
 }
 
-export const DATE_LIMITE_RESILIATION = "2026-11-18";
 export const BASCULE_LOT_C = "2026-11-20";
 export const DELAI_MIN_MS = 30 * 60_000;
-export const REQUIS = { publications: 2, jours: 5 } as const;
 
 export interface Comptage {
   total: number;
@@ -81,9 +79,9 @@ export interface ResumeLot {
 }
 
 const INFO_LOT: Record<CodeLot, { intitule: string; plage: string }> = {
-  A: { intitule: "Lot A · Instagram et Facebook", plage: "du 8 au 20/11" },
-  B: { intitule: "Lot B · LinkedIn", plage: "du 9 au 20/11" },
-  C: { intitule: "Lot C · tous réseaux", plage: "après le 20/11, recréation le sam. 14/11" },
+  A: { intitule: "Lot A · Instagram et Facebook", plage: "posts déjà prévus" },
+  B: { intitule: "Lot B · LinkedIn", plage: "posts déjà prévus" },
+  C: { intitule: "Lot C · tous réseaux", plage: "posts à venir" },
 };
 
 export function resumerLots(posts: PostMigration[]): ResumeLot[] {
@@ -93,42 +91,6 @@ export function resumerLots(posts: PostMigration[]): ResumeLot[] {
     const statut = !l.length ? "vide" : faits === l.length ? "termine" : faits > 0 || l.some((p) => p.etat === "a-verifier") ? "en-cours" : "a-faire";
     return { code, ...INFO_LOT[code], faits, total: l.length, statut };
   });
-}
-
-export type Cellule = "oui" | "non" | "sans-objet";
-export interface ResultatCritere {
-  publications: { n: number; requis: number; ok: boolean };
-  premierComm: Cellule;
-  lien: Cellule;
-  rienAVerifier: Cellule;
-  jours: { n: number; requis: number; ok: boolean };
-  rempli: boolean;
-}
-
-const jourEnMs = (j: string) => Date.parse(`${j}T00:00:00Z`);
-
-/** Chaque compte : 2 vraies publications, dont une avec premier commentaire, liens vérifiés, rien « à vérifier », sur ≥ 5 jours. */
-export function critereResiliation(compte: Pick<CompteMigration, "reseau" | "publications">): ResultatCritere {
-  const pubs = compte.publications;
-  const nb = pubs.length;
-  const jours = nb ? Math.min(REQUIS.jours, Math.floor((Math.max(...pubs.map((p) => jourEnMs(p.jour))) - Math.min(...pubs.map((p) => jourEnMs(p.jour)))) / 86_400_000) + 1) : 0;
-  const pubOk = nb >= REQUIS.publications;
-  const sansObjet = compte.reseau === "tiktok";
-  const premierComm: Cellule = sansObjet ? "sans-objet" : pubs.some((p) => p.premierCommentaire) ? "oui" : "non";
-  const lien: Cellule = nb > 0 && pubs.every((p) => p.lienVerifie) ? "oui" : "non";
-  const rien: Cellule = nb > 0 && pubs.every((p) => !p.aVerifier) ? "oui" : "non";
-  const joursOk = jours >= REQUIS.jours;
-  return {
-    publications: { n: nb, requis: REQUIS.publications, ok: pubOk },
-    premierComm, lien, rienAVerifier: rien,
-    jours: { n: jours, requis: REQUIS.jours, ok: joursOk },
-    rempli: pubOk && premierComm !== "non" && lien === "oui" && rien === "oui" && joursOk,
-  };
-}
-
-export function joursAvantDateLimite(maintenant: Date): number {
-  const auj = Date.UTC(maintenant.getUTCFullYear(), maintenant.getUTCMonth(), maintenant.getUTCDate());
-  return Math.max(0, Math.round((jourEnMs(DATE_LIMITE_RESILIATION) - auj) / 86_400_000));
 }
 
 export function formaterDate(iso: string): string {

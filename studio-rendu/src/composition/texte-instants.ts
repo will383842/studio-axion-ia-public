@@ -21,7 +21,7 @@ export interface InstantsTexte {
 export function empreinteTexte(p: Pick<ProprietesTexteComposition, "sousTitres" | "encadre" | "incrustations">, t: number): string {
   const el = p.sousTitres ? sceneAuTemps(p.sousTitres, t) : null;
   const sous = el
-    ? [el.cle, el.taillePx, +el.yPx.toFixed(2), el.rotationDeg, +el.echelle.toFixed(4), +el.opacite.toFixed(4), +el.decalageYPx.toFixed(2), el.mots.map((m) => [m.texte, m.couleur, +m.opacite.toFixed(4), +m.souligne.toFixed(4)])]
+    ? [el.cle, el.taillePx, +el.yPx.toFixed(2), el.rotationDeg, +el.echelle.toFixed(4), +el.opacite.toFixed(4), +el.decalageYPx.toFixed(2), el.mots.map((m) => [m.texte, m.couleur, +m.opacite.toFixed(4), +m.souligne.toFixed(4), ...(m.echelle === undefined && m.monteePx === undefined ? [] : [+(m.echelle ?? 1).toFixed(4), +(m.monteePx ?? 0).toFixed(2)]), ...(m.plaque ? [1] : [])])]
     : null;
   const inc = incrustationsAuTemps(p.incrustations, t).map((i) => p.incrustations.indexOf(i));
   return JSON.stringify([sous, encadreVisible(p.encadre, t), inc]);

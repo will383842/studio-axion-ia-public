@@ -227,7 +227,7 @@ async function solderAppelsInterrompus(): Promise<void> {
     if (r.videoId) {
       const lignes = [ligne(ETAPE_APPEL_INTERROMPU, r.centimes / 100, t, "estime")];
       const video = await d.videos.obtenir(r.videoId);
-      await d.depenses.enregistrer({ id: nouvelId("dep"), videoId: r.videoId, lignes, total: lignes[0].total, date: r.creeLe, estDemo: video?.estDemo, ...horodatage() });
+      await d.depenses.enregistrer({ id: nouvelId("dep"), videoId: r.videoId, lignes, total: lignes[0].total, date: r.creeLe, estDemo: video?.estDemo, appelId: r.travailId!, ...horodatage() });
     }
     await libererReservation(r.travailId!, "consommee");
   }
@@ -369,7 +369,7 @@ export async function executerRolePourVideo<S extends z.ZodType>(videoId: Id, ro
         const r = await appelerAvecRotation(actif, role, entree, { type: "video", id: videoId });
         const cout = coutReelUsd(r.reponse);
         const lignesReelles = [ligne(options.etape, cout, t, "reel")];
-        const depense: DepenseEnregistree = { id: nouvelId("dep"), videoId, lignes: lignesReelles, total: lignesReelles[0].total, date: maintenant(), estDemo: video.estDemo, sourceClaude: actif.source, ...horodatage() };
+        const depense: DepenseEnregistree = { id: nouvelId("dep"), videoId, lignes: lignesReelles, total: lignesReelles[0].total, date: maintenant(), estDemo: video.estDemo, sourceClaude: actif.source, appelId, ...horodatage() };
         await d.depenses.enregistrer(depense);
         await libererReservation(appelId, "consommee");
         if (r.reponse.replis.length) {

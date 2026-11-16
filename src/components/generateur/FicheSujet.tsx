@@ -99,10 +99,10 @@ export interface VersionAffichee {
 /** « Programmer les N » (lot G7a, B.5.5) : versions retenues et créneaux J à J+4. */
 export interface ProgrammationAffichee {
   formatNom?: string;
-  creneaux: { code: string; reseau: ReseauDeclinaison; jour: string; heure?: string; heureParDefaut: boolean; decaleWeekEnd: boolean; rang: number }[];
+  creneaux: { code: string; reseau: ReseauDeclinaison; jour: string; heure?: string; heureParDefaut: boolean; decaleWeekEnd: boolean; rang: number; motif?: string; avertissement?: string }[];
   autresFormats: number;
   envoiSimule: boolean;
-  /** Lot R1 : envoi réel en brouillon dans Buffer (défaut) ou programmé directement. */
+  /** Lot R1 : envoi réel en brouillon dans Zernio (défaut) ou programmé directement. */
   modeBuffer?: ModeEnvoiPublication;
 }
 
@@ -1020,7 +1020,7 @@ export function VerificationsDeLaVersion({ v, onCocher }: { v: VerificationsVers
 
 /**
  * « Programmer les N » (lot G7a, B.5.5) : un format à la fois, chaque version sur SON réseau, ordre J à J+4 ; un toucher
- * pour confirmer. Chaque envoi suit l'interrupteur de Buffer (essai tant que l'envoi réel n'est pas activé).
+ * pour confirmer. Chaque envoi suit l'interrupteur de l'envoi (essai tant que l'envoi réel n'est pas activé).
  */
 function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }: { ouverte: boolean; onOuverteChange: (v: boolean) => void; sujetId: string; programmation: ProgrammationAffichee }) {
   const router = useRouter();
@@ -1058,8 +1058,8 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       }
       const { programmees, ignorees, simulation } = r.donnees;
       if (programmees.length) {
-        if (simulation) notifier.essai("rien n'a été envoyé à Buffer");
-        else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Buffer`, "Relisez et programmez dans Buffer.");
+        if (simulation) notifier.essai("rien n'a été envoyé à Zernio");
+        else if (r.donnees.modeBuffer === "brouillon") notifier.succes(`${programmees.length} brouillon${programmees.length > 1 ? "s" : ""} dans Zernio`, "Relisez et programmez dans Zernio.");
         else notifier.succes(`${programmees.length} version${programmees.length > 1 ? "s" : ""} programmée${programmees.length > 1 ? "s" : ""}`);
       }
       if (ignorees.length) notifier.erreur(`${ignorees[0].code} : ${messageSansMontant(ignorees[0].message)}`);
@@ -1088,7 +1088,7 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
       {!programmation.envoiSimule && programmation.modeBuffer === "brouillon" && (
         <p className="mb-4 flex items-center gap-2 rounded-2xl border border-trait bg-surface-2 px-3 py-2.5 text-sm text-texte-doux">
           <Icone nom="envoyer" size={16} className="shrink-0 text-accent" />
-          Chaque version part en brouillon dans Buffer, avec sa date : vous la programmez dans Buffer.
+          Chaque version part en brouillon dans Zernio, avec sa date : vous la programmez dans Zernio.
         </p>
       )}
       <ol className="space-y-2">
@@ -1105,6 +1105,8 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
                     {fmt(c.jour)} · {(c.heure ?? "09:00").replace(":", " h ")}
                     {c.decaleWeekEnd && <span className="font-normal text-texte-faible"> · lundi</span>}
                   </span>
+                  {c.motif && <span className="block text-xs text-texte-doux">{c.motif}</span>}
+                  {c.avertissement && <span className="block text-xs text-texte-doux">{c.avertissement}</span>}
                 </span>
                 {v && !v.pasPrete && !v.manquantes.length && !v.licenceBloque && (
                   <span className="shrink-0 text-sauge">

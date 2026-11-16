@@ -5,16 +5,20 @@
  * Les transitions (visuel et créneau) sont portées par L1-04 et L1-08 ; ce module ne fait que les appeler.
  */
 import "server-only";
-import type { Depot } from "@/domaine/depots";
-import type { Publication } from "@/domaine/types";
+import type { Depot, LotEcritures } from "@/domaine/depots";
+import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
+import type { Evenement, Publication } from "@/domaine/types";
+import { cleJour } from "@/lib/dates";
 import type { ReseauDeclinaison } from "@/domaine/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import { transitionPermise } from "@/domaine/visuels/statuts";
-import { changerStatut, identifiantsProgrammation, peutProgrammer, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
+import { changerStatut, estConfie, identifiantsProgrammation, peutProgrammer, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 
 export interface DepotsPasserelle extends DepotsPlan {
   publications: Depot<Publication>;
   visuels: Depot<Visuel>;
+  /** Journal d'activité : trace d'un retrait du calendrier (facultatif pour les doublures de `programmerVisuel`). */
+  evenements?: Depot<Evenement>;
 }
 
 /**
@@ -79,4 +83,82 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   }
   if (c.statut === "valide") await changerStatut(d, c.id, "programme", "studio", maintenant);
   return publications;
+}
+
+/** Refus d'un retrait du calendrier : la phrase est celle de `PHRASES_RETRAIT`, rien n'a été écrit. */
+export class RefusRetrait extends Error {}
+
+export const PHRASES_RETRAIT = {
+  introuvable: "Ce carrousel est introuvable. Rechargez la page.",
+  absent: "Ce carrousel n'est pas au calendrier.",
+  publiee: "Déjà publiée : elle ne se retire pas du calendrier.",
+  confiee: "Cette publication a déjà été confiée à l'outil de publication : retirez-la d'abord là-bas. Rien n'a été changé ici.",
+  usine: "Cette entrée a été confiée à l'usine : elle ne se retire pas d'ici.",
+  passee: "L'heure est passée : cette publication ne se retire plus d'ici.",
+} as const;
+
+const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook" };
+const JOUR_COURT = (instant: string): string => cleJour(instant).split("-").reverse().slice(0, 2).join("/");
+
+/**
+ * Défait `programmerEnUnClic` tant que RIEN n'est parti : efface les Publications « manuel » jamais envoyées, archive le
+ * créneau (avec `retireLe`), remet le visuel à « valide », trace au journal. Un seul lot, un seul `appliquer`.
+ * Refus (sans aucune écriture) : publiée, confiée à l'outil de publication ou à l'usine, ou heure passée.
+ */
+export async function retirerVisuel(
+  d: DepotsPasserelle,
+  visuelId: string,
+  maintenant: string,
+  appliquer: (lot: LotEcritures) => Promise<void>,
+): Promise<{ creneauId: string; retirees: { reseau: string; date: string }[] }> {
+  const v = await d.visuels.obtenir(visuelId);
+  if (!v) throw new RefusRetrait(PHRASES_RETRAIT.introuvable);
+
+  const pubs = await d.publications.lister((p) => p.visuelId === v.id);
+  if (pubs.some((p) => p.statut === "publiee")) throw new RefusRetrait(PHRASES_RETRAIT.publiee);
+  const confiee = pubs.some((p) =>
+    !(p.statut === "programmee" && p.via === "manuel")
+    || Boolean(p.idExterne) || Boolean(p.etatEnvoi) || Boolean(p.urlPubliee)
+    || Boolean(p.stats) || (Array.isArray(p.releves) && p.releves.length > 0));
+  if (confiee) throw new RefusRetrait(PHRASES_RETRAIT.confiee);
+
+  const c = await d.creneaux.trouver((x) => x.visuelId === v.id && x.statut === "programme");
+  if (v.statut !== "programme" || !c) throw new RefusRetrait(PHRASES_RETRAIT.absent);
+  if (estConfie(c) || c.aRenvoyer) throw new RefusRetrait(PHRASES_RETRAIT.usine);
+
+  const t = Date.parse(maintenant);
+  const heures = Object.values(c.heuresParReseau).filter((h): h is string => Boolean(h));
+  if (c.jourVise < cleJour(maintenant) || heures.some((h) => Date.parse(h) <= t) || pubs.some((p) => Date.parse(p.date) <= t)) {
+    throw new RefusRetrait(PHRASES_RETRAIT.passee);
+  }
+
+  const r1 = transitionner(c, "valide", "studio");
+  if (!r1.ok) throw new Error(r1.raison);
+  const r2 = transitionner(r1.creneau, "archive", "studio");
+  if (!r2.ok) throw new Error(r2.raison);
+  const creneau = { ...r2.creneau, retireLe: maintenant };
+
+  if (!transitionPermise("programme", "valide")) throw new Error("Transition programme -> valide refusée pour un visuel.");
+  const visuel: Visuel = { ...v, statut: "valide", modifieLe: maintenant };
+
+  const retirees = pubs
+    .map((p) => ({ reseau: p.reseau as string, date: p.date }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const detail = retirees.map((r) => `${NOMS_RESEAUX[r.reseau] ?? r.reseau} le ${JOUR_COURT(r.date)} à ${heureAffichageParis(r.date)}`).join(", ");
+  const evenement: Evenement = {
+    id: "ev_retrait_" + c.id, type: "calendrier",
+    message: `Carrousel « ${v.titre} » retiré du calendrier avant tout envoi : ${detail}. Lignes retirées : ${pubs.map((p) => p.id).join(", ")}.`,
+    entite: "visuel", entiteId: v.id, date: maintenant, creeLe: maintenant, modifieLe: maintenant,
+  };
+
+  const lot: LotEcritures = {
+    supprimer: pubs.map((p) => ({ collection: "publications" as const, id: p.id })),
+    enregistrer: [
+      { collection: "creneauxEditoriaux", entite: creneau },
+      { collection: "visuels", entite: visuel },
+      { collection: "evenements", entite: evenement },
+    ],
+  };
+  await appliquer(lot);
+  return { creneauId: c.id, retirees };
 }

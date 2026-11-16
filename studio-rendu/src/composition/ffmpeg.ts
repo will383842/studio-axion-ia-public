@@ -11,6 +11,8 @@
  *     (voix mono centrée = double mono).
  */
 import type { ParametresCouleurs, ParametresExport } from "../../../src/briques/composition/scene.js";
+import { etapeNoirBlanc } from "../../../src/briques/motion/habillage-commun/noir-blanc.js";
+import { argumentsRecollables } from "./reglages-recollables.js";
 
 /** Expression de temps FFmpeg « dans l'une des plages [a, b) ». */
 export function expressionPlages(plages: [number, number][]): string {
@@ -40,13 +42,16 @@ export function grapheCouleurs(c: Pick<ParametresCouleurs, "grainPct" | "grainTa
  * Chaîne des couleurs depuis une étiquette quelconque (lot M4b : à la suite des calques image composés DANS FFmpeg,
  * `dejaRvb` = l'image arrive déjà en RVB, sans aller-retour YUV). Sortie : `[v]`.
  */
-export function chaineCouleurs(c: Pick<ParametresCouleurs, "grainPct" | "grainTaillePx" | "vignettePct">, luts: { fichier: string; plages: [number, number][] }[], taille: { largeur: number; hauteur: number }, o: { entree: string; grain: string; dejaRvb: boolean; dixBits?: boolean }): string {
+export function chaineCouleurs(c: Pick<ParametresCouleurs, "grainPct" | "grainTaillePx" | "vignettePct">, luts: { fichier: string; plages: [number, number][] }[], taille: { largeur: number; hauteur: number }, o: { entree: string; grain: string; dejaRvb: boolean; dixBits?: boolean; noirBlanc?: [number, number][] }): string {
   // V6 P0 n° 1 : en 10 bits (source face caméra), LUT, vignette et grain restent en 10 bits (avant : `yuv420p` 8 bits
   // AVANT le master, d'où des bandes sur les murs en dégradé). Sans `dixBits` : la chaîne d'avant, à l'identique.
   const rvb = o.dixBits ? "gbrp10le" : "gbrp";
   const yuv = o.dixBits ? "yuv420p10le" : "yuv420p";
   const etapes = o.dejaRvb ? [`${o.entree}format=${rvb}`] : [`${o.entree}format=${yuv}`, "scale=in_color_matrix=bt709:in_range=tv", `format=${rvb}`];
   for (const l of luts) if (l.plages.length) etapes.push(`lut3d=file=${l.fichier}:interp=tetrahedral:enable='${expressionPlages(l.plages)}'`);
+  // C10-05 (non branché) : noir et blanc sur des plages, après les LUT. Absent ou vide : chaîne identique.
+  const noirBlanc = o.noirBlanc?.length ? etapeNoirBlanc(o.noirBlanc) : null;
+  if (noirBlanc) etapes.push(noirBlanc);
   etapes.push("scale=out_color_matrix=bt709:out_range=tv", `format=${yuv}`);
   if (c.vignettePct > 0) etapes.push(`vignette=angle=${angleVignette(c.vignettePct)}:eval=init`);
   const image = etapes.join(",") + "[img_c]";
@@ -122,9 +127,9 @@ export function grapheExport(source10bits = false, e: { master: string; texte: s
  * mesuré sur la démonstration au même débit, la ressemblance à l'image d'origine (SSIM) est la même qu'en `medium`
  * (0,9887 contre 0,9879 : le grain domine) pour un encodage 2 fois plus court.
  */
-export function reglagesVideo(e: ParametresExport): string[] {
+export function reglagesVideo(e: ParametresExport, options?: { recollable?: boolean }): string[] {
   const debit = modeExport(e) === "crf" ? ["-crf", String(e.crf ?? 17)] : ["-b:v", `${e.debitKbps}k`];
-  return [
+  const reglages = [
     "-c:v", "libx264", "-preset", "faster", "-profile:v", "high", "-level:v", "4.1",
     ...debit, "-maxrate", `${e.debitMaxKbps}k`, "-bufsize", `${Math.round(e.debitMaxKbps * 1.5)}k`,
     "-g", String(e.fps * 2), "-keyint_min", String(e.fps * 2), "-sc_threshold", "0", "-flags", "+cgop", "-bf", "2",
@@ -132,6 +137,8 @@ export function reglagesVideo(e: ParametresExport): string[] {
     "-x264-params", `colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv${e.source10bits ? ":aq-mode=3" : ""}`,
     "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv",
   ];
+  // G11-03 : option facultative, éteinte (absente ou fausse : tableau d'avant, inchangé).
+  return options?.recollable === true ? argumentsRecollables(reglages) : reglages;
 }
 
 /**

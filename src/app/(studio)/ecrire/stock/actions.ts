@@ -2,10 +2,10 @@
 
 /** RC-31 : stock de messages à faire passer. Chaque action commence par exigerSession(). Rien n'est supprimé : on archive. */
 import { revalidatePath } from "next/cache";
-import { verifierSaisieStock, creerEntreeStock, archiverMessage, planifierEntree, type MessageStock, type PrioriteStock } from "@/domaine/stock-messages";
+import { verifierSaisieStock, creerEntreeStock, estActif, archiverMessage, planifierEntree, type MessageStock, type PrioriteStock } from "@/domaine/stock-messages";
 import type { IdReseau } from "@/domaine/types";
 import { nouvelId } from "@/lib/ids";
-import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
+import { depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 
 export async function creerEntreeStockAction(e: {
@@ -36,11 +36,13 @@ export async function creerEntreeStockAction(e: {
           (existante.format ?? undefined) === (saisie.format ?? undefined) &&
           JSON.stringify(existante.reseaux ?? []) === JSON.stringify(saisie.reseaux);
         if (!memes) throw new Error("Cette saisie a déjà servi pour un autre message : rechargez la page.");
+        // Même texte déjà archivé, planifié ou publié : pas de faux succès, on le dit clairement.
+        if (!estActif(existante)) throw new ErreurStudio("DEJA_PLACE", "Ce texte est déjà placé ou archivé.");
         return existante;
       }
     }
     const entree = await depots().stockMessages.enregistrer(creerEntreeStock({ ...saisie, texte, id }, maintenant()));
-    revalidatePath("/ecrire/stock");
+    revalidatePath("/ecrire");
     return entree;
   });
 }
@@ -51,7 +53,7 @@ export async function planifierEntreeStockAction(id: string, creneauId: string):
     const m = await depots().stockMessages.obtenir(id);
     if (!m) throw new Error("Ce message n'est plus dans le stock.");
     const r = await depots().stockMessages.enregistrer(planifierEntree(m, creneauId));
-    revalidatePath("/ecrire/stock");
+    revalidatePath("/ecrire");
     return r;
   });
 }
@@ -62,7 +64,7 @@ export async function archiverEntreeStockAction(id: string): Promise<Resultat<Me
     const m = await depots().stockMessages.obtenir(id);
     if (!m) throw new Error("Ce message n'est plus dans le stock.");
     const r = await depots().stockMessages.enregistrer(archiverMessage(m, maintenant()));
-    revalidatePath("/ecrire/stock");
+    revalidatePath("/ecrire");
     return r;
   });
 }

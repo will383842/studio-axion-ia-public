@@ -53,6 +53,7 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["m1-lien", "Premier message avec le lien"],
   ["adresse-refusee", "Adresse refusée"],
   ["m1-adresse", "Premier message sans lien (on demande l'adresse e-mail)"],
+  ["m1-adresse-rgpd", "Premier message sans lien avec la mention d'information (à valider par le fondateur)"],
   ["recu", "Accusé de réception"],
   ["adresse-non-reconnue", "Adresse non reconnue (on la redemande)"],
   ["lien-rappel", "Rappel avec le lien"],
@@ -61,8 +62,8 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["deja-envoye", "Déjà envoyé"],
   ["pub-commentaire", "Réponse publique au commentaire"],
 ];
-/** Groupes proposés (série 6) : à relire et valider, mais aucun envoi n'est encore branché dessus. */
-const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set(["pub-commentaire"]);
+/** Groupes proposés dont aucun envoi n'est encore branché (vide : « pub-commentaire » est branché sur Facebook). */
+const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set([]);
 /** Groupes branchés sur Instagram (PR 467), mais tant que le réglage Instagram est éteint rien ne part. */
 const GROUPES_INSTAGRAM_ETEINTS: ReadonlySet<string> = new Set(["ig-suivre", "ig-pas-encore"]);
 /** Groupes du renvoi du mode « plusieurs mots » (tous réseaux) : libellé propre à chacun. */

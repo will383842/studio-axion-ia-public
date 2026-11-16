@@ -7,7 +7,6 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { CartePliante } from "@/components/reglages/CartePliante";
 import { RefaireToutesLesVignettes } from "@/components/videos/RefaireToutesLesVignettes";
 import { NettoyerNonTerminees } from "@/components/videos/NettoyerNonTerminees";
-import { BlocBuffer } from "@/components/reglages/BlocBuffer";
 import { InterrupteurAPublier } from "@/components/reglages/InterrupteurAPublier";
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { Connexions } from "@/components/reglages/Connexions";
@@ -24,10 +23,13 @@ import { ReglageDouble } from "@/components/reglages/Double";
 import { vueRenduDouble } from "@/services/rendu-double";
 import { InterrupteurExemples, ReglagesMentionIA, ReglagesNotifications, ReglagesReseaux } from "@/components/reglages/Preferences";
 import { VosHashtags } from "@/components/reglages/VosHashtags";
+import { PlacementHashtags } from "@/components/reglages/PlacementHashtags";
+import type { InfoReseauPlacement } from "@/components/reglages/PlacementHashtags";
+import { placerHashtags, premierCommentairePossible, REGLES_PLACEMENT, RESEAUX_PLACEMENT, type OutilPlacement, type PlacementHashtags as ChoixPlacement, type ReseauPlacement } from "@/reseaux/placement-hashtags";
+import { lirePlacements } from "@/services/placement-hashtags";
 import { ChangerMotDePasse, ListeAppareils } from "@/components/reglages/Securite";
 import { ilYA } from "@/lib/dates";
 import { listerSessions } from "@/services/auth";
-import { vueBuffer } from "@/services/buffer";
 import { vueCles, vueCredits } from "@/services/credits";
 import { aPropos, listerConnexions, listerJournal, lireReglages } from "@/services/reglages";
 import { exigerSession } from "@/services/auth";
@@ -54,6 +56,9 @@ import { optionRetiree } from "@/briques/options-payantes";
 import { trouverFormat } from "@/formats";
 import { SurLeSite } from "@/components/reglages/SurLeSite";
 import { lireReglagesSite } from "@/services/site-videos";
+import { CarteYoutubeShorts } from "@/components/reglages/CarteYoutubeShorts";
+import { resumeCarteYoutube } from "@/components/reglages/youtube-logique";
+import { vueYoutubeZernio } from "@/services/youtube-zernio";
 import { RUBRIQUES } from "./rubriques";
 
 export const metadata: Metadata = { title: "Réglages" };
@@ -88,6 +93,27 @@ function Rubrique({ id, children }: { id: string; children: ReactNode }) {
   );
 }
 
+const NOMS_PLACEMENT: Record<ReseauPlacement, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok" };
+const OUTILS_PLACEMENT: { id: OutilPlacement; nom: string }[] = [{ id: "buffer", nom: "Outil principal" }, { id: "zernio", nom: "Second outil" }];
+
+/** HSH-01b : ce que l'écran du placement des hashtags affiche, réseau par réseau (phrase de repli et source ou « hypothèse »). */
+function infosPlacement(placements: Record<ReseauPlacement, ChoixPlacement>): InfoReseauPlacement[] {
+  return RESEAUX_PLACEMENT.map((reseau) => ({
+    reseau,
+    nom: NOMS_PLACEMENT[reseau],
+    placement: placements[reseau],
+    diffuseurs: OUTILS_PLACEMENT.map(({ id, nom }) => {
+      const regle = REGLES_PLACEMENT[reseau][id];
+      return {
+        nom,
+        possible: premierCommentairePossible(reseau, id),
+        repli: placerHashtags({ reseau, outil: id, placement: "premier-commentaire", texte: "", motsDiese: ["#a"] }).repli,
+        source: regle.niveau === "sourcé" ? { niveau: "sourcé" as const, texte: regle.source, date: regle.date } : { niveau: "hypothèse" as const },
+      };
+    }),
+  }));
+}
+
 /**
  * RÉGLAGES — cinq rubriques dans l'ordre d'usage (Williams, 08/11) : Votre compte · Vidéos et voix · Publication ·
  * Services reliés · Avancé (replié). Une rangée de liens en haut mène à chaque rubrique. Aucun identifiant, clé de
@@ -97,7 +123,7 @@ export default async function PageReglages() {
   await exigerSession();
   // Plan facecam v4 (lot D) : « Mes habitudes de montage » n'apparaît qu'une fois le format face caméra ouvert.
   const avecMonteur = trouverFormat("facecam")?.statut === "actif";
-  const [reglages, connexions, sessions, journal, veille, credits, cles, site, buffer, double, monteur, creditClaude] = await Promise.all([
+  const [reglages, connexions, sessions, journal, veille, credits, cles, site, double, monteur, creditClaude] = await Promise.all([
     lireReglages(),
     listerConnexions(),
     listerSessions(),
@@ -106,7 +132,6 @@ export default async function PageReglages() {
     vueCredits(),
     vueCles(),
     lireVueSite(),
-    vueBuffer(),
     vueRenduDouble(),
     vueReglagesMonteur(),
     vueCreditClaude().catch((e) => {
@@ -123,6 +148,7 @@ export default async function PageReglages() {
   const gardeSujets = await lireGardeSujets();
   const interrupteursEcriture = await lireInterrupteursEcriture();
   const autonomieUsine = await vueAutonomieUsine();
+  const youtube = await vueYoutubeZernio();
   const infos = aPropos();
   const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
 
@@ -211,6 +237,7 @@ export default async function PageReglages() {
               <ReglagesReseaux initiaux={reglages.reseauxParDefaut} />
               {/* Équipe 7 : la famille de mots-dièse de chaque réseau (TikTok préremplie). */}
               <VosHashtags initiales={reglages.hashtags} />
+              <PlacementHashtags reseaux={infosPlacement(await lirePlacements())} />
               <InterrupteurAPublier key={String(aPublierAllumee)} initial={aPublierAllumee} />
             </CartePliante>
           </Apparition>
@@ -239,14 +266,14 @@ export default async function PageReglages() {
               </Link>
             </CartePliante>
           </Apparition>
-          {/* Lot R1 : envoi programmé, lu en base, aucun appel au service à l'affichage. */}
-          <Apparition index={4}>
-            <CartePliante id="envoi-programme" icone="envoyer" titre="Envoi programmé" resume="Comment les vidéos partent">
-              <BlocBuffer vue={buffer} />
+          {/* YouTube Shorts : tout éteint par défaut, lu en base (aucun appel au service à l'affichage). */}
+          <Apparition index={5}>
+            <CartePliante id="youtube-shorts" icone="video" titre="YouTube Shorts" resume={resumeCarteYoutube(youtube.actif)}>
+              <CarteYoutubeShorts vue={youtube} />
             </CartePliante>
           </Apparition>
           {/* Vidéos sur le site (lot S1) : un interrupteur par type de vidéo, tous éteints. */}
-          <Apparition index={5}>
+          <Apparition index={6}>
             <CartePliante id="sur-le-site" icone="film" titre="Sur le site" resume="Les types de vidéo qui peuvent aller sur votre site">
               <SurLeSite lignes={lignesSite} />
             </CartePliante>
