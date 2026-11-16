@@ -8,14 +8,16 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const appels: { id: string; par: string }[] = [];
-const comportement: { refus?: string } = {};
-// Le module de CAL-21 n'existe pas encore sur cette base : on remplace son câblage serveur (`validerEntreeDuServeur`).
+const comportement: { refus?: string; vrai?: boolean } = {};
+// Par défaut on remplace le câblage serveur (`validerEntreeDuServeur`) par un double qui compte les appels ;
+// avec `comportement.vrai`, c'est le vrai `validerEntreeServeur` de CAL-21.
 vi.mock("@/services/porte-validation", async (original) => {
   const reel = await original<typeof import("@/services/porte-validation")>();
   const { depots } = await import("@/donnees/memoire");
   return {
     ...reel,
     validerEntreeDuServeur: async (id: string, par: string) => {
+      if (comportement.vrai) return reel.validerEntreeDuServeur(id, par);
       appels.push({ id, par });
       await new Promise((r) => setTimeout(r, 5));
       if (comportement.refus) return { ok: false, message: comportement.refus };
@@ -61,6 +63,7 @@ const statutCreneau = async () => (await depots().creneauxEditoriaux.obtenir(ID)
 beforeEach(async () => {
   appels.length = 0;
   comportement.refus = undefined;
+  comportement.vrai = false;
   reinitialiserDepots();
   reinitialiserGardePourEssai();
   vi.unstubAllEnvs();
@@ -129,6 +132,32 @@ describe("validation : un appel, une trace", () => {
     const r = await valider(corpsValide(e));
     expect(r.status).toBe(409);
     expect(appels).toHaveLength(0);
+  });
+});
+
+describe("vrai service CAL-21", () => {
+  it("réglages absents : validé sous usine:compte-usine, 0 appel au faux diffuseur, trace dans le journal", async () => {
+    comportement.vrai = true;
+    const diffuseur = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", diffuseur);
+    try {
+      const e = await empreinte();
+      const r = await valider(corpsValide(e, { note: "Note privée." }));
+      expect(r.status).toBe(200);
+      expect(await r.json()).toMatchObject({ etat: "a_valider", deja: false });
+      const c = await statutCreneau();
+      expect(c.statut).toBe("valide");
+      expect(c.valideePar).toBe("usine:compte-usine");
+      expect(diffuseur).toHaveBeenCalledTimes(0);
+      expect(appels).toHaveLength(0);
+      const lignes = (await depots().evenements.lister()).filter((x) => x.type === "porte" && x.message.startsWith("Validation usine"));
+      expect(lignes).toHaveLength(1);
+      expect(lignes[0].message).toContain(`cmd-essai-0001 étape video décision valide empreinte ${e.slice(0, 12)} par usine:compte-usine`);
+      expect(lignes[0].message).not.toContain(e);
+      expect(lignes[0].message).not.toContain("Note privée");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

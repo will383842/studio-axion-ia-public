@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { depots } from "@/donnees/memoire";
 import { CODES_REFUS, NOTE_MAX, VALIDE_PAR, traiterValidation, validerEntreeDuServeur, type CodeRefus } from "@/services/porte-validation";
+import { journaliser } from "@/services/_commun";
 import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 
 /**
  * Porte v2, appel 3 : la validation (ou le refus) venue de l'Usine pour une commande. La route n'appelle que
  * `validerEntreeServeur` (CAL-21) : l'envoi reste derrière les trois réglages, éteints. Aucun réglage écrit.
- * Écrit en avance (empilé sur L5-02a) : CAL-21 doit exporter `validerEntreeServeur(id, par)`.
  * Le corps n'accepte aucun champ d'état (la garde renvoie 400 `champ_invalide`). Le journal ne garde ni texte ni note.
  */
 export const dynamic = "force-dynamic";
@@ -49,6 +49,12 @@ export async function POST(requete: NextRequest, contexte: { params: Promise<{ i
       id,
       { etape, decision, empreinte, validePar, ...(decision === "refuse" ? { refusCode: refusCode as CodeRefus } : {}), ...(typeof note === "string" && note ? { note } : {}) },
     );
+    // Trace de la décision : clé, étape, décision, 12 premiers signes de l'empreinte, auteur. Ni note ni texte.
+    try {
+      await journaliser("porte", `Validation usine ${id} étape ${etape} décision ${decision} empreinte ${empreinte.slice(0, 12)} par usine:${validePar} : ${r.ok ? "acceptée" : `refusée (${r.http})`}`);
+    } catch {
+      /* le journal ne change jamais la réponse */
+    }
     if (!r.ok) {
       statut = r.http;
       return reponseErreur(r.http, r.message, r.code);

@@ -11,6 +11,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { etatInterne, refuserProposition } from "@/domaine/plan-editorial/statuts";
 import { changerStatut, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
+import { validerEntreeServeur } from "@/services/valider-entree";
 
 export const CLE_COMMANDE = /^[A-Za-z0-9._:-]{8,100}$/;
 export const VALIDE_PAR = /^[a-z0-9._-]{1,60}$/;
@@ -21,14 +22,8 @@ export const NOTE_MAX = 300;
 /** Forme de `validerEntreeServeur` (CAL-21) : refus = message en vouvoiement. */
 export type ValiderEntree = (id: string, par: string) => Promise<{ ok: true; donnees?: unknown } | { ok: false; message: string; code?: string }>;
 
-/**
- * Câblage serveur : `validerEntreeServeur(id, par)` est exporté par CAL-21 (`services/valider-entree.ts`, branche voisine).
- * Chargé à l'appel pour que cette marche, écrite en avance, ne dépende pas d'un fichier absent de sa base.
- */
-export const validerEntreeDuServeur: ValiderEntree = async (id, par) => {
-  const { validerEntreeServeur } = await import("@/services/valider-entree");
-  return validerEntreeServeur(id, par);
-};
+/** Câblage serveur : `validerEntreeServeur(id, par)` de CAL-21 (`services/valider-entree.ts`). Réglages fermés par défaut, aucun envoi. */
+export const validerEntreeDuServeur: ValiderEntree = (id, par) => validerEntreeServeur(id, par);
 
 export interface DepsPorteValidation {
   depots: DepotsPlan;
