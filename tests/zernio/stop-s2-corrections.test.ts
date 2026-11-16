@@ -285,6 +285,7 @@ describe("M5 · une erreur de vérification d'un merci n'arrête pas les autres"
     const empreinteMerci = createHash("sha256")
       .update(`mp-merci-v1\n${TEXTES_MP["mp-merci-v1"].texte}`)
       .digest("hex");
+    await Com.ecrireParametre("parcours.instagram_public", true); // T2 : Instagram ouvert pour ce test (préparation seulement, aucune attente modifiée)
     await Com.ecrireParametre("parcours.validation.merci", {
       empreinte: empreinteMerci,
     });

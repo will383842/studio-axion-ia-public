@@ -67,6 +67,7 @@ beforeEach(async () => {
   pm.injecterTransportSite(transport);
   await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, { [`GUIDE|${COMPTE}`]: { mot: "GUIDE", compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" } });
   await validerGuideAuParcours();
+  await Com.ecrireParametre("parcours.instagram_public", true); // T2 : Instagram ouvert pour ce test (préparation seulement, aucune attente modifiée)
   await Com.ecrireParametre("parcours.validation.merci", { empreinte: empreinteMerci() });
   await Com.ecrireParametre(MM.PARAM_MOTS_MULTIPLES, true);
   await Com.ecrireParametre(IG.PARAM_INSTAGRAM_SUIVRE, true);
