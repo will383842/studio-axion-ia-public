@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { argumentsExport, reglagesVideo } from "../../studio-rendu/src/composition/ffmpeg";
 import { REGLAGES_RECOLLABLES, argumentsRecollables } from "../../studio-rendu/src/composition/reglages-recollables";
+import type { ParametresExport } from "../../src/briques/composition/scene";
 
 // G11-03 : option d'export « recollable », éteinte. Témoins = valeurs calculées sur `master` b359fb8d AVANT la fiche
 // (formes de `ParametresExport` prises dans tests/m4b-montage.test.ts et tests/facecam-pre-cadre.test.ts).
 // Règle 1 : option absente ou fausse = tableau identique au caractère près.
-const TEMOINS_REGLAGES: { e: any; r: string }[] = [
+const TEMOINS_REGLAGES: { e: ParametresExport; r: string }[] = [
  {
   "e": {
    "fps": 25,
@@ -146,7 +147,7 @@ const TEMOINS_REGLAGES: { e: any; r: string }[] = [
   "r": "-c:v libx264 -preset faster -profile:v high -level:v 4.1 -crf 23 -maxrate 16000k -bufsize 24000k -g 50 -keyint_min 50 -sc_threshold 0 -flags +cgop -bf 2 -pix_fmt yuv420p -r 25 -x264-params colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv"
  }
 ];
-const TEMOINS_EXPORT: { e: any; p1: string; p2: string }[] = [
+const TEMOINS_EXPORT: { e: ParametresExport; p1: string; p2: string }[] = [
  {
   "e": {
    "fps": 25,
