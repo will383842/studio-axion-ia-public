@@ -21,16 +21,16 @@ const ficheBase = {
   versionId: "ver1",
   sortieId: "s1",
   ratio: "9:16",
-  licence: { type: "interne" },
+  licence: { type: "propriete", usageCommercial: true, reseaux: [] },
   famille: [],
   plages: [plageBase],
   rangee: true,
   sourcePreferee: true,
-} as unknown as FicheSourceExtraits;
+} satisfies FicheSourceExtraits;
 
 describe("fiche source-extraits : champs facultatifs de la note (X4-08)", () => {
   it("une fiche du chantier 3 sans les nouveaux champs reste valide", () => {
-    const f = { ...ficheBase } satisfies FicheSourceExtraits;
+    const f: FicheSourceExtraits = { ...ficheBase } satisfies FicheSourceExtraits;
     expect(f.plages[0].note).toBeUndefined();
     expect(f.ignores).toBeUndefined();
     expect(f.noteVersion).toBeUndefined();
