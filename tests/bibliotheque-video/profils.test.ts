@@ -17,7 +17,7 @@ describe("profils par format (C1-U3)", () => {
     const profiles = Object.keys(PROFILS_DU_CODE);
     expect(profiles.filter((f) => FORMATS_PROFIL_NEUTRE.includes(f))).toEqual([]);
     expect([...profiles, ...FORMATS_PROFIL_NEUTRE].sort()).toEqual(formats);
-    expect(profiles).toHaveLength(6);
+    expect(profiles).toHaveLength(8);
   });
 
   it("rien de neuf permis : permis => prod ; ni coulisse ni absent inscrit (§ 3.4)", () => {

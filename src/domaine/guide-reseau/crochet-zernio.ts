@@ -1,8 +1,8 @@
 // Parcours « mot → e-mail → guide » : crochet Zernio, PUR (aucun réseau, aucune base, aucun secret en dur).
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { RE_MOT_GUIDE } from "./cle-idempotence";
-import { normaliserMot } from "./mot-normalise";
-import { estMotOpposition, formeCanonique } from "./opposition";
+import { motAvecPolitesse } from "./mot-normalise";
+import { classerOpposition, estMotOpposition, formeCanonique } from "./opposition";
 
 /** Miroir du site (`src/content/guides-reseau.ts` : GUIDES_RESEAU_CONNUS). Liste FERMÉE ; à garder alignée sur le site. */
 export const GUIDES_RESEAU_CONNUS: readonly string[] = ["guide-ia"];
@@ -132,7 +132,7 @@ export function lireEvenementRun(env: EnveloppeZernio): EvenementRun | null {
 /** Miroir des mots de déclenchement configurés (liste FERMÉE, à garder alignée sur les guides du site). Pas de mot libre. */
 export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
 /**
- * Le mot seul si c'est un mot configuré ou un mot d'opposition ; tout autre texte (adresse, téléphone, mot composé uniquement de chiffres…) → null.
+ * Le mot canonique (seul ou avec politesse) si c'est un mot configuré ou un mot d'opposition ; tout autre texte (adresse, téléphone, mot composé uniquement de chiffres…) → null.
  * La comparaison aux mots configurés passe par `normaliserMot` (accents, ponctuation et émojis de bord ignorés) : le même commentaire est jugé
  * pareil ici et dans le module de normalisation (« Guidé » et « GUIDE ! » donnent le même résultat). L'opposition reste prioritaire (mot ou phrase : « Stop, merci » → « STOP »).
  */
@@ -140,9 +140,7 @@ export function motSeulDe(v: unknown, motsConnus: readonly string[] = MOTS_DECLE
   const t = texteBorne(v, 200);
   if (t === null) return null;
   if (estMotOpposition(t)) return formeCanonique(t); // forme canonique (« STOP »), jamais le texte brut
-  const m = normaliserMot(t);
-  if (m === null) return null;
-  return motsConnus.some((c) => normaliserMot(c) === m) ? t.trim() : null;
+  return motAvecPolitesse(t, motsConnus); // forme canonique (« GUIDE ») : jamais le texte brut ; accepte « GUIDE merci », « merci GUIDE »
 }
 
 export interface EvenementCommentaire {
@@ -155,6 +153,8 @@ export interface EvenementCommentaire {
   proprio: boolean;
   /** Texte normalisé SEULEMENT s'il est un mot seul ou une opposition ; sinon null. Jamais le texte brut. */
   motSeul: string | null;
+  /** Présent (true) SEULEMENT pour un doute d'opposition (« stop pls », texte long avec « stop »…) : jamais porté par `motSeul`, jamais de texte. Sinon OMIS. */
+  doute?: true;
   estReponse: boolean;
 }
 export interface EvenementMessage {
@@ -201,8 +201,10 @@ export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: reado
   const propre = proprio || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== null && (idAuteur === idCompte || idAuteur === idOpaque(compte?.platformAccountId)));
   const texte = typeof c.text === "string" ? c.text : null;
   const gardé = texte !== null && texte.length <= 200 ? motSeulDe(texte, motsConnus) : null;
-  // Mot configuré : forme normalisée (même jugement que `normaliserMot`) ; opposition : forme canonique (déjà rendue par `motSeulDe`).
-  const motSeul = gardé === null ? null : estMotOpposition(gardé) ? gardé : normaliserMot(gardé);
+  // `motSeulDe` rend déjà la forme canonique (mot configuré ou opposition) : on ne re-normalise JAMAIS le texte brut.
+  const motSeul = gardé;
+  const classe = texte !== null ? classerOpposition(texte.slice(0, 2000)) : "non";
+  const doute = !propre && motSeul === null && (classe === "doute" || classe === "opposition"); // « opposition » sans mot seul : texte de plus de 200 caractères
   const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
   return {
     idCommentaire,
@@ -213,6 +215,7 @@ export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: reado
     idAuteur: propre ? idCompte : idAuteur,
     proprio: propre,
     motSeul: propre ? null : motSeul,
+    ...(doute ? { doute: true as const } : {}),
     estReponse,
   };
 }

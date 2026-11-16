@@ -231,6 +231,7 @@ export type TypeElement =
   | "profil-son"
   | "decor"
   | "accessoire"
+  | "source-extraits"
   /** Ancien type, lisible le temps de la migration vers `decor` (mode teinte). N'est plus proposé. */
   | "fond";
 
@@ -257,6 +258,7 @@ export type ValeurElement =
   | { type: "police"; famille: string; usage: "titre" | "texte" }
   | { type: "lut"; formatFichier: "cube"; tailleCube: number; intensiteParDefaut: number; avantFichierId?: Id; apresFichierId?: Id }
   | ValeurStyleSousTitres
+  | { type: "source-extraits"; fiche: import("./archive-extraits").FicheSourceExtraits }
   | { type: "illustration-image" | "illustration-video" }
   | { type: "musique"; ambiance: string; tempoBpm: number; dureeSec: number }
   | {
@@ -954,6 +956,8 @@ export interface Miniature extends EntiteBase {
   variante?: number;
   /** Marqueur de gabarit : absent ou « axion-v2 » (carte-titre) = ancienne, qu'« Refaire les vignettes » remplace sans l'effacer ; « image-video-v3 » = vraie image du début de la vidéo. */
   gabarit?: "axion-v2" | "image-video-v3" | "image-video-v3b";
+  /** UO-11 (ajout pur, facultatif) : le réseau pour lequel cette jaquette a été faite ; absent : miniature d'avant, sans réseau. */
+  reseau?: IdReseau;
 }
 
 /**

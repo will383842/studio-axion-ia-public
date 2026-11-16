@@ -17,6 +17,10 @@ export const AIDE_CHAT: readonly LigneAide[] = [
   { titre: "Changer les couleurs et les entrées", exemple: "Fond noir, accent orange, entrée en fondu.", types: ["changer-habillage", "changer-transition"] },
   { titre: "Ajouter du dynamisme", exemple: "Rends la vidéo plus dynamique.", types: ["ajouter-dynamisme"] },
   { titre: "Zoomer", exemple: "Zoome sur le bouton dans la scène 2.", types: ["ajuster-zoom"] },
+  { titre: "Retirer une scène", exemple: "Retire la scène 2.", types: ["retirer-scene"] },
+  { titre: "Déplacer une scène après une autre", exemple: "Mets la scène 1 après la scène 3 (la voix et le minutage ne bougent pas).", types: ["deplacer"] },
+  { titre: "Couper des mots ou changer un sous-titre", exemple: "Coupe les mots 4 à 6 (pas encore appliquée).", types: ["couper-mots", "changer-sous-titre"] },
+  { titre: "Changer le son d'une scène", exemple: "Mets un autre son dans la scène 2 (pas encore appliquée ; seuls les sons déjà prévus sont permis).", types: ["changer-son"] },
   { titre: "Modifier le script", exemple: "Seulement si vous le demandez : « modifie le script ».", types: ["modifier-script"] },
 ];
 

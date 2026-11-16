@@ -30,8 +30,8 @@ const V = await import("@/services/mots-validation-par-mot");
 const SECRET_LIEN = "secret-fictif-du-lien-0123456789-abcdefghij";
 const AUTRE = "compte-fictif-999";
 const ENV_LIEN = { ...ENV, PARCOURS_CONVERSATION_TITRE_GUIDE: TITRE, PARCOURS_LIEN_GUIDE: "true", GUIDES_RESEAU_LIEN_SECRET: SECRET_LIEN, LIEN_GUIDE_COMPTES: `${COMPTE}=page_principale` };
-const ENV_X = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: COMPTE };
-const ENV_Y = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: AUTRE };
+const ENV_X = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: COMPTE, PARCOURS_ESSAI_AUTEURS: AUTEUR };
+const ENV_Y = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: AUTRE, PARCOURS_ESSAI_AUTEURS: AUTEUR };
 const FORMULATIONS = ["mp-m1-v4-1", "mp-adresse-refusee-v3-1", "mp-deja-envoye-v1-1", "mp-lien-v3-1"];
 const MOT = "ESSAICONV";
 const CODE = "gde-essai05";
@@ -88,10 +88,13 @@ afterEach(() => {
 });
 
 describe("S1 · variable absente ou vide : la cible d'essai est refusée comme aujourd'hui", () => {
-  it.each([["absente", ENV_LIEN], ["vide", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "" }], ["étoile", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "*" }]])("%s : cible_inconnue, rien ne part", async (_n, env) => {
+  it.each([["absente", ENV_LIEN], ["vide", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "" }], ["étoile", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "*" }]])("%s : essai éteint, cible_inconnue avec alerte, rien ne part", async (_n, env) => {
+    const { creerNotification } = await import("@/services/notifications");
+    vi.mocked(creerNotification).mockClear();
     const id = await com(MOT);
     await passer(T0, { env });
     expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(vi.mocked(creerNotification)).toHaveBeenCalled();
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
     expect(await convs()).toEqual([]);
   });
@@ -105,16 +108,16 @@ describe("S5 · commentaire du mot d'essai", () => {
     const [conv] = await convs();
     expect(conv).toMatchObject({ mot: MOT, guide: CODE, titreCible: TITRE_ESSAI, cibleEssai: true });
   });
-  it("compte non listé (la liste nomme un autre compte) : ecarte/cible_inconnue", async () => {
+  it("compte non listé (la liste nomme un autre compte) : ecarte/essai_compte_refuse", async () => {
     const id = await com(MOT);
     await passer(T0, { env: ENV_Y });
-    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(await decrire(id)).toBe("ecarte/essai_compte_refuse");
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
   });
-  it("Instagram : jamais (même compte listé)", async () => {
+  it("Instagram, textes du mot non validés pour Instagram : écarté, rien ne part", async () => {
     const id = await com(MOT, { reseau: "instagram" });
     await passer(T0, { env: ENV_X });
-    expect((await decrire(id)).startsWith("ecarte/")).toBe(true);
+    expect(await decrire(id)).toBe("ecarte/validation_absente");
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
   });
   it("une conversation GUIDE ou d'une cible non essai n'a jamais le champ cibleEssai", async () => {
@@ -125,7 +128,7 @@ describe("S5 · commentaire du mot d'essai", () => {
 });
 
 describe("S6 · guidesDuCatalogue", () => {
-  const lire = (compte?: string, env: Record<string, string | undefined> = ENV_X) => C.guidesDuCatalogue(env, T0, compte);
+  const lire = (compte?: string, env: Record<string, string | undefined> = ENV_X) => C.guidesDuCatalogue(env, T0, compte === undefined ? undefined : { compte, reseau: "facebook" });
   it("compte listé : le guide d'essai est inclus ; autre compte ou sans compte : exclu", async () => {
     expect(await lire(COMPTE)).toEqual(expect.arrayContaining(["guide-ia", CODE]));
     expect(await lire(AUTRE)).toEqual(["guide-ia"]);
@@ -299,8 +302,11 @@ describe("Corrections après audit", () => {
     Object.defineProperty(env, "PARCOURS_ESSAI_COMPTES", { enumerable: false, get: () => (lectures.n++, COMPTE) });
     // une liaison GUIDE explicite vers une cible de test
     (c.liaisons as any[])[0] = { mot: "GUIDE", reseau: "tous", codeCible: CODE, actif: true };
+    const { creerNotification } = await import("@/services/notifications");
+    vi.mocked(creerNotification).mockClear();
     const id = await com("GUIDE");
     await passer(T0, { env });
+    expect(vi.mocked(creerNotification)).toHaveBeenCalled(); // l'alerte « Vérifiez les liaisons dans Mots » est conservée
     expect(await decrire(id)).toBe("ecarte/cible_inconnue");
     expect(lectures.n).toBe(0);
   });
@@ -324,3 +330,128 @@ describe("Corrections après audit", () => {
     expect(notif).toHaveBeenCalled();
   });
 });
+
+describe("S11 · auteur d'essai : une cible TEST n'est servie qu'à un auteur listé", () => {
+  const AUTRE_AUTEUR = "auteur-fictif-401";
+  const rien = { pub: 0, prive: 0, envoyes: 0, site: 0 };
+  it("auteur absent de la liste : silence, rien ne part", async () => {
+    const id = await com(MOT, { idAuteur: AUTRE_AUTEUR });
+    await passer(T0, { env: ENV_X });
+    expect(await decrire(id)).toBe("ecarte/essai_auteur_refuse");
+    expect(instantane()).toEqual(rien);
+    expect(await convs()).toEqual([]);
+  });
+  it("auteur listé : parcours normal", async () => {
+    await com(MOT);
+    await passer(T0, { env: { ...ENV_X, PARCOURS_ESSAI_AUTEURS: `${AUTRE_AUTEUR}, ${AUTEUR}` } });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
+  });
+  it.each([
+    ["absente", undefined],
+    ["vide", ""],
+    ["plus de trois", `${AUTEUR},auteur-fictif-402,auteur-fictif-403,auteur-fictif-404`],
+    ["id mal formé", `${AUTEUR},a b`],
+    ["étoile", "*"],
+  ])("variable %s : fermé", async (_n, v) => {
+    const env: Record<string, string | undefined> = { ...ENV_X, PARCOURS_ESSAI_AUTEURS: v };
+    const id = await com(MOT);
+    await passer(T0, { env });
+    expect(await decrire(id)).toBe("ecarte/essai_auteur_refuse");
+    expect(instantane()).toEqual(rien);
+  });
+  it("cible réelle (GUIDE) : inchangée, sans liste d'auteurs", async () => {
+    await com("GUIDE", { idAuteur: AUTRE_AUTEUR });
+    await passer(T0, { env: ENV_LIEN });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
+  });
+  it("commentaire du propriétaire de la page : toujours écarté", async () => {
+    const id = await com(MOT, { proprio: true });
+    await passer(T0, { env: ENV_X });
+    expect(instantane()).toEqual(rien);
+    expect((await decrire(id)).startsWith("ecarte")).toBe(true);
+  });
+});
+
+describe("S13 · garde() ligne « auteur d'essai » isolée, guides d'essai, reprise de commentaire", () => {
+  const AUTRE_AUTEUR = "auteur-fictif-401";
+  const ENV_RETIRE = { ...ENV_X, PARCOURS_ESSAI_AUTEURS: AUTRE_AUTEUR };
+  it("conversation d'essai dont la cible n'est plus test, auteur retiré : seule la vérification d'auteur de garde() refuse (la validation n'exige plus l'essai)", async () => {
+    site.catalogue = catalogue({ test: false });
+    await validerEssai({ ...ENV_LIEN });
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    const [conv] = await convs();
+    const cle = Object.keys(await toutesLesConversations())[0];
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: { ...conv, cibleEssai: true } });
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-s13-adresse" });
+    await passer(T0 + 1000, { env: ENV_RETIRE });
+    expect(demandes()).toHaveLength(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+  });
+  it("compteEssaiPourGuides : le compte n'est transmis que pour un auteur toujours listé (Facebook, cible d'essai)", async () => {
+    const [conv] = await (async () => { await com(MOT); await passer(T0, { env: ENV_X }); return convs(); })();
+    const cle = Object.keys(await toutesLesConversations())[0];
+    expect(conv.cibleEssai).toBe(true);
+    expect(C.compteEssaiPourGuides(ENV_X, conv, cle)).toBe(COMPTE);
+    expect(C.compteEssaiPourGuides(ENV_RETIRE, conv, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides({ ...ENV_X, PARCOURS_ESSAI_AUTEURS: "" }, conv, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, cibleEssai: undefined }, cle)).toBeUndefined();
+    // T3b : Instagram est permis (compte listé et auteur toujours listé) ; tout autre réseau reste sans guide d'essai.
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, reseau: "instagram" }, cle)).toBe(COMPTE);
+    expect(C.compteEssaiPourGuides(ENV_RETIRE, { ...conv, reseau: "instagram" }, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, reseau: "linkedin" }, cle)).toBeUndefined();
+  });
+  it("reprise d'un commentaire (état pub_ok), cible redevenue normale, auteur retiré : seule la garde de la reprise refuse, événement clos sans report", async () => {
+    site.catalogue = catalogue({ test: false });
+    await validerEssai({ ...ENV_LIEN });
+    const id = await com(MOT);
+    await passer(T0, { env: ENV_X });
+    const cle = Object.keys(await toutesLesConversations())[0];
+    const [conv] = await convs();
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: { ...conv, etat: "pub_ok", cibleEssai: true, m1Le: undefined } });
+    const e = await evenement(depots, id);
+    await depots().evenementsFournisseurs.enregistrer({ ...e, traite: false, charge: { ...e.charge, etat: "a_faire", dernierCode: undefined } });
+    const avant = banc.port.prive.length;
+    await passer(T0 + 1000, { env: ENV_RETIRE });
+    expect(banc.port.prive).toHaveLength(avant);
+    expect(await decrire(id)).toBe("ecarte/garde_essai_auteur_refuse");
+  });
+});
+
+describe("S12 · envois de SUITE : l'auteur est revérifié à chaque envoi", () => {
+  const AUTRE_AUTEUR = "auteur-fictif-401";
+  const ENV_RETIRE = { ...ENV_X, PARCOURS_ESSAI_AUTEURS: AUTRE_AUTEUR };
+  it("conversation d'essai existante, auteur retiré de la liste : aucun message de suite, aucune demande au site", async () => {
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-s12-adresse" });
+    await passer(T0 + 1000, { env: ENV_RETIRE });
+    expect(demandes()).toHaveLength(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(banc.port.prive).toHaveLength(1);
+    const journal = (await depots().evenements.lister(() => true)).map((e: any) => e.message as string).join("\n");
+    expect(journal).not.toContain(AUTEUR);
+  });
+  it("témoin : auteur toujours listé, la suite part", async () => {
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-s12-temoin" });
+    await passer(T0 + 1000, { env: ENV_X });
+    expect(demandes()).toHaveLength(1);
+    expect(banc.port.envoyes).toHaveLength(1);
+  });
+  it("liste vidée en cours de route : rien ne part non plus", async () => {
+    await com(MOT);
+    await passer(T0, { env: ENV_X });
+    lireTexteDe(ADRESSE);
+    await deposerMessage(depots, { idMessage: "msg-s12-vide" });
+    await passer(T0 + 1000, { env: { ...ENV_X, PARCOURS_ESSAI_AUTEURS: "" } });
+    expect(demandes()).toHaveLength(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+  });
+});
+

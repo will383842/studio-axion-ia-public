@@ -35,7 +35,7 @@ function monter(comptes: Record<string, string | null> = { [A]: PA, [B]: PB }, p
   const f = creerPublicationZernio(CLE_FICTIVE, { clientPret: t.client, lire: async () => ({ corps: flux(), taille: 1 }), maintenant: t.horloge.maintenant, pagesInterdites: INTERDITES });
   return { ...t, f };
 }
-const canalBuffer = (id: string, nom: string): CanalPublication => ({ id, organisationId: "org-buffer", nom, service: "facebook", deconnecte: false });
+const canalAncien = (id: string, nom: string): CanalPublication => ({ id, organisationId: "org-ancienne", nom, service: "facebook", deconnecte: false });
 
 describe("FIX-DOUBLON · un seul canal par page", () => {
   it("les 3 mêmes pages sur 2 comptes : Page A → compte A, Page B → compte B, Page C jamais listée", async () => {
@@ -48,39 +48,42 @@ describe("FIX-DOUBLON · un seul canal par page", () => {
     expect(canaux.some((c) => c.nom === "Page C" || c.id.endsWith(PC))).toBe(false);
   });
 
-  it("la présélection « Page B » se traduit en UN seul canal (plus de refus d'homonymes), sans choix au hasard", async () => {
+  it("l'ancien identifiant « Page B » n'est jamais traduit par le nom : refus, aucun choix au hasard", async () => {
     const { f } = monter();
-    const traduit = await traduireSelectionVersZernio(f, "facebook", ["buf-b"], [canalBuffer("buf-b", "Page B")]);
+    const traduit = await traduireSelectionVersZernio(f, "facebook", ["ancien-b"], [canalAncien("ancien-b", "Page B")]);
+    const r = await ciblesZernioPour(f, "facebook", traduit);
+    expect(r.ok).toBe(false);
+    expect(JSON.stringify(r)).toContain("recochez-le");
+    expect(await ciblesZernioPour(f, "facebook", await traduireSelectionVersZernio(f, "facebook", ["ancien-a"], [canalAncien("ancien-a", "Page A")]))).toMatchObject({ ok: false });
+  });
+
+  it("identifiant Zernio de la page coché directement : part sur cette page", async () => {
+    const { f } = monter();
+    const traduit = await traduireSelectionVersZernio(f, "facebook", [`${B}:fb:${PB}`], []);
     expect(traduit).toEqual([`${B}:fb:${PB}`]);
     const cibles = await ciblesZernioPour(f, "facebook", traduit);
     expect(cibles.ok && cibles.canaux.map((c) => c.id)).toEqual([`${B}:fb:${PB}`]);
-    expect(await traduireSelectionVersZernio(f, "facebook", ["buf-a"], [canalBuffer("buf-a", "Page A")])).toEqual([`${A}:fb:${PA}`]);
   });
 
-  it("aucun compte n'a la page par défaut : refus clair, jamais un tirage au sort", async () => {
+  it("aucun compte n'a la page par défaut : l'ancien identifiant est refusé, jamais un tirage au sort", async () => {
     const { f } = monter({ [A]: null, [B]: null });
-    const traduit = await traduireSelectionVersZernio(f, "facebook", ["buf-b"], [canalBuffer("buf-b", "Page B")]);
+    const traduit = await traduireSelectionVersZernio(f, "facebook", ["ancien-b"], [canalAncien("ancien-b", "Page B")]);
     const r = await ciblesZernioPour(f, "facebook", traduit);
     expect(r.ok).toBe(false);
-    expect(JSON.stringify(r)).toContain("aucun d'eux ne l'a comme page par défaut");
   });
 
-  it("deux VRAIS homonymes (identifiants de page différents) : refus avec le message nommé actuel", async () => {
+  it("deux VRAIS homonymes (identifiants de page différents) : l'ancien identifiant est refusé", async () => {
     const { f } = monter({ [A]: PA, [B]: PB }, (id) => [{ id: id === A ? PA : PB, name: "Page H" }]);
-    const traduit = await traduireSelectionVersZernio(f, "facebook", ["buf-h"], [canalBuffer("buf-h", "Page H")]);
+    const traduit = await traduireSelectionVersZernio(f, "facebook", ["ancien-h"], [canalAncien("ancien-h", "Page H")]);
     const r = await ciblesZernioPour(f, "facebook", traduit);
     expect(r.ok).toBe(false);
-    const texte = JSON.stringify(r);
-    expect(texte).toContain("Plusieurs comptes de l'outil de publication portent le nom");
-    expect(texte).toContain(`…${PA.slice(-6)}`);
-    expect(texte).toContain(`…${PB.slice(-6)}`);
+    expect(JSON.stringify(r)).toContain("recochez-le");
   });
 
-  it("Page C : jamais ciblée (liste, présélection, même seule), refus", async () => {
+  it("Page C : jamais ciblée (liste, ancien identifiant, même seule), refus", async () => {
     const { f } = monter({ [A]: PA }, () => [{ id: PC, name: "Page C" }]);
     expect(await f.listerCanaux!()).toEqual([]);
-    const traduit = await traduireSelectionVersZernio(f, "facebook", ["buf-c"], [canalBuffer("buf-c", "Page C")]);
-    expect(traduit).toBeUndefined();
+    const traduit = await traduireSelectionVersZernio(f, "facebook", ["ancien-c"], [canalAncien("ancien-c", "Page C")]);
     const r = await ciblesZernioPour(f, "facebook", traduit);
     expect(r.ok).toBe(false);
     // Même un service qui la liste malgré tout : le garde du Studio la retire par son nom (liste du dépôt, par empreinte).

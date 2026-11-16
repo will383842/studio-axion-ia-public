@@ -89,8 +89,8 @@ describe("L7-06 R3 (a) · identifiant Zernio coché, ou périmé", () => {
     expect(await traduireSelectionVersZernio(fauxZernio(), "facebook", [P1, P2, P1], [])).toEqual([P1, P2]);
   });
 
-  it("identifiant périmé seul : jamais pris tel quel (retombée habituelle)", async () => {
-    expect(await traduireSelectionVersZernio(fauxZernio(), "facebook", ["ancien-compte"], [])).toBeUndefined();
+  it("identifiant périmé seul : jamais pris tel quel, refus (aucun repli sur un autre compte)", async () => {
+    expect(await traduireSelectionVersZernio(fauxZernio(), "facebook", ["ancien-compte"], [])).toEqual([SELECTION_NON_TRADUITE]);
   });
 
   it("identifiant périmé avec un bon : refus net, rien ne part sur un autre compte", async () => {

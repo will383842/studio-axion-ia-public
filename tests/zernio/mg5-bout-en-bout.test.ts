@@ -147,8 +147,15 @@ describe("1 · commentaire GUIDE → réponse publique + message privé avec lie
     await passer(T0 + 2000, { env: ENV_LIEN });
     expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
   });
+  it.each(["GUIDE svp", "GUIDE merci"])("politesse pure « %s » : réponse publique, premier message privé, état attente_email", async (texte) => {
+    const r = await crochetCommentaire(texte, { reseau: "facebook" });
+    expect(r.deposes).toHaveLength(1);
+    await passer(T0, { env: ENV_LIEN });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
+    expect(Object.values(await toutesLesConversations())[0]).toMatchObject({ etat: "attente_email" });
+  });
   it("un commentaire qui n'est pas le mot seul ne déclenche rien", async () => {
-    const r = await crochetCommentaire("GUIDE svp", { reseau: "facebook" });
+    const r = await crochetCommentaire("GUIDE est top", { reseau: "facebook" });
     expect(r.deposes).toHaveLength(0);
     await passer(T0, { env: ENV_LIEN });
     expect(envoisSortants()).toBe(0);

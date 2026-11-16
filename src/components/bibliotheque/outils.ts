@@ -51,6 +51,8 @@ export function valeurParDefaut(type: TypeElement, extra: { dureeSec?: number; c
       return { type, mode: "teinte", teinte: extra.teinte ?? "", ambiance: "sombre", profondeurFlou: 12, directionLumiere: "gauche", positionSujet: 0.5 };
     case "accessoire":
       return { type, positionParAngle: {}, flouPx: 8, cote: "regard" };
+    case "source-extraits":
+      throw new Error("Une fiche d'extraits ne se crée jamais à la main.");
     case "fond":
       return { type, teinte: extra.teinte ?? "" };
   }

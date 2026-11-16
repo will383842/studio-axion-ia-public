@@ -1,5 +1,5 @@
 /**
- * Buffer est résilié : l'écran Migration n'annonce plus de résiliation à faire (ni date limite, ni compte à rebours),
+ * L'ancien outil est résilié : l'écran Migration (retiré des Réglages par BF-02, le composant reste testé tel quel) n'annonce plus de résiliation à faire (ni date limite, ni compte à rebours),
  * et le mode d'envoi affiché dit « brouillon » tant que l'envoi part chez Zernio. Données fictives, aucun réseau.
  */
 import { renderToStaticMarkup } from "react-dom/server";
@@ -23,7 +23,8 @@ const texte = (h: string) => h.replace(/<[^>]+>/g, " ");
 describe("Buffer résilié · écran Migration", () => {
   it("la carte dit la vérité, sans date ni compte à rebours", () => {
     const t = texte(renderToStaticMarkup(<EtatBuffer />));
-    expect(t).toContain("Buffer est résilié.");
+    expect(t).toContain("L’ancien outil est résilié.");
+    expect(t).not.toMatch(/Buffer/);
     expect(t).toContain("Toutes les publications passent par Zernio.");
     expect(t).not.toMatch(/jours?\b|Date limite|18\/11|20\/11|mercredi|vendredi/);
   });
@@ -35,7 +36,8 @@ describe("Buffer résilié · écran Migration", () => {
     for (const h of vues) {
       const t = texte(h);
       expect(t).not.toMatch(/Date limite|Critères pour résilier|Résiliation de Buffer|Prélèvement évité|sans votre ordre/);
-      expect(t).toContain("Buffer est résilié");
+      expect(t).toContain("L’ancien outil est résilié");
+      expect(t).not.toMatch(/Buffer/);
     }
   });
   it("la frise ne garde aucun jalon de résiliation", () => {
@@ -55,7 +57,8 @@ describe("Buffer résilié · écran Migration sans date ni « avant la bascule 
   it("aucune date ni « avant la bascule » dans l'écran, comptages inchangés", () => {
     const t = texte(renderToStaticMarkup(<EcranMigration vue={{ etat: "normal", donnees: { posts: POSTS, comptes: [] } }} maintenant={MAINT} />));
     expect(t).not.toMatch(/20\/11|18 novembre|20 novembre|avant la bascule/);
-    expect(t).toContain("laissé à Buffer (non repris, Buffer résilié)".replace("laissé", "laissés"));
+    expect(t).toContain("1 laissés à l’ancien outil (non repris, ancien outil résilié)");
+    expect(t).not.toMatch(/Buffer/);
     expect(t).toMatch(/1 restants/);
     expect(t).toMatch(/1 \+ 1 \+ 1 \+ 1 = 4 posts/);
   });

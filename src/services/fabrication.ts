@@ -76,6 +76,8 @@ import { plafondClaudeDuMoisAtteint } from "./plafond-claude";
 import "./facecam-branchements";
 // Mission H : raccords facultatifs de l'avocat (motion commune, monteur, multicaméra), coupés par défaut.
 import { entreesAvocatDuLancement } from "./avocat-branchements";
+import { entreeBibliothequeDuLancement } from "./bibliotheque-video";
+import { appliquerTexteEcranAuLancement } from "@/briques/sous-titres/variantes";
 import { ENTREE_RESSEMBLANCE_VOIX, lignesVoixMaquetteRestantes } from "@/briques/voix-maitre/reference";
 import { reglageRessemblanceVoix } from "./voix-ressemblance";
 import { entreesDuLook } from "@/moteurs/montage-facecam/look";
@@ -333,7 +335,7 @@ async function entreesFacecamDuLancement(): Promise<Record<string, unknown>> {
 export async function construireCommande(videoId: Id, options: { simulerEchecEtape?: string; origine?: OrigineLancement } = {}): Promise<CommandeFabrication> {
   const video = await depots().videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
-  return commandeDeLaVideo(video, options);
+  return appliquerTexteEcranAuLancement(await commandeDeLaVideo(video, options));
 }
 
 /**
@@ -432,6 +434,7 @@ async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: st
       // lancement : le prix (lectures au plus) et la chaîne lisent le même. Avocat (décision de Will du 14/10) : maquette
       // ET montage final.
       ...(format.id === "tableau-anime" || format.id === "cas-concret" || format.id === "avocat" ? { [ENTREE_RESSEMBLANCE_VOIX]: await reglageRessemblanceVoix() } : {}),
+      ...(await entreeBibliothequeDuLancement(video, { estimation: !!options.sansPlans })),
     },
     reglages: reglages.reglages,
     plans: plans.map((p) => ({

@@ -181,7 +181,7 @@ export function RefletBalayage({ image, dureeImages, boite, fond }: RefletBalaya
 const estHex = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
 const teinte = (c: string, a: number) => (estHex(c) ? avecOpacite(c, a) : c);
 
-/** Lueur de texte (`text-shadow`) : force bornée à [0, 1], au plus 3 ombres, rayon max 18 px. Force 0 : `"none"`. */
+/** Lueur de texte (ombre portée CSS du texte) : force bornée à [0, 1], au plus 3 ombres, rayon max 18 px. Force 0 : `"none"`. */
 export function lueurTexte(couleur: string, force: number): string {
   const f = borne(force);
   if (f <= 0) return "none";

@@ -180,7 +180,7 @@ describe("U8 — vidéo d'essai : la feuille Buffer le dit tout de suite et ne p
 
   it("la feuille ne propose pas l'envoi et dit « Vidéo d'essai : elle ne part pas sur vos réseaux »", async () => {
     vi.doMock("@/app/(studio)/videos/actions", () => ({ envoyerVersBufferAction: async () => ({ ok: true }), noterPublicationManuelleAction: async () => ({ ok: true }) }));
-    const { AvisVideoEssai, envoiPropose, PHRASE_VIDEO_ESSAI } = await import("@/components/publication/FeuilleEnvoyerBuffer");
+    const { AvisVideoEssai, envoiPropose, PHRASE_VIDEO_ESSAI } = await import("@/components/publication/FeuilleEnvoyer");
     expect(envoiPropose({ videoEssai: true })).toBe(false);
     expect(envoiPropose({ videoEssai: false })).toBe(true);
     expect(envoiPropose(null)).toBe(false);

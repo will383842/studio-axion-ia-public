@@ -39,7 +39,7 @@ describe("E2E-1 n° 10 et 23 · écrans de publication", () => {
   });
 
   it("n° 23 : la feuille Buffer d'une version ne propose jamais un autre réseau", () => {
-    const f = lire("src/components/publication/FeuilleEnvoyerBuffer.tsx");
+    const f = lire("src/components/publication/FeuilleEnvoyer.tsx");
     expect(f).not.toMatch(/Publier aussi sur un autre réseau/);
     expect(f).toMatch(/const autreReseau = false;/);
     // Pas de mode sombre forcé sur le choix de la date (ordre de Will).
@@ -100,7 +100,7 @@ describe("E2E-1 n° 28 · thèmes proposés", () => {
   // n° 29, côté service : une publication notée à la main à une date passée attend sa mesure (couvert par g7a-mesures).
   it("n° 29 : l'écran dit comment mesurer une vidéo publiée à la main", () => {
     expect(lire("src/components/generateur/SaisieMesures.tsx")).toMatch(/« Choisir » le jour de publication/);
-    expect(lire("src/components/publication/FeuilleEnvoyerBuffer.tsx")).toMatch(/Date passée : touchez « Je l&apos;ai publiée moi-même »/);
+    expect(lire("src/components/publication/FeuilleEnvoyer.tsx")).toMatch(/Date passée : touchez « Je l&apos;ai publiée moi-même »/);
   });
 });
 

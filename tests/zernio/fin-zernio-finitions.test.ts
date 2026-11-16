@@ -42,9 +42,9 @@ const { traduireSelectionVersZernio, SELECTION_NON_TRADUITE } = await import("@/
 const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
 const ZERNIO_IG = "zernio-compte-ig-1";
-const BUFFER_IG = "buffer-canal-ig-1";
+const ANCIEN_IG = "ancien-canal-ig-1";
 const canal = (id: string, nom: string, service = "instagram", organisationId = "zernio"): CanalPublication => ({ id, organisationId, nom, service, deconnecte: false });
-const CANAUX_BUFFER = [canal(BUFFER_IG, "Exemple IG", "instagram", "org-buffer"), canal("buffer-canal-ig-2", "Autre IG", "instagram", "org-buffer")];
+const ANCIENNE_LISTE = [canal(ANCIEN_IG, "Exemple IG", "instagram", "ancien-org"), canal("ancien-canal-ig-2", "Autre IG", "instagram", "ancien-org")];
 
 let demandes: DemandePublication[] = [];
 let leve: ErreurZernio | null = null;
@@ -82,27 +82,26 @@ beforeEach(async () => {
 });
 
 describe("FIN-ZERNIO 1 · traduction de la présélection (pure)", () => {
-  it("compte de même nom : l'identifiant de Zernio, jamais celui de Buffer", async () => {
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [BUFFER_IG], CANAUX_BUFFER)).toEqual([ZERNIO_IG]);
+  it("ancien identifiant, même avec un compte Zernio de même nom : jamais traduit, refus", async () => {
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [ANCIEN_IG], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
+  });
+  it("identifiant Zernio de la liste actuelle : pris tel quel", async () => {
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [ZERNIO_IG], ANCIENNE_LISTE)).toEqual([ZERNIO_IG]);
   });
   it("rien de présélectionné : rien (le choix habituel de Zernio s'applique)", async () => {
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", undefined, CANAUX_BUFFER)).toBeUndefined();
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [], CANAUX_BUFFER)).toBeUndefined();
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", undefined, ANCIENNE_LISTE)).toBeUndefined();
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [], ANCIENNE_LISTE)).toBeUndefined();
   });
-  it("un seul compte sans homologue : rien (Zernio retombe sur son seul compte, ou refuse s'ils sont plusieurs)", async () => {
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", ["buffer-canal-ig-2"], CANAUX_BUFFER)).toBeUndefined();
+  it("un seul compte coché absent de la liste : refus, jamais de repli sur le seul compte du réseau", async () => {
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", ["ancien-canal-ig-2"], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
   });
-  it("plusieurs comptes dont un sans homologue : marqueur de refus, jamais un identifiant de Buffer", async () => {
+  it("plusieurs comptes dont un absent de la liste : marqueur de refus", async () => {
     canauxZernio = [canal(ZERNIO_IG, "Exemple IG")];
-    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [BUFFER_IG, "buffer-canal-ig-2"], CANAUX_BUFFER)).toEqual([SELECTION_NON_TRADUITE]);
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [ZERNIO_IG, "ancien-canal-ig-2"], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
   });
-  it("homonymes chez Zernio : ambigu, refus qui nomme les choix (jamais un tirage)", async () => {
+  it("homonymes chez Zernio : l'ancien identifiant n'est pas traduit, refus (jamais un tirage)", async () => {
     canauxZernio = [canal("z-aaaaaa", "Exemple IG"), canal("z-bbbbbb", "Exemple IG")];
-    const r = await traduireSelectionVersZernio(fauxZernio(), "instagram", [BUFFER_IG], CANAUX_BUFFER);
-    expect(r).toHaveLength(1);
-    expect(r![0]).toContain("Exemple IG");
-    expect(r![0]).toContain("…aaaaaa");
-    expect(r![0]).toContain("…bbbbbb");
+    expect(await traduireSelectionVersZernio(fauxZernio(), "instagram", [ANCIEN_IG], ANCIENNE_LISTE)).toEqual([SELECTION_NON_TRADUITE]);
   });
 });
 
@@ -110,45 +109,43 @@ describe("FIN-ZERNIO 1 · bout en bout en simulation : Instagram présélectionn
   it("Publie par = Zernio + brouillon : un seul brouillon, « brouillon envoyé », ni programmé ni publié", async () => {
     etat.zernio = fauxZernio();
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "zernio" });
-    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
-    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [BUFFER_IG] } });
+    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: ANCIENNE_LISTE });
+    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [ZERNIO_IG] } });
     expect(r.problemes ?? []).toEqual([]);
     expect(r.publications).toHaveLength(1);
     expect(r.publications[0]).toMatchObject({ via: "zernio", reseau: "instagram", etatEnvoi: "envoye", statut: "brouillon", canalId: ZERNIO_IG });
     expect(demandes).toHaveLength(1);
     expect(demandes[0].cible).toBe(ZERNIO_IG);
-    expect(JSON.stringify(demandes)).not.toContain(BUFFER_IG);
+    expect(JSON.stringify(demandes)).not.toContain(ANCIEN_IG);
     const toutes = await depots().publications.lister((p) => p.videoId === VIDEO);
     expect(toutes.filter((p) => p.via === "zernio")).toHaveLength(1);
     expect(toutes.some((p) => p.statut === "programmee" || p.statut === "publiee")).toBe(false);
   });
 
-  it("même scénario, Zernio sans la liste Buffer en base : le seul compte Instagram de Zernio part (jamais un refus CIBLE_INCONNUE)", async () => {
+  it("identifiant inconnu de Zernio (même seul) : refus CIBLE_ZERNIO en français, rien ne part", async () => {
     etat.zernio = fauxZernio();
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "zernio" });
-    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [BUFFER_IG] } });
-    expect(r.publications).toHaveLength(1);
-    expect(demandes).toHaveLength(1);
-    expect(demandes[0].cible).toBe(ZERNIO_IG);
-  });
-
-  it("plusieurs comptes Instagram chez Zernio et aucun homologue : refus clair, rien ne part", async () => {
-    etat.zernio = fauxZernio();
-    canauxZernio = [canal("z-a", "Premier"), canal("z-b", "Second")];
-    await ecrireParametre(PARAM_ROUTAGE, { instagram: "zernio" });
-    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
-    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [BUFFER_IG] } })).rejects.toMatchObject({ code: "CIBLE_ZERNIO" });
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [ANCIEN_IG] } })).rejects.toMatchObject({ code: "CIBLE_ZERNIO", message: expect.stringMatching(/n'est plus relié à Zernio.*recochez-le/) });
     expect(demandes).toHaveLength(0);
   });
 
-  it("Buffer ne part plus : un ancien routage « buffer » est lu comme Zernio (compte Zernio traduit), aucune création Buffer", async () => {
+  it("plusieurs comptes Instagram chez Zernio et un identifiant inconnu coché : refus clair, rien ne part", async () => {
+    etat.zernio = fauxZernio();
+    canauxZernio = [canal("z-a", "Premier"), canal("z-b", "Second")];
+    await ecrireParametre(PARAM_ROUTAGE, { instagram: "zernio" });
+    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: ANCIENNE_LISTE });
+    await expect(pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [ANCIEN_IG] } })).rejects.toMatchObject({ code: "CIBLE_ZERNIO" });
+    expect(demandes).toHaveLength(0);
+  });
+
+  it("Un ancien routage mémorisé est lu comme Zernio (compte Zernio coché), aucune création chez l'ancien outil", async () => {
     // Valeur « buffer » déjà en base : lue comme absente (L0-13a), jamais réécrite.
     etat.zernio = fauxZernio();
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
-    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
+    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: ANCIENNE_LISTE });
     const buffer = fauxBuffer({});
     vi.stubGlobal("fetch", buffer.appeler);
-    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [BUFFER_IG] } });
+    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [ZERNIO_IG] } });
     expect(r.problemes ?? []).toEqual([]);
     expect(r.publications).toHaveLength(1);
     expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "envoye", statut: "brouillon", canalId: ZERNIO_IG });

@@ -42,13 +42,34 @@ describe("compte listé et Facebook seulement", () => {
     expect(cibleEssaiPermise(env, undefined, "facebook")).toBe(false);
     expect(cibleEssaiPermise(env, "", "facebook")).toBe(false);
   });
-  it("jamais Instagram ni un autre réseau, même listé", () => {
-    for (const r of ["instagram", "linkedin", "tiktok", "tous", null, undefined])
+  it("Instagram : permis pour un compte listé (T3a)", () => {
+    expect(cibleEssaiPermise(env, X, "instagram")).toBe(true);
+    expect(cibleEssaiPermise(env, "compte-fb-inconnu", "instagram")).toBe(false);
+  });
+  it("jamais un autre réseau que Facebook ou Instagram, même listé", () => {
+    for (const r of ["linkedin", "tiktok", "tous", null, undefined])
       expect(cibleEssaiPermise(env, X, r)).toBe(false);
   });
   it("égalité exacte : ni préfixe ni sous-chaîne", () => {
     expect(cibleEssaiPermise(env, "compte-fb-essai", "facebook")).toBe(false);
     expect(cibleEssaiPermise(env, `${X}-suite`, "facebook")).toBe(false);
     expect(cibleEssaiPermise({ [V]: "compte-fb-essai" }, X, "facebook")).toBe(false);
+  });
+});
+
+import { auteurEssaiPermis, auteursEssai } from "@/domaine/guide-reseau/cibles-essai";
+describe("auteurs d'essai (PARCOURS_ESSAI_AUTEURS)", () => {
+  const A = "auteur-fictif-001";
+  const B = "auteur-fictif-002";
+  it("listés : permis ; autre, vide, absent : refusé", () => {
+    const env = { PARCOURS_ESSAI_AUTEURS: ` ${A} , ${B} ` };
+    expect(auteursEssai(env)).toEqual([A, B]);
+    expect(auteurEssaiPermis(env, A)).toBe(true);
+    expect(auteurEssaiPermis(env, "auteur-fictif-009")).toBe(false);
+    expect(auteurEssaiPermis(env, "")).toBe(false);
+    expect(auteurEssaiPermis(env, undefined)).toBe(false);
+  });
+  it.each([[undefined], [""], ["*"], [`${A},`], [`${A},a b`], [`${A},a*`], [`${A},${B},auteur-fictif-003,auteur-fictif-004`]])("%s : fermé", (v) => {
+    expect(auteurEssaiPermis({ PARCOURS_ESSAI_AUTEURS: v }, A)).toBe(false);
   });
 });

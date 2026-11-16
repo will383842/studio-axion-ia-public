@@ -72,7 +72,7 @@ export function OngletVoix({ fiche, texteALire, verrouille, onOuvrirAccord }: { 
       {/* Voix HeyGen : la voix déjà créée se relie (chemin normal). */}
       {reliee && voix ? (
         <div className="relative isolate overflow-hidden rounded-carte border border-trait bg-surface-1 p-5">
-          <div aria-hidden className="absolute inset-0 -z-10 lueur" />
+          <div aria-hidden className="absolute inset-0 -z-10" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-texte-doux">Voix reliée</p>
@@ -91,7 +91,7 @@ export function OngletVoix({ fiche, texteALire, verrouille, onOuvrirAccord }: { 
           onClick={() => setFeuille("relier")}
           className="group relative isolate flex min-h-20 w-full items-center gap-4 overflow-hidden rounded-carte border border-trait bg-surface-1 p-4 text-left transition-colors hover:border-trait-fort disabled:opacity-50"
         >
-          <span aria-hidden className="absolute inset-0 -z-10 lueur opacity-70" />
+          <span aria-hidden className="absolute inset-0 -z-10 opacity-70" />
           <span className="grid size-12 shrink-0 place-items-center rounded-full bg-orange text-sur-orange">
             <Icone nom="lien" size={20} />
           </span>
@@ -623,7 +623,7 @@ function ReglagesEtEssai({ personnageId, voix }: { personnageId: string; voix: V
             {Array.from({ length: 28 }, (_, i) => (
               <span
                 key={i}
-                className={cn("w-1 shrink-0 rounded-full", joue ? "animate-pulse bg-orange-vif" : "bg-surface-3")}
+                className={cn("w-1 shrink-0 rounded-full", joue ? "animate-pulse bg-accent" : "bg-surface-3")}
                 style={{ height: `${Math.round(20 + Math.abs(Math.sin(i * 1.7)) * 80)}%`, animationDelay: `${(i % 7) * 90}ms` }}
               />
             ))}

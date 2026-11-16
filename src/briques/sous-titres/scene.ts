@@ -6,6 +6,9 @@
  */
 import { largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
+import { PAVE } from "./pave";
+import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
+import { ETIQUETTE } from "./noms-outils";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
 import type { StylePastille } from "./pastille";
 import type { CibleMarqueurRendu, GabaritRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
@@ -78,6 +81,12 @@ export interface DonneesCalque {
   bandeFond?: BandeFondSousTitres;
   /** C2-U6, ajout pur : cible du marqueur ; absente ou "souligne" : le mot souligné seul, inchangé. */
   cibleMarqueur?: Exclude<CibleMarqueurRendu, "souligne">;
+  /** C2-U7a : mot à plaque de chaque groupe (id du segment → indice du mot). Absent : aucun pavé. */
+  plaques?: Record<string, number>;
+  /** C2-U8 : mots-outils étiquetés de chaque groupe (id du segment → premier indice et nombre de mots). Absent : aucune étiquette. */
+  motsOutils?: Record<string, { debut: number; longueur: number }>;
+  /** C2-U10 : bandeau « nom et fonction » (pièce non branchée) ; pendant sa tenue, un groupe « bas » se pose comme « auto ». Absent : rien ne change. */
+  bandeauNom?: BandeauNomRendu;
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -118,6 +127,10 @@ export interface MotDessine {
   /** Style « Pastille » : grossissement et montée (px) du mot dit (absents : 1 et 0). */
   echelle?: number;
   monteePx?: number;
+  /** C2-U7a : mot posé sur une plaque (absent : inchangé). */
+  plaque?: true;
+  /** C2-U8 : nom d'outil en étiquette ; « debut » et « fin » dessinent un nom en deux mots comme une seule pastille. Absent : inchangé. */
+  etiquette?: "seul" | "debut" | "fin";
 }
 
 export interface ElementDessine {
@@ -163,7 +176,8 @@ export function segmentAuTemps(segments: SegmentSousTitres[], t: number): Segmen
   return segments.find((s) => t >= s.debutSec && t < s.finSec) ?? null;
 }
 
-function centrePct(d: DonneesCalque, position: PositionGroupeSousTitres | undefined, t: number, debutGroupeSec = t): number {
+function centrePct(d: DonneesCalque, positionDemandee: PositionGroupeSousTitres | undefined, t: number, debutGroupeSec = t): number {
+  const position = positionDemandee === "bas" && bandeauActif(d.bandeauNom, t) ? "auto" : positionDemandee;
   if (position === "haut") return d.positions.hautPct;
   if (position === "bas") return d.positions.basPct;
   const jonction = d.passagesJonction?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6);
@@ -282,7 +296,13 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
   // Facecam F1 : écran partagé côte à côte, la ligne ne dépasse pas la colonne de Will.
   const colonne = d.passagesJonction?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6)?.colonne;
   const libre = d.echelleTexte !== undefined ? d.largeurMaxPx : d.largeurMaxPx * echelleImage;
-  const disponible = (colonne ? Math.min(libre, colonne.largeurPx) : libre) - marges - g.contourPx * echelleImage;
+  const outil = d.motsOutils?.[s.id];
+  const indiceBrut = d.plaques?.[s.id];
+  // C2-U8 : une étiquette l'emporte sur la plaque pour son mot.
+  const indicePlaque = indiceBrut !== undefined && outil && indiceBrut >= outil.debut && indiceBrut < outil.debut + outil.longueur ? undefined : indiceBrut;
+  const margePlaque = indicePlaque === undefined ? 0 : 2 * PAVE.margeXEm * voulue;
+  const margeEtiquette = outil ? 2 * ETIQUETTE.margeXEm * voulue : 0;
+  const disponible = (colonne ? Math.min(libre, colonne.largeurPx) : libre) - marges - g.contourPx * echelleImage - margePlaque - margeEtiquette;
   const taillePx = tailleQuiTient(
     s.mots.map((m) => m.mot),
     g.police,
@@ -295,7 +315,11 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
   const couleurs = clair ? { ...d.couleurs, texte: clair } : d.couleurs;
   // Lot L3b : surlignage (fond derrière le mot souligné) ; ses couleurs d'écran clair pendant un passage clair.
   const surlignage = d.surlignage ? (clair ? { fond: d.surlignage.fondClair ?? d.surlignage.fond, texte: d.surlignage.texteClair ?? d.surlignage.texte } : { fond: d.surlignage.fond, texte: d.surlignage.texte }) : undefined;
-  const mots = motsDessines(s, g, couleurs, t, d.cibleMarqueur ? { cible: d.cibleMarqueur, base: d.base } : undefined);
+  const motsBase = motsDessines(s, g, couleurs, t, d.cibleMarqueur ? { cible: d.cibleMarqueur, base: d.base } : undefined);
+  const motsPlaque = indicePlaque === undefined ? motsBase : motsBase.map((m, k) => (k === indicePlaque ? { ...m, plaque: true as const } : m));
+  const mots = outil
+    ? motsPlaque.map((m, k) => (k >= outil.debut && k < outil.debut + outil.longueur ? { ...m, etiquette: (outil.longueur === 1 ? "seul" : k === outil.debut ? "debut" : "fin") as MotDessine["etiquette"] } : m))
+    : motsPlaque;
   return {
     cle: s.id,
     gabarit: g,
@@ -307,7 +331,7 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
     opacite,
     decalageYPx: decalageYPx * echelleImage,
     espacePx: g.espaceMotsEm * taillePx,
-    mots: surlignage ? mots.map((m) => (m.souligne >= SURLIGNAGE.texteDes ? { ...m, couleur: surlignage.texte } : m)) : mots,
+    mots: surlignage ? mots.map((m) => (m.souligne >= SURLIGNAGE.texteDes && !m.etiquette ? { ...m, couleur: surlignage.texte } : m)) : mots,
     fond: g.bandeau ? { couleur: d.couleurs.texte, margeXPx: g.bandeau.margeXEm * taillePx, margeYPx: g.bandeau.margeYEm * taillePx } : undefined,
     couleurSoulignement: d.couleurs.accent,
     ...(colonne ? { colonne } : {}),
@@ -375,7 +399,7 @@ function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitre
 export function largeurElement(el: ElementDessine): number {
   const options = { majuscules: el.gabarit.casse === "majuscules", chiffresTabulaires: true };
   const texte = el.mots.reduce((s, m) => s + largeurMot(m.texte, el.police, el.taillePx, options), 0) + el.espacePx * Math.max(0, el.mots.length - 1);
-  return texte + (el.fond ? 2 * el.fond.margeXPx : 0) + (el.pastille ? 2 * el.pastille.margeXPx : 0) + (el.margeMarqueurPx ?? 0);
+  return texte + (el.fond ? 2 * el.fond.margeXPx : 0) + (el.pastille ? 2 * el.pastille.margeXPx : 0) + (el.margeMarqueurPx ?? 0) + el.mots.reduce((n, m) => n + (m.plaque ? 2 * PAVE.margeXEm * el.taillePx : 0) + (m.etiquette === "seul" ? 2 * ETIQUETTE.margeXEm * el.taillePx : m.etiquette === "debut" || m.etiquette === "fin" ? ETIQUETTE.margeXEm * el.taillePx : 0), 0);
 }
 
 export type Css = Record<string, string | number>;
@@ -444,6 +468,34 @@ export function cssElement(el: ElementDessine, d: Pick<DonneesCalque, "couleurs"
         css.transform = `translateY(${(m.monteePx ?? 0).toFixed(2)}px) scale(${(m.echelle ?? 1).toFixed(4)})`;
         css.transformOrigin = "50% 70%";
       }
+      // C2-U7a : plaque derrière le mot-clé (la marge élargit la ligne, `largeurElement` la compte).
+      if (m.plaque) {
+        css.background = d.couleurs.accent;
+        css.color = d.couleurs.contour;
+        css.padding = `${PAVE.margeYEm * el.taillePx}px ${PAVE.margeXEm * el.taillePx}px`;
+        css.borderRadius = PAVE.rayonEm * el.taillePx;
+        css.WebkitTextStroke = "0";
+        css.textShadow = "none";
+      }
+      // C2-U8 : étiquette de nom d'outil (pastille noire, lettre ivoire, filet gris). Un nom en deux mots n'est qu'une pastille.
+      if (m.etiquette) {
+        const x = ETIQUETTE.margeXEm * el.taillePx;
+        const bord = `${ETIQUETTE.bordPx * echelleImage}px solid ${ETIQUETTE.bord}`;
+        const rayon = ETIQUETTE.rayonEm * el.taillePx;
+        const debut = m.etiquette === "seul" || m.etiquette === "debut";
+        const fin = m.etiquette === "seul" || m.etiquette === "fin";
+        css.background = ETIQUETTE.fond;
+        css.color = ETIQUETTE.texte;
+        css.padding = `${ETIQUETTE.margeYEm * el.taillePx}px ${fin ? x : el.espacePx}px ${ETIQUETTE.margeYEm * el.taillePx}px ${debut ? x : 0}px`;
+        if (!fin) css.marginRight = -el.espacePx;
+        css.border = bord;
+        if (!fin) css.borderRight = "none";
+        if (!debut) css.borderLeft = "none";
+        css.borderRadius = `${debut ? rayon : 0}px ${fin ? rayon : 0}px ${fin ? rayon : 0}px ${debut ? rayon : 0}px`;
+        css.WebkitTextStroke = "0";
+        css.textShadow = "none";
+        return css;
+      }
       // Lot L3b : mot surligné, lettre nette sur son fond (ni contour ni ombre).
       if (el.surlignage && m.souligne >= SURLIGNAGE.texteDes) {
         css.WebkitTextStroke = "0";
@@ -451,7 +503,7 @@ export function cssElement(el: ElementDessine, d: Pick<DonneesCalque, "couleurs"
       }
       return css;
     },
-    trait: (i) => (el.surlignage ? traitSurlignage(el, el.surlignage.fond, el.mots[i].souligne) : {
+    trait: (i) => (el.mots[i].etiquette ? { display: "none" } : el.surlignage ? traitSurlignage(el, el.surlignage.fond, el.mots[i].souligne) : {
       position: "absolute",
       left: 0,
       bottom: `${-0.06 * el.taillePx}px`,

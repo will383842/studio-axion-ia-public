@@ -132,10 +132,10 @@ describe("R1b — un compte choisi à chaque envoi", () => {
 
   it("un compte qui n'est pas de ce réseau n'est jamais utilisé comme cible (Zernio prend un compte LinkedIn)", async () => {
     await cocher(VIDEO);
-    const r = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [ID.instagram] } });
-    expect(envoyer.mock.calls).toHaveLength(1);
-    expect(canauxEnvoyes()).not.toContain(ID.instagram);
-    expect([ID.linkedinProfil, ID.linkedinPage]).toContain(r.publications[0].canalId);
+    // Identifiant d'Instagram donné pour LinkedIn : refusé (CIBLE_ZERNIO), rien ne part, aucun compte LinkedIn n'est deviné.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [ID.instagram] } })).rejects.toMatchObject({ code: "CIBLE_ZERNIO" });
+    expect(envoyer).not.toHaveBeenCalled();
+    expect(canauxEnvoyes()).toEqual([]);
   });
 
   it("ROUGE 3 : sans mémoire, aucun compte LinkedIn n'est coché par défaut ; un envoi Zernio ne mémorise rien (la mémoire des comptes était celle de Buffer)", async () => {
@@ -270,7 +270,7 @@ describe("R1b — écrans", () => {
 
   it("la feuille d'envoi passe les comptes cochés et ne coche jamais d'office un compte non choisi", async () => {
     const { readFileSync } = await import("node:fs");
-    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyerBuffer.tsx", import.meta.url), "utf8");
+    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyer.tsx", import.meta.url), "utf8");
     expect(f).toMatch(/envoyerVersBufferAction\(videoId, reseaux, dateIso\(\), autreReseau, comptes\)/);
     expect(f).toMatch(/casesParDefaut/);
     expect(f).not.toMatch(/Simulation/);

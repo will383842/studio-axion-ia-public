@@ -205,7 +205,7 @@ describe("3 · écran /mots", () => {
       apres.formulations!.filter((f) => f.valide).map((f) => f.version),
     ).toEqual(["mp-deja-envoye-v1-2"]);
   });
-  it("EcranMots affiche les 4 groupes, chaque texte, « pas encore branché » sur pub-commentaire seul, libellés exacts pour le renvoi et Instagram", async () => {
+  it("EcranMots affiche les 4 groupes, chaque texte, pub-commentaire branché (plus de mention « pas encore branché »), libellés exacts pour le renvoi et Instagram", async () => {
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { createElement } = await import("react");
     const { EcranMots } = await import("@/components/mots/EcranMots");
@@ -229,7 +229,10 @@ describe("3 · écran /mots", () => {
     for (const v of NOUVELLES) expect(html, v).toContain(esc(brut(v).texte));
     for (const g of ["pub-commentaire"]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
-      expect(bloc, g).toContain("pas encore branché");
+      expect(bloc, g).toContain("ne vaut que pour Facebook");
+      expect(bloc, g).toContain("Instagram garde l");
+      expect(bloc, g).toContain("réponse publique du mot GUIDE en production");
+      expect(bloc, g).not.toContain("pas encore branché"); // branché depuis la PR « réponse publique » (Facebook, formulation validée)
     }
     for (const g of ["deja-envoye", "lien-rappel"]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];

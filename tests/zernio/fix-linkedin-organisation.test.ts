@@ -32,7 +32,7 @@ function monter(orgsDe: (id: string) => { id: string; localizedName: string }[] 
   const t = creerFauxClientZernio(serveur);
   return { ...t, f: creerPublicationZernio(CLE_FICTIVE, { clientPret: t.client, lire: async () => ({ corps: flux(), taille: 1 }), maintenant: t.horloge.maintenant }) };
 }
-const canalBuffer = (id: string, nom: string): CanalPublication => ({ id, organisationId: "org-buffer", nom, service: "linkedin", deconnecte: false });
+const canalAncien = (id: string, nom: string): CanalPublication => ({ id, organisationId: "org-ancienne", nom, service: "linkedin", deconnecte: false });
 
 describe("FIX-LINKEDIN · un seul canal par organisation", () => {
   it("2 comptes exposent la même organisation : un canal organisation (compte A) + un canal profil distinct (B)", async () => {
@@ -44,12 +44,15 @@ describe("FIX-LINKEDIN · un seul canal par organisation", () => {
     expect(canaux).toHaveLength(2);
   });
 
-  it("la présélection par le nom de l'organisation se traduit en UN canal (plus de CIBLE_AMBIGUE)", async () => {
+  it("l'ancien identifiant n'est jamais traduit par le nom de l'organisation : refus", async () => {
     const { f } = monter();
-    const traduit = await traduireSelectionVersZernio(f, "linkedin", ["buf-o"], [canalBuffer("buf-o", NOM)]);
-    expect(traduit).toEqual([`${A}:li:${ORG}`]);
+    const traduit = await traduireSelectionVersZernio(f, "linkedin", ["ancien-o"], [canalAncien("ancien-o", NOM)]);
     const r = await ciblesZernioPour(f, "linkedin", traduit);
-    expect(r.ok && r.canaux.map((c) => c.id)).toEqual([`${A}:li:${ORG}`]);
+    expect(r.ok).toBe(false);
+    expect(JSON.stringify(r)).toContain("n'est plus relié à Zernio");
+    // L'identifiant Zernio de l'organisation, coché directement, part.
+    const direct = await ciblesZernioPour(f, "linkedin", await traduireSelectionVersZernio(f, "linkedin", [`${A}:li:${ORG}`], []));
+    expect(direct.ok && direct.canaux.map((c) => c.id)).toEqual([`${A}:li:${ORG}`]);
   });
 
   it("rien de choisi : l'organisation par défaut, jamais le profil personnel", async () => {
@@ -70,16 +73,16 @@ describe("FIX-LINKEDIN · un seul canal par organisation", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("deux VRAIES organisations homonymes d'identifiants différents : refus avec le message nommé", async () => {
+  it("deux VRAIES organisations homonymes d'identifiants différents : l'ancien identifiant est refusé", async () => {
     const comptes = [
       { _id: A, platform: "linkedin", displayName: "Compte A", accountType: "organization" },
       { _id: B, platform: "linkedin", displayName: "Compte B", accountType: "organization" },
     ];
     const { f } = monter((id) => [{ id: id === A ? ORG : "999888777", localizedName: NOM }], comptes);
-    const traduit = await traduireSelectionVersZernio(f, "linkedin", ["buf-o"], [canalBuffer("buf-o", NOM)]);
+    const traduit = await traduireSelectionVersZernio(f, "linkedin", ["ancien-o"], [canalAncien("ancien-o", NOM)]);
     const r = await ciblesZernioPour(f, "linkedin", traduit);
     expect(r.ok).toBe(false);
-    expect(JSON.stringify(r)).toContain("Plusieurs comptes de l'outil de publication portent le nom");
+    expect(JSON.stringify(r)).toContain("recochez-le");
   });
 
   it("même organisation vue par deux comptes sans pouvoir trancher : refus, les deux canaux restent", async () => {

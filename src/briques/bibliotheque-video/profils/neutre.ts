@@ -36,7 +36,7 @@ export function profilNeutre(formatId: string): ProfilVideo {
 
 /**
  * Formats sans profil propre (A1-6) : le test échoue si un format n'est ni profilé ni listé ici.
- * PLAN-FINAL disait « 6 » : `tutoriel-outil` et `demo-facecam` sont arrivés depuis ; N-02 et G3-11 les sortiront de la liste plus tard.
+ * PLAN-FINAL disait « 6 » : `tutoriel-outil` et `demo-facecam` sont arrivés depuis, puis sortis de la liste par N-02 et G3-11.
  * Un format par ligne (couloir K9 : diffs d'une ligne).
  */
 export const FORMATS_PROFIL_NEUTRE: readonly string[] = Object.freeze([
@@ -46,6 +46,4 @@ export const FORMATS_PROFIL_NEUTRE: readonly string[] = Object.freeze([
   "motion",
   "ugc",
   "selfie",
-  "tutoriel-outil",
-  "demo-facecam",
 ]);

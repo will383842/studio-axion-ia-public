@@ -20,7 +20,7 @@ const compte = (reseau: CompteVue["reseau"], i: number, sur: Partial<CompteVue> 
   ...sur,
 });
 const SIX: CompteVue[] = [compte("instagram", 1), compte("facebook", 2), compte("facebook", 3), compte("linkedin", 4), compte("linkedin", 5), compte("tiktok", 6)];
-const etat = (sur: Partial<EtatConnexionsZernio> = {}): EtatConnexionsZernio => ({ cleAbsente: false, arretActif: false, comptes: SIX, budget: { zernio: 10, buffer: 20, finBuffer: "20/11" }, ...sur });
+const etat = (sur: Partial<EtatConnexionsZernio> = {}): EtatConnexionsZernio => ({ cleAbsente: false, arretActif: false, comptes: SIX, budget: { zernio: 10 }, ...sur });
 
 function fauxServices(donnees: EtatConnexionsZernio = etat()): ServicesZernio & { appels: Record<string, unknown[][]> } {
   const appels: Record<string, unknown[][]> = {};
@@ -207,7 +207,7 @@ describe("z3c · clé absente et aucun montant", () => {
 
   it("aucun montant affiché ni bloquant : budget à zéro ou absent, tous les gestes restent actifs", () => {
     const comptes = [...SIX.slice(0, 5), compte("tiktok", 6, { outil: "buffer" })];
-    for (const budget of [{ zernio: 0, buffer: 0, finBuffer: "20/11" }, { zernio: null, buffer: null, finBuffer: "20/11" }, { zernio: 999999, buffer: 999999, finBuffer: "20/11" }]) {
+    for (const budget of [{ zernio: 0 }, { zernio: null }, { zernio: 999999 }]) {
       const html = rendre({ etat: "normal", donnees: etat({ comptes, budget }) });
       expect(html).not.toMatch(/\$|Budget|à renseigner|jamais bloqué par ce montant/);
       expect(html).toMatch(/<button(?![^>]*\sdisabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Passer Compte exemple tiktok 6 sur le nouvel outil/);

@@ -10,7 +10,7 @@ import type { TypeOperationRetoucheCasConcret } from "../../moteurs/montage-cas-
 /** `scenes` : scènes touchées re-rendues (0 €) ; `final` : réassemblage entier sans fournisseur payant ; `voix` : voix relue (payant) ; `claude` : appel à Claude ; `ia` : image, avatar ou clip IA (payant). */
 export type PorteeOperation = "scenes" | "final" | "voix" | "claude" | "ia";
 
-/** Chat : `src/briques/operations.ts:138`. Seul `modifier-script` refait la voix (minutage : `src/services/retouche-chat/appliquer.ts:132`). */
+/** Chat : `src/briques/operations.ts` (`TYPES_OPERATIONS_RETOUCHE`). Seul `modifier-script` refait la voix (minutage : `src/services/retouche-chat/appliquer.ts:132`). */
 export const PORTEE_CHAT: Readonly<Record<TypeOperationRetouche, PorteeOperation>> = {
   "changer-mot": "scenes",
   "ajouter-chiffre": "scenes",
@@ -24,6 +24,12 @@ export const PORTEE_CHAT: Readonly<Record<TypeOperationRetouche, PorteeOperation
   "ajouter-dynamisme": "scenes",
   "ajuster-zoom": "scenes",
   "modifier-script": "voix",
+  // G14-02 : tout ce qui suit se décale ou le passage final est refait ; aucune ne relit la voix.
+  "couper-mots": "final",
+  "changer-sous-titre": "final",
+  "retirer-scene": "final",
+  "changer-son": "final",
+  deplacer: "final",
 };
 
 /**
@@ -43,6 +49,7 @@ export const PORTEE_MOTEURS: Readonly<Record<OperationMontage["type"], PorteeOpe
   modifierTitre: "scenes",
   refaireSegmentVoix: "voix",
   ajusterRythme: "scenes",
+  planScenes: "scenes",
 };
 
 /** Tableau : `CATALOGUE_RETOUCHES` (`src/moteurs/montage-tableau/retouches.ts:69-81`) : pages → scenes, fin → final, voix → voix. */

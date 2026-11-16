@@ -1,6 +1,6 @@
 /**
  * EXPORT LISIBLE DU PLAN (R1-09) — texte stable, lisible par un humain et par Claude hors Studio : en-tête, une ligne par
- * scène, les 12 opérations permises avec leurs champs et un exemple JSON. Pur, sans prix, aucun appel.
+ * scène, les opérations permises avec leurs champs et un exemple JSON. Pur, sans prix, aucun appel.
  */
 import { TYPES_OPERATIONS_RETOUCHE, type TypeOperationRetouche } from "@/briques/operations";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
@@ -19,6 +19,11 @@ const CHAMPS: Record<TypeOperationRetouche, string> = {
   "ajouter-dynamisme": "sceneIds?, intensite: leger|fort",
   "ajuster-zoom": "sceneId, facteur? (1 à 2,5), cible? {x, y}, moment? (0 à 0,8)",
   "modifier-script": "ancien, nouveau (seulement sur demande explicite)",
+  "couper-mots": "premier, dernier (indices de mots)",
+  "changer-sous-titre": "motIndex, nouveau",
+  "retirer-scene": "sceneId",
+  "changer-son": "sceneId, sonId (un son déjà validé)",
+  deplacer: "sceneId, apresSceneId",
 };
 
 /** Exemple JSON valide, bâti sur la première scène du plan. */
@@ -41,7 +46,7 @@ export function exporterPlanLisible(plan: PlanValide): string {
     const lus = plan.mots.slice(s.mots.premier, s.mots.dernier + 1).map((m) => m.texte).join(" ");
     lignes.push(`- ${s.id} · ${sec(s.debutMs)}–${sec(s.finMs)} s · pièce ${s.piece} · écran « ${s.texte ?? ""} » · lu « ${lus} »`);
   }
-  lignes.push("", "OPÉRATIONS PERMISES (12, rien d'autre)");
+  lignes.push("", `OPÉRATIONS PERMISES (${TYPES_OPERATIONS_RETOUCHE.length}, rien d'autre)`);
   for (const t of TYPES_OPERATIONS_RETOUCHE) lignes.push(`- ${t} : ${CHAMPS[t]}`);
   lignes.push("", "Réponds par un seul bloc JSON, 20 opérations au plus :", EXEMPLE_OPERATIONS(plan));
   return lignes.join("\n");

@@ -7,6 +7,8 @@
 import type { OperationRetouche } from "@/briques/operations";
 import { CATALOGUE_BRIQUES, type IdPiece } from "@/briques/plan-scenes/catalogue";
 import type { MotMinute, PlanValide } from "@/briques/plan-scenes/schema";
+import { refus } from "@/briques/operations-refus";
+import { sonPermisDansLeChat } from "./sons-permis";
 import { validerPlan, type CodeRemarque } from "@/briques/plan-scenes/validateur";
 
 export interface RemarqueRetouche {
@@ -195,6 +197,58 @@ export function appliquerOperations(plan: PlanValide, operations: readonly Opera
         ok(cibles.map((s) => s.id));
         break;
       }
+      case "couper-mots":
+      case "changer-sous-titre":
+        // Jamais codés en `modifier-script` : aucun moteur ne sait encore les rendre, le plan et le texte lu restent intacts.
+        ignorer(`« ${op.type} » : pas encore appliquée pour ce générateur, rien n'a changé.`);
+        break;
+      case "changer-son": {
+        if (!scene(op.sceneId)) {
+          ignorer(`Scène « ${op.sceneId} » introuvable : rien n'a changé.`, op.sceneId);
+          break;
+        }
+        const garde = sonPermisDansLeChat(op.sonId);
+        if (!garde.ok) ignorer(refus("son-hors-liste", garde.phrase).phrase, op.sceneId);
+        else ignorer("Changer le son : pas encore appliquée pour ce générateur, rien n'a changé.", op.sceneId);
+        break;
+      }
+      case "retirer-scene": {
+        const i = brut.scenes.findIndex((s) => s.id === op.sceneId);
+        if (i < 0) {
+          ignorer(`Scène « ${op.sceneId} » introuvable : rien n'a changé.`, op.sceneId);
+          break;
+        }
+        if (brut.scenes.length <= 1) {
+          ignorer("C'est la seule scène de la vidéo : elle ne peut pas être retirée.", op.sceneId);
+          break;
+        }
+        const [retiree] = brut.scenes.splice(i, 1) as [SceneBrute];
+        // Les mots de la scène retirée passent à la voisine (précédente, sinon suivante) : aucun trou dans le script.
+        const voisine = brut.scenes[i - 1] ?? brut.scenes[i]!;
+        if (i > 0) voisine.mots = { premier: voisine.mots.premier, dernier: Math.max(voisine.mots.dernier, retiree.mots.dernier) };
+        else voisine.mots = { premier: Math.min(voisine.mots.premier, retiree.mots.premier), dernier: voisine.mots.dernier };
+        ok([voisine.id]);
+        break;
+      }
+      case "deplacer": {
+        const de = brut.scenes.findIndex((s) => s.id === op.sceneId);
+        const apres = brut.scenes.findIndex((s) => s.id === op.apresSceneId);
+        if (de < 0 || apres < 0) {
+          ignorer(`Scène « ${de < 0 ? op.sceneId : op.apresSceneId} » introuvable : rien n'a changé.`, de < 0 ? op.sceneId : op.apresSceneId);
+          break;
+        }
+        if (de === apres || de === apres + 1) {
+          ignorer("La scène est déjà à cette place : rien n'a changé.", op.sceneId);
+          break;
+        }
+        // Les créneaux (mots, début, fin) restent à leur place : la voix et le minutage ne bougent pas, seul le contenu des scènes change de place.
+        const creneaux = brut.scenes.map((s) => ({ mots: s.mots, debutMs: s.debutMs, finMs: s.finMs }));
+        const [deplacee] = brut.scenes.splice(de, 1) as [SceneBrute];
+        brut.scenes.splice(de < apres ? apres : apres + 1, 0, deplacee);
+        brut.scenes.forEach((s, k) => Object.assign(s, creneaux[k]));
+        ok(brut.scenes.map((s) => s.id));
+        break;
+      }
       default: {
         const s = scene(op.sceneId);
         if (!s) {
@@ -211,7 +265,7 @@ export function appliquerOperations(plan: PlanValide, operations: readonly Opera
   return { plan: v.plan, operations: appliquees, remarques: [...remarques, ...v.remarques] };
 }
 
-type OperationScene = Exclude<OperationRetouche, { type: "modifier-script" | "changer-habillage" | "changer-transition" | "ajouter-dynamisme" }>;
+type OperationScene = Exclude<OperationRetouche, { type: "modifier-script" | "changer-habillage" | "changer-transition" | "ajouter-dynamisme" | "couper-mots" | "changer-sous-titre" | "retirer-scene" | "changer-son" | "deplacer" }>;
 
 function appliquerSurScene(s: SceneBrute, op: OperationScene, ignorer: (m: string) => void, mots: readonly MotMinute[]): boolean {
   switch (op.type) {

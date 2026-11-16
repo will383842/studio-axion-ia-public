@@ -44,8 +44,6 @@ export interface CompteVue {
 export interface BudgetInfo {
   /** Montants de configuration, pour information seulement : jamais comparés à un envoi. */
   zernio: number | null;
-  buffer: number | null;
-  finBuffer: string;
 }
 
 export interface EtatConnexionsZernio {
@@ -136,7 +134,7 @@ export async function lireConnexionsZernioAction(): Promise<Resultat<EtatConnexi
         } satisfies CompteVue;
       })
       .sort((a, b) => ORDRE(a.reseau) - ORDRE(b.reseau) || a.nom.localeCompare(b.nom, "fr"));
-    const budget: BudgetInfo = { zernio: nombreOuNul(budgetBrut?.zernio), buffer: nombreOuNul(budgetBrut?.buffer), finBuffer: typeof budgetBrut?.finBuffer === "string" ? budgetBrut.finBuffer : "20/11" };
+    const budget: BudgetInfo = { zernio: nombreOuNul(budgetBrut?.zernio) };
     return { cleAbsente: !cleZernioPresente(), arretActif: autorise === false, envoiCalendrierOuvert: calendrier === true, editorialeActive: editoriale, comptes, budget };
   });
 }
