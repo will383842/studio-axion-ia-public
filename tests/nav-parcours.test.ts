@@ -21,7 +21,7 @@ vi.mock("@/components/publication/ContexteVideo", () => ({
   useVideo: () => ({ ouvrir: () => undefined, publiable: false, nbCochees: 1, kit: { envoiSimule: true }, casesRequises: ["image", "son", "sousTitres", "droits"] }),
 }));
 vi.mock("@/components/partage/FeuillePartager", () => ({ FeuillePartager: () => null }));
-vi.mock("@/components/publication/FeuilleEnvoyerBuffer", () => ({ FeuilleEnvoyerBuffer: () => null }));
+vi.mock("@/components/publication/FeuilleEnvoyer", () => ({ FeuilleEnvoyer: () => null }));
 vi.mock("@/components/publication/FeuilleTelecharger", () => ({ FeuilleTelecharger: () => null }));
 
 const { FicheSujet, enFabrication } = await import("@/components/generateur/FicheSujet");

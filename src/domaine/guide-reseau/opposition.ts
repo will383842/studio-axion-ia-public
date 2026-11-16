@@ -12,10 +12,11 @@ export const PHRASES_OPPOSITION: readonly string[] = ["NE M ECRIVEZ PLUS", "NE M
   "JE M OPPOSE AU TRAITEMENT DE MES DONNEES PERSONNELLES", "JE M OPPOSE AU TRAITEMENT DE MES DONNEES", "JE M OPPOSE AU TRAITEMENT",
   "JE M OPPOSE A LA COLLECTE DE MES DONNEES PERSONNELLES", "JE M OPPOSE A LA COLLECTE DE MES DONNEES", "JE M OPPOSE A LA COLLECTE DE DONNEES", "JE M OPPOSE A LA COLLECTE", "JE M Y OPPOSE", "JE SUIS OPPOSE E", "JE SUIS OPPOSEE", "JE SUIS OPPOSE", "OPPOSEE",
   "JE M OPPOSE", "JE ME OPPOSE", "M OPPOSE", "ME OPPOSE", "OPPOSITION", "OPPOSE", "OPPOSER"];
-/** Mots sans portée qui peuvent accompagner une opposition. */
+/** Mots sans portée qui peuvent accompagner une opposition. Contient au moins toutes les politesses de mot-normalise.ts (MOTS_NEUTRES_POLITESSE et SIL) : un arrêt poli n'est jamais moins reconnu qu'une demande polie (test opposition-politesses). */
 export const NEUTRES_OPPOSITION: readonly string[] = [
   "MERCI", "BEAUCOUP", "SVP", "STP", "S", "IL", "VOUS", "TE", "PLAIT", "OK", "NON", "BONJOUR", "BONSOIR", "SALUT", "TOUT", "CA", "CELA", "LE", "LES", "DES",
   "MESSAGE", "MESSAGES", "MP", "MAIL", "MAILS", "ENVOIS", "JE", "VEUX", "VOUDRAIS", "MAINTENANT", "DONC", "ALORS", "BIEN",
+  "PLEASE", "THANKS", "THANK", "YOU", "HELLO", "HI", "SIL",
 ];
 /** Négations : leur présence rend toute opposition douteuse (« ne vous arrêtez pas »). */
 export const NEGATIONS: readonly string[] = ["NE", "N", "PAS", "JAMAIS", "SANS", "SURTOUT"];
@@ -27,7 +28,7 @@ const LONGUEUR_MAX = 80;
 const MOTS_MAX = 8;
 
 /** NFKC, puis sans accents, majuscules ; tout caractère non lettre/chiffre devient une espace ; découpe en mots. */
-function motsDe(texte: string): string[] {
+export function motsDe(texte: string): string[] {
   const n = texte.normalize("NFKC").normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   return n === "" ? [] : n.split(" ");
 }

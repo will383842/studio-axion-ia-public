@@ -11,7 +11,11 @@ import type { Travail } from "@/domaine/types";
 import { ID_MOTEUR_FACECAM_ANIMEE } from "@/moteurs/montage-facecam-animee";
 import { lireEtatV4 } from "@/moteurs/montage-facecam-animee/chaine-v4";
 import { historiqueDuPlan } from "@/moteurs/montage-facecam-animee/realisateur/regles";
-import { depots } from "./_commun";
+import { lireHistorique } from "@/moteurs/montage-cas-concret/variete";
+import { HISTORIQUE_VARIETE_IV, type EtatFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { lireHistoriqueStyles } from "@/moteurs/montage-tableau/tirage-style";
+import { AXES_VARIETE, codeDe } from "@/briques/schema-motion/variete";
+import { depots, lireParametre } from "./_commun";
 
 export interface UsageHorsCatalogue { source: SourceMemoire; cle: string; videoId: string; rang: number /* 0 = le plus récent */ }
 export interface MemoiresLues {
@@ -133,4 +137,62 @@ export async function lireMemoiresA(d: DemandeMemoiresA): Promise<MemoiresLues> 
   const usages = fusionnerMemoires(sources, d.fenetre);
   horsCatalogue.sort((a, b) => cmp(a.source, b.source) || a.rang - b.rang);
   return { usages, horsCatalogue, profondeurs };
+}
+
+/* ------------------------------------------------------------------ */
+/* C1-U6b : cas concret, tableau animé, image→vidéo (tout en horsCatalogue)   */
+/* ------------------------------------------------------------------ */
+
+export interface DemandeMemoiresB { formatId: string; videoIdEnCours?: string; fenetre: ProfilVideo["memoire"] }
+
+const FORMAT_CAS_CONCRET = "cas-concret";
+const FORMAT_TABLEAU = "tableau-anime";
+const FORMAT_IMAGE_VIDEO = "image-video";
+// Clés de réglage recopiées (les services de variété ne sont pas importés) ; un test les compare aux constantes.
+export const CLE_TIRAGES_CAS_CONCRET = "casConcret.historiqueTirages";
+export const CLE_STYLES_TABLEAU = "tableau.historiqueStyles";
+
+/** Une ligne par vidéo, de la plus ancienne à la plus récente : on exclut la vidéo en cours, rang 0 = la plus récente. */
+function enRangs<T extends { videoId: string }>(lignes: readonly T[], videoIdEnCours: string | undefined, source: SourceMemoire, cle: (l: T) => string): UsageHorsCatalogue[] {
+  return lignes.filter((l) => l.videoId !== videoIdEnCours).reverse().map((l, rang) => ({ source, cle: cle(l), videoId: l.videoId, rang }));
+}
+
+async function casConcretTirages(videoIdEnCours: string | undefined): Promise<UsageHorsCatalogue[]> {
+  const lignes = lireHistorique(await lireParametre<unknown>(CLE_TIRAGES_CAS_CONCRET, []));
+  return enRangs(lignes, videoIdEnCours, "cas-concret-tirages", (l) => `tirage:${[...l.canaux].sort(cmp).join(",")}`);
+}
+
+async function tableauStyles(videoIdEnCours: string | undefined): Promise<UsageHorsCatalogue[]> {
+  const lignes = lireHistoriqueStyles(await lireParametre<unknown>(CLE_STYLES_TABLEAU, []));
+  return enRangs(lignes, videoIdEnCours, "tableau-styles", (l) => `style:${l.style}`);
+}
+
+/** Filtre recopié de `src/services/image-video.ts` (historiqueVariete) ; le tri de `historiqueVarieteIV` est celui du moteur, importé. */
+async function imageVideoVariete(videoIdEnCours: string | undefined): Promise<UsageHorsCatalogue[]> {
+  const travaux = await depots().travaux.lister((t) => !!(t.parametres as { imageVideo?: { variete?: unknown } } | undefined)?.imageVideo?.variete);
+  travaux.sort((a, b) => (b.termineLe ?? b.creeLe).localeCompare(a.termineLe ?? a.creeLe));
+  const etats = travaux.map((t) => (t.parametres as { imageVideo: EtatFabricationIV }).imageVideo);
+  // Même filtre que `historiqueVarieteIV` (hors refusées, recette présente, hors vidéo en cours, 10 au plus), en gardant `demande.videoId`.
+  const retenus = etats.filter((e) => e.etape !== "refusee" && e.variete && e.demande.videoId !== videoIdEnCours).slice(0, HISTORIQUE_VARIETE_IV);
+  return retenus.map((e, rang) => {
+    const r = e.variete!.effective ?? e.variete!.recette;
+    return { source: "image-video-variete" as const, cle: `recette:${[...AXES_VARIETE].sort(cmp).map((a) => `${a}=${String(codeDe(r, a))}`).join(",")}`, videoId: String(e.demande.videoId), rang };
+  });
+}
+
+export async function lireMemoiresB(d: DemandeMemoiresB): Promise<Pick<MemoiresLues, "horsCatalogue" | "profondeurs">> {
+  const globale = d.fenetre.portee === "globale";
+  const horsCatalogue: UsageHorsCatalogue[] = [];
+  const profondeurs: Partial<Record<SourceMemoire, number>> = {};
+  const lire = async (actif: boolean, source: SourceMemoire, nom: string, f: () => Promise<UsageHorsCatalogue[]>) => {
+    if (!actif) return;
+    const r = await protege(nom, [] as UsageHorsCatalogue[], f);
+    horsCatalogue.push(...r);
+    profondeurs[source] = new Set(r.map((x) => x.videoId)).size;
+  };
+  await lire(globale || d.formatId === FORMAT_CAS_CONCRET, "cas-concret-tirages", "cas concret", () => casConcretTirages(d.videoIdEnCours));
+  await lire(globale || d.formatId === FORMAT_TABLEAU, "tableau-styles", "tableau", () => tableauStyles(d.videoIdEnCours));
+  await lire(globale || d.formatId === FORMAT_IMAGE_VIDEO, "image-video-variete", "image→vidéo", () => imageVideoVariete(d.videoIdEnCours));
+  horsCatalogue.sort((a, b) => cmp(a.source, b.source) || a.rang - b.rang);
+  return { horsCatalogue, profondeurs };
 }

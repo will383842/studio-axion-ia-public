@@ -61,7 +61,8 @@ describe("a) l'adresse ne reste NULLE PART", () => {
     expect(lire("GUIDE")).toBe("GUIDE");
     expect(lire("stop")).toBe("STOP");
     expect(lire(ADRESSE)).toBeNull();
-    expect(lire("bonjour guide")).toBeNull();
+    expect(lire("bonjour guide")).toBe("GUIDE");
+    expect(lire("bonjour guide est top")).toBeNull();
   });
 });
 

@@ -103,6 +103,8 @@ export interface Conversation {
   pasEncoreLe?: string;
   /** Date d'envoi du lien après le OK. */
   lienIgLe?: string;
+  /** Date d'envoi de la demande d'adresse après le OK (cible d'essai Instagram) : comptée dans le plafond par personne. */
+  adresseIgLe?: string;
   /** Identifiant OPAQUE du dernier message « OK » pris en compte (rejeu : sans effet). Jamais d'identifiant de personne. */
   idMessageOk?: string;
   /** Date du dernier envoi tenté dont l'issue peut être inconnue (états « en vol » / « à vérifier ») : compté dans le plafond par personne. */

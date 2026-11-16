@@ -796,7 +796,7 @@ describe("LIA-C · correctifs de l'audit (réglage allumé)", () => {
     });
   });
 
-  it("cible d'essai (`test: true`) : traitée comme inconnue, `cible_inconnue`, événement clos, rien ne part", async () => {
+  it("cible marquée test avec l'essai éteint : alerte conservée, `cible_inconnue`, événement clos, rien ne part", async () => {
     await activer("ALPHA");
     const cat = catalogue([["ALPHA", "gde-essai01"]], ["gde-essai01"]);
     cat.catalogue[1] = { ...cat.catalogue[1], test: true };
