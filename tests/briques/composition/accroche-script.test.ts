@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ACCROCHE_SCRIPT_ACTIVE,
@@ -23,11 +24,13 @@ describe("accroche tirée du script (C10-01)", () => {
     const r = accrocheDuScript(mots);
     expect(r.type).toBe("nombre");
     if (r.type !== "rien") expect(suite(mots)).toContain(r.texte);
+    expect(r.type === "nombre" && r.texte).toBe("30 %");
   });
 
   it("passage « de 3 h à 20 min » → passage", () => {
     const r = accrocheDuScript(rapide("On passe de 3 h à 20 min sur les mails."));
     expect(r.type).toBe("passage");
+    expect(r.type === "passage" && r.texte).toBe("3 h à 20 min");
   });
 
   it("question → question, texte tel quel", () => {
@@ -60,6 +63,21 @@ describe("accroche tirée du script (C10-01)", () => {
   it("mots mentionnant prix/tarif/euro → rien", () => {
     expect(accrocheDuScript(rapide("Quel prix ?"))).toEqual({ type: "rien" });
     expect(accrocheDuScript(rapide("Quel tarif ?"))).toEqual({ type: "rien" });
+  });
+
+  it("mots proches d'argent (tarifaire, tarification) → rien", () => {
+    const mots = rapide("Hausse tarifaire de 30 % cette année.");
+    const fait: Fait = {
+      mots: { premier: 0, dernier: 4 },
+      texte: "Hausse tarifaire de 30 %",
+      type: "nombre",
+      valeur: 30,
+      unite: "%",
+      surMot: 3,
+    };
+    expect(accrocheDuScript(mots, [fait])).toEqual({ type: "rien" });
+    const f2: Fait = { ...fait, texte: "tarification de 30 %" };
+    expect(accrocheDuScript(mots, [f2])).toEqual({ type: "rien" });
   });
 
   it("à égalité de début : passage > nombre > question", () => {
@@ -106,5 +124,16 @@ describe("accroche tirée du script (C10-01)", () => {
   it("garde statique : imports interdits, et non importé ailleurs", () => {
     const src = readFileSync("src/briques/composition/accroche-script.ts", "utf8");
     expect(src).not.toMatch(/@\/services|server-only|bibliotheque-video/);
+    const fichiers = (d: string): string[] =>
+      readdirSync(d).flatMap((n) => {
+        if (n === "node_modules") return [];
+        const c = join(d, n);
+        return statSync(c).isDirectory() ? fichiers(c) : /\.(tsx?|mts|js|mjs)$/.test(n) ? [c] : [];
+      });
+    const importeurs = ["src", "studio-rendu/src"]
+      .flatMap((d) => { try { return fichiers(d); } catch { return []; } })
+      .filter((f) => !f.endsWith("composition/accroche-script.ts"))
+      .filter((f) => readFileSync(f, "utf8").includes("composition/accroche-script"));
+    expect(importeurs).toEqual([]);
   });
 });

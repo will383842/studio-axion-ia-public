@@ -18,7 +18,7 @@ export type AccrocheScript =
   | { type: "nombre" | "passage" | "question"; fait: Fait; texte: string; debutMs: number; finMs: number };
 
 const RANG = { passage: 0, nombre: 1, question: 2 } as const;
-const MOTS_ARGENT = /€|\beuros?\b|\bprix\b|\btarifs?\b/;
+const MOTS_ARGENT = /€|euro|prix|tarif/;
 
 const normaliser = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const estArgent = (unite: string | undefined) => unite !== undefined && familleUnite(unite) === "argent";
