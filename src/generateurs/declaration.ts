@@ -61,7 +61,7 @@ export const DECLARATIONS: Readonly<Record<string, DeclarationGenerateur>> = Obj
   "facecam-animee": figer({ formatId: "facecam-animee", consomme: [ID.texteSousTitresV4, ID.ecranClipV4, ID.motionPlaquettesV4, ID.sonV4], artefacts: PLAN_ET_VOIX, decoupage: "plans", visage: true, ratios: ["9:16"] }),
   "image-video": figer({ formatId: "image-video", consomme: [ID.transitionImageVideo], artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["9:16"] }),
   // Écart assumé : vignettes.ts (SANS_VISAGE) le range avec visage ; G1-05b applique cette correction.
-  "tutoriel-outil": figer({ formatId: "tutoriel-outil", artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["4:5", "9:16", "1:1"] }),
+  "tutoriel-outil": figer({ formatId: "tutoriel-outil", consomme: [ID.planScenesTutorielOutil], artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["4:5", "9:16", "1:1"] }),
   "demo-facecam": figer({ formatId: "demo-facecam", artefacts: PLAN, decoupage: "plans", visage: true, ratios: ["9:16"] }),
 });
 
