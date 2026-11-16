@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DROITS } from "../../../src/briques/droits";
+import { DROITS, TYPES_PIECE } from "../../../src/briques/droits";
 import type { EntreeDroit } from "../../../src/briques/droits";
 import { LICENCES_SANS_CREDIT, SPDX_ADMIS, admissibleEnAutomatique } from "../../../src/briques/droits/licences";
 
@@ -15,9 +15,14 @@ describe("licences sans crédit", () => {
   });
 
   it("toutes les entrées du registre (hors logo-outil) sont admissibles", () => {
-    const lot = DROITS.filter((d) => (d.type as string) !== "logo-outil");
+    const lot = DROITS.filter((d) => d.type !== "logo-outil");
     expect(lot.length).toBeGreaterThanOrEqual(48);
     for (const d of lot) expect(admissibleEnAutomatique(d), d.id).toBe(true);
+  });
+
+  it("AM-17 : le type logo-outil existe et est exclu du lot de licences libres", () => {
+    expect(TYPES_PIECE).toContain("logo-outil");
+    expect(DROITS.filter((d) => d.type === "logo-outil")).toEqual([]);
   });
 
   it("refuse les licences à crédit ou inconnues (la garde mord)", () => {

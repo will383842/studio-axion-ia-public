@@ -231,6 +231,7 @@ export type TypeElement =
   | "profil-son"
   | "decor"
   | "accessoire"
+  | "source-extraits"
   /** Ancien type, lisible le temps de la migration vers `decor` (mode teinte). N'est plus proposé. */
   | "fond";
 
@@ -257,6 +258,7 @@ export type ValeurElement =
   | { type: "police"; famille: string; usage: "titre" | "texte" }
   | { type: "lut"; formatFichier: "cube"; tailleCube: number; intensiteParDefaut: number; avantFichierId?: Id; apresFichierId?: Id }
   | ValeurStyleSousTitres
+  | { type: "source-extraits"; fiche: import("./archive-extraits").FicheSourceExtraits }
   | { type: "illustration-image" | "illustration-video" }
   | { type: "musique"; ambiance: string; tempoBpm: number; dureeSec: number }
   | {

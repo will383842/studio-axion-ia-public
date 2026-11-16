@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined, replace: () => undefined }) }));
 vi.mock("@/app/(studio)/videos/actions", () => new Proxy({}, { get: (_c, nom) => (nom === "then" ? undefined : async () => ({ ok: true, donnees: undefined })) }));
 
-const { libelleEnvoi } = await import("@/components/publication/FeuilleEnvoyerBuffer");
+const { libelleEnvoi } = await import("@/components/publication/FeuilleEnvoyer");
 
 describe("R1 — bloc Buffer (Réglages) retiré en L0-13c", () => {
   it("Réglages ne rend plus de bloc Buffer : fichiers retirés, page sans BlocBuffer ni vueBuffer", () => {
