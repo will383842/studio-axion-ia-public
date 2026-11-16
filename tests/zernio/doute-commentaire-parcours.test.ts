@@ -16,7 +16,7 @@ const MM = await import("@/services/parcours-mots-multiples");
 const FILE = await import("@/services/oppositions-transmission");
 
 const H = 3600_000;
-const MESSAGE = "Un commentaire contient peut-être une demande d'arrêt. Rien ne sera envoyé à cette personne ; son parcours est en pause. À vérifier dans les commentaires (Zernio).";
+const MESSAGE = "Un commentaire contient peut-être une demande d'arrêt. Aucune réponse automatique ne sera envoyée à cette personne tant qu'elle n'a pas écrit elle-même une adresse e-mail ; son parcours est en pause. À vérifier dans les commentaires (Zernio).";
 const iso = (ms: number) => new Date(ms).toISOString();
 const racine = () => cleConversation(AUTEUR);
 const cleG = (n: string) => n.padEnd(64, "0");
@@ -140,6 +140,24 @@ describe("B5 · mode éteint : doute puis GUIDE 25 h plus tard → silence (éta
     expect(envoisSortants()).toBe(0);
     expect((await evenement(depots, apres)).charge.etat).toBe("silence");
     expect((await dossier())[0].etat).toBe("expire");
+  });
+});
+
+describe("B5b · mode éteint : doute puis GUIDE sur une entrée m1_refuse ancienne → le doute dure, rien ne part", () => {
+  it("0 appel au port, l'entrée garde douteOpposition", async () => {
+    const cle = racine();
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: graineConv("m1_refuse", { refuseLe: iso(T0 - 30 * H), creeLe: iso(T0 - 31 * H), m1Le: null }) });
+    await doute();
+    await passer(T0);
+    expect((await dossier())[0]).toMatchObject({ etat: "m1_refuse", douteOpposition: true });
+    const apres = await deposerCommentaire(depots, { idCommentaire: "com-guide-apres-doute" });
+    await passer(T0 + 1000);
+    expect(banc.port.total()).toBe(0);
+    expect(envoisSortants()).toBe(0);
+    const d = await dossier();
+    expect(d).toHaveLength(1);
+    expect(d[0].douteOpposition).toBe(true);
+    expect((await evenement(depots, apres)).charge.etat).toBe("silence");
   });
 });
 

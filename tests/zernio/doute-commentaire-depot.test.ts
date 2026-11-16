@@ -98,9 +98,13 @@ describe("B1 · dépôt d'un doute (LinkedIn / TikTok)", () => {
     expect(l[0].charge).toMatchObject({ doute: true, motSeul: null, etat: "a_faire" });
     expect(JSON.stringify(l[0]).toLowerCase()).not.toContain("pls");
   });
-  it.each(["linkedin", "tiktok"])("%s : doute en réponse déposé aussi ; sans auteur rien", async (p) => {
+  it.each(["linkedin", "tiktok"])("%s : doute en réponse déposé aussi", async (p) => {
     await envoyer(manuel(p, "stop pls", { parentId: "parent" }));
     expect(await deposes()).toHaveLength(1);
+  });
+  it.each(["linkedin", "tiktok"])("%s : doute SANS auteur → rien déposé", async (p) => {
+    await envoyer(manuel(p, "stop pls", { author: undefined }));
+    expect(await deposes()).toHaveLength(0);
   });
 });
 

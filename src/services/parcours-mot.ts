@@ -162,7 +162,7 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     if (c === null) {
       // LinkedIn / TikTok (ATR-D) : le lecteur Facebook/Instagram ne lit rien ; seul un dépôt SANS texte peut suivre, jamais une réponse.
       const m = lireCommentaireManuel(enveloppe, registre);
-      if (m && !m.proprio && (m.motSeul !== null || m.doute === true) && (await reseauxManuelsAllumes())) {
+      if (m && !m.proprio && m.idAuteur !== null && (m.motSeul !== null || m.doute === true) && (await reseauxManuelsAllumes())) {
         // Charge SANS texte : identifiants opaques et mot seul canonique (contrat d'a-traiter-manuel). `doute` (vrai) seulement pour un doute d'opposition, jamais de texte.
         const { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse, doute } = m;
         entite = { fournisseur: FOURNISSEUR, idEvenement, type: TYPE_COMMENTAIRE_MANUEL, charge: { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, ...(doute === true ? { doute: true } : {}), estReponse, etat: "a_faire" } };

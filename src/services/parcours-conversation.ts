@@ -136,7 +136,7 @@ async function alerter(sujet: string, message: string, now: number): Promise<voi
 /** Alerte FIXE d'un doute sur une demande d'arrêt : ni texte, ni identifiant. Sujet propre à l'événement : un 2e doute n'est pas masqué par le délai d'une heure. */
 const MESSAGE_DOUTE_OPPOSITION = "Un message privé contient peut-être une demande d'arrêt. Rien n'a été envoyé ; la conversation est en pause. À vérifier dans l'Inbox Zernio.";
 /** Alerte FIXE d'un doute dans un COMMENTAIRE : ni texte, ni identifiant. Sujet propre à l'événement. */
-const MESSAGE_DOUTE_COMMENTAIRE = "Un commentaire contient peut-être une demande d'arrêt. Rien ne sera envoyé à cette personne ; son parcours est en pause. À vérifier dans les commentaires (Zernio).";
+const MESSAGE_DOUTE_COMMENTAIRE = "Un commentaire contient peut-être une demande d'arrêt. Aucune réponse automatique ne sera envoyée à cette personne tant qu'elle n'a pas écrit elle-même une adresse e-mail ; son parcours est en pause. À vérifier dans les commentaires (Zernio).";
 const signalerDoute = (ev: EvenementFournisseur, now: number): Promise<void> => alerter(`doute:${ev.idEvenement}`, MESSAGE_DOUTE_OPPOSITION, now);
 
 /* --- Gardes avant toute action sortante ----------------------------------------------------------------------- */
@@ -521,7 +521,8 @@ async function traiterCommentaire(ev: EvenementFournisseur, d: DepsConversation,
     await reporter(ev, now, ATTENTE_GARDE_MS, `garde_${bloque}`);
     return "bloque";
   }
-  if (!(await verifierPartout(env, cle, ev.charge, now))) {
+  // Un doute posé (douteOpposition) bloque aussi un nouveau GUIDE, comme en mode allumé : la réécriture de l'entrée plus bas l'effacerait.
+  if (!(await verifierPartout(env, cle, ev.charge, now, { doute: true }))) {
     await clore(ev, "silence", "opposee");
     return "traite";
   }
