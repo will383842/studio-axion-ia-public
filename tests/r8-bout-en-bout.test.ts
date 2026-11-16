@@ -315,7 +315,7 @@ async function parcours() {
 
   // 4. Brouillon chez Zernio (le fondateur a vérifié la vidéo).
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
-  let envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+  const envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
   if (envoi.publications[0].etatEnvoi === "a-verifier") {
     // Réponse perdue : le renvoi est refusé net (ENVOI_A_VERIFIER), rien n'est renvoyé à l'aveugle.
     const refus = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN).then(() => null, (e: unknown) => e);
