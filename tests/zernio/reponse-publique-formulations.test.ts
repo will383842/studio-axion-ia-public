@@ -25,7 +25,7 @@ const ANCIEN = rendreTexteMp("mp-pub-igfb-v1", {});
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
 const passer = () => C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: T0 });
-const etatDe = async () => (await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
+const etatDe = async () => (await Com.lireParametre<Record<string, { formulations?: Record<string, string> }>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
 
 beforeEach(async () => {
   reinitialiserDepots();
@@ -51,7 +51,7 @@ describe("réponse publique : formulation validée", () => {
     expect(port.pub).toHaveLength(1);
     expect(port.pub[0].texte).toBe(rendreTexteMp(PUB[0] as never, {}));
     expect(port.pub[0].texte).not.toBe(ANCIEN);
-    expect((await etatDe()).formulations["pub-commentaire"]).toBe(PUB[0]);
+    expect((await etatDe()).formulations?.["pub-commentaire"]).toBe(PUB[0]);
   });
   it("Facebook, aucune formulation pub-commentaire validée : texte mp-pub-igfb-v1 comme avant, rien noté", async () => {
     await deposerCommentaire(depots, { reseau: "facebook" });
