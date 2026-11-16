@@ -48,14 +48,26 @@ describe("C5-5.07 · filtrerPlanFacecam", () => {
     expect(r.retirees).toEqual([]);
   });
 
-  it("une carte sur [2 s ; 4 s] retire la pièce qui la chevauche", async () => {
+  it("une carte sur [2 s ; 4 s] retire la pièce qui la chevauche (raison « carte »)", async () => {
     const plan = await planFacecam(FORMATS[0].format);
-    const sans = { ...plan, scenes: plan.scenes.filter((s) => s.position !== "bas") };
-    const cible = sans.scenes.find((s) => s.debutMs < 4000 && s.finMs > 2000);
+    // Bande neutre (ne coupe aucune zone) : seule la carte peut retirer une pièce.
     const bande = { x: 0, y: 99, largeur: 100, hauteur: 1 };
-    const r = filtrerPlanFacecam(sans, { bande, occupes: [{ debutSec: 2, finSec: 4 }] });
-    if (cible) expect(r.retirees.find((x) => x.id === cible.id)?.raison).toBe("carte");
-    expect(r.plan.scenes.every((s) => !(s.debutMs < 4000 && s.finMs > 2000))).toBe(true);
+    const cible = plan.scenes.find((s) => s.debutMs < 4000 && s.finMs > 2000);
+    expect(cible).toBeDefined();
+    const r = filtrerPlanFacecam(plan, { bande, occupes: [{ debutSec: 2, finSec: 4 }] });
+    expect(r.retirees).toEqual([{ id: cible!.id, raison: "carte" }]);
+    expect(r.plan.scenes.map((s) => s.id)).toEqual(plan.scenes.filter((s) => s.id !== cible!.id).map((s) => s.id));
+  });
+
+  it("cas limite : une pièce seulement adjacente à la carte n'est pas retirée", async () => {
+    const plan = await planFacecam(FORMATS[0].format);
+    const bande = { x: 0, y: 99, largeur: 100, hauteur: 1 };
+    const s0 = plan.scenes[0];
+    const apres = { ...plan, scenes: [{ ...s0, debutMs: 2000, finMs: 3000 }] };
+    // La carte finit exactement quand la pièce commence, et commence exactement quand elle finit.
+    expect(filtrerPlanFacecam(apres, { bande, occupes: [{ debutSec: 1, finSec: 2 }] }).retirees).toEqual([]);
+    expect(filtrerPlanFacecam(apres, { bande, occupes: [{ debutSec: 3, finSec: 4 }] }).retirees).toEqual([]);
+    expect(filtrerPlanFacecam(apres, { bande, occupes: [{ debutSec: 2.5, finSec: 4 }] }).retirees).toEqual([{ id: s0.id, raison: "carte" }]);
   });
 
   it("une pièce devant le visage est retirée (raison « visage »)", async () => {
