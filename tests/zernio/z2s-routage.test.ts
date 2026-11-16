@@ -43,19 +43,19 @@ describe("z2s · routage", () => {
   it("la clé la plus précise gagne ; retour au défaut en un geste", async () => {
     injecterClientZernio(creerFauxClientZernio().client);
     await definirRoutage("instagram", "zernio");
-    // Finitions : choisir Buffer sans sa clé est refusé comme pour Zernio ; le cas permis (clé présente) est dans z2s-routage-buffer-relie.test.ts.
+    // L0-13a : choisir Buffer est refusé (OUTIL_RETIRE), clé Buffer présente ou non ; le réglage n'est pas touché.
     const cleInitiale = process.env.BUFFER_API_KEY;
     delete process.env.BUFFER_API_KEY;
-    await expect(definirRoutage("instagram:exemple", "buffer")).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
+    await expect(definirRoutage("instagram:exemple", "buffer")).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
     expect(await lireRoutage()).toEqual({ instagram: "zernio" });
     if (cleInitiale === undefined) delete process.env.BUFFER_API_KEY;
     else process.env.BUFFER_API_KEY = cleInitiale;
-    // Choix explicite déjà en base (clé retirée depuis) : écrit à la main pour la suite du scénario.
+    // Un « buffer » déjà en base (écrit à la main) reste lu, mais est traité comme absent : la clé « instagram » (Zernio) s'applique.
     const { ecrireParametre } = await import("@/services/_commun");
     await ecrireParametre("publication.routage", { instagram: "zernio", "instagram:exemple": "buffer" });
     expect(await outilDeEnvoi("instagram", "autre")).toBe("zernio");
-    // Choix explicite de Buffer sans sa clé : refus clair, pas de repli vers Zernio.
-    await expect(outilDeEnvoi("instagram", "exemple")).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
+    expect(await outilDeEnvoi("instagram", "exemple")).toBe("zernio");
+    expect(await lireRoutage()).toEqual({ instagram: "zernio", "instagram:exemple": "buffer" });
     expect(await outilDeEnvoi("tiktok")).toBe("zernio");
     await definirRoutage("instagram", null);
     expect(await outilDeEnvoi("instagram", "autre")).toBe("zernio");

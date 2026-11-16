@@ -15,7 +15,7 @@ vi.mock("@/services/_commun", async (original) => {
 });
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
-const { ecrireParametre } = await import("@/services/_commun");
+const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { outilDeEnvoi, PARAM_ROUTAGE } = await import("@/services/routage-publication");
 
 beforeAll(() => {
@@ -29,11 +29,24 @@ beforeEach(() => {
 });
 
 describe("L7-06 suite · 4.6 une seule lecture du routage", () => {
-  it("chemin « buffer » (refus, sans clé Buffer) : une seule lecture", async () => {
+  it("valeur « buffer » en base (lue comme absente, clé Zernio posée) : Zernio, une seule lecture, base inchangée", async () => {
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
     lectures.routage = 0;
-    await expect(outilDeEnvoi("instagram")).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
+    expect(await outilDeEnvoi("instagram")).toBe("zernio");
     expect(lectures.routage).toBe(1);
+    expect(await lireParametre(PARAM_ROUTAGE, {})).toEqual({ instagram: "buffer" });
+  });
+  it("valeur « buffer » en base sans clé Zernio : refus ZERNIO_NON_RELIE, une seule lecture", async () => {
+    await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
+    const cle = process.env.ZERNIO_API_KEY;
+    delete process.env.ZERNIO_API_KEY;
+    try {
+      lectures.routage = 0;
+      await expect(outilDeEnvoi("instagram")).rejects.toMatchObject({ code: "ZERNIO_NON_RELIE" });
+      expect(lectures.routage).toBe(1);
+    } finally {
+      process.env.ZERNIO_API_KEY = cle;
+    }
   });
   it("chemin « zernio » : une seule lecture, comportement inchangé", async () => {
     lectures.routage = 0;

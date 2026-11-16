@@ -141,19 +141,20 @@ describe("FIN-ZERNIO 1 · bout en bout en simulation : Instagram présélectionn
     expect(demandes).toHaveLength(0);
   });
 
-  it("Buffer inchangé : le canal présélectionné part tel quel, en brouillon, une seule création", async () => {
-    // Routage « buffer » explicite : ce test vise Buffer (le défaut est Zernio).
+  it("Buffer ne part plus : un ancien routage « buffer » est lu comme Zernio (compte Zernio traduit), aucune création Buffer", async () => {
+    // Valeur « buffer » déjà en base : lue comme absente (L0-13a), jamais réécrite.
+    etat.zernio = fauxZernio();
     await ecrireParametre(PARAM_ROUTAGE, { instagram: "buffer" });
+    await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
     const buffer = fauxBuffer({});
     vi.stubGlobal("fetch", buffer.appeler);
-    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [CANAUX.instagram] } });
+    const r = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { comptes: { instagram: [BUFFER_IG] } });
     expect(r.problemes ?? []).toEqual([]);
     expect(r.publications).toHaveLength(1);
-    expect(r.publications[0]).toMatchObject({ via: "buffer", etatEnvoi: "envoye", statut: "brouillon", canalId: CANAUX.instagram });
-    const entrees = buffer.mutations().map((m) => m.variables.input as { channelId: string; saveToDraft: boolean });
-    expect(entrees).toHaveLength(1);
-    expect(entrees[0]).toMatchObject({ channelId: CANAUX.instagram, saveToDraft: true });
-    expect(demandes).toHaveLength(0);
+    expect(r.publications[0]).toMatchObject({ via: "zernio", etatEnvoi: "envoye", statut: "brouillon", canalId: ZERNIO_IG });
+    expect(demandes).toHaveLength(1);
+    expect(buffer.mutations()).toHaveLength(0);
+    await expect((await import("@/services/routage-publication")).lireRoutage()).resolves.toEqual({ instagram: "buffer" });
   });
 });
 

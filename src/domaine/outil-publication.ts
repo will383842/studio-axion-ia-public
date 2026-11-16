@@ -5,8 +5,11 @@
 import { createHash } from "node:crypto";
 import type { IdReseau, Publication } from "./types";
 
+/** Liste de LECTURE : reconnaît les outils qui portent une publication déjà en base (historique Buffer compris). */
 export const OUTILS = ["buffer", "zernio"] as const;
 export type OutilPublication = (typeof OUTILS)[number];
+/** L0-13a : liste d'ENVOI. Buffer est résilié, Zernio est le seul outil par lequel un envoi peut partir. */
+export const OUTILS_ENVOI = ["zernio"] as const;
 
 /** Réglage « publication.routage » : { "<reseau>": outil, "<reseau>:<compteCode>": outil }. */
 export type RoutagePublication = Record<string, string>;
@@ -30,9 +33,9 @@ export function outilSelectionnable(outil: OutilPublication, actuel: OutilPublic
   return !(outil === "buffer" && actuel !== "buffer");
 }
 
-/** Les outils proposés dans « Changer » : toujours les deux (Zernio d'abord), l'outil actuel marqué ; Buffer visible mais désactivé pour un compte Zernio. */
+/** Les outils proposés dans « Changer » : Zernio seul (L0-13a), marqué actuel quand c'est lui. Un compte encore lu chez Buffer n'a rien de marqué. */
 export function outilsProposes(actuel: OutilPublication): { outil: OutilPublication; actuel: boolean; ancien: boolean; desactive: boolean }[] {
-  return (["zernio", "buffer"] as const).map((outil) => ({ outil, actuel: outil === actuel, ancien: estAncienOutil(outil), desactive: !outilSelectionnable(outil, actuel) }));
+  return OUTILS_ENVOI.map((outil) => ({ outil, actuel: outil === actuel, ancien: estAncienOutil(outil), desactive: !outilSelectionnable(outil, actuel) }));
 }
 
 /** La publication est-elle chez un outil externe (via ∈ {buffer, zernio}) ? */

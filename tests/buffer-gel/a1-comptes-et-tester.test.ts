@@ -65,11 +65,12 @@ describe("A1 · comptes et « Tester », Buffer gelé", () => {
     expect(buffer.appels.length).toBe(0);
   });
 
-  it("CONTRÔLE : dégelé, `vueBuffer().gele` est faux et « Tester » appelle Buffer", async () => {
+  it("CONTRÔLE (L0-13a) : dégelé, `vueBuffer().gele` est faux mais Buffer n'est plus inscrit : « Tester » refuse (BUFFER_NON_RELIE), 0 appel", async () => {
     await ecrireParametre("buffer.gele", false);
     expect((await buf.vueBuffer()).gele).toBe(false);
-    await buf.testerBuffer();
-    expect(buffer.appels.length).toBeGreaterThan(0);
+    await expect(buf.testerBuffer()).rejects.toMatchObject({ code: "BUFFER_NON_RELIE" });
+    expect(buffer.appels.length).toBe(0);
+    expect(await buf.canauxEnregistres()).toEqual(LUS);
   });
 
   it("I4 : `passerProgrammee` met « programmée » et ne recule pas une vidéo « publiée »", async () => {

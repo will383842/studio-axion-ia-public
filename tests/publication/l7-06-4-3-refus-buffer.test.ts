@@ -1,6 +1,6 @@
 /**
- * L7-06-4-3 : le client ne choisit plus Buffer, le serveur route. « buffer » n'est accepté que si la configuration
- * (outilDeEnvoi) place le réseau chez Buffer ; sinon, et pour toute valeur inattendue, OUTIL_REFUSE sans aucun effet de bord.
+ * L7-06-4-3 puis L0-13a (accord L0-13 du fondateur) : Buffer ne peut plus envoyer. « buffer » est refusé (OUTIL_REFUSE) quel que soit
+ * le routage, y compris un compte encore routé chez Buffer en base ; toute valeur inattendue aussi, sans aucun effet de bord.
  * Zernio explicite et absence d'outil passent comme avant.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,12 +63,11 @@ describe("L7-06-4-3 · refus serveur de l'outil buffer", () => {
     aucunEffet();
   });
 
-  it("compte routé chez Buffer par la configuration + « buffer » : envoi accepté (1 publication, 1 envoi Buffer)", async () => {
+  it("compte routé chez Buffer par la configuration + « buffer » : OUTIL_REFUSE, 0 envoi Buffer, 0 publication", async () => {
     appels.routage.mockResolvedValue("buffer");
     const r = await envoyerParOutilAction("v-1", "instagram", DATE, { outil: "buffer" });
-    expect(r).toMatchObject({ ok: true, donnees: { nombre: 1 } });
-    expect(appels.buffer).toHaveBeenCalledTimes(1);
-    expect(appels.zernio).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ ok: false, code: "OUTIL_REFUSE" });
+    aucunEffet();
   });
 
   it.each([["Buffer"], [" buffer"], ["buffer "], ["BUFFER"], ["inconnu"], [""], [null], [0]])("valeur inattendue %j, même si la configuration dit Buffer : OUTIL_REFUSE sans effet", async (valeur) => {
