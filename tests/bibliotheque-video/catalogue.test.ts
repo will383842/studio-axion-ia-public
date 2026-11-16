@@ -86,7 +86,13 @@ describe("catalogue des capacités (C1-U1)", () => {
   });
 
   it("fichiers vides : tableaux vides exportés et branchés dans index.ts", () => {
-    for (const t of [LIGNES_ARCHIVE, LIGNES_OBJETS, LIGNES_FINITION, LIGNES_GENERIQUES, LIGNES_COUVERTURE]) {
+    // G2-02 : LIGNES_GENERIQUES n'est plus vide ; l'égalité exacte de ses 4 lignes remplace l'assertion « vide ».
+    expect(LIGNES_GENERIQUES).toEqual(
+      ["texte.sous-titres", "plan-scenes.generique", "son.pose", "etalonnage.lut"].map((id) => ({
+        id, etat: "prevu", chantier: "E2 (G2-02, G2-03)", note: "générique : lit ses alias par format",
+      })),
+    );
+    for (const t of [LIGNES_ARCHIVE, LIGNES_OBJETS, LIGNES_FINITION, LIGNES_COUVERTURE]) {
       expect(Array.isArray(t)).toBe(true);
       expect(t).toHaveLength(0);
     }
