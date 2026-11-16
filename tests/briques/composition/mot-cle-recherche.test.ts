@@ -37,6 +37,23 @@ describe("mot-clé de recherche à l'écran (X1-13)", () => {
     expect(motCleDeRecherche(mots("Le prix du logiciel"), "prix").type).toBe("rien");
   });
 
+  it("refuse les mots interdits à l'envoi, ceux du format et ceux de Will", () => {
+    expect(motCleDeRecherche(mots("Qualiopi : trois étapes", 300), "Qualiopi").type).toBe("rien");
+    expect(motCleDeRecherche(mots("Certifié : trois étapes", 300), "Certifié").type).toBe("rien");
+    expect(motCleDeRecherche(mots("Vos machines tournent", 300), "machines").type).toBe("rien");
+    expect(motCleDeRecherche(mots("Votre assistant trie", 300), "assistant").type).toBe("mot");
+    expect(motCleDeRecherche(mots("Votre assistant trie", 300), "assistant", ["assistant"]).type).toBe("rien");
+  });
+
+  it("ne refuse pas à tort les mots qui contiennent « cout » ou « euro »", () => {
+    expect(motCleDeRecherche(mots("Écoutez bien ce conseil sur l'Europe", 300), "europe écoute").type).toBe("mot");
+    expect(motCleDeRecherche(mots("Écoutez bien", 300), "écoutez").type).toBe("mot");
+    expect(motCleDeRecherche(mots("Vos neurones", 300), "neurones").type).toBe("mot");
+    expect(motCleDeRecherche(mots("Le coût du logiciel", 300), "coût").type).toBe("rien");
+    expect(motCleDeRecherche(mots("100 € offerts", 300), "offerts").type).toBe("mot");
+    expect(motCleDeRecherche(mots("€uros", 300), "€uros").type).toBe("rien");
+  });
+
   it("refuse les nombres", () => {
     expect(motCleDeRecherche(mots("2026 30 % 12"), "2026").type).toBe("rien");
   });
