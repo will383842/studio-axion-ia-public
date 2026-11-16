@@ -114,10 +114,10 @@ describe("S5 · commentaire du mot d'essai", () => {
     expect(await decrire(id)).toBe("ecarte/essai_compte_refuse");
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
   });
-  it("Instagram : jamais (même compte listé)", async () => {
+  it("Instagram, textes du mot non validés pour Instagram : écarté, rien ne part", async () => {
     const id = await com(MOT, { reseau: "instagram" });
     await passer(T0, { env: ENV_X });
-    expect((await decrire(id)).startsWith("ecarte/")).toBe(true);
+    expect(await decrire(id)).toBe("ecarte/validation_absente");
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
   });
   it("une conversation GUIDE ou d'une cible non essai n'a jamais le champ cibleEssai", async () => {
