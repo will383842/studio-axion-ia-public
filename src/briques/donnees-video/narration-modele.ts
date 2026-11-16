@@ -1,7 +1,8 @@
 /**
  * NARRATION PAR PHRASES À TROUS (G4-05) — le texte dit est écrit par le code, depuis la donnée, sans Claude : 0 €.
  * Gabarits fixes en français ; chaque nombre vient d'un indicateur ou d'un pourcentage d'évolution calculé ici
- * (|après − avant| / |avant| × 100, arrondi à l'entier) puis vérifié par `garderChiffres` (G4-03).
+ * (|après − avant| / |avant| × 100, arrondi à la précision de l'indicateur « après », 0 = entier) et dit seulement si la donnée
+ * le prouve (calcul déclaré recalculé par `garderChiffres`, G4-03) ; sinon la comparaison est dite sans pourcentage.
  * Une phrase dont un nombre n'est pas prouvé est retirée, avec une remarque.
  * Pure : aucun accès disque ou réseau. Rien ne l'importe en production (G4-06 et G4-09 s'y appuieront).
  * Éteint par défaut : ce module ne s'exécute que si un appelant le choisit.
@@ -57,18 +58,22 @@ const minuscule = (t: string): string => t.charAt(0).toLowerCase() + t.slice(1);
 const majuscule = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1);
 const finir = (t: string): string => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
 
-/** Donnée + un indicateur par pourcentage écrit : ce sont des calculs du code, déclarés à la garde. */
-function avecPourcentages(donnee: TableauDeBord, pourcentages: number[]): TableauDeBord {
-  const ajoutes: IndicateurTableau[] = pourcentages.map((v, i) => ({ id: `evolution-${i}`, libelle: "Évolution", valeur: v, unite: "%", precision: 0, sens: "hausse-bonne" }));
-  return { ...donnee, indicateurs: [...donnee.indicateurs, ...ajoutes] };
-}
+/** Vrai si la garde (G4-03) accepte ce texte contre la donnée REÇUE, telle quelle (aucun calcul ajouté par ce module). */
+const prouve = (donnee: TableauDeBord, texte: string): boolean => garderChiffres(donnee, { textesEcran: [], texteDit: texte }).horsDonnee.length === 0;
 
 export function narrationModele(donnee: TableauDeBord): NarrationModele {
   const remarques: string[] = [];
-  const pourcentages: number[] = [];
   const parId = new Map(donnee.indicateurs.map((i) => [i.id, i]));
 
-  const ouverture: Phrase = { genre: "ouverture", texte: finir(`Voici le tableau de bord « ${donnee.titre} », période : ${donnee.periode.libelle}`) };
+  // Ouverture : titre + période ; si le libellé de période porte un nombre non prouvé (ex. une année), on le laisse de côté.
+  const ouvertures = [
+    `Voici le tableau de bord « ${donnee.titre} », période : ${donnee.periode.libelle}`,
+    `Voici le tableau de bord « ${donnee.titre} »`,
+    "Voici le tableau de bord",
+  ].map(finir);
+  const indiceOuverture = ouvertures.findIndex((t) => prouve(donnee, t));
+  if (indiceOuverture > 0) remarques.push(`ouverture dite sans la période : nombre non prouvé par la donnée dans « ${donnee.periode.libelle} »`);
+  const ouverture: Phrase = { genre: "ouverture", texte: ouvertures[indiceOuverture === -1 ? ouvertures.length - 1 : indiceOuverture] };
   const cloture: Phrase = { genre: "cloture", texte: finir(`Source des données : ${donnee.source}. Voilà l'essentiel à retenir`) };
 
   const phrasesIndicateur = donnee.indicateurs.map((i): Phrase => ({ genre: "indicateur", texte: finir(`${majuscule(i.libelle)} : ${valeurDite(i)}`) }));
@@ -87,14 +92,19 @@ export function narrationModele(donnee: TableauDeBord): NarrationModele {
       phrasesComparaison.push({ genre: "comparaison", texte: finir(`${lib} reste stable à ${valeurDite(ap)}`) });
       continue;
     }
-    const pct = Math.round((Math.abs(ap.valeur - av.valeur) / Math.abs(av.valeur)) * 100);
-    pourcentages.push(pct);
-    const sens = ap.valeur > av.valeur ? "de plus" : "de moins";
+    // Pourcentage arrondi à la précision de l'indicateur « après » (0 = entier) ; dit seulement si la donnée le prouve
+    // (calcul déclaré, recalculé par la garde). Sinon : la comparaison est dite sans pourcentage.
+    const pct = arrondir((Math.abs(ap.valeur - av.valeur) / Math.abs(av.valeur)) * 100, ap.precision);
     const bon = (ap.valeur > av.valeur) === (ap.sens === "hausse-bonne");
-    phrasesComparaison.push({
-      genre: "comparaison",
-      texte: finir(`${lib} passe de ${valeurDite(av)} à ${valeurDite(ap)}, soit ${ecrireNombre(pct, 0)} pour cent ${sens}, ${bon ? "ce qui est favorable" : "ce qui demande de l'attention"}`),
-    });
+    const avis = bon ? "ce qui est favorable" : "ce qui demande de l'attention";
+    const base = `${lib} passe de ${valeurDite(av)} à ${valeurDite(ap)}`;
+    const avecPct = finir(`${base}, soit ${ecrireNombre(pct, ap.precision)} pour cent ${ap.valeur > av.valeur ? "de plus" : "de moins"}, ${avis}`);
+    if (prouve(donnee, avecPct)) {
+      phrasesComparaison.push({ genre: "comparaison", texte: avecPct });
+    } else {
+      remarques.push(`comparaison « ${c.avant} → ${c.apres} » dite sans pourcentage : ${ecrireNombre(pct, ap.precision)} % non prouvé par un calcul déclaré`);
+      phrasesComparaison.push({ genre: "comparaison", texte: finir(`${base}, ${avis}`) });
+    }
   }
 
   const phrasesAlerte = donnee.alertes.map((a): Phrase => ({ genre: "alerte", texte: finir(`Point d'attention : ${minuscule(a.texte)}`) }));
@@ -104,9 +114,8 @@ export function narrationModele(donnee: TableauDeBord): NarrationModele {
   const ordre: Phrase[] = [...cles, ...phrasesComparaison, ...phrasesAlerte, ...phrasesIndicateur.slice(INDICATEURS_CLES)];
 
   // Garde : une phrase au nombre non prouvé est retirée.
-  const donneeGardee = avecPourcentages(donnee, pourcentages);
   const verifiee = (p: Phrase): boolean => {
-    const v = garderChiffres(donneeGardee, { textesEcran: [], texteDit: p.texte });
+    const v = garderChiffres(donnee, { textesEcran: [], texteDit: p.texte });
     if (v.horsDonnee.length === 0) return true;
     remarques.push(`phrase retirée (nombre hors donnée : ${v.horsDonnee.map((h) => h.brut).join(", ")}) : « ${p.texte} »`);
     return false;

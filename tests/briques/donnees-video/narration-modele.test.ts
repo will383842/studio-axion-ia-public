@@ -58,9 +58,29 @@ describe("narrationModele", () => {
     expect(n.texte).toContain("passe de 10 200 euros à 12 480 euros, soit 22 pour cent de plus");
   });
 
-  it("une baisse dit « de moins »", () => {
-    const d = base([ind("a", "Visites", 200, "visites"), ind("b", "Visites ensuite", 150, "visites")], { comparaisons: [{ avant: "a", apres: "b" }] });
+  it("une baisse dit « de moins » quand le calcul est déclaré", () => {
+    const d = base([ind("a", "Visites", 200, "visites"), ind("b", "Visites ensuite", 150, "visites")], {
+      comparaisons: [{ avant: "a", apres: "b" }],
+      calculs: [{ id: "baisse", formule: "100 - b / a * 100", resultat: 25 }],
+    });
     expect(narrationModele(d).texte).toContain("soit 25 pour cent de moins");
+  });
+
+  it("comparaison sans calcul déclaré : dite sans pourcentage, garde OK sur la donnée reçue", () => {
+    const d = base([ind("a", "Visites", 200, "visites"), ind("b", "Visites ensuite", 150, "visites")], { comparaisons: [{ avant: "a", apres: "b" }] });
+    const n = narrationModele(d);
+    expect(n.texte).toContain("passe de 200 visites à 150 visites");
+    expect(n.texte).not.toContain("pour cent");
+    expect(n.remarques.some((r) => r.includes("sans pourcentage"))).toBe(true);
+    expect(garderChiffres(d, { textesEcran: [], texteDit: n.texte }).ok).toBe(true);
+  });
+
+  it("libellé de période daté : l'ouverture reste présente (sans la période)", () => {
+    const d = base([ind("a", "Visites", 120, "visites")], { periode: { debut: "2026-01-01", fin: "2026-03-31", libelle: "premier trimestre 2026" } });
+    const n = narrationModele(d);
+    expect(n.phrases[0]).toBe("Voici le tableau de bord « Tableau exemple ».");
+    expect(n.texte).not.toContain("2026");
+    expect(garderChiffres(d, { textesEcran: [], texteDit: n.texte }).ok).toBe(true);
   });
 
   it("donnée minimale (1 indicateur) : remarque « donnée trop courte »", () => {
@@ -80,14 +100,8 @@ describe("narrationModele", () => {
     for (const d of [exemple(), d2, d3]) {
       const n = narrationModele(d);
       expect(n.texte.length).toBeGreaterThan(0);
-      // Seuls nombres de calcul : les pourcentages d'évolution, recalculés ici indépendamment du module.
-      const pcts = d.comparaisons.map((c) => {
-        const av = d.indicateurs.find((i) => i.id === c.avant)!.valeur;
-        const ap = d.indicateurs.find((i) => i.id === c.apres)!.valeur;
-        return Math.round((Math.abs(ap - av) / Math.abs(av)) * 100);
-      });
-      const avecCalculs = { ...d, indicateurs: [...d.indicateurs, ...pcts.map((v, i) => ind(`pct${i}`, "pct", v, "%", 0))] };
-      expect(garderChiffres(avecCalculs, { textesEcran: [], texteDit: n.texte })).toMatchObject({ ok: true, horsDonnee: [] });
+      // Garde contre la donnée d'origine, sans aucun calcul ajouté par le test ni par le module.
+      expect(garderChiffres(d, { textesEcran: [], texteDit: n.texte })).toMatchObject({ ok: true, horsDonnee: [] });
     }
   });
 
