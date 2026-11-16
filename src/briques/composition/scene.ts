@@ -242,7 +242,31 @@ export type ProprietesTexteComposition = {
    * image de la vidéo (t = image / fps).
    */
   instants?: number[];
+  /** Chantier 5 (5.03) : ajout pur, FACULTATIF ; rien ne le remplit avant 5.06/5.08 (éteints). */
+  planScenes?: import("../plan-scenes/schema").PlanValide;
 };
+
+/**
+ * Chantier 5 (5.03) : image du plan à dessiner à l'instant `t` (s), ou `null` si aucune scène n'est active. Même règle
+ * que `sceneActive` (`plan-scenes/rendu.tsx`), réécrite ici pour ne pas importer le rendu : `ms = image * 1000 / fps`,
+ * `debutMs <= ms < finMs`. Un test d'égalité garantit l'alignement.
+ */
+export function imagePlanAuTemps(
+  plan: Pick<import("../plan-scenes/schema").PlanValide, "scenes" | "format">,
+  t: number,
+): number | null {
+  const image = Math.floor(t * plan.format.fps + 1e-6);
+  const ms = (image * 1000) / plan.format.fps;
+  return plan.scenes.some((s) => ms >= s.debutMs && ms < s.finMs) ? image : null;
+}
+
+/** Chantier 5 (5.03) : le plan ne se dessine que sur un cadre aux dimensions exactes de son format. */
+export function planDessinableSur(
+  plan: Pick<import("../plan-scenes/schema").PlanValide, "format">,
+  dims: { largeur: number; hauteur: number },
+): boolean {
+  return dims.largeur === plan.format.largeur && dims.hauteur === plan.format.hauteur;
+}
 
 const borne = (x: number, min: number, max: number) => Math.min(max, Math.max(min, x));
 

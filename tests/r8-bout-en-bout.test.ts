@@ -4,11 +4,12 @@
  * Interrupteur allumé (tout relié, double prêt), le chemin complet passe par les VRAIS services du studio :
  * script → voix (HeyGen doublée) → double (HeyGen doublé : rendu Avatar V, suivi, copie) → montage sur studio-rendu
  * (doublé en HTTP : nettoyage, sous-titres calés, couleurs, son, composition 1080×1920) → miniature (studio-rendu) →
- * kit des réseaux (Claude doublé) → brouillon Buffer (Buffer doublé).
+ * kit des réseaux (Claude doublé) → brouillon chez Zernio (fournisseur doublé : Buffer est résilié et ne peut plus envoyer, L0-13).
  * Puis, une panne À CHAQUE ÉTAPE (une par passage) : la vidéo va au bout après reprise, et rien n'est payé deux fois
  * (une seule lecture de voix payée, un seul rendu du double par pièce, un texte par réseau, un seul brouillon).
+ * Panne de l'outil après l'envoi (réponse perdue) : « à vérifier », aucun second brouillon.
  *
- * Un seul `fetch` doublé sert tout : studio-rendu, HeyGen, R2 (signé en local), Claude et Buffer. Toute autre adresse
+ * Un seul `fetch` doublé sert tout : studio-rendu, HeyGen, R2 (signé en local) et Claude ; l'outil de publication est un faux fournisseur Zernio. Toute autre adresse
  * fait échouer le test.
  */
 import { readFileSync } from "node:fs";
@@ -17,10 +18,10 @@ import { REFERENCE_V4 } from "@/briques/voix-maitre/reference";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { preparerMotDePasse } from "./helpers/g1a";
 import { CLE_ESSAI_CLAUDE, fluxReussi, reponseErreur, reponseFlux } from "./helpers/g0";
-import { fauxBuffer, URL_BUFFER } from "./helpers/r1-buffer";
+import type { CanalPublication } from "@/fournisseurs/types";
 import type { DemandeRendu } from "@/fournisseurs/types";
 
-// Tout est « Relié » (réglages du serveur d'essai, valeurs factices) : voix, double, textes, rendu, stockage, Buffer.
+// Tout est « Relié » (réglages du serveur d'essai, valeurs factices) : voix, double, textes, rendu, stockage, Zernio.
 process.env.STUDIO_RENDU_URL = "http://studio-rendu.essai";
 process.env.STUDIO_RENDU_CLE = "cle-rendu-essai";
 process.env.FOURNISSEUR_MONTAGE = "studio-rendu";
@@ -29,8 +30,9 @@ process.env.FOURNISSEUR_VISAGE = "heygen";
 process.env.FOURNISSEUR_VOIX = "heygen";
 process.env.ANTHROPIC_API_KEY = CLE_ESSAI_CLAUDE;
 process.env.FOURNISSEUR_TEXTE_RESEAUX = "claude";
-process.env.BUFFER_API_KEY = "cle-buffer-essai-r8";
-process.env.FOURNISSEUR_PUBLICATION = "buffer";
+vi.hoisted(() => { process.env.ZERNIO_API_KEY = "cle-zernio-essai-r8"; });
+delete process.env.BUFFER_API_KEY;
+process.env.FOURNISSEUR_PUBLICATION = "zernio";
 process.env.R2_ACCOUNT_ID = "compte-essai";
 process.env.R2_ACCESS_KEY_ID = "ACCES-ESSAI";
 process.env.R2_SECRET_ACCESS_KEY = "secret-essai";
@@ -54,7 +56,6 @@ const R = vi.hoisted(() => ({
   /** Pannes à déclencher UNE fois (clé → nombre restant). */
   pannes: new Map<string, number>(),
   rendus: new Map<string, unknown>(),
-  buffer: null as null | { appeler: (url: string | URL | Request, init?: RequestInit) => Promise<Response> },
   lecturesVoix: 0,
 }));
 
@@ -73,7 +74,6 @@ async function reseau(url: string | URL | Request, init?: RequestInit): Promise<
   const u = new URL(String(url instanceof Request ? url.url : url));
   const methode = init?.method ?? "GET";
   const entetes = new Headers(init?.headers);
-  if (String(url) === URL_BUFFER) return R.buffer!.appeler(url, init);
   const corps = typeof init?.body === "string" ? (() => { try { return JSON.parse(init.body as string); } catch { return undefined; } })() : undefined;
   R.appels.push({ hote: u.hostname, methode, chemin: u.pathname, corps, cle: entetes.get("Idempotency-Key") ?? undefined });
 
@@ -158,6 +158,9 @@ const credits = await import("@/services/credits");
 const gc = await import("@/services/generation-claude");
 const doublesHeygen = await import("@/services/doubles-heygen");
 const { ecrireParametre } = await import("@/services/_commun");
+const { fournisseurParId } = await import("@/fournisseurs");
+const { injecterClientZernio } = await import("@/services/zernio");
+const { creerFauxClientZernio } = await import("./zernio/aides/faux-zernio");
 const renduDouble = await import("@/services/rendu-double");
 const { creerMoteurMontageAvocat } = await import("@/moteurs/montage-avocat");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
@@ -167,6 +170,22 @@ const { decisionLancement } = await import("@/assistant/express/logique");
 const MDP = "essai-r8-bout-en-bout";
 const VIDEO = "v-03";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
+const CANAL_INSTAGRAM: CanalPublication = { id: "exemple-ig-r8", organisationId: "org-exemple", nom: "Exemple IG", service: "instagram", deconnecte: false };
+
+/** Faux fournisseur Zernio : chaque envoi accepté rend un identifiant distinct ; « coupure-apres » : la demande est partie, la réponse se perd. */
+const Z = { envois: [] as Record<string, unknown>[], coupureAuEnvoi: 0 };
+function brancherZernio() {
+  Z.envois = [];
+  Z.coupureAuEnvoi = 0;
+  injecterClientZernio(creerFauxClientZernio().client);
+  const zernio = fournisseurParId("publication", "zernio");
+  vi.spyOn(zernio, "listerCanaux").mockResolvedValue([CANAL_INSTAGRAM]);
+  vi.spyOn(zernio, "envoyer").mockImplementation(async (d) => {
+    Z.envois.push(d as unknown as Record<string, unknown>);
+    if (Z.envois.length === Z.coupureAuEnvoi) throw new Error("coupure du réseau après l'envoi");
+    return { idExterne: `exemple-post-${Z.envois.length}`, via: "zernio" as const, statut: "brouillon" as const };
+  });
+}
 
 /** Claude doublé : un texte valide par réseau ; une panne passagère (529) si demandée. */
 const claude = { appels: [] as string[] };
@@ -196,13 +215,11 @@ beforeEach(async () => {
   R.pannes.clear();
   R.rendus.clear();
   R.lecturesVoix = 0;
-  R.buffer = fauxBuffer();
+  vi.restoreAllMocks();
+  brancherZernio();
   vi.stubGlobal("fetch", reseau);
   await auth.seConnecter(MDP, false);
-  // Buffer est gelé par défaut (PR 561) : ce parcours teste l'envoi Buffer, dégel posé dans la base d'essai uniquement ; le même réglage existe en production mais n'est pas touché ici.
-  await ecrireParametre("buffer.gele", false);
-  // Le routage par défaut est Zernio (L7-06) : ces parcours testent l'envoi par Buffer, on l'y route explicitement (réseau par réseau).
-  await ecrireParametre("publication.routage", Object.fromEntries((await import("@/reseaux")).listerReseaux().map((r) => [r.id, "buffer"])));
+  // Le routage par défaut est Zernio (L7-06) et Buffer ne peut plus envoyer (L0-13) : aucun réglage de routage ni de gel à poser.
   // Motion commune allumée par défaut (GV2-51) : ses cartes passent aussi par l'opération « composition » et prendraient
   // la panne simulée ; R8 garde son sens (composition principale) en la coupant par le coupe-circuit.
   await ecrireParametre("avocat.motionCommune", false);
@@ -211,13 +228,14 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  injecterClientZernio(null);
   credits.injecterLecteursPourEssai(null);
   gc.injecterClaudePourEssai(null);
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
-/** Le double de Will choisi dans Personnages (deux angles), sa voix HeyGen, la vidéo prête à fabriquer (pas un exemple). */
+/** Le double du fondateur choisi dans Personnages (deux angles), sa voix HeyGen, la vidéo prête à fabriquer (pas un exemple). */
 async function preparer() {
   const d = depots();
   const moi = (await d.personnages.trouver((p) => p.nature === "moi"))!;
@@ -225,7 +243,7 @@ async function preparer() {
   const tq = await doublesHeygen.choisirDoubleHeygen(moi.id, { idExterne: "look_essai_tq_001", angle: "trois-quarts", tenue: "Chemise noire" });
   await doublesHeygen.choisirDoubleHeygen(moi.id, { idExterne: "look_essai_face_002", angle: "face", tenue: "Chemise noire" });
   await d.personnages.modifier(moi.id, { visageParDefautId: tq });
-  // Lot R7e : Will allume « Votre avatar parle dans le studio » (Réglages › Connexions › Double).
+  // Lot R7e : le fondateur allume « Votre avatar parle dans le studio » (Réglages › Connexions › Double).
   await renduDouble.definirRenduDouble({ allume: true });
   for (const v of await d.voix.lister()) await d.voix.modifier(v.id, { fournisseur: "heygen" });
   // La vidéo prend le double choisi (angle principal ; le second angle suit, même tenue).
@@ -242,7 +260,7 @@ async function preparer() {
 
 const moteurDuTest = () => creerMoteurMontageAvocat();
 
-/** Fait tourner la boucle de fond (horloge avancée) ; « Réessayer » sur un échec, comme Will. */
+/** Fait tourner la boucle de fond (horloge avancée) ; « Réessayer » sur un échec, comme le fondateur. */
 async function jusquAuBout(travailId: string) {
   const m = moteurDuTest();
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -295,15 +313,19 @@ async function parcours() {
   await travaux.executerSuites([{ type: "finition", videoId: VIDEO, titre: "Essai R8", ratio: "9:16", textes: true }]);
   const kit = (await pub.obtenirKit(VIDEO))!;
 
-  // 4. Brouillon Buffer (Will a vérifié la vidéo).
+  // 4. Brouillon chez Zernio (le fondateur a vérifié la vidéo).
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
-  let envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
-  if (envoi.publications[0].etatEnvoi === "a-verifier") envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+  const envoi = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+  if (envoi.publications[0].etatEnvoi === "a-verifier") {
+    // Réponse perdue : le renvoi est refusé net (ENVOI_A_VERIFIER), rien n'est renvoyé à l'aveugle.
+    const refus = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN).then(() => null, (e: unknown) => e);
+    expect(refus).toMatchObject({ code: "ENVOI_A_VERIFIER" });
+  }
   return { travail, reprises, kit, envoi, version };
 }
 
 describe("R8 — montage réel allumé : le chemin complet, de bout en bout", () => {
-  it("script → voix → double → montage (sous-titres, couleurs, son) 1080×1920 → miniature → kit des réseaux → brouillon Buffer", async () => {
+  it("script → voix → double → montage (sous-titres, couleurs, son) 1080×1920 → miniature → kit des réseaux → brouillon Zernio", async () => {
     const { travail, kit, envoi } = await parcours();
     expect(travail.statut).toBe("termine");
     // Voix : une lecture payée, au nom de HeyGen.
@@ -327,10 +349,12 @@ describe("R8 — montage réel allumé : le chemin complet, de bout en bout", ()
     // Kit : un texte écrit par Claude pour chaque réseau par défaut.
     expect([...claude.appels].sort()).toEqual(["instagram", "linkedin", "tiktok", "youtube-shorts"]);
     expect(kit.reseaux.find((r) => r.reseau === "instagram")!.texte).toMatch(/question juridique/);
-    // Brouillon Buffer : un seul message.
+    // Brouillon chez Zernio : une seule demande, jamais chez Buffer.
     expect(envoi.simulation).toBe(false);
-    expect(envoi.publications[0]).toMatchObject({ via: "buffer", statut: "brouillon", etatEnvoi: "envoye" });
-    expect(R.buffer!.appeler).toBeDefined();
+    expect(envoi.publications[0]).toMatchObject({ via: "zernio", statut: "brouillon", etatEnvoi: "envoye", canalId: CANAL_INSTAGRAM.id });
+    expect(Z.envois).toHaveLength(1);
+    expect(Z.envois[0]).toMatchObject({ reseau: "instagram", cible: CANAL_INSTAGRAM.id });
+    expect(R.appels.some((a) => /buffer/i.test(a.hote))).toBe(false);
     // Dépenses : la voix et le double au nom de HeyGen, payés une fois.
     const lignes = (await depots().depenses.lister((d) => d.videoId === VIDEO)).flatMap((d) => d.lignes);
     expect(lignes.filter((l) => l.etape === "Voix" && l.fournisseur === "heygen")).toHaveLength(1);
@@ -366,16 +390,28 @@ describe("R8 — montage réel allumé : le chemin complet, de bout en bout", ()
     // Textes : un par réseau, jamais deux.
     expect([...claude.appels].sort()).toEqual(["instagram", "linkedin", "tiktok", "youtube-shorts"]);
     expect(kit.reseaux.length).toBeGreaterThanOrEqual(4);
-    // Un seul brouillon dans Buffer.
-    expect(envoi.publications[0]).toMatchObject({ via: "buffer", statut: "brouillon" });
-    expect(await depots().publications.compter((p) => p.videoId === VIDEO && p.via === "buffer")).toBe(1);
+    // Un seul brouillon chez Zernio.
+    expect(envoi.publications[0]).toMatchObject({ via: "zernio", statut: "brouillon" });
+    expect(Z.envois).toHaveLength(1);
+    expect(await depots().publications.compter((p) => p.videoId === VIDEO && p.via === "zernio")).toBe(1);
+    expect(await depots().publications.compter((p) => p.videoId === VIDEO && p.via === ("buffer" as string))).toBe(0);
   });
 
-  it("panne de Buffer après l'envoi (réponse perdue) : relu, relié, aucun second brouillon", async () => {
-    R.buffer = fauxBuffer({ creation: (k) => (k === 1 ? "coupure-apres" : "ok") });
+  it("panne de Zernio après l'envoi (réponse perdue) : « à vérifier », le renvoi est refusé (ENVOI_A_VERIFIER), aucun second brouillon", async () => {
+    Z.coupureAuEnvoi = 1;
     const { envoi } = await parcours();
-    expect(envoi.publications[0]).toMatchObject({ via: "buffer", statut: "brouillon", etatEnvoi: "envoye" });
-    expect(await depots().publications.compter((p) => p.videoId === VIDEO && p.via === "buffer")).toBe(1);
+    expect(envoi.publications[0]).toMatchObject({ via: "zernio", statut: "brouillon", etatEnvoi: "a-verifier" });
+    expect(envoi.problemes?.[0]).toMatchObject({ code: "ENVOI_A_VERIFIER" });
+    expect(Z.envois).toHaveLength(1);
+    expect(await depots().publications.compter((p) => p.videoId === VIDEO && p.via === "zernio")).toBe(1);
+  });
+
+  it("Buffer ne peut plus envoyer : un envoi Buffer par appel direct est refusé (OUTIL_RETIRE) avant tout appel, aucune publication écrite", async () => {
+    await preparer();
+    const kit = (await pub.obtenirKit(VIDEO))!;
+    await expect(pub.envoyerReel("buffer", fournisseurParId("publication", "zernio"), kit, ["instagram"], DEMAIN, {}, {}, false)).rejects.toMatchObject({ code: "OUTIL_RETIRE" });
+    expect(Z.envois).toHaveLength(0);
+    expect(await depots().publications.compter((p) => p.videoId === VIDEO)).toBe(0);
   });
 
   it("ROUGE — retour arrière en un geste : les vidéos suivantes repartent en essai, la vidéo lancée garde son moteur, rien n'est effacé", async () => {

@@ -29,6 +29,16 @@ export interface SegmentRendu {
   verrouille?: boolean;
 }
 
+/** Copies de `domaine/texte-ecran.ts` (sans import). */
+export type TeinteMarqueurRendu = "terracotta" | "ivoire" | "ardoise";
+export type CibleMarqueurRendu = "souligne" | "expression" | "mot-dit";
+export interface ReglagesTexteEcranRendu {
+  marqueur?: { teinte: TeinteMarqueurRendu; cible?: CibleMarqueurRendu };
+  pave?: { mots: "forts" | "chiffres" | "forts-et-chiffres" };
+  outils?: "etiquette";
+  varier?: boolean;
+}
+
 /** Ce que le rendu lit d'un style de la Bibliothèque. */
 export interface StyleBibliothequeRendu {
   gabarit?: GabaritRendu;
@@ -37,6 +47,7 @@ export interface StyleBibliothequeRendu {
   position: "haut" | "centre" | "bas";
   /** Style nommé « Pastille Axion » (ajout pur). */
   pastille?: "axion" | "axion-ardoise";
+  texteEcran?: ReglagesTexteEcranRendu;
 }
 
 /** Ce que le rendu lit de la marque : ses couleurs par jeton. */

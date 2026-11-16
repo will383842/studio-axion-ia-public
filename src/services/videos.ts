@@ -515,6 +515,8 @@ export async function renommerVideo(id: Id, titre: string): Promise<void> {
 export async function choisirVersion(videoId: Id, versionId: Id): Promise<void> {
   await exigerSession();
   const d = depots();
+  const cible = await d.versions.obtenir(versionId);
+  if (!cible || cible.videoId !== videoId) throw new ErreurStudio("INTROUVABLE", "Cette version n'appartient pas à cette vidéo.");
   for (const v of await d.versions.lister((x) => x.videoId === videoId)) await d.versions.modifier(v.id, { choisie: v.id === versionId });
   await d.videos.modifier(videoId, { versionChoisieId: versionId });
 }
