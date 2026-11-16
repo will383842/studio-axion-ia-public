@@ -23,6 +23,7 @@ import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import { lignesApres, lignesDesBlocs } from "@/domaine/relecture-assistant";
 import { scriptReluDe, type DifferenceLigne, type PastilleControle } from "@/domaine/relecture-script";
 import { controlerScriptAssistant } from "@/services/relecture-assistant";
+import { controlerFormatsAuLancement, type AlerteFormat } from "@/domaine/formats/controle-lancement";
 
 export interface OrigineBrouillon {
   modeleId?: string;
@@ -147,7 +148,7 @@ export async function lancerFabricationAction(
   confirme: AccordPrix,
   scriptRelu?: string,
   voyant?: { malgreVoyant?: boolean },
-): Promise<Resultat<{ travailId: string; versionId: string }>> {
+): Promise<Resultat<{ travailId: string; versionId: string; alertesFormat?: AlerteFormat[] }>> {
   await exigerSession();
   return essayer(async () => {
     // Texte venu d'une version du générateur : second oui si son voyant est rouge (VOYANT_ROUGE, rien créé ni payé).
@@ -177,6 +178,14 @@ export async function lancerFabricationAction(
       // Une vidéo qui ne peut pas partir (essai en production) ne pose pas la question : même refus que le lancement.
       if (a.refus) throw new ErreurStudio("SIMULATION_EN_PRODUCTION", a.refus);
     }, { texteRetouche });
+    // UO-09 : contrôle gratuit des formats à CHAQUE lancement ; informe seulement, ne bloque rien. Calculé AVANT le départ et
+    // protégé : une erreur du contrôle est journalisée et ne devient jamais un échec de la fabrication.
+    let alertesFormat: AlerteFormat[] = [];
+    try {
+      if (format) alertesFormat = controlerFormatsAuLancement({ ratios: format.ratios, reseaux: format.reseauxConseilles });
+    } catch (erreur) {
+      console.error("[studio] contrôle des formats au lancement non fait", erreur);
+    }
     const r = await lancerFabrication(videoId, { confirme, scriptRelu: relu, exigerScriptRelu });
     // Le décor choisi devient l'habitude du format (catalogue des décors : « mémorisé par format et par modèle »).
     await memoriserDecor(videoId);
@@ -189,7 +198,7 @@ export async function lancerFabricationAction(
         console.error("[studio] trace du oui voyant non écrite", erreur);
       }
     }
-    return r;
+    return alertesFormat.length > 0 ? { ...r, alertesFormat } : r;
   });
 }
 

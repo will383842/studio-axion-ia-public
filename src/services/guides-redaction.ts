@@ -79,7 +79,7 @@ async function depsReelles(): Promise<DepsRedaction> {
 }
 
 /** Le mot sert d'identifiant du paramètre : lettres/chiffres/tirets, 1 à 60 caractères, sans caractère de contrôle. */
-function identifiantMot(mot: unknown): string | null {
+export function identifiantMot(mot: unknown): string | null {
   if (typeof mot !== "string") return null;
   const brut = mot.trim();
   if (!brut || brut.length > LONGUEUR_MAX_MOT || contientCaractereInterdit(brut)) return null;

@@ -24,6 +24,13 @@ export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
   "facecam-animee": "retoucheChat.facecamAnimee",
 };
 
+/** Générateurs dont la voix est une prise filmée : elle ne se réécrit jamais (`modifier-script` toujours écarté). */
+export const GENERATEURS_VOIX_PRISE_FILMEE = ["facecam-animee", "demo-facecam"] as const;
+export const voixEstPriseFilmee = (g: string): boolean => (GENERATEURS_VOIX_PRISE_FILMEE as readonly string[]).includes(g);
+
+/** Clé du réglage de la démo facecam : déclarée ici, éteinte, lue nulle part tant que N-26 n'inscrit pas la démo. */
+export const CLE_REGLAGE_DEMO_FACECAM = "retoucheChat.demoFacecam";
+
 export const estGenerateurRetouche = (g: unknown): g is IdGenerateurRetouche => (GENERATEURS_RETOUCHE as readonly unknown[]).includes(g);
 
 export type LireReglage = (id: string, defaut: unknown) => Promise<unknown>;
@@ -52,6 +59,8 @@ const COMMUNES: readonly TypeOperation[] = ["changer-mot", "ajouter-chiffre", "c
 
 const REGLE_VOIX = "La voix et le texte lu ne changent jamais, sauf demande explicite de modifier le script.";
 
+const REGLE_PRISE_FILMEE = "La prise et la voix ne changent jamais, même sur demande.";
+
 export const ADAPTATEURS_RETOUCHE: Record<IdGenerateurRetouche, AdaptateurRetouche> = {
   avocat: {
     id: "avocat",
@@ -69,7 +78,7 @@ export const ADAPTATEURS_RETOUCHE: Record<IdGenerateurRetouche, AdaptateurRetouc
     id: "facecam-animee",
     nom: "Facecam animée",
     operations: COMMUNES,
-    consigne: `Vidéo « Facecam animée » (prise de Williams, plaquettes animées autour). Retouchable : texte des plaquettes, pièces (chiffres, interface), zooms, transitions, dynamisme. La prise, les coupes et le son ne se touchent pas. ${REGLE_VOIX}`,
+    consigne: `Vidéo « Facecam animée » (prise de Williams, plaquettes animées autour). Retouchable : texte des plaquettes, pièces (chiffres, interface), zooms, transitions, dynamisme. La prise, les coupes et le son ne se touchent pas. ${REGLE_PRISE_FILMEE}`,
   },
 };
 
@@ -88,11 +97,13 @@ export function appelPourGenerateur(generateur: IdGenerateurRetouche, appeler: A
  */
 export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, operations: readonly OperationRetouche[], demande: string): { operations: OperationRetouche[]; remarques: string[] } {
   const permises = new Set<TypeOperation>(adaptateurRetouche(generateur).operations);
-  const explicite = demandeExpliciteScript(demande);
+  const priseFilmee = voixEstPriseFilmee(generateur);
+  const explicite = !priseFilmee && demandeExpliciteScript(demande);
   const remarques: string[] = [];
   const gardees = operations.filter((o) => {
     if (o.type === "modifier-script") {
-      if (!explicite) remarques.push("Le texte lu reste le vôtre : pour le changer, demandez « modifie le script ».");
+      if (priseFilmee) remarques.push("La voix est votre prise filmée : elle ne se réécrit pas. Pour enlever un passage, demandez de le couper.");
+      else if (!explicite) remarques.push("Le texte lu reste le vôtre : pour le changer, demandez « modifie le script ».");
       return explicite;
     }
     if (!permises.has(o.type)) {

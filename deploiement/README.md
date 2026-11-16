@@ -188,6 +188,15 @@ docker exec studio-axion-ia-base-1 psql -U studio -d studio_essai_restauration -
 
 - Télécharger `studio/sauvegardes/<fichier>` depuis le tableau de bord Cloudflare R2.
 - Puis : `gunzip -c <fichier> | docker exec -i studio-axion-ia-base-1 psql -U studio -d studio`, sur une base **vide**.
+- Ou, avec le script de reprise (simulation par défaut, rien n'est modifié sans `--executer` ni confirmation tapée ;
+  la base en service est renommée, jamais effacée) :
+
+```bash
+bash /opt/studio-axion-ia/source/deploiement/restaurer-depuis-r2.sh --fichier <copie.sql.gz>             # simulation
+bash /opt/studio-axion-ia/source/deploiement/restaurer-depuis-r2.sh --cle studio/sauvegardes/<nom>.sql.gz # idem, télécharge (aws cli)
+```
+
+  Plan complet (serveur perdu, base corrompue, médias) : `docs/plan-outil-complet/REPRISE-APRES-PANNE.md`.
 
 ## Mémoire, disque et surveillance (vérif V5)
 

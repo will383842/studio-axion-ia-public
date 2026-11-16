@@ -19,6 +19,19 @@ Règle d'or : un format neuf **déclare** ce qu'il veut (des données) ; il ne r
 | 9 | Écrire la page du format | `docs/formats/<id>.md` | doc |
 | 10 | Passer le statut à `actif` | la fiche (un mot) | **par Will seul** |
 
+### Pour un générateur vidéo neuf : les pièces à écrire, chemin par chemin
+
+1. **Registre** : code dans `src/formats/registre-codes.ts`, fiche dans `src/formats/<id>/index.ts` (statut `masque`), inscription dans `src/formats/index.ts` (ligne du tableau ci-dessus).
+2. **Moteur** : `src/moteurs/ids.ts` puis `src/moteurs/index.ts`, moteur mince dans `src/moteurs/montage-<id>/`.
+3. **Composition** : dans `studio-rendu/compositions/<id>/`, bâtie sur les calques communs **`CalquesCommuns`** (chantier G2-06 ; tant qu'il n'est pas livré, s'appuyer sur les briques communes déjà copiées dans l'image de rendu, sans copier de code d'un autre format).
+4. **Plan de scènes** : `src/briques/plan-scenes/` (générateur, validateur, repli par scène).
+5. **Entrées de la commande** : le générateur pose ses données dans **`video.entrees`** de la commande de fabrication, depuis son propre module de branchements ; on ne modifie jamais `src/services/fabrication.ts` pour cela.
+6. **Réglages** : lus par **`lireParametre`** (`src/services/_commun.ts`), **éteints par défaut** : seul `true` allume ; réglage absent = comportement d'aujourd'hui, et un test « éteint = identique » le prouve.
+7. **Fichier lu par le rendu** : sans aucun import `@/…`, rangé dans un dossier déjà copié par `deploiement/studio-rendu/Dockerfile` (§ 4, dernière ligne) ; aucune ligne de Dockerfile n'est à demander.
+8. **Test de contrat** : `tests/<id>/contrat.test.ts` appelant `testerMoteurVideo` (`src/moteurs/contrat.ts`, ligne 8 du tableau).
+
+Exemple de format dont le rendu est branché mais qui reste masqué : `demo-facecam` (`src/moteurs/montage-demo-facecam/`) ; sans serveurs de montage reliés, la fabrication reste en pause claire.
+
 Aujourd'hui ces raccordements sont faits **à la main, un fichier à la fois** : il n'existe pas encore de registre unique qui les rende automatiques. Ne pas oublier une ligne : rien ne le signale encore (voir § 2).
 
 Le format peut aussi déclarer, dans sa fiche, les champs facultatifs `pieces` (les pièces communes qu'il demande : habillage, stylo, dessins, sons, fin, voix, rendu, contrôle de l'image) et `ecranVideo` (ce que l'écran de la vidéo affiche ou masque). Voir `src/formats/types.ts`, interfaces `PiecesFormat` et `EcranVideoFormat`.
