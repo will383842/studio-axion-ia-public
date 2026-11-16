@@ -8,7 +8,9 @@
  * Les oublis déjà présents au 15/11/2026 sont écrits en dur dans EXCEPTIONS : le test échoue sur tout oubli NOUVEAU
  * et sur toute exception devenue fausse (la liste ne fait que rétrécir). Corriger un oubli = G1-05a à e / G1-07 / décision de Williams.
  *
- * Composition : seuls les identifiants déclarés par une constante `COMPOSITION_*` du moteur sont contrôlés ; un moteur qui n'en déclare aucune n'est pas signalé.
+ * Composition : seuls les identifiants déclarés par une constante `COMPOSITION_*` du moteur sont contrôlés. Les moteurs rendus qui n'en
+ * déclarent aucune sont listés en dur dans MOTEURS_COMPOSITION_NON_VERIFIABLE (daté, ne fait que rétrécir) : un moteur neuf sans constante échoue.
+ * Navigation : l'adresse du format (`adresseCreationFormat`) doit figurer dans `ACTIF_SUR_VIDEOS` ; aucun repli `/nouvelle/*` n'est admis.
  *
  * NON SUIVI par la règle R-2 : les imports non relatifs (paquets npm), les chemins calculés (`import(variable)`),
  * les fichiers de `studio-rendu/` hors `src/` et `compositions/` (scripts, essais-visuels), et les alias de `tsconfig` autres que `@/`.
@@ -16,7 +18,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { listerFormats } from "@/formats";
+import { adresseCreationFormat, listerFormats } from "@/formats";
 import { codeDuFormat } from "@/formats/registre-codes";
 import { formatAvocat } from "@/formats/avocat";
 import { moteurExiste, obtenirMoteur } from "@/moteurs";
@@ -35,7 +37,12 @@ const cle = (o: Oubli) => `${o.format} | ${o.table}`;
 
 /** Un oubli constaté aujourd'hui : « format, table, constaté le 15/11/2026 ». */
 const CONSTATE = "15/11/2026";
-const EXCEPTIONS: { format: string; table: TableOubliee; constateLe: string }[] = [];
+const EXCEPTIONS: { format: string; table: TableOubliee; constateLe: string }[] = [
+  { format: "avocat", table: "navigation", constateLe: CONSTATE },
+  { format: "facecam", table: "navigation", constateLe: CONSTATE },
+];
+/** Moteurs rendus (≠ simulation) sans constante `COMPOSITION_*` : composition non vérifiable par texte, constaté le 15/11/2026. */
+const MOTEURS_COMPOSITION_NON_VERIFIABLE: string[] = ["montage-facecam", "montage-facecam-animee", "montage-image-video"];
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Lectures de texte (jamais d'import de `deploiement/`)
@@ -52,8 +59,9 @@ function compositionsEnregistrees(): Set<string> {
   const ids = new Set<string>();
   const textes = [TEXTE_RACINE, TEXTE_INDEX_COMPOSITIONS, ...fichiersSousDossier("studio-rendu/compositions", /\.tsx?$/).map(lire)];
   for (const texte of textes) {
-    // Toute chaîne littérale entre guillemets : `id="X"`, `id: "X"`, ou un objet de noms (`{ ecran: "CasConcretEcran" }`).
-    for (const m of texte.matchAll(/["']([A-Za-z][A-Za-z0-9_-]*)["']/g)) ids.add(m[1]);
+    // `id="X"` / `id: "X"` (Composition, Still), et valeurs d'objets de noms (`{ ecran: "CasConcretEcran" }`) : jamais une chaîne quelconque.
+    for (const m of texte.matchAll(/\bid\s*[=:]\s*\{?\s*["']([A-Za-z][A-Za-z0-9_-]*)["']/g)) ids.add(m[1]);
+    for (const m of texte.matchAll(/\b[A-Za-z]\w*\s*:\s*["']([A-Z][A-Za-z0-9]*)["']\s*[,}]/g)) ids.add(m[1]);
   }
   return ids;
 }
@@ -74,7 +82,7 @@ function fichiersSousDossier(dossier: string, extensions: RegExp): string[] {
 /**
  * Identifiants de composition déclarés par le code d'un moteur (`src/moteurs/<moteur>/**`) : chaînes affectées à une constante
  * `COMPOSITION_*` / `ID_COMPOSITION_*`. Vide = le moteur n'en déclare aucune par constante (facecam, facecam-animee, image-video :
- * leurs compositions sont choisies plus bas dans la chaîne ; NON VÉRIFIABLE par texte, donc jamais signalé).
+ * leurs compositions sont choisies plus bas dans la chaîne ; NON VÉRIFIABLE par texte, listé dans MOTEURS_COMPOSITION_NON_VERIFIABLE).
  */
 function compositionsDuMoteur(moteur: string): string[] {
   const ids = new Set<string>();
@@ -91,7 +99,6 @@ function prefixesNavigation(): string[] {
   if (!m) throw new Error("ACTIF_SUR_VIDEOS introuvable dans navigation.ts : le test doit suivre le changement");
   return [...m[1].matchAll(/["']([^"']+)["']/g)].map((x) => x[1]);
 }
-const TEXTE_NAVIGATION = lire("src/components/coquille/navigation.ts");
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Les six tables
@@ -123,14 +130,14 @@ export function oublisDesFormats(formats: readonly DefinitionFormat[]): Oubli[] 
     // 5. composition du moteur enregistrée dans studio-rendu (le moteur « simulation » ne rend rien)
     if (moteurOk && f.moteur !== "simulation") {
       const ids = compositionsDuMoteur(f.moteur);
-      if (!ids.every((id) => compos.has(id))) ajouter(f.id, "composition");
+      if (ids.length > 0 && !ids.every((id) => compos.has(id))) ajouter(f.id, "composition");
     }
 
     // 6. navigation : adresse de création présente quand le format est actif (ouvert dans la navigation)
     const actif = f.statut === "actif" || (f.statut === "masque" && f.ouvertDansLaNavigation === true);
     if (actif) {
-      const adresse = f.adresseCreation ?? `/nouvelle/${f.id}`;
-      const couvert = prefixes.some((p) => adresse === p || adresse.startsWith(`${p}/`)) || TEXTE_NAVIGATION.includes(adresse) || adresse.startsWith("/nouvelle/");
+      const adresse = adresseCreationFormat(f);
+      const couvert = prefixes.some((p) => adresse === p || adresse.startsWith(`${p}/`));
       if (!couvert) ajouter(f.id, "navigation");
     }
   }
@@ -153,6 +160,13 @@ describe("inscrit partout : tables par format", () => {
     expect(perimees, "exception(s) à retirer : l'oubli est corrigé").toEqual([]);
   });
 
+  it("tout moteur rendu sans constante COMPOSITION_* figure exactement dans MOTEURS_COMPOSITION_NON_VERIFIABLE", () => {
+    const sansConstante = [...new Set(formats.map((f) => f.moteur))]
+      .filter((m) => m !== "simulation" && moteurExiste(m) && compositionsDuMoteur(m).length === 0)
+      .sort();
+    expect(sansConstante).toEqual([...MOTEURS_COMPOSITION_NON_VERIFIABLE].sort());
+  });
+
   it("date chaque exception du jour de constat", () => {
     for (const e of EXCEPTIONS) expect(e.constateLe).toBe(CONSTATE);
   });
@@ -173,7 +187,15 @@ describe("inscrit partout : la détection marche (format fictif)", () => {
     expect(oublisDesFormats(fictifs).map(cle).sort()).toEqual(["fictif-g1-01 | LUT", "fictif-g1-01 | code"]);
   });
 
-  it("actif et sans adresse déclarée : la navigation s'ajoute aux oublis seulement si l'adresse n'y figure pas", async () => {
+  it("actif SANS adresse déclarée : la navigation s'ajoute (code, LUT, navigation)", async () => {
+    const reg = await registreNeuf();
+    const { adresseCreation: _a, ...sansAdresse } = formatAvocat;
+    reg.inscrireFormat({ ...sansAdresse, id: "fictif-g1-01", statut: "actif", reserveAWill: false });
+    const fictifs = reg.listerFormats({ inclureMasques: true, inclureReservesAWill: true }).filter((f) => f.id === "fictif-g1-01");
+    expect(oublisDesFormats(fictifs).map(cle).sort()).toEqual(["fictif-g1-01 | LUT", "fictif-g1-01 | code", "fictif-g1-01 | navigation"]);
+  });
+
+  it("actif avec une adresse hors navigation : la navigation s'ajoute aux oublis", async () => {
     const reg = await registreNeuf();
     reg.inscrireFormat({ ...formatAvocat, id: "fictif-g1-01", statut: "actif", reserveAWill: false, adresseCreation: "/page-inconnue-g1-01" });
     const fictifs = reg.listerFormats({ inclureMasques: true, inclureReservesAWill: true }).filter((f) => f.id === "fictif-g1-01");
