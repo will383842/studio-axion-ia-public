@@ -4,6 +4,8 @@ Ce guide dit comment inscrire un nouveau format dans le studio **sans toucher au
 
 Règle d'or : un format neuf **déclare** ce qu'il veut (des données) ; il ne réécrit rien de ce qui est commun.
 
+> **3 gestes en zone fermée** : `src/formats/index.ts`, `deploiement/studio-rendu/Dockerfile`, `.github/workflows/gv-tests-moteurs.yml`. Ils sont faits par une personne, pas par Sonnet : l'auteur d'une fiche les signale au journal et s'arrête là.
+
 ## 1. Liste de contrôle, dans cet ordre
 
 | # | Geste | Fichier | Nature |
@@ -35,6 +37,44 @@ Exemple de format dont le rendu est branché mais qui reste masqué : `demo-face
 Aujourd'hui ces raccordements sont faits **à la main, un fichier à la fois** : il n'existe pas encore de registre unique qui les rende automatiques. Ne pas oublier une ligne : rien ne le signale encore (voir § 2).
 
 Le format peut aussi déclarer, dans sa fiche, les champs facultatifs `pieces` (les pièces communes qu'il demande : habillage, stylo, dessins, sons, fin, voix, rendu, contrôle de l'image) et `ecranVideo` (ce que l'écran de la vidéo affiche ou masque). Voir `src/formats/types.ts`, interfaces `PiecesFormat` et `EcranVideoFormat`.
+
+## 1 ter. Créer un nouveau générateur : les 16 gestes
+
+Un générateur = 1 dossier de format + 1 dossier de moteur + 1 dossier de composition + 1 écran, et une ligne dans le registre. Trois dossiers modèles sont à **copier** (jamais à importer, aucun fichier du studio ne les cite) :
+
+- fiche du format : `src/formats/_gabarit/index.ts` (champs commentés, statut `masque`) ;
+- moteur : `src/moteurs/gabarit/` (pause sans dépendances, reprise, retouche partielle, estimation à 0 €) ;
+- composition vide en Manrope : `studio-rendu/compositions/_gabarit/Gabarit.tsx` (couleurs par `CHARTE_AXION`, calques par `CalquesCommuns`, aucun import `@/`).
+
+Avant d'écrire : choisir l'identifiant (minuscules, tirets) et un code libre de 2 ou 3 lettres ; dire si le format a un visage, un prix, des scripts écrits ou fournis, des entrées déposées, plusieurs ratios.
+
+| # | Geste | Fichier | Qui |
+|---|---|---|---|
+| 1 | Code | `src/formats/registre-codes.ts` | Sonnet |
+| 2 | Fiche du format, copiée de `src/formats/_gabarit/index.ts` (`statut: "masque"`, `moteur`, `ratios` = ceux du moteur, `ecranVideo`, `pieces`, `sansPrix` si besoin) | `src/formats/<id>/index.ts` | Sonnet |
+| 3 | Inscription du format | `src/formats/index.ts` | **Une personne** (zone fermée) |
+| 4 | Identifiant et registre du moteur | `src/moteurs/ids.ts`, `src/moteurs/index.ts` | Sonnet |
+| 5 | Moteur, copié de `src/moteurs/gabarit/` | `src/moteurs/montage-<id>/` | Sonnet |
+| 6 | Composition, copiée de `studio-rendu/compositions/_gabarit/Gabarit.tsx`, et sa ligne | `studio-rendu/compositions/<id>/`, `Racine.tsx` | Sonnet |
+| 7 | Fichiers du moteur lus par le rendu | `deploiement/studio-rendu/Dockerfile` | **Une personne** (zone fermée) |
+| 8 | LUT | `src/briques/charte/rendu-couleur.ts` | Sonnet |
+| 9 | Écran de création et route | `src/app/(studio)/<adresse>/page.tsx`, `src/components/formats/<id>/` | Sonnet |
+| 10 | Aiguillage « Nouvelle vidéo » et barre | `src/app/(studio)/nouvelle/[format]/page.tsx`, `navigation.ts` | Sonnet |
+| 11 | Raccords des services (Claude, voix, rendu), si besoin | `src/services/<id>-branchements.ts` + 1 `import` dans `boucle.ts` | Sonnet |
+| 12 | Tables facultatives : `SANS_VISAGE`, `MOTS_DIESE`, `ECRIVAIN_DU_FORMAT`, `ECRAN_SANS_REPRISE`, `GENERATEURS_PLAN`, `GENERATEURS_RETOUCHE` | là où chacune est déclarée | Sonnet |
+| 13 | Contrat d'écriture, si le format passe `actif` ou s'ouvre dans la navigation | `src/domaine/ecriture-commune/contrat-format.ts` | Sonnet |
+| 14 | Tests du moteur lancés par la CI | `.github/workflows/gv-tests-moteurs.yml` | **Une personne** (zone fermée) |
+| 15 | Tests : conformité du moteur (`testerGenerateur`), fiche, moteur, écran, chat ; « inscrit partout » (`tests/generateurs/inscrit-partout.test.ts`) | `tests/<id>/`, `tests/generateurs/` | Sonnet |
+| 16 | Passage à `actif` | la fiche (un mot) | **Will seul** |
+
+Règles d'or d'un générateur :
+
+1. Aucune couleur ni police en dur : couleurs par `CHARTE_AXION`, police Manrope seule (garde `tests/charte/garde-charte.test.ts`, aucun hexadécimal).
+2. La durée vient du script, jamais d'un nombre posé dans la fiche sans zone.
+3. Aucune transition sur le visage.
+4. Pas de musique (`musique: "interdite"`).
+5. Aucun import d'un autre format (§ 3, interdit 8).
+6. Une seule PR par bloc : format, moteur, rendu, écran.
 
 ## 2. Tests à passer
 
