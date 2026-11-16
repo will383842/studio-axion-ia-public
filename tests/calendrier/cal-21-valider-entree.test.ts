@@ -107,3 +107,26 @@ describe("CAL-21 · les deux actions passent par le service", () => {
     });
   }
 });
+
+describe("CAL-21 suite · réglages absents", () => {
+  it("réglages absents, illisibles ou autres que `true` : 0 appel au faux diffuseur, validation acquise", async () => {
+    for (const valeur of [undefined, null, "true", 1]) {
+      const f = faux(creneau());
+      f.deps.reglagesOuverts = async () => valeur as unknown as boolean;
+      const r = await validerEntree(f.deps, "c1", "f", MAINT);
+      expect(r.ok).toBe(true);
+      expect(f.envoyer).toHaveBeenCalledTimes(0);
+      expect(f.lire()!.statut).toBe("valide");
+    }
+    const g = faux(creneau());
+    g.deps.reglagesOuverts = async () => { throw new Error("réglage illisible"); };
+    expect((await validerEntree(g.deps, "c1", "f", MAINT)).ok).toBe(true);
+    expect(g.envoyer).toHaveBeenCalledTimes(0);
+  });
+
+  it("validerEntreeServeur est exporté (fonction à deux arguments)", async () => {
+    const m = await import("@/services/valider-entree");
+    expect(typeof m.validerEntreeServeur).toBe("function");
+    expect(m.validerEntreeServeur.length).toBe(2);
+  });
+});
