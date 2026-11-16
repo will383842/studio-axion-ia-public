@@ -22,7 +22,7 @@ export const TEXTES_GUIDES = {
   rattacherAide: "Le guide est ajouté au catalogue et lié au mot, sans être allumé. L'allumage est un geste à part.",
   aucunBrouillon: "Pas encore de brouillon pour ce mot.",
   apercu: "Aperçu du guide fabriqué",
-  rattache: (version: number) => `Rattaché au mot, version ${version} (inactif).`,
+  rattache: "Rattaché au mot (inactif).",
   pdfFabrique: "PDF fabriqué.",
   erreurGeneral: "Le geste n'a pas abouti. Réessayez.",
 } as const;
