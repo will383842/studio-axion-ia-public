@@ -40,7 +40,7 @@ import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
-import { auteurEssaiPermis, auteursEssai, cibleEssaiPermise } from "@/domaine/guide-reseau/cibles-essai";
+import { auteurEssaiPermis, auteursEssai, cibleEssaiPermise, essaiActif } from "@/domaine/guide-reseau/cibles-essai";
 import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
@@ -200,7 +200,7 @@ const MESSAGES_GARDE: Record<string, string> = {
 };
 
 /** Gardes DURABLES propres à un mot : l'événement est CLOS (jamais reporté : une adresse ne doit pas partir des jours après un rallumage). L'état et les données restent. */
-const GARDES_MOT_CLOSES: readonly string[] = ["plusieurs_mots_eteint", "instagram_pas_encore"];
+const GARDES_MOT_CLOSES: readonly string[] = ["plusieurs_mots_eteint", "instagram_pas_encore", "essai_auteur_refuse"];
 const messageRefusMot = (code: string, mot: string): string => (code === "validation_absente" ? `Le mot ${mot} n'a pas de textes validés : aucun message ne part pour ce mot.` : (MESSAGES_GARDE[code] ?? "Une garde de sécurité bloque les envois."));
 /** Garde « plusieurs mots éteint » / « Instagram pas encore » : alerte puis clôture « ecarte / garde_… ». Vrai si l'événement est clos. */
 async function cloreSiGardeMotDurable(ev: EvenementFournisseur, bloque: string | null, now: number, etat?: Pick<Conversation, "etat">): Promise<boolean> {
@@ -532,7 +532,11 @@ async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string,
   if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
   // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ET un auteur listé (PARCOURS_ESSAI_AUTEURS) ; sinon inconnue, comme avant.
   // GUIDE ne lit jamais PARCOURS_ESSAI_COMPTES : une cible d'essai liée à GUIDE reste inconnue.
-  if (el.test) return mot !== MOT && cibleEssaiPermise(env, idCompte, reseauSite(reseau)) && auteurEssaiPermis(env, idAuteur) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue", essaiRefuse: true };
+  // Silence (essaiRefuse) seulement si l'essai est actif ET le mot n'est pas GUIDE : sinon la liaison est suspecte, l'alerte « liaisons » est conservée.
+  if (el.test) {
+    if (mot !== MOT && cibleEssaiPermise(env, idCompte, reseauSite(reseau)) && auteurEssaiPermis(env, idAuteur)) return { genre: "ok", code: el.code, titre: el.titre, essai: true };
+    return mot !== MOT && essaiActif(env) ? { genre: "inconnue", essaiRefuse: true } : { genre: "inconnue" };
+  }
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }
@@ -904,7 +908,7 @@ async function preparerIgSuivre(e: Conversation, d: DepsConversation): Promise<P
 const MESSAGE_IG_SUIVRE_ABSENT = "Instagram : aucune formulation « suivre le compte » validée dans Mots : aucun message ne part.";
 const MESSAGE_IG_LIEN_INDISPONIBLE = "Instagram : le lien ne peut pas partir (texte non validé ou version inconnue du site)";
 const MESSAGE_IG_PAS_ENCORE_ABSENT = "Instagram : aucune formulation « pas encore » validée dans Mots : ce message ne part pas.";
-const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente", "plusieurs_mots_eteint", "instagram_pas_encore"];
+const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente", "plusieurs_mots_eteint", "instagram_pas_encore", "essai_auteur_refuse"];
 const MESSAGE_IG_OK_NON_RECONNU = "Instagram : réponse non reconnue après la demande de suivre le compte : rien n'est parti.";
 const MESSAGE_IG_PLAFOND_PERSONNE = "Instagram : une personne a déjà reçu 3 messages en 24 h : le suivant attend ou est écarté, rien n'est parti.";
 const MESSAGE_IG_A_VERIFIER = "Un message privé Instagram a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.";

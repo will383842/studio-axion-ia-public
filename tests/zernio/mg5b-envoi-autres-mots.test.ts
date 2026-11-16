@@ -131,7 +131,7 @@ describe("3 · mot en pause", () => {
 
 describe("4 · cible test, de type adresse ou inactive : rien", () => {
   it.each([
-    ["test", { test: true }, "essai_auteur_refuse"],
+    ["test (essai éteint : alerte conservée)", { test: true }, "cible_inconnue"],
     ["adresse", { type: "adresse" }, "cible_inconnue"],
     ["inactive", { actif: false }, "cible_inconnue"],
   ])("cible %s", async (_n, o, code) => {

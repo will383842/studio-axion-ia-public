@@ -88,10 +88,13 @@ afterEach(() => {
 });
 
 describe("S1 · variable absente ou vide : la cible d'essai est refusée comme aujourd'hui", () => {
-  it.each([["absente", ENV_LIEN], ["vide", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "" }], ["étoile", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "*" }]])("%s : essai_auteur_refuse, rien ne part", async (_n, env) => {
+  it.each([["absente", ENV_LIEN], ["vide", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "" }], ["étoile", { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: "*" }]])("%s : essai éteint, cible_inconnue avec alerte, rien ne part", async (_n, env) => {
+    const { creerNotification } = await import("@/services/notifications");
+    vi.mocked(creerNotification).mockClear();
     const id = await com(MOT);
     await passer(T0, { env });
-    expect(await decrire(id)).toBe("ecarte/essai_auteur_refuse");
+    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(vi.mocked(creerNotification)).toHaveBeenCalled();
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
     expect(await convs()).toEqual([]);
   });
@@ -299,9 +302,12 @@ describe("Corrections après audit", () => {
     Object.defineProperty(env, "PARCOURS_ESSAI_COMPTES", { enumerable: false, get: () => (lectures.n++, COMPTE) });
     // une liaison GUIDE explicite vers une cible de test
     (c.liaisons as any[])[0] = { mot: "GUIDE", reseau: "tous", codeCible: CODE, actif: true };
+    const { creerNotification } = await import("@/services/notifications");
+    vi.mocked(creerNotification).mockClear();
     const id = await com("GUIDE");
     await passer(T0, { env });
-    expect(await decrire(id)).toBe("ecarte/essai_auteur_refuse");
+    expect(vi.mocked(creerNotification)).toHaveBeenCalled(); // l'alerte « Vérifiez les liaisons dans Mots » est conservée
+    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
     expect(lectures.n).toBe(0);
   });
   it("C · repli cible_essai : journal seulement, aucune notification ; un autre code garde son alerte", async () => {
