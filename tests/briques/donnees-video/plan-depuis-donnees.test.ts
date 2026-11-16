@@ -114,6 +114,34 @@ describe("planDepuisDonnees", () => {
     expect(r.remarques.some((m) => m.includes("retirée"))).toBe(true);
   });
 
+  it("unités : « heures » (6 caractères) et unité vide ne sont jamais réparées en « % » inventé", () => {
+    const ind = (id: string, valeur: number, unite: string) => ({ id, libelle: `Indicateur ${id}`, valeur, unite, precision: 0, sens: "hausse-bonne" as const });
+    const cas = [
+      // rang 0 compteur, rang 1 carte-kpi, rang 2 compteur
+      donnee({ indicateurs: [ind("a", 20, ""), ind("b", 20, "heures"), ind("c", 20, "  ")], comparaisons: [], alertes: [] }),
+      // unité vide en carte-kpi (rang 1) et en avant/après
+      donnee({ indicateurs: [ind("a", 10, "heures"), ind("b", 20, ""), ind("c", 30, "h"), ind("d", 40, "")], comparaisons: [{ avant: "b", apres: "d" }], alertes: [] }),
+    ];
+    for (const d of cas) {
+      const r = planDepuisDonnees(d, OPT);
+      const reparees = r.resultat.remarques.filter((x) => x.code === "PARAMETRES_REPARES");
+      expect(reparees, JSON.stringify(reparees)).toEqual([]);
+      const txt = JSON.stringify(r.resultat.plan.scenes.map((s) => s.parametres));
+      expect(txt).not.toContain("%");
+      expect(txt).not.toContain('"suffixe":" "');
+    }
+    const kpi = planDepuisDonnees(cas[0]!, OPT).resultat.plan.scenes.find((s) => s.piece === "carte-kpi")!;
+    expect(JSON.stringify(kpi.parametres)).toContain("heures");
+  });
+
+  it("jamais silencieux : une réparation du validateur est remontée dans remarques", () => {
+    const d = donnee({ indicateurs: [{ id: "a", libelle: "Délai", valeur: 20, unite: "heures", precision: 0, sens: "hausse-bonne" }], comparaisons: [], alertes: [] });
+    const r = planDepuisDonnees(d, OPT);
+    for (const x of r.resultat.remarques.filter((m) => m.code === "PARAMETRES_REPARES")) {
+      expect(r.remarques.some((m) => m.includes(x.message))).toBe(true);
+    }
+  });
+
   it("garde statique : rien dans src/ n'importe plan-depuis-donnees ; pas d'import @/", () => {
     const marche = (dir: string): string[] =>
       readdirSync(dir).flatMap((f) => {

@@ -70,15 +70,18 @@ function indicateursCles(d: TableauDeBord, max: number): IndicateurTableau[] {
 function sceneIndicateur(i: IndicateurTableau, d: TableauDeBord, noter: (m: string) => void, rang: number): SceneBrute {
   const comp = d.comparaisons.find((c) => c.apres === i.id);
   const avant = comp ? d.indicateurs.find((x) => x.id === comp.avant) : undefined;
-  if (rang % 2 === 0 && i.unite.length <= 8) {
+  const unite = i.unite.trim();
+  if (rang % 2 === 0 && unite.length <= 8) {
     if (i.libelle.length > 40) noter(`Indicateur « ${i.libelle} » : libellé raccourci à 40 caractères.`);
-    return { piece: "compteur", parametres: { valeur: i.valeur, unite: i.unite, libelle: couper(i.libelle, 40), surMot: 0 } };
+    // Unité vide : le champ n'est pas posé (le validateur la « réparerait » en « % »).
+    return { piece: "compteur", parametres: { valeur: i.valeur, ...(unite ? { unite } : {}), libelle: couper(i.libelle, 40), surMot: 0 } };
   }
   const decimales = Math.min(i.precision, 2);
   if (i.precision > decimales) noter(`Indicateur « ${i.libelle} » : ${i.precision} décimales, 2 affichées par la carte.`);
-  const suffixe = i.unite.length <= 6 ? i.unite : "";
-  const libelle = suffixe ? i.libelle : `${i.libelle} (${i.unite})`;
-  if (!suffixe) noter(`Indicateur « ${i.libelle} » : unité de plus de 6 caractères, écrite dans le libellé.`);
+  // Le suffixe (espace compris) tient dans 6 caractères : unité de 5 au plus ; sinon l'unité passe dans le libellé.
+  const suffixe = unite.length <= 5 ? unite : "";
+  const libelle = suffixe || !unite ? i.libelle : `${i.libelle} (${unite})`;
+  if (!suffixe && unite) noter(`Indicateur « ${i.libelle} » : unité de plus de 5 caractères, écrite dans le libellé.`);
   const tendance = avant ? (i.valeur > avant.valeur ? "hausse" : i.valeur < avant.valeur ? "baisse" : "stable") : "stable";
   return { piece: "carte-kpi", parametres: { libelle: couper(libelle, 40), valeur: i.valeur, prefixe: "", suffixe: suffixe ? ` ${suffixe}` : "", decimales, tendance, variation: "" } };
 }
@@ -109,12 +112,13 @@ function sceneComparaison(c: ComparaisonTableau, d: TableauDeBord, noter: (m: st
   const av = d.indicateurs.find((i) => i.id === c.avant);
   const ap = d.indicateurs.find((i) => i.id === c.apres);
   if (!av || !ap) return null;
-  if (av.unite !== ap.unite) {
+  const uAv = av.unite.trim();
+  if (uAv !== ap.unite.trim()) {
     noter(`Comparaison « ${av.libelle} » / « ${ap.libelle} » : unités différentes, scène omise.`);
     return null;
   }
-  const unite = av.unite.length <= 8 ? { unite: av.unite } : {};
-  if (av.unite.length > 8) noter(`Comparaison « ${ap.libelle} » : unité de plus de 8 caractères, non écrite.`);
+  const unite = uAv && uAv.length <= 8 ? { unite: uAv } : {};
+  if (uAv.length > 8) noter(`Comparaison « ${ap.libelle} » : unité de plus de 8 caractères, non écrite.`);
   return { piece: "avant-apres", parametres: { titre: couper(ap.libelle, 40), avant: { valeur: av.valeur, ...unite, surMot: 0 }, apres: { valeur: ap.valeur, ...unite, surMot: 0 } } };
 }
 
@@ -188,7 +192,9 @@ export function planDepuisDonnees(donnee: TableauDeBord, options: OptionsPlanDep
 
   const resultat = validerPlan({ scenes: brut }, { mots, format: options.format, dureeMs });
 
-  for (const r of resultat.remarques) if (/retirée/.test(r.message)) noter(`Scène ${r.sceneId ?? ""} : ${r.message}`.replace("Scène  :", "Plan :"));
+  // Jamais silencieux : scènes retirées, paramètres réparés, replis de pièce, textes coupés.
+  const CODES_DITS = new Set(["PARAMETRES_REPARES", "REPLI_NIVEAU_1", "PIECE_INCONNUE", "OBJET_NON_PERMIS", "CALQUE_RETIRE", "TEXTE_COUPE"]);
+  for (const r of resultat.remarques) if (/retirée/.test(r.message) || CODES_DITS.has(r.code)) noter(`Scène ${r.sceneId ?? ""} : ${r.message}`.replace("Scène  :", "Plan :"));
 
   // Contrôle final : tout nombre écrit dans un texte de légende vient de la donnée.
   const textes = scenes.filter((s) => s.piece === "legende").flatMap((s) => [String(s.parametres.texte), String(s.parametres.sousTexte)]);
