@@ -5,7 +5,7 @@
  */
 import type { PlanValide } from "../../briques/plan-scenes/schema";
 import type { DonneesCalque } from "../../briques/sous-titres/scene";
-import type { MiseEnPageDemo, RectPx, ZoomEcran } from "./mise-en-page";
+import type { MiseEnPageDemo, PassageDemo, RectPx, ZoomEcran } from "./mise-en-page";
 import type { ClicEcran, LegendeEcran, SurlignageEcran } from "./pistes";
 
 export const ID_COMPOSITION_DEMO_FACECAM = "DemoFacecam";
@@ -44,4 +44,6 @@ export type ProprietesDemoFacecam = {
   /** Sous-titres du style de la Bibliothèque (calque commun). Absent (rendus déjà en file) : l'ancienne pastille fixe. */
   calqueSousTitres?: DonneesCalque;
   carteFin: { titre: string; sousTitre: string };
+  /** Moments où la disposition change (écran plein, facecam plein). Absent : moitié / moitié partout, comme avant. */
+  passages?: PassageDemo[];
 };

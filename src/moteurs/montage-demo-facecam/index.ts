@@ -16,6 +16,7 @@ import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo,
 import { fabriquerPasEncoreBranche, type DefinitionVitrine } from "../montage-vitrines/pause";
 import { avancerChaineDemo, etatDemoInitial, etatPourRetoucheDemo, groupesSousTitres, lireRepriseDemo, ratiosDemo, signatureConsignes, type DependancesDemo, type EtatDemo, type RepriseDemo } from "./chaine";
 import { dependancesDemoParDefaut } from "./dependances";
+import { artefactsDemo } from "./artefacts";
 import { lireEntreesDemo } from "./entrees";
 import { DUREE_CARTE_FIN_MS, TAILLES_DEMO, type RatioDemo } from "./mise-en-page";
 
@@ -125,7 +126,7 @@ export function resultatDemo(commande: CommandeFabrication, etat: EtatDemo): Res
       rapportQualite: { note, verifie: { image: true, son: true, sousTitres: (etat.mots?.length ?? 0) > 0, mentionIA: false, droits: false }, alertes, niveauSonoreLufs: -14 },
     }));
   const entrees = lireEntreesDemo(commande);
-  const reprise: RepriseDemo = { mots: etat.mots ?? [], calage: etat.calage, dureeSec: etat.dureeSec ?? 0, synchro: etat.synchro ?? { mode: "aucune", decalageSec: 0 }, plan: etat.plan!, sorties: etat.sorties, signatureConsignes: signatureConsignes(entrees) };
+  const reprise: RepriseDemo = { mots: etat.mots ?? [], calage: etat.calage, dureeSec: etat.dureeSec ?? 0, synchro: etat.synchro ?? { mode: "aucune", decalageSec: 0 }, plan: etat.plan!, sorties: etat.sorties, signatureConsignes: signatureConsignes(entrees), ...artefactsDemo(etat, entrees, commande) };
   return {
     sorties,
     noteQualite: { globale: note, alertes },

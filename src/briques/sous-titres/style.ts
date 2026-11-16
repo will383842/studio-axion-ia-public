@@ -188,7 +188,7 @@ export function rgba(hex: string, opacite: number): string {
  * Propriétés CSS communes d'une ligne (Remotion ET navigateur) : contour sous le remplissage, coins arrondis,
  * chiffres alignés à chasse fixe (B.5, v3.2). `famille` : nom CSS de la police chargée par chaque côté.
  */
-export function cssLigne(g: DefinitionGabarit, taillePx: number, couleurs: CouleursSousTitres, famille: string): Record<string, string | number> {
+export function cssLigne(g: DefinitionGabarit, taillePx: number, couleurs: CouleursSousTitres, famille: string, options?: { lueur?: string }): Record<string, string | number> {
   const css: Record<string, string | number> = {
     fontFamily: famille,
     fontWeight: g.poids,
@@ -207,6 +207,11 @@ export function cssLigne(g: DefinitionGabarit, taillePx: number, couleurs: Coule
   }
   if (g.ombre.opacite > 0) {
     css.textShadow = `0 ${g.ombre.decalagePx}px ${g.ombre.flouPx}px ${rgba(couleurs.contour, g.ombre.opacite)}`;
+  }
+  const lueur = options?.lueur;
+  if (lueur && lueur !== "none") {
+    const existant = css.textShadow;
+    css.textShadow = existant ? `${existant}, ${lueur}` : lueur;
   }
   return css;
 }

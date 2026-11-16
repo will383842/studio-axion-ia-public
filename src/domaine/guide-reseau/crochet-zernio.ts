@@ -2,7 +2,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { RE_MOT_GUIDE } from "./cle-idempotence";
 import { motAvecPolitesse } from "./mot-normalise";
-import { estMotOpposition, formeCanonique } from "./opposition";
+import { classerOpposition, estMotOpposition, formeCanonique } from "./opposition";
 
 /** Miroir du site (`src/content/guides-reseau.ts` : GUIDES_RESEAU_CONNUS). Liste FERMÉE ; à garder alignée sur le site. */
 export const GUIDES_RESEAU_CONNUS: readonly string[] = ["guide-ia"];
@@ -153,6 +153,8 @@ export interface EvenementCommentaire {
   proprio: boolean;
   /** Texte normalisé SEULEMENT s'il est un mot seul ou une opposition ; sinon null. Jamais le texte brut. */
   motSeul: string | null;
+  /** Présent (true) SEULEMENT pour un doute d'opposition (« stop pls », texte long avec « stop »…) : jamais porté par `motSeul`, jamais de texte. Sinon OMIS. */
+  doute?: true;
   estReponse: boolean;
 }
 export interface EvenementMessage {
@@ -201,6 +203,8 @@ export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: reado
   const gardé = texte !== null && texte.length <= 200 ? motSeulDe(texte, motsConnus) : null;
   // `motSeulDe` rend déjà la forme canonique (mot configuré ou opposition) : on ne re-normalise JAMAIS le texte brut.
   const motSeul = gardé;
+  const classe = texte !== null ? classerOpposition(texte.slice(0, 2000)) : "non";
+  const doute = !propre && motSeul === null && (classe === "doute" || classe === "opposition"); // « opposition » sans mot seul : texte de plus de 200 caractères
   const estReponse = c.isReply === true || (c.parentId !== undefined && c.parentId !== null && c.parentId !== "");
   return {
     idCommentaire,
@@ -211,6 +215,7 @@ export function lireEvenementCommentaire(env: EnveloppeZernio, motsConnus: reado
     idAuteur: propre ? idCompte : idAuteur,
     proprio: propre,
     motSeul: propre ? null : motSeul,
+    ...(doute ? { doute: true as const } : {}),
     estReponse,
   };
 }

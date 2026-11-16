@@ -92,7 +92,13 @@ describe("catalogue des capacités (C1-U1)", () => {
         id, etat: "prevu", chantier: "E2 (G2-02, G2-03)", note: "générique : lit ses alias par format",
       })),
     );
-    for (const t of [LIGNES_ARCHIVE, LIGNES_OBJETS, LIGNES_FINITION, LIGNES_COUVERTURE]) {
+    // C9-03 : LIGNES_OBJETS sort de la liste « vide » : égalité exacte de ses 12 lignes.
+    expect(LIGNES_OBJETS).toEqual(
+      ["trait", "marque", "etiquette", "appel", "chiffre", "etape", "cartes", "schema", "ecran", "reseau-schema", "manuscrit", "emoji"].map((o) => ({
+        id: `objet.${o}`, etat: "prevu", chantier: "9", decision: "D3 § C", ...(o === "emoji" ? { note: "attend W-K / W-14" } : {}),
+      })),
+    );
+    for (const t of [LIGNES_ARCHIVE, LIGNES_FINITION, LIGNES_COUVERTURE]) {
       expect(Array.isArray(t)).toBe(true);
       expect(t).toHaveLength(0);
     }

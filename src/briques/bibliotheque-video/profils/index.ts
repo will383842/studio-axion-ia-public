@@ -8,6 +8,7 @@ import { PROFIL_CAS_CONCRET } from "./cas-concret";
 import { PROFIL_IMAGE_VIDEO } from "./image-video";
 import { PROFIL_TABLEAU_ANIME } from "./tableau-anime";
 import { PROFIL_TUTORIEL_OUTIL } from "./tutoriel-outil";
+import { PROFIL_DEMO_FACECAM } from "./demo-facecam";
 
 export { profilNeutre, FORMATS_PROFIL_NEUTRE, EXTRAITS_PAR_DEFAUT } from "./neutre";
 
@@ -19,6 +20,7 @@ export const PROFILS_DU_CODE: Readonly<Record<string, ProfilVideo>> = Object.fre
   "image-video": PROFIL_IMAGE_VIDEO,
   "tableau-anime": PROFIL_TABLEAU_ANIME,
   "tutoriel-outil": PROFIL_TUTORIEL_OUTIL,
+  "demo-facecam": PROFIL_DEMO_FACECAM,
 });
 
 /** Profil du code, sinon profil neutre ; ne lève jamais. */

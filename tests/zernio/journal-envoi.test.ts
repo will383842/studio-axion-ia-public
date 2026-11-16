@@ -48,7 +48,7 @@ const VIDEO = "v-15";
 const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
 const canal = (id: string, nom: string, service = "facebook", organisationId = "zernio"): CanalPublication => ({ id, organisationId, nom, service, deconnecte: false });
 const BUF_AXION = "buffer-fb-axion";
-const CANAUX_BUFFER = [canal(BUF_AXION, "Axion-IA.com", "facebook", "org-buffer")];
+const ANCIENNE_LISTE = [canal(BUF_AXION, "Axion-IA.com", "facebook", "ancien-org")];
 
 let canauxZernio: CanalPublication[] = [];
 function fauxZernio(): FournisseurPublication {
@@ -84,7 +84,7 @@ beforeEach(async () => {
   await auth.seConnecter("essai-log-refus", false);
   etat.zernio = fauxZernio();
   canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Williams")];
-  await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: CANAUX_BUFFER });
+  await ecrireParametre(PARAM_CANAUX, { lusLe: new Date().toISOString(), canaux: ANCIENNE_LISTE });
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });
 
@@ -120,8 +120,8 @@ describe("LOG-REFUS · journal des envois", () => {
 
   it("(c) CIBLE_* : rien coché, homonymes, compte inconnu — journalisés avec leur code, sans nom de page", async () => {
     await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio" });
-    canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-axion-333333", "Axion-IA.com")];
-    await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: [BUF_AXION] });
+    canauxZernio = [canal("zernio-ig-111111", "Exemple IG un", "instagram"), canal("zernio-ig-333333", "Exemple IG deux", "instagram")];
+    await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "zernio" });
     await ciblesZernioPour(fauxZernio(), "facebook", ["zernio-inconnu"]);
     const codes = evenements().filter((e) => e.action === "ciblesZernioPour").map((e) => e.code);
     expect(codes).toEqual(["CIBLE_ABSENTE", "CIBLE_AMBIGUE", "CIBLE_INCONNUE"]);
@@ -131,7 +131,7 @@ describe("LOG-REFUS · journal des envois", () => {
   });
 
   it("(c) envoi accepté : « OK », un compte, brouillon", async () => {
-    const r = await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: [BUF_AXION] });
+    const r = await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: ["zernio-fb-axion-111111"] });
     expect(r.ok).toBe(true);
     const e = evenements();
     expect(e).toContainEqual(expect.objectContaining({ action: "ciblesZernioPour", code: "OK", nbComptes: 1 }));

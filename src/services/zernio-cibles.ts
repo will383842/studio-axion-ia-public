@@ -33,7 +33,7 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
     const ambigu = demandees.find((id) => id.startsWith(`${SELECTION_NON_TRADUITE}|`));
     if (ambigu) return { ok: false, code: "CIBLE_AMBIGUE", message: ambigu.slice(SELECTION_NON_TRADUITE.length + 1) };
     const inconnues = demandees.filter((id) => !disponibles.some((c) => c.id === id));
-    if (inconnues.length) return { ok: false, code: "CIBLE_INCONNUE", message: "Le compte choisi n'est pas relié à l'outil de publication pour ce réseau." };
+    if (inconnues.length) return { ok: false, code: "CIBLE_INCONNUE", message: "Ce compte n'est plus relié à Zernio : recochez-le dans la liste des comptes. Rien n'est parti, rien n'a été supprimé." };
     return { ok: true, canaux: demandees.map((id) => disponibles.find((c) => c.id === id)!) };
   }
   // LinkedIn, rien de choisi : l'ORGANISATION seulement, et seulement s'il n'y en a qu'une. Jamais le profil personnel sans choix explicite.
@@ -52,59 +52,30 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
   return { ok: false, code: "CIBLE_AMBIGUE", message: "Plusieurs comptes sont reliés pour ce réseau : choisissez-en un." };
 }
 
-/** Marqueur d'une présélection qui ne se traduit pas : jamais un identifiant de Zernio, donc refusé net (CIBLE_INCONNUE). */
-export const SELECTION_NON_TRADUITE = "selection-buffer-non-traduite";
+/** Marqueur d'une présélection qui n'est pas dans la liste actuelle de Zernio : jamais un identifiant de Zernio, donc refusé net (CIBLE_INCONNUE). Valeur interne, jamais stockée. */
+export const SELECTION_NON_TRADUITE = "selection-non-traduite";
 
-/** Marqueur porteur d'un refus clair (« marqueur|phrase ») : ciblesZernioPour rend la phrase telle quelle. */
+/** Identifiant de page d'un canal Facebook (« compte:fb:page »). */
 const idPageDe = (c: CanalPublication) => (c.id.includes(":fb:") ? c.id.split(":fb:")[1] : undefined);
 
 /** Page Facebook de la liste des pages jamais ciblées (identifiant de page ET nom normalisé). */
 const canalInterdit = (c: CanalPublication) => c.service === "facebook" && pageInterdite(idPageDe(c), c.nom);
 
-/** Même page vue par plusieurs comptes, aucun n'ayant cette page par défaut : refus qui le dit (jamais de choix au hasard). */
-const refusMemePage = (nom: string) =>
-  `${SELECTION_NON_TRADUITE}|La page « ${nom} » est visible depuis plusieurs comptes de l'outil de publication, et aucun d'eux ne l'a comme page par défaut : l'envoi est refusé, rien n'est choisi au hasard. Réglez la page par défaut du compte voulu chez l'outil de publication, ou gardez un seul de ces comptes relié.`;
-
-const refusAmbigu = (nom: string, homonymes: CanalPublication[]) =>
-  `${SELECTION_NON_TRADUITE}|Plusieurs comptes de l'outil de publication portent le nom « ${nom} » (${homonymes.map((c) => `…${c.id.slice(-6)}`).join(" et ")}) : l'envoi est refusé, rien n'est choisi au hasard. Gardez un seul de ces comptes relié, ou renommez-en un chez l'outil de publication.`;
-
-const normaliserNom = (nom: string) => nom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
-
 /**
- * Présélection de l'écran → cibles de ZERNIO.
- * Les identifiants déjà Zernio (listés par le service, ni déconnectés ni interdits) passent tels quels ; ceux de Buffer sont traduits par le service et le nom du compte.
- * Un identifiant inconnu des deux côtés, ou un compte Buffer sans homologue de même nom, n'est jamais deviné.
- * - rien de présélectionné : `undefined` (le choix habituel de Zernio s'applique : le seul compte, sinon refus clair) ;
- * - un seul compte présélectionné sans homologue : `undefined` aussi (Zernio retombe sur son seul compte du réseau, ou refuse s'ils sont plusieurs) ;
- * - plusieurs comptes dont un sans homologue : le marqueur, donc refus (rien ne part sur un autre compte que ceux choisis).
+ * Présélection de l'écran → cibles de ZERNIO, sans jamais deviner un compte.
+ * Seul un identifiant présent dans la liste ACTUELLE de Zernio (ni déconnecté ni interdit) passe, tel quel. Aucune traduction par le nom.
+ * - rien de coché : `undefined` (le choix habituel de Zernio s'applique : le seul compte, sinon refus clair) ;
+ * - tous les identifiants sont dans la liste : ces identifiants, sans doublon ;
+ * - au moins un absent (seul ou avec d'autres) : le marqueur, donc refus (« recochez-le »), rien ne part et rien n'est effacé.
+ * Le dernier paramètre (ancienne liste mémorisée) est conservé pour les appelants et n'est JAMAIS lu ni modifié.
  * Fonction sans effet de bord : elle lit la liste des comptes de Zernio, rien d'autre.
  */
-export async function traduireSelectionVersZernio(service: FournisseurPublication, reseau: IdReseau, choisis: string[] | undefined, canauxBuffer: CanalPublication[]): Promise<string[] | undefined> {
+export async function traduireSelectionVersZernio(service: FournisseurPublication, reseau: IdReseau, choisis: string[] | undefined, _ancienneListe: CanalPublication[]): Promise<string[] | undefined> {
   const ids = [...new Set((choisis ?? []).filter((c) => typeof c === "string" && c.trim()))];
   if (!ids.length) return undefined;
   if (!service.listerCanaux) return [SELECTION_NON_TRADUITE];
   const plateforme = plateformeZernio(reseau);
   const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte && !canalInterdit(c));
-  const traduits: string[] = [];
-  let sansHomologue = 0;
-  let ambigu: string | undefined;
-  for (const id of ids) {
-    // Déjà une cible de Zernio (liste des comptes Zernio à l'écran) : prise telle quelle, sans traduction.
-    if (disponibles.some((c) => c.id === id)) {
-      traduits.push(id);
-      continue;
-    }
-    const source = canauxBuffer.find((c) => c.id === id);
-    const homologue = source ? disponibles.filter((c) => normaliserNom(c.nom) === normaliserNom(source.nom)) : [];
-    if (homologue.length === 1) traduits.push(homologue[0].id);
-    else if (homologue.length > 1 && source) {
-      const pages = new Set(homologue.map(idPageDe));
-      ambigu ??= pages.size === 1 && !pages.has(undefined) ? refusMemePage(source.nom) : refusAmbigu(source.nom, homologue);
-    }
-    else sansHomologue++;
-  }
-  if (ambigu) return [ambigu];
-  if (!sansHomologue) return [...new Set(traduits)];
-  if (ids.length === 1) return undefined;
-  return [SELECTION_NON_TRADUITE];
+  if (ids.some((id) => !disponibles.some((c) => c.id === id))) return [SELECTION_NON_TRADUITE];
+  return ids;
 }

@@ -123,6 +123,40 @@ export interface OperationModifierScript {
   nouveau: string;
 }
 
+/** Couper des mots du script (indices de mots, inclus). N'est JAMAIS un `modifier-script` : la voix n'est pas relue. */
+export interface OperationCouperMots {
+  type: "couper-mots";
+  premier: number;
+  dernier: number;
+}
+
+/** Changer un mot des sous-titres (indice de mot) sans toucher au texte lu. */
+export interface OperationChangerSousTitre {
+  type: "changer-sous-titre";
+  motIndex: number;
+  nouveau: string;
+}
+
+/** Retirer une scène du plan (ses mots passent à la scène voisine). */
+export interface OperationRetirerScene {
+  type: "retirer-scene";
+  sceneId: string;
+}
+
+/** Changer le son d'une scène : seulement parmi les sons déjà validés (`sonPermisDansLeChat`). */
+export interface OperationChangerSon {
+  type: "changer-son";
+  sceneId: string;
+  sonId: string;
+}
+
+/** Déplacer une scène juste après une autre. */
+export interface OperationDeplacer {
+  type: "deplacer";
+  sceneId: string;
+  apresSceneId: string;
+}
+
 export type OperationRetouche =
   | OperationChangerMot
   | OperationAjouterChiffre
@@ -135,7 +169,12 @@ export type OperationRetouche =
   | OperationChangerTransition
   | OperationAjouterDynamisme
   | OperationAjusterZoom
-  | OperationModifierScript;
+  | OperationModifierScript
+  | OperationCouperMots
+  | OperationChangerSousTitre
+  | OperationRetirerScene
+  | OperationChangerSon
+  | OperationDeplacer;
 export type TypeOperationRetouche = OperationRetouche["type"];
 
 export const TYPES_OPERATIONS_RETOUCHE = [
@@ -151,4 +190,9 @@ export const TYPES_OPERATIONS_RETOUCHE = [
   "ajouter-dynamisme",
   "ajuster-zoom",
   "modifier-script",
+  "couper-mots",
+  "changer-sous-titre",
+  "retirer-scene",
+  "changer-son",
+  "deplacer",
 ] as const satisfies readonly TypeOperationRetouche[];

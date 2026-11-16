@@ -1,6 +1,6 @@
 /**
  * Aperçu avant retouche : gratuite ou refusée, scènes refaites sur N, durée annoncée, phrase simple.
- * PUR : aucun accès base, réseau ni rendu ; aucun montant, aucun appel à Claude. Non branché (G13-14 l'affichera).
+ * PUR : aucun accès base, réseau ni rendu ; aucun montant, aucun appel à Claude..
  */
 import type { OperationRetouche } from "@/briques/operations";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
@@ -22,20 +22,30 @@ export interface ApercuRetouche {
   phrase: string;
 }
 
+/** Partie de l'aperçu qui n'a besoin ni de l'ancien ni du nouveau plan : utilisable côté client (G13-14). */
+export function apercuDepuisImpact(entree: {
+  generateur: string;
+  operations: readonly OperationRetouche[];
+  scenes: readonly string[];
+  total: number;
+}): ApercuRetouche {
+  const garde = garderPortee("chat", entree.operations);
+  const base = { portees: garde.portees, scenes: [...entree.scenes], total: entree.total };
+  const dureeSec = Object.prototype.hasOwnProperty.call(DUREE_RETOUCHE_SEC, entree.generateur) ? DUREE_RETOUCHE_SEC[entree.generateur]! : null;
+  if (!garde.ok) return { ...base, famille: "refusee", dureeSec, phrase: `Payant : refusé. ${garde.phrase}` };
+  const n = entree.scenes.length;
+  const parties = ["Gratuit"];
+  if (dureeSec !== null) parties.push(`environ ${Math.ceil(dureeSec / 60)} min`);
+  parties.push(`${n} scène${n > 1 ? "s" : ""} sur ${entree.total}`);
+  return { ...base, famille: "gratuite", dureeSec, phrase: parties.join(" · ") };
+}
+
 export function apercuRetouche(entree: {
   generateur: string;
   ancien: PlanValide;
   nouveau: PlanValide;
   operations: readonly OperationRetouche[];
 }): ApercuRetouche {
-  const garde = garderPortee("chat", entree.operations);
   const impact = impactRetouche(entree.ancien, entree.nouveau, entree.operations);
-  const base = { portees: garde.portees, scenes: impact.scenes, total: impact.total };
-  const dureeSec = Object.prototype.hasOwnProperty.call(DUREE_RETOUCHE_SEC, entree.generateur) ? DUREE_RETOUCHE_SEC[entree.generateur]! : null;
-  if (!garde.ok) return { ...base, famille: "refusee", dureeSec, phrase: `Payant : refusé. ${garde.phrase}` };
-  const n = impact.scenes.length;
-  const parties = ["Gratuit"];
-  if (dureeSec !== null) parties.push(`environ ${Math.ceil(dureeSec / 60)} min`);
-  parties.push(`${n} scène${n > 1 ? "s" : ""} sur ${impact.total}`);
-  return { ...base, famille: "gratuite", dureeSec, phrase: parties.join(" · ") };
+  return apercuDepuisImpact({ generateur: entree.generateur, operations: entree.operations, scenes: impact.scenes, total: impact.total });
 }

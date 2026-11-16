@@ -7,8 +7,8 @@ import { lireEnveloppe, lireEvenementCommentaire, lireEvenementRun, motSeulDe } 
 import { lireCommentaireManuel } from "@/domaine/guide-reseau/commentaire-manuel";
 import { MOTS_NEUTRES_POLITESSE } from "@/domaine/guide-reseau/mot-normalise";
 import { classerOpposition, estMotOpposition } from "@/domaine/guide-reseau/opposition";
-import { deposerCommentaire, evenement } from "./aides/conversation";
-import { banc, Com, depots, envoisSortants, nettoyer, Opp, passer, preparer, T0 } from "./filet-guide/_amorce";
+import { cleConversation, deposerCommentaire, deposerMessage, evenement } from "./aides/conversation";
+import { AUTEUR, banc, C, Com, depots, envoisSortants, graineConv, lireTexteDe, nettoyer, Opp, passer, preparer, T0, toutesLesConversations } from "./filet-guide/_amorce";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 
@@ -65,12 +65,34 @@ describe("4 · service : le commentaire « stop please » est une opposition ins
     await deposerCommentaire(depots, { reseau: "facebook", motSeul: "GUIDE" });
     await passer();
     const avant = envoisSortants();
+    expect(avant).toBeGreaterThan(0); // un envoi a bien eu lieu avant l'arrêt
     const stop = await deposerCommentaire(depots, { reseau: "facebook", motSeul: lireEvenementCommentaire(corps("stop thanks"))!.motSeul });
     await passer(T0 + 1000);
     expect((await evenement(depots, stop)).charge.etat).toBe("oppose");
     await passer(T0 + 7 * 24 * 3600 * 1000);
     expect(envoisSortants()).toBe(avant);
     expect(await lignes()).toHaveLength(1);
+  });
+});
+
+describe("4 bis · message privé « stop please » : opposition inscrite, plus de doute", () => {
+  beforeEach(async () => {
+    await preparer();
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cleConversation(AUTEUR)]: graineConv("attente_email") });
+  });
+  afterEach(nettoyer);
+  it("état « oppose », ligne au registre, aucun envoi, aucun appel au site, pas de doute", async () => {
+    lireTexteDe("stop please");
+    const id = await deposerMessage(depots, {});
+    await passer();
+    const conv = (await toutesLesConversations())[cleConversation(AUTEUR)];
+    expect(envoisSortants()).toBe(0);
+    expect(banc.site.vus).toHaveLength(0);
+    expect((await evenement(depots, id)).charge.etat).toBe("oppose");
+    expect(conv.etat).toBe("oppose");
+    expect(conv.douteOpposition).toBeFalsy();
+    expect((await evenement(depots, id)).charge.dernierCode).not.toBe("doute_opposition");
+    expect(await Com.lireParametre<Array<{ id: string }>>(Opp.PARAM_OPPOSITIONS_MOTS, [])).toHaveLength(2); // même décompte que « stop » en message privé (filet-guide/03)
   });
 });
 
@@ -90,6 +112,11 @@ describe("6 · inchangés (verts avant et après)", () => {
   });
   it.each(["GUIDE stop", "stop GUIDE", "stop please GUIDE", "GUIDE please stop"])("« %s » → doute, motSeul null", (t) => {
     expect(classerOpposition(t)).toBe("doute");
+    expect(motSeulDe(t, REG)).toBeNull();
+  });
+  it.each(["no stop", "never stop", "don't stop", "please do not stop"])("« %s » → doute, jamais opposition", (t) => {
+    expect(classerOpposition(t)).toBe("doute");
+    expect(estMotOpposition(t)).toBe(false);
     expect(motSeulDe(t, REG)).toBeNull();
   });
   it.each(["please do not stop", "please don't stop", "thanks for stopping by"])("« %s » → doute", (t) => expect(classerOpposition(t)).toBe("doute"));

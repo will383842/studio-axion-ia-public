@@ -171,17 +171,16 @@ describe("R1 — envoi réel (Zernio, Buffer ne peut plus envoyer), brouillon d'
     expect(faux.faux.appels).toHaveLength(0);
   });
 
-  it("compte choisi à l'envoi (deux LinkedIn chez Zernio) : seul le compte coché reçoit la demande ; l'identifiant d'un compte d'un autre réseau n'est jamais utilisé", async () => {
+  it("compte choisi à l'envoi (deux LinkedIn chez Zernio) : seul le compte coché reçoit la demande ; l'identifiant d'un compte d'un autre réseau est refusé (CIBLE_ZERNIO), sans repli ni compte deviné", async () => {
     await cocherTout();
-    // Identifiant d'Instagram donné pour LinkedIn : ignoré, jamais transmis comme cible ; la demande part sur un compte LinkedIn.
-    const x = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.instagram.id] } });
-    expect(x.publications).toHaveLength(1);
-    expect([CANAUX.linkedinProfil.id, CANAUX.linkedinPage.id]).toContain(x.publications[0].canalId);
-    expect(envoyer).toHaveBeenCalledTimes(1);
-    expect(demande(0).cible).not.toBe(CANAUX.instagram.id);
+    // Identifiant d'Instagram donné pour LinkedIn : refusé net, rien ne part, aucun compte LinkedIn n'est deviné à la place.
+    await expect(pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.instagram.id] } })).rejects.toMatchObject({ code: "CIBLE_ZERNIO" });
+    expect(envoyer).not.toHaveBeenCalled();
+    expect(await depots().publications.compter((x) => x.videoId === VIDEO && x.reseau === "linkedin")).toBe(0);
     const r = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage.id] } });
     expect(r.publications[0]).toMatchObject({ canalId: CANAUX.linkedinPage.id, via: "zernio", etatEnvoi: "envoye" });
-    expect(demande(r.publications[0].id === x.publications[0].id ? 0 : 1)).toMatchObject({ cible: CANAUX.linkedinPage.id });
+    expect(envoyer).toHaveBeenCalledTimes(1);
+    expect(demande(0)).toMatchObject({ cible: CANAUX.linkedinPage.id });
   });
 
   it("outil qui refuse (refus net, puis clé refusée) → message clair SANS la clé, publication en échec, jamais « envoyée »", async () => {

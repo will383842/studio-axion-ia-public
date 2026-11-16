@@ -86,7 +86,8 @@ describe("z3m · 4 états et langue", () => {
     erreur: renderToStaticMarkup(<EcranMigration vue={{ etat: "erreur", message: "Lecture impossible. Réessayez plus tard." }} maintenant={MAINT} />),
   };
   it("normal", () => {
-    expect(vues.normal).toContain("Les 4 posts de Buffer passent chez Zernio");
+    expect(vues.normal).toContain("Les 4 posts de l’ancien outil passent chez Zernio");
+    expect(vues.normal).not.toMatch(/Buffer/);
     expect(vues.normal).toContain("Vérifier le lot B · 1 post");
     expect(vues.normal).toContain("Mode essai");
   });

@@ -17,7 +17,7 @@ export const FAMILLES_CAPACITE = [
 
 /**
  * Identifiants fixes (PLAN-FINAL § 3.3, AM-16, AM-08, AM-09). Clé = identifiant en camelCase (sans point ni tiret).
- * Hors périmètre ici : familles `objet` (C9-03), chantier 10 (C10-15) : chacun ajoutera ses noms.
+ * Hors périmètre ici : chantier 10 (C10-15) : il ajoutera ses noms.
  */
 export const ID = {
   // texte
@@ -46,6 +46,7 @@ export const ID = {
   planScenesFacecam: "plan-scenes.facecam",
   planScenesFacecamAnimee: "plan-scenes.facecam-animee",
   planScenesTutorielOutil: "plan-scenes.tutoriel-outil", // N-02
+  planScenesDemoFacecam: "plan-scenes.demo-facecam", // G3-11
   // transition
   transitionCoupe: "transition.coupe",
   transitionCasConcret: "transition.cas-concret",
@@ -85,6 +86,19 @@ export const ID = {
   planScenesGenerique: "plan-scenes.generique",
   sonPose: "son.pose",
   etalonnageLut: "etalonnage.lut",
+  // objet (C9-03)
+  objetTrait: "objet.trait",
+  objetMarque: "objet.marque",
+  objetEtiquette: "objet.etiquette",
+  objetAppel: "objet.appel",
+  objetChiffre: "objet.chiffre",
+  objetEtape: "objet.etape",
+  objetCartes: "objet.cartes",
+  objetSchema: "objet.schema",
+  objetEcran: "objet.ecran",
+  objetReseauSchema: "objet.reseau-schema",
+  objetManuscrit: "objet.manuscrit",
+  objetEmoji: "objet.emoji",
 } as const satisfies Record<string, IdCapacite>;
 
 /** Préfixe des 13 coulisses v4 : leurs identifiants sont construits par C1-U1, jamais écrits ici. */

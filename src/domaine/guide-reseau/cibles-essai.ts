@@ -1,5 +1,5 @@
-// Cibles d'essai limitées à des comptes listés (phase 2 de l'essai, Facebook seulement). Module PUR : aucun import serveur, aucun accès réseau ni base.
-// Une cible d'essai (catalogue : `test: true`) reste refusée partout, sauf pour un compte nommé dans PARCOURS_ESSAI_COMPTES ET sur Facebook.
+// Cibles d'essai limitées à des comptes listés (phase 2 de l'essai, Facebook et Instagram seulement). Module PUR : aucun import serveur, aucun accès réseau ni base.
+// Une cible d'essai (catalogue : `test: true`) reste refusée partout, sauf pour un compte nommé dans PARCOURS_ESSAI_COMPTES ET sur Facebook ou Instagram.
 // Variable absente, vide, mal formée, trop longue ou « * » : jamais permis (échec fermé). Aucun mot, aucun guide, aucun compte figé ici.
 
 export const VARIABLE_ESSAI_COMPTES = "PARCOURS_ESSAI_COMPTES";
@@ -30,13 +30,13 @@ export function essaiActif(env: Env): boolean {
   return comptesEssai(env).length > 0;
 }
 
-/** Vrai seulement si le compte est listé ET le réseau est Facebook. Instagram, autres réseaux, compte inconnu : faux. */
+/** Vrai seulement si le compte est listé ET le réseau est Facebook ou Instagram. Autres réseaux, compte inconnu : faux. */
 export function cibleEssaiPermise(
   env: Env,
   compte: string | undefined | null,
   reseau: string | null | undefined,
 ): boolean {
-  if (reseau !== "facebook") return false;
+  if (reseau !== "facebook" && reseau !== "instagram") return false;
   if (typeof compte !== "string" || compte === "") return false;
   return comptesEssai(env).includes(compte);
 }
