@@ -229,6 +229,9 @@ describe("3 · écran /mots", () => {
     for (const v of NOUVELLES) expect(html, v).toContain(esc(brut(v).texte));
     for (const g of ["pub-commentaire"]) {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
+      expect(bloc, g).toContain("ne vaut que pour Facebook");
+      expect(bloc, g).toContain("Instagram garde l");
+      expect(bloc, g).toContain("réponse publique du mot GUIDE en production");
       expect(bloc, g).not.toContain("pas encore branché"); // branché depuis la PR « réponse publique » (Facebook, formulation validée)
     }
     for (const g of ["deja-envoye", "lien-rappel"]) {
