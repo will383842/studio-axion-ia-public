@@ -26,11 +26,24 @@ function suiteContigue(texte: readonly string[], dits: readonly string[]): boole
   return false;
 }
 
+/** Un nombre écrit : des groupes de chiffres séparés par une espace (« 49 505 », « 2 20 ») = un seul nombre, espaces ôtées ; dans le doute, on refuse. */
+const NOMBRE_ECRIT = /\d+(?:[ \u00a0\u202f]\d+)*(?:[.,]\d+)?/g;
+const COCHE = /[\u2713\u2714\u2705\u2611]/;
+
+/** Toutes les chaînes d'une valeur (hors preuve, commande et marque illustration). */
+function chainesDe(v: unknown, prof = 0): string[] {
+  if (prof > 8) return [];
+  if (typeof v === "string") return [v];
+  if (Array.isArray(v)) return v.flatMap((x) => chainesDe(x, prof + 1));
+  if (estObjet(v)) return Object.entries(v).filter(([k]) => k !== "preuve" && k !== "commande").flatMap(([, x]) => chainesDe(x, prof + 1));
+  return [];
+}
+
 /** Tous les nombres d'une valeur : nombres bruts et chiffres écrits dans les textes. */
 function nombresDe(v: unknown, prof = 0): number[] {
   if (prof > 8) return [];
   if (typeof v === "number") return [v];
-  if (typeof v === "string") return [...v.matchAll(/\d+(?:[.,]\d+)?/g)].map((m) => Number(m[0].replace(",", ".")));
+  if (typeof v === "string") return [...v.matchAll(NOMBRE_ECRIT)].map((m) => Number(m[0].replace(/[\s\u00a0\u202f]/g, "").replace(",", ".")));
   if (Array.isArray(v)) return v.flatMap((x) => nombresDe(x, prof + 1));
   if (estObjet(v)) return Object.entries(v).filter(([k]) => k !== "illustration").flatMap(([, x]) => nombresDe(x, prof + 1));
   return [];
@@ -40,7 +53,7 @@ export function garderObjet(def: DefinitionObjet<unknown>, parametres: unknown, 
   try {
     const p = estObjet(parametres) ? parametres : {};
     const id = String(def?.id ?? "");
-    const texte = typeof p.texte === "string" ? p.texte : "";
+    const textes = chainesDe(p);
     const commande = typeof p.commande === "string" ? p.commande : "";
     const mots = Array.isArray(contexte?.mots) ? contexte.mots : [];
     const premier = Number.isFinite(contexte?.premier) ? contexte.premier : 0;
@@ -50,7 +63,7 @@ export function garderObjet(def: DefinitionObjet<unknown>, parametres: unknown, 
 
     // « VALIDÉ » / coche de réussite : une preuve non vide est obligatoire.
     const preuve = typeof p.preuve === "string" && p.preuve.trim() !== "";
-    if ((p.valide === true || p.coche === true || /(^| )validee?s?( |$)/.test(nu(texte))) && !preuve) return { refus: "validation sans preuve" };
+    if ((p.valide === true || p.coche === true || p.ton === "valide" || textes.some((t) => COCHE.test(t) || /(^| )validee?s?( |$)/.test(nu(t)))) && !preuve) return { refus: "validation sans preuve" };
 
     // Profil et commentaires : aucun nombre, marque « illustration » obligatoire.
     if (/profil|commentaire/.test(id) || p.profil !== undefined || p.commentaires !== undefined) {
@@ -69,7 +82,9 @@ export function garderObjet(def: DefinitionObjet<unknown>, parametres: unknown, 
     }
 
     // Mots : suite contiguë de mots dits (texte ; commande de terminal toujours).
-    const aVerifier = [commande, ...(def?.donnees === "mots-dits" ? [texte] : [])].filter((t) => t !== "");
+    const motsDits = def?.donnees === "mots-dits";
+    if (motsDits && !commande && !textes.some((t) => jetons(t).length > 0)) return { refus: "texte introuvable" };
+    const aVerifier = [commande, ...(motsDits ? textes : [])].filter((t) => t !== "");
     for (const t of aVerifier) {
       const j = jetons(t);
       if (j.length > MOTS_MAX) return { refus: `texte de plus de ${MOTS_MAX} mots` };

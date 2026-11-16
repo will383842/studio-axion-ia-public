@@ -47,6 +47,26 @@ describe("C9-04 garderObjet", () => {
     expect(garderObjet(d, { nom: "Marie", illustration: true }, ctx)).toBe("ok");
     expect(refus(garderObjet(def("objet-commentaires", "aucune"), { texte: "Super", illustration: true, jaime: 3 }, ctx))).toBe(true);
   });
+  it("nombre écrit avec espace de milliers lu d'un seul tenant (fiche en texte)", () => {
+    const d = def("objet-chiffre", "nombres-dits");
+    expect(refus(garderObjet(d, { texte: "+49 505" }, ctx))).toBe(true);
+    expect(refus(garderObjet(d, { texte: "+2 20" }, ctx))).toBe(true);
+    expect(refus(garderObjet(d, { texte: "+49\u202f505" }, ctx))).toBe(true);
+    expect(garderObjet(d, { texte: "20 minutes" }, ctx)).toBe("ok");
+  });
+  it("mots-dits : toutes les chaînes sont contrôlées, texte introuvable → refus", () => {
+    const d = def("objet-etiquette", "mots-dits");
+    expect(refus(garderObjet(d, { libelle: "rm -rf tout" }, ctx))).toBe(true);
+    expect(refus(garderObjet(d, { titre: "VOUS PERDEZ", lignes: ["assistant mails"] }, ctx))).toBe(true);
+    expect(refus(garderObjet(d, { x: 1 }, ctx))).toBe(true);
+    expect(garderObjet(d, { libelle: "Vous perdez deux heures" }, ctx)).toBe("ok");
+  });
+  it("coche de réussite : ton valide ou ✓ ✅ sans preuve → refus", () => {
+    const d = def("objet-etape", "aucune");
+    expect(refus(garderObjet(d, { ton: "valide" }, ctx))).toBe(true);
+    for (const c of ["✓", "✔", "✅", "☑"]) expect(refus(garderObjet(d, { texte: c }, ctx))).toBe(true);
+    expect(garderObjet(d, { ton: "valide", preuve: "capture-12" }, ctx)).toBe("ok");
+  });
   it("aucune : ok", () => {
     expect(garderObjet(def("objet-trait", "aucune"), { x: 1 }, ctx)).toBe("ok");
   });
