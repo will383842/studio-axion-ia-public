@@ -25,13 +25,14 @@ export function filtreZoomPrise(fenetres: FenetreZoomRendu[], largeur: number, h
     }
   }
   // FFmpeg n'évalue pas `t` dans les largeur/hauteur de `crop` (fixées à l'init) : on agrandit image par image
-  // (`scale … eval=frame`) puis on recadre au centre à la taille d'origine. Vérifié avec ffmpeg réel.
+  // (`scale … eval=frame`) puis on recadre au centre à la taille d'origine. Dans `crop`, `iw`/`ih` sont aussi figés
+  // à l'init : x/y sont donc recalculés avec la même expression de facteur (sinon zoom ancré en haut à gauche).
   const zoom = triees.reduceRight((reste, f) => {
     const facteur = Math.max(1, Math.min(f.facteur, FACTEUR_MAX));
     return `if(between(t,${nombre(f.debutSec)},${nombre(f.finSec)}),${nombre(facteur)},${reste})`;
   }, "1");
   return (
     `scale=w='trunc(iw*${zoom}/2)*2':h='trunc(ih*${zoom}/2)*2':eval=frame,` +
-    `crop=${largeur}:${hauteur}:'(iw-ow)/2':'(ih-oh)/2'`
+    `crop=${largeur}:${hauteur}:'(trunc(${largeur}*${zoom}/2)*2-${largeur})/2':'(trunc(${hauteur}*${zoom}/2)*2-${hauteur})/2'`
   );
 }

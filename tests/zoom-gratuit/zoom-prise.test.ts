@@ -1,6 +1,7 @@
 /**
  * Fiche C8-Z08a : fenêtres de zoom → filtre FFmpeg crop/scale (pur, non branché).
  */
+import { execFileSync, spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -13,7 +14,7 @@ describe("filtreZoomPrise", () => {
 
   it("une fenêtre → expression attendue au caractère", () => {
     expect(filtreZoomPrise([{ debutSec: 2, finSec: 5, facteur: 1.05 }], 1080, 1920)).toBe(
-      "scale=w='trunc(iw*if(between(t,2,5),1.05,1)/2)*2':h='trunc(ih*if(between(t,2,5),1.05,1)/2)*2':eval=frame,crop=1080:1920:'(iw-ow)/2':'(ih-oh)/2'",
+      "scale=w='trunc(iw*if(between(t,2,5),1.05,1)/2)*2':h='trunc(ih*if(between(t,2,5),1.05,1)/2)*2':eval=frame,crop=1080:1920:'(trunc(1080*if(between(t,2,5),1.05,1)/2)*2-1080)/2':'(trunc(1920*if(between(t,2,5),1.05,1)/2)*2-1920)/2'",
     );
   });
 
@@ -28,8 +29,15 @@ describe("filtreZoomPrise", () => {
         1920,
       ),
     ).toBe(
-      "scale=w='trunc(iw*if(between(t,2,5),1.05,if(between(t,10,12),1.04,1))/2)*2':h='trunc(ih*if(between(t,2,5),1.05,if(between(t,10,12),1.04,1))/2)*2':eval=frame,crop=1080:1920:'(iw-ow)/2':'(ih-oh)/2'",
+      "scale=w='trunc(iw*if(between(t,2,5),1.05,if(between(t,10,12),1.04,1))/2)*2':h='trunc(ih*if(between(t,2,5),1.05,if(between(t,10,12),1.04,1))/2)*2':eval=frame,crop=1080:1920:'(trunc(1080*if(between(t,2,5),1.05,if(between(t,10,12),1.04,1))/2)*2-1080)/2':'(trunc(1920*if(between(t,2,5),1.05,if(between(t,10,12),1.04,1))/2)*2-1920)/2'",
     );
+  });
+
+  it("x/y du crop dépendent du facteur (zoom centré, pas ancré en haut à gauche)", () => {
+    const f = filtreZoomPrise([{ debutSec: 1, finSec: 2, facteur: 1.08 }], 320, 240);
+    expect(f).toContain("crop=320:240:'(trunc(320*if(between(t,1,2),1.08,1)/2)*2-320)/2'");
+    expect(f).toContain("'(trunc(240*if(between(t,1,2),1.08,1)/2)*2-240)/2'");
+    expect(f).not.toContain("(iw-ow)");
   });
 
   it("facteur 1,2 → 1,08", () => {
@@ -56,6 +64,31 @@ describe("filtreZoomPrise", () => {
   it("même entrée = même sortie", () => {
     const f = [{ debutSec: 2, finSec: 5, facteur: 1.05 }];
     expect(filtreZoomPrise(f, 1080, 1920)).toBe(filtreZoomPrise(f, 1080, 1920));
+  });
+});
+
+const aFfmpeg = spawnSync("ffmpeg", ["-version"]).status === 0;
+
+function image(vf: string, t: number): Buffer {
+  const args = ["-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=3", "-vf", vf, "-ss", String(t), "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"];
+  return execFileSync("ffmpeg", args, { maxBuffer: 1 << 24 });
+}
+function ecart(a: Buffer, b: Buffer): number {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+  return s / a.length;
+}
+
+describe.skipIf(!aFfmpeg)("ffmpeg réel : zoom centré", () => {
+  const filtre = filtreZoomPrise([{ debutSec: 1, finSec: 2, facteur: 1.08 }], 320, 240);
+  it("mi-fenêtre = recadrage centré, hors fenêtre = image d'origine", () => {
+    const zoome = image(filtre, 1.5);
+    const centre = image("scale=344:258,crop=320:240:12:9", 1.5);
+    const coin = image("scale=344:258,crop=320:240:0:0", 1.5);
+    expect(ecart(zoome, centre)).toBeLessThan(5);
+    expect(ecart(zoome, coin)).toBeGreaterThan(15);
+    expect(ecart(image(filtre, 0.5), image("null", 0.5))).toBe(0);
+    expect(ecart(image(filtre, 2.5), image("null", 2.5))).toBe(0);
   });
 });
 
