@@ -56,6 +56,8 @@ export interface MemoireReconciliation {
   lignesIgnorees: number;
   ecarts: Ecart[];
   ecartsTronques: boolean;
+  /** Codes revus depuis la dernière troncature des écarts (absent des anciens enregistrements = 0) : l'indicateur ne retombe qu'une fois tous les codes revus. */
+  codesRevusDepuisTroncature?: number;
   /** Dernier code traité au passage précédent : le passage suivant reprend après lui (boucle au début). */
   curseur: string | null;
   /** Nombre de codes non interrogés à ce passage (plafond atteint) : l'écran peut dire « N guides pas encore revus ». */
@@ -181,7 +183,7 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   const garder = (etat: EtatReconciliation): MemoireReconciliation => {
     const a = (typeof ancien === "object" && ancien !== null ? ancien : {}) as Partial<MemoireReconciliation>;
     // Un échec ne change ni le dernier passage terminé ni les écarts connus ni le curseur : seul l'état dit que le dernier essai a échoué.
-    return { dernierPassage: typeof a.dernierPassage === "string" ? a.dernierPassage : null, etat, guidesLus: a.guidesLus ?? 0, lignesIgnorees: a.lignesIgnorees ?? 0, ecarts: Array.isArray(a.ecarts) ? a.ecarts : [], ecartsTronques: a.ecartsTronques === true, curseur: curseurAvant, codesRestants: typeof a.codesRestants === "number" ? a.codesRestants : 0 };
+    return { dernierPassage: typeof a.dernierPassage === "string" ? a.dernierPassage : null, etat, guidesLus: a.guidesLus ?? 0, lignesIgnorees: a.lignesIgnorees ?? 0, ecarts: Array.isArray(a.ecarts) ? a.ecarts : [], ecartsTronques: a.ecartsTronques === true, codesRevusDepuisTroncature: typeof a.codesRevusDepuisTroncature === "number" ? a.codesRevusDepuisTroncature : 0, curseur: curseurAvant, codesRestants: typeof a.codesRestants === "number" ? a.codesRestants : 0 };
   };
 
   const deSite: VersionSite[] = [];
@@ -219,15 +221,18 @@ export async function reconcilierGuides(deps?: DepsReconciliation): Promise<Resu
   const conserves = (Array.isArray(anc.ecarts) ? anc.ecarts : []).filter((e) => !interroges.has(e.code) && presents.has(e.code));
   // Anciens d'abord, écarts de CE passage à la fin : si le plafond coupe, on garde les plus récents.
   const ecarts = [...conserves, ...nouveaux];
-  // Le passage a bouclé (il a repris au début après avoir atteint la fin) : un tour complet est fait, l'ancienne coupure n'est plus à signaler.
-  const aBoucle = curseurAvant !== null && codes.some((c) => c <= curseurAvant);
+  // Une coupure perd des écarts sur des codes précis : on compte les codes revus depuis ; l'indicateur retombe seulement quand tous l'ont été.
+  const coupe = ecarts.length > MAX_ECARTS_MEMORISES;
+  const anciensRevus = typeof anc.codesRevusDepuisTroncature === "number" ? anc.codesRevusDepuisTroncature : 0;
+  const revus = coupe ? 0 : Math.min(anciensRevus + codes.length, tous.length);
   await memoriser({
     dernierPassage: new Date(d.maintenantMs()).toISOString(),
     etat: "compare",
     guidesLus: codes.length,
     lignesIgnorees: ignorees,
     ecarts: ecarts.slice(-MAX_ECARTS_MEMORISES),
-    ecartsTronques: ecarts.length > MAX_ECARTS_MEMORISES || (anc.ecartsTronques === true && codesRestants > 0 && !aBoucle),
+    ecartsTronques: coupe || (anc.ecartsTronques === true && revus < tous.length),
+    codesRevusDepuisTroncature: revus,
     curseur,
     codesRestants,
   });
