@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DROITS, droitValide, trouverDroit } from "../../src/briques/droits";
 
@@ -30,7 +31,25 @@ describe("police JetBrains Mono des objets (C9-05)", () => {
     expect(src).not.toMatch(/^chargerJetBrainsMono\(/m);
   });
 
-  it("aucune police manuscrite n'a d'entrée (W-I non tranchée)", () => {
+  it("aucune police manuscrite n'a d'entrée (W-I = non)", () => {
     expect(DROITS.filter((d) => /police-(kalam|caveat|permanent-marker)/.test(d.id))).toEqual([]);
+  });
+
+  it("aucun fichier de studio-rendu/ ou src/ n'appelle chargerJetBrainsMono", () => {
+    const base = new URL("../../", import.meta.url).pathname;
+    const appelants: string[] = [];
+    const parcourir = (dir: string) => {
+      for (const nom of readdirSync(dir)) {
+        if (nom === "node_modules") continue;
+        const chemin = join(dir, nom);
+        if (statSync(chemin).isDirectory()) parcourir(chemin);
+        else if (/\.(ts|tsx)$/.test(nom) && !chemin.endsWith("petits-objets/polices.ts")) {
+          if (readFileSync(chemin, "utf8").includes("chargerJetBrainsMono")) appelants.push(chemin);
+        }
+      }
+    };
+    parcourir(join(base, "studio-rendu"));
+    parcourir(join(base, "src"));
+    expect(appelants).toEqual([]);
   });
 });
