@@ -127,7 +127,7 @@ export function parcoursAServir<T extends { cle: string }>(
 }
 
 /* --- Plafond par personne ---------------------------------------------------------------------------------------------- */
-/** Messages Instagram au plus par personne et par 24 h : TOUS ceux envoyés à la personne (suivre le compte, « pas encore », lien, merci, accusé, adresse refusée, M2). */
+/** Messages Instagram au plus par personne et par 24 h : TOUS ceux envoyés à la personne (suivre le compte, « pas encore », lien, demande d'adresse d'une cible d'essai, merci, accusé, adresse refusée, M2). */
 export const PLAFOND_IG_PERSONNE = 3;
 const ETATS_ENVOI_INCERTAIN: readonly string[] = ["m1_en_vol", "m1_a_verifier", "ig_envoi_en_vol", "ig_a_verifier"];
 const FENETRE_PLAFOND_IG_MS = 24 * 3600_000;
@@ -145,6 +145,7 @@ type ParcoursPlafond = {
   m1Le?: string | null;
   pasEncoreLe?: string | null;
   lienIgLe?: string | null;
+  adresseIgLe?: string | null;
   m2Le?: string | null;
   adresseRefuseeLe?: string | null;
   accuseLe?: string | null;
@@ -152,7 +153,7 @@ type ParcoursPlafond = {
   merciLe?: string | null;
 };
 /**
- * Compte, sur TOUS les parcours Instagram du dossier, chaque message de moins de 24 h : `m1Le`, `pasEncoreLe`, `lienIgLe`, `m2Le`, `adresseRefuseeLe`,
+ * Compte, sur TOUS les parcours Instagram du dossier, chaque message de moins de 24 h : `m1Le`, `pasEncoreLe`, `lienIgLe`, `adresseIgLe` (demande d'adresse d'une cible d'essai), `m2Le`, `adresseRefuseeLe`,
  * `accuseLe`, le merci (`merciEssaiLe`, à défaut `merciLe`) et tout essai d'issue inconnue (`essaiEnvoiLe`, QUEL QUE SOIT l'état, sauf pour un parcours qui porte
  * déjà une date de succès hors des états d'issue incertaine). Une date présente mais illisible compte comme un envoi à l'instant même (échec fermé). Atteint à `PLAFOND_IG_PERSONNE`.
  * Un parcours d'un autre réseau n'est jamais compté.
@@ -168,8 +169,8 @@ export function limitePersonneIg(parcours: readonly ParcoursPlafond[], maintenan
   };
   for (const p of parcours) {
     if (typeof p.reseau === "string" && p.reseau !== "instagram") continue;
-    const succes = [p.m1Le, p.pasEncoreLe, p.lienIgLe].map((v) => (typeof v === "string" ? Date.parse(v) : NaN));
-    for (const v of [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.m2Le, p.adresseRefuseeLe, p.accuseLe]) ajouter(v);
+    const succes = [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.adresseIgLe].map((v) => (typeof v === "string" ? Date.parse(v) : NaN));
+    for (const v of [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.adresseIgLe, p.m2Le, p.adresseRefuseeLe, p.accuseLe]) ajouter(v);
     ajouter(typeof p.merciEssaiLe === "string" ? p.merciEssaiLe : p.merciLe);
     // Essai d'issue inconnue ou interrompu (le message est peut-être parti sans date de succès) : compté à la date de l'essai (échec fermé), dans tous les états
     // (après `m1_a_verifier`, l'état peut avoir changé). Seul un parcours qui porte déjà une date de succès hors des états d'issue incertaine ne compte pas deux fois.

@@ -37,9 +37,9 @@ const ILLUSTRATIONS_FACE: Carte[] = [
     dessin: (
       <>
         <rect x="14" y="40" width="40" height="28" rx="6" className="fill-surface-3 stroke-trait-fort" strokeWidth="2" />
-        <circle cx="34" cy="54" r="9" className="fill-fond stroke-orange-vif" strokeWidth="3" />
+        <circle cx="34" cy="54" r="9" className="fill-fond stroke-accent" strokeWidth="3" />
         <rect x="22" y="34" width="12" height="6" rx="2" className="fill-surface-3" />
-        <line x1="96" y1="48" x2="46" y2="54" className="stroke-orange-vif" strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
+        <line x1="96" y1="48" x2="46" y2="54" className="stroke-accent" strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
         <Silhouette x={110} y={50} />
         <circle cx="104" cy="48" r="2.5" className="fill-fond" />
       </>
@@ -52,7 +52,7 @@ const ILLUSTRATIONS_FACE: Carte[] = [
       <>
         <rect x="44" y="12" width="72" height="96" rx="6" className="fill-surface-2" />
         <Silhouette x={80} y={48} echelle={1.15} />
-        <line x1="44" y1="44" x2="116" y2="44" className="stroke-orange-vif" strokeWidth="1.5" strokeDasharray="4 3" />
+        <line x1="44" y1="44" x2="116" y2="44" className="stroke-accent" strokeWidth="1.5" strokeDasharray="4 3" />
         {[
           "M44 24 v-12 h12",
           "M116 24 v-12 h-12",
@@ -82,11 +82,11 @@ const ILLUSTRATIONS_FACE: Carte[] = [
     dessin: (
       <>
         <rect x="62" y="10" width="36" height="66" rx="7" className="fill-surface-3 stroke-trait-fort" strokeWidth="2" />
-        <rect x="67" y="18" width="26" height="48" rx="3" className="fill-orange-doux" />
+        <rect x="67" y="18" width="26" height="48" rx="3" className="fill-accent-doux" />
         <circle cx="80" cy="70" r="2.5" className="fill-trait-fort" />
         <path d="M80 76 v18 M66 108 l14 -14 l14 14 M80 94 v14" className="fill-none stroke-texte-doux" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="20" y1="42" x2="56" y2="42" className="stroke-orange-vif" strokeWidth="2" strokeDasharray="4 4" />
-        <circle cx="20" cy="42" r="4" className="fill-orange-vif" />
+        <line x1="20" y1="42" x2="56" y2="42" className="stroke-accent" strokeWidth="2" strokeDasharray="4 4" />
+        <circle cx="20" cy="42" r="4" className="fill-accent" />
       </>
     ),
   },
@@ -96,7 +96,7 @@ const ILLUSTRATIONS_FACE: Carte[] = [
     dessin: (
       <>
         <circle cx="80" cy="60" r="38" className="fill-surface-2 stroke-surface-3" strokeWidth="8" />
-        <path d="M80 22 A38 38 0 1 1 46 77" className="fill-none stroke-orange" strokeWidth="8" strokeLinecap="round" />
+        <path d="M80 22 A38 38 0 1 1 46 77" className="fill-none stroke-accent" strokeWidth="8" strokeLinecap="round" />
         <rect x="74" y="8" width="12" height="8" rx="2" className="fill-trait-fort" />
         <text x="80" y="68" textAnchor="middle" className="fill-texte font-titre" fontSize="22">
           2:00
@@ -130,8 +130,8 @@ const ILLUSTRATIONS_AVOCAT: Carte[] = [
     dessin: (
       <>
         <rect x="62" y="10" width="36" height="66" rx="7" className="fill-surface-3 stroke-trait-fort" strokeWidth="2" />
-        <rect x="67" y="18" width="26" height="48" rx="3" className="fill-orange-doux" />
-        <text x="80" y="47" textAnchor="middle" className="fill-orange-vif font-titre" fontSize="11">
+        <rect x="67" y="18" width="26" height="48" rx="3" className="fill-accent-doux" />
+        <text x="80" y="47" textAnchor="middle" className="fill-accent font-titre" fontSize="11">
           25
         </text>
         <path d="M80 76 v18 M66 108 l14 -14 l14 14 M80 94 v14" className="fill-none stroke-texte-doux" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -163,8 +163,8 @@ const ILLUSTRATIONS_AVOCAT: Carte[] = [
         <rect x="18" y="74" width="30" height="22" rx="5" className="fill-surface-3 stroke-trait-fort" strokeWidth="2" />
         <circle cx="33" cy="85" r="6" className="fill-fond stroke-texte-faible" strokeWidth="2" />
         <Silhouette x={84} y={40} echelle={0.8} />
-        <circle cx="132" cy="64" r="10" className="fill-orange-doux stroke-orange-vif" strokeWidth="2" />
-        <line x1="94" y1="42" x2="122" y2="60" className="stroke-orange-vif" strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
+        <circle cx="132" cy="64" r="10" className="fill-accent-doux stroke-accent" strokeWidth="2" />
+        <line x1="94" y1="42" x2="122" y2="60" className="stroke-accent" strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" />
         <line x1="74" y1="46" x2="44" y2="78" className="stroke-brique" strokeWidth="2" strokeDasharray="2 5" strokeLinecap="round" />
       </>
     ),
@@ -175,15 +175,15 @@ const ILLUSTRATIONS_AVOCAT: Carte[] = [
     dessin: (
       <>
         <Silhouette x={80} y={46} echelle={0.8} />
-        <rect x="16" y="78" width="26" height="18" rx="4" className="fill-orange-doux stroke-orange-vif" strokeWidth="2" />
-        <text x="29" y="91" textAnchor="middle" className="fill-orange-vif font-titre" fontSize="10">
+        <rect x="16" y="78" width="26" height="18" rx="4" className="fill-accent-doux stroke-accent" strokeWidth="2" />
+        <text x="29" y="91" textAnchor="middle" className="fill-accent font-titre" fontSize="10">
           1
         </text>
         <rect x="104" y="84" width="26" height="18" rx="4" className="fill-surface-3 stroke-trait-fort" strokeWidth="2" />
         <text x="117" y="97" textAnchor="middle" className="fill-texte font-titre" fontSize="10">
           2
         </text>
-        <line x1="42" y1="82" x2="66" y2="66" className="stroke-orange-vif" strokeWidth="1.5" strokeDasharray="3 3" />
+        <line x1="42" y1="82" x2="66" y2="66" className="stroke-accent" strokeWidth="1.5" strokeDasharray="3 3" />
         <line x1="108" y1="86" x2="90" y2="70" className="stroke-texte-faible" strokeWidth="1.5" strokeDasharray="3 3" />
       </>
     ),
@@ -237,8 +237,8 @@ const ILLUSTRATIONS_AVOCAT: Carte[] = [
     dessin: (
       <>
         <SilhouetteAssise x={80} y={30} />
-        <path d="M52 66 q-14 -8 -18 -22 M108 66 q14 -8 18 -22" className="fill-none stroke-orange-vif" strokeWidth="3" strokeLinecap="round" />
-        <path d="M30 40 l4 4 M126 40 l-4 4" className="fill-none stroke-orange-vif" strokeWidth="3" strokeLinecap="round" />
+        <path d="M52 66 q-14 -8 -18 -22 M108 66 q14 -8 18 -22" className="fill-none stroke-accent" strokeWidth="3" strokeLinecap="round" />
+        <path d="M30 40 l4 4 M126 40 l-4 4" className="fill-none stroke-accent" strokeWidth="3" strokeLinecap="round" />
       </>
     ),
   },
@@ -248,7 +248,7 @@ const ILLUSTRATIONS_AVOCAT: Carte[] = [
     dessin: (
       <>
         <circle cx="80" cy="60" r="38" className="fill-surface-2 stroke-surface-3" strokeWidth="8" />
-        <path d="M80 22 A38 38 0 1 1 42 60" className="fill-none stroke-orange" strokeWidth="8" strokeLinecap="round" />
+        <path d="M80 22 A38 38 0 1 1 42 60" className="fill-none stroke-accent" strokeWidth="8" strokeLinecap="round" />
         <rect x="74" y="8" width="12" height="8" rx="2" className="fill-trait-fort" />
         <text x="80" y="68" textAnchor="middle" className="fill-texte font-titre" fontSize="20">
           3-5
@@ -278,7 +278,7 @@ function Cartes({ cartes, titre, className }: { cartes: Carte[]; titre: string; 
       {cartes.map((g, i) => (
         <li key={g.titre} className="w-[64%] shrink-0 snap-start sm:w-56 lg:w-auto">
           <div className="h-full overflow-hidden rounded-carte border border-trait bg-surface-1">
-            <div className="relative aspect-[4/3] bg-fond lueur">
+            <div className="relative aspect-[4/3] bg-fond">
               <span className="absolute left-3 top-3 grid size-7 place-items-center rounded-full bg-surface-2 font-titre text-xs tabular-nums text-texte-doux">{i + 1}</span>
               <svg viewBox="0 0 160 120" className="absolute inset-0 size-full" aria-hidden>
                 {g.dessin}
@@ -315,7 +315,7 @@ export function GuideTournage({ className, variante = "avocat" }: { className?: 
         <ol className="space-y-3 px-4 pb-4">
           {SEANCE_AVOCAT.map((e, i) => (
             <li key={e.titre} className="flex gap-3">
-              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-orange-doux font-titre text-xs tabular-nums text-orange-vif">{i + 1}</span>
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-doux font-titre text-xs tabular-nums text-accent">{i + 1}</span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-texte">{e.titre}</span>
                 <span className="block text-sm text-texte-faible">{e.detail}</span>
