@@ -7,7 +7,7 @@
  * dans le résumé, doublons d'adresse ou de titre (comparés normalisés).
  * Aucun motif ne recopie le texte contrôlé.
  */
-import { controlerFiche, dateValide, type ContenuFiche } from "./fiche-de-page";
+import { controlerFiche, dateValide, motInterdit, type ContenuFiche } from "./fiche-de-page";
 import { classementDans, expressionsBannieDans, normaliser, premierChiffre } from "./controles-visuel/texte";
 
 export type NiveauControle = "vert" | "orange" | "rouge";
@@ -81,6 +81,11 @@ export function controlerSeo(contenu: ContenuFiche, options: OptionsControle = {
     for (const libelle of expressionsBannieDans(texte)) ajouter(champ, "rouge", `${champ} : expression interdite (${libelle}).`);
     const mots = ` ${normaliser(texte)} `;
     if (interdits.some((i) => mots.includes(` ${i} `))) ajouter(champ, "rouge", `${champ} : un nom ou une ville interdits figurent dans le texte.`);
+  }
+  // Les champs de texte sont déjà contrôlés par SEO-02 ; les adresses publiques le sont ici.
+  for (const [champ, texte] of adressesDe(contenu)) {
+    const interdit = motInterdit(texte);
+    if (interdit) ajouter(champ, "rouge", `${champ} : mot interdit (${interdit}).`);
   }
   for (const [champ, texte] of textes) {
     if (TEMOIGNAGE.test(texte)) ajouter(champ, "rouge", `${champ} : pas de témoignage ni d'avis client sans accord écrit.`);
