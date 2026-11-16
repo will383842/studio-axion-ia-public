@@ -1,4 +1,5 @@
 /** CAL-28 · Panneau « Mes textes » : glisser un texte sur un jour, ou cliquer dessus. Données fictives, aucun appel réel, rien n'est enregistré ici. */
+import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { PanneauMesTextes, TYPE_GLISSER_TEXTE, debutGlisser, demandeDepuisClic, demandeDepuisDepot, demandeDepuisTransfert, textesAPlacer } from "@/components/calendrier/PanneauMesTextes";
@@ -47,11 +48,29 @@ describe("CAL-28 · le texte reste tant que la publication n'est pas validée", 
     expect(liste.map((m) => m.id)).toEqual(["a", "s"]);
   });
   it("cliquer ne retire rien de la liste", () => {
-    const entrees = [a];
-    demandeDepuisClic(a, AUJ);
-    expect(textesAPlacer(entrees)).toHaveLength(1);
+    const textes = [a];
+    const bouton = boutonDe(textes, vi.fn());
+    bouton.onClick();
+    expect(textes).toEqual([a]);
+    expect(renderToStaticMarkup(<PanneauMesTextes textes={textes} aujourdhui={AUJ} onAjouter={() => {}} />)).toContain("Texte a");
   });
 });
+
+/** Le panneau n'a aucun hook : on l'appelle comme une fonction et on retrouve son bouton dans l'arbre rendu (pas de jsdom dans le dépôt). */
+function boutonDe(textes: MessageStock[], onAjouter: (d: unknown) => void) {
+  type Props = { onClick: () => void; onDragStart: (ev: unknown) => void; draggable?: boolean; children?: ReactNode };
+  const trouver = (n: ReactNode): ReactElement<Props> | null => {
+    if (!n || typeof n !== "object") return null;
+    if (Array.isArray(n)) { for (const e of n) { const r = trouver(e); if (r) return r; } return null; }
+    const el = n as ReactElement<Props>;
+    if (el.type === "button") return el;
+    return trouver(el.props?.children);
+  };
+  const arbre = PanneauMesTextes({ textes, aujourdhui: AUJ, onAjouter });
+  const bouton = trouver(arbre);
+  if (!bouton) throw new Error("bouton introuvable");
+  return bouton.props;
+}
 
 describe("CAL-28 · le panneau", () => {
   const html = renderToStaticMarkup(<PanneauMesTextes textes={[a, t("p", { etat: "planifie" })]} aujourdhui={AUJ} onAjouter={() => {}} />);
@@ -62,6 +81,15 @@ describe("CAL-28 · le panneau", () => {
   });
   it("chaque texte est glissable ET cliquable (le clic remplace le glisser sur téléphone)", () => {
     expect(html).toMatch(/<button[^>]*draggable="true"/);
+    const onAjouter = vi.fn();
+    const bouton = boutonDe([a], onAjouter);
+    bouton.onClick();
+    expect(onAjouter).toHaveBeenCalledWith({ texteId: "a", texte: "Texte a", jour: AUJ, reseau: "linkedin" });
+    const setData = vi.fn();
+    const transfert = { setData, effectAllowed: "" };
+    bouton.onDragStart({ dataTransfer: transfert });
+    expect(setData).toHaveBeenCalledWith(TYPE_GLISSER_TEXTE, "a");
+    expect(transfert.effectAllowed).toBe("copy");
   });
   it("rien d'affiché quand il n'y a aucun texte à placer", () => {
     expect(renderToStaticMarkup(<PanneauMesTextes textes={[]} aujourdhui={AUJ} onAjouter={() => {}} />)).toBe("");
