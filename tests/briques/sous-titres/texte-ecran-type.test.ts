@@ -1,9 +1,9 @@
 /**
- * C2-U4 : le type facultatif `texteEcran` du style de sous-titres (contrat seul, aucune logique : U5 la branchera).
+ * C2-U4 : le type facultatif `texteEcran` du style de sous-titres (contrat seul, aucune logique : U5 la branche : seul `surlignage` change).
  * Éteint = identique : un style avec `texteEcran` donne aujourd'hui exactement les mêmes `donneesCalque` que sans.
  */
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
+import { MARQUEURS, donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
 import type { ReglagesTexteEcran } from "@/domaine/texte-ecran";
 import type { ReglagesTexteEcranRendu } from "@/briques/sous-titres/types-rendu";
 import { STYLE_SOUS_TITRES_AVOCAT } from "@/donnees/elements-avocat";
@@ -22,9 +22,13 @@ describe("C2-U4 : type texteEcran, contrat seul", () => {
   it("(a) sans texteEcran : aucune clé texteEcran dans la sortie", () => {
     expect(JSON.stringify(calque(STYLE_SOUS_TITRES_AVOCAT))).not.toContain("texteEcran");
   });
-  it("(b) avec texteEcran : donneesCalque identiques à celles du même style sans le champ", () => {
+  it("(b) avec texteEcran.marqueur : donneesCalque identiques à sans le champ, SAUF la clé surlignage, qui vaut exactement MARQUEURS.terracotta", () => {
     const avec: ValeurStyleSousTitres = { ...STYLE_SOUS_TITRES_AVOCAT, texteEcran: { marqueur: { teinte: "terracotta" } } };
-    expect(calque(avec)).toEqual(calque(STYLE_SOUS_TITRES_AVOCAT));
+    const sans = calque(STYLE_SOUS_TITRES_AVOCAT);
+    expect(sans).not.toHaveProperty("surlignage");
+    const { surlignage, ...reste } = calque(avec);
+    expect(surlignage).toEqual(MARQUEURS.terracotta);
+    expect(reste).toEqual(sans);
   });
   it("(c) le type est ReglagesTexteEcran | undefined, et la copie du rendu est égale", () => {
     expectTypeOf<ValeurStyleSousTitres["texteEcran"]>().toEqualTypeOf<ReglagesTexteEcran | undefined>();
