@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { empreinteV4, empreinteCartes, axesDesChoix, fusionnerAxes } from "@/services/variete-commune/empreintes-b";
+import { historiqueDuPlan } from "@/moteurs/montage-facecam-animee/realisateur";
 import { CATALOGUE_V4 } from "@/moteurs/montage-facecam-animee/realisateur/catalogue-v4";
 import { VERSION_EMPREINTE } from "@/briques/variete-commune";
 import type { HistoriqueVideo } from "@/moteurs/montage-facecam-animee/realisateur/regles";
@@ -18,6 +19,16 @@ describe("empreintes-b", () => {
     expect(e.axes.objets).toEqual(["autre:facecam-animee:chiffre", "autre:facecam-animee:etiquette", "autre:facecam-animee:liste"]);
     expect(e.axes.typo).toEqual(["montserrat-v4"]);
     expect(e.axes.palette).toHaveLength(1);
+  });
+  it("v4 : vrai historique du plan (elementsV4) → ouverture et objets", () => {
+    const h = historiqueDuPlan({ cartes: [], fenetres: [], calques: [], elementsV4: [{ id: "BadgeCompteur", debut: 2 }, { id: "EtiquetteTete", debut: 1 }] } as never);
+    const e = empreinteV4("v3", LE, h);
+    expect(e.axes.ouverture).toEqual(["autre:facecam-animee:etiquette"]);
+    expect(e.axes.objets).toEqual(["autre:facecam-animee:chiffre", "autre:facecam-animee:etiquette"]);
+  });
+  it("v4 : id de plaquette inconnu gardé sans exception", () => {
+    const e = empreinteV4("v4", LE, { types: [], entrees: [], plaquettesV4: ["Inconnue"], ouvertureV4: "Inconnue" });
+    expect(e.axes.ouverture).toEqual(["autre:facecam-animee:Inconnue"]);
   });
   it("v4 sans famille : ni ouverture ni objets", () => {
     const e = empreinteV4("v2", LE, { types: [], entrees: [] });

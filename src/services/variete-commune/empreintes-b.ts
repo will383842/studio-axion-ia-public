@@ -7,6 +7,7 @@ import type { AxeCommun, EmpreinteVideo } from "@/briques/variete-commune/types"
 import { VERSION_EMPREINTE } from "@/briques/variete-commune/version";
 import { versCommun } from "@/briques/variete-commune/vocabulaire";
 import type { HistoriqueVideo } from "@/moteurs/montage-facecam-animee/realisateur/regles";
+import { CATALOGUE_V4 } from "@/moteurs/montage-facecam-animee/realisateur/catalogue-v4";
 import type { Choix } from "@/briques/bibliotheque-video/types";
 
 export type AxesEmpreinte = Partial<Record<AxeCommun, string[]>>;
@@ -23,12 +24,15 @@ const sansVides = (axes: AxesEmpreinte): AxesEmpreinte =>
 
 /** Face caméra animée v4 : ouverture = famille de la 1re plaquette, objets = familles, typo = Montserrat v4. */
 export function empreinteV4(videoId: string, le: string, historique: HistoriqueVideo): EmpreinteVideo {
-  const familles = historique.familles ?? [];
-  const commun = (f: string) => versCommun("facecam-animee", "ouverture", f);
+  // Plaquettes v4 : ids → famille (CATALOGUE_V4, lecture seule) ; id inconnu : on garde l'id, sans exception.
+  const familleDe = (id: string): string => CATALOGUE_V4.find((f) => f.id === id)?.famille ?? id;
+  const ids = historique.plaquettesV4 ?? [];
+  const familles = ids.length ? ids.map(familleDe) : [...(historique.familles ?? [])];
+  const premiere = historique.ouvertureV4 ? familleDe(historique.ouvertureV4) : familles[0];
   return {
     version: VERSION_EMPREINTE, videoId, formatId: FORMAT_V4, le,
     axes: sansVides({
-      ouverture: familles.length ? [commun(familles[0])] : [],
+      ouverture: premiere ? [versCommun("facecam-animee", "ouverture", premiere)] : [],
       objets: uniquesTries(familles.map((f) => versCommun("facecam-animee", "objets", f))),
       typo: ["montserrat-v4"],
       palette: [versCommun("facecam-animee", "palette", CODE_PALETTE_V4)],
