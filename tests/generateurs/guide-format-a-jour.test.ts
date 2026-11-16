@@ -20,15 +20,17 @@ describe("G1-07 · guide « Ajouter un format » et commentaires à jour", () =>
     expect(guide).toContain("lireParametre");
   });
 
-  it("sous src/, seules des lignes de commentaire changent", () => {
-    let base = "";
+  // Règle déterministe (G1-07b) : on compare le commit G1-07 figé à son parent, pas la branche courante à master.
+  const G1_07 = "7e6348227170b7b7d6a0547f49692a4b2b2fb980";
+  it("sous src/, le commit G1-07 n'a changé que des lignes de commentaire (exactement 6)", () => {
     try {
-      base = execFileSync("git", ["merge-base", "HEAD", "origin/master"], { encoding: "utf8" }).trim();
+      execFileSync("git", ["cat-file", "-e", `${G1_07}^{commit}`], { stdio: "ignore" });
     } catch {
-      return; // pas de référence git (copie sans historique) : rien à comparer
+      return; // pas d'historique git (copie sans historique) : rien à comparer
     }
-    const diff = execFileSync("git", ["diff", "-U0", base, "--", "src/"], { encoding: "utf8" });
+    const diff = execFileSync("git", ["diff", "-U0", `${G1_07}^`, G1_07, "--", "src/"], { encoding: "utf8" });
     const lignes = diff.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
     for (const l of lignes) expect(/^[+-]\s*(\/\/|\*|\/\*)/.test(l), l).toBe(true);
+    expect(lignes.length).toBe(6); // 3 fichiers × 1 ligne retirée + 1 ajoutée
   });
 });

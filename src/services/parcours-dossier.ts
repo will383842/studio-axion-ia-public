@@ -32,6 +32,7 @@ import {
   type DecisionCommentaire,
 } from "@/domaine/guide-reseau/machine-conversation";
 import { ecrireParametre, lireParametre, sousVerrou } from "./_commun";
+import { cibleEssaiPermise } from "@/domaine/guide-reseau/cibles-essai";
 import { verifierMotPourEnvoi } from "./mots-validation-par-mot";
 import { enregistrerOppositionPersonne } from "./oppositions-mots";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
@@ -52,7 +53,7 @@ export type RefusValidationEnvoi =
 /**
  * Garde de validation avant tout envoi : `null` = peut partir.
  * GUIDE : synchrone, AUCUN appel au site (comportement actuel : seule la cible `guide-ia` part).
- * Autre mot : Facebook seulement (Instagram : « instagram_pas_encore »), puis la validation par mot + la cible du jour (`verifierMotPourEnvoi`).
+ * Autre mot : Facebook ; Instagram : seule une cible d'essai, pour un compte et un auteur listés ; sinon « instagram_pas_encore ». Puis la validation par mot + la cible du jour (`verifierMotPourEnvoi`).
  */
 export async function validationPourEnvoi(
   mot: string,
@@ -67,6 +68,11 @@ export async function validationPourEnvoi(
 ): Promise<RefusValidationEnvoi | null> {
   if (mot.toUpperCase() === "GUIDE")
     return codeCible === "guide-ia" ? null : "validation_absente";
+  if (reseau === "instagram") {
+    if (!(compte !== undefined && auteurEssaiOk === true && cibleEssaiPermise(env ?? process.env, compte, "instagram")))
+      return "instagram_pas_encore";
+    return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs, compte, auteurEssaiOk: true, essaiSeulement: true });
+  }
   if (reseau !== "facebook") return "instagram_pas_encore";
   return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs, ...(compte !== undefined ? { compte } : {}), ...(auteurEssaiOk === true ? { auteurEssaiOk: true } : {}) });
 }

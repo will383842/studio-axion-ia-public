@@ -42,8 +42,12 @@ describe("compte listé et Facebook seulement", () => {
     expect(cibleEssaiPermise(env, undefined, "facebook")).toBe(false);
     expect(cibleEssaiPermise(env, "", "facebook")).toBe(false);
   });
-  it("jamais Instagram ni un autre réseau, même listé", () => {
-    for (const r of ["instagram", "linkedin", "tiktok", "tous", null, undefined])
+  it("Instagram : permis pour un compte listé (T3a)", () => {
+    expect(cibleEssaiPermise(env, X, "instagram")).toBe(true);
+    expect(cibleEssaiPermise(env, "compte-fb-inconnu", "instagram")).toBe(false);
+  });
+  it("jamais un autre réseau que Facebook ou Instagram, même listé", () => {
+    for (const r of ["linkedin", "tiktok", "tous", null, undefined])
       expect(cibleEssaiPermise(env, X, r)).toBe(false);
   });
   it("égalité exacte : ni préfixe ni sous-chaîne", () => {

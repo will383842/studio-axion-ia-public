@@ -2,8 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { lireEnveloppe, lireEvenementCommentaire, motSeulDe } from "@/domaine/guide-reseau/crochet-zernio";
 import { lireCommentaireManuel } from "@/domaine/guide-reseau/commentaire-manuel";
-import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
-import { classerOpposition } from "@/domaine/guide-reseau/opposition";
+import { motAvecPolitesse, normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
+import { classerOpposition, estMotOpposition } from "@/domaine/guide-reseau/opposition";
 
 const REG = ["GUIDE", "ESSAIGPT7"];
 const corps = (text: string, extra: Record<string, unknown> = {}, plateforme = "facebook") =>
@@ -46,4 +46,28 @@ describe("opposition et réponses", () => {
     expect(e.proprio).toBe(true);
   });
   it("la forme canonique reste lisible par normaliserMot (statistiques)", () => expect(normaliserMot(motSeulDe("GUIDE merci", REG))).toBe("GUIDE"));
+});
+
+describe("ponctuation AVANT le mot : refus prudent (décision écrite)", () => {
+  // Avant #708 ces formes donnaient GUIDE ; refusées depuis, choix prudent retenu (une mention ou une commande n'est pas une demande).
+  it.each(["@GUIDE", "@guide merci", "...GUIDE", "…GUIDE", "/guide", "./guide", "\\guide"])("%j → null", (t) => expect(motSeulDe(t, REG)).toBeNull());
+  it("appel direct : « stop please » n'est pas un déclencheur", () => expect(motAvecPolitesse("stop please", REG)).toBeNull());
+  // Garde `classerOpposition(texte) !== "non"` : « stop please » est classé « opposition », donc l'appel ci-dessus ne distingue pas `!== "non"` de `=== "doute"`
+  // (le registre REG ne contient pas STOP : le mot est de toute façon refusé plus loin). Ici le mot d'opposition EST dans le registre :
+  // seule la garde `!== "non"` renvoie null ; la mutation `=== "doute"` laisserait passer « OPPOSE ».
+  it("appel direct : une opposition dont le mot est au registre → null (garde !== \"non\")", () => {
+    expect(classerOpposition("oppose")).toBe("opposition");
+    expect(motAvecPolitesse("oppose", ["OPPOSE"])).toBeNull();
+  });
+});
+
+describe("asymétrie figée : ponctuation APRÈS le mot acceptée", () => {
+  it.each(["GUIDE...", "GUIDE…", "GUIDE."])("« %s » → GUIDE", (t) => expect(motSeulDe(t, REG)).toBe("GUIDE"));
+});
+
+describe("contrepartie sécurité : un arrêt n'est jamais refusé pour sa ponctuation", () => {
+  it.each(["@STOP", "/stop", "...stop"])("« %s » → opposition / STOP", (t) => {
+    expect(estMotOpposition(t)).toBe(true);
+    expect(motSeulDe(t, REG)).toBe("STOP");
+  });
 });

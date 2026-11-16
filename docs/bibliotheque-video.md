@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 66 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 67 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -29,6 +29,7 @@ Le catalogue compte 66 capacités. L'état dit où elle en est : prod (déjà ut
 | `calque.texte-derriere-prise` | absent | — | Q6 | étude 5.20, 5.21 |
 | `plan-scenes.cas-concret` | prod | — |  |  |
 | `plan-scenes.facecam` | eteint | 5 (5.02 à 5.09) | Q11 |  |
+| `plan-scenes.tutoriel-outil` | prod | — |  | format masqué (N-02) |
 | `plan-scenes.facecam-animee` | eteint | — | P2 plus tard |  |
 | `transition.coupe` | prod | — |  |  |
 | `transition.cas-concret` | prod | — |  | leur générateur |
@@ -132,6 +133,14 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 
+### `tutoriel-outil`
+
+- Profil : `tutoriel-outil/1`, version 1.
+- Permis : `plan-scenes.tutoriel-outil`.
+- Refusé : aucune.
+- Verrous : `calque.texte-derriere-double`.
+- Mémoire : les 10 dernières vidéos, portée « format ».
+
 ### Formats au profil neutre
 
 Profil neutre : rien de neuf. Le format garde sa vidéo d'aujourd'hui.
@@ -142,7 +151,6 @@ Profil neutre : rien de neuf. Le format garde sa vidéo d'aujourd'hui.
 - `motion` — profil neutre : rien de neuf
 - `podcast` — profil neutre : rien de neuf
 - `selfie` — profil neutre : rien de neuf
-- `tutoriel-outil` — profil neutre : rien de neuf
 - `ugc` — profil neutre : rien de neuf
 
 ## 3. Les réglages

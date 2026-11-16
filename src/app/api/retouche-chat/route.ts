@@ -6,6 +6,7 @@ import { estGenerateurRetouche } from "@/services/retouche-chat/generateurs";
 import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
 import { portsStudio } from "@/services/retouche-chat/studio";
 import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
+import { historiqueVersions, versionARetablir } from "@/services/retouche-chat/historique";
 import { depots, lireParametre } from "@/services/_commun";
 
 /**
@@ -19,6 +20,9 @@ const schemaCorps = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("apercu"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), demande: z.string().max(1000) }),
   z.strictObject({ action: z.literal("appliquer"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), demande: z.string().max(1000), operations: z.array(z.unknown()).max(40) }),
   z.strictObject({ action: z.literal("revenir"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), versionId: z.string().min(1).max(80) }),
+  // G14-04 : liste des versions lue en base (lecture seule) et « rétablir » (refaire) ; rien n'est écrit ni effacé.
+  z.strictObject({ action: z.literal("historique"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
+  z.strictObject({ action: z.literal("retablir"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
 ]);
 
 export async function POST(requete: NextRequest) {
@@ -33,11 +37,25 @@ export async function POST(requete: NextRequest) {
   if (c.generateur === undefined && !(await sansGenerateurActif((id, defaut) => lireParametre<unknown>(id, defaut)))) return NextResponse.json({ erreur: "La retouche par chat n'est pas activée." }, { status: 403 });
   // C7-02 : `revenir` ne vise qu'une version de la même vidéo (avant tout port).
   if (c.action === "revenir" && !(await versionDeLaVideo(c.videoId, c.versionId, (id) => depots().versions.obtenir(id)))) return NextResponse.json({ erreur: "Cette version n'appartient pas à cette vidéo." }, { status: 404 });
-  // N-22 : une vidéo programmée ou publiée ne se retouche pas (`appliquer`, `revenir`) ; `apercu` n'écrit rien.
-  if (c.action !== "apercu" && (await videoEnDiffusion(c.videoId, (id) => depots().videos.obtenir(id)))) return NextResponse.json({ erreur: "Cette vidéo est programmée ou publiée : elle ne se retouche pas ici." }, { status: 409 });
+  // N-22 : une vidéo programmée ou publiée ne se retouche pas (`appliquer`, `revenir`, `retablir`) ; `apercu` et `historique` n'écrivent rien.
+  if ((c.action === "revenir" || c.action === "appliquer" || c.action === "retablir") && (await videoEnDiffusion(c.videoId, (id) => depots().videos.obtenir(id)))) return NextResponse.json({ erreur: "Cette vidéo est programmée ou publiée : elle ne se retouche pas ici." }, { status: 409 });
+  // G14-04 : `historique` lit les seules versions de cette vidéo ; `retablir` en calcule la cible sur ces mêmes versions (C7-02 tenu).
+  let cible: string | null = null;
+  if (c.action === "historique" || c.action === "retablir") {
+    const versions = await depots().versions.lister((x) => x.videoId === c.videoId);
+    if (c.action === "historique") return NextResponse.json({ versions: historiqueVersions(versions, c.videoId) });
+    const choisie = versions.find((v) => v.choisie);
+    cible = choisie ? versionARetablir(versions, choisie.id) : null;
+    if (cible === null) return NextResponse.json({ erreur: "Rien à rétablir." }, { status: 409 });
+  }
   const ports = c.generateur !== undefined ? portsGenerateurStudio(c.generateur) : portsStudio();
   if (c.action === "apercu") return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, ports));
   if (c.action === "appliquer") return NextResponse.json(await appliquerRetouche(c.videoId, { demande: c.demande, operations: c.operations }, ports));
+  if (c.action === "retablir" && cible !== null) {
+    await revenirAVersion(c.videoId, cible, ports);
+    return NextResponse.json({ statut: "retablie", versionId: cible });
+  }
+  if (c.action !== "revenir") return NextResponse.json({ erreur: "Demande illisible." }, { status: 400 });
   await revenirAVersion(c.videoId, c.versionId, ports);
   return NextResponse.json({ statut: "revenue", versionId: c.versionId });
 }

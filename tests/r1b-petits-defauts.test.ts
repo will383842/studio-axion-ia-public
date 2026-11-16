@@ -141,7 +141,7 @@ describe("R1b · petits défauts — compte déconnecté (chemin Zernio)", () =>
     await lireComptes();
     await cocher(VIDEO);
     const e = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [ID.linkedinPage] } }).catch((x: Error) => x);
-    expect(e).toMatchObject({ code: "CIBLE_ZERNIO", message: expect.stringMatching(/« Profil exemple »/) });
+    expect(e).toMatchObject({ code: "CIBLE_ZERNIO", message: expect.stringMatching(/n'est plus relié à Zernio.*recochez-le/) });
     expect((e as Error).message).not.toMatch(/Page exemple/);
     expect(envoyer).not.toHaveBeenCalled();
   });
@@ -183,7 +183,7 @@ describe("R1b · petits défauts — mémoire, refus, libellés", () => {
   });
 
   it("ROUGE 5 bis : la feuille d'envoi dit « comptes », accordés, sans « réseau(x) » ni « autre(s) »", () => {
-    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyerBuffer.tsx", import.meta.url), "utf8");
+    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyer.tsx", import.meta.url), "utf8");
     expect(f).toMatch(/libelleComptes\(n\)/);
     expect(f).not.toMatch(/réseau\$\{n > 1 \? "x" : ""\}/);
     expect(f).not.toMatch(/autre\(s\)|réseau\(x\)/);
