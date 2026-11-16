@@ -622,6 +622,24 @@ async function verifierRacine(env: Env, cles: ClesOk, racine: string, charge: Re
   return { source: "opposee" };
 }
 
+/**
+ * Réponse publique au commentaire. Facebook : formulation du groupe « pub-commentaire » VALIDÉE par le fondateur (choix stable par personne, figé dans
+ * l'état s'il y en a un) ; sinon, ou sur tout autre réseau, l'ancien texte « mp-pub-igfb-v1 », inchangé. Jamais une formulation non validée.
+ */
+async function textePublic(reseau: string, cleConversation: string, figee?: string | null): Promise<{ texte: string | null; formulation?: string }> {
+  if (reseau === "facebook") {
+    const choix = choisirFormulation({
+      groupe: "pub-commentaire",
+      cleConversation,
+      figee,
+      validees: await formulationsValidees(),
+      rendre: (v) => rendreTexteMp(v, {}),
+      conforme: (t) => texteDuDictionnaire(t, false),
+    });
+    if (choix !== null) return { texte: choix.texte, formulation: choix.version };
+  }
+  return { texte: rendreTexteMp("mp-pub-igfb-v1", {}) };
+}
 /** Réponse publique SEULE (cible déjà servie, en cours, plafond par personne) : aucun enregistrement, aucun message privé. Plafond par heure respecté. */
 async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, racine: string, idCommentaire: string, raison: string, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
@@ -637,7 +655,7 @@ async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversati
     await clore(ev, "silence", "deja_traite");
     return "traite";
   }
-  const texte = rendreTexteMp("mp-pub-igfb-v1", {});
+  const { texte } = await textePublic(texteDe(c.reseau) ?? "", racine);
   if (texte === null) {
     await clore(ev, "ignore", "texte_incomplet");
     return "traite";
@@ -977,7 +995,8 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (e.etat === "nouveau") {
-    const texte = rendreTexteMp("mp-pub-igfb-v1", {});
+    const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.["pub-commentaire"]);
+    const texte = pub.texte;
     if (texte === null) {
       await patcher(cle, { etat: "pub_ok", dernierCode: "texte_incomplet" });
     } else {
@@ -994,7 +1013,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
         await clore(ev, "bloque", s.code ?? null);
         return "traite";
       }
-      await patcher(cle, s.patch ?? {});
+      await patcher(cle, { ...(s.patch ?? {}), ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
       if (s.action === "reessayer") {
         await reporter(ev, now, s.apresMs ?? 30_000, s.code ?? "a_reessayer");
         return "traite";
