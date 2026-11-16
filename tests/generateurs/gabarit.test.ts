@@ -90,6 +90,26 @@ describe("gabarit — exemple « bonjour »", () => {
     expect(r.type).toBe("retouche");
   });
 
+  it("panne durable du moteur : échec réessayable (jamais « en cours » pour toujours), puis « réessayer » repart", async () => {
+    const a = doubles();
+    const c = await commande();
+    let panne = true;
+    const deps: DependancesBonjour = { ...a.deps, rendre: async (ratio, ...rest) => { if (panne) throw new Error("rendu HS"); return a.deps.rendre(ratio, ...rest); } };
+    const moteur = creerMoteurGabaritExemple(() => deps);
+    const lance = await moteur.lancer(c, { travailId: "t-panne", versionId: "v-panne", titre: "Panne", maintenant: T0 });
+    const { travail: enPanne } = await mener(moteur, c, lance);
+    expect(enPanne.statut).toBe("echec");
+    const etape = enPanne.etapes.find((e) => e.statut === "echec")!;
+    expect(etape.erreur?.reessayable).toBe(true);
+    expect(etape.erreur?.messagePourWill).toMatch(/Vous/);
+    expect(etape.erreur?.detailTechnique).toContain("rendu HS");
+    panne = false;
+    const reparti = await moteur.reessayer!(enPanne, T0 + 100_000);
+    expect(reparti.statut).toBe("en_cours");
+    const fin = await mener(moteur, c, reparti, T0 + 100_000);
+    expect(fin.travail.statut).toBe("termine");
+  });
+
   it("reprise après redémarrage : l'état vit dans le travail, rien n'est refait", async () => {
     const a = doubles();
     const c = await commande();

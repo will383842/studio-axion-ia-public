@@ -76,16 +76,21 @@ export function nouveauTravailGabarit(id: string, defs: DefinitionEtapeMoteur[],
 
 /**
  * Un pas de la chaîne : le moteur avance son état (`pas`) ; le gabarit recalcule les étapes, le statut et la progression.
- * Une panne imprévue du moteur n'échoue pas : le même état est retenté au tour suivant (rien n'est perdu).
+ * Une panne imprévue du moteur (exception) ne reste jamais « en cours » pour toujours : dès la 1re exception l'étape prête
+ * passe en échec RÉESSAYABLE (phrase vouvoyée ; message technique gardé dans `detailTechnique`), et `reessayer` repart.
  */
 export async function avancerChaine<E extends EtatGabarit>(travail: Travail, etat: E, pas: (etat: E) => Promise<E>, maintenant: number): Promise<{ travail: Travail; etat: E; fini: boolean }> {
   let suivant: E;
+  let detailPanne: string | undefined;
   try {
     suivant = await pas(etat);
-  } catch {
-    suivant = etat;
+  } catch (e) {
+    const defs: DefinitionEtapeMoteur[] = travail.etapes.map((x) => ({ cle: x.cle, nom: x.nom, icone: x.icone, dependDe: x.dependDe, dureeEstimeeSec: 0 }));
+    const etape = etapesPretes(defs, etat.faites)[0]?.cle ?? "inconnue";
+    detailPanne = e instanceof Error ? e.message : String(e);
+    suivant = { ...etat, echec: { etape, message: "Un incident est survenu pendant la fabrication. Vous pouvez réessayer : ce qui est déjà fait est conservé.", reessayable: true } };
   }
-  const etapes = etapesSelonEtat(travail.etapes, suivant);
+  const etapes = etapesSelonEtat(travail.etapes, suivant).map((e) => (detailPanne && e.erreur ? { ...e, erreur: { ...e.erreur, detailTechnique: `Étape « ${e.cle} » : ${detailPanne}` } } : e));
   const fini = !!suivant.fini;
   const enEchec = etapes.find((e) => e.statut === "echec");
   const iso = new Date(maintenant).toISOString();

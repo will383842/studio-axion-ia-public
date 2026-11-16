@@ -47,7 +47,7 @@ const ETAPES_RETOUCHE: DefinitionEtapeMoteur[] = [
   { cle: "controle", nom: "La vérification", icone: "bouclier", dependDe: ["montage"], dureeEstimeeSec: 1 },
 ];
 
-const TAILLES: Record<Ratio, string> = { "4:5": "1080x1350", "9:16": "1080x1920", "1:1": "1080x1080", "16:9": "1920x1080" } as Record<Ratio, string>;
+const TAILLES = { "4:5": "1080x1350", "9:16": "1080x1920", "1:1": "1080x1080", "16:9": "1920x1080" } satisfies Record<Ratio, string>;
 const DUREE_SEC = 5;
 
 const planDe = (texte: string) => ({ scenes: [{ id: "s1", texte }] });

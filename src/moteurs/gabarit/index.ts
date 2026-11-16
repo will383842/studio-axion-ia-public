@@ -8,6 +8,9 @@
  * `retoucher({ operations })` (R-4) ; `origine` de la commande propagée au travail et au résultat ; entrées lues dans
  * `commande.entrees` (R-8, jamais `fabrication.ts`). Aucun appel à Claude, aucun fournisseur payant, aucun import de
  * `studio-rendu` (`src/moteurs/` n'est pas copié par l'image du rendu).
+ * Limite (même comportement que la démo) : un travail mis en pause au lancement (`fabriquerPasEncoreBranche`, sans
+ * `parametres.gabarit`) ne repart pas seul quand les dépendances sont reliées ; il faut le relancer.
+ * Panne imprévue : 1re exception => étape en échec réessayable (`chaine.ts`), jamais « en cours » indéfiniment.
  */
 import type { CommandeFabrication, LigneCout, Ratio, Travail } from "@/domaine/types";
 import { ZERO } from "@/lib/montants";
