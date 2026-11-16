@@ -277,11 +277,11 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
 
 describe("T3b · le site connaît le code de la cible d'essai Instagram", () => {
   it("compteEssaiPourGuides : Instagram listé → le compte ; non listé ou drapeau absent → undefined ; autre réseau → undefined", async () => {
-    const etat = { cibleEssai: true as const, reseau: "instagram", idCompte: COMPTE };
+    const etat: any = { cibleEssai: true, reseau: "instagram", idCompte: COMPTE };
     const cle = cleConversation(AUTEUR);
     expect(C.compteEssaiPourGuides(ENV_X, etat, cle)).toBe(COMPTE);
     expect(C.compteEssaiPourGuides(ENV_RETIRE, etat, cle)).toBeUndefined();
-    expect(C.compteEssaiPourGuides(ENV_X, { ...etat, cibleEssai: undefined as any }, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides(ENV_X, { ...etat, cibleEssai: undefined }, cle)).toBeUndefined();
     expect(C.compteEssaiPourGuides(ENV_X, { ...etat, reseau: "linkedin" }, cle)).toBeUndefined();
   });
   it("guidesDuCatalogue : la cible d'essai n'est incluse que pour le réseau et le compte listés", async () => {
