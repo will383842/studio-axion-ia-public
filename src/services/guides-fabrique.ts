@@ -8,7 +8,8 @@
  * l'empreinte est recalculée avec `guide-contenu.ts`. Une version n'est « fabriquée » que sur un 201 ou un 200 `{ok:true}` du site.
  * Le chemin du PDF est DÉRIVÉ ici (`guides-reseau/<code>/v<version>.pdf`) : le site ne le renvoie pas.
  * Dépendances injectables (essais sans base ni réseau). La session est exigée par les actions serveur avant d'arriver ici.
- * Reste avant tout allumage (voir TODO de guides-redaction.ts) : plafond mensuel Claude et suivi des dépenses.
+ * Argent (0a phase 2) : « Rédiger avec l'IA » passe par le chemin gardé des appels Claude (limite du mois, réservation,
+ * dépense enregistrée : voir `guides-redaction.ts`) ; un refus de la garde s'affiche avec une phrase claire, rien n'est payé.
  */
 import "server-only";
 import {
@@ -105,6 +106,10 @@ const PHRASES_REDACTION: Record<string, string> = {
   enregistrement_echec: "Le brouillon n'a pas pu être enregistré : réessayez.",
   dependances_indisponibles: "Le Studio n'est pas prêt pour cela : réessayez plus tard.",
   trop_de_versions: "Il y a déjà trop de versions pour ce mot.",
+  plafond_atteint: "La limite Claude du mois est atteinte : rien n'a été rédigé ni payé. Relevez-la dans Réglages pour continuer.",
+  credit_insuffisant: "Le crédit Claude ou le budget ne suffit pas : rien n'a été rédigé ni payé.",
+  prix_a_confirmer: "Cette rédaction coûte plus que votre seuil de confirmation : rien n'a été rédigé ni payé.",
+  claude_indisponible: "Claude n'est pas choisi ou aucun compte n'est prêt : rien n'a été rédigé ni payé.",
 };
 
 // Un geste à la fois par mot (en mémoire : un redémarrage repart libre). Évite deux appels payés ou deux rendus simultanés.
