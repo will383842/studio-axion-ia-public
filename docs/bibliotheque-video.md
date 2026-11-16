@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 67 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 68 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -30,6 +30,7 @@ Le catalogue compte 67 capacités. L'état dit où elle en est : prod (déjà ut
 | `plan-scenes.cas-concret` | prod | — |  |  |
 | `plan-scenes.facecam` | eteint | 5 (5.02 à 5.09) | Q11 |  |
 | `plan-scenes.tutoriel-outil` | prod | — |  | format masqué (N-02) |
+| `plan-scenes.demo-facecam` | prod | — |  | format masqué (G3-11) |
 | `plan-scenes.facecam-animee` | eteint | — | P2 plus tard |  |
 | `transition.coupe` | prod | — |  |  |
 | `transition.cas-concret` | prod | — |  | leur générateur |
@@ -101,6 +102,14 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 
+### `demo-facecam`
+
+- Profil : `demo-facecam/1`, version 1.
+- Permis : `cadrage.zoom-demo`, `plan-scenes.demo-facecam`.
+- Refusé : `texte.pave`, `texte.repere-epaule`.
+- Verrous : `calque.texte-derriere-double`.
+- Mémoire : les 10 dernières vidéos, portée « format ».
+
 ### `facecam`
 
 - Profil : `facecam/1`, version 1.
@@ -146,7 +155,6 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 Profil neutre : rien de neuf. Le format garde sa vidéo d'aujourd'hui.
 
 - `createur-b` — profil neutre : rien de neuf
-- `demo-facecam` — profil neutre : rien de neuf
 - `ecran-partage` — profil neutre : rien de neuf
 - `motion` — profil neutre : rien de neuf
 - `podcast` — profil neutre : rien de neuf
