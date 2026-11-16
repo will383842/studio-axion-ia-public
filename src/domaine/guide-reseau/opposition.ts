@@ -27,7 +27,7 @@ const LONGUEUR_MAX = 80;
 const MOTS_MAX = 8;
 
 /** NFKC, puis sans accents, majuscules ; tout caractère non lettre/chiffre devient une espace ; découpe en mots. */
-function motsDe(texte: string): string[] {
+export function motsDe(texte: string): string[] {
   const n = texte.normalize("NFKC").normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   return n === "" ? [] : n.split(" ");
 }

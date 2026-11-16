@@ -5,7 +5,7 @@ import { apercevoirRetouche, appliquerRetouche, revenirAVersion } from "@/servic
 import { estGenerateurRetouche } from "@/services/retouche-chat/generateurs";
 import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
 import { portsStudio } from "@/services/retouche-chat/studio";
-import { sansGenerateurActif, versionDeLaVideo } from "@/services/retouche-chat/garde-acces";
+import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
 import { depots, lireParametre } from "@/services/_commun";
 
 /**
@@ -33,6 +33,8 @@ export async function POST(requete: NextRequest) {
   if (c.generateur === undefined && !(await sansGenerateurActif((id, defaut) => lireParametre<unknown>(id, defaut)))) return NextResponse.json({ erreur: "La retouche par chat n'est pas activée." }, { status: 403 });
   // C7-02 : `revenir` ne vise qu'une version de la même vidéo (avant tout port).
   if (c.action === "revenir" && !(await versionDeLaVideo(c.videoId, c.versionId, (id) => depots().versions.obtenir(id)))) return NextResponse.json({ erreur: "Cette version n'appartient pas à cette vidéo." }, { status: 404 });
+  // N-22 : une vidéo programmée ou publiée ne se retouche pas (`appliquer`, `revenir`) ; `apercu` n'écrit rien.
+  if (c.action !== "apercu" && (await videoEnDiffusion(c.videoId, (id) => depots().videos.obtenir(id)))) return NextResponse.json({ erreur: "Cette vidéo est programmée ou publiée : elle ne se retouche pas ici." }, { status: 409 });
   const ports = c.generateur !== undefined ? portsGenerateurStudio(c.generateur) : portsStudio();
   if (c.action === "apercu") return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, ports));
   if (c.action === "appliquer") return NextResponse.json(await appliquerRetouche(c.videoId, { demande: c.demande, operations: c.operations }, ports));

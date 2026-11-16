@@ -18,6 +18,11 @@ describe("registre des droits", () => {
     expect([...DROITS.map((d) => d.id)].sort()).toEqual([...FICHIERS].sort());
   });
 
+  it("le type « logo-outil » existe (en dernier) et aucune entrée du registre n'en porte (C8-L04)", () => {
+    expect(TYPES_PIECE[TYPES_PIECE.length - 1]).toBe("logo-outil");
+    expect(DROITS.filter((d) => d.type === "logo-outil")).toEqual([]);
+  });
+
   it("chaque entrée est complète et son identifiant = son nom de fichier", () => {
     for (const d of DROITS) {
       expect(TYPES_PIECE).toContain(d.type);
