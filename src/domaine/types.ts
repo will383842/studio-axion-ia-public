@@ -333,6 +333,7 @@ export interface ValeurStyleSousTitres {
    * le groupe dans une pastille pleine, le mot dit en orange clair. Absent : inchangé.
    */
   pastille?: "axion" | "axion-ardoise";
+  texteEcran?: import("./texte-ecran").ReglagesTexteEcran;
 }
 
 /** Style de montage (B.2). */

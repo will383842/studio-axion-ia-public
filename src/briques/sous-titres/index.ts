@@ -15,6 +15,7 @@ import type {
   SegmentSousTitres,
   ValeurStyleSousTitres,
 } from "@/domaine/types";
+import type { CibleMarqueur, ReglagesTexteEcran, TeinteMarqueur } from "@/domaine/texte-ecran";
 import { motsSousTitres } from "@/domaine/derivations";
 import { phrasesTropDenses } from "@/domaine/lecture";
 import { sourceMotif } from "@/domaine/prononciations";
@@ -27,7 +28,15 @@ import { elementDe, largeurElement, type DonneesCalque, type SurlignageSousTitre
 import { baseDe, couleursDepuisMarque, gabaritDe, GABARITS, type CouleursSousTitres } from "./style";
 import { PASTILLE_AXION, PASTILLE_AXION_ARDOISE } from "./pastille";
 import { normaliser } from "./typographie";
-import type { BaseRendu, GabaritRendu, SegmentRendu, StyleBibliothequeRendu } from "./types-rendu";
+import type {
+  BaseRendu,
+  CibleMarqueurRendu,
+  GabaritRendu,
+  ReglagesTexteEcranRendu,
+  SegmentRendu,
+  StyleBibliothequeRendu,
+  TeinteMarqueurRendu,
+} from "./types-rendu";
 
 export * from "./groupement";
 export * from "./largeur";
@@ -50,7 +59,10 @@ const verifierTypes: [
   Egaux<BaseSousTitres, GabaritRendu>,
   Egaux<GabaritSousTitres, GabaritRendu>,
   ValeurStyleSousTitres extends StyleBibliothequeRendu ? true : false,
-] = [true, true, true, true];
+  Egaux<ReglagesTexteEcran, ReglagesTexteEcranRendu>,
+  Egaux<TeinteMarqueur, TeinteMarqueurRendu>,
+  Egaux<CibleMarqueur, CibleMarqueurRendu>,
+] = [true, true, true, true, true, true, true];
 void verifierTypes;
 
 export interface DemandeSousTitres {
