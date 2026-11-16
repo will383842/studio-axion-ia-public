@@ -17,6 +17,7 @@ vi.mock("@/services/retouche-chat/generateurs-studio", () => ({
     };
   },
 }));
+vi.mock("@/services/_commun", () => ({ lireParametre: async (_id: string, defaut: unknown) => defaut, depots: () => ({ versions: { obtenir: async () => null } }) }));
 vi.mock("@/services/retouche-chat/studio", () => ({ portsStudio: () => ({ appeler: async () => ({ texte: "" }), lireVersionChoisie: async () => null, enregistrerVersion: async () => ({ versionId: "x" }), choisirVersion: async () => undefined }) }));
 
 import { POST } from "@/app/api/retouche-chat/route";
@@ -42,13 +43,13 @@ describe("route du chat de retouche avec un générateur", () => {
     expect((await POST(requete({ action: "apercu", videoId: "v", demande: "zoom", generateur: "tableau-anime" }))).status).toBe(400);
   });
 
-  it("réglage allumé : l'aperçu passe par les ports du générateur ; sans générateur, route R1 inchangée", async () => {
+  it("réglage allumé : l'aperçu passe par les ports du générateur ; sans générateur et interrupteur `retoucheChat.sansGenerateur` éteint : 403", async () => {
     etat.actif = true;
     const r = await POST(requete({ action: "apercu", videoId: "v", demande: "zoom", generateur: "image-video" }));
     expect(r.status).toBe(200);
     expect(etat.appels).toEqual(["image-video"]);
     etat.actif = false;
-    expect((await POST(requete({ action: "apercu", videoId: "v", demande: "zoom" }))).status).toBe(200);
+    expect((await POST(requete({ action: "apercu", videoId: "v", demande: "zoom" }))).status).toBe(403);
   });
 });
 

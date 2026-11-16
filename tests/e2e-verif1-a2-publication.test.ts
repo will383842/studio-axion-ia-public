@@ -92,6 +92,8 @@ const videos = await import("@/services/videos");
 const credits = await import("@/services/credits");
 const gc = await import("@/services/generation-claude");
 const { ecrireParametre, fournisseur } = await import("@/services/_commun");
+const { injecterClientZernio } = await import("@/services/zernio");
+const { creerFauxClientZernio } = await import("./zernio/aides/faux-zernio");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
 const { RAPPEL_VOTRE_MARQUE } = await import("@/domaine/votre-marque");
 const { HASHTAGS_TIKTOK_PAR_DEFAUT } = await import("@/reseaux/hashtags");
@@ -157,7 +159,19 @@ beforeEach(async () => {
   await ecrireParametre("reseaux.parDefaut", ["linkedin", "facebook", "tiktok"]);
 });
 
+const CLE_ZERNIO_AVANT = process.env.ZERNIO_API_KEY;
+/** Relie un faux Zernio (clé fictive + faux client, aucun réseau) : seules les gardes essai/exemple peuvent alors refuser. */
+function relierFauxZernio() {
+  process.env.ZERNIO_API_KEY = "exemple-cle-fictive-ne-pas-utiliser-a2";
+  const faux = creerFauxClientZernio();
+  injecterClientZernio(faux.client);
+  return faux;
+}
+
 afterEach(() => {
+  if (CLE_ZERNIO_AVANT === undefined) delete process.env.ZERNIO_API_KEY;
+  else process.env.ZERNIO_API_KEY = CLE_ZERNIO_AVANT;
+  injecterClientZernio(null);
   credits.injecterLecteursPourEssai(null);
   gc.injecterClaudePourEssai(null);
   vi.unstubAllGlobals();
@@ -374,7 +388,9 @@ describe("A2 — aujourd'hui (« Montage réel » éteint) : la vidéo est une v
     // CORRIGÉ aussi : Claude n'écrit (ni ne fait payer) aucun texte pour une vidéo d'essai.
     expect(claude.appels).toHaveLength(0);
     await cocherFab();
-    await expect(pub.envoyerVersBuffer(FAB, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(/essai|démonstration|Zernio n'est pas relié/i);
+    const zernio = relierFauxZernio();
+    await expect(pub.envoyerVersBuffer(FAB, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toMatchObject({ code: "VIDEO_ESSAI" });
+    expect(zernio.faux.appels).toHaveLength(0);
     expect(fb().mutations()).toHaveLength(0);
   });
 
@@ -388,7 +404,9 @@ describe("A2 — aujourd'hui (« Montage réel » éteint) : la vidéo est une v
     const EXEMPLE = "v-15";
     for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(EXEMPLE, c, true);
     expect((await depots().videos.obtenir(EXEMPLE))!.estDemo).toBe(true);
-    await expect(pub.envoyerVersBuffer(EXEMPLE, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toThrow(/exemple|Zernio n'est pas relié/i);
+    const zernio = relierFauxZernio();
+    await expect(pub.envoyerVersBuffer(EXEMPLE, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinPage] } })).rejects.toMatchObject({ code: "VIDEO_EXEMPLE" });
+    expect(zernio.faux.appels).toHaveLength(0);
     expect(fb().mutations()).toHaveLength(0);
   });
 });

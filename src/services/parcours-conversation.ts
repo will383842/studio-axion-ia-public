@@ -24,11 +24,11 @@ import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, orig
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, FENETRE_ENVOI_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
-import { classerOpposition, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
+import { classerOpposition, exprimeUnRefus, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
-import { rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
+import { GROUPES_MP, rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { choisirFormulation, EQUIVALENTS_FIGES } from "@/domaine/guide-reseau/formulations";
 import { siteAccepteVersionM1 } from "@/domaine/guide-reseau/versions-acceptees-site";
 import { formeLienPageGuide, texteDuDictionnaire } from "@/fournisseurs/publication/zernio-inbox-corps";
@@ -762,6 +762,23 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   const choisie: { version?: string } = {};
   // Le repli demande l'adresse e-mail : une formulation validée du groupe « m1-adresse » si elle existe, sinon mp-m1-v2 (inchangé).
   const repli = async (code: CodeRepliLien) => {
+    // Version avec mention d'information RGPD (groupe « m1-adresse-rgpd ») : prise SEULEMENT si le fondateur l'a validée sur /mots (empreinte exacte)
+    // et si la conversation n'est pas déjà figée sur une autre version (jamais de changement de texte en cours de conversation). Sinon : inchangé.
+    const figeeAdresse = e.formulations?.["m1-adresse"];
+    if (!figeeAdresse || GROUPES_MP["m1-adresse-rgpd"].includes(figeeAdresse as IdTexteMp)) {
+      const r = choisirFormulation({
+        groupe: "m1-adresse-rgpd",
+        cleConversation: e.cleIdempotenceGuide,
+        derniereValidee: true, // plusieurs versions validées : la plus récente ; une seule (v6-1) : inchangé
+        figee: figeeAdresse,
+        validees: await formulationsValidees(),
+        rendre: (v) => rendreTexteMp(v, { mot, titre }),
+        conforme: (t) => texteDuDictionnaire(t, false),
+      });
+      // Conversation figée sur la version RGPD dont la validation a été retirée : même journal que pour les autres versions (aucune donnée personnelle).
+      if (figeeAdresse && (r === null || r.figeeAbandonnee)) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+      if (r !== null) return { texte: r.texte, version: r.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), formulationAdresse: r.version };
+    }
     const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot, titre } });
     return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
   };
@@ -1259,7 +1276,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     }
   }
   // Classé UNE fois : opposition claire, doute, ou rien.
-  const classe = classerOpposition(lu.texte);
+  let classe = classerOpposition(lu.texte);
+  // Dans tout état accepté sauf les états Instagram « OK » : un refus ou une demande de retrait SANS adresse passe en doute (jamais la relance « adresse non reconnue »).
+  if (classe === "non" && s0.action !== "lire_opposition" && etat.etat !== "ig_attente_ok" && etat.etat !== "ig_pas_encore" && extraireAdresse(lu.texte) === null && exprimeUnRefus(lu.texte)) classe = "doute";
   if (s0.action === "lire_opposition") {
     // État où le message est ignoré (terminé, expiré, refusé…) : on y repère SEULEMENT une opposition ; un doute alerte, l'état reste inchangé.
     if (classe === "opposition") await opposerEnPrive_(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
