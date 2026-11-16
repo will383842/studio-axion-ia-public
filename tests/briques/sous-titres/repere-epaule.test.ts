@@ -15,7 +15,6 @@ vi.mock("remotion", () => ({
 import { rapportContraste } from "@/briques/habillage/contraste";
 import { MARQUEURS } from "@/briques/sous-titres/marqueur";
 import { geometrieRepere, POLICE_REPERE, REPERE_EPAULE_ACTIF, type ParametresRepere } from "@/briques/sous-titres/repere-epaule";
-import { RepereEpaule } from "../../../studio-rendu/compositions/sous-titres/RepereEpaule";
 
 const base: ParametresRepere = { x: 0.3, y: 0.5, cote: "gauche", texte: "Pause café", teinte: "terracotta" };
 const TEINTES = ["terracotta", "ivoire", "ardoise"] as const;
@@ -96,7 +95,12 @@ describe("repère épaule", () => {
     expect(readFileSync("src/briques/sous-titres/repere-epaule.ts", "utf8")).not.toMatch(/from\s+["']@\//);
   });
 
-  it("(h) rien de dessiné quand la géométrie est null", () => {
+  it("(h) rien de dessiné quand la géométrie est null", async () => {
+    // Chemin calculé : `studio-rendu` a son propre `remotion` (absent à la racine) ; tsc racine ne doit pas suivre ce fichier.
+    const chemin = "../../../studio-rendu/compositions/sous-titres/RepereEpaule";
+    const { RepereEpaule } = (await import(/* @vite-ignore */ chemin)) as {
+      RepereEpaule: (p: ParametresRepere) => ReturnType<typeof createElement> | null;
+    };
     expect(renderToStaticMarkup(createElement(RepereEpaule, { ...base, texte: "" }))).toBe("");
     expect(renderToStaticMarkup(createElement(RepereEpaule, base))).toContain("Pause café");
   });
