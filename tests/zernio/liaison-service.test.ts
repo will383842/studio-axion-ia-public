@@ -796,14 +796,14 @@ describe("LIA-C · correctifs de l'audit (réglage allumé)", () => {
     });
   });
 
-  it("cible d'essai (`test: true`) : traitée comme inconnue, `cible_inconnue`, événement clos, rien ne part", async () => {
+  it("cible d'essai (`test: true`) sans liste d'auteurs : écartée en silence, `essai_auteur_refuse`, événement clos, rien ne part", async () => {
     await activer("ALPHA");
     const cat = catalogue([["ALPHA", "gde-essai01"]], ["gde-essai01"]);
     cat.catalogue[1] = { ...cat.catalogue[1], test: true };
     etat.catalogue = cat;
     const evt = await commenter("ALPHA");
     await passer(T0);
-    expect(await decrire(evt)).toBe("ecarte/cible_inconnue");
+    expect(await decrire(evt)).toBe("ecarte/essai_auteur_refuse");
     expect(banc.port.total()).toBe(0);
   });
 
