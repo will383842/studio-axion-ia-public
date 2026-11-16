@@ -14,7 +14,8 @@ const normaliser = (s: string) =>
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s,.'-]/gu, "")
-    .trim();
+    .trim()
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
 
 const NOMBRES_LETTRES = new Set([
   "zero", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize",
@@ -32,7 +33,9 @@ function estNombre(mot: string): boolean {
 
 /**
  * Garde les groupes qui contiennent un mot-clé fourni ou un nombre ; les autres gardent leurs bornes mais n'ont
- * plus de mots (sans texte). Éteint (`actif` absent ou différent de `true`) : copie égale de l'entrée.
+ * plus de mots (sans texte). La ponctuation de bord collée au mot (« trois. », « devis, ») est ignorée.
+ * Limites connues : « neuf » (adjectif) compte comme nombre ; un mot-clé de plusieurs mots n'est jamais trouvé
+ * (comparaison mot à mot). Éteint (`actif` absent ou différent de `true`) : copie égale de l'entrée.
  */
 export function filtrerSelectif(
   groupes: readonly SegmentRendu[],

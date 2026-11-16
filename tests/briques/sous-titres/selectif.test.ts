@@ -58,6 +58,15 @@ describe("sous-titres sélectifs", () => {
     expect(t("une", "chance")).toBe(false);
     expect(t("bonjour")).toBe(false);
   });
+  it("ponctuation collée : « trois. », « trois, », « 30 %, » gardés ; « devis. » reconnu comme mot-clé", () => {
+    const t = (cles: string[], ...m: string[]) => filtrerSelectif([seg("x", 0, 1, ...m)], cles, true)[0]!.mots.length > 0;
+    expect(t([], "trois.")).toBe(true);
+    expect(t([], "trois,")).toBe(true);
+    expect(t([], "30", "%,")).toBe(true);
+    expect(t(["devis"], "Votre", "devis.")).toBe(true);
+    expect(t(["devis."], "devis")).toBe(true);
+    expect(t([], "bonjour.")).toBe(false);
+  });
   it("n'altère pas l'entrée", () => {
     const copie = structuredClone(groupes);
     filtrerSelectif(groupes, [], true);
