@@ -12,6 +12,7 @@ import { normaliserMot } from "@/domaine/guide-reseau/mot-normalise";
 import { estMotOpposition } from "@/domaine/guide-reseau/opposition";
 import { MOT_GUIDE } from "@/domaine/guide-reseau/empreinte-mot";
 import { lireParametre } from "./_commun";
+import { etatSiMotExiste, motEstActif, motsActifsSurCible, phraseCiblePartagee, phraseMotExiste, PHRASE_MOT_ACTIF_PAUSE_D_ABORD } from "@/domaine/guide-reseau/mots-doublons";
 import { apercuTextesMot, validerTextesMot, verifierActivationMot, type ApercuReseau } from "./mots-validation-par-mot";
 import { comptesParcours, titreGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { guideFichierPresent } from "./mots-guide-source";
@@ -142,12 +143,18 @@ export async function gesteCreerMot(mot: string, codeCible: string): Promise<Res
   const site = await lireCiblesSite();
   // Site injoignable, ou simple copie : on n'écrit pas (aucune nouvelle liaison depuis une copie).
   if (site === null || site.depuisCopie) return non("site_injoignable");
-  if (site.liaisons.some((l) => l.actif && l.mot === m)) return non("mot_existe");
+  // Doublon : même mot (casse et accents ignorés) au tableau OU au registre, quel que soit son état. Blocage, aucune écriture.
+  const registre = Object.values(await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {}));
+  const etatExistant = etatSiMotExiste(m, site.liaisons, registre);
+  if (etatExistant !== null) return non("mot_existe", phraseMotExiste(etatExistant));
   const cible = typeof codeCible === "string" ? site.catalogue.find((e) => e.code === codeCible) : undefined;
   if (!cible) return non("cible_inconnue");
   if (!cible.actif) return non("cible_inactive");
   const r = await lierMot({ mot: m, reseau: "tous", codeCible: cible.code });
-  return r.ok ? { ok: true, raison: "mot_cree" } : non("site_refuse", r.phrase);
+  if (!r.ok) return non("site_refuse", r.phrase);
+  // Alerte NON bloquante : la cible sert déjà à un autre mot actif.
+  const alerte = phraseCiblePartagee(motsActifsSurCible(cible.code, m, site.liaisons, registre));
+  return { ok: true, raison: "mot_cree", ...(alerte ? { phrase: `Mot créé en brouillon.${alerte}` } : {}) };
 }
 
 /** Pause de chaque ligne LOCALE active d'un mot (jamais d'effacement). Renvoie le nombre de comptes mis en pause et le nombre de lignes actives posées chez Zernio (non touchées). */
@@ -183,6 +190,9 @@ export async function gesteChangerCible(mot: string, codeCible: string): Promise
   const cible = typeof codeCible === "string" ? site.catalogue.find((e) => e.code === codeCible) : undefined;
   if (!cible) return non("cible_inconnue");
   if (!cible.actif) return non("cible_inactive");
+  // Un mot ACTIF ne change pas de cible : il faut d'abord le mettre en pause (aucune écriture, rien n'est modifié).
+  const registre = Object.values(await lireParametre<Record<string, LigneMot>>(PARAM_REGISTRE_MOTS, {}));
+  if (motEstActif(m, registre)) return non("mot_actif_pause_d_abord", PHRASE_MOT_ACTIF_PAUSE_D_ABORD);
   const etapes: Array<"tous" | (typeof propres)[number]["reseau"]> = ["tous", ...propres.map((l) => l.reseau)];
   let faites = 0;
   let partie = false;
@@ -203,7 +213,10 @@ export async function gesteChangerCible(mot: string, codeCible: string): Promise
     (chezZernio > 0 ? ` ${chezZernio} ligne(s) posée(s) chez Zernio restent actives : mettez-les en pause depuis la pause habituelle.` : "");
   if (echec !== null)
     return non("site_refuse", `La cible n'a changé que sur ${faites} réseau(x) sur ${etapes.length} : ${echec}${pause}`);
-  return { ok: true, raison: "cible_changee", ...(pause ? { phrase: `Cible changée.${pause}` } : {}) };
+  // Alerte NON bloquante : la nouvelle cible sert déjà à un autre mot actif.
+  const alerte = phraseCiblePartagee(motsActifsSurCible(cible.code, m, site.liaisons, registre));
+  const phrase = `${pause || alerte ? "Cible changée." : ""}${pause}${alerte}`;
+  return { ok: true, raison: "cible_changee", ...(phrase ? { phrase } : {}) };
 }
 
 /** Les textes d'un mot, réseau par réseau (lecture seule). */
