@@ -3,8 +3,6 @@
 // Règle RC-43 : sur LinkedIn et TikTok, JAMAIS de réponse ni de message automatique ; ce module ne fait que lire.
 import { createHash } from "node:crypto";
 import { type EnveloppeZernio, TYPE_EVENEMENT_COMMENTAIRE, motSeulDe } from "./crochet-zernio";
-import { estMotOpposition } from "./opposition";
-import { normaliserMot } from "./mot-normalise";
 
 const RE_OPAQUE = /^[A-Za-z0-9_-]{1,128}$/;
 const RE_URN = /^urn:li:[A-Za-z]+:[A-Za-z0-9_(),:-]{1,160}$/;
@@ -65,7 +63,7 @@ export function lireCommentaireManuel(env: EnveloppeZernio, motsConnus?: readonl
   const proprio = auteur?.isOwnAccount === true || auteur?.isSelf === true || c.isOwn === true || (idAuteur !== undefined && (idAuteur === idCompte || idAuteur === id(compte?.platformAccountId)));
   const texte = typeof c.text === "string" && c.text.length <= 200 ? c.text : null;
   const garde = texte === null ? null : motSeulDe(texte, motsConnus);
-  const motSeul = garde === null ? null : estMotOpposition(garde) ? garde : normaliserMot(garde);
+  const motSeul = garde; // forme canonique déjà rendue par `motSeulDe` : pas de nouvelle normalisation
   return {
     idCommentaire,
     idCompte,

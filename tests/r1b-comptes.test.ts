@@ -270,7 +270,7 @@ describe("R1b — écrans", () => {
 
   it("la feuille d'envoi passe les comptes cochés et ne coche jamais d'office un compte non choisi", async () => {
     const { readFileSync } = await import("node:fs");
-    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyerBuffer.tsx", import.meta.url), "utf8");
+    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyer.tsx", import.meta.url), "utf8");
     expect(f).toMatch(/envoyerVersBufferAction\(videoId, reseaux, dateIso\(\), autreReseau, comptes\)/);
     expect(f).toMatch(/casesParDefaut/);
     expect(f).not.toMatch(/Simulation/);

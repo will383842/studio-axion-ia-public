@@ -5,7 +5,7 @@ import { BarreActionCollee } from "@/components/ui/BarreActionCollee";
 import { Bouton, BoutonIcone } from "@/components/ui/Bouton";
 import { notifier } from "@/components/ui/Toast";
 import { useVideo } from "./ContexteVideo";
-import { FeuilleEnvoyerBuffer } from "./FeuilleEnvoyerBuffer";
+import { FeuilleEnvoyer } from "./FeuilleEnvoyer";
 import { FeuilleTelecharger } from "./FeuilleTelecharger";
 
 /**
@@ -22,7 +22,7 @@ export function allerAuxVerifications(nbCochees: number, total: number) {
 /**
  * Actions de la fiche d'une vidéo prête, collées en bas sur mobile :
  * Télécharger · Lien privé · PUBLIER (actif quand « Avant de publier » est complet).
- * Porte aussi les trois feuilles (Télécharger, Partager, Buffer).
+ * Porte aussi les trois feuilles (Télécharger, Partager, Envoyer).
  */
 /** `libellePublier` (plan facecam v4, lot D, facultatif) : « Valider et publier » sur « Votre vidéo » ; absent : « Publier ». */
 /** `avecOngletPublier` : la fiche porte l'onglet Publier ; sinon le bouton « Publier » n'aurait nulle part où mener et n'est pas montré. */
@@ -47,7 +47,7 @@ export function BarreActionsVideo({ libellePublier = "Publier", avecOngletPublie
       </BarreActionCollee>
       <FeuilleTelecharger />
       <FeuillePartager />
-      <FeuilleEnvoyerBuffer />
+      <FeuilleEnvoyer />
     </>
   );
 }

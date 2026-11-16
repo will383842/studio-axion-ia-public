@@ -6,11 +6,13 @@
  *  - face caméra : jamais devant le visage ; transitions douces ;
  *  - repli d'un niveau par scène : 3 (code libre, désactivé) → 2 → 1 ; niveau 2 sans calque valide → pièce niveau 1
  *    la plus proche. Une entrée illisible donne un plan de repli (une scène par fait du script, zéro scène s'il n'y en a pas).
+ *
+ * Porte C9-33 : la famille objet est fermée tant que `objetsPermis` est vide (défaut). Les pièces arrivent avec C9-34 ; la liste vient de `porteCapacite` (C1-U10) par C9-35.
  */
 import { z } from "zod";
 import { CHARTE_AXION, POLICE_AXION, TEINTES_INTERDITES } from "../jetons-motion";
 import { faitsDuScript, familleUnite, type ElementFait, type Fait } from "../faits-script";
-import { CATALOGUE_BRIQUES, pieceLaPlusProche, poserInstantsSurMot, type IdPiece } from "./catalogue";
+import { CATALOGUE_BRIQUES, pieceLaPlusProche, poserInstantsSurMot, type DefinitionBrique, type IdPiece } from "./catalogue";
 import { appliquerControles } from "./controles";
 import { avecEmpreintes } from "./empreinte";
 import { schemaFormat, schemaMot, schemaPlanBrut, VERSION_PLAN_SCENES, type Calque, type FormatPlan, type HabillagePlan, type MotMinute, type Niveau, type PlanValide, type ScenePlan } from "./schema";
@@ -30,6 +32,7 @@ export type CodeRemarque =
   | "SCENE_RETIREE"
   | "ID_SCENE"
   | "PIECE_INCONNUE"
+  | "OBJET_NON_PERMIS"
   | "PARAMETRES_REPARES"
   | "CALQUE_RETIRE"
   | "REPLI_NIVEAU_1"
@@ -65,6 +68,8 @@ export interface ContexteValidation {
   dureeMs?: number;
   /** Bande des sous-titres (en % de l'image) que les scènes ne couvrent pas ; défaut `BANDE_SOUS_TITRES_DEFAUT`. */
   bandeSousTitres?: Rectangle;
+  /** Ids des pièces de la famille objet permises (porte C9-33) ; défaut : aucune. */
+  objetsPermis?: readonly string[];
 }
 
 export interface ResultatValidation {
@@ -377,10 +382,13 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
 
     // Pièce niveau 1 (toujours présente : c'est aussi le repli des niveaux 2 et 3).
     const pieceDemandee = s.piece;
-    let piece = pieceLaPlusProche(pieceDemandee, texteScene);
+    const objetsPermis = contexte.objetsPermis ?? [];
+    const objetRefuse = (id: unknown) => typeof id === "string" && Object.hasOwn(CATALOGUE_BRIQUES, id) && (CATALOGUE_BRIQUES[id as IdPiece] as DefinitionBrique).famille === "objet" && !objetsPermis.includes(id);
+    let piece = pieceLaPlusProche(pieceDemandee, texteScene, objetsPermis);
     let parametres: unknown;
     if (piece !== pieceDemandee) {
-      signaler("PIECE_INCONNUE", `Pièce « ${String(pieceDemandee ?? "aucune")} » inconnue : « ${CATALOGUE_BRIQUES[piece].nom} » à la place.`);
+      if (objetRefuse(pieceDemandee)) signaler("OBJET_NON_PERMIS", `Objet non permis : « ${String(pieceDemandee)} » remplacé par « ${CATALOGUE_BRIQUES[piece].nom} ».`);
+      else signaler("PIECE_INCONNUE", `Pièce « ${String(pieceDemandee ?? "aucune")} » inconnue : « ${CATALOGUE_BRIQUES[piece].nom} » à la place.`);
       parametres = parametresDepuisTexte(piece, texteScene);
     } else {
       const r = reparerParametres(piece, nettoyerCharte(s.parametres, "", signaler));
@@ -394,6 +402,10 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
     if (Array.isArray(s.calques)) {
       s.calques.slice(0, 6).forEach((cBrut, i) => {
         const c = estObjet(cBrut) ? cBrut : {};
+        if (objetRefuse(c.piece)) {
+          signaler("OBJET_NON_PERMIS", `Calque ${i + 1} : objet non permis « ${String(c.piece)} », retiré.`);
+          return;
+        }
         if (typeof c.piece !== "string" || !Object.hasOwn(CATALOGUE_BRIQUES, c.piece)) {
           signaler("CALQUE_RETIRE", `Calque ${i + 1} : pièce « ${String(c.piece ?? "aucune")} » inconnue, retiré.`);
           return;
@@ -411,7 +423,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
       niveau = 2;
     }
     if (niveau === 2 && calques.length === 0) {
-      if (pieceDemandee !== piece) piece = pieceLaPlusProche(Array.isArray(s.calques) ? (s.calques.find(estObjet)?.piece ?? pieceDemandee) : pieceDemandee, texteScene);
+      if (pieceDemandee !== piece) piece = pieceLaPlusProche(Array.isArray(s.calques) ? (s.calques.find(estObjet)?.piece ?? pieceDemandee) : pieceDemandee, texteScene, objetsPermis);
       if (pieceDemandee !== piece) parametres = parametresDepuisTexte(piece, texteScene);
       signaler("REPLI_NIVEAU_1", `Composition impossible : pièce en stock « ${CATALOGUE_BRIQUES[piece].nom} ».`);
       niveau = 1;

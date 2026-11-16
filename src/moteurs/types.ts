@@ -121,7 +121,9 @@ export type OperationMontage =
   | { type: "corrigerMot"; segmentSousTitresId: string; indexMot: number; mot: string }
   | { type: "modifierTitre"; texte: string }
   | { type: "refaireSegmentVoix"; segmentId: string; texte?: string }
-  | { type: "ajusterRythme"; sens: "plus-rapide" | "plus-lent"; depuisSec?: number; jusquaSec?: number };
+  | { type: "ajusterRythme"; sens: "plus-rapide" | "plus-lent"; depuisSec?: number; jusquaSec?: number }
+  // D4-F2 : plan de scènes retouché par le chat (démo facecam) ; ignoré par les autres moteurs.
+  | { type: "planScenes"; plan: unknown };
 
 /** Ce qui est déjà payé, fourni par le service à partir de VersionVideo et Piste (le moteur ne lit pas les dépôts). */
 export interface ParentRetouche {

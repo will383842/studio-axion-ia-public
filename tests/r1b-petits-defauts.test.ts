@@ -183,7 +183,7 @@ describe("R1b · petits défauts — mémoire, refus, libellés", () => {
   });
 
   it("ROUGE 5 bis : la feuille d'envoi dit « comptes », accordés, sans « réseau(x) » ni « autre(s) »", () => {
-    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyerBuffer.tsx", import.meta.url), "utf8");
+    const f = readFileSync(new URL("../src/components/publication/FeuilleEnvoyer.tsx", import.meta.url), "utf8");
     expect(f).toMatch(/libelleComptes\(n\)/);
     expect(f).not.toMatch(/réseau\$\{n > 1 \? "x" : ""\}/);
     expect(f).not.toMatch(/autre\(s\)|réseau\(x\)/);

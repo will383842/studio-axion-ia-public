@@ -62,11 +62,13 @@ export async function validationPourEnvoi(
   env?: Record<string, string | undefined>,
   maintenantMs?: number,
   compte?: string,
+  /** Vrai seulement si l'appelant a revérifié que l'auteur de la conversation d'essai est toujours listé. Absent = faux (cible d'essai refusée). */
+  auteurEssaiOk?: boolean,
 ): Promise<RefusValidationEnvoi | null> {
   if (mot.toUpperCase() === "GUIDE")
     return codeCible === "guide-ia" ? null : "validation_absente";
   if (reseau !== "facebook") return "instagram_pas_encore";
-  return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs, ...(compte !== undefined ? { compte } : {}) });
+  return verifierMotPourEnvoi({ mot, reseau, codeCible, titre, env, maintenantMs, ...(compte !== undefined ? { compte } : {}), ...(auteurEssaiOk === true ? { auteurEssaiOk: true } : {}) });
 }
 
 /** Messages privés à NOTRE initiative (premier envoi ou renvoi) par personne et par 24 h. Les réponses dans la fenêtre (M2, reçu, merci, adresse refusée) ne comptent pas. */
