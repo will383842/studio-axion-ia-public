@@ -27,6 +27,16 @@ describe("1 · le mot GUIDE déclenche le parcours sur un compte Facebook autori
     expect(etats[0]).toMatchObject({ etat: "attente_email", reseau: "facebook", idCompte: COMPTE });
   });
 
+  it.each(["GUIDE svp", "GUIDE merci", "merci GUIDE", "GUIDE s'il vous plaît"])("politesse pure « %s » : réponse publique + M1, état attente_email", async (texte) => {
+    const r = await crochetCommentaire(texte, { reseau: "facebook" });
+    expect(r.deposes).toHaveLength(1);
+    expect(r.deposes[0]).toMatchObject({ motSeul: "GUIDE" });
+    await passer();
+    expect(banc.port.pub).toHaveLength(1);
+    expect(banc.port.prive).toHaveLength(1);
+    expect(Object.values(await toutesLesConversations())[0]).toMatchObject({ etat: "attente_email" });
+  });
+
   it.each(["\tGuide\t", "GUIDE\n", "\nguide"])("COMPORTEMENT SURPRENANT FIGÉ : %j (tabulation ou retour à la ligne autour du mot) n'est PAS reconnu — rien n'est déposé", async (texte) => {
     const r = await crochetCommentaire(texte, { reseau: "facebook" });
     expect(r.statut).toBe(200);
@@ -39,7 +49,7 @@ describe("1 · le mot GUIDE déclenche le parcours sur un compte Facebook autori
     expect(banc.port.prive).toHaveLength(1);
   });
 
-  it.each(["guides", "BONJOUR", "123456789", "super vidéo, merci beaucoup", "guide@exemple.test"])("« %s » n'est pas le mot seul : rien n'est déposé, rien n'est envoyé", async (texte) => {
+  it.each(["guides", "le guide", "pour le guide", "je te guide", "BONJOUR", "123456789", "super vidéo, merci beaucoup", "guide@exemple.test"])("« %s » n'est pas le mot seul : rien n'est déposé, rien n'est envoyé", async (texte) => {
     const r = await crochetCommentaire(texte, { reseau: "facebook" });
     expect(r.statut).toBe(200);
     expect(r.deposes).toHaveLength(0);

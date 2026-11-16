@@ -140,7 +140,7 @@ export function motSeulDe(v: unknown, motsConnus: readonly string[] = MOTS_DECLE
   const t = texteBorne(v, 200);
   if (t === null) return null;
   if (estMotOpposition(t)) return formeCanonique(t); // forme canonique (« STOP »), jamais le texte brut
-  return motAvecPolitesse(t, motsConnus); // forme canonique (« GUIDE ») : jamais le texte brut ; accepte « GUIDE merci », « je veux le guide »
+  return motAvecPolitesse(t, motsConnus); // forme canonique (« GUIDE ») : jamais le texte brut ; accepte « GUIDE merci », « merci GUIDE »
 }
 
 export interface EvenementCommentaire {
