@@ -7,7 +7,7 @@ import { largeurMot } from "../../../src/briques/sous-titres/mesure";
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
-const delayRender = vi.fn((_: string) => Math.random());
+const delayRender = vi.fn((libelle: string) => libelle.length + Math.random());
 const continueRender = vi.fn();
 vi.mock("remotion", () => ({ delayRender: (l: string) => delayRender(l), continueRender: (h: number) => continueRender(h) }));
 vi.mock("../../../src/briques/sous-titres/polices/Manrope-Medium.ttf", () => ({ default: "medium.ttf" }));
@@ -64,7 +64,11 @@ describe("C2-U3 : graisses Manrope", () => {
       vi.stubGlobal("document", { fonts: { add: vi.fn() } });
     });
     it("une promesse et un delayRender par police, union des demandes", async () => {
-      const m = await import("../../../studio-rendu/compositions/sous-titres/polices");
+      // Chemin calculé : `studio-rendu` a son propre `remotion` (absent à la racine) ; tsc racine ne doit pas suivre ce fichier.
+      const chemin = "../../../studio-rendu/compositions/sous-titres/polices";
+      const m = (await import(/* @vite-ignore */ chemin)) as {
+        chargerPolices: (noms?: readonly string[]) => unknown;
+      };
       await m.chargerPolices();
       expect(faces.map((f) => f.famille).sort()).toEqual(["Axion Manrope ExtraBold", "Axion Manrope Medium"]);
       expect(delayRender).toHaveBeenCalledTimes(2);
