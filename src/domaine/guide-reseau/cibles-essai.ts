@@ -38,3 +38,26 @@ export function cibleEssaiPermise(
   if (typeof compte !== "string" || compte === "") return false;
   return comptesEssai(env).includes(compte);
 }
+
+export const VARIABLE_ESSAI_AUTEURS = "PARCOURS_ESSAI_AUTEURS";
+/** Au plus trois auteurs d'essai. */
+export const ESSAI_AUTEURS_MAX = 3;
+
+/**
+ * Liste des auteurs de commentaire admis sur une cible d'essai (même forme que les comptes).
+ * Vide si la variable est absente, vide, trop longue ou si UNE entrée est mal formée.
+ */
+export function auteursEssai(env: Env): readonly string[] {
+  const brut = env[VARIABLE_ESSAI_AUTEURS];
+  if (typeof brut !== "string" || brut.trim() === "") return [];
+  const entrees = brut.split(",").map((x) => x.trim());
+  if (entrees.length > ESSAI_AUTEURS_MAX) return [];
+  if (!entrees.every((x) => RE_ID_COMPTE.test(x))) return [];
+  return entrees;
+}
+
+/** Vrai seulement si l'auteur du commentaire est listé. Liste absente, vide ou invalide : personne (échec fermé). */
+export function auteurEssaiPermis(env: Env, auteur: string | undefined | null): boolean {
+  if (typeof auteur !== "string" || auteur === "") return false;
+  return auteursEssai(env).includes(auteur);
+}

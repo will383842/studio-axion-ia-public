@@ -40,7 +40,7 @@ import type { JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { mettreEnFileOpposition } from "./oppositions-transmission";
 import { creerNotification } from "./notifications";
 import { lireCiblesSite } from "./cibles-site";
-import { cibleEssaiPermise } from "@/domaine/guide-reseau/cibles-essai";
+import { auteurEssaiPermis, cibleEssaiPermise } from "@/domaine/guide-reseau/cibles-essai";
 import { chercherRacine, formesDe, lireDossier, marquerDossierOppose, mettreEnFileDossier, opposerDossier, passerDossierOppose, racineDeLaPersonne, reserverParcours, textesValidesPourLeMot, validationPourEnvoi } from "./parcours-dossier";
 import { motsMultiplesActifs } from "./parcours-mots-multiples";
 import { appliquerReglageParcours, type EtatReglagesParcours, type ReglageParcours, type ResultatReglage } from "./parcours-reglages";
@@ -510,7 +510,7 @@ const ATTENTE_CATALOGUE_MS = 60_000;
 type CibleDuMot = { genre: "ok"; code: string; titre: string; essai?: true } | { genre: "inconnue" } | { genre: "illisible" };
 
 /** Cible d'un mot. GUIDE sans catalogue (ou sans liaison pour GUIDE) : `guide-ia` + titre du serveur. Autre mot, catalogue illisible : « illisible » (reporté). */
-async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string, d: DepsConversation, env: Env, now: number): Promise<CibleDuMot> {
+async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string, idAuteur: string | null | undefined, d: DepsConversation, env: Env, now: number): Promise<CibleDuMot> {
   const site = await lireCiblesSite({ env, maintenantMs: now });
   const titreServeur = d.titreGuide ?? "";
   if (site === null) return mot === MOT ? { genre: "ok", code: "guide-ia", titre: titreServeur } : { genre: "illisible" };
@@ -518,9 +518,9 @@ async function cibleDuCommentaire(mot: string, reseau: string, idCompte: string,
   if (mot === MOT && r.source === null) return { genre: "ok", code: "guide-ia", titre: titreServeur };
   const el = r.element;
   if (!el || !el.actif || el.type === "adresse") return { genre: "inconnue" };
-  // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ; sinon inconnue, comme avant.
+  // Cible d'essai : seulement pour un compte listé (PARCOURS_ESSAI_COMPTES) sur Facebook ET un auteur listé (PARCOURS_ESSAI_AUTEURS) ; sinon inconnue, comme avant.
   // GUIDE ne lit jamais PARCOURS_ESSAI_COMPTES : une cible d'essai liée à GUIDE reste inconnue.
-  if (el.test) return mot !== MOT && cibleEssaiPermise(env, idCompte, reseauSite(reseau)) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue" };
+  if (el.test) return mot !== MOT && cibleEssaiPermise(env, idCompte, reseauSite(reseau)) && auteurEssaiPermis(env, idAuteur) ? { genre: "ok", code: el.code, titre: el.titre, essai: true } : { genre: "inconnue" };
   // Le texte validé de `guide-ia` est rendu avec le titre du serveur (celui de la validation), jamais un titre du catalogue.
   return { genre: "ok", code: el.code, titre: el.code === "guide-ia" ? titreServeur : el.titre };
 }
@@ -547,7 +547,7 @@ async function traiterCommentaireDossier(ev: EvenementFournisseur, d: DepsConver
   }
   // 3. Cible du mot.
   const mot = String(c.motSeul).trim().toUpperCase();
-  const cible = await cibleDuCommentaire(mot, reseau, idCompte, d, env, now);
+  const cible = await cibleDuCommentaire(mot, reseau, idCompte, auteur, d, env, now);
   if (cible.genre === "illisible") {
     await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
     return "bloque";

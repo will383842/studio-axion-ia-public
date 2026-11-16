@@ -30,8 +30,8 @@ const V = await import("@/services/mots-validation-par-mot");
 const SECRET_LIEN = "secret-fictif-du-lien-0123456789-abcdefghij";
 const AUTRE = "compte-fictif-999";
 const ENV_LIEN = { ...ENV, PARCOURS_CONVERSATION_TITRE_GUIDE: TITRE, PARCOURS_LIEN_GUIDE: "true", GUIDES_RESEAU_LIEN_SECRET: SECRET_LIEN, LIEN_GUIDE_COMPTES: `${COMPTE}=page_principale` };
-const ENV_X = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: COMPTE };
-const ENV_Y = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: AUTRE };
+const ENV_X = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: COMPTE, PARCOURS_ESSAI_AUTEURS: AUTEUR };
+const ENV_Y = { ...ENV_LIEN, PARCOURS_ESSAI_COMPTES: AUTRE, PARCOURS_ESSAI_AUTEURS: AUTEUR };
 const FORMULATIONS = ["mp-m1-v4-1", "mp-adresse-refusee-v3-1", "mp-deja-envoye-v1-1", "mp-lien-v3-1"];
 const MOT = "ESSAICONV";
 const CODE = "gde-essai05";
@@ -322,5 +322,46 @@ describe("Corrections après audit", () => {
     await com("GUIDE", { idCommentaire: "com-c-2" });
     await passer(T0, { env: { ...ENV_LIEN, GUIDES_RESEAU_LIEN_SECRET: undefined } });
     expect(notif).toHaveBeenCalled();
+  });
+});
+
+describe("S11 · auteur d'essai : une cible TEST n'est servie qu'à un auteur listé", () => {
+  const AUTRE_AUTEUR = "auteur-fictif-401";
+  const rien = { pub: 0, prive: 0, envoyes: 0, site: 0 };
+  it("auteur absent de la liste : silence, rien ne part", async () => {
+    const id = await com(MOT, { idAuteur: AUTRE_AUTEUR });
+    await passer(T0, { env: ENV_X });
+    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(instantane()).toEqual(rien);
+    expect(await convs()).toEqual([]);
+  });
+  it("auteur listé : parcours normal", async () => {
+    await com(MOT);
+    await passer(T0, { env: { ...ENV_X, PARCOURS_ESSAI_AUTEURS: `${AUTRE_AUTEUR}, ${AUTEUR}` } });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
+  });
+  it.each([
+    ["absente", undefined],
+    ["vide", ""],
+    ["plus de trois", `${AUTEUR},auteur-fictif-402,auteur-fictif-403,auteur-fictif-404`],
+    ["id mal formé", `${AUTEUR},ab`],
+    ["étoile", "*"],
+  ])("variable %s : fermé", async (_n, v) => {
+    const env: Record<string, string | undefined> = { ...ENV_X, PARCOURS_ESSAI_AUTEURS: v };
+    const id = await com(MOT);
+    await passer(T0, { env });
+    expect(await decrire(id)).toBe("ecarte/cible_inconnue");
+    expect(instantane()).toEqual(rien);
+  });
+  it("cible réelle (GUIDE) : inchangée, sans liste d'auteurs", async () => {
+    await com("GUIDE", { idAuteur: AUTRE_AUTEUR });
+    await passer(T0, { env: ENV_LIEN });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
+  });
+  it("commentaire du propriétaire de la page : toujours écarté", async () => {
+    const id = await com(MOT, { proprio: true } as never);
+    await passer(T0, { env: ENV_X });
+    expect(instantane()).toEqual(rien);
+    expect((await decrire(id)).startsWith("ecarte")).toBe(true);
   });
 });
