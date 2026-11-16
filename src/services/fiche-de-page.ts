@@ -46,6 +46,27 @@ export type VueFiche = Omit<FicheDePage, (typeof CHAMPS_REMPLIS_PAR_LE_FONDATEUR
     donneesStructurees?: Array<Record<string, unknown>>;
   };
 
+/** Valeurs de modification : `null` efface le champ. */
+export type ModificationFiche = { [K in keyof ContenuFiche]?: ContenuFiche[K] | null };
+
+const FORME: Record<keyof ContenuFiche, "chaine" | "tableau" | "objet"> = {
+  slug: "chaine", titre: "chaine", metaDescription: "chaine", h1: "chaine", resume: "chaine", gain: "chaine", appelAction: "chaine",
+  transcription: "chaine", auteur: "chaine", relecteur: "chaine", type: "chaine",
+  pourQui: "tableau", sousTitres: "tableau", questions: "tableau", limites: "tableau", besoins: "tableau", pagesLiees: "tableau", images: "tableau", sources: "tableau",
+  avantApres: "objet", commentCaMarche: "objet", video: "objet", imagePartage: "objet",
+};
+const formeOk = (cle: keyof ContenuFiche, v: unknown): boolean =>
+  FORME[cle] === "chaine" ? typeof v === "string" : FORME[cle] === "tableau" ? Array.isArray(v) : typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Contrôle sans jamais lever : une valeur de forme inattendue devient un défaut, pas une panne. */
+function controleSur(f: FicheDePage): Defaut[] {
+  try {
+    return controlerFiche(f);
+  } catch {
+    return [{ champ: "forme", message: "Une valeur n'a pas la forme attendue : la fiche ne peut pas être contrôlée." }];
+  }
+}
+
 export type Resultat<T> = { ok: true; fiche: T } | { ok: false; erreurs: string[] };
 
 const refus = (...erreurs: string[]): { ok: false; erreurs: string[] } => ({ ok: false, erreurs });
@@ -57,7 +78,7 @@ function vueDe(f: FicheDePage): VueFiche {
   vue.langue = "fr";
   vue.robots = robotsDe(f.statut);
   if (f.slug) vue.canonique = `${CHEMIN_PAGES}/${f.slug}`;
-  if (validee(f) && f.slug) vue.donneesStructurees = genererDonneesStructurees(f, `${CHEMIN_PAGES}/${f.slug}`);
+  if (validee(f) && f.slug) vue.donneesStructurees = genererDonneesStructurees(f, `${CHEMIN_PAGES}/${f.slug}`, { datePublication: f.datePublication, dateMiseAJour: f.dateMiseAJour });
   return vue as unknown as VueFiche;
 }
 
@@ -86,13 +107,16 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
     },
 
     /** Modification à la main de n'importe quel champ de contenu. Tout changement réel ramène la fiche en brouillon. */
-    modifier(id: string, champs: ContenuFiche): Resultat<VueFiche> {
+    modifier(id: string, champs: ModificationFiche): Resultat<VueFiche> {
       const f = depot.lire(id);
       if (!f) return refus("Fiche introuvable.");
       const inconnus = Object.keys(champs).filter((k) => !(CLES_CONTENU as readonly string[]).includes(k));
       if (inconnus.length > 0) return refus(`Champ non modifiable : ${inconnus.join(", ")}.`);
-      if (champs.type !== undefined && !(TYPES_AUTOMATISATION as readonly string[]).includes(champs.type)) return refus("Type d'automatisation : valeur hors liste fermée.");
-      if (champs.besoins !== undefined && champs.besoins.some((b) => !(BESOINS_ENTREPRISE as readonly string[]).includes(b))) return refus("Besoin d'entreprise : valeur hors liste fermée.");
+      const mal = (Object.keys(champs) as Array<keyof ContenuFiche>).filter((k) => champs[k] !== null && champs[k] !== undefined && !formeOk(k, champs[k]));
+      if (mal.length > 0) return refus(`Forme de valeur inattendue : ${mal.join(", ")}.`);
+      if (champs.type != null && !(TYPES_AUTOMATISATION as readonly string[]).includes(champs.type)) return refus("Type d'automatisation : valeur hors liste fermée.");
+      if (champs.besoins != null && champs.besoins.some((b) => !(BESOINS_ENTREPRISE as readonly string[]).includes(b))) return refus("Besoin d'entreprise : valeur hors liste fermée.");
+      if (champs.slug === null) return refus("Adresse : elle ne s'efface pas.");
       if (champs.slug !== undefined && champs.slug !== f.slug) {
         if (f.statut === "publie" || f.dejaPublie) return refus("Adresse : elle ne change jamais après publication.");
         if (!slugValide(champs.slug)) return refus("Adresse : 3 à 6 mots, minuscules, tirets, sans date.");
@@ -103,8 +127,9 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
       for (const cle of CLES_CONTENU) {
         const v = champs[cle];
         if (v === undefined) continue;
-        if (JSON.stringify(v) !== JSON.stringify(f[cle])) change = true;
-        (suivante as unknown as Record<string, unknown>)[cle] = structuredClone(v);
+        if (JSON.stringify(v) !== JSON.stringify(f[cle] ?? null)) change = true;
+        if (v === null) delete suivante[cle];
+        else (suivante as unknown as Record<string, unknown>)[cle] = structuredClone(v);
       }
       if (change) {
         suivante.dateMiseAJour = aujourdhui();
@@ -124,7 +149,7 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
     controler(id: string): { ok: true; defauts: Defaut[] } | { ok: false; erreurs: string[] } {
       const f = depot.lire(id);
       if (!f) return refus("Fiche introuvable.");
-      return { ok: true, defauts: controlerFiche(f) };
+      return { ok: true, defauts: controleSur(f) };
     },
 
     /** Brouillon → à valider, seulement si le contrôle automatique ne relève aucun défaut. */
@@ -132,10 +157,19 @@ export function creerServiceFichesDePage(options: OptionsService = {}) {
       const f = depot.lire(id);
       if (!f) return refus("Fiche introuvable.");
       if (f.statut !== "brouillon") return refus("Seul un brouillon peut être soumis.");
-      const defauts = controlerFiche(f);
+      const defauts = controleSur(f);
+      if (defauts.some((d) => d.champ === "forme")) return refus(...defauts.map((d) => d.message));
       const autres = depot.tous().filter((x) => x.id !== id);
       if (f.titre && autres.some((x) => x.titre === f.titre)) defauts.push({ champ: "titre", message: "Titre de page : déjà utilisé par une autre page (un titre par page)." });
       const adresses = new Set(autres.map((x) => x.slug));
+      const liees = f.pagesLiees ?? [];
+      if (new Set(liees.map((p) => p.adresse)).size !== liees.length) defauts.push({ champ: "pagesLiees", message: "Pages liées : une même page ne compte qu'une fois." });
+      for (const p of liees) {
+        const cible = autres.find((x) => x.slug === p.adresse);
+        if (cible && !(cible.type === f.type || (cible.besoins ?? []).some((b) => (f.besoins ?? []).includes(b)))) {
+          defauts.push({ champ: "pagesLiees", message: "Pages liées : une page liée a le même type ou un besoin commun." });
+        }
+      }
       if (f.pagesLiees?.some((p) => !adresses.has(p.adresse))) defauts.push({ champ: "pagesLiees", message: "Pages liées : une adresse ne correspond à aucune page (aucun lien cassé)." });
       if (defauts.length > 0) return refus(...defauts.map((d) => d.message));
       f.statut = "a_valider";

@@ -97,7 +97,7 @@ export const identifiantValide = (id: string): boolean => ID_RE.test(id);
 export function slugValide(slug: string): boolean {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return false;
   const mots = slug.split("-");
-  return mots.length >= 3 && mots.length <= 6 && !/\d{4}/.test(slug);
+  return mots.length >= 3 && mots.length <= 6 && !/\d{4}/.test(slug) && motInterdit(mots.join(" ")) === undefined;
 }
 
 const MOTS_INTERDITS: Array<[RegExp, string]> = [
@@ -105,12 +105,16 @@ const MOTS_INTERDITS: Array<[RegExp, string]> = [
   [/qualiopi/i, "« Qualiopi »"],
   [/garanti/i, "formule de garantie"],
   [/\d\s?(?:€|euros?\b|eur\b|\$|dollars?\b)|[€$]\s?\d/i, "un prix"],
-  [/(?<![\p{L}'])(?:tu|toi|tes|ta)(?![\p{L}])|(?<![\p{L}])t'/iu, "le tutoiement"],
+  [/(?<![\p{L}'’-])(?:tu|toi|te|tes|ta|ton|tien(?:ne)?s?)(?![\p{L}'’-])|(?<![\p{L}])t['’]/iu, "le tutoiement"],
 ];
+
+const FAUX_AMIS_TON = /(?<![\p{L}'’])(?:le|un|du|au|ce|votre|notre|leur|mon|son|quel|même|bon|bas|haut)\s+ton(?![\p{L}'’-])/giu;
 
 /** Mot interdit repéré dans un texte (ou undefined). Le message ne cite jamais le texte. */
 export function motInterdit(texte: string): string | undefined {
-  for (const [re, nom] of MOTS_INTERDITS) if (re.test(texte)) return nom;
+  // « le ton », « votre ton » : un nom, pas un tutoiement.
+  const net = texte.replace(FAUX_AMIS_TON, " ");
+  for (const [re, nom] of MOTS_INTERDITS) if (re.test(net)) return nom;
   return undefined;
 }
 
@@ -261,10 +265,14 @@ export const robotsDe = (statut: StatutFiche): "index,follow" | "noindex,nofollo
   statut === "valide" || statut === "publie" ? "index,follow" : "noindex,nofollow";
 
 /** Données structurées (25) : page, fil d'Ariane, questions fréquentes, vidéo, tirées exactement du texte de la fiche. */
-export function genererDonneesStructurees(c: ContenuFiche, canonique: string): Array<Record<string, unknown>> {
+export function genererDonneesStructurees(
+  c: ContenuFiche,
+  canonique: string,
+  dates: { datePublication?: string; dateMiseAJour?: string } = {},
+): Array<Record<string, unknown>> {
   const ctx = "https://schema.org";
   const out: Array<Record<string, unknown>> = [
-    { "@context": ctx, "@type": "WebPage", name: c.titre, description: c.metaDescription, url: canonique, inLanguage: "fr", author: { "@type": "Organization", name: c.auteur } },
+    { "@context": ctx, "@type": "WebPage", name: c.titre, description: c.metaDescription, url: canonique, inLanguage: "fr", ...(dates.datePublication ? { datePublished: dates.datePublication } : {}), ...(dates.dateMiseAJour ? { dateModified: dates.dateMiseAJour } : {}), author: { "@type": "Organization", name: c.auteur } },
     {
       "@context": ctx, "@type": "BreadcrumbList",
       itemListElement: [

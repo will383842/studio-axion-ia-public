@@ -68,6 +68,8 @@ function serviceEtId() {
   // les deux pages liées existent (aucun lien cassé)
   svc.creer("AUTO-020", "trier-demandes-entrantes");
   svc.creer("AUTO-021", "comptes-rendus-automatiques");
+  svc.modifier("AUTO-020", { type: "relances-et-suivi", besoins: ["gagner-du-temps"] }); // même type
+  svc.modifier("AUTO-021", { type: "comptes-rendus-et-rapports", besoins: ["ne-rien-oublier"] }); // besoin commun
   return svc;
 }
 
@@ -174,10 +176,21 @@ describe("contrôle des 27 champs", () => {
     ["Aucun gain garanti", "Aucun gain garanti pour vous."],
     ["prix", `Dès ${40 + 9} \u20ac par mois pour vous.`],
     ["tutoiement", "Tu gagnes du temps avec toi."],
+    ["tutoiement « te »", "Nous te relançons à chaque fois."],
+    ["tutoiement « ton »", "Nous relançons pour ton équipe."],
+    ["tutoiement « t’ » typographique", "Ça t\u2019aide à relancer vite."],
   ])("mot interdit : %s", (_nom, texte) => {
     const c = contenuValide();
     c.gain = `${texte} ${t(Math.max(0, 80 - texte.length - 1))}`.slice(0, 140).padEnd(80, "e");
     expect(controlerFiche(c)).toContainEqual({ champ: "gain", message: expect.stringMatching(/mot interdit/) });
+  });
+  it("« votre ton » (nom) n'est pas un tutoiement", () => {
+    const c = contenuValide();
+    c.gain = `Nous gardons le ton juste de votre ton habituel. ${t(60)}`.slice(0, 120);
+    expect(controlerFiche(c)).toEqual([]);
+  });
+  it("l'adresse publique passe aussi le contrôle des mots interdits", () => {
+    expect(controlerFiche({ ...contenuValide(), slug: "relances-certifiees-qualiopi" }).map((d) => d.champ)).toContain("slug");
   });
   it("la décoration permet un alt vide", () => {
     const c = contenuValide();
@@ -315,6 +328,39 @@ describe("service : une fiche, un statut, rien d'exposé avant validation", () =
     svc.modifier("AUTO-014", { pagesLiees: contenuValide().pagesLiees });
     expect(svc.soumettre("AUTO-014").ok).toBe(true);
   });
+  it("soumettre refuse une page liée sans même type ni besoin commun, et les doublons d'adresse", () => {
+    const svc = serviceEtId();
+    svc.modifier("AUTO-014", contenuValide());
+    svc.modifier("AUTO-021", { type: "tri-et-classement", besoins: ["repondre-plus-vite"] });
+    const r = svc.soumettre("AUTO-014");
+    expect(!r.ok && r.erreurs.join(" ")).toMatch(/même type ou un besoin commun/);
+    svc.modifier("AUTO-021", { besoins: ["ne-rien-oublier"] });
+    expect(svc.soumettre("AUTO-014").ok).toBe(true);
+    const svc2 = serviceEtId();
+    const l = contenuValide().pagesLiees![0]!;
+    svc2.modifier("AUTO-014", { ...contenuValide(), pagesLiees: [l, l] });
+    const r2 = svc2.soumettre("AUTO-014");
+    expect(!r2.ok && r2.erreurs.join(" ")).toMatch(/qu'une fois/);
+  });
+  it("une valeur nulle efface le champ ; une valeur de mauvaise forme est refusée sans panne", () => {
+    const svc = serviceEtId();
+    svc.modifier("AUTO-014", contenuValide());
+    expect(svc.modifier("AUTO-014", { besoins: null }).ok).toBe(true);
+    expect(svc.lire("AUTO-014")).not.toHaveProperty("besoins");
+    expect(svc.modifier("AUTO-014", { titre: null, video: null }).ok).toBe(true);
+    expect(svc.lire("AUTO-014")?.titre).toBeUndefined();
+    const sale = (v: unknown) => svc.modifier("AUTO-014", v as never);
+    expect(sale({ titre: 42 }).ok).toBe(false);
+    expect(sale({ besoins: "x" }).ok).toBe(false);
+    expect(sale({ video: [] }).ok).toBe(false);
+    expect(svc.modifier("AUTO-014", { slug: null }).ok).toBe(false);
+    // contenu interne de mauvaise forme : défaut, jamais de panne
+    expect(sale({ besoins: [null] }).ok).toBe(false); // hors liste fermée
+    expect(sale({ questions: [null] }).ok).toBe(true);
+    expect(() => svc.controler("AUTO-014")).not.toThrow();
+    const s = svc.soumettre("AUTO-014");
+    expect(s.ok).toBe(false);
+  });
   it("modifier l'adresse vers une adresse déjà prise est refusé", () => {
     const svc = serviceEtId();
     expect(svc.modifier("AUTO-020", { slug: "relances-clients-automatiques" }).ok).toBe(false);
@@ -345,6 +391,17 @@ describe("le hub est un classement, pas un champ", () => {
   it("classerParHub ignore brouillon et à valider", () => {
     const h = classerParHub([{ id: "AUTO-001", statut: "a_valider", type: "relances-et-suivi", besoins: ["ne-rien-oublier"] }]);
     expect(h.parType["relances-et-suivi"]).toEqual([]);
+  });
+  it("le JSON-LD de la page porte la date de mise à jour (et de publication si elle existe)", () => {
+    const ld = genererDonneesStructurees(contenuValide(), "/automatisations/x", { datePublication: "2026-11-21", dateMiseAJour: "2026-11-22" });
+    expect(ld[0]).toMatchObject({ datePublished: "2026-11-21", dateModified: "2026-11-22" });
+    const sans = genererDonneesStructurees(contenuValide(), "/automatisations/x", { dateMiseAJour: "2026-11-22" });
+    expect(sans[0]).not.toHaveProperty("datePublished");
+    const svc = serviceEtId();
+    svc.modifier("AUTO-014", contenuValide());
+    svc.soumettre("AUTO-014");
+    svc.valider("AUTO-014", { validationEcrite: true });
+    expect(JSON.stringify(svc.lire("AUTO-014")?.donneesStructurees)).toContain('"dateModified":"2026-11-20"');
   });
   it("genererDonneesStructurees reste pur", () => {
     const ld = genererDonneesStructurees(contenuValide(), "/automatisations/relances-clients-automatiques");
