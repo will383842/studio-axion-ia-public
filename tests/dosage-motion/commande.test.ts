@@ -162,6 +162,44 @@ describe("X3-03 · allumé", () => {
     expect(r.sousTitres).toBe(c.sousTitres);
   });
 
+  it("R3 · avocat en montage-avocat, lancement ET estimation : equilibre = prix éteint ligne par ligne ; autres crans ≤ éteint", async () => {
+    const v = (await depots().videos.obtenir("v-03"))!;
+    const script = (await depots().scripts.obtenir(v.scriptId!))!;
+    const eteintL = await fabrication.construireCommande("v-03");
+    const eteintE = await fabrication.construireCommandeEstimation(v, script);
+    expect(eteintL.moteurId).toBe("montage-avocat");
+    const prixL0 = await moteurDeCommande(eteintL).estimer(eteintL);
+    const prixE0 = await moteurDeCommande(eteintE).estimer(eteintE);
+    await ecrireParametre("dosageMotion.actif", true);
+    for (const cran of ["aucun", "sobre", "equilibre", "dynamique"]) {
+      await poserChoix("v-03", cran);
+      const vv = (await depots().videos.obtenir("v-03"))!;
+      const l = await fabrication.construireCommande("v-03");
+      const e = await fabrication.construireCommandeEstimation(vv, script);
+      expect(l.dosageMotion?.cran).toBe(cran);
+      const prixL = await moteurDeCommande(l).estimer(l);
+      const prixE = await moteurDeCommande(e).estimer(e);
+      if (cran === "equilibre") {
+        expect(prixL.lignes).toStrictEqual(prixL0.lignes);
+        expect(prixL.total).toStrictEqual(prixL0.total);
+        expect(prixE.lignes).toStrictEqual(prixE0.lignes);
+        expect(prixE.total).toStrictEqual(prixE0.total);
+      }
+      expect(prixL.total.centimes).toBeLessThanOrEqual(prixL0.total.centimes);
+      expect(prixE.total.centimes).toBeLessThanOrEqual(prixE0.total.centimes);
+    }
+  });
+
+  it("v4 par le service (facecam-animee) : choix sobre posé, cran dynamique, intensité et sous-titres identiques à l'éteint", async () => {
+    const eteint = await fabrication.construireCommande("t-facecam-animee");
+    await ecrireParametre("dosageMotion.actif", true);
+    await poserChoix("t-facecam-animee", "sobre");
+    const c = await fabrication.construireCommande("t-facecam-animee");
+    expect(c.dosageMotion?.cran).toBe("dynamique");
+    expect(c.intensite).toStrictEqual(eteint.intensite);
+    expect(c.sousTitres).toStrictEqual(eteint.sousTitres);
+  });
+
   it("appliquerDosage : nouvelle commande, l'entrée n'est pas modifiée, sous-titres gardés non nuls", () => {
     const c = commandeSimple();
     const copie = structuredClone(c);
