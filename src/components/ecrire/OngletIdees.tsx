@@ -19,6 +19,7 @@ import { IlYA } from "@/components/ui/IlYA";
 import type { FormatEcrivable } from "@/components/generateur/ReglagesSujet";
 import { SuiviSerie } from "@/components/generateur/SuiviSerie";
 import type { SuiviSerie as Suivi } from "@/services/serie-ecriture";
+import { elementMettreEnStock } from "./BoutonMettreEnStock";
 import { BlocIdeesUsine } from "./BlocIdeesUsine";
 import { PastilleEtapeEcrire } from "./PastilleEtapeEcrire";
 import { BarreSerieIdees, CaseIdee, ideeEcrivable } from "./SerieIdees";
@@ -158,6 +159,7 @@ export function OngletIdees({ idees, formats = [], suivi = null, usine = false }
                       i.etat === "en-script" && i.scriptId
                         ? { libelle: "Ouvrir le script", icone: "document" as const, onSelect: () => router.push(`/scripts/${i.scriptId}`) }
                         : { libelle: "En faire un script", icone: "ecrire" as const, onSelect: () => router.push(`/ecrire/atelier?idee=${i.id}`) },
+                      elementMettreEnStock(i.texte, `idee-${i.id}`),
                       "separateur",
                       i.etat === "archivee"
                         ? { libelle: "Restaurer", icone: "actualiser" as const, onSelect: () => void restaurerIdeeAction(i.id) }

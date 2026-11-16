@@ -15,8 +15,10 @@ import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { notifier } from "@/components/ui/Toast";
 import type { VueHistorique } from "@/services/tableau-tracabilite";
 
-const jourLong = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-const heure = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const jourLong = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" });
+const heure = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+// Jour courant à l'heure de Paris (AAAA-MM-JJ), jamais en UTC : entre 0 h et 2 h à Paris, UTC serait encore la veille.
+const jourParis = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/Paris" });
 const quand = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : `${jourLong.format(d)} · ${heure.format(d)}`;
@@ -26,7 +28,7 @@ export function HistoriqueTableau({ videoId, vue }: { videoId: string; vue: VueH
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [reseau, setReseau] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => jourParis.format(new Date()));
   const [lien, setLien] = useState("");
 
   function telecharger() {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { unstable_rethrow } from "next/navigation";
 import { EcranMotsConnecte } from "@/components/mots/EcranMotsConnecte";
+import { guidesFabriqueActif } from "@/domaine/guides-pdf/guide-fabrique";
 import { exigerSession } from "@/services/auth";
 import { etatBranchementZernio } from "@/services/branchements-zernio";
 import { lireVueMotsCibles } from "@/services/mots-cibles-vue";
@@ -33,5 +34,5 @@ export default async function PageMots() {
     unstable_rethrow(e);
     motsCibles = null;
   }
-  return <EcranMotsConnecte vue={vue} comptes={comptes} branchement={etatBranchementZernio()} motsCibles={motsCibles} suivi={suivi} reglages={reglages} suiviIndisponible={suivi === null} />;
+  return <EcranMotsConnecte guidesActif={guidesFabriqueActif()} vue={vue} comptes={comptes} branchement={etatBranchementZernio()} motsCibles={motsCibles} suivi={suivi} reglages={reglages} suiviIndisponible={suivi === null} />;
 }

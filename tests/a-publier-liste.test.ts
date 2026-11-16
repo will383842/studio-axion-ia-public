@@ -149,11 +149,11 @@ describe("À publier — le détail et le retour à la liste", () => {
   it("le bloc de succès : message annoncé, lien Suivante seulement s'il y a une vidéo suivante", () => {
     const avec = renderToStaticMarkup(createElement(BlocSucces, { succes: messageSucces("brouillon", 1), suivante: "/a-publier/v-2?reseau=instagram" }));
     expect(avec).toContain('role="status"');
-    expect(texte(avec)).toContain("Envoyé : la vidéo est en brouillon dans Buffer (1 compte)");
+    expect(texte(avec)).toContain("Envoyé : la vidéo est en brouillon dans Zernio (1 compte)");
     expect(avec).toContain('href="/a-publier/v-2?reseau=instagram"');
     expect(texte(avec)).toContain("Suivante");
     const sans = renderToStaticMarkup(createElement(BlocSucces, { succes: messageSucces("programmer", 2), suivante: null }));
-    expect(texte(sans)).toContain("programmée dans Buffer sur 2 comptes");
+    expect(texte(sans)).toContain("programmée dans Zernio sur 2 comptes");
     expect(sans).not.toContain("<a");
     const vide = renderToStaticMarkup(createElement(BlocSucces, { succes: null, suivante: "/x" }));
     expect(vide).toBe('<div role="status"></div>');

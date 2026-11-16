@@ -21,7 +21,7 @@ export function PanneauSujetDejaTraite({ dejaTraite, onChoisir, onAutreCas }: { 
             <Link href={p.lien} className="underline">
               {p.titre}
             </Link>{" "}
-            <span className="text-texte-doux">le {new Date(p.le).toLocaleDateString("fr-FR")}</span>
+            <span className="text-texte-doux">le {new Date(p.le).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}</span>
           </li>
         ))}
       </ul>

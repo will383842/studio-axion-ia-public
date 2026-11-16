@@ -28,8 +28,8 @@ export function ligneCompteEtDate(noms: string[], valeurDate: string, aCocher = 
 export function messageSucces(mode: "brouillon" | "programmer" | undefined, comptes: number): string {
   const sur = comptes > 1 ? `${comptes} comptes` : "1 compte";
   return mode === "programmer"
-    ? `Envoyé : programmée dans Buffer sur ${sur}.`
-    : `Envoyé : la vidéo est en brouillon dans Buffer (${sur}). Relisez-la puis programmez-la dans Buffer.`;
+    ? `Envoyé : programmée dans Zernio sur ${sur}.`
+    : `Envoyé : la vidéo est en brouillon dans Zernio (${sur}). Relisez-la puis programmez-la dans Zernio.`;
 }
 
 const CATEGORIE_DU_FILTRE: Record<Exclude<FiltreListe, "toutes">, string> = { "a-envoyer": "a-envoyer", envoyees: "envoyee", publiees: "publiee", problemes: "probleme" };

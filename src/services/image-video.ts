@@ -19,6 +19,7 @@
  *  - la MISE EN PAGE des instants clés (Q21) : elle lit `studio-rendu/…/emprise.ts`, que `src/` ne peut pas importer.
  * Conversion de l'image en PNG et tuiles : FFmpeg local s'il est installé (comme `facecam-branchements`), sinon refus.
  */
+import { cleDepenseUsine } from "./cle-depense-usine";
 import "server-only";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -35,7 +36,8 @@ import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture"
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
-import { accordAutomatique, budgetIndicatifPourVideo, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
+import { accordSansClicPour, normaliserOrigine } from "./autonomie-usine";
+import { accordAutomatique, origineDeLaVideo, budgetIndicatifPourVideo, FACTEUR_SECURITE_BUDGET, sujetDeCloche } from "./mode-budget";
 import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -289,7 +291,10 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   const decisionsGardees = async () => lireParametre<Record<string, unknown> | null>(`${PREFIXE_DECISIONS}${dep.videoId}`, null);
 
   // Budget réel, APRÈS la caisse : pré-vol pour Claude et la transcription, réservation pour la voix.
-  const indicatifIV = await budgetIndicatifPourVideo(String(dep.videoId), dep.origine);
+  // AUT-D (correction) : l'origine est résolue UNE SEULE FOIS (normalisée ; absente → celle figée sur la vidéo, comme
+  // `accordSansClicPour`). Cette MÊME valeur décide de l'accord sans clic et part à toute dépense de ce flux (voix, pré-vol Claude).
+  const origineResolueIV: "studio" | "usine" = dep.origine === undefined ? await origineDeLaVideo(String(dep.videoId)) : normaliserOrigine(dep.origine);
+  const indicatifIV = await budgetIndicatifPourVideo(String(dep.videoId), origineResolueIV);
   const budget: OutilsFabricationIV["budget"] = {
     reserver: async (d) => {
       // Lanceur : la voix ne part que sur l'accord de Will, relu à chaque réservation (avant même le mode simulé).
@@ -298,12 +303,13 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
       if (d.fournisseur === "heygen" && dep.accordDuScriptExige) {
         const accord = accordDeLaDecision((await decisionsGardees())?.script);
         // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord, Will ne valide jamais un prix à la main.
-        if (accord === null && !indicatifIV) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
+        // AUT-D : l'Usine avec l'autonomie allumée vaut accord aussi ; la réservation qui suit applique le plafond du mois.
+        if (accord === null && !indicatifIV && !(await accordSansClicPour(origineResolueIV, String(dep.videoId)))) return { ok: false, message: PHRASE_ACCORD_ABSENT_IV };
         accordManquant = accord === null;
         accordVoix = accord ?? d.centimes;
       } else if (d.fournisseur === "heygen") accordVoix = accordDeLaVoixIV(d.centimes, dep.accordLotCentimes);
       if (d.fournisseur === "heygen") {
-        const auto = await accordAutomatique(accordVoix, d.centimes, { origine: dep.origine, videoId: String(dep.videoId), signaler: accordManquant });
+        const auto = await accordAutomatique(accordVoix, d.centimes, { origine: origineResolueIV, videoId: String(dep.videoId), signaler: accordManquant });
         if (typeof auto === "number") accordVoix = auto;
       }
       const { claudeTextesActif } = await import("./depense-claude-video");
@@ -314,8 +320,8 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
       try {
         // L3-01 : la voix est contrôlée, réservée et engagée sous le verrou des crédits avec l'origine de la commande ;
         // Claude n'a ici qu'un pré-vol (sa réservation se fait dans `executerRolePourVideo`, avec la même origine).
-        if (d.fournisseur === "heygen") await credits.verifierEtReserverSelonOrigine(dep.origine, { lignes, total: lignes[0].total }, accordVoix, "Cette vidéo", { videoId: dep.videoId, travailId: dep.travailId });
-        else await credits.verifierBudgetEtCredits({ lignes, total: lignes[0].total }, d.centimes, "Cette vidéo", { origine: dep.origine });
+        if (d.fournisseur === "heygen") await credits.verifierEtReserverSelonOrigine(origineResolueIV, { lignes, total: lignes[0].total }, accordVoix, "Cette vidéo", { videoId: dep.videoId, travailId: dep.travailId, ...cleDepenseUsine(origineResolueIV, dep.travailId) });
+        else await credits.verifierBudgetEtCredits({ lignes, total: lignes[0].total }, d.centimes, "Cette vidéo", { origine: origineResolueIV });
         return { ok: true };
       } catch (err) {
         const code = err && typeof err === "object" && "code" in err ? (err as { code: unknown }).code : undefined;
@@ -351,7 +357,8 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
     script: async () => {
       const d = (await decisionsGardees())?.script ?? null;
       // Lanceur : une décision sans accord du prix n'avance pas la fabrication (le lanceur reste à la porte).
-      return (dep.accordDuScriptExige && !indicatifIV && accordDeLaDecision(d) === null ? null : d) as never;
+      if (dep.accordDuScriptExige && !indicatifIV && accordDeLaDecision(d) === null && !(await accordSansClicPour(origineResolueIV, String(dep.videoId)))) return null as never;
+      return d as never;
     },
   };
 

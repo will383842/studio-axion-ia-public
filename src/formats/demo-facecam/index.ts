@@ -7,7 +7,7 @@ import { briquesAuChoix, CRITERES_STANDARD, entree, migrationIdentite, REGLES_CO
  *
  * Williams dépose une vidéo facecam ET une vidéo d'enregistrement d'écran, ou une seule vidéo. Écran partagé : facecam d'un côté,
  * écran réel de l'autre ; le motion design reste AUTOUR de l'écran, jamais devant le visage ; sous-titres calés. Statut `masque` :
- * inscrit, mais le rendu n'est pas branché (`moteurs/montage-demo-facecam` met la fabrication en pause claire).
+ * inscrit ; rendu branché (`moteurs/montage-demo-facecam`) ; sans serveurs de montage reliés, la fabrication reste en pause claire ; format masqué.
  */
 export const ID_FORMAT_DEMO_FACECAM = "demo-facecam";
 export const CODE_FORMAT_DEMO_FACECAM = "DF";

@@ -21,6 +21,7 @@ import { dureeParDefaut, estimerDureeTexte, obtenirFormat } from "@/formats";
 import { useSaisieGardee } from "@/hooks/useSaisieGardee";
 import { cn } from "@/lib/cn";
 import { dateCourte } from "@/lib/dates";
+import { elementMettreEnStock } from "./BoutonMettreEnStock";
 import { EditeurBlocs } from "./EditeurBlocs";
 import { ResumeTexte } from "./ResumeTexte";
 
@@ -126,6 +127,7 @@ export function FicheScript({ script, versions, ecritureReelle = false }: { scri
               declencheur={<BoutonIcone icone="menu" libelle="Plus d'actions" />}
               elements={[
                 { libelle: "Renommer", icone: "ecrire", onSelect: () => setRenommer(true) },
+                elementMettreEnStock(texteScript(script.blocs), `script-${script.id}`),
                 // Générateur (G1b) : un texte rattaché à un sujet se valide version par version, depuis le sujet.
                 ...(script.statutEditorial !== "valide" && !script.scriptMaitreId ? [{ libelle: "Valider ce texte", icone: "valide" as const, onSelect: () => void simple(validerScriptAction, "Texte validé") }] : []),
                 {

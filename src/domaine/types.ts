@@ -1486,6 +1486,8 @@ export interface DepenseEnregistree extends EntiteBase {
   scriptMaitreId?: Id;
   /** Compte Claude qui a réellement répondu (absent : compte 1, comme avant). */
   sourceClaude?: SourceClaude;
+  /** AUT-E : appel Claude (`appel-…`) qui a produit cette dépense ; sert seulement à compter l'appel au coût réel. Champ neutre : ne change pas `depenseComptee`. */
+  appelId?: Id;
 }
 
 /* ------------------------------------------------------------------ */

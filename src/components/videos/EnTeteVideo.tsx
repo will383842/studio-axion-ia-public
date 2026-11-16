@@ -95,7 +95,7 @@ export function EnTeteVideo({
     });
   }
 
-  /** Restaurable 30 jours : pas de confirmation, le message le dit (et les brouillons restés dans Buffer). */
+  /** Restaurable 30 jours : pas de confirmation, le message le dit (et les brouillons restés chez l'outil d'envoi). */
   function mettreALaCorbeille() {
     demarrer(async () => {
       const r = await mettreALaCorbeilleAction([videoId]);
@@ -103,7 +103,7 @@ export function EnTeteVideo({
         notifier.erreur(r.message);
         return;
       }
-      notifier.succes(messageCorbeille(r.donnees.mises, r.donnees.brouillonsBuffer, r.donnees.pagesRetirees));
+      notifier.succes(messageCorbeille(r.donnees.mises, r.donnees.brouillonsExternes, r.donnees.pagesRetirees));
       router.push("/videos?vue=corbeille");
       router.refresh();
     });

@@ -6,7 +6,7 @@ import type { Porte, RapportPorte } from "@/domaine/visuels/contrats";
 import type { CarrouselSpecType } from "@/domaine/visuels/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import type { ResultatRendu } from "@/visuels/services/rendu";
-import { creerDepuisSujet, deposerSession, ErreurVisuel, lancerRendu, masquerSecrets, preparerPourReseaux, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { creerDepuisSujet, deposerSession, erreurPreparationReseaux, ErreurVisuel, lancerRendu, masquerSecrets, preparerPourReseaux, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { MODELE_PAQUET } from "@/visuels/texte/aide-format";
 
 const SPEC = { version: "carrousel/1", alt: "Carrousel inventé", pages: [{ type: "T01", titre: "Titre inventé" }, { type: "T21" }] } as CarrouselSpecType;
@@ -571,7 +571,36 @@ describe("preparerPourReseaux (L2-05)", () => {
     const id2 = await amener(m2, "valide");
     m2.deps.rendreReseaux = async () => [{ ...linkedin, pdfCle: null }];
     await expect(preparerPourReseaux(id2, ["linkedin"], m2.deps)).rejects.toThrow();
+    expect(await code(preparerPourReseaux(id2, ["linkedin"], m2.deps))).toBe("RESEAUX_ECHEC");
     expect((await m2.depot.obtenir(id2))!.versions).toBeUndefined();
+  });
+
+  it.each([
+    ["T10 : message déborde (532 px pour 530)", "RESEAUX_MISE_EN_PAGE"],
+    ["La page 2 ne tient pas dans la mise en page", "RESEAUX_MISE_EN_PAGE"],
+    ["service de rendu absente", "RESEAUX_INDISPONIBLE"],
+    ["Le serveur du studio n'a pas fini à temps.", "RESEAUX_INDISPONIBLE"],
+    ["Carrousel trop long pour instagram : 12 pages", "RESEAUX_TROP_DE_PAGES"],
+    ["boum", "RESEAUX_ECHEC"],
+  ])("échec du rendu « %s » → %s, fiche non modifiée", async (message, attendu) => {
+    const m = monter();
+    const id = await amener(m, "valide");
+    const avant = (await m.depot.obtenir(id))!;
+    m.deps.rendreReseaux = async () => { throw new Error(message); };
+    const erreur = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await code(preparerPourReseaux(id, ["instagram"], m.deps))).toBe(attendu);
+    erreur.mockRestore();
+    const apres = (await m.depot.obtenir(id))!;
+    expect(apres.reseaux).toEqual(avant.reseaux);
+    expect(apres.versions).toEqual(avant.versions);
+  });
+
+  it("erreurPreparationReseaux : ErreurVisuel telle quelle, éteint, réessayable", () => {
+    const e = new ErreurVisuel("TRANSITION_REFUSEE", "x");
+    expect(erreurPreparationReseaux(e)).toBe(e);
+    expect(erreurPreparationReseaux(new Error("générateur éteint")).code).toBe("GENERATEUR_ETEINT");
+    expect(erreurPreparationReseaux(Object.assign(new Error("x"), { reessayable: true })).code).toBe("RESEAUX_INDISPONIBLE");
+    expect(erreurPreparationReseaux("texte").code).toBe("RESEAUX_ECHEC");
   });
 
   it("fiche non validée : refusée, aucun rendu", async () => {

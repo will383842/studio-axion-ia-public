@@ -93,6 +93,8 @@ export interface Conversation {
   groupeM1?: "m1-lien" | "deja-envoye" | "lien-rappel";
   /** Titre lisible de la cible (jamais de donnée personnelle). */
   titreCible?: string;
+  /** Cible d'essai (compte listé, Facebook) : jamais de lien ni de jeton, jamais de renvoi. Absent = faux (tout enregistrement ancien). */
+  cibleEssai?: boolean;
   /** Instagram « suivre le compte puis OK » (tous facultatifs, jamais écrits à `undefined`) : issue du suivi au moment du lien. */
   suiviIg?: IssueSuivi;
   /** Nombre de messages « OK » pris en compte pour ce parcours. */
@@ -159,7 +161,7 @@ export function m1AvecLien(v: string | null | undefined): boolean {
   return v === "mp-m1-v3" || (GROUPES_MP[GROUPE_M1_LIEN] as readonly string[]).includes(v) || (GROUPES_MP["lien-rappel"] as readonly string[]).includes(v) || (GROUPES_MP["ig-suivre"] as readonly string[]).includes(v) || v.startsWith("mp-deja-envoye-v1-");
 }
 /** Pourquoi le 1er message part sans lien (M1 v2). Jamais une valeur, jamais un message d'erreur. */
-export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee" | "version_inconnue_du_site";
+export type CodeRepliLien = "lien_eteint" | "secret_lien_absent" | "texte_lien_non_valide" | "compte_lien_inconnu" | "jeton_invalide" | "lien_trop_long" | "forme_refusee" | "version_inconnue_du_site" | "cible_essai";
 
 export type Raison = "proprio" | "auteur_compte" | "mot" | "reponse" | "perime" | "silence" | "opposee" | "orphelin" | "echo" | "etat";
 

@@ -39,6 +39,8 @@ export interface CreneauEditorial {
   /** Refus : l'entrée est archivée, jamais supprimée. Le motif est facultatif. */
   refuseLe?: string;
   motifRefus?: string;
+  /** Retrait du calendrier par le fondateur avant tout envoi : l'entrée est archivée (instant ISO UTC). */
+  retireLe?: string;
 }
 
 export type ResultatTransition = { ok: true; creneau: CreneauEditorial } | { ok: false; raison: string };

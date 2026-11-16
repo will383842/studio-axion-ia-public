@@ -8,6 +8,7 @@
  */
 import "server-only";
 import type { IdReseau, Ratio } from "@/domaine/types";
+import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { obtenirFormat } from "@/formats";
 import { obtenirMoteur } from "@/moteurs";
 import { lireParametre } from "./_commun";
@@ -27,7 +28,7 @@ export const FORMATS_EXCLUS_DE_T5: readonly string[] = Object.freeze(["avocat"])
 
 /** Réseaux par défaut (Réglages), la même valeur que le kit de publication. */
 export async function reseauxParDefaut(): Promise<IdReseau[]> {
-  return lireParametre<IdReseau[]>("reseaux.parDefaut", ["linkedin", "instagram", "tiktok", "youtube-shorts"]);
+  return lireParametre<IdReseau[]>("reseaux.parDefaut", reseauxParDefautNeufs());
 }
 
 /**

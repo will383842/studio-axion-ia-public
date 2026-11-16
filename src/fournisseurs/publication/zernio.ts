@@ -17,6 +17,7 @@ import { ErreurZernio } from "./zernio-erreurs";
 import { pageInterdite, type PagesInterdites } from "./zernio-pages-interdites";
 import { choisirCompteOrganisationLinkedin, type CandidatOrganisationLinkedin } from "./zernio-linkedin";
 import { lecteurMediaParDefaut, televerserMedias, type LecteurMedia } from "./zernio-medias";
+import { CLE_REGLAGES_YOUTUBE, CLE_YOUTUBE_ACTIF, lireReglagesYoutube, youtubeActifBrut, type ReglagesYoutube } from "./zernio-youtube";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 
@@ -30,6 +31,8 @@ export interface OptionsPublicationZernio {
   pagesInterdites?: PagesInterdites;
   /** Lecture du réglage « premier commentaire coupé » (tests) ; sinon la lecture du réglage en base. */
   lirePremierCommentaireCoupe?: () => Promise<unknown>;
+  /** Lecture de l'interrupteur et des réglages YouTube (tests) ; sinon la lecture en base. */
+  lireYoutube?: () => Promise<{ actif: unknown; reglages: unknown }>;
 }
 
 const DELAI_LECTURE_COUPE_MS = 500;
@@ -48,6 +51,30 @@ async function premierCommentaireCoupe(lecture: () => Promise<unknown>): Promise
 }
 
 const lireReglagePremierCommentaireCoupe = async (): Promise<unknown> => (await import("@/services/_commun")).lireParametre<unknown>(CLE_PREMIER_COMMENTAIRE_COUPE, false);
+
+const lireYoutubeEnBase = async (): Promise<{ actif: unknown; reglages: unknown }> => {
+  const { lireParametre } = await import("@/services/_commun");
+  return { actif: await lireParametre<unknown>(CLE_YOUTUBE_ACTIF, false), reglages: await lireParametre<unknown>(CLE_REGLAGES_YOUTUBE, null) };
+};
+
+/** YouTube Shorts : lecture bornée à 500 ms ; exception, délai ou interrupteur autre que `true` = éteint, rien n'est envoyé. */
+async function reglagesYoutubeSiPermis(lecture: () => Promise<{ actif: unknown; reglages: unknown }>): Promise<ReglagesYoutube> {
+  const eteint = () => new ErreurZernio("refuse", "YouTube Shorts : l'envoi est éteint (réglage à allumer). Rien n'a été envoyé.");
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  let lu: { actif: unknown; reglages: unknown } | undefined;
+  try {
+    const attente = new Promise<undefined>((r) => { minuteur = setTimeout(() => r(undefined), DELAI_LECTURE_COUPE_MS); });
+    lu = await Promise.race([lecture(), attente]);
+  } catch {
+    throw eteint();
+  } finally {
+    clearTimeout(minuteur);
+  }
+  if (!lu || !youtubeActifBrut(lu.actif)) throw eteint();
+  const reglages = lireReglagesYoutube(lu.reglages);
+  if (!reglages) throw new ErreurZernio("refuse", "YouTube : réglages pas encore choisis. Rien n'a été envoyé.");
+  return reglages;
+}
 
 /** Statut Studio d'un statut Zernio. */
 export function statutDepuisZernio(statut: string | undefined): StatutPublication {
@@ -121,10 +148,12 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const d: DemandeZernio = { ...demande, cleEnvoi: hex };
       const instant = maintenant();
       const cible = analyserCible(d.cible ?? d.canalId);
+      // YouTube Shorts : porte du fournisseur, AVANT le premier corps et tout appel client (les autres réseaux ne lisent rien).
+      const youtube = plateformeZernio(d.reseau) === "youtube" ? await reglagesYoutubeSiPermis(options.lireYoutube ?? lireYoutubeEnBase) : undefined;
       // 1. Tout refus pur, avant le réseau (TikTok : réglages fictifs prudents, remplacés par les vrais ensuite).
       const niveau = d.niveauConfidentialiteTiktok ?? "";
       const prudent: CreateurTiktok = { privacyLevels: [niveau], allowComment: false, allowDuet: false, allowStitch: false };
-      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true });
+      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, youtube });
       // LinkedIn profil : prouvé par la lecture du compte (jamais présumé).
       const profilLinkedinProuve = cible.profilLinkedin ? compteLinkedinEstProfil((await client.listerComptes()).find((c) => c._id === cible.accountId)) : false;
       const demandes = mediasDemandes(d);
@@ -134,7 +163,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const medias = await televerserMedias(client, lire, demandes, hotesPublics);
       // Seule attente de la lecture : juste avant la création (au plus 500 ms, en pratique déjà terminée).
       const coupe = await coupeP;
-      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe });
+      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe, youtube });
       // 3. Création, clé d'idempotence neutre.
       let resultat;
       try {

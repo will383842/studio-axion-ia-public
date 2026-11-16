@@ -19,6 +19,7 @@ import { decalerMois, engagementDuTravail, jourParis, moisParis, resumeBudget } 
 import { creerNotification } from "./notifications";
 import { budgetIndicatifPour, messageAuDelaDuBudgetIndicatifClaude } from "./mode-budget";
 import { centimesDuPlafond } from "@/lib/montants";
+import { controlerPaireAutonomie, recevoirAutonomieUsine } from "./autonomie-usine";
 import { avecOrigineFournisseur, CLE_QUOTAS_USINE, lireQuotasUsine, reserverQuota, type QuotaUsine } from "./plafond-fournisseur";
 
 const CLE_PLAFOND = "budget.mensuel";
@@ -97,8 +98,17 @@ function quotasValides(v: unknown): QuotaUsine[] {
  *  - `budget_mensuel_cents` (facultatif) : centimes entiers ≥ 0, ≤ plafond du studio s'il y en a un, sinon `CHAMP_INVALIDE` ;
  *  - `mois` (facultatif, le mois de Paris en cours par défaut) : AAAA-MM, le mois en cours ou le suivant ;
  *  - rejeu de la même valeur pour le même mois → `deja: true`, rien n'est réécrit ni journalisé. Aucun montant dans le journal.
+ *  - paire `automatique` + `plafond_automatique_cents` (facultative, les deux ensemble ou aucun ; centimes entiers 0..10 000 000 ; éteindre
+ *    jamais refusé pour un montant ; aucun lien avec le plafond global) : transmise à `recevoirAutonomieUsine`. Validée avec le reste AVANT
+ *    toute écriture ; un corps qui ne contient que la paire écrit la paire ; `deja` = chaque partie envoyée est un rejeu.
  */
-export async function reglerBudgetUsine(corps: { budget_mensuel_cents?: unknown; mois?: unknown; quotas?: unknown }): Promise<BudgetUsine & { deja: boolean; quotas?: QuotaUsine[] }> {
+export async function reglerBudgetUsine(corps: {
+  budget_mensuel_cents?: unknown;
+  mois?: unknown;
+  quotas?: unknown;
+  automatique?: unknown;
+  plafond_automatique_cents?: unknown;
+}): Promise<BudgetUsine & { deja: boolean; quotas?: QuotaUsine[]; automatique?: boolean; plafond_automatique_cents?: number }> {
   const { budget_mensuel_cents: cents, mois: moisRecu, quotas: quotasRecus } = corps;
   const courant = moisParis();
   const mois = moisRecu === undefined ? courant : moisRecu;
@@ -111,8 +121,27 @@ export async function reglerBudgetUsine(corps: { budget_mensuel_cents?: unknown;
     const plafond = await plafondStudioCentimes();
     if (plafond !== null && cents > plafond) throw new ErreurChampInvalide("budget_mensuel_cents", "Le budget dépasse le plafond du mois réglé dans le studio.");
   }
+  // Plafond de l'Usine en automatique (15/11) : la paire est validée en entier AVANT toute écriture (aucun lien avec le plafond global).
+  const controle = controlerPaireAutonomie(corps.automatique, corps.plafond_automatique_cents);
+  if (controle !== null && "champ" in controle) throw new ErreurChampInvalide(controle.champ, controle.message);
+  const paire = controle;
   const avant = await lireBudgetUsine(mois);
-  if (cents === undefined && quotas === undefined) return { budget_mensuel_cents: avant?.budget_mensuel_cents ?? null, mois, deja: true };
+  // Corps sans budget, sans quotas et sans paire : rien n'est écrit (inchangé).
+  if (cents === undefined && quotas === undefined && paire === null) return { budget_mensuel_cents: avant?.budget_mensuel_cents ?? null, mois, deja: true };
+  let resultat: BudgetUsine & { deja: boolean; quotas?: QuotaUsine[] };
+  if (cents === undefined && quotas === undefined) {
+    resultat = { budget_mensuel_cents: avant?.budget_mensuel_cents ?? null, mois, deja: true }; // paire seule : le budget n'est pas touché
+  } else {
+    resultat = await ecrireBudgetEtQuotas({ cents, quotas, mois, avant });
+  }
+  if (paire === null) return resultat;
+  const recu = await recevoirAutonomieUsine(paire);
+  return { ...resultat, deja: resultat.deja && recu.deja, automatique: paire.actif, plafond_automatique_cents: paire.plafondCents };
+}
+
+/** Écriture du budget et des quotas de l'Usine (corps déjà validé, au moins l'un des deux présent). */
+async function ecrireBudgetEtQuotas(o: { cents: number | undefined; quotas: QuotaUsine[] | undefined; mois: string; avant: BudgetUsine | null }): Promise<BudgetUsine & { deja: boolean; quotas?: QuotaUsine[] }> {
+  const { cents, quotas, mois, avant } = o;
   const quotasAvant = quotas ? JSON.stringify(await lireParametre<unknown>(CLE_QUOTAS_USINE, null)) : undefined;
   const memeQuotas = quotas === undefined || quotasAvant === JSON.stringify(quotas);
   if (avant && memeQuotas && (cents === undefined ? avant.budget_mensuel_cents === null || quotas !== undefined : avant.budget_mensuel_cents === cents)) {

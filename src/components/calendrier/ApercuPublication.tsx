@@ -18,9 +18,11 @@ import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisibl
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
+import { AlerteDureeReseau } from "@/components/publication/AlerteDureeReseau";
 import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { PretAPartir } from "./PretAPartir";
+import { RetirerDuCalendrier } from "./RetirerDuCalendrier";
 import type { CodeControle } from "@/services/pret-a-partir";
 import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
 import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
@@ -81,6 +83,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const a = apercuReseau(entree, aujourdhui);
   const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
   const nom = a.nomReseau;
+  // Retrait : seulement une publication de carrousel « programmée », à venir (le serveur refuse le reste).
+  const retirable = lireCleFiche(entree.cle)?.origine === "publication" && entree.etat === "programme" && entree.type === "carrousel" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
 
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
     // Une touche déjà traitée plus bas (flèches du carrousel, Échap de la vue agrandie) ne change pas de publication.
@@ -136,6 +140,11 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       </h2>
       <p className="text-xs text-texte-faible">{a.dateDite}</p>
       <p className="mt-1 text-xs text-texte-faible">Format : {a.formatLibelle}</p>
+      {entree.media?.genre === "video" && (
+        <div className="mt-1">
+          <AlerteDureeReseau reseaux={[entree.reseau]} dureeSec={entree.media.dureeSec} />
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">
         <PastilleStatutPlan etat={entree.etat} libelles={LIBELLES_ENVOI} />
@@ -216,6 +225,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
           Ouvrir la vidéo
         </Link>
       )}
+      {retirable && <RetirerDuCalendrier key={entree.cle} cle={entree.cle} />}
     </aside>
     </TiroirAccessible>
   );

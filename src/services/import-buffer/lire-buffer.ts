@@ -50,6 +50,8 @@ export function creerClientLecture(cle: string, options: { appeler?: Fetch; url?
 
 /** Client depuis l'environnement du serveur. */
 export function clientDepuisEnv(env: Env = process.env, appeler?: Fetch): ClientLecture {
+  // Lot A1 : Buffer gelé. Ces outils n'ont pas la base : déblocage MANUEL et explicite par l'environnement du lanceur.
+  if (env.STUDIO_BUFFER_DEGELE !== "oui") throw new ErreurLectureBuffer("gele", "Buffer est gelé en lecture seule : lancez avec STUDIO_BUFFER_DEGELE=oui pour le relire exceptionnellement.");
   const cle = cleDans(env, VARIABLE_CLE_BUFFER);
   if (!cle) throw new ErreurLectureBuffer("cle-absente", `${VARIABLE_CLE_BUFFER} est absente de l'environnement.`);
   return creerClientLecture(cle, { appeler });

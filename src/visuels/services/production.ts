@@ -108,6 +108,14 @@ const PHRASES_CODES: Record<string, string> = {
   TRANSITION_REFUSEE: "Cette action n'est pas possible pour ce carrousel dans son état actuel",
   CORBEILLE_REFUSEE: "Ce carrousel ne peut pas aller à la corbeille maintenant",
   INTROUVABLE: "Ce carrousel est introuvable",
+  RESEAUX_MISE_EN_PAGE: "Une page de ce carrousel ne tient pas dans le format des réseaux : un texte dépasse de son cadre. Rien n'a été envoyé. Raccourcissez le texte le plus long, puis réessayez ; si le texte est déjà court, signalez-le.",
+  RESEAUX_TROP_DE_PAGES: "Ce carrousel a trop de pages pour un des réseaux choisis. Décochez ce réseau ou retirez des pages, puis réessayez.",
+  RESEAUX_INDISPONIBLE: "Le serveur qui prépare les images ne répond pas pour le moment. Rien n'a été perdu : réessayez dans quelques minutes.",
+  RESEAUX_ECHEC: "La préparation pour les réseaux n'a pas abouti. Rien n'a été envoyé. Réessayez ; si cela recommence, signalez-le.",
+  PROGRAMMER_SANS_RESEAU: "Ce carrousel n'est pas encore prêt pour les réseaux. Cliquez d'abord sur « Préparer pour les réseaux », puis sur « Programmer ».",
+  PROGRAMMER_DATE: "Ce jour est vide, invalide ou déjà passé, ou l'heure de publication est dépassée. Choisissez un jour à venir, puis cliquez sur « Programmer ».",
+  PROGRAMMER_REFUSE: "Ce carrousel ne peut pas être programmé maintenant : il doit être validé et ne pas être déjà programmé à une autre date.",
+  RETIRER_REFUSE: "Ce carrousel ne peut pas être retiré du calendrier maintenant : une publication est passée, déjà publiée ou confiée à l'outil de publication.",
   INCONNUE: GENERIQUE,
 };
 

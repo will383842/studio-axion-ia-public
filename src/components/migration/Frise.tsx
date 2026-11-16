@@ -10,10 +10,8 @@ export const JALONS: Omit<Jalon, "etat">[] = [
   { titre: "Instagram et Facebook", date: "ven. 6/11" },
   { titre: "LinkedIn page et profil", date: "dim. 8/11" },
   { titre: "TikTok", date: "mar. 10/11", note: "Aucun post à reprendre" },
-  { titre: "Résiliation de Buffer", date: "mer. 18/11", note: "Par vous, dans Buffer" },
-  { titre: "Prélèvement évité", date: "ven. 20/11" },
 ];
-const JOURS_JALONS = ["2026-11-06", "2026-11-08", "2026-11-10", "2026-11-18", "2026-11-20"];
+const JOURS_JALONS = ["2026-11-06", "2026-11-08", "2026-11-10"];
 
 /** États déduits de la date du jour : passé = fait, premier à venir = en cours. */
 export function jalonsPour(maintenant: Date): Jalon[] {
