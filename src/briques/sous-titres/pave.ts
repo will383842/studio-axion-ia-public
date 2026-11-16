@@ -69,14 +69,14 @@ export function geometriePave(boite: BoitePave, taillePx: number, t: number): Ge
 }
 
 /**
- * Instants (s, arrondis à l'image) où la plaque change d'aspect : une valeur par image de `debutS` à
- * `debutS + dureeEntreeS`. Triés, sans doublon. Non appelée ici.
+ * Instants (s, à l'image) où la plaque change d'aspect : une valeur par image, de la première image
+ * ≥ `debutS` à la première image ≥ `debutS + dureeEntreeS` (l'état final y est atteint). Triés, sans doublon. Non appelée ici.
  */
 export function instantsPaves(paves: { debutS: number }[], fps: number): number[] {
   const images = new Set<number>();
   for (const { debutS } of paves) {
-    const premiere = Math.round(debutS * fps);
-    const derniere = Math.round((debutS + PAVE_ANIM.dureeEntreeS) * fps);
+    const premiere = Math.ceil(debutS * fps - 1e-9);
+    const derniere = Math.ceil((debutS + PAVE_ANIM.dureeEntreeS) * fps - 1e-9);
     for (let i = premiere; i <= derniere; i++) images.add(i);
   }
   return [...images].sort((a, b) => a - b).map((i) => +(i / fps).toFixed(4));

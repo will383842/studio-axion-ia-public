@@ -58,13 +58,27 @@ describe("C2-U7b : instantsPaves", () => {
     const r = instantsPaves([{ debutS: 2 }, { debutS: 1 }, { debutS: 1 }], 30);
     expect(r).toEqual([...new Set(r)].sort((a, b) => a - b));
     expect(r.length).toBeGreaterThan(0);
-    const marge = 0.5 / 30;
+    const marge = 1 / 30 + 1e-6; // borne haute : première image ≥ debutS + dureeEntreeS (au plus une image au-delà)
     for (const t of r) {
       const ok = [1, 2].some((d) => t >= d - marge && t <= d + PAVE_ANIM.dureeEntreeS + marge);
       expect(ok).toBe(true);
     }
     expect(Math.min(...r)).toBeCloseTo(1);
   });
+});
+
+describe("C2-U7b : instantsPaves, état final et début", () => {
+  for (const debutS of [1, 1.01]) {
+    it(`debutS=${debutS} à 30 i/s : premier instant ≥ debutS, dernier = état final`, () => {
+      const r = instantsPaves([{ debutS }], 30);
+      expect(r[0]).toBeGreaterThanOrEqual(debutS - 1e-6);
+      const dernier = r[r.length - 1]!;
+      const g = geometriePave(boite, taille, dernier - debutS)!;
+      expect(g.opacite).toBe(1);
+      expect(g.echelle).toBe(1);
+      expect(dernier).toBeLessThanOrEqual(debutS + PAVE_ANIM.dureeEntreeS + 1 / 30 + 1e-6);
+    });
+  }
 });
 
 describe("C2-U7b : gardes statiques", () => {
