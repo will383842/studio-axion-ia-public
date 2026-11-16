@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { autoriserTexte } from "@/briques/charte/axion-2026";
+import { PALETTE, autoriserTexte } from "@/briques/charte/axion-2026";
 import { MARQUEURS } from "@/briques/sous-titres/marqueur";
 import { ACCENTS_PAR_ROLE, ACCENTS_ROLE_ACTIFS, accentPourRole, type RoleAccent } from "@/briques/sous-titres/accents-role";
 
@@ -17,9 +17,14 @@ describe("accents par rôle (C11-T12)", () => {
   it("le surlignage rendu est celui de MARQUEURS, sans couleur libre", () => {
     for (const role of ROLES) {
       const m = MARQUEURS[ACCENTS_PAR_ROLE[role]];
-      expect(accentPourRole(role, "clair")).toEqual({ fond: m.fond, texte: m.texte });
-      expect(accentPourRole(role, "sombre")).toEqual({ fond: m.fondClair ?? m.fond, texte: m.texteClair ?? m.texte });
+      expect(accentPourRole(role, "sombre")).toEqual({ fond: m.fond, texte: m.texte });
+      expect(accentPourRole(role, "clair")).toEqual({ fond: m.fondClair ?? m.fond, texte: m.texteClair ?? m.texte });
     }
+  });
+
+  it("validation (ivoire) reste lisible : bloc noir sur écran clair, bloc ivoire sur écran sombre", () => {
+    expect(accentPourRole("validation", "clair")).toEqual({ fond: PALETTE.noir, texte: PALETTE.ivoire });
+    expect(accentPourRole("validation", "sombre")).toEqual({ fond: PALETTE.ivoire, texte: PALETTE.noir });
   });
 
   it("toute paire rendue passe autoriserTexte", () => {
