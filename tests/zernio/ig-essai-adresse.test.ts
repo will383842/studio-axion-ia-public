@@ -212,6 +212,26 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(c.lienIgLe).toBeUndefined();
   });
 
+  it("6 bis · cible devenue d'essai AUJOURD'HUI : v6-1 puis le drapeau cibleEssai est posé ; l'adresse écrite part au site avec guide, reseau instagram et versionTexteM1 v6-1", async () => {
+    const cle = cleParcours(cleConversation(AUTEUR), "a".padEnd(64, "0"));
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, {
+      [cle]: graineConv("ig_attente_ok", {
+        reseau: "instagram", cleIdempotenceGuide: "a".padEnd(64, "0"), idCommentaire: "com-graine-1", mot: MOT, guide: CODE, nature: "premier", groupeM1: "m1-lien", titreCible: TITRE_ESSAI,
+        versionTexteM1: "mp-ig-suivre-v1-1", formulations: { "ig-suivre": "mp-ig-suivre-v1-1" }, creeLe: iso(T0 - 2 * H), m1Le: iso(T0 - 2 * H + 1000), derniereActiviteLe: iso(T0 - 1000),
+      }),
+    });
+    expect((await conv()).cibleEssai).toBeUndefined();
+    await msg("msg-ok-1");
+    await pass(T1);
+    expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
+    expect((await conv()).cibleEssai).toBe(true);
+    lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
+    await msg("msg-adr", 30_000);
+    await pass(T1 + 40_000);
+    expect(demandes()).toHaveLength(1);
+    expect(JSON.parse(demandes()[0].corps)).toMatchObject({ guide: CODE, reseau: "instagram", versionTexteM1: NOUVELLE });
+  });
+
   it("7 · texte sans adresse : M2 part UNE fois, m2Le compté ; un 2e texte sans adresse : silence", async () => {
     await jusquAuOk();
     lireTexteDe("bonjour");
@@ -260,6 +280,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     const c = await conv();
     expect(c).toMatchObject({ etat: "attente_email", versionTexteM1: "mp-lien-v3-1" });
     expect(typeof c.lienIgLe).toBe("string");
+    expect(c.cibleEssai).toBeUndefined();
     expect(c.adresseIgLe).toBeUndefined();
   });
 

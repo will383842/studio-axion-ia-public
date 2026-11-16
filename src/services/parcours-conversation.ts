@@ -886,6 +886,8 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
     // et si la conversation n'est pas déjà figée sur une autre version (jamais de changement de texte en cours de conversation). Sinon : inchangé.
     const rgpd = await texteAdresseRgpd(e, d);
     if (rgpd !== null) return { texte: rgpd.texte, version: rgpd.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), formulationAdresse: rgpd.version };
+    // Instagram, cible d'essai : aucun repli vers m1-adresse ni mp-m1-v2 (échec fermé)
+    if (code === "cible_essai" && e.reseau === "instagram") return { texte: null, version: e.versionTexteM1, codeRepli: code };
     const f = await formuler({ groupe: "m1-adresse", e, ancien: "mp-m1-v2", valeurs: { mot, titre } });
     return { texte: f.texte, version: f.version, codeRepli: code, ...(choisie.version ? { formulationLien: choisie.version } : {}), ...(f.formulation ? { formulationAdresse: f.formulation } : {}) };
   };
@@ -1047,6 +1049,14 @@ async function cloreIgSuivreAbsent(ev: EvenementFournisseur, cle: string, now: n
   return "traite";
 }
 
+/** Instagram, cible d'essai, demande d'adresse validée absente : rien ne part (ni public ni privé), alerte fixe, commentaire clos, parcours refusé. */
+async function cloreAdresseEssaiAbsente(ev: EvenementFournisseur, cle: string, now: number): Promise<"traite"> {
+  await alerter("ig_adresse_indisponible", MESSAGE_IG_ADRESSE_INDISPONIBLE, now);
+  await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: "adresse_indisponible" });
+  await clore(ev, "ecarte", "adresse_indisponible");
+  return "traite";
+}
+
 async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, now: number, cles: ClesOk, ig = false): Promise<"traite" | "bloque"> {
   let e = await lireEtat(cle);
   const optsDoute = { doute: true }; // les DEUX modes : un doute bloque aussi la réponse publique et le M1 (y compris en réessai) ; seul M2 passe { m2: true }
@@ -1084,6 +1094,9 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     await clore(ev, "perime", "perime");
     return "traite";
   }
+  // Instagram, cible d'essai (réglage « suivre le compte » éteint) : sans demande d'adresse validée, rien ne part, pas même la réponse publique.
+  if (!igPremier && e.nature !== "renvoi" && e.reseau === "instagram" && e.etat === "nouveau"
+    && (e.cibleEssai === true || (await cibleEstEssaiAujourdhui(e, env, now))) && (await texteAdresseRgpd(e, d)) === null) return cloreAdresseEssaiAbsente(ev, cle, now);
   if (e.etat === "nouveau") {
     const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.["pub-commentaire"]);
     const texte = pub.texte;
@@ -1132,6 +1145,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   const m1 = e.nature === "renvoi" ? await preparerRenvoi(e, d, env, cles, now) : igPremier ? await preparerIgSuivre(e, d) : await preparerM1(e, d, env, cles, now);
   const texteM1 = m1.texte;
   if (texteM1 === null && igPremier) return cloreIgSuivreAbsent(ev, cle, now);
+  if (texteM1 === null && m1.codeRepli === "cible_essai") return cloreAdresseEssaiAbsente(ev, cle, now);
   if (texteM1 === null) {
     const codeRefus = e.nature === "renvoi" ? "renvoi_impossible" : "texte_incomplet";
     await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: codeRefus });
@@ -1733,7 +1747,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       if (adresseEssai) {
         // Cible d'essai : la demande d'adresse est partie (date comptée dans le plafond par personne). Ni lienIgLe, ni référence de lien, ni empreinte de lien.
         await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol"
-          ? { ...e, etat: "attente_email", adresseIgLe: quand, suiviIg: dec.issue, versionTexteM1: prep.version, dernierCode: null, formulations: { ...e.formulations, "m1-adresse": prep.version } }
+          ? { ...e, etat: "attente_email", cibleEssai: true, adresseIgLe: quand, suiviIg: dec.issue, versionTexteM1: prep.version, dernierCode: null, formulations: { ...e.formulations, "m1-adresse": prep.version } }
           : undefined));
       } else if (dec.action === "lien") {
         await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol"
