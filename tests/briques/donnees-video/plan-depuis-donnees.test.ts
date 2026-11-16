@@ -67,12 +67,16 @@ describe("planDepuisDonnees", () => {
       const ok = (v: number) => permis.some((p) => memeValeur(p, v));
       const r = planDepuisDonnees(d, { ...OPT, synthese: true });
       for (const s of r.resultat.plan.scenes) {
-        const p = s.parametres as Record<string, any>;
+        const p = s.parametres as unknown as {
+          valeur?: number; valeurs?: { valeur: number }[]; serie?: number[];
+          avant?: { valeur: number }; apres?: { valeur: number };
+          texte?: string; sousTexte?: string; titre?: string; libelle?: string; kpis?: { valeur: string }[];
+        };
         if (typeof p.valeur === "number") expect(ok(p.valeur), `${s.piece} valeur`).toBe(true);
         for (const v of p.valeurs ?? []) expect(ok(v.valeur)).toBe(true);
         for (const v of p.serie ?? []) expect(ok(v)).toBe(true);
-        for (const k of ["avant", "apres"]) if (p[k]) expect(ok(p[k].valeur)).toBe(true);
-        const textes: string[] = [p.texte, p.sousTexte, p.titre, p.libelle, ...(p.kpis ?? []).map((x: any) => x.valeur)].filter((t) => typeof t === "string");
+        for (const k of ["avant", "apres"]) { const b = k === "avant" ? p.avant : p.apres; if (b) expect(ok(b.valeur)).toBe(true); }
+        const textes: string[] = [p.texte, p.sousTexte, p.titre, p.libelle, ...(p.kpis ?? []).map((x) => x.valeur)].filter((t) => typeof t === "string");
         for (const t of textes) for (const n of nombresAffirmes(t)) expect(ok(n.valeur), `« ${t} »`).toBe(true);
       }
     }
