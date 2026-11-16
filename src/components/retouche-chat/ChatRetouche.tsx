@@ -8,6 +8,8 @@
 import { useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
+import type { OperationRetouche } from "@/briques/operations";
+import { ApercuFamille } from "./ApercuFamille";
 import { CollerOperations } from "./CollerOperations";
 
 export type EnvoiRetouche = (corps: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -20,7 +22,7 @@ const envoiParDefaut: EnvoiRetouche = async (corps) => {
 interface Apercu {
   demande: string;
   operations: unknown[];
-  impact: { phrase: string; scenes: string[] };
+  impact: { phrase: string; scenes: string[]; total?: number };
   remarques: string[];
 }
 
@@ -97,6 +99,7 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
       {apercu ? (
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-texte-doux">{apercu.impact.phrase}</p>
+          {generateur ? <ApercuFamille generateur={generateur} operations={apercu.operations as OperationRetouche[]} impact={{ scenes: apercu.impact.scenes ?? [], total: apercu.impact.total ?? 0 }} /> : null}
           <Bouton onClick={appliquer} chargement={occupe}>
             Appliquer
           </Bouton>
