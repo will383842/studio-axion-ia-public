@@ -102,7 +102,7 @@ export function TableauSuiviMots({ suivi, partout = AU_MOINS_PARTOUT }: { suivi:
                     <td>{compteAffiche(r.premiersMessages[fenetre], partout)}</td>
                     <td>{valeur(suivi.siteDisponible ? r.envoisEmail : null)}</td>
                     <td>{valeur(suivi.siteDisponible ? r.clics : null)}</td>
-                    {/* « Personnes gagnées » = abonnés Instagram gagnés : affiché sur la seule ligne Instagram (le total reste la somme). */}
+                    {/* « Personnes gagnées » = personnes gagnées côté Instagram : affiché sur la seule ligne Instagram (le total reste la somme). */}
                     <td>{r.reseau === "instagram" ? libelleGagnees(r.gagnees[fenetre]) : chiffreOuTiret(null)}</td>
                   </tr>
                 ))}
