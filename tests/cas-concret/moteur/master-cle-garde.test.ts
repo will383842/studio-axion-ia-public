@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
 import type { MoteurVideo, ResultatFabrication } from "@/moteurs/types";
 import { creerMoteurMontageCasConcret } from "@/moteurs/montage-cas-concret";
-import type { DemandeRendu } from "@/services/rendu";
+import type { DemandeRendu } from "@/fournisseurs/types";
 import { banc, commandeCasConcret, versOutils } from "./doubles";
 
 const T0 = Date.UTC(2026, 9, 12, 9, 0, 0);
