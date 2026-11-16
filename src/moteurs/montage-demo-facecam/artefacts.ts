@@ -36,15 +36,15 @@ const lirePistes = (v: unknown): PistesEcran | undefined => {
 
 const texte = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
-/** Style relu : prononciations bien formées seules gardées ; style/base/intensité gardés seulement si ce sont des chaînes. */
+/** Style relu : prononciations bien formées seules gardées ; base/intensité gardés seulement si ce sont des chaînes, style si chaîne ou objet (le style de la Bibliothèque est un objet). */
 const lireStyle = (v: unknown): StyleSousTitresDemo | undefined => {
   if (!objet(v) || !Array.isArray(v.prononciations)) return undefined;
   const prononciations = v.prononciations.filter((p) => objet(p) && typeof p.mot === "string" && typeof p.prononciation === "string") as unknown as StyleSousTitresDemo["prononciations"];
   return {
     prononciations,
-    ...(texte(v.style) ? { style: v.style as StyleSousTitresDemo["style"] } : {}),
-    ...(texte(v.base) ? { base: v.base as StyleSousTitresDemo["base"] } : {}),
-    ...(texte(v.intensite) ? { intensite: v.intensite as StyleSousTitresDemo["intensite"] } : {}),
+    ...(texte(v.style) || objet(v.style) ? { style: v.style as unknown as StyleSousTitresDemo["style"] } : {}),
+    ...(texte(v.base) ? { base: v.base as unknown as StyleSousTitresDemo["base"] } : {}),
+    ...(texte(v.intensite) ? { intensite: v.intensite as unknown as StyleSousTitresDemo["intensite"] } : {}),
   };
 };
 
