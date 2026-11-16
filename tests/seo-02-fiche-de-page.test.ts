@@ -18,8 +18,12 @@ import { creerDepotMemoire, creerServiceFichesDePage } from "@/services/fiche-de
 
 const t = (n: number, base = "a") => (base + " ").repeat(n).slice(0, n).trim().padEnd(n, "x");
 const phrases = (n: number, total: number) => {
-  const part = Math.floor(total / n);
-  return Array.from({ length: n }, (_, i) => `${t(i === n - 1 ? total - part * (n - 1) - 1 : part - 1, "mot")}.`.replace(/^(.)/, (c) => c.toUpperCase())).join(" ");
+  const dispo = total - (n - 1);
+  const part = Math.floor(dispo / n);
+  return Array.from({ length: n }, (_, i) => {
+    const L = i === n - 1 ? dispo - part * (n - 1) : part;
+    return `M${"o".repeat(L - 2)}.`;
+  }).join(" ");
 };
 
 function contenuValide(): ContenuFiche {
