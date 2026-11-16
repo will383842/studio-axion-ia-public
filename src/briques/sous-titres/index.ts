@@ -27,6 +27,7 @@ import { largeurLigne } from "./mesure";
 import { reporterSurTexteValide } from "./report";
 import { elementDe, largeurElement, type DonneesCalque, type SurlignageSousTitres } from "./scene";
 import { baseDe, couleursDepuisMarque, gabaritDe, GABARITS, type CouleursSousTitres } from "./style";
+import { motsAPlaque } from "./pave";
 import { PASTILLE_AXION, PASTILLE_AXION_ARDOISE } from "./pastille";
 import { normaliser } from "./typographie";
 import type {
@@ -197,10 +198,12 @@ export function donneesCalque(entree: {
   const { largeur, hauteur } = dimensions(ratio);
   const reseaux = entree.reseaux ?? [];
   const cibleMarqueur = entree.style?.texteEcran?.marqueur?.cible;
+  const segmentsPropres = sansChevauchement(entree.segments);
+  const regleePave = entree.style?.texteEcran?.pave?.mots;
   return {
     largeur,
     hauteur,
-    segments: sansChevauchement(entree.segments),
+    segments: segmentsPropres,
     // GV-ST-08a : `BaseRendu` (types-rendu.ts, hors liste) n'admet encore que karaoke/minimal ; à élargir par GV-ST-08b.
     base: entree.base as BaseRendu,
     couleurs: entree.couleurs ?? couleursDepuisMarque(entree.marque, entree.style?.jetonEmphase ?? "orange-vif"),
@@ -214,6 +217,8 @@ export function donneesCalque(entree: {
     ...(entree.style?.surlignage ? { surlignage: entree.style.surlignage } : {}),
     ...(!entree.style?.surlignage && entree.style?.texteEcran?.marqueur ? { surlignage: MARQUEURS[entree.style.texteEcran.marqueur.teinte] } : {}),
     ...(cibleMarqueur === "expression" || cibleMarqueur === "mot-dit" ? { cibleMarqueur } : {}),
+    // C2-U7a (ajout pur) : mot-clé en pavé, seulement quand le style le porte.
+    ...(regleePave ? { plaques: Object.fromEntries(segmentsPropres.flatMap((s) => { const k = motsAPlaque(s, regleePave)[0]; return k === undefined ? [] : [[s.id, k] as const]; })) } : {}),
   };
 }
 

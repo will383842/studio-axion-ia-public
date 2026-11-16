@@ -6,6 +6,7 @@
  */
 import { largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
+import { PAVE } from "./pave";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
 import type { StylePastille } from "./pastille";
 import type { CibleMarqueurRendu, GabaritRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
@@ -78,6 +79,8 @@ export interface DonneesCalque {
   bandeFond?: BandeFondSousTitres;
   /** C2-U6, ajout pur : cible du marqueur ; absente ou "souligne" : le mot souligné seul, inchangé. */
   cibleMarqueur?: Exclude<CibleMarqueurRendu, "souligne">;
+  /** C2-U7a : mot à plaque de chaque groupe (id du segment → indice du mot). Absent : aucun pavé. */
+  plaques?: Record<string, number>;
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -118,6 +121,8 @@ export interface MotDessine {
   /** Style « Pastille » : grossissement et montée (px) du mot dit (absents : 1 et 0). */
   echelle?: number;
   monteePx?: number;
+  /** C2-U7a : mot posé sur une plaque (absent : inchangé). */
+  plaque?: true;
 }
 
 export interface ElementDessine {
@@ -282,7 +287,9 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
   // Facecam F1 : écran partagé côte à côte, la ligne ne dépasse pas la colonne de Will.
   const colonne = d.passagesJonction?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6)?.colonne;
   const libre = d.echelleTexte !== undefined ? d.largeurMaxPx : d.largeurMaxPx * echelleImage;
-  const disponible = (colonne ? Math.min(libre, colonne.largeurPx) : libre) - marges - g.contourPx * echelleImage;
+  const indicePlaque = d.plaques?.[s.id];
+  const margePlaque = indicePlaque === undefined ? 0 : 2 * PAVE.margeXEm * voulue;
+  const disponible = (colonne ? Math.min(libre, colonne.largeurPx) : libre) - marges - g.contourPx * echelleImage - margePlaque;
   const taillePx = tailleQuiTient(
     s.mots.map((m) => m.mot),
     g.police,
@@ -295,7 +302,8 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
   const couleurs = clair ? { ...d.couleurs, texte: clair } : d.couleurs;
   // Lot L3b : surlignage (fond derrière le mot souligné) ; ses couleurs d'écran clair pendant un passage clair.
   const surlignage = d.surlignage ? (clair ? { fond: d.surlignage.fondClair ?? d.surlignage.fond, texte: d.surlignage.texteClair ?? d.surlignage.texte } : { fond: d.surlignage.fond, texte: d.surlignage.texte }) : undefined;
-  const mots = motsDessines(s, g, couleurs, t, d.cibleMarqueur ? { cible: d.cibleMarqueur, base: d.base } : undefined);
+  const motsBase = motsDessines(s, g, couleurs, t, d.cibleMarqueur ? { cible: d.cibleMarqueur, base: d.base } : undefined);
+  const mots = indicePlaque === undefined ? motsBase : motsBase.map((m, k) => (k === indicePlaque ? { ...m, plaque: true as const } : m));
   return {
     cle: s.id,
     gabarit: g,
@@ -375,7 +383,7 @@ function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitre
 export function largeurElement(el: ElementDessine): number {
   const options = { majuscules: el.gabarit.casse === "majuscules", chiffresTabulaires: true };
   const texte = el.mots.reduce((s, m) => s + largeurMot(m.texte, el.police, el.taillePx, options), 0) + el.espacePx * Math.max(0, el.mots.length - 1);
-  return texte + (el.fond ? 2 * el.fond.margeXPx : 0) + (el.pastille ? 2 * el.pastille.margeXPx : 0) + (el.margeMarqueurPx ?? 0);
+  return texte + (el.fond ? 2 * el.fond.margeXPx : 0) + (el.pastille ? 2 * el.pastille.margeXPx : 0) + (el.margeMarqueurPx ?? 0) + el.mots.reduce((n, m) => n + (m.plaque ? 2 * PAVE.margeXEm * el.taillePx : 0), 0);
 }
 
 export type Css = Record<string, string | number>;
@@ -443,6 +451,15 @@ export function cssElement(el: ElementDessine, d: Pick<DonneesCalque, "couleurs"
       if ((m.echelle !== undefined && m.echelle !== 1) || m.monteePx) {
         css.transform = `translateY(${(m.monteePx ?? 0).toFixed(2)}px) scale(${(m.echelle ?? 1).toFixed(4)})`;
         css.transformOrigin = "50% 70%";
+      }
+      // C2-U7a : plaque derrière le mot-clé (la marge élargit la ligne, `largeurElement` la compte).
+      if (m.plaque) {
+        css.background = d.couleurs.accent;
+        css.color = d.couleurs.contour;
+        css.padding = `${PAVE.margeYEm * el.taillePx}px ${PAVE.margeXEm * el.taillePx}px`;
+        css.borderRadius = PAVE.rayonEm * el.taillePx;
+        css.WebkitTextStroke = "0";
+        css.textShadow = "none";
       }
       // Lot L3b : mot surligné, lettre nette sur son fond (ni contour ni ombre).
       if (el.surlignage && m.souligne >= SURLIGNAGE.texteDes) {
