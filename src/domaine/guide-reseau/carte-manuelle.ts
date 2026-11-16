@@ -11,7 +11,6 @@ export interface MotDuReseau {
 export type { RaisonSansMessage };
 export type PropositionCarte =
   | { action: "silence"; raison: "opposition" | "personne_opposee" | "rien" }
-  | { action: "carte_doute" }
   | {
       action: "carte";
       motif: "mot_manuel" | "mot_inconnu";
@@ -21,7 +20,9 @@ export type PropositionCarte =
       raisonSansMessage: RaisonSansMessage | null;
     };
 
-export function proposerCarte(e: {
+/** Doute d'opposition : rien n'est proposé ni persisté (type local, volontairement hors de `PropositionCarte` pour ne pas élargir les appelants existants). */
+export type PropositionCarteDoute = { action: "carte_doute" };
+interface EntreeCarte {
   reseau: ReseauManuel;
   motSeul: string | null;
   motsDuReseau: readonly MotDuReseau[];
@@ -29,7 +30,10 @@ export function proposerCarte(e: {
   /** Doute d'opposition lu par le crochet (jamais porté par `motSeul`). */
   doute?: boolean;
   dejaTraite: boolean;
-}): PropositionCarte {
+}
+export function proposerCarte(e: EntreeCarte & { doute?: false | undefined }): PropositionCarte;
+export function proposerCarte(e: EntreeCarte): PropositionCarte | PropositionCarteDoute;
+export function proposerCarte(e: EntreeCarte): PropositionCarte | PropositionCarteDoute {
   // Un stop gagne partout : opposition écrite, puis personne déjà opposée, avant toute autre lecture.
   if (e.motSeul !== null && classerOpposition(e.motSeul) !== "non") return { action: "silence", raison: "opposition" };
   if (e.opposee) return { action: "silence", raison: "personne_opposee" };
