@@ -10,7 +10,7 @@ export function Heros({ posts }: { posts: PostMigration[] }) {
       <p className="mt-1 text-3xl font-bold text-texte">
         {c.enRegle} sur {c.total} posts en règle · {c.pourcent} %
       </p>
-      <div role="img" aria-label={`${c.laissesBuffer} laissés à Buffer, ${c.verifies} vérifiés chez Zernio, ${c.aVerifier} à vérifier`} className="mt-3 flex h-3 overflow-hidden rounded-full bg-surface-3">
+      <div role="img" aria-label={`${c.laissesBuffer} laissés à l’ancien outil, ${c.verifies} vérifiés chez Zernio, ${c.aVerifier} à vérifier`} className="mt-3 flex h-3 overflow-hidden rounded-full bg-surface-3">
         <span className="bg-texte-faible" style={{ width: part(c.laissesBuffer) }} />
         <span className="bg-sauge" style={{ width: part(c.verifies) }} />
         <span className="bg-ambre" style={{ width: part(c.aVerifier) }} />
@@ -19,7 +19,7 @@ export function Heros({ posts }: { posts: PostMigration[] }) {
         <li>{c.verifies} vérifiés et programmés chez Zernio</li>
         <li>{c.aVerifier} recréés, à vérifier par vous</li>
         <li>{c.restants} restants</li>
-        <li>{c.laissesBuffer} laissés à Buffer (non repris, Buffer résilié)</li>
+        <li>{c.laissesBuffer} laissés à l’ancien outil (non repris, ancien outil résilié)</li>
       </ul>
       {c.ecart === 0 ? (
         <p className="mt-3 text-base sm:text-sm font-semibold text-texte">
@@ -34,12 +34,12 @@ export function Heros({ posts }: { posts: PostMigration[] }) {
   );
 }
 
-/** Carte d'état : Buffer est résilié, la publication passe par Zernio. Rien à faire, aucune date. */
+/** Carte d'état : l'ancien outil est résilié, la publication passe par Zernio. Rien à faire, aucune date. */
 export function EtatBuffer() {
   return (
-    <section aria-labelledby="mig-buffer" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
-      <h2 id="mig-buffer" className="text-base sm:text-sm font-semibold text-texte-doux">Buffer</h2>
-      <p className="mt-1 text-2xl font-bold text-texte">Buffer est résilié.</p>
+    <section aria-labelledby="mig-ancien-outil" className="rounded-carte border border-trait bg-surface-1 p-4 shadow-carte">
+      <h2 id="mig-ancien-outil" className="text-base sm:text-sm font-semibold text-texte-doux">Ancien outil</h2>
+      <p className="mt-1 text-2xl font-bold text-texte">L’ancien outil est résilié.</p>
       <p className="mt-1 text-base sm:text-sm text-texte-doux">Toutes les publications passent par Zernio.</p>
     </section>
   );
