@@ -141,7 +141,7 @@ describe("R1b · petits défauts — compte déconnecté (chemin Zernio)", () =>
     await lireComptes();
     await cocher(VIDEO);
     const e = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [ID.linkedinPage] } }).catch((x: Error) => x);
-    expect(e).toMatchObject({ code: "CIBLE_ZERNIO", message: expect.stringMatching(/« Profil exemple »/) });
+    expect(e).toMatchObject({ code: "CIBLE_ZERNIO", message: expect.stringMatching(/n'est plus relié à Zernio.*recochez-le/) });
     expect((e as Error).message).not.toMatch(/Page exemple/);
     expect(envoyer).not.toHaveBeenCalled();
   });

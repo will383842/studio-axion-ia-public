@@ -111,10 +111,16 @@ afterEach(() => {
 });
 
 
-/** Ce que l'écran envoie : les comptes mémorisés (identifiants de canaux BUFFER) accompagnent le choix « Zernio ». */
-describe("DIAG-STUDIO-ZERNIO · comptes Buffer mémorisés + envoi par Zernio", () => {
-  it("un identifiant de compte Buffer n'empêche pas l'envoi Zernio : un brouillon est créé chez Zernio", async () => {
-    const r = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "zernio", comptes: ["canal-buffer-memorise"] });
+/** Ce que l'écran envoie : les comptes mémorisés accompagnent le choix « Zernio ». Seul un identifiant de la liste actuelle de Zernio part. */
+describe("DIAG-STUDIO-ZERNIO · comptes mémorisés + envoi par Zernio", () => {
+  it("un ancien identifiant ne part pas : refus de cible inconnue (CIBLE_INCONNUE en interne), rien n'est créé chez Zernio", async () => {
+    const r = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "zernio", comptes: ["canal-ancien-memorise"] });
+    expect(r).toMatchObject({ ok: false, code: "CIBLE_ZERNIO", message: expect.stringContaining("n'est plus relié à Zernio") });
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("un identifiant de la liste actuelle de Zernio part : un brouillon est créé", async () => {
+    const r = await envoyerParOutilAction(VIDEO, "instagram", DEMAIN, { outil: "zernio", comptes: ["exemple-compte-1"] });
     expect(r).toMatchObject({ ok: true, donnees: { nombre: 1, problemes: [] } });
     expect(posts()).toHaveLength(1);
     expect(posts()[0].json).toMatchObject({ isDraft: true });
