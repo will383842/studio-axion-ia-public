@@ -158,9 +158,12 @@ describe.each(["linkedin", "tiktok"])("%s · doute « stop pls »", (p) => {
     await Opp.enregistrerOpposition(AUTEUR, Opp.ESPACE_CONTACT_ZERNIO);
     opp.appels.length = 0;
     await envoyer(manuel(p, "stop pls"));
+    const [d] = await evenements();
     await lancer();
     expect(await cartes()).toEqual([]);
     expect(opp.appels).toEqual([]);
+    expect(await notifications()).toEqual([]);
+    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true });
   });
   it("C3 · « STOP » clair : inscrit au registre, aucune carte", async () => {
     await envoyer(manuel(p, "STOP"));
@@ -200,6 +203,12 @@ describe.each(["linkedin", "tiktok"])("%s · doute permanent, carte et alerte", 
     return c;
   };
   const OPTS = { env: ENV, maintenantMs: T };
+  /** Doute dont l'identifiant d'événement est invalide : refus définitif (non réparable). */
+  const evtIdInvalide = async () => {
+    const d = await evt(p);
+    await depots().evenementsFournisseurs.modifier(d.id, { idEvenement: "id invalide" });
+    return d;
+  };
 
   it("T1 · doute puis GUIDE de la même personne : une seule carte (le doute), GUIDE clos « doute_opposition », aucun kit", async () => {
     const d = await evt(p);
@@ -253,23 +262,23 @@ describe.each(["linkedin", "tiktok"])("%s · doute permanent, carte et alerte", 
     expect((await etatEv(d.idEvenement)).charge.etat).toBe("doute_opposition");
     expect((await etatEv(d.idEvenement)).traite).toBe(true);
   });
-  it("T4 · refus définitif (repère avec espace) : aucune carte, UNE notification fixe sans donnée, événement clos « doute_opposition »", async () => {
-    const d = await evt(p, { repere: "repere avec espace" });
+  it("T4 · refus définitif (id_invalide) : aucune carte, UNE notification fixe sans donnée, événement clos « doute_opposition »", async () => {
+    await evtIdInvalide();
     expect(await lancer()).toMatchObject({ traites: 1, reportes: 0 });
     expect(await cartes()).toEqual([]);
     const ns = await notifications();
     expect(ns).toHaveLength(1);
     expect(ns[0]).toMatchObject({ type: "echec", titre: TITRE_NOTIF, message: MSG_SANS_CARTE, lien: "/a-traiter" });
     const brut = JSON.stringify(ns);
-    for (const interdit of [AUTEUR, d.idEvenement, "repere", "espace"]) expect(brut).not.toContain(interdit);
-    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+    for (const interdit of [AUTEUR, "id invalide", "repere", "espace"]) expect(brut).not.toContain(interdit);
+    expect(await etatEv("id invalide")).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
   });
   it("T5 · refus définitif et notification en échec : événement REPORTÉ (T + 5 min), non clos", async () => {
     vi.spyOn(depots().notifications, "enregistrer").mockRejectedValue(new Error("panne notification"));
-    const d = await evt(p, { repere: "repere avec espace" });
+    await evtIdInvalide();
     expect(await lancer()).toMatchObject({ traites: 0, reportes: 1 });
     expect(await cartes()).toEqual([]);
-    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: false, charge: { etat: "a_faire", prochainEssaiLe: T + 5 * 60_000 } });
+    expect(await etatEv("id invalide")).toMatchObject({ traite: false, charge: { etat: "a_faire", prochainEssaiLe: T + 5 * 60_000 } });
   });
   it("T6 · registre des oppositions illisible : report, aucune carte, aucune notification", async () => {
     await Com.ecrireParametre(Opp.PARAM_OPPOSITIONS_MOTS, "x");
@@ -329,5 +338,81 @@ describe.each(["linkedin", "tiktok"])("%s · doute permanent, carte et alerte", 
     await lancer();
     expect(await cartes()).toHaveLength(1);
     expect(await notifications()).toHaveLength(1);
+  });
+  it("T11 · refus définitif post_invalide : carte doute au repère fixe, carte GUIDE antérieure neutralisée, GUIDE ultérieur clos « doute_opposition »", async () => {
+    const c = await guideAvecKit();
+    const d = await evt(p, { repere: "repere avec espace" });
+    expect(await lancer()).toMatchObject({ traites: 1, reportes: 0 });
+    const l = await cartes();
+    expect(l).toHaveLength(2);
+    expect(l.find((x) => x.idEvenement === d.idEvenement)).toMatchObject({ post: "post_inconnu", mot: null, opposee: true, kit: null });
+    expect(l.find((x) => x.idEvenement === c.idEvenement)).toMatchObject({ statut: "a_traiter", opposee: true, kit: null });
+    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+    const g = await guide(p, { motSeul: "GUIDE" });
+    await lancer();
+    expect(await cartes()).toHaveLength(2);
+    expect(await etatEv(g.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+  });
+  it("T12 · id_invalide (non réparable) : aucune carte doute, cartes GUIDE neutralisées, une alerte, clos « doute_opposition »", async () => {
+    const c = await guideAvecKit();
+    await evtIdInvalide();
+    expect(await lancer()).toMatchObject({ traites: 1, reportes: 0 });
+    const l = await cartes();
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatchObject({ idEvenement: c.idEvenement, opposee: true, kit: null });
+    const ns = await notifications();
+    expect(ns).toHaveLength(1);
+    expect(ns[0].message).toBe(MSG_SANS_CARTE);
+    expect(await etatEv("id invalide")).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+  });
+  it("T13 · branche doute connu : une carte GUIDE restée non opposée est neutralisée au passage suivant", async () => {
+    const c = await guideAvecKit();
+    // Le doute est inscrit sans neutralisation (panne simulée de la revérification).
+    await enregistrerATraiter(
+      { idEvenement: "evt_doute_sans_neutralisation", reseau: p === "tiktok" ? "tiktok" : "linkedin", post: "post_1", lienPost: null, mot: null, motif: "mot_manuel", commentaire: "x", reponse: null, opposee: true, idContact: AUTEUR },
+      { env: ENV, depot: creerDepotParametre() },
+    );
+    expect((await cartes()).find((x) => x.idEvenement === c.idEvenement)!.kit).toBe(TEXTES.reponsePublique);
+    const g = await guide(p, { motSeul: "GUIDE" });
+    await lancer();
+    expect((await cartes()).find((x) => x.idEvenement === c.idEvenement)).toMatchObject({ opposee: true, kit: null });
+    expect(await cartes()).toHaveLength(2);
+    expect(await etatEv(g.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+  });
+  it("T14 · alerte en échec alors que la carte est écrite : événement reporté, pas clos ; alerte rétablie : clos", async () => {
+    const espion = vi.spyOn(depots().notifications, "enregistrer").mockRejectedValue(new Error("panne notification"));
+    const d = await evt(p);
+    expect(await lancer()).toMatchObject({ traites: 0, reportes: 1 });
+    expect(await cartes()).toHaveLength(1);
+    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: false, charge: { etat: "a_faire", prochainEssaiLe: T + 5 * 60_000 } });
+    espion.mockRestore();
+    expect(await traiterCommentairesManuels({ env: ENV, maintenantMs: T + 6 * 60_000, depot: creerDepotParametre() })).toMatchObject({ traites: 1, reportes: 0 });
+    expect(await cartes()).toHaveLength(1);
+    expect(await notifications()).toHaveLength(1);
+    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+  });
+  it("T16 · une carte GUIDE ordinaire au repère invalide reste close « refuse » (comportement figé)", async () => {
+    const g = await guide(p, { repere: "repere avec espace" });
+    await lancer();
+    expect(await cartes()).toEqual([]);
+    expect(await notifications()).toEqual([]);
+    expect(await etatEv(g.idEvenement)).toMatchObject({ traite: true, charge: { etat: "refuse" } });
+  });
+  it("T17 · course : la carte GUIDE existe déjà (deja_present) et un doute est inscrit : la revérification côté GUIDE neutralise aussi", async () => {
+    const c = await guideAvecKit();
+    await enregistrerATraiter(
+      { idEvenement: "evt_doute_sans_neutralisation", reseau: p === "tiktok" ? "tiktok" : "linkedin", post: "post_1", lienPost: null, mot: null, motif: "mot_manuel", commentaire: "x", reponse: null, opposee: true, idContact: AUTEUR },
+      { env: ENV, depot: creerDepotParametre() },
+    );
+    // L'événement GUIDE est rejoué : la première lecture (concurrente) ne voit encore ni sa carte ni le doute ; l'écriture trouve la carte (deja_present).
+    const ev = (await evenements()).find((e) => e.idEvenement === c.idEvenement)!;
+    await depots().evenementsFournisseurs.modifier(ev.id, { traite: false, charge: { ...ev.charge, etat: "a_faire", prochainEssaiLe: null } });
+    const reel = creerDepotParametre();
+    let premiere = true;
+    const depot = { ecrire: reel.ecrire, lire: async () => (premiere ? ((premiere = false), []) : reel.lire()) };
+    await traiterCommentairesManuels({ env: ENV, maintenantMs: T, depot });
+    expect(premiere).toBe(false);
+    expect((await cartes()).find((x) => x.idEvenement === c.idEvenement)).toMatchObject({ opposee: true, kit: null });
+    expect(await cartes()).toHaveLength(2);
   });
 });

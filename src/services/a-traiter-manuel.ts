@@ -5,7 +5,7 @@
  * rien n'est supprimé ; les cartes ne contiennent jamais de texte libre (extrait = le mot seul, ou un extrait fixe pour un doute). Journaux : compteurs seulement.
  * CONTRAT DU FUTUR PRODUCTEUR des événements `zernio.commentaire_manuel` (charge : etat « a_faire », reseau, repere, idCompte, idAuteur, motSeul, proprio) :
  *  - `motSeul` doit déjà porter la forme canonique d'un « stop » (y compris en phrase, ex. « stop, merci ») : ce service ne relit aucun texte ;
- *  - `idAuteur` doit être renseigné : sans lui l'opposition ne peut être inscrite et l'événement est clos « écarté », sans carte ni opposition ;
+ *  - `idAuteur` doit être renseigné : sans lui l'opposition ne peut être inscrite et l'événement est clos « écarté », sans carte ni opposition (sauf un doute : alerte puis clos « doute_opposition », report si l'alerte échoue) ;
  *  - au raccord : `injecterDepotATraiter(creerDepotParametre())` au démarrage (le dépôt par défaut d'a-traiter.ts est une mémoire de processus),
  *    et chaque écrivain lit puis écrit sous le même verrou (la fusion du dépôt garde les cartes, mais la version écrite l'emporte).
  * Réglage neuf = ÉTEINT : seule la valeur booléenne `true` l'allume (absent, illisible ou autre valeur = éteint).
@@ -109,8 +109,19 @@ async function alerterDoute(message: string): Promise<boolean> {
 
 type Issue = "traite" | "reporte";
 
-/** Doute sans carte possible : on ne clôt que si l'alerte est bien partie, sinon l'événement est repris plus tard. */
-async function douteSansCarte(ev: EvenementFournisseur, maintenantMs: number): Promise<Issue> {
+/** Repère FIXE valide (satisfait la forme d'identifiant de la file) : sert quand le repère du post est invalide, pour que le doute reste inscrit dans une carte opposée. */
+const REPERE_DOUTE_FIXE = "post_inconnu";
+
+/**
+ * Doute sans carte possible : les cartes de la même personne sont d'abord neutralisées (idempotent ; une erreur lève : l'événement reste à refaire),
+ * puis on ne clôt que si l'alerte est bien partie, sinon l'événement est repris plus tard.
+ */
+async function douteSansCarte(
+  ev: EvenementFournisseur,
+  maintenantMs: number,
+  neutraliser?: () => Promise<unknown>,
+): Promise<Issue> {
+  if (neutraliser) await neutraliser();
   if (await alerterDoute(MESSAGE_DOUTE_SANS_CARTE)) {
     await clore(ev, "doute_opposition");
     return "traite";
@@ -154,7 +165,7 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
   } catch (e) {
     // Aucun identifiant : la vérification restera impossible à chaque essai. Mis de côté pour de bon (rien supprimé, aucune carte).
     if (e instanceof ErreurOppositionIllisible && e.code === "personne_inconnue") {
-      if (c.doute === true) return douteSansCarte(ev, o.maintenantMs); // personne déjà opposée ou inconnue : rien d'écrit, mais le fondateur est averti
+      if (c.doute === true) return douteSansCarte(ev, o.maintenantMs); // aucun identifiant d'auteur : rien d'écrit, le fondateur est averti
       await clore(ev, "ecarte");
       return "traite";
     }
@@ -175,16 +186,17 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
   }
   // Doute permanent : une carte opposée de cette personne existe (la levée sera une décision future du fondateur). Ni carte, ni kit, ni alerte.
   if (p.action === "carte" && douteConnu && c.doute !== true) {
+    await neutraliserCartesPersonne(empreintes, { env: o.env, depot: o.depot }); // idempotent : couvre une revérification restée sans effet
     await clore(ev, "doute_opposition");
     return "traite";
   }
   if (p.action === "carte_doute") {
     // Doute d'opposition (le mot seul est null, le texte n'est jamais relu) : JAMAIS d'opposition inscrite, d'envoi ni de réponse.
     // Carte « À traiter » en valeurs existantes : mot null, opposée (l'interface n'offre que « classer »), extrait FIXE (aucun texte du commentaire).
-    const entreeDoute = (lienPost: string | null) => ({
+    const entreeDoute = (lienPost: string | null, post: string = String(c.repere ?? "")) => ({
       idEvenement: ev.idEvenement,
       reseau: reseau === "tiktok" ? ("tiktok" as const) : ("linkedin" as const),
-      post: String(c.repere ?? ""),
+      post,
       lienPost,
       mot: null,
       motif: "mot_manuel" as const,
@@ -199,6 +211,8 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
     let r = await enregistrerATraiter(entreeDoute(texte(c.lienPost)), { env: o.env, depot: o.depot });
     // Refus réparable : un lien de post invalide ne doit pas empêcher la carte (les autres refus ne se réparent pas).
     if (r.issue === "refuse" && r.raison === "lien_invalide") r = await enregistrerATraiter(entreeDoute(null), { env: o.env, depot: o.depot });
+    // Repère invalide : nouvelle tentative avec un repère FIXE valide, pour que le doute soit tout de même inscrit (un identifiant d'événement invalide ne se répare pas).
+    if (r.issue === "refuse" && r.raison === "post_invalide") r = await enregistrerATraiter(entreeDoute(null, REPERE_DOUTE_FIXE), { env: o.env, depot: o.depot });
     if (r.issue === "simule") {
       await reporter(ev, o.maintenantMs);
       return "reporte";
@@ -206,11 +220,15 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
     if (r.issue === "execute") {
       // Carte écrite (ou déjà là) : les cartes à traiter de la même personne sont neutralisées (toute erreur lève : l'événement reste à refaire), puis alerte au mieux.
       await neutraliserCartesPersonne(empreintes, { env: o.env, depot: o.depot });
-      await alerterDoute(MESSAGE_DOUTE_MANUEL);
+      // Alerte en échec : l'événement est reporté (le rejeu donnera « deja_present » puis réessaiera l'alerte ; un doublon d'alerte est accepté).
+      if (!(await alerterDoute(MESSAGE_DOUTE_MANUEL))) {
+        await reporter(ev, o.maintenantMs);
+        return "reporte";
+      }
       await clore(ev, "doute_opposition");
       return "traite";
     }
-    return douteSansCarte(ev, o.maintenantMs);
+    return douteSansCarte(ev, o.maintenantMs, () => neutraliserCartesPersonne(empreintes, { env: o.env, depot: o.depot }));
   }
   const reponse = p.reponseAProposer ? await reponseValidee(p.mot) : null;
   const r = await enregistrerATraiter(
@@ -236,8 +254,8 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
     await reporter(ev, o.maintenantMs);
     return "reporte";
   }
-  // Revérification (écrire puis relire des deux côtés) : un doute inscrit entre la lecture et l'écriture neutralise aussi cette carte.
-  if (r.issue === "execute" && r.raison === "ajoute") await neutraliserCartesPersonne(empreintes, { env: o.env, depot: o.depot, seulementSiOpposee: true });
+  // Revérification (écrire puis relire des deux côtés) : un doute inscrit entre la lecture et l'écriture neutralise aussi cette carte (ajoutée ou déjà présente).
+  if (r.issue === "execute") await neutraliserCartesPersonne(empreintes, { env: o.env, depot: o.depot, seulementSiOpposee: true });
   await clore(ev, r.issue === "refuse" ? "refuse" : "traite");
   return "traite";
 }
