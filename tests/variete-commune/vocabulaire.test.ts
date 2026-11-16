@@ -50,4 +50,10 @@ describe("X2-02 vocabulaire commun", () => {
     const toutes = Object.values(VOCABULAIRE).flat();
     for (const n of NEUTRES) expect(toutes).toContain(n);
   });
+  it("neutres : une valeur de récit, de sous-titres ou de dosage visible n'est jamais neutre", () => {
+    expect([...NEUTRES].sort()).toEqual(["aucun", "aucune", "coupe"]);
+    for (const v of ["ordre-chronologique", "equilibres", "equilibre", ...(VOCABULAIRE.recit ?? []), ...(VOCABULAIRE.sousTitres ?? [])]) {
+      expect(NEUTRES, v).not.toContain(v);
+    }
+  });
 });

@@ -27,8 +27,12 @@ export const VOCABULAIRE: Readonly<Partial<Record<AxeCommun, readonly string[]>>
   sousTitres: ["calmes", "equilibres", "appuyes"],
 });
 
-/** Valeurs sans effet visible : elles ne comptent jamais comme une ressemblance. */
-export const NEUTRES: readonly string[] = Object.freeze(["aucun", "aucune", "coupe", "equilibre", "equilibres", "ordre-chronologique"]);
+/**
+ * Valeurs sans effet visible : elles ne comptent jamais comme une ressemblance (E2-ANTI-REPETITION §c.3 : rien de visible).
+ * Seulement l'absence d'effet : `aucun` (dosage), `aucune` (caméra), `coupe` (transition nue). Ne JAMAIS ajouter ici une valeur
+ * de récit ou de sous-titres (ex. `ordre-chronologique`, `equilibres`) ni `equilibre` (dosage) : elles se voient à l'écran.
+ */
+export const NEUTRES: readonly string[] = Object.freeze(["aucun", "aucune", "coupe"]);
 
 type Table = Readonly<Partial<Record<AxeCommun, Readonly<Record<string, string>>>>>;
 const TABLES: Readonly<Record<GenerateurCommun, Table>> = Object.freeze({

@@ -30,6 +30,7 @@ const LOCALE = {
     "CHI-A": "autre:image-video:CHI-A",
     "CHI-B": "autre:image-video:CHI-B",
     "CHI-C": "autre:image-video:CHI-C",
+    // CHI-D « Chiffre géant » : laissé en `autre:` volontairement, c'est l'axe chiffres (objets), pas l'ouverture `chiffre-geant`.
     "CHI-D": "autre:image-video:CHI-D",
     "CHI-E": "autre:image-video:CHI-E",
   },
@@ -37,6 +38,7 @@ const LOCALE = {
     "CAM-A": "suivi",
     "CAM-B": "ensemble-d-abord",
     "CAM-C": "voyage",
+    // CAM-D « Plan fixe construit » (retirée) : pas de mouvement de caméra = `aucune` (source : nom au verdict-critique.json).
     "CAM-D": "aucune",
     "CAM-E": "deux-cotes",
   },
@@ -53,6 +55,7 @@ const LOCALE = {
     "APP-D": "autre:image-video:APP-D",
   },
   transitions: {
+    // TRA-A : sans nom au verdict ; REFERENCES de schema-motion/variete.ts:72-74 = référence v4, transition nue = `coupe`.
     "TRA-A": "coupe",
     "TRA-B": "raccord-objet",
     "TRA-C": "volet",
@@ -66,6 +69,7 @@ const LOCALE = {
     "FIN-D": "chiffre-qui-reste",
   },
   matiere: {
+    // MAT-A « Net et plat » : référence v4 (REFERENCES de schema-motion/variete.ts:72-74), fond ivoire v4 = `ivoire-v4`.
     "MAT-A": "ivoire-v4",
     "MAT-B": "papier",
     "MAT-C": "trait-main",
