@@ -128,6 +128,8 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "casConcret.documentPromis", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
   { cle: "casConcret.ecranFourni", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
   { cle: "casConcret.releves", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
+  { cle: "retoucheSegments.liberer", etat: "eteint", appel: "src/components/videos/fiche/LibererPlace.tsx", motif: /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) !== true/, aussi: [["src/components/videos/fiche/actions-liberer.ts", /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) === true/]] },
+  { cle: "demoFacecam.reel", etat: "eteint", appel: "src/services/entrees-demo-facecam.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE_DEMO_REEL, false\)\) === true/ },
   { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
   { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
   // Montage avocat (voisin de zone interdite) : lecture du texte seulement, jamais d'import.
@@ -222,6 +224,13 @@ const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; dec
     appel: "src/services/illustrations.ts",
     motif: /lireParametre<boolean \| null>\(cleEconomique\(videoId\), null\);\s*return v \?\? \(await lireParametre<boolean>\("illustrations\.economique", false\)\)/,
     declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
+  },
+  {
+    // Défaut `undefined` → `interpreterReglageBibliotheque` rend `{ actif: false }` (seul `true` ou `{ capacites }` allume).
+    gabarit: "bibliothequeVideo.*",
+    etat: "eteint",
+    appel: "src/services/bibliotheque-video.ts",
+    motif: /lireReglageBibliotheque\(video\.formatId, \(cle\) => lireParametre\(cle, undefined\)\);\s*if \(!reglage\.actif\) return \{\}/,
   },
 ];
 
@@ -398,6 +407,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/boucle-generation.ts:cleBrouillonDeVersion(varianteId)": { exclu: "memoire" },
   "services/boucle.ts:cleLectureEnVol(t.id)": { exclu: "memoire" },
   "services/boucle.ts:cleLectureEnVol(lu.travail.id)": { exclu: "memoire" },
+  "services/bibliotheque-video.ts:cle": { couvre: "bibliothequeVideo.*" }, // cleReglageBibliotheque(formatId)
   "services/budget-mensuel.ts:cleBudgetUsine(mois)": { exclu: "valeur" },
   "services/budget-mensuel.ts:cle": { exclu: "dedoublonnage" },
   "services/calendrier-fiche.ts:cleStockage(cle)": { exclu: "memoire" },

@@ -12,6 +12,7 @@ export function normaliserMot(texte: unknown): string | null {
   return MOTS_OPPOSITION.includes(m) ? null : m;
 }
 
+/** Toute politesse ajoutée ici doit l'être aussi dans NEUTRES_OPPOSITION (opposition.ts). */
 /** Politesses seules tolérées autour du mot (liste FERMÉE : ni pronom, ni article, ni verbe, ni « oui »). « S'il vous plaît » n'est accepté que comme séquence exacte (voir SEQUENCES_POLITESSE). */
 export const MOTS_NEUTRES_POLITESSE: readonly string[] = [
   "MERCI", "BEAUCOUP", "SVP", "STP", "PLAIT", "BONJOUR", "BONSOIR", "SALUT", "PLEASE", "THANKS", "THANK", "HELLO", "HI",
