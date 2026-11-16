@@ -99,7 +99,7 @@ export interface VersionAffichee {
 /** « Programmer les N » (lot G7a, B.5.5) : versions retenues et créneaux J à J+4. */
 export interface ProgrammationAffichee {
   formatNom?: string;
-  creneaux: { code: string; reseau: ReseauDeclinaison; jour: string; heure?: string; heureParDefaut: boolean; decaleWeekEnd: boolean; rang: number }[];
+  creneaux: { code: string; reseau: ReseauDeclinaison; jour: string; heure?: string; heureParDefaut: boolean; decaleWeekEnd: boolean; rang: number; motif?: string; avertissement?: string }[];
   autresFormats: number;
   envoiSimule: boolean;
   /** Lot R1 : envoi réel en brouillon dans Buffer (défaut) ou programmé directement. */
@@ -1105,6 +1105,8 @@ function FeuilleProgrammer({ ouverte, onOuverteChange, sujetId, programmation }:
                     {fmt(c.jour)} · {(c.heure ?? "09:00").replace(":", " h ")}
                     {c.decaleWeekEnd && <span className="font-normal text-texte-faible"> · lundi</span>}
                   </span>
+                  {c.motif && <span className="block text-xs text-texte-doux">{c.motif}</span>}
+                  {c.avertissement && <span className="block text-xs text-texte-doux">{c.avertissement}</span>}
                 </span>
                 {v && !v.pasPrete && !v.manquantes.length && !v.licenceBloque && (
                   <span className="shrink-0 text-sauge">

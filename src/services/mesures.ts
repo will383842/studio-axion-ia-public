@@ -15,6 +15,7 @@ import {
   echeanceMesure,
   lienDeVersion,
   PAGE_SUIVIE_PAR_DEFAUT,
+  controlerCreneauManuel,
   planProgrammation,
   versionsAProgrammer,
   type CreneauVersion,
@@ -215,14 +216,28 @@ export async function planProgrammerSujet(scriptMaitreId: Id, options: { formatI
   const retenues = versionsAProgrammer(programmables, { formatId: options.formatId, dejaEnvoyees });
   const formatRetenu = retenues[0]?.formatId;
   const autres = programmables.filter((v) => v.etatCase === "en-video" && !!v.videoId && !dejaEnvoyees.has(v.id) && v.formatId !== formatRetenu);
+  // L3-18 : ce qui est déjà prévu pour d'AUTRES sujets (même réseau, pas encore passé) décale le créneau, avec un motif.
+  const occupes = (await depots().publications.lister((p) => !!p.varianteId && !ids.has(p.varianteId) && p.date >= instant && (p.statut === "programmee" || p.statut === "brouillon"))).map((p) => ({ reseau: p.reseau as ReseauDeclinaison, date: p.date }));
   const [ordre, heures] = await Promise.all([lireParametre<string[]>("publication.ordreParDefaut", []), lireParametre<Partial<Record<ReseauDeclinaison, string>>>("publication.heureParReseau", {})]);
   return {
     formatId: formatRetenu,
-    creneaux: planProgrammation(options.jourJ ?? jourJParDefaut(), retenues, ordreValide(ordre), heures),
+    creneaux: planProgrammation(options.jourJ ?? jourJParDefaut(), retenues, ordreValide(ordre), heures, occupes),
     autresFormats: autres.length,
     envoiSimule: await fournisseurSimule("publication"),
     modeBuffer: await lireModeBuffer(),
   };
+}
+
+/** L3-18 : décalage manuel d'un créneau, revalidé contre les autres sujets. Avertissements seulement, jamais de refus. */
+export async function controlerDecalageManuel(scriptMaitreId: Id, reseau: ReseauDeclinaison, jour: string, heure: string): Promise<{ ok: true; date: string; avertissements: string[] }> {
+  await exigerSession();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour) || !/^\d{2}:\d{2}$/.test(heure)) throw new ErreurStudio("INVALIDE", "Indiquez un jour et une heure valides.");
+  const vue = await obtenirSujet(scriptMaitreId);
+  if (!vue) throw new ErreurStudio("INTROUVABLE", "Ce sujet n'existe plus.");
+  const instant = maintenant();
+  const siennes = new Set(vue.versions.map((x) => x.variante.id));
+  const occupes = (await depots().publications.lister((p) => !!p.varianteId && !siennes.has(p.varianteId) && p.date >= instant && (p.statut === "programmee" || p.statut === "brouillon"))).map((p) => ({ reseau: p.reseau as ReseauDeclinaison, date: p.date }));
+  return controlerCreneauManuel(reseau, jour, heure, occupes);
 }
 
 export interface ResultatProgrammation {

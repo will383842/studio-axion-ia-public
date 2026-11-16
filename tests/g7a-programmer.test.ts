@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import { matiere, preparerMotDePasse } from "./helpers/g1a";
-import { planProgrammation, versionsAProgrammer, type VersionProgrammable } from "@/domaine/mesures";
+import { controlerCreneauManuel, planProgrammation, versionsAProgrammer, type VersionProgrammable } from "@/domaine/mesures";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -163,5 +163,60 @@ describe("même garde que la feuille Buffer", () => {
     const r = await mes.programmerSujet(s.id, { jourJ: "2026-10-05" });
     expect(r.programmees).toHaveLength(0);
     expect(r.ignorees).toEqual([expect.objectContaining({ reseau: "tiktok" })]);
+  });
+});
+
+describe("L3-18 : « Programmer les N » tient compte des autres sujets (pur)", () => {
+  it("un autre sujet LinkedIn à J+3 09:00 : le second est décalé au jour libre suivant, avec un motif en français", () => {
+    // J = lundi 5 octobre 2026 : LinkedIn J+3 = jeudi 8 à 9 h (7 h UTC, heure d'été).
+    const autres = [{ reseau: "linkedin" as const, date: "2026-10-08T07:00:00.000Z" }];
+    const c = planProgrammation("2026-10-05", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, autres).find((x) => x.reseau === "linkedin")!;
+    expect(c.jour).toBe("2026-10-09");
+    expect(c.date).toBe("2026-10-09T07:00:00.000Z");
+    expect(c.motif).toMatch(/autre sujet.*LinkedIn|LinkedIn.*autre sujet/);
+    expect(c.motif).toMatch(/jeudi/);
+  });
+
+  it("sans autre sujet à ce créneau, rien n'est décalé et aucun motif", () => {
+    const autres = [{ reseau: "linkedin" as const, date: "2026-10-08T08:00:00.000Z" }, { reseau: "tiktok" as const, date: "2026-10-08T07:00:00.000Z" }];
+    const c = planProgrammation("2026-10-05", CINQ.map((r, i) => v(`0042-AV-${i}`, r)), undefined, {}, autres).find((x) => x.reseau === "linkedin")!;
+    expect(c).toMatchObject({ jour: "2026-10-08", date: "2026-10-08T07:00:00.000Z" });
+    expect(c.motif).toBeUndefined();
+  });
+
+  it("un décalage qui tombe un samedi : AVERTISSEMENT sur LinkedIn, jamais un refus ; Vous pouvez confirmer", () => {
+    const r = controlerCreneauManuel("linkedin", "2026-10-10", "09:00", []);
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.join(" ")).toMatch(/samedi/);
+    expect(r.avertissements.join(" ")).toMatch(/vous pouvez confirmer/i);
+    expect(r.date).toBe("2026-10-10T07:00:00.000Z");
+  });
+
+  it("un décalage manuel est revalidé contre les autres sujets : avertissement, pas de refus", () => {
+    const r = controlerCreneauManuel("linkedin", "2026-10-08", "09:00", [{ reseau: "linkedin", date: "2026-10-08T07:00:00.000Z" }]);
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.join(" ")).toMatch(/autre sujet/);
+    expect(controlerCreneauManuel("tiktok", "2026-10-10", "09:00", []).avertissements).toEqual([]);
+  });
+});
+
+describe("L3-18 : le plan lit les autres sujets (essai, aucun appel réel)", () => {
+  it("un brouillon LinkedIn d'un autre sujet à J+3 09:00 décale la version LinkedIn, avec le motif", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-03T10:00:00Z"));
+    onTestFinished(() => void vi.useRealTimers());
+    const id = await sujetPret();
+    const t = new Date().toISOString();
+    await depots().publications.enregistrer({ id: "pub-autre", videoId: "v-03", varianteId: "autre-variante", reseau: "linkedin", statut: "programmee", via: "simulation", date: "2026-10-08T07:00:00.000Z", texte: "", creeLe: t, modifieLe: t } as never);
+    const plan = await mes.planProgrammerSujet(id, { jourJ: "2026-10-05" });
+    const li = plan.creneaux.find((c) => c.reseau === "linkedin")!;
+    expect(li.jour).toBe("2026-10-09");
+    expect(li.motif).toBeTruthy();
+    expect(plan.creneaux.find((c) => c.reseau === "tiktok")?.motif).toBeUndefined();
+  });
+
+  it("l'envoi de mesures.ts reste branché sur envoyerVersBuffer (non modifié par cette fiche)", () => {
+    const src = readFileSync(join(__dirname, "..", "src/services/mesures.ts"), "utf8");
+    expect(src).toMatch(/envoyerVersBuffer\(c\.videoId, \[c\.reseau\], c\.date\)/);
   });
 });

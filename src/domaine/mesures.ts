@@ -8,7 +8,7 @@
  * - « Programmer les N » : les versions d'un sujet qui ont leur vidéo, un format à la fois, une par réseau, dans l'ordre
  *   J à J+4 de `planifierPublications`.
  */
-import { planifierPublications, type CreneauPropose } from "./classement-generateur";
+import { planifierPublications, RESEAUX_JOUR_OUVRE, type CreneauPropose } from "./classement-generateur";
 import type { EtatReseau } from "./derivations-generateur";
 import type { Publication, ReseauDeclinaison, StatsPublication } from "./types";
 import { JOUR_MS } from "@/lib/dates";
@@ -239,6 +239,35 @@ export const HEURE_PAR_DEFAUT = "09:00";
 /** « 2026-10-06 » + « 09:00 » à l'heure de Paris → instant ISO (gère l'heure d'été) : délègue à l'horloge Paris. */
 export const instantParis = instantParisHorloge;
 
+/** Une publication déjà prévue pour un AUTRE sujet (réseau et instant d'envoi). */
+export interface CreneauOccupe {
+  reseau: ReseauDeclinaison;
+  /** Instant d'envoi (ISO). */
+  date: string;
+}
+
+const NOMS_JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"] as const;
+
+function jourPlusN(jour: string, n: number): string {
+  const d = new Date(`${jour}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function nomDuJour(jour: string): string {
+  return NOMS_JOURS[new Date(`${jour}T12:00:00Z`).getUTCDay()];
+}
+
+function estWeekEnd(jour: string): boolean {
+  const js = new Date(`${jour}T12:00:00Z`).getUTCDay();
+  return js === 0 || js === 6;
+}
+
+function pris(autres: readonly CreneauOccupe[], reseau: ReseauDeclinaison, date: string): boolean {
+  const t = Date.parse(date);
+  return autres.some((a) => a.reseau === reseau && Date.parse(a.date) === t);
+}
+
 export interface CreneauVersion extends CreneauPropose {
   varianteId: string;
   code: string;
@@ -247,14 +276,22 @@ export interface CreneauVersion extends CreneauPropose {
   date: string;
   /** true : aucune heure réglée pour ce réseau, 9 h par défaut. */
   heureParDefaut: boolean;
+  /** Pourquoi ce créneau a été décalé (français, vouvoiement) ; absent si rien n'a bougé. */
+  motif?: string;
+  /** Point d'attention qui ne bloque jamais (ex. samedi sur LinkedIn) : Vous pouvez confirmer. */
+  avertissement?: string;
 }
 
-/** Créneaux J à J+4 des versions retenues (ordre et heures réglés par Will). */
+/**
+ * Créneaux J à J+4 des versions retenues (ordre et heures réglés par Will). `autres` : ce qui est déjà prévu pour
+ * d'autres sujets ; un créneau déjà pris sur le même réseau est décalé au jour libre suivant, avec son motif.
+ */
 export function planProgrammation(
   jourJ: string,
   retenues: readonly VersionProgrammable[],
   ordre?: readonly string[],
   heures: Partial<Record<ReseauDeclinaison, string>> = {},
+  autres: readonly CreneauOccupe[] = [],
 ): CreneauVersion[] {
   const creneaux = planifierPublications(
     jourJ,
@@ -264,6 +301,36 @@ export function planProgrammation(
   );
   return creneaux.map((c) => {
     const v = retenues.find((x) => x.reseau === c.reseau)!;
-    return { ...c, varianteId: v.id, code: v.code, videoId: v.videoId!, date: instantParis(c.jour, c.heure ?? HEURE_PAR_DEFAUT), heureParDefaut: !c.heure };
+    const heure = c.heure ?? HEURE_PAR_DEFAUT;
+    let jour = c.jour;
+    let date = instantParis(jour, heure);
+    let motif: string | undefined;
+    if (pris(autres, c.reseau, date)) {
+      const initial = jour;
+      for (let i = 0; i < 60 && pris(autres, c.reseau, date); i++) {
+        jour = jourPlusN(jour, 1);
+        if (RESEAUX_JOUR_OUVRE.includes(c.reseau)) while (estWeekEnd(jour)) jour = jourPlusN(jour, 1);
+        date = instantParis(jour, heure);
+      }
+      motif = `Un autre sujet est déjà prévu sur ${c.reseau === "linkedin" ? "LinkedIn" : "ce réseau"} le ${nomDuJour(initial)} à ${heure.replace(":", " h ")} : cette version est décalée au ${nomDuJour(jour)}.`;
+    }
+    const avertissement = c.decaleWeekEnd ? "Ce jour tombait un week-end : LinkedIn est décalé au lundi. Vous pouvez confirmer ce choix ou en prendre un autre." : undefined;
+    return { ...c, jour, varianteId: v.id, code: v.code, videoId: v.videoId!, date, heureParDefaut: !c.heure, ...(motif ? { motif } : {}), ...(avertissement ? { avertissement } : {}) };
   });
+}
+
+/**
+ * Décalage manuel d'un créneau, revalidé : il donne des AVERTISSEMENTS, jamais un refus (Will décide et confirme).
+ * `ok` reste vrai ; `date` est l'instant d'envoi à Paris.
+ */
+export function controlerCreneauManuel(reseau: ReseauDeclinaison, jour: string, heure: string, autres: readonly CreneauOccupe[]): { ok: true; date: string; avertissements: string[] } {
+  const date = instantParis(jour, heure);
+  const avertissements: string[] = [];
+  if (RESEAUX_JOUR_OUVRE.includes(reseau) && estWeekEnd(jour)) {
+    avertissements.push(`Ce jour est un ${nomDuJour(jour)} : LinkedIn est surtout lu en semaine. Vous pouvez confirmer ce choix.`);
+  }
+  if (pris(autres, reseau, date)) {
+    avertissements.push(`Un autre sujet est déjà prévu sur ce réseau le ${nomDuJour(jour)} à ${heure.replace(":", " h ")}. Vous pouvez confirmer ce choix.`);
+  }
+  return { ok: true, date, avertissements };
 }
