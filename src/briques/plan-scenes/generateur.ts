@@ -6,9 +6,11 @@
  * → plan de repli, avec une remarque. AUCUN appel réel ici : `envoyerMessage` n'est appelé que par `executerRole`
  * (garde de `tests/v4-argent.test.ts`) ; le fournisseur réel se branchera par `services/generation-claude.ts`
  * (pré-vol et réservation des crédits), à faire avant tout usage en production.
+ *
+ * Porte C9-33 : la famille objet est fermée tant que `objetsPermis` est vide (défaut). Les pièces arrivent avec C9-34 ; la liste vient de `porteCapacite` (C1-U10) par C9-35.
  */
 import { ErreurClaude, extraireJson, type RequeteClaude, type ReponseClaude } from "@/fournisseurs/claude/client";
-import { CATALOGUE_BRIQUES } from "./catalogue";
+import { CATALOGUE_BRIQUES, type DefinitionBrique } from "./catalogue";
 import { VERSION_PLAN_SCENES, type FormatPlan, type MotMinute, type PlanValide } from "./schema";
 import { planDeRepli, validerPlan, type Remarque } from "./validateur";
 import { POSITIONS, TRANSITIONS, ZONE_VISAGE } from "./zones";
@@ -32,6 +34,8 @@ export interface EntreeGenerateurPlan {
   faits?: Fait[];
   /** Pièces déjà servies dans les vidéos récentes, à éviter. */
   piecesRecentes?: string[];
+  /** Ids des pièces de la famille objet permises (porte C9-33) ; absent ou vide : aucune. */
+  objetsPermis?: readonly string[];
 }
 
 export interface ResultatGenerateurPlan {
@@ -42,8 +46,9 @@ export interface ResultatGenerateurPlan {
 }
 
 /** Consigne figée (cache 1 h) : le catalogue, les règles de la charte et la forme JSON attendue. */
-export function consignePlan(): string {
-  const catalogue = Object.values(CATALOGUE_BRIQUES)
+export function consignePlan(objetsPermis: readonly string[] = []): string {
+  const catalogue = (Object.values(CATALOGUE_BRIQUES) as DefinitionBrique[])
+    .filter((d) => d.famille !== "objet" || objetsPermis.includes(d.id))
     .map((d) => `- ${d.id} (${d.nom}) : ${d.description}\n  paramètres (exemple) : ${JSON.stringify(d.exemple)}\n  schéma : ${JSON.stringify(z.toJSONSchema(d.schema))}`)
     .join("\n");
   return [
@@ -85,7 +90,7 @@ export function construireRequetePlan(e: EntreeGenerateurPlan, precedents: { rep
     messages.push({ role: "assistant", contenu: p.reponse.slice(0, 4000) || "(vide)" });
     messages.push({ role: "user", contenu: `Réponse inutilisable : ${p.motif}. Renvoyez uniquement l'objet JSON complet du plan.` });
   }
-  return { modele: MODELE_PLAN_SCENES, maxTokens: MAX_JETONS_PLAN_SCENES, effort: EFFORT_PLAN_SCENES, systeme: [{ texte: consignePlan(), cache: "1h" }], messages, json: true };
+  return { modele: MODELE_PLAN_SCENES, maxTokens: MAX_JETONS_PLAN_SCENES, effort: EFFORT_PLAN_SCENES, systeme: [{ texte: consignePlan(e.objetsPermis), cache: "1h" }], messages, json: true };
 }
 
 function lireJson(texte: string): { ok: true; valeur: unknown } | { ok: false; motif: string } {
