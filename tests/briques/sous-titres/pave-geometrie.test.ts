@@ -58,9 +58,9 @@ describe("C2-U7b : instantsPaves", () => {
     const r = instantsPaves([{ debutS: 2 }, { debutS: 1 }, { debutS: 1 }], 30);
     expect(r).toEqual([...new Set(r)].sort((a, b) => a - b));
     expect(r.length).toBeGreaterThan(0);
-    const marge = 1 / 30 + 1e-6; // borne haute : première image ≥ debutS + dureeEntreeS (au plus une image au-delà)
+    // borne basse stricte (jamais avant le mot) ; borne haute : première image ≥ debutS + dureeEntreeS (au plus une image au-delà)
     for (const t of r) {
-      const ok = [1, 2].some((d) => t >= d - marge && t <= d + PAVE_ANIM.dureeEntreeS + marge);
+      const ok = [1, 2].some((d) => t >= d - 1e-6 && t <= d + PAVE_ANIM.dureeEntreeS + 1 / 30 + 1e-6);
       expect(ok).toBe(true);
     }
     expect(Math.min(...r)).toBeCloseTo(1);
