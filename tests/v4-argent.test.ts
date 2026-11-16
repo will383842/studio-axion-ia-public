@@ -374,10 +374,32 @@ describe("V4 · points d'appel payants : un seul chemin chacun (garde de structu
   })(racine);
   const contenant = (motif: RegExp) => tous.filter((f) => motif.test(readFileSync(join(racine, f), "utf8"))).sort();
 
-  it("Claude : `envoyerMessage` n'est appelé que par `executerRole` (lui-même appelé par le seul `appelerAvecRotation`, que prennent les 3 chemins plafonnés, comité éditorial compris)", () => {
-    expect(contenant(/envoyerMessage\(/)).toEqual(["fournisseurs/claude/client.ts", "fournisseurs/claude/inscription.ts"]);
+  // Exceptions NOMINATIVES (0a, 16/11) : `envoyerMessage(` y est la méthode du PORT Inbox Zernio (réponse à un message d'un
+  // réseau social), pas le client Claude. Chemin exact, et preuve à chaque passage : aucun des deux n'importe le dossier Claude.
+  const FAUX_POSITIFS_ENVOYER_MESSAGE: Record<string, string> = {
+    "fournisseurs/zernio-inbox.ts": "déclaration de `PortInboxZernio.envoyerMessage` (réseau social)",
+    "services/parcours-conversation.ts": "appels `d.port.envoyerMessage(...)` sur le port Inbox Zernio",
+  };
+
+  it("Claude : les seuls faux positifs de `envoyerMessage(` sont les 2 fichiers Zernio nommés, qui n'importent jamais le client Claude", () => {
+    for (const [f, raison] of Object.entries(FAUX_POSITIFS_ENVOYER_MESSAGE)) {
+      const t = readFileSync(join(racine, f), "utf8");
+      expect(t, `${f} : ${raison}`).toMatch(/envoyerMessage\(/);
+      expect(t, `${f} ne doit jamais importer Claude`).not.toMatch(/fournisseurs\/claude|["'.]\/claude\/|anthropic/i);
+    }
+  });
+
+  it("Claude : `envoyerMessage` n'est appelé que par `executerRole` (lui-même appelé par le seul `appelerAvecRotation`, que prennent les 4 chemins plafonnés, comité éditorial et rédaction des guides compris)", () => {
+    expect(contenant(/envoyerMessage\(/).filter((f) => !Object.hasOwn(FAUX_POSITIFS_ENVOYER_MESSAGE, f))).toEqual(["fournisseurs/claude/client.ts", "fournisseurs/claude/inscription.ts"]);
     expect(contenant(/\bexecuterRole\(/).filter((f) => !f.startsWith("fournisseurs/claude/"))).toEqual(["services/generation-claude.ts"]);
-    expect(contenant(/\bappelerAvecRotation\(/)).toEqual(["services/comite-editorial.ts", "services/depense-claude-video.ts", "services/generation-claude.ts"]);
+    // 0a phase 2 : la rédaction des guides (`appel-redaction.ts`) passe par `appelerAvecRotation`, sous la limite du mois.
+    expect(contenant(/\bappelerAvecRotation\(/)).toEqual(["fournisseurs/claude/appel-redaction.ts", "services/comite-editorial.ts", "services/depense-claude-video.ts", "services/generation-claude.ts"]);
+  });
+
+  it("Claude, rédaction des guides : limite du mois lue sous le verrou du mois, réservation, dépense enregistrée, réservation rendue", () => {
+    const t = readFileSync(join(racine, "fournisseurs/claude/appel-redaction.ts"), "utf8");
+    for (const brique of [/sousVerrouMois\(/, /plafondMensuelClaudeUsd\(/, /engageClaudeDuMoisCentimes\(/, /verifierEtReserverSelonOrigine\(/, /depenses\.enregistrer\(/, /libererReservation\(/]) expect(t).toMatch(brique);
+    expect(t).not.toMatch(/envoyerMessage\(/);
   });
 
   it("Claude, lots groupés : un lot n'est créé que par le comité éditorial (plafond des idées, pire cas réservé)", () => {

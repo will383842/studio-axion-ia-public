@@ -7,15 +7,16 @@
  * paramètre VERSIONNÉ `guides.redaction.<mot>` au statut « À valider ». Jamais « validé » ici : seule la relecture
  * humaine (écran G5) validera. Le journal ne contient ni texte du guide, ni clé, ni donnée de personne (seulement le code de
  * l'événement, la version, l'empreinte raccourcie, l'identifiant de la règle en cas de refus).
- * TODO G5 (obligatoire avant tout allumage) : ce lot n'écrit PAS dans le suivi des dépenses Claude et ne lit PAS le plafond
- * mensuel. G5 doit brancher le plafond mensuel Claude (contrôle avant l'appel) ET `depenses.enregistrer` (coût réel après
- * l'appel), ainsi qu'un verrou « un appel à la fois par mot » (deux gestes simultanés sur le même mot se marcheraient dessus :
- * versions en double, deux appels payés). D'ici là : un seul appel par geste, jamais en boucle, et l'interrupteur éteint.
+ * ARGENT (0a phase 2) : l'appel réel (`appelerClaudeRedaction`) passe par le chemin gardé des appels Claude : limite Claude
+ * du mois lue AVANT l'appel sous le verrou du mois, pré-vol et réservation de la brique Crédits, `appelerAvecRotation`, puis
+ * `depenses.enregistrer` (coût réel) et réservation rendue. Limite atteinte ou crédit insuffisant : refus propre
+ * (`plafond_atteint`, `credit_insuffisant`, `prix_a_confirmer`, `claude_indisponible`), AUCUN appel, rien d'écrit. Le verrou
+ * « un geste à la fois par mot » est tenu par `guides-fabrique.ts` (seul appelant). Un seul appel par geste, jamais en boucle.
  */
 import "server-only";
 import { createHash } from "node:crypto";
 import { contientCaractereInterdit, controlerTexteGuide, empreinteGuide, schemaContenuGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
-import { appelerClaudeRedaction } from "@/fournisseurs/claude/appel-redaction";
+import { appelerClaudeRedaction, type MotifRefusArgent } from "@/fournisseurs/claude/appel-redaction";
 import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
 
 export const VARIABLE_INTERRUPTEUR_GUIDES_REDACTION = "GUIDES_REDACTION_ENABLED";
@@ -57,7 +58,22 @@ export interface VersionBrouillon {
 
 export type ResultatRedaction =
   | { ok: true; version: number; statut: typeof STATUT_A_VALIDER; empreinte: string }
-  | { ok: false; raison: "interrupteur_eteint" | "mot_invalide" | "cle_absente" | "panne_claude" | "reponse_illisible" | "texte_refuse" | "enregistrement_echec" | "dependances_indisponibles" | "trop_de_versions"; regle?: string };
+  | { ok: false; raison: "interrupteur_eteint" | "mot_invalide" | "cle_absente" | "panne_claude" | "reponse_illisible" | "texte_refuse" | "enregistrement_echec" | "dependances_indisponibles" | "trop_de_versions" | RaisonRefusArgent; regle?: string };
+
+/** Refus de la garde d'argent (aucun appel, rien d'écrit). */
+export type RaisonRefusArgent = "plafond_atteint" | "credit_insuffisant" | "prix_a_confirmer" | "claude_indisponible";
+const RAISON_DU_REFUS_ARGENT: Record<MotifRefusArgent, RaisonRefusArgent> = {
+  "plafond-mois": "plafond_atteint",
+  credit: "credit_insuffisant",
+  "prix-a-confirmer": "prix_a_confirmer",
+  "claude-indisponible": "claude_indisponible",
+};
+
+/** Reconnaît un refus de la garde par sa forme (pas d'`instanceof` : le module peut être doublé dans les essais). */
+function refusArgent(e: unknown): RaisonRefusArgent | null {
+  if (!e || typeof e !== "object" || (e as { refusArgent?: unknown }).refusArgent !== true) return null;
+  return RAISON_DU_REFUS_ARGENT[(e as { motif: MotifRefusArgent }).motif] ?? "credit_insuffisant";
+}
 
 /** Dépendances réelles, importées à l'usage (rien ne touche la base ni le réseau à l'import). */
 async function depsReelles(): Promise<DepsRedaction> {
@@ -142,6 +158,12 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
     );
     brut = reponse.texte;
   } catch (e) {
+    // Refus de la garde d'argent : rien n'est parti chez Claude, rien n'est écrit (ce n'est pas une panne).
+    const refus = refusArgent(e);
+    if (refus) {
+      await journaliserSansDonnee(d, "guide_redaction_refus_argent", `raison=${refus}`);
+      return { ok: false, raison: refus };
+    }
     await journaliserSansDonnee(d, "guide_redaction_panne", `code=${e && typeof e === "object" && "code" in e ? String((e as { code: unknown }).code) : "inconnu"}`);
     return { ok: false, raison: "panne_claude" };
   }
