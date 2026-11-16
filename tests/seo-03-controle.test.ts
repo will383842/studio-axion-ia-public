@@ -31,7 +31,7 @@ function propre(): ContenuFiche {
       { niveau: 2, texte: t(40, "Partie") },
       { niveau: 3, texte: t(35, "Detail") },
     ],
-    questions: [1, 2, 3].map((i) => ({ question: `${t(70, `Question ${i}`)}?`, reponse: phrases(2, 260) })),
+    questions: [1, 2, 3].map((i) => ({ question: `${t(70, `Question ${"abc"[i - 1]}`)}?`, reponse: phrases(2, 260) })),
     limites: ["Elle ne rédige pas de réponse personnalisée à chaque client."],
     type: "relances-et-suivi",
     besoins: ["ne-rien-oublier"],
@@ -207,5 +207,74 @@ describe("SEO-03 · niveaux et motifs", () => {
     const r = controlerSeo({});
     expect(r.niveau).toBe("rouge");
     expect(r.motifs.length).toBeGreaterThan(5);
+  });
+});
+
+describe("SEO-03 · reprise de la relecture (tour 1)", () => {
+  const avecGain = (suite: string) => ({ ...propre(), gain: `${t(80, "gain")} ${suite}` });
+
+  it("chiffres en nombre, en lettres ou avec une unité : orange sans source", () => {
+    for (const suite of ["5 heures par semaine", "deux fois plus de relances", "trois clients"]) {
+      const r = controlerSeo(avecGain(suite));
+      expect(r.niveau, suite).toBe("orange");
+      expect(r.motifs.some((m) => m.champ === "gain" && /chiffre/i.test(m.message)), suite).toBe(true);
+    }
+  });
+
+  it("le contrôleur de texte existant est branché : « grenoblois » et « Aucun gain garanti » sont rouges", () => {
+    expect(controlerSeo(avecGain("pour les grenoblois")).niveau).toBe("rouge");
+    expect(controlerSeo(avecGain("Aucun gain garanti")).niveau).toBe("rouge");
+  });
+
+  it("l'adresse publique est contrôlée : slug et adresses des pages liées", () => {
+    const c = propre();
+    c.slug = "relances-clients-grenoble";
+    const r = controlerSeo(c);
+    expect(r.niveau).toBe("rouge");
+    expect(r.motifs.some((m) => m.champ === "slug")).toBe(true);
+    const d = propre();
+    d.pagesLiees = [{ texte: "Trier les demandes entrantes", adresse: "trier-demandes-zorglub" }, d.pagesLiees![1]];
+    expect(controlerSeo(d, { nomsInterdits: ["Zorglub"] }).motifs.some((m) => m.champ === "pagesLiees")).toBe(true);
+    const e = propre();
+    e.slug = "relances-zorglub-clients";
+    expect(controlerSeo(e, { nomsInterdits: ["Zorglub"] }).niveau).toBe("rouge");
+  });
+
+  it("noms interdits : mot entier seulement (« Marc » n'interdit pas « marche » ni « marché »)", () => {
+    const c = propre();
+    c.gain = `${t(80, "gain")} le marché`;
+    c.commentCaMarche = { titre: t(40, "Comment ça marche"), etapes: c.commentCaMarche!.etapes };
+    expect(controlerSeo(c, { nomsInterdits: ["Marc"] }).niveau).toBe("vert");
+    c.gain = `${t(80, "gain")} par Marc`;
+    expect(controlerSeo(c, { nomsInterdits: ["Marc"] }).niveau).toBe("rouge");
+  });
+
+  it("superlatifs et classements : orange", () => {
+    const r = controlerSeo(avecGain("la meilleure solution du marché, leader du secteur"));
+    expect(r.niveau).not.toBe("vert");
+    expect(r.motifs.some((m) => m.champ === "gain" && /classement|superlatif/i.test(m.message))).toBe(true);
+  });
+
+  it("une source invalide ne valide pas les chiffres", () => {
+    const c = avecGain("40 %");
+    c.sources = [{ intitule: "Étude", adresse: "pas une url", dateConsultation: "nope" }];
+    const r = controlerSeo(c);
+    expect(r.motifs.some((m) => m.champ === "gain" && /chiffre/i.test(m.message))).toBe(true);
+  });
+
+  it("doublons comparés sans tenir compte de la casse, des accents ni des espaces", () => {
+    const c = propre();
+    const r = controlerSeo(c, { titresExistants: [`  ${c.titre!.toUpperCase()} `], adressesExistantes: [c.slug!.toUpperCase()] });
+    expect(r.motifs.map((m) => m.champ).sort()).toEqual(["slug", "titre"]);
+  });
+
+  it("classement fixé : champ vide, mot interdit, hors liste, signature, valeur en double = rouge ; longueur = orange", () => {
+    const rouge = (c: ContenuFiche) => controlerSeo(c).niveau === "rouge";
+    expect(rouge({ ...propre(), h1: "" })).toBe(true);
+    expect(rouge({ ...propre(), gain: `${t(90, "gain")} certifié` })).toBe(true);
+    expect(rouge({ ...propre(), type: "x" as never })).toBe(true);
+    expect(rouge({ ...propre(), relecteur: "Quelqu'un" })).toBe(true);
+    expect(rouge({ ...propre(), besoins: ["ne-rien-oublier", "ne-rien-oublier"] })).toBe(true);
+    expect(controlerSeo({ ...propre(), metaDescription: t(100, "meta") }).niveau).toBe("orange");
   });
 });
