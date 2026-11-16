@@ -54,12 +54,15 @@ const VITESSE_MOTIF_PCT = 1; // % de la largeur par seconde
 const PAS_GRILLE_LARGEUR = 0.07; // une case = 7 % de la largeur
 const SECONDES_PAR_CASE = 4;
 const VITESSE_GRILLE_PCT = +((PAS_GRILLE_LARGEUR * 100) / SECONDES_PAR_CASE).toFixed(3);
+/** Balayage de la grille : aller-retour par `derive`, sans saut. Amplitude en % de l'élément (large de 2 × l'écran). */
+const AMPLITUDE_BALAYAGE = 0.7;
+const VITESSE_BALAYAGE_PCT = +(AMPLITUDE_BALAYAGE * 2 * PENTE_DERIVE).toFixed(3);
 
 /** Opacité de couche (comme le 0,55 de `TramePerspective`) et opacité du trait. */
 const COUCHE_GRILLE = 0.4;
 const TRAIT_GRILLE = 0.07;
 const BALAYAGE_GRILLE = 0.06;
-const COUCHE_BANDE = 0.6;
+const COUCHE_BANDE = 0.7; // trait terracotta à 6 %, effectif 4,2 % : 6 % plein = 8,1 % de luminance sur ivoire (> 6 %)
 const TRAIT_BANDE = 0.06;
 const COUCHE_POINTS = 0.4;
 const TRAIT_POINTS = 0.06;
@@ -82,7 +85,7 @@ function couchesDe(id: IdFondVivant, fond: FondAxion): { hex: string; opaciteMax
     case "grain-papier":
       return [dessus(encre(fond), GRAIN[fond])];
     case "bande-diagonale":
-      return [dessus(accent(fond), TRAIT_BANDE * COUCHE_BANDE)];
+      return [dessus(CHARTE_AXION.terracotta, TRAIT_BANDE * COUCHE_BANDE)];
     case "quadrillage":
       return [dessus(CHARTE_AXION.gris, TRAIT_QUADRILLAGE * COUCHE_QUADRILLAGE)];
     case "grille-perspective":
@@ -101,7 +104,7 @@ const VITESSES: Record<IdFondVivant, number> = {
   "grain-papier": 0,
   "bande-diagonale": VITESSE_MOTIF_PCT,
   quadrillage: VITESSE_MOTIF_PCT,
-  "grille-perspective": VITESSE_GRILLE_PCT,
+  "grille-perspective": Math.max(VITESSE_GRILLE_PCT, VITESSE_BALAYAGE_PCT),
   points: VITESSE_MOTIF_PCT,
 };
 
@@ -159,7 +162,7 @@ export function FondVivant({ id, image, fps, largeur, hauteur, fond, graine }: P
           <filter id={ident} x="0" y="0" width="100%" height="100%">
             <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed={seed} result="bruit" />
             <feColorMatrix in="bruit" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.4 -0.2" result="masque" />
-            <feFlood floodColor={avecOpacite(hex, c0.opaciteMax * 4)} result="encre" />
+            <feFlood floodColor={avecOpacite(hex, c0.opaciteMax)} result="encre" />
             <feComposite in="encre" in2="masque" operator="in" />
           </filter>
           <rect width={largeur} height={hauteur} filter={`url(#${ident})`} />
@@ -169,8 +172,8 @@ export function FondVivant({ id, image, fps, largeur, hauteur, fond, graine }: P
   }
 
   if (id === "bande-diagonale") {
-    const dx = (t * VITESSE_MOTIF_PCT) % 100;
-    const pas = 14;
+    const pas = largeur * 0.14;
+    const dx = ((t * VITESSE_MOTIF_PCT * largeur) / 100) % pas; // repli sur la période du motif
     return (
       <div data-fond={id} data-dep={`${f2(t * VITESSE_MOTIF_PCT)},0`} style={PLEIN}>
         <div
@@ -178,8 +181,8 @@ export function FondVivant({ id, image, fps, largeur, hauteur, fond, graine }: P
             ...PLEIN,
             opacity: COUCHE_BANDE,
             backgroundImage: `linear-gradient(115deg, transparent 0%, transparent 40%, ${avecOpacite(hex, TRAIT_BANDE)} 40%, ${avecOpacite(hex, TRAIT_BANDE)} 60%, transparent 60%, transparent 100%)`,
-            backgroundSize: `${pas}% 100%`,
-            backgroundPosition: `${f2(dx)}% 0%`,
+            backgroundSize: `${f2(pas)}px 100%`,
+            backgroundPosition: `${f2(dx)}px 0px`,
           }}
         />
       </div>
@@ -231,11 +234,11 @@ export function FondVivant({ id, image, fps, largeur, hauteur, fond, graine }: P
   const trait = avecOpacite(hex, TRAIT_GRILLE);
   const balayage = avecOpacite(c1.hex, BALAYAGE_GRILLE);
   const masque = "linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0) 70%)";
-  const deriveBalayage = (t * 12) % 100;
+  const deriveBalayage = 50 + AMPLITUDE_BALAYAGE * derive(t, graine + 4);
   return (
     <div
       data-fond={id}
-      data-dep={`0,${f2((decalage / largeur) * 100)}`}
+      data-dep={`0,${f2((decalage / largeur) * 100)};${f2(2 * (deriveBalayage - 50))},0`}
       data-pas-px={f2(pas)}
       data-decalage-px={f2(decalage)}
       style={PLEIN}

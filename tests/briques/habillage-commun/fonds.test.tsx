@@ -113,6 +113,27 @@ describe("fonds vivants purs", () => {
     }
   });
 
+  it("grain-papier : l'opacité dessinée (flood-color) = opaciteMax, alpha de matrice borné à 1", () => {
+    for (const fond of FONDS) {
+      const html = rendre("grain-papier", 3, fond);
+      const a = Number(/flood-color="rgba\([^)]*?, ([\d.]+)\)"/.exec(html)![1]);
+      expect(a).toBeCloseTo(DESCRIPTION_FONDS_PAR_FOND[fond]["grain-papier"].couleurs[0].opaciteMax, 3);
+      const m = /values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ([\d.]+) (-?[\d.]+)"/.exec(html)!;
+      expect(Number(m[1]) + Number(m[2])).toBeLessThanOrEqual(1.2); // pente ; l'alpha final est écrêté à 1 par SVG
+    }
+  });
+
+  it("grille-perspective : le balayage est dans data-dep (≤ 2 %/s, sans saut) ; bande-diagonale sans saut au repli", () => {
+    expect(dep(rendre("grille-perspective", 0))).toHaveLength(2);
+    const pasPx = 0.14 * L;
+    const pos = (n: number) => Number(/background-position:([\d.]+)px/.exec(rendre("bande-diagonale", n))![1]);
+    expect(pos(0)).toBeLessThan(pasPx);
+    // au repli, la position retombe de ~pas vers 0 : multiple exact de la case, donc continu visuellement
+    let n = 0;
+    while (pos(n + 1) >= pos(n) && n < 5000) n++;
+    expect(Math.abs(pos(n) - pasPx)).toBeLessThan(1);
+  });
+
   it("grain-papier seul attend la mesure et refuse le grain FFmpeg", () => {
     for (const id of IDS_FONDS_VIVANTS) {
       expect(DESCRIPTION_FONDS[id].attendMesure).toBe(id === "grain-papier");
