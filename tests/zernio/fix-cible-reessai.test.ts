@@ -1,9 +1,6 @@
 /**
  * FIX-CIBLE · réessai « Envoi par Zernio » avec les comptes cochés (Zernio simulé, aucun réseau, clé fictive).
- * Ancien en-tête : FIN-ZERNIO · finitions avant les essais réels (aucun réseau, aucune clé réelle) :
- * 1. présélection de compte traduite par outil (Zernio ET Buffer, jamais d'identifiant mêlé) ;
- * 2. refus pour doublon : phrase claire, `detailTechnique` jamais visible ;
- * 3. « Marquer comme vérifié » : sortie manuelle, écrite au journal, rien chez l'outil.
+ * Seul un identifiant de la liste actuelle de Zernio part ; un ancien identifiant coché est refusé en français clair, rien ne part.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -88,8 +85,8 @@ beforeEach(async () => {
 });
 
 describe("FIX-CIBLE · réessai par Zernio avec la page cochée", () => {
-  it("page cochée de nom unique chez Zernio : un brouillon, sur le compte Zernio traduit", async () => {
-    const r = await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: [BUF_AXION] });
+  it("identifiant Zernio de la page coché : un brouillon, sur cette cible exacte", async () => {
+    const r = await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: ["zernio-fb-axion-111111"] });
     expect(r.ok).toBe(true);
     expect(demandes).toHaveLength(1);
     expect(demandes[0].cible).toBe("zernio-fb-axion-111111");
@@ -99,13 +96,13 @@ describe("FIX-CIBLE · réessai par Zernio avec la page cochée", () => {
     expect(toutes[0].statut).toBe("brouillon");
   });
 
-  it("deux comptes Zernio du même nom : refus clair qui nomme les choix, rien ne part", async () => {
+  it("ancien identifiant coché : refus clair (recochez-le), rien ne part, rien n'est effacé", async () => {
     canauxZernio = [canal("zernio-fb-axion-111111", "Axion-IA.com"), canal("zernio-fb-axion-333333", "Axion-IA.com"), canal("zernio-fb-exemple-222222", "Williams")];
     const r = await envoyerParOutilAction(VIDEO, "facebook", DEMAIN, { outil: "zernio", comptes: [BUF_AXION] });
     const texte = JSON.stringify(r);
-    expect(texte).toContain("Axion-IA.com");
-    expect(texte).toContain("…111111");
-    expect(texte).toContain("…333333");
+    expect(r.ok).toBe(false);
+    expect(texte).toContain("n'est plus relié à Zernio");
+    expect(texte).toContain("recochez-le");
     expect(texte).not.toContain("aucune cible par défaut");
     expect(demandes).toHaveLength(0);
     expect(await depots().publications.lister((p) => p.videoId === VIDEO && p.via === "zernio")).toHaveLength(0);
