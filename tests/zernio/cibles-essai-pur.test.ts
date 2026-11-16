@@ -65,7 +65,7 @@ describe("auteurs d'essai (PARCOURS_ESSAI_AUTEURS)", () => {
     expect(auteurEssaiPermis(env, "")).toBe(false);
     expect(auteurEssaiPermis(env, undefined)).toBe(false);
   });
-  it.each([[undefined], [""], ["*"], [`${A},`], [`${A},ab`], [`${A},${B},auteur-fictif-003,auteur-fictif-004`]])("%s : fermé", (v) => {
+  it.each([[undefined], [""], ["*"], [`${A},`], [`${A},a b`], [`${A},a*`], [`${A},${B},auteur-fictif-003,auteur-fictif-004`]])("%s : fermé", (v) => {
     expect(auteurEssaiPermis({ PARCOURS_ESSAI_AUTEURS: v }, A)).toBe(false);
   });
 });
