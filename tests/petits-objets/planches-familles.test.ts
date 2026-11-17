@@ -27,6 +27,11 @@ import { EXEMPLES_ONDE } from "../../src/briques/motion/petits-objets/onde";
 import { EXEMPLES_OBJET_TOURNE } from "../../src/briques/motion/petits-objets/objet-tourne";
 import { EXEMPLES_POST_IT } from "../../src/briques/motion/petits-objets/post-it";
 import { EXEMPLES_BULLES } from "../../src/briques/motion/petits-objets/bulles";
+import { EXEMPLES_APPEL_ACTION } from "../../src/briques/motion/petits-objets/appel-action";
+import { EXEMPLES_APPEL_MOT } from "../../src/briques/motion/petits-objets/appel-mot";
+import { EXEMPLES_CARTON_MAGAZINE } from "../../src/briques/motion/petits-objets/carton-magazine";
+import { EXEMPLES_ANNEAU } from "../../src/briques/motion/petits-objets/anneau-donnees";
+import { ecrireNombreFr } from "../../src/briques/motion/petits-objets/gros-chiffre";
 import type { FondAxion } from "../../src/briques/jetons-motion";
 
 const FONDS: FondAxion[] = ["ivoire", "noir"];
@@ -36,7 +41,8 @@ const somme = (o: Record<string, readonly unknown[]>) => Object.values(o).reduce
 
 // Nombre de définitions par exemple : une case par (définition × exemple).
 const ATTENDU_ETIQUETTES =
-  somme(EXEMPLES_ETIQUETTES) + EXEMPLES_CARTES.length + EXEMPLES_GROS_CHIFFRE.length + 2 * EXEMPLES_ETAPES.length + EXEMPLES_CARTON_DEFINITION.length + somme(EXEMPLES_SCHEMAS) + EXEMPLES_FLUX.length;
+  somme(EXEMPLES_ETIQUETTES) + EXEMPLES_CARTES.length + EXEMPLES_GROS_CHIFFRE.length + 2 * EXEMPLES_ETAPES.length + EXEMPLES_CARTON_DEFINITION.length + somme(EXEMPLES_SCHEMAS) + EXEMPLES_FLUX.length +
+  EXEMPLES_APPEL_ACTION.length + EXEMPLES_APPEL_MOT.length + EXEMPLES_CARTON_MAGAZINE.length + EXEMPLES_ANNEAU.length;
 const ATTENDU_ECRANS =
   EXEMPLES_FENETRE_APP.length + EXEMPLES_TERMINAL_COMMANDE.length + EXEMPLES_PANNEAU_REGLAGES.length + EXEMPLES_GRILLE.length + EXEMPLES_VIGNETTES.length + EXEMPLES_PELLICULE.length +
   EXEMPLES_FRISE.length + somme(EXEMPLES_DOSSIER_CHRONO_BARRE) + EXEMPLES_ONDE.length + EXEMPLES_OBJET_TOURNE.length;
@@ -69,11 +75,36 @@ describe("C9-40a planches des familles", () => {
       const attendus = p.entrees.filter((e) => { const z = zoneDeLaCase(e); return z !== null && seChevauchent(z, ZONE_VISAGE_OBJETS); }).length;
       expect(compter(m, "chevauche-visage")).toBe(p.entrees.length);
       expect((m.match(/data-chevauche-visage="oui"/g) ?? []).length).toBe(attendus);
-      const cases = [...m.matchAll(/data-case="(\d+),(\d+),(\d+)"/g)].map((r) => ({ x: +r[1], y: +r[2], largeur: +r[3], hauteur: +r[3] }));
+      const cases = [...m.matchAll(/data-case="([\d.]+),([\d.]+),([\d.]+)"/g)].map((r) => ({ x: +r[1], y: +r[2], largeur: +r[3], hauteur: +r[3] }));
       expect(cases.length).toBe(p.entrees.length);
       for (let i = 0; i < cases.length; i++) for (let j = i + 1; j < cases.length; j++) expect(seChevauchent(cases[i], cases[j])).toBe(false);
     });
   }
+});
+
+/** Balisage de la case `id` : de son `data-objet` jusqu'au suivant. */
+const caseDe = (m: string, id: string): string => {
+  const i = m.indexOf(`data-objet="${id}"`);
+  expect(i, id).toBeGreaterThanOrEqual(0);
+  const j = m.indexOf('data-objet="', i + 1);
+  return m.slice(i, j < 0 ? undefined : j);
+};
+const decimalesDe = (v: number): number => (String(v).split(".")[1] ?? "").length;
+
+describe("C9-40b-b chiffre et texte affichés = fournis", () => {
+  const m = renderToStaticMarkup(createElement(PlancheEtiquettes, { fond: "ivoire", format: "9x16" }));
+  it("anneau : le chiffre fourni est écrit", () => {
+    EXEMPLES_ANNEAU.forEach((e, i) => expect(caseDe(m, `objet-anneau-donnees#${i + 1}`)).toContain(ecrireNombreFr(e.valeur, decimalesDe(e.valeur))));
+  });
+  it("appel à l'action : le texte exact est écrit", () => {
+    EXEMPLES_APPEL_ACTION.forEach((e, i) => expect(caseDe(m, `objet-appel-action#${i + 1}`)).toContain(e.texte));
+  });
+  it("appel « Tape MOT » : le mot en capitales est écrit", () => {
+    EXEMPLES_APPEL_MOT.forEach((e, i) => expect(caseDe(m, `objet-appel-mot#${i + 1}`)).toContain(e.mot.toLocaleUpperCase("fr")));
+  });
+  it("carton magazine : le mot-clé est écrit (casse indifférente)", () => {
+    EXEMPLES_CARTON_MAGAZINE.forEach((e, i) => expect(caseDe(m, `objet-carton-magazine#${i + 1}`).toLocaleLowerCase("fr")).toContain(e.motCle.toLocaleLowerCase("fr")));
+  });
 });
 
 const racineStudio = join(__dirname, "..", "..", "studio-rendu");
