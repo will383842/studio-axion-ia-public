@@ -36,6 +36,7 @@ import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
 import { placerHashtags, RESEAUX_PLACEMENT, type PlacementHashtags, type ReseauPlacement, type SortiePlacement } from "@/reseaux/placement-hashtags";
 import { lirePlacements } from "./placement-hashtags";
+import { inscrireSansRisque } from "./plan-video";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
 import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
@@ -987,6 +988,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
   try {
     await refuserSiStockageSimule();
     const r = await envoyerReelInterne(outil, service, kitVue, reseaux, dateIso, choisis, commentaires, avecVideo, extras);
+    await inscrireSansRisque(depots().creneauxEditoriaux, r.publications); // L4-14 : ne lève jamais, n'envoie rien
     journaliserIssueEnvoi("envoyerReel", kitVue.videoId, reseaux, r.publications, r.problemes, outil, r.mode === "brouillon");
     return r;
   } catch (e) {

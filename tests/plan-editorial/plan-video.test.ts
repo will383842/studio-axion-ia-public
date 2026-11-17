@@ -49,7 +49,7 @@ function faux(): FournisseurPublication {
 
 async function envoyer(reseaux: ("instagram" | "linkedin")[] = ["instagram"]) {
   const kit = (await pub.obtenirKit(VIDEO))!;
-  return pub.envoyerReel("zernio", faux(), kit, reseaux, DEMAIN, {}, {}, false);
+  return pub.envoyerReel("zernio", faux(), kit, reseaux, DEMAIN, { linkedin: ["exemple-li"] }, {}, false);
 }
 const creneauxDeLaVideo = () => depots().creneauxEditoriaux.lister((c) => c.videoId === VIDEO);
 
