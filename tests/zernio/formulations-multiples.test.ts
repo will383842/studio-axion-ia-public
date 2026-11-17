@@ -48,6 +48,7 @@ const AR_VALIDES = [
 ] as const;
 const V_M1 = ["mp-m1-v4-1", "mp-m1-v4-2", "mp-m1-v4-3", "mp-m1-v4-4"] as const;
 const V_AR = ["mp-adresse-refusee-v3-1", "mp-adresse-refusee-v3-2", "mp-adresse-refusee-v3-3"] as const;
+const V_AR4 = ["mp-adresse-refusee-v4-1", "mp-adresse-refusee-v4-2"] as const; // C2 : ajoutées à la fin du groupe, les v3 restent actives
 const TOUTES = [...V_M1, ...V_AR] as const;
 const brut = (id: string) => (TEXTES_MP as Record<string, { version: string; texte: string }>)[id];
 const empreinte = (id: string) => createHash("sha256").update(`${brut(id).version}\n${brut(id).texte}`).digest("hex");
@@ -96,7 +97,7 @@ describe("1 · dictionnaire", () => {
   });
   it("groupes : versions existantes et actives, ordre fixe ; la mention d'ouverture n'existe plus", () => {
     expect(GROUPES_MP["m1-lien"]).toEqual([...V_M1]);
-    expect(GROUPES_MP["adresse-refusee"]).toEqual([...V_AR]);
+    expect(GROUPES_MP["adresse-refusee"]).toEqual([...V_AR, ...V_AR4]);
     for (const g of Object.values(GROUPES_MP)) for (const v of g) expect(brut(v) && (brut(v) as { statut?: string }).statut, v).toBe("actif");
     const d = JSON.parse(readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url), "utf8"));
     expect(d.version).toBe(5); // série 5 : 13 formulations (3 → 4), série 6 : 12 de plus (4 → 5)
@@ -544,10 +545,10 @@ describe("10 · écran /mots", () => {
     const html = rendu(vue);
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
     for (const t of [...M1_VALIDES, ...AR_VALIDES]) expect(html, t.slice(0, 30)).toContain(esc(t));
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2);
-    expect(html.match(/Non validée/g)).toHaveLength(7 + 13 + 12 + 2);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2 + 2);
+    expect(html.match(/Non validée/g)).toHaveLength(7 + 13 + 12 + 2 + 2);
     const html2 = rendu(vue2);
     expect(html2.match(/Validée/g)).toHaveLength(1);
-    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13 + 12 + 2);
+    expect(html2.match(/Non validée/g)).toHaveLength(6 + 13 + 12 + 2 + 2);
   });
 });

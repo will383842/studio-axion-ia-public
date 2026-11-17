@@ -77,7 +77,7 @@ describe("1 · dictionnaire", () => {
     }
     const d = JSON.parse(readFileSync(CHEMIN, "utf8"));
     expect(d.version).toBe(5);
-    expect(Object.keys(d.textes).length).toBe(35 + 12 + 2); // +2 : mp-m1-v6-1 et mp-m1-v6-2 (mention RGPD, proposées, hors série 6)
+    expect(Object.keys(d.textes).length).toBe(35 + 12 + 2 + 2); // +2 : mp-m1-v6-1 et mp-m1-v6-2 (mention RGPD, proposées, hors série 6)
     expect(Object.keys(d.groupes)).toEqual([
       "m1-lien",
       "adresse-refusee",
@@ -105,7 +105,7 @@ describe("1 · dictionnaire", () => {
     };
     const anciens = Object.fromEntries(
       Object.entries(d.textes).filter(
-        ([k]) => !(NOUVELLES as readonly string[]).includes(k) && k !== "mp-m1-v6-1" && k !== "mp-m1-v6-2",
+        ([k]) => !(NOUVELLES as readonly string[]).includes(k) && k !== "mp-m1-v6-1" && k !== "mp-m1-v6-2" && k !== "mp-adresse-refusee-v4-1" && k !== "mp-adresse-refusee-v4-2",
       ),
     );
     expect(Object.keys(anciens)).toHaveLength(35);
@@ -195,7 +195,7 @@ describe("3 · écran /mots", () => {
     const avant = await MS.lireVueMots();
     const versions = avant.formulations!.map((f) => f.version as string);
     for (const v of NOUVELLES) expect(versions, v).toContain(v);
-    expect(avant.formulations!).toHaveLength(7 + 13 + 12 + 2);
+    expect(avant.formulations!).toHaveLength(7 + 13 + 12 + 2 + 2);
     expect(avant.formulations!.every((f) => !f.valide)).toBe(true);
     expect(
       await actions.validerFormulationAction("mp-deja-envoye-v1-2"),
@@ -255,6 +255,6 @@ describe("3 · écran /mots", () => {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
       expect(bloc, g).not.toContain("pas encore branché");
     }
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2 + 2);
   });
 });
