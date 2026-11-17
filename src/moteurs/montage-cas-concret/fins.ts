@@ -9,6 +9,8 @@
  * X7 : sur Instagram, la fin au mot est une seule phrase, « Abonnez-vous et écrivez {MOT} en commentaire : je vous
  * l'envoie. » (l'écran « appel-mot » seul).
  * Une suite dont une ligne n'est pas utilisable revient à la fin « diagnostic » de son réseau.
+ * 17/11, Williams : sans choix, aucune fin. Seule la fin au mot choisie (« Avec le mot » coché, mot branché, cadeau) est
+ * posée ; ailleurs la fin est VIDE (`appels: []`, `ecrans: []`) : rien n'est dit ni écrit après la question.
  */
 import { choisir, ErreurFin, suiteDeFins, type FinChoisie, type FinTable } from "@/briques/fins";
 import { construireLienSuivi, type ActiviteLien } from "@/domaine/mesures";
@@ -21,6 +23,8 @@ import { idEcranFinAttendu, type EcranFin, type FinPlanifiee, type PlanDesFins }
 export const MARQUE_FIN = "axion-ia.com";
 export const RAISON_SUITE_REDUITE = "La fin au mot n'est pas encore validée : la fin propose le diagnostic.";
 export const RAISON_SANS_CADEAU = "Cette offre n'a pas encore de document à envoyer : la fin propose le diagnostic.";
+/** Fin vide : ce que « Vos fichiers » écrit et ce que l'écran de validation montre quand rien n'est dit après la question. */
+export const FIN_AUCUNE = "Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.";
 export const RAISON_MOT_NON_BRANCHE = "Le mot n'est pas branché sur ce compte : la fin propose le diagnostic.";
 
 export interface DemandePlanDesFins {
@@ -109,6 +113,7 @@ export const FINS_MOT_AVEC_ENVOI: ReadonlySet<string> = new Set(["fin-ig-mot-abo
 
 /** Une suite tient debout : le diagnostic et son lien, ou le mot et son envoi (dit par une ligne à part ou par la même). */
 const finComplete = (appels: readonly FinChoisie[]): boolean => {
+  if (appels.length === 0) return true; // 17/11 : la fin vide (aucune fin choisie) tient debout.
   const a = (t: string) => appels.some((x) => x.type === t);
   return (a("rendez-vous") && a("lien")) || (a("commentaire") && (a("cadeau") || appels.some((x) => FINS_MOT_AVEC_ENVOI.has(x.id))));
 };
@@ -146,7 +151,10 @@ function suiteAuRang(reseau: ReseauCas, ids: string[], table: readonly FinTable[
   return ids.map((id, k) => (k === i ? pool[rang % pool.length].id : id));
 }
 
-/** Plan des fins : une fin par suite distincte, ses lignes tirées de la table, ses écrans « f01 »… */
+/**
+ * Plan des fins : une fin par suite distincte, ses lignes tirées de la table, ses écrans « f01 »… Un réseau sans fin au mot
+ * choisie reçoit la fin VIDE (17/11) ; les anciens replis vers le diagnostic gardent leur raison dans `reduites`.
+ */
 export function planDesFins(demande: DemandePlanDesFins): PlanDesFins {
   const { reseaux, offre, nature, mot, motDit, avecMot, table } = demande;
   const motSur = avecMot ? (demande.motSur ?? []).filter(estBranchable) : [];
@@ -154,37 +162,39 @@ export function planDesFins(demande: DemandePlanDesFins): PlanDesFins {
   // Une offre sans cadeau : le mot n'est jamais dit, la fin le dit avec sa raison (aucune offre aujourd'hui).
   const sansCadeau = !cadeauDeLOffre(offre, nature);
   const options = { mot, ...(motDit ? { motDit } : {}) };
-  const groupes = new Map<string, { reseaux: ReseauCas[]; ids: string[]; raison?: string }>();
+  const groupes = new Map<string, { reseaux: ReseauCas[]; ids: string[]; raisons: Map<string, ReseauCas[]> }>();
   const sansFin: PlanDesFins["sansFin"] = [];
 
   for (const reseau of new Set(reseaux)) {
     let ids = suites[reseau];
     let raison: string | undefined;
-    if (ids.some((id) => table.find((f) => f.id === id)?.validee === false)) {
-      ids = [...FINS_DIAGNOSTIC[reseau]];
+    const choisie = suites[reseau].join("|") !== FINS_DIAGNOSTIC[reseau].join("|");
+    if (choisie && ids.some((id) => table.find((f) => f.id === id)?.validee === false)) {
+      ids = [];
       raison = RAISON_SUITE_REDUITE;
-    } else if (avecMot && estBranchable(reseau)) {
-      if (!motSur.includes(reseau)) raison = RAISON_MOT_NON_BRANCHE;
-      else if (sansCadeau) raison = RAISON_SANS_CADEAU;
+    } else if (!choisie) {
+      ids = [];
+      if (avecMot && estBranchable(reseau)) raison = !motSur.includes(reseau) ? RAISON_MOT_NON_BRANCHE : sansCadeau ? RAISON_SANS_CADEAU : undefined;
     }
     ids = suiteAuRang(reseau, ids, table, demande.rangPhrase ?? 0);
     const cle = ids.join("|");
-    const groupe = groupes.get(cle);
-    if (groupe) groupe.reseaux.push(reseau);
-    else groupes.set(cle, { reseaux: [reseau], ids, ...(raison ? { raison } : {}) });
+    const groupe = groupes.get(cle) ?? { reseaux: [], ids, raisons: new Map<string, ReseauCas[]>() };
+    groupes.set(cle, groupe);
+    groupe.reseaux.push(reseau);
+    if (raison) groupe.raisons.set(raison, [...(groupe.raisons.get(raison) ?? []), reseau]);
   }
 
   const fins: FinPlanifiee[] = [];
   const reduites: PlanDesFins["reduites"] = [];
-  for (const { reseaux: partages, ids, raison } of groupes.values()) {
+  for (const { reseaux: partages, ids, raisons } of groupes.values()) {
     try {
-      const appels = suiteDeFins(partages[0], ids, options, table);
+      const appels = ids.length ? suiteDeFins(partages[0], ids, options, table) : [];
       if (!finComplete(appels)) {
         sansFin.push({ reseaux: partages, raison: "Il manque une ligne de la fin : aucune fin possible pour ces réseaux." });
         continue;
       }
       fins.push({ id: `fin-${partages.join("-")}`, reseaux: partages, appels, ecrans: ecransDeFin(appels, mot) });
-      if (raison) reduites.push({ reseaux: partages, raison });
+      for (const [raison, r] of raisons) reduites.push({ reseaux: r, raison });
     } catch (e) {
       if (!(e instanceof ErreurFin)) throw e;
       sansFin.push({ reseaux: partages, raison: e.message });

@@ -82,7 +82,7 @@ import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
 import { textesDePublication, type TextePublication } from "./publication";
 import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
-import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
+import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette, type PlanRaccordVoix } from "./recette-voix";
 import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";
 import type { DosageMotion } from "@/briques/dosage-motion/types";
@@ -756,7 +756,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // 4. Voix : corps, une prise par fin, puis l'assemblage de chaque fin.
   const lire = (t: string) => (prononciations.length ? substituerPrononciations(t, [...prononciations]) : t);
   const texteCorps = lire(texteDuCorpsPourVoix(captures.fiche));
-  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit))) }));
+  // 17/11 (Williams) : une fin vide (aucune fin choisie) n'a ni texte ni prise : elle n'est pas lue.
+  const textesFins = plan.fins.filter((f) => f.ecrans.length).map((f) => ({ id: f.id, texte: lire(joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit))) }));
   const tarif = outils.budget.tarifCentimesParCaractere;
   const estimation = estimerVoixCasConcret([texteCorps, ...textesFins.map((f) => f.texte)], tarif);
   const v = outils.voix;
@@ -812,6 +813,16 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       // GV2-30 : heures de mots estimées : aucun resserrage, le son est gardé entier (sinon le plan normal, mêmes clés).
       return { id: f.id, son, plan: corps.approximatif || son.approximatif ? planSonEntier(corps, son) : planRaccordVoix(corps, son) };
     });
+    // 17/11 : une fin vide reçoit le corps seul (plan « corps seul » de la recette, même traitement final : le calage lit
+    // ses mots) ; `son` = le corps lui-même, aucune prise de plus.
+    const corpsSeul = (): PlanRaccordVoix => {
+      const p = planRaccordVoix(corps);
+      if (!corps.approximatif) return p;
+      const e = planSonEntier(corps, corps);
+      const duree = Math.round((corps.dureeSec / RECETTE_VOIX_CAS_CONCRET.filtres.atempo) * 1000) / 1000;
+      return { ...e, morceaux: e.morceaux.slice(0, 1), mots: e.mots.slice(0, corps.mots.length), dureeResserreeSec: corps.dureeSec, dureeSec: duree, debutFonduSortieSec: Math.max(0, duree - e.fonduSortieSec) };
+    };
+    for (const f of plan.fins) if (!f.ecrans.length) sons.push({ id: f.id, son: corps, plan: corpsSeul() });
     const approximatif = !!corps.approximatif || sons.some((x) => !!x.son.approximatif);
     // V4-1 : une coupe ne tombe jamais en plein son (heure de fin du fournisseur trop tôt) : elle va dans le blanc mesuré.
     // Essai réel du 14/10 (v-f17775b9177a) : le son brut de HeyGen est un MP3, illisible pour la mesure ; aucune coupe
@@ -931,8 +942,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     });
     // 08/11/2026 : les mots lus autrement que le texte écrit ne jettent plus la vidéo : ils partent en réserves « À vérifier ».
     const ecarts = [...new Set(parFin.flatMap(({ r, f }) => r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`)))];
-    const commun = Math.min(...parFin.map(({ r }) => r.fin!.ecrans[0].debutMs!));
+    // 17/11 : sans écran de fin nulle part, le corps finit avec la voix ; une fin vide ne fixe pas l'instant commun.
+    const avecEcrans = parFin.filter(({ f }) => f.ecrans.length);
     const premier = parFin[0].r;
+    const commun = avecEcrans.length ? Math.min(...avecEcrans.map(({ r }) => r.fin!.ecrans[0].debutMs!)) : premier.fiche.ecrans[premier.fiche.ecrans.length - 1].finMs!;
     const dernier = premier.fiche.ecrans.length - 1;
     const corps = premier.fiche.ecrans.map((e, i) => (i === dernier ? { ...e, finMs: commun } : e)) as FicheEcrans["ecrans"];
     const idsCorps = new Set(corps.map((e) => e.id));
@@ -944,7 +957,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       fins: parFin.map(({ r, f }) => ({
         fin: { ...f, ecrans: r.fin!.ecrans.map((e, i) => (i === 0 ? { ...e, debutMs: commun } : e)) as EcranFin[] },
         evenements: r.evenements.filter((ev) => !idsCorps.has(ev.ecranId)),
-        dureeMs: r.dureeMs,
+        dureeMs: f.ecrans.length ? r.dureeMs : Math.min(r.dureeMs, commun),
       })),
     };
   });

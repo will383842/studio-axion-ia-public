@@ -24,7 +24,7 @@ import type { ReseauCas } from "@/formats/cas-concret";
 import { formaterMontant } from "@/lib/montants";
 import { casDesEntrees, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { texteDuCorps } from "@/moteurs/montage-cas-concret/fiche";
-import { planDesFins, RAISON_SUITE_REDUITE } from "@/moteurs/montage-cas-concret/fins";
+import { FIN_AUCUNE, planDesFins, RAISON_SUITE_REDUITE } from "@/moteurs/montage-cas-concret/fins";
 import { depots, fournisseur } from "./_commun";
 import { exigerSession } from "./auth";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "./cas-concret-reglages";
@@ -93,6 +93,7 @@ function listeFrancaise(t: readonly string[]): string {
 
 /** Phrase de la fin d'après les types de lignes de la suite (PUR). */
 export function phraseDeFin(types: readonly string[]): string {
+  if (types.length === 0) return FIN_AUCUNE; // 17/11 : fin vide, rien n'est dit ni écrit après la question.
   const dans = new Set(types);
   // Une fin au mot promet toujours l'envoi : en ligne à part, ou dans la même phrase (Instagram, X7).
   if (dans.has("commentaire")) dans.add("cadeau");

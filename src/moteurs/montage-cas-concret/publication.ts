@@ -33,6 +33,8 @@ export const INDICATION_FACEBOOK = "À poser à la main : Buffer ne pose pas de 
 export const CONSIGNE_PREMIER_COMMENTAIRE = "Poser ce lien en premier commentaire, juste après la publication.";
 export const CONSIGNE_PROFIL = "Poser ce lien dans le profil du compte avant de publier.";
 export const CONSIGNE_SANS_LIEN = "Aucun lien à poser : la vidéo invite à écrire le mot.";
+/** 17/11 : fin vide (aucune fin choisie) ; la consigne du mot serait fausse (la vidéo n'invite à rien). */
+export const CONSIGNE_SANS_FIN = "Aucun lien à poser : la vidéo n'en annonce pas (aucune fin choisie).";
 /** Une fin au mot en une phrase (X7, Instagram) : l'écrit (le mot sous sa forme écrite, « IA »), puis la suite dite. */
 function motEcritPuisSuite(fin: { dit: string; ecran: string }): string {
   const ecrit = fin.ecran.trim();
@@ -75,6 +77,11 @@ export function textesDePublication(fiche: Pick<FicheEcrans, "ecrans">, plan: Pl
     const envoi = fin.appels.find((a) => a.type === "cadeau");
     for (const reseau of fin.reseaux) {
       const lignes = [...haut];
+      if (!fin.appels.length) {
+        // 17/11 (Williams) : fin vide (aucune fin choisie) : le texte du haut seul, sans lien ni premier commentaire.
+        res.push({ reseau, texte: haut.join("\n\n"), ouPoserLeLien: "aucun", consigneLien: CONSIGNE_SANS_FIN });
+        continue;
+      }
       if (motFin && !lienFin && !diagnostic) {
         // Fin au mot : aucun lien annoncé. Instagram (X7) : la phrase dite porte l'abonnement et l'envoi, telle quelle.
         lignes.push(envoi ? `${motFin.ecran.trim()} : ${minuscule(phrase(envoi.dit))}` : motEcritPuisSuite(motFin));

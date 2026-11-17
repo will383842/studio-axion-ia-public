@@ -20,7 +20,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { notifier } from "@/components/ui/Toast";
 import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import type { PastilleControle, ResultatLancement, ScriptRelu } from "@/domaine/relecture-script";
-import { lignesDesEcrans, modificationsDesDifferences } from "@/moteurs/montage-cas-concret/relecture";
+import { lignesDesEcrans, modificationsDesDifferences, type FinARelire } from "@/moteurs/montage-cas-concret/relecture";
 import type { EcranApercu } from "@/moteurs/montage-cas-concret/script-valide";
 import { ADRESSE_RELANCE, lireIssue, PHRASES_ECRAN_RELANCE, type IssueRelanceEcran } from "./relance";
 
@@ -29,12 +29,12 @@ export type UtiliserMonScript = (videoId: string) => Promise<{ ok: true; issue: 
 
 const VERIFICATION_INDISPONIBLE: PastilleControle[] = [{ niveau: "alerte", texte: "Vérification indisponible. Elle sera refaite à la validation." }];
 
-export function ValidationScript({ videoId, travailId, ecrans, avertissements = [], scriptFourniPlusRecent = false, utiliserMonScript }: { videoId: string; travailId: string; ecrans: readonly EcranApercu[]; avertissements?: readonly { rang: number; detail: string }[]; scriptFourniPlusRecent?: boolean; utiliserMonScript?: UtiliserMonScript }) {
+export function ValidationScript({ videoId, travailId, ecrans, fins = [], avertissements = [], scriptFourniPlusRecent = false, utiliserMonScript }: { videoId: string; travailId: string; ecrans: readonly EcranApercu[]; fins?: readonly FinARelire[]; avertissements?: readonly { rang: number; detail: string }[]; scriptFourniPlusRecent?: boolean; utiliserMonScript?: UtiliserMonScript }) {
   const router = useRouter();
   /** GV2-20 : le script est validé mais la relance a été refusée : la raison, et le bouton « Reprendre cette étape ». */
   const [refusRelance, setRefusRelance] = useState<string | null>(null);
   const [enAttente, setEnAttente] = useState(false);
-  const lignes = useMemo(() => lignesDesEcrans(ecrans), [ecrans]);
+  const lignes = useMemo(() => lignesDesEcrans(ecrans, fins), [ecrans, fins]);
 
   const controler = useCallback(
     async (s: ScriptRelu): Promise<PastilleControle[]> => {
