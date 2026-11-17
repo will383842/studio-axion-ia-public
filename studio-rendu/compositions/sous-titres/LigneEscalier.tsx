@@ -28,10 +28,10 @@ export const LigneEscalier: React.FC<ParametresLigneEscalier> = ({ geometrie, co
             key={i}
             data-ligne-escalier={i}
             style={{
-              position: "absolute", left: l.xPx, top: l.yPx, width: l.largeurPx, height: l.hauteurPx,
+              position: "absolute", left: l.xPx, top: l.yPx, width: l.largeurPx / l.echelle, height: l.hauteurPx / l.echelle,
               transform: `scale(${l.echelle})`, transformOrigin: "left top",
               whiteSpace: "nowrap", color: couleur, WebkitTextStroke: `1px ${fond}`,
-              fontFamily: `"${FAMILLES["Manrope Bold"]}", "Manrope", sans-serif`, fontSize: l.taillePx,
+              fontFamily: `"${FAMILLES["Manrope Bold"]}", "Manrope", sans-serif`, fontSize: l.taillePx / l.echelle,
               ...(passee ? { filter: `blur(${MEMOIRE_FLOUE.flouPx}px)`, opacity: MEMOIRE_FLOUE.opacite } : {}),
             }}
           >

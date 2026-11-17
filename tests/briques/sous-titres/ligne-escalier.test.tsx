@@ -63,6 +63,17 @@ describe("C2-U20b-a : LigneEscalier", () => {
     }
   });
 
+  it("taille, largeur et hauteur du balisage × échelle = valeurs de la géométrie (pas d'agrandissement double)", () => {
+    const html = rendre(geo);
+    for (const [i, l] of geo.lignes.entries()) {
+      const bloc = html.split(`data-ligne-escalier="${i}"`)[1].split("</div>")[0];
+      const px = (prop: string) => Number(new RegExp(`(?:^|[;"\\s])${prop}:([0-9.]+)px`).exec(bloc)![1]);
+      expect(px("font-size") * l.echelle).toBeCloseTo(l.taillePx, 3);
+      expect(px("width") * l.echelle).toBeCloseTo(l.largeurPx, 3);
+      expect(px("height") * l.echelle).toBeCloseTo(l.hauteurPx, 3);
+    }
+  });
+
   it("Manrope, couleurs reçues en propriétés", () => {
     const html = rendre(geo);
     expect(html).toMatch(/Manrope/);
