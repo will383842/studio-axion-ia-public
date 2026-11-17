@@ -11,13 +11,15 @@ import { CHEMIN_GUIDE } from "./aides/oppositions";
 import { ADRESSE_FICTIVE, cleConversation, deposerCommentaire as deposerCommentaireAide, deposerMessage as deposerMessageAide, evenement, validerFormulationsAuParcours } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, graineConv, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 
-const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown, panneEssai: false, pannes: 0, lieux: [] as string[], lectures: 0 }));
+const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown, panneEssai: false, pannes: 0, lieux: [] as string[], lectures: 0, course: false }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => site.versions.has(v) }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => {
     // Panne de lecture limitée à l'appel de la fonction qui décide « cible d'essai du jour » (les autres lectures réussissent).
     // `pannes` / `lieux` prouvent que la panne s'est déclenchée DANS la fonction visée (pas seulement qu'une regex a trouvé un mot dans la pile).
     const lieu = /at (?:async )?(statutEssaiCatalogue|cibleEstEssaiAujourdhui)\b/.exec(new Error().stack ?? "");
+    // Course : la lecture faite DANS `repondreOkInstagram` (filtre) échoue une fois, puis le catalogue redevient lisible avec « non » (cible plus d'essai).
+    if (site.course && /at (?:async )?repondreOkInstagram\b/.test(new Error().stack ?? "")) { site.course = false; site.catalogue = catalogue(false); site.pannes++; throw new Error("catalogue en panne (fictif, course)"); }
     if (site.panneEssai && lieu) { site.pannes++; site.lieux.push(lieu[1]); throw new Error("catalogue en panne (fictif)"); }
     site.lectures++;
     return site.catalogue;
@@ -105,6 +107,7 @@ beforeEach(async () => {
   site.pannes = 0;
   site.lieux = [];
   site.lectures = 0;
+  site.course = false;
   suivi.appels = 0;
   (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "suit" });
   lireTexteDe("OK");
@@ -277,17 +280,21 @@ describe("Adresse écrite sans OK (cible d'essai) : vaut un OK, la demande d'adr
     expect(await conv()).toMatchObject({ idMessageOk: "msg-adr" });
   });
 
-  it("C13 · réglage « suivre » éteint, ig_attente_ok semé, adresse : silence/ig_eteint", async () => {
+  it("C13 · réglage « suivre » éteint, ig_attente_ok semé, adresse : silence/ig_eteint ; la décision « adresse vaut OK » ne relit pas le catalogue (même nombre de lectures qu'un message sans adresse)", async () => {
     await grainer([{ suffixe: "a" }]);
     await Com.ecrireParametre(IG.PARAM_INSTAGRAM_SUIVRE, false);
-    lireTexteDe(ADR);
-    const id = await msg("msg-adr", 5000);
+    textes({ "msg-base": "bonjour", "msg-adr": ADR });
+    await msg("msg-base", 5000);
     site.lectures = 0;
     await pass(T1);
+    const base = site.lectures; // lecture de base mesurée sur un message SANS adresse
+    const id = await msg("msg-adr", 20_000);
+    site.lectures = 0;
+    await pass(T1 + 30_000);
     expect(banc.port.envoyes).toHaveLength(0);
     expect(demandes()).toHaveLength(0);
     expect(await charge(id)).toMatchObject({ etat: "silence", dernierCode: "ig_eteint" });
-    expect(site.lectures).toBeLessThanOrEqual(1); // une seule lecture de base (hors décision « essai ») ; la décision « adresse vaut OK » ne relit pas le catalogue réglage éteint
+    expect(site.lectures).toBe(base);
   });
 
   it("C15 · adresse puis OK à 1 s (passages jusqu'à +15 min) : au plus un v6-1, 0 demande", async () => {
@@ -318,5 +325,80 @@ describe("Adresse écrite sans OK (cible d'essai) : vaut un OK, la demande d'adr
     expect(banc.port.envoyes).toHaveLength(1);
     expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
     expect(await parSuffixe("a")).toMatchObject({ etat: "attente_email", cibleEssai: true });
+  });
+
+  it("C16b · catalogue en panne ET la personne NE SUIT PAS le compte + adresse : 0 envoi (ni « pas encore », ni lien), report catalogue_illisible, rien consommé", async () => {
+    (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
+    await grainer([{ suffixe: "a" }]);
+    site.panneEssai = true;
+    lireTexteDe(ADR);
+    const id = await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(demandes()).toHaveLength(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    const a = await parSuffixe("a");
+    expect(a.etat).toBe("ig_attente_ok");
+    expect(a.idMessageOk).toBeUndefined();
+  });
+
+  it("C16c · course : catalogue illisible à la lecture du filtre puis lisible avec « non » : 0 envoi, jamais de lien, report catalogue_illisible", async () => {
+    await grainer([{ suffixe: "a" }]);
+    site.course = true;
+    lireTexteDe(ADR);
+    const id = await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(JSON.stringify(banc.port.envoyes)).not.toMatch(/https?:/);
+    expect(demandes()).toHaveLength(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    expect((await parSuffixe("a")).idMessageOk).toBeUndefined();
+  });
+
+  it("C7b · dossier mixte où le GUIDE réel est le plus RÉCENT et l'essai plus ancien + adresse : 1 seul envoi v6-1 pour l'essai ; le GUIDE reste intact (sans idMessageOk)", async () => {
+    await grainer([
+      { suffixe: "a", extra: { creeLe: iso(T0 - 3 * H), m1Le: iso(T0 - 3 * H + 1000) } },
+      { suffixe: "b", extra: { mot: "GUIDE", guide: "guide-ia", titreCible: TITRE, creeLe: iso(T0 - H), m1Le: iso(T0 - H + 1000) } },
+    ]);
+    lireTexteDe(ADR);
+    await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(banc.port.envoyes).toHaveLength(1);
+    expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
+    expect(JSON.stringify(banc.port.envoyes)).not.toMatch(/https?:/);
+    expect(demandes()).toHaveLength(0);
+    expect(await parSuffixe("a")).toMatchObject({ etat: "attente_email", idMessageOk: "msg-adr" });
+    const guide = await parSuffixe("b");
+    expect(guide.etat).toBe("ig_attente_ok");
+    expect(guide.idMessageOk).toBeUndefined();
+  });
+
+  it("C6b · R3 : auteur non listé (réglage public éteint), dossier essai + GUIDE réel + adresse : 0 envoi ; le GUIDE n'est PAS consommé (ni idMessageOk, ni okRecus)", async () => {
+    await grainer([
+      { suffixe: "a" },
+      { suffixe: "b", extra: { mot: "GUIDE", guide: "guide-ia", titreCible: TITRE, creeLe: iso(T0 - 3 * H), m1Le: iso(T0 - 3 * H + 1000) } },
+    ]);
+    lireTexteDe(ADR);
+    await msg("msg-adr", 5000);
+    await pass(T1, { ...ENV_X, PARCOURS_ESSAI_AUTEURS: "auteur-autre-fictif" });
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(demandes()).toHaveLength(0);
+    const guide = await parSuffixe("b");
+    expect(guide.etat).toBe("ig_attente_ok");
+    expect(guide.idMessageOk).toBeUndefined();
+    expect(guide.okRecus ?? 0).toBe(0);
+  });
+
+  it("C17 · adresse en ig_pas_encore (la personne ne suivait pas, suit maintenant) : 1 envoi = v6-1, 0 demande au site", async () => {
+    await grainer([{ suffixe: "a", etat: "ig_pas_encore", extra: { pasEncoreLe: iso(T0 - 500), essaisSuivi: 0 } }]);
+    lireTexteDe(ADR);
+    await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(banc.port.envoyes).toHaveLength(1);
+    expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
+    expect(demandes()).toHaveLength(0);
+    expect(await parSuffixe("a")).toMatchObject({ etat: "attente_email", idMessageOk: "msg-adr" });
   });
 });

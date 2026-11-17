@@ -1477,7 +1477,18 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   // branche « opposer » plus bas est inatteignable aujourd'hui. Elle est GARDÉE volontairement (filet de sécurité d'un « stop ») : ne pas la retirer.
   const classeMachine: ClasseOpposition = classe as ClasseOpposition;
   // Cible d'ESSAI Instagram (réglages allumés) : un message qui CONTIENT une adresse, sans refus, vaut un OK (demande d'adresse v6-1) ; cette adresse-ci n'est pas envoyée au site.
-  const adresseVautOk = adresse !== null && multi && igSuivre && etat.reseau === "instagram" && enAttenteOk(etat) && !exprimeUnRefus(lu.texte) && (etat.cibleEssai === true || (await cibleEstEssaiAujourdhui(etat, env, now)));
+  // N1 : vrai si AU MOINS UN des parcours Instagram en attente d'OK de la personne est une cible d'essai (pas seulement le principal, le plus récent).
+  let adresseVautOk = adresse !== null && multi && igSuivre && etat.reseau === "instagram" && enAttenteOk(etat) && !exprimeUnRefus(lu.texte);
+  if (adresseVautOk) {
+    adresseVautOk = false;
+    for (const k of [cle, ...(trouve.tous ?? []).filter((x) => x !== cle)]) {
+      const p = k === cle ? etat : await lireEtat(k);
+      if (p && p.reseau === "instagram" && enAttenteOk(p) && (p.cibleEssai === true || (await cibleEstEssaiAujourdhui(p, env, now)))) {
+        adresseVautOk = true;
+        break;
+      }
+    }
+  }
   const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse, okIg: estOkInstagram(lu.texte), adresseVautOk });
   if (s.action === "opposer") {
     await opposerEnPrive_(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
@@ -1596,6 +1607,25 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   /** OK reçu et traité SANS envoi : compté une fois (jamais pour un rejeu) et le message est consommé pour ce parcours. */
   const consommer = (cleP: string) =>
     ecrireEtat(cleP, (e) => (e && enAttenteOk(e) && e.idMessageOk !== idMessage ? { ...e, idMessageOk: idMessage, okRecus: (e.okRecus ?? 0) + 1 } : undefined));
+  // Adresse écrite sans OK (cible d'essai seulement) : filtre posé AVANT le refus des auteurs non listés, pour qu'un parcours qui n'est pas d'essai ne soit ni servi ni consommé (ni idMessageOk, ni okRecus).
+  // Le statut d'essai est calculé UNE SEULE FOIS par parcours, avant la décision : « non » = écarté du service ; « suppose » (catalogue illisible) = report pour toute action ; « prouve » = chemin normal, sans relire le catalogue.
+  const statutsEssai = new Map<string, "prouve" | "suppose">();
+  if (opts.seulementEssai) {
+    const essai: typeof aServir = [];
+    for (const x of aServir) {
+      const e = entrees.find((y) => y.cle === x.cle)?.etat;
+      const st = e ? (e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now)) : "non";
+      if (st === "non") continue;
+      statutsEssai.set(x.cle, st);
+      essai.push(x);
+    }
+    aServir = essai;
+    if (aServir.length === 0) {
+      await alerter("ig_ok_non_reconnu", MESSAGE_IG_OK_NON_RECONNU, now);
+      await clore(ev, "ecarte", "ok_non_reconnu");
+      return "traite";
+    }
+  }
   // Instagram réservé aux auteurs d'essai (réglage public éteint) : les parcours dont la clé n'est plus celle d'un auteur listé sont consommés AVANT toute lecture du suivi.
   let refusIg = false;
   if (!(await instagramPublicActif())) {
@@ -1608,20 +1638,6 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
         await clore(ev, "ecarte", "garde_ig_hors_essai");
         return "traite";
       }
-    }
-  }
-  // Adresse écrite sans OK (cible d'essai seulement) : les parcours qui ne sont pas d'essai ne sont ni servis ni consommés. Statut seulement SUPPOSÉ (catalogue illisible) : gardé, le report plus bas s'applique.
-  if (opts.seulementEssai) {
-    const essai: typeof aServir = [];
-    for (const x of aServir) {
-      const e = entrees.find((y) => y.cle === x.cle)?.etat;
-      if (e && (e.cibleEssai === true || (await statutEssaiCatalogue(e, env, now)) !== "non")) essai.push(x);
-    }
-    aServir = essai;
-    if (aServir.length === 0) {
-      await alerter("ig_ok_non_reconnu", MESSAGE_IG_OK_NON_RECONNU, now);
-      await clore(ev, "ecarte", "ok_non_reconnu");
-      return "traite";
     }
   }
   // Fenêtre de 24 h de Meta contrôlée AVANT toute lecture du suivi : aucun parcours servable, aucune lecture.
@@ -1672,6 +1688,11 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   for (const choisi of aServir) {
     const avant = await lireEtat(choisi.cle);
     if (!avant || !enAttenteOk(avant) || avant.idMessageOk === idMessage) continue;
+    // Adresse sans OK : statut d'essai « supposé » (catalogue illisible) = report quelle que soit la décision (lien, pas encore, autre) ; rien n'est consommé ni clos.
+    if (statutsEssai.get(choisi.cle) === "suppose") {
+      await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+      return "bloque";
+    }
     // (d) décision pure : fenêtre de 24 h de Meta (avec marge) comptée depuis le dernier message de la personne.
     const activite = Date.parse(avant.derniereActiviteLe ?? "");
     const dec = deciderReponseInstagram({
@@ -1719,7 +1740,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     }
     // (e) texte. Lien : mécanisme du renvoi (formulation validée, version connue du site, lien signé NEUF). « Pas encore » : formulation validée du groupe.
     // Cible d'ESSAI (drapeau figé ou catalogue du jour) : après le OK, la demande d'adresse validée (groupe « m1-adresse-rgpd ») au lieu du lien. JAMAIS de lien, de jeton ni de repli (mp-m1-v2).
-    const statutEssai = dec.action !== "lien" ? "non" : avant.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(avant, env, now);
+    const statutEssai = dec.action !== "lien" ? "non" : (statutsEssai.get(choisi.cle) ?? (avant.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(avant, env, now)));
     if (statutEssai === "suppose") {
       // Panne de lecture du catalogue : l'essai n'est pas prouvé, la demande d'adresse partirait sans drapeau. On reporte AVANT tout état d'envoi, rien n'est consommé ni clos.
       await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
