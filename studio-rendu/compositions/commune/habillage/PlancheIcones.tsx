@@ -16,17 +16,37 @@ export const IMAGES_PLANCHE_ICONES = FAMILLES_ICONES.length * IMAGES_PAR_TABLEAU
 
 export type ProprietesPlancheIcones = { largeur: number; hauteur: number; fps: number };
 
-const COLONNES = 9;
-const CASE = 110;
+/** Réserve en haut d'une moitié (titre compris) et marge en bas, en pixels. */
+export const MARGE_HAUT = 220;
+export const MARGE_BAS = 40;
+export const CASE_MAX = 110;
+export const CASE_MIN = 56;
+const MARGE_LATERALE = 80;
+
+/** Mise en page d'une famille : la plus grande case (≤ CASE_MAX) pour laquelle toutes les rangées tiennent dans la moitié. */
+export function miseEnPageFamille(nombre: number, largeur: number, hauteurMoitie: number): { colonnes: number; caseTaille: number; rangees: number } {
+  const disponible = hauteurMoitie - MARGE_HAUT - MARGE_BAS;
+  for (let caseTaille = CASE_MAX; caseTaille >= CASE_MIN; caseTaille -= 2) {
+    const colonnes = Math.max(1, Math.floor((largeur - 2 * MARGE_LATERALE) / caseTaille));
+    const rangees = Math.ceil(nombre / colonnes);
+    if (rangees * caseTaille <= disponible) return { colonnes, caseTaille, rangees };
+  }
+  const colonnes = Math.max(1, Math.floor((largeur - 2 * MARGE_LATERALE) / CASE_MIN));
+  return { colonnes, caseTaille: CASE_MIN, rangees: Math.ceil(nombre / colonnes) };
+}
+
+/** Noms des icônes d'une famille. */
+export const nomsDeFamille = (famille: string): string[] => Object.keys(ICONES_BIBLIOTHEQUE).filter((n) => ICONES_BIBLIOTHEQUE[n].jeu === famille);
 
 function Moitie({ fond, famille, largeur, hauteur, fps }: { fond: FondAxion; famille: string; largeur: number; hauteur: number; fps: number }) {
   const c = couleursSur(fond);
-  const noms = Object.keys(ICONES_BIBLIOTHEQUE).filter((n) => ICONES_BIBLIOTHEQUE[n].jeu === famille);
+  const noms = nomsDeFamille(famille);
+  const { colonnes, caseTaille } = miseEnPageFamille(noms.length, largeur, hauteur);
   return (
-    <div style={{ position: "relative", width: largeur, height: hauteur, overflow: "hidden", backgroundColor: c.fond, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${COLONNES}, ${CASE}px)`, gridAutoRows: `${CASE}px`, alignItems: "center", justifyItems: "center", marginTop: 120 }}>
+    <div style={{ position: "relative", width: largeur, height: hauteur, overflow: "hidden", backgroundColor: c.fond, display: "flex", alignItems: "flex-start", justifyContent: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${colonnes}, ${caseTaille}px)`, gridAutoRows: `${caseTaille}px`, alignItems: "center", justifyItems: "center", marginTop: MARGE_HAUT }}>
         {noms.map((nom) => (
-          <IconeAnimee key={nom} nom={nom as NomIconeBibliotheque} image={IMAGES_PAR_TABLEAU} fps={fps} animation="duotone-remplissage" ton="neutre" fond={fond} taille={64} />
+          <IconeAnimee key={nom} nom={nom as NomIconeBibliotheque} image={IMAGES_PAR_TABLEAU} fps={fps} animation="duotone-remplissage" ton="neutre" fond={fond} taille={Math.min(64, caseTaille - 8)} />
         ))}
       </div>
     </div>

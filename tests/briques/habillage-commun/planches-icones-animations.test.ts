@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ICONES_BIBLIOTHEQUE } from "../../../src/briques/motion/bibliotheque-icones";
+import { FAMILLES_ICONES, MARGE_BAS, MARGE_HAUT, nomsDeFamille, miseEnPageFamille } from "../../../studio-rendu/compositions/commune/habillage/PlancheIcones";
+
+// Seule la mise en page (fonctions pures) est importée : le moteur de rendu et le chargement de police sont neutralisés.
+vi.mock("remotion", () => ({ AbsoluteFill: () => null, useCurrentFrame: () => 0 }));
+vi.mock("../../../studio-rendu/compositions/plan-scenes/PlanDeScenes", () => ({ chargerManrope: () => undefined }));
+vi.mock("../../../src/briques/motion/bibliotheque-icones/IconeAnimee", () => ({ IconeAnimee: () => null }));
 
 /** Planches des icônes et des animations d'icônes (C6-H7c, AM-21) : lecture de texte, aucun rendu. */
 const RACINE = join(__dirname, "../../../studio-rendu");
@@ -25,6 +31,23 @@ describe("planches icônes et animations (C6-H7c)", () => {
     expect(icones).toMatch(/fond="noir"/);
     expect(icones).toMatch(/IconeAnimee/);
     expect(new Set(Object.values(ICONES_BIBLIOTHEQUE).map((i) => i.jeu)).size).toBeGreaterThan(1);
+  });
+
+  it("chaque icône tient dans sa moitié (1080×1920 → 960 px de haut) : rangées × case + marges ≤ hauteur", () => {
+    const moitie = 1920 / 2;
+    for (const famille of FAMILLES_ICONES) {
+      const n = nomsDeFamille(famille).length;
+      const { colonnes, caseTaille, rangees } = miseEnPageFamille(n, 1080, moitie);
+      expect(colonnes * rangees).toBeGreaterThanOrEqual(n);
+      expect(rangees * caseTaille + MARGE_HAUT + MARGE_BAS).toBeLessThanOrEqual(moitie);
+      expect(colonnes * caseTaille).toBeLessThanOrEqual(1080);
+    }
+  });
+
+  it("chaque nom de ICONES_BIBLIOTHEQUE est couvert par une famille", () => {
+    const couverts = FAMILLES_ICONES.flatMap((f) => nomsDeFamille(f));
+    expect(new Set(couverts)).toEqual(new Set(Object.keys(ICONES_BIBLIOTHEQUE)));
+    expect(couverts).toHaveLength(Object.keys(ICONES_BIBLIOTHEQUE).length);
   });
 
   it("chaque geste d'IconeAnimee est montré sur ivoire et sur noir", () => {
