@@ -477,14 +477,14 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
       expect(neuf.versionTexteM1.startsWith("mp-lien-v3-")).toBe(true);
     });
 
-    it("renvoi impossible (lien éteint) : réponse publique, AUCUN message privé, `m1_refuse` / `renvoi_impossible`, jamais le texte qui demande l'adresse", async () => {
+    it("renvoi impossible (lien éteint) : AUCUNE réponse publique, AUCUN message privé, `m1_refuse` / `renvoi_impossible`, jamais le texte qui demande l'adresse", async () => {
       const cle = await premierEnvoi();
       await livrer(cle);
       const evt = await commenter("GUIDE", { id: "com-e-4", a: T0 + 25 * H });
       await passer(T0 + 25 * H, {
         env: { ...ENV_LIEN, PARCOURS_LIEN_GUIDE: undefined },
       });
-      expect(compter()).toMatchObject({ pub: 2, prive: 1 });
+      expect(compter()).toMatchObject({ pub: 1, prive: 1 });
       expect(await decrire(evt)).toBe("m1_refuse/renvoi_impossible");
       const neuf = Object.values(await toutesLesConversations()).find(
         (x: any) => x.nature === "renvoi",
