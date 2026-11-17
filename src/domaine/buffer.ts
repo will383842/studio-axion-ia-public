@@ -53,7 +53,7 @@ export type ComptesPourReseau =
 const messagePlusieurs = (reseau: IdReseau, deconnectes: CanalPublication[] = []) => {
   const nom = nomService(serviceBuffer(reseau));
   const dont = deconnectes.length ? ` (${listeNoms(deconnectes)} ${deconnectes.length > 1 ? "sont déconnectés" : "est déconnecté"})` : "";
-  return `Plusieurs comptes ${nom} dans Buffer${dont} : choisissez le compte ${nom} une première fois, en envoyant une vidéo.`;
+  return `Plusieurs comptes ${nom} sont reliés${dont} : choisissez le compte ${nom} une première fois, en envoyant une vidéo.`;
 };
 
 /** « « A » », « « A » et « B » », « « A », « B » et « C » ». */
@@ -66,8 +66,8 @@ function listeNoms(canaux: CanalPublication[]): string {
 export function messageDeconnectes(reseau: IdReseau, deconnectes: CanalPublication[]): string {
   const nom = nomService(serviceBuffer(reseau));
   return deconnectes.length > 1
-    ? `Les comptes ${nom} ${listeNoms(deconnectes)} sont déconnectés dans Buffer : reconnectez-les dans Buffer.`
-    : `Le compte ${nom} ${listeNoms(deconnectes)} est déconnecté dans Buffer : reconnectez-le dans Buffer.`;
+    ? `Les comptes ${nom} ${listeNoms(deconnectes)} sont déconnectés chez le diffuseur : reconnectez-les.`
+    : `Le compte ${nom} ${listeNoms(deconnectes)} est déconnecté chez le diffuseur : reconnectez-le.`;
 }
 
 /**
@@ -87,7 +87,7 @@ export function comptesPourReseau(reseau: IdReseau, canaux: CanalPublication[], 
     const ids = [...new Set(choisis)];
     const retenus = ids.map((id) => candidats.find((c) => c.id === id));
     if (!ids.length) return { ok: false, raison: "plusieurs", candidats, message: `Cochez au moins un compte ${nom}.` };
-    if (retenus.some((c) => !c)) return { ok: false, raison: "inconnu", candidats, message: `Ce compte n'est pas un compte ${nom} relié dans Buffer : actualisez les comptes.` };
+    if (retenus.some((c) => !c)) return { ok: false, raison: "inconnu", candidats, message: `Ce compte n'est pas un compte ${nom} relié : actualisez les comptes.` };
     const hors = (retenus as CanalPublication[]).filter((c) => c.deconnecte);
     if (hors.length) return deconnecte(hors);
     return { ok: true, canaux: retenus as CanalPublication[], source: "choisi" };
