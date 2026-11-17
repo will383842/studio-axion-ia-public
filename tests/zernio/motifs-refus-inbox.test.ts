@@ -90,6 +90,22 @@ describe("T4 à T10 : cas réel, texte libre, bornes", () => {
     expect(r.motif).toBe("messagerie-desactivee-sur-la-page");
     expect(r.codeZernio).toBe("platform_api_error");
   });
+  it("T4b corps réel : error est un objet {type, message}", () => {
+    const corps = { error: { type: "platform_api_error", message: "HTTP error! status: 400 - The page has messages disabled in the settings" } };
+    const r = motifRefusInbox(400, corps);
+    expect(r.motif).toBe("messagerie-desactivee-sur-la-page");
+    expect(r.codeZernio).toBe("platform_api_error");
+    expect(JSON.stringify(r)).not.toContain("HTTP error");
+  });
+  it("T4b details.message : phrase connue lue dans details", () => {
+    const r = motifRefusInbox(400, { error: "platform_api_error", details: { message: "The page has messages disabled in the settings" } });
+    expect(r.motif).toBe("messagerie-desactivee-sur-la-page");
+    expect(JSON.stringify(r)).not.toContain("disabled");
+  });
+  it("T4b error.code de la liste blanche gardé, hors liste ignoré", () => {
+    expect(motifRefusInbox(400, { error: { code: "INBOX_REQUIRED" } }).codeZernio).toBe("INBOX_REQUIRED");
+    expect(motifRefusInbox(400, { error: { type: "jeanne_exemple", code: "jeanne_exemple" } }).codeZernio).toBeNull();
+  });
   it("T5 message inconnu avec nom, pseudo, adresse, identifiant de 17 chiffres et jeton : aucun fragment en sortie", () => {
     const corps = { error: "Jeanne Exemple (@jeanne_exemple) personne@exemple.invalid id 12345678901234567 jeton EAAB-faux-jeton a refusé" };
     const sortie = JSON.stringify(motifRefusInbox(400, corps));

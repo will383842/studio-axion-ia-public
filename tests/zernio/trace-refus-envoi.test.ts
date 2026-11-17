@@ -37,6 +37,14 @@ describe("client : motif fermé des routes inbox (T11 à T14)", () => {
     expect(e.motifInbox?.motif).toBe("messagerie-desactivee-sur-la-page");
     expect(e.detailTechnique).toBeUndefined();
   });
+  it("T11b corps réel (error objet) : motif messagerie-desactivee-sur-la-page, codeZernio platform_api_error", async () => {
+    const b = brut(JSON.stringify({ error: { type: "platform_api_error", message: "HTTP error! status: 400 - The page has messages disabled in the settings" } }), 400);
+    const e = await echoue(b.client.requete(PRIVE));
+    expect(e.code).toBe("refuse");
+    expect(e.motifInbox?.motif).toBe("messagerie-desactivee-sur-la-page");
+    expect(e.motifInbox?.codeZernio).toBe("platform_api_error");
+    expect(e.detailTechnique).toBeUndefined();
+  });
   it("T12 400 inconnu, 502 sans issue, 502 unknown", async () => {
     const e1 = await echoue(brut("texte libre de Jeanne Exemple", 400).client.requete(PRIVE));
     expect(e1.code).toBe("refuse");
