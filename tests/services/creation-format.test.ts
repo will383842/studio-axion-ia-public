@@ -46,7 +46,7 @@ describe("nouveauBrouillonFormat", () => {
   });
 });
 
-const CAS_ACCORD = [[undefined], [false], [true], [499], ["500"]];
+const CAS_ACCORD: [unknown][] = [[undefined], [false], [true], [499], ["500"]];
 
 async function videoAvecOrigine(id: string, origine: "usine" | "studio") {
   const d = new Date().toISOString();
@@ -60,7 +60,7 @@ const tracesPrix = async () => ({
 describe("lancerAvecAccord", () => {
   describe("vidéo d'origine « usine » : la garde par montant confirmé", () => {
     beforeEach(() => videoAvecOrigine("v1", "usine"));
-    it.each(CAS_ACCORD)("sans montant confirmé suffisant (%s), rien n'est lancé", async (accord) => {
+    it.each<[unknown]>(CAS_ACCORD)("sans montant confirmé suffisant (%s), rien n'est lancé", async (accord) => {
       const lancer = vi.fn(async () => ({ travailId: "t1" }));
       const r = await lancerAvecAccord("v1", accord, 500, { lancer });
       expect(r).toMatchObject({ statut: "accord-requis", centimes: 500 });
@@ -71,7 +71,7 @@ describe("lancerAvecAccord", () => {
 
   describe("vidéo d'origine « studio » (mode indicatif) : le prix du jour vaut accord", () => {
     beforeEach(() => videoAvecOrigine("v1", "studio"));
-    it.each(CAS_ACCORD)("sans montant confirmé suffisant (%s), lancée au prix du jour avec trace", async (accord) => {
+    it.each<[unknown]>(CAS_ACCORD)("sans montant confirmé suffisant (%s), lancée au prix du jour avec trace", async (accord) => {
       const lancer = vi.fn(async () => ({ travailId: "t1" }));
       expect(await lancerAvecAccord("v1", accord, 500, { lancer })).toEqual({ statut: "lancee", travailId: "t1" });
       expect(lancer).toHaveBeenCalledTimes(1);
