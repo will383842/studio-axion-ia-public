@@ -133,10 +133,11 @@ export function comparerAvecEcarts(formatId: string, reseauId: IdReseau, observe
   const nom = obtenirReseau(reseauId).nom;
   const listes = ecarts.filter((e) => e.generateur === formatId && e.reseau === reseauId);
   const echecs: string[] = [];
-  for (const o of observes.filter((c) => !listes.some((l) => l.controle === c.controle))) {
+  const couvre = (l: EcartConnu, c: Constat): boolean => l.controle === c.controle && c.detail.includes(l.motif);
+  for (const o of observes.filter((c) => !listes.some((l) => couvre(l, c)))) {
     echecs.push(`Écart NON listé pour ${formatId} × ${nom} (${o.controle} : ${o.detail}) : à corriger ou à inscrire dans ecarts-connus.ts`);
   }
-  for (const l of listes.filter((e) => !observes.some((c) => c.controle === e.controle))) {
+  for (const l of listes.filter((e) => !observes.some((c) => couvre(e, c)))) {
     echecs.push(`Écart listé mais corrigé pour ${formatId} × ${nom} (${l.controle}) : retirer la ligne de ecarts-connus.ts`);
   }
   return echecs;
@@ -155,7 +156,7 @@ describe("matrice générateur × réseau", () => {
 });
 
 describe("règle de comparaison des écarts (écarts fabriqués)", () => {
-  const ecart: EcartConnu = { generateur: "facecam", reseau: "tiktok", controle: "hashtags", nature: "écart fabriqué", fiche: "fiche fabriquée" };
+  const ecart: EcartConnu = { generateur: "facecam", reseau: "tiktok", controle: "hashtags", motif: "aucun mot", nature: "écart fabriqué", fiche: "fiche fabriquée" };
   const constat: Constat = { controle: "hashtags", detail: "aucun mot-dièse" };
 
   it("un écart observé et non listé échoue en nommant le générateur et le réseau", () => {
@@ -170,6 +171,14 @@ describe("règle de comparaison des écarts (écarts fabriqués)", () => {
     expect(echecs).toHaveLength(1);
     expect(echecs[0]).toContain("facecam × TikTok");
     expect(echecs[0]).toContain("corrigé");
+  });
+
+  it("même contrôle mais autre constat : l'écart listé ne le couvre pas (NON listé, et listé « corrigé »)", () => {
+    const autre: Constat = { controle: "hashtags", detail: "mot-dièse mal formé ou fourre-tout" };
+    const echecs = comparerAvecEcarts("facecam", "tiktok", [autre], [ecart]);
+    expect(echecs).toHaveLength(2);
+    expect(echecs[0]).toContain("NON listé");
+    expect(echecs[0]).toContain("facecam × TikTok");
   });
 
   it("un écart listé et observé passe ; un écart d'un autre réseau ne le couvre pas", () => {

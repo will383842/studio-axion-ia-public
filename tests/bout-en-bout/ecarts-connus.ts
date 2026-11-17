@@ -17,6 +17,8 @@ export interface EcartConnu {
   generateur: string;
   reseau: IdReseau;
   controle: ControleMatrice;
+  /** Morceau du constat attendu : un écart du même contrôle mais d'un autre motif n'est PAS couvert. */
+  motif: string;
   /** Ce qui ne va pas, en une phrase. */
   nature: string;
   /** Fiche qui corrige l'écart (« fiche à créer » si aucune n'existe encore). */
@@ -28,9 +30,9 @@ const NATURE_INSTAGRAM =
 const FICHE_INSTAGRAM = "fiche à créer (aligner `motsDieseConseilles` d'Instagram dans src/reseaux/index.ts sur la règle d'écriture 0 à 3)";
 
 export const ECARTS_CONNUS: readonly EcartConnu[] = [
-  { generateur: "avocat", reseau: "instagram", controle: "hashtags", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
-  { generateur: "facecam", reseau: "instagram", controle: "hashtags", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
-  { generateur: "tableau-anime", reseau: "instagram", controle: "hashtags", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
-  { generateur: "cas-concret", reseau: "instagram", controle: "hashtags", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
-  { generateur: "facecam-animee", reseau: "instagram", controle: "hashtags", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
+  { generateur: "avocat", reseau: "instagram", controle: "hashtags", motif: "3 au plus pour ce réseau", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
+  { generateur: "facecam", reseau: "instagram", controle: "hashtags", motif: "3 au plus pour ce réseau", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
+  { generateur: "tableau-anime", reseau: "instagram", controle: "hashtags", motif: "3 au plus pour ce réseau", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
+  { generateur: "cas-concret", reseau: "instagram", controle: "hashtags", motif: "3 au plus pour ce réseau", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
+  { generateur: "facecam-animee", reseau: "instagram", controle: "hashtags", motif: "3 au plus pour ce réseau", nature: NATURE_INSTAGRAM, fiche: FICHE_INSTAGRAM },
 ];
