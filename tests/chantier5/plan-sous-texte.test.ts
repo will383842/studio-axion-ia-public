@@ -23,6 +23,8 @@ import { PLAN_DEMO } from "@/briques/plan-scenes/demo";
 import { ImagePlan } from "@/briques/plan-scenes/rendu";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
 
+// Chemin calculé : même remotion que celui du vi.mock et du composant.
+const { AbsoluteFill } = AVEC_RENDU ? ((await import(/* @vite-ignore */ ["..", "..", "studio-rendu", "node_modules", "remotion", "dist", "esm", "index.mjs"].join("/"))) as unknown as { AbsoluteFill: never }) : ({} as { AbsoluteFill: never });
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
 const { createElement } = AVEC_RENDU ? ((await import("../../studio-rendu/node_modules/react/index.js")) as typeof import("react")) : ({} as typeof import("react"));
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
@@ -49,11 +51,9 @@ describe.skipIf(!AVEC_RENDU)("PlanSousTexte (5.05a)", () => {
   it("dans une scène : égal à ImagePlan (fond transparent)", () => {
     const image = imagePlanAuTemps(plan, 2)!;
     expect(image).not.toBeNull();
-    const attendu = html(createElement("div", { style: { position: "absolute", inset: 0, pointerEvents: "none" } }, createElement(ImagePlan as never, { plan: { ...plan, facecam: true }, image })));
     const obtenu = dessin(plan, 2);
     expect(obtenu).toContain("transparent");
-    expect(obtenu).toContain(html(createElement(ImagePlan as never, { plan: { ...plan, facecam: true }, image })));
-    expect(attendu).toContain("pointer-events:none");
+    expect(obtenu).toBe(html(createElement(AbsoluteFill, { style: { pointerEvents: "none" } }, createElement(ImagePlan as never, { plan: { ...plan, facecam: true }, image }))));
   });
   it("deux scènes différentes : HTML différent", () => {
     expect(dessin(plan, 2)).not.toBe(dessin(plan, 7));
