@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { describe, expect, it, vi } from "vitest";
-
-// `remotion` vit dans studio-rendu (autre paquet) : on le simule, seule la vue pure est testée.
-vi.mock("remotion", () => ({ AbsoluteFill: "div", useCurrentFrame: () => 0, useVideoConfig: () => ({ fps: 25, durationInFrames: 60 }) }));
+import { describe, expect, it } from "vitest";
 
 import { ANGLE_MAX, FenetreInclineeVue, HAUTEUR_TEXTE_MIN_POURCENT, angleFenetre, hauteurApparente, positionPermise, styleInclinaison } from "../../src/briques/motion/petits-objets/fenetre-inclinee";
 import { DUREES } from "../../src/briques/motion/jetons";
