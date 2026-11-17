@@ -293,12 +293,15 @@ function etapeVisuel(courante: StatutVisuel, cible: CibleVisuel): StatutVisuel |
   return vers !== courante ? vers : undefined;
 }
 
+const RESEAUX_AVEC_VISUEL: readonly string[] = ["linkedin", "instagram", "facebook"];
+
 /** Réseaux prévus au(x) créneau(x) vivant(s) du visuel. */
 async function reseauxPrevusDuVisuel(visuelId: string): Promise<Set<string>> {
   const creneaux = await depots().creneauxEditoriaux.lister((c) => c.visuelId === visuelId && !c.refuseLe && !c.retireLe && (c.statut === "valide" || c.statut === "programme"));
   // Un réseau dont l'envoi a été refusé net par le diffuseur reste « prévu » : le nouvel essai doit rester possible.
   const refuses = await depots().publications.lister((p) => p.visuelId === visuelId && p.via === "zernio" && (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent"));
-  return new Set([...creneaux.flatMap((c) => Object.entries(c.heuresParReseau).filter(([, h]) => !!h).map(([r]) => r)), ...refuses.map((p) => p.reseau)]);
+  // Seuls les réseaux qui reçoivent un visuel comptent (un créneau peut porter d'autres réseaux, jamais envoyés par cette voie).
+  return new Set([...creneaux.flatMap((c) => Object.entries(c.heuresParReseau).filter(([, h]) => !!h).map(([r]) => r)), ...refuses.map((p) => p.reseau)].filter((r) => RESEAUX_AVEC_VISUEL.includes(r)));
 }
 
 /**
@@ -393,10 +396,11 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     requetes += sortie.requetes;
     dejaLus = new Map(sortie.posts.map((x) => [x._id, x]));
   }
-  await rattraperVisuels();
   let lecturesUnitaires = 0;
   if (!dejaLus) suivies = suivies.slice(0, LECTURES_PAR_TOUR);
   const lu = new Date(instant).toISOString();
+  // L5-06 · l'étape des visuels est calculée UNE fois, après la boucle, sur l'état final du passage (jamais sur un état intermédiaire).
+  const visuelsTouches = new Set<string>();
   for (const p of suivies) {
     const vid = videoIdSure(p);
     const entite = vid ? { type: "video", id: vid } : undefined;
@@ -454,20 +458,26 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     r.changees++;
     if (etat.statut === "publiee") {
       if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
-      await visuelSuitSansBloquer(p.visuelId);
+      if (p.visuelId) visuelsTouches.add(p.visuelId);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
       await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
-      await visuelSuitSansBloquer(p.visuelId);
+      if (p.visuelId) visuelsTouches.add(p.visuelId);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;
       console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
       await journaliser("publication", phrase, entite);
-      await visuelSuitSansBloquer(p.visuelId);
+      if (p.visuelId) visuelsTouches.add(p.visuelId);
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
+  }
+  for (const id of visuelsTouches) await visuelSuitSansBloquer(id);
+  try {
+    await rattraperVisuels();
+  } catch {
+    await journaliser("publication", "Le rattrapage des visuels n'a pas pu être fait : il sera repris au prochain passage.").catch(() => undefined);
   }
   return r;
 }
