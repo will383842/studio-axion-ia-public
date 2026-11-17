@@ -8,7 +8,7 @@
 import { createHash } from "node:crypto";
 import { consommerJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
-import { estErreurZernio } from "./publication/zernio-erreurs";
+import { estErreurZernio, masquerSecret } from "./publication/zernio-erreurs";
 
 export interface BoutonPostback {
   titre: string;
@@ -36,6 +36,32 @@ export interface ResultatEcritureInbox {
   issueInconnue?: boolean;
   /** 429 (incertain) : attente conseillée avant de vérifier. */
   reessayerApresSec?: number;
+  /** Raison courte et NETTOYÉE d'un refus (statut HTTP, code, début du message), pour l'état et le journal. Jamais de décision dessus. */
+  detail?: string;
+}
+
+const LONGUEUR_MAX_RAISON = 200;
+
+/**
+ * Raison courte et sûre d'un refus du service d'envoi : « HTTP <statut> · <code> · <message> ». Pure, ne lève jamais.
+ * Le message est nettoyé (jetons, clés, adresses e-mail, suites de 10 chiffres ou plus) puis tronqué à 200 caractères.
+ */
+export function raisonRefus(e: unknown): string {
+  try {
+    const o = (typeof e === "object" && e !== null ? e : {}) as { code?: unknown; statut?: unknown; message?: unknown; detailTechnique?: unknown };
+    const brut = typeof o.detailTechnique === "string" && o.detailTechnique ? o.detailTechnique : typeof o.message === "string" ? o.message : "";
+    const message = masquerSecret(brut)
+      .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[adresse masquée]")
+      .replace(/\d{10,}/g, "[numéro masqué]")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, LONGUEUR_MAX_RAISON);
+    const code = typeof o.code === "string" ? o.code.slice(0, 64).replace(/\d{10,}/g, "[numéro masqué]") : "";
+    const parties = [typeof o.statut === "number" && Number.isFinite(o.statut) ? `HTTP ${o.statut}` : "", code, message].filter((x) => x !== "");
+    return parties.join(" · ");
+  } catch {
+    return "";
+  }
 }
 
 export interface MessageLu {
@@ -148,23 +174,25 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
       return { statut: "envoye", idMessage: idMessageDe(rep.corps), ...(idConversationDe(rep.corps) ? { idConversation: idConversationDe(rep.corps) } : {}), ...(idDestinataireDe(rep.corps) ? { idDestinataire: idDestinataireDe(rep.corps) } : {}) };
     } catch (e) {
       if (!estErreurZernio(e)) return { statut: "refuse", code: "erreur-inconnue" };
+      const detail = raisonRefus(e);
+      const avecDetail = detail ? { detail } : {};
       switch (e.code) {
         case "inbox-requis":
-          return { statut: "refuse", code: "INBOX_REQUIRED" };
+          return { statut: "refuse", code: "INBOX_REQUIRED", ...avecDetail };
         case "quota-messages":
-          return { statut: "refuse", code: "message_allowance_exceeded" };
+          return { statut: "refuse", code: "message_allowance_exceeded", ...avecDetail };
         case "reponse-privee-consommee":
           return { statut: "definitif", code: e.code, etat: "consommee", consomme: true };
         case "reponse-privee-inconnue":
           return { statut: "a_verifier", code: e.code, etat: "a_verifier", issueInconnue: true };
         case "a-verifier":
-          return { statut: "a_verifier", code: e.code, etat: "a_verifier" };
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier", ...avecDetail };
         case "limite-incertaine":
           return { statut: "a_verifier", code: e.code, etat: "a_verifier", reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined) };
         case "debit":
           return { statut: "a_reessayer", code: e.code, reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined) };
         default:
-          return { statut: "refuse", code: e.code };
+          return { statut: "refuse", code: e.code, ...avecDetail };
       }
     }
   }

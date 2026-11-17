@@ -401,9 +401,9 @@ async function reserverOuReporter(ev: EvenementFournisseur, idCompte: string, no
 
 /* --- Événements ------------------------------------------------------------------------------------------------ */
 const texteDe = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
-async function clore(ev: EvenementFournisseur, etat: string, code: string | null): Promise<void> {
+async function clore(ev: EvenementFournisseur, etat: string, code: string | null, detail?: string): Promise<void> {
   await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat, dernierCode: code, prochainEssaiLe: null } });
-  await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : ${etat} (${code ?? "-"}).`);
+  await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : ${etat} (${code ?? "-"})${detail ? ` : ${detail}` : ""}.`);
 }
 async function reporter(ev: EvenementFournisseur, now: number, apresMs: number, code: string, extra: Record<string, unknown> = {}): Promise<void> {
   const memeCause = ev.charge.dernierCode === code; // même cause qu'au report précédent : le report se fait, mais le journal ne répète pas la ligne
@@ -1162,7 +1162,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
         await clore(ev, "bloque", s.code ?? null);
         return "traite";
       }
-      await patcher(cle, { ...(s.patch ?? {}), ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
+      await patcher(cle, { ...(s.patch ?? {}), ...(res.statut === "refuse" && res.detail ? { detailRefus: res.detail } : {}), ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
       if (s.action === "reessayer") {
         await reporter(ev, now, s.apresMs ?? 30_000, s.code ?? "a_reessayer");
         return "traite";
@@ -1226,7 +1226,8 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   await reagir(s, now);
   // Instagram : le succès attend le OK de la personne (le lien ne part qu'après) ; les autres issues sont celles de M1.
   const patchM1: Partial<Conversation> | undefined = igPremier && s.patch?.etat === "attente_email" ? { ...s.patch, etat: "ig_attente_ok" } : s.patch;
-  await patcher(cle, patchM1 ?? {});
+  const refusM1 = patchM1?.etat === "m1_refuse" && res.statut === "refuse" && res.detail ? res.detail : undefined; // information seulement
+  await patcher(cle, refusM1 ? { ...patchM1, detailRefus: refusM1 } : patchM1 ?? {});
   if (ig && res.statut !== "envoye" && res.statut !== "a_verifier") await retirerEssaiEnvoi(cle); // rien n'est parti : la date d'essai réservée ne compte pas
   // B3 (a) : si Zernio rend l'identifiant de conversation ou de destinataire, l'alias est posé tout de suite (empreintes, jamais brut).
   const idsRendus = [res.idConversation, res.idDestinataire].filter((x): x is string => typeof x === "string" && x.length > 0).map((x) => empreintePersonne(cles.courante, ESPACE_CONVERSATION, x));
@@ -1236,7 +1237,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (s.patch?.etat === "m1_a_verifier") await alerter("m1_a_verifier", "Un message privé a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
-  await clore(ev, String(patchM1?.etat ?? "termine"), s.code ?? null);
+  await clore(ev, String(patchM1?.etat ?? "termine"), s.code ?? null, refusM1);
   return "traite";
 }
 

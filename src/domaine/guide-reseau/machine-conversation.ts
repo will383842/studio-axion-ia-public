@@ -54,6 +54,8 @@ export interface Conversation {
   essaisM1: number;
   prochainEssaiLe: number | null;
   dernierCode: string | null;
+  /** Raison nettoyée du dernier refus d'envoi (statut, code, début du message), écrasée au refus suivant. Information seulement. */
+  detailRefus?: string;
   /** Empreintes de `sender.id` et de `conversationId`. */
   alias: string[];
   /** Identifiant du message ayant déclenché la demande de guide (reprise de l'accusé, une seule fois). */
