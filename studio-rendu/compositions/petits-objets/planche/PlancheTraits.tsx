@@ -23,22 +23,24 @@ export const DUREE_IMAGES_PLANCHE = 100;
 /** Image figée de la planche : trait entièrement tracé. */
 export const IMAGE_PLANCHE = 50;
 
+type Point = { x: number; y: number };
+
 export interface EntreePlanche {
   id: string;
   famille: "fleches" | "soulignements" | "marques" | "entourages" | "cadres";
-  def: DefinitionObjet<any>;
+  def: DefinitionObjet<unknown>;
   parametres: unknown;
 }
 
-function lister(famille: EntreePlanche["famille"], defs: readonly DefinitionObjet<any>[], exemples: readonly unknown[]): EntreePlanche[] {
+function lister(famille: EntreePlanche["famille"], defs: readonly DefinitionObjet<unknown>[], exemples: readonly unknown[]): EntreePlanche[] {
   return defs.flatMap((def) => exemples.map((parametres, i) => ({ id: `${def.id}#${i + 1}`, famille, def, parametres })));
 }
 
 /** Toutes les entrées de la planche, dans l'ordre d'affichage. */
 export const ENTREES_PLANCHE: readonly EntreePlanche[] = [
-  ...lister("fleches", [OBJET_FLECHE_DROITE, OBJET_FLECHE_COURBE, OBJET_FLECHE_POINTILLEE, OBJET_FLECHE_MAIN_LEVEE] as unknown as DefinitionObjet<any>[], EXEMPLES_FLECHES),
-  ...lister("soulignements", [OBJET_SOULIGNEMENT_DROIT, OBJET_SOULIGNEMENT_VAGUE, OBJET_SOULIGNEMENT_DOUBLE, OBJET_SURLIGNEUR] as unknown as DefinitionObjet<any>[], EXEMPLES_SOULIGNEMENTS),
-  ...lister("marques", [OBJET_COCHE, OBJET_CROIX, OBJET_MOT_BARRE] as unknown as DefinitionObjet<any>[], EXEMPLES_MARQUES),
+  ...lister("fleches", [OBJET_FLECHE_DROITE, OBJET_FLECHE_COURBE, OBJET_FLECHE_POINTILLEE, OBJET_FLECHE_MAIN_LEVEE] as unknown as DefinitionObjet<unknown>[], EXEMPLES_FLECHES),
+  ...lister("soulignements", [OBJET_SOULIGNEMENT_DROIT, OBJET_SOULIGNEMENT_VAGUE, OBJET_SOULIGNEMENT_DOUBLE, OBJET_SURLIGNEUR] as unknown as DefinitionObjet<unknown>[], EXEMPLES_SOULIGNEMENTS),
+  ...lister("marques", [OBJET_COCHE, OBJET_CROIX, OBJET_MOT_BARRE] as unknown as DefinitionObjet<unknown>[], EXEMPLES_MARQUES),
   ...lister("entourages", [DEF_CERCLE], EXEMPLES_ENTOURAGES.cercle),
   ...lister("entourages", [DEF_OVALE], EXEMPLES_ENTOURAGES.ovale),
   ...lister("entourages", [DEF_DOUBLE_BOUCLE], EXEMPLES_ENTOURAGES.doubleBoucle),
@@ -58,7 +60,7 @@ const englobante = (zs: ZoneObjet[]): ZoneObjet => {
 
 /** Zone occupée par l'objet, en % du cadre (boîte des paramètres ; flèche = boîte de ses deux bouts ; trait = bande fine). */
 export function zoneDeLEntree(e: EntreePlanche): ZoneObjet {
-  const p = e.parametres as any;
+  const p = e.parametres as ZoneObjet & { de: Point; vers: Point & ZoneObjet; boite: ZoneObjet };
   if (e.famille === "fleches") return { x: Math.min(p.de.x, p.vers.x), y: Math.min(p.de.y, p.vers.y), largeur: Math.abs(p.vers.x - p.de.x), hauteur: Math.abs(p.vers.y - p.de.y) };
   if (e.famille === "marques") return p.boite;
   if (e.famille === "soulignements") return { x: p.x, y: p.y - 2, largeur: p.largeur, hauteur: 4 };
