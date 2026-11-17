@@ -25,6 +25,7 @@ beforeAll(async () => {
 });
 
 const { injecterClientZernio, synchroniserEtatsZernio } = await import("@/services/zernio");
+const { reconcilier } = await import("@/services/reconciliation-calendrier");
 const { listerToutesLesPagesZernio } = await import("@/services/zernio");
 const { creerFauxClientZernio, postExemple } = await import("../zernio/aides/faux-zernio");
 type AppelEnregistre = import("../zernio/aides/faux-zernio").AppelEnregistre;
@@ -599,5 +600,53 @@ describe("L5-06 · audit point 1 : posts incomplets de la liste écartés, relus
     await synchroniserEtatsZernio({ force: true, instant: T0 });
     expect(appels.filter((a) => /\/v1\/posts\/exemple-post-\d+$/.test(new URL(a.url).pathname))).toHaveLength(40);
     expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Audit Opus, point 2 : non-régression d'étape d'un visuel                                                */
+/* ------------------------------------------------------------------ */
+
+describe("L5-06 · audit point 2 : l'étape d'un visuel ne régresse jamais (règles de `reconcilier`)", () => {
+  const passe = async (etat: EtatPost) => {
+    const { client } = diffuseurParPost({ "post-pi": etat });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    return statutVisuel();
+  };
+
+  it("un visuel « publié » dont la publication est relue « programmée » reste « publié »", async () => {
+    await visuelSimple("publie");
+    await pubVisuel("pi", "instagram", { statut: "brouillon" });
+    expect(await passe({ status: "scheduled" })).toBe("publie");
+  });
+
+  it("un visuel « publié » dont la publication est relue en échec reste « publié »", async () => {
+    await visuelSimple("publie");
+    await pubVisuel("pi", "instagram");
+    expect(await passe({ status: "failed" })).toBe("publie");
+  });
+
+  it("un visuel « publié » : programmée puis échec, en deux passages successifs, reste « publié »", async () => {
+    await visuelSimple("publie");
+    await pubVisuel("pi", "instagram", { statut: "brouillon" });
+    expect(await passe({ status: "scheduled" })).toBe("publie");
+    expect(await passe({ status: "failed" })).toBe("publie");
+  });
+
+  // Comportement écrit : `reconcilier` ne passe jamais un visuel « echec_envoi » à « publie » (l'envoi doit être refait par l'utilisateur).
+  it("un visuel « envoi échoué » dont la publication passe « publiée » : il reste « envoi échoué » (aucune transition permise depuis cet état)", async () => {
+    await visuelSimple("echec_envoi");
+    // Garde de la règle écrite : `reconcilier` elle-même ne le fait pas avancer.
+    expect(reconcilier({ diffuseur: "publie" }, { creneau: { id: "c", statut: "publie" }, publication: { id: "p", statut: "programmee" }, visuel: { id: "v", statut: "echec_envoi" } }).visuel?.statut ?? "echec_envoi").toBe("echec_envoi");
+    await pubVisuel("pi", "instagram");
+    expect(await passe({ status: "published" })).toBe("echec_envoi");
+  });
+
+  it("un visuel « programmé » dont la publication échoue passe « envoi échoué », puis un nouvel échec ne le change plus", async () => {
+    await visuelSimple("programme");
+    await pubVisuel("pi", "instagram");
+    expect(await passe({ status: "failed" })).toBe("echec_envoi");
+    expect(await passe({ status: "failed" })).toBe("echec_envoi");
   });
 });
