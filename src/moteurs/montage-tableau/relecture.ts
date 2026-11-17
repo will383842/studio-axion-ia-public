@@ -30,12 +30,17 @@ export type FinRetenue = { id: string; ecran: string; type?: string; mot?: strin
 /** Alerte : le fichier de LinkedIn (portrait 4:5 depuis T5, carré avant) se termine sans appel (rien n'est dit dans une vidéo LinkedIn). */
 export const FIN_SANS_APPEL_LINKEDIN = "Fin sans appel pour LinkedIn : aucun appel à commenter n'est dit dans une vidéo LinkedIn (le mot va en dernière ligne du texte). Sa vidéo se termine sur axion-ia.com.";
 
+/** Fin « Aucune » choisie par l'utilisateur : rien n'est ajouté à la voix ni à l'écran, dans aucun format. */
+export const FIN_AUCUNE_CHOISIE = "Fin : aucune (votre choix). Aucune phrase n'est ajoutée à la voix ni à l'écran.";
+
 /**
  * Garde-fou des sorties de TikTok et Shorts et de LinkedIn (`sansAppelAuMot`) : jamais la fin au mot (« Écrivez/Commentez
  * MOT », ni une phrase qui promet un envoi), quoi que rende `choisirFin`. Sinon, ou sans fin : aucun appel, et l'alerte
  * `FIN_SANS_APPEL_LIENS` (TikTok et Shorts) ou `FIN_SANS_APPEL_LINKEDIN`.
+ * 17/11, Williams : « Aucune » n'ajoute rien, même sur TikTok et Shorts.
  */
 export function finDeLaSortie(id: IdSortie, fin: FinRetenue | undefined, fiche?: Pick<FicheTableau, "scenes" | "structure">): FinRetenue | undefined {
+  if (fin && "absente" in fin && fin.absente === FIN_AUCUNE_CHOISIE) return fin;
   if (!sansAppelAuMot(id)) return fin;
   // TikTok et Shorts (Will, 14/10) : UNE demande de la banque, choisie selon le type de la fiche (`objectif` : choix forcé).
   const liens = id === VERTICAL_LIENS && fiche ? finDesLiens(fiche, fin && "ecran" in fin ? fin.objectif : undefined) : undefined;
