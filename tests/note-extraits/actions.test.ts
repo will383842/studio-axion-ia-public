@@ -149,7 +149,7 @@ describe("marquerChiffresReelsVideo", () => {
   });
 });
 
-import * as actions from "@/app/(studio)/bibliotheque/source-extraits/actions";
+import * as actions from "@/app/(studio)/bibliotheque/source-extraits/actions-note";
 
 describe("actions (service simulé)", () => {
   type Cas = { nom: string; appeler: (...a: unknown[]) => Promise<{ ok: boolean }>; valides: unknown[]; invalides: unknown[][] };

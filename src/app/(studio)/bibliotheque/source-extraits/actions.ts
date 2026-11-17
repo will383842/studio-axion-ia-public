@@ -7,13 +7,11 @@
  */
 import { revalidatePath } from "next/cache";
 import { exigerSession } from "@/services/auth";
-import { changerSujetExtrait, garderQuandMemeExtrait, marquerChiffresReelsVideo } from "@/services/gestes-note-extraits";
 import { cocherVideo, ecarterPlage, rangerSource, retablirPlage, validerPlage, type ResultatGeste } from "@/services/archive-extraits";
 
 const CHEMIN = "/bibliotheque/source-extraits";
 const REFUS_TEXTE: ResultatGeste = { ok: false, message: "Demande incomplète : la vidéo et l'extrait doivent être indiqués." };
 const REFUS_BOOLEEN: ResultatGeste = { ok: false, message: "Demande incomplète : la vidéo et le choix (oui ou non) doivent être indiqués." };
-const REFUS_SUJET: ResultatGeste = { ok: false, message: "Demande incomplète : la vidéo, l'extrait et le sujet doivent être indiqués." };
 
 const texteNonVide = (x: unknown): x is string => typeof x === "string" && x.trim() !== "";
 
@@ -50,22 +48,4 @@ export async function cocherVideoAction(videoId: string, cochee: boolean): Promi
   await exigerSession();
   if (!texteNonVide(videoId) || typeof cochee !== "boolean") return REFUS_BOOLEEN;
   return rafraichirSiOk(await cocherVideo(videoId, cochee));
-}
-
-export async function garderQuandMemeAction(videoId: string, plageId: string): Promise<ResultatGeste> {
-  await exigerSession();
-  if (!texteNonVide(videoId) || !texteNonVide(plageId)) return REFUS_TEXTE;
-  return rafraichirSiOk(await garderQuandMemeExtrait(videoId, plageId));
-}
-
-export async function changerSujetAction(videoId: string, plageId: string, sujet: string): Promise<ResultatGeste> {
-  await exigerSession();
-  if (!texteNonVide(videoId) || !texteNonVide(plageId) || !texteNonVide(sujet)) return REFUS_SUJET;
-  return rafraichirSiOk(await changerSujetExtrait(videoId, plageId, sujet));
-}
-
-export async function marquerChiffresReelsAction(videoId: string, oui: boolean): Promise<ResultatGeste> {
-  await exigerSession();
-  if (!texteNonVide(videoId) || typeof oui !== "boolean") return REFUS_BOOLEEN;
-  return rafraichirSiOk(await marquerChiffresReelsVideo(videoId, oui));
 }
