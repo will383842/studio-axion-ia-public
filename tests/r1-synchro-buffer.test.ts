@@ -87,13 +87,13 @@ describe("R1 — synchronisation des états Buffer", () => {
     const p = (await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).publications[0];
     buffer.changer(p.idExterne!, { status: "error", error: { message: "Instagram a refusé la vidéo (format).", supportUrl: null } });
     await buf.synchroniserEtatsBuffer({ force: true });
-    expect(await depots().publications.obtenir(p.id)).toMatchObject({ statut: "echec", erreur: "Buffer n'a pas pu publier sur Instagram : voyez la raison dans Buffer." });
+    expect(await depots().publications.obtenir(p.id)).toMatchObject({ statut: "echec", erreur: "L'ancien outil n'a pas pu publier sur Instagram : voyez la raison chez le diffuseur." });
     // La raison donnée par Buffer part au serveur seulement ; le journal du studio garde la phrase simple.
     expect(serveur.mock.calls.map((c) => c.join(" ")).join("\n")).toContain("Instagram a refusé la vidéo (format).");
-    expect((await depots().evenements.lister()).map((e) => e.message)).toContain("Buffer n'a pas pu publier sur Instagram : voyez la raison dans Buffer.");
+    expect((await depots().evenements.lister()).map((e) => e.message)).toContain("L'ancien outil n'a pas pu publier sur Instagram : voyez la raison chez le diffuseur.");
     serveur.mockRestore();
     const notes = await depots().notifications.lister((n) => n.type === "echec");
-    expect(notes.map((n) => n.titre)).toContain("Buffer n'a pas pu publier");
+    expect(notes.map((n) => n.titre)).toContain("L'ancien outil n'a pas pu publier");
   });
 
   it("à vérifier : retrouvée par la synchronisation (reliée) — ou absente après 30 min → « absent », notification, renvoi possible", async () => {
@@ -117,7 +117,7 @@ describe("R1 — synchronisation des états Buffer", () => {
     expect((await depots().publications.obtenir(b.id))?.etatEnvoi).toBe("a-verifier");
     await buf.synchroniserEtatsBuffer({ force: true, instant: Date.now() + 31 * 60_000 });
     expect(await depots().publications.obtenir(b.id)).toMatchObject({ etatEnvoi: "absent", statut: "echec" });
-    expect((await depots().notifications.lister((n) => n.type === "echec")).map((n) => n.titre)).toContain("Envoi vers Buffer non arrivé");
+    expect((await depots().notifications.lister((n) => n.type === "echec")).map((n) => n.titre)).toContain("Envoi vers l'ancien outil non arrivé");
     expect(buffer.mutations()).toHaveLength(1);
     // Seulement maintenant, Will peut renvoyer : un second message, et un seul.
     const c = (await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).publications[0];

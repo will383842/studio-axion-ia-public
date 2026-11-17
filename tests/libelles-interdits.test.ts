@@ -13,6 +13,7 @@ const FICHIERS = [
   "src/components/generateur/FicheSujet.tsx",
   "src/services/a-publier.ts",
   "src/domaine/buffer.ts",
+  "src/services/buffer.ts",
 ];
 
 const INTERDIT = /buffer|zernio|\bkits?\b|variante|\bapi\b/i;
@@ -27,6 +28,8 @@ const TOLERES: Record<string, string[]> = {
     "Buffer", // noms d'outils de « Déjà envoyée par … » : tests/zernio/z2e-*.test.ts, e2e-04-service.test.ts
     "Zernio",
   ],
+  // Identifiants de code (codes d'erreur) et traces console : jamais montrés à l'utilisateur.
+  "src/services/buffer.ts": ["BUFFER_NON_RELIE", "BUFFER_CLE", "BUFFER", "[studio] Buffer, ${} : ${}", "[studio] Buffer, échec sur ${} : ${}"],
 };
 
 /** Une chaîne est « affichée » si c'est une phrase (espace) ou un mot qui commence par une majuscule. */
