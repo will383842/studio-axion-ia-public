@@ -38,6 +38,27 @@ describe("C9-19 contrat", () => {
     expect(DEF.valider(P)).toEqual(P);
     expect(DEF.valider({ commande: "ls", largeur: 100, hauteur: SURFACE_MAX * 100 })).not.toBeNull();
   });
+  it("refuse une commande qui ne tient pas dans le panneau, accepte les cas limites qui tiennent", () => {
+    expect(DEF.valider({ commande: "docker compose up --build", largeur: 60, hauteur: 40 })).toBeNull();
+    expect(DEF.valider({ commande: "x".repeat(40), largeur: 60, hauteur: 40 })).toBeNull();
+    expect(DEF.valider({ commande: "x".repeat(40), largeur: 100, hauteur: 40 })).toBeNull();
+    expect(DEF.valider({ commande: "ls", largeur: 20, hauteur: 40 })).toBeNull();
+    expect(DEF.valider({ commande: "x", largeur: 20, hauteur: 20 })).not.toBeNull();
+    expect(DEF.valider({ commande: "x".repeat(33), largeur: 100, hauteur: 40 })).not.toBeNull();
+  });
+  it("toute entrée acceptée : le curseur (position + largeur) reste dans le panneau, à toute image", () => {
+    const cas = [...EXEMPLES_TERMINAL_COMMANDE, { commande: "x", largeur: 20, hauteur: 20 }, { commande: "x".repeat(33), largeur: 100, hauteur: 40 }, { commande: "a b c d", largeur: 60, hauteur: 60 }];
+    for (const p of cas) {
+      expect(DEF.valider(p)).not.toBeNull();
+      for (let i = 0; i < D - 6; i++) {
+        const m = renderToStaticMarkup(DEF.Rendu({ image: i, fps: 25, dureeImages: D, fond: "ivoire", parametres: p, ton: "neutre", graine: 7 }));
+        const r = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="[\d.]+" rx="14"/.exec(m);
+        const c = /data-curseur="1" x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/.exec(m);
+        if (!c) continue;
+        expect(Number(c[1]) + Number(c[2])).toBeLessThanOrEqual(Number(r![1]) + Number(r![2]) + 0.1);
+      }
+    }
+  });
   it("exemples valides", () => {
     for (const e of EXEMPLES_TERMINAL_COMMANDE) expect(DEF.valider(e)).not.toBeNull();
   });

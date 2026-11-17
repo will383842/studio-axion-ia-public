@@ -45,6 +45,8 @@ function valider(p: unknown): ParametresTerminalCommande | null {
     if (mots.length === 0 || mots.length > MOTS_MAX) return null;
     if (largeur < MIN_POURCENT || largeur > 100 || hauteur < MIN_POURCENT || hauteur > 100) return null;
     if ((largeur * hauteur) / 10000 > SURFACE_MAX + 1e-9) return null;
+    // La ligne (marge, invite, commande, curseur, marge) doit tenir dans le panneau.
+    if (2 * MARGE + DECALAGE_COMMANDE + (commande.length + 1) * LARGEUR_SIGNE > (largeur * L) / 100 + 1e-9) return null;
     return { commande, largeur, hauteur };
   } catch {
     return null;
@@ -65,6 +67,7 @@ export const OBJET_TERMINAL_COMMANDE: DefinitionObjet<ParametresTerminalCommande
     const fondu = phase.trace < 1 ? 0 : Math.min(1, Math.max(0, (image - IMAGES_ENTREE + 1) / IMAGES_FONDU));
     const debutFrappe = IMAGES_ENTREE + IMAGES_FONDU;
     const total = parametres.commande.length;
+    const finFrappe = debutFrappe + (total - 1) * IMAGES_PAR_LETTRE;
     const tapees = phase.trace < 1 ? 0 : Math.max(0, Math.min(total, Math.floor((image - debutFrappe) / IMAGES_PAR_LETTRE) + 1));
     const termine = tapees >= total;
     const texte = parametres.commande.slice(0, tapees);
@@ -78,7 +81,7 @@ export const OBJET_TERMINAL_COMMANDE: DefinitionObjet<ParametresTerminalCommande
     const departX = x + MARGE + DECALAGE_COMMANDE;
     const curseurX = departX + tapees * LARGEUR_SIGNE;
     // Pendant la frappe le curseur reste allumé ; ensuite il clignote.
-    const curseurAllume = fondu > 0 && (!termine || Math.floor((image - debutFrappe) / IMAGES_CLIGNOTEMENT) % 2 === 0);
+    const curseurAllume = fondu > 0 && (!termine || Math.floor((image - finFrappe) / IMAGES_CLIGNOTEMENT) % 2 === 0);
     return (
       <svg viewBox={`0 0 ${L} ${H}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <g opacity={phase.opacite}>
