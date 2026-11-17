@@ -12,6 +12,7 @@ import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
 import { ETIQUETTE, ETIQUETTE_AUTONOME, type EtiquetteOutilPosee } from "./noms-outils";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
 import { pastilleEnManrope, type StylePastille } from "./pastille";
+import { segmentEnSortie, SORTIE_ACTIVE, sortieDuGroupe, type SortieGroupe } from "./sortie";
 import type { CibleMarqueurRendu, GabaritRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
 
 export interface DonneesCalque {
@@ -90,6 +91,8 @@ export interface DonneesCalque {
   bandeauNom?: BandeauNomRendu;
   /** C2-U9 : étiquettes d'outil autonomes (pièce non branchée, `ETIQUETTE_OUTIL_AUTONOME` éteinte). Absent : rien ne change. */
   etiquettesOutils?: EtiquetteOutilPosee[];
+  /** C2-U19 (AM-08) : sortie animée des groupes (fondu 0,2 s, glissement court), seulement si `SORTIE_ACTIVE`. Absent : le groupe disparaît net, comme avant. */
+  sortie?: SortieGroupe;
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -283,7 +286,14 @@ function entree(g: DefinitionGabarit, s: SegmentSousTitres, t: number, glissemen
 /** Ce qu'il faut dessiner à l'instant t, ou null (blanc). */
 export function sceneAuTemps(d: DonneesCalque, t: number): ElementDessine | null {
   const s = segmentAuTemps(d.segments, t);
-  if (!s) return null;
+  if (!s) {
+    // C2-U19 : éteint (champ absent ou interrupteur éteint), disparition nette comme avant.
+    const fini = SORTIE_ACTIVE && d.sortie ? segmentEnSortie(d.segments, d.sortie, t) : null;
+    const etat = fini && d.sortie ? sortieDuGroupe(d.sortie, fini.finSec, t) : null;
+    if (!fini || !etat) return null;
+    const el = elementDe(d, fini, fini.finSec - 1e-6);
+    return { ...el, opacite: el.opacite * etat.opacite, decalageYPx: el.decalageYPx + etat.decalageYPx * echelleDe(d) };
+  }
   return elementDe(d, s, t);
 }
 
