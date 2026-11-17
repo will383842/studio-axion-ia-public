@@ -57,20 +57,25 @@ function planOutilsV4(p: ProprietesObjet, image?: number, rang: (i: number) => n
   const c = couleursDuFond(p.fond);
   const lp = w * 0.62;
   const hp = Math.min(h * 0.17, w * 0.2);
-  const places: BoitePx[] = [
+  const toutes: BoitePx[] = [
     { x: w * 0.02, y: h * 0.05, largeur: lp, hauteur: hp },
     { x: w * 0.36, y: h * 0.415, largeur: lp, hauteur: hp },
     { x: w * 0.02, y: h * 0.78, largeur: lp, hauteur: hp },
   ];
+  // Seules les places qui ont un texte sont dessinées : 3 textes → 3 places, 2 → 0 et 2, 1 → 1 ; aucun → 3 (comme avant).
+  const textes = (p.textes ?? []).map((x) => sansBalises(x).trim()).filter(Boolean);
+  const gardees = textes.length === 2 ? [0, 2] : textes.length === 1 ? [1] : [0, 1, 2];
+  const places = gardees.map((i) => toutes[i]);
   const rond = hp * 0.46;
-  const pastilles = places.map((boite, i) => {
+  const pastilles = places.map((boite, k) => {
+    const i = gardees[k];
     const s = planSurgir(progres(t, TEMPS_OUTILS.premiere + rang(i) * TEMPS_OUTILS.pas, 0.35));
     const zoneTexte: BoitePx = { x: boite.x + rond * 2, y: boite.y, largeur: boite.largeur - rond * 2.6, hauteur: boite.hauteur };
-    return { index: i, boite, rond: { x: boite.x + rond * 0.7, y: boite.y + (boite.hauteur - rond) / 2, diametre: rond, couleur: i === 1 ? COULEURS_DUO.orangeVif : COULEURS_DUO.encre }, texte: poser(p.textes?.[i], zoneTexte, hp * 0.42), ...s };
+    return { index: i, boite, rond: { x: boite.x + rond * 0.7, y: boite.y + (boite.hauteur - rond) / 2, diametre: rond, couleur: i === 1 ? COULEURS_DUO.orangeVif : COULEURS_DUO.encre }, texte: poser(textes.length ? textes[k] : p.textes?.[i], zoneTexte, hp * 0.42), ...s };
   });
   // Le fil passe par le centre de chaque pastille et se referme : un triangle.
   const points: Point[] = places.map((b) => ({ x: b.x + b.largeur / 2, y: b.y + b.hauteur / 2 }));
-  const trace = progres(t, TEMPS_OUTILS.fil, TEMPS_OUTILS.dureeFil);
+  const trace = points.length < 2 ? 0 : progres(t, TEMPS_OUTILS.fil, TEMPS_OUTILS.dureeFil);
   const phase = (t - TEMPS_OUTILS.point) / TEMPS_OUTILS.tour;
   const dot = surContour(points, sens * phase);
   return {

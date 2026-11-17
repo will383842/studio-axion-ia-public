@@ -19,6 +19,8 @@ export type ProprietesListeTaches = ProprietesObjet & {
 const MARGE = 30 / 860;
 const RETRAIT_TEXTE = 126 / 860;
 const CASE_REL = 44 / 112;
+/** Plafond de la case (fiche de 860 px) : elle finit toujours avant le texte, même avec une seule tâche. */
+const CASE_MAX_REL = 66 / 860;
 const TEXTE_REL = 50 / 112;
 /** Rang assombri à l'annonce du total (opacité finale). */
 const OPACITE_ANNONCEE = 0.4;
@@ -39,7 +41,7 @@ export function planListeTaches(p: ProprietesListeTaches, image: number, fps = 2
   const rangs = textes.map((texte, i) => {
     const x = progres(t, (p.debuts?.[i] ?? debutRangParDefaut(i)) - 0.05, 0.28);
     const taille = Math.min(rang * TEXTE_REL, (rang * TEXTE_REL * disponible) / Math.max(1, largeurTexte(texte, "inter-gras", rang * TEXTE_REL)));
-    const cote = rang * CASE_REL;
+    const cote = Math.min(rang * CASE_REL, w * CASE_MAX_REL);
     const y = marge + i * rang;
     return {
       texte,

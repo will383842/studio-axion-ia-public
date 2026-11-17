@@ -722,7 +722,7 @@ async function textePublic(reseau: string, cleConversation: string, figee?: stri
   }
   return { texte: rendreTexteMp("mp-pub-igfb-v1", {}) };
 }
-/** Réponse publique SEULE (cible déjà servie, en cours, plafond par personne) : aucun enregistrement, aucun message privé. Plafond par heure respecté. */
+/** Réponse publique SEULE : seule la raison `en_cours` répond en public (un message privé est peut-être en route) ; `deja_envoye` et `plafond_personne` closent sans rien envoyer. Aucun enregistrement, aucun message privé. Plafond par heure respecté. */
 async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, racine: string, idCommentaire: string, raison: string, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
@@ -735,6 +735,17 @@ async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversati
   const deja = await depots().evenementsFournisseurs.lister((x) => x.id !== ev.id && x.type === TYPE_COMMENTAIRE && x.charge.idCommentaire === idCommentaire && x.charge.etat === "public_seul");
   if (deja.length > 0) {
     await clore(ev, "silence", "deja_traite");
+    return "traite";
+  }
+  // Sans promesse : « déjà envoyé » et « plafond par personne » ne produisent AUCUN message privé ; la réponse publique (« je vous écris en message
+  // privé ») serait une promesse non tenue. Événement clos proprement (même classement), rien ne part, aucune place d'envoi consommée.
+  if (raison === "deja_envoye" || raison === "plafond_personne") {
+    const v = await verifierRacine(env, cles, racine, c, now);
+    if (!("jeton" in v)) {
+      await clore(ev, "silence", v.source === "doute" ? "doute_opposition" : "opposee");
+      return "traite";
+    }
+    await clore(ev, "public_seul", raison);
     return "traite";
   }
   const { texte } = await textePublic(texteDe(c.reseau) ?? "", racine);

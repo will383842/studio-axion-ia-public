@@ -130,6 +130,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "casConcret.releves", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
   { cle: "retoucheSegments.liberer", etat: "eteint", appel: "src/components/videos/fiche/LibererPlace.tsx", motif: /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) !== true/, aussi: [["src/components/videos/fiche/actions-liberer.ts", /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) === true/]] },
   { cle: "demoFacecam.reel", etat: "eteint", appel: "src/services/entrees-demo-facecam.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE_DEMO_REEL, false\)\) === true/ },
+  { cle: "demoFacecam.envoi", etat: "eteint", appel: "src/app/(studio)/demo-facecam/actions.ts", motif: /lireParametre<unknown>\(CLE_ENVOI_DEMO_FACECAM, false\)\) === true/ },
   { cle: "bibliothequeVideo.archive.inscription", etat: "eteint", appel: "src/services/archive-extraits.ts", motif: /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) !== true/, aussi: [["src/app/(studio)/bibliotheque/source-extraits/page.tsx", /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) === true/], ["src/services/extraits-de-la-video.ts", /archive = await lire\(REGLAGE_INSCRIPTION, false\);[\s\S]*?if \(archive !== true\) return eteint;/]] },
   { cle: "bibliothequeVideo.archive.effacerFicheASuppression", etat: "eteint", appel: "src/services/suppression-video.ts", motif: /lireParametre<unknown>\(REGLAGE_EFFACER_FICHE_EXTRAITS, false\)\) === true/ },
   { cle: "avocat.bandeauNom", etat: "eteint", appel: "src/services/bandeau-nom.ts", motif: /lireParametre<unknown>\(PARAM_BANDEAU_AVOCAT, false\)\) !== true/ },
@@ -444,6 +445,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/fabrication-reseaux.ts:cle": { exclu: "dedoublonnage" },
   "services/fabrication-reseaux.ts:cleDebit(video.formatId)": { exclu: "memoire" },
   "services/fabrication-reseaux.ts:cleDebit(formatId)": { exclu: "memoire" },
+  "services/garde-creneau-diffuseur.ts:`${PREFIXE_ETATS_GARDE}${nom}:${cle}`": { exclu: "memoire" }, // état de la garde par créneau (marques « envoi-calendrier:<nom>:<clé> », lecture seule) : pas un interrupteur
   "services/generateur-ecran.ts:cleRetouches(c)": { exclu: "memoire" },
   "services/generateur-ecran.ts:cleScriptRelu(o.operationId)": { exclu: "memoire" },
   "services/generation-claude.ts:paramAttente(generationId)": { exclu: "memoire" },

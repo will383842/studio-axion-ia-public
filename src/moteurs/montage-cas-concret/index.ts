@@ -488,6 +488,17 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
   };
 }
 
+/** Horloge d'une reprise : début = maintenant ; fin prévue = maintenant + durées des étapes non terminées (entrées illisibles : le début seul). */
+function horlogeDeReprise(travail: Travail, maintenant: number): Pick<Travail, "debuteLe" | "finEstimee"> {
+  const debuteLe = new Date(maintenant).toISOString();
+  try {
+    const restant = etapesCasConcret({ entrees: travail.parametres ?? {} }).filter((d) => travail.etapes.find((e) => e.cle === d.cle)?.statut !== "terminee");
+    return { debuteLe, finEstimee: new Date(maintenant + 1000 * restant.reduce((s, d) => s + d.dureeEstimeeSec, 0)).toISOString() };
+  } catch {
+    return { debuteLe };
+  }
+}
+
 /** Travail refusé d'emblée (ce qui viendra en version 2) : message lisible, rien à refaire. */
 function travailRefuse(ctx: ContexteLancement, commande: CommandeFabrication, code: string, message: string, detailTechnique?: string): Travail {
   const t = nouveauTravail(etapesCasConcret(commande), ctx, commande, { journal: null, atteinte: -1 });
@@ -984,6 +995,8 @@ export function creerMoteurMontageCasConcret(dependances: DependancesMoteurCasCo
         termineLe: undefined,
         tentatives: travail.tentatives + 1,
         modifieLe: new Date(maintenant).toISOString(),
+        // FIX-CC-ESTIMATION (17/11) : une reprise remet l'horloge à zéro (sinon « encore 135 min » après une pause de 4 h).
+        ...horlogeDeReprise(travail, maintenant),
       };
     },
 

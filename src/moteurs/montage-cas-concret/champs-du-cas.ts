@@ -276,6 +276,13 @@ export function completerFiche(lue: unknown, e: FicheFixe & { cas: CasConcret })
           if (!estObjet(b)) continue;
           // Sans fait désigné, une barre peut garder sa hauteur seule (jamais montrée en nombre) ; sans hauteur non plus : refus.
           if (b.faitId === undefined && b.valeur !== undefined) continue;
+          // FIX-CC-RESULTAT-SANS-NOMBRE : { libelle } seul accepté SSI l'autre barre désigne un fait DU CAS sans nombre
+          // (`uneSansNombre`, calculé avant la boucle : ici la barre n'a pas de fait, donc c'est forcément l'autre).
+          if (b.faitId === undefined && b.valeur === undefined && uneSansNombre) {
+            b.valeur = HAUTEURS_BARRES_SANS_FAIT[cote];
+            notes.push(`${ou} : la barre « ${cote} » ne désigne aucun fait (rien ne mesure cet état ; l'autre barre est sans nombre) : dessinée sans nombre, son libellé seul.`);
+            continue;
+          }
           const fb = faitDuCas(b);
           if (fb && !casSansFaitChiffre(cas) && (!fb.valeurs.length || uneSansNombre)) {
             delete b.faitId;

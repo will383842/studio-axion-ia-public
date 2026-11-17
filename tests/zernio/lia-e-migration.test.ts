@@ -306,7 +306,7 @@ describe("LIA-E · enregistrement illisible : « au moindre doute rien ne part �
     await semerAncien(e);
     const evt = await commenter("com-ill-2");
     await passer(T0);
-    expect(compter()).toEqual({ pub: 1, prive: 0, envoyes: 0 });
+    expect(compter()).toEqual({ pub: 0, prive: 0, envoyes: 0 });
     expect(await toutesLesConversations()).toEqual({ [racine()]: e });
     expect(`${(await evenement(depots, evt)).charge.etat}/${(await evenement(depots, evt)).charge.dernierCode ?? "-"}`).toBe("public_seul/deja_envoye");
   });
