@@ -1,8 +1,24 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ICONES_BIBLIOTHEQUE } from "../../../src/briques/motion/bibliotheque-icones";
-import { FAMILLES_ICONES, MARGE_BAS, MARGE_HAUT, nomsDeFamille, miseEnPageFamille } from "../../../studio-rendu/compositions/commune/habillage/PlancheIcones";
+
+// Le tsc racine exclut studio-rendu (« remotion » y est absent) : le module est donc chargé à l'exécution, par un chemin
+// calculé, et non par un import statique qui l'attirerait dans le programme racine (TS2307).
+type MiseEnPage = { colonnes: number; caseTaille: number; rangees: number };
+type Geometrie = {
+  FAMILLES_ICONES: readonly string[];
+  MARGE_BAS: number;
+  MARGE_HAUT: number;
+  nomsDeFamille: (famille: string) => string[];
+  miseEnPageFamille: (nombre: number, largeur: number, hauteurMoitie: number) => MiseEnPage;
+};
+let FAMILLES_ICONES: Geometrie["FAMILLES_ICONES"], MARGE_BAS: number, MARGE_HAUT: number;
+let nomsDeFamille: Geometrie["nomsDeFamille"], miseEnPageFamille: Geometrie["miseEnPageFamille"];
+beforeAll(async () => {
+  const chemin = ["..", "..", "..", "studio-rendu", "compositions", "commune", "habillage", "PlancheIcones"].join("/");
+  ({ FAMILLES_ICONES, MARGE_BAS, MARGE_HAUT, nomsDeFamille, miseEnPageFamille } = (await import(/* @vite-ignore */ chemin)) as Geometrie);
+});
 
 // Seule la mise en page (fonctions pures) est importée : le moteur de rendu et le chargement de police sont neutralisés.
 vi.mock("remotion", () => ({ AbsoluteFill: () => null, useCurrentFrame: () => 0 }));
