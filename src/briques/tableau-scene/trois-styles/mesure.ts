@@ -1,12 +1,14 @@
 /**
- * MESURE DE L'ÉCRITURE MANUSCRITE des trois styles du tableau : largeur d'un texte dans Permanent Marker, Kalam Bold
- * ou Caveat Brush, d'après la chasse lue dans les fichiers de police (`metriques.ts`, généré). Le rendu écrit sans
- * crénage (`fontKerning = "none"`) : la chasse fait la largeur. PUR, sans alias « @/ » : importable par Remotion.
+ * MESURE DE L'ÉCRITURE des trois styles du tableau : largeur d'un texte dans la police RÉELLEMENT dessinée. Depuis le
+ * 08/11 (`083d531e`) le rendu écrit en Manrope : 400 pour `marker` et `caveat` (mesuré en Manrope Medium, un peu plus
+ * large : le texte ne peut pas dépasser), 700 pour `kalam` (Manrope Bold, exacte), d'après la chasse lue dans les
+ * fichiers de police (`metriques.ts`, généré). Le rendu écrit sans crénage (`fontKerning = "none"`) : la chasse fait
+ * la largeur. PUR, sans alias « @/ » : importable par Remotion.
  */
-import { CARACTERES_TABLEAU, CAVEAT_BRUSH, KALAM_BOLD, PERMANENT_MARKER } from "./metriques";
+import { CARACTERES_TABLEAU, MANROPE_BOLD, MANROPE_MEDIUM } from "./metriques";
 import type { PoliceTableau } from "./styles";
 
-const TABLES: Record<PoliceTableau, { unitesParEm: number; largeurs: readonly number[] }> = { marker: PERMANENT_MARKER, kalam: KALAM_BOLD, caveat: CAVEAT_BRUSH };
+const TABLES: Record<PoliceTableau, { unitesParEm: number; largeurs: readonly number[] }> = { marker: MANROPE_MEDIUM, kalam: MANROPE_BOLD, caveat: MANROPE_MEDIUM };
 
 const INDEX = new Map<string, number>();
 Array.from(CARACTERES_TABLEAU).forEach((c, i) => {
