@@ -8,3 +8,5 @@ export type { SeuilsNoteInteret, ReglageNoteInteret, LireReglageNoteInteret } fr
 export { POINTS, POINTS_PAR_MONTRE, INTERET_PAR_PIECE, SEUIL_GARDE, SEUIL_PEUT_ETRE, GARDES_MAX_PAR_VIDEO, MOTS_CREUX, MOTS_VIDES } from "./bareme";
 export { noter } from "./noter";
 export type { ContexteNote } from "./noter";
+export { CHIFFRES_REELS_CAPTURE, momentsEcranDemo, momentsCaptures, appliquerPlafond, usagesPermis } from "./sources-propres";
+export type { MomentsEcranDemo } from "./sources-propres";
