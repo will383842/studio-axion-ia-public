@@ -21,24 +21,26 @@ function entierMeta(v: unknown): number | null {
   return null;
 }
 
-function lireMeta(corps: unknown): { code: number; sousCode: number | null } | null {
+function lireMeta(corps: unknown): { code: number | null; sousCode: number | null } | null {
   if (!estObjet(corps)) return null;
   const details = estObjet(corps.details) ? corps.details : {};
   const sources = [corps.platformError, details.platformError, corps.error].filter(estObjet);
   for (const s of sources) {
-    const code = entierMeta(s.code);
-    if (code === null || !CODES_META_CONNUS.includes(code)) continue;
+    const brut = entierMeta(s.code);
+    const code = brut !== null && CODES_META_CONNUS.includes(brut) ? brut : null; // un code hors liste n'est JAMAIS gardé
     const sous = entierMeta(s.error_subcode ?? s.errorSubcode);
-    return { code, sousCode: sous !== null && CODES_META_CONNUS.includes(sous) ? sous : null };
+    const sousCode = sous !== null && CODES_META_CONNUS.includes(sous) ? sous : null;
+    if (code === null && !(sousCode !== null && SOUS_CODES[sousCode])) continue; // code inconnu : seul un sous-code à motif connu sauve la lecture
+    return { code, sousCode };
   }
   return null;
 }
 
-function motifParNombres(m: { code: number; sousCode: number | null }): CodeMotifRefus | null {
+function motifParNombres(m: { code: number | null; sousCode: number | null }): CodeMotifRefus | null {
   if (m.sousCode !== null && SOUS_CODES[m.sousCode]) return SOUS_CODES[m.sousCode];
   if (m.code === 2 && m.sousCode === 1545133) return "elements-refuses-non-abonne";
   if (m.code === 100 && m.sousCode === 33) return "commentaire-introuvable";
-  return CODES_META[m.code] ?? null;
+  return m.code === null ? null : CODES_META[m.code] ?? null;
 }
 
 function codeZernioDe(corps: unknown): CodeZernioConnu | null {

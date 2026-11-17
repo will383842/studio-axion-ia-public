@@ -56,7 +56,7 @@ export function raisonRefus(e: unknown): RaisonRefus {
     const m = e.motifInbox;
     const motif = m && (CODES_MOTIF_REFUS as readonly string[]).includes(m.motif) ? m.motif : "raison-inconnue";
     const codeZernio = m && (CODES_ZERNIO_CONNUS as readonly unknown[]).includes(m.codeZernio) ? m.codeZernio : null;
-    const source = m && (SOURCES_MOTIF as readonly unknown[]).includes(m.source) ? m.source : "statut";
+    const source = m && (SOURCES_MOTIF as readonly unknown[]).includes(m.source) ? m.source : !m && statut !== null && statut >= 200 && statut < 300 ? "interne" : "statut"; // erreur du client sur un 2xx : pas de motif, origine interne
     const r: RaisonRefus = { motif, statut, codeClient, meta: m?.meta ?? null, codeZernio, source };
     return estRaisonRefus(r) ? r : { motif: "raison-inconnue", statut, codeClient, meta: null, codeZernio: null, source: "statut" };
   } catch {

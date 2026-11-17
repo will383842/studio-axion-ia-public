@@ -107,8 +107,8 @@ export interface RaisonRefus {
   statut: number | null;
   /** Code du client (liste fermée) ou "erreur-inconnue". */
   codeClient: string;
-  /** Codes numériques Meta (entiers de 1 à 9 chiffres). */
-  meta: { code: number; sousCode: number | null } | null;
+  /** Codes numériques Meta (entiers de 1 à 9 chiffres) ; `code` est null quand le code reçu est hors liste et que le sous-code est connu. */
+  meta: { code: number | null; sousCode: number | null } | null;
   codeZernio: CodeZernioConnu | null;
   /** Origine du motif (liste fermée). Un motif de source `phrase` n'est qu'une information. */
   source: SourceMotif;
@@ -131,14 +131,15 @@ export function estRaisonRefus(x: unknown): x is RaisonRefus {
   if (r.meta !== null) {
     if (typeof r.meta !== "object" || Array.isArray(r.meta)) return false;
     const m = r.meta as Record<string, unknown>;
-    if (Object.keys(m).some((k) => k !== "code" && k !== "sousCode") || !entierMeta(m.code) || !CODES_META_CONNUS.includes(m.code) || !(m.sousCode === null || (entierMeta(m.sousCode) && CODES_META_CONNUS.includes(m.sousCode)))) return false;
+    if (Object.keys(m).some((k) => k !== "code" && k !== "sousCode") || !(m.code === null || (entierMeta(m.code) && CODES_META_CONNUS.includes(m.code))) || !(m.sousCode === null || (entierMeta(m.sousCode) && CODES_META_CONNUS.includes(m.sousCode)))) return false;
+    if (m.code === null && m.sousCode === null) return false;
   }
   return true;
 }
 
 /** « Messagerie désactivée sur la page [HTTP 400 · refuse · meta 10/2018278] » : libellé français + éléments fermés. */
 export function formaterRaison(r: RaisonRefus): string {
-  const parties = [r.statut !== null ? `HTTP ${r.statut}` : "", r.codeClient, r.meta ? `meta ${r.meta.code}${r.meta.sousCode !== null ? `/${r.meta.sousCode}` : ""}` : ""].filter((x) => x !== "");
+  const parties = [r.statut !== null ? `HTTP ${r.statut}` : "", r.codeClient, r.meta ? `meta ${r.meta.code ?? ""}${r.meta.sousCode !== null ? `/${r.meta.sousCode}` : ""}` : ""].filter((x) => x !== "");
   const suffixe = r.source === "phrase" ? " (d'après le message)" : "";
   return `${LIBELLES_MOTIF_REFUS[r.motif]} [${parties.join(" · ")}]${suffixe}`;
 }
