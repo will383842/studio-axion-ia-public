@@ -11,7 +11,7 @@ import { z } from "zod";
 import type { IdReseau } from "@/domaine/types";
 import { nombresAffirmes, memeValeur } from "@/domaine/nombres-fr";
 import { analyserCharte } from "@/domaine/ecriture-post/charte-voix";
-import { MODELE_JUGE } from "@/fournisseurs/claude/tarifs";
+import { MODELE_JUGE } from "@/domaine/modeles-texte";
 import { obtenirReseau } from "@/reseaux";
 import { TITRE_CARACTERES_MAX } from "@/reseaux/ecriture";
 import { estInterdit } from "@/reseaux/hashtags";

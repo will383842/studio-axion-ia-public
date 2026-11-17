@@ -15,7 +15,7 @@ import { APPEL_A_COMMENTER_LINKEDIN, choisirFinLiens, estObjectifFinLiens, EMPLA
 import type { CommandeFabrication } from "@/domaine/types";
 import { lireEntreesTableau } from "@/moteurs/montage-tableau/etapes";
 import { FIN_SANS_APPEL_LIENS, type FinRetenue } from "@/moteurs/montage-tableau/fabriquer";
-import { FIN_SANS_APPEL_LINKEDIN } from "@/moteurs/montage-tableau/relecture";
+import { FIN_AUCUNE_CHOISIE, FIN_SANS_APPEL_LINKEDIN } from "@/moteurs/montage-tableau/relecture";
 import { RESEAUX_DES_SORTIES, reseauxDeLaSortie, VERTICAL_LIENS, type IdSortie } from "@/moteurs/montage-tableau/formats-sortie";
 
 export const AUCUNE_FIN_VALIDEE = "Aucune fin validée pour ce réseau : la vidéo se termine sans écran de fin.";
@@ -140,5 +140,7 @@ export function choisirFinTableau(c: Pick<CommandeFabrication, "reseaux" | "vari
   return (appelId, sortie) =>
     sortie === VERTICAL_LIENS && finForcee
       ? finForcee
-      : finEtAppelDuTableau(reseauDeLaSortie(sortie, c, options.sorties), appelId, TABLE_FINS, options.mot ? { mot: options.mot } : {});
+      : appelId === null
+        ? { absente: FIN_AUCUNE_CHOISIE }
+        : finEtAppelDuTableau(reseauDeLaSortie(sortie, c, options.sorties), appelId, TABLE_FINS, options.mot ? { mot: options.mot } : {});
 }

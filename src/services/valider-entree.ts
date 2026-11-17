@@ -69,7 +69,13 @@ export async function validerEntree(deps: DepsValiderEntree, id: string, par: st
 
   let ouverts = false;
   try { ouverts = (await deps.reglagesOuverts()) === true; } catch { ouverts = false; }
-  if (!ouverts || !deps.envoyer) return { ok: true, creneau: valide, libelle: "Programmé, envoi éteint : rien ne partira tant que l'envoi n'est pas allumé." };
+  if (!ouverts) return { ok: true, creneau: valide, libelle: "Programmé, envoi éteint : rien ne partira tant que l'envoi n'est pas allumé." };
+  // L5-02c : ouvert, la validation n'appelle jamais le diffuseur ; c'est le tour de la boucle du Studio qui prépare le brouillon, puis le programme.
+  // Seul un visuel part seul en V1 (LinkedIn, Instagram, Facebook) : ni vidéo (« vid-… » comprises), ni validation relayée par l'usine, ni heure illisible.
+  const premierVisuel = Math.min(...Object.entries(valide.heuresParReseau ?? {}).filter(([r, h]) => ["linkedin", "instagram", "facebook"].includes(r) && typeof h === "string").map(([, h]) => Date.parse(h as string)));
+  const partSeule = !!valide.visuelId && !valide.videoId && !id.startsWith("vid-") && !par.startsWith("usine:") && Number.isFinite(premierVisuel);
+  if (!deps.envoyer && !partSeule) return { ok: true, creneau: valide, libelle: "Validée. Elle ne part pas seule depuis le calendrier pour l'instant." };
+  if (!deps.envoyer) return { ok: true, creneau: valide, libelle: `Validée. Elle partira seule à ${heureParis(new Date(premierVisuel).toISOString())} (heure de Paris) : le brouillon est préparé au plus tôt 6 jours avant.` };
 
   let envoi: LigneCreneau | undefined;
   try {
@@ -89,12 +95,13 @@ export async function validerEntree(deps: DepsValiderEntree, id: string, par: st
 
 /**
  * Câblage serveur (CAL-21 suite) : construit les dépendances réelles et appelle `validerEntree`, comme l'action `validerEntree` d'ajouter.ts.
- * Réglages fermés par défaut et aucun envoi branché : rien ne part d'ici, jamais de statut `programme`.
+ * Réglages fermés par défaut et aucun envoi injecté : rien ne part d'ici (le tour de la boucle s'en charge), jamais de statut `programme`.
  * Les services serveur sont chargés à l'appel pour que le service ci-dessus reste pur (tout injecté).
  */
 export async function validerEntreeServeur(id: string, par: string): Promise<{ ok: true; donnees: CreneauPlan } | { ok: false; message: string; code?: string; montant?: number }> {
   const { depots, essayer, maintenant, ErreurStudio } = await import("@/services/_commun");
   const { changerStatut } = await import("@/services/plan-editorial");
+  const { publicationEditorialeAutorisee } = await import("@/services/zernio");
   type Depots = import("@/services/plan-editorial").DepotsPlan;
   return essayer(async () => {
     const d = depots();
@@ -104,7 +111,7 @@ export async function validerEntreeServeur(id: string, par: string): Promise<{ o
         obtenir: (x) => dp.creneaux.obtenir(x),
         enregistrer: (c) => dp.creneaux.enregistrer(c),
         versAValider: async (x) => { await changerStatut(dp, x, "a_valider", "studio", maintenant()); },
-        reglagesOuverts: async () => false,
+        reglagesOuverts: () => publicationEditorialeAutorisee(),
       },
       id,
       par,

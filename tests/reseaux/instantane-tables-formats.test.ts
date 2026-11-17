@@ -10,9 +10,13 @@
  * sans le modifier. Les champs AJOUTÉS au registre par T1 (zones complémentaires, emplacements, règle de fin) sont
  * laissés de côté ici : seules les valeurs d'avant sont figées.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Ratio } from "@/domaine/types";
-import { RESEAUX, zoneProtegeeCombinee } from "@/reseaux";
+import { comptesPourReseau, libellePublication, nomService, statutDepuisBuffer } from "@/domaine/buffer";
+import { estAncienOutil, estChezUnOutil, OUTILS, OUTILS_ENVOI, outilDe, outilPour } from "@/domaine/outil-publication";
+import type { CanalPublication } from "@/fournisseurs/types";
+import { obtenirReseau, RESEAUX, zoneProtegeeCombinee } from "@/reseaux";
 import {
   FORMATS_SORTIE,
   FORMAT_DU_RESEAU,
@@ -49,8 +53,6 @@ const CHAMPS_D_AVANT = [
   "legende",
   "miniature",
   "etiquetteIA",
-  "viaBuffer",
-  "serviceBuffer",
 ] as const;
 
 /** Le registre tel qu'il était à `1d213458` (master du 18/10/2026), copié champ par champ. */
@@ -73,8 +75,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 3000, longueurVisible: 210, motsDieseMax: 5, motsDieseConseilles: 3 },
     miniature: { ratio: "16:9", modifiable: true },
     etiquetteIA: "LinkedIn : rien à cocher ; une mention dans le texte du post.",
-    viaBuffer: true,
-    serviceBuffer: "linkedin",
   },
   {
     id: "instagram",
@@ -87,11 +87,9 @@ const REGISTRE_D_AVANT = [
     export: { resolution: { "9:16": "1080x1920", "1:1": "1080x1080", "4:5": "1080x1350", "16:9": "1920x1080" }, fps: 30, debitMbps: 10, codec: "h264" },
     niveauSonoreLufs: -14,
     zonesProtegees: { "9:16": { haut: 14, droite: 16, bas: 30, gauche: 6 }, "4:5": { haut: 4, droite: 4, bas: 8, gauche: 4 } },
-    legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 5 },
+    legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 3 },
     miniature: { ratio: "3:4", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » dans les paramètres avancés.",
-    viaBuffer: true,
-    serviceBuffer: "instagram",
   },
   {
     id: "facebook",
@@ -107,8 +105,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 10, motsDieseConseilles: 3 },
     miniature: { ratio: "9:16", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » avant de publier.",
-    viaBuffer: true,
-    serviceBuffer: "facebook",
   },
   {
     id: "tiktok",
@@ -124,8 +120,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 2200, longueurVisible: 100, motsDieseMax: 8, motsDieseConseilles: 4 },
     miniature: { ratio: "9:16", modifiable: true },
     etiquetteIA: "Cocher « Contenu généré par l'IA » dans les réglages de la publication.",
-    viaBuffer: true,
-    serviceBuffer: "tiktok",
   },
   {
     id: "youtube",
@@ -141,8 +135,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 5000, longueurVisible: 160, motsDieseMax: 15, motsDieseConseilles: 3 },
     miniature: { ratio: "16:9", modifiable: true },
     etiquetteIA: "Répondre « Oui » à « Contenu modifié ou synthétique ».",
-    viaBuffer: true,
-    serviceBuffer: "youtube",
   },
   {
     id: "youtube-shorts",
@@ -158,8 +150,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 100, longueurVisible: 60, motsDieseMax: 3, motsDieseConseilles: 2 },
     miniature: { ratio: "9:16", modifiable: false },
     etiquetteIA: "Répondre « Oui » à « Contenu modifié ou synthétique ».",
-    viaBuffer: true,
-    serviceBuffer: "youtube",
   },
 ];
 
@@ -340,5 +330,122 @@ describe("instantané · face caméra (`DIMENSIONS_FACECAM`, zones)", () => {
       "1:1": { haut: 0.06, droite: 0.06, bas: 0.12, gauche: 0.06 },
       "16:9": { haut: 0.06, droite: 0.05, bas: 0.12, gauche: 0.05 },
     });
+  });
+});
+
+/**
+ * BUF-02 · la table des réseaux ne décrit plus l'ancien outil comme voie d'envoi.
+ * Faux comptes seulement ; aucun appel, aucun envoi. Les envois eux-mêmes sont gardés par
+ * `tests/l0-13a-envoi-sans-buffer.test.ts`, `tests/services/envoyer-visuel.test.ts` et `tests/reprise-envois.test.ts` (inchangés).
+ */
+const lire = (chemin: string) => readFileSync(chemin, "utf8");
+const IDS = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"] as const;
+const COMPTE_DE = { linkedin: "linkedin", instagram: "instagram", facebook: "facebook", tiktok: "tiktok", youtube: "youtube", "youtube-shorts": "youtube" } as const;
+const canal = (service: string): CanalPublication => ({ id: `c-${service}`, organisationId: "o", nom: `Compte ${service}`, service, deconnecte: false });
+
+describe("BUF-02 · la table des réseaux", () => {
+  it("aucun réseau ne porte plus de champ « voie d'envoi par l'ancien outil »", () => {
+    for (const r of RESEAUX) {
+      expect(Object.keys(r)).not.toContain("viaBuffer");
+      expect(Object.keys(r)).not.toContain("serviceBuffer");
+    }
+    expect(RESEAUX.map((r) => r.id)).toEqual([...IDS]);
+  });
+
+  it("les mots ne sont plus écrits dans la table, le routage, le service et le fournisseur d'envoi", () => {
+    for (const f of ["src/reseaux/index.ts", "src/services/publications.ts", "src/services/buffer.ts", "src/fournisseurs/publication/buffer.ts"]) {
+      expect(lire(f), f).not.toMatch(/viaBuffer|serviceBuffer/);
+    }
+  });
+
+  it("le seul reste est l'alias gardé pour reglages/actions-zernio.ts (zone Zernio, hors liste)", () => {
+    const occurrences = lire("src/domaine/buffer.ts").split("\n").filter((l) => /viaBuffer|serviceBuffer/.test(l));
+    expect(occurrences).toHaveLength(1);
+    expect(occurrences[0]).toMatch(/^export (const|function) serviceBuffer\b/);
+  });
+});
+
+describe("BUF-02 · garantie 1 : aucun envoi ne part vers l'ancien outil, quel que soit le réglage", () => {
+  it("la liste d'envoi ne contient que le diffuseur actuel ; l'ancien reste reconnu en lecture seule", () => {
+    expect([...OUTILS_ENVOI]).toEqual(["zernio"]);
+    expect([...OUTILS]).toEqual(["buffer", "zernio"]);
+  });
+  it("le refus d'envoi par l'ancien outil est toujours posé avant toute préparation (envoyerReel)", () => {
+    const src = lire("src/services/publications.ts");
+    const garde = src.indexOf("OUTILS_ENVOI as readonly string[]).includes(outil)");
+    expect(garde).toBeGreaterThan(0);
+    expect(src.indexOf("OUTIL_RETIRE", garde)).toBeLessThan(garde + 250);
+  });
+  it("le fournisseur d'envoi n'est inscrit que pour le diffuseur actuel, même avec la clé de l'ancien outil", async () => {
+    const { publicationBuffer } = await import("@/fournisseurs/publication/inscription");
+    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: "cle-fictive-buf02", ZERNIO_API_KEY: "cle-fictive-z" } as never))).toEqual(["zernio"]);
+    expect(Object.keys(publicationBuffer({ BUFFER_API_KEY: "cle-fictive-buf02" } as never))).toEqual([]);
+  });
+});
+
+describe("BUF-02 · garantie 2 : le routage vers le diffuseur actuel est inchangé", () => {
+  it("Facebook, LinkedIn et Instagram partent par le diffuseur actuel par défaut, avec ou sans compte", () => {
+    for (const r of ["facebook", "linkedin", "instagram"]) {
+      expect(outilPour(null, r)).toBe("zernio");
+      expect(outilPour({}, r, "compte-1")).toBe("zernio");
+      expect(outilPour({ [r]: "zernio" }, r)).toBe("zernio");
+      expect(outilPour({ [`${r}:compte-1`]: "zernio", [r]: "buffer" }, r, "compte-1")).toBe("zernio");
+    }
+  });
+  it("la table garde les mêmes six réseaux et leurs réglages d'envoi (aucun réseau ajouté ni retiré)", () => {
+    expect(RESEAUX.map((r) => r.id)).toEqual([...IDS]);
+    expect(RESEAUX.map((r) => r.codeClassement)).toEqual(["LI", "IG", "FB", "TT", "YT", "YS"]);
+  });
+  it("les portes (publication.editoriale_active, zernio.envoi_autorise) restent écrites dans leurs fichiers", () => {
+    expect(lire("src/domaine/outil-publication.ts")).toContain('REGLAGE_ENVOI_CALENDRIER = "publication.editoriale_active"');
+    expect(lire("src/fournisseurs/publication/inscription.ts")).toContain("publicationEditorialeAutorisee");
+  });
+});
+
+describe("BUF-02 · garantie 4 : une publication ancienne envoyée par l'ancien outil reste lisible", () => {
+  const ancienne = { via: "buffer" as const, reseau: "linkedin" as const, date: "2026-09-14T08:00:00.000Z", statut: "publiee" as const };
+  it("elle est reconnue comme chez l'ancien outil, avec son réseau, sa date et son statut", () => {
+    expect(outilDe(ancienne)).toBe("buffer");
+    expect(estChezUnOutil(ancienne)).toBe(true);
+    expect(estAncienOutil(outilDe(ancienne))).toBe(true);
+    expect(obtenirReseau(ancienne.reseau).nom).toBe("LinkedIn");
+  });
+  it("son libellé s'affiche comme avant, selon son statut et l'état de son envoi", () => {
+    const lib = (statut: "brouillon" | "programmee" | "publiee" | "echec", etatEnvoi?: "en-cours" | "a-verifier" | "refuse" | "absent" | "envoye") =>
+      libellePublication({ via: "buffer", statut, ...(etatEnvoi ? { etatEnvoi } : {}) } as never).libelle;
+    expect(lib("publiee")).toBe("Publiée");
+    expect(lib("programmee")).toBe("Programmée");
+    expect(lib("brouillon")).toBe("Brouillon dans Buffer");
+    expect(lib("echec")).toBe("Échec");
+    expect(lib("programmee", "refuse")).toBe("Échec");
+    expect(lib("programmee", "absent")).toBe("Échec");
+    expect(lib("programmee", "a-verifier")).toBe("À vérifier");
+    expect(lib("programmee", "en-cours")).toBe("Envoi en cours");
+  });
+  it("la date de la ligne ancienne n'est ni lue ni réécrite par ces fonctions (elle reste telle quelle)", () => {
+    const ligne = { ...ancienne };
+    libellePublication(ligne as never);
+    outilDe(ligne);
+    expect(ligne).toEqual(ancienne);
+  });
+  it("les statuts relus de l'ancien outil se traduisent comme avant", () => {
+    expect([undefined, "draft", "sent", "error", "scheduled", "sending", "needs_approval", "inconnu"].map((x) => statutDepuisBuffer(x))).toEqual([
+      "programmee", "brouillon", "publiee", "echec", "programmee", "programmee", "programmee", "programmee",
+    ]);
+  });
+  it("la lecture des comptes retrouve pour chaque réseau le même service et le même nom qu'avant", () => {
+    for (const id of IDS) {
+      const service = COMPTE_DE[id];
+      const r = comptesPourReseau(id, [canal(service), canal("autre")]);
+      expect(r).toMatchObject({ ok: true, source: "auto" });
+      if (r.ok) expect(r.canaux.map((c) => c.service)).toEqual([service]);
+      expect(comptesPourReseau(id, [canal("autre")])).toMatchObject({ ok: false, raison: "aucun" });
+    }
+    expect(nomService("youtube")).toBe("YouTube");
+    expect(nomService("linkedin")).toBe("LinkedIn");
+    expect(nomService("instagram")).toBe("Instagram");
+    expect(nomService("facebook")).toBe("Facebook");
+    expect(nomService("tiktok")).toBe("TikTok");
+    expect(nomService("inconnu")).toBe("Autre compte");
   });
 });

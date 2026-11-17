@@ -132,6 +132,8 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     ...(e.lot ? { lot: { id: e.lot.id, rang: e.lot.rang } } : {}),
     // GV-ST-03b : le style de sous-titres choisi (Bibliothèque) voyage jusqu'au rendu ; absent : charte duo, comme avant.
     ...(commande.styles?.sousTitres?.valeur ? { styleSousTitres: { id: commande.styles.sousTitres.id, nom: commande.styles.sousTitres.nom, valeur: commande.styles.sousTitres.valeur } } : {}),
+    // X3-08 : seuls « sobre » et « dynamique » changent quelque chose ; « équilibre » ou absent : aucune clé (demande identique).
+    ...(commande.dosageMotion?.cran === "sobre" || commande.dosageMotion?.cran === "dynamique" ? { dosage: commande.dosageMotion.cran } : {}),
   };
 }
 

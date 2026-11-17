@@ -33,7 +33,7 @@ import { contientExpression, normaliser, texteCompare } from "@/domaine/controle
 import { formulesAbsoluesDe } from "@/domaine/image-video/formules";
 import { MOTS_INTERDITS } from "@/domaine/scripts-tableau-controles";
 import { appliquerInterdits } from "@/domaine/voix";
-import { motsInterditsEnvoiZernio } from "@/fournisseurs/publication/mots-interdits-envoi";
+import { motsInterditsEnvoiZernio } from "@/domaine/mots-interdits-envoi";
 import { MOTS_INTERDITS_FORMAT } from "@/moteurs/montage-cas-concret/regles";
 import type { Contexte, EcrivainInterdits, ResultatRegle } from "../types";
 import { NOMBRE, norm, resultat } from "./outils";

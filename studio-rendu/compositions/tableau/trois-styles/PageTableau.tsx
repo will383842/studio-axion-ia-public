@@ -17,7 +17,7 @@ import { AbsoluteFill, continueRender, delayRender, useCurrentFrame } from "remo
 import { PALETTE } from "../../../../src/briques/charte/axion-2026";
 import { avancement3, planPage3, type Action3, type Plan3 } from "../../../../src/briques/tableau-scene/reference/animation-3";
 import { FIN_REFERENCE } from "../../../../src/briques/tableau-scene/reference/charte";
-import { CHAPITRES_TABLEAU, CHARTES_TABLEAU, chapitreDePartie, type CharteTableau, type PoliceTableau, type StyleTableau } from "../../../../src/briques/tableau-scene/trois-styles/styles";
+import { CHARTES_TABLEAU, type CharteTableau, type PoliceTableau, type StyleTableau } from "../../../../src/briques/tableau-scene/trois-styles/styles";
 import { alea, borne, densifier, ellipse, lerp, lisse, plume, sortie3, tremble, graineDe, type TraitTableau } from "../../../../src/briques/tableau-scene/trois-styles/trace";
 import type { MiseEnPageTableauStyle, ObjetTableau } from "../../../../src/briques/tableau-scene/trois-styles/types";
 import { angleOutil, dimensionsOutil } from "../../../../src/briques/tableau-scene/trois-styles/outil";
@@ -327,48 +327,6 @@ function dessinerObjet(g: Ctx, o: ObjetTableau, u: number, k: number) {
     g.fillRect(-w / 2, -h / 2, w, 16 * k);
   }
   g.restore();
-}
-
-/* ------------------------------------------------------------------ */
-/* Barre des chapitres                                                   */
-/* ------------------------------------------------------------------ */
-
-function chapitres(g: Ctx, sc: Scene, actif: number, u: number) {
-  const { S, geo, k } = sc;
-  const p: PoliceTableau = sc.style === "paperboard" ? "caveat" : "kalam";
-  const taille = geo.tailleChapitre;
-  geo.chapitres.forEach((r, i) => {
-    const nom = CHAPITRES_TABLEAU[i];
-    const e = encreDe(nom, p, taille);
-    const base = ligneDeBase(e, r.y, r.hauteur);
-    const col = (sc.geo.chapitres[1]?.x ?? r.x + 200 * k) - geo.chapitres[0].x;
-    if (sc.style === "paperboard") {
-      const c = S.rubans!;
-      ruban(g, r.x + r.largeur / 2, r.y + r.hauteur / 2, Math.max(r.largeur + 50 * k, col - 14 * k), r.hauteur + 14 * k, [-1.5, 1, -0.8, 1.6][i], i === actif ? c.actif : i < actif ? c.passe : c.avenir, k);
-    }
-    g.save();
-    g.font = police(p, taille);
-    g.fontKerning = "none";
-    g.fillStyle = sc.style === "paperboard" || i <= actif ? S.encre : S.doux;
-    g.fillText(nom, r.x, base);
-    g.restore();
-    if (sc.style !== "paperboard") {
-      const yl = base + taille * 0.42;
-      const lt = col - 26 * k;
-      g.save();
-      g.lineCap = "round";
-      g.strokeStyle = i === actif ? S.accent : i < actif ? S.encre : sc.style === "ardoise" ? PALETTE.grisSurNoir : PALETTE.texteSecondaire;
-      g.lineWidth = (i === actif ? 9 : 6) * k;
-      g.globalAlpha = 0.95;
-      g.beginPath();
-      const l = i === actif && sc.style === "ardoise" ? lt * u : lt;
-      g.moveTo(r.x, yl);
-      g.quadraticCurveTo(r.x + l / 2, yl + (i % 2 ? 3 : -2) * k, r.x + l, yl);
-      g.stroke();
-      g.restore();
-      if (i === actif && sc.style === "tableau-blanc") aimant(g, r.x + lt - (1 - u) * (col + 2 * k), yl, 13 * k, PALETTE.terracotta, k);
-    }
-  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -837,10 +795,6 @@ function dessiner(g: Ctx, sc: Scene, p: ProprietesTableauScene, plan: Plan3, ava
   // Avant l'arrivée de la page (la voix dit déjà « Deux. ») : la page d'avant, finie, sans brosse ni outil.
   const attente = enTransition && t < d0;
   const u = enTransition ? borne((t - d0) / TRANSITION_TABLEAU_SEC) : 1;
-  // La partie de la page d'avant (sa barre des chapitres reste jusqu'à l'arrivée de cette page).
-  const partieAvant = p.styleReference?.tableau?.partieAvant || sc.geo.partie;
-  // Pendant l'attente, la barre garde le chapitre de la page d'avant (elle change avec la page).
-  const actif = chapitreDePartie(attente ? partieAvant : sc.geo.partie);
   const etAvant: Etat | null = enTransition && avant && p.pagePrecedente ? { page: p.pagePrecedente, plan: avant, t: 1e6 } : null;
   if (sc.style === "paperboard") {
     // La nouvelle feuille est dessous ; l'ancienne se soulève et part par le haut.
@@ -848,7 +802,6 @@ function dessiner(g: Ctx, sc: Scene, p: ProprietesTableauScene, plan: Plan3, ava
     g.beginPath();
     g.rect(40 * k, 84 * k, W - 80 * k, sc.geo.basSupport - 84 * k);
     g.clip();
-    chapitres(g, sc, actif, 1);
     objets(g, sc, et, false);
     poserEncre(g, sc, et, "encre");
     objets(g, sc, et, true);
@@ -856,7 +809,6 @@ function dessiner(g: Ctx, sc: Scene, p: ProprietesTableauScene, plan: Plan3, ava
       const pg = couche("page-c", W, H).getContext("2d")!;
       pg.clearRect(0, 0, W, H);
       pg.drawImage(sc.sup.fond, 0, 0);
-      chapitres(pg, sc, chapitreDePartie(partieAvant), 1);
       objets(pg, sc, etAvant, false);
       poserEncre(pg, sc, etAvant, "encre-avant");
       objets(pg, sc, etAvant, true);
@@ -908,7 +860,6 @@ function dessiner(g: Ctx, sc: Scene, p: ProprietesTableauScene, plan: Plan3, ava
       poserEncre(g, sc, et, "encre");
       objets(g, sc, et, true);
     }
-    chapitres(g, sc, actif, attente ? 1 : enTransition ? lisse(u) : plan.fini ? 1 : lisse(borne((t - d0) / 0.5)));
     if (sc.style === "tableau-blanc") reflet(g, sc, t);
     if (sc.style === "ardoise") poussiere(g, sc, et);
     if (brosseP) brosse(g, sc, Math.min(W - 60 * k, Math.max(60 * k, brosseP[0])), brosseP[1]);

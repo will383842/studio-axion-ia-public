@@ -674,11 +674,12 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
   /** Détail technique d'une réponse en erreur : JAMAIS pour l'inbox (le corps peut redire une adresse ou un message de la personne). */
   const detailReponse = (route: RouteZernio, corps: unknown): string | undefined => (ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : texteErreur(corps));
 
-  /** Codes lus à plat dans un corps d'erreur (`code`, `error` court, `details.code`). */
+  /** Codes lus dans un corps d'erreur (`code`, `error` court, `details.code`, et `error.code` / `error.type` quand `error` est un objet). */
   function codesDuCorps(corps: unknown): string[] {
     if (!estObjet(corps)) return [];
     const d = estObjet(corps.details) ? corps.details : {};
-    return [corps.code, corps.error, d.code].filter((x): x is string => typeof x === "string" && x.length <= 64);
+    const e = estObjet(corps.error) ? corps.error : {};
+    return [corps.code, corps.error, d.code, e.code, e.type].filter((x): x is string => typeof x === "string" && x.length <= 64);
   }
 
   function texteErreur(corps: unknown): string {
@@ -823,8 +824,8 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       }
       if (rep.status === 403) {
         const codes = codesDuCorps(corps);
-        if (codes.includes("INBOX_REQUIRED")) throw new ErreurZernio("inbox-requis", "Le module Inbox n'est pas activé chez Zernio.", { statut: 403, motifInbox: motif });
-        if (codes.includes("message_allowance_exceeded")) throw new ErreurZernio("quota-messages", "Le quota de messages Zernio est épuisé.", { statut: 403, motifInbox: motif });
+        if (codes.includes("INBOX_REQUIRED")) throw new ErreurZernio("inbox-requis", "Le module de messagerie du diffuseur n'est pas activé.", { statut: 403, motifInbox: motif });
+        if (codes.includes("message_allowance_exceeded")) throw new ErreurZernio("quota-messages", "Le quota de messages du diffuseur est épuisé.", { statut: 403, motifInbox: motif });
       }
       if (rep.status === 400 && route === "reponse-privee") {
         const c4 = estObjet(corps) ? corps : {};

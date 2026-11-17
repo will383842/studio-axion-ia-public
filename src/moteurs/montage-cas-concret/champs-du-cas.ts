@@ -12,7 +12,8 @@
  *  (b) recopié du cas ou de la commande : toujours posé par le code ; une valeur différente rendue par Claude est
  *      remplacée, et l'écart noté (`notes`, gardées au journal de l'étape) ;
  *  (c) calculable par le code : posé quand il manque, corrigé (et noté) quand il est faux.
- * Un `faitId` absent, inconnu ou sans nombre reste un refus (R12), renvoyé à Claude à la relance.
+ * Un `faitId` absent, inconnu ou sans nombre reste un refus (R12), renvoyé à Claude à la relance ; exception : une barre
+ * du résultat qui désigne un fait du cas SANS nombre est dessinée sans nombre (son libellé seul), jamais un écran « chiffre ».
  *
  * PUR : la fiche reçue n'est jamais modifiée (copie).
  */
@@ -265,12 +266,25 @@ export function completerFiche(lue: unknown, e: FicheFixe & { cas: CasConcret })
       case "objet":
         textesDuVisuel(x);
         break;
-      case "resultat":
+      case "resultat": {
+        // FIX-BARRE-SANS-NOMBRE : une barre qui désigne un fait DU CAS sans nombre est dessinée sans nombre (son libellé
+        // seul) ; `faitDe` reste inchangé. Si l'une des deux est ainsi, l'autre l'est aussi (hauteurs par défaut).
+        const faitDuCas = (b: unknown) => (estObjet(b) && typeof b.faitId === "string" ? cas.faits.find((y) => y.id === b.faitId) : undefined);
+        const uneSansNombre = !casSansFaitChiffre(cas) && (["avant", "maintenant"] as const).some((c) => faitDuCas(x[c]) && !faitDuCas(x[c])!.valeurs.length);
         for (const cote of ["avant", "maintenant"] as const) {
           const b = x[cote];
           if (!estObjet(b)) continue;
           // Sans fait désigné, une barre peut garder sa hauteur seule (jamais montrée en nombre) ; sans hauteur non plus : refus.
           if (b.faitId === undefined && b.valeur !== undefined) continue;
+          const fb = faitDuCas(b);
+          if (fb && !casSansFaitChiffre(cas) && (!fb.valeurs.length || uneSansNombre)) {
+            delete b.faitId;
+            b.valeur = HAUTEURS_BARRES_SANS_FAIT[cote];
+            notes.push(fb.valeurs.length
+              ? `${ou} : la barre « ${cote} » est dessinée sans nombre, comme l'autre barre du résultat (cohérence visuelle).`
+              : `${ou} : la barre « ${cote} » désigne le fait « ${fb.id} », sans nombre : dessinée sans nombre, son libellé seul.`);
+            continue;
+          }
           if (casSansFaitChiffre(cas) && (b.faitId === undefined || b.faitId === null)) {
             delete b.faitId;
             b.valeur = HAUTEURS_BARRES_SANS_FAIT[cote];
@@ -281,6 +295,7 @@ export function completerFiche(lue: unknown, e: FicheFixe & { cas: CasConcret })
           if (f) valeurDuFait(b, f, `la barre « ${cote} »`);
         }
         break;
+      }
     }
   });
   return { brute: fiche, notes, refus, ecransRefuses: [...ecransRefuses] };

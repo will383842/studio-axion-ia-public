@@ -61,10 +61,10 @@ import {
   type ScriptTableau,
 } from "@/domaine/scripts-tableau";
 import type { VersionRetenue } from "@/domaine/scripts-tableau-controles";
-import { contientExpression, mots as motsDuTexte, motsPleins } from "@/domaine/controles-script/texte";
+import { mots as motsDuTexte, motsPleins } from "@/domaine/controles-script/texte";
 import { titreAffiche } from "@/domaine/titres";
 import { CARACTERES_DITS_MAX_TABLEAU, DUREE_MAX_TABLEAU_SEC, caracteresDits, dureeDiteSec } from "@/domaine/duree-tableau";
-import { DOULEUR_MAX_TABLEAU, MOT_DOULEUR_LONGUEUR_MAX, MOTS_DOULEUR_MAX, couperAuMot, douleurDepuisScript, nettoyerMotsDouleur, raccourcirDouleur } from "@/domaine/douleur-tableau";
+import { DOULEUR_MAX_TABLEAU, MOT_DOULEUR_LONGUEUR_MAX, MOTS_DOULEUR_MAX, couperAuMot, douleurDepuisScript, motDouleurDit, nettoyerMotsDouleur, raccourcirDouleur } from "@/domaine/douleur-tableau";
 import { METHODE_PAR_DEFAUT, PARAM_METHODE_TABLEAU, methodeLue, type MethodeTableau } from "./tableau-scripts/consignes";
 import { depots, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { appelerRejoue, clientRejoue, lireTache, modifierTache, nouvelleTache, NOM_ANNEXE_TABLEAU, phraseErreur, tacheActive, travaillerTaches, vueTache, type TacheTableau, type VueTacheTableau } from "./tableau-taches";
@@ -205,7 +205,7 @@ export function validerDonneesScript(brut: unknown): { ok: true; donnees: Donnee
   if (motsDouleur.length > MOTS_DOULEUR_MAX) return { ok: false, phrase: `Donnez ${MOTS_DOULEUR_MAX} mots de la douleur au plus.` };
   const motVide = motsDouleur.find((m) => !motsPleins(m).length);
   if (motVide) return { ok: false, phrase: `Le mot de la douleur « ${motVide} » ne porte aucun sens : prenez un mot plein (un verbe, un nom) dit au début du texte.` };
-  const absent = motsDouleur.find((m) => !contientExpression(texte, m));
+  const absent = motsDouleur.find((m) => !motDouleurDit(texte, m));
   if (absent) return { ok: false, phrase: `Le mot de la douleur « ${absent} » n'est pas dans le texte dit : recopiez-le tel qu'il est dit, ou retirez-le.` };
   const fin = b.finId ? TABLE_FINS.find((f) => f.id === b.finId) : null;
   if (b.finId && !fin) return { ok: false, phrase: "Cette phrase de fin n'existe pas." };
@@ -1073,7 +1073,7 @@ async function ficheCorrigee(
     if (ecart) return { ok: false, phrase: `Le texte de la fiche n'est plus le vôtre : ${ecart.detail.replace("le script validé dit", "votre texte dit")} Rien n'a été enregistré.`, problemes: [], code: CODE_TEXTE_FONDATEUR_CHANGE };
   }
   if (motsDouleur.length > MOTS_DOULEUR_MAX) return { ok: false, phrase: `Donnez ${MOTS_DOULEUR_MAX} mots de la douleur au plus.`, problemes: [] };
-  const absent = motsDouleur.find((m) => !motsPleins(m).length || !contientExpression(texte, m));
+  const absent = motsDouleur.find((m) => !motsPleins(m).length || !motDouleurDit(texte, m));
   if (absent) return { ok: false, phrase: `Le mot de la douleur « ${absent} » n'est pas dit dans le texte : recopiez-le tel qu'il est dit, ou retirez-le.`, problemes: [] };
   const donnees: DonneesScriptTableau = { ...brouillon.donnees, texte, douleur, motsDouleur: motsDouleur.length ? motsDouleur : undefined };
   if (!donnees.motsDouleur) delete donnees.motsDouleur;
@@ -1494,7 +1494,7 @@ export function donneesDepuisScript(
 ): DonneesScriptTableau {
   const serie = SERIES_TABLEAU.find((s) => s.code === demande.serie) ?? SERIES_TABLEAU[0];
   const premiere = (t: string) => t.replace(/\s+/g, " ").trim().slice(0, COURT_MAX);
-  const motsDouleur = nettoyerMotsDouleur(resultat.motsDouleur ?? []).filter((m) => motsPleins(m).length && contientExpression(texteDit, m)).slice(0, MOTS_DOULEUR_MAX);
+  const motsDouleur = nettoyerMotsDouleur(resultat.motsDouleur ?? []).filter((m) => motsPleins(m).length && motDouleurDit(texteDit, m)).slice(0, MOTS_DOULEUR_MAX);
   const parties = partiesDuScript(resultat.script);
   return {
     texte: texteDit,

@@ -1,9 +1,10 @@
 /**
  * Service de refus commun (X2-10a). Éteint par défaut : seul `true` exact (ou `{ seuil }`) allume.
- * La garde est reçue en paramètre obligatoire (le défaut `verifier` viendra avec X2-10b).
+ * La garde est facultative : par défaut `verifier` (X2-04, X2-10b).
  * Lecture seule, aucune écriture, aucun appelant à ce stade.
  */
 import "server-only";
+import { verifier } from "@/briques/variete-commune/garde";
 import { lireReglageVarieteCommune } from "@/briques/variete-commune/reglage";
 import type { EmpreinteVideo, ResultatGarde, Voisine } from "@/briques/variete-commune/types";
 import { voisinesDuReseau } from "./voisines";
@@ -22,7 +23,7 @@ export async function refusCommunPour(d: {
   videoId: string;
   reseaux: readonly string[];
   lire: (cle: string) => Promise<unknown>;
-  garde: GardeCommune;
+  garde?: GardeCommune;
   lireVoisines?: typeof voisinesDuReseau;
 }): Promise<((e: EmpreinteVideo) => ResultatGarde) | undefined> {
   const reglage = await lireReglageVarieteCommune(d.lire);
@@ -44,7 +45,7 @@ export async function refusCommunPour(d: {
     let rendu: ResultatGarde | undefined;
     for (const voisines of groupes) {
       if (!voisines.length) continue;
-      const r = d.garde(e, voisines, { seuil: reglage.seuil });
+      const r = (d.garde ?? verifier)(e, voisines, { seuil: reglage.seuil });
       rendu = rendu ? pire(rendu, r) : r;
     }
     return rendu ?? ACCEPTE;

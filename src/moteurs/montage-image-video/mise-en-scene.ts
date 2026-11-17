@@ -55,6 +55,7 @@ import { ecranV4Tient } from "./ecrans-v4";
 import { cleChiffre, clesDeLaCarte, clesDuTexte, controlerMiseEnSceneIV, instantsVisibles, type RapportMiseEnSceneIV } from "./controles-scene";
 import type { FinIV } from "./fins";
 import type { StyleChoisiIV } from "./sous-titres-varies";
+import type { DosageMotion } from "@/briques/dosage-motion/types";
 import { legendeDuChiffre } from "./legende-chiffre";
 import { chiffresDuTexte } from "./regles";
 import { REGLES_SCENE_IV } from "./regles-scene";
@@ -102,6 +103,8 @@ export interface EntreeMiseEnSceneIV {
   graine?: string;
   /** GV-ST-03c : style de sous-titres choisi (celui de la demande) ; absent : charte duo, mesure d'avant. */
   styleSousTitres?: StyleChoisiIV;
+  /** X3-08 : cran du dosage (sous-titres) ; absent : mesure d'avant. */
+  dosage?: Extract<DosageMotion, "sobre" | "dynamique">;
   /**
    * GV2-29 : sous-titres écrits comme le script (signes, « œ ») et clôture au plus tôt 0,3 s après la voix. Posé seulement
    * pour un état neuf (voix « voix-iv/3 ») : absent, la ligne d'une vidéo existante reste identique (même rendu, même clé).
@@ -220,6 +223,8 @@ export interface LigneDeTempsIV {
   partCalee: number;
   /** Variété appliquée (seulement avec une recette) : la recette, le format et les axes revenus à leur référence. */
   variete?: { recette: RecetteVarieteIV; format: FormatIV; replis: RepliVarieteIV[] };
+  /** X3-08 : cran du dosage de la commande ; absent (anciens états compris) : intensité d'avant. */
+  dosage?: Extract<DosageMotion, "sobre" | "dynamique">;
   /**
    * Queue animée (secondes de la version) : après le dernier mot dit, le trait de fin se dessine jusqu'à 0,2 s avant la
    * fin (`queue-fin.ts`), dans le dernier bloc : la queue exigée par Q19 n'est plus une image figée hors voix (Q24).
@@ -656,6 +661,7 @@ export function mettreEnSceneIV(entree: EntreeMiseEnSceneIV): ResultatMiseEnScen
     chiffresDits,
     partCalee: calage.partCalee,
     ...(entree.variete ? { variete: { recette: entree.variete, format, replis } } : {}),
+    ...(entree.dosage ? { dosage: entree.dosage } : {}),
     ...(queue ? { queue } : {}),
     ...(affiche ? { affiche } : {}),
   };

@@ -21,7 +21,14 @@ export const TRANSITIONS_ENVOI: Record<StatutEnvoi, readonly StatutEnvoi[]> = {
 export interface EnvoiPlanifie extends EntiteBase {
   /** Clé stable : identique tant que la version du créneau ne change pas. Sert aussi d'identifiant. */
   cle: string;
+  /** Identifiant du MÉDIA (vidéo ou visuel, selon `nature`), comme `identifiantsProgrammation` du plan éditorial. Jamais renommé. */
   videoId: Id;
+  /** Nature du média ; absent = vidéo. */
+  nature?: "video" | "visuel";
+  /** Le créneau du plan d'origine. */
+  creneauId?: string;
+  /** Clé de 64 signes hexadécimaux réellement envoyée au diffuseur en `metadata.studioCle` (= `Publication.cleEnvoi`) ; jamais recalculée. */
+  cleDiffuseur?: string;
   reseau: ReseauDeclinaison;
   versionCreneau: number;
   /** AAAA-MM-JJ, heure de Paris. */
@@ -35,6 +42,9 @@ export interface EnvoiPlanifie extends EntiteBase {
   niveauConfidentialiteTiktok?: string;
   envoyeLe?: DateIso;
 }
+
+/** Forme de la clé du diffuseur : sha256 en hexadécimal minuscule. */
+export const CLE_DIFFUSEUR = /^[0-9a-f]{64}$/;
 
 export function cleEnvoi(videoId: Id, reseau: ReseauDeclinaison, versionCreneau: number): string {
   return `envoi:${videoId}:${reseau}:v${versionCreneau}`;

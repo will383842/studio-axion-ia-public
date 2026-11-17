@@ -104,15 +104,17 @@ describe("sequence-appel : minutage pur", () => {
     expect(haloBoutonAppel({ ...etatSequenceAppel(0, DUREE, o), forceLueur: 1 }, BOITE, "#ff6a00").boxShadow).not.toBe("none");
   });
 
-  it("garde statique : rien dans src/ n'importe sequence-appel", () => {
+  it("garde statique : seul appel-rdv.tsx importe sequence-appel", () => {
     const racine = join(process.cwd(), "src");
     const visiter = (dir: string): string[] =>
       readdirSync(dir).flatMap((n) => {
         const p = join(dir, n);
         return statSync(p).isDirectory() ? visiter(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
       });
-    const fautifs = visiter(racine).filter((p) => !p.endsWith("sequence-appel.ts") && /sequence-appel/.test(readFileSync(p, "utf8")));
-    expect(fautifs).toEqual([]);
+    const importeurs = visiter(racine)
+      .filter((p) => !p.endsWith("sequence-appel.ts") && /sequence-appel/.test(readFileSync(p, "utf8")))
+      .map((p) => p.slice(process.cwd().length + 1).split("\\").join("/"));
+    expect(importeurs).toEqual(["src/briques/motion/petits-objets/appel-rdv.tsx"]);
   });
 
   it("le texte du fichier : ni lien, ni arobase, ni « Tape »", () => {

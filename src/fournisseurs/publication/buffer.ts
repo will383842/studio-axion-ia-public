@@ -19,7 +19,7 @@
  * - Vignette : le schéma de Buffer REFUSE `thumbnailUrl` sur une vidéo (« the API rejects video assets that set this
  *   field ») ; aucune miniature n'est donc envoyée (la plateforme prend une image de la vidéo).
  */
-import { serviceBuffer, statutDepuisBuffer } from "@/domaine/buffer";
+import { serviceHistorique, statutDepuisBuffer } from "@/domaine/buffer";
 import { interditsCommuns } from "@/domaine/qualite-script";
 import { motsInterditsEnvoi } from "./mots-interdits-envoi";
 import { URL_BUFFER, VARIABLE_CLE_BUFFER } from "../mesures/buffer";
@@ -84,7 +84,7 @@ const RESEAUX_PREMIER_COMMENTAIRE = new Set(["instagram", "facebook", "linkedin"
 
 /** Ce réseau reçoit-il le premier commentaire par Buffer ? Sinon : « à poser à la main ». PUR. */
 export function premierCommentaireTransmissible(reseau: DemandePublication["reseau"]): boolean {
-  return RESEAUX_PREMIER_COMMENTAIRE.has(serviceBuffer(reseau));
+  return RESEAUX_PREMIER_COMMENTAIRE.has(serviceHistorique(reseau));
 }
 
 /** Refuse un premier commentaire qui contient un mot interdit à l'envoi ou un interdit commun (même s'il sera posé à la main). */
@@ -122,14 +122,14 @@ export function entreeCreerPost(d: DemandePublication, instant: number = Date.no
   }
   const motsTexte = motsInterditsEnvoi(d.texte);
   if (motsTexte.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTexte, false, `mots interdits : ${motsTexte.join(", ")}`);
-  const motsTitre = serviceBuffer(d.reseau) === "youtube" ? motsInterditsEnvoi(d.titre ?? "") : [];
+  const motsTitre = serviceHistorique(d.reseau) === "youtube" ? motsInterditsEnvoi(d.titre ?? "") : [];
   if (motsTitre.length) throw new ErreurBuffer("invalide", PHRASES_BUFFER.motInterditTitre, false, `mots interdits : ${motsTitre.join(", ")}`);
   const commentaire = commentaireDe(d);
   const brouillon = (d.mode ?? "brouillon") === "brouillon";
   const echeance = Date.parse(d.date);
   // Une date à venir part telle quelle ; « maintenant » : file d'attente pour un brouillon, envoi immédiat sinon.
   const aVenir = Number.isFinite(echeance) && echeance > instant + 60_000;
-  const service = serviceBuffer(d.reseau);
+  const service = serviceHistorique(d.reseau);
   const metadata: Record<string, unknown> = {};
   const premier = commentaire ? { firstComment: commentaire } : {};
   if (service === "instagram") metadata.instagram = { type: images.length ? "post" : "reel", shouldShareToFeed: true, ...premier };

@@ -11,6 +11,12 @@ import {
   retablirPlageAction,
   validerPlageAction,
 } from "@/app/(studio)/bibliotheque/source-extraits/actions";
+import {
+  changerSujetAction,
+  garderQuandMemeAction,
+  marquerChiffresReelsAction,
+} from "@/app/(studio)/bibliotheque/source-extraits/actions-note";
+import type { SeuilsNoteInteret } from "@/briques/note-extraits/reglage";
 
 interface Proprietes {
   fiches: FicheSourceExtraits[];
@@ -18,6 +24,7 @@ interface Proprietes {
   inscriptionActive: boolean;
   politique: PolitiqueSources;
   cochees: string[];
+  note?: { seuils?: SeuilsNoteInteret; generateurs?: Record<string, string>; reseaux?: Record<string, string> };
 }
 
 type Resultat = { ok: boolean; message?: string };
@@ -44,6 +51,14 @@ export function EcranSourcesExtraitsBranche(p: Proprietes) {
         surValider={(v, id) => lancer(() => validerPlageAction(v, id))}
         surRanger={(v) => lancer(() => rangerSourceAction(v, true))}
         surCocher={(v) => lancer(() => cocherVideoAction(v, !p.cochees.includes(v)))}
+        note={
+          p.note && {
+            ...p.note,
+            surGarderQuandMeme: (v, id) => lancer(() => garderQuandMemeAction(v, id)),
+            surChangerSujet: (v, id, sujet) => lancer(() => changerSujetAction(v, id, sujet)),
+            surChiffresReels: (v, oui) => lancer(() => marquerChiffresReelsAction(v, oui)),
+          }
+        }
       />
       {refus && (
         <p role="status" className="mt-3 rounded-carte border border-brique bg-brique-doux px-4 py-3 text-sm font-semibold text-brique">

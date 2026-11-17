@@ -51,6 +51,7 @@ import { choisirParcoursIV, type ChoixParcoursIV, type SqueletteRecent } from ".
 import { CODES_REGLES_FORME_ACCEPTABLES, ecrireScriptIV, type OutilsEcritureIV } from "./ecriture";
 import type { DemandeReservationControleIV } from "./ecoute";
 import type { Offre } from "./emprunts";
+import type { DosageMotion } from "@/briques/dosage-motion/types";
 import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
@@ -161,6 +162,7 @@ export interface DemandeFabricationIV {
   lot?: { id: string; rang: number };
   /** GV-ST-03 : style de sous-titres choisi (id, nom, valeur), posé depuis `commande.styles.sousTitres` ; absent : charte duo. */
   styleSousTitres?: StyleChoisiIV;
+  dosage?: Extract<DosageMotion, "sobre" | "dynamique">; // X3-08 : cran du dosage ; absent : sous-titres inchangés
 }
 
 /** Une réservation comptée par la caisse (pire coût, centimes d'euro). */
@@ -1097,6 +1099,7 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     ...(e.variete ? { variete: recettePourVersion(e.variete.recette, v.reseaux, v.format ?? "9:16"), graine: e.demande.videoId } : {}),
     // GV-ST-03e : le style choisi par Will, pour que le contrôle Q22 mesure avec lui ; sans choix : aucune clé en plus.
     ...(e.demande.styleSousTitres?.valeur ? { styleSousTitres: e.demande.styleSousTitres } : {}),
+    ...(e.demande.dosage ? { dosage: e.demande.dosage } : {}), // X3-08
     // GV2-29 : sous-titres écrits comme le script et clôture après la voix, pour un état neuf seulement (clés de rendu des vidéos existantes inchangées).
     ...(e.voix && pointFinalDe(e.voix) ? { texteEcrit: true as const } : {}),
   };

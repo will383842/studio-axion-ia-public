@@ -32,7 +32,8 @@ const DEMANDE = /\b(r[ée]servez|enregistrez|[ée]crivez|commentez|abonnez|parta
 describe("(a) fin de TikTok et Shorts : une seule demande", () => {
   const sorties = sortiesDesReseaux(["verticaux"]);
   const choisirFin = choisirFinTableau({}, { sorties });
-  const fins = (id: (typeof sorties)[number]) => finDeLaSortie(id, choisirFin(temoin.appelId ?? null, id), temoin);
+  // 17/11 (Williams) : « Aucune » n'ajoute plus de fin ; ce test choisit une fin.
+  const fins = (id: (typeof sorties)[number]) => finDeLaSortie(id, choisirFin(temoin.appelId ?? "fin-if-mot-envoi", id), temoin);
   const [reels, liens] = sortiesRelues(temoin, sorties, fins);
 
   it("la variante TikTok et Shorts : la phrase de la fin, le site, et AUCUN bouton « Réservez un appel »", () => {
