@@ -568,6 +568,34 @@ export function cssBandeFond(b: BandeFondSousTitres): Css {
   };
 }
 
+/** 17/11 (FIX-SOUS-TITRES-TABLEAU, lot D) : un blanc plus court que ceci entre deux sous-titres garde la bande (elle ne clignote pas), en secondes. */
+export const BANDE_FOND_PONT_SEC = 0.6;
+/** 17/11 (lot D) : durée du fondu de la bande avant un sous-titre et après le dernier d'une suite, en secondes. */
+export const BANDE_FOND_FONDU_SEC = 0.2;
+
+/**
+ * 17/11 (lot D) : opacité (0 à 1) de la bande sombre de fond à l'instant t : la bande n'existe que quand un sous-titre est
+ * écrit. 0 sans `bandeFond` ou sans segment ; 1 pendant un segment (temps de sortie du groupe compris) et dans un blanc
+ * plus court que `BANDE_FOND_PONT_SEC` ; sinon fondu linéaire de `BANDE_FOND_FONDU_SEC` après la fin d'un segment et avant
+ * le début du suivant ; 0 ailleurs (avant le premier mot, page de fin, longs silences). Pure.
+ */
+export function opaciteBandeFond(d: DonneesCalque, t: number): number {
+  if (!d.bandeFond || d.segments.length === 0) return 0;
+  const sortie = SORTIE_ACTIVE && d.sortie ? Math.max(0, d.sortie.dureeSec) : 0;
+  let finPrecedente = -Infinity;
+  let debutSuivant = Infinity;
+  for (const s of d.segments) {
+    const fin = s.finSec + sortie;
+    if (t >= s.debutSec && t < fin) return 1;
+    if (fin <= t && fin > finPrecedente) finPrecedente = fin;
+    if (s.debutSec > t && s.debutSec < debutSuivant) debutSuivant = s.debutSec;
+  }
+  if (Number.isFinite(finPrecedente) && Number.isFinite(debutSuivant) && debutSuivant - finPrecedente < BANDE_FOND_PONT_SEC) return 1;
+  const sortant = Number.isFinite(finPrecedente) ? 1 - (t - finPrecedente) / BANDE_FOND_FONDU_SEC : 0;
+  const entrant = Number.isFinite(debutSuivant) ? 1 - (debutSuivant - t) / BANDE_FOND_FONDU_SEC : 0;
+  return Math.max(0, Math.min(1, Math.max(sortant, entrant)));
+}
+
 /** Étiquette d'outil autonome dessinée à l'instant t. */
 export interface EtiquetteOutilDessinee {
   id: string;

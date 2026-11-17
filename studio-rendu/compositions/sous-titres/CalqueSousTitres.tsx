@@ -6,7 +6,7 @@
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { bandeauAuTemps, cssBandeauNom } from "../../../src/briques/sous-titres/bandeau-nom";
 import { pastilleEnManrope } from "../../../src/briques/sous-titres/pastille";
-import { cssBandeFond, cssElement, cssEtiquetteOutil, etiquetteAuTemps, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { cssBandeFond, cssElement, cssEtiquetteOutil, etiquetteAuTemps, opaciteBandeFond, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
 import { chargerPolices, FAMILLES } from "./polices";
 
@@ -33,8 +33,9 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
   const { fps } = useVideoConfig();
   const t = instantSec ?? image / fps + decalageSec;
   const el = sceneAuTemps(donnees, t);
-  // Tableau animé (ajout pur) : bande sombre de fond, constante, derrière les sous-titres ; absente, rien ne change.
-  const bande = donnees.bandeFond ? <div style={cssBandeFond(donnees.bandeFond)} /> : null;
+  // Tableau animé (ajout pur) : bande sombre de fond derrière les sous-titres ; 17/11 : seulement quand un sous-titre est écrit (fondu, pont des petits blancs) ; absente, rien ne change.
+  const ob = donnees.bandeFond ? opaciteBandeFond(donnees, t) : 0;
+  const bande = donnees.bandeFond && ob > 0 ? <div style={{ ...cssBandeFond(donnees.bandeFond), opacity: ob }} /> : null;
   const etatBandeau = donnees.bandeauNom ? bandeauAuTemps(donnees.bandeauNom, t) : null;
   const cssBandeau = donnees.bandeauNom && etatBandeau?.visible ? cssBandeauNom(donnees.bandeauNom, etatBandeau, { nom: FAMILLES["Manrope ExtraBold"], fonction: FAMILLES["Manrope SemiBold"] }) : null;
   const bandeauNom = cssBandeau && donnees.bandeauNom ? (
