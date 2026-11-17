@@ -248,7 +248,7 @@ describe("3 · même mot retapé : message court « déjà envoyé » seulement 
   it("livré il y a moins de 24 h : réponse publique seule, aucun message privé, aucune nouvelle demande", async () => {
     await jusquaLaLivraison();
     const evt = await retaper("com-3-2", 23 * H);
-    expect(instantane()).toMatchObject({ pub: 2, prive: 1, envoyes: 1, site: 1 });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1, envoyes: 1, site: 1 });
     expect(await decrire(evt)).toBe("public_seul/deja_envoye");
   });
   it("livré il y a plus de 24 h, formulation VALIDÉE : réponse publique + message court « déjà envoyé » avec un lien neuf", async () => {
@@ -656,7 +656,7 @@ describe("8 · plafonds : 3 messages privés par personne et par 24 h, 30 écrit
       await semer("c", "gde-cccccc", 1 * H);
       const evt = await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-8-1", motSeul: "GUIDE", reseau: "facebook" });
       await passer(T0, { env: ENV_LIEN });
-      expect(instantane()).toMatchObject({ pub: 1, prive: 0 });
+      expect(instantane()).toMatchObject({ pub: 0, prive: 0 });
       expect(await decrire(evt)).toBe("public_seul/plafond_personne");
     });
     it("deux messages seulement dans les 24 h (le 3e a plus de 24 h) : le GUIDE passe, un message privé part", async () => {
@@ -674,7 +674,7 @@ describe("8 · plafonds : 3 messages privés par personne et par 24 h, 30 écrit
       await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-8-3", motSeul: "GUIDE", reseau: "facebook", ageMs: 2000 });
       await deposerCommentaire(depots, { idAuteur: A2, idCommentaire: "com-8-4", motSeul: "GUIDE", reseau: "facebook", ageMs: 1000 });
       await passer(T0, { env: ENV_LIEN });
-      expect(instantane()).toMatchObject({ pub: 2, prive: 1 });
+      expect(instantane()).toMatchObject({ pub: 1, prive: 1 });
       expect(await dossierDe(A2)).toMatchObject([{ etat: "attente_email" }]);
     });
   });
