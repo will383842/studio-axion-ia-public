@@ -30,7 +30,7 @@ const DEMAIN = new Date(Date.now() + 26 * 3600_000).toISOString();
 const CIBLE = "compte-1:li:42";
 const lireUrl = async (cle: string) => `https://exemple.test/${cle}`;
 const refusNet = () => new ErreurZernio("refuse", "refus", { statut: 400 });
-const reponsePerdue = () => new ErreurZernio("reseau", "coupure");
+const reponsePerdue = () => new ErreurZernio("indisponible", "coupure", { statut: 503 });
 
 let appels: DemandePublication[] = [];
 let relectures = 0;
