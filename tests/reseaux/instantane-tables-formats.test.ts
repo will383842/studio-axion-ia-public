@@ -87,7 +87,7 @@ const REGISTRE_D_AVANT = [
     export: { resolution: { "9:16": "1080x1920", "1:1": "1080x1080", "4:5": "1080x1350", "16:9": "1920x1080" }, fps: 30, debitMbps: 10, codec: "h264" },
     niveauSonoreLufs: -14,
     zonesProtegees: { "9:16": { haut: 14, droite: 16, bas: 30, gauche: 6 }, "4:5": { haut: 4, droite: 4, bas: 8, gauche: 4 } },
-    legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 5 },
+    legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 3 },
     miniature: { ratio: "3:4", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » dans les paramètres avancés.",
   },

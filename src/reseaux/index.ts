@@ -117,7 +117,7 @@ export const RESEAUX: DefinitionReseau[] = [
       "9:16": { haut: 14, droite: 16, bas: 30, gauche: 6 },
       "4:5": { haut: 4, droite: 4, bas: 8, gauche: 4 },
     },
-    legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 5 },
+    legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 3 },
     // Générateur (G1a) : couverture d'un Reel en 3:4 (grille du profil), corrigée sur accord de Will.
     miniature: { ratio: "3:4", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » dans les paramètres avancés.",
