@@ -124,8 +124,9 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
 
   const existant = await elementDeLaVideo(video.id, ports);
   const ancienneFiche = ficheDeElement(existant);
+  const note = await (await import("./note-extraits")).etatNote(lireParametre);
   const empreinte = createHash("sha256")
-    .update(JSON.stringify({ v: version.id, s: sortie.id, f: sortie.fichierId, src: choisie.fichierId, seg: segments, fen: fenetres }))
+    .update(JSON.stringify({ v: version.id, s: sortie.id, f: sortie.fichierId, src: choisie.fichierId, seg: segments, fen: fenetres, n: note.empreinte }))
     .digest("hex")
     .slice(0, 32);
   if (existant && ancienneFiche && empreinteDeNom(existant.nom) === empreinte) {
@@ -158,6 +159,7 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
     rangee: estRangee(video),
     sourcePreferee: true,
   });
+  if (note.actif) Object.assign(fiche, entrerDansLaTaille(await (await import("./note-extraits")).appliquerNote(fiche, { video, version, ancienne: ancienneFiche }, note.seuils, { journal: (m) => journaliser("archive-extraits", m, { type: "video", id: video.id }) })));
 
   const maintenant = horloge(ports);
   const motsCles = [...new Set(fiche.plages.flatMap((p) => p.motsCles))];
