@@ -42,7 +42,7 @@ export function fauxPort(): FauxPort {
     pub: [], prive: [], lire: 0, envoyes: [], refuses: 0,
     total: () => f.pub.length + f.prive.length + f.lire + f.envoyes.length,
     horsEcriture: (idCompte) => !!f.ecritureAutorisee && !f.ecritureAutorisee.includes(idCompte) && (f.refuses++, true),
-    refus: () => ({ statut: "refuse", code: "compte_hors_liste" }),
+    refus: () => ({ statut: "refuse", code: "compte_hors_liste", raison: { motif: "refus-avant-envoi", statut: null, codeClient: "refuse", meta: null, codeZernio: null } }),
     reponses: { pub: () => OK, prive: () => OK, envoyer: () => OK, texte: () => null },
     port: {
       repondreCommentaire: async (p) => (f.pub.push({ texte: p.texte, cle: p.cle, idPost: p.idPost }), f.horsEcriture(p.idCompte) ? f.refus() : f.reponses.pub()),
