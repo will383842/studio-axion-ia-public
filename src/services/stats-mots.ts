@@ -12,6 +12,7 @@ import {
   type EvenementStat,
   type StatsMotChiffrees,
 } from "@/domaine/guide-reseau/stats-mots";
+import { lireRaisonStockee } from "@/domaine/guide-reseau/raison-refus-lue";
 import { depots, lireParametre } from "./_commun";
 
 /** Même nom que dans `parcours-conversation.ts` (non importé : ce module n'en tire pas le parcours). */
@@ -42,16 +43,23 @@ const lectureReelle: LectureStatsMots = {
       PARAM_CONVERSATIONS,
       {},
     );
-    return Object.entries(tout).map(([cle, c]) => ({
-      cle,
-      mot: texte(c.mot),
-      nature: texte(c.nature),
-      etat: texte(c.etat) ?? "",
-      creeLe: texte(c.creeLe) ?? "",
-      m1Le: texte(c.m1Le),
-      refuseLe: texte(c.refuseLe),
-      suitLeCompte: c.suitLeCompte === true,
-    }));
+    return Object.entries(tout).map(([cle, c]) => {
+      // Seuls le motif et l'origine « phrase » sortent de `refusPrive` : ni statut, ni codes, ni date.
+      const r = lireRaisonStockee(c.refusPrive);
+      return {
+        cle,
+        mot: texte(c.mot),
+        nature: texte(c.nature),
+        etat: texte(c.etat) ?? "",
+        creeLe: texte(c.creeLe) ?? "",
+        m1Le: texte(c.m1Le),
+        refuseLe: texte(c.refuseLe),
+        suitLeCompte: c.suitLeCompte === true,
+        raison: r
+          ? { motif: r.motif, dApresMessage: r.source === "phrase" }
+          : null,
+      };
+    });
   },
 };
 

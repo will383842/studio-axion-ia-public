@@ -56,8 +56,14 @@ function LigneChiffres({
   f,
   auMoins,
   aVerifier,
+  detail,
+  note,
 }: {
   libelle: string;
+  /** Sous-ligne : libellé décalé, petit texte. */
+  detail?: boolean;
+  /** Petite mention discrète après le libellé. */
+  note?: string;
   f: Fenetres;
   auMoins?: boolean;
   aVerifier?: Fenetres;
@@ -83,9 +89,14 @@ function LigneChiffres({
       <th
         role="rowheader"
         scope="row"
-        className="py-1 pr-2 text-left text-sm font-normal text-texte-doux"
+        className={
+          detail
+            ? "py-1 pl-4 pr-2 text-left text-xs font-normal text-texte-doux"
+            : "py-1 pr-2 text-left text-sm font-normal text-texte-doux"
+        }
       >
         {libelle}
+        {note && <span className="opacity-70">{note}</span>}
       </th>
       {cellule("j7")}
       {cellule("j30")}
@@ -344,6 +355,21 @@ function SectionChiffres({ resume }: { resume: ResumeMot }) {
           <LigneChiffres libelle={K.gagnees} f={c.suivent} auMoins />
           <LigneChiffres libelle={K.bloques} f={c.commentairesBloques} />
           <LigneChiffres libelle={K.refuses} f={c.envoisRefuses} />
+          {c.envoisRefuses.total > 0 &&
+            (c.raisonsRefus ?? []).map((r) => (
+              <LigneChiffres
+                key={`${r.libelle}|${r.dApresMessage}`}
+                detail
+                libelle={K.dont(r.libelle)}
+                note={r.dApresMessage ? K.dApresMessage : undefined}
+                f={r.f}
+              />
+            ))}
+          {c.envoisRefuses.total > 0 &&
+            c.refusSansRaison !== undefined &&
+            c.refusSansRaison.total > 0 && (
+              <LigneChiffres detail libelle={K.sansRaison} f={c.refusSansRaison} />
+            )}
         </tbody>
       </table>
     </div>
