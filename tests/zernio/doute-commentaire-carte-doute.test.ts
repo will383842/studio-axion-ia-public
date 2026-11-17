@@ -154,7 +154,7 @@ describe.each(["linkedin", "tiktok"])("%s · doute « stop pls »", (p) => {
     expect(opp.appels).toEqual([]);
     expect((await evenements())[0].charge.etat).toBe("propre_compte");
   });
-  it("personne déjà opposée : silence, aucune carte", async () => {
+  it("T15 · personne déjà opposée : silence, aucune carte, aucune alerte, état final « personne_opposee »", async () => {
     await Opp.enregistrerOpposition(AUTEUR, Opp.ESPACE_CONTACT_ZERNIO);
     opp.appels.length = 0;
     await envoyer(manuel(p, "stop pls"));
@@ -163,7 +163,8 @@ describe.each(["linkedin", "tiktok"])("%s · doute « stop pls »", (p) => {
     expect(await cartes()).toEqual([]);
     expect(opp.appels).toEqual([]);
     expect(await notifications()).toEqual([]);
-    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true });
+    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "personne_opposee", prochainEssaiLe: null } });
+    expect(await opposee()).toBe(true); // l'opposition existante est intacte, rien n'est inscrit de plus
   });
   it("C3 · « STOP » clair : inscrit au registre, aucune carte", async () => {
     await envoyer(manuel(p, "STOP"));
@@ -389,6 +390,15 @@ describe.each(["linkedin", "tiktok"])("%s · doute permanent, carte et alerte", 
     expect(await traiterCommentairesManuels({ env: ENV, maintenantMs: T + 6 * 60_000, depot: creerDepotParametre() })).toMatchObject({ traites: 1, reportes: 0 });
     expect(await cartes()).toHaveLength(1);
     expect(await notifications()).toHaveLength(1);
+    expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
+  });
+  it("T18 · réseau inconnu en doute : cartes de la personne neutralisées (comme le refus définitif), une alerte, clos « doute_opposition »", async () => {
+    const c = await guideAvecKit();
+    const d = await evt(p, { reseau: "facebook" });
+    expect(await lancer()).toMatchObject({ traites: 1, reportes: 0 });
+    expect((await cartes()).find((x) => x.idEvenement === c.idEvenement)).toMatchObject({ opposee: true, kit: null, statut: "a_traiter" });
+    expect(await cartes()).toHaveLength(1); // aucune carte de doute possible sur ce réseau
+    expect((await notifications()).map((n) => n.message)).toEqual([MSG_SANS_CARTE]);
     expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
   });
   it("T16 · une carte GUIDE ordinaire au repère invalide reste close « refuse » (comportement figé)", async () => {
