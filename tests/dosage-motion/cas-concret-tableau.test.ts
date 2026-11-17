@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { appliquerContraintes, contraintesDosageCasConcret } from "@/moteurs/montage-cas-concret/dosage";
 import { intensiteSousTitresTableau } from "@/moteurs/montage-tableau/dosage";
+import type { NiveauIntensite } from "@/domaine/types";
 import { tirer, type Tirage } from "@/moteurs/montage-cas-concret/variete";
 
 const lire = (chemin: string) => readFileSync(join(process.cwd(), chemin), "utf8");
@@ -17,7 +18,7 @@ const tirages = (): Tirage[] => Array.from({ length: 20 }, (_, i) => tirer({ vid
 const chemin = (t: Tirage, dosage?: "sobre" | "equilibre" | "dynamique") => (dosage ? appliquerContraintes(t, contraintesDosageCasConcret(dosage)) : t);
 
 /** Le branchement de montage-tableau/index.ts (copie de la ligne, garde `reste.intensiteSousTitres === undefined` comprise). */
-const outilsTableau = (cran: "sobre" | "equilibre" | "dynamique" | undefined, actuelle: "sobre" | "equilibre" | "dynamique" | "tres-dynamique" | undefined, reste?: "sobre") =>
+const outilsTableau = (cran: "sobre" | "equilibre" | "dynamique" | undefined, actuelle: NiveauIntensite | undefined, reste?: "sobre") =>
   ((n) => (reste === undefined && n ? { intensiteSousTitres: n } : {}))(intensiteSousTitresTableau(cran, actuelle));
 
 describe("X3-07 · cas concret : tirage", () => {
