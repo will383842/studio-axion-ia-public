@@ -1,11 +1,13 @@
 /**
+ * RÈGLE : un motif de source `phrase` est une information ; aucune décision (alerte, définitif) ne doit jamais s'appuyer dessus.
+ *
  * Motif FERMÉ d'un refus du service d'envoi (routes de la boîte de messages). Module pur : ne lève jamais, ne rend JAMAIS de texte.
  * Ordre : (1) codes Meta numériques, (2) table des sous-codes puis des codes, (3) code Zernio de la liste blanche,
  * (4) phrases connues cherchées sur une copie locale jamais rendue, (5) statut >= 500 -> erreur-serveur, sinon raison-inconnue.
  */
-import { CODES_META, CODES_META_CONNUS, CODES_ZERNIO_CONNUS, SOUS_CODES, type CodeMotifRefus, type CodeZernioConnu, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
+import { CODES_META, CODES_META_CONNUS, CODES_ZERNIO_CONNUS, SOUS_CODES, type CodeMotifRefus, type CodeZernioConnu, type RaisonRefus, type SourceMotif } from "@/domaine/guide-reseau/raison-refus";
 
-export type MotifInbox = Pick<RaisonRefus, "motif" | "meta" | "codeZernio">;
+export type MotifInbox = Pick<RaisonRefus, "motif" | "meta" | "codeZernio" | "source">;
 
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 const COPIE_MAX = 2000;
@@ -88,22 +90,22 @@ export function motifRefusInbox(statut: number, corps: unknown): MotifInbox {
   try {
     const meta = lireMeta(corps);
     const codeZernio = codeZernioDe(corps);
-    const fin = (motif: CodeMotifRefus): MotifInbox => ({ motif, meta, codeZernio });
+    const fin = (motif: CodeMotifRefus, source: SourceMotif): MotifInbox => ({ motif, meta, codeZernio, source });
     if (meta) {
       const m = motifParNombres(meta);
-      if (m) return fin(m);
+      if (m) return fin(m, "nombres");
     }
-    if (codeZernio === "INBOX_REQUIRED") return fin("inbox-zernio-requise");
-    if (codeZernio === "message_allowance_exceeded") return fin("quota-messages-zernio");
+    if (codeZernio === "INBOX_REQUIRED") return fin("inbox-zernio-requise", "code-zernio");
+    if (codeZernio === "message_allowance_exceeded") return fin("quota-messages-zernio", "code-zernio");
     const copie = copieLocale(corps);
-    for (const [re, motif] of PHRASES) if (re.test(copie)) return fin(motif);
-    if (statut === 404) return fin("compte-zernio-introuvable");
-    return fin(statut >= 500 ? "erreur-serveur" : "raison-inconnue");
+    for (const [re, motif] of PHRASES) if (re.test(copie)) return fin(motif, "phrase");
+    if (statut === 404) return fin("compte-zernio-introuvable", "statut");
+    return fin(statut >= 500 ? "erreur-serveur" : "raison-inconnue", "statut");
   } catch {
-    return { motif: "raison-inconnue", meta: null, codeZernio: null };
+    return { motif: "raison-inconnue", meta: null, codeZernio: null, source: "interne" };
   }
 }
 
 export function motifReseau(nomErreur: string): MotifInbox {
-  return { motif: nomErreur === "TimeoutError" || nomErreur === "AbortError" ? "delai-depasse" : "coupure-reseau", meta: null, codeZernio: null };
+  return { motif: nomErreur === "TimeoutError" || nomErreur === "AbortError" ? "delai-depasse" : "coupure-reseau", meta: null, codeZernio: null, source: "reseau" };
 }

@@ -31,6 +31,10 @@ export const CODES_MOTIF_REFUS = [
   "erreur-interne",
   "raison-inconnue",
 ] as const;
+/** D'où vient le motif : `phrase` est une information (repli sur du texte), les autres reposent sur des éléments fermés. */
+export const SOURCES_MOTIF = ["nombres", "code-zernio", "phrase", "statut", "reseau", "interne"] as const;
+export type SourceMotif = (typeof SOURCES_MOTIF)[number];
+
 export type CodeMotifRefus = (typeof CODES_MOTIF_REFUS)[number];
 
 export const LIBELLES_MOTIF_REFUS: Readonly<Record<CodeMotifRefus, string>> = {
@@ -106,11 +110,13 @@ export interface RaisonRefus {
   /** Codes numériques Meta (entiers de 1 à 9 chiffres). */
   meta: { code: number; sousCode: number | null } | null;
   codeZernio: CodeZernioConnu | null;
+  /** Origine du motif (liste fermée). Un motif de source `phrase` n'est qu'une information. */
+  source: SourceMotif;
 }
 export type RaisonRefusStockee = RaisonRefus & { le: string };
 
 const entierMeta = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 1 && n <= 999_999_999;
-const CLES = ["motif", "statut", "codeClient", "meta", "codeZernio"];
+const CLES = ["motif", "statut", "codeClient", "meta", "codeZernio", "source"];
 
 /** Validateur strict, appelé avant toute écriture : forme exacte, aucune clé en plus, aucune valeur libre. */
 export function estRaisonRefus(x: unknown): x is RaisonRefus {
@@ -120,6 +126,7 @@ export function estRaisonRefus(x: unknown): x is RaisonRefus {
   if (typeof r.motif !== "string" || !(CODES_MOTIF_REFUS as readonly string[]).includes(r.motif)) return false;
   if (r.statut !== null && !(typeof r.statut === "number" && Number.isInteger(r.statut) && r.statut >= 100 && r.statut <= 599)) return false;
   if (typeof r.codeClient !== "string" || !CODES_CLIENT_CONNUS.includes(r.codeClient)) return false;
+  if (typeof r.source !== "string" || !(SOURCES_MOTIF as readonly string[]).includes(r.source)) return false;
   if (r.codeZernio !== null && !(CODES_ZERNIO_CONNUS as readonly unknown[]).includes(r.codeZernio)) return false;
   if (r.meta !== null) {
     if (typeof r.meta !== "object" || Array.isArray(r.meta)) return false;
@@ -132,5 +139,6 @@ export function estRaisonRefus(x: unknown): x is RaisonRefus {
 /** « Messagerie désactivée sur la page [HTTP 400 · refuse · meta 10/2018278] » : libellé français + éléments fermés. */
 export function formaterRaison(r: RaisonRefus): string {
   const parties = [r.statut !== null ? `HTTP ${r.statut}` : "", r.codeClient, r.meta ? `meta ${r.meta.code}${r.meta.sousCode !== null ? `/${r.meta.sousCode}` : ""}` : ""].filter((x) => x !== "");
-  return `${LIBELLES_MOTIF_REFUS[r.motif]} [${parties.join(" · ")}]`;
+  const suffixe = r.source === "phrase" ? " (d'après le message)" : "";
+  return `${LIBELLES_MOTIF_REFUS[r.motif]} [${parties.join(" · ")}]${suffixe}`;
 }

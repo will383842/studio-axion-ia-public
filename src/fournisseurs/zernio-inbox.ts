@@ -8,7 +8,7 @@
 import { createHash } from "node:crypto";
 import { consommerJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
-import { CODES_CLIENT_CONNUS, CODES_MOTIF_REFUS, CODES_ZERNIO_CONNUS, estRaisonRefus, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
+import { CODES_CLIENT_CONNUS, CODES_MOTIF_REFUS, CODES_ZERNIO_CONNUS, SOURCES_MOTIF, estRaisonRefus, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
 import { estErreurZernio } from "./publication/zernio-erreurs";
 
 export interface BoutonPostback {
@@ -41,7 +41,7 @@ export interface ResultatEcritureInbox {
   raison?: RaisonRefus;
 }
 
-const RAISON_INTERNE: RaisonRefus = { motif: "erreur-interne", codeClient: "erreur-inconnue", statut: null, meta: null, codeZernio: null };
+const RAISON_INTERNE: RaisonRefus = { motif: "erreur-interne", codeClient: "erreur-inconnue", statut: null, meta: null, codeZernio: null, source: "interne" };
 
 /**
  * Raison fermée d'un refus du service d'envoi. Pure, ne lève jamais. Ne lit JAMAIS `message` ni `detailTechnique` :
@@ -52,12 +52,13 @@ export function raisonRefus(e: unknown): RaisonRefus {
     if (!estErreurZernio(e)) return { ...RAISON_INTERNE };
     const codeClient = CODES_CLIENT_CONNUS.includes(e.code) ? e.code : "erreur-inconnue";
     const statut = typeof e.statut === "number" && Number.isInteger(e.statut) && e.statut >= 100 && e.statut <= 599 ? e.statut : null;
-    if (e.avantReseau) return { motif: "refus-avant-envoi", codeClient, statut: null, meta: null, codeZernio: null };
+    if (e.avantReseau) return { motif: "refus-avant-envoi", codeClient, statut: null, meta: null, codeZernio: null, source: "interne" };
     const m = e.motifInbox;
     const motif = m && (CODES_MOTIF_REFUS as readonly string[]).includes(m.motif) ? m.motif : "raison-inconnue";
     const codeZernio = m && (CODES_ZERNIO_CONNUS as readonly unknown[]).includes(m.codeZernio) ? m.codeZernio : null;
-    const r: RaisonRefus = { motif, statut, codeClient, meta: m?.meta ?? null, codeZernio };
-    return estRaisonRefus(r) ? r : { motif: "raison-inconnue", statut, codeClient, meta: null, codeZernio: null };
+    const source = m && (SOURCES_MOTIF as readonly unknown[]).includes(m.source) ? m.source : "statut";
+    const r: RaisonRefus = { motif, statut, codeClient, meta: m?.meta ?? null, codeZernio, source };
+    return estRaisonRefus(r) ? r : { motif: "raison-inconnue", statut, codeClient, meta: null, codeZernio: null, source: "statut" };
   } catch {
     return { ...RAISON_INTERNE };
   }
