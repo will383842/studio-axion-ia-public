@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { IDS_PIECES } from "../../src/briques/plan-scenes/catalogue";
+import { verifierDefinition } from "../../src/briques/motion/petits-objets/contrat";
 import { OBJETS_INSCRITS, REGISTRE_OBJETS, definitionObjet, idsObjets } from "../../src/briques/plan-scenes-objets/registre";
 
 const entrees = Object.entries(REGISTRE_OBJETS);
@@ -29,5 +31,26 @@ describe("registre des petits objets (C9-27a)", () => {
     const ids = idsObjets();
     expect(ids).toEqual([...ids].sort());
     expect(ids.length).toBe(entrees.length);
+  });
+});
+
+describe("registre des petits objets (C9-27b)", () => {
+  const IDS_NEUFS = [
+    "objet-anneau-donnees", "objet-compteur-rouleau", "objet-chrono", "objet-barre-progression", "objet-dossier",
+    "objet-appel-action", "objet-appel-mot", "objet-carton-magazine", "objet-post-it", "objet-pastille-icone",
+    "objet-etiquette-icone", "objet-badge", "objet-tampon", "objet-cadre-rectangle", "objet-cadre-coins",
+    "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle",
+  ];
+  it("C9-27b : les 53 définitions livrées sont inscrites", () => {
+    expect(IDS_NEUFS.length).toBe(19);
+    for (const id of IDS_NEUFS) expect(definitionObjet(id)?.id).toBe(id);
+    expect(OBJETS_INSCRITS.length).toBeGreaterThanOrEqual(53);
+  });
+  it("aucun IdPiece en double", () => {
+    const pieces = new Set<string>(IDS_PIECES);
+    for (const id of idsObjets()) expect(pieces.has(id)).toBe(false);
+  });
+  it("chaque définition inscrite passe verifierDefinition", () => {
+    for (const d of OBJETS_INSCRITS) expect(verifierDefinition(d), d.id).toBe("ok");
   });
 });
