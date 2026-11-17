@@ -54,7 +54,7 @@ describe("conservation : aucune suppression, aucune durée qui efface", () => {
     await enr(d91, com("e2", { recuLe: iso(91) }));
     expect((await d91.lire()).map((x) => x.idEvenement)).toEqual(["e1", "e2"]);
   });
-  it("aucune porte de suppression, de purge ou d'anonymisation n'est exposée", () => {
+  it("aucune porte de suppression, de nettoyage ou d'anonymisation n'est exposée", () => {
     const noms = [...Object.keys(D), ...Object.keys(nouveau())].join(" ").toLowerCase();
     for (const mot of ["supprim", "purg", "anonym", "effacer", "delete", "remove", "retention", "conservation_jours"]) expect(noms).not.toContain(mot);
   });
