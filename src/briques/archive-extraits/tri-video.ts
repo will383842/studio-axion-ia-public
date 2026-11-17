@@ -1,9 +1,12 @@
 /**
  * Tri d'une vidéo (X4-06a) : gardés, peut-être, ignorés, « rien à retenir ». Fonction pure : aucune date, aucun hasard,
- * entrées jamais modifiées. Déplacé dans `NE/trier.ts` (ré-export) par X4-06b ; rien ne l'appelle encore.
+ * entrées jamais modifiées. Ré-exporté par `NE/trier.ts` (X4-06b) avec l'étiqueteur par défaut ; rien ne l'appelle encore.
  */
-import { noter, SEUILS_PAR_DEFAUT } from "@/briques/note-extraits";
-import type { ContexteNote, Moment, NoteMoment, ResultatTri, SeuilsNoteInteret, UsageExtrait } from "@/briques/note-extraits";
+import { noter } from "@/briques/note-extraits/noter";
+import type { ContexteNote } from "@/briques/note-extraits/noter";
+import { SEUILS_PAR_DEFAUT } from "@/briques/note-extraits/reglage";
+import type { SeuilsNoteInteret } from "@/briques/note-extraits/reglage";
+import type { Moment, NoteMoment, ResultatTri, UsageExtrait } from "@/briques/note-extraits/types";
 
 export const PEUT_ETRE_MAX = 12;
 export const SEUIL_CHEVAUCHEMENT = 0.5;
