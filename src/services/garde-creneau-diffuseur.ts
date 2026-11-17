@@ -9,12 +9,13 @@
  *  - la garde ne lit AUCUN réglage et n'importe ni le service du diffuseur, ni un fournisseur, ni les notifications : un post
  *    programmé reste programmé même si l'on éteint tout ;
  *  - aucun envoi pour le créneau : « libre », sans lire aucun paramètre (interrupteurs jamais allumés = comportement d'avant) ;
+ *  - la marque `promotion:<clé>` « en-cours » vieille de plus de `DELAI_MARQUE_ORPHELINE_MS` (instant noté dans `promotion-debut:<clé>`) vaut « à vérifier » ;
  *  - lecture seule : aucune écriture, aucun appel au diffuseur ;
  *  - à appeler SOUS `sousVerrou`, dans la même section que l'écriture qu'elle protège (jamais de notification sous ce verrou).
  */
 import "server-only";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
-import { depots, lireParametre } from "./_commun";
+import { depots, lireParametre, maintenant } from "./_commun";
 
 /** Recopié de `branchement-envoi-calendrier.ts` (`PREFIXE_ETATS_ENVOI_CALENDRIER`) ; le test échoue si les deux diffèrent. */
 export const PREFIXE_ETATS_GARDE = "envoi-calendrier:";
@@ -29,6 +30,13 @@ export interface NiveauCreneau {
   heure?: string;
   reseau?: string;
 }
+
+/**
+ * Une marque « en-cours » plus ancienne que ce délai est ORPHELINE (plantage) : le tour qui la convertit ne tourne que porte ouverte, donc
+ * la garde la lit déjà comme « à vérifier » (refus, jamais un décalage). Très au-dessus du délai maximal d'un envoi (90 s) et d'un appel
+ * du diffuseur (30 s) : une promotion vivante n'est jamais prise pour orpheline. Sans instant noté ou illisible : toujours « en cours ».
+ */
+export const DELAI_MARQUE_ORPHELINE_MS = 10 * 60_000;
 
 const STATUTS_PROGRAMMES: readonly string[] = ["programme", "confirme", "a-envoyer"];
 
@@ -50,12 +58,14 @@ export async function niveauDiffuseurDuCreneau(creneauId: string): Promise<Nivea
     const promotion = await etat("promotion", e.cle);
     const verification = await etat("a-verifier", e.cle);
     const creation = await etat("creation", e.cle);
+    const debut = promotion === "en-cours" ? Date.parse(String(await etat("promotion-debut", e.cle))) : Number.NaN;
+    const promotionOrpheline = promotion === "en-cours" && Number.isFinite(debut) && Date.parse(maintenant()) - debut > DELAI_MARQUE_ORPHELINE_MS;
     if (e.statut === "envoye") parti = true;
     // Ne jamais se fier au seul statut : après un plantage entre le PUT et l'écriture locale, c'est la marque qui fait foi.
     if (STATUTS_PROGRAMMES.includes(e.statut) || promotion === "programme") programme ??= e;
     // Un envoi annulé ne compte que par sa marque de promotion (le brouillon chez le diffuseur n'est plus promu).
-    if (promotion === "a-verifier" || (!annule && verification === "a-verifier")) aVerifier = true;
-    if (promotion === "en-cours" || (!annule && creation === "en-cours")) enCours = true;
+    if (promotion === "a-verifier" || promotionOrpheline || (!annule && verification === "a-verifier")) aVerifier = true;
+    if ((promotion === "en-cours" && !promotionOrpheline) || (!annule && creation === "en-cours")) enCours = true;
     if (!annule && (e.statut === "brouillon" || e.statut === "valide") && (typeof e.cleDiffuseur === "string" || creation === "cree")) brouillon = true;
   }
   if (parti) return { niveau: "parti" };
