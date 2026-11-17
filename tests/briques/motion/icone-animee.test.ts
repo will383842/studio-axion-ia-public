@@ -101,7 +101,18 @@ describe("C6-H18 IconeAnimee", () => {
     const duo = opacitesRemplissage(rendre({ image: 0, animation: "duotone-remplissage" }));
     expect(duo.length).toBeGreaterThan(0);
     expect(duo.every((o) => o === 0)).toBe(true);
+    const d0 = decalages(rendre({ image: 0, animation: "duotone-remplissage", nom: "lucide:croix" }));
+    expect(d0.length).toBeGreaterThan(0);
+    expect(d0.every((x) => x === 1)).toBe(true);
     expect(decalages(rendre({ image: DERNIERE, animation: "duotone-remplissage", nom: "lucide:croix" })).every((x) => x === 0)).toBe(true);
+  });
+
+  it("pulsation : échelle 1 à l'image 0, au-dessus de 1 en cours de période, périodique", () => {
+    const e = (i: number) => echelle(rendre({ image: i, animation: "pulsation" }));
+    expect(e(0)).toBe(1);
+    const pic = Math.max(...Array.from({ length: 60 }, (_, i) => e(i)));
+    expect(pic).toBeGreaterThan(1);
+    expect(e(MILIEU)).toBeGreaterThanOrEqual(1);
   });
 
   it("autres types de nœuds (circle, rect) tracés avec les mêmes règles", () => {
