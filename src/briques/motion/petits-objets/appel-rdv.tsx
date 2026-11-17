@@ -70,7 +70,6 @@ function Rendu(pr: ProprietesObjet<ParametresAppelRdv>): JSX.Element {
               style={{
                 position: "absolute",
                 inset: 0,
-                boxSizing: "border-box",
                 borderRadius: HAUT / 2,
                 border: `4px solid ${contour}`,
                 background: PALETTE.blanc,

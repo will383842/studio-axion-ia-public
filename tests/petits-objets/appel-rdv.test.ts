@@ -58,7 +58,7 @@ describe("C10-13b-a rendu", () => {
     expect(rendre({}, clic as number)).toContain("data-anneau");
   });
   it("dernière image : contour du ton valide ; image 0 : ton neutre", () => {
-    expect(rendre({}, D - 2).toLowerCase()).toContain(couleurDuTon("valide", "ivoire").toLowerCase());
+    expect(rendre({}, D - 1).toLowerCase()).toContain(couleurDuTon("valide", "ivoire").toLowerCase());
     expect(rendre({}, 5).toLowerCase()).not.toContain(couleurDuTon("valide", "ivoire").toLowerCase());
   });
   it("paramètres invalides : svg vide ; même entrée = même balisage", () => {
