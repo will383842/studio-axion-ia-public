@@ -4,8 +4,8 @@
  * La GARDE est volontairement étroite : un seul identifiant, la barre finale (l'id voisin `v-012` n'est pas `v-01/`),
  * jamais un préfixe vide, ni la racine d'un environnement. Hors de cette forme, rien n'est listé ni effacé.
  * Décision de Williams (17/11) : « rien d'automatique, la corbeille ne touche à rien ». Les scènes ne sont donc visées QUE
- * si l'appelant allume `{ scenes: true }` (seul `true` exact, éteint par défaut = comportement de master : 5 dossiers). La purge
- * automatique des 30 jours (sans session) n'allume jamais ce réglage ; seul le chemin de suppression définitive avec session le pourra.
+ * si l'appelant allume `{ scenes: true }` (seul `true` exact, éteint par défaut = comportement de master : 5 dossiers). Le nettoyage
+ * automatique de la corbeille au bout de 30 jours (sans session) n'allume jamais ce réglage ; seul le chemin de suppression définitive avec session le pourra.
  */
 export const DOSSIERS_PROPRES_VIDEO = ["audio-maitre", "videos", "facecam-animee", "image-video", "fiches-scenes", "scenes"] as const;
 
