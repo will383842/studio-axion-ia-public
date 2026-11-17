@@ -767,7 +767,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail, motifInbox: motifReseauInbox });
       }
       journal.info("Zernio : réponse", { requete: libelle, statut: rep.status, dureeMs: maintenant() - debut });
-      const motif = ROUTES_INBOX.has(route) ? motifRefusInbox(rep.status, corps) : undefined; // forme fermée seulement
+      const motif = ROUTES_INBOX.has(route) && !(rep.status >= 200 && rep.status < 300) ? motifRefusInbox(rep.status, corps) : undefined; // forme fermée seulement, jamais sur un succès
 
       if (rep.status === 429) {
         const attenteMs = lireRetryAfter(rep.headers.get("retry-after"), maintenant());
