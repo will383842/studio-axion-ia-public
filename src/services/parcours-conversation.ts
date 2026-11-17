@@ -2149,7 +2149,7 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
   const courant = (await lireEtat(cle)) ?? etat;
   // Issue « incertain » (le site n'a pas annoncé d'e-mail) : UN SEUL texte neutre, jamais fonction de la valeur du site. Aucune formulation validée : reçu d'aujourd'hui + événement sans adresse.
   const neutre = courant.guideIncertain === true ? await formulerRecuNeutre(courant) : null;
-  if (courant.guideIncertain === true && neutre === null) await journaliser("parcours_conversation", "recu_neutre_non_valide");
+  const evenementNeutre = courant.guideIncertain === true && neutre === null && courant.recuNeutreNonValideJournale !== true;
   const recu = neutre ?? (await formuler({ groupe: "recu", e: courant, ancien: "mp-recu-v2", valeurs: { titre: etat.titreCible ?? d.titreGuide } }));
   const texte = recu.texte;
   let code: string | null = "texte_incomplet";
@@ -2182,7 +2182,9 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte. La date d'essai (plafond par personne) est écrite avant l'envoi.
-    if (recu.formulation || ig) await patcher(cle, { ...(recu.formulation ? { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, [neutre ? "recu-neutre" : "recu"]: recu.formulation } } : {}), ...(ig ? { accuseLe: new Date(now).toISOString() } : {}) });
+    // Événement « recu_neutre_non_valide » : une seule fois par conversation, et seulement quand un reçu part réellement.
+    if (evenementNeutre) await journaliser("parcours_conversation", "recu_neutre_non_valide");
+    if (recu.formulation || ig || evenementNeutre) await patcher(cle, { ...(evenementNeutre ? { recuNeutreNonValideJournale: true } : {}), ...(recu.formulation ? { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, [neutre ? "recu-neutre" : "recu"]: recu.formulation } } : {}), ...(ig ? { accuseLe: new Date(now).toISOString() } : {}) });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage, nonOpposee: nonOpposeeRecu }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);

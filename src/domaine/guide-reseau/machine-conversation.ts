@@ -75,6 +75,8 @@ export interface Conversation {
   adresseRefuseeEnAttente?: boolean;
   /** Le site a répondu 200 sans annoncer que l'e-mail part (issue « incertain », jamais la valeur brute) : le reçu est alors le reçu neutre, aussi à la reprise. Absent = faux. */
   guideIncertain?: boolean;
+  /** L'événement « recu_neutre_non_valide » a déjà été journalisé pour cette conversation (une seule fois). */
+  recuNeutreNonValideJournale?: boolean;
   /** Référence opaque de conversation du lien signé (« c1_… »), écrite UNE fois au premier M1 v3 ; jamais réécrite, jamais le jeton. */
   refLienConv?: string | null;
   /** Date (ISO) du dernier message ÉCRIT PAR LA PERSONNE : base de la fenêtre de 24 h de Meta. Jamais reculée. Absente = fenêtre fermée. */

@@ -80,8 +80,8 @@ describe("1 · le mot GUIDE déclenche le parcours sur un compte Facebook autori
   });
 
   it("un mot d'opposition en commentaire ne démarre jamais le parcours : rien n'est envoyé (voir fichier 03)", async () => {
-    for (const mot of ["STOP", "arrêt", "Arrêtez !"]) {
-      const r = await crochetCommentaire(mot, { reseau: "facebook", idAuteur: `auteur-fictif-opp-${mot.length}` });
+    for (const [i, mot] of ["STOP", "arrêt", "Arrêtez !", "STOP\n"].entries()) {
+      const r = await crochetCommentaire(mot, { reseau: "facebook", idAuteur: `auteur-fictif-opp-${i}` });
       expect(r.deposes).toHaveLength(1);
     }
     await passer();

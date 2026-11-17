@@ -5,6 +5,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GROUPES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { cleParcours } from "@/domaine/guide-reseau/cles-parcours";
 import { cleConversation, deposerCommentaire, evenement, validerFormulationsAuParcours } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, depots, ENV, graineConv, nettoyer, passer, preparer, T0, toutesLesConversations } from "./filet-guide/_amorce";
@@ -71,6 +72,17 @@ describe("C1-b · réponses publiques seules : compteur par raison", () => {
     const evt = await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-c1b-3", motSeul: "GUIDE", reseau: "facebook" });
     await passer(T0, { env: ENV });
     expect(instantane()).toEqual({ pub: 1, prive: 0, envoyes: 0 });
+    expect(await decrire(evt)).toBe("public_seul/en_cours");
+  });
+
+  it("en_cours sur Instagram, pub-instagram validé : la réponse publique part avec le texte de pub-instagram, sans message privé", async () => {
+    const IG = GROUPES_MP["pub-instagram"] as readonly string[];
+    await validerFormulationsAuParcours(["mp-m1-v4-1", ...IG]);
+    await semer("a", "guide-ia", "pub_ok", envoyeIlYa(60_000));
+    const evt = await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-c1b-ig", motSeul: "GUIDE", reseau: "instagram" });
+    await passer(T0, { env: ENV });
+    expect(instantane()).toEqual({ pub: 1, prive: 0, envoyes: 0 });
+    expect(IG.map((v) => rendreTexteMp(v as never, {}))).toContain(banc.port.pub[0].texte);
     expect(await decrire(evt)).toBe("public_seul/en_cours");
   });
 });

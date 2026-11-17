@@ -19,8 +19,8 @@ const MS = await import("@/services/mots-service");
 
 const N1 = "mp-recu-neutre-v1-1";
 const N2 = "mp-recu-neutre-v1-2";
-const TEXTE_N1 = "Merci. Si cette adresse est correcte, le guide y a déjà été envoyé ou le sera ; pensez à regarder vos courriers indésirables.";
-const TEXTE_N2 = "C'est noté, merci. Si l'adresse est la bonne, le guide y est déjà parti ou y arrivera ; regardez aussi dans vos courriers indésirables.";
+const TEXTE_N1 = "Merci, c'est noté. Si le guide n'arrive pas dans votre boîte mail, regardez aussi dans vos courriers indésirables.";
+const TEXTE_N2 = "Bien reçu, merci. Si vous ne voyez pas le guide dans votre boîte mail, pensez à vérifier vos courriers indésirables.";
 const RECU = "mp-recu-v3-1";
 const A = "auteur-fictif-400";
 let port: ReturnType<typeof fauxPort>;
@@ -158,5 +158,26 @@ describe("C5 · parcours : reçu neutre", () => {
     site.reponses = () => ({ statut: 200, corps: corpsGuide("en-file") });
     await ecrireAdresse("msg-parti");
     expect((await messagesJournal()).some((m) => m.includes("recu_neutre_non_valide"))).toBe(false);
+  });
+});
+
+describe("C5 · écran /mots : groupes recu-neutre et pub-instagram", () => {
+  it("les deux groupes s'affichent avec leur titre, leurs formulations et un bouton de validation chacune ; la note Instagram est sous le second", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { createElement } = await import("react");
+    const { EcranMots } = await import("@/components/mots/EcranMots");
+    const vue = await MS.lireVueMots();
+    const html = renderToStaticMarkup(createElement(EcranMots, { vue, services: { validerFormulation: async () => ({ ok: true, raison: "valide" }) } as never, comptes: [] }));
+    const bloc = (g: string) => html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+    expect(bloc("recu-neutre")).toContain(esc("Accusé de réception neutre (quand l'e-mail n'a pas pu partir)"));
+    expect(bloc("pub-instagram")).toContain("Réponse publique au commentaire, Instagram");
+    expect(bloc("pub-instagram")).toContain("La validation ne vaut que pour Instagram.");
+    expect(bloc("recu-neutre")).not.toContain("ne vaut que pour");
+    for (const g of ["recu-neutre", "pub-instagram"] as const) {
+      expect(bloc(g).match(/data-formulation=/g), g).toHaveLength(2);
+      expect(bloc(g).match(/Valider cette formulation/g), g).toHaveLength(2);
+      for (const v of GROUPES_MP[g]) expect(bloc(g), v).toContain(esc(TEXTES_MP[v].texte));
+    }
   });
 });

@@ -257,6 +257,6 @@ describe("3 · écran /mots", () => {
       const bloc = html.split(`data-groupe="${g}"`)[1].split("data-groupe=")[0];
       expect(bloc, g).not.toContain("pas encore branché");
     }
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2 + 2);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2 + 2 + 2 + 2); // + recu-neutre (2) + pub-instagram (2)
   });
 });

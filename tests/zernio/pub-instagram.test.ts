@@ -23,7 +23,7 @@ const MS = await import("@/services/mots-service");
 const P1 = "mp-pub-ig-v1-1";
 const P2 = "mp-pub-ig-v1-2";
 const TEXTE_P1 = "Merci pour votre commentaire ! Je vous écris en message privé. Si votre compte est privé ou si vous ne suivez pas le compte, le message peut se trouver dans vos demandes de messages.";
-const TEXTE_P2 = "Merci ! Le guide arrive en message privé. Pour le voir plus facilement, vous pouvez suivre le compte ; sinon, regardez dans vos demandes de messages.";
+const TEXTE_P2 = "Merci ! Je vous écris en message privé. Pour le voir plus facilement, vous pouvez suivre le compte ; sinon, regardez dans vos demandes de messages.";
 const ANCIEN = rendreTexteMp("mp-pub-igfb-v1", {});
 const A = "auteur-fictif-400";
 let port: ReturnType<typeof fauxPort>;
@@ -84,17 +84,22 @@ describe("C3-b · réponse publique", () => {
     await passer();
     expect(port.pub[0].texte).toBe(TEXTE_P2);
   });
-  it("la formulation figée est gardée au réessai : pas de seconde réponse publique, même texte noté", async () => {
+  it("la formulation figée est gardée au réessai : un vrai échec d'envoi, puis un réessai avec le même texte noté", async () => {
     await validerFormulationsAuParcours(["mp-m1-v4-1", P1, P2]);
     await deposerCommentaire(depots, { reseau: "instagram" });
+    let n = 0;
+    port.reponses.pub = () => (++n < 2 ? { statut: "a_reessayer", code: "debit", reessayerApresSec: 1 } : { statut: "envoye", idMessage: "msg-pub-fictif" });
     await passer();
-    const premier = port.pub[0].texte;
+    expect(port.pub).toHaveLength(1); // premier envoi : échec
     const fige = (await etatDe())?.formulations?.["pub-instagram"];
     expect([P1, P2]).toContain(fige);
-    await passer(T0 + 60_000);
-    expect(port.pub).toHaveLength(1);
+    await passer(T0 + 60_000); // réessai
+    expect(port.pub).toHaveLength(2);
+    expect(port.pub[1].texte).toBe(port.pub[0].texte);
+    expect(port.pub[0].texte).toBe(fige === P1 ? TEXTE_P1 : TEXTE_P2);
     expect((await etatDe())?.formulations?.["pub-instagram"]).toBe(fige);
-    expect(premier).toBe(fige === P1 ? TEXTE_P1 : TEXTE_P2);
+    await passer(T0 + 120_000); // réussi : plus de nouvelle réponse
+    expect(port.pub).toHaveLength(2);
   });
   it("Facebook inchangé : une formulation pub-instagram validée ne change rien (mp-pub-igfb-v1)", async () => {
     await validerFormulationsAuParcours(["mp-m1-v4-1", P1, P2]);

@@ -61,6 +61,8 @@ const GROUPES_ECRAN: readonly (readonly [string, string])[] = [
   ["ig-pas-encore", "Instagram, la personne ne suit pas encore"],
   ["deja-envoye", "Déjà envoyé"],
   ["pub-commentaire", "Réponse publique au commentaire"],
+  ["recu-neutre", "Accusé de réception neutre (quand l'e-mail n'a pas pu partir)"],
+  ["pub-instagram", "Réponse publique au commentaire, Instagram"],
 ];
 /** Groupes proposés dont aucun envoi n'est encore branché (vide : « pub-commentaire » est branché sur Facebook). */
 const GROUPES_PAS_ENCORE_BRANCHES: ReadonlySet<string> = new Set([]);
@@ -69,6 +71,7 @@ const GROUPES_INSTAGRAM_ETEINTS: ReadonlySet<string> = new Set(["ig-suivre", "ig
 /** Groupes dont la validation ne vaut que pour un réseau : libellé propre à chacun. */
 const LIBELLES_RESEAU: Readonly<Record<string, string>> = {
   "pub-commentaire": "La validation ne vaut que pour Facebook (Instagram garde l’ancien texte). Elle change tout de suite la réponse publique du mot GUIDE en production.",
+  "pub-instagram": "La validation ne vaut que pour Instagram.",
 };
 /** Groupes du renvoi du mode « plusieurs mots » (tous réseaux) : libellé propre à chacun. */
 const LIBELLES_RENVOI: Readonly<Record<string, string>> = {

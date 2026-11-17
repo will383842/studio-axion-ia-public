@@ -386,7 +386,7 @@ describe("4 · écran /mots", () => {
       "lien-rappel",
     ])
       expect(html, g).toContain(`data-groupe="${g}"`);
-    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2 + 2);
+    expect(html.match(/Valider cette formulation/g)).toHaveLength(7 + 13 + 12 + 2 + 2 + 2 + 2); // + recu-neutre (2) + pub-instagram (2)
   });
 });
 
