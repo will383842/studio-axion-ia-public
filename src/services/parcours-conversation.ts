@@ -25,7 +25,7 @@ import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmp
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, FENETRE_ENVOI_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
 import { classerOpposition, exprimeUnRefus, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
-import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
+import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, limiteReponsesIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
 import { construireLienGuide, creerJetonLien, lireSecretLien, refConversationLien } from "@/domaine/guide-reseau/lien-guide";
 import { GROUPES_MP, rendreTexteMp, TEXTES_MP, type GroupeMp, type IdTexteMp, type ValeursTexteMp } from "@/domaine/guide-reseau/textes-mp";
@@ -1012,9 +1012,12 @@ const MESSAGE_IG_PAS_ENCORE_ABSENT = "Instagram : aucune formulation « pas enco
 const GARDES_DURABLES_PARCOURS: readonly string[] = ["mot_inactif", "validation_absente", "plusieurs_mots_eteint", "instagram_pas_encore", "essai_auteur_refuse", "ig_hors_essai"];
 const MESSAGE_IG_OK_NON_RECONNU = "Instagram : réponse non reconnue après la demande de suivre le compte : rien n'est parti.";
 const MESSAGE_IG_PLAFOND_PERSONNE = "Instagram : une personne a déjà reçu 3 messages en 24 h : le suivant attend ou est écarté, rien n'est parti.";
+const MESSAGE_IG_PLAFOND_REPONSES = "Instagram : une personne a déjà reçu 2 accusés ou messages d'adresse mal tapée en 24 h : le suivant attend ou est abandonné.";
 const MESSAGE_IG_A_VERIFIER = "Un message privé Instagram a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.";
 /** Plafond par personne (3 messages Instagram en 24 h), lu sur TOUT le dossier de la personne. */
 const plafondIg = async (cle: string, now: number): Promise<LimitePersonneIg> => limitePersonneIg((await lireDossier(racineDe(cle))).entrees.map((x) => x.etat), now);
+/** Borne des réponses (accusé + adresse mal tapée : 2 en 24 h), lue sur TOUT le dossier de la personne ; ces deux réponses ne comptent pas dans le plafond de 3. */
+const plafondReponsesIg = async (cle: string, now: number): Promise<LimitePersonneIg> => limiteReponsesIg((await lireDossier(racineDe(cle))).entrees.map((x) => x.etat), now);
 /** Plafond atteint : le message est-il encore servable à la reprise (la fenêtre de 23 h de Meta reste ouverte) ? Date illisible : non (jamais de report sans fin). */
 const encoreServable = (lim: LimitePersonneIg, activiteLe: string | null | undefined): boolean => {
   const a = Date.parse(activiteLe ?? "");
@@ -1994,14 +1997,14 @@ async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversat
   // Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h. Atteint : rien ne part ; reporté (« bloque ») si encore servable, sinon abandonné.
   const ig = igSuivre && etat.reseau === "instagram";
   if (ig) {
-    const lim = await plafondIg(cle, now);
+    const lim = await plafondReponsesIg(cle, now);
     if (lim.atteint) {
-      await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+      await alerter("ig_plafond_reponses", MESSAGE_IG_PLAFOND_REPONSES, now);
       if (lim.repriseMs !== null && encoreServable(lim, etatCourant.derniereActiviteLe)) {
-        await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_personne");
+        await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_reponses");
         return "bloque";
       }
-      await patcher(cle, { adresseRefuseeEnvoyee: true, dernierCode: "plafond_personne" });
+      await patcher(cle, { adresseRefuseeEnvoyee: true, dernierCode: "plafond_reponses" });
       return "fait";
     }
   }
@@ -2029,18 +2032,18 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
       await clore(ev, "termine", "hors_fenetre");
       return "traite";
     }
-    // Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h. Atteint : l'accusé ne part pas (reporté si encore servable, sinon le parcours se termine sans lui).
+    // Instagram (réglage allumé) : borne de 2 réponses (accusé + adresse mal tapée) par personne et par 24 h (hors plafond de 3). Atteinte : l'accusé ne part pas (reporté si encore servable, sinon le parcours se termine sans lui).
     const ig = igSuivre && etat.reseau === "instagram";
     if (ig) {
-      const lim = await plafondIg(cle, now);
+      const lim = await plafondReponsesIg(cle, now);
       if (lim.atteint) {
-        await alerter("ig_plafond_personne", MESSAGE_IG_PLAFOND_PERSONNE, now);
+        await alerter("ig_plafond_reponses", MESSAGE_IG_PLAFOND_REPONSES, now);
         if (lim.repriseMs !== null && encoreServable(lim, ((await lireEtat(cle)) ?? etat).derniereActiviteLe)) {
-          await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_personne");
+          await reporter(ev, now, Math.max(1000, lim.repriseMs - now), "plafond_reponses");
           return "traite";
         }
-        await patcher(cle, { etat: "termine", dernierCode: "plafond_personne" });
-        await clore(ev, "termine", "plafond_personne");
+        await patcher(cle, { etat: "termine", dernierCode: "plafond_reponses" });
+        await clore(ev, "termine", "plafond_reponses");
         return "traite";
       }
     }

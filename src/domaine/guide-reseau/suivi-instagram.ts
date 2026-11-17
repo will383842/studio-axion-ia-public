@@ -127,7 +127,7 @@ export function parcoursAServir<T extends { cle: string }>(
 }
 
 /* --- Plafond par personne ---------------------------------------------------------------------------------------------- */
-/** Messages Instagram au plus par personne et par 24 h : TOUS ceux envoyés à la personne (suivre le compte, « pas encore », lien, demande d'adresse d'une cible d'essai, merci, accusé, adresse refusée, M2). */
+/** Messages Instagram au plus par personne et par 24 h (notre plafond, pas celui d'Instagram) : suivre le compte, « pas encore », lien, demande d'adresse d'une cible d'essai, merci, M2. L'accusé de réception et le message « adresse mal tapée » n'y comptent PAS : ils ont leur propre borne (`PLAFOND_IG_REPONSES`). */
 export const PLAFOND_IG_PERSONNE = 3;
 const ETATS_ENVOI_INCERTAIN: readonly string[] = ["m1_en_vol", "m1_a_verifier", "ig_envoi_en_vol", "ig_a_verifier"];
 const FENETRE_PLAFOND_IG_MS = 24 * 3600_000;
@@ -153,9 +153,9 @@ type ParcoursPlafond = {
   merciLe?: string | null;
 };
 /**
- * Compte, sur TOUS les parcours Instagram du dossier, chaque message de moins de 24 h : `m1Le`, `pasEncoreLe`, `lienIgLe`, `adresseIgLe` (demande d'adresse d'une cible d'essai), `m2Le`, `adresseRefuseeLe`,
- * `accuseLe`, le merci (`merciEssaiLe`, à défaut `merciLe`) et tout essai d'issue inconnue (`essaiEnvoiLe`, QUEL QUE SOIT l'état, sauf pour un parcours qui porte
- * déjà une date de succès hors des états d'issue incertaine). Une date présente mais illisible compte comme un envoi à l'instant même (échec fermé). Atteint à `PLAFOND_IG_PERSONNE`.
+ * Compte, sur TOUS les parcours Instagram du dossier, chaque message de moins de 24 h : `m1Le`, `pasEncoreLe`, `lienIgLe`, `adresseIgLe` (demande d'adresse d'une cible d'essai), `m2Le`,
+ * le merci (`merciEssaiLe`, à défaut `merciLe`) et tout essai d'issue inconnue (`essaiEnvoiLe`, QUEL QUE SOIT l'état, sauf pour un parcours qui porte
+ * déjà une date de succès hors des états d'issue incertaine). `accuseLe` et `adresseRefuseeLe` ne sont PAS comptés ici (voir `limiteReponsesIg`). Une date présente mais illisible compte comme un envoi à l'instant même (échec fermé). Atteint à `PLAFOND_IG_PERSONNE`.
  * Un parcours d'un autre réseau n'est jamais compté.
  */
 export function limitePersonneIg(parcours: readonly ParcoursPlafond[], maintenantMs: number): LimitePersonneIg {
@@ -170,7 +170,7 @@ export function limitePersonneIg(parcours: readonly ParcoursPlafond[], maintenan
   for (const p of parcours) {
     if (typeof p.reseau === "string" && p.reseau !== "instagram") continue;
     const succes = [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.adresseIgLe].map((v) => (typeof v === "string" ? Date.parse(v) : NaN));
-    for (const v of [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.adresseIgLe, p.m2Le, p.adresseRefuseeLe, p.accuseLe]) ajouter(v);
+    for (const v of [p.m1Le, p.pasEncoreLe, p.lienIgLe, p.adresseIgLe, p.m2Le]) ajouter(v);
     ajouter(typeof p.merciEssaiLe === "string" ? p.merciEssaiLe : p.merciLe);
     // Essai d'issue inconnue ou interrompu (le message est peut-être parti sans date de succès) : compté à la date de l'essai (échec fermé), dans tous les états
     // (après `m1_a_verifier`, l'état peut avoir changé). Seul un parcours qui porte déjà une date de succès hors des états d'issue incertaine ne compte pas deux fois.
@@ -189,4 +189,25 @@ export function limitePersonneIg(parcours: readonly ParcoursPlafond[], maintenan
   const nombre = dates.length;
   if (nombre < PLAFOND_IG_PERSONNE) return { nombre, atteint: false, repriseMs: null };
   return { nombre, atteint: true, repriseMs: dates[nombre - PLAFOND_IG_PERSONNE] + FENETRE_PLAFOND_IG_MS };
+}
+
+/* --- Borne des réponses (accusé de réception + adresse mal tapée) ------------------------------------------------------ */
+/** Borne dure : au plus 2 réponses (`accuseLe` + `adresseRefuseeLe`) par personne et par 24 h, tous parcours Instagram confondus. Ces deux réponses ne comptent pas dans `PLAFOND_IG_PERSONNE`. */
+export const PLAFOND_IG_REPONSES = 2;
+/** Compte les `accuseLe` et `adresseRefuseeLe` de moins de 24 h de tous les parcours Instagram (un autre réseau est ignoré). Date illisible : envoi à l'instant (échec fermé). Atteint à `PLAFOND_IG_REPONSES`. */
+export function limiteReponsesIg(parcours: readonly ParcoursPlafond[], maintenantMs: number): LimitePersonneIg {
+  const dates: number[] = [];
+  for (const p of parcours) {
+    if (typeof p.reseau === "string" && p.reseau !== "instagram") continue;
+    for (const v of [p.accuseLe, p.adresseRefuseeLe]) {
+      if (typeof v !== "string") continue;
+      const t = Date.parse(v);
+      const quand = Number.isNaN(t) ? maintenantMs : t;
+      if (maintenantMs - quand < FENETRE_PLAFOND_IG_MS) dates.push(quand);
+    }
+  }
+  dates.sort((a, b) => a - b);
+  const nombre = dates.length;
+  if (nombre < PLAFOND_IG_REPONSES) return { nombre, atteint: false, repriseMs: null };
+  return { nombre, atteint: true, repriseMs: dates[nombre - PLAFOND_IG_REPONSES] + FENETRE_PLAFOND_IG_MS };
 }

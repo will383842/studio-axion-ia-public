@@ -174,14 +174,16 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     expect((await evt(e)).etat).toBe("a_reessayer");
   });
 
-  it("accusé de réception : atteint, rien ne part, parcours terminé (plafond_personne)", async () => {
+  it("accusé de réception : 3 relances déjà comptées, l'accusé part quand même (hors plafond de 3), parcours terminé", async () => {
     await troisRecents();
     banc.port.reponses.texte = () => "a@exemple.test";
     const e = await message("msg-adresse-1");
     await pass(T1);
-    expect(envois).toHaveLength(0);
-    expect(await evt(e)).toMatchObject({ dernierCode: "plafond_personne" });
-    expect((await parcours())[0][1].etat).toBe("termine");
+    expect(envois).toHaveLength(1);
+    expect((await evt(e)).dernierCode).toBeNull();
+    const c = (await parcours())[0][1];
+    expect(c.etat).toBe("termine");
+    expect(typeof c.accuseLe).toBe("string");
   });
 
   it("accusé de réception : sous le plafond, il part et sa date est écrite (accuseLe), jamais undefined", async () => {
@@ -195,8 +197,46 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     for (const v of Object.values(c)) expect(v).not.toBeUndefined();
   });
 
-  it("adresse refusée par le site (422) : atteint, le message « vérifiez votre adresse » ne part pas", async () => {
+  it("adresse refusée par le site (422) : 3 relances déjà comptées, le message « vérifiez votre adresse » part quand même (hors plafond de 3)", async () => {
     await troisRecents();
+    banc.site.reponses = () => ({ statut: 422, corps: {} });
+    banc.port.reponses.texte = () => "a@exemple.test";
+    await message("msg-adresse-1");
+    await pass(T1);
+    expect(envois).toHaveLength(1);
+  });
+
+  const deuxReponsesRecentes = async (a: number, b: number) => {
+    await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 100_000) });
+    await semer("2", "termine", { accuseLe: iso(T0 - a) });
+    await semer("3", "termine", { adresseRefuseeLe: iso(T0 - b) });
+  };
+
+  it("B4 · borne des réponses atteinte : l'adresse est transmise au site, l'accusé ne part pas, parcours terminé (plafond_reponses)", async () => {
+    await deuxReponsesRecentes(100_000, 90_000);
+    banc.port.reponses.texte = () => "a@exemple.test";
+    const e = await message("msg-adresse-1");
+    await pass(T1);
+    expect(banc.site.vus.length).toBeGreaterThan(0);
+    expect(envois).toHaveLength(0);
+    const c = (await parcours()).find(([, x]) => x.guide === "guide-ia")![1];
+    expect(c.etat).toBe("termine");
+    expect(await evt(e)).toMatchObject({ dernierCode: "plafond_reponses" });
+  });
+
+  it("B4 · borne atteinte mais encore servable à la reprise : événement a_reessayer", async () => {
+    await deuxReponsesRecentes(5 * H, 4 * H);
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, Object.fromEntries(Object.entries(await toutesLesConversations()).map(([k, v]: [string, any]) => [k, v.guide === "guide-ia" ? { ...v, derniereActiviteLe: iso(T0) } : v])));
+    banc.port.reponses.texte = () => "a@exemple.test";
+    const e = await message("msg-adresse-1");
+    await pass(T1);
+    expect(envois).toHaveLength(0);
+    expect((await evt(e)).etat).toBe("a_reessayer");
+    expect((await evt(e)).dernierCode).toBe("plafond_reponses");
+  });
+
+  it("B5 · même borne pour un 422 : le message « adresse mal tapée » ne part pas", async () => {
+    await deuxReponsesRecentes(100_000, 90_000);
     banc.site.reponses = () => ({ statut: 422, corps: {} });
     banc.port.reponses.texte = () => "a@exemple.test";
     await message("msg-adresse-1");
