@@ -130,6 +130,9 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "casConcret.releves", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
   { cle: "retoucheSegments.liberer", etat: "eteint", appel: "src/components/videos/fiche/LibererPlace.tsx", motif: /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) !== true/, aussi: [["src/components/videos/fiche/actions-liberer.ts", /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) === true/]] },
   { cle: "demoFacecam.reel", etat: "eteint", appel: "src/services/entrees-demo-facecam.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE_DEMO_REEL, false\)\) === true/ },
+  { cle: "bibliothequeVideo.archive.inscription", etat: "eteint", appel: "src/services/archive-extraits.ts", motif: /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) !== true/, aussi: [["src/app/(studio)/bibliotheque/source-extraits/page.tsx", /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) === true/], ["src/services/extraits-de-la-video.ts", /archive = await lire\(REGLAGE_INSCRIPTION, false\);[\s\S]*?if \(archive !== true\) return eteint;/]] },
+  { cle: "bibliothequeVideo.archive.effacerFicheASuppression", etat: "eteint", appel: "src/services/suppression-video.ts", motif: /lireParametre<unknown>\(REGLAGE_EFFACER_FICHE_EXTRAITS, false\)\) === true/ },
+  { cle: "avocat.bandeauNom", etat: "eteint", appel: "src/services/bandeau-nom.ts", motif: /lireParametre<unknown>\(PARAM_BANDEAU_AVOCAT, false\)\) !== true/ },
   { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
   { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
   // Montage avocat (voisin de zone interdite) : lecture du texte seulement, jamais d'import.
@@ -273,10 +276,13 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "credits.lancementPret.*": "dedoublonnage",
   "credits.rapprochement.*": "dedoublonnage",
   "credits.test.*": "dedoublonnage",
+  "parcours.alertes_refus": "dedoublonnage", // marques « alerte déjà envoyée » des refus de messages privés
   "a_traiter.cartes": "memoire",
   "a_traiter.copies": "memoire",
   "auth.empreinteB64": "memoire",
   "bases.empreinte": "memoire",
+  "bibliothequeVideo.archive.dernierPassage": "memoire",
+  "bibliothequeVideo.archive.examinees": "memoire",
   "budget.engages": "memoire",
   "buffer.canaux": "memoire",
   "buffer.correspondance": "memoire",
@@ -312,6 +318,8 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "guides.reconciliation": "memoire",
   "idees.comite.dernierEnvoi": "memoire",
   "idees.comite.lot": "memoire",
+  "infographies.fiche.*": "memoire",
+  "infographies.index": "memoire",
   "illustrations.compteurVideos": "memoire",
   "imageVideo.cartesValidees": "memoire",
   "imageVideo.lots": "memoire",
@@ -352,6 +360,9 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "zernio.mode_envoi": "memoire",
   "zernio.tests": "memoire",
   "buffer.mode": "valeur",
+  "bibliothequeVideo.archive.cochees": "valeur", // liste d'identifiants de vidéos cochées
+  "bibliothequeVideo.archive.sources": "valeur", // choix « pretes » | « cochees » | « publiees », défaut null → politique du code
+  "casConcret.cameraPlus": "valeur", // nombre : lireCameraPlus rend undefined si absent ou ≤ 1,035
   "cadence.reglages": "valeur",
   "claude.plafondKitUsd": "valeur",
   "claude.plafondMensuelUsd": "valeur",
@@ -379,6 +390,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
 const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/(studio)/carrousels/[id]/actions.ts:cle": { exclu: "memoire" },
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
+  "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
   "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
   "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },
   "app/api/usine/visuels/route.ts:`${PREFIXE_COMMANDE}${cle}`": { exclu: "dedoublonnage" },
@@ -407,6 +419,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/boucle-generation.ts:cleBrouillonDeVersion(varianteId)": { exclu: "memoire" },
   "services/boucle.ts:cleLectureEnVol(t.id)": { exclu: "memoire" },
   "services/boucle.ts:cleLectureEnVol(lu.travail.id)": { exclu: "memoire" },
+  "services/branchement-envoi-calendrier.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" }, // états de promotion « envoi-calendrier:* »
   "services/bibliotheque-video.ts:cle": { couvre: "bibliothequeVideo.*" }, // cleReglageBibliotheque(formatId)
   "services/budget-mensuel.ts:cleBudgetUsine(mois)": { exclu: "valeur" },
   "services/budget-mensuel.ts:cle": { exclu: "dedoublonnage" },
@@ -421,9 +434,12 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/credits.ts:cle": { exclu: "dedoublonnage" },
   "services/decors.ts:cleLot(id)": { exclu: "memoire" },
   "services/depense-claude-video.ts:p.parametre": { couvre: "facecamAnimee.plafondVideosUsd" },
+  "services/dosage-motion-defauts.ts:id": { exclu: "relais" }, // passe-plat vers defautsLus/dosageActif (briques/dosage-motion/reglage.ts : dosageMotion.defauts valeur, dosageMotion.actif `=== true` défaut false)
+  "services/dosage-motion.ts:id": { exclu: "relais" }, // idem
   "services/effet-realiste-ia.ts:PARAM_RESULTATS(d.videoId)": { exclu: "memoire" },
   "services/effet-realiste-ia.ts:PARAM_RESULTATS(videoId)": { exclu: "memoire" },
   "services/express.ts:cleDecorHabituel(formatId)": { exclu: "valeur" },
+  "services/extraits-de-la-video.ts:id": { exclu: "relais" }, // passe-plat vers lire(REGLAGE_INSCRIPTION…) (couvert, bibliothequeVideo.archive.inscription) et lireNoteInteret
   "services/fabrication-reseaux.ts:cleOperation(options.operationId)": { exclu: "dedoublonnage" },
   "services/fabrication-reseaux.ts:cle": { exclu: "dedoublonnage" },
   "services/fabrication-reseaux.ts:cleDebit(video.formatId)": { exclu: "memoire" },
