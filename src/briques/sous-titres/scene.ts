@@ -11,7 +11,7 @@ import { PAVE } from "./pave";
 import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
 import { ETIQUETTE, ETIQUETTE_AUTONOME, type EtiquetteOutilPosee } from "./noms-outils";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
-import type { StylePastille } from "./pastille";
+import { pastilleEnManrope, type StylePastille } from "./pastille";
 import type { CibleMarqueurRendu, GabaritRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
 
 export interface DonneesCalque {
@@ -362,13 +362,15 @@ function suitUnGroupe(segments: SegmentSousTitres[], s: SegmentSousTitres): bool
  */
 function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitres, t: number): ElementDessine {
   const g = GABARITS[d.base];
+  // C2-U14 : éteint, la police du gabarit (comme avant) ; allumé, Manrope Bold pour la mesure comme pour le dessin.
+  const police: NomPolice = pastilleEnManrope(p) ? "Manrope Bold" : g.police;
   const e = echelleDe(d);
   const margeXPx = p.margeX * 1080 * e;
   const margeYPx = p.margeY * 1080 * e;
   const options = { majuscules: false, chiffresTabulaires: true, espaceMotsEm: p.espaceMotsEm };
   const libre = d.echelleTexte !== undefined ? d.largeurMaxPx : d.largeurMaxPx * e;
   const voulue = p.taillePx * (d.tailleRelative ?? 1) * e;
-  const taillePx = Math.max(p.tailleMinPx * e, tailleQuiTient(s.mots.map((m) => m.mot), g.police, voulue, libre - 2 * margeXPx, options));
+  const taillePx = Math.max(p.tailleMinPx * e, tailleQuiTient(s.mots.map((m) => m.mot), police, voulue, libre - 2 * margeXPx, options));
   const arrivee = p.arriveeMotMs / 1000;
   const mots: MotDessine[] = s.mots.map((m, k) => {
     const fin = s.mots[k + 1]?.debutSec ?? Math.max(m.finSec, s.finSec);
@@ -376,14 +378,14 @@ function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitre
     // Monte à l'arrivée du mot, redescend pendant l'arrivée du suivant (aucun saut d'une image à l'autre).
     const u = t < m.debutSec ? 0 : t < fin ? douce((t - m.debutSec) / arrivee) : 1 - douce((t - fin) / arrivee);
     // Le grossissement ne mange jamais l'espace entre deux mots : au plus `debordMotDitEm` de chaque côté (mot long).
-    const zoom = Math.min(p.zoomMotDit, 1 + (2 * p.debordMotDitEm * taillePx) / Math.max(1, largeurMot(m.mot, g.police, taillePx, options)));
+    const zoom = Math.min(p.zoomMotDit, 1 + (2 * p.debordMotDitEm * taillePx) / Math.max(1, largeurMot(m.mot, police, taillePx, options)));
     return { texte: m.mot, couleur: dit ? p.motDit : p.texte, opacite: 1, souligne: 0, echelle: 1 + (zoom - 1) * u, monteePx: -p.monteeMotDitEm * taillePx * u };
   });
   const o = p.ombre;
   return {
     cle: s.id,
     gabarit: g,
-    police: g.police,
+    police,
     taillePx,
     yPx: (centrePct(d, "auto", t, s.debutSec) / 100) * d.hauteur,
     rotationDeg: 0,
