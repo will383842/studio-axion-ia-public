@@ -741,6 +741,8 @@ export interface StylesChoisis {
   intensite?: NiveauIntensite;
   /** Bruitages de la vidéo : « discrets » ou « aucun » (tuile Style). Absent : le défaut du format. */
   bruitages?: ReglageBruitages;
+  /** X3-03 (ajout pur) : cran de dosage de l'animation choisi pour cette vidéo. Absent : défaut du générateur. */
+  dosageMotion?: import("@/briques/dosage-motion/types").DosageMotion;
 }
 
 export interface Video extends EntiteBase {
@@ -1834,6 +1836,8 @@ export interface CommandeFabrication {
    * `briques/intensite/reglage.ts`). Absent (commande plus ancienne) : « equilibre », aucun bruitage.
    */
   intensite?: { niveau: NiveauIntensite; bruitages: ReglageBruitages };
+  /** X3-03 (ajout pur) : cran de dosage figé au lancement. Absent : dosage éteint. */
+  dosageMotion?: { cran: import("@/briques/dosage-motion/types").DosageMotion; choisiPar: "video" | "generateur" | "code" };
   /**
    * Lot « bruitages » (02/10, ajout pur) : les sons que le moteur PEUT poser (validés par Will, réglage « discrets »),
    * résolus par le service (`bruitagesDeLaCommande`) ; leurs fichiers sont dans `medias`. Vide ou absent : aucun son.

@@ -2,3 +2,4 @@
 export * from "./types";
 export * from "./crans";
 export * from "./reglage";
+export * from "./commande";
