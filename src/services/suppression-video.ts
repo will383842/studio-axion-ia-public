@@ -18,7 +18,7 @@ import type { Depot, Depots, LotEcritures } from "@/domaine/depots";
 import type { Fichier, Id, Parametre, Video } from "@/domaine/types";
 import { additionner, formaterMontant } from "@/lib/montants";
 import { appliquerLot, bailTenu, oublierBailExpire } from "@/donnees/memoire";
-import { depots, fournisseur, horodatage, maintenant } from "./_commun";
+import { depots, fournisseur, horodatage, lireParametre, maintenant } from "./_commun";
 import { nouvelId } from "@/lib/ids";
 import { CLE_CODES_SUPPRIMES } from "./partages";
 import { tacheDe, tachesEnCours } from "./tableau-taches";
@@ -251,6 +251,18 @@ export interface PlanSuppression {
   totalDepense: string;
 }
 
+/** Réglage (éteint par défaut, seul `true` allume) : la fiche d'extraits part avec sa vidéo (P-7). */
+export const REGLAGE_EFFACER_FICHE_EXTRAITS = "bibliothequeVideo.archive.effacerFicheASuppression";
+
+/** Vrai seulement avec une session de Williams : la purge de fond de la corbeille (30 jours) tourne sans session et n'efface jamais la fiche. */
+async function suppressionDecideeParWilliams(): Promise<boolean> {
+  try {
+    return !!(await (await import("./auth")).lireSession());
+  } catch {
+    return false;
+  }
+}
+
 export async function planifierSuppression(video: Video): Promise<PlanSuppression> {
   const d = depots();
   const id = video.id;
@@ -367,7 +379,9 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
     reecrire("elements", { ...e, derniereVideoId: undefined, modifieLe: maintenant() } as unknown as Doc);
   }
   // P-7 : la fiche d'extraits de la vidéo est effacée et non détachée (elle contient ses paroles) ; l'id quitte `famille` des autres.
-  for (const e of await d.elements.lister((x) => x.valeur.type === "source-extraits")) {
+  // Seulement réglage allumé ET suppression décidée par Williams (session) : jamais par la purge automatique de la corbeille.
+  const effacerFiche = (await lireParametre<unknown>(REGLAGE_EFFACER_FICHE_EXTRAITS, false)) === true && (await suppressionDecideeParWilliams());
+  for (const e of effacerFiche ? await d.elements.lister((x) => x.valeur.type === "source-extraits") : []) {
     const f = e.valeur.type === "source-extraits" ? e.valeur.fiche : null;
     if (!f || (f.videoId !== id && !f.famille.includes(id))) continue;
     const cle = `elements/${e.id}`, deja = reecrit.get(cle) as typeof e | undefined;
