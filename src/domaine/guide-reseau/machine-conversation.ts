@@ -265,7 +265,8 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
     case "texte": {
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
-      // Instagram « suivre le compte puis OK » : liste FERMÉE de OK. Tout autre message (sans opposition ni doute) : rien ne part (le service décide, rien ne part ici).
+      // Instagram « suivre le compte puis OK » : liste FERMÉE de OK, plus une exception : un message qui contient une adresse, sans refus (`adresseVautOk`, posé par le service quand une cible d'essai attend son OK), vaut un OK ; le service filtre alors les parcours aux seules cibles d'essai.
+      // Tout autre message (sans opposition ni doute) : « ig_non_reconnu », rien ne part ici (le service décide de l'alerte et de la clôture).
       if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true || (ev.adresseVautOk === true && ev.adresse !== null) ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
       // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.

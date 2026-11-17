@@ -36,6 +36,12 @@ describe("B2 · limiteReponsesIg", () => {
     expect(r.atteint).toBe(true);
     expect(r.repriseMs).toBe(T0 - 3 * H + 24 * H);
   });
+  it("C4 · TROIS dates (-1 h, -5 h, -3 h, données non triées) → 3, atteint, reprise à dates triées[nombre - 2] = -3 h + 24 h (la 2e plus récente, pas la plus ancienne)", () => {
+    const r = limiteReponsesIg([conv({ accuseLe: iso(T0 - H), adresseRefuseeLe: iso(T0 - 5 * H) }), conv({ accuseLe: iso(T0 - 3 * H) })], T0);
+    expect(r.nombre).toBe(3);
+    expect(r.atteint).toBe(true);
+    expect(r.repriseMs).toBe(T0 - 3 * H + 24 * H);
+  });
   it("24 h pile → 0", () => {
     expect(limiteReponsesIg([conv({ accuseLe: iso(T0 - 24 * H), adresseRefuseeLe: iso(T0 - 24 * H) })], T0).nombre).toBe(0);
   });

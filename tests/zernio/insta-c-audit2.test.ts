@@ -124,14 +124,14 @@ describe("V1 · un « Stop » plus ancien, pas encore lu, gagne sur un OK plus r
 describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins", () => {
   const catalogue = () => {
     etat.catalogue = {
-      catalogue: ["guide-ia", "gde-a", "gde-b", "gde-c"].map((code) => ({ code, type: "guide", titre: `Titre ${code}`, actif: true, test: false })),
-      liaisons: [["DEUX", "gde-b"], ["TROIS", "gde-c"]].map(([mot, codeCible]) => ({ mot, reseau: "tous", codeCible, actif: true })),
+      catalogue: ["guide-ia", "gde-a", "gde-b", "gde-c", "gde-d"].map((code) => ({ code, type: "guide", titre: `Titre ${code}`, actif: true, test: false })),
+      liaisons: [["DEUX", "gde-b"], ["TROIS", "gde-c"], ["QUATRE", "gde-d"]].map(([mot, codeCible]) => ({ mot, reseau: "tous", codeCible, actif: true })),
       luLe: T0, ignores: 0, depuisCopie: false,
     };
   };
   it("m1_a_verifier puis adresse puis 2 autres mots : au plus 3 relances comptées, le reçu s'ajoute (hors plafond)", async () => {
     catalogue();
-    await REG_MOTS(["GUIDE", "DEUX", "TROIS"]);
+    await REG_MOTS(["GUIDE", "DEUX", "TROIS", "QUATRE"]);
     await semer("1", "m1_a_verifier", { versionTexteM1: "mp-m1-v4-1", formulations: {}, guide: "guide-ia", essaiEnvoiLe: iso(T0 - 2 * H) }, ["m1Le"]);
     banc.port.reponses.texte = () => "a@exemple.test";
     await message("msg-adresse-1");
@@ -142,6 +142,9 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     await pass(T1 + 60_000);
     const e3 = await deposerCommentaire(depots, { idCommentaire: "com-ig-3", motSeul: "TROIS", reseau: "instagram" });
     await pass(T1 + 120_000);
+    // 4e mot : le plafond de 3 est atteint (m1 + 2 relances), le message est écarté en plafond_personne (le test garde sa force d'avant l'ajout du reçu hors plafond).
+    const e4 = await deposerCommentaire(depots, { idCommentaire: "com-ig-4", motSeul: "QUATRE", reseau: "instagram" });
+    await pass(T1 + 180_000);
     // Relances comptées : 1 (m1 d'issue inconnue, déjà parti) + « suivre le compte » du 2e mot (1)
     // + « suivre le compte » du 3e mot (1) = 3, jamais plus. Le reçu de l'adresse (1) est hors plafond :
     // il s'ajoute (3 messages envoyés ici : 1 reçu + 2 privés, hors le m1 déjà parti).
@@ -152,6 +155,7 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     expect((await evt(e2)).etat).toBe("ig_attente_ok");
     expect((await evt(e3)).etat).toBe("ig_attente_ok");
     expect((await evt(e3)).dernierCode).toBeNull(); // le 3e mot part (3e relance comptée) : il n'est plus écarté
+    expect(JSON.stringify(await evt(e4))).toContain("plafond_personne"); // le 4e mot : plafond atteint, rien ne part
   });
 
   const troisRecents = (extra: Record<string, unknown> = {}) => semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 100_000), pasEncoreLe: iso(T0 - 90_000), lienIgLe: iso(T0 - 80_000), ...extra });
@@ -212,8 +216,9 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
 
   const deuxReponsesRecentes = async (a: number, b: number) => {
     await semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 100_000) });
-    await semer("2", "termine", { accuseLe: iso(T0 - a) });
-    await semer("3", "termine", { adresseRefuseeLe: iso(T0 - b) });
+    // Sans m1Le (parcours 2 et 3) : seul le parcours 1 compte dans le plafond de 3 ; seule la borne des réponses peut donc retenir le message (rougit si `prevenirAdresseRefusee` revient à `plafondIg`).
+    await semer("2", "termine", { accuseLe: iso(T0 - a) }, ["m1Le"]);
+    await semer("3", "termine", { adresseRefuseeLe: iso(T0 - b) }, ["m1Le"]);
   };
 
   it("B4 · borne des réponses atteinte : l'adresse est transmise au site, l'accusé ne part pas, parcours terminé (plafond_reponses)", async () => {

@@ -5,10 +5,11 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { limitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { CHEMIN_GUIDE } from "./aides/oppositions";
 import { ADRESSE_FICTIVE, deposerCommentaire as deposerCommentaireAide, deposerMessage as deposerMessageAide, evenement, validerFormulationsAuParcours } from "./aides/conversation";
-import { AUTEUR, banc, Com, COMPTE, depots, ENV, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
+import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 
 const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown, panneEssai: false, pannes: 0, lieux: [] as string[], lectures: 0, course: false }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -162,7 +163,7 @@ describe("Interblocage de deux messages rapprochés : au plus 2 reports, plus de
     expect(await nbBloques()).toBe(0);
   });
 
-  it("C15d · deux messages de même recuLe : départés par ev.id, un seul envoi (idMessageOk = le message de plus petit ev.id)", async () => {
+  it("C15d · deux messages de même recuLe : départés par ev.id, un seul v6-1 (le second OK reçoit l'accusé ; idMessageOk = le message de plus petit ev.id)", async () => {
     await apresIgSuivre();
     lectures({ "msg-ok-a": "OK", "msg-ok-b": "OK" });
     const ea = await msg("msg-ok-a", 5000);
@@ -207,7 +208,7 @@ describe("Interblocage de deux messages rapprochés : au plus 2 reports, plus de
     expect(await conv()).toMatchObject({ etat: "oppose" });
   });
 
-  it("C15g · un second OK (reçu plus tôt) arrive pendant la lecture du suivi : le report du second site pose aussi la marque ; un seul envoi dès le passage suivant", async () => {
+  it("C15g · un second OK (reçu plus tôt) arrive pendant la lecture du suivi : le report du second site pose aussi la marque ; un seul v6-1 dès le passage suivant", async () => {
     await apresIgSuivre();
     lectures({ "msg-ok": "OK", "msg-ok-tot": "OK" });
     await msg("msg-ok", 6000);
@@ -258,4 +259,72 @@ describe("autreMessageBloque (fonction pure)", () => {
     expect(PC.autreMessageBloque(ev("evf-1", "illisible"), ev("evf-2", "illisible", true))).toBe(false);
     expect(PC.autreMessageBloque(ev("evf-2", "illisible"), ev("evf-1", "illisible", true))).toBe(true);
   });
+});
+
+describe("Pannes et trois messages : le garde-fou du STOP non lu et la panne du catalogue (B3, B4)", () => {
+  it("B3 · panne du catalogue, deux messages (adresse reportée catalogue_illisible, puis OK) : rien ne part pendant la panne, pas d'interblocage ; au retour du catalogue tout repart (un seul v6-1)", async () => {
+    await apresIgSuivre();
+    // Drapeau figé retiré : l'essai n'est plus « prouvé » que par la lecture du catalogue (le statut devient « supposé » en panne).
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, Object.fromEntries(Object.entries(await toutesLesConversations()).map(([k, v]: [string, any]) => [k, { ...v, cibleEssai: undefined }])));
+    lectures({ "msg-adr": ADR, "msg-ok": "OK" });
+    site.panneEssai = true;
+    const ea = await msg("msg-adr", 5000);
+    await msg("msg-ok", 6000);
+    for (const d of [T1, T1 + 61_000, T1 + 122_000]) await pass(d);
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(demandes()).toHaveLength(0);
+    expect((await evenement(depots, ea)).charge).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    site.panneEssai = false;
+    for (const d of [T1 + 10 * M, T1 + 11 * M, T1 + 12 * M, T1 + 13 * M]) await pass(d);
+    expect(envoyesV61()).toHaveLength(1);
+    expect(await conv()).toMatchObject({ idMessageOk: "msg-adr" });
+    expect(await nbBloques()).toBe(0);
+    const restants = await depots().evenementsFournisseurs.lister((x: any) => x.traite === false);
+    expect(restants).toHaveLength(0);
+  });
+
+  it("B4 · trois messages : OK courant + OK marqué postérieur + STOP illisible non marqué : 0 envoi tant que le STOP n'est pas lisible ; une fois lu, opposition et toujours 0 envoi", async () => {
+    await apresIgSuivre();
+    lectures({ "msg-ok-1": "OK", "msg-ok-2": "OK", "msg-stop": "STOP" });
+    illisibles.add("msg-stop");
+    await msg("msg-stop", 4000);
+    await msg("msg-ok-1", 5000);
+    await msg("msg-ok-2", 6000);
+    for (const d of [T1, T1 + 61_000, T1 + 122_000, T1 + 183_000, T1 + 244_000]) await pass(d);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(demandes()).toHaveLength(0);
+    illisibles.clear();
+    for (const d of [T1 + 10 * M, T1 + 20 * M, T1 + 40 * M, T1 + 80 * M, T1 + 160 * M]) await pass(d);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(demandes()).toHaveLength(0);
+    expect(await conv()).toMatchObject({ etat: "oppose" });
+  });
+});
+
+describe("B1 · accusé « adresse non reconnue » au OK qui suit une adresse : place dans le plafond de 3 par personne (constat de la PR #923, N1)", () => {
+  it("B1 · adresse, OK (accusé), adresse renvoyée : l'accusé « non reconnue » (m2Le) occupe la 3e place du plafond de 3 (m1Le, adresseIgLe, m2Le), mais l'accusé de réception part (sa borne est à part) et la demande part au site", async () => {
+    await apresIgSuivre();
+    lectures({ "msg-adr": ADR, "msg-ok": "OK", "msg-adr-2": ADR2 });
+    await msg("msg-adr", 5000);
+    await msg("msg-ok", 6000);
+    await passagesJusqua2Min();
+    expect(banc.port.envoyes).toHaveLength(2); // v6-1 puis accusé « adresse non reconnue »
+    const apresOk = await conv();
+    expect(typeof apresOk.m1Le).toBe("string");
+    expect(typeof apresOk.adresseIgLe).toBe("string");
+    expect(typeof apresOk.m2Le).toBe("string");
+    expect(limitePersonneIg([apresOk], T1 + 2 * M)).toMatchObject({ nombre: 3, atteint: true });
+    await msg("msg-adr-2", 7000);
+    for (const d of [T1 + 10 * M, T1 + 11 * M, T1 + 12 * M]) await pass(d);
+    expect(demandes()).toHaveLength(1);
+    expect(demandes()[0].corps).toContain(ADRESSE_CORRIGEE);
+    const e = banc.port.envoyes as Array<{ texte: string }>;
+    expect(e).toHaveLength(3); // + l'accusé de réception : le plafond de 3 ne le retient pas
+    expect(e[2].texte).toMatch(/Message automatique envoyé par Axion IA/);
+    expect((await conv()).etat).toBe("termine");
+  });
+  // Constat : le merci (étape « g bis », plafondIg) serait retenu dans ce même dossier, puisque le plafond de 3 est atteint (m1Le + adresseIgLe + m2Le). Décision de comportement
+  // (l'accusé « non reconnue » devrait-il compter dans le plafond de 3 ?) : à prendre par le fondateur, rien n'est changé ici.
+  it.todo("B1 · merci après adresse + OK (m1Le, adresseIgLe, m2Le = 3 messages) : retenu par le plafond de 3 (plafond_personne) ; à trancher : l'accusé « non reconnue » doit-il compter ?");
 });
