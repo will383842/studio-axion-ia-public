@@ -30,6 +30,31 @@ export interface ProprietesExtraitsGardes {
 }
 
 /** Note en mots : 80 et plus « très utile », 60 et plus « utile », sinon « peut-être ». */
+/** Raisons de la note (codes de `noter.ts`) en phrases simples. Un code inconnu n'est jamais affiché tel quel. */
+export const RAISON_EN_CLAIR: Readonly<Record<string, string>> = {
+  interface: "on voit l'écran du logiciel",
+  chiffre: "un chiffre est visible",
+  demarche: "on voit une démarche pas à pas",
+  geste: "on voit un geste",
+  texte: "du texte à l'écran",
+  visage: "un visage à l'écran",
+  inconnu: "contenu pas très clair",
+  "source-propre": "image propre, sans visage ni texte incrusté",
+  "texte-incruste": "du texte est incrusté dans l'image",
+  "sujet-reconnu": "le sujet est reconnu",
+  "sujet-absent": "le sujet n'est pas reconnu",
+  fait: "un fait précis est annoncé",
+  "mot-cle": "le mot-clé de la vidéo est dit",
+  "phrase-creuse": "phrase un peu creuse",
+  duree: "durée idéale (3 à 6 secondes)",
+  "exclu-droit": "exclu : on n'a pas le droit de l'utiliser",
+};
+
+export function raisonsEnClair(raisons: readonly { code: string }[] | undefined): string {
+  const phrases = (raisons ?? []).map((r) => RAISON_EN_CLAIR[r.code] ?? "autre critère");
+  return [...new Set(phrases)].join(", ");
+}
+
 export function motsDeNote(note: number): string {
   if (note >= 80) return "très utile";
   if (note >= 60) return "utile";
@@ -91,7 +116,7 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
     );
 
   return (
-    <section className="grid gap-4 font-[family-name:var(--font-manrope)]" aria-label="Extraits gardés">
+    <section className="grid gap-4 font-texte" aria-label="Extraits gardés">
       <p className="rounded-carte border border-trait-fort bg-surface-2 p-3 text-sm text-texte">Le Studio trie tout seul. Vous pouvez corriger si vous le souhaitez.</p>
 
       <div role="tablist" className="flex flex-wrap gap-2">
@@ -136,7 +161,7 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
                 </div>
                 <p className="text-sm text-texte">{plage.texte}</p>
                 {(plage.raisonsNote?.length ?? 0) > 0 && (
-                  <p className="text-xs text-texte-faible">{plage.raisonsNote?.map((r) => r.code).join(", ")}</p>
+                  <p className="text-xs text-texte-faible">{raisonsEnClair(plage.raisonsNote)}</p>
                 )}
                 <p className="text-xs text-texte-faible">
                   {plage.sujet ? `${libelleSujet(plage.sujet as SujetExtrait)} · ` : ""}

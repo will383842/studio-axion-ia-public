@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { FicheSourceExtraits, PlageExtrait } from "@/domaine/archive-extraits";
-import { ExtraitsGardes, motsDeNote } from "@/components/bibliotheque/ExtraitsGardes";
+import { ExtraitsGardes, motsDeNote, raisonsEnClair, RAISON_EN_CLAIR } from "@/components/bibliotheque/ExtraitsGardes";
 
 const plage = (id: string, note?: number): PlageExtrait => ({
   id, debutSec: 10, finSec: 20, texte: `texte ${id}`, motsCles: [], avecVisage: false, texteIncruste: false, etat: "utilisable",
@@ -80,5 +80,19 @@ describe("ExtraitsGardes", () => {
   });
   it("pas de couleur en dur", () => {
     expect(rendre({ fiches: [fiche([85])] })).not.toMatch(/#[0-9a-f]{3,8}\b|orange/i);
+  });
+
+  it("raisons en clair : vrais codes de noter.ts, aucun code brut affiché", () => {
+    const codes = ["interface", "chiffre", "demarche", "geste", "texte", "visage", "inconnu", "source-propre", "texte-incruste",
+      "sujet-reconnu", "sujet-absent", "fait", "mot-cle", "phrase-creuse", "duree", "exclu-droit"];
+    for (const c of codes) expect(RAISON_EN_CLAIR[c], c).toBeTruthy();
+    const f = fiche([80]);
+    f.plages[0].raisonsNote = codes.map((code) => ({ code, points: 1 }));
+    const h = rendre({ fiches: [f] });
+    for (const c of codes) expect(h).not.toContain(c.includes("-") ? c : `>${c},`);
+    expect(h).not.toMatch(/source-propre|phrase-creuse|texte-incruste|mot-cle|exclu-droit|sujet-reconnu|sujet-absent/);
+    expect(h).toContain("image propre, sans visage ni texte incrusté");
+    expect(h).toContain("phrase un peu creuse");
+    expect(raisonsEnClair([{ code: "code-inconnu-xyz" }])).toBe("autre critère");
   });
 });
