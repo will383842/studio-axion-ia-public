@@ -41,14 +41,14 @@ export interface OptionsDepotCommentaires {
 
 export interface DepotCommentaires {
   /** Ajoute une ligne. Un `idEvenement` déjà présent n'est jamais réécrit. */
-  enregistrer(c: NouveauCommentaire, formesAuteur?: readonly string[]): Promise<"cree" | "deja_present">;
+  enregistrer(c: NouveauCommentaire, formesAuteur: readonly string[]): Promise<"cree" | "deja_present">;
   lire(): Promise<LigneCommentaire[]>;
   /** Lignes dont l'auteur n'est pas à l'écart (ligne ET registre d'opposition `mots.oppositions`) ET écrit sous le secret d'empreinte courant : les seules qu'un envoi futur pourrait viser. Échec fermé si le registre est illisible. */
   listerPourEnvoi(): Promise<LigneCommentaire[]>;
-  /** `formesAuteur` : formes d'empreinte de la même personne (`empreintesAuteur`), utiles après rotation du secret. Jamais conservées. */
-  auteurEcarte(auteur: string, formesAuteur?: readonly string[]): Promise<boolean>;
+  /** `formesAuteur` OBLIGATOIRE : formes d'empreinte de la même personne (`empreintesAuteur`), qui doivent contenir `auteur` (sinon `auteur_invalide`). Jamais conservées. */
+  auteurEcarte(auteur: string, formesAuteur: readonly string[]): Promise<boolean>;
   /** Met l'auteur à l'écart, lève une alerte, écrit une ligne de journal. Ne supprime AUCUNE ligne. */
-  demanderEffacement(auteur: string, formesAuteur?: readonly string[]): Promise<{ lignesEcartees: number }>;
+  demanderEffacement(auteur: string, formesAuteur: readonly string[]): Promise<{ lignesEcartees: number }>;
 }
 
 const RE_P1 = /^p1\.([0-9a-f]{8})\.[0-9a-f]{64}$/;
@@ -92,7 +92,14 @@ export function empreintesAuteur(idBrut: string): string[] {
   return candidatsEmpreinte(cles, "zernio-contact", idBrut);
 }
 
-const formes = (a: string, autres?: readonly string[]): string[] => [...new Set([a, ...(autres ?? []).map(exigerForme)])];
+/**
+ * `formesAuteur` OBLIGATOIRE et doit contenir l'auteur : sans toutes les formes de la personne (rotation du secret), l'opposition
+ * ne serait pas retrouvée (échec ouvert). Sinon `auteur_invalide`, avant toute écriture, journal ou alerte.
+ */
+const formes = (a: string, toutes: unknown): string[] => {
+  if (!Array.isArray(toutes) || !toutes.includes(a)) throw new Error("auteur_invalide");
+  return [...new Set((toutes as unknown[]).map(exigerForme))];
+};
 
 async function lireListe(): Promise<LigneCommentaire[]> {
   const v: unknown = await lireParametre<unknown>(PARAM_COMMENTAIRES_DEPOT, []);
