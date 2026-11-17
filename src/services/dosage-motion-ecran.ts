@@ -29,7 +29,7 @@ export async function dosagePourEcran(
   ports?: { lire?: LireReglage },
 ): Promise<DosagePourEcran | undefined> {
   try {
-    const lire: LireReglage = ports?.lire ?? ((id, d) => lireParametre<unknown>(id, d));
+    const lire: LireReglage = ports?.lire ?? lireParametre; // référence passée telle quelle : aucun appel à clé non résolue pour l'inventaire des interrupteurs
     if (!(await dosageActif(lire))) return undefined;
     const moteur = !format.moteur || format.moteur === "simulation" ? moteurPrisesFilmees(format.id) : format.moteur;
     if (!moteur || !Object.prototype.hasOwnProperty.call(GENERATEUR_DU_MOTEUR, moteur)) return undefined;
