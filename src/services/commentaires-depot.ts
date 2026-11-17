@@ -1,6 +1,6 @@
 /**
  * COMMENTAIRES · dépôt DURABLE (paramètre `commentaires.depot`). Aucune migration : le paramètre existe déjà comme mécanisme de stockage.
- * RÈGLE : ON GARDE TOUT. Aucune suppression, aucune purge, aucune anonymisation, aucune durée de conservation qui efface ;
+ * RÈGLE : ON GARDE TOUT. Aucune suppression, aucun nettoyage automatique, aucune anonymisation, aucune durée de conservation qui efface ;
  * aucune fonction de ce fichier ne retire ou ne réécrit le texte d'une ligne. Seul un écrivain humain (le fondateur) décide, par écrit.
  * L'auteur est une EMPREINTE (jamais d'adresse e-mail, jamais l'identifiant brut). Une opposition ou une demande d'effacement met
  * la personne à l'écart des envois (registre d'opposition commun `mots.oppositions`, jamais supprimé) et lève une alerte pour le fondateur ; rien n'est supprimé.
