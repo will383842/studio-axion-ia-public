@@ -156,6 +156,9 @@ const ENTREE_OBJET_CHIFFRE: EntreeBibliotheque = {
   figeeLe: "2026-11-17",
 };
 
+/** Pièces du registre (C9-27b, 19 définitions) qui portent la capacité `objet.chiffre`, dans l'ordre du registre. */
+const PIECES_OBJET_CHIFFRE = ["objet-anneau-donnees", "objet-barre-progression", "objet-chrono", "objet-compteur-rouleau", "objet-gros-chiffre"];
+
 let reseau = 0;
 beforeEach(() => {
   reseau = 0;
@@ -205,7 +208,7 @@ for (const avecLlm of [true, false]) {
       const avec = await passage(avecLlm, { bibliothequeVideo: ENTREE_OBJET_CHIFFRE });
       if (avecLlm) {
         expect(espions.genererPlan).toHaveLength(1);
-        expect((espions.genererPlan[0] as { objetsPermis?: string[] }).objetsPermis).toEqual(["objet-gros-chiffre"]);
+        expect((espions.genererPlan[0] as { objetsPermis?: string[] }).objetsPermis).toEqual(PIECES_OBJET_CHIFFRE);
       } else {
         expect(espions.genererPlan).toHaveLength(0);
         expect(avec.appelsLlm).toBe(0);
@@ -213,8 +216,8 @@ for (const avecLlm of [true, false]) {
       // Les appels de la chaîne portent `dureeMs` ; ceux que `genererPlan` fait en interne n'en ont pas (hors fiche : generateur.ts).
       const deLaChaine = espions.validerPlan.filter((c) => "dureeMs" in (c as object));
       expect(deLaChaine.length).toBeGreaterThan(0);
-      for (const c of deLaChaine) expect((c as { objetsPermis?: string[] }).objetsPermis).toEqual(["objet-gros-chiffre"]);
-      // Aucune pièce `objet` n'existe encore au catalogue du plan de scènes : plan, source, remarques et consigne restent identiques.
+      for (const c of deLaChaine) expect((c as { objetsPermis?: string[] }).objetsPermis).toEqual(PIECES_OBJET_CHIFFRE);
+      // Les pièces `objet` ne sont pas au catalogue du plan de scènes (le registre C9-27b ne change que la liste permise) : plan, source, remarques et consigne restent identiques.
       expect(avec.constat).toEqual(sans.constat);
       expect(avec.consigne).toEqual(sans.consigne);
       expect(reseau).toBe(0);

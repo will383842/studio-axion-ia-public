@@ -1,12 +1,15 @@
 /**
- * PLANCHE « TENDANCES 2027 » (X1-17a) : une case par pièce X1 fusionnée (X1-01, 03, 04, 05, 06, 11, 12, 13, 15, 16).
+ * PLANCHE « TENDANCES 2027 » (X1-17a) : une case par pièce X1 fusionnée (X1-01, 02, 03, 04, 05, 06, 11, 12, 13, 15, 16).
  * Outil local : composant pur (aucun hook, aucune horloge, aucun hasard hors `graine`). Rien n'importe ce fichier depuis
  * `src/` ni `studio-rendu/`. Aucun réglage lu : les pièces sont appelées directement. Texte en Manrope.
- * X1-14 (pastille IA) et X1-02, 08, 09, 10 : X1-17b.
+ * X1-14 (pastille IA) et X1-08, 09, 10 : X1-17b-b.
  */
 import { createElement, type CSSProperties, type JSX, type ReactNode } from "react";
 import { CHARTE_AXION, FAMILLE_CSS_AXION, type FondAxion } from "../../src/briques/jetons-motion";
 import { GRAISSE_MAX, GRAISSE_MIN, graisseAuTemps } from "../../src/briques/sous-titres/poids-variable";
+import { couleursMinimalDynamique, decouperMinimalDynamique, tailleTexteMinimale } from "../../src/briques/sous-titres/minimal-dynamique";
+import { cheminBoiteArrondie } from "../../src/briques/sous-titres/boite-arrondie";
+import type { SegmentRendu } from "../../src/briques/sous-titres/types-rendu";
 import { FenetreInclineeVue } from "../../src/briques/motion/petits-objets/fenetre-inclinee";
 import { CarteVerre } from "../../src/briques/motion/habillage-commun/verre";
 import { ECHELLE_PLEIN_CADRE, zoomMot } from "../../src/briques/motion/habillage-commun/transition-zoom-mot";
@@ -17,7 +20,7 @@ import { apercuDeLaFin } from "../../src/briques/composition/ouverture-apercu";
 import { motCleDeRecherche } from "../../src/briques/composition/mot-cle-recherche";
 import { mesurerFlashs } from "../../src/briques/composition/garde-flash";
 
-export const PIECES_X1_PLANCHE = ["X1-01", "X1-03", "X1-04", "X1-05", "X1-06", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"] as const;
+export const PIECES_X1_PLANCHE = ["X1-01", "X1-02", "X1-03", "X1-04", "X1-05", "X1-06", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"] as const;
 export type PieceX1 = (typeof PIECES_X1_PLANCHE)[number];
 
 export const FORMATS_PLANCHE = {
@@ -43,6 +46,8 @@ const CASES_DEF: ReadonlyArray<Pick<CasePlanche, "id" | "piece" | "titre">> = [
   { id: "x1-01-a", piece: "X1-01", titre: "X1-01 · mot qui grossit (début)" },
   { id: "x1-01-b", piece: "X1-01", titre: "X1-01 · mot qui grossit (milieu)" },
   { id: "x1-01-c", piece: "X1-01", titre: "X1-01 · mot qui grossit (fin)" },
+  { id: "x1-02-groupes", piece: "X1-02", titre: "X1-02 · minimal dynamique" },
+  { id: "x1-02-boite", piece: "X1-02", titre: "X1-02 · boîte arrondie" },
   { id: "x1-03", piece: "X1-03", titre: "X1-03 · fenêtre inclinée" },
   { id: "x1-04-ivoire", piece: "X1-04", titre: "X1-04 · verre sur ivoire" },
   { id: "x1-04-noir", piece: "X1-04", titre: "X1-04 · verre sur noir" },
@@ -105,6 +110,14 @@ const MOTS_DEMO = [
   { texte: "devis", debutMs: 1200, finMs: 1700 },
 ];
 
+/** Phrase de démonstration figée : mots minutés 0,4 s chacun, « relancer » seul en valeur. */
+const SEGMENT_MINIMAL: SegmentRendu = {
+  id: "demo-minimal",
+  debutSec: 0,
+  finSec: 2.8,
+  mots: ["Vous", "pouvez", "relancer", "ce", "devis", "dès", "demain"].map((mot, i) => ({ mot, debutSec: i * 0.4, finSec: (i + 1) * 0.4, ...(mot === "relancer" ? { enValeur: true } : {}) })),
+};
+
 function Lignes({ lignes }: { lignes: string[] }): JSX.Element {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, ...texte(18) }}>
@@ -115,7 +128,7 @@ function Lignes({ lignes }: { lignes: string[] }): JSX.Element {
   );
 }
 
-function ContenuCase(c: CasePlanche, graine: number): ReactNode {
+function ContenuCase(c: CasePlanche, graine: number, format: FormatPlanche = "9x16"): ReactNode {
   switch (c.id) {
     case "x1-01-a":
     case "x1-01-b":
@@ -123,6 +136,33 @@ function ContenuCase(c: CasePlanche, graine: number): ReactNode {
       const t = c.id.endsWith("a") ? 0 : c.id.endsWith("b") ? 0.5 : 1;
       const g = graisseAuTemps(t, 0, 1);
       return <div style={texte(64, { fontWeight: g, textAlign: "center" })}>relancer<div style={texte(16, { fontWeight: 400 })}>graisse {g} ({GRAISSE_MIN}→{GRAISSE_MAX})</div></div>;
+    }
+    case "x1-02-groupes": {
+      const groupes = decouperMinimalDynamique([SEGMENT_MINIMAL]);
+      const { fond, texte: encreMarque } = couleursMinimalDynamique();
+      const taille = Math.max(tailleTexteMinimale((FORMATS_PLANCHE[format].hauteur * c.h) / 100), 22);
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          {groupes.map((g) => (
+            <div key={g.id} data-groupe={g.mots.map((m) => m.mot).join(" ")} style={texte(taille, { fontWeight: 700, display: "flex", gap: "0.3em" })}>
+              {g.mots.map((m, i) => (i === g.marque ? <span key={m.debutSec} style={{ background: fond, color: encreMarque, padding: "0 0.2em", borderRadius: 6 }}>{m.mot}</span> : <span key={m.debutSec}>{m.mot}</span>))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "x1-02-boite": {
+      const mots = decouperMinimalDynamique([SEGMENT_MINIMAL])[0].mots.map((m) => m.mot);
+      const largeurs = [300, 500, 200];
+      const lignes = largeurs.map((largeur, i) => ({ x: (500 - largeur) / 2, y: i * 60, largeur, hauteur: 44 }));
+      return (
+        <svg viewBox="-30 -30 560 240" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <path d={cheminBoiteArrondie(lignes, { rayon: 18, marge: 10 })} fill={CHARTE_AXION.noir} />
+          {mots.slice(0, 3).map((mot, i) => (
+            <text key={mot} x={250} y={i * 60 + 32} textAnchor="middle" fontSize={30} fontWeight={700} fontFamily={FAMILLE_CSS_AXION} fill={CHARTE_AXION.ivoire}>{mot}</text>
+          ))}
+        </svg>
+      );
     }
     case "x1-03":
       return createElement(FenetreInclineeVue, { image: 4, fps: FPS, dureeImages: 100, fond: "ivoire", graine, parametres: { largeur: 70, hauteur: 60, titre: "Mon espace" } });
@@ -194,7 +234,7 @@ export function PlancheTendances2027({ format = "9x16", graine = 1 }: { format?:
         <div key={c.id} data-case={c.id} style={{ position: "absolute", left: `${c.x}%`, top: `${c.y}%`, width: `${c.l}%`, height: `${c.h}%`, background: CHARTE_AXION.ivoire, overflow: "hidden", boxSizing: "border-box" }}>
           <div style={{ position: "absolute", left: 8, top: 4, ...texte(14, { fontWeight: 700, zIndex: 1 }) }}>{c.titre}</div>
           <div style={{ position: "absolute", left: 0, right: 0, top: 28, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 8 }}>
-            <div style={{ position: "relative", width: "100%", height: "100%" }}>{ContenuCase(c, graine)}</div>
+            <div style={{ position: "relative", width: "100%", height: "100%" }}>{ContenuCase(c, graine, format)}</div>
           </div>
         </div>
       ))}
