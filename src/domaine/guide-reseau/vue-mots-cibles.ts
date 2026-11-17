@@ -34,6 +34,13 @@ export interface ChiffresMot {
   readonly suivent: Fenetres;
   readonly commentairesBloques: Fenetres;
   readonly envoisRefuses: Fenetres;
+  /** Pourquoi les envois sont refusés : libellés français déjà prêts, jamais de code. Absent = aucune ligne en plus. */
+  readonly raisonsRefus?: readonly {
+    readonly libelle: string;
+    readonly dApresMessage: boolean;
+    readonly f: Fenetres;
+  }[];
+  readonly refusSansRaison?: Fenetres;
 }
 
 export interface ResumeMot {
