@@ -7,13 +7,14 @@
 import type { JSX } from "react";
 import type { FondAxion } from "../../jetons-motion";
 import { DUREES, FPS_MOTION } from "../jetons";
-import { courbe, mixer, progres } from "../courbes";
+import { courbe, lineaire, mixer, progres } from "../courbes";
 import { TraceSvg } from "../petits-objets/TraceSvg";
 import { couleurDuTon } from "../petits-objets/tons";
 import type { TonObjet } from "../petits-objets/contrat";
 import { ICONES_BIBLIOTHEQUE, type NomIconeBibliotheque, type NoeudBibliotheque } from "./index";
 
-export type AnimationIcone = "trace" | "pop" | "coche-dessinee" | "croix-barre" | "fleche-pousse" | "pulsation" | "duotone-remplissage";
+/** Les sept gestes de S12-09 (tracé, rebond, rotation, halo, cascade, masque, jauge) + deux gestes en plus (pulsation, duotone-remplissage). Coche, croix et flèche : C9-09 et C9-06, pas ici. */
+export type AnimationIcone = "trace" | "rebond" | "rotation" | "halo" | "cascade" | "masque" | "jauge" | "pulsation" | "duotone-remplissage";
 
 export interface ProprietesIconeAnimee {
   nom: NomIconeBibliotheque;
@@ -27,12 +28,16 @@ export interface ProprietesIconeAnimee {
   taille: number;
 }
 
-/** Décalage entre les deux traits de la croix (images). */
-const DECALAGE_CROIX = 4;
-const ENTREE_POP = 0.6;
+/** Décalage entre deux nœuds de la cascade (images). */
+const DECALAGE_CASCADE = 4;
+/** Rebond : montée jusqu'au pic (courbe « signature »), puis retour à 1 (courbe « douce ») ; le pic dépasse 1. */
+const PIC_REBOND = 1.15;
+const PART_MONTEE = 0.6;
+const TOURS_ROTATION = 1;
+const OPACITE_HALO = 0.5;
+const RAYON_HALO = [0.4, 0.95] as const;
 const AMPLEUR_PULSATION = 0.08;
 const PERIODE_PULSATION = 1;
-const POUSSEE = 2;
 const OPACITE_DUOTONE = 0.25;
 /** Épaisseur de trait sur la grille de 24 (celle de `harmoniser.ts`). */
 const TRAIT_GRILLE_24 = 2;
@@ -99,32 +104,46 @@ export function IconeAnimee({ nom, image, fps, animation, ton, fond, taille }: P
   /** Avancement du tracé du nœud `i`, `decalage` images après le précédent. */
   const trace = (i: number, duree: number, decalage = 0): number => progres(s - (i * decalage) / cadence, 0, duree);
   let echelle = 1;
-  let dx = 0;
-  let opaciteGroupe = 1;
   let tracePar = (_i: number): number => 1;
   let remplissage: number | undefined;
+
+  let angle = 0;
+  let halo: { rayon: number; opacite: number } | undefined;
+  let masque: { x: number; y: number; l: number; h: number } | undefined;
+  let jauge: { x: number; y: number; l: number; h: number } | undefined;
 
   switch (animation) {
     case "trace":
       tracePar = (i) => trace(i, DUREES.entree);
       break;
-    case "coche-dessinee":
-      tracePar = (i) => trace(i, DUREES.entreeCourte);
+    case "rebond": {
+      const montee = DUREES.entreeCourte * PART_MONTEE;
+      const monte = progres(s, 0, montee);
+      const retour = progres(s, montee, DUREES.entreeCourte - montee, "douce");
+      echelle = s < montee ? mixer(0, PIC_REBOND, monte) : mixer(PIC_REBOND, 1, retour);
       break;
-    case "croix-barre":
-      tracePar = (i) => trace(i, DUREES.entreeCourte, DECALAGE_CROIX);
+    }
+    case "rotation":
+      angle = 360 * TOURS_ROTATION * progres(s, 0, DUREES.entree);
       break;
-    case "pop": {
-      const k = progres(s, 0, DUREES.entreeCourte);
-      opaciteGroupe = k;
-      echelle = mixer(ENTREE_POP, 1, k);
+    case "halo": {
+      const k = progres(s, 0, DUREES.entreeLongue, "douce");
+      halo = { rayon: (vb.l / 2) * mixer(RAYON_HALO[0], RAYON_HALO[1], k), opacite: OPACITE_HALO * aller(k) };
+      break;
+    }
+    case "cascade":
+      tracePar = (i) => trace(i, DUREES.entreeCourte, DECALAGE_CASCADE);
+      break;
+    case "masque":
+      masque = { x: vb.x, y: vb.y, l: vb.l * progres(s, 0, DUREES.entree), h: vb.h };
+      break;
+    case "jauge": {
+      const niveau = vb.h * lineaire(s, 0, DUREES.entreeLongue);
+      jauge = { x: vb.x, y: vb.y + vb.h - niveau, l: vb.l, h: niveau };
       break;
     }
     case "pulsation":
       echelle = 1 + AMPLEUR_PULSATION * courbe("douce")(aller((s % PERIODE_PULSATION) / PERIODE_PULSATION));
-      break;
-    case "fleche-pousse":
-      dx = (POUSSEE * vb.l * courbe("douce")(aller(s / DUREES.entree))) / 24;
       break;
     case "duotone-remplissage":
       tracePar = (i) => trace(i, DUREES.entree);
@@ -132,15 +151,29 @@ export function IconeAnimee({ nom, image, fps, animation, ton, fond, taille }: P
       break;
   }
 
-  const transform = `translate(${dx} 0) translate(${cx} ${cy}) scale(${echelle}) translate(${-cx} ${-cy})`;
+  const transform = `translate(${cx} ${cy}) rotate(${angle}) scale(${echelle}) translate(${-cx} ${-cy})`;
+  const idZone = `zone-${nom.replace(/[^a-zA-Z0-9]/g, "-")}-${animation}`;
+  const zone = masque ?? jauge;
+  const couleur = couleurDuTon(ton, fond);
   return (
     <svg width={cote} height={cote} viewBox={icone.viewBox} role="img" aria-label={nom} style={{ overflow: "visible" }}>
-      <g transform={transform} opacity={opaciteGroupe}>
+      {zone && (
+        <clipPath id={idZone}>
+          <rect data-zone={animation} x={zone.x} y={zone.y} width={zone.l} height={zone.h} />
+        </clipPath>
+      )}
+      {halo && <circle data-halo="1" cx={cx} cy={cy} r={halo.rayon} fill="none" stroke={couleur} strokeWidth={epaisseur} opacity={halo.opacite} />}
+      <g transform={transform} clipPath={masque ? `url(#${idZone})` : undefined}>
         {remplissage !== undefined &&
           icone.noeuds.map((n, i) => <Noeud key={`f${i}`} noeud={n} t={1} ton={ton} fond={fond} epaisseur={epaisseur} remplissage={remplissage} />)}
         {icone.noeuds.map((n, i) => (
           <Noeud key={i} noeud={n} t={tracePar(i)} ton={ton} fond={fond} epaisseur={epaisseur} />
         ))}
+        {jauge && (
+          <g clipPath={`url(#${idZone})`}>
+            {icone.noeuds.map((n, i) => <Noeud key={`j${i}`} noeud={n} t={1} ton={ton} fond={fond} epaisseur={epaisseur} remplissage={1} />)}
+          </g>
+        )}
       </g>
     </svg>
   );
