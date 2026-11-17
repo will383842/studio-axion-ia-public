@@ -9,6 +9,7 @@ import { entreesAvecOrigine } from "@/domaine/voyant-rouge";
 import type { Distribution } from "@/domaine/types";
 import { dureeParDefaut, obtenirFormat, reglagesParDefaut, trouverFormat } from "@/formats";
 import { lireReglages } from "@/services/reglages";
+import { dosagePourEcran } from "@/services/dosage-motion-ecran";
 import { listerElements } from "@/services/bibliotheque";
 import { listerIdees } from "@/services/idees";
 import { obtenirModele } from "@/services/modeles";
@@ -100,6 +101,7 @@ export default async function PageAssistant({ params, searchParams }: { params: 
     // Récents du format sous l'express (H8c) : requête existante des vidéos, masqués (et non lancée) quand on reprend un brouillon.
     sp.brouillon ? Promise.resolve([] as VueVideoCarte[]) : listerVideos({ formatId, limite: 5 }),
   ]);
+  const dosageMotion = await dosagePourEcran(format);
 
   let initial: BrouillonAssistant = {
     formatId,
@@ -219,6 +221,7 @@ export default async function PageAssistant({ params, searchParams }: { params: 
             .map((i) => ({ id: i.id, texte: i.texte })),
           express,
           ecritureReelle,
+          ...(dosageMotion ? { dosageMotion } : {}),
         }}
       />
     </>
