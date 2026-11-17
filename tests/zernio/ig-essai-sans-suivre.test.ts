@@ -12,7 +12,7 @@ import { ADRESSE_FICTIVE, evenement, validerFormulationsAuParcours } from "./aid
 import { deposerCommentaire as deposerCommentaireAide, deposerMessage as deposerMessageAide } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 
-const site = vi.hoisted(() => ({ versions: new Set<string>(), catalogue: null as unknown, panneEssai: false, formulerNul: false }));
+const site = vi.hoisted(() => ({ versions: new Set<string>(), catalogue: null as unknown, panneEssai: false, pannes: 0, formulerNul: false }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => site.versions.has(v) }));
 // Rendu nul limité aux appels faits depuis `formuler` (la demande d'adresse hors RGPD, avec repli) : tout le reste rend le texte normal.
@@ -22,7 +22,7 @@ vi.mock("@/domaine/guide-reseau/textes-mp", async (orig) => {
 });
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => {
     // Panne de lecture limitée à l'appel de la fonction qui décide « cible d'essai du jour » (les autres lectures réussissent).
-    if (site.panneEssai && /EssaiCatalogue|cibleEstEssaiAujourdhui/.test(new Error().stack ?? "")) throw new Error("catalogue en panne (fictif)");
+    if (site.panneEssai && /EssaiCatalogue|cibleEstEssaiAujourdhui/.test(new Error().stack ?? "")) { site.pannes++; throw new Error("catalogue en panne (fictif)"); }
     return site.catalogue;
   } }));
 vi.mock("@/services/notifications", async (orig) => ({ ...(await orig<Record<string, unknown>>()), creerNotification: vi.fn(async () => undefined) }));
@@ -85,8 +85,9 @@ const valider = async (versions: string[], reseau: "instagram" | "facebook" = "i
   await validerFormulationsAuParcours([...BASE, ...versions]);
 };
 /** Rejoue le commentaire du mot d'essai sur une conversation remise en « pub_ok » (reprise après la réponse publique). */
-async function reprendreEnPubOk(extra: Record<string, unknown>, versions: string[] = [V5]) {
-  const id = await com(MOT);
+async function reprendreEnPubOk(extra: Record<string, unknown>, versions: string[] = [V5], opts: { env?: Record<string, string | undefined>; reseau?: "instagram" | "facebook"; avantRejeu?: () => void } = {}) {
+  const reseau = opts.reseau ?? "instagram";
+  const id = await com(MOT, reseau);
   await pass(T0);
   const cle = Object.keys(await toutesLesConversations())[0];
   const c = (await convs())[0];
@@ -94,7 +95,8 @@ async function reprendreEnPubOk(extra: Record<string, unknown>, versions: string
   const f = { ...(formulations ?? {}) };
   delete f["m1-adresse"];
   await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle]: { ...reste, formulations: f, etat: "pub_ok", m1Le: undefined, versionTexteM1: undefined, adresseIgLe: undefined, ...extra } });
-  await valider(versions);
+  await valider(versions, reseau);
+  opts.avantRejeu?.();
   banc.port.pub.splice(0);
   banc.port.prive.splice(0);
   banc.port.envoyes.splice(0);
@@ -102,7 +104,7 @@ async function reprendreEnPubOk(extra: Record<string, unknown>, versions: string
   vi.mocked(creerNotification).mockClear();
   const e = await evenement(depots, id);
   await depots().evenementsFournisseurs.enregistrer({ ...e, traite: false, charge: { ...e.charge, etat: "a_faire", dernierCode: undefined } });
-  await pass(T0 + 1000);
+  await pass(T0 + 1000, opts.env);
   return id;
 }
 const alertesAdresse = async () => {
@@ -115,6 +117,7 @@ beforeEach(async () => {
   site.versions = new Set(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", V61]);
   site.catalogue = catalogue();
   site.panneEssai = false;
+  site.pannes = 0;
   site.formulerNul = false;
   lireTexteDe("OK");
   await Com.ecrireParametre(MM.PARAM_MOTS_MULTIPLES, true); // « plusieurs mots » allumé ; PARAM_INSTAGRAM_SUIVRE laissé absent
@@ -293,5 +296,58 @@ describe("Suites de la relecture de #853 : renvoi, filet Facebook, drapeau, repo
     expect(c.etat).toBe("nouveau");
     expect(c.dernierCode).not.toBe("adresse_indisponible");
     expect(await alertesAdresse()).toHaveLength(0);
+  });
+
+
+  it("T10 · pub_ok, drapeau absent, lecture du catalogue en PANNE dans preparerM1 (essai seulement supposé) : la demande d'adresse part mais cibleEssai reste ABSENT", async () => {
+    await valider([V61]);
+    // Panne intermittente : la garde lit le catalogue sans erreur, puis la lecture de preparerM1 (statutEssaiCatalogue) tombe en panne : l'essai est seulement SUPPOSÉ.
+    await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.panneEssai = true; site.pannes = 0; } });
+    expect(site.pannes).toBeGreaterThan(0); // la panne s'est bien déclenchée
+    expect(banc.port.prive).toHaveLength(1);
+    expect(banc.port.prive[0].texte).toBe(rendreTexteMp(V61, { mot: MOT, titre: TITRE_ESSAI }));
+    const c = await conv();
+    expect(c).toMatchObject({ etat: "attente_email", versionTexteM1: V61 });
+    expect(c.cibleEssai).toBeUndefined();
+  });
+
+  it("T11 · comme T10 mais catalogue lu test:true (essai prouvé ; auteur listé, un auteur non listé étant refusé par la garde) : cibleEssai posé", async () => {
+    await valider([V61]);
+    await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.pannes = 0; } });
+    expect(site.pannes).toBe(0);
+    expect(banc.port.prive).toHaveLength(1);
+    expect((await conv()).cibleEssai).toBe(true);
+  });
+
+  it("T12 · S4 sur Facebook, essai prouvé par le catalogue : M1 part, cibleEssai n'est JAMAIS posé", async () => {
+    await valider([V5], "facebook");
+    await reprendreEnPubOk({ cibleEssai: undefined }, [V5], { reseau: "facebook" });
+    expect(banc.port.prive).toHaveLength(1);
+    const c = await conv();
+    expect(c).toMatchObject({ etat: "attente_email", reseau: "facebook" });
+    expect(c.cibleEssai).toBeUndefined();
+  });
+
+  it("T13 · renvoi Instagram, cibleEssai ABSENT, catalogue test:true : aucune réponse publique, clôture renvoi_impossible", async () => {
+    await valider([V61]);
+    const id = await reprendreEnPubOk({ cibleEssai: undefined, nature: "renvoi", groupeM1: "deja-envoye", etat: "nouveau" }, [V61]);
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "m1_refuse", dernierCode: "renvoi_impossible" });
+    expect(await conv()).toMatchObject({ etat: "m1_refuse", dernierCode: "renvoi_impossible" });
+  });
+
+  it("T14 · reprise après la panne du T9 : panne levée, rejeu après l'attente, l'événement aboutit normalement", async () => {
+    await valider([V61]);
+    const id = await reprendreEnPubOk({ cibleEssai: undefined, etat: "nouveau" }, [V61], { avantRejeu: () => { site.panneEssai = true; site.pannes = 0; } });
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    site.panneEssai = false;
+    await rejouer(id, T0 + 1000 + 61_000);
+    expect(banc.port.pub).toHaveLength(1);
+    expect(banc.port.prive).toHaveLength(1);
+    expect(banc.port.prive[0].texte).toBe(rendreTexteMp(V61, { mot: MOT, titre: TITRE_ESSAI }));
+    expect(await conv()).toMatchObject({ etat: "attente_email", cibleEssai: true });
+    expect((await charge(id)).etat).not.toBe("a_reessayer");
   });
 });

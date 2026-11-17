@@ -829,7 +829,7 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
   return { texte: choix.texte, version: choix.version, formulation: choix.version };
 }
 
-type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string };
+type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string; essaiProuve?: boolean };
 /**
  * Vrai si la cible de la conversation est d'essai AUJOURD'HUI (catalogue du site), même si la conversation a été créée avant.
  * GUIDE (`guide-ia`) n'est jamais une cible d'essai et ne lit pas le catalogue. Catalogue absent : faux (la garde d'envoi, qui relit la cible du jour, a déjà refusé un mot non-GUIDE sans catalogue) ; lecture en erreur : vrai.
@@ -901,7 +901,9 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   };
   // Cible d'essai : jamais de lien ni de jeton (la page du site la refuse) ; la personne donne son adresse en message privé.
   // Le drapeau figé à la création ne suffit pas : la cible du jour (catalogue) est relue, elle a pu passer en essai depuis.
-  if (e.cibleEssai === true || (await cibleEstEssaiAujourdhui(e, env, now))) return repli("cible_essai");
+  // `essaiProuve` : vrai seulement si l'essai est PROUVÉ (drapeau figé ou catalogue lu sans erreur) ; une lecture en panne le laisse faux (le drapeau n'est alors pas écrit).
+  const statutEssai = e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now);
+  if (statutEssai !== "non") return { ...(await repli("cible_essai")), essaiProuve: statutEssai === "prouve" };
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -1186,7 +1188,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     if (m1.codeRepli !== "cible_essai") await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, ...(m1.codeRepli === "cible_essai" && e.reseau === "instagram" ? { cibleEssai: true } : {}), ...(ig ? { essaiEnvoiLe: new Date(now).toISOString() } : {}), versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse || m1.formulationIg ? { formulations: { ...e.formulations, ...(m1.formulationIg ? { "ig-suivre": m1.formulationIg } : {}), ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, ...(m1.codeRepli === "cible_essai" && m1.essaiProuve === true && e.reseau === "instagram" ? { cibleEssai: true } : {}), ...(ig ? { essaiEnvoiLe: new Date(now).toISOString() } : {}), versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse || m1.formulationIg ? { formulations: { ...e.formulations, ...(m1.formulationIg ? { "ig-suivre": m1.formulationIg } : {}), ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
