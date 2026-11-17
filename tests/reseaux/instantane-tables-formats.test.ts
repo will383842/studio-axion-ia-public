@@ -13,10 +13,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Ratio } from "@/domaine/types";
-import { comptesPourReseau, nomService, statutDepuisBuffer } from "@/domaine/buffer";
+import { comptesPourReseau, libellePublication, nomService, statutDepuisBuffer } from "@/domaine/buffer";
 import { estAncienOutil, estChezUnOutil, OUTILS, OUTILS_ENVOI, outilDe, outilPour } from "@/domaine/outil-publication";
 import type { CanalPublication } from "@/fournisseurs/types";
-import { RESEAUX, zoneProtegeeCombinee } from "@/reseaux";
+import { obtenirReseau, RESEAUX, zoneProtegeeCombinee } from "@/reseaux";
 import {
   FORMATS_SORTIE,
   FORMAT_DU_RESEAU,
@@ -408,7 +408,25 @@ describe("BUF-02 · garantie 4 : une publication ancienne envoyée par l'ancien 
     expect(outilDe(ancienne)).toBe("buffer");
     expect(estChezUnOutil(ancienne)).toBe(true);
     expect(estAncienOutil(outilDe(ancienne))).toBe(true);
-    expect(ancienne).toMatchObject({ reseau: "linkedin", date: "2026-09-14T08:00:00.000Z", statut: "publiee" });
+    expect(obtenirReseau(ancienne.reseau).nom).toBe("LinkedIn");
+  });
+  it("son libellé s'affiche comme avant, selon son statut et l'état de son envoi", () => {
+    const lib = (statut: "brouillon" | "programmee" | "publiee" | "echec", etatEnvoi?: "en-cours" | "a-verifier" | "refuse" | "absent" | "envoye") =>
+      libellePublication({ via: "buffer", statut, ...(etatEnvoi ? { etatEnvoi } : {}) } as never).libelle;
+    expect(lib("publiee")).toBe("Publiée");
+    expect(lib("programmee")).toBe("Programmée");
+    expect(lib("brouillon")).toBe("Brouillon dans Buffer");
+    expect(lib("echec")).toBe("Échec");
+    expect(lib("programmee", "refuse")).toBe("Échec");
+    expect(lib("programmee", "absent")).toBe("Échec");
+    expect(lib("programmee", "a-verifier")).toBe("À vérifier");
+    expect(lib("programmee", "en-cours")).toBe("Envoi en cours");
+  });
+  it("la date de la ligne ancienne n'est ni lue ni réécrite par ces fonctions (elle reste telle quelle)", () => {
+    const ligne = { ...ancienne };
+    libellePublication(ligne as never);
+    outilDe(ligne);
+    expect(ligne).toEqual(ancienne);
   });
   it("les statuts relus de l'ancien outil se traduisent comme avant", () => {
     expect([undefined, "draft", "sent", "error", "scheduled", "sending", "needs_approval", "inconnu"].map((x) => statutDepuisBuffer(x))).toEqual([

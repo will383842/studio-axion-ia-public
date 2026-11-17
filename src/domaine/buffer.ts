@@ -35,7 +35,7 @@ export function serviceHistorique(reseau: IdReseau): string {
 /** Alias d'un ancien nom, gardé pour `reglages/actions-zernio.ts` (zone Zernio, hors de cette fiche) ; à retirer avec lui. */
 export const serviceBuffer = serviceHistorique;
 
-/** Nom lisible d'un service Buffer : celui du premier réseau qui y part (« youtube » → « YouTube »). */
+/** Nom lisible d'un service de compte chez l'ancien outil (lecture des comptes et de l'historique) : « youtube » → « YouTube ». */
 export function nomService(service: string): string {
   return listerReseaux().find((r) => SERVICE_HISTORIQUE[r.id] === service)?.nom ?? "Autre compte";
 }
