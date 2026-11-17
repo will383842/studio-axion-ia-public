@@ -15,6 +15,15 @@ function etatComplet(): EtatChaineV4 {
     coupes: { gardes: [{ debutSec: 0, finSec: 10 }], dureeSec: 10, mots: [] },
     realisation: { version: "complete", essais: 1, avertissements: 0, plan: { elements: [{ id: "a" }] } },
     rendu: { cle: "rendus/v.mp4", vignetteCle: "rendus/v.jpg", dureeSec: 10, taille: 1234, masterCle: "rendus/master.mp4" },
+    videos: {
+      fichiers: [{ nom: "a.mp4", cle: "broll/a.mp4" }],
+      choix: [{ fichier: "a.mp4", source: "pexels", id: "1", scene: "s" }],
+      retirees: [],
+      manques: [],
+      depenseUsd: 0.12,
+      controle: { rendable: true, erreurs: [] },
+    },
+    planScenes: { entree: "e", plan: null, remarques: [] },
   } as unknown as EtatChaineV4;
 }
 
@@ -36,6 +45,11 @@ describe("projetMontageV4", () => {
       gardes: etat.coupes!.gardes,
       cadrage: etat.cadrage,
       transcription: { mots: etat.transcription!.mots, dureeSec: 12 },
+      videos: {
+        fichiers: [{ nom: "a.mp4", cle: "broll/a.mp4" }],
+        choix: [{ fichier: "a.mp4", source: "pexels", id: "1", scene: "s" }],
+      },
+      planScenes: { entree: "e", plan: null, remarques: [] },
     });
   });
 
@@ -59,6 +73,34 @@ describe("projetMontageV4", () => {
     const etat = etatComplet();
     (etat.rendu as { masterCle?: unknown }).masterCle = 42;
     expect(projetMontageV4(etat)).not.toHaveProperty("masterCle");
+  });
+
+  it("videos : fichiers vides, pas de clé videos", () => {
+    const etat = etatComplet();
+    (etat as unknown as { videos: { fichiers: unknown[] } }).videos.fichiers = [];
+    expect(projetMontageV4(etat)).not.toHaveProperty("videos");
+  });
+
+  it("videos : choix absent, videos sans choix", () => {
+    const etat = etatComplet();
+    delete (etat as unknown as { videos: { choix?: unknown } }).videos.choix;
+    expect(projetMontageV4(etat).videos).toEqual({ fichiers: [{ nom: "a.mp4", cle: "broll/a.mp4" }] });
+  });
+
+  it("aucun montant dans le projet (depenseUsd, controle, retirees, manques)", () => {
+    const json = JSON.stringify(projetMontageV4(etatComplet()));
+    for (const mot of ["depenseUsd", "controle", "retirees", "manques", "0.12"]) expect(json).not.toContain(mot);
+  });
+
+  it("muter videos ou planScenes de la sortie n'altère pas l'état", () => {
+    const etat = etatComplet();
+    const avant = structuredClone(etat);
+    const p = projetMontageV4(etat) as { videos: { fichiers: unknown[]; choix: unknown[] }; planScenes: { remarques: unknown[]; entree: string } };
+    p.videos.fichiers.length = 0;
+    p.videos.choix.length = 0;
+    p.planScenes.remarques.push("x");
+    p.planScenes.entree = "z";
+    expect(etat).toEqual(avant);
   });
 
   it("garde statique : aucun import de @/services/", () => {
