@@ -1,13 +1,20 @@
 /** FIX-ECRAN-SCENES-COMPLET : l'aperçu vient de la même mise en page que la fabrication. Aucun appel réel. */
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { apercuDesSorties } from "../../../src/moteurs/montage-tableau/apercu-sorties";
 import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { sortiesDesReseaux, type IdSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { mettreEnPage } from "../../../src/moteurs/montage-tableau/mise-en-page";
 import { finDeLaSortie, relireFicheTableau, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
 import { choisirFinTableau } from "../../../src/services/tableau-fin";
-import { contexteDe } from "../reference-2/fiches";
+import { contexteDe, ficheReference2 } from "../reference-2/fiches";
+
+// Cas (e) : on peut faire lever `apercuDesSorties` pour obtenir la relecture « sans aperçu » (référence des verdicts).
+const interrupteur = vi.hoisted(() => ({ lever: false }));
+vi.mock("../../../src/moteurs/montage-tableau/apercu-sorties", async (orig) => {
+  const vrai = await orig<typeof import("../../../src/moteurs/montage-tableau/apercu-sorties")>();
+  return { ...vrai, apercuDesSorties: (...a: Parameters<typeof vrai.apercuDesSorties>) => { if (interrupteur.lever) throw new Error("aperçu en panne"); return vrai.apercuDesSorties(...a); } };
+});
 
 const lire = () => JSON.parse(readFileSync(new URL("../temoins/fiche-temoin-v-667edcd8e3a8-reference-3.json", import.meta.url), "utf8")) as FicheTableau;
 const temoin = lire();
@@ -29,6 +36,13 @@ describe("(a) fin CHOISIE : la phrase ajoutée et le mot sont montrés", () => {
     const derniere = a.pages[a.pages.length - 1];
     const ecran = derniere.lignes.map((l) => l.texte).join(" ").toLowerCase();
     expect(ecran).toContain("axion-ia.com");
+    // Son écran de fin (celui de la banque) est posé, marqué ajouté ; l'ancien appel n'y est plus (relecteur Opus 17/11).
+    const r = relues(f, ["instagram", "tiktok", "youtube-shorts"], "GUIDE").find((x) => x.id === ("vertical-liens" as IdSortie))!;
+    const choisie = finDeLaSortie(r.id, choisirFinTableau({}, { sorties: sortiesDesReseaux(["instagram", "tiktok", "youtube-shorts"]), mot: "GUIDE" })(f.appelId ?? null, r.id), f);
+    const ecranFin = choisie && "ecran" in choisie ? choisie.ecran : "";
+    expect(ecranFin).not.toBe("");
+    expect(derniere.lignes.some((l) => l.ajout && l.texte.includes(ecranFin))).toBe(true);
+    expect(ecran).not.toContain("réservez un appel de diagnostic");
     expect(a.dit).toContain(a.phrasesAjoutees[0]);
   });
   it("vertical : GUIDE montré si et seulement si la mise en page le pose (constat au journal : reference/3 ne pose pas le mot)", () => {
@@ -98,6 +112,24 @@ describe("(e) relireFicheTableau rend `apercu`", () => {
     expect(typeof r.ok).toBe("boolean");
     expect(Array.isArray(r.points)).toBe(true);
   }, 30_000);
+  it("verdicts (ok, rapport, points) identiques avec ou sans aperçu, sur 2 témoins ; aperçu [] si le calcul lève", async () => {
+    const sorties = sortiesDesReseaux(["instagram", "tiktok"]);
+    const choisirFin = choisirFinTableau({}, { sorties });
+    for (const f of [lire(), ficheReference2("relances")]) {
+      const e = { fiche: f, contexte: contexteDe(temoin), dejaVu: { coche: true, le: "2026-10-14" }, sorties, choisirFin };
+      interrupteur.lever = false;
+      const avec = await relireFicheTableau(e);
+      interrupteur.lever = true;
+      try {
+        const sans = await relireFicheTableau(e);
+        expect(sans.apercu).toEqual([]);
+        expect({ ok: avec.ok, rapport: avec.rapport, points: avec.points }).toEqual({ ok: sans.ok, rapport: sans.rapport, points: sans.points });
+      } finally {
+        interrupteur.lever = false;
+      }
+      expect(avec.apercu.length).toBe(sorties.length);
+    }
+  }, 60_000);
   it("fiche illisible : apercu [] sans exception", async () => {
     const r = await relireFicheTableau({ fiche: { n: "importe quoi" }, contexte: contexteDe(temoin), sorties: ["vertical"] });
     expect(r.apercu).toEqual([]);
