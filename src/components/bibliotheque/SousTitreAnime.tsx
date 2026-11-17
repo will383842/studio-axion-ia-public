@@ -3,6 +3,7 @@
 import { useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { baseRetenue, cssElement, donneesCalque, fabriquerSousTitres, sceneAuTemps, type NomPolice } from "@/briques/sous-titres";
+import { pastilleEnManrope } from "@/briques/sous-titres/pastille";
 import { COULEURS_REPLI, type CouleursSousTitres } from "@/briques/sous-titres/style";
 import type { IntensiteSousTitres, SegmentSousTitres } from "@/domaine/types";
 import { cn } from "@/lib/cn";
@@ -78,6 +79,11 @@ export function SousTitreAnime({ style, phrase = PHRASE, intensite = "equilibre"
   );
   const hauteur = echelle ? taille.h / echelle : 1920;
   const donnees = useMemo(() => ({ ...donneesCalque({ segments, base, style, couleurs }), hauteur }), [segments, base, style, couleurs, hauteur]);
+  // C2-U14 : Pastille en Manrope Bold quand elle est allumée (éteinte : rien de plus chargé).
+  const pastilleManrope = !!donnees.pastille && pastilleEnManrope(donnees.pastille);
+  useEffect(() => {
+    if (pastilleManrope) void chargerPolicesSousTitres(["Manrope Bold"]);
+  }, [pastilleManrope]);
   const instant = reduit ? (segments[1]?.debutSec ?? 0) + 0.3 : t;
   const el = echelle ? sceneAuTemps(donnees, instant) : null;
   const css = el ? cssElement(el, donnees, FAMILLES[el.police]) : null;

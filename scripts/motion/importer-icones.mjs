@@ -1,6 +1,6 @@
 /**
  * Importe un jeu d'icônes en DONNÉES (aucune dépendance) : « toujours copier, jamais installer » (C6-H17a).
- *   node scripts/motion/importer-icones.mjs --jeu lucide|phosphor|material|tabler|heroicons|iconoir --source <dossier du paquet extrait> --liste <json nom-français → nom d'origine> --version X.Y.Z [--sha256 <empreinte de l'archive>] [--sortie <fichier>]
+ *   node scripts/motion/importer-icones.mjs --jeu lucide|phosphor|material|tabler|heroicons|iconoir|carbon|bootstrap|health-icons --source <dossier du paquet extrait> --liste <json nom-français → nom d'origine> --version X.Y.Z [--sha256 <empreinte de l'archive>] [--sortie <fichier>]
  * Jeux (C6-H17b) : lucide (ISC + MIT Feather, icons/<nom>.svg), phosphor (MIT ; graisses regular et duotone, suffixe « ~duotone »), material (Apache-2.0 ; Material Symbols « outlined », un seul paquet).
  * Jeux au trait (C9-29) : tabler (MIT, icons/outline), heroicons (MIT, 24/outline), iconoir (MIT, icons/regular) ; `trait: true` : fill="none" et stroke="currentColor" sur chaque nœud (pas de remplissage ajouté), arrondis du <svg> reportés ; l'épaisseur est ramenée à 2 plus tard par `harmoniser`.
  * Refuse si le LICENSE de la source n'est pas celui attendu pour le jeu (texte comparé à la copie du dépôt). Déterministe.
@@ -55,6 +55,24 @@ const JEUX = {
     attendu: "MIT", copie: "LICENCE-Iconoir-MIT.txt", sortie: "iconoir.ts", constante: "ICONOIR_BIBLIOTHEQUE", trait: true,
     variantes: [{ dossier: "icons/regular", fin: "", nom: "" }],
     entete: (v, sha) => `ICÔNES ICONOIR (trait) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, iconoir ${v}, sha256 ${sha}, MIT : voir LICENCE-Iconoir-MIT.txt. Ne pas modifier à la main.`,
+  },
+  carbon: {
+    licence: (t) => DEBUT_APACHE.test(t) && /Apache License\s+Version 2\.0/.test(t),
+    attendu: "Apache-2.0", copie: "LICENCE-Carbon-Apache2.txt", sortie: "carbon.ts", constante: "CARBON_BIBLIOTHEQUE",
+    variantes: [{ dossier: "svg/32", fin: "", nom: "" }],
+    entete: (v, sha) => `ICÔNES CARBON (pleines, svg/32) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, @carbon/icons ${v}, sha256 ${sha}, Apache-2.0 : voir LICENCE-Carbon-Apache2.txt. Ne pas modifier à la main.`,
+  },
+  bootstrap: {
+    licence: (t) => /^The MIT License \(MIT\)/.test(t) && /Permission is hereby granted, free of charge/.test(t),
+    attendu: "MIT", copie: "LICENCE-Bootstrap-MIT.txt", sortie: "bootstrap.ts", constante: "BOOTSTRAP_BIBLIOTHEQUE",
+    variantes: [{ dossier: "icons", fin: "", nom: "" }],
+    entete: (v, sha) => `ICÔNES BOOTSTRAP ICONS — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, bootstrap-icons ${v}, sha256 ${sha}, MIT : voir LICENCE-Bootstrap-MIT.txt. Ne pas modifier à la main.`,
+  },
+  "health-icons": {
+    licence: (t) => /CC0 1\.0 Universal/.test(t) && /Creative Commons Legal Code/.test(t),
+    attendu: "CC0-1.0", copie: "LICENCE-HealthIcons-CC0.txt", sortie: "health-icons.ts", constante: "HEALTH_ICONS_BIBLIOTHEQUE",
+    variantes: [{ dossier: "public/icons/svg/outline", fin: "", nom: "" }],
+    entete: (v, sha) => `ICÔNES HEALTH ICONS (outline) — FICHIER GÉNÉRÉ par scripts/motion/importer-icones.mjs, healthicons ${v}, sha256 ${sha}, CC0-1.0 (libellé CC0 1.0) : voir LICENCE-HealthIcons-CC0.txt. Ne pas modifier à la main.`,
   },
 };
 const COULEURS_SANS = new Set(["none", "currentcolor"]);

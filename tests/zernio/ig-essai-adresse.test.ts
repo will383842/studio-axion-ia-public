@@ -11,10 +11,16 @@ import { CHEMIN_GUIDE } from "./aides/oppositions";
 import { ADRESSE_FICTIVE, cleConversation, deposerCommentaire as deposerCommentaireAide, deposerMessage as deposerMessageAide, evenement, validerFormulationsAuParcours } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, graineConv, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 
-const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown }));
+const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown, panneEssai: false, pannes: 0, lieux: [] as string[] }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => site.versions.has(v) }));
-vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => site.catalogue }));
+vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => {
+    // Panne de lecture limitée à l'appel de la fonction qui décide « cible d'essai du jour » (les autres lectures réussissent).
+    // `pannes` / `lieux` prouvent que la panne s'est déclenchée DANS la fonction visée (pas seulement qu'une regex a trouvé un mot dans la pile).
+    const lieu = /at (?:async )?(statutEssaiCatalogue|cibleEstEssaiAujourdhui)\b/.exec(new Error().stack ?? "");
+    if (site.panneEssai && lieu) { site.pannes++; site.lieux.push(lieu[1]); throw new Error("catalogue en panne (fictif)"); }
+    return site.catalogue;
+  } }));
 vi.mock("@/services/notifications", async (orig) => ({ ...(await orig<Record<string, unknown>>()), creerNotification: vi.fn(async () => undefined) }));
 
 const MM = await import("@/services/parcours-mots-multiples");
@@ -83,6 +89,9 @@ beforeEach(async () => {
   await preparer();
   site.versions = new Set(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", NOUVELLE]);
   site.catalogue = catalogue();
+  site.panneEssai = false;
+  site.pannes = 0;
+  site.lieux = [];
   suivi.appels = 0;
   (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "suit" });
   lireTexteDe("OK");
@@ -139,7 +148,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(JSON.parse(demandes()[0].corps)).toMatchObject({ guide: CODE, mot: MOT, reseau: "instagram", versionTexteM1: NOUVELLE });
   });
 
-  it("4 · plafond : adresse refusée (422) = 3e message quand l'auteur suit déjà (ig-suivre + v6-1 = 2 messages comptés)", async () => {
+  it("4 · plafond : adresse refusée (422) quand l'auteur suit déjà : le message part (ig-suivre + v6-1 comptés, l'adresse refusée est hors plafond)", async () => {
     await jusquAuOk();
     banc.site.reponses = () => ({ statut: 422, corps: { erreur: "invalide" } });
     lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
@@ -149,7 +158,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(typeof (await conv()).adresseRefuseeLe).toBe("string");
   });
 
-  it("4 · plafond : ne suit pas (ig-suivre, « pas encore », v6-1 = 3 messages comptés) : adresse refusée (422) → rien ne part, la demande d'adresse compte", async () => {
+  it("4 · plafond : ne suit pas (ig-suivre, « pas encore », v6-1 = 3 messages comptés) : adresse refusée (422) → le message part quand même, la demande d'adresse compte", async () => {
     (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
     await jusquAuOk();
     await msg("msg-ok-2", 20_000);
@@ -160,10 +169,10 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
     await msg("msg-adr-1", 40_000);
     await pass(T1 + 50_000);
-    expect(banc.port.envoyes).toHaveLength(2); // l'adresse refusée est bloquée par le plafond de 3
+    expect(banc.port.envoyes).toHaveLength(3); // l'adresse refusée part : hors plafond de 3
   });
 
-  it("4 · plafond : ne suit pas, bonne adresse : le guide est demandé, l'accusé est bloqué par le plafond (termine, plafond_personne)", async () => {
+  it("4 · plafond : ne suit pas, bonne adresse : le guide est demandé, l'accusé part (hors plafond de 3, termine)", async () => {
     (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
     await jusquAuOk();
     await msg("msg-ok-2", 20_000);
@@ -172,9 +181,9 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     const id = await msg("msg-adr-2", 40_000);
     await pass(T1 + 50_000);
     expect(demandes()).toHaveLength(1);
-    expect(banc.port.envoyes).toHaveLength(2); // l'accusé n'est PAS parti
+    expect(banc.port.envoyes).toHaveLength(3); // l'accusé part
     expect(await conv()).toMatchObject({ etat: "termine" });
-    expect((await charge(id)).dernierCode).toBe("plafond_personne");
+    expect((await charge(id)).dernierCode).toBeNull();
   });
 
   it("5 · mp-m1-v6-1 non validée : aucun envoi, aucun repli vers mp-m1-v2 ni vers un lien, alerte, parcours consommé, clos « ignore/adresse_indisponible »", async () => {
@@ -324,5 +333,55 @@ describe("T3b · le site connaît le code de la cible d'essai Instagram", () => 
     await pass(T0, { ...ENV_X, PARCOURS_ESSAI_COMPTES: "compte-fictif-999" });
     expect(await charge(id1)).toMatchObject({ etat: "ecarte", dernierCode: "essai_compte_refuse" });
     expect(sorties()).toBe(0);
+  });
+});
+
+describe("Suites de la relecture de #853 : le drapeau cibleEssai n'est écrit que si l'essai est prouvé", () => {
+  /** Conversation Instagram en attente du OK, drapeau cibleEssai ABSENT (née avant que la cible passe en essai). */
+  const graineSansDrapeau = async () => {
+    const cle = cleParcours(cleConversation(AUTEUR), "a".padEnd(64, "0"));
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, {
+      [cle]: graineConv("ig_attente_ok", {
+        reseau: "instagram", cleIdempotenceGuide: "a".padEnd(64, "0"), idCommentaire: "com-graine-1", mot: MOT, guide: CODE, nature: "premier", groupeM1: "m1-lien", titreCible: TITRE_ESSAI,
+        versionTexteM1: "mp-ig-suivre-v1-1", formulations: { "ig-suivre": "mp-ig-suivre-v1-1" }, creeLe: iso(T0 - 2 * H), m1Le: iso(T0 - 2 * H + 1000), derniereActiviteLe: iso(T0 - 1000),
+      }),
+    });
+    expect((await conv()).cibleEssai).toBeUndefined();
+  };
+
+  it("T15 · OK Instagram, lecture du catalogue en PANNE au moment du OK (essai supposé) : rien ne part, événement reporté catalogue_illisible, aucun état ig_envoi_en_vol ; panne levée, rejeu après l'attente : la demande d'adresse part avec cibleEssai", async () => {
+    await graineSansDrapeau();
+    site.panneEssai = true;
+    const id = await msg("msg-ok-1");
+    await pass(T1);
+    expect(site.pannes).toBeGreaterThan(0); // la panne s'est déclenchée dans statutEssaiCatalogue, au moment du OK
+    expect(site.lieux.every((l) => l === "statutEssaiCatalogue")).toBe(true);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    const c1 = await conv();
+    expect(c1.etat).toBe("ig_attente_ok"); // ni ig_envoi_en_vol, ni parcours consommé : le OK n'est pas compté
+    expect(c1.idMessageOk).toBeUndefined();
+    expect(c1.okRecus).toBeUndefined();
+    expect(c1.cibleEssai).toBeUndefined();
+    // Avant la fin de l'attente (60 s) : toujours rien (l'horloge du banc, pas de remise à a_faire à la main).
+    site.panneEssai = false;
+    await pass(T1 + 30_000);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    // Après l'attente : l'événement est rejoué tout seul, l'essai est prouvé.
+    await pass(T1 + 61_000);
+    expect(banc.port.envoyes).toHaveLength(1);
+    expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
+    expect(await conv()).toMatchObject({ etat: "attente_email", versionTexteM1: NOUVELLE, cibleEssai: true });
+    expect((await charge(id)).etat).not.toBe("a_reessayer");
+  });
+
+  it("T4 · catalogue lu SANS erreur, cible test:true, drapeau absent : cibleEssai est posé", async () => {
+    await graineSansDrapeau();
+    await msg("msg-ok-1");
+    await pass(T1);
+    expect(banc.port.envoyes).toHaveLength(1);
+    expect((await conv()).cibleEssai).toBe(true);
   });
 });

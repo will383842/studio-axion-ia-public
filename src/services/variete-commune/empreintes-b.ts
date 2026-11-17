@@ -12,6 +12,21 @@ import type { Choix } from "@/briques/bibliotheque-video/types";
 
 export type AxesEmpreinte = Partial<Record<AxeCommun, string[]>>;
 
+/** Dosage figé dans la commande (X3-03) : `commande.dosageMotion`. */
+export interface DosageDeLaCommande { readonly cran: string; readonly choisiPar: "video" | "generateur" | "code" }
+
+/**
+ * X3-11 : l'axe `dosage` = cran de la commande ; `imposes` contient `dosage` quand le cran n'est pas celui du code
+ * (choix de la vidéo ou du générateur : la garde ne le re-tire jamais). Sans `dosageMotion` : l'empreinte reçue,
+ * telle quelle (identique à X2). Ne modifie jamais son entrée.
+ */
+export function avecDosageMotion(e: EmpreinteVideo, dosage?: DosageDeLaCommande | null): EmpreinteVideo {
+  if (!dosage) return e;
+  const sortie: EmpreinteVideo = { ...e, axes: { ...e.axes, dosage: [dosage.cran] } };
+  if (dosage.choisiPar !== "code") sortie.imposes = [...new Set<AxeCommun>([...(e.imposes ?? []), "dosage"])];
+  return sortie;
+}
+
 const FORMAT_V4 = "facecam-animee-v4";
 /** Code local de la palette des plaquettes v4 (une seule palette : l'ivoire v4) dans la table de correspondance. */
 const CODE_PALETTE_V4 = "v4";
@@ -23,13 +38,13 @@ const sansVides = (axes: AxesEmpreinte): AxesEmpreinte =>
   Object.fromEntries(Object.entries(axes).filter(([, v]) => v && v.length > 0)) as AxesEmpreinte;
 
 /** Face caméra animée v4 : ouverture = famille de la 1re plaquette, objets = familles, typo = Montserrat v4. */
-export function empreinteV4(videoId: string, le: string, historique: HistoriqueVideo): EmpreinteVideo {
+export function empreinteV4(videoId: string, le: string, historique: HistoriqueVideo, dosage?: DosageDeLaCommande | null): EmpreinteVideo {
   // Plaquettes v4 : ids → famille (CATALOGUE_V4, lecture seule) ; id inconnu : on garde l'id, sans exception.
   const familleDe = (id: string): string => CATALOGUE_V4.find((f) => f.id === id)?.famille ?? id;
   const ids = historique.plaquettesV4 ?? [];
   const familles = ids.length ? ids.map(familleDe) : [...(historique.familles ?? [])];
   const premiere = historique.ouvertureV4 ? familleDe(historique.ouvertureV4) : familles[0];
-  return {
+  return avecDosageMotion({
     version: VERSION_EMPREINTE, videoId, formatId: FORMAT_V4, le,
     axes: sansVides({
       ouverture: premiere ? [versCommun("facecam-animee", "ouverture", premiere)] : [],
@@ -37,19 +52,19 @@ export function empreinteV4(videoId: string, le: string, historique: HistoriqueV
       typo: ["montserrat-v4"],
       palette: [versCommun("facecam-animee", "palette", CODE_PALETTE_V4)],
     }),
-  };
+  }, dosage);
 }
 
 /** Cartes (avocat, face caméra) : ouverture = 1re carte dans le temps, objets = modèles. */
-export function empreinteCartes(videoId: string, le: string, formatId: string, cartes: readonly { modele: string; debutSec: number }[]): EmpreinteVideo {
+export function empreinteCartes(videoId: string, le: string, formatId: string, cartes: readonly { modele: string; debutSec: number }[], dosage?: DosageDeLaCommande | null): EmpreinteVideo {
   const ordre = [...cartes].sort((a, b) => a.debutSec - b.debutSec);
-  return {
+  return avecDosageMotion({
     version: VERSION_EMPREINTE, videoId, formatId, le,
     axes: sansVides({
       ouverture: ordre.length ? [versCommun("cartes", "ouverture", ordre[0].modele)] : [],
       objets: uniquesTries(ordre.map((c) => versCommun("cartes", "objets", c.modele))),
     }),
-  };
+  }, dosage);
 }
 
 /**

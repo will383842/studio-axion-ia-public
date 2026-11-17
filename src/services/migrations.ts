@@ -38,6 +38,7 @@ import { etape21SourceAxion } from "./migrations/etape-21-source-axion";
 import { etape22Ciblage } from "./migrations/etape-22-ciblage";
 import { etape23PlanEditorial } from "./migrations/etape-23-plan-editorial";
 import { etape24ReseauxSansYoutube } from "./migrations/etape-24-reseaux-sans-youtube";
+import { etape25StylesTexteEcran } from "./migrations/etape-25-styles-texte-ecran";
 
 export const VERSION_MIGRATION_MOTEUR_AVOCAT = 1;
 
@@ -296,6 +297,7 @@ export async function migrerDonnees(d: Depots, maintenant: string = new Date().t
     ["plan-editorial", etape23PlanEditorial],
     // 24 : lot C, YouTube Shorts retiré des réseaux par défaut, ancienne valeur gardée
     ["reseaux-sans-youtube", etape24ReseauxSansYoutube],
+    ["styles-texte-ecran", etape25StylesTexteEcran],
   ] as const) {
     const resume = await etape(d, maintenant);
     if (!resume) continue;

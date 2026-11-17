@@ -35,10 +35,10 @@ describe("bibliothèque d'icônes (C6-H17a)", () => {
     }
   });
 
-  it("tous les noms sont préfixés par leur jeu (lucide, phosphor, material, tabler, heroicons, iconoir) et aucun n'est une marque", () => {
+  it("tous les noms sont préfixés par leur jeu (lucide, phosphor, material, tabler, heroicons, iconoir, carbon, bootstrap, health-icons) et aucun n'est une marque", () => {
     for (const nom of Object.keys(ICONES_BIBLIOTHEQUE)) {
       const jeu = nom.slice(0, nom.indexOf(":"));
-      expect(["lucide", "phosphor", "material", "tabler", "heroicons", "iconoir"], nom).toContain(jeu);
+      expect(["lucide", "phosphor", "material", "tabler", "heroicons", "iconoir", "carbon", "bootstrap", "health-icons"], nom).toContain(jeu);
       expect(MARQUES).not.toContain(nom.slice(jeu.length + 1).replace(/~duotone$/, ""));
       expect(jeuDe(nom)).toBe(jeu);
     }
@@ -55,7 +55,7 @@ describe("bibliothèque d'icônes (C6-H17a)", () => {
     // E-6 : les entrées de droits des icônes de bibliothèque sont en fin de registre, dans l'ordre d'arrivée des jeux.
     const ids = DROITS.map((e) => e.id);
     expect(ids.indexOf("icones-bibliotheque-lucide")).toBeLessThan(ids.indexOf("icones-bibliotheque-phosphor"));
-    expect(ids.slice(-5)).toEqual(["icones-bibliotheque-phosphor", "icones-bibliotheque-material", "icones-bibliotheque-tabler", "icones-bibliotheque-heroicons", "icones-bibliotheque-iconoir"]);
+    expect(ids.slice(-8)).toEqual(["icones-bibliotheque-phosphor", "icones-bibliotheque-material", "icones-bibliotheque-tabler", "icones-bibliotheque-heroicons", "icones-bibliotheque-iconoir", "icones-bibliotheque-carbon", "icones-bibliotheque-bootstrap", "icones-bibliotheque-health-icons"]);
   });
 
   it("LICENCE-Lucide.txt contient l'ISC entière, le MIT de Feather et une date", () => {

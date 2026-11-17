@@ -22,6 +22,7 @@ import { genererPlan } from "@/briques/plan-scenes/generateur";
 import { fnv1a64, jsonCanonique, scenesARerendre } from "@/briques/plan-scenes/empreinte";
 import type { MotMinute, PlanValide, SceneValide } from "@/briques/plan-scenes/schema";
 import { validerPlan, type Remarque } from "@/briques/plan-scenes/validateur";
+import { planNiveau1, planNu } from "@/briques/plan-scenes/plan-nu";
 import { baseRetenue, donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
 import { avancerVoixMaitre, type EtatVoixMaitre, type OutilsVoixMaitre } from "@/briques/voix-maitre/machine";
 import { exigerVoixMaitre, VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/voix-epinglee";
@@ -247,12 +248,28 @@ function fusionnerAvecParent(nouveau: PlanValide, parent: PlanValide): PlanValid
   return validerPlan({ ...nouveau, scenes }, { mots: nouveau.mots, format: nouveau.format, facecam: false, dureeMs: nouveau.dureeMs }).plan;
 }
 
-async function pasPlan(etat: EtatTutoriel, outils: OutilsTutoriel): Promise<PasTutoriel> {
+async function pasPlan(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
   if (etat.plan) return { statut: "faite", etat };
   const texte = etat.script!.texte;
   const mots = etat.motsPlan!;
   const format = formatDuRatio(etat.ratios[0] as "4:5");
   const empreinteEntree = fnv1a64(jsonCanonique({ texte, mots, format }));
+  // X3-06 : cran du dosage figé dans la commande. Absent (dosage éteint) = chemin d'avant, inchangé.
+  const cran = commande.dosageMotion?.cran;
+  if (cran === "aucun") {
+    // Plan nu : l'écran seul, aucune pièce, aucun calque ; `genererPlan` n'est pas appelé (0 appel Claude).
+    const nu = planNu({ mots, format, facecam: false, dureeMs: mots.at(-1)?.finMs ?? 0 });
+    return { statut: "faite", etat: { ...etat, plan: { plan: nu, remarques: [], source: "repli", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };
+  }
+  const suite = await pasPlanClassique(etat, outils, { texte, mots, format, empreinteEntree });
+  if (cran !== "sobre" || !suite.etat.plan) return suite;
+  const plan = suite.etat.plan;
+  const niveau1 = planNiveau1(plan.plan);
+  return { ...suite, etat: { ...suite.etat, plan: { ...plan, plan: niveau1, scenesTouchees: plan.scenesTouchees.filter((id) => niveau1.scenes.some((s) => s.id === id)) } } };
+}
+
+async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: { texte: string; mots: MotMinute[]; format: ReturnType<typeof formatDuRatio>; empreinteEntree: string }): Promise<PasTutoriel> {
+  const { texte, mots, format, empreinteEntree } = e;
   const parent = etat.parent?.plan;
   // Retouche sans changement de texte ni de minutage : le plan d'avant, tel quel, sans appel.
   if (parent && fnv1a64(jsonCanonique({ texte, mots: parent.mots, format: parent.format })) === empreinteEntree) {
@@ -342,7 +359,7 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
       // Sans étape « voix » (aucune distribution), le calage part de l'estimation du texte.
       return pasCalage(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils);
     case "plan":
-      return pasPlan(etat, outils);
+      return pasPlan(etat, commande, outils);
     case "montage":
       return pasMontage(etat, etat.ratios.slice(0, 1), commande, outils, travailId);
     case "exports":

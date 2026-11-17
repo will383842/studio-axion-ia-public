@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 80 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 90 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -77,6 +77,16 @@ Le catalogue compte 80 capacités. L'état dit où elle en est : prod (déjà ut
 | `plan-scenes.generique` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `son.pose` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `etalonnage.lut` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
+| `texte.poids-variable` | prevu | X1 |  |  |
+| `texte.minimal-dynamique` | prevu | X1 |  |  |
+| `ecran.fenetre-inclinee` | prevu | X1 |  |  |
+| `fond.verre-depoli` | prevu | X1 |  |  |
+| `transition.zoom-mot` | prevu | X1 |  |  |
+| `transition.raccord-forme` | prevu | X1 |  |  |
+| `accroche.apercu-fin` | prevu | X1 |  |  |
+| `accroche.mot-cle` | prevu | X1 |  |  |
+| `mention.ia` | prevu | X1 |  |  |
+| `rythme.boucle` | prevu | X1 |  |  |
 
 Résumé : 13 capacités `motion.v4-coulisse.*` en coulisse (préparées pour la v4, rien n'est visible) :
 

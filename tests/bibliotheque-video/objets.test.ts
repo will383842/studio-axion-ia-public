@@ -82,6 +82,17 @@ const HORS_OBJET_MASTER = [
   "motion.v4-coulisse.element-barre-pictos|coulisse",
   "motion.v4-coulisse.appel-final-pile|coulisse",
   "motion.v4-coulisse.panneau-fin|coulisse",
+  // X1-00
+  "texte.poids-variable|prevu",
+  "texte.minimal-dynamique|prevu",
+  "ecran.fenetre-inclinee|prevu",
+  "fond.verre-depoli|prevu",
+  "transition.zoom-mot|prevu",
+  "transition.raccord-forme|prevu",
+  "accroche.apercu-fin|prevu",
+  "accroche.mot-cle|prevu",
+  "mention.ia|prevu",
+  "rythme.boucle|prevu",
 ];
 
 describe("famille objet (C9-03)", () => {

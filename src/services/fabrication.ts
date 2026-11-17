@@ -78,6 +78,7 @@ import "./facecam-branchements";
 import { entreesAvocatDuLancement } from "./avocat-branchements";
 import { entreeBibliothequeDuLancement } from "./bibliotheque-video";
 import { appliquerTexteEcranAuLancement } from "@/briques/sous-titres/variantes";
+import { avecDosageMotion } from "./dosage-motion";
 import { ENTREE_RESSEMBLANCE_VOIX, lignesVoixMaquetteRestantes } from "@/briques/voix-maitre/reference";
 import { reglageRessemblanceVoix } from "./voix-ressemblance";
 import { entreesDuLook } from "@/moteurs/montage-facecam/look";
@@ -335,7 +336,7 @@ async function entreesFacecamDuLancement(): Promise<Record<string, unknown>> {
 export async function construireCommande(videoId: Id, options: { simulerEchecEtape?: string; origine?: OrigineLancement } = {}): Promise<CommandeFabrication> {
   const video = await depots().videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
-  return appliquerTexteEcranAuLancement(await commandeDeLaVideo(video, options));
+  return appliquerTexteEcranAuLancement(await avecDosageMotion(video, await commandeDeLaVideo(video, options)));
 }
 
 /**
@@ -344,7 +345,7 @@ export async function construireCommande(videoId: Id, options: { simulerEchecEta
  * lecture seule : aucun plan d'Aperçu n'est écrit (la vidéo d'une version reçoit de toute façon ses plans du moteur).
  */
 export async function construireCommandeEstimation(video: Video, script: Script, relu?: TexteRelu): Promise<CommandeFabrication> {
-  return commandeDeLaVideo(video, { script, sansPlans: true, relu });
+  return avecDosageMotion(video, await commandeDeLaVideo(video, { script, sansPlans: true, relu }));
 }
 
 async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: string; origine?: OrigineLancement; script?: Script; sansPlans?: boolean; relu?: TexteRelu }): Promise<CommandeFabrication> {

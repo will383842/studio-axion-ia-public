@@ -5,6 +5,7 @@
  */
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { bandeauAuTemps, cssBandeauNom } from "../../../src/briques/sous-titres/bandeau-nom";
+import { pastilleEnManrope } from "../../../src/briques/sous-titres/pastille";
 import { cssBandeFond, cssElement, cssEtiquetteOutil, etiquetteAuTemps, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
 import { chargerPolices, FAMILLES } from "./polices";
@@ -20,7 +21,10 @@ export type ProprietesCalque = {
 export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: ProprietesCalque) {
   chargerPolices();
   // Styles « Encre » (tableau animé) et « Pastille Axion » : police de la charte (Inter Bold). Absents : inchangé.
-  if (donnees.encre || donnees.pastille) chargerPoliceTitre();
+  // C2-U14 : la Pastille passe en Manrope Bold quand elle est allumée ; éteinte, rien ne change.
+  const pastilleManrope = !!donnees.pastille && pastilleEnManrope(donnees.pastille);
+  if (donnees.pastille && pastilleManrope) chargerPolices(["Manrope Bold"]);
+  if (donnees.encre || (donnees.pastille && !pastilleManrope)) chargerPoliceTitre();
   // C2-U10 : bandeau « nom et fonction » (ajout pur) ; champ absent : rien de plus.
   if (donnees.bandeauNom) chargerPolices(["Manrope ExtraBold", "Manrope SemiBold"]);
   // C2-U9 : étiquette d'outil autonome (ajout pur) ; champ absent : rien de plus.
@@ -48,7 +52,7 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
     </div>
   ) : null;
   if (!el) return <AbsoluteFill>{bande}{bandeauNom}{etiquetteOutil}</AbsoluteFill>;
-  const css = cssElement(el, donnees, `"${donnees.encre || donnees.pastille ? FAMILLE_TITRE : FAMILLES[el.police]}"`);
+  const css = cssElement(el, donnees, `"${donnees.encre || (donnees.pastille && !pastilleManrope) ? FAMILLE_TITRE : FAMILLES[el.police]}"`);
   return (
     <AbsoluteFill>
       {bande}

@@ -10,10 +10,12 @@ import { graineDe } from "@/briques/bibliotheque-video/graine";
 import { profilDuFormat } from "@/briques/bibliotheque-video/profils";
 import { lireReglageBibliotheque } from "@/briques/bibliotheque-video/reglage";
 import { CLE_ENTREE_BIBLIOTHEQUE, lireEntreeBibliotheque } from "@/briques/bibliotheque-video/schema";
-import type { EntreeBibliotheque, UsageMemoire } from "@/briques/bibliotheque-video/types";
+import type { CandidatExtrait, EntreeBibliotheque, UsageMemoire } from "@/briques/bibliotheque-video/types";
+import { plagesDisponibles, type DemandeExtraits } from "@/briques/archive-extraits/choix";
+import type { PortsArchive } from "./archive-extraits";
 import { VERSION_BIBLIOTHEQUE } from "@/briques/bibliotheque-video/version";
 import type { Video } from "@/domaine/types";
-import { lireParametre, maintenant } from "./_commun";
+import { depots, lireParametre, maintenant } from "./_commun";
 import { lireMemoiresA, lireMemoiresB } from "./bibliotheque-video-memoires";
 
 export { lecteurDepuisEntree } from "@/briques/bibliotheque-video/lecteur";
@@ -55,4 +57,31 @@ export async function entreeBibliothequeDuLancement(
     console.warn("[studio] entrée de la bibliothèque vidéo non construite :", e instanceof Error ? e.message : e);
     return {};
   }
+}
+
+/**
+ * C1-U13 · Adaptateur mince (lecture seule, aucun consommateur, aucun réglage lu) : les plages d'extraits que la vidéo
+ * a le droit de montrer, converties en candidats. Tout le droit (licence, famille, visage, état, déjà-utilisées) est
+ * appliqué par `plagesDisponibles` : rien n'est recopié ici. Au plus 200 candidats, ordre de `plagesDisponibles`.
+ */
+export const CANDIDATS_EXTRAITS_MAX = 200;
+
+export async function candidatsExtraits(demande: DemandeExtraits, ports?: PortsArchive): Promise<CandidatExtrait[]> {
+  const depotsUtilises = (ports?.depots ?? depots)();
+  const elements = await depotsUtilises.elements.lister((e) => e.type === "source-extraits" && !e.archiveLe);
+  return plagesDisponibles(elements, demande)
+    .slice(0, CANDIDATS_EXTRAITS_MAX)
+    .map((d) => ({
+      id: d.cle,
+      cle: d.cle,
+      capacite: demande.capacite,
+      elementId: d.elementId,
+      plageId: d.plage.id,
+      debutSec: d.plage.debutSec,
+      finSec: d.plage.finSec,
+      ratio: d.ratio,
+      visage: d.plage.avecVisage ? ("williams" as const) : ("aucun" as const),
+      texteIncruste: d.plage.texteIncruste,
+      famille: d.famille,
+    }));
 }

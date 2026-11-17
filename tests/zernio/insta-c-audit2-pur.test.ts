@@ -31,10 +31,14 @@ describe("R1 · parcoursAServir : sélection pure des parcours d'un OK", () => {
 
 describe("V2 · plafond par personne : TOUS les messages Instagram", () => {
   const dateur = (champ: string) => limitePersonneIg([conv("attente_email", { [champ]: iso(T0 - H) } as Partial<Conversation>)], T0).nombre;
-  it.each(["m2Le", "adresseRefuseeLe", "accuseLe", "merciEssaiLe"])("%s de moins de 24 h compte ; 24 h pile non", (champ) => {
+  it.each(["m2Le", "merciEssaiLe"])("%s de moins de 24 h compte ; 24 h pile non", (champ) => {
     expect(dateur(champ)).toBe(1);
     expect(limitePersonneIg([conv("attente_email", { [champ]: iso(T0 - 24 * H) } as Partial<Conversation>)], T0).nombre).toBe(0);
     expect(limitePersonneIg([conv("attente_email", { [champ]: "illisible" } as Partial<Conversation>)], T0).nombre).toBe(1); // fermé
+  });
+  it.each(["adresseRefuseeLe", "accuseLe"])("%s ne compte plus dans le plafond de 3 (date récente et illisible)", (champ) => {
+    expect(limitePersonneIg([conv("attente_email", { [champ]: iso(T0 - H) } as Partial<Conversation>)], T0).nombre).toBe(0);
+    expect(limitePersonneIg([conv("attente_email", { [champ]: "illisible" } as Partial<Conversation>)], T0).nombre).toBe(0);
   });
   it("merci : merciEssaiLe et merciLe d'un même merci ne comptent qu'une fois", () => {
     expect(limitePersonneIg([conv("termine", { merciEssaiLe: iso(T0 - H), merciLe: iso(T0 - H) } as Partial<Conversation>)], T0).nombre).toBe(1);

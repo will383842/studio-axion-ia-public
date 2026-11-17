@@ -249,7 +249,7 @@ const POIDS: Record<Motif, number> = {
   mot_inconnu: 2,
   mot_manuel: 3,
 };
-/** Cartes à traiter, les plus prioritaires d'abord, puis les plus anciennes. */
+/** Cartes à traiter : les cartes opposées (doute d'opposition) d'abord, puis les plus prioritaires, puis les plus anciennes. */
 export const cartesAFaire = (
   cartes: readonly CarteATraiter[],
 ): CarteATraiter[] =>
@@ -257,7 +257,9 @@ export const cartesAFaire = (
     .filter((c) => c.statut === "a_traiter")
     .sort(
       (a, b) =>
-        POIDS[a.motif] - POIDS[b.motif] || a.creeLe.localeCompare(b.creeLe),
+        Number(b.opposee === true) - Number(a.opposee === true) ||
+        POIDS[a.motif] - POIDS[b.motif] ||
+        a.creeLe.localeCompare(b.creeLe),
     );
 
 /* ---- Service ---- */
