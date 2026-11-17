@@ -16,10 +16,15 @@ describe("T4a · adresseIgLe dans le plafond par personne", () => {
   it("le plafond reste à 3", () => {
     expect(PLAFOND_IG_PERSONNE).toBe(3);
   });
-  it("m1Le + adresseIgLe + adresseRefuseeLe = 3 : plafond atteint", () => {
-    const r = limitePersonneIg([conv({ m1Le: iso(T0 - 3 * H), adresseIgLe: iso(T0 - 2 * H), adresseRefuseeLe: iso(T0 - H) })], T0);
+  it("m1Le + adresseIgLe + m2Le = 3 : plafond atteint", () => {
+    const r = limitePersonneIg([conv({ m1Le: iso(T0 - 3 * H), adresseIgLe: iso(T0 - 2 * H), m2Le: iso(T0 - H) })], T0);
     expect(r.nombre).toBe(3);
     expect(r.atteint).toBe(true);
+  });
+  it("adresseRefuseeLe ne compte plus : 2, non atteint", () => {
+    const r = limitePersonneIg([conv({ m1Le: iso(T0 - 3 * H), adresseIgLe: iso(T0 - 2 * H), adresseRefuseeLe: iso(T0 - H) })], T0);
+    expect(r.nombre).toBe(2);
+    expect(r.atteint).toBe(false);
   });
   it("adresseIgLe seul compte pour 1 ; au-delà de 24 h il ne compte plus", () => {
     expect(limitePersonneIg([conv({ adresseIgLe: iso(T0 - H) })], T0).nombre).toBe(1);

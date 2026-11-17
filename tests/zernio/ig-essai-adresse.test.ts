@@ -148,7 +148,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(JSON.parse(demandes()[0].corps)).toMatchObject({ guide: CODE, mot: MOT, reseau: "instagram", versionTexteM1: NOUVELLE });
   });
 
-  it("4 · plafond : adresse refusée (422) = 3e message quand l'auteur suit déjà (ig-suivre + v6-1 = 2 messages comptés)", async () => {
+  it("4 · plafond : adresse refusée (422) quand l'auteur suit déjà : le message part (ig-suivre + v6-1 comptés, l'adresse refusée est hors plafond)", async () => {
     await jusquAuOk();
     banc.site.reponses = () => ({ statut: 422, corps: { erreur: "invalide" } });
     lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
@@ -158,7 +158,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(typeof (await conv()).adresseRefuseeLe).toBe("string");
   });
 
-  it("4 · plafond : ne suit pas (ig-suivre, « pas encore », v6-1 = 3 messages comptés) : adresse refusée (422) → rien ne part, la demande d'adresse compte", async () => {
+  it("4 · plafond : ne suit pas (ig-suivre, « pas encore », v6-1 = 3 messages comptés) : adresse refusée (422) → le message part quand même, la demande d'adresse compte", async () => {
     (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
     await jusquAuOk();
     await msg("msg-ok-2", 20_000);
@@ -169,10 +169,10 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
     await msg("msg-adr-1", 40_000);
     await pass(T1 + 50_000);
-    expect(banc.port.envoyes).toHaveLength(2); // l'adresse refusée est bloquée par le plafond de 3
+    expect(banc.port.envoyes).toHaveLength(3); // l'adresse refusée part : hors plafond de 3
   });
 
-  it("4 · plafond : ne suit pas, bonne adresse : le guide est demandé, l'accusé est bloqué par le plafond (termine, plafond_personne)", async () => {
+  it("4 · plafond : ne suit pas, bonne adresse : le guide est demandé, l'accusé part (hors plafond de 3, termine)", async () => {
     (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
     await jusquAuOk();
     await msg("msg-ok-2", 20_000);
@@ -181,9 +181,9 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     const id = await msg("msg-adr-2", 40_000);
     await pass(T1 + 50_000);
     expect(demandes()).toHaveLength(1);
-    expect(banc.port.envoyes).toHaveLength(2); // l'accusé n'est PAS parti
+    expect(banc.port.envoyes).toHaveLength(3); // l'accusé part
     expect(await conv()).toMatchObject({ etat: "termine" });
-    expect((await charge(id)).dernierCode).toBe("plafond_personne");
+    expect((await charge(id)).dernierCode).toBeNull();
   });
 
   it("5 · mp-m1-v6-1 non validée : aucun envoi, aucun repli vers mp-m1-v2 ni vers un lien, alerte, parcours consommé, clos « ignore/adresse_indisponible »", async () => {

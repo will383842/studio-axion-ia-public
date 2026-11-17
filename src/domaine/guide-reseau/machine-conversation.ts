@@ -111,7 +111,7 @@ export interface Conversation {
   essaiEnvoiLe?: string;
   /** Lectures du suivi tombées en panne passagère pour ce parcours. */
   essaisSuivi?: number;
-  /** Instagram, réglage allumé : dates (facultatives, jamais écrites à `undefined`) des autres messages envoyés à la personne, comptées dans le plafond par personne. */
+  /** Instagram, réglage allumé : dates (facultatives, jamais écrites à `undefined`) des autres messages envoyés à la personne. `adresseRefuseeLe` et `accuseLe` sont comptés dans la borne des réponses (2 par 24 h), PAS dans le plafond de 3 ; `merciEssaiLe` reste dans le plafond de 3. */
   adresseRefuseeLe?: string;
   accuseLe?: string;
   merciEssaiLe?: string;
