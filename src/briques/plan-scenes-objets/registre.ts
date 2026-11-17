@@ -62,6 +62,9 @@ const LISTE: readonly DefinitionObjet<unknown>[] = [
   OBJET_SURLIGNEUR as DefinitionObjet<unknown>, // trait · objet-surligneur
 ];
 
+/** Liste source (avant construction de la table), exposée pour tester l'unicité des identifiants. Non exportée par `index.ts`. */
+export const OBJETS_INSCRITS: readonly DefinitionObjet<unknown>[] = Object.freeze([...LISTE]);
+
 export const REGISTRE_OBJETS: Readonly<Record<IdPetitObjet, DefinitionObjet<unknown>>> = Object.freeze(
   Object.fromEntries(LISTE.map((d) => [d.id, d])) as Record<IdPetitObjet, DefinitionObjet<unknown>>,
 );

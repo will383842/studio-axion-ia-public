@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { REGISTRE_OBJETS, definitionObjet, idsObjets } from "../../src/briques/plan-scenes-objets/registre";
+import { OBJETS_INSCRITS, REGISTRE_OBJETS, definitionObjet, idsObjets } from "../../src/briques/plan-scenes-objets/registre";
 
 const entrees = Object.entries(REGISTRE_OBJETS);
 
 describe("registre des petits objets (C9-27a)", () => {
   it("identifiants uniques", () => {
-    const ids = entrees.map(([, d]) => d.id);
+    const ids = OBJETS_INSCRITS.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(Object.keys(REGISTRE_OBJETS).length).toBe(OBJETS_INSCRITS.length);
   });
   it("la clé est l'id de la définition", () => {
     for (const [cle, d] of entrees) expect(cle).toBe(d.id);
