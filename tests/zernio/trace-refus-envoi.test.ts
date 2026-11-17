@@ -245,16 +245,16 @@ describe("S3 : erreur du client sur une réponse 2xx", () => {
   });
 });
 
-describe("S2 : comportement actuel figé (error.code lu par le motif, pas par le client)", () => {
-  it("S2 403 {error:{code:INBOX_REQUIRED}} : code client acces, motif inbox-zernio-requise (à revoir : voir la PR)", async () => {
+describe("S2 : error.code lu par le motif ET par le client", () => {
+  it("S2 403 {error:{code:INBOX_REQUIRED}} : code client inbox-requis, motif inbox-zernio-requise", async () => {
     const e = await echoue(brut(JSON.stringify({ error: { code: "INBOX_REQUIRED" } }), 403).client.requete(PRIVE));
-    expect(e.code).toBe("acces");
+    expect(e.code).toBe("inbox-requis");
     expect(e.motifInbox?.motif).toBe("inbox-zernio-requise");
     expect(e.motifInbox?.codeZernio).toBe("INBOX_REQUIRED");
   });
-  it("S2 403 {error:{code:message_allowance_exceeded}} : code client acces, motif quota-messages-zernio", async () => {
+  it("S2 403 {error:{code:message_allowance_exceeded}} : code client quota-messages, motif quota-messages-zernio", async () => {
     const e = await echoue(brut(JSON.stringify({ error: { code: "message_allowance_exceeded" } }), 403).client.requete(PRIVE));
-    expect(e.code).toBe("acces");
+    expect(e.code).toBe("quota-messages");
     expect(e.motifInbox?.motif).toBe("quota-messages-zernio");
   });
 });

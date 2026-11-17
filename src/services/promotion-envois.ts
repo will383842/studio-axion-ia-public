@@ -246,7 +246,7 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
     } catch (err) {
       ligne.etat = "refuse";
       ligne.raison = err instanceof Error ? err.message : "erreur";
-      if (!estErreurZernio(err) || ["debit", "indisponible", "acces", "envoi-coupe", "a-verifier"].includes(err.code)) arret = "lot arrêté après une erreur";
+      if (!estErreurZernio(err) || ["debit", "indisponible", "acces", "inbox-requis", "quota-messages", "envoi-coupe", "a-verifier"].includes(err.code)) arret = "lot arrêté après une erreur";
       if (estErreurZernio(err) && err.code === "a-verifier") await o.etats.noter(cleVerifier(e.cle), "a-verifier");
     }
   }
