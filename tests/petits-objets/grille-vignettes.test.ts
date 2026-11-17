@@ -12,6 +12,7 @@ import {
   type ParametresGrille,
   type ParametresVignettes,
 } from "../../src/briques/motion/petits-objets/grille-vignettes";
+import { IMAGES_SORTIE } from "../../src/briques/motion/petits-objets/progres";
 import { verifierDefinition, type DefinitionObjet, type TonObjet } from "../../src/briques/motion/petits-objets/contrat";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { couleursSur, type FondAxion } from "../../src/briques/jetons-motion";
@@ -114,6 +115,24 @@ describe("C9-23 propres à la fiche", () => {
     expect(m).toContain(`data-selection="${c}"`);
     expect(m.match(/data-selection=/g)?.length).toBe(1);
   });
+});
+
+describe("C9-23 sélection à la durée minimale (1,5 s = 38 images)", () => {
+  for (const [dur, n] of [[38, 9], [38, 5], [38, 2], [60, 9]] as const) {
+    it(`durée ${dur}, n=${n} : chaque rang apparaît, aucun saut > 1, dernière case avant la sortie`, () => {
+      const vus: number[] = [];
+      let prec = 0;
+      for (let i = 0; i < dur; i++) {
+        const c = caseSelectionnee(i, dur, n);
+        expect(c - prec).toBeLessThanOrEqual(1);
+        expect(c).toBeGreaterThanOrEqual(prec);
+        prec = c;
+        vus.push(c);
+      }
+      for (let r = 0; r < n; r++) expect(vus).toContain(r);
+      expect(caseSelectionnee(dur - IMAGES_SORTIE - 1, dur, n)).toBe(n - 1);
+    });
+  }
 });
 
 describe("C9-23 garde statique du fichier (13 motifs de garde.test.ts:8-22, copiés)", () => {

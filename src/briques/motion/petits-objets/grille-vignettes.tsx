@@ -31,7 +31,6 @@ const ZONE = { x: 150, y: 150, l: 700, h: 700 };
 const ECART = 30;
 const PAS_TIRET = 44;
 const LONGUEUR_TIRET = 26;
-const IMAGES_PAR_CASE_MIN = 6;
 
 const entier = (n: unknown, min: number, max: number): n is number => typeof n === "number" && Number.isInteger(n) && n >= min && n <= max;
 const f = (n: number): string => n.toFixed(1);
@@ -120,9 +119,9 @@ export function caseSelectionnee(image: number, dureeImages: number, n: number):
   if (!Number.isFinite(image) || !Number.isFinite(dureeImages) || !Number.isInteger(n) || n < 1) return 0;
   const debut = IMAGES_ENTREE;
   const tenue = Math.max(1, dureeImages - IMAGES_SORTIE - debut);
-  const pas = Math.max(IMAGES_PAR_CASE_MIN, Math.floor(tenue / n));
   if (image >= dureeImages - IMAGES_SORTIE) return n - 1;
-  return Math.min(n - 1, Math.max(0, Math.floor((image - debut) / pas)));
+  // Les n cases tiennent toutes dans la tenue (pas = tenue / n, sans plancher) : aucune case sautée, la dernière est atteinte avant la sortie.
+  return Math.min(n - 1, Math.max(0, Math.floor(((image - debut) * n) / tenue)));
 }
 
 function Texte({ x, y, taille, contenu, ton, fond, opacite }: { x: number; y: number; taille: number; contenu: string; ton: TonObjet; fond: FondAxion; opacite: number }): JSX.Element {
