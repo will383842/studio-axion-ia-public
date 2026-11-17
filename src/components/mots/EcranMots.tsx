@@ -71,7 +71,7 @@ const GROUPES_INSTAGRAM_ETEINTS: ReadonlySet<string> = new Set(["ig-suivre", "ig
 /** Groupes dont la validation ne vaut que pour un réseau : libellé propre à chacun. */
 const LIBELLES_RESEAU: Readonly<Record<string, string>> = {
   "pub-commentaire": "La validation ne vaut que pour Facebook (Instagram garde l’ancien texte). Elle change tout de suite la réponse publique du mot GUIDE en production.",
-  "pub-instagram": "La validation ne vaut que pour Instagram.",
+  "pub-instagram": "La validation ne vaut que pour Instagram. Elle change tout de suite la réponse publique du mot GUIDE sur Instagram (dès qu’Instagram est ouvert au public).",
 };
 /** Groupes du renvoi du mode « plusieurs mots » (tous réseaux) : libellé propre à chacun. */
 const LIBELLES_RENVOI: Readonly<Record<string, string>> = {
