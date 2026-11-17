@@ -61,7 +61,8 @@ function motifParNombres(m: { code: number; sousCode: number | null }): CodeMoti
 function codeZernioDe(corps: unknown): CodeZernioConnu | null {
   if (!estObjet(corps)) return null;
   const d = estObjet(corps.details) ? corps.details : {};
-  for (const v of [corps.code, corps.error, d.code]) {
+  const e = estObjet(corps.error) ? corps.error : {};
+  for (const v of [corps.code, corps.error, d.code, e.type, e.code]) {
     if (typeof v === "string" && (CODES_ZERNIO_CONNUS as readonly string[]).includes(v)) return v as CodeZernioConnu;
   }
   return null;
@@ -93,7 +94,9 @@ function copieLocale(corps: unknown): string {
   if (typeof corps === "string") ajouter(corps);
   else if (estObjet(corps)) {
     ajouter(corps.error);
+    if (estObjet(corps.error)) ajouter(corps.error.message);
     ajouter(corps.message);
+    if (estObjet(corps.details)) ajouter(corps.details.message);
     if (estObjet(corps.platformError)) ajouter(corps.platformError.message);
     if (estObjet(corps.details) && estObjet(corps.details.platformError)) ajouter(corps.details.platformError.message);
   }
