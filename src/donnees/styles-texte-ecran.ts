@@ -12,7 +12,7 @@
 import type { ElementBibliotheque, Licence, ValeurStyleSousTitres } from "@/domaine/types";
 import { STYLE_SOUS_TITRES_AVOCAT, STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 
-export const STYLES_TEXTE_ECRAN_INSTALLES = false;
+export const STYLES_TEXTE_ECRAN_INSTALLES = true;
 
 const PROPRIETE: Licence = { type: "propriete", usageCommercial: true, reseaux: [] };
 
