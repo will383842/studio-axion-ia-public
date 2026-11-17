@@ -13,7 +13,7 @@ import { SORTIE_PAR_DEFAUT, SORTIE_ACTIVE, sortieDuGroupe } from "@/briques/sous
 const RACINE = process.cwd();
 const SOURCE = readFileSync(join(RACINE, "outils/captures-sous-titres/planche-texte-ecran.mts"), "utf8");
 /** `outils/` est hors du projet tsc : on charge le script par chemin (aucun rendu à l'import), avec le type minimal utilisé ici. */
-interface CaseTest { legende: string; fond: { image?: string; couleur?: string }; sortie?: { opacite: number; decalageYPx: number } }
+interface CaseTest { legende: string; fond: { image?: string; couleur?: string }; sortie?: { opacite: number; decalageYPx: number }; escalier?: { geometrie: { lignes: { texte: string }[] } | null; couleur: string; fond: string; ligneActive: number } }
 interface PlancheTest { nom: string; ratio: "9:16" | "16:9"; cellules: CaseTest[] }
 const CHEMIN_SCRIPT = join(RACINE, "outils/captures-sous-titres/planche-texte-ecran.mts");
 const { construirePlanches } = (await import(/* @vite-ignore */ CHEMIN_SCRIPT)) as { construirePlanches: () => { planches: PlancheTest[]; rapport: string[] } };
@@ -24,7 +24,7 @@ const RAPPORT = readFileSync(join(DOSSIER, "planche.txt"), "utf8").split("\n").f
 const FORMATS = ["9x16", "16x9"] as const;
 const THEMES = ["clair", "sombre"] as const;
 /** Familles avec thème clair/sombre, puis le tableau (un fichier par format, sans thème), avec le nombre de cases attendu. */
-const FAMILLES: Record<string, number> = { marqueur: 6, pave: 3, outils: 3, "bandeau-nom": 2, styles: 5, "pastille-3-textes": 3, "sortie-u19": 3 };
+const FAMILLES: Record<string, number> = { marqueur: 6, pave: 3, outils: 3, "bandeau-nom": 2, styles: 5, "pastille-3-textes": 3, "sortie-u19": 3, escalier: 3 };
 const CASES_TABLEAU = 4;
 
 const attendues: { nom: string; cases: number }[] = [];
@@ -77,7 +77,7 @@ describe("planche de référence du texte à l'écran (C2-U15a)", () => {
   it("le rapport liste exactement les planches attendues, dans les deux formats et les deux thèmes, avec leur nombre de cases", () => {
     const vues = lignesPlanches.map((m) => ({ nom: m[1], cases: Number(m[2]) }));
     expect(vues).toHaveLength(attendues.length);
-    expect(attendues).toHaveLength(7 * 4 + 2);
+    expect(attendues).toHaveLength(8 * 4 + 2);
     for (const p of CONSTRUIT.planches) expect(vues.find((v) => v.nom === p.nom)?.cases, p.nom).toBe(p.cellules.length);
     expect(vues.map((v) => v.nom).sort()).toEqual(attendues.map((a) => a.nom).sort());
     for (const a of attendues) expect(vues.find((v) => v.nom === a.nom)?.cases, a.nom).toBe(a.cases);
@@ -97,6 +97,33 @@ describe("planche de référence du texte à l'écran (C2-U15a)", () => {
   it("le rapport garde la mention du temps de rendu, et aucune planche vide ni refus n'y est consigné", () => {
     expect(RAPPORT.some((l) => /^Temps de rendu total : \d+(\.\d+)? s$/.test(l))).toBe(true);
     expect(RAPPORT.filter((l) => /aucun mot trouvé|aucune case|aucune étiquette|refusé|non produite/.test(l))).toEqual([]);
+  });
+
+  it("C2-U15b : chaque case de l'escalier porte une géométrie non nulle de 2, 4 puis 6 lignes, ligne active dans les bornes", () => {
+    const planches = CONSTRUIT.planches.filter((q) => q.nom.startsWith("escalier-"));
+    expect(planches).toHaveLength(4);
+    for (const p of planches) {
+      expect(p.cellules, p.nom).toHaveLength(3);
+      const attendu = [2, 4, 6];
+      p.cellules.forEach((c, i) => {
+        const e = c.escalier;
+        expect(e, `${p.nom} case ${i}`).toBeDefined();
+        expect(e!.geometrie, `${p.nom} case ${i}`).not.toBeNull();
+        const n = e!.geometrie!.lignes.length;
+        expect(n, `${p.nom} case ${i}`).toBe(attendu[i]);
+        expect(e!.ligneActive).toBeGreaterThanOrEqual(0);
+        expect(e!.ligneActive).toBeLessThan(n);
+        expect(e!.couleur.length).toBeGreaterThan(0);
+      });
+      // Case du milieu : 4 lignes, active = la 3e, donc exactement 2 lignes passées (mémoire floue).
+      expect(p.cellules[1].escalier!.ligneActive, p.nom).toBe(2);
+      expect(p.cellules[0].escalier!.ligneActive, p.nom).toBe(1);
+      expect(p.cellules[2].escalier!.ligneActive, p.nom).toBe(5);
+    }
+  });
+
+  it("C2-U15b : le script n'écrit jamais l'interrupteur de l'escalier", () => {
+    expect(SOURCE).not.toMatch(/ESCALIER_ACTIF\s*=/);
   });
 
   it("l'interrupteur de la sortie reste éteint", () => {
