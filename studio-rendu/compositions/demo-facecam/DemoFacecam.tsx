@@ -10,6 +10,7 @@ import { ImagePlan } from "../../../src/briques/plan-scenes/rendu";
 import { adoucir, CHARTE_AXION, FAMILLE_CSS_AXION, avecOpacite } from "../../../src/briques/jetons-motion";
 import { miseEnPageDemo, transformZoom, zoomA, type RectPx } from "../../../src/moteurs/montage-demo-facecam/mise-en-page";
 import type { ProprietesDemoFacecam } from "../../../src/moteurs/montage-demo-facecam/proprietes";
+import { miseEnPageDuMoment } from "./PassagesDemo";
 import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
 import manrope from "../../../src/app/polices/manrope-latin.woff2";
 
@@ -46,7 +47,7 @@ export function DemoFacecam(p: ProprietesDemoFacecam) {
   chargerManrope();
   const image = useCurrentFrame();
   const ms = (image * 1000) / p.fps;
-  const { ecran, facecam, sousTitres } = p.miseEnPage;
+  const { ecran, facecam, sousTitres } = miseEnPageDuMoment(p, ms);
   const decalageImages = Math.round(p.decalageEcranSec * p.fps);
   const zoom = zoomA(p.zooms, ms);
   const enFin = ms >= p.dureeParoleMs;
