@@ -10,6 +10,10 @@ import unittest
 ICI = os.path.dirname(os.path.abspath(__file__))
 BANC = os.path.join(ICI, "..", "etudes", "banc_segmentation.py")
 ALIGNEUR = os.path.join(ICI, "..", "aligneur")
+# Le banc est un outil d'étude hors production : il n'est pas copié dans l'image du service (seuls `aligneur` et
+# `tests` le sont). Les tests qui l'exécutent se sautent alors, au lieu de casser la construction de l'image.
+BANC_PRESENT = os.path.isfile(BANC)
+SANS_BANC = "banc d'étude absent (image de production)"
 
 try:
     import cv2
@@ -26,6 +30,7 @@ def charger():
 
 
 class TestBancSansDependances(unittest.TestCase):
+    @unittest.skipUnless(BANC_PRESENT, SANS_BANC)
     def test_aide_ne_lit_rien(self):
         r = subprocess.run([sys.executable, BANC, "--aide"], capture_output=True, text=True, check=True)
         self.assertIn("hors production", r.stdout)
@@ -38,6 +43,7 @@ class TestBancSansDependances(unittest.TestCase):
                         self.assertNotIn("etudes", fh.read(), f)
 
 
+@unittest.skipUnless(BANC_PRESENT, SANS_BANC)
 class TestSortieHorsDepot(unittest.TestCase):
     def test_sortie_dans_le_depot_refusee(self):
         banc = charger()
@@ -56,6 +62,7 @@ class TestSortieHorsDepot(unittest.TestCase):
 
 
 @unittest.skipIf(cv2 is None, "numpy / cv2 absents")
+@unittest.skipUnless(BANC_PRESENT, SANS_BANC)
 class TestBancSurVideoSynthetique(unittest.TestCase):
     def test_json_complet(self):
         banc = charger()
