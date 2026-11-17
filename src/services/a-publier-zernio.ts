@@ -150,21 +150,18 @@ export async function marquerEnvoiVerifieAction(publicationId: string): Promise<
 }
 
 export interface OptionsEnvoiVisuelAction {
-  /** Compte de destination chez Zernio. */
-  compte: string;
-  /** Date de validation du créneau (la porte refuse sans elle). */
-  valideeLe: string;
-  legende: string;
+  /** Seul le texte alternatif de chaque page vient de l'écran ; la date, le compte, le texte et la validation viennent du créneau stocké. */
   textesAlternatifs?: string[];
-  premierCommentaire?: string;
 }
 
 /**
- * L5-02 · envoi d'un visuel (carrousel, infographie) depuis le créneau : toujours en brouillon chez Zernio, derrière le réglage SÉPARÉ
- * de L7-08 (éteint par défaut : rien ne part). Anti-double envoi et gardes dans `envoyerVisuel`. Aucune réponse automatique.
+ * L5-02 · envoi d'un visuel (carrousel, infographie) depuis un créneau du calendrier : toujours en brouillon chez Zernio, derrière le
+ * réglage SÉPARÉ de L7-08 (éteint par défaut : rien ne part). Le créneau est relu en base par `envoyerVisuel` ; anti-double envoi
+ * et gardes y sont aussi. Aucune réponse automatique.
  */
-export async function envoyerVisuelAction(visuelId: string, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuelAction): Promise<Resultat<{ deja: boolean; publicationId: string }>> {
+export async function envoyerVisuelAction(creneauId: string, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelAction = {}): Promise<Resultat<{ deja: boolean; publicationId: string }>> {
   await exigerSession();
+  const journal = { action: "envoyerVisuelAction", outil: "zernio" as const, reseau, contenuId: creneauId };
   const r = await essayer(async () => {
     let service;
     try {
@@ -172,9 +169,10 @@ export async function envoyerVisuelAction(visuelId: string, reseau: ReseauVisuel
     } catch {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
     }
-    const e = await envoyerVisuel(service, visuelId, reseau, dateIso, { cible: options.compte, valideeLe: options.valideeLe, legende: options.legende, textesAlternatifs: options.textesAlternatifs, premierCommentaire: options.premierCommentaire });
+    const e = await envoyerVisuel(service, creneauId, reseau, { textesAlternatifs: options.textesAlternatifs });
     return { deja: e.deja, publicationId: e.publication.id };
   });
-  journaliserEnvoi(r.ok ? { action: "envoyerVisuelAction", outil: "zernio", reseau, contenuId: visuelId, code: "OK", nbComptes: 1, brouillon: true } : { action: "envoyerVisuelAction", outil: "zernio", reseau, contenuId: visuelId, code: r.code ?? "ERREUR", nbComptes: 0 });
+  // Trace sans texte ni compte : « DEJA_ENVOYE » (rien n'est reparti) se distingue de « OK » (un brouillon est parti).
+  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.deja ? "DEJA_ENVOYE" : "OK", nbComptes: r.donnees.deja ? 0 : 1, ...(r.donnees.deja ? {} : { brouillon: true }) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: 0 });
   return r;
 }

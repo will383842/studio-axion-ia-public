@@ -1253,6 +1253,38 @@ export interface OptionsEnvoiVisuel {
   lireUrl?: (cle: string) => Promise<string>;
 }
 
+/** Ce que l'appelant peut fournir : jamais la date, le compte, le texte ni la validation, qui viennent tous du créneau stocké. */
+export interface OptionsEnvoiVisuelCreneau {
+  textesAlternatifs?: string[];
+  lireUrl?: (cle: string) => Promise<string>;
+}
+
+/**
+ * L5-02 · envoi d'un visuel depuis UN CRÉNEAU DU CALENDRIER : le créneau est relu en base (jamais fourni par l'appelant) et doit être
+ * « valide » avec une validation datée lisible et passée, ni refusé ni retiré, pour CE visuel. La date, le compte et les textes
+ * viennent du créneau. Le reste (porte, anti-double envoi, contenu) est dans `envoyerVisuelValide`.
+ */
+export async function envoyerVisuel(service: FournisseurPublication, creneauId: Id, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelCreneau = {}): Promise<{ publication: Publication; deja: boolean }> {
+  // La porte passe AVANT toute lecture : éteint = rien n'est lu, rien n'est écrit.
+  if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
+  const c = await depots().creneauxEditoriaux.obtenir(creneauId);
+  if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
+  const validee = typeof c.valideeLe === "string" && c.valideeLe ? Date.parse(c.valideeLe) : NaN;
+  if (!Number.isFinite(validee) || validee > Date.parse(maintenant())) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Le créneau n'a pas de validation datée : rien n'est envoyé.");
+  if (!c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas celui d'un visuel : rien n'est envoyé.");
+  const heure = c.heuresParReseau?.[reseau];
+  const texte = c.textes?.[reseau];
+  if (!heure || !texte?.texte?.trim()) throw new ErreurStudio("CRENEAU_INCOMPLET", "Le créneau n'a pas d'heure ou de texte pour ce réseau : rien n'est envoyé.");
+  return envoyerVisuelValide(service, c.visuelId, reseau, heure, {
+    cible: c.compteCible,
+    valideeLe: c.valideeLe,
+    legende: texte.texte,
+    ...(texte.premierCommentaire?.trim() ? { premierCommentaire: texte.premierCommentaire } : {}),
+    textesAlternatifs: options.textesAlternatifs,
+    lireUrl: options.lireUrl,
+  });
+}
+
 const DUREE_URL_VISUEL_SEC = 900;
 
 async function urlVisuelParDefaut(cle: string): Promise<string> {
@@ -1270,7 +1302,7 @@ async function urlVisuelParDefaut(cle: string): Promise<string> {
  *     (publication « refusée ») permet un nouvel essai. Réponse perdue = « à vérifier », jamais de renvoi à l'aveugle.
  *  4. Aucune réponse automatique, nulle part. Rien n'est supprimé.
  */
-export async function envoyerVisuel(service: FournisseurPublication, visuelId: Id, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuel): Promise<{ publication: Publication; deja: boolean }> {
+async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuel): Promise<{ publication: Publication; deja: boolean }> {
   if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
   if (!(reseau in PROFILS_RESEAUX) || !["linkedin", "instagram", "facebook"].includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   if (!options.cible?.trim()) throw new ErreurStudio("CIBLE_ZERNIO", "Choisissez le compte de destination : rien n'est parti.");
