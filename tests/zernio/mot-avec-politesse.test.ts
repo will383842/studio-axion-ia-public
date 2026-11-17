@@ -36,6 +36,10 @@ describe("opposition et réponses", () => {
     expect(classerOpposition("GUIDE stop")).toBe("doute");
     expect(motSeulDe("GUIDE stop", REG)).toBeNull();
   });
+  it("« GUIDE\\nstop » (retour à la ligne) → doute, rien n'est gardé", () => {
+    expect(classerOpposition("GUIDE\nstop")).toBe("doute");
+    expect(motSeulDe("GUIDE\nstop", REG)).toBeNull();
+  });
   it("« stop merci » → STOP", () => expect(motSeulDe("stop merci", REG)).toBe("STOP"));
   it("une réponse (estReponse) « GUIDE merci » reste marquée réponse (ignorée en aval)", () => {
     expect(lireEvenementCommentaire(corps("GUIDE merci", { isReply: true }))!.estReponse).toBe(true);

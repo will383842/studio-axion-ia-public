@@ -112,7 +112,7 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 
 - Profil : `avocat/1`, version 1.
 - Permis : `cadrage.zoom-avocat`, `motion.cartes-communes`, `transition.coupe`.
-- Refusé : `etalonnage.lut-nouvelle` (au plus 1 par vidéo), `son.registre-commun` (au plus 1 par vidéo), `texte.bandeau-nom` (au plus 1 par vidéo), `texte.nom-outil` (au plus 1 par vidéo), `texte.pave` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
+- Refusé : `etalonnage.lut-nouvelle` (au plus 1 par vidéo), `son.registre-commun` (au plus 1 par vidéo), `texte.bandeau-nom` (au plus 1 par vidéo), `texte.nom-outil` (au plus 1 par vidéo), `texte.nom-outil-autonome` (au plus 3 par vidéo), `texte.pave` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 

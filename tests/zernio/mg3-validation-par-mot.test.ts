@@ -114,8 +114,11 @@ afterEach(() => {
 describe("contrat pur", () => {
   it("réseaux, groupes et textes à identifiant fixe", () => {
     expect([...RESEAUX_AUTO]).toEqual(["facebook", "instagram"]);
-    for (const g of GROUPES_PAR_RESEAU.facebook)
+    // « pub-commentaire » n'a aucun effet sur Instagram (texte fixe mp-pub-igfb-v1) : il n'est proposé que pour Facebook (lot C3-a).
+    for (const g of GROUPES_PAR_RESEAU.facebook.filter((x) => x !== "pub-commentaire"))
       expect(GROUPES_PAR_RESEAU.instagram).toContain(g);
+    expect(GROUPES_PAR_RESEAU.facebook).toContain("pub-commentaire");
+    expect(GROUPES_PAR_RESEAU.instagram).not.toContain("pub-commentaire");
     expect(GROUPES_PAR_RESEAU.instagram).toEqual(
       expect.arrayContaining(["ig-suivre", "ig-pas-encore"]),
     );

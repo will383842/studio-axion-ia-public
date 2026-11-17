@@ -299,6 +299,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "casConcret.validations": "memoire",
   "cibles.miroir": "memoire",
   "claude.sources": "memoire",
+  "commentaires.depot": "memoire",
   "corbeille-visuels.dernierPassage": "memoire",
   "corbeille.dernierPassage": "memoire",
   "decors.lots": "memoire",

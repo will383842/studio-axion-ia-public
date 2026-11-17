@@ -66,13 +66,16 @@ describe("garde : pur et non branché", () => {
     expect(t).not.toMatch(/from\s+["'][^"']*studio-rendu/);
     expect(t).not.toMatch(/lireParametre|server-only/);
   });
-  it("aucun fichier de src/ ne l'importe", () => {
+  it("aucun fichier de src/ ne l'importe, sauf regles-v4.ts (seul importeur permis)", () => {
+    // MAJ 17/11 (C4-U4.9a-b, voulue, à relire) : `regles-v4.ts` importe `ficheV4Ouverte` pour le paramètre facultatif
+    // `telephoneVideo` de `resoudreElementsV4`. Garde intacte : tout AUTRE fichier de src/ qui l'importe reste refusé.
+    const IMPORTEUR_PERMIS = join(RACINE, "src", "moteurs", "montage-facecam-animee", "realisateur", "regles-v4.ts");
     const vus: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
         const p = join(d, n);
         if (statSync(p).isDirectory()) parcourir(p);
-        else if (/\.(ts|tsx)$/.test(n) && p !== NEUF && readFileSync(p, "utf8").includes("catalogue-v4-extensions")) vus.push(p);
+        else if (/\.(ts|tsx)$/.test(n) && p !== NEUF && p !== IMPORTEUR_PERMIS && readFileSync(p, "utf8").includes("catalogue-v4-extensions")) vus.push(p);
       }
     };
     parcourir(join(RACINE, "src"));

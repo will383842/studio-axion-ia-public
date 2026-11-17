@@ -631,6 +631,19 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
     expect(await decrire(rejeu)).toBe("silence/deja_traite");
   });
 
+  it("(j bis, en_cours) rejeu d'un commentaire dont la raison est `en_cours` : la réponse publique part une fois, le rejeu n'en publie pas une seconde", async () => {
+    await semer("j2", "pub_ok", {
+      m1Le: new Date(T0 - 60_000).toISOString(),
+    });
+    await commenter("GUIDE", { id: "com-jb-ec" });
+    await passer(T0);
+    expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+    const rejeu = await commenter("GUIDE", { id: "com-jb-ec" });
+    await passer(T0 + 30_000);
+    expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+    expect(await decrire(rejeu)).toBe("silence/deja_traite");
+  });
+
   it("(k) arrêt pendant `m1_en_vol` : `m1_a_verifier` au redémarrage, jamais de 2e envoi", async () => {
     const cle = await semer("k1", "m1_en_vol", {
       mot: "GUIDE",
