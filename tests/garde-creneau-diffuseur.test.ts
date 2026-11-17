@@ -708,7 +708,7 @@ describe("L5-02d · interrupteurs éteints = aucun changement visible", () => {
 });
 
 describe("L5-02d · aucun interblocage", () => {
-  it("un décalage pendant un tour se termine en moins de 2 s ; aucune notification n'est faite sous le verrou", async () => {
+  it("un décalage entre deux tours (aucune promotion en vol) répond sans attente ; aucune notification n'est faite sous le verrou", async () => {
     await brouillonPrepare();
     // Notification par la cloche réelle (sans injection) : brouillon puis décalage puis tour suivant.
     const t0 = performance.now();
@@ -726,5 +726,198 @@ describe("L5-02d · aucun interblocage", () => {
     await promu();
     expect((await decaler("c1", "k1")).ok).toBe(false);
     await expect(Promise.race([sousVerrou(async () => "libre"), new Promise((r) => setTimeout(() => r("bloque"), 1000))])).resolves.toBe("libre");
+  });
+});
+
+/**
+ * L5-02f : le verrou pris par les actions (décalage, modification du texte) est PROUVÉ. Le geste est suspendu APRÈS la lecture de la
+ * garde et AVANT l'écriture ; pendant ce temps le tour d'envoi est lancé. Avec le verrou, le tour attend la fin du geste (il voit alors
+ * le créneau changé et ne promeut rien) ; sans lui, le tour pose « en-cours », programme le post, puis le geste écrit à partir d'une
+ * garde périmée : un post programmé ET un créneau décalé (ou dévalidé).
+ */
+describe("L5-02f · course ENTRE la lecture de la garde et l'écriture (le verrou des actions)", () => {
+  /** Suspend le premier appel de `depot[methode]` accepté par `declencheur` ; rend la porte d'entrée, la clé de sortie et le rétablissement. */
+  function suspendre<T extends object>(depot: T, methode: string, declencheur: (...a: unknown[]) => boolean) {
+    const cible = depot as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>;
+    const origine = cible[methode].bind(depot);
+    let entree!: () => void;
+    const suspendu = new Promise<void>((r) => { entree = r; });
+    let liberer!: () => void;
+    const porte = new Promise<void>((r) => { liberer = r; });
+    let arme = true;
+    cible[methode] = async (...a: unknown[]) => {
+      if (arme && declencheur(...a)) {
+        arme = false;
+        entree();
+        await porte;
+      }
+      return origine(...a);
+    };
+    return { suspendu, liberer, retablir: () => { cible[methode] = origine; } };
+  }
+  const attendre = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+  it("décalage suspendu après la garde, tour lancé : jamais un post programmé ET un créneau décalé (verrou de decalerEntree)", async () => {
+    await brouillonPrepare();
+    versLaFenetre();
+    const s = suspendre(depots().creneauxEditoriaux, "obtenir", (id) => id === "c1");
+    try {
+      const geste = decaler("c1", "k1");
+      await s.suspendu;
+      const enVol = tour();
+      await attendre(150);
+      s.liberer();
+      const [r] = await Promise.all([geste, enVol]);
+      expect(r).toMatchObject({ ok: true });
+      expect(await lire("c1")).toMatchObject({ decalages: 1 });
+      expect(nbPut()).toBe(0);
+      expect([...posts.values()].some((p) => p.status === "scheduled")).toBe(false);
+      expect((await depots().envoisPlanifies.lister())[0].statut).toBe("annule");
+      expect(await marque(`promotion:${CLE_ENVOI}`)).not.toBe("programme");
+    } finally {
+      s.retablir();
+    }
+  });
+
+  it("modification du texte suspendue après la garde, tour lancé : jamais un texte dévalidé ET un envoi préparé (verrou de enregistrerFicheEntreeAction)", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1");
+    versLaFenetre();
+    const s = suspendre(depots().parametres, "enregistrer", (p) => typeof (p as { id?: string }).id === "string" && (p as { id: string }).id.startsWith("calendrier.fiche."));
+    try {
+      const geste = enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Nouveau texte." });
+      await s.suspendu;
+      const enVol = tour();
+      await attendre(150);
+      s.liberer();
+      const [r] = await Promise.all([geste, enVol]);
+      expect(r.ok).toBe(true);
+      expect(await lire("c1")).toMatchObject({ statut: "a_valider" });
+      expect(appelsFournisseur).toHaveLength(0);
+      expect(nbPut()).toBe(0);
+      expect([...posts.values()]).toHaveLength(0);
+    } finally {
+      s.retablir();
+    }
+  });
+});
+
+/** L5-02f : marque « en-cours » orpheline (plantage) : après un délai, la garde dit « à vérifier », même tout éteint. */
+describe("L5-02f · marque « en-cours » orpheline : le message ne trompe plus", () => {
+  const DEBUT_PROMOTION = `promotion-debut:${CLE_ENVOI}`;
+  const ilYa = (ms: number): string => new Date(Date.now() - ms).toISOString();
+  const toutEteindre = async (): Promise<void> => {
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, false);
+    await ecrireParametre(PARAM_ENVOI_CALENDRIER, false);
+    await ecrireParametre(PARAM_ARRET_ZERNIO, false);
+  };
+
+  it("la promotion en vol note l'instant de départ (horloge réelle de la garde), sous la marque « en-cours »", async () => {
+    await brouillonPrepare();
+    versLaFenetre();
+    let entree!: () => void;
+    const entre = new Promise<void>((r) => { entree = r; });
+    let ouvrir!: () => void;
+    const porte = new Promise<void>((r) => { ouvrir = r; });
+    const avant = Date.now();
+    const enVol = tour({ client: client({ promouvoir: async (reel, d) => { entree(); await porte; return reel(d); } }) });
+    await entre;
+    try {
+      const instant = Date.parse(String(await marque(DEBUT_PROMOTION)));
+      expect(Number.isFinite(instant)).toBe(true);
+      expect(instant).toBeGreaterThanOrEqual(avant - 1000);
+      expect(instant).toBeLessThanOrEqual(Date.now() + 1000);
+      // Récente : toujours « en cours ».
+      expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "en-cours" });
+    } finally {
+      ouvrir();
+      await enVol;
+    }
+  });
+
+  it("orpheline depuis plus que le délai, tout éteint : décalage et texte refusés « à vérifier », rien n'est écrit ni appelé", async () => {
+    await brouillonPrepare();
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "en-cours");
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}${DEBUT_PROMOTION}`, ilYa(garde.DELAI_MARQUE_ORPHELINE_MS + MIN));
+    await toutEteindre();
+    const appels = methodesClient.length;
+    const avant = await instantane();
+    expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "a-verifier" });
+    const r = await decaler("c1", "k1");
+    expect(refus(r)).toBe(PHRASES_CRENEAU_CONFIE["a-verifier"]);
+    expect(refus(r)).not.toMatch(/Réessayez dans une minute/);
+    const t = await enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Nouveau texte." });
+    expect(refus(t)).toBe(PHRASES_CRENEAU_CONFIE["a-verifier"]);
+    expect(await instantane()).toBe(avant);
+    expect(methodesClient).toHaveLength(appels);
+    expect(appelsFournisseur).toHaveLength(1);
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("en-cours");
+  });
+
+  it("orpheline depuis MOINS que le délai, ou sans instant noté : toujours « en cours » (refus sûr, jamais un décalage)", async () => {
+    await brouillonPrepare();
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "en-cours");
+    await toutEteindre();
+    expect(refus(await decaler("c1", "k1"))).toBe(PHRASES_CRENEAU_CONFIE["en-cours"]);
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}${DEBUT_PROMOTION}`, ilYa(garde.DELAI_MARQUE_ORPHELINE_MS - MIN));
+    expect(refus(await decaler("c1", "k2"))).toBe(PHRASES_CRENEAU_CONFIE["en-cours"]);
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}${DEBUT_PROMOTION}`, "pas une date");
+    expect(refus(await decaler("c1", "k3"))).toBe(PHRASES_CRENEAU_CONFIE["en-cours"]);
+    expect(await lire("c1")).toMatchObject({ decalages: 0 });
+  });
+
+  it("le délai dépasse largement le délai maximal d'un envoi (une promotion vivante n'est jamais prise pour orpheline)", () => {
+    expect(garde.DELAI_MARQUE_ORPHELINE_MS).toBeGreaterThanOrEqual(5 * 90_000);
+  });
+});
+
+/** L5-02f : points mineurs de l'audit de L5-02d, sans changer le comportement d'envoi. */
+describe("L5-02f · points mineurs de l'audit", () => {
+  it.each([
+    ["refus net (« refuse »)", async () => ({ etat: "refuse", raison: "refus" })],
+    ["état « a-verifier »", async () => ({ etat: "a-verifier", raison: "doute" })],
+    ["erreur inconnue", async () => { throw new Error("coupure"); }],
+    ["erreur du diffuseur après le réseau", async () => { throw new ErreurZernio("indisponible", "indisponible", { statut: 503 }); }],
+  ])("%s : « a-verifier:<clé> » est noté, plus rien n'est rappelé au tour suivant", async (_n, resultat) => {
+    await brouillonPrepare();
+    versLaFenetre();
+    await tour({ client: client({ promouvoir: resultat as never }) });
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("a-verifier");
+    expect(await marque(`a-verifier:${CLE_ENVOI}`)).toBe("a-verifier");
+    const rappels = vi.fn();
+    await tourSuivant({ client: client({ promouvoir: async (reel, d) => { rappels(d); return reel(d); } }) });
+    expect(rappels).not.toHaveBeenCalled();
+    expect(nbPut()).toBe(0);
+  });
+
+  it.each([
+    ["erreur « avant le réseau »", async () => { throw new ErreurZernio("envoi-coupe", "envoi coupé"); }],
+    ["état « a-reprogrammer »", async () => ({ etat: "a-reprogrammer", raison: "trop tard" })],
+  ])("%s : aucune marque « a-verifier:<clé> » (le créneau n'est pas bloqué)", async (_n, resultat) => {
+    await brouillonPrepare();
+    versLaFenetre();
+    await tour({ client: client({ promouvoir: resultat as never }) });
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("libre");
+    expect(await marque(`a-verifier:${CLE_ENVOI}`)).toBeUndefined();
+  });
+
+  it("ancienne version déjà PARTIE (« envoye ») : le message le dit, il ne parle ni de programmation à venir ni de brouillon", async () => {
+    await brouillonPrepare();
+    await decaler("c1", "k1");
+    const [v0] = await depots().envoisPlanifies.lister((e) => e.versionCreneau === 0);
+    await depots().envoisPlanifies.modifier(v0.id, { statut: "envoye" } as never);
+    await tourSuivant();
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].message).toMatch(/déjà partie chez le diffuseur pour le \d{2}\/\d{2} à \d{2}:\d{2} \(heure de Paris\), l'ancienne date/);
+    expect(notifications[0].message).not.toMatch(/partira à cette heure-là|ne sera pas programmé/);
+  });
+
+  it("le commentaire de tête du branchement décrit tous les verrous (relecture, marque, annulation) et non plus seulement l'annulation", () => {
+    const tete = readFileSync(join(RACINE, "src/services/branchement-envoi-calendrier.ts"), "utf8").split("*/")[0];
+    expect(tete).not.toMatch(/seule l'annulation des versions périmées se fait sous/);
+    expect(tete).toMatch(/sous `sousVerrou`/);
+    expect(tete).toMatch(/relecture du plan/);
+    expect(tete).toMatch(/marque/);
   });
 });

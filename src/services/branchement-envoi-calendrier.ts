@@ -6,8 +6,9 @@
  *  1. la porte (`publicationEditorialeAutorisee`, trois réglages, erreur = fermé) est lue AVANT toute lecture : fermée = aucun
  *     accès au plan, aux publications, au client ; aucun appel ;
  *  2. un tour toutes les 5 minutes au plus, un seul tour à la fois (un tour en cours = sauté, pas de file) ;
- *  3. seule l'annulation des versions périmées se fait sous `sousVerrou` ; les envois (`envoyerVisuelDuCreneau`) prennent leur
- *     propre verrou et ne sont JAMAIS appelés sous celui-ci (verrou global non réentrant) ;
+ *  3. sous `sousVerrou` : l'annulation des versions périmées, la relecture du plan juste avant une promotion avec la pose de la marque
+ *     `promotion:<clé>`, et les écritures de marque (L5-02d) ; les envois (`envoyerVisuelDuCreneau`) et l'appel de promotion
+ *     prennent leur propre verrou ou aucun, et ne sont JAMAIS appelés sous celui-ci (verrou global non réentrant) ;
  *  4. les créneaux validés deviennent des lignes ; exclus (une notification, une fois) : les vidéos (`vid-…` comprises), les médias
  *     qui occupent déjà le compte sur ce réseau ; exclues sans bruit : les validations relayées par l'usine (V1) ;
  *  5. aucun nouveau réglage, aucune valeur par défaut changée, aucune migration, aucune réponse automatique, aucun quota.
@@ -126,7 +127,7 @@ async function occupantsDuCompte(c: CreneauEditorial, media: string, reseau: Res
   return occupantes.filter((p) => !(typeof p.cleEnvoi === "string" && siennes.includes(p.cleEnvoi)));
 }
 
-const STATUTS_DEJA_PROGRAMMES: readonly string[] = ["programme", "confirme", "a-envoyer", "envoye"];
+const STATUTS_DEJA_PROGRAMMES: readonly string[] = ["programme", "confirme", "a-envoyer"];
 const jjmm = (jour: string | undefined, heure: string | undefined): string | undefined => {
   const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(jour ?? "");
   return m ? `${m[2]}/${m[1]}${heure ? ` à ${heure}` : ""}` : undefined;
@@ -143,6 +144,9 @@ async function messageOccupe(c: CreneauEditorial, reseau: ReseauDeclinaison, occ
   const quand = jjmm(ancienne.jour, ancienne.heure)
     ?? (pub && Number.isFinite(Date.parse(pub.date)) ? jjmm(cleJour(pub.date), heureAffichageParis(pub.date)) : undefined)
     ?? "la date prévue";
+  if (ancienne.statut === "envoye") {
+    return `Elle est déjà partie chez le diffuseur pour le ${quand} (heure de Paris), l'ancienne date. Le calendrier ne la renvoie pas et ne la déplace pas. Pour la retirer, faites-le dans l'outil de publication.`;
+  }
   const programmee = STATUTS_DEJA_PROGRAMMES.includes(ancienne.statut) || (await etats.lire(`promotion:${ancienne.cle}`)) === "programme";
   if (programmee) {
     return `Elle est déjà programmée chez le diffuseur pour le ${quand} (heure de Paris), l'ancienne date, et partira à cette heure-là. Le calendrier ne la déplace pas. Pour la déplacer ou l'annuler, faites-le dans l'outil de publication.`;
@@ -336,7 +340,11 @@ async function annulerVersionsPerimees(maintenant: number, etats: EtatsPromotion
 
 type MarquePromotion = "en-cours" | "programme" | "a-verifier" | "libre";
 const noterMarquePromotion = (etats: EtatsPromotion, cle: string, valeur: MarquePromotion): Promise<void> =>
-  sousVerrou(() => etats.noter(`promotion:${cle}`, valeur));
+  sousVerrou(async () => {
+    await etats.noter(`promotion:${cle}`, valeur);
+    // « à vérifier » (refus, erreur après le réseau) : l'état « a-verifier:<clé> » est noté aussi, pour que plus rien ne soit rappelé.
+    if (valeur === "a-verifier") await etats.noter(`a-verifier:${cle}`, "a-verifier");
+  });
 
 /**
  * Relecture du plan juste avant une promotion, puis marque durable, sous le MÊME `sousVerrou` (aucune notification ici) :
@@ -365,6 +373,8 @@ async function envoiPerimeAvantPromotion(cleJournal: string, maintenant: number,
       await etats.noter(`promotion:${e.cle}`, "a-verifier");
       return { interrompue: true, cle: e.cle };
     }
+    // L'instant de départ d'abord, la marque ensuite : sous ce verrou, nul ne lit « en-cours » sans son instant (la garde en tire l'âge).
+    await etats.noter(`promotion-debut:${e.cle}`, maintenantIso());
     await etats.noter(`promotion:${e.cle}`, "en-cours");
     return { cle: e.cle };
   });
