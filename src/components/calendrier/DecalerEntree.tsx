@@ -53,6 +53,7 @@ export function DecalerEntree({ id, jourActuel }: { id: string; jourActuel: stri
       <button type="submit" disabled={enCours}>Décaler</button>
       {retour?.ok === false && <p role="alert">{retour.message}</p>}
       {retour?.ok === true && <p role="status">Décalée au {retour.donnees.jourVise}.</p>}
+      {retour?.ok === true && retour.avertissement && <p role="status">{retour.avertissement}</p>}
       {aRenvoyer && retour.ok && <AReprogrammer posts={enPost(retour.donnees)} />}
     </form>
   );

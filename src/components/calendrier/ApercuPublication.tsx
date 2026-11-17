@@ -233,7 +233,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
 /* ------------------------------------------------------------------ */
 
-export type DecalerLeJour = (saisie: { id: string; nouveauJour: string; raison: string; cle: string }) => Promise<{ ok: true; donnees: unknown } | { ok: false; message: string }>;
+export type DecalerLeJour = (saisie: { id: string; nouveauJour: string; raison: string; cle: string }) => Promise<{ ok: true; donnees: unknown; avertissement?: string } | { ok: false; message: string }>;
 
 export interface ProprietesSemaineAvecApercu {
   entrees: readonly EntreeApercu[];
@@ -300,8 +300,13 @@ export function SemaineAvecApercu({ entrees, semaineDu, aujourdhui, decaler = de
       if (!r.ok) {
         revenir();
         refuser(r.message);
-      } else if (!plageSemaine(semaineDu).jours.includes(jour)) {
-        setRetour({ texte: `Déplacée au ${JOUR_COURT.format(new Date(`${jour}T12:00:00Z`))}, dans une autre semaine : elle n'est plus dans cette grille.`, ton: "info" });
+      } else {
+        // Décalage réussi : rien n'est remis en place. Avertissement du serveur repris tel quel, après la phrase « autre semaine » s'il y a lieu.
+        const autreSemaine = !plageSemaine(semaineDu).jours.includes(jour)
+          ? `Déplacée au ${JOUR_COURT.format(new Date(`${jour}T12:00:00Z`))}, dans une autre semaine : elle n'est plus dans cette grille.`
+          : null;
+        const texte = [autreSemaine, r.avertissement].filter(Boolean).join(" ");
+        if (texte) setRetour({ texte, ton: "info" });
       }
     } catch {
       revenir();
