@@ -22,6 +22,7 @@ import { ENCRE_SOUS_TITRES_IVOIRE, LARGEUR_SOUS_TITRES_PCT, STYLE_SOUS_TITRES_DU
 import { REGLAGES_SOUS_TITRES_CAS_CONCRET, SURLIGNAGE_CAS_CONCRET } from "@/moteurs/montage-cas-concret/sous-titres-variete";
 import { MARQUEURS } from "@/briques/sous-titres/marqueur";
 import { chiffresDitsDe, type LigneDeTempsIV } from "./mise-en-scene";
+import { intensiteDosageIV } from "./dosage";
 
 /**
  * GV-ST-03 : le tirage de sous-titres par version (SOU-B/C/D/E) est ÉTEINT. Le style choisi dans la Bibliothèque fait loi ;
@@ -36,8 +37,8 @@ export const INTENSITE_SOUS_TITRES_IV: IntensiteSousTitres = "equilibre";
  * Intensité d'une version : SOU-C (sous-titres appuyés, variété) → « Très dynamique » de la brique ; SOU-B, SOU-A
  * (retirée, jamais tirée) ou sans recette → l'intensité par défaut, inchangée.
  */
-export function intensiteSousTitresIV(ligne: Pick<LigneDeTempsIV, "variete">, styleVarie = false): IntensiteSousTitres {
-  return (VARIANTE_PAR_VERSION || styleVarie) && ligne.variete?.recette.sousTitres === "SOU-C" ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV;
+export function intensiteSousTitresIV(ligne: Pick<LigneDeTempsIV, "variete" | "dosage">, styleVarie = false): IntensiteSousTitres {
+  return intensiteDosageIV(ligne.dosage) ?? (((VARIANTE_PAR_VERSION || styleVarie) && ligne.variete?.recette.sousTitres === "SOU-C") ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV);
 }
 
 type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTitres"];
