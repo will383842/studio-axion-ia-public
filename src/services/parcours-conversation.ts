@@ -1628,7 +1628,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   // Adresse écrite sans OK (cible d'essai seulement) : filtre posé AVANT la limite de 3 parcours (sinon 3 parcours qui ne sont pas d'essai, plus anciens, coupent un essai récent) et AVANT le refus des auteurs non listés,
   // pour qu'un parcours qui n'est pas d'essai ne soit ni servi ni consommé (ni idMessageOk, ni okRecus).
   // Le statut d'essai est calculé UNE SEULE FOIS par parcours, avant la décision : « non » = écarté du service ; « suppose » (catalogue illisible) = report de TOUT l'événement, tout de suite (rien n'est consommé, aucune lecture du suivi, aucun envoi partiel) ; « prouve » = chemin normal, sans relire le catalogue.
-  const statutsEssai = new Map<string, "prouve" | "suppose">();
+  const statutsEssai = new Map<string, "non" | "prouve" | "suppose">();
   let candidats = enAttente;
   if (opts.seulementEssai) {
     candidats = [];
@@ -1640,7 +1640,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       candidats.push(x);
     }
     if (candidats.length === 0) {
-      // Un parcours d'essai déjà servi par CE message (rejeu) : ni alerte ni clôture « écarté », un envoi a eu lieu.
+      // `idMessageOk` égal à l'id de ce message : le message est déjà pris en charge par un parcours (envoi parti, OU issue inconnue : ig_envoi_en_vol / ig_a_verifier). On se tait : ni alerte ni clôture « écarté ».
       if (entrees.some((x) => x.etat.idMessageOk === idMessage)) {
         await clore(ev, "silence", "deja_traite");
         return "traite";
@@ -1706,6 +1706,19 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu", { candidatOk: true });
     return "traite";
   }
+  // Vrai OK tapé : même règle que le mode essai. Le statut d'essai de TOUS les parcours à servir est calculé ICI, avant la boucle d'envoi ; si l'un est « supposé » (catalogue illisible),
+  // tout l'événement est reporté avant tout envoi (rien ne part, rien n'est consommé : un parcours précédent ne reçoit pas son message pendant que le suivant attend). Placé APRÈS le contrôle du message non lu : un « Stop » non lu bloque toujours, en premier.
+  if (!opts.seulementEssai) {
+    for (const x of aServir) {
+      if (statutsEssai.has(x.cle)) continue;
+      const e = entrees.find((y) => y.cle === x.cle)?.etat;
+      statutsEssai.set(x.cle, e ? (e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now)) : "non");
+    }
+    if (aServir.some((x) => statutsEssai.get(x.cle) === "suppose")) {
+      await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+      return "bloque";
+    }
+  }
   // (c) UNE lecture du suivi pour tout l'événement ; l'identifiant brut ne vit que dans cet appel. Méthode absente, exception ou forme inconnue : panne définitive.
   let suivi: EtatSuivi;
   try {
@@ -1770,7 +1783,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     // Cible d'ESSAI (drapeau figé ou catalogue du jour) : après le OK, la demande d'adresse validée (groupe « m1-adresse-rgpd ») au lieu du lien. JAMAIS de lien, de jeton ni de repli (mp-m1-v2).
     const statutEssai = dec.action !== "lien" ? "non" : (statutsEssai.get(choisi.cle) ?? (avant.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(avant, env, now)));
     if (statutEssai === "suppose") {
-      // Panne de lecture du catalogue : l'essai n'est pas prouvé, la demande d'adresse partirait sans drapeau. On reporte AVANT tout état d'envoi, rien n'est consommé ni clos.
+      // Filet de sécurité (inatteignable : le statut de tous les parcours est calculé avant la boucle) : l'essai n'est pas prouvé, la demande d'adresse partirait sans drapeau. On reporte AVANT tout état d'envoi.
       await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
       return "bloque";
     }
