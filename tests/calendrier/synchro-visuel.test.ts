@@ -237,7 +237,7 @@ describe("L5-06 · cas limites", () => {
     await publications(3, (i) => (i === 1 ? { videoId: undefined, visuelId: "vis_1" } : {}));
     const { client } = diffuseur(3);
     injecterClientZernio(client);
-    const espion = vi.spyOn(depots().visuels, "modifier").mockRejectedValueOnce(new Error("panne simulée"));
+    const espion = vi.spyOn(depots().visuels, "modifier").mockRejectedValue(new Error("panne simulée"));
     const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
     expect(r.changees).toBe(3);
     expect((await depots().publications.lister()).every((p) => p.statut === "publiee")).toBe(true);
@@ -276,6 +276,7 @@ function diffuseurParPost(etats: Record<string, EtatPost>) {
 const visuelSimple = (statut: string, id = "vis_1") => depots().visuels.enregistrer({ id, famille: "carrousel", titre: "Visuel d'exemple", statut, versionSpec: 1, coutCentimes: 0, creeLe: iso(T0), modifieLe: iso(T0) } as never);
 const pubVisuel = (id: string, reseau: string, extra: Record<string, unknown> = {}) =>
   depots().publications.enregistrer({ id, visuelId: "vis_1", reseau, statut: "programmee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: `post-${id}`, canalId: COMPTE, etatEnvoi: "envoye", envoiCommenceLe: iso(T0 - 3600_000), creeLe: iso(T0), modifieLe: iso(T0), ...extra } as never);
+const BUDGET_TOUTES = 51; // 1 lecture des comptes + 50 requêtes de posts au plus par passage
 const statutVisuel = async (id = "vis_1") => (await depots().visuels.obtenir(id))?.statut;
 
 describe("L5-06 · décision du pilote, règle 1 : tant qu'un envoi reste possible, l'étape ne bouge pas", () => {
@@ -458,5 +459,64 @@ describe("L5-06 · décision du pilote, point 5 : budget de TOUTES les requêtes
     injecterClientZernio(client);
     await synchroniserEtatsZernio({ force: true, instant: T0 });
     expect(appels.length).toBeLessThanOrEqual(BUDGET);
+  });
+});
+
+describe("L5-06 · relecture du tour 1 : état final du passage, réseaux sans visuel, rattrapage non bloquant, budget en pagination", () => {
+  for (const premier of ["pi", "pl"] as const) {
+    it(`visuel « validé », Instagram programmée en échec chez le diffuseur, LinkedIn envoyée en brouillon puis publiée (lue d'abord : ${premier}) : « validé », le nouvel essai reste possible`, async () => {
+      await visuelSimple("valide");
+      await pubVisuel("pi", "instagram", { etatLuLe: iso(T0 - (premier === "pi" ? 2000 : 1000)) });
+      await pubVisuel("pl", "linkedin", { statut: "brouillon", etatLuLe: iso(T0 - (premier === "pl" ? 2000 : 1000)) });
+      const { client } = diffuseurParPost({ "post-pi": { status: "failed" }, "post-pl": { status: "published", plateforme: "linkedin" } });
+      injecterClientZernio(client);
+      await synchroniserEtatsZernio({ force: true, instant: T0 });
+      expect((await depots().publications.obtenir("pi"))?.statut).toBe("echec");
+      expect((await depots().publications.obtenir("pl"))?.statut).toBe("publiee");
+      expect(await statutVisuel()).toBe("valide");
+    });
+  }
+
+  it("un créneau qui prévoit aussi un réseau sans visuel (tiktok) ne bloque pas le visuel : « publié » quand Instagram est publiée", async () => {
+    await visuelSimple("valide");
+    await depots().creneauxEditoriaux.enregistrer({ id: "cre_1", jourVise: "2026-11-12", heuresParReseau: { instagram: DATE, tiktok: DATE }, compteCible: COMPTE, visuelId: "vis_1", statut: "valide", decalages: 0, valideeLe: iso(T0 - 7200_000) } as never);
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("publie");
+  });
+
+  it("une lecture de dépôt en échec pendant le rattrapage ne bloque pas la synchro : les publications sont relues", async () => {
+    await visuelSimple("programme");
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" } });
+    injecterClientZernio(client);
+    const espion = vi.spyOn(depots().visuels, "lister").mockRejectedValue(new Error("panne simulée"));
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
+    espion.mockRestore();
+    expect(r.lues).toBe(1);
+    expect((await depots().publications.obtenir("pi"))?.statut).toBe("publiee");
+  });
+
+  it("la liste échoue à la 10e page après 9 pages lues, 50 posts hors liste : toutes requêtes comptées, au plus 51", async () => {
+    await publications(500);
+    const posts = Array.from({ length: 450 }, (_, i) => postPublie(i + 1));
+    const appels: AppelEnregistre[] = [];
+    const { client } = creerFauxClientZernio((a) => {
+      appels.push(a);
+      const u = new URL(a.url);
+      if (u.pathname.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: COMPTE, platform: "instagram", isActive: true }] } };
+      if (u.pathname.endsWith("/v1/posts")) {
+        const page = Number(u.searchParams.get("page") ?? 1);
+        return page <= 9 ? { statut: 200, corps: { posts: posts.slice((page - 1) * 50, page * 50) } } : { statut: 500, corps: { error: "panne simulée" } };
+      }
+      const m = /\/v1\/posts\/exemple-post-(\d+)$/.exec(u.pathname);
+      return m ? { statut: 200, corps: { post: postPublie(Number(m[1])) } } : { statut: 404, corps: {} };
+    });
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
+    expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+    expect(r.lues).toBeGreaterThanOrEqual(450);
   });
 });
