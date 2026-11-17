@@ -21,6 +21,7 @@ import { baseRetenue, donneesCalque, fabriquerSousTitres } from "@/briques/sous-
 import type { DonneesCalque } from "@/briques/sous-titres/scene";
 import { genererPlan, type AppelClaude } from "@/briques/plan-scenes/generateur";
 import { planDeRepli, validerPlan } from "@/briques/plan-scenes/validateur";
+import { planNiveau1, planNu } from "@/briques/plan-scenes/plan-nu";
 import { scenesARerendre } from "@/briques/plan-scenes/empreinte";
 import type { MotMinute, PlanValide } from "@/briques/plan-scenes/schema";
 import { grouperMots } from "@/briques/sous-titres/groupement";
@@ -311,21 +312,28 @@ export async function avancerChaineDemo(precedent: EtatDemo, commande: CommandeF
   if (etat.mots && etat.synchro && !etat.plan) {
     const mots = versMinute(etat.mots);
     const contexte = { mots, format: formatPlanDemo(), facecam: false, dureeMs: Math.round((etat.dureeSec ?? 1) * 1000) };
-    if (entrees.plan !== undefined) {
+    // X3-06 : cran du dosage figé dans la commande. Absent (dosage éteint) = chemin d'avant, inchangé.
+    const cran = commande.dosageMotion?.cran;
+    const apresCran = (p: PlanValide): PlanValide => (cran === "sobre" ? planNiveau1(p) : p);
+    if (cran === "aucun") {
+      // Plan nu : l'écran seul, aucune pièce, aucun calque ; `genererPlan` n'est pas appelé (0 appel Claude).
+      etat.plan = planNu(contexte);
+      etat.sourcePlan = "repli";
+    } else if (entrees.plan !== undefined) {
       const r = validerPlan(entrees.plan, contexte);
-      etat.plan = r.plan;
+      etat.plan = apresCran(r.plan);
       etat.sourcePlan = "retouche";
       for (const x of r.remarques) ajouterRemarque(etat, x.code, x.message);
     } else if (deps.appelerPlan && mots.length) {
       const r = await genererPlan({ script: mots.map((m) => m.texte).join(" "), mots, format: contexte.format, facecam: false }, deps.appelerPlan);
       // Le plan suit la durée de Williams (validé de nouveau avec sa durée, jamais raccourci).
       const v = validerPlan(r.plan, contexte);
-      etat.plan = v.plan;
+      etat.plan = apresCran(v.plan);
       etat.sourcePlan = r.source;
       for (const x of [...r.remarques, ...v.remarques]) ajouterRemarque(etat, x.code, x.message);
     } else {
       const v = validerPlan(planDeRepli(contexte), contexte);
-      etat.plan = v.plan;
+      etat.plan = apresCran(v.plan);
       etat.sourcePlan = "repli";
       ajouterRemarque(etat, "PLAN_SIMPLE", "Motion design simple (légendes) : la composition par l'IA n'est pas branchée.");
     }
