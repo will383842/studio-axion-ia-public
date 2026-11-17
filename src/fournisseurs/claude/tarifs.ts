@@ -9,7 +9,7 @@
  */
 
 export const MODELE_ECRITURE = "claude-opus-5-5";
-export const MODELE_JUGE = "claude-sonnet-5-5";
+export { MODELE_JUGE } from "@/domaine/modeles-texte";
 
 export interface TarifModele {
   /** $ par million de jetons. */
