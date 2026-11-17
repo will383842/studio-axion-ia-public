@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { EXEMPLES_CARTON_MAGAZINE, OBJET_CARTON_MAGAZINE, RAPPORT_TAILLES, taillesCarton, type ParametresCartonMagazine } from "../../src/briques/motion/petits-objets/carton-magazine";
+import { IMAGES_ENTREE } from "../../src/briques/motion/petits-objets/progres";
 import { MOTS_MAX, verifierDefinition, type TonObjet } from "../../src/briques/motion/petits-objets/contrat";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { couleursSur, type FondAxion } from "../../src/briques/jetons-motion";
@@ -59,6 +60,15 @@ describe("C10-04a rendu", () => {
     expect(m).toContain("Manrope");
     const textes = [...m.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((x) => x[1]);
     expect(textes).toEqual(["Le secret", "Simplicité"]);
+  });
+  it("entrée : les deux textes sont à opacité 0 à l'image 0 et pleins à la fin de l'entrée", () => {
+    const ops = (m: string) => [...m.matchAll(/<text[^>]*opacity="([^"]+)"/g)].map((x) => Number(x[1]));
+    const debut = ops(rendre(0));
+    expect(debut).toHaveLength(2);
+    for (const o of debut) expect(o).toBeLessThan(0.05);
+    const fin = ops(rendre(IMAGES_ENTREE));
+    expect(fin).toHaveLength(2);
+    for (const o of fin) expect(o).toBe(1);
   });
   it("dernière image : opacité 0 ; tenue pleine ; sortie en 6 images", () => {
     expect(opaciteGroupe(rendre(D - 1))).toBe(0);

@@ -49,6 +49,7 @@ function valider(p: unknown): ParametresCartonMagazine | null {
 }
 
 const f = (n: number): string => n.toFixed(1);
+const borne01 = (n: number): number => Math.min(1, Math.max(0, n));
 
 export const OBJET_CARTON_MAGAZINE: DefinitionObjet<ParametresCartonMagazine> = {
   id: "objet-carton-magazine",
@@ -64,16 +65,17 @@ export const OBJET_CARTON_MAGAZINE: DefinitionObjet<ParametresCartonMagazine> = 
     const couleurTon = couleurDuTon(ton ?? "neutre", fond);
     const phase = phaseObjet(image, dureeImages);
     const t = taillesCarton(parametres);
+    const tr = phase.trace;
     const yLigne = H_CARTON / 2 - t.motCle * 0.45;
     const yMot = H_CARTON / 2 + t.motCle * 0.55;
     const centre = f(L_CARTON / 2);
     return (
       <svg viewBox={`0 0 ${L_CARTON} ${H_CARTON}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <g opacity={phase.opacite}>
-          <text x={centre} y={f(yLigne)} textAnchor="middle" fontSize={f(t.ligne)} fontWeight={GRAISSE_LIGNE} fontFamily={FAMILLE_CSS_AXION} fill={c.texte}>
+          <text x={centre} y={f(yLigne)} textAnchor="middle" fontSize={f(t.ligne)} fontWeight={GRAISSE_LIGNE} fontFamily={FAMILLE_CSS_AXION} fill={c.texte} opacity={borne01(tr * 2)}>
             {parametres.ligne}
           </text>
-          <text x={centre} y={f(yMot)} textAnchor="middle" fontSize={f(t.motCle)} fontWeight={GRAISSE_MOT_CLE} fontFamily={FAMILLE_CSS_AXION} fill={couleurTon}>
+          <text x={centre} y={f(yMot)} textAnchor="middle" fontSize={f(t.motCle)} fontWeight={GRAISSE_MOT_CLE} fontFamily={FAMILLE_CSS_AXION} fill={couleurTon} opacity={borne01(tr * 2 - 0.6)}>
             {parametres.motCle}
           </text>
         </g>
