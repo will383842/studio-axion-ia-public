@@ -19,6 +19,7 @@ const PARAM = "parcours.conversations";
 const TITRE = "Parcours des messages privés";
 
 const raison = (motif: string, il = 3600_000) => ({ motif, statut: 400, codeClient: "refuse", meta: null, codeZernio: null, source: "nombres", le: new Date(T - il).toISOString() });
+const deuxConv = (o: Record<string, unknown> = {}) => ({ "p1|x": conv(o), "p2|y": conv(o) });
 const conv = (o: Record<string, unknown> = {}) => ({ etat: "m1_refuse", reseau: "facebook", idCompte: "cpt-a", mot: "GUIDE", creeLe: new Date(T - 7200_000).toISOString(), refuseLe: new Date(T - 3600_000).toISOString(), refusPrive: raison("droits-manquants"), ...o });
 const notifs = () => depots().notifications.lister((n) => n.titre === TITRE);
 
@@ -31,7 +32,7 @@ beforeEach(async () => {
 
 describe("surveillerRefusEnvoi", () => {
   it("cloche seulement : aucune file d'envoi, aucun push", async () => {
-    await ecrireParametre(PARAM, { "p1|x": conv() });
+    await ecrireParametre(PARAM, deuxConv());
     expect(await S.surveillerRefusEnvoi({ maintenantMs: T })).toBe(1);
     const l = await notifs();
     expect(l).toHaveLength(1);
@@ -43,7 +44,7 @@ describe("surveillerRefusEnvoi", () => {
     expect(envoyerPush).not.toHaveBeenCalled();
   });
   it("le dédoublonnage survit à une remise à zéro de la mémoire (il est en base)", async () => {
-    await ecrireParametre(PARAM, { "p1|x": conv() });
+    await ecrireParametre(PARAM, deuxConv());
     await S.surveillerRefusEnvoi({ maintenantMs: T });
     S.reinitialiserSurveillanceRefusEnvoi();
     expect(await S.surveillerRefusEnvoi({ maintenantMs: T + 20 * MIN })).toBe(0);
@@ -58,19 +59,40 @@ describe("surveillerRefusEnvoi", () => {
     expect(JSON.stringify(await lireParametre(PARAM, {}))).toBe(avant);
   });
   it("fréquence : au plus une fois toutes les 10 minutes", async () => {
-    await ecrireParametre(PARAM, { "p1|x": conv() });
+    await ecrireParametre(PARAM, deuxConv());
     expect(await S.surveillerRefusEnvoi({ maintenantMs: T })).toBe(1);
-    await ecrireParametre(PARAM, { "p1|x": conv(), "p2|y": conv({ idCompte: "cpt-i", reseau: "instagram", refusPrive: raison("jeton-expire-ou-invalide") }) });
+    await ecrireParametre(PARAM, { ...deuxConv(), "p3|y": conv({ idCompte: "cpt-i", reseau: "instagram", refusPrive: raison("inbox-zernio-requise") }) });
     expect(await S.surveillerRefusEnvoi({ maintenantMs: T + 5 * MIN })).toBe(0);
     expect(await S.surveillerRefusEnvoi({ maintenantMs: T + 11 * MIN })).toBe(1);
   });
   it("une panne de creerNotification ne fait pas échouer l'appel, et l'alerte n'est pas marquée", async () => {
-    await ecrireParametre(PARAM, { "p1|x": conv() });
+    await ecrireParametre(PARAM, deuxConv());
     panne.active = true;
     await expect(S.surveillerRefusEnvoi({ maintenantMs: T })).resolves.toBe(0);
     expect(await lireParametre("parcours.alertes_refus", {})).toEqual({});
     panne.active = false;
     expect(await S.surveillerRefusEnvoi({ maintenantMs: T + 11 * MIN })).toBe(1);
+  });
+  it("R4 : écriture du marquage en panne : 3 passages espacés de 10 minutes = 1 seule notification", async () => {
+    await ecrireParametre(PARAM, deuxConv());
+    const reel = depots().parametres;
+    const ecrire = vi.spyOn(reel, "enregistrer").mockImplementation(async () => { throw new Error("panne d'écriture fictive"); });
+    await S.surveillerRefusEnvoi({ maintenantMs: T });
+    await S.surveillerRefusEnvoi({ maintenantMs: T + 11 * MIN });
+    await S.surveillerRefusEnvoi({ maintenantMs: T + 22 * MIN });
+    ecrire.mockRestore();
+    expect(await notifs()).toHaveLength(1);
+  });
+  it("R5 : le numéro du compte suit la liste Zernio enregistrée (même rang que les jetons), sans liste = sans numéro", async () => {
+    await ecrireParametre(PARAM, deuxConv({ idCompte: "cpt-b" }));
+    await S.surveillerRefusEnvoi({ maintenantMs: T });
+    expect((await notifs())[0]?.message?.startsWith("Facebook : ")).toBe(true);
+    reinitialiserDepots();
+    S.reinitialiserSurveillanceRefusEnvoi();
+    await ecrireParametre("zernio.comptes", { lusLe: new Date(T).toISOString(), comptes: [{ id: "cpt-b", reseau: "facebook", nom: "x" }, { id: "cpt-a", reseau: "facebook", nom: "y" }] });
+    await ecrireParametre(PARAM, deuxConv({ idCompte: "cpt-b" }));
+    await S.surveillerRefusEnvoi({ maintenantMs: T });
+    expect((await notifs())[0]?.message?.startsWith("Facebook n°2 : ")).toBe(true);
   });
   it("un refusPrive invalide est ignoré", async () => {
     await ecrireParametre(PARAM, {
