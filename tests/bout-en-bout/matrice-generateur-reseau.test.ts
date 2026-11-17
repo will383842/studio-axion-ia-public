@@ -104,7 +104,7 @@ async function jouerCase(formatId: string, reseauId: IdReseau): Promise<Constat[
     if (corps.platforms[0].platform !== reseauId) noter("corps-zernio", `plateforme ${corps.platforms[0].platform}`);
     else if (corps.content !== demande.texte || corps.mediaItems?.[0]?.type !== "video" || corps.isDraft !== true) noter("corps-zernio", "contenu, média ou brouillon inattendu");
     else if (transmissible ? !place.premierCommentaire?.trim() || specifique?.firstComment !== place.premierCommentaire : specifique?.firstComment !== undefined) noter("corps-zernio", "premier commentaire mal placé dans le corps");
-    else if (mots.some((m) => !corps.content.includes(m) && !String(specifique?.firstComment ?? "").includes(m))) noter("corps-zernio", "un mot-dièse n'arrive ni dans le texte ni dans le premier commentaire");
+    else if (mots.some((m) => !(corps.content ?? "").includes(m) && !String(specifique?.firstComment ?? "").includes(m))) noter("corps-zernio", "un mot-dièse n'arrive ni dans le texte ni dans le premier commentaire");
   } catch (e) {
     noter("corps-zernio", e instanceof Error ? e.message : String(e));
   }
