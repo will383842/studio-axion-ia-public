@@ -15,6 +15,14 @@ import { c01, doux, progres } from "./commun";
 
 /** Zoom maximal de la caméra (3,5 % : les bords du contenu bougent de 19 px au plus sur 1080). */
 export const ECHELLE_CAMERA_MAX = 1.035;
+/** C8-Z04 · plafond absolu du réglage `casConcret.cameraPlus` (copie de `CAMERA_PLUS_MAX` de `variete.ts` : le rendu n'importe pas les moteurs ; un test les égale). */
+export const ECHELLE_CAMERA_PLUS_MAX = 1.048;
+/** Plafond de la caméra d'un écran : `jeu.cameraMax` borné à [`ECHELLE_CAMERA_MAX`, `ECHELLE_CAMERA_PLUS_MAX`] ; absent ou illisible : `ECHELLE_CAMERA_MAX`. */
+export function plafondCamera(jeu: ProprietesEcran["jeu"]): number {
+  const v = jeu?.cameraMax;
+  if (typeof v !== "number" || !Number.isFinite(v)) return ECHELLE_CAMERA_MAX;
+  return Math.min(ECHELLE_CAMERA_PLUS_MAX, Math.max(ECHELLE_CAMERA_MAX, v));
+}
 /** Dérive latérale maximale (px, sur 1080 de large). */
 export const DERIVE_MAX_PX = 16;
 export const DUREE_ENTREE_S = 0.35;
@@ -103,14 +111,15 @@ export function planHabillage(p: Pick<ProprietesEcran, "jeu" | "debutMs">, t: nu
   const cam = lire(j.camera);
   if (cam && cam !== "aucun" && !raccordEntree && !raccordSortie) {
     const x = c01(duree > 0 ? t / duree : 0);
-    const e = ECHELLE_CAMERA_MAX - 1;
+    const plafond = plafondCamera(j);
+    const e = plafond - 1;
     if (cam === "zoom-lent") h = { ...h, camera: { echelle: 1 + e * x, dx: 0 } };
     else if (cam === "derive-laterale") h = { ...h, camera: { echelle: 1 + e * 0.6, dx: DERIVE_MAX_PX * (0.5 - x) } };
     else if (cam === "punch-in") h = { ...h, camera: { echelle: 1 + e * doux(progres(t, 0, 0.45)), dx: 0 } };
     else if (cam === "zoom-arriere") h = { ...h, camera: { echelle: 1 + e * (1 - x), dx: 0 } };
   }
   // Entrée « zoom-avant » (enveloppe intérieure) × caméra (extérieure) se multiplient à l'écran : le produit reste ≤ plafond.
-  if (h.camera && h.echelle * h.camera.echelle > ECHELLE_CAMERA_MAX) h = { ...h, echelle: ECHELLE_CAMERA_MAX / h.camera.echelle };
+  if (h.camera && h.echelle * h.camera.echelle > plafondCamera(j)) h = { ...h, echelle: plafondCamera(j) / h.camera.echelle };
   return h;
 }
 

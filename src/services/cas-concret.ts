@@ -23,6 +23,7 @@ import { lecturesVoixMaxDuReglage } from "./voix-ressemblance";
 import { refusAvantPrix } from "@/moteurs/montage-cas-concret/avant-prix";
 import { motValide } from "@/moteurs/montage-cas-concret/fins";
 import { blocsScriptDesEcrans, problemesScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
+import { lireCameraPlus } from "@/moteurs/montage-cas-concret/variete";
 import type { AccordPrix } from "@/domaine/accord";
 import { voixPourFormat } from "@/domaine/voix-format";
 import type { BlocScript, Distribution, Id, Video } from "@/domaine/types";
@@ -455,6 +456,8 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
 
   const motDit = motNormalise(mot) === motNormalise(cas.mot) ? cas.motDit : undefined;
   const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
+  // C8-Z04 : le réglage est lu ICI, une seule fois, puis figé dans les entrées (un moteur ne lit jamais les réglages).
+  const cameraPlus = lireCameraPlus(await lireParametre<unknown>("casConcret.cameraPlus", null));
   const entreesBase = {
     casId: cas.id,
     empreinteCas: empreinte,
@@ -473,6 +476,7 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
     // AJOUTER UN CAS : un cas ajouté à la main (hors catalogue) part FIGÉ avec la vidéo : le moteur, pur et synchrone, ne lit pas la
     // base ; moteur, boucle et relance relisent donc le même cas, même après un redémarrage ou pendant une mise en ligne.
     ...(!c.porteB && !trouverCas(cas.id) ? { casFige: structuredClone(cas) } : {}),
+    ...(cameraPlus ? { cameraPlus } : {}),
   };
 
   let videoId: Id;

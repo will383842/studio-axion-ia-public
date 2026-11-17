@@ -119,6 +119,19 @@ export type MouvementCamera = (typeof MOUVEMENTS_CAMERA)[number];
 
 const entier = (min: number, max: number) => z.number().int().min(min).max(max);
 
+/** C8-Z04 · plafond absolu de la caméra du réglage `casConcret.cameraPlus` (le rendu en a une copie : `ECHELLE_CAMERA_PLUS_MAX`). */
+export const CAMERA_PLUS_MAX = 1.048;
+/** Plafond de la caméra d'aujourd'hui (`ECHELLE_CAMERA_MAX` du rendu) : le réglage doit le dépasser pour s'allumer. */
+const CAMERA_BASE_MAX = 1.035;
+
+/** Lit le réglage `casConcret.cameraPlus` : `undefined` (éteint) si ce n'est pas un nombre fini > 1,035 ; borné à 1,048 ; arrondi au millième. */
+export function lireCameraPlus(brut: unknown): number | undefined {
+  if (typeof brut !== "number" || !Number.isFinite(brut) || brut <= CAMERA_BASE_MAX) return undefined;
+  if (brut >= CAMERA_PLUS_MAX) return CAMERA_PLUS_MAX;
+  const v = Math.round(brut * 1000) / 1000;
+  return v <= CAMERA_BASE_MAX ? undefined : v;
+}
+
 export const schemaTirage = z.strictObject({
   version: z.literal(VERSION_VARIETE),
   /** Graine de la vidéo (FNV-1a 32 bits de `videoId`). */
@@ -151,6 +164,8 @@ export const schemaTirage = z.strictObject({
    * son rendu : ces dimensions y sont tirées mais n'ont jamais été dessinées, elles ne le sont pas après coup.
    */
   habille: z.literal(true).optional(),
+  /** C8-Z04 · plafond de caméra (1,035 < x ≤ 1,048) posé au lancement par le réglage `casConcret.cameraPlus` ; absent : 1,035. */
+  cameraPlus: z.number().gt(CAMERA_BASE_MAX).max(CAMERA_PLUS_MAX).optional(),
 });
 export type Tirage = z.infer<typeof schemaTirage>;
 
@@ -233,7 +248,7 @@ export const DIMENSIONS_HABILLAGE: readonly DimensionEcran[] = Object.freeze(["e
 const VALEUR_V4_ECRAN: Readonly<Partial<Record<DimensionEcran, string>>> = Object.freeze({ entree: "fondu-recul-v4", sortie: "aucune-v4", camera: "aucun", motParMot: "v4" });
 
 /** Réglages transmis aux propriétés d'un écran (`jeu`) : les seules dimensions actives ; `undefined` si aucune. */
-export function jeuDeLEcran(mise: (Pick<Mise, "ecrans"> & { tirage?: Pick<Tirage, "habille"> }) | null | undefined, ecranId: string, actives: readonly DimensionEcran[] = DIMENSIONS_ACTIVES): Record<string, string | number | boolean> | undefined {
+export function jeuDeLEcran(mise: (Pick<Mise, "ecrans"> & { tirage?: Pick<Tirage, "habille" | "cameraPlus"> }) | null | undefined, ecranId: string, actives: readonly DimensionEcran[] = DIMENSIONS_ACTIVES): Record<string, string | number | boolean> | undefined {
   const t = mise?.ecrans[ecranId];
   if (!t || !actives.length) return undefined;
   const jeu: Record<string, string | number | boolean> = {};
@@ -248,6 +263,8 @@ export function jeuDeLEcran(mise: (Pick<Mise, "ecrans"> & { tirage?: Pick<Tirage
     if (rendues && !rendues.includes(v as string)) continue;
     jeu[d] = v;
   }
+  // C8-Z04 : le plafond de caméra du tirage accompagne la caméra (jamais seul, jamais sans `habille`).
+  if (jeu.camera !== undefined && mise?.tirage?.cameraPlus !== undefined) jeu.cameraMax = mise.tirage.cameraPlus;
   return Object.keys(jeu).length ? jeu : undefined;
 }
 
@@ -497,6 +514,8 @@ export interface DemandeTirage {
   structureImposee?: Structure;
   /** Lot F · structures que le tirage ne peut pas prendre (toutes les autres règles restent tenues). Absente : le tirage de toujours. */
   structuresExclues?: readonly Structure[];
+  /** C8-Z04 · plafond de caméra du réglage `casConcret.cameraPlus` : posé sur le tirage APRÈS le hasard (aucun tirage de plus). Absent : le tirage de toujours. */
+  cameraPlus?: number;
 }
 
 /**
@@ -510,15 +529,16 @@ export function tirer(d: DemandeTirage): Tirage {
   const r = hasardSeme(sel ? hacher32(`${graine}#${sel}`) : graine);
   const contexte = { videoId: d.videoId, canaux: d.canaux, historique: d.historique, ...(d.structureImposee ? { structureImposee: d.structureImposee } : {}), ...(d.structuresExclues?.length ? { structuresExclues: d.structuresExclues } : {}) };
   const imposer = (t: Tirage): Tirage => (d.structureImposee ? { ...t, structure: d.structureImposee } : t);
+  const plus = (t: Tirage): Tirage => (d.cameraPlus !== undefined ? { ...t, cameraPlus: d.cameraPlus } : t);
   for (let niveau = 0; niveau < NIVEAUX_DE_RELACHE.length; niveau++) {
     for (let essai = 0; essai < Math.max(1, d.essaisParNiveau ?? ESSAIS_PAR_NIVEAU); essai++) {
       const t = imposer(candidat(r, graine, sel));
-      if (!contraintesNonTenues(t, contexte, niveau).length) return { ...t, relache: niveau };
+      if (!contraintesNonTenues(t, contexte, niveau).length) return plus({ ...t, relache: niveau });
     }
   }
   // Repli (64 candidats refusés au dernier niveau) : ni l'ouverture ni la structure ne sont la v4, donc la règle « v4 au plus
   // 1 fois sur 4 » est tenue quoi qu'il y ait dans l'historique ; le hasard n'avance pas de plus (graine seule).
-  return { ...candidat(r, graine, sel), ouverture: OUVERTURES[1 + (graine % (OUVERTURES.length - 1))]!, structure: d.structureImposee ?? (STRUCTURES.slice(1).filter((s) => !d.structuresExclues?.includes(s)).at(graine % Math.max(1, STRUCTURES.slice(1).filter((s) => !d.structuresExclues?.includes(s)).length)) ?? STRUCTURES[1 + (graine % (STRUCTURES.length - 1))]!), relache: NIVEAUX_DE_RELACHE.length - 1 };
+  return plus({ ...candidat(r, graine, sel), ouverture: OUVERTURES[1 + (graine % (OUVERTURES.length - 1))]!, structure: d.structureImposee ?? (STRUCTURES.slice(1).filter((s) => !d.structuresExclues?.includes(s)).at(graine % Math.max(1, STRUCTURES.slice(1).filter((s) => !d.structuresExclues?.includes(s)).length)) ?? STRUCTURES[1 + (graine % (STRUCTURES.length - 1))]!), relache: NIVEAUX_DE_RELACHE.length - 1 });
 }
 
 /* ------------------------------------------------------------------ */

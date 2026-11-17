@@ -56,7 +56,7 @@ describe("X3-07 · cas concret : tirage", () => {
   it("fabriquer.ts applique tirageDose après le tirage, aux deux endroits, sans toucher au hasard", () => {
     expect(FABRIQUER.match(/tirageDose\(/g)).toHaveLength(2); // les 2 appels (la définition est `tirageDose = (`)
     expect(FABRIQUER).toContain("tirage = tirageDose(tirage, o.dosage);");
-    expect(FABRIQUER).toContain("heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique }), o.dosage);");
+    expect(FABRIQUER).toMatch(/const tirage = tirageDose\(journal\.tirage\?\.tirage \?\? heritee\?\.tirage \?\? tirer\(\{.*\}\), o\.dosage\);/);
     expect(FABRIQUER.indexOf("structure: structureEffective(cas.offre, tirage.structure) };")).toBeLessThan(FABRIQUER.indexOf("tirage = tirageDose(tirage, o.dosage);"));
   });
 });
