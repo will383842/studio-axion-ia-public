@@ -108,7 +108,7 @@ describe("L5-06 · synchronisation complète", () => {
     const r = await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
     expect(r.lues).toBe(5);
     const unitaires = appels.filter((a) => /\/v1\/posts\/[^/?]+$/.test(new URL(a.url).pathname)).map((a) => new URL(a.url).pathname);
-    expect(unitaires).toEqual(["/v1/posts/exemple-post-3"]);
+    expect(unitaires).toEqual(["/api/v1/posts/exemple-post-3"]);
   });
 
   it("sans l'option « complet », le passage incrémental reste celui de 50 lectures unitaires, sans liste", async () => {
