@@ -520,3 +520,84 @@ describe("L5-06 · relecture du tour 1 : état final du passage, réseaux sans v
     expect(r.lues).toBeGreaterThanOrEqual(450);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* Audit Opus, point 1 : un post incomplet de la liste ne fait jamais tomber le passage                   */
+/* ------------------------------------------------------------------ */
+
+describe("L5-06 · audit point 1 : posts incomplets de la liste écartés, relus un à un, jamais rejetés", () => {
+  /** Liste de 60 posts dont `abimes` sont altérés ; les lectures unitaires (`unitaire`) disent la vérité du diffuseur. */
+  function diffuseurAbime(abimes: Record<number, (p: Record<string, unknown>) => Record<string, unknown>>, unitaire: (n: number) => { statut: number; corps: unknown } = (n) => ({ statut: 200, corps: { post: postPublie(n) } })) {
+    const appels: AppelEnregistre[] = [];
+    const { client } = creerFauxClientZernio((a) => {
+      appels.push(a);
+      const u = new URL(a.url);
+      if (u.pathname.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: COMPTE, platform: "instagram", isActive: true }] } };
+      if (u.pathname.endsWith("/v1/posts")) {
+        const page = Number(u.searchParams.get("page") ?? 1);
+        const tous = Array.from({ length: 60 }, (_, i) => (abimes[i + 1] ? abimes[i + 1](postPublie(i + 1) as never) : postPublie(i + 1)));
+        return { statut: 200, corps: { posts: tous.slice((page - 1) * 50, page * 50) } };
+      }
+      const m = /\/v1\/posts\/exemple-post-(\d+)$/.exec(u.pathname);
+      return m ? unitaire(Number(m[1])) : { statut: 404, corps: {} };
+    });
+    return { client, appels };
+  }
+  const sans = (cle: string) => (p: Record<string, unknown>) => {
+    const { [cle]: _omis, ...reste } = p;
+    return reste;
+  };
+
+  it("un post de la liste sans « platforms » : il est relu seul, les 59 autres sont mis à jour, budget tenu, rien n'est rejeté", async () => {
+    await publications(60);
+    const { client, appels } = diffuseurAbime({ 1: sans("platforms") });
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(r).toEqual({ lues: 60, changees: 60 });
+    expect((await depots().publications.lister()).every((p) => p.statut === "publiee")).toBe(true);
+    expect(appels.filter((a) => /\/v1\/posts\/exemple-post-\d+$/.test(new URL(a.url).pathname)).map((a) => new URL(a.url).pathname)).toEqual(["/api/v1/posts/exemple-post-1"]);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+    expect(ecritures(appels)).toHaveLength(0);
+  });
+
+  it("un post de la liste sans « _id » (ou « _id » non chaîne) n'empêche rien : les publications sont mises à jour", async () => {
+    await publications(60);
+    const { client, appels } = diffuseurAbime({ 2: (p) => ({ ...p, _id: 7 }), 3: sans("_id") });
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(r.lues).toBe(60);
+    expect((await depots().publications.lister()).every((p) => p.statut === "publiee")).toBe(true);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+  });
+
+  it("un post de la liste sans « status » ne fait JAMAIS passer une publication programmée à brouillon, même si la relecture seule échoue", async () => {
+    await publications(60);
+    const { client, appels } = diffuseurAbime({ 2: sans("status") }, (n) => (n === 2 ? { statut: 500, corps: { error: "panne simulée" } } : { statut: 200, corps: { post: postPublie(n) } }));
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect((await depots().publications.obtenir("p2"))?.statut).toBe("programmee");
+    expect(r.lues).toBe(59);
+    expect((await depots().publications.lister()).filter((p) => p.statut === "publiee")).toHaveLength(59);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+  });
+
+  it("un post illisible (plateforme nulle) qui passe le filtre : le passage ne tombe pas, les autres sont mis à jour", async () => {
+    await publications(60);
+    const { client } = diffuseurAbime({ 4: (p) => ({ ...p, platforms: [null] }) });
+    injecterClientZernio(client);
+    await expect(synchroniserEtatsZernio({ force: true, instant: T0 })).resolves.toBeDefined();
+    const publiees = (await depots().publications.lister()).filter((p) => p.statut === "publiee");
+    expect(publiees.length).toBeGreaterThanOrEqual(59);
+    expect((await depots().publications.obtenir("p5"))?.statut).toBe("publiee");
+  });
+
+  it("des posts incomplets en nombre (45) : les lectures seules restent sous le plafond de 40, budget total de 51 tenu", async () => {
+    await publications(60);
+    const abimes = Object.fromEntries(Array.from({ length: 45 }, (_, i) => [i + 1, sans("platforms")]));
+    const { client, appels } = diffuseurAbime(abimes);
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(appels.filter((a) => /\/v1\/posts\/exemple-post-\d+$/.test(new URL(a.url).pathname))).toHaveLength(40);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+  });
+});
