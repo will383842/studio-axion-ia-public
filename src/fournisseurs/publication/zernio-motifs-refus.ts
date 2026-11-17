@@ -53,6 +53,8 @@ function codeZernioDe(corps: unknown): CodeZernioConnu | null {
 
 // Expressions simples, sans quantificateur imbriqué ; bornes `{0,40}` pour le motif « permission ».
 const PHRASES: ReadonlyArray<[RegExp, CodeMotifRefus]> = [
+  // Compte introuvable AVANT la règle générale « does not exist » (commentaire introuvable).
+  [/account (not found|does not exist)/, "compte-zernio-introuvable"],
   [/messages? disabled in (the )?settings|has messages disabled/, "messagerie-desactivee-sur-la-page"],
   [/disabled access to instagram direct messages/, "messagerie-instagram-desactivee"],
   [/outside (of )?(the )?allowed window|older than 7 days/, "fenetre-7-jours-depassee"],
@@ -65,7 +67,6 @@ const PHRASES: ReadonlyArray<[RegExp, CodeMotifRefus]> = [
   [/access token|session has expired/, "jeton-expire-ou-invalide"],
   [/does not exist|has been deleted/, "commentaire-introuvable"],
   [/temporarily restricted/, "envoi-restreint-temporairement"],
-  [/account not found/, "compte-zernio-introuvable"],
 ];
 
 /** Copie locale, JAMAIS rendue : `error`, `message`, `platformError.message`, ou le corps s'il est une chaîne. */
