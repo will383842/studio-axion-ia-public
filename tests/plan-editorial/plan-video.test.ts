@@ -8,6 +8,7 @@ import { exemplesCommeVraies } from "../helpers/videos-reelles";
 import { preparerMotDePasse } from "../helpers/g1a";
 import type { CanalPublication, DemandePublication, FournisseurPublication } from "@/fournisseurs/types";
 import { listerEntrees } from "@/services/calendrier";
+import { creneauxOccupes } from "@/services/cadence";
 
 process.env.R2_ACCOUNT_ID = "compte-essai";
 process.env.R2_ACCESS_KEY_ID = "ACCES-ESSAI";
@@ -18,6 +19,13 @@ process.env.ZERNIO_API_KEY = "exemple-cle-fictive-ne-pas-utiliser-0004";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
+// Le diffuseur de l'outil « zernio » est la doublure du test : aucun réseau, aucun fournisseur réel.
+const doublure = vi.hoisted(() => ({ service: null as unknown }));
+vi.mock("@/fournisseurs", async (importOriginal) => {
+  const reel = await importOriginal<typeof import("@/fournisseurs")>();
+  return { ...reel, fournisseurParId: (type: string, id: string) => (type === "publication" && id === "zernio" && doublure.service ? doublure.service : reel.fournisseurParId(type as never, id as never)) };
+});
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
@@ -66,15 +74,16 @@ beforeEach(async () => {
   await auth.seConnecter("essai-l4-14", false);
   demandes = [];
   comportement = "ok";
+  doublure.service = faux();
   for (const c of ["image", "son", "sousTitres", "mentionIA", "droits"] as const) await pub.cocherAvantDePublier(VIDEO, c, true);
 });
 
 describe("L4-14 · une vidéo programmée entre une fois au calendrier", () => {
-  it("un envoi confirmé inscrit un créneau « programme » de la vidéo, au jour et à l'heure de l'envoi", async () => {
+  it("un envoi confirmé inscrit un créneau de la vidéo (statut du plan suivant celui de la publication), au jour et à l'heure de l'envoi", async () => {
     const r = await envoyer();
     const liste = await creneauxDeLaVideo();
     expect(liste).toHaveLength(1);
-    expect(liste[0]).toMatchObject({ statut: "programme", videoId: VIDEO, decalages: 0 });
+    expect(liste[0]).toMatchObject({ statut: "propose", videoId: VIDEO, decalages: 0 });
     expect(liste[0].heuresParReseau.instagram).toBe(r.publications[0].date);
     expect(liste[0].id.startsWith("cmd-")).toBe(false);
   });
@@ -95,13 +104,74 @@ describe("L4-14 · une vidéo programmée entre une fois au calendrier", () => {
     expect(await depots().publications.lister((p) => p.videoId === VIDEO)).toHaveLength(1);
   });
 
-  it("le calendrier montre l'entrée UNE seule fois (la publication fait foi)", async () => {
+  it("le calendrier montre l'entrée UNE seule fois, et le plan la compte une fois comme occupée (échoue sans le crochet)", async () => {
     await envoyer();
-    const jour = (await depots().publications.lister((p) => p.videoId === VIDEO))[0].date.slice(0, 10);
     const d = depots();
     const vue = await listerEntrees({ creneaux: d.creneauxEditoriaux, publications: d.publications, videos: d.videos, visuels: d.visuels }, "2000-01-01", "2100-01-01");
     expect(vue.filter((e) => e.mediaId === VIDEO)).toHaveLength(1);
+    const occupes = await creneauxOccupes(d.creneauxEditoriaux, "2000-01-01", "2100-01-01", { reseau: "instagram" });
+    expect(occupes.filter((o) => o.creneauId.includes(VIDEO))).toHaveLength(1);
+  });
+
+  it("le statut du créneau suit celui de la publication : un brouillon chez le diffuseur n'est jamais « programme »", async () => {
+    await envoyer();
+    expect((await creneauxDeLaVideo())[0].statut).toBe("propose");
+    const p = (await depots().publications.lister((x) => x.videoId === VIDEO))[0];
+    const jour = p.date.slice(0, 10);
+    await planVideo.inscrireVideoAuCalendrier(depots().creneauxEditoriaux as never, [{ ...p, videoId: "v-02", statut: "programmee" }]);
+    expect((await depots().creneauxEditoriaux.lister((c) => c.videoId === "v-02"))[0]).toMatchObject({ statut: "programme", jourVise: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
     expect(jour).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("un créneau du plan (autre identifiant, ex. « cmd- ») qui porte déjà cette vidéo, ce jour et ce réseau : aucun second créneau", async () => {
+    const jourVise = DEMAIN.slice(0, 10);
+    await depots().creneauxEditoriaux.enregistrer({ id: "cmd-existant", jourVise, heuresParReseau: { instagram: DEMAIN }, compteCible: "exemple-ig", videoId: VIDEO, statut: "valide", decalages: 0 });
+    const { cleJour } = await import("@/lib/dates");
+    await depots().creneauxEditoriaux.enregistrer({ ...(await depots().creneauxEditoriaux.obtenir("cmd-existant"))!, jourVise: cleJour(DEMAIN) });
+    await envoyer();
+    const liste = await creneauxDeLaVideo();
+    expect(liste.map((c) => c.id)).toEqual(["cmd-existant"]);
+  });
+
+  it("deux envois parallèles de deux réseaux le même jour : les deux heures sont gardées dans un seul créneau", async () => {
+    const kit = (await pub.obtenirKit(VIDEO))!;
+    await Promise.all([
+      pub.envoyerReel("zernio", faux(), kit, ["instagram"], DEMAIN, {}, {}, false),
+      pub.envoyerReel("zernio", faux(), kit, ["linkedin"], DEMAIN, { linkedin: ["exemple-li"] }, {}, false),
+    ]);
+    const liste = await creneauxDeLaVideo();
+    expect(liste).toHaveLength(1);
+    expect(Object.keys(liste[0].heuresParReseau).sort()).toEqual(["instagram", "linkedin"]);
+  });
+
+  it("une date illisible ou sans « Z » est normalisée en instant UTC ; une date illisible n'écrit rien", async () => {
+    const p = { id: "pub-n", videoId: VIDEO, reseau: "instagram", statut: "programmee", via: "zernio", texte: "t", etatEnvoi: "envoye", canalId: "exemple-ig", creeLe: DEMAIN, modifieLe: DEMAIN } as const;
+    await planVideo.inscrireVideoAuCalendrier(depots().creneauxEditoriaux as never, [{ ...p, date: "2031-03-05T10:00:00+01:00" } as never]);
+    await planVideo.inscrireVideoAuCalendrier(depots().creneauxEditoriaux as never, [{ ...p, date: "pas une date" } as never]);
+    const liste = await creneauxDeLaVideo();
+    expect(liste).toHaveLength(1);
+    expect(liste[0].heuresParReseau.instagram).toBe("2031-03-05T09:00:00.000Z");
+  });
+
+  it("entrée « fiche vidéo » (envoyerVersBufferAction) : un seul créneau, un seul appel au diffuseur, même après un second clic", async () => {
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("buffer.gele", false);
+    const actions = await import("@/app/(studio)/videos/actions");
+    const a = await actions.envoyerVersBufferAction(VIDEO, ["instagram"], DEMAIN);
+    const b = await actions.envoyerVersBufferAction(VIDEO, ["instagram"], DEMAIN);
+    expect(a.ok).toBe(true);
+    expect(b.ok).toBe(true);
+    expect(demandes).toHaveLength(1);
+    expect(await creneauxDeLaVideo()).toHaveLength(1);
+  });
+
+  it("entrée « Programmer les N » (envoyerVersBuffer, appelé pour chaque créneau par programmerSujet) : un seul créneau, aucun appel de plus au rejeu", async () => {
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("buffer.gele", false);
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+    await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
+    expect(demandes).toHaveLength(1);
+    expect(await creneauxDeLaVideo()).toHaveLength(1);
   });
 
   it("l'inscription ne déclenche aucun envoi et ne touche pas au diffuseur", async () => {

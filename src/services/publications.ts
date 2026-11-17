@@ -988,7 +988,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
   try {
     await refuserSiStockageSimule();
     const r = await envoyerReelInterne(outil, service, kitVue, reseaux, dateIso, choisis, commentaires, avecVideo, extras);
-    await inscrireSansRisque(depots().creneauxEditoriaux, r.publications); // L4-14 : ne lève jamais, n'envoie rien
+    await inscrireSansRisque(() => depots().creneauxEditoriaux, r.publications); // L4-14 : ne lève jamais, n'envoie rien
     journaliserIssueEnvoi("envoyerReel", kitVue.videoId, reseaux, r.publications, r.problemes, outil, r.mode === "brouillon");
     return r;
   } catch (e) {
