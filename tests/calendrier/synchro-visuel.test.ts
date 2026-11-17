@@ -15,6 +15,9 @@ vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
+const { ecrireParametre } = await import("@/services/_commun");
+/** Décision n° 2 du 18/11/2026 : interrupteur NEUF, éteint par défaut (absent = éteint). */
+const CLE_SYNCHRO_ETAPE = "zernio.synchro_etape_visuels";
 const auth = await import("@/services/auth");
 const MDP = "essai-l5-06-123";
 
@@ -73,6 +76,8 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", () => Promise.reject(new Error("fetch interdit")));
   await auth.seConnecter(MDP, false);
   for (const p of await depots().publications.lister()) await depots().publications.supprimer(p.id);
+  // Les tests des règles d'étape tournent interrupteur ALLUMÉ ; le groupe « interrupteur éteint » (fin de fichier) l'éteint.
+  await ecrireParametre(CLE_SYNCHRO_ETAPE, true);
 });
 
 describe("L5-06 · lecture de toutes les pages", () => {
@@ -648,5 +653,110 @@ describe("L5-06 · audit point 2 : l'étape d'un visuel ne régresse jamais (rè
     await pubVisuel("pi", "instagram");
     expect(await passe({ status: "failed" })).toBe("echec_envoi");
     expect(await passe({ status: "failed" })).toBe("echec_envoi");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Décision du pilote n° 2 (18/11/2026) : interrupteur zernio.synchro_etape_visuels, ÉTEINT par défaut          */
+/* ------------------------------------------------------------------ */
+
+describe("L5-06 · décision n° 2 : interrupteur « zernio.synchro_etape_visuels »", () => {
+  const eteindre = async (mode: "absent" | "faux" | "autre") => {
+    if (mode === "absent") await depots().parametres.supprimer(CLE_SYNCHRO_ETAPE);
+    else await ecrireParametre(CLE_SYNCHRO_ETAPE, mode === "faux" ? false : "oui");
+  };
+  const ecrituresVisuels = () => vi.spyOn(depots().visuels, "modifier");
+
+  for (const mode of ["absent", "faux", "autre"] as const) {
+    it(`ÉTEINT (${mode}) : un visuel « programmé » dont la publication est publiée n'est PAS touché (passage et rattrapage), la publication, elle, est mise à jour`, async () => {
+      await eteindre(mode);
+      await visuelSimple("programme");
+      await pubVisuel("pi", "instagram");
+      const espion = ecrituresVisuels();
+      const { client, appels } = diffuseurParPost({ "post-pi": { status: "published" } });
+      injecterClientZernio(client);
+      await synchroniserEtatsZernio({ force: true, instant: T0 });
+      await synchroniserEtatsZernio({ force: true, instant: T0 + 1000 });
+      expect((await depots().publications.obtenir("pi"))?.statut).toBe("publiee");
+      expect(await statutVisuel()).toBe("programme");
+      expect(espion).not.toHaveBeenCalled();
+      expect(ecritures(appels)).toHaveLength(0);
+    });
+  }
+
+  it("ÉTEINT : le rattrapage n'écrit jamais visuels.statut (25 visuels à rattraper, aucun ne bouge, aucune écriture de visuel)", async () => {
+    await eteindre("absent");
+    for (let i = 1; i <= 25; i++) {
+      await visuelSimple("programme", `vis_r${i}`);
+      await depots().publications.enregistrer({ id: `pub_r${i}`, visuelId: `vis_r${i}`, reseau: "instagram", statut: "publiee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: `post-r${i}`, canalId: COMPTE, etatEnvoi: "envoye", creeLe: iso(T0), modifieLe: iso(T0) } as never);
+    }
+    const espion = ecrituresVisuels();
+    const { client } = diffuseurParPost({});
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(espion).not.toHaveBeenCalled();
+    expect((await depots().visuels.lister()).filter((v) => v.statut !== "programme")).toHaveLength(0);
+  });
+
+  it("ÉTEINT : un visuel « validé » (échec ou programmation chez le diffuseur) reste « validé » et un visuel « programmé » en échec reste « programmé »", async () => {
+    await eteindre("absent");
+    await visuelSimple("valide", "vis_1");
+    await pubVisuel("pi", "instagram", { statut: "brouillon" });
+    await visuelSimple("programme", "vis_2");
+    await depots().publications.enregistrer({ id: "pj", visuelId: "vis_2", reseau: "instagram", statut: "programmee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: "post-pj", canalId: COMPTE, etatEnvoi: "envoye", envoiCommenceLe: iso(T0 - 3600_000), creeLe: iso(T0), modifieLe: iso(T0) } as never);
+    const { client } = diffuseurParPost({ "post-pi": { status: "scheduled" }, "post-pj": { status: "failed" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel("vis_1")).toBe("valide");
+    expect(await statutVisuel("vis_2")).toBe("programme");
+  });
+
+  it("ÉTEINT : la lecture page par page (liste) reste active, au même budget, et les publications sont mises à jour", async () => {
+    await eteindre("absent");
+    await publications(60);
+    const { client, appels } = diffuseur(60);
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(r.lues).toBe(60);
+    expect(appels.filter((a) => new URL(a.url).pathname.endsWith("/v1/posts")).length).toBeGreaterThanOrEqual(2);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET_TOUTES);
+    expect(ecritures(appels)).toHaveLength(0);
+  });
+
+  it("ALLUMÉ (true) : un visuel « programmé » dont la publication est publiée passe « publié » (règles du 17/11), au passage et au rattrapage", async () => {
+    await ecrireParametre(CLE_SYNCHRO_ETAPE, true);
+    await visuelSimple("programme");
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("publie");
+    await visuelSimple("programme", "vis_2");
+    await depots().publications.enregistrer({ id: "pk", visuelId: "vis_2", reseau: "instagram", statut: "publiee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: "post-pk", canalId: COMPTE, etatEnvoi: "envoye", creeLe: iso(T0), modifieLe: iso(T0) } as never);
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 1000 });
+    expect(await statutVisuel("vis_2")).toBe("publie");
+  });
+
+  it("ALLUMÉ : seul « true » allume (une valeur « oui » ou 1 laisse éteint)", async () => {
+    await ecrireParametre(CLE_SYNCHRO_ETAPE, 1);
+    await visuelSimple("programme");
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("programme");
+  });
+
+  it("l'interrupteur est relu à CHAQUE passage : éteint puis allumé entre deux passages, le visuel suit au second", async () => {
+    await visuelSimple("programme");
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" } });
+    injecterClientZernio(client);
+    await eteindre("faux");
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("programme");
+    await ecrireParametre(CLE_SYNCHRO_ETAPE, true);
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 1000 });
+    expect(await statutVisuel()).toBe("publie");
   });
 });

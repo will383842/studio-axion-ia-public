@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06). */
 const LITTERALES: Record<string, Etat> = {
   afficherExemples: "allume",
   "alignement.voixSynthese": "eteint",
@@ -68,6 +68,7 @@ const LITTERALES: Record<string, Etat> = {
   "taux.usdEur": "valeur",
   "veille.derniereLecture": "valeur",
   "veille.resumeSemaine": "valeur",
+  "zernio.synchro_etape_visuels": "eteint",
 };
 
 /**
@@ -775,7 +776,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(31);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(32);
   });
 });
