@@ -10,6 +10,7 @@ import { ImagePlan } from "../../../src/briques/plan-scenes/rendu";
 import { adoucir, CHARTE_AXION, FAMILLE_CSS_AXION, avecOpacite } from "../../../src/briques/jetons-motion";
 import { miseEnPageDemo, transformZoom, zoomA, type RectPx } from "../../../src/moteurs/montage-demo-facecam/mise-en-page";
 import type { ProprietesDemoFacecam } from "../../../src/moteurs/montage-demo-facecam/proprietes";
+import { cadrageDuMoment } from "./PassagesDemo";
 import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
 import manrope from "../../../src/app/polices/manrope-latin.woff2";
 
@@ -46,7 +47,7 @@ export function DemoFacecam(p: ProprietesDemoFacecam) {
   chargerManrope();
   const image = useCurrentFrame();
   const ms = (image * 1000) / p.fps;
-  const { ecran, facecam, sousTitres } = p.miseEnPage;
+  const { miseEnPage: { ecran, facecam, sousTitres }, recadrageEcran, recadrageFacecam } = cadrageDuMoment(p, ms);
   const decalageImages = Math.round(p.decalageEcranSec * p.fps);
   const zoom = zoomA(p.zooms, ms);
   const enFin = ms >= p.dureeParoleMs;
@@ -54,7 +55,7 @@ export function DemoFacecam(p: ProprietesDemoFacecam) {
   const echellePlan = Math.min(ecran.largeur / p.plan.format.largeur, ecran.hauteur / p.plan.format.hauteur);
   const groupe = p.sousTitres.find((g) => ms >= g.debutMs && ms < g.finMs);
   const legende = p.legendes.find((l) => ms >= l.debutMs && ms < l.finMs);
-  const videoEcran = <SourceRecadree src={p.ecran} boite={ecran} recadrage={p.recadrageEcran} source={p.sourceEcran} muet debutImage={decalageImages < 0 ? -decalageImages : undefined} />;
+  const videoEcran = <SourceRecadree src={p.ecran} boite={ecran} recadrage={recadrageEcran} source={p.sourceEcran} muet debutImage={decalageImages < 0 ? -decalageImages : undefined} />;
   return (
     <AbsoluteFill style={{ background: CHARTE_AXION.ivoire, fontFamily: FAMILLE_CSS_AXION }}>
       {/* Moitié écran : vidéo zoomée + surlignages + clics, puis le motion du plan, les légendes et les sous-titres. */}
@@ -81,7 +82,7 @@ export function DemoFacecam(p: ProprietesDemoFacecam) {
           <div style={{ position: "absolute", left: "50%", top: Math.round(ecran.hauteur * 0.05), transform: "translateX(-50%)", padding: "12px 28px", borderRadius: 999, background: CHARTE_AXION.noir, color: CHARTE_AXION.ivoire, fontSize: Math.round(ecran.hauteur * 0.045), fontWeight: 700, whiteSpace: "nowrap" }}>{legende.texte}</div>
         )}
       </div>
-      {p.calqueSousTitres ? <CalqueSousTitres donnees={p.calqueSousTitres} /> : null}
+      {p.calqueSousTitres && sousTitres.largeur * sousTitres.hauteur > 0 ? <CalqueSousTitres donnees={p.calqueSousTitres} /> : null}
       {!p.calqueSousTitres && groupe && (
         <div style={{ position: "absolute", left: sousTitres.x, top: sousTitres.y, width: sousTitres.largeur, height: sousTitres.hauteur, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ padding: "10px 22px", borderRadius: 16, background: avecOpacite(CHARTE_AXION.noir, 0.82), color: CHARTE_AXION.ivoire, fontSize: Math.round(Math.min(sousTitres.hauteur * 0.42, 58)), fontWeight: 800, textAlign: "center", lineHeight: 1.15 }}>
@@ -96,7 +97,7 @@ export function DemoFacecam(p: ProprietesDemoFacecam) {
       )}
       {/* Moitié facecam : la prise de Williams, sa voix. Rien ne s'y pose. */}
       <div style={{ position: "absolute", left: facecam.x, top: facecam.y, width: facecam.largeur, height: facecam.hauteur, overflow: "hidden" }}>
-        <SourceRecadree src={p.facecam} boite={facecam} recadrage={p.recadrageFacecam} source={p.sourceFacecam} muet={false} />
+        <SourceRecadree src={p.facecam} boite={facecam} recadrage={recadrageFacecam} source={p.sourceFacecam} muet={false} />
       </div>
       {enFin && (
         <AbsoluteFill style={{ background: CHARTE_AXION.ivoire, opacity: tFin, alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 18 }}>
