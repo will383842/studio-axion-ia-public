@@ -240,6 +240,9 @@ export const LECTURES_UNITAIRES_PAR_PASSAGE_COMPLET = 40;
 /** L5-06 · nombre de visuels rattrapés au plus par passage. */
 const RATTRAPAGE_PAR_PASSAGE = 20;
 
+/** L5-06 · un post de liste n'est utilisable tel quel que s'il est complet (`lirePost` rejette les autres). */
+const postDeListeComplet = (x: PostZernio | null | undefined): x is PostZernio => !!x && typeof x._id === "string" && typeof x.status === "string" && Array.isArray(x.platforms);
+
 /**
  * L5-06 · LECTURE seule : lit TOUTES les pages d'une liste de posts (`page`, `limit`) par `listerPosts` du client (porte
  * unique : arrêt, filtre, débit). S'arrête à la première page incomplète, vide ou sans post nouveau, et au plafond de pages.
@@ -251,8 +254,8 @@ export async function listerToutesLesPagesZernio(client: Pick<ClientZernio, "lis
     // `sortie` : posts déjà lus et requêtes faites (même si une page échoue), pour que l'appelant ne perde rien ni ne se trompe de compte.
     if (sortie) sortie.requetes++;
     const lus = await client.listerPosts({ ...query, page, limit: limite });
-    const neufs = lus.filter((p) => !vus.has(p._id));
-    for (const p of neufs) vus.add(p._id);
+    const neufs = lus.filter((p) => !vus.has(p?._id));
+    for (const p of neufs) vus.add(p?._id);
     tous.push(...neufs);
     if (lus.length < limite || neufs.length === 0) break;
   }
@@ -394,7 +397,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       /* liste en échec : les pages déjà lues restent valables, le reste du budget va aux lectures unitaires */
     }
     requetes += sortie.requetes;
-    dejaLus = new Map(sortie.posts.map((x) => [x._id, x]));
+    // La liste n'est pas validée par le client : seuls les posts complets (_id et status chaînes, platforms tableau) servent ; les autres sont relus un à un (validés, comptés au budget).
+    dejaLus = new Map(sortie.posts.filter(postDeListeComplet).map((x) => [x._id, x]));
   }
   let lecturesUnitaires = 0;
   if (!dejaLus) suivies = suivies.slice(0, LECTURES_PAR_TOUR);
@@ -426,8 +430,13 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       }
       continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
     }
+    let etat: EtatLuZernio;
+    try {
+      etat = etatDepuisPost(post, p);
+    } catch {
+      continue; // post illisible : on relira plus tard, le passage continue
+    }
     r.lues++;
-    const etat = etatDepuisPost(post, p);
     const changement: Partial<Publication> = { etatLuLe: lu };
     if (etat.statut !== p.statut) changement.statut = etat.statut;
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
