@@ -168,12 +168,12 @@ describe("L5-06 · cas limites", () => {
     expect(unitaires(appels)).toHaveLength(0);
   });
 
-  it("mode complet : 60 posts absents de la liste, 50 lectures unitaires au plus", async () => {
+  it("mode complet : 60 posts absents de la liste, 40 lectures unitaires au plus", async () => {
     await publications(60);
     const { client, appels } = diffuseur(60, new Set(Array.from({ length: 60 }, (_, i) => i + 1)));
     injecterClientZernio(client);
     await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
-    expect(unitaires(appels)).toHaveLength(50);
+    expect(unitaires(appels)).toHaveLength(40);
   });
 
   it("une page de liste en échec : retour au passage incrémental limité à 50 lectures", async () => {
@@ -195,13 +195,40 @@ describe("L5-06 · cas limites", () => {
     expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("programme");
   });
 
-  it("un visuel « validé » passe « publié » en deux étapes permises", async () => {
+  it("un visuel « validé » n'est jamais publié d'un coup (transition refusée par L5-05) : inchangé", async () => {
     await visuel("valide");
     await publications(1, () => ({ videoId: undefined, visuelId: "vis_1" }));
     const { client } = diffuseur(1);
     injecterClientZernio(client);
     await synchroniserEtatsZernio({ force: true, instant: T0 });
-    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("publie");
+    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("valide");
+  });
+
+  it("un visuel à la corbeille reste inchangé", async () => {
+    await visuel("programme");
+    await depots().visuels.modifier("vis_1", { corbeilleLe: iso(T0) } as never);
+    await publications(1, () => ({ videoId: undefined, visuelId: "vis_1" }));
+    const { client } = diffuseur(1);
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("programme");
+  });
+
+  it("l'échec chez le diffuseur met le visuel « envoi échoué »", async () => {
+    await visuel("programme");
+    await publications(1, () => ({ videoId: undefined, visuelId: "vis_1" }));
+    const { client } = creerFauxClientZernio(() => ({ statut: 200, corps: { post: postExemple({ _id: "exemple-post-1", status: "failed", platforms: [{ platform: "instagram", accountId: COMPTE, status: "failed", errorMessage: "refus simulé" }] }) } }));
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("echec_envoi");
+  });
+
+  it("le total des requêtes d'un passage complet reste sous 50 (liste + lectures unitaires), même avec 600 posts", async () => {
+    await publications(5);
+    const { client, appels } = diffuseur(600, new Set([1, 2, 3, 4, 5]));
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
+    expect(appels.filter((a) => /\/v1\/posts/.test(new URL(a.url).pathname)).length).toBeLessThanOrEqual(50);
   });
 
   it("une erreur sur le visuel ne bloque pas les autres publications ; le rattrapage la reprend", async () => {
@@ -209,14 +236,12 @@ describe("L5-06 · cas limites", () => {
     await publications(3, (i) => (i === 1 ? { videoId: undefined, visuelId: "vis_1" } : {}));
     const { client } = diffuseur(3);
     injecterClientZernio(client);
-    const vrai = depots().visuels.modifier.bind(depots().visuels);
     const espion = vi.spyOn(depots().visuels, "modifier").mockRejectedValueOnce(new Error("panne simulée"));
     const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
     expect(r.changees).toBe(3);
     expect((await depots().publications.lister()).every((p) => p.statut === "publiee")).toBe(true);
     expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("programme");
     espion.mockRestore();
-    void vrai;
     await synchroniserEtatsZernio({ force: true, instant: T0 + 1000 });
     expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("publie");
   });
