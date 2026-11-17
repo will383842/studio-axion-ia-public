@@ -24,7 +24,6 @@ const INTERDIT = /buffer|zernio|\bkits?\b|variante|\bapi\b/i;
 const TOLERES: Record<string, string[]> = {
   "src/domaine/buffer.ts": [
     "Brouillon dans Buffer", // tests/r1-buffer-client.test.ts
-    "Aucun compte ${} n'est relié dans Buffer.", // tests/r1-buffer-client.test.ts
     "Buffer", // noms d'outils de « Déjà envoyée par … » : tests/zernio/z2e-*.test.ts, e2e-04-service.test.ts
     "Zernio",
   ],
