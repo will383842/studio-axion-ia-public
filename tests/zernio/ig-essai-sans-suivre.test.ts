@@ -12,7 +12,7 @@ import { ADRESSE_FICTIVE, evenement, validerFormulationsAuParcours } from "./aid
 import { deposerCommentaire as deposerCommentaireAide, deposerMessage as deposerMessageAide } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 
-const site = vi.hoisted(() => ({ versions: new Set<string>(), catalogue: null as unknown, panneEssai: false, pannes: 0, formulerNul: false }));
+const site = vi.hoisted(() => ({ versions: new Set<string>(), catalogue: null as unknown, panneEssai: false, pannes: 0, lectures: 0, lieux: [] as string[], formulerNul: false }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => site.versions.has(v) }));
 // Rendu nul limité aux appels faits depuis `formuler` (la demande d'adresse hors RGPD, avec repli) : tout le reste rend le texte normal.
@@ -22,7 +22,10 @@ vi.mock("@/domaine/guide-reseau/textes-mp", async (orig) => {
 });
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => {
     // Panne de lecture limitée à l'appel de la fonction qui décide « cible d'essai du jour » (les autres lectures réussissent).
-    if (site.panneEssai && /EssaiCatalogue|cibleEstEssaiAujourdhui/.test(new Error().stack ?? "")) { site.pannes++; throw new Error("catalogue en panne (fictif)"); }
+    // `lectures` compte les lectures faites par la fonction visée ; `pannes` / `lieux` prouvent que la panne s'est déclenchée DANS cette fonction (pas seulement une regex sur la pile).
+    const lieu = /at (?:async )?(statutEssaiCatalogue|cibleEstEssaiAujourdhui)\b/.exec(new Error().stack ?? "");
+    if (lieu) site.lectures++;
+    if (site.panneEssai && lieu) { site.pannes++; site.lieux.push(lieu[1]); throw new Error("catalogue en panne (fictif)"); }
     return site.catalogue;
   } }));
 vi.mock("@/services/notifications", async (orig) => ({ ...(await orig<Record<string, unknown>>()), creerNotification: vi.fn(async () => undefined) }));
@@ -118,6 +121,8 @@ beforeEach(async () => {
   site.catalogue = catalogue();
   site.panneEssai = false;
   site.pannes = 0;
+  site.lectures = 0;
+  site.lieux = [];
   site.formulerNul = false;
   lireTexteDe("OK");
   await Com.ecrireParametre(MM.PARAM_MOTS_MULTIPLES, true); // « plusieurs mots » allumé ; PARAM_INSTAGRAM_SUIVRE laissé absent
@@ -299,24 +304,47 @@ describe("Suites de la relecture de #853 : renvoi, filet Facebook, drapeau, repo
   });
 
 
-  it("T10 · pub_ok, drapeau absent, lecture du catalogue en PANNE dans preparerM1 (essai seulement supposé) : la demande d'adresse part mais cibleEssai reste ABSENT", async () => {
+  it("T10 bis · pub_ok, drapeau absent, lecture du catalogue en PANNE dans preparerM1 (essai supposé) : rien ne part, reporté catalogue_illisible, cibleEssai absent ; panne levée, reprise après l'attente", async () => {
     await valider([V61]);
     // Panne intermittente : la garde lit le catalogue sans erreur, puis la lecture de preparerM1 (statutEssaiCatalogue) tombe en panne : l'essai est seulement SUPPOSÉ.
-    await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.panneEssai = true; site.pannes = 0; } });
-    expect(site.pannes).toBeGreaterThan(0); // la panne s'est bien déclenchée
+    const id = await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.panneEssai = true; site.pannes = 0; site.lieux = []; } });
+    expect(site.pannes).toBeGreaterThan(0); // la panne s'est bien déclenchée dans statutEssaiCatalogue
+    expect(site.lieux.every((l) => l === "statutEssaiCatalogue")).toBe(true);
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    const c1 = await conv();
+    expect(c1.etat).toBe("pub_ok");
+    expect(c1.cibleEssai).toBeUndefined();
+    expect(c1.dernierCode).not.toBe("adresse_indisponible");
+    expect(await alertesAdresse()).toHaveLength(0);
+    // Reprise : panne levée, l'horloge du banc avance au-delà de l'attente (60 s), aucune remise à « a_faire » à la main.
+    site.panneEssai = false;
+    await pass(T0 + 1000 + 61_000);
     expect(banc.port.prive).toHaveLength(1);
     expect(banc.port.prive[0].texte).toBe(rendreTexteMp(V61, { mot: MOT, titre: TITRE_ESSAI }));
-    const c = await conv();
-    expect(c).toMatchObject({ etat: "attente_email", versionTexteM1: V61 });
-    expect(c.cibleEssai).toBeUndefined();
+    expect(await conv()).toMatchObject({ etat: "attente_email", versionTexteM1: V61, cibleEssai: true });
   });
 
-  it("T11 · comme T10 mais catalogue lu test:true (essai prouvé ; auteur listé, un auteur non listé étant refusé par la garde) : cibleEssai posé", async () => {
+  it("T11 · comme T10 bis mais catalogue lu sans panne, test:true (essai prouvé) : cibleEssai posé ; la lecture a bien eu lieu et rien n'est tombé en panne", async () => {
     await valider([V61]);
-    await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.pannes = 0; } });
+    await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.pannes = 0; site.lectures = 0; } });
+    expect(site.lectures).toBeGreaterThan(0); // statutEssaiCatalogue a lu le catalogue (sinon « pas de panne » ne prouverait rien)
     expect(site.pannes).toBe(0);
     expect(banc.port.prive).toHaveLength(1);
     expect((await conv()).cibleEssai).toBe(true);
+  });
+
+  it("T16 · Facebook, lecture du catalogue en panne dans preparerM1 : comme avant, M1 v5-1 part, cibleEssai jamais posé (aucun report)", async () => {
+    await valider([V5], "facebook");
+    const id = await reprendreEnPubOk({ cibleEssai: undefined }, [V5], { reseau: "facebook", avantRejeu: () => { site.panneEssai = true; site.pannes = 0; site.lieux = []; } });
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(site.lieux.every((l) => l === "statutEssaiCatalogue")).toBe(true);
+    expect(banc.port.prive).toHaveLength(1);
+    expect(banc.port.prive[0].texte).toBe(rendreTexteMp(V5, { mot: MOT, titre: TITRE_ESSAI }));
+    const c = await conv();
+    expect(c).toMatchObject({ etat: "attente_email", reseau: "facebook" });
+    expect(c.cibleEssai).toBeUndefined();
+    expect((await charge(id)).dernierCode).not.toBe("catalogue_illisible");
   });
 
   it("T12 · S4 sur Facebook, essai prouvé par le catalogue : M1 part, cibleEssai n'est JAMAIS posé", async () => {
@@ -336,14 +364,18 @@ describe("Suites de la relecture de #853 : renvoi, filet Facebook, drapeau, repo
     expect(await conv()).toMatchObject({ etat: "m1_refuse", dernierCode: "renvoi_impossible" });
   });
 
-  it("T14 · reprise après la panne du T9 : panne levée, rejeu après l'attente, l'événement aboutit normalement", async () => {
+  it("T14 · reprise automatique après le report du T9 : panne levée, l'horloge du banc passe ATTENTE_CATALOGUE_MS (60 s), l'événement est repris SANS remise à « a_faire » à la main", async () => {
     await valider([V61]);
-    const id = await reprendreEnPubOk({ cibleEssai: undefined, etat: "nouveau" }, [V61], { avantRejeu: () => { site.panneEssai = true; site.pannes = 0; } });
+    const id = await reprendreEnPubOk({ cibleEssai: undefined, etat: "nouveau" }, [V61], { avantRejeu: () => { site.panneEssai = true; site.pannes = 0; site.lieux = []; } });
     expect(site.pannes).toBeGreaterThan(0);
+    expect(site.lieux.every((l) => l === "statutEssaiCatalogue")).toBe(true);
     expect(sorties()).toBe(0);
     expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
     site.panneEssai = false;
-    await rejouer(id, T0 + 1000 + 61_000);
+    await pass(T0 + 1000 + 30_000); // attente non écoulée : l'événement reste reporté
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    await pass(T0 + 1000 + 61_000); // attente écoulée : repris tout seul
     expect(banc.port.pub).toHaveLength(1);
     expect(banc.port.prive).toHaveLength(1);
     expect(banc.port.prive[0].texte).toBe(rendreTexteMp(V61, { mot: MOT, titre: TITRE_ESSAI }));

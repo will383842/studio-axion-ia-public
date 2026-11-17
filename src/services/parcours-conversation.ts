@@ -829,7 +829,7 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
   return { texte: choix.texte, version: choix.version, formulation: choix.version };
 }
 
-type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string; essaiProuve?: boolean };
+type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string; essaiProuve?: boolean; reporterCatalogue?: true };
 /**
  * Vrai si la cible de la conversation est d'essai AUJOURD'HUI (catalogue du site), même si la conversation a été créée avant.
  * GUIDE (`guide-ia`) n'est jamais une cible d'essai et ne lit pas le catalogue. Catalogue absent : faux (la garde d'envoi, qui relit la cible du jour, a déjà refusé un mot non-GUIDE sans catalogue) ; lecture en erreur : vrai.
@@ -903,6 +903,8 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   // Le drapeau figé à la création ne suffit pas : la cible du jour (catalogue) est relue, elle a pu passer en essai depuis.
   // `essaiProuve` : vrai seulement si l'essai est PROUVÉ (drapeau figé ou catalogue lu sans erreur) ; une lecture en panne le laisse faux (le drapeau n'est alors pas écrit).
   const statutEssai = e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now);
+  // Instagram, essai seulement SUPPOSÉ (lecture du catalogue en panne, pas de drapeau figé) : ni repli ni envoi (la demande d'adresse partirait SANS drapeau) ; l'appelant reporte l'événement.
+  if (statutEssai === "suppose" && e.reseau === "instagram") return { texte: null, version: e.versionTexteM1, reporterCatalogue: true };
   if (statutEssai !== "non") return { ...(await repli("cible_essai")), essaiProuve: statutEssai === "prouve" };
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
@@ -1169,6 +1171,11 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   // Renvoi (mode « plusieurs mots ») : jamais le texte qui demande l'adresse. Aucun texte validé, lien éteint ou version inconnue du site : refusé.
   const m1 = e.nature === "renvoi" ? await preparerRenvoi(e, d, env, cles, now) : igPremier ? await preparerIgSuivre(e, d) : await preparerM1(e, d, env, cles, now);
   const texteM1 = m1.texte;
+  if (m1.reporterCatalogue === true) {
+    // Même traitement que la garde avant réponse publique : report, rien consommé, rien clos, aucun état d'envoi.
+    await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+    return "bloque";
+  }
   if (texteM1 === null && igPremier) return cloreIgSuivreAbsent(ev, cle, now);
   if (texteM1 === null && m1.codeRepli === "cible_essai" && e.reseau === "instagram") return cloreAdresseEssaiAbsente(ev, cle, now);
   if (texteM1 === null) {
@@ -1694,6 +1701,11 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     // (e) texte. Lien : mécanisme du renvoi (formulation validée, version connue du site, lien signé NEUF). « Pas encore » : formulation validée du groupe.
     // Cible d'ESSAI (drapeau figé ou catalogue du jour) : après le OK, la demande d'adresse validée (groupe « m1-adresse-rgpd ») au lieu du lien. JAMAIS de lien, de jeton ni de repli (mp-m1-v2).
     const statutEssai = dec.action !== "lien" ? "non" : avant.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(avant, env, now);
+    if (statutEssai === "suppose") {
+      // Panne de lecture du catalogue : l'essai n'est pas prouvé, la demande d'adresse partirait sans drapeau. On reporte AVANT tout état d'envoi, rien n'est consommé ni clos.
+      await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+      return "bloque";
+    }
     const adresseEssai = dec.action === "lien" && statutEssai !== "non";
     const essaiProuve = statutEssai === "prouve"; // le drapeau n'est écrit que si l'essai est prouvé (pas quand la lecture du catalogue a échoué)
     const groupe = adresseEssai ? "m1-adresse-rgpd" : dec.action === "lien" ? LIEN_RAPPEL : PAS_ENCORE;

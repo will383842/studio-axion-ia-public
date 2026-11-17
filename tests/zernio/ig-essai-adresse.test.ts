@@ -11,12 +11,14 @@ import { CHEMIN_GUIDE } from "./aides/oppositions";
 import { ADRESSE_FICTIVE, cleConversation, deposerCommentaire as deposerCommentaireAide, deposerMessage as deposerMessageAide, evenement, validerFormulationsAuParcours } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, COMPTE, depots, ENV, graineConv, lireTexteDe, MS, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
 
-const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown, panneEssai: false }));
+const site = vi.hoisted(() => ({ versions: new Set<string>(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", "mp-m1-v6-1"]), catalogue: null as unknown, panneEssai: false, pannes: 0, lieux: [] as string[] }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 vi.mock("@/domaine/guide-reseau/versions-acceptees-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), siteAccepteVersionM1: (v: string) => site.versions.has(v) }));
 vi.mock("@/services/cibles-site", async (orig) => ({ ...(await orig<Record<string, unknown>>()), lireCiblesSite: async () => {
     // Panne de lecture limitée à l'appel de la fonction qui décide « cible d'essai du jour » (les autres lectures réussissent).
-    if (site.panneEssai && /EssaiCatalogue|cibleEstEssaiAujourdhui/.test(new Error().stack ?? "")) throw new Error("catalogue en panne (fictif)");
+    // `pannes` / `lieux` prouvent que la panne s'est déclenchée DANS la fonction visée (pas seulement qu'une regex a trouvé un mot dans la pile).
+    const lieu = /at (?:async )?(statutEssaiCatalogue|cibleEstEssaiAujourdhui)\b/.exec(new Error().stack ?? "");
+    if (site.panneEssai && lieu) { site.pannes++; site.lieux.push(lieu[1]); throw new Error("catalogue en panne (fictif)"); }
     return site.catalogue;
   } }));
 vi.mock("@/services/notifications", async (orig) => ({ ...(await orig<Record<string, unknown>>()), creerNotification: vi.fn(async () => undefined) }));
@@ -88,6 +90,8 @@ beforeEach(async () => {
   site.versions = new Set(["mp-m1-v4-1", "mp-lien-v3-1", "mp-deja-envoye-v1-1", NOUVELLE]);
   site.catalogue = catalogue();
   site.panneEssai = false;
+  site.pannes = 0;
+  site.lieux = [];
   suivi.appels = 0;
   (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "suit" });
   lireTexteDe("OK");
@@ -345,16 +349,32 @@ describe("Suites de la relecture de #853 : le drapeau cibleEssai n'est écrit qu
     expect((await conv()).cibleEssai).toBeUndefined();
   };
 
-  it("T3 · lecture du catalogue en ERREUR au moment du OK : la demande d'adresse part (prudence) mais cibleEssai n'est PAS posé", async () => {
+  it("T15 · OK Instagram, lecture du catalogue en PANNE au moment du OK (essai supposé) : rien ne part, événement reporté catalogue_illisible, aucun état ig_envoi_en_vol ; panne levée, rejeu après l'attente : la demande d'adresse part avec cibleEssai", async () => {
     await graineSansDrapeau();
     site.panneEssai = true;
-    await msg("msg-ok-1");
+    const id = await msg("msg-ok-1");
     await pass(T1);
+    expect(site.pannes).toBeGreaterThan(0); // la panne s'est déclenchée dans statutEssaiCatalogue, au moment du OK
+    expect(site.lieux.every((l) => l === "statutEssaiCatalogue")).toBe(true);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    const c1 = await conv();
+    expect(c1.etat).toBe("ig_attente_ok"); // ni ig_envoi_en_vol, ni parcours consommé : le OK n'est pas compté
+    expect(c1.idMessageOk).toBeUndefined();
+    expect(c1.okRecus).toBeUndefined();
+    expect(c1.cibleEssai).toBeUndefined();
+    // Avant la fin de l'attente (60 s) : toujours rien (l'horloge du banc, pas de remise à a_faire à la main).
+    site.panneEssai = false;
+    await pass(T1 + 30_000);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    // Après l'attente : l'événement est rejoué tout seul, l'essai est prouvé.
+    await pass(T1 + 61_000);
     expect(banc.port.envoyes).toHaveLength(1);
     expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
-    const c = await conv();
-    expect(c).toMatchObject({ etat: "attente_email", versionTexteM1: NOUVELLE });
-    expect(c.cibleEssai).toBeUndefined();
+    expect(await conv()).toMatchObject({ etat: "attente_email", versionTexteM1: NOUVELLE, cibleEssai: true });
+    expect((await charge(id)).etat).not.toBe("a_reessayer");
   });
 
   it("T4 · catalogue lu SANS erreur, cible test:true, drapeau absent : cibleEssai est posé", async () => {
