@@ -26,19 +26,23 @@ export const REGLAGE_INSCRIPTION = "bibliothequeVideo.archive.inscription";
 export const REGLAGE_SOURCES = "bibliothequeVideo.archive.sources";
 export const DONNEE_DERNIER_PASSAGE = "bibliothequeVideo.archive.dernierPassage";
 export const DONNEE_COCHEES = "bibliothequeVideo.archive.cochees";
+/** Donnée (jamais un interrupteur) : { [videoId]: état vu } des vidéos examinées sans écriture, pour qu'elles sortent de la file. */
+export const DONNEE_EXAMINEES = "bibliothequeVideo.archive.examinees";
 
 export const VIDEOS_MAX_PAR_PASSE = 20;
 export const INTERVALLE_PASSES_MS = 10 * 60 * 1000;
 
 const SEPARATEUR_NOM = " · ";
 
-/** Ports injectables : l'horloge et, au besoin, la politique et les vidéos cochées (sinon lues dans les réglages). */
+/** Ports injectables : dépôts et horloge et, au besoin, la politique et les vidéos cochées (sinon lues dans les réglages). */
 export interface PortsArchive {
+  depots?: typeof depots;
   maintenant?: () => string;
   politique?: PolitiqueSources;
   cochees?: string[];
 }
 
+const lesDepots = (p?: PortsArchive) => (p?.depots ?? depots)();
 const horloge = (p?: PortsArchive) => (p?.maintenant ?? (() => new Date().toISOString()))();
 
 export const idElementArchive = (videoId: string): string => `archive-extraits-${videoId}`;
@@ -75,15 +79,15 @@ function entrerDansLaTaille(fiche: FicheSourceExtraits): FicheSourceExtraits {
   return f;
 }
 
-async function elementDeLaVideo(videoId: string): Promise<ElementBibliotheque | null> {
-  return depots().elements.obtenir(idElementArchive(videoId));
+async function elementDeLaVideo(videoId: string, ports?: PortsArchive): Promise<ElementBibliotheque | null> {
+  return lesDepots(ports).elements.obtenir(idElementArchive(videoId));
 }
 
 export type ResultatInscription = { ecrite: boolean; raison?: string };
 
 /** Inscrit (ou met à jour) la fiche d'une vidéo. N'écrit rien si la vidéo est refusée ou si rien n'a changé. */
 export async function inscrireVideo(videoId: string, ports?: PortsArchive): Promise<ResultatInscription> {
-  const d = depots();
+  const d = lesDepots(ports);
   const video = await d.videos.obtenir(videoId);
   if (!video) return { ecrite: false, raison: "vidéo absente" };
   const version = video.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
@@ -118,7 +122,7 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
   const donnees = video.formatId === "avocat" || video.formatId === "facecam" ? plans : null;
   const fenetres = fenetresDuFormat(video.formatId, donnees);
 
-  const existant = await elementDeLaVideo(video.id);
+  const existant = await elementDeLaVideo(video.id, ports);
   const ancienneFiche = ficheDeElement(existant);
   const empreinte = createHash("sha256")
     .update(JSON.stringify({ v: version.id, s: sortie.id, f: sortie.fichierId, src: choisie.fichierId, seg: segments, fen: fenetres }))
@@ -179,8 +183,8 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
 
 /** Range la fiche d'une vidéo archivée ou à la corbeille ; la remet si la vidéo est restaurée. Rien n'est supprimé. */
 export async function rangerSiNecessaire(video: Pick<Video, "id" | "statut" | "corbeilleLe">, ports?: PortsArchive): Promise<boolean> {
-  const d = depots();
-  const element = await elementDeLaVideo(video.id);
+  const d = lesDepots(ports);
+  const element = await elementDeLaVideo(video.id, ports);
   const fiche = ficheDeElement(element);
   if (!element || !fiche) return false;
   const rangee = estRangee(video);
@@ -217,15 +221,21 @@ export async function inscrireLesVideosPubliees(ports?: PortsArchive): Promise<{
     }
     await ecrireParametre(DONNEE_DERNIER_PASSAGE, maintenant);
 
-    const d = depots();
+    const d = lesDepots(ports);
     const politique = ports?.politique ?? (await politiqueDesSources());
     const cochees = politique === "cochees" ? (ports?.cochees ?? (await videosCochees())) : [];
+    const brut = await lireParametre<unknown>(DONNEE_EXAMINEES, {});
+    const examinees: Record<string, string> = brut && typeof brut === "object" && !Array.isArray(brut) ? { ...(brut as Record<string, string>) } : {};
+    const etatVu = (v: Video) => `${v.modifieLe}|${politique}|${cochees.includes(v.id) ? 1 : 0}`;
     const [videos, elements] = await Promise.all([d.videos.lister(), d.elements.lister((e) => e.type === "source-extraits")]);
     const parId = new Map(elements.map((e) => [e.id, e]));
     const aTraiter = videos
       .filter((v) => {
         const el = parId.get(idElementArchive(v.id));
-        if (el) return estRangee(v) !== !!el.archiveLe || estRangee(v) !== !!ficheDeElement(el)?.rangee || v.modifieLe > el.modifieLe;
+        if (el && (estRangee(v) !== !!el.archiveLe || estRangee(v) !== !!ficheDeElement(el)?.rangee)) return true;
+        // Déjà examinée sans écriture et rien n'a changé : elle sort de la file (sinon elle bloquerait les suivantes).
+        if (examinees[v.id] === etatVu(v)) return false;
+        if (el) return v.modifieLe > el.modifieLe;
         if (v.estDemo || v.statut !== "prete" || v.corbeilleLe) return false;
         if (politique === "publiees") return v.etapeEditoriale === "publiee";
         if (politique === "cochees") return cochees.includes(v.id);
@@ -236,6 +246,7 @@ export async function inscrireLesVideosPubliees(ports?: PortsArchive): Promise<{
 
     let ecrites = 0;
     for (const v of aTraiter) {
+      examinees[v.id] = etatVu(v);
       try {
         if (await rangerSiNecessaire(v, ports)) ecrites++;
         if ((await inscrireVideo(v.id, { ...ports, politique, cochees })).ecrite) ecrites++;
@@ -243,6 +254,9 @@ export async function inscrireLesVideosPubliees(ports?: PortsArchive): Promise<{
         await journaliser("archive-extraits", `Extraits : vidéo ignorée (${e instanceof Error ? e.name : "erreur"})`, { type: "video", id: v.id }).catch(() => undefined);
       }
     }
+    const presentes = new Set(videos.map((v) => v.id));
+    for (const id of Object.keys(examinees)) if (!presentes.has(id)) delete examinees[id];
+    await ecrireParametre(DONNEE_EXAMINEES, examinees);
     return { traitees: aTraiter.length, ecrites };
   } catch (e) {
     await journaliser("archive-extraits", `Extraits : passe interrompue (${e instanceof Error ? e.name : "erreur"})`).catch(() => undefined);
@@ -251,13 +265,13 @@ export async function inscrireLesVideosPubliees(ports?: PortsArchive): Promise<{
 }
 
 /** Fiche de la vidéo, ou null. */
-export async function ficheDeLaVideo(videoId: string): Promise<FicheSourceExtraits | null> {
-  return ficheDeElement(await elementDeLaVideo(videoId));
+export async function ficheDeLaVideo(videoId: string, ports?: PortsArchive): Promise<FicheSourceExtraits | null> {
+  return ficheDeElement(await elementDeLaVideo(videoId, ports));
 }
 
 /** Fiches non rangées, avec leurs seules plages utilisables (lues par C1-U13). */
-export async function fichesUtilisables(): Promise<FicheSourceExtraits[]> {
-  const elements = await depots().elements.lister((e) => e.type === "source-extraits" && !e.archiveLe);
+export async function fichesUtilisables(ports?: PortsArchive): Promise<FicheSourceExtraits[]> {
+  const elements = await lesDepots(ports).elements.lister((e) => e.type === "source-extraits" && !e.archiveLe);
   return elements
     .map((e) => ficheDeElement(e))
     .filter((f): f is FicheSourceExtraits => !!f && !f.rangee)

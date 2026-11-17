@@ -209,6 +209,58 @@ describe("limites de passe", () => {
     expect(await depots().elements.compter((e) => e.type === "source-extraits")).toBe(25);
   });
 
+  it("20 vidéos récentes refusées + 1 ancienne éligible : la fiche de l'ancienne existe à la 2e passe", async () => {
+    await semer("ancienne", { modifieLe: "2026-10-01T00:00:00.000Z" });
+    for (let i = 0; i < 20; i++) await semer(`r${String(i).padStart(2, "0")}`, { sousTitres: false, modifieLe: `2026-11-10T00:${String(i).padStart(2, "0")}:00.000Z` });
+    let r = await svc.inscrireLesVideosPubliees(ports());
+    expect(r).toEqual({ traitees: 20, ecrites: 0 });
+    horlogeMin = 11;
+    r = await svc.inscrireLesVideosPubliees(ports());
+    expect(r.ecrites).toBe(1);
+    expect(await svc.ficheDeLaVideo("ancienne")).not.toBeNull();
+  });
+
+  it("20 fiches « inchangées » dont la vidéo a été touchée + 1 ancienne éligible : l'ancienne a sa fiche à la 2e passe", async () => {
+    for (let i = 0; i < 20; i++) await semer(`t${String(i).padStart(2, "0")}`);
+    await svc.inscrireLesVideosPubliees(ports());
+    for (let i = 0; i < 20; i++) {
+      const id = `t${String(i).padStart(2, "0")}`;
+      const v = await depots().videos.obtenir(id);
+      await depots().videos.enregistrer({ ...v!, modifieLe: "2026-12-01T00:00:00.000Z" });
+    }
+    await semer("ancienne", { modifieLe: "2026-10-01T00:00:00.000Z" });
+    horlogeMin = 11;
+    let r = await svc.inscrireLesVideosPubliees(ports());
+    expect(r.ecrites).toBe(0);
+    horlogeMin = 22;
+    r = await svc.inscrireLesVideosPubliees(ports());
+    expect(r.ecrites).toBe(1);
+    expect(await svc.ficheDeLaVideo("ancienne")).not.toBeNull();
+    horlogeMin = 33;
+    expect(await svc.inscrireLesVideosPubliees(ports())).toEqual({ traitees: 0, ecrites: 0 });
+  });
+
+  it("une vidéo examinée sans écriture est réexaminée quand sa date de modification change", async () => {
+    await semer("a", { sousTitres: false });
+    expect((await svc.inscrireLesVideosPubliees(ports())).traitees).toBe(1);
+    horlogeMin = 11;
+    expect((await svc.inscrireLesVideosPubliees(ports())).traitees).toBe(0);
+    const v = await depots().videos.obtenir("a");
+    await depots().videos.enregistrer({ ...v!, modifieLe: "2026-12-01T00:00:00.000Z" });
+    horlogeMin = 22;
+    expect((await svc.inscrireLesVideosPubliees(ports())).traitees).toBe(1);
+  });
+
+  it("port de dépôts : la passe lit et écrit dans les dépôts injectés", async () => {
+    await semer("a");
+    const sonde = vi.spyOn(depots().videos, "lister");
+    const r = await svc.inscrireLesVideosPubliees({ ...ports(), depots });
+    expect(r.ecrites).toBe(1);
+    expect(sonde).toHaveBeenCalled();
+    expect(await svc.ficheDeLaVideo("a", { depots })).not.toBeNull();
+    expect((await svc.fichesUtilisables({ depots })).length).toBe(1);
+  });
+
   it("une vidéo qui lève n'arrête pas la passe et rien ne remonte", async () => {
     await semer("a");
     await semer("b");
