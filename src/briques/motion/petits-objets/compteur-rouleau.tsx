@@ -48,7 +48,7 @@ function valider(p: unknown): ParametresRouleau | null {
       sortie.decimales = r.decimales;
     }
     // la valeur doit tenir exactement dans les décimales demandées : on n'arrondit jamais un nombre dit
-    if (Math.abs(v * 10 ** d - Math.round(v * 10 ** d)) > 1e-9) return null;
+    if (Number(v.toFixed(d)) !== v) return null;
     for (const [cle, max] of [["prefixe", PREFIXE_MAX], ["suffixe", SUFFIXE_MAX]] as const) {
       const t = r[cle];
       if (t === undefined) continue;
@@ -86,6 +86,8 @@ export const OBJET_COMPTEUR_ROULEAU: DefinitionObjet<ParametresRouleau> = {
     const couleur = couleurDuTon(ton, fond);
     const debutNombre = prefixe.length;
     const finNombre = debutNombre + nombre.length;
+    // ids de clipPath propres à l'instance : deux compteurs dans une même page ne se partagent pas leurs découpes
+    const idInstance = [...complet].map((ch) => ch.charCodeAt(0).toString(36)).join("") + "-" + taille.toFixed(1).replace(".", "_");
     let rang = 0;
     const colonnes: JSX.Element[] = [];
     cellules.forEach((c, i) => {
@@ -114,10 +116,10 @@ export const OBJET_COMPTEUR_ROULEAU: DefinitionObjet<ParametresRouleau> = {
       }
       colonnes.push(
         <g key={i} data-role="colonne" data-cible={cible} data-decalage={decalage} transform={`translate(${cx.toFixed(1)} ${base})`}>
-          <clipPath id={`rouleau-${i}`}>
+          <clipPath id={`rouleau-${idInstance}-${i}`}>
             <rect x={(-largeur / 2).toFixed(1)} y={(-taille * 0.82).toFixed(1)} width={largeur.toFixed(1)} height={ligne.toFixed(1)} />
           </clipPath>
-          <g clipPath={`url(#rouleau-${i})`}>
+          <g clipPath={`url(#rouleau-${idInstance}-${i})`}>
             <g transform={`translate(0 ${(-decalage * ligne).toFixed(2)})`}>{roues}</g>
           </g>
         </g>,

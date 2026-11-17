@@ -44,6 +44,9 @@ describe("N-08b contrat", () => {
       expect(DEF.valider(mauvais)).toBeNull();
     }
     expect(DEF.valider({ valeur: 12 })).toEqual({ valeur: 12 });
+    // valeurs exactes à l'écriture mais pas au produit flottant (1234567.89 * 100 = 123456789.00000001)
+    expect(DEF.valider({ valeur: 1234567.89, decimales: 2 })).toEqual({ valeur: 1234567.89, decimales: 2 });
+    expect(DEF.valider({ valeur: 8888888.88, decimales: 2 })).toEqual({ valeur: 8888888.88, decimales: 2 });
     expect(DEF.valider({ valeur: 12, prefixe: "+", suffixe: "min", decimales: 0 })).toEqual({ valeur: 12, prefixe: "+", suffixe: "min", decimales: 0 });
   });
   it("exemples valides", () => {
@@ -84,6 +87,15 @@ describe("N-08b rendu", () => {
     const fin = decalages(rendre(IMAGES_ENTREE + 5, { valeur: 55555 }));
     for (let k = 1; k < fin.length; k++) expect(fin[k]!.decalage).toBeGreaterThanOrEqual(fin[k - 1]!.decalage);
     expect(fin[fin.length - 1]!.decalage).toBeGreaterThan(fin[0]!.decalage);
+  });
+  it("deux compteurs différents dans la même page n'ont aucun id de clipPath en commun", () => {
+    const ids = (m: string) => [...m.matchAll(/<clipPath id="([^"]+)"/g)].map((x) => x[1]!);
+    const a = ids(rendre(30, { valeur: 1234 }));
+    const b = ids(rendre(30, { valeur: 98, prefixe: "+", suffixe: "%" }));
+    expect(a.length).toBeGreaterThan(0);
+    expect(new Set(a).size).toBe(a.length);
+    for (const i of a) expect(b).not.toContain(i);
+    for (const m of [rendre(30, { valeur: 1234 })]) for (const i of ids(m)) expect(m).toContain(`url(#${i})`);
   });
   it("aucun chiffre hors 0-9 dans les colonnes", () => {
     const m = rendre(8, { valeur: 1234567.89, decimales: 2 });
