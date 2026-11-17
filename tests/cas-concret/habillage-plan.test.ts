@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { graineHabillage, habillerTranches } from "@/moteurs/montage-cas-concret/habillage-plan";
 import { choisirTransitions } from "@/briques/motion/habillage-commun/choix";
 import { IDS_TRANSITIONS_COMMUNES } from "@/briques/motion/habillage-commun/transitions";
+import type { PlanHabille } from "@/briques/motion/habillage-commun/types";
 import { PLAFONDS_PAR_DEFAUT } from "@/briques/motion/habillage-commun/types";
 import { tranchePlan } from "@/briques/plan-scenes-generateurs/tranche";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
@@ -43,7 +44,7 @@ const lancer = (plan: PlanValide, tranches: Record<string, PlanValide>, graine =
   habillerTranches({ actif, plan, ecrans, tranches, plafonds, graine });
 const posees = (r: Readonly<Record<string, PlanValide>>) =>
   Object.entries(r).flatMap(([c, t]) => {
-    const h = (t as { habillageCommun?: { transitions: Record<string, { entree?: string; sortie?: string }> } }).habillageCommun;
+    const h = (t as PlanHabille).habillageCommun;
     return h ? [[c, h] as const] : [];
   });
 
@@ -71,7 +72,7 @@ describe("habillerTranches (C6-H4b)", () => {
     for (const [c, hab] of p) {
       const idsScenes = tr[c].scenes.map((s) => s.id);
       expect(hab.version).toBe("habillage-1");
-      for (const [k, v] of Object.entries(hab.transitions)) {
+      for (const [k, v] of Object.entries(hab.transitions ?? {})) {
         expect(idsScenes).toContain(k);
         for (const id of [v.entree, v.sortie].filter(Boolean) as string[]) expect(IDS_TRANSITIONS_COMMUNES as readonly string[]).toContain(id);
         n++;
