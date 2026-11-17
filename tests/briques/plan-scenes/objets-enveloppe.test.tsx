@@ -1,0 +1,71 @@
+/** C9-34a — enveloppe « objet → pièce du plan de scènes » : fonction pure, rien n'est inscrit. */
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { envelopperObjets, envelopperObjetsAvecEcartes } from "../../../src/briques/plan-scenes/briques/objets";
+import { CATALOGUE_BRIQUES, IDS_PIECES } from "../../../src/briques/plan-scenes/catalogue";
+import type { DefinitionObjet } from "../../../src/briques/motion/petits-objets/contrat";
+import { DEF_BADGE, EXEMPLES_ETIQUETTES } from "../../../src/briques/motion/petits-objets/etiquettes";
+import { EXEMPLES_GROS_CHIFFRE, OBJET_GROS_CHIFFRE } from "../../../src/briques/motion/petits-objets/gros-chiffre";
+import { EXEMPLES_FENETRE_APP, OBJET_FENETRE_APP } from "../../../src/briques/motion/petits-objets/fenetre-app";
+
+const DEFS = [DEF_BADGE, OBJET_GROS_CHIFFRE, OBJET_FENETRE_APP] as unknown as DefinitionObjet<unknown>[];
+const graineDe = (id: string) => id.length * 7;
+const BASE = { image: 10, fps: 25, dureeImages: 60, fond: "ivoire" as const };
+
+describe("C9-34a enveloppe des objets", () => {
+  const pieces = envelopperObjets(DEFS, graineDe);
+
+  it("3 pièces, mêmes identifiants", () => {
+    expect(Object.keys(pieces).sort()).toEqual(DEFS.map((d) => d.id).sort());
+    for (const d of DEFS) {
+      expect(pieces[d.id].toile).toEqual(d.toile);
+      expect(pieces[d.id].dureeSec).toEqual(d.dureeSec);
+    }
+  });
+
+  it("paramètres valides acceptés, invalides refusés sans exception", () => {
+    expect(pieces["objet-badge"].schema.safeParse(EXEMPLES_ETIQUETTES.badge[0]).success).toBe(true);
+    expect(pieces["objet-gros-chiffre"].schema.safeParse(EXEMPLES_GROS_CHIFFRE[0]).success).toBe(true);
+    expect(pieces["objet-fenetre-app"].schema.safeParse(EXEMPLES_FENETRE_APP[0]).success).toBe(true);
+    for (const id of Object.keys(pieces) as (keyof typeof pieces)[]) {
+      for (const mauvais of [{ n: "x" }, null, undefined, 42, "texte"]) {
+        expect(() => pieces[id].schema.safeParse(mauvais)).not.toThrow();
+        expect(pieces[id].schema.safeParse(mauvais).success).toBe(false);
+      }
+    }
+  });
+
+  it("balisage de la pièce = balisage de def.Rendu (ton neutre par défaut, graine fournie)", () => {
+    const cas: [DefinitionObjet<unknown>, unknown][] = [
+      [DEFS[0], EXEMPLES_ETIQUETTES.badge[0]],
+      [DEFS[1], EXEMPLES_GROS_CHIFFRE[1]],
+      [DEFS[2], EXEMPLES_FENETRE_APP[0]],
+    ];
+    for (const [def, parametres] of cas) {
+      const attendu = renderToStaticMarkup(def.Rendu({ ...BASE, parametres, ton: "neutre", graine: graineDe(def.id) }));
+      const obtenu = renderToStaticMarkup(pieces[def.id].Rendu({ ...BASE, parametres }));
+      expect(obtenu).toBe(attendu);
+      expect(obtenu.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("même entrée = même balisage", () => {
+    const p = { ...BASE, parametres: EXEMPLES_GROS_CHIFFRE[0] };
+    expect(renderToStaticMarkup(pieces["objet-gros-chiffre"].Rendu(p))).toBe(renderToStaticMarkup(pieces["objet-gros-chiffre"].Rendu(p)));
+  });
+
+  it("définition non conforme écartée, listée à part", () => {
+    const mauvaise = { ...OBJET_GROS_CHIFFRE, id: "mauvais" } as unknown as DefinitionObjet<unknown>;
+    const { pieces: p2, ecartees } = envelopperObjetsAvecEcartes([...DEFS, mauvaise], graineDe);
+    expect(Object.keys(p2)).toHaveLength(3);
+    expect(ecartees).toHaveLength(1);
+    expect(ecartees[0].id).toBe("mauvais");
+    expect(ecartees[0].refus).toMatch(/objet-/);
+    expect(Object.keys(envelopperObjets([mauvaise], graineDe))).toHaveLength(0);
+  });
+
+  it("garde : IDS_PIECES et CATALOGUE_BRIQUES inchangés (aucun objet inscrit)", () => {
+    expect(IDS_PIECES.some((i) => i.startsWith("objet-"))).toBe(false);
+    expect(Object.keys(CATALOGUE_BRIQUES).some((i) => i.startsWith("objet-"))).toBe(false);
+  });
+});
