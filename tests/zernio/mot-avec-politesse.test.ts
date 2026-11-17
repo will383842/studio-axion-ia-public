@@ -71,3 +71,49 @@ describe("contrepartie sécurité : un arrêt n'est jamais refusé pour sa ponct
     expect(motSeulDe(t, REG)).toBe("STOP");
   });
 });
+
+// ─── Lot C4 · tests de caractérisation (verts dès l'écriture) : ils figent la règle ACTUELLE, sans l'approuver ni la changer. ───
+
+describe("caractérisation : formes acceptées (mot seul, ponctuation, émojis, pleine chasse)", () => {
+  it.each([
+    "GUIDE", "guide", "Guide !!!", "GUIDE ?", "GUIDE :)", "MERCI GUIDE", "GUIDE 😍😍😍", "🔥GUIDE🔥", "Guide 👍", "GUIDE ❤️", "GUIDE merci 🙏🙏",
+    "Bonjour ! GUIDE s'il vous plaît 🙂", "ＧＵＩＤＥ", "GUIDE merci",
+  ])("%j → GUIDE", (t) => expect(motSeulDe(t, ["GUIDE"])).toBe("GUIDE"));
+  it("borne haute : GUIDE + 7 « merci » (8 mots) → GUIDE", () => expect(motSeulDe("GUIDE " + "merci ".repeat(7), ["GUIDE"])).toBe("GUIDE"));
+});
+
+describe("caractérisation : formes refusées (hors liste blanche, borne, chiffre, lettres séparées)", () => {
+  it.each(["GUIDE ok", "GUIDE top", "super GUIDE", "GUIDE pls", "GUIDE 1️⃣", "g u i d e", "l'GUIDE"])("%j → null", (t) => expect(motSeulDe(t, ["GUIDE"])).toBeNull());
+  it("borne : GUIDE + 8 « merci » (9 mots) → null", () => expect(motSeulDe("GUIDE " + "merci ".repeat(8), ["GUIDE"])).toBeNull());
+});
+
+describe("caractérisation : un retour à la ligne ou une tabulation fait TOUT refuser (règle actuelle, décision du fondateur en attente)", () => {
+  // `texteBorne` refuse les caractères de contrôle \u0000-\u001f. Si le fondateur décide d'accepter ces formes, ces tests deviendront rouges puis seront revus (PR séparée).
+  it.each(["GUIDE\nmerci", "GUIDE\n", "GUIDE\r\n", "GUIDE\tmerci"])("%j → null", (t) => expect(motSeulDe(t, ["GUIDE"])).toBeNull());
+  it("« STOP\\n » : pas de mot gardé (null)", () => expect(motSeulDe("STOP\n", ["GUIDE"])).toBeNull());
+  it("« STOP\\n » dans un commentaire lu : motSeul null mais doute: true (pause + alerte, sûr)", () => {
+    const e = lireEvenementCommentaire(corps("STOP\n"))!;
+    expect(e.motSeul).toBeNull();
+    expect(e.doute).toBe(true);
+  });
+});
+
+describe("caractérisation : borne de 200 caractères dans lireEvenementCommentaire", () => {
+  const rempli = (n: number) => "GUIDE" + " ".repeat(n - 5 - 5) + "merci"; // espaces seuls entre les deux mots
+  it("200 caractères exactement, règle respectée → GUIDE", () => {
+    const t = rempli(200);
+    expect(t).toHaveLength(200);
+    expect(lireEvenementCommentaire(corps(t))!.motSeul).toBe("GUIDE");
+  });
+  it("201 caractères → null", () => {
+    const t = rempli(201);
+    expect(t).toHaveLength(201);
+    expect(lireEvenementCommentaire(corps(t))!.motSeul).toBeNull();
+  });
+});
+
+describe("caractérisation : registre « plusieurs mots » à deux mots", () => {
+  const DEUX = ["GUIDE", "MOT2"];
+  it("« MOT2 merci » → MOT2", () => expect(motSeulDe("MOT2 merci", DEUX)).toBe("MOT2"));
+  it("« GUIDE MOT2 » → null (deux mots distincts du registre)", () => expect(motSeulDe("GUIDE MOT2", DEUX)).toBeNull());
+});
