@@ -5,6 +5,7 @@
  * fournisseur passe par `masquerSecret` avant d'être rangé dans `detailTechnique`.
  */
 import type { ErreurFournisseur } from "@/fournisseurs/types";
+import type { MotifInbox } from "./zernio-motifs-refus";
 
 /**
  * Codes d'erreur du client :
@@ -74,6 +75,8 @@ export interface DetailsErreurZernio {
   champs?: string[];
   /** Texte technique (anglais, code fournisseur), déjà nettoyé de tout secret. Console serveur seulement. */
   detailTechnique?: string;
+  /** Motif d'un refus de la boîte de messages : FORME FERMÉE seulement (codes d'une liste, nombres), jamais de texte du service. */
+  motifInbox?: MotifInbox;
 }
 
 export class ErreurZernio extends Error {
@@ -85,6 +88,8 @@ export class ErreurZernio extends Error {
   readonly existingPostId?: string;
   readonly champs?: string[];
   readonly detailTechnique?: string;
+  /** Forme fermée seulement : jamais de texte libre. */
+  readonly motifInbox?: MotifInbox;
 
   constructor(code: CodeErreurZernio, message: string, details: DetailsErreurZernio = {}) {
     super(message);
@@ -97,6 +102,7 @@ export class ErreurZernio extends Error {
     this.existingPostId = details.existingPostId;
     this.champs = details.champs;
     this.detailTechnique = details.detailTechnique;
+    this.motifInbox = details.motifInbox;
   }
 
   /** Vrai si l'erreur a été levée avant tout appel réseau. */
