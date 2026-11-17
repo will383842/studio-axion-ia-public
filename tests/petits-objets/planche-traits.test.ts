@@ -59,7 +59,7 @@ describe("C9-39 garde statique", () => {
   const dossier = join(__dirname, "..", "..", "studio-rendu", "compositions", "petits-objets", "planche");
   const fichiers = existsSync(dossier) ? readdirSync(dossier) : [];
   it("les 3 fichiers de la planche existent", () => {
-    expect(fichiers.sort()).toEqual(["PlancheTraits.tsx", "RacinePlanches.tsx", "entree.ts"]);
+    expect(fichiers.sort()).toEqual(["PlancheEcrans.tsx", "PlancheEtiquettes.tsx", "PlancheManuscrit.tsx", "PlancheTraits.tsx", "RacinePlanches.tsx", "entree.ts"]);
   });
   for (const f of fichiers) {
     it(`${f} : aucun @/ ni src/services`, () => {
