@@ -125,7 +125,7 @@ export async function viderCorbeille(ids: Id[]): Promise<{ supprimees: number }>
   const dedans = (await Promise.all([...new Set(ids)].map((id) => d.videos.obtenir(id)))).filter((v): v is Video => !!v && v.statut === "archivee" && !!v.corbeilleLe);
   const { supprimerVideosSansSession } = await import("./videos");
   // Garde sous le verrou : une vidéo restaurée entre la sélection et l'effacement n'est jamais supprimée.
-  return supprimerVideosSansSession(dedans.map((v) => v.id), { garde: dansLaCorbeille });
+  return supprimerVideosSansSession(dedans.map((v) => v.id), { garde: dansLaCorbeille, decideParWilliams: true });
 }
 
 /**

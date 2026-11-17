@@ -45,6 +45,8 @@ export interface ParametresFacecamV4 {
   debitMax?: string;
   /** Dépôt de la vignette (JPEG, image à 1,5 s), facultatif. */
   vignette?: { urlDepot: string; cle: string };
+  /** W-H (17/11) : dépôt du rendu Remotion avant ré-encodage (« master » pour la retouche) ; absent : rien de plus. */
+  master?: { urlDepot: string; cle: string };
   /** Prise horizontale : colonne gardée (pixels de la prise après rotation) et taille de sortie. */
   recadrage?: RecadrageMontageV4;
   /** GV2-34 : fin douce (fondu de sortie du son, micro-fondus aux raccords). Absent : filtre identique à la répétition validée. */
@@ -185,10 +187,12 @@ export function lireParametresFacecamV4(p: Record<string, unknown>): ParametresF
   if (!Array.isArray(gardes) || !gardes.length || gardes.some((g) => !(Number.isFinite(g?.debutSec) && Number.isFinite(g?.finSec) && g.finSec > g.debutSec && g.debutSec >= 0))) throw refus("Intervalles gardés de la prise absents ou invalides.");
   const v = p.vignette as { urlDepot?: unknown; cle?: unknown } | undefined;
   const vignette = v && typeof v.urlDepot === "string" && typeof v.cle === "string" ? { urlDepot: v.urlDepot, cle: v.cle } : undefined;
+  const m = p.master as { urlDepot?: unknown; cle?: unknown } | undefined;
+  const master = m && typeof m.urlDepot === "string" && typeof m.cle === "string" ? { urlDepot: m.urlDepot, cle: m.cle } : undefined;
   const recadrage = lireRecadrageV4(p.recadrage);
   // Refus précoce, avant tout téléchargement : une plaquette à vidéo sans ses médias ne se rend pas (phrase qui cite la plaquette et l'instant).
   controlerMediasPlaquettesV4(plan.elementsV4);
-  return { mode: "facecam-v4", plan, gardes, ...(recadrage ? { recadrage } : {}), ...(p.finDouce === true ? { finDouce: true } : {}), crf: typeof p.crf === "number" ? p.crf : undefined, debitMax: typeof p.debitMax === "string" && /^\d+k$/.test(p.debitMax) ? p.debitMax : undefined, ...(vignette ? { vignette } : {}) };
+  return { mode: "facecam-v4", plan, gardes, ...(recadrage ? { recadrage } : {}), ...(p.finDouce === true ? { finDouce: true } : {}), crf: typeof p.crf === "number" ? p.crf : undefined, debitMax: typeof p.debitMax === "string" && /^\d+k$/.test(p.debitMax) ? p.debitMax : undefined, ...(vignette ? { vignette } : {}), ...(master ? { master } : {}) };
 }
 
 /** Remplit `dossier` de liens vers les médias v4 (noms uniques : un doublon de nom est une erreur de déploiement). */
@@ -284,7 +288,12 @@ export async function compositionFacecamV4(demande: DemandeRendu, contexte: Cont
       await executer(FFMPEG, ["-hide_banner", "-v", "error", "-y", "-ss", Math.min(1.5, dureeSec / 2).toFixed(2), "-i", finale, "-frames:v", "1", "-vf", "scale=540:-2", "-q:v", "3", vignette], contexte.signal);
       await deposer(p.vignette.urlDepot, vignette, "image/jpeg", contexte.signal);
     }
-    return { mesures: { images: choisie.durationInFrames, fps: choisie.fps, dureeSec: +dureeSec.toFixed(3), taille: size, dureeMonteeSec: +dureeMonteeSec.toFixed(3), gardes: p.gardes.length, medias: nombreMedias, illustrations: nombreIllustrations, lufs: son.lufs, picVraiDbtp: son.creteVraieDbtp, margePicDb: son.margeDb, ...temps } };
+    let tailleMaster: number | undefined;
+    if (p.master) {
+      await deposer(p.master.urlDepot, rendu, "video/mp4", contexte.signal);
+      tailleMaster = (await stat(rendu)).size;
+    }
+    return { mesures: { images: choisie.durationInFrames, fps: choisie.fps, dureeSec: +dureeSec.toFixed(3), taille: size, dureeMonteeSec: +dureeMonteeSec.toFixed(3), gardes: p.gardes.length, medias: nombreMedias, illustrations: nombreIllustrations, lufs: son.lufs, picVraiDbtp: son.creteVraieDbtp, margePicDb: son.margeDb, ...(tailleMaster !== undefined ? { tailleMaster } : {}), ...temps } };
   } finally {
     await serveur.fermer();
   }

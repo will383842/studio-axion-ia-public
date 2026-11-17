@@ -1,0 +1,1344 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`la phrase du test existant — avec LLM du plan > plan, source, remarques et consigne figés (instantané) > consigne 1`] = `
+{
+  "message": "Format : 1080 × 676, 25 i/s. Face caméra : non.
+Script :
+Bonjour je vous montre comment on crée un devis dans Axion en trois clics. Je clique sur nouveau devis puis je choisis le client et voilà le devis est prêt.
+Minutage des mots (indice, texte, début ms, fin ms) :
+0	Bonjour	30	360
+1	je	430	760
+2	vous	830	1160
+3	montre	1230	1560
+4	comment	1630	1960
+5	on	2030	2360
+6	crée	2430	2760
+7	un	2830	3160
+8	devis	3230	3560
+9	dans	3630	3960
+10	Axion	4030	4360
+11	en	4430	4760
+12	trois	4830	5160
+13	clics.	5230	5560
+14	Je	5630	5960
+15	clique	6030	6360
+16	sur	6430	6760
+17	nouveau	6830	7160
+18	devis	7230	7560
+19	puis	7630	7960
+20	je	8030	8360
+21	choisis	8430	8760
+22	le	8830	9160
+23	client	9230	9560
+24	et	9630	9960
+25	voilà	10030	10360
+26	le	10430	10760
+27	devis	10830	11160
+28	est	11230	11560
+29	prêt.	11630	11960
+Faits du script (type, mots, valeurs) :
+lieu	9-10	{"texte":"dans Axion","nom":"Axion","surMot":10}",
+  "systeme": [
+    "Vous composez le PLAN DE SCÈNES d'une vidéo Axion IA : des animations de données et d'interface, calées au mot près.
+Le script du fondateur fait foi : ne changez aucun mot, ne retirez aucune phrase.
+Chaque élément visible porte \`surMot\`, l'indice du mot dit qui le fait apparaître. N'écrivez jamais \`aMs\`.
+N'affichez aucun nombre ni aucun texte qui ne soit pas dans la liste des faits ou dans les mots de la scène.
+Préférez les pièces de données quand un fait existe ; n'utilisez la fausse interface que si le script parle d'un logiciel.
+Évitez les pièces listées comme récentes.
+Chaque scène couvre des mots consécutifs (indices du minutage, \`mots.premier\` et \`mots.dernier\`) ; son \`debutMs\` est celui du premier mot, son \`finMs\` au moins la fin du dernier mot et au plus le début de la scène suivante.
+Niveaux : 1 = une pièce du catalogue (\`piece\` + \`parametres\`) ; 2 = une composition de calques (\`calques\` : pièces posées dans une zone, décalées de \`debutMs\` depuis le début de la scène ; un calque \`zoom-camera\` agrandit les autres), avec toujours une \`piece\` niveau 1 de repli ; n'utilisez pas le niveau 3.
+Positions : haut, centre, bas, plein, gauche, droite. En face caméra, rien devant le visage (zone x 22–78 %, y 14–56 %) : utilisez « bas » ou « haut ».
+Transitions douces seulement : fondu, glisse-haut, glisse-gauche, zoom-doux (200 à 800 ms). Aucune couleur ni police dans les paramètres : la charte Axion s'applique seule (fond ivoire ou noir, accent terracotta ; orange seulement sur noir).
+Catalogue :
+- curseur (Curseur) : Flèche de souris qui glisse d'un point à l'autre puis clique doucement.
+  paramètres (exemple) : {"trajet":[{"x":20,"y":70},{"x":55,"y":45},{"x":72,"y":38}],"clic":true,"partDeplacement":0.6}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"trajet":{"minItems":2,"maxItems":6,"type":"array","items":{"type":"object","properties":{"x":{"type":"number","minimum":0,"maximum":100},"y":{"type":"number","minimum":0,"maximum":100}},"required":["x","y"],"additionalProperties":false}},"clic":{"type":"boolean"},"partDeplacement":{"type":"number","minimum":0.2,"maximum":0.9}},"required":["trajet","clic","partDeplacement"],"additionalProperties":false}
+- zoom-camera (Zoom caméra) : Rapproche lentement la caméra d'un point de l'écran (en calque : agrandit les autres calques).
+  paramètres (exemple) : {"cible":{"x":62,"y":40},"facteur":1.6,"moment":0.3,"titreFenetre":"Devis en cours"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"cible":{"type":"object","properties":{"x":{"type":"number","minimum":0,"maximum":100},"y":{"type":"number","minimum":0,"maximum":100}},"required":["x","y"],"additionalProperties":false},"facteur":{"type":"number","minimum":1,"maximum":2.5},"moment":{"type":"number","minimum":0,"maximum":0.8},"titreFenetre":{"type":"string","minLength":1,"maxLength":40}},"required":["cible","facteur","moment","titreFenetre"],"additionalProperties":false}
+- frappe-clavier (Frappe au clavier) : Un champ de saisie qui se remplit lettre par lettre, avec un curseur texte.
+  paramètres (exemple) : {"champ":"Client","texte":"Fuite sous l'évier, cuisine","vitesse":16}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"champ":{"type":"string","minLength":1,"maxLength":40},"texte":{"type":"string","minLength":1,"maxLength":120},"vitesse":{"type":"number","minimum":8,"maximum":30}},"required":["champ","texte","vitesse"],"additionalProperties":false}
+- carte-kpi (Carte KPI) : Un chiffre clé qui monte jusqu'à sa valeur, avec un libellé et une tendance.
+  paramètres (exemple) : {"libelle":"Devis envoyés ce mois","valeur":38,"prefixe":"+","suffixe":" %","decimales":0,"tendance":"hausse","variation":"vs septembre"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":40},"valeur":{"type":"number"},"prefixe":{"type":"string","maxLength":4},"suffixe":{"type":"string","maxLength":6},"decimales":{"type":"integer","minimum":0,"maximum":2},"tendance":{"type":"string","enum":["hausse","baisse","stable"]},"variation":{"type":"string","maxLength":16}},"required":["libelle","valeur","prefixe","suffixe","decimales","tendance","variation"],"additionalProperties":false}
+- graphique (Graphique) : Barres qui poussent ou courbe qui se trace, une valeur mise en avant.
+  paramètres (exemple) : {"type":"barres","titre":"Demandes par semaine","valeurs":[{"libelle":"S1","valeur":12},{"libelle":"S2","valeur":18},{"libelle":"S3","valeur":16},{"libelle":"S4","valeur":27}],"enAvant":3}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"type":{"type":"string","enum":["barres","courbe"]},"titre":{"type":"string","maxLength":48},"valeurs":{"minItems":2,"maxItems":8,"type":"array","items":{"type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":14},"valeur":{"type":"number","minimum":0}},"required":["libelle","valeur"],"additionalProperties":false}},"enAvant":{"type":"integer","minimum":-1,"maximum":7}},"required":["type","titre","valeurs","enAvant"],"additionalProperties":false}
+- tableau-de-bord (Tableau de bord) : Écran de synthèse : 2 à 4 chiffres en tuiles et une petite courbe.
+  paramètres (exemple) : {"titre":"Cette semaine","kpis":[{"libelle":"Demandes","valeur":"27"},{"libelle":"Devis signés","valeur":"9"},{"libelle":"Temps de réponse","valeur":"12 min"}],"serie":[4,6,5,8,7,11,13]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"kpis":{"minItems":2,"maxItems":4,"type":"array","items":{"type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":24},"valeur":{"type":"string","minLength":1,"maxLength":12}},"required":["libelle","valeur"],"additionalProperties":false}},"serie":{"minItems":3,"maxItems":12,"type":"array","items":{"type":"number","minimum":0}}},"required":["titre","kpis","serie"],"additionalProperties":false}
+- liste-crm (Liste / CRM) : Liste de contacts ou de demandes qui arrivent une à une, avec un statut ; une ligne surlignée.
+  paramètres (exemple) : {"titre":"Demandes du jour","lignes":[{"nom":"M. Durand","detail":"Fuite cuisine","statut":"nouveau"},{"nom":"Mme Leroy","detail":"Chauffe-eau","statut":"en-cours"},{"nom":"SCI Les Tilleuls","detail":"Contrat entretien","statut":"gagne"}],"surligner":0}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"lignes":{"minItems":1,"maxItems":6,"type":"array","items":{"type":"object","properties":{"nom":{"type":"string","minLength":1,"maxLength":28},"detail":{"type":"string","maxLength":36},"statut":{"type":"string","enum":["nouveau","en-cours","gagne","perdu"]}},"required":["nom","detail","statut"],"additionalProperties":false}},"surligner":{"type":"integer","minimum":-1,"maximum":5}},"required":["titre","lignes","surligner"],"additionalProperties":false}
+- fenetre-app (Fenêtre d'app) : Fenêtre de logiciel (barre de titre, onglets) qui s'ouvre en douceur ; sert de décor aux autres briques.
+  paramètres (exemple) : {"titre":"Axion CRM","onglets":["Demandes","Devis","Agenda"],"ongletActif":1,"contenu":"formulaire"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"onglets":{"maxItems":4,"type":"array","items":{"type":"string","minLength":1,"maxLength":16}},"ongletActif":{"type":"integer","minimum":0,"maximum":3},"contenu":{"type":"string","enum":["vide","formulaire","liste"]}},"required":["titre","onglets","ongletActif","contenu"],"additionalProperties":false}
+- bulle-chat (Bulle de chat) : Échange de messages (client, assistant) qui apparaissent l'un après l'autre.
+  paramètres (exemple) : {"messages":[{"auteur":"client","texte":"Bonjour, j'ai une fuite sous l'évier."},{"auteur":"assistant","texte":"Je vous propose demain 9 h. Le devis arrive par SMS."}],"saisie":true}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"messages":{"minItems":1,"maxItems":4,"type":"array","items":{"type":"object","properties":{"auteur":{"type":"string","enum":["client","assistant"]},"texte":{"type":"string","minLength":1,"maxLength":140}},"required":["auteur","texte"],"additionalProperties":false}},"saisie":{"type":"boolean"}},"required":["messages","saisie"],"additionalProperties":false}
+- legende (Légende) : Texte à l'écran : bandeau, étiquette ou titre, qui arrive en fondu glissé.
+  paramètres (exemple) : {"texte":"Le devis part tout seul","sousTexte":"","style":"bandeau"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":80},"sousTexte":{"type":"string","maxLength":80},"style":{"type":"string","enum":["bandeau","etiquette","titre"]}},"required":["texte","sousTexte","style"],"additionalProperties":false}
+- compteur (Compteur) : Un nombre dit avec son unité, qui monte d'un coup jusqu'à la valeur dite, au moment où le mot est prononcé.
+  paramètres (exemple) : {"valeur":40,"unite":"%","libelle":"de temps gagné","surMot":0,"aMs":400}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"valeur":{"type":"number"},"unite":{"type":"string","minLength":1,"maxLength":8},"libelle":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false}
+- jauge (Jauge) : Une part de 0 à 100 % annoncée dans la voix (taux, avancement), qui se remplit jusqu'à la valeur dite.
+  paramètres (exemple) : {"valeur":72,"libelle":"des demandes traitées","surMot":0,"aMs":400}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"valeur":{"type":"number","minimum":0,"maximum":100},"libelle":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false}
+- avant-apres (Avant / après) : Deux valeurs opposées, avant puis après, chacune montrée au mot où elle est dite.
+  paramètres (exemple) : {"titre":"Temps de réponse","avant":{"valeur":48,"unite":"h","surMot":0,"aMs":300},"apres":{"valeur":12,"unite":"min","surMot":3,"aMs":1500}}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"avant":{"type":"object","properties":{"valeur":{"type":"number"},"unite":{"type":"string","maxLength":8},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false},"apres":{"type":"object","properties":{"valeur":{"type":"number"},"unite":{"type":"string","maxLength":8},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false},"titre":{"type":"string","minLength":1,"maxLength":40}},"required":["avant","apres"],"additionalProperties":false}
+- barres (Barres comparées) : 2 à 4 grandeurs comparées côte à côte, chaque barre poussant au mot où sa valeur est dite.
+  paramètres (exemple) : {"unite":"h","barres":[{"libelle":"Avant","valeur":12,"surMot":0,"aMs":300},{"libelle":"Maintenant","valeur":3,"surMot":2,"aMs":1100}]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"barres":{"minItems":2,"maxItems":4,"type":"array","items":{"type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":20},"valeur":{"type":"number","minimum":0},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["libelle","valeur","surMot"],"additionalProperties":false}},"unite":{"type":"string","minLength":1,"maxLength":8}},"required":["barres"],"additionalProperties":false}
+- etapes (Étapes) : Une suite d'étapes numérotées (2 à 6), chacune apparaissant quand elle est nommée dans la voix.
+  paramètres (exemple) : {"elements":[{"texte":"Le client appelle","surMot":0,"aMs":300},{"texte":"L'assistant répond","surMot":3,"aMs":1200},{"texte":"Le devis part","surMot":6,"aMs":2100}]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"elements":{"minItems":2,"maxItems":6,"type":"array","items":{"type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["texte","surMot"],"additionalProperties":false}}},"required":["elements"],"additionalProperties":false}
+- liste-au-mot (Liste au mot) : Une liste annoncée (2 à 6 éléments) qui se remplit : chaque ligne arrive au mot où elle est dite.
+  paramètres (exemple) : {"titre":"Ce qui est inclus","elements":[{"texte":"Devis automatique","surMot":0,"aMs":300},{"texte":"Relances par SMS","surMot":2,"aMs":1000},{"texte":"Agenda à jour","surMot":4,"aMs":1800}]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"elements":{"minItems":2,"maxItems":6,"type":"array","items":{"type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["texte","surMot"],"additionalProperties":false}}},"required":["elements"],"additionalProperties":false}
+- citation (Citation) : Une phrase rapportée (parole d'un client, d'un avis), avec son auteur, qui apparaît au mot où elle commence.
+  paramètres (exemple) : {"texte":"Je ne rate plus aucun appel.","auteur":"Un plombier","surMot":0,"aMs":300}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":120},"auteur":{"type":"string","minLength":1,"maxLength":30},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["texte","surMot"],"additionalProperties":false}
+- repere (Repère) : Un lieu, une date ou une durée dite à voix haute, posée en repère court au moment où elle est dite.
+  paramètres (exemple) : {"genre":"lieu","texte":"Lyon","surMot":0,"aMs":300}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"genre":{"type":"string","enum":["lieu","date","duree"]},"texte":{"type":"string","minLength":1,"maxLength":30},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["genre","texte","surMot"],"additionalProperties":false}
+Répondez par UN objet JSON seul : { "version": "plan-scenes-1", "format": {…}, "facecam": bool, "dureeMs": n, "habillage": { "fond": "ivoire"|"noir", "accent": "terracotta"|"orange" }, "mots": [recopiez le minutage], "scenes": [ { "id", "version": 1, "mots": { "premier", "dernier" }, "debutMs", "finMs", "niveau", "texte"?, "position", "transition": { "entree", "sortie", "dureeMs" }, "piece", "parametres", "calques"? } ] }.",
+  ],
+}
+`;
+
+exports[`la phrase du test existant — avec LLM du plan > plan, source, remarques et consigne figés (instantané) > constat 1`] = `
+{
+  "plan": {
+    "dureeMs": 12430,
+    "facecam": false,
+    "format": {
+      "fps": 25,
+      "hauteur": 676,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 30,
+        "finMs": 360,
+        "texte": "Bonjour",
+      },
+      {
+        "debutMs": 430,
+        "finMs": 760,
+        "texte": "je",
+      },
+      {
+        "debutMs": 830,
+        "finMs": 1160,
+        "texte": "vous",
+      },
+      {
+        "debutMs": 1230,
+        "finMs": 1560,
+        "texte": "montre",
+      },
+      {
+        "debutMs": 1630,
+        "finMs": 1960,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 2030,
+        "finMs": 2360,
+        "texte": "on",
+      },
+      {
+        "debutMs": 2430,
+        "finMs": 2760,
+        "texte": "crée",
+      },
+      {
+        "debutMs": 2830,
+        "finMs": 3160,
+        "texte": "un",
+      },
+      {
+        "debutMs": 3230,
+        "finMs": 3560,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 3630,
+        "finMs": 3960,
+        "texte": "dans",
+      },
+      {
+        "debutMs": 4030,
+        "finMs": 4360,
+        "texte": "Axion",
+      },
+      {
+        "debutMs": 4430,
+        "finMs": 4760,
+        "texte": "en",
+      },
+      {
+        "debutMs": 4830,
+        "finMs": 5160,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5230,
+        "finMs": 5560,
+        "texte": "clics.",
+      },
+      {
+        "debutMs": 5630,
+        "finMs": 5960,
+        "texte": "Je",
+      },
+      {
+        "debutMs": 6030,
+        "finMs": 6360,
+        "texte": "clique",
+      },
+      {
+        "debutMs": 6430,
+        "finMs": 6760,
+        "texte": "sur",
+      },
+      {
+        "debutMs": 6830,
+        "finMs": 7160,
+        "texte": "nouveau",
+      },
+      {
+        "debutMs": 7230,
+        "finMs": 7560,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 7630,
+        "finMs": 7960,
+        "texte": "puis",
+      },
+      {
+        "debutMs": 8030,
+        "finMs": 8360,
+        "texte": "je",
+      },
+      {
+        "debutMs": 8430,
+        "finMs": 8760,
+        "texte": "choisis",
+      },
+      {
+        "debutMs": 8830,
+        "finMs": 9160,
+        "texte": "le",
+      },
+      {
+        "debutMs": 9230,
+        "finMs": 9560,
+        "texte": "client",
+      },
+      {
+        "debutMs": 9630,
+        "finMs": 9960,
+        "texte": "et",
+      },
+      {
+        "debutMs": 10030,
+        "finMs": 10360,
+        "texte": "voilà",
+      },
+      {
+        "debutMs": 10430,
+        "finMs": 10760,
+        "texte": "le",
+      },
+      {
+        "debutMs": 10830,
+        "finMs": 11160,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 11230,
+        "finMs": 11560,
+        "texte": "est",
+      },
+      {
+        "debutMs": 11630,
+        "finMs": 11960,
+        "texte": "prêt.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 30,
+        "empreinte": "6f174773b3169c00",
+        "finMs": 1560,
+        "id": "zoom",
+        "mots": {
+          "dernier": 0,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "cible": {
+            "x": 70,
+            "y": 30,
+          },
+          "facteur": 1.8,
+          "moment": 0.1,
+          "titreFenetre": "Axion",
+        },
+        "piece": "zoom-camera",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 1560,
+        "empreinte": "6aa9aaa8c11e9bf5",
+        "finMs": 7974,
+        "id": "clic",
+        "mots": {
+          "dernier": 0,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "clic": true,
+          "partDeplacement": 0.5,
+          "trajet": [
+            {
+              "x": 10,
+              "y": 10,
+            },
+            {
+              "x": 62,
+              "y": 44,
+            },
+          ],
+        },
+        "piece": "curseur",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 7974,
+        "empreinte": "a9fdf89ef6808ef5",
+        "finMs": 11960,
+        "id": "kpi",
+        "mots": {
+          "dernier": 0,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis prêts",
+          "prefixe": "",
+          "suffixe": "",
+          "tendance": "hausse",
+          "valeur": 3,
+          "variation": "",
+        },
+        "piece": "carte-kpi",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+  "remarques": [
+    "DUREE_RECALEE",
+    "CHEVAUCHEMENT",
+    "CODE_LIBRE_DESACTIVE",
+    "REPLI_NIVEAU_1",
+  ],
+  "sourcePlan": "llm",
+}
+`;
+
+exports[`la phrase du test existant — sans LLM du plan > plan, source, remarques et consigne figés (instantané) > constat 1`] = `
+{
+  "plan": {
+    "dureeMs": 12430,
+    "facecam": false,
+    "format": {
+      "fps": 25,
+      "hauteur": 676,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 30,
+        "finMs": 360,
+        "texte": "Bonjour",
+      },
+      {
+        "debutMs": 430,
+        "finMs": 760,
+        "texte": "je",
+      },
+      {
+        "debutMs": 830,
+        "finMs": 1160,
+        "texte": "vous",
+      },
+      {
+        "debutMs": 1230,
+        "finMs": 1560,
+        "texte": "montre",
+      },
+      {
+        "debutMs": 1630,
+        "finMs": 1960,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 2030,
+        "finMs": 2360,
+        "texte": "on",
+      },
+      {
+        "debutMs": 2430,
+        "finMs": 2760,
+        "texte": "crée",
+      },
+      {
+        "debutMs": 2830,
+        "finMs": 3160,
+        "texte": "un",
+      },
+      {
+        "debutMs": 3230,
+        "finMs": 3560,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 3630,
+        "finMs": 3960,
+        "texte": "dans",
+      },
+      {
+        "debutMs": 4030,
+        "finMs": 4360,
+        "texte": "Axion",
+      },
+      {
+        "debutMs": 4430,
+        "finMs": 4760,
+        "texte": "en",
+      },
+      {
+        "debutMs": 4830,
+        "finMs": 5160,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5230,
+        "finMs": 5560,
+        "texte": "clics.",
+      },
+      {
+        "debutMs": 5630,
+        "finMs": 5960,
+        "texte": "Je",
+      },
+      {
+        "debutMs": 6030,
+        "finMs": 6360,
+        "texte": "clique",
+      },
+      {
+        "debutMs": 6430,
+        "finMs": 6760,
+        "texte": "sur",
+      },
+      {
+        "debutMs": 6830,
+        "finMs": 7160,
+        "texte": "nouveau",
+      },
+      {
+        "debutMs": 7230,
+        "finMs": 7560,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 7630,
+        "finMs": 7960,
+        "texte": "puis",
+      },
+      {
+        "debutMs": 8030,
+        "finMs": 8360,
+        "texte": "je",
+      },
+      {
+        "debutMs": 8430,
+        "finMs": 8760,
+        "texte": "choisis",
+      },
+      {
+        "debutMs": 8830,
+        "finMs": 9160,
+        "texte": "le",
+      },
+      {
+        "debutMs": 9230,
+        "finMs": 9560,
+        "texte": "client",
+      },
+      {
+        "debutMs": 9630,
+        "finMs": 9960,
+        "texte": "et",
+      },
+      {
+        "debutMs": 10030,
+        "finMs": 10360,
+        "texte": "voilà",
+      },
+      {
+        "debutMs": 10430,
+        "finMs": 10760,
+        "texte": "le",
+      },
+      {
+        "debutMs": 10830,
+        "finMs": 11160,
+        "texte": "devis",
+      },
+      {
+        "debutMs": 11230,
+        "finMs": 11560,
+        "texte": "est",
+      },
+      {
+        "debutMs": 11630,
+        "finMs": 11960,
+        "texte": "prêt.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 3630,
+        "empreinte": "5e86156f0e575ceb",
+        "finMs": 5560,
+        "id": "s1",
+        "mots": {
+          "dernier": 10,
+          "premier": 9,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 400,
+          "genre": "lieu",
+          "surMot": 10,
+          "texte": "Axion",
+        },
+        "piece": "repere",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+  "remarques": [
+    "PLAN_SIMPLE",
+  ],
+  "sourcePlan": "repli",
+}
+`;
+
+exports[`une phrase à chiffres et énumération — avec LLM du plan > plan, source, remarques et consigne figés (instantané) > consigne 1`] = `
+{
+  "message": "Format : 1080 × 676, 25 i/s. Face caméra : non.
+Script :
+Vous perdez deux heures par jour à répondre aux mêmes mails. Avec un assistant bien réglé, on passe de 2 heures à 20 minutes. Le secret tient en trois étapes : d'abord trier, ensuite répondre, enfin classer. Essayez dès lundi.
+Minutage des mots (indice, texte, début ms, fin ms) :
+0	Vous	30	360
+1	perdez	430	760
+2	deux	830	1160
+3	heures	1230	1560
+4	par	1630	1960
+5	jour	2030	2360
+6	à	2430	2760
+7	répondre	2830	3160
+8	aux	3230	3560
+9	mêmes	3630	3960
+10	mails.	4030	4360
+11	Avec	4430	4760
+12	un	4830	5160
+13	assistant	5230	5560
+14	bien	5630	5960
+15	réglé,	6030	6360
+16	on	6430	6760
+17	passe	6830	7160
+18	de	7230	7560
+19	2	7630	7960
+20	heures	8030	8360
+21	à	8430	8760
+22	20	8830	9160
+23	minutes.	9230	9560
+24	Le	9630	9960
+25	secret	10030	10360
+26	tient	10430	10760
+27	en	10830	11160
+28	trois	11230	11560
+29	étapes	11630	11960
+30	:	12030	12360
+31	d'abord	12430	12760
+32	trier,	12830	13160
+33	ensuite	13230	13560
+34	répondre,	13630	13960
+35	enfin	14030	14360
+36	classer.	14430	14760
+37	Essayez	14830	15160
+38	dès	15230	15560
+39	lundi.	15630	15960
+Faits du script (type, mots, valeurs) :
+nombre	2-3	{"texte":"deux heures","valeur":2,"unite":"h","surMot":2}
+passage	19-23	{"texte":"2 heures à 20 minutes","avant":{"valeur":2,"unite":"h","surMot":19},"apres":{"valeur":20,"unite":"min","surMot":22}}
+etapes	31-36	{"texte":"d'abord trier, ensuite répondre, enfin classer","elements":[{"texte":"trier","surMot":32},{"texte":"répondre","surMot":34},{"texte":"classer","surMot":36}]}",
+  "systeme": [
+    "Vous composez le PLAN DE SCÈNES d'une vidéo Axion IA : des animations de données et d'interface, calées au mot près.
+Le script du fondateur fait foi : ne changez aucun mot, ne retirez aucune phrase.
+Chaque élément visible porte \`surMot\`, l'indice du mot dit qui le fait apparaître. N'écrivez jamais \`aMs\`.
+N'affichez aucun nombre ni aucun texte qui ne soit pas dans la liste des faits ou dans les mots de la scène.
+Préférez les pièces de données quand un fait existe ; n'utilisez la fausse interface que si le script parle d'un logiciel.
+Évitez les pièces listées comme récentes.
+Chaque scène couvre des mots consécutifs (indices du minutage, \`mots.premier\` et \`mots.dernier\`) ; son \`debutMs\` est celui du premier mot, son \`finMs\` au moins la fin du dernier mot et au plus le début de la scène suivante.
+Niveaux : 1 = une pièce du catalogue (\`piece\` + \`parametres\`) ; 2 = une composition de calques (\`calques\` : pièces posées dans une zone, décalées de \`debutMs\` depuis le début de la scène ; un calque \`zoom-camera\` agrandit les autres), avec toujours une \`piece\` niveau 1 de repli ; n'utilisez pas le niveau 3.
+Positions : haut, centre, bas, plein, gauche, droite. En face caméra, rien devant le visage (zone x 22–78 %, y 14–56 %) : utilisez « bas » ou « haut ».
+Transitions douces seulement : fondu, glisse-haut, glisse-gauche, zoom-doux (200 à 800 ms). Aucune couleur ni police dans les paramètres : la charte Axion s'applique seule (fond ivoire ou noir, accent terracotta ; orange seulement sur noir).
+Catalogue :
+- curseur (Curseur) : Flèche de souris qui glisse d'un point à l'autre puis clique doucement.
+  paramètres (exemple) : {"trajet":[{"x":20,"y":70},{"x":55,"y":45},{"x":72,"y":38}],"clic":true,"partDeplacement":0.6}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"trajet":{"minItems":2,"maxItems":6,"type":"array","items":{"type":"object","properties":{"x":{"type":"number","minimum":0,"maximum":100},"y":{"type":"number","minimum":0,"maximum":100}},"required":["x","y"],"additionalProperties":false}},"clic":{"type":"boolean"},"partDeplacement":{"type":"number","minimum":0.2,"maximum":0.9}},"required":["trajet","clic","partDeplacement"],"additionalProperties":false}
+- zoom-camera (Zoom caméra) : Rapproche lentement la caméra d'un point de l'écran (en calque : agrandit les autres calques).
+  paramètres (exemple) : {"cible":{"x":62,"y":40},"facteur":1.6,"moment":0.3,"titreFenetre":"Devis en cours"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"cible":{"type":"object","properties":{"x":{"type":"number","minimum":0,"maximum":100},"y":{"type":"number","minimum":0,"maximum":100}},"required":["x","y"],"additionalProperties":false},"facteur":{"type":"number","minimum":1,"maximum":2.5},"moment":{"type":"number","minimum":0,"maximum":0.8},"titreFenetre":{"type":"string","minLength":1,"maxLength":40}},"required":["cible","facteur","moment","titreFenetre"],"additionalProperties":false}
+- frappe-clavier (Frappe au clavier) : Un champ de saisie qui se remplit lettre par lettre, avec un curseur texte.
+  paramètres (exemple) : {"champ":"Client","texte":"Fuite sous l'évier, cuisine","vitesse":16}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"champ":{"type":"string","minLength":1,"maxLength":40},"texte":{"type":"string","minLength":1,"maxLength":120},"vitesse":{"type":"number","minimum":8,"maximum":30}},"required":["champ","texte","vitesse"],"additionalProperties":false}
+- carte-kpi (Carte KPI) : Un chiffre clé qui monte jusqu'à sa valeur, avec un libellé et une tendance.
+  paramètres (exemple) : {"libelle":"Devis envoyés ce mois","valeur":38,"prefixe":"+","suffixe":" %","decimales":0,"tendance":"hausse","variation":"vs septembre"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":40},"valeur":{"type":"number"},"prefixe":{"type":"string","maxLength":4},"suffixe":{"type":"string","maxLength":6},"decimales":{"type":"integer","minimum":0,"maximum":2},"tendance":{"type":"string","enum":["hausse","baisse","stable"]},"variation":{"type":"string","maxLength":16}},"required":["libelle","valeur","prefixe","suffixe","decimales","tendance","variation"],"additionalProperties":false}
+- graphique (Graphique) : Barres qui poussent ou courbe qui se trace, une valeur mise en avant.
+  paramètres (exemple) : {"type":"barres","titre":"Demandes par semaine","valeurs":[{"libelle":"S1","valeur":12},{"libelle":"S2","valeur":18},{"libelle":"S3","valeur":16},{"libelle":"S4","valeur":27}],"enAvant":3}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"type":{"type":"string","enum":["barres","courbe"]},"titre":{"type":"string","maxLength":48},"valeurs":{"minItems":2,"maxItems":8,"type":"array","items":{"type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":14},"valeur":{"type":"number","minimum":0}},"required":["libelle","valeur"],"additionalProperties":false}},"enAvant":{"type":"integer","minimum":-1,"maximum":7}},"required":["type","titre","valeurs","enAvant"],"additionalProperties":false}
+- tableau-de-bord (Tableau de bord) : Écran de synthèse : 2 à 4 chiffres en tuiles et une petite courbe.
+  paramètres (exemple) : {"titre":"Cette semaine","kpis":[{"libelle":"Demandes","valeur":"27"},{"libelle":"Devis signés","valeur":"9"},{"libelle":"Temps de réponse","valeur":"12 min"}],"serie":[4,6,5,8,7,11,13]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"kpis":{"minItems":2,"maxItems":4,"type":"array","items":{"type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":24},"valeur":{"type":"string","minLength":1,"maxLength":12}},"required":["libelle","valeur"],"additionalProperties":false}},"serie":{"minItems":3,"maxItems":12,"type":"array","items":{"type":"number","minimum":0}}},"required":["titre","kpis","serie"],"additionalProperties":false}
+- liste-crm (Liste / CRM) : Liste de contacts ou de demandes qui arrivent une à une, avec un statut ; une ligne surlignée.
+  paramètres (exemple) : {"titre":"Demandes du jour","lignes":[{"nom":"M. Durand","detail":"Fuite cuisine","statut":"nouveau"},{"nom":"Mme Leroy","detail":"Chauffe-eau","statut":"en-cours"},{"nom":"SCI Les Tilleuls","detail":"Contrat entretien","statut":"gagne"}],"surligner":0}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"lignes":{"minItems":1,"maxItems":6,"type":"array","items":{"type":"object","properties":{"nom":{"type":"string","minLength":1,"maxLength":28},"detail":{"type":"string","maxLength":36},"statut":{"type":"string","enum":["nouveau","en-cours","gagne","perdu"]}},"required":["nom","detail","statut"],"additionalProperties":false}},"surligner":{"type":"integer","minimum":-1,"maximum":5}},"required":["titre","lignes","surligner"],"additionalProperties":false}
+- fenetre-app (Fenêtre d'app) : Fenêtre de logiciel (barre de titre, onglets) qui s'ouvre en douceur ; sert de décor aux autres briques.
+  paramètres (exemple) : {"titre":"Axion CRM","onglets":["Demandes","Devis","Agenda"],"ongletActif":1,"contenu":"formulaire"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"onglets":{"maxItems":4,"type":"array","items":{"type":"string","minLength":1,"maxLength":16}},"ongletActif":{"type":"integer","minimum":0,"maximum":3},"contenu":{"type":"string","enum":["vide","formulaire","liste"]}},"required":["titre","onglets","ongletActif","contenu"],"additionalProperties":false}
+- bulle-chat (Bulle de chat) : Échange de messages (client, assistant) qui apparaissent l'un après l'autre.
+  paramètres (exemple) : {"messages":[{"auteur":"client","texte":"Bonjour, j'ai une fuite sous l'évier."},{"auteur":"assistant","texte":"Je vous propose demain 9 h. Le devis arrive par SMS."}],"saisie":true}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"messages":{"minItems":1,"maxItems":4,"type":"array","items":{"type":"object","properties":{"auteur":{"type":"string","enum":["client","assistant"]},"texte":{"type":"string","minLength":1,"maxLength":140}},"required":["auteur","texte"],"additionalProperties":false}},"saisie":{"type":"boolean"}},"required":["messages","saisie"],"additionalProperties":false}
+- legende (Légende) : Texte à l'écran : bandeau, étiquette ou titre, qui arrive en fondu glissé.
+  paramètres (exemple) : {"texte":"Le devis part tout seul","sousTexte":"","style":"bandeau"}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":80},"sousTexte":{"type":"string","maxLength":80},"style":{"type":"string","enum":["bandeau","etiquette","titre"]}},"required":["texte","sousTexte","style"],"additionalProperties":false}
+- compteur (Compteur) : Un nombre dit avec son unité, qui monte d'un coup jusqu'à la valeur dite, au moment où le mot est prononcé.
+  paramètres (exemple) : {"valeur":40,"unite":"%","libelle":"de temps gagné","surMot":0,"aMs":400}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"valeur":{"type":"number"},"unite":{"type":"string","minLength":1,"maxLength":8},"libelle":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false}
+- jauge (Jauge) : Une part de 0 à 100 % annoncée dans la voix (taux, avancement), qui se remplit jusqu'à la valeur dite.
+  paramètres (exemple) : {"valeur":72,"libelle":"des demandes traitées","surMot":0,"aMs":400}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"valeur":{"type":"number","minimum":0,"maximum":100},"libelle":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false}
+- avant-apres (Avant / après) : Deux valeurs opposées, avant puis après, chacune montrée au mot où elle est dite.
+  paramètres (exemple) : {"titre":"Temps de réponse","avant":{"valeur":48,"unite":"h","surMot":0,"aMs":300},"apres":{"valeur":12,"unite":"min","surMot":3,"aMs":1500}}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"avant":{"type":"object","properties":{"valeur":{"type":"number"},"unite":{"type":"string","maxLength":8},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false},"apres":{"type":"object","properties":{"valeur":{"type":"number"},"unite":{"type":"string","maxLength":8},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["valeur","surMot"],"additionalProperties":false},"titre":{"type":"string","minLength":1,"maxLength":40}},"required":["avant","apres"],"additionalProperties":false}
+- barres (Barres comparées) : 2 à 4 grandeurs comparées côte à côte, chaque barre poussant au mot où sa valeur est dite.
+  paramètres (exemple) : {"unite":"h","barres":[{"libelle":"Avant","valeur":12,"surMot":0,"aMs":300},{"libelle":"Maintenant","valeur":3,"surMot":2,"aMs":1100}]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"barres":{"minItems":2,"maxItems":4,"type":"array","items":{"type":"object","properties":{"libelle":{"type":"string","minLength":1,"maxLength":20},"valeur":{"type":"number","minimum":0},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["libelle","valeur","surMot"],"additionalProperties":false}},"unite":{"type":"string","minLength":1,"maxLength":8}},"required":["barres"],"additionalProperties":false}
+- etapes (Étapes) : Une suite d'étapes numérotées (2 à 6), chacune apparaissant quand elle est nommée dans la voix.
+  paramètres (exemple) : {"elements":[{"texte":"Le client appelle","surMot":0,"aMs":300},{"texte":"L'assistant répond","surMot":3,"aMs":1200},{"texte":"Le devis part","surMot":6,"aMs":2100}]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"elements":{"minItems":2,"maxItems":6,"type":"array","items":{"type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["texte","surMot"],"additionalProperties":false}}},"required":["elements"],"additionalProperties":false}
+- liste-au-mot (Liste au mot) : Une liste annoncée (2 à 6 éléments) qui se remplit : chaque ligne arrive au mot où elle est dite.
+  paramètres (exemple) : {"titre":"Ce qui est inclus","elements":[{"texte":"Devis automatique","surMot":0,"aMs":300},{"texte":"Relances par SMS","surMot":2,"aMs":1000},{"texte":"Agenda à jour","surMot":4,"aMs":1800}]}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"titre":{"type":"string","minLength":1,"maxLength":40},"elements":{"minItems":2,"maxItems":6,"type":"array","items":{"type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":40},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["texte","surMot"],"additionalProperties":false}}},"required":["elements"],"additionalProperties":false}
+- citation (Citation) : Une phrase rapportée (parole d'un client, d'un avis), avec son auteur, qui apparaît au mot où elle commence.
+  paramètres (exemple) : {"texte":"Je ne rate plus aucun appel.","auteur":"Un plombier","surMot":0,"aMs":300}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"texte":{"type":"string","minLength":1,"maxLength":120},"auteur":{"type":"string","minLength":1,"maxLength":30},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["texte","surMot"],"additionalProperties":false}
+- repere (Repère) : Un lieu, une date ou une durée dite à voix haute, posée en repère court au moment où elle est dite.
+  paramètres (exemple) : {"genre":"lieu","texte":"Lyon","surMot":0,"aMs":300}
+  schéma : {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"genre":{"type":"string","enum":["lieu","date","duree"]},"texte":{"type":"string","minLength":1,"maxLength":30},"surMot":{"type":"integer","minimum":0,"maximum":9007199254740991},"aMs":{"type":"number","minimum":0}},"required":["genre","texte","surMot"],"additionalProperties":false}
+Répondez par UN objet JSON seul : { "version": "plan-scenes-1", "format": {…}, "facecam": bool, "dureeMs": n, "habillage": { "fond": "ivoire"|"noir", "accent": "terracotta"|"orange" }, "mots": [recopiez le minutage], "scenes": [ { "id", "version": 1, "mots": { "premier", "dernier" }, "debutMs", "finMs", "niveau", "texte"?, "position", "transition": { "entree", "sortie", "dureeMs" }, "piece", "parametres", "calques"? } ] }.",
+  ],
+}
+`;
+
+exports[`une phrase à chiffres et énumération — avec LLM du plan > plan, source, remarques et consigne figés (instantané) > constat 1`] = `
+{
+  "plan": {
+    "dureeMs": 16430,
+    "facecam": false,
+    "format": {
+      "fps": 25,
+      "hauteur": 676,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 30,
+        "finMs": 360,
+        "texte": "Vous",
+      },
+      {
+        "debutMs": 430,
+        "finMs": 760,
+        "texte": "perdez",
+      },
+      {
+        "debutMs": 830,
+        "finMs": 1160,
+        "texte": "deux",
+      },
+      {
+        "debutMs": 1230,
+        "finMs": 1560,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 1630,
+        "finMs": 1960,
+        "texte": "par",
+      },
+      {
+        "debutMs": 2030,
+        "finMs": 2360,
+        "texte": "jour",
+      },
+      {
+        "debutMs": 2430,
+        "finMs": 2760,
+        "texte": "à",
+      },
+      {
+        "debutMs": 2830,
+        "finMs": 3160,
+        "texte": "répondre",
+      },
+      {
+        "debutMs": 3230,
+        "finMs": 3560,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 3630,
+        "finMs": 3960,
+        "texte": "mêmes",
+      },
+      {
+        "debutMs": 4030,
+        "finMs": 4360,
+        "texte": "mails.",
+      },
+      {
+        "debutMs": 4430,
+        "finMs": 4760,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 4830,
+        "finMs": 5160,
+        "texte": "un",
+      },
+      {
+        "debutMs": 5230,
+        "finMs": 5560,
+        "texte": "assistant",
+      },
+      {
+        "debutMs": 5630,
+        "finMs": 5960,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 6030,
+        "finMs": 6360,
+        "texte": "réglé,",
+      },
+      {
+        "debutMs": 6430,
+        "finMs": 6760,
+        "texte": "on",
+      },
+      {
+        "debutMs": 6830,
+        "finMs": 7160,
+        "texte": "passe",
+      },
+      {
+        "debutMs": 7230,
+        "finMs": 7560,
+        "texte": "de",
+      },
+      {
+        "debutMs": 7630,
+        "finMs": 7960,
+        "texte": "2",
+      },
+      {
+        "debutMs": 8030,
+        "finMs": 8360,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 8430,
+        "finMs": 8760,
+        "texte": "à",
+      },
+      {
+        "debutMs": 8830,
+        "finMs": 9160,
+        "texte": "20",
+      },
+      {
+        "debutMs": 9230,
+        "finMs": 9560,
+        "texte": "minutes.",
+      },
+      {
+        "debutMs": 9630,
+        "finMs": 9960,
+        "texte": "Le",
+      },
+      {
+        "debutMs": 10030,
+        "finMs": 10360,
+        "texte": "secret",
+      },
+      {
+        "debutMs": 10430,
+        "finMs": 10760,
+        "texte": "tient",
+      },
+      {
+        "debutMs": 10830,
+        "finMs": 11160,
+        "texte": "en",
+      },
+      {
+        "debutMs": 11230,
+        "finMs": 11560,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 11630,
+        "finMs": 11960,
+        "texte": "étapes",
+      },
+      {
+        "debutMs": 12030,
+        "finMs": 12360,
+        "texte": ":",
+      },
+      {
+        "debutMs": 12430,
+        "finMs": 12760,
+        "texte": "d'abord",
+      },
+      {
+        "debutMs": 12830,
+        "finMs": 13160,
+        "texte": "trier,",
+      },
+      {
+        "debutMs": 13230,
+        "finMs": 13560,
+        "texte": "ensuite",
+      },
+      {
+        "debutMs": 13630,
+        "finMs": 13960,
+        "texte": "répondre,",
+      },
+      {
+        "debutMs": 14030,
+        "finMs": 14360,
+        "texte": "enfin",
+      },
+      {
+        "debutMs": 14430,
+        "finMs": 14760,
+        "texte": "classer.",
+      },
+      {
+        "debutMs": 14830,
+        "finMs": 15160,
+        "texte": "Essayez",
+      },
+      {
+        "debutMs": 15230,
+        "finMs": 15560,
+        "texte": "dès",
+      },
+      {
+        "debutMs": 15630,
+        "finMs": 15960,
+        "texte": "lundi.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 30,
+        "empreinte": "6f174773b3169c00",
+        "finMs": 1560,
+        "id": "zoom",
+        "mots": {
+          "dernier": 0,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "cible": {
+            "x": 70,
+            "y": 30,
+          },
+          "facteur": 1.8,
+          "moment": 0.1,
+          "titreFenetre": "Axion",
+        },
+        "piece": "zoom-camera",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 1560,
+        "empreinte": "56a15e5c5d973c29",
+        "finMs": 10640,
+        "id": "clic",
+        "mots": {
+          "dernier": 0,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "clic": true,
+          "partDeplacement": 0.5,
+          "trajet": [
+            {
+              "x": 10,
+              "y": 10,
+            },
+            {
+              "x": 62,
+              "y": 44,
+            },
+          ],
+        },
+        "piece": "curseur",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 10640,
+        "empreinte": "bdd4ec53f8459f1b",
+        "finMs": 15960,
+        "id": "kpi",
+        "mots": {
+          "dernier": 0,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis prêts",
+          "prefixe": "",
+          "suffixe": "",
+          "tendance": "hausse",
+          "valeur": 3,
+          "variation": "",
+        },
+        "piece": "carte-kpi",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+  "remarques": [
+    "DUREE_RECALEE",
+    "CHEVAUCHEMENT",
+    "CODE_LIBRE_DESACTIVE",
+    "REPLI_NIVEAU_1",
+  ],
+  "sourcePlan": "llm",
+}
+`;
+
+exports[`une phrase à chiffres et énumération — sans LLM du plan > plan, source, remarques et consigne figés (instantané) > constat 1`] = `
+{
+  "plan": {
+    "dureeMs": 16430,
+    "facecam": false,
+    "format": {
+      "fps": 25,
+      "hauteur": 676,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 30,
+        "finMs": 360,
+        "texte": "Vous",
+      },
+      {
+        "debutMs": 430,
+        "finMs": 760,
+        "texte": "perdez",
+      },
+      {
+        "debutMs": 830,
+        "finMs": 1160,
+        "texte": "deux",
+      },
+      {
+        "debutMs": 1230,
+        "finMs": 1560,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 1630,
+        "finMs": 1960,
+        "texte": "par",
+      },
+      {
+        "debutMs": 2030,
+        "finMs": 2360,
+        "texte": "jour",
+      },
+      {
+        "debutMs": 2430,
+        "finMs": 2760,
+        "texte": "à",
+      },
+      {
+        "debutMs": 2830,
+        "finMs": 3160,
+        "texte": "répondre",
+      },
+      {
+        "debutMs": 3230,
+        "finMs": 3560,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 3630,
+        "finMs": 3960,
+        "texte": "mêmes",
+      },
+      {
+        "debutMs": 4030,
+        "finMs": 4360,
+        "texte": "mails.",
+      },
+      {
+        "debutMs": 4430,
+        "finMs": 4760,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 4830,
+        "finMs": 5160,
+        "texte": "un",
+      },
+      {
+        "debutMs": 5230,
+        "finMs": 5560,
+        "texte": "assistant",
+      },
+      {
+        "debutMs": 5630,
+        "finMs": 5960,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 6030,
+        "finMs": 6360,
+        "texte": "réglé,",
+      },
+      {
+        "debutMs": 6430,
+        "finMs": 6760,
+        "texte": "on",
+      },
+      {
+        "debutMs": 6830,
+        "finMs": 7160,
+        "texte": "passe",
+      },
+      {
+        "debutMs": 7230,
+        "finMs": 7560,
+        "texte": "de",
+      },
+      {
+        "debutMs": 7630,
+        "finMs": 7960,
+        "texte": "2",
+      },
+      {
+        "debutMs": 8030,
+        "finMs": 8360,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 8430,
+        "finMs": 8760,
+        "texte": "à",
+      },
+      {
+        "debutMs": 8830,
+        "finMs": 9160,
+        "texte": "20",
+      },
+      {
+        "debutMs": 9230,
+        "finMs": 9560,
+        "texte": "minutes.",
+      },
+      {
+        "debutMs": 9630,
+        "finMs": 9960,
+        "texte": "Le",
+      },
+      {
+        "debutMs": 10030,
+        "finMs": 10360,
+        "texte": "secret",
+      },
+      {
+        "debutMs": 10430,
+        "finMs": 10760,
+        "texte": "tient",
+      },
+      {
+        "debutMs": 10830,
+        "finMs": 11160,
+        "texte": "en",
+      },
+      {
+        "debutMs": 11230,
+        "finMs": 11560,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 11630,
+        "finMs": 11960,
+        "texte": "étapes",
+      },
+      {
+        "debutMs": 12030,
+        "finMs": 12360,
+        "texte": ":",
+      },
+      {
+        "debutMs": 12430,
+        "finMs": 12760,
+        "texte": "d'abord",
+      },
+      {
+        "debutMs": 12830,
+        "finMs": 13160,
+        "texte": "trier,",
+      },
+      {
+        "debutMs": 13230,
+        "finMs": 13560,
+        "texte": "ensuite",
+      },
+      {
+        "debutMs": 13630,
+        "finMs": 13960,
+        "texte": "répondre,",
+      },
+      {
+        "debutMs": 14030,
+        "finMs": 14360,
+        "texte": "enfin",
+      },
+      {
+        "debutMs": 14430,
+        "finMs": 14760,
+        "texte": "classer.",
+      },
+      {
+        "debutMs": 14830,
+        "finMs": 15160,
+        "texte": "Essayez",
+      },
+      {
+        "debutMs": 15230,
+        "finMs": 15560,
+        "texte": "dès",
+      },
+      {
+        "debutMs": 15630,
+        "finMs": 15960,
+        "texte": "lundi.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 830,
+        "empreinte": "b8516723d7a13200",
+        "finMs": 2760,
+        "id": "s1",
+        "mots": {
+          "dernier": 3,
+          "premier": 2,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 2,
+          "unite": "h",
+          "valeur": 2,
+        },
+        "piece": "compteur",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 7630,
+        "empreinte": "1a57395953c7926b",
+        "finMs": 10760,
+        "id": "s2",
+        "mots": {
+          "dernier": 23,
+          "premier": 19,
+        },
+        "niveau": 1,
+        "parametres": {
+          "apres": {
+            "aMs": 1200,
+            "surMot": 22,
+            "unite": "min",
+            "valeur": 20,
+          },
+          "avant": {
+            "aMs": 0,
+            "surMot": 19,
+            "unite": "h",
+            "valeur": 2,
+          },
+        },
+        "piece": "avant-apres",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 12430,
+        "empreinte": "8b168619ac84d072",
+        "finMs": 15960,
+        "id": "s3",
+        "mots": {
+          "dernier": 36,
+          "premier": 31,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 400,
+              "surMot": 32,
+              "texte": "trier",
+            },
+            {
+              "aMs": 1200,
+              "surMot": 34,
+              "texte": "répondre",
+            },
+            {
+              "aMs": 2000,
+              "surMot": 36,
+              "texte": "classer",
+            },
+          ],
+        },
+        "piece": "etapes",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+  "remarques": [
+    "PLAN_SIMPLE",
+  ],
+  "sourcePlan": "repli",
+}
+`;
