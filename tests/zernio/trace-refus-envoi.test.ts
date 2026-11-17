@@ -26,8 +26,8 @@ const echoue = async (p: Promise<unknown>): Promise<ErreurZernio> => {
   }
   throw new Error("une erreur était attendue");
 };
-const RAISON_A: RaisonRefus = { motif: "fenetre-7-jours-depassee", statut: 400, codeClient: "refuse", meta: { code: 10, sousCode: 2018278 }, codeZernio: null };
-const RAISON_B: RaisonRefus = { motif: "messagerie-desactivee-sur-la-page", statut: 400, codeClient: "refuse", meta: null, codeZernio: "platform_api_error" };
+const RAISON_A: RaisonRefus = { motif: "fenetre-7-jours-depassee", statut: 400, codeClient: "refuse", meta: { code: 10, sousCode: 2018278 }, codeZernio: null, source: "nombres" };
+const RAISON_B: RaisonRefus = { motif: "messagerie-desactivee-sur-la-page", statut: 400, codeClient: "refuse", meta: null, codeZernio: "platform_api_error", source: "phrase" };
 
 describe("client : motif fermé des routes inbox (T11 à T14)", () => {
   it("T11 réponse privée 400 « messagerie désactivée » : refuse, motifInbox renseigné, detailTechnique vide", async () => {
@@ -43,6 +43,7 @@ describe("client : motif fermé des routes inbox (T11 à T14)", () => {
     expect(e.code).toBe("refuse");
     expect(e.motifInbox?.motif).toBe("messagerie-desactivee-sur-la-page");
     expect(e.motifInbox?.codeZernio).toBe("platform_api_error");
+    expect(e.motifInbox?.source).toBe("phrase");
     expect(e.detailTechnique).toBeUndefined();
   });
   it("T12 400 inconnu, 502 sans issue, 502 unknown", async () => {
@@ -53,6 +54,7 @@ describe("client : motif fermé des routes inbox (T11 à T14)", () => {
     const e2 = await echoue(brut(null, 502).client.requete(PRIVE));
     expect(e2.code).toBe("a-verifier");
     expect(e2.motifInbox?.motif).toBe("erreur-serveur");
+    expect(e2.motifInbox?.source).toBe("statut");
     const e3 = await echoue(brut(JSON.stringify({ privateReplyOutcome: "unknown" }), 502).client.requete(PRIVE));
     expect(e3.code).toBe("reponse-privee-inconnue");
   });
@@ -60,6 +62,7 @@ describe("client : motif fermé des routes inbox (T11 à T14)", () => {
     const coupe = creerFauxClientZernio([{ erreur: "reseau", message: "fetch failed pour personne@exemple.invalid" }]);
     const e = await echoue(coupe.client.requete(PRIVE));
     expect(e.motifInbox?.motif).toBe("coupure-reseau");
+    expect(e.motifInbox?.source).toBe("reseau");
     expect(JSON.stringify(e.motifInbox)).not.toContain("exemple.invalid");
     expect(e.detailTechnique).toBeUndefined();
     const delai = creerFauxClientZernio([{ erreur: "delai" }]);
@@ -83,7 +86,7 @@ describe("port : raisonRefus et issues (T15 à T18)", () => {
 
   it("T15 exception qui n'est pas une erreur Zernio : erreur-interne, aucun texte", () => {
     const r = raisonRefus(new Error("plantage pour personne@exemple.invalid"));
-    expect(r).toEqual({ motif: "erreur-interne", codeClient: "erreur-inconnue", statut: null, meta: null, codeZernio: null });
+    expect(r).toEqual({ motif: "erreur-interne", codeClient: "erreur-inconnue", statut: null, meta: null, codeZernio: null, source: "interne" });
     expect(raisonRefus(null).motif).toBe("erreur-interne");
     expect(() => raisonRefus({ get code(): string { throw new Error("boum"); } })).not.toThrow();
   });
@@ -201,7 +204,7 @@ describe("parcours : raisons stockées et journal (T19 à T23)", () => {
     expect(j).toContain("Commentaire de plus de 7 jours : réponse privée impossible [HTTP 400 · refuse · meta 10/2018278]");
   });
   it("T23 une raison mal formée est rejetée à l'écriture ; une raison stockée reste valide", async () => {
-    port.reponses.prive = () => ({ statut: "refuse", code: "refuse", raison: { motif: "Jeanne Exemple", statut: 400, codeClient: "refuse", meta: null, codeZernio: null } as unknown as RaisonRefus });
+    port.reponses.prive = () => ({ statut: "refuse", code: "refuse", raison: { motif: "Jeanne Exemple", statut: 400, codeClient: "refuse", meta: null, codeZernio: null, source: "phrase" } as unknown as RaisonRefus });
     await deposerCommentaire(depots, { idAuteur: "auteur-fictif-23" });
     await passer();
     const e = await lire("auteur-fictif-23");

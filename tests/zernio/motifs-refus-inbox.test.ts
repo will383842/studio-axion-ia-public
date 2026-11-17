@@ -169,16 +169,49 @@ describe("T4 à T10 : cas réel, texte libre, bornes", () => {
   });
 });
 
+describe("C3 champ fermé source : d'où vient le motif", () => {
+  it("nombres : code Meta ou sous-code reconnu", () => {
+    expect(motifRefusInbox(400, pf(10, 2534041)).source).toBe("nombres");
+    expect(motifRefusInbox(400, pf(613)).source).toBe("nombres");
+  });
+  it("code-zernio : code de la liste blanche", () => {
+    expect(motifRefusInbox(403, { code: "INBOX_REQUIRED" }).source).toBe("code-zernio");
+    expect(motifRefusInbox(403, { error: "message_allowance_exceeded" }).source).toBe("code-zernio");
+  });
+  it("phrase : repli sur une phrase connue (même avec un code Zernio présent)", () => {
+    expect(motifRefusInbox(400, { error: "Object does not exist" }).source).toBe("phrase");
+    expect(motifRefusInbox(400, { error: { type: "platform_api_error", message: "The page has messages disabled in the settings" } }).source).toBe("phrase");
+  });
+  it("statut : 404, 5xx, ou rien de connu", () => {
+    expect(motifRefusInbox(404, {}).source).toBe("statut");
+    expect(motifRefusInbox(503, {}).source).toBe("statut");
+    expect(motifRefusInbox(400, { error: "rien de connu" }).source).toBe("statut");
+  });
+  it("reseau : délai ou coupure", () => {
+    expect(motifReseau("TimeoutError").source).toBe("reseau");
+    expect(motifReseau("TypeError").source).toBe("reseau");
+  });
+  it("interne : getter piégé (jamais de levée)", () => {
+    expect(motifRefusInbox(400, { get error(): string { throw new Error("boum"); } }).source).toBe("interne");
+  });
+  it("seul phrase ajoute le suffixe dans formaterRaison", () => {
+    const base: RaisonRefus = { motif: "raison-inconnue", statut: 400, codeClient: "refuse", meta: null, codeZernio: null, source: "statut" };
+    for (const source of ["nombres", "code-zernio", "statut", "reseau", "interne"] as const) expect(formaterRaison({ ...base, source })).not.toContain("d'après le message");
+    expect(formaterRaison({ ...base, source: "phrase" })).toContain("(d'après le message)");
+  });
+});
+
 describe("estRaisonRefus et formaterRaison", () => {
-  const ok: RaisonRefus = { motif: "messagerie-desactivee-sur-la-page", statut: 400, codeClient: "refuse", meta: { code: 10, sousCode: 2018278 }, codeZernio: null };
+  const ok: RaisonRefus = { motif: "messagerie-desactivee-sur-la-page", statut: 400, codeClient: "refuse", meta: { code: 10, sousCode: 2018278 }, codeZernio: null, source: "nombres" };
   it("accepte une raison bien formée et la formate", () => {
     expect(estRaisonRefus(ok)).toBe(true);
     expect(formaterRaison(ok)).toBe(`${LIBELLES_MOTIF_REFUS["messagerie-desactivee-sur-la-page"]} [HTTP 400 · refuse · meta 10/2018278]`);
+    expect(formaterRaison({ ...ok, source: "phrase" })).toBe(`${LIBELLES_MOTIF_REFUS["messagerie-desactivee-sur-la-page"]} [HTTP 400 · refuse · meta 10/2018278] (d'après le message)`);
     expect(formaterRaison({ ...ok, statut: null, meta: null })).toBe(`${LIBELLES_MOTIF_REFUS["messagerie-desactivee-sur-la-page"]} [refuse]`);
   });
   it("rejette toute forme libre", () => {
     for (const x of [{ ...ok, meta: { code: 612345678, sousCode: null } }, { ...ok, meta: { code: 10, sousCode: 612345678 } }]) expect(estRaisonRefus(x)).toBe(false);
-    for (const x of [null, "texte", { ...ok, motif: "Jeanne Exemple" }, { ...ok, statut: 99 }, { ...ok, statut: 600 }, { ...ok, statut: 400.5 }, { ...ok, codeClient: "jeanne_exemple" }, { ...ok, meta: { code: 1e10, sousCode: null } }, { ...ok, meta: { code: 1, sousCode: -1 } }, { ...ok, codeZernio: "jeanne_exemple" }, { ...ok, extra: "texte libre" }]) {
+    for (const x of [null, "texte", { ...ok, motif: "Jeanne Exemple" }, { ...ok, statut: 99 }, { ...ok, statut: 600 }, { ...ok, statut: 400.5 }, { ...ok, codeClient: "jeanne_exemple" }, { ...ok, meta: { code: 1e10, sousCode: null } }, { ...ok, meta: { code: 1, sousCode: -1 } }, { ...ok, codeZernio: "jeanne_exemple" }, { ...ok, extra: "texte libre" }, { ...ok, source: "Jeanne Exemple" }, { ...ok, source: undefined }, { motif: ok.motif, statut: 400, codeClient: "refuse", meta: null, codeZernio: null }]) {
       expect(estRaisonRefus(x)).toBe(false);
     }
   });
