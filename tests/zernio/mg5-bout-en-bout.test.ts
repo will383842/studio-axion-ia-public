@@ -267,7 +267,7 @@ describe("3 · même mot retapé : message court « déjà envoyé » seulement 
     await validerFormulationsAuParcours(SANS_DEJA_ENVOYE);
     await jusquaLaLivraison();
     const evt = await retaper("com-3-4", 25 * H);
-    expect(instantane()).toMatchObject({ prive: 1, envoyes: 1, site: 1 });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1, envoyes: 1, site: 1 });
     expect(banc.port.prive).toHaveLength(1);
     expect(await decrire(evt)).toBe("m1_refuse/renvoi_impossible");
   });
@@ -275,6 +275,7 @@ describe("3 · même mot retapé : message court « déjà envoyé » seulement 
     await jusquaLaLivraison();
     await retaper("com-3-5", 25 * H, ENV_PROD);
     expect(banc.port.prive).toHaveLength(1);
+    expect(banc.port.pub).toHaveLength(1);
   });
   it("un « stop » entre-temps : le mot retapé 25 h plus tard ne produit ni réponse publique ni message court", async () => {
     await jusquaLaLivraison();

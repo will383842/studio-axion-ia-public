@@ -1147,6 +1147,13 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
       if ((await texteAdresseRgpd(e, d)) === null) return cloreAdresseEssaiAbsente(ev, cle, now);
     }
   }
+  // Renvoi impossible (formulation non validée, lien éteint, secret absent, cible d'essai…) : tout cela est connu AVANT la réponse publique, qui promettrait
+  // un message privé qui ne partira pas. Rien ne part, aucune place d'envoi n'est réservée. L'appel plus bas garde l'unique création du jeton réellement envoyé.
+  if (e.nature === "renvoi" && e.etat === "nouveau" && (await preparerRenvoi(e, d, env, cles, now)).texte === null) {
+    await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: "renvoi_impossible" });
+    await clore(ev, "m1_refuse", "renvoi_impossible");
+    return "traite";
+  }
   if (e.etat === "nouveau") {
     const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.["pub-commentaire"]);
     const texte = pub.texte;
