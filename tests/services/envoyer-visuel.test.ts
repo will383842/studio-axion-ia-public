@@ -5,6 +5,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
 import type { DemandePublication, FournisseurPublication } from "@/fournisseurs/types";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import Ajv from "ajv";
+import { corpsPostZernio, mediasDemandes, type DemandeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 
 process.env.R2_ACCOUNT_ID = "compte-essai";
@@ -74,6 +78,8 @@ async function creerVisuel(p: Record<string, unknown> = {}): Promise<string> {
   return "vis_1";
 }
 
+const visuelles = async () => depots().publications.lister((p) => p.visuelId === "vis_1");
+
 const options = (o: Record<string, unknown> = {}) => ({ cible: CIBLE, legende: "Légende d'exemple", lireUrl, ...o });
 
 beforeEach(async () => {
@@ -99,7 +105,7 @@ describe("L5-02 · envoyerVisuel : interrupteur éteint par défaut", () => {
     const id = await creerVisuel();
     await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     expect(appels).toHaveLength(0);
-    expect(await depots().publications.compter()).toBe(0);
+    expect(await visuelles()).toHaveLength(0);
   });
 
   it.each([
@@ -112,7 +118,7 @@ describe("L5-02 · envoyerVisuel : interrupteur éteint par défaut", () => {
     for (const [k, v] of Object.entries(reglage)) await ecrireParametre(k, v);
     await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     expect(appels).toHaveLength(0);
-    expect(await depots().publications.compter()).toBe(0);
+    expect(await visuelles()).toHaveLength(0);
   });
 
   it("l'ancien réglage d'envoi seul ouvert ne suffit pas", async () => {
@@ -151,7 +157,7 @@ describe("L5-02 · envoyerVisuel : contenu envoyé", () => {
     const id = await creerVisuel();
     await expect(pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2" }))).rejects.toBeTruthy();
     expect(appels).toHaveLength(0);
-    expect(await depots().publications.compter()).toBe(0);
+    expect(await visuelles()).toHaveLength(0);
   });
 
   it.each([
@@ -188,7 +194,7 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
     expect(appels).toHaveLength(1);
     expect(b.deja).toBe(true);
     expect(b.publication.id).toBe(a.publication.id);
-    expect(await depots().publications.compter()).toBe(1);
+    expect(await visuelles()).toHaveLength(1);
   });
 
   it("deux appels en même temps = un seul envoi", async () => {
@@ -199,7 +205,7 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
     ]);
     expect(appels).toHaveLength(1);
     expect([a.status, b.status].filter((s) => s === "fulfilled").length).toBeGreaterThanOrEqual(1);
-    expect(await depots().publications.compter()).toBe(1);
+    expect(await visuelles()).toHaveLength(1);
   });
 
   it("envoi en cours (processus mort entre la réservation et la réponse) : ne repart pas", async () => {
@@ -219,7 +225,7 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
     comportement = async () => { throw new ErreurZernio("indisponible", "délai dépassé", { reessayable: true }); };
     const r = await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options()).catch((e) => e);
     expect(r).toBeDefined();
-    const pubs = await depots().publications.lister();
+    const pubs = await visuelles();
     expect(pubs).toHaveLength(1);
     expect(pubs[0].etatEnvoi).toBe("a-verifier");
     comportement = async () => ({ idExterne: "ext-2", via: "zernio", statut: "brouillon" });
@@ -230,9 +236,9 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
 
   it("reprise après échec partiel : un refus net permet UN nouvel essai, puis plus rien ne repart", async () => {
     const id = await creerVisuel();
-    comportement = async () => { throw new ErreurZernio("refuse", "refusé avant le réseau", { avantReseau: true }); };
+    comportement = async () => { throw new ErreurZernio("refuse", "refusé avant le réseau"); };
     await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toBeTruthy();
-    expect((await depots().publications.lister()).map((p) => p.etatEnvoi)).toEqual(["refuse"]);
+    expect((await visuelles()).map((p) => p.etatEnvoi)).toEqual(["refuse"]);
     comportement = async () => ({ idExterne: "ext-2", via: "zernio", statut: "brouillon" });
     const ok = await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
     expect(ok.publication.etatEnvoi).toBe("envoye");
@@ -246,5 +252,37 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
     await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
     await pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2", textesAlternatifs: ["a", "b", "c"] }));
     expect(appels).toHaveLength(2);
+  });
+});
+
+describe("L5-02 · envoyerVisuel : VRAI constructeur de corps (zernio-corps.ts), validé contre l'extrait OpenAPI", () => {
+  beforeEach(ouvrirTout);
+
+  it("carrousel LinkedIn : 1 seul mediaItem, un document PDF avec titre ; corps valide (ajv)", async () => {
+    const id = await creerVisuel();
+    await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
+    const demande = appels[0] as unknown as DemandeZernio;
+    const demandes = mediasDemandes(demande);
+    expect(demandes).toHaveLength(1);
+    expect(demandes[0]).toMatchObject({ type: "document", title: "Cinq erreurs courantes", mimeType: "application/pdf" });
+    const corps = corpsPostZernio(demande, { maintenant: Date.now(), medias: demandes, hotesPublics: new Set(["exemple.test"]), profilLinkedinProuve: true });
+    expect(corps.mediaItems).toHaveLength(1);
+    expect(corps.isDraft).toBe(true);
+
+    const chemin = resolve(process.cwd(), "docs/zernio/openapi-extrait-1.418.1.json");
+    expect(existsSync(chemin), `extrait OpenAPI manquant : ${chemin}`).toBe(true);
+    const spec = JSON.parse(readFileSync(chemin, "utf8"));
+    const racine = spec.paths["/v1/posts"].post.requestBody.content["application/json"].schema;
+    const psd = racine.properties.platforms.items.properties.platformSpecificData;
+    if (psd?.oneOf) { psd.anyOf = psd.oneOf; delete psd.oneOf; }
+    const valider = new Ajv({ strict: false, allErrors: true }).compile({ ...racine, components: spec.components });
+    expect(valider(corps), new Ajv().errorsText(valider.errors)).toBe(true);
+  });
+
+  it("LinkedIn : le constructeur refuse des images à la place du document (un seul type de média)", async () => {
+    const id = await creerVisuel();
+    await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
+    const demande = { ...(appels[0] as unknown as DemandeZernio), images: [{ url: "https://exemple.test/p1.png", texteAlternatif: "a" }] };
+    expect(() => mediasDemandes(demande)).toThrow();
   });
 });

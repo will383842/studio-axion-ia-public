@@ -12,7 +12,7 @@ import { depots, ErreurStudio, essayer } from "./_commun";
 import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
-import { envoyerReel, obtenirKit, videoEnEssai } from "./publications";
+import { envoyerReel, envoyerVisuel, obtenirKit, videoEnEssai, type ReseauVisuelEnvoi } from "./publications";
 import { journaliserEnvoi } from "./journal-envoi";
 import { lireRoutage } from "./routage-publication";
 import { envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
@@ -147,4 +147,32 @@ export async function marquerEnvoiVerifieAction(publicationId: string): Promise<
     await marquerEnvoiVerifie(publicationId);
     return { ok: true as const };
   });
+}
+
+export interface OptionsEnvoiVisuelAction {
+  /** Compte de destination chez Zernio. */
+  compte: string;
+  legende: string;
+  textesAlternatifs?: string[];
+  premierCommentaire?: string;
+}
+
+/**
+ * L5-02 · envoi d'un visuel (carrousel, infographie) depuis le créneau : toujours en brouillon chez Zernio, derrière le réglage SÉPARÉ
+ * de L7-08 (éteint par défaut : rien ne part). Anti-double envoi et gardes dans `envoyerVisuel`. Aucune réponse automatique.
+ */
+export async function envoyerVisuelAction(visuelId: string, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuelAction): Promise<Resultat<{ deja: boolean; publicationId: string }>> {
+  await exigerSession();
+  const r = await essayer(async () => {
+    let service;
+    try {
+      service = fournisseurParId("publication", "zernio");
+    } catch {
+      throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
+    }
+    const e = await envoyerVisuel(service, visuelId, reseau, dateIso, { cible: options.compte, legende: options.legende, textesAlternatifs: options.textesAlternatifs, premierCommentaire: options.premierCommentaire });
+    return { deja: e.deja, publicationId: e.publication.id };
+  });
+  journaliserEnvoi(r.ok ? { action: "envoyerVisuelAction", outil: "zernio", reseau, contenuId: visuelId, code: "OK", nbComptes: 1, brouillon: true } : { action: "envoyerVisuelAction", outil: "zernio", reseau, contenuId: visuelId, code: r.code ?? "ERREUR", nbComptes: 0 });
+  return r;
 }
