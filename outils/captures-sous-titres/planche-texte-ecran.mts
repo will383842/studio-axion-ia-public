@@ -5,7 +5,8 @@
  *   - noms d'outils (étiquette dans la ligne, puis étiquette autonome U9) ;  - bandeau « nom et fonction » ;
  *   - les 5 styles de la Bibliothèque (dont « Pastille Axion ») et la Pastille sur 3 textes tirés de `dix-scripts.ts` ;
  *   - le tableau à part (ardoise, tableau blanc, paperboard : bande de fond, Pastille sur l'ardoise) ;
- *   - la sortie animée U19 en 3 instants (avant, pendant, après).
+ *   - la sortie animée U19 en 3 instants (avant, pendant, après) ;
+ *   - escalier dessiné (U20b-a), 3 instants, interrupteur éteint.
  * En 9:16 et en 16:9, sur fond clair (`fond-clair.jpg`) et sur fond sombre. Les propriétés viennent des fonctions pures
  * du moteur (`src/briques/sous-titres/`, `src/moteurs/montage-tableau/`), jamais écrites à la main. Rien n'est allumé :
  * aucun interrupteur n'est modifié (la « sortie » est montrée par le calcul pur `sortieDuGroupe`, l'interrupteur
@@ -33,6 +34,8 @@ import * as moduleSortie from "@/briques/sous-titres/sortie";
 import * as moduleStyleTableau from "@/briques/tableau-scene/trois-styles/styles";
 import * as moduleFormats from "@/briques/formats-facecam/sous-titres";
 import * as moduleScripts from "../../tests/briques/faits-script/dix-scripts";
+import * as moduleEscalier from "@/briques/sous-titres/escalier";
+import * as moduleCharte from "@/briques/charte/axion-2026";
 
 /** Les modules sont lus en CommonJS par tsx : leurs exports peuvent être sur `default`. */
 const lire = <T,>(m: T): T => ((m as unknown as { default?: T }).default ?? m) as T;
@@ -45,6 +48,8 @@ const sortieMod = lire(moduleSortie);
 const styleTableau = lire(moduleStyleTableau);
 const formats = lire(moduleFormats);
 const { DIX_SCRIPTS } = lire(moduleScripts);
+const escalierMod = lire(moduleEscalier);
+const { PALETTE } = lire(moduleCharte);
 const { appliquerChoixGroupe, donneesCalque, fabriquerSousTitres, PASTILLE_AXION, PASTILLE_AXION_ARDOISE, dimensions } = brique;
 
 const ICI = dirname(fileURLToPath(import.meta.url));
@@ -70,6 +75,8 @@ export interface Cellule {
   sortie?: { opacite: number; decalageYPx: number };
   /** Bande de fond / tableau : couleur du fond de page de la case (remplace `fond`). */
   note?: string;
+  /** Escalier dessiné (U20b-a) : si présent, la case monte `LigneEscalier` à la place du calque de sous-titres. */
+  escalier?: { geometrie: ReturnType<typeof escalierMod.geometrieEscalier>; couleur: string; fond: string; ligneActive: number };
 }
 export interface Planche {
   nom: string;
@@ -288,6 +295,46 @@ for (const ratio of RATIOS) {
   }
 }
 
+/* ---------- 8. Escalier dessiné (U20b-a) — interrupteur éteint : 2 lignes, 4 lignes (3e active), 6 lignes ---------- */
+/** Zone sûre : `ZoneSureEscalier` n'est pas exposée par le moteur ; on prend celle du test `escalier.test.ts:9` (54, 200, 972 × 1200 sur 1080 × 1920) mise à l'échelle de la case. */
+const zoneEscalier = (largeur: number, hauteur: number) => ({ xPx: (54 / 1080) * largeur, yPx: (200 / 1920) * hauteur, largeurPx: (972 / 1080) * largeur, hauteurPx: (1200 / 1920) * hauteur });
+/** Lignes = mots consécutifs d'un script de `DIX_SCRIPTS` (jamais un texte inventé) ; la plus grande taille de lettre qui tient dans la zone, par `geometrieEscalier`. */
+function escalierDe(n: number, ligneActive: number, largeur: number, hauteur: number, couleur: string, fond: string): Cellule["escalier"] | null {
+  const mots = DIX_SCRIPTS[0].split(/\s+/).filter(Boolean);
+  for (const parLigne of [3, 2, 1]) {
+    const lignes = Array.from({ length: n }, (_, i) => mots.slice(i * parLigne, (i + 1) * parLigne).join(" "));
+    for (let taille = 72; taille >= 24; taille -= 4) {
+      const geometrie = escalierMod.geometrieEscalier(lignes, largeur, hauteur, zoneEscalier(largeur, hauteur), taille);
+      if (geometrie) return { geometrie, couleur, fond, ligneActive };
+    }
+  }
+  return null;
+}
+for (const ratio of RATIOS) {
+  const { largeur, hauteur } = dimensions(ratio);
+  for (const [nomFond, fond] of Object.entries(FONDS)) {
+    // Texte clair sur fond sombre, sombre sur fond clair ; contour de la couleur opposée (charte, jamais en dur).
+    const couleur = nomFond === "sombre" ? PALETTE.ivoire : PALETTE.noir;
+    const contour = nomFond === "sombre" ? PALETTE.noir : PALETTE.ivoire;
+    const cellules: Cellule[] = [];
+    for (const [n, active] of [[2, 1], [4, 2], [escalierMod.ESCALIER.lignesMax, 5]] as const) {
+      const e = escalierDe(n, active, largeur, hauteur, couleur, contour);
+      if (!e) {
+        rapport.push(`escalier ${ratio}/${nomFond} : ${n} lignes refusé (géométrie nulle)`);
+        continue;
+      }
+      cellules.push({
+        legende: `${n} lignes, ligne active n° ${active + 1}${active > 0 ? ` (${active} en mémoire floue)` : ""} — zone sûre du test escalier.test.ts mise à l'échelle`,
+        donnees: calque([], ratio, null),
+        instantSec: 0,
+        fond,
+        escalier: e,
+      });
+    }
+    planches.push({ nom: `escalier-${NOM_RATIO[ratio]}-${nomFond}`, titre: "Escalier dessiné (U20b-a) : 2, 4 puis 6 lignes — interrupteur éteint", ratio, colonnes: ratio === "9:16" ? 3 : 2, cellules });
+  }
+}
+
 return { planches, rapport };
 }
 
@@ -317,6 +364,7 @@ writeFileSync(
   `import React from "react";
 import { AbsoluteFill, Composition, Img, registerRoot } from "remotion";
 import { CalqueSousTitres } from "../compositions/sous-titres/CalqueSousTitres";
+import { LigneEscalier } from "../compositions/sous-titres/LigneEscalier";
 const Case: React.FC<any> = ({ c, l, h }) => {
   const d = c.donnees;
   const k = l / d.largeur;
@@ -326,7 +374,7 @@ const Case: React.FC<any> = ({ c, l, h }) => {
         <div style={{ width: d.largeur, height: d.hauteur, transform: "scale(" + k + ")", transformOrigin: "0 0", position: "absolute", left: 0, top: 0 }}>
           {c.fond.image ? <Img src={c.fond.image} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", left: 0, top: 0 }} /> : null}
           <div style={{ position: "absolute", inset: 0, opacity: c.sortie ? c.sortie.opacite : 1, transform: c.sortie ? "translateY(" + c.sortie.decalageYPx + "px)" : undefined }}>
-            <CalqueSousTitres donnees={d} instantSec={c.instantSec} />
+            {c.escalier ? <LigneEscalier geometrie={c.escalier.geometrie} couleur={c.escalier.couleur} fond={c.escalier.fond} ligneActive={c.escalier.ligneActive} /> : <CalqueSousTitres donnees={d} instantSec={c.instantSec} />}
           </div>
         </div>
       </div>
