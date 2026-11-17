@@ -6,6 +6,8 @@ import { readFileSync } from "node:fs";
 import { DEF_CERCLE, DEF_DOUBLE_BOUCLE, DEF_OVALE, EXEMPLES_ENTOURAGES, cheminDoubleBoucle } from "../../src/briques/motion/petits-objets/entourages";
 import { cheminCercleObjet } from "../../src/briques/motion/petits-objets/TraceSvg";
 import { verifierDefinition, type DefinitionObjet, type TonObjet } from "../../src/briques/motion/petits-objets/contrat";
+import { PALETTE } from "../../src/briques/charte/axion-2026";
+import { SURFACE_MAX } from "../../src/briques/motion/petits-objets/contrat";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { IMAGES_SORTIE } from "../../src/briques/motion/petits-objets/progres";
 
@@ -60,7 +62,7 @@ describe("C9-07 rendu", () => {
       expect(m).not.toMatch(/filter|mask|drop-shadow/i);
       expect(m).not.toMatch(/<text/);
     }
-    expect(rendre(DEF_CERCLE as DefinitionObjet<unknown>, BOITE, 30, "accent", "ivoire")).not.toContain("#FF6B35".toLowerCase());
+    for (const d of DEFS) for (const ton of TONS) expect(rendre(d, BOITE, 30, ton, "ivoire").toLowerCase()).not.toContain(PALETTE.orange.toLowerCase());
   });
   it("boîte invalide : rendu vide sans exception", () => {
     for (const d of DEFS) expect(() => rendre(d, null, 10)).not.toThrow();
@@ -96,6 +98,25 @@ describe("C9-07 propres à la fiche", () => {
     }
     expect(Math.abs(cumul)).toBeGreaterThan(2 * Math.PI);
     expect((rendre(DEF_DOUBLE_BOUCLE as DefinitionObjet<unknown>, BOITE, 30).match(/<path/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("C9-07 encombrement", () => {
+  /** Boîtes à la limite acceptée (surface boîte = plafond), une par objet. */
+  const LIMITES: [DefinitionObjet<unknown>, { x: number; y: number; largeur: number; hauteur: number }][] = [
+    [DEF_CERCLE as DefinitionObjet<unknown>, { x: 20, y: 20, largeur: 60, hauteur: 60 }],
+    [DEF_OVALE as DefinitionObjet<unknown>, { x: 2, y: 30, largeur: 96, hauteur: 37.5 }],
+    [DEF_DOUBLE_BOUCLE as DefinitionObjet<unknown>, { x: 20, y: 20, largeur: 60, hauteur: 60 }],
+  ];
+  it("boîte à la limite : le tracé reste sous SURFACE_MAX du cadre", () => {
+    for (const [d, b] of LIMITES) {
+      expect(d.valider(b)).not.toBeNull();
+      const dd = /d="([^"]+)"/.exec(rendre(d, b, 30))![1];
+      const pts = dd.replace(/^M /, "").split(" L ").map((s) => s.split(",").map(Number));
+      const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+      const surface = ((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))) / (1080 * 1920);
+      expect(surface).toBeLessThanOrEqual(SURFACE_MAX);
+    }
   });
 });
 

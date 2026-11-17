@@ -15,8 +15,8 @@ export interface BoiteEntourage {
 }
 
 const TOILE = { largeur: 1080, hauteur: 1920 } as const;
-/** La boucle déborde de la boîte (≈ +25 %) : la boîte seule ne dépasse pas ce seuil pour rester sous SURFACE_MAX. */
-const SURFACE_BOITE_MAX = SURFACE_MAX * 0.7;
+/** Le tracé déborde de la boîte (jusqu'à ×1,64 en surface pour la double boucle, mesuré) : la boîte seule ne dépasse pas ce seuil pour que le tracé reste sous SURFACE_MAX. */
+const SURFACE_BOITE_MAX = SURFACE_MAX * 0.6;
 const RAPPORT_OVALE_MIN = 1.2;
 
 function lireBoite(p: unknown): BoiteEntourage | null {
@@ -43,7 +43,7 @@ const px = (b: BoiteEntourage) => ({
   h: (b.hauteur * TOILE.hauteur) / 100,
 });
 
-/** Deux tours décalés par la graine, un seul chemin continu (angle cumulé ≈ 2 tours et demi). */
+/** Deux tours décalés par la graine, un seul chemin continu (angle cumulé ≈ 2,2 tours). */
 export function cheminDoubleBoucle(x: number, y: number, l: number, h: number, graine = 0): string {
   const N = 128;
   const decalage = 0.06 + aleaGraine(graine, 1) * 0.06;
