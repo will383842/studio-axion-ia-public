@@ -47,13 +47,14 @@ const { ListeAPublier } = await import("@/components/publication/ListeAPublier")
 
 const MDP = "essai-origine-usine";
 const VIDEO = "v-15";
-const AUTRE = "v-16";
+const AUTRE = "v-01";
 const DEMAIN = new Date(Date.now() + 86_400_000).toISOString();
 
 async function fixerOrigine(videoId: string, origine: "usine" | "studio" | null) {
   for (const v of await depots().versions.lister((x) => x.videoId === videoId)) {
-    const { origine: _o, ...reste } = v.commande as typeof v.commande & { origine?: string };
-    await depots().versions.modifier(v.id, { commande: origine ? { ...reste, origine } : reste });
+    const commande: Record<string, unknown> = { ...v.commande };
+    delete commande.origine;
+    await depots().versions.modifier(v.id, { commande: (origine ? { ...commande, origine } : commande) as unknown as typeof v.commande });
   }
 }
 
