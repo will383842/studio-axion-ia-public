@@ -19,6 +19,10 @@ describe("argumentsMiniExportRecollable (G11-04)", () => {
     expect(a.join(" ")).toContain("-c:v libx264");
     expect(a[a.length - 1]).toBe("s.mp4");
   });
+  it("pose les étiquettes BT.709 dans le graphe (setparams), pas en options de sortie (FFmpeg 7.1 et plus les ignore)", () => {
+    expect(a[a.indexOf("-vf") + 1]).toBe("format=yuv420p,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv");
+    for (const option of ["-color_primaries", "-color_trc", "-colorspace", "-color_range"]) expect(a).not.toContain(option);
+  });
   it("place -ss avant -i", () => {
     expect(a.indexOf("-ss")).toBeGreaterThanOrEqual(0);
     expect(a.indexOf("-ss")).toBeLessThan(a.indexOf("-i"));
