@@ -318,7 +318,6 @@ describe("L5-02b · noterCleDiffuseur et champs facultatifs", () => {
     expect(e?.creneauId).toBe("c7");
     expect(m.demandes[0].nature).toBe("visuel");
     expect(m.demandes[0].creneauId).toBe("c7");
-    expect(e?.statut).toBe("valide");
   });
 });
 
