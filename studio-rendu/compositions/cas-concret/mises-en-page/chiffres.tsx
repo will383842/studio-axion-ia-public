@@ -267,7 +267,6 @@ export function ResCoupeDeux({ p, d }: { p: P<"resultat">; d: ReturnType<typeof 
   const depart = p.zone.y + p.zone.hauteur - 20;
   const y = depart - (depart - d.coupe) * coupe;
   const bas = ressort(image, dep + 10);
-  const carte = d.formes[0]!.boite;
   const et = texte(d, "etiquette");
   return (
     <>
@@ -275,9 +274,6 @@ export function ResCoupeDeux({ p, d }: { p: P<"resultat">; d: ReturnType<typeof 
       {et ? <TexteL t={et} couleur={haut.accent} accent={haut.accent} /> : null}
       <div style={{ position: "absolute", left: 0, top: 0, opacity: borne(ressort(image, 0) * 3) }}>
         <TexteL t={texte(d, "etiquette-avant")!} couleur={haut.secondaire} accent={haut.accent} />
-        <div style={{ position: "absolute", left: carte.x, top: carte.y, width: carte.largeur, height: carte.hauteur, borderRadius: 20, background: C.carte, boxShadow: `0 10px 30px ${a(C.nuit, 0.25)}` }}>
-          <div style={{ margin: carte.largeur * 0.08, height: carte.hauteur * 0.4, borderRadius: 12, background: C.sable }} />
-        </div>
         <TexteL t={texte(d, "avant")!} couleur={haut.texte} accent={haut.accent} />
       </div>
       <div style={{ position: "absolute", left: -120, top: y, width: p.largeur + 240, height: p.hauteur, background: k.fond, transform: "rotate(-3deg)", transformOrigin: "50% 0", boxShadow: `0 -30px 60px ${a(C.nuit, 0.35)}` }} />

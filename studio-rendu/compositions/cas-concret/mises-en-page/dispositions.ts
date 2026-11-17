@@ -531,14 +531,13 @@ export function dispoResCoupeDeux(p: P<"resultat">) {
     const et = p.etiquette ? etiquette("etiquette", p.etiquette, c, c.haut, k) : null;
     const yA = et ? bas(et.boite) + 24 * k : c.haut;
     const labelAvant = etiquette("etiquette-avant", "Avant", c, yA, k);
-    const avant = affiche("avant", [p.avant], c, bas(labelAvant.boite) + 14 * k, Math.round((c.r45 ? 100 : 130) * k), { lignesMax: 1, x: c.x + 220 * k, largeur: c.largeur - 220 * k });
-    const carte = boite(c.x, bas(labelAvant.boite) + 14 * k, 190 * k, Math.max(150 * k, avant.boite.hauteur));
-    const coupe = Math.max(bas(carte), bas(avant.boite)) + 70 * k;
+    const avant = affiche("avant", [p.avant], c, bas(labelAvant.boite) + 14 * k, Math.round((c.r45 ? 100 : 130) * k), { lignesMax: 1, x: c.x, largeur: c.largeur });
+    const coupe = bas(avant.boite) + 70 * k;
     const labelMaint = etiquette("etiquette-maintenant", "Maintenant", c, coupe + 70 * k, k);
     const maintenant = affiche("maintenant", [p.maintenant], c, bas(labelMaint.boite) + 10 * k, Math.round((c.r45 ? 220 : 300) * k), { lignesMax: 1 });
     const titre = affiche("titre", p.titre, c, bas(maintenant.boite) + 20 * k, Math.round((c.r45 ? 80 : 100) * k), { lignesMax: 2 });
     const ligne = corps("ligne", p.ligne, c, bas(titre.boite) + 14 * k, Math.round(40 * k), { lignesMax: 2 });
-    return { textes: [...(et ? [et] : []), labelAvant, avant, labelMaint, maintenant, titre, ligne], formes: [{ nom: "carte-avant", boite: carte }], coupe };
+    return { textes: [...(et ? [et] : []), labelAvant, avant, labelMaint, maintenant, titre, ligne], formes: [], coupe };
   });
 }
 

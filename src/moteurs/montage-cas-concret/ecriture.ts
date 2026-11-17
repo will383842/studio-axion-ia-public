@@ -251,7 +251,7 @@ RÈGLES (la fiche est refusée sinon) :
 - R09 : la marque « ${MARQUE} » est posée par le studio sur chaque écran.
 - R10 : aucun mot interdit (<interdits>), ni « machine » (dites « automatisation »).
 - R11 : vouvoiement, jamais de tutoiement.
-- R12 et R13 : voir LES FAITS. Un écran « chiffre » et chaque barre d'un « resultat » DÉSIGNENT un fait chiffré de <faits> par son identifiant (« faitId ») ; le studio y pose lui-même la valeur du fait : tu ne rends jamais « valeur ». Sans fait chiffré : voir SANS FAIT CHIFFRÉ. Une barre dont l'état n'est mesuré par aucun fait chiffré désigne le fait SANS NOMBRE qui le décrit (« valeurs aucune ») : dessinée sans nombre, son libellé (1 à 3 mots, sans nombre) dit l'état ; jamais un fait chiffré qui ne mesure pas cet état.
+- R12 et R13 : voir LES FAITS. Un écran « chiffre » et chaque barre d'un « resultat » DÉSIGNENT un fait chiffré de <faits> par son identifiant (« faitId ») ; le studio y pose lui-même la valeur du fait : tu ne rends jamais « valeur ». Sans fait chiffré : voir SANS FAIT CHIFFRÉ. Une barre dont l'état n'est mesuré par aucun fait chiffré désigne le fait SANS NOMBRE qui le décrit (« valeurs aucune ») : dessinée sans nombre, son libellé (1 à 3 mots, sans nombre) dit l'état ; jamais un fait chiffré qui ne mesure pas cet état. La barre « avant » dit l'état AVANT l'automatisation (d'après <avant>), la barre « maintenant » l'état AVEC elle (d'après <resultat>) : jamais deux situations de l'outil lui-même (normal, panne, erreur). Quand aucun fait de <faits> ne décrit l'état d'avant et que la barre « maintenant » est sans nombre, la barre « avant » est { "libelle" } seul.
 - R14 : aucun récit de client, aucun avis ni témoignage ; aucun nom propre hors ${LISTE_BLANCHE_NOMS.join(", ")} (une majuscule ailleurs qu'en début de phrase est un nom propre, sauf un sigle tout en capitales).
 - R15 : posture « offre » : aucune tournure d'usage réel chez nous (« chez nous », « notre équipe », « on utilise », « nous avons automatisé »…).
 - R16 : aucun prix, sauf un fait de source « site » qui énonce un montant.
@@ -275,7 +275,7 @@ Les 9 types du corps (${liste(TYPES_ECRAN_CORPS)}) :
 - textes d'un visuel « objet » : obligatoires pour « liste-taches » (1 à 3 tâches de 2 à 4 mots, celles que fait l'étape) et « programme » (les modules) ; sans eux l'objet est une fiche blanche
 - le premier texte d'un écran « titre », « objet » ou « question » apparaît dès le début de l'écran : son premier événement vise l'un des premiers mots, jamais une phrase plus loin (un écran ne reste jamais vide)
 - preuve : "titre", "puces" (exactement 2)
-- resultat : "titre", "avant" et "maintenant" ({ "libelle", "faitId" } : le fait chiffré dont la barre montre la valeur ; le texte de la barre est tiré du fait, jamais d'un calcul ; jamais « valeur » ; sans fait chiffré : { "libelle" } seul ; une barre sans nombre mesuré : { "libelle", "faitId" } du fait SANS NOMBRE qui décrit son état, jamais un fait chiffré qui ne le mesure pas), "ligne"
+- resultat : "titre", "avant" et "maintenant" ({ "libelle", "faitId" } : le fait chiffré dont la barre montre la valeur ; le texte de la barre est tiré du fait, jamais d'un calcul ; jamais « valeur » ; sans fait chiffré : { "libelle" } seul ; une barre sans nombre mesuré : { "libelle", "faitId" } du fait SANS NOMBRE qui décrit son état, jamais un fait chiffré qui ne le mesure pas ; « avant » sans fait qui le décrive, quand « maintenant » est sans nombre : { "libelle" } seul ; chaque libellé, 1 à 3 mots sans nombre, se lit après « Avant : » ou « Maintenant : »), "ligne"
 - question : "lignes" (exactement 2), "question"
 Exemples COMPLETS et exacts des deux écrans à chiffre (les identifiants de fait sont ceux d'un autre cas : prends ceux de <faits> ; sans fait chiffré : aucun écran « chiffre », et le « resultat » en { "libelle" } seuls, voir SANS FAIT CHIFFRÉ) :
 ${EXEMPLES_ECRANS_A_CHIFFRE.map((x) => JSON.stringify(x)).join("\n")}
@@ -827,7 +827,8 @@ export const roleEcritureCasConcret = {
   // 2 : cas sans fait chiffré (résultat en mots, barres sans nombre), 24/10/2026.
   // 3 : clarté et récit, 24/10/2026.
   // 4 : barre désignant un fait sans nombre, dessinée sans nombre (FIX-BARRE-SANS-NOMBRE), 17/11/2026.
-  version: 4,
+  // 5 : libellés « avant » / « maintenant » au sens propre, « avant » sans fait possible (FIX-CC-RESULTAT-SANS-NOMBRE), 17/11/2026.
+  version: 5,
   consigne: CONSIGNE_ECRITURE,
   modele: MODELE_ECRITURE,
   effort: "medium",
