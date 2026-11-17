@@ -405,3 +405,57 @@ describe("L5-06 · décision du pilote, point 4 : rattrapage choisi par l'état 
     expect(await publies()).toBe(25);
   });
 });
+
+describe("L5-06 · décision du pilote, point 5 : budget de TOUTES les requêtes réellement tenu", () => {
+  const BUDGET = 51; // 1 lecture des comptes + 50 requêtes de posts au plus par passage
+  const sansAdresse = (appels: AppelEnregistre[]) => appels.map((a) => `${a.methode} ${new URL(a.url).pathname}${new URL(a.url).search}`);
+
+  it("passage complet, 60 posts absents : comptes, pages et lectures unitaires comprises, au plus 51 requêtes", async () => {
+    await publications(60);
+    const { client, appels } = diffuseur(60, new Set(Array.from({ length: 60 }, (_, i) => i + 1)));
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
+    expect(appels.length).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("la lecture des comptes est comptée : elle figure parmi les requêtes du passage et dans le budget", async () => {
+    await publications(5);
+    const { client, appels } = diffuseur(600, new Set([1, 2, 3, 4, 5]));
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
+    expect(sansAdresse(appels).filter((a) => a.includes("/v1/accounts"))).toHaveLength(1);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("la liste échoue à la 2e page : les posts de la 1re page ne sont pas relus un à un, et le total reste sous 51", async () => {
+    await publications(80);
+    const posts = Array.from({ length: 80 }, (_, i) => postPublie(i + 1));
+    const appels: AppelEnregistre[] = [];
+    const { client } = creerFauxClientZernio((a) => {
+      appels.push(a);
+      const u = new URL(a.url);
+      if (u.pathname.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: COMPTE, platform: "instagram", isActive: true }] } };
+      if (u.pathname.endsWith("/v1/posts")) {
+        const page = Number(u.searchParams.get("page") ?? 1);
+        return page === 1 ? { statut: 200, corps: { posts: posts.slice(0, 50) } } : { statut: 500, corps: { error: "panne simulée" } };
+      }
+      const m = /\/v1\/posts\/exemple-post-(\d+)$/.exec(u.pathname);
+      return m ? { statut: 200, corps: { post: postPublie(Number(m[1])) } } : { statut: 404, corps: {} };
+    });
+    injecterClientZernio(client);
+    const r = await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
+    const lus = sansAdresse(appels).filter((a) => /\/v1\/posts\/exemple-post-\d+$/.test(a.replace("GET ", "").split("?")[0].replace("/api", "")));
+    const dejaLusEnListe = lus.filter((a) => Number(/exemple-post-(\d+)/.exec(a)![1]) <= 50);
+    expect(dejaLusEnListe).toHaveLength(0);
+    expect(appels.length).toBeLessThanOrEqual(BUDGET);
+    expect(r.lues).toBeGreaterThanOrEqual(50);
+  });
+
+  it("sans liste (passage incrémental), 60 publications : comptes comprise, au plus 51 requêtes", async () => {
+    await publications(60);
+    const { client, appels } = diffuseur(60, new Set(), true);
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(appels.length).toBeLessThanOrEqual(BUDGET);
+  });
+});
