@@ -1,4 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+import { candidatsExtraits } from "@/services/bibliotheque-video";
+import { plagesDisponibles } from "@/briques/archive-extraits/choix";
+import type { DemandeExtraits } from "@/briques/archive-extraits/choix";
+import type { ElementBibliotheque, IdReseau } from "@/domaine/types";
 import { candidatNote, choisirExtrait } from "@/briques/note-extraits";
 import { choisirExtrait as choisirExtraitPioche } from "@/briques/bibliotheque-video/pioche-extraits";
 import type { PlageDisponible } from "@/briques/archive-extraits/choix";
@@ -57,14 +64,46 @@ describe("NE/choisir", () => {
   it("bout à bout : la notée au sujet identique l'emporte, même graine même choix", () => {
     const ds = [
       dispo("x", { note: 80, sujet: "appels-offres", usages: ["ecran"] }),
-      dispo("y", { note: 80, sujet: "autre" as never, usages: ["ecran"] }),
+      dispo("y", { note: 80, sujet: "relances-et-suivi" as const, usages: ["ecran"] }),
       dispo("z", { usages: ["ecran"] }),
     ];
     const cands = ds.map((d) => candidatNote(d, CAP));
-    const besoin = { usage: "ecran" as const, sujet: "appels-offres" as never, graine: "g1" };
+    const besoin = { usage: "ecran" as const, sujet: "appels-offres" as const, graine: "g1" };
     const r1 = choisirExtrait(cands, besoin, []);
     const r2 = choisirExtrait(cands, besoin, []);
     expect(r1?.plageId).toBe("x");
     expect(r2).toEqual(r1);
+  });
+
+  it("champs de base identiques à ceux de candidatsExtraits pour la même plage", async () => {
+    const element = {
+      id: "elA", type: "source-extraits", nom: "elA", motsCles: [], formatsParDefaut: [], marqueId: "m",
+      licence: { type: "propriete", usageCommercial: true, reseaux: [] },
+      valeur: {
+        type: "source-extraits",
+        fiche: {
+          videoId: "vA", versionId: "ver", sortieId: "s", ratio: "9:16",
+          licence: { type: "propriete", usageCommercial: true, reseaux: [] }, famille: ["famA"],
+          plages: [
+            plage("p1", { texte: "Une facture claire", motsCles: ["facture"], debutSec: 2, finSec: 7, avecVisage: true, texteIncruste: false, note: 70, sujet: "appels-offres", usages: ["ecran"] }),
+            plage("p2", { texte: "Une facture claire", motsCles: ["facture"], debutSec: 0, finSec: 4, texteIncruste: false }),
+          ],
+          rangee: false, sourcePreferee: false,
+        },
+      },
+    } as unknown as ElementBibliotheque;
+    const demande: DemandeExtraits = {
+      videoId: "nouvelle", capacite: "ecran.telephone-extrait", reseaux: ["linkedin"] as IdReseau[],
+      dejaUtilisees: [], maintenant: new Date("2026-11-16T12:00:00Z"),
+    };
+    const ports = { depots: () => ({ elements: { lister: async (f?: (e: ElementBibliotheque) => boolean) => (f ? [element].filter(f) : [element]) } }) } as never;
+    const ce = await candidatsExtraits(demande, ports);
+    const cn = plagesDisponibles([element], demande).map((d) => candidatNote(d, demande.capacite));
+    expect(ce.length).toBe(2);
+    expect(cn.length).toBe(ce.length);
+    const cles = ["id", "cle", "capacite", "elementId", "plageId", "debutSec", "finSec", "ratio", "visage", "texteIncruste", "famille"] as const;
+    ce.forEach((c, i) => {
+      for (const k of cles) expect(cn[i][k]).toEqual(c[k]);
+    });
   });
 });
