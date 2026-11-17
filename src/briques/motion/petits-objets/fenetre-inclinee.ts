@@ -4,6 +4,9 @@
  * Imports relatifs seulement (dossier lu par le rendu). Aucun hasard, aucune horloge : même entrée = même image.
  * Ajout pur, ÉTEINT : non inscrit au registre (C9-27) ni à la porte C9-33.
  */
+import { createElement, type ReactElement } from "react";
+import type { FondAxion } from "../../jetons-motion";
+import { OBJET_FENETRE_APP, type ParametresFenetreApp } from "./fenetre-app";
 import { progres } from "../courbes";
 import { DUREES } from "../jetons";
 import { devantLeVisage, type Position } from "../../plan-scenes/zones";
@@ -64,4 +67,30 @@ export function positionPermise(p: Position): boolean {
 /** Style CSS de l'enveloppe : `perspective` + `transform` (rotateX/rotateY seulement). */
 export function styleInclinaison(a: AngleFenetre): { perspective: string; transform: string } {
   return { perspective: `${PERSPECTIVE_POURCENT * 10}px`, transform: `rotateX(${a.rotateX}deg) rotateY(${a.rotateY}deg)` };
+}
+
+export interface PropsFenetreInclinee {
+  image: number;
+  fps: number;
+  dureeImages: number;
+  fond: FondAxion;
+  graine: number;
+  parametres: ParametresFenetreApp;
+  /** +1 ou −1 : côté de l'inclinaison. */
+  sens?: number;
+}
+
+/** Vue pure (testable sans Remotion) : enveloppe CSS `perspective` + `rotateX/rotateY` autour de la fenêtre d'application C9-18. */
+export function FenetreInclineeVue({ image, fps, dureeImages, fond, graine, parametres, sens }: PropsFenetreInclinee): ReactElement {
+  const a = angleFenetre(image / fps, { sens });
+  const s = styleInclinaison(a);
+  return createElement(
+    "div",
+    { style: { position: "absolute", inset: 0, perspective: s.perspective } },
+    createElement(
+      "div",
+      { style: { position: "absolute", inset: 0, transform: s.transform, transformOrigin: "50% 50%" } },
+      OBJET_FENETRE_APP.Rendu({ image, fps, dureeImages, fond, parametres, ton: "neutre", graine }),
+    ),
+  );
 }

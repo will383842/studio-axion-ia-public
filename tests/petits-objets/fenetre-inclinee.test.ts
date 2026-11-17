@@ -8,10 +8,9 @@ import { describe, expect, it, vi } from "vitest";
 // `remotion` vit dans studio-rendu (autre paquet) : on le simule, seule la vue pure est testée.
 vi.mock("remotion", () => ({ AbsoluteFill: "div", useCurrentFrame: () => 0, useVideoConfig: () => ({ fps: 25, durationInFrames: 60 }) }));
 
-import { ANGLE_MAX, HAUTEUR_TEXTE_MIN_POURCENT, angleFenetre, hauteurApparente, positionPermise, styleInclinaison } from "../../src/briques/motion/petits-objets/fenetre-inclinee";
+import { ANGLE_MAX, FenetreInclineeVue, HAUTEUR_TEXTE_MIN_POURCENT, angleFenetre, hauteurApparente, positionPermise, styleInclinaison } from "../../src/briques/motion/petits-objets/fenetre-inclinee";
 import { DUREES } from "../../src/briques/motion/jetons";
 import { POSITIONS } from "../../src/briques/plan-scenes/zones";
-import { FenetreInclineeVue } from "../../studio-rendu/compositions/petits-objets/FenetreInclinee";
 import { OBJET_FENETRE_APP } from "../../src/briques/motion/petits-objets/fenetre-app";
 
 const FPS = 25;
