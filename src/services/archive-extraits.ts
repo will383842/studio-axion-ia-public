@@ -277,3 +277,122 @@ export async function fichesUtilisables(ports?: PortsArchive): Promise<FicheSour
     .filter((f): f is FicheSourceExtraits => !!f && !f.rangee)
     .map((f) => ({ ...f, plages: f.plages.filter((p) => p.etat === "utilisable") }));
 }
+
+/* ------------------------------------------------------------------ */
+/* C3-UT-3.10a : les cinq gestes de Williams sur l'archive (service seul, rien ne les appelle encore : l'écran est 3.10b). */
+/* Chaque geste exige une session, journalise une ligne, ne supprime rien. */
+/* ------------------------------------------------------------------ */
+
+/** Ports des gestes : ceux de l'archive + la session (par défaut `exigerSession`, qui redirige sans session valide). */
+export interface PortsGestes extends PortsArchive {
+  session?: () => Promise<unknown>;
+}
+
+export type ResultatGeste = { ok: true } | { ok: false; message: string };
+
+const SANS_EXTRAITS: ResultatGeste = { ok: false, message: "Cette vidéo n'a pas d'extraits archivés." };
+
+async function exigerLaSession(ports?: PortsGestes): Promise<void> {
+  if (ports?.session) {
+    await ports.session();
+    return;
+  }
+  const { exigerSession } = await import("./auth");
+  await exigerSession();
+}
+
+/** Modifie une plage de la fiche sous verrou. `changer` rend la nouvelle plage, ou un refus. */
+async function gestePlage(
+  videoId: string,
+  plageId: string,
+  changer: (p: PlageExtrait, maintenant: string) => PlageExtrait | string,
+  libelle: string,
+  ports?: PortsGestes,
+): Promise<ResultatGeste> {
+  await exigerLaSession(ports);
+  const element = await elementDeLaVideo(videoId, ports);
+  const fiche = ficheDeElement(element);
+  if (!element || !fiche) return SANS_EXTRAITS;
+  const plage = fiche.plages.find((p) => p.id === plageId);
+  if (!plage) return { ok: false, message: "Cet extrait n'existe plus." };
+  const maintenant = horloge(ports);
+  const suivante = changer(plage, maintenant);
+  if (typeof suivante === "string") return { ok: false, message: suivante };
+  await sousVerrou(() =>
+    lesDepots(ports).elements.enregistrer({
+      ...element,
+      valeur: { type: "source-extraits", fiche: { ...fiche, plages: fiche.plages.map((p) => (p.id === plageId ? suivante : p)) } },
+      modifieLe: maintenant,
+    }),
+  );
+  await journaliser("archive-extraits", libelle, { type: "video", id: videoId });
+  return { ok: true };
+}
+
+/** Écarte une plage : elle ne sera plus proposée, et une passe d'inscription ne la rétablit pas. */
+export function ecarterPlage(videoId: string, plageId: string, ports?: PortsGestes): Promise<ResultatGeste> {
+  return gestePlage(videoId, plageId, (p, maintenant) => ({ ...p, etat: "ecartee", ecarteeLe: maintenant }), "Extrait écarté", ports);
+}
+
+/** Rétablit une plage écartée : jamais « utilisable » sans validation (retour à « à vérifier », ou « utilisable » si elle avait été validée). */
+export function retablirPlage(videoId: string, plageId: string, ports?: PortsGestes): Promise<ResultatGeste> {
+  return gestePlage(
+    videoId,
+    plageId,
+    (p) => {
+      const { ecarteeLe: _retire, ...reste } = p;
+      void _retire;
+      if (p.etat !== "ecartee") return { ...reste };
+      return { ...reste, etat: p.valideeLe ? "utilisable" : "a_verifier" };
+    },
+    "Extrait rétabli",
+    ports,
+  );
+}
+
+/** Valide une plage « à vérifier » ; une exclusion automatique ne se valide pas. */
+export function validerPlage(videoId: string, plageId: string, ports?: PortsGestes): Promise<ResultatGeste> {
+  return gestePlage(
+    videoId,
+    plageId,
+    (p, maintenant) => {
+      if (p.etat === "exclue") return "Une exclusion automatique ne se valide pas.";
+      if (p.etat !== "a_verifier") return "Seul un extrait à vérifier peut être validé.";
+      const { raisonExclusion: _r, ...reste } = p;
+      void _r;
+      return { ...reste, etat: "utilisable", valideeLe: maintenant };
+    },
+    "Extrait validé",
+    ports,
+  );
+}
+
+/** Range (ou remet) la fiche d'une vidéo, à la main. Rien n'est supprimé. */
+export async function rangerSource(videoId: string, rangee: boolean, ports?: PortsGestes): Promise<ResultatGeste> {
+  await exigerLaSession(ports);
+  const element = await elementDeLaVideo(videoId, ports);
+  const fiche = ficheDeElement(element);
+  if (!element || !fiche) return SANS_EXTRAITS;
+  const maintenant = horloge(ports);
+  await sousVerrou(async () => {
+    const suivant: ElementBibliotheque = { ...element, valeur: { type: "source-extraits", fiche: { ...fiche, rangee } }, modifieLe: maintenant };
+    if (rangee) suivant.archiveLe = element.archiveLe ?? maintenant;
+    else delete suivant.archiveLe;
+    await lesDepots(ports).elements.enregistrer(suivant);
+  });
+  await journaliser("archive-extraits", rangee ? "Extraits rangés à la main" : "Extraits remis à la main", { type: "video", id: videoId });
+  return { ok: true };
+}
+
+/** Coche ou décoche une vidéo dans la donnée des cochées. Ce n'est pas un interrupteur : la politique reste choisie ailleurs. */
+export async function cocherVideo(videoId: string, cochee: boolean, ports?: PortsGestes): Promise<ResultatGeste> {
+  await exigerLaSession(ports);
+  if (!(await ficheDeLaVideo(videoId, ports))) return SANS_EXTRAITS;
+  await sousVerrou(async () => {
+    const actuelles = await videosCochees();
+    const suivantes = cochee ? (actuelles.includes(videoId) ? actuelles : [...actuelles, videoId]) : actuelles.filter((x) => x !== videoId);
+    await ecrireParametre(DONNEE_COCHEES, suivantes);
+  });
+  await journaliser("archive-extraits", cochee ? "Vidéo cochée pour l'archive" : "Vidéo décochée pour l'archive", { type: "video", id: videoId });
+  return { ok: true };
+}
