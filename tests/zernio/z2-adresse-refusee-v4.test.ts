@@ -23,7 +23,7 @@ let site: ReturnType<typeof fauxSite>;
 const passer = (ms = T0, env: Record<string, string | undefined> = ENV) => C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env, maintenantMs: ms });
 const etatDe = async () => (await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
 const refuse = () => ({ statut: 422, corps: { erreur: "invalide" } });
-const cloches = async () => (await depots().notifications.lister((n: { message: string }) => /n.est validée dans Mots/.test(n.message))).length;
+const cloches = async () => (await depots().notifications.lister((n) => /n.est validée dans Mots/.test(n.message ?? ""))).length;
 
 async function ecrireAdresse(idMessage: string, ms = T0 + 1000): Promise<void> {
   port.reponses.texte = () => `Mon adresse ${ADRESSE_FICTIVE}`;
