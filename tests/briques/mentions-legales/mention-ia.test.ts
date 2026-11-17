@@ -8,14 +8,14 @@ import {
   contenuSynthetique,
   pastilleIA,
   pastilleVisible,
-} from "../../../src/briques/mentions-legales/mention-ia";
+} from "../../../src/briques/habillage/mention-ia";
 import { ZONE_VISAGE, seChevauchent } from "../../../src/briques/plan-scenes/zones";
 import { RATIOS_ESSAI, boiteDansZoneSure } from "@/moteurs/conformite-zone-sure";
 import { listerReseaux } from "@/reseaux";
 
 const ZONE = { haut: 6, droite: 6, bas: 12, gauche: 6 };
 const SYNTH = { doubleSynthetique: true, voixSynthetique: false };
-const SOURCE = readFileSync("src/briques/mentions-legales/mention-ia.ts", "utf8");
+const SOURCE = readFileSync("src/briques/habillage/mention-ia.ts", "utf8");
 
 describe("pastille IA — éteinte par défaut, double/voix synthétiques", () => {
   it("réglage absent, faux ou non strictement `true` : aucune pastille", () => {
@@ -94,7 +94,7 @@ describe("pastille IA — pièce pure, aucun interrupteur, rien ne l'appelle", (
     };
     parcourir("src");
     parcourir("studio-rendu");
-    const appelants = visites.filter((f) => !/mention-ia\.ts$|MentionIA\.tsx$/.test(f) && /from\s+["'][^"']*(?:mentions-legales\/mention-ia|petits-objets\/MentionIA)["']/.test(readFileSync(f, "utf8")));
+    const appelants = visites.filter((f) => !/mention-ia\.ts$|MentionIA\.tsx$/.test(f) && /from\s+["'][^"']*(?:habillage\/mention-ia|petits-objets\/MentionIA)["']/.test(readFileSync(f, "utf8")));
     expect(appelants).toEqual([]);
   });
 });
