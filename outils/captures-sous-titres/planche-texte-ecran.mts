@@ -12,6 +12,8 @@
  * `SORTIE_ACTIVE` restant éteint ; la Pastille est montrée dans la police de la charte (Manrope) par `enManrope`).
  * Seul un point d'entrée Remotion temporaire est créé dans `studio-rendu/` puis supprimé.
  *
+ * `construirePlanches()` est exportée (calcul pur, testée) ; le rendu ne part que si le fichier est lancé directement.
+ *
  * Usage (racine) : `pnpm exec tsx outils/captures-sous-titres/planche-texte-ecran.mts`
  * (`studio-rendu` doit avoir ses paquets : `npm ci` dans ce dossier ; `NAVIGATEUR=/chemin/chromium` si besoin.)
  * Sortie : `docs/captures/texte-ecran/`.
@@ -48,7 +50,6 @@ const { appliquerChoixGroupe, donneesCalque, fabriquerSousTitres, PASTILLE_AXION
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = resolve(ICI, "..", "..");
 const SORTIE = join(RACINE, "docs", "captures", "texte-ecran");
-mkdirSync(SORTIE, { recursive: true });
 
 type DonneesCalque = ReturnType<typeof donneesCalque>;
 type Ratio = "9:16" | "16:9";
@@ -60,7 +61,7 @@ type Fond = { couleur?: string; image?: string };
 const FONDS: Record<"clair" | "sombre", Fond> = { clair: { image: FOND_CLAIR }, sombre: { couleur: "#16120F" } };
 
 /** Une case de la planche : un calque dessiné à un instant, sur un fond, avec sa légende. */
-interface Cellule {
+export interface Cellule {
   legende: string;
   donnees: DonneesCalque;
   instantSec: number;
@@ -70,16 +71,13 @@ interface Cellule {
   /** Bande de fond / tableau : couleur du fond de page de la case (remplace `fond`). */
   note?: string;
 }
-interface Planche {
+export interface Planche {
   nom: string;
   titre: string;
   ratio: Ratio;
   colonnes: number;
   cellules: Cellule[];
 }
-const planches: Planche[] = [];
-const rapport: string[] = [];
-
 /** Style de Bibliothèque de base : copies des valeurs de la migration 25 (jamais modifiées). */
 const avecMarqueur = (teinte: TeinteMarqueur, cible: CibleMarqueur): ValeurStyleSousTitres => ({ ...styles.VALEUR_AXION_SURLIGNE, texteEcran: { marqueur: { teinte, cible } } });
 
@@ -109,6 +107,11 @@ function groupeMarque(texte: string, emphase: string[]): { seg: SegmentSousTitre
   const k = Math.min(1, seg.mots.length - 1);
   return { seg, k };
 }
+
+/** Construit toutes les planches et le rapport de construction : calcul pur, aucun rendu, aucun fichier écrit. */
+export function construirePlanches(): { planches: Planche[]; rapport: string[] } {
+const planches: Planche[] = [];
+const rapport: string[] = [];
 
 /* ---------- 1. Marqueur : 3 teintes × 2 cibles ---------- */
 const TEXTE_MARQUEUR = premiereFraseDe(0); // « Vous perdez deux heures par jour à répondre aux mêmes mails. »
@@ -285,6 +288,9 @@ for (const ratio of RATIOS) {
   }
 }
 
+return { planches, rapport };
+}
+
 /* ---------- Point d'entrée Remotion temporaire ---------- */
 const LARGEUR_CELLULE: Record<Ratio, number> = { "9:16": 300, "16:9": 620 };
 const GOUTTIERE = 16;
@@ -298,6 +304,12 @@ const mesure = (p: Planche) => {
   return { l, h, largeur: Math.max(760, GOUTTIERE + cols * (l + GOUTTIERE)), hauteur: ENTETE + lignes * (h + LEGENDE + GOUTTIERE) + GOUTTIERE };
 };
 
+/** Vrai seulement si ce fichier est lancé directement (jamais à l'import par un test). */
+const lanceDirectement = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (lanceDirectement) {
+const { planches, rapport } = construirePlanches();
+mkdirSync(SORTIE, { recursive: true });
 const dossierTmp = join(RACINE, "studio-rendu", ".planche-texte-tmp");
 mkdirSync(dossierTmp, { recursive: true });
 writeFileSync(
@@ -369,3 +381,4 @@ const duree = ((Date.now() - debut) / 1000).toFixed(1);
 rapport.push(`Temps de rendu total : ${duree} s`);
 writeFileSync(join(SORTIE, "planche.txt"), rapport.join("\n") + "\n");
 console.log(rapport.join("\n"));
+}

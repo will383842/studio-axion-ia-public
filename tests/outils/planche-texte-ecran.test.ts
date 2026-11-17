@@ -2,15 +2,22 @@
  * C2-U15a : la planche de référence du texte à l'écran (outils/captures-sous-titres/planche-texte-ecran.mts) doit
  * produire exactement les planches qu'elle annonce, dans les deux formats et sur les deux fonds, et son rapport
  * (docs/captures/texte-ecran/planche.txt) doit rester d'accord avec le script, les images et le calcul pur de la sortie U19.
- * Le script rend des images (Remotion) et ne s'importe pas : on lit sa source, le rapport et le dossier, sans aucun rendu.
+ * On exécute la vraie construction (`construirePlanches()`, calcul pur, aucun rendu à l'import) et on vérifie son résultat,
+ * puis on le recoupe avec le rapport et les images déjà poussés.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SORTIE_PAR_DEFAUT, SORTIE_ACTIVE, sortieDuGroupe } from "@/briques/sous-titres/sortie";
 
 const RACINE = process.cwd();
 const SOURCE = readFileSync(join(RACINE, "outils/captures-sous-titres/planche-texte-ecran.mts"), "utf8");
+/** `outils/` est hors du projet tsc : on charge le script par chemin (aucun rendu à l'import), avec le type minimal utilisé ici. */
+interface CaseTest { legende: string; fond: { image?: string; couleur?: string }; sortie?: { opacite: number; decalageYPx: number } }
+interface PlancheTest { nom: string; ratio: "9:16" | "16:9"; cellules: CaseTest[] }
+const CHEMIN_SCRIPT = join(RACINE, "outils/captures-sous-titres/planche-texte-ecran.mts");
+const { construirePlanches } = (await import(/* @vite-ignore */ CHEMIN_SCRIPT)) as { construirePlanches: () => { planches: PlancheTest[]; rapport: string[] } };
+const CONSTRUIT = construirePlanches();
 const DOSSIER = join(RACINE, "docs/captures/texte-ecran");
 const RAPPORT = readFileSync(join(DOSSIER, "planche.txt"), "utf8").split("\n").filter(Boolean);
 
@@ -27,14 +34,43 @@ for (const f of FORMATS) attendues.push({ nom: `tableau-${f}`, cases: CASES_TABL
 const lignesPlanches = RAPPORT.map((l) => /^(.+)\.png : (\d+) case\(s\)$/.exec(l)).filter((m): m is RegExpExecArray => m !== null);
 
 describe("planche de référence du texte à l'écran (C2-U15a)", () => {
-  it("la source nomme chaque famille, les deux formats, les deux fonds et écrit dans le dossier prévu", () => {
-    for (const famille of [...Object.keys(FAMILLES), "tableau"]) expect(SOURCE).toContain(`\`${famille}-`);
-    expect(SOURCE).toContain('"9:16": "9x16"');
-    expect(SOURCE).toContain('"16:9": "16x9"');
-    expect(SOURCE).toMatch(/clair: \{ image: FOND_CLAIR \}, sombre: \{ couleur: "#16120F" \}/);
-    expect(SOURCE).toContain('join(RACINE, "docs", "captures", "texte-ecran")');
-    // Rien n'est allumé : la sortie est montrée par le calcul pur, l'interrupteur n'est jamais modifié.
-    expect(SOURCE).toContain("sortieMod.sortieDuGroupe(");
+  it("la construction produit exactement les planches attendues, avec leur nombre de cases, sans refus ni case manquante", () => {
+    const vues = CONSTRUIT.planches.map((p) => ({ nom: p.nom, cases: p.cellules.length }));
+    expect(vues.map((v) => v.nom).sort()).toEqual(attendues.map((a) => a.nom).sort());
+    for (const a of attendues) expect(vues.find((v) => v.nom === a.nom)?.cases, a.nom).toBe(a.cases);
+    expect(CONSTRUIT.rapport.filter((l) => /aucun mot trouvé|aucune case|aucune étiquette|refusé|non produite/.test(l))).toEqual([]);
+    for (const p of CONSTRUIT.planches) {
+      expect(p.ratio, p.nom).toBe(p.nom.includes("9x16") ? "9:16" : "16:9");
+      for (const c of p.cellules) expect(c.legende.length, p.nom).toBeGreaterThan(0);
+    }
+    // Deux fonds : clair (image) et sombre (couleur), pour chaque famille hors tableau.
+    for (const p of CONSTRUIT.planches.filter((q) => !q.nom.startsWith("tableau-"))) {
+      for (const c of p.cellules) expect(Boolean(c.fond.image), p.nom).toBe(p.nom.endsWith("-clair"));
+    }
+  });
+
+  it("les lignes « sortie » construites collent au calcul pur de la sortie U19 (opacité, glissement × largeur/1080)", () => {
+    const sorties = CONSTRUIT.rapport.filter((l) => l.startsWith("sortie "));
+    expect(sorties).toHaveLength(4);
+    const mi = sortieDuGroupe(SORTIE_PAR_DEFAUT, 10, 10 + SORTIE_PAR_DEFAUT.dureeSec / 2)!;
+    expect(mi).not.toBeNull();
+    for (const l of sorties) {
+      const m = /^sortie (9:16|16:9)\/(clair|sombre) : mi-sortie opacité ([\d.]+), glissement ([\d.]+) px$/.exec(l);
+      expect(m, l).not.toBeNull();
+      expect(Number(m![3])).toBeCloseTo(mi.opacite, 2);
+      const echelle = m![1] === "9:16" ? 1 : 1920 / 1080;
+      expect(Number(m![4])).toBeCloseTo(mi.decalageYPx * echelle, 1);
+    }
+    // La case « pendant » porte le même décalage que la ligne du rapport.
+    for (const p of CONSTRUIT.planches.filter((q) => q.nom.startsWith("sortie-u19-"))) {
+      const echelle = p.ratio === "9:16" ? 1 : 1920 / 1080;
+      const pendant = p.cellules[1].sortie!;
+      expect(pendant.opacite, p.nom).toBeCloseTo(mi.opacite, 2);
+      expect(pendant.decalageYPx, p.nom).toBeCloseTo(mi.decalageYPx * echelle, 1);
+    }
+  });
+
+  it("l'interrupteur n'est jamais modifié par le script", () => {
     expect(SOURCE).not.toMatch(/SORTIE_ACTIVE\s*=/);
   });
 
@@ -42,6 +78,7 @@ describe("planche de référence du texte à l'écran (C2-U15a)", () => {
     const vues = lignesPlanches.map((m) => ({ nom: m[1], cases: Number(m[2]) }));
     expect(vues).toHaveLength(attendues.length);
     expect(attendues).toHaveLength(7 * 4 + 2);
+    for (const p of CONSTRUIT.planches) expect(vues.find((v) => v.nom === p.nom)?.cases, p.nom).toBe(p.cellules.length);
     expect(vues.map((v) => v.nom).sort()).toEqual(attendues.map((a) => a.nom).sort());
     for (const a of attendues) expect(vues.find((v) => v.nom === a.nom)?.cases, a.nom).toBe(a.cases);
   });
@@ -53,26 +90,13 @@ describe("planche de référence du texte à l'écran (C2-U15a)", () => {
       // Signature PNG : une vraie image, pas un fichier vide.
       expect(readFileSync(f).subarray(0, 4).toString("hex"), a.nom).toBe("89504e47");
     }
+    const presentes = readdirSync(DOSSIER).filter((f) => f.endsWith(".png")).sort();
+    expect(presentes).toEqual(attendues.map((a) => `${a.nom}.png`).sort());
   });
 
   it("le rapport garde la mention du temps de rendu, et aucune planche vide ni refus n'y est consigné", () => {
     expect(RAPPORT.some((l) => /^Temps de rendu total : \d+(\.\d+)? s$/.test(l))).toBe(true);
     expect(RAPPORT.filter((l) => /aucun mot trouvé|aucune case|aucune étiquette|refusé|non produite/.test(l))).toEqual([]);
-  });
-
-  it("les lignes « sortie » du rapport collent au calcul pur de la sortie U19 (opacité et glissement à mi-sortie, par format)", () => {
-    const sorties = RAPPORT.filter((l) => l.startsWith("sortie "));
-    expect(sorties).toHaveLength(4);
-    const mi = sortieDuGroupe(SORTIE_PAR_DEFAUT, 10, 10 + SORTIE_PAR_DEFAUT.dureeSec / 2);
-    expect(mi).not.toBeNull();
-    for (const l of sorties) {
-      const m = /^sortie (9:16|16:9)\/(clair|sombre) : mi-sortie opacité ([\d.]+), glissement ([\d.]+) px$/.exec(l);
-      expect(m, l).not.toBeNull();
-      expect(Number(m![3])).toBeCloseTo(mi!.opacite, 2);
-      // Le glissement est en px de l'image : largeur de l'image / 1080 (1 en 9:16, 1920/1080 en 16:9).
-      const echelle = m![1] === "9:16" ? 1 : 1920 / 1080;
-      expect(Number(m![4])).toBeCloseTo(mi!.decalageYPx * echelle, 0);
-    }
   });
 
   it("l'interrupteur de la sortie reste éteint", () => {
