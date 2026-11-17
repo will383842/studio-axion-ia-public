@@ -1035,6 +1035,21 @@ const retirerEssaiEnvoi = (cle: string) =>
  *  (webhooks dans le désordre, horloge décalée). Au moindre doute, y compris une date illisible : oui. Seul l'événement lui-même est écarté. */
 const ATTENTE_STOP_ANTERIEUR_MS = 60_000;
 const ATTENTE_ALERTE_OK_MS = 10 * 60_000;
+/** Rang total d'un message : date de réception (recuLe) d'abord, puis ev.id. Une date illisible est rangée en DERNIER (jamais en premier : ce serait affaiblir le garde-fou). */
+function estAvant(a: { id: string; recuLe: string }, b: { id: string; recuLe: string }): boolean {
+  const ta = Date.parse(a.recuLe);
+  const tb = Date.parse(b.recuLe);
+  const ra = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY;
+  const rb = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY;
+  if (ra !== rb) return ra < rb;
+  return a.id < b.id;
+}
+/** Un AUTRE message non traité de la même personne bloque le OK courant TOUJOURS (il peut être un « stop » illisible, quelle que soit sa date), SAUF s'il porte la marque
+ *  `candidatOk === true` (lu, ni stop, ni doute, ni refus, arrivé jusqu'à `repondreOkInstagram`) ET qu'il est POSTÉRIEUR au courant : deux candidats se départagent, le plus ancien part d'abord. */
+export function autreMessageBloque(courant: Pick<EvenementFournisseur, "id" | "recuLe">, autre: Pick<EvenementFournisseur, "id" | "recuLe" | "charge">): boolean {
+  if (autre.charge.candidatOk !== true) return true;
+  return !estAvant(courant, autre);
+}
 async function messageNonTraiteDeLaPersonne(ev: EvenementFournisseur, idCompte: string, idConversation: string, idExpediteur: string, idMessage: string): Promise<boolean> {
   const autres = await depots().evenementsFournisseurs.lister((x) => x.fournisseur === FOURNISSEUR && x.type === TYPE_MESSAGE && !x.traite && x.id !== ev.id);
   return autres.some((x) => {
@@ -1043,7 +1058,8 @@ async function messageNonTraiteDeLaPersonne(ev: EvenementFournisseur, idCompte: 
     if (typeof c.idCompte === "string" && c.idCompte !== idCompte) return false;
     const conv = typeof c.idConversation === "string" && c.idConversation ? c.idConversation : null;
     const exp = typeof c.idExpediteur === "string" && c.idExpediteur ? c.idExpediteur : null;
-    return !((conv !== null || exp !== null) && conv !== idConversation && exp !== idExpediteur);
+    if ((conv !== null || exp !== null) && conv !== idConversation && exp !== idExpediteur) return false;
+    return autreMessageBloque(ev, x);
   });
 }
 /** Message clos « ignore » SANS avoir été lu alors qu'un parcours Instagram attend le OK (réglage allumé) : doute sur le dossier, plus rien ne part à la personne. Aucune donnée supprimée. */
@@ -1670,7 +1686,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   if (await messageNonTraiteDeLaPersonne(ev, idCompte, idConversation, idExpediteur, idMessage)) {
     const recuLe = Date.parse(ev.recuLe);
     if (!Number.isFinite(recuLe) || now - recuLe > ATTENTE_ALERTE_OK_MS) await alerter("ig_message_en_attente", "Instagram : un OK attend depuis plus de 10 minutes qu'un autre message de la personne soit lu ; rien ne part tant que ce message n'est pas traité.", now);
-    await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu");
+    await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu", { candidatOk: true });
     return "traite";
   }
   // (c) UNE lecture du suivi pour tout l'événement ; l'identifiant brut ne vit que dans cet appel. Méthode absente, exception ou forme inconnue : panne définitive.
@@ -1798,7 +1814,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     if (await messageNonTraiteDeLaPersonne(ev, idCompte, idConversation, idExpediteur, idMessage)) {
       await rendrePlaceEnvoi(idCompte, now);
       await restaurer(false);
-      await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu");
+      await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu", { candidatOk: true });
       return "traite";
     }
     const nonOpposee = await verifierPartout(env, choisi.cle, ev.charge, now, { doute: true }); // jeton JUSTE avant l'envoi
