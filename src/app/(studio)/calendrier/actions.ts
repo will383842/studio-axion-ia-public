@@ -12,9 +12,10 @@ import { transitionner } from "@/domaine/plan-editorial/statuts";
 import { cleJour } from "@/lib/dates";
 import { exigerSession } from "@/services/auth";
 import { chargerFiche, ecrireStockageFiche } from "@/services/calendrier-fiche";
-import { creerVerrou, depots, ErreurStudio, essayer, type Resultat } from "@/services/_commun";
+import { creerVerrou, depots, ErreurStudio, essayer, sousVerrou, type Resultat } from "@/services/_commun";
+import { niveauDiffuseurDuCreneau, refusModificationCreneau } from "@/services/garde-creneau-diffuseur";
 
-/** Une fiche à la fois : entre la relecture de l'entrée et l'écriture, rien d'autre ne passe par ici. */
+/** Une fiche à la fois : entre la relecture de l'entrée et l'écriture, rien d'autre ne passe par ici. Toujours pris AVANT `sousVerrou`, jamais l'inverse. */
 const unALaFois = creerVerrou();
 
 /** Lit la fiche d'une entrée (clé d'une carte : « creneau:<id>|<réseau> » ou « publication:<id>|<réseau> »). */
@@ -32,32 +33,43 @@ export async function enregistrerFicheEntreeAction(cle: string, saisie: SaisieFi
   await exigerSession();
   return essayer(() =>
     unALaFois(async () => {
-      const fiche = await chargerFiche(cle);
-      const verrou = verrouFiche(fiche.entree, cleJour(new Date()));
-      if (verrou) throw new ErreurStudio("FICHE_VERROUILLEE", PHRASES_VERROU[verrou]);
-      const verifiee = verifierSaisie(saisie, fiche.cle.reseau);
-      if (!verifiee.ok) throw new ErreurStudio("FICHE_FORMAT", verifiee.message);
+      // Le verrou global couvre la relecture, la garde et l'écriture ; le rafraîchissement de la page reste HORS du verrou.
+      const rendu = await sousVerrou(async () => {
+        const fiche = await chargerFiche(cle);
+        const verrou = verrouFiche(fiche.entree, cleJour(new Date()));
+        if (verrou) throw new ErreurStudio("FICHE_VERROUILLEE", PHRASES_VERROU[verrou]);
+        const verifiee = verifierSaisie(saisie, fiche.cle.reseau);
+        if (!verifiee.ok) throw new ErreurStudio("FICHE_FORMAT", verifiee.message);
 
-      const avant = { texte: fiche.entree.texte, premierCommentaire: fiche.entree.premierCommentaire ?? "" };
-      const apres = { texte: verifiee.saisie.texte, premierCommentaire: verifiee.saisie.premierCommentaire ?? avant.premierCommentaire };
-      const rendu = { cle: fiche.cle.cle, texte: apres.texte, premierCommentaire: apres.premierCommentaire || null };
-      if (apres.texte === avant.texte && apres.premierCommentaire === avant.premierCommentaire) return { ...rendu, modifie: false, aRevalider: false };
+        const avant = { texte: fiche.entree.texte, premierCommentaire: fiche.entree.premierCommentaire ?? "" };
+        const apres = { texte: verifiee.saisie.texte, premierCommentaire: verifiee.saisie.premierCommentaire ?? avant.premierCommentaire };
+        const rendu = { cle: fiche.cle.cle, texte: apres.texte, premierCommentaire: apres.premierCommentaire || null };
+        if (apres.texte === avant.texte && apres.premierCommentaire === avant.premierCommentaire) return { ...rendu, modifie: false, aRevalider: false };
 
-      let aRevalider = false;
-      if (fiche.source.origine === "publication") {
-        if (apres.texte !== avant.texte) await depots().publications.modifier(fiche.source.publication.id, { texte: apres.texte });
-        await ecrireStockageFiche(fiche.cle, { premierCommentaire: apres.premierCommentaire });
-      } else {
-        await ecrireStockageFiche(fiche.cle, apres);
-        if (fiche.source.creneau.statut === "valide") {
-          const retour = transitionner(fiche.source.creneau, "a_valider", "studio");
-          if (!retour.ok) throw new ErreurStudio("FICHE_VERROUILLEE", PHRASES_VERROU.etat);
-          await depots().creneauxEditoriaux.enregistrer(retour.creneau);
-          aRevalider = true;
+        // L5-02d : un créneau déjà confié au diffuseur ne change pas de texte en silence (le post partirait avec l'ancien). La garde est lue
+        // sous le même verrou que l'écriture, avant toute écriture.
+        if (fiche.source.origine !== "publication") {
+          const refusGarde = refusModificationCreneau(await niveauDiffuseurDuCreneau(fiche.source.creneau.id), "texte");
+          if (refusGarde) throw new ErreurStudio("FICHE_VERROUILLEE", refusGarde);
         }
-      }
-      revalidatePath("/calendrier");
-      return { ...rendu, modifie: true, aRevalider };
+
+        let aRevalider = false;
+        if (fiche.source.origine === "publication") {
+          if (apres.texte !== avant.texte) await depots().publications.modifier(fiche.source.publication.id, { texte: apres.texte });
+          await ecrireStockageFiche(fiche.cle, { premierCommentaire: apres.premierCommentaire });
+        } else {
+          await ecrireStockageFiche(fiche.cle, apres);
+          if (fiche.source.creneau.statut === "valide") {
+            const retour = transitionner(fiche.source.creneau, "a_valider", "studio");
+            if (!retour.ok) throw new ErreurStudio("FICHE_VERROUILLEE", PHRASES_VERROU.etat);
+            await depots().creneauxEditoriaux.enregistrer(retour.creneau);
+            aRevalider = true;
+          }
+        }
+        return { ...rendu, modifie: true, aRevalider };
+      });
+      if (rendu.modifie) revalidatePath("/calendrier");
+      return rendu;
     }),
   );
 }
