@@ -8,6 +8,7 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
 import { suiteDeFins } from "@/briques/fins";
 import type { ReseauCas } from "@/formats/cas-concret";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
+import { fournisseurVoixSimulation } from "@/fournisseurs/simulation/autres";
 import { estimerDepuisCas } from "@/moteurs/montage-cas-concret";
 import { ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
@@ -83,6 +84,8 @@ describe("FIX-CC-FIN-NON-CHOISIE · c) la fabrication d'une fin vide : le corps 
     expect(cr.ecrans.rendus.join(" ")).not.toMatch(/\bf0\d/);
     const dernier = cr.fiche.ecrans[cr.fiche.ecrans.length - 1];
     expect(dernier.type).toBe("question");
+    // Aucun contrôle bloquant : la voix finit à 2,0 s au moins de la fin du fichier (le « ? » seul n'est pas un mot).
+    expect(cr.rapport.lignes.filter((l) => l.bloquant && l.etat === "echoue")).toEqual([]);
     // Un seul assemblage : celui du corps seul (même traitement final de la recette, sans phrase de fin).
     expect(d.assemblages).toHaveLength(1);
     const morceaux = (d.assemblages[0].recette?.parametres.morceaux ?? []) as { source?: number }[];
@@ -116,6 +119,33 @@ describe("FIX-CC-FIN-NON-CHOISIE · c) la fabrication d'une fin vide : le corps 
     expect(fb.ecrans.length).toBeGreaterThan(0);
     expect(tt.ecrans).toEqual([]);
   });
+
+  it("heures de mots estimées (voix sans heures) + fin vide : le son du corps entier, le corps calé, la réserve dite", async () => {
+    const d = doubles({ casId: "contact-vers-crm", reseaux: ["facebook"], avecMot: false });
+    d.options.outils.voix.voix = () => ({
+      ...fournisseurVoixSimulation,
+      async lire(demande) {
+        return { ...(await fournisseurVoixSimulation.lire(demande)), mots: [] };
+      },
+    });
+    const cr = await fabriquerCasConcret(d.options);
+    expect(cr.reservesVoix).toContain("Voix sans heures des mots : sous-titres approximatifs, son gardé entier.");
+    // Une seule lecture payée (le corps), un seul assemblage : un seul morceau, le son du corps entier, jamais une fin.
+    expect(cr.prises).toHaveLength(1);
+    const finals = d.assemblages.filter((a) => a.recette);
+    expect(finals).toHaveLength(1);
+    expect(finals[0].morceaux).toHaveLength(1);
+    expect(finals[0].morceaux[0].deSec).toBe(0);
+    expect(finals[0].morceaux[0].aSec).toBeGreaterThan(0);
+    // Les écrans du corps sont calés, dans l'ordre, sans trou ni recouvrement, et aucun écran de fin.
+    const e = cr.fiche.ecrans;
+    expect(cr.plan.fins[0].ecrans).toEqual([]);
+    for (let i = 0; i < e.length; i++) {
+      expect(e[i].finMs).toBeGreaterThan(e[i].debutMs);
+      if (i > 0) expect(e[i].debutMs).toBeGreaterThanOrEqual(e[i - 1].finMs - 1);
+    }
+    expect(cr.rapport.lignes.filter((l) => l.bloquant && l.etat === "echoue")).toEqual([]);
+  });
 });
 
 describe("FIX-CC-FIN-NON-CHOISIE · d) l'estimation ne compte plus la voix d'une fin", () => {
@@ -128,6 +158,14 @@ describe("FIX-CC-FIN-NON-CHOISIE · d) l'estimation ne compte plus la voix d'une
     // Avant (master du 17/11, 4 réseaux) : 2 790 caractères lus, 81 centimes ; une fin de plus par groupe de réseaux.
     expect(quatre[0].quantite).toBeLessThan(2790);
     expect(quatre[0].total.centimes).toBeLessThan(81);
+  });
+
+  it("avecMot: false, UN réseau : le prix annoncé ne monte pas (master du 17/11 : voix 2 452 caractères, 69 c ; total 1,84 €)", () => {
+    const e = estimerDepuisCas(CAS, ["facebook"], false, { voix: { fournisseur: "heygen" } });
+    const voix = e.lignes.filter((l) => /voix/i.test(l.etape));
+    expect(voix[0].quantite).toBeLessThanOrEqual(2452);
+    expect(voix[0].total.centimes).toBeLessThanOrEqual(69);
+    expect(e.total.centimes).toBeLessThanOrEqual(184);
   });
 });
 

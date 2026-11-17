@@ -1292,7 +1292,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const mesuresParFin: Record<string, MesuresFin> = Object.fromEntries(
     montage.map((m) => {
       const son = voix.fins.find((x) => x.id === m.id)!;
-      const fin = son.mots.at(-1)?.finSec;
+      // 17/11 : le dernier MOT dit (une ponctuation seule en fin de voix n'est pas un mot : le calage l'ignore, `motsLus`).
+      const fin = [...son.mots].reverse().find((x) => /[\p{L}\p{N}]/u.test(x.mot))?.finSec ?? son.mots.at(-1)?.finSec;
       return [m.id, { ...m.mesures, ...(fin !== undefined ? { voixFinSec: fin } : {}) }];
     }),
   );
