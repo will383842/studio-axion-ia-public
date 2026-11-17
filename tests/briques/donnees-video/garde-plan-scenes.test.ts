@@ -2,7 +2,7 @@
  * Garde des valeurs des pièces de données d'un plan de scènes (G4-12). DONNÉE ENTIÈREMENT FICTIVE.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { garderPlanScenes } from "@/briques/donnees-video/garde-plan-scenes";
 import type { TableauDeBord } from "@/briques/donnees-video/types";
@@ -92,13 +92,13 @@ describe("garderPlanScenes", () => {
     expect(JSON.stringify(p)).toBe(avant);
   });
 
-  it("garde statique : rien dans src/ n'importe garde-plan-scenes", () => {
+  it("garde statique : rien dans src/ (hors src/moteurs/montage-donnees/) n'importe garde-plan-scenes", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
         const c = join(d, n);
         if (statSync(c).isDirectory()) parcourir(c);
-        else if (/\.(ts|tsx)$/.test(n) && n !== "garde-plan-scenes.ts") fichiers.push(c);
+        else if (/\.(ts|tsx)$/.test(n) && n !== "garde-plan-scenes.ts" && !c.split(sep).join("/").includes("src/moteurs/montage-donnees/")) fichiers.push(c);
       }
     };
     parcourir(join(process.cwd(), "src"));

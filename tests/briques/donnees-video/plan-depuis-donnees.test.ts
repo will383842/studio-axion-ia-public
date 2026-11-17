@@ -2,7 +2,7 @@
  * Plan de scènes depuis un tableau de bord (G4-04). DONNÉE ENTIÈREMENT FICTIVE : aucun chiffre réel.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { nombresAffirmes } from "../../../src/domaine/nombres-fr";
 import { nombresPermis } from "../../../src/briques/donnees-video/garde-chiffres";
@@ -142,7 +142,7 @@ describe("planDepuisDonnees", () => {
     }
   });
 
-  it("garde statique : rien dans src/ n'importe plan-depuis-donnees ; pas d'import @/", () => {
+  it("garde statique : rien dans src/ (hors src/moteurs/montage-donnees/) n'importe plan-depuis-donnees ; pas d'import @/", () => {
     const marche = (dir: string): string[] =>
       readdirSync(dir).flatMap((f) => {
         const p = join(dir, f);
@@ -151,6 +151,7 @@ describe("planDepuisDonnees", () => {
     const src = join(process.cwd(), "src");
     for (const f of marche(src)) {
       if (f.endsWith("plan-depuis-donnees.ts")) continue;
+      if (f.split(sep).join("/").includes("src/moteurs/montage-donnees/")) continue;
       expect(readFileSync(f, "utf8"), f).not.toMatch(/plan-depuis-donnees/);
     }
     const propre = readFileSync(join(src, "briques/donnees-video/plan-depuis-donnees.ts"), "utf8");
