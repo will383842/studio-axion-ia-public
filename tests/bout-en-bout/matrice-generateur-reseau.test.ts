@@ -57,16 +57,19 @@ async function jouerCase(formatId: string, reseauId: IdReseau): Promise<Constat[
   if (!brut.trim() || !ecrit.texte.trim()) noter("texte-du-script", "script ou texte vide");
   else if (!ecrit.texte.includes(premierePhrase.slice(0, 40))) noter("texte-du-script", "le texte du réseau ne reprend pas le début du script");
 
-  // 2. Hashtags : présents, dans la limite du réseau, jamais fourre-tout.
+  // Règle d'envoi du kit : `placerHashtags` (bornes sourcées du réseau, fourre-tout écartés, placement texte ou premier commentaire).
+  const commentaire = composerPremierCommentaire({ reseau: reseauId });
+  const transmissible = premierCommentaireTransmissibleZernio(reseauId);
   const mots = ecrit.motsDiese;
+  const place = placerHashtags({ reseau: reseauId as ReseauPlacement, outil: "zernio", placement: PLACEMENT_PAR_DEFAUT[reseauId as ReseauPlacement], texte: ecrit.texte, motsDiese: mots, ...(transmissible ? { commentaire } : {}) });
+
+  // 2. Hashtags : présents, dans la limite du réseau, jamais fourre-tout.
   if (!mots.length) noter("hashtags", "aucun mot-dièse");
-  else if (mots.length > reseau.legende.motsDieseMax) noter("hashtags", `${mots.length} mots-dièse pour ${reseau.legende.motsDieseMax} au plus`);
   else if (mots.some((m) => !m.startsWith("#") || estInterdit(m))) noter("hashtags", "mot-dièse mal formé ou fourre-tout");
+  else if (place.message) noter("hashtags", place.message);
 
   // 3. Premier commentaire : il part là où le réseau l'accepte, se copie à la main ailleurs ; les deux règles du dépôt concordent.
-  const commentaire = composerPremierCommentaire({ reseau: reseauId });
   const face = modePremierCommentaire(reseauId);
-  const transmissible = premierCommentaireTransmissibleZernio(reseauId);
   if (evaluerPremierCommentaire({ texte: commentaire }, { reseau: reseauId }).length) noter("premier-commentaire", "texte refusé par l'évaluateur");
   else if (face.transmettre !== transmissible) noter("premier-commentaire", `la règle du commentaire (${face.transmettre}) et celle de Zernio (${transmissible}) divergent`);
 
@@ -84,8 +87,6 @@ async function jouerCase(formatId: string, reseauId: IdReseau): Promise<Constat[
 
   // 6. Corps Zernio construit sans erreur, premier commentaire à sa place.
   try {
-    // Même règle d'envoi que le kit : `placerHashtags` (fourre-tout écartés, hashtags dans le texte ou le premier commentaire).
-    const place = placerHashtags({ reseau: reseauId as ReseauPlacement, outil: "zernio", placement: PLACEMENT_PAR_DEFAUT[reseauId as ReseauPlacement], texte: ecrit.texte, motsDiese: mots, ...(transmissible ? { commentaire } : {}) });
     const demande: DemandeZernio = {
       reseau: reseauId,
       texte: place.texte,
@@ -102,7 +103,8 @@ async function jouerCase(formatId: string, reseauId: IdReseau): Promise<Constat[
     const specifique = corps.platforms[0].platformSpecificData as Record<string, unknown> | undefined;
     if (corps.platforms[0].platform !== reseauId) noter("corps-zernio", `plateforme ${corps.platforms[0].platform}`);
     else if (corps.content !== demande.texte || corps.mediaItems?.[0]?.type !== "video" || corps.isDraft !== true) noter("corps-zernio", "contenu, média ou brouillon inattendu");
-    else if (specifique?.firstComment !== (transmissible ? place.premierCommentaire : undefined)) noter("corps-zernio", "premier commentaire mal placé dans le corps");
+    else if (transmissible ? !place.premierCommentaire?.trim() || specifique?.firstComment !== place.premierCommentaire : specifique?.firstComment !== undefined) noter("corps-zernio", "premier commentaire mal placé dans le corps");
+    else if (mots.some((m) => !corps.content.includes(m) && !String(specifique?.firstComment ?? "").includes(m))) noter("corps-zernio", "un mot-dièse n'arrive ni dans le texte ni dans le premier commentaire");
   } catch (e) {
     noter("corps-zernio", e instanceof Error ? e.message : String(e));
   }
