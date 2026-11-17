@@ -24,7 +24,9 @@ const { createElement } = AVEC_RENDU ? ((await import("../../studio-rendu/node_m
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
 const { renderToStaticMarkup } = AVEC_RENDU ? ((await import("../../studio-rendu/node_modules/react-dom/server.js")) as typeof import("react-dom/server")) : ({} as typeof import("react-dom/server"));
 // Chemin calculé : tsc (projet racine, qui exclut studio-rendu) ne suit pas ce import.
-const TEXTE = AVEC_RENDU ? await import(/* @vite-ignore */ "../../studio-rendu/compositions/commune/TexteCompose") : null;
+type Module = { TexteCompose: never };
+const chemin = ["..", "..", "studio-rendu", "compositions", "commune", "TexteCompose"].join("/");
+const TEXTE = AVEC_RENDU ? ((await import(/* @vite-ignore */ chemin)) as Module) : null;
 
 interface Planche {
   dureeSec: number;
@@ -72,7 +74,7 @@ describe.skipIf(!AVEC_RENDU)("filet C5-5.09a : calque texte face caméra, état 
   });
 
   it("balisage statique à 6 instants", () => {
-    const balisages = instants.map((t) => ({ t, html: renderToStaticMarkup(createElement((TEXTE as { TexteCompose: never }).TexteCompose, { ...p, instants: [t] } as never)) }));
+    const balisages = instants.map((t) => ({ t, html: renderToStaticMarkup(createElement(TEXTE!.TexteCompose, { ...p, instants: [t] } as never)) }));
     expect(new Set(balisages.map((b) => b.html)).size).toBeGreaterThan(1);
     expect(balisages).toMatchSnapshot();
   });
