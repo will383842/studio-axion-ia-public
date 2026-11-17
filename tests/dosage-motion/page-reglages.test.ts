@@ -26,7 +26,7 @@ describe("Réglages : carte « Animations par défaut »", () => {
   it("lireDefautsDosage n'est appelé que si le dosage est actif (une seule lecture de réglage sinon)", () => {
     const appels = PAGE.match(/lireDefautsDosage\(/g) ?? [];
     expect(appels).toHaveLength(1);
-    expect(PAGE).toMatch(/\(await dosageActif\([^)]*\)[^;]*\)\s*\?\s*await lireDefautsDosage\(\)\s*:\s*null/s);
+    expect(PAGE).toMatch(/\(await dosageActif\([^;]*\)\)\s*\?\s*await lireDefautsDosage\(\)\s*:\s*null/);
   });
 
   it("le titre et le résumé de la carte ne contiennent aucun mot interdit", () => {
