@@ -83,7 +83,7 @@ import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsC
 import { textesDePublication, type TextePublication } from "./publication";
 import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
-import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
+import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
 import { avancerVoixCasConcret, empreintePriseVoix, planSonEntier, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
@@ -209,6 +209,8 @@ export interface OptionsFabricationCasConcret {
   styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null;
   /** GV-ST-02 : base des sous-titres de la commande (`commande.sousTitres?.base`), lue seulement si un style est choisi. */
   baseSousTitres?: BaseSousTitres;
+  /** C2-U5bis : capacité `texte.style-varie` permise par la bibliothèque de la commande ; absente : comportement actuel. Seul `true` allume. */
+  styleVarie?: boolean;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -1150,7 +1152,9 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
   const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
   // Variante par vidéo : coupée pour un tirage NEUF ; le tirage déjà enregistré (fiche, version existante, journal d'avant) est respecté.
-  const variante = VARIANTE_PAR_VIDEO || !(journal.tirageNeuf || mise?.sousTitresSansVariante);
+  const variante = VARIANTE_PAR_VIDEO || o.styleVarie === true || !(journal.tirageNeuf || mise?.sousTitresSansVariante);
+  // C2-U5bis : chemin neuf (capacité permise, constante éteinte) : le surlignage est un marqueur de la charte.
+  const marqueurNeuf = o.styleVarie === true && !VARIANTE_PAR_VIDEO ? MARQUEUR_STYLE_VARIE : undefined;
   // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
   const positionDuStyle = (v: ValeurStyleSousTitres): number => {
     if (v.positionPct !== undefined) return v.positionPct;
@@ -1161,12 +1165,12 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres, variante);
   const style = choisi
     ? { id: choisi.id, nom: choisi.nom, valeur: { ...choisi.valeur, positionPct: centre, largeurMaxPct: choisi.valeur.largeurMaxPct ?? LARGEUR_SOUS_TITRES_PCT } }
-    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres, variante) } };
+    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres, variante, marqueurNeuf) } };
   const baseSousTitres = choisi ? baseRetenue(o.baseSousTitres, choisi.valeur) : "minimal";
   // Le style choisi (identifiant, valeur, base) entre dans l'empreinte du montage ; sans choix rien n'est ajouté (empreinte v4 inchangée).
   const variationDuMontage = choisi
     ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
-    : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante)].filter((x) => Object.keys(x).length);
+    : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante, marqueurNeuf)].filter((x) => Object.keys(x).length);
   // GV2-30 : le bandeau est dessiné à 65 % de la hauteur, hors de la ligne des sous-titres (85 %) : il n'est plus jamais posé,
   // avec ou sans style choisi. Les autres accents de la variation du tirage restent.
   const variationTirage = choisi ? undefined : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante).variation;

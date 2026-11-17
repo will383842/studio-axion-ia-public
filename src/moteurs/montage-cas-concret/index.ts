@@ -57,6 +57,8 @@ import { ETAPES_CAS_CONCRET, type ContexteFabricationCasConcret, type EtapeCasCo
 import { apercuRetoucheCasConcret, estOperationRetoucheCasConcret, lireOperationRetoucheCasConcret, texteDeFin, type ApercuRetoucheCasConcret, type ContexteRetoucheCasConcret, type ReglagesFins } from "./retouches";
 import { reglagesRecette } from "./recette-voix";
 import { empreintePriseVoix, type EtatVoixCasConcret } from "./voix";
+import { porteCapacite } from "@/briques/bibliotheque-video/moteur";
+import { ID } from "@/briques/bibliotheque-video/noms";
 import { STRUCTURES } from "./variete";
 import { CODE_SCRIPT_A_VALIDER, idSegmentEcran, PHRASE_SCRIPT_A_VALIDER, problemesScriptValide, scriptValideDuCatalogue, type ScriptValide } from "./script-valide";
 
@@ -695,6 +697,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       outils: o,
       ...(retouche ? { lireFiche: async () => structuredClone(retouche.fiche) } : entrees.ficheCle && lireFiche ? { lireFiche: () => lireFiche(entrees.ficheCle!) } : {}),
       ...(scriptValide ? { scriptValide } : {}),
+      ...((p) => (p.bibliotheque && p.permis ? { styleVarie: true as const } : {}))(porteCapacite(commande.entrees, ID.texteStyleVarie)),
       ...(retouche?.texteFige ? { texteFige: true as const } : {}),
       ...(ecarte ? { structureEcartee: ecarte.structure ?? STRUCTURES[0] } : {}),
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
