@@ -13,7 +13,6 @@ const pm = await import("@/services/parcours-mot");
 const Com = await import("@/services/_commun");
 const MS = await import("@/services/mots-service");
 
-const PARAM_VALIDATION = "parcours.validation.formulations"; // une formulation = un geste (écran /mots)
 const V3 = "mp-adresse-refusee-v3-1";
 const F1 = "mp-adresse-refusee-v4-1";
 const F2 = "mp-adresse-refusee-v4-2";
@@ -22,9 +21,9 @@ const A = "auteur-fictif-400";
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
 const passer = (ms = T0, env: Record<string, string | undefined> = ENV) => C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env, maintenantMs: ms });
-const etatDe = async () => (await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
+const etatDe = async () => (await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
 const refuse = () => ({ statut: 422, corps: { erreur: "invalide" } });
-const cloches = async () => (await depots().notifications.lister((n: any) => /n.est validée dans Mots/.test(n.message))).length;
+const cloches = async () => (await depots().notifications.lister((n: { message: string }) => /n.est validée dans Mots/.test(n.message))).length;
 
 async function ecrireAdresse(idMessage: string, ms = T0 + 1000): Promise<void> {
   port.reponses.texte = () => `Mon adresse ${ADRESSE_FICTIVE}`;
