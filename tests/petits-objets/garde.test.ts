@@ -27,8 +27,8 @@ export function violations(texte: string): string[] {
 
 describe("C9-01 garde du dossier petits-objets", () => {
   const fichiers = readdirSync(DOSSIER).filter((f) => f.endsWith(".ts"));
-  it("le dossier contient les 8 fichiers (socle + progres.ts de C9-02 + barre-temps.ts de X1-16)", () => {
-    expect(fichiers.sort()).toEqual(["barre-temps.ts", "contrat.ts", "graine.ts", "index.ts", "progres.ts", "tons.ts", "tremblement.ts", "zones.ts"]);
+  it("le dossier contient les 9 fichiers (socle + progres.ts de C9-02 + barre-temps.ts de X1-16 + icones-objets.ts de C9-28)", () => {
+    expect(fichiers.sort()).toEqual(["barre-temps.ts", "contrat.ts", "graine.ts", "icones-objets.ts", "index.ts", "progres.ts", "tons.ts", "tremblement.ts", "zones.ts"]);
   });
   for (const f of fichiers) {
     it(`${f} : aucun import ni appel interdit`, () => {
