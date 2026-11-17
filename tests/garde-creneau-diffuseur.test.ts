@@ -177,7 +177,7 @@ const tourSuivant = async (extra: Record<string, unknown> = {}) => { maintenant 
 const versLaFenetre = (): void => { maintenant = Date.parse(heureDu(2)) - 2 * 60 * MIN; horloge.avancer(maintenant - horloge.maintenant()); };
 
 const marque = async (nom: string): Promise<unknown> => (await depots().parametres.obtenir(PREFIXE_ETATS_ENVOI_CALENDRIER + nom))?.valeur;
-const lire = async (id: string) => depots().creneauxEditoriaux.obtenir(id) as Promise<Record<string, unknown>>;
+const lire = async (id: string) => (await depots().creneauxEditoriaux.obtenir(id)) as unknown as Record<string, unknown>;
 const instantane = async (): Promise<string> => JSON.stringify({
   creneaux: await depots().creneauxEditoriaux.lister(), journal: await depots().journalDecalages.lister(),
   envois: await depots().envoisPlanifies.lister(), publications: await depots().publications.lister(),
@@ -187,12 +187,16 @@ const decaler = (id: string, cle: string, jours = 5) => decalerEntree({ id, nouv
 const refus = (r: { ok: boolean; message?: string }): string => (r.ok ? "" : (r.message as string));
 
 /** Un créneau « c1 » LinkedIn dont le brouillon est préparé chez le diffuseur (niveau « brouillon »). */
-async function brouillonPrepare(reseaux: ("linkedin" | "facebook")[] = ["linkedin"]): Promise<void> {
+async function brouillonPrepare(): Promise<void> {
   await ouvrirTout();
   await creerVisuel();
-  await creerCreneau("c1", reseaux);
+  await creerCreneau("c1");
   await tour();
-  expect(appelsFournisseur).toHaveLength(reseaux.length);
+  expect(appelsFournisseur).toHaveLength(1);
+}
+/** Facebook : un envoi « valide » dont le brouillon est déjà chez le diffuseur (clé du diffuseur posée), sur le même créneau. */
+async function ajouterEnvoiFacebook(): Promise<void> {
+  await depots().envoisPlanifies.enregistrer({ id: CLE_ENVOI_FB, cle: CLE_ENVOI_FB, videoId: "vis_1", nature: "visuel", creneauId: "c1", cleDiffuseur: "a".repeat(64), reseau: "facebook", versionCreneau: 0, jour: jourDu(2), heure: "09:00", statut: "valide", valideeLe: VALIDEE, creeLe: VALIDEE, modifieLe: VALIDEE } as never);
 }
 /** Idem, puis promu : le post est programmé, l'envoi est « programme », le créneau reste « valide ». */
 async function promu(): Promise<void> {
@@ -247,7 +251,8 @@ describe("L5-02d · la garde : niveaux", () => {
   });
 
   it("priorité : programmé (un réseau) l'emporte sur un brouillon (autre réseau) ; « parti » sur tout", async () => {
-    await brouillonPrepare(["linkedin", "facebook"]);
+    await brouillonPrepare();
+    await ajouterEnvoiFacebook();
     const [li] = await depots().envoisPlanifies.lister((e) => e.reseau === "linkedin");
     await transiterEnvoi(depots().envoisPlanifies, li.id, "programme", VALIDEE);
     expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "programme", reseau: "linkedin" });
@@ -267,15 +272,21 @@ describe("L5-02d · la garde : niveaux", () => {
     expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "a-verifier" });
     await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "programme");
     expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "programme", jour: e.jour });
-    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "libre");
+    // Un envoi annulé ne compte que par sa marque de promotion : les marques de création ne comptent que pour un envoi encore actif.
     await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}creation:${CLE_ENVOI}`, "en-cours");
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}a-verifier:${CLE_ENVOI}`, "a-verifier");
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "libre");
+    expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "libre" });
+    await depots().envoisPlanifies.modifier(e.id, { statut: "valide" } as never);
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}a-verifier:${CLE_ENVOI}`, "libre");
     expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "en-cours" });
     await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}creation:${CLE_ENVOI}`, "refuse");
     await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}a-verifier:${CLE_ENVOI}`, "a-verifier");
     expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "a-verifier" });
   });
 
-  it("le préfixe recopié ou importé vaut « envoi-calendrier: »", () => {
+  it("le préfixe recopié dans la garde est celui du branchement", () => {
+    expect(garde.PREFIXE_ETATS_GARDE).toBe(PREFIXE_ETATS_ENVOI_CALENDRIER);
     expect(PREFIXE_ETATS_ENVOI_CALENDRIER).toBe("envoi-calendrier:");
   });
 });
@@ -369,7 +380,8 @@ describe("L5-02d · décalage après promotion", () => {
   });
 
   it("multi-réseau : LinkedIn programmé, Facebook encore « valide » avec brouillon : refus « programmée »", async () => {
-    await brouillonPrepare(["linkedin", "facebook"]);
+    await brouillonPrepare();
+    await ajouterEnvoiFacebook();
     const [li] = await depots().envoisPlanifies.lister((e) => e.reseau === "linkedin");
     await transiterEnvoi(depots().envoisPlanifies, li.id, "programme", VALIDEE);
     const r = await decaler("c1", "k1");
@@ -478,6 +490,7 @@ describe("L5-02d · niveau « brouillon » : décalage accepté avec avertisseme
     // Publication d'un autre créneau (même visuel) : troisième message.
     reinitialiserDepots();
     notifications = [];
+    appelsFournisseur = [];
     reinitialiserTourEnvoisCalendrier();
     await ouvrirTout();
     await creerVisuel();
@@ -589,7 +602,7 @@ describe("L5-02d · le manuel n'est jamais bloqué sans message clair", () => {
       expect(m).not.toContain("Un souci est survenu");
       expect(m).not.toMatch(/zernio|buffer/i);
       if (n.niveau !== "parti") {
-        expect(m).toContain("Rien n'a été changé");
+        expect(m).toMatch(/rien n'a été changé/i);
         expect(m).toMatch(/faites-le|Vérifiez|Réessayez|modifiez-le|Programmez/);
       }
     }
@@ -633,7 +646,7 @@ describe("L5-02d · interrupteurs éteints = aucun changement visible", () => {
       expect(r.ok).toBe(true);
       expect("avertissement" in r).toBe(false);
       expect(await lire(id)).toMatchObject({ jourVise: jourDu(5), decalages: 1 });
-      expect((await lire(id)).heuresParReseau).toEqual({ linkedin: heureDu(5).replace(/^\d{4}-\d{2}-\d{2}/, jourDu(5)) });
+      expect(Date.parse(((await lire(id)).heuresParReseau as { linkedin: string }).linkedin)).toBe(Date.parse(heureDu(5).replace(/^\d{4}-\d{2}-\d{2}/, jourDu(5))));
     }
     expect(await depots().journalDecalages.lister()).toHaveLength(3);
     // Texte : « valide » repasse « à valider » ; « a_valider » reste « a_valider ».

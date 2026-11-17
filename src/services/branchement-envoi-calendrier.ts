@@ -11,14 +11,18 @@
  *  4. les créneaux validés deviennent des lignes ; exclus (une notification, une fois) : les vidéos (`vid-…` comprises), les médias
  *     qui occupent déjà le compte sur ce réseau ; exclues sans bruit : les validations relayées par l'usine (V1) ;
  *  5. aucun nouveau réglage, aucune valeur par défaut changée, aucune migration, aucune réponse automatique, aucun quota.
+ *  6. L5-02d : une marque durable `promotion:<clé>` (`en-cours`, `programme`, `a-verifier`, `libre`) entoure chaque promotion ; elle est
+ *     posée sous le MÊME `sousVerrou` que la relecture du plan (jamais de notification sous ce verrou), et lue par la garde
+ *     `garde-creneau-diffuseur.ts` : un décalage ou une modification du texte ne passe plus entre la relecture et le PUT.
  */
 import "server-only";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
-import type { ReseauDeclinaison } from "@/domaine/types";
+import type { Publication, ReseauDeclinaison } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
+import { CODES_AVANT_RESEAU, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import type { FournisseurPublication } from "@/fournisseurs/types";
 import { cleJour } from "@/lib/dates";
@@ -113,13 +117,37 @@ async function notifierUneFois(etats: EtatsPromotion, notifier: (n: Notification
   await etats.noter(cleEtat, "notifie");
 }
 
-/** Le média occupe-t-il déjà ce compte sur ce réseau (toute date, tout outil) hors notre propre brouillon de cette version ? */
-async function occupeDejaLeCompte(c: CreneauEditorial, media: string, reseau: ReseauDeclinaison, version: number): Promise<boolean> {
+/** Les publications qui occupent déjà ce compte sur ce réseau (toute date, tout outil), hors notre propre brouillon de cette version. */
+async function occupantsDuCompte(c: CreneauEditorial, media: string, reseau: ReseauDeclinaison, version: number): Promise<Publication[]> {
   const siennes = (await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === version)).map((e) => e.cleDiffuseur).filter((k): k is string => typeof k === "string");
   const occupantes = await depots().publications.lister(
     (p) => (p.videoId === media || p.visuelId === media) && p.reseau === reseau && (!p.canalId || p.canalId === c.compteCible) && occupeBuffer(p),
   );
-  return occupantes.some((p) => !(typeof p.cleEnvoi === "string" && siennes.includes(p.cleEnvoi)));
+  return occupantes.filter((p) => !(typeof p.cleEnvoi === "string" && siennes.includes(p.cleEnvoi)));
+}
+
+const STATUTS_DEJA_PROGRAMMES: readonly string[] = ["programme", "confirme", "a-envoyer", "envoye"];
+const jjmm = (jour: string | undefined, heure: string | undefined): string | undefined => {
+  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(jour ?? "");
+  return m ? `${m[2]}/${m[1]}${heure ? ` à ${heure}` : ""}` : undefined;
+};
+
+/** Le texte de l'exclusion « occupe », selon la publication qui occupe le compte (L5-02d). Le motif et la clé d'état ne changent pas. */
+async function messageOccupe(c: CreneauEditorial, reseau: ReseauDeclinaison, occupants: Publication[], etats: EtatsPromotion): Promise<string> {
+  const anciennes = await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau < c.decalages);
+  const ancienne = anciennes.sort((a, b) => b.versionCreneau - a.versionCreneau).find((e) => typeof e.cleDiffuseur === "string" && occupants.some((p) => p.cleEnvoi === e.cleDiffuseur));
+  if (!ancienne) {
+    return "Ce visuel est déjà chez le diffuseur pour ce compte, en dehors de ce créneau : le calendrier ne l'envoie pas une seconde fois et ne le déplace pas. Vérifiez-le dans « À publier » ou dans l'outil de publication.";
+  }
+  const pub = occupants.find((p) => p.cleEnvoi === ancienne.cleDiffuseur);
+  const quand = jjmm(ancienne.jour, ancienne.heure)
+    ?? (pub && Number.isFinite(Date.parse(pub.date)) ? jjmm(cleJour(pub.date), heureAffichageParis(pub.date)) : undefined)
+    ?? "la date prévue";
+  const programmee = STATUTS_DEJA_PROGRAMMES.includes(ancienne.statut) || (await etats.lire(`promotion:${ancienne.cle}`)) === "programme";
+  if (programmee) {
+    return `Elle est déjà programmée chez le diffuseur pour le ${quand} (heure de Paris), l'ancienne date, et partira à cette heure-là. Le calendrier ne la déplace pas. Pour la déplacer ou l'annuler, faites-le dans l'outil de publication.`;
+  }
+  return `Le brouillon préparé chez le diffuseur pour le ${quand} ne sera pas programmé : cette publication ne partira pas seule à sa nouvelle date. Programmez-la vous-même dans l'outil de publication.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -161,9 +189,15 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
           continue;
         }
         if (!RESEAUX_VISUELS.includes(reseau)) continue;
+        // a'. Version courante annulée (dévalidée puis revalidée) : jamais de refus silencieux, une seule notification.
+        if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && e.statut === "annule")).length) {
+          await exclu("annule", "Cette publication a été modifiée après une première préparation : elle ne partira pas seule à cette date. Pour qu'elle parte seule, décalez-la ; sinon, programmez-la dans l'outil de publication.");
+          continue;
+        }
         // b. Média déjà chez le diffuseur pour ce compte : jamais de second brouillon, jamais de reprise silencieuse.
-        if (await occupeDejaLeCompte(c, media, reseau, c.decalages)) {
-          await exclu("occupe", "Ce visuel est déjà chez le diffuseur pour ce compte : le calendrier ne l'envoie pas une seconde fois. Vérifiez-le dans « À publier ».");
+        const occupants = await occupantsDuCompte(c, media, reseau, c.decalages);
+        if (occupants.length) {
+          await exclu("occupe", await messageOccupe(c, reseau, occupants, etats));
           continue;
         }
         const texte = c.textes?.[reseau];
@@ -219,7 +253,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       const v = (cible as never)[nom] as unknown;
       if (nom !== "lister" || typeof v !== "function") return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(cible) : v;
       return async (...a: unknown[]) => {
-        await annulerVersionsPerimees(maintenant());
+        await annulerVersionsPerimees(maintenant(), etats);
         return (v as (...x: unknown[]) => unknown).apply(cible, a);
       };
     },
@@ -231,12 +265,25 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       if (typeof v !== "function") return v;
       if (nom !== "promouvoir") return (v as (...a: unknown[]) => unknown).bind(cible);
       return async (d: Parameters<ClientZernio["promouvoir"]>[0]) => {
-        const perime = await envoiPerimeAvantPromotion(d.cleJournal, maintenant());
-        if (perime) {
-          await notifierUneFois(etats, notifier, `perime:${d.cleJournal}`, { cle: d.cleJournal, videoId: perime, motif: "a-reprogrammer", raison: "Ce créneau a changé (décalé, retiré ou plus validé) pendant l'envoi : il n'a pas été programmé. Vérifiez-le dans le calendrier." });
+        const pre = await envoiPerimeAvantPromotion(d.cleJournal, maintenant(), etats);
+        if (pre.perime) {
+          await notifierUneFois(etats, notifier, `perime:${d.cleJournal}`, { cle: d.cleJournal, videoId: pre.perime, motif: "a-reprogrammer", raison: "Ce créneau a changé (décalé, retiré ou plus validé) pendant l'envoi : il n'a pas été programmé. Vérifiez-le dans le calendrier." });
           return { etat: "refuse" as const, raison: "créneau changé pendant le tour : promotion abandonnée" };
         }
-        return cible.promouvoir(d);
+        if (pre.interrompue) {
+          return { etat: "a-verifier" as const, raison: "promotion interrompue : à vérifier chez le diffuseur, aucun nouvel essai automatique" };
+        }
+        // Hors verrou : l'appel au diffuseur (jusqu'à 30 s) ne bloque ni les décalages ni les autres gestes. La marque « en-cours » ferme la fenêtre.
+        let r: Awaited<ReturnType<ClientZernio["promouvoir"]>>;
+        try {
+          r = await cible.promouvoir(d);
+        } catch (err) {
+          if (pre.cle) await noterMarquePromotion(etats, pre.cle, estErreurZernio(err) && CODES_AVANT_RESEAU.includes(err.code) ? "libre" : "a-verifier");
+          throw err;
+        }
+        // « refuse » est rangé en « a-verifier » par prudence : le client rend aussi « refuse » pour un post déjà programmé.
+        if (pre.cle) await noterMarquePromotion(etats, pre.cle, r.etat === "programme" ? "programme" : r.etat === "a-reprogrammer" ? "libre" : "a-verifier");
+        return r;
       };
     },
   });
@@ -266,7 +313,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
 const estPerime = (e: EnvoiPlanifie, c: (CreneauEditorial & { aRenvoyer?: boolean }) | undefined): boolean =>
   !c || c.statut !== "valide" || !!c.retireLe || !!c.refuseLe || e.versionCreneau < c.decalages;
 
-async function annulerVersionsPerimees(maintenant: number): Promise<number> {
+async function annulerVersionsPerimees(maintenant: number, etats: EtatsPromotion): Promise<number> {
   return sousVerrou(async () => {
     const d = depots();
     const plan = new Map(((await d.creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[]).map((c) => [c.id, c]));
@@ -274,6 +321,8 @@ async function annulerVersionsPerimees(maintenant: number): Promise<number> {
     let n = 0;
     for (const e of envois) {
       if (!estPerime(e, e.creneauId ? plan.get(e.creneauId) : undefined)) continue;
+      // Jamais annulé pendant que son PUT est en vol (la marque est posée sous ce même verrou).
+      if ((await etats.lire(`promotion:${e.cle}`)) === "en-cours") continue;
       try {
         await annulerEnvoi(d.envoisPlanifies, e.id, new Date(maintenant).toISOString());
         n++;
@@ -285,23 +334,39 @@ async function annulerVersionsPerimees(maintenant: number): Promise<number> {
   });
 }
 
+type MarquePromotion = "en-cours" | "programme" | "a-verifier" | "libre";
+const noterMarquePromotion = (etats: EtatsPromotion, cle: string, valeur: MarquePromotion): Promise<void> =>
+  sousVerrou(() => etats.noter(`promotion:${cle}`, valeur));
+
 /**
- * Relecture du plan juste avant une promotion : si l'envoi (désigné par sa clé de journal) vient de devenir périmé, il est annulé
- * et l'identifiant du média est rendu (la promotion est alors abandonnée) ; sinon `undefined`.
+ * Relecture du plan juste avant une promotion, puis marque durable, sous le MÊME `sousVerrou` (aucune notification ici) :
+ *  - l'envoi (désigné par sa clé de journal) vient de devenir périmé : il est annulé, le média est rendu (`perime`), rien n'est appelé ;
+ *  - la marque `promotion:<clé>` vaut déjà `en-cours` (tentative interrompue) ou `a-verifier` : aucun appel, marque `a-verifier` (`interrompue`) ;
+ *  - sinon la marque passe à `en-cours` et la clé est rendue : l'appelant la fait passer à son issue après le PUT.
+ * Un décalage ou une modification du texte, lus sous le même verrou, voient donc soit la nouvelle version (la promotion est abandonnée),
+ * soit la marque (le geste est refusé) : jamais un post programmé ET un créneau décalé.
  */
-async function envoiPerimeAvantPromotion(cleJournal: string, maintenant: number): Promise<string | undefined> {
+async function envoiPerimeAvantPromotion(cleJournal: string, maintenant: number, etats: EtatsPromotion): Promise<{ perime?: string; interrompue?: true; cle?: string }> {
   return sousVerrou(async () => {
     const d = depots();
     const [e] = await d.envoisPlanifies.lister((x) => !!x.creneauId && (x.statut === "brouillon" || x.statut === "valide") && (x.cleDiffuseur ?? x.cle) === cleJournal);
-    if (!e) return undefined;
+    if (!e) return {};
     const plan = (await d.creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[];
-    if (!estPerime(e, plan.find((c) => c.id === e.creneauId))) return undefined;
-    try {
-      await annulerEnvoi(d.envoisPlanifies, e.id, new Date(maintenant).toISOString());
-    } catch {
-      // Même si l'annulation échoue, la promotion est abandonnée : rien ne part.
+    if (estPerime(e, plan.find((c) => c.id === e.creneauId))) {
+      try {
+        await annulerEnvoi(d.envoisPlanifies, e.id, new Date(maintenant).toISOString());
+      } catch {
+        // Même si l'annulation échoue, la promotion est abandonnée : rien ne part.
+      }
+      return { perime: e.videoId };
     }
-    return e.videoId;
+    const marque = await etats.lire(`promotion:${e.cle}`);
+    if (marque === "en-cours" || marque === "a-verifier") {
+      await etats.noter(`promotion:${e.cle}`, "a-verifier");
+      return { interrompue: true, cle: e.cle };
+    }
+    await etats.noter(`promotion:${e.cle}`, "en-cours");
+    return { cle: e.cle };
   });
 }
 
@@ -333,7 +398,7 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
       // Client du diffuseur absent (clé non posée) : rien n'est lu, rien n'est appelé.
       return { saute: "non-relie" };
     }
-    const annules = await annulerVersionsPerimees(maintenant);
+    const annules = await annulerVersionsPerimees(maintenant, deps.etats);
     const resultat = await tourEnvoisCalendrier(deps);
     return { annules, resultat };
   } finally {
