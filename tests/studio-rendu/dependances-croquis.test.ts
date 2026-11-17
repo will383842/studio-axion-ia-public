@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { reconnaitre } from "../../outils/licences/verifier-licence.mjs";
@@ -50,7 +51,6 @@ describe("dépendances du style croquis (X1-07)", () => {
   });
 
   it("éteint : aucun code du dépôt n'importe encore ces paquets", () => {
-    const { execSync } = require("node:child_process") as typeof import("node:child_process");
     const sortie = execSync(
       `grep -rEl "from ['\\"](roughjs|perfect-freehand)" src studio-rendu/compositions studio-rendu/src || true`,
       { cwd: RACINE, encoding: "utf8" },
