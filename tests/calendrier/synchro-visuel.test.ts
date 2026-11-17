@@ -376,3 +376,32 @@ describe("L5-06 · décision du pilote, règle 2 : valide → programme → publ
     expect(await statutVisuel()).toBe("valide");
   });
 });
+
+describe("L5-06 · décision du pilote, point 4 : rattrapage choisi par l'état du visuel, puis borné à 20", () => {
+  it("plus de 20 publications publiées plus récentes, dont les visuels sont à jour : le visuel resté « programmé » est quand même rattrapé", async () => {
+    await visuelSimple("programme", "vis_ancien");
+    await depots().publications.enregistrer({ id: "pub_ancienne", visuelId: "vis_ancien", reseau: "instagram", statut: "publiee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: "post-ancien", canalId: COMPTE, etatEnvoi: "envoye", creeLe: iso(T0 - 9000_000), modifieLe: iso(T0 - 9000_000) } as never);
+    for (let i = 1; i <= 25; i++) {
+      await visuelSimple("publie", `vis_a_jour_${i}`);
+      await depots().publications.enregistrer({ id: `pub_recente_${i}`, visuelId: `vis_a_jour_${i}`, reseau: "instagram", statut: "publiee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: `post-recent-${i}`, canalId: COMPTE, etatEnvoi: "envoye", creeLe: iso(T0 - 1000 * i), modifieLe: iso(T0 - 1000 * i) } as never);
+    }
+    const { client } = diffuseurParPost({});
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel("vis_ancien")).toBe("publie");
+  });
+
+  it("le rattrapage reste borné : 25 visuels à rattraper, 20 au plus par passage, les autres au passage suivant", async () => {
+    for (let i = 1; i <= 25; i++) {
+      await visuelSimple("programme", `vis_r${i}`);
+      await depots().publications.enregistrer({ id: `pub_r${i}`, visuelId: `vis_r${i}`, reseau: "instagram", statut: "publiee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: `post-r${i}`, canalId: COMPTE, etatEnvoi: "envoye", creeLe: iso(T0), modifieLe: iso(T0 - 1000 * i) } as never);
+    }
+    const { client } = diffuseurParPost({});
+    injecterClientZernio(client);
+    const publies = async () => (await depots().visuels.lister()).filter((v) => v.statut === "publie").length;
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await publies()).toBe(20);
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 1000 });
+    expect(await publies()).toBe(25);
+  });
+});
