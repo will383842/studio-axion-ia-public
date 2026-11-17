@@ -87,7 +87,7 @@ function suiteDuDit(dit: string, ecran: string): string {
  * Les écrans de fin (« f01 »…) d'une suite de lignes. Fin au mot : l'appel au mot, puis la promesse d'envoi. Fin
  * « diagnostic » : l'écran du diagnostic (titre et ligne tirés de la phrase), puis l'écran du lien (sa bulle, la signature).
  */
-function ecransDeFin(appels: readonly FinChoisie[], mot: string): EcranFin[] {
+export function ecransDeFin(appels: readonly FinChoisie[], mot: string): EcranFin[] {
   const ecrans: EcranFin[] = [];
   const commun = (a: readonly FinChoisie[]) => ({ marque: MARQUE_FIN, texteDit: a.map((l) => l.dit).join(" "), avanceMs: 0, evenements: [], fins: a.map((l) => l.id) });
   const id = () => idEcranFinAttendu(ecrans.length);

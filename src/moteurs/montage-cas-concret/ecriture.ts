@@ -590,9 +590,12 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
       ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage, nbScene, court)),
     ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
   const vise = corpsVise(fins);
+  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans fin à lire (fin vide), le corps ne grandit pas de la marge : le prix de
+  // la voix ne change que de la fin retirée.
+  const margeVisee = fins.plusCourteMs <= TENUE_FINALE_MS ? 0 : MARGE_VISEE_MS;
   const tientVise = (f: FicheEcrans) => corpsMs(f) >= vise.minMs && corpsMs(f) <= vise.maxMs;
   // De préférence avec une marge au-dessus du minimum : la voix réelle lit souvent plus vite que le débit de la recette.
-  const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + MARGE_VISEE_MS && corpsMs(f) <= vise.maxMs;
+  const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + margeVisee && corpsMs(f) <= vise.maxMs;
   const tientRefus = (f: FicheEcrans) => corpsMs(f) + fins.plusCourteMs >= DUREE_TOTALE_REFUS_MS.min && corpsMs(f) + fins.plusLongueMs <= DUREE_TOTALE_REFUS_MS.max;
   // Un cas qui a un récit (corps plus long, estimé au caractère près) : de préférence un corps qui garde de la place sous le haut de la visée.
   const tientSousLeHaut = (f: FicheEcrans) => tientAvecMarge(f) && corpsMs(f) <= vise.maxMs - MARGE_HAUTE_RECIT_MS;

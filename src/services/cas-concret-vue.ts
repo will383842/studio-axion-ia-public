@@ -141,7 +141,7 @@ function finsRejouees(entrees: ReturnType<typeof lireEntreesCasConcret>): Map<Re
   const cas = casDesEntrees(entrees);
   if (!cas || !entrees.reseaux.length) return parReseau;
   try {
-    const plan = planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? "", ...(entrees.motDit ? { motDit: entrees.motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC });
+    const plan = planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC });
     for (const fin of plan.fins) {
       const reduite = plan.reduites.find((r) => fin.reseaux.some((x) => r.reseaux.includes(x)));
       const raison = reduite ? (reduite.raison || RAISON_SUITE_REDUITE) : !entrees.avecMot ? RAISON_SANS_MOT : undefined;
