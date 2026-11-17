@@ -52,8 +52,8 @@ const allumer = () => ecrireParametre(suppression.REGLAGE_EFFACER_FICHE_EXTRAITS
 /** La boucle de fond n'a aucune session : plus de cookie. */
 const sansSession = () => etatRequete.cookies.clear();
 /** Plan ENTIER ; seul l'identifiant aléatoire de l'événement du journal est neutralisé (tout le reste est comparé tel quel). */
-const planDe = async (id = ID) => {
-  const plan = await suppression.planifierSuppression((await depots().videos.obtenir(id))!);
+const planDe = async (id = ID, options: { decideParWilliams?: unknown } = { decideParWilliams: true }) => {
+  const plan = await suppression.planifierSuppression((await depots().videos.obtenir(id))!, options as { decideParWilliams?: boolean });
   return JSON.parse(JSON.stringify(plan).replace(/ev-[0-9a-f]{12}/g, "ev-X")) as typeof plan;
 };
 
@@ -92,6 +92,8 @@ async function semer(avecFicheDeLaVideo = true) {
   await d.elements.enregistrer(fiche("v-05", ["v-05", ID], { derniereVideoId: ID, id: "fiche-double" }));
 }
 
+/** Le nettoyage automatique de la corbeille (30 jours), retrouvé par son nom d'export. */
+const nettoyageAuto = () => (Object.entries(corbeille).find(([nom]) => /^pur.*Corbeille$/.test(nom))![1] as () => Promise<{ supprimees: number }>)();
 const tout = async () => JSON.stringify(await depots().elements.lister());
 /** Les seules fiches d'extraits (hors « dernière vidéo », que master oublie déjà à la suppression, sans lien avec P-7). */
 const fichesSeules = async () =>
@@ -102,7 +104,7 @@ describe("suppression définitive : fiche d'extraits (P-7)", () => {
   it("la fiche de la vidéo est dans lot.supprimer, les autres fiches sont réécrites sans l'id", async () => {
     await semer();
     await allumer();
-    const plan = await suppression.planifierSuppression((await depots().videos.obtenir(ID))!);
+    const plan = await suppression.planifierSuppression((await depots().videos.obtenir(ID))!, { decideParWilliams: true });
     expect(plan.lot.supprimer).toContainEqual({ collection: "elements", id: `fiche-${ID}` });
     expect(plan.lot.supprimer.filter((x) => x.collection === "elements")).toHaveLength(1);
     const ecrits = plan.lot.enregistrer.filter((x) => x.collection === "elements");
@@ -126,7 +128,7 @@ describe("suppression définitive : fiche d'extraits (P-7)", () => {
   it("fiche avec derniereVideoId = id ET famille contenant l'id : une seule écriture, les deux retraits faits", async () => {
     await semer();
     await allumer();
-    const plan = await suppression.planifierSuppression((await depots().videos.obtenir(ID))!);
+    const plan = await suppression.planifierSuppression((await depots().videos.obtenir(ID))!, { decideParWilliams: true });
     const doubles = plan.lot.enregistrer.filter((x) => x.collection === "elements" && x.entite.id === "fiche-double");
     expect(doubles).toHaveLength(1);
     const e = doubles[0].entite as unknown as ElementBibliotheque;
@@ -168,12 +170,17 @@ describe("suppression définitive : fiche d'extraits (P-7)", () => {
     }
   });
 
-  it("réglage allumé mais SANS session (boucle de fond) : plan ENTIER identique à éteint", async () => {
+  it("réglage allumé mais décision de Williams absente ou non strictement `true` : plan ENTIER identique à éteint, session présente ou non", async () => {
     await semer();
     const eteint = await planDe();
     await allumer();
-    sansSession();
-    expect(await planDe()).toEqual(eteint);
+    for (const decide of [undefined, false, "true", 1, null]) {
+      expect(await planDe(ID, { decideParWilliams: decide })).toEqual(eteint);
+      sansSession();
+      expect(await planDe(ID, { decideParWilliams: decide })).toEqual(eteint);
+      await auth.seConnecter(MDP, false);
+    }
+    expect(await planDe(ID, {})).toEqual(eteint);
   });
 
   it("archive (suppression simple, non définitive) : aucune fiche d'extraits touchée", async () => {
@@ -208,6 +215,20 @@ describe("suppression définitive : fiche d'extraits (P-7)", () => {
     expect(await fichesSeules()).toBe(avant);
     vi.setSystemTime(t0 + 31 * JOUR);
     expect(await corbeille.purgerCorbeille()).toMatchObject({ supprimees: 1 });
+    expect(await depots().videos.obtenir(ID)).toBeNull();
+    expect(await fichesSeules()).toBe(avant);
+    expect(await depots().elements.obtenir(`fiche-${ID}`)).not.toBeNull();
+  });
+
+  it("nettoyage automatique de la corbeille appelé ALORS QU'une session existe, réglage allumé, vidéo échue : fiche intacte", async () => {
+    await semer();
+    await allumer();
+    const avant = await fichesSeules();
+    await corbeille.mettreALaCorbeille([ID]);
+    vi.setSystemTime(t0 + 31 * JOUR);
+    await auth.seConnecter(MDP, false);
+    expect(await auth.lireSession()).toBeTruthy();
+    expect(await nettoyageAuto()).toMatchObject({ supprimees: 1 });
     expect(await depots().videos.obtenir(ID)).toBeNull();
     expect(await fichesSeules()).toBe(avant);
     expect(await depots().elements.obtenir(`fiche-${ID}`)).not.toBeNull();
