@@ -151,7 +151,7 @@ describe("règles pures", () => {
     expect(canalPourReseau("youtube", canaux)).toMatchObject({ ok: true, canal: { id: "yt" } });
     expect(canalPourReseau("linkedin", canaux)).toMatchObject({ ok: false, raison: "plusieurs" });
     expect(canalPourReseau("linkedin", canaux, { linkedin: "li2" })).toMatchObject({ ok: true, source: "choisi", canal: { id: "li2" } });
-    expect(canalPourReseau("tiktok", canaux)).toMatchObject({ ok: false, raison: "aucun", message: "Aucun compte TikTok n'est relié dans Buffer." });
+    expect(canalPourReseau("tiktok", canaux)).toMatchObject({ ok: false, raison: "aucun", message: "Aucun compte TikTok n'est relié chez le diffuseur." });
     expect(canalPourReseau("facebook", canaux)).toMatchObject({ ok: false, raison: "deconnecte" });
     // Un choix qui n'existe plus chez Buffer n'est jamais suivi.
     expect(canalPourReseau("linkedin", canaux, { linkedin: "disparu" })).toMatchObject({ ok: false, raison: "plusieurs" });
