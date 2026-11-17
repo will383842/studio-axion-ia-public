@@ -529,6 +529,44 @@ describe("L5-02c · un seul brouillon", () => {
     expect(notifications).toHaveLength(1);
   });
 
+  it("créneau décalé puis retiré PENDANT le tour (après la lecture des envois, avant la promotion) : 0 promotion, 0 PUT, créneau signalé", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1", "linkedin");
+    await tour();
+    expect(appelsFournisseur).toHaveLength(1);
+    maintenant = Date.parse(heureDu(2)) - 2 * 60 * MIN;
+    horloge.avancer(maintenant - horloge.maintenant());
+    // Le plan change au milieu du tour : à la première lecture des posts de la promotion, le créneau est décalé puis retiré.
+    let change = false;
+    const enCours = client();
+    const clientQuiChange = new Proxy(enCours, {
+      get: (cible, nom: string) => {
+        if (nom !== "listerPosts") return (cible as never)[nom];
+        return async (...a: unknown[]) => {
+          if (!change) {
+            change = true;
+            await depots().creneauxEditoriaux.modifier("c1", { decalages: 1, heuresParReseau: { linkedin: heureDu(3) } } as never);
+            await depots().creneauxEditoriaux.modifier("c1", { retireLe: VALIDEE } as never);
+          }
+          return ((cible as never)[nom] as (...x: unknown[]) => unknown)(...a);
+        };
+      },
+    });
+    const r = await tour({ client: clientQuiChange });
+    expect(change).toBe(true);
+    expect(faux.appels.filter((a) => a.methode === "PUT")).toHaveLength(0);
+    expect(methodesClient).not.toContain("promouvoir");
+    const lignes = r.saute ? [] : r.resultat.promotion?.lignes ?? [];
+    expect(lignes.filter((l) => l.etat === "programme")).toHaveLength(0);
+    expect(lignes.filter((l) => l.etat !== "programme").length).toBeGreaterThan(0);
+    const envois = await depots().envoisPlanifies.lister();
+    expect(envois).toHaveLength(1);
+    expect(envois[0].statut).toBe("annule");
+    expect(notifications.length).toBeGreaterThan(0);
+    expect(appelsFournisseur).toHaveLength(1);
+  });
+
   it("un envoi « programme » n'est jamais touché par l'annulation des versions périmées", async () => {
     await ouvrirTout();
     await creerVisuel();
