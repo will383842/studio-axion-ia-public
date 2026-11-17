@@ -30,10 +30,11 @@
  */
 import type { ElementV4Plan, PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 import {
-  BANDE_YEUX_V4, CATALOGUE_V4, DEMI_HAUTEUR_SOUS_TITRES_V4, DESCENTE_V4, dureesSansCalmeV4, etatVisagePoseV4, evenementsDeLElementV4, ficheV4, plafondParVideoV4, sousTitresSurLesYeuxV4, ySousTitresV4, Y_SOUS_TITRES_MAX_V4, Y_SOUS_TITRES_MIN_V4,
+  BANDE_YEUX_V4, CATALOGUE_V4, DEMI_HAUTEUR_SOUS_TITRES_V4, DESCENTE_V4, dureesSansCalmeV4, etatVisagePoseV4, evenementsDeLElementV4, plafondParVideoV4, sousTitresSurLesYeuxV4, ySousTitresV4, Y_SOUS_TITRES_MAX_V4, Y_SOUS_TITRES_MIN_V4,
   type FicheCatalogueV4,
 } from "./catalogue-v4";
 import { estMotOutil, motsInterditsDans, nettoyer, nombresDansTexte, nombresDits, sansElision, simplifier, type MotTranscrit } from "./mots";
+import { ficheV4Ouverte, type FicheExtensionV4 } from "./catalogue-v4-extensions";
 import { EPS } from "./regles-v2";
 import type { HistoriqueVideo } from "./regles";
 
@@ -100,7 +101,7 @@ const v = (x: number) => String(x).replace(".", ",");
 
 /** Un élément du plan résolu contre le catalogue. */
 export interface ElementResoluV4 {
-  fiche: Readonly<FicheCatalogueV4>;
+  fiche: Readonly<FicheCatalogueV4> | Readonly<FicheExtensionV4>;
   debut: number;
   fin: number;
   mots: readonly string[];
@@ -119,11 +120,12 @@ const nomElement = (e: ElementResoluV4) => `élément v4 ${e.rang} « ${e.fiche.
 
 /* ---------------- D0 : résolution contre le catalogue ---------------- */
 
-export function resoudreElementsV4(elements: readonly ElementV4Plan[] | undefined, duree: number): { elements: ElementResoluV4[]; erreurs: string[] } {
+/** `options.telephoneVideo` : seul `true` exact ouvre la fiche du téléphone (C4-U4.9a-b) ; absent = comportement de master. */
+export function resoudreElementsV4(elements: readonly ElementV4Plan[] | undefined, duree: number, options?: { telephoneVideo?: unknown }): { elements: ElementResoluV4[]; erreurs: string[] } {
   const erreurs: string[] = [];
   const resolus: ElementResoluV4[] = [];
   [...(elements ?? [])].sort((a, b) => a.debut - b.debut || a.fin - b.fin).forEach((e, k) => {
-    const fiche = ficheV4(e.id);
+    const fiche = ficheV4Ouverte(e.id, options);
     const rang = k + 1;
     if (!fiche) {
       erreurs.push(`D0 — élément v4 ${rang} : « ${e.id} » n'existe pas dans le catalogue v4 (26 plaquettes actives).`);
