@@ -309,3 +309,40 @@ describe("L5-06 · décision du pilote, règle 1 : tant qu'un envoi reste possib
     expect(await statutVisuel()).toBe("valide");
   });
 });
+
+describe("L5-06 · décision du pilote, règle 4 : même résultat quel que soit l'ordre des lectures", () => {
+  // `etatLuLe` règle l'ordre de lecture (le plus ancien d'abord).
+  const deux = async (premier: "pi" | "pl", etats: Record<string, EtatPost>, depart = "programme") => {
+    await visuelSimple(depart);
+    await pubVisuel("pi", "instagram", { etatLuLe: iso(T0 - (premier === "pi" ? 2000 : 1000)) });
+    await pubVisuel("pl", "linkedin", { etatLuLe: iso(T0 - (premier === "pl" ? 2000 : 1000)) });
+    const { client } = diffuseurParPost(etats);
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    return statutVisuel();
+  };
+  const ordres = ["pi", "pl"] as const;
+
+  for (const o of ordres) {
+    it(`une en échec, l'autre publiée (lue d'abord : ${o}) : l'étape du visuel ne bouge pas`, async () => {
+      expect(await deux(o, { "post-pi": { status: "failed" }, "post-pl": { status: "published", plateforme: "linkedin" } })).toBe("programme");
+    });
+    it(`une en échec, l'autre programmée (lue d'abord : ${o}) : l'étape du visuel ne bouge pas`, async () => {
+      expect(await deux(o, { "post-pi": { status: "failed" }, "post-pl": { status: "scheduled", plateforme: "linkedin" } })).toBe("programme");
+    });
+    it(`toutes en échec (lue d'abord : ${o}) : « envoi échoué »`, async () => {
+      expect(await deux(o, { "post-pi": { status: "failed" }, "post-pl": { status: "failed", plateforme: "linkedin" } })).toBe("echec_envoi");
+    });
+    it(`toutes publiées (lue d'abord : ${o}) : « publié »`, async () => {
+      expect(await deux(o, { "post-pi": { status: "published" }, "post-pl": { status: "published", plateforme: "linkedin" } })).toBe("publie");
+    });
+    it(`l'une publiée, l'autre programmée (lue d'abord : ${o}) : « programmé »`, async () => {
+      expect(await deux(o, { "post-pi": { status: "published" }, "post-pl": { status: "scheduled", plateforme: "linkedin" } })).toBe("programme");
+    });
+  }
+
+  it("jamais de corbeille par la synchro : un visuel en échec partout n'est pas mis à la corbeille", async () => {
+    await deux("pi", { "post-pi": { status: "failed" }, "post-pl": { status: "failed", plateforme: "linkedin" } });
+    expect((await depots().visuels.obtenir("vis_1"))?.corbeilleLe).toBeUndefined();
+  });
+});
