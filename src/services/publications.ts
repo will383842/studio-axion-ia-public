@@ -24,7 +24,7 @@ import { avertissementReelFacebook } from "@/domaine/reel-facebook";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
 import { listerReseaux, obtenirReseau, verifierPourReseau, type AvertissementReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
-import { occupeBuffer, refusDoublonEntreOutils, serviceBuffer, type ComptesPourReseau } from "@/domaine/buffer";
+import { occupeBuffer, refusDoublonEntreOutils, serviceHistorique, type ComptesPourReseau } from "@/domaine/buffer";
 import { cleEnvoiPublication, estChezUnOutil, OUTILS_ENVOI, outilDe, type OutilPublication } from "@/domaine/outil-publication";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
 import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
@@ -862,7 +862,7 @@ async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: stri
 /** Texte du post (et titre YouTube) : un mot interdit refuse tout l'envoi, avant la moindre réservation ni le moindre appel. */
 function verifierTextesAEnvoyer(reseau: IdReseau, texte: string, titre: string | undefined): void {
   if (motsInterditsEnvoi(texte).length) throw new ErreurStudio("TEXTE_INTERDIT", PHRASES_BUFFER.motInterditTexte);
-  if (titre && serviceBuffer(reseau) === "youtube" && motsInterditsEnvoi(titre).length) throw new ErreurStudio("TEXTE_INTERDIT", PHRASES_BUFFER.motInterditTitre);
+  if (titre && serviceHistorique(reseau) === "youtube" && motsInterditsEnvoi(titre).length) throw new ErreurStudio("TEXTE_INTERDIT", PHRASES_BUFFER.motInterditTitre);
 }
 
 /**

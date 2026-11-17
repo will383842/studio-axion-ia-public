@@ -51,10 +51,6 @@ export interface DefinitionReseau {
   miniature: { ratio: Ratio | "3:4"; modifiable: boolean };
   /** Libellé de la case « contenu généré par l'IA » sur le réseau. */
   etiquetteIA: string;
-  /** Envoi possible via Buffer. */
-  viaBuffer: boolean;
-  /** Lot R1 : service du compte Buffer où part ce réseau (YouTube et YouTube Shorts : le même compte « youtube »). */
-  serviceBuffer: string;
   /**
    * T1 (formats par réseau) : zones des formats que `zonesProtegees` ne connaît pas, reprises de la table du tableau
    * animé (déjà utilisées en production). Gardées à part EXPRÈS : `zonesProtegees` est lu aujourd'hui par le calque de
@@ -98,8 +94,6 @@ export const RESEAUX: DefinitionReseau[] = [
     legende: { longueurMax: 3000, longueurVisible: 210, motsDieseMax: 5, motsDieseConseilles: 3 },
     miniature: { ratio: "16:9", modifiable: true },
     etiquetteIA: "LinkedIn : rien à cocher ; une mention dans le texte du post.",
-    viaBuffer: true,
-    serviceBuffer: "linkedin",
     // T1 : 16:9 comme YouTube (table du tableau, valeur déjà utilisée). Aucune valeur LinkedIn changée (question 1 du plan).
     zonesComplementaires: { "16:9": { haut: 6, droite: 4, bas: 12, gauche: 4 } },
     emplacements: [
@@ -127,8 +121,6 @@ export const RESEAUX: DefinitionReseau[] = [
     // Générateur (G1a) : couverture d'un Reel en 3:4 (grille du profil), corrigée sur accord de Will.
     miniature: { ratio: "3:4", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » dans les paramètres avancés.",
-    viaBuffer: true,
-    serviceBuffer: "instagram",
     emplacements: [
       { id: "reels", libelle: "Reels Instagram", ratio: "9:16", zone: ZONE_REELS_META, source: `${REGISTRE} : guide Meta des Reels` },
       { id: "stories", libelle: "Stories Instagram et Facebook", ratio: "9:16", zone: ZONE_STORIES_META, source: SOURCE_STORIES },
@@ -151,8 +143,6 @@ export const RESEAUX: DefinitionReseau[] = [
     legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 10, motsDieseConseilles: 3 },
     miniature: { ratio: "9:16", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » avant de publier.",
-    viaBuffer: true,
-    serviceBuffer: "facebook",
     // T1 : 4:5 et carré, « valeur prudente » de la table du tableau (déjà utilisée en production).
     zonesComplementaires: { "4:5": ZONE_FIL_FACEBOOK, "1:1": ZONE_FIL_FACEBOOK },
     emplacements: [
@@ -177,8 +167,6 @@ export const RESEAUX: DefinitionReseau[] = [
     legende: { longueurMax: 2200, longueurVisible: 100, motsDieseMax: 8, motsDieseConseilles: 4 },
     miniature: { ratio: "9:16", modifiable: true },
     etiquetteIA: "Cocher « Contenu généré par l'IA » dans les réglages de la publication.",
-    viaBuffer: true,
-    serviceBuffer: "tiktok",
     emplacements: [{ id: "video", libelle: "TikTok", ratio: "9:16", zone: { haut: 10, droite: 18, bas: 26, gauche: 4 }, source: `${REGISTRE} : boutons à droite, légende en bas` }],
     fin: { auMot: false },
   },
@@ -196,8 +184,6 @@ export const RESEAUX: DefinitionReseau[] = [
     legende: { longueurMax: 5000, longueurVisible: 160, motsDieseMax: 15, motsDieseConseilles: 3 },
     miniature: { ratio: "16:9", modifiable: true },
     etiquetteIA: "Répondre « Oui » à « Contenu modifié ou synthétique ».",
-    viaBuffer: true,
-    serviceBuffer: "youtube",
     emplacements: [{ id: "video", libelle: "YouTube", ratio: "16:9", zone: { haut: 6, droite: 4, bas: 12, gauche: 4 }, source: `${REGISTRE} : titre en haut, barre de lecture en bas` }],
     fin: { auMot: false },
   },
@@ -216,8 +202,6 @@ export const RESEAUX: DefinitionReseau[] = [
     legende: { longueurMax: 100, longueurVisible: 60, motsDieseMax: 3, motsDieseConseilles: 2 },
     miniature: { ratio: "9:16", modifiable: false },
     etiquetteIA: "Répondre « Oui » à « Contenu modifié ou synthétique ».",
-    viaBuffer: true,
-    serviceBuffer: "youtube",
     emplacements: [{ id: "video", libelle: "YouTube Shorts", ratio: "9:16", zone: { haut: 10, droite: 16, bas: 20, gauche: 4 }, source: REGISTRE }],
     fin: { auMot: false },
   },
