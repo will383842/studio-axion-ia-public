@@ -176,13 +176,14 @@ describe("L5-06 · cas limites", () => {
     expect(unitaires(appels)).toHaveLength(40);
   });
 
-  it("une page de liste en échec : retour au passage incrémental limité à 50 lectures", async () => {
+  it("une page de liste en échec : retour aux lectures unitaires, la requête échouée et la lecture des comptes comprises dans le budget de 51", async () => {
     await publications(60);
     const { client, appels } = diffuseur(60, new Set(), true);
     injecterClientZernio(client);
     const r = await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
-    expect(r.lues).toBe(50);
-    expect(unitaires(appels)).toHaveLength(50);
+    expect(r.lues).toBe(49);
+    expect(unitaires(appels)).toHaveLength(49);
+    expect(appels).toHaveLength(51);
     expect(ecritures(appels)).toHaveLength(0);
   });
 
@@ -195,13 +196,13 @@ describe("L5-06 · cas limites", () => {
     expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("programme");
   });
 
-  it("un visuel « validé » n'est jamais publié d'un coup (transition refusée par L5-05) : inchangé", async () => {
+  it("un visuel « validé » dont la publication est publiée enchaîne valide → programme → publie (décision du pilote du 17/11/2026, règle 2)", async () => {
     await visuel("valide");
     await publications(1, () => ({ videoId: undefined, visuelId: "vis_1" }));
     const { client } = diffuseur(1);
     injecterClientZernio(client);
     await synchroniserEtatsZernio({ force: true, instant: T0 });
-    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("valide");
+    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("publie");
   });
 
   it("un visuel à la corbeille reste inchangé", async () => {
@@ -369,7 +370,7 @@ describe("L5-06 · décision du pilote, règle 2 : valide → programme → publ
 
   it("un visuel « validé » dont la seule publication est en échec reste « validé » (le nouvel essai reste possible)", async () => {
     await visuelSimple("valide");
-    await pubVisuel("pi", "instagram");
+    await pubVisuel("pi", "instagram", { statut: "brouillon" }); // envoyée en brouillon : l'étape reste « valide »
     const { client } = diffuseurParPost({ "post-pi": { status: "failed" } });
     injecterClientZernio(client);
     await synchroniserEtatsZernio({ force: true, instant: T0 });
