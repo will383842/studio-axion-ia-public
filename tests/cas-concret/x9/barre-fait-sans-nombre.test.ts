@@ -64,10 +64,11 @@ describe("FIX-BARRE-SANS-NOMBRE", () => {
     expect(c.refus.some((m) => m.includes("ne désigne aucun fait : donnez « faitId »"))).toBe(true);
   });
 
-  it("(d) la consigne porte la phrase neuve et le rôle passe en version 4", () => {
+  it("(d) la consigne porte la phrase neuve et le rôle passe en version 5", () => {
     expect(CONSIGNE_ECRITURE).toContain("désigne le fait SANS NOMBRE qui le décrit");
     expect(CONSIGNE_ECRITURE).toContain("jamais un fait chiffré qui ne mesure pas cet état");
-    expect(roleEcritureCasConcret.version).toBe(4);
+    // 17/11/2026 : modification voulue (FIX-CC-RESULTAT-SANS-NOMBRE) : la version du rôle passe de 4 à 5 (consigne complétée sur le sens de « avant »). Seul ce numéro change ; les phrases vérifiées ci-dessus et toute la garde sont intactes.
+    expect(roleEcritureCasConcret.version).toBe(5);
   });
 
   it("(e) bout en bout : un seul appel, la fiche passe", async () => {
