@@ -365,7 +365,9 @@ export interface DureesFins {
 
 export function dureesDesFins(fins: readonly Pick<FinPlanifiee, "ecrans">[]): DureesFins | null {
   if (!fins.length) return null;
-  const d = fins.map((f) => dureeDiteMs(f.ecrans) + TENUE_FINALE_MS);
+  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide (sans écran) ne dit rien et ne tient rien : 0 ms, comme la règle R21
+  // (`dureeFinMs`) ; le corps ne grandit pas de la fin retirée.
+  const d = fins.map((f) => (f.ecrans.length ? dureeDiteMs(f.ecrans) + TENUE_FINALE_MS : 0));
   return { plusCourteMs: Math.min(...d), plusLongueMs: Math.max(...d) };
 }
 
@@ -374,7 +376,9 @@ export function dureesDesFins(fins: readonly Pick<FinPlanifiee, "ecrans">[]): Du
  * bornes de refus seules.
  */
 export function corpsVise(d: DureesFins): { minMs: number; maxMs: number } {
-  const vise = { minMs: DUREE_SORTIE_COURTE_VISEE_MS.min - d.plusCourteMs, maxMs: Math.min(DUREE_SORTIE_COURTE_VISEE_MS.max - d.plusCourteMs, DUREE_TOTALE_REFUS_MS.max - d.plusLongueMs) };
+  // Une sortie sans fin : la visée de 40 s comptait une fin ; elle devient le plancher de R21 (35 s), la visée haute reste.
+  const planchers = d.plusCourteMs === 0 ? DUREE_TOTALE_REFUS_MS.min : DUREE_SORTIE_COURTE_VISEE_MS.min;
+  const vise = { minMs: planchers - d.plusCourteMs, maxMs: Math.min(DUREE_SORTIE_COURTE_VISEE_MS.max - d.plusCourteMs, DUREE_TOTALE_REFUS_MS.max - d.plusLongueMs) };
   return vise.minMs <= vise.maxMs ? vise : { minMs: DUREE_TOTALE_REFUS_MS.min - d.plusCourteMs, maxMs: DUREE_TOTALE_REFUS_MS.max - d.plusLongueMs };
 }
 
@@ -590,12 +594,9 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
       ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage, nbScene, court)),
     ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
   const vise = corpsVise(fins);
-  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans fin à lire (fin vide), le corps ne grandit pas de la marge : le prix de
-  // la voix ne change que de la fin retirée.
-  const margeVisee = fins.plusCourteMs <= TENUE_FINALE_MS ? 0 : MARGE_VISEE_MS;
   const tientVise = (f: FicheEcrans) => corpsMs(f) >= vise.minMs && corpsMs(f) <= vise.maxMs;
   // De préférence avec une marge au-dessus du minimum : la voix réelle lit souvent plus vite que le débit de la recette.
-  const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + margeVisee && corpsMs(f) <= vise.maxMs;
+  const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + MARGE_VISEE_MS && corpsMs(f) <= vise.maxMs;
   const tientRefus = (f: FicheEcrans) => corpsMs(f) + fins.plusCourteMs >= DUREE_TOTALE_REFUS_MS.min && corpsMs(f) + fins.plusLongueMs <= DUREE_TOTALE_REFUS_MS.max;
   // Un cas qui a un récit (corps plus long, estimé au caractère près) : de préférence un corps qui garde de la place sous le haut de la visée.
   const tientSousLeHaut = (f: FicheEcrans) => tientAvecMarge(f) && corpsMs(f) <= vise.maxMs - MARGE_HAUTE_RECIT_MS;
