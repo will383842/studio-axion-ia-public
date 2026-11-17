@@ -28,6 +28,7 @@ import { texteScript } from "@/domaine/derivations";
 import { GLOSSAIRE_FACECAM } from "@/moteurs/montage-facecam/glossaire";
 import { cleFichierRef, clesFichier, type CandidatSujet, type Confirmation, type NiveauSujet, type Precedent } from "@/domaine/sujets-traites";
 import { empreinteAvantControle, PHRASE_VERIFICATION_EN_COURS, phraseRefusEmpreinte, type DependancesAvantControle } from "./empreintes-fichiers";
+import { telephoneVideoActif } from "@/moteurs/montage-facecam-animee/realisateur/consigne-telephone-video";
 import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
 import { creerVerrou, depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
 import type { SourcesSujets } from "./sujets-traites";
@@ -173,9 +174,13 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     finDouce = false;
   }
 
+  // BR-TELEPHONE-a : éteint par défaut ; seul `true` exact allume (lecture en échec = éteint).
+  const telephoneVideo = await telephoneVideoActif(lireParametre);
+
   return {
     ...(planScenes ? { planScenes } : {}),
     ...(calageAuMot ? { calageAuMot } : {}),
+    ...(telephoneVideo ? { telephoneVideo: true } : {}),
     ...(finDouce ? { finDouce } : {}),
     async transcrire({ priseCle, appelId }) {
       if (dep.transcrire) return dep.transcrire({ priseCle, appelId });

@@ -60,7 +60,8 @@ const EMPREINTES_RECETTE_V4: Record<string, string> = {
  * vérifié que le changement de texte est voulu. Recalculée le 02/11/2026 (« 28b849e538dedb6e » → « 683c013e70876555 ») : l'ancienne valeur venait du
  * dépôt privé d'avant l'export public (textes assainis depuis) et ne correspondait à aucun commit public ; le texte est identique depuis le premier.
  */
-const EMPREINTE_VARIABLE_V4 = "683c013e70876555";
+// 17/11 (FIX-CC-ETAPE-01-FORMULAIRE) : référence mise à jour VOLONTAIREMENT (683c013e70876555 → 71ab1b4d92563b7e) ; seul « contact-vers-crm » change (mouvement de l'étape 01 : image → page-entiere, empreinte individuelle 2ea3bb7f856c → 31cbb0f0ddad), les 22 autres cas sont identiques. La garde (test 4) reste intacte.
+const EMPREINTE_VARIABLE_V4 = "71ab1b4d92563b7e";
 const EMPREINTE_PATRONS_V4 = "1dac3ee01a3d0d89";
 
 describe("D1 · recettes par structure", () => {
