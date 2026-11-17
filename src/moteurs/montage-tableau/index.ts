@@ -487,11 +487,40 @@ function lignesPayeesDe(etat: EtatTableau): LigneCout[] {
   return [ligne("Voix", audio.fournisseur ?? "voix", "caractere", audio.caracteres ?? 0, "reel", centimes(audio.coutCentimes))];
 }
 
+/**
+ * Familles et libellés de contrôle qui portent sur l'IMAGE (FIX-CONTROLES-IMAGE-AVANT-PRET-a) : relecture des images
+ * clés (`controles.ts:182`), mise en page (zone sûre, texte coupé, contraste, première image : `controles.ts:143-148`),
+ * images figées et image noire (`src/briques/controle-image/mesures.ts:51`).
+ */
+const FAMILLES_IMAGE: ReadonlySet<string> = new Set(["relecture", "mise-en-page"]);
+const LIBELLES_IMAGE: ReadonlySet<string> = new Set(["Relecture des images clés", "Image figée", "Image noire", "Mesures du fichier exporté", "Mise en page"]);
+
+/** Une ligne de contrôle portant sur l'image ? */
+const surImage = (l: { famille: string; libelle: string }) => FAMILLES_IMAGE.has(l.famille) || LIBELLES_IMAGE.has(l.libelle);
+
+/**
+ * Ce que le rapport a VRAIMENT vérifié (fonction pure) : `image` est faux dès qu'une ligne non faite ou indicative porte
+ * sur l'image ; `sousTitres` est faux si une ligne non faite parle des sous-titres ; `son` et `droits` restent vrais
+ * sauf ligne non faite explicite (libellé « son » ou « droits ») ; `mentionIA` reste faux.
+ */
+export function verifieDe(controles: Pick<CompteRenduFabrication["controles"], "indicatifs" | "nonFaits">) {
+  const { indicatifs, nonFaits } = controles;
+  const dit = (l: { libelle: string }, mot: RegExp) => mot.test(l.libelle);
+  return {
+    image: ![...indicatifs, ...nonFaits].some(surImage),
+    son: !nonFaits.some((l) => dit(l, /\bson\b|volume|crête/i)),
+    sousTitres: !nonFaits.some((l) => /sous-titres/i.test(`${l.libelle} ${l.raison}`)),
+    mentionIA: false,
+    droits: !nonFaits.some((l) => dit(l, /droits?/i)),
+  };
+}
+
 /** Alertes et note d'une sortie (contrôles, fin absente, voix sans la recette). */
-function qualiteDe(controles: CompteRenduFabrication["controles"], fin: CompteRenduFabrication["fin"], recette: CompteRenduFabrication["recetteVoix"], enPlus: CompteRenduFabrication["alertes"] = []) {
-  const signales = [...controles.indicatifs, ...controles.nonFaits];
+export function qualiteDe(controles: CompteRenduFabrication["controles"], fin: CompteRenduFabrication["fin"], recette: CompteRenduFabrication["recetteVoix"], enPlus: CompteRenduFabrication["alertes"] = []) {
   const alertes = [
-    ...signales.map((l) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message: `${l.libelle} : ${l.raison}` })),
+    ...controles.indicatifs.map((l) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message: `${l.libelle} : ${l.raison}` })),
+    // Un contrôle non fait n'est plus rangé en « info » : le rapport dit ce qui n'a PAS été vérifié.
+    ...controles.nonFaits.map((l) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message: `Non vérifié : ${l.libelle} : ${l.raison}` })),
     // Pas de fin validée : la vidéo est livrée sans écran de fin, et le rapport le dit (jamais un échec). Déjà dite par
     // la chaîne (fin sans appel de TikTok et Shorts) : pas deux fois.
     ...(fin && "absente" in fin && !(enPlus ?? []).some((a) => a.message === fin.absente) ? [{ code: "fin" as const, gravite: "info" as const, message: fin.absente }] : []),
@@ -501,7 +530,8 @@ function qualiteDe(controles: CompteRenduFabrication["controles"], fin: CompteRe
     // Bruitage introuvable retiré (repli sûr) : la vidéo est livrée sans ce son, et le rapport le dit.
     ...(enPlus ?? []),
   ];
-  return { alertes, note: Math.max(60, 90 - 5 * signales.length) };
+  // Note : chaque contrôle non fait pèse 10, chaque indicatif 5 ; plancher 40 (avant : 5 pour tous, plancher 60).
+  return { alertes, note: Math.max(40, 90 - 10 * controles.nonFaits.length - 5 * controles.indicatifs.length) };
 }
 
 /**
@@ -557,10 +587,10 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, et
           resolution: `${s.largeur}x${s.hauteur}`,
           dureeSec: s.dureeSec,
           taille: s.tailleOctets ?? 0,
-          rapportQualite: { note: q.note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes: q.alertes, niveauSonoreLufs: -14 },
+          rapportQualite: { note: q.note, verifie: verifieDe(s.controles), alertes: q.alertes, niveauSonoreLufs: -14 },
         };
       })
-    : [{ ratio: "9:16" as const, fichierCle: r.cles.video, vignetteCle: r.cles.vignette, resolution: "1080x1920", dureeSec: r.dureeSec, taille: 0, rapportQualite: { note, verifie: { image: true, son: true, sousTitres: true, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 } }];
+    : [{ ratio: "9:16" as const, fichierCle: r.cles.video, vignetteCle: r.cles.vignette, resolution: "1080x1920", dureeSec: r.dureeSec, taille: 0, rapportQualite: { note, verifie: verifieDe(r.controles), alertes, niveauSonoreLufs: -14 } }];
   return {
     sorties,
     noteQualite: { globale: note, alertes },
