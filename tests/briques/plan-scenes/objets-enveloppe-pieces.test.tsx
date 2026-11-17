@@ -87,7 +87,7 @@ describe("C9-34t filet : toutes les pièces passent l'enveloppe", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(Object.keys(pieces).length).toBe(ids.length);
     // Plancher (relevé sur master au départ), jamais une égalité figée.
-    expect(toutes.length).toBeGreaterThanOrEqual(50);
+    expect(toutes.length).toBeGreaterThanOrEqual(52);
   });
 
   it("le balayage trouve les pièces attendues", () => {
