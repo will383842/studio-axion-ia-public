@@ -109,7 +109,7 @@ test.describe("parcours Connexions", () => {
     await page.getByRole("dialog", { name: "Tout arrêter ?" }).getByRole("button", { name: "Oui, tout arrêter" }).click();
     await expect(ecran(page).getByText("Tout est à l’arrêt.").first()).toBeVisible();
     try {
-      for (const chemin of ["/", "/reglages/migration", "/a-publier", "/calendrier"]) {
+      for (const chemin of ["/", "/reglages", "/a-publier", "/calendrier"]) {
         await page.goto(chemin);
         await expect(page.getByRole("status").or(page.getByRole("alert")).filter({ hasText: /arrêt/i }), `bandeau d'arrêt absent sur ${chemin}`).toBeVisible({ timeout: 5_000 });
       }

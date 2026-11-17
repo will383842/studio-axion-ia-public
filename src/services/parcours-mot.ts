@@ -162,16 +162,17 @@ export async function recevoirCrochetZernio(entree: EntreeCrochetZernio, o: { en
     if (c === null) {
       // LinkedIn / TikTok (ATR-D) : le lecteur Facebook/Instagram ne lit rien ; seul un dépôt SANS texte peut suivre, jamais une réponse.
       const m = lireCommentaireManuel(enveloppe, registre);
-      if (m && !m.proprio && m.motSeul !== null && (await reseauxManuelsAllumes())) {
-        // Charge SANS texte : identifiants opaques et mot seul canonique (contrat d'a-traiter-manuel).
-        const { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse } = m;
-        entite = { fournisseur: FOURNISSEUR, idEvenement, type: TYPE_COMMENTAIRE_MANUEL, charge: { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse, etat: "a_faire" } };
+      if (m && !m.proprio && m.idAuteur !== null && (m.motSeul !== null || m.doute === true) && (await reseauxManuelsAllumes())) {
+        // Charge SANS texte : identifiants opaques et mot seul canonique (contrat d'a-traiter-manuel). `doute` (vrai) seulement pour un doute d'opposition, jamais de texte.
+        const { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, estReponse, doute } = m;
+        entite = { fournisseur: FOURNISSEUR, idEvenement, type: TYPE_COMMENTAIRE_MANUEL, charge: { idCommentaire, idCompte, reseau, repere, lienPost, idAuteur, proprio, motSeul, ...(doute === true ? { doute: true } : {}), estReponse, etat: "a_faire" } };
         cleSecondaire = (e) => e.type === TYPE_COMMENTAIRE_MANUEL && e.charge.idCompte === idCompte && e.charge.idCommentaire === idCommentaire;
       }
       if (!entite) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     } else {
-    // Rien à déposer : pas de mot seul, une réponse (sauf une opposition, mot ou phrase de listes fermées, jamais le texte brut), ou notre propre réponse publique. Aucun traitement métier ici.
-    if (!c || c.proprio || c.motSeul === null || (c.estReponse && !estMotOpposition(c.motSeul)) || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
+    // Rien à déposer : pas de mot seul (sauf un doute d'opposition, déposé même en réponse : champ `doute`, jamais de texte), une réponse (sauf une opposition, mot ou phrase de listes fermées, jamais le texte brut), ou notre propre réponse publique. Aucun traitement métier ici.
+    const douteC = c?.doute === true;
+    if (!c || c.proprio || (!douteC && (c.motSeul === null || (c.estReponse && !estMotOpposition(c.motSeul)))) || c.idAuteur === null || c.idAuteur === c.idCompte) return { ...NEUTRE, corps: { ...NEUTRE.corps } };
     entite = { fournisseur: FOURNISSEUR, idEvenement, type: "zernio.commentaire", charge: { ...c, etat: "a_faire" } };
     cleSecondaire = (e) => e.type === "zernio.commentaire" && e.charge.idCompte === c.idCompte && e.charge.idCommentaire === c.idCommentaire;
     }

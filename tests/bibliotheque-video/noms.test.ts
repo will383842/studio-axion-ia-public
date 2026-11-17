@@ -25,6 +25,7 @@ const IDENTIFIANTS_PLAN = [
   "calque.texte-derriere-double", "calque.texte-derriere-prise",
   "plan-scenes.cas-concret", "plan-scenes.facecam", "plan-scenes.facecam-animee",
   "plan-scenes.tutoriel-outil", // N-02
+  "plan-scenes.demo-facecam", // G3-11
   "transition.coupe", "transition.cas-concret", "transition.image-video", "transition.commune",
   "transition.style-montage", "fond.vivant", "fond.lumiere",
   "etalonnage.lut-clair-obscur", "etalonnage.lut-naturel-selfie", "etalonnage.lut-doux", "etalonnage.lut-nuit",
@@ -38,6 +39,8 @@ const IDENTIFIANTS_PLAN = [
   "texte.sortie-animee", "texte.escalier",
   // G2-02
   "texte.sous-titres", "plan-scenes.generique", "son.pose", "etalonnage.lut",
+  // C9-03
+  "objet.trait", "objet.marque", "objet.etiquette", "objet.appel", "objet.chiffre", "objet.etape", "objet.cartes", "objet.schema", "objet.ecran", "objet.reseau-schema", "objet.manuscrit", "objet.emoji",
 ];
 
 const FAMILLES_ATTENDUES = [

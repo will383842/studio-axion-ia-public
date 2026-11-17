@@ -18,6 +18,7 @@ import { resoudreFournisseur } from "@/fournisseurs";
 import type { Video } from "@/domaine/types";
 import { depots, lireParametre } from "./_commun";
 import { analyseurAnglesStudio } from "./analyseur-angles";
+import { ENTREE_BANDEAU_NOM, entreeBandeauDuLancement } from "./bandeau-nom";
 import { lireReglageMulticameraAvocat, passeMulticameraAvocat } from "./multicamera-avocat";
 
 brancherServicesAvocat({
@@ -122,5 +123,8 @@ export async function entreesAvocatDuLancement(video: Pick<Video, "entrees"> & P
   if (consignes.length) sortie[ENTREE_MONTEUR_AVOCAT] = { consignes };
   const multicamera = await lireReglageMulticameraAvocat();
   if (multicamera.actif) sortie[ENTREE_MULTICAMERA_AVOCAT] = { actif: true };
+  // C2-U11 : bandeau « nom et fonction », coupé par défaut (`avocat.bandeauNom`) ; jamais pour un personnage inventé.
+  const bandeau = await entreeBandeauDuLancement(video);
+  if (bandeau) sortie[ENTREE_BANDEAU_NOM] = bandeau;
   return sortie;
 }

@@ -21,8 +21,8 @@ function Entete({ total }: { total?: number }) {
   return (
     <header>
       <h1 className="text-2xl text-texte">Migration</h1>
-      <p className="mt-1 text-texte-doux">Les {total ?? "—"} posts de Buffer passent chez Zernio, sans rien perdre ni publier deux fois.</p>
-      <p className="mt-2 text-base sm:text-sm font-semibold text-texte">Buffer est résilié. Toutes les publications passent par Zernio.</p>
+      <p className="mt-1 text-texte-doux">Les {total ?? "—"} posts de l’ancien outil passent chez Zernio, sans rien perdre ni publier deux fois.</p>
+      <p className="mt-2 text-base sm:text-sm font-semibold text-texte">L’ancien outil est résilié. Toutes les publications passent par Zernio.</p>
       <p className="text-base sm:text-sm text-texte-doux">Chaque post est d’abord recréé en brouillon, puis vérifié.</p>
     </header>
   );
@@ -60,7 +60,7 @@ export function EcranMigration({ vue, maintenant, service = serviceNonBranche, c
         <Entete />
         <section className="rounded-carte border border-trait bg-surface-1 p-5 text-center">
           <h2 className="text-lg text-texte">La bascule n’a pas commencé</h2>
-          <p className="mt-2 text-texte-doux">Elle démarre dès que les 6 comptes sont reliés dans Zernio. Buffer est résilié : toutes les publications passent par Zernio.</p>
+          <p className="mt-2 text-texte-doux">Elle démarre dès que les 6 comptes sont reliés dans Zernio. L’ancien outil est résilié : toutes les publications passent par Zernio.</p>
           <Link href="/reglages" className="mt-4 inline-flex min-h-12 items-center rounded-full bg-orange px-5 font-semibold text-sur-orange">Voir les connexions</Link>
         </section>
         {simulation && <p className="text-base sm:text-sm text-texte-doux">Mode essai : la clé Zernio n’est pas renseignée.</p>}

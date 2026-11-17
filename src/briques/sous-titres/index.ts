@@ -28,6 +28,7 @@ import { reporterSurTexteValide } from "./report";
 import { elementDe, largeurElement, type DonneesCalque, type SurlignageSousTitres } from "./scene";
 import { baseDe, couleursDepuisMarque, gabaritDe, GABARITS, type CouleursSousTitres } from "./style";
 import { motsAPlaque } from "./pave";
+import { motsOutils } from "./noms-outils";
 import { PASTILLE_AXION, PASTILLE_AXION_ARDOISE } from "./pastille";
 import { normaliser } from "./typographie";
 import type {
@@ -200,6 +201,13 @@ export function donneesCalque(entree: {
   const cibleMarqueur = entree.style?.texteEcran?.marqueur?.cible;
   const segmentsPropres = sansChevauchement(entree.segments);
   const regleePave = entree.style?.texteEcran?.pave?.mots;
+  // C2-U8 : noms d'outils en étiquette, seulement quand le style le demande.
+  const etiquettes = entree.style?.texteEcran?.outils === "etiquette" ? Object.fromEntries(segmentsPropres.flatMap((s) => { const r = motsOutils(s)[0]; return r ? [[s.id, { debut: r.debut, longueur: r.longueur }] as const] : []; })) : undefined;
+  // Le mot étiqueté ne peut pas porter la plaque : on le masque au choix, les indices restent ceux du groupe.
+  const motAPlaque = (s: (typeof segmentsPropres)[number], regle: NonNullable<typeof regleePave>) => {
+    const e = etiquettes?.[s.id];
+    return motsAPlaque(e ? { ...s, mots: s.mots.map((m, k) => (k >= e.debut && k < e.debut + e.longueur ? { ...m, mot: "" } : m)) } : s, regle)[0];
+  };
   return {
     largeur,
     hauteur,
@@ -218,7 +226,8 @@ export function donneesCalque(entree: {
     ...(!entree.style?.surlignage && entree.style?.texteEcran?.marqueur ? { surlignage: MARQUEURS[entree.style.texteEcran.marqueur.teinte] } : {}),
     ...(cibleMarqueur === "expression" || cibleMarqueur === "mot-dit" ? { cibleMarqueur } : {}),
     // C2-U7a (ajout pur) : mot-clé en pavé, seulement quand le style le porte.
-    ...(regleePave ? { plaques: Object.fromEntries(segmentsPropres.flatMap((s) => { const k = motsAPlaque(s, regleePave)[0]; return k === undefined ? [] : [[s.id, k] as const]; })) } : {}),
+    ...(regleePave ? { plaques: Object.fromEntries(segmentsPropres.flatMap((s) => { const k = motAPlaque(s, regleePave); return k === undefined ? [] : [[s.id, k] as const]; })) } : {}),
+    ...(etiquettes ? { motsOutils: etiquettes } : {}),
   };
 }
 

@@ -8,5 +8,6 @@ export const LIGNES_CALQUES: readonly LigneCatalogue[] = Object.freeze([
   { id: ID.planScenesCasConcret, etat: "prod", chantier: null },
   { id: ID.planScenesFacecam, etat: "eteint", chantier: "5 (5.02 à 5.09)", decision: "Q11" },
   { id: ID.planScenesTutorielOutil, etat: "prod", chantier: null, note: "format masqué (N-02)" },
+  { id: ID.planScenesDemoFacecam, etat: "prod", chantier: null, note: "format masqué (G3-11)" },
   { id: ID.planScenesFacecamAnimee, etat: "eteint", chantier: null, decision: "P2 plus tard" },
 ]);

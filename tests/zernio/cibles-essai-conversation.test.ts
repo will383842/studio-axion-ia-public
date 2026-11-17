@@ -108,16 +108,16 @@ describe("S5 · commentaire du mot d'essai", () => {
     const [conv] = await convs();
     expect(conv).toMatchObject({ mot: MOT, guide: CODE, titreCible: TITRE_ESSAI, cibleEssai: true });
   });
-  it("compte non listé (la liste nomme un autre compte) : ecarte/essai_auteur_refuse", async () => {
+  it("compte non listé (la liste nomme un autre compte) : ecarte/essai_compte_refuse", async () => {
     const id = await com(MOT);
     await passer(T0, { env: ENV_Y });
-    expect(await decrire(id)).toBe("ecarte/essai_auteur_refuse");
+    expect(await decrire(id)).toBe("ecarte/essai_compte_refuse");
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
   });
-  it("Instagram : jamais (même compte listé)", async () => {
+  it("Instagram, textes du mot non validés pour Instagram : écarté, rien ne part", async () => {
     const id = await com(MOT, { reseau: "instagram" });
     await passer(T0, { env: ENV_X });
-    expect((await decrire(id)).startsWith("ecarte/")).toBe(true);
+    expect(await decrire(id)).toBe("ecarte/validation_absente");
     expect(instantane()).toEqual({ pub: 0, prive: 0, envoyes: 0, site: 0 });
   });
   it("une conversation GUIDE ou d'une cible non essai n'a jamais le champ cibleEssai", async () => {
@@ -128,7 +128,7 @@ describe("S5 · commentaire du mot d'essai", () => {
 });
 
 describe("S6 · guidesDuCatalogue", () => {
-  const lire = (compte?: string, env: Record<string, string | undefined> = ENV_X) => C.guidesDuCatalogue(env, T0, compte);
+  const lire = (compte?: string, env: Record<string, string | undefined> = ENV_X) => C.guidesDuCatalogue(env, T0, compte === undefined ? undefined : { compte, reseau: "facebook" });
   it("compte listé : le guide d'essai est inclus ; autre compte ou sans compte : exclu", async () => {
     expect(await lire(COMPTE)).toEqual(expect.arrayContaining(["guide-ia", CODE]));
     expect(await lire(AUTRE)).toEqual(["guide-ia"]);
@@ -397,7 +397,10 @@ describe("S13 · garde() ligne « auteur d'essai » isolée, guides d'essai, rep
     expect(C.compteEssaiPourGuides(ENV_RETIRE, conv, cle)).toBeUndefined();
     expect(C.compteEssaiPourGuides({ ...ENV_X, PARCOURS_ESSAI_AUTEURS: "" }, conv, cle)).toBeUndefined();
     expect(C.compteEssaiPourGuides(ENV_X, { ...conv, cibleEssai: undefined }, cle)).toBeUndefined();
-    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, reseau: "instagram" }, cle)).toBeUndefined();
+    // T3b : Instagram est permis (compte listé et auteur toujours listé) ; tout autre réseau reste sans guide d'essai.
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, reseau: "instagram" }, cle)).toBe(COMPTE);
+    expect(C.compteEssaiPourGuides(ENV_RETIRE, { ...conv, reseau: "instagram" }, cle)).toBeUndefined();
+    expect(C.compteEssaiPourGuides(ENV_X, { ...conv, reseau: "linkedin" }, cle)).toBeUndefined();
   });
   it("reprise d'un commentaire (état pub_ok), cible redevenue normale, auteur retiré : seule la garde de la reprise refuse, événement clos sans report", async () => {
     site.catalogue = catalogue({ test: false });
