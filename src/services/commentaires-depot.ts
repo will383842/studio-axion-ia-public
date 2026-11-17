@@ -51,11 +51,31 @@ export interface DepotCommentaires {
   demanderEffacement(auteur: string, formesAuteur?: readonly string[]): Promise<{ lignesEcartees: number }>;
 }
 
-const RE_AUTEUR = /^(p1\.[0-9a-f]{8}\.[0-9a-f]{64}|[0-9a-f]{32})$/;
+const RE_P1 = /^p1\.([0-9a-f]{8})\.[0-9a-f]{64}$/;
+const RE_HERITEE = /^[0-9a-f]{32}$/;
 
+/**
+ * Auteur ÉCRIT : uniquement la forme p1 sous un secret connu (courant ou ancien). Une forme héritée (sans secret) ou un kid inconnu
+ * est refusé AVANT toute écriture : un kid inconnu bloquerait tout le registre d'opposition (échec fermé).
+ */
 function exigerAuteur(a: unknown): string {
-  if (typeof a !== "string" || !RE_AUTEUR.test(a)) throw new Error("auteur_invalide");
-  return a;
+  const m = typeof a === "string" ? RE_P1.exec(a) : null;
+  if (!m) throw new Error("auteur_invalide");
+  const cles = lireClesEmpreinte(process.env);
+  if (!cles.ok) throw new ErreurEmpreinteIndisponible();
+  if (![cles.courante, ...cles.anciennes].some((k) => k.kid === m[1])) throw new Error("auteur_invalide");
+  return a as string;
+}
+
+/** Forme de RECHERCHE seulement (jamais écrite) : p1 de kid connu, ou héritée en lecture. */
+function exigerForme(a: unknown): string {
+  if (typeof a === "string" && RE_HERITEE.test(a)) return a;
+  return exigerAuteur(a);
+}
+
+const chaine = (v: unknown): boolean => typeof v === "string" && v.trim().length > 0;
+function exigerCommentaire(c: NouveauCommentaire): void {
+  if (!chaine(c.idEvenement) || !chaine(c.reseau) || !chaine(c.post) || !chaine(c.texte) || !chaine(c.recuLe) || Number.isNaN(Date.parse(c.recuLe))) throw new Error("commentaire_invalide");
 }
 
 /** Empreinte d'un identifiant de contact (même espace que le registre d'opposition). Lève si le secret d'empreinte manque. */
@@ -72,7 +92,7 @@ export function empreintesAuteur(idBrut: string): string[] {
   return candidatsEmpreinte(cles, "zernio-contact", idBrut);
 }
 
-const formes = (a: string, autres?: readonly string[]): string[] => [...new Set([a, ...(autres ?? []).map(exigerAuteur)])];
+const formes = (a: string, autres?: readonly string[]): string[] => [...new Set([a, ...(autres ?? []).map(exigerForme)])];
 
 async function lireListe(): Promise<LigneCommentaire[]> {
   const v: unknown = await lireParametre<unknown>(PARAM_COMMENTAIRES_DEPOT, []);
@@ -97,8 +117,9 @@ export function creerDepotCommentaires(o: OptionsDepotCommentaires = {}): DepotC
       for (const auteur of new Set(lignes.filter((l) => !l.ecarteDesEnvois).map((l) => l.auteur))) verdict.set(auteur, await empreintesOpposees([auteur]));
       return lignes.filter((l) => !l.ecarteDesEnvois && !verdict.get(l.auteur));
     },
-    auteurEcarte: async (auteur, formesAuteur) => empreintesOpposees(formes(exigerAuteur(auteur), formesAuteur)),
+    auteurEcarte: async (auteur, formesAuteur) => empreintesOpposees(formes(exigerForme(auteur), formesAuteur)),
     enregistrer: async (c, formesAuteur) => {
+      exigerCommentaire(c);
       const auteur = exigerAuteur(c.auteur);
       // Registre d'opposition consulté HORS verrou (lecture seule) : la ligne naît écartée si la personne s'est déjà opposée, sous n'importe quelle forme.
       const ecarte = await empreintesOpposees(formes(auteur, formesAuteur));
@@ -118,25 +139,35 @@ export function creerDepotCommentaires(o: OptionsDepotCommentaires = {}): DepotC
       const toutes = formes(a, formesAuteur);
       // 1) Registre d'opposition commun (HORS verrou : non réentrant) : la personne est écartée de TOUS les envois, d'abord (échec fermé).
       await enregistrerOppositionParEmpreinte(a);
-      // 2) Lignes de ce dépôt : écartées, jamais supprimées.
-      const ecartees = await sousVerrou(async () => {
-        const existantes = await lireListe();
-        const le = horloge();
-        let n = 0;
-        const apres = existantes.map((l) => {
-          if (!toutes.includes(l.auteur)) return l;
-          n++;
-          return { ...l, ecarteDesEnvois: true, demandeEffacementLe: l.demandeEffacementLe ?? le };
+      // 2) Lignes de ce dépôt : écartées, jamais supprimées. Si la mise à jour échoue, le journal et l'alerte partent quand même.
+      let ecartees = 0;
+      let erreur: unknown = null;
+      try {
+        ecartees = await sousVerrou(async () => {
+          const existantes = await lireListe();
+          const le = horloge();
+          let n = 0;
+          const apres = existantes.map((l) => {
+            if (!toutes.includes(l.auteur)) return l;
+            n++;
+            return { ...l, ecarteDesEnvois: true, demandeEffacementLe: l.demandeEffacementLe ?? le };
+          });
+          await ecrireParametre(PARAM_COMMENTAIRES_DEPOT, apres);
+          return n;
         });
-        await ecrireParametre(PARAM_COMMENTAIRES_DEPOT, apres);
-        await journaliser(TYPE_JOURNAL_EFFACEMENT, "Une demande d'effacement ou d'opposition a été reçue : la personne est à l'écart des envois, aucune ligne n'a été supprimée.");
-        return n;
-      });
-      // 3) Hors verrou : un port d'alerte peut lui-même prendre le verrou.
+      } catch (e) {
+        erreur = e;
+      }
+      const suite = erreur
+        ? "la personne est à l'écart des envois, mais les lignes n'ont pas pu être mises à jour ; aucune ligne n'a été supprimée"
+        : "la personne est à l'écart des envois, aucune ligne n'a été supprimée";
+      await journaliser(TYPE_JOURNAL_EFFACEMENT, `Une demande d'effacement ou d'opposition a été reçue : ${suite}.`);
+      // Hors verrou : un port d'alerte peut lui-même prendre le verrou.
       await alerter({
         titre: "Demande d'effacement reçue",
-        message: "Une personne demande l'effacement de ses commentaires. Elle est à l'écart des envois et rien n'a été supprimé : vous décidez de la suite.",
+        message: `Une personne demande l'effacement de ses commentaires. ${erreur ? "Elle est à l'écart des envois, mais ses lignes n'ont pas pu être mises à jour ; rien n'a été supprimé" : "Elle est à l'écart des envois et rien n'a été supprimé"} : vous décidez de la suite.`,
       });
+      if (erreur) throw erreur;
       return { lignesEcartees: ecartees };
     },
   };

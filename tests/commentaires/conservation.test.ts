@@ -136,7 +136,7 @@ describe("opposition ou demande d'effacement : écart des envois, alerte, journa
     await d.demanderEffacement(AUTEUR_A);
     const evs = await depots().evenements.lister((e) => e.type === "commentaire_effacement_demande");
     expect(evs).toHaveLength(1);
-    expect(JSON.stringify(await depots().evenements.lister())).not.toMatch(/Texte inventé|p1\./);
+    expect(JSON.stringify(await depots().evenements.lister())).not.toMatch(/Texte inventé|p1\.|[0-9a-f]{32}/);
   });
   it("demande pour un auteur sans ligne : alerte et journal quand même (zéro ligne écartée), l'auteur reste écarté pour l'avenir", async () => {
     const d = nouveau();
@@ -203,5 +203,36 @@ describe("opposition ou demande d'effacement : écart des envois, alerte, journa
     await d.enregistrer(com("e1", { auteur: nouvelle }), D.empreintesAuteur("contact_inventé_r"));
     expect((await d.lire())[0]!.ecarteDesEnvois).toBe(true);
     expect(await d.auteurEcarte(nouvelle, D.empreintesAuteur("contact_inventé_r"))).toBe(true);
+  });
+  it("kid inconnu ou forme héritée : refusés avant toute écriture, le registre commun reste lisible, aucune alerte", async () => {
+    const d = nouveau();
+    const inconnu = `p1.deadbeef.${"a".repeat(64)}`;
+    const heritee = "b".repeat(32);
+    for (const mauvais of [inconnu, heritee]) {
+      await expect(d.demanderEffacement(mauvais)).rejects.toThrow("auteur_invalide");
+      await expect(d.enregistrer(com("e1", { auteur: mauvais }))).rejects.toThrow("auteur_invalide");
+    }
+    expect(alertes).toEqual([]);
+    expect(await d.lire()).toEqual([]);
+    expect(await empreintesOpposees([AUTEUR_A])).toBe(false);
+    expect(await Com.lireParametre("mots.oppositions", [])).toEqual([]);
+  });
+  it("la forme héritée reste admise comme forme de recherche seulement", async () => {
+    const d = nouveau();
+    await d.enregistrer(com("e1"), ["c".repeat(32)]);
+    expect(await d.auteurEcarte(AUTEUR_A, ["c".repeat(32)])).toBe(false);
+  });
+  it("dépôt illisible : la demande est tout de même journalisée et alertée, puis l'erreur remonte", async () => {
+    await Com.ecrireParametre(D.PARAM_COMMENTAIRES_DEPOT, { pas: "une liste" });
+    await expect(nouveau().demanderEffacement(AUTEUR_A)).rejects.toThrow("commentaires_illisibles");
+    expect(alertes).toHaveLength(1);
+    expect(alertes[0]!.message).toContain("pas pu être mises à jour");
+    expect(await depots().evenements.lister((e) => e.type === "commentaire_effacement_demande")).toHaveLength(1);
+    expect(await empreintesOpposees([AUTEUR_A])).toBe(true);
+  });
+  it("champs vides, non textuels ou date invalide : refusés", async () => {
+    const d = nouveau();
+    for (const mauvais of [{ idEvenement: "" }, { reseau: " " }, { post: "" }, { texte: "" }, { recuLe: "pas une date" }, { texte: 5 as unknown as string }]) await expect(d.enregistrer(com("e1", mauvais))).rejects.toThrow("commentaire_invalide");
+    expect(await d.lire()).toEqual([]);
   });
 });
