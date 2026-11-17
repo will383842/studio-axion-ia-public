@@ -22,17 +22,22 @@ export interface PieceInventaire {
 export type VideoInventaire = { readonly formatId: string } & Partial<EntreeResultat>;
 export interface TravailInventaire { readonly parametres?: Readonly<Record<string, unknown>> }
 
-/** Clés de `travail.parametres` qui portent chaque artefact (travaux.ts:534, :927 ; tableau animé = `tableau`). */
-const CLES_TRAVAIL: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  "plan": Object.freeze(["plan", "planIds", "planScenes", "tableau"]),
-  "voix": Object.freeze(["voix"]),
-  "rendus-scenes": Object.freeze(["rendusScenes", "ecrans"]),
+/**
+ * Clés de `travail.parametres` PROUVÉES par chemin:ligne (une clé n'entre que prouvée) : `voix` (montage-avocat/index.ts:1275-1276)
+ * et `tableau` (travaux.ts:835, plan du tableau animé SEULEMENT). `planIds` = plans À RETOUCHER (travaux.ts:928), pas un plan gardé.
+ * `rendus-scenes` : aucune clé prouvée, donc jamais `via-travail`.
+ */
+const CLES_TRAVAIL: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = Object.freeze({
+  "tableau-anime": Object.freeze({ plan: Object.freeze(["tableau"]), voix: Object.freeze(["voix"]) }),
+  "*": Object.freeze({ voix: Object.freeze(["voix"]) }),
 });
 
-function porteParLeTravail(travail: TravailInventaire | undefined, artefact: string): boolean {
+function porteParLeTravail(travail: TravailInventaire | undefined, formatId: string, artefact: string): boolean {
   const p = travail && typeof travail === "object" ? travail.parametres : undefined;
   if (!p || typeof p !== "object") return false;
-  return (CLES_TRAVAIL[artefact] ?? []).some((cle) => {
+  const table = Object.prototype.hasOwnProperty.call(CLES_TRAVAIL, formatId) ? CLES_TRAVAIL[formatId] : CLES_TRAVAIL["*"];
+  const cles = Object.prototype.hasOwnProperty.call(table, artefact) ? table[artefact] : [];
+  return cles.some((cle) => {
     if (!Object.prototype.hasOwnProperty.call(p, cle)) return false;
     const v = p[cle];
     return v !== undefined && v !== null && !(Array.isArray(v) && v.length === 0);
@@ -52,7 +57,7 @@ export function inventaireArtefacts(video: VideoInventaire, travail?: TravailInv
       let present = false;
       if (verifiable) { try { present = l(entree) === true; } catch { present = false; } }
       const raison = !verifiable && l && typeof l === "object" ? l.nonVerifiable : undefined;
-      const etat: EtatArtefact = present ? "present" : porteParLeTravail(travail, artefact) ? "via-travail" : "absent";
+      const etat: EtatArtefact = present ? "present" : porteParLeTravail(travail, declaration.formatId, artefact) ? "via-travail" : "absent";
       return raison ? { artefact, etat, verifiable, raison } : { artefact, etat, verifiable };
     });
   } catch {

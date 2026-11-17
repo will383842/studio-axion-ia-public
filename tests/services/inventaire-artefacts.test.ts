@@ -23,8 +23,11 @@ describe("inventaire des artefacts (G12-03)", () => {
 
   it("avocat : rien de prouvé, jamais « present » ; via le travail si les paramètres le portent", () => {
     expect(etat(inventaireArtefacts({ formatId: "avocat", projetMontage: {}, plans: [plan] as never }))).toEqual({ plan: "absent", voix: "absent" });
-    const t = { parametres: { voix: { id: "v" }, planIds: ["p1"] } };
-    expect(etat(inventaireArtefacts({ formatId: "avocat" }, t))).toEqual({ plan: "via-travail", voix: "via-travail" });
+    const t = { parametres: { voix: { id: "v" } } };
+    expect(etat(inventaireArtefacts({ formatId: "avocat" }, t))).toEqual({ plan: "absent", voix: "via-travail" });
+    // planIds = plans à retoucher, `tableau` = plan du tableau animé seulement : ni l'un ni l'autre n'est un plan gardé d'avocat
+    expect(etat(inventaireArtefacts({ formatId: "avocat" }, { parametres: { planIds: ["p1"] } })).plan).toBe("absent");
+    expect(etat(inventaireArtefacts({ formatId: "avocat" }, { parametres: { tableau: {} } })).plan).toBe("absent");
   });
 
   it("face caméra : plan seul, non vérifiable donc absent, signalé", () => {
@@ -39,8 +42,9 @@ describe("inventaire des artefacts (G12-03)", () => {
     expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }, { parametres: { tableau: {} } })).plan).toBe("via-travail");
   });
 
-  it("image→vidéo : trois pièces, via le travail pour les rendus de scène", () => {
-    expect(etat(inventaireArtefacts({ formatId: "image-video" }, { parametres: { rendusScenes: [1] } }))).toEqual({ plan: "absent", voix: "absent", "rendus-scenes": "via-travail" });
+  it("image→vidéo : trois pièces ; clés de rendus non prouvées ⇒ absent ; voix prouvée ⇒ via-travail", () => {
+    expect(etat(inventaireArtefacts({ formatId: "image-video" }, { parametres: { rendusScenes: [1], ecrans: [1], planIds: ["p"] } }))).toEqual({ plan: "absent", voix: "absent", "rendus-scenes": "absent" });
+    expect(etat(inventaireArtefacts({ formatId: "image-video" }, { parametres: { voix: {} } })).voix).toBe("via-travail");
   });
 
   it("cas concret (lecteurs prouvés) : present ; « voix gardée oui, rendus non »", () => {
