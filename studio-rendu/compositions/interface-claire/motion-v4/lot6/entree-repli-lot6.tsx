@@ -8,6 +8,7 @@ import React from "react";
 import { AbsoluteFill, Composition, registerRoot } from "remotion";
 import { mediaV4 } from "../communs/medias-v4";
 import { rendreElementV4 } from "../registre-v4";
+import "./rendus-lot6";
 
 const DUREE_PLANCHE_REPLI_LOT6 = 90;
 /** Vidéo d'exemple de `communs/broll` (propriété `media` de la composition pour en essayer une autre). */

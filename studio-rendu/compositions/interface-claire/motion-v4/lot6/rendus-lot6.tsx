@@ -2,13 +2,14 @@ import React from "react";
 /**
  * N-17 · REPLI DE RENDU DU LOT 6 (NEUF, SANS EFFET DE BORD, ÉTEINT) : table type → rendu du lot 6, lue par `rendreElementV4`
  * seulement quand le type n'est PAS l'une des 26 plaquettes. Aucun `registerRoot` ; n'importe jamais `PlancheLot6` ni `entree-lot6`.
- * Le geste de vie est celui du registre (`GesteVisible`, passé en argument : aucun import du registre, aucun cycle).
+ * Le geste de vie est celui du registre (`GesteVisible`, passé en argument). Importe seulement `REPLIS_V4` du registre, pour s'y inscrire (le registre n'importe jamais le lot 6 : aucun cycle).
  * Éteint : aucun type du lot 6 n'est au catalogue du réalisateur (`CATALOGUE_V4`), donc aucun plan réel ne le demande.
  */
 import { AbsoluteFill, Sequence } from "remotion";
 import type { ElementV4Plan } from "../../../../../src/domaine/facecam-animee/plan";
 import { mediaV4 } from "../communs/medias-v4";
 import { TelephoneVideo } from "./TelephoneVideo";
+import { REPLIS_V4 } from "../registre-v4";
 
 /** Images par seconde : égal à `FPS_V4` du registre (test d'égalité). */
 export const FPS_LOT6 = 30;
@@ -50,3 +51,6 @@ export function poserLot6(e: ElementV4Plan, Geste: Geste): React.ReactNode {
     </Sequence>
   );
 }
+
+/** Inscription du repli dans le registre (seul effet à l'import : une entrée de table ; jamais `registerRoot`). */
+REPLIS_V4.set(ID_TELEPHONE_VIDEO, poserLot6);
