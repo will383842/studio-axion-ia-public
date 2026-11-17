@@ -1521,6 +1521,13 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
       await clore(ev, "silence", "ig_eteint");
       return "traite";
     }
+    // Rejeu d'une adresse qui a DÉJÀ servi de OK pour une cible d'essai (parcours passé en attente_email, un envoi a eu lieu) : ni fausse alerte ni clôture « écarté ».
+    for (const k of [cle, ...(trouve.tous ?? []).filter((x) => x !== cle)]) {
+      if (adresse !== null && (k === cle ? etat : await lireEtat(k))?.idMessageOk === idMessage) {
+        await clore(ev, "silence", "deja_traite");
+        return "traite";
+      }
+    }
     await alerter("ig_ok_non_reconnu", MESSAGE_IG_OK_NON_RECONNU, now);
     await clore(ev, "ecarte", "ok_non_reconnu");
     return "traite";
@@ -1615,32 +1622,42 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     await clore(ev, "silence", "etat");
     return "traite";
   }
-  let aServir = parcoursAServir(entrees, enAttente, idMessage, REPONSES_IG_MAX_PAR_MESSAGE);
-  if (aServir.length === 0) {
-    await clore(ev, "silence", "deja_traite");
-    return "traite";
-  }
   /** OK reçu et traité SANS envoi : compté une fois (jamais pour un rejeu) et le message est consommé pour ce parcours. */
   const consommer = (cleP: string) =>
     ecrireEtat(cleP, (e) => (e && enAttenteOk(e) && e.idMessageOk !== idMessage ? { ...e, idMessageOk: idMessage, okRecus: (e.okRecus ?? 0) + 1 } : undefined));
-  // Adresse écrite sans OK (cible d'essai seulement) : filtre posé AVANT le refus des auteurs non listés, pour qu'un parcours qui n'est pas d'essai ne soit ni servi ni consommé (ni idMessageOk, ni okRecus).
-  // Le statut d'essai est calculé UNE SEULE FOIS par parcours, avant la décision : « non » = écarté du service ; « suppose » (catalogue illisible) = report pour toute action ; « prouve » = chemin normal, sans relire le catalogue.
+  // Adresse écrite sans OK (cible d'essai seulement) : filtre posé AVANT la limite de 3 parcours (sinon 3 parcours qui ne sont pas d'essai, plus anciens, coupent un essai récent) et AVANT le refus des auteurs non listés,
+  // pour qu'un parcours qui n'est pas d'essai ne soit ni servi ni consommé (ni idMessageOk, ni okRecus).
+  // Le statut d'essai est calculé UNE SEULE FOIS par parcours, avant la décision : « non » = écarté du service ; « suppose » (catalogue illisible) = report de TOUT l'événement, tout de suite (rien n'est consommé, aucune lecture du suivi, aucun envoi partiel) ; « prouve » = chemin normal, sans relire le catalogue.
   const statutsEssai = new Map<string, "prouve" | "suppose">();
+  let candidats = enAttente;
   if (opts.seulementEssai) {
-    const essai: typeof aServir = [];
-    for (const x of aServir) {
+    candidats = [];
+    for (const x of enAttente) {
       const e = entrees.find((y) => y.cle === x.cle)?.etat;
       const st = e ? (e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now)) : "non";
       if (st === "non") continue;
       statutsEssai.set(x.cle, st);
-      essai.push(x);
+      candidats.push(x);
     }
-    aServir = essai;
-    if (aServir.length === 0) {
+    if (candidats.length === 0) {
+      // Un parcours d'essai déjà servi par CE message (rejeu) : ni alerte ni clôture « écarté », un envoi a eu lieu.
+      if (entrees.some((x) => x.etat.idMessageOk === idMessage)) {
+        await clore(ev, "silence", "deja_traite");
+        return "traite";
+      }
       await alerter("ig_ok_non_reconnu", MESSAGE_IG_OK_NON_RECONNU, now);
       await clore(ev, "ecarte", "ok_non_reconnu");
       return "traite";
     }
+  }
+  let aServir = parcoursAServir(entrees, candidats, idMessage, REPONSES_IG_MAX_PAR_MESSAGE);
+  if (aServir.length === 0) {
+    await clore(ev, "silence", "deja_traite");
+    return "traite";
+  }
+  if (aServir.some((x) => statutsEssai.get(x.cle) === "suppose")) {
+    await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+    return "bloque";
   }
   // Instagram réservé aux auteurs d'essai (réglage public éteint) : les parcours dont la clé n'est plus celle d'un auteur listé sont consommés AVANT toute lecture du suivi.
   let refusIg = false;
@@ -1704,11 +1721,6 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
   for (const choisi of aServir) {
     const avant = await lireEtat(choisi.cle);
     if (!avant || !enAttenteOk(avant) || avant.idMessageOk === idMessage) continue;
-    // Adresse sans OK : statut d'essai « supposé » (catalogue illisible) = report quelle que soit la décision (lien, pas encore, autre) ; rien n'est consommé ni clos.
-    if (statutsEssai.get(choisi.cle) === "suppose") {
-      await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
-      return "bloque";
-    }
     // (d) décision pure : fenêtre de 24 h de Meta (avec marge) comptée depuis le dernier message de la personne.
     const activite = Date.parse(avant.derniereActiviteLe ?? "");
     const dec = deciderReponseInstagram({

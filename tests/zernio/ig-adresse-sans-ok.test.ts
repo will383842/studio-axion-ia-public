@@ -411,3 +411,98 @@ describe("Adresse écrite sans OK (cible d'essai) : vaut un OK, la demande d'adr
     expect(await parSuffixe("a")).toMatchObject({ etat: "attente_email", idMessageOk: "msg-adr" });
   });
 });
+
+describe("Réserves non bloquantes de la PR #910 (A1, A2, A3, A6) : statut d'essai « supposé » et plafond de 3 parcours", () => {
+  // m1Le absent : les messages déjà envoyés comptent dans le plafond par personne (3), ces parcours de remplissage ne doivent pas le saturer.
+  const vieux = { creeLe: iso(T0 - 5 * H), m1Le: null };
+  const GUIDE_REEL = { mot: "GUIDE", guide: "guide-ia", titreCible: TITRE };
+
+  it("A1 · parcours « supposé » hors fenêtre de 24 h : reporté catalogue_illisible, NON consommé (ni idMessageOk, ni okRecus) ; au retour du catalogue, consommé une seule fois", async () => {
+    await grainer([{ suffixe: "a", extra: { derniereActiviteLe: iso(T1 - 25 * H), creeLe: iso(T1 - 26 * H), m1Le: iso(T1 - 26 * H) } }]);
+    site.panneEssai = true;
+    lireTexteDe(ADR);
+    const id = await msg("msg-adr", 5000);
+    await pass(T0 + 25 * H);
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    const a = await parSuffixe("a");
+    expect(a.idMessageOk).toBeUndefined();
+    expect(a.okRecus ?? 0).toBe(0);
+    site.panneEssai = false;
+    await pass(T0 + 25 * H + 61_000);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(await parSuffixe("a")).toMatchObject({ idMessageOk: "msg-adr", okRecus: 1 });
+  });
+
+  it("A2 · trois parcours non-essai plus anciens + un parcours d'essai plus récent + adresse : le filtre d'essai passe AVANT la limite de 3, l'essai reçoit v6-1, aucune alerte « non reconnue »", async () => {
+    await grainer([
+      { suffixe: "a" },
+      { suffixe: "b", extra: { ...GUIDE_REEL, ...vieux } },
+      { suffixe: "c", extra: { ...GUIDE_REEL, ...vieux } },
+      { suffixe: "d", extra: { ...GUIDE_REEL, ...vieux } },
+    ]);
+    lireTexteDe(ADR);
+    await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(banc.port.envoyes).toHaveLength(1);
+    expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
+    expect(await parSuffixe("a")).toMatchObject({ etat: "attente_email", idMessageOk: "msg-adr" });
+    for (const s of ["b", "c", "d"]) {
+      const g = await parSuffixe(s);
+      expect(g.etat).toBe("ig_attente_ok");
+      expect(g.idMessageOk).toBeUndefined();
+    }
+    expect(await nbAlertesNonReconnu()).toBe(0);
+  });
+
+  it("A6 · panne durable du catalogue, parcours « supposé » : le report a lieu AVANT la lecture du suivi (0 lecture à chaque report de 60 s)", async () => {
+    await grainer([{ suffixe: "a" }]);
+    site.panneEssai = true;
+    lireTexteDe(ADR);
+    const id = await msg("msg-adr", 5000);
+    await pass(T1);
+    await pass(T1 + 61_000);
+    await pass(T1 + 122_000);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    expect(suivi.appels).toBe(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+  });
+
+  it("A3 · essai « prouvé » + essai « supposé » dans le même événement, catalogue en panne : rien ne part avant le report (pas d'envoi suivi d'un report) ; au retour du catalogue, les deux sont servis, aucune fausse alerte « non reconnue »", async () => {
+    await grainer([
+      { suffixe: "a", extra: { cibleEssai: true } },
+      { suffixe: "b", extra: { creeLe: iso(T0 - H), m1Le: null } },
+    ]);
+    site.panneEssai = true;
+    lireTexteDe(ADR);
+    const id = await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    site.panneEssai = false;
+    await pass(T1 + 61_000);
+    expect(banc.port.envoyes).toHaveLength(2);
+    expect(await nbAlertesNonReconnu()).toBe(0);
+    expect(await charge(id)).not.toMatchObject({ dernierCode: "ok_non_reconnu" });
+  });
+
+  it("A3b · rejeu du même message après un envoi à l'essai, un GUIDE réel restant en attente : pas de fausse alerte « réponse non reconnue », pas de clôture « ecarte »", async () => {
+    await grainer([
+      { suffixe: "a" },
+      { suffixe: "b", extra: { ...GUIDE_REEL, ...vieux } },
+    ]);
+    lireTexteDe(ADR);
+    await msg("msg-adr", 5000);
+    await pass(T1);
+    expect(banc.port.envoyes).toHaveLength(1);
+    // Rejeu : l'événement est remis à traiter (comme après un plantage avant la clôture), le message a déjà servi l'essai.
+    const evs = await depots().evenementsFournisseurs.lister(() => true);
+    for (const e of evs as any[]) if (e.traite) await depots().evenementsFournisseurs.modifier(e.id, { traite: false, charge: { ...e.charge, etat: "a_reessayer", prochainEssaiLe: T1 } });
+    await pass(T1 + 30_000);
+    expect(banc.port.envoyes).toHaveLength(1);
+    expect(await nbAlertesNonReconnu()).toBe(0);
+    const clos = await depots().evenementsFournisseurs.lister((x: any) => x.charge?.dernierCode === "ok_non_reconnu");
+    expect(clos).toHaveLength(0);
+  });
+});
