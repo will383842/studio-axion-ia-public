@@ -3,12 +3,23 @@ import React from "react";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 // `polices.ts` importe « remotion », installé seulement dans studio-rendu (hors espace pnpm, absent du job « nouveaux tests »).
 // Doublure minimale : le rendu serveur ne charge aucune police (chargerPolices sort si `document` est absent).
 vi.mock("remotion", () => ({ delayRender: () => 0, continueRender: () => undefined }));
 import { geometrieEscalier } from "@/briques/sous-titres/escalier";
-import { LigneEscalier, MEMOIRE_FLOUE } from "../../../studio-rendu/compositions/sous-titres/LigneEscalier";
+
+// Le tsc racine exclut studio-rendu (« remotion » y est absent) : le composant est chargé à l'exécution, par un chemin
+// calculé, et non par un import statique qui attirerait polices.ts dans le programme racine (TS2307).
+type Module = {
+  LigneEscalier: React.FC<{ geometrie: ReturnType<typeof geometrieEscalier>; couleur: string; fond: string; ligneActive: number }>;
+  MEMOIRE_FLOUE: { flouPx: number; opacite: number };
+};
+let LigneEscalier: Module["LigneEscalier"], MEMOIRE_FLOUE: Module["MEMOIRE_FLOUE"];
+beforeAll(async () => {
+  const chemin = ["..", "..", "..", "studio-rendu", "compositions", "sous-titres", "LigneEscalier"].join("/");
+  ({ LigneEscalier, MEMOIRE_FLOUE } = (await import(/* @vite-ignore */ chemin)) as Module);
+});
 
 const zone = { xPx: 54, yPx: 200, largeurPx: 972, hauteurPx: 1200 };
 const geo = geometrieEscalier(["Un", "Deux", "Trois"], 1080, 1920, zone, 60)!;
