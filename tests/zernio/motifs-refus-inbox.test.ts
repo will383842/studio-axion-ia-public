@@ -65,6 +65,11 @@ describe("T3 table complète", () => {
     ["statut 404", 404, {}, "compte-zernio-introuvable"],
     ["phrase account not found", 400, { error: "account not found" }, "compte-zernio-introuvable"],
     ["statut 500 sans repère", 500, {}, "erreur-serveur"],
+    ["phrase invalid for a private reply", 400, { error: "Comment is invalid for a private reply" }, "commentaire-non-eligible"],
+    ["phrase requires permission", 400, { error: "This call requires the pages_messaging permission" }, "droits-manquants"],
+    ["phrase isn't available right now", 400, { error: "This person isn't available right now" }, "personne-injoignable"],
+    ["phrase declined", 400, { error: "The request was declined" }, "reponse-privee-declinee"],
+    ["phrase account does not exist", 400, { error: "Account does not exist" }, "compte-zernio-introuvable"],
     ["tout le reste", 400, { error: "rien de connu" }, "raison-inconnue"],
   ];
   it.each(lignes)("%s -> %s", (_nom, statut, corps, attendu) => {

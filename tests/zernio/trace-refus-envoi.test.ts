@@ -101,8 +101,11 @@ describe("port : raisonRefus et issues (T15 à T18)", () => {
   it("T17 mot-interdit, lien-hors-domaine, guide-inconnu : code seul", async () => {
     const mot = await prive(creerFauxClientZernio([]).client, { texte: `${TEXTE} ${MOT_INTERDIT}` });
     expect(mot.raison).toMatchObject({ motif: "refus-avant-envoi", codeClient: "mot-interdit" });
-    const lien = await prive(creerFauxClientZernio([]).client, { texte: `${TEXTE} https://hors-domaine.exemple.invalid/x` });
-    expect(["lien-hors-domaine", "mot-interdit", "chemin-refuse"]).toContain(lien.raison?.codeClient);
+    // Un lien hors de nos domaines passe par le message d'accueil (modèle qui accepte un lien) : refus typé avant le réseau.
+    const texteLien = rendreTexteMp("mp-m1-v4-1", { titre: "Guide d'exemple", lien: "https://hors-domaine.exemple.invalid/x" })!;
+    const lien = await creerPortInboxZernio({ client: creerFauxClientZernio([]).client, comptesPermis: ["exemple-compte-1"], titresGuidesPermis: ["Guide d'exemple"] }).envoyerMessage({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idConversation: "exemple-conv-1", cle: "k", texte: texteLien });
+    expect(lien.raison).toMatchObject({ motif: "refus-avant-envoi", codeClient: "lien-hors-domaine" });
+    expect(JSON.stringify(lien.raison)).not.toContain("exemple.invalid");
     const guide = await creerPortInboxZernio({ client: creerFauxClientZernio([]).client, comptesPermis: ["exemple-compte-1"], titresGuidesPermis: ["Autre guide"] }).repondreEnPrive({ nonOpposee: emettreJetonNonOpposee(), idCompte: "exemple-compte-1", idPost: "exemple-post-1", idCommentaire: "exemple-com-1", texte: TEXTE });
     expect(guide.raison).toMatchObject({ motif: "refus-avant-envoi", codeClient: "guide-inconnu" });
     for (const r of [mot, lien, guide]) expect(estRaisonRefus(r.raison)).toBe(true);
@@ -179,9 +182,10 @@ describe("parcours : raisons stockées et journal (T19 à T23)", () => {
     port.reponses.pub = () => ({ statut: "envoye", idMessage: "msg-pub" });
     port.reponses.prive = () => ({ statut: "envoye", idMessage: "msg-prive" });
     await passer(T0 + 3600_000);
-    const brutJson = JSON.stringify((await Com.lireParametre<Record<string, unknown>>(C.PARAM_CONVERSATIONS, {}))[cle]);
-    expect(brutJson).not.toContain("refusPublic");
-    expect(brutJson).not.toContain("refusPrive");
+    const objet = (await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {}))[cle];
+    expect(objet).toBeDefined();
+    expect("refusPublic" in objet).toBe(false);
+    expect("refusPrive" in objet).toBe(false);
   });
   it("T21 premier message à vérifier, définitif ou à réessayer : refusPrive non écrite", async () => {
     const cas: Array<[string, () => import("@/fournisseurs/zernio-inbox").ResultatEcritureInbox]> = [
@@ -219,7 +223,8 @@ describe("parcours : raisons stockées et journal (T19 à T23)", () => {
     port.reponses.prive = () => ({ statut: "refuse", code: "refuse", raison: RAISON_A });
     await deposerCommentaire(depots, { idAuteur: "auteur-fictif-23c" });
     await passer();
-    await C.reduireIdentifiants({ env: { ...ENV, PARCOURS_REDUCTION_IDS: "1" } as never, maintenantMs: T0 + 400 * 24 * 3600_000 });
+    const reduits = await C.reduireIdentifiants({ env: { ...ENV, PARCOURS_REDUCTION_IDS: "1" } as never, maintenantMs: T0 + 400 * 24 * 3600_000 });
+    expect(reduits).toBeGreaterThan(0); // la réduction a réellement eu lieu : le test ne passe pas à vide
     const { le, ...r } = (await lire("auteur-fictif-23c")).refusPrive!;
     void le;
     expect(estRaisonRefus(r)).toBe(true);
