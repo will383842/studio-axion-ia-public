@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+import { execSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { reconnaitre } from "../../outils/licences/verifier-licence.mjs";
+import { DROITS } from "../../src/briques/droits";
+
+const RACINE = process.cwd();
+const lire = (chemin: string) => JSON.parse(readFileSync(join(RACINE, chemin), "utf8"));
+const paquet = lire("studio-rendu/package.json");
+const verrou = lire("studio-rendu/package-lock.json");
+const PAQUETS = { roughjs: "4.6.6", "perfect-freehand": "1.2.3" } as const;
+
+describe("dépendances du style croquis (X1-07)", () => {
+  it("versions figées, sans ^ ni ~, déclarées et verrouillées", () => {
+    for (const [nom, version] of Object.entries(PAQUETS)) {
+      expect(paquet.dependencies[nom], nom).toBe(version);
+      expect(verrou.packages[`node_modules/${nom}`]?.version, nom).toBe(version);
+      expect(verrou.packages[`node_modules/${nom}`]?.integrity, nom).toMatch(/^sha512-/);
+    }
+  });
+
+  it("licence copiée, datée, avec l'empreinte du verrou ; reconnue MIT par l'outil", () => {
+    for (const [nom, version] of Object.entries(PAQUETS)) {
+      const f = join(RACINE, `studio-rendu/LICENCES/${nom}-${version}.txt`);
+      expect(existsSync(f), f).toBe(true);
+      const t = readFileSync(f, "utf8");
+      expect(t).toContain(version);
+      expect(t).toMatch(/\d{4}-\d{2}-\d{2}/);
+      expect(t).toContain(verrou.packages[`node_modules/${nom}`].integrity);
+      expect(reconnaitre(t)).toBe("MIT");
+    }
+  });
+
+  it("entrées du registre des droits, une par paquet", () => {
+    for (const [nom, version] of Object.entries(PAQUETS)) {
+      const e = DROITS.find((d) => d.id === nom);
+      expect(e, nom).toBeDefined();
+      expect(e?.spdx).toBe("MIT");
+      expect(e?.versionFigee).toBe(version);
+      expect(existsSync(join(RACINE, e?.fichierLicence ?? "absent")), nom).toBe(true);
+    }
+  });
+
+  it("chaque dépendance directe de studio-rendu a son fichier de licence", () => {
+    const fichiers = (n: string) => (n.startsWith("@remotion/") ? "remotion-paths-shapes" : n);
+    for (const [nom, version] of Object.entries<string>(paquet.dependencies)) {
+      if (["react", "react-dom", "remotion", "tsx", "typescript", "zod", "@remotion/bundler", "@remotion/renderer"].includes(nom)) continue; // hors périmètre de cette fiche
+      expect(existsSync(join(RACINE, `studio-rendu/LICENCES/${fichiers(nom)}-${version}.txt`)), nom).toBe(true);
+    }
+  });
+
+  it("éteint : aucun code du dépôt n'importe encore ces paquets", () => {
+    const sortie = execSync(
+      `grep -rEl "from ['\\"](roughjs|perfect-freehand)" src studio-rendu/compositions studio-rendu/src || true`,
+      { cwd: RACINE, encoding: "utf8" },
+    );
+    expect(sortie.trim()).toBe("");
+  });
+});
