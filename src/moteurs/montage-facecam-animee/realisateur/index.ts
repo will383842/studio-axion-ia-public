@@ -20,6 +20,7 @@ import { schemaCalque, schemaCarte, schemaElementV3, schemaElementV4, schemaFene
 import { schemaJson } from "@/generateur/roles/types";
 import { CHARTE_FACECAM_ANIMEE, MENTION_PLAFOND_FACECAM_ANIMEE } from "../index";
 import { blocHistoriqueV4, consigneRealisateur } from "./consignes";
+import { blocTelephoneVideo } from "./consigne-telephone-video";
 import { nettoyer, type MotTranscrit } from "./mots";
 import { planMinimalV4 } from "./plan-minimal-v4";
 import type { MiseEnScene } from "./regles-fixes";
@@ -107,6 +108,8 @@ export interface EntreeRealisateur {
   repli?: { interdites: readonly string[]; elementsPrecedents: unknown[]; erreurs: readonly string[]; essaisMax: number };
   /** Calage au mot allumé (GV-N7) : le message numérote les mots (#k) et demande `motIndex`. Absent ou faux : message inchangé. */
   calageAuMot?: boolean;
+  /** BR-TELEPHONE-a : réglage `facecamAnimee.telephoneVideo` allumé : le MESSAGE (jamais la consigne système) ajoute le bloc du téléphone. Absent : message inchangé. */
+  telephoneVideo?: boolean;
 }
 
 export interface RequeteRealisateur {
@@ -267,7 +270,8 @@ export async function realiser(entree: EntreeRealisateur, dependances: Dependanc
   // La consigne système ne change pas d'un appel à l'autre : l'interdiction des plaquettes à vidéo passe dans le MESSAGE.
   // L'historique des plaquettes v4 passe aussi dans le MESSAGE (seul `message` arrive à Claude en production : la consigne du rôle est fixe et mise en cache).
   const histoV4 = blocHistoriqueV4(entree.historique ?? [], repli?.interdites);
-  const corps = histoV4 ? `${messageRealisateur(entree)}\n\n${histoV4}` : messageRealisateur(entree);
+  // BR-TELEPHONE-a : bloc du téléphone ajouté au MESSAGE seulement si allumé ; éteint, `corps` est identique au caractère près.
+  const corps = [messageRealisateur(entree), histoV4, blocTelephoneVideo(entree.telephoneVideo === true)].filter(Boolean).join("\n\n");
   const base = repli
     ? `${corps}
 Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : ${repli.interdites.join(", ")}. N'en utilise aucune ; montre littéralement ce qui est dit avec des plaquettes sans vidéo.`
