@@ -9,11 +9,11 @@ import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { couleursSur, type FondAxion } from "../../src/briques/jetons-motion";
 import { FAMILLE_CSS, PALETTE } from "../../src/briques/charte/axion-2026";
 
-type Def = DefinitionObjet<any>;
+type Def = DefinitionObjet<unknown>;
 const OBJETS: { def: Def; ok: unknown }[] = [
-  { def: OBJET_SCHEMA_ETOILE as Def, ok: EXEMPLES_SCHEMAS.etoile[0] },
-  { def: OBJET_ICONES_RELIEES as Def, ok: EXEMPLES_SCHEMAS.icones[0] },
-  { def: OBJET_AGENTS_GLOBE as Def, ok: EXEMPLES_SCHEMAS.agents[0] },
+  { def: OBJET_SCHEMA_ETOILE as unknown as Def, ok: EXEMPLES_SCHEMAS.etoile[0] },
+  { def: OBJET_ICONES_RELIEES as unknown as Def, ok: EXEMPLES_SCHEMAS.icones[0] },
+  { def: OBJET_AGENTS_GLOBE as unknown as Def, ok: EXEMPLES_SCHEMAS.agents[0] },
 ];
 const TONS: TonObjet[] = ["neutre", "accent", "valide", "erreur"];
 const FONDS: FondAxion[] = ["ivoire", "noir"];
