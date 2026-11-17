@@ -390,7 +390,7 @@ describe("Adresse écrite sans OK (cible d'essai) : vaut un OK, la demande d'adr
       { suffixe: "b", extra: { mot: "GUIDE", guide: "guide-ia", titreCible: TITRE, creeLe: iso(T0 - 3 * H), m1Le: iso(T0 - 3 * H + 1000) } },
     ]);
     lireTexteDe(ADR);
-    await msg("msg-adr", 5000);
+    const id = await msg("msg-adr", 5000);
     await pass(T1, { ...ENV_X, PARCOURS_ESSAI_AUTEURS: "auteur-autre-fictif" });
     expect(banc.port.envoyes).toHaveLength(0);
     expect(demandes()).toHaveLength(0);
@@ -398,6 +398,10 @@ describe("Adresse écrite sans OK (cible d'essai) : vaut un OK, la demande d'adr
     expect(guide.etat).toBe("ig_attente_ok");
     expect(guide.idMessageOk).toBeUndefined();
     expect(guide.okRecus ?? 0).toBe(0);
+    // A5 : code de clôture, et sort du parcours d'essai (auteur non listé : il est consommé et refusé, par conception ; seul le GUIDE réel reste intact).
+    expect(await charge(id)).toMatchObject({ etat: "ecarte", dernierCode: "garde_ig_hors_essai" });
+    expect(await parSuffixe("a")).toMatchObject({ etat: "ig_attente_ok", idMessageOk: "msg-adr", okRecus: 1 });
+    expect(await nbAlertesNonReconnu()).toBe(0);
   });
 
   it("C17 · adresse en ig_pas_encore (la personne ne suivait pas, suit maintenant) : 1 envoi = v6-1, 0 demande au site", async () => {

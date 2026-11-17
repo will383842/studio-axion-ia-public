@@ -327,11 +327,14 @@ describe("Suites de la relecture de #853 : renvoi, filet Facebook, drapeau, repo
 
   it("T11 · comme T10 bis mais catalogue lu sans panne, test:true (essai prouvé) : cibleEssai posé ; la lecture a bien eu lieu et rien n'est tombé en panne", async () => {
     await valider([V61]);
-    await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.pannes = 0; site.lectures = 0; } });
+    const id = await reprendreEnPubOk({ cibleEssai: undefined }, [V61], { avantRejeu: () => { site.pannes = 0; site.lectures = 0; } });
     expect(site.lectures).toBeGreaterThan(0); // statutEssaiCatalogue a lu le catalogue (sinon « pas de panne » ne prouverait rien)
     expect(site.pannes).toBe(0);
     expect(banc.port.prive).toHaveLength(1);
-    expect((await conv()).cibleEssai).toBe(true);
+    // Rougit si la garde « essai prouvé » saute : le message est bien la demande d'adresse v6-1 (jamais M1 v4-1), le drapeau est posé, l'événement n'est pas reporté.
+    expect(banc.port.prive[0].texte).toBe(rendreTexteMp(V61, { mot: MOT, titre: TITRE_ESSAI }));
+    expect(await conv()).toMatchObject({ etat: "attente_email", versionTexteM1: V61, cibleEssai: true });
+    expect(await charge(id)).not.toMatchObject({ dernierCode: "catalogue_illisible" });
   });
 
   it("T16 · Facebook, lecture du catalogue en panne dans preparerM1 : comme avant, M1 v5-1 part, cibleEssai jamais posé (aucun report)", async () => {

@@ -162,7 +162,7 @@ describe("Interblocage de deux messages rapprochés : au plus 2 reports, plus de
     expect(await nbBloques()).toBe(0);
   });
 
-  it("C15d · deux messages de même recuLe : départés par ev.id, un seul envoi (idMessageOk = le message de plus petit ev.id)", async () => {
+  it("C15d · deux messages de même recuLe : départés par ev.id, un seul v6-1 (le second OK reçoit l'accusé ; idMessageOk = le message de plus petit ev.id)", async () => {
     await apresIgSuivre();
     lectures({ "msg-ok-a": "OK", "msg-ok-b": "OK" });
     const ea = await msg("msg-ok-a", 5000);
@@ -207,7 +207,7 @@ describe("Interblocage de deux messages rapprochés : au plus 2 reports, plus de
     expect(await conv()).toMatchObject({ etat: "oppose" });
   });
 
-  it("C15g · un second OK (reçu plus tôt) arrive pendant la lecture du suivi : le report du second site pose aussi la marque ; un seul envoi dès le passage suivant", async () => {
+  it("C15g · un second OK (reçu plus tôt) arrive pendant la lecture du suivi : le report du second site pose aussi la marque ; un seul v6-1 dès le passage suivant", async () => {
     await apresIgSuivre();
     lectures({ "msg-ok": "OK", "msg-ok-tot": "OK" });
     await msg("msg-ok", 6000);
