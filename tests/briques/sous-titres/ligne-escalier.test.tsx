@@ -3,7 +3,10 @@ import React from "react";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+// `polices.ts` importe « remotion », installé seulement dans studio-rendu (hors espace pnpm, absent du job « nouveaux tests »).
+// Doublure minimale : le rendu serveur ne charge aucune police (chargerPolices sort si `document` est absent).
+vi.mock("remotion", () => ({ delayRender: () => 0, continueRender: () => undefined }));
 import { geometrieEscalier } from "@/briques/sous-titres/escalier";
 import { LigneEscalier, MEMOIRE_FLOUE } from "../../../studio-rendu/compositions/sous-titres/LigneEscalier";
 
