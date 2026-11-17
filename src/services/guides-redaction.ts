@@ -40,7 +40,7 @@ export function guidesRedactionActif(env: Env = process.env): boolean {
 export interface DepsRedaction {
   env?: Env;
   choisirCle: () => Promise<string | null>;
-  appeler: (requete: RequeteClaude, cle: string) => Promise<{ texte: string }>;
+  appeler: (requete: RequeteClaude, cle: string) => Promise<{ texte: string; marqueur?: string }>;
   lireParametre: (id: string) => Promise<unknown>;
   ecrireParametre: (id: string, valeur: unknown) => Promise<void>;
   journaliser: (type: string, message: string) => Promise<void>;
@@ -144,6 +144,7 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
   if (versions.length >= MAX_VERSIONS_REFUS) return { ok: false, raison: "trop_de_versions" };
 
   let brut: string;
+  let marqueur: string | undefined;
   try {
     const reponse = await d.appeler(
       {
@@ -157,6 +158,7 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
       cle,
     );
     brut = reponse.texte;
+    marqueur = reponse.marqueur;
   } catch (e) {
     // Refus de la garde d'argent : rien n'est parti chez Claude, rien n'est écrit (ce n'est pas une panne).
     const refus = refusArgent(e);
@@ -174,7 +176,7 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
     if (!analyse.success) throw new Error("schema");
     contenu = analyse.data;
   } catch {
-    await journaliserSansDonnee(d, "guide_redaction_illisible", "reponse non conforme");
+    await journaliserSansDonnee(d, "guide_redaction_illisible", `reponse non conforme${marqueur ? ` marqueur=${marqueur}` : ""}`);
     return { ok: false, raison: "reponse_illisible" };
   }
 

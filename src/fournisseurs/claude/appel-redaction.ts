@@ -19,7 +19,7 @@
  * Rien n'est chargé à l'import (imports différés) : interrupteur éteint, aucun service, aucune base.
  */
 import { ErreurClaude, type RequeteClaude } from "./client";
-import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
+import { marqueurArret, pireCasRequete, type MarqueurArret, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 
 /** Étape inscrite sur la dépense (lignes de coût) : le suivi des dépenses retrouve la rédaction des guides. */
 export const ETAPE_DEPENSE_REDACTION_GUIDE = "Guide PDF · rédaction";
@@ -45,6 +45,7 @@ export function roleRedactionGuide(requete: RequeteClaude): DefinitionRole {
     modele: requete.modele,
     effort: requete.effort,
     maxTokens: requete.maxTokens,
+    sansPhrasesFixes: true,
     simuler: () => "",
   };
 }
@@ -54,7 +55,7 @@ export function roleRedactionGuide(requete: RequeteClaude): DefinitionRole {
  * par `claudeActif`, comme pour tous les rôles (rotation des comptes comprise). Lève `RefusArgentRedaction` sur un refus
  * de la garde (aucun appel), ou l'erreur de Claude telle quelle (la dépense éventuelle est déjà enregistrée).
  */
-export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: string): Promise<{ texte: string }> {
+export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: string): Promise<{ texte: string; marqueur?: MarqueurArret }> {
   const gc = await import("@/services/generation-claude");
   const credits = await import("@/services/credits");
   const commun = await import("@/services/_commun");
@@ -96,7 +97,8 @@ export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: strin
   try {
     const r = await gc.appelerAvecRotation(actif, role, entree);
     cout = gc.coutReelUsd(r.reponse);
-    return { texte: r.reponse.texte };
+    const marqueur = marqueurArret(r.reponse.texte);
+    return { texte: r.reponse.texte, ...(marqueur ? { marqueur } : {}) };
   } catch (e) {
     // Coupure après l'envoi (réseau, délai, erreur inconnue) : la réponse a pu être facturée ; son pire cas reste compté.
     const err = e instanceof ErreurClaude ? e : null;
