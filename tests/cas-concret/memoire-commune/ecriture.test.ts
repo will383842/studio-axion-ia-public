@@ -81,7 +81,8 @@ const memoireDe = (anciens: string[], extra: Record<string, unknown> = {}) => {
 describe("(g) interrupteur coupé : le prompt est identique octet pour octet", () => {
   it("CONSIGNE_ECRITURE n'a pas bougé d'un octet", () => {
     // B3 : consigne volontairement modifiée (R05 au débit prudent, liste-avant). B3-bis : modification voulue (débit de 3 à 3,9). 24/10 : modification voulue (cas sans fait chiffré, paragraphe SANS FAIT CHIFFRÉ). 24/10 : modification voulue (clarté, récit).
-    expect(createHash("sha256").update(CONSIGNE_ECRITURE).digest("hex")).toBe("491eec0c9bd57e7c1159857c3493dbea8e52cbe7fde0512e608c987e8032cfe4");
+    // 17/11/2026 : modification voulue (FIX-BARRE-SANS-NOMBRE, accord de Williams, ANALYSE-ESSAI-CAS-CONCRET.md § 6.2) : 2 phrases de consigne sur la barre « avant / maintenant » qui désigne un fait sans nombre, version du rôle 3 → 4. Seule l'empreinte de référence change ; la comparaison reste octet pour octet.
+    expect(createHash("sha256").update(CONSIGNE_ECRITURE).digest("hex")).toBe("5953801461222810c6628ad5acf5fc380e8f97736b3431a4a538eb465206b532");
     expect(CONSIGNE_ECRITURE).not.toContain(ENTETE_BLOC_MEMOIRE);
     expect(CONSIGNE_ECRITURE).toContain("SANS FAIT CHIFFRÉ");
     expect(CONSIGNE_ECRITURE).toContain("jamais PREUVE_MANQUANTE pour cette raison");
