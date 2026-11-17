@@ -83,7 +83,9 @@ import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsC
 import { textesDePublication, type TextePublication } from "./publication";
 import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
-import { centreSousTitresCasConcret, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
+import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
+import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";
+import type { DosageMotion } from "@/briques/dosage-motion/types";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
 import { avancerVoixCasConcret, empreintePriseVoix, planSonEntier, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
@@ -209,6 +211,10 @@ export interface OptionsFabricationCasConcret {
   styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null;
   /** GV-ST-02 : base des sous-titres de la commande (`commande.sousTitres?.base`), lue seulement si un style est choisi. */
   baseSousTitres?: BaseSousTitres;
+  /** C2-U5bis : capacité `texte.style-varie` permise par la bibliothèque de la commande ; absente : comportement actuel. Seul `true` allume. */
+  styleVarie?: boolean;
+  /** X3-07 : cran du dosage figé dans la commande (X3-03) ; absent : tirage inchangé. */
+  dosage?: DosageMotion;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -565,6 +571,9 @@ function sansAdresse(p: ProprietesEcran): ProprietesEcran {
 /* ------------------------------------------------------------------ */
 
 /** Fabrique les fichiers d'un cas concret. Lève `ErreurFabricationCasConcret` (étape et raisons) ; le journal permet la reprise. */
+/** X3-07 : applique le cran du dosage au tirage, après le tirage ; sans cran, renvoie le même objet. */
+export const tirageDose = (tirage: Tirage, dosage?: DosageMotion): Tirage => (dosage ? appliquerContraintes(tirage, contraintesDosageCasConcret(dosage)) : tirage);
+
 export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Promise<CompteRenduCasConcret> {
   const { outils, cas, entrees } = o;
   // Avant toute dépense : sans numéro de version, aucun lien suivi ne peut être posé (ADR 0002).
@@ -980,12 +989,13 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         const exclues = !imposee && o.structureEcartee ? STRUCTURES.filter((s) => structureEffective(cas.offre, s) === o.structureEcartee) : [];
         const heritable = heritee && !exclues.includes(heritee.tirage.structure) ? heritee : null;
         if (!heritable) journal.tirageNeuf = true;
-        tirage = heritable?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(imposee ? { structureImposee: imposee } : {}), ...(exclues.length ? { structuresExclues: exclues } : {}) });
+        tirage = heritable?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(imposee ? { structureImposee: imposee } : {}), ...(exclues.length ? { structuresExclues: exclues } : {}), ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) });
         // Une structure imposée (script validé, écriture déjà commencée) l'emporte aussi sur celle d'un tirage hérité.
         if (imposee && tirage.structure !== imposee) tirage = { ...tirage, structure: imposee };
       }
       // Le journal dit la structure réellement suivie : coaching + « une-journee » = v4.
       tirage = { ...tirage, structure: structureEffective(cas.offre, tirage.structure) };
+      tirage = tirageDose(tirage, o.dosage);
       journal.tirage = { tirage, notee: !!miseGardee };
       await ecrire();
     } else if (o.scriptValide) {
@@ -1029,7 +1039,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const heritee = variete.miseHeritee ? lireMise(await sansPanne(() => variete.miseHeritee!(o.videoId), null)) : null;
       const historique = lireHistorique(await sansPanne(() => variete.lireHistorique(), []));
       if (!journal.tirage && !heritee) journal.tirageNeuf = true;
-      const tirage = journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique });
+      const tirage = tirageDose(journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) }), o.dosage);
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
       // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.
@@ -1150,7 +1160,9 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // GV-ST-02 : le style choisi (Bibliothèque ou étoile) fait loi ; sans choix, « Charte duo » v4. Plus de variante tirée par vidéo.
   const choisi = o.styleSousTitres?.valeur?.type === "style-sous-titres" ? { ...o.styleSousTitres, valeur: o.styleSousTitres.valeur } : null;
   // Variante par vidéo : coupée pour un tirage NEUF ; le tirage déjà enregistré (fiche, version existante, journal d'avant) est respecté.
-  const variante = VARIANTE_PAR_VIDEO || !(journal.tirageNeuf || mise?.sousTitresSansVariante);
+  const variante = VARIANTE_PAR_VIDEO || o.styleVarie === true || !(journal.tirageNeuf || mise?.sousTitresSansVariante);
+  // C2-U5bis : chemin neuf (capacité permise, constante éteinte) : le surlignage est un marqueur de la charte.
+  const marqueurNeuf = o.styleVarie === true && !VARIANTE_PAR_VIDEO ? MARQUEUR_STYLE_VARIE : undefined;
   // Position du style choisi respectée : `positionPct`, sinon « haut » / « bas » (zone libre des réseaux), sinon le centre plein image.
   const positionDuStyle = (v: ValeurStyleSousTitres): number => {
     if (v.positionPct !== undefined) return v.positionPct;
@@ -1161,12 +1173,12 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const centre = choisi ? positionDuStyle(choisi.valeur) : centreSousTitresCasConcret(mise?.tirage.sousTitres, variante);
   const style = choisi
     ? { id: choisi.id, nom: choisi.nom, valeur: { ...choisi.valeur, positionPct: centre, largeurMaxPct: choisi.valeur.largeurMaxPct ?? LARGEUR_SOUS_TITRES_PCT } }
-    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres, variante) } };
+    : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_DUO, positionPct: centre, largeurMaxPct: LARGEUR_SOUS_TITRES_PCT, ...surlignageCasConcret(mise?.tirage.sousTitres, variante, marqueurNeuf) } };
   const baseSousTitres = choisi ? baseRetenue(o.baseSousTitres, choisi.valeur) : "minimal";
   // Le style choisi (identifiant, valeur, base) entre dans l'empreinte du montage ; sans choix rien n'est ajouté (empreinte v4 inchangée).
   const variationDuMontage = choisi
     ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
-    : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante)].filter((x) => Object.keys(x).length);
+    : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante, marqueurNeuf)].filter((x) => Object.keys(x).length);
   // GV2-30 : le bandeau est dessiné à 65 % de la hauteur, hors de la ligne des sous-titres (85 %) : il n'est plus jamais posé,
   // avec ou sans style choisi. Les autres accents de la variation du tirage restent.
   const variationTirage = choisi ? undefined : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante).variation;

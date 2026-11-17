@@ -14,6 +14,7 @@
  */
 import { createHash } from "node:crypto";
 import { ErreurZernio, estErreurZernio, masquerSecret } from "./zernio-erreurs";
+import { motifRefusInbox, motifReseau } from "./zernio-motifs-refus";
 import { IDEMPOTENCE_INBOX, SEGMENT_ID, verifierCorpsInbox, type RouteInboxZernio } from "./zernio-inbox-corps";
 import { exigerCorpsSansMotInterdit, motsInterditsDuCorps } from "./zernio-filtre";
 
@@ -757,14 +758,16 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         const nom = e instanceof Error ? e.name : "";
         const detail = propre(e instanceof Error ? `${e.name}: ${e.message}` : String(e));
         const delai = nom === "AbortError" || nom === "TimeoutError";
+        const motifReseauInbox = ROUTES_INBOX.has(route) ? motifReseau(nom) : undefined;
         journal.alerte("Zernio : appel sans réponse", { requete: libelle, delaiDepasse: delai });
         if (ecriture) {
           lectureRequise = true;
-          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail });
+          throw new ErreurZernio("a-verifier", "Zernio n'a pas répondu à temps : état inconnu, lecture exigée avant tout nouvel envoi.", { detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail, motifInbox: motifReseauInbox });
         }
-        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail });
+        throw new ErreurZernio("indisponible", "Zernio ne répond pas pour le moment.", { reessayable: true, detailTechnique: ROUTES_INBOX.has(route) || route === "suivi-instagram" ? undefined : detail, motifInbox: motifReseauInbox });
       }
       journal.info("Zernio : réponse", { requete: libelle, statut: rep.status, dureeMs: maintenant() - debut });
+      const motif = ROUTES_INBOX.has(route) && !(rep.status >= 200 && rep.status < 300) ? motifRefusInbox(rep.status, corps) : undefined; // forme fermée seulement, jamais sur un succès
 
       if (rep.status === 429) {
         const attenteMs = lireRetryAfter(rep.headers.get("retry-after"), maintenant());
@@ -774,14 +777,14 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
           // Retry-After conservé pour l'appelant. (Les lectures et les posts gardent leur rejeu unique.)
           journal.alerte("Zernio : limite atteinte sur une écriture inbox, issue incertaine (aucun rejeu automatique)", { requete: libelle });
           lectureRequise = true;
-          throw new ErreurZernio("limite-incertaine", "Zernio limite les envois et on ne sait pas si la demande a été traitée : à vérifier, aucun rejeu automatique.", { statut: 429, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000) });
+          throw new ErreurZernio("limite-incertaine", "Zernio limite les envois et on ne sait pas si la demande a été traitée : à vérifier, aucun rejeu automatique.", { statut: 429, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000), motifInbox: motif });
         }
         if (essai === 1 && attenteMs <= RETRY_AFTER_MAX_MS) {
           await attendre(attenteMs);
           limiteur.reserver(route); // le rejeu compte comme une requête (pas comme un nouveau post)
           continue;
         }
-        throw new ErreurZernio("debit", "Zernio limite les envois pour le moment : réessayer plus tard.", { statut: 429, reessayable: true, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000), detailTechnique: detailReponse(route, corps) });
+        throw new ErreurZernio("debit", "Zernio limite les envois pour le moment : réessayer plus tard.", { statut: 429, reessayable: true, attenteMs, reessayerApresSec: Math.ceil(attenteMs / 1000), detailTechnique: detailReponse(route, corps), motifInbox: motif });
       }
       if (rep.status >= 500) {
         journal.alerte("Zernio : erreur serveur", { requete: libelle, statut: rep.status });
@@ -792,11 +795,11 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
           if (route === "reponse-privee" && (c5.privateReplyOutcome === "unknown" || d5.privateReplyOutcome === "unknown")) {
             // Issue inconnue : la réponse privée est peut-être partie. « À vérifier », jamais de nouvel essai automatique.
             journal.alerte("Zernio : réponse privée à vérifier (aucun nouvel essai automatique)", { requete: libelle });
-            throw new ErreurZernio("reponse-privee-inconnue", "La réponse privée a peut-être été envoyée : à vérifier, aucun nouvel essai automatique.", { statut: rep.status });
+            throw new ErreurZernio("reponse-privee-inconnue", "La réponse privée a peut-être été envoyée : à vérifier, aucun nouvel essai automatique.", { statut: rep.status, motifInbox: motif });
           }
-          throw new ErreurZernio("a-verifier", "Zernio a répondu en erreur : état inconnu, lecture exigée avant tout nouvel envoi.", { statut: rep.status, detailTechnique: detailReponse(route, corps) });
+          throw new ErreurZernio("a-verifier", "Zernio a répondu en erreur : état inconnu, lecture exigée avant tout nouvel envoi.", { statut: rep.status, detailTechnique: detailReponse(route, corps), motifInbox: motif });
         }
-        throw new ErreurZernio("indisponible", "Zernio est indisponible pour le moment.", { statut: rep.status, reessayable: true, detailTechnique: detailReponse(route, corps) });
+        throw new ErreurZernio("indisponible", "Zernio est indisponible pour le moment.", { statut: rep.status, reessayable: true, detailTechnique: detailReponse(route, corps), motifInbox: motif });
       }
       if (rep.status === 409) {
         const c = estObjet(corps) ? corps : {};
@@ -807,6 +810,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
             reessayable: true,
             attenteMs: lireRetryAfter(rep.headers.get("retry-after"), maintenant()),
             detailTechnique: detailReponse(route, corps),
+            motifInbox: motif,
           });
         }
         const existant = details.existingPostId ?? c.existingPostId;
@@ -814,24 +818,25 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
           statut: 409,
           existingPostId: typeof existant === "string" ? existant : undefined,
           detailTechnique: detailReponse(route, corps),
+          motifInbox: motif,
         });
       }
       if (rep.status === 403) {
         const codes = codesDuCorps(corps);
-        if (codes.includes("INBOX_REQUIRED")) throw new ErreurZernio("inbox-requis", "Le module Inbox n'est pas activé chez Zernio.", { statut: 403 });
-        if (codes.includes("message_allowance_exceeded")) throw new ErreurZernio("quota-messages", "Le quota de messages Zernio est épuisé.", { statut: 403 });
+        if (codes.includes("INBOX_REQUIRED")) throw new ErreurZernio("inbox-requis", "Le module Inbox n'est pas activé chez Zernio.", { statut: 403, motifInbox: motif });
+        if (codes.includes("message_allowance_exceeded")) throw new ErreurZernio("quota-messages", "Le quota de messages Zernio est épuisé.", { statut: 403, motifInbox: motif });
       }
       if (rep.status === 400 && route === "reponse-privee") {
         const c4 = estObjet(corps) ? corps : {};
         const d4 = estObjet(c4.details) ? c4.details : {};
         if (c4.privateReplyConsumed === true || d4.privateReplyConsumed === true) {
-          throw new ErreurZernio("reponse-privee-consommee", "La réponse privée de ce commentaire a déjà été utilisée : définitif, aucun réessai.", { statut: 400 });
+          throw new ErreurZernio("reponse-privee-consommee", "La réponse privée de ce commentaire a déjà été utilisée : définitif, aucun réessai.", { statut: 400, motifInbox: motif });
         }
       }
-      if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès. Vérifiez la clé dans Connexions.", { statut: rep.status, detailTechnique: detailReponse(route, corps) });
-      if (rep.status === 404) throw new ErreurZernio("introuvable", "Élément introuvable chez Zernio.", { statut: 404, detailTechnique: detailReponse(route, corps) });
+      if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès. Vérifiez la clé dans Connexions.", { statut: rep.status, detailTechnique: detailReponse(route, corps), motifInbox: motif });
+      if (rep.status === 404) throw new ErreurZernio("introuvable", "Élément introuvable chez Zernio.", { statut: 404, detailTechnique: detailReponse(route, corps), motifInbox: motif });
       if (rep.status >= 400 || rep.status < 200 || rep.status >= 300) {
-        throw new ErreurZernio("refuse", "Zernio a refusé la demande.", { statut: rep.status, detailTechnique: detailReponse(route, corps) });
+        throw new ErreurZernio("refuse", "Zernio a refusé la demande.", { statut: rep.status, detailTechnique: detailReponse(route, corps), motifInbox: motif });
       }
       if (route === "lire-post" || route === "lister-posts") lectureRequise = false;
       return { statut: rep.status, corps: corps as T, route };

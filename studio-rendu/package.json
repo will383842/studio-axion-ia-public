@@ -14,9 +14,11 @@
     "@remotion/paths": "4.0.532",
     "@remotion/renderer": "4.0.532",
     "@remotion/shapes": "4.0.532",
+    "perfect-freehand": "1.2.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "remotion": "4.0.532",
+    "roughjs": "4.6.6",
     "tsx": "^4.23.15",
     "typescript": "5.9.3",
     "zod": "4.6.5"

@@ -41,6 +41,8 @@ const IDENTIFIANTS_PLAN = [
   "texte.sous-titres", "plan-scenes.generique", "son.pose", "etalonnage.lut",
   // C9-03
   "objet.trait", "objet.marque", "objet.etiquette", "objet.appel", "objet.chiffre", "objet.etape", "objet.cartes", "objet.schema", "objet.ecran", "objet.reseau-schema", "objet.manuscrit", "objet.emoji",
+  // X1-00
+  "texte.poids-variable", "texte.minimal-dynamique", "ecran.fenetre-inclinee", "fond.verre-depoli", "transition.zoom-mot", "transition.raccord-forme", "accroche.apercu-fin", "accroche.mot-cle", "mention.ia", "rythme.boucle",
 ];
 
 const FAMILLES_ATTENDUES = [

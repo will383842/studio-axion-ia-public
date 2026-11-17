@@ -148,7 +148,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(JSON.parse(demandes()[0].corps)).toMatchObject({ guide: CODE, mot: MOT, reseau: "instagram", versionTexteM1: NOUVELLE });
   });
 
-  it("4 · plafond : adresse refusée (422) = 3e message quand l'auteur suit déjà (ig-suivre + v6-1 = 2 messages comptés)", async () => {
+  it("4 · plafond : adresse refusée (422) quand l'auteur suit déjà : le message part (ig-suivre + v6-1 comptés, l'adresse refusée est hors plafond)", async () => {
     await jusquAuOk();
     banc.site.reponses = () => ({ statut: 422, corps: { erreur: "invalide" } });
     lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
@@ -158,7 +158,7 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     expect(typeof (await conv()).adresseRefuseeLe).toBe("string");
   });
 
-  it("4 · plafond : ne suit pas (ig-suivre, « pas encore », v6-1 = 3 messages comptés) : adresse refusée (422) → rien ne part, la demande d'adresse compte", async () => {
+  it("4 · plafond : ne suit pas (ig-suivre, « pas encore », v6-1 = 3 messages comptés) : adresse refusée (422) → le message part quand même, la demande d'adresse compte", async () => {
     (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
     await jusquAuOk();
     await msg("msg-ok-2", 20_000);
@@ -169,10 +169,10 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     lireTexteDe(`Mon adresse : ${ADRESSE_FICTIVE}`);
     await msg("msg-adr-1", 40_000);
     await pass(T1 + 50_000);
-    expect(banc.port.envoyes).toHaveLength(2); // l'adresse refusée est bloquée par le plafond de 3
+    expect(banc.port.envoyes).toHaveLength(3); // l'adresse refusée part : hors plafond de 3
   });
 
-  it("4 · plafond : ne suit pas, bonne adresse : le guide est demandé, l'accusé est bloqué par le plafond (termine, plafond_personne)", async () => {
+  it("4 · plafond : ne suit pas, bonne adresse : le guide est demandé, l'accusé part (hors plafond de 3, termine)", async () => {
     (banc.port.port as any).lireSuiviInstagram = async () => (suivi.appels++, { statut: "ne_suit_pas" });
     await jusquAuOk();
     await msg("msg-ok-2", 20_000);
@@ -181,9 +181,9 @@ describe("T4b · après le OK, une cible d'essai reçoit la demande d'adresse (j
     const id = await msg("msg-adr-2", 40_000);
     await pass(T1 + 50_000);
     expect(demandes()).toHaveLength(1);
-    expect(banc.port.envoyes).toHaveLength(2); // l'accusé n'est PAS parti
+    expect(banc.port.envoyes).toHaveLength(3); // l'accusé part
     expect(await conv()).toMatchObject({ etat: "termine" });
-    expect((await charge(id)).dernierCode).toBe("plafond_personne");
+    expect((await charge(id)).dernierCode).toBeNull();
   });
 
   it("5 · mp-m1-v6-1 non validée : aucun envoi, aucun repli vers mp-m1-v2 ni vers un lien, alerte, parcours consommé, clos « ignore/adresse_indisponible »", async () => {
@@ -375,6 +375,47 @@ describe("Suites de la relecture de #853 : le drapeau cibleEssai n'est écrit qu
     expect(banc.port.envoyes[0].texte).toBe(rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI }));
     expect(await conv()).toMatchObject({ etat: "attente_email", versionTexteM1: NOUVELLE, cibleEssai: true });
     expect((await charge(id)).etat).not.toBe("a_reessayer");
+  });
+
+  it("F1 · vrai OK tapé, P1 cible d'essai prouvée + P2 d'un autre mot (essai non prouvé), catalogue en PANNE : 0 envoi, tout l'événement reporté, rien consommé ; catalogue revenu : chaque parcours reçoit UN message", async () => {
+    const MOT2 = "ESSAICONVB";
+    const CODE2 = "gde-essai06";
+    site.catalogue = { ...catalogue(), catalogue: [...catalogue().catalogue, { code: CODE2, type: "guide" as const, titre: "Guide d'essai B", actif: true, test: true }], liaisons: [...catalogue().liaisons, { mot: MOT2, reseau: "tous" as const, codeCible: CODE2, actif: true }] };
+    const reg: Record<string, unknown> = {};
+    for (const mot of ["GUIDE", MOT, MOT2]) reg[`${mot}|${COMPTE}`] = { mot, compte: COMPTE, etat: "actif", idWorkflow: null, raison: null, modifieLe: "x" };
+    await Com.ecrireParametre(MS.PARAM_REGISTRE_MOTS, reg);
+    const a2 = (await V.apercuTextesMot({ mot: MOT2, env: ENV_X, maintenantMs: T0 })).find((x) => x.reseau === "instagram")!;
+    if (!a2.ok) throw new Error(`aperçu refusé : ${a2.raison}`);
+    const r2 = await V.validerTextesMot({ mot: MOT2, reseau: "instagram", empreinteVue: a2.empreinte, confirmeParOperateur: true, env: ENV_X, maintenantMs: T0 });
+    if (!r2.ok) throw new Error(r2.raison);
+    const h1 = "a".padEnd(64, "0");
+    const h2 = "b".padEnd(64, "0");
+    const cle1 = cleParcours(cleConversation(AUTEUR), h1);
+    const cle2 = cleParcours(cleConversation(AUTEUR), h2);
+    const commun = { reseau: "instagram", nature: "premier", groupeM1: "m1-lien", versionTexteM1: "mp-ig-suivre-v1-1", formulations: { "ig-suivre": "mp-ig-suivre-v1-1" }, m1Le: iso(T0 - 30 * H), derniereActiviteLe: iso(T0 - 1000) };
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, {
+      [cle1]: graineConv("ig_attente_ok", { ...commun, cleIdempotenceGuide: h1, idCommentaire: "com-graine-1", mot: MOT, guide: CODE, titreCible: TITRE_ESSAI, cibleEssai: true, creeLe: iso(T0 - 2 * H) }),
+      [cle2]: graineConv("ig_attente_ok", { ...commun, cleIdempotenceGuide: h2, idCommentaire: "com-graine-2", mot: MOT2, guide: CODE2, titreCible: "Guide d'essai B", creeLe: iso(T0 - H) }),
+    });
+    const toutes = async () => Object.values(await toutesLesConversations()) as any[];
+    site.panneEssai = true;
+    const id = await msg("msg-ok-1");
+    await pass(T1);
+    expect(site.pannes).toBeGreaterThan(0);
+    expect(banc.port.envoyes).toHaveLength(0);
+    expect(sorties()).toBe(0);
+    expect(await charge(id)).toMatchObject({ etat: "a_reessayer", dernierCode: "catalogue_illisible" });
+    for (const c of await toutes()) {
+      expect(c.etat).toBe("ig_attente_ok");
+      expect(c.idMessageOk).toBeUndefined();
+      expect(c.okRecus).toBeUndefined();
+    }
+    site.panneEssai = false;
+    await pass(T1 + 61_000);
+    expect(banc.port.envoyes).toHaveLength(2);
+    for (const c of await toutes()) expect(c).toMatchObject({ etat: "attente_email", idMessageOk: "msg-ok-1", okRecus: 1 });
+    await pass(T1 + 200_000);
+    expect(banc.port.envoyes).toHaveLength(2); // une seule fois
   });
 
   it("T4 · catalogue lu SANS erreur, cible test:true, drapeau absent : cibleEssai est posé", async () => {

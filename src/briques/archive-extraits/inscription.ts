@@ -94,7 +94,7 @@ export function reporterGestes(anciennes: PlageExtrait[], nouvelles: PlageExtrai
       copie.ecarteeLe = ancienne.ecarteeLe;
       if (copie.etat !== "exclue") copie.etat = "ecartee";
     }
-    if (ancienne.valideeLe && !ancienne.ecarteeLe && copie.etat === "a_verifier") {
+    if (ancienne.valideeLe && !ancienne.ecarteeLe && (copie.etat === "a_verifier" || copie.etat === "utilisable")) {
       copie.etat = "utilisable";
       copie.valideeLe = ancienne.valideeLe;
       delete copie.raisonExclusion;

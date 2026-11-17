@@ -134,7 +134,12 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
   const c = ev.charge;
   const reseauEvt = c.reseau === "tiktok" ? "tiktok" : c.reseau === "linkedin_page" || c.reseau === "linkedin" ? "linkedin_page" : null;
   if (!reseauEvt) {
-    if (c.doute === true) return douteSansCarte(ev, o.maintenantMs);
+    // Réseau inconnu en doute : même prudence que le refus définitif (cartes de la personne neutralisées, alerte, clôture).
+    if (c.doute === true) {
+      const idInconnu = texte(c.idAuteur);
+      const empreintesInconnu = idInconnu ? empreintesDe(idInconnu) : [];
+      return douteSansCarte(ev, o.maintenantMs, () => neutraliserCartesPersonne(empreintesInconnu, { env: o.env, depot: o.depot }));
+    }
     await clore(ev, "refuse");
     return "traite";
   }
@@ -163,7 +168,7 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
   try {
     opposee = (await personneOpposeePartout({ idsBruts: [idAuteur] }, { douteBloque: true })).opposee;
   } catch (e) {
-    // Aucun identifiant : la vérification restera impossible à chaque essai. Mis de côté pour de bon (rien supprimé, aucune carte).
+    // Aucun identifiant : la vérification restera impossible à chaque essai. Sans doute : écarté, rien d'écrit. Avec doute : alerte, puis clôture « doute_opposition » ; si l'alerte échoue, report de 5 min. Rien n'est inscrit pour cette personne (faute d'identifiant).
     if (e instanceof ErreurOppositionIllisible && e.code === "personne_inconnue") {
       if (c.doute === true) return douteSansCarte(ev, o.maintenantMs); // aucun identifiant d'auteur : rien d'écrit, le fondateur est averti
       await clore(ev, "ecarte");
@@ -209,7 +214,7 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
       message: "indisponible" as const,
     });
     let r = await enregistrerATraiter(entreeDoute(texte(c.lienPost)), { env: o.env, depot: o.depot });
-    // Refus réparable : un lien de post invalide ne doit pas empêcher la carte (les autres refus ne se réparent pas).
+    // Refus réparable : un lien de post invalide ne doit pas empêcher la carte (le repère invalide a sa propre nouvelle tentative ci-dessous ; un identifiant d'événement invalide ne se répare pas).
     if (r.issue === "refuse" && r.raison === "lien_invalide") r = await enregistrerATraiter(entreeDoute(null), { env: o.env, depot: o.depot });
     // Repère invalide : nouvelle tentative avec un repère FIXE valide, pour que le doute soit tout de même inscrit (un identifiant d'événement invalide ne se répare pas).
     if (r.issue === "refuse" && r.raison === "post_invalide") r = await enregistrerATraiter(entreeDoute(null, REPERE_DOUTE_FIXE), { env: o.env, depot: o.depot });
@@ -218,7 +223,7 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
       return "reporte";
     }
     if (r.issue === "execute") {
-      // Carte écrite (ou déjà là) : les cartes à traiter de la même personne sont neutralisées (toute erreur lève : l'événement reste à refaire), puis alerte au mieux.
+      // Carte écrite (ou déjà là) : les cartes à traiter de la même personne sont neutralisées (toute erreur lève : l'événement reste à refaire), puis l'alerte de doute, qui fait partie de la clôture : si elle ne part pas, l'événement est reporté de 5 min.
       await neutraliserCartesPersonne(empreintes, { env: o.env, depot: o.depot });
       // Alerte en échec : l'événement est reporté (le rejeu donnera « deja_present » puis réessaiera l'alerte ; un doublon d'alerte est accepté).
       if (!(await alerterDoute(MESSAGE_DOUTE_MANUEL))) {

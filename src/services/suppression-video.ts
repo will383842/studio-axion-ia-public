@@ -2,7 +2,8 @@
  * SUPPRESSION DÉFINITIVE d'une vidéo (décision écrite de Will du 17/10 : « Vraie suppression, dépenses gardées »).
  *
  * Seule exception à « on ne purge rien » : rien n'est jamais effacé automatiquement ; seule la suppression MANUELLE
- * d'une vidéo par Will, confirmée, efface. Le plan est calculé d'abord, puis appliqué en UN lot (une transaction avec
+ * d'une vidéo par Will, confirmée, efface. 2e exception, la fiche d'extraits de la vidéo (P-7, accord de Williams du
+ * 17/11/2026 « oui P-7 ») : elle part avec elle, et l'id est retiré des `famille` des autres fiches. Le plan est calculé d'abord, puis appliqué en UN lot (une transaction avec
  * Postgres) ; les objets du stockage (R2) partent EN DERNIER, une erreur y est journalisée sans bloquer.
  *
  * Effacé : la vidéo et ce qui n'existe que pour elle (versions, plans, pistes, retouches, miniatures, sous-titres,
@@ -17,7 +18,7 @@ import type { Depot, Depots, LotEcritures } from "@/domaine/depots";
 import type { Fichier, Id, Parametre, Video } from "@/domaine/types";
 import { additionner, formaterMontant } from "@/lib/montants";
 import { appliquerLot, bailTenu, oublierBailExpire } from "@/donnees/memoire";
-import { depots, fournisseur, horodatage, maintenant } from "./_commun";
+import { depots, fournisseur, horodatage, lireParametre, maintenant } from "./_commun";
 import { nouvelId } from "@/lib/ids";
 import { CLE_CODES_SUPPRIMES } from "./partages";
 import { tacheDe, tachesEnCours } from "./tableau-taches";
@@ -250,7 +251,13 @@ export interface PlanSuppression {
   totalDepense: string;
 }
 
-export async function planifierSuppression(video: Video): Promise<PlanSuppression> {
+/** Réglage (éteint par défaut, seul `true` allume) : la fiche d'extraits part avec sa vidéo (P-7). */
+export const REGLAGE_EFFACER_FICHE_EXTRAITS = "bibliothequeVideo.archive.effacerFicheASuppression";
+
+/** Décision explicite portée par l'appel : seul `decideParWilliams: true` strict autorise l'effacement de la fiche d'extraits (jamais déduit d'une session). */
+export type OptionsSuppression = { decideParWilliams?: boolean };
+
+export async function planifierSuppression(video: Video, options: OptionsSuppression = {}): Promise<PlanSuppression> {
   const d = depots();
   const id = video.id;
   const lot: LotEcritures = { supprimer: [], enregistrer: [] };
@@ -364,6 +371,18 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   // Bibliothèque : l'élément reste, il oublie seulement la dernière vidéo qui l'a utilisé.
   for (const e of await d.elements.lister((x) => x.derniereVideoId === id)) {
     reecrire("elements", { ...e, derniereVideoId: undefined, modifieLe: maintenant() } as unknown as Doc);
+  }
+  // P-7 : la fiche d'extraits de la vidéo est effacée et non détachée (elle contient ses paroles) ; l'id quitte `famille` des autres.
+  // Seulement réglage allumé ET `decideParWilliams === true` passé par l'appel manuel : jamais par le nettoyage automatique de la corbeille.
+  const effacerFiche = options.decideParWilliams === true && (await lireParametre<unknown>(REGLAGE_EFFACER_FICHE_EXTRAITS, false)) === true;
+  for (const e of effacerFiche ? await d.elements.lister((x) => x.valeur.type === "source-extraits") : []) {
+    const f = e.valeur.type === "source-extraits" ? e.valeur.fiche : null;
+    if (!f || (f.videoId !== id && !f.famille.includes(id))) continue;
+    const cle = `elements/${e.id}`, deja = reecrit.get(cle) as typeof e | undefined;
+    lot.enregistrer = lot.enregistrer.filter((x) => `${x.collection}/${x.entite.id}` !== cle);
+    reecrit.delete(cle);
+    if (f.videoId === id) effacer("elements", [e.id]);
+    else reecrire("elements", { ...(deja ?? e), valeur: { ...e.valeur, fiche: { ...f, famille: f.famille.filter((x) => x !== id) } } } as unknown as Doc);
   }
   // Vidéos filles (version par réseau, 2e ouverture) : elles gardent leur vie sans leur mère, `sourceVideoId` et le lien
   // de leur déclinaison sont retirés. (Une fille qui ATTEND sa mère est refusée avant, sauf si elle est supprimée avec elle.)
@@ -485,8 +504,8 @@ export async function executerSuppression(video: Video): Promise<void> {
 }
 
 /** Le plan calculé puis appliqué (à appeler sous le verrou du studio) ; rend les clés à effacer du stockage. */
-export async function appliquerSuppression(video: Video): Promise<string[]> {
-  const plan = await planifierSuppression(video);
+export async function appliquerSuppression(video: Video, options: OptionsSuppression = {}): Promise<string[]> {
+  const plan = await planifierSuppression(video, options);
   // Un cas concret fini reste « traité » après sa suppression (manuelle ou purge de la corbeille) : inscrit AVANT d'effacer.
   // Ne bloque jamais la suppression.
   await (await import("./cas-concret-traites")).noterAvantSuppression(video);

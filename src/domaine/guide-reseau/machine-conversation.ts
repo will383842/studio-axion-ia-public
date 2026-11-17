@@ -6,6 +6,7 @@ import { ESSAIS_MAX, EN_COURS_MAX, type Conduite } from "./crochet-zernio";
 import { ETATS_EN_COURS, type EtatParcours } from "./etats-parcours";
 import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import type { IssueSuivi } from "./suivi-instagram";
+import type { RaisonRefusStockee } from "./raison-refus";
 
 export const DELAI_PERIME_MS = 24 * 3600_000;
 export const EXPIRATION_MS = 7 * 24 * 3600_000;
@@ -54,6 +55,10 @@ export interface Conversation {
   essaisM1: number;
   prochainEssaiLe: number | null;
   dernierCode: string | null;
+  /** Raison FERMÉE (jamais de texte libre) du dernier refus de la réponse publique ; effacée à tout autre résultat. Information seulement. */
+  refusPublic?: RaisonRefusStockee;
+  /** Raison FERMÉE du dernier refus du premier message privé ; effacée à tout autre résultat. Information seulement. */
+  refusPrive?: RaisonRefusStockee;
   /** Empreintes de `sender.id` et de `conversationId`. */
   alias: string[];
   /** Identifiant du message ayant déclenché la demande de guide (reprise de l'accusé, une seule fois). */
@@ -111,7 +116,7 @@ export interface Conversation {
   essaiEnvoiLe?: string;
   /** Lectures du suivi tombées en panne passagère pour ce parcours. */
   essaisSuivi?: number;
-  /** Instagram, réglage allumé : dates (facultatives, jamais écrites à `undefined`) des autres messages envoyés à la personne, comptées dans le plafond par personne. */
+  /** Instagram, réglage allumé : dates (facultatives, jamais écrites à `undefined`) des autres messages envoyés à la personne. `adresseRefuseeLe` et `accuseLe` sont comptés dans la borne des réponses (2 par 24 h), PAS dans le plafond de 3 ; `merciEssaiLe` reste dans le plafond de 3. */
   adresseRefuseeLe?: string;
   accuseLe?: string;
   merciEssaiLe?: string;
@@ -172,7 +177,7 @@ export type EvenementMachine =
   | { t: "public"; res: ResultatEcritureInbox }
   | { t: "m1"; res: ResultatEcritureInbox; maintenantMs: number }
   | { t: "message"; idExpediteur: string | null; idCompte: string; idMessage: string; /** Message sortant / de notre compte (direction, isOwnAccount) : écho. */ sortant?: boolean }
-  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null; /** Instagram : le message ENTIER est un OK de la liste fermée (`estOkInstagram`). Absent = non reconnu. */ okIg?: boolean }
+  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null; /** Instagram : le message ENTIER est un OK de la liste fermée (`estOkInstagram`). Absent = non reconnu. */ okIg?: boolean; /** Instagram, cible d'ESSAI seulement : un message qui CONTIENT une adresse vaut un OK (calculé par le service). Absent = faux. */ adresseVautOk?: boolean }
   | { t: "site"; conduite: Conduite; enCoursAvant: number }
   | { t: "orphelin"; essais: number }
   | { t: "texte_absent"; essais: number }
@@ -265,8 +270,9 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
     case "texte": {
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
-      // Instagram « suivre le compte puis OK » : liste FERMÉE de OK. Tout autre message (sans opposition ni doute) : rien ne part (le service décide, rien ne part ici).
-      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
+      // Instagram « suivre le compte puis OK » : liste FERMÉE de OK, plus une exception : un message qui contient une adresse, sans refus (`adresseVautOk`, posé par le service quand une cible d'essai attend son OK), vaut un OK ; le service filtre alors les parcours aux seules cibles d'essai.
+      // Tout autre message (sans opposition ni doute) : « ig_non_reconnu », rien ne part ici (le service décide de l'alerte et de la clôture).
+      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true || (ev.adresseVautOk === true && ev.adresse !== null) ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
       // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
       if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && !m1AvecLien(etat.versionTexteM1) ? { action: "m2" } : { action: "silence", raison: "silence" };

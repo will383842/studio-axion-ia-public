@@ -218,9 +218,9 @@ async function verifierGardeFouCouleurs(dossier: string): Promise<void> {
   if (casse.couleursAberrantes !== 1) throw new Error(`export aux couleurs aberrantes NON détecté : ${JSON.stringify(casse)}`);
 }
 
-/** PURE (G11-04). Arguments d'un mini-export recollable : image clé toutes les 25 images, étiquettes BT.709 (sans elles, `recollable` refuse), réglages recollables, sortie en dernier. */
+/** PURE (G11-04). Arguments d'un mini-export recollable : image clé toutes les 25 images, étiquettes BT.709 posées DANS LE GRAPHE par `setparams` (sans elles, `recollable` refuse ; depuis FFmpeg 7.1, `-color_primaries` / `-color_trc` en options de sortie ne passent plus à libx264), réglages recollables, sortie en dernier. */
 export function argumentsMiniExportRecollable(source: string, debutSec: number, dureeSec: number, sortie: string): string[] {
-  const base = ["-ss", String(debutSec), "-i", source, "-t", String(dureeSec), "-an", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-g", "25", "-keyint_min", "25", "-sc_threshold", "0", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  const base = ["-ss", String(debutSec), "-i", source, "-t", String(dureeSec), "-an", "-vf", "format=yuv420p,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-g", "25", "-keyint_min", "25", "-sc_threshold", "0"];
   return [...argumentsRecollables(base), sortie];
 }
 

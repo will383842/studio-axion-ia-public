@@ -46,13 +46,15 @@ export function graineStyle(videoId: string): number {
  * `STYLES_RECENTS_EVITES` dernières autres vidéos sont écartés (si la vidéo est déjà dans l'historique, son style noté est
  * rendu tel quel) ; s'il n'en reste aucun, tous reviennent.
  */
-export function tirerStyleTableau(videoId: string, historique: readonly EntreeHistoriqueStyle[] = []): StyleTableau {
+export function tirerStyleTableau(videoId: string, historique: readonly EntreeHistoriqueStyle[] = [], eviter?: readonly StyleTableau[]): StyleTableau {
   // Une vidéo déjà notée garde son style : un nouveau découpage (« Corriger la fiche », nouvelle version) ne le change pas.
   const note = historique.find((e) => e.videoId === videoId);
   if (note) return note.style;
   const recents = new Set(historique.filter((e) => e.videoId !== videoId).slice(-STYLES_RECENTS_EVITES).map((e) => e.style));
   const permis = STYLES_TABLEAU.filter((s) => !recents.has(s));
-  const liste = permis.length ? permis : STYLES_TABLEAU;
+  // `eviter` (facultatif) s'ajoute aux récents ; s'il ne reste rien : récents seuls, puis tous les styles.
+  const sansEvites = eviter?.length ? permis.filter((s) => !eviter.includes(s)) : permis;
+  const liste = sansEvites.length ? sansEvites : permis.length ? permis : STYLES_TABLEAU;
   return liste[graineStyle(videoId) % liste.length]!;
 }
 

@@ -1,0 +1,695 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`cas concret sans objets : plan de scènes figé > avec un faux LLM déterministe : tranches et empreintes figées, deux appels identiques 1`] = `
+{
+  "entrees": {
+    "corps-chiffres": "1cc788ca53f375f6",
+    "corps-enumeration": "02f6115157d80d2d",
+    "corps-etapes": "dc8766e2e0137937",
+  },
+  "tranches": {
+    "corps-chiffres/e1": {
+      "dureeMs": 3850,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "ff53c08b05ff9446",
+          "finMs": 3000,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "decimales": 0,
+            "libelle": "Devis envoyés ce mois",
+            "prefixe": "+",
+            "suffixe": " %",
+            "tendance": "hausse",
+            "valeur": 38,
+            "variation": "vs septembre",
+          },
+          "piece": "carte-kpi",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-enumeration/e1": {
+      "dureeMs": 8400,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "ff53c08b05ff9446",
+          "finMs": 3000,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "decimales": 0,
+            "libelle": "Devis envoyés ce mois",
+            "prefixe": "+",
+            "suffixe": " %",
+            "tendance": "hausse",
+            "valeur": 38,
+            "variation": "vs septembre",
+          },
+          "piece": "carte-kpi",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-etapes/e1": {
+      "dureeMs": 5950,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "ff53c08b05ff9446",
+          "finMs": 3000,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "decimales": 0,
+            "libelle": "Devis envoyés ce mois",
+            "prefixe": "+",
+            "suffixe": " %",
+            "tendance": "hausse",
+            "valeur": 38,
+            "variation": "vs septembre",
+          },
+          "piece": "carte-kpi",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+  },
+}
+`;
+
+exports[`cas concret sans objets : plan de scènes figé > niveau 1 (sans LLM) : tranches et empreintes figées, déterministes 1`] = `
+{
+  "entrees": {
+    "corps-chiffres": "c5eb6f3a6a981fe5",
+    "corps-enumeration": "a77aad8c51e6024c",
+    "corps-etapes": "a683e8c5f1e1b256",
+  },
+  "tranches": {
+    "corps-chiffres/e1": {
+      "dureeMs": 3850,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 700,
+          "empreinte": "819a405271ef6ad4",
+          "finMs": 2600,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "aMs": 0,
+            "surMot": 2,
+            "unite": "h",
+            "valeur": 2,
+          },
+          "piece": "compteur",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-chiffres/e2": {
+      "dureeMs": 4550,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 2800,
+          "empreinte": "1bc7d07899579726",
+          "finMs": 4550,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "apres": {
+              "aMs": 1050,
+              "surMot": 22,
+              "unite": "min",
+              "valeur": 20,
+            },
+            "avant": {
+              "aMs": 0,
+              "surMot": 19,
+              "unite": "h",
+              "valeur": 2,
+            },
+          },
+          "piece": "avant-apres",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "glisse-haut",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-chiffres/e3": {
+      "dureeMs": 4550,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "068e37dd2e541983",
+          "finMs": 1200,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "apres": {
+              "aMs": 1050,
+              "surMot": 22,
+              "unite": "min",
+              "valeur": 20,
+            },
+            "avant": {
+              "aMs": 0,
+              "surMot": 19,
+              "unite": "h",
+              "valeur": 2,
+            },
+          },
+          "piece": "avant-apres",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "glisse-haut",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+        {
+          "calques": undefined,
+          "debutMs": 2450,
+          "empreinte": "fa00049c61bf29bc",
+          "finMs": 4550,
+          "id": "t2",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "elements": [
+              {
+                "aMs": 350,
+                "surMot": 32,
+                "texte": "trier",
+              },
+              {
+                "aMs": 1050,
+                "surMot": 34,
+                "texte": "répondre",
+              },
+              {
+                "aMs": 1750,
+                "surMot": 36,
+                "texte": "classer",
+              },
+            ],
+          },
+          "piece": "etapes",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "zoom-doux",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-chiffres/e4": {
+      "dureeMs": 1050,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "8fee294f0f406b6a",
+          "finMs": 1050,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "elements": [
+              {
+                "aMs": 350,
+                "surMot": 32,
+                "texte": "trier",
+              },
+              {
+                "aMs": 1050,
+                "surMot": 34,
+                "texte": "répondre",
+              },
+              {
+                "aMs": 1750,
+                "surMot": 36,
+                "texte": "classer",
+              },
+            ],
+          },
+          "piece": "etapes",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "zoom-doux",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-enumeration/e1": {
+      "dureeMs": 8400,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "6e2cc510367d9c4e",
+          "finMs": 8400,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "elements": [
+              {
+                "aMs": 3850,
+                "surMot": 11,
+                "texte": "qui fait le travail",
+              },
+              {
+                "aMs": 5250,
+                "surMot": 15,
+                "texte": "combien de temps ça dure",
+              },
+              {
+                "aMs": 7350,
+                "surMot": 21,
+                "texte": "comment on arrête",
+              },
+            ],
+          },
+          "piece": "liste-au-mot",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-enumeration/e2": {
+      "dureeMs": 2100,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "c976e715bd5d3df1",
+          "finMs": 1200,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "elements": [
+              {
+                "aMs": 3850,
+                "surMot": 11,
+                "texte": "qui fait le travail",
+              },
+              {
+                "aMs": 5250,
+                "surMot": 15,
+                "texte": "combien de temps ça dure",
+              },
+              {
+                "aMs": 7350,
+                "surMot": 21,
+                "texte": "comment on arrête",
+              },
+            ],
+          },
+          "piece": "liste-au-mot",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-etapes/e1": {
+      "dureeMs": 5950,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "a4d84d754f07eb08",
+          "finMs": 1900,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "aMs": 350,
+            "genre": "lieu",
+            "surMot": 1,
+            "texte": "Lyon",
+          },
+          "piece": "repere",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "fondu",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+        {
+          "calques": undefined,
+          "debutMs": 4200,
+          "empreinte": "07ff6a8ce08f91de",
+          "finMs": 5250,
+          "id": "t2",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "aMs": 0,
+            "surMot": 12,
+            "valeur": 30,
+          },
+          "piece": "jauge",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 350,
+            "entree": "glisse-haut",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+        {
+          "calques": undefined,
+          "debutMs": 5250,
+          "empreinte": "e9c46ca003fca1d5",
+          "finMs": 5950,
+          "id": "t3",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "aMs": 0,
+            "genre": "duree",
+            "surMot": 15,
+            "texte": "trois mois",
+          },
+          "piece": "repere",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "zoom-doux",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-etapes/e2": {
+      "dureeMs": 700,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "f68072c402615071",
+          "finMs": 700,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "aMs": 0,
+            "genre": "duree",
+            "surMot": 15,
+            "texte": "trois mois",
+          },
+          "piece": "repere",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "zoom-doux",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+    "corps-etapes/e3": {
+      "dureeMs": 2800,
+      "facecam": false,
+      "format": {
+        "fps": 25,
+        "hauteur": 1920,
+        "largeur": 1080,
+      },
+      "habillage": {
+        "accent": "terracotta",
+        "fond": "ivoire",
+      },
+      "mots": [],
+      "scenes": [
+        {
+          "calques": undefined,
+          "debutMs": 0,
+          "empreinte": "2e0545f7fd795d73",
+          "finMs": 500,
+          "id": "t1",
+          "mots": {
+            "dernier": 0,
+            "premier": 0,
+          },
+          "niveau": 1,
+          "parametres": {
+            "aMs": 0,
+            "genre": "duree",
+            "surMot": 15,
+            "texte": "trois mois",
+          },
+          "piece": "repere",
+          "position": "centre",
+          "transition": {
+            "dureeMs": 400,
+            "entree": "zoom-doux",
+            "sortie": "fondu",
+          },
+          "version": 1,
+        },
+      ],
+      "version": "plan-scenes-1",
+    },
+  },
+}
+`;
