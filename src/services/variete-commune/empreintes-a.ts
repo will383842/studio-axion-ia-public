@@ -14,6 +14,7 @@ import { recetteEffectiveIV } from "@/moteurs/montage-image-video/variete/histor
 import { VARIANTE_PAR_VERSION } from "@/moteurs/montage-image-video/sous-titres-varies";
 import { AXES_VARIETE, type AxeVariete, type RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { ResumeVisuel } from "@/briques/variete/types";
+import { avecDosageMotion, type DosageDeLaCommande } from "./empreintes-b";
 import type { StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 
 type Axes = Partial<Record<AxeCommun, string[]>>;
@@ -45,7 +46,7 @@ function dessinee(mise: Mise, dim: DimensionEcran, valeur: unknown): valeur is s
  * Sous-titres : comptés si `variantesSousTitres` (défaut `VARIANTE_PAR_VIDEO`) est vrai OU si la mise ne les déclare pas
  * sans variante (`sousTitresSansVariante`), comme le rendu réel (`fabriquer.ts`). Mise illisible (`null`) : aucun axe.
  */
-export function empreinteCasConcret(videoId: string, le: string, mise: Mise | null | undefined, variantesSousTitres: boolean = VARIANTE_PAR_VIDEO): EmpreinteVideo {
+export function empreinteCasConcret(videoId: string, le: string, mise: Mise | null | undefined, variantesSousTitres: boolean = VARIANTE_PAR_VIDEO, dosage?: DosageDeLaCommande | null): EmpreinteVideo {
   const axes: Axes = {};
   if (mise) {
     const t = mise.tirage;
@@ -57,7 +58,7 @@ export function empreinteCasConcret(videoId: string, le: string, mise: Mise | nu
     ajouter(axes, "transitions", ecrans.flatMap((e) => (dessinee(mise, "transition", e.transition) ? [versCommun("cas-concret", "transitions", e.transition)] : [])));
     if (variantesSousTitres || mise.sousTitresSansVariante !== true) ajouter(axes, "sousTitres", [SOUS_TITRES_CC[t.sousTitres.intensite] ?? `autre:cas-concret:${t.sousTitres.intensite}`]);
   }
-  return empreinte(videoId, "cas-concret", le, axes);
+  return avecDosageMotion(empreinte(videoId, "cas-concret", le, axes), dosage);
 }
 
 /**
@@ -68,6 +69,7 @@ export function empreinteImageVideo(
   videoId: string, le: string, recette: RecetteVarieteIV,
   replis?: readonly { readonly axe: AxeVariete; readonly code?: string }[],
   variantesParVersion: boolean = VARIANTE_PAR_VERSION,
+  dosage?: DosageDeLaCommande | null,
 ): EmpreinteVideo {
   const effective = recetteEffectiveIV(recette, replis);
   const axes: Axes = {};
@@ -75,14 +77,14 @@ export function empreinteImageVideo(
     if (axeLocal === "sousTitres" && !variantesParVersion) continue;
     ajouter(axes, AXE_COMMUN_DE[axeLocal], [versCommun("image-video", AXE_COMMUN_DE[axeLocal], effective[axeLocal])]);
   }
-  return empreinte(videoId, "image-video", le, axes);
+  return avecDosageMotion(empreinte(videoId, "image-video", le, axes), dosage);
 }
 
 /** Palette d'un style de tableau (ardoise = noir, tableau blanc = ivoire ; paperboard : table X2-02, sans valeur commune). */
 const PALETTE_TABLEAU: Readonly<Record<string, string>> = Object.freeze({ ardoise: "noir-dominant", "tableau-blanc": "ivoire-dominant" });
 
 /** Empreinte d'une vidéo tableau : habillage et palette depuis le style, récit et objets depuis le résumé visuel (s'il est connu). */
-export function empreinteTableau(videoId: string, le: string, style: StyleTableau, resume?: ResumeVisuel): EmpreinteVideo {
+export function empreinteTableau(videoId: string, le: string, style: StyleTableau, resume?: ResumeVisuel, dosage?: DosageDeLaCommande | null): EmpreinteVideo {
   const axes: Axes = {};
   ajouter(axes, "habillage", [versCommun("tableau", "habillage", style)]);
   ajouter(axes, "palette", [PALETTE_TABLEAU[style] ?? versCommun("tableau", "palette", style)]);
@@ -90,5 +92,5 @@ export function empreinteTableau(videoId: string, le: string, style: StyleTablea
     ajouter(axes, "recit", [versCommun("tableau", "recit", resume.structure)]);
     ajouter(axes, "objets", resume.dessins);
   }
-  return empreinte(videoId, "tableau", le, axes);
+  return avecDosageMotion(empreinte(videoId, "tableau", le, axes), dosage);
 }

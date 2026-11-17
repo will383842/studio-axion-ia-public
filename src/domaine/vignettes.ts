@@ -6,6 +6,7 @@ import type { Miniature } from "@/domaine/types";
 import { interditsDans } from "@/domaine/qualite-script";
 import { interditsTousEcrivains } from "@/domaine/qualite-script/regles/interdits";
 import { normaliser } from "@/domaine/controles-script/texte";
+import { declarationDuFormat } from "@/generateurs/declaration";
 
 /** Gabarits de miniature : `r4` (actuel, défaut) et `axion-v2` (réglage `miniature.gabarit`, éteint). */
 export const GABARITS_MINIATURE = ["r4", "axion-v2"] as const;
@@ -60,9 +61,7 @@ export function rangDeVideo(video: { titre: string; episodeSerie?: number }): nu
   return code ? Number(code[1]) : (video.episodeSerie ?? 0);
 }
 
-const SANS_VISAGE: readonly string[] = ["tableau-anime", "cas-concret", "image-video", "motion"];
-
 /** Le générateur montre-t-il un visage ? (avocat, facecam, facecam-animee, selfie, createur-b, podcast, ecran-partage, ugc : oui.) */
 export function famille(formatId: string): { visage: boolean } {
-  return { visage: !SANS_VISAGE.includes(formatId) };
+  return { visage: declarationDuFormat(formatId)?.visage ?? true };
 }

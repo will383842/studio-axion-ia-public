@@ -38,6 +38,20 @@ export interface StylePastille {
   espaceMotsEm: number;
   /** Bord fin de la pastille (couleur, px de référence) : absent, aucun bord. */
   bord?: { couleur: string; px: number };
+  /** C2-U14 : `true` seul met ce style en Manrope Bold (mesure et dessin). Absent : suit `PASTILLE_EN_MANROPE`. */
+  enManrope?: boolean;
+}
+
+/**
+ * C2-U14 : la Pastille en Manrope Bold (700), police de la charte, au lieu de la police de titre actuelle. ÉTEINTE : tant
+ * qu'elle vaut `false` (et que le style ne porte pas `enManrope: true`), mesure, dessin et polices chargées sont ceux
+ * d'aujourd'hui. Elle s'allume par une PR d'une ligne, sur geste de Williams, avec un rendu témoin avant/après.
+ */
+export const PASTILLE_EN_MANROPE = false;
+
+/** Seul `true` allume (jamais une valeur « vraie » d'un autre type). */
+export function pastilleEnManrope(p: StylePastille, constante: boolean = PASTILLE_EN_MANROPE): boolean {
+  return p.enManrope === undefined ? constante === true : p.enManrope === true;
 }
 
 /**

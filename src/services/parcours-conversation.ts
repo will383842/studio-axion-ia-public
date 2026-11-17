@@ -829,19 +829,27 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
   return { texte: choix.texte, version: choix.version, formulation: choix.version };
 }
 
-type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string };
+type PrepM1 = { texte: string | null; version: string; refLienConv?: string; empreinteLien?: string; codeRepli?: CodeRepliLien; formulationLien?: string; formulationAdresse?: string; formulationIg?: string; essaiProuve?: boolean; reporterCatalogue?: true };
 /**
  * Vrai si la cible de la conversation est d'essai AUJOURD'HUI (catalogue du site), même si la conversation a été créée avant.
  * GUIDE (`guide-ia`) n'est jamais une cible d'essai et ne lit pas le catalogue. Catalogue absent : faux (la garde d'envoi, qui relit la cible du jour, a déjà refusé un mot non-GUIDE sans catalogue) ; lecture en erreur : vrai.
  */
 async function cibleEstEssaiAujourdhui(e: Conversation, env: Env, now: number): Promise<boolean> {
-  if ((e.mot ?? MOT) === MOT && e.guide === "guide-ia") return false;
+  return (await statutEssaiCatalogue(e, env, now)) !== "non";
+}
+
+/**
+ * Distingue l'essai PROUVÉ (catalogue lu SANS erreur et cible `test: true`) de l'essai SUPPOSÉ par prudence (lecture du catalogue en erreur) et de « pas d'essai ».
+ * Même règle de lecture que `cibleEstEssaiAujourdhui` (qui en dépend) ; le drapeau figé de la conversation n'est pas examiné ici.
+ */
+async function statutEssaiCatalogue(e: Conversation, env: Env, now: number): Promise<"non" | "prouve" | "suppose"> {
+  if ((e.mot ?? MOT) === MOT && e.guide === "guide-ia") return "non";
   try {
     const site = await lireCiblesSite({ env, maintenantMs: now });
-    if (site === null) return false;
-    return site.catalogue.some((x) => x.code === e.guide && x.test);
+    if (site === null) return "non";
+    return site.catalogue.some((x) => x.code === e.guide && x.test) ? "prouve" : "non";
   } catch {
-    return true;
+    return "suppose";
   }
 }
 
@@ -893,7 +901,11 @@ async function preparerM1(e: Conversation, d: DepsConversation, env: Env, cles: 
   };
   // Cible d'essai : jamais de lien ni de jeton (la page du site la refuse) ; la personne donne son adresse en message privé.
   // Le drapeau figé à la création ne suffit pas : la cible du jour (catalogue) est relue, elle a pu passer en essai depuis.
-  if (e.cibleEssai === true || (await cibleEstEssaiAujourdhui(e, env, now))) return repli("cible_essai");
+  // `essaiProuve` : vrai seulement si l'essai est PROUVÉ (drapeau figé ou catalogue lu sans erreur) ; une lecture en panne le laisse faux (le drapeau n'est alors pas écrit).
+  const statutEssai = e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now);
+  // Instagram, essai seulement SUPPOSÉ (lecture du catalogue en panne, pas de drapeau figé) : ni repli ni envoi (la demande d'adresse partirait SANS drapeau) ; l'appelant reporte l'événement.
+  if (statutEssai === "suppose" && e.reseau === "instagram") return { texte: null, version: e.versionTexteM1, reporterCatalogue: true };
+  if (statutEssai !== "non") return { ...(await repli("cible_essai")), essaiProuve: statutEssai === "prouve" };
   if (!parcoursLienGuideActif(env)) return repli("lien_eteint");
   const secret = lireSecretLien(env);
   if (secret === null) return repli("secret_lien_absent");
@@ -1095,8 +1107,23 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   // Instagram, cible d'essai (réglage « suivre le compte » éteint) : sans demande d'adresse validée, rien ne part, pas même la réponse publique.
-  if (!igPremier && e.nature !== "renvoi" && e.reseau === "instagram" && e.etat === "nouveau"
-    && (e.cibleEssai === true || (await cibleEstEssaiAujourdhui(e, env, now))) && (await texteAdresseRgpd(e, d)) === null) return cloreAdresseEssaiAbsente(ev, cle, now);
+  // Un renvoi sur une cible d'essai ne peut jamais partir (preparerRenvoi le refuse) : même sortie, AVANT la réponse publique, sans nouvelle alerte.
+  if (!igPremier && e.reseau === "instagram" && e.etat === "nouveau") {
+    const statut = e.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(e, env, now);
+    if (statut === "suppose") {
+      // Panne de lecture du catalogue : jamais une clôture définitive, l'événement est reporté (comme `catalogue_illisible` plus haut).
+      await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+      return "bloque";
+    }
+    if (statut === "prouve") {
+      if (e.nature === "renvoi") {
+        await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: "renvoi_impossible" });
+        await clore(ev, "m1_refuse", "renvoi_impossible");
+        return "traite";
+      }
+      if ((await texteAdresseRgpd(e, d)) === null) return cloreAdresseEssaiAbsente(ev, cle, now);
+    }
+  }
   if (e.etat === "nouveau") {
     const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.["pub-commentaire"]);
     const texte = pub.texte;
@@ -1144,8 +1171,13 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   // Renvoi (mode « plusieurs mots ») : jamais le texte qui demande l'adresse. Aucun texte validé, lien éteint ou version inconnue du site : refusé.
   const m1 = e.nature === "renvoi" ? await preparerRenvoi(e, d, env, cles, now) : igPremier ? await preparerIgSuivre(e, d) : await preparerM1(e, d, env, cles, now);
   const texteM1 = m1.texte;
+  if (m1.reporterCatalogue === true) {
+    // Même traitement que la garde avant réponse publique : report, rien consommé, rien clos, aucun état d'envoi.
+    await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+    return "bloque";
+  }
   if (texteM1 === null && igPremier) return cloreIgSuivreAbsent(ev, cle, now);
-  if (texteM1 === null && m1.codeRepli === "cible_essai") return cloreAdresseEssaiAbsente(ev, cle, now);
+  if (texteM1 === null && m1.codeRepli === "cible_essai" && e.reseau === "instagram") return cloreAdresseEssaiAbsente(ev, cle, now);
   if (texteM1 === null) {
     const codeRefus = e.nature === "renvoi" ? "renvoi_impossible" : "texte_incomplet";
     await patcher(cle, { etat: "m1_refuse", refuseLe: new Date(now).toISOString(), dernierCode: codeRefus });
@@ -1163,7 +1195,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     if (m1.codeRepli !== "cible_essai") await alerter(`lien:${m1.codeRepli}`, `Le premier message part sans lien (${RAISONS_REPLI_LIEN[m1.codeRepli]}).`, now);
   }
   // ÉCRIRE D'ABORD m1_en_vol (sous verrou), PUIS un seul envoi hors verrou : un plantage ne produit jamais un 2e envoi.
-  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, ...(ig ? { essaiEnvoiLe: new Date(now).toISOString() } : {}), versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse || m1.formulationIg ? { formulations: { ...e.formulations, ...(m1.formulationIg ? { "ig-suivre": m1.formulationIg } : {}), ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
+  await patcher(cle, { etat: "m1_en_vol", prochainEssaiLe: null, ...(m1.codeRepli === "cible_essai" && m1.essaiProuve === true && e.reseau === "instagram" ? { cibleEssai: true } : {}), ...(ig ? { essaiEnvoiLe: new Date(now).toISOString() } : {}), versionTexteM1: m1.version, ...(m1.formulationLien || m1.formulationAdresse || m1.formulationIg ? { formulations: { ...e.formulations, ...(m1.formulationIg ? { "ig-suivre": m1.formulationIg } : {}), ...(m1.formulationLien ? { [e.nature === "renvoi" && e.groupeM1 ? e.groupeM1 : GROUPE_M1_LIEN]: m1.formulationLien } : {}), ...(m1.formulationAdresse ? { "m1-adresse": m1.formulationAdresse } : {}) } } : {}), ...(m1.refLienConv ? { refLienConv: m1.refLienConv } : {}), ...(m1.empreinteLien ? { empreintesLien: [...(e.empreintesLien ?? []), m1.empreinteLien].slice(-5) } : {}) });
   processus().enVol.add(cle);
   let res: ResultatEcritureInbox;
   try {
@@ -1668,7 +1700,14 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     }
     // (e) texte. Lien : mécanisme du renvoi (formulation validée, version connue du site, lien signé NEUF). « Pas encore » : formulation validée du groupe.
     // Cible d'ESSAI (drapeau figé ou catalogue du jour) : après le OK, la demande d'adresse validée (groupe « m1-adresse-rgpd ») au lieu du lien. JAMAIS de lien, de jeton ni de repli (mp-m1-v2).
-    const adresseEssai = dec.action === "lien" && (avant.cibleEssai === true || (await cibleEstEssaiAujourdhui(avant, env, now)));
+    const statutEssai = dec.action !== "lien" ? "non" : avant.cibleEssai === true ? "prouve" : await statutEssaiCatalogue(avant, env, now);
+    if (statutEssai === "suppose") {
+      // Panne de lecture du catalogue : l'essai n'est pas prouvé, la demande d'adresse partirait sans drapeau. On reporte AVANT tout état d'envoi, rien n'est consommé ni clos.
+      await reporter(ev, now, ATTENTE_CATALOGUE_MS, "catalogue_illisible");
+      return "bloque";
+    }
+    const adresseEssai = dec.action === "lien" && statutEssai !== "non";
+    const essaiProuve = statutEssai === "prouve"; // le drapeau n'est écrit que si l'essai est prouvé (pas quand la lecture du catalogue a échoué)
     const groupe = adresseEssai ? "m1-adresse-rgpd" : dec.action === "lien" ? LIEN_RAPPEL : PAS_ENCORE;
     let prep: PrepM1;
     if (adresseEssai) {
@@ -1747,7 +1786,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       if (adresseEssai) {
         // Cible d'essai : la demande d'adresse est partie (date comptée dans le plafond par personne). Ni lienIgLe, ni référence de lien, ni empreinte de lien.
         await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol"
-          ? { ...e, etat: "attente_email", cibleEssai: true, adresseIgLe: quand, suiviIg: dec.issue, versionTexteM1: prep.version, dernierCode: null, formulations: { ...e.formulations, "m1-adresse": prep.version } }
+          ? { ...e, etat: "attente_email", ...(essaiProuve ? { cibleEssai: true as const } : {}), adresseIgLe: quand, suiviIg: dec.issue, versionTexteM1: prep.version, dernierCode: null, formulations: { ...e.formulations, "m1-adresse": prep.version } }
           : undefined));
       } else if (dec.action === "lien") {
         await ecrireEtat(choisi.cle, (e) => (e && e.etat === "ig_envoi_en_vol"

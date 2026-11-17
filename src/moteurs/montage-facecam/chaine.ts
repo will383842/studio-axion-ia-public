@@ -39,6 +39,7 @@ import type { DemandeRendu } from "@/fournisseurs/types";
 import { multicameraPourComposition, type PisteMulticamera } from "@/briques/multicamera";
 import { corrigerMots, intensiteLutCommande, emphaseDuScript, habillageFacecam, type CartePosee, type HabillageFacecam } from "./habillage";
 import { ajustementsAuMontage, priseVersMonteeGardes, type AjustementCarteAutoMonte, type CarteAutoVue } from "./cartes-video";
+import { retireesAvecDosage } from "./dosage";
 import { cartePosee, demandeRenduCarte, type CarteMonteur } from "./raccords";
 import type { CodeCarte } from "./monteur/operations";
 // Lot I : effets spéciaux du lot F3 branchés dans l'habillage.
@@ -961,7 +962,6 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       const lut = c.styles.lut && c.styles.lut.id !== "aucune" ? c.medias?.[c.styles.lut.id] : undefined;
       // Vérif V1 : les cartes automatiques retirées depuis le chat ne reviennent pas.
       const retirees = lireReglagesMonteur(c.entrees).cartesAutoRetirees;
-      const cartesAutoRetirees = retirees.length ? { cartesAutoRetirees: retirees } : {};
       // 10/10 : gestes de Will sur les cartes automatiques depuis la fiche (retirée, déplacée, texte), de la prise au montage.
       const gardes = etat.coupes!.gardes;
       const cartesAuto = ajustementsAuMontage(lireReglagesMonteur(c.entrees).cartesAuto, (s) => priseVersMonteeGardes(s, gardes));
@@ -971,6 +971,9 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       const memoire = entrees.memoireCartes ?? etat.memoireCartes ?? (deps.memoireCartes ? await deps.memoireCartes().catch(() => undefined) : undefined);
       if (memoire && !entrees.memoireCartes && !etat.memoireCartes) etat.memoireCartes = memoire;
       const emphase = etat.emphaseValidee ?? emphaseDuScript(c);
+      // X3-05 : retraits du cran de dosage, ajoutés à ceux de Williams (sans cran : la même liste, rien de calculé).
+      const retireesTotal = retireesAvecDosage(c.dosageMotion?.cran, retirees, { mots, dureeSec, ...(memoire ? { memoireCartes: memoire } : {}), ...(cartes ? { cartes } : {}), ...(cartesAuto.length ? { cartesAuto } : {}), ...(occupes.length ? { occupes } : {}) });
+      const cartesAutoRetirees = retireesTotal.length ? { cartesAutoRetirees: retireesTotal } : {};
       const h: HabillageFacecam = habillageFacecam({
         pisteMonteeCle: montage?.fichierCle ?? cle("montage.mov"),
         dureeSec,
@@ -989,7 +992,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       const demandes: EtatHabillage["cartes"] = [];
       const e = h.entree;
       // Lot R2 : plan de scènes (option éteinte par défaut : sans `deps.planScenes`, rien n'est composé ni ajouté) ; 9:16 seulement.
-      const optionPlan = deps.planScenes ? await deps.planScenes().catch(() => undefined) : undefined;
+      // X3-05 : cran `aucun` : pas de plan de scènes pour cette vidéo.
+      const optionPlan = deps.planScenes && c.dosageMotion?.cran !== "aucun" ? await deps.planScenes().catch(() => undefined) : undefined;
       if (optionPlan) {
         etat.planScenes = await planPourVideo({ generateur: "facecam", mots: mots.map((m) => ({ texte: m.mot, debutSec: m.debutSec, finSec: m.finSec })), dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM, appeler: optionPlan.appeler, memo: etat.planScenes });
       }
