@@ -246,3 +246,66 @@ describe("L5-06 · cas limites", () => {
     expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("publie");
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* Décision du pilote (17/11/2026) : l'étape suit l'ENSEMBLE des publications actives                */
+/* ------------------------------------------------------------------ */
+
+type EtatPost = { status: string; plateforme?: string; compte?: string; erreur?: string };
+
+/** Faux diffuseur « par post » : chaque post a son état ; la liste est vide (lecture unitaire seulement). */
+function diffuseurParPost(etats: Record<string, EtatPost>) {
+  const appels: AppelEnregistre[] = [];
+  const { client } = creerFauxClientZernio((a) => {
+    appels.push(a);
+    const u = new URL(a.url);
+    if (a.methode === "GET" && u.pathname.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: COMPTE, platform: "instagram", isActive: true }] } };
+    if (a.methode === "GET" && u.pathname.endsWith("/v1/posts")) return { statut: 200, corps: { posts: [] } };
+    const m = /\/v1\/posts\/([^/?]+)$/.exec(u.pathname);
+    const e = m ? etats[m[1]] : undefined;
+    if (a.methode === "GET" && m && e) {
+      const pf = { platform: e.plateforme ?? "instagram", accountId: e.compte ?? COMPTE, status: e.status, ...(e.status === "failed" ? { errorMessage: e.erreur ?? "refus simulé" } : {}) };
+      return { statut: 200, corps: { post: postExemple({ _id: m[1], status: e.status, ...(e.status === "scheduled" ? { scheduledFor: DATE } : {}), platforms: [pf] } as never) } };
+    }
+    return { statut: 404, corps: { error: "introuvable" } };
+  });
+  return { client, appels };
+}
+
+const visuelSimple = (statut: string, id = "vis_1") => depots().visuels.enregistrer({ id, famille: "carrousel", titre: "Visuel d'exemple", statut, versionSpec: 1, coutCentimes: 0, creeLe: iso(T0), modifieLe: iso(T0) } as never);
+const pubVisuel = (id: string, reseau: string, extra: Record<string, unknown> = {}) =>
+  depots().publications.enregistrer({ id, visuelId: "vis_1", reseau, statut: "programmee", via: "zernio", date: DATE, texte: "Texte d'exemple", idExterne: `post-${id}`, canalId: COMPTE, etatEnvoi: "envoye", envoiCommenceLe: iso(T0 - 3600_000), creeLe: iso(T0), modifieLe: iso(T0), ...extra } as never);
+const statutVisuel = async (id = "vis_1") => (await depots().visuels.obtenir(id))?.statut;
+
+describe("L5-06 · décision du pilote, règle 1 : tant qu'un envoi reste possible, l'étape ne bouge pas", () => {
+  it("deux réseaux, l'un programmé, le second pas encore envoyé (prévu au créneau) : le visuel reste « validé »", async () => {
+    await visuelSimple("valide");
+    await depots().creneauxEditoriaux.enregistrer({ id: "cre_1", jourVise: "2026-11-12", heuresParReseau: { instagram: DATE, linkedin: DATE }, compteCible: COMPTE, visuelId: "vis_1", statut: "valide", decalages: 0, valideeLe: iso(T0 - 7200_000) } as never);
+    await pubVisuel("pi", "instagram", { statut: "brouillon" });
+    const { client } = diffuseurParPost({ "post-pi": { status: "scheduled" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect((await depots().publications.obtenir("pi"))?.statut).toBe("programmee");
+    expect(await statutVisuel()).toBe("valide");
+  });
+
+  it("deux publications, l'une programmée, l'autre refusée par le diffuseur (nouvel essai possible) : le visuel reste « validé »", async () => {
+    await visuelSimple("valide");
+    await pubVisuel("pi", "instagram", { statut: "brouillon" });
+    await pubVisuel("pl", "linkedin", { statut: "echec", etatEnvoi: "refuse", idExterne: undefined });
+    const { client } = diffuseurParPost({ "post-pi": { status: "scheduled" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("valide");
+  });
+
+  it("deux publications, l'une programmée, l'autre encore brouillon chez le diffuseur : le visuel reste « validé »", async () => {
+    await visuelSimple("valide");
+    await pubVisuel("pi", "instagram", { statut: "brouillon" });
+    await pubVisuel("pl", "linkedin", { statut: "brouillon" });
+    const { client } = diffuseurParPost({ "post-pi": { status: "scheduled" }, "post-pl": { status: "draft", plateforme: "linkedin" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("valide");
+  });
+});
