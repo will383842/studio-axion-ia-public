@@ -6,6 +6,7 @@ import { ESSAIS_MAX, EN_COURS_MAX, type Conduite } from "./crochet-zernio";
 import { ETATS_EN_COURS, type EtatParcours } from "./etats-parcours";
 import type { ResultatEcritureInbox } from "@/fournisseurs/zernio-inbox";
 import type { IssueSuivi } from "./suivi-instagram";
+import type { RaisonRefusStockee } from "./raison-refus";
 
 export const DELAI_PERIME_MS = 24 * 3600_000;
 export const EXPIRATION_MS = 7 * 24 * 3600_000;
@@ -54,6 +55,10 @@ export interface Conversation {
   essaisM1: number;
   prochainEssaiLe: number | null;
   dernierCode: string | null;
+  /** Raison FERMÉE (jamais de texte libre) du dernier refus de la réponse publique ; effacée à tout autre résultat. Information seulement. */
+  refusPublic?: RaisonRefusStockee;
+  /** Raison FERMÉE du dernier refus du premier message privé ; effacée à tout autre résultat. Information seulement. */
+  refusPrive?: RaisonRefusStockee;
   /** Empreintes de `sender.id` et de `conversationId`. */
   alias: string[];
   /** Identifiant du message ayant déclenché la demande de guide (reprise de l'accusé, une seule fois). */

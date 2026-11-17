@@ -24,6 +24,7 @@ import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, orig
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
 import { DELAI_PERIME_MS, DELAI_REDUCTION_MS, FENETRE_ENVOI_MS, reductible, activiteRetenue, choisirParcoursPourMessage, dansFenetreEnvoi, doitExpirer, issueMerci, type EtatMerci, transition, GROUPE_M1_LIEN, type CodeRepliLien, type Conversation, type Sortie } from "@/domaine/guide-reseau/machine-conversation";
+import { estRaisonRefus, formaterRaison, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
 import { classerOpposition, exprimeUnRefus, type ClasseOpposition } from "@/domaine/guide-reseau/opposition";
 import { choisirParcoursPourOk, deciderReponseInstagram, estOkInstagram, limitePersonneIg, limiteReponsesIg, parcoursAServir, REPONSES_IG_MAX_PAR_MESSAGE, suiviDepuisPort, type EtatSuivi, type LimitePersonneIg } from "@/domaine/guide-reseau/suivi-instagram";
 import { empreinteGuideParcours } from "@/domaine/guide-reseau/empreinte-guide";
@@ -249,7 +250,10 @@ const patcher = (cle: string, patch: Partial<Conversation>) =>
     const garde = e.etat === "oppose" && patch.etat !== undefined && patch.etat !== "oppose";
     const suite: Partial<Conversation> = { ...patch };
     if (garde) delete suite.etat;
-    return { ...e, ...suite };
+    const fusion: Conversation = { ...e, ...suite };
+    // Une clé `undefined` efface le champ pour de bon (elle ne disparaîtrait qu'à la sérialisation JSON).
+    for (const k of Object.keys(suite) as Array<keyof Conversation>) if (suite[k] === undefined) delete fusion[k];
+    return fusion;
   });
 
 type ClesOk = Extract<EtatCles, { ok: true }>;
@@ -401,9 +405,9 @@ async function reserverOuReporter(ev: EvenementFournisseur, idCompte: string, no
 
 /* --- Événements ------------------------------------------------------------------------------------------------ */
 const texteDe = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
-async function clore(ev: EvenementFournisseur, etat: string, code: string | null): Promise<void> {
+async function clore(ev: EvenementFournisseur, etat: string, code: string | null, raison?: RaisonRefus): Promise<void> {
   await depots().evenementsFournisseurs.modifier(ev.id, { traite: true, charge: { ...ev.charge, etat, dernierCode: code, prochainEssaiLe: null } });
-  await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : ${etat} (${code ?? "-"}).`);
+  await journaliser("parcours_conversation", `Événement Zernio ${ev.idEvenement} : ${etat} (${code ?? "-"})${raison ? ` : ${formaterRaison(raison)}` : ""}.`);
 }
 async function reporter(ev: EvenementFournisseur, now: number, apresMs: number, code: string, extra: Record<string, unknown> = {}): Promise<void> {
   const memeCause = ev.charge.dernierCode === code; // même cause qu'au report précédent : le report se fait, mais le journal ne répète pas la ligne
@@ -1162,7 +1166,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
         await clore(ev, "bloque", s.code ?? null);
         return "traite";
       }
-      await patcher(cle, { ...(s.patch ?? {}), ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
+      await patcher(cle, { ...(s.patch ?? {}), refusPublic: res.statut === "refuse" && estRaisonRefus(res.raison) ? { ...res.raison, le: new Date(now).toISOString() } : undefined, ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
       if (s.action === "reessayer") {
         await reporter(ev, now, s.apresMs ?? 30_000, s.code ?? "a_reessayer");
         return "traite";
@@ -1226,7 +1230,8 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
   await reagir(s, now);
   // Instagram : le succès attend le OK de la personne (le lien ne part qu'après) ; les autres issues sont celles de M1.
   const patchM1: Partial<Conversation> | undefined = igPremier && s.patch?.etat === "attente_email" ? { ...s.patch, etat: "ig_attente_ok" } : s.patch;
-  await patcher(cle, patchM1 ?? {});
+  const refusM1 = patchM1?.etat === "m1_refuse" && res.statut === "refuse" && estRaisonRefus(res.raison) ? res.raison : undefined; // information seulement
+  await patcher(cle, { ...(patchM1 ?? {}), refusPrive: refusM1 ? { ...refusM1, le: new Date(now).toISOString() } : undefined });
   if (ig && res.statut !== "envoye" && res.statut !== "a_verifier") await retirerEssaiEnvoi(cle); // rien n'est parti : la date d'essai réservée ne compte pas
   // B3 (a) : si Zernio rend l'identifiant de conversation ou de destinataire, l'alias est posé tout de suite (empreintes, jamais brut).
   const idsRendus = [res.idConversation, res.idDestinataire].filter((x): x is string => typeof x === "string" && x.length > 0).map((x) => empreintePersonne(cles.courante, ESPACE_CONVERSATION, x));
@@ -1236,7 +1241,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (s.patch?.etat === "m1_a_verifier") await alerter("m1_a_verifier", "Un message privé a une issue inconnue : il ne sera pas renvoyé. À vérifier dans l'Inbox Zernio.", now);
-  await clore(ev, String(patchM1?.etat ?? "termine"), s.code ?? null);
+  await clore(ev, String(patchM1?.etat ?? "termine"), s.code ?? null, refusM1);
   return "traite";
 }
 
@@ -2192,6 +2197,7 @@ export function reductionIdsActive(env: Env = process.env): boolean {
  * conversation à fenêtre ouverte, un événement dont une opposition à transmettre dépend. Au plus 50 événements par passage, une seule
  * écriture par événement. Une personne opposée n'est JAMAIS touchée : aucun de ses événements (le « stop » comme le commentaire d'origine)
  * ni sa conversation, que l'opposition vienne de l'état `oppose`, de la file des oppositions ou du registre. Registre illisible : rien n'est réduit.
+ * Les raisons de refus stockées (`refusPublic`, `refusPrive`) ne contiennent aucun identifiant par construction (forme fermée) : elles ne sont pas touchées.
  */
 export async function reduireIdentifiants(o: { env?: Env; maintenantMs?: number } = {}): Promise<number> {
   const env = o.env ?? process.env;

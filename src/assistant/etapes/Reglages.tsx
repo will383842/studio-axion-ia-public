@@ -14,6 +14,9 @@ import { decorParDefaut, lutsConseilleesPour, sousTitresSurDecor } from "@/domai
 import { LUT_AUCUNE } from "@/donnees/luts-axion";
 import { LIBELLES_BRIQUES } from "@/domaine/libelles";
 import type { BriqueFacultative, NiveauIntensite, ReglageBruitages, StylesChoisis, TypeElement } from "@/domaine/types";
+import { dosageRetenu } from "@/briques/dosage-motion/reglage";
+import type { DosageMotion } from "@/briques/dosage-motion/types";
+import { BoutonDosage } from "@/components/dosage-motion/BoutonDosage";
 import { renduCouleurDe } from "@/briques/charte/rendu-couleur";
 import { briquesCoupables, briquesEffectives, musiqueInterdite, musiqueRetenue, obtenirFormat, styleParDefautRetenu } from "@/formats";
 import type { ChampReglage } from "@/formats/types";
@@ -58,6 +61,11 @@ const BRUITAGES: { valeur: ReglageBruitages; libelle: string }[] = [
   { valeur: "discrets", libelle: "Discrets" },
   { valeur: "aucun", libelle: "Aucun" },
 ];
+
+/** X3-09b : le choix d'un cran « Animations » ; « Aucun » coupe aussi les bruitages par défaut (E3-3), qu'on peut rallumer ensuite. */
+export function patchAnimations(cran: DosageMotion): Partial<StylesChoisis> {
+  return cran === "aucun" ? { dosageMotion: cran, bruitages: "aucun" } : { dosageMotion: cran };
+}
 
 function Bloc({ icone, titre, children, className }: { icone: NomIcone; titre: string; children: ReactNode; className?: string }) {
   return (
@@ -223,15 +231,23 @@ export function EtapeReglages({ formatId, brouillon, modifier, contexte, compact
         )}
 
         {/* Lot « intensité · bruitages » (02/10) : UN réglage pour toute la vidéo (coupes, zooms, textes, sons). */}
-        <Bloc key="intensite" icone="eclair" titre="Intensité">
+        <Bloc key="intensite" icone="eclair" titre={contexte.dosageMotion?.actif === true ? "Animations" : "Intensité"}>
           <div className="space-y-4">
-            <SelecteurPastilles
-              libelle="Intensité de la vidéo"
-              libelleMasque
-              options={NIVEAUX}
-              valeur={s.intensite ?? s.sousTitresIntensite ?? format.profilRendu?.intensite ?? format.profilRendu?.sousTitresIntensite ?? "equilibre"}
-              onChange={(v) => style({ intensite: v })}
-            />
+            {contexte.dosageMotion?.actif === true ? (
+              <BoutonDosage
+                generateur={contexte.dosageMotion.generateur}
+                valeur={dosageRetenu({ choixVideo: s.dosageMotion, defautGenerateur: contexte.dosageMotion.defaut, generateur: contexte.dosageMotion.generateur }).dosage}
+                surChoix={(c) => style(patchAnimations(c))}
+              />
+            ) : (
+              <SelecteurPastilles
+                libelle="Intensité de la vidéo"
+                libelleMasque
+                options={NIVEAUX}
+                valeur={s.intensite ?? s.sousTitresIntensite ?? format.profilRendu?.intensite ?? format.profilRendu?.sousTitresIntensite ?? "equilibre"}
+                onChange={(v) => style({ intensite: v })}
+              />
+            )}
             {actives.son && (
               <SelecteurPastilles
                 libelle="Bruitages"

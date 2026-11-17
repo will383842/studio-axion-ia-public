@@ -5,8 +5,12 @@
  * Les gestes de Williams (écartée, validée, sujet corrigé) l'emportent toujours sur le tri. Les entrées ne sont jamais modifiées.
  */
 import type { FicheSourceExtraits, PlageExtrait } from "@/domaine/archive-extraits";
-import { VERSION_NOTE_EXTRAITS } from "@/briques/note-extraits";
-import type { Moment, NoteMoment, ResultatTri, SeuilsNoteInteret } from "@/briques/note-extraits";
+import type { Video, VersionVideo } from "@/domaine/types";
+import { VERSION_NOTE_EXTRAITS, lireNoteInteret, momentsDepuisScenes, momentsEcranDemo, usagesDe } from "@/briques/note-extraits";
+import type { LireReglageNoteInteret, Moment, NoteMoment, ResultatTri, SeuilsNoteInteret } from "@/briques/note-extraits";
+import { momentsParles, contexteDeNote } from "@/briques/archive-extraits/moments-parles";
+import { trierVideo } from "@/briques/archive-extraits/tri-video";
+import { lireEntreesDemo } from "@/moteurs/montage-demo-facecam/entrees";
 import { reporterGestes } from "@/briques/archive-extraits/inscription";
 
 type MomentNote = Moment & NoteMoment;
@@ -90,4 +94,52 @@ export function ficheAvecTri(fiche: FicheSourceExtraits, tri: ResultatTri, _seui
 /** Version + seuils : la note n'est recalculée que si les règles changent. */
 export function empreinteNote(seuils: SeuilsNoteInteret): string {
   return `${VERSION_NOTE_EXTRAITS}|garde=${seuils.garde}|peutEtre=${seuils.peutEtre}|gardesMax=${seuils.gardesMax}`;
+}
+
+/** Réglage lu une fois par l'appelant (injecté) : l'empreinte n'existe que si la note est allumée. */
+export async function etatNote(lire: LireReglageNoteInteret): Promise<{ actif: boolean; seuils: SeuilsNoteInteret; empreinte?: string }> {
+  const { actif, seuils } = await lireNoteInteret(lire);
+  return actif ? { actif, seuils, empreinte: empreinteNote(seuils) } : { actif, seuils };
+}
+
+export interface EntreeNote {
+  video: Pick<Video, "titre" | "typeAutomatisation" | "couvertureVignette">;
+  version: Pick<VersionVideo, "commande" | "projetMontage">;
+  ancienne: FicheSourceExtraits | null;
+}
+
+function momentsEcran(version: EntreeNote["version"]): Moment[] {
+  const plan = version.projetMontage?.plan;
+  if (version.commande?.entrees?.demoFacecam) {
+    const r = momentsEcranDemo(lireEntreesDemo(version.commande), plan);
+    // Calage non prouvé : aucun moment écran (prudent).
+    return r.decisionMax === "garde" ? r.moments : [];
+  }
+  return momentsDepuisScenes(plan, { avecVisage: true });
+}
+
+/** Pose la note sur la fiche du chantier 3. Jamais d'exception : en cas d'erreur, la fiche est rendue inchangée. */
+export async function appliquerNote(
+  fiche: FicheSourceExtraits,
+  entree: EntreeNote,
+  seuils: SeuilsNoteInteret,
+  ports: { journal: (message: string) => Promise<void> },
+): Promise<FicheSourceExtraits> {
+  try {
+    const moments = [...momentsParles(fiche), ...momentsEcran(entree.version)];
+    const chiffresReels = (entree.ancienne ?? fiche).chiffresReels === true;
+    const tri = trierVideo(moments, contexteDeNote({ video: entree.video }), seuils, {
+      etiqueter: (m) => usagesDe(m, { chiffresReels }),
+    });
+    const notee = ficheAvecTri({ ...fiche, plages: entree.ancienne?.plages ?? fiche.plages }, tri, seuils);
+    return entree.ancienne?.chiffresReels === true ? { ...notee, chiffresReels: true } : notee;
+  } catch (e) {
+    const nom = e instanceof Error ? e.name : "erreur";
+    try {
+      await ports.journal(`Extraits : note non calculée (${nom})`);
+    } catch {
+      /* le journal ne doit jamais faire remonter d'exception */
+    }
+    return fiche;
+  }
 }
