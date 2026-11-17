@@ -67,8 +67,13 @@ describe("retouches rapides + dosage (X3-12b-a)", () => {
   });
 
   it("sans « retirer-derniere-piece » : les entrées de dosage sont ajoutées à la fin", () => {
-    const l = ids(unique, { dosageActif: true });
-    if (!l.includes("retirer-derniere-piece") && l.includes("sans-animations")) expect(l[l.length - 1]).toBe("sans-animations");
+    // Aucune scène n'a de calque, mais la première porte un zoom de scène : « sans-animations » existe, « retirer-derniere-piece » non.
+    const zoom = valider({ ...structuredClone(PLAN_DEMO), scenes: PLAN_DEMO.scenes.map((s, k) => (k === 0 ? { ...s, calques: undefined, piece: "zoom-camera", parametres: { facteur: 1.5 } } : { ...s, calques: undefined })) });
+    const l = ids(zoom, { dosageActif: true });
+    expect(l).not.toContain("retirer-derniere-piece");
+    expect(l).toContain("sans-animations");
+    expect(l[l.length - 1]).toBe("sans-animations");
+    if (l.includes("plus-calme")) expect(l[l.length - 2]).toBe("plus-calme");
     expect(l.length).toBeLessThanOrEqual(8);
   });
 
