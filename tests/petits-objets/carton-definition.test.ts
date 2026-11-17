@@ -53,6 +53,7 @@ describe("C10-09 règle d'extraction", () => {
       "ça, c'est utile",
       "on appelle ROI ce que tu gagnes",
       "un deux trois quatre, c'est cinq",
+      "le CPA, c'est ce qu'on paie vraiment",
     ]) {
       const mots = dits(phrase);
       expect(definitionDite(mots, 0, mots.length - 1)).toBeNull();
@@ -68,6 +69,19 @@ describe("C10-09 règle d'extraction", () => {
 });
 
 describe("C10-09 accord avec la garde d'honnêteté", () => {
+  it("tout résultat non nul de la règle passe valider et la garde", () => {
+    for (const phrase of [
+      "le ROI, c'est ce que tu gagnes", "le churn, ça veut dire les départs", "un lead signifie un contact chaud",
+      "on appelle SEO, le référencement naturel", "le CPA, c'est ce qu'on paie vraiment", "la marge, c'est ce qui reste.",
+      "Bonjour à tous. Le ROI, c'est ce que tu gagnes. Merci", "l'ROI, c'est l'argent gagné",
+    ]) {
+      const mots = dits(phrase);
+      const r = definitionDite(mots, 0, mots.length - 1);
+      if (r === null) continue;
+      expect(DEF.valider({ mot: r.mot, definition: r.definition })).not.toBeNull();
+      expect(garderObjet(DEF as DefinitionObjet<unknown>, { mot: r.mot, definition: r.definition }, { mots, premier: r.premier, dernier: r.dernier })).toBe("ok");
+    }
+  });
   it("chaque cas trouvé est accepté ; un mot non dit glissé est refusé", () => {
     for (const phrase of ["le ROI, c'est ce que tu gagnes", "le churn, ça veut dire les départs", "un lead signifie un contact chaud", "on appelle SEO, le référencement naturel"]) {
       const mots = dits(phrase);

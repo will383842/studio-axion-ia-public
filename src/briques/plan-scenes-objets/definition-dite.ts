@@ -85,6 +85,9 @@ export function definitionDite(mots: readonly MotMinute[], premier: number, dern
     const motsDef = bruts.slice(defIdx, finDef + 1).map(propre);
     if ([...motsTerme, ...motsDef].some((x) => x === "")) return null;
     if (motsDef.some((x) => /\d/.test(x))) return null;
+    // Même découpage que la garde et la pièce (l'apostrophe coupe aussi) : jamais un couple que la pièce refuse.
+    const compte = (l: readonly string[]): number => l.join(" ").split(/[^\p{L}\p{N}]+/u).filter(Boolean).length;
+    if (compte(motsTerme) > MOT_MAX || compte(motsDef) > DEFINITION_MAX) return null;
     if (motsTerme.every((x) => VIDES.has(nu(x)))) return null;
 
     return { mot: motsTerme.join(" "), definition: motsDef.join(" "), premier: a + terme[0], dernier: a + finDef };
