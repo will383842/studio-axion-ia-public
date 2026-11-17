@@ -72,6 +72,31 @@ export const CODES_CLIENT_CONNUS: readonly string[] = [
   "boutons-non-supportes", "creation-incomplete", "erreur-inconnue",
 ];
 
+/** Sous-codes Meta connus -> motif (liste fermée, partagée par le validateur et le module des motifs). */
+export const SOUS_CODES: Readonly<Record<number, CodeMotifRefus>> = {
+  2534041: "messagerie-instagram-desactivee",
+  2534024: "fenetre-7-jours-depassee", 2534022: "fenetre-7-jours-depassee", 2018278: "fenetre-7-jours-depassee",
+  2534023: "reponse-privee-deja-envoyee",
+  2534025: "commentaire-non-eligible",
+  2534014: "auteur-introuvable",
+  1545041: "personne-injoignable", 2018108: "personne-injoignable",
+  2534066: "reponse-privee-declinee",
+  2018028: "droits-manquants", 1404170: "droits-manquants",
+  1893063: "envoi-restreint-temporairement",
+  2018300: "autre-application-aux-commandes",
+};
+export const CODES_META: Readonly<Record<number, CodeMotifRefus>> = {
+  10900: "reponse-privee-deja-envoyee",
+  10903: "auteur-page-ou-confidentialite",
+  551: "personne-injoignable",
+  200: "droits-manquants", 230: "droits-manquants",
+  190: "jeton-expire-ou-invalide",
+  613: "limite-meta",
+};
+
+/** Liste FERMÉE des codes Meta admis dans une raison (code ou sous-code) : tout autre entier est écarté, jamais gardé ni journalisé. */
+export const CODES_META_CONNUS: readonly number[] = [...new Set([...Object.keys(CODES_META).map(Number), ...Object.keys(SOUS_CODES).map(Number), 2, 10, 100, 33, 1545133])];
+
 export interface RaisonRefus {
   motif: CodeMotifRefus;
   /** Statut HTTP (entier 100..599) ou null. */
@@ -99,7 +124,7 @@ export function estRaisonRefus(x: unknown): x is RaisonRefus {
   if (r.meta !== null) {
     if (typeof r.meta !== "object" || Array.isArray(r.meta)) return false;
     const m = r.meta as Record<string, unknown>;
-    if (Object.keys(m).some((k) => k !== "code" && k !== "sousCode") || !entierMeta(m.code) || !(m.sousCode === null || entierMeta(m.sousCode))) return false;
+    if (Object.keys(m).some((k) => k !== "code" && k !== "sousCode") || !entierMeta(m.code) || !CODES_META_CONNUS.includes(m.code) || !(m.sousCode === null || (entierMeta(m.sousCode) && CODES_META_CONNUS.includes(m.sousCode)))) return false;
   }
   return true;
 }

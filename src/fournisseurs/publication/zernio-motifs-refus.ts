@@ -3,7 +3,7 @@
  * Ordre : (1) codes Meta numériques, (2) table des sous-codes puis des codes, (3) code Zernio de la liste blanche,
  * (4) phrases connues cherchées sur une copie locale jamais rendue, (5) statut >= 500 -> erreur-serveur, sinon raison-inconnue.
  */
-import { CODES_ZERNIO_CONNUS, type CodeMotifRefus, type CodeZernioConnu, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
+import { CODES_META, CODES_META_CONNUS, CODES_ZERNIO_CONNUS, SOUS_CODES, type CodeMotifRefus, type CodeZernioConnu, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
 
 export type MotifInbox = Pick<RaisonRefus, "motif" | "meta" | "codeZernio">;
 
@@ -25,31 +25,12 @@ function lireMeta(corps: unknown): { code: number; sousCode: number | null } | n
   const sources = [corps.platformError, details.platformError, corps.error].filter(estObjet);
   for (const s of sources) {
     const code = entierMeta(s.code);
-    if (code !== null) return { code, sousCode: entierMeta(s.error_subcode ?? s.errorSubcode) };
+    if (code === null || !CODES_META_CONNUS.includes(code)) continue;
+    const sous = entierMeta(s.error_subcode ?? s.errorSubcode);
+    return { code, sousCode: sous !== null && CODES_META_CONNUS.includes(sous) ? sous : null };
   }
   return null;
 }
-
-const SOUS_CODES: Readonly<Record<number, CodeMotifRefus>> = {
-  2534041: "messagerie-instagram-desactivee",
-  2534024: "fenetre-7-jours-depassee", 2534022: "fenetre-7-jours-depassee", 2018278: "fenetre-7-jours-depassee",
-  2534023: "reponse-privee-deja-envoyee",
-  2534025: "commentaire-non-eligible",
-  2534014: "auteur-introuvable",
-  1545041: "personne-injoignable", 2018108: "personne-injoignable",
-  2534066: "reponse-privee-declinee",
-  2018028: "droits-manquants", 1404170: "droits-manquants",
-  1893063: "envoi-restreint-temporairement",
-  2018300: "autre-application-aux-commandes",
-};
-const CODES_META: Readonly<Record<number, CodeMotifRefus>> = {
-  10900: "reponse-privee-deja-envoyee",
-  10903: "auteur-page-ou-confidentialite",
-  551: "personne-injoignable",
-  200: "droits-manquants", 230: "droits-manquants",
-  190: "jeton-expire-ou-invalide",
-  613: "limite-meta",
-};
 
 function motifParNombres(m: { code: number; sousCode: number | null }): CodeMotifRefus | null {
   if (m.sousCode !== null && SOUS_CODES[m.sousCode]) return SOUS_CODES[m.sousCode];
