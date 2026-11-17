@@ -5,6 +5,7 @@
 // Une date illisible ou située dans le futur ne compte que dans `total`.
 import { normaliserMot } from "./mot-normalise";
 import type { Fenetres, StatsMot } from "./cibles-contrat";
+import type { CodeMotifRefus } from "./raison-refus";
 
 const JOUR_MS = 86_400_000;
 /** Mot des conversations anciennes (sans champ `mot`). */
@@ -34,6 +35,16 @@ export interface ConversationStat {
   readonly refuseLe?: string | null;
   /** Champ facultatif, absent des données actuelles : la personne suit le compte (connu sans doute possible). */
   readonly suitLeCompte?: boolean;
+  /** Raison du refus, réduite à deux informations fermées (jamais de statut, de code réseau ni de date). Ignorée si la conversation n'est pas refusée. */
+  readonly raison?: { motif: CodeMotifRefus; dApresMessage: boolean } | null;
+}
+
+/** Une raison de refus et son nombre de personnes, par fenêtre. */
+export interface LigneRaisonRefus {
+  readonly motif: CodeMotifRefus;
+  /** Vrai si le motif n'est qu'une information (repli sur le texte du réseau). */
+  readonly dApresMessage: boolean;
+  readonly f: Fenetres;
 }
 
 /** Chiffres d'un mot. Étend `StatsMot` du contrat : `ecrits` = personnes distinctes qui l'ont écrit, `envoyes` = premiers messages privés envoyés. */
@@ -50,6 +61,10 @@ export interface StatsMotChiffrees extends StatsMot {
   readonly commentairesBloques: Fenetres;
   /** Envois refusés (`m1_refuse`, `site_refuse`), datés par `refuseLe` s'il est lisible, sinon `creeLe`. */
   readonly envoisRefuses: Fenetres;
+  /** Raisons des envois refusés : une par personne et par mot. Somme avec `refusSansRaison` = `envoisRefuses`, fenêtre par fenêtre. */
+  readonly raisonsRefus: readonly LigneRaisonRefus[];
+  /** Personnes refusées dont aucune conversation refusée n'a de raison enregistrée. */
+  readonly refusSansRaison: Fenetres;
   /** Personnes distinctes (par clé d'empreinte, sans jamais la montrer) ayant une conversation sur ce mot. */
   readonly personnes: Fenetres;
   /**
@@ -91,6 +106,39 @@ const plusAncienne = (a: string | null, b: string | null): string | null => {
   return tb < ta ? b : a;
 };
 
+type LigneCompteur = {
+  motif: CodeMotifRefus;
+  dApresMessage: boolean;
+  c: Compteur;
+};
+
+/** Date d'ordre d'un refus : refus lisible, sinon création ; illisible = la plus tardive. */
+function dateOrdre(refuseLe: string | null, creeLe: string): number {
+  for (const d of [refuseLe, creeLe]) {
+    const t = d ? Date.parse(d) : NaN;
+    if (Number.isFinite(t)) return t;
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
+/** Une ligne par (motif, source phrase ou non) ; total décroissant, puis motif, puis source fermée avant source phrase. */
+function lignesRaisons(
+  r: { lignes: Map<string, LigneCompteur> } | undefined,
+): LigneRaisonRefus[] {
+  return [...(r?.lignes.values() ?? [])]
+    .map((l) => ({
+      motif: l.motif,
+      dApresMessage: l.dApresMessage,
+      f: { ...l.c },
+    }))
+    .sort(
+      (x, y) =>
+        y.f.total - x.f.total ||
+        (x.motif < y.motif ? -1 : x.motif > y.motif ? 1 : 0) ||
+        Number(x.dApresMessage) - Number(y.dApresMessage),
+    );
+}
+
 /** Agrège par mot. Résultat trié par mot ; un mot sans aucune donnée n'apparaît pas. */
 export function agregerStatsMots(
   evenements: readonly EvenementStat[],
@@ -110,6 +158,15 @@ export function agregerStatsMots(
     Compteur
   >;
   const mots = new Map<string, Acc>();
+  const raisonsParMot = new Map<
+    string,
+    { sans: Compteur; lignes: Map<string, LigneCompteur> }
+  >();
+  const raisonsDe = (mot: string) => {
+    let r = raisonsParMot.get(mot);
+    if (!r) raisonsParMot.set(mot, (r = { sans: vide(), lignes: new Map() }));
+    return r;
+  };
   const acc = (mot: string): Acc => {
     let a = mots.get(mot);
     if (!a)
@@ -153,6 +210,8 @@ export function agregerStatsMots(
       erreur: boolean;
       incertain: boolean;
       suit: boolean;
+      /** Raisons des seules conversations refusées, avec leur date d'ordre (refus lisible, sinon création). */
+      raisons: { t: number; raison: NonNullable<ConversationStat["raison"]> }[];
     }
   >();
   for (const c of conversations) {
@@ -176,6 +235,15 @@ export function agregerStatsMots(
       erreur,
       incertain,
       suit: c.suitLeCompte === true,
+      raisons:
+        erreur && c.raison
+          ? [
+              {
+                t: dateOrdre(c.refuseLe ?? null, c.creeLe),
+                raison: c.raison,
+              },
+            ]
+          : [],
     };
     parPersonneMot.set(
       cle,
@@ -189,6 +257,7 @@ export function agregerStatsMots(
             erreur: avant.erreur || lui.erreur,
             incertain: avant.incertain || lui.incertain,
             suit: avant.suit || lui.suit,
+            raisons: [...avant.raisons, ...lui.raisons],
           }
         : lui,
     );
@@ -200,7 +269,29 @@ export function agregerStatsMots(
     if (p.erreur) {
       compter(a.erreurs, p.creeLe, maintenantMs);
       const refus = p.refuseLe && Number.isFinite(Date.parse(p.refuseLe));
-      compter(a.envoisRefuses, refus ? p.refuseLe : p.creeLe, maintenantMs);
+      const dateRefus = refus ? p.refuseLe : p.creeLe;
+      compter(a.envoisRefuses, dateRefus, maintenantMs);
+      // La raison de la conversation refusée la plus ancienne ; à défaut, une autre qui en a une.
+      const retenue = p.raisons.reduce<(typeof p.raisons)[number] | null>(
+        (m, r) => (m === null || r.t < m.t ? r : m),
+        null,
+      );
+      const rd = raisonsDe(p.mot);
+      if (retenue === null) compter(rd.sans, dateRefus, maintenantMs);
+      else {
+        const k = `${retenue.raison.motif}|${retenue.raison.dApresMessage}`;
+        let l = rd.lignes.get(k);
+        if (!l)
+          rd.lignes.set(
+            k,
+            (l = {
+              motif: retenue.raison.motif,
+              dApresMessage: retenue.raison.dApresMessage,
+              c: vide(),
+            }),
+          );
+        compter(l.c, dateRefus, maintenantMs);
+      }
     }
     if (p.incertain) compter(a.incertains, p.creeLe, maintenantMs);
     if (p.m1Le !== null) compter(a.premiersMessages, p.m1Le, maintenantMs);
@@ -212,6 +303,8 @@ export function agregerStatsMots(
     .map(([mot, a]) => ({
       mot,
       ...a,
+      raisonsRefus: lignesRaisons(raisonsParMot.get(mot)),
+      refusSansRaison: { ...(raisonsParMot.get(mot)?.sans ?? vide()) },
       ecrits: { ...a.personnes },
       envoyes: { ...a.premiersMessages },
       auMoins: a.suivent.total,

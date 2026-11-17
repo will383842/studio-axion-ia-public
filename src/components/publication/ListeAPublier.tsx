@@ -10,7 +10,7 @@ import { Pastille } from "@/components/ui/Pastille";
 import { cn } from "@/lib/cn";
 import { obtenirReseau } from "@/reseaux";
 import type { LigneAPublier } from "@/services/a-publier";
-import { FILTRES, nombreAffichees, TRANCHE, tranche, type FiltreListe } from "./liste-a-publier";
+import { enLectureSeule, FILTRES, nombreAffichees, TRANCHE, tranche, type FiltreListe } from "./liste-a-publier";
 import { compteursParReseau, deCeReseau, filtrerReseau, lienDetailReseau, lienListeReseau, lignesParReseau, reseauDepuis, reseauxPresents, sectionsParReseau, type ReseauListe } from "./liste-par-reseau";
 
 /** Forme d'une carte de visuel (même forme que `CarteVisuelAPublier` du service : la liste n'importe aucun service d'envoi). */
@@ -150,34 +150,46 @@ export function ListeAPublier({ lignes, visuels = [], filtre, affichees: brut, r
                 )}
               </div>
               <ul className="divide-y divide-trait overflow-hidden rounded-carte border border-trait bg-surface-1">
-                {montrees.map(({ ligne, etat, format }) => (
-                  <li key={ligne.cle}>
-                    <Link href={lienDetailReseau(ligne.videoId, ligne.reseau, filtre, affichees, reseau === "tous")} className="flex min-h-16 items-center gap-3 px-3 py-2 hover:bg-surface-2">
+                {montrees.map(({ ligne, etat, format }) => {
+                  const lectureSeule = enLectureSeule(ligne);
+                  const contenu = (
+                    <>
                       <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-surface-2">
                         {ligne.jaquette ? <Image src={ligne.jaquette} alt="" fill sizes="48px" className="object-cover" /> : <Icone nom="film" size={20} className="absolute inset-0 m-auto text-texte-faible" />}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-texte">{ligne.titre}</span>
                         <span className="block truncate text-xs text-texte-doux">
-                          {[ligne.typeVideo, format, etat.raison].filter(Boolean).join(" · ")}
+                          {[ligne.typeVideo, format, etat.raison, lectureSeule ? "Suivi en lecture seule" : null].filter(Boolean).join(" · ")}
                         </span>
                       </span>
                       <Pastille ton={tonEtatAffiche(etat.libelle, etat.ton)}>{ligne.telechargementSeul && etat.categorie === "a-envoyer" ? "À télécharger" : etat.libelle}</Pastille>
-                    </Link>
+                    </>
+                  );
+                  return (
+                  <li key={ligne.cle}>
+                    {lectureSeule ? (
+                      <div className="flex min-h-16 items-center gap-3 px-3 py-2">{contenu}</div>
+                    ) : (
+                      <Link href={lienDetailReseau(ligne.videoId, ligne.reseau, filtre, affichees, reseau === "tous")} className="flex min-h-16 items-center gap-3 px-3 py-2 hover:bg-surface-2">
+                        {contenu}
+                      </Link>
+                    )}
                     <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
                       <PastillesReseaux reseaux={ligne.reseauxVideo ?? [ligne.reseau]} precis={ligne.reseauxPrecis ?? true} />
                       <Bouton asChild variante="secondaire" taille="md" icone="telecharger">
                         <a href={`/api/telechargements/video?video=${encodeURIComponent(ligne.videoId)}&reseau=${ligne.reseau}`}>Télécharger</a>
                       </Bouton>
-                      {!ligne.telechargementSeul && etat.categorie === "a-envoyer" && (
+                      {!lectureSeule && !ligne.telechargementSeul && etat.categorie === "a-envoyer" && (
                         <Bouton asChild variante="secondaire" taille="md" icone="envoyer">
                           <Link href={lienDetailReseau(ligne.videoId, ligne.reseau, filtre, affichees, reseau === "tous")}>Envoyer</Link>
                         </Bouton>
                       )}
-                      <BoutonValider videoId={ligne.videoId} prete etape={ligne.etapeVideo ?? "validee"} />
+                      {!lectureSeule && <BoutonValider videoId={ligne.videoId} prete etape={ligne.etapeVideo ?? "validee"} />}
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
               {s.lignes.length > montrees.length && (
                 <div className="space-y-2 text-center">

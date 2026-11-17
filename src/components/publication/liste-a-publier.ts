@@ -3,6 +3,7 @@
  * (le serveur garde toutes ses gardes).
  */
 import type { Tonalite } from "@/domaine/libelles";
+import type { LigneAPublier } from "@/services/a-publier";
 import type { CarteVideo } from "./regrouper-a-publier";
 
 export type FiltreListe = "a-envoyer" | "envoyees" | "publiees" | "problemes" | "toutes";
@@ -19,6 +20,9 @@ export const FILTRES: { id: FiltreListe; libelle: string }[] = [
 export const FILTRE_PAR_DEFAUT: FiltreListe = "a-envoyer";
 export const TRANCHE = 20;
 const MAX_AFFICHEES = 2000;
+
+/** Commande d'ORIGINE USINE : la liste n'en montre que l'état (ni envoi, ni validation, ni lien vers l'écran d'envoi). Le serveur refuse aussi. */
+export const enLectureSeule = (l: Pick<LigneAPublier, "origineUsine">): boolean => l.origineUsine === true;
 
 export interface EtatListe {
   categorie: CategorieEtat;

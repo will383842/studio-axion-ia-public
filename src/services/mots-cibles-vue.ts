@@ -26,6 +26,7 @@ import {
   type ResumeMot,
   type VueMotsCibles,
 } from "@/domaine/guide-reseau/vue-mots-cibles";
+import { LIBELLES_MOTIF_REFUS } from "@/domaine/guide-reseau/raison-refus";
 import type { StatsMotChiffrees } from "@/domaine/guide-reseau/stats-mots";
 import { PHRASES_REFUS } from "@/components/mots/etat-mots";
 import { lireCiblesSite } from "./cibles-site";
@@ -51,13 +52,16 @@ export function versResultatGeste(r: Resultat, phraseReussie: string): ResultatG
   return { issue: r.issue, phrase: phraseDuCode(r.raison) };
 }
 
-const versChiffres = (s: StatsMotChiffrees): ChiffresMot => ({
+export const versChiffres = (s: StatsMotChiffrees): ChiffresMot => ({
   ecrits: s.ecrits,
   envoyes: s.envoyes,
   incertains: s.incertains,
   suivent: s.suivent,
   commentairesBloques: s.commentairesBloques,
   envoisRefuses: s.envoisRefuses,
+  // Code -> libellé français ICI (serveur) : le composant client n'importe jamais `raison-refus.ts`.
+  raisonsRefus: s.raisonsRefus.map((r) => ({ libelle: LIBELLES_MOTIF_REFUS[r.motif], dApresMessage: r.dApresMessage, f: r.f })),
+  refusSansRaison: s.refusSansRaison,
 });
 
 const reseauDuCompteVue = (reseauZernio: string | undefined): ReseauCompte | null => {

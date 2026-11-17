@@ -188,6 +188,7 @@ describe("garde statique : rien n'appelle le code neuf", () => {
     const fautes = racines
       .flatMap((r) => marche(join(process.cwd(), r)))
       .filter((f) => !f.endsWith("texte-effets/effets.ts"))
+      .filter((f) => !f.endsWith("studio-rendu/compositions/commune/texte-effets/TexteEffets.tsx"))
       .filter((f) => /texte-effets\/effets/.test(readFileSync(f, "utf8")));
     expect(fautes).toEqual([]);
   });

@@ -286,7 +286,7 @@ export async function programmerSujet(scriptMaitreId: Id, options: { formatId?: 
       r.simulation = r.simulation || envoi.simulation;
       for (const pub of confirmees) r.programmees.push({ code: c.code, reseau: c.reseau, date: c.date, publicationId: pub.id, ...(pub.canalNom ? { compte: pub.canalNom } : {}) });
       for (const pb of envoi.problemes ?? []) r.ignorees.push({ code: c.code, reseau: c.reseau, message: pb.message });
-      if (!confirmees.length && !envoi.problemes?.length) throw new ErreurStudio(envoi.publications.length ? "A_VERIFIER" : "RESEAU", envoi.publications.length ? "L'envoi est à vérifier dans Buffer." : "Ce réseau n'est pas disponible pour cette vidéo.");
+      if (!confirmees.length && !envoi.problemes?.length) throw new ErreurStudio(envoi.publications.length ? "A_VERIFIER" : "RESEAU", envoi.publications.length ? "L'envoi est à vérifier chez le diffuseur." : "Ce réseau n'est pas disponible pour cette vidéo.");
     } catch (e) {
       r.ignorees.push({ code: c.code, reseau: c.reseau, message: e instanceof ErreurStudio ? e.message : "Impossible pour l'instant." });
     }

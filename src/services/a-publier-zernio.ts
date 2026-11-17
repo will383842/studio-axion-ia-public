@@ -12,8 +12,9 @@ import { depots, ErreurStudio, essayer } from "./_commun";
 import { vueAPublier } from "./a-publier";
 import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
-import { envoyerReel, obtenirKit, videoEnEssai } from "./publications";
+import { envoyerReel, envoyerVisuel, obtenirKit, videoEnEssai, type ReseauVisuelEnvoi } from "./publications";
 import { journaliserEnvoi } from "./journal-envoi";
+import { origineDeLaVideo } from "./mode-budget";
 import { lireRoutage } from "./routage-publication";
 import { envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { traduireSelectionVersZernio } from "./zernio-cibles";
@@ -90,6 +91,11 @@ function refuserOutil(): Resultat<never> {
   return { ok: false, message: "Cet outil n'est pas disponible pour cet envoi : rien n'est parti.", code: "OUTIL_REFUSE" };
 }
 
+/** STU-APUB-LECT : une commande de l'usine ne part jamais d'ici ; son envoi suit le calendrier. */
+function refuserOrigineUsine(): Resultat<never> {
+  return { ok: false, message: "Cette commande ne s'envoie pas depuis cette liste : rien n'est parti.", code: "ORIGINE_USINE" };
+}
+
 export interface OptionsEnvoiParOutil {
   outil: OutilPublication;
   comptes?: string[];
@@ -109,6 +115,9 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
   // (« buffer », casse, espaces, vide, null, valeur inconnue) : refus avant tout effet (rien écrit, aucun appel, aucun journal d'envoi).
   const demande: unknown = options?.outil;
   if (demande !== undefined && demande !== "zernio") return refuserOutil();
+  // STU-APUB-LECT : le geste manuel de la liste « À publier » est refusé pour une commande d'ORIGINE USINE, avant toute lecture de réglage
+  // et tout appel d'envoi. Cette action n'est appelée que par cette liste : le calendrier (envoyerVisuelAction, promotion) a son propre chemin.
+  if ((await origineDeLaVideo(videoId)) === "usine") return refuserOrigineUsine();
   const nbChoisis = options.comptes?.length ?? 0;
   const journal = { action: "envoyerParOutilAction", outil: options.outil, reseau, contenuId: videoId };
   const r = await essayer(async () => {
@@ -147,4 +156,32 @@ export async function marquerEnvoiVerifieAction(publicationId: string): Promise<
     await marquerEnvoiVerifie(publicationId);
     return { ok: true as const };
   });
+}
+
+export interface OptionsEnvoiVisuelAction {
+  /** Seul le texte alternatif de chaque page vient de l'écran ; la date, le compte, le texte et la validation viennent du créneau stocké. */
+  textesAlternatifs?: string[];
+}
+
+/**
+ * L5-02 · envoi d'un visuel (carrousel, infographie) depuis un créneau du calendrier : toujours en brouillon chez Zernio, derrière le
+ * réglage SÉPARÉ de L7-08 (éteint par défaut : rien ne part). Le créneau est relu en base par `envoyerVisuel` ; anti-double envoi
+ * et gardes y sont aussi. Aucune réponse automatique.
+ */
+export async function envoyerVisuelAction(creneauId: string, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelAction = {}): Promise<Resultat<{ deja: boolean; publicationId: string }>> {
+  await exigerSession();
+  const journal = { action: "envoyerVisuelAction", outil: "zernio" as const, reseau, contenuId: creneauId };
+  const r = await essayer(async () => {
+    let service;
+    try {
+      service = fournisseurParId("publication", "zernio");
+    } catch {
+      throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
+    }
+    const e = await envoyerVisuel(service, creneauId, reseau, { textesAlternatifs: options.textesAlternatifs });
+    return { deja: e.deja, publicationId: e.publication.id };
+  });
+  // Trace sans texte ni compte : « DEJA_ENVOYE » (rien n'est reparti) se distingue de « OK » (un brouillon est parti).
+  journaliserEnvoi(r.ok ? { ...journal, code: r.donnees.deja ? "DEJA_ENVOYE" : "OK", nbComptes: r.donnees.deja ? 0 : 1, ...(r.donnees.deja ? {} : { brouillon: true }) } : { ...journal, code: r.code ?? "ERREUR", nbComptes: 0 });
+  return r;
 }

@@ -698,6 +698,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       ...(retouche ? { lireFiche: async () => structuredClone(retouche.fiche) } : entrees.ficheCle && lireFiche ? { lireFiche: () => lireFiche(entrees.ficheCle!) } : {}),
       ...(scriptValide ? { scriptValide } : {}),
       ...((p) => (p.bibliotheque && p.permis ? { styleVarie: true as const } : {}))(porteCapacite(commande.entrees, ID.texteStyleVarie)),
+      ...((c) => (c === "sobre" || c === "dynamique" || c === "equilibre" ? { dosage: c } : {}))(commande.dosageMotion?.cran),
       ...(retouche?.texteFige ? { texteFige: true as const } : {}),
       ...(ecarte ? { structureEcartee: ecarte.structure ?? STRUCTURES[0] } : {}),
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),

@@ -6,6 +6,7 @@
 import type { OperationRetouche } from "@/briques/operations";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { TRANSITIONS } from "@/briques/plan-scenes/zones";
+import { retouchesDosage } from "./retouches-dosage";
 import { lireOperations } from "./schema";
 
 export interface RetoucheRapide {
@@ -29,7 +30,7 @@ function facteurZoom(s: SceneLue): number | undefined {
   return s.piece === "zoom-camera" ? lire(s.parametres) : undefined;
 }
 
-export function retouchesRapides(plan: PlanValide): RetoucheRapide[] {
+export function retouchesRapides(plan: PlanValide, options?: { dosageActif?: boolean }): RetoucheRapide[] {
   const liste: RetoucheRapide[] = [];
   const ajouter = (id: string, libelle: string, demande: string, brutes: unknown[]) => {
     const { operations } = lireOperations(brutes);
@@ -56,6 +57,12 @@ export function retouchesRapides(plan: PlanValide): RetoucheRapide[] {
   const derniere = [...plan.scenes].reverse().find((s) => s.calques?.length);
   const piece = derniere?.calques?.[derniere.calques.length - 1]?.piece;
   if (derniere && piece) ajouter("retirer-derniere-piece", "Retirer la dernière pièce ajoutée", "Retirer la dernière pièce ajoutée.", [{ type: "retirer-piece", sceneId: derniere.id, piece }]);
+
+  if (options?.dosageActif === true) {
+    const neuves = retouchesDosage(plan).filter((d) => !liste.some((r) => r.id === d.id));
+    const rang = liste.findIndex((r) => r.id === "retirer-derniere-piece");
+    liste.splice(rang === -1 ? liste.length : rang, 0, ...neuves);
+  }
 
   return liste.slice(0, 8);
 }

@@ -151,11 +151,14 @@ describe("garde statique", () => {
     expect(src).not.toMatch(/from\s+["']@\/services/);
     expect(src).not.toMatch(/require\(/);
   });
-  it("rien ne l'importe (code éteint)", () => {
+  it("seuls EtapeMontante.tsx et PastilleContexte.tsx l'importent", () => {
     const sortie = execSync(
       `grep -rlE "titres-couverture/etapes" src studio-rendu --include=*.ts --include=*.tsx || true`,
       { encoding: "utf8" },
     );
-    expect(sortie.trim()).toBe("");
+    expect(sortie.trim().split("\n").filter(Boolean).sort()).toEqual([
+      "studio-rendu/compositions/commune/titres-couverture/EtapeMontante.tsx",
+      "studio-rendu/compositions/commune/titres-couverture/PastilleContexte.tsx",
+    ]);
   });
 });

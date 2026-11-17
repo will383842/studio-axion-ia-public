@@ -14,6 +14,10 @@ import { EXEMPLES_ETAPES, OBJET_ETAPE, OBJET_ETAPE_SEGMENTS } from "../../../../
 import { EXEMPLES_CARTON_DEFINITION, OBJET_CARTON_DEFINITION } from "../../../../src/briques/motion/petits-objets/carton-definition";
 import { EXEMPLES_SCHEMAS, OBJET_AGENTS_GLOBE, OBJET_ICONES_RELIEES, OBJET_SCHEMA_ETOILE } from "../../../../src/briques/motion/petits-objets/schemas-relies";
 import { EXEMPLES_FLUX, OBJET_SCHEMA_FLUX } from "../../../../src/briques/motion/petits-objets/schema-flux";
+import { DEF_APPEL_ACTION, EXEMPLES_APPEL_ACTION } from "../../../../src/briques/motion/petits-objets/appel-action";
+import { DEF_APPEL_MOT, EXEMPLES_APPEL_MOT } from "../../../../src/briques/motion/petits-objets/appel-mot";
+import { EXEMPLES_CARTON_MAGAZINE, OBJET_CARTON_MAGAZINE } from "../../../../src/briques/motion/petits-objets/carton-magazine";
+import { EXEMPLES_ANNEAU, OBJET_ANNEAU_DONNEES } from "../../../../src/briques/motion/petits-objets/anneau-donnees";
 import { colonnesPlanche, DIMENSIONS_PLANCHE, FPS_PLANCHE, IMAGE_PLANCHE, seChevauchent, type FormatPlanche } from "./PlancheTraits";
 
 export { seChevauchent };
@@ -90,6 +94,10 @@ export const ENTREES_ETIQUETTES: readonly EntreeFamille[] = [
   ...listerFamille([OBJET_ICONES_RELIEES], EXEMPLES_SCHEMAS.icones),
   ...listerFamille([OBJET_AGENTS_GLOBE], EXEMPLES_SCHEMAS.agents),
   ...listerFamille([OBJET_SCHEMA_FLUX], EXEMPLES_FLUX),
+  ...listerFamille([DEF_APPEL_ACTION], EXEMPLES_APPEL_ACTION),
+  ...listerFamille([DEF_APPEL_MOT], EXEMPLES_APPEL_MOT.map((e) => DEF_APPEL_MOT.valider(e))),
+  ...listerFamille([OBJET_CARTON_MAGAZINE], EXEMPLES_CARTON_MAGAZINE),
+  ...listerFamille([OBJET_ANNEAU_DONNEES], EXEMPLES_ANNEAU),
 ];
 
 export function PlancheEtiquettes({ fond, format, image }: { fond: FondAxion; format: FormatPlanche; image?: number }): JSX.Element {
