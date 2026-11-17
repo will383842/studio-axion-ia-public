@@ -22,8 +22,9 @@ import { evaluerPremierCommentaire } from "@/generateur/roles/premier-commentair
 import { formatGenerateur, listerFormats } from "@/formats";
 import { obtenirReseau, verifierPourReseau } from "@/reseaux";
 import { estInterdit } from "@/reseaux/hashtags";
-import { finPermise, formatsVoulus, meilleureSortie, sortiesVoulues, type SortieCandidate } from "@/reseaux/sorties";
-import { ECARTS_CONNUS, type ControleMatrice } from "./ecarts-connus";
+import { PLACEMENT_PAR_DEFAUT, placerHashtags, type ReseauPlacement } from "@/reseaux/placement-hashtags";
+import { formatsVoulus, meilleureSortie, sortiesVoulues, type SortieCandidate } from "@/reseaux/sorties";
+import { ECARTS_CONNUS, type ControleMatrice, type EcartConnu } from "./ecarts-connus";
 
 /** YouTube est éteint : la matrice ne le couvre pas. */
 const RESEAUX_MATRICE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok"];
@@ -75,7 +76,7 @@ async function jouerCase(formatId: string, reseauId: IdReseau): Promise<Constat[
   for (const r of voulus) if (!candidats.some((c) => c.ratio === r)) candidats.push({ ratio: r, appelAuMot: false, reseaux: [] });
   const choisi = meilleureSortie(reseauId, candidats);
   if (!choisi) noter("fichier-choisi", `aucun fichier au bon format parmi ${voulus.join(", ") || "aucun"}`);
-  else if (!reseau.ratios.includes(choisi.ratio) || !finPermise(reseauId, choisi)) noter("fichier-choisi", `fichier ${choisi.ratio} refusé par le réseau`);
+  else if (!choisi.reseaux?.includes(reseauId) && choisi.ratio !== reseau.ratioPrefere) noter("fichier-choisi", `fichier ${choisi.ratio} ni fait pour ce réseau ni à son format préféré (${reseau.ratioPrefere})`);
 
   // 5. Aucun avertissement bloquant (durée, format, longueur, mots-dièse).
   const avertissements = verifierPourReseau(reseau, { dureeSec, ratios: format.ratios as Ratio[], texte: ecrit.texte, motsDiese: mots, sortieEnvoyee: choisi ?? null });
@@ -83,23 +84,25 @@ async function jouerCase(formatId: string, reseauId: IdReseau): Promise<Constat[
 
   // 6. Corps Zernio construit sans erreur, premier commentaire à sa place.
   try {
+    // Même règle d'envoi que le kit : `placerHashtags` (fourre-tout écartés, hashtags dans le texte ou le premier commentaire).
+    const place = placerHashtags({ reseau: reseauId as ReseauPlacement, outil: "zernio", placement: PLACEMENT_PAR_DEFAUT[reseauId as ReseauPlacement], texte: ecrit.texte, motsDiese: mots, ...(transmissible ? { commentaire } : {}) });
     const demande: DemandeZernio = {
       reseau: reseauId,
-      texte: mots.length ? `${ecrit.texte}\n\n${mots.join(" ")}` : ecrit.texte,
+      texte: place.texte,
       date: DATE,
       fichierCle: "https://exemple-r2.test/video.mp4",
       cible: CIBLES[reseauId],
       cleEnvoi: `essai-${formatId}-${reseauId}`,
       format: choisi?.ratio ?? format.ratios[0],
       dureeSec,
-      ...(transmissible ? { premierCommentaire: commentaire } : {}),
+      ...(place.premierCommentaire && transmissible ? { premierCommentaire: place.premierCommentaire } : {}),
       ...(reseauId === "tiktok" ? { consentementTiktok: true, niveauConfidentialiteTiktok: "SELF_ONLY" } : {}),
     };
     const corps = corpsPostZernio(demande, { maintenant: MAINTENANT, createurTiktok: CREATEUR, profilLinkedinProuve: true });
     const specifique = corps.platforms[0].platformSpecificData as Record<string, unknown> | undefined;
     if (corps.platforms[0].platform !== reseauId) noter("corps-zernio", `plateforme ${corps.platforms[0].platform}`);
-    else if (corps.content !== demande.texte || corps.mediaItems[0]?.type !== "video" || corps.isDraft !== true) noter("corps-zernio", "contenu, média ou brouillon inattendu");
-    else if ((specifique?.firstComment !== undefined) !== transmissible) noter("corps-zernio", "premier commentaire mal placé dans le corps");
+    else if (corps.content !== demande.texte || corps.mediaItems?.[0]?.type !== "video" || corps.isDraft !== true) noter("corps-zernio", "contenu, média ou brouillon inattendu");
+    else if (specifique?.firstComment !== (transmissible ? place.premierCommentaire : undefined)) noter("corps-zernio", "premier commentaire mal placé dans le corps");
   } catch (e) {
     noter("corps-zernio", e instanceof Error ? e.message : String(e));
   }
@@ -123,6 +126,20 @@ describe("matrice générateur × réseau : le registre alimente la matrice", ()
   });
 });
 
+/** Règle de comparaison : constats observés contre écarts listés. Renvoie les messages d'échec (vide : la case passe). */
+export function comparerAvecEcarts(formatId: string, reseauId: IdReseau, observes: readonly Constat[], ecarts: readonly EcartConnu[]): string[] {
+  const nom = obtenirReseau(reseauId).nom;
+  const listes = ecarts.filter((e) => e.generateur === formatId && e.reseau === reseauId);
+  const echecs: string[] = [];
+  for (const o of observes.filter((c) => !listes.some((l) => l.controle === c.controle))) {
+    echecs.push(`Écart NON listé pour ${formatId} × ${nom} (${o.controle} : ${o.detail}) : à corriger ou à inscrire dans ecarts-connus.ts`);
+  }
+  for (const l of listes.filter((e) => !observes.some((c) => c.controle === e.controle))) {
+    echecs.push(`Écart listé mais corrigé pour ${formatId} × ${nom} (${l.controle}) : retirer la ligne de ecarts-connus.ts`);
+  }
+  return echecs;
+}
+
 const CASES = FORMATS_ACTIFS.flatMap((f) => RESEAUX_MATRICE.map((r) => ({ nom: `${f.id} × ${obtenirReseau(r).nom}`, formatId: f.id, reseauId: r })));
 
 describe("matrice générateur × réseau", () => {
@@ -131,12 +148,30 @@ describe("matrice générateur × réseau", () => {
   });
 
   it.each(CASES)("$nom", async ({ formatId, reseauId }) => {
-    const nom = obtenirReseau(reseauId).nom;
-    const observes = await jouerCase(formatId, reseauId);
-    const listes = ECARTS_CONNUS.filter((e) => e.generateur === formatId && e.reseau === reseauId);
-    const nonListes = observes.filter((o) => !listes.some((l) => l.controle === o.controle));
-    const corriges = listes.filter((l) => !observes.some((o) => o.controle === l.controle));
-    expect(nonListes, `Écart NON listé pour ${formatId} × ${nom} : à corriger ou à inscrire dans ecarts-connus.ts`).toEqual([]);
-    expect(corriges, `Écart listé mais corrigé pour ${formatId} × ${nom} : retirer la ligne de ecarts-connus.ts`).toEqual([]);
+    expect(comparerAvecEcarts(formatId, reseauId, await jouerCase(formatId, reseauId), ECARTS_CONNUS)).toEqual([]);
+  });
+});
+
+describe("règle de comparaison des écarts (écarts fabriqués)", () => {
+  const ecart: EcartConnu = { generateur: "facecam", reseau: "tiktok", controle: "hashtags", nature: "écart fabriqué", fiche: "fiche fabriquée" };
+  const constat: Constat = { controle: "hashtags", detail: "aucun mot-dièse" };
+
+  it("un écart observé et non listé échoue en nommant le générateur et le réseau", () => {
+    const echecs = comparerAvecEcarts("facecam", "tiktok", [constat], []);
+    expect(echecs).toHaveLength(1);
+    expect(echecs[0]).toContain("facecam × TikTok");
+    expect(echecs[0]).toContain("NON listé");
+  });
+
+  it("un écart listé mais plus observé (corrigé) échoue", () => {
+    const echecs = comparerAvecEcarts("facecam", "tiktok", [], [ecart]);
+    expect(echecs).toHaveLength(1);
+    expect(echecs[0]).toContain("facecam × TikTok");
+    expect(echecs[0]).toContain("corrigé");
+  });
+
+  it("un écart listé et observé passe ; un écart d'un autre réseau ne le couvre pas", () => {
+    expect(comparerAvecEcarts("facecam", "tiktok", [constat], [ecart])).toEqual([]);
+    expect(comparerAvecEcarts("facecam", "instagram", [constat], [ecart])).toHaveLength(1);
   });
 });
