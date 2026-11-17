@@ -166,14 +166,14 @@ describe("L5-21 · fichiers préparés par réseau, puis envoyerVisuel (aucun se
     expect(appels).toHaveLength(0);
   });
 
-  it("trois réseaux : chacun reçoit ses fichiers (PDF / images), un résultat par réseau", async () => {
+  it("trois réseaux : un seul compte par créneau, donc seul le réseau de ce compte part ; les autres sont refusés sans appel", async () => {
     await creerVisuel();
     const id = await creerCreneau(["linkedin", "instagram", "facebook"]);
     const res = await envoyerVisuelDuCreneauSurReseaux(faux(), id, { lireUrl, textesAlternatifs: ["a", "b", "c"] });
-    expect(res.map((r) => [r.reseau, r.ok])).toEqual([["linkedin", true], ["instagram", true], ["facebook", true]]);
-    expect(appels).toHaveLength(3);
-    expect(appels.filter((a) => a.document)).toHaveLength(1);
-    expect(appels.filter((a) => a.images?.length === 3)).toHaveLength(2);
+    expect(res.map((r) => [r.reseau, r.ok])).toEqual([["linkedin", true], ["instagram", false], ["facebook", false]]);
+    expect(res[1].code).toBe("CIBLE_INCONNUE");
+    expect(appels).toHaveLength(1);
+    expect(appels[0].document).toBeDefined();
   });
 });
 
