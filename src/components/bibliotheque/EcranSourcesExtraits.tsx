@@ -105,7 +105,7 @@ export function EcranSourcesExtraits(p: ProprietesEcranSourcesExtraits) {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {p.adresseApercu && !url && (
                           <Bouton variante="discret" onClick={() => setApercus([...apercus, pl.id])}>
-                            Voir l'aperçu
+                            Voir l&apos;aperçu
                           </Bouton>
                         )}
                         {p.surValider && pl.etat === "a_verifier" && (
