@@ -233,7 +233,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
 /* ------------------------------------------------------------------ */
 
-export type DecalerLeJour = (saisie: { id: string; nouveauJour: string; raison: string; cle: string }) => Promise<{ ok: true; donnees: unknown } | { ok: false; message: string }>;
+export type DecalerLeJour = (saisie: { id: string; nouveauJour: string; raison: string; cle: string }) => Promise<{ ok: true; donnees: unknown; avertissement?: string } | { ok: false; message: string }>;
 
 export interface ProprietesSemaineAvecApercu {
   entrees: readonly EntreeApercu[];
