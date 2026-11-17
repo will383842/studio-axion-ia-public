@@ -87,14 +87,30 @@ describe("caractérisation : formes refusées (hors liste blanche, borne, chiffr
   it("borne : GUIDE + 8 « merci » (9 mots) → null", () => expect(motSeulDe("GUIDE " + "merci ".repeat(8), ["GUIDE"])).toBeNull());
 });
 
-describe("caractérisation : un retour à la ligne ou une tabulation fait TOUT refuser (règle actuelle, décision du fondateur en attente)", () => {
-  // `texteBorne` refuse les caractères de contrôle \u0000-\u001f. Si le fondateur décide d'accepter ces formes, ces tests deviendront rouges puis seront revus (PR séparée).
-  it.each(["GUIDE\nmerci", "GUIDE\n", "GUIDE\r\n", "GUIDE\tmerci"])("%j → null", (t) => expect(motSeulDe(t, ["GUIDE"])).toBeNull());
-  it("« STOP\\n » : pas de mot gardé (null)", () => expect(motSeulDe("STOP\n", ["GUIDE"])).toBeNull());
-  it("« STOP\\n » dans un commentaire lu : motSeul null mais doute: true (pause + alerte, sûr)", () => {
+describe("C4-b · un retour à la ligne ou une tabulation est lu comme une espace (décision du fondateur : commentaire sur plusieurs lignes accepté)", () => {
+  // `\r`, `\n`, `\t` deviennent une espace AVANT la reconnaissance ; les AUTRES caractères de contrôle restent refusés par `texteBorne`.
+  it.each(["GUIDE\nmerci", "GUIDE\n", "GUIDE\r\n", "GUIDE\tmerci"])("%j → GUIDE (accepté)", (t) => expect(motSeulDe(t, ["GUIDE"])).toBe("GUIDE"));
+  it("les règles restent identiques sur plusieurs lignes : texte libre refusé, politesse admise, borne de 8 mots", () => {
+    expect(motSeulDe("GUIDE\nok", ["GUIDE"])).toBeNull();
+    expect(motSeulDe("Bonjour\nGUIDE\nmerci", ["GUIDE"])).toBe("GUIDE");
+    expect(motSeulDe("GUIDE" + "\nmerci".repeat(8), ["GUIDE"])).toBeNull();
+  });
+  it.each(["GUIDE\u0000", "GUIDE\u0007merci", "GUIDE\u000bmerci", "GUIDE\u000c", "GUIDE\u001bmerci", "GUIDE\u001f"])("autre caractère de contrôle %j → null (toujours refusé)", (t) => expect(motSeulDe(t, ["GUIDE"])).toBeNull());
+  it("« STOP\\n » devient une opposition franche : « STOP » gardé", () => expect(motSeulDe("STOP\n", ["GUIDE"])).toBe("STOP"));
+  it("« STOP\\n » dans un commentaire lu : motSeul « STOP », plus de doute (l'opposition est honorée)", () => {
     const e = lireEvenementCommentaire(corps("STOP\n"))!;
-    expect(e.motSeul).toBeNull();
-    expect(e.doute).toBe(true);
+    expect(e.motSeul).toBe("STOP");
+    expect(e.doute).toBeUndefined();
+  });
+  it("« stop\\r\\n merci » et « STOP\\tmerci » : opposition franche aussi", () => {
+    expect(motSeulDe("stop\r\nmerci", ["GUIDE"])).toBe("STOP");
+    expect(motSeulDe("STOP\tmerci", ["GUIDE"])).toBe("STOP");
+  });
+  it("borne de 200 caractères inchangée, retours à la ligne compris (200 accepté, 201 refusé)", () => {
+    const t200 = "GUIDE\n" + " ".repeat(200 - 6 - 5) + "merci";
+    expect(t200).toHaveLength(200);
+    expect(lireEvenementCommentaire(corps(t200))!.motSeul).toBe("GUIDE");
+    expect(lireEvenementCommentaire(corps(t200 + " "))!.motSeul).toBeNull();
   });
 });
 
