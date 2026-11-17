@@ -9,7 +9,6 @@ import { creerFacecamSimule } from "@/fournisseurs/facecam";
 import { creerServiceRenduSimule } from "@/fournisseurs/simulation/rendu";
 import type { OutilsMontage } from "@/briques/composition/montage";
 import type { ParametresDemandeComposition } from "@/briques/composition/scene";
-import { schemaPlanStrict } from "@/briques/plan-scenes/schema";
 import { profilNeutre } from "@/briques/bibliotheque-video/profils/neutre";
 import { VERSION_BIBLIOTHEQUE } from "@/briques/bibliotheque-video/version";
 import { fnv1a64 } from "@/briques/plan-scenes/empreinte";
