@@ -802,3 +802,122 @@ describe("L5-02f · course ENTRE la lecture de la garde et l'écriture (le verro
     }
   });
 });
+
+/** L5-02f : marque « en-cours » orpheline (plantage) : après un délai, la garde dit « à vérifier », même tout éteint. */
+describe("L5-02f · marque « en-cours » orpheline : le message ne trompe plus", () => {
+  const DEBUT_PROMOTION = `promotion-debut:${CLE_ENVOI}`;
+  const ilYa = (ms: number): string => new Date(Date.now() - ms).toISOString();
+  const toutEteindre = async (): Promise<void> => {
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, false);
+    await ecrireParametre(PARAM_ENVOI_CALENDRIER, false);
+    await ecrireParametre(PARAM_ARRET_ZERNIO, false);
+  };
+
+  it("la promotion en vol note l'instant de départ (horloge réelle de la garde), sous la marque « en-cours »", async () => {
+    await brouillonPrepare();
+    versLaFenetre();
+    let entree!: () => void;
+    const entre = new Promise<void>((r) => { entree = r; });
+    let ouvrir!: () => void;
+    const porte = new Promise<void>((r) => { ouvrir = r; });
+    const avant = Date.now();
+    const enVol = tour({ client: client({ promouvoir: async (reel, d) => { entree(); await porte; return reel(d); } }) });
+    await entre;
+    try {
+      const instant = Date.parse(String(await marque(DEBUT_PROMOTION)));
+      expect(Number.isFinite(instant)).toBe(true);
+      expect(instant).toBeGreaterThanOrEqual(avant - 1000);
+      expect(instant).toBeLessThanOrEqual(Date.now() + 1000);
+      // Récente : toujours « en cours ».
+      expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "en-cours" });
+    } finally {
+      ouvrir();
+      await enVol;
+    }
+  });
+
+  it("orpheline depuis plus que le délai, tout éteint : décalage et texte refusés « à vérifier », rien n'est écrit ni appelé", async () => {
+    await brouillonPrepare();
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "en-cours");
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}${DEBUT_PROMOTION}`, ilYa(garde.DELAI_MARQUE_ORPHELINE_MS + MIN));
+    await toutEteindre();
+    const appels = methodesClient.length;
+    const avant = await instantane();
+    expect(await niveauDiffuseurDuCreneau("c1")).toMatchObject({ niveau: "a-verifier" });
+    const r = await decaler("c1", "k1");
+    expect(refus(r)).toBe(PHRASES_CRENEAU_CONFIE["a-verifier"]);
+    expect(refus(r)).not.toMatch(/Réessayez dans une minute/);
+    const t = await enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Nouveau texte." });
+    expect(refus(t)).toBe(PHRASES_CRENEAU_CONFIE["a-verifier"]);
+    expect(await instantane()).toBe(avant);
+    expect(methodesClient).toHaveLength(appels);
+    expect(appelsFournisseur).toHaveLength(1);
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("en-cours");
+  });
+
+  it("orpheline depuis MOINS que le délai, ou sans instant noté : toujours « en cours » (refus sûr, jamais un décalage)", async () => {
+    await brouillonPrepare();
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "en-cours");
+    await toutEteindre();
+    expect(refus(await decaler("c1", "k1"))).toBe(PHRASES_CRENEAU_CONFIE["en-cours"]);
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}${DEBUT_PROMOTION}`, ilYa(garde.DELAI_MARQUE_ORPHELINE_MS - MIN));
+    expect(refus(await decaler("c1", "k2"))).toBe(PHRASES_CRENEAU_CONFIE["en-cours"]);
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}${DEBUT_PROMOTION}`, "pas une date");
+    expect(refus(await decaler("c1", "k3"))).toBe(PHRASES_CRENEAU_CONFIE["en-cours"]);
+    expect(await lire("c1")).toMatchObject({ decalages: 0 });
+  });
+
+  it("le délai dépasse largement le délai maximal d'un envoi (une promotion vivante n'est jamais prise pour orpheline)", () => {
+    expect(garde.DELAI_MARQUE_ORPHELINE_MS).toBeGreaterThanOrEqual(5 * 90_000);
+  });
+});
+
+/** L5-02f : points mineurs de l'audit de L5-02d, sans changer le comportement d'envoi. */
+describe("L5-02f · points mineurs de l'audit", () => {
+  it.each([
+    ["refus net (« refuse »)", async () => ({ etat: "refuse", raison: "refus" })],
+    ["état « a-verifier »", async () => ({ etat: "a-verifier", raison: "doute" })],
+    ["erreur inconnue", async () => { throw new Error("coupure"); }],
+    ["erreur du diffuseur après le réseau", async () => { throw new ErreurZernio("indisponible", "indisponible", { statut: 503 }); }],
+  ])("%s : « a-verifier:<clé> » est noté, plus rien n'est rappelé au tour suivant", async (_n, resultat) => {
+    await brouillonPrepare();
+    versLaFenetre();
+    await tour({ client: client({ promouvoir: resultat as never }) });
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("a-verifier");
+    expect(await marque(`a-verifier:${CLE_ENVOI}`)).toBe("a-verifier");
+    const rappels = vi.fn();
+    await tourSuivant({ client: client({ promouvoir: async (reel, d) => { rappels(d); return reel(d); } }) });
+    expect(rappels).not.toHaveBeenCalled();
+    expect(nbPut()).toBe(0);
+  });
+
+  it.each([
+    ["erreur « avant le réseau »", async () => { throw new ErreurZernio("envoi-coupe", "envoi coupé"); }],
+    ["état « a-reprogrammer »", async () => ({ etat: "a-reprogrammer", raison: "trop tard" })],
+  ])("%s : aucune marque « a-verifier:<clé> » (le créneau n'est pas bloqué)", async (_n, resultat) => {
+    await brouillonPrepare();
+    versLaFenetre();
+    await tour({ client: client({ promouvoir: resultat as never }) });
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("libre");
+    expect(await marque(`a-verifier:${CLE_ENVOI}`)).toBeUndefined();
+  });
+
+  it("ancienne version déjà PARTIE (« envoye ») : le message le dit, il ne parle ni de programmation à venir ni de brouillon", async () => {
+    await brouillonPrepare();
+    await decaler("c1", "k1");
+    const [v0] = await depots().envoisPlanifies.lister((e) => e.versionCreneau === 0);
+    await depots().envoisPlanifies.modifier(v0.id, { statut: "envoye" } as never);
+    await tourSuivant();
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].message).toMatch(/déjà partie chez le diffuseur pour le \d{2}\/\d{2} à \d{2}:\d{2} \(heure de Paris\), l'ancienne date/);
+    expect(notifications[0].message).not.toMatch(/partira à cette heure-là|ne sera pas programmé/);
+  });
+
+  it("le commentaire de tête du branchement décrit tous les verrous (relecture, marque, annulation) et non plus seulement l'annulation", () => {
+    const tete = readFileSync(join(RACINE, "src/services/branchement-envoi-calendrier.ts"), "utf8").split("*/")[0];
+    expect(tete).not.toMatch(/seule l'annulation des versions périmées se fait sous/);
+    expect(tete).toMatch(/sous `sousVerrou`/);
+    expect(tete).toMatch(/relecture du plan/);
+    expect(tete).toMatch(/marque/);
+  });
+});
