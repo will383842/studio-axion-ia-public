@@ -14,6 +14,7 @@ import { exigerSession } from "./auth";
 import { canauxEnregistres, lireModeBuffer, marquerEnvoiVerifie } from "./buffer";
 import { envoyerReel, envoyerVisuel, obtenirKit, videoEnEssai, type ReseauVisuelEnvoi } from "./publications";
 import { journaliserEnvoi } from "./journal-envoi";
+import { origineDeLaVideo } from "./mode-budget";
 import { lireRoutage } from "./routage-publication";
 import { envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { traduireSelectionVersZernio } from "./zernio-cibles";
@@ -90,6 +91,11 @@ function refuserOutil(): Resultat<never> {
   return { ok: false, message: "Cet outil n'est pas disponible pour cet envoi : rien n'est parti.", code: "OUTIL_REFUSE" };
 }
 
+/** STU-APUB-LECT : une commande de l'usine ne part jamais d'ici ; son envoi suit le calendrier. */
+function refuserOrigineUsine(): Resultat<never> {
+  return { ok: false, message: "Cette commande ne s'envoie pas depuis cette liste : rien n'est parti.", code: "ORIGINE_USINE" };
+}
+
 export interface OptionsEnvoiParOutil {
   outil: OutilPublication;
   comptes?: string[];
@@ -109,6 +115,9 @@ export async function envoyerParOutilAction(videoId: string, reseau: IdReseau, d
   // (« buffer », casse, espaces, vide, null, valeur inconnue) : refus avant tout effet (rien écrit, aucun appel, aucun journal d'envoi).
   const demande: unknown = options?.outil;
   if (demande !== undefined && demande !== "zernio") return refuserOutil();
+  // STU-APUB-LECT : le geste manuel de la liste « À publier » est refusé pour une commande d'ORIGINE USINE, avant toute lecture de réglage
+  // et tout appel d'envoi. Cette action n'est appelée que par cette liste : le calendrier (envoyerVisuelAction, promotion) a son propre chemin.
+  if ((await origineDeLaVideo(videoId)) === "usine") return refuserOrigineUsine();
   const nbChoisis = options.comptes?.length ?? 0;
   const journal = { action: "envoyerParOutilAction", outil: options.outil, reseau, contenuId: videoId };
   const r = await essayer(async () => {

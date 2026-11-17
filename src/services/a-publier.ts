@@ -17,6 +17,7 @@ import { depots, ecrireParametre, ErreurStudio, filtreExemples, journaliser, lir
 import { exigerSession } from "./auth";
 import { vueEnvoiBuffer } from "./buffer";
 import { canauxZernioEnregistres, comptesACocherZernio } from "./comptes-envoi-zernio";
+import { origineDeLaVideo } from "./mode-budget";
 import { premierCommentaireDeVideo } from "./premier-commentaire";
 import { casesRequises } from "@/formats";
 import { LIBELLES_VERIFICATIONS, listerAPublier, obtenirKit, reseauxParDefaut, texteAEnvoyer, verificationsManquantes } from "./publications";
@@ -112,6 +113,8 @@ export interface LigneAPublier {
   telechargementSeul?: boolean;
   /** Étape de la vidéo : « Remettre à relire » n'existe que pour une vidéo validée. */
   etapeVideo?: EtapeEditoriale;
+  /** Commande d'ORIGINE USINE : la liste n'en montre que l'état (lecture seule). Absent pour un contenu ajouté à la main. */
+  origineUsine?: true;
 }
 
 export interface VueAPublier {
@@ -167,6 +170,8 @@ export async function vueAPublier(): Promise<VueAPublier> {
     const pubs = await d.publications.lister((p) => p.videoId === carte.id);
     const manquantes = verificationsManquantes(kit);
     const video = await d.videos.obtenir(carte.id);
+    // Origine lue sur la version la plus récente ; illisible = usine (échec fermé : la liste ne propose alors aucun geste).
+    const origineUsine = (await origineDeLaVideo(carte.id)) === "usine";
     const deLaVideo = video ? await reseauxDeVideoStockee(video, parDefaut) : { reseaux: parDefaut, precis: false, telechargementSeul: false };
     const voulus = kit.variante ? [kit.variante.reseau] : deLaVideo.reseaux;
     for (const reseau of voulus) {
@@ -214,6 +219,7 @@ export async function vueAPublier(): Promise<VueAPublier> {
         reseauxPrecis: kit.variante ? true : deLaVideo.precis,
         ...(deLaVideo.telechargementSeul ? { telechargementSeul: true } : {}),
         ...(carte.etapeEditoriale ? { etapeVideo: carte.etapeEditoriale } : {}),
+        ...(origineUsine ? { origineUsine: true as const } : {}),
       });
     }
   }
