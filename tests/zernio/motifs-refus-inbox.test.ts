@@ -1,7 +1,7 @@
 /** Raison d'un refus d'envoi sous FORME FERMÉE : module pur (T1 à T10). Données FICTIVES. */
 import { describe, expect, it } from "vitest";
 import { motifRefusInbox, motifReseau } from "@/fournisseurs/publication/zernio-motifs-refus";
-import { CODES_MOTIF_REFUS, CODES_ZERNIO_CONNUS, LIBELLES_MOTIF_REFUS, estRaisonRefus, formaterRaison, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
+import { CODES_META_CONNUS, CODES_MOTIF_REFUS, CODES_ZERNIO_CONNUS, LIBELLES_MOTIF_REFUS, estRaisonRefus, formaterRaison, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
 
 const pf = (code: number, sousCode?: number, extra: Record<string, unknown> = {}) => ({ error: "platform_api_error", platformError: { code, ...(sousCode === undefined ? {} : { error_subcode: sousCode }), ...extra } });
 
@@ -133,6 +133,21 @@ describe("T4 à T10 : cas réel, texte libre, bornes", () => {
     expect(motifRefusInbox(400, { details: { platformError: { code: 190, error_subcode: -5 } } }).meta).toEqual({ code: 190, sousCode: null });
     expect(motifRefusInbox(400, { error: { code: 190 } }).meta).toEqual({ code: 190, sousCode: null });
   });
+  it("T8b liste fermée des codes Meta : un code ou sous-code inconnu n'apparaît nulle part", () => {
+    const inconnu = 612345678;
+    const r1 = motifRefusInbox(400, { platformError: { code: inconnu } });
+    expect(r1.meta).toBeNull();
+    expect(JSON.stringify(r1)).not.toContain(String(inconnu));
+    const r2 = motifRefusInbox(400, { platformError: { code: 190, error_subcode: inconnu } });
+    expect(r2.meta).toEqual({ code: 190, sousCode: null });
+    expect(r2.motif).toBe("jeton-expire-ou-invalide");
+    expect(JSON.stringify(r2)).not.toContain(String(inconnu));
+    const r3 = motifRefusInbox(400, { error: { code: inconnu, error_subcode: inconnu, message: "The page has messages disabled in the settings" } });
+    expect(r3.meta).toBeNull();
+    expect(JSON.stringify(r3)).not.toContain(String(inconnu));
+    for (const c of [2, 10, 100, 33, 1545133, 190, 2534041]) expect(CODES_META_CONNUS).toContain(c);
+    expect(motifRefusInbox(400, pf(2, 1545133)).meta).toEqual({ code: 2, sousCode: 1545133 });
+  });
   it("T9 caractères de contrôle et emoji : code conforme à ^[a-z0-9-]+$", () => {
     for (const s of ["\u0000\u0007 \u{1F600} messages disabled in the settings \n\t", "‮\u{1F4A9}", "x".repeat(3000)]) {
       const r = motifRefusInbox(400, { error: s, message: s });
@@ -162,6 +177,7 @@ describe("estRaisonRefus et formaterRaison", () => {
     expect(formaterRaison({ ...ok, statut: null, meta: null })).toBe(`${LIBELLES_MOTIF_REFUS["messagerie-desactivee-sur-la-page"]} [refuse]`);
   });
   it("rejette toute forme libre", () => {
+    for (const x of [{ ...ok, meta: { code: 612345678, sousCode: null } }, { ...ok, meta: { code: 10, sousCode: 612345678 } }]) expect(estRaisonRefus(x)).toBe(false);
     for (const x of [null, "texte", { ...ok, motif: "Jeanne Exemple" }, { ...ok, statut: 99 }, { ...ok, statut: 600 }, { ...ok, statut: 400.5 }, { ...ok, codeClient: "jeanne_exemple" }, { ...ok, meta: { code: 1e10, sousCode: null } }, { ...ok, meta: { code: 1, sousCode: -1 } }, { ...ok, codeZernio: "jeanne_exemple" }, { ...ok, extra: "texte libre" }]) {
       expect(estRaisonRefus(x)).toBe(false);
     }
