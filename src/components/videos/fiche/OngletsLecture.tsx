@@ -101,6 +101,9 @@ export function OngletDistribution({ distribution }: { distribution: VueDistribu
 /** Mêmes libellés que l'assistant (« Musique et bruitages »…). */
 const BRIQUES = LIBELLES_BRIQUES;
 
+/** X3-09b : libellés des crans, table locale (un composant serveur ne reçoit pas les valeurs d'un module « use client »). */
+const CRANS_ANIMATIONS: Record<string, string> = { aucun: "Aucun", sobre: "Sobre", equilibre: "Équilibré", dynamique: "Dynamique" };
+
 export function OngletReglages({ commande, mentionIA, dureeLibelle, ratios }: { commande: CommandeFabrication | null; mentionIA: MentionIA; dureeLibelle: string; ratios: string[] }) {
   const s = commande?.styles;
   const tuiles: { libelle: string; icone: NomIcone; valeur: string | null | undefined; detail?: string }[] = [
@@ -119,6 +122,7 @@ export function OngletReglages({ commande, mentionIA, dureeLibelle, ratios }: { 
           { libelle: "Bruitages", icone: "volume" as const, valeur: commande.intensite.bruitages === "discrets" ? "Discrets" : "Aucun" },
         ]
       : []),
+    ...(commande?.dosageMotion ? [{ libelle: "Animations", icone: "eclair" as const, valeur: CRANS_ANIMATIONS[commande.dosageMotion.cran] }] : []),
   ];
   return (
     <div className="space-y-4">
