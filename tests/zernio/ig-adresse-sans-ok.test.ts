@@ -297,17 +297,26 @@ describe("Adresse écrite sans OK (cible d'essai) : vaut un OK, la demande d'adr
     expect(site.lectures).toBe(base);
   });
 
-  it("C15 · adresse puis OK à 1 s (passages jusqu'à +15 min) : au plus un v6-1, 0 demande", async () => {
+  // Déblocage venu de la PR #923 : avant, les deux événements se reportaient l'un l'autre (stop_anterieur_non_lu) et rien ne partait ; maintenant l'adresse envoie UNE v6-1.
+  // Le OK, arrivé quand le parcours est en attente_email, reçoit l'accusé « adresse non reconnue » (comportement d'aval préexistant, accepté par le fondateur).
+  it("C15 · adresse puis OK à 1 s (déblocage PR #923) : exactement 2 envois (v6-1 puis accusé « adresse non reconnue »), un seul v6-1, 0 demande, rien de bloqué à T1 + 2 min", async () => {
     await apresIgSuivre();
     textes({ "msg-adr": ADR, "msg-ok": "OK" });
     await msg("msg-adr", 5000);
     await msg("msg-ok", 6000);
     for (const d of [T1, T1 + 30_000, T1 + 2 * 60_000, T1 + 5 * 60_000, T1 + 15 * 60_000]) await pass(d);
-    expect(banc.port.envoyes.length).toBeLessThanOrEqual(1);
+    const v61 = rendreTexteMp(NOUVELLE, { mot: MOT, titre: TITRE_ESSAI });
+    const e = banc.port.envoyes as Array<{ texte: string }>;
+    expect(e).toHaveLength(2);
+    expect(e[0].texte).toBe(v61);
+    expect(e[0].texte).not.toMatch(/https?:|\[LIEN\]/i);
+    expect(e[1].texte).toMatch(/Je n'ai pas reconnu d'adresse e-mail/);
+    expect(e.filter((x) => x.texte === v61)).toHaveLength(1);
     expect(demandes()).toHaveLength(0);
+    expect(await conv()).toMatchObject({ idMessageOk: "msg-adr" });
+    const bloques = await depots().evenementsFournisseurs.lister((x: any) => x.charge?.dernierCode === "stop_anterieur_non_lu");
+    expect(bloques).toHaveLength(0);
   });
-  // Constat : les deux événements se reportent l'un l'autre (code stop_anterieur_non_lu, `messageNonTraiteDeLaPersonne` est symétrique) ; rien ne part, même après 15 min.
-  it.todo("C15 · interblocage de deux messages rapprochés (stop_anterieur_non_lu), préexistant : escalade eq-architecte-systeme, NON corrigé ici");
 
   it("C16 · essai seulement SUPPOSÉ (panne de lecture du catalogue au moment de l'adresse) : rien ne part, report catalogue_illisible ; reprise après l'attente", async () => {
     await grainer([{ suffixe: "a" }]);

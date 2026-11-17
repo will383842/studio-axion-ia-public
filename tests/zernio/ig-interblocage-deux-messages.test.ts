@@ -136,10 +136,6 @@ describe("Interblocage de deux messages rapprochés : au plus 2 reports, plus de
     expect(await nbBloques()).toBe(0);
   });
 
-  // Aval inchangé : le second message (OK ou adresse déjà reçue) arrive quand le parcours est en attente_email ; l'aval répond alors « adresse non reconnue ».
-  // Ce comportement est préexistant et hors périmètre de cette PR ; à examiner séparément (une personne qui écrit adresse puis OK reçoit en plus cet accusé).
-  it.todo("C15a · aval : après v6-1, un OK arrivé juste après l'adresse reçoit l'accusé « adresse non reconnue » (comportement d'aval préexistant, non modifié ici)");
-
   it("C15b · OK puis adresse : une v6-1 (idMessageOk = le OK) puis la demande de guide avec cette adresse", async () => {
     await apresIgSuivre();
     lectures({ "msg-ok": "OK", "msg-adr": ADR });
