@@ -35,13 +35,13 @@ const GROUPES_COMMUNS: readonly GroupeMp[] = [
   "recu",
   "adresse-non-reconnue",
   "adresse-refusee",
-  "pub-commentaire",
+  "recu-neutre",
 ];
 
 /** Groupes de formulations rendus pour un mot, par réseau (relevés dans le parcours : M1, renvoi, reçu, adresse, publication ; Instagram ajoute le suivi du compte). */
 export const GROUPES_PAR_RESEAU: Record<ReseauAuto, GroupeMp[]> = {
-  facebook: [...GROUPES_COMMUNS],
-  instagram: [...GROUPES_COMMUNS, "ig-suivre", "ig-pas-encore"],
+  facebook: [...GROUPES_COMMUNS, "pub-commentaire"],
+  instagram: [...GROUPES_COMMUNS, "ig-suivre", "ig-pas-encore", "pub-instagram"],
 };
 
 /** Textes à identifiant fixe, hors groupes (ceux au statut actif seulement). */

@@ -10,7 +10,9 @@
     "adresse-refusee": [
       "mp-adresse-refusee-v3-1",
       "mp-adresse-refusee-v3-2",
-      "mp-adresse-refusee-v3-3"
+      "mp-adresse-refusee-v3-3",
+      "mp-adresse-refusee-v4-1",
+      "mp-adresse-refusee-v4-2"
     ],
     "m1-adresse": [
       "mp-m1-v5-1",
@@ -56,6 +58,14 @@
     "m1-adresse-rgpd": [
       "mp-m1-v6-1",
       "mp-m1-v6-2"
+    ],
+    "recu-neutre": [
+      "mp-recu-neutre-v1-1",
+      "mp-recu-neutre-v1-2"
+    ],
+    "pub-instagram": [
+      "mp-pub-ig-v1-1",
+      "mp-pub-ig-v1-2"
     ]
   },
   "textes": {
@@ -168,6 +178,16 @@
       "version": "mp-adresse-refusee-v3-3",
       "statut": "actif",
       "texte": "Je suis navré, cette adresse e-mail n'a pas été acceptée par notre système. Il ne m'est pas possible de vous faire parvenir le guide par ce moyen."
+    },
+    "mp-adresse-refusee-v4-1": {
+      "version": "mp-adresse-refusee-v4-1",
+      "statut": "actif",
+      "texte": "Je n'ai pas pu enregistrer cette adresse e-mail : elle semble mal écrite ou n'est pas reconnue. Je ne peux donc pas y envoyer le guide."
+    },
+    "mp-adresse-refusee-v4-2": {
+      "version": "mp-adresse-refusee-v4-2",
+      "statut": "actif",
+      "texte": "Cette adresse e-mail n'a pas été acceptée, peut-être à cause d'une faute de frappe ou d'un format inconnu. Le guide ne peut donc pas partir vers cette adresse."
     },
     "mp-m1-v5-1": {
       "version": "mp-m1-v5-1",
@@ -303,6 +323,26 @@
       "version": "mp-m1-v6-2",
       "statut": "actif",
       "texte": "Bonjour ! Merci pour votre commentaire. Pour vous envoyer le guide « [TITRE DU GUIDE] », répondez-moi ici avec votre adresse e-mail. Axion IA note le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes, et les garde aussi longtemps que votre fiche de contact. Pour vous y opposer ou demander l'effacement de ces informations, écrivez-moi ici. Pour vos autres droits, dont l'accès : https://axion-ia.com/fr/politique-confidentialite (rubrique « Vos droits »)."
+    },
+    "mp-recu-neutre-v1-1": {
+      "version": "mp-recu-neutre-v1-1",
+      "statut": "actif",
+      "texte": "Merci, c'est noté. Si le guide n'arrive pas dans votre boîte mail, regardez aussi dans vos courriers indésirables."
+    },
+    "mp-recu-neutre-v1-2": {
+      "version": "mp-recu-neutre-v1-2",
+      "statut": "actif",
+      "texte": "Bien reçu, merci. Si vous ne voyez pas le guide dans votre boîte mail, pensez à vérifier vos courriers indésirables."
+    },
+    "mp-pub-ig-v1-1": {
+      "version": "mp-pub-ig-v1-1",
+      "statut": "actif",
+      "texte": "Merci pour votre commentaire ! Je vous écris en message privé. Si votre compte est privé ou si vous ne suivez pas le compte, le message peut se trouver dans vos demandes de messages."
+    },
+    "mp-pub-ig-v1-2": {
+      "version": "mp-pub-ig-v1-2",
+      "statut": "actif",
+      "texte": "Merci ! Je vous écris en message privé. Pour le voir plus facilement, vous pouvez suivre le compte ; sinon, regardez dans vos demandes de messages."
     }
   }
 }
