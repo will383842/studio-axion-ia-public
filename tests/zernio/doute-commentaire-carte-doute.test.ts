@@ -30,7 +30,7 @@ const Opp = await import("@/services/oppositions-mots");
 const { creerDepotParametre } = await import("@/services/a-traiter-depot");
 const { extraitLisible } = await import("@/services/a-traiter-types");
 const { traiterCommentairesManuels, PARAM_RESEAUX_MANUELS } = await import("@/services/a-traiter-manuel");
-const { enregistrerATraiter, marquerCarteFaite } = await import("@/services/a-traiter");
+const { enregistrerATraiter, marquerCarteFaite, lireVueATraiter } = await import("@/services/a-traiter");
 const { copierReponseCarte, copierMessageCarte } = await import("@/services/a-traiter-copie");
 const { PARAM_REGISTRE_MOTS, PARAM_VALIDATIONS_MOTS } = await import("@/services/mots-service");
 const { PARAM_COMPTES_ZERNIO } = await import("@/services/zernio");
@@ -401,6 +401,27 @@ describe.each(["linkedin", "tiktok"])("%s · doute permanent, carte et alerte", 
     expect((await notifications()).map((n) => n.message)).toEqual([MSG_SANS_CARTE]);
     expect(await etatEv(d.idEvenement)).toMatchObject({ traite: true, charge: { etat: "doute_opposition" } });
   });
+  it("T19 · la carte doute passe avant les autres cartes à traiter, même plus anciennes", async () => {
+    const autre = await guide(p, { idAuteur: AUTRE });
+    await lancer(); // carte GUIDE d'une autre personne, créée en premier
+    const d = await evt(p);
+    await lancer();
+    const vue = await lireVueATraiter({ env: ENV, depot: creerDepotParametre() });
+    expect(vue.cartes.map((x) => x.idEvenement)).toEqual([d.idEvenement, autre.idEvenement]);
+    expect(vue.cartes[0].opposee).toBe(true);
+    expect(vue.cartes[1].opposee).toBeUndefined();
+  });
+  it("T20 · constat : un stop clair noyé dans un texte de plus de 200 caractères n'est pas perdu : doute, carte opposée et alerte (jamais ignoré)", async () => {
+    await envoyer(manuel(p, `stop ${"merci pour tout ".repeat(20)}`));
+    await lancer();
+    const cs = await cartes();
+    expect(cs).toHaveLength(1);
+    expect(extraitLisible(cs[0].extrait)).toBe(FIXE);
+    expect(cs[0]).toMatchObject({ opposee: true, mot: null });
+    expect((await notifications()).map((n) => n.message)).toEqual([MSG_DOUTE]);
+    expect(opp.appels).toEqual([]); // le stop n'est pas inscrit tout seul : décision laissée au fondateur
+  });
+  it.todo("E5 · borne sur le nombre d'alertes pour une même personne en doute (aujourd'hui : une alerte par événement de doute, le rejeu d'un même événement n'en ajoute pas) : choix de conception, ESCALADE");
   it("T16 · une carte GUIDE ordinaire au repère invalide reste close « refuse » (comportement figé)", async () => {
     const g = await guide(p, { repere: "repere avec espace" });
     await lancer();
