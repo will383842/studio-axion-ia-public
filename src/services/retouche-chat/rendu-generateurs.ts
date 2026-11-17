@@ -8,12 +8,20 @@ import { exportsARefaire, type CibleExport } from "@/briques/export-partiel";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { EntreeRenduPartiel, PortsRetoucheChat, SortieRenduPartiel } from "./service";
 
-export const CIBLES_TUTORIEL: readonly CibleExport[] = [
-  { id: "4:5", format: "4:5" },
-  { id: "9:16", format: "9:16" },
-  { id: "1:1", format: "1:1" },
-];
-export const CIBLES_DEMO_FACECAM: readonly CibleExport[] = [{ id: "9:16", format: "9:16" }];
+import { declarationDuFormat } from "@/generateurs/declaration";
+
+/** Les seuls formats que le chat sait ré-exporter ; les ratios, eux, viennent de la déclaration (G1-05c). */
+const RETOUCHE_PAR_CHAT = ["tutoriel-outil", "demo-facecam"] as const;
+const REPLI: readonly CibleExport[] = Object.freeze([{ id: "9:16", format: "9:16" }]);
+
+function ciblesDe(id: (typeof RETOUCHE_PAR_CHAT)[number]): readonly CibleExport[] {
+  const d = declarationDuFormat(id);
+  if (!d || d.ratios.length === 0) return REPLI; // jamais levé au chargement
+  return Object.freeze(d.ratios.map((r) => ({ id: r, format: r })));
+}
+
+export const CIBLES_TUTORIEL: readonly CibleExport[] = ciblesDe("tutoriel-outil");
+export const CIBLES_DEMO_FACECAM: readonly CibleExport[] = ciblesDe("demo-facecam");
 
 export function ciblesDuFormat(formatId: string): readonly CibleExport[] | null {
   if (formatId === "tutoriel-outil") return CIBLES_TUTORIEL;
