@@ -56,7 +56,7 @@ describe("X3-06 · planNu / planNiveau1 (purs)", () => {
   it("planNu : le plan est lisible par le schéma et validerPlan n'y ajoute aucune scène (pas de pièce, pas de calque)", () => {
     const nu = planNu(contexte);
     expect(schemaPlanBrut.safeParse(nu).success).toBe(true);
-    const sceneSansPiece = nu.scenes.filter((s) => s.piece || s.calques?.length);
+    const sceneSansPiece = nu.scenes.filter((s) => Boolean(s.calques?.length) || Boolean(s.piece));
     expect(sceneSansPiece).toEqual([]);
   });
 
