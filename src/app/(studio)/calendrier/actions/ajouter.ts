@@ -12,6 +12,7 @@ import { exigerSession } from "@/services/auth";
 import { depots, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut, creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 import { validerEntree as validerEntreeService } from "@/services/valider-entree";
+import { publicationEditorialeAutorisee } from "@/services/zernio";
 import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { compteCibleValide } from "../compte-cible";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
@@ -139,7 +140,7 @@ export async function validerEntree(id: string): Promise<Resultat<CreneauPlan>> 
         obtenir: (x) => d.creneaux.obtenir(x),
         enregistrer: (c) => d.creneaux.enregistrer(c),
         versAValider: async (x) => { await changerStatut(d, x, "a_valider", "studio", maintenant()); },
-        reglagesOuverts: async () => false,
+        reglagesOuverts: () => publicationEditorialeAutorisee(),
       },
       id,
       session.id,

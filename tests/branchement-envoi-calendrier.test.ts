@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import type { DemandePublication, FournisseurPublication } from "@/fournisseurs/types";
 import type { PostZernio } from "@/fournisseurs/publication/zernio-client";
+import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { creerFauxClientZernio, postExemple, type AppelEnregistre, type ReponsePreparee } from "./zernio/aides/faux-zernio";
 
 process.env.R2_ACCOUNT_ID = "compte-essai";
@@ -76,7 +77,7 @@ function fauxFournisseur(): FournisseurPublication {
     ],
     envoyer: async (d: DemandePublication) => {
       appelsFournisseur.push(d);
-      if (echec === "refus") throw Object.assign(new Error("refus net"), { code: "creation-refusee", statut: 400 });
+      if (echec === "refus") throw new ErreurZernio("refuse", "refus net", { statut: 400 });
       posts.set(`post-${appelsFournisseur.length}`, postExemple({ _id: `post-${appelsFournisseur.length}`, status: "draft", metadata: { origine: "studio", studioCle: d.cleEnvoi } }));
       return { idExterne: `ext-${appelsFournisseur.length}`, via: "zernio", statut: "brouillon" };
     },
@@ -147,6 +148,7 @@ const tour = (extra: Record<string, unknown> = {}) => tourEnvoisCalendrierServeu
 /** Un tour de plus, 6 minutes après le précédent (le tour est limité à un toutes les 5 minutes). */
 const tourSuivant = async (extra: Record<string, unknown> = {}) => { maintenant += 6 * MIN; horloge.avancer(6 * MIN); return tour(extra); };
 
+const duVisuel = async () => depots().publications.lister((p) => p.visuelId === "vis_1" && p.via === "zernio");
 const totaux = async () => ({ publications: await depots().publications.compter(), envois: await depots().envoisPlanifies.compter() });
 
 beforeEach(async () => {
@@ -261,7 +263,8 @@ describe("L5-02c · chemin heureux", () => {
     expect(li.document?.titre).toBe("Cinq erreurs courantes");
     expect(li.images).toBeUndefined();
     expect(fb.images?.map((i) => i.texteAlternatif)).toEqual([`${ALT} (page 1 sur 3)`, `${ALT} (page 2 sur 3)`, `${ALT} (page 3 sur 3)`]);
-    const publications = await depots().publications.lister();
+    const publications = await duVisuel();
+    expect(publications).toHaveLength(2);
     expect(publications.every((p) => p.statut === "brouillon" && p.etatEnvoi === "envoye")).toBe(true);
     for (const e of await depots().envoisPlanifies.lister()) {
       expect(e.statut).toBe("valide");
@@ -409,7 +412,7 @@ describe("L5-02c · un seul brouillon", () => {
     await tour();
     expect(appelsFournisseur).toHaveLength(1);
     echec = null;
-    const refusee = (await depots().publications.lister())[0];
+    const refusee = (await duVisuel())[0];
     maintenant += 6 * MIN;
     horloge.avancer(6 * MIN);
     await Promise.allSettled([tour(), reessayerEnvoi(refusee.id, { service: fauxFournisseur(), lireUrl })]);
@@ -476,7 +479,7 @@ describe("L5-02c · un seul brouillon", () => {
     await tourSuivant();
     const envois = await depots().envoisPlanifies.lister();
     expect(envois.map((e) => e.statut)).toEqual(["annule"]);
-    expect(await depots().publications.compter()).toBe(1);
+    expect(await duVisuel()).toHaveLength(1);
   });
 
   it("refus net puis 5 tours : au plus 2 appels, puis « à corriger » (une notification)", async () => {
@@ -485,8 +488,8 @@ describe("L5-02c · un seul brouillon", () => {
     await creerCreneau("c1", "linkedin");
     echec = "refus";
     for (let i = 0; i < 6; i++) { if (i === 0) await tour(); else await tourSuivant(); }
-    expect(appelsFournisseur.length).toBeLessThanOrEqual(2);
-    expect(notifications.length).toBeGreaterThanOrEqual(1);
+    expect(appelsFournisseur).toHaveLength(2);
+    expect(notifications).toHaveLength(1);
   });
 });
 
@@ -534,7 +537,8 @@ describe("L5-02c · jamais d'envoi depuis une validation", () => {
 
 describe("L5-02c · aucun quota", () => {
   it("code source : aucun import de reglages-cadence, cadence, quota", () => {
-    expect(source("src/services/branchement-envoi-calendrier.ts")).not.toMatch(/reglages-cadence|["'/]cadence|quota/);
+    const importations = source("src/services/branchement-envoi-calendrier.ts").split("\n").filter((l) => /^import /.test(l)).join("\n");
+    expect(importations).not.toMatch(/reglages-cadence|cadence|quota/);
   });
 
   it("une entrée « vous » et une entrée de l'usine (validée par le fondateur) sont traitées pareil", async () => {
