@@ -524,6 +524,23 @@ describe("L5-02d · plantage entre le PUT et l'écriture locale", () => {
     expect(nbPut()).toBe(0);
   });
 
+  it("plantage APRÈS le PUT (post déjà programmé, marque « en-cours », envoi « valide ») : 0 appel, « a-verifier » noté, décalage refusé « vérifiez-la »", async () => {
+    await brouillonPrepare();
+    for (const [id, p] of posts) posts.set(id, { ...p, status: "scheduled", scheduledFor: heureDu(2) });
+    await ecrireParametre(`${PREFIXE_ETATS_ENVOI_CALENDRIER}promotion:${CLE_ENVOI}`, "en-cours");
+    versLaFenetre();
+    const promouvoirAppels = vi.fn();
+    await tour({ client: client({ promouvoir: async (reel, d) => { promouvoirAppels(d); return reel(d); } }) });
+    expect(promouvoirAppels).not.toHaveBeenCalled();
+    expect(nbPut()).toBe(0);
+    expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("a-verifier");
+    expect(await marque(`a-verifier:${CLE_ENVOI}`)).toBe("a-verifier");
+    expect((await depots().envoisPlanifies.lister())[0].statut).toBe("valide");
+    const r = await decaler("c1", "k1");
+    expect(r.ok).toBe(false);
+    expect(refus(r)).toBe(PHRASES_CRENEAU_CONFIE["a-verifier"]);
+  });
+
   it("une promotion qui n'a pas encore commencé ne pose aucune marque « en-cours » orpheline : marque « programme » après succès", async () => {
     await promu();
     expect(await marque(`promotion:${CLE_ENVOI}`)).toBe("programme");

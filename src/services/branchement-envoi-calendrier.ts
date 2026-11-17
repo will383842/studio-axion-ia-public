@@ -370,6 +370,21 @@ async function envoiPerimeAvantPromotion(cleJournal: string, maintenant: number,
   });
 }
 
+/**
+ * Début de tour : le tour est unique par processus, donc aucune promotion n'est en vol. Toute marque `promotion:<clé>` encore « en-cours »
+ * est orpheline (plantage après le PUT : le post est peut-être déjà programmé, hors de la liste des brouillons) : elle passe à
+ * « a-verifier », et l'état « a-verifier:<clé> » est noté pour que plus rien ne soit rappelé. Sous `sousVerrou`, aucune notification.
+ */
+async function marquerPromotionsOrphelines(etats: EtatsPromotion): Promise<void> {
+  await sousVerrou(async () => {
+    for (const e of await depots().envoisPlanifies.lister((x) => !!x.creneauId)) {
+      if ((await etats.lire(`promotion:${e.cle}`)) !== "en-cours") continue;
+      await etats.noter(`promotion:${e.cle}`, "a-verifier");
+      await etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+    }
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Le tour                                                             */
 /* ------------------------------------------------------------------ */
@@ -398,6 +413,7 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
       // Client du diffuseur absent (clé non posée) : rien n'est lu, rien n'est appelé.
       return { saute: "non-relie" };
     }
+    await marquerPromotionsOrphelines(deps.etats);
     const annules = await annulerVersionsPerimees(maintenant, deps.etats);
     const resultat = await tourEnvoisCalendrier(deps);
     return { annules, resultat };
