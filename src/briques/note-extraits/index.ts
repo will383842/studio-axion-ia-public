@@ -10,3 +10,5 @@ export { noter } from "./noter";
 export type { ContexteNote } from "./noter";
 export { CHIFFRES_REELS_CAPTURE, momentsEcranDemo, momentsCaptures, appliquerPlafond, usagesPermis } from "./sources-propres";
 export type { MomentsEcranDemo } from "./sources-propres";
+export { usagesDe } from "./usages";
+export type { OptionsUsages } from "./usages";
