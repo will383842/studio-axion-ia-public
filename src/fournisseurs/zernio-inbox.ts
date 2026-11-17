@@ -8,7 +8,8 @@
 import { createHash } from "node:crypto";
 import { consommerJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
-import { estErreurZernio, masquerSecret } from "./publication/zernio-erreurs";
+import { CODES_CLIENT_CONNUS, CODES_MOTIF_REFUS, CODES_ZERNIO_CONNUS, estRaisonRefus, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
+import { estErreurZernio } from "./publication/zernio-erreurs";
 
 export interface BoutonPostback {
   titre: string;
@@ -36,31 +37,29 @@ export interface ResultatEcritureInbox {
   issueInconnue?: boolean;
   /** 429 (incertain) : attente conseillée avant de vérifier. */
   reessayerApresSec?: number;
-  /** Raison courte et NETTOYÉE d'un refus (statut HTTP, code, début du message), pour l'état et le journal. Jamais de décision dessus. */
-  detail?: string;
+  /** Raison d'un refus sous FORME FERMÉE (code interne, statut, codes Meta, code Zernio d'une liste). Présente sur toute issue autre que « envoyé ». Jamais de décision dessus. */
+  raison?: RaisonRefus;
 }
 
-const LONGUEUR_MAX_RAISON = 200;
+const RAISON_INTERNE: RaisonRefus = { motif: "erreur-interne", codeClient: "erreur-inconnue", statut: null, meta: null, codeZernio: null };
 
 /**
- * Raison courte et sûre d'un refus du service d'envoi : « HTTP <statut> · <code> · <message> ». Pure, ne lève jamais.
- * Le message est nettoyé (jetons, clés, adresses e-mail, suites de 10 chiffres ou plus) puis tronqué à 200 caractères.
+ * Raison fermée d'un refus du service d'envoi. Pure, ne lève jamais. Ne lit JAMAIS `message` ni `detailTechnique` :
+ * seulement `code` (vérifié contre la liste du client), `statut` et `motifInbox` (validés).
  */
-export function raisonRefus(e: unknown): string {
+export function raisonRefus(e: unknown): RaisonRefus {
   try {
-    const o = (typeof e === "object" && e !== null ? e : {}) as { code?: unknown; statut?: unknown; message?: unknown; detailTechnique?: unknown };
-    const brut = typeof o.detailTechnique === "string" && o.detailTechnique ? o.detailTechnique : typeof o.message === "string" ? o.message : "";
-    const message = masquerSecret(brut)
-      .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[adresse masquée]")
-      .replace(/\d{10,}/g, "[numéro masqué]")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, LONGUEUR_MAX_RAISON);
-    const code = typeof o.code === "string" ? o.code.slice(0, 64).replace(/\d{10,}/g, "[numéro masqué]") : "";
-    const parties = [typeof o.statut === "number" && Number.isFinite(o.statut) ? `HTTP ${o.statut}` : "", code, message].filter((x) => x !== "");
-    return parties.join(" · ");
+    if (!estErreurZernio(e)) return { ...RAISON_INTERNE };
+    const codeClient = CODES_CLIENT_CONNUS.includes(e.code) ? e.code : "erreur-inconnue";
+    const statut = typeof e.statut === "number" && Number.isInteger(e.statut) && e.statut >= 100 && e.statut <= 599 ? e.statut : null;
+    if (e.avantReseau) return { motif: "refus-avant-envoi", codeClient, statut: null, meta: null, codeZernio: null };
+    const m = e.motifInbox;
+    const motif = m && (CODES_MOTIF_REFUS as readonly string[]).includes(m.motif) ? m.motif : "raison-inconnue";
+    const codeZernio = m && (CODES_ZERNIO_CONNUS as readonly unknown[]).includes(m.codeZernio) ? m.codeZernio : null;
+    const r: RaisonRefus = { motif, statut, codeClient, meta: m?.meta ?? null, codeZernio };
+    return estRaisonRefus(r) ? r : { motif: "raison-inconnue", statut, codeClient, meta: null, codeZernio: null };
   } catch {
-    return "";
+    return { ...RAISON_INTERNE };
   }
 }
 
@@ -173,26 +172,25 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
       const rep = await client.requete(requete);
       return { statut: "envoye", idMessage: idMessageDe(rep.corps), ...(idConversationDe(rep.corps) ? { idConversation: idConversationDe(rep.corps) } : {}), ...(idDestinataireDe(rep.corps) ? { idDestinataire: idDestinataireDe(rep.corps) } : {}) };
     } catch (e) {
-      if (!estErreurZernio(e)) return { statut: "refuse", code: "erreur-inconnue" };
-      const detail = raisonRefus(e);
-      const avecDetail = detail ? { detail } : {};
+      const raison = raisonRefus(e);
+      if (!estErreurZernio(e)) return { statut: "refuse", code: "erreur-inconnue", raison };
       switch (e.code) {
         case "inbox-requis":
-          return { statut: "refuse", code: "INBOX_REQUIRED", ...avecDetail };
+          return { statut: "refuse", code: "INBOX_REQUIRED", raison };
         case "quota-messages":
-          return { statut: "refuse", code: "message_allowance_exceeded", ...avecDetail };
+          return { statut: "refuse", code: "message_allowance_exceeded", raison };
         case "reponse-privee-consommee":
-          return { statut: "definitif", code: e.code, etat: "consommee", consomme: true };
+          return { statut: "definitif", code: e.code, etat: "consommee", consomme: true, raison };
         case "reponse-privee-inconnue":
-          return { statut: "a_verifier", code: e.code, etat: "a_verifier", issueInconnue: true };
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier", issueInconnue: true, raison };
         case "a-verifier":
-          return { statut: "a_verifier", code: e.code, etat: "a_verifier", ...avecDetail };
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier", raison };
         case "limite-incertaine":
-          return { statut: "a_verifier", code: e.code, etat: "a_verifier", reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined) };
+          return { statut: "a_verifier", code: e.code, etat: "a_verifier", reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined), raison };
         case "debit":
-          return { statut: "a_reessayer", code: e.code, reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined) };
+          return { statut: "a_reessayer", code: e.code, reessayerApresSec: e.reessayerApresSec ?? (e.attenteMs !== undefined ? Math.ceil(e.attenteMs / 1000) : undefined), raison };
         default:
-          return { statut: "refuse", code: e.code, ...avecDetail };
+          return { statut: "refuse", code: e.code, raison };
       }
     }
   }

@@ -6,7 +6,7 @@ import { estRaisonRefus, formaterRaison, type RaisonRefus } from "@/domaine/guid
 import { rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { emettreJetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
 import { COMPTE, ENV, T0, TITRE, cleConversation, deposerCommentaire, fauxPort, fauxSite, silencerConsole, validerGuideAuParcours } from "./aides/conversation";
-import { creerFauxClientZernio } from "./aides/faux-zernio";
+import { MOT_INTERDIT, creerFauxClientZernio } from "./aides/faux-zernio";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -88,7 +88,7 @@ describe("port : raisonRefus et issues (T15 à T18)", () => {
     expect(estRaisonRefus(r.raison)).toBe(true);
   });
   it("T17 mot-interdit, lien-hors-domaine, guide-inconnu : code seul", async () => {
-    const mot = await prive(creerFauxClientZernio([]).client, { texte: `${TEXTE} certifié` });
+    const mot = await prive(creerFauxClientZernio([]).client, { texte: `${TEXTE} ${MOT_INTERDIT}` });
     expect(mot.raison).toMatchObject({ motif: "refus-avant-envoi", codeClient: "mot-interdit" });
     const lien = await prive(creerFauxClientZernio([]).client, { texte: `${TEXTE} https://hors-domaine.exemple.invalid/x` });
     expect(["lien-hors-domaine", "mot-interdit", "chemin-refuse"]).toContain(lien.raison?.codeClient);
@@ -164,7 +164,7 @@ describe("parcours : raisons stockées et journal (T19 à T23)", () => {
     // état préparé : les deux raisons présentes
     const cle = cleConversation("auteur-fictif-20");
     const tout = await Com.lireParametre<Record<string, Record<string, unknown>>>(C.PARAM_CONVERSATIONS, {});
-    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], refusPublic: { ...RAISON_A, le: "2026-11-17T08:00:00.000Z" }, refusPrive: { ...RAISON_B, le: "2026-11-17T08:00:00.000Z" } } });
+    await Com.ecrireParametre(C.PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], etat: "nouveau", essaisPub: 0, essaisM1: 0, m1Le: null, refusPublic: { ...RAISON_A, le: "2026-11-17T08:00:00.000Z" }, refusPrive: { ...RAISON_B, le: "2026-11-17T08:00:00.000Z" } } });
     port.reponses.pub = () => ({ statut: "envoye", idMessage: "msg-pub" });
     port.reponses.prive = () => ({ statut: "envoye", idMessage: "msg-prive" });
     await passer(T0 + 3600_000);
