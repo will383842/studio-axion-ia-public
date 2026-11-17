@@ -254,7 +254,7 @@ export interface PlanSuppression {
 /** Réglage (éteint par défaut, seul `true` allume) : la fiche d'extraits part avec sa vidéo (P-7). */
 export const REGLAGE_EFFACER_FICHE_EXTRAITS = "bibliothequeVideo.archive.effacerFicheASuppression";
 
-/** Vrai seulement avec une session de Williams : la purge de fond de la corbeille (30 jours) tourne sans session et n'efface jamais la fiche. */
+/** Vrai seulement avec une session de Williams : le nettoyage de fond de la corbeille (30 jours) tourne sans session et n'efface jamais la fiche. */
 async function suppressionDecideeParWilliams(): Promise<boolean> {
   try {
     return !!(await (await import("./auth")).lireSession());
@@ -379,7 +379,7 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
     reecrire("elements", { ...e, derniereVideoId: undefined, modifieLe: maintenant() } as unknown as Doc);
   }
   // P-7 : la fiche d'extraits de la vidéo est effacée et non détachée (elle contient ses paroles) ; l'id quitte `famille` des autres.
-  // Seulement réglage allumé ET suppression décidée par Williams (session) : jamais par la purge automatique de la corbeille.
+  // Seulement réglage allumé ET suppression décidée par Williams (session) : jamais par le nettoyage automatique de la corbeille.
   const effacerFiche = (await lireParametre<unknown>(REGLAGE_EFFACER_FICHE_EXTRAITS, false)) === true && (await suppressionDecideeParWilliams());
   for (const e of effacerFiche ? await d.elements.lister((x) => x.valeur.type === "source-extraits") : []) {
     const f = e.valeur.type === "source-extraits" ? e.valeur.fiche : null;
