@@ -11,7 +11,7 @@ import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import { transitionPermise } from "@/domaine/visuels/statuts";
 import { cleDans } from "@/fournisseurs/mesures/commun";
-import { creerClientZernio, listerToutesLesPagesZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
+import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { obtenirReseau } from "@/reseaux";
@@ -230,6 +230,26 @@ async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Pr
   });
 }
 
+/** L5-06 · plafond de sécurité du nombre de pages lues pour une liste de posts. */
+export const PAGES_LISTE_MAX_ZERNIO = 50;
+
+/**
+ * L5-06 · LECTURE seule : lit TOUTES les pages d'une liste de posts (`page`, `limit`) par `listerPosts` du client (porte
+ * unique : arrêt, filtre, débit). S'arrête à la première page incomplète, vide ou sans post nouveau, et au plafond de pages.
+ */
+export async function listerToutesLesPagesZernio(client: Pick<ClientZernio, "listerPosts">, query: Record<string, string | number | boolean> = {}, limite = 50): Promise<PostZernio[]> {
+  const tous: PostZernio[] = [];
+  const vus = new Set<string>();
+  for (let page = 1; page <= PAGES_LISTE_MAX_ZERNIO; page++) {
+    const lus = await client.listerPosts({ ...query, page, limit: limite });
+    const neufs = lus.filter((p) => !vus.has(p._id));
+    for (const p of neufs) vus.add(p._id);
+    tous.push(...neufs);
+    if (lus.length < limite || neufs.length === 0) break;
+  }
+  return tous;
+}
+
 /** L5-06 · l'étape du visuel suit le diffuseur ; jamais en arrière, seulement par les transitions permises (valide → programme → publie). */
 async function visuelVers(p: Publication, vers: "programme" | "publie"): Promise<void> {
   const id = p.visuelId;
@@ -242,6 +262,28 @@ async function visuelVers(p: Publication, vers: "programme" | "publie"): Promise
     statut = "programme";
   }
   if (transitionPermise(statut, vers)) await depots().visuels.modifier(id, { statut: vers });
+}
+
+/** L5-06 · l'étape du visuel ne bloque jamais la synchronisation : l'échec est journalisé, le rattrapage le reprendra. */
+async function visuelVersSansBloquer(p: Publication, vers: "programme" | "publie", entite?: { type: string; id: string }): Promise<void> {
+  try {
+    await visuelVers(p, vers);
+  } catch {
+    await journaliser("publication", "Le visuel n'a pas pu être mis à jour : il sera repris au prochain passage.", entite).catch(() => undefined);
+  }
+}
+
+/** L5-06 · rattrapage : un visuel encore « programmé » dont une publication du diffuseur est déjà « publiée » passe « publié ». */
+async function rattraperVisuelsPublies(): Promise<void> {
+  const d = depots();
+  const publiees = await d.publications.lister((p) => p.via === "zernio" && p.statut === "publiee" && !!p.visuelId);
+  for (const p of publiees) {
+    try {
+      await visuelVers(p, "publie");
+    } catch {
+      /* repris au passage suivant */
+    }
+  }
 }
 
 /**
@@ -269,14 +311,16 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   let suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
     .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""));
   // L5-06 · liste complète (lecture seule) : un échec de lecture laisse le passage incrémental habituel.
+  // Au-delà de 50 publications suivies (ou sur demande), le passage est complet : la boucle de fond en profite sans option.
   let dejaLus: Map<string, PostZernio> | null = null;
-  if (options.complet) {
+  if (options.complet || suivies.length > LECTURES_PAR_TOUR) {
     try {
       dejaLus = new Map((await listerToutesLesPagesZernio(client)).map((x) => [x._id, x]));
     } catch {
       dejaLus = null;
     }
   }
+  await rattraperVisuelsPublies();
   let lecturesUnitaires = 0;
   if (!dejaLus) suivies = suivies.slice(0, LECTURES_PAR_TOUR);
   const lu = new Date(instant).toISOString();
@@ -336,12 +380,12 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     r.changees++;
     if (etat.statut === "publiee") {
       if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
-      await visuelVers(p, "publie");
+      await visuelVersSansBloquer(p, "publie", entite);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
       await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
-      await visuelVers(p, "programme");
+      await visuelVersSansBloquer(p, "programme", entite);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;

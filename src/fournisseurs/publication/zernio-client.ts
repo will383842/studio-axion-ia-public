@@ -263,27 +263,6 @@ export interface ClientZernio {
   lectureExigee(): boolean;
 }
 
-/** L5-06 · plafond de sécurité du nombre de pages lues pour une liste de posts. */
-export const PAGES_LISTE_MAX_ZERNIO = 50;
-
-/**
- * L5-06 · LECTURE seule : lit TOUTES les pages d'une liste de posts (`page`, `limit`), dans l'ordre, par la méthode
- * `listerPosts` du client (donc par la porte unique : arrêt, filtre, débit). S'arrête à la première page incomplète, vide
- * ou qui n'apporte aucun post nouveau, et au plafond de pages. N'écrit jamais chez le diffuseur.
- */
-export async function listerToutesLesPagesZernio(client: Pick<ClientZernio, "listerPosts">, query: Record<string, string | number | boolean> = {}, limite = 50): Promise<PostZernio[]> {
-  const tous: PostZernio[] = [];
-  const vus = new Set<string>();
-  for (let page = 1; page <= PAGES_LISTE_MAX_ZERNIO; page++) {
-    const lus = await client.listerPosts({ ...query, page, limit: limite });
-    const neufs = lus.filter((p) => !vus.has(p._id));
-    for (const p of neufs) vus.add(p._id);
-    tous.push(...neufs);
-    if (lus.length < limite || neufs.length === 0) break;
-  }
-  return tous;
-}
-
 /* --- Constantes ------------------------------------------------------------------------------------------------- */
 
 /** Écart minimal entre le PUT de promotion et la date programmée. */
