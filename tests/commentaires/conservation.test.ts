@@ -1,14 +1,15 @@
 /** L7-26 : conservation durable des commentaires et de « À traiter ». ON GARDE TOUT. Personnes et textes inventés, aucun réseau. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CarteATraiter } from "@/services/a-traiter-types";
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const Com = await import("@/services/_commun");
 const D = await import("@/services/commentaires-depot");
+const { empreintesOpposees, enregistrerOppositionParEmpreinte, enregistrerOppositionPersonne } = await import("@/services/oppositions-mots");
 const { creerDepotParametre } = await import("@/services/a-traiter-depot");
 
-const AUTEUR_A = `p1.abcd1234.${"a".repeat(64)}`;
-const AUTEUR_B = `p1.abcd1234.${"b".repeat(64)}`;
+const AUTEUR_A = D.empreinteAuteur("contact_inventé_a");
+const AUTEUR_B = D.empreinteAuteur("contact_inventé_b");
 const JOUR = 86_400_000;
 const T0 = Date.parse("2026-01-01T00:00:00.000Z");
 const iso = (jours: number) => new Date(T0 + jours * JOUR).toISOString();
@@ -24,6 +25,7 @@ const carte = (id: string): CarteATraiter => ({
 let alertes: { titre: string; message: string }[];
 const nouveau = (jours = 0) => D.creerDepotCommentaires({ maintenant: () => iso(jours), alerter: async (a) => void alertes.push(a) });
 
+afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
   reinitialiserDepots();
   vi.unstubAllEnvs();
@@ -70,8 +72,8 @@ describe("conservation : aucune suppression, aucune durée qui efface", () => {
   it("contenu illisible : lire et écrire lèvent, rien n'est écrasé", async () => {
     await Com.ecrireParametre(D.PARAM_COMMENTAIRES_DEPOT, { pas: "une liste" });
     const d = nouveau();
-    await expect(d.lire()).rejects.toThrow();
-    await expect(d.enregistrer(com("e1"))).rejects.toThrow();
+    await expect(d.lire()).rejects.toThrow("commentaires_illisibles");
+    await expect(d.enregistrer(com("e1"))).rejects.toThrow("commentaires_illisibles");
     expect(await Com.lireParametre(D.PARAM_COMMENTAIRES_DEPOT, null)).toEqual({ pas: "une liste" });
   });
   it("auteur : empreinte seulement, jamais d'e-mail ni d'identifiant brut", async () => {
@@ -86,10 +88,19 @@ describe("conservation : aucune suppression, aucune durée qui efface", () => {
     expect(a).not.toContain("inventé");
   });
   it("« À traiter » : une carte de 91 jours reste lisible, une écriture ne retire rien", async () => {
-    const d = creerDepotParametre();
-    await d.ecrire([carte("c1"), carte("c2")]);
-    await d.ecrire([carte("c3")]);
-    expect((await creerDepotParametre().lire()).map((c) => c.idEvenement).sort()).toEqual(["c1", "c2", "c3"]);
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(T0);
+      const d = creerDepotParametre();
+      await d.ecrire([carte("c1"), carte("c2")]);
+      vi.setSystemTime(T0 + 91 * JOUR);
+      await d.ecrire([{ ...carte("c3"), creeLe: iso(91) }]);
+      const l = await creerDepotParametre().lire();
+      expect(l.map((c) => c.idEvenement).sort()).toEqual(["c1", "c2", "c3"]);
+      expect(l.find((c) => c.idEvenement === "c1")).toMatchObject({ creeLe: iso(0), extrait: "GUIDE", statut: "a_traiter" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -125,7 +136,7 @@ describe("opposition ou demande d'effacement : écart des envois, alerte, journa
     await d.demanderEffacement(AUTEUR_A);
     const evs = await depots().evenements.lister((e) => e.type === "commentaire_effacement_demande");
     expect(evs).toHaveLength(1);
-    expect(JSON.stringify(await depots().evenements.lister())).not.toMatch(/Texte inventé|p1\.abcd1234/);
+    expect(JSON.stringify(await depots().evenements.lister())).not.toMatch(/Texte inventé|p1\./);
   });
   it("demande pour un auteur sans ligne : alerte et journal quand même (zéro ligne écartée), l'auteur reste écarté pour l'avenir", async () => {
     const d = nouveau();
@@ -150,7 +161,7 @@ describe("opposition ou demande d'effacement : écart des envois, alerte, journa
   it("l'alerte échoue : la mise à l'écart est tout de même faite, la demande remonte l'erreur", async () => {
     const d = D.creerDepotCommentaires({ maintenant: () => iso(0), alerter: async () => { throw new Error("cloche"); } });
     await d.enregistrer(com("e1"));
-    await expect(d.demanderEffacement(AUTEUR_A)).rejects.toThrow();
+    await expect(d.demanderEffacement(AUTEUR_A)).rejects.toThrow("cloche");
     const l = await d.lire();
     expect(l).toHaveLength(1);
     expect(l[0]!.ecarteDesEnvois).toBe(true);
@@ -161,5 +172,36 @@ describe("opposition ou demande d'effacement : écart des envois, alerte, journa
     await d.enregistrer(com("e1"));
     await d.demanderEffacement(AUTEUR_A);
     expect(f).not.toHaveBeenCalled();
+  });
+  it("une opposition inscrite au registre commun (mots.oppositions) écarte les lignes, ailleurs qu'ici", async () => {
+    const d = nouveau();
+    await d.enregistrer(com("e1"));
+    await d.enregistrer(com("e2", { auteur: AUTEUR_B }));
+    await enregistrerOppositionParEmpreinte(AUTEUR_A);
+    expect(await d.auteurEcarte(AUTEUR_A)).toBe(true);
+    expect((await d.listerPourEnvoi()).map((x) => x.idEvenement)).toEqual(["e2"]);
+    expect(await d.lire()).toHaveLength(2);
+    await d.enregistrer(com("e3"));
+    expect((await d.lire()).find((x) => x.idEvenement === "e3")?.ecarteDesEnvois).toBe(true);
+  });
+  it("une demande d'effacement inscrit la personne au registre commun mots.oppositions", async () => {
+    await nouveau().demanderEffacement(AUTEUR_A);
+    expect(await empreintesOpposees([AUTEUR_A])).toBe(true);
+    expect(await empreintesOpposees([AUTEUR_B])).toBe(false);
+  });
+  it("rotation du secret d'empreinte : la personne opposée sous l'ancien secret reste écartée avec les formes de son identifiant", async () => {
+    const ancien = "ancien-secret-fictif-de-test-0123456789abcdef";
+    const courant = process.env.STUDIO_EMPREINTE_SECRET!;
+    vi.stubEnv("STUDIO_EMPREINTE_SECRET", ancien);
+    const vieille = D.empreinteAuteur("contact_inventé_r");
+    await enregistrerOppositionPersonne(["contact_inventé_r"], []);
+    vi.stubEnv("STUDIO_EMPREINTE_SECRET", courant);
+    vi.stubEnv("STUDIO_EMPREINTE_SECRET_ANCIEN", ancien);
+    const nouvelle = D.empreinteAuteur("contact_inventé_r");
+    expect(nouvelle).not.toBe(vieille);
+    const d = nouveau();
+    await d.enregistrer(com("e1", { auteur: nouvelle }), D.empreintesAuteur("contact_inventé_r"));
+    expect((await d.lire())[0]!.ecarteDesEnvois).toBe(true);
+    expect(await d.auteurEcarte(nouvelle, D.empreintesAuteur("contact_inventé_r"))).toBe(true);
   });
 });
