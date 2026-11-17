@@ -23,7 +23,7 @@ vi.mock("@/services/_commun", async (original) => {
   const reel = await original<typeof import("@/services/_commun")>();
   return { ...reel, depots: () => {
     appels.depots();
-    return { videos: { obtenir: async () => ({ estDemo: false }) } };
+    return { videos: { obtenir: async () => ({ estDemo: false }) }, versions: { lister: async () => [] } };
   } };
 });
 
