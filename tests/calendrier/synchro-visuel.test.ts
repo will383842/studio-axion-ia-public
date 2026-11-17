@@ -346,3 +346,33 @@ describe("L5-06 · décision du pilote, règle 4 : même résultat quel que soit
     expect((await depots().visuels.obtenir("vis_1"))?.corbeilleLe).toBeUndefined();
   });
 });
+
+describe("L5-06 · décision du pilote, règle 2 : valide → programme → publie sous le même verrou", () => {
+  it("un visuel « validé » dont l'unique publication est publiée, sans « programmée » observée : « publié »", async () => {
+    await visuelSimple("valide");
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("publie");
+  });
+
+  it("un visuel « validé » dont les deux publications sont publiées : « publié », en une seule écriture du visuel", async () => {
+    await visuelSimple("valide");
+    await pubVisuel("pi", "instagram");
+    await pubVisuel("pl", "linkedin");
+    const { client } = diffuseurParPost({ "post-pi": { status: "published" }, "post-pl": { status: "published", plateforme: "linkedin" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("publie");
+  });
+
+  it("un visuel « validé » dont la seule publication est en échec reste « validé » (le nouvel essai reste possible)", async () => {
+    await visuelSimple("valide");
+    await pubVisuel("pi", "instagram");
+    const { client } = diffuseurParPost({ "post-pi": { status: "failed" } });
+    injecterClientZernio(client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await statutVisuel()).toBe("valide");
+  });
+});
