@@ -23,8 +23,6 @@ export interface DepsReprise {
   lireUrl?: (cle: string) => Promise<string>;
   /** Relecture seule d'une publication « à vérifier » (défaut : la relecture de l'envoi normal). */
   relire?: (publicationId: string) => Promise<Publication | null>;
-  /** Vidéo : envoi normal d'un réseau (défaut : l'envoi par outil de l'écran « À publier », avec toutes ses gardes). */
-  envoyerVideo?: (videoId: string, reseau: Publication["reseau"], dateIso: string, compte: string) => Promise<void>;
 }
 
 export type IssueReprise = { action: "envoye"; publication: Publication } | { action: "relu"; publication: Publication | null };
@@ -71,19 +69,7 @@ export async function reessayerEnvoi(publicationId: string, deps: DepsReprise): 
       const r = await envoyerVisuel(deps.service, creneau.id, reseau, { textesAlternatifs: deps.textesAlternatifs, lireUrl: deps.lireUrl });
       return { action: "envoye" as const, publication: r.publication };
     }
-    if (!p.videoId) throw REPRISE_REFUSEE("Cet envoi n'a pas de contenu.");
-    // Le consentement TikTok n'est jamais mémorisé : une vidéo TikTok ne repart pas d'ici.
-    if (p.reseau === "tiktok") throw REPRISE_REFUSEE("TikTok demande votre accord à chaque envoi : refaites l'envoi depuis « À publier ».");
-    const envoyerVideo = deps.envoyerVideo ?? envoyerVideoParDefaut;
-    await envoyerVideo(p.videoId, p.reseau, p.date, canal);
-    const apres = (await depots().publications.lister((x) => x.cleEnvoi === cle && x.etatEnvoi === "envoye"))[0];
-    if (!apres) throw new ErreurStudio("ENVOI_REFUSE", "Le nouvel essai n'a pas abouti. Rien d'autre ne partira tout seul.");
-    return { action: "envoye" as const, publication: apres };
+    // Une vidéo ne repart pas d'ici : la mention IA et le premier commentaire se décident à l'envoi, depuis « À publier ».
+    throw REPRISE_REFUSEE("Une vidéo se renvoie depuis « À publier », où tout est revu avant l'envoi.");
   });
-}
-
-async function envoyerVideoParDefaut(videoId: string, reseau: Publication["reseau"], dateIso: string, compte: string): Promise<void> {
-  const { envoyerParOutilAction } = await import("./a-publier-zernio");
-  const r = await envoyerParOutilAction(videoId, reseau, dateIso, { outil: "zernio", comptes: [compte] });
-  if (!r.ok) throw new ErreurStudio(r.code ?? "ENVOI_REFUSE", r.message);
 }

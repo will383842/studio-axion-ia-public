@@ -122,8 +122,9 @@ describe("L5-09 · interrupteur éteint = aucun essai", () => {
     await ouvrirTout();
     const id = await premierEchec(refusNet);
     await ecrireParametre(param, false);
-    await expect(reprise(id)).rejects.toMatchObject({ code: expect.stringMatching(/FERME|ZERNIO|CALENDRIER/) });
+    await expect(reprise(id)).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     expect(appels).toHaveLength(0);
+    expect(await pubs()).toHaveLength(1);
   });
 
   it("même une publication « à vérifier » n'est pas relue quand l'interrupteur est éteint", async () => {
@@ -181,12 +182,40 @@ describe("L5-09 · un seul nouvel essai après un échec net", () => {
     expect(appels).toHaveLength(0);
   });
 
-  it("une garde de l'envoi normal refuse (créneau retiré) : 0 appel", async () => {
+  it("créneau retiré : refus CRENEAU_CHANGE, 0 appel", async () => {
     await creerVisuel();
     await ouvrirTout();
     const id = await premierEchec(refusNet);
     await depots().creneauxEditoriaux.modifier("cr-1", { retireLe: "2026-11-13T10:00:00Z" } as never);
-    await expect(reprise(id)).rejects.toBeTruthy();
+    await expect(reprise(id)).rejects.toMatchObject({ code: "CRENEAU_CHANGE" });
+    expect(appels).toHaveLength(0);
+  });
+
+  it("visuel plus validé : la garde de l'envoi normal refuse, 0 appel, aucun essai consommé", async () => {
+    await creerVisuel();
+    await ouvrirTout();
+    const id = await premierEchec(refusNet);
+    await depots().visuels.modifier("vis_1", { statut: "brouillon" } as never);
+    await expect(reprise(id)).rejects.toMatchObject({ code: "VISUEL_NON_VALIDE" });
+    expect(appels).toHaveLength(0);
+    expect(await pubs()).toHaveLength(1);
+  });
+
+  it("date passée : la garde de l'envoi normal refuse, 0 appel", async () => {
+    await creerVisuel();
+    await ouvrirTout();
+    const id = await premierEchec(refusNet);
+    const passee = new Date(Date.now() - 3600_000).toISOString();
+    await depots().publications.modifier(id, { date: passee } as never);
+    await depots().creneauxEditoriaux.modifier("cr-1", { heuresParReseau: { linkedin: passee } } as never);
+    await expect(reprise(id)).rejects.toMatchObject({ code: "DATE_PASSEE" });
+    expect(appels).toHaveLength(0);
+  });
+
+  it("une vidéo ne repart jamais d'ici : refus, 0 appel", async () => {
+    await ouvrirTout();
+    await depots().publications.enregistrer({ id: "pub_v", videoId: "vid_1", reseau: "linkedin", statut: "echec", via: "zernio", date: DEMAIN, texte: "t", etatEnvoi: "refuse", canalId: CIBLE, cleEnvoi: "kv", creeLe: DEMAIN, modifieLe: DEMAIN } as never);
+    await expect(reprise("pub_v")).rejects.toMatchObject({ code: "REPRISE_REFUSEE" });
     expect(appels).toHaveLength(0);
   });
 });
@@ -263,14 +292,14 @@ describe("L5-09 · file « À corriger » et libellés", () => {
 
   it("un refus net seul : reessayer ; deux refus : à la main ; à vérifier : relire ; envoyé ou en cours : absent de la file", () => {
     const f = construireFileACorriger([
-      { ...base, id: "a", etatEnvoi: "refuse" },
-      { ...base, id: "b", etatEnvoi: "refuse", cleEnvoi: "k2" },
-      { ...base, id: "b2", etatEnvoi: "refuse", cleEnvoi: "k2" },
-      { ...base, id: "c", etatEnvoi: "a-verifier", statut: "brouillon", cleEnvoi: "k3" },
-      { ...base, id: "d", etatEnvoi: "envoye", statut: "brouillon", cleEnvoi: "k4" },
-      { ...base, id: "e", etatEnvoi: "en-cours", statut: "brouillon", cleEnvoi: "k5" },
-      { ...base, id: "f", etatEnvoi: "refuse", cleEnvoi: "k6" },
-      { ...base, id: "g", etatEnvoi: "envoye", statut: "brouillon", cleEnvoi: "k6" },
+      { ...base, id: "a", etatEnvoi: "refuse", visuelId: "va" },
+      { ...base, id: "b", etatEnvoi: "refuse", cleEnvoi: "k2", visuelId: "vb" },
+      { ...base, id: "b2", etatEnvoi: "refuse", cleEnvoi: "k2", visuelId: "vb" },
+      { ...base, id: "c", etatEnvoi: "a-verifier", statut: "brouillon", cleEnvoi: "k3", visuelId: "vc" },
+      { ...base, id: "d", etatEnvoi: "envoye", statut: "brouillon", cleEnvoi: "k4", visuelId: "vd" },
+      { ...base, id: "e", etatEnvoi: "en-cours", statut: "brouillon", cleEnvoi: "k5", visuelId: "ve" },
+      { ...base, id: "f", etatEnvoi: "refuse", cleEnvoi: "k6", visuelId: "vf" },
+      { ...base, id: "g", etatEnvoi: "envoye", statut: "brouillon", cleEnvoi: "k6", visuelId: "vf" },
     ] as never);
     const parId = Object.fromEntries(f.map((l) => [l.publicationId, l.action]));
     expect(parId.a).toBe("reessayer");
@@ -281,6 +310,14 @@ describe("L5-09 · file « À corriger » et libellés", () => {
     expect(f.some((l) => l.publicationId === "f" || l.publicationId === "g")).toBe(false);
   });
 
+  it("un refus dont le même contenu est déjà parti à une autre date n'est plus proposé", () => {
+    const f = construireFileACorriger([
+      { ...base, id: "a", etatEnvoi: "refuse" },
+      { ...base, id: "b", etatEnvoi: "envoye", statut: "brouillon", cleEnvoi: "autre", date: "2030-01-01T10:00:00Z" },
+    ] as never);
+    expect(f).toHaveLength(0);
+  });
+
   it("l'écran et les services n'écrivent ni « À reprogrammer », ni « Stock », ni nom d'outil", () => {
     for (const f of ["src/services/calendrier-reprogrammation.ts", "src/app/(studio)/calendrier/a-reprogrammer/page.tsx"]) {
       const s = readFileSync(resolve(process.cwd(), f), "utf8");
@@ -288,6 +325,7 @@ describe("L5-09 · file « À corriger » et libellés", () => {
       expect(chaines, f).not.toMatch(/À reprogrammer|Stock|Zernio|Buffer|Claude/);
     }
     const page = readFileSync(resolve(process.cwd(), "src/app/(studio)/calendrier/a-reprogrammer/page.tsx"), "utf8");
-    expect(page).toContain("À corriger");
+    expect(page).toMatch(/titre=\{LIBELLE_A_CORRIGER\}/);
+    expect(page).toContain("LIBELLE_MES_TEXTES");
   });
 });

@@ -2,6 +2,7 @@
  * L5-09 · file « À corriger » du calendrier (D6-23). Lecture seule et pure : aucune écriture, aucun appel au diffuseur.
  * Elle range les envois qui n'ont pas abouti et dit, pour chacun, ce qui est permis (jamais un envoi d'ici).
  */
+import { occupeBuffer } from "@/domaine/buffer";
 import { outilDe } from "@/domaine/outil-publication";
 import type { IdReseau, Publication } from "@/domaine/types";
 
@@ -25,7 +26,7 @@ export interface LigneACorriger {
   phrase: string;
 }
 
-type PubFile = Pick<Publication, "id" | "reseau" | "via" | "statut" | "etatEnvoi" | "date" | "cleEnvoi" | "modifieLe">;
+type PubFile = Pick<Publication, "id" | "videoId" | "visuelId" | "canalId" | "reseau" | "via" | "statut" | "etatEnvoi" | "date" | "cleEnvoi" | "modifieLe">;
 
 /** Combien de fois cet envoi (même clé) a déjà été tenté, toutes issues confondues. */
 export function nombreEssais(publications: readonly Pick<Publication, "cleEnvoi">[], cleEnvoi: string | undefined): number {
@@ -50,6 +51,9 @@ export function construireFileACorriger(publications: readonly PubFile[]): Ligne
     } else if (derniere.etatEnvoi === "absent") {
       file.push({ ...base, etat: "absent", action: "a-la-main", phrase: "Rien n'a été reçu chez le diffuseur : vérifiez chez lui, rien ne repart tout seul." });
     } else if (derniere.etatEnvoi === "refuse") {
+      // Le même contenu occupe déjà ce réseau et ce compte (autre date, autre clé) : rien à réessayer ici.
+      const dejaParti = publications.some((x) => x.id !== derniere.id && outilDe(x) === "zernio" && x.cleEnvoi !== derniere.cleEnvoi && x.reseau === derniere.reseau && x.canalId === derniere.canalId && (x.visuelId ?? x.videoId) === (derniere.visuelId ?? derniere.videoId) && occupeBuffer(x));
+      if (dejaParti) continue;
       const essais = nombreEssais(groupe, derniere.cleEnvoi);
       file.push(
         essais <= ESSAIS_APRES_ECHEC
