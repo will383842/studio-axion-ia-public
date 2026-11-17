@@ -4,7 +4,7 @@ import { choisirExtrait as choisirExtraitPioche } from "@/briques/bibliotheque-v
 import type { PlageDisponible } from "@/briques/archive-extraits/choix";
 import type { PlageExtrait } from "@/domaine/archive-extraits";
 
-const CAP = "C1.test" as const;
+const CAP = "texte.test" as const;
 
 function plage(id: string, extra: Partial<PlageExtrait> = {}): PlageExtrait {
   return { id, debutSec: 1, finSec: 5, texte: "", motsCles: [], avecVisage: false, texteIncruste: true, etat: "utilisable", ...extra } as PlageExtrait;
