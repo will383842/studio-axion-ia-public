@@ -287,11 +287,21 @@ describe("L5-02c · chemin heureux", () => {
     // À H-2 : la promotion retrouve chaque brouillon par sa cleDiffuseur.
     maintenant = Date.parse(heureDu(2)) - 2 * 60 * MIN;
     horloge.avancer(maintenant - horloge.maintenant());
-    await tour();
+    // Espion sur `promouvoir` : la clé journalisée est exactement la clé du diffuseur de l'envoi.
+    const promouvoirEspion = vi.fn();
+    const enCours = client();
+    const clientEspion = new Proxy(enCours, {
+      get: (cible, nom: string) => (nom === "promouvoir" ? (d: unknown) => { promouvoirEspion(d); return ((cible as never)[nom] as (x: unknown) => unknown)(d); } : (cible as never)[nom]),
+    });
+    await tour({ client: clientEspion });
     expect(appelsFournisseur).toHaveLength(2);
     const envois = await depots().envoisPlanifies.lister();
     expect(envois.map((e) => e.statut)).toEqual(["programme", "programme"]);
     expect(faux.appels.filter((a) => a.methode === "PUT")).toHaveLength(2);
+    expect(promouvoirEspion).toHaveBeenCalledTimes(2);
+    const journalisees = promouvoirEspion.mock.calls.map(([d]) => (d as { cleJournal: string }).cleJournal).sort();
+    expect(journalisees).toEqual(envois.map((e) => e.cleDiffuseur as string).sort());
+    expect(journalisees.every((k) => typeof k === "string" && k.length > 0)).toBe(true);
   });
 
   it("après la promotion : un tour à H-20 min puis un tour après l'heure = 0 notification, 0 appel de plus", async () => {
@@ -630,8 +640,9 @@ describe("L5-02c · jamais d'envoi depuis une validation", () => {
     "src/app/(studio)/calendrier/actions/statuts.ts",
     "src/services/porte-validation.ts",
   ])("%s : aucun « envoyer: » injecté", (f) => {
-    const s = source(f);
-    expect(s).not.toMatch(/\benvoyer\s*:\s*(async|\(|[a-z])/);
+    // Hors commentaires : ni « envoyer: », ni « envoyer, » (raccourci d'objet), ni « envoyer } » (déstructuration ou fin d'objet).
+    const s = source(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+    expect(s).not.toMatch(/\benvoyer\s*[:,}]/);
   });
 
   it("ajouter.ts et statuts.ts : la porte lue pour le libellé est publicationEditorialeAutorisee ; plus de « reglagesOuverts: async () => false »", () => {

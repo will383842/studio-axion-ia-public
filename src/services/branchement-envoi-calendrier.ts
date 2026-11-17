@@ -154,7 +154,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
         // Déjà chez le diffuseur sous cette version (programmé, confirmé, parti) : aucune ligne, donc aucune fausse alerte « à reprogrammer ».
         if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && ["programme", "confirme", "a-envoyer", "envoye"].includes(e.statut))).length) continue;
         const exclu = (motif: string, raison: string): Promise<void> =>
-          passe ? Promise.resolve() : notifierUneFois(etats, notifier, `exclu:${motif}:${c.id}:${reseau}:v${c.decalages}`, { cle: `exclu:${c.id}:${reseau}:v${c.decalages}`, videoId: media, motif: "a-reprogrammer", raison });
+          notifierUneFois(etats, notifier, `exclu:${motif}:${c.id}:${reseau}:v${c.decalages}`, { cle: `exclu:${c.id}:${reseau}:v${c.decalages}`, videoId: media, motif: "a-reprogrammer", raison });
         // a. Vidéos (dont les créneaux « vid-… » du plan vidéo) : jamais envoyées seules en V1.
         if (estVideo || c.id.startsWith("vid-")) {
           await exclu("video", "Une vidéo ne part pas seule depuis le calendrier pour l'instant : rien n'est envoyé. Elle suit son propre parcours.");
@@ -211,10 +211,40 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     return typeof r.publication.cleEnvoi === "string" ? { cleDiffuseur: r.publication.cleEnvoi } : undefined;
   }
 
+  // Le plan est relu à chaque lecture des envois et JUSTE AVANT chaque promotion : un créneau décalé, retiré, refusé ou dévalidé
+  // pendant un tour long n'est jamais promu (son envoi passe à « annulé », le créneau est signalé une seule fois).
+  const depotBrut = depots().envoisPlanifies;
+  const depot: typeof depotBrut = new Proxy(depotBrut, {
+    get: (cible, nom: string) => {
+      const v = (cible as never)[nom] as unknown;
+      if (nom !== "lister" || typeof v !== "function") return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(cible) : v;
+      return async (...a: unknown[]) => {
+        await annulerVersionsPerimees(maintenant());
+        return (v as (...x: unknown[]) => unknown).apply(cible, a);
+      };
+    },
+  });
+  const clientBrut = inj.client ?? clientZernio();
+  const client: ClientZernio = new Proxy(clientBrut, {
+    get: (cible, nom: string) => {
+      const v = (cible as never)[nom] as unknown;
+      if (typeof v !== "function") return v;
+      if (nom !== "promouvoir") return (v as (...a: unknown[]) => unknown).bind(cible);
+      return async (d: Parameters<ClientZernio["promouvoir"]>[0]) => {
+        const perime = await envoiPerimeAvantPromotion(d.cleJournal, maintenant());
+        if (perime) {
+          await notifierUneFois(etats, notifier, `perime:${d.cleJournal}`, { cle: d.cleJournal, videoId: perime, motif: "a-reprogrammer", raison: "Ce créneau a changé (décalé, retiré ou plus validé) pendant l'envoi : il n'a pas été programmé. Vérifiez-le dans le calendrier." });
+          return { etat: "refuse" as const, raison: "créneau changé pendant le tour : promotion abandonnée" };
+        }
+        return cible.promouvoir(d);
+      };
+    },
+  });
+
   return {
-    depot: depots().envoisPlanifies,
+    depot,
     creneaux,
-    client: inj.client ?? clientZernio(),
+    client,
     reglages: { envoiAutorise: envoiZernioAutorise, envoiCalendrierAutorise, editorialeActive },
     maintenant,
     etats,
@@ -233,6 +263,9 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
  * version passe à « annulé » AVANT la promotion. Un envoi « programme » n'est jamais touché (déjà chez le diffuseur). Aucun appel au
  * diffuseur, rien n'est supprimé. Sous `sousVerrou` : seul cet écrit s'y fait, jamais un envoi.
  */
+const estPerime = (e: EnvoiPlanifie, c: (CreneauEditorial & { aRenvoyer?: boolean }) | undefined): boolean =>
+  !c || c.statut !== "valide" || !!c.retireLe || !!c.refuseLe || e.versionCreneau < c.decalages;
+
 async function annulerVersionsPerimees(maintenant: number): Promise<number> {
   return sousVerrou(async () => {
     const d = depots();
@@ -240,9 +273,7 @@ async function annulerVersionsPerimees(maintenant: number): Promise<number> {
     const envois: EnvoiPlanifie[] = await d.envoisPlanifies.lister((e) => !!e.creneauId && (e.statut === "brouillon" || e.statut === "valide"));
     let n = 0;
     for (const e of envois) {
-      const c = e.creneauId ? plan.get(e.creneauId) : undefined;
-      const perime = !c || c.statut !== "valide" || !!c.retireLe || !!c.refuseLe || e.versionCreneau < c.decalages;
-      if (!perime) continue;
+      if (!estPerime(e, e.creneauId ? plan.get(e.creneauId) : undefined)) continue;
       try {
         await annulerEnvoi(d.envoisPlanifies, e.id, new Date(maintenant).toISOString());
         n++;
@@ -251,6 +282,26 @@ async function annulerVersionsPerimees(maintenant: number): Promise<number> {
       }
     }
     return n;
+  });
+}
+
+/**
+ * Relecture du plan juste avant une promotion : si l'envoi (désigné par sa clé de journal) vient de devenir périmé, il est annulé
+ * et l'identifiant du média est rendu (la promotion est alors abandonnée) ; sinon `undefined`.
+ */
+async function envoiPerimeAvantPromotion(cleJournal: string, maintenant: number): Promise<string | undefined> {
+  return sousVerrou(async () => {
+    const d = depots();
+    const [e] = await d.envoisPlanifies.lister((x) => !!x.creneauId && (x.statut === "brouillon" || x.statut === "valide") && (x.cleDiffuseur ?? x.cle) === cleJournal);
+    if (!e) return undefined;
+    const plan = (await d.creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[];
+    if (!estPerime(e, plan.find((c) => c.id === e.creneauId))) return undefined;
+    try {
+      await annulerEnvoi(d.envoisPlanifies, e.id, new Date(maintenant).toISOString());
+    } catch {
+      // Même si l'annulation échoue, la promotion est abandonnée : rien ne part.
+    }
+    return e.videoId;
   });
 }
 
