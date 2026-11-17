@@ -15,6 +15,7 @@ import { Legende } from "./Legende";
 import { ListeCrm } from "./ListeCrm";
 import { AvantApres, Barres, Citation, Compteur, Etapes, Jauge, ListeAuMot, Repere } from "./PiecesDonnees";
 import { TableauDeBord } from "./TableauDeBord";
+import { RENDUS_OBJETS } from "./objets-inscrits";
 import { ZoomCamera, transformZoom } from "./ZoomCamera";
 
 export type RenduBrique = ComponentType<ProprietesBrique<never> & { enfants?: ReactNode }>;
@@ -38,6 +39,7 @@ export const RENDUS_BRIQUES: Record<IdPiece, RenduBrique> = {
   "liste-au-mot": ListeAuMot as RenduBrique,
   citation: Citation as RenduBrique,
   repere: Repere as RenduBrique,
+  ...RENDUS_OBJETS,
 };
 
 export { transformZoom };

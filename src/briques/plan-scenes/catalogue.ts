@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 import { TOILES } from "./toiles";
+import { BRIQUES_OBJETS } from "./briques/objets-inscrits";
 
 const texteCourt = (max: number) => z.string().trim().min(1).max(max);
 const point = z.strictObject({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) });
@@ -403,6 +404,7 @@ export const CATALOGUE_BRIQUES = {
     schema: schemaRepere,
     exemple: { genre: "lieu", texte: "Lyon", surMot: 0, aMs: 300 },
   }),
+  ...BRIQUES_OBJETS,
 } as const;
 
 export type IdPiece = keyof typeof CATALOGUE_BRIQUES;
