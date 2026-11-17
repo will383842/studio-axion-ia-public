@@ -1,0 +1,12 @@
+{
+  "stethoscope": "devices/stethoscope",
+  "seringue": "devices/syringe",
+  "medicament": "medications/pill-1",
+  "pansement": "objects/bandage-adhesive",
+  "tension": "devices/blood-pressure_monitor",
+  "vaccin": "devices/syringe-vaccine",
+  "microscope": "devices/microscope",
+  "adn": "body/dna",
+  "dossier-medical": "specialties/medical-records",
+  "masque-chirurgical": "ppe/ppe-mask"
+}
