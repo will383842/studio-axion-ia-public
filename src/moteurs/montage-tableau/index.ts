@@ -30,6 +30,7 @@ import { decouperEnScenes, type EntreeDecoupage, type OutilsDecoupage } from "./
 import { ETAPES_CHAINE, etapeDuMoteur, etapesTableau, ficheFournie, lireEntreesTableau, type CleEtapeTableau, type VoixPayee } from "./etapes";
 import { formatImage, formatSortie, PORTRAIT_LINKEDIN, reseauxDeLaSortie, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
 import { intensiteSousTitresTableau } from "./dosage";
+import { INTENSITE_SOUS_TITRES_TABLEAU, intensiteEstLeRepli } from "./sous-titres-tableau";
 import { finAuMot } from "./variantes-fin";
 import type { FinRetenue } from "./relecture";
 import { finPermise } from "@/reseaux/sorties";
@@ -408,6 +409,8 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsTableau
     ...(reste.styleSousTitres === undefined && commande.styles.sousTitres?.valeur?.type === "style-sous-titres" ? { styleSousTitres: commande.styles.sousTitres as StyleResolu<ValeurStyleSousTitres> } : {}),
     // 17/10 : intensité des sous-titres dynamiques (choix de la vidéo, sinon profil du format), figée dans la commande.
     ...((n) => (reste.intensiteSousTitres === undefined && n ? { intensiteSousTitres: n } : {}))(intensiteSousTitresTableau(commande.dosageMotion?.cran, commande.sousTitres?.intensite)),
+    // 17/11 (FIX-SOUS-TITRES-TABLEAU) : le repli « equilibre » de reglageIntensite n'est pas un choix de la vidéo : le tableau prend son défaut (un seul style).
+    ...(reste.intensiteSousTitres === undefined && intensiteEstLeRepli(commande) ? { intensiteSousTitres: INTENSITE_SOUS_TITRES_TABLEAU } : {}),
     // Case « déjà vu » cochée à la création : la relecture de la fabrication la lit (sans elle, la relecture bloque).
     ...(!reste.dejaVu && entrees.dejaVu ? { dejaVu: entrees.dejaVu } : {}),
     ...(tracer ? { tracer: (e) => tracer({ ...e, ...(versionId ? { versionId } : {}) }) } : {}),
