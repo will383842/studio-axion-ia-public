@@ -2,7 +2,8 @@
  * SUPPRESSION DÉFINITIVE d'une vidéo (décision écrite de Will du 17/10 : « Vraie suppression, dépenses gardées »).
  *
  * Seule exception à « on ne purge rien » : rien n'est jamais effacé automatiquement ; seule la suppression MANUELLE
- * d'une vidéo par Will, confirmée, efface. Le plan est calculé d'abord, puis appliqué en UN lot (une transaction avec
+ * d'une vidéo par Will, confirmée, efface. 2e exception, la fiche d'extraits de la vidéo (P-7, accord de Williams du
+ * 17/11/2026 « oui P-7 ») : elle part avec elle, et l'id est retiré des `famille` des autres fiches. Le plan est calculé d'abord, puis appliqué en UN lot (une transaction avec
  * Postgres) ; les objets du stockage (R2) partent EN DERNIER, une erreur y est journalisée sans bloquer.
  *
  * Effacé : la vidéo et ce qui n'existe que pour elle (versions, plans, pistes, retouches, miniatures, sous-titres,
@@ -364,6 +365,16 @@ export async function planifierSuppression(video: Video): Promise<PlanSuppressio
   // Bibliothèque : l'élément reste, il oublie seulement la dernière vidéo qui l'a utilisé.
   for (const e of await d.elements.lister((x) => x.derniereVideoId === id)) {
     reecrire("elements", { ...e, derniereVideoId: undefined, modifieLe: maintenant() } as unknown as Doc);
+  }
+  // P-7 : la fiche d'extraits de la vidéo est effacée et non détachée (elle contient ses paroles) ; l'id quitte `famille` des autres.
+  for (const e of await d.elements.lister((x) => x.valeur.type === "source-extraits")) {
+    const f = e.valeur.type === "source-extraits" ? e.valeur.fiche : null;
+    if (!f || (f.videoId !== id && !f.famille.includes(id))) continue;
+    const cle = `elements/${e.id}`, deja = reecrit.get(cle) as typeof e | undefined;
+    lot.enregistrer = lot.enregistrer.filter((x) => `${x.collection}/${x.entite.id}` !== cle);
+    reecrit.delete(cle);
+    if (f.videoId === id) effacer("elements", [e.id]);
+    else reecrire("elements", { ...(deja ?? e), valeur: { ...e.valeur, fiche: { ...f, famille: f.famille.filter((x) => x !== id) } } } as unknown as Doc);
   }
   // Vidéos filles (version par réseau, 2e ouverture) : elles gardent leur vie sans leur mère, `sourceVideoId` et le lien
   // de leur déclinaison sont retirés. (Une fille qui ATTEND sa mère est refusée avant, sauf si elle est supprimée avec elle.)
