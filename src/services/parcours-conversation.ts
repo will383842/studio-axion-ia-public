@@ -2059,7 +2059,7 @@ async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversat
     return "fait";
   }
   if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
-  // Instagram (réglage allumé) : plafond de 3 messages par personne et par 24 h. Atteint : rien ne part ; reporté (« bloque ») si encore servable, sinon abandonné.
+  // Instagram (réglage allumé) : borne de 2 réponses (accusé + adresse mal tapée, `PLAFOND_IG_REPONSES`) par personne et par 24 h, hors plafond de 3 (M1, M2, relances). Atteinte : rien ne part ; reporté (« bloque ») si encore servable, sinon abandonné.
   const ig = igSuivre && etat.reseau === "instagram";
   if (ig) {
     const lim = await plafondReponsesIg(cle, now);
