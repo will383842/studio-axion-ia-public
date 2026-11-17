@@ -113,7 +113,7 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
 
       {onglet === "ignores" ? (
         <ul className="grid gap-2">
-          {ignores.length === 0 && <li className="text-sm text-texte-faible">Rien n'a été ignoré.</li>}
+          {ignores.length === 0 && <li className="text-sm text-texte-faible">{"Rien n'a été ignoré."}</li>}
           {ignores.map((f) => (
             <li key={f.videoId} className="rounded-carte border border-trait-fort bg-surface-2 p-3 text-sm text-texte">
               <span className="font-semibold">{titres[f.videoId] ?? f.videoId}</span> : {f.ignores?.nombre} ignoré{(f.ignores?.nombre ?? 0) > 1 ? "s" : ""}
@@ -123,7 +123,7 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
         </ul>
       ) : (
         <ul className="grid gap-3">
-          {visibles.length === 0 && <li className="text-sm text-texte-faible">Aucun extrait ici pour l'instant.</li>}
+          {visibles.length === 0 && <li className="text-sm text-texte-faible">{"Aucun extrait ici pour l'instant."}</li>}
           {visibles.map(({ fiche, plage }) => {
             const demande: ApercuDemande = { videoId: fiche.videoId, plageId: plage.id, debutSec: plage.debutSec, finSec: plage.finSec };
             const cle = `${fiche.videoId}/${plage.id}`;
@@ -147,7 +147,7 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
                 <div className="flex flex-wrap gap-2">
                   {surApercu && (
                     <button type="button" className={CLASSE_BOUTON} onClick={() => { setOuverts((o) => ({ ...o, [cle]: true })); surApercu(demande); }}>
-                      Voir l'aperçu
+                      {"Voir l'aperçu"}
                     </button>
                   )}
                   {surNePlusProposer && <button type="button" className={CLASSE_BOUTON} onClick={() => surNePlusProposer(fiche.videoId, plage.id)}>Ne plus proposer</button>}
