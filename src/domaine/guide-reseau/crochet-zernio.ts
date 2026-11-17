@@ -137,7 +137,9 @@ export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
  * pareil ici et dans le module de normalisation (« Guidé » et « GUIDE ! » donnent le même résultat). L'opposition reste prioritaire (mot ou phrase : « Stop, merci » → « STOP »).
  */
 export function motSeulDe(v: unknown, motsConnus: readonly string[] = MOTS_DECLENCHEURS_CONNUS): string | null {
-  const t = texteBorne(v, 200);
+  // Commentaire sur plusieurs lignes accepté : retours à la ligne et tabulations (\r, \n, \t) lus comme des espaces, un pour un (la borne de 200 reste la même).
+  // Les AUTRES caractères de contrôle restent refusés par `texteBorne`.
+  const t = texteBorne(typeof v === "string" ? v.replace(/[\r\n\t]/g, " ") : v, 200);
   if (t === null) return null;
   if (estMotOpposition(t)) return formeCanonique(t); // forme canonique (« STOP »), jamais le texte brut
   return motAvecPolitesse(t, motsConnus); // forme canonique (« GUIDE ») : jamais le texte brut ; accepte « GUIDE merci », « merci GUIDE »
