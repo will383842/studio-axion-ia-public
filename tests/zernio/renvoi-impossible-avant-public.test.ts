@@ -92,10 +92,10 @@ describe("C1-a · non-régression : le parcours normal ne change pas", () => {
     await rejouer();
     expect(instantane()).toMatchObject({ pub: 2, prive: 2, site: 1 });
   });
-  it("livré il y a moins de 24 h : réponse publique seule, aucun privé (inchangé)", async () => {
+  it("livré il y a moins de 24 h : réponse publique seule, aucun privé : aucune réponse publique, aucun privé", async () => {
     const { rejouer } = await livrerPuisRetaper(23 * H, ENV_LIEN);
     await rejouer();
-    expect(instantane()).toMatchObject({ pub: 2, prive: 1, site: 1 });
+    expect(instantane()).toMatchObject({ pub: 1, prive: 1, site: 1 });
   });
   it("premier envoi sans lien (réglage de production) : réponse publique puis premier message privé", async () => {
     await deposerCommentaire(depots, { idAuteur: AUTEUR, idCommentaire: "com-c1a-n", motSeul: "GUIDE", reseau: "facebook" });
