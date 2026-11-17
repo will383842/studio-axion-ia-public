@@ -2,12 +2,14 @@
  * Archive des vidéos livrées (C3-UT-3.5) : les plages qu'une vidéo a le droit de montrer, et la recherche de l'écran.
  * Filtres de DROIT seulement : rien n'est noté, rien n'est classé (ordre reçu conservé). Pur : aucun service, aucune
  * date implicite (`maintenant` est fournie), aucun hasard. Défauts du droit : `EXTRAITS_PAR_DEFAUT`.
+ * X4-11d : une fiche `attentePublication === true` ne donne que ses plages proposables avant publication (`attente-publication.ts`).
  */
 import type { PlageExtrait } from "@/domaine/archive-extraits";
 import { etatLicence } from "@/domaine/derivations";
 import type { ElementBibliotheque, IdReseau, Ratio } from "@/domaine/types";
 import { EXTRAITS_PAR_DEFAUT } from "../bibliotheque-video/profils/neutre";
 import { cleUsageExtrait, type BlocExtraits, type IdCapacite } from "../bibliotheque-video/types";
+import { plageProposableAvantPublication } from "./attente-publication";
 import { motsClesDe } from "./mots-cles";
 
 export interface DemandeExtraits {
@@ -52,6 +54,7 @@ export function plagesDisponibles(elements: readonly ElementBibliotheque[], dema
     }
     for (const plage of fiche.plages) {
       if (plage.etat !== "utilisable") continue;
+      if (fiche.attentePublication === true && !plageProposableAvantPublication(plage)) continue; // X4-11d
       if (plage.avecVisage && !visageSurInstagram) continue;
       if (plage.texteIncruste && !texteAccepte) continue;
       if (plage.finSec - plage.debutSec < dureeMin) continue;
