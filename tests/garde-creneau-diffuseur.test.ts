@@ -708,7 +708,7 @@ describe("L5-02d · interrupteurs éteints = aucun changement visible", () => {
 });
 
 describe("L5-02d · aucun interblocage", () => {
-  it("un décalage pendant un tour se termine en moins de 2 s ; aucune notification n'est faite sous le verrou", async () => {
+  it("un décalage entre deux tours (aucune promotion en vol) répond sans attente ; aucune notification n'est faite sous le verrou", async () => {
     await brouillonPrepare();
     // Notification par la cloche réelle (sans injection) : brouillon puis décalage puis tour suivant.
     const t0 = performance.now();
