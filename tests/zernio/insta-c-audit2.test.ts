@@ -129,7 +129,7 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
       luLe: T0, ignores: 0, depuisCopie: false,
     };
   };
-  it("m1_a_verifier puis adresse puis 2 autres mots : au plus 3 messages Instagram en tout", async () => {
+  it("m1_a_verifier puis adresse puis 2 autres mots : au plus 3 relances comptées, le reçu s'ajoute (hors plafond)", async () => {
     catalogue();
     await REG_MOTS(["GUIDE", "DEUX", "TROIS"]);
     await semer("1", "m1_a_verifier", { versionTexteM1: "mp-m1-v4-1", formulations: {}, guide: "guide-ia", essaiEnvoiLe: iso(T0 - 2 * H) }, ["m1Le"]);
@@ -142,12 +142,16 @@ describe("V2 · plafond de 3 messages Instagram par personne : tous les chemins"
     await pass(T1 + 60_000);
     const e3 = await deposerCommentaire(depots, { idCommentaire: "com-ig-3", motSeul: "TROIS", reseau: "instagram" });
     await pass(T1 + 120_000);
-    // 1 (m1 d'issue inconnue, déjà parti) + reçu (1) + 2e mot (1) = 3 : le 3e mot ne part pas.
-    expect(total()).toBeLessThanOrEqual(2);
-    expect(envois.length).toBe(1); // le reçu de l'adresse
-    expect(prives.length).toBe(1); // « suivre le compte » du 2e mot
-    expect((await evt(e2)).etat).not.toBe("a_reessayer");
-    expect((await evt(e3)).dernierCode).toBe("plafond_personne");
+    // Relances comptées : 1 (m1 d'issue inconnue, déjà parti) + « suivre le compte » du 2e mot (1)
+    // + « suivre le compte » du 3e mot (1) = 3, jamais plus. Le reçu de l'adresse (1) est hors plafond :
+    // il s'ajoute (3 messages envoyés ici : 1 reçu + 2 privés, hors le m1 déjà parti).
+    expect(total()).toBe(3);
+    expect(envois.length).toBe(1); // le reçu de l'adresse (hors plafond, borné à 2 par 24 h)
+    expect(prives.length).toBe(2); // « suivre le compte » du 2e et du 3e mot
+    expect(1 + prives.length).toBeLessThanOrEqual(3); // m1 déjà parti + relances d'ici : plafond de 3 respecté
+    expect((await evt(e2)).etat).toBe("ig_attente_ok");
+    expect((await evt(e3)).etat).toBe("ig_attente_ok");
+    expect((await evt(e3)).dernierCode).toBeNull(); // le 3e mot part (3e relance comptée) : il n'est plus écarté
   });
 
   const troisRecents = (extra: Record<string, unknown> = {}) => semer("1", "attente_email", { versionTexteM1: "mp-m1-v2", formulations: {}, guide: "guide-ia", m1Le: iso(T0 - 100_000), pasEncoreLe: iso(T0 - 90_000), lienIgLe: iso(T0 - 80_000), ...extra });
