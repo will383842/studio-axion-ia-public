@@ -16,7 +16,7 @@
  */
 import "server-only";
 import { createHash } from "node:crypto";
-import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceBuffer, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
+import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceHistorique, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
 import { estChezUnOutil, outilDe, outilPour, type RoutagePublication } from "@/domaine/outil-publication";
 import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, memeSource, videoIdSure } from "@/domaine/types";
@@ -172,7 +172,7 @@ export async function choisirCanalBuffer(reseau: IdReseau, canalId: string | str
   }
   const lus = (await canauxEnregistres())?.canaux ?? [];
   const canaux = ids.map((id) => lus.find((c) => c.id === id));
-  if (canaux.some((c) => !c || c.service !== serviceBuffer(reseau))) throw new ErreurStudio("COMPTE_INCONNU", "Ce compte n'est pas relié à ce réseau dans Buffer : actualisez les comptes.");
+  if (canaux.some((c) => !c || c.service !== serviceHistorique(reseau))) throw new ErreurStudio("COMPTE_INCONNU", "Ce compte n'est pas relié à ce réseau dans Buffer : actualisez les comptes.");
   await ecrireParametre(PARAM_CORRESPONDANCE, { ...actuelle, [reseau]: ids });
   await journaliser("reglages", `Buffer : ${obtenirReseau(reseau).nom}, proposé par défaut : ${canaux.map((c) => `« ${c!.nom} »`).join(" et ")}`);
 }
@@ -229,7 +229,7 @@ export async function vueBuffer(): Promise<VueBuffer> {
     lusLe: lus?.lusLe,
     comptes: canaux.map((c) => ({ id: c.id, nom: c.nom, service: c.service, deconnecte: c.deconnecte })),
     reseaux: listerReseaux().map((r): VueCompteReseau => {
-      const duService = canaux.filter((x) => x.service === serviceBuffer(r.id));
+      const duService = canaux.filter((x) => x.service === serviceHistorique(r.id));
       const candidats = duService.filter((x) => !x.deconnecte).map((x) => ({ id: x.id, nom: x.nom, genre: x.genre }));
       const deconnectes = duService.filter((x) => x.deconnecte);
       const avertissement = deconnectes.length && candidats.length ? messageDeconnectes(r.id, deconnectes) : undefined;

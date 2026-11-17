@@ -53,8 +53,6 @@ const CHAMPS_D_AVANT = [
   "legende",
   "miniature",
   "etiquetteIA",
-  "viaBuffer",
-  "serviceBuffer",
 ] as const;
 
 /** Le registre tel qu'il était à `1d213458` (master du 18/10/2026), copié champ par champ. */
@@ -77,8 +75,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 3000, longueurVisible: 210, motsDieseMax: 5, motsDieseConseilles: 3 },
     miniature: { ratio: "16:9", modifiable: true },
     etiquetteIA: "LinkedIn : rien à cocher ; une mention dans le texte du post.",
-    viaBuffer: true,
-    serviceBuffer: "linkedin",
   },
   {
     id: "instagram",
@@ -94,8 +90,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 30, motsDieseConseilles: 5 },
     miniature: { ratio: "3:4", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » dans les paramètres avancés.",
-    viaBuffer: true,
-    serviceBuffer: "instagram",
   },
   {
     id: "facebook",
@@ -111,8 +105,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 2200, longueurVisible: 125, motsDieseMax: 10, motsDieseConseilles: 3 },
     miniature: { ratio: "9:16", modifiable: true },
     etiquetteIA: "Activer « Étiquette IA » avant de publier.",
-    viaBuffer: true,
-    serviceBuffer: "facebook",
   },
   {
     id: "tiktok",
@@ -128,8 +120,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 2200, longueurVisible: 100, motsDieseMax: 8, motsDieseConseilles: 4 },
     miniature: { ratio: "9:16", modifiable: true },
     etiquetteIA: "Cocher « Contenu généré par l'IA » dans les réglages de la publication.",
-    viaBuffer: true,
-    serviceBuffer: "tiktok",
   },
   {
     id: "youtube",
@@ -145,8 +135,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 5000, longueurVisible: 160, motsDieseMax: 15, motsDieseConseilles: 3 },
     miniature: { ratio: "16:9", modifiable: true },
     etiquetteIA: "Répondre « Oui » à « Contenu modifié ou synthétique ».",
-    viaBuffer: true,
-    serviceBuffer: "youtube",
   },
   {
     id: "youtube-shorts",
@@ -162,8 +150,6 @@ const REGISTRE_D_AVANT = [
     legende: { longueurMax: 100, longueurVisible: 60, motsDieseMax: 3, motsDieseConseilles: 2 },
     miniature: { ratio: "9:16", modifiable: false },
     etiquetteIA: "Répondre « Oui » à « Contenu modifié ou synthétique ».",
-    viaBuffer: true,
-    serviceBuffer: "youtube",
   },
 ];
 

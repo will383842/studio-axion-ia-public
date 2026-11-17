@@ -8,19 +8,36 @@
  * - Retrouver un envoi dont la réponse s'est perdue : même compte, même texte, créé après le début de l'envoi.
  */
 import type { CanalPublication, EtatPublicationExterne } from "@/fournisseurs/types";
-import { listerReseaux, obtenirReseau } from "@/reseaux";
+import { listerReseaux } from "@/reseaux";
 import type { Tonalite } from "./libelles";
 import { estChezUnOutil, outilDe, type OutilPublication } from "./outil-publication";
 import type { IdReseau, Publication } from "./types";
 
-/** Service Buffer d'un réseau du studio (registre des réseaux, une seule source). */
-export function serviceBuffer(reseau: IdReseau): string {
-  return obtenirReseau(reseau).serviceBuffer;
+/**
+ * BUF-02 : correspondance réseau → service du compte chez l'ancien outil, gardée ICI pour la LECTURE des comptes et de
+ * l'historique seulement (YouTube et YouTube Shorts : le même compte « youtube »). Elle ne décrit aucune voie d'envoi :
+ * la table des réseaux n'en porte plus.
+ */
+const SERVICE_HISTORIQUE: Readonly<Record<IdReseau, string>> = {
+  linkedin: "linkedin",
+  instagram: "instagram",
+  facebook: "facebook",
+  tiktok: "tiktok",
+  youtube: "youtube",
+  "youtube-shorts": "youtube",
+};
+
+/** Service d'un réseau du studio chez l'ancien outil (lecture des comptes et de l'historique). */
+export function serviceHistorique(reseau: IdReseau): string {
+  return SERVICE_HISTORIQUE[reseau];
 }
+
+/** Alias d'un ancien nom, gardé pour `reglages/actions-zernio.ts` (zone Zernio, hors de cette fiche) ; à retirer avec lui. */
+export const serviceBuffer = serviceHistorique;
 
 /** Nom lisible d'un service Buffer : celui du premier réseau qui y part (« youtube » → « YouTube »). */
 export function nomService(service: string): string {
-  return listerReseaux().find((r) => r.serviceBuffer === service)?.nom ?? "Autre compte";
+  return listerReseaux().find((r) => SERVICE_HISTORIQUE[r.id] === service)?.nom ?? "Autre compte";
 }
 
 /**
@@ -42,7 +59,7 @@ export type CanalPourReseau =
 export function canalPourReseau(reseau: IdReseau, canaux: CanalPublication[], correspondance: CorrespondanceBuffer = {}): CanalPourReseau {
   const c = comptesPourReseau(reseau, canaux, correspondance);
   if (!c.ok) return { ...c, raison: c.raison === "inconnu" ? "plusieurs" : c.raison };
-  if (c.canaux.length > 1) return { ok: false, raison: "plusieurs", candidats: canaux.filter((x) => x.service === serviceBuffer(reseau)), message: messagePlusieurs(reseau) };
+  if (c.canaux.length > 1) return { ok: false, raison: "plusieurs", candidats: canaux.filter((x) => x.service === serviceHistorique(reseau)), message: messagePlusieurs(reseau) };
   return { ok: true, canal: c.canaux[0], source: c.source === "auto" ? "auto" : "choisi" };
 }
 
@@ -51,7 +68,7 @@ export type ComptesPourReseau =
   | { ok: false; raison: "aucun" | "plusieurs" | "deconnecte" | "inconnu"; candidats: CanalPublication[]; message: string };
 
 const messagePlusieurs = (reseau: IdReseau, deconnectes: CanalPublication[] = []) => {
-  const nom = nomService(serviceBuffer(reseau));
+  const nom = nomService(serviceHistorique(reseau));
   const dont = deconnectes.length ? ` (${listeNoms(deconnectes)} ${deconnectes.length > 1 ? "sont déconnectés" : "est déconnecté"})` : "";
   return `Plusieurs comptes ${nom} sont reliés${dont} : choisissez le compte ${nom} une première fois, en envoyant une vidéo.`;
 };
@@ -64,7 +81,7 @@ function listeNoms(canaux: CanalPublication[]): string {
 
 /** Phrase d'un ou plusieurs comptes déconnectés, qui les NOMME (« Le compte LinkedIn « Page » est déconnecté… »). */
 export function messageDeconnectes(reseau: IdReseau, deconnectes: CanalPublication[]): string {
-  const nom = nomService(serviceBuffer(reseau));
+  const nom = nomService(serviceHistorique(reseau));
   return deconnectes.length > 1
     ? `Les comptes ${nom} ${listeNoms(deconnectes)} sont déconnectés chez le diffuseur : reconnectez-les.`
     : `Le compte ${nom} ${listeNoms(deconnectes)} est déconnecté chez le diffuseur : reconnectez-le.`;
@@ -78,7 +95,7 @@ export function messageDeconnectes(reseau: IdReseau, deconnectes: CanalPublicati
  * Un compte déconnecté n'est jamais retenu ; le message le NOMME.
  */
 export function comptesPourReseau(reseau: IdReseau, canaux: CanalPublication[], correspondance: CorrespondanceBuffer = {}, choisis?: string[]): ComptesPourReseau {
-  const service = serviceBuffer(reseau);
+  const service = serviceHistorique(reseau);
   const nom = nomService(service);
   const candidats = canaux.filter((c) => c.service === service);
   const deconnecte = (comptes: CanalPublication[]) => ({ ok: false as const, raison: "deconnecte" as const, candidats, message: messageDeconnectes(reseau, comptes) });
