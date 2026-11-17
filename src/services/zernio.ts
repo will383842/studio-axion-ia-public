@@ -77,6 +77,14 @@ export async function envoiCalendrierAutorise(): Promise<boolean> {
   return (await lireParametre<boolean>(PARAM_ENVOI_CALENDRIER, false)) === true;
 }
 
+/**
+ * L5-06 · décision du pilote n° 2 : le suivi de l'ÉTAPE des visuels par la synchro (après un passage ET au rattrapage) est un
+ * interrupteur NEUF, ÉTEINT par défaut. Éteint : la synchro n'écrit JAMAIS `visuels.statut`. Seul `true` allume. Relu à chaque passage.
+ */
+export async function synchroEtapeVisuelsActive(): Promise<boolean> {
+  return (await lireParametre<boolean>("zernio.synchro_etape_visuels", false)) === true;
+}
+
 /** Envoi de publications (calendrier, promotion) : exige les DEUX réglages ouverts. Le GUIDE n'utilise pas cette porte. */
 export async function envoiPublicationCalendrierAutorise(): Promise<boolean> {
   return (await envoiZernioAutorise()) && (await envoiCalendrierAutorise());
@@ -482,6 +490,14 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
   }
+  // Interrupteur éteint (défaut) : aucune écriture sur `visuels.statut`, ni après le passage ni au rattrapage (comportement de master).
+  let suitLesVisuels = false;
+  try {
+    suitLesVisuels = await synchroEtapeVisuelsActive();
+  } catch {
+    /* lecture du réglage impossible : éteint */
+  }
+  if (!suitLesVisuels) return r;
   for (const id of visuelsTouches) await visuelSuitSansBloquer(id);
   try {
     await rattraperVisuels();
