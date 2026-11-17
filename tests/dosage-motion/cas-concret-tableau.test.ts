@@ -2,7 +2,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { appliquerContraintes, contraintesDosageCasConcret } from "@/moteurs/montage-cas-concret/dosage";
+import { tirageDose } from "@/moteurs/montage-cas-concret/fabriquer";
+import { variationSousTitresCasConcret } from "@/moteurs/montage-cas-concret/sous-titres-variete";
+import { fabriquerSousTitres } from "@/briques/sous-titres";
 import { intensiteSousTitresTableau } from "@/moteurs/montage-tableau/dosage";
 import type { NiveauIntensite } from "@/domaine/types";
 import { tirer, type Tirage } from "@/moteurs/montage-cas-concret/variete";
@@ -14,16 +16,25 @@ const INDEX_TABLEAU = lire("src/moteurs/montage-tableau/index.ts");
 
 const tirages = (): Tirage[] => Array.from({ length: 20 }, (_, i) => tirer({ videoId: `video-x3-07-${i}`, canaux: ["linkedin", "youtube-shorts"], historique: [] }));
 
-/** Le chemin de fabriquer.ts : `if (o.dosage) tirage = appliquerContraintes(tirage, contraintesDosageCasConcret(o.dosage))`. */
-const chemin = (t: Tirage, dosage?: "sobre" | "equilibre" | "dynamique") => (dosage ? appliquerContraintes(t, contraintesDosageCasConcret(dosage)) : t);
+/** Le vrai code de fabriquer.ts (exporté), appelé aux 2 endroits du moteur. */
+const chemin = (t: Tirage, dosage?: "sobre" | "equilibre" | "dynamique") => tirageDose(t, dosage);
 
-/** Le branchement de montage-tableau/index.ts (copie de la ligne, garde `reste.intensiteSousTitres === undefined` comprise). */
+/** La ligne de montage-tableau/index.ts, lue dans la source et évaluée (le test rougit si elle change). */
+const ligneTableau = INDEX_TABLEAU.split("\n").find((l) => l.includes("intensiteSousTitresTableau(commande"))!;
+const corpsTableau = ligneTableau.trim().replace(/^\.\.\./, "").replace(/,$/, "");
 const outilsTableau = (cran: "sobre" | "equilibre" | "dynamique" | undefined, actuelle: NiveauIntensite | undefined, reste?: "sobre") =>
-  ((n) => (reste === undefined && n ? { intensiteSousTitres: n } : {}))(intensiteSousTitresTableau(cran, actuelle));
+  new Function("reste", "commande", "intensiteSousTitresTableau", `return ${corpsTableau};`)({ intensiteSousTitres: reste }, { dosageMotion: cran ? { cran } : undefined, sousTitres: actuelle ? { intensite: actuelle } : undefined }, intensiteSousTitresTableau) as { intensiteSousTitres?: string };
 
 describe("X3-07 · cas concret : tirage", () => {
-  it("éteint = identique sur 20 graines", () => {
-    for (const t of tirages()) expect(chemin(t, undefined)).toBe(t);
+  it("éteint = identique sur 20 graines (même objet, code réel)", () => {
+    for (const t of tirages()) {
+      const avant = structuredClone(t);
+      expect(chemin(t, undefined)).toBe(t);
+      expect(t).toEqual(avant);
+    }
+  });
+  it("aucun (forgé) lève au niveau de la fonction : index.ts ne le passe jamais", () => {
+    expect(() => tirageDose(tirages()[0], "aucun")).toThrow();
   });
   it("sobre : calme, légère, fond fort 0 ; tout le reste identique", () => {
     for (const t of tirages()) {
@@ -42,10 +53,11 @@ describe("X3-07 · cas concret : tirage", () => {
       expect(chemin(t, "equilibre")).toEqual(t);
     }
   });
-  it("fabriquer.ts applique les contraintes après le tirage, aux deux endroits, sans toucher au hasard", () => {
-    expect(FABRIQUER).toContain('import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";');
-    expect(FABRIQUER.match(/if \(o\.dosage\) tirage = appliquerContraintes\(tirage, contraintesDosageCasConcret\(o\.dosage\)\);/g)).toHaveLength(2);
-    expect(FABRIQUER.indexOf("structure: structureEffective(cas.offre, tirage.structure) };")).toBeLessThan(FABRIQUER.indexOf("if (o.dosage) tirage ="));
+  it("fabriquer.ts applique tirageDose après le tirage, aux deux endroits, sans toucher au hasard", () => {
+    expect(FABRIQUER.match(/tirageDose\(/g)).toHaveLength(2); // les 2 appels (la définition est `tirageDose = (`)
+    expect(FABRIQUER).toContain("tirage = tirageDose(tirage, o.dosage);");
+    expect(FABRIQUER).toContain("heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique }), o.dosage);");
+    expect(FABRIQUER.indexOf("structure: structureEffective(cas.offre, tirage.structure) };")).toBeLessThan(FABRIQUER.indexOf("tirage = tirageDose(tirage, o.dosage);"));
   });
 });
 
@@ -68,7 +80,8 @@ describe("X3-07 · cas concret : index.ts", () => {
 describe("X3-07 · tableau", () => {
   it("la ligne garde la condition reste.intensiteSousTitres === undefined et utilise le cran", () => {
     expect(INDEX_TABLEAU).toContain('import { intensiteSousTitresTableau } from "./dosage";');
-    expect(INDEX_TABLEAU).toContain("reste.intensiteSousTitres === undefined && n ? { intensiteSousTitres: n } : {}))(intensiteSousTitresTableau(commande.dosageMotion?.cran, commande.sousTitres?.intensite))");
+    expect(ligneTableau).toBeTruthy();
+    expect(ligneTableau).toContain("reste.intensiteSousTitres === undefined && n ? { intensiteSousTitres: n } : {}))(intensiteSousTitresTableau(commande.dosageMotion?.cran, commande.sousTitres?.intensite))");
   });
   it("sans cran : intensité actuelle, présente ou absente", () => {
     expect(outilsTableau(undefined, undefined)).toEqual({});
@@ -82,8 +95,17 @@ describe("X3-07 · tableau", () => {
 });
 
 describe("X3-07 · les sous-titres restent", () => {
-  it("chaque cran garde une intensité de sous-titres valide (jamais de sous-titres coupés)", () => {
-    for (const t of tirages()) for (const c of ["sobre", "equilibre", "dynamique"] as const) expect(chemin(t, c).sousTitres.intensite).toBeTruthy();
+  const TEXTE = "Le dossier était bloqué depuis neuf heures du matin. Puis tout a changé : la réponse est arrivée, gratuite, et le client a signé avant midi. Voilà comment on gagne du temps.";
+  const DUREE = 12;
+  it("avec chaque cran, les segments de sous-titres sont non vides (jamais de sous-titres coupés)", () => {
+    for (const t of tirages()) {
+      for (const c of ["sobre", "equilibre", "dynamique"] as const) {
+        const st = chemin(t, c).sousTitres;
+        const segments = fabriquerSousTitres({ texte: TEXTE, dureeSec: DUREE, base: "minimal", ratio: "9:16", reseaux: ["linkedin", "youtube-shorts"], ...variationSousTitresCasConcret(st, true) });
+        expect(segments.length).toBeGreaterThan(3);
+        expect(segments.every((x) => x.mots.length > 0 && x.finSec > x.debutSec)).toBe(true);
+      }
+    }
     for (const c of ["sobre", "equilibre", "dynamique"] as const) expect(intensiteSousTitresTableau(c, "equilibre")).toBeTruthy();
   });
 });

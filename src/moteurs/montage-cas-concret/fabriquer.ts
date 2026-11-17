@@ -571,6 +571,9 @@ function sansAdresse(p: ProprietesEcran): ProprietesEcran {
 /* ------------------------------------------------------------------ */
 
 /** Fabrique les fichiers d'un cas concret. Lève `ErreurFabricationCasConcret` (étape et raisons) ; le journal permet la reprise. */
+/** X3-07 : applique le cran du dosage au tirage, après le tirage ; sans cran, renvoie le même objet. */
+export const tirageDose = (tirage: Tirage, dosage?: DosageMotion): Tirage => (dosage ? appliquerContraintes(tirage, contraintesDosageCasConcret(dosage)) : tirage);
+
 export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Promise<CompteRenduCasConcret> {
   const { outils, cas, entrees } = o;
   // Avant toute dépense : sans numéro de version, aucun lien suivi ne peut être posé (ADR 0002).
@@ -992,7 +995,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       }
       // Le journal dit la structure réellement suivie : coaching + « une-journee » = v4.
       tirage = { ...tirage, structure: structureEffective(cas.offre, tirage.structure) };
-      if (o.dosage) tirage = appliquerContraintes(tirage, contraintesDosageCasConcret(o.dosage));
+      tirage = tirageDose(tirage, o.dosage);
       journal.tirage = { tirage, notee: !!miseGardee };
       await ecrire();
     } else if (o.scriptValide) {
@@ -1036,8 +1039,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const heritee = variete.miseHeritee ? lireMise(await sansPanne(() => variete.miseHeritee!(o.videoId), null)) : null;
       const historique = lireHistorique(await sansPanne(() => variete.lireHistorique(), []));
       if (!journal.tirage && !heritee) journal.tirageNeuf = true;
-      let tirage = journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique });
-      if (o.dosage) tirage = appliquerContraintes(tirage, contraintesDosageCasConcret(o.dosage));
+      const tirage = tirageDose(journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique }), o.dosage);
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
       // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.
