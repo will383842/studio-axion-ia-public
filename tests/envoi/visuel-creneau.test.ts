@@ -17,6 +17,13 @@ vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
+// Espion sur envoyerVisuel (le vrai est appelé) : prouve les appels, sans option de production pour le remplacer.
+const espion = vi.hoisted(() => ({ envoyer: vi.fn() }));
+vi.mock("@/services/publications", async (orig) => {
+  const m = await orig<typeof import("@/services/publications")>();
+  return { ...m, envoyerVisuel: (...a: Parameters<typeof m.envoyerVisuel>) => espion.envoyer(...a) };
+});
+
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { ecrireParametre } = await import("@/services/_commun");
 const { PARAM_EDITORIALE_ACTIVE, PARAM_ENVOI_CALENDRIER, PARAM_ARRET_ZERNIO } = await import("@/services/zernio");
@@ -75,9 +82,12 @@ async function creerCreneau(reseaux: Array<"linkedin" | "instagram" | "facebook"
   return "cr-1";
 }
 
+const OK = { lireUrl, fichierExiste: async () => true };
 const total = async () => depots().publications.compter();
 
-beforeEach(() => {
+beforeEach(async () => {
+  const reel = await vi.importActual<typeof import("@/services/publications")>("@/services/publications");
+  espion.envoyer.mockReset().mockImplementation((...a: unknown[]) => reel.envoyerVisuel(...(a as Parameters<typeof reel.envoyerVisuel>)));
   appels = [];
   vi.stubGlobal("fetch", () => Promise.reject(new Error("aucun appel réel dans ce test")));
   vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -93,11 +103,10 @@ describe("L5-21 · porte fermée = zéro appel", () => {
   it("rien n'est réglé (défaut) : envoyerVisuel n'est PAS appelé, aucune lecture de fichier, aucun appel au diffuseur", async () => {
     await creerVisuel();
     const id = await creerCreneau();
-    const envoyer = vi.fn();
     const lire = vi.fn(lireUrl);
     const avant = await total();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, envoyer: envoyer as never })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, fichierExiste: async () => true })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(lire).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
     expect(await total()).toBe(avant);
@@ -112,18 +121,16 @@ describe("L5-21 · porte fermée = zéro appel", () => {
     const id = await creerCreneau();
     await ouvrirTout();
     await ecrireParametre(cle, false);
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl, envoyer: envoyer as never })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 
   it("plusieurs réseaux, porte fermée : zéro appel pour chacun", async () => {
     await creerVisuel();
     const id = await creerCreneau(["linkedin", "instagram", "facebook"]);
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneauSurReseaux(faux(), id, { lireUrl, envoyer: envoyer as never, textesAlternatifs: ["a", "b", "c"] })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneauSurReseaux(faux(), id, { ...OK, textesAlternatifs: ["a", "b", "c"] })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 });
@@ -134,11 +141,10 @@ describe("L5-21 · fichiers préparés par réseau, puis envoyerVisuel (aucun se
   it("LinkedIn : 1 PDF avec titre, aucune image ; passe par envoyerVisuel avec le créneau", async () => {
     await creerVisuel();
     const id = await creerCreneau();
-    const envoyer = vi.fn(async (...a: unknown[]) => (await import("@/services/publications")).envoyerVisuel(...(a as Parameters<typeof import("@/services/publications").envoyerVisuel>)));
-    const r = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl, envoyer: envoyer as never });
-    expect(envoyer).toHaveBeenCalledTimes(1);
-    expect(envoyer.mock.calls[0][1]).toBe(id);
-    expect(envoyer.mock.calls[0][2]).toBe("linkedin");
+    const r = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK });
+    expect(espion.envoyer).toHaveBeenCalledTimes(1);
+    expect(espion.envoyer.mock.calls[0][1]).toBe(id);
+    expect(espion.envoyer.mock.calls[0][2]).toBe("linkedin");
     expect(appels).toHaveLength(1);
     expect(appels[0].document).toEqual({ url: "https://exemple.test/visuels/vis_1/carrousel.pdf", titre: "Cinq erreurs courantes" });
     expect(appels[0].images).toBeUndefined();
@@ -149,7 +155,7 @@ describe("L5-21 · fichiers préparés par réseau, puis envoyerVisuel (aucun se
   it("Instagram : N images dans l'ordre, chacune avec son texte alternatif", async () => {
     await creerVisuel();
     const id = await creerCreneau(["instagram"]);
-    await envoyerVisuelDuCreneau(faux(), id, "instagram", { lireUrl, textesAlternatifs: ["Page un", "Page deux", "Page trois"] });
+    await envoyerVisuelDuCreneau(faux(), id, "instagram", { ...OK, textesAlternatifs: ["Page un", "Page deux", "Page trois"] });
     expect(appels[0].images?.map((i) => i.url)).toEqual([1, 2, 3].map((i) => `https://exemple.test/visuels/vis_1/p${i}.png`));
     expect(appels[0].images?.map((i) => i.texteAlternatif)).toEqual(["Page un", "Page deux", "Page trois"]);
     expect(appels[0].document).toBeUndefined();
@@ -158,18 +164,17 @@ describe("L5-21 · fichiers préparés par réseau, puis envoyerVisuel (aucun se
   it("Instagram : texte alternatif manquant ou vide pour une page = zéro appel", async () => {
     await creerVisuel();
     const id = await creerCreneau(["instagram"]);
-    const envoyer = vi.fn();
     for (const alts of [undefined, ["a", "b"], ["a", "", "c"]]) {
-      await expect(envoyerVisuelDuCreneau(faux(), id, "instagram", { lireUrl, textesAlternatifs: alts, envoyer: envoyer as never })).rejects.toMatchObject({ code: "TEXTE_ALTERNATIF_MANQUANT" });
+      await expect(envoyerVisuelDuCreneau(faux(), id, "instagram", { ...OK, textesAlternatifs: alts })).rejects.toMatchObject({ code: "TEXTE_ALTERNATIF_MANQUANT" });
     }
-    expect(envoyer).not.toHaveBeenCalled();
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 
   it("trois réseaux : un seul compte par créneau, donc seul le réseau de ce compte part ; les autres sont refusés sans appel", async () => {
     await creerVisuel();
     const id = await creerCreneau(["linkedin", "instagram", "facebook"]);
-    const res = await envoyerVisuelDuCreneauSurReseaux(faux(), id, { lireUrl, textesAlternatifs: ["a", "b", "c"] });
+    const res = await envoyerVisuelDuCreneauSurReseaux(faux(), id, { ...OK, textesAlternatifs: ["a", "b", "c"] });
     expect(res.map((r) => [r.reseau, r.ok])).toEqual([["linkedin", true], ["instagram", false], ["facebook", false]]);
     expect(res[1].code).toBe("CIBLE_INCONNUE");
     expect(appels).toHaveLength(1);
@@ -185,9 +190,8 @@ describe("L5-21 · fichier absent ou illisible = zéro appel", () => {
   ])("LinkedIn, %s : zéro appel", async (_n, p) => {
     await creerVisuel(p);
     const id = await creerCreneau();
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl, envoyer: envoyer as never })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 
@@ -195,7 +199,7 @@ describe("L5-21 · fichier absent ou illisible = zéro appel", () => {
     await creerVisuel();
     const id = await creerCreneau();
     const avant = await total();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl, fichierExiste: async () => false })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK, fichierExiste: async () => false })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
     expect(appels).toHaveLength(0);
     expect(await total()).toBe(avant);
   });
@@ -203,9 +207,8 @@ describe("L5-21 · fichier absent ou illisible = zéro appel", () => {
   it("une seule page absente sur Instagram : zéro appel", async () => {
     await creerVisuel();
     const id = await creerCreneau(["instagram"]);
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "instagram", { lireUrl, fichierExiste: async (c) => !c.endsWith("p2.png"), textesAlternatifs: ["a", "b", "c"], envoyer: envoyer as never })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "instagram", { ...OK, fichierExiste: async (c) => !c.endsWith("p2.png"), textesAlternatifs: ["a", "b", "c"] })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 
@@ -216,19 +219,27 @@ describe("L5-21 · fichier absent ou illisible = zéro appel", () => {
   ])("adresse illisible (%s) : zéro appel", async (_n, lire) => {
     await creerVisuel();
     const id = await creerCreneau();
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, envoyer: envoyer as never })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, fichierExiste: async () => true })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
+  });
+
+  it("chemin de production (ni lireUrl ni fichierExiste, stockage R2 de l'essai, réseau bloqué) : fichier invérifiable = FICHIER_ABSENT, zéro appel, rien d'écrit", async () => {
+    await creerVisuel();
+    const id = await creerCreneau();
+    const avant = await total();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin")).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
+    expect(appels).toHaveLength(0);
+    expect(await total()).toBe(avant);
   });
 
   it("créneau sans visuel, ou visuel sans rendu : zéro appel", async () => {
     await creerVisuel({ rendu: undefined });
     const id = await creerCreneau();
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl, envoyer: envoyer as never })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
-    await expect(envoyerVisuelDuCreneau(faux(), "inconnu", "linkedin", { lireUrl, envoyer: envoyer as never })).rejects.toMatchObject({ code: "CRENEAU_NON_VALIDE" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "FICHIER_ABSENT" });
+    await expect(envoyerVisuelDuCreneau(faux(), "inconnu", "linkedin", { ...OK })).rejects.toMatchObject({ code: "CRENEAU_NON_VALIDE" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 });
@@ -239,17 +250,16 @@ describe("L5-21 · garde-fous conservés", () => {
   it("créneau non validé : refus, zéro appel", async () => {
     await creerVisuel();
     const id = await creerCreneau(["linkedin"], { statut: "propose", valideeLe: undefined });
-    const envoyer = vi.fn();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl, envoyer: envoyer as never })).rejects.toMatchObject({ code: "CRENEAU_NON_VALIDE" });
-    expect(envoyer).not.toHaveBeenCalled();
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "CRENEAU_NON_VALIDE" });
+    expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
 
   it("deuxième envoi identique : la même publication, aucun nouvel appel (anti-double envoi de L5-02)", async () => {
     await creerVisuel();
     const id = await creerCreneau();
-    const a = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl });
-    const b = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl });
+    const a = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK });
+    const b = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK });
     expect(b.deja).toBe(true);
     expect(b.publication.id).toBe(a.publication.id);
     expect(appels).toHaveLength(1);
@@ -258,7 +268,7 @@ describe("L5-21 · garde-fous conservés", () => {
   it("réseau non visuel : refus, zéro appel", async () => {
     await creerVisuel();
     const id = await creerCreneau();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "tiktok" as never, { lireUrl })).rejects.toMatchObject({ code: "RESEAU" });
+    await expect(envoyerVisuelDuCreneau(faux(), id, "tiktok" as never, { ...OK })).rejects.toMatchObject({ code: "RESEAU" });
     expect(appels).toHaveLength(0);
   });
 });

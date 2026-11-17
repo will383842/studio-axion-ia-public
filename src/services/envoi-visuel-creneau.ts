@@ -20,10 +20,8 @@ export interface OptionsEnvoiVisuelDuCreneau {
   textesAlternatifs?: string[];
   /** Adresse lisible d'un fichier du stockage ; par défaut, l'adresse signée du stockage (tests : doublure). */
   lireUrl?: (cle: string) => Promise<string>;
-  /** Existence d'un fichier ; par défaut, la taille connue du stockage (inconnue = on s'en remet à l'adresse) ; avec `lireUrl` fourni, présent sauf avis contraire. Tests : doublure. */
+  /** Existence d'un fichier ; par défaut, la taille connue du stockage (inconnue = on s'en remet à l'adresse) ; invérifiable = absent. Tests : doublure. */
   fichierExiste?: (cle: string) => Promise<boolean>;
-  /** Tests : remplace `envoyerVisuel` pour compter les appels. */
-  envoyer?: typeof envoyerVisuel;
 }
 
 export interface ResultatReseau {
@@ -45,7 +43,8 @@ async function lireParDefaut(cle: string): Promise<string> {
 
 async function existeParDefaut(cle: string): Promise<boolean> {
   const stockage = await fournisseur("stockage");
-  if (!stockage.tailleObjet) return true;
+  // Existence invérifiable = absent : une adresse signée se fabrique même pour un objet qui n'existe pas.
+  if (!stockage.tailleObjet) return false;
   const taille = await stockage.tailleObjet(cle);
   return taille !== null && taille > 0;
 }
@@ -64,8 +63,7 @@ async function verifierFichiers(visuelId: string, reseau: ReseauVisuelEnvoi, o: 
       throw new ErreurStudio("TEXTE_ALTERNATIF_MANQUANT", "Chaque page a besoin de son texte alternatif : rien n'est parti.");
     }
   }
-  // Lecteur d'adresses fourni (tests) : il est la seule source, le stockage réel n'est pas interrogé.
-  const existe = o.fichierExiste ?? (o.lireUrl ? async () => true : existeParDefaut);
+  const existe = o.fichierExiste ?? existeParDefaut;
   const lire = o.lireUrl ?? lireParDefaut;
   for (const cle of cles) {
     try {
@@ -86,7 +84,7 @@ export async function envoyerVisuelDuCreneau(service: FournisseurPublication, cr
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
   if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe || !c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas un créneau validé portant un visuel : rien n'est envoyé.");
   await verifierFichiers(c.visuelId, reseau, options);
-  return (options.envoyer ?? envoyerVisuel)(service, creneauId, reseau, { textesAlternatifs: options.textesAlternatifs, lireUrl: options.lireUrl });
+  return envoyerVisuel(service, creneauId, reseau, { textesAlternatifs: options.textesAlternatifs, lireUrl: options.lireUrl });
 }
 
 /**
