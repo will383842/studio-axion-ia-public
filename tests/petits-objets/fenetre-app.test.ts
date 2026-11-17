@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { EXEMPLES_FENETRE_APP, OBJET_FENETRE_APP, type ParametresFenetreApp } from "../../src/briques/motion/petits-objets/fenetre-app";
 import { SURFACE_MAX, verifierDefinition, type TonObjet } from "../../src/briques/motion/petits-objets/contrat";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
-import { couleursSur, TEINTES_INTERDITES, type FondAxion } from "../../src/briques/jetons-motion";
+import { couleursSur, type FondAxion } from "../../src/briques/jetons-motion";
 import { PALETTE } from "../../src/briques/charte/axion-2026";
 
 const DEF = OBJET_FENETRE_APP;
@@ -57,6 +57,19 @@ describe("C9-18 rendu", () => {
     expect(rendre(0)).toMatch(/fill-opacity="0"/);
     expect(rendre(30)).toMatch(/fill-opacity="1"/);
   });
+  it("ordre : pendant le tracé le panneau est invisible ; le fondu ne monte qu'une fois le contour fini", () => {
+    let enCours = 0;
+    let fonduVu = 0;
+    for (let i = 0; i < D - 6; i++) {
+      const m = rendre(i);
+      const d = decalages(m)[0];
+      const fo = [...m.matchAll(/fill-opacity="([^"]+)"/g)].map((x) => Number(x[1]));
+      if (d > 0 && d < 1) { enCours++; expect(fo.every((v) => v === 0)).toBe(true); }
+      if (fo.some((v) => v > 0)) { fonduVu++; expect(d).toBe(0); }
+    }
+    expect(enCours).toBeGreaterThan(0);
+    expect(fonduVu).toBeGreaterThan(0);
+  });
   it("couleurs de la charte seulement, orange jamais sur ivoire, aucun filter/mask/drop-shadow", () => {
     for (const fond of FONDS) for (const ton of TONS) {
       const m = rendre(30, { fond, ton });
@@ -75,12 +88,29 @@ describe("C9-18 propres à la fiche", () => {
     expect(DEF.valider({ largeur: 100, hauteur: 61 })).toBeNull();
     expect(DEF.valider({ largeur: 100, hauteur: SURFACE_MAX * 100 })).not.toBeNull();
   });
-  it("aucune teinte interdite (jaune, vert, bleu…) dans la palette du balisage", () => {
-    const interdites = Object.entries(PALETTE).filter(([nom]) => (TEINTES_INTERDITES as readonly string[]).includes(nom.toLowerCase())).map(([, v]) => String(v).toLowerCase());
+  it("aucune teinte jaune, verte ou bleue dans le balisage (teinte HSL hors des plages interdites)", () => {
+    const hex = Object.values(PALETTE).map((v) => String(v).toLowerCase());
+    const teinte = (h: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+      if (d < 0.08) return -1; // gris : pas de teinte
+      const t = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      return (t * 60 + 360) % 360;
+    };
+    let vues = 0;
     for (const fond of FONDS) for (const ton of TONS) {
       const m = rendre(30, { fond, ton }).toLowerCase();
-      for (const v of interdites) expect(m).not.toContain(v);
+      for (const x of m.matchAll(/#[0-9a-f]{6}/g)) {
+        vues++;
+        expect(hex).toContain(x[0]);
+        const h = teinte(x[0]);
+        if (h < 0) continue;
+        expect(h >= 45 && h <= 70).toBe(false);
+        expect(h >= 75 && h <= 165).toBe(false);
+        expect(h >= 180 && h <= 260).toBe(false);
+      }
     }
+    expect(vues).toBeGreaterThan(0);
   });
   it("balisage sans iframe, img ni foreignObject ; pas de nom de marque dans le titre par défaut", () => {
     const m = rendre(30, { p: { largeur: 50, hauteur: 40 } });

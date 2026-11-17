@@ -8,7 +8,7 @@ import { couleursSur } from "../../jetons-motion";
 import { PILE_CSS } from "../../charte/axion-2026";
 import { MOTS_MAX, SURFACE_MAX, type DefinitionObjet } from "./contrat";
 import { aleaGraine } from "./graine";
-import { phaseObjet } from "./progres";
+import { IMAGES_ENTREE, phaseObjet } from "./progres";
 import { couleurDuTon } from "./tons";
 import { TraceSvg } from "./TraceSvg";
 
@@ -27,6 +27,8 @@ const MARGE = 36;
 const HAUTEUR_LIGNE = 26;
 const PAS_LIGNE = 54;
 const LIGNES_MAX = 8;
+/** Images du fondu du panneau, une fois le contour entièrement tracé. */
+const IMAGES_FONDU = 6;
 
 const nombre = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const f = (n: number): string => n.toFixed(1);
@@ -65,6 +67,8 @@ export const OBJET_FENETRE_APP: DefinitionObjet<ParametresFenetreApp> = {
     const c = couleursSur(fond);
     const neutre = couleurDuTon("neutre", fond);
     const phase = phaseObjet(image, dureeImages);
+    // Le panneau ne commence à apparaître que lorsque le contour est fini d'être tracé.
+    const fondu = phase.trace < 1 ? 0 : Math.min(1, Math.max(0, (image - IMAGES_ENTREE + 1) / IMAGES_FONDU));
     const w = (parametres.largeur * L) / 100;
     const h = (parametres.hauteur * H) / 100;
     const x = (L - w) / 2;
@@ -82,9 +86,9 @@ export const OBJET_FENETRE_APP: DefinitionObjet<ParametresFenetreApp> = {
     return (
       <svg viewBox={`0 0 ${L} ${H}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <g opacity={phase.opacite}>
-          <rect x={f(x)} y={f(y)} width={f(w)} height={f(h)} fill={c.panneau} fillOpacity={phase.trace} stroke="none" />
+          <rect x={f(x)} y={f(y)} width={f(w)} height={f(h)} fill={c.panneau} fillOpacity={fondu} stroke="none" />
           <TraceSvg d={contour} t={phase.trace} ton="neutre" fond={fond} />
-          <g fillOpacity={phase.trace}>
+          <g fillOpacity={fondu}>
             {[0, 1, 2].map((i) => (
               <circle key={i} cx={f(x + MARGE + i * 34)} cy={f(y + barre / 2)} r={10} fill={neutre} />
             ))}
