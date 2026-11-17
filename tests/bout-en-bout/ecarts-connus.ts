@@ -25,9 +25,5 @@ export interface EcartConnu {
   fiche: string;
 }
 
-const NATURE_INSTAGRAM =
-  "Le rédacteur de textes simulé sort 5 mots-dièse (`legende.motsDieseConseilles` du registre) alors que la règle d'envoi sourcée (`placerHashtags`) en veut 3 au plus sur Instagram : « 5 mots-dièse : 3 au plus pour ce réseau ».";
-const FICHE_INSTAGRAM = "fiche à créer (aligner `motsDieseConseilles` d'Instagram dans src/reseaux/index.ts sur la règle d'écriture 0 à 3)";
-
 export const ECARTS_CONNUS: readonly EcartConnu[] = [
 ];
