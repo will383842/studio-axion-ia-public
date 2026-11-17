@@ -82,3 +82,18 @@ describe("F1 · priorité des états Instagram : seulement réglage allumé", ()
     expect(choisirParcoursPourMessage([A, ancienIg], "m", "c", true).principal?.cle).toBe("B");
   });
 });
+
+describe("Adresse sans OK (cible d'essai) · la machine ne la traite comme un OK que si le service l'a décidé", () => {
+  for (const etat of ["ig_attente_ok", "ig_pas_encore"]) {
+    it(`${etat} : adresseVautOk + adresse → ig_ok ; adresseVautOk sans adresse → ig_non_reconnu ; adresse seule → ig_non_reconnu`, () => {
+      expect(transition(conv(etat), { t: "texte", estOpposition: false, adresse: "a@b.test", okIg: false, adresseVautOk: true }).action).toBe("ig_ok");
+      expect(transition(conv(etat), { t: "texte", estOpposition: false, adresse: null, okIg: false, adresseVautOk: true }).action).toBe("ig_non_reconnu");
+      expect(transition(conv(etat), { t: "texte", estOpposition: false, adresse: "a@b.test", okIg: false, adresseVautOk: false }).action).toBe("ig_non_reconnu");
+    });
+  }
+  it("opposition et doute restent testés AVANT ; attente_email garde demander_guide", () => {
+    expect(transition(conv("ig_attente_ok"), { t: "texte", estOpposition: true, adresse: "a@b.test", okIg: false, adresseVautOk: true }).action).toBe("opposer");
+    expect(transition(conv("ig_attente_ok"), { t: "texte", estOpposition: false, doute: true, adresse: "a@b.test", okIg: false, adresseVautOk: true }).action).toBe("doute");
+    expect(transition(conv("attente_email"), { t: "texte", estOpposition: false, adresse: "a@b.test", okIg: false, adresseVautOk: true }).action).toBe("demander_guide");
+  });
+});
