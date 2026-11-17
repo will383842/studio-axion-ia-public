@@ -728,3 +728,77 @@ describe("L5-02d · aucun interblocage", () => {
     await expect(Promise.race([sousVerrou(async () => "libre"), new Promise((r) => setTimeout(() => r("bloque"), 1000))])).resolves.toBe("libre");
   });
 });
+
+/**
+ * L5-02f : le verrou pris par les actions (décalage, modification du texte) est PROUVÉ. Le geste est suspendu APRÈS la lecture de la
+ * garde et AVANT l'écriture ; pendant ce temps le tour d'envoi est lancé. Avec le verrou, le tour attend la fin du geste (il voit alors
+ * le créneau changé et ne promeut rien) ; sans lui, le tour pose « en-cours », programme le post, puis le geste écrit à partir d'une
+ * garde périmée : un post programmé ET un créneau décalé (ou dévalidé).
+ */
+describe("L5-02f · course ENTRE la lecture de la garde et l'écriture (le verrou des actions)", () => {
+  /** Suspend le premier appel de `depot[methode]` accepté par `declencheur` ; rend la porte d'entrée, la clé de sortie et le rétablissement. */
+  function suspendre<T extends object>(depot: T, methode: string, declencheur: (...a: unknown[]) => boolean) {
+    const cible = depot as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>;
+    const origine = cible[methode].bind(depot);
+    let entree!: () => void;
+    const suspendu = new Promise<void>((r) => { entree = r; });
+    let liberer!: () => void;
+    const porte = new Promise<void>((r) => { liberer = r; });
+    let arme = true;
+    cible[methode] = async (...a: unknown[]) => {
+      if (arme && declencheur(...a)) {
+        arme = false;
+        entree();
+        await porte;
+      }
+      return origine(...a);
+    };
+    return { suspendu, liberer, retablir: () => { cible[methode] = origine; } };
+  }
+  const attendre = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+  it("décalage suspendu après la garde, tour lancé : jamais un post programmé ET un créneau décalé (verrou de decalerEntree)", async () => {
+    await brouillonPrepare();
+    versLaFenetre();
+    const s = suspendre(depots().creneauxEditoriaux, "obtenir", (id) => id === "c1");
+    try {
+      const geste = decaler("c1", "k1");
+      await s.suspendu;
+      const enVol = tour();
+      await attendre(150);
+      s.liberer();
+      const [r] = await Promise.all([geste, enVol]);
+      expect(r).toMatchObject({ ok: true });
+      expect(await lire("c1")).toMatchObject({ decalages: 1 });
+      expect(nbPut()).toBe(0);
+      expect([...posts.values()].some((p) => p.status === "scheduled")).toBe(false);
+      expect((await depots().envoisPlanifies.lister())[0].statut).toBe("annule");
+      expect(await marque(`promotion:${CLE_ENVOI}`)).not.toBe("programme");
+    } finally {
+      s.retablir();
+    }
+  });
+
+  it("modification du texte suspendue après la garde, tour lancé : jamais un texte dévalidé ET un envoi préparé (verrou de enregistrerFicheEntreeAction)", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1");
+    versLaFenetre();
+    const s = suspendre(depots().parametres, "enregistrer", (p) => typeof (p as { id?: string }).id === "string" && (p as { id: string }).id.startsWith("calendrier.fiche."));
+    try {
+      const geste = enregistrerFicheEntreeAction("creneau:c1|linkedin", { texte: "Nouveau texte." });
+      await s.suspendu;
+      const enVol = tour();
+      await attendre(150);
+      s.liberer();
+      const [r] = await Promise.all([geste, enVol]);
+      expect(r.ok).toBe(true);
+      expect(await lire("c1")).toMatchObject({ statut: "a_valider" });
+      expect(appelsFournisseur).toHaveLength(0);
+      expect(nbPut()).toBe(0);
+      expect([...posts.values()]).toHaveLength(0);
+    } finally {
+      s.retablir();
+    }
+  });
+});
