@@ -8,7 +8,8 @@ import { fileURLToPath } from "node:url";
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const sortie = resolve(process.argv[2] ?? resolve(ici, "..", "sortie-planches-petits-objets"));
-const IDS = ["planche-traits-9x16-ivoire", "planche-traits-9x16-noir", "planche-traits-4x5-ivoire", "planche-traits-4x5-noir"];
+const IDS = ["planche-traits-9x16-ivoire", "planche-traits-9x16-noir", "planche-traits-4x5-ivoire", "planche-traits-4x5-noir",
+  "planche-etiquettes-9x16-ivoire", "planche-etiquettes-9x16-noir", "planche-etiquettes-4x5-ivoire", "planche-etiquettes-4x5-noir", "planche-ecrans-9x16-ivoire", "planche-ecrans-9x16-noir", "planche-ecrans-4x5-ivoire", "planche-ecrans-4x5-noir", "planche-manuscrit-9x16-ivoire", "planche-manuscrit-9x16-noir", "planche-manuscrit-4x5-ivoire", "planche-manuscrit-4x5-noir"];
 
 async function main() {
   const { bundle } = await import("@remotion/bundler");
