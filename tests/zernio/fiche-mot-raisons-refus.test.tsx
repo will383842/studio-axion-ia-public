@@ -8,6 +8,7 @@ vi.mock("react", async (o) => ({
 }));
 
 const { FicheMot } = await import("@/components/mots/FicheMot");
+const { monter, trouver } = await import("../aides/crochets-factices");
 type Resume = import("@/domaine/guide-reseau/vue-mots-cibles").ResumeMot;
 type Chiffres = import("@/domaine/guide-reseau/vue-mots-cibles").ChiffresMot;
 
@@ -103,5 +104,61 @@ describe("fiche : raisons de refus", () => {
       }),
     );
     expect(h).not.toMatch(/HTTP|meta|INBOX|\d{6,}/);
+  });
+  it("T4a : fiche identique à avant : sans les nouveaux champs ou avec raisonsRefus vide et refusSansRaison à zéro, même HTML", () => {
+    const sans = rendu(chiffres());
+    const vide = rendu(
+      chiffres({ raisonsRefus: [], refusSansRaison: f(0, 0, 0) }),
+    );
+    expect(vide).toBe(sans);
+  });
+  it("T4b : deux lignes du même libellé, avec et sans « d'après le message » : les deux s'affichent, sans alerte de clé en double", () => {
+    const erreurs = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const libelle = "Limite d'envoi du réseau atteinte";
+      const h = rendu(
+        chiffres({
+          raisonsRefus: [
+            { libelle, dApresMessage: false, f: f(1, 2, 4) },
+            { libelle, dApresMessage: true, f: f(0, 1, 3) },
+          ],
+        }),
+      );
+      expect(h.match(new RegExp(`dont : ${libelle}`, "g"))).toHaveLength(2);
+      expect(h.match(/d'après le message du réseau/g)).toHaveLength(1);
+      // Le rendu serveur ne signale pas les clés en double : on lit l'arbre d'éléments et on exige des clés distinctes entre sœurs.
+      const resume: Resume = {
+        mot: "DEVIS",
+        etat: "brouillon",
+        validations: { facebook: "valide", instagram: "absente" },
+        comptes: [],
+        cibleDiffere: false,
+        chiffres: chiffres({
+          raisonsRefus: [
+            { libelle, dApresMessage: false, f: f(1, 2, 4) },
+            { libelle, dApresMessage: true, f: f(0, 1, 3) },
+          ],
+        }),
+      };
+      const arbre = monter(FicheMot as never, {
+        resume,
+        catalogue: [],
+        apercu: null,
+        services: {} as never,
+        onFermer: vi.fn(),
+      }).rendre();
+      const section = trouver(arbre, (e) => (e.type as { name?: string }).name === "SectionChiffres")[0];
+      expect(section).toBeDefined();
+      const contenu = (section.type as (p: unknown) => never)(section.props);
+      const lignes = trouver(contenu, (e) => e.props.detail === true && String(e.props.libelle).includes(libelle));
+      expect(lignes).toHaveLength(2);
+      const cles = lignes.map((e) => e.key);
+      expect(cles.every((k) => k !== null)).toBe(true);
+      expect(new Set(cles).size).toBe(2);
+      const alertes = erreurs.mock.calls.map((a) => a.map(String).join(" "));
+      expect(alertes.filter((m) => /key/i.test(m))).toEqual([]);
+    } finally {
+      erreurs.mockRestore();
+    }
   });
 });

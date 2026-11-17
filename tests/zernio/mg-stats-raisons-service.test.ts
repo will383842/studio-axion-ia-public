@@ -1,5 +1,17 @@
 /** Service des chiffres par mot : seule la raison fermée sort de `refusPrive`. Valeurs fictives. */
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const recu: { conversations: unknown[] } = { conversations: [] };
+vi.mock("@/domaine/guide-reseau/stats-mots", async (o) => {
+  const vrai = await o<typeof import("@/domaine/guide-reseau/stats-mots")>();
+  return {
+    ...vrai,
+    agregerStatsMots: (ev: never, convs: unknown[], t: number) => {
+      recu.conversations = convs;
+      return vrai.agregerStatsMots(ev, convs as never, t);
+    },
+  };
+});
 import {
   lireStatsMots,
   reinitialiserCacheStatsMots,
@@ -77,7 +89,25 @@ describe("service des raisons de refus", () => {
     ])
       expect(texte).not.toContain(interdit);
   });
-  it("une lecture injectée fonctionne sans raison", async () => {
+  it("le service passe au domaine une raison aux clés EXACTES motif et dApresMessage ; une lecture injectée sans raison reste comptée", async () => {
+    const { reinitialiserDepots } = await import("@/donnees/memoire");
+    reinitialiserDepots();
+    const { ecrireParametre } = await import("@/services/_commun");
+    await ecrireParametre("parcours.conversations", {
+      "cle-fictive-a": conv({ refusPrive }),
+      "cle-fictive-b": conv({ refusPrive: { ...refusPrive, source: "nombres" } }),
+      "cle-fictive-c": conv({}),
+    });
+    await lireStatsMots({ maintenantMs: MAINTENANT });
+    const convs = recu.conversations as { cle: string; raison: unknown }[];
+    expect(convs).toHaveLength(3);
+    const par = Object.fromEntries(convs.map((c) => [c.cle, c.raison]));
+    expect(par["cle-fictive-a"]).toEqual({ motif: "droits-manquants", dApresMessage: true });
+    expect(Object.keys(par["cle-fictive-a"] as object).sort()).toEqual(["dApresMessage", "motif"]);
+    expect(par["cle-fictive-b"]).toEqual({ motif: "droits-manquants", dApresMessage: false });
+    expect(Object.keys(par["cle-fictive-b"] as object).sort()).toEqual(["dApresMessage", "motif"]);
+    expect(par["cle-fictive-c"]).toBeNull();
+    reinitialiserCacheStatsMots();
     const r = await lireStatsMots({
       maintenantMs: MAINTENANT,
       lecture: lecture({ a: {} }),

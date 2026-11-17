@@ -231,7 +231,7 @@ describe("S1 : sous-code connu avec code hors liste", () => {
     expect(JSON.stringify(r)).not.toContain("612345678");
     expect(estRaisonRefus({ ...r, statut: 400, codeClient: "refuse" })).toBe(true);
   });
-  it("S1 code inconnu en chaîne, et sous-code inconnu aussi : toujours raison-inconnue", () => {
+  it("S1 code inconnu en chaîne, et sous-code inconnu aussi : raison-inconnue (sauf sous-code connu : messagerie-instagram-desactivee)", () => {
     const a = motifRefusInbox(400, pf(612345678, 2534041));
     expect(a.motif).toBe("messagerie-instagram-desactivee");
     expect(JSON.stringify(a)).not.toContain("612345678");
@@ -239,6 +239,14 @@ describe("S1 : sous-code connu avec code hors liste", () => {
     expect(b.motif).toBe("raison-inconnue");
     expect(b.meta).toBeNull();
     expect(JSON.stringify(b)).not.toMatch(/612345678|987654321/);
+  });
+  it("C1 : code null exige un sous-code à motif propre ; un code connu garde sa forme ancienne valide", () => {
+    const base = { motif: "fenetre-7-jours-depassee", statut: 400, codeClient: "refuse", codeZernio: null, source: "nombres" } as const;
+    expect(estRaisonRefus({ ...base, meta: { code: null, sousCode: 2534024 } })).toBe(true);
+    expect(estRaisonRefus({ ...base, meta: { code: null, sousCode: 100 } })).toBe(false);
+    expect(estRaisonRefus({ ...base, meta: { code: null, sousCode: 33 } })).toBe(false);
+    expect(estRaisonRefus({ ...base, meta: { code: 10, sousCode: 100 } })).toBe(true);
+    expect(estRaisonRefus({ ...base, meta: { code: 100, sousCode: null } })).toBe(true);
   });
   it("S1 validateur et formatage : code null admis seulement avec un sous-code connu", () => {
     const base = { motif: "fenetre-7-jours-depassee", statut: 400, codeClient: "refuse", codeZernio: null, source: "nombres" } as const;

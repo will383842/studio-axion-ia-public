@@ -132,7 +132,7 @@ export function estRaisonRefus(x: unknown): x is RaisonRefus {
     if (typeof r.meta !== "object" || Array.isArray(r.meta)) return false;
     const m = r.meta as Record<string, unknown>;
     if (Object.keys(m).some((k) => k !== "code" && k !== "sousCode") || !(m.code === null || (entierMeta(m.code) && CODES_META_CONNUS.includes(m.code))) || !(m.sousCode === null || (entierMeta(m.sousCode) && CODES_META_CONNUS.includes(m.sousCode)))) return false;
-    if (m.code === null && m.sousCode === null) return false;
+    if (m.code === null && (m.sousCode === null || !(m.sousCode in SOUS_CODES))) return false; // code absent : le sous-code doit avoir un motif propre
   }
   return true;
 }

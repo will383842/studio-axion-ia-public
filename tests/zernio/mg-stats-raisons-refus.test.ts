@@ -118,4 +118,39 @@ describe("raisons de refus", () => {
     expect(s.refusSansRaison.total).toBe(1);
     invariant(s);
   });
+  it("T1 : refusée il y a 10 jours sans raison, puis il y a 1 jour avec raison : invariant sur chaque fenêtre", () => {
+    const s = GUIDE([
+      refus({ cle: "p", refuseLe: il_y_a(10 * JOUR) }),
+      refus({
+        cle: "p|2",
+        refuseLe: il_y_a(1 * JOUR),
+        raison: R("limite-meta"),
+      }),
+    ]);
+    expect(s.envoisRefuses).toEqual({ j7: 0, j30: 1, total: 1 });
+    expect(s.raisonsRefus).toHaveLength(1);
+    expect(s.raisonsRefus[0].f).toEqual({ j7: 0, j30: 1, total: 1 });
+    expect(s.refusSansRaison).toEqual({ j7: 0, j30: 0, total: 0 });
+    invariant(s);
+  });
+  it("T2 : la raison de la refusée la plus ancienne, qu'elle soit en dernier ou en premier dans la liste", () => {
+    const ancienne = refus({
+      cle: "p",
+      refuseLe: il_y_a(9 * JOUR),
+      raison: R("droits-manquants"),
+    });
+    const recente = refus({
+      cle: "p|2",
+      refuseLe: il_y_a(2 * JOUR),
+      raison: R("limite-meta"),
+    });
+    for (const liste of [
+      [recente, ancienne],
+      [ancienne, recente],
+    ]) {
+      const s = GUIDE(liste);
+      expect(s.raisonsRefus.map((l) => l.motif)).toEqual(["droits-manquants"]);
+      invariant(s);
+    }
+  });
 });
