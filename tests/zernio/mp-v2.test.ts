@@ -63,7 +63,7 @@ describe("textes v2 : registre versionné", () => {
   });
   it("le dictionnaire de textes est une copie à empreinte figée", () => {
     const brut = readFileSync(new URL("../../contrats/dictionnaire-textes-mp.v2.json", import.meta.url));
-    expect(createHash("sha256").update(brut).digest("hex")).toBe("9ecbf86858869312feceb357120c079369f6285ab70db5da511cd1f15d9a6386");
+    expect(createHash("sha256").update(brut).digest("hex")).toBe("d968d4e30ec8f0fc05bb05bae08a3e1cb5502afd313c48c8374498d173c38849");
     const d = JSON.parse(brut.toString("utf8")) as { textes: Record<string, { texte: string }> };
     for (const id of IDS) expect(d.textes[id].texte).toBe(TEXTES_MP[id].texte);
     expect(JSON.stringify(d)).not.toMatch(/\bstop\b/i);

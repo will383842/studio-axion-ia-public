@@ -54,7 +54,7 @@ afterEach(() => {
 describe("C2 · formulations « adresse refusée » v4", () => {
   it("F1 et F2 sont au dictionnaire, actives, à la fin du groupe ; les v3 restent actives", () => {
     expect(TEXTES_MP[F1].texte).toBe(TEXTE_F1);
-    expect(TEXTES_MP[F2].texte).toBe("Cette adresse e-mail n'a pas été acceptée, peut-être à cause d'une faute de frappe ou d'un format non reconnu. Le guide ne peut donc pas partir vers cette adresse.");
+    expect(TEXTES_MP[F2].texte).toBe("Cette adresse e-mail n'a pas été acceptée, peut-être à cause d'une faute de frappe ou d'un format inconnu. Le guide ne peut donc pas partir vers cette adresse.");
     expect(GROUPES_MP["adresse-refusee"]).toEqual(["mp-adresse-refusee-v3-1", "mp-adresse-refusee-v3-2", "mp-adresse-refusee-v3-3", F1, F2]);
     for (const v of GROUPES_MP["adresse-refusee"]) expect((TEXTES_MP as Record<string, { statut?: string }>)[v].statut, v).toBe("actif");
   });

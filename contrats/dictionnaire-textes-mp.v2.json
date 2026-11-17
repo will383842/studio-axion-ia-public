@@ -179,7 +179,7 @@
     "mp-adresse-refusee-v4-2": {
       "version": "mp-adresse-refusee-v4-2",
       "statut": "actif",
-      "texte": "Cette adresse e-mail n'a pas été acceptée, peut-être à cause d'une faute de frappe ou d'un format non reconnu. Le guide ne peut donc pas partir vers cette adresse."
+      "texte": "Cette adresse e-mail n'a pas été acceptée, peut-être à cause d'une faute de frappe ou d'un format inconnu. Le guide ne peut donc pas partir vers cette adresse."
     },
     "mp-m1-v5-1": {
       "version": "mp-m1-v5-1",
