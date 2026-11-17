@@ -39,7 +39,7 @@ describe("note-extraits : types (X4-01)", () => {
 
   it("garde statique : brique pure", () => {
     const fichiers = readdirSync(DOSSIER).filter((f) => f.endsWith(".ts"));
-    expect(fichiers.sort()).toEqual(["index.ts", "moments-ecran.ts", "reglage.ts", "sujets.ts", "types.ts", "version.ts"]);
+    expect(fichiers.sort()).toEqual(["bareme.ts", "index.ts", "moments-ecran.ts", "noter.ts", "reglage.ts", "sujets.ts", "types.ts", "version.ts"]);
     for (const f of fichiers) {
       const src = readFileSync(join(DOSSIER, f), "utf8");
       const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

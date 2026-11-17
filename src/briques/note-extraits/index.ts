@@ -5,3 +5,6 @@ export type { EntreeSujet } from "./sujets";
 export { MONTRE_PAR_PIECE, momentsDepuisScenes } from "./moments-ecran";
 export { CLE_REGLAGE_NOTE_INTERET, SEUILS_PAR_DEFAUT, lireNoteInteret } from "./reglage";
 export type { SeuilsNoteInteret, ReglageNoteInteret, LireReglageNoteInteret } from "./reglage";
+export { POINTS, POINTS_PAR_MONTRE, INTERET_PAR_PIECE, SEUIL_GARDE, SEUIL_PEUT_ETRE, GARDES_MAX_PAR_VIDEO, MOTS_CREUX, MOTS_VIDES } from "./bareme";
+export { noter } from "./noter";
+export type { ContexteNote } from "./noter";
