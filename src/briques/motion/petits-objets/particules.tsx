@@ -1,7 +1,7 @@
 /**
  * PETITS OBJETS — émetteur de particules à graine (C10-11) : confettis, onde de choc (réécrite), pluie d'icônes.
  * Pièce pure, NON inscrite (rien ne l'importe). Hasard par `aleaGraine`, gravité simple, 40 particules au plus,
- * toute particule hors de la zone reçue ou dans la zone du visage est retirée. Aucun texte, aucun filtre.
+ * toute particule dont la boîte dessinée sort de la zone reçue ou touche le visage / les sous-titres est retirée. Aucun texte, aucun filtre.
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import { createElement, type JSX } from "react";
@@ -44,7 +44,30 @@ const TONS_CONFETTIS: readonly TonObjet[] = ["accent", "neutre", "valide"];
 
 const nombre = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const f = (n: number): string => n.toFixed(1);
-const dans = (x: number, y: number, z: ZoneObjet): boolean => x >= z.x && x <= z.x + z.largeur && y >= z.y && y <= z.y + z.hauteur;
+const dansBoite = (b: ZoneObjet, z: ZoneObjet): boolean => b.x >= z.x && b.y >= z.y && b.x + b.largeur <= z.x + z.largeur && b.y + b.hauteur <= z.y + z.hauteur;
+const touche = (a: ZoneObjet, b: ZoneObjet): boolean => a.x < b.x + b.largeur && b.x < a.x + a.largeur && a.y < b.y + b.hauteur && b.y < a.y + a.hauteur;
+const ONDE_TRAIT = 0.3; // trait de 6 unités sur 1000 = 0,3 % du cadre (demi-trait ajouté au rayon : 3 unités)
+
+/** Boîte réellement dessinée (en % du cadre) : centre ± demi-taille propre au mode, rotation comprise. */
+export function boiteParticule(q: Particule): ZoneObjet {
+  const r = (q.angle * Math.PI) / 180;
+  const c = Math.abs(Math.cos(r));
+  const s = Math.abs(Math.sin(r));
+  let hx: number;
+  let hy: number;
+  if (q.forme === "cercle") {
+    hx = q.echelle + ONDE_TRAIT;
+    hy = hx;
+  } else if (q.forme === "icone") {
+    hx = 2.5 * q.echelle * (c + s);
+    hy = hx;
+  } else {
+    // confetti : rectangle 18x10 ou triangle 16x15 (unités /10), englobé par 0,9 x 0,8 par échelle
+    hx = q.echelle * (0.9 * c + 0.8 * s);
+    hy = q.echelle * (0.9 * s + 0.8 * c);
+  }
+  return { x: q.x - hx, y: q.y - hy, largeur: 2 * hx, hauteur: 2 * hy };
+}
 
 function valider(p: unknown): ParametresParticules | null {
   try {
@@ -84,14 +107,15 @@ export function emettre(graine: number, image: number, dureeImages: number, p: P
     const avancement = image / dureeImages;
     const sortie: Particule[] = [];
     const garder = (q: Particule): void => {
-      if (!dans(q.x, q.y, z) || dans(q.x, q.y, ZONE_VISAGE_OBJETS) || dans(q.x, q.y, BANDE_SOUS_TITRES)) return;
+      const boite = boiteParticule(q);
+      if (!dansBoite(boite, z) || touche(boite, ZONE_VISAGE_OBJETS) || touche(boite, BANDE_SOUS_TITRES)) return;
       if (sortie.length < PARTICULES_MAX) sortie.push(q);
     };
     if (p.mode === "onde") {
       const anneaux = Math.min(3, Math.max(1, nombre(p.nombre) ? Math.floor(p.nombre) : 3));
       const cx = z.x + z.largeur / 2;
       const cy = z.y + z.hauteur / 2;
-      const rayonMax = Math.min(z.largeur, z.hauteur) / 2;
+      const rayonMax = Math.min(z.largeur, z.hauteur) / 2 - ONDE_TRAIT;
       for (let i = 0; i < anneaux; i++) {
         const p01 = Math.min(1, Math.max(0, avancement * 1.6 - i * 0.25));
         if (p01 <= 0) continue;

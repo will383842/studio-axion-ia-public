@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   EXEMPLES_PARTICULES,
+  boiteParticule,
   OBJET_PARTICULES,
   emettre,
   type ParametresParticules,
@@ -93,6 +94,28 @@ describe("C10-11 emettre", () => {
         }
       }
     }
+  });
+  it("la BOÎTE dessinée de chaque particule reste dans la zone et ne touche ni le visage ni les sous-titres", () => {
+    const touche = (a: typeof ZONE, b: typeof ZONE) => a.x < b.x + b.largeur && b.x < a.x + a.largeur && a.y < b.y + b.hauteur && b.y < a.y + a.hauteur;
+    const eps = 1e-9;
+    const cas = [
+      ...MODES.flatMap((mode) => [ZONE, ZONE_HAUTE].map((zone) => ({ mode, zone, nombre: 40 as number | undefined, icone: undefined as string | undefined }))),
+      ...EXEMPLES_PARTICULES.map((e) => ({ mode: e.mode, zone: e.zone, nombre: e.nombre, icone: e.icone })),
+    ];
+    let vues = 0;
+    for (const c of cas) for (const graine of [1, 7, 42, 99, 123]) for (let i = 0; i < 62; i++) {
+      for (const q of emettre(graine, i, 62, { mode: c.mode, zone: c.zone, nombre: c.nombre, icone: c.icone })) {
+        vues++;
+        const b = boiteParticule(q);
+        expect(b.x).toBeGreaterThanOrEqual(c.zone.x - eps);
+        expect(b.y).toBeGreaterThanOrEqual(c.zone.y - eps);
+        expect(b.x + b.largeur).toBeLessThanOrEqual(c.zone.x + c.zone.largeur + eps);
+        expect(b.y + b.hauteur).toBeLessThanOrEqual(c.zone.y + c.zone.hauteur + eps);
+        expect(touche(b, ZONE_VISAGE_OBJETS)).toBe(false);
+        expect(touche(b, BANDE_SOUS_TITRES)).toBe(false);
+      }
+    }
+    expect(vues).toBeGreaterThan(100);
   });
   it("une zone qui contiendrait le visage ne donne aucune particule (jamais sur le visage)", () => {
     const large = { x: 0, y: 0, largeur: 100, hauteur: 60 };
