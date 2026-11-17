@@ -89,6 +89,32 @@ export const ID_STYLE_SOUS_TITRES_TABLEAU = "st-avocat-v1";
 export const STYLE_SOUS_TITRES_TABLEAU: ValeurStyleSousTitres = STYLE_SOUS_TITRES_AVOCAT;
 
 /**
+ * 17/11/2026 (FIX-SOUS-TITRES-TABLEAU, lot C ; Williams, bouton « oui » à « un seul style de sous-titres du début à la fin dans
+ * les vidéos du tableau ») : intensité PAR DÉFAUT des sous-titres dynamiques du tableau. « sobre » = ni Impact ni Bandeau : mots
+ * colorés sur la bande noire, du début à la fin (plus de MAJUSCULES dans un cadre blanc). Le mélange reste disponible quand
+ * l'appelant choisit « equilibre » ou « dynamique » explicitement.
+ */
+export const INTENSITE_SOUS_TITRES_TABLEAU: IntensiteSousTitres = "sobre";
+
+/**
+ * 17/11/2026 (correction du relecteur sur 598de81) : `construireCommande` pose TOUJOURS `commande.sousTitres.intensite`, et
+ * `reglageIntensite` retombe sur « equilibre » quand ni la vidéo ni le profil du format n'ont choisi : ce repli n'est pas un
+ * choix. VRAI quand l'intensité reçue n'est que ce repli (« equilibre », aucun cran choisi par la vidéo, aucune intensité
+ * dans le profil du format) : le tableau prend alors `INTENSITE_SOUS_TITRES_TABLEAU`. Un « equilibre » choisi par le
+ * cran de la vidéo (`choisiPar: "video"`) ou fixé par le profil du format reste respecté ; « sobre » et « tres-dynamique »
+ * sont toujours respectés.
+ */
+export function intensiteEstLeRepli(commande: { sousTitres?: { intensite?: IntensiteSousTitres }; dosageMotion?: { cran: string; choisiPar: string }; profilRendu?: { intensite?: IntensiteSousTitres; sousTitresIntensite?: IntensiteSousTitres } }): boolean {
+  return (
+    commande.sousTitres?.intensite === "equilibre" &&
+    commande.dosageMotion?.choisiPar !== "video" &&
+    (commande.dosageMotion === undefined || commande.dosageMotion.cran === "equilibre") &&
+    commande.profilRendu?.intensite === undefined &&
+    commande.profilRendu?.sousTitresIntensite === undefined
+  );
+}
+
+/**
  * Bande sombre de FOND derrière les sous-titres (fonds clairs) : opacité de départ (≈ 0,85, relevée par la mesure du
  * contraste), part de la bande prise par le dégradé doux du haut, et ce que le dégradé du bas déborde sous la bande (dans
  * le vide sous le contenu, jamais au-dessus).

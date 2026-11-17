@@ -163,6 +163,10 @@ services:
       # Auteurs de commentaire admis sur une cible d'essai (3 au plus, séparés par des virgules). Vide = une cible d'essai n'est servie à personne.
       PARCOURS_ESSAI_AUTEURS: ${PARCOURS_ESSAI_AUTEURS:-}
       GUIDES_RESEAU_LIEN_SECRET: ${GUIDES_RESEAU_LIEN_SECRET:-}
+      # Onglet « Guides » de /mots (rédaction, validation, PDF fabriqué par le site, rattachement au mot) : INERTE tant que vide.
+      # Les deux doivent valoir exactement « true » : l'un montre l'onglet, l'autre autorise la rédaction (plafond mensuel inchangé).
+      GUIDES_FABRIQUE_ECRAN: ${GUIDES_FABRIQUE_ECRAN:-}
+      GUIDES_REDACTION_ENABLED: ${GUIDES_REDACTION_ENABLED:-}
       LIEN_GUIDE_COMPTES: ${LIEN_GUIDE_COMPTES:-}
       # Interrupteurs des oppositions (transmission par référence, import depuis le site) : INERTES tant que vides.
       OPPOSITIONS_PAR_REF_ENABLED: ${OPPOSITIONS_PAR_REF_ENABLED:-}

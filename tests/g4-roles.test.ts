@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ETAPE_DU_ROLE, EVALUATIONS_DES_ROLES, ROLES_ECRITURE, versionsRoles } from "@/generateur/roles";
 import { QUESTIONS_JUGES } from "@/generateur/roles/questions";
-import { construireRequete, PHRASES_FIXES, schemaJson, type DefinitionRole } from "@/generateur/roles/types";
+import { construireRequete, PHRASES_FIXES, pireCasRequete, schemaJson, type DefinitionRole } from "@/generateur/roles/types";
 import { blocsEnCache } from "@/generateur/contexte";
 import { CADRE_AXION } from "@/donnees/generateur/domaine-axion";
 import { parametresGenerateur } from "@/donnees/generateur/parametres-generateur";
@@ -57,6 +57,18 @@ describe("G4 · les rôles du générateur", () => {
       const systeme = req.systeme.map((b) => b.texte).join("\n");
       for (const p of PHRASES_FIXES) expect(systeme).toContain(p);
     }
+  });
+
+  it("`sansPhrasesFixes` : absent, les phrases fixes restent à l'identique ; demandé, elles disparaissent (pire cas compris)", () => {
+    const base: DefinitionRole = { ...ROLES[0]![1] };
+    expect("sansPhrasesFixes" in base).toBe(false);
+    const avec = construireRequete(base, { contexte: {}, variable: "x" }).systeme.map((b) => b.texte).join("\n");
+    for (const p of PHRASES_FIXES) expect(avec).toContain(p);
+    const sans = construireRequete({ ...base, sansPhrasesFixes: true }, { contexte: {}, variable: "x" });
+    const texte = sans.systeme.map((b) => b.texte).join("\n");
+    for (const p of PHRASES_FIXES) expect(texte).not.toContain(p);
+    expect(texte).toContain(base.consigne.trim());
+    expect(pireCasRequete({ ...base, sansPhrasesFixes: true }, { contexte: {}, variable: "x" })).toBeLessThan(pireCasRequete(base, { contexte: {}, variable: "x" }));
   });
 
   it("évaluations écrites AVANT la consigne, dans chaque module", () => {

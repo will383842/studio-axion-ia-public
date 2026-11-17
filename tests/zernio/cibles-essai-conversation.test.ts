@@ -175,6 +175,7 @@ describe("S7 · lien allumé (PARCOURS_LIEN_GUIDE) + cible d'essai : jamais de l
     const evt = await com(MOT, { idCommentaire: "com-s7-2", ageMs: 1000 - 25 * H });
     await passer(T0 + 25 * H, { env: ENV_X });
     expect(banc.port.prive).toHaveLength(1);
+    expect(banc.port.pub).toHaveLength(1);
     expect(await decrire(evt)).toBe("m1_refuse/renvoi_impossible");
   });
 });
@@ -291,6 +292,7 @@ describe("Corrections après audit", () => {
     const evt = await com(MOT, { idCommentaire: "com-a-2", ageMs: 1000 - 25 * H });
     await passer(T0 + 25 * H, { env: ENV_X });
     expect(banc.port.prive).toHaveLength(avant);
+    expect(banc.port.pub).toHaveLength(1);
     expect(await decrire(evt)).toBe("m1_refuse/renvoi_impossible");
   });
   it("B · mot GUIDE avec cible marquée test : inconnue, sans lire PARCOURS_ESSAI_COMPTES", async () => {

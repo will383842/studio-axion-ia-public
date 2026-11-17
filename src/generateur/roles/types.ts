@@ -40,6 +40,11 @@ export interface DefinitionRole<S extends z.ZodType = z.ZodType> {
    * Relevé du 18/10 : la mise en scène d'une prise de 2 min 10 dépassait 300 s et retombait en « version simple ».
    */
   delaiTotalMs?: number;
+  /**
+   * FACULTATIF : n'ajoute PAS `PHRASES_FIXES` à la consigne (rôle qui n'a ni ancrage ni preuve à citer : un guide, où
+   * « réponds ANCRAGE_MANQUANT » ferait répondre un mot-code au lieu du JSON). Absent : phrases fixes, comme avant.
+   */
+  sansPhrasesFixes?: boolean;
 }
 
 /**
@@ -133,7 +138,7 @@ export function construireRequete(role: DefinitionRole, entree: EntreeRole): Req
     if (texte) systeme.push({ texte: bloc(balise, texte), ...(cle === "recette" && role.cacheRecette ? { cache: "1h" as const } : {}) });
   }
   const schema = role.envoi ? schemaJson(role.envoi.schema) : role.schema ? schemaJson(role.schema) : undefined;
-  systeme.push({ texte: [role.consigne.trim(), PHRASES_FIXES.join("\n"), ...(schema ? [consigneJson(schema)] : [])].join("\n\n"), cache: true });
+  systeme.push({ texte: [role.consigne.trim(), ...(role.sansPhrasesFixes ? [] : [PHRASES_FIXES.join("\n")]), ...(schema ? [consigneJson(schema)] : [])].join("\n\n"), cache: true });
   return {
     modele: role.modele,
     maxTokens: role.maxTokens,

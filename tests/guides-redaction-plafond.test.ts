@@ -171,3 +171,24 @@ describe("0a · (c) interrupteurs éteints : rien", () => {
     expect(await reservationsGuide()).toEqual([]);
   });
 });
+
+describe("0a · la rédaction d'un guide n'envoie pas les phrases fixes des rôles (ancrage, preuve)", () => {
+  it("le champ system de la requête envoyée ne contient ni ANCRAGE_MANQUANT ni PREUVE_MANQUANTE", async () => {
+    const r = await redigerBrouillonGuide("essai");
+    expect(r).toMatchObject({ ok: true });
+    expect(appels).toHaveLength(1);
+    const systeme = JSON.stringify(appels[0]!.corps.system);
+    expect(systeme).not.toContain("ANCRAGE_MANQUANT");
+    expect(systeme).not.toContain("PREUVE_MANQUANTE");
+  });
+
+  it("réponse « ANCRAGE_MANQUANT : … » : reponse_illisible, événement qui nomme le marqueur, jamais le texte", async () => {
+    brancherClaude(() => reponseFlux(fluxReussi({ texte: "ANCRAGE_MANQUANT : texte secret du modèle", modele: "claude-sonnet-5-5", entree: 900, cacheEcrit: 0, sortie: 50 })));
+    expect(await redigerBrouillonGuide("essai")).toEqual({ ok: false, raison: "reponse_illisible" });
+    const evts = await depots().evenements.lister((e) => e.type === "guide_redaction_illisible");
+    expect(evts).toHaveLength(1);
+    expect(evts[0]!.message).toContain("marqueur=ANCRAGE_MANQUANT");
+    expect(evts[0]!.message).not.toContain("texte secret");
+    expect(await brouillon("essai")).toBeNull();
+  });
+});

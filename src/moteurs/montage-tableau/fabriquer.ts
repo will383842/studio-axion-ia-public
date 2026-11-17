@@ -90,7 +90,7 @@ import { COULEURS_VIDEO } from "@/briques/habillage/charte-video";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
 import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, IntensiteSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurProfilSon, ValeurStyleSousTitres } from "@/domaine/types";
-import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
+import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, INTENSITE_SOUS_TITRES_TABLEAU, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
 import { calerFicheTableau, type ElementCale } from "./calage";
 import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau } from "./controles";
 import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTableau, type SceneTableau } from "./fiche";
@@ -1295,7 +1295,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // 17/10 : sous-titres dynamiques (mélange central, garde-fous du tableau) pour la charte Axion et les styles choisis ;
     // les anciens styles « Encre » gardent leurs groupes d'avant.
     const dynamiques = stTableau.personnalise || estStyleReference3(ficheS);
-    const intensiteST: IntensiteSousTitres = o.intensiteSousTitres ?? "equilibre";
+    const intensiteST: IntensiteSousTitres = o.intensiteSousTitres ?? INTENSITE_SOUS_TITRES_TABLEAU;
     const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : [])];
     // Mots mis en valeur (GV-ST-09) : un journal d'avant, dont la composition est déjà gardée, garde sa clé (reprise sans refaire) ;
     // une fabrication neuve reçoit le marqueur, donc une autre clé que celle d'avant.
