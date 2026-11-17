@@ -49,6 +49,7 @@ export interface ResultatPromotionEnvois {
 
 export interface NotificationPromotion {
   cle: string;
+  /** Identifiant du média (vidéo ou visuel). */
   videoId: string;
   motif: "a-reprogrammer" | "tiktok-incomplet";
   raison: string;
@@ -177,7 +178,7 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
   const brouillons = await listerTousLesPosts(o.client, "draft");
   const trouvees: { e: EnvoiPlanifie; t: number; ligne: LigneEnvoiPromotion; post: PostZernio }[] = [];
   for (const c of candidates) {
-    const post = brouillons.find((p) => p.metadata?.studioCle === c.e.cle);
+    const post = brouillons.find((p) => p.metadata?.studioCle === (c.e.cleDiffuseur ?? c.e.cle));
     if (!post) {
       c.ligne.etat = "sans-brouillon";
       c.ligne.raison = "aucun brouillon Zernio pour cette entrée : rien à promouvoir";
@@ -226,7 +227,7 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
       const attente = suivi.delaiAvant(o.maintenant());
       if (attente > 0) await attendre(attente);
       for (let i = 0; i < 3; i++) suivi.noterRequete(o.maintenant()); // GET avant + PUT + GET après
-      const r = await o.client.promouvoir({ postId: post._id, cleJournal: e.cle, dateJournal: new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z") });
+      const r = await o.client.promouvoir({ postId: post._id, cleJournal: e.cleDiffuseur ?? e.cle, dateJournal: new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z") });
       suivi.noterOperation(compte, o.maintenant());
       if (r.etat === "programme") {
         await transiterEnvoi(o.depot, e.id, "programme", new Date(o.maintenant()).toISOString());

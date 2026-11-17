@@ -4,7 +4,7 @@
  */
 import "server-only";
 import type { Depot } from "@/domaine/depots";
-import { cleEnvoi, peutTransiter, type EnvoiPlanifie, type StatutEnvoi } from "@/domaine/envoi-planifie";
+import { CLE_DIFFUSEUR, cleEnvoi, peutTransiter, type EnvoiPlanifie, type StatutEnvoi } from "@/domaine/envoi-planifie";
 import type { Id, ReseauDeclinaison } from "@/domaine/types";
 
 export interface DemandeEnvoi {
@@ -13,6 +13,9 @@ export interface DemandeEnvoi {
   versionCreneau: number;
   jour: string;
   heure?: string;
+  /** Absent = vidéo. */
+  nature?: "video" | "visuel";
+  creneauId?: string;
 }
 
 /** Heure de Paris : jour AAAA-MM-JJ, heure HH:MM. */
@@ -33,7 +36,29 @@ export async function creerEnvoi(d: Depot<EnvoiPlanifie>, demande: DemandeEnvoi,
   verifierCreneau(demande);
   const existant = await d.obtenir(cle);
   if (existant) return existant;
-  return d.enregistrer({ id: cle, cle, ...demande, statut: "brouillon", creeLe: maintenant, modifieLe: maintenant });
+  const { nature, creneauId, ...base } = demande;
+  return d.enregistrer({
+    id: cle,
+    cle,
+    ...base,
+    ...(nature !== undefined ? { nature } : {}),
+    ...(creneauId !== undefined ? { creneauId } : {}),
+    statut: "brouillon",
+    creeLe: maintenant,
+    modifieLe: maintenant,
+  });
+}
+
+/**
+ * Note la clé de 64 signes réellement envoyée au diffuseur (celle que rend l'envoi, jamais recalculée).
+ * Clé invalide = erreur ; absente = écrite ; même valeur = rien ; valeur DIFFÉRENTE déjà posée = erreur (jamais écrasée).
+ */
+export async function noterCleDiffuseur(d: Depot<EnvoiPlanifie>, id: Id, cle: string, maintenant: string): Promise<EnvoiPlanifie> {
+  if (typeof cle !== "string" || !CLE_DIFFUSEUR.test(cle)) throw new Error("Clé du diffuseur invalide (64 signes hexadécimaux attendus).");
+  const e = await lire(d, id);
+  if (e.cleDiffuseur === undefined) return d.modifier(id, { cleDiffuseur: cle, modifieLe: maintenant });
+  if (e.cleDiffuseur === cle) return e;
+  throw new Error("Clé du diffuseur déjà posée avec une autre valeur : elle n'est jamais écrasée.");
 }
 
 export async function validerEnvoi(d: Depot<EnvoiPlanifie>, id: Id, par: string, maintenant: string): Promise<EnvoiPlanifie> {
