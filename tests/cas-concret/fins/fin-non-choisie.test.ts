@@ -141,8 +141,8 @@ describe("FIX-CC-FIN-NON-CHOISIE · c) la fabrication d'une fin vide : le corps 
     const e = cr.fiche.ecrans;
     expect(cr.plan.fins[0].ecrans).toEqual([]);
     for (let i = 0; i < e.length; i++) {
-      expect(e[i].finMs).toBeGreaterThan(e[i].debutMs);
-      if (i > 0) expect(e[i].debutMs).toBeGreaterThanOrEqual(e[i - 1].finMs - 1);
+      expect(e[i].finMs!).toBeGreaterThan(e[i].debutMs!);
+      if (i > 0) expect(e[i].debutMs!).toBeGreaterThanOrEqual(e[i - 1].finMs! - 1);
     }
     expect(cr.rapport.lignes.filter((l) => l.bloquant && l.etat === "echoue")).toEqual([]);
   });

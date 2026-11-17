@@ -94,7 +94,8 @@ describe("vueCasConcret", () => {
     await videoCasConcret({ casId: "compte-rendu-dicte" });
     const v = (await vueCasConcret(VIDEO, { urlDeCle }))!;
     const fb = v.fichiers.find((f) => f.reseau === "facebook")!;
-    expect(fb.phraseFin).toBe("Fin : diagnostic et lien");
+    // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
+    expect(fb.phraseFin).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
     expect(fb.raisonFin).toBe("Le mot n'est pas branché sur ce compte : la fin propose le diagnostic.");
     expect(v.documentAPreparer).toBe(false);
   });
@@ -103,7 +104,8 @@ describe("vueCasConcret", () => {
     await videoCasConcret({ avecMot: false });
     const v = (await vueCasConcret(VIDEO, { urlDeCle }))!;
     for (const f of v.fichiers) {
-      expect(f.phraseFin).toBe("Fin : diagnostic et lien");
+      // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
+      expect(f.phraseFin).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
       expect(f.raisonFin).toMatch(/sans le mot/);
     }
   });
@@ -114,8 +116,9 @@ describe("vueCasConcret", () => {
     const phrase = (r: string) => v.fichiers.find((f) => f.reseau === r)!;
     expect(phrase("instagram").phraseFin).toBe("Fin : mot et envoi");
     expect(phrase("instagram").raisonFin).toBeUndefined();
-    expect(phrase("facebook").phraseFin).toBe("Fin : diagnostic et lien");
-    expect(phrase("tiktok").phraseFin).toBe("Fin : diagnostic et lien");
+    // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
+    expect(phrase("facebook").phraseFin).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
+    expect(phrase("tiktok").phraseFin).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
     expect(v.documentAPreparer).toBe(true);
   });
 

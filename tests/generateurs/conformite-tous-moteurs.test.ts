@@ -81,7 +81,8 @@ async function commandeImageVideo(): Promise<CommandeFabrication> {
 
 const casSans = bancCas({ relie: false });
 const tableauSans = bancTableau(ficheDemonstration, null);
-const cas = bancCas();
+// 17/11 (Williams) : sans choix, aucune fin ; le contrat (retouche moins chère que la vidéo entière, sorties) suppose plusieurs fins : « Avec le mot » + mot branché les rétablissent.
+const cas = bancCas({ avecMot: true, motSur: ["facebook", "instagram"] });
 const tableau = bancTableau(ficheDemonstration);
 const tutoriel = creerMoteurTutorielOutil({ outils: une(outilsDoubles({ voix: [], claude: [], rendus: [] })) });
 

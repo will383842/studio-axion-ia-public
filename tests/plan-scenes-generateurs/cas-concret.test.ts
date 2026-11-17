@@ -12,6 +12,8 @@ import type { RequeteClaude, ReponseClaude } from "@/fournisseurs/claude/client"
 import { doubles, type Doubles } from "../cas-concret/fabriquer/doubles";
 
 const FIXE = { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const };
+// 17/11 (Williams) : sans choix, aucune fin ; la fiche du gabarit est écrite pour des vidéos avec fin (sans fin, « durée totale » la refuse à 34,1 s) : « Avec le mot » + mot branché les rétablissent.
+const AVEC_MOT = { avecMot: true, motSur: ["facebook", "instagram"] as ("facebook" | "instagram")[] };
 const ficheDe = (casId: string): FicheEcrans => ficheParGabarit(trouverCas(casId)!, FIXE);
 function avecFiche(d: Doubles, fiche: unknown): Doubles {
   d.options.entrees = { ...d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" };
@@ -29,7 +31,7 @@ function llmSimule() {
 
 describe("Cas concret · plan de scènes", () => {
   it("éteint par défaut : aucun écran ne porte de plan, rien n'est gardé au journal", async () => {
-    const d = avecFiche(doubles(), ficheDe("recrutement-apporteurs"));
+    const d = avecFiche(doubles(AVEC_MOT), ficheDe("recrutement-apporteurs"));
     await fabriquerCasConcret(d.options);
     expect(d.ecransSoumis().length).toBeGreaterThan(0);
     for (const p of proprietes(d)) expect(p.planScenes).toBeUndefined();
@@ -37,7 +39,7 @@ describe("Cas concret · plan de scènes", () => {
   });
 
   it("allumé (pièces du stock) : des écrans portent une tranche valide, gardée au journal", async () => {
-    const d = avecFiche(doubles(), ficheDe("recrutement-apporteurs"));
+    const d = avecFiche(doubles(AVEC_MOT), ficheDe("recrutement-apporteurs"));
     d.options.planScenes = {};
     await fabriquerCasConcret(d.options);
     const avecPlan = proprietes(d).filter((p) => p.planScenes);
@@ -53,31 +55,34 @@ describe("Cas concret · plan de scènes", () => {
   it("allumé avec le LLM simulé : un appel par groupe, jamais rappelé à la reprise, aucun écran rendu de nouveau", async () => {
     const llm = llmSimule();
     const fiche = ficheDe("recrutement-apporteurs");
-    const d = avecFiche(doubles(), fiche);
+    const d = avecFiche(doubles(AVEC_MOT), fiche);
     d.options.planScenes = { appeler: llm.appeler };
     const cr = await fabriquerCasConcret(d.options);
     const groupes = Object.keys(d.partage.journal.valeur!.planScenes!);
-    expect(llm.requetes).toHaveLength(groupes.length);
+    // 17/11 (Williams) : sans choix, aucune fin ; la fin vide (TikTok, LinkedIn) est un groupe sans écran : gardée au journal, jamais envoyée au LLM (avant : un appel par fin).
+    const appelees = groupes.filter((g) => g !== "fin-tiktok-linkedin");
+    expect(groupes).toContain("fin-tiktok-linkedin");
+    expect(llm.requetes).toHaveLength(appelees.length);
     expect(llm.requetes.every((r) => r.modele === "claude-opus-5-5")).toBe(true);
     // Reprise : même journal, mêmes fichiers.
-    const d2 = avecFiche(doubles({ partage: d.partage }), fiche);
+    const d2 = avecFiche(doubles({ ...AVEC_MOT, partage: d.partage }), fiche);
     d2.options.planScenes = { appeler: llm.appeler };
     const cr2 = await fabriquerCasConcret(d2.options);
-    expect(llm.requetes).toHaveLength(groupes.length);
+    expect(llm.requetes).toHaveLength(appelees.length);
     expect(d2.ecransSoumis()).toHaveLength(0);
     expect(cr2.ecrans.repris).toHaveLength(cr.ecrans.rendus.length);
   });
 
   it("un seul écran changé (plan allumé) → un seul écran rendu à nouveau", async () => {
     const fiche = ficheDe("recrutement-apporteurs");
-    const d = avecFiche(doubles(), fiche);
+    const d = avecFiche(doubles(AVEC_MOT), fiche);
     d.options.planScenes = {};
     await fabriquerCasConcret(d.options);
     const i = fiche.ecrans.findIndex((e) => e.type === "etape" && e.puces.length === 0);
     expect(i).toBeGreaterThan(-1);
     const changee = structuredClone(fiche);
     (changee.ecrans[i] as { puces: string[] }).puces = ["Sans papier"];
-    const d2 = avecFiche(doubles({ partage: d.partage }), changee);
+    const d2 = avecFiche(doubles({ ...AVEC_MOT, partage: d.partage }), changee);
     d2.options.planScenes = {};
     const cr2 = await fabriquerCasConcret(d2.options);
     expect(d2.ecransSoumis()).toHaveLength(1);
@@ -86,9 +91,9 @@ describe("Cas concret · plan de scènes", () => {
 
   it("allumer l'option change l'empreinte de rendu des seuls écrans qui reçoivent des scènes", async () => {
     const fiche = ficheDe("recrutement-apporteurs");
-    const eteint = avecFiche(doubles(), fiche);
+    const eteint = avecFiche(doubles(AVEC_MOT), fiche);
     await fabriquerCasConcret(eteint.options);
-    const allume = avecFiche(doubles({ partage: eteint.partage }), fiche);
+    const allume = avecFiche(doubles({ ...AVEC_MOT, partage: eteint.partage }), fiche);
     allume.options.planScenes = {};
     await fabriquerCasConcret(allume.options);
     const porteurs = proprietes(allume).filter((p) => p.planScenes).length;

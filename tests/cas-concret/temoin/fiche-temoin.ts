@@ -10,13 +10,12 @@
  * (publicité, formulaire, rendez-vous) sont les fichiers de `reference/rushes/` (T1b).
  */
 import { proprietesEcrans, type CaptureEcran, type ContenuEcran, type EcranCale, type ProprietesEcran, type VisuelCale, type ZoneProtegeePct } from "@/briques/ecrans-motion";
-import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import { BANDE_SOUS_TITRES_CAS_CONCRET } from "@/formats/cas-concret";
 import { recrutementApporteurs } from "@/formats/cas-concret/catalogue/recrutement-apporteurs";
 import type { EvenementCale } from "@/moteurs/montage-cas-concret/calage";
 import { avecPointFinal, departDePage, texteBarre, type CaptureVraiEcran } from "@/moteurs/montage-cas-concret/etapes";
 import { VERSION_FICHE_ECRANS, idEcranAttendu, texteDuCorps, type Ecran, type EcranCorps, type FicheEcrans, type FinPlanifiee } from "@/moteurs/montage-cas-concret/fiche";
-import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
+import { planDiagnostic } from "../fins/plan-diagnostic";
 
 /**
  * Les noms des événements (`cible`) sont ceux que lisent les compositions : `titre-<n>` (lignes d'affiche), `tache-<n>`,
@@ -279,14 +278,11 @@ export function ficheTemoin(): FicheEcrans {
  * minutes. » puis « Le lien est en commentaire. ». Le corps reste celui de la vidéo de référence.
  */
 export function finTemoin(): FinPlanifiee {
-  const plan = planDesFins({
+  // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même (diagnostic + lien construits depuis la table).
+  const plan = planDiagnostic({
     reseaux: ["facebook"],
-    offre: "integration",
-    nature: "automatisation",
     mot: recrutementApporteurs.mot,
     ...(recrutementApporteurs.motDit ? { motDit: recrutementApporteurs.motDit } : {}),
-    avecMot: false,
-    table: TABLE_FINS_DIAGNOSTIC,
   });
   const fin = plan.fins[0];
   if (!fin) throw new Error("La fin du témoin est introuvable dans la table des fins.");

@@ -1,9 +1,21 @@
 /** Script fourni : aller-retour sur tous les cas (le texte tiré du gabarit redonne une fiche conforme, mêmes phrases). */
 import { describe, expect, it } from "vitest";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
-import { dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { dureeDiteMs, dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
+import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
+import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import { bornesDesFins, controlerTexteFourni, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
 import { validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
+
+/** Les fins dites de Facebook et d'Instagram (le mot coché et branché) : la plus courte, la plus longue. */
+function bornesAvecMot(cas: (typeof CATALOGUE)[number]) {
+  const fins = (["facebook", "instagram"] as const).flatMap((reseau) =>
+    regrouperFins(planDesFins({ reseaux: [reseau], offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot: true, motSur: ["facebook", "instagram"], table: TABLE_FINS_DIAGNOSTIC })).fins,
+  );
+  const tri = [...fins].sort((a, b) => dureeDiteMs(a.ecrans) - dureeDiteMs(b.ecrans));
+  return { courte: tri[0]!, longue: tri[tri.length - 1]! };
+}
 
 const FIXE = { videoId: "v", versionId: "v", habillage: "charte-duo/1", origine: "porte-a" } as const;
 
@@ -15,7 +27,9 @@ describe("aller-retour sur les cas", () => {
     let n = 0;
     for (const cas of CATALOGUE) {
       // Le gabarit avec les fins connues, jugé avec la fin la plus courte comme avec la plus longue.
-      const b = bornesDesFins(cas);
+      // 17/11 (Williams) : sans choix, aucune fin ; ce cas ne compte pas sur « 3 sorties par défaut » : le mot coché et branché
+      // sur Facebook et Instagram rétablit des fins dites (la fin la plus courte, la plus longue), comme avant.
+      const b = bornesAvecMot(cas);
       const g = ficheParGabarit(cas, FIXE, dureesDesFins([b.courte, b.longue]));
       const texteScript = g.ecrans.map((e) => e.texteDit).join(" ");
       if (!validerFicheEcrans(g, { cas, texteScript, fins: [b.courte] }).ok || !validerFicheEcrans(g, { cas, texteScript }).ok) {

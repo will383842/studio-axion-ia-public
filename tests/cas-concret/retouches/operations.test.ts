@@ -19,7 +19,9 @@ import {
 } from "@/moteurs/montage-cas-concret/retouches";
 
 const cas = trouverCas("recrutement-apporteurs")!;
-const reseaux = ["facebook", "instagram", "tiktok", "linkedin"] as const;
+// 17/11 (Williams) : sans choix, aucune fin ; TikTok et LinkedIn n'ont plus de fin (le mot n'y est pas branchable) : ces essais
+// ne gardent que les deux réseaux où une fin existe, pour que la fiche de départ reste celle écrite avec des fins.
+const reseaux = ["facebook", "instagram"] as const;
 // P2R : le mot n'est dit que là où il est branché ; ces essais le branchent sur Facebook et Instagram (comme X7).
 const motSur = ["facebook", "instagram"] as const;
 const contexte: ContexteRetoucheCasConcret = { cas, reseaux: [...reseaux], motSur: [...motSur], mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot: true, table: TABLE_FINS_DIAGNOSTIC };

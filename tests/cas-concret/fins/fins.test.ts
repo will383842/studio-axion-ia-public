@@ -10,6 +10,7 @@ import { schemaEcranFin, type FicheEcrans } from "@/moteurs/montage-cas-concret/
 import { codeVersionCasConcret, liensSuivis, motValide, planDesFins, RAISON_MOT_NON_BRANCHE, RAISON_SUITE_REDUITE } from "@/moteurs/montage-cas-concret/fins";
 import { INDICATION_FACEBOOK, textesDePublication } from "@/moteurs/montage-cas-concret/publication";
 import type { ReseauCas } from "@/formats/cas-concret";
+import { planDiagnostic } from "./plan-diagnostic";
 
 const TOUS: ReseauCas[] = ["facebook", "instagram", "tiktok", "linkedin"];
 const INTERDITS = ["machine", "machines", "Villeexemple", "aucun gain garanti"];
@@ -31,7 +32,8 @@ const fiche: Pick<FicheEcrans, "ecrans"> = {
 
 describe("M2 · plan des fins", () => {
   it("aujourd'hui, 4 réseaux : exactement les phrases du tableau de l'Usine, dites et écrites", () => {
-    for (const plan of [planDesFins({ ...aujourdhui, reseaux: TOUS, offre: "integration", nature: "automatisation" }), planDesFins({ ...base, motSur: [], reseaux: TOUS, offre: "integration", nature: "automatisation" })]) {
+// 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    for (const plan of [planDiagnostic({ reseaux: TOUS, mot: aujourdhui.mot, motDit: aujourdhui.motDit }), planDiagnostic({ reseaux: TOUS, mot: base.mot, motDit: base.motDit })]) {
       const de = (r: ReseauCas) => plan.fins.find((f) => f.reseaux.includes(r))!;
       expect(de("instagram").appels.map((a) => a.dit)).toEqual([DIAGNOSTIC, "Le lien est dans mon profil."]);
       expect(de("facebook").appels.map((a) => a.dit)).toEqual([DIAGNOSTIC, "Le lien est en commentaire."]);
@@ -43,7 +45,8 @@ describe("M2 · plan des fins", () => {
   });
 
   it("deux écrans : « diagnostic » (titre, « en quelques minutes ») puis « lien » (bulle) ; aucun appel au mot ni promesse", () => {
-    const [fin] = planDesFins({ ...aujourdhui, reseaux: ["facebook"], offre: "integration", nature: "automatisation" }).fins;
+// 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const [fin] = planDiagnostic({ reseaux: ["facebook"], mot: aujourdhui.mot, motDit: aujourdhui.motDit }).fins;
     expect(fin.ecrans.map((e) => [e.id, e.type])).toEqual([["f01", "diagnostic"], ["f02", "lien"]]);
     expect(fin.ecrans[0]).toMatchObject({ titre: "Faites votre diagnostic gratuit", ligne: "en quelques minutes", texteDit: DIAGNOSTIC });
     expect(fin.ecrans[1]).toMatchObject({ bulle: "Diagnostic gratuit · lien en commentaire", texteDit: "Le lien est en commentaire." });
@@ -54,14 +57,16 @@ describe("M2 · plan des fins", () => {
     const plan = planDesFins({ ...base, reseaux: TOUS, offre: "integration", nature: "automatisation" });
     const de = (r: ReseauCas) => plan.fins.find((f) => f.reseaux.includes(r))!;
     // X7 : Instagram a sa propre fin au mot (l'abonnement est obligatoire), en une phrase et un écran.
-    expect(plan.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram"], ["tiktok"], ["linkedin"]]);
+    // 17/11 (Williams) : sans choix, aucune fin ; TikTok et LinkedIn (le mot n'y est jamais branché) partagent la fin vide.
+    expect(plan.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram"], ["tiktok", "linkedin"]]);
     expect(de("facebook").appels.map((a) => a.dit)).toEqual(["Écrivez I.A. en commentaire.", "Je vous envoie la structure complète."]);
     expect(de("facebook").ecrans.map((e) => e.type)).toEqual(["appel-mot", "promesse"]);
     expect(de("instagram").appels.map((a) => a.dit)).toEqual(["Abonnez-vous et écrivez I.A. en commentaire : je vous l'envoie."]);
     expect(de("instagram").ecrans.map((e) => e.type)).toEqual(["appel-mot"]);
     for (const r of ["facebook", "instagram"] as const) expect(de(r).appels.map((a) => a.type)).not.toContain("lien");
-    expect(de("tiktok").appels[0].dit).toBe(DIAGNOSTIC);
-    expect(de("linkedin").appels[0].dit).toBe(DIAGNOSTIC);
+    // 17/11 (Williams) : sans choix, aucune fin (le diagnostic n'est plus posé ; il est testé par `planDiagnostic`).
+    expect(de("tiktok").appels).toEqual([]);
+    expect(de("linkedin").appels).toEqual([]);
     expect(plan.reduites).toEqual([]);
   });
 
@@ -69,7 +74,8 @@ describe("M2 · plan des fins", () => {
     const plan = planDesFins({ ...base, motSur: ["instagram"], reseaux: TOUS, offre: "integration", nature: "automatisation" });
     const de = (r: ReseauCas) => plan.fins.find((f) => f.reseaux.includes(r))!;
     expect(de("instagram").appels.map((a) => a.id)).toEqual(["fin-ig-mot-abonnement"]);
-    expect(de("facebook").appels.map((a) => a.id)).toEqual(["fin-if-diagnostic-gratuit", "fin-fb-lien-commentaire"]);
+    // 17/11 (Williams) : sans choix, aucune fin ; Facebook (mot non branché) n'a plus le diagnostic, sa raison reste dite.
+    expect(de("facebook").appels.map((a) => a.id)).toEqual([]);
     expect(plan.reduites).toEqual([{ reseaux: ["facebook"], raison: RAISON_MOT_NON_BRANCHE }]);
   });
 
@@ -79,16 +85,18 @@ describe("M2 · plan des fins", () => {
   });
 
   it("deux réseaux à la même suite partagent une fin", () => {
-    const plan = planDesFins({ ...base, reseaux: ["facebook", "linkedin", "facebook"], offre: "audit", avecMot: false });
+// 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const plan = planDiagnostic({ reseaux: ["facebook", "linkedin", "facebook"], mot: base.mot, motDit: base.motDit });
     expect(plan.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["linkedin"]]);
-    const deux = planDesFins({ ...base, reseaux: ["tiktok", "tiktok"], offre: "audit" });
+    const deux = planDiagnostic({ reseaux: ["tiktok", "tiktok"], mot: base.mot, motDit: base.motDit });
     expect(deux.fins).toHaveLength(1);
   });
 
   it("une ligne de la fin au mot non validée : le diagnostic, avec sa raison", () => {
     const table = TABLE_FINS_DIAGNOSTIC.map((f) => (f.id === "fin-if-envoi-structure" ? { ...f, validee: false } : f));
     const plan = planDesFins({ ...base, table, reseaux: ["facebook"], offre: "formation" });
-    expect(plan.fins[0].appels.map((a) => a.id)).toEqual(["fin-if-diagnostic-gratuit", "fin-fb-lien-commentaire"]);
+    // 17/11 (Williams) : sans choix, aucune fin ; la suite au mot non validée ne retombe plus sur le diagnostic, sa raison reste dite.
+    expect(plan.fins[0].appels.map((a) => a.id)).toEqual([]);
     expect(plan.reduites).toEqual([{ reseaux: ["facebook"], raison: RAISON_SUITE_REDUITE }]);
     expect(RAISON_SUITE_REDUITE).toBe("La fin au mot n'est pas encore validée : la fin propose le diagnostic.");
   });
@@ -99,6 +107,8 @@ describe("M2 · plan des fins", () => {
         const plan = planDesFins({ ...base, motSur, reseaux: TOUS, offre });
         for (const f of plan.fins) for (const a of f.appels) expect(`${a.dit} ${a.ecran}`, `${offre} ${a.id}`).not.toMatch(/r[ée]servez|rendez-vous/i);
         for (const r of plan.reduites) expect(r.raison).not.toMatch(/rendez-vous/i);
+        // 17/11 (Williams) : sans choix, aucune fin ; la fin « diagnostic » (construite) garde la même garde.
+        for (const f of planDiagnostic({ reseaux: TOUS, mot: base.mot, motDit: base.motDit }).fins) for (const a of f.appels) expect(`${a.dit} ${a.ecran}`, `${offre} ${a.id}`).not.toMatch(/r[ée]servez|rendez-vous/i);
       }
   });
 
@@ -119,7 +129,8 @@ describe("M2 · plan des fins", () => {
 
   it("une table sans lien → sansFin avec une raison", () => {
     const table = TABLE_FINS_DIAGNOSTIC.filter((f) => f.type !== "lien");
-    const plan = planDesFins({ ...base, reseaux: ["tiktok"], offre: "integration", nature: "automatisation", table });
+// 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const plan = planDiagnostic({ reseaux: ["tiktok"], mot: base.mot, motDit: base.motDit, table });
     expect(plan.fins).toEqual([]);
     expect(plan.sansFin).toHaveLength(1);
     expect(plan.sansFin[0].reseaux).toEqual(["tiktok"]);
@@ -168,7 +179,8 @@ describe("M2 · liens suivis", () => {
 
 describe("M2 · textes de publication", () => {
   const mot = recrutementApporteurs.mot;
-  const plan = planDesFins({ ...aujourdhui, reseaux: TOUS, offre: "integration", nature: "automatisation" });
+// 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+  const plan = planDiagnostic({ reseaux: TOUS, mot: aujourdhui.mot, motDit: aujourdhui.motDit });
   const liens = liensSuivis(TOUS, 42);
   const textes = textesDePublication(fiche, plan, liens);
   const de = (r: ReseauCas) => textes.find((t) => t.reseau === r)!;
@@ -211,7 +223,13 @@ describe("M2 · textes de publication", () => {
   });
 
   describe("mot branché sur Instagram", () => {
-    const p = planDesFins({ ...base, motSur: ["instagram"], reseaux: TOUS, offre: "integration", nature: "automatisation" });
+// 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    // Instagram au mot (planDesFins), les autres réseaux avec la fin « diagnostic » construite.
+    const p = {
+      fins: [...planDesFins({ ...base, motSur: ["instagram"], reseaux: ["instagram"], offre: "integration", nature: "automatisation" }).fins, ...planDiagnostic({ reseaux: ["facebook", "tiktok", "linkedin"], mot: base.mot, motDit: base.motDit }).fins],
+      reduites: [],
+      sansFin: [],
+    };
     const t = textesDePublication(fiche, p, liens, { mot });
     const de2 = (r: ReseauCas) => t.find((x) => x.reseau === r)!;
 

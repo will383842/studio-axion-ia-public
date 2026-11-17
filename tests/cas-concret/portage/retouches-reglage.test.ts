@@ -74,7 +74,8 @@ describe("P5 · retouches allumées dans le double", () => {
   });
 
   it("sans opération, la réservation est le corps à lectures maximales (la ressemblance les multiplie), jamais les fins ni l'écriture", async () => {
-    const b = banc({ retouches: true });
+    // 17/11 (Williams) : sans choix, aucune fin ; la réservation est comparée à la voix de la vidéo entière, qui doit donc avoir des fins : « Avec le mot » + mot branché les rétablissent.
+    const b = banc({ retouches: true, avecMot: true, motSur: ["facebook", "instagram"] });
     const sans = b.commande();
     const avec = b.commande({ entrees: { ...sans.entrees, ressemblanceVoix: { actif: true, relancesMax: 2, seuil: 0.8 } } as never });
     const vie = (await b.moteur.estimer(avec)).lignes.find((l) => l.etape === "Voix")!.total.centimes;

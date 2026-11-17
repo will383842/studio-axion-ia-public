@@ -104,7 +104,9 @@ describe("V4-3 · le script validé de « recrutement-apporteurs » est celui de
 
 describe("V4-3 · fabrication avec un script validé", () => {
   it("aucun appel d'écriture ; la voix lit le script ; la fin vient de la banque, réseau par réseau", async () => {
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot coché et branché sur Facebook et Instagram rétablit une fin dite
+    // par sortie (TikTok et LinkedIn n'en ont plus, le mot n'y est pas branchable).
+    const d = doubles({ reseaux: ["facebook", "instagram"], avecMot: true, motSur: ["facebook", "instagram"] });
     d.options.scriptValide = script;
     const cr = await fabriquerCasConcret(d.options);
     expect(d.appelsEcriture()).toBe(0);
@@ -113,7 +115,7 @@ describe("V4-3 · fabrication avec un script validé", () => {
     expect(texteDuCorps(cr.fiche)).toBe(texteDuCorps({ ecrans: script.ecrans } as never));
     expect(d.lus[0]).toContain("Nous, on arrive pour la visio. Quinze minutes. C'est notre seul travail. Derrière, le contrat part tout seul.");
     // Une fin par groupe de réseaux, tirée de la banque ; jamais la fin écrite de la v4.
-    expect(cr.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram", "tiktok"], ["linkedin"]]);
+    expect(cr.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram"]]);
     for (const f of cr.plan.fins) {
       expect(f.appels.length).toBeGreaterThan(0);
       expect(f.ecrans.map((e) => e.texteDit).join(" ")).not.toContain("Écrivez PLAN");

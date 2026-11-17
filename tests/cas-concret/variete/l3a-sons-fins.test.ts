@@ -264,8 +264,19 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
         .map(([, v]) => /bruitages\/([^?]+)\.wav/.exec(v)?.[1] ?? ""),
     );
 
-  async function fabriquer(tirage: Tirage | null) {
-    const d = doubles({ bruitages: SONS });
+  /**
+   * `"mot"` : plusieurs fins (Facebook et Instagram au mot) ; `"diagnostic"` : la fin de Facebook est « diagnostic + lien ».
+   * 17/11 (Williams) : sans choix, aucune fin ; la chaîne ne pose plus le diagnostic d'elle-même. Les tests dont le sujet est
+   * l'écran `lien` posent donc la fin de Facebook (la seule suite choisie) sur les lignes « diagnostic » et « lien » de la
+   * table, qui reste celle de la fin elle-même (mêmes phrases, mêmes écrans).
+   */
+  async function fabriquer(tirage: Tirage | null, fin: "mot" | "diagnostic" = "mot") {
+    const d = doubles({ bruitages: SONS, avecMot: true, motSur: fin === "mot" ? ["facebook", "instagram"] : ["facebook"] });
+    if (fin === "diagnostic") {
+      const ligne = (id: string) => TABLE_FINS_DIAGNOSTIC.find((l) => l.id === id)!;
+      const table = TABLE_FINS_DIAGNOSTIC.map((l) => (l.id === "fin-if-mot" ? { ...ligne("fin-if-diagnostic-gratuit"), id: l.id } : l.id === "fin-if-envoi-structure" ? { ...ligne("fin-fb-lien-commentaire"), id: l.id } : l));
+      d.options.outils.contexte = { ...d.options.outils.contexte, tableDesFins: table };
+    }
     if (tirage) {
       const f = fiche();
       d.options.entrees = { ...d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" };
@@ -289,9 +300,10 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
   });
 
   it("départ des bruitages ≠ 0 : autres variantes ; fin 1/1 : le jeu sur le DERNIER écran `lien` de chaque fin seulement", async () => {
-    const sans = await fabriquer(null);
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const sans = await fabriquer(null, "diagnostic");
     const t: Tirage = { ...TIRAGE_V4, bruitages: { depart: 1 }, fin: { phrase: 0, composition: 1, animation: 1 } };
-    const avec = await fabriquer(t);
+    const avec = await fabriquer(t, "diagnostic");
     expect(avec.sons).not.toEqual(sans.sons);
     expect(avec.sons.map((x) => x.length)).toEqual(sans.sons.map((x) => x.length));
     const liens = avec.ecrans.filter((p) => p.type === "lien");
@@ -300,7 +312,7 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
     // Les clés de la fin ne vont que sur l'écran `lien` (les écrans du corps peuvent porter d'autres dimensions, ex. L3c).
     expect(avec.ecrans.filter((p) => p.type !== "lien").some((p) => p.jeu && ("finComposition" in p.jeu || "finAnimation" in p.jeu))).toBe(false);
     // Seule l'animation : seule la clé non nulle est posée.
-    const seule = await fabriquer({ ...TIRAGE_V4, fin: { phrase: 3, composition: 0, animation: 1 } });
+    const seule = await fabriquer({ ...TIRAGE_V4, fin: { phrase: 3, composition: 0, animation: 1 } }, "diagnostic");
     for (const p of seule.ecrans.filter((x) => x.type === "lien")) expect(p.jeu).toEqual({ finAnimation: 1 });
     // La phrase n'est pas branchée (le plan des fins précède le tirage) : mêmes écrans hors `lien` (leur `jeu` mis à part :
     // d'autres lots, ex. L3c, y posent leurs propres dimensions dès que le tirage n'est plus la v4).

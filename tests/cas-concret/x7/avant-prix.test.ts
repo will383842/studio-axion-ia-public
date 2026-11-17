@@ -14,9 +14,11 @@ vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 // La fin « diagnostic » de LinkedIn rendue inutilisable dans ce fichier : LinkedIn n'a plus de fin.
+// 17/11 (Williams) : sans choix, aucune fin ; LinkedIn ne peut plus être refusé faute de diagnostic. Une fin CHOISIE sans
+// ligne utilisable reste refusée : la ligne « envoi » de la fin au mot de Facebook est donc retirée de la table du fichier.
 vi.mock("@/briques/fins/table-diagnostic", async (original) => {
   const m = await original<typeof import("@/briques/fins/table-diagnostic")>();
-  return { ...m, TABLE_FINS_DIAGNOSTIC: m.TABLE_FINS_DIAGNOSTIC.map((l) => (l.id === "fin-li-diagnostic-gratuit" ? { ...l, validee: false } : l)) };
+  return { ...m, TABLE_FINS_DIAGNOSTIC: m.TABLE_FINS_DIAGNOSTIC.filter((l) => l.id !== "fin-if-envoi-structure").map((l) => (l.id === "fin-li-diagnostic-gratuit" ? { ...l, validee: false } : l)) };
 });
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
@@ -95,6 +97,8 @@ interface Scenario {
   mot?: string;
   avecMot?: boolean;
   essai?: boolean;
+  /** Comptes où le mot est branché, posés dans la commande vue par le moteur. */
+  motSur?: string[];
   empreinteVue?: string;
   avant?: () => Promise<void>;
   phrase: string;
@@ -108,7 +112,19 @@ const SCENARIOS: Scenario[] = [
   { nom: "cas périmé (empreinte vue différente)", casId: VALIDE, empreinteVue: "cas-ancienne", phrase: PHRASES_AVANT_PRIX.casChange, moteur: true },
   { nom: "cas non validé hors essai", casId: "devis-signe-alerte", phrase: PHRASES_AVANT_PRIX.nonValide },
   { nom: "voix pas prête", casId: VALIDE, avant: () => voixAvocat(false), phrase: PHRASES_AVANT_PRIX.voix },
-  { nom: "réseau sans fin utilisable", casId: VALIDE, reseaux: ["facebook", "linkedin"], phrase: phraseSansFin(["linkedin"]), moteur: true },
+  // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même (la fin au mot choisie de Facebook, sans sa ligne d'envoi).
+  {
+    nom: "réseau sans fin utilisable",
+    casId: VALIDE,
+    reseaux: ["facebook", "linkedin"],
+    avecMot: true,
+    motSur: ["facebook"],
+    avant: async () => {
+      await mots.poserBranchementMot("IA", "facebook", "branche", "2026-10-12");
+    },
+    phrase: phraseSansFin(["facebook"]),
+    moteur: true,
+  },
   { nom: "phrase de conformité absente du cas", casId: "x7-conformite", phrase: PHRASES_AVANT_PRIX.conformite, moteur: true },
   { nom: "mot invalide", casId: VALIDE, mot: "deux mots", avecMot: true, phrase: PHRASES_AVANT_PRIX.motInvalide, moteur: true },
   {
@@ -145,7 +161,7 @@ function commande(s: Scenario, empreinte: string | undefined): CommandeFabricati
     videoId: "v-x7",
     formatId: "cas-concret",
     distribution: [{ role: "voix", source: "double", personnageId: "p-will", voixId: "voix-avocat-test" }],
-    entrees: { casConcret: { casId: s.casId, porte: "A", mot: s.mot ?? "IA", avecMot: s.avecMot ?? false, reseaux: s.reseaux ?? SANS_LINKEDIN, essai: s.essai ?? false, ...(empreinte ? { empreinteCas: empreinte } : {}) } },
+    entrees: { casConcret: { casId: s.casId, porte: "A", mot: s.mot ?? "IA", avecMot: s.avecMot ?? false, ...(s.motSur ? { motSur: s.motSur } : {}), reseaux: s.reseaux ?? SANS_LINKEDIN, essai: s.essai ?? false, ...(empreinte ? { empreinteCas: empreinte } : {}) } },
   } as unknown as CommandeFabrication;
 }
 

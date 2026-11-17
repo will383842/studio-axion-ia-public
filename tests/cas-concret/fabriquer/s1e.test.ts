@@ -90,7 +90,8 @@ describe("S1e · rendu soumis puis relu", () => {
   });
 
   it("un passage interrompu pendant un assemblage reprend sans relire ni réassembler ce qui est fini", async () => {
-    const d = doubles({ reseaux: ["facebook", "linkedin"] });
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot est branché sur Facebook pour que sa fin soit assemblée.
+    const d = doubles({ avecMot: true, motSur: ["facebook"], reseaux: ["facebook", "linkedin"] });
     const v = d.options.outils.voix;
     const assembler = v.assembler;
     // Le premier assemblage finit, le second reste en cours : on interrompt (attente = arrêt du passage).

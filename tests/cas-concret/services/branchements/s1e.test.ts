@@ -44,7 +44,8 @@ function commande(extra: { simulerEchecEtape?: string; reseaux?: readonly string
     distribution: [{ role: "voix", source: "double", personnageId: "p-clara", fournisseurVoix: "simulation", voixId: "voix-clara" }],
     styles: { sousTitres: null, decor: null, lut: null, musique: null },
     briques: { "sous-titres": true, etalonnage: false, illustrations: true, son: true, habillage: false, "texte-ecran": false, "mention-ia": false },
-    entrees: { casConcret: { casId: "recrutement-apporteurs", porte: "porte-a", mot: "APPORT", avecMot: true, reseaux: [...(extra.reseaux ?? ["facebook", "linkedin"])], essai: false, codeSuivi: "cc-recrutement-apporteurs-abc123" } },
+    // 17/11 (Williams) : sans choix, aucune fin ; ces essais comptaient sur plusieurs sorties par défaut : « Avec le mot » + mot branché sur Facebook et Instagram les rétablissent.
+    entrees: { casConcret: { casId: "recrutement-apporteurs", porte: "porte-a", mot: "APPORT", avecMot: true, motSur: ["facebook", "instagram"], reseaux: [...(extra.reseaux ?? ["facebook", "linkedin"])], essai: false, codeSuivi: "cc-recrutement-apporteurs-abc123" } },
     reglages: {},
     plans: [],
     prononciations: [],
@@ -271,7 +272,8 @@ describe("S1e · 3. la boucle de fond n'attend jamais un rendu", () => {
     };
     // X4 : la recette lit le son BRUT de la voix d'essai, un fichier public déjà copié dans le stockage (sans réseau).
     const moteur = moteurAvec({ rendu: { service, simule: false }, stockage: stockageRelie(new Set(["studio/dev/public/demo/essai-voix.mp3"])) });
-    const c = commande({ reseaux: ["linkedin"] });
+    // 17/11 (Williams) : sans choix, aucune fin ; LinkedIn seul n'a plus de fin et la fiche des doubles (34,1 s) passe sous la durée minimale : le réseau seul est Facebook, où le mot est branché.
+    const c = commande({ reseaux: ["facebook"] });
     let travail = await moteur.lancer(c, { travailId: "tr-cc", versionId: "ver-cc", titre: "Essai" } as never);
     let passages = 0;
     let plusLongMs = 0;
