@@ -74,7 +74,7 @@ describe("G4-10a · durée pure", () => {
     expect(d.dureeImagesScenes(p)).toBe(dureeImagesDonnees({ plan: p as never }));
     expect(d.dureeImagesCarteFin(25)).toBe(63);
     expect(d.dureeImagesTableauDeBord(p)).toBe(d.dureeImagesScenes(p) + 63);
-    expect(d.dureeImagesTableauDeBord({ dureeMs: 0.001, format: { fps: 25 } })).toBe(1 + 63);
+    expect(d.dureeImagesTableauDeBord({ dureeMs: 0.001, format: FORMAT })).toBe(1 + 63);
     expect(d.DUREE_CARTE_FIN_MS).toBe(2500);
   });
   it("le fichier de durée n'importe rien", () => {
