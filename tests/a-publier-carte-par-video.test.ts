@@ -59,12 +59,12 @@ describe("À publier simplifiée — affichage", () => {
   });
 
   it("un bouton par réseau prêt ; les réseaux pas prêts sont regroupés en une ligne avec la raison", () => {
-    const cartes = regrouperParVideo([ligne("v-1", "instagram"), ligne("v-1", "facebook", { compte: { probleme: "Aucun compte Facebook n'est relié chez le diffuseur." } }), ligne("v-1", "tiktok", { blocage: "Aucun fichier au bon format pour Tiktok." })]);
+    const cartes = regrouperParVideo([ligne("v-1", "instagram"), ligne("v-1", "facebook", { compte: { probleme: "Aucun compte Facebook n'est relié dans l'ancien outil." } }), ligne("v-1", "tiktok", { blocage: "Aucun fichier au bon format pour Tiktok." })]);
     expect(cartes[0].pretes.map((l) => l.reseau)).toEqual(["instagram"]);
     expect(cartes[0].pasPretes.map((p) => p.reseau)).toEqual(["facebook", "tiktok"]);
-    const t = texte(html(vue([ligne("v-1", "instagram"), ligne("v-1", "facebook", { compte: { probleme: "Aucun compte Facebook n'est relié chez le diffuseur." } }), ligne("v-1", "tiktok", { blocage: "Aucun fichier au bon format pour Tiktok." })])));
+    const t = texte(html(vue([ligne("v-1", "instagram"), ligne("v-1", "facebook", { compte: { probleme: "Aucun compte Facebook n'est relié dans l'ancien outil." } }), ligne("v-1", "tiktok", { blocage: "Aucun fichier au bon format pour Tiktok." })])));
     expect(t).toContain("2 réseaux pas encore prêts");
-    expect(t).toContain("Aucun compte Facebook n'est relié chez le diffuseur.");
+    expect(t).toContain("Aucun compte Facebook n'est relié dans l'ancien outil.");
     expect(t).toContain("Aucun fichier au bon format pour Tiktok.");
     expect(t.match(/Aucun fichier au bon format/g)?.length).toBe(1);
   });

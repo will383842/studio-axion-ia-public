@@ -172,7 +172,7 @@ export async function choisirCanalBuffer(reseau: IdReseau, canalId: string | str
   }
   const lus = (await canauxEnregistres())?.canaux ?? [];
   const canaux = ids.map((id) => lus.find((c) => c.id === id));
-  if (canaux.some((c) => !c || c.service !== serviceHistorique(reseau))) throw new ErreurStudio("COMPTE_INCONNU", "Ce compte n'est pas relié à ce réseau chez le diffuseur : actualisez les comptes.");
+  if (canaux.some((c) => !c || c.service !== serviceHistorique(reseau))) throw new ErreurStudio("COMPTE_INCONNU", "Ce compte n'est pas relié à ce réseau dans l'ancien outil : actualisez les comptes.");
   await ecrireParametre(PARAM_CORRESPONDANCE, { ...actuelle, [reseau]: ids });
   await journaliser("reglages", `L'ancien outil : ${obtenirReseau(reseau).nom}, proposé par défaut : ${canaux.map((c) => `« ${c!.nom} »`).join(" et ")}`);
 }
