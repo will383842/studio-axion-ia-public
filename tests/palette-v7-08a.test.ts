@@ -56,20 +56,20 @@ const EXCEPTIONS: { ligne: number; valeur: string; motif: string }[] = [
   { ligne: 321, valeur: "rgba(0,0,0,0)", motif: D1 },
   { ligne: 322, valeur: "rgba(60,20,0,0.12)", motif: D1 },
   { ligne: 326, valeur: "rgba(70,25,5,0.18)", motif: D1 },
-  { ligne: 792, valeur: "rgba(255,253,250,0)", motif: D1 },
-  { ligne: 793, valeur: "rgba(255,253,250,0)", motif: D1 },
-  { ligne: 794, valeur: "rgba(255,253,250,0.22)", motif: D1 },
-  { ligne: 795, valeur: "rgba(255,253,250,0.06)", motif: D1 },
-  { ligne: 796, valeur: "rgba(255,253,250,0.16)", motif: D1 },
-  { ligne: 797, valeur: "rgba(255,253,250,0)", motif: D1 },
-  { ligne: 798, valeur: "rgba(255,253,250,0)", motif: D1 },
-  { ligne: 873, valeur: "rgba(243,235,221,0)", motif: D1 },
-  { ligne: 874, valeur: "rgba(214,200,178,0.95)", motif: D1 },
-  { ligne: 875, valeur: "rgba(243,235,221,1)", motif: D1 },
-  { ligne: 876, valeur: "rgba(60,40,20,0)", motif: D1 },
-  { ligne: 880, valeur: "rgba(60,40,20,0.25)", motif: D1 },
-  { ligne: 881, valeur: "rgba(60,40,20,0)", motif: D1 },
-  { ligne: 925, valeur: "rgba(0,0,0,${f})", motif: D1 },
+  { ligne: 750, valeur: "rgba(255,253,250,0)", motif: D1 },
+  { ligne: 751, valeur: "rgba(255,253,250,0)", motif: D1 },
+  { ligne: 752, valeur: "rgba(255,253,250,0.22)", motif: D1 },
+  { ligne: 753, valeur: "rgba(255,253,250,0.06)", motif: D1 },
+  { ligne: 754, valeur: "rgba(255,253,250,0.16)", motif: D1 },
+  { ligne: 755, valeur: "rgba(255,253,250,0)", motif: D1 },
+  { ligne: 756, valeur: "rgba(255,253,250,0)", motif: D1 },
+  { ligne: 825, valeur: "rgba(243,235,221,0)", motif: D1 },
+  { ligne: 826, valeur: "rgba(214,200,178,0.95)", motif: D1 },
+  { ligne: 827, valeur: "rgba(243,235,221,1)", motif: D1 },
+  { ligne: 828, valeur: "rgba(60,40,20,0)", motif: D1 },
+  { ligne: 832, valeur: "rgba(60,40,20,0.25)", motif: D1 },
+  { ligne: 833, valeur: "rgba(60,40,20,0)", motif: D1 },
+  { ligne: 876, valeur: "rgba(0,0,0,${f})", motif: D1 },
 ];
 
 describe("palette V7-08a", () => {
@@ -78,12 +78,10 @@ describe("palette V7-08a", () => {
     expect(hors).toEqual([]);
   });
 
-  it("chapitres futurs : texte secondaire sur clair, jamais le gris chaud (1,2:1)", () => {
-    const ligne = perimetre.split("\n").find((l) => l.includes("sc.style === \"ardoise\" ?") && l.includes("strokeStyle"));
-    expect(ligne).toBeDefined();
-    expect(ligne).toContain("PALETTE.texteSecondaire");
-    expect(ligne).toContain("PALETTE.grisSurNoir");
-    expect(ligne).not.toMatch(/PALETTE\.gris\b/);
+  it("barre des chapitres : jamais redessinée, jamais le gris chaud (1,2:1) sur les traits", () => {
+    expect(perimetre).not.toMatch(/function chapitres\(|CHAPITRES_TABLEAU|chapitreDePartie/);
+    const traits = perimetre.split("\n").filter((l) => l.includes("strokeStyle"));
+    for (const l of traits) expect(l).not.toMatch(/PALETTE\.gris\b/);
   });
 
   it("rgba : tout rgba du périmètre est un hex de la palette ou une exception D1 figée (valeur + ligne)", () => {
