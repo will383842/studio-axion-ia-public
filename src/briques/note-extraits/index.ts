@@ -12,3 +12,5 @@ export { CHIFFRES_REELS_CAPTURE, momentsEcranDemo, momentsCaptures, appliquerPla
 export type { MomentsEcranDemo } from "./sources-propres";
 export { usagesDe } from "./usages";
 export type { OptionsUsages } from "./usages";
+export { trierVideo } from "./trier";
+export type { OptionsTri } from "./trier";
