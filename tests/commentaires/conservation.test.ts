@@ -5,7 +5,7 @@ import type { CarteATraiter } from "@/services/a-traiter-types";
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const Com = await import("@/services/_commun");
 const D = await import("@/services/commentaires-depot");
-const { empreintesOpposees, enregistrerOppositionParEmpreinte, enregistrerOppositionPersonne } = await import("@/services/oppositions-mots");
+const { empreintesOpposees, enregistrerOppositionParEmpreinte, enregistrerOppositionPersonne, enregistrerOpposition } = await import("@/services/oppositions-mots");
 const { creerDepotParametre } = await import("@/services/a-traiter-depot");
 
 const AUTEUR_A = D.empreinteAuteur("contact_inventé_a");
@@ -234,5 +234,30 @@ describe("opposition ou demande d'effacement : écart des envois, alerte, journa
     const d = nouveau();
     for (const mauvais of [{ idEvenement: "" }, { reseau: " " }, { post: "" }, { texte: "" }, { recuLe: "pas une date" }, { texte: 5 as unknown as string }]) await expect(d.enregistrer(com("e1", mauvais))).rejects.toThrow("commentaire_invalide");
     expect(await d.lire()).toEqual([]);
+  });
+  it("registre commun illisible : la demande est tout de même journalisée et alertée, puis l'erreur remonte", async () => {
+    await Com.ecrireParametre("mots.oppositions", { pas: "une liste" });
+    await expect(nouveau().demanderEffacement(AUTEUR_A)).rejects.toBeInstanceOf(Error);
+    expect(alertes).toHaveLength(1);
+    expect(alertes[0]!.message).toContain("registre commun");
+    expect(await depots().evenements.lister((e) => e.type === "commentaire_effacement_demande")).toHaveLength(1);
+  });
+  it("rotation, autre sens : ligne écrite sous l'ancien secret, opposition inscrite ensuite sous la forme courante seule : la ligne n'est pas proposée à l'envoi", async () => {
+    const ancien = "ancien-secret-fictif-de-test-0123456789abcdef";
+    const courant = process.env.STUDIO_EMPREINTE_SECRET!;
+    vi.stubEnv("STUDIO_EMPREINTE_SECRET", ancien);
+    const vieille = D.empreinteAuteur("contact_inventé_s");
+    await nouveau().enregistrer(com("e1", { auteur: vieille }));
+    vi.stubEnv("STUDIO_EMPREINTE_SECRET", courant);
+    vi.stubEnv("STUDIO_EMPREINTE_SECRET_ANCIEN", ancien);
+    await enregistrerOpposition("contact_inventé_s");
+    const d = nouveau();
+    expect(await d.listerPourEnvoi()).toEqual([]);
+    expect(await d.lire()).toHaveLength(1);
+  });
+  it("une ligne sous le secret courant et sans opposition est proposée à l'envoi", async () => {
+    const d = nouveau();
+    await d.enregistrer(com("e1"));
+    expect((await d.listerPourEnvoi()).map((x) => x.idEvenement)).toEqual(["e1"]);
   });
 });
