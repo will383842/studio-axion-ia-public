@@ -22,6 +22,8 @@ type Decision = NoteMoment["decision"];
 export const CHIFFRES_REELS_CAPTURE = false;
 
 const TRANCHE_MAX_SEC = 6;
+const DUREE_MIN_SEC = 3;
+const arrondi = (v: number) => Math.round(v * 100) / 100;
 
 export interface MomentsEcranDemo {
   moments: Moment[];
@@ -29,22 +31,42 @@ export interface MomentsEcranDemo {
   decisionMax: "garde" | "peut-etre";
 }
 
-/** Moments sur la ligne de temps de l'écran. Sans écran séparé (une seule vidéo) : aucun moment. */
-export function momentsEcranDemo(entrees: EntreesDemo, plan?: unknown): MomentsEcranDemo {
+/**
+ * Moments sur la ligne de temps de l'écran. Sans écran séparé (une seule vidéo) : aucun moment.
+ * Le plan de la démo est sur la ligne de temps facecam (temps facecam = temps écran + décalage) : chaque moment est converti
+ * (temps du plan − décalage), borné à [0, durée de l'écran], et écarté s'il sort ou devient plus court que 3 s.
+ * Décalage : `synchro.decalageSec` en mode « fourni » ; en mode « audio » il est calculé plus tard (`RepriseDemo.synchro`) :
+ * l'appelant le passe en `decalageSec`. Synchro « audio » sans décalage connu : calage non prouvé, donc au plus « peut-etre ».
+ */
+export function momentsEcranDemo(entrees: EntreesDemo, plan?: unknown, decalageSec?: number): MomentsEcranDemo {
   const ecran = entrees?.ecran;
   if (!ecran || typeof ecran.cle !== "string") return { moments: [], decisionMax: "garde" };
   const mode = entrees.synchro?.mode;
-  const decisionMax = mode === "audio" || mode === "fourni" ? "garde" : "peut-etre";
+  const sync = entrees.synchro;
+  const decalageFourni = sync?.mode === "fourni" ? sync.decalageSec : decalageSec;
+  const decalageConnu = typeof decalageFourni === "number" && Number.isFinite(decalageFourni);
+  const decalage = decalageConnu ? decalageFourni : 0;
+  const decisionMax = mode === "fourni" || (mode === "audio" && decalageConnu) ? "garde" : "peut-etre";
   const sourcePlan = plan ?? entrees.plan;
-  let moments = momentsDepuisScenes(sourcePlan, { avecVisage: false }).map<Moment>((m) => ({
-    ...m, origine: "ecran-demo", avecVisage: false, texteIncruste: false, sourceCle: ecran.cle,
-  }));
-  if (moments.length === 0 && typeof ecran.dureeSec === "number" && Number.isFinite(ecran.dureeSec) && ecran.dureeSec > 0) {
-    const n = Math.ceil(ecran.dureeSec / TRANCHE_MAX_SEC - 1e-9);
-    const pas = ecran.dureeSec / n;
+  const dureeEcran = typeof ecran.dureeSec === "number" && Number.isFinite(ecran.dureeSec) && ecran.dureeSec > 0 ? ecran.dureeSec : undefined;
+  const depuisPlan = momentsDepuisScenes(sourcePlan, { avecVisage: false });
+  let moments: Moment[] = [];
+  for (const m of depuisPlan) {
+    const debutSec = arrondi(Math.max(0, m.debutSec - decalage));
+    const finSec = arrondi(dureeEcran === undefined ? m.finSec - decalage : Math.min(dureeEcran, m.finSec - decalage));
+    if (finSec - debutSec < DUREE_MIN_SEC - 1e-9) continue;
+    moments.push({
+      ...m, id: `e-${Math.round(debutSec * 100)}-${Math.round(finSec * 100)}`, debutSec, finSec,
+      origine: "ecran-demo", avecVisage: false, texteIncruste: false, sourceCle: ecran.cle,
+    });
+  }
+  if (depuisPlan.length > 0) return { moments, decisionMax };
+  if (dureeEcran !== undefined) {
+    const n = Math.ceil(dureeEcran / TRANCHE_MAX_SEC - 1e-9);
+    const pas = dureeEcran / n;
     moments = Array.from({ length: n }, (_, k) => {
       const debutSec = Math.round(k * pas * 100) / 100;
-      const finSec = k === n - 1 ? ecran.dureeSec! : Math.round((k + 1) * pas * 100) / 100;
+      const finSec = k === n - 1 ? dureeEcran : Math.round((k + 1) * pas * 100) / 100;
       return {
         id: `e-${Math.round(debutSec * 100)}-${Math.round(finSec * 100)}`, origine: "ecran-demo", debutSec, finSec, montre: "interface",
         avecVisage: false, texteIncruste: false, sourceCle: ecran.cle,

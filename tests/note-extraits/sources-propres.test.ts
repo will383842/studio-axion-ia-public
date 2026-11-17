@@ -21,7 +21,7 @@ const etat = (ok: boolean): EtatCaptures => ({
 
 describe("X4-09 sources propres", () => {
   it("démo à deux fichiers : moments écran sans visage, clé de l'écran", () => {
-    const r = momentsEcranDemo(demo({}), plan());
+    const r = momentsEcranDemo(demo({}), plan(), 0);
     expect(r.moments.length).toBeGreaterThan(0);
     for (const m of r.moments) {
       expect(m.origine).toBe("ecran-demo");
@@ -34,6 +34,30 @@ describe("X4-09 sources propres", () => {
 
   it("synchro fournie : décisions normales", () => {
     expect(momentsEcranDemo(demo({ synchro: { mode: "fourni", decalageSec: 1 } }), plan()).decisionMax).toBe("garde");
+  });
+
+  it("synchro fournie de 5 s : temps du plan − 5 s, rien au-delà de la durée de l'écran", () => {
+    const sans = momentsEcranDemo(demo({ synchro: { mode: "fourni", decalageSec: 0 } }), plan());
+    const avec = momentsEcranDemo(demo({ synchro: { mode: "fourni", decalageSec: 5 } }), plan());
+    expect(sans.moments.length).toBeGreaterThan(0);
+    expect(avec.moments.length).toBeGreaterThan(0);
+    expect(avec.moments[0].debutSec).toBeCloseTo(Math.max(0, sans.moments[0].debutSec - 5), 2);
+    for (const m of avec.moments) {
+      expect(m.debutSec).toBeGreaterThanOrEqual(0);
+      expect(m.finSec).toBeLessThanOrEqual(src.dureeSec);
+      expect(m.finSec - m.debutSec).toBeGreaterThanOrEqual(3 - 1e-6);
+    }
+    expect(avec.decisionMax).toBe("garde");
+  });
+
+  it("synchro audio : décalage passé par l'appelant converti ; sans décalage connu : jamais « gardé »", () => {
+    const fourni = momentsEcranDemo(demo({ synchro: { mode: "fourni", decalageSec: 5 } }), plan());
+    const audio = momentsEcranDemo(demo({ synchro: { mode: "audio" } }), plan(), 5);
+    expect(audio.moments).toEqual(fourni.moments);
+    expect(audio.decisionMax).toBe("garde");
+    const inconnu = momentsEcranDemo(demo({ synchro: { mode: "audio" } }), plan());
+    expect(inconnu.decisionMax).toBe("peut-etre");
+    for (const m of inconnu.moments) expect(m.finSec).toBeLessThanOrEqual(src.dureeSec);
   });
 
   it("démo à un fichier : aucun moment écran", () => {
