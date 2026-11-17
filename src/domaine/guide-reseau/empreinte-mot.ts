@@ -35,12 +35,12 @@ const GROUPES_COMMUNS: readonly GroupeMp[] = [
   "recu",
   "adresse-non-reconnue",
   "adresse-refusee",
-  "pub-commentaire",
 ];
 
-/** Groupes de formulations rendus pour un mot, par réseau (relevés dans le parcours : M1, renvoi, reçu, adresse, publication ; Instagram ajoute le suivi du compte). */
+/** Groupes de formulations rendus pour un mot, par réseau (relevés dans le parcours : M1, renvoi, reçu, adresse ; Facebook ajoute la réponse publique, Instagram le suivi du compte).
+ * « pub-commentaire » : Facebook seulement, Instagram garde le texte fixe mp-pub-igfb-v1 (le groupe n'y a aucun effet). */
 export const GROUPES_PAR_RESEAU: Record<ReseauAuto, GroupeMp[]> = {
-  facebook: [...GROUPES_COMMUNS],
+  facebook: [...GROUPES_COMMUNS, "pub-commentaire"],
   instagram: [...GROUPES_COMMUNS, "ig-suivre", "ig-pas-encore"],
 };
 
