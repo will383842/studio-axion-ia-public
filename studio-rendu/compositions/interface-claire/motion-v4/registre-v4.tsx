@@ -32,6 +32,7 @@ import { DalleClaquee } from "./lot5/DalleClaquee";
 import { RafaleTroisMots } from "./lot5/RafaleTroisMots";
 import { DuelVideo } from "./lot5/DuelVideo";
 import { ElementBarre } from "./lot5/ElementBarre";
+import { estTypeLot6, poserLot6 } from "./lot6/rendus-lot6"; // N-17 : repli du lot 6 (fichier sans effet de bord ; jamais entree-lot6 ni PlancheLot6)
 
 /**
  * REGISTRE DES PLAQUETTES v4 pour le rendu final (`VideoAnimeeV4`) : associe l'id d'une fiche du catalogue du réalisateur
@@ -266,6 +267,7 @@ export const RENDUS_V4: Readonly<Record<string, Rendu>> = Object.freeze({
 
 /** Une plaquette posée sur la ligne de temps de la vidéo : `Sequence` aux images du plan, composant aux images locales. */
 export function rendreElementV4(e: ElementV4Plan, c: ContexteV4): React.ReactNode {
+  if (!RENDUS_V4[e.id] && estTypeLot6(e.id)) return poserLot6(e, GesteVisible); // N-17 : type absent des 26, seul le lot 6 est essayé
   const rendu = RENDUS_V4[e.id];
   if (!rendu) return null;
   const D = dureeImages(e);
