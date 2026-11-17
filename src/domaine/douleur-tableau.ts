@@ -15,7 +15,7 @@
  *    3 premières secondes (`defautsMotsDouleur`, contrôle en code) ; ils suivent jusqu'aux règles (`motsDouleur` du
  *    contexte des règles), qui les cherchent à la place des mots de la description.
  */
-import { contientExpression, mots, motsPleins, texteCompare } from "./controles-script/texte";
+import { mots, motsPleins, texteCompare } from "./controles-script/texte";
 import { phrasesDe } from "./lecture";
 import { CARACTERES_PAR_SECONDE_TABLEAU, DEBUT_DOULEUR_SEC, caracteresEn } from "./duree-tableau";
 import { couperAuMot } from "./titres";
@@ -86,15 +86,26 @@ export function nettoyerMotsDouleur(liste: readonly string[] | string | null | u
   return res;
 }
 
+/** Élisions françaises détachées du mot qui suit (l'erreur → erreur), apostrophe droite ou typographique. « aujourd'hui » reste entier. */
+const ELISION = /(^|[\s-])(?:l|d|j|m|n|s|t|c|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)'(?=[\p{L}\p{N}])/gu;
+export function sansElision(t: string): string {
+  return texteCompare(t.replace(/[‘’ʼ`´]/g, "'")).replace(ELISION, "$1");
+}
+/** Le mot (ou l'expression) de la douleur est-il dit, mot entier, élisions comprises ? */
+export function motDouleurDit(texte: string, mot: string): boolean {
+  const e = sansElision(mot);
+  return !!e && ` ${sansElision(texte)} `.includes(` ${e} `);
+}
+
 /**
  * Position (en caractères dits depuis le début du texte) du premier endroit où l'expression est dite, mot entier ;
  * `null` si elle n'y est pas.
  */
 export function positionDite(texte: string, expression: string): number | null {
-  const cible = mots(texteCompare(expression));
+  const cible = mots(sansElision(expression));
   if (!cible.length) return null;
   const ms = mots(espaces(texte));
-  const cles = ms.map((m) => texteCompare(m));
+  const cles = ms.map((m) => sansElision(m));
   let avant = 0;
   for (let i = 0; i < ms.length; i++) {
     if (cible.every((c, k) => cles[i + k] === c)) return avant;
@@ -116,7 +127,7 @@ export function defautsMotsDouleur(liste: readonly string[] | undefined, accroch
   const d: string[] = [];
   for (const m of motsDouleur) {
     if (!motsPleins(m).length) d.push(`Le mot de la douleur « ${m} » ne porte aucun sens (mot outil) : prenez un mot plein de l'accroche (un verbe, un nom).`);
-    else if (!contientExpression(accrocheDite, m)) d.push(`Le mot de la douleur « ${m} » n'est pas dit mot pour mot dans l'accroche (« ${espaces(accrocheDite)} ») : recopiez-le tel qu'il est dit.`);
+    else if (!motDouleurDit(accrocheDite, m)) d.push(`Le mot de la douleur « ${m} » n'est pas dit mot pour mot dans l'accroche (« ${espaces(accrocheDite)} ») : recopiez-le tel qu'il est dit.`);
   }
   if (d.length) return d;
   const limite = caracteresEn(DEBUT_DOULEUR_SEC * MARGE_DEBUT_DOULEUR, caracteresParSeconde);
