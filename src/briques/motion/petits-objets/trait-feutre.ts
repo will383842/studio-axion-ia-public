@@ -1,7 +1,7 @@
 /**
  * PETITS OBJETS — trait au feutre (X1-09) : points d'un entourage (contour fermé) ou d'un soulignement (trait ouvert). Pur.
  * Le tremblement vient de `tremblement.ts`, la graine de la vidéo est obligatoire (aucun hasard libre).
- * La bibliothèque de tracé (perfect-freehand) vit dans studio-rendu seulement : `TraitFeutre.tsx` lui confie ces points.
+ * La bibliothèque de tracé (freehand) vit dans studio-rendu seulement : `TraitFeutre.tsx` lui confie ces points.
  * Pièce NON inscrite, éteinte : rien ne l'importe sauf `TraitFeutre.tsx`. Imports relatifs seulement.
  */
 import type { ZoneObjet } from "./contrat";
