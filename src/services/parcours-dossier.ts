@@ -303,7 +303,7 @@ export function douterDossier(
     const conv = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     const liste = dossierDe(racine, conv);
     if (liste.length === 0) {
-      const e = neuf();
+      const e = { ...neuf(), douteOpposition: true }; // posé ICI : ne dépend pas de l'appelant
       await ecrireParametre(PARAM_CONVERSATIONS, { ...conv, [racine]: e });
       return [{ cle: racine, etat: e }];
     }

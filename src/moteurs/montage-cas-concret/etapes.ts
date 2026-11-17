@@ -23,6 +23,7 @@ import type { FaitCas } from "@/formats/cas-concret/cas";
 import type { EvenementCale } from "./calage";
 import { cleMot, motsDe, motsLus, type Ecran, type EcranCorps, type FicheEcrans, type FinPlanifiee, type Origine, type PlanDesFins } from "./fiche";
 import { ETAPES_CAS_CONCRET, type EtapeCasConcret } from "./outils";
+import { lireCameraPlus } from "./variete";
 
 /* Contrat commun des moteurs (TYPES seulement) : lu par `import()` de type, comme le patron. */
 type DefinitionEtapeMoteur = import("@/moteurs/types").DefinitionEtapeMoteur;
@@ -68,6 +69,8 @@ export interface EntreesCasConcret {
   description?: string;
   /** P2S · porte B : les faits « à confirmer » que Will a confirmés. */
   faitsConfirmes?: string[];
+  /** C8-Z04 · plafond de caméra (1,035 < x ≤ 1,048) figé au lancement par le réglage `casConcret.cameraPlus` ; absent : 1,035. */
+  cameraPlus?: number;
 }
 
 const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -96,6 +99,7 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(porte === "porte-b" && b.cas && typeof b.cas === "object" ? { cas: b.cas } : {}),
     ...(porte === "porte-b" && texteNonVide(b.description) ? { description: b.description } : {}),
     ...(porte === "porte-b" && Array.isArray(b.faitsConfirmes) ? { faitsConfirmes: b.faitsConfirmes.filter(texteNonVide) } : {}),
+    ...(lireCameraPlus(b.cameraPlus) !== undefined ? { cameraPlus: lireCameraPlus(b.cameraPlus) } : {}),
   };
 }
 

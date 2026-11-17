@@ -1,0 +1,11 @@
+{
+  "version": "1",
+  "format": { "largeur": 1080, "hauteur": 1920, "fps": 25 },
+  "facecam": false,
+  "dureeMs": 21000,
+  "scenes": [
+    { "id": "a", "piece": "tableau-de-bord", "debutMs": 0, "finMs": 14000, "texte": "Votre tableau", "calques": [{ "piece": "curseur", "debutMs": 500, "zone": "centre" }, { "piece": "carte-kpi", "debutMs": 900, "zone": "haut" }] },
+    { "id": "b", "piece": "graphique", "debutMs": 14000, "finMs": 16000 },
+    { "id": "c", "piece": "barres", "debutMs": 16000, "finMs": 21000 }
+  ]
+}

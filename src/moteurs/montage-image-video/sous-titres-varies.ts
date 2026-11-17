@@ -20,6 +20,7 @@ import { BANDE_SOUS_TITRES_IV, formatDeHauteurIV, type FormatEcranIV, MISE_EN_PA
 import type { IntensiteSousTitres, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
 import { ENCRE_SOUS_TITRES_IVOIRE, LARGEUR_SOUS_TITRES_PCT, STYLE_SOUS_TITRES_DUO } from "./emprunts";
 import { REGLAGES_SOUS_TITRES_CAS_CONCRET, SURLIGNAGE_CAS_CONCRET } from "@/moteurs/montage-cas-concret/sous-titres-variete";
+import { MARQUEURS } from "@/briques/sous-titres/marqueur";
 import { chiffresDitsDe, type LigneDeTempsIV } from "./mise-en-scene";
 
 /**
@@ -35,8 +36,8 @@ export const INTENSITE_SOUS_TITRES_IV: IntensiteSousTitres = "equilibre";
  * Intensité d'une version : SOU-C (sous-titres appuyés, variété) → « Très dynamique » de la brique ; SOU-B, SOU-A
  * (retirée, jamais tirée) ou sans recette → l'intensité par défaut, inchangée.
  */
-export function intensiteSousTitresIV(ligne: Pick<LigneDeTempsIV, "variete">): IntensiteSousTitres {
-  return VARIANTE_PAR_VERSION && ligne.variete?.recette.sousTitres === "SOU-C" ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV;
+export function intensiteSousTitresIV(ligne: Pick<LigneDeTempsIV, "variete">, styleVarie = false): IntensiteSousTitres {
+  return (VARIANTE_PAR_VERSION || styleVarie) && ligne.variete?.recette.sousTitres === "SOU-C" ? "tres-dynamique" : INTENSITE_SOUS_TITRES_IV;
 }
 
 type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTitres"];
@@ -46,16 +47,19 @@ type CodeSousTitres = NonNullable<LigneDeTempsIV["variete"]>["recette"]["sousTit
  * gardent le mélange et la bande de SOU-B ; en 4:5 (bande plus étroite) ils ne sont gardés que si Q22 passe sur leur
  * rendu, sinon la version retombe sur SOU-B. Sans recette : `undefined`.
  */
-export function codeSousTitresIV(ligne: LigneSousTitres): CodeSousTitres | undefined {
-  if (!VARIANTE_PAR_VERSION) return undefined;
+export function codeSousTitresIV(ligne: LigneSousTitres, styleVarie = false): CodeSousTitres | undefined {
+  if (!VARIANTE_PAR_VERSION && !styleVarie) return undefined;
   const code = ligne.variete?.recette.sousTitres;
-  if ((code === "SOU-D" || code === "SOU-E") && formatDeHauteurIV(ligne.hauteur) === "4:5" && controlerVariationsIV(melangeIV(ligne, code), ligne, code === "SOU-D" ? SURLIGNAGE_CAS_CONCRET : undefined).length) return "SOU-B";
+  if ((code === "SOU-D" || code === "SOU-E") && formatDeHauteurIV(ligne.hauteur) === "4:5" && controlerVariationsIV(melangeIV(ligne, code), ligne, code === "SOU-D" ? surlignageIV(styleVarie) : undefined).length) return "SOU-B";
   return code;
 }
 
+/** C2-U5bis : chemin neuf (capacité `texte.style-varie`) : marqueur de la charte ; sinon `SURLIGNAGE_CAS_CONCRET`, inchangé. */
+const surlignageIV = (styleVarie: boolean): SurlignageSousTitres => (styleVarie ? MARQUEURS.terracotta : SURLIGNAGE_CAS_CONCRET);
+
 /** Surlignage de la charte pour le style de la composition : SOU-D seulement (la position ne change jamais). */
-export function surlignageSousTitresIV(ligne: LigneSousTitres): { surlignage?: SurlignageSousTitres } {
-  return codeSousTitresIV(ligne) === "SOU-D" ? { surlignage: SURLIGNAGE_CAS_CONCRET } : {};
+export function surlignageSousTitresIV(ligne: LigneSousTitres, styleVarie = false): { surlignage?: SurlignageSousTitres } {
+  return codeSousTitresIV(ligne, styleVarie) === "SOU-D" ? { surlignage: surlignageIV(styleVarie) } : {};
 }
 
 /** Variation du mélange : SOU-E, réglages « calme » et premier Impact incliné à l'envers (comme le cas concret). */

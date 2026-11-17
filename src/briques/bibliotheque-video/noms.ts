@@ -99,6 +99,17 @@ export const ID = {
   objetReseauSchema: "objet.reseau-schema",
   objetManuscrit: "objet.manuscrit",
   objetEmoji: "objet.emoji",
+  // X1-00 (tendances 2027, `prevu`)
+  textePoidsVariable: "texte.poids-variable",
+  texteMinimalDynamique: "texte.minimal-dynamique",
+  ecranFenetreInclinee: "ecran.fenetre-inclinee",
+  fondVerreDepoli: "fond.verre-depoli",
+  transitionZoomMot: "transition.zoom-mot",
+  transitionRaccordForme: "transition.raccord-forme",
+  accrocheApercuFin: "accroche.apercu-fin",
+  accrocheMotCle: "accroche.mot-cle",
+  mentionIa: "mention.ia",
+  rythmeBoucle: "rythme.boucle",
 } as const satisfies Record<string, IdCapacite>;
 
 /** Préfixe des 13 coulisses v4 : leurs identifiants sont construits par C1-U1, jamais écrits ici. */

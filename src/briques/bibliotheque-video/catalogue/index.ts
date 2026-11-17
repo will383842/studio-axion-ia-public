@@ -11,6 +11,7 @@ import { LIGNES_FINITION } from "./finition";
 import { LIGNES_GENERIQUES } from "./generiques";
 import { LIGNES_COUVERTURE } from "./couverture";
 import { LIGNES_COULISSE_V4 } from "./coulisse-v4";
+import { LIGNES_TENDANCES_2027 } from "./tendances-2027";
 import type { LigneCatalogue } from "./types";
 
 export type { LigneCatalogue } from "./types";
@@ -19,7 +20,7 @@ export { ID, FAMILLES_CAPACITE } from "../noms";
 export const CATALOGUE_CAPACITES: readonly LigneCatalogue[] = Object.freeze([
   ...LIGNES_TEXTE, ...LIGNES_ARCHIVE, ...LIGNES_ECRAN, ...LIGNES_CALQUES, ...LIGNES_HABILLAGE,
   ...LIGNES_LOGOS_ZOOM_AVIS, ...LIGNES_OBJETS, ...LIGNES_FINITION, ...LIGNES_GENERIQUES, ...LIGNES_COUVERTURE,
-  ...LIGNES_COULISSE_V4,
+  ...LIGNES_COULISSE_V4, ...LIGNES_TENDANCES_2027,
 ]);
 
 export function ligneCapacite(id: IdCapacite): LigneCatalogue | undefined {

@@ -4,12 +4,15 @@
  * Le calque Remotion (`studio-rendu/compositions/sous-titres/`) et l'aperçu du navigateur (`SousTitreAnime`) ne font
  * que traduire cette scène en éléments : un style ne peut donc jamais différer entre l'aperçu et la vidéo.
  */
-import { largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
+import { progres } from "../motion/courbes";
+import { largeurLigne, largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
 import { PAVE } from "./pave";
-import { ETIQUETTE } from "./noms-outils";
+import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
+import { ETIQUETTE, ETIQUETTE_AUTONOME, type EtiquetteOutilPosee } from "./noms-outils";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
-import type { StylePastille } from "./pastille";
+import { pastilleEnManrope, type StylePastille } from "./pastille";
+import { segmentEnSortie, SORTIE_ACTIVE, sortieDuGroupe, type SortieGroupe } from "./sortie";
 import type { CibleMarqueurRendu, GabaritRendu as BaseSousTitres, PositionGroupeRendu as PositionGroupeSousTitres, SegmentRendu as SegmentSousTitres } from "./types-rendu";
 
 export interface DonneesCalque {
@@ -84,6 +87,12 @@ export interface DonneesCalque {
   plaques?: Record<string, number>;
   /** C2-U8 : mots-outils étiquetés de chaque groupe (id du segment → premier indice et nombre de mots). Absent : aucune étiquette. */
   motsOutils?: Record<string, { debut: number; longueur: number }>;
+  /** C2-U10 : bandeau « nom et fonction » (pièce non branchée) ; pendant sa tenue, un groupe « bas » se pose comme « auto ». Absent : rien ne change. */
+  bandeauNom?: BandeauNomRendu;
+  /** C2-U9 : étiquettes d'outil autonomes (pièce non branchée, `ETIQUETTE_OUTIL_AUTONOME` éteinte). Absent : rien ne change. */
+  etiquettesOutils?: EtiquetteOutilPosee[];
+  /** C2-U19 (AM-08) : sortie animée des groupes (fondu 0,2 s, glissement court), seulement si `SORTIE_ACTIVE`. Absent : le groupe disparaît net, comme avant. */
+  sortie?: SortieGroupe;
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -173,7 +182,8 @@ export function segmentAuTemps(segments: SegmentSousTitres[], t: number): Segmen
   return segments.find((s) => t >= s.debutSec && t < s.finSec) ?? null;
 }
 
-function centrePct(d: DonneesCalque, position: PositionGroupeSousTitres | undefined, t: number, debutGroupeSec = t): number {
+function centrePct(d: DonneesCalque, positionDemandee: PositionGroupeSousTitres | undefined, t: number, debutGroupeSec = t): number {
+  const position = positionDemandee === "bas" && bandeauActif(d.bandeauNom, t) ? "auto" : positionDemandee;
   if (position === "haut") return d.positions.hautPct;
   if (position === "bas") return d.positions.basPct;
   const jonction = d.passagesJonction?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6);
@@ -276,7 +286,14 @@ function entree(g: DefinitionGabarit, s: SegmentSousTitres, t: number, glissemen
 /** Ce qu'il faut dessiner à l'instant t, ou null (blanc). */
 export function sceneAuTemps(d: DonneesCalque, t: number): ElementDessine | null {
   const s = segmentAuTemps(d.segments, t);
-  if (!s) return null;
+  if (!s) {
+    // C2-U19 : éteint (champ absent ou interrupteur éteint), disparition nette comme avant.
+    const fini = SORTIE_ACTIVE && d.sortie ? segmentEnSortie(d.segments, d.sortie, t) : null;
+    const etat = fini && d.sortie ? sortieDuGroupe(d.sortie, fini.finSec, t) : null;
+    if (!fini || !etat) return null;
+    const el = elementDe(d, fini, fini.finSec - 1e-6);
+    return { ...el, opacite: el.opacite * etat.opacite, decalageYPx: el.decalageYPx + etat.decalageYPx * echelleDe(d) };
+  }
   return elementDe(d, s, t);
 }
 
@@ -355,13 +372,15 @@ function suitUnGroupe(segments: SegmentSousTitres[], s: SegmentSousTitres): bool
  */
 function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitres, t: number): ElementDessine {
   const g = GABARITS[d.base];
+  // C2-U14 : éteint, la police du gabarit (comme avant) ; allumé, Manrope Bold pour la mesure comme pour le dessin.
+  const police: NomPolice = pastilleEnManrope(p) ? "Manrope Bold" : g.police;
   const e = echelleDe(d);
   const margeXPx = p.margeX * 1080 * e;
   const margeYPx = p.margeY * 1080 * e;
   const options = { majuscules: false, chiffresTabulaires: true, espaceMotsEm: p.espaceMotsEm };
   const libre = d.echelleTexte !== undefined ? d.largeurMaxPx : d.largeurMaxPx * e;
   const voulue = p.taillePx * (d.tailleRelative ?? 1) * e;
-  const taillePx = Math.max(p.tailleMinPx * e, tailleQuiTient(s.mots.map((m) => m.mot), g.police, voulue, libre - 2 * margeXPx, options));
+  const taillePx = Math.max(p.tailleMinPx * e, tailleQuiTient(s.mots.map((m) => m.mot), police, voulue, libre - 2 * margeXPx, options));
   const arrivee = p.arriveeMotMs / 1000;
   const mots: MotDessine[] = s.mots.map((m, k) => {
     const fin = s.mots[k + 1]?.debutSec ?? Math.max(m.finSec, s.finSec);
@@ -369,14 +388,14 @@ function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitre
     // Monte à l'arrivée du mot, redescend pendant l'arrivée du suivant (aucun saut d'une image à l'autre).
     const u = t < m.debutSec ? 0 : t < fin ? douce((t - m.debutSec) / arrivee) : 1 - douce((t - fin) / arrivee);
     // Le grossissement ne mange jamais l'espace entre deux mots : au plus `debordMotDitEm` de chaque côté (mot long).
-    const zoom = Math.min(p.zoomMotDit, 1 + (2 * p.debordMotDitEm * taillePx) / Math.max(1, largeurMot(m.mot, g.police, taillePx, options)));
+    const zoom = Math.min(p.zoomMotDit, 1 + (2 * p.debordMotDitEm * taillePx) / Math.max(1, largeurMot(m.mot, police, taillePx, options)));
     return { texte: m.mot, couleur: dit ? p.motDit : p.texte, opacite: 1, souligne: 0, echelle: 1 + (zoom - 1) * u, monteePx: -p.monteeMotDitEm * taillePx * u };
   });
   const o = p.ombre;
   return {
     cle: s.id,
     gabarit: g,
-    police: g.police,
+    police,
     taillePx,
     yPx: (centrePct(d, "auto", t, s.debutSec) / 100) * d.hauteur,
     rotationDeg: 0,
@@ -546,5 +565,64 @@ export function cssBandeFond(b: BandeFondSousTitres): Css {
     height: total,
     background: `linear-gradient(to bottom, ${vide} 0px, ${plein} ${fondu.toFixed(1)}px, ${plein} ${b.hauteurPx.toFixed(1)}px, ${bas ? vide : plein} ${total.toFixed(1)}px)`,
     pointerEvents: "none",
+  };
+}
+
+/** Étiquette d'outil autonome dessinée à l'instant t. */
+export interface EtiquetteOutilDessinee {
+  id: string;
+  texte: string;
+  opacite: number;
+  taillePx: number;
+  /** Centre vertical (px) : la zone libre haute `positions.hautPct`. */
+  yPx: number;
+  largeurPx: number;
+  hauteurPx: number;
+}
+
+/**
+ * C2-U9 : étiquette visible à l'instant t, ou null. Fondu montant puis descendant de 0,2 s (courbes de la charte, sans
+ * rebond). Se replie pendant l'encadré d'ouverture et pendant le bandeau « nom et fonction ». Champ absent : null.
+ */
+export function etiquetteAuTemps(d: DonneesCalque, t: number): EtiquetteOutilDessinee | null {
+  const e = d.etiquettesOutils?.find((x) => t >= x.debutSec && t < x.finSec);
+  if (!e) return null;
+  if (bandeauActif(d.bandeauNom, t) || (d.ouverture && t < d.ouverture.finSec - 1e-6)) return null;
+  const A = ETIQUETTE_AUTONOME;
+  const entree = progres(t, e.debutSec, A.fonduSec, "signature");
+  const sortie = progres(t, e.finSec - A.fonduSec, A.fonduSec, "sortie");
+  const echelle = d.largeur / 1080;
+  const marge = 2 * A.margeXEm;
+  const taillePx = tailleQuiTient([e.texte], "Manrope ExtraBold", A.tailleBasePx * echelle, d.largeurMaxPx / (1 + marge));
+  return {
+    id: e.id,
+    texte: e.texte,
+    opacite: Math.min(entree, 1 - sortie),
+    taillePx,
+    yPx: (d.positions.hautPct / 100) * d.hauteur,
+    largeurPx: largeurLigne([e.texte], "Manrope ExtraBold", taillePx) + marge * taillePx,
+    hauteurPx: taillePx * (1.2 + 2 * A.margeYEm),
+  };
+}
+
+/** Styles CSS de l'étiquette autonome (les mêmes pour Remotion et le navigateur) : plaque noire, lettres ivoire, filet gris. */
+export function cssEtiquetteOutil(e: EtiquetteOutilDessinee, d: Pick<DonneesCalque, "largeur">, famille: string): { conteneur: Css; texte: Css } {
+  return {
+    conteneur: {
+      position: "absolute",
+      left: (d.largeur - e.largeurPx) / 2,
+      top: e.yPx - e.hauteurPx / 2,
+      width: e.largeurPx,
+      height: e.hauteurPx,
+      boxSizing: "border-box",
+      opacity: e.opacite,
+      background: ETIQUETTE.fond,
+      border: `${ETIQUETTE.bordPx}px solid ${ETIQUETTE.bord}`,
+      borderRadius: ETIQUETTE_AUTONOME.rayonEm * e.taillePx,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    texte: { fontFamily: famille, fontSize: e.taillePx, lineHeight: 1.2, whiteSpace: "nowrap", color: ETIQUETTE.texte },
   };
 }

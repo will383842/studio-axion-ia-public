@@ -413,7 +413,7 @@ export async function supprimerVideoDefinitivement(videoId: Id): Promise<boolean
  */
 export async function supprimerVideosDefinitivement(ids: Id[]): Promise<{ supprimees: number }> {
   await exigerSession();
-  return supprimerVideosSansSession(ids);
+  return supprimerVideosSansSession(ids, { decideParWilliams: true });
 }
 
 /**
@@ -421,7 +421,7 @@ export async function supprimerVideosDefinitivement(ids: Id[]): Promise<{ suppri
  * appliquée à CHAQUE lecture de la vidéo, sous le verrou comprise : une vidéo qui ne la passe plus (restaurée entre-temps)
  * est laissée intacte, sans erreur.
  */
-export async function supprimerVideosSansSession(ids: Id[], options: { garde?: (v: Video) => boolean } = {}): Promise<{ supprimees: number }> {
+export async function supprimerVideosSansSession(ids: Id[], options: { garde?: (v: Video) => boolean; decideParWilliams?: boolean } = {}): Promise<{ supprimees: number }> {
   const { appliquerSuppression, effacerDuStockage, refusSuppression } = await import("./suppression-video");
   const d = depots();
   const uniques = [...new Set(ids)];
@@ -453,7 +453,7 @@ export async function supprimerVideosSansSession(ids: Id[], options: { garde?: (
       await verifier(videos);
       let supprimees = 0;
       for (const v of videos) {
-        aEffacer.push(...(await appliquerSuppression(v)));
+        aEffacer.push(...(await appliquerSuppression(v, { decideParWilliams: options.decideParWilliams })));
         supprimees++;
       }
       return { supprimees };

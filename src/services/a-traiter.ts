@@ -249,7 +249,7 @@ const POIDS: Record<Motif, number> = {
   mot_inconnu: 2,
   mot_manuel: 3,
 };
-/** Cartes à traiter, les plus prioritaires d'abord, puis les plus anciennes. */
+/** Cartes à traiter : TOUTES les cartes opposées d'abord (doute, cartes neutralisées, cartes marquées opposées), puis les plus prioritaires, puis les plus anciennes. */
 export const cartesAFaire = (
   cartes: readonly CarteATraiter[],
 ): CarteATraiter[] =>
@@ -257,7 +257,9 @@ export const cartesAFaire = (
     .filter((c) => c.statut === "a_traiter")
     .sort(
       (a, b) =>
-        POIDS[a.motif] - POIDS[b.motif] || a.creeLe.localeCompare(b.creeLe),
+        Number(b.opposee === true) - Number(a.opposee === true) ||
+        POIDS[a.motif] - POIDS[b.motif] ||
+        a.creeLe.localeCompare(b.creeLe),
     );
 
 /* ---- Service ---- */
@@ -304,6 +306,30 @@ export async function enregistrerATraiter(
       return { issue: "execute" as const, raison: "deja_present" as const };
     await depot.ecrire([...existantes, r.carte]);
     return { issue: "execute" as const, raison: "ajoute" as const };
+  });
+}
+
+/**
+ * Doute d'opposition : neutralise, sous le verrou LOCAL, les cartes « à traiter » de la même personne (une empreinte en commun) :
+ * `opposee: true` et `kit: null` (statut et date de copie inchangés ; rien n'est supprimé, les cartes déjà faites ou ignorées sont laissées telles quelles).
+ * Avec `seulementSiOpposee`, ne fait rien tant qu'aucune carte de cette personne n'est déjà opposée (revérification côté GUIDE).
+ * Rend le nombre de cartes changées. Interrupteur éteint ou liste d'empreintes vide : 0, sans rien écrire.
+ * N'appelle jamais `sousVerrou` lui-même ; l'appelant ne doit pas l'appeler depuis l'intérieur de `sousVerrou`.
+ */
+export async function neutraliserCartesPersonne(
+  empreintes: readonly string[],
+  o: { env?: Env; depot?: DepotATraiter; seulementSiOpposee?: boolean } = {},
+): Promise<number> {
+  if (!aTraiterActif(o.env ?? process.env) || empreintes.length === 0) return 0;
+  const depot = o.depot ?? depotCourant;
+  return verrou(async () => {
+    const toutes = await depot.lire();
+    const retenues = toutes.filter((c) => (c.empreintes ?? []).some((e) => empreintes.includes(e)));
+    if (o.seulementSiOpposee && !retenues.some((c) => c.opposee === true)) return 0;
+    const aChanger = new Set(retenues.filter((c) => c.statut === "a_traiter" && !c.opposee).map((c) => c.idEvenement));
+    if (aChanger.size === 0) return 0;
+    await depot.ecrire(toutes.map((c) => (aChanger.has(c.idEvenement) ? { ...c, opposee: true, kit: null } : c)));
+    return aChanger.size;
   });
 }
 
@@ -440,11 +466,15 @@ export async function lireVueATraiter(
   try {
     // Carte d'une personne opposée : jamais de réponse proposée, quoi qu'il y ait en dépôt.
     // Revérification à chaque lecture : opposée OU vérification impossible => carte « opposée » (aucun envoi proposé).
-    const cartes = await Promise.all(
-      cartesAFaire(await (o.depot ?? depotCourant).lire()).map(async (c) =>
-        (await carteOpposee(c)) ? { ...c, opposee: true, kit: null } : c,
+    // Le recalcul de `opposee` précède le tri : une carte reconnue opposée à la lecture remonte en tête.
+    const recalculees = await Promise.all(
+      (await (o.depot ?? depotCourant).lire()).map(async (c) =>
+        c.statut === "a_traiter" && (await carteOpposee(c))
+          ? { ...c, opposee: true, kit: null }
+          : c,
       ),
     );
+    const cartes = cartesAFaire(recalculees);
     return {
       etat: cartes.length ? "normal" : "vide",
       cartes,

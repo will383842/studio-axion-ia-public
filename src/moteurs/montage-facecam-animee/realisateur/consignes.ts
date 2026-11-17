@@ -23,9 +23,12 @@ const pc = (x: number) => `${Math.round(x * 100)} %`;
  * Elle passe dans le MESSAGE de la demande (la consigne système reste la même d'une vidéo à l'autre, cache conservé) ; elle annonce aussi la règle D17 (`regles-v4.ts`), vérifiée par le code au premier essai seulement ; ensuite elle n'est plus qu'un avertissement.
  * Rend "" sans historique v4.
  */
-export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdites: readonly string[] = []): string {
+export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdites: readonly string[] = [], voisinesCommunes?: readonly string[]): string {
+  // X2-14a : ligne facultative (ouvertures récentes d'autres formats du même réseau) ; absente ou vide = texte inchangé.
+  const voisines = [...new Set(voisinesCommunes ?? [])];
+  const ligneVoisines = voisines.length ? `Sur ce réseau, les dernières vidéos (autres formats compris) ont ouvert par : ${voisines.join(", ")} ; ouvrez autrement.` : "";
   const vues = historique.slice(0, 5).filter((h) => h.plaquettesV4?.length);
-  if (!vues.length) return "";
+  if (!vues.length) return ligneVoisines;
   const comptes = new Map<string, number>();
   for (const h of vues) for (const id of h.plaquettesV4!) comptes.set(id, (comptes.get(id) ?? 0) + 1);
   const prises = [...comptes.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => `${id} (${n})`);
@@ -39,6 +42,7 @@ export function blocHistoriqueV4(historique: readonly HistoriqueVideo[], interdi
   const T = SEUILS_V4;
   const ouvertures = [...new Set(historique.slice(0, T.ouverturesRecentesVideos).flatMap((h) => (h.ouvertureV4 ? [h.ouvertureV4] : [])))];
   lignes.push(`RÈGLE VÉRIFIÉE, plan refusé et à refaire si : il ouvre par ${ouvertures.length ? `l'une de ces plaquettes (ouvertures des ${T.ouverturesRecentesVideos} dernières vidéos) : ${ouvertures.join(", ")}` : "la même plaquette que l'une des dernières vidéos"} ; ou si plus de ${Math.round(100 * T.partReprisePlaquettesMax)} % de ses plaquettes différentes ont déjà été prises dans les ${T.videosRecentesPlaquettes} dernières vidéos. L'erreur exacte vous est renvoyée à l'essai suivant.`);
+  if (ligneVoisines) lignes.push(ligneVoisines);
   return lignes.join("\n");
 }
 

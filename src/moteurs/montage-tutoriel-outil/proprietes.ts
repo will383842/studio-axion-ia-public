@@ -25,7 +25,7 @@ export const HABILLAGE_TUTORIEL: HabillagePlan = { fond: "ivoire", accent: "terr
 export const DUREE_CARTE_FIN_MS = 2500;
 export const CARTE_FIN_AXION = { titre: "Axion IA", sousTitre: "axion-ia.com" } as const;
 
-export interface ProprietesTutorielOutil {
+export type ProprietesTutorielOutil = {
   plan: PlanValide;
   /** Adresse signée de la voix (entrée « audio » de la demande de rendu) ; absente : vidéo muette. */
   audio?: string;
@@ -33,7 +33,7 @@ export interface ProprietesTutorielOutil {
   sousTitres?: DonneesCalque;
   fin: { titre: string; sousTitre: string };
   finMs: number;
-}
+};
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */
 export function planCarteFin(p: Pick<ProprietesTutorielOutil, "plan" | "fin" | "finMs">): PlanValide {

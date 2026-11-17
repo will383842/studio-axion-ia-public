@@ -3,6 +3,8 @@
  *
  * Usage (depuis `studio-rendu/`) :
  *   npx tsx scripts/planche-habillage.ts            → MP4 des 14 transitions, dans .planche-habillage/ (non commité)
+ *   npx tsx scripts/planche-habillage.ts --planche fonds|lumieres|icones|animations → MP4 des fonds vivants (fonds.mp4), des lumières (lumieres.mp4),
+ *                                                     des icônes (icones.mp4) ou des animations d'icônes (animations.mp4)
  *   npx tsx scripts/planche-habillage.ts --mesure   → mesure AM-05 : 60 images par cas, temps par image et pic de mémoire,
  *                                                     `mesure.json` et `mesure.md` dans le même dossier
  *   STUDIO_RENDU_NAVIGATEUR=/chemin/chrome          → navigateur sans affichage à utiliser
@@ -34,8 +36,15 @@ const reglages = { ...REGLAGES_RENDU, browserExecutable: navigateur ?? null, tim
 const serveUrl = await bundle({ entryPoint: resolve(racine, "compositions/index.ts") });
 
 if (!mesureDemandee) {
-  const composition = await selectComposition({ serveUrl, id: "HabillageTransitions", ...reglages });
-  const fichier = resolve(sortie, "transitions.mp4");
+  const i = process.argv.indexOf("--planche");
+  const choix = i >= 0 ? process.argv[i + 1] : undefined;
+  if (choix !== undefined && choix !== "fonds" && choix !== "lumieres" && choix !== "icones" && choix !== "animations") {
+    throw new Error("--planche attend « fonds », « lumieres », « icones » ou « animations »");
+  }
+  const IDS = { fonds: "HabillageFonds", lumieres: "HabillageLumieres", icones: "HabillageIcones", animations: "HabillageAnimations" } as const;
+  const id = choix === undefined ? "HabillageTransitions" : IDS[choix];
+  const composition = await selectComposition({ serveUrl, id, ...reglages });
+  const fichier = resolve(sortie, choix === undefined ? "transitions.mp4" : `${choix}.mp4`);
   await renderMedia({ composition, serveUrl, codec: "h264", outputLocation: fichier, ...reglages });
   console.log(`Planche écrite : ${fichier}`);
 } else {

@@ -9,8 +9,8 @@ import { DECLARATIONS, declarationDuFormat } from "@/generateurs/declaration";
 
 const RACINE = resolve(__dirname, "../..");
 const FORMATS = listerFormats({ inclureMasques: true, inclureReservesAWill: true });
-/** Écart connu, corrigé par G1-05b : `famille()` dit « visage » pour tutoriel-outil, la déclaration dit non. */
-const ECARTS_VISAGE = ["tutoriel-outil"];
+/** Plus d'écart : G1-05b a fait lire la déclaration par `famille()`. */
+const ECARTS_VISAGE: string[] = [];
 
 describe("déclaration unique des générateurs (G1-05a)", () => {
   it("couverture : une déclaration pour chaque format du registre, et rien d'autre", () => {
