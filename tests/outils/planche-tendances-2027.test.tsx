@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { couleursMinimalDynamique } from "../../src/briques/sous-titres/minimal-dynamique";
 import { FORMATS_PLANCHE, PIECES_X1_PLANCHE, PlancheTendances2027, casesDeLaPlanche } from "../../outils/tendances-2027/PlancheTendances2027";
 
 const RACINE = join(__dirname, "..", "..");
@@ -17,11 +18,34 @@ function fichiers(dossier: string): string[] {
 }
 
 describe("X1-17a planche tendances 2027", () => {
-  it("liste les dix pièces X1 fusionnées (X1-14 exclue)", () => {
-    expect([...PIECES_X1_PLANCHE]).toEqual(["X1-01", "X1-03", "X1-04", "X1-05", "X1-06", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"]);
+  it("liste les onze pièces X1 fusionnées (X1-14 exclue)", () => {
+    expect([...PIECES_X1_PLANCHE]).toEqual(["X1-01", "X1-02", "X1-03", "X1-04", "X1-05", "X1-06", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"]);
     const ids = new Set(casesDeLaPlanche().map((c) => c.piece));
     for (const p of PIECES_X1_PLANCHE) expect(ids.has(p)).toBe(true);
     expect(ids.has("X1-14" as never)).toBe(false);
+  });
+  it("X1-02 : groupes de 1 à 3 mots, un seul mot marqué en terracotta, boîte fermée", () => {
+    const h = renderToStaticMarkup(createElement(PlancheTendances2027, { format: "16x9" }));
+    const case_ = (id: string): string => {
+      const debut = h.indexOf(`data-case="${id}"`);
+      expect(debut, id).toBeGreaterThanOrEqual(0);
+      const suite = h.indexOf("data-case=", debut + 10);
+      return h.slice(debut, suite < 0 ? undefined : suite);
+    };
+    const groupes = case_("x1-02-groupes");
+    expect(groupes).toContain("relancer");
+    const { fond } = couleursMinimalDynamique();
+    expect(groupes.split(fond).length - 1).toBe(1);
+    const lignes = [...groupes.matchAll(/data-groupe="([^"]*)"/g)].map((m) => m[1]);
+    expect(lignes.length).toBeGreaterThan(1);
+    for (const l of lignes) {
+      const n = l.split(" ").filter(Boolean).length;
+      expect(n).toBeGreaterThanOrEqual(1);
+      expect(n).toBeLessThanOrEqual(3);
+    }
+    const d = /<path[^>]* d="([^"]+)"/.exec(case_("x1-02-boite"))?.[1] ?? "";
+    expect(d.startsWith("M")).toBe(true);
+    expect(d.trim().endsWith("Z")).toBe(true);
   });
   it("quatre formats", () => {
     expect(Object.keys(FORMATS_PLANCHE)).toEqual(["9x16", "4x5", "1x1", "16x9"]);
