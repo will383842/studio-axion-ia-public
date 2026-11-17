@@ -230,3 +230,31 @@ describe("parcours : raisons stockées et journal (T19 à T23)", () => {
     expect(estRaisonRefus(r)).toBe(true);
   });
 });
+
+describe("S3 : erreur du client sur une réponse 2xx", () => {
+  it("S3 creation-incomplete en 200 sans motif : source interne, pas statut", () => {
+    const r = raisonRefus(new ErreurZernio("creation-incomplete", "réponse incomplète", { statut: 200 }));
+    expect(r.source).toBe("interne");
+    expect(r.motif).toBe("raison-inconnue");
+    expect(r.statut).toBe(200);
+    expect(r.codeClient).toBe("creation-incomplete");
+    expect(estRaisonRefus(r)).toBe(true);
+  });
+  it("S3 hors 2xx sans motif : source statut inchangée", () => {
+    expect(raisonRefus(new ErreurZernio("refuse", "refus", { statut: 400 })).source).toBe("statut");
+  });
+});
+
+describe("S2 : comportement actuel figé (error.code lu par le motif, pas par le client)", () => {
+  it("S2 403 {error:{code:INBOX_REQUIRED}} : code client acces, motif inbox-zernio-requise (à revoir : voir la PR)", async () => {
+    const e = await echoue(brut(JSON.stringify({ error: { code: "INBOX_REQUIRED" } }), 403).client.requete(PRIVE));
+    expect(e.code).toBe("acces");
+    expect(e.motifInbox?.motif).toBe("inbox-zernio-requise");
+    expect(e.motifInbox?.codeZernio).toBe("INBOX_REQUIRED");
+  });
+  it("S2 403 {error:{code:message_allowance_exceeded}} : code client acces, motif quota-messages-zernio", async () => {
+    const e = await echoue(brut(JSON.stringify({ error: { code: "message_allowance_exceeded" } }), 403).client.requete(PRIVE));
+    expect(e.code).toBe("acces");
+    expect(e.motifInbox?.motif).toBe("quota-messages-zernio");
+  });
+});
