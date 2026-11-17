@@ -69,7 +69,7 @@ export const LIBELLES_MOTIF_REFUS: Readonly<Record<CodeMotifRefus, string>> = {
 export const CODES_ZERNIO_CONNUS = ["INBOX_REQUIRED", "message_allowance_exceeded", "idempotency_conflict", "platform_api_error", "platform_error", "rate_limit_error", "PLATFORM_API_ERROR"] as const;
 export type CodeZernioConnu = (typeof CODES_ZERNIO_CONNUS)[number];
 
-/** Codes du client Zernio (`CodeErreurZernio`) et `erreur-inconnue` : seuls admis pour `codeClient`. */
+/** Codes du client Zernio (`CodeErreurZernio`) et `erreur-inconnue` : seuls admis pour `codeClient`. Pas d'import du type (cycle domaine -> fournisseur) : lien garanti par tests/zernio/codes-client-exhaustifs.test.ts. */
 export const CODES_CLIENT_CONNUS: readonly string[] = [
   "envoi-coupe", "mot-interdit", "chemin-refuse", "debit", "lecture-requise", "conflit-idempotence", "doublon", "a-verifier", "indisponible", "acces", "introuvable", "refuse",
   "reponse-invalide", "inbox-requis", "quota-messages", "reponse-privee-consommee", "reponse-privee-inconnue", "limite-incertaine", "lien-hors-domaine", "guide-inconnu",
