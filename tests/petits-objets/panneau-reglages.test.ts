@@ -104,6 +104,66 @@ describe("C10-12 rendu", () => {
   });
 });
 
+describe("C10-12 corrections du relecteur", () => {
+  it("image 0 : aucun trait hors TraceSvg n'est visible (cercle de sélection compris)", () => {
+    const m = rendre(0);
+    const traits = [...m.matchAll(/<(?:circle|rect|path)\b[^>]*>/g)].map((x) => x[0]).filter((t) => !/stroke-dasharray/.test(t) && /stroke="(?!none)/.test(t));
+    expect(traits.length).toBeGreaterThan(0);
+    for (const t of traits) expect(/stroke-opacity="([^"]+)"/.exec(t)?.[1]).toBe("0");
+    expect(/stroke-opacity="1"/.test(rendre(30))).toBe(true);
+  });
+  const attr = (t: string, n: string) => Number(new RegExp(`(?:^|\\s)${n}="([^"]+)"`).exec(t)?.[1]);
+  const formes = (m: string) => {
+    const panneau = [...m.matchAll(/<rect\b[^>]*>/g)].map((x) => x[0]);
+    const cercles = [...m.matchAll(/<circle\b[^>]*>/g)].map((x) => x[0]);
+    return { panneau: panneau[0], capsule: panneau[1], rail: panneau[2], cercles };
+  };
+  const bornes: [string, number, number][] = [["minimum", 40, 40], ["large et bas", 100, 40], ["étroit et haut", 40, 60], ["plein", 100, 60]];
+  it("valider refuse sous le minimum (largeur ou hauteur < 40 %)", () => {
+    const base = { interrupteur: true, curseur: 50, pastilles: 3 };
+    expect(DEF.valider({ ...base, largeur: 39, hauteur: 40 })).toBeNull();
+    expect(DEF.valider({ ...base, largeur: 100, hauteur: 20 })).toBeNull();
+    expect(DEF.valider({ ...base, largeur: 20, hauteur: 100 })).toBeNull();
+    expect(DEF.valider({ ...base, largeur: 40, hauteur: 40 })).not.toBeNull();
+  });
+  for (const [nom, largeur, hauteur] of bornes) {
+    it(`bords acceptés (${nom}) : tout tient dans le panneau, rangées sans chevauchement, bouton ≥ 50 % de la capsule`, () => {
+      const p: ParametresPanneauReglages = { largeur, hauteur, interrupteur: true, curseur: 100, pastilles: 3, selection: 2 };
+      expect(DEF.valider(p)).not.toBeNull();
+      const m = rendre(40, { p });
+      const { panneau, capsule, rail, cercles } = formes(m);
+      const px0 = attr(panneau, "x"), py0 = attr(panneau, "y"), px1 = px0 + attr(panneau, "width"), py1 = py0 + attr(panneau, "height");
+      const dans = (x0: number, y0: number, x1: number, y1: number) => x0 >= px0 && y0 >= py0 && x1 <= px1 && y1 <= py1;
+      const cx0 = attr(capsule, "x"), cy0 = attr(capsule, "y"), cw = attr(capsule, "width"), ch = attr(capsule, "height");
+      expect(dans(cx0, cy0, cx0 + cw, cy0 + ch)).toBe(true);
+      expect(dans(attr(rail, "x"), attr(rail, "y"), attr(rail, "x") + attr(rail, "width"), attr(rail, "y") + attr(rail, "height"))).toBe(true);
+      // boîtes des cercles (rayon, trait compris) : tous dans le panneau
+      const boites = cercles.map((c) => {
+        const r = attr(c, "r") + (/stroke="(?!none)/.test(c) ? 2 : 0);
+        return { x: attr(c, "cx"), y: attr(c, "cy"), r };
+      });
+      for (const b of boites) expect(dans(b.x - b.r, b.y - b.r, b.x + b.r, b.y + b.r)).toBe(true);
+      // rangées : intervalles verticaux disjoints (interrupteur, curseur, pastilles)
+      const bouton = cercles.find((c) => /data-role="bouton"/.test(c))!;
+      const poignee = cercles.find((c) => /data-role="poignee"/.test(c))!;
+      const past = cercles.filter((c) => /data-role="pastille"|stroke-width/.test(c) && !/data-role="(bouton|poignee)"/.test(c));
+      const r1 = [cy0, cy0 + ch];
+      const r2 = [Math.min(attr(rail, "y"), attr(poignee, "cy") - attr(poignee, "r")), Math.max(attr(rail, "y") + 12, attr(poignee, "cy") + attr(poignee, "r"))];
+      const r3 = [Math.min(...past.map((c) => attr(c, "cy") - attr(c, "r") - 2)), Math.max(...past.map((c) => attr(c, "cy") + attr(c, "r") + 2))];
+      expect(r1[1]).toBeLessThan(r2[0]);
+      expect(r2[1]).toBeLessThan(r3[0]);
+      // pastilles : disjointes horizontalement
+      const pastilles = cercles.filter((c) => /data-role="pastille"/.test(c)).map((c) => ({ x: attr(c, "cx"), r: attr(c, "r") }));
+      for (let i = 1; i < pastilles.length; i++) expect(pastilles[i - 1].x + pastilles[i - 1].r).toBeLessThan(pastilles[i].x - pastilles[i].r);
+      // bouton : déplacement ≥ 50 % de la capsule
+      const debut = bouton_x(rendre(0, { p }));
+      expect(attr(bouton, "cx") - debut).toBeGreaterThanOrEqual(cw * 0.5);
+      void bouton;
+    });
+  }
+});
+const bouton_x = (m: string) => Number(/data-role="bouton" cx="([^"]+)"/.exec(m)?.[1]);
+
 describe("C10-12 garde statique du fichier (13 motifs de garde.test.ts:8-22, copiés)", () => {
   const texte = readFileSync(join(__dirname, "..", "..", "src", "briques", "motion", "petits-objets", "panneau-reglages.tsx"), "utf8");
   const MOTIFS: [string, RegExp][] = [

@@ -21,7 +21,8 @@ export interface ParametresPanneauReglages {
 
 const L = 1000;
 const H = 1000;
-const MIN_POURCENT = 20;
+/** Minimum (% du cadre) : la capsule de 180, 3 pastilles cerclées et 3 rangées de 72 tiennent dans le panneau (400 sur 1000). */
+const MIN_POURCENT = 40;
 const MARGE = 60;
 const IMAGES_FONDU = 6;
 /** Durée de la bascule de l'interrupteur, en images. */
@@ -96,7 +97,7 @@ export const OBJET_PANNEAU_REGLAGES: DefinitionObjet<ParametresPanneauReglages> 
       pastilles.push(
         <circle key={i} data-role="pastille" cx={f(cx)} cy={f(yPast)} r={28} fill={i === 0 ? accent : neutre} stroke="none" />,
       );
-      if (parametres.selection === i) pastilles.push(<circle key={`s${i}`} cx={f(cx)} cy={f(yPast)} r={40} fill="none" stroke={c.texte} strokeWidth={4} />);
+      if (parametres.selection === i) pastilles.push(<circle key={`s${i}`} cx={f(cx)} cy={f(yPast)} r={40} fill="none" stroke={c.texte} strokeWidth={4} strokeOpacity={fondu} />);
     }
     return (
       <svg viewBox={`0 0 ${L} ${H}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
