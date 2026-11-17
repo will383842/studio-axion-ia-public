@@ -12,6 +12,7 @@ import { PLAN_GALERIE } from "./plan-galerie";
 import { DemoV2 } from "./demo-v2/DemoV2";
 import { DUREE_DEMO_SEC, FPS_DEMO, HAUTEUR_DEMO, LARGEUR_DEMO } from "./demo-v2/sequence-demo";
 import { metaVideoAnimeeV4, VideoAnimeeV4 } from "./VideoAnimeeV4";
+import "./motion-v4/lot6/rendus-lot6"; // N-17 : inscrit le repli du lot 6 dans le registre v4 (hors tsc racine)
 import { DemoV3 } from "./demo-v3/DemoV3";
 import { DUREE_DEMO_V3_SEC, FPS_DEMO_V3, HAUTEUR_DEMO_V3, LARGEUR_DEMO_V3 } from "./demo-v3/sequence-demo";
 
