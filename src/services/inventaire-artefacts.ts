@@ -23,25 +23,30 @@ export type VideoInventaire = { readonly formatId: string } & Partial<EntreeResu
 export interface TravailInventaire { readonly parametres?: Readonly<Record<string, unknown>> }
 
 /**
- * Clés de `travail.parametres` PROUVÉES par chemin:ligne (une clé n'entre que prouvée) : `voix` (montage-avocat/index.ts:1275-1276)
- * et `tableau` (travaux.ts:835, plan du tableau animé SEULEMENT). `planIds` = plans À RETOUCHER (travaux.ts:928), pas un plan gardé.
- * `rendus-scenes` : aucune clé prouvée, donc jamais `via-travail`.
+ * Preuves de `travail.parametres` (une clé n'entre que prouvée par chemin:ligne) :
+ * - `voix` : gardée SEULEMENT si `phase === "faite"` ET `audio.fichierCle` non vide (src/domaine/double-reel.ts:37-39 ; type EtatVoix
+ *   src/moteurs/montage-avocat/index.ts:189-200). Un travail avocat naît avec `{ phase: "a-lire" }` (montage-avocat/index.ts:1253) : pas une voix faite.
+ *   Écrite par le seul moteur montage-avocat (src/moteurs/index.ts:32, :136) ; critère strict, donc acceptable pour tous les formats.
+ * - `tableau` : plan du tableau animé SEULEMENT (travaux.ts:835), tableau non vide.
+ * `planIds` = plans À RETOUCHER (travaux.ts:928), pas un plan gardé. `rendus-scenes` : aucune clé prouvée, jamais `via-travail`.
  */
-const CLES_TRAVAIL: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = Object.freeze({
-  "tableau-anime": Object.freeze({ plan: Object.freeze(["tableau"]), voix: Object.freeze(["voix"]) }),
-  "*": Object.freeze({ voix: Object.freeze(["voix"]) }),
+type Preuve = (p: Readonly<Record<string, unknown>>) => boolean;
+const voixFaite: Preuve = (p) => {
+  const v = p.voix as { phase?: unknown; audio?: { fichierCle?: unknown } } | null | undefined;
+  return !!v && typeof v === "object" && v.phase === "faite" && typeof v.audio?.fichierCle === "string" && v.audio.fichierCle.length > 0;
+};
+const tableauNonVide: Preuve = (p) => Array.isArray(p.tableau) ? p.tableau.length > 0 : !!p.tableau && typeof p.tableau === "object" && Object.keys(p.tableau).length > 0;
+const PREUVES: Readonly<Record<string, Readonly<Record<string, Preuve>>>> = Object.freeze({
+  "tableau-anime": Object.freeze({ plan: tableauNonVide, voix: voixFaite }),
+  "*": Object.freeze({ voix: voixFaite }),
 });
 
 function porteParLeTravail(travail: TravailInventaire | undefined, formatId: string, artefact: string): boolean {
   const p = travail && typeof travail === "object" ? travail.parametres : undefined;
   if (!p || typeof p !== "object") return false;
-  const table = Object.prototype.hasOwnProperty.call(CLES_TRAVAIL, formatId) ? CLES_TRAVAIL[formatId] : CLES_TRAVAIL["*"];
-  const cles = Object.prototype.hasOwnProperty.call(table, artefact) ? table[artefact] : [];
-  return cles.some((cle) => {
-    if (!Object.prototype.hasOwnProperty.call(p, cle)) return false;
-    const v = p[cle];
-    return v !== undefined && v !== null && !(Array.isArray(v) && v.length === 0);
-  });
+  const table = Object.prototype.hasOwnProperty.call(PREUVES, formatId) ? PREUVES[formatId] : PREUVES["*"];
+  const preuve = Object.prototype.hasOwnProperty.call(table, artefact) ? table[artefact] : undefined;
+  try { return !!preuve && preuve(p) === true; } catch { return false; }
 }
 
 /** Une pièce par artefact de la déclaration du format. Format inconnu ou entrée invalide : liste vide. Ne lève jamais. */

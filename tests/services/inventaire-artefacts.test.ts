@@ -23,8 +23,11 @@ describe("inventaire des artefacts (G12-03)", () => {
 
   it("avocat : rien de prouvé, jamais « present » ; via le travail si les paramètres le portent", () => {
     expect(etat(inventaireArtefacts({ formatId: "avocat", projetMontage: {}, plans: [plan] as never }))).toEqual({ plan: "absent", voix: "absent" });
-    const t = { parametres: { voix: { id: "v" } } };
+    const t = { parametres: { voix: { phase: "faite", audio: { fichierCle: "k", empreinte: "e" } } } };
     expect(etat(inventaireArtefacts({ formatId: "avocat" }, t))).toEqual({ plan: "absent", voix: "via-travail" });
+    for (const v of [{ id: "v" }, {}, 1, { phase: "a-lire" }, { phase: "faite" }, { phase: "faite", audio: { fichierCle: "" } }]) {
+      expect(etat(inventaireArtefacts({ formatId: "avocat" }, { parametres: { voix: v } })).voix, JSON.stringify(v)).toBe("absent");
+    }
     // planIds = plans à retoucher, `tableau` = plan du tableau animé seulement : ni l'un ni l'autre n'est un plan gardé d'avocat
     expect(etat(inventaireArtefacts({ formatId: "avocat" }, { parametres: { planIds: ["p1"] } })).plan).toBe("absent");
     expect(etat(inventaireArtefacts({ formatId: "avocat" }, { parametres: { tableau: {} } })).plan).toBe("absent");
@@ -39,12 +42,13 @@ describe("inventaire des artefacts (G12-03)", () => {
 
   it("tableau animé : trois pièces ; le tableau du travail compte comme plan", () => {
     expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }))).toEqual({ plan: "absent", voix: "absent", "rendus-scenes": "absent" });
-    expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }, { parametres: { tableau: {} } })).plan).toBe("via-travail");
+    expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }, { parametres: { tableau: { a: 1 } } })).plan).toBe("via-travail");
+    expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }, { parametres: { tableau: [] } })).plan).toBe("absent");
   });
 
   it("image→vidéo : trois pièces ; clés de rendus non prouvées ⇒ absent ; voix prouvée ⇒ via-travail", () => {
     expect(etat(inventaireArtefacts({ formatId: "image-video" }, { parametres: { rendusScenes: [1], ecrans: [1], planIds: ["p"] } }))).toEqual({ plan: "absent", voix: "absent", "rendus-scenes": "absent" });
-    expect(etat(inventaireArtefacts({ formatId: "image-video" }, { parametres: { voix: {} } })).voix).toBe("via-travail");
+    expect(etat(inventaireArtefacts({ formatId: "image-video" }, { parametres: { voix: { phase: "faite", audio: { fichierCle: "k", empreinte: "e" } } } })).voix).toBe("via-travail");
   });
 
   it("cas concret (lecteurs prouvés) : present ; « voix gardée oui, rendus non »", () => {
@@ -54,9 +58,11 @@ describe("inventaire des artefacts (G12-03)", () => {
   });
 
   it("le présent prime sur le travail ; un paramètre vide ou nul ne compte pas", () => {
-    const v = { formatId: "cas-concret", plans: [plan] as never, projetMontage: {} };
-    expect(etat(inventaireArtefacts(v, { parametres: { plan: {} } })).plan).toBe("present");
-    expect(etat(inventaireArtefacts({ formatId: "cas-concret" }, { parametres: { voix: null, plan: [] } }))).toEqual({ plan: "absent", voix: "absent", "rendus-scenes": "absent" });
+    const v = { formatId: "cas-concret", plans: [plan] as never, projetMontage: { casConcret: { voix: { f: 1 } } } };
+    // lecteur « present » ET clé prouvée portée par le travail ⇒ present (et non via-travail)
+    expect(etat(inventaireArtefacts(v, { parametres: { voix: { phase: "faite", audio: { fichierCle: "k", empreinte: "e" } } } })).voix).toBe("present");
+    expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }, { parametres: { tableau: [] } })).plan).toBe("absent");
+    expect(etat(inventaireArtefacts({ formatId: "tableau-anime" }, { parametres: { tableau: null, voix: null } }))).toEqual({ plan: "absent", voix: "absent", "rendus-scenes": "absent" });
   });
 
   it("lecture seule : entrées intactes, aucun réseau ni service ni argent importé", () => {
