@@ -15,7 +15,7 @@ import type { ContenuSourceType } from "@/domaine/ecriture-post/contenu-source";
 import { memeValeur, nombresAffirmes } from "@/domaine/nombres-fr";
 import { avecTermeDuCompte, composerLegende, contientTermeDuCompte, corpsTexteSimule, finDuTexte, motsDiesePour, placeDuCorps, termesDuCompte } from "@/domaine/textes-publication";
 import { TOURNURES_CALIBREES, DRAPEAUX_TOURNURES } from "@/donnees/generateur/tournures-calibrees";
-import { MODELE_JUGE } from "@/fournisseurs/claude/tarifs";
+import { MODELE_JUGE } from "@/domaine/modeles-texte";
 import { TEXTE_PUBLICATION, titresDemandes } from "@/donnees/generateur/publication-reseaux";
 import { listerReseaux, obtenirReseau } from "@/reseaux";
 import { estReseauDeclinaison } from "@/reseaux/codes";
