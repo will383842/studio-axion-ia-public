@@ -1,13 +1,14 @@
 // RAPPORT « MESURE SEULE » DES EXTRAITS (X4-16a). Lecture seule : aucune écriture, aucun appel payant, rien d'allumé.
 //
 // Pour les `n` dernières vidéos prêtes, calcule les moments (fonctions de `src/briques/note-extraits`), appelle le tri
-// REÇU EN PARAMÈTRE sans rien enregistrer, et rend un tableau Markdown. Le tri par défaut (`trierVideo`) sera branché
-// par X4-16b après X4-06 ; sans tri, `main` écrit « attend X4-06 » et sort avec 0 sans rien lire.
+// REÇU EN PARAMÈTRE sans rien enregistrer, et rend un tableau Markdown. Le tri par défaut est `trierVideo` (X4-16b) ;
+// lancé à la main seulement, par la session qui déploie, sur accord de Williams.
 // Rien n'importe ce script. Patron : scripts/variete-commune/rapport.ts (X2-09).
 import {
-  SEUILS_PAR_DEFAUT, momentsCaptures, momentsDepuisScenes, momentsEcranDemo, sujetDuMoment,
+  SEUILS_PAR_DEFAUT, momentsCaptures, momentsDepuisScenes, momentsEcranDemo, sujetDuMoment, usagesDe,
   type ContexteNote, type Moment, type ResultatTri, type SeuilsNoteInteret,
 } from "../../src/briques/note-extraits";
+import { trierVideo } from "../../src/briques/archive-extraits/tri-video";
 import { videoEligible } from "../../src/briques/archive-extraits/inscription";
 import type { TypeAutomatisation } from "../../src/domaine/ciblage/types";
 import type { Video } from "../../src/domaine/types";
@@ -15,6 +16,9 @@ import type { EtatCaptures } from "../../src/moteurs/montage-cas-concret/capture
 import type { EntreesDemo } from "../../src/moteurs/montage-demo-facecam/entrees";
 
 export type TriExtraits = (moments: Moment[], contexte: ContexteNote, seuils: SeuilsNoteInteret) => ResultatTri | Promise<ResultatTri>;
+
+/** Tri par défaut : `trierVideo`, usages étiquetés ; chiffres réels jamais supposés (E4-3). */
+export const trierParDefaut: TriExtraits = (m, c, s) => trierVideo(m, c, s, { etiqueter: (x) => usagesDe(x, { chiffresReels: false }) });
 
 /** Une vidéo lue (lecture seule) : tout ce qu'il faut pour les règles d'éligibilité et pour les moments. */
 export interface VideoLue {
@@ -74,7 +78,7 @@ export async function rapportExtraits(p: { n: number; trier: TriExtraits; lister
   return lignes.join("\n") + "\n";
 }
 
-/** Lecture réelle, SEULE lecture (`lister`), jamais d'écriture. Chargée seulement si on lui passe le tri. */
+/** Lecture réelle, SEULE lecture (`lister`), jamais d'écriture. Chargée seulement au lancement réel. */
 async function listerReel(n: number): Promise<VideoLue[]> {
   const { depots } = await import("../../src/donnees/memoire");
   const d = depots();
@@ -97,10 +101,6 @@ async function listerReel(n: number): Promise<VideoLue[]> {
 
 export async function main(o: { trier?: TriExtraits; lister?: ListerVideos; n?: number; ecrire?: (s: string) => void } = {}): Promise<number> {
   const ecrire = o.ecrire ?? ((s: string) => void process.stdout.write(s));
-  if (!o.trier) {
-    ecrire("Rapport des extraits : attend X4-06 (le tri n'est pas encore fourni). Rien n'a été lu.\n");
-    return 0;
-  }
-  ecrire(await rapportExtraits({ n: o.n ?? 10, trier: o.trier, lister: o.lister ?? listerReel }));
+  ecrire(await rapportExtraits({ n: o.n ?? 10, trier: o.trier ?? trierParDefaut, lister: o.lister ?? listerReel }));
   return 0;
 }

@@ -57,6 +57,10 @@ import { trouverFormat } from "@/formats";
 import { SurLeSite } from "@/components/reglages/SurLeSite";
 import { lireReglagesSite } from "@/services/site-videos";
 import { CarteYoutubeShorts } from "@/components/reglages/CarteYoutubeShorts";
+import { DefautsDosage } from "@/components/dosage-motion/DefautsDosage";
+import { definirDefautDosageAction } from "./actions-dosage-motion";
+import { lireDefautsDosage } from "@/services/dosage-motion-defauts";
+import { dosageActif } from "@/briques/dosage-motion/reglage";
 import { resumeCarteYoutube } from "@/components/reglages/youtube-logique";
 import { vueYoutubeZernio } from "@/services/youtube-zernio";
 import { RUBRIQUES } from "./rubriques";
@@ -151,6 +155,8 @@ export default async function PageReglages() {
   const youtube = await vueYoutubeZernio();
   const infos = aPropos();
   const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
+  // X3-10b-c : éteint (réglage absent) = une seule lecture de réglage, aucune carte.
+  const defautsDosage = (await dosageActif((id, d) => lireParametre<unknown>(id, d))) ? await lireDefautsDosage() : null;
 
   return (
     <div>
@@ -229,6 +235,14 @@ export default async function PageReglages() {
               </Link>
             </CartePliante>
           </Apparition>
+          {/* X3-10b-c : « Animations par défaut », seulement si dosageMotion.actif vaut true. */}
+          {defautsDosage && (
+            <Apparition index={4}>
+              <CartePliante id="animations" icone="eclair" titre="Animations par défaut" resume="Un cran par générateur, pour les prochaines vidéos">
+                <DefautsDosage actif defauts={defautsDosage} surChoisir={definirDefautDosageAction} />
+              </CartePliante>
+            </Apparition>
+          )}
         </Rubrique>
 
         <Rubrique id="publication">

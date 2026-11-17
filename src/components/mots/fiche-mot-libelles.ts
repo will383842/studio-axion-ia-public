@@ -96,6 +96,9 @@ export const LIBELLES_FICHE = {
     auMoins: (n: number) => `au moins ${n}`,
     bloques: "Commentaires bloqués par une sécurité",
     refuses: "Envois refusés",
+    dont: (libelle: string) => `dont : ${libelle}`,
+    dApresMessage: " (d'après le message du réseau)",
+    sansRaison: "dont : raison non enregistrée",
   },
 } as const;
 

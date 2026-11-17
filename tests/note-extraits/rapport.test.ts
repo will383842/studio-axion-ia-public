@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { main, rapportExtraits, type TriExtraits, type VideoLue } from "../../scripts/note-extraits/rapport";
+import { main, rapportExtraits, trierParDefaut, type TriExtraits, type VideoLue } from "../../scripts/note-extraits/rapport";
 import type { Moment, ResultatTri } from "@/briques/note-extraits";
 
 // Dépôts factices : lecture (`lister`) avec fixtures, écritures espionnées (test « zéro écriture » sur le lecteur réel).
@@ -67,12 +67,14 @@ describe("rapportExtraits (X4-16a)", () => {
 });
 
 describe("main (X4-16a)", () => {
-  it("sans tri : n'appelle pas lister, message « attend X4-06 », sortie 0", async () => {
-    const lister = vi.fn(async () => [base("v1")]);
+  it("sans tri : utilise trierVideo (tri par défaut), lister appelé une fois, sortie 0", async () => {
+    const lister = vi.fn(async () => [base("v1", { avecVisage: false })]);
     const ecrire = vi.fn();
     const code = await main({ lister, ecrire });
-    expect(lister).not.toHaveBeenCalled();
-    expect(ecrire.mock.calls.join("")).toContain("attend X4-06");
+    expect(lister).toHaveBeenCalledTimes(1);
+    const texte = ecrire.mock.calls.join("");
+    expect(texte).not.toContain("attend X4-06");
+    expect(texte).toContain("Titre v1");
     expect(code).toBe(0);
   });
 
@@ -102,6 +104,41 @@ describe("main (X4-16a)", () => {
     expect(lecturesVersions).toHaveBeenCalled();
     expect(ecrire.mock.calls.join("")).toContain("Réelle 1");
     expect(ecrire.mock.calls.join("")).not.toContain("Démo");
+    expect(ecritures.enregistrer).not.toHaveBeenCalled();
+    expect(ecritures.modifier).not.toHaveBeenCalled();
+    expect(ecritures.effacer).not.toHaveBeenCalled();
+  });
+});
+
+describe("trierParDefaut (X4-16b)", () => {
+  const lister = async () => [base("v1", { avecVisage: false, typeAutomatisation: "relances-impayes" })];
+
+  it("est assignable à TriExtraits", () => {
+    const t: TriExtraits = trierParDefaut;
+    expect(typeof t).toBe("function");
+  });
+
+  it("colonne Usages : « ecran » sans visage, jamais « preuve-chiffree » ; deux appels, même texte", async () => {
+    const a = await rapportExtraits({ n: 5, trier: trierParDefaut, lister });
+    const b = await rapportExtraits({ n: 5, trier: trierParDefaut, lister });
+    expect(a).toBe(b);
+    const ligne = a.split("\n").find((l) => l.includes("Titre v1")) ?? "";
+    expect(ligne.split("|")[7]).toContain("ecran");
+    expect(a).not.toContain("preuve-chiffree");
+  });
+
+  it("main() sans tri ni lister : aucune écriture (enregistrer, modifier, effacer)", async () => {
+    lecturesVideos.mockReset().mockResolvedValue([
+      { id: "r1", titre: "Réelle 1", statut: "prete", creeLe: "2026-11-05T10:00:00Z", etapeEditoriale: "publiee" },
+    ]);
+    lecturesVersions.mockReset().mockResolvedValue([
+      { id: "x1", videoId: "r1", statut: "prete", creeLe: "2026-11-05T10:00:00Z", commande: { moteurId: "facecam" }, projetMontage: { plan: PLAN(5) } },
+    ]);
+    Object.values(ecritures).forEach((f) => f.mockClear());
+    const ecrire = vi.fn();
+    expect(await main({ ecrire })).toBe(0);
+    expect(lecturesVideos).toHaveBeenCalled();
+    expect(ecrire.mock.calls.join("")).toContain("Réelle 1");
     expect(ecritures.enregistrer).not.toHaveBeenCalled();
     expect(ecritures.modifier).not.toHaveBeenCalled();
     expect(ecritures.effacer).not.toHaveBeenCalled();

@@ -4,6 +4,7 @@
  * (via obtenirFormat(formatId), importable côté client) et modifie le brouillon.
  */
 import type { Adresse, BlocScript, BriqueFacultative, Distribution, MentionIA, NoteScript, PostureVisage, Ratio, StylesChoisis } from "@/domaine/types";
+import type { DosageMotion, IdGenerateurDosage } from "@/briques/dosage-motion/types";
 import type { ScriptGenere } from "@/fournisseurs";
 import type { DonneesExpress } from "@/services/express";
 import type { VueElement, VuePersonnage } from "@/services/vues";
@@ -67,6 +68,8 @@ export interface DonneesAssistant {
    * de l'essai (simulés) ne s'affichent pas.
    */
   ecritureReelle?: boolean;
+  /** X3-09b : présent seulement quand `dosageMotion.actif` vaut exactement `true` (X3-09c) ; absent : écran d'aujourd'hui. */
+  dosageMotion?: { actif: true; generateur: IdGenerateurDosage; defaut: DosageMotion };
 }
 
 export interface ContexteAssistant extends DonneesAssistant {

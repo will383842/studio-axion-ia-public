@@ -36,6 +36,7 @@ import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
 import { placerHashtags, RESEAUX_PLACEMENT, type PlacementHashtags, type ReseauPlacement, type SortiePlacement } from "@/reseaux/placement-hashtags";
 import { lirePlacements } from "./placement-hashtags";
+import { inscrireSansRisque } from "./plan-video";
 import { fournisseurParId } from "@/fournisseurs";
 import { outilDeEnvoi } from "./routage-publication";
 import { ciblesZernioPour, traduireSelectionVersZernio } from "./zernio-cibles";
@@ -43,6 +44,9 @@ import { codeDeErreur, journaliserEnvoi } from "./journal-envoi";
 import { canauxEnregistres, cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, memoriserComptesBuffer, noterErreurBuffer, passerProgrammee, reconcilierEnvoi, versErreurStudio } from "./buffer";
 import { exigerSession } from "./auth";
 import { exigerYoutubeZernioPret } from "./youtube-zernio";
+import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
+import { construireDemandeVisuel, type FichierVisuel } from "./demande-publication-visuel";
+import { publicationEditorialeAutorisee } from "./zernio";
 import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
 import { adresseRelaisBuffer } from "./relais-buffer";
@@ -984,6 +988,7 @@ export async function envoyerReel(outil: OutilPublication, service: FournisseurP
   try {
     await refuserSiStockageSimule();
     const r = await envoyerReelInterne(outil, service, kitVue, reseaux, dateIso, choisis, commentaires, avecVideo, extras);
+    await inscrireSansRisque(() => depots().creneauxEditoriaux, r.publications); // L4-14 : ne lève jamais, n'envoie rien
     journaliserIssueEnvoi("envoyerReel", kitVue.videoId, reseaux, r.publications, r.problemes, outil, r.mode === "brouillon");
     return r;
   } catch (e) {
@@ -1231,6 +1236,172 @@ async function cibleZernio(service: FournisseurPublication, reseau: IdReseau, ch
 export function resumeRefus(problemes: ProblemeEnvoi[]): string {
   if (problemes.length === 1) return problemes[0].message;
   return `Aucun des ${libelleComptes(problemes.length)} n'est parti. ${problemes.map((p) => p.message).join(" ")}`;
+}
+
+/** Réseaux où un visuel (carrousel, infographie) peut partir depuis le créneau : LinkedIn en document PDF, Instagram et Facebook en images. */
+export type ReseauVisuelEnvoi = "linkedin" | "instagram" | "facebook";
+
+export interface OptionsEnvoiVisuel {
+  /** Compte de destination chez le diffuseur (obligatoire, relu dans la liste des comptes reliés). */
+  cible: string;
+  /** Date de validation du créneau du calendrier (obligatoire : lisible et passée, sinon rien ne part). */
+  valideeLe: string | undefined;
+  /** Texte de la publication (la légende). */
+  legende: string;
+  /** Réseaux en images : un texte alternatif par page, dans l'ordre (125 signes au plus). Inutile pour LinkedIn. */
+  textesAlternatifs?: string[];
+  premierCommentaire?: string;
+  /** Adresse lisible d'un fichier du stockage ; par défaut, l'adresse signée du stockage (tests : doublure). */
+  lireUrl?: (cle: string) => Promise<string>;
+}
+
+/** Ce que l'appelant peut fournir : jamais la date, le compte, le texte ni la validation, qui viennent tous du créneau stocké. */
+export interface OptionsEnvoiVisuelCreneau {
+  textesAlternatifs?: string[];
+  lireUrl?: (cle: string) => Promise<string>;
+}
+
+/**
+ * L5-02 · envoi d'un visuel depuis UN CRÉNEAU DU CALENDRIER : le créneau est relu en base (jamais fourni par l'appelant) et doit être
+ * « valide » avec une validation datée lisible et passée, ni refusé ni retiré, pour CE visuel. La date, le compte et les textes
+ * viennent du créneau. Le reste (porte, anti-double envoi, contenu) est dans `envoyerVisuelValide`.
+ */
+export async function envoyerVisuel(service: FournisseurPublication, creneauId: Id, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelCreneau = {}): Promise<{ publication: Publication; deja: boolean }> {
+  // La porte passe AVANT toute lecture : éteint = rien n'est lu, rien n'est écrit.
+  if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
+  const c = await depots().creneauxEditoriaux.obtenir(creneauId);
+  if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
+  const validee = typeof c.valideeLe === "string" && c.valideeLe ? Date.parse(c.valideeLe) : NaN;
+  if (!Number.isFinite(validee) || validee > Date.parse(maintenant())) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Le créneau n'a pas de validation datée : rien n'est envoyé.");
+  if (!c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas celui d'un visuel : rien n'est envoyé.");
+  const heure = c.heuresParReseau?.[reseau];
+  const texte = c.textes?.[reseau];
+  if (!heure || !texte?.texte?.trim()) throw new ErreurStudio("CRENEAU_INCOMPLET", "Le créneau n'a pas d'heure ou de texte pour ce réseau : rien n'est envoyé.");
+  return envoyerVisuelValide(service, c.visuelId, reseau, heure, {
+    cible: c.compteCible,
+    valideeLe: c.valideeLe,
+    legende: texte.texte,
+    ...(texte.premierCommentaire?.trim() ? { premierCommentaire: texte.premierCommentaire } : {}),
+    textesAlternatifs: options.textesAlternatifs,
+    lireUrl: options.lireUrl,
+  });
+}
+
+const DUREE_URL_VISUEL_SEC = 900;
+
+async function urlVisuelParDefaut(cle: string): Promise<string> {
+  const stockage = await fournisseur("stockage");
+  return stockage.urlLectureDuree ? stockage.urlLectureDuree(cle, DUREE_URL_VISUEL_SEC) : stockage.urlLecture(cle);
+}
+
+/**
+ * L5-02 · ENVOI D'UN VISUEL DEPUIS LE CRÉNEAU (toujours en brouillon chez le diffuseur, jamais « programmé » avant sa réponse).
+ *  1. Porte : les réglages d'envoi du calendrier, dont le réglage SÉPARÉ de L7-08 (publication.editoriale_active, faux par défaut),
+ *     sont relus AVANT toute lecture ou écriture ; fermé, illisible ou absent = refus, rien n'est parti.
+ *  2. Carrousel LinkedIn = UN document PDF avec titre ; Instagram et Facebook = les images, chacune avec son texte alternatif.
+ *  3. Anti-double envoi : une seule réservation sous le verrou, AVANT l'appel (empreinte : visuel, réseau, date, compte).
+ *     Déjà envoyé = la même publication ; en cours ou à vérifier = refus sans appel ; seul un « non » net du diffuseur
+ *     (publication « refusée ») permet un nouvel essai. Réponse perdue = « à vérifier », jamais de renvoi à l'aveugle.
+ *  4. Aucune réponse automatique, nulle part. Rien n'est supprimé.
+ */
+async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuel): Promise<{ publication: Publication; deja: boolean }> {
+  if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
+  if (!(reseau in PROFILS_RESEAUX) || !["linkedin", "instagram", "facebook"].includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
+  if (!options.cible?.trim()) throw new ErreurStudio("CIBLE_ZERNIO", "Choisissez le compte de destination : rien n'est parti.");
+  // Aucun appel au diffuseur, même en brouillon, sans validation datée du créneau (lisible et passée).
+  const validee = typeof options.valideeLe === "string" && options.valideeLe ? Date.parse(options.valideeLe) : NaN;
+  if (!Number.isFinite(validee) || validee > Date.parse(maintenant())) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Le créneau n'a pas de validation datée : rien n'est envoyé.");
+  // Le premier commentaire n'est pas transmis partout : jamais d'envoi qui le perdrait en silence.
+  if (options.premierCommentaire?.trim() && !premierCommentaireTransmissibleZernio(reseau)) throw new ErreurStudio("PREMIER_COMMENTAIRE_NON_TRANSMIS", "Ce réseau ne transmet pas le premier commentaire : posez-le à la main, rien n'est parti.");
+  if (!(Date.parse(dateIso) > Date.parse(maintenant()))) throw new ErreurStudio("DATE_PASSEE", "Choisissez une date à venir : une date passée publierait aussitôt.");
+  await refuserSiStockageSimule();
+  const d = depots();
+  const v = await d.visuels.obtenir(visuelId);
+  if (!v || v.statut !== "valide" || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
+  if (v.estDemo) throw new ErreurStudio("VISUEL_EXEMPLE", "C'est un visuel d'exemple : il ne part pas sur vos réseaux.");
+  if (v.modeTexte === "simulation") throw new ErreurStudio("VISUEL_ESSAI", "C'est un visuel d'essai (texte simulé) : il ne part pas sur vos réseaux.");
+  const rendu = v.rendu;
+  if (!rendu) throw new ErreurStudio("VISUEL_SANS_RENDU", "Ce visuel n'a pas de rendu prêt : il ne part pas.");
+
+  // Préparation complète avant la moindre réservation.
+  const pages = [...rendu.pages].sort((a, b) => a.index - b.index);
+  const textesAlt = options.textesAlternatifs ?? [];
+  const fichiers: FichierVisuel[] =
+    reseau === "linkedin"
+      ? [{ type: "pdf", cle: rendu.pdfCle, alt: v.titre }]
+      : pages.map((p, i) => ({ type: "image" as const, cle: p.x1Cle, alt: textesAlt[i] ?? "" }));
+  const demande = construireDemandeVisuel({ reseau, fichiers, legende: options.legende });
+  if (!demande.ok) throw new ErreurStudio("VISUEL_REFUSE", `Ce visuel ne peut pas partir sur ce réseau (${demande.erreurs.join(", ")}) : rien n'est parti.`);
+  const titreDocument = v.titre.replace(/\s+/g, " ").trim();
+  if (reseau === "linkedin" && (!titreDocument || [...titreDocument].length > (PROFILS_RESEAUX.linkedin.titreDocumentMax ?? 40))) {
+    throw new ErreurStudio("VISUEL_REFUSE", "Le titre du document est vide ou trop long pour LinkedIn : rien n'est parti.");
+  }
+  verifierTextesAEnvoyer(reseau, `${options.legende}\n${titreDocument}`, undefined);
+  const lire = options.lireUrl ?? urlVisuelParDefaut;
+  const urls: string[] = [];
+  for (const m of demande.demande.medias) {
+    const url = await lire(m.cle);
+    if (!/^https:\/\//.test(url)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "Un fichier du visuel n'est pas sur le stockage en ligne : rien n'est parti.");
+    urls.push(url);
+  }
+
+  // Le compte doit être dans la liste des comptes reliés (ni inconnu, ni déconnecté, ni interdit).
+  const cibles = await ciblesZernioPour(service, reseau, [options.cible]);
+  if (!cibles.ok) throw new ErreurStudio(cibles.code, cibles.message);
+  const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, options.cible);
+  const nom = obtenirReseau(reseau).nom;
+  // Une seule réservation, sous le verrou, AVANT l'appel.
+  const decision = await sousVerrou(async (): Promise<{ existante: Publication } | { nouvelle: Publication }> => {
+    // Par visuel, réseau et compte, quelle que soit la date : une autre date ne contourne jamais l'anti-doublon.
+    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && (!x.canalId || x.canalId === options.cible) && outilDe(x) === "zernio" && occupeBuffer(x));
+    const meme = deja.find((x) => x.etatEnvoi === "envoye" && x.cleEnvoi === cleEnvoi);
+    if (meme) return { existante: meme };
+    if (deja.some((x) => x.etatEnvoi === "a-verifier")) throw new ErreurStudio("ENVOI_A_VERIFIER", `L'envoi précédent vers ${nom} est à vérifier : le studio ne renverra rien sans en être sûr. Regardez dans l'outil de publication.`);
+    if (deja.some((x) => x.etatEnvoi === "en-cours")) throw new ErreurStudio("ENVOI_EN_COURS", `Un envoi vers l'outil de publication est déjà en cours pour ${nom}.`);
+    if (deja.length) throw new ErreurStudio("DEJA_DANS_OUTIL", `Ce visuel est déjà dans l'outil de publication pour ${nom} : changez sa date dans l'outil.`);
+    const nouvelle: Publication = {
+      id: nouvelId("pub"),
+      visuelId,
+      reseau,
+      statut: "brouillon",
+      via: "zernio",
+      date: dateIso,
+      texte: options.legende,
+      etatEnvoi: "en-cours",
+      canalId: options.cible,
+      modeBuffer: "brouillon",
+      cleEnvoi,
+      envoiCommenceLe: maintenant(),
+      ...horodatage(),
+    };
+    return { nouvelle: await d.publications.enregistrer(nouvelle) };
+  });
+  if ("existante" in decision) return { publication: decision.existante, deja: true };
+  const pub = decision.nouvelle;
+
+  // Appel HORS verrou.
+  try {
+    const envoi = await service.envoyer({
+      reseau,
+      texte: options.legende,
+      date: dateIso,
+      fichierCle: urls[0],
+      mode: "brouillon",
+      canalId: options.cible,
+      cible: options.cible,
+      cleEnvoi,
+      ...(options.premierCommentaire?.trim() ? { premierCommentaire: options.premierCommentaire } : {}),
+      ...(reseau === "linkedin" ? { document: { url: urls[0], titre: titreDocument } } : { images: demande.demande.medias.map((m, i) => ({ url: urls[i], texteAlternatif: m.alt })) }),
+    });
+    if (envoi.via !== "zernio") throw new ErreurZernio("creation-incomplete", "réponse sans confirmation", { statut: 200 });
+    const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, { etatEnvoi: "envoye", idExterne: envoi.idExterne, statut: envoi.statut ?? "brouillon", etatLuLe: maintenant() }));
+    await journaliser("publication", `Brouillon dans l'outil de publication (visuel) : ${nom}`, { type: "visuel", id: visuelId });
+    return { publication: ecrite, deja: false };
+  } catch (e) {
+    const { incertain, message } = lireErreurEnvoi("zernio", e);
+    await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
+    throw new ErreurStudio(incertain ? "ENVOI_A_VERIFIER" : "ENVOI_REFUSE", incertain ? `${nom} : la réponse de l'outil de publication s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` : message);
+  }
 }
 
 /** Publication notée à la main (« je l'ai publiée moi-même »). */

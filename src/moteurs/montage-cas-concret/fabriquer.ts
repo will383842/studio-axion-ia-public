@@ -84,6 +84,8 @@ import { textesDePublication, type TextePublication } from "./publication";
 import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette } from "./recette-voix";
 import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
+import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";
+import type { DosageMotion } from "@/briques/dosage-motion/types";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
 import { avancerVoixCasConcret, empreintePriseVoix, planSonEntier, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
@@ -211,6 +213,8 @@ export interface OptionsFabricationCasConcret {
   baseSousTitres?: BaseSousTitres;
   /** C2-U5bis : capacité `texte.style-varie` permise par la bibliothèque de la commande ; absente : comportement actuel. Seul `true` allume. */
   styleVarie?: boolean;
+  /** X3-07 : cran du dosage figé dans la commande (X3-03) ; absent : tirage inchangé. */
+  dosage?: DosageMotion;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -567,6 +571,9 @@ function sansAdresse(p: ProprietesEcran): ProprietesEcran {
 /* ------------------------------------------------------------------ */
 
 /** Fabrique les fichiers d'un cas concret. Lève `ErreurFabricationCasConcret` (étape et raisons) ; le journal permet la reprise. */
+/** X3-07 : applique le cran du dosage au tirage, après le tirage ; sans cran, renvoie le même objet. */
+export const tirageDose = (tirage: Tirage, dosage?: DosageMotion): Tirage => (dosage ? appliquerContraintes(tirage, contraintesDosageCasConcret(dosage)) : tirage);
+
 export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Promise<CompteRenduCasConcret> {
   const { outils, cas, entrees } = o;
   // Avant toute dépense : sans numéro de version, aucun lien suivi ne peut être posé (ADR 0002).
@@ -988,6 +995,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       }
       // Le journal dit la structure réellement suivie : coaching + « une-journee » = v4.
       tirage = { ...tirage, structure: structureEffective(cas.offre, tirage.structure) };
+      tirage = tirageDose(tirage, o.dosage);
       journal.tirage = { tirage, notee: !!miseGardee };
       await ecrire();
     } else if (o.scriptValide) {
@@ -1031,7 +1039,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const heritee = variete.miseHeritee ? lireMise(await sansPanne(() => variete.miseHeritee!(o.videoId), null)) : null;
       const historique = lireHistorique(await sansPanne(() => variete.lireHistorique(), []));
       if (!journal.tirage && !heritee) journal.tirageNeuf = true;
-      const tirage = journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) });
+      const tirage = tirageDose(journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) }), o.dosage);
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
       // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.

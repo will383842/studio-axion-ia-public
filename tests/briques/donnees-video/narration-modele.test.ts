@@ -2,7 +2,7 @@
  * Narration par phrases à trous (G4-05). DONNÉES ENTIÈREMENT FICTIVES : aucun chiffre réel.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { garderChiffres } from "../../../src/briques/donnees-video/garde-chiffres";
 import { narrationModele } from "../../../src/briques/donnees-video/narration-modele";
@@ -139,8 +139,8 @@ describe("narration-modele : garde statique", () => {
       return statSync(p).isDirectory() ? fichiers(p) : /\.(ts|tsx)$/.test(nom) ? [p] : [];
     });
 
-  it("rien dans src/ n'importe narration-modele", () => {
-    const fautifs = fichiers(racine).filter((f) => !f.endsWith("narration-modele.ts") && /from\s+["'][^"']*narration-modele["']/.test(readFileSync(f, "utf8")));
+  it("rien dans src/ (hors src/moteurs/montage-donnees/) n'importe narration-modele", () => {
+    const fautifs = fichiers(racine).filter((f) => !f.endsWith("narration-modele.ts") && !f.split(sep).join("/").includes("src/moteurs/montage-donnees/") && /from\s+["'][^"']*narration-modele["']/.test(readFileSync(f, "utf8")));
     expect(fautifs).toEqual([]);
   });
 

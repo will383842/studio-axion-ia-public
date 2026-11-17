@@ -1,0 +1,4206 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / chiffres : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "2751cd19ec412d3b",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "2751cd19ec412d3b",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / chiffres : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "d1c41f943821e4ea",
+      "ffa86481567bc5a7",
+      "5f3c35dba7d87696",
+    ],
+    "scenes": [
+      {
+        "debutMs": 700,
+        "empreinte": "d1c41f943821e4ea",
+        "finMs": 2550,
+        "id": "s1",
+        "mots": {
+          "dernier": 3,
+          "premier": 2,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 2,
+          "unite": "h",
+          "valeur": 2,
+        },
+        "piece": "compteur",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 6650,
+        "empreinte": "ffa86481567bc5a7",
+        "finMs": 9550,
+        "id": "s2",
+        "mots": {
+          "dernier": 23,
+          "premier": 19,
+        },
+        "niveau": 1,
+        "parametres": {
+          "apres": {
+            "aMs": 1050,
+            "surMot": 22,
+            "unite": "min",
+            "valeur": 20,
+          },
+          "avant": {
+            "aMs": 0,
+            "surMot": 19,
+            "unite": "h",
+            "valeur": 2,
+          },
+        },
+        "piece": "avant-apres",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 10850,
+        "empreinte": "5f3c35dba7d87696",
+        "finMs": 13950,
+        "id": "s3",
+        "mots": {
+          "dernier": 36,
+          "premier": 31,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 350,
+              "surMot": 32,
+              "texte": "trier",
+            },
+            {
+              "aMs": 1050,
+              "surMot": 34,
+              "texte": "répondre",
+            },
+            {
+              "aMs": 1750,
+              "surMot": 36,
+              "texte": "classer",
+            },
+          ],
+        },
+        "piece": "etapes",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / enumeration : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "2751cd19ec412d3b",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "2751cd19ec412d3b",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / enumeration : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "6134ddf88ba22e95",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "6134ddf88ba22e95",
+        "finMs": 9550,
+        "id": "s1",
+        "mots": {
+          "dernier": 23,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 3850,
+              "surMot": 11,
+              "texte": "qui fait le travail",
+            },
+            {
+              "aMs": 5250,
+              "surMot": 15,
+              "texte": "combien de temps ça dure",
+            },
+            {
+              "aMs": 7350,
+              "surMot": 21,
+              "texte": "comment on arrête",
+            },
+          ],
+        },
+        "piece": "liste-au-mot",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / etapes : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "2751cd19ec412d3b",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "2751cd19ec412d3b",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / etapes : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "99c829ccb586dc80",
+      "887a791424c54ea0",
+      "cfc08742986bc96c",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "99c829ccb586dc80",
+        "finMs": 1850,
+        "id": "s1",
+        "mots": {
+          "dernier": 1,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 350,
+          "genre": "lieu",
+          "surMot": 1,
+          "texte": "Lyon",
+        },
+        "piece": "repere",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 4200,
+        "empreinte": "887a791424c54ea0",
+        "finMs": 5250,
+        "id": "s2",
+        "mots": {
+          "dernier": 13,
+          "premier": 12,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 12,
+          "valeur": 30,
+        },
+        "piece": "jauge",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 350,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 5250,
+        "empreinte": "cfc08742986bc96c",
+        "finMs": 7100,
+        "id": "s3",
+        "mots": {
+          "dernier": 16,
+          "premier": 15,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "genre": "duree",
+          "surMot": 15,
+          "texte": "trois mois",
+        },
+        "piece": "repere",
+        "position": "centre",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / chiffres : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "3455669c088a91e7",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / chiffres : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "e3cd88c845b3de6a",
+      "bfc0daf6e6577467",
+      "c25d7faa7a531c7a",
+    ],
+    "scenes": [
+      {
+        "debutMs": 700,
+        "empreinte": "e3cd88c845b3de6a",
+        "finMs": 2550,
+        "id": "s1",
+        "mots": {
+          "dernier": 3,
+          "premier": 2,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 2,
+          "unite": "h",
+          "valeur": 2,
+        },
+        "piece": "compteur",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 6650,
+        "empreinte": "bfc0daf6e6577467",
+        "finMs": 9550,
+        "id": "s2",
+        "mots": {
+          "dernier": 23,
+          "premier": 19,
+        },
+        "niveau": 1,
+        "parametres": {
+          "apres": {
+            "aMs": 1050,
+            "surMot": 22,
+            "unite": "min",
+            "valeur": 20,
+          },
+          "avant": {
+            "aMs": 0,
+            "surMot": 19,
+            "unite": "h",
+            "valeur": 2,
+          },
+        },
+        "piece": "avant-apres",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 10850,
+        "empreinte": "c25d7faa7a531c7a",
+        "finMs": 13950,
+        "id": "s3",
+        "mots": {
+          "dernier": 36,
+          "premier": 31,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 350,
+              "surMot": 32,
+              "texte": "trier",
+            },
+            {
+              "aMs": 1050,
+              "surMot": 34,
+              "texte": "répondre",
+            },
+            {
+              "aMs": 1750,
+              "surMot": 36,
+              "texte": "classer",
+            },
+          ],
+        },
+        "piece": "etapes",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / enumeration : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "3455669c088a91e7",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / enumeration : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "6e2c0e56f1a3d59f",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "6e2c0e56f1a3d59f",
+        "finMs": 9550,
+        "id": "s1",
+        "mots": {
+          "dernier": 23,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 3850,
+              "surMot": 11,
+              "texte": "qui fait le travail",
+            },
+            {
+              "aMs": 5250,
+              "surMot": 15,
+              "texte": "combien de temps ça dure",
+            },
+            {
+              "aMs": 7350,
+              "surMot": 21,
+              "texte": "comment on arrête",
+            },
+          ],
+        },
+        "piece": "liste-au-mot",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / etapes : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "3455669c088a91e7",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / etapes : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "14535561513db9e6",
+      "e28d33eea0e31e5c",
+      "8e46d35af87774b8",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "14535561513db9e6",
+        "finMs": 1850,
+        "id": "s1",
+        "mots": {
+          "dernier": 1,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 350,
+          "genre": "lieu",
+          "surMot": 1,
+          "texte": "Lyon",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 4200,
+        "empreinte": "e28d33eea0e31e5c",
+        "finMs": 5250,
+        "id": "s2",
+        "mots": {
+          "dernier": 13,
+          "premier": 12,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 12,
+          "valeur": 30,
+        },
+        "piece": "jauge",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 350,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 5250,
+        "empreinte": "8e46d35af87774b8",
+        "finMs": 7100,
+        "id": "s3",
+        "mots": {
+          "dernier": 16,
+          "premier": 15,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "genre": "duree",
+          "surMot": 15,
+          "texte": "trois mois",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / chiffres : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "3455669c088a91e7",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / chiffres : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "e3cd88c845b3de6a",
+      "bfc0daf6e6577467",
+      "c25d7faa7a531c7a",
+    ],
+    "scenes": [
+      {
+        "debutMs": 700,
+        "empreinte": "e3cd88c845b3de6a",
+        "finMs": 2550,
+        "id": "s1",
+        "mots": {
+          "dernier": 3,
+          "premier": 2,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 2,
+          "unite": "h",
+          "valeur": 2,
+        },
+        "piece": "compteur",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 6650,
+        "empreinte": "bfc0daf6e6577467",
+        "finMs": 9550,
+        "id": "s2",
+        "mots": {
+          "dernier": 23,
+          "premier": 19,
+        },
+        "niveau": 1,
+        "parametres": {
+          "apres": {
+            "aMs": 1050,
+            "surMot": 22,
+            "unite": "min",
+            "valeur": 20,
+          },
+          "avant": {
+            "aMs": 0,
+            "surMot": 19,
+            "unite": "h",
+            "valeur": 2,
+          },
+        },
+        "piece": "avant-apres",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 10850,
+        "empreinte": "c25d7faa7a531c7a",
+        "finMs": 13950,
+        "id": "s3",
+        "mots": {
+          "dernier": 36,
+          "premier": 31,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 350,
+              "surMot": 32,
+              "texte": "trier",
+            },
+            {
+              "aMs": 1050,
+              "surMot": 34,
+              "texte": "répondre",
+            },
+            {
+              "aMs": 1750,
+              "surMot": 36,
+              "texte": "classer",
+            },
+          ],
+        },
+        "piece": "etapes",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / enumeration : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "3455669c088a91e7",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / enumeration : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "6e2c0e56f1a3d59f",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "6e2c0e56f1a3d59f",
+        "finMs": 9550,
+        "id": "s1",
+        "mots": {
+          "dernier": 23,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 3850,
+              "surMot": 11,
+              "texte": "qui fait le travail",
+            },
+            {
+              "aMs": 5250,
+              "surMot": 15,
+              "texte": "combien de temps ça dure",
+            },
+            {
+              "aMs": 7350,
+              "surMot": 21,
+              "texte": "comment on arrête",
+            },
+          ],
+        },
+        "piece": "liste-au-mot",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / etapes : avec faux LLM figé, deux exécutions identiques 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "3455669c088a91e7",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "llm",
+}
+`;
+
+exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / etapes : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
+{
+  "codes": [],
+  "laissees": [],
+  "plan": {
+    "empreintes": [
+      "14535561513db9e6",
+      "e28d33eea0e31e5c",
+      "8e46d35af87774b8",
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "14535561513db9e6",
+        "finMs": 1850,
+        "id": "s1",
+        "mots": {
+          "dernier": 1,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 350,
+          "genre": "lieu",
+          "surMot": 1,
+          "texte": "Lyon",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 4200,
+        "empreinte": "e28d33eea0e31e5c",
+        "finMs": 5250,
+        "id": "s2",
+        "mots": {
+          "dernier": 13,
+          "premier": 12,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 12,
+          "valeur": 30,
+        },
+        "piece": "jauge",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 350,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 5250,
+        "empreinte": "8e46d35af87774b8",
+        "finMs": 7100,
+        "id": "s3",
+        "mots": {
+          "dernier": 16,
+          "premier": 15,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "genre": "duree",
+          "surMot": 15,
+          "texte": "trois mois",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+  },
+  "source": "stock",
+}
+`;
+
+exports[`consigne envoyée au LLM sans objets permis > empreinte du texte système figée, identique pour tous les générateurs ; sans objet proposé 1`] = `
+{
+  "systeme": "9de638086c7a4700",
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / chiffres : avec faux LLM, plan figé ; la reprise (memo) ne rappelle pas l'IA 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "entree": "df968c45a86e5db5",
+  "plan": {
+    "dureeMs": 13950,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Vous",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "perdez",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "deux",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "par",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "jour",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "à",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "répondre",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "mêmes",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "mails.",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "un",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "assistant",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "réglé,",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "on",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "passe",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "de",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "2",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "à",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "20",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "minutes.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Le",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "secret",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "tient",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "en",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "étapes",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "d'abord",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "trier,",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "ensuite",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "répondre,",
+      },
+      {
+        "debutMs": 12250,
+        "finMs": 12550,
+        "texte": "enfin",
+      },
+      {
+        "debutMs": 12600,
+        "finMs": 12900,
+        "texte": "classer.",
+      },
+      {
+        "debutMs": 12950,
+        "finMs": 13250,
+        "texte": "Essayez",
+      },
+      {
+        "debutMs": 13300,
+        "finMs": 13600,
+        "texte": "dès",
+      },
+      {
+        "debutMs": 13650,
+        "finMs": 13950,
+        "texte": "lundi.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / chiffres : sans LLM, plan figé et déterministe 1`] = `
+{
+  "codes": [],
+  "entree": "cd4df5e267f12dc2",
+  "plan": {
+    "dureeMs": 13950,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Vous",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "perdez",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "deux",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "par",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "jour",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "à",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "répondre",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "mêmes",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "mails.",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "un",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "assistant",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "réglé,",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "on",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "passe",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "de",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "2",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "à",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "20",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "minutes.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Le",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "secret",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "tient",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "en",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "étapes",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "d'abord",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "trier,",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "ensuite",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "répondre,",
+      },
+      {
+        "debutMs": 12250,
+        "finMs": 12550,
+        "texte": "enfin",
+      },
+      {
+        "debutMs": 12600,
+        "finMs": 12900,
+        "texte": "classer.",
+      },
+      {
+        "debutMs": 12950,
+        "finMs": 13250,
+        "texte": "Essayez",
+      },
+      {
+        "debutMs": 13300,
+        "finMs": 13600,
+        "texte": "dès",
+      },
+      {
+        "debutMs": 13650,
+        "finMs": 13950,
+        "texte": "lundi.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 700,
+        "empreinte": "e3cd88c845b3de6a",
+        "finMs": 2550,
+        "id": "s1",
+        "mots": {
+          "dernier": 3,
+          "premier": 2,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 2,
+          "unite": "h",
+          "valeur": 2,
+        },
+        "piece": "compteur",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 6650,
+        "empreinte": "bfc0daf6e6577467",
+        "finMs": 9550,
+        "id": "s2",
+        "mots": {
+          "dernier": 23,
+          "premier": 19,
+        },
+        "niveau": 1,
+        "parametres": {
+          "apres": {
+            "aMs": 1050,
+            "surMot": 22,
+            "unite": "min",
+            "valeur": 20,
+          },
+          "avant": {
+            "aMs": 0,
+            "surMot": 19,
+            "unite": "h",
+            "valeur": 2,
+          },
+        },
+        "piece": "avant-apres",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 10850,
+        "empreinte": "c25d7faa7a531c7a",
+        "finMs": 13950,
+        "id": "s3",
+        "mots": {
+          "dernier": 36,
+          "premier": 31,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 350,
+              "surMot": 32,
+              "texte": "trier",
+            },
+            {
+              "aMs": 1050,
+              "surMot": 34,
+              "texte": "répondre",
+            },
+            {
+              "aMs": 1750,
+              "surMot": 36,
+              "texte": "classer",
+            },
+          ],
+        },
+        "piece": "etapes",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / enumeration : avec faux LLM, plan figé ; la reprise (memo) ne rappelle pas l'IA 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "entree": "23d0718b5aa3b83a",
+  "plan": {
+    "dureeMs": 10450,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Trois",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "questions",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "à",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "poser",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "avant",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "de",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "signer",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "une",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "agence",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "qui",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "fait",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "le",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "travail,",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "combien",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "de",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "temps",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "ça",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "dure,",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "et",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "on",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "arrête.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Si",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "la",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "réponse",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "est",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "floue,",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "fuyez.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / enumeration : sans LLM, plan figé et déterministe 1`] = `
+{
+  "codes": [],
+  "entree": "2dd346cd0b59596b",
+  "plan": {
+    "dureeMs": 10450,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Trois",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "questions",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "à",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "poser",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "avant",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "de",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "signer",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "une",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "agence",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "qui",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "fait",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "le",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "travail,",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "combien",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "de",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "temps",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "ça",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "dure,",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "et",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "on",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "arrête.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Si",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "la",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "réponse",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "est",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "floue,",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "fuyez.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "6e2c0e56f1a3d59f",
+        "finMs": 9550,
+        "id": "s1",
+        "mots": {
+          "dernier": 23,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 3850,
+              "surMot": 11,
+              "texte": "qui fait le travail",
+            },
+            {
+              "aMs": 5250,
+              "surMot": 15,
+              "texte": "combien de temps ça dure",
+            },
+            {
+              "aMs": 7350,
+              "surMot": 21,
+              "texte": "comment on arrête",
+            },
+          ],
+        },
+        "piece": "liste-au-mot",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / etapes : avec faux LLM, plan figé ; la reprise (memo) ne rappelle pas l'IA 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "entree": "fdb55be18e5ccb7d",
+  "plan": {
+    "dureeMs": 12200,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "À",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "Lyon,",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "un",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "restaurant",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "de",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "quarante",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "couverts",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "a",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "réduit",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "son",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "gaspillage",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "de",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "30",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "%",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "en",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "mois.",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "Comment",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "?",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "En",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "prévoyant",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "commandes",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "ventes",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "passées.",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "Pas",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "de",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "magie,",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": "juste",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "des",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "chiffres",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "lus.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / etapes : sans LLM, plan figé et déterministe 1`] = `
+{
+  "codes": [],
+  "entree": "377e1f2772f63b6e",
+  "plan": {
+    "dureeMs": 12200,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "À",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "Lyon,",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "un",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "restaurant",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "de",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "quarante",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "couverts",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "a",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "réduit",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "son",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "gaspillage",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "de",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "30",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "%",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "en",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "mois.",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "Comment",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "?",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "En",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "prévoyant",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "commandes",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "ventes",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "passées.",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "Pas",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "de",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "magie,",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": "juste",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "des",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "chiffres",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "lus.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "14535561513db9e6",
+        "finMs": 1850,
+        "id": "s1",
+        "mots": {
+          "dernier": 1,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 350,
+          "genre": "lieu",
+          "surMot": 1,
+          "texte": "Lyon",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 4200,
+        "empreinte": "e28d33eea0e31e5c",
+        "finMs": 5250,
+        "id": "s2",
+        "mots": {
+          "dernier": 13,
+          "premier": 12,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 12,
+          "valeur": 30,
+        },
+        "piece": "jauge",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 350,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 5250,
+        "empreinte": "8e46d35af87774b8",
+        "finMs": 7100,
+        "id": "s3",
+        "mots": {
+          "dernier": 16,
+          "premier": 15,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "genre": "duree",
+          "surMot": 15,
+          "texte": "trois mois",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / chiffres : avec faux LLM, plan figé ; la reprise (memo) ne rappelle pas l'IA 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "entree": "39ac7a4c0f2b8d49",
+  "plan": {
+    "dureeMs": 13950,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Vous",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "perdez",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "deux",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "par",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "jour",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "à",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "répondre",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "mêmes",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "mails.",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "un",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "assistant",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "réglé,",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "on",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "passe",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "de",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "2",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "à",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "20",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "minutes.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Le",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "secret",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "tient",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "en",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "étapes",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "d'abord",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "trier,",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "ensuite",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "répondre,",
+      },
+      {
+        "debutMs": 12250,
+        "finMs": 12550,
+        "texte": "enfin",
+      },
+      {
+        "debutMs": 12600,
+        "finMs": 12900,
+        "texte": "classer.",
+      },
+      {
+        "debutMs": 12950,
+        "finMs": 13250,
+        "texte": "Essayez",
+      },
+      {
+        "debutMs": 13300,
+        "finMs": 13600,
+        "texte": "dès",
+      },
+      {
+        "debutMs": 13650,
+        "finMs": 13950,
+        "texte": "lundi.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / chiffres : sans LLM, plan figé et déterministe 1`] = `
+{
+  "codes": [],
+  "entree": "520996e7ae10de2e",
+  "plan": {
+    "dureeMs": 13950,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Vous",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "perdez",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "deux",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "par",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "jour",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "à",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "répondre",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "mêmes",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "mails.",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "un",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "assistant",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "réglé,",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "on",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "passe",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "de",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "2",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "à",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "20",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "minutes.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Le",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "secret",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "tient",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "en",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "étapes",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "d'abord",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "trier,",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "ensuite",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "répondre,",
+      },
+      {
+        "debutMs": 12250,
+        "finMs": 12550,
+        "texte": "enfin",
+      },
+      {
+        "debutMs": 12600,
+        "finMs": 12900,
+        "texte": "classer.",
+      },
+      {
+        "debutMs": 12950,
+        "finMs": 13250,
+        "texte": "Essayez",
+      },
+      {
+        "debutMs": 13300,
+        "finMs": 13600,
+        "texte": "dès",
+      },
+      {
+        "debutMs": 13650,
+        "finMs": 13950,
+        "texte": "lundi.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 700,
+        "empreinte": "e3cd88c845b3de6a",
+        "finMs": 2550,
+        "id": "s1",
+        "mots": {
+          "dernier": 3,
+          "premier": 2,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 2,
+          "unite": "h",
+          "valeur": 2,
+        },
+        "piece": "compteur",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 6650,
+        "empreinte": "bfc0daf6e6577467",
+        "finMs": 9550,
+        "id": "s2",
+        "mots": {
+          "dernier": 23,
+          "premier": 19,
+        },
+        "niveau": 1,
+        "parametres": {
+          "apres": {
+            "aMs": 1050,
+            "surMot": 22,
+            "unite": "min",
+            "valeur": 20,
+          },
+          "avant": {
+            "aMs": 0,
+            "surMot": 19,
+            "unite": "h",
+            "valeur": 2,
+          },
+        },
+        "piece": "avant-apres",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 10850,
+        "empreinte": "c25d7faa7a531c7a",
+        "finMs": 13950,
+        "id": "s3",
+        "mots": {
+          "dernier": 36,
+          "premier": 31,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 350,
+              "surMot": 32,
+              "texte": "trier",
+            },
+            {
+              "aMs": 1050,
+              "surMot": 34,
+              "texte": "répondre",
+            },
+            {
+              "aMs": 1750,
+              "surMot": 36,
+              "texte": "classer",
+            },
+          ],
+        },
+        "piece": "etapes",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / enumeration : avec faux LLM, plan figé ; la reprise (memo) ne rappelle pas l'IA 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "entree": "aa66d785580a6c8e",
+  "plan": {
+    "dureeMs": 10450,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Trois",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "questions",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "à",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "poser",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "avant",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "de",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "signer",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "une",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "agence",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "qui",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "fait",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "le",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "travail,",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "combien",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "de",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "temps",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "ça",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "dure,",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "et",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "on",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "arrête.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Si",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "la",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "réponse",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "est",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "floue,",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "fuyez.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / enumeration : sans LLM, plan figé et déterministe 1`] = `
+{
+  "codes": [],
+  "entree": "bf55827c98a060c7",
+  "plan": {
+    "dureeMs": 10450,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "Trois",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "questions",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "à",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "poser",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "avant",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "de",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "signer",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "une",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "agence",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": ":",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "qui",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "fait",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "le",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "travail,",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "combien",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "de",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "temps",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "ça",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "dure,",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "et",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "comment",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "on",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "arrête.",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "Si",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "la",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "réponse",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "est",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "floue,",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "fuyez.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "6e2c0e56f1a3d59f",
+        "finMs": 9550,
+        "id": "s1",
+        "mots": {
+          "dernier": 23,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "elements": [
+            {
+              "aMs": 3850,
+              "surMot": 11,
+              "texte": "qui fait le travail",
+            },
+            {
+              "aMs": 5250,
+              "surMot": 15,
+              "texte": "combien de temps ça dure",
+            },
+            {
+              "aMs": 7350,
+              "surMot": 21,
+              "texte": "comment on arrête",
+            },
+          ],
+        },
+        "piece": "liste-au-mot",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / etapes : avec faux LLM, plan figé ; la reprise (memo) ne rappelle pas l'IA 1`] = `
+{
+  "codes": [
+    "PARAMETRES_REPARES",
+    "DEVANT_LE_VISAGE",
+    "TRANSITION_ADOUCIE",
+  ],
+  "entree": "57c8339fa68fe717",
+  "plan": {
+    "dureeMs": 12200,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "À",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "Lyon,",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "un",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "restaurant",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "de",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "quarante",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "couverts",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "a",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "réduit",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "son",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "gaspillage",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "de",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "30",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "%",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "en",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "mois.",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "Comment",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "?",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "En",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "prévoyant",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "commandes",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "ventes",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "passées.",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "Pas",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "de",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "magie,",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": "juste",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "des",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "chiffres",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "lus.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / etapes : sans LLM, plan figé et déterministe 1`] = `
+{
+  "codes": [],
+  "entree": "4450cbdefc09f050",
+  "plan": {
+    "dureeMs": 12200,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 300,
+        "texte": "À",
+      },
+      {
+        "debutMs": 350,
+        "finMs": 650,
+        "texte": "Lyon,",
+      },
+      {
+        "debutMs": 700,
+        "finMs": 1000,
+        "texte": "un",
+      },
+      {
+        "debutMs": 1050,
+        "finMs": 1350,
+        "texte": "restaurant",
+      },
+      {
+        "debutMs": 1400,
+        "finMs": 1700,
+        "texte": "de",
+      },
+      {
+        "debutMs": 1750,
+        "finMs": 2050,
+        "texte": "quarante",
+      },
+      {
+        "debutMs": 2100,
+        "finMs": 2400,
+        "texte": "couverts",
+      },
+      {
+        "debutMs": 2450,
+        "finMs": 2750,
+        "texte": "a",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3100,
+        "texte": "réduit",
+      },
+      {
+        "debutMs": 3150,
+        "finMs": 3450,
+        "texte": "son",
+      },
+      {
+        "debutMs": 3500,
+        "finMs": 3800,
+        "texte": "gaspillage",
+      },
+      {
+        "debutMs": 3850,
+        "finMs": 4150,
+        "texte": "de",
+      },
+      {
+        "debutMs": 4200,
+        "finMs": 4500,
+        "texte": "30",
+      },
+      {
+        "debutMs": 4550,
+        "finMs": 4850,
+        "texte": "%",
+      },
+      {
+        "debutMs": 4900,
+        "finMs": 5200,
+        "texte": "en",
+      },
+      {
+        "debutMs": 5250,
+        "finMs": 5550,
+        "texte": "trois",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5900,
+        "texte": "mois.",
+      },
+      {
+        "debutMs": 5950,
+        "finMs": 6250,
+        "texte": "Comment",
+      },
+      {
+        "debutMs": 6300,
+        "finMs": 6600,
+        "texte": "?",
+      },
+      {
+        "debutMs": 6650,
+        "finMs": 6950,
+        "texte": "En",
+      },
+      {
+        "debutMs": 7000,
+        "finMs": 7300,
+        "texte": "prévoyant",
+      },
+      {
+        "debutMs": 7350,
+        "finMs": 7650,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 7700,
+        "finMs": 8000,
+        "texte": "commandes",
+      },
+      {
+        "debutMs": 8050,
+        "finMs": 8350,
+        "texte": "avec",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8700,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 8750,
+        "finMs": 9050,
+        "texte": "ventes",
+      },
+      {
+        "debutMs": 9100,
+        "finMs": 9400,
+        "texte": "passées.",
+      },
+      {
+        "debutMs": 9450,
+        "finMs": 9750,
+        "texte": "Pas",
+      },
+      {
+        "debutMs": 9800,
+        "finMs": 10100,
+        "texte": "de",
+      },
+      {
+        "debutMs": 10150,
+        "finMs": 10450,
+        "texte": "magie,",
+      },
+      {
+        "debutMs": 10500,
+        "finMs": 10800,
+        "texte": "juste",
+      },
+      {
+        "debutMs": 10850,
+        "finMs": 11150,
+        "texte": "des",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11500,
+        "texte": "chiffres",
+      },
+      {
+        "debutMs": 11550,
+        "finMs": 11850,
+        "texte": "bien",
+      },
+      {
+        "debutMs": 11900,
+        "finMs": 12200,
+        "texte": "lus.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "14535561513db9e6",
+        "finMs": 1850,
+        "id": "s1",
+        "mots": {
+          "dernier": 1,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 350,
+          "genre": "lieu",
+          "surMot": 1,
+          "texte": "Lyon",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 4200,
+        "empreinte": "e28d33eea0e31e5c",
+        "finMs": 5250,
+        "id": "s2",
+        "mots": {
+          "dernier": 13,
+          "premier": 12,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 12,
+          "valeur": 30,
+        },
+        "piece": "jauge",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 350,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 5250,
+        "empreinte": "8e46d35af87774b8",
+        "finMs": 7100,
+        "id": "s3",
+        "mots": {
+          "dernier": 16,
+          "premier": 15,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "genre": "duree",
+          "surMot": 15,
+          "texte": "trois mois",
+        },
+        "piece": "repere",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "zoom-doux",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;

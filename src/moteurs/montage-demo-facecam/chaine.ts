@@ -24,6 +24,7 @@ import { planDeRepli, validerPlan } from "@/briques/plan-scenes/validateur";
 import { planNiveau1, planNu } from "@/briques/plan-scenes/plan-nu";
 import { scenesARerendre } from "@/briques/plan-scenes/empreinte";
 import type { MotMinute, PlanValide } from "@/briques/plan-scenes/schema";
+import { piecesPermisesDesEntrees } from "@/briques/plan-scenes-objets/pieces-permises";
 import { grouperMots } from "@/briques/sous-titres/groupement";
 import { lireEntreesDemo, type EntreesDemo } from "./entrees";
 import { decalageParLesMots, DUREE_CARTE_FIN_MS, FPS_DEMO, miseEnPageDemo, RATIO_MAITRE_DEMO, recadrage, type RatioDemo } from "./mise-en-page";
@@ -311,7 +312,10 @@ export async function avancerChaineDemo(precedent: EtatDemo, commande: CommandeF
   // --- 4. Plan de scènes (lot C) puis pistes écran ------------------------------------------------------------------
   if (etat.mots && etat.synchro && !etat.plan) {
     const mots = versMinute(etat.mots);
-    const contexte = { mots, format: formatPlanDemo(), facecam: false, dureeMs: Math.round((etat.dureeSec ?? 1) * 1000) };
+    // N-03 : objets permis par le profil figé (aucun aujourd'hui) ; pièces inscrites au plan de scènes par C9-34b.
+    const objetsPermis = piecesPermisesDesEntrees(commande.entrees);
+    const avecObjets = objetsPermis.length > 0 ? { objetsPermis } : {};
+    const contexte = { mots, format: formatPlanDemo(), facecam: false, dureeMs: Math.round((etat.dureeSec ?? 1) * 1000), ...avecObjets };
     // X3-06 : cran du dosage figé dans la commande. Absent (dosage éteint) = chemin d'avant, inchangé.
     const cran = commande.dosageMotion?.cran;
     const apresCran = (p: PlanValide): PlanValide => (cran === "sobre" ? planNiveau1(p) : p);
@@ -325,7 +329,7 @@ export async function avancerChaineDemo(precedent: EtatDemo, commande: CommandeF
       etat.sourcePlan = "retouche";
       for (const x of r.remarques) ajouterRemarque(etat, x.code, x.message);
     } else if (deps.appelerPlan && mots.length) {
-      const r = await genererPlan({ script: mots.map((m) => m.texte).join(" "), mots, format: contexte.format, facecam: false }, deps.appelerPlan);
+      const r = await genererPlan({ script: mots.map((m) => m.texte).join(" "), mots, format: contexte.format, facecam: false, ...avecObjets }, deps.appelerPlan);
       // Le plan suit la durée de Williams (validé de nouveau avec sa durée, jamais raccourci).
       const v = validerPlan(r.plan, contexte);
       etat.plan = apresCran(v.plan);

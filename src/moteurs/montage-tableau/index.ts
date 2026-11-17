@@ -29,6 +29,7 @@ import { ZERO, centimes } from "@/lib/montants";
 import { decouperEnScenes, type EntreeDecoupage, type OutilsDecoupage } from "./decoupage";
 import { ETAPES_CHAINE, etapeDuMoteur, etapesTableau, ficheFournie, lireEntreesTableau, type CleEtapeTableau, type VoixPayee } from "./etapes";
 import { formatImage, formatSortie, PORTRAIT_LINKEDIN, reseauxDeLaSortie, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
+import { intensiteSousTitresTableau } from "./dosage";
 import { finAuMot } from "./variantes-fin";
 import type { FinRetenue } from "./relecture";
 import { finPermise } from "@/reseaux/sorties";
@@ -406,7 +407,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsTableau
     // 17/10 : style des sous-titres résolu au lancement (choix de la vidéo, sinon défaut du format), figé dans la commande.
     ...(reste.styleSousTitres === undefined && commande.styles.sousTitres?.valeur?.type === "style-sous-titres" ? { styleSousTitres: commande.styles.sousTitres as StyleResolu<ValeurStyleSousTitres> } : {}),
     // 17/10 : intensité des sous-titres dynamiques (choix de la vidéo, sinon profil du format), figée dans la commande.
-    ...(reste.intensiteSousTitres === undefined && commande.sousTitres?.intensite ? { intensiteSousTitres: commande.sousTitres.intensite } : {}),
+    ...((n) => (reste.intensiteSousTitres === undefined && n ? { intensiteSousTitres: n } : {}))(intensiteSousTitresTableau(commande.dosageMotion?.cran, commande.sousTitres?.intensite)),
     // Case « déjà vu » cochée à la création : la relecture de la fabrication la lit (sans elle, la relecture bloque).
     ...(!reste.dejaVu && entrees.dejaVu ? { dejaVu: entrees.dejaVu } : {}),
     ...(tracer ? { tracer: (e) => tracer({ ...e, ...(versionId ? { versionId } : {}) }) } : {}),
