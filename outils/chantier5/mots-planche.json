@@ -1,0 +1,131 @@
+{
+ "dureeSec": 9.06,
+ "fps": 30,
+ "mots": [
+  {
+   "mot": "Un",
+   "debutSec": 0.5,
+   "finSec": 0.78
+  },
+  {
+   "mot": "petit",
+   "debutSec": 0.82,
+   "finSec": 1.1
+  },
+  {
+   "mot": "atelier",
+   "debutSec": 1.14,
+   "finSec": 1.42
+  },
+  {
+   "mot": "au",
+   "debutSec": 1.46,
+   "finSec": 1.74
+  },
+  {
+   "mot": "bord",
+   "debutSec": 1.78,
+   "finSec": 2.06
+  },
+  {
+   "mot": "du",
+   "debutSec": 2.1,
+   "finSec": 2.38
+  },
+  {
+   "mot": "lac",
+   "debutSec": 2.42,
+   "finSec": 2.7
+  },
+  {
+   "mot": "prépare",
+   "debutSec": 2.74,
+   "finSec": 3.02
+  },
+  {
+   "mot": "chaque",
+   "debutSec": 3.06,
+   "finSec": 3.34
+  },
+  {
+   "mot": "matin",
+   "debutSec": 3.38,
+   "finSec": 3.66
+  },
+  {
+   "mot": "trois",
+   "debutSec": 3.7,
+   "finSec": 3.98
+  },
+  {
+   "mot": "paniers",
+   "debutSec": 4.02,
+   "finSec": 4.3
+  },
+  {
+   "mot": "de",
+   "debutSec": 4.34,
+   "finSec": 4.62
+  },
+  {
+   "mot": "pommes",
+   "debutSec": 4.66,
+   "finSec": 4.94
+  },
+  {
+   "mot": "rouges",
+   "debutSec": 4.98,
+   "finSec": 5.26
+  },
+  {
+   "mot": "et",
+   "debutSec": 5.3,
+   "finSec": 5.58
+  },
+  {
+   "mot": "de",
+   "debutSec": 5.62,
+   "finSec": 5.9
+  },
+  {
+   "mot": "poires",
+   "debutSec": 5.94,
+   "finSec": 6.22
+  },
+  {
+   "mot": "douces",
+   "debutSec": 6.26,
+   "finSec": 6.54
+  },
+  {
+   "mot": "pour",
+   "debutSec": 6.58,
+   "finSec": 6.86
+  },
+  {
+   "mot": "le",
+   "debutSec": 6.9,
+   "finSec": 7.18
+  },
+  {
+   "mot": "marché",
+   "debutSec": 7.22,
+   "finSec": 7.5
+  },
+  {
+   "mot": "voisin",
+   "debutSec": 7.54,
+   "finSec": 7.82
+  },
+  {
+   "mot": "du",
+   "debutSec": 7.86,
+   "finSec": 8.14
+  },
+  {
+   "mot": "village",
+   "debutSec": 8.18,
+   "finSec": 8.46
+  }
+ ]
+}
