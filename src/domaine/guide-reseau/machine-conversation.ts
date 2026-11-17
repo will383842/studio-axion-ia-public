@@ -172,7 +172,7 @@ export type EvenementMachine =
   | { t: "public"; res: ResultatEcritureInbox }
   | { t: "m1"; res: ResultatEcritureInbox; maintenantMs: number }
   | { t: "message"; idExpediteur: string | null; idCompte: string; idMessage: string; /** Message sortant / de notre compte (direction, isOwnAccount) : écho. */ sortant?: boolean }
-  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null; /** Instagram : le message ENTIER est un OK de la liste fermée (`estOkInstagram`). Absent = non reconnu. */ okIg?: boolean }
+  | { t: "texte"; estOpposition: boolean; /** Doute sur une demande d'arrêt (classerOpposition) : rien n'est envoyé. */ doute?: boolean; adresse: string | null; /** Instagram : le message ENTIER est un OK de la liste fermée (`estOkInstagram`). Absent = non reconnu. */ okIg?: boolean; /** Instagram, cible d'ESSAI seulement : un message qui CONTIENT une adresse vaut un OK (calculé par le service). Absent = faux. */ adresseVautOk?: boolean }
   | { t: "site"; conduite: Conduite; enCoursAvant: number }
   | { t: "orphelin"; essais: number }
   | { t: "texte_absent"; essais: number }
@@ -266,7 +266,7 @@ export function transition(etat: Conversation | null, ev: EvenementMachine, mots
       if (ev.estOpposition) return { action: "opposer", patch: { etat: "oppose" } };
       if (ev.doute) return { action: "doute", patch: { douteOpposition: true } };
       // Instagram « suivre le compte puis OK » : liste FERMÉE de OK. Tout autre message (sans opposition ni doute) : rien ne part (le service décide, rien ne part ici).
-      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
+      if (etat && (etat.etat === "ig_attente_ok" || etat.etat === "ig_pas_encore")) return ev.okIg === true || (ev.adresseVautOk === true && ev.adresse !== null) ? { action: "ig_ok" } : { action: "ig_non_reconnu" };
       // Après un doute, M2 n'est plus jamais envoyé ; une adresse explicite déclenche quand même la demande de guide.
       // Après le message avec lien (M1 v3), on n'a jamais demandé d'adresse : M2 (« adresse non reconnue ») n'a pas de sens, silence.
       if (ev.adresse === null) return etat && !etat.m2Envoye && !etat.douteOpposition && !m1AvecLien(etat.versionTexteM1) ? { action: "m2" } : { action: "silence", raison: "silence" };

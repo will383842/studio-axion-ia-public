@@ -1428,7 +1428,7 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   // Réglage allumé : un message qui CONTIENT une adresse e-mail va au parcours `attente_email` s'il en existe un, jamais au parcours Instagram en attente d'un OK.
   if (multi && igSuivre && enAttenteOk(etat) && extraireAdresse(lu.texte) !== null) {
     const autre = await retrouverDossier(cles, idExpediteur!, idConversation, idMessage, idCompte, true, true);
-    if (autre && autre.cle !== cle) {
+    if (autre && autre.cle !== cle && autre.etat.idMessageOk !== idMessage) {
       cle = autre.cle;
       etat = autre.etat;
     }
@@ -1476,7 +1476,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
   // `classe` ne peut plus valoir « opposition » ni « doute » ici (traités plus haut) : `estOpposition` et `doute` sont donc toujours faux et la
   // branche « opposer » plus bas est inatteignable aujourd'hui. Elle est GARDÉE volontairement (filet de sécurité d'un « stop ») : ne pas la retirer.
   const classeMachine: ClasseOpposition = classe as ClasseOpposition;
-  const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse, okIg: estOkInstagram(lu.texte) });
+  // Cible d'ESSAI Instagram (réglages allumés) : un message qui CONTIENT une adresse, sans refus, vaut un OK (demande d'adresse v6-1) ; cette adresse-ci n'est pas envoyée au site.
+  const adresseVautOk = adresse !== null && multi && igSuivre && etat.reseau === "instagram" && enAttenteOk(etat) && !exprimeUnRefus(lu.texte) && (etat.cibleEssai === true || (await cibleEstEssaiAujourdhui(etat, env, now)));
+  const s = transition(etat, { t: "texte", estOpposition: classeMachine === "opposition", doute: classeMachine === "doute", adresse, okIg: estOkInstagram(lu.texte), adresseVautOk });
   if (s.action === "opposer") {
     await opposerEnPrive_(ev, env, cle, idExpediteur!, idConversation, emps, cles.courante, now);
     return "traite";
@@ -1496,9 +1498,9 @@ async function traiterMessage(ev: EvenementFournisseur, d: DepsConversation, env
     await clore(ev, "ecarte", "ok_non_reconnu");
     return "traite";
   }
-  if (s.action === "ig_ok") return repondreOkInstagram(ev, d, env, cles, cle, etat.idCompte, idConversation, idMessage, idExpediteur!, igSuivre, now);
+  if (s.action === "ig_ok") return repondreOkInstagram(ev, d, env, cles, cle, etat.idCompte, idConversation, idMessage, idExpediteur!, igSuivre, now, { seulementEssai: adresseVautOk });
   // Rejeu du message qui a DÉJÀ servi de OK (cible d'essai : la demande d'adresse est partie, la conversation attend l'adresse) : rien ne part, jamais un M2 pour ce même message.
-  if (s.action === "m2" && etat.reseau === "instagram" && etat.idMessageOk === idMessage) {
+  if ((s.action === "m2" || s.action === "demander_guide") && etat.reseau === "instagram" && etat.idMessageOk === idMessage) {
     await clore(ev, "silence", "deja_traite");
     return "traite";
   }
@@ -1561,7 +1563,7 @@ const enAttenteOk = (e: Pick<Conversation, "etat">): boolean => e.etat === "ig_a
  * (e) texte (lien neuf ou « pas encore ») › (g) état « en vol » écrit AVANT, plafond, jeton « stop partout » juste avant, un seul envoi ›
  * (h) issue. Un rejeu du même message (`idMessageOk`) n'envoie jamais rien. Aucun identifiant de personne n'est écrit ni journalisé.
  */
-async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, cle: string, idCompte: string, idConversation: string, idMessage: string, idExpediteur: string, igSuivre: boolean, now: number): Promise<"traite" | "bloque"> {
+async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, cle: string, idCompte: string, idConversation: string, idMessage: string, idExpediteur: string, igSuivre: boolean, now: number, opts: { seulementEssai?: boolean } = {}): Promise<"traite" | "bloque"> {
   if (!igSuivre) {
     await clore(ev, "silence", "ig_eteint"); // retour arrière : un parcours d'attente resté en base ne reçoit rien
     return "traite";
@@ -1606,6 +1608,20 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
         await clore(ev, "ecarte", "garde_ig_hors_essai");
         return "traite";
       }
+    }
+  }
+  // Adresse écrite sans OK (cible d'essai seulement) : les parcours qui ne sont pas d'essai ne sont ni servis ni consommés. Statut seulement SUPPOSÉ (catalogue illisible) : gardé, le report plus bas s'applique.
+  if (opts.seulementEssai) {
+    const essai: typeof aServir = [];
+    for (const x of aServir) {
+      const e = entrees.find((y) => y.cle === x.cle)?.etat;
+      if (e && (e.cibleEssai === true || (await statutEssaiCatalogue(e, env, now)) !== "non")) essai.push(x);
+    }
+    aServir = essai;
+    if (aServir.length === 0) {
+      await alerter("ig_ok_non_reconnu", MESSAGE_IG_OK_NON_RECONNU, now);
+      await clore(ev, "ecarte", "ok_non_reconnu");
+      return "traite";
     }
   }
   // Fenêtre de 24 h de Meta contrôlée AVANT toute lecture du suivi : aucun parcours servable, aucune lecture.
