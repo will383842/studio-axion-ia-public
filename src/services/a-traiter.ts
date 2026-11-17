@@ -249,7 +249,7 @@ const POIDS: Record<Motif, number> = {
   mot_inconnu: 2,
   mot_manuel: 3,
 };
-/** Cartes à traiter : les cartes opposées (doute d'opposition) d'abord, puis les plus prioritaires, puis les plus anciennes. */
+/** Cartes à traiter : TOUTES les cartes opposées d'abord (doute, cartes neutralisées, cartes marquées opposées), puis les plus prioritaires, puis les plus anciennes. */
 export const cartesAFaire = (
   cartes: readonly CarteATraiter[],
 ): CarteATraiter[] =>
@@ -466,11 +466,15 @@ export async function lireVueATraiter(
   try {
     // Carte d'une personne opposée : jamais de réponse proposée, quoi qu'il y ait en dépôt.
     // Revérification à chaque lecture : opposée OU vérification impossible => carte « opposée » (aucun envoi proposé).
-    const cartes = await Promise.all(
-      cartesAFaire(await (o.depot ?? depotCourant).lire()).map(async (c) =>
-        (await carteOpposee(c)) ? { ...c, opposee: true, kit: null } : c,
+    // Le recalcul de `opposee` précède le tri : une carte reconnue opposée à la lecture remonte en tête.
+    const recalculees = await Promise.all(
+      (await (o.depot ?? depotCourant).lire()).map(async (c) =>
+        c.statut === "a_traiter" && (await carteOpposee(c))
+          ? { ...c, opposee: true, kit: null }
+          : c,
       ),
     );
+    const cartes = cartesAFaire(recalculees);
     return {
       etat: cartes.length ? "normal" : "vide",
       cartes,

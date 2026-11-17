@@ -168,7 +168,7 @@ async function traiterUn(ev: EvenementFournisseur, o: { env: Env; depot: DepotAT
   try {
     opposee = (await personneOpposeePartout({ idsBruts: [idAuteur] }, { douteBloque: true })).opposee;
   } catch (e) {
-    // Aucun identifiant : la vérification restera impossible à chaque essai. Sans doute : écarté, rien d'écrit. Un doute reste permanent : alerte puis clos « doute_opposition » ; sa levée sera une décision future du fondateur, jamais automatique.
+    // Aucun identifiant : la vérification restera impossible à chaque essai. Sans doute : écarté, rien d'écrit. Avec doute : alerte, puis clôture « doute_opposition » ; si l'alerte échoue, report de 5 min. Rien n'est inscrit pour cette personne (faute d'identifiant).
     if (e instanceof ErreurOppositionIllisible && e.code === "personne_inconnue") {
       if (c.doute === true) return douteSansCarte(ev, o.maintenantMs); // aucun identifiant d'auteur : rien d'écrit, le fondateur est averti
       await clore(ev, "ecarte");
