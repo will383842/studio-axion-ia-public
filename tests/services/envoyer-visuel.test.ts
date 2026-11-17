@@ -41,6 +41,12 @@ const faux = (): FournisseurPublication =>
     reelPrevu: "faux",
     mode: "reel",
     capacites: { asynchrone: false, accordExige: false },
+    listerCanaux: async () => [
+      { id: "compte-1:li:42", organisationId: "zernio", nom: "Page LinkedIn", service: "linkedin", genre: "page" },
+      { id: "compte-2", organisationId: "zernio", nom: "Compte Instagram", service: "instagram" },
+      { id: "compte-1:fb:page-1", organisationId: "zernio", nom: "Page Facebook", service: "facebook", genre: "page" },
+      { id: "compte-9", organisationId: "zernio", nom: "Ancien", service: "instagram", deconnecte: true },
+    ],
     envoyer: async (d: DemandePublication) => {
       appels.push(d);
       return comportement(d);
@@ -61,7 +67,7 @@ async function creerVisuel(p: Record<string, unknown> = {}): Promise<string> {
     titre: "Cinq erreurs courantes",
     entree: { type: "sujet", sujet: "exemple" },
     statut: "valide",
-    modeTexte: "simulation",
+    modeTexte: "api",
     versionSpec: 1,
     coutCentimes: 0,
     creeLe: le,
@@ -80,7 +86,10 @@ async function creerVisuel(p: Record<string, unknown> = {}): Promise<string> {
 
 const visuelles = async () => depots().publications.lister((p) => p.visuelId === "vis_1");
 
-const options = (o: Record<string, unknown> = {}) => ({ cible: CIBLE, legende: "Légende d'exemple", lireUrl, ...o });
+const VALIDEE = "2026-11-12T10:00:00Z";
+const options = (o: Record<string, unknown> = {}) => ({ cible: CIBLE, legende: "Légende d'exemple", valideeLe: VALIDEE, lireUrl, ...o });
+/** Nombre TOTAL de publications du dépôt (toute source) : une écriture sous un autre identifiant se verrait. */
+const total = async () => depots().publications.compter();
 
 beforeEach(async () => {
   appels = [];
@@ -103,9 +112,10 @@ describe("L5-02 · envoyerVisuel : interrupteur éteint par défaut", () => {
 
   it("rien n'est réglé (défaut) : refus, 0 appel, 0 publication écrite", async () => {
     const id = await creerVisuel();
+    const avant = await total();
     await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     expect(appels).toHaveLength(0);
-    expect(await visuelles()).toHaveLength(0);
+    expect(await total()).toBe(avant);
   });
 
   it.each([
@@ -116,9 +126,10 @@ describe("L5-02 · envoyerVisuel : interrupteur éteint par défaut", () => {
     const id = await creerVisuel();
     await ouvrirTout();
     for (const [k, v] of Object.entries(reglage)) await ecrireParametre(k, v);
+    const avant = await total();
     await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     expect(appels).toHaveLength(0);
-    expect(await visuelles()).toHaveLength(0);
+    expect(await total()).toBe(avant);
   });
 
   it("l'ancien réglage d'envoi seul ouvert ne suffit pas", async () => {
@@ -155,19 +166,53 @@ describe("L5-02 · envoyerVisuel : contenu envoyé", () => {
 
   it("Instagram sans texte alternatif : refus avant tout appel", async () => {
     const id = await creerVisuel();
-    await expect(pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2" }))).rejects.toBeTruthy();
+    const avant = await total();
+    await expect(pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2" }))).rejects.toMatchObject({ code: "VISUEL_REFUSE" });
     expect(appels).toHaveLength(0);
-    expect(await visuelles()).toHaveLength(0);
+    expect(await total()).toBe(avant);
   });
 
   it.each([
-    ["non validé", { statut: "brouillon" }],
-    ["à la corbeille", { corbeilleLe: "2026-11-11T08:00:00Z" }],
-    ["d'exemple", { estDemo: true }],
-    ["sans rendu", { rendu: undefined }],
-  ])("visuel %s : refus, 0 appel", async (_n, p) => {
+    ["non validé", { statut: "brouillon" }, "VISUEL_NON_VALIDE"],
+    ["à la corbeille", { corbeilleLe: "2026-11-11T08:00:00Z" }, "VISUEL_NON_VALIDE"],
+    ["d'exemple", { estDemo: true }, "VISUEL_EXEMPLE"],
+    ["d'essai (texte simulé)", { modeTexte: "simulation" }, "VISUEL_ESSAI"],
+    ["sans rendu", { rendu: undefined }, "VISUEL_SANS_RENDU"],
+    ["au titre trop long pour LinkedIn", { titre: "T".repeat(41) }, "VISUEL_REFUSE"],
+  ])("visuel %s : refus %#, 0 appel, rien d'écrit", async (_n, p, code) => {
     const id = await creerVisuel(p);
-    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toBeTruthy();
+    const avant = await total();
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code });
+    expect(appels).toHaveLength(0);
+    expect(await total()).toBe(avant);
+  });
+
+  it.each([
+    ["sans valideeLe", undefined],
+    ["valideeLe illisible", "pas une date"],
+    ["valideeLe dans le futur", new Date(Date.now() + 86400_000).toISOString()],
+  ])("aucun appel au diffuseur, même en brouillon : créneau %s", async (_n, valideeLe) => {
+    const id = await creerVisuel();
+    const avant = await total();
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options({ valideeLe }))).rejects.toMatchObject({ code: "CRENEAU_NON_VALIDE" });
+    expect(appels).toHaveLength(0);
+    expect(await total()).toBe(avant);
+  });
+
+  it.each([
+    ["inconnu", "compte-inconnu"],
+    ["déconnecté", "compte-9"],
+  ])("compte %s : refus CIBLE_INCONNUE, 0 appel", async (_n, cible) => {
+    const id = await creerVisuel();
+    const avant = await total();
+    await expect(pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible, textesAlternatifs: ["a", "b", "c"] }))).rejects.toMatchObject({ code: "CIBLE_INCONNUE" });
+    expect(appels).toHaveLength(0);
+    expect(await total()).toBe(avant);
+  });
+
+  it("premier commentaire sur Instagram (non transmis par le constructeur) : refus, 0 appel", async () => {
+    const id = await creerVisuel();
+    await expect(pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2", textesAlternatifs: ["a", "b", "c"], premierCommentaire: "Voir le guide" }))).rejects.toMatchObject({ code: "PREMIER_COMMENTAIRE_NON_TRANSMIS" });
     expect(appels).toHaveLength(0);
   });
 
@@ -204,7 +249,11 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
       pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options()),
     ]);
     expect(appels).toHaveLength(1);
-    expect([a.status, b.status].filter((s) => s === "fulfilled").length).toBeGreaterThanOrEqual(1);
+    const ok = [a, b].filter((r) => r.status === "fulfilled");
+    const refus = [a, b].filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+    expect(ok).toHaveLength(1);
+    expect(refus).toHaveLength(1);
+    expect(refus[0].reason).toMatchObject({ code: "ENVOI_EN_COURS" });
     expect(await visuelles()).toHaveLength(1);
   });
 
@@ -223,8 +272,7 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
   it("réponse perdue : « à vérifier », aucun renvoi automatique aux passages suivants", async () => {
     const id = await creerVisuel();
     comportement = async () => { throw new ErreurZernio("indisponible", "délai dépassé", { reessayable: true }); };
-    const r = await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options()).catch((e) => e);
-    expect(r).toBeDefined();
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_A_VERIFIER" });
     const pubs = await visuelles();
     expect(pubs).toHaveLength(1);
     expect(pubs[0].etatEnvoi).toBe("a-verifier");
@@ -237,7 +285,7 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
   it("reprise après échec partiel : un refus net permet UN nouvel essai, puis plus rien ne repart", async () => {
     const id = await creerVisuel();
     comportement = async () => { throw new ErreurZernio("refuse", "refusé avant le réseau"); };
-    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toBeTruthy();
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_REFUSE" });
     expect((await visuelles()).map((p) => p.etatEnvoi)).toEqual(["refuse"]);
     comportement = async () => ({ idExterne: "ext-2", via: "zernio", statut: "brouillon" });
     const ok = await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
@@ -245,6 +293,24 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
     const encore = await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
     expect(encore.deja).toBe(true);
     expect(appels).toHaveLength(2);
+  });
+
+  it("même visuel, même réseau, même compte, AUTRE date : refus, 0 nouvel appel (après un envoi réussi)", async () => {
+    const id = await creerVisuel();
+    await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
+    const autre = new Date(Date.parse(DEMAIN) + 1000).toISOString();
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", autre, options())).rejects.toMatchObject({ code: "DEJA_DANS_OUTIL" });
+    expect(appels).toHaveLength(1);
+    expect(await visuelles()).toHaveLength(1);
+  });
+
+  it("même visuel, autre date, après une réponse perdue : le « à vérifier » bloque toujours, 0 nouvel appel", async () => {
+    const id = await creerVisuel();
+    comportement = async () => { throw new ErreurZernio("indisponible", "délai dépassé", { reessayable: true }); };
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options())).rejects.toMatchObject({ code: "ENVOI_A_VERIFIER" });
+    const autre = new Date(Date.parse(DEMAIN) + 86400_000).toISOString();
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", autre, options())).rejects.toMatchObject({ code: "ENVOI_A_VERIFIER" });
+    expect(appels).toHaveLength(1);
   });
 
   it("un autre réseau du même visuel est un autre envoi (pas un doublon)", async () => {
@@ -258,7 +324,36 @@ describe("L5-02 · envoyerVisuel : anti-double envoi", () => {
 describe("L5-02 · envoyerVisuel : VRAI constructeur de corps (zernio-corps.ts), validé contre l'extrait OpenAPI", () => {
   beforeEach(ouvrirTout);
 
-  it("carrousel LinkedIn : 1 seul mediaItem, un document PDF avec titre ; corps valide (ajv)", async () => {
+  const CAS: [string, "linkedin" | "instagram" | "facebook", string, Record<string, unknown>][] = [
+    ["LinkedIn", "linkedin", CIBLE, {}],
+    ["Instagram", "instagram", "compte-2", { textesAlternatifs: ["Page un", "Page deux", "Page trois"] }],
+    ["Facebook", "facebook", "compte-1:fb:page-1", { textesAlternatifs: ["Page un", "Page deux", "Page trois"] }],
+  ];
+
+  function validateur() {
+    const chemin = resolve(process.cwd(), "docs/zernio/openapi-extrait-1.418.1.json");
+    expect(existsSync(chemin), `extrait OpenAPI manquant : ${chemin}`).toBe(true);
+    const spec = JSON.parse(readFileSync(chemin, "utf8"));
+    const racine = spec.paths["/v1/posts"].post.requestBody.content["application/json"].schema;
+    const psd = racine.properties.platforms.items.properties.platformSpecificData;
+    if (psd?.oneOf) { psd.anyOf = psd.oneOf; delete psd.oneOf; }
+    const ajv = new Ajv({ strict: false, allErrors: true });
+    return { valider: ajv.compile({ ...racine, components: spec.components }), ajv };
+  }
+
+  it.each(CAS)("%s : le corps construit par le vrai constructeur est un brouillon valide (ajv)", async (_n, reseau, cible, extra) => {
+    const id = await creerVisuel();
+    await pub.envoyerVisuel(faux(), id, reseau, DEMAIN, options({ cible, ...extra }));
+    const demande = appels[0] as unknown as DemandeZernio;
+    const medias = mediasDemandes(demande);
+    const corps = corpsPostZernio(demande, { maintenant: Date.now(), medias, hotesPublics: new Set(["exemple.test"]), profilLinkedinProuve: true });
+    expect(corps.isDraft).toBe(true);
+    expect(corps.metadata?.studioCle).toBe(demande.cleEnvoi);
+    const { valider, ajv } = validateur();
+    expect(valider(corps), ajv.errorsText(valider.errors)).toBe(true);
+  });
+
+  it("carrousel LinkedIn : 1 seul mediaItem, un document PDF avec titre", async () => {
     const id = await creerVisuel();
     await pub.envoyerVisuel(faux(), id, "linkedin", DEMAIN, options());
     const demande = appels[0] as unknown as DemandeZernio;
@@ -267,16 +362,32 @@ describe("L5-02 · envoyerVisuel : VRAI constructeur de corps (zernio-corps.ts),
     expect(demandes[0]).toMatchObject({ type: "document", title: "Cinq erreurs courantes", mimeType: "application/pdf" });
     const corps = corpsPostZernio(demande, { maintenant: Date.now(), medias: demandes, hotesPublics: new Set(["exemple.test"]), profilLinkedinProuve: true });
     expect(corps.mediaItems).toHaveLength(1);
-    expect(corps.isDraft).toBe(true);
+  });
 
-    const chemin = resolve(process.cwd(), "docs/zernio/openapi-extrait-1.418.1.json");
-    expect(existsSync(chemin), `extrait OpenAPI manquant : ${chemin}`).toBe(true);
-    const spec = JSON.parse(readFileSync(chemin, "utf8"));
-    const racine = spec.paths["/v1/posts"].post.requestBody.content["application/json"].schema;
-    const psd = racine.properties.platforms.items.properties.platformSpecificData;
-    if (psd?.oneOf) { psd.anyOf = psd.oneOf; delete psd.oneOf; }
-    const valider = new Ajv({ strict: false, allErrors: true }).compile({ ...racine, components: spec.components });
-    expect(valider(corps), new Ajv().errorsText(valider.errors)).toBe(true);
+  it("Instagram et Facebook : une image par page, chacune avec son texte alternatif", async () => {
+    const id = await creerVisuel();
+    await pub.envoyerVisuel(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2", textesAlternatifs: ["Page un", "Page deux", "Page trois"] }));
+    const demandes = mediasDemandes(appels[0] as unknown as DemandeZernio);
+    expect(demandes).toHaveLength(3);
+    expect(demandes.every((m) => m.type === "image")).toBe(true);
+  });
+
+  it("premier commentaire : exactement un firstComment pour LinkedIn et pour Facebook, aucun pour Instagram (VRAI constructeur)", async () => {
+    const compte = async (reseau: "linkedin" | "instagram" | "facebook", cible: string, extra: Record<string, unknown>) => {
+      appels = [];
+      reinitialiserDepots();
+      await ouvrirTout();
+      const id = await creerVisuel();
+      // Instagram refuse le commentaire en amont : on l'ajoute à la main à la demande pour interroger le constructeur lui-même.
+      await pub.envoyerVisuel(faux(), id, reseau, DEMAIN, options({ cible, ...extra }));
+      const demande = { ...(appels[0] as unknown as DemandeZernio), premierCommentaire: "Voir le guide" };
+      return corpsPostZernio(demande, { maintenant: Date.now(), medias: mediasDemandes(demande), hotesPublics: new Set(["exemple.test"]), profilLinkedinProuve: true });
+    };
+    const alt = { textesAlternatifs: ["a", "b", "c"] };
+    const compteFirst = (c: unknown) => (JSON.stringify(c).match(/firstComment/g) ?? []).length;
+    expect(compteFirst(await compte("linkedin", CIBLE, {}))).toBe(1);
+    expect(compteFirst(await compte("facebook", "compte-1:fb:page-1", alt))).toBe(1);
+    expect(compteFirst(await compte("instagram", "compte-2", alt))).toBe(0);
   });
 
   it("LinkedIn : le constructeur refuse des images à la place du document (un seul type de média)", async () => {

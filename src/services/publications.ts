@@ -1240,8 +1240,10 @@ export function resumeRefus(problemes: ProblemeEnvoi[]): string {
 export type ReseauVisuelEnvoi = "linkedin" | "instagram" | "facebook";
 
 export interface OptionsEnvoiVisuel {
-  /** Compte de destination chez le diffuseur (obligatoire). */
+  /** Compte de destination chez le diffuseur (obligatoire, relu dans la liste des comptes reliés). */
   cible: string;
+  /** Date de validation du créneau du calendrier (obligatoire : lisible et passée, sinon rien ne part). */
+  valideeLe: string | undefined;
   /** Texte de la publication (la légende). */
   legende: string;
   /** Réseaux en images : un texte alternatif par page, dans l'ordre (125 signes au plus). Inutile pour LinkedIn. */
@@ -1272,12 +1274,18 @@ export async function envoyerVisuel(service: FournisseurPublication, visuelId: I
   if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
   if (!(reseau in PROFILS_RESEAUX) || !["linkedin", "instagram", "facebook"].includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   if (!options.cible?.trim()) throw new ErreurStudio("CIBLE_ZERNIO", "Choisissez le compte de destination : rien n'est parti.");
+  // Aucun appel au diffuseur, même en brouillon, sans validation datée du créneau (lisible et passée).
+  const validee = typeof options.valideeLe === "string" && options.valideeLe ? Date.parse(options.valideeLe) : NaN;
+  if (!Number.isFinite(validee) || validee > Date.parse(maintenant())) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Le créneau n'a pas de validation datée : rien n'est envoyé.");
+  // Le premier commentaire n'est pas transmis partout : jamais d'envoi qui le perdrait en silence.
+  if (options.premierCommentaire?.trim() && !premierCommentaireTransmissibleZernio(reseau)) throw new ErreurStudio("PREMIER_COMMENTAIRE_NON_TRANSMIS", "Ce réseau ne transmet pas le premier commentaire : posez-le à la main, rien n'est parti.");
   if (!(Date.parse(dateIso) > Date.parse(maintenant()))) throw new ErreurStudio("DATE_PASSEE", "Choisissez une date à venir : une date passée publierait aussitôt.");
   await refuserSiStockageSimule();
   const d = depots();
   const v = await d.visuels.obtenir(visuelId);
   if (!v || v.statut !== "valide" || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
-  if (v.estDemo) throw new ErreurStudio("VIDEO_EXEMPLE", "C'est un visuel d'exemple : il ne part pas sur vos réseaux.");
+  if (v.estDemo) throw new ErreurStudio("VISUEL_EXEMPLE", "C'est un visuel d'exemple : il ne part pas sur vos réseaux.");
+  if (v.modeTexte === "simulation") throw new ErreurStudio("VISUEL_ESSAI", "C'est un visuel d'essai (texte simulé) : il ne part pas sur vos réseaux.");
   const rendu = v.rendu;
   if (!rendu) throw new ErreurStudio("VISUEL_SANS_RENDU", "Ce visuel n'a pas de rendu prêt : il ne part pas.");
 
@@ -1303,15 +1311,20 @@ export async function envoyerVisuel(service: FournisseurPublication, visuelId: I
     urls.push(url);
   }
 
+  // Le compte doit être dans la liste des comptes reliés (ni inconnu, ni déconnecté, ni interdit).
+  const cibles = await ciblesZernioPour(service, reseau, [options.cible]);
+  if (!cibles.ok) throw new ErreurStudio(cibles.code, cibles.message);
   const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, options.cible);
   const nom = obtenirReseau(reseau).nom;
   // Une seule réservation, sous le verrou, AVANT l'appel.
   const decision = await sousVerrou(async (): Promise<{ existante: Publication } | { nouvelle: Publication }> => {
-    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && x.cleEnvoi === cleEnvoi && outilDe(x) === "zernio" && occupeBuffer(x));
-    const envoyee = deja.find((x) => x.etatEnvoi === "envoye");
-    if (envoyee) return { existante: envoyee };
+    // Par visuel, réseau et compte, quelle que soit la date : une autre date ne contourne jamais l'anti-doublon.
+    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && (!x.canalId || x.canalId === options.cible) && outilDe(x) === "zernio" && occupeBuffer(x));
+    const meme = deja.find((x) => x.etatEnvoi === "envoye" && x.cleEnvoi === cleEnvoi);
+    if (meme) return { existante: meme };
     if (deja.some((x) => x.etatEnvoi === "a-verifier")) throw new ErreurStudio("ENVOI_A_VERIFIER", `L'envoi précédent vers ${nom} est à vérifier : le studio ne renverra rien sans en être sûr. Regardez dans l'outil de publication.`);
     if (deja.some((x) => x.etatEnvoi === "en-cours")) throw new ErreurStudio("ENVOI_EN_COURS", `Un envoi vers l'outil de publication est déjà en cours pour ${nom}.`);
+    if (deja.length) throw new ErreurStudio("DEJA_DANS_OUTIL", `Ce visuel est déjà dans l'outil de publication pour ${nom} : changez sa date dans l'outil.`);
     const nouvelle: Publication = {
       id: nouvelId("pub"),
       visuelId,

@@ -152,6 +152,8 @@ export async function marquerEnvoiVerifieAction(publicationId: string): Promise<
 export interface OptionsEnvoiVisuelAction {
   /** Compte de destination chez Zernio. */
   compte: string;
+  /** Date de validation du créneau (la porte refuse sans elle). */
+  valideeLe: string;
   legende: string;
   textesAlternatifs?: string[];
   premierCommentaire?: string;
@@ -170,7 +172,7 @@ export async function envoyerVisuelAction(visuelId: string, reseau: ReseauVisuel
     } catch {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : l'envoi est refusé.");
     }
-    const e = await envoyerVisuel(service, visuelId, reseau, dateIso, { cible: options.compte, legende: options.legende, textesAlternatifs: options.textesAlternatifs, premierCommentaire: options.premierCommentaire });
+    const e = await envoyerVisuel(service, visuelId, reseau, dateIso, { cible: options.compte, valideeLe: options.valideeLe, legende: options.legende, textesAlternatifs: options.textesAlternatifs, premierCommentaire: options.premierCommentaire });
     return { deja: e.deja, publicationId: e.publication.id };
   });
   journaliserEnvoi(r.ok ? { action: "envoyerVisuelAction", outil: "zernio", reseau, contenuId: visuelId, code: "OK", nbComptes: 1, brouillon: true } : { action: "envoyerVisuelAction", outil: "zernio", reseau, contenuId: visuelId, code: r.code ?? "ERREUR", nbComptes: 0 });
