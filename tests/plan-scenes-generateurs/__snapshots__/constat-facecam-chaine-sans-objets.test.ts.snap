@@ -1,0 +1,656 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Facecam sans objets permis : plan de scènes figé (C9-37t) > allumé, stock seul : plan figé, aucune clé objet-* 1`] = `
+{
+  "entree": "630295cfb370a820",
+  "plan": {
+    "dureeMs": 21200,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 350,
+        "texte": "Bonjour,",
+      },
+      {
+        "debutMs": 400,
+        "finMs": 750,
+        "texte": "je",
+      },
+      {
+        "debutMs": 800,
+        "finMs": 1150,
+        "texte": "suis",
+      },
+      {
+        "debutMs": 1200,
+        "finMs": 1550,
+        "texte": "Will.",
+      },
+      {
+        "debutMs": 1600,
+        "finMs": 1950,
+        "texte": "Aujourd'hui",
+      },
+      {
+        "debutMs": 2000,
+        "finMs": 2350,
+        "texte": "je",
+      },
+      {
+        "debutMs": 2400,
+        "finMs": 2750,
+        "texte": "vous",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3150,
+        "texte": "parle",
+      },
+      {
+        "debutMs": 3200,
+        "finMs": 3550,
+        "texte": "de",
+      },
+      {
+        "debutMs": 3600,
+        "finMs": 3950,
+        "texte": "la",
+      },
+      {
+        "debutMs": 4000,
+        "finMs": 4350,
+        "texte": "formation.",
+      },
+      {
+        "debutMs": 4400,
+        "finMs": 4750,
+        "texte": "Beaucoup",
+      },
+      {
+        "debutMs": 4800,
+        "finMs": 5150,
+        "texte": "de",
+      },
+      {
+        "debutMs": 5200,
+        "finMs": 5550,
+        "texte": "dirigeants",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5950,
+        "texte": "pensent",
+      },
+      {
+        "debutMs": 6000,
+        "finMs": 6350,
+        "texte": "que",
+      },
+      {
+        "debutMs": 6400,
+        "finMs": 6750,
+        "texte": "l'intelligence",
+      },
+      {
+        "debutMs": 6800,
+        "finMs": 7150,
+        "texte": "artificielle",
+      },
+      {
+        "debutMs": 7200,
+        "finMs": 7550,
+        "texte": "est",
+      },
+      {
+        "debutMs": 7600,
+        "finMs": 7950,
+        "texte": "réservée",
+      },
+      {
+        "debutMs": 8000,
+        "finMs": 8350,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8750,
+        "texte": "grands",
+      },
+      {
+        "debutMs": 8800,
+        "finMs": 9150,
+        "texte": "groupes.",
+      },
+      {
+        "debutMs": 9200,
+        "finMs": 9550,
+        "texte": "C'est",
+      },
+      {
+        "debutMs": 9600,
+        "finMs": 9950,
+        "texte": "faux.",
+      },
+      {
+        "debutMs": 10000,
+        "finMs": 10350,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 10400,
+        "finMs": 10750,
+        "texte": "un",
+      },
+      {
+        "debutMs": 10800,
+        "finMs": 11150,
+        "texte": "financement",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11550,
+        "texte": "OPCO,",
+      },
+      {
+        "debutMs": 11600,
+        "finMs": 11950,
+        "texte": "la",
+      },
+      {
+        "debutMs": 12000,
+        "finMs": 12350,
+        "texte": "formation",
+      },
+      {
+        "debutMs": 12400,
+        "finMs": 12750,
+        "texte": "peut",
+      },
+      {
+        "debutMs": 12800,
+        "finMs": 13150,
+        "texte": "être",
+      },
+      {
+        "debutMs": 13200,
+        "finMs": 13550,
+        "texte": "prise",
+      },
+      {
+        "debutMs": 13600,
+        "finMs": 13950,
+        "texte": "en",
+      },
+      {
+        "debutMs": 14000,
+        "finMs": 14350,
+        "texte": "charge.",
+      },
+      {
+        "debutMs": 14400,
+        "finMs": 14750,
+        "texte": "En",
+      },
+      {
+        "debutMs": 14800,
+        "finMs": 15150,
+        "texte": "moyenne,",
+      },
+      {
+        "debutMs": 15200,
+        "finMs": 15550,
+        "texte": "une",
+      },
+      {
+        "debutMs": 15600,
+        "finMs": 15950,
+        "texte": "PME",
+      },
+      {
+        "debutMs": 16000,
+        "finMs": 16350,
+        "texte": "gagne",
+      },
+      {
+        "debutMs": 16400,
+        "finMs": 16750,
+        "texte": "5",
+      },
+      {
+        "debutMs": 16800,
+        "finMs": 17150,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 17200,
+        "finMs": 17550,
+        "texte": "par",
+      },
+      {
+        "debutMs": 17600,
+        "finMs": 17950,
+        "texte": "semaine.",
+      },
+      {
+        "debutMs": 18000,
+        "finMs": 18350,
+        "texte": "Et",
+      },
+      {
+        "debutMs": 18400,
+        "finMs": 18750,
+        "texte": "elle",
+      },
+      {
+        "debutMs": 18800,
+        "finMs": 19150,
+        "texte": "réduit",
+      },
+      {
+        "debutMs": 19200,
+        "finMs": 19550,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 19600,
+        "finMs": 19950,
+        "texte": "relances",
+      },
+      {
+        "debutMs": 20000,
+        "finMs": 20350,
+        "texte": "de",
+      },
+      {
+        "debutMs": 20400,
+        "finMs": 20750,
+        "texte": "30",
+      },
+      {
+        "debutMs": 20800,
+        "finMs": 21150,
+        "texte": "%.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 16400,
+        "empreinte": "c6f14dc969c8551d",
+        "finMs": 18350,
+        "id": "s1",
+        "mots": {
+          "dernier": 42,
+          "premier": 41,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 41,
+          "unite": "h",
+          "valeur": 5,
+        },
+        "piece": "compteur",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+      {
+        "debutMs": 20400,
+        "empreinte": "46b27555b34ae472",
+        "finMs": 21200,
+        "id": "s2",
+        "mots": {
+          "dernier": 52,
+          "premier": 51,
+        },
+        "niveau": 1,
+        "parametres": {
+          "aMs": 0,
+          "surMot": 51,
+          "valeur": 30,
+        },
+        "piece": "jauge",
+        "position": "haut",
+        "transition": {
+          "dureeMs": 266,
+          "entree": "glisse-haut",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
+
+exports[`Facecam sans objets permis : plan de scènes figé (C9-37t) > faux LLM : un seul appel, plan figé, même empreinte du texte système avec et sans entrée bibliothèque 1`] = `
+{
+  "entree": "6f24b17973b0c76d",
+  "plan": {
+    "dureeMs": 21200,
+    "facecam": true,
+    "format": {
+      "fps": 25,
+      "hauteur": 1920,
+      "largeur": 1080,
+    },
+    "habillage": {
+      "accent": "terracotta",
+      "fond": "ivoire",
+    },
+    "mots": [
+      {
+        "debutMs": 0,
+        "finMs": 350,
+        "texte": "Bonjour,",
+      },
+      {
+        "debutMs": 400,
+        "finMs": 750,
+        "texte": "je",
+      },
+      {
+        "debutMs": 800,
+        "finMs": 1150,
+        "texte": "suis",
+      },
+      {
+        "debutMs": 1200,
+        "finMs": 1550,
+        "texte": "Will.",
+      },
+      {
+        "debutMs": 1600,
+        "finMs": 1950,
+        "texte": "Aujourd'hui",
+      },
+      {
+        "debutMs": 2000,
+        "finMs": 2350,
+        "texte": "je",
+      },
+      {
+        "debutMs": 2400,
+        "finMs": 2750,
+        "texte": "vous",
+      },
+      {
+        "debutMs": 2800,
+        "finMs": 3150,
+        "texte": "parle",
+      },
+      {
+        "debutMs": 3200,
+        "finMs": 3550,
+        "texte": "de",
+      },
+      {
+        "debutMs": 3600,
+        "finMs": 3950,
+        "texte": "la",
+      },
+      {
+        "debutMs": 4000,
+        "finMs": 4350,
+        "texte": "formation.",
+      },
+      {
+        "debutMs": 4400,
+        "finMs": 4750,
+        "texte": "Beaucoup",
+      },
+      {
+        "debutMs": 4800,
+        "finMs": 5150,
+        "texte": "de",
+      },
+      {
+        "debutMs": 5200,
+        "finMs": 5550,
+        "texte": "dirigeants",
+      },
+      {
+        "debutMs": 5600,
+        "finMs": 5950,
+        "texte": "pensent",
+      },
+      {
+        "debutMs": 6000,
+        "finMs": 6350,
+        "texte": "que",
+      },
+      {
+        "debutMs": 6400,
+        "finMs": 6750,
+        "texte": "l'intelligence",
+      },
+      {
+        "debutMs": 6800,
+        "finMs": 7150,
+        "texte": "artificielle",
+      },
+      {
+        "debutMs": 7200,
+        "finMs": 7550,
+        "texte": "est",
+      },
+      {
+        "debutMs": 7600,
+        "finMs": 7950,
+        "texte": "réservée",
+      },
+      {
+        "debutMs": 8000,
+        "finMs": 8350,
+        "texte": "aux",
+      },
+      {
+        "debutMs": 8400,
+        "finMs": 8750,
+        "texte": "grands",
+      },
+      {
+        "debutMs": 8800,
+        "finMs": 9150,
+        "texte": "groupes.",
+      },
+      {
+        "debutMs": 9200,
+        "finMs": 9550,
+        "texte": "C'est",
+      },
+      {
+        "debutMs": 9600,
+        "finMs": 9950,
+        "texte": "faux.",
+      },
+      {
+        "debutMs": 10000,
+        "finMs": 10350,
+        "texte": "Avec",
+      },
+      {
+        "debutMs": 10400,
+        "finMs": 10750,
+        "texte": "un",
+      },
+      {
+        "debutMs": 10800,
+        "finMs": 11150,
+        "texte": "financement",
+      },
+      {
+        "debutMs": 11200,
+        "finMs": 11550,
+        "texte": "OPCO,",
+      },
+      {
+        "debutMs": 11600,
+        "finMs": 11950,
+        "texte": "la",
+      },
+      {
+        "debutMs": 12000,
+        "finMs": 12350,
+        "texte": "formation",
+      },
+      {
+        "debutMs": 12400,
+        "finMs": 12750,
+        "texte": "peut",
+      },
+      {
+        "debutMs": 12800,
+        "finMs": 13150,
+        "texte": "être",
+      },
+      {
+        "debutMs": 13200,
+        "finMs": 13550,
+        "texte": "prise",
+      },
+      {
+        "debutMs": 13600,
+        "finMs": 13950,
+        "texte": "en",
+      },
+      {
+        "debutMs": 14000,
+        "finMs": 14350,
+        "texte": "charge.",
+      },
+      {
+        "debutMs": 14400,
+        "finMs": 14750,
+        "texte": "En",
+      },
+      {
+        "debutMs": 14800,
+        "finMs": 15150,
+        "texte": "moyenne,",
+      },
+      {
+        "debutMs": 15200,
+        "finMs": 15550,
+        "texte": "une",
+      },
+      {
+        "debutMs": 15600,
+        "finMs": 15950,
+        "texte": "PME",
+      },
+      {
+        "debutMs": 16000,
+        "finMs": 16350,
+        "texte": "gagne",
+      },
+      {
+        "debutMs": 16400,
+        "finMs": 16750,
+        "texte": "5",
+      },
+      {
+        "debutMs": 16800,
+        "finMs": 17150,
+        "texte": "heures",
+      },
+      {
+        "debutMs": 17200,
+        "finMs": 17550,
+        "texte": "par",
+      },
+      {
+        "debutMs": 17600,
+        "finMs": 17950,
+        "texte": "semaine.",
+      },
+      {
+        "debutMs": 18000,
+        "finMs": 18350,
+        "texte": "Et",
+      },
+      {
+        "debutMs": 18400,
+        "finMs": 18750,
+        "texte": "elle",
+      },
+      {
+        "debutMs": 18800,
+        "finMs": 19150,
+        "texte": "réduit",
+      },
+      {
+        "debutMs": 19200,
+        "finMs": 19550,
+        "texte": "ses",
+      },
+      {
+        "debutMs": 19600,
+        "finMs": 19950,
+        "texte": "relances",
+      },
+      {
+        "debutMs": 20000,
+        "finMs": 20350,
+        "texte": "de",
+      },
+      {
+        "debutMs": 20400,
+        "finMs": 20750,
+        "texte": "30",
+      },
+      {
+        "debutMs": 20800,
+        "finMs": 21150,
+        "texte": "%.",
+      },
+    ],
+    "scenes": [
+      {
+        "debutMs": 0,
+        "empreinte": "3455669c088a91e7",
+        "finMs": 3000,
+        "id": "a",
+        "mots": {
+          "dernier": 5,
+          "premier": 0,
+        },
+        "niveau": 1,
+        "parametres": {
+          "decimales": 0,
+          "libelle": "Devis envoyés ce mois",
+          "prefixe": "+",
+          "suffixe": " %",
+          "tendance": "hausse",
+          "valeur": 38,
+          "variation": "vs septembre",
+        },
+        "piece": "carte-kpi",
+        "position": "bas",
+        "transition": {
+          "dureeMs": 400,
+          "entree": "fondu",
+          "sortie": "fondu",
+        },
+        "version": 1,
+      },
+    ],
+    "version": "plan-scenes-1",
+  },
+}
+`;
