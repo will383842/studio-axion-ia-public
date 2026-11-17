@@ -23,7 +23,6 @@
       }
     ],
     "paths": {
-      "remotion": ["./studio-rendu/node_modules/remotion", "./tests/types/remotion-absent-racine.d.ts"],
       "@/*": [
         "./src/*"
       ]
