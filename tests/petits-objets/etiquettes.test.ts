@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON, EXEMPLES_ETIQUETTES, TEXTES_ETIQUETTES } from "../../src/briques/motion/petits-objets/etiquettes";
 import { verifierDefinition, MOTS_MAX, type DefinitionObjet, type TonObjet } from "../../src/briques/motion/petits-objets/contrat";
-import { PALETTE } from "../../src/briques/charte/axion-2026";
+import { PALETTE, autoriserTexte } from "../../src/briques/charte/axion-2026";
 import { couleursSur } from "../../src/briques/jetons-motion";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { IMAGES_SORTIE } from "../../src/briques/motion/petits-objets/progres";
@@ -110,6 +110,33 @@ describe("C9-11 propres à la fiche", () => {
   });
   it("jamais le texte d'une autre pièce hors liste dans le balisage", () => {
     for (const d of DEFS) expect(rendre(d, entree(d), 30)).not.toMatch(/<text[^>]*>[^<]*(facebook|instagram)/i);
+  });
+});
+
+describe("C9-11 lisibilité (rendu prouvé à l'image 30)", () => {
+  const CAS: [DefinitionObjet<unknown>, unknown][] = [
+    ...DEFS.map((d) => [d, entree(d)] as [DefinitionObjet<unknown>, unknown]),
+    [DEF_BADGE as DefinitionObjet<unknown>, { texte: "Validé", role: "coche" }],
+    [DEF_BADGE as DefinitionObjet<unknown>, { texte: "Nouveau", role: "pouce" }],
+    [DEF_ETIQUETTE_ICONE as DefinitionObjet<unknown>, { texte: "Validé", role: "coche" }],
+    [DEF_TAMPON as DefinitionObjet<unknown>, { texte: "Validé" }],
+  ];
+  it("traits et icône ≠ remplissage du panneau ; chaque texte/fond ∈ PAIRES_TEXTE", () => {
+    for (const [d, p] of CAS) for (const fond of ["ivoire", "noir"] as const) for (const ton of TONS) {
+      const m = rendre(d, p, 30, ton, fond);
+      const panneau = (/<path[^>]*fill="(#[0-9A-Fa-f]{6})"[^>]*stroke="none"/.exec(m)?.[1] ?? couleursSur(fond).fond).toLowerCase();
+      const traits = [...m.matchAll(/stroke="(#[0-9A-Fa-f]{6})"/g)].map((c) => c[1].toLowerCase());
+      expect(traits.length).toBeGreaterThan(0);
+      for (const t of traits) expect(t, `${d.id} ${ton} ${fond}`).not.toBe(panneau);
+      const textes = [...m.matchAll(/<text[^>]*fill="(#[0-9A-Fa-f]{6})"/g)].map((c) => c[1]);
+      expect(textes.length).toBeGreaterThan(0);
+      for (const t of textes) expect(autoriserTexte(t, panneau), `${d.id} ${ton} ${fond} ${t}/${panneau}`).toBe(true);
+    }
+  });
+  it("badge « Nouveau » accent : icône blanche sur fond terracotta (pas de même couleur)", () => {
+    const m = rendre(DEF_BADGE as DefinitionObjet<unknown>, { texte: "Nouveau", role: "pouce" }, 30, "accent", "ivoire");
+    expect(m).toContain(`fill="${PALETTE.terracotta}"`);
+    expect(m).toContain(`stroke="${PALETTE.blanc}"`);
   });
 });
 

@@ -6,12 +6,19 @@
  */
 import { createElement, type JSX } from "react";
 import { FAMILLE_CSS, PALETTE } from "../../charte/axion-2026";
+import { couleursSur } from "../../jetons-motion";
 import { MOTS_MAX, type DefinitionObjet, type ProprietesObjet, type TonObjet } from "./contrat";
 import { iconeObjet } from "./icones-objets";
 import { phaseObjet } from "./progres";
 import { couleurDuTon } from "./tons";
 import { tremblement } from "./tremblement";
 import { TraceSvg } from "./TraceSvg";
+
+/** Tracé de la pièce avec une couleur EXPLICITE (celle de l'habillage) : le contour et l'icône ne se confondent jamais avec le panneau. */
+function Trace({ d, t, couleur, epaisseur }: { d: string; t: number; couleur: string; epaisseur: number }): JSX.Element {
+  const k = Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 0;
+  return <path d={d} pathLength={1} strokeDasharray={1} strokeDashoffset={1 - k} stroke={couleur} strokeWidth={epaisseur} strokeLinecap="round" strokeLinejoin="round" fill="none" />;
+}
 
 /** Liste fermée : tout autre texte est refusé (`valider` = null). */
 export const TEXTES_ETIQUETTES: readonly string[] = Object.freeze([
@@ -68,14 +75,13 @@ const tonPermis = (ton: TonObjet, texte: string): TonObjet => (ton === "valide" 
 const BALISES = ["circle", "line", "rect", "ellipse", "polyline", "polygon"];
 
 /** Icône de la bibliothèque, mise à l'échelle ; les tracés (`path`) se dessinent, les autres formes apparaissent. */
-function Icone({ role, x, y, t, ton }: { role: string; x: number; y: number; t: number; ton: TonObjet }): JSX.Element | null {
+function Icone({ role, x, y, t, couleur }: { role: string; x: number; y: number; t: number; couleur: string }): JSX.Element | null {
   const ic = iconeObjet(role);
   if (!ic) return null;
-  const couleur = couleurDuTon(ton, "ivoire");
   return (
     <g transform={`translate(${f(x)} ${f(y)}) scale(${ECHELLE_ICONE})`}>
       {ic.noeuds.map(([balise, attrs], i) => {
-        if (balise === "path") return <TraceSvg key={i} d={String((attrs as Record<string, unknown>).d)} t={t} ton={ton} fond="ivoire" epaisseur={2} />;
+        if (balise === "path") return <Trace key={i} d={String((attrs as Record<string, unknown>).d)} t={t} couleur={couleur} epaisseur={2} />;
         if (!BALISES.includes(balise)) return null;
         return createElement(balise, { key: i, ...(attrs as object), fill: "none", stroke: couleur, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", opacity: entree(t) === undefined ? undefined : 0 });
       })}
@@ -109,8 +115,8 @@ function pilule(habillage: Habillage, majuscules = false) {
       <svg viewBox={`0 0 ${TOILE.largeur} ${TOILE.hauteur}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <g opacity={phase.opacite}>
           <path d={d} fill={h.fond} stroke="none" opacity={entree(phase.trace)} />
-          <TraceSvg d={d} t={phase.trace} ton={ton} fond="ivoire" epaisseur={4} />
-          {avecIcone && parametres.role ? <Icone role={parametres.role} x={x0 + 40} y={CENTRE.y - ICONE / 2} t={phase.trace} ton={ton} /> : null}
+          <Trace d={d} t={phase.trace} couleur={h.trait} epaisseur={4} />
+          {avecIcone && parametres.role ? <Icone role={parametres.role} x={x0 + 40} y={CENTRE.y - ICONE / 2} t={phase.trace} couleur={h.trait} /> : null}
           <text x={xTexte} y={CENTRE.y + taille * 0.35} fontFamily={FAMILLE_CSS} fontWeight={700} fontSize={taille.toFixed(1)} fill={h.encre} opacity={entree(phase.trace)}>
             {affiche}
           </text>
@@ -120,13 +126,17 @@ function pilule(habillage: Habillage, majuscules = false) {
   };
 }
 
-/** Pastille blanche : fond blanc, texte noir (paire de la charte), icône et contour du ton (lu sur ivoire). */
-const habillagePastille: Habillage = () => ({ fond: PALETTE.blanc, trait: PALETTE.noir, encre: PALETTE.noir });
-/** Étiquette : fond de panneau selon le fond de la scène, texte de la scène. */
-const habillageEtiquette: Habillage = (_t, _ton, fond) => ({ fond: fond === "noir" ? PALETTE.noir : PALETTE.ivoire, trait: PALETTE.noir, encre: fond === "noir" ? PALETTE.ivoire : PALETTE.noir });
-/** Badge coloré : fond du ton (lu sur ivoire), texte blanc ; neutre = fond blanc, texte noir. */
-const habillageBadge: Habillage = (_t, ton) =>
-  ton === "neutre" ? { fond: PALETTE.blanc, trait: PALETTE.noir, encre: PALETTE.noir } : { fond: couleurDuTon(ton, "ivoire"), trait: PALETTE.blanc, encre: PALETTE.blanc };
+/** Pastille blanche : fond blanc, texte noir (paire de la charte), icône et contour du ton (lu sur ivoire, jamais blanc). */
+const habillagePastille: Habillage = (_t, ton) => ({ fond: PALETTE.blanc, trait: couleurDuTon(ton, "ivoire"), encre: PALETTE.noir });
+/** Étiquette : fond de panneau selon le fond de la scène, texte de la scène, trait du ton lu sur ce même fond (jamais la couleur du panneau). */
+const habillageEtiquette: Habillage = (_t, ton, fond) => ({ fond: fond === "noir" ? PALETTE.noir : PALETTE.ivoire, trait: couleurDuTon(ton, fond), encre: fond === "noir" ? PALETTE.ivoire : PALETTE.noir });
+/** Badge : accent/erreur = fond terracotta, contour, icône et texte blancs ([blanc, terracotta]) ; neutre = fond blanc, tout en noir ;
+ * valide = fond blanc, contour et icône sauge, texte noir (le texte blanc sur sauge n'est pas une paire de la charte). */
+const habillageBadge: Habillage = (_t, ton) => {
+  if (ton === "neutre") return { fond: PALETTE.blanc, trait: PALETTE.noir, encre: PALETTE.noir };
+  if (ton === "valide") return { fond: PALETTE.blanc, trait: PALETTE.reussite, encre: PALETTE.noir };
+  return { fond: couleurDuTon(ton, "ivoire"), trait: PALETTE.blanc, encre: PALETTE.blanc };
+};
 
 function definir(id: DefinitionObjet<ParametresEtiquette>["id"], valider: DefinitionObjet<ParametresEtiquette>["valider"], rendre: DefinitionObjet<ParametresEtiquette>["Rendu"], capacite: DefinitionObjet<ParametresEtiquette>["capacite"]): DefinitionObjet<ParametresEtiquette> {
   return { id, famille: "etiquette", capacite, valider, toile: TOILE, dureeSec: DUREE, donnees: "aucune", Rendu: rendre };
@@ -156,7 +166,7 @@ function rendreTampon(pr: ProprietesObjet<ParametresEtiquette>): JSX.Element {
       <g opacity={phase.opacite} transform={`translate(${t.dx.toFixed(2)} ${t.dy.toFixed(2)}) rotate(${angle.toFixed(2)} ${CENTRE.x} ${CENTRE.y})`}>
         <TraceSvg d={cadre(0)} t={phase.trace} ton={ton} fond={fond} epaisseur={8} />
         <TraceSvg d={cadre(16)} t={phase.trace} ton={ton} fond={fond} epaisseur={3} />
-        <text x={CENTRE.x} y={CENTRE.y + taille * 0.35} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleurDuTon(ton, fond)} opacity={entree(phase.trace)}>
+        <text x={CENTRE.x} y={CENTRE.y + taille * 0.35} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleursSur(fond).texte} opacity={entree(phase.trace)}>
           {affiche}
         </text>
       </g>
