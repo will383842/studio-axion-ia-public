@@ -13,6 +13,7 @@ const FICHIERS = [
   "src/components/generateur/FicheSujet.tsx",
   "src/services/a-publier.ts",
   "src/domaine/buffer.ts",
+  "src/services/buffer.ts",
 ];
 
 const INTERDIT = /buffer|zernio|\bkits?\b|variante|\bapi\b/i;
@@ -23,11 +24,12 @@ const INTERDIT = /buffer|zernio|\bkits?\b|variante|\bapi\b/i;
  */
 const TOLERES: Record<string, string[]> = {
   "src/domaine/buffer.ts": [
-    "Brouillon dans Buffer", // tests/r1-buffer-client.test.ts
-    "Aucun compte ${} n'est relié dans Buffer.", // tests/r1-buffer-client.test.ts
+    "Brouillon dans Buffer", // trié sur ce libellé exact par src/components/publication/liste-a-publier.ts:35 (ORDRE_ENVOYEES), montré aussi par src/components/calendrier/apercu-reseau.ts:48 ; comparé dans tests/a-publier-liste, a-publier-par-reseau, calendrier/cal-13c-corrections, r1-buffer-client:178
     "Buffer", // noms d'outils de « Déjà envoyée par … » : tests/zernio/z2e-*.test.ts, e2e-04-service.test.ts
     "Zernio",
   ],
+  // Identifiants de code (codes d'erreur) et traces console : jamais montrés à l'utilisateur.
+  "src/services/buffer.ts": ["BUFFER_NON_RELIE", "BUFFER_CLE", "BUFFER", "[studio] Buffer, ${} : ${}", "[studio] Buffer, échec sur ${} : ${}"],
 };
 
 /** Une chaîne est « affichée » si c'est une phrase (espace) ou un mot qui commence par une majuscule. */

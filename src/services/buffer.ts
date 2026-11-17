@@ -103,7 +103,7 @@ export async function actualiserCanauxBuffer(): Promise<CanauxEnregistres> {
   // Lot A1 : gelé → jamais de lecture chez Buffer ; `buffer.canaux` reste tel quel (figé, toujours lu).
   if (await bufferGele()) throw erreurGel();
   const f = await publicationReelle();
-  if (!f?.listerCanaux) throw new ErreurStudio("BUFFER_NON_RELIE", "Buffer n'est pas relié : la publication reste en essai.");
+  if (!f?.listerCanaux) throw new ErreurStudio("BUFFER_NON_RELIE", "L'ancien outil n'est pas relié : la publication reste en essai.");
   let canaux: CanalPublication[];
   try {
     canaux = await f.listerCanaux();
@@ -150,7 +150,7 @@ export async function testerBuffer(): Promise<{ message: string; comptes: number
   const parService = new Map<string, number>();
   for (const c of lus.canaux) parService.set(c.service, (parService.get(c.service) ?? 0) + 1);
   const liste = [...parService].map(([s, n]) => `${nomService(s)}${n > 1 ? ` ×${n}` : ""}`).join(", ");
-  await journaliser("reglages", `Buffer testé : ${lus.canaux.length} compte(s) relié(s)`);
+  await journaliser("reglages", `L'ancien outil testé : ${lus.canaux.length} compte(s) relié(s)`);
   return { comptes: lus.canaux.length, message: lus.canaux.length ? `L'ancien outil répond : ${liste}.` : "L'ancien outil répond, mais aucun compte n'y est relié." };
 }
 
@@ -167,21 +167,21 @@ export async function choisirCanalBuffer(reseau: IdReseau, canalId: string | str
     const reste = { ...actuelle };
     delete reste[reseau];
     await ecrireParametre(PARAM_CORRESPONDANCE, reste);
-    await journaliser("reglages", `Buffer : ${obtenirReseau(reseau).nom}, compte choisi à chaque envoi`);
+    await journaliser("reglages", `L'ancien outil : ${obtenirReseau(reseau).nom}, compte choisi à chaque envoi`);
     return;
   }
   const lus = (await canauxEnregistres())?.canaux ?? [];
   const canaux = ids.map((id) => lus.find((c) => c.id === id));
-  if (canaux.some((c) => !c || c.service !== serviceHistorique(reseau))) throw new ErreurStudio("COMPTE_INCONNU", "Ce compte n'est pas relié à ce réseau dans Buffer : actualisez les comptes.");
+  if (canaux.some((c) => !c || c.service !== serviceHistorique(reseau))) throw new ErreurStudio("COMPTE_INCONNU", "Ce compte n'est pas relié à ce réseau dans l'ancien outil : actualisez les comptes.");
   await ecrireParametre(PARAM_CORRESPONDANCE, { ...actuelle, [reseau]: ids });
-  await journaliser("reglages", `Buffer : ${obtenirReseau(reseau).nom}, proposé par défaut : ${canaux.map((c) => `« ${c!.nom} »`).join(" et ")}`);
+  await journaliser("reglages", `L'ancien outil : ${obtenirReseau(reseau).nom}, proposé par défaut : ${canaux.map((c) => `« ${c!.nom} »`).join(" et ")}`);
 }
 
 export async function definirModeBuffer(mode: ModeEnvoiPublication): Promise<void> {
   await exigerSession();
   if (mode !== "brouillon" && mode !== "programmer") throw new ErreurStudio("MODE_INCONNU", "Choix inconnu.");
   await ecrireParametre(PARAM_MODE, mode);
-  await journaliser("reglages", mode === "brouillon" ? "Buffer : envoi en brouillon (vous programmez dans Buffer)" : "Buffer : programmation directe à la date choisie");
+  await journaliser("reglages", mode === "brouillon" ? "L'ancien outil : envoi en brouillon (vous programmez dans l'ancien outil)" : "L'ancien outil : programmation directe à la date choisie");
 }
 
 /* ------------------------------------------------------------------ */
@@ -286,14 +286,14 @@ export async function noterErreurBuffer(contexte: string, e: unknown, entite?: {
   const phrase = versErreurStudio(e).message;
   const detail = e instanceof ErreurBuffer ? (e.detail ?? e.code) : e instanceof ErreurStudio ? e.code : e instanceof Error ? e.name : "erreur inattendue";
   console.warn(`[studio] Buffer, ${contexte} : ${detail}`);
-  await journaliser("publication", `Buffer, ${contexte} : ${phrase}`, entite);
+  await journaliser("publication", `L'ancien outil, ${contexte} : ${phrase}`, entite);
 }
 
 /** Erreur de Buffer → message pour l'opérateur : la phrase française fixe (`PHRASES_BUFFER`), jamais le détail. */
 export function versErreurStudio(e: unknown): ErreurStudio {
   if (e instanceof ErreurStudio) return e;
   if (e instanceof ErreurBuffer) return new ErreurStudio(e.code === "refuse" ? "BUFFER_CLE" : "BUFFER", e.message);
-  return new ErreurStudio("BUFFER", "Buffer n'a pas pu répondre : réessayez dans un instant.");
+  return new ErreurStudio("BUFFER", "L'ancien outil n'a pas pu répondre : réessayez dans un instant.");
 }
 
 /* ------------------------------------------------------------------ */
@@ -349,12 +349,12 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
     const actuelle = await d.publications.obtenir(publicationId);
     if (!actuelle || actuelle.modifieLe !== p.modifieLe) return actuelle;
     if (trouvee) {
-      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "Buffer" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, entite);
+      await journaliser("publication", `Envoi vers ${outil === "buffer" ? "l'ancien outil" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, entite);
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
-    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "Buffer n'a rien reçu : vérifiez dans Buffer avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
-    const eux = outil === "buffer" ? "Buffer" : "l'outil de publication";
-    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "dans Buffer" : "chez lui"} avant de renvoyer.`, lien: lienSource, estDemo: p.estDemo });
+    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "L'ancien outil n'a rien reçu : vérifiez chez lui avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
+    const eux = outil === "buffer" ? "l'ancien outil" : "l'outil de publication";
+    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "chez lui" : "chez lui"} avant de renvoyer.`, lien: lienSource, estDemo: p.estDemo });
     return modif;
   });
 }
@@ -432,7 +432,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     } catch (e) {
       // Supprimée dans Buffer par l'opérateur (introuvable) : on le dit, on n'efface rien ici.
       if (e instanceof ErreurBuffer && e.code === "introuvable") {
-        await ecrireSiInchange(p, { statut: "echec", erreur: "Introuvable dans Buffer (retirée de Buffer ?).", etatLuLe: new Date(instant).toISOString() });
+        await ecrireSiInchange(p, { statut: "echec", erreur: "Introuvable dans l'ancien outil (retirée chez lui ?).", etatLuLe: new Date(instant).toISOString() });
         r.changees++;
       }
       continue;
@@ -446,7 +446,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
     if (etat.statut === "publiee" && etat.envoyeeLe) changement.date = etat.envoyeeLe;
     else if (etat.date && etat.statut === "programmee") changement.date = etat.date;
-    const raisonEchec = `Buffer n'a pas pu publier sur ${obtenirReseau(p.reseau).nom} : voyez la raison dans Buffer.`;
+    const raisonEchec = `L'ancien outil n'a pas pu publier sur ${obtenirReseau(p.reseau).nom} : voyez la raison chez lui.`;
     if (etat.statut === "echec") changement.erreur = raisonEchec;
     const ecrite = await ecrireSiInchange(p, changement);
     if (!ecrite || etat.statut === p.statut) continue;
@@ -454,14 +454,14 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     if (etat.statut === "publiee") {
       if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
       if (p.varianteId) await synchroniserEtats(p.varianteId);
-      await journaliser("publication", `Publiée par Buffer sur ${obtenirReseau(p.reseau).nom}`, entite);
+      await journaliser("publication", `Publiée par l'ancien outil sur ${obtenirReseau(p.reseau).nom}`, entite);
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       console.warn(`[studio] Buffer, échec sur ${p.reseau} : ${etat.erreur ?? "sans raison donnée"}`);
       await journaliser("publication", raisonEchec, entite);
-      await creerNotification({ type: "echec", titre: "Buffer n'a pas pu publier", message: raisonEchec, lien: lienSource, estDemo: p.estDemo });
+      await creerNotification({ type: "echec", titre: "L'ancien outil n'a pas pu publier", message: raisonEchec, lien: lienSource, estDemo: p.estDemo });
     }
   }
   return r;

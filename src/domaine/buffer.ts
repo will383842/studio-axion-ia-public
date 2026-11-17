@@ -99,7 +99,7 @@ export function comptesPourReseau(reseau: IdReseau, canaux: CanalPublication[], 
   const nom = nomService(service);
   const candidats = canaux.filter((c) => c.service === service);
   const deconnecte = (comptes: CanalPublication[]) => ({ ok: false as const, raison: "deconnecte" as const, candidats, message: messageDeconnectes(reseau, comptes) });
-  if (!candidats.length) return { ok: false, raison: "aucun", candidats, message: `Aucun compte ${nom} n'est relié dans Buffer.` };
+  if (!candidats.length) return { ok: false, raison: "aucun", candidats, message: `Aucun compte ${nom} n'est relié dans l'ancien outil.` };
   if (choisis) {
     const ids = [...new Set(choisis)];
     const retenus = ids.map((id) => candidats.find((c) => c.id === id));
