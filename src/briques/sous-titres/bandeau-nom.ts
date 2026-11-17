@@ -104,3 +104,18 @@ export function cssBandeauNom(b: BandeauNomRendu, etat: EtatBandeau, familles: {
     filet: { position: "absolute", left: 0, top: 0, width: FILET * e, height: "100%", background: PALETTE.terracotta },
   };
 }
+
+/** C2-U11 : clé de l'entrée de commande (figée au lancement par `src/services/bandeau-nom.ts`). */
+export const ENTREE_BANDEAU_NOM = "bandeauNom";
+
+/**
+ * Contrôle pur de l'entrée `bandeauNom` d'une commande : `{ nom, fonction }` en texte non vide (rognés), sinon `null`.
+ * Ne déduit ni n'invente rien : la fonction est celle qui a été saisie.
+ */
+export function lireEntreeBandeau(entrees: unknown): { nom: string; fonction: string } | null {
+  const brut = (entrees as Record<string, unknown> | null | undefined)?.[ENTREE_BANDEAU_NOM];
+  if (!brut || typeof brut !== "object") return null;
+  const { nom, fonction } = brut as { nom?: unknown; fonction?: unknown };
+  if (typeof nom !== "string" || typeof fonction !== "string") return null;
+  return nom.trim() && fonction.trim() ? { nom: nom.trim(), fonction: fonction.trim() } : null;
+}
