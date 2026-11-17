@@ -14,7 +14,7 @@ const retourDefaut = { plan: { fenetres: [] }, choix: [], manques: [], supprimee
 
 function montage(ports: Partial<PortsAxionV4> = {}) {
   const defaut = vi.fn(async (_p: Plan, _o: { k: number }) => retourDefaut as unknown as Awaited<ReturnType<Defaut>>);
-  const p = { trouver: vi.fn(async () => extrait), preparer: vi.fn(async () => true), ...ports } as PortsAxionV4;
+  const p = { trouver: vi.fn(async () => extrait), preparer: vi.fn(async () => "fenetre-1" as string | null), ...ports } as PortsAxionV4;
   return { defaut, p, f: avecExtraitsMaisonV4<{ k: number }>(defaut, p) };
 }
 
@@ -45,9 +45,28 @@ describe("avecExtraitsMaisonV4", () => {
     expect(plan.fenetres[0]).toEqual(fen("axion:Will parle café"));
   });
 
+  it("axion: trouvé : le media et la cle rendus sont la clé FINALE déposée, mediaInitial reste celui de la fenêtre", async () => {
+    const finale = "studio/dev/facecam-animee/v-1/videos/v4-0-0.mp4";
+    const { defaut, p, f } = montage({ preparer: vi.fn(async () => finale) });
+    const plan = Object.freeze({ fenetres: [Object.freeze({ debut: 0, fin: 3, media: "v4-0-0.mp4", recherche: "axion:café" })] }) as unknown as Plan;
+    const r = await f(plan, { k: 1 });
+    expect(defaut).not.toHaveBeenCalled();
+    expect(p.preparer).toHaveBeenCalledWith(extrait, "v4-0-0.mp4");
+    expect(r.plan.fenetres[0].media).toBe(finale);
+    expect(r.choix[0].cle).toBe(finale);
+    expect(r.choix[0].mediaInitial).toBe("v4-0-0.mp4");
+  });
+
+  it("axion: sans mot utile : repli ordinaire sans préfixe, ports jamais appelés", async () => {
+    const { defaut, p, f } = montage();
+    expect(await f(planDe("axion: le de"), { k: 1 })).toBe(retourDefaut);
+    expect(p.trouver).not.toHaveBeenCalled();
+    expect(defaut.mock.calls[0][0].fenetres[0].recherche.startsWith("axion")).toBe(false);
+  });
+
   const cas: [string, Partial<PortsAxionV4>][] = [
     ["introuvable", { trouver: async () => null }],
-    ["préparation ratée", { preparer: async () => false }],
+    ["préparation ratée", { preparer: async () => null }],
     ["port qui lève", { trouver: async () => { throw new Error("boum"); } }],
     ["préparation qui lève", { preparer: async () => { throw new Error("boum"); } }],
   ];

@@ -5,14 +5,14 @@
  */
 import type { FenetrePlan } from "@/domaine/facecam-animee/plan";
 import type { ResultatImages } from "../images/index";
-import { lireRechercheAxion } from "./recherche";
+import { estRechercheAxion, lireRechercheAxion } from "./recherche";
 
 export interface ExtraitAxionV4 { cle: string; debutSec: number; longueurSec: number }
 
 export interface PortsAxionV4 {
   trouver(recherche: string, dureeFenetreSec: number): Promise<ExtraitAxionV4 | null>;
-  /** Écrit le clip muet sous `cleCible` (le `media` de la fenêtre) ; `true` si c'est fait. */
-  preparer(extrait: ExtraitAxionV4, cleCible: string): Promise<boolean>;
+  /** Écrit le clip muet sous `cleCible` (le `media` de la fenêtre) ; rend la clé FINALE déposée (celle que le moteur compare), `null` si raté. */
+  preparer(extrait: ExtraitAxionV4, cleCible: string): Promise<string | null>;
 }
 
 type Plan = { fenetres: FenetrePlan[] };
@@ -29,23 +29,24 @@ export function avecExtraitsMaisonV4<O>(
   ports: PortsAxionV4,
 ): typeof defaut {
   return async (plan, o) => {
-    const rang = plan.fenetres.findIndex((f) => lireRechercheAxion(f.recherche) !== null);
+    const rang = plan.fenetres.findIndex((f) => estRechercheAxion(f.recherche));
     if (rang < 0) return defaut(plan, o);
     const f = plan.fenetres[rang];
     const lue = lireRechercheAxion(f.recherche);
     let extrait: ExtraitAxionV4 | null = null;
+    let cleFinale: string | null = null;
     try {
       if (lue) {
         extrait = await ports.trouver(lue.motsCles.join(" "), Math.max(0, f.fin - f.debut));
-        if (extrait && !(await ports.preparer(extrait, f.media))) extrait = null;
+        cleFinale = extrait ? await ports.preparer(extrait, f.media) : null;
       }
     } catch {
-      extrait = null;
+      cleFinale = null;
     }
-    if (extrait) {
+    if (extrait && cleFinale) {
       return {
-        plan: { ...plan, fenetres: plan.fenetres.map((x, i) => (i === rang ? { ...f, media: f.media, video: true, depuisSec: 0 } : x)) },
-        choix: [{ fenetre: rang, mediaInitial: f.media, source: "mes-images", id: extrait.cle, genre: "video", cle: f.media, scene: f.recherche, empreinte: extrait.cle, raison: "extrait des vidéos de Will (archive)" }],
+        plan: { ...plan, fenetres: plan.fenetres.map((x, i) => (i === rang ? { ...f, media: cleFinale, video: true, depuisSec: 0 } : x)) },
+        choix: [{ fenetre: rang, mediaInitial: f.media, source: "mes-images", id: extrait.cle, genre: "video", cle: cleFinale, scene: f.recherche, empreinte: extrait.cle, raison: "extrait des vidéos de Will (archive)" }],
         manques: [],
         supprimees: [],
         empreintes: [extrait.cle],
