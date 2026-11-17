@@ -87,10 +87,10 @@ describe("R1 — synchronisation des états Buffer", () => {
     const p = (await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN)).publications[0];
     buffer.changer(p.idExterne!, { status: "error", error: { message: "Instagram a refusé la vidéo (format).", supportUrl: null } });
     await buf.synchroniserEtatsBuffer({ force: true });
-    expect(await depots().publications.obtenir(p.id)).toMatchObject({ statut: "echec", erreur: "L'ancien outil n'a pas pu publier sur Instagram : voyez la raison chez le diffuseur." });
+    expect(await depots().publications.obtenir(p.id)).toMatchObject({ statut: "echec", erreur: "L'ancien outil n'a pas pu publier sur Instagram : voyez la raison chez lui." });
     // La raison donnée par Buffer part au serveur seulement ; le journal du studio garde la phrase simple.
     expect(serveur.mock.calls.map((c) => c.join(" ")).join("\n")).toContain("Instagram a refusé la vidéo (format).");
-    expect((await depots().evenements.lister()).map((e) => e.message)).toContain("L'ancien outil n'a pas pu publier sur Instagram : voyez la raison chez le diffuseur.");
+    expect((await depots().evenements.lister()).map((e) => e.message)).toContain("L'ancien outil n'a pas pu publier sur Instagram : voyez la raison chez lui.");
     serveur.mockRestore();
     const notes = await depots().notifications.lister((n) => n.type === "echec");
     expect(notes.map((n) => n.titre)).toContain("L'ancien outil n'a pas pu publier");

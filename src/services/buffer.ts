@@ -181,7 +181,7 @@ export async function definirModeBuffer(mode: ModeEnvoiPublication): Promise<voi
   await exigerSession();
   if (mode !== "brouillon" && mode !== "programmer") throw new ErreurStudio("MODE_INCONNU", "Choix inconnu.");
   await ecrireParametre(PARAM_MODE, mode);
-  await journaliser("reglages", mode === "brouillon" ? "L'ancien outil : envoi en brouillon (vous programmez chez le diffuseur)" : "L'ancien outil : programmation directe à la date choisie");
+  await journaliser("reglages", mode === "brouillon" ? "L'ancien outil : envoi en brouillon (vous programmez dans l'ancien outil)" : "L'ancien outil : programmation directe à la date choisie");
 }
 
 /* ------------------------------------------------------------------ */
@@ -352,9 +352,9 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
       await journaliser("publication", `Envoi vers ${outil === "buffer" ? "l'ancien outil" : "l'outil de publication"} retrouvé (${obtenirReseau(p.reseau).nom})`, entite);
       return d.publications.modifier(p.id, { etatEnvoi: "envoye", idExterne: trouvee.idExterne, statut: trouvee.statut, etatLuLe: new Date(instant).toISOString(), ...(trouvee.lien ? { urlPubliee: trouvee.lien } : {}) });
     }
-    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "L'ancien outil n'a rien reçu : vérifiez chez le diffuseur avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
+    const modif = await d.publications.modifier(p.id, { etatEnvoi: "absent", statut: "echec", erreur: outil === "buffer" ? "L'ancien outil n'a rien reçu : vérifiez chez lui avant de renvoyer." : "L'outil de publication n'a rien reçu : vérifiez chez lui avant de renvoyer.", etatLuLe: new Date(instant).toISOString() });
     const eux = outil === "buffer" ? "l'ancien outil" : "l'outil de publication";
-    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "chez le diffuseur" : "chez lui"} avant de renvoyer.`, lien: lienSource, estDemo: p.estDemo });
+    await creerNotification({ type: "echec", titre: `Envoi vers ${eux} non arrivé`, message: `${obtenirReseau(p.reseau).nom} : ${eux} n'a rien reçu. Vérifiez ${outil === "buffer" ? "chez lui" : "chez lui"} avant de renvoyer.`, lien: lienSource, estDemo: p.estDemo });
     return modif;
   });
 }
@@ -432,7 +432,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     } catch (e) {
       // Supprimée dans Buffer par l'opérateur (introuvable) : on le dit, on n'efface rien ici.
       if (e instanceof ErreurBuffer && e.code === "introuvable") {
-        await ecrireSiInchange(p, { statut: "echec", erreur: "Introuvable chez le diffuseur (retirée chez lui ?).", etatLuLe: new Date(instant).toISOString() });
+        await ecrireSiInchange(p, { statut: "echec", erreur: "Introuvable dans l'ancien outil (retirée chez lui ?).", etatLuLe: new Date(instant).toISOString() });
         r.changees++;
       }
       continue;
@@ -446,7 +446,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
     if (etat.statut === "publiee" && etat.envoyeeLe) changement.date = etat.envoyeeLe;
     else if (etat.date && etat.statut === "programmee") changement.date = etat.date;
-    const raisonEchec = `L'ancien outil n'a pas pu publier sur ${obtenirReseau(p.reseau).nom} : voyez la raison chez le diffuseur.`;
+    const raisonEchec = `L'ancien outil n'a pas pu publier sur ${obtenirReseau(p.reseau).nom} : voyez la raison chez lui.`;
     if (etat.statut === "echec") changement.erreur = raisonEchec;
     const ecrite = await ecrireSiInchange(p, changement);
     if (!ecrite || etat.statut === p.statut) continue;
