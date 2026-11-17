@@ -138,6 +138,8 @@ export interface OutilsChaineV4 {
   planScenes?: { appeler?: AppelClaude };
   /** GV-MD-03 : calage des animations sur le début du mot dit. ÉTEINT par défaut (absent ou faux : plan d'Opus inchangé, rendu des vidéos existantes identique). */
   calageAuMot?: boolean;
+  /** BR-TELEPHONE-a : le réalisateur peut proposer le téléphone qui joue un extrait. ÉTEINT par défaut (absent : message du réalisateur inchangé). */
+  telephoneVideo?: boolean;
   /** GV2-34 : fin douce (dernier passage prolongé, fondu de sortie du son). ÉTEINT par défaut (absent ou faux : coupes et filtre identiques à la répétition validée). */
   finDouce?: boolean;
   /** Transcription horodatée au mot de la prise brute (temps de la prise). Lève `EnCoursChaineV4` tant qu'elle n'est pas finie. */
@@ -469,7 +471,7 @@ function planCaleV4(plan: PlanFacecamAnimee, mots: readonly MotTranscrit[] | und
 }
 
 /** Entrée du réalisateur pour la prise montée (sans écran de fin : la v4 se termine sur la dernière plaquette). PUR. */
-export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes" | "cadrage">, options: { plafondAtteint?: boolean; historique?: HistoriqueVideo[]; calageAuMot?: boolean } = {}): EntreeRealisateur {
+export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes" | "cadrage">, options: { plafondAtteint?: boolean; historique?: HistoriqueVideo[]; calageAuMot?: boolean; telephoneVideo?: boolean } = {}): EntreeRealisateur {
   const c = etat.coupes;
   if (!c) throw new ErreurChaineV4("Les coupes de la prise manquent : réessayez.", true);
   return {
@@ -480,6 +482,7 @@ export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes
     ...(options.historique?.length ? { historique: options.historique } : {}),
     ...(options.plafondAtteint ? { plafondAtteint: true } : {}),
     ...(options.calageAuMot ? { calageAuMot: true } : {}),
+    ...(options.telephoneVideo === true ? { telephoneVideo: true } : {}),
     prise: {
       src: PRISE_MONTEE_V4,
       finSec: c.dureeSec,
@@ -579,7 +582,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       const repli = etat.repliSansVideo && !etat.repliSansVideo.fait ? etat.repliSansVideo : null;
       // État abîmé (repli commencé mais plan d'Opus perdu) : on le dit, on ne refait pas une mise en scène ordinaire à la place.
       if (repli && !etat.realisation) throw new ErreurChaineV4(phraseRepliEchecV4(repli.retirees), true, "repli sans vidéo : le plan précédent est introuvable", etat);
-      const entree = entreeRealisateurV4(etat, { plafondAtteint, historique, ...(outils.calageAuMot ? { calageAuMot: true } : {}) });
+      const entree = entreeRealisateurV4(etat, { plafondAtteint, historique, ...(outils.calageAuMot ? { calageAuMot: true } : {}), ...(outils.telephoneVideo ? { telephoneVideo: true } : {}) });
       const r = await realiser(
         repli ? { ...entree, repli: { interdites: IDS_PLAQUETTES_A_VIDEO_V4, elementsPrecedents: repli.elementsPrecedents, erreurs: erreursRepliV4(etat.realisation!.plan, repli.retirees), essaisMax: ESSAIS_REPLI_SANS_VIDEO_V4 } } : entree,
         { appeler: outils.appelerRealisateur },
