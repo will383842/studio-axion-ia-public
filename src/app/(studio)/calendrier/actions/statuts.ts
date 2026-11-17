@@ -6,6 +6,7 @@
  * (un refus archive). Le verrou du passé (jour de Paris) et du publié est vérifié ici, côté serveur.
  */
 import { validerEntree as validerEntreeService } from "@/services/valider-entree";
+import { publicationEditorialeAutorisee } from "@/services/zernio";
 import { exigerSession } from "@/services/auth";
 import { depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { changerStatut } from "@/services/plan-editorial";
@@ -46,7 +47,7 @@ export async function accepterEntree(id: string): Promise<Resultat<CreneauPlan>>
         obtenir: (x) => d.creneaux.obtenir(x),
         enregistrer: (x) => d.creneaux.enregistrer(x),
         versAValider: async (x) => { await changerStatut(d, x, "a_valider", "studio", maintenant()); },
-        reglagesOuverts: async () => false,
+        reglagesOuverts: () => publicationEditorialeAutorisee(),
       },
       id,
       session.id,

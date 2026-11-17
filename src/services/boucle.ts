@@ -305,6 +305,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   // (aucun import du port, aucune écriture). HORS du tour ; une erreur est journalisée et ne casse jamais le tour.
   void lancerAnnexe("parcours de conversation", async () => (await import("./branchements-zernio")).passageParcoursZernio(), 0);
   void lancerAnnexe("refus d'envoi", async () => (await import("./alertes-refus-envoi")).surveillerRefusEnvoi(), 0);
+  void lancerAnnexe("envois du calendrier", async () => (await import("./branchement-envoi-calendrier")).tourEnvoisCalendrierServeur(), 0);
   // Tableau animé : écriture du script et découpage en scènes (plusieurs minutes) HORS du tour, une seule fois à la fois.
   void lancerAnnexe("tâches du tableau animé", async () => (await import("./tableau-creation")).travaillerTachesTableau(), 0);
   // Comité éditorial des idées (éteint par défaut, réglage `idees.comite`) : lot groupé à moitié prix, HORS du tour.
