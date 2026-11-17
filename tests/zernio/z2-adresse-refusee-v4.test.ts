@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * C2 · formulations v4 du message « adresse refusée » (422). Données fictives ; port et site FAUX.
  * Les v3 restent actives : F1 seule validée = F1 exacte ; rien de validé = rien ne part + alerte ; v3 seule = inchangé.
@@ -13,7 +14,6 @@ const pm = await import("@/services/parcours-mot");
 const Com = await import("@/services/_commun");
 const MS = await import("@/services/mots-service");
 
-const PARAM_VALIDATION = "parcours.validation.formulations"; // une formulation = un geste (écran /mots)
 const V3 = "mp-adresse-refusee-v3-1";
 const F1 = "mp-adresse-refusee-v4-1";
 const F2 = "mp-adresse-refusee-v4-2";

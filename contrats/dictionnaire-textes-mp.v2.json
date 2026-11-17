@@ -58,6 +58,14 @@
     "m1-adresse-rgpd": [
       "mp-m1-v6-1",
       "mp-m1-v6-2"
+    ],
+    "recu-neutre": [
+      "mp-recu-neutre-v1-1",
+      "mp-recu-neutre-v1-2"
+    ],
+    "pub-instagram": [
+      "mp-pub-ig-v1-1",
+      "mp-pub-ig-v1-2"
     ]
   },
   "textes": {
@@ -315,6 +323,26 @@
       "version": "mp-m1-v6-2",
       "statut": "actif",
       "texte": "Bonjour ! Merci pour votre commentaire. Pour vous envoyer le guide « [TITRE DU GUIDE] », répondez-moi ici avec votre adresse e-mail. Axion IA note le mot, le réseau et la publication par lesquels vous nous contactez, pour savoir d'où viennent les demandes, et les garde aussi longtemps que votre fiche de contact. Pour vous y opposer ou demander l'effacement de ces informations, écrivez-moi ici. Pour vos autres droits, dont l'accès : https://axion-ia.com/fr/politique-confidentialite (rubrique « Vos droits »)."
+    },
+    "mp-recu-neutre-v1-1": {
+      "version": "mp-recu-neutre-v1-1",
+      "statut": "actif",
+      "texte": "Merci. Si cette adresse est correcte, le guide y a déjà été envoyé ou le sera ; pensez à regarder vos courriers indésirables."
+    },
+    "mp-recu-neutre-v1-2": {
+      "version": "mp-recu-neutre-v1-2",
+      "statut": "actif",
+      "texte": "C'est noté, merci. Si l'adresse est la bonne, le guide y est déjà parti ou y arrivera ; regardez aussi dans vos courriers indésirables."
+    },
+    "mp-pub-ig-v1-1": {
+      "version": "mp-pub-ig-v1-1",
+      "statut": "actif",
+      "texte": "Merci pour votre commentaire ! Je vous écris en message privé. Si votre compte est privé ou si vous ne suivez pas le compte, le message peut se trouver dans vos demandes de messages."
+    },
+    "mp-pub-ig-v1-2": {
+      "version": "mp-pub-ig-v1-2",
+      "statut": "actif",
+      "texte": "Merci ! Le guide arrive en message privé. Pour le voir plus facilement, vous pouvez suivre le compte ; sinon, regardez dans vos demandes de messages."
     }
   }
 }
