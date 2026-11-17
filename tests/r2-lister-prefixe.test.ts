@@ -86,8 +86,9 @@ describe("garde stricte du dossier d'une vidéo", () => {
       expect(dossierPropreValide(p), p).toBe(false);
     }
   });
-  it("prefixesDeVideo : les 5 dossiers de l'environnement, et une erreur pour un id hors convention (rien n'est effacé)", () => {
-    expect(prefixesDeVideo("dev", "v-01")).toEqual(["audio-maitre", "videos", "facecam-animee", "image-video", "fiches-scenes", "scenes"].map((d) => `studio/dev/${d}/v-01/`));
+  it("prefixesDeVideo : les 5 dossiers de l'environnement (6 avec scenes allumé, éteint par défaut), et une erreur pour un id hors convention (rien n'est effacé)", () => {
+    expect(prefixesDeVideo("dev", "v-01")).toEqual(["audio-maitre", "videos", "facecam-animee", "image-video", "fiches-scenes"].map((d) => `studio/dev/${d}/v-01/`));
+    expect(prefixesDeVideo("dev", "v-01", { scenes: true })).toEqual(["audio-maitre", "videos", "facecam-animee", "image-video", "fiches-scenes", "scenes"].map((d) => `studio/dev/${d}/v-01/`));
     for (const id of ["", "..", "v/01", "v-01/../x", "v 01"]) expect(() => prefixesDeVideo("dev", id), id).toThrow();
   });
 });
