@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Bouton, EtatVide } from "@/components/ui";
 import type { EtatPlageExtrait, FicheSourceExtraits, PlageExtrait } from "@/domaine/archive-extraits";
 import type { PolitiqueSources } from "@/briques/archive-extraits/inscription";
+import type { SeuilsNoteInteret } from "@/briques/note-extraits/reglage";
+import { ExtraitsGardes } from "./ExtraitsGardes";
 
 const ETATS: { etat: EtatPlageExtrait; libelle: string; classe: string }[] = [
   { etat: "utilisable", libelle: "Utilisable", classe: "bg-surface-2 text-texte border-trait-fort" },
@@ -35,6 +37,15 @@ export interface ProprietesEcranSourcesExtraits {
   surValider?: (videoId: string, plageId: string) => void;
   surRanger?: (videoId: string) => void;
   surCocher?: (videoId: string) => void;
+  /** « Extraits gardés » (X4-12d). Absent : rendu inchangé. Les onglets ne paraissent que si une fiche est notée. */
+  note?: {
+    seuils?: SeuilsNoteInteret;
+    generateurs?: Record<string, string>;
+    reseaux?: Record<string, string>;
+    surGarderQuandMeme?: (videoId: string, plageId: string) => void;
+    surChangerSujet?: (videoId: string, plageId: string, sujet: string) => void;
+    surChiffresReels?: (videoId: string, valeur: boolean) => void;
+  };
 }
 
 /** Archive des extraits : affichage seul, sans page ni action (C3-UT-3.10b-a). */
@@ -54,7 +65,8 @@ export function EcranSourcesExtraits(p: ProprietesEcranSourcesExtraits) {
   }
   if (!p.fiches.length) return <EtatVide titre="Aucune source d'extraits pour l'instant" />;
 
-  return (
+  const notees = p.note ? p.fiches.filter((f) => f.noteVersion !== undefined) : [];
+  const liste = (
     <ul aria-label="Sources d'extraits" className="grid grid-cols-1 gap-4 font-sans">
       {p.fiches.map((f) => {
         const ouverte = ouvertes.includes(f.videoId);
@@ -133,5 +145,23 @@ export function EcranSourcesExtraits(p: ProprietesEcranSourcesExtraits) {
         );
       })}
     </ul>
+  );
+  if (!p.note || notees.length === 0) return liste;
+  return (
+    <div className="grid gap-6">
+      <ExtraitsGardes
+        noteActive
+        fiches={notees}
+        titres={p.titres}
+        seuils={p.note.seuils}
+        generateurs={p.note.generateurs}
+        reseaux={p.note.reseaux}
+        surNePlusProposer={p.surEcarter}
+        surGarderQuandMeme={p.note.surGarderQuandMeme}
+        surChangerSujet={p.note.surChangerSujet}
+        surChiffresReels={p.note.surChiffresReels}
+      />
+      {liste}
+    </div>
   );
 }

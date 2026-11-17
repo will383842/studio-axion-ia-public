@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FicheSourceExtraits, PlageExtrait } from "@/domaine/archive-extraits";
 import { LIBELLE_SUJET_EXTRAIT } from "@/briques/note-extraits/sujets";
 import { SEUILS_PAR_DEFAUT, type SeuilsNoteInteret } from "@/briques/note-extraits/reglage";
+import { pourquoiIgnores } from "@/briques/archive-extraits/raisons-note";
 import type { SujetExtrait } from "@/briques/note-extraits/types";
 
 type Onglet = "gardes" | "peut-etre" | "ignores";
@@ -18,6 +19,10 @@ export interface ProprietesExtraitsGardes {
   /** Titre lisible de chaque vidéo d'origine, par identifiant de vidéo. */
   titres: Record<string, string>;
   seuils?: SeuilsNoteInteret;
+  /** Libellé du format (générateur) de chaque vidéo, par identifiant de vidéo. Absent : le filtre porte sur la vidéo. */
+  generateurs?: Record<string, string>;
+  /** Réseau de chaque vidéo, par identifiant de vidéo. Absent : pas de filtre « Réseau ». */
+  reseaux?: Record<string, string>;
   /** Seul `true` exact allume. */
   noteActive: boolean | undefined;
   /** Adresse de l'aperçu (avec `#t=`), chargée au clic seulement. */
@@ -72,11 +77,12 @@ const minutes = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floo
 
 const CLASSE_BOUTON = "min-h-11 rounded-carte border border-trait-fort px-3 text-sm font-semibold text-texte";
 
-export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, noteActive, urlApercu, surApercu, surNePlusProposer, surGarderQuandMeme, surChangerSujet, surChiffresReels }: ProprietesExtraitsGardes) {
+export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, generateurs: formats, reseaux, noteActive, urlApercu, surApercu, surNePlusProposer, surGarderQuandMeme, surChangerSujet, surChiffresReels }: ProprietesExtraitsGardes) {
   const [onglet, setOnglet] = useState<Onglet>("gardes");
   const [sujet, setSujet] = useState("");
   const [usage, setUsage] = useState("");
   const [generateur, setGenerateur] = useState("");
+  const [reseau, setReseau] = useState("");
   const [ouverts, setOuverts] = useState<Record<string, boolean>>({});
 
   if (noteActive !== true) return null;
@@ -92,9 +98,12 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
 
   const sujets = [...new Set(cartes.map((c) => c.plage.sujet).filter((s): s is string => !!s))];
   const usages = [...new Set(cartes.flatMap((c) => c.plage.usages ?? []))];
-  const generateurs = [...new Set(cartes.map((c) => c.fiche.videoId))];
+  const cleGenerateur = (c: Carte): string => (formats ? (formats[c.fiche.videoId] ?? "") : c.fiche.videoId);
+  const generateurs = [...new Set(cartes.map(cleGenerateur).filter((g) => g !== ""))];
+  const cleReseau = (c: Carte): string => reseaux?.[c.fiche.videoId] ?? "";
+  const listeReseaux = [...new Set(cartes.map(cleReseau).filter((r) => r !== ""))];
   const filtre = (liste: Carte[]) =>
-    liste.filter((c) => (!sujet || c.plage.sujet === sujet) && (!usage || (c.plage.usages ?? []).includes(usage)) && (!generateur || c.fiche.videoId === generateur));
+    liste.filter((c) => (!sujet || c.plage.sujet === sujet) && (!usage || (c.plage.usages ?? []).includes(usage)) && (!generateur || cleGenerateur(c) === generateur) && (!reseau || cleReseau(c) === reseau));
 
   const visibles = onglet === "gardes" ? filtre(gardes) : onglet === "peut-etre" ? filtre(peutEtre) : [];
   const onglets: { id: Onglet; libelle: string }[] = [
@@ -132,7 +141,8 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
         <div className="flex flex-wrap gap-3">
           {selecteur("Sujet", sujet, sujets.map((s) => [s, libelleSujet(s)]), setSujet)}
           {selecteur("Usage", usage, usages.map((u) => [u, LIBELLE_USAGE[u] ?? u]), setUsage)}
-          {selecteur("Générateur", generateur, generateurs.map((g) => [g, titres[g] ?? g]), setGenerateur)}
+          {selecteur("Générateur", generateur, generateurs.map((g) => [g, formats ? g : (titres[g] ?? g)]), setGenerateur)}
+          {reseaux && selecteur("Réseau", reseau, listeReseaux.map((r) => [r, r]), setReseau)}
         </div>
       )}
 
@@ -141,8 +151,7 @@ export function ExtraitsGardes({ fiches, titres, seuils = SEUILS_PAR_DEFAUT, not
           {ignores.length === 0 && <li className="text-sm text-texte-faible">{"Rien n'a été ignoré."}</li>}
           {ignores.map((f) => (
             <li key={f.videoId} className="rounded-carte border border-trait-fort bg-surface-2 p-3 text-sm text-texte">
-              <span className="font-semibold">{titres[f.videoId] ?? f.videoId}</span> : {f.ignores?.nombre} ignoré{(f.ignores?.nombre ?? 0) > 1 ? "s" : ""}
-              {f.ignores?.raisonPrincipale ? `, surtout parce que ${f.ignores.raisonPrincipale}` : ""}
+              <span className="font-semibold">{titres[f.videoId] ?? f.videoId}</span> : {pourquoiIgnores(f.ignores)}
             </li>
           ))}
         </ul>
