@@ -1,8 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { EmpreinteVideo } from "@/briques/variete-commune/types";
-import { construireRapport } from "../../scripts/variete-commune/rapport";
+import { construireRapport, principal } from "../../scripts/variete-commune/rapport";
+
+type Ligne = Record<string, unknown>;
+const espion = vi.hoisted(() => ({
+  ecritures: vi.fn(),
+  publications: [] as Ligne[], versions: [] as Ligne[],
+}));
+vi.mock("server-only", () => ({}));
+vi.mock("@/services/_commun", () => {
+  const depot = (nom: "publications" | "versions" | "videos" | "travaux") => ({
+    lister: async (f?: (x: Ligne) => boolean) => ((nom === "publications" ? espion.publications : nom === "versions" ? espion.versions : []) as Ligne[]).filter((x) => (f ? f(x) : true)),
+    creer: espion.ecritures, modifier: espion.ecritures, supprimer: espion.ecritures,
+  });
+  return {
+    depots: () => ({ publications: depot("publications"), versions: depot("versions"), videos: depot("videos"), travaux: depot("travaux") }),
+    lireParametre: async (_cle: string, defaut: unknown) => defaut,
+    ecrireParametre: espion.ecritures,
+  };
+});
 
 const AXES = ["habillage", "typo", "palette", "ouverture", "fin"] as const;
 const emp = (videoId: string, le: string, formatId: string, valeur: (a: string) => string): EmpreinteVideo => ({
@@ -45,9 +63,24 @@ describe("rapport de variété commune (X2-09)", () => {
     expect(JSON.stringify(cinq)).toBe(copie);
   });
   it("30 vidéos au plus par réseau", () => {
-    const beaucoup = Array.from({ length: 45 }, (_, i) => autres(`v${i}`, `2026-10-${String(45 - i).padStart(2, "0")}T00:00:00Z`));
+    const beaucoup = Array.from({ length: 45 }, (_, i) => autres(`v${i}`, new Date(Date.UTC(2026, 9, 1) + (45 - i) * 86400000).toISOString()));
     const l = construireRapport([{ reseau: "instagram", videos: beaucoup }]).trim().split("\n");
     expect(l.length).toBe(2 + 30);
+  });
+  it("point d'entrée : 0 écriture sur les dépôts, tableau écrit sur la sortie standard", async () => {
+    espion.ecritures.mockClear();
+    espion.publications = ["a", "b", "c"].map((id, i) => ({ id: `p-${id}`, videoId: id, reseau: "instagram", statut: "publiee", via: "buffer", date: `2026-11-0${i + 1}` }));
+    espion.versions = ["a", "b", "c"].map((id) => ({ id: `ver-${id}`, videoId: id, statut: "prete", numero: 1, creeLe: "2026-11-10T00:00:00Z", commande: { moteurId: "montage-avocat", formatId: "montage-avocat" }, projetMontage: { motionCommune: { cartes: [{ modele: "x", debutSec: 1, statut: "ok" }] } } }));
+    const sortie: string[] = [];
+    const ecrit = vi.spyOn(process.stdout, "write").mockImplementation((c: string | Uint8Array) => (sortie.push(String(c)), true));
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      await principal();
+    } finally {
+      ecrit.mockRestore();
+    }
+    expect(espion.ecritures).not.toHaveBeenCalled();
+    expect(sortie.join("")).toContain("| Date | Réseau | Générateur | Score | Trop proche | Voisine | Axes communs |");
   });
   it("garde : lecture seule, ni publications.ts, ni argent", () => {
     const src = readFileSync(resolve(__dirname, "../../scripts/variete-commune/rapport.ts"), "utf8");

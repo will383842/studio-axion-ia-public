@@ -5,7 +5,9 @@
 // Usage (tsx ; « server-only » demande la condition react-server) :
 //   tsx --conditions=react-server scripts/variete-commune/rapport.ts
 //
-// Pour chaque réseau : les 30 dernières vidéos publiées ; pour chacune, le score de ressemblance maximal avec ses
+// Pour chaque réseau : les 30 dernières vidéos publiées ou programmées (`voisinesDuReseau` compte aussi les vidéos
+// « programmee » et ignore celles sans empreinte : ce sont donc les 30 dernières programmées/publiées AYANT une
+// empreinte) ; pour chacune, le score de ressemblance maximal avec ses
 // 10 voisines précédentes (plus anciennes), la voisine en cause et les axes communs.
 import type { EmpreinteVideo } from "../../src/briques/variete-commune/types";
 import { SEUIL_COMMUN, ressemblance } from "../../src/briques/variete-commune/ressemblance";
@@ -49,7 +51,7 @@ export function construireRapport(entrees: readonly EntreeReseau[]): string {
 }
 
 /** Point d'entrée : lecture par les fonctions existantes, écriture sur la sortie standard seulement. */
-async function principal(): Promise<void> {
+export async function principal(): Promise<void> {
   const { RESEAUX } = await import("../../src/reseaux");
   const { voisinesDuReseau } = await import("../../src/services/variete-commune/voisines");
   const entrees: EntreeReseau[] = [];
