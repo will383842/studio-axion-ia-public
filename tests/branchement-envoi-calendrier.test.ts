@@ -241,6 +241,7 @@ describe("L5-02c · libellés vrais à la validation", () => {
     ["créneau vid-", { id: "vid-1", visuelId: undefined, videoId: "v1" }, "le fondateur"],
     ["validation relayée par l'usine", {}, "usine:compte-1"],
     ["aucune heure", { heuresParReseau: {} }, "le fondateur"],
+    ["réseau non visuel seulement", { heuresParReseau: { tiktok: new Date(Date.now() + 2 * JOUR).toISOString() } }, "le fondateur"],
   ])("ouvert mais rien ne partira (%s) : libellé vrai, sans « partira seule »", async (_n, p, par) => {
     const base = plan();
     const c = { ...(base.c as object), ...p } as { id: string };
@@ -293,6 +294,27 @@ describe("L5-02c · chemin heureux", () => {
     expect(faux.appels.filter((a) => a.methode === "PUT")).toHaveLength(2);
   });
 
+  it("après la promotion : un tour à H-20 min puis un tour après l'heure = 0 notification, 0 appel de plus", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1", "linkedin");
+    await tour();
+    const heure = Date.parse(heureDu(2));
+    maintenant = heure - 2 * 60 * MIN;
+    horloge.avancer(maintenant - horloge.maintenant());
+    await tour();
+    expect((await depots().envoisPlanifies.lister())[0].statut).toBe("programme");
+    const puts = faux.appels.filter((a) => a.methode === "PUT").length;
+    for (const t of [heure - 20 * MIN, heure + 10 * MIN]) {
+      maintenant = t;
+      horloge.avancer(t - horloge.maintenant());
+      await tour();
+    }
+    expect(notifications).toHaveLength(0);
+    expect(appelsFournisseur).toHaveLength(1);
+    expect(faux.appels.filter((a) => a.methode === "PUT")).toHaveLength(puts);
+  });
+
   it("texte alternatif : coupé à 125 signes, suffixe « (page i sur N) » conservé ; absent = refus sans appel", async () => {
     await ouvrirTout();
     await creerVisuel({ spec: { alt: "x".repeat(300) } });
@@ -340,6 +362,17 @@ describe("L5-02c · exclusions", () => {
     await tour();
     expect(appelsFournisseur).toHaveLength(0);
     expect(notifications).toHaveLength(0);
+  });
+
+  it("créneau visuel validé et déjà passé, sans aucune publication : 0 appel, 0 notification", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    const passe = new Date(arrondi(DEBUT - 2 * JOUR)).toISOString().replace(/\.\d{3}Z$/, "Z");
+    await creerCreneau("c-vieux", "linkedin", { heuresParReseau: { linkedin: passe } });
+    await tour();
+    expect(appelsFournisseur).toHaveLength(0);
+    expect(notifications).toHaveLength(0);
+    expect(await depots().envoisPlanifies.compter()).toBe(0);
   });
 
   it("vidéo validée depuis le calendrier (V1 limitée aux visuels) : 0 appel", async () => {

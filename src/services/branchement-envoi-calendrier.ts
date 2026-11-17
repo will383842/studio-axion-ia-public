@@ -148,8 +148,11 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       for (const reseau of Object.keys(c.heuresParReseau ?? {}) as ReseauDeclinaison[]) {
         const instant = c.heuresParReseau[reseau];
         if (typeof instant !== "string" || !Number.isFinite(Date.parse(instant))) continue;
-        // Un créneau déjà passé est exclu sans bruit : au premier allumage, l'historique ne remplit pas la cloche.
+        // Un créneau déjà passé n'a aucune ligne : au premier allumage, l'historique ne remplit pas la cloche.
         const passe = Date.parse(instant) <= maintenant();
+        if (passe) continue;
+        // Déjà chez le diffuseur sous cette version (programmé, confirmé, parti) : aucune ligne, donc aucune fausse alerte « à reprogrammer ».
+        if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && ["programme", "confirme", "a-envoyer", "envoye"].includes(e.statut))).length) continue;
         const exclu = (motif: string, raison: string): Promise<void> =>
           passe ? Promise.resolve() : notifierUneFois(etats, notifier, `exclu:${motif}:${c.id}:${reseau}:v${c.decalages}`, { cle: `exclu:${c.id}:${reseau}:v${c.decalages}`, videoId: media, motif: "a-reprogrammer", raison });
         // a. Vidéos (dont les créneaux « vid-… » du plan vidéo) : jamais envoyées seules en V1.
