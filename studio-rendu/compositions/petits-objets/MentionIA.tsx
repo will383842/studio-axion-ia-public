@@ -9,7 +9,7 @@ import {
   TAILLE_TEXTE_PASTILLE_IA,
   type EntreesMentionIA,
   type MargesBoutonsIA,
-} from "../../../src/briques/mentions-legales/mention-ia";
+} from "../../../src/briques/habillage/mention-ia";
 import { CHARTE_AXION, FAMILLE_CSS_AXION } from "../../../src/briques/jetons-motion";
 
 export function MentionIA({ entrees, autorise, zone }: { entrees: EntreesMentionIA; autorise: unknown; zone: MargesBoutonsIA }) {
