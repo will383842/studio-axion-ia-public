@@ -10,6 +10,7 @@
  * incident du 12/10 (vidéo `v-9d15cce3c6e3`), « Tout est bon » puis arrêt au calage du second vertical, voix payée.
  * Aucune règle n'est écrite ici. PUR : tout est injecté.
  */
+import { apercuDesSorties, type ApercuSortie } from "./apercu-sorties";
 import { controlerVideoTableau, type CaseDejaVu, type LigneControleTableau, type RapportControleTableau } from "./controles";
 import { appelEnFinDeFiche, type FicheTableau } from "./fiche";
 import { descriptionSortie, formatImage, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
@@ -125,6 +126,8 @@ export interface RelectureFiche {
   rapport: RapportControleTableau;
   /** Chaque bloquant, une fois par scène en cause (sans scène : un point général). */
   points: PointRelecture[];
+  /** Ce que chaque fichier dira et écrira, page de fin comprise (FIX-ECRAN-SCENES-COMPLET). */
+  apercu: ApercuSortie[];
 }
 
 /** Phrase d'un bloquant, en clair (« Zone sûre : … »). */
@@ -167,5 +170,11 @@ export async function relireFicheTableau(e0: EntreeRelecture): Promise<Relecture
     const message = phraseDe(l);
     return scenes.length ? scenes.map((sceneId) => ({ famille: l.famille, libelle: l.libelle, message, sceneId })) : [{ famille: l.famille, libelle: l.libelle, message }];
   });
-  return { ok: rapport.verdict === "livrable", rapport, points };
+  let apercu: ApercuSortie[] = [];
+  try {
+    if (brute && relues.length) apercu = apercuDesSorties(brute, relues);
+  } catch {
+    apercu = [];
+  }
+  return { ok: rapport.verdict === "livrable", rapport, points, apercu };
 }
