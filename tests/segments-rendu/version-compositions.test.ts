@@ -10,7 +10,7 @@ import { join, resolve } from "node:path";
  *
  * Le JSON porte : `version`, `empreintes` (état courant) et `precedent` { version, empreintes }
  * (état de la version d'avant). Si une empreinte courante diffère de la précédente, `version`
- * doit valoir précédente + 1 au moins. Le test ne lit pas l'historique git.
+ * doit valoir exactement précédente + 1 (et rester égale à la précédente si rien n'a changé). Le test ne lit pas l'historique git.
  *
  * Mise à jour par l'auteur d'une PR qui touche les compositions : recopier `empreintes` et `version`
  * dans `precedent`, recalculer `empreintes` (`ECRIRE_EMPREINTES=1 npx vitest run <ce fichier>` les affiche),
@@ -24,6 +24,7 @@ const RACINE = resolve(__dirname, "..", "..");
 const BASE = ["studio-rendu", "compositions"].join("/");
 const EXCLUS = new Set(["visuels", "node_modules"]);
 const RACINE_FICHIERS = "(racine)";
+const EXTENSIONS_TEXTE = /\.(tsx?|jsx?|mjs|cjs|json|css|md|txt|svg|html)$/i;
 
 type Table = Record<string, string>;
 type Registre = { version: number; empreintes: Table; precedent: { version: number; empreintes: Table } };
@@ -62,8 +63,12 @@ function empreintesCalculees(): Table {
   for (const cle of [...groupes.keys()].sort()) {
     const h = createHash("sha256");
     for (const f of groupes.get(cle)!.sort()) {
-      const texte = readFileSync(join(RACINE, f), "utf8").replace(/\r\n/g, "\n");
-      h.update(`${f}\n${texte}\n--\n`);
+      // Octets bruts (pas de perte sur les binaires : polices, images) ; fins de ligne normalisées pour le texte seulement.
+      const brut = readFileSync(join(RACINE, f));
+      const contenu = EXTENSIONS_TEXTE.test(f) ? Buffer.from(brut.toString("utf8").replace(/\r\n/g, "\n"), "utf8") : brut;
+      h.update(`${f}\n`);
+      h.update(contenu);
+      h.update("\n--\n");
     }
     res[cle] = h.digest("hex");
   }
@@ -85,10 +90,13 @@ export function verifier(calcule: Table, json: Registre): string[] {
     const changees = [...new Set([...Object.keys(json.empreintes), ...Object.keys(json.precedent.empreintes)])].filter(
       (c) => json.empreintes[c] !== json.precedent.empreintes[c],
     );
-    if (changees.length > 0 && json.version < json.precedent.version + 1) {
+    if (changees.length > 0 && json.version !== json.precedent.version + 1) {
       erreurs.push(
-        `empreinte neuve (${changees.join(", ")}) sans hausse de version : version doit être au moins ${json.precedent.version + 1}`,
+        `empreinte neuve (${changees.join(", ")}) : version doit valoir exactement ${json.precedent.version + 1} (précédente + 1), trouvé ${json.version}`,
       );
+    }
+    if (changees.length === 0 && json.version !== json.precedent.version) {
+      erreurs.push(`aucune empreinte neuve : version doit rester ${json.precedent.version}, trouvé ${json.version}`);
     }
   }
   return erreurs;
@@ -123,12 +131,21 @@ describe("garde de version des compositions (G13-04)", () => {
     expect(erreurs[0]).toContain("studio-rendu/compositions/tableau a changé");
     expect(erreurs[0]).toContain("règle 13");
     const sansHausse: Registre = { ...base, empreintes: { avocat: "aaa", tableau: "CHANGE" } };
-    expect(verifier({ avocat: "aaa", tableau: "CHANGE" }, sansHausse).join()).toContain("sans hausse de version");
+    expect(verifier({ avocat: "aaa", tableau: "CHANGE" }, sansHausse).join()).toContain("exactement 4");
   });
 
   it("preuve : avec hausse de version, la même modification est acceptée", () => {
     const avecHausse: Registre = { ...base, version: 4, empreintes: { avocat: "aaa", tableau: "CHANGE" } };
     expect(verifier({ avocat: "aaa", tableau: "CHANGE" }, avecHausse)).toEqual([]);
+  });
+
+  it("un saut de version (+2) ou une version qui baisse ou change sans empreinte neuve est refusé", () => {
+    const saut: Registre = { ...base, version: 5, empreintes: { avocat: "aaa", tableau: "CHANGE" } };
+    expect(verifier({ avocat: "aaa", tableau: "CHANGE" }, saut).join()).toContain("exactement 4");
+    const baisse: Registre = { ...base, version: 2 };
+    expect(verifier({ avocat: "aaa", tableau: "bbb" }, baisse).join()).toContain("doit rester 3");
+    const hausseSansChangement: Registre = { ...base, version: 4 };
+    expect(verifier({ avocat: "aaa", tableau: "bbb" }, hausseSansChangement).join()).toContain("doit rester 3");
   });
 
   it("un dossier ajouté ou retiré sans mise à jour du JSON est refusé", () => {
