@@ -37,6 +37,7 @@ export const PREFIXE_ETATS_ENVOI_CALENDRIER = "envoi-calendrier:";
 
 const RESEAUX_VISUELS: readonly ReseauDeclinaison[] = ["linkedin", "instagram", "facebook"];
 const ALT_MAX = 125;
+export const DELAI_ENVOI_MAX_MS = 90_000;
 
 export interface InjectionsEnvoiCalendrier {
   /** Porte (défaut : `publicationEditorialeAutorisee`). Une erreur = fermé. */
@@ -50,6 +51,8 @@ export interface InjectionsEnvoiCalendrier {
   lireUrl?: (cle: string) => Promise<string>;
   fichierExiste?: (cle: string) => Promise<boolean>;
   attendre?: (ms: number) => Promise<void>;
+  /** Délai maximal d'un envoi (défaut 90 s) : au-delà, le tour continue et la ligne passe « à vérifier » (aucun nouvel essai). */
+  delaiEnvoiMs?: number;
 }
 
 export type TourEnvoisCalendrierServeur =
@@ -145,8 +148,10 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       for (const reseau of Object.keys(c.heuresParReseau ?? {}) as ReseauDeclinaison[]) {
         const instant = c.heuresParReseau[reseau];
         if (typeof instant !== "string" || !Number.isFinite(Date.parse(instant))) continue;
+        // Un créneau déjà passé est exclu sans bruit : au premier allumage, l'historique ne remplit pas la cloche.
+        const passe = Date.parse(instant) <= maintenant();
         const exclu = (motif: string, raison: string): Promise<void> =>
-          notifierUneFois(etats, notifier, `exclu:${motif}:${c.id}:${reseau}:v${c.decalages}`, { cle: `exclu:${c.id}:${reseau}:v${c.decalages}`, videoId: media, motif: "a-reprogrammer", raison });
+          passe ? Promise.resolve() : notifierUneFois(etats, notifier, `exclu:${motif}:${c.id}:${reseau}:v${c.decalages}`, { cle: `exclu:${c.id}:${reseau}:v${c.decalages}`, videoId: media, motif: "a-reprogrammer", raison });
         // a. Vidéos (dont les créneaux « vid-… » du plan vidéo) : jamais envoyées seules en V1.
         if (estVideo || c.id.startsWith("vid-")) {
           await exclu("video", "Une vidéo ne part pas seule depuis le calendrier pour l'instant : rien n'est envoyé. Elle suit son propre parcours.");
@@ -155,7 +160,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
         if (!RESEAUX_VISUELS.includes(reseau)) continue;
         // b. Média déjà chez le diffuseur pour ce compte : jamais de second brouillon, jamais de reprise silencieuse.
         if (await occupeDejaLeCompte(c, media, reseau, c.decalages)) {
-          await exclu("occupe", "Ce visuel est déjà chez le diffuseur pour ce réseau : rien n'est envoyé. Changez sa date chez le diffuseur ou retirez-le du calendrier.");
+          await exclu("occupe", "Ce visuel est déjà chez le diffuseur pour ce compte : le calendrier ne l'envoie pas une seconde fois. Vérifiez-le dans « À publier ».");
           continue;
         }
         const texte = c.textes?.[reseau];
@@ -192,7 +197,14 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     const reseau = d.reseau as "linkedin" | "instagram" | "facebook";
     const visuel = await depots().visuels.obtenir(d.videoId);
     const textesAlternatifs = reseau === "linkedin" ? [] : textesAlternatifsDuVisuel(visuel?.spec?.alt, visuel?.rendu?.pages?.length ?? 0);
-    const r = await envoyerVisuelDuCreneau(service, d.creneauId, reseau, { textesAlternatifs, lireUrl: inj.lireUrl, fichierExiste: inj.fichierExiste });
+    // Délai maximal : un appel qui ne rend jamais la main ne bloque pas les tours suivants ; l'erreur (code inconnu) = « à vérifier », jamais un renvoi.
+    let minuteur: ReturnType<typeof setTimeout> | undefined;
+    const delai = new Promise<never>((_, rejeter) => {
+      minuteur = setTimeout(() => rejeter(new Error("délai maximal de l'envoi dépassé")), inj.delaiEnvoiMs ?? DELAI_ENVOI_MAX_MS);
+    });
+    const envoi = envoyerVisuelDuCreneau(service, d.creneauId, reseau, { textesAlternatifs, lireUrl: inj.lireUrl, fichierExiste: inj.fichierExiste });
+    envoi.catch(() => undefined);
+    const r = await Promise.race([envoi, delai]).finally(() => clearTimeout(minuteur));
     return typeof r.publication.cleEnvoi === "string" ? { cleDiffuseur: r.publication.cleEnvoi } : undefined;
   }
 

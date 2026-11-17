@@ -178,7 +178,7 @@ describe("L5-02c · interrupteurs éteints = aucun appel", () => {
     ["envoi du calendrier seul à vrai", async () => ecrireParametre(PARAM_ENVOI_CALENDRIER, true)],
     ["publication éditoriale seule à vrai", async () => ecrireParametre(PARAM_EDITORIALE_ACTIVE, true)],
     ["envoi général à faux, les deux autres à vrai", async () => { await ecrireParametre(PARAM_EDITORIALE_ACTIVE, true); await ecrireParametre(PARAM_ENVOI_CALENDRIER, true); await ecrireParametre(PARAM_ARRET_ZERNIO, false); }],
-    ["lecture de la porte qui lève", ouvrirTout, { porte: async () => { throw new Error("lecture impossible"); } }],
+    ["lecture des réglages qui lève", async () => { await ouvrirTout(); vi.spyOn(depots().parametres, "obtenir").mockRejectedValue(new Error("lecture impossible")); }],
   ];
   it.each(cas)("%s : ni plan, ni publications, ni client, ni envoi ; totaux inchangés", async (_n, preparer, extra) => {
     await creerVisuel();
@@ -236,6 +236,19 @@ describe("L5-02c · libellés vrais à la validation", () => {
       },
     };
   };
+  it.each([
+    ["vidéo", { visuelId: undefined, videoId: "v1" }, "le fondateur"],
+    ["créneau vid-", { id: "vid-1", visuelId: undefined, videoId: "v1" }, "le fondateur"],
+    ["validation relayée par l'usine", {}, "usine:compte-1"],
+    ["aucune heure", { heuresParReseau: {} }, "le fondateur"],
+  ])("ouvert mais rien ne partira (%s) : libellé vrai, sans « partira seule »", async (_n, p, par) => {
+    const base = plan();
+    const c = { ...(base.c as object), ...p } as { id: string };
+    let courant = c as never as { statut: string };
+    const deps = { obtenir: async () => courant as never, enregistrer: async (x: unknown) => { courant = x as never; return x as never; }, versAValider: async () => undefined, reglagesOuverts: async () => true };
+    const r = await validerEntree(deps, c.id, par, new Date());
+    expect(r.ok && r.libelle).toBe("Validée. Elle ne part pas seule depuis le calendrier pour l'instant.");
+  });
   it("fermé : libellé « éteint » inchangé", async () => {
     const p = plan();
     const r = await validerEntree(p.deps(false), "c1", "le fondateur", new Date());
@@ -315,6 +328,18 @@ describe("L5-02c · exclusions", () => {
     expect(notifications[0].lien).toBe("/calendrier");
     expect(JSON.stringify(notifications)).not.toMatch(/zernio|buffer|linkedin api/i);
     expect(await depots().envoisPlanifies.compter()).toBe(0);
+  });
+
+  it("créneau déjà passé exclu : 0 appel, 0 notification (pas de bruit au premier allumage)", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    const passe = new Date(arrondi(DEBUT - 2 * JOUR)).toISOString().replace(/\.\d{3}Z$/, "Z");
+    await creerCreneau("vid-vieux", "linkedin", { visuelId: undefined, videoId: "video-1", heuresParReseau: { linkedin: passe } });
+    await creerCreneau("c-vieux", "facebook", { heuresParReseau: { facebook: passe } });
+    await depots().publications.enregistrer({ id: "pub-v", visuelId: "vis_1", reseau: "facebook", via: "zernio", statut: "brouillon", etatEnvoi: "envoye", date: passe, texte: "t", canalId: COMPTES.facebook, cleEnvoi: "e".repeat(64), creeLe: VALIDEE, modifieLe: VALIDEE } as never);
+    await tour();
+    expect(appelsFournisseur).toHaveLength(0);
+    expect(notifications).toHaveLength(0);
   });
 
   it("vidéo validée depuis le calendrier (V1 limitée aux visuels) : 0 appel", async () => {
@@ -418,6 +443,19 @@ describe("L5-02c · un seul brouillon", () => {
     await Promise.allSettled([tour(), reessayerEnvoi(refusee.id, { service: fauxFournisseur(), lireUrl })]);
     expect(appelsFournisseur.filter((d) => d.cleEnvoi === refusee.cleEnvoi).length).toBeLessThanOrEqual(2);
     expect(appelsFournisseur).toHaveLength(2);
+  });
+
+  it("envoi qui ne rend jamais la main : le tour se termine, ligne « a-verifier », le tour suivant ne fait aucun appel", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1", "linkedin");
+    const bloque = { ...fauxFournisseur(), envoyer: (d: DemandePublication) => { appelsFournisseur.push(d); return new Promise<never>(() => undefined); } } as unknown as FournisseurPublication;
+    const r = await tour({ service: () => bloque, delaiEnvoiMs: 50 });
+    expect(r.saute).toBeUndefined();
+    expect("resultat" in r && r.resultat.lignes[0].etat).toBe("a-verifier");
+    await tourSuivant({ service: () => bloque, delaiEnvoiMs: 50 });
+    await tourSuivant();
+    expect(appelsFournisseur).toHaveLength(1);
   });
 
   it("plantage entre la création chez le diffuseur et l'écriture locale : aucun second brouillon aux tours suivants", async () => {

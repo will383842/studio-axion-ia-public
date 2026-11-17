@@ -71,6 +71,9 @@ export async function validerEntree(deps: DepsValiderEntree, id: string, par: st
   try { ouverts = (await deps.reglagesOuverts()) === true; } catch { ouverts = false; }
   if (!ouverts) return { ok: true, creneau: valide, libelle: "Programmé, envoi éteint : rien ne partira tant que l'envoi n'est pas allumé." };
   // L5-02c : ouvert, la validation n'appelle jamais le diffuseur ; c'est le tour de la boucle du Studio qui prépare le brouillon, puis le programme.
+  // Seul un visuel part seul en V1 : ni vidéo (« vid-… » comprises), ni validation relayée par l'usine, ni heure illisible.
+  const partSeule = !!valide.visuelId && !valide.videoId && !id.startsWith("vid-") && !par.startsWith("usine:") && Number.isFinite(premier);
+  if (!deps.envoyer && !partSeule) return { ok: true, creneau: valide, libelle: "Validée. Elle ne part pas seule depuis le calendrier pour l'instant." };
   if (!deps.envoyer) return { ok: true, creneau: valide, libelle: `Validée. Elle partira seule à ${heureParis(premier ? new Date(premier).toISOString() : maintenant.toISOString())} (heure de Paris) : le brouillon est préparé au plus tôt 6 jours avant.` };
 
   let envoi: LigneCreneau | undefined;
