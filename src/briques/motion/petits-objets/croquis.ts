@@ -56,3 +56,44 @@ export function reglagesCroquis(p: ParametresCroquis, ton: TonObjet, fond: FondA
     strokeWidth: EPAISSEUR_CROQUIS,
   };
 }
+
+/** Toile carrée de 1000 unités (les paramètres sont en %). */
+export const TOILE_CROQUIS = 1000;
+const POINTE_FLECHE = 46;
+const arrondi = (n: number) => Math.round(n * 100) / 100;
+
+/** Un trait demandé à la bibliothèque : genre, nombres dans l'ordre de son appel, graine propre à ce trait. */
+export interface TraitCroquis {
+  genre: "rectangle" | "ellipse" | "ligne";
+  /** rectangle : x,y,l,h · ellipse : centre x, centre y, l, h · ligne : x1,y1,x2,y2 */
+  nombres: [number, number, number, number];
+  seed: number;
+}
+
+export interface PlanCroquis {
+  reglages: ReglagesCroquis;
+  traits: TraitCroquis[];
+}
+
+/** Partie PURE du croquis : quels traits, avec quels nombres et quelles graines. Null si paramètres ou graine invalides. */
+export function planCroquis(forme: FormeCroquis, parametres: unknown, ton: TonObjet, fond: FondAxion, graine: unknown): PlanCroquis | null {
+  const p = validerCroquis(parametres);
+  if (!p || !graineCroquisValide(graine)) return null;
+  const reglages = reglagesCroquis(p, ton, fond, graine);
+  const x = (p.x / 100) * TOILE_CROQUIS;
+  const y = (p.y / 100) * TOILE_CROQUIS;
+  const l = (p.largeur / 100) * TOILE_CROQUIS;
+  const h = (p.hauteur / 100) * TOILE_CROQUIS;
+  const seed = reglages.seed;
+  if (forme === "rectangle") return { reglages, traits: [{ genre: "rectangle", nombres: [x, y, l, h], seed }] };
+  if (forme === "ellipse") return { reglages, traits: [{ genre: "ellipse", nombres: [x + l / 2, y + h / 2, l, h], seed }] };
+  const traits: TraitCroquis[] = [{ genre: "ligne", nombres: [x, y, x + l, y + h], seed }];
+  if (forme === "fleche") {
+    const angle = Math.atan2(h, l);
+    [0.5, -0.5].forEach((ouverture, i) => {
+      const a = angle + Math.PI + ouverture;
+      traits.push({ genre: "ligne", nombres: [x + l, y + h, arrondi(x + l + POINTE_FLECHE * Math.cos(a)), arrondi(y + h + POINTE_FLECHE * Math.sin(a))], seed: seed + i + 1 });
+    });
+  }
+  return { reglages, traits };
+}
