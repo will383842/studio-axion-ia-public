@@ -73,11 +73,16 @@ describe("C2-U20a : géométrie", () => {
 });
 
 describe("C2-U20a : éteint = identique", () => {
-  it("aucun autre fichier du dépôt n'importe escalier.ts", () => {
-    const hors = [...sources("src"), ...sources("studio-rendu/src"), ...sources("studio-rendu/compositions")].filter(
+  it("seul LigneEscalier.tsx importe escalier.ts, et rien n'importe LigneEscalier", () => {
+    const tous = [...sources("src"), ...sources("studio-rendu/src"), ...sources("studio-rendu/compositions")];
+    const hors = tous.filter(
       (f) => !f.endsWith("sous-titres/escalier.ts") && /(from|import)\s*\(?\s*["'][^"']*\/escalier["']/.test(readFileSync(f, "utf8")),
     );
-    expect(hors).toEqual([]);
+    expect(hors.map((f) => f.replace(/\\/g, "/"))).toEqual(["studio-rendu/compositions/sous-titres/LigneEscalier.tsx"]);
+    const importeurs = tous.filter(
+      (f) => !f.endsWith("sous-titres/LigneEscalier.tsx") && /(from|import)\s*\(?\s*["'][^"']*LigneEscalier["']/.test(readFileSync(f, "utf8")),
+    );
+    expect(importeurs).toEqual([]);
   });
   it("escalier.ts : pur (aucun alias @/, ni React, ni Remotion, ni horloge)", () => {
     const s = readFileSync("src/briques/sous-titres/escalier.ts", "utf8");
