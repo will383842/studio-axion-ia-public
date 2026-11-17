@@ -20,7 +20,7 @@ export interface OptionsEnvoiVisuelDuCreneau {
   textesAlternatifs?: string[];
   /** Adresse lisible d'un fichier du stockage ; par défaut, l'adresse signée du stockage (tests : doublure). */
   lireUrl?: (cle: string) => Promise<string>;
-  /** Existence d'un fichier ; par défaut, la taille connue du stockage (inconnue = on s'en remet à l'adresse) ; invérifiable = absent. Tests : doublure. */
+  /** Existence d'un fichier ; par défaut, la taille connue du stockage ; taille inconnue, nulle ou invérifiable = absent. Tests : doublure. */
   fichierExiste?: (cle: string) => Promise<boolean>;
 }
 

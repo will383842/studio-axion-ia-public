@@ -104,10 +104,12 @@ describe("L5-21 · porte fermée = zéro appel", () => {
     await creerVisuel();
     const id = await creerCreneau();
     const lire = vi.fn(lireUrl);
+    const existe = vi.fn(async () => true);
     const avant = await total();
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, fichierExiste: async () => true })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, fichierExiste: existe })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     expect(espion.envoyer).not.toHaveBeenCalled();
     expect(lire).not.toHaveBeenCalled();
+    expect(existe).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
     expect(await total()).toBe(avant);
   });
@@ -121,7 +123,11 @@ describe("L5-21 · porte fermée = zéro appel", () => {
     const id = await creerCreneau();
     await ouvrirTout();
     await ecrireParametre(cle, false);
-    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    const lire = vi.fn(lireUrl);
+    const existe = vi.fn(async () => true);
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { lireUrl: lire, fichierExiste: existe })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(lire).not.toHaveBeenCalled();
+    expect(existe).not.toHaveBeenCalled();
     expect(espion.envoyer).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
