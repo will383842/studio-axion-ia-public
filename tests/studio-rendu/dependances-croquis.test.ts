@@ -50,11 +50,13 @@ describe("dépendances du style croquis (X1-07)", () => {
     }
   });
 
-  it("éteint : aucun code du dépôt n'importe encore ces paquets", () => {
+  it("éteint : seul le style croquis (X1-08) importe roughjs ; rien n'importe perfect-freehand", () => {
     const sortie = execSync(
       `grep -rEl "from ['\\"](roughjs|perfect-freehand)" src studio-rendu/compositions studio-rendu/src || true`,
       { cwd: RACINE, encoding: "utf8" },
     );
-    expect(sortie.trim()).toBe("");
+    expect(sortie.trim().split("\n").filter(Boolean)).toEqual(["studio-rendu/compositions/petits-objets/croquis/Croquis.tsx"]);
+    const freehand = execSync(`grep -rEl "perfect-freehand" src studio-rendu/compositions studio-rendu/src --include=*.ts --include=*.tsx | grep -v "^src/briques/droits/" || true`, { cwd: RACINE, encoding: "utf8" });
+    expect(freehand.trim()).toBe("");
   });
 });
