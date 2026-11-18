@@ -1,6 +1,6 @@
-/** VL-03 : fiche du format « Vidéo longue » (masquée, non inscrite dans `formats/index.ts`, rien d'allumé). */
+/** VL-03 : fiche du format « Vidéo longue » (masquée, inscrite dans `formats/index.ts`, absente des listes et de la navigation). */
 import { describe, expect, it } from "vitest";
-import { listerFormats } from "@/formats";
+import { listerFormats, listerFormatsNavigation } from "@/formats";
 import { MOTIF_CODE_FORMAT, codeDuFormat, entreeDuCode, listerCodes } from "@/formats/registre-codes";
 import { CODE_FORMAT_VIDEO_LONGUE, ID_FORMAT_VIDEO_LONGUE, formatVideoLongue } from "@/formats/video-longue";
 
@@ -11,7 +11,7 @@ describe("format video-longue (VL-03)", () => {
     expect(f.statut).toBe("masque");
     expect(f.ouvertDansLaNavigation).toBeUndefined();
     expect(f.reserveAWill).toBeUndefined();
-    expect(f.adresseCreation).toBe("/videos/longue");
+    expect(f.adresseCreation).toBeUndefined();
     expect(f.ratios).toEqual(["16:9"]);
     expect(f.ratioMaitre).toBe("16:9");
     expect(f.musique).toBe("interdite");
@@ -46,8 +46,11 @@ describe("format video-longue (VL-03)", () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it("ne change aucun autre format : non inscrit, absent des listes, fiches existantes intactes", () => {
-    expect(listerFormats({ inclureMasques: true }).some((f) => f.id === "video-longue")).toBe(false);
+  it("ne change aucun autre format : inscrit en « masque », absent des listes et de la navigation, fiches existantes intactes", () => {
+    expect(listerFormats({ inclureMasques: true }).some((f) => f.id === "video-longue")).toBe(true);
+    expect(listerFormats({ inclureMasques: true }).find((f) => f.id === "video-longue")?.statut).toBe("masque");
+    expect(listerFormats().some((f) => f.id === "video-longue")).toBe(false);
+    expect(listerFormatsNavigation().some((f) => f.id === "video-longue")).toBe(false);
     for (const f of listerFormats({ inclureMasques: true })) expect(f.codeClassement).toBe(codeDuFormat(f.id));
     expect(codeDuFormat("avocat")).toBe("AV");
     expect(codeDuFormat("visuel")).toBe("VS");

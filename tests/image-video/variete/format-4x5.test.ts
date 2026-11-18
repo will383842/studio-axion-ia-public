@@ -249,13 +249,14 @@ describe("F45 · une version par (groupe de fins × format), une seule voix", ()
     expect(v[1].ligne.sousTitres.groupes).toEqual(v[0].ligne.sousTitres.groupes);
   });
 
-  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-facebook (9:16), fin-linkedin-facebook-4x5 (4:5) et fin-instagram", async () => {
+  // 17/11 D4 : fin non choisie = fin vide commune à tous les réseaux (un seul groupe) ; les versions ne se distinguent plus
+  // que par le format. Avant : fin-linkedin-facebook, fin-linkedin-facebook-4x5 et fin-instagram. Garde gardée, valeurs mises à jour.
+  it("SANS formats imposés (défaut du 24/10) : versions fin-linkedin-instagram-facebook (9:16) et fin-linkedin-instagram-facebook-4x5 (4:5)", async () => {
     const { e } = await jusquALaMiseEnScene("defaut", ["linkedin", "instagram", "facebook"]);
     expect(e.etape).toBe("mise-en-scene");
     expect(lignesDesVersionsIV(e).map((x) => [x.version, x.format, x.ligne.largeur, x.ligne.hauteur])).toEqual([
-      ["fin-linkedin-facebook", "9:16", 1080, 1920],
-      ["fin-linkedin-facebook-4x5", "4:5", 1080, 1350],
-      ["fin-instagram", "9:16", 1080, 1920],
+      ["fin-linkedin-instagram-facebook", "9:16", 1080, 1920],
+      ["fin-linkedin-instagram-facebook-4x5", "4:5", 1080, 1350],
     ]);
   });
 

@@ -218,6 +218,8 @@ export interface DemandePlanDesFinsIV {
   motSur?: readonly ReseauIV[];
   /** Vrai seulement quand le cadeau existe réellement (jamais tant que rien n'est branché). */
   cadeauReel?: boolean;
+  /** 17/11 (D4) : vrai = aucune fin tirée ; sans fin au mot choisie, la fin de chaque réseau est vide. Absent : fin tirée (vidéos et tests d'avant). */
+  finVide?: true;
 }
 
 export interface QuestionIV {
@@ -242,6 +244,8 @@ export interface FinIV {
    * reprend la question et la fin DITES du réseau nommé (même son déjà payé et validé, même rendu).
    */
   repli?: ReseauIV;
+  /** 17/11 (D4) : fin vide voulue par le plan (rien choisi) : aucune phrase dite ni écrite. Distincte de `muet` (anciennes vidéos LinkedIn). */
+  vide?: true;
 }
 
 export interface PlanDesFinsIV {
@@ -309,12 +313,14 @@ export function refusQuestion(question: string): string | null {
   return null;
 }
 
-function questionPour(reseau: ReseauIV, texte: string | undefined): QuestionIV {
+function questionPour(reseau: ReseauIV, texte: string | undefined, sansLigneDeBanque = false): QuestionIV {
   const ligne = QUESTION_BANQUE[reseau];
   const l = appelDeLaBanque(ligne);
   if (!l || l.etat !== "valide") throw new ErreurFin(`La question de la banque « ${ligne} » n'est pas disponible.`);
   const propre = texte?.trim();
-  return { dit: propre || l.dit, ecran: l.ecran, origine: propre ? "image" : "banque", ligne };
+  // 18/11 (D4) : fin vide + question choisie par l'utilisateur : la ligne d'écran de la banque (« Votre réponse en commentaire »)
+  // n'est pas une phrase choisie, elle n'est donc pas écrite ; seul le texte d'écran de la question de l'utilisateur l'est.
+  return { dit: propre || l.dit, ecran: propre && sansLigneDeBanque ? "" : l.ecran, origine: propre ? "image" : "banque", ligne };
 }
 
 /**
@@ -368,18 +374,18 @@ export function planDesFinsIV(demande: DemandePlanDesFinsIV): PlanDesFinsIV {
     const { ids, raison } = suiteAuMot(reseau, demande, table);
     let appels: FinChoisie[];
     try {
-      appels = ids ? suiteDeFins(reseau, ids, options, table) : finDuReseauIV(reseau, choix);
+      appels = ids ? suiteDeFins(reseau, ids, options, table) : demande.finVide ? [] : finDuReseauIV(reseau, choix);
     } catch (e) {
       if (!(e instanceof ErreurFin)) throw e;
       sansFin.push({ reseaux: [reseau], raison: e.message });
       continue;
     }
-    const question = reglage === "question-puis-fin" ? questionPour(reseau, demande.questionCommentaire) : undefined;
+    const question = reglage === "question-puis-fin" ? questionPour(reseau, demande.questionCommentaire, !!demande.finVide && !ids) : undefined;
     // Réseaux regroupés sur ce qui est DIT et AFFICHÉ (pas sur les codes de ligne) : Facebook et LinkedIn partagent un fichier.
     const cle = [question?.dit ?? "", question?.ecran ?? "", ...appels.flatMap((a) => [a.dit, a.ecran])].join("|");
     const g = groupes.get(cle);
     if (g) g.reseaux.push(reseau);
-    else groupes.set(cle, { id: "", reseaux: [reseau], muet: false, ...(question ? { question } : {}), appels });
+    else groupes.set(cle, { id: "", reseaux: [reseau], muet: false, ...(question ? { question } : {}), ...(demande.finVide && !ids ? { vide: true as const } : {}), appels });
     if (raison) raisons.set(raison, [...(raisons.get(raison) ?? []), reseau]);
   }
 

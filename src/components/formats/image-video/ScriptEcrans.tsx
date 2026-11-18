@@ -22,6 +22,7 @@ import type { AxeVariete, RecetteVarieteIV } from "@/briques/schema-motion/varie
 import type { FicheImage } from "@/domaine/image-video/fiche";
 import { cn } from "@/lib/cn";
 import type { FormuleATrancherIV, PrixIV } from "@/moteurs/montage-image-video/fabrication";
+import { FIN_AUCUNE_IV } from "@/moteurs/montage-image-video/texte-fin";
 import { RecetteVariete } from "./RecetteVariete";
 import { jusquALaReprise } from "./reprise";
 import { AUCUNE_MODIFICATION, changementsVarieteIV, formulesNonTranchees, lignesDuScript, lignesVarieteIV, morceauxEcrit, scriptValideParWill, type ModificationsScript } from "./vue";
@@ -171,6 +172,15 @@ export function ScriptEcrans({
           onChange={(e) => setM((v) => ({ ...v, question: e.target.value }))}
         />
       )}
+
+      {avecQuestion && (
+        <p className="text-sm text-texte-doux">
+          Écrit à l&rsquo;écran avec la question : {"«\u00a0"}
+          {fiche.questionCommentaire.texteEcran}
+          {"\u00a0»"}
+        </p>
+      )}
+      <p className="text-sm text-texte-doux">{FIN_AUCUNE_IV}</p>
 
       {formules.length > 0 && (
         <div className="space-y-2">
