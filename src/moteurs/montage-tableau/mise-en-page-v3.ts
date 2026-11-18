@@ -559,17 +559,11 @@ function bloc(g: Groupe, c: ContenuPage, x0: number, x1: number, t: Tailles, enL
       return fini([r.pose]);
     }
     case "idee": {
-      // « ✕ Idée reçue », puis le texte (barré quand la voix a fini de le dire).
-      const tl = Math.round(t.detail * 0.95);
-      const s = libelleSigne("Idée reçue", x0, tl, k);
+      // La phrase seule, barrée quand la voix a fini de la dire (plus de « ✕ Idée reçue » écrit d'office, D1 Williams 18/11).
       const r = texte(g.ligne, x0, L, t.phrase, T.interlignePhrase, 3, { couleur: C.encre });
       if (!r) return null;
-      delete r.pose.marque;
-      const dy = s.cadre.hauteur + Math.round(16 * k);
-      const pose = decalerPose(r.pose, 0, dy);
-      pose.gabarit = { sorte: "idee", cadre: s.cadre, signe: s.disque, texte: { texte: s.ligne.texte, x: s.ligne.px.x, y: s.ligne.px.y, largeur: s.ligne.px.largeur, hauteur: s.ligne.px.hauteur, taille: tl }, couleur: C.encre };
-      pose.enc = union([pose.px, s.cadre]);
-      return fini([pose]);
+      r.pose.marque = "barre";
+      return fini([r.pose]);
     }
     case "code":
     case "coche":

@@ -295,11 +295,14 @@ describe("rétrocompatibilité : une fiche sans visuel ni bloc se rend comme sur
   // documents que… ») ; c'est le seul changement du texte écrit de ces fiches (« formation » : inchangée).
   // Recalculées au lot B2b pour « formation » seulement (propriétés et plans : 2e et 3e empreintes ; mise en page inchangée) :
   // ses heures de scène viennent de l'estimateur de durée, passé de 20,5 à 16,9 caractères par seconde (voix-tableau/3).
+  // FIX-TABLEAU-ETIQUETTES-FORME (18/11, D1 Williams) : empreintes « temoin/* » recalculées ; seule la page 3 (celle de l'idée
+  // reçue) change, dans les 4 sorties : plus de « ✕ Idée reçue » (la phrase seule, barrée) et la page se repose à l'échelle
+  // que sa place libérée permet ; les 10 autres pages sont identiques à master (diff avant/après au journal).
   const MASTER: Record<string, string> = {
-    "temoin/vertical": "44dc28e26f22972e 594b134daa9b4e28 5aab84c7178f9889",
-    "temoin/portrait": "a111e60b0b5646a2 45065fb363063a94 5652f507fac15047",
-    "temoin/carre": "2a8bd08a2c26fdfa 575214c9152bc6c9 586c83145a2d6cc1",
-    "temoin/horizontal": "5af62dc6a98fdc8c 71885eb38e494f3f 48b3c6c6a896146a",
+    "temoin/vertical": "27a8b80f6e65fd9e cdea9ff28f051b1f 21b2e496d4807ea4",
+    "temoin/portrait": "2570caab50204406 ed9d68ba2a1897ac 7f69e4ef9e38280c",
+    "temoin/carre": "151fcd2a925b2119 54e8420a05170985 3d61055a7145a894",
+    "temoin/horizontal": "dd34f3019f995c34 bd1120781fee69de da4651c8b7fd233a",
     "formation/vertical": "d0be86a7a6de29cb f46c80e65d844b29 5e651200a514e0a2",
     "formation/portrait": "d8b3e6685ee27189 ecb7f343d311f782 b0aa3d5d1cf85f59",
     "formation/carre": "4d20843aef23dca8 8d8a75c6af7c3575 6b85980832d8e0c9",

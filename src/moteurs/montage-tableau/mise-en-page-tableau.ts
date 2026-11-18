@@ -18,7 +18,7 @@ import { PALETTE } from "@/briques/charte/axion-2026";
 import { faitsDuScript, familleUnite } from "@/briques/faits-script";
 import { CHARTES_TABLEAU, type CharteTableau, type PoliceTableau, type StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import { INTERLIGNES_TABLEAU, couperTableau, coupeUnGroupe, largeurTableau } from "@/briques/tableau-scene/trois-styles/mesure";
-import { banderole, barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
+import { barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
 import { boiteTraits, cadrer, densifier, ellipse, graineDe, minuter, plume, polyPts, rectArr, remplir, trait, tremble, type Plume, type Point, type TraitTableau } from "@/briques/tableau-scene/trois-styles/trace";
 import { GRILLE_DESSIN, TRACES_DESSINS } from "@/briques/dessins/traces";
 import type { ElementTableauPlace, ObjetTableau } from "@/briques/tableau-scene/trois-styles/types";
@@ -61,6 +61,8 @@ interface Geo {
   P: Plume;
   /** Repli des sorties basses : les planchers baissent encore (1 : ceux de la sortie). */
   repli?: number;
+  /** Page « à retenir » : grossissement de la liste (1,25 d'abord ; moins si la page ne tient pas à l'échelle 1). */
+  grossi?: number;
   /** Bord gauche de la page (celui de la sortie, ou un peu plus à droite quand un décor déborderait de la zone sûre). */
   bord?: number;
   /** GV2-41 : la page trace le dessin du registre choisi pour le script (sinon : le dessin du thème, comme avant). */
@@ -347,24 +349,12 @@ function entete(g: Geo, c: ContenuPage): Rang | null {
     return fixe(bloc([p]));
   }
   if (c.role === "exemple" || c.role === "retenir") {
-    const libelle = c.role === "exemple" ? (c.mention?.texte.trim() || "Exemple illustratif") : "À retenir";
-    const id = c.role === "exemple" && c.mention ? c.mention.id : `${c.premiere.id}~partie`;
-    const sceneId = c.role === "exemple" && c.mention ? c.mention.sceneId : c.premiere.id;
-    if (c.role === "retenir") {
-      // « À retenir » : un titre de la partie, souligné (A, B) ou dans une banderole (C).
-      const lg: Ligne = { l: { id, type: "ligne", texte: libelle, niveau: "titre", role: "regle", ancre: 0 }, sceneId };
-      const r = ecrire(g, lg, { police: S.titre, taille: T(g).titre * 1.05 * k * g.f, min: mini(g, "titre"), couleur: S.encre, max: 1, centre: S.centre || g.style === "paperboard", majuscules: S.capitales, type: "mention", gabarit: { sorte: "partie", role: c.role, point: { x: g.x0, y: 0, largeur: 0, hauteur: 0 }, couleur: S.encre, couleurPoint: S.accent } });
-      if (!r) return null;
-      let p = { ...r.pose, heure: null } as Pose;
-      const l = p.lignes[0].px;
-      if (g.style === "paperboard") {
-        // Ses ailes restent sur la page (leurs pointes dépassent de 10 px de référence) : jamais hors de la zone sûre.
-        const ban = banderole(g.P, Math.max(g.x0 + px(g, 12), l.x - px(g, 120)), Math.min(g.x1 - px(g, 12), l.x + l.largeur + px(g, 120)), l.y - px(g, 6), l.hauteur + px(g, 12));
-        p = avecTraits(p, "avant", ban, 0.36);
-        p = { ...p, couleurFond: S.clair };
-      } else p = avecTraits(p, "apres", [souligne(g.P, l.x, l.x + l.largeur, l.y + l.hauteur * 0.96, g.style === "ardoise" ? 7 : 9, g.style === "ardoise" ? S.doux : S.encre)], 0.18);
-      return fixe(bloc([p]));
-    }
+    // FIX-TABLEAU-ETIQUETTES-FORME (18/11, D1 Williams) : la page « à retenir » n'a plus de libellé « À retenir » écrit
+    // d'office par le Studio ; seule la mention de l'EXEMPLE reste (« Exemple illustratif » ou celle du script).
+    if (c.role === "retenir") return null;
+    const libelle = c.mention?.texte.trim() || "Exemple illustratif";
+    const id = c.mention ? c.mention.id : `${c.premiere.id}~partie`;
+    const sceneId = c.mention ? c.mention.sceneId : c.premiere.id;
     const pol: PoliceTableau = g.style === "paperboard" ? "caveat" : "kalam";
     const basse = g.s.W >= g.s.H * 0.99;
     const mx = px(g, basse ? 28 : 38);
@@ -442,6 +432,12 @@ function titre(g: Geo, x: Ligne): Rang | null {
   return r ? fixe(bloc([r.pose])) : null;
 }
 
+/** Interligne de la phrase de la page « à retenir » : la place du titre « À retenir » (retiré) lui est rendue. */
+const INTERLIGNE_RETENIR = 1.22;
+/** Page « à retenir » : grossissement (taille des éléments ; les dessins grossissent deux fois plus) de la liste et écart maximal (px de référence) entre deux rangées. */
+const GROSSISSEMENT_RETENIR = 1.6;
+const ECART_MAX_RETENIR = 170;
+
 /** Phrase : sous le titre (plus petite, son mot-clé souligné ou surligné), ou seule (grande). */
 function phrase(g: Geo, x: Ligne, sousTitre: boolean, role: string): Rang | null {
   const S = g.S;
@@ -449,7 +445,7 @@ function phrase(g: Geo, x: Ligne, sousTitre: boolean, role: string): Rang | null
   const grand = !sousTitre && (role === "douleur" || role === "retenir" || role === "solution" || role === "appel");
   const taille = (sousTitre ? T(g).sousTitre : grand ? T(g).phrase : T(g).detail) * k * g.f;
   const couleur = sousTitre && g.style === "ardoise" ? S.doux : S.encre;
-  const r = ecrire(g, x, { police: S.corps, taille, min: mini(g, sousTitre ? "detail" : "phrase"), couleur, max: (sousTitre ? 3 : 5) + (g.x1 - g.x0 < 600 * g.k ? 1 : 0), centre: S.centre, gabarit: { sorte: "phrase" } });
+  const r = ecrire(g, x, { police: S.corps, taille, min: mini(g, sousTitre ? "detail" : "phrase"), couleur, max: (sousTitre ? 3 : 5) + (g.x1 - g.x0 < 600 * g.k ? 1 : 0), centre: S.centre, gabarit: { sorte: "phrase" }, ...(role === "retenir" && !sousTitre ? { interligne: INTERLIGNE_RETENIR } : {}) });
   if (!r) return null;
   let p = r.pose;
   if (sousTitre && g.style !== "ardoise") {
@@ -471,20 +467,13 @@ function detail(g: Geo, x: Ligne): Rang | null {
   return r ? fixe(bloc([r.pose])) : null;
 }
 
-/** Idée reçue : « Idée reçue » au-dessus, le texte barré quand la voix a fini de le dire. */
+/** Idée reçue : la phrase seule, barrée quand la voix a fini de la dire (plus de libellé « Idée reçue » écrit par le Studio, D1 Williams 18/11). */
 function idee(g: Geo, x: Ligne): Rang | null {
   const S = g.S;
   const k = g.k;
-  const tl = Math.round(Math.max(mini(g, "detail"), T(g).etiquette * k * Math.min(1, g.f)));
-  const ll = Math.ceil(largeurTableau("Idée reçue", S.corps, tl));
-  const il = Math.round(tl * INTERLIGNES_TABLEAU[S.corps]);
   const r = ecrire(g, x, { police: S.corps, taille: T(g).phrase * k * g.f, min: mini(g, "phrase"), couleur: S.encre, max: 3, centre: S.centre });
   if (!r) return null;
-  const xl = S.centre ? milieu(g) - Math.round(ll / 2) : g.x0;
-  const cadre = { x: xl, y: 0, largeur: ll, hauteur: il };
-  const p = deplacer(r.pose, 0, il + px(g, 12));
-  p.gabarit = { sorte: "idee", cadre, signe: { x: xl, y: 0, largeur: 0, hauteur: 0 }, texte: { texte: "Idée reçue", x: xl, y: 0, largeur: ll, hauteur: il, taille: tl }, couleur: S.accentTexte };
-  return fixe(bloc([encombrer({ ...p, enc: union([p.px, cadre]) })]));
+  return fixe(bloc([{ ...r.pose, marque: "barre" }]));
 }
 
 /** La case vide d'une liste (carré à main levée, coins à peine arrondis, comme la maquette). */
@@ -494,22 +483,34 @@ function caseVide(P: Plume, b: RectPx, couleur: string, k: number): TraitTableau
 }
 
 /** Liste (cochée, à pastilles, « À retenir ») : une rangée par élément (case, petit dessin, texte), hauteur souple. */
-function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
+function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>, retenir = false): Rang | null {
   const S = g.S;
   const k = g.k;
   const n = gr.lignes.length;
   const L = g.x1 - g.x0;
   const tcase = Math.round(px(g, 92) * (PLANCHERS_SORTIE[g.s.format] ?? 1));
-  const icMax = Math.round(Math.min(L * 0.26, px(g, 200)));
+  // Page « à retenir » (D1 Williams 18/11, correction relecture) : la place du titre retiré va à la taille des éléments et des dessins (sans que le dessin rapetisse le texte).
+  const grosMax = retenir ? (g.grossi ?? GROSSISSEMENT_RETENIR) : 1;
+  let gros = grosMax;
+  let cap = 1;
+  const icBase = Math.round(Math.min(L * 0.26, px(g, 200)));
+  const icMaxDe = () => Math.round(icBase * (1 + (gros - 1) * 2) * cap);
   const ecart = px(g, 26);
   // Le texte de chaque rangée : une taille commune (la plus grande qui tient pour tous), 2 rangées au plus.
   const xtDe = (ic: number) => g.x0 + (gr.sorte === "code" ? 0 : tcase + ecart) + ic + ecart;
-  const essai = (ic: number, max = g.x0 > (g.bord ?? g.s.x0) + 1 ? 3 : 2, plancher = mini(g, "item")) => {
-    for (let t = Math.round(Math.max(plancher, T(g).item * k * g.f)); t >= plancher; t = Math.floor(t * 0.96)) {
+  /** Page « à retenir » agrandie : une taille plus grande que l'habituelle ne garde que les rangées qui tiennent dans leur hauteur. */
+  let hLim = Infinity;
+  const essai = (ic: number, max = g.x0 > (g.bord ?? g.s.x0) + 1 || (retenir && gros > 1) ? 3 : 2, plancher = mini(g, "item")) => {
+    // Page « à retenir » : on essaie d'abord les tailles agrandies, puis la suite de tailles habituelle (jamais plus petit qu'avant).
+    const t0 = Math.round(Math.max(plancher, T(g).item * k * g.f));
+    const tailles: number[] = [];
+    for (let t = Math.round(Math.max(plancher, T(g).item * gros * k * g.f)); t > t0; t = Math.floor(t * 0.96)) tailles.push(t);
+    for (let t = t0; t >= plancher; t = Math.floor(t * 0.96)) tailles.push(t);
+    for (const t of tailles) {
       // Paperboard : le surligneur déborde du texte (10 px et son bout arrondi) ; il reste dans la zone sûre.
       const marge = g.style === "paperboard" ? Math.ceil(12 + t * 0.4) : 0;
       const rs = gr.lignes.map((x) => ecrire(g, x, { police: S.corps, taille: t, min: t, couleur: S.encre, max, x0: xtDe(ic), x1: g.x1 - marge }));
-      if (rs.every(Boolean)) return rs as NonNullable<ReturnType<typeof ecrire>>[];
+      if (rs.every(Boolean) && !(t > t0 && rs.some((r) => r!.h > hLim))) return rs as NonNullable<ReturnType<typeof ecrire>>[];
     }
     return null;
   };
@@ -526,16 +527,23 @@ function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
   // Dans les sorties basses, le petit dessin de chaque rangée cède la place au texte (jamais sous 60 px).
   const icMin = Math.round(px(g, g.s.format === "vertical" ? 96 : 64) * (g.repli ?? 1));
   // Une case cochée prend 3 lignes seulement quand 2 ne tiennent pas même aux tailles minimales ; jamais plus petit.
+  // (Mesure de la hauteur minimale : à la taille habituelle ; le grossissement n'est essayé que dans `poser`.)
+  gros = 1;
   const textes = surUneLigne(icMin)?.rs ?? essai(icMin) ?? essai(icMin, 3);
+  gros = grosMax;
   if (!textes) return null;
   const hTexte = Math.max(...textes.map((r) => r.h));
   // Un peu d'air entre deux rangées (moins dans les sorties basses).
   const air = px(g, g.s.W >= g.s.H * 0.99 ? 2 : 12);
   const min = n * (Math.max(hTexte, icMin, tcase) + air) + (n - 1) * px(g, g.s.W >= g.s.H * 0.99 ? 8 : 18);
-  const max = n * Math.max(hTexte, icMax) + (n - 1) * px(g, 70);
-  const poser = (h: number): Bloc => {
+  // Page « à retenir » (D1 Williams 18/11) : le titre « À retenir » n'est plus écrit ; la place libérée est rendue à la liste
+  // (éléments et dessins plus grands, écart entre rangées plafonné à ECART_MAX_RETENIR px de référence).
+  const max = n * Math.max(hTexte, icMaxDe()) + (n - 1) * px(g, retenir ? ECART_MAX_RETENIR : 70);
+  /** Choix (texte seul, sans tracer les dessins : peu coûteux) de la taille du dessin et des textes d'une rangée de hauteur `h`. */
+  const choisir = (h: number) => {
     const pas = h / n;
-    let ic = Math.round(Math.max(icMin, Math.min(icMax, pas - px(g, 18))));
+    hLim = retenir && gros > 1 ? pas - air : Infinity;
+    let ic = Math.round(Math.max(icMin, Math.min(icMaxDe(), pas - px(g, 18))));
     // Le dessin rapetisse tant qu'il fait passer un texte de plus sur une seule ligne (D2).
     const rangees = (x: ReturnType<typeof essai>) => (x ? x.reduce((sm, r) => sm + r.pose.lignes.length, 0) : Infinity);
     for (let c = ic, moins = rangees(essai(ic)); c > icMin; ) {
@@ -546,7 +554,8 @@ function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
         ic = c;
       }
     }
-    const une = surUneLigne(ic);
+    // Page « à retenir » agrandie : le texte grossit sur 2-3 rangées plutôt que de rester petit sur une seule ligne.
+    const une = retenir && gros > 1 ? null : surUneLigne(ic);
     // Le dessin rapetisse tant que les textes ne tiennent pas à sa droite, dans la hauteur de leur rangée.
     const tient = (x: ReturnType<typeof essai>) => !!x && Math.max(...x.map((r) => r.h)) <= pas - air;
     let rs = une?.rs ?? essai(ic);
@@ -556,6 +565,10 @@ function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
       rs = essai(ic);
     }
     rs ??= textes;
+    return { pas, ic, rs };
+  };
+  /** Trace la liste (cases, dessins, textes) pour un choix fait par `choisir`. */
+  const tracer = ({ pas, ic, rs }: ReturnType<typeof choisir>): Bloc => {
     const poses: Pose[] = [];
     rs.forEach((r, i) => {
       const yc = Math.round(pas * i + pas / 2);
@@ -577,6 +590,29 @@ function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
       poses.push(p);
     });
     return bloc(poses);
+  };
+  // Page « à retenir » : le grossissement demandé par la page (`g.grossi`) n'est gardé que si le texte n'est pas plus petit que celui
+  // de la liste d'avant (dessins moins grands sinon, puis liste d'avant). Seul le choix retenu est tracé (même coût qu'avant :
+  // les essais ne posent que du texte).
+  const poser = (h: number): Bloc => {
+    if (!retenir || grosMax <= 1) return tracer(choisir(h));
+    const tt = (c: ReturnType<typeof choisir>) => Math.min(...c.rs.map((r) => r.pose.taillePx ?? 0));
+    gros = 1;
+    cap = 1;
+    const ref = choisir(h);
+    gros = grosMax;
+    let choix = ref;
+    for (const c of [1, 0.6]) {
+      cap = c;
+      const e = choisir(h);
+      // Un élément d'une ligne le reste (critique #291 D2) : le grossissement ne casse jamais en deux un texte court (≤ 17 signes ; 12 en paperboard : seuils du test D2).
+      if (tt(e) >= tt(ref) && e.rs.every((r) => r.pose.lignes.length === 1 || r.pose.lignes.map((l) => l.texte).join(" ").length > (g.style === "paperboard" ? 12 : 17))) {
+        choix = e;
+        break;
+      }
+    }
+    cap = 1;
+    return tracer(choix);
   };
   return { sorte: "souple", min, max, poser };
 }
@@ -1181,7 +1217,7 @@ function rangsDePage(g: Geo, c: ContenuPage, texte: string, gs: Geo = g, sansDes
       case "code":
       case "coche":
       case "liste":
-        r = liste(gs, gr);
+        r = liste(gs, gr, c.role === "retenir");
         souple = true;
         break;
       case "transformation":
@@ -1338,10 +1374,13 @@ function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut
   const utile = bas - haut;
   const x0 = s.x0 + marges.g;
   const x1 = s.x1 - marges.d;
+  let premier: { poses: Pose[]; occupation: number; f: number } | null = null;
   for (const { deux, repli, sansDessin } of essais)
-  for (let f = 1; f >= 0.6 - 1e-9; f -= 0.05) {
+  for (let f = 1; f >= 0.6 - 1e-9; f -= 0.05)
+  // Page « à retenir » : on préfère garder l'échelle de la page et rogner le grossissement de la liste plutôt que l'échelle.
+  for (const grossi of c.role === "retenir" ? [GROSSISSEMENT_RETENIR, 1.4, 1.25, 1.12, 1] : [1]) {
     const P = plume(S, graineDe(`${c.page}~${style}`));
-    const g: Geo = { s, S, style, k, f, x0, x1, haut, bas, P, repli, bord: x0, ...(registre ? { registre } : {}) };
+    const g: Geo = { s, S, style, k, f, x0, x1, haut, bas, P, repli, bord: x0, ...(c.role === "retenir" ? { grossi } : {}), ...(registre ? { registre } : {}) };
     // Deux colonnes : le texte prend un peu plus de la moitié.
     const avecTexteADroite = c.groupes.some((x) => x.sorte === "code" || x.sorte === "coche" || x.sorte === "liste" || x.sorte === "comparaison");
     const mil = Math.round(x0 + (x1 - x0) * (avecTexteADroite ? 0.46 : c.groupes.some((x) => x.sorte === "transformation") ? 0.56 : 0.5));
@@ -1351,15 +1390,24 @@ function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut
     if (!rangs) continue;
     const fixes = rangs.filter((r) => r.sorte === "fixe");
     const souples = rangs.filter((r) => r.sorte === "souple");
+    // Page « à retenir » sans rang fixe : la liste seule se pose en pleine largeur (jamais collée à droite, moitié gauche vide).
+    if (deux && !fixes.length && c.role === "retenir") continue;
     const cols = deux && fixes.length && souples.length ? [colonne(fixes, haut, bas, k, f), colonne(souples, haut, bas, k, f)] : [colonne(rangs, haut, bas, k, f)];
     if (cols.some((x) => !x)) continue;
     const poses = cols.flatMap((x) => x!.poses);
     // Deux colonnes : chacune remplit sa hauteur ; la page compte la plus haute.
     const occupation = Math.max(...cols.map((x) => (x!.dessous - x!.dessus) / utile));
     if (registre && occupation < REMPLISSAGE_TABLEAU.min) continue;
-    return { poses, occupation: Math.round(occupation * 1e6) / 1e6, f };
+    const essai = { poses, occupation: Math.round(occupation * 1e6) / 1e6, f };
+    // Page « à retenir » : un grossissement qui laisse la page sous la borne de remplissage n'est pas gardé (le suivant est essayé) ;
+    // faute de mieux, le premier essai posé reste le repli.
+    if (c.role === "retenir" && occupation < REMPLISSAGE_TABLEAU.min + 0.005) {
+      premier ??= essai;
+      continue;
+    }
+    return essai;
   }
-  return null;
+  return premier;
 }
 
 /** Géométrie du style : libellés des chapitres, surface d'écriture, bas du support, haut du contenu. */
