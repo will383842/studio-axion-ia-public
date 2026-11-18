@@ -550,8 +550,7 @@ describe("L5-06 · audit point 1 : posts incomplets de la liste écartés, relus
     return { client, appels };
   }
   const sans = (cle: string) => (p: Record<string, unknown>) => {
-    const { [cle]: _omis, ...reste } = p;
-    return reste;
+    return Object.fromEntries(Object.entries(p).filter(([k]) => k !== cle));
   };
 
   it("un post de la liste sans « platforms » : il est relu seul, les 59 autres sont mis à jour, budget tenu, rien n'est rejeté", async () => {
