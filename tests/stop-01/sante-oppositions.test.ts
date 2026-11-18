@@ -179,3 +179,14 @@ describe("D2 aucun nouvel interrupteur", () => {
     expect(SO.PARAM_SANTE_OPPOSITIONS).toBe("oppositions.sante");
   });
 });
+
+describe("réserve 1 : la ligne de la boucle existe une seule fois, juste après « envois du calendrier »", () => {
+  it("source de boucle.ts", async () => {
+    const { readFileSync } = await import("node:fs");
+    const lignes = readFileSync("src/services/boucle.ts", "utf8").split("\n");
+    const i = lignes.flatMap((l, k) => (l.includes('lancerAnnexe("santé des oppositions"') ? [k] : []));
+    expect(i).toHaveLength(1);
+    expect(lignes[i[0] - 1]).toContain('lancerAnnexe("envois du calendrier"');
+    expect(lignes[i[0]]).toContain("surveillerOppositions");
+  });
+});
