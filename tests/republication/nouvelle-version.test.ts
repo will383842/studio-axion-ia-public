@@ -108,6 +108,14 @@ describe("placement : refus", () => {
   it("ignore une entrée à l'heure illisible hors de la fenêtre d'espacement", () => {
     expect(verifierPlacement(entree({ existants: [existant({ id: "ancien", jour: "2026-01-05", heure: "" })] })).ok).toBe(true);
   });
+  it("refuse un rang déjà pris, même par une entrée archivée", () => {
+    const m = refus({ rang: 1, existants: [existant({ id: "republication-pub-1-1", jour: "2026-12-08", statut: "a_valider" })] });
+    expect(m.join(" ")).toMatch(/existe déjà/);
+    expect(refus({ rang: 1, existants: [existant({ id: "republication-pub-1-1", jour: "2026-11-02", statut: "archive" })] }).join(" ")).toMatch(/existe déjà/);
+  });
+  it("refuse sans planter un maintenant illisible", () => {
+    expect(refus({ maintenant: Number.NaN }).join(" ")).toMatch(/pas lisible/);
+  });
   it("ne donne qu'une phrase pour un jour occupé", () => {
     const m = refus({ existants: [existant({ heure: "18:00" })] });
     expect(m.filter((x) => /occupé/.test(x)).length).toBe(1);
@@ -138,6 +146,10 @@ describe("placement : accepté", () => {
     const maintenant = Date.parse("2026-03-29T08:30:00Z");
     expect(refus({ jour: "2026-03-29", heure: "10:00", maintenant, datePublicationOrigine: origine }).join(" ")).toMatch(/passée/);
     expect(verifierPlacement(entree({ jour: "2026-03-29", heure: "11:00", maintenant, datePublicationOrigine: origine }))).toEqual({ ok: true });
+  });
+  it("accepte 2026-03-29 10:00 quand il est 09:30 à Paris", () => {
+    const origine = Date.parse("2025-01-01T00:00:00Z");
+    expect(verifierPlacement(entree({ jour: "2026-03-29", heure: "10:00", maintenant: Date.parse("2026-03-29T07:30:00Z"), datePublicationOrigine: origine }))).toEqual({ ok: true });
   });
   it("place à l'heure d'hiver (2026-10-25, UTC+1) : 09:30 à Paris le jour même", () => {
     const origine = Date.parse("2025-01-01T00:00:00Z");

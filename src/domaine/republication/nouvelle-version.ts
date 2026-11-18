@@ -78,7 +78,7 @@ const MOTIFS_DELAI: Record<string, string> = {
   filigrane: "Le contenu proposé porte un filigrane : il ne peut pas être republié sur ce réseau.",
   "delai-trop-court": "Le délai depuis la publication d'origine est trop court pour une nouvelle version sur ce réseau.",
   "reseau-inconnu": "Ce réseau n'est pas géré pour les nouvelles versions.",
-  "date-invalide": "La date de la publication d'origine n'est pas lisible : la nouvelle version ne peut pas être placée.",
+  "date-invalide": "Une date nécessaire au contrôle n'est pas lisible : la nouvelle version ne peut pas être placée.",
 };
 
 export function verifierPlacement(e: EntreePlacement): ResultatControle {
@@ -110,6 +110,7 @@ export function verifierPlacement(e: EntreePlacement): ResultatControle {
   }
 
   // Jour et heure
+  if (!Number.isFinite(e.maintenant)) return { ok: false, motifs: [MOTIFS_DELAI["date-invalide"]] };
   if (!jourValide(e.jour) || !FORMAT_HEURE.test(e.heure)) {
     motifs.push("Le jour ou l'heure n'est pas lisible : indiquez un jour AAAA-MM-JJ et une heure HH:MM.");
     return { ok: false, motifs };
@@ -128,13 +129,14 @@ export function verifierPlacement(e: EntreePlacement): ResultatControle {
     return { ok: false, motifs };
   }
   if (actifs.some((x) => x.jour === e.jour)) motifs.push(MOTIF_JOUR_OCCUPE);
+  if (e.existants.some((x) => x.id === idNouvelleVersion(e.publicationId, e.rang))) motifs.push("Cette nouvelle version existe déjà : le rang doit être recalculé.");
 
   // Règles d'espacement L3-15, lues telles quelles.
   const cle = `${CLE_REPUBLICATION}${e.publicationId}`;
   const idNouveau = idNouvelleVersion(e.publicationId, e.rang);
   const nouvelle: PostPlanifie = { id: idNouveau, reseau: e.reseau, jour: e.jour, heure: e.heure, pilier: cle, cible: cle };
   const voisins: PostPlanifie[] = actifs
-    .filter((x) => x.jour >= debut && x.jour <= fin && x.id !== idNouveau)
+    .filter((x) => x.jour >= debut && x.jour <= fin)
     .map((x) => {
       const pilier = estDeCeContenu(x.id, e.publicationId) ? cle : x.id;
       return { id: x.id, reseau: x.reseau, jour: x.jour, heure: x.heure, pilier, cible: pilier };
