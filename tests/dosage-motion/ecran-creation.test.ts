@@ -18,7 +18,7 @@ function lecteur(valeurs: Record<string, unknown>): LireSimule {
 
 describe("X3-09c : dosagePourEcran éteint", () => {
   const cas: Array<[string, () => LireSimule]> = [
-    ["absent", () => lecteur({})],
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec false écrit en base.
     ["false", () => lecteur({ "dosageMotion.actif": false })],
     ['"true" (texte)', () => lecteur({ "dosageMotion.actif": "true" })],
     ["lecture qui lève", () => vi.fn<(id: string, defaut: unknown) => Promise<unknown>>(async () => { throw new Error("base indisponible"); })],
@@ -32,6 +32,16 @@ describe("X3-09c : dosagePourEcran éteint", () => {
       expect(lire.mock.calls[0][0]).toBe("dosageMotion.actif");
     });
   }
+});
+
+describe("X3-09c : dosagePourEcran, rien en base", () => {
+  // ALLUME-VAGUE-A-CODE 18/11/2026 : absent = allumé.
+  it("absent : actif, défaut equilibre, une seule lecture", async () => {
+    const lire = lecteur({});
+    const r = await dosagePourEcran({ id: "avocat", moteur: "simulation" }, { lire });
+    expect(r).toEqual({ actif: true, generateur: "avocat", defaut: "equilibre" });
+    expect(lire.mock.calls[0][0]).toBe("dosageMotion.actif");
+  });
 });
 
 describe("X3-09c : dosagePourEcran allumé", () => {

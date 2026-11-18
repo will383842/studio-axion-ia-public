@@ -8,6 +8,17 @@ import { cartesReseaux } from "@/components/formats/image-video/vue";
 import { avancerJusquAArretIV, etatInitialIV, validerCarteIV, validerScriptIV, attendWillIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
+/**
+ * 18/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Sujet de ce fichier : la livraison partielle par réseau suppose des fins différentes par réseau (une faute sur un seul réseau).
+ * Le plan tiré est rejoué en retirant le drapeau, assertions inchangées. Le cas « fin vide » a ses preuves dans
+ * `fins/fin-non-choisie.test.ts`.
+ */
+const reglage = vi.hoisted(() => ({ finTiree: true }));
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => vrai.planDesFinsIV(reglage.finTiree ? { ...d, finVide: undefined } : d) };
+});
+
 vi.setConfig({ testTimeout: 120_000 });
 
 async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
@@ -73,5 +84,20 @@ describe("livraison partielle (étape contrôles)", () => {
     expect(fini.etape).toBe("prete");
     const l = Object.fromEntries((fini.livraison ?? []).map((x) => [x.reseau, x.version]));
     expect(l).toEqual({ "youtube-shorts": "longue", linkedin: "longue", instagram: "aucune", facebook: "longue" });
+  });
+
+  it("D4, fin vide (plan réel) : une seule fin pour tous les réseaux ; une faute sur sa version n'est livrée à aucun réseau (refus global), jamais livrée par erreur", async () => {
+    reglage.finTiree = false;
+    try {
+      const carte = carteFixe("C");
+      const m = monde();
+      const fini = await jusquAuBout(etatInitialIV(demandeEssai(carte)), avecNoirSur(outilsSimules(carte, m), (v) => v.startsWith("fin-")));
+      expect(fini.plan!.fins).toHaveLength(1);
+      expect(fini.etape).toBe("refusee");
+      expect(fini.refus).toMatchObject({ etape: "controles", code: "IV_CONTROLES", reessayable: false });
+      expect(fini.livraison).toBeUndefined();
+    } finally {
+      reglage.finTiree = true;
+    }
   });
 });

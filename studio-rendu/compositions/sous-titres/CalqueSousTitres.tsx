@@ -6,10 +6,11 @@
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { bandeauAuTemps, cssBandeauNom } from "../../../src/briques/sous-titres/bandeau-nom";
 import { pastilleEnManrope } from "../../../src/briques/sous-titres/pastille";
-import { cssBandeFond, cssElement, cssEtiquetteOutil, escalierAuTemps, etiquetteAuTemps, opaciteBandeFond, paveAuTemps, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { cssBandeFond, cssElement, cssEtiquetteOutil, escalierAuTemps, etiquetteAuTemps, opaciteBandeFond, boiteAuTemps, paveAuTemps, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
 import { geometrieEscalier } from "../../../src/briques/sous-titres/escalier";
 import { geometrieMarque } from "../../../src/briques/sous-titres/marques-mot";
 import { geometriePave } from "../../../src/briques/sous-titres/pave";
+import { cheminBoiteArrondie } from "../../../src/briques/sous-titres/boite-arrondie";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
 import { LigneEscalier } from "./LigneEscalier";
 import { chargerPolices, FAMILLES } from "./polices";
@@ -66,6 +67,9 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
   const gp = pave ? geometriePave(pave.boite, pave.taillePx, t - pave.debutS) : null;
   const gm = pave && gp && pave.marque ? geometrieMarque(pave.marque, gp, pave.taillePx, pave.graine) : null;
   const contour = gm?.contourSeul === true;
+  // BR-MINIMAL-IV-b : boîte arrondie derrière le groupe (champ `boite` seulement) ; absent : rien de plus.
+  const lignesBoite = donnees.boite ? boiteAuTemps(donnees, t) : null;
+  const cheminBoite = lignesBoite && donnees.boite ? cheminBoiteArrondie(lignesBoite, { rayon: donnees.boite.rayonEm * el.taillePx, marge: donnees.boite.margeEm * el.taillePx }) : "";
   const css = cssElement(el, donnees, `"${donnees.encre || (donnees.pastille && !pastilleManrope) ? FAMILLE_TITRE : FAMILLES[el.police]}"`);
   return (
     <AbsoluteFill>
@@ -91,6 +95,11 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
             />
           )}
         </div>
+      )}
+      {donnees.boite && cheminBoite && (
+        <svg data-boite-arrondie="" width="100%" height="100%" style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none", opacity: el.opacite }}>
+          <path d={cheminBoite} fill={donnees.boite.couleurs.fond} />
+        </svg>
       )}
       <div style={css.conteneur}>
         <div style={css.ligne}>

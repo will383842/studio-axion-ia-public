@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { lireCleFiche } from "@/components/calendrier/FicheEntree";
 import { essayer, ErreurStudio, sousVerrou, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
+import { CODES_RETRAIT, retirerProgrammationServeur } from "@/services/retirer-programmation";
 import { CODES_DEPLACEMENT, deplacerProgrammationServeur, modifierTexteProgrammeServeur, type ResultatDeplacement } from "@/services/deplacer-programmation";
 
 const NON_DEPLACABLE = "Seule une publication programmée d'un créneau se déplace d'ici.";
@@ -82,4 +83,27 @@ export async function modifierTexteProgrammeDepuisFormulaire(formulaire: FormDat
   let h = 5381;
   for (const c of `${cle}|${texte}|${premierCommentaire ?? ""}`) h = ((h * 33) ^ c.codePointAt(0)!) >>> 0;
   return modifierTexteProgrammeAction(cle, { texte, ...(premierCommentaire !== undefined ? { premierCommentaire } : {}), cleFormulaire: `f${h.toString(36)}` });
+}
+
+/**
+ * « Retirer » une publication programmée depuis l'aperçu (CAL-23). Même service et mêmes codes que `retirerProgrammationAction` (CAL-22) ;
+ * seule différence : au SUCCÈS elle ne rafraîchit pas la page. Sinon le créneau archivé sortirait du calendrier, l'aperçu se fermerait et
+ * emporterait le message et le bouton « Annuler » (10 secondes) : l'écran rafraîchit lui-même, à la fin du délai ou à la fermeture.
+ * Un retrait partiel (écritures déjà faites) rafraîchit tout de suite, comme CAL-22.
+ */
+export async function retirerProgrammationDepuisApercuAction(cle: string, confirmation: string): Promise<Resultat<{ creneauId: string; annulableJusquA: string; message: string }>> {
+  await exigerSession();
+  return essayer(() =>
+    sousVerrou(async () => {
+      if (confirmation !== "retirer") throw new ErreurStudio("RETRAIT_A_CONFIRMER", "Confirmez d'abord le retrait.");
+      const k = lireCleFiche(cle);
+      if (k?.origine !== "creneau") throw new ErreurStudio("RETRAIT_REFUSE", "Seule une publication programmée d'un créneau se retire d'ici.");
+      const r = await retirerProgrammationServeur(k.id);
+      if (!r.ok) {
+        if (r.ecritures) revalidatePath("/calendrier");
+        throw new ErreurStudio(CODES_RETRAIT[r.etat], r.message);
+      }
+      return { creneauId: r.creneauId, annulableJusquA: r.annulableJusquA, message: r.message };
+    }),
+  );
 }

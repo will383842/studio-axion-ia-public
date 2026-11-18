@@ -69,6 +69,16 @@ export interface OutilsTutoriel {
   finitions?: { actif: true };
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
   sousTitres?: { style?: ValeurStyleSousTitres | null; base?: BaseSousTitres; intensite?: IntensiteSousTitres };
+  /**
+   * T-EXT-42 : devis et plafond par vidéo, EN QUANTITÉS, montrés avant toute dépense. Absent = comportement d'avant, inchangé.
+   * Présent : le moteur s'arrête en pause claire (jamais en échec, sans aucun appel) tant que Williams n'a pas accepté CE devis.
+   */
+  devis?: {
+    roles: readonly { id: string; essaisMax: number }[];
+    accord: { empreinte: string; le: string } | null;
+    /** Ce qui a déjà été dépensé pour ce travail (appels revenus, caractères lus, rendus demandés), lu dans son état. */
+    consomme(etat: EtatTutoriel): Promise<{ appelsClaude: number; caracteresVoix: number; rendus: number }>;
+  };
 }
 
 /* ------------------------------------------------------------------ */
