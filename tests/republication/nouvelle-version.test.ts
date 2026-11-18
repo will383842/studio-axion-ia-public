@@ -105,15 +105,18 @@ describe("placement : refus", () => {
       expect(m.join(" ")).toMatch(/illisible/);
     }
   });
+  it("ignore une entrée à l'heure illisible hors de la fenêtre d'espacement", () => {
+    expect(verifierPlacement(entree({ existants: [existant({ id: "ancien", jour: "2026-01-05", heure: "" })] })).ok).toBe(true);
+  });
   it("ne donne qu'une phrase pour un jour occupé", () => {
     const m = refus({ existants: [existant({ heure: "18:00" })] });
     expect(m.filter((x) => /occupé/.test(x)).length).toBe(1);
     expect(m.length).toBe(1);
   });
   it("refuse un réseau inconnu, un jour ou une heure mal écrits", () => {
-    expect(refus({ reseau: "myspace" as never }).length).toBeGreaterThan(0);
-    expect(refus({ jour: "10/12/2026" }).length).toBeGreaterThan(0);
-    expect(refus({ heure: "25:99" }).length).toBeGreaterThan(0);
+    expect(refus({ reseau: "myspace" as never }).join(" ")).toMatch(/n'est pas géré/);
+    expect(refus({ jour: "10/12/2026" }).join(" ")).toMatch(/pas lisible/);
+    expect(refus({ heure: "25:99" }).join(" ")).toMatch(/pas lisible/);
   });
   it("rend des motifs en français, au vouvoiement, sans chiffre brut de score", () => {
     const m = refus({ rang: 3, reseau: "tiktok", jour: "2026-11-30", datePublicationOrigine: MAINTENANT - 2 * JOUR_MS });
@@ -130,10 +133,17 @@ describe("placement : accepté", () => {
   it("accepte le cas nominal", () => {
     expect(verifierPlacement(entree())).toEqual({ ok: true });
   });
-  it("accepte à l'heure d'été (2026-03-29 10:00) et d'hiver (2026-10-25 10:00)", () => {
+  it("place à l'heure d'été (2026-03-29, UTC+2) : 10:30 à Paris le jour même", () => {
     const origine = Date.parse("2025-01-01T00:00:00Z");
-    expect(verifierPlacement(entree({ jour: "2026-03-29", heure: "10:00", maintenant: Date.parse("2026-03-20T08:00:00Z"), datePublicationOrigine: origine }))).toEqual({ ok: true });
-    expect(verifierPlacement(entree({ jour: "2026-10-25", heure: "10:00", maintenant: Date.parse("2026-10-20T08:00:00Z"), datePublicationOrigine: origine }))).toEqual({ ok: true });
+    const maintenant = Date.parse("2026-03-29T08:30:00Z");
+    expect(refus({ jour: "2026-03-29", heure: "10:00", maintenant, datePublicationOrigine: origine }).join(" ")).toMatch(/passée/);
+    expect(verifierPlacement(entree({ jour: "2026-03-29", heure: "11:00", maintenant, datePublicationOrigine: origine }))).toEqual({ ok: true });
+  });
+  it("place à l'heure d'hiver (2026-10-25, UTC+1) : 09:30 à Paris le jour même", () => {
+    const origine = Date.parse("2025-01-01T00:00:00Z");
+    const maintenant = Date.parse("2026-10-25T08:30:00Z");
+    expect(verifierPlacement(entree({ jour: "2026-10-25", heure: "10:00", maintenant, datePublicationOrigine: origine }))).toEqual({ ok: true });
+    expect(refus({ jour: "2026-10-25", heure: "09:00", maintenant, datePublicationOrigine: origine }).join(" ")).toMatch(/passée/);
   });
   it("juge l'heure passée à l'heure de Paris, pas en UTC", () => {
     // 2026-07-01 08:30 UTC = 10:30 à Paris.
@@ -169,6 +179,7 @@ describe("texte", () => {
     const r = verif("Tu peux préparer ta prochaine publication en quelques minutes avec un plan clair.");
     expect(r.ok).toBe(false);
     expect(r.motifs.join(" ")).toMatch(/vouvoiement/);
+    expect(r.motifs.join(" ")).not.toMatch(/: le texte/);
   });
   it("refuse un mot interdit par la charte", () => {
     const r = verif("Avec ce plan, c'est aucun gain garanti mais un rythme régulier pour vos réseaux.");
@@ -185,7 +196,7 @@ describe("texte", () => {
     expect(r.ok).toBe(true);
   });
   it("refuse un réseau inconnu", () => {
-    expect(verifierTexte({ reseau: "myspace" as never, texte: "Un texte neuf pour vous.", texteOrigine: origine }).ok).toBe(false);
+    expect(verifierTexte({ reseau: "myspace" as never, texte: "Un texte neuf pour vous.", texteOrigine: origine }).motifs.join(" ")).toMatch(/n'est pas géré/);
   });
 });
 
@@ -195,6 +206,9 @@ describe("statique", () => {
     expect(source).not.toMatch(/@\/services/);
     expect(source).not.toMatch(/@\/fournisseurs/);
     expect(source).not.toMatch(/server-only/);
+    for (const nom of ["envoi-depuis-creneau", "branchement-envoi-calendrier", "valider-entree", "reprise-envois", "services/zernio", "fournisseurs/claude"]) {
+      expect(source).not.toContain(nom);
+    }
   });
   it("ne contient ni lecture de réglage ni appel requête", () => {
     expect(source).not.toContain("lire" + "Parametre");

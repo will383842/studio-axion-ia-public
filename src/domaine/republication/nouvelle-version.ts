@@ -119,16 +119,17 @@ export function verifierPlacement(e: EntreePlacement): ResultatControle {
 
   // Existants qui comptent : même réseau, ni archivés ni en échec, publications simulées exclues.
   const actifs = e.existants.filter((x) => x.reseau === e.reseau && x.statut !== "archive" && x.statut !== "echec" && x.simulee !== true);
-  if (actifs.some((x) => !jourValide(x.jour) || !FORMAT_HEURE.test(x.heure))) {
+  const regles = reglesDuReseau(e.reseau);
+  const debut = ajouterJoursParis(e.jour, -regles.repetitionJours);
+  const fin = ajouterJoursParis(e.jour, regles.repetitionJours);
+  // Un jour illisible refuse toujours ; une heure illisible refuse seulement dans la fenêtre d'espacement.
+  if (actifs.some((x) => !jourValide(x.jour) || (x.jour >= debut && x.jour <= fin && !FORMAT_HEURE.test(x.heure)))) {
     motifs.push("Une entrée de ce réseau a un jour ou une heure illisible : corrigez-la avant de placer cette nouvelle version.");
     return { ok: false, motifs };
   }
   if (actifs.some((x) => x.jour === e.jour)) motifs.push(MOTIF_JOUR_OCCUPE);
 
   // Règles d'espacement L3-15, lues telles quelles.
-  const regles = reglesDuReseau(e.reseau);
-  const debut = ajouterJoursParis(e.jour, -regles.repetitionJours);
-  const fin = ajouterJoursParis(e.jour, regles.repetitionJours);
   const cle = `${CLE_REPUBLICATION}${e.publicationId}`;
   const idNouveau = idNouvelleVersion(e.publicationId, e.rang);
   const nouvelle: PostPlanifie = { id: idNouveau, reseau: e.reseau, jour: e.jour, heure: e.heure, pilier: cle, cible: cle };
@@ -185,7 +186,9 @@ export function verifierTexte(e: EntreeTexte): ResultatTexte {
   }
   const charte = controlerCharte(e.texte, "genere");
   if (charte.verdict === "rejete") {
-    for (const m of charte.motifs) motifs.push(`Votre texte ne respecte pas la charte : ${m.charAt(0).toLowerCase()}${m.slice(1)}`);
+    for (const m of charte.motifs) {
+      motifs.push(m.startsWith("Interdit : ") ? `Votre texte contient un terme interdit par la charte : ${m.slice("Interdit : ".length)}` : m.replace(/^Le texte /, "Votre texte "));
+    }
   }
   return motifs.length === 0 ? { ok: true, motifs } : { ok: false, motifs };
 }
