@@ -58,9 +58,21 @@ export interface EntreeRealisateur {
 export type ResultatRealisateur = { ok: true; parcours: ParcoursTutoriel; remarques: string[] } | { ok: false; erreurs: string[] };
 
 const MOT_PLEIN_MIN = 4;
-const MOTS = /[\p{L}\p{N}]+/gu;
 
-const motsDe = (t: string): string[] => (t.match(MOTS) ?? []).map((m) => m.toLowerCase());
+/**
+ * Copie locale de `normaliser` de `calage-scenario.ts` (non exportée, fichier en import seulement) : minuscules, sans
+ * accents, sans ponctuation de bord. Les mots du script se découpent sur les espaces, comme ceux de la voix : « L'équipe »
+ * reste « l'equipe ». À garder identique à l'original.
+ */
+function normaliser(t: string): string {
+  return t
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+}
+
+const motsDe = (t: string): string[] => t.split(/\s+/).map(normaliser).filter((m) => m.length > 0);
 
 /** Zone dans le champ (0-100), de largeur et de hauteur non nulles. */
 function dansLeChamp(z: ZonePct): boolean {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lireScenarioMaquette } from "@/moteurs/montage-tutoriel-outil/scenario-maquette";
+import { calerScenario } from "@/moteurs/montage-tutoriel-outil/calage-scenario";
 import { realiser, type EntreeRealisateur } from "@/moteurs/montage-tutoriel-outil/equipe/realisateur";
 import type { CarteZones, ZoneCarte } from "@/moteurs/montage-tutoriel-outil/equipe/analyste";
 import type { CahierVideo, IdGabarit } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
@@ -133,6 +134,25 @@ describe("réalisateur (T-EXT-22)", () => {
     const [a, b] = r.parcours.scenario.etapes;
     expect(a!.ancre).toEqual({ surMot: "vous", occurrence: 1 });
     expect(b!.ancre).toEqual({ surMot: "vous", occurrence: 2 });
+  });
+
+  it("mots élidés (« L'alerte », « Aujourd'hui ») : ancres sur mots entiers, scénario calable sur une voix découpée aux espaces", () => {
+    const phrases = [
+      ph("L'alerte arrive chaque matin.", "situation"),
+      ph("Aujourd'hui votre liste se met à jour.", "situation"),
+      ph("L'alerte apparaît toute seule.", "changement", "alerte"),
+      ph("Là votre liste change.", "changement", "liste"),
+      ph("Votre entreprise gagne en sérénité.", "gain"),
+    ];
+    const r = realiser(entree({ script: script(phrases) }));
+    if (!r.ok) throw new Error(`attendu ok : ${r.erreurs.join(" ")}`);
+    const ancres = r.parcours.scenario.etapes.map((e) => ("surMot" in e.ancre ? e.ancre : null));
+    expect(ancres[0]).toEqual({ surMot: "l'alerte", occurrence: 1 });
+    expect(ancres[1]).toEqual({ surMot: "aujourd'hui", occurrence: 1 });
+    expect(ancres[2]).toEqual({ surMot: "l'alerte", occurrence: 2 });
+    const mots = script(phrases).texte.split(/\s+/).map((mot, i) => ({ mot, debutSec: i * 0.4, finSec: i * 0.4 + 0.35 }));
+    const c = calerScenario(r.parcours.scenario, mots, 60_000);
+    expect(c.ok).toBe(true);
   });
 
   it("11 phrases de changement : refus « 9 étapes filmées au plus »", () => {
