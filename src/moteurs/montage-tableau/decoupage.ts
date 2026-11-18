@@ -25,6 +25,9 @@
  * une fin de phrase, page trop chargée passée à une page de plus), puis le RYTHME (`reparerRythme`, `rythme.ts` : ancres redistribuées sur les mots
  * dits, gestes sûrs ajoutés, scène coupée à une fin de phrase). Le texte dit n'est jamais retouché, aucun texte écrit
  * n'est inventé.
+ * Une cinquième remise en forme, au découpage seulement (`jugerFiche`, `reparation-refus.ts`) : un refus de FORME que l'IA
+ * du Studio a créé (liste sur une page « douleur », page trop pleine…) est réparé sans IA, mêmes mots, avant toute relance ;
+ * rendu et tracé (`reparations`), jamais en silence.
  *
  * N'importe aucun fournisseur en direct ni aucun autre moteur ; du générateur, des TYPES seulement.
  */
@@ -69,6 +72,9 @@ import { IDS_VISUELS_3 } from "@/briques/tableau-scene/reference/visuels-3";
 import { estPageEcriteCrayon, numerosDits, type RolePage } from "./gabarit";
 import { diagnosticPageDePlus, pageTropChargee, reparerDensite, type OptionsDensite, type RetraitAllegement } from "./densite";
 import { ECART_VISE_MS, reparerRythme, type ReglagesRythme } from "./rythme";
+// ORDRE À GARDER : après `./rythme`. Importer `reparation-refus` plus haut (ou seul) plante au chargement (cycle fiche/gabarit hérité,
+// `fiche.ts:155` ; `densite.ts` seul plante déjà de même sur master).
+import { reparerRefusDeForme, type ReparationForme } from "./reparation-refus";
 import { CARACTERES_DITS_MAX_TABLEAU, caracteresEn } from "@/domaine/duree-tableau";
 import { cleSimple, REGLES_TABLEAU, ACCROCHE_MOTS_MAX, CARACTERES_PAR_SECONDE, DUREE_MAX_MS, ECART_EVENEMENT_MAX_MS, PAGE_LIGNES_MAX, PAGE_MOTS_MAX, type ContexteTableau } from "./regles";
 
@@ -232,7 +238,7 @@ export type MotifEchec = "refusee" | "tronquee" | "illisible" | "budget" | "appe
 
 export type ResultatDecoupage =
   /** `retraits` : ce que l'allègement de dernier recours a retiré de la fiche (page trop chargée), s'il y en a eu. */
-  | { ok: true; fiche: FicheTableau; appels: number; relance: boolean; retraits?: RetraitAllegement[] }
+  | { ok: true; fiche: FicheTableau; appels: number; relance: boolean; retraits?: RetraitAllegement[]; reparations?: ReparationForme[] }
   /** `aCorriger` : la dernière fiche LISIBLE refusée par les règles (champs fixes remis à leur valeur), à garder. */
   | { ok: false; motif: MotifEchec; message: string; refus: string[]; appels: number; aCorriger?: FicheTableau };
 
@@ -251,7 +257,7 @@ export const CONSIGNE_DECOUPAGE = `Tu découpes un script VALIDÉ en fiche de sc
 RÈGLES ABSOLUES (la fiche est refusée sinon) :
 - Les « texteDit » des scènes, mis bout à bout dans l'ordre, redonnent le script MOT POUR MOT, dans l'ordre, sans rien ajouter ni retirer : même ponctuation, même casse, mêmes apostrophes. Tu ne corriges, ne reformules, ne résumes jamais le script ; tu le coupes seulement entre deux mots.
 - Chaque « dessinId » vient de la liste <dessins> fournie, à l'identique. Aucun autre dessin.
-- Chaque « preuveId » vient de la liste <preuves> fournie, à l'identique. Au moins une scène de rôle « preuve » porte un élément « preuve ».
+- Chaque « preuveId » vient de la liste <preuves> fournie, à l'identique. Élément « preuve » seulement si le texte dit cite cette preuve.
 - Chaque « chiffre » porte un « sourceId » de la liste <sources_chiffres> ; aucun chiffre écrit dans une ligne sans élément « chiffre ». Exception : sur la page de l'EXEMPLE qui porte la mention « Exemple illustratif », écris en chiffres ceux que la voix dit (« 10 min », « 3 min »). Ailleurs, sans source, n'écris pas le chiffre ET ne tronque jamais la phrase : jamais « des minutes » pour « dix minutes », jamais « Tâches à… » pour « Trois tâches à… » ; reformule une phrase complète et juste sans quantité (« Les tâches à apprendre en premier »). Un DÉCOMPTE annoncé (« Trois réflexes pour… », « 3 étapes », « Cinq erreurs ») n'est pas un chiffre à sourcer : écris-le tel que la voix le dit, en lettres ou en chiffres, jamais « Les réflexes pour… » ; seule la quantité mesurée sans source (« en dix minutes ») se reformule. Une phrase clé ne répète pas le titre de sa page (titre « Faites rédiger », phrase « Faites rédiger les réponses… » : écris la phrase entière, l'écran retire le titre).
 - Aucune phrase d'appel dans les textes écrits (${liste(["abonnez-vous", "commentez", "lien", "partagez", "likez", "cliquez"])}…) : la fin est une pièce à part, « appelId » vaut null.
 - Vouvoiement dans tout texte écrit ; jamais « demain ».
@@ -441,8 +447,9 @@ export function variableDecoupage(e: EntreeDecoupage): string {
 }
 
 /** Variable de la relance : la même, plus la réponse précédente et ses refus exacts. */
-export function variableRelance(variable: string, reponsePrecedente: string, refus: readonly string[]): string {
-  return `${variable}\n<reponse_precedente>\n${reponsePrecedente}\n</reponse_precedente>\n<refus_fiche_precedente>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus_fiche_precedente>\nTa fiche précédente a été refusée pour ces raisons. Rends la fiche COMPLÈTE corrigée, en JSON seul. Le texte dit reste le script validé mot pour mot : ne le change jamais pour corriger un autre refus. Les numéros de scènes et de pages des refus sont ceux de ta fiche APRÈS la réparation automatique (scènes coupées, pages décalées) : retrouve chaque scène par son texte dit (premiers mots ou lignes citées).`;
+export function variableRelance(variable: string, reponsePrecedente: string, refus: readonly string[], reparations: readonly Pick<ReparationForme, "quoi">[] = []): string {
+  const dejaRepare = reparations.length ? `\nLe Studio a déjà réparé seul : ${reparations.map((r) => r.quoi).join(" ; ")}. Ne refais pas ce rangement ; il reste à corriger :` : "";
+  return `${variable}\n<reponse_precedente>\n${reponsePrecedente}\n</reponse_precedente>\n<refus_fiche_precedente>\n${refus.map((r) => `- ${r}`).join("\n")}\n</refus_fiche_precedente>${dejaRepare}\nTa fiche précédente a été refusée pour ces raisons. Rends la fiche COMPLÈTE corrigée, en JSON seul. Le texte dit reste le script validé mot pour mot : ne le change jamais pour corriger un autre refus. Les numéros de scènes et de pages des refus sont ceux de ta fiche APRÈS la réparation automatique (scènes coupées, pages décalées) : retrouve chaque scène par son texte dit (premiers mots ou lignes citées).`;
 }
 
 /** Coût PIRE d'un appel (entrée estimée au pire + sortie maximale), en dollars. */
@@ -652,7 +659,7 @@ export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habill
 }
 
 /** Juge une réponse lue : contrôles du découpage, puis validation complète de la fiche. */
-export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[] } | { ok: false; refus: string[] } {
+export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[]; reparations?: ReparationForme[] } | { ok: false; refus: string[]; reparations?: ReparationForme[] } {
   // Remises en forme déterministes : mots forts et importants, formes (ancres bornées…), puis rythme.
   // Les parties du script (quand le générateur les rend) fixent la partie de chaque page et les numéros d'étape.
   const lue = appliquerParties(rendue, e.parties);
@@ -663,18 +670,40 @@ export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fic
     const r = validerFicheTableau(f, { ...e.controle, texteScript: e.texteScript });
     return r.ok ? 0 : r.problemes.filter((p) => p.regle !== REGLE_PAGE_LISIBLE).length;
   };
-  const brute = remettreEnForme(jugee, { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur }, { alleger: true, retraits, verifier });
-  const propres = controlesDecoupage(brute, e);
-  const v = validerFicheTableau(brute, { ...e.controle, texteScript: e.texteScript });
-  const dejaTraitees = new Set<number>();
-  const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message + conseilDe(p.regle) + raisonPageDePlus(p, brute, dejaTraitees)))];
-  if (refus.length || !v.ok) return { ok: false, refus };
+  let brute = remettreEnForme(jugee, { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur }, { alleger: true, retraits, verifier });
+  /** Le jugement d'une fiche : les mêmes appels que toujours (contrôles du découpage, puis validation complète). */
+  const evaluer = (b: unknown) => {
+    const propres = controlesDecoupage(b, e);
+    const v = validerFicheTableau(b, { ...e.controle, texteScript: e.texteScript });
+    const dejaTraitees = new Set<number>();
+    const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message + conseilDe(p.regle) + raisonPageDePlus(p, b, dejaTraitees)))];
+    return { propres, v, refus };
+  };
+  let jugement = evaluer(brute);
+  // Cinquième remise en forme, au découpage seulement : un refus de FORME est réparé sans IA, mêmes mots, avant toute relance.
+  let reparations: ReparationForme[] = [];
+  if (jugement.refus.length || !jugement.v.ok) {
+    const juger = (f: FicheTableau) => {
+      const r = validerFicheTableau(f, { ...e.controle, texteScript: e.texteScript });
+      return [...controlesDecoupage(f, e).map((message) => ({ message })), ...(r.ok ? [] : r.problemes.map((p) => ({ message: p.message, sceneId: p.sceneId })))];
+    };
+    // Le rythme est repassé sur chaque candidat (retirer une liste laisse un trou d'événements visuels) : gestes sûrs seulement.
+    const r = reparerRefusDeForme(brute as FicheTableau, { juger, remettre: (f) => reparerRythme(f, { debit: e.controle.caracteresParSeconde, motsDouleur: e.controle.motsDouleur }) });
+    if (r.reparations.length) {
+      brute = r.fiche;
+      reparations = r.reparations;
+      jugement = evaluer(brute);
+    }
+  }
+  const { v, refus } = jugement;
+  const avecReparations = reparations.length ? { reparations } : {};
+  if (refus.length || !v.ok) return { ok: false, refus, ...avecReparations };
   // Style tiré ou imposé : il reste dans la fiche (la fabrication le relit via `styleTableauDe`, sinon elle retomberait sur
   // le style de la série). Sinon le style de la série n'a servi qu'à juger : la fabrication le pose à son tour.
-  if (jugee === lue || e.tirage || estStyleTableau(e.styleImpose)) return { ok: true, fiche: v.fiche, retraits };
+  if (jugee === lue || e.tirage || estStyleTableau(e.styleImpose)) return { ok: true, fiche: v.fiche, retraits, ...avecReparations };
   const fiche = { ...v.fiche };
   delete fiche.styleTableau;
-  return { ok: true, fiche, retraits };
+  return { ok: true, fiche, retraits, ...avecReparations };
 }
 
 const REGLE_PAGE_LISIBLE = REGLES_TABLEAU.find((r) => r.numero === 4)!.nom;
@@ -763,13 +792,14 @@ export async function decouperEnScenes(entree: EntreeDecoupage, outils: OutilsDe
     if (jugement.ok) {
       // Un allègement de dernier recours a retiré du contenu écrit : jamais en silence (trace serveur + résultat).
       if (jugement.retraits.length) console.warn(`[tableau] découpage ${entree.videoId} : page allégée, retraits ${jugement.retraits.map((r) => `${r.sceneId}/${r.elementId} (${r.type}, page ${r.page})`).join(", ")}`);
-      return { ok: true, fiche: jugement.fiche, appels, relance: essai > 1, ...(jugement.retraits.length ? { retraits: jugement.retraits } : {}) };
+      if (jugement.reparations?.length) console.warn(`[tableau] découpage ${entree.videoId} : réparé sans IA : ${jugement.reparations.map((r) => `${r.cle} ${r.sceneId}${r.elementId ? `/${r.elementId}` : ""} (page ${r.page}) : ${r.quoi}`).join(" ; ")}`);
+      return { ok: true, fiche: jugement.fiche, appels, relance: essai > 1, ...(jugement.retraits.length ? { retraits: jugement.retraits } : {}), ...(jugement.reparations?.length ? { reparations: jugement.reparations } : {}) };
     }
 
     illisible = !lecture.ok;
     if (lecture.ok && ficheLisible(lecture.brute)) aCorriger = ficheACorriger(lecture.brute, entree);
     refus = jugement.refus;
-    variable = variableRelance(base, lecture.texte, refus);
+    variable = variableRelance(base, lecture.texte, refus, "reparations" in jugement ? jugement.reparations : undefined);
   }
 
   if (illisible && !aCorriger) {

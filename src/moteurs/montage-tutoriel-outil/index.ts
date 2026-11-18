@@ -21,10 +21,11 @@ import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { cibleSon, rapportSon } from "./finitions";
-import { accordValide, etablirDevis, resteDuDevis } from "./devis-tutoriel";
+import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
 import { lireEntreesTutoriel } from "./entrees";
-import { avancerEtape, ErreurTutoriel, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
+import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
+import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -269,17 +270,26 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     const parent = etat.parent?.audio;
     // Le devis reste le même du premier au dernier pas : seule la voix d'une version d'avant, reprise telle quelle, est « déjà payée ».
     const payee = (!!parent?.fichierCle && !!etat.script && parent.empreinte === empreinteAudioMaitre({ ...commande, script: { ...commande.script, texteComplet: etat.script.texte } }));
+    // La voix compte le texte RÉELLEMENT lu (prononciations appliquées), à chaque prise : le devis couvre toutes les lectures permises.
+    const lu = lit ? outilsVoixMaitre(outils.voix!, commande, texte).texte() : "";
+    const lectures = lit ? lecturesVoixMax(outils.voix!.ressemblance) : 0;
     const devis = etablirDevis({
       roles: port.roles,
-      caracteresScript: lit ? texte.length : 0,
+      caracteresScript: lu.length * lectures,
       texteScript: etat.script ? texte : "",
-      motsScript: lit ? texte.split(/\s+/).filter(Boolean).length : 0,
+      motsScript: lu.split(/\s+/).filter(Boolean).length * lectures,
       voixDejaPayee: payee,
       ratios: etat.ratios,
       essai: false,
     });
     if (!accordValide(devis, port.accord)) return { code: CODE_DEVIS_A_ACCEPTER, message: PHRASE_DEVIS_A_ACCEPTER };
-    const reste = resteDuDevis(devis, await port.consomme(etat));
+    // Avant chaque dépense : le déjà consommé PLUS ce que cette étape peut encore dépenser doit tenir dans le devis.
+    const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
+    const aVenir: Partial<Consommation> = {};
+    if (cle === "script") aVenir.appelsClaude = essais("script");
+    else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
+    else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
+    const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);
     return reste.ok ? null : { code: CODE_DEVIS_ATTEINT, message: reste.message };
   })();
 }

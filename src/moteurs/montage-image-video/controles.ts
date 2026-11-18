@@ -332,6 +332,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
     if (v.piste.mots.length !== v.piste.motsCorps || v.piste.raccordSec !== undefined) q08bis.push("la voix LinkedIn dit quelque chose après la phrase-choc.");
     if (v.reseaux.some((r) => r !== "linkedin")) q08bis.push(`la version muette de LinkedIn sert aussi ${v.reseaux.filter((r) => r !== "linkedin").join(", ")}.`);
   } else if (!v.fin || !finDite) q08bisSouple.push(`aucune fin pour ${v.reseaux.join(", ")} : la fin du réseau manque.`);
+  else if (!v.fin.vide && !v.fin.question && !v.fin.appels.length) q08bisSouple.push(`la fin de ${v.reseaux.join(", ")} ne dit rien et n'est pas une fin vide voulue.`);
   else if (reglage === "question-puis-fin" && !v.fin.question) q08bisSouple.push(`la question de commentaire manque pour ${v.reseaux.join(", ")}.`);
   else if (v.fin.question && ecoute && !sansEcoute && !entendue(v.fin.question.dit, entendu)) q08bisSouple.push(`la question (« ${v.fin.question.dit} ») n'est pas entendue en entier.`);
   L("Q08bis", [...q08bis, ...q08bisSouple], { indicatif: q08bis.length === 0 && q08bisSouple.length > 0 });
