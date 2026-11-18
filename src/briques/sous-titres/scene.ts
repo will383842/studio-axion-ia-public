@@ -7,7 +7,8 @@
 import { progres } from "../motion/courbes";
 import { largeurLigne, largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
-import { PAVE } from "./pave";
+import { PAVE, type BoitePave } from "./pave";
+import type { MarqueMot } from "./marques-mot";
 import type { ZoneSureEscalier } from "./escalier";
 import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
 import { ETIQUETTE, ETIQUETTE_AUTONOME, type EtiquetteOutilPosee } from "./noms-outils";
@@ -96,6 +97,10 @@ export interface DonneesCalque {
   sortie?: SortieGroupe;
   /** BR-ESCALIER : absent = rien ne change. */
   escalier?: { zone: ZoneSureEscalier; taillePx: number };
+  /** BR-PAVE-MARQUES : seul `true` anime la plaque du mot à plaque (entrée inclinée de 0,18 s). Absent : plaque fixe d'avant, rien ne change. */
+  paveAnime?: true;
+  /** BR-PAVE-MARQUES : marque posée sous la plaque animée (id du segment → marque). Sans `paveAnime` : sans effet. */
+  marques?: Record<string, MarqueMot>;
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -314,6 +319,60 @@ export function escalierAuTemps(d: DonneesCalque, t: number): { lignes: string[]
   while (debut > 0 && i - debut < 5 && !/[.!?…]["»”’')\]]*$/.test(texte(segments[debut - 1]))) debut--;
   const lignes = segments.slice(debut, i + 1).map(texte);
   return { lignes, ligneActive: lignes.length - 1 };
+}
+
+/** BR-PAVE-MARQUES : la plaque animée du mot à plaque du groupe affiché à l'instant t. */
+export interface PaveAuTemps {
+  /** Boîte du mot SANS la marge de la plaque, en px de l'image. */
+  boite: BoitePave;
+  taillePx: number;
+  /** Instant (s) où le mot est dit : l'entrée de la plaque part de là. */
+  debutS: number;
+  texte: string;
+  police: ElementDessine["police"];
+  /** Indice du mot à plaque dans le groupe. */
+  indice: number;
+  marque?: MarqueMot;
+  /** Graine de la marque : l'id du groupe (une vidéo donne toujours les mêmes formes). */
+  graine: string;
+  /** Opacité et décalage vertical du groupe (entrée, sortie animée) : la plaque les suit. */
+  opaciteGroupe: number;
+  decalageYPx: number;
+}
+
+/**
+ * BR-PAVE-MARQUES : boîte du mot à plaque du groupe affiché (le même calcul de largeurs que la plaque fixe d'aujourd'hui),
+ * sa date de début et sa marque. `null` si `paveAnime` n'est pas exactement `true`, sans groupe, sans mot à plaque (ou
+ * mot remplacé par une étiquette d'outil). Pure, ne lève jamais.
+ */
+export function paveAuTemps(d: DonneesCalque, t: number): PaveAuTemps | null {
+  if (d.paveAnime !== true) return null;
+  const el = sceneAuTemps(d, t);
+  if (!el) return null;
+  const s = d.segments.find((g) => g.id === el.cle);
+  const k = el.mots.findIndex((m) => m.plaque);
+  const mot = s?.mots[k];
+  if (!s || k < 0 || !mot) return null;
+  const options = { majuscules: el.gabarit.casse === "majuscules", chiffresTabulaires: true };
+  const mx = PAVE.margeXEm * el.taillePx;
+  const extra = (m: MotDessine) => (m.plaque ? 2 * mx : 0) + (m.etiquette === "seul" ? 2 * ETIQUETTE.margeXEm * el.taillePx : m.etiquette === "debut" || m.etiquette === "fin" ? ETIQUETTE.margeXEm * el.taillePx : 0);
+  const largeurs = el.mots.map((m) => largeurMot(m.texte, el.police, el.taillePx, options));
+  const gauche = el.mots.slice(0, k).reduce((n, m, i) => n + largeurs[i] + extra(m) + el.espacePx, 0);
+  const total = largeurElement(el);
+  const zone = el.colonne ? { x: el.colonne.gauchePx, l: el.colonne.largeurPx } : { x: 0, l: d.largeur };
+  const hauteur = 1.1 * el.taillePx;
+  return {
+    boite: { xPx: zone.x + (zone.l - total) / 2 + (el.fond?.margeXPx ?? 0) + gauche + mx, yPx: el.yPx - hauteur / 2, largeurPx: largeurs[k], hauteurPx: hauteur },
+    taillePx: el.taillePx,
+    debutS: mot.debutSec,
+    texte: el.mots[k].texte,
+    police: el.police,
+    indice: k,
+    ...(d.marques?.[s.id] ? { marque: d.marques[s.id] } : {}),
+    graine: s.id,
+    opaciteGroupe: el.opacite,
+    decalageYPx: el.decalageYPx,
+  };
 }
 
 /** Dessin d'un groupe donné à l'instant t (aperçu d'un groupe touché, captures). */
