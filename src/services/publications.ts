@@ -835,7 +835,7 @@ async function envoyerVersBufferInterne(
   if (publications.some((p) => p.votreMarque)) await rappelerVotreMarque(videoId, simulation);
   if (!simulation) await passerProgrammee(videoId);
   if (kitVue.variante) await synchroniserEtats(kitVue.variante.id);
-  await journaliser("publication", simulation ? `Essai d'envoi vers Buffer (${libelleReseaux(reseaux.length)})` : `Programmée sur ${libelleReseaux(reseaux.length)}`, { type: "video", id: videoId });
+  await journaliser("publication", simulation ? `Essai d'envoi vers l'ancien outil (${libelleReseaux(reseaux.length)})` : `Programmée sur ${libelleReseaux(reseaux.length)}`, { type: "video", id: videoId });
   return { simulation, publications, ...(commentairesALaMain.length ? { commentairesALaMain } : {}) };
 }
 
@@ -942,7 +942,7 @@ export async function urlVideoPourBuffer(fichierId: Id | undefined): Promise<str
   const stockage = await fournisseur("stockage");
   // Le fichier est-il sur le stockage en ligne ? (l'adresse signée ne sert qu'à le savoir : elle n'est jamais donnée à Buffer)
   const enLigne = f?.cleStockage && stockage.urlLectureDuree ? await stockage.urlLectureDuree(f.cleStockage, 60) : "";
-  if (!f || !/^https:\/\//.test(enLigne)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "La vidéo n'est pas sur le stockage en ligne : Buffer ne pourrait pas la lire.");
+  if (!f || !/^https:\/\//.test(enLigne)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "La vidéo n'est pas sur le stockage en ligne : l'ancien outil ne pourrait pas la lire.");
   return adresseRelaisBuffer(f.id);
 }
 
@@ -1021,7 +1021,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
   // L0-13a : Buffer ne peut plus envoyer. Refus avant toute préparation ou écriture, même par appel direct.
   if (!(OUTILS_ENVOI as readonly string[]).includes(outil)) throw new ErreurStudio("OUTIL_RETIRE", "Buffer n'est plus utilisable pour envoyer : l'envoi passe par Zernio. Rien n'est parti.");
   // Phrases neutres : le nom de Buffer ne s'écrit que pour Buffer ; ailleurs « l'outil de publication ».
-  const lui = outil === "buffer" ? "Buffer" : "l'outil de publication";
+  const lui = outil === "buffer" ? "l'ancien outil" : "l'outil de publication";
   const mode: ModeEnvoiPublication = outil === "buffer" ? await lireModeBuffer() : "brouillon";
   if (outil !== "buffer") {
     // Refus SERVEUR avant tout envoi : TikTok sans case cochée, et date qui ne serait pas dans le futur (elle publierait aussitôt).
@@ -1032,7 +1032,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
   }
   // Programmée directement : Buffer doit pouvoir lire la vidéo jusqu'à la publication (adresse signée 7 jours).
   if (outil === "buffer" && mode === "programmer" && Date.parse(dateIso) > Date.parse(maintenant()) + (DUREE_URL_BUFFER_SEC - 3600) * 1000) {
-    throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon dans Buffer.");
+    throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon chez le diffuseur.");
   }
   // 1. Préparation complète avant le moindre envoi : un envoi par compte (un seul texte par réseau, pour tous ses comptes).
   const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean; format?: string; dureeSec?: number }[] = [];
@@ -1098,7 +1098,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
       else if (deja.some((x) => x.etatEnvoi === "a-verifier")) out.push(refus("ENVOI_A_VERIFIER", `L'envoi précédent vers ${p.nom} est à vérifier : le studio relit ${lui} et ne renverra rien sans en être sûr. Regardez dans ${lui}, ou réessayez dans 30 minutes.`));
       else if (deja.some((x) => x.etatEnvoi === "en-cours")) out.push(refus("ENVOI_EN_COURS", `Un envoi vers ${lui} est déjà en cours pour ${p.nom}.`));
       else if (deja.length) out.push(refus(outil === "buffer" ? "DEJA_DANS_BUFFER" : "DEJA_DANS_OUTIL", `Cette vidéo est déjà dans ${lui} pour ${p.nom} : changez sa date dans ${lui}.`));
-      else if (declaresAbsents.has(cible(p))) out.push(refus("ENVOI_ABSENT", `${outil === "buffer" ? "Buffer" : "L'outil de publication"} n'avait rien reçu pour ${p.nom} : vérifiez dans ${lui} avant de renvoyer.`));
+      else if (declaresAbsents.has(cible(p))) out.push(refus("ENVOI_ABSENT", `${outil === "buffer" ? "L'ancien outil" : "L'outil de publication"} n'avait rien reçu pour ${p.nom} : vérifiez dans ${lui} avant de renvoyer.`));
       else {
         const variante = kitVue.variante && kitVue.variante.reseau === p.reseau ? kitVue.variante : undefined;
         const nouvelle: Publication = {
@@ -1157,7 +1157,10 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
         const { incertain, message, detail, doublon } = lireErreurEnvoi(outil, e);
         if (outil === "buffer") await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
-        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
+        else {
+          if (detail) console.warn(`[studio] outil de publication, envoi sur ${p.nom} : ${detail}`);
+          await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}`, { type: "video", id: videoId });
+        }
         const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
         // « À vérifier » reste rendue (elle peut être chez Buffer) ; une publication refusée n'est que dans `problemes`.
         if (incertain) publications.push(ecrite);
@@ -1203,7 +1206,8 @@ function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: bool
   const perdue = "L'outil de publication n'a pas répondu : l'envoi est à vérifier.";
   if (e instanceof ErreurStudio) return { incertain: false, message: e.message };
   if (e instanceof ErreurZernio) {
-    const detail = [e.code, e.statut, e.detailTechnique].filter((x) => x !== undefined && x !== "").join(" ");
+    // Le texte du fournisseur (peut contenir l'adresse signée du média) ne va JAMAIS au journal : code et statut seulement, comme l'ancienne voie (phrase au journal, code court à la console serveur).
+    const detail = [e.code, e.statut].filter((x) => x !== undefined).join(" ");
     // Doublon : un contenu identique existe déjà (le fournisseur a déjà relu et comparé la clé) : toujours à vérifier ici.
     // Le détail technique d'un doublon ne va NI à l'écran NI au journal (visible) : seul le code court reste.
     if (e.code === "doublon") return { incertain: true, doublon: true, message: MESSAGE_DOUBLON, detail: "doublon" };

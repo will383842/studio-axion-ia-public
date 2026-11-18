@@ -129,8 +129,9 @@ describe("assemblage · écarts entre lots", () => {
           const r = mettreEnSceneIV({ ...entree, format });
           // 29/10/2026 : le moteur calcule la toile 4:5 à 1350 px (comme le rendu) et voit donc le vrai défaut de la carte F (16 blocs,
           // trois mots à 12,9 s) : Q15 y reste une REMARQUE (ligne zéro blocage), jamais un refus (`cadrage-moteur-4x5.test.ts`).
+          // REPARE-MASTER 18/11 : la variante étroite de la carte F 4:5 (#145, 30/10) a déplacé ce même blocage Q15 de « n08 (12.877 s) » à « n10 (12,9 s) » ; seule la phrase attendue change.
           const connu = (l: { code: string; phrase: string; details: string[] }) =>
-            l.code === "Q15" && format === "4:5" && nom === "F" && /Au mot du bloc n08 \(12\.877 s\)/.test(l.phrase) && l.details.every((d) => /^séquence b05 : /.test(d) && /12[.,]877? ?s|12,9 s|13,2 s/.test(d));
+            l.code === "Q15" && format === "4:5" && nom === "F" && /au mot du bloc n10 \(12,9 s\)/.test(l.phrase) && l.details.every((d) => /^séquence b05 : /.test(d) && /12[.,]877? ?s|12,9 s|13,2 s/.test(d));
           const rouges = r.rapport.lignes.filter((l) => ["Q12", "Q13", "Q15", "Q22"].includes(l.code) && !l.ok && !connu(l)).map((l) => `${l.code} ${l.phrase} ${l.details.join(" ")}`);
           expect(rouges, `${nom} ${fin.id} ${format}`).toEqual([]);
           // La première carte de chaque toile est posée en haut de la bande, entière.

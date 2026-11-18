@@ -162,7 +162,7 @@ describe("envoi Buffer à vérifier", () => {
   it("récent : refusée (le studio relit Buffer) ; plus d'une heure sans réponse (compte retiré) : acceptée", async () => {
     const d = depots();
     await d.publications.enregistrer(publication(new Date(Date.now() - 5 * 60_000).toISOString()) as never);
-    await expect(videos.supprimerVideoDefinitivement(ID)).rejects.toMatchObject({ code: "PUBLICATION_PROGRAMMEE", message: expect.stringMatching(/envoi vers Buffer à vérifier/) });
+    await expect(videos.supprimerVideoDefinitivement(ID)).rejects.toMatchObject({ code: "PUBLICATION_PROGRAMMEE", message: expect.stringMatching(/envoi vers l'ancien outil à vérifier/) });
     await d.publications.enregistrer(publication(new Date(Date.now() - 2 * 60 * 60_000).toISOString()) as never);
     expect(await videos.supprimerVideoDefinitivement(ID)).toBe(true);
   });
