@@ -40,8 +40,8 @@ describe("FIX-TABLEAU-ETIQUETTES-FORME", () => {
         expect(textes(m).filter((t) => MOTS.test(t))).toEqual([]);
       });
       it(`b) ${nom}/${format} : la phrase de l'idée reçue reste posée et barrée`, () => {
-        const barres = elements(m).filter((e) => e.marque === "barre" && e.lignes.length);
-        const dites = fiche.scenes.flatMap((s) => s.elements).filter((e) => e.marque === "barre").length;
+        const barres = elements(m).filter((e) => "marque" in e && e.marque === "barre" && e.lignes.length);
+        const dites = fiche.scenes.flatMap((s) => s.elements).filter((e) => "marque" in e && e.marque === "barre").length;
         if (dites) expect(barres.length).toBeGreaterThan(0);
       });
       it(`c) ${nom}/${format} : la page d'exemple garde sa mention`, () => {
