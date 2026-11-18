@@ -271,6 +271,8 @@ describe("VL-07 — correctif : son gardé, voix dans la clé, pause, aucun mont
 describe("VL-07 — niveau réel : réglage, pause, aucun appel", () => {
   async function chargerReel(reglage: unknown) {
     vi.resetModules();
+    // Le drapeau « déjà branché » vit sur globalThis : sans l'effacer, le 2e chargement ne relirait jamais le réglage.
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for("studio-axion-ia.video-longue-branche")];
     const lireParametre = vi.fn(async () => reglage);
     const ecrireParametre = vi.fn(async () => undefined);
     const verifierEtReserverSelonOrigine = vi.fn(async () => undefined);
@@ -281,12 +283,15 @@ describe("VL-07 — niveau réel : réglage, pause, aucun appel", () => {
     vi.doMock("@/services/credits", () => ({ verifierEtReserverSelonOrigine }));
     vi.doMock("@/services/tableau-outils", () => ({ branchementsReels }));
     const m = await import("@/services/video-longue-branchements");
-    await new Promise((r) => setTimeout(r, 20)); // la 1re lecture du réglage revient
+    await vi.waitFor(() => expect(lireParametre).toHaveBeenCalledWith("videoLongue.actif", false)); // la lecture a eu lieu
+    await new Promise((r) => setTimeout(r, 20)); // et sa réponse est revenue
     return { m, lireParametre, ecrireParametre, verifierEtReserverSelonOrigine, branchementsReels };
   }
   for (const reglage of [undefined, false, "true", 1, "oui", null, {}]) {
     it(`réglage ${JSON.stringify(reglage)} : pause (null), aucune voix lue, aucune réservation, aucune écriture`, async () => {
       const r = await chargerReel(reglage);
+      expect(r.lireParametre).toHaveBeenCalledWith("videoLongue.actif", false);
+      expect(r.m.reglageVuAllume()).toBe(false);
       expect(r.m.dependancesVideoLongue(commande())).toBeNull();
       expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
       expect(r.branchementsReels).not.toHaveBeenCalled();
@@ -295,6 +300,8 @@ describe("VL-07 — niveau réel : réglage, pause, aucun appel", () => {
   }
   it("réglage true exact, avec accord : PAUSE (montage non relié), jamais un échec ni un appel", async () => {
     const r = await chargerReel(true);
+    expect(r.lireParametre).toHaveBeenCalledWith("videoLongue.actif", false);
+    expect(r.m.reglageVuAllume()).toBe(true); // le null ne vient donc pas de « réglage non vu » : c'est la garde du montage
     expect(r.m.MONTAGE_VIDEO_LONGUE_RELIE).toBe(false);
     expect(r.m.dependancesVideoLongue(commande())).toBeNull();
     expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
@@ -303,7 +310,26 @@ describe("VL-07 — niveau réel : réglage, pause, aucun appel", () => {
   });
   it("réglage true exact, sans accord : pause aussi", async () => {
     const r = await chargerReel(true);
+    expect(r.m.reglageVuAllume()).toBe(true);
     expect(r.m.dependancesVideoLongue(commande({ accord: null }))).toBeNull();
     expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
+  });
+});
+
+describe("VL-07 — le chargement relit vraiment le réglage à chaque import", () => {
+  it("deux chargements successifs : le réglage est lu une fois chacun", async () => {
+    vi.resetModules();
+    const n = { lu: 0 };
+    for (let i = 0; i < 2; i++) {
+      vi.resetModules();
+      delete (globalThis as Record<symbol, unknown>)[Symbol.for("studio-axion-ia.video-longue-branche")];
+      const lireParametre = vi.fn(async () => { n.lu++; return true; });
+      vi.doMock("@/services/_commun", () => ({ lireParametre, ecrireParametre: vi.fn() }));
+      vi.doMock("@/services/credits", () => ({ verifierEtReserverSelonOrigine: vi.fn() }));
+      vi.doMock("@/services/tableau-outils", () => ({ branchementsReels: vi.fn() }));
+      const m = await import("@/services/video-longue-branchements");
+      await vi.waitFor(() => expect(m.reglageVuAllume()).toBe(true));
+    }
+    expect(n.lu).toBe(2);
   });
 });

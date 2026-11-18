@@ -243,6 +243,9 @@ function rafraichirActif(): void {
     });
 }
 
+/** Lecture de test : le réglage a-t-il été vu allumé (`true` exact) ? Ne décide de rien d'autre. */
+export const reglageVuAllume = (): boolean => etatActif.vu;
+
 /** Dépendances réelles pour une commande : `null` (pause, rien n'est payé) tant que le réglage n'a pas été vu allumé. */
 export function dependancesVideoLongue(commande: CommandeFabrication, travailId = commande.videoId): DependancesVideoLongue | null {
   rafraichirActif();
