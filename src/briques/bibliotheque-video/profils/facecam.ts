@@ -16,6 +16,8 @@ export const PROFIL_FACECAM: ProfilVideo = figerProfil({
     [ID.texteSurlignageMarqueur]: { permis: false, maxParVideo: 1, decision: "S1, Q3" },
     [ID.texteStyleVarie]: { permis: false, maxParVideo: 1, decision: "S2, Q3" },
     [ID.texteRepereEpaule]: { permis: false, maxParVideo: 1, decision: "V1, Q1, Q2" },
+    [ID.texteEscalier]: { permis: false, decision: "AM-09 (BR-FACECAM-TEXTE)" },
+    [ID.textePave]: { permis: false, maxParVideo: 6, decision: "Q2 (BR-FACECAM-TEXTE)" },
     [ID.fondVivant]: { permis: false, maxParVideo: 1 },
     [ID.fondLumiere]: { permis: false, maxParVideo: 1 },
     [ID.etalonnageLutNouvelle]: { permis: false, maxParVideo: 1, decision: "Q12" },

@@ -9,6 +9,7 @@
  * X7 : sur Instagram, la fin au mot est une seule phrase, « Abonnez-vous et écrivez {MOT} en commentaire : je vous
  * l'envoie. » (l'écran « appel-mot » seul).
  * Une suite dont une ligne n'est pas utilisable revient à la fin « diagnostic » de son réseau.
+ * FIX-CC-FIN-CHOIX : seule autre fin, la fin « rendez-vous » choisie (`finDemandee`), posée après la fin au mot (prioritaire).
  * 17/11, Williams : sans choix, aucune fin. Seule la fin au mot choisie (« Avec le mot » coché, mot branché, cadeau) est
  * posée ; ailleurs la fin est VIDE (`appels: []`, `ecrans: []`) : rien n'est dit ni écrit après la question.
  */
@@ -16,6 +17,7 @@ import { choisir, ErreurFin, suiteDeFins, type FinChoisie, type FinTable } from 
 import { construireLienSuivi, type ActiviteLien } from "@/domaine/mesures";
 import { cadeauDeLOffre, FINS_DIAGNOSTIC, finsParReseau, formatCasConcret, type ReseauCas } from "@/formats/cas-concret";
 import { estBranchable } from "@/formats/cas-concret/mots-branches";
+import { FINS_RENDEZ_VOUS, TABLE_FINS_RENDEZ_VOUS, type FinDemandee } from "./fin-choisie";
 import { codeReseau } from "@/reseaux/codes";
 import type { NatureCas, Offre } from "@/formats/cas-concret/cas";
 import { idEcranFinAttendu, type EcranFin, type FinPlanifiee, type PlanDesFins } from "./fiche";
@@ -26,6 +28,7 @@ export const RAISON_SANS_CADEAU = "Cette offre n'a pas encore de document à env
 /** Fin vide : ce que « Vos fichiers » écrit et ce que l'écran de validation montre quand rien n'est dit après la question. */
 export const FIN_AUCUNE = "Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.";
 export const RAISON_MOT_NON_BRANCHE = "Le mot n'est pas branché sur ce compte : aucune fin n'est ajoutée.";
+export const RAISON_MOT_VERS_RDV = "Le mot n'est pas dit sur ce compte : la fin choisie (rendez-vous) est dite.";
 
 export interface DemandePlanDesFins {
   reseaux: readonly ReseauCas[];
@@ -48,6 +51,8 @@ export interface DemandePlanDesFins {
    * la mise (`mise.tirage.fin.phrase`) n'est tirée qu'APRÈS le calage ; le brancher demande d'avancer le tirage.
    */
   rangPhrase?: number;
+  /** FIX-CC-FIN-CHOIX (D1) : « La phrase de fin » choisie ; absente : aucune fin (17/11). */
+  finDemandee?: FinDemandee;
 }
 
 /** 2 à 24 lettres ou chiffres, sans espace. */
@@ -164,19 +169,22 @@ export function planDesFins(demande: DemandePlanDesFins): PlanDesFins {
   const options = { mot, ...(motDit ? { motDit } : {}) };
   const groupes = new Map<string, { reseaux: ReseauCas[]; ids: string[]; raisons: Map<string, ReseauCas[]> }>();
   const sansFin: PlanDesFins["sansFin"] = [];
+  const rdv = demande.finDemandee === "rendez-vous";
 
   for (const reseau of new Set(reseaux)) {
     let ids = suites[reseau];
     let raison: string | undefined;
     const choisie = suites[reseau].join("|") !== FINS_DIAGNOSTIC[reseau].join("|");
     if (choisie && ids.some((id) => table.find((f) => f.id === id)?.validee === false)) {
-      ids = [];
-      raison = RAISON_SUITE_REDUITE;
+      ids = rdv ? [...FINS_RENDEZ_VOUS[reseau]] : [];
+      raison = rdv ? RAISON_MOT_VERS_RDV : RAISON_SUITE_REDUITE;
     } else if (!choisie) {
-      ids = [];
+      ids = rdv ? [...FINS_RENDEZ_VOUS[reseau]] : [];
       if (avecMot && estBranchable(reseau)) raison = !motSur.includes(reseau) ? RAISON_MOT_NON_BRANCHE : sansCadeau ? RAISON_SANS_CADEAU : undefined;
+      if (rdv && raison) raison = RAISON_MOT_VERS_RDV;
     }
-    ids = suiteAuRang(reseau, ids, table, demande.rangPhrase ?? 0);
+    // La suite rendez-vous n'entre pas dans la rotation L3a.
+    if (ids.join("|") !== FINS_RENDEZ_VOUS[reseau].join("|")) ids = suiteAuRang(reseau, ids, table, demande.rangPhrase ?? 0);
     const cle = ids.join("|");
     const groupe = groupes.get(cle) ?? { reseaux: [], ids, raisons: new Map<string, ReseauCas[]>() };
     groupes.set(cle, groupe);
@@ -188,7 +196,7 @@ export function planDesFins(demande: DemandePlanDesFins): PlanDesFins {
   const reduites: PlanDesFins["reduites"] = [];
   for (const { reseaux: partages, ids, raisons } of groupes.values()) {
     try {
-      const appels = ids.length ? suiteDeFins(partages[0], ids, options, table) : [];
+      const appels = ids.length ? suiteDeFins(partages[0], ids, options, rdv ? [...table, ...TABLE_FINS_RENDEZ_VOUS] : table) : [];
       if (!finComplete(appels)) {
         sansFin.push({ reseaux: partages, raison: "Il manque une ligne de la fin : aucune fin possible pour ces réseaux." });
         continue;
