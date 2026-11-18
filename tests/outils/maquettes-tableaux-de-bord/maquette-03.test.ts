@@ -63,6 +63,21 @@ describe("maquette 03 · accueil 24 h", () => {
     expect([...table.matchAll(/([a-z]+):(\d)/g)].map((m) => m[1])).toEqual(ids);
   });
 
+  it("aucun émoji en couleur dans la maquette (signes monochromes seulement)", () => {
+    const tolere = new Set([..."✦✓➤✈✉☾⚙▦◉▤▥▶●↺→✓"]);
+    for (const f of fichiers) {
+      expect(f.contenu).not.toMatch(/[\u26A1\u{1F6A8}]/u);
+      const trouves = [...f.contenu.matchAll(/\p{Extended_Pictographic}|\p{Emoji_Presentation}/gu)].map((m) => m[0]).filter((c) => !tolere.has(c));
+      expect(trouves, f.chemin).toEqual([]);
+    }
+  });
+
+  it("courriels en @exemple.invalid uniquement", () => {
+    const courriels = [...index.contenu.matchAll(/[\w.+-]+@[\w.-]+/g)].map((m) => m[0]);
+    expect(courriels.length).toBeGreaterThan(0);
+    for (const c of courriels) expect(c).toMatch(/@exemple\.invalid$/);
+  });
+
   it("PROVENANCE.md cite le chemin source et « données fictives »", () => {
     expect(provenance).toContain("90_SOURCES_PROJET_ORIGINAL/CHATBOT_24H_PRET_POUR_CLAUDE_CODE/01_INTERFACE/index.html");
     expect(provenance).toContain("données fictives");
