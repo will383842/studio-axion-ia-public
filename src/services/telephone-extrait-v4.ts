@@ -2,8 +2,9 @@
  * BR-TELEPHONE-b : le téléphone qui joue un extrait (élément v4 `telephone-video`) reçoit un VRAI extrait des vidéos de Will (archive).
  * Pour chaque élément dont `recherches[0]` commence par `axion:` : `extraitMaisonPourRecherche` (C4-U4.5a) → vidéo source signée
  * (dépôts : fiche → sortie → fichier, puis `signerLecture`) → `preparerExtraitV4` (C4-U4.3, clip 4:5 MUET) → `FichierVideoV4`.
- * Aucune banque, aucun fournisseur, aucun Claude : 0 €. Pas d'extrait (ou préparation en échec) : l'élément est RETIRÉ du plan
- * (le visage reste seul, jamais une vidéo approximative) et son nom va dans `sansExtrait`, avec une phrase claire dans `manques`.
+ * Aucune banque, aucun fournisseur, aucun Claude : 0 €. Pas d'extrait (ou préparation en échec) : son nom va dans `sansExtrait`, avec une phrase
+ * claire dans `manques` ; l'élément RESTE à son rang dans `plan` (les clips des banques se nomment au rang : aucun décalage, aucune collision)
+ * et `retirerTelephonesSansExtraitV4` le retire APRÈS la fourniture des banques (le visage reste seul, jamais une vidéo approximative).
  * Ports injectables : dépôts (archive), outils ffmpeg, signature, choix. Ne lève jamais pour un extrait raté.
  */
 import "server-only";
@@ -39,7 +40,7 @@ export interface PortsTelephoneV4 {
 }
 
 export interface ResultatTelephoneV4 {
-  /** Plan avec `medias` posés sur les téléphones servis ; les téléphones sans extrait en sont retirés. */
+  /** Plan avec `medias` posés sur les téléphones servis ; mêmes rangs qu'à l'entrée (rien n'est retiré ici). */
   plan: PlanFacecamAnimee;
   fichiers: FichierVideoV4[];
   /** Noms (« v4-<rang>-0.mp4 ») des téléphones sans extrait. */
@@ -71,7 +72,6 @@ export async function fichiersTelephoneV4(plan: PlanFacecamAnimee, ports: PortsT
   const choix: ChoixVideoV4[] = [];
   const manques: string[] = [];
   const sansExtrait: string[] = [];
-  const retires = new Set<number>();
   const dejaPris: string[] = [];
   const chercher = ports.extraitPour ?? extraitMaisonPourRecherche;
 
@@ -97,10 +97,15 @@ export async function fichiersTelephoneV4(plan: PlanFacecamAnimee, ports: PortsT
       fichiers.push(pret);
       elements[rang] = { ...e, medias: [`broll/${nom}`] };
     } else {
-      retires.add(rang);
       sansExtrait.push(nom);
       manques.push(`${quoi} : aucun extrait de vos vidéos n'a été trouvé ; le téléphone n'est pas montré.`);
     }
   }
-  return { plan: { ...plan, elementsV4: elements.filter((_, rang) => !retires.has(rang)) }, fichiers, sansExtrait, manques, choix };
+  return { plan: { ...plan, elementsV4: elements }, fichiers, sansExtrait, manques, choix };
+}
+
+/** Retire les téléphones `axion:` restés sans `medias` (sans extrait). À appeler sur le plan rendu par les banques, jamais avant elles (rangs = noms de clips). */
+export function retirerTelephonesSansExtraitV4(plan: PlanFacecamAnimee): PlanFacecamAnimee {
+  if (!(plan.elementsV4 ?? []).some((e) => estTelephoneAxionV4(e) && !e.medias?.length)) return plan;
+  return { ...plan, elementsV4: (plan.elementsV4 ?? []).filter((e) => !(estTelephoneAxionV4(e) && !e.medias?.length)) };
 }

@@ -278,7 +278,8 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
       });
       // BR-TELEPHONE-b : éteint = rien de plus ; allumé, les téléphones `axion:` prennent un extrait de l'archive AVANT les banques (0 €), jamais de banque pour eux.
       const tel = telephoneVideo ? await (await import("./telephone-extrait-v4")).fichiersTelephoneV4(plan, { videoId: dep.videoId, signerLecture, outils: preparation, cleClip: (nom) => cleFA(`videos/${nom}`) }) : null;
-      const fusion = <R extends { fichiers: FichierVideoV4[]; manques: string[]; choix?: ChoixVideoV4[] }>(r: R): R => (tel ? { ...r, fichiers: [...tel.fichiers, ...r.fichiers], manques: [...r.manques, ...tel.manques], choix: [...tel.choix, ...(r.choix ?? [])] } : r);
+      // Les banques reçoivent le plan SANS retrait (rangs = noms de clips) ; les téléphones sans extrait ne sont retirés qu'APRÈS, sur leur résultat.
+      const fusion = async <R extends { plan: PlanFacecamAnimee; fichiers: FichierVideoV4[]; manques: string[]; choix?: ChoixVideoV4[] }>(r: R): Promise<R> => (tel ? { ...r, plan: (await import("./telephone-extrait-v4")).retirerTelephonesSansExtraitV4(r.plan), fichiers: [...tel.fichiers, ...r.fichiers], manques: [...r.manques, ...tel.manques], choix: [...tel.choix, ...(r.choix ?? [])] } : r);
       if (!cles.pexels && !cles.pixabay) return fusion({ plan: tel?.plan ?? plan, fichiers: [], manques: ["Les banques de vidéos (Pexels, Pixabay) ne sont pas reliées au studio : aucune vidéo d'illustration."], depenseUsd: 0 });
       /** Début de la version courante : création du travail de fabrication. */
       const debutVersion = async () => (await depots().travaux.obtenir(dep.travailId))?.creeLe;
@@ -297,7 +298,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           if (r.simule || !r.texte) return { ok: false, message: "Claude n'est pas relié au studio." };
           return { ok: true, texte: r.texte, coutUsd: r.coutUsd };
         });
-      return fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd }));
+      return await fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd }));
     },
     async rendre({ idRendu, priseCle, plan, gardes, recadrage, videos, finDouce }) {
       const sortieCle = cleFA(`${idRendu}.mp4`);

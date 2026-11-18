@@ -182,7 +182,32 @@ describe("BR-TELEPHONE-b : le téléphone prend un extrait de l'archive (videos(
     expect(o).toBeTruthy();
     expect(r.fichiers).toEqual([]);
     expect(r.sansExtrait).toEqual([NOM_TEL]);
-    expect(telephoneDe(r.plan)).toBeUndefined();
+    expect(telephoneDe(r.plan)?.medias).toBeUndefined(); // reste à son rang ; le retrait vient APRÈS les banques
+    const { retirerTelephonesSansExtraitV4 } = await import("@/services/telephone-extrait-v4");
+    expect(telephoneDe(retirerTelephonesSansExtraitV4(r.plan))).toBeUndefined();
+  });
+
+  it("2 téléphones dont le 1er sans extrait, avant des plaquettes à banque : aucun nom de clip en double, la clé de l'extrait n'est la media d'aucune fenêtre de banque", async () => {
+    await semerArchive([plage("p1", { finSec: 3 })]);
+    reglage(true);
+    const base = planAvec("axion:devis signature");
+    const premier = RANG_TEL - 1; // rang AVANT le téléphone servi : un retrait précoce décalerait tous les rangs suivants
+    const plan: PlanFacecamAnimee = { ...base, elementsV4: (base.elementsV4 ?? []).map((e, i) => (i === premier ? { id: "telephone-video", debut: e.debut, fin: e.fin, recherches: ["axion:zzzz introuvable"] } : i === RANG_TEL + 1 ? { ...(base.elementsV4 ?? [])[5], debut: e.debut, fin: e.fin } : e)) }; // la mosaïque suit le téléphone servi (comme à la répétition)
+    const r = await (await outils()).videos!({ videoId: "v-1", plan, mots: TRANS.motsMontesTexteValide });
+    const noms = r.fichiers.map((f) => f.nom);
+    expect(new Set(noms).size).toBe(noms.length);
+    const cles = r.fichiers.map((f) => f.cle);
+    expect(new Set(cles).size).toBe(cles.length);
+    expect(r.fichiers.filter((f) => f.nom === NOM_TEL)).toEqual([{ nom: NOM_TEL, cle: CLE_TEL }]);
+    // le téléphone servi garde son rang d'origine ; aucune fenêtre de banque ne renvoie à son clip
+    const tels = (r.plan.elementsV4 ?? []).filter((e) => e.id === "telephone-video");
+    expect(tels).toHaveLength(1);
+    expect(tels[0].medias).toEqual([`broll/${NOM_TEL}`]);
+    const medias = (r.plan.elementsV4 ?? []).filter((e) => e.id !== "telephone-video").flatMap((e) => e.medias ?? []);
+    expect(medias).not.toContain(`broll/${NOM_TEL}`);
+    expect(banques.fenetres.every((f) => f.media !== NOM_TEL && !f.recherche.startsWith("axion:"))).toBe(true);
+    expect(ffmpeg.deposer).toEqual([CLE_TEL]);
+    expect(r.manques.some((m) => m.includes("aucun extrait de vos vidéos"))).toBe(true);
   });
 
   it("une recherche ordinaire (sans axion:) n'est jamais traitée par l'archive, même allumé", async () => {
