@@ -1887,13 +1887,23 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
       return "bloque";
     }
     // Un message de la personne a pu arriver pendant la lecture du suivi : revérifié juste avant l'envoi ; reporté, rien ne part, réservation relâchée.
-    if (await messageNonTraiteDeLaPersonne(ev, idCompte, idConversation, idExpediteur, idMessage)) {
+    let messageEnAttente: boolean;
+    let nonOpposee: JetonNonOpposee | null = null;
+    try {
+      messageEnAttente = await messageNonTraiteDeLaPersonne(ev, idCompte, idConversation, idExpediteur, idMessage);
+      if (!messageEnAttente) nonOpposee = await verifierPartout(env, choisi.cle, ev.charge, now, { doute: true }); // jeton JUSTE avant l'envoi
+    } catch (err) {
+      // Vérification impossible (lecture en panne, registre illisible) : rien n'est parti. Place rendue, état d'avant remis (le OK reste à servir) ; l'erreur d'origine remonte et l'appelant reporte.
+      await rendrePlaceEnvoi(idCompte, now);
+      await restaurer(false).catch(() => undefined); // un échec du nettoyage ne masque jamais l'erreur d'origine
+      throw err;
+    }
+    if (messageEnAttente) {
       await rendrePlaceEnvoi(idCompte, now);
       await restaurer(false);
       await reporter(ev, now, ATTENTE_STOP_ANTERIEUR_MS, "stop_anterieur_non_lu", { candidatOk: true });
       return "traite";
     }
-    const nonOpposee = await verifierPartout(env, choisi.cle, ev.charge, now, { doute: true }); // jeton JUSTE avant l'envoi
     if (!nonOpposee) {
       await rendrePlaceEnvoi(idCompte, now);
       await restaurer(false);
@@ -2655,10 +2665,11 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   const pris = await sousVerrou(async () => {
     const j = await lireJournalMerci();
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
-    if (j[ref] || tout[cle]?.merciEtat) return false;
+    if (j[ref] || tout[cle]?.merciEtat) return null;
+    const essaiAvant = tout[cle]?.merciEssaiLe;
     await ecrireParametre(PARAM_MERCI_JOURNAL, { ...j, [ref]: { cle, etat: "en_vol" as const, issue: "en_vol", accuse: false, le: new Date(now).toISOString(), essaisAccuse: 0, prochainAccuseLe: null } });
     await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...tout[cle], merciEtat: "en_vol" as const, ...(ig ? { merciEssaiLe: new Date(now).toISOString() } : {}) } });
-    return true;
+    return { essaiAvant };
   });
   if (!pris) {
     await rendrePlaceEnvoi(conv.etat.idCompte, now);
@@ -2668,7 +2679,15 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   p_enVol(ref, true);
   try {
     // j. RELIRE L'OPPOSITION une dernière fois, juste avant le réseau.
-    const nonOpposeeMerci = await verifierPartout(env, cle, await chargeDuDernierMessage(conv.etat), now);
+    let nonOpposeeMerci: JetonNonOpposee | null;
+    try {
+      nonOpposeeMerci = await verifierPartout(env, cle, await chargeDuDernierMessage(conv.etat), now);
+    } catch (err) {
+      // Vérification impossible : rien n'est parti. Place rendue, marques « en vol » de CET appel retirées (retour arrière technique) ; l'erreur d'origine remonte, le site re-proposera.
+      await rendrePlaceEnvoi(conv.etat.idCompte, now);
+      await annulerMerciEnVol(ref, cle, new Date(now).toISOString(), pris.essaiAvant).catch(() => undefined);
+      throw err;
+    }
     if (!nonOpposeeMerci) {
       await rendrePlaceEnvoi(conv.etat.idCompte, now);
       await mettreEnFileCle(cle, conv.etat, k.courante, now);
@@ -2693,6 +2712,25 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
   return (await lireJournalMerci())[ref]?.etat === "envoye" ? "envoye" : "fait";
 }
 const p_enVol = (ref: string, vol: boolean): void => void (vol ? processus().merciEnVol.add(ref) : processus().merciEnVol.delete(ref));
+
+/** Retour arrière technique des marques « en vol » écrites par CET appel, seulement si elles sont encore intactes (même date, même clé) ; ne touche jamais l'ouvrage d'un autre processus. */
+async function annulerMerciEnVol(ref: string, cle: string, leIso: string, essaiAvant: string | undefined): Promise<void> {
+  await sousVerrou(async () => {
+    const j = await lireJournalMerci();
+    if (j[ref]?.etat === "en_vol" && j[ref].le === leIso && j[ref].cle === cle) {
+      const { [ref]: _retire, ...reste } = j;
+      void _retire;
+      await ecrireParametre(PARAM_MERCI_JOURNAL, reste);
+    }
+    const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
+    if (tout[cle]?.merciEtat === "en_vol") {
+      const { merciEtat, merciEssaiLe, ...autres } = tout[cle];
+      void merciEtat;
+      void merciEssaiLe;
+      await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...autres, ...(essaiAvant !== undefined ? { merciEssaiLe: essaiAvant } : {}) } });
+    }
+  });
+}
 
 /** Écrit l'issue dans le registre ET dans la conversation (même section). */
 async function finirMerci(ref: string, cle: string, etat: EtatMerci, issue: string, merciLe: string | null): Promise<void> {
