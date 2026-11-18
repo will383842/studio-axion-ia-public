@@ -9,7 +9,7 @@ import type { LotEcritures } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { creerClientZernio, type FetchZernio } from "@/fournisseurs/publication/zernio-client";
 import { lireCleFiche } from "@/components/calendrier/FicheEntree";
-import { annulerRetrait, CODES_RETRAIT, retirerProgrammation, SUFFIXE_REPRISE, type DepsRetrait } from "@/services/retirer-programmation";
+import { annulerRetrait, CODES_RETRAIT, PHRASES_RETRAIT_PROGRAMMATION, retirerProgrammation, SUFFIXE_REPRISE, type DepsRetrait } from "@/services/retirer-programmation";
 
 const CLE = "a".repeat(64);
 const CLE_B = "b".repeat(64);
@@ -183,7 +183,7 @@ describe("CAL-22 · retirerProgrammation", () => {
   it("un réseau déjà en ligne chez le diffuseur : « à retirer à la main », reste programmé, aucun DELETE", async () => {
     const m = monde({ posts: { post_1: { status: "scheduled", cle: CLE, statutReseau: "published" } } });
     const r = await retirerProgrammation(m.deps, "cre_1");
-    expect(r).toMatchObject({ ok: false, etat: "a-retirer-a-la-main" });
+    expect(r).toMatchObject({ ok: false, etat: "a-retirer-a-la-main", message: PHRASES_RETRAIT_PROGRAMMATION.dejaEnLigne });
     expect(m.faux.appels.some((a) => a.methode === "DELETE")).toBe(false);
     expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });
     expect(m.supprime).toEqual([]);
@@ -191,7 +191,7 @@ describe("CAL-22 · retirerProgrammation", () => {
   it("programmé chez le diffuseur à moins de 30 minutes : « à vérifier », reste programmé, aucun DELETE", async () => {
     const m = monde({ posts: { post_1: { status: "scheduled", cle: CLE, programmeLe: "2026-12-10T10:20:00.000Z" } } });
     const r = await retirerProgrammation(m.deps, "cre_1");
-    expect(r).toMatchObject({ ok: false, etat: "a-verifier" });
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier", message: PHRASES_RETRAIT_PROGRAMMATION.tropProche });
     expect(m.marques.get("a-verifier:envoi:vis_1:linkedin:v0")).toBe("a-verifier");
     expect(m.faux.appels.some((a) => a.methode === "DELETE")).toBe(false);
     expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });

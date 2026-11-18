@@ -61,6 +61,8 @@ export const PHRASES_RETRAIT_PROGRAMMATION = {
   sansReponse: "Le diffuseur ne répond pas pour le moment. La publication reste programmée, rien n'a été changé : réessayez plus tard.",
   aVerifier: "Le Studio ne sait pas si le retrait a bien eu lieu chez le diffuseur. La publication reste programmée, marquée « à vérifier » : relisez-la chez le diffuseur.",
   aLaMain: "Le diffuseur n'a pas pu retirer cette publication. Elle reste programmée et marquée « à retirer à la main » : retirez-la chez le diffuseur.",
+  tropProche: "L'heure prévue est trop proche (moins de 30 minutes) : rien n'a été retiré. La publication reste programmée, marquée « à vérifier » : relisez-la chez le diffuseur.",
+  dejaEnLigne: "Cette publication est déjà en ligne sur au moins un réseau : rien n'a été retiré. Elle est marquée « à retirer à la main » : vérifiez-la chez le diffuseur.",
   partielle: (retires: string, restent: string): string =>
     `Retrait partiel. Retiré chez le diffuseur : ${retires}. Reste programmé : ${restent}. Le texte et le fichier sont gardés.`,
   partielleSuite: {
@@ -157,7 +159,12 @@ export async function retirerProgrammation(d: DepsRetrait, creneauId: string): P
         // Ni brouillon ni programmé sous cette clé alors qu'un post a existé : peut-être déjà parti, peut-être retiré à la main. Jamais en aveugle.
         fin = await aVerifier(d, e, retires, noterAnnules, avecPost);
       } else {
-        try {
+        const enLigne = !post.platforms.every((p) => typeof p.status === "string" && ["draft", "scheduled", "pending"].includes(p.status));
+        const programme = typeof post.scheduledFor === "string" ? Date.parse(post.scheduledFor) : NaN;
+        const tropProche = post.status === "scheduled" && Number.isFinite(programme) && programme < t + MARGE_REPROGRAMMATION_MS;
+        if (enLigne) fin = await aLaMain(d, e, retires, noterAnnules, avecPost, PHRASES_RETRAIT_PROGRAMMATION.dejaEnLigne);
+        else if (tropProche) fin = await aVerifier(d, e, retires, noterAnnules, avecPost, PHRASES_RETRAIT_PROGRAMMATION.tropProche);
+        else try {
           const r = await d.client.retirer({ postId: post._id, cleJournal });
           if (r.etat === "retire") retires.add(e.id);
           else if (r.etat === "a-verifier") fin = await aVerifier(d, e, retires, noterAnnules, avecPost);
@@ -212,16 +219,16 @@ function avecPartiel(res: ResultatRetrait, retires: Set<string>, avecPost: Envoi
 type Noter = (liste: EnvoiPlanifie[]) => Promise<void>;
 const dejaRetires = (avecPost: EnvoiPlanifie[], retires: Set<string>): EnvoiPlanifie[] => avecPost.filter((x) => retires.has(x.id));
 
-async function aVerifier(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {
+async function aVerifier(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[], message: string = PHRASES_RETRAIT_PROGRAMMATION.aVerifier): Promise<ResultatRetrait> {
   await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
   await noter(dejaRetires(avecPost, retires));
-  return avecPartiel(sansEcriture("a-verifier", PHRASES_RETRAIT_PROGRAMMATION.aVerifier), retires, avecPost);
+  return avecPartiel(sansEcriture("a-verifier", message), retires, avecPost);
 }
 
-async function aLaMain(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {
+async function aLaMain(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[], message: string = PHRASES_RETRAIT_PROGRAMMATION.aLaMain): Promise<ResultatRetrait> {
   await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
   await noter(dejaRetires(avecPost, retires));
-  return avecPartiel(sansEcriture("a-retirer-a-la-main", PHRASES_RETRAIT_PROGRAMMATION.aLaMain), retires, avecPost);
+  return avecPartiel(sansEcriture("a-retirer-a-la-main", message), retires, avecPost);
 }
 
 async function rester(retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {
