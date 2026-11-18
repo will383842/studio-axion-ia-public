@@ -110,6 +110,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "zernio.youtube_actif", etat: "eteint", appel: "src/services/youtube-zernio.ts", declare: "src/fournisseurs/publication/zernio-youtube.ts", motif: /lireParametre<unknown>\(CLE_YOUTUBE_ACTIF, false\)/ },
   { cle: "limite_appels.active", etat: "eteint", appel: "src/services/limite-appels.ts", motif: /lireParametre<boolean>\(PARAM_LIMITE_ACTIVE, false\)\) !== true/ },
   { cle: "kb_site.lecture.actif", etat: "eteint", appel: "src/services/kb-site.ts", motif: /REGLAGE_LECTURE_SITE, false\)\) === true/ },
+  { cle: "kb_site.methode.actif", etat: "eteint", appel: "src/services/kb-site.ts", motif: /REGLAGE_METHODE_SITE, false\)\) === true/ },
   { cle: "ecriture.memoireCasConcret", etat: "eteint", appel: "src/services/memoire-cas-concret.ts", motif: /REGLAGE_MEMOIRE_CAS_CONCRET, false\)\) === true/ },
   { cle: "ecriture.memoireCentrale", etat: "eteint", appel: "src/services/memoire-centrale.ts", motif: /REGLAGE_MEMOIRE_CENTRALE, false\)\) === true/ },
   { cle: "site.passeportParClaude", etat: "eteint", appel: "src/services/site-videos.ts", motif: /PARAM_PASSEPORT_PAR_CLAUDE, false\)\) === true/ },
