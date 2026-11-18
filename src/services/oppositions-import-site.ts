@@ -48,6 +48,7 @@ import {
   enregistrerOppositionsImportees,
   importSiteActif,
   lireVerifs,
+  noterIssueVerificationSite,
   personneOpposeePartout,
   prendreDemandesSite,
   refsIllisiblesSite,
@@ -334,6 +335,7 @@ async function passage(env: Env, now: number, p: EtatProcessus): Promise<void> {
       }
       sansCle += bilan.sansCle;
     }
+    if (aFaire.length > 0) noterIssueVerificationSite(echec ? (nonRelie ? "non-relie" : "echec") : "ok", now); // STOP-01 : au moins un lot interrogé
     if (echec) {
       p.pauseJusquaMs = now + PAUSE_APRES_ECHEC_MS;
       if (nonRelie) await alerteNonRelie(now);

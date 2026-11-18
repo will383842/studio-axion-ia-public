@@ -334,6 +334,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "mots.validation.guide-parcours": "memoire",
   "mots.validations": "memoire",
   "mots.validations.par-mot": "memoire",
+  "oppositions.sante": "memoire",
   "optionsPayantes.demandes": "memoire",
   "parcours.conversations": "memoire",
   "parcours.conversations.alias": "memoire",

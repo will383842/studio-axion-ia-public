@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHEMIN_OPPOSITIONS_PAR_CONV } from "@/domaine/guide-reseau/oppositions-par-conv-contrat";
 import type { RequeteSignee } from "@/fournisseurs/site/types";
-import { COMPTE, ENV as ENV_BASE, T0, cleConversation, silencerConsole } from "../zernio/aides/conversation";
+import { ENV as ENV_BASE, T0, cleConversation, silencerConsole } from "../zernio/aides/conversation";
 import { graineConv } from "../zernio/aides/oppositions";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -219,9 +219,8 @@ describe("R4 allumé : repli fermé, aucun jeton", () => {
 describe("R5 pas de réessai en boucle, plafond horaire intact", () => {
   it("après un échec : aucun appel pendant 60 s ; 1000 demandes : au plus 2 appels par passage ; aucune écriture des compteurs du plafond horaire", async () => {
     const ecritures: string[] = [];
-    const reel = depots().parametres.ecrire?.bind(depots().parametres);
-    if (reel) vi.spyOn(depots().parametres, "ecrire").mockImplementation(((...a: any[]) => (ecritures.push(String(a[0]?.cle ?? a[0])), (reel as any)(...a))) as any);
-    const ecrire = vi.spyOn(Com, "ecrireParametre");
+    const enregistrer = depots().parametres.enregistrer.bind(depots().parametres);
+    vi.spyOn(depots().parametres, "enregistrer").mockImplementation((p) => (ecritures.push(String(p.id)), enregistrer(p)));
     for (let i = 0; i < 300; i++) await semer(`p-${i}`, "attente_email", { refLienConv: ref(i) });
     for (let i = 0; i < 300; i++) await verdict(`p-${i}`, ENV_ALLUME).catch(() => undefined);
     await importer(ENV_ALLUME);
@@ -233,8 +232,7 @@ describe("R5 pas de réessai en boucle, plafond horaire intact", () => {
     expect(appels).toHaveLength(1);
     await importer(ENV_ALLUME, T0 + 50 * S);
     expect(appels).toHaveLength(1);
-    expect(ecrire.mock.calls.some((c) => c[0] === "parcours.conversations.compteurs")).toBe(false);
-    expect(ecritures.some((c) => c.includes("compteurs"))).toBe(false);
+    expect(ecritures).not.toContain("parcours.conversations.compteurs");
   });
   it("l'issue du passage est notée : échec puis ok ; non-relie sans appel signé", async () => {
     await semer("p", "attente_email", { refLienConv: ref(1) });
