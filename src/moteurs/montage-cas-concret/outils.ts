@@ -16,7 +16,7 @@ import type { FaitCas } from "@/formats/cas-concret/cas";
 import type { ReseauCas } from "@/formats/cas-concret";
 import type { EcranFourni } from "./captures";
 import type { MemoireCommuneEcriture } from "./memoire-commune";
-import type { EntreeHistorique, Mise } from "./variete";
+import type { EntreeHistorique, Mise, Tirage } from "./variete";
 
 /** Étapes du moteur (plan § 5), dans l'ordre. */
 export const ETAPES_CAS_CONCRET = ["ecriture", "fiche", "captures", "voix", "calage", "ecrans", "montage", "controle"] as const;
@@ -245,6 +245,8 @@ export interface OutilsVariete {
   ajouter: (entree: EntreeHistorique) => Promise<void>;
   /** Mise déjà écrite dans la fiche d'une version précédente de la vidéo ; `null` : aucune. */
   miseHeritee?: (videoId: string) => Promise<Mise | null>;
+  /** X2-11 : rempli par le Studio (X2-11b-c) ; absent ou undefined : aucun refus commun. */
+  refusCommun?: (c: { videoId: string; reseaux: readonly string[] }) => Promise<((t: Tirage) => string | null) | undefined>;
 }
 
 /** Tout ce que la chaîne reçoit. `J` : le journal de fabrication (défini par la chaîne). */
