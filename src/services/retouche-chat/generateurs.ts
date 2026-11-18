@@ -126,7 +126,14 @@ export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, op
       return false;
     }
     if (scriptValide) {
-      const estLeSien = o.type === "changer-mot" ? ecritParWilliams(demande, o.nouveau) : o.type === "ajouter-chiffre" ? ecritParWilliams(demande, String(o.valeur)) && ecritParWilliams(demande, o.libelle) : true;
+      const estLeSien =
+        o.type === "changer-mot"
+          ? ecritParWilliams(demande, o.nouveau)
+          : o.type === "ajouter-chiffre"
+            ? ecritParWilliams(demande, String(o.valeur)) && ecritParWilliams(demande, o.libelle)
+            : o.type === "ajouter-piece" || o.type === "remplacer-piece" || o.type === "changer-brique"
+              ? textesDesParametres(o.parametres).every((t) => ecritParWilliams(demande, t))
+              : true;
       if (!estLeSien) {
         remarques.push("Ce texte n'est pas le vôtre : écrivez-le dans votre message, mot pour mot.");
         return false;
@@ -138,10 +145,23 @@ export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, op
 }
 
 const normaliser = (t: string): string => t.toLowerCase().replace(/\s+/g, " ").trim();
+const echapper = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Le texte figure dans la demande à frontières de mots ou de nombres (« 4 » n'est pas dans « 42 », « stock » pas dans « stocks »). */
 const ecritParWilliams = (demande: string, texte: string): boolean => {
   const t = normaliser(texte);
-  return t !== "" && normaliser(demande).includes(t);
+  return t !== "" && new RegExp(`(^|[^\\p{L}\\p{N}])${echapper(t)}($|[^\\p{L}\\p{N}])`, "u").test(normaliser(demande));
 };
+
+const CLES_TEXTE = new Set(["texte", "titre", "libelle", "legende", "etiquette", "soustitre", "titres", "textes", "libelles", "legendes", "etiquettes", "lignes", "items", "elements", "mots", "phrase", "message", "accroche", "citation", "nom", "label", "description", "contenu", "valeur", "prefixe", "suffixe"]);
+/** Tout texte glissé dans les `parametres` d'une pièce (objets et listes imbriqués compris). */
+function textesDesParametres(v: unknown, cle = "", dansTexte = false): string[] {
+  const texteIci = dansTexte || CLES_TEXTE.has(cle.toLowerCase().replace(/[_\s]/g, ""));
+  if (typeof v === "string") return texteIci && v.trim() !== "" ? [v] : [];
+  if (typeof v === "number") return texteIci ? [String(v)] : [];
+  if (Array.isArray(v)) return v.flatMap((x) => textesDesParametres(x, cle, texteIci));
+  if (v && typeof v === "object") return Object.entries(v).flatMap(([k, x]) => textesDesParametres(x, k, texteIci));
+  return [];
+}
 
 export interface RenduPartielGenerateur {
   /** Rend UNE scène du plan retouché ; renvoie la clé de son fichier. */

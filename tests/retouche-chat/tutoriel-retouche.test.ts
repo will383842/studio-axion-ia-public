@@ -82,6 +82,40 @@ describe("tutoriel : le texte est celui de Williams", () => {
     expect(filtrerOperationsGenerateur(ID, [op] as never[], "ajoute commandes").remarques).toEqual([PAS_VOTRE]);
   });
 
+  it("frontières de nombres et de mots : « 4 » n'est pas dans « 42 », « stock » pas dans « stocks »", () => {
+    const quatre = { type: "ajouter-chiffre", sceneId: "s1", valeur: 4, libelle: "commandes" };
+    const r1 = filtrerOperationsGenerateur(ID, [quatre] as never[], "ajoute 42 commandes");
+    expect(r1.operations).toEqual([]);
+    expect(r1.remarques).toEqual([PAS_VOTRE]);
+    expect(filtrerOperationsGenerateur(ID, [quatre] as never[], "ajoute 4 commandes.").operations).toHaveLength(1);
+    const stock = { type: "changer-mot", sceneId: "s1", ancien: "x", nouveau: "stock" };
+    const r2 = filtrerOperationsGenerateur(ID, [stock] as never[], "remplace x par stocks");
+    expect(r2.operations).toEqual([]);
+    expect(r2.remarques).toEqual([PAS_VOTRE]);
+    expect(filtrerOperationsGenerateur(ID, [stock] as never[], "remplace x par « stock » svp").operations).toHaveLength(1);
+    const special = { type: "changer-mot", sceneId: "s1", ancien: "x", nouveau: "(a+b)" };
+    expect(filtrerOperationsGenerateur(ID, [special] as never[], "mets (a+b) ici").operations).toHaveLength(1);
+  });
+
+  it("texte glissé par les parametres : un test par type d'opération", () => {
+    const glisse = "Gagnez 3 heures par jour";
+    const ops = [
+      { type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres: { texte: glisse } },
+      { type: "remplacer-piece", sceneId: "s1", ancienne: "titre", nouvelle: "legende", parametres: { titre: glisse } },
+      { type: "changer-brique", sceneId: "s1", piece: "legende", parametres: { options: { lignes: [{ libelle: glisse }] } } },
+    ];
+    for (const op of ops) {
+      const ko = filtrerOperationsGenerateur(ID, [op] as never[], "ajoute une légende en bas");
+      expect(ko.operations).toEqual([]);
+      expect(ko.remarques).toEqual([PAS_VOTRE]);
+      const ok = filtrerOperationsGenerateur(ID, [op] as never[], `mets la légende « ${glisse} »`);
+      expect(ok.operations).toHaveLength(1);
+      expect(ok.remarques).toEqual([]);
+    }
+    const sansTexte = { type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres: { position: "bas" }, zone: "bas" };
+    expect(filtrerOperationsGenerateur(ID, [sansTexte] as never[], "ajoute une légende").operations).toHaveLength(1);
+  });
+
   it("avocat et image-video : comportement inchangé", () => {
     const mot = { type: "changer-mot", sceneId: "s1", ancien: "x", nouveau: "inventé" };
     for (const g of ["avocat", "image-video"] as const) {
