@@ -29,6 +29,8 @@ const { horodatage } = await import("@/services/_commun");
 const { creerMoteurMontageTableau } = await import("@/moteurs/montage-tableau");
 const { commandeTableau } = await import("@/moteurs/montage-tableau/fabriquer");
 const { creerMoteurMontageFacecam } = await import("@/moteurs/montage-facecam");
+const { creerMoteurMontageFacecamAnimee } = await import("@/moteurs/montage-facecam-animee");
+const { creerMoteurMontageImageVideo } = await import("@/moteurs/montage-image-video");
 const { choisirFinTableau } = await import("@/services/tableau-fin");
 const { sortiesDesReseaux } = await import("@/moteurs/montage-tableau/formats-sortie");
 
@@ -226,6 +228,60 @@ describe("face caméra : FACECAM_NON_RELIE rendu par le moteur réel", () => {
     expect(await reservationsActives(id)).toBe(1);
     expect(await notifs("info")).toHaveLength(1);
     expect(await notifs("echec")).toHaveLength(0);
+  });
+});
+
+/* --- (c) bis : moteurs AVEC garde « sans avancement » (60 min) : l'attente dure bien 24 h ---------- */
+
+describe("c) bis : un moteur gardé attend 24 h (pas 60 min) puis échoue avec sa phrase", () => {
+  const cas: [string, string, () => MoteurVideo, () => CommandeFabrication][] = [
+    [
+      "face caméra animée v4",
+      "FACECAM_ANIMEE_NON_RELIE",
+      () => creerMoteurMontageFacecamAnimee({ outils: async () => null, statutFormat: "masque" }),
+      () => ({ videoId: "v-03", formatId: "facecam-animee", moteurId: "montage-facecam-animee", ratios: ["9:16"], entrees: { facecamAnimee: { priseCle: "k.mov", fichierId: "f-1", accordEssaiReel: true } }, briques: {}, distribution: [] }) as unknown as CommandeFabrication,
+    ],
+    [
+      "image → vidéo",
+      "IV_NON_RELIE",
+      () => creerMoteurMontageImageVideo({ outils: async () => null, statutFormat: "masque", numeroVersion: async () => 1 }),
+      () => ({ versionContrat: 2, moteurId: "montage-image-video", videoId: "v-03", formatId: "image-video", versionFormat: 1, profilRenduVersion: 1, dureeCibleSec: 50, ratios: ["9:16"], script: { blocs: [], texteComplet: "" }, distribution: [], styles: {}, briques: {}, entrees: { imageVideo: { imageCle: "studio/dev/image.png", empreinte: "e1", plafondCentimes: 500, codeSuivi: "essai", accordEssaiReel: true, reseaux: ["instagram"] } }, reglages: {}, plans: [], prononciations: [], mentionIA: { incrustee: false, position: "haut-droite", dureeSec: 0, texte: "", dansLegende: false }, budgetMax: { centimes: 500, devise: "EUR" }, tauxUsdEur: 0.9, construiteLe: "2026-10-15T08:00:00.000Z" }) as unknown as CommandeFabrication,
+    ],
+  ];
+
+  it.each(cas)("%s : en attente à 2 h, `echec` seulement à ≥ 24 h (%s, phrase du moteur), 1 notification d'échec, réservation libérée, aucune reprise gardée", async (_nom, code, fabriquer, commande) => {
+    const moteur = fabriquer();
+    const { id, videoId } = await installer(moteur, commande());
+    const attendu = await messageDuMoteur(moteur, id);
+    expect(attendu.code).toBe(code);
+    let instant = T0;
+    let vuA2h = false;
+    let tours = 0;
+    while (tours++ < 400) {
+      await tour(moteur, instant);
+      const t = (await depots().travaux.obtenir(id))!;
+      if (t.statut === "echec") break;
+      expect(t.statut).toBe("en_cours");
+      expect(t.garde).toBeUndefined();
+      if (!vuA2h && instant - T0 >= 2 * 3600_000) {
+        vuA2h = true;
+        expect(t.erreur).toBeUndefined();
+        expect(await reservationsActives(id)).toBe(1);
+        expect((await depots().videos.obtenir(videoId))?.statut).toBe("en_fabrication");
+        expect(await notifs("echec")).toHaveLength(0);
+      }
+      instant = Math.max(instant, new Date(t.reprise!.prochainEssai).getTime());
+    }
+    expect(vuA2h).toBe(true);
+    const fin = (await depots().travaux.obtenir(id))!;
+    expect(fin.statut).toBe("echec");
+    expect(instant - T0).toBeGreaterThanOrEqual(24 * 3600_000);
+    expect(fin.erreur).toMatchObject({ code, messagePourWill: attendu.message });
+    expect(fin.reprise).toBeUndefined();
+    expect(await reservationsActives(id)).toBe(0);
+    expect((await depots().videos.obtenir(videoId))?.statut).toBe("echec");
+    expect(await notifs("echec")).toHaveLength(1);
+    expect(await notifs("info")).toHaveLength(1);
   });
 });
 
