@@ -67,8 +67,9 @@ describe("C9-42a : objets livrés", () => {
     }
   });
 
-  it("la garde mord : objet.manuscrit eteint est listé, objet.chiffre eteint non", () => {
-    const faux = { id: "objet.manuscrit", etat: "eteint", chantier: "9" } as unknown as LigneCatalogue;
+  it("la garde mord : objet.emoji eteint est listé, objet.chiffre eteint non", () => {
+    // BR-OBJETS-2027-a (amendement n°1) : objet.manuscrit est désormais porté par « objet-croquis » ; objet.emoji (CAPACITES_OBJET) n'est porté par aucune pièce du registre.
+    const faux = { id: "objet.emoji", etat: "eteint", chantier: "9" } as unknown as LigneCatalogue;
     const bon = { id: "objet.chiffre", etat: "eteint", chantier: "9" } as unknown as LigneCatalogue;
     expect(lignesSansPiece([faux], pieces)).toEqual([faux]);
     expect(lignesSansPiece([bon], pieces)).toEqual([]);

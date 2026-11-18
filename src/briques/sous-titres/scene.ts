@@ -9,6 +9,7 @@ import { largeurLigne, largeurMot, tailleQuiTient, type NomPolice } from "./mesu
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
 import { PAVE, type BoitePave } from "./pave";
 import type { MarqueMot } from "./marques-mot";
+import type { LigneBoite } from "./boite-arrondie";
 import type { ZoneSureEscalier } from "./escalier";
 import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
 import { ETIQUETTE, ETIQUETTE_AUTONOME, type EtiquetteOutilPosee } from "./noms-outils";
@@ -101,6 +102,8 @@ export interface DonneesCalque {
   paveAnime?: true;
   /** BR-PAVE-MARQUES : marque posée sous la plaque animée (id du segment → marque). Sans `paveAnime` : sans effet. */
   marques?: Record<string, MarqueMot>;
+  /** BR-MINIMAL-IV-b : boîte arrondie derrière le groupe affiché (rayon et marge en em de la taille du texte). Absent : rien ne change. */
+  boite?: { rayonEm: number; margeEm: number; couleurs: { fond: string; texte: string } };
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -373,6 +376,20 @@ export function paveAuTemps(d: DonneesCalque, t: number): PaveAuTemps | null {
     opaciteGroupe: el.opacite,
     decalageYPx: el.decalageYPx,
   };
+}
+
+/**
+ * BR-MINIMAL-IV-b : la ligne de la boîte arrondie du groupe actif (même zone, mêmes largeurs et même `yPx` que `paveAuTemps`).
+ * `null` sans `boite` ou sans groupe actif. Pure, ne lève jamais.
+ */
+export function boiteAuTemps(d: DonneesCalque, t: number): LigneBoite[] | null {
+  if (!d.boite) return null;
+  const el = sceneAuTemps(d, t);
+  if (!el || el.mots.length === 0) return null;
+  const total = largeurElement(el);
+  const zone = el.colonne ? { x: el.colonne.gauchePx, l: el.colonne.largeurPx } : { x: 0, l: d.largeur };
+  const hauteur = 1.1 * el.taillePx;
+  return [{ x: zone.x + (zone.l - total) / 2, y: el.yPx - hauteur / 2 + el.decalageYPx, largeur: total, hauteur }];
 }
 
 /** Dessin d'un groupe donné à l'instant t (aperçu d'un groupe touché, captures). */

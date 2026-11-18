@@ -1,0 +1,205 @@
+{
+  "version": "tableau-de-bord.v1",
+  "titre": "Espace démo · Connaissances · données exemple",
+  "periode": {
+    "debut": "2026-08-01",
+    "fin": "2026-10-31",
+    "libelle": "3 derniers mois"
+  },
+  "source": "Démonstration · données fictives (maquette 07-taches)",
+  "indicateurs": [
+    {
+      "id": "automatisations",
+      "libelle": "Automatisations actives · exemple",
+      "valeur": 3,
+      "unite": "automatisations",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "demandes",
+      "libelle": "Demandes traitées · exemple",
+      "valeur": 248,
+      "unite": "demandes",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "evolution-automatisations",
+      "libelle": "Évolution ce mois des automatisations · exemple",
+      "valeur": 12,
+      "unite": "%",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "evolution-demandes",
+      "libelle": "Évolution ce mois des demandes · exemple",
+      "valeur": 24,
+      "unite": "%",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "temps-libere",
+      "libelle": "Temps estimé libéré · exemple",
+      "valeur": 97,
+      "unite": "h",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "actions",
+      "libelle": "Actions à valider · exemple",
+      "valeur": 4,
+      "unite": "actions",
+      "precision": 0,
+      "sens": "baisse-bonne"
+    },
+    {
+      "id": "sources",
+      "libelle": "Sources indexées · exemple",
+      "valeur": 5,
+      "unite": "sources",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "processus",
+      "libelle": "Processus configurés · exemple",
+      "valeur": 4,
+      "unite": "processus",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "executions-relance",
+      "libelle": "Exécutions de la relance des devis · exemple",
+      "valeur": 71,
+      "unite": "exécutions",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "reussite-relance",
+      "libelle": "Taux de réussite de la relance des devis · exemple",
+      "valeur": 98,
+      "unite": "%",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "qualite",
+      "libelle": "Qualité moyenne des fiches · exemple",
+      "valeur": 93,
+      "unite": "%",
+      "precision": 0,
+      "sens": "hausse-bonne"
+    },
+    {
+      "id": "actions-prioritaires",
+      "libelle": "Actions à valider prioritaires · exemple",
+      "valeur": 2,
+      "unite": "actions",
+      "precision": 0,
+      "sens": "baisse-bonne"
+    }
+  ],
+  "series": [
+    {
+      "id": "executions-par-processus",
+      "libelle": "Exécutions par processus · exemple",
+      "unite": "exécutions",
+      "points": [
+        {
+          "x": "Tri des demandes entrantes",
+          "valeur": 158
+        },
+        {
+          "x": "Relance des devis en attente",
+          "valeur": 71
+        },
+        {
+          "x": "Synthèse quotidienne des e-mai",
+          "valeur": 22
+        },
+        {
+          "x": "Préparation des fiches clients",
+          "valeur": 36
+        }
+      ]
+    },
+    {
+      "id": "reussite-par-processus",
+      "libelle": "Taux de réussite par processus · exemple",
+      "unite": "%",
+      "points": [
+        {
+          "x": "Tri des demandes entrantes",
+          "valeur": 99
+        },
+        {
+          "x": "Relance des devis en attente",
+          "valeur": 98
+        },
+        {
+          "x": "Synthèse quotidienne des e-mai",
+          "valeur": 100
+        },
+        {
+          "x": "Préparation des fiches clients",
+          "valeur": 97
+        }
+      ]
+    },
+    {
+      "id": "graduations-graphique",
+      "libelle": "Graduations du graphique · exemple",
+      "unite": "demandes",
+      "points": [
+        {
+          "x": "Graduation 0",
+          "valeur": 0
+        },
+        {
+          "x": "Graduation 70",
+          "valeur": 70
+        },
+        {
+          "x": "Graduation 140",
+          "valeur": 140
+        },
+        {
+          "x": "Graduation 210",
+          "valeur": 210
+        },
+        {
+          "x": "Graduation 280",
+          "valeur": 280
+        }
+      ]
+    },
+    {
+      "id": "qualite-par-fiche",
+      "libelle": "Qualité indicative par fiche · exemple",
+      "unite": "%",
+      "points": [
+        {
+          "x": "Présentation de l’entreprise",
+          "valeur": 100
+        },
+        {
+          "x": "Offres et prestations",
+          "valeur": 97
+        },
+        {
+          "x": "Questions fréquentes",
+          "valeur": 94
+        }
+      ]
+    }
+  ],
+  "comparaisons": [],
+  "alertes": [],
+  "calculs": []
+}

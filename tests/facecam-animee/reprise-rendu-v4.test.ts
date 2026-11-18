@@ -96,7 +96,7 @@ describe("reprise au rendu : refus par null, jamais d'exception", () => {
 });
 
 describe("garde : non branché", () => {
-  it("aucun fichier de src/ n'importe reprise-rendu-v4", () => {
+  it("seul src/moteurs/montage-facecam-animee/index.ts importe reprise-rendu-v4 (G12-09b-a), aucun autre fichier de src/", () => {
     const vus: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -106,6 +106,7 @@ describe("garde : non branché", () => {
       }
     };
     parcourir(join(process.cwd(), "src"));
-    expect(vus).toEqual([]);
+    // G12-09b-a 18/11 (amendement n°1, seconde lecture du pilote) : liste exacte, un seul importeur.
+    expect(vus).toEqual([join(process.cwd(), "src/moteurs/montage-facecam-animee/index.ts")]);
   });
 });
