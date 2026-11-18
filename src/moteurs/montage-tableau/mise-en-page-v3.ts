@@ -1100,7 +1100,9 @@ export function mettreEnPageParties(fiche: FicheTableau, options: OptionsMiseEnP
     // en 16:9, vidéo v-b2d772d28b97 : le marqueur entrait dans la bande des sous-titres en écrivant la dernière ligne).
     const air = Math.round((s.H > s.W ? 64 : 40) * k);
     const airPlein = Math.max(air, Math.ceil(airOutil(style ?? "ardoise", k)));
-    const r = style ? (poserPageTableau(c, s, style, basChapitres, s.bande.y - airPlein) ?? (airPlein > air ? poserPageTableau(c, s, style, basChapitres, s.bande.y - air) : null)) : poserPage(c, s, basChapitres);
+    // Tableau : la bande vide des étiquettes (plus dessinée) n'est reprise que si la page ne tient pas autrement.
+    const poser = (haut: number) => poserPageTableau(c, s, style!, haut, s.bande.y - airPlein) ?? (airPlein > air ? poserPageTableau(c, s, style!, haut, s.bande.y - air) : null);
+    const r = style && geo ? (poser(basChapitres) ?? (geo.hautLibre < basChapitres ? poser(geo.hautLibre) : null)) : poserPage(c, s, basChapitres);
     if (!r) throw new ErreurMiseEnPage(`Page ${c.page} · scène ${c.derniere.id} · la page ne tient pas au-dessus de la bande des sous-titres, même aux tailles minimales (titre ${minimums.titre}, phrase clé ${minimums.phrase}, détails ${minimums.detail} px) : raccourcissez une ligne, ou mettez la dernière scène sur une page de plus.`, c.page);
     ecritsUneFois.push(...c.doubles.keys());
     const elements: ElementPlace[] = [];
