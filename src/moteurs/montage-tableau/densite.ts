@@ -104,7 +104,7 @@ function essaisPageDePlus(fiche: FicheTableau, indices: number[]): EssaiPageDePl
 }
 
 /** La page `page` passe à une page de plus : sa dernière scène (ou la seconde moitié de son unique scène) tourne la page. */
-function pageDePlus(fiche: FicheTableau, page: number): FicheTableau | null {
+export function pageDePlus(fiche: FicheTableau, page: number): FicheTableau | null {
   const bornes = bornesFicheTableau(fiche);
   if (Math.max(...fiche.scenes.map((s) => s.page)) >= bornes.pageMax) return null;
   const indices = fiche.scenes.flatMap((s, i) => (s.page === page ? [i] : []));
