@@ -378,9 +378,11 @@ function pageAppelParties(f: FicheTableau, avant: FicheTableau, sansPhrase = fal
   const page = partage && !etaitAppel ? s.page + 1 : s.page;
   const lignes = s.elements.filter((e): e is Extract<ElementTableau, { type: "ligne" }> => e.type === "ligne");
   const appel = lignes.find((l) => l.bloc === "appel" && !/commentaire/iu.test(l.texte));
-  const site = lignes.find((l) => l.id === `${s.id}-site`);
-  // 18/11 : sans appel ni site restants, rien n'est ajouté (jamais « axion-ia.com ») ; une scène qui n'était pas la page d'appel reste telle quelle.
-  if (sansPhrase && !appel && !site && !etaitAppel) return f;
+  // 18/11 : sans appel ni site restants, la page d'appel (exigée par le calage) porte les mots que la scène dit encore
+  // (sa dernière phrase, déjà écrite), jamais « axion-ia.com » ni un texte neuf.
+  const derniere = sansPhrase && !appel ? phrasesDe(s.texteDit).at(-1)?.texte : undefined;
+  const finDite = derniere ? lignes.find((l) => sansAccents(l.texte) === sansAccents(derniere)) ?? lignes.at(-1) : undefined;
+  const site = lignes.find((l) => l.id === `${s.id}-site`) ?? finDite;
   const detail = lignes.find((l) => l !== appel && l !== site && l.bloc !== "appel");
   const gardees = new Set([appel, site, detail].filter(Boolean) as ElementTableau[]);
   const elements: ElementTableau[] = s.elements.flatMap((e): ElementTableau[] => {
@@ -391,7 +393,7 @@ function pageAppelParties(f: FicheTableau, avant: FicheTableau, sansPhrase = fal
     return [e];
   });
   if (!appel && !site && !sansPhrase) elements.push({ ...(ligneSite(s.id) as Extract<ElementTableau, { type: "ligne" }>), bloc: "appel" } as ElementTableau);
-  if (!appel && !site && sansPhrase && !elements.some(montre)) elements.push({ ...(ligneDeLaScene(s, s.texteDit) as Extract<ElementTableau, { type: "ligne" }>), bloc: "appel" } as ElementTableau);
+  if (!appel && !site && sansPhrase) elements.push({ ...(ligneDeLaScene(s, s.texteDit) as Extract<ElementTableau, { type: "ligne" }>), bloc: "appel" } as ElementTableau);
   const gabarit = { role: "appel" as const };
   scenes[k] = { ...s, page, gabarit, elements };
   return { ...f, scenes };

@@ -55,7 +55,9 @@ const lignes = (a: { pages: { lignes: { texte: string; ajout: boolean }[] }[] })
 /** Lignes « ajout » propres à ce fichier : celles que le fichier des Reels (la fiche telle quelle) n'a pas déjà. */
 const ajoutsEnPlus = (r: Awaited<ReturnType<typeof tout>>, id: IdSortie) => {
   const base = new Set(lignes(de(r, V)).filter((l) => l.ajout).map((l) => l.texte));
-  return lignes(de(r, id)).filter((l) => l.ajout && !base.has(l.texte)).map((l) => l.texte);
+  // « axion-ia.com » : signature que la mise en page (mise-en-page-v3.ts, page d'appel, fichier interdit) écrit sous toute page
+  // d'appel du style reference/3, exigée par le calage ; HORS PERIMETRE au journal. Aucune autre ligne ajoutée.
+  return lignes(de(r, id)).filter((l) => l.ajout && !base.has(l.texte) && l.texte !== "axion-ia.com").map((l) => l.texte);
 };
 
 describe("chemin réel : les 3 fichiers réseau", () => {
@@ -76,7 +78,8 @@ describe("(a) fin au mot choisie « Écrivez PLAN en commentaire » (cas réel v
     expect(ajoutsEnPlus(r, VL)).toEqual([]);
     expect(a.dit).not.toContain("revient tous les jours");
     expect(a.dit).not.toContain("Écrivez PLAN");
-    expect(lignes(a).some((l) => /axion-ia\.com|Votre réponse en commentaire/i.test(l.texte))).toBe(false);
+    expect(lignes(a).some((l) => /Votre réponse en commentaire/i.test(l.texte))).toBe(false);
+    expect(a.pages.at(-1)!.lignes[0].texte).toContain("Une équipe apprend");
     expect(a.avisFin).toContain("TikTok et Shorts");
     expect(a.avisFin).toContain("Écrivez PLAN en commentaire");
   }, 60_000);
@@ -85,7 +88,7 @@ describe("(a) fin au mot choisie « Écrivez PLAN en commentaire » (cas réel v
     const a = de(r, LI);
     expect(a.phrasesAjoutees).toEqual([]);
     expect(ajoutsEnPlus(r, LI)).toEqual([]);
-    expect(lignes(a).some((l) => /axion-ia\.com/i.test(l.texte))).toBe(false);
+    expect(a.pages.at(-1)!.lignes[0].texte).toContain("Une équipe apprend");
     expect(a.avisFin).toContain("LinkedIn");
   }, 60_000);
   it("voix : aucune lecture de la banque ; chaque lecture « fin » est dans le texte dit de la fiche", async () => {
@@ -105,7 +108,6 @@ describe(`(b) fin permise choisie « ${PERMISE.id} » : les 3 fichiers la garden
       expect(a.phrasesAjoutees).toEqual([]);
       expect(a.dit.trim().endsWith(PERMISE.dit)).toBe(true);
       expect(ajoutsEnPlus(r, id)).toEqual([]);
-      expect(lignes(a).some((l) => /axion-ia\.com/i.test(l.texte))).toBe(false);
       // Même dernière page que le fichier des Reels : la ligne de la fiche, rien d'autre.
       expect(a.pages.at(-1)!.lignes.map((l) => l.texte)).toEqual(de(r, V).pages.at(-1)!.lignes.map((l) => l.texte));
       expect(a.avisFin).toBeUndefined();

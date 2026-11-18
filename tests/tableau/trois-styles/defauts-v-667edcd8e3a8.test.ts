@@ -22,6 +22,7 @@ import { STYLES_TABLEAU } from "../../../src/briques/tableau-scene/trois-styles/
 import { ficheTemoinV667Corrige } from "./fiches";
 import { finDeLaSortie, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
 import { choisirFinTableau } from "../../../src/services/tableau-fin";
+import { finDesLiens } from "../../../src/moteurs/montage-tableau/variantes-fin";
 
 const brute = JSON.parse(readFileSync(new URL("../temoins/fiche-temoin-v-667edcd8e3a8-reference-3.json", import.meta.url), "utf8")) as FicheTableau;
 const temoin = remettreEnForme(brute, { motsDouleur: ["mails", "temps"] });
@@ -31,7 +32,8 @@ const DEMANDE = /\b(r[ée]servez|enregistrez|[ée]crivez|commentez|abonnez|parta
 
 describe("(a) fin de TikTok et Shorts : une seule demande", () => {
   const sorties = sortiesDesReseaux(["verticaux"]);
-  const choisirFin = choisirFinTableau({}, { sorties });
+  // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la phrase de la banque de TikTok et Shorts vient du réglage explicite `finLiens`, plus d'un choix « fin-if-mot-envoi ».
+  const choisirFin = choisirFinTableau({}, { sorties, finLiens: finDesLiens(temoin)?.objectif });
   // 17/11 (Williams) : « Aucune » n'ajoute plus de fin ; ce test choisit une fin.
   const fins = (id: (typeof sorties)[number]) => finDeLaSortie(id, choisirFin(temoin.appelId ?? "fin-if-mot-envoi", id), temoin);
   const [reels, liens] = sortiesRelues(temoin, sorties, fins);

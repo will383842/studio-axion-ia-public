@@ -30,20 +30,16 @@ const lignesDe = (a: { pages: { lignes: { texte: string }[] }[] }) => a.pages.fl
 describe("(a) fin CHOISIE : la phrase ajoutée et le mot sont montrés", () => {
   const f = { ...temoin, appelId: "fin-if-mot-envoi" } as FicheTableau;
   const ap = apercuDesSorties(f, relues(f, ["instagram", "tiktok", "youtube-shorts"], "GUIDE"));
-  it("vertical-liens : phrase de fin en tête et à l'écran", () => {
+  it("vertical-liens : aucune phrase ajoutée ni « axion-ia.com » ajouté, fin retirée et signalée", () => {
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : fin au mot choisie, retirée de TikTok et Shorts (règle du 12/10), rien à sa place.
     const a = ap.find((x) => x.sortie === ("vertical-liens" as IdSortie))!;
-    expect(a.phrasesAjoutees.length).toBeGreaterThan(0);
+    expect(a.phrasesAjoutees).toEqual([]);
     const derniere = a.pages[a.pages.length - 1];
-    const ecran = derniere.lignes.map((l) => l.texte).join(" ").toLowerCase();
-    expect(ecran).toContain("axion-ia.com");
-    // Son écran de fin (celui de la banque) est posé, marqué ajouté ; l'ancien appel n'y est plus (relecteur Opus 17/11).
-    const r = relues(f, ["instagram", "tiktok", "youtube-shorts"], "GUIDE").find((x) => x.id === ("vertical-liens" as IdSortie))!;
-    const choisie = finDeLaSortie(r.id, choisirFinTableau({}, { sorties: sortiesDesReseaux(["instagram", "tiktok", "youtube-shorts"]), mot: "GUIDE" })(f.appelId ?? null, r.id), f);
-    const ecranFin = choisie && "ecran" in choisie ? choisie.ecran : "";
-    expect(ecranFin).not.toBe("");
-    expect(derniere.lignes.some((l) => l.ajout && l.texte.includes(ecranFin))).toBe(true);
-    expect(ecran).not.toContain("réservez un appel de diagnostic");
-    expect(a.dit).toContain(a.phrasesAjoutees[0]);
+    expect(derniere.lignes.some((l) => l.ajout && l.texte !== "axion-ia.com")).toBe(false);
+    // `avisFin` est posé par `relireFicheTableau` (couvert par fin-choisie-par-reseau.test.ts) ; ici, la fin retenue qui le porte.
+    const sorties = sortiesDesReseaux(["instagram", "tiktok", "youtube-shorts"]);
+    const retenue = finDeLaSortie("vertical-liens" as IdSortie, choisirFinTableau({}, { sorties, mot: "GUIDE" })(f.appelId ?? null, "vertical-liens" as IdSortie), f);
+    expect(retenue && "absente" in retenue && retenue.absente).toContain("Sur TikTok et Shorts, votre fin « Écrivez GUIDE en commentaire »");
   });
   it("vertical : GUIDE montré si et seulement si la mise en page le pose (constat au journal : reference/3 ne pose pas le mot)", () => {
     const a = ap.find((x) => x.sortie === ("vertical" as IdSortie))!;
