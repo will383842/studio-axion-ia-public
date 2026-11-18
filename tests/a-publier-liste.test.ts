@@ -47,7 +47,7 @@ const texte = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g
 /** Une vidéo dans chaque état. */
 const jeu = (): LigneAPublier[] => [
   ligne("v-envoyer", "instagram", { creeLe: "2026-03-01T10:00:00.000Z" }),
-  ligne("v-brouillon", "instagram", { etat: etat("Brouillon dans Buffer", "neutre"), creeLe: "2026-03-02T10:00:00.000Z" }),
+  ligne("v-brouillon", "instagram", { etat: etat("Brouillon chez le diffuseur", "neutre"), creeLe: "2026-03-02T10:00:00.000Z" }),
   ligne("v-prog", "instagram", { etat: etat("Programmée", "orange"), creeLe: "2026-03-03T10:00:00.000Z" }),
   ligne("v-pub", "instagram", { etat: etat("Publiée", "sauge", { lien: "https://x.test/p" }), creeLe: "2026-03-04T10:00:00.000Z" }),
   ligne("v-pb", "facebook", { blocage: "Aucun fichier au bon format pour Facebook.", etat: etat("Échec", "brique") }),
@@ -77,9 +77,9 @@ describe("À publier — la liste", () => {
     expect(L.lienDetail("v-1", "envoyees")).toBe("/a-publier/v-1?filtre=envoyees");
   });
 
-  it("les pastilles d'état : À envoyer, Brouillon dans Buffer, Programmée, Publiée, Problème", () => {
+  it("les pastilles d'état : À envoyer, Brouillon chez le diffuseur, Programmée, Publiée, Problème", () => {
     const t = texte(liste(jeu(), "toutes"));
-    for (const m of ["À envoyer", "Brouillon dans Buffer", "Programmée", "Publiée", "Problème"]) expect(t).toContain(m);
+    for (const m of ["À envoyer", "Brouillon chez le diffuseur", "Programmée", "Publiée", "Problème"]) expect(t).toContain(m);
   });
 
   it("tri par défaut : À envoyer d'abord, puis les plus récentes", () => {

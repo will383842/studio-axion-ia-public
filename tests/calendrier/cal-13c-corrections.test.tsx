@@ -32,9 +32,9 @@ describe("CAL-13c corrections — vue Jour", () => {
     expect(h).toContain("Envoi en cours");
     expect(h).not.toContain("État à vérifier");
   });
-  it("un brouillon Buffer dit « Brouillon dans Buffer »", async () => {
+  it("un brouillon Buffer dit « Brouillon chez le diffuseur »", async () => {
     const h = await pageAvec([{ reseau: "linkedin", via: "buffer", statut: "brouillon" }], { vue: "jour" });
-    expect(h).toContain("Brouillon dans Buffer");
+    expect(h).toContain("Brouillon chez le diffuseur");
     expect(h).not.toContain("État à vérifier");
   });
 });
