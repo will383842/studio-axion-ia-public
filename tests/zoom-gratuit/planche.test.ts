@@ -10,7 +10,8 @@ import { ligneRapport, zoomsAvocat, zoomsClassique } from "../../outils/zoom-gra
 const RACINE = resolve(__dirname, "../..");
 const CHEMIN = ["..", "..", "outils", "zoom-gratuit", "planche.mts"].join("/");
 type Video = { nom: string; genre: "classique" | "avocat"; dureeSec: number; plans: unknown[] };
-type Module = { cellulesPlanche: () => { nom: string; echelle: number }[]; rapportComptage: (v: Video[]) => string[] };
+type Case = { reglage: string; instant: "debut" | "milieu" | "fin"; t: number; cameraMax: number; echelle: number };
+type Module = { casesPlanche: () => Case[]; cellulesPlanche: () => { nom: string; echelle: number }[]; rapportComptage: (v: Video[]) => string[] };
 const mod = (await import(/* @vite-ignore */ CHEMIN)) as Module;
 
 describe("cellulesPlanche", () => {
@@ -23,6 +24,31 @@ describe("cellulesPlanche", () => {
     const texte = readFileSync(join(RACINE, "src/moteurs/montage-cas-concret/variete.ts"), "utf8");
     expect(texte).toMatch(/CAMERA_BASE_MAX = 1\.035;/);
     expect(texte).toMatch(/export const CAMERA_PLUS_MAX = 1\.048;/);
+  });
+});
+
+describe("casesPlanche (échelles calculées par le vrai habillage du rendu)", () => {
+  const cases = mod.casesPlanche();
+  const texte = readFileSync(join(RACINE, "studio-rendu/compositions/cas-concret/plans/habillage.ts"), "utf8");
+  const max = Number(/export const ECHELLE_CAMERA_MAX = ([\d.]+);/.exec(texte)?.[1]);
+  const de = (reglage: string, instant: string) => cases.find((c) => c.reglage === reglage && c.instant === instant)!;
+  it("9 cases : 3 réglages × 3 instants", () => {
+    expect(cases).toHaveLength(9);
+    expect(new Set(cases.map((c) => c.reglage)).size).toBe(3);
+  });
+  it("début = 1 ; fin = 1,035 / 1,040 / 1,048 ; milieu strictement entre les deux", () => {
+    const fins: Record<string, number> = { avant: 1.035, "apres-1040": 1.04, "apres-plafond": 1.048 };
+    for (const [reglage, fin] of Object.entries(fins)) {
+      expect(de(reglage, "debut").echelle).toBeCloseTo(1, 10);
+      expect(de(reglage, "fin").echelle).toBeCloseTo(fin, 10);
+      expect(de(reglage, "milieu").echelle).toBeGreaterThan(1);
+      expect(de(reglage, "milieu").echelle).toBeLessThan(fin);
+    }
+  });
+  it("jamais au-dessus de 1,048 ; « avant » à la fin = ECHELLE_CAMERA_MAX lu dans habillage.ts", () => {
+    expect(cases.every((c) => c.echelle <= 1.048 + 1e-9)).toBe(true);
+    expect(max).toBe(1.035);
+    expect(de("avant", "fin").echelle).toBeCloseTo(max, 10);
   });
 });
 
@@ -49,6 +75,7 @@ describe("garde", () => {
     const src = readFileSync(join(RACINE, "outils/zoom-gratuit/planche.mts"), "utf8");
     expect(src).toMatch(/import\.meta\.url/);
     expect(existsSync(join(RACINE, "planche.txt"))).toBe(false);
+    expect(existsSync(join(RACINE, "studio-rendu", ".planche-zoom-gratuit-tmp"))).toBe(false);
   });
   it("aucun fichier de src/ ni studio-rendu/ ne cite zoom-gratuit/planche", () => {
     const vus: string[] = [];
