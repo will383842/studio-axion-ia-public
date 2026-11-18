@@ -320,13 +320,15 @@ export function lireDecisionChef(brut: unknown, d: DemandeTutoriel, regles: Deci
     if (cas === 5 && !(dos?.flux || contient(phrase, MOTS_AUTOMATISATION))) return ecarter("le cas 5 demande un flux ou une demande d'automatisation");
     if (cas === 5 && !(dos?.tableauDeBord || contient(phrase, MOTS_TABLEAU))) return ecarter("le cas 5 demande un tableau de bord");
     if ((cas === 1 || cas === 5) && !dos?.maquette) return ecarter("ce cas demande une maquette, le dossier n'en a pas");
+    if (cas === 1 && !dos?.tableauDeBord) return ecarter("le cas 1 demande une maquette avec un tableau de bord");
     if (cas === 3 && !dos?.flux && !contient(phrase, MOTS_AUTOMATISATION)) return ecarter("aucun flux ni demande d'automatisation");
     if (cas === 4 && !dos?.conversation && !contient(phrase, MOTS_ASSISTANT)) return ecarter("aucune conversation ni demande d'assistant");
     if (!gabaritCompatible(cas, gabarits)) return ecarter("gabarit hors de la table du cas");
     return {
       cas,
       // Même règle d'entrée que `classerParRegles` : D pour un flux de dossier (cas 3), A/B selon les scripts pour un dossier, sinon C.
-      entree: dos ? (cas === 3 && dos.flux ? "D" : entreeDossier(dos)) : "C",
+      // Un avis ne peut jamais transformer une demande V2 (entrée C des règles) en V1.
+      entree: regles.entree === "C" ? "C" : dos ? (cas === 3 && dos.flux ? "D" : entreeDossier(dos)) : "C",
       gabarits,
       certitude: "sure",
       raisons: [...regles.raisons, `avis retenu : ${lu.data.raison}`],

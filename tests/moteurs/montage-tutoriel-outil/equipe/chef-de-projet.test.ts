@@ -126,6 +126,23 @@ describe("lireDecisionChef", () => {
 });
 
 describe("corrections du verdict Opus", () => {
+  it("avis cas 1 sur un dossier sans tableau de bord (phrase seule en appui) → écarté, TO_CAS_V2", () => {
+    const d: DemandeTutoriel = { ...dossier({}), phrase: "un tableau de bord et le tri des factures" };
+    const regles = classerParRegles(d);
+    expect(regles.entree).toBe("C");
+    const r = lireDecisionChef({ cas: 1, gabarits: ["G-Journee"], raison: "x" }, d, regles);
+    expect(r.cas).toBe(regles.cas);
+    expect(r.entree).toBe("C");
+    expect(etablirCahier(d, r)).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+  });
+  it("avis cas 4 retenu sur la phrase seule, dossier sans conversation → reste en entrée C, TO_CAS_V2", () => {
+    const d: DemandeTutoriel = { ...dossier({}), phrase: "un assistant qui répond aux clients" };
+    const regles = classerParRegles(d);
+    expect(regles.entree).toBe("C");
+    const r = lireDecisionChef({ cas: 4, gabarits: ["G-Reponse"], raison: "x" }, d, regles);
+    expect(r.entree).toBe("C");
+    expect(etablirCahier(d, r)).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+  });
   it("dossier sans tableau de bord, flux ni conversation → TO_CAS_V2, pas de cahier V1", () => {
     const d = dossier({ tableauDeBord: false });
     const dec = classerParRegles(d);
