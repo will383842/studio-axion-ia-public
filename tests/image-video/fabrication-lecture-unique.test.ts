@@ -214,7 +214,7 @@ describe("lecture unique · fabrication bout en bout", () => {
       }
       expect(lues).toBe(m.lus.length);
       expect(m.lus.length).toBeGreaterThanOrEqual(3);
-    });
+    }, 300_000); // 18/11 will-dc : deux passages A → B → A en CI ≈ 125 s > 120 s ; limite propre à ce cas, 0 assertion changée (verdict B PR 1141)
   }
 
   it("aucun secours pour une voix lue d'un trait : `planDeSecoursIV` rend null", async () => {
