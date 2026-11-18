@@ -27,8 +27,9 @@ import { MENTION_PLAFOND_FACECAM_ANIMEE } from "./index";
 import { PHRASE_REALISATEUR_PANNE, realiser, type DependancesRealisateur, type EntreeRealisateur, type HistoriqueVideo, type MotTranscrit } from "./realisateur";
 import { controlerDiversiteV4, estRendableV4 } from "./realisateur/regles-v4";
 import { indicesMotsInterditsEcran } from "./realisateur/mots";
-import { plaquettesSansVideo, retirerPlaquettesSansVideo, type PlaquetteRetireeV4 } from "./videos-v4";
-import { ESSAIS_REPLI_SANS_VIDEO_V4, IDS_PLAQUETTES_A_VIDEO_V4, elementsPourRepliV4, erreursRepliV4, nomsRetireesV4, phraseRepliEchecV4, phraseRepliOkV4 } from "./repli-sans-video-v4";
+import { plaquettesSansVideo, type PlaquetteRetireeV4 } from "./videos-v4";
+import { ESSAIS_REPLI_SANS_VIDEO_V4, elementsPourRepliV4, nomsRetireesV4, phraseRepliEchecV4, phraseRepliOkV4 } from "./repli-sans-video-v4";
+import { erreursRepliOuvertesV4, idsPlaquettesAVideoOuvertes, retirerSansVideoOuvertV4, telephonesSansMediaV4 } from "./repli-telephone-video";
 
 export const VERSION_CHAINE_V4 = "chaine-facecam-v4/1";
 /** Nom de la prise montée dans le dossier servi par le service de rendu (`studio-rendu/src/operations/facecam-v4.ts`). */
@@ -584,7 +585,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       if (repli && !etat.realisation) throw new ErreurChaineV4(phraseRepliEchecV4(repli.retirees), true, "repli sans vidéo : le plan précédent est introuvable", etat);
       const entree = entreeRealisateurV4(etat, { plafondAtteint, historique, ...(outils.calageAuMot ? { calageAuMot: true } : {}), ...(outils.telephoneVideo ? { telephoneVideo: true } : {}) });
       const r = await realiser(
-        repli ? { ...entree, repli: { interdites: IDS_PLAQUETTES_A_VIDEO_V4, elementsPrecedents: repli.elementsPrecedents, erreurs: erreursRepliV4(etat.realisation!.plan, repli.retirees), essaisMax: ESSAIS_REPLI_SANS_VIDEO_V4 } } : entree,
+        repli ? { ...entree, repli: { interdites: idsPlaquettesAVideoOuvertes({ telephoneVideo: outils.telephoneVideo }), elementsPrecedents: repli.elementsPrecedents, erreurs: erreursRepliOuvertesV4(etat.realisation!.plan, repli.retirees, { telephoneVideo: outils.telephoneVideo }), essaisMax: ESSAIS_REPLI_SANS_VIDEO_V4 } } : entree,
         { appeler: outils.appelerRealisateur },
       );
       if (repli) {
@@ -615,7 +616,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       let choix = etat.videos?.choix;
       let depenseUsd = etat.videos?.depenseUsd;
       // Seules les plaquettes qui exigent des vidéos qu'elles n'ont pas déclenchent la recherche (une reprise ne refait pas ce qui est fait).
-      if (plaquettesSansVideo(plan).length) {
+      if (plaquettesSansVideo(plan).length || telephonesSansMediaV4(plan, { telephoneVideo: outils.telephoneVideo }).length) {
         if (outils.videos) {
           const r = await outils.videos({ videoId: etat.demande.videoId, plan, mots: etat.coupes.mots });
           plan = r.plan;
@@ -627,9 +628,9 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         }
       }
       // Décision de Will (18/10) : sans vidéo littérale, la plaquette est RETIRÉE (le visage reste seul), jamais remplacée par une approximation.
-      const retrait = retirerPlaquettesSansVideo(plan);
+      const retrait = retirerSansVideoOuvertV4(plan, { telephoneVideo: outils.telephoneVideo });
       // Contrôles relancés sur le plan APRÈS retrait (le visage seul peut violer H1, H2 : c'est noté dans le rapport, aucune règle n'est assouplie).
-      const controle = retrait.retirees.length ? controlerDiversiteV4(retrait.plan, { mots: etat.coupes.mots }) : null;
+      const controle = retrait.retirees.length ? controlerDiversiteV4(retrait.plan, { mots: etat.coupes.mots, ...(outils.telephoneVideo ? { telephoneVideo: true } : {}) }) : null;
       const resume = {
         fichiers: [] as FichierVideoV4[],
         retirees: retrait.retirees,
@@ -670,7 +671,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
     case "rendu": {
       if (!etat.realisation || !etat.coupes) return { ...etat, etape: etat.coupes ? "mise-en-scene" : "coupes" };
       // Jamais de rendu d'une plaquette à vidéo sans vidéo (v-60359dd080b1 : `broll/` sans nom de fichier, 404 à 99 %) ; sert aussi à reprendre un travail déjà à « rendu ».
-      if (plaquettesSansVideo(etat.realisation.plan).length) return { ...etat, etape: "videos" };
+      if (plaquettesSansVideo(etat.realisation.plan).length || telephonesSansMediaV4(etat.realisation.plan, { telephoneVideo: outils.telephoneVideo }).length) return { ...etat, etape: "videos" };
       // Lot R2 : le plan de scènes se compose (et se garde) AVANT le rendu : un pas à lui seul, jamais refait à la reprise.
       if (outils.planScenes && !etat.planScenes) {
         const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler });
