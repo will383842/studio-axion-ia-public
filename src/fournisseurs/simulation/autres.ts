@@ -223,7 +223,7 @@ export const fournisseurMiniatureSimulation: FournisseurMiniature = {
 export const fournisseurPublicationSimulation: FournisseurPublication = {
   ...base,
   type: "publication",
-  nom: "Publication (Buffer)",
+  nom: "Publication (ancien outil)",
   reelPrevu: "Buffer",
   capacites: { asynchrone: false, accordExige: false },
   async envoyer() {

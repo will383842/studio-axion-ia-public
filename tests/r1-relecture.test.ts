@@ -95,7 +95,7 @@ describe("R1 relecture — exactitude", () => {
     expect(r.publications.map((p) => [p.reseau, p.etatEnvoi])).toEqual([["linkedin", "envoye"]]);
     expect(r.problemes?.map((p) => p.reseau)).toEqual(["instagram"]);
     expect(buffer.mutations()).toHaveLength(2);
-    expect(await journal()).toMatch(/Brouillon dans Buffer : 1 compte, 1 à revoir/);
+    expect(await journal()).toMatch(/Brouillon dans l'ancien outil : 1 compte, 1 à revoir/);
   });
 
   it("2 bis. Instagram déjà dans Buffer placé AVANT LinkedIn : même résultat (l'ordre ne change rien)", async () => {
@@ -173,13 +173,13 @@ describe("R1 relecture — sécurité et simplicité", () => {
   it("8-9. client : chaque erreur est une phrase française fixe (ni code, ni nom de réglage, ni anglais) ; le détail à part", async () => {
     const cas: [Response | (() => Promise<Response>), RegExp][] = [
       [new Response(`bad token ${CLE}`, { status: 401 }), /clé/],
-      [new Response("", { status: 502 }), /Buffer/],
-      [new Response("", { status: 429 }), /Buffer/],
-      [new Response("", { status: 400 }), /Buffer/],
-      [Response.json({ data: { createPost: { __typename: "InvalidInputError", message: "Video URL is not reachable" } } }), /Buffer/],
-      [Response.json({ data: { createPost: { __typename: "UnauthorizedError", message: "Unauthorized for channel" } } }), /Buffer/],
-      [Response.json({ data: { createPost: { __typename: "LimitReachedError", message: "Daily limit reached" } } }), /Buffer/],
-      [Response.json({ errors: [{ message: "Field 'x' is not defined", extensions: { code: "GRAPHQL_VALIDATION_FAILED" } }], data: null }), /Buffer/],
+      [new Response("", { status: 502 }), /L'ancien outil/],
+      [new Response("", { status: 429 }), /L'ancien outil/],
+      [new Response("", { status: 400 }), /L'ancien outil/],
+      [Response.json({ data: { createPost: { __typename: "InvalidInputError", message: "Video URL is not reachable" } } }), /L'ancien outil/],
+      [Response.json({ data: { createPost: { __typename: "UnauthorizedError", message: "Unauthorized for channel" } } }), /L'ancien outil/],
+      [Response.json({ data: { createPost: { __typename: "LimitReachedError", message: "Daily limit reached" } } }), /L'ancien outil/],
+      [Response.json({ errors: [{ message: "Field 'x' is not defined", extensions: { code: "GRAPHQL_VALIDATION_FAILED" } }], data: null }), /L'ancien outil/],
     ];
     for (const [rep, attendu] of cas) {
       const f = creerPublicationBuffer(CLE, { appeler: (async () => (typeof rep === "function" ? rep() : rep.clone())) as typeof fetch });
@@ -196,7 +196,7 @@ describe("R1 relecture — sécurité et simplicité", () => {
     const e = await buf.testerBuffer().catch((x: Error) => x);
     lisiblePourWill((e as Error).message);
     const j = await journal();
-    expect(j).toContain("Buffer refuse la clé du serveur");
+    expect(j).toContain("L'ancien outil refuse la clé du serveur");
     lisiblePourWill(j);
     expect(serveur.mock.calls.map((c) => c.join(" ")).join("\n")).toMatch(/BUFFER_API_KEY refusée \(HTTP 401\)/);
     serveur.mockRestore();
