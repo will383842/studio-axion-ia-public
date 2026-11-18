@@ -63,7 +63,7 @@ describe("client : erreurs typées, jamais la clé", () => {
 
   it("401 → clé refusée : phrase simple à l'écran, le nom de la variable dans le détail (journal), jamais sa valeur", async () => {
     const e = await erreur(avec(() => new Response(`bad token ${CLE}`, { status: 401 })).envoyer(demande()));
-    expect(e).toMatchObject({ code: "refuse", incertain: false, message: "Buffer refuse la clé du serveur : vérifiez-la." });
+    expect(e).toMatchObject({ code: "refuse", incertain: false, message: "L'ancien outil refuse la clé du serveur : vérifiez-la." });
     expect(e.detail).toContain("BUFFER_API_KEY");
     expect(e.message + (e.detail ?? "")).not.toContain(CLE);
   });
@@ -80,7 +80,7 @@ describe("client : erreurs typées, jamais la clé", () => {
     const refus = await erreur(avec(() => Response.json({ data: { createPost: { __typename: "InvalidInputError", message: `bad url, key=${CLE}` } } })).envoyer(demande()));
     expect(refus).toMatchObject({ code: "invalide", incertain: false });
     expect(refus.message).not.toContain(CLE);
-    expect(refus.message).toMatch(/Buffer refuse cette publication/);
+    expect(refus.message).toMatch(/L'ancien outil refuse cette publication/);
     expect(refus.detail).toMatch(/bad url/);
     expect(refus.detail).not.toContain(CLE);
     expect(await erreur(avec(() => Response.json({ data: { createPost: { __typename: "UnexpectedError", message: "boom" } } })).envoyer(demande()))).toMatchObject({ incertain: true });

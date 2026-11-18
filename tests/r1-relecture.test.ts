@@ -278,13 +278,13 @@ describe("R1 relecture — sécurité et simplicité (client conservé)", () => 
   it("8-9. client : chaque erreur est une phrase française fixe (ni code, ni nom de réglage, ni anglais) ; le détail à part", async () => {
     const cas: [Response | (() => Promise<Response>), RegExp][] = [
       [new Response(`bad token ${CLE}`, { status: 401 }), /clé/],
-      [new Response("", { status: 502 }), /Buffer/],
-      [new Response("", { status: 429 }), /Buffer/],
-      [new Response("", { status: 400 }), /Buffer/],
-      [Response.json({ data: { createPost: { __typename: "InvalidInputError", message: "Video URL is not reachable" } } }), /Buffer/],
-      [Response.json({ data: { createPost: { __typename: "UnauthorizedError", message: "Unauthorized for channel" } } }), /Buffer/],
-      [Response.json({ data: { createPost: { __typename: "LimitReachedError", message: "Daily limit reached" } } }), /Buffer/],
-      [Response.json({ errors: [{ message: "Field 'x' is not defined", extensions: { code: "GRAPHQL_VALIDATION_FAILED" } }], data: null }), /Buffer/],
+      [new Response("", { status: 502 }), /L'ancien outil/],
+      [new Response("", { status: 429 }), /L'ancien outil/],
+      [new Response("", { status: 400 }), /L'ancien outil/],
+      [Response.json({ data: { createPost: { __typename: "InvalidInputError", message: "Video URL is not reachable" } } }), /L'ancien outil/],
+      [Response.json({ data: { createPost: { __typename: "UnauthorizedError", message: "Unauthorized for channel" } } }), /L'ancien outil/],
+      [Response.json({ data: { createPost: { __typename: "LimitReachedError", message: "Daily limit reached" } } }), /L'ancien outil/],
+      [Response.json({ errors: [{ message: "Field 'x' is not defined", extensions: { code: "GRAPHQL_VALIDATION_FAILED" } }], data: null }), /L'ancien outil/],
     ];
     for (const [rep, attendu] of cas) {
       const f = creerPublicationBuffer(CLE, { appeler: (async () => (typeof rep === "function" ? rep() : rep.clone())) as typeof fetch });

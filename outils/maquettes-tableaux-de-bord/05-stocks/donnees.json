@@ -1,0 +1,22 @@
+{
+  "version": "tableau-de-bord.v1",
+  "titre": "Gestion des stocks · données exemple",
+  "periode": { "debut": "2026-11-04", "fin": "2026-11-10", "libelle": "7 derniers jours" },
+  "source": "Données exemple (maquette 05-stocks)",
+  "indicateurs": [
+    { "id": "stock", "libelle": "Stock du carton d’expédition", "valeur": 18, "unite": "lots", "precision": 0, "sens": "hausse-bonne" },
+    { "id": "seuil", "libelle": "Seuil d’alerte", "valeur": 35, "unite": "lots", "precision": 0, "sens": "baisse-bonne" },
+    { "id": "rythme-jour", "libelle": "Rythme de sortie indicatif", "valeur": 6, "unite": "lots / jour", "precision": 0, "sens": "baisse-bonne" },
+    { "id": "jours-observes", "libelle": "Jours observés", "valeur": 7, "unite": "jours", "precision": 0, "sens": "hausse-bonne" },
+    { "id": "delai-fournisseur", "libelle": "Délai indicatif du fournisseur", "valeur": 4, "unite": "jours", "precision": 0, "sens": "baisse-bonne" },
+    { "id": "quantite-proposee", "libelle": "Quantité proposée par la démonstration", "valeur": 80, "unite": "lots", "precision": 0, "sens": "hausse-bonne" },
+    { "id": "sous-seuil", "libelle": "Produits sous seuil", "valeur": 1, "unite": "produit", "precision": 0, "sens": "baisse-bonne" }
+  ],
+  "series": [],
+  "comparaisons": [],
+  "alertes": [{ "texte": "Stock sous le seuil", "indicateurId": "stock" }],
+  "calculs": [
+    { "id": "sorties-7-jours", "formule": "rythme-jour * jours-observes", "resultat": 42 },
+    { "id": "couverture", "formule": "stock / rythme-jour", "resultat": 3 }
+  ]
+}

@@ -6,6 +6,8 @@
 import { AbsoluteFill, Audio, Sequence } from "remotion";
 import { COMPOSITION_TUTORIEL, dureeImagesTutoriel, imagesDe, planCarteFin, type ProprietesTutorielOutil } from "../../../src/moteurs/montage-tutoriel-outil/proprietes";
 import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
+import { CalquePlanScenes } from "./CalquePlanScenes";
+import { NavigationFilmee } from "./NavigationFilmee";
 import { PlanDeScenes } from "./PlanDeScenes";
 
 export { COMPOSITION_TUTORIEL };
@@ -15,7 +17,14 @@ export function TutorielOutil(p: ProprietesTutorielOutil) {
   return (
     <AbsoluteFill>
       <Sequence durationInFrames={imagesPlan}>
-        <PlanDeScenes plan={p.plan} />
+        {p.filmNavigation && p.navigation ? (
+          <>
+            <NavigationFilmee film={p.filmNavigation} navigation={p.navigation} />
+            <CalquePlanScenes plan={p.plan} />
+          </>
+        ) : (
+          <PlanDeScenes plan={p.plan} />
+        )}
         {p.sousTitres ? <CalqueSousTitres donnees={p.sousTitres} /> : null}
         {p.audio ? <Audio src={p.audio} /> : null}
       </Sequence>
