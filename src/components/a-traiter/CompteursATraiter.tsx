@@ -1,4 +1,4 @@
-import { compteurs, type Compte } from "@/services/a-traiter-suivi";
+import { compteurs, type Compte } from "@/services/a-traiter-pur";
 import { LIBELLE_RESEAU_A_TRAITER, type OngletATraiter } from "@/services/a-traiter-onglets";
 import type { CarteATraiter, ReseauATraiter } from "@/services/a-traiter-types";
 

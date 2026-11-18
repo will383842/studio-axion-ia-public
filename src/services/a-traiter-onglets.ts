@@ -28,6 +28,8 @@ export interface CarteDejaTraitee {
   reseau: ReseauATraiter;
   extrait: string;
   creeLe: string;
+  /** Date ISO du « fait » (déjà enregistrée sur la carte) ; absente pour une carte ignorée ou sans date. */
+  faitLe?: string;
   statut: "fait" | "ignore";
 }
 

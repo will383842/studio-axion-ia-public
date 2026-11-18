@@ -7,7 +7,7 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { notifier } from "@/components/ui/Toast";
 import { compterParOnglet, filtrerParOnglet, LIBELLE_RESEAU_A_TRAITER, ONGLETS_A_TRAITER, type CarteDejaTraitee, type OngletATraiter } from "@/services/a-traiter-onglets";
 import { copiePossible, lienCommentaireSur } from "@/services/a-traiter-kit";
-import { cartesMasquees, trierParPriorite } from "@/services/a-traiter-suivi";
+import { cartesMasquees, trierParPriorite } from "@/services/a-traiter-pur";
 import { extraitLisible } from "@/services/a-traiter-types";
 import type { ResultatChangement, VueATraiter } from "@/services/a-traiter-types";
 import { CarteATraiter } from "./CarteATraiter";
@@ -67,6 +67,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   const lienReseau = carte && manuel ? lienCommentaireSur(carte.reseau, carte.lienPost) : null;
   const agir = (f: () => Promise<ResultatChangement>) =>
     demarrer(async () => {
+      if (!carte) return;
       const r = await f();
       if (r.issue === "refuse") notifier.erreur("Ça n’a pas marché. Réessayez.");
       else {
@@ -95,7 +96,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   if (vue.etat === "illisible") return <EtatVide compact icone="envoyer" titre="Source non lisible" phrase="Nous n’arrivons pas à lire la liste. Réessayez plus tard." />;
   const copier = async () => {
     try {
-      await navigator.clipboard.writeText(carte.kit ?? "");
+      await navigator.clipboard.writeText(carte?.kit ?? "");
       notifier.succes("Réponse copiée.");
     } catch {
       notifier.erreur("Copie impossible. Sélectionnez le texte à la main.");
