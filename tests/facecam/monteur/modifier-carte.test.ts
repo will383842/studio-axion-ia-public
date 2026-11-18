@@ -53,7 +53,8 @@ describe("S-09a · modifierCarte", () => {
     expect(r.appliquees).toHaveLength(1);
     const apres = (r.etat.facecam.passages as PassageMonteur[]).find((p) => p.id === p1.id)!;
     expect(r.etat.facecam.passages).toHaveLength(2);
-    expect(apres).toEqual({ ...p1, operation: { ...p1.operation, modele: "check-list" } });
+    expect(apres).toEqual({ ...p1, modele: "check-list", operation: { ...p1.operation, modele: "check-list" } });
+    expect(apres.modele).toBe("check-list");
     expect(apres.id).toBe(p1.id);
     expect(apres.ancre).toEqual(p1.ancre);
     // l'état de départ n'est pas modifié en place

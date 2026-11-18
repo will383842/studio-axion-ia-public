@@ -357,7 +357,7 @@ export function appliquerOperations(depart: EtatMonteur, operations: OperationFa
         if (p.operation?.type !== "ajouterCarte") return refuser("Ce passage n'est pas une carte : seule une carte change de modèle.");
         if (p.operation.modele === null) return refuser("Cette carte est faite sur mesure : demandez une nouvelle carte.");
         if (!carteDepuisTextesTous(modele as IdModeleMotionTous, p.operation.textes)) return refuser(`Ces textes ne tiennent pas dans ce modèle. Il attend : ${CONVENTION_TEXTES_TOUS[modele as IdModeleMotionTous]}.`);
-        const nouvelle: PassageMonteur = { ...p, operation: { ...p.operation, modele } };
+        const nouvelle: PassageMonteur = { ...p, modele, operation: { ...p.operation, modele } };
         facecam.passages[i] = nouvelle;
         appliquees.push(op);
         return;
