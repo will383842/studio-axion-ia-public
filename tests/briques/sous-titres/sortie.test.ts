@@ -63,11 +63,13 @@ describe("C2-U19 : filet « champ absent = rendu identique »", () => {
     expect(sceneAuTemps(base, 4.5)!.opacite).toBe(1);
   });
   // MISE À JOUR DE RÉFÉRENCE 18/11 (BR-SORTIE-ANIMEE) : l'ancien cas « champ posé + interrupteur éteint → net » est remplacé par « champ absent → net ».
+  // CORRECTION 18/11 (relecture Opus, point 3) : vraie garde, par scène et par instants.
   it("champ absent : identique image pour image, par empreinte comme par instants (rien ne glisse)", () => {
-    for (const t of instants) {
-      expect(empreinteTexte({ sousTitres: base, encadre: null, incrustations: [] } as never, t)).toBe(JSON.stringify(JSON.parse(empreinteTexte({ sousTitres: { ...base }, encadre: null, incrustations: [] } as never, t))));
-      expect(sceneAuTemps(base, t)?.decalageYPx ?? 0).toBe(0);
-    }
+    const finC = 5; // fin du dernier groupe (les autres enchaînent sans trou)
+    for (const d of [0.05, 0.1, 0.15]) expect(sceneAuTemps(base, finC + d)).toBeNull();
+    const e = (t: number) => empreinteTexte({ sousTitres: base, encadre: null, incrustations: [] } as never, t);
+    expect(e(finC + 0.1)).toBe(e(finC + 0.3)); // un seul saut : pas d'état intermédiaire
+    for (const t of instants) expect(sceneAuTemps(base, t)?.decalageYPx ?? 0).toBe(0);
     const p = { encadre: null, incrustations: [], images: 180, fps: 30 } as never;
     const sans = instantsTexte({ ...(p as object), sousTitres: base } as never);
     const avec = instantsTexte({ ...(p as object), sousTitres: { ...base, sortie } } as never);

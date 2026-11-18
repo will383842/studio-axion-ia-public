@@ -16,6 +16,10 @@ import { sortieAnimeePermise } from "@/briques/composition/porte-texte";
 import { SORTIE_PAR_DEFAUT } from "@/briques/sous-titres/sortie";
 import { sceneAuTemps } from "@/briques/sous-titres/scene";
 import { empreinteTexte, instantsTexte } from "../../../studio-rendu/src/composition/texte-instants";
+import { parametresComposition as parametresCommun, type RecetteComposition } from "@/briques/composition";
+import { RECETTE_COMPOSITION_CAS_CONCRET } from "@/moteurs/montage-cas-concret/fabriquer";
+import { RECETTE_COMPOSITION_TABLEAU } from "@/moteurs/montage-tableau/fabriquer";
+import { RECETTE_COMPOSITION_FACECAM } from "@/moteurs/montage-facecam/habillage";
 import { PROFIL_AVOCAT } from "@/briques/bibliotheque-video/profils/avocat";
 import { ID } from "@/briques/bibliotheque-video/noms";
 
@@ -159,12 +163,35 @@ describe("(b') rendu PAR INSTANTS (texte-instants : une image par état, recopi�
   });
 });
 
-describe("(c) autres formats sans la capacité : inchangés", () => {
-  it("aucun générateur autre que l'avocat ne pose `sortie`", async () => {
+describe("(c) autres formats : même capacité listée pour EUX, rien ne change (isolement par générateur, chemin réel)", () => {
+  // CORRECTION 18/11 (relecture Opus, point 1) : le réglage `bibliothequeVideo.<format>` est posé, l'entrée passe par le vrai
+  // `entreeBibliothequeDuLancement`, puis `parametresComposition` reçoit la recette RÉELLE du générateur.
+  const FORMATS: Array<[string, RecetteComposition]> = [
+    ["cas-concret", RECETTE_COMPOSITION_CAS_CONCRET],
+    ["tableau-anime", RECETTE_COMPOSITION_TABLEAU],
+    ["facecam-animee", RECETTE_COMPOSITION_FACECAM], // facecam-animee n'a pas de recette propre : la recette face caméra est la seule du dépôt
+    ["facecam", RECETTE_COMPOSITION_FACECAM],
+  ];
+  for (const [formatId, recette] of FORMATS) {
+    it(`${formatId} : capacité listée → pas de clé \`sortie\`, texte identique à « sans réglage »`, async () => {
+      reinitialiserDepots();
+      await commun.ecrireParametre(`bibliothequeVideo.${formatId}`, REGLAGE);
+      const entrees = await entreeBibliothequeDuLancement({ id: "v-test", formatId });
+      expect(sortieAnimeePermise(entrees)).toBe(false);
+      const pose = (e: Record<string, unknown>) => parametresCommun({ ...commande(e), formatId, moteurId: `montage-${formatId}` } as CommandeFabrication, { ratio: "9:16", plans: PLANS, segments: SEGMENTS, dureeSec: 12 }, recette);
+      const p = pose(entrees);
+      expect("sortie" in p.texte.sousTitres!).toBe(false);
+      expect(sceneAuTemps(p.texte.sousTitres!, fin + 0.1)).toBeNull();
+      expect(p.texte).toEqual(pose({}).texte);
+    });
+  }
+  it("aucun `sortie:` posé sur un calque ailleurs que parametres.ts (src/** ET studio-rendu/**)", async () => {
     const { readdirSync, readFileSync, statSync } = await import("node:fs");
     const { join } = await import("node:path");
-    const marche = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? marche(join(d, f)) : f.endsWith(".ts") || f.endsWith(".tsx") ? [join(d, f)] : []));
-    const poseurs = marche("src").filter((f) => /\bsortie\s*:\s*SORTIE_PAR_DEFAUT/.test(readFileSync(f, "utf8")) && !f.includes("sous-titres/sortie.ts"));
+    const marche = (d: string): string[] => readdirSync(d).flatMap((f) => (f === "node_modules" ? [] : statSync(join(d, f)).isDirectory() ? marche(join(d, f)) : /\.tsx?$/.test(f) ? [join(d, f)] : []));
+    const fichiers = [...marche("src"), ...marche("studio-rendu/src"), ...marche("studio-rendu/compositions")];
+    const motif = /\bsortie\s*:\s*(SORTIE_PAR_DEFAUT|\{\s*dureeSec)/;
+    const poseurs = fichiers.filter((f) => motif.test(readFileSync(f, "utf8")) && !f.endsWith("sous-titres/sortie.ts") && !f.endsWith(".test.ts") && !f.endsWith(".test.tsx"));
     expect(poseurs).toEqual(["src/briques/composition/parametres.ts"]);
   });
 });

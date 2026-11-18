@@ -15,8 +15,41 @@ import { ETIQUETTE_OUTIL_DANS_LIGNE_ACTIF } from "@/briques/sous-titres/noms-out
 import { REPERE_EPAULE_ACTIF } from "@/briques/sous-titres/repere-epaule";
 import { ESCALIER_ACTIF } from "@/briques/sous-titres/escalier";
 import type { IdCapacite } from "@/briques/bibliotheque-video/types";
+import type { CommandeFabrication } from "@/domaine/types";
+import { decorsCatalogue } from "@/donnees/decors-catalogue";
+import { ACCESSOIRE_MICRO, HABILLAGE_AVOCAT, PROFIL_SON_AVOCAT, STYLE_SOUS_TITRES_AVOCAT } from "@/donnees/elements-avocat";
+import { formatAvocat, RECETTE_MONTAGE_AVOCAT } from "@/formats/avocat";
+import { parametresComposition } from "@/moteurs/montage-avocat/composition";
+import { reinitialiserDepots } from "@/donnees/memoire";
+import { ecrireParametre } from "@/services/_commun";
+import { entreeBibliothequeDuLancement } from "@/services/bibliotheque-video";
 
 const racine = process.cwd();
+// CORRECTION 18/11 (relecture Opus, point 2) : garde par le VRAI `parametresComposition` (commande avocat), pas une lecture de texte.
+const MAINT_SORTIE = "2026-11-17T08:00:00.000Z";
+function composerAvocatSortie(entrees: Record<string, unknown>) {
+  const n1 = decorsCatalogue(MAINT_SORTIE).find((d) => d.id === "decor-n1-halo-orange")!;
+  const mot = (m: string, d: number) => ({ mot: m, debutSec: d, finSec: d + 0.3 });
+  const c = {
+    versionContrat: 2, moteurId: "montage-avocat", videoId: "v-test", formatId: "avocat", versionFormat: 2, profilRenduVersion: 1, dureeCibleSec: 12, ratios: ["9:16"],
+    script: { blocs: [], texteComplet: "" }, distribution: [],
+    styles: { lut: null, sousTitres: { id: "st-avocat-v1", nom: "Avocat", valeur: STYLE_SOUS_TITRES_AVOCAT }, habillage: { id: "hab-avocat-v1", nom: "Avocat", valeur: HABILLAGE_AVOCAT }, profilSon: { id: "ps-avocat-v1", nom: "Avocat", valeur: PROFIL_SON_AVOCAT }, musique: null, decor: { id: n1.id, nom: n1.nom, valeur: n1.valeur as never } },
+    briques: { "sous-titres": true, etalonnage: true, illustrations: true, son: true, habillage: true, "texte-ecran": true, "mention-ia": false },
+    entrees, reglages: {}, plans: [], prononciations: [], mentionIA: { active: false }, budgetMax: { centimes: 15000, devise: "EUR" },
+    accessoires: [{ id: "acc-micro-podcast", nom: "Micro", valeur: ACCESSOIRE_MICRO }],
+    profilRealisme: formatAvocat.profilRendu?.realisme, profilRendu: formatAvocat.profilRendu, recetteMontage: RECETTE_MONTAGE_AVOCAT,
+    construiteLe: MAINT_SORTIE, sousTitres: { base: "karaoke", intensite: "equilibre" }, medias: {},
+  } as unknown as CommandeFabrication;
+  const plans = [{ ordre: 1, debutSec: 0, finSec: 12, texte: "t", segmentId: "s1", sourceImage: "double" as const, motsEnValeur: [], cadrage: { pointInteret: { x: 0.5, y: 0.38 }, zoom: 1, valeur: "large" as const }, transition: "coupe" as const, angle: "trois-quarts" as const }];
+  const segments = [{ id: "g1", debutSec: 0.5, finSec: 2.5, mots: [mot("Avec", 0.5), mot("devis", 2)] }];
+  return parametresComposition(c, { ratio: "9:16", plans, segments, dureeSec: 12 });
+}
+async function entreesAvocat(reglage?: unknown) {
+  reinitialiserDepots();
+  if (reglage !== undefined) await ecrireParametre("bibliothequeVideo.avocat", reglage);
+  return entreeBibliothequeDuLancement({ id: "v-test", formatId: "avocat" });
+}
+
 
 interface Piece {
   id: string;
@@ -61,7 +94,14 @@ describe("C2-U17a : capacités texte livrées et éteintes", () => {
     expect(ESCALIER_ACTIF).toBe(false);
   });
 
-  it("éteint : sans entrée bibliothèque, `parametresComposition` ne pose pas `sortie` (le champ n'existe que derrière la porte ; preuve par le vrai chemin dans tests/briques/composition/sortie-animee-branchee.test.ts)", () => {
+  it("éteint : sans entrée bibliothèque (ou sans la capacité), `parametresComposition` ne pose pas `sortie` (appel réel ; chemin complet dans tests/briques/composition/sortie-animee-branchee.test.ts)", async () => {
+    const sansEntree = composerAvocatSortie(await entreesAvocat());
+    expect("sortie" in sansEntree.texte.sousTitres!).toBe(false);
+    for (const reglage of [true, { capacites: ["texte.surlignage-marqueur"] }]) {
+      expect("sortie" in composerAvocatSortie(await entreesAvocat(reglage)).texte.sousTitres!).toBe(false);
+    }
+    // contrôle positif : la même chaîne POSE bien `sortie` quand la capacité est listée (la garde n'est donc pas vide)
+    expect("sortie" in composerAvocatSortie(await entreesAvocat({ capacites: ["texte.sortie-animee"] })).texte.sousTitres!).toBe(true);
     const poses = texteDe("src/briques/composition/parametres.ts").match(/sortie\s*:\s*SORTIE_PAR_DEFAUT/g) ?? [];
     expect(poses).toHaveLength(1);
     expect(texteDe("src/briques/composition/parametres.ts")).toMatch(/sortieAnimeePermise\(c\.entrees\)\s*\?\s*\{\s*sortie\s*:\s*SORTIE_PAR_DEFAUT/);
