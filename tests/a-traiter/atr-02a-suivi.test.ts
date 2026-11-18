@@ -138,8 +138,9 @@ describe("rappelsDus (aux bornes)", () => {
     expect(rappelsDus([{ ...vieille, extrait: "casino" }, { ...vieille, opposee: true }, { ...vieille, statut: "fait" }], parisNov("09:10"))).toHaveLength(0);
   });
   it("heure d'été : 9 h de Paris = 7 h UTC", () => {
-    expect(rappelsDus([vieille], new Date("2026-07-01T07:10:00Z"))).toHaveLength(1);
-    expect(rappelsDus([vieille], new Date("2026-07-01T08:10:00Z"))).toHaveLength(0);
+    const ancienne = carte({ creeLe: "2026-06-30T00:00:00Z" });
+    expect(rappelsDus([ancienne], new Date("2026-07-01T07:10:00Z"))).toHaveLength(1);
+    expect(rappelsDus([ancienne], new Date("2026-07-01T08:10:00Z"))).toHaveLength(0);
   });
 });
 
@@ -155,7 +156,7 @@ describe("deposerRappelsCloche", () => {
         env: { A_TRAITER_ENABLED: o.actif === false ? "0" : "1" },
         maintenant: () => parisNov(o.heure ?? "09:10"),
         lireCartes: async () => [vieille],
-        lireReglage: async () => o.reglage ?? true,
+        lireReglage: async () => ("reglage" in o ? o.reglage : true),
         creer,
         dejaDepose: async (k: string) => marques.has(k),
         marquerDepose: async (k: string) => void marques.add(k),
@@ -205,7 +206,7 @@ describe("compteurs", () => {
     const l = [
       carte({ idEvenement: "1", reseau: "instagram", post: "p1", creeLe: "2026-11-17T00:00:00Z" }),
       carte({ idEvenement: "2", reseau: "instagram", post: "p1", statut: "fait", faitLe: "2026-11-17T01:00:00Z" }),
-      carte({ idEvenement: "3", reseau: "instagram", post: "p2", creeLe: "2026-11-18T07:00:00Z" }),
+      carte({ idEvenement: "3", reseau: "instagram", post: "p2", creeLe: "2026-11-18T08:00:00Z" }),
       carte({ idEvenement: "4", reseau: "facebook", post: "p9", creeLe: "2026-11-17T00:00:00Z" }),
     ];
     const c = compteurs(l, parisNov("12:00"));
