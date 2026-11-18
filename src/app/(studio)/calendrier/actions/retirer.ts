@@ -49,6 +49,7 @@ export async function retirerDuCalendrier(cle: string, confirmation: string): Pr
 
 /* --- CAL-22 (écrite EN AVANCE, attend RC-08a) : retirer une publication PROGRAMMÉE chez le diffuseur, puis « À placer ». --- */
 
+const CODES_RETRAIT = { refuse: "RETRAIT_REFUSE", "reste-programme": "RETRAIT_RESTE_PROGRAMME", "a-verifier": "RETRAIT_A_VERIFIER", "a-retirer-a-la-main": "RETRAIT_A_LA_MAIN" } as const;
 const NON_RETIRABLE = "Seule une publication programmée d'un créneau se retire d'ici.";
 
 /**
@@ -64,7 +65,11 @@ export async function retirerProgrammationAction(cle: string, confirmation: stri
       const k = lireCleFiche(cle);
       if (k?.origine !== "creneau") throw new ErreurStudio("RETRAIT_REFUSE", NON_RETIRABLE);
       const r = await retirerProgrammationServeur(k.id);
-      if (!r.ok) throw new ErreurStudio("RETRAIT_REFUSE", r.message);
+      if (!r.ok) {
+        if (r.ecritures) revalidatePath("/calendrier"); // retrait partiel : l'écran doit refléter ce qui a bougé
+        // Un code par cas, pour que l'écran distingue « à vérifier », « à retirer à la main », « reste programmé » et « refusé ».
+        throw new ErreurStudio(CODES_RETRAIT[r.etat], r.message);
+      }
       revalidatePath("/calendrier");
       return { creneauId: r.creneauId, annulableJusquA: r.annulableJusquA, message: r.message };
     }),
@@ -77,7 +82,7 @@ export async function annulerRetraitAction(creneauId: string): Promise<Resultat<
   return essayer(() =>
     sousVerrou(async () => {
       const r = await annulerRetraitServeur(creneauId);
-      if (!r.ok) throw new ErreurStudio("RETRAIT_REFUSE", r.message);
+      if (!r.ok) throw new ErreurStudio("RETRAIT_ANNULATION_REFUSEE", r.message);
       revalidatePath("/calendrier");
       return { creneauId: r.creneauId, message: r.message };
     }),

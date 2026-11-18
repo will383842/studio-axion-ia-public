@@ -39,7 +39,7 @@ export interface DepsRetrait {
 }
 
 export type EtatRetrait = "retire" | "refuse" | "reste-programme" | "a-verifier" | "a-retirer-a-la-main";
-export type ResultatRetrait = { ok: true; etat: "retire"; message: string; creneauId: string; annulableJusquA: string } | { ok: false; etat: Exclude<EtatRetrait, "retire">; message: string };
+export type ResultatRetrait = { ok: true; etat: "retire"; message: string; creneauId: string; annulableJusquA: string } | { ok: false; etat: Exclude<EtatRetrait, "retire">; message: string; /** Vrai si des écritures ont eu lieu (retrait partiel) : l'écran doit se rafraîchir. */ ecritures?: true };
 export type ResultatAnnulation = { ok: true; creneauId: string; message: string } | { ok: false; message: string };
 
 /** Délai de l'« Annuler » : 10 secondes après le retrait. */
@@ -57,8 +57,10 @@ export const PHRASES_RETRAIT_PROGRAMMATION = {
   enCours: "Un envoi est en cours pour cette publication. Rien n'a été changé : réessayez dans une minute.",
   eteint: "L'envoi est éteint : le retrait chez le diffuseur n'est pas possible pour le moment. La publication reste programmée, rien n'a été changé.",
   sansReponse: "Le diffuseur ne répond pas pour le moment. La publication reste programmée, rien n'a été changé : réessayez plus tard.",
-  aVerifier: "Le Studio ne sait pas si le retrait a bien eu lieu chez le diffuseur. La publication reste programmée, marquée « à vérifier » : relisez-la dans l'outil de publication.",
-  aLaMain: "Le diffuseur n'a pas pu retirer cette publication. Elle reste programmée et marquée « à retirer à la main » : retirez-la dans l'outil de publication.",
+  aVerifier: "Le Studio ne sait pas si le retrait a bien eu lieu chez le diffuseur. La publication reste programmée, marquée « à vérifier » : relisez-la chez le diffuseur.",
+  aLaMain: "Le diffuseur n'a pas pu retirer cette publication. Elle reste programmée et marquée « à retirer à la main » : retirez-la chez le diffuseur.",
+  partielle: (retires: string, restent: string): string =>
+    `Retrait partiel : ${retires} retiré chez le diffuseur ; ${restent} reste programmé. Rien n'a été supprimé.`,
   retiree: "Retirée du calendrier. Vous la retrouvez dans « À placer », avec son texte et son fichier.",
   dejaRetiree: "Déjà retirée du calendrier.",
   annulerHorsDelai: "Le délai de 10 secondes est passé. Remettez la publication dans le calendrier depuis « À placer ».",
@@ -189,24 +191,35 @@ export async function retirerProgrammation(d: DepsRetrait, creneauId: string): P
   return { ok: true, etat: "retire", message: PHRASES_RETRAIT_PROGRAMMATION.retiree, creneauId: c.id, annulableJusquA: new Date(t + DELAI_ANNULER_RETRAIT_MS).toISOString() };
 }
 
+const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube" };
+const nomReseau = (r: string): string => NOMS_RESEAUX[r] ?? r;
+
+/** Retrait partiel : dit quels réseaux sont retirés et lesquels restent programmés (le message de base seul serait faux pour les premiers). */
+function avecPartiel(res: ResultatRetrait, retires: Set<string>, avecPost: EnvoiPlanifie[]): ResultatRetrait {
+  if (res.ok || retires.size === 0) return res;
+  const faits = avecPost.filter((x) => retires.has(x.id)).map((x) => nomReseau(x.reseau)).join(", ");
+  const restent = avecPost.filter((x) => !retires.has(x.id)).map((x) => nomReseau(x.reseau)).join(", ");
+  return { ...res, message: `${PHRASES_RETRAIT_PROGRAMMATION.partielle(faits, restent)} ${res.message}`, ecritures: true };
+}
+
 type Noter = (liste: EnvoiPlanifie[]) => Promise<void>;
 const dejaRetires = (avecPost: EnvoiPlanifie[], retires: Set<string>): EnvoiPlanifie[] => avecPost.filter((x) => retires.has(x.id));
 
 async function aVerifier(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {
   await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
   await noter(dejaRetires(avecPost, retires));
-  return sansEcriture("a-verifier", PHRASES_RETRAIT_PROGRAMMATION.aVerifier);
+  return avecPartiel(sansEcriture("a-verifier", PHRASES_RETRAIT_PROGRAMMATION.aVerifier), retires, avecPost);
 }
 
 async function aLaMain(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {
   await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
   await noter(dejaRetires(avecPost, retires));
-  return sansEcriture("a-retirer-a-la-main", PHRASES_RETRAIT_PROGRAMMATION.aLaMain);
+  return avecPartiel(sansEcriture("a-retirer-a-la-main", PHRASES_RETRAIT_PROGRAMMATION.aLaMain), retires, avecPost);
 }
 
 async function rester(retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {
   await noter(dejaRetires(avecPost, retires));
-  return sansEcriture("reste-programme", PHRASES_RETRAIT_PROGRAMMATION.sansReponse);
+  return avecPartiel(sansEcriture("reste-programme", PHRASES_RETRAIT_PROGRAMMATION.sansReponse), retires, avecPost);
 }
 
 /**
@@ -217,7 +230,12 @@ export async function annulerRetrait(d: DepsRetrait, creneauId: string): Promise
   const c = typeof creneauId === "string" && creneauId ? await d.creneau(creneauId) : null;
   if (!c || c.statut !== "archive" || !c.retireLe) return { ok: false, message: PHRASES_RETRAIT_PROGRAMMATION.annulerRien };
   const nouveauId = c.id + SUFFIXE_REPRISE;
-  if (await d.creneau(nouveauId)) return { ok: true, creneauId: nouveauId, message: PHRASES_RETRAIT_PROGRAMMATION.annulerOk };
+  const reprise = await d.creneau(nouveauId);
+  if (reprise) {
+    // Double clic : rendue telle quelle seulement si la reprise est toujours au calendrier ; retirée à son tour, il n'y a plus rien à annuler.
+    const vivante = (reprise.statut === "valide" || reprise.statut === "programme") && !reprise.retireLe;
+    return vivante ? { ok: true, creneauId: nouveauId, message: PHRASES_RETRAIT_PROGRAMMATION.annulerOk } : { ok: false, message: PHRASES_RETRAIT_PROGRAMMATION.annulerRien };
+  }
 
   const t = d.maintenant().getTime();
   const retireLe = Date.parse(c.retireLe);
@@ -244,7 +262,7 @@ async function depsServeur(): Promise<DepsRetrait> {
   const { appliquerLot } = await import("@/donnees/memoire");
   const z = await import("@/services/zernio");
   const d = depots();
-  const prefixe = "envoi-calendrier:";
+  const { PREFIXE_ETATS_ENVOI_CALENDRIER: prefixe } = await import("@/services/branchement-envoi-calendrier");
   const client = () => z.clientZernio();
   return {
     client: { lirePost: (id) => client().lirePost(id), listerPosts: (q) => client().listerPosts(q), retirer: (x) => client().retirer(x) },

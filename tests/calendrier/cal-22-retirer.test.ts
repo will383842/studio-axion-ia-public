@@ -86,7 +86,6 @@ function monde(opts: { creneau?: Record<string, unknown>; envois?: EnvoiPlanifie
   return { deps, faux, creneaux, envois, visuels, marques, supprime, posts };
 }
 
-const mots = (t: string) => t;
 const INTERDITS = [/Zernio|Buffer/i, /€|\beuros?\b|\bprix\b|\btarif/i, /Supprim|supprim/, /\b(tu|ton|tes|toi)\b/i];
 
 describe("CAL-22 · le vrai client : DELETE réservé, garde avant, relecture après", () => {
@@ -102,14 +101,14 @@ describe("CAL-22 · le vrai client : DELETE réservé, garde avant, relecture ap
     expect(f.appels.map((a) => `${a.methode} ${a.chemin}`)).toEqual(["GET /v1/posts/post_1", "DELETE /v1/posts/post_1", "GET /v1/posts/post_1"]);
   });
   it.each([
-    ["autre clé", { status: "scheduled", cle: CLE_B }],
-    ["pas à nous", { status: "scheduled", cle: CLE, origine: "autre" }],
-    ["déjà publié", { status: "published", cle: CLE }],
-    ["en cours de publication", { status: "publishing", cle: CLE }],
-  ])("garde avant : %s → « refuse », AUCUN DELETE", async (_n, post) => {
+    ["autre clé", { status: "scheduled", cle: CLE_B }, /clé du post ne correspond pas/],
+    ["pas à nous", { status: "scheduled", cle: CLE, origine: "autre" }, /pas à nous/],
+    ["déjà publié", { status: "published", cle: CLE }, /statut published/],
+    ["en cours de publication", { status: "publishing", cle: CLE }, /statut publishing/],
+  ])("garde avant : %s → « refuse » pour la bonne raison, AUCUN DELETE", async (_n, post, raison) => {
     const f = fauxDiffuseur({ post_1: post });
     const r = await clientReel(f.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE });
-    expect(r.etat).toBe("refuse");
+    expect(r).toMatchObject({ etat: "refuse", raison: expect.stringMatching(raison) });
     expect(f.appels.some((a) => a.methode === "DELETE")).toBe(false);
   });
   it("200 au DELETE mais le post est encore là à la relecture → « a-verifier » (jamais « retire » sur le seul code)", async () => {
@@ -122,6 +121,14 @@ describe("CAL-22 · le vrai client : DELETE réservé, garde avant, relecture ap
     expect((await clientReel(parti.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("retire");
     const la = fauxDiffuseur({ post_1: { status: "draft", cle: CLE } }, { "DELETE /v1/posts/post_1": ["coupure"] });
     expect((await clientReel(la.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("a-verifier");
+  });
+  it("DELETE en 404 puis relecture en 404 → « retire » ; relecture « cancelled » → « retire »", async () => {
+    const avant = { statut: 200, corps: { post: { _id: "post_1", status: "scheduled", platforms: [{ platform: "linkedin" }], metadata: { origine: "studio", studioCle: CLE } } } };
+    const a = fauxDiffuseur({}, { "GET /v1/posts/post_1": [avant], "DELETE /v1/posts/post_1": [{ statut: 404 }] });
+    expect((await clientReel(a.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("retire");
+    const annule = { statut: 200, corps: { post: { _id: "post_1", status: "cancelled", platforms: [{ platform: "linkedin" }], metadata: { origine: "studio", studioCle: CLE } } } };
+    const b = fauxDiffuseur({ post_1: { status: "scheduled", cle: CLE } }, { "GET /v1/posts/post_1": [avant, annule] });
+    expect((await clientReel(b.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("retire");
   });
   it("interrupteur d'arrêt : rien n'est envoyé", async () => {
     const f = fauxDiffuseur({ post_1: { status: "scheduled", cle: CLE } });
@@ -198,11 +205,22 @@ describe("CAL-22 · retirerProgrammation", () => {
     const b = envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: CLE_B });
     const m = monde({ envois: [envoi(), b], posts: { post_1: { status: "scheduled", cle: CLE }, post_2: { status: "scheduled", cle: CLE_B } }, scripts: { "DELETE /v1/posts/post_2": [{ statut: 400 }] } });
     const r = await retirerProgrammation(m.deps, "cre_1");
-    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ ok: false, etat: "a-retirer-a-la-main", ecritures: true });
+    if (!r.ok) expect(r.message).toMatch(/LinkedIn retiré.*Facebook reste programmé/);
+    expect(m.marques.get("retrait:envoi:vis_1:facebook:v0")).toBe("a-retirer-a-la-main");
+    expect(m.faux.appels.filter((a) => a.methode === "DELETE").map((a) => a.chemin)).toContain("/v1/posts/post_2");
     expect(m.envois.get("envoi:vis_1:linkedin:v0")?.statut).toBe("annule");
     expect(m.envois.get("envoi:vis_1:facebook:v0")?.statut).toBe("programme");
     expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });
     expect(m.supprime).toEqual([]);
+  });
+  it("post introuvable chez le diffuseur alors qu'un envoi en porte la clé : « à vérifier », aucun DELETE, reste programmé", async () => {
+    const m = monde({ posts: {} });
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier" });
+    expect(m.faux.appels.some((a) => a.methode === "DELETE")).toBe(false);
+    expect(m.marques.get("a-verifier:envoi:vis_1:linkedin:v0")).toBe("a-verifier");
+    expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });
   });
   it("un rejeu après succès ne rappelle rien (déjà retiré)", async () => {
     const m = monde();
@@ -216,7 +234,7 @@ describe("CAL-22 · retirerProgrammation", () => {
     const cas = [monde({ scripts: { "GET /v1/posts": ["coupure"] } }), monde({ scripts: { "DELETE /v1/posts/post_1": ["coupure"] } }), monde({ envois: [envoi({ statut: "envoye" })] }), monde(), monde({ reglages: false })];
     for (const m of cas) {
       const r = await retirerProgrammation(m.deps, "cre_1");
-      for (const i of INTERDITS) expect(mots(r.message)).not.toMatch(i);
+      for (const i of INTERDITS) expect(r.message).not.toMatch(i);
     }
   });
 });
@@ -242,6 +260,23 @@ describe("CAL-22 · annulerRetrait (10 secondes)", () => {
     const a = await annulerRetrait({ ...m.deps, maintenant: () => new Date(MAINTENANT.getTime() + 11_000) }, "cre_1");
     expect(a.ok).toBe(false);
     expect(m.creneaux.size).toBe(1);
+  });
+  it("heure trop proche (moins de 30 minutes) : refus, rien n'est écrit", async () => {
+    const m = monde({ creneau: { heuresParReseau: { linkedin: "2026-12-10T10:20:00.000Z" } } });
+    // le créneau est archivé « à la main » dans le test : l'heure était valable au moment du retrait
+    m.creneaux.set("cre_1", { ...m.creneaux.get("cre_1")!, statut: "archive", retireLe: MAINTENANT.toISOString() });
+    const a = await annulerRetrait(m.deps, "cre_1");
+    expect(a).toMatchObject({ ok: false, message: expect.stringMatching(/trop proche/) });
+    expect(m.creneaux.size).toBe(1);
+  });
+  it("la reprise retirée à son tour : un nouvel « Annuler » ne répond pas « remise »", async () => {
+    const m = monde();
+    await retirerProgrammation(m.deps, "cre_1");
+    const t = { ...m.deps, maintenant: () => new Date(MAINTENANT.getTime() + 5_000) };
+    await annulerRetrait(t, "cre_1");
+    m.creneaux.set("cre_1~reprise", { ...m.creneaux.get("cre_1~reprise")!, statut: "archive", retireLe: MAINTENANT.toISOString() });
+    const a = await annulerRetrait(t, "cre_1");
+    expect(a.ok).toBe(false);
   });
   it("un créneau qui n'a pas été retiré ne se « reprogramme » pas", async () => {
     const m = monde();
