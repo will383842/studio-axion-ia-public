@@ -70,12 +70,18 @@ describe("masquage sous le seuil", () => {
       moyennes: { vues: 110, partages: 3, commentaires: 2 },
     });
   });
-  it("mélange : une case publiée, une masquée, ordre stable", () => {
+  it("mélange : une case publiée, une masquée", () => {
     const liste = [...mesures(2, { reseau: "reseau-b" }), ...mesures(4)];
     const r = calculerAgregatsPerformance(liste, { env: ALLUME });
     if (r.etat !== "calcule") throw new Error("attendu : calcule");
     expect(r.cases.map((c) => c.reseau)).toEqual(["reseau-a"]);
     expect(r.masquees).toBe(1);
+  });
+  it("ordre de sortie stable : trié, quel que soit l'ordre d'entrée", () => {
+    const liste = [...mesures(3, { reseau: "reseau-c" }), ...mesures(3, { reseau: "reseau-b" }), ...mesures(3, { reseau: "reseau-a" })];
+    const r = calculerAgregatsPerformance(liste, { env: ALLUME });
+    if (r.etat !== "calcule") throw new Error("attendu : calcule");
+    expect(r.cases.map((c) => c.reseau)).toEqual(["reseau-a", "reseau-b", "reseau-c"]);
   });
   it("option seuil plus haut", () => {
     const r = calculerAgregatsPerformance(mesures(3), { env: ALLUME, seuil: 4 });
@@ -128,12 +134,12 @@ describe("aucun appelant", () => {
   function sources(dossier: string): string[] {
     return readdirSync(dossier).flatMap((nom) => {
       const chemin = join(dossier, nom);
-      return statSync(chemin).isDirectory() ? sources(chemin) : /\.(ts|tsx|mts|js|mjs)$/.test(nom) ? [chemin] : [];
+      return statSync(chemin).isDirectory() ? sources(chemin) : /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(nom) ? [chemin] : [];
     });
   }
   it("aucun fichier de src/ n'importe agregats-performance, hors lui-même", () => {
     const intrus = sources("src").filter(
-      (f) => !f.endsWith("agregats-performance.ts") && /agregats-performance/.test(readFileSync(f, "utf8")),
+      (f) => f !== join("src", "services", "agregats-performance.ts") && /agregats-performance/.test(readFileSync(f, "utf8")),
     );
     expect(intrus).toEqual([]);
   });
