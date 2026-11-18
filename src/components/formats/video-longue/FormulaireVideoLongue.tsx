@@ -12,7 +12,7 @@ import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { modeleDescription } from "@/briques/geo";
 import { AvantDeLancer } from "./AvantDeLancer";
 import { KitGeo } from "./KitGeo";
-import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, dureeTotaleSec, PlanChapitres, type ChapitrePlan } from "./PlanChapitres";
+import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, dureeTotaleSec, PlanChapitres, planDepuisValide, type ChapitrePlan } from "./PlanChapitres";
 import { TexteParChapitre, type ChapitreAvecVersions, type ChapitreValide } from "./TexteParChapitre";
 
 const ETAPES = [
@@ -50,8 +50,10 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
     [chapitres],
   );
   const texteComplet = valide ? valide.map((c) => c.phrases.join(" ")).join("\n\n") : "";
-  const chapitresWeb = useMemo(() => chapitresMinutes(chapitres), [chapitres]);
-  const dureeSec = dureeTotaleSec(chapitres);
+  // Écrans 4 et 6 : calculés sur le texte VALIDÉ (une fois posé), pas sur le plan proposé.
+  const planFinal = useMemo(() => (valide ? planDepuisValide(valide, chapitres) : chapitres), [valide, chapitres]);
+  const chapitresWeb = useMemo(() => chapitresMinutes(planFinal), [planFinal]);
+  const dureeSec = dureeTotaleSec(planFinal);
 
   function proposer() {
     const propose = chapitresDuScript(script);
@@ -145,8 +147,8 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
           <>
             <AvantDeLancer
               dureeSec={dureeSec}
-              chapitres={chapitres.length}
-              courts={courts ? chapitres.length : 0}
+              chapitres={planFinal.length}
+              courts={courts ? planFinal.length : 0}
               peutLancer={actif && !depensesCoupees}
               onLancer={() => setPause(PHRASE_LANCEMENT_NON_RELIEE)}
               onRetour={() => aller(2)}
@@ -158,7 +160,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
                 description={modeleDescription({ chapitres: chapitresWeb })}
                 chapitres={chapitresWeb}
                 texteComplet={texteComplet}
-                courts={courts ? chapitres.map((c, i) => ({ id: c.id, titre: c.titre.trim() || `Chapitre ${i + 1}` })) : undefined}
+                courts={courts ? planFinal.map((c, i) => ({ id: c.id, titre: c.titre.trim() || `Chapitre ${i + 1}` })) : undefined}
               />
             )}
           </>

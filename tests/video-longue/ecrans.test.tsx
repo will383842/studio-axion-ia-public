@@ -11,7 +11,7 @@ import { modeleDescription } from "../../src/briques/geo";
 import { AvantDeLancer } from "../../src/components/formats/video-longue/AvantDeLancer";
 import { FormulaireVideoLongue } from "../../src/components/formats/video-longue/FormulaireVideoLongue";
 import { KitGeo } from "../../src/components/formats/video-longue/KitGeo";
-import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, formaterDuree, PlanChapitres, remarquesDuPlan } from "../../src/components/formats/video-longue/PlanChapitres";
+import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, formaterDuree, PlanChapitres, planDepuisValide, remarquesDuPlan } from "../../src/components/formats/video-longue/PlanChapitres";
 import { remarqueChapitre, TexteParChapitre } from "../../src/components/formats/video-longue/TexteParChapitre";
 
 const noop = () => {};
@@ -215,5 +215,30 @@ describe("VL-06 sécurité, argent et périmètre", () => {
     expect(source("src/components/coquille/navigation.ts")).not.toMatch(/videos\/longue/);
     expect(source("src/formats/video-longue/index.ts")).toContain('statut: "masque"');
     expect(source("src/formats/video-longue/index.ts")).toContain('adresseCreation: "/videos/longue"');
+  });
+});
+
+describe("VL-06 : écrans 4 et 6 calculés sur le texte validé", () => {
+  const plan = chapitresDuScript("# Un\nUne deux trois quatre cinq six. Sept huit neuf dix onze douze. Treize quatorze quinze seize.\n# Deux\nAlpha bêta gamma delta.");
+  const toutes = plan.map((c) => ({ id: c.id, titre: c.titre, phrases: decouperEnPhrases(c.texte) }));
+  it("une phrase retirée fait baisser la durée et le finSec du chapitre", () => {
+    const avant = chapitresMinutes(planDepuisValide(toutes, plan));
+    const retiree = toutes.map((c, i) => (i === 0 ? { ...c, phrases: c.phrases.slice(0, 1) } : c));
+    const apres = chapitresMinutes(planDepuisValide(retiree, plan));
+    expect(apres[0].finSec).toBeLessThan(avant[0].finSec);
+    expect(apres[1].debutSec).toBeLessThan(avant[1].debutSec);
+    expect(apres[1].finSec).toBeLessThan(avant[1].finSec);
+  });
+  it("un chapitre sans aucune phrase validée disparaît du plan final", () => {
+    const vide = toutes.map((c, i) => (i === 1 ? { ...c, phrases: [] } : c));
+    expect(planDepuisValide(vide, plan)).toHaveLength(1);
+  });
+  it("le texte validé est repris tel quel, sans mot ajouté", () => {
+    expect(planDepuisValide(toutes, plan).map((c) => c.texte)).toEqual(plan.map((c) => decouperEnPhrases(c.texte).join(" ")));
+  });
+  it("le formulaire calcule bien ses écrans 4 et 6 depuis le plan validé", () => {
+    const src = source("src/components/formats/video-longue/FormulaireVideoLongue.tsx");
+    expect(src).toMatch(/planDepuisValide\(valide/);
+    expect(src).not.toMatch(/chapitresMinutes\(chapitres\)|dureeTotaleSec\(chapitres\)/);
   });
 });

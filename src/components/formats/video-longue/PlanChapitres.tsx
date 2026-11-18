@@ -80,6 +80,16 @@ export function chapitresMinutes(chapitres: readonly ChapitrePlan[]): ChapitreWe
   });
 }
 
+/**
+ * Le plan tel que l'utilisateur l'a VALIDÉ à l'écran 3 : titre et phrases gardées, un chapitre sans phrase n'existe plus.
+ * Durée, minutages et titres des courts se calculent sur ce plan, jamais sur le plan proposé.
+ */
+export function planDepuisValide(valide: readonly { id: string; titre: string; explique?: string; phrases: readonly string[] }[], plan: readonly ChapitrePlan[] = []): ChapitrePlan[] {
+  return valide
+    .filter((c) => c.phrases.some((p) => p.trim() !== ""))
+    .map((c) => ({ id: c.id, titre: c.titre, explique: c.explique ?? plan.find((p) => p.id === c.id)?.explique ?? "", texte: c.phrases.join(" ") }));
+}
+
 export const dureeTotaleSec = (chapitres: readonly ChapitrePlan[]): number => chapitres.reduce((t, c) => t + dureeSecDuTexte(c.texte), 0);
 
 /** Remarques de l'écran 2 : durée hors zone et règles YouTube. Toujours des conseils, jamais un refus. */
