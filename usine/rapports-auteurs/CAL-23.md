@@ -35,5 +35,9 @@
 - Écran : le rafraîchissement attend la fin des 10 secondes (ou la fermeture), pour que le message et « Annuler » restent visibles.
 - Marques d'état qui échouent après un retrait confirmé : jamais bloquantes (try/catch), les envois retirés passent « annule ».
 
+## Tour 3 des relectures (corrigé, non relu : limite de 3 tours)
+- `retirerProgrammationAction` (CAL-22) rafraîchit la page au succès : l'aperçu se fermait et « Annuler » disparaissait. Écart assumé avec la consigne : le bouton appelle `retirerProgrammationDepuisApercuAction` (actions/deplacer.ts), qui utilise le MÊME service et les MÊMES codes mais ne rafraîchit pas au succès ; l'écran rafraîchit à la fin des 10 secondes ou à la fermeture. `retirer.ts` (master) n'est pas modifié. Pilote : dites si vous préférez l'autre action.
+- Garde `jourLisible` alignée dans FicheEntree.
+
 ## Relectures Opus
 Voir les commentaires de la PR (VERDICT OPUS et AUDIT OPUS).

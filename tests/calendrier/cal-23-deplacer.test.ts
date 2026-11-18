@@ -18,6 +18,11 @@ import { deplacerProgrammationAction, modifierTexteProgrammeAction, modifierText
 import { CODES_DEPLACEMENT, deplacerProgrammation, modifierTexteProgramme, PHRASES_DEPLACEMENT, portRetraitDepuisClient, type DepsDeplacement, type IssueRetraitDiffuseur } from "@/services/deplacer-programmation";
 
 const revalide = vi.hoisted(() => ({ appels: [] as string[] }));
+const retraitService = vi.hoisted(() => ({ reponse: undefined as unknown }));
+vi.mock("@/services/retirer-programmation", async (orig) => {
+  const m = await orig<typeof import("@/services/retirer-programmation")>();
+  return { ...m, retirerProgrammationServeur: vi.fn(async (id: string) => (retraitService.reponse ?? (await m.retirerProgrammationServeur(id)))) };
+});
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: (p: string) => void revalide.appels.push(p), revalidateTag: () => undefined }));
@@ -725,5 +730,31 @@ describe("CAL-23 · tour 2 : une marque qui échoue ne casse rien", () => {
     const r = await deplacerProgrammation(m.deps, demande());
     expect(r).toMatchObject({ ok: false, etat: "a-verifier", ecritures: true });
     expect(m.envois.get("envoi:vis_1:linkedin:v0")?.statut).toBe("annule");
+  });
+});
+
+describe("CAL-23 · « Retirer » depuis l'aperçu : aucun rafraîchissement au succès (l'aperçu garde « Annuler »)", () => {
+  it("succès : phrase et délai rendus, AUCUN revalidatePath ; confirmation et clé de créneau exigées", async () => {
+    const { retirerProgrammationDepuisApercuAction } = await import("../../src/app/(studio)/calendrier/actions/deplacer");
+    retraitService.reponse = { ok: true, etat: "retire", message: "Retirée du calendrier.", creneauId: "cre_1", annulableJusquA: "2026-12-10T10:00:10.000Z" };
+    revalide.appels.length = 0;
+    const r = await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "retirer");
+    expect(r).toEqual({ ok: true, donnees: { creneauId: "cre_1", annulableJusquA: "2026-12-10T10:00:10.000Z", message: "Retirée du calendrier." } });
+    expect(revalide.appels).toEqual([]);
+    expect((await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "oui")).ok).toBe(false);
+    expect((await retirerProgrammationDepuisApercuAction("publication:p1|linkedin", "retirer")).ok).toBe(false);
+  });
+  it("refus : un code par cas ; retrait partiel (écritures) rafraîchit", async () => {
+    const { retirerProgrammationDepuisApercuAction } = await import("../../src/app/(studio)/calendrier/actions/deplacer");
+    retraitService.reponse = { ok: false, etat: "a-verifier", message: "Retrait partiel. À vérifier.", ecritures: true };
+    revalide.appels.length = 0;
+    const r = await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "retirer");
+    expect(r).toMatchObject({ ok: false, code: "RETRAIT_A_VERIFIER" });
+    expect(revalide.appels).toEqual(["/calendrier"]);
+    retraitService.reponse = { ok: false, etat: "a-retirer-a-la-main", message: "À la main." };
+    revalide.appels.length = 0;
+    expect(await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "retirer")).toMatchObject({ ok: false, code: "RETRAIT_A_LA_MAIN" });
+    expect(revalide.appels).toEqual([]);
+    retraitService.reponse = undefined;
   });
 });

@@ -1,5 +1,5 @@
 /**
- * CAL-23 · le geste « Retirer » d'une publication programmée chez le diffuseur (entrée de créneau) appelle retirerProgrammationAction :
+ * CAL-23 · le geste « Retirer » d'une publication programmée chez le diffuseur (entrée de créneau) appelle retirerProgrammationDepuisApercuAction (même service que retirerProgrammationAction, sans rafraîchir au succès) :
  * confirmation avant, phrase claire par cas (retiré / à vérifier / à retirer à la main / reste programmé), jamais de faux succès.
  * Et : après un déplacement, l'ancien envoi est retiré chez le diffuseur AVANT d'être marqué « annulé » (aucun brouillon orphelin).
  * Sans DOM (crochets factices) ; aucun appel réel.
@@ -13,6 +13,7 @@ type Rep = { ok: true; donnees: { creneauId: string; annulableJusquA: string; me
 const retirerProgrammationAction = vi.fn(async (_c: string, _k: string): Promise<Rep> => ({ ok: true, donnees: { creneauId: "c1", annulableJusquA: "x", message: "Retirée du calendrier. Vous la retrouvez dans « À placer »." } }));
 const annulerRetraitAction = vi.fn(async (_id: string) => ({ ok: true as const, donnees: { creneauId: "c1", message: "Remise au calendrier à la même date." } }));
 vi.mock("@/app/(studio)/calendrier/actions/retirer", () => ({ annulerRetraitAction: (i: string) => annulerRetraitAction(i), retirerProgrammationAction: (c: string, k: string) => retirerProgrammationAction(c, k), retirerDuCalendrier: vi.fn() }));
+vi.mock("@/app/(studio)/calendrier/actions/deplacer", () => ({ retirerProgrammationDepuisApercuAction: (c: string, k: string) => retirerProgrammationAction(c, k) }));
 vi.mock("@/app/(studio)/calendrier/actions/decaler", () => ({ decalerEntree: vi.fn(async () => ({ ok: false, message: "doublure" })) }));
 vi.mock("@/services/auth", () => ({ exigerSession: async () => ({}) }));
 

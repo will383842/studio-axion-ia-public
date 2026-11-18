@@ -333,7 +333,7 @@ export function FicheEntree({
   const programmeModifiable = texteProgrammeModifiable && verrou === "confiee" && entree.etat === "programme";
   const modifiable = (verrou === null || programmeModifiable) && action !== undefined;
   // CAL-23 : « Retirer » seulement pour une entrée programmée par le diffuseur (origine créneau), à venir ; les autres gardent leur geste local.
-  const retirable = retraitProgrammation && entree.etat === "programme" && lireCleFiche(entree.cle)?.origine === "creneau" && entree.jour >= aujourdhui;
+  const retirable = retraitProgrammation && entree.etat === "programme" && lireCleFiche(entree.cle)?.origine === "creneau" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
   const boutons = selonStatut ? boutonsTiroir(entree.etat, entree.jour, aujourdhui) : null;
   const boutonPrincipal = boutons ? boutons.principal : boutonPrincipalDonne;
   // À valider, À corriger, Programmée, Idée (« Accepter l'idée ») : le bouton principal est un geste de l'hôte, il n'enregistre rien. Sans rappel, pas de bouton.

@@ -93,8 +93,8 @@ export function RetirerProgrammation({ cle }: { cle: string }) {
     setAVoir(null);
     try {
       // Importée au clic : l'action lit la clé de fiche dans FicheEntree, qui montre ce composant (pas de cycle d'imports).
-      const { retirerProgrammationAction } = await import("@/app/(studio)/calendrier/actions/retirer");
-      const r = await retirerProgrammationAction(cle, "retirer");
+      const { retirerProgrammationDepuisApercuAction } = await import("@/app/(studio)/calendrier/actions/deplacer");
+      const r = await retirerProgrammationDepuisApercuAction(cle, "retirer");
       if (r.ok) {
         setMessage(r.donnees.message);
         const jusqua = Date.parse(r.donnees.annulableJusquA);
