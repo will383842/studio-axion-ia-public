@@ -326,6 +326,17 @@ export type Conduite =
   | { genre: "reessayer"; apresMs: number; code: string; nouveauNonce?: boolean }
   | { genre: "definitif"; code: string };
 
+/**
+ * Issue de la demande de guide d'après le corps d'une réponse 200 du site : `parti` si le site annonce que l'e-mail part ou partira (`en-file`, `en-validation`),
+ * `incertain` pour TOUTE autre valeur, champ absent, corps nul ou non-objet (choix fermé). Fonction pure : la valeur brute ne sort jamais d'ici
+ * (ni message, ni journal) ; l'appelant ne voit qu'un des deux mots.
+ */
+export function issueGuideDepuisCorps(corps: unknown): "parti" | "incertain" {
+  if (corps === null || typeof corps !== "object" || Array.isArray(corps)) return "incertain";
+  const g = (corps as Record<string, unknown>).guide;
+  return g === "en-file" || g === "en-validation" ? "parti" : "incertain";
+}
+
 /** `statut` 0 = site injoignable. `essai` = numéro de l'essai qui vient d'échouer (1 pour le premier). */
 export function conduiteApresReponse(statut: number, corps: unknown, essai: number): Conduite {
   const erreur = corps && typeof corps === "object" && typeof (corps as Record<string, unknown>).erreur === "string" ? ((corps as Record<string, unknown>).erreur as string) : "";
