@@ -65,6 +65,10 @@ export const PHRASES_RETRAIT_PROGRAMMATION = {
   dejaEnLigne: "Cette publication est déjà en ligne sur au moins un réseau : rien n'a été retiré. Elle est marquée « à retirer à la main » : vérifiez-la chez le diffuseur.",
   partielle: (retires: string, restent: string): string =>
     `Retrait partiel. Retiré chez le diffuseur : ${retires}. Reste programmé : ${restent}. Le texte et le fichier sont gardés.`,
+  partielleEnLigne: (retires: string, restent: string): string =>
+    `Retrait partiel. Retiré chez le diffuseur : ${retires}. Déjà en ligne, rien n'a été retiré : ${restent}. Le texte et le fichier sont gardés.`,
+  partielleSuiteTropProche: "Pour le reste, l'heure prévue est trop proche (moins de 30 minutes) : rien n'a été retiré, il est marqué « à vérifier », relisez-le chez le diffuseur.",
+  partielleSuiteEnLigne: "Le reste est marqué « à retirer à la main » : vérifiez-le chez le diffuseur.",
   partielleSuite: {
     "a-verifier": "Pour le reste, le Studio ne sait pas si le retrait a eu lieu : il est marqué « à vérifier », relisez-le chez le diffuseur.",
     "a-retirer-a-la-main": "Le reste n'a pas pu être retiré par le diffuseur : il est marqué « à retirer à la main », retirez-le chez le diffuseur.",
@@ -162,8 +166,8 @@ export async function retirerProgrammation(d: DepsRetrait, creneauId: string): P
         const enLigne = !post.platforms.every((p) => typeof p.status === "string" && ["draft", "scheduled", "pending"].includes(p.status));
         const programme = typeof post.scheduledFor === "string" ? Date.parse(post.scheduledFor) : NaN;
         const tropProche = post.status === "scheduled" && Number.isFinite(programme) && programme < t + MARGE_REPROGRAMMATION_MS;
-        if (enLigne) fin = await aLaMain(d, e, retires, noterAnnules, avecPost, PHRASES_RETRAIT_PROGRAMMATION.dejaEnLigne);
-        else if (tropProche) fin = await aVerifier(d, e, retires, noterAnnules, avecPost, PHRASES_RETRAIT_PROGRAMMATION.tropProche);
+        if (enLigne) fin = await aLaMain(d, e, retires, noterAnnules, avecPost, PHRASES_RETRAIT_PROGRAMMATION.dejaEnLigne, "en-ligne");
+        else if (tropProche) fin = await aVerifier(d, e, retires, noterAnnules, avecPost, PHRASES_RETRAIT_PROGRAMMATION.tropProche, "trop-proche");
         else try {
           const r = await d.client.retirer({ postId: post._id, cleJournal });
           if (r.etat === "retire") retires.add(e.id);
@@ -209,26 +213,29 @@ const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: 
 const nomReseau = (r: string): string => NOMS_RESEAUX[r] ?? r;
 
 /** Retrait partiel : dit quels réseaux sont retirés et lesquels restent programmés (le message de base seul serait faux pour les premiers). */
-function avecPartiel(res: ResultatRetrait, retires: Set<string>, avecPost: EnvoiPlanifie[]): ResultatRetrait {
+function avecPartiel(res: ResultatRetrait, retires: Set<string>, avecPost: EnvoiPlanifie[], variante?: "trop-proche" | "en-ligne"): ResultatRetrait {
   if (res.ok || retires.size === 0) return res;
   const faits = avecPost.filter((x) => retires.has(x.id)).map((x) => nomReseau(x.reseau)).join(", ");
   const restent = avecPost.filter((x) => !retires.has(x.id)).map((x) => nomReseau(x.reseau)).join(", ");
-  return { ...res, message: `${PHRASES_RETRAIT_PROGRAMMATION.partielle(faits, restent)} ${PHRASES_RETRAIT_PROGRAMMATION.partielleSuite[res.etat as keyof typeof PHRASES_RETRAIT_PROGRAMMATION.partielleSuite] ?? res.message}`, ecritures: true };
+  const P = PHRASES_RETRAIT_PROGRAMMATION;
+  const debut = variante === "en-ligne" ? P.partielleEnLigne(faits, restent) : P.partielle(faits, restent);
+  const suite = variante === "trop-proche" ? P.partielleSuiteTropProche : variante === "en-ligne" ? P.partielleSuiteEnLigne : (P.partielleSuite[res.etat as keyof typeof P.partielleSuite] ?? res.message);
+  return { ...res, message: `${debut} ${suite}`, ecritures: true };
 }
 
 type Noter = (liste: EnvoiPlanifie[]) => Promise<void>;
 const dejaRetires = (avecPost: EnvoiPlanifie[], retires: Set<string>): EnvoiPlanifie[] => avecPost.filter((x) => retires.has(x.id));
 
-async function aVerifier(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[], message: string = PHRASES_RETRAIT_PROGRAMMATION.aVerifier): Promise<ResultatRetrait> {
+async function aVerifier(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[], message: string = PHRASES_RETRAIT_PROGRAMMATION.aVerifier, variante?: "trop-proche"): Promise<ResultatRetrait> {
   await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
   await noter(dejaRetires(avecPost, retires));
-  return avecPartiel(sansEcriture("a-verifier", message), retires, avecPost);
+  return avecPartiel(sansEcriture("a-verifier", message), retires, avecPost, variante);
 }
 
-async function aLaMain(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[], message: string = PHRASES_RETRAIT_PROGRAMMATION.aLaMain): Promise<ResultatRetrait> {
+async function aLaMain(d: DepsRetrait, e: EnvoiPlanifie, retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[], message: string = PHRASES_RETRAIT_PROGRAMMATION.aLaMain, variante?: "en-ligne"): Promise<ResultatRetrait> {
   await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
   await noter(dejaRetires(avecPost, retires));
-  return avecPartiel(sansEcriture("a-retirer-a-la-main", message), retires, avecPost);
+  return avecPartiel(sansEcriture("a-retirer-a-la-main", message), retires, avecPost, variante);
 }
 
 async function rester(retires: Set<string>, noter: Noter, avecPost: EnvoiPlanifie[]): Promise<ResultatRetrait> {

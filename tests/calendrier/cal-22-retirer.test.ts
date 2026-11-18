@@ -334,6 +334,19 @@ describe("CAL-22 · partiel, codes, clé de la reprise", () => {
     expect(r.message).not.toMatch(/rien n'a été changé/i);
     for (const i of INTERDITS) expect(r.message).not.toMatch(i);
   });
+  it.each([
+    ["déjà en ligne", { status: "scheduled", cle: CLE_B, statutReseau: "published" }, "a-retirer-a-la-main", /Retiré chez le diffuseur : LinkedIn\. Déjà en ligne, rien n'a été retiré : Facebook\..*vérifiez-le chez le diffuseur/],
+    ["moins de 30 minutes", { status: "scheduled", cle: CLE_B, programmeLe: "2026-12-10T10:20:00.000Z" }, "a-verifier", /Retiré chez le diffuseur : LinkedIn\. Reste programmé : Facebook\..*trop proche \(moins de 30 minutes\) : rien n'a été retiré/],
+  ])("retrait partiel, second réseau %s : phrase vraie, aucun DELETE sur le second", async (_n, post2, etat, motif) => {
+    const b = envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: CLE_B });
+    const m = monde({ envois: [envoi(), b], posts: { post_1: { status: "scheduled", cle: CLE }, post_2: post2 } });
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    expect(r).toMatchObject({ ok: false, etat, ecritures: true });
+    if (r.ok) return;
+    expect(r.message).toMatch(motif);
+    expect(m.faux.appels.filter((a) => a.methode === "DELETE" && a.chemin.endsWith("post_2"))).toEqual([]);
+    for (const i of INTERDITS) expect(r.message).not.toMatch(i);
+  });
   it("partiel sans réponse du diffuseur (lecture en 503) : « reste programmé », phrase « réessayez », envoi retiré noté « annule », aucun DELETE sur le second", async () => {
     const m = deux([], { "GET /v1/posts/post_2": [{ statut: 503 }] });
     const r = await retirerProgrammation(m.deps, "cre_1");
