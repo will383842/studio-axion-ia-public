@@ -5,6 +5,8 @@
  *    (`scriptValide`), comme Image → vidéo (lot F). Cette pause n'est ni un échec ni un prix.
  * Lecture tolérante : un champ mal formé est ignoré, jamais une erreur.
  */
+import { lireNavigationFilmee, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
+
 export const ENTREE_TUTORIEL = "tutorielOutil";
 
 export interface EntreesTutoriel {
@@ -14,6 +16,8 @@ export interface EntreesTutoriel {
   scriptColle?: boolean;
   /** Script relu et validé par Williams (après écriture depuis l'idée) : il fait foi. */
   scriptValide?: string;
+  /** Film de la navigation dans la maquette (T-EXT-38) : absent ou illisible = pas de film, rien ne change. */
+  navigationFilmee?: NavigationFilmee;
 }
 
 const texte = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
@@ -24,5 +28,6 @@ export function lireEntreesTutoriel(entrees: Record<string, unknown> | undefined
   const o = e as Record<string, unknown>;
   const idee = texte(o.idee);
   const scriptValide = texte(o.scriptValide);
-  return { ...(idee ? { idee } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}) };
+  const film = o.navigationFilmee === undefined ? null : lireNavigationFilmee(o.navigationFilmee);
+  return { ...(idee ? { idee } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}) };
 }
