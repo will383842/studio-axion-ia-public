@@ -485,7 +485,20 @@ describe("verdict Opus : maquette, courriels, JSON, liens", () => {
     ["script src sans .js", `<script src="data.json"></script>`],
     ["script src .js.txt", `<script src="app.js.txt"></script>`],
     ["(a) svg/onload séparé par « / »", `<svg/onload="fetch('https://exemple.invalid')"></svg>`],
-    ["(b) onerror après un « > » entre guillemets", "`&lt;img alt=\"&gt;\" onerror=\"fetch('https://exemple.invalid')\" src=\"a.png\"&gt;`"],
+    ["(b) onerror après un « > » entre guillemets", `<img alt=">" onerror="fetch('https://exemple.invalid')" src="a.png">`],
+    ["(r2-a) JS : adresse en majuscules dans une chaîne", `<script>charger("HTTPS://exemple.invalid/x.png");</script>`],
+    ["(r2-a) JS : fetch.call", `<script>fetch.call(null, "HTTPS://exemple.invalid/x");</script>`],
+    ["(r2-b) JS : commentaire entre fetch et la parenthèse", `<script>fetch/**/("x")</script>`],
+    ["(r2-b) JS : commentaire entre import et la parenthèse", `<script>import/**/("./x.js")</script>`],
+    ["(r2-c) JS : \\/ dans une chaîne", `<script>var u = "https:\\/\\/exemple.invalid/x.png";</script>`],
+    ["(r2-c) JS : octal", `<script>var u = "\\150ttps://exemple.invalid/x.png";</script>`],
+    ["(r2-c) JS : continuation de ligne", `<script>var u = "https:/\\\n/exemple.invalid/x.png";</script>`],
+    ["(r2-d) CSS : u\\72l( dans une feuille de style", `<style>body{background:u\\72l(https://exemple.invalid/a.png)}</style>`],
+    ["(r2-d) CSS : \\75rl( dans une feuille de style", `<style>body{background:\\75rl(//exemple.invalid/a.png)}</style>`],
+    ["(r2-e) attribut style : barre oblique inverse en entité", `<div style="background:url(ht&#92;74 tps://exemple.invalid/a.png)"></div>`],
+    ["(r2-f) imagesrcset", `<link rel="preload" as="image" imagesrcset="https://exemple.invalid/a.png 1x">`],
+    ["(r2-f) SVG set href", `<svg><set attributeName="href" to="https://exemple.invalid/a.png"/></svg>`],
+    ["(r2-f) attribut quelconque avec entité", `<div data-x="&#104;ttps://exemple.invalid/a.png"></div>`],
     ["(c) entité décimale avec zéros de tête", `<a href="&#00000000104;ttps://exemple.invalid">x</a>`],
     ["(c) entité hexadécimale avec zéros de tête", `<img src="&#x0000000068;ttps://exemple.invalid/a.png">`],
     ["(d) meta refresh en entité", `<meta http-equiv="&#114;efresh" content="0;url=https://exemple.invalid">`],
@@ -502,6 +515,15 @@ describe("verdict Opus : maquette, courriels, JSON, liens", () => {
   }
   it("html permis : script src .js local et gestionnaire inoffensif", () => {
     expect(h(`<script src="app.js?v=1"></script><button onclick="ouvrir()">x</button>`).ok).toBe(true);
+  });
+  it("css refusé : (r2-d) échappement dans le nom de fonction ou de règle", () => {
+    expect(c(`body{background:u\\72l(https://exemple.invalid/a.png)}`).ok).toBe(false);
+    expect(c(`body{background:\\75rl(//exemple.invalid/a.png)}`).ok).toBe(false);
+    expect(c(`@\\69mport "https://exemple.invalid/a.css";`).ok).toBe(false);
+    expect(c(`a{color:red}`).ok).toBe(true);
+  });
+  it("html permis : (r2-f) xmlns SVG, srcset local, style local", () => {
+    expect(h(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg><img srcset="a.png 1x, b.png 2x" src="a.png"><div style="background:url(img/a.png)"></div>`).ok).toBe(true);
   });
   it("css refusé : (e) @import avec échappement CSS", () => {
     expect(c(`@import "ht\\74 tps://exemple.invalid/a.css";`).ok).toBe(false);

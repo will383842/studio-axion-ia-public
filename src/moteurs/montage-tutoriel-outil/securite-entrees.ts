@@ -233,7 +233,7 @@ function referenceInterdite(valeur: string): string | null {
 }
 
 const MOTIFS_JS: readonly { re: RegExp; motif: string }[] = [
-  { re: /\bfetch\s*\(/g, motif: "appel réseau « fetch( »" },
+  { re: /\bfetch\b/g, motif: "appel réseau « fetch »" },
   { re: /\bXMLHttpRequest\b/g, motif: "appel réseau « XMLHttpRequest »" },
   { re: /\bWebSocket\b/g, motif: "appel réseau « WebSocket »" },
   { re: /\bEventSource\b/g, motif: "appel réseau « EventSource »" },
@@ -245,17 +245,38 @@ const MOTIFS_JS: readonly { re: RegExp; motif: string }[] = [
   { re: /\bset(?:Timeout|Interval)\s*\(\s*["'`]/g, motif: "code évalué (« setTimeout / setInterval » avec une chaîne)" },
   { re: /\bnew\s+Function\b/g, motif: "code évalué « new Function »" },
   { re: /\bserviceWorker\b/g, motif: "« serviceWorker »" },
-  { re: /\bimport\s*\(/g, motif: "import dynamique « import( »" },
+  { re: /\bimport\s*(?:\/\*[\s\S]*?\*\/\s*|\/\/[^\n]*\n\s*)*\(/g, motif: "import dynamique « import( »" },
   { re: /\bimport\s*[^;'"`]*?\bfrom\s*["'`]\s*(?:https?:|wss?:|\/\/)/g, motif: "import depuis une adresse externe" },
-  { re: /["'`]\s*(?:https?:|wss?:)\/\/[^"'`]*/g, motif: "adresse externe dans une chaîne" },
+  { re: /["'`]\s*(?:https?:|wss?:)\/\/[^"'`]*/gi, motif: "adresse externe dans une chaîne" },
   { re: /["'`]\s*\/\/[a-z0-9][^"'`]*/gi, motif: "adresse externe (protocole implicite) dans une chaîne" },
 ];
 
-/** Décode `\uXXXX`, `\u{…}` et `\xNN` (échappements d'identifiant) pour que `\u0066etch(` soit vu comme `fetch(`. */
+const ECHAPPEMENTS_SIMPLES: Record<string, string> = { n: "\n", t: "\t", r: "\r", v: "\v", f: "\f", b: " " };
+
+/**
+ * Décode les échappements de chaîne et d'identifiant JS : `\uXXXX`, `\u{…}`, `\xNN`, l'octal `\150`, `\/` et tout `\<caractère>`
+ * simple, et supprime la continuation de ligne (`\` suivi d'un retour à la ligne), pour que `\u0066etch(` soit vu comme `fetch(`
+ * et `"https:\/\/x"` comme `"https://x"`.
+ */
 export function decoderEchappementsJs(texte: string): string {
-  return texte.replace(/\\u\{([0-9a-f]{1,6})\}|\\u([0-9a-f]{4})|\\x([0-9a-f]{2})/gi, (tout, a?: string, b?: string, c?: string) => {
+  return texte.replace(/\\(?:u\{([0-9a-f]{1,6})\}|u([0-9a-f]{4})|x([0-9a-f]{2})|([0-7]{1,3})|(\r\n|[\n\r\u2028\u2029])|([\s\S]))/gi, (tout, a?: string, b?: string, c?: string, o?: string, nl?: string, autre?: string) => {
+    if (nl !== undefined) return "";
+    if (o !== undefined) return String.fromCodePoint(parseInt(o, 8));
+    if (autre !== undefined) return ECHAPPEMENTS_SIMPLES[autre.toLowerCase()] ?? autre;
     const n = parseInt(a ?? b ?? c ?? "", 16);
     return Number.isFinite(n) && n <= 0x10ffff ? String.fromCodePoint(n) : tout;
+  });
+}
+
+/** Décode les échappements CSS (`\72 `, `\000072`, `\<caractère>`) comme le fait le navigateur ; supprime la continuation de ligne. */
+export function decoderEchappementsCss(texte: string): string {
+  return texte.replace(/\\(?:([0-9a-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|([\s\S]))/gi, (_t, h?: string, nl?: string, autre?: string) => {
+    if (nl !== undefined) return "";
+    if (h !== undefined) {
+      const n = parseInt(h, 16);
+      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "\uFFFD";
+    }
+    return autre ?? "";
   });
 }
 
@@ -271,10 +292,16 @@ function verifierJs(chemin: string, brut: string, base: number, source: string, 
   }
 }
 
-function verifierCss(chemin: string, texte: string, base: number, source: string, refus: RefusMaquette[]): void {
-  for (const m of texte.matchAll(/url\(([^)]*)\)/gi)) {
+function verifierCss(chemin: string, brut: string, base: number, source: string, refus: RefusMaquette[]): void {
+  // Barres obliques inverses dans url() / @import : refusées sur le texte brut (adresse masquée).
+  for (const m of brut.matchAll(/url\(([^)]*)\)/gi)) {
     if ((m[1] ?? "").includes("\\")) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "url( ) : barre oblique inverse (adresse masquée)" });
   }
+  for (const m of brut.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]*)"|'([^']*)'|([^)\s;]+))/gi)) {
+    if ((m[1] ?? m[2] ?? m[3] ?? "").includes("\\")) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "@import : barre oblique inverse (adresse masquée)" });
+  }
+  // Le reste sur le texte décodé : `u\72l(`, `@\69mport`, `\75rl(` sont de vrais `url(` / `@import` pour le navigateur.
+  const texte = decoderEchappementsCss(brut);
   for (const m of texte.matchAll(/(?:-webkit-)?image-set\(([^;{}]*)/gi)) {
     for (const c of (m[1] ?? "").matchAll(/"([^"]*)"|'([^']*)'|url\(\s*([^)\s"']*)/gi)) {
       const motif = referenceInterdite(c[1] ?? c[2] ?? c[3] ?? "");
@@ -286,10 +313,6 @@ function verifierCss(chemin: string, texte: string, base: number, source: string
     if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `url( ) : ${motif}` });
   }
   for (const m of texte.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]*)"|'([^']*)'|([^)\s;]+))/gi)) {
-    if ((m[1] ?? m[2] ?? m[3] ?? "").includes("\\")) {
-      refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "@import : barre oblique inverse (adresse masquée)" });
-      continue;
-    }
     const motif = referenceInterdite(m[1] ?? m[2] ?? m[3] ?? "");
     if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `@import : ${motif}` });
   }
@@ -330,9 +353,28 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
         for (const m of texte.matchAll(/<form\b[^>]*\baction\s*=/gi)) {
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "formulaire avec « action »" });
         }
-        for (const m of texte.matchAll(/\b(src|href|action|formaction|poster|srcset|data|xlink:href|ping|background|manifest|codebase)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
+        // Toutes les balises, toutes les valeurs d'attribut : entités décodées (le navigateur le fait avant tout le reste).
+        for (const t of texte.matchAll(/<[a-z][^\s>/]*(?:"[^"]*"|'[^']*'|[^>"'])*>/gi)) {
+          for (const a of t[0].matchAll(/([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
+            const nom = a[1]!.toLowerCase();
+            const valeur = decoderEntites(a[2] ?? a[3] ?? a[4] ?? "");
+            const ligne = ligneDe(texte, (t.index ?? 0) + (a.index ?? 0));
+            if (nom === "style") {
+              const dansStyle: RefusMaquette[] = [];
+              verifierCss(chemin, valeur, 0, valeur, dansStyle);
+              for (const r of dansStyle) refus.push({ ...r, ligne });
+            }
+            if (nom.startsWith("xmlns") || NAMESPACES_PERMIS.test(valeur.trim())) continue;
+            const elements = nom.endsWith("srcset") ? valeur.split(",").map((x) => x.trim().split(/\s+/)[0] ?? "") : [valeur];
+            for (const el of elements) {
+              const v = el.replace(/^[\u0000-\u0020]+/, "");
+              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne, motif: `${nom} : adresse externe` });
+            }
+          }
+        }
+        for (const m of texte.matchAll(/\b(src|href|action|formaction|poster|srcset|imagesrcset|data|xlink:href|ping|background|manifest|codebase)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
           const valeur = m[2] ?? m[3] ?? m[4] ?? "";
-          const motif = (m[1]!.toLowerCase() === "srcset" ? valeur.split(",").map((s) => s.trim().split(/\s+/)[0] ?? "") : [valeur])
+          const motif = (m[1]!.toLowerCase().endsWith("srcset") ? valeur.split(",").map((s) => s.trim().split(/\s+/)[0] ?? "") : [valeur])
             .map(referenceInterdite)
             .find((x) => x !== null);
           if (motif) refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: `${m[1]!.toLowerCase()} : ${motif}` });
