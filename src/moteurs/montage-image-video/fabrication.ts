@@ -1823,7 +1823,13 @@ function remarquesDeFinDeVoixIV(e: EtatFabricationIV): string[] {
 async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
   // S-04b : un « non fait » dû à une mesure ABSENTE est remesuré à la reprise (jamais `rendre`, rien de payé ; les autres « non fait » ne sont pas touchés).
   if (o.remesurer && e.rendus && (e.controles?.verdict?.phrases ?? []).some((p) => p.includes("non mesuré"))) {
-    for (const r of Object.values(e.rendus)) r.mesures = (await o.remesurer({ id: r.demande, cle: r.cle, dureeSec: r.dureeSec }).catch(() => undefined)) ?? r.mesures;
+    // Seuls les rendus dont une mesure manque sont relus ; une réponse partielle ne remplit que les champs absents, jamais une mesure gardée.
+    for (const r of Object.values(e.rendus)) {
+      if (r.mesures && ["lufs", "creteVraieDbtp", "noirMaxSec", "figeMaxSec", "largeur", "hauteur", "fps"].every((k) => r.mesures![k] !== undefined) && !Object.values(r.mesures).includes(undefined)) continue;
+      const nouvelles = await o.remesurer({ id: r.demande, cle: r.cle, dureeSec: r.dureeSec }).catch(() => undefined);
+      const gardees = Object.fromEntries(Object.entries(r.mesures ?? {}).filter(([, v]) => v !== undefined));
+      if (nouvelles || r.mesures) r.mesures = { ...(nouvelles ?? {}), ...gardees };
+    }
   }
   const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(

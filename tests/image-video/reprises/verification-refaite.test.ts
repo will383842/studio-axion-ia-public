@@ -94,6 +94,37 @@ describe("S-04b · IV12", () => {
     expect(appels).toBe(0);
   });
 
+  it("2 rendus, 1 complet et 1 sans « hauteur » : seul l'incomplet est remesuré, une réponse partielle n'écrase jamais une mesure gardée", async () => {
+    const carte = carteFixe("E");
+    const m = monde();
+    const mRef = monde();
+    const ref = await jusquAuBout(etatInitialIV(demandeEssai(carte)), { ...outilsSimules(carte, mRef), relancesAuto: false });
+    const completes = Object.values(ref.rendus!);
+    expect(completes.length).toBeGreaterThanOrEqual(2);
+    const appels: string[] = [];
+    const o: OutilsFabricationIV = {
+      ...outilsSimules(carte, m, { sansMesureFichier: ["hauteur"] }),
+      relancesAuto: false,
+      // Réponse PARTIELLE : sans « hauteur », et avec une largeur différente (qui écraserait une mesure gardée).
+      remesurer: async (d) => {
+        appels.push(d.id);
+        return { largeur: -1 };
+      },
+    };
+    const e = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
+    expect(e.refus).toMatchObject({ code: "IV_PANNE", etape: "controles" });
+    const cles = Object.keys(e.rendus!);
+    const gardee = { ...completes[0].mesures, largeur: 1234 };
+    for (const k of cles.slice(0, -1)) e.rendus![k].mesures = { ...gardee };
+    const incomplet = e.rendus![cles[cles.length - 1]];
+    incomplet.mesures = Object.fromEntries(Object.entries(gardee).filter(([k]) => k !== "hauteur"));
+    const refait = await avancerJusquAArretIV(reprendreIV(e), o);
+    // Seul le rendu incomplet est relu ; la réponse partielle (largeur -1, sans hauteur) n'écrase rien.
+    expect([...new Set(appels)]).toEqual([incomplet.demande]);
+    for (const k of cles.slice(0, -1)) expect(refait.rendus![k].mesures).toEqual(gardee);
+    expect(refait.rendus![cles[cles.length - 1]].mesures).toMatchObject({ largeur: 1234 });
+  });
+
   it("contre-épreuve : mesure toujours absente après « Reprendre » : même refus réessayable, rien de payé refait", async () => {
     const carte = carteFixe("E");
     const options: OptionsMonde = { sansMesureFichier: ["hauteur"] };
