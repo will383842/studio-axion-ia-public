@@ -262,7 +262,7 @@ describe("rendu du composant", () => {
     const html = rendre([carrousel("x", "instagram", 9), carrousel("y", "instagram", 5), carrousel("z", "instagram", 1)]);
     expect(html).toContain("Carrousels");
     expect(html).toContain("3 mesurés · 1 pas encore · 2 non disponibles");
-    expect(html).toContain("Titre");
+    expect(html).toContain("Carrousel x");
   });
 
   it("aucun « € », aucun montant, aucun interdit sur chaque libellé ; vouvoiement, pas de nom d'outil", () => {
