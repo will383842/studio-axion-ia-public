@@ -16,6 +16,8 @@ import { CATALOGUE_BRIQUES, IDS_PIECES, pieceLaPlusProche } from "@/briques/plan
 import { consignePlan } from "@/briques/plan-scenes/generateur";
 import { TOILES } from "@/briques/plan-scenes/toiles";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { consigneRetouche } from "@/services/retouche-chat/comprendre";
+import { appliquerOperations } from "@/services/retouche-chat/appliquer";
 import { PLAN_DEMO } from "@/briques/plan-scenes/demo";
 import { RENDUS_BRIQUES } from "@/briques/plan-scenes/briques";
 import { BRIQUES_OBJETS, graineObjet } from "@/briques/plan-scenes/briques/objets-inscrits";
@@ -30,6 +32,7 @@ const PLAN_SCENES = AVEC_RENDU ? ((await import(/* @vite-ignore */ chemin)) as {
 
 const IDS = ["objet-gros-chiffre", "objet-etape", "objet-cartes-coche", "objet-coche"] as const;
 const AVANT = readFileSync(new URL("./__fixtures__/consigne-avant-porte.txt", import.meta.url), "utf8");
+const CONSIGNE_RETOUCHE_MASTER = readFileSync(new URL("./__fixtures__/consigne-retouche-avant-objets.txt", import.meta.url), "utf8");
 const MOTS = "J'ai gagné 42 heures cette semaine".split(" ").map((texte, i) => ({ texte, debutMs: i * 400, finMs: i * 400 + 350 }));
 const FORMAT = { largeur: 1080, hauteur: 1920, fps: 25 as const };
 const planAvec = (piece: string, parametres: unknown) => {
@@ -57,6 +60,13 @@ describe("(a) porte fermée : tout est identique à avant", () => {
   });
 });
 
+describe("(a bis) chat de retouche : consigne identique porte fermée", () => {
+  it("consigneRetouche() est égale au caractère près au fichier figé produit sur origin/master, sans aucun objet-", () => {
+    expect(consigneRetouche()).toBe(CONSIGNE_RETOUCHE_MASTER);
+    expect(consigneRetouche()).not.toContain("objet-");
+  });
+});
+
 describe("(b) permis : gardé si valide, retiré si invalide (jamais l'exemple)", () => {
   it("scène valide gardée telle quelle", () => {
     const r = validerPlan(planAvec("objet-gros-chiffre", { valeur: 42, unite: "heures" }), { ...contexte, objetsPermis: ["objet-gros-chiffre"] });
@@ -81,6 +91,38 @@ describe("(b) permis : gardé si valide, retiré si invalide (jamais l'exemple)"
     const calques = r.plan.scenes[0]!.calques ?? [];
     expect(calques.filter((c) => c.piece === "objet-coche")).toHaveLength(1);
     expect(r.remarques.some((x) => x.code === "CALQUE_RETIRE")).toBe(true);
+  });
+});
+
+describe("(b bis) le validateur ne pose jamais l'exemple d'un objet", () => {
+  const permis = { ...contexte, objetsPermis: ["objet-gros-chiffre"] };
+  it("cas (i) : nom approché « Objet gros chiffre » avec paramètres invalides : scène retirée, pas de « 20 minutes »", () => {
+    const r = validerPlan(planAvec("Objet gros chiffre", { valeur: "beaucoup" }), permis);
+    expect(r.plan.scenes.some((x) => x.piece === "objet-gros-chiffre")).toBe(false);
+    expect(r.remarques.some((x) => x.code === "SCENE_RETIREE")).toBe(true);
+    expect(JSON.stringify(r.plan)).not.toContain("20 minutes");
+  });
+  it("cas (ii) : scène « inconnue » niveau 2 dont le calque objet est invalide : scène retirée, pas de « 20 minutes »", () => {
+    const p = planAvec("inconnue", {}) as unknown as { scenes: Record<string, unknown>[] };
+    p.scenes[0]!.niveau = 2;
+    p.scenes[0]!.calques = [{ piece: "objet-gros-chiffre", parametres: { valeur: "beaucoup" }, debutMs: 0, zone: "plein" }];
+    const r = validerPlan(p, permis);
+    expect(r.plan.scenes.some((x) => x.piece === "objet-gros-chiffre")).toBe(false);
+    expect(r.remarques.some((x) => x.code === "SCENE_RETIREE")).toBe(true);
+    expect(JSON.stringify(r.plan)).not.toContain("20 minutes");
+  });
+});
+
+describe("(e) chat de retouche : un objet ajouté ne survit pas (porte fermée)", () => {
+  it("ajouter-piece puis changer-brique vers un objet : aucune pièce ni calque objet-, remarque OBJET_NON_PERMIS", () => {
+    const plan = validerPlan(planAvec("legende", { texte: "Essai", sousTexte: "", style: "bandeau" }), contexte).plan;
+    const sceneId = plan.scenes[0]!.id;
+    const r1 = appliquerOperations(plan, [{ type: "ajouter-piece", sceneId, piece: "objet-gros-chiffre" }] as never);
+    const r2 = appliquerOperations(plan, [{ type: "changer-brique", sceneId, piece: "objet-coche" }] as never);
+    for (const r of [r1, r2]) {
+      expect(JSON.stringify(r.plan.scenes)).not.toContain("objet-");
+      expect(r.remarques.some((x) => x.code === "OBJET_NON_PERMIS")).toBe(true);
+    }
   });
 });
 

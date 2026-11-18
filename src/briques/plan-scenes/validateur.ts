@@ -432,6 +432,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
       niveau = 1;
     }
 
+    if (piece !== pieceDemandee && (CATALOGUE_BRIQUES[piece] as DefinitionBrique).famille === "objet") return signaler("SCENE_RETIREE", `Objet « ${piece} » sans paramètres écrits par le plan : scène retirée (jamais l'exemple).`); // BR-OBJETS-a
     // Position (jamais devant le visage en face caméra) et transition douce.
     let position: Position = POSITIONS.includes(s.position as Position) ? (s.position as Position) : facecam ? POSITION_SURE_FACECAM : "centre";
     if (facecam && devantLeVisage(position)) {
