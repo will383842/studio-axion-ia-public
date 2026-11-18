@@ -71,7 +71,7 @@ export const INDICATEURS: readonly { id: Indicateur; libelle: string; definition
   { id: "tenue3s", libelle: "Restés après 3 s", definition: "100 − part des spectateurs partis avant 3 secondes." },
   { id: "duree", libelle: "Durée regardée", definition: "Durée moyenne regardée par vue (secondes)." },
   { id: "partages", libelle: "Partages", definition: "Partages ÷ personnes atteintes (%)." },
-  { id: "vues", libelle: "Vues", definition: "Vues relevées par Buffer ou saisies." },
+  { id: "vues", libelle: "Vues", definition: "Vues relevées sur le réseau ou saisies." },
   { id: "visites", libelle: "Visites", definition: "Visites du site arrivées par le lien suivi de la version." },
   { id: "rendezVous", libelle: "Rendez-vous", definition: "Visiteurs du lien suivi qui ont cliqué vers la prise de rendez-vous." },
 ];

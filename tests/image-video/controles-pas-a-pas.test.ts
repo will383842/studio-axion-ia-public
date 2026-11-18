@@ -8,6 +8,16 @@ import { attendWillIV, avancerJusquAArretIV, etatInitialIV, validerCarteIV, vali
 import { RenduEnCoursIV } from "@/moteurs/montage-image-video/fabrication";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
+/**
+ * 18/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Sujet de ce fichier : le contrôle pas à pas garde dans l'état les transcriptions déjà faites (il en faut plusieurs, donc plusieurs versions de fin).
+ * Le plan tiré est rejoué en retirant le drapeau, assertions inchangées. Le cas « fin vide » a ses preuves dans
+ * `fins/fin-non-choisie.test.ts`.
+ */
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => vrai.planDesFinsIV({ ...d, finVide: undefined }) };
+});
+
 vi.setConfig({ testTimeout: 120_000 });
 
 /** Mène l'état jusqu'à une arrivée ou un refus, en reprenant après chaque attente ; compte les attentes. */

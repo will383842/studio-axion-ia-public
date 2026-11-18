@@ -107,3 +107,64 @@ export function contientMontant(texte: string): boolean {
 export function faitSansMontant(f: FaitSite): FaitSite {
   return { ...f, title: masquerMontants(f.title), excerpt: masquerMontants(f.excerpt) };
 }
+
+/* ------------------------------------------------------------------ */
+/* Méthode du site (fiche KB-05c) : consignes internes, jamais des preuves */
+/* ------------------------------------------------------------------ */
+
+/** Seul point d'entrée « Méthode » du site que le Studio appelle (POST, avec secret). */
+export const CHEMIN_METHODE_SITE = "/api/internal/methode/studio";
+export const SUJET_MIN = 2;
+export const SUJET_MAX = 300;
+/** Un passage pèse 1 500 caractères au plus côté site, plus une marque de coupe : 1 600 de marge. */
+export const TEXTE_METHODE_MAX = 1600;
+export const MAX_CONSIGNES = 5;
+
+/** Une consigne interne : ni identifiant d'entrée ni de traduction, donc jamais une preuve. */
+export interface ConsigneMethode {
+  slug: string;
+  titre: string;
+  texte: string;
+  source: "methode";
+}
+
+/** Comme `baseSiteValide`, mais https SEULEMENT (le secret voyage dans un en-tête). */
+export function baseMethodeValide(base: string | undefined): string | null {
+  const origine = baseSiteValide(base);
+  return origine !== null && origine.startsWith("https://") ? origine : null;
+}
+
+/** Sujet nettoyé : chaîne, sans espaces autour, de 2 à 300 caractères ; sinon vide. */
+export function nettoyerSujet(s: unknown): string {
+  if (typeof s !== "string") return "";
+  const t = s.trim();
+  return t.length >= SUJET_MIN && t.length <= SUJET_MAX ? t : "";
+}
+
+function validerConsigne(brut: unknown): ConsigneMethode | null {
+  if (!brut || typeof brut !== "object" || Array.isArray(brut)) return null;
+  const { slug, titre, texte, source } = brut as Record<string, unknown>;
+  if (source !== "methode") return null;
+  if (!texteNonVide(slug) || !slug.startsWith("methode/")) return null;
+  if (!texteNonVide(titre) || typeof texte !== "string" || texte.length > TEXTE_METHODE_MAX) return null;
+  return { slug, titre, texte, source: "methode" };
+}
+
+/** Réponse `{ items: [...] }` : consignes de forme exacte (champs en trop jetés), 5 au plus ; forme mauvaise → `[]`. */
+export function validerReponseMethode(corps: unknown): ConsigneMethode[] {
+  if (!corps || typeof corps !== "object") return [];
+  const items = (corps as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  const sortie: ConsigneMethode[] = [];
+  for (const brut of items) {
+    const c = validerConsigne(brut);
+    if (c) sortie.push(c);
+    if (sortie.length >= MAX_CONSIGNES) break;
+  }
+  return sortie;
+}
+
+/** Une consigne prête à l'affichage : titre et texte sans montant. */
+export function consigneSansMontant(c: ConsigneMethode): ConsigneMethode {
+  return { ...c, titre: masquerMontants(c.titre), texte: masquerMontants(c.texte) };
+}
