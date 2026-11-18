@@ -66,10 +66,12 @@ describe("maquette 05 Stocks", () => {
     }
   });
 
-  it("n'expose aucun fournisseur de marque ni courriel hors exemple.invalid", () => {
-    const d = lire("demo-data.js");
-    expect(d).not.toMatch(/nordex|cartem|fabrilys|linéa/i);
-    for (const m of d.match(/[\w.-]+@[\w.-]+/g) ?? []) expect(m).toMatch(/@exemple\.invalid$/);
+  it("n'expose aucune marque ni courriel hors exemple.invalid (tous les fichiers)", () => {
+    for (const f of fichiers) {
+      expect(f.contenu, f.chemin).not.toMatch(/nordex|cartem|fabrilys|linéa|epal/i);
+      expect(f.contenu, f.chemin).not.toMatch(/example\.(com|org|net)/i);
+      for (const m of f.contenu.match(/[\w.-]+@[\w-]+(\.[\w-]+)+/g) ?? []) expect(m, f.chemin).toMatch(/@exemple\.invalid$/);
+    }
   });
 
   it("reinitialiser() efface le message affiché (capture déterministe)", () => {
