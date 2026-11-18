@@ -282,6 +282,44 @@ describe("corrections de relecture", () => {
   });
 });
 
+describe("rotation : aucune publication n'est oubliée, même sans relevé neuf", () => {
+  const releveIdentique = (i: number) => ({ le: IL_Y_A(30 - (i % 3)), jour: 1, source: "zernio" as const, valeurs: { vues: 107, portee: 87, likes: 5, commentaires: 2, partages: 4, partagesParPortee: 4.6 }, definitions: {} });
+
+  it("éteint : 60 relevés déjà identiques, 2 clics : les 60 sont lues, 40 au plus par clic", async () => {
+    await publications(60);
+    for (let i = 0; i < 60; i++) await depots().publications.modifier(`exemple-pub-${i}`, { releves: [releveIdentique(i)] } as never);
+    const lus = new Set<unknown>();
+    for (let clic = 0; clic < 2; clic++) {
+      const r = await lancer();
+      expect(r.appels.length).toBeLessThanOrEqual(40);
+      for (const a of r.unitaires()) lus.add(a.query!.postId);
+    }
+    expect(lus.size).toBe(60);
+  });
+
+  it("allumé : 30 non retrouvées, 3 clics : les 30 sont lues, 13 requêtes au plus par clic", async () => {
+    await publications(30);
+    await allumer();
+    const lus = new Set<unknown>();
+    for (let clic = 0; clic < 3; clic++) {
+      const r = await lancer({ connus: new Set() });
+      expect(r.appels.length).toBeLessThanOrEqual(13);
+      for (const a of r.unitaires()) lus.add(a.query!.postId);
+    }
+    expect(lus.size).toBe(30);
+  });
+
+  it("éteint : 45 publications « pas encore prêtes » ne bloquent pas les 15 autres", async () => {
+    await publications(60);
+    const lus = new Set<unknown>();
+    for (let clic = 0; clic < 2; clic++) {
+      const r = await lancer({ unitaire202: true });
+      for (const a of r.unitaires()) lus.add(a.query!.postId);
+    }
+    expect(lus.size).toBe(60);
+  });
+});
+
 describe("visuels, simulation, exemples", () => {
   async function visuel(id: string, extra: Record<string, unknown> = {}) {
     await depots().visuels.enregistrer({ id, famille: "carrousel", titre: `Titre ${id}`, entree: { type: "session" }, statut: "valide", modeTexte: "simulation", versionSpec: 1, coutCentimes: 0, creeLe: IL_Y_A(20), modifieLe: IL_Y_A(20), ...extra } as never);
