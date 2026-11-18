@@ -26,6 +26,16 @@ import {
 import { carteFixe, demandeEssai, monde, outilsSimules, type Monde } from "./doubles-fabrication";
 import { outilsAvecRendu, ServeurDouble } from "./doubles-rendu";
 
+/**
+ * 18/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Sujet de ce fichier : le « dernier filet » vise l'écran titre de fin de 3 lignes d'une fin dite.
+ * Le plan tiré est rejoué en retirant le drapeau, assertions inchangées. Le cas « fin vide » a ses preuves dans
+ * `fins/fin-non-choisie.test.ts`.
+ */
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => vrai.planDesFinsIV({ ...d, finVide: undefined }) };
+});
+
 vi.setConfig({ testTimeout: 120_000 });
 
 const decisionCarte = (e: EtatFabricationIV) => ({ proposition: e.propositionCarte!.empreinte, le: "2026-10-15T08:00:00.000Z" });

@@ -313,12 +313,14 @@ export function refusQuestion(question: string): string | null {
   return null;
 }
 
-function questionPour(reseau: ReseauIV, texte: string | undefined): QuestionIV {
+function questionPour(reseau: ReseauIV, texte: string | undefined, sansLigneDeBanque = false): QuestionIV {
   const ligne = QUESTION_BANQUE[reseau];
   const l = appelDeLaBanque(ligne);
   if (!l || l.etat !== "valide") throw new ErreurFin(`La question de la banque « ${ligne} » n'est pas disponible.`);
   const propre = texte?.trim();
-  return { dit: propre || l.dit, ecran: l.ecran, origine: propre ? "image" : "banque", ligne };
+  // 18/11 (D4) : fin vide + question choisie par l'utilisateur : la ligne d'écran de la banque (« Votre réponse en commentaire »)
+  // n'est pas une phrase choisie, elle n'est donc pas écrite ; seul le texte d'écran de la question de l'utilisateur l'est.
+  return { dit: propre || l.dit, ecran: propre && sansLigneDeBanque ? "" : l.ecran, origine: propre ? "image" : "banque", ligne };
 }
 
 /**
@@ -378,7 +380,7 @@ export function planDesFinsIV(demande: DemandePlanDesFinsIV): PlanDesFinsIV {
       sansFin.push({ reseaux: [reseau], raison: e.message });
       continue;
     }
-    const question = reglage === "question-puis-fin" ? questionPour(reseau, demande.questionCommentaire) : undefined;
+    const question = reglage === "question-puis-fin" ? questionPour(reseau, demande.questionCommentaire, !!demande.finVide && !ids) : undefined;
     // Réseaux regroupés sur ce qui est DIT et AFFICHÉ (pas sur les codes de ligne) : Facebook et LinkedIn partagent un fichier.
     const cle = [question?.dit ?? "", question?.ecran ?? "", ...appels.flatMap((a) => [a.dit, a.ecran])].join("|");
     const g = groupes.get(cle);

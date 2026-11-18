@@ -173,6 +173,13 @@ export function ScriptEcrans({
         />
       )}
 
+      {avecQuestion && (
+        <p className="text-sm text-texte-doux">
+          Écrit à l&rsquo;écran avec la question : {"«\u00a0"}
+          {fiche.questionCommentaire.texteEcran}
+          {"\u00a0»"}
+        </p>
+      )}
       <p className="text-sm text-texte-doux">{FIN_AUCUNE_IV}</p>
 
       {formules.length > 0 && (

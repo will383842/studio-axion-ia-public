@@ -7,6 +7,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { controlerVersionIV } from "@/moteurs/montage-image-video/controles";
+import { mettreEnSceneIV } from "@/moteurs/montage-image-video/mise-en-scene";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
 import { liensSuivisIV, planDesFinsIV } from "@/moteurs/montage-image-video/fins";
 import { appelDeLaBanque } from "@/moteurs/montage-image-video/emprunts";
@@ -14,6 +16,7 @@ import {
   attendWillIV,
   avancerJusquAArretIV,
   etatInitialIV,
+  lignesDesVersionsIV,
   prixSuiteIV,
   validerCarteIV,
   validerScriptIV,
@@ -25,6 +28,12 @@ import { segmentsVoixIV } from "@/moteurs/montage-image-video/voix";
 import { FIN_AUCUNE_CHOISIE } from "@/moteurs/montage-tableau/relecture";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "../doubles-fabrication";
 
+/** Enregistre ce que la porte de contrôle envoie à `controlerVersionIV` (chemin réel), pour rejouer les gardes sur une version modifiée. */
+const vu = vi.hoisted(() => ({ appels: [] as unknown[][] }));
+vi.mock("@/moteurs/montage-image-video/controles", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/controles")>();
+  return { ...vrai, controlerVersionIV: (...a: Parameters<typeof vrai.controlerVersionIV>) => (vu.appels.push(a), vrai.controlerVersionIV(...a)) };
+});
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined, push: () => undefined }), usePathname: () => "/image-video" }));
 vi.setConfig({ testTimeout: 120_000 });
 
@@ -61,15 +70,19 @@ describe("(a) plan sans fin choisie", () => {
 });
 
 describe("(b) fin au mot complète", () => {
-  it("identique mot pour mot avec ou sans le drapeau, sans `vide`", () => {
-    const [reseau] = RESEAUX_IV.filter((r) => planDesFinsIV({ ...base, mot: "AUDIT", motSur: [r], cadeauReel: true }).fins.some((f) => f.appels.some((a) => a.id.includes("mot"))));
-    if (!reseau) return; // aucune fin au mot validée sur ce Studio : rien à comparer, le cas (a) tient la garde
-    const d = { ...base, mot: "AUDIT", motSur: [reseau], cadeauReel: true };
-    const sans = planDesFinsIV(d);
-    const avec = planDesFinsIV({ ...d, finVide: true });
-    const f = (p: typeof sans) => p.fins.find((x) => x.reseaux.includes(reseau))!;
-    expect(f(avec).appels).toEqual(f(sans).appels);
-    expect(f(avec).vide).toBeUndefined();
+  it("identique mot pour mot avec ou sans le drapeau, sans `vide` (la comparaison a bien lieu : une fin au mot validée existe)", () => {
+    const d = { ...base, mot: "AUDIT", motSur: ["facebook", "instagram"] as const, cadeauReel: true };
+    const sans = planDesFinsIV({ ...d, motSur: [...d.motSur] });
+    const avec = planDesFinsIV({ ...d, motSur: [...d.motSur], finVide: true });
+    const auMot = (p: typeof sans, r: string) => p.fins.find((x) => x.reseaux.includes(r as never))!;
+    // Garde contre un test creux : la fin au mot est bien posée sur Facebook et Instagram (aucune sortie sans comparer).
+    for (const r of ["facebook", "instagram"]) expect(auMot(sans, r).appels.some((a) => a.id.includes("mot"))).toBe(true);
+    for (const r of ["facebook", "instagram"]) {
+      expect(auMot(avec, r).appels).toEqual(auMot(sans, r).appels);
+      expect(auMot(avec, r).vide).toBeUndefined();
+    }
+    // Les réseaux sans fin au mot reçoivent, eux, la fin vide.
+    for (const r of ["youtube-shorts", "linkedin"]) expect(auMot(avec, r)).toMatchObject({ vide: true, appels: [] });
   });
 });
 
@@ -157,5 +170,61 @@ describe("(f) question-puis-fin + fin vide", () => {
       expect(f.vide).toBe(true);
       expect(texteDeFinIV(f)).toBe(q);
     }
+  });
+});
+
+async function jusquAPrete(plus: Parameters<typeof demandeEssai>[1] = {}) {
+  const e = await auScript(plus);
+  const propositionScript = e.propositionScript!;
+  const o = outilsSimules(carteFixe("C"), monde());
+  let etat = await avancerJusquAArretIV(valide(e), o);
+  for (let i = 0; i < 20 && etat.etape !== "prete" && etat.etape !== "refusee"; i++) etat = await avancerJusquAArretIV(etat, o);
+  expect(etat.etape).toBe("prete");
+  return Object.assign(etat, { propositionAvantValidation: propositionScript });
+}
+const norme = (t: string) => t.replace(/\*/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+
+describe("(f) question-puis-fin par le chemin réel : ce que la vidéo écrit de la fin = ce que l'écran de validation montre", () => {
+  it("la question choisie est écrite, aucune ligne d'écran de la banque (« Votre réponse en commentaire »), rien hors question", async () => {
+    const etat = await jusquAPrete({ appelCommentaire: "question-puis-fin" });
+    const q = etat.script!.fiche.questionCommentaire;
+    expect(etat.plan!.fins).toHaveLength(1);
+    expect(etat.plan!.fins[0]).toMatchObject({ vide: true, appels: [], question: { dit: q.texteDit, ecran: "", origine: "image" } });
+    // Montré à l'écran de validation : la question dite (champ) et son texte d'écran (ligne « Écrit à l'écran avec la question »).
+    const montres = [norme(q.texteDit), norme(q.texteEcran)];
+    const { ScriptEcrans } = await import("@/components/formats/image-video/ScriptEcrans");
+    const p = etat.propositionAvantValidation;
+    const html = renderToStaticMarkup(createElement(ScriptEcrans, { videoId: "v-1", fiche: etat.script!.fiche, formules: p.formules, aTrancher: [], prix: p.prix, avecQuestion: true }));
+    expect(html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/\s+/g, " ")).toContain(q.texteEcran);
+    const versions = lignesDesVersionsIV(etat);
+    expect(versions.length).toBeGreaterThan(0);
+    for (const v of versions) {
+      const ecrits = (v.ligne.evenements as { ecran?: string; texte?: string }[]).filter((x) => /^f\d/.test(x.ecran ?? "") && x.texte).map((x) => norme(x.texte!));
+      expect(ecrits.length).toBeGreaterThan(0);
+      // Chaque texte écrit de la fin est (un morceau de) ce qui est montré à l'écran de validation.
+      for (const t of ecrits) expect(montres.some((m) => m.includes(t))).toBe(true);
+      for (const mot of [...PHRASES_BANQUE, "votre réponse en commentaire"]) expect(ecrits.join(" | ")).not.toContain(norme(mot));
+    }
+  });
+});
+
+describe("(d bis) gardes rejouées sur le chemin réel de la porte", () => {
+  it("fin vide : aucune remarque « fin » ; fin muette visant Instagram : toujours refusée ; fin non vide sans phrase : remarque", async () => {
+    vu.appels.length = 0;
+    const etat = await jusquAPrete();
+    expect(vu.appels.length).toBeGreaterThan(0);
+    const [v, ctx, m] = vu.appels[0] as Parameters<typeof controlerVersionIV>;
+    const q08 = (x: typeof v) => controlerVersionIV(x, ctx, m).find((l) => l.code === "Q08bis")!;
+    expect(v.fin).toMatchObject({ vide: true, muet: false });
+    expect(q08(v).details.join(" ")).not.toMatch(/fin/);
+    // Garde de scène : une fin `muet` sur une version qui vise Instagram reste refusée (non affaiblie).
+    const cherche = (fin: typeof v.scene.fin) => mettreEnSceneIV({ ...v.scene, reseaux: ["instagram"], fin }).rapport.lignes.find((x) => x.code === "FIN")!;
+    expect(cherche(v.scene.fin).details.join(" ")).not.toMatch(/sans fin vise/);
+    expect(cherche(null).details.join(" ")).toMatch(/une version sans fin vise instagram/);
+    // Une fin non vide qui ne dit rien (ni question ni appel) n'est jamais une fin voulue : remarque non bloquante.
+    const aMoitie = { ...v, fin: { ...v.fin!, vide: undefined } } as typeof v;
+    const l = q08(aMoitie);
+    expect(l.details.join(" ")).toMatch(/ne dit rien et n'est pas une fin vide voulue/);
+    expect(l.bloquant).toBe(false);
   });
 });
