@@ -76,6 +76,8 @@ export async function proposerSemaine(demande: { debut: string; reseaux?: readon
   const vues = new Set<string>();
   for (const l of lignes) {
     const t = JOUR.test(l.jour) ? Date.parse(`${l.jour}T12:00:00Z`) : Number.NaN;
+    // Un jour impossible (29 février d'une année non bissextile) déborde sur le mois suivant : écarté.
+    if (Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== l.jour) continue;
     if (!(t >= lundi && t < fin) || !reseaux.has(l.reseau) || !TYPES.has(l.type) || vues.has(l.cle)) continue;
     vues.add(l.cle);
     propositions.push({

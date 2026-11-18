@@ -56,6 +56,12 @@ describe("CAL-18 · appel à l'usine par la porte", () => {
     expect(r.propositions.map((p) => p.cle)).toEqual(["u1|linkedin"]);
   });
 
+  it("un jour qui n'existe pas (29 février 2026) est ignoré, il ne déborde pas sur le mois suivant", async () => {
+    const f = doublure({ propositions: [ligne({ cle: "a", jour: "2026-02-24" }), ligne({ cle: "b", jour: "2026-02-29" })] });
+    const r = await proposerSemaine({ debut: "2026-02-23" }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    expect(r.propositions.map((p) => p.cle)).toEqual(["a"]);
+  });
+
   it("une semaine qui ne commence pas un lundi, ou une date illisible, est refusée sans appel", async () => {
     const f = doublure();
     await expect(proposerSemaine({ debut: "2026-12-15" }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "SEMAINE_DATE" });
