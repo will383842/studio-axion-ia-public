@@ -12,14 +12,14 @@ import { useEcranAUnBoutonPrincipal, varianteNouvelleVideo } from "@/lib/ecran-p
 import { estActif, ONGLETS_BAS, sectionsPlusMobile, tuilesPlusMobile, formatsCreer, type FormatNavigation } from "./navigation";
 
 /** Onglets du bas (mobile < 1024 px) : Accueil · Vidéos · ➕ · Écrire · Plus. */
-export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false, aPublier = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
+export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false, aPublier = false, aTraiter = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean; aTraiter?: boolean }) {
   const ecranAPrincipal = useEcranAUnBoutonPrincipal();
   const chemin = usePathname();
   const [plus, setPlus] = useState(false);
   const [creer, setCreer] = useState(false);
   // Feuille « Créer » : les formats actifs (hors essais réservés), chacun vers son écran de création.
   const formatsActifs = formatsCreer(formats);
-  const plusActif = tuilesPlusMobile(surLeSite, aPublier).some((t) => estActif(chemin, t));
+  const plusActif = tuilesPlusMobile(surLeSite, aPublier, aTraiter).some((t) => estActif(chemin, t));
 
   return (
     <>
@@ -86,7 +86,7 @@ export function OngletsBas({ formats = [], actionDeconnexion, surLeSite = false,
       <FeuilleBas ouverte={plus} onOuverteChange={setPlus} titre="Plus">
         {/* Mêmes sections que la barre latérale (08/11), moins ce qui est déjà dans les onglets du bas. */}
         <div className="space-y-5">
-          {sectionsPlusMobile(surLeSite, aPublier).map((s) => (
+          {sectionsPlusMobile(surLeSite, aPublier, aTraiter).map((s) => (
             <section key={s.titre ?? "tete"}>
               {s.titre && <h3 className="mb-2 text-xs font-semibold text-texte-faible">{s.titre}</h3>}
               <div className="grid grid-cols-2 gap-3">

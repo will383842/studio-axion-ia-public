@@ -39,8 +39,9 @@ describe("interrupteur allumé", () => {
     expect(html.indexOf(">Réponses automatiques<")).toBeLessThan(html.indexOf(">À traiter<"));
     expect(html.indexOf(">À traiter<")).toBeLessThan(html.indexOf(">Résultats<"));
   });
-  it("la feuille « Plus » montre « À traiter »", () => {
-    expect(onglets("/mots", { aTraiter: true })).toContain('href="/a-traiter"');
+  it("la feuille « Plus » (fermée au rendu statique) reçoit « À traiter » : l'onglet « Plus » porte la page en cours", () => {
+    expect(onglets("/a-traiter", { aTraiter: true })).toContain("contient la page en cours");
+    expect(onglets("/a-traiter")).not.toContain("contient la page en cours");
   });
   it("sur /a-traiter : une seule page en cours, Publier ouvert", () => {
     const html = barre("/a-traiter", { aTraiter: true });
@@ -50,7 +51,7 @@ describe("interrupteur allumé", () => {
   it("aucun compteur ni pastille dans le menu", () => {
     const html = barre("/mots", { aTraiter: true });
     const lien = html.match(/<a[^>]*href="\/a-traiter"[^>]*>[\s\S]*?<\/a>/)?.[0] ?? "";
-    expect(lien).not.toMatch(/\d/);
-    expect(lien).not.toMatch(/rounded-full/);
+    expect(lien.replace(/<[^>]*>/g, "")).toBe("À traiter");
+    expect(lien.match(/<span/g)?.length).toBe(1);
   });
 });
