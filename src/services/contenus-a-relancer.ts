@@ -3,15 +3,15 @@
  * aucun appel réseau ni à un modèle, aucun réglage lu. Branché nulle part (l'écran vient avec L8-12b).
  *
  * Ce que la fonction lit, et rien d'autre :
- *   - les publications publiées depuis moins de FENETRE_LECTURE_JOURS jours, au plus LECTURE_MAX_PUBLICATIONS (les plus récentes) ;
- *   - les créneaux dont l'identifiant commence par « republication- », au plus LECTURE_MAX_CRENEAUX.
+ *   - les publications publiées, non simulées, avec média, hors exemples, au plus LECTURE_MAX_PUBLICATIONS (les plus récentes) ;
+ *   - les créneaux dont l'identifiant commence par « republication-<id>- » pour les 10 lignes retenues seulement.
  * Le seuil de performance des règles n'est pas lu (question ouverte au fondateur) : on liste les mieux classés.
  */
 import { depots } from "@/donnees/memoire";
 import { ordinal, resultatsDepuisStats } from "@/domaine/mesures-rangs";
 import { evaluerRepublication } from "@/domaine/republication/regles";
 import { scorerCandidats, type CandidatRepublication } from "@/domaine/republication/score";
-import type { IdReseau, Publication } from "@/domaine/types";
+import { sourceSure, type IdReseau, type Publication } from "@/domaine/types";
 import { obtenirReseau } from "@/reseaux";
 import { filtreExemples as filtreExemplesParDefaut } from "./_commun";
 
@@ -22,17 +22,12 @@ import { filtreExemples as filtreExemplesParDefaut } from "./_commun";
 
 /** PROPOSITION : nombre maximal de lignes de la liste. */
 export const NOMBRE_MAX_AFFICHES = { statut: "hypothese", valeur: 10 } as const;
-/** PROPOSITION : on ne regarde que les publications des 365 derniers jours. */
-export const FENETRE_LECTURE_JOURS = { statut: "hypothese", valeur: 365 } as const;
-/** PROPOSITION : plafond de publications lues (les plus récentes d'abord). */
-export const LECTURE_MAX_PUBLICATIONS = { statut: "hypothese", valeur: 500 } as const;
-/** PROPOSITION : plafond de créneaux de republication lus. */
-export const LECTURE_MAX_CRENEAUX = { statut: "hypothese", valeur: 2000 } as const;
+/** PROPOSITION : plafond de sécurité de publications lues (les plus récentes d'abord), pour ne jamais lire une table sans limite. */
+export const LECTURE_MAX_PUBLICATIONS = { statut: "hypothese", valeur: 2000 } as const;
 /** Nombre de signes du texte d'origine montrés (fixé par la fiche). */
 export const SIGNES_DEBUT_TEXTE = 80;
 
 const PREFIXE_CRENEAU = "republication-";
-const JOUR_MS = 24 * 3600 * 1000;
 
 export interface DepsContenusARelancer {
   publications: { lister(filtre?: (p: Publication) => boolean, projeter?: (p: Publication) => Publication): Promise<Publication[]> };
@@ -57,8 +52,9 @@ function depsParDefaut(): DepsContenusARelancer {
 
 /** Début du texte : espaces normalisés, au plus SIGNES_DEBUT_TEXTE signes. */
 function debut(texte: string): string {
-  const t = (texte ?? "").replace(/\s+/g, " ").trim();
-  return t.length <= SIGNES_DEBUT_TEXTE ? t : t.slice(0, SIGNES_DEBUT_TEXTE - 1).trimEnd() + "…";
+  // Découpe en points de code : un emoji n'est jamais coupé en deux.
+  const signes = Array.from((texte ?? "").replace(/\s+/g, " ").trim());
+  return signes.length <= SIGNES_DEBUT_TEXTE ? signes.join("") : signes.slice(0, SIGNES_DEBUT_TEXTE - 1).join("").trimEnd() + "…";
 }
 
 /** Nombre de créneaux `republication-<id>-<rang>` déjà créés pour cette publication (archivés compris). */
@@ -67,7 +63,7 @@ function rangAtteint(id: string, idsCreneaux: readonly string[]): number {
   return idsCreneaux.filter((c) => c.startsWith(prefixe) && /^\d+$/.test(c.slice(prefixe.length))).length;
 }
 
-const mediaDe = (p: Publication): "video" | "visuel" | null => (p.videoId && !p.visuelId ? "video" : p.visuelId && !p.videoId ? "visuel" : null);
+const mediaDe = (p: Publication): "video" | "visuel" | undefined => sourceSure(p)?.famille;
 
 /**
  * Liste, du meilleur au moins bon, les contenus publiés à relancer. Ne garde que les publications publiées, non simulées,
@@ -77,9 +73,8 @@ export async function listerContenusARelancer(deps: DepsContenusARelancer = deps
   const t = maintenant.getTime();
   if (!Number.isFinite(t)) return [];
   const exemples = await deps.filtreExemples();
-  const depuis = new Date(t - FENETRE_LECTURE_JOURS.valeur * JOUR_MS).toISOString();
   const lues = await deps.publications.lister(
-    (p) => p.statut === "publiee" && p.via !== "simulation" && exemples(p) && mediaDe(p) !== null && p.date >= depuis,
+    (p) => p.statut === "publiee" && p.via !== "simulation" && exemples(p) && mediaDe(p) !== undefined,
     (p) => ({ ...p, retention: undefined }),
   );
   const publications = [...lues].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? -1 : 1)).slice(0, LECTURE_MAX_PUBLICATIONS.valeur);
@@ -108,13 +103,15 @@ export async function listerContenusARelancer(deps: DepsContenusARelancer = deps
     const p = parId.get(r.id);
     if (!p) return false;
     const verdict = evaluerRepublication({ reseau: p.reseau, datePublication: Date.parse(p.date), maintenant: t, identique: false, filigrane: false });
-    return !verdict.motifs.includes("delai-trop-court");
+    // Une date illisible : le délai n'a pas pu être vérifié, on n'écarte pas en silence mais on ne liste pas.
+    return !verdict.motifs.includes("delai-trop-court") && !verdict.motifs.includes("date-invalide");
   });
   const retenues = kept.slice(0, NOMBRE_MAX_AFFICHES.valeur);
   if (retenues.length === 0) return [];
 
-  const creneaux = await deps.creneaux.lister((c) => typeof c.id === "string" && c.id.startsWith(PREFIXE_CRENEAU));
-  const idsCreneaux = creneaux.slice(0, LECTURE_MAX_CRENEAUX.valeur).map((c) => c.id);
+  const prefixes = retenues.map((r) => `${PREFIXE_CRENEAU}${r.id}-`);
+  const creneaux = await deps.creneaux.lister((c) => typeof c.id === "string" && prefixes.some((x) => c.id.startsWith(x)));
+  const idsCreneaux = creneaux.map((c) => c.id);
 
   return retenues.map((r) => {
     const p = parId.get(r.id)!;
@@ -125,7 +122,7 @@ export async function listerContenusARelancer(deps: DepsContenusARelancer = deps
       debutTexte: debut(p.texte),
       raison: `Parmi les mieux classés de vos publications ${obtenirReseau(p.reseau).nom} : ${ordinal(place.get(r.id) ?? 1)} sur ${effectif.get(r.reseau) ?? 1}.`,
       rangDejaAtteint: rangAtteint(p.id, idsCreneaux),
-      media: mediaDe(p) ?? "video",
+      media: mediaDe(p)!,
     };
   });
 }

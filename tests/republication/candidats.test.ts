@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { interditsTousEcrivains } from "@/domaine/qualite-script/regles/interdits";
 import type { Publication } from "@/domaine/types";
-import { NOMBRE_MAX_AFFICHES, listerContenusARelancer, type DepsContenusARelancer } from "@/services/contenus-a-relancer";
+import { LECTURE_MAX_PUBLICATIONS, NOMBRE_MAX_AFFICHES, listerContenusARelancer, type DepsContenusARelancer } from "@/services/contenus-a-relancer";
 
 const MAINTENANT = new Date("2026-12-01T12:00:00Z");
 const ilYa = (jours: number) => new Date(MAINTENANT.getTime() - jours * 86_400_000).toISOString();
@@ -114,6 +114,15 @@ describe("ligne rendue", () => {
     expect(r[0].debutTexte.length).toBeLessThanOrEqual(80);
     expect(r[0].debutTexte.length).toBeGreaterThan(0);
   });
+  it("ne coupe jamais un emoji en deux à la coupure des 80 signes", async () => {
+    const texte = "a".repeat(78) + "😀😀😀";
+    const r = await listerContenusARelancer(deps([pub("a", 900, { texte }), pub("b", 500), pub("c", 100)]).d, MAINTENANT);
+    expect(Array.from(r[0].debutTexte).length).toBeLessThanOrEqual(80);
+    expect(r[0].debutTexte).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+  });
+  it("écarte une publication à date illisible : le délai n'a pas pu être vérifié", async () => {
+    expect(await ids([...trio(), pub("bad", 950, { date: "pas une date" })])).toEqual(["a", "b", "c"]);
+  });
   it("la raison cite le réseau et le rang, sans « score », sans « € », sans interdit", async () => {
     const r = await listerContenusARelancer(deps(trio()).d, MAINTENANT);
     expect(r[0].raison).toBe("Parmi les mieux classés de vos publications Instagram : 1re sur 3.");
@@ -125,6 +134,14 @@ describe("ligne rendue", () => {
       expect(l.raison).not.toMatch(/\b0[.,]\d+/);
       expect(interditsTousEcrivains(l.raison)).toEqual([]);
     }
+  });
+});
+
+describe("lectures bornées", () => {
+  it("lit au plus LECTURE_MAX_PUBLICATIONS publications, les plus récentes", async () => {
+    const beaucoup = Array.from({ length: LECTURE_MAX_PUBLICATIONS.valeur + 5 }, (_, i) => pub(`m${i}`, 100 + (i % 50), { date: ilYa(40 + i / 100) }));
+    const r = await listerContenusARelancer(deps(beaucoup).d, MAINTENANT);
+    expect(r.length).toBeLessThanOrEqual(NOMBRE_MAX_AFFICHES.valeur);
   });
 });
 
@@ -144,6 +161,7 @@ describe("lecture seule", () => {
     await listerContenusARelancer(d, MAINTENANT);
     expect(filtreCreneaux).toBeTypeOf("function");
     expect(filtreCreneaux!({ id: "republication-a-1" })).toBe(true);
+    expect(filtreCreneaux!({ id: "republication-zzz-1" })).toBe(false);
     expect(filtreCreneaux!({ id: "autre" })).toBe(false);
   });
 });
