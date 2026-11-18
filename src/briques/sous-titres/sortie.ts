@@ -1,13 +1,13 @@
 /**
  * C2-U19 (AM-08) : SORTIE ANIMÉE d'un groupe de texte (fondu de 0,2 s et glissement court, sans rebond). PUR : ni React,
  * ni Remotion, aucun alias `@/`, aucune horloge, aucun hasard. Lu par le rendu (`scene.ts`).
- * Éteint : seul `SORTIE_ACTIVE = true` allume, et il faut en plus le champ `sortie` sur `DonneesCalque`. Champ absent
- * ou interrupteur éteint : le groupe disparaît net à sa fin, comme aujourd'hui. Flou à 0 seulement (le flou de 6 px
+ * Allumé côté code : c'est le champ `sortie`, posé seulement quand la capacité `texte.sortie-animee` est permise
+ * (BR-SORTIE-ANIMEE), qui décide. Champ absent : le groupe disparaît net à sa fin, comme aujourd'hui. Flou à 0 seulement (le flou de 6 px
  * attend la mesure AM-05).
  */
 
-/** Interrupteur : seul `true` allumerait. Éteint ici, rien ne l'allume. */
-export const SORTIE_ACTIVE = false;
+/** Allumé côté code (BR-SORTIE-ANIMEE) : le champ `sortie` de `DonneesCalque`, posé seulement quand la capacité est permise, décide. Sans champ, rien ne change. */
+export const SORTIE_ACTIVE = true;
 
 export interface SortieGroupe {
   /** Durée du fondu de sortie, en secondes. */

@@ -57,9 +57,12 @@ describe("a) bande seulement quand un sous-titre est écrit", () => {
     }
   });
   it("le temps de sortie d'un groupe compte comme « pendant le segment » (quand la sortie est active)", () => {
-    // La sortie est éteinte par défaut (SORTIE_ACTIVE = false, C2-U19) : alors le champ ne change rien, comme la scène.
+    // MISE À JOUR DE RÉFÉRENCE 18/11 (BR-SORTIE-ANIMEE, seconde lecture du pilote) : SORTIE_ACTIVE vaut true côté code ; le champ
+    // `sortie` (jamais posé par le tableau : seul `parametres.ts` le pose, derrière la capacité) compte alors le temps de sortie.
+    // Garde conservée : sans le champ, rien ne change (ligne suivante).
     const avec = { ...donnees([seg("a", 0, 1)]), sortie: { dureeSec: 0.2, glissementPx: 16, flouPx: 0 } } as DonneesCalque;
-    expect(opaciteBandeFond(avec, 1.1)).toBe(opaciteBandeFond(donnees([seg("a", 0, 1)]), 1.1));
+    expect(opaciteBandeFond(avec, 1.1)).toBe(1);
+    expect(opaciteBandeFond(donnees([seg("a", 0, 1)]), 1.1)).toBeLessThan(1);
   });
 });
 
