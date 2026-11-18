@@ -1,0 +1,240 @@
+/**
+ * CAL-18 (écrite EN AVANCE, empilée sur CAL-24) · bouton « Proposer la semaine ».
+ * Le Studio appelle l'usine par la porte, AFFICHE la semaine proposée en « Proposée » et ne programme rien : la validation se fait
+ * dans l'écran « À valider » de l'usine. Plafond d'appels par jour compté côté serveur, message sans montant.
+ * AUCUN appel réel : `fetch` est une doublure, dépôts en mémoire, rien n'est allumé.
+ */
+import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { reinitialiserDepots } from "@/donnees/memoire";
+
+vi.mock("server-only", () => ({}));
+const exigerSession = vi.hoisted(() => vi.fn(async () => ({ id: "fondateur-1" })));
+vi.mock("@/services/auth", () => ({ exigerSession }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("./aides/crochets-factices")).crochets }));
+
+const { proposerSemaine, PLAFOND_APPELS_SEMAINE_PAR_JOUR, PHRASE_PLAFOND_SEMAINE } = await import("@/services/proposer-semaine");
+const { proposerSemaineAction } = await import("@/app/(studio)/calendrier/actions");
+const { BoutonProposerSemaine } = await import("@/components/calendrier/BoutonProposerSemaine");
+const { monter, trouver, texteDe, attendre } = await import("./aides/crochets-factices");
+
+const ENV = { USINE_URL: "https://usine.test/", USINE_PORTE_SECRET: "s".repeat(40) };
+const LUNDI = "2026-12-14";
+const JOUR1 = new Date("2026-12-10T10:00:00.000Z");
+const JOUR2 = new Date("2026-12-11T10:00:00.000Z");
+const ligne = (o: Record<string, unknown> = {}) => ({ cle: "u1|linkedin", jour: "2026-12-15", reseau: "linkedin", type: "video", heure: "09:00", titre: "Comment préparer un devis", pourquoi: "Jour sans publication", ressemble_a: "Publication du 4 décembre", ...o });
+const reponse = (corps: unknown, statut = 200) => new Response(JSON.stringify(corps), { status: statut, headers: { "content-type": "application/json" } });
+const doublure = (corps: unknown = { propositions: [ligne()] }) => vi.fn(async () => reponse(corps));
+const F = (f: unknown) => f as unknown as typeof fetch;
+
+beforeEach(() => reinitialiserDepots());
+afterEach(() => vi.unstubAllGlobals());
+
+describe("CAL-18 · appel à l'usine par la porte", () => {
+  it("un POST sur la porte de planification avec la clé, la semaine demandée et AUCUN statut", async () => {
+    const f = doublure();
+    await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    expect(f).toHaveBeenCalledTimes(1);
+    const [url, init] = f.mock.calls[0] as unknown as [string, { method: string; headers: Record<string, string>; body: string }];
+    expect(url).toBe("https://usine.test/api/porte/planification/semaine");
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe(`Bearer ${ENV.USINE_PORTE_SECRET}`);
+    const corps = JSON.parse(init.body) as Record<string, unknown>;
+    expect(corps.debut).toBe(LUNDI);
+    expect(Object.keys(corps)).not.toContain("statut");
+  });
+
+  it("les réponses arrivent en « propose », jamais programmées, même si l'usine envoie un autre statut", async () => {
+    const f = doublure({ propositions: [ligne({ statut: "programme" }), ligne({ cle: "u2|instagram", reseau: "instagram", etat: "programme" })] });
+    const r = await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    expect(r.propositions).toHaveLength(2);
+    for (const p of r.propositions) expect(p.etat).toBe("propose");
+    expect(r.propositions[0]).toMatchObject({ cle: "u1|linkedin", jour: "2026-12-15", reseau: "linkedin", type: "video", heure: "09:00", pourquoi: "Jour sans publication", ressembleA: "Publication du 4 décembre" });
+  });
+
+  it("une ligne illisible ou hors de la semaine demandée est ignorée, pas affichée", async () => {
+    const f = doublure({ propositions: [ligne(), ligne({ cle: "x", reseau: "myspace" }), ligne({ cle: "y", jour: "2026-12-30" }), ligne({ cle: "z", type: "hologramme" }), "n'importe quoi"] });
+    const r = await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    expect(r.propositions.map((p) => p.cle)).toEqual(["u1|linkedin"]);
+  });
+
+  it("une semaine qui ne commence pas un lundi, ou une date illisible, est refusée sans appel", async () => {
+    const f = doublure();
+    await expect(proposerSemaine({ debut: "2026-12-15" }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "SEMAINE_DATE" });
+    await expect(proposerSemaine({ debut: "demain" }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "SEMAINE_DATE" });
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("usine non reliée : message en français, aucun appel, et l'essai n'est pas compté", async () => {
+    const f = doublure();
+    await expect(proposerSemaine({ debut: LUNDI }, { env: {}, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "USINE_ETEINTE" });
+    expect(f).not.toHaveBeenCalled();
+    for (let i = 0; i < PLAFOND_APPELS_SEMAINE_PAR_JOUR; i++) await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(doublure()), maintenant: JOUR1 });
+  });
+
+  it("une panne de l'usine est comptée comme un appel (le plafond protège l'usine) mais ne casse rien", async () => {
+    const f = vi.fn(async () => reponse({ erreur: "x" }, 500));
+    await expect(proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "USINE_ERREUR" });
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CAL-18 · plafond d'appels par jour, compté côté serveur", () => {
+  it("au-delà du plafond : refus avec une phrase sans aucun montant ni chiffre, et plus aucun appel", async () => {
+    const f = doublure();
+    for (let i = 0; i < PLAFOND_APPELS_SEMAINE_PAR_JOUR; i++) await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    expect(f).toHaveBeenCalledTimes(PLAFOND_APPELS_SEMAINE_PAR_JOUR);
+    const refus = proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    await expect(refus).rejects.toMatchObject({ code: "SEMAINE_PLAFOND", message: PHRASE_PLAFOND_SEMAINE });
+    expect(f).toHaveBeenCalledTimes(PLAFOND_APPELS_SEMAINE_PAR_JOUR);
+    expect(PHRASE_PLAFOND_SEMAINE).not.toMatch(/[€$\d]|prix|tarif|coût|euro|dollar/i);
+    expect(PHRASE_PLAFOND_SEMAINE).toMatch(/à la main/);
+  });
+
+  it("le lendemain (jour de Paris), le compteur repart de zéro", async () => {
+    const f = doublure();
+    for (let i = 0; i < PLAFOND_APPELS_SEMAINE_PAR_JOUR; i++) await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 });
+    await expect(proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "SEMAINE_PLAFOND" });
+    await expect(proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR2 })).resolves.toBeDefined();
+  });
+
+  it("appels en rafale : le plafond tient (jamais plus d'appels que permis)", async () => {
+    const f = doublure();
+    const essais = await Promise.allSettled(Array.from({ length: PLAFOND_APPELS_SEMAINE_PAR_JOUR + 4 }, () => proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })));
+    expect(f).toHaveBeenCalledTimes(PLAFOND_APPELS_SEMAINE_PAR_JOUR);
+    expect(essais.filter((e) => e.status === "fulfilled")).toHaveLength(PLAFOND_APPELS_SEMAINE_PAR_JOUR);
+  });
+
+  it("le service indique combien d'appels restent", async () => {
+    const r = await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(doublure()), maintenant: JOUR1 });
+    expect(r.appelsRestants).toBe(PLAFOND_APPELS_SEMAINE_PAR_JOUR - 1);
+  });
+});
+
+describe("CAL-18 · action serveur", () => {
+  it("exige la session : sans session, aucun appel", async () => {
+    exigerSession.mockRejectedValueOnce(new Error("pas de session"));
+    const f = doublure();
+    vi.stubGlobal("fetch", f);
+    await expect(proposerSemaineAction(LUNDI)).rejects.toThrow("pas de session");
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("renvoie un résultat sérialisable ; une usine éteinte donne un message, pas une exception", async () => {
+    const f = doublure();
+    vi.stubGlobal("fetch", f);
+    vi.stubEnv("USINE_URL", "");
+    vi.stubEnv("USINE_PORTE_SECRET", "");
+    const r = await proposerSemaineAction(LUNDI);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/usine/i);
+    expect(f).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
+  it("usine reliée (doublure) : propositions « propose » et un seul appel", async () => {
+    const f = doublure();
+    vi.stubGlobal("fetch", f);
+    vi.stubEnv("USINE_URL", ENV.USINE_URL);
+    vi.stubEnv("USINE_PORTE_SECRET", ENV.USINE_PORTE_SECRET);
+    const r = await proposerSemaineAction(LUNDI);
+    vi.unstubAllEnvs();
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.donnees.propositions.every((p) => p.etat === "propose")).toBe(true);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
+  const sortie = { ok: true as const, donnees: { appelsRestants: 4, propositions: [{ cle: "u1|linkedin", jour: "2026-12-15", reseau: "linkedin" as const, type: "video" as const, etat: "propose" as const, heure: "09:00", titre: "Idée", pourquoi: "Jour sans publication", ressembleA: "Publication du 4 décembre" }] } };
+  const monterBouton = (proposer = vi.fn(async () => sortie)) => {
+    const m = monter(BoutonProposerSemaine, { debutSemaine: LUNDI, proposer, lienAValider: "/usine/a-valider" });
+    return { m, proposer };
+  };
+  const bouton = (arbre: ReturnType<ReturnType<typeof monter>["rendre"]>) => trouver(arbre, (e) => e.type === "button")[0];
+
+  it("le bouton dit « Proposer la semaine », n'est pas orange plein, et fait au moins 44 px", () => {
+    const { m } = monterBouton();
+    const b = bouton(m.rendre());
+    expect(texteDe(b)).toContain("Proposer la semaine");
+    const cls = String(b.props.className);
+    expect(cls).not.toMatch(/orange|bg-accent\b|bg-cta/);
+    expect(cls).toContain("min-h-[44px]");
+  });
+
+  it("un clic appelle l'action UNE fois avec le lundi, puis affiche les cartes « Proposée » et le lien vers « À valider »", async () => {
+    const { m, proposer } = monterBouton();
+    (bouton(m.rendre()).props.onClick as () => void)();
+    await attendre();
+    expect(proposer).toHaveBeenCalledTimes(1);
+    expect(proposer).toHaveBeenCalledWith(LUNDI);
+    const html = renderToStaticMarkup(createElement("div", null, m.rendre() as never));
+    expect(html).toContain("Proposée");
+    expect(html).toContain("border-dashed");
+    expect(html).toContain("Pourquoi ici");
+    expect(html).toContain("Ressemble à");
+    expect(html).toContain('href="/usine/a-valider"');
+    expect(html).not.toMatch(/Programmé/);
+    expect(html).toMatch(/rien n'est programmé|Rien n'est programmé/);
+  });
+
+  it("aucun bouton qui programme ou valide : un seul bouton (Proposer la semaine), le reste est un lien", async () => {
+    const { m } = monterBouton();
+    (bouton(m.rendre()).props.onClick as () => void)();
+    await attendre();
+    const arbre = m.rendre();
+    const boutons = trouver(arbre, (e) => e.type === "button");
+    expect(boutons).toHaveLength(1);
+    expect(texteDe(arbre)).not.toMatch(/Programmer|Tout valider|Valider la s|Publier/);
+  });
+
+  it("une réponse d'erreur (plafond atteint) s'affiche telle quelle, sans montant, et le bouton reste utilisable", async () => {
+    const proposer = vi.fn(async () => ({ ok: false as const, message: PHRASE_PLAFOND_SEMAINE, code: "SEMAINE_PLAFOND" }));
+    const { m } = monterBouton(proposer as never);
+    (bouton(m.rendre()).props.onClick as () => void)();
+    await attendre();
+    const arbre = m.rendre();
+    expect(texteDe(arbre)).toContain(PHRASE_PLAFOND_SEMAINE);
+    expect(texteDe(arbre)).not.toMatch(/[€$]|prix|tarif/i);
+    expect(bouton(arbre).props.disabled).toBeFalsy();
+  });
+
+  it("une action qui plante affiche une phrase simple : l'ajout manuel n'est pas bloqué", async () => {
+    const proposer = vi.fn(async () => {
+      throw new Error("réseau coupé");
+    });
+    const { m } = monterBouton(proposer as never);
+    (bouton(m.rendre()).props.onClick as () => void)();
+    await attendre();
+    expect(texteDe(m.rendre())).toMatch(/à la main/);
+  });
+
+  it("un double clic rapide ne lance qu'un seul appel", async () => {
+    const { m, proposer } = monterBouton();
+    const clic = bouton(m.rendre()).props.onClick as () => void;
+    clic();
+    clic();
+    await attendre();
+    expect(proposer).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("CAL-18 · le Studio n'a aucun stratège", () => {
+  const lire = (c: string) => readFileSync(new URL(`../${c}`, import.meta.url), "utf8");
+  const FICHIERS = ["src/services/proposer-semaine.ts", "src/components/calendrier/BoutonProposerSemaine.tsx"];
+  it.each(FICHIERS)("%s : aucun appel de modèle, aucun Haiku, aucun prix", (c) => {
+    const s = lire(c);
+    expect(s).not.toMatch(/haiku/i);
+    expect(s).not.toMatch(/generation-claude|plafond-claude|@anthropic-ai|api\.anthropic|fournisseur\(\s*["']claude/i);
+    expect(s).not.toMatch(/[€]|\bprix\b|\btarif\b/i);
+  });
+  it("le Studio ne programme rien depuis ces fichiers (ni validation, ni envoi)", () => {
+    for (const c of FICHIERS) expect(lire(c)).not.toMatch(/validerEntree|transitionner|creneauxEditoriaux\.enregistrer|publications\.(creer|modifier)|zernio/i);
+  });
+  it("aucun nom de personne dans le dépôt public", () => {
+    for (const c of [...FICHIERS, "tests/cal-18-proposer-semaine.test.ts"]) expect(lire(c)).not.toMatch(/williams/i);
+  });
+});
