@@ -11,6 +11,7 @@ import type { FournisseurPublication } from "@/fournisseurs/types";
 import { depots, ErreurStudio, fournisseur } from "./_commun";
 import { envoyerVisuel, type ReseauVisuelEnvoi } from "./publications";
 import { publicationEditorialeAutorisee } from "./zernio";
+import { porteCalendrierPour } from "./essai-zernio";
 
 const RESEAUX_VISUELS: readonly ReseauVisuelEnvoi[] = ["linkedin", "instagram", "facebook"];
 const DUREE_LECTURE_SEC = 900;
@@ -78,8 +79,8 @@ async function verifierFichiers(visuelId: string, reseau: ReseauVisuelEnvoi, o: 
 
 /** Envoie, en brouillon, le visuel d'UN créneau validé sur UN réseau, par `envoyerVisuel` et nulle part ailleurs. */
 export async function envoyerVisuelDuCreneau(service: FournisseurPublication, creneauId: string, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelDuCreneau = {}) {
-  // Porte d'abord : fermée, illisible ou absente = rien n'est lu, rien n'est appelé.
-  if (!(await publicationEditorialeAutorisee().catch(() => false))) throw FERME();
+  // Porte d'abord : fermée, illisible ou absente = rien n'est lu, rien n'est appelé. Condition générale OU essai borné couvrant CE créneau.
+  if (!(await porteCalendrierPour(creneauId).catch(() => false))) throw FERME();
   if (!RESEAUX_VISUELS.includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
   if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe || !c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas un créneau validé portant un visuel : rien n'est envoyé.");

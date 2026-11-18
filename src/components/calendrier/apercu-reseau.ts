@@ -35,6 +35,8 @@ export interface EntreeApercu extends EntreeFiche {
   lienSource?: string;
   /** Nom du compte visé (deux LinkedIn, deux Facebook) ; absent : aucune ligne. */
   canalNom?: string;
+  /** Vrai sur la SEULE entrée couverte par l'essai borné d'un brouillon (lecture seule, posée côté serveur). */
+  essaiBrouillon?: boolean;
 }
 
 /** Un essai (rien n'est envoyé) n'est jamais montré comme programmé : il a son propre état et son propre mot. */

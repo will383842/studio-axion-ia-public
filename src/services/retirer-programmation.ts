@@ -29,6 +29,8 @@ export interface EtatsRetrait {
 export interface DepsRetrait {
   client: Pick<ClientZernio, "lirePost" | "listerPosts" | "retirer">;
   reglages: { envoiAutorise(): Promise<boolean>; envoiCalendrierAutorise(): Promise<boolean>; editorialeActive?(): Promise<boolean> };
+  /** Essai borné : le retrait de CE créneau est-il couvert ? (seconde condition de la porte ; absent = fermé). */
+  essai?(creneauId: string, geste: "retrait"): Promise<boolean>;
   creneau(id: string): Promise<CreneauPlan | null>;
   envois(creneauId: string): Promise<EnvoiPlanifie[]>;
   visuel(id: string): Promise<Visuel | null>;
@@ -94,6 +96,15 @@ async function ouverts(r: DepsRetrait["reglages"]): Promise<boolean> {
   }
 }
 
+/** Essai borné : le retrait de CE créneau est couvert par l'essai ; erreur ou absence = fermé. */
+async function essaiCouvert(d: DepsRetrait, creneauId: string): Promise<boolean> {
+  try {
+    return typeof d.essai === "function" && (await d.essai(creneauId, "retrait")) === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Tous les posts d'un statut chez le diffuseur (pages de 100, 50 pages au plus). Lève si le diffuseur ne répond pas. */
 async function listerPosts(client: DepsRetrait["client"], status: string): Promise<PostZernio[]> {
   const tous: PostZernio[] = [];
@@ -148,7 +159,7 @@ export async function retirerProgrammation(d: DepsRetrait, creneauId: string): P
   };
 
   if (avecPost.length > 0) {
-    if (!(await ouverts(d.reglages))) return sansEcriture("reste-programme", PHRASES_RETRAIT_PROGRAMMATION.eteint);
+    if (!(await ouverts(d.reglages)) && !(await essaiCouvert(d, c.id))) return sansEcriture("reste-programme", PHRASES_RETRAIT_PROGRAMMATION.eteint);
     let posts: PostZernio[];
     try {
       posts = [...(await listerPosts(d.client, "draft")), ...(await listerPosts(d.client, "scheduled"))];
@@ -288,6 +299,7 @@ async function depsServeur(): Promise<DepsRetrait> {
   return {
     client: { lirePost: (id) => client().lirePost(id), listerPosts: (q) => client().listerPosts(q), retirer: (x) => client().retirer(x) },
     reglages: { envoiAutorise: z.envoiZernioAutorise, envoiCalendrierAutorise: z.envoiCalendrierAutorise, editorialeActive: z.editorialeActive },
+    essai: async (id, geste) => (await import("@/services/essai-zernio")).essaiCouvre(id, geste),
     creneau: async (id) => ((await d.creneauxEditoriaux.obtenir(id)) as CreneauPlan | null) ?? null,
     envois: (creneauId) => d.envoisPlanifies.lister((e) => e.creneauId === creneauId),
     visuel: async (id) => (await d.visuels.obtenir(id)) ?? null,

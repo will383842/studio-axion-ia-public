@@ -33,6 +33,8 @@ export interface OptionsPublicationZernio {
   lirePremierCommentaireCoupe?: () => Promise<unknown>;
   /** Lecture de l'interrupteur et des réglages YouTube (tests) ; sinon la lecture en base. */
   lireYoutube?: () => Promise<{ actif: unknown; reglages: unknown }>;
+  /** Essai borné : contrôle de la forme de la requête de création (brouillon seulement, compte de l'essai). Défaut : celui du Studio. */
+  gardeEssai?: (corps: { isDraft?: boolean; platforms: { accountId?: unknown }[] }) => Promise<void>;
 }
 
 const DELAI_LECTURE_COUPE_MS = 500;
@@ -48,6 +50,27 @@ async function premierCommentaireCoupe(lecture: () => Promise<unknown>): Promise
   } finally {
     clearTimeout(minuteur);
   }
+}
+
+/**
+ * Essai borné : si une création se fait dans le contexte d'un essai, la requête DOIT être un brouillon (`isDraft: true`) pour le compte de
+ * l'essai, relu à l'instant. Sinon : refus avant tout appel de création. Hors essai : rien n'est contrôlé (comportement inchangé).
+ */
+async function gardeEssaiParDefaut(corps: { isDraft?: boolean; platforms: { accountId?: unknown }[] }): Promise<void> {
+  // Module d'essai illisible : aucune porte d'essai ne peut être ouverte non plus (même import dans `inscription.ts`), rien à contrôler.
+  const m = await import("@/services/essai-zernio").catch(() => null);
+  if (!m) return;
+  const { essaiEnCours, lireEssai } = m;
+  const id = essaiEnCours();
+  if (id === undefined) return;
+  const refus = (m: string) => new ErreurZernio("refuse", `Essai borné : ${m} Rien n'a été envoyé.`);
+  if (corps.isDraft !== true) throw refus("seul un brouillon est permis.");
+  const lu = await lireEssai();
+  if (!lu || lu.creneauId !== id) throw refus("l'essai ne couvre plus ce créneau.");
+  const compte = analyserCible(lu.compte).accountId;
+  const a = corps.platforms[0]?.accountId;
+  const accountId = typeof a === "string" ? a : a && typeof a === "object" ? (a as { _id?: string })._id : undefined;
+  if (corps.platforms.length !== 1 || accountId !== compte) throw refus("ce n'est pas le compte de l'essai.");
 }
 
 const lireReglagePremierCommentaireCoupe = async (): Promise<unknown> => (await import("@/services/_commun")).lireParametre<unknown>(CLE_PREMIER_COMMENTAIRE_COUPE, false);
@@ -153,7 +176,9 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       // 1. Tout refus pur, avant le réseau (TikTok : réglages fictifs prudents, remplacés par les vrais ensuite).
       const niveau = d.niveauConfidentialiteTiktok ?? "";
       const prudent: CreateurTiktok = { privacyLevels: [niveau], allowComment: false, allowDuet: false, allowStitch: false };
-      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, youtube });
+      const corpsPrudent = corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, youtube });
+      // Essai borné : brouillon et compte de l'essai, contrôlés AVANT les médias et la création (aucune écriture chez le diffuseur sinon).
+      await (options.gardeEssai ?? gardeEssaiParDefaut)(corpsPrudent as never);
       // LinkedIn profil : prouvé par la lecture du compte (jamais présumé).
       const profilLinkedinProuve = cible.profilLinkedin ? compteLinkedinEstProfil((await client.listerComptes()).find((c) => c._id === cible.accountId)) : false;
       const demandes = mediasDemandes(d);
@@ -164,7 +189,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       // Seule attente de la lecture : juste avant la création (au plus 500 ms, en pratique déjà terminée).
       const coupe = await coupeP;
       const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe, youtube });
-      // 3. Création, clé d'idempotence neutre.
+      // 3. Création, clé d'idempotence neutre. Essai borné : le corps final est contrôlé une seconde fois (essai relu), avant tout appel.
+      await (options.gardeEssai ?? gardeEssaiParDefaut)(corps as never);
       let resultat;
       try {
         resultat = await client.creerPost(corps, enteteIdempotenceStudio(hex));

@@ -28,7 +28,8 @@ import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import type { FournisseurPublication } from "@/fournisseurs/types";
 import { cleJour } from "@/lib/dates";
 import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant as maintenantIso, sousVerrou } from "./_commun";
-import { tourEnvoisCalendrier, type CreneauCalendrier, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
+import { dansEssai, essaiCouvre, essaiEnCours, essaiOuvertPour, lireEssai } from "./essai-zernio";
+import { envoyerDepuisCreneau, tourEnvoisCalendrier, type CreneauCalendrier, type LigneCreneau, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
 import { envoyerVisuelDuCreneau } from "./envoi-visuel-creneau";
 import { annulerEnvoi } from "./envois-planifies";
 import { creerNotification } from "./notifications";
@@ -58,11 +59,15 @@ export interface InjectionsEnvoiCalendrier {
   attendre?: (ms: number) => Promise<void>;
   /** Délai maximal d'un envoi (défaut 90 s) : au-delà, le tour continue et la ligne passe « à vérifier » (aucun nouvel essai). */
   delaiEnvoiMs?: number;
+  /** Essai borné : un seul créneau est lu (les autres ne sont ni listés, ni notifiés). */
+  seulCreneau?: string;
 }
 
 export type TourEnvoisCalendrierServeur =
   | { saute: "porte-fermee" | "debit" | "tour-en-cours" | "non-relie" }
-  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux };
+  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux }
+  /** Tour d'essai borné : UN créneau, brouillon seulement, jamais de promotion. `null` = rien à créer pour ce créneau. */
+  | { saute?: undefined; annules: number; essai: LigneCreneau | null };
 
 /* ------------------------------------------------------------------ */
 /* Débit et tour unique                                                */
@@ -171,6 +176,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     const lignes: CreneauCalendrier[] = [];
     const plan = (await depots().creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[];
     for (const c of plan) {
+      if (inj.seulCreneau !== undefined && c.id !== inj.seulCreneau) continue;
       if (!valideEnvoyable(c)) continue;
       // V1 : une validation relayée par l'usine n'est pas envoyée seule (point rouvert quand le fondateur allumera l'autonomie).
       if (typeof c.valideePar === "string" && c.valideePar.startsWith("usine:")) continue;
@@ -269,6 +275,8 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       if (typeof v !== "function") return v;
       if (nom !== "promouvoir") return (v as (...a: unknown[]) => unknown).bind(cible);
       return async (d: Parameters<ClientZernio["promouvoir"]>[0]) => {
+        // Essai borné : jamais de promotion dans le contexte d'un essai (défense en profondeur ; le tour d'essai n'en lance aucune).
+        if (essaiEnCours() !== undefined) return { etat: "refuse" as const, raison: "essai borné : aucune promotion, brouillon seulement" };
         const pre = await envoiPerimeAvantPromotion(d.cleJournal, maintenant(), etats);
         if (pre.perime) {
           await notifierUneFois(etats, notifier, `perime:${d.cleJournal}`, { cle: d.cleJournal, videoId: pre.perime, motif: "a-reprogrammer", raison: "Ce créneau a changé (décalé, retiré ou plus validé) pendant l'envoi : il n'a pas été programmé. Vérifiez-le dans le calendrier." });
@@ -301,6 +309,8 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     etats,
     notifier,
     envoyerReel,
+    // Essai borné : seconde condition de la porte, vraie seulement pour le créneau d'essai en contexte (jamais un réglage simulé).
+    porteEssai: (id) => essaiOuvertPour(id),
     ...(inj.attendre ? { attendre: inj.attendre } : {}),
   };
 }
@@ -407,7 +417,17 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
   } catch {
     ouverte = false;
   }
-  if (!ouverte) return { saute: "porte-fermee" };
+  // Porte générale fermée : un essai borné couvrant la création d'un brouillon ouvre un tour d'essai (UN créneau, jamais de promotion).
+  let essai: Awaited<ReturnType<typeof lireEssai>> = null;
+  if (!ouverte) {
+    try {
+      essai = await lireEssai();
+      if (essai && !(await essaiCouvre(essai.creneauId, "brouillon"))) essai = null;
+    } catch {
+      essai = null;
+    }
+    if (!essai) return { saute: "porte-fermee" };
+  }
 
   // 2 et 3. Un tour à la fois, au plus toutes les 5 minutes : le drapeau est posé avant toute lecture (aucune attente entre le test et la pose).
   const maintenant = (options.maintenant ?? (() => Date.parse(maintenantIso())))();
@@ -418,13 +438,19 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
   try {
     let deps: DepsEnvoiCreneau;
     try {
-      deps = construireDepsEnvoiCalendrier(options);
+      deps = construireDepsEnvoiCalendrier(essai ? { ...options, seulCreneau: essai.creneauId } : options);
     } catch {
       // Client du diffuseur absent (clé non posée) : rien n'est lu, rien n'est appelé.
       return { saute: "non-relie" };
     }
     await marquerPromotionsOrphelines(deps.etats);
     const annules = await annulerVersionsPerimees(maintenant, deps.etats);
+    if (essai) {
+      // Tour d'essai : le créneau d'essai seul, créé en brouillon dans le contexte d'essai ; `tourEnvoisCalendrier` (qui promeut) n'est jamais appelé.
+      const id = essai.creneauId;
+      const ligne = await dansEssai(id, () => envoyerDepuisCreneau(deps, id));
+      return { annules, essai: ligne ?? null };
+    }
     const resultat = await tourEnvoisCalendrier(deps);
     return { annules, resultat };
   } finally {

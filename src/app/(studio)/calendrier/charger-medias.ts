@@ -1,4 +1,5 @@
 import "server-only";
+import { lireCleFiche } from "@/components/calendrier/FicheEntree";
 import { entreeDepuisPublication, type EntreeApercu, type PublicationApercu } from "@/components/calendrier/apercu-reseau";
 import { LIMITE_PAGES } from "@/services/pdf-pages";
 import { DUREE_LECTURE_SEC } from "@/services/medias-deposes";
@@ -45,6 +46,24 @@ async function avecDuree(base: EntreeApercu, videoId: string): Promise<EntreeApe
  * calculée seule, et les autres gardent le leur. Aucun lien signé n'est journalisé.
  */
 export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<EntreeApercu[]> {
+  const sortie = await entreesAvecMediasBrut(semaine);
+  // Pastille de l'essai borné : lecture seule, sur la seule entrée du créneau d'essai ; jamais bloquante.
+  try {
+    const { lireEssai } = await import("@/services/essai-zernio");
+    const essai = await lireEssai();
+    if (essai) {
+      return sortie.map((e) => {
+        const f = lireCleFiche(e.cle);
+        return f?.origine === "creneau" && f.id === essai.creneauId ? { ...e, essaiBrouillon: true } : e;
+      });
+    }
+  } catch {
+    // Lecture impossible : aucune pastille.
+  }
+  return sortie;
+}
+
+async function entreesAvecMediasBrut(semaine: PublicationApercu[]): Promise<EntreeApercu[]> {
   const memo = new Map<string, Promise<MediaVisuel>>();
   const entree = async (p: PublicationApercu): Promise<EntreeApercu> => {
     const base = entreeDepuisPublication(p);

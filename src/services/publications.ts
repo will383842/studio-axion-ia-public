@@ -46,7 +46,7 @@ import { exigerSession } from "./auth";
 import { exigerYoutubeZernioPret } from "./youtube-zernio";
 import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
 import { construireDemandeVisuel, type FichierVisuel } from "./demande-publication-visuel";
-import { publicationEditorialeAutorisee } from "./zernio";
+import { porteCalendrierPour } from "./essai-zernio";
 import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
 import { adresseRelaisBuffer } from "./relais-buffer";
@@ -1257,6 +1257,8 @@ export interface OptionsEnvoiVisuel {
   premierCommentaire?: string;
   /** Adresse lisible d'un fichier du stockage ; par défaut, l'adresse signée du stockage (tests : doublure). */
   lireUrl?: (cle: string) => Promise<string>;
+  /** Créneau d'origine (essai borné : la porte d'essai ne vaut que pour lui) ; absent = condition générale seule. */
+  creneauId?: string;
 }
 
 /** Ce que l'appelant peut fournir : jamais la date, le compte, le texte ni la validation, qui viennent tous du créneau stocké. */
@@ -1271,8 +1273,8 @@ export interface OptionsEnvoiVisuelCreneau {
  * viennent du créneau. Le reste (porte, anti-double envoi, contenu) est dans `envoyerVisuelValide`.
  */
 export async function envoyerVisuel(service: FournisseurPublication, creneauId: Id, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelCreneau = {}): Promise<{ publication: Publication; deja: boolean }> {
-  // La porte passe AVANT toute lecture : éteint = rien n'est lu, rien n'est écrit.
-  if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
+  // La porte passe AVANT toute lecture : éteint = rien n'est lu, rien n'est écrit. Condition générale OU essai borné couvrant CE créneau.
+  if (!(await porteCalendrierPour(creneauId))) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
   if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
   const validee = typeof c.valideeLe === "string" && c.valideeLe ? Date.parse(c.valideeLe) : NaN;
@@ -1288,6 +1290,7 @@ export async function envoyerVisuel(service: FournisseurPublication, creneauId: 
     ...(texte.premierCommentaire?.trim() ? { premierCommentaire: texte.premierCommentaire } : {}),
     textesAlternatifs: options.textesAlternatifs,
     lireUrl: options.lireUrl,
+    creneauId,
   });
 }
 
@@ -1309,7 +1312,7 @@ async function urlVisuelParDefaut(cle: string): Promise<string> {
  *  4. Aucune réponse automatique, nulle part. Rien n'est supprimé.
  */
 async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuel): Promise<{ publication: Publication; deja: boolean }> {
-  if (!(await publicationEditorialeAutorisee())) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
+  if (!(await porteCalendrierPour(options.creneauId))) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
   if (!(reseau in PROFILS_RESEAUX) || !["linkedin", "instagram", "facebook"].includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   if (!options.cible?.trim()) throw new ErreurStudio("CIBLE_ZERNIO", "Choisissez le compte de destination : rien n'est parti.");
   // Aucun appel au diffuseur, même en brouillon, sans validation datée du créneau (lisible et passée).

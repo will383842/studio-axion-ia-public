@@ -88,10 +88,10 @@ function monterClient(): void {
 const client = () =>
   new Proxy(clientBrut, { get: (cible, nom: string) => (typeof (cible as never)[nom] === "function" ? (...a: unknown[]) => { methodesClient.push(nom); return ((cible as never)[nom] as (...x: unknown[]) => unknown)(...a); } : (cible as never)[nom]) });
 
-async function creerVisuel(): Promise<void> {
+async function creerVisuel(id = "vis_1"): Promise<void> {
   const le = "2026-11-10T08:00:00Z";
   await depots().visuels.enregistrer({
-    id: "vis_1", famille: "carrousel", titre: "Cinq erreurs", entree: { type: "sujet", sujet: "exemple" }, statut: "valide",
+    id, famille: "carrousel", titre: "Cinq erreurs", entree: { type: "sujet", sujet: "exemple" }, statut: "valide",
     modeTexte: "api", versionSpec: 1, coutCentimes: 0, creeLe: le, modifieLe: le, spec: { alt: "Alt" },
     rendu: { empreinte: "e1", pdfCle: "visuels/vis_1/c.pdf", vignetteCle: "visuels/vis_1/v.png", pages: [1, 2].map((i) => ({ index: i, x1Cle: `v/p${i}.png`, x2Cle: `v/p${i}2.png` })), renduLe: le },
   } as never);
@@ -123,6 +123,7 @@ beforeEach(async () => {
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   await creerVisuel();
+  await creerVisuel("vis_2");
 });
 afterEach(() => {
   injecterClientZernio(null);
@@ -139,7 +140,6 @@ describe("essai · lecture du réglage : toute anomalie = fermé, zéro requête
     ["chaîne", async () => ecrireParametre(essai.PARAM_ESSAI_BROUILLON, "A")],
     ["version 2", async () => poserEssai("A", 4 * H, 10 * MIN, { version: 2 })],
     ["expireLe illisible", async () => poserEssai("A", 4 * H, 10 * MIN, { expireLe: "demain" })],
-    ["expiré d'une seconde", async () => poserEssai("A", 4 * H, 4 * H + 1000)],
     ["durée de 24 h + 1 s", async () => poserEssai("A", 24 * H + 1000, 30 * MIN)],
     ["poseLe dans le futur", async () => poserEssai("A", 4 * H, -10 * MIN)],
     ["créneau inexistant", async () => poserEssai("fantome")],
@@ -157,6 +157,15 @@ describe("essai · lecture du réglage : toute anomalie = fermé, zéro requête
     expect(faux.appels).toHaveLength(0);
   });
 
+  it("expiré d'une seconde : ne couvre plus ni brouillon ni déplacement (le retrait reste permis, voir la fenêtre)", async () => {
+    await creerCreneau("A");
+    await poserEssai("A", 4 * H, 4 * H + 1000);
+    expect(await essai.essaiCouvre("A", "brouillon")).toBe(false);
+    expect(await essai.essaiCouvre("A", "deplacement")).toBe(false);
+    expect(await tour()).toEqual({ saute: "porte-fermee" });
+    expect(appelsFournisseur).toHaveLength(0);
+  });
+
   it("créneau vidéo : illisible, donc fermé (v1 : visuels seulement)", async () => {
     await creerCreneau("A", { visuelId: undefined, videoId: "v1" });
     await poserEssai();
@@ -171,7 +180,7 @@ describe("essai · lecture du réglage : toute anomalie = fermé, zéro requête
 
   it("essai valide : couvre A (brouillon, déplacement, retrait), jamais un autre identifiant", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await poserEssai();
     expect(await essai.lireEssai()).toMatchObject({ creneauId: "A", compte: COMPTE_A });
     for (const g of ["brouillon", "deplacement", "retrait"] as const) {
@@ -196,19 +205,19 @@ describe("essai · lecture du réglage : toute anomalie = fermé, zéro requête
 describe("essai · portée : UN créneau, brouillon seulement", () => {
   it("1. portes générales fermées, A et B validés : un seul brouillon, pour A ; B : rien", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await poserEssai("A");
     const r = await tour();
     expect(r).toMatchObject({ essai: { creneauId: "A", etat: "brouillon-cree" } });
     expect(appelsFournisseur).toHaveLength(1);
-    expect(appelsFournisseur[0].cleEnvoi).toContain("vis_1");
+    expect(appelsFournisseur[0].cible ?? appelsFournisseur[0].canalId).toBe(COMPTE_A);
     const envois = await depots().envoisPlanifies.lister();
     expect(envois.every((e) => e.creneauId === "A")).toBe(true);
   });
 
   it("2. aucune promotion, aucun PUT, même si le brouillon de A existe déjà", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await poserEssai("A");
     await tour();
     reinitialiserTourEnvoisCalendrier();
@@ -239,7 +248,7 @@ describe("essai · portée : UN créneau, brouillon seulement", () => {
 
   it("5. un autre créneau pendant le contexte d'essai de A : ENVOI_CALENDRIER_FERME ; et sans contexte, même A est fermé", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await poserEssai("A");
     await expect(essai.dansEssai("A", () => envoyerVisuelDuCreneau(fauxFournisseur(), "B", "linkedin", { lireUrl, fichierExiste: async () => true }))).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
     await expect(envoyerVisuelDuCreneau(fauxFournisseur(), "A", "linkedin", { lireUrl, fichierExiste: async () => true })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
@@ -277,7 +286,7 @@ describe("essai · portée : UN créneau, brouillon seulement", () => {
     await ecrireParametre(PARAM_ENVOI_CALENDRIER, true);
     await ecrireParametre(PARAM_ARRET_ZERNIO, true);
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await poserEssai("A");
     const r = await tour();
     expect(r.saute).toBeUndefined();
@@ -321,13 +330,13 @@ describe("essai · la requête de création : isDraft vrai seulement, compte de 
     await creerCreneau("A");
     await poserEssai("A");
     const { f, faux: fx } = fournisseurReel();
-    await expect(essai.dansEssai("A", () => f.envoyer(demande({ cible: "autre-compte" })))).rejects.toThrow();
+    await expect(essai.dansEssai("A", () => f.envoyer(demande({ cible: "autre-compte:li:42" })))).rejects.toThrow();
     expect(creations(fx)).toHaveLength(0);
   });
 
   it("hors essai, le fournisseur garde son comportement (programmé possible, autre compte possible)", async () => {
     const { f, faux: fx } = fournisseurReel();
-    await f.envoyer(demande({ mode: "programme", cible: "autre-compte" }));
+    await f.envoyer(demande({ mode: "programme", cible: "autre-compte:li:42" }));
     expect(creations(fx)).toHaveLength(1);
   });
 });
@@ -340,16 +349,13 @@ describe("essai · retrait et déplacement de A seulement", () => {
       reseau: "linkedin", versionCreneau: 0, jour: heureDans(2).slice(0, 10), heure: "10:00", statut: "brouillon", valideeLe: "2026-11-12T10:00:00Z", valideePar: "le fondateur",
       creeLe: "2026-11-12T10:00:00Z", modifieLe: "2026-11-12T10:00:00Z",
     } as never);
-    posts.set("post-x", postExemple({ _id: "post-x", status: "draft", metadata: { studioCle: CLE_DIFF }, platforms: [{ platform: "linkedin", accountId: "compte-1", status: "draft" }] as never }));
+    posts.set("post-x", postExemple({ _id: "post-x", status: "draft", metadata: { origine: "studio", studioCle: CLE_DIFF }, platforms: [{ platform: "linkedin", accountId: "compte-1", status: "draft" }] as never }));
   }
 
-  it("6a. retrait de A sous essai : la porte s'ouvre (le diffuseur est lu) ; B : éteint", async () => {
+  it("6a. retrait de A sous essai : la porte s'ouvre (le diffuseur est lu)", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
     await creerEnvoi("A");
     await poserEssai("A");
-    const rB = await retirerProgrammationServeur("B");
-    expect(rB).toMatchObject({ ok: false });
     const rA = await retirerProgrammationServeur("A");
     expect(rA.ok === false && rA.message === PHRASES_RETRAIT_PROGRAMMATION.eteint).toBe(false);
     expect(faux.appels.length).toBeGreaterThan(0);
@@ -357,7 +363,7 @@ describe("essai · retrait et déplacement de A seulement", () => {
 
   it("6b. retrait : fermé sur B même pendant l'essai de A, rien n'est lu chez le diffuseur", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await creerEnvoi("B");
     await poserEssai("A");
     const r = await retirerProgrammationServeur("B");
@@ -386,7 +392,7 @@ describe("essai · retrait et déplacement de A seulement", () => {
   it("6d. déplacement de A sous essai : permis jusqu'à l'expiration ; B : éteint, aucune écriture", async () => {
     portFaux.derniers = [];
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     await creerEnvoi("A");
     await creerEnvoi("B");
     await poserEssai("A");
@@ -436,7 +442,7 @@ describe("essai · actions d'écran", () => {
     vi.mocked(exigerSession).mockRejectedValueOnce(new Error("non connecté"));
     await creerCreneau("A");
     await expect(poserEssaiZernioAction({ creneauId: "A", dureeHeures: 4 })).rejects.toThrow();
-    expect(await depots().parametres.obtenir(essai.PARAM_ESSAI_BROUILLON)).toBeUndefined();
+    expect((await depots().parametres.obtenir(essai.PARAM_ESSAI_BROUILLON))?.valeur ?? null).toBeNull();
   });
 
   it("10b. pose : compte et réseau LUS du créneau, durée bornée, journal ; essai actif ensuite", async () => {
@@ -452,12 +458,12 @@ describe("essai · actions d'écran", () => {
     await creerCreneau("A");
     const r = await poserEssaiZernioAction({ creneauId: "A", dureeHeures: h });
     expect(r.ok).toBe(false);
-    expect(await depots().parametres.obtenir(essai.PARAM_ESSAI_BROUILLON)).toBeUndefined();
+    expect((await depots().parametres.obtenir(essai.PARAM_ESSAI_BROUILLON))?.valeur ?? null).toBeNull();
   });
 
   it("10d. second essai pendant un essai actif : refus", async () => {
     await creerCreneau("A");
-    await creerCreneau("B");
+    await creerCreneau("B", { visuelId: "vis_2" });
     expect((await poserEssaiZernioAction({ creneauId: "A", dureeHeures: 4 })).ok).toBe(true);
     const r = await poserEssaiZernioAction({ creneauId: "B", dureeHeures: 4 });
     expect(r.ok).toBe(false);
@@ -476,7 +482,7 @@ describe("essai · actions d'écran", () => {
     const r = await poserEssaiZernioAction({ creneauId: "A", dureeHeures: 4 });
     expect(r.ok).toBe(false);
     expect(r.ok === false && r.message.length).toBeGreaterThan(10);
-    expect(await depots().parametres.obtenir(essai.PARAM_ESSAI_BROUILLON)).toBeUndefined();
+    expect((await depots().parametres.obtenir(essai.PARAM_ESSAI_BROUILLON))?.valeur ?? null).toBeNull();
   });
 
   it("10f. retirer l'essai écrit null ; le tour suivant rend « porte fermée »", async () => {

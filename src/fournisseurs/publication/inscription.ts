@@ -12,10 +12,10 @@ import { creerPublicationZernio } from "./zernio";
 export const VARIABLE_CLE_ZERNIO = "ZERNIO_API_KEY";
 
 /**
- * L7-08 : le fournisseur de publication (posts du calendrier) exige l'ancien (« Tout arrêter », relu à chaque requête), le réglage du calendrier ET la publication éditoriale (éteinte par défaut).
+ * L7-08 : le fournisseur de publication (posts du calendrier) exige l'ancien (« Tout arrêter », relu à chaque requête), le réglage du calendrier ET la publication éditoriale (éteinte par défaut) ; OU, pour UN créneau, l'essai borné (`essai-zernio.ts`).
  * Import différé : les services importent déjà les fournisseurs, un import direct ferait une boucle.
  */
-export const envoiAutoriseCalendrierClient = async (): Promise<boolean> => (await import("@/services/zernio")).publicationEditorialeAutorisee();
+export const envoiAutoriseCalendrierClient = async (): Promise<boolean> => (await import("@/services/essai-zernio")).porteClientEssai();
 
 export function publicationZernio(env: Env = process.env): Record<string, FournisseurPublication> {
   const cle = cleDans(env, VARIABLE_CLE_ZERNIO);

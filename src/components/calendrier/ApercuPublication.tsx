@@ -151,6 +151,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">
         <PastilleStatutPlan etat={entree.etat} libelles={LIBELLES_ENVOI} />
+        {entree.essaiBrouillon && <span data-essai-brouillon className="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-bold text-texte-doux">Essai d&apos;un brouillon</span>}
         <span>{a.phraseEtat}</span>
       </div>
       {entree.message && <p className="mt-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{entree.message}</p>}

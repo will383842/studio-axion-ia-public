@@ -16,7 +16,8 @@ import { canauxEnregistres } from "@/services/buffer";
 import { fournisseurParId } from "@/fournisseurs";
 import { enregistrerCanauxZernio } from "@/services/comptes-envoi-zernio";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
-import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
+import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, sousVerrou, type Resultat } from "@/services/_commun";
+import { lireEtatEssai, poserEssai, retirerEssai, type EtatEssaiVu } from "@/services/essai-zernio";
 import { exigerSession } from "@/services/auth";
 import { outilPour } from "@/domaine/outil-publication";
 
@@ -225,6 +226,39 @@ export async function eteindreEditorialeAction(): Promise<Resultat> {
     await ecrireParametre(PARAM_EDITORIALE_ACTIVE, false);
     await journaliser("reglages", PHRASE_EDITORIALE.eteinte);
     rafraichir();
+    return undefined;
+  });
+}
+
+/* --- Essai borné d'UN brouillon (jamais de promotion, jamais un autre créneau) ----------------------------------------------- */
+
+/** Lecture seule : l'essai posé et les créneaux éligibles. */
+export async function lireEssaiZernioAction(): Promise<Resultat<EtatEssaiVu>> {
+  await exigerSession();
+  return essayer(async () => lireEtatEssai());
+}
+
+/** Pose l'essai sur UN créneau (compte et réseau lus du créneau), 1 à 24 h. Refus avec une phrase claire sinon. */
+export async function poserEssaiZernioAction(demande: { creneauId: string; dureeHeures: number }): Promise<Resultat<{ creneauId: string; expireLe: string }>> {
+  await exigerSession();
+  return essayer(async () => {
+    const r = await sousVerrou(() => poserEssai(demande));
+    if (!r.ok) throw new ErreurStudio("ESSAI_REFUSE", r.message);
+    await journaliser("reglages", `Essai d'un brouillon posé jusqu'au ${r.essai.expireLe}`);
+    rafraichir();
+    revalidatePath("/calendrier");
+    return { creneauId: r.essai.creneauId, expireLe: r.essai.expireLe };
+  });
+}
+
+/** Retire l'essai : le réglage est écrit à `null`, l'essai devient fermé au tour suivant. */
+export async function retirerEssaiZernioAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await sousVerrou(() => retirerEssai());
+    await journaliser("reglages", "Essai d'un brouillon retiré");
+    rafraichir();
+    revalidatePath("/calendrier");
     return undefined;
   });
 }

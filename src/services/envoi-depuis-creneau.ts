@@ -118,6 +118,8 @@ export interface DepsEnvoiCreneau {
    */
   envoyerReel: (outil: "zernio", demande: DemandeBrouillonCreneau) => Promise<{ cleDiffuseur: string } | void>;
   attendre?: (ms: number) => Promise<void>;
+  /** Essai borné : seconde condition de la porte, vraie seulement pour CE créneau (jamais un réglage simulé ouvert). */
+  porteEssai?: (creneauId: string) => Promise<boolean>;
   suivi?: OptionsPromotionEnvois["suivi"];
   /** Facultatif : trace des outils appelés (tests). */
   outilsAppeles?: string[];
@@ -156,6 +158,15 @@ async function ouverts(r: DepsEnvoiCreneau["reglages"]): Promise<boolean> {
   }
 }
 
+/** Essai borné : vrai seulement si la porte d'essai injectée le dit pour CE créneau ; erreur = fermé. */
+async function porteEssaiOuverte(deps: DepsEnvoiCreneau, creneauId: string): Promise<boolean> {
+  try {
+    return typeof deps.porteEssai === "function" && (await deps.porteEssai(creneauId)) === true;
+  } catch {
+    return false;
+  }
+}
+
 const valideeLisible = (c: CreneauCalendrier, maintenant: number): boolean => {
   const t = typeof c.valideeLe === "string" && c.valideeLe ? Date.parse(c.valideeLe) : NaN;
   return Number.isFinite(t) && t <= maintenant;
@@ -173,7 +184,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
     ligne.raison = "pas de validation datée : rien n'est envoyé";
     return ligne;
   }
-  if (!(await ouverts(deps.reglages))) {
+  if (!(await ouverts(deps.reglages)) && !(await porteEssaiOuverte(deps, c.id))) {
     ligne.etat = "envoi-eteint";
     ligne.raison = "envoi éteint (réglages zernio.envoi_autorise, zernio.envoi_calendrier_autorise, publication.editoriale_active)";
     return ligne;

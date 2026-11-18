@@ -41,7 +41,7 @@ export interface DepsDeplacement {
   /** `null` = fonction du client manquante sur master : rien ne change si un post existe chez le diffuseur. */
   diffuseur: PortRetraitDiffuseur | null;
   /** Les trois réglages d'envoi sont-ils ouverts ? Erreur ou valeur autre que `true` = fermé. */
-  reglagesOuverts(): Promise<boolean>;
+  reglagesOuverts(creneauId?: string): Promise<boolean>;
   creneau(id: string): Promise<CreneauPlan | null>;
   envois(creneauId: string): Promise<EnvoiPlanifie[]>;
   visuel(id: string): Promise<{ id: string; statut: string } | null>;
@@ -128,9 +128,9 @@ const jourExiste = (j: string): boolean => {
 const jourLisible = (j: string): string => `${j.slice(8, 10)}/${j.slice(5, 7)}`;
 const refus = (message: string): ResultatDeplacement => ({ ok: false, etat: "refuse", message });
 
-async function ouverts(d: DepsDeplacement): Promise<boolean> {
+async function ouverts(d: DepsDeplacement, creneauId?: string): Promise<boolean> {
   try {
-    return (await d.reglagesOuverts()) === true;
+    return (await d.reglagesOuverts(creneauId)) === true;
   } catch {
     return false;
   }
@@ -223,7 +223,7 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
     return { ...r, message: `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${r.message}`, ecritures: true };
   };
   for (const e of p.avecPost) {
-    if (!(await ouverts(d))) return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.eteint });
+    if (!(await ouverts(d, p.c.id))) return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.eteint });
     let issue: IssueRetraitDiffuseur;
     try {
       issue = await port.retirer(e);
@@ -480,7 +480,10 @@ export async function depsDeplacementServeur(diffuseur?: PortRetraitDiffuseur | 
     diffuseur: diffuseur === undefined ? portRetraitDepuisClient(() => z.clientZernio()) : diffuseur,
     niveau: async (id) => (await import("@/services/garde-creneau-diffuseur")).niveauDiffuseurDuCreneau(id),
     publicationsDeCles: (cles) => d.publications.lister((x) => typeof x.cleEnvoi === "string" && cles.includes(x.cleEnvoi)),
-    reglagesOuverts: async () => (await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true,
+    // Condition générale (les trois réglages) OU essai borné couvrant CE créneau pour le déplacement : jamais un réglage simulé.
+    reglagesOuverts: async (creneauId) =>
+      ((await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true) ||
+      (!!creneauId && (await (await import("@/services/essai-zernio")).essaiCouvre(creneauId, "deplacement"))),
     creneau: async (id) => ((await d.creneauxEditoriaux.obtenir(id)) as CreneauPlan | null) ?? null,
     envois: (creneauId) => d.envoisPlanifies.lister((e) => e.creneauId === creneauId),
     visuel: async (id) => (await d.visuels.obtenir(id)) ?? null,
