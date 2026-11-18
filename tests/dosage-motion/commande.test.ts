@@ -59,11 +59,20 @@ async function poserChoix(videoId: string, cran: string) {
 }
 
 describe("X3-03 · éteint = identique", () => {
-  it("interrupteur absent : même objet rendu, aucune clé dosageMotion", async () => {
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec false écrit en base.
+  it("interrupteur à false en base : même objet rendu, aucune clé dosageMotion", async () => {
+    await ecrireParametre("dosageMotion.actif", false);
     const c = commandeSimple();
     const v = (await depots().videos.obtenir("v-03"))!;
     expect(await avecDosageMotion(v, c)).toBe(c);
     expect("dosageMotion" in c).toBe(false);
+  });
+
+  // ALLUME-VAGUE-A-CODE 18/11/2026 : cas neuf, rien en base = allumé.
+  it("interrupteur absent : la commande porte cran equilibre, choisi par le générateur", async () => {
+    const v = (await depots().videos.obtenir("v-03"))!;
+    const r = await avecDosageMotion(v, commandeSimple());
+    expect((r as unknown as { dosageMotion: unknown }).dosageMotion).toEqual({ cran: "equilibre", choisiPar: "generateur" });
   });
 
   it("interrupteur à autre chose que true : même objet", async () => {
@@ -75,15 +84,15 @@ describe("X3-03 · éteint = identique", () => {
     }
   });
 
-  it("sur 5 formats (avocat compris), lancement et estimation : commande et prix identiques à l'interrupteur explicitement éteint", async () => {
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec false écrit en base.
+  it("sur 5 formats (avocat compris), lancement et estimation : prix identiques entre rien en base (allumé) et false en base ; seule la clé dosageMotion s'ajoute", async () => {
     vi.useFakeTimers({ now: new Date("2026-11-16T10:00:00Z"), toFake: ["Date"] });
     try {
-      const avant: Record<string, unknown> = {};
+      const avant: Record<string, unknown> = {}; // rien en base = allumé
       for (const id of VIDEOS) {
         const v = (await depots().videos.obtenir(id))!;
         const script = (await depots().scripts.obtenir(v.scriptId!))!;
         const c = await fabrication.construireCommande(id);
-        expect("dosageMotion" in c).toBe(false);
         const e = await fabrication.construireCommandeEstimation(v, script);
         avant[id] = { c, e, prix: await moteurDeCommande(c).estimer(c), prixE: await moteurDeCommande(e).estimer(e) };
       }
@@ -94,7 +103,15 @@ describe("X3-03 · éteint = identique", () => {
         const c = await fabrication.construireCommande(id);
         const e = await fabrication.construireCommandeEstimation(v, script);
         const apres = { c, e, prix: await moteurDeCommande(c).estimer(c), prixE: await moteurDeCommande(e).estimer(e) };
-        expect(apres).toStrictEqual(avant[id]);
+        const sansDosage = (x: unknown) => { const { dosageMotion: _d, ...reste } = x as Record<string, unknown>; return reste; };
+        const a = avant[id] as typeof apres;
+        // Éteint (false en base) : aucune clé ; la preuve « 0 € de plus » est gardée : prix et prixE strictement égaux.
+        expect("dosageMotion" in apres.c).toBe(false);
+        expect(apres.prix).toStrictEqual(a.prix);
+        expect(apres.prixE).toStrictEqual(a.prixE);
+        expect(apres.e).toStrictEqual(sansDosage(a.e) as unknown as typeof apres.e);
+        expect(apres.c).toStrictEqual(sansDosage(a.c) as unknown as typeof apres.c);
+        if (id === "t-avocat") expect((a.c as unknown as { dosageMotion: unknown }).dosageMotion).toEqual({ cran: "equilibre", choisiPar: "generateur" });
       }
     } finally {
       vi.useRealTimers();

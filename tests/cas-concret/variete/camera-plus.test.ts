@@ -173,8 +173,13 @@ describe("entrées et service", { timeout: 30_000 }, () => {
     const [v] = await depots().videos.lister((x) => x.formatId === "cas-concret");
     return (v!.entrees as { casConcret: Record<string, unknown> }).casConcret;
   };
-  it("réglage absent : aucune clé cameraPlus", async () => {
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec 1.035 écrit en base.
+  it("réglage à 1.035 en base : aucune clé cameraPlus", async () => {
+    await ecrireParametre("casConcret.cameraPlus", 1.035);
     expect(Object.keys(await entreesEcrites())).not.toContain("cameraPlus");
+  });
+  it("réglage absent : cameraPlus 1,048", async () => {
+    expect((await entreesEcrites()).cameraPlus).toBe(1.048);
   });
   it("réglage hors plage : aucune clé", async () => {
     await ecrireParametre("casConcret.cameraPlus", 1.02);
