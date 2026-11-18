@@ -1,5 +1,5 @@
 /**
- * PLANCHE D'ATTENTE (C9-40b-a) : l'appel à l'action (C9-12a) et l'anneau de part (N-08a) sur une planche outil local,
+ * PLANCHE D'ATTENTE (C9-40b-a) : l'appel à l'action (C9-12a), l'anneau de part (N-08a), le compteur à rouleau (N-08c-a) et le bouton « Prendre rendez-vous » (C10-13, N-08c-a) sur une planche outil local,
  * en attendant la planche des petits objets. Pur (aucun hook, aucune horloge, aucun hasard). Imports relatifs seulement.
  * Rien n'est inscrit, rien n'est allumé : aucun générateur n'importe ce fichier.
  */
@@ -8,6 +8,8 @@ import { couleursSur, FAMILLE_CSS_AXION, type FondAxion } from "../../src/brique
 import type { DefinitionObjet } from "../../src/briques/motion/petits-objets/contrat";
 import { DEF_APPEL_ACTION, EXEMPLES_APPEL_ACTION } from "../../src/briques/motion/petits-objets/appel-action";
 import { OBJET_ANNEAU_DONNEES, EXEMPLES_ANNEAU } from "../../src/briques/motion/petits-objets/anneau-donnees";
+import { OBJET_COMPTEUR_ROULEAU, EXEMPLES_ROULEAU } from "../../src/briques/motion/petits-objets/compteur-rouleau";
+import { DEF_APPEL_RDV, EXEMPLES_APPEL_RDV } from "../../src/briques/motion/petits-objets/appel-rdv";
 import {
   colonnesPlanche,
   DIMENSIONS_PLANCHE,
@@ -29,10 +31,12 @@ function lister(def: DefinitionObjet<unknown>, exemples: readonly unknown[]): En
   return exemples.map((parametres, i) => ({ id: `${def.id}#${i + 1}`, def, parametres }));
 }
 
-/** Sept entrées, ordre fixe : quatre appels à l action puis trois anneaux. */
+/** Quatorze entrées, ordre fixe : 4 appels à l action, 3 anneaux, 4 rouleaux, 3 boutons RDV. */
 export const ENTREES_ATTENTE: readonly EntreeAttente[] = [
   ...lister(DEF_APPEL_ACTION as unknown as DefinitionObjet<unknown>, EXEMPLES_APPEL_ACTION),
   ...lister(OBJET_ANNEAU_DONNEES as unknown as DefinitionObjet<unknown>, EXEMPLES_ANNEAU),
+  ...lister(OBJET_COMPTEUR_ROULEAU as unknown as DefinitionObjet<unknown>, EXEMPLES_ROULEAU),
+  ...lister(DEF_APPEL_RDV as unknown as DefinitionObjet<unknown>, EXEMPLES_APPEL_RDV),
 ];
 
 export function PlancheObjetsAttente({ fond, format, image = IMAGE_PLANCHE }: { fond: FondAxion; format: FormatPlanche; image?: number }): JSX.Element {
