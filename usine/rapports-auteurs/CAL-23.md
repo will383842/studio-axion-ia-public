@@ -24,5 +24,12 @@
 - `tests/calendrier tests/zernio tests/libelles-interdits.test.ts` : tout passe sauf `tests/calendrier-lecture.test.ts` (« passage à l'heure d'hiver »), qui échoue déjà sur master.
 - Un cycle d'imports (FicheEntree → composant → action → FicheEntree) est évité par un import de l'action au clic.
 
+## Tour 1 des relectures (corrigé)
+- Envoi annulé gardant une marque « programmé » : retiré aussi, puis marque « libre ».
+- Écriture ratée après retrait : marque « à vérifier » pour chaque envoi retiré ; sans post : « rien n'a été retiré ».
+- Port : liste ou client en échec = « sans réponse » sans marque ; classement des codes comme CAL-22 ; type du client vérifié par tsc.
+- Écran : code inconnu = « À vérifier » ; pas de titre sur un retrait partiel ; « Annuler » 10 secondes branché sur annulerRetraitAction.
+- Connu, non corrigé ici (fichier de CAL-22 = master, hors périmètre) : un retrait partiel de CAL-22 n'écrit pas la marque de l'envoi annulé ; CAL-23 la rattrape. Captures 375 / 1280 px à joindre.
+
 ## Relectures Opus
 Voir les commentaires de la PR (VERDICT OPUS et AUDIT OPUS).

@@ -11,7 +11,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("../aides/crochets-factices")).crochets }));
 type Rep = { ok: true; donnees: { creneauId: string; annulableJusquA: string; message: string } } | { ok: false; message: string; code?: string };
 const retirerProgrammationAction = vi.fn(async (_c: string, _k: string): Promise<Rep> => ({ ok: true, donnees: { creneauId: "c1", annulableJusquA: "x", message: "Retirée du calendrier. Vous la retrouvez dans « À placer »." } }));
-vi.mock("@/app/(studio)/calendrier/actions/retirer", () => ({ retirerProgrammationAction: (c: string, k: string) => retirerProgrammationAction(c, k), retirerDuCalendrier: vi.fn() }));
+const annulerRetraitAction = vi.fn(async (_id: string) => ({ ok: true as const, donnees: { creneauId: "c1", message: "Remise au calendrier à la même date." } }));
+vi.mock("@/app/(studio)/calendrier/actions/retirer", () => ({ annulerRetraitAction: (i: string) => annulerRetraitAction(i), retirerProgrammationAction: (c: string, k: string) => retirerProgrammationAction(c, k), retirerDuCalendrier: vi.fn() }));
 vi.mock("@/app/(studio)/calendrier/actions/decaler", () => ({ decalerEntree: vi.fn(async () => ({ ok: false, message: "doublure" })) }));
 vi.mock("@/services/auth", () => ({ exigerSession: async () => ({}) }));
 
@@ -98,6 +99,31 @@ describe("RetirerProgrammation : le geste", () => {
     expect(html).not.toContain("Retirée");
   });
 
+  it("retrait partiel : aucun titre « Pas retirée » devant la phrase de l'action", async () => {
+    retirerProgrammationAction.mockResolvedValueOnce({ ok: false, code: "RETRAIT_RESTE_PROGRAMME", message: "Retrait partiel. Retiré chez le diffuseur : LinkedIn. Reste programmé : Facebook." });
+    const m = monde_(CLE);
+    cliquer(m, (t) => t.includes("Retirer"))();
+    await cliquer(m, (t) => t.includes("Oui"))();
+    await attendre();
+    const html = lisible(rendre(m.rendre() as ReactElement));
+    expect(html).toContain("Retrait partiel.");
+    expect(html).not.toContain("Pas retirée");
+  });
+
+  it("succès : « Annuler » proposé, il appelle annulerRetraitAction avec le créneau ; jamais avant le succès", async () => {
+    annulerRetraitAction.mockClear();
+    retirerProgrammationAction.mockResolvedValueOnce({ ok: true, donnees: { creneauId: "c1", annulableJusquA: new Date(Date.now() + 10_000).toISOString(), message: "Retirée du calendrier." } });
+    const m = monde_(CLE);
+    cliquer(m, (t) => t.includes("Retirer"))();
+    expect(lisible(rendre(m.rendre() as ReactElement))).not.toContain("Annuler");
+    await cliquer(m, (t) => t.includes("Oui"))();
+    await attendre();
+    expect(lisible(rendre(m.rendre() as ReactElement))).toContain("Annuler");
+    await cliquer(m, (t) => t === "Annuler")();
+    await attendre();
+    expect(annulerRetraitAction).toHaveBeenCalledWith("c1");
+  });
+
   it("aucun bouton orange (un seul par écran) et mots simples", () => {
     const m = monter(RetirerProgrammation, { cle: CLE });
     cliquer(m, (t) => t.includes("Retirer"))();
@@ -119,7 +145,6 @@ describe("où le geste paraît", () => {
     expect(h).not.toContain("Elle ne partira pas");
   });
   it.each([["jour passé", { jour: "2026-11-10" }], ["publiée", { etat: "publie" as const }]])("aperçu : pas pour %s", (_n, sur) => {
-    expect(lisible(panneau(entree(sur as Partial<Entree>)))).not.toContain("data-geste=\"retirer-programme\"");
     expect(panneau(entree(sur as Partial<Entree>))).not.toContain('data-geste="retirer-programme"');
   });
   it("fiche : le geste paraît seulement quand l'hôte l'allume (retraitProgrammation)", () => {
@@ -175,10 +200,10 @@ describe("déplacement : retiré chez le diffuseur AVANT d'être marqué « annu
       retirer,
     });
     const env = { cle: "K", cleDiffuseur: "K" } as never;
-    expect(await portRetraitDepuisClient(() => client(true)).retirer(env)).toBe("retire");
+    expect(await portRetraitDepuisClient((() => client(true)) as never).retirer(env)).toBe("retire");
     expect(retirer).toHaveBeenCalledWith({ postId: "cible", cleJournal: "K" });
     retirer.mockClear();
-    expect(await portRetraitDepuisClient(() => client(false)).retirer(env)).toBe("a-verifier");
+    expect(await portRetraitDepuisClient((() => client(false)) as never).retirer(env)).toBe("a-verifier");
     expect(retirer).not.toHaveBeenCalled();
   });
 });

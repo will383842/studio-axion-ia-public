@@ -157,7 +157,7 @@ describe("CAL-23 · déplacer : annuler puis recréer, une seule fois, à la nou
     const m = monde({ marques: { "promotion:envoi:vis_1:linkedin:v0": "programme" } });
     expect((await m.deps.niveau("cre_1")).niveau).toBe("programme");
     await deplacerProgrammation(m.deps, demande());
-    expect(m.marques.get("promotion:envoi:vis_1:linkedin:v0")).toBe("retire");
+    expect(m.marques.get("promotion:envoi:vis_1:linkedin:v0")).toBe("libre");
     expect((await m.deps.niveau("cre_1")).niveau).toBe("libre");
   });
 
@@ -488,22 +488,26 @@ describe("CAL-23 · adaptateur vers le client de CAL-22 (relecture avant, jamais
   };
   it("retire le post trouvé sous la clé, après relecture des brouillons et des programmés", async () => {
     const k = client();
-    expect(await portRetraitDepuisClient(k.c).retirer(e)).toBe("retire");
+    expect(await portRetraitDepuisClient(k.c as never).retirer(e)).toBe("retire");
     expect(k.appels).toEqual(["liste:draft", "liste:scheduled", `retirer:post_1:true`]);
   });
   it("aucun post sous la clé : « à vérifier », aucun retrait", async () => {
     const k = client();
-    expect(await portRetraitDepuisClient(k.c).retirer(envoi({ cleDiffuseur: "c".repeat(64) }))).toBe("a-verifier");
+    expect(await portRetraitDepuisClient(k.c as never).retirer(envoi({ cleDiffuseur: "c".repeat(64) }))).toBe("a-verifier");
     expect(k.appels.some((a) => a.startsWith("retirer"))).toBe(false);
   });
   it.each([
     [{ etat: "a-verifier" }, "a-verifier"],
     [{ etat: "refuse" }, "refuse"],
     [{ leve: Object.assign(new Error("x"), { code: "refuse" }) }, "refuse"],
-    [{ leve: Object.assign(new Error("x"), { code: "delai" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "envoi-coupe" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "indisponible" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "debit" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "limite-incertaine" }) }, "a-verifier"],
+    [{ leve: Object.assign(new Error("x"), { code: "a-verifier" }) }, "a-verifier"],
     [{ leve: new Error("inconnue") }, "a-verifier"],
   ])("réponse %j : %s", async (sur, attendu) => {
-    expect(await portRetraitDepuisClient(client(sur).c).retirer(e)).toBe(attendu);
+    expect(await portRetraitDepuisClient(client(sur).c as never).retirer(e)).toBe(attendu);
   });
 });
 
@@ -528,8 +532,9 @@ describe("CAL-23 · périmètre, écran et vocabulaire", () => {
   });
 
   it("le service n'importe aucun fournisseur ni le client du diffuseur (zone Zernio intacte)", () => {
-    expect(service).not.toMatch(/from\s+["']@\/fournisseurs/);
-    expect(service).not.toMatch(/zernio-client/);
+    // Un import de TYPE (contrat du client, vérifié par tsc) est permis ; jamais un import de valeur.
+    expect(service.replace(/import type [^;]*;/g, "")).not.toMatch(/from\s+["']@\/fournisseurs/);
+    expect(service.replace(/import type [^;]*;/g, "")).not.toMatch(/zernio-client/);
   });
 
   const entreeProgrammee = { cle: "creneau:cre_1|linkedin", etat: "programme", jour: "2026-12-11", heure: "09:30", reseau: "linkedin", type: "carrousel", texte: "Le texte", confiee: true } as never;
@@ -668,7 +673,7 @@ describe("CAL-23 · audit : envoi annulé gardant sa marque, écriture ratée ap
     const r = await deplacerProgrammation(m.deps, demande());
     expect(r.ok).toBe(true);
     expect(m.retraits.sort()).toEqual([B, "envoi:vis_1:linkedin:v0"].sort());
-    expect(m.marques.get(`promotion:${B}`)).toBe("retire");
+    expect(m.marques.get(`promotion:${B}`)).toBe("libre");
   });
   it("le retrait de l'envoi annulé est incertain : rien ne change (ancienne date gardée), marque « à vérifier »", async () => {
     const m = monde({
@@ -696,5 +701,16 @@ describe("CAL-23 · audit : envoi annulé gardant sa marque, écriture ratée ap
     expect(r.ok).toBe(false);
     expect(r.message).toBe(PHRASES_DEPLACEMENT.rienChange);
     expect(r.message).not.toContain("retrait a eu lieu");
+  });
+});
+
+describe("CAL-23 · port de retrait : liste ou client en échec = sans réponse, sans marque", () => {
+  const env = { cle: "K", cleDiffuseur: "K" } as never;
+  it("la liste des posts échoue : « sans-reponse »", async () => {
+    const c = { listerPosts: async () => { throw new Error("coupé"); }, retirer: async () => ({ etat: "retire" }) } as never;
+    expect(await portRetraitDepuisClient(() => c).retirer(env)).toBe("sans-reponse");
+  });
+  it("le client ne se construit pas (clé absente) : « sans-reponse »", async () => {
+    expect(await portRetraitDepuisClient(() => { throw Object.assign(new Error("non relié"), { code: "ZERNIO_NON_RELIE" }); }).retirer(env)).toBe("sans-reponse");
   });
 });

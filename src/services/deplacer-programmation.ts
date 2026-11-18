@@ -27,6 +27,7 @@ import { estReseauDeclinaison } from "@/reseaux/codes";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
 import { instantParis } from "@/lib/horloge-paris";
 import { controlerProgrammation } from "@/services/controle-programmation";
+import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import type { CreneauPlan } from "@/services/plan-editorial";
 
 export type IssueRetraitDiffuseur = "retire" | "refuse" | "sans-reponse" | "a-verifier";
@@ -187,7 +188,7 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
 async function sortirDeLaGarde(d: DepsDeplacement, retires: EnvoiPlanifie[]): Promise<void> {
   for (const e of retires) {
     try {
-      await d.etats.noter(`promotion:${e.cle}`, "retire");
+      await d.etats.noter(`promotion:${e.cle}`, "libre");
     } catch {
       /* la marque est une aide : l'écriture principale a eu lieu */
     }
@@ -396,15 +397,13 @@ export async function modifierTexteProgramme(d: DepsDeplacement, demande: Demand
 
 /* --- Adaptateur vers le client du diffuseur de CAL-22 (contrat structurel, aucun import du fournisseur) ---------------------------------- */
 
-/** Contrat de `client.retirer` / `client.listerPosts` de CAL-22 (relecture avant, DELETE, relecture après : jamais en aveugle). */
-export interface ClientRetraitCal22 {
-  listerPosts(q: { status: string; page: number; limit: number }): Promise<{ _id: string; metadata?: { studioCle?: string } }[]>;
-  retirer(d: { postId: string; cleJournal: string }): Promise<{ etat: "retire" | "a-verifier" | "refuse" | string }>;
-}
+/** Contrat du client de CAL-22 (relecture avant, DELETE, relecture après : jamais en aveugle). Import de TYPE seulement. */
+export type ClientRetraitCal22 = Pick<ClientZernio, "listerPosts" | "retirer">;
+type PostListe = Awaited<ReturnType<ClientRetraitCal22["listerPosts"]>>[number];
 
 /** Tous les posts d'un statut (pages de 100, 50 pages au plus), comme le retrait de CAL-22 : un post au-delà de la première page se retrouve aussi. */
-async function listerTous(c: ClientRetraitCal22, status: string): Promise<{ _id: string; metadata?: { studioCle?: string } }[]> {
-  const tous: { _id: string; metadata?: { studioCle?: string } }[] = [];
+async function listerTous(c: ClientRetraitCal22, status: string): Promise<PostListe[]> {
+  const tous: PostListe[] = [];
   const vus = new Set<string>();
   for (let page = 1; page <= 50; page++) {
     const lus = await c.listerPosts({ status, page, limit: 100 });
@@ -425,22 +424,25 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
   return {
     async retirer(e) {
       const cle = e.cleDiffuseur ?? e.cle;
+      let c: ClientRetraitCal22;
+      let posts: PostListe[];
       try {
-        const c = client();
-        let posts: { _id: string; metadata?: { studioCle?: string } }[];
-        try {
-          posts = [...(await listerTous(c, "draft")), ...(await listerTous(c, "scheduled"))];
-        } catch {
-          return "sans-reponse"; // la liste n'a pas pu être lue : rien n'a été retiré
-        }
-        const post = posts.find((x) => x.metadata?.studioCle === cle);
-        if (!post) return "a-verifier";
+        // Client ou liste impossibles (clé absente, diffuseur muet) : rien n'a été retiré, aucune marque.
+        c = client();
+        posts = [...(await listerTous(c, "draft")), ...(await listerTous(c, "scheduled"))];
+      } catch {
+        return "sans-reponse";
+      }
+      const post = posts.find((x) => x.metadata?.studioCle === cle);
+      if (!post) return "a-verifier";
+      try {
         const r = await c.retirer({ postId: post._id, cleJournal: cle });
         return r.etat === "retire" ? "retire" : r.etat === "a-verifier" ? "a-verifier" : "refuse";
       } catch (err) {
+        // Même classement que CAL-22 : réponse incertaine ou erreur inconnue = « à vérifier » ; refus = refus ; coupure avant envoi = sans réponse.
         const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
         if (code === "refuse") return "refuse";
-        if (code === "delai" || code === "reseau" || code === "arret" || code === "envoi-eteint" || code === "envoi-coupe" || code === "debit") return "sans-reponse";
+        if (code === "envoi-coupe" || code === "indisponible" || code === "debit" || code === "acces") return "sans-reponse";
         return "a-verifier";
       }
     },
@@ -458,7 +460,7 @@ export async function depsDeplacementServeur(diffuseur?: PortRetraitDiffuseur | 
   const z = await import("@/services/zernio");
   const d = depots();
   return {
-    diffuseur: diffuseur === undefined ? portRetraitDepuisClient(() => z.clientZernio() as unknown as ClientRetraitCal22) : diffuseur,
+    diffuseur: diffuseur === undefined ? portRetraitDepuisClient(() => z.clientZernio()) : diffuseur,
     niveau: async (id) => (await import("@/services/garde-creneau-diffuseur")).niveauDiffuseurDuCreneau(id),
     publicationsDeCles: (cles) => d.publications.lister((x) => typeof x.cleEnvoi === "string" && cles.includes(x.cleEnvoi)),
     reglagesOuverts: async () => (await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true,
