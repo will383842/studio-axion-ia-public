@@ -31,6 +31,7 @@ import { horodaterTexte } from "@/domaine/derivations";
 import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorodate, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
+import { planCacheLeFilm, plagesFixesSortie, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 import { lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
@@ -290,8 +291,29 @@ function fusionnerAvecParent(nouveau: PlanValide, parent: PlanValide): PlanValid
   return validerPlan({ ...nouveau, scenes }, { mots: nouveau.mots, format: nouveau.format, facecam: false, dureeMs: nouveau.dureeMs }).plan;
 }
 
+const secondes = (ms: number) => (ms / 1000).toFixed(1).replace(".", ",");
+
+/** Réserves du film de navigation (T-EXT-38) : jamais un échec ; le refus des 1,5 s est la décision de T-EXT-23. */
+function reservesNavigation(plan: PlanValide, nav: NavigationFilmee): string[] {
+  const r: string[] = [];
+  const plages = plagesFixesSortie(nav);
+  if (plages === null) r.push("À vérifier · Navigation : immobilité non mesurée");
+  else for (const p of plages) r.push(`À vérifier · Navigation : écran immobile de ${secondes(p.debutMs)} s à ${secondes(p.finMs)} s`);
+  if (planCacheLeFilm(plan, nav).length) r.push("À vérifier · Navigation : une scène plein écran cache le film");
+  if (nav.dureeVoixMs < plan.dureeMs - 200) r.push("À vérifier · Navigation : film plus court que la voix");
+  return r;
+}
+
 async function pasPlan(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
   if (etat.plan) return { statut: "faite", etat };
+  const pas = await pasPlanSansFilm(etat, commande, outils);
+  const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  if (!nav || !pas.etat.plan) return pas;
+  const nouvelles = reservesNavigation(pas.etat.plan.plan, nav).filter((m) => !pas.etat.reserves.includes(m));
+  return nouvelles.length ? { ...pas, etat: { ...pas.etat, reserves: [...pas.etat.reserves, ...nouvelles] } } : pas;
+}
+
+async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
   const texte = etat.script!.texte;
   const mots = etat.motsPlan!;
   const format = formatDuRatio(etat.ratios[0] as "4:5");
@@ -334,11 +356,13 @@ export function planPourRatio(plan: PlanValide, ratio: Ratio): PlanValide {
 }
 
 /** Propriétés de la composition pour un ratio (l'adresse de la voix arrive par l'entrée « audio »). */
-export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTitres: boolean, outils: Pick<OutilsTutoriel, "sousTitres">): Omit<ProprietesTutorielOutil, "audio"> {
+export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTitres: boolean, outils: Pick<OutilsTutoriel, "sousTitres">, navigation?: NavigationFilmee): Omit<ProprietesTutorielOutil, "audio" | "filmNavigation"> {
   const st = outils.sousTitres;
   const sousTitres =
     avecSousTitres && etat.sousTitres?.length ? donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) }) : undefined;
-  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS };
+  const { videoCle: _cle, ...sansFilm } = navigation ?? ({} as NavigationFilmee);
+  void _cle;
+  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS, ...(navigation ? { navigation: sansFilm } : {}) };
 }
 
 const nomRatio = (r: Ratio) => r.replace(":", "x");
@@ -347,7 +371,9 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
   const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}.mp4`);
   // Voix mixée (T-EXT-31) quand elle existe, sinon la voix brute, comme avant.
   const voix = etat.sonMixe?.fini && !etat.sonMixe.echec ? etat.sonMixe.fichierCle : etat.audio?.fichierCle;
-  const lectures: Record<string, string> = voix ? { audio: voix } : {};
+  const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  // Le film de navigation (T-EXT-38) arrive par l'entrée « filmNavigation » (jamais « navigation » : elle écraserait l'objet).
+  const lectures: Record<string, string> = { ...(voix ? { audio: voix } : {}), ...(nav ? { filmNavigation: nav.videoCle } : {}) };
   const signe = await outils.rendu.signer(lectures, { cle, mime: "video/mp4" });
   return {
     idRendu: `${travailId}-${nomRatio(ratio)}-${essai}`,
@@ -355,7 +381,7 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
     file: "longue",
     entrees: signe.lectures,
     sortie: { urlDepot: signe.urlDepot, cle },
-    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils) },
+    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav) },
   };
 }
 

@@ -5,6 +5,7 @@
  * fin Axion (une légende « titre » aux couleurs de la charte, sans voix ni sous-titres).
  */
 import type { DonneesCalque } from "../../briques/sous-titres/scene";
+import type { NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 import type { FormatPlan, HabillagePlan, PlanValide } from "../../briques/plan-scenes/schema";
 
 export const COMPOSITION_TUTORIEL = "TutorielOutil";
@@ -33,6 +34,10 @@ export type ProprietesTutorielOutil = {
   sousTitres?: DonneesCalque;
   fin: { titre: string; sousTitre: string };
   finMs: number;
+  /** Adresse signée du film de navigation (entrée « filmNavigation » de la demande de rendu) ; absente : pas de film. */
+  filmNavigation?: string;
+  /** Navigation filmée (instants et zones), sans la clé du film (T-EXT-38). */
+  navigation?: Omit<NavigationFilmee, "videoCle">;
 };
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */

@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34). */
 const LITTERALES: Record<string, Etat> = {
   "accueil.bilan_semaine": "eteint",
   afficherExemples: "allume",
@@ -71,6 +71,7 @@ const LITTERALES: Record<string, Etat> = {
   "style.faconDeParler": "valeur",
   "taux.usdEur": "valeur",
   "tutoriel.finitions": "eteint",
+  "tutoriel.suiviCloche": "eteint",
   "veille.derniereLecture": "valeur",
   "veille.resumeSemaine": "valeur",
   "zernio.synchro_etape_visuels": "eteint",
@@ -82,6 +83,7 @@ const LITTERALES: Record<string, Etat> = {
  */
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
+  { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
   { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
@@ -302,6 +304,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "buffer.canaux": "memoire",
   "buffer.correspondance": "memoire",
   "cas-concret.ecrans-fournis": "memoire",
+  "tutoriel.index-scenes": "memoire",
   "casConcret.casAjoutes": "memoire",
   "casConcret.casRemis": "memoire",
   "casConcret.casRetires": "memoire",
@@ -790,7 +793,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(37);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(38);
   });
 });
