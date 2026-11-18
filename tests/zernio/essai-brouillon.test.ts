@@ -343,6 +343,15 @@ describe("PR-B · portée : un seul créneau, jamais de promotion", () => {
     expect(retraits).toHaveLength(1);
     expect((await depots().creneauxEditoriaux.obtenir("cA") as { decalages: number }).decalages).toBe(1);
   });
+  it("6e. écran : « expire » vrai dès expireLe (fenêtre de retrait), faux avant ; la pastille suit", async () => {
+    await poserEssai();
+    const lire = async () => { const r = await actions.lireEssaiZernioAction(); return r.ok ? r.donnees.essai : undefined; };
+    expect(await lire()).toMatchObject({ creneauId: "cA", expire: false });
+    aller(Date.parse(ESSAI.expireLe) + MIN);
+    expect(await lire()).toMatchObject({ creneauId: "cA", expire: true });
+    expect(source("src/components/reglages/EssaiBrouillon.tsx")).toMatch(/Essai expiré — retrait possible jusqu'à/);
+    expect(source("src/components/calendrier/ApercuPublication.tsx")).toMatch(/Essai \(expiré\)/);
+  });
   it("7. « Annuler » un retrait de A : A-reprise recréé ; le tour d'essai suivant ne crée aucun brouillon", async () => {
     await tour();
     const avant = appelsFournisseur.length;

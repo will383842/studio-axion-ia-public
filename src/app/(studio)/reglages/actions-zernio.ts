@@ -244,6 +244,8 @@ export interface EssaiVue {
   reseau: string;
   jour: string | null;
   expireLe: string;
+  /** Vrai quand l'heure d'expiration est passée : seul le retrait reste possible (fenêtre de nettoyage). */
+  expire: boolean;
 }
 export interface EligibleEssai {
   id: string;
@@ -270,7 +272,7 @@ export async function lireEssaiZernioAction(): Promise<Resultat<EtatEssaiZernio>
       })
       .sort((a, b) => a.jour.localeCompare(b.jour) || a.id.localeCompare(b.id));
     const creneau = lu ? plan.find((c) => c.id === lu.creneauId) : undefined;
-    return { essai: lu ? { creneauId: lu.creneauId, reseau: lu.reseau, jour: creneau?.jourVise ?? null, expireLe: lu.expireLe } : null, eligibles };
+    return { essai: lu ? { creneauId: lu.creneauId, reseau: lu.reseau, jour: creneau?.jourVise ?? null, expireLe: lu.expireLe, expire: maintenantMs >= Date.parse(lu.expireLe) } : null, eligibles };
   });
 }
 

@@ -71,7 +71,9 @@ export function EssaiBrouillon() {
         Un seul créneau validé, un seul compte, 24 heures au plus. Le Studio crée UN brouillon chez le diffuseur : rien n&apos;est programmé ni publié.
       </p>
       <p role="status" className="mt-2 text-sm font-bold text-texte">
-        {essai
+        {essai?.expire
+          ? `Essai expiré — retrait possible jusqu'à ${heureParis(new Date(Date.parse(essai.expireLe) + 24 * 3600_000).toISOString())} (heure de Paris).`
+          : essai
           ? `Essai actif sur ${RESEAUX[essai.reseau] ?? essai.reseau}${essai.jour ? ` du ${jjmm(essai.jour)}` : ""}, jusqu'à ${heureParis(essai.expireLe)} (heure de Paris).`
           : "Aucun essai."}
       </p>

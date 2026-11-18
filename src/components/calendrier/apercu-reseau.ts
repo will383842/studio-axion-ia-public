@@ -37,6 +37,8 @@ export interface EntreeApercu extends EntreeFiche {
   canalNom?: string;
   /** Essai borné : vrai sur la seule entrée couverte par l'essai (pastille « Essai »). */
   essai?: boolean;
+  /** Essai borné échu (fenêtre de retrait seulement) : la pastille dit « Essai (expiré) ». */
+  essaiExpire?: boolean;
 }
 
 /** Un essai (rien n'est envoyé) n'est jamais montré comme programmé : il a son propre état et son propre mot. */

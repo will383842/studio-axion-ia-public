@@ -404,7 +404,7 @@ async function marquerPromotionsOrphelines(etats: EtatsPromotion): Promise<void>
 /* ------------------------------------------------------------------ */
 
 export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalendrier = {}): Promise<TourEnvoisCalendrierServeur> {
-  // 1. Porte AVANT toute lecture : fermée, illisible ou absente = rien n'est lu, rien n'est appelé.
+  // 1. Porte générale lue en premier : fermée, illisible ou absente, seuls le réglage d'essai et son créneau sont lus (rien d'autre), et rien n'est appelé hors de l'essai.
   let ouverte = false;
   try {
     ouverte = (await (options.porte ?? publicationEditorialeAutorisee)()) === true;
