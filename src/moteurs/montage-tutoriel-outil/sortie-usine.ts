@@ -8,7 +8,16 @@
  * jamais une exception. Ce fichier ne change aucune porte de l'usine : tout changement de porte est à will-51.
  */
 import { z } from "zod";
-import type { CasTutoriel, FinChoisie, IdGabarit, RatioTutoriel } from "./equipe/chef-de-projet";
+
+/*
+ * Types STRUCTURELS minimaux, déclarés ici (seuls les champs lus). Ils reprennent ceux de T-EXT-18 sans les importer :
+ * la garde du test du chef de projet exige qu'aucun fichier de `src` ne le désigne. La compatibilité avec sa sortie
+ * est prouvée dans `sortie-usine.test.ts`.
+ */
+export type CasTutoriel = 1 | 2 | 3 | 4 | 5;
+export type IdGabarit = "G-Journee" | "G-Decision" | "G-Reponse" | "G-Flux";
+export type FinChoisie = "aucune" | "prendre-rendez-vous";
+export type RatioTutoriel = "4:5" | "9:16" | "1:1";
 
 export const CONTRAT_SORTIE_TUTORIEL = "tutoriel-sortie.v1" as const;
 

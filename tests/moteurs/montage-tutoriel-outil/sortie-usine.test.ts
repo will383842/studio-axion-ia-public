@@ -2,7 +2,8 @@
  * T-EXT-47 · fiche de sortie `tutoriel-sortie.v1` : pure, sans texte, sans montant, sans date. 0 €, aucun réseau.
  */
 import { describe, expect, it } from "vitest";
-import { ficheSortieTutoriel, lireFicheSortieTutoriel, type EntreeFicheSortie } from "@/moteurs/montage-tutoriel-outil/sortie-usine";
+import type { CahierVideo, DecisionChef } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
+import { ficheSortieTutoriel, lireFicheSortieTutoriel, type CasTutoriel, type EntreeFicheSortie, type FinChoisie, type IdGabarit, type RatioTutoriel } from "@/moteurs/montage-tutoriel-outil/sortie-usine";
 
 const SCRIPT_DU_DOUBLE = "Bonjour, voici comment gagner une heure chaque matin dans votre cabinet.";
 
@@ -113,5 +114,20 @@ describe("lireFicheSortieTutoriel (strict)", () => {
     expect(lireFicheSortieTutoriel({ ...fiche(), contrat: "tutoriel-sortie.v2" }).ok).toBe(false);
     expect(lireFicheSortieTutoriel({ ...fiche(), controles: { verdict: "peut-etre", defauts: 0 } }).ok).toBe(false);
     for (const brut of [null, undefined, 3, "x", []]) expect(lireFicheSortieTutoriel(brut).ok).toBe(false);
+  });
+});
+
+describe("types locaux de sortie-usine : compatibles avec ceux du chef de projet (T-EXT-18)", () => {
+  it("la sortie du chef de projet reste assignable aux types locaux (vérifié par tsc, et à l'exécution)", () => {
+    // Compatibilité structurelle, en test seulement : l'import du chef de projet n'est permis qu'ici.
+    const cas: CasTutoriel = 5 as DecisionChef["cas"];
+    const gabarits: IdGabarit[] = ["G-Flux", "G-Decision"] as DecisionChef["gabarits"];
+    const fin: FinChoisie = "aucune" as CahierVideo["fin"];
+    const ratios: RatioTutoriel[] = ["4:5", "9:16", "1:1"] as CahierVideo["ratios"];
+    const r = ficheSortieTutoriel(entree({ cas, gabarits, fin, ratios }));
+    expect(r.ok).toBe(true);
+    // Sens inverse : les types locaux restent assignables à ceux du chef de projet.
+    const retour: { cas: DecisionChef["cas"]; gabarits: DecisionChef["gabarits"]; fin: CahierVideo["fin"]; ratios: CahierVideo["ratios"] } = { cas, gabarits, fin, ratios };
+    expect(retour.cas).toBe(5);
   });
 });
