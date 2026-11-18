@@ -51,6 +51,7 @@ const APPELANTS_REQUETE_BRUTE = [
   "fournisseurs/zernio-inbox.ts",
   "fournisseurs/mesures/zernio.ts",
   "fournisseurs/higgsfield/client.ts",
+  "services/lecteur-statistiques.ts", // lecture seule des statistiques, 5 pages au plus, branché nulle part (L8-02a)
 ];
 /**
  * Liste fermée : fichiers où `.requete` n'est PAS le client Zernio : champ de données (`plan.illustration.requete`,
