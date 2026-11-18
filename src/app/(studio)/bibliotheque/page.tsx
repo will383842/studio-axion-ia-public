@@ -8,6 +8,8 @@ import { Tuile } from "@/components/ui/Tuile";
 import { TYPES_BIBLIOTHEQUE } from "@/domaine/libelles";
 import { compterRushs, donneesApercuImage } from "@/services/B-personnages-bibliotheque";
 import { compterElementsParType, listerPrononciations } from "@/services/bibliotheque";
+import { lireParametre } from "@/services/_commun";
+import { REGLAGE_INSCRIPTION } from "@/services/archive-extraits";
 import { exigerSession } from "@/services/auth";
 import { resumeMesImages } from "@/services/mes-images";
 import { listerAnimations } from "@/services/monteur-facecam";
@@ -27,6 +29,8 @@ const RUSHS = { type: "rushs", nom: "Mes rushs", icone: "camera", groupe: "media
 const ANIMATIONS = { type: "animations", nom: "Animations", icone: "etincelles", groupe: "style" } as const;
 /** Refonte R8a (décision de Williams, 12/11) : « Images » et « Vidéos » ne font plus qu'une tuile, « Illustrations » (même page). */
 const ILLUSTRATIONS = { type: "illustration-image", nom: "Illustrations", icone: "image", groupe: "medias" } as const;
+/** X4-13b : écran « Extraits gardés » de l'archive, tuile seulement archive allumée (seul `true` exact). */
+const EXTRAITS = { type: "source-extraits", nom: "Extraits gardés", icone: "film", groupe: "medias" } as const;
 
 /**
  * BIBLIOTHÈQUE (B.8 #15 + AV2.1) : aperçu en direct + grille de tuiles par type (mobile d'abord).
@@ -35,8 +39,10 @@ const ILLUSTRATIONS = { type: "illustration-image", nom: "Illustrations", icone:
 export default async function PageBibliotheque() {
   await exigerSession();
   const [compte, prononciations, rushs, apercu, mesImages, animations] = await Promise.all([compterElementsParType(), listerPrononciations(), compterRushs(), donneesApercuImage(), resumeMesImages(), listerAnimations()]);
+  const archiveActive = await lireParametre<unknown>(REGLAGE_INSCRIPTION, false).then((v) => v === true, () => false);
   // Une seule tuile « Illustrations » (images + vidéos) ; « Animations » toujours présente (la page regroupe aussi les pièces du studio).
   const types = [...TYPES_BIBLIOTHEQUE.flatMap((t) => (t.type === "illustration-video" ? [] : t.type === "illustration-image" ? [ILLUSTRATIONS] : [t])), RUSHS, ANIMATIONS];
+  const tuiles = archiveActive ? [...types, EXTRAITS] : types;
   const compteur = (type: string) =>
     type === "prononciations" ? prononciations.length : type === "rushs" ? rushs : type === "mes-images" ? mesImages.total : type === "animations" ? animations.length : type === "illustration-image" ? (compte["illustration-image"] ?? 0) + (compte["illustration-video"] ?? 0) : (compte[type as keyof typeof compte] ?? 0);
   return (
@@ -47,7 +53,7 @@ export default async function PageBibliotheque() {
           {GROUPES.map((g, gi) => (
             <Section key={g.id} id={`groupe-${g.id}`} titre={g.titre}>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {types
+                {tuiles
                   .filter((t) => t.groupe === g.id)
                   .map((t, i) => (
                     <Apparition key={t.type} index={gi * 3 + i}>

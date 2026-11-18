@@ -74,6 +74,8 @@ import { cartesEnAttente } from "@/services/options-payantes";
 import { RetoucheChatGenerateur } from "@/components/retouche-chat/RetoucheChatGenerateur";
 import { BlocSurLeSite } from "@/components/videos/fiche/BlocSurLeSite";
 import { LibererPlace } from "@/components/videos/fiche/LibererPlace";
+import { ExtraitsDeLaVideo } from "@/components/bibliotheque/ExtraitsDeLaVideo";
+import { proprietesExtraitsDeLaVideo } from "@/services/extraits-de-la-video";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +126,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   const exemplesRetouche = prete && !facecam ? await exemplesModification(id) : { exemples: [] };
   // Lot J : options payantes qui attendent « Confirmer » (Décor IA, 3 caméras réelles…), tous formats.
   const optionsPayantes = await cartesEnAttente(v.id);
+  const extraits = await proprietesExtraitsDeLaVideo(v.id).catch(() => null); // X4-13b : éteint → rien, jamais bloquant
   const plansPhrases = d.plans.map((p) => ({ id: p.id, debutSec: p.debutSec, finSec: p.finSec, texte: p.texte }));
   const format = trouverFormat(v.formatId);
   const tableau = ecranTableauVisible(format);
@@ -301,7 +304,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   const etatVide = !prete && !d.travail && v.statut !== "archivee" && !arretee;
   const ajoutees = !enFabrication && prononciationsAjoutees.length > 0;
   const sujetReplie = sujetDifferent(titreAffiche(v.titre), v.sujet);
-  const aSpecifique = Boolean(sujetReplie || d.noteQualite || ajoutees || etatVide || prete || (tableau && (vueTab || histoTab)) || optionsPayantes.length > 0);
+  const aSpecifique = Boolean(sujetReplie || d.noteQualite || ajoutees || etatVide || prete || (tableau && (vueTab || histoTab)) || optionsPayantes.length > 0 || Boolean(extraits?.archiveActive && extraits.noteActive && extraits.fiche));
 
   return (
     <FournisseurVideo donnees={donnees}>
@@ -372,6 +375,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                   <BlocReleves videoId={v.id} />
                 </div>
               )}
+              {extraits && <ExtraitsDeLaVideo {...extraits} />}
               <OptionsPayantesVideo videoId={v.id} cartes={optionsPayantes} />
               {prete && <BlocSurLeSite videoId={v.id} />}
               <SujetReplie titre={titreAffiche(v.titre)} sujet={v.sujet} />
