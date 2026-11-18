@@ -83,6 +83,7 @@ const LITTERALES: Record<string, Etat> = {
  */
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
+  { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
   { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
@@ -416,6 +417,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/api/usine/visuels/route.ts:`${PREFIXE_COMMANDE}${cle}`": { exclu: "dedoublonnage" },
   "app/api/usine/visuels/route.ts:`${PREFIXE_COTE}${cle}`": { exclu: "dedoublonnage" },
   "services/_commun.ts:id: string": { exclu: "relais" },
+  "services/zip-tutoriel.ts:id": { exclu: "relais" }, // port réel de l'entrée zip : la clé est PARAM_ENTREE_ZIP, tutoriel.entreeZip en table
   "services/apprentissage.ts:cleGagnants(formatId)": { exclu: "memoire" },
   "services/autonomie-usine.ts:cleAccord(cle)": { exclu: "memoire" },
   "services/autonomie-usine.ts:cleEngagement(cle)": { exclu: "memoire" },

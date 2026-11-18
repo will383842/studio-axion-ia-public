@@ -484,6 +484,16 @@ describe("verdict Opus : maquette, courriels, JSON, liens", () => {
     ["codebase", `<div codebase="https://exemple.invalid/"></div>`],
     ["script src sans .js", `<script src="data.json"></script>`],
     ["script src .js.txt", `<script src="app.js.txt"></script>`],
+    ["(a) svg/onload séparé par « / »", `<svg/onload="fetch('https://exemple.invalid')"></svg>`],
+    ["(b) onerror après un « > » entre guillemets", "`&lt;img alt=\"&gt;\" onerror=\"fetch('https://exemple.invalid')\" src=\"a.png\"&gt;`"],
+    ["(c) entité décimale avec zéros de tête", `<a href="&#00000000104;ttps://exemple.invalid">x</a>`],
+    ["(c) entité hexadécimale avec zéros de tête", `<img src="&#x0000000068;ttps://exemple.invalid/a.png">`],
+    ["(d) meta refresh en entité", `<meta http-equiv="&#114;efresh" content="0;url=https://exemple.invalid">`],
+    ["(f) fetch par échappement d'identifiant", `<script>\\u0066etch("x")</script>`],
+    ["(f) \\x66etch", `<script>\\x66etch("x")</script>`],
+    ["(f) constructor", `<script>[].map.constructor("return 1")()</script>`],
+    ["(f) setTimeout avec une chaîne", `<script>setTimeout("alert(1)", 0)</script>`],
+    ["(f) setInterval avec une chaîne", `<script>setInterval('alert(1)', 0)</script>`],
   ];
   for (const [nom, html] of refuses) {
     it(`html refusé : ${nom}`, () => {
@@ -492,6 +502,11 @@ describe("verdict Opus : maquette, courriels, JSON, liens", () => {
   }
   it("html permis : script src .js local et gestionnaire inoffensif", () => {
     expect(h(`<script src="app.js?v=1"></script><button onclick="ouvrir()">x</button>`).ok).toBe(true);
+  });
+  it("css refusé : (e) @import avec échappement CSS", () => {
+    expect(c(`@import "ht\\74 tps://exemple.invalid/a.css";`).ok).toBe(false);
+    expect(c(`@import url("ht\\74 tps://exemple.invalid/a.css");`).ok).toBe(false);
+    expect(c(`@import "local.css";`).ok).toBe(true);
   });
   it("css refusé : image-set, -webkit-image-set, url( avec barre oblique inverse", () => {
     expect(c(`a{background:image-set("https://exemple.invalid/a.png" 1x)}`).ok).toBe(false);
@@ -502,10 +517,10 @@ describe("verdict Opus : maquette, courriels, JSON, liens", () => {
   });
 
   it("courriel avec accents : masqué en entier, rien ne fuit", () => {
-    const m = masquerDonneesPersonnelles("Écrire à jérôme@gmail.com");
+    const m = masquerDonneesPersonnelles("Écrire à jérôme@exemple.invalid");
     expect(m.texte).toBe("Écrire à contact@exemple.fr");
     expect(m.texte).not.toContain("jérô");
-    const n = masquerDonneesPersonnelles("jean@société.fr");
+    const n = masquerDonneesPersonnelles("jean@société.invalid");
     expect(n.remplacements).toEqual([{ type: "courriel", nombre: 1 }]);
     expect(n.texte).not.toContain("société");
     expect(n.texte).toBe("contact@exemple.fr");

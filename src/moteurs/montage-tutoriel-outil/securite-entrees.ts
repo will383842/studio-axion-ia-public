@@ -212,7 +212,7 @@ const ENTITES_NOMMEES: Record<string, string> = {
 
 /** Décode les entités HTML (`&#104;`, `&#x68;`, `&colon;`…) comme le fait le navigateur dans un attribut. */
 export function decoderEntites(valeur: string): string {
-  return valeur.replace(/&(?:#x([0-9a-f]{1,6})|#(\d{1,7})|([a-z]{2,8}));?/gi, (tout, hex?: string, dec?: string, nom?: string) => {
+  return valeur.replace(/&(?:#x0*([0-9a-f]{1,6})|#0*(\d{1,7})|([a-z]{2,8}));?/gi, (tout, hex?: string, dec?: string, nom?: string) => {
     if (hex !== undefined || dec !== undefined) {
       const n = hex !== undefined ? parseInt(hex, 16) : Number(dec);
       return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "";
@@ -241,6 +241,8 @@ const MOTIFS_JS: readonly { re: RegExp; motif: string }[] = [
   { re: /\bimportScripts\b/g, motif: "chargement de script « importScripts »" },
   { re: /\beval\b/g, motif: "code évalué « eval »" },
   { re: /\bFunction\b/g, motif: "code évalué « Function »" },
+  { re: /\bconstructor\b/g, motif: "code évalué « constructor »" },
+  { re: /\bset(?:Timeout|Interval)\s*\(\s*["'`]/g, motif: "code évalué (« setTimeout / setInterval » avec une chaîne)" },
   { re: /\bnew\s+Function\b/g, motif: "code évalué « new Function »" },
   { re: /\bserviceWorker\b/g, motif: "« serviceWorker »" },
   { re: /\bimport\s*\(/g, motif: "import dynamique « import( »" },
@@ -249,7 +251,16 @@ const MOTIFS_JS: readonly { re: RegExp; motif: string }[] = [
   { re: /["'`]\s*\/\/[a-z0-9][^"'`]*/gi, motif: "adresse externe (protocole implicite) dans une chaîne" },
 ];
 
-function verifierJs(chemin: string, texte: string, base: number, source: string, refus: RefusMaquette[]): void {
+/** Décode `\uXXXX`, `\u{…}` et `\xNN` (échappements d'identifiant) pour que `\u0066etch(` soit vu comme `fetch(`. */
+export function decoderEchappementsJs(texte: string): string {
+  return texte.replace(/\\u\{([0-9a-f]{1,6})\}|\\u([0-9a-f]{4})|\\x([0-9a-f]{2})/gi, (tout, a?: string, b?: string, c?: string) => {
+    const n = parseInt(a ?? b ?? c ?? "", 16);
+    return Number.isFinite(n) && n <= 0x10ffff ? String.fromCodePoint(n) : tout;
+  });
+}
+
+function verifierJs(chemin: string, brut: string, base: number, source: string, refus: RefusMaquette[]): void {
+  const texte = decoderEchappementsJs(brut);
   for (const { re, motif } of MOTIFS_JS) {
     re.lastIndex = 0;
     for (let m = re.exec(texte); m; m = re.exec(texte)) {
@@ -275,6 +286,10 @@ function verifierCss(chemin: string, texte: string, base: number, source: string
     if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `url( ) : ${motif}` });
   }
   for (const m of texte.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]*)"|'([^']*)'|([^)\s;]+))/gi)) {
+    if ((m[1] ?? m[2] ?? m[3] ?? "").includes("\\")) {
+      refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "@import : barre oblique inverse (adresse masquée)" });
+      continue;
+    }
     const motif = referenceInterdite(m[1] ?? m[2] ?? m[3] ?? "");
     if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `@import : ${motif}` });
   }
@@ -296,11 +311,11 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
         for (const m of texte.matchAll(/<\s*(iframe|object|embed|base|frame|frameset|applet)\b/gi)) {
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: `balise interdite <${m[1]!.toLowerCase()}>` });
         }
-        for (const m of texte.matchAll(/<[a-z][^>]*?\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
-          for (const a of m[0].matchAll(/\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
-            const code = decoderEntites(a[1] ?? a[2] ?? a[3] ?? "");
-            verifierJs(chemin, code, (m.index ?? 0) + (a.index ?? 0), texte, refus);
-          }
+        // Attributs on*= : cherchés dans tout le HTML hors <script> (séparés par espace, « / », ou collés à une valeur entre guillemets).
+        const horsScripts = texte.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, (x) => " ".repeat(x.length));
+        for (const a of horsScripts.matchAll(/[\s/"']on[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
+          const code = decoderEntites(a[1] ?? a[2] ?? a[3] ?? "");
+          verifierJs(chemin, code, a.index ?? 0, texte, refus);
         }
         for (const m of texte.matchAll(/<script\b([^>]*)>/gi)) {
           const src = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/i.exec(m[1] ?? "");
@@ -308,7 +323,8 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
           const valeur = decoderEntites(src[1] ?? src[2] ?? src[3] ?? "").trim().split(/[?#]/)[0] ?? "";
           if (!valeur.toLowerCase().endsWith(".js")) refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "script src : le fichier doit finir par « .js »" });
         }
-        for (const m of texte.matchAll(/<meta\b[^>]*http-equiv\s*=\s*["']?\s*refresh/gi)) {
+        for (const m of texte.matchAll(/<meta\b[^>]*>/gi)) {
+          if (!/http-equiv\s*=\s*["']?\s*refresh/i.test(decoderEntites(m[0]))) continue;
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "redirection automatique « refresh »" });
         }
         for (const m of texte.matchAll(/<form\b[^>]*\baction\s*=/gi)) {
