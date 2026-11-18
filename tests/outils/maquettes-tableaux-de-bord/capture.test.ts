@@ -228,6 +228,12 @@ describe("texte de capturer.mts", () => {
     expect(film).toContain("page.screenshot");
     expect(controles).toContain("page.screenshot");
   });
+  it("pauseAt reçoit une heure lue dans la page, pas une heure fixe", () => {
+    expect(film).toContain("page.evaluate(() => Date.now())");
+    expect(film).toMatch(/page\.clock\.pauseAt\(new Date\(maintenant \+/);
+    expect(film).not.toMatch(/pauseAt\([^)]*HEURE_FIGEE/);
+    expect(film.indexOf("Date.now()")).toBeLessThan(film.indexOf("page.clock.pauseAt"));
+  });
   it("aucune adresse réseau en dur ; garde réseau dans les deux passes", () => {
     expect(texte).not.toMatch(/https?:\/\//);
     expect(film).toContain('context.route("**/*"');

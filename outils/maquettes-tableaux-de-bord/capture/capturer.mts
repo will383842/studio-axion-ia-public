@@ -145,7 +145,9 @@ async function passeFilm(
       rapport.remarques.push("Une <video> dans la maquette ne suit pas l'horloge : arrêt.");
       throw new Arret(4, "La maquette contient une <video> : elle ne suivrait pas l'horloge du film.");
     }
-    await page.clock.pauseAt(new Date(HEURE_FIGEE.getTime() + 100)); // à partir d'ici, rien ne bouge sans nous
+    // L'horloge simulée a avancé pendant le chargement : on vise une heure lue dans la page, jamais une heure fixe.
+    const maintenant = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(new Date(maintenant + 1000)); // à partir d'ici, rien ne bouge sans nous
 
     const enc = spawn("ffmpeg", argumentsEncodage(fichier), { stdio: ["pipe", "ignore", "pipe"] });
     encodeur = enc;
