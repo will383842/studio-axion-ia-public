@@ -31,9 +31,9 @@ describe("structure des sept rubriques", () => {
     expect(nav.RUBRIQUES_NAV.map((r) => r.libelle)).toEqual(["Accueil", "Écrire", "Mes contenus", "Calendrier", "Publier", "Résultats", "Ressources"]);
     expect(nav.NAV_PIED.map((e) => e.libelle)).toEqual(["Réglages"]);
   });
-  it("Mes contenus : Vidéos, Carrousels (pas d'Infographies tant que l'écran n'existe pas) ; Ressources : Personnages, Bibliothèque", () => {
+  it("Mes contenus : Vidéos, Carrousels, Infographies ; Ressources : Personnages, Bibliothèque", () => {
     const sous = (id: string) => nav.RUBRIQUES_NAV.find((r) => r.id === id)!.enfants!.map((e) => e.libelle);
-    expect(sous("contenus")).toEqual(["Vidéos", "Carrousels"]);
+    expect(sous("contenus")).toEqual(["Vidéos", "Carrousels", "Infographies"]);
     expect(sous("ressources")).toEqual(["Personnages", "Bibliothèque"]);
   });
   it("l'ordre du HTML suit celui de la barre", () => {
