@@ -18,3 +18,7 @@ Copiée le 16/11 (sources du pack), neutralisée dans la fiche T-EXT-10.
 
 ## Ids d'étapes de demoMaquette
 Ids d'étapes : demande, qualification, relance, reponse, opportunite, client
+
+## Correctifs après relecture
+- Sociétés d'exemple renommées « Société exemple A » à « Société exemple G » (plus aucun nom d'origine ni mot de couleur bleue) ; tous les courriels en `@exemple.invalid`.
+- Symboles pouvant s'afficher en émoji couleur (⚙, ✉, ▶) remplacés par des signes monochromes (☰, ✎, ►) ; le test refuse tout émoji couleur.

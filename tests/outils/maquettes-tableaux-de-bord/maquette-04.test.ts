@@ -63,4 +63,21 @@ describe("maquette 04-clients", () => {
     );
     expect(provenance).toContain("données fictives");
   });
+  it("n'utilise aucun nom de société d'origine ni mot de couleur bleue", () => {
+    expect(index.contenu).not.toMatch(/azur|blue|bleu|marine|oc[ée]an|\bciel\b/i);
+    for (const ancien of ["Atelier Nova", "Orion Conseil", "Helix Services", "Asteria Groupe", "Solstice Studio", "Cap Conseil", "Maison Azur"]) {
+      expect(index.contenu, ancien).not.toContain(ancien);
+    }
+    for (const lettre of "ABCDEFG") expect(index.contenu).toContain(`Société exemple ${lettre}`);
+  });
+
+  it("n'utilise que des courriels en @exemple.invalid", () => {
+    const courriels = index.contenu.match(/[\w.-]+@[\w.-]+/g) ?? [];
+    expect(courriels.length).toBeGreaterThan(0);
+    for (const c of courriels) expect(c, c).toMatch(/@exemple\.invalid$/);
+  });
+
+  it("n'affiche aucun émoji en couleur (signes monochromes seulement)", () => {
+    expect(index.contenu).not.toMatch(/\p{Extended_Pictographic}|\p{Emoji_Presentation}|\uFE0F/u);
+  });
 });
