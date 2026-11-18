@@ -159,6 +159,26 @@ describe("vidéos en cours", () => {
   });
 });
 
+describe("devis avant dépense (T-EXT-42)", () => {
+  it("CLE_DEVIS_AVANT_DEPENSE est la clé écrite en toutes lettres dans le branchement du moteur", () => {
+    expect(lire("src/services/tutoriel-branchements.ts")).toContain(`lireParametre<boolean>("${c.CLE_DEVIS_AVANT_DEPENSE}", false)`);
+  });
+  it("la phrase affichée vient de texteDevis : des quantités, aucun mot de prix ; sans devis, rien", async () => {
+    const { etablirDevis, texteDevis } = await import("@/moteurs/montage-tutoriel-outil/devis-tutoriel");
+    const d = etablirDevis({ roles: [{ id: "plan", essaisMax: 2 }], caracteresScript: 900, motsScript: 150, voixDejaPayee: false, ratios: ["4:5", "9:16"], essai: false });
+    const phrase = c.phraseDevis(d);
+    expect(phrase).toBe(texteDevis(d).join(" · "));
+    expect(phrase).toContain("Claude : 2 appels au plus");
+    expect(phrase).not.toMatch(INTERDIT);
+    expect(c.phraseDevis(null)).toBeNull();
+    expect(c.phraseDevis(undefined)).toBeNull();
+  });
+  it("la sous-page branche le port devis sur phraseDevis (null tant que le devis n'est pas stocké)", () => {
+    const src = lire("src/app/(studio)/reglages/tutoriel-outil/page.tsx");
+    expect(src).toMatch(/devis:\s*async \(\) => phraseDevis\(null\)/);
+  });
+});
+
 const depense = (videoId: string, date: string, lignes: { unite: string; quantite: number; fournisseur: string }[]) => ({ id: `d-${videoId}-${date}`, videoId, date, lignes }) as unknown as DepenseEnregistree;
 
 describe("consommation en quantités", () => {

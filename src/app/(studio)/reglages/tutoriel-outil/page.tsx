@@ -5,7 +5,7 @@ import { depots } from "@/donnees/memoire";
 import { exigerSession } from "@/services/auth";
 import { coutsDeLaVideo } from "@/services/cout-video";
 import { ligneSimulee, moisParis } from "@/services/couts";
-import { lireConsommation, lireReglagesTutoriel, lireTexteMention, phraseDuTravail, videosEnCours } from "@/services/tutoriel-console";
+import { lireConsommation, lireReglagesTutoriel, lireTexteMention, phraseDevis, phraseDuTravail, videosEnCours } from "@/services/tutoriel-console";
 import { lireSuivi } from "@/services/tutoriel-suivi";
 import { basculerReglageFormulaire, enregistrerTexteFormulaire } from "./actions";
 
@@ -29,6 +29,10 @@ export default async function PageReglagesTutorielOutil() {
     lireConsommation(videos, {
       depensesDe: (id) => depots().depenses.lister((d) => d.videoId === id),
       nbDepenses: async (id) => (await coutsDeLaVideo(id)).nbDepenses,
+      // Devis de T-EXT-42 (`texteDevis`, via `phraseDevis`). Il n'est stocké nulle part : il est calculé à la fabrication
+      // (`montage-tutoriel-outil/index.ts`, `garderDevis`), avec les voix et le script lu. Le recalculer ici sortirait du
+      // périmètre : le port renvoie `null` (« Ligne à demander » dans la description de la PR).
+      devis: async () => phraseDevis(null),
       payee: (l) => !ligneSimulee(l),
       moisDe: (date) => moisParis(date),
       moisCourant: moisParis(),
