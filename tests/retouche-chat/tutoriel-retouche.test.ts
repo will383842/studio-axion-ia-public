@@ -100,9 +100,9 @@ describe("tutoriel : le texte est celui de Williams", () => {
   it("texte glissé par les parametres : un test par type d'opération", () => {
     const glisse = "Gagnez 3 heures par jour";
     const ops = [
-      { type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres: { texte: glisse } },
-      { type: "remplacer-piece", sceneId: "s1", ancienne: "titre", nouvelle: "legende", parametres: { titre: glisse } },
-      { type: "changer-brique", sceneId: "s1", piece: "legende", parametres: { options: { lignes: [{ libelle: glisse }] } } },
+      { type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres: { texte: glisse, sousTexte: "", style: "bandeau" } },
+      { type: "remplacer-piece", sceneId: "s1", ancienne: "titre", nouvelle: "legende", parametres: { texte: glisse, sousTexte: "", style: "bandeau" } },
+      { type: "changer-brique", sceneId: "s1", piece: "legende", parametres: { texte: glisse, sousTexte: "", style: "titre" } },
     ];
     for (const op of ops) {
       const ko = filtrerOperationsGenerateur(ID, [op] as never[], "ajoute une légende en bas");
@@ -112,8 +112,8 @@ describe("tutoriel : le texte est celui de Williams", () => {
       expect(ok.operations).toHaveLength(1);
       expect(ok.remarques).toEqual([]);
     }
-    const sansTexte = { type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres: { position: "bas" }, zone: "bas" };
-    expect(filtrerOperationsGenerateur(ID, [sansTexte] as never[], "ajoute une légende").operations).toHaveLength(1);
+    const sansTexte = { type: "ajouter-piece", sceneId: "s1", piece: "curseur", parametres: { position: "bas" }, zone: "bas" };
+    expect(filtrerOperationsGenerateur(ID, [sansTexte] as never[], "ajoute un curseur").remarques).not.toContain(PAS_VOTRE);
   });
 
   it("clé de texte hors liste (intitule) → écartée ; clé technique → gardée", () => {
@@ -124,8 +124,8 @@ describe("tutoriel : le texte est celui de Williams", () => {
     expect(ko.remarques).toEqual([PAS_VOTRE]);
     expect(f({ sousTitreCourt: "Gagnez 3 heures" }, "ajoute une légende").operations).toEqual([]);
     expect(f({ contenuHtml: "<b>Gagnez</b>" }, "ajoute une légende").operations).toEqual([]);
-    expect(f({ intitule: "Gagnez 3 heures" }, "mets Gagnez 3 heures").operations).toHaveLength(1);
-    expect(f({ variante: "grande", couleur: "rouge", position: "bas", icone: "etoile" }, "ajoute une légende").operations).toHaveLength(1);
+    expect(f({ intitule: "Gagnez 3 heures" }, "mets Gagnez 3 heures").remarques).toEqual(["Dites le texte exact à afficher dans votre message."]); // texte écrit, mais pièce incomplète
+    expect(f({ variante: "grande", couleur: "rouge", position: "bas", icone: "etoile", style: "bandeau" }, "ajoute une légende").remarques).not.toContain(PAS_VOTRE); // clés techniques : jamais refusées comme « texte »
   });
 
   it("ajouter-chiffre : prefixe et suffixe doivent être écrits par Williams", () => {
@@ -149,6 +149,43 @@ describe("tutoriel : le texte est celui de Williams", () => {
       expect(r.remarques).toEqual([]);
       const sans = filtrerOperationsGenerateur(g, [script] as never[], "zoom");
       expect(sans.remarques).toEqual(["Le texte lu reste le vôtre : pour le changer, demandez « modifie le script »."]);
+    }
+  });
+});
+
+describe("tutoriel : jamais de texte d'exemple du catalogue", () => {
+  const DIRE = "Dites le texte exact à afficher dans votre message.";
+  const g = (op: object, demande = "ajoute une légende") => filtrerOperationsGenerateur(ID, [op] as never[], demande);
+
+  it("les 3 opérations sans parametres sont écartées", () => {
+    for (const op of [
+      { type: "ajouter-piece", sceneId: "s1", piece: "legende" },
+      { type: "changer-brique", sceneId: "s1", piece: "legende" },
+      { type: "remplacer-piece", sceneId: "s1", ancienne: "carte-kpi", nouvelle: "legende" },
+    ]) {
+      const r = g(op);
+      expect(r.operations).toEqual([]);
+      expect(r.remarques).toEqual([DIRE]);
+    }
+  });
+
+  it("parametres incomplets (un seul champ écrit) : écartés, aucune réparation par l'exemple", () => {
+    const r = g({ type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres: { texte: "Merci" } }, "ajoute la légende Merci");
+    expect(r.operations).toEqual([]);
+    expect(r.remarques).toEqual([DIRE]);
+    expect(g({ type: "changer-brique", sceneId: "s1", piece: "legende", parametres: { texte: "Merci", sousTexte: "", style: "inconnu" } }, "légende Merci").operations).toEqual([]);
+  });
+
+  it("légende complète au texte écrit par Williams : gardée (3 opérations)", () => {
+    const parametres = { texte: "Merci", sousTexte: "", style: "bandeau" };
+    for (const op of [
+      { type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres },
+      { type: "changer-brique", sceneId: "s1", piece: "legende", parametres },
+      { type: "remplacer-piece", sceneId: "s1", ancienne: "carte-kpi", nouvelle: "legende", parametres },
+    ]) {
+      const r = g(op, "mets la légende Merci");
+      expect(r.operations).toHaveLength(1);
+      expect(r.remarques).toEqual([]);
     }
   });
 });

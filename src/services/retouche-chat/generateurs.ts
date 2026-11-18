@@ -11,6 +11,7 @@
  */
 import type { OperationRetouche } from "@/briques/operations";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import { CATALOGUE_BRIQUES, estPiece } from "@/briques/plan-scenes/catalogue";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { demandeExpliciteScript } from "./comprendre";
 import type { EntreeRenduPartiel, PortsRetoucheChat, SortieRenduPartiel } from "./service";
@@ -140,6 +141,10 @@ export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, op
         remarques.push("Ce texte n'est pas le vôtre : écrivez-le dans votre message, mot pour mot.");
         return false;
       }
+      if ((o.type === "ajouter-piece" || o.type === "changer-brique" || o.type === "remplacer-piece") && !parametresComplets(o.type === "remplacer-piece" ? o.nouvelle : o.piece, o.parametres)) {
+        remarques.push("Dites le texte exact à afficher dans votre message.");
+        return false;
+      }
     }
     return true;
   });
@@ -154,8 +159,14 @@ const ecritParWilliams = (demande: string, texte: string): boolean => {
   return t !== "" && new RegExp(`(^|[^\\p{L}\\p{N}])${echapper(t)}($|[^\\p{L}\\p{N}])`, "u").test(normaliser(demande));
 };
 
+/** `parametres` présents ET valides tels quels pour la pièce : jamais de réparation, donc jamais de texte d'exemple du catalogue à l'écran. */
+function parametresComplets(piece: string, parametres: unknown): boolean {
+  if (!estPiece(piece) || parametres === undefined || parametres === null) return false;
+  return CATALOGUE_BRIQUES[piece].schema.safeParse(parametres).success;
+}
+
 /** Liste FERMÉE des clés techniques des `parametres` : leurs valeurs ne sont jamais affichées. Toute autre valeur texte doit être écrite par Williams. */
-const CLES_TECHNIQUES = new Set(["id", "sceneid", "piece", "brique", "variante", "position", "zone", "couleur", "icone", "cle", "source"]);
+const CLES_TECHNIQUES = new Set(["id", "sceneid", "piece", "brique", "variante", "position", "zone", "couleur", "icone", "cle", "source", "style"]);
 /** Tout texte ou nombre glissé dans les `parametres` d'une pièce (objets et listes imbriqués compris), hors clés techniques. */
 function textesDesParametres(v: unknown, cle = ""): string[] {
   if (CLES_TECHNIQUES.has(cle.toLowerCase().replace(/[_\s]/g, ""))) return [];
