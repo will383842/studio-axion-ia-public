@@ -9,8 +9,9 @@ import { TABLE_IMAGE_VIDEO } from "./correspondances/image-video";
 import { TABLE_TABLEAU } from "./correspondances/tableau";
 import { TABLE_FACECAM_ANIMEE } from "./correspondances/facecam-animee";
 import { TABLE_CARTES } from "./correspondances/cartes";
+import { TABLE_TUTORIEL } from "./correspondances/tutoriel";
 
-export const GENERATEURS = ["cas-concret", "image-video", "tableau", "facecam-animee", "cartes"] as const;
+export const GENERATEURS = ["cas-concret", "image-video", "tableau", "facecam-animee", "cartes", "tutoriel"] as const;
 export type GenerateurCommun = (typeof GENERATEURS)[number];
 
 /** Valeurs communes, par axe. Un axe absent n'a pas encore de valeur commune (tout y est `autre:`). */
@@ -41,6 +42,7 @@ const TABLES: Readonly<Record<GenerateurCommun, Table>> = Object.freeze({
   tableau: TABLE_TABLEAU,
   "facecam-animee": TABLE_FACECAM_ANIMEE,
   cartes: TABLE_CARTES,
+  tutoriel: TABLE_TUTORIEL,
 });
 
 /** Valeur commune d'un code local ; sans équivalent : `autre:<generateur>:<code>`. */
