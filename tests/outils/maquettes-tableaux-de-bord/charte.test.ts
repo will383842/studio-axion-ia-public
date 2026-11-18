@@ -108,6 +108,16 @@ describe("controlerMaquette", () => {
     expect(regles("a { color: hsl(210 60% 40%); }")).toContain("bleu");
     expect(regles("a { color: navy; }")).toContain("bleu");
   });
+  it("couleurs nommées CSS : toute la table passe par la règle teinte/saturation", () => {
+    for (const n of ["teal", "darkcyan", "lightcyan", "paleturquoise", "darkturquoise", "darkslateblue", "mediumslateblue", "slategray", "slategrey", "lightslategray", "darkslategray", "lavender", "ghostwhite", "cyan", "azure", "navy"]) {
+      expect(regles(`a { color: ${n}; }`), n).toContain("bleu");
+    }
+    for (const n of ["beige", "cornsilk", "palegoldenrod", "lightgoldenrodyellow", "ivory", "gold", "khaki", "goldenrod"]) {
+      expect(regles(`a { color: ${n.toUpperCase()}; }`), n).toContain("jaune");
+    }
+    expect(regles("a { color: indigo; }")).toEqual([]);
+    expect(regles("a { color: red; background: white; border-color: black; }")).toEqual([]);
+  });
   it("jaune refusé", () => {
     expect(regles("a { color: #f5d000; }")).toContain("jaune");
     expect(regles("a { color: hsl(55, 90%, 50%); }")).toContain("jaune");
@@ -120,6 +130,20 @@ describe("controlerMaquette", () => {
     expect(regles("a { font-family: Inter, sans-serif; }")).toContain("police");
     expect(regles("a { font-family: Manrope, Arial; }")).toContain("police");
     expect(regles('a { font-family: "Manrope", monospace; }')).toEqual([]);
+  });
+  it("police : raccourci font, fontFamily et font.family en JS refusés", () => {
+    expect(regles("a { font: 600 14px Inter, sans-serif; }")).toContain("police");
+    expect(regles("a { font: italic 600 14px/1.4 Arial; }")).toContain("police");
+    expect(regles("ctx.font = '14px Inter';")).toContain("police");
+    expect(regles("el.style.fontFamily = 'Inter';")).toContain("police");
+    expect(regles('el.style.fontFamily = "Inter, sans-serif";')).toContain("police");
+    expect(regles("Chart.defaults.font.family = 'Inter';")).toContain("police");
+    expect(regles("options = { font: { family: 'Inter', size: 12 } };")).toContain("police");
+    expect(regles("a { font: 600 14px Manrope, sans-serif; }")).toEqual([]);
+    expect(regles("a { font: inherit; }")).toEqual([]);
+    expect(regles("el.style.fontFamily = 'Manrope';")).toEqual([]);
+    expect(regles("Chart.defaults.font.family = \"Manrope\";")).toEqual([]);
+    expect(regles("options = { font: { family: 'Manrope', size: 12 } };")).toEqual([]);
   });
   it("argent refusé", () => {
     expect(regles("x { content: \"12 500 €\"; }")).toContain("argent");
@@ -134,8 +158,23 @@ describe("controlerMaquette", () => {
     expect(sans.ok).toBe(false);
     expect(sans.defauts.some((d) => d.regle === "marque" && d.extrait.includes("nom neutre absent"))).toBe(true);
   });
+  it("marque : mot entier seulement (arrivage, Sylvain permis ; Rivage, Sylva refusés)", () => {
+    expect(regles("/* arrivage du matin */")).toEqual([]);
+    expect(regles("/* Sylvain Martin */")).toEqual([]);
+    expect(regles("/* Rivage */")).toContain("marque");
+    expect(regles("/* Maison Rivage, Sylva. */")).toContain("marque");
+    expect(regles("/* ORDiVA */")).toContain("marque");
+    expect(regles("/* une feuille de calcul */")).toEqual([]);
+    expect(regles("/* feuille. */")).toContain("marque");
+  });
   it("flou refusé", () => {
     expect(regles("a { filter:blur(7px); }")).toContain("flou");
+    expect(regles('s = { filter: "blur(7px)" };')).toContain("flou");
+    expect(regles('el.style.filter = "blur(7px)";')).toContain("flou");
+    expect(regles("el.style.filter = 'blur(7px)';")).toContain("flou");
+    expect(regles("a { backdrop-filter: blur(4px); }")).toContain("flou");
+    expect(regles('<filter id="f"><feGaussianBlur stdDeviation="3"/></filter>')).toContain("flou");
+    expect(regles("a { filter: none; }")).toEqual([]);
   });
   it("réseau refusé", () => {
     expect(regles("@import url(https://fonts.googleapis.com/css2?family=Manrope);")).toContain("reseau");

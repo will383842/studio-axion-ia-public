@@ -19,4 +19,4 @@ Toute exécution d'un navigateur (Playwright) se fait dans une session cloud ou 
 La commande de capture sera ajoutée ici par T-EXT-03 (aucune commande n'existe encore ; non inventée).
 
 ## Provenance
-Sources d'origine : dépôt privé, `videos-tableaux-de-bord/sources-packs/`. Noms neutres vérifiés le 17/11/2026 par recherche web ; pack 07 renommé « Espace démo · Connaissances » (validé par Williams le 18/11/2026).
+Sources d'origine : dépôt privé, `videos-tableaux-de-bord/sources-packs/`. Noms neutres vérifiés le 17/11/2026 par recherche web ; pack 07 renommé « Espace démo · Connaissances » (nom fixé par AUDIT-COMPLET-18-11.md § 2, 18/11/2026). « Connaissances » n'est pas couvert par la vérification web du 17/11 : le nom du pack 07 y était « Tâches ».
