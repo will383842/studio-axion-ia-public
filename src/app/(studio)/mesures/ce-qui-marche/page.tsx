@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { CeQuiMarche } from "@/components/generateur/CeQuiMarche";
+import { CeQuiMarcheVisuels } from "@/components/mesures/CeQuiMarcheVisuels";
 import { OngletsResultats } from "@/components/mesures/OngletsResultats";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { apprentissageActif } from "@/services/apprentissage";
 import { exigerSession } from "@/services/auth";
 import { ceQuiMarche, modesLecture } from "@/services/mesures-completes";
+import { ceQuiMarcheVisuels } from "@/services/mesures-visuels";
 
 export const metadata: Metadata = { title: "Résultats" };
 export const dynamic = "force-dynamic";
@@ -19,11 +21,13 @@ export default async function PageCeQuiMarche() {
   const donnees = await ceQuiMarche();
   const apprentissage = await apprentissageActif();
   const modes = modesLecture();
+  const visuels = await ceQuiMarcheVisuels();
   return (
     <ConteneurPage largeur="lecture">
       <EnTetePage titre="Résultats" sousTitre={donnees.nombre ? `${donnees.nombre} vidéos mesurées` : "Notez les chiffres de vos vidéos publiées, puis regardez ce qui marche le mieux."} className="mb-4" />
       <OngletsResultats actif="marche" />
       <CeQuiMarche donnees={donnees} apprentissage={apprentissage} essai={modes.buffer === "simulation" && modes.visites === "simulation"} />
+      <CeQuiMarcheVisuels donnees={visuels} />
     </ConteneurPage>
   );
 }
