@@ -198,10 +198,74 @@ export interface RefusMaquette {
 
 const NAMESPACES_PERMIS = /^https?:\/\/www\.w3\.org\/(?:2000\/svg|1999\/xlink|1999\/xhtml|2000\/xmlns\/?)$/i;
 
+let debutsTexte = "";
+let debutsLignes: number[] = [0];
+/** Numéro de ligne (à partir de 1) d'un décalage : table des débuts de ligne calculée une fois par texte, recherche dichotomique. */
 function ligneDe(texte: string, decalage: number): number {
-  let n = 1;
-  for (let i = 0; i < decalage && i < texte.length; i++) if (texte.charCodeAt(i) === 10) n++;
-  return n;
+  if (texte !== debutsTexte) {
+    const d = [0];
+    for (let i = texte.indexOf("\n"); i !== -1; i = texte.indexOf("\n", i + 1)) d.push(i + 1);
+    debutsTexte = texte;
+    debutsLignes = d;
+  }
+  const limite = Math.min(decalage, texte.length);
+  let bas = 0;
+  let haut = debutsLignes.length - 1;
+  while (bas < haut) {
+    const milieu = (bas + haut + 1) >> 1;
+    if (debutsLignes[milieu]! <= limite) bas = milieu;
+    else haut = milieu - 1;
+  }
+  return bas + 1;
+}
+
+/**
+ * Balises HTML en UN SEUL passage (pas d'expression régulière : temps linéaire, jamais de retour en arrière).
+ * Nom jusqu'à un blanc, « / » ou « > » ; attributs : les valeurs entre guillemets sont sautées d'un bloc ; fin au « > ».
+ * Une balise qui n'a pas de fin n'en est pas une. Si la lecture atteint la fin du texte sans avoir vu un guillemet, aucune
+ * balise suivante ne peut aboutir : on s'arrête. Un budget borne le reste (cas pathologique : refus, jamais un blocage).
+ */
+function balisesDe(texte: string): { index: number; texte: string }[] | null {
+  const balises: { index: number; texte: string }[] = [];
+  const n = texte.length;
+  const budget = 40 * n + 1_000_000;
+  let depense = 0;
+  let debut = texte.indexOf("<");
+  while (debut !== -1 && debut < n - 1) {
+    const c = texte.charCodeAt(debut + 1) | 32;
+    if (c < 97 || c > 122) {
+      debut = texte.indexOf("<", debut + 1);
+      continue;
+    }
+    let i = debut + 2;
+    let guillemet = false;
+    let fin = -1;
+    while (i < n) {
+      const ch = texte[i]!;
+      if (ch === ">") {
+        fin = i;
+        break;
+      }
+      if (ch === '"' || ch === "'") {
+        guillemet = true;
+        const f = texte.indexOf(ch, i + 1);
+        if (f === -1) break;
+        i = f + 1;
+        continue;
+      }
+      i++;
+    }
+    depense += i - debut;
+    if (depense > budget) return null;
+    if (fin !== -1) {
+      balises.push({ index: debut, texte: texte.slice(debut, fin + 1) });
+      debut = texte.indexOf("<", fin + 1);
+    } else {
+      if (!guillemet && i >= n) break;
+      debut = texte.indexOf("<", debut + 1);
+    }
+  }
+  return balises;
 }
 
 /** Une référence (src, href, url(), @import…) est-elle hors du dossier de la maquette ? Retourne le motif ou null. */
@@ -354,21 +418,23 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "formulaire avec « action »" });
         }
         // Toutes les balises, toutes les valeurs d'attribut : entités décodées (le navigateur le fait avant tout le reste).
-        for (const t of texte.matchAll(/<[a-z][^\s>/]*(?:"[^"]*"|'[^']*'|[^>"'])*>/gi)) {
-          for (const a of t[0].matchAll(/([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
+        const balises = balisesDe(texte);
+        if (!balises) refus.push({ chemin, ligne: 1, motif: "balises trop imbriquées ou sans fin : maquette illisible" });
+        for (const t of balises ?? []) {
+          for (const a of t.texte.matchAll(/([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
             const nom = a[1]!.toLowerCase();
             const valeur = decoderEntites(a[2] ?? a[3] ?? a[4] ?? "");
-            const ligne = ligneDe(texte, (t.index ?? 0) + (a.index ?? 0));
+            const ligne = () => ligneDe(texte, t.index + (a.index ?? 0));
             if (nom === "style") {
               const dansStyle: RefusMaquette[] = [];
               verifierCss(chemin, valeur, 0, valeur, dansStyle);
-              for (const r of dansStyle) refus.push({ ...r, ligne });
+              for (const r of dansStyle) refus.push({ ...r, ligne: ligne() });
             }
             if (nom.startsWith("xmlns") || NAMESPACES_PERMIS.test(valeur.trim())) continue;
             const elements = nom.endsWith("srcset") ? valeur.split(",").map((x) => x.trim().split(/\s+/)[0] ?? "") : [valeur];
             for (const el of elements) {
               const v = el.replace(/^[\u0000-\u0020]+/, "");
-              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne, motif: `${nom} : adresse externe` });
+              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne: ligne(), motif: `${nom} : adresse externe` });
             }
           }
         }

@@ -564,3 +564,30 @@ describe("verdict Opus : maquette, courriels, JSON, liens", () => {
     expect(refus(construire([{ nom: "a.txt", donnees: u8("x"), hote: 19, attrExterne: (0o100644 << 16) >>> 0 }]))).toEqual([]);
   });
 });
+
+describe("verdict Opus : temps de calcul de verifierMaquette (ReDoS, lignes)", () => {
+  const duree = (texte: string) => {
+    const t0 = performance.now();
+    const r = verifierMaquette([{ chemin: "index.html", texte }]);
+    return { ms: performance.now() - t0, r };
+  };
+  it.each([
+    ["balises sans fin « <a »", () => "<a".repeat(500_000)],
+    ["balises sans fin « <a␠ »", () => "<a ".repeat(350_000)],
+    ["balises à attribut, une par ligne", () => "<a b=c>\n".repeat(131_072)],
+    ["guillemets ouvrants sans fin", () => '<a "'.repeat(200_000)],
+  ])("%s : moins d'une seconde", (_nom, fabrique) => {
+    const { ms } = duree(fabrique());
+    expect(ms).toBeLessThan(1000);
+  });
+  it("le cas permis reste accepté, et une adresse externe garde sa ligne", () => {
+    expect(verifierMaquette([{ chemin: "ok.html", texte: '<link rel="stylesheet" href="styles.css">\n<img src="a.png" srcset="b.png 1x">' }]).ok).toBe(true);
+    const r = verifierMaquette([{ chemin: "index.html", texte: '<p>a</p>\n<p>b</p>\n<link rel="preload" as="image" imagesrcset="https://exemple.invalid/a.png 1x">' }]);
+    expect(r.ok).toBe(false);
+    expect(r.refus.some((x) => x.ligne === 3)).toBe(true);
+  });
+  it("attribut externe dans une balise précédée d'un « < » sans fin : toujours refusé", () => {
+    const r = verifierMaquette([{ chemin: "index.html", texte: '<b <p>\n<img data-x="//exemple.invalid/a.png">' }]);
+    expect(r.ok).toBe(false);
+  });
+});
