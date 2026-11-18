@@ -11,8 +11,7 @@
  *  - une publication partie, publiée ou passée ne se déplace pas ; rien n'est supprimé (les envois passent à « annule »).
  *  - texte ou premier commentaire changé : même retrait, puis le créneau repasse « À valider » (plus de `valideeLe`) : il exige le clic Valider ;
  *    un changement fait par un autre remet l'entrée à « Proposée ». Le contrôleur de texte (L7-12, L3-09) est relu avant tout appel ;
- *  - BLOQUÉ : « fonction client manquante » : `retirer(demande: DemandeRetraitZernio): Promise<ResultatRetraitZernio>` n'existe pas sur master
- *    (elle est dans la PR CAL-22, zone de la session Zernio). Sans port de retrait (`diffuseur: null`) et avec un post possible chez le diffuseur :
+ *  - `client.retirer` est sur master (CAL-22) et branché par défaut dans le câblage serveur. Sans port de retrait (`diffuseur: null`) et avec un post possible chez le diffuseur :
  *    AUCUN appel et AUCUNE écriture, l'ancienne date et l'ancien texte restent (jamais un créneau décalé avec un post resté à l'ancienne date, L5-02d).
  *    Sans post chez le diffuseur (avant la promotion), le déplacement se fait en local, sans appel.
  *  - la garde L5-02d (`niveauDiffuseurDuCreneau`) est relue avant tout geste : « à vérifier », « en cours » et « parti » refusent ;
@@ -384,9 +383,24 @@ export interface ClientRetraitCal22 {
   retirer(d: { postId: string; cleJournal: string }): Promise<{ etat: "retire" | "a-verifier" | "refuse" | string }>;
 }
 
+/** Tous les posts d'un statut (pages de 100, 50 pages au plus), comme le retrait de CAL-22 : un post au-delà de la première page se retrouve aussi. */
+async function listerTous(c: ClientRetraitCal22, status: string): Promise<{ _id: string; metadata?: { studioCle?: string } }[]> {
+  const tous: { _id: string; metadata?: { studioCle?: string } }[] = [];
+  const vus = new Set<string>();
+  for (let page = 1; page <= 50; page++) {
+    const lus = await c.listerPosts({ status, page, limit: 100 });
+    const neufs = lus.filter((p) => !vus.has(p._id));
+    neufs.forEach((p) => vus.add(p._id));
+    tous.push(...neufs);
+    if (lus.length < 100 || neufs.length === 0) break;
+  }
+  return tous;
+}
+
 /**
- * Le jour où `retirer` est sur master : une ligne de branchement (`diffuseur: portRetraitDepuisClient(() => clientZernio())`).
- * Brouillon et programmé sont relus ; sans post sous la clé, ou réponse incertaine : « à vérifier » (jamais en aveugle).
+ * Le port de retrait sur le client du diffuseur (`retirer` est sur master depuis CAL-22). Brouillon et programmé sont relus ;
+ * sans post sous la clé, ou réponse incertaine : « à vérifier » (jamais en aveugle). Le retrait est confirmé AVANT toute écriture locale :
+ * l'envoi n'est marqué « annulé » qu'après, donc jamais de brouillon orphelin chez le diffuseur.
  */
 export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortRetraitDiffuseur {
   return {
@@ -394,7 +408,7 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
       const cle = e.cleDiffuseur ?? e.cle;
       try {
         const c = client();
-        const posts = [...(await c.listerPosts({ status: "draft", page: 1, limit: 100 })), ...(await c.listerPosts({ status: "scheduled", page: 1, limit: 100 }))];
+        const posts = [...(await listerTous(c, "draft")), ...(await listerTous(c, "scheduled"))];
         const post = posts.find((x) => x.metadata?.studioCle === cle);
         if (!post) return "a-verifier";
         const r = await c.retirer({ postId: post._id, cleJournal: cle });
@@ -410,17 +424,17 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
 }
 
 /**
- * Câblage serveur : dépendances réelles, chargées à l'appel. `diffuseur: null` : AUCUN appel au diffuseur tant que la fonction de retrait
- * n'est pas sur master (bloqué : fonction client manquante `retirer(demande: DemandeRetraitZernio): Promise<ResultatRetraitZernio>`).
+ * Câblage serveur : dépendances réelles, chargées à l'appel. Sans port donné, le retrait passe par le client du diffuseur (construit seulement
+ * si un retrait est nécessaire, donc jamais réglages fermés ou sans post). `null` explicite : aucun retrait possible, rien ne change.
  */
-export async function depsDeplacementServeur(diffuseur: PortRetraitDiffuseur | null = null): Promise<DepsDeplacement> {
+export async function depsDeplacementServeur(diffuseur?: PortRetraitDiffuseur | null): Promise<DepsDeplacement> {
   const { depots, maintenant } = await import("@/services/_commun");
   const { appliquerLot } = await import("@/donnees/memoire");
   const { PREFIXE_ETATS_ENVOI_CALENDRIER: prefixe } = await import("@/services/branchement-envoi-calendrier");
   const z = await import("@/services/zernio");
   const d = depots();
   return {
-    diffuseur,
+    diffuseur: diffuseur === undefined ? portRetraitDepuisClient(() => z.clientZernio() as unknown as ClientRetraitCal22) : diffuseur,
     niveau: async (id) => (await import("@/services/garde-creneau-diffuseur")).niveauDiffuseurDuCreneau(id),
     publicationsDeCles: (cles) => d.publications.lister((x) => typeof x.cleEnvoi === "string" && cles.includes(x.cleEnvoi)),
     reglagesOuverts: async () => (await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true,

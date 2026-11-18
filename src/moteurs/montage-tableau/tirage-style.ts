@@ -63,7 +63,11 @@ export interface ChoixStyle {
   /** Style choisi par Will pour cette vidéo ou cette série : respecté tel quel. */
   styleImpose?: string;
   /** Présent : le style est tiré (graine de la vidéo), avec cet historique s'il est connu. */
-  tirage?: { historique?: readonly EntreeHistoriqueStyle[] };
+  tirage?: {
+    historique?: readonly EntreeHistoriqueStyle[];
+    /** Styles évités en plus des récents (liste brute du refus commun ; tout évité : règle d'aujourd'hui). */
+    eviter?: readonly StyleTableau[];
+  };
 }
 
 /** Style d'une vidéo au découpage : imposé, sinon tiré (si demandé), sinon celui de la série (comportement d'avant). */
@@ -71,5 +75,5 @@ export function styleDuDecoupage(e: ChoixStyle & { videoId: string; serie: { cod
   if (estStyleTableau(e.styleImpose)) return e.styleImpose;
   // Un style imposé inconnu (faute de frappe, ancien nom) ne bloque rien mais ne passe pas inaperçu (aucune donnée privée).
   if (e.styleImpose !== undefined) console.warn("[tableau] styleImpose inconnu, ignoré : retour au tirage ou au style de la série");
-  return e.tirage ? tirerStyleTableau(e.videoId, e.tirage.historique) : styleTableauDe({ serie: e.serie });
+  return e.tirage ? tirerStyleTableau(e.videoId, e.tirage.historique, e.tirage.eviter) : styleTableauDe({ serie: e.serie });
 }

@@ -8,6 +8,7 @@ import { estReseauDeclinaison } from "@/reseaux/codes";
 import { controlerProgrammation } from "@/services/controle-programmation";
 import { libelleJour } from "./BarreVue";
 import { MonogrammeReseau, TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { RetirerProgrammation } from "./RetirerProgrammation";
 import { ETATS_CALENDRIER, PastilleStatutPlan, type EtatAffiche, type TableLibelles } from "./PastilleStatutPlan";
 import { libelleOrigineDate } from "@/domaine/plan-editorial/origine-date";
 import { boutonsTiroir } from "@/domaine/plan-editorial/statuts";
@@ -256,6 +257,11 @@ export interface ProprietesFicheEntree {
    * La fiche « Programmé » devient alors modifiable et le dit ; faux par défaut : elle reste verrouillée comme avant.
    */
   texteProgrammeModifiable?: boolean;
+  /**
+   * CAL-23 : vrai quand l'hôte veut le geste « Retirer » d'une publication programmée (entrée de créneau). Le geste appelle
+   * `retirerProgrammationAction` (confirmation avant, retrait relu chez le diffuseur, jamais de faux succès). Faux par défaut.
+   */
+  retraitProgrammation?: boolean;
   /** Refus rendu par l'action, à dire à la personne. */
   erreur?: string;
   /** Vrai seulement quand l'envoi est allumé : sinon une entrée programmée dit « envoi éteint ». */
@@ -307,6 +313,7 @@ export function FicheEntree({
   selonStatut = false,
   surPrincipal,
   texteProgrammeModifiable = false,
+  retraitProgrammation = false,
   erreur,
   envoiAllume,
   libellesEtat,
@@ -325,6 +332,8 @@ export function FicheEntree({
   // CAL-23 : une publication programmée (déjà confiée, pas passée) se modifie seulement si l'hôte sait la retirer puis la faire revalider.
   const programmeModifiable = texteProgrammeModifiable && verrou === "confiee" && entree.etat === "programme";
   const modifiable = (verrou === null || programmeModifiable) && action !== undefined;
+  // CAL-23 : « Retirer » seulement pour une entrée programmée par le diffuseur (origine créneau), à venir ; les autres gardent leur geste local.
+  const retirable = retraitProgrammation && entree.etat === "programme" && lireCleFiche(entree.cle)?.origine === "creneau" && entree.jour >= aujourdhui;
   const boutons = selonStatut ? boutonsTiroir(entree.etat, entree.jour, aujourdhui) : null;
   const boutonPrincipal = boutons ? boutons.principal : boutonPrincipalDonne;
   // À valider, À corriger, Programmée, Idée (« Accepter l'idée ») : le bouton principal est un geste de l'hôte, il n'enregistre rien. Sans rappel, pas de bouton.
@@ -481,6 +490,7 @@ export function FicheEntree({
       ) : (
         <div className="flex flex-col gap-4">{champs}</div>
       )}
+      {retirable && <RetirerProgrammation key={entree.cle} cle={entree.cle} />}
     </section>
   );
 }

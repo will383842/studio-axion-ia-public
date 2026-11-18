@@ -23,6 +23,7 @@ import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { PretAPartir } from "./PretAPartir";
 import { RetirerDuCalendrier } from "./RetirerDuCalendrier";
+import { RetirerProgrammation } from "./RetirerProgrammation";
 import type { CodeControle } from "@/services/pret-a-partir";
 import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
 import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
@@ -84,6 +85,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
   const nom = a.nomReseau;
   // Retrait : seulement une publication de carrousel « programmée », à venir (le serveur refuse le reste).
+  // CAL-23 : une entrée de créneau programmée (chez le diffuseur) se retire par l'action de CAL-22 ; l'ancien geste local reste pour les autres.
+  const retirableChezDiffuseur = lireCleFiche(entree.cle)?.origine === "creneau" && entree.etat === "programme" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
   const retirable = lireCleFiche(entree.cle)?.origine === "publication" && entree.etat === "programme" && entree.type === "carrousel" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
 
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
@@ -226,6 +229,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         </Link>
       )}
       {retirable && <RetirerDuCalendrier key={entree.cle} cle={entree.cle} />}
+      {retirableChezDiffuseur && <RetirerProgrammation key={entree.cle} cle={entree.cle} />}
     </aside>
     </TiroirAccessible>
   );

@@ -6,9 +6,9 @@
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FicheEntree, PHRASE_PROGRAMMEE_MODIFIABLE } from "@/components/calendrier/FicheEntree";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
+import { FicheEntree, PHRASE_PROGRAMMEE_MODIFIABLE } from "@/components/calendrier/FicheEntree";
 import type { LotEcritures } from "@/domaine/depots";
 import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { instantParis } from "@/lib/horloge-paris";
