@@ -9,6 +9,7 @@ import { evaluerRepublication, regleRepublication } from "./regles";
 import { controlerNonCopie } from "./non-copie";
 import { controlerCharte } from "@/domaine/ecriture-post/controle-charte";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
+import { cleJour } from "@/lib/dates";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import type { IdReseau } from "@/domaine/types";
 
@@ -70,18 +71,10 @@ function jourValide(jour: string): boolean {
   return FORMAT_JOUR.test(jour) && ajouterJoursParis(jour, 0) === jour;
 }
 
-/** Jour (AAAA-MM-JJ) affiché à Paris à l'instant donné. */
-function jourDeParis(instantMs: number): string {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" })
-      .formatToParts(new Date(instantMs))
-      .map((x) => [x.type, x.value]),
-  );
-  return `${p.year}-${p.month}-${p.day}`;
-}
+const MOTIF_JOUR_OCCUPE = "Ce jour est déjà occupé sur ce réseau : choisissez un autre jour.";
 
 const MOTIFS_DELAI: Record<string, string> = {
-  "contenu-identique": "Le contenu proposé est identique à l'original : une nouvelle version doit être un contenu neuf.",
+  "contenu-identique": "Ce réseau refuse le même média que l'original : choisissez un média différent.",
   filigrane: "Le contenu proposé porte un filigrane : il ne peut pas être republié sur ce réseau.",
   "delai-trop-court": "Le délai depuis la publication d'origine est trop court pour une nouvelle version sur ce réseau.",
   "reseau-inconnu": "Ce réseau n'est pas géré pour les nouvelles versions.",
@@ -113,7 +106,7 @@ export function verifierPlacement(e: EntreePlacement): ResultatControle {
     filigrane: false,
   });
   for (const m of verdict.motifs) {
-    motifs.push(m === "contenu-identique" ? "Ce réseau refuse le même média que l'original : choisissez un média différent." : (MOTIFS_DELAI[m] ?? "La republication est refusée par les règles du réseau."));
+    motifs.push(MOTIFS_DELAI[m] ?? "La republication est refusée par les règles du réseau.");
   }
 
   // Jour et heure
@@ -121,12 +114,16 @@ export function verifierPlacement(e: EntreePlacement): ResultatControle {
     motifs.push("Le jour ou l'heure n'est pas lisible : indiquez un jour AAAA-MM-JJ et une heure HH:MM.");
     return { ok: false, motifs };
   }
-  if (e.jour < jourDeParis(e.maintenant)) motifs.push("Ce jour est déjà passé : choisissez un jour à venir.");
+  if (e.jour < cleJour(new Date(e.maintenant))) motifs.push("Ce jour est déjà passé : choisissez un jour à venir.");
   else if (Date.parse(instantParis(e.jour, e.heure)) <= e.maintenant) motifs.push("Cette heure est déjà passée : choisissez une heure à venir.");
 
   // Existants qui comptent : même réseau, ni archivés ni en échec, publications simulées exclues.
   const actifs = e.existants.filter((x) => x.reseau === e.reseau && x.statut !== "archive" && x.statut !== "echec" && x.simulee !== true);
-  if (actifs.some((x) => x.jour === e.jour)) motifs.push("Ce jour est déjà occupé sur ce réseau : choisissez un autre jour.");
+  if (actifs.some((x) => !jourValide(x.jour) || !FORMAT_HEURE.test(x.heure))) {
+    motifs.push("Une entrée de ce réseau a un jour ou une heure illisible : corrigez-la avant de placer cette nouvelle version.");
+    return { ok: false, motifs };
+  }
+  if (actifs.some((x) => x.jour === e.jour)) motifs.push(MOTIF_JOUR_OCCUPE);
 
   // Règles d'espacement L3-15, lues telles quelles.
   const regles = reglesDuReseau(e.reseau);
@@ -147,7 +144,7 @@ export function verifierPlacement(e: EntreePlacement): ResultatControle {
     const phrase = {
       ecart: `L'écart avec une autre publication de ce réseau est inférieur à ${regles.ecartMinH} h : choisissez une autre heure.`,
       repetition: `Une autre version du même contenu est prévue à moins de ${regles.repetitionJours} jours : espacez-les davantage.`,
-      quota: "Ce réseau a déjà une publication ce jour-là : choisissez un autre jour.",
+      quota: MOTIF_JOUR_OCCUPE,
       weekend: "Ce réseau ne publie pas le week-end : choisissez un jour de semaine.",
     }[c.code];
     if (!dejaDit.has(phrase)) {

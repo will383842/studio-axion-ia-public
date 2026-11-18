@@ -52,7 +52,7 @@ describe("constantes et identifiants", () => {
 
 describe("placement : refus", () => {
   it("refuse un jour passé", () => {
-    expect(refus({ jour: "2026-11-30" }).join(" ")).toMatch(/passé/);
+    expect(refus({ jour: "2026-11-30" }).join(" ")).toMatch(/jour est déjà passé/);
   });
   it("refuse une heure passée le jour même", () => {
     expect(refus({ jour: "2026-12-01", heure: "09:00" }).join(" ")).toMatch(/passée/);
@@ -71,7 +71,7 @@ describe("placement : refus", () => {
   it("ignore un autre réseau", () => {
     expect(verifierPlacement(entree({ existants: [existant({ reseau: "facebook" })] })).ok).toBe(true);
   });
-  it("refuse un écart sous 3 h (violation) avec un créneau archivé : ignoré, donc accepté", () => {
+  it("ignore un créneau archivé pour l'écart de 3 h", () => {
     expect(verifierPlacement(entree({ existants: [existant({ heure: "11:00", statut: "archive" })] })).ok).toBe(true);
   });
   it("refuse un écart sous 3 h avec un créneau voisin d'un autre jour de Paris (minuit)", () => {
@@ -98,6 +98,17 @@ describe("placement : refus", () => {
   it("refuse le rang 3 quand le maximum est 2", () => {
     expect(refus({ rang: 3 }).join(" ")).toMatch(/maximum/);
     expect(verifierPlacement(entree({ rang: 2 })).ok).toBe(true);
+  });
+  it("refuse sans planter une entrée existante au jour ou à l'heure illisible", () => {
+    for (const heure of ["", "9h"]) {
+      const m = refus({ existants: [existant({ id: "bancal", jour: "2026-12-12", heure })] });
+      expect(m.join(" ")).toMatch(/illisible/);
+    }
+  });
+  it("ne donne qu'une phrase pour un jour occupé", () => {
+    const m = refus({ existants: [existant({ heure: "18:00" })] });
+    expect(m.filter((x) => /occupé/.test(x)).length).toBe(1);
+    expect(m.length).toBe(1);
   });
   it("refuse un réseau inconnu, un jour ou une heure mal écrits", () => {
     expect(refus({ reseau: "myspace" as never }).length).toBeGreaterThan(0);
@@ -145,12 +156,14 @@ describe("texte", () => {
     }
   });
   it("refuse un texte identique à l'original", () => {
-    expect(verif(origine).ok).toBe(false);
+    const r = verif(origine);
+    expect(r.ok).toBe(false);
+    expect(r.motifs.join(" ")).toMatch(/identique/);
   });
   it("refuse 6 mots d'affilée repris", () => {
     const r = verif("Notre guide : organiser votre semaine de contenus simplement, pour tenir dans la durée avec un rythme serein.");
     expect(r.ok).toBe(false);
-    expect(r.motifs.join(" ")).toMatch(/reprend|proche/);
+    expect(r.motifs.join(" ")).toMatch(/reprend/);
   });
   it("refuse le tutoiement", () => {
     const r = verif("Tu peux préparer ta prochaine publication en quelques minutes avec un plan clair.");
@@ -160,6 +173,9 @@ describe("texte", () => {
   it("refuse un mot interdit par la charte", () => {
     const r = verif("Avec ce plan, c'est aucun gain garanti mais un rythme régulier pour vos réseaux.");
     expect(r.ok).toBe(false);
+    expect(r.motifs.join(" ")).toMatch(/charte/);
+    expect(r.motifs.join(" ")).toMatch(/interdit/i);
+    expect(r.motifs.join(" ")).not.toMatch(/reprend|proche|identique/);
   });
   it("accepte un texte neuf au vouvoiement", () => {
     expect(verif("Voici un nouveau regard sur la régularité : trois idées simples pour garder le cap sur vos réseaux.")).toEqual({ ok: true, motifs: [] });
