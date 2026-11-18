@@ -5,7 +5,7 @@ import { dureeDiteMs, dureesDesFins, ficheParGabarit } from "@/moteurs/montage-c
 import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
-import { bornesDesFins, controlerTexteFourni, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
+import { bornesDesFins, controlerTexteFourni, LIGNES_FOURNIES_MAX, texteFourniDesEcrans } from "@/moteurs/montage-cas-concret/script-fourni";
 import { validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
 
 /** Les fins dites de Facebook et d'Instagram (le mot coché et branché) : la plus courte, la plus longue. */
@@ -122,8 +122,9 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
     expect(r.remarques).toContain("Ligne 1 : l'accroche compte 9 mots ; l'habitude est de 8 au plus.");
     l[0] = "[accroche] Vos demandes de prix arrivent sans le poids du colis.";
     const t = notesDe(l.join("\n"));
-    expect(t.ok).toBe(false);
-    expect((t as { refus: string[] }).refus[0]).toBe("Ligne 1 : l'accroche compte 10 mots ; l'écran d'accroche en tient 9 au plus. Gardez l'idée, coupez le reste.");
+    // 18/11 (FIX-CC-FIN-NON-CHOISIE) : test resté sur l'ancien refus ; depuis le 08/11 (code de script-fourni.ts) une accroche longue n'est qu'une remarque, qui dit la limite de l'écran.
+    expect(t.ok).toBe(true);
+    expect(t.remarques).toContain("Ligne 1 : l'accroche compte 10 mots ; l'habitude est de 8 au plus (l'écran n'en affiche que 9, la voix dit tout).");
   });
 
   it("LOT A · accroche qui ne dit pas le sujet (R03) : une REMARQUE avec la phrase à dire, le script passe", () => {
@@ -164,7 +165,10 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
     const l = lignesBase();
     const i = l.findIndex((x) => x.startsWith("[étape 1]"));
     l[i] = l[i].replace(/\.$/, "") + ", le lien est en commentaire.";
-    expect(refusDe(l.join("\n")).some((m) => m.includes("La fin (lien, mot à commenter, diagnostic) est ajoutée toute seule selon le réseau : retirez-la."))).toBe(true);
+    // 18/11 (FIX-CC-FIN-NON-CHOISIE) : test resté sur l'ancien refus ; depuis le 08/11 un appel dans le corps est un avertissement (le script passe), avec le même geste.
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.some((m) => m.startsWith(`Ligne ${i + 1} : `) && m.includes("La fin (lien, mot à commenter, diagnostic) est ajoutée toute seule selon le réseau : vous pouvez la retirer."))).toBe(true);
   });
 
   it("LOT A · un tutoiement (R11) est une REMARQUE ; un mot interdit de Will (R10) un AVERTISSEMENT ; le script passe dans les deux cas", () => {
@@ -189,8 +193,10 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
 
   it("la partie humaine absente (R23) : la phrase exacte à dire, et après quelle étape", () => {
     const l = lignesBase().filter((x) => !x.startsWith("[humain]"));
-    const r = refusDe(l.join("\n"));
-    expect(r.some((m) => m.includes(`Dites mot pour mot « ${LT02.resteHumain} », après l'étape ${LT02.resteHumainApresEtape}.`))).toBe(true);
+    // 18/11 (FIX-CC-FIN-NON-CHOISIE) : test resté sur l'ancien refus ; depuis le 08/11 la partie humaine absente est un avertissement (le script passe), avec la même phrase exacte.
+    const r = notesDe(l.join("\n"));
+    expect(r.ok).toBe(true);
+    expect(r.avertissements.some((m) => m.includes(`Dites mot pour mot « ${LT02.resteHumain} », après l'étape ${LT02.resteHumainApresEtape}.`))).toBe(true);
   });
 
   it("LOT A · trop court avec la fin la plus courte (R21) : une REMARQUE de durée, le script passe", () => {
@@ -203,7 +209,8 @@ describe("refus, en « Ligne N : … » avec le geste à faire", () => {
   it("une étiquette inconnue, une ligne trop longue, trop de lignes, un texte trop long", () => {
     expect(refusDe("[xyz] Bonjour.\nDeux.")[0]).toBe("Ligne 1 : l'étiquette [xyz] est inconnue. Étiquettes possibles : [accroche] [chiffre] [avant] [bascule] [étape] [détail] [humain] [preuve] [résultat] [question].");
     expect(refusDe("a".repeat(401))[0]).toBe("Ligne 1 : la ligne compte 401 caractères ; 400 au plus. Coupez-la en deux lignes.");
-    expect(refusDe(Array.from({ length: 27 }, () => "Une phrase.").join("\n"))[0]).toBe("Le script compte 27 lignes ; 26 au plus (une ligne = un écran).");
+    // 18/11 (FIX-CC-FIN-NON-CHOISIE) : la limite est de 40 lignes (LIGNES_FOURNIES_MAX) ; le test gardait l'ancienne limite de 26.
+    expect(refusDe(Array.from({ length: LIGNES_FOURNIES_MAX + 1 }, () => "Une phrase.").join("\n"))[0]).toBe(`Le script compte ${LIGNES_FOURNIES_MAX + 1} lignes ; ${LIGNES_FOURNIES_MAX} au plus (une ligne = un écran).`);
     expect(refusDe("a ".repeat(2001))[0]).toContain("Le script est trop long : 4000 caractères au plus");
   });
 });

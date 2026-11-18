@@ -46,7 +46,8 @@ describe("X7 · l'estimateur de durée en caractères", () => {
     // B3 : la suggestion « écran titre de transition » a été retirée de R21 (volontairement).
     expect(CONSIGNE_ECRITURE).not.toContain("un écran « titre » de transition qui redit la promesse");
     expect(CONSIGNE_ECRITURE).toContain("une « question » plus développée");
-    expect(CONSIGNE_ECRITURE).toContain("le geste, puis ce qu'il évite");
+    // 18/11 (FIX-CC-FIN-NON-CHOISIE) : attente restée sur une ancienne tournure ; la consigne (rôle au serveur, inchangée par cette fiche) dit « ce qui lui arrive, ce qu'il évite ».
+    expect(CONSIGNE_ECRITURE).toContain("une phrase de plus sur l'exemple suivi (ce qui lui arrive, ce qu'il évite)");
   });
 });
 
