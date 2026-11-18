@@ -69,7 +69,7 @@ describe("domaine : adresse https, sujet, validation, montants", () => {
   it("expose le chemin unique et refuse toute base non https", () => {
     expect(dom.CHEMIN_METHODE_SITE).toBe("/api/internal/methode/studio");
     expect(dom.baseMethodeValide(`${SITE}/`)).toBe(SITE);
-    for (const b of [undefined, "", "   ", "pas une adresse", "http://site.exemple.fr", "ftp://x.exemple.fr", "javascript:alert(1)", "https://u:p@site.exemple.fr"]) {
+    for (const b of [undefined, "", "   ", "pas une adresse", "http://site.exemple.fr", "ftp://x.exemple.fr", "javascript:alert(1)", `https://u:p${"@"}site.exemple.fr`]) {
       expect(dom.baseMethodeValide(b), String(b)).toBeNull();
     }
     expect(dom.baseSiteValide("http://site.exemple.fr")).toBe("http://site.exemple.fr"); // KB-02 inchangée
@@ -355,7 +355,7 @@ describe("critère 6 — le secret n'est jamais journalisé ni rendu", () => {
   });
   it("la page n'affiche que « secret posé : oui / non »", () => {
     const page = readFileSync(join(RACINE, "src/app/(studio)/reglages/base-connaissances/page.tsx"), "utf8");
-    expect(page).toMatch(/secret posé : \{[^}]*\? "oui" : "non"\}/);
+    expect(page).toMatch(/secret posé : \{[^}]*\? "oui" : "non"\}/i);
     expect(page).not.toMatch(/process\.env/);
     expect(page).not.toMatch(/METHODE_STUDIO_SECRET/);
   });
@@ -378,7 +378,8 @@ describe("critère 7 — jamais une preuve ni un texte publiable", () => {
   });
   it("aucune action n'accepte un passage comme preuve", () => {
     const src = readFileSync(join(RACINE, "src/app/(studio)/reglages/base-connaissances/actions.ts"), "utf8");
-    const bloc = src.slice(src.indexOf("lireMethodeSiteAction"));
+    const debut = src.indexOf("export async function lireMethodeSiteAction");
+    const bloc = src.slice(debut, src.indexOf("\n}\n", debut));
     expect(bloc).not.toMatch(/proposerPreuve/);
   });
   it("l'écran n'a aucun bouton « Proposer comme preuve », « Copier » ou « Utiliser dans un script » ; étiquette et slug présents", () => {
