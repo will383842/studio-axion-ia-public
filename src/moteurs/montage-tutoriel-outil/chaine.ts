@@ -31,6 +31,7 @@ import { horodaterTexte } from "@/domaine/derivations";
 import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorodate, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
+import { hautBandeSousTitresPct } from "../../briques/plan-scenes/tutoriel/motion-film";
 import { planCacheLeFilm, plagesFixesSortie, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 import { lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
@@ -372,7 +373,10 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
     avecSousTitres && etat.sousTitres?.length ? donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) }) : undefined;
   const { videoCle: _cle, ...sansFilm } = navigation ?? ({} as NavigationFilmee);
   void _cle;
-  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS, ...(navigation ? { navigation: sansFilm } : {}) };
+  // T-EXT-44 : la caméra garde la zone visée au-dessus de la bande des sous-titres (lue dans les sous-titres déjà calculés).
+  const haut = sousTitres ? hautBandeSousTitresPct(sousTitres.positions.basPct) : undefined;
+  const navigationFinale = navigation ? { ...sansFilm, ...(haut !== undefined ? { hautSousTitresPct: haut } : {}) } : undefined;
+  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS, ...(navigationFinale ? { navigation: navigationFinale } : {}) };
 }
 
 const nomRatio = (r: Ratio) => r.replace(":", "x");
@@ -391,7 +395,7 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
     file: "longue",
     entrees: signe.lectures,
     sortie: { urlDepot: signe.urlDepot, cle },
-    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav) },
+    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav) },
   };
 }
 
