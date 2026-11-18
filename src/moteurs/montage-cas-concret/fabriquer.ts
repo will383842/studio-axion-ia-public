@@ -620,7 +620,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const reseaux = [...new Set(ctx.reseaux.length ? ctx.reseaux : entrees.reseaux)];
   const mot = entrees.mot ?? cas.mot;
   const motDit = entrees.motDit ?? cas.motDit;
-  const planBrut = planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: ctx.tableDesFins });
+  const planBrut = planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: ctx.tableDesFins, ...(entrees.finDemandee ? { finDemandee: entrees.finDemandee } : {}) });
   const plan = regrouperFins(planBrut);
   // R21 (durée totale) compte les fins réellement planifiées pour les réseaux cochés ; l'écriture les connaît et vise la
   // durée du corps qui les fait tenir. Même contexte pour l'écriture et la relecture : une fiche écrite n'est jamais

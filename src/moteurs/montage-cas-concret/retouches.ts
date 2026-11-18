@@ -99,6 +99,8 @@ export interface ContexteRetoucheCasConcret extends ReglagesFins {
   /** Réseaux cochés où le mot est branché (`motBranchePour`) : le mot n'est dit que là. Absent : nulle part. */
   motSur?: readonly ReseauCas[];
   table: readonly FinTable[];
+  /** FIX-CC-FIN-CHOIX : « La phrase de fin » choisie au lancement ; absente : aucune fin. */
+  finDemandee?: "rendez-vous";
   /** Mots interdits en clair (ceux de Will). */
   motsInterdits?: readonly string[];
   interdits?: ContexteAxion["interdits"];
@@ -319,7 +321,7 @@ export function sansHeures(fiche: FicheEcrans): FicheEcrans {
 function planDe(reglages: ReglagesFins, contexte: ContexteRetoucheCasConcret): PlanDesFins {
   const { mot, motDit, avecMot } = reglages;
   const { cas } = contexte;
-  return regrouperFins(planDesFins({ reseaux: [...contexte.reseaux], offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot, motSur: [...(contexte.motSur ?? [])], table: contexte.table }));
+  return regrouperFins(planDesFins({ reseaux: [...contexte.reseaux], offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot, motSur: [...(contexte.motSur ?? [])], table: contexte.table, ...(contexte.finDemandee ? { finDemandee: contexte.finDemandee } : {}) }));
 }
 
 /** Le texte de la fin tel qu'il part à la voix (un point à la fin de chaque écran : lot E). */
