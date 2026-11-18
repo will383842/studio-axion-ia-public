@@ -80,7 +80,7 @@ function evenements(travail: Travail, titreVideo: string): Evenement[] {
  * Éteint (réglage absent ou différent de `true`) : ne pose rien.
  */
 export async function signalerSuivi(travail: Travail, dependances: DependancesSuivi = {}): Promise<string[]> {
-  const actif = dependances.actif ?? (await lireParametre<boolean>(REGLAGE_SUIVI_CLOCHE, false)) === true;
+  const actif = dependances.actif ?? (await lireParametre<boolean>("tutoriel.suiviCloche", false)) === true;
   if (!actif) return [];
   const video = await depots().videos.obtenir(travail.cibleId);
   if (!video) return [];
