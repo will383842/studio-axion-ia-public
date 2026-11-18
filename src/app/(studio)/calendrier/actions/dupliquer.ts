@@ -137,7 +137,7 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       const copieTexte = { texte: marquerAAdapter(textes.texte), premierCommentaire: textes.premierCommentaire };
       // Le lien est écrit AVANT la copie : une copie n'existe jamais sans lien, et un rejeu reprend là où l'écriture s'est arrêtée.
       await ecrireParametre(cleLienCopie(id), saisie.cle);
-      const copie = await creerCreneau(
+      await creerCreneau(
         depotsPlan(),
         {
           id,
