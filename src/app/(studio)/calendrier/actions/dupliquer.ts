@@ -11,7 +11,9 @@ import { revalidatePath } from "next/cache";
 import { lireCleFiche, type EntreeFiche } from "@/components/calendrier/FicheEntree";
 import { cleLienCopie, idCopie, marquerAAdapter } from "@/domaine/calendrier/lien-reseau";
 import type { IdReseau } from "@/domaine/types";
-import { resoudreHeureParis } from "@/lib/horloge-paris";
+import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
+import { RESEAUX } from "@/reseaux";
+import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { exigerSession } from "@/services/auth";
 import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
 import { chargerFiche, ecrireStockageFiche } from "@/services/calendrier-fiche";
@@ -32,6 +34,8 @@ export interface SaisieDuplication {
   cleFormulaire: string;
   /** Vrai après le clic de confirmation d'une date passée. */
   confirmerPasse?: boolean;
+  /** Vrai après le clic de confirmation d'une proximité ou d'un quota atteint. */
+  confirmerProximite?: boolean;
 }
 
 export interface DonneesDuplication {
@@ -45,7 +49,7 @@ export interface DonneesDuplication {
 
 export type ResultatDuplication =
   | { ok: true; donnees: DonneesDuplication }
-  | { ok: false; message: string; aConfirmer?: "passe"; avertissement?: string };
+  | { ok: false; message: string; aConfirmer?: "passe" | "proximite" | "quota"; avertissement?: string };
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -61,6 +65,7 @@ export const PHRASES_DUPLICATION = {
   identique: "Cette copie serait identique à la publication : choisissez un autre réseau ou un autre jour.",
   autreDemande: "Ce formulaire a déjà créé une copie différente : rouvrez-le pour en faire une autre.",
   passe: "Cette date est passée : confirmez pour créer la copie quand même.",
+  visuelVideoSeule: "Ce réseau ne publie que des vidéos : choisissez un autre réseau pour copier ce visuel.",
   creee: "La copie est créée. Son texte est marqué « À adapter » : relisez-le, puis validez-la. Elle ne part pas toute seule.",
   impossible: "La copie n'a pas pu être créée. Réessayez.",
 } as const;
@@ -69,6 +74,36 @@ function jourExiste(j: string): boolean {
   const [a, m, d] = j.split("-").map(Number);
   const t = new Date(Date.UTC(a!, m! - 1, d));
   return t.getUTCFullYear() === a && t.getUTCMonth() === m! - 1 && t.getUTCDate() === d;
+}
+
+const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+function enParis(instant: string): { jour: string; heure: string } {
+  const p = Object.fromEntries(FORMAT_PARIS.formatToParts(new Date(instant)).map((x) => [x.type, x.value]));
+  return { jour: `${p.year}-${p.month}-${p.day}`, heure: `${p.hour}:${p.minute}` };
+}
+
+/** Un réseau qui n'a qu'un emplacement « vidéo » (TikTok, YouTube, Shorts) ne reçoit pas un visuel. */
+function accepteLesVisuels(reseau: IdReseau): boolean {
+  const d = RESEAUX.find((r) => r.id === reseau);
+  return !d || d.emplacements.some((e) => e.id !== "video");
+}
+
+/** Écart et quota de la copie (veille, jour et lendemain, sur son réseau), comme l'ajout manuel. Ne bloque jamais : se confirme d'un clic. */
+async function verifierVoisinage(reseau: IdReseau, jour: string, instant: string): Promise<{ type: "proximite" | "quota"; message: string } | null> {
+  const fenetre = new Set([ajouterJoursParis(jour, -1), jour, ajouterJoursParis(jour, 1)]);
+  const posts: PostPlanifie[] = [{ id: "nouveau", reseau, ...enParis(instant), pilier: "nouveau", cible: "nouveau" }];
+  for (const c of await depotsPlan().creneaux.lister()) {
+    const inst = c.heuresParReseau[reseau];
+    if (!inst || c.statut === "archive" || c.statut === "echec") continue;
+    const p = enParis(inst);
+    if (fenetre.has(p.jour)) posts.push({ id: c.id, reseau, ...p, pilier: c.id, cible: c.id });
+  }
+  const constats = verifierEspacement(posts, reglesDuReseau(reseau)).filter((x) => x.posts.includes("nouveau"));
+  const ecart = constats.find((x) => x.code === "ecart");
+  if (ecart) return { type: "proximite", message: `${ecart.message} Confirmez pour créer la copie quand même.` };
+  const quota = constats.find((x) => x.code === "quota");
+  if (quota) return { type: "quota", message: `${quota.message} Confirmez pour créer la copie quand même.` };
+  return null;
 }
 
 function depotsPlan(): DepotsPlan {
@@ -132,6 +167,11 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       if (saisie.reseau === fiche.entree.reseau && saisie.jour === fiche.entree.jour) return refus(PHRASES_DUPLICATION.identique);
       if (Date.parse(instant) < Date.now() && !saisie.confirmerPasse) {
         return { ok: false as const, message: "Date dans le passé : à confirmer.", aConfirmer: "passe" as const, avertissement: PHRASES_DUPLICATION.passe };
+      }
+      if (visuelId && !videoId && !accepteLesVisuels(saisie.reseau)) return refus(PHRASES_DUPLICATION.visuelVideoSeule);
+      if (!saisie.confirmerProximite) {
+        const v = await verifierVoisinage(saisie.reseau, saisie.jour, instant);
+        if (v) return { ok: false as const, message: "Proximité ou quota : à confirmer.", aConfirmer: v.type, avertissement: v.message };
       }
       const textes = texteOriginal(fiche.entree, original, fiche.entree.reseau);
       const copieTexte = { texte: marquerAAdapter(textes.texte), premierCommentaire: textes.premierCommentaire };
