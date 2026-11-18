@@ -3,12 +3,13 @@
  * Il ne crée rien, ne valide rien, n'envoie rien : calcul à l'ouverture de la page, aucune écriture, aucune tâche de fond.
  * Éteint par défaut : seule la valeur `true` allume ; toute autre valeur, ou une lecture en erreur, éteint.
  * Un seul moteur : les contrôles de placement et le rang viennent de L8-11a, la liste des candidats de L8-12a (jamais recopiés).
+ * Seule la lecture des jours déjà pris (existants) reprend la forme de L8-11b, faute de pouvoir modifier ce fichier ici.
  * Aucun import d'envoi, de fournisseur, de validation, de création de créneau ni de changement de statut.
  * Toute valeur ci-dessous est une PROPOSITION (statut « hypothese »).
  */
 import "server-only";
 import { heureAffichageParis } from "@/domaine/plan-editorial/statuts";
-import { verifierPlacement, rangSuivant, type ExistantPlacement } from "@/domaine/republication/nouvelle-version";
+import { PREFIXE_REPUBLICATION, verifierPlacement, rangSuivant, type ExistantPlacement } from "@/domaine/republication/nouvelle-version";
 import { sourceSure, type IdReseau, type Publication } from "@/domaine/types";
 import { cleJour } from "@/lib/dates";
 import { ajouterJoursParis } from "@/lib/horloge-paris";
@@ -106,6 +107,9 @@ export async function suggererJours(deps: DepsAuto, maintenant: Date): Promise<S
     const media = source.famille === "video" ? source.videoId : source.visuelId;
     const reseau = original.reseau;
     if (RESEAUX_EXCLUS.includes(reseau)) continue;
+    // Une nouvelle version non archivée existe déjà : L8-11b la rendrait telle quelle, rien à proposer.
+    const prefixe = `${PREFIXE_REPUBLICATION}${l.publicationId}-`;
+    if (creneaux.some((c) => c.id.startsWith(prefixe) && /^\d+$/.test(c.id.slice(prefixe.length)) && c.statut !== "archive")) continue;
     const rang = rangSuivant(l.publicationId, ids);
 
     const existants: ExistantPlacement[] = [...reserves];

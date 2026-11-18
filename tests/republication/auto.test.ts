@@ -161,10 +161,23 @@ describe("RC-16 : suggestions", () => {
     const { deps } = doublure([ligne("a"), ligne("b")], { publications: [{ ...pub("b"), statut: "brouillon" } as Publication] });
     expect(await suggererJours(deps, MAINTENANT)).toEqual([]);
   });
-  it("doublure dont toute écriture lève : aucune écriture tentée", async () => {
-    const piege = new Proxy({}, { get: () => () => { throw new Error("ÉCRITURE INTERDITE"); } });
+  it("une nouvelle version déjà ouverte : aucune suggestion pour ce contenu", async () => {
+    const creneaux = [{ id: "republication-a-1", statut: "a_valider", heuresParReseau: { instagram: "2027-03-02T09:00:00.000Z" } }];
+    const { deps } = doublure([ligne("a"), ligne("b")], { creneaux });
+    expect((await suggererJours(deps, MAINTENANT)).map((s) => s.publicationId)).toEqual(["b"]);
+  });
+  it("une nouvelle version archivée ne bloque pas", async () => {
+    const creneaux = [{ id: "republication-a-1", statut: "archive", heuresParReseau: { instagram: "2027-03-02T09:00:00.000Z" } }];
+    const { deps } = doublure([ligne("a")], { creneaux });
+    expect(await suggererJours(deps, MAINTENANT)).toHaveLength(1);
+  });
+  it("doublures dont toute écriture lève : la suggestion sort quand même", async () => {
+    const seulementLire = <T extends object>(o: T): T =>
+      new Proxy(o, {
+        get: (c, k) => (k === "obtenir" || k === "lister" ? (c as never)[k] : () => { throw new Error(`ÉCRITURE INTERDITE : ${String(k)}`); }),
+      });
     const { deps } = doublure([ligne("a")]);
-    const r = await suggererJours({ ...deps, ecriture: piege } as DepsAuto, MAINTENANT);
+    const r = await suggererJours({ ...deps, publications: seulementLire(deps.publications) }, MAINTENANT);
     expect(r).toHaveLength(1);
   });
   it("instant illisible : aucune suggestion", async () => {
@@ -185,6 +198,9 @@ describe("RC-16 : bloc affiché", () => {
     expect(h).toMatch(/<textarea[^>]*><\/textarea>/);
     expect(h).toContain('name="compteCible"');
     expect(h).not.toMatch(/Valider|Envoyer|Publier/);
+  });
+  it("aucune suggestion : rien n'est rendu (page éteinte identique)", () => {
+    expect(renderToStaticMarkup(createElement(JoursProposes, { suggestions: [], comptes: { instagram: "compte-a" } } as never))).toBe("");
   });
   it("sans compte pour le réseau : pas de formulaire", () => {
     const h = rendre({});
