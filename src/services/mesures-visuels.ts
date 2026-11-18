@@ -3,9 +3,9 @@
  * aucune notification, aucun réglage lu : les chiffres des carrousels arrivent par les relevés déjà enregistrés.
  */
 import "server-only";
-import { carrouselCommeVideoMesuree, classerCarrousels, etatMesurePublication, type ClassementCarrousels } from "@/domaine/mesures-visuels";
+import { carrouselCommeVideoMesuree, classerCarrousels, estReseauClasse, etatMesurePublication, type ClassementCarrousels } from "@/domaine/mesures-visuels";
 import { estMesuree, type VideoMesuree } from "@/domaine/mesures-rangs";
-import type { Publication, ReseauDeclinaison } from "@/domaine/types";
+import type { Publication } from "@/domaine/types";
 import { depots, filtreExemples } from "./_commun";
 import { exigerSession } from "./auth";
 
@@ -30,7 +30,7 @@ export async function ceQuiMarcheVisuels(maintenant: Date = new Date()): Promise
   const mesures: VideoMesuree[] = [];
   for (const p of publications) {
     const visuel = await d.visuels.obtenir(p.visuelId!);
-    if (!visuel || visuel.corbeilleLe) continue;
+    if (!visuel || visuel.corbeilleLe || !estReseauClasse(p.reseau)) continue;
     const etat = etatMesurePublication(p, maintenant);
     if (etat === "mesure") etats.mesure++;
     else if (etat === "pas-encore") etats.pasEncore++;
@@ -40,11 +40,11 @@ export async function ceQuiMarcheVisuels(maintenant: Date = new Date()): Promise
       visuelId: visuel.id,
       famille: visuel.famille,
       titre: visuel.titre,
-      reseau: p.reseau as ReseauDeclinaison,
+      reseau: p.reseau,
       date: p.date,
       stats: p.stats,
     });
-    if (estMesuree(carrousel)) mesures.push(carrousel);
+    if (etat === "mesure" && estMesuree(carrousel)) mesures.push(carrousel);
   }
   return { classement: classerCarrousels(mesures), etats };
 }

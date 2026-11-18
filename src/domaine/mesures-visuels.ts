@@ -22,9 +22,9 @@ const aUneValeur = (s: Partial<StatsPublication> | undefined): boolean => !!s &&
  * État d'une publication de visuel : « mesuré » si un relevé (diffuseur, ancien outil ou saisie) porte au moins une valeur ;
  * sinon « pas encore » si elle est partie depuis moins de 7 jours, « non disponible » au-delà. Jamais un zéro inventé.
  */
-export function etatMesurePublication(p: Pick<Publication, "date" | "releves" | "stats">, maintenant: Date): EtatMesure {
+export function etatMesurePublication(p: Pick<Publication, "date" | "releves"> & Partial<Pick<Publication, "stats">>, maintenant: Date): EtatMesure {
   const relevé = (p.releves ?? []).some((r) => SOURCES_DE_CHIFFRES.includes(r.source) && aUneValeur(r.valeurs));
-  if (relevé || aUneValeur(p.stats)) return "mesure";
+  if (relevé) return "mesure";
   const depuis = (maintenant.getTime() - new Date(p.date).getTime()) / JOUR_MS;
   return depuis < DELAI_NON_DISPONIBLE_JOURS ? "pas-encore" : "non-disponible";
 }
@@ -86,6 +86,11 @@ export interface ClassementCarrousels {
 }
 
 const ORDRE_RESEAUX: readonly ReseauDeclinaison[] = ["tiktok", "instagram", "youtube-shorts", "linkedin", "facebook"];
+
+/** Le réseau est-il l'un de ceux où l'on classe ? (un autre n'est ni classé ni compté). */
+export function estReseauClasse(reseau: string): reseau is ReseauDeclinaison {
+  return (ORDRE_RESEAUX as readonly string[]).includes(reseau);
+}
 
 /** Retire d'un carrousel les indicateurs que son réseau ne donne pas (ils ne sont ni rangés, ni lus comme 0). */
 function sansIndicateursNonDisponibles(v: VideoMesuree): VideoMesuree {

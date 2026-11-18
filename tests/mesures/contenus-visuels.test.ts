@@ -71,6 +71,12 @@ describe("etatMesurePublication : trois états", () => {
   it("un relevé de liens suivis seul (source « api ») ne rend pas la publication mesurée", () => {
     expect(etatMesurePublication({ date: jourAvant(2), releves: [releve("api", { vues: 5 })] }, MAINTENANT)).toBe("pas-encore");
   });
+
+  it("relevé de liens suivis + copie « stats » remplie de zéros : jamais mesuré (les zéros ne sont pas des chiffres lus)", () => {
+    const zeros = { vues: 0, likes: 0, commentaires: 0, partages: 0, visites: 3 } as StatsPublication;
+    expect(etatMesurePublication({ date: jourAvant(2), releves: [releve("api", zeros)], stats: zeros }, MAINTENANT)).toBe("pas-encore");
+    expect(etatMesurePublication({ date: jourAvant(8), releves: [releve("api", zeros)], stats: zeros }, MAINTENANT)).toBe("non-disponible");
+  });
 });
 
 function carrousel(id: string, reseau: VideoMesuree["reseau"], partagesParPortee: number): VideoMesuree {
@@ -181,6 +187,18 @@ describe("ceQuiMarcheVisuels (dépôts en mémoire)", () => {
     const r = await mv.ceQuiMarcheVisuels(MAINTENANT);
     expect(r.etats).toEqual({ mesure: 0, pasEncore: 0, nonDisponible: 0 });
     expect(r.classement.nombre).toBe(0);
+  });
+
+  it("un réseau hors classement (youtube) n'est ni classé ni compté ; les liens suivis seuls ne rendent pas « mesuré »", async () => {
+    await visuel("v1");
+    await publicationVisuel("p-yt", "v1", { reseau: "youtube", stats: stats(100, 5), releves: [releveZ(stats(100, 5))] });
+    const zeros = { vues: 0, likes: 0, commentaires: 0, partages: 0, visites: 3 };
+    await visuel("v2");
+    await publicationVisuel("p-api", "v2", { date: jourAvant(2), stats: zeros, releves: [{ le: jourAvant(1), jour: 2, source: "api", valeurs: zeros, definitions: {} }] });
+    const r = await mv.ceQuiMarcheVisuels(MAINTENANT);
+    expect(r.etats).toEqual({ mesure: 0, pasEncore: 1, nonDisponible: 0 });
+    expect(r.classement.nombre).toBe(0);
+    expect(r.classement.reseaux).toEqual([]);
   });
 
   it("une publication de vidéo n'est jamais lue ici", async () => {
