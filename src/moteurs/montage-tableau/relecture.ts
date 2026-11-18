@@ -13,6 +13,7 @@
 import { apercuDesSorties, type ApercuSortie } from "./apercu-sorties";
 import { controlerVideoTableau, type CaseDejaVu, type LigneControleTableau, type RapportControleTableau } from "./controles";
 import { appelEnFinDeFiche, type FicheTableau } from "./fiche";
+import { finChoisieAbsente, LIBELLE_FIN_CHOISIE } from "./fin-choisie";
 import { descriptionSortie, formatImage, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
 import type { AppelFinV2, ContenuPreuve, OptionsMiseEnPage } from "./mise-en-page";
 import type { ContexteTableau } from "./regles";
@@ -144,10 +145,12 @@ export async function relireFicheTableau(e0: EntreeRelecture): Promise<Relecture
   const sorties = e.sorties.length ? e.sorties : (["vertical"] as IdSortie[]);
   let relues: SortiePreparee[] = [];
   let impossible: string | null = null;
+  let finsRetenues = new Map<IdSortie, FinRetenue | undefined>();
   // La fiche brute peut être illisible : les sorties ne sont préparées que pour une fiche qui a des scènes.
   if (brute && typeof brute === "object" && Array.isArray(brute.scenes)) {
     try {
       const fins = new Map(sorties.map((id) => [id, finDeLaSortie(id, e.choisirFin ? e.choisirFin(brute.appelId ?? null, id) : undefined, brute)]));
+      finsRetenues = fins;
       relues = sortiesRelues(brute, sorties, (id) => fins.get(id), preuvesDeLaFiche(brute, e.contenusPreuves));
     } catch (err) {
       relues = [];
@@ -175,6 +178,12 @@ export async function relireFicheTableau(e0: EntreeRelecture): Promise<Relecture
     if (brute && relues.length) apercu = apercuDesSorties(brute, relues);
   } catch {
     apercu = [];
+  }
+  // 18/11 (règle du 17/11) : une fin choisie ni dite ni écrite bloque « Tout est bon » (une fois, même pour plusieurs sorties).
+  if (brute && Array.isArray(brute.scenes)) {
+    const messages = new Set(sorties.map((id) => finChoisieAbsente(brute, id, finsRetenues.get(id))).filter((m): m is string => !!m));
+    for (const message of messages) points.push({ famille: "fiche", libelle: LIBELLE_FIN_CHOISIE, message });
+    if (messages.size) return { ok: false, rapport, points, apercu };
   }
   return { ok: rapport.verdict === "livrable", rapport, points, apercu };
 }

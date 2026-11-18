@@ -22,7 +22,7 @@ import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
 import { PARAM_PLAFOND_VIDEOS_FA, PREFIXE_ETAPE_VIDEOS_FA, plafondRestantVideosFa, plafondVideosFa } from "./depense-claude-video";
 import { roleControleVideoV4, sousVerrouLocalV4, type DependancesVideosV4 } from "@/moteurs/montage-facecam-animee/videos-v4-studio";
 import { brancherServicesFacecamAnimee, ID_MOTEUR_FACECAM_ANIMEE, lireEntreesFacecamAnimee } from "@/moteurs/montage-facecam-animee";
-import { EnCoursChaineV4, ErreurChaineV4, lireEtatV4, PRISE_MONTEE_V4, SORTIE_V4, type GardeV4, type OutilsChaineV4, type RecadrageV4 } from "@/moteurs/montage-facecam-animee/chaine-v4";
+import { EnCoursChaineV4, ErreurChaineV4, lireEtatV4, PRISE_MONTEE_V4, SORTIE_V4, type ChoixVideoV4, type FichierVideoV4, type GardeV4, type OutilsChaineV4, type RecadrageV4 } from "@/moteurs/montage-facecam-animee/chaine-v4";
 import type { ReponseRealisateur, RequeteRealisateur } from "@/moteurs/montage-facecam-animee/realisateur";
 import { texteScript } from "@/domaine/derivations";
 import { GLOSSAIRE_FACECAM } from "@/moteurs/montage-facecam/glossaire";
@@ -265,7 +265,6 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
       if (dep.videos) return dep.videos({ videoId: dep.videoId, plan, mots });
       const [{ fournirVideosV4 }, { chercherVideosServeur, outilsPreparationServeur }] = await Promise.all([import("@/moteurs/montage-facecam-animee/videos-v4-studio"), import("@/moteurs/montage-facecam-animee/images/production")]);
       const cles = { pexels: process.env.PEXELS_API_KEY?.trim() || undefined, pixabay: process.env.PIXABAY_API_KEY?.trim() || undefined };
-      if (!cles.pexels && !cles.pixabay) return { plan, fichiers: [], manques: ["Les banques de vidéos (Pexels, Pixabay) ne sont pas reliées au studio : aucune vidéo d'illustration."], depenseUsd: 0 };
       const preparation = outilsPreparationServeur({
         deposer: async (contenu, cle, mime) => {
           const url = await signerDepot(cle, mime);
@@ -277,6 +276,11 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         ...(supprimerStockage ? { retirer: supprimerStockage } : {}),
         sousVerrou: sousVerrouLocalV4,
       });
+      // BR-TELEPHONE-b : éteint = rien de plus ; allumé, les téléphones `axion:` prennent un extrait de l'archive AVANT les banques (0 €), jamais de banque pour eux.
+      const tel = telephoneVideo ? await (await import("./telephone-extrait-v4")).fichiersTelephoneV4(plan, { videoId: dep.videoId, signerLecture, outils: preparation, cleClip: (nom) => cleFA(`videos/${nom}`) }) : null;
+      // Les banques reçoivent le plan avec ses rangs intacts (rangs = noms de clips). Un téléphone sans extrait reste SANS `medias` : la chaîne le retire ensuite (repli C4-U4.9b-b, H1/H2, BR-TELEPHONE-c).
+      const fusion = <R extends { fichiers: FichierVideoV4[]; manques: string[]; choix?: ChoixVideoV4[] }>(r: R): R => (tel ? { ...r, fichiers: [...tel.fichiers, ...r.fichiers], manques: [...r.manques, ...tel.manques], choix: [...tel.choix, ...(r.choix ?? [])] } : r);
+      if (!cles.pexels && !cles.pixabay) return fusion({ plan: tel?.plan ?? plan, fichiers: [], manques: ["Les banques de vidéos (Pexels, Pixabay) ne sont pas reliées au studio : aucune vidéo d'illustration."], depenseUsd: 0 });
       /** Début de la version courante : création du travail de fabrication. */
       const debutVersion = async () => (await depots().travaux.obtenir(dep.travailId))?.creeLe;
       // Le compteur local lit le même réglage que le chemin de dépense (jamais une constante).
@@ -294,7 +298,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           if (r.simule || !r.texte) return { ok: false, message: "Claude n'est pas relié au studio." };
           return { ok: true, texte: r.texte, coutUsd: r.coutUsd };
         });
-      return fournirVideosV4({ videoId: dep.videoId, plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd });
+      return fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd }));
     },
     async rendre({ idRendu, priseCle, plan, gardes, recadrage, videos, finDouce }) {
       const sortieCle = cleFA(`${idRendu}.mp4`);

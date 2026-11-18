@@ -15,13 +15,13 @@ Le catalogue compte 90 capacités. L'état dit où elle en est : prod (déjà ut
 | `texte.surlignage-marqueur` | eteint | 2 (U5, U5bis, U6) | S1, Q3 |  |
 | `texte.style-varie` | eteint | 2 (U5bis, U12) | S2, Q3 |  |
 | `texte.pastille-axion` | coulisse | 2 (U13, U14) | S3, Q2 |  |
-| `texte.pave` | prevu | 2 (U7a, U7b) | Q2 |  |
-| `texte.nom-outil` | prevu | 2 (U8) | texte seul |  |
-| `texte.nom-outil-autonome` | prevu | 2 (U9) | V3, Q1 |  |
-| `texte.bandeau-nom` | prevu | 2 (U10, U11) | bandeau autorisé |  |
-| `texte.repere-epaule` | prevu | 2 (U18) | V1, Q1, Q2 |  |
-| `texte.sortie-animee` | prevu | 2 (U19) | AM-08 |  |
-| `texte.escalier` | prevu | 2 (U20a, U20b) | AM-09 | permis: false |
+| `texte.pave` | eteint | 2 (U7a, U7b) | Q2 |  |
+| `texte.nom-outil` | eteint | 2 (U8) | texte seul |  |
+| `texte.nom-outil-autonome` | eteint | 2 (U9) | V3, Q1 |  |
+| `texte.bandeau-nom` | eteint | 2 (U10, U11) | bandeau autorisé |  |
+| `texte.repere-epaule` | eteint | 2 (U18) | V1, Q1, Q2 |  |
+| `texte.sortie-animee` | eteint | 2 (U19) | AM-08 |  |
+| `texte.escalier` | eteint | 2 (U20a, U20b) | AM-09 | permis: false |
 | `ecran.clip-v4` | prod | — |  | v4 seule |
 | `ecran.mosaique-extraits` | prevu | 4 (U4.1 à U4.6) | Q4, Q5 |  |
 | `ecran.telephone-extrait` | prevu | 4 (U4.7 à U4.9c) | Q1, P-6 |  |

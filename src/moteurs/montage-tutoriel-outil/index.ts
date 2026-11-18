@@ -19,6 +19,7 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
+import { cibleSon, rapportSon } from "./finitions";
 import { avancerEtape, ErreurTutoriel, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
@@ -161,8 +162,10 @@ function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
 }
 
 function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): ResultatFabrication {
-  const alertes = alertesDe(etat);
-  const attention = alertes.filter((a) => a.gravite === "attention").length;
+  const alertesCommunes = alertesDe(etat);
+  if (commande.briques["mention-ia"] === true) alertesCommunes.push({ code: "defaut-visuel", gravite: "info", message: "Mention IA demandée : pas encore posée par le tutoriel" });
+  const cible = cibleSon(commande);
+  const toutesAlertes: AlerteQualite[] = [...alertesCommunes];
   const reseaux = reseauxDeCommande(commande, [...RESEAUX_CONSEILLES]);
   const sorties = etat.ratios.map((ratio) => {
     const r = etat.rendus.find((x) => x.ratio === ratio)!;
@@ -174,24 +177,36 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
         return false;
       }
     });
+    // T-EXT-31 : le son et la vignette disent ce qui est vrai (valeur mesurée, vignette réellement produite).
+    const mesure = r.mesure?.resultat && r.mesure.resultat !== "echec" ? r.mesure.resultat : null;
+    const son = rapportSon(mesure, cible, !!etat.audio?.fichierCle);
+    const vignette = r.vignette?.resultat && r.vignette.resultat !== "echec" ? r.vignette.resultat.cle : undefined;
+    const alertesSon: AlerteQualite[] = [
+      ...(son.alerte ? [{ code: "defaut-visuel" as const, gravite: son.gravite ?? ("info" as const), message: son.alerte }] : []),
+      ...(vignette ? [] : [{ code: "defaut-visuel" as const, gravite: "info" as const, message: "Vignette non produite" }]),
+    ];
+    const alertes = [...alertesCommunes, ...alertesSon];
+    for (const a of alertesSon) if (!toutesAlertes.some((x) => x.message === a.message)) toutesAlertes.push(a);
+    const attention = alertes.filter((a) => a.gravite === "attention").length;
     return {
       ratio,
       fichierCle: r.sortie!.fichierCle,
-      vignetteCle: r.sortie!.fichierCle.replace(/\.mp4$/, ".jpg"),
+      vignetteCle: vignette ?? r.sortie!.fichierCle.replace(/\.mp4$/, ".jpg"),
       resolution: `${largeur}x${hauteur}`,
       dureeSec: r.sortie!.dureeSec,
       taille: r.sortie!.taille,
-      rapportQualite: { note: Math.max(50, 100 - 10 * attention), verifie: { image: true, son: !!etat.audio?.fichierCle, sousTitres: commande.briques["sous-titres"] !== false, mentionIA: false, droits: true }, alertes, niveauSonoreLufs: -14 },
+      rapportQualite: { note: Math.max(50, 100 - 10 * attention), verifie: { image: true, son: son.sonVerifie, sousTitres: commande.briques["sous-titres"] !== false, mentionIA: false, droits: false }, alertes, niveauSonoreLufs: son.niveauSonoreLufs },
       ...(servis.length ? { reseaux: servis } : {}),
     };
   });
   const lignesReelles: LigneCout[] = [];
   if (etat.audio && etat.audio.caracteres > 0) lignesReelles.push(ligne("Voix", etat.audio.fournisseur, "caractere", etat.audio.caracteres, "reel"));
-  if (etat.plan && etat.plan.source !== "repris") lignesReelles.push(ligne("Plan de scènes", "claude", "appel", 1, "reel"));
+  if (etat.appelsClaude?.script) lignesReelles.push(ligne("Script", "claude", "appel", etat.appelsClaude.script, "reel"));
+  if (etat.appelsClaude?.plan) lignesReelles.push(ligne("Plan de scènes", "claude", "appel", etat.appelsClaude.plan, "reel"));
   lignesReelles.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "reel"));
   return {
     sorties,
-    noteQualite: { globale: Math.max(50, 100 - 10 * attention), alertes },
+    noteQualite: { globale: Math.max(50, 100 - 10 * toutesAlertes.filter((a) => a.gravite === "attention").length), alertes: toutesAlertes },
     lignesReelles,
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {

@@ -32,6 +32,7 @@ import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorod
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { lireEntreesTutoriel } from "./entrees";
+import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { ecrireScript, MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 
@@ -63,6 +64,8 @@ export interface OutilsTutoriel {
     /** Clé de stockage d'un fichier de la vidéo. */
     cle: (nom: string) => string;
   };
+  /** T-EXT-31 : mixage de la voix, mesure du son et vignette. Absent = éteint (chemin d'avant, inchangé). */
+  finitions?: { actif: true };
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
   sousTitres?: { style?: ValeurStyleSousTitres | null; base?: BaseSousTitres; intensite?: IntensiteSousTitres };
 }
@@ -94,11 +97,34 @@ export interface PlanRetenu {
   scenesTouchees: string[];
 }
 
+/** Une opération de finition (mesure ou vignette) : sa demande, son essai, son résultat ou son échec définitif. */
+export interface FinitionTutoriel<R> {
+  /** Absent quand la signature ou la soumission a échoué avant toute demande (`resultat: "echec"`). */
+  demande?: DemandeRendu;
+  essai: number;
+  resultat?: R | "echec";
+}
+
 export interface RenduTutoriel {
   ratio: Ratio;
   demande: DemandeRendu;
   essai: number;
   sortie?: { fichierCle: string; dureeSec: number; taille: number };
+  /** T-EXT-31 : son mesuré du mp4 rendu. */
+  mesure?: FinitionTutoriel<MesureSon>;
+  /** T-EXT-31 : vignette produite (clé du .jpg). */
+  vignette?: FinitionTutoriel<{ cle: string }>;
+}
+
+/** T-EXT-31 : voix passée par la chaîne son (une fois pour tous les formats). `echec` : voix brute gardée, réserve posée. */
+export interface SonMixeTutoriel {
+  fichierCle: string;
+  lufs?: number;
+  /** Absent quand la première signature a échoué (`echec: true`). */
+  demande?: DemandeRendu;
+  essai: number;
+  fini: boolean;
+  echec?: boolean;
 }
 
 export interface EtatTutoriel {
@@ -107,6 +133,7 @@ export interface EtatTutoriel {
   proposition?: string;
   voix?: EtatVoixMaitre;
   audio?: AudioTutoriel;
+  sonMixe?: SonMixeTutoriel;
   sousTitres?: SegmentSousTitres[];
   motsPlan?: MotMinute[];
   plan?: PlanRetenu;
@@ -117,7 +144,20 @@ export interface EtatTutoriel {
   /** Version d'avant (retouche, réexport) : ce qui peut être repris sans être refait ni repayé. */
   parent?: { plan?: PlanValide; audio?: AudioTutoriel };
   echecSimuleFait?: boolean;
+  /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
+  appelsClaude?: { script: number; plan: number };
 }
+
+/** Enveloppe d'un appel Claude : ne compte que les appels revenus sans lever. */
+function compterAppels(appeler: AppelClaude, n: { v: number }): AppelClaude {
+  return async (requete) => {
+    const r = await appeler(requete);
+    n.v++;
+    return r;
+  };
+}
+
+const avecAppels = (etat: EtatTutoriel, cle: "script" | "plan", n: number): EtatTutoriel => (n > 0 ? { ...etat, appelsClaude: { script: 0, plan: 0, ...etat.appelsClaude, [cle]: (etat.appelsClaude?.[cle] ?? 0) + n } } : etat);
 
 /** Ordre des formats : 4:5 d'abord, puis les autres formats demandés, dans leur ordre. */
 export function ratiosTutoriel(ratios: readonly Ratio[]): Ratio[] {
@@ -164,7 +204,9 @@ async function pasScript(etat: EtatTutoriel, commande: CommandeFabrication, outi
   if ("texte" in r) return { statut: "faite", etat: { ...etat, script: { texte: r.texte, source: r.source, remarques: remarquesScript(r.texte) } } };
   if ("vide" in r) return { statut: "pause", etat, code: "TO_SCRIPT_ABSENT", message: "Aucun script ni idée : collez votre script ou donnez un titre. Rien n'a échoué." };
   if (etat.proposition) return { statut: "pause", etat, code: "TO_SCRIPT_A_VALIDER", message: "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite." };
-  const proposition = await ecrireScript(r.aEcrire, outils.claude);
+  const n = { v: 0 };
+  const proposition = await ecrireScript(r.aEcrire, compterAppels(outils.claude, n));
+  etat = avecAppels(etat, "script", n.v);
   if (!proposition) return { statut: "pause", etat, code: "TO_SCRIPT_NON_ECRIT", message: "Le script n'a pas pu être écrit pour l'instant : collez votre script, ou relancez plus tard. Rien n'a échoué." };
   return { statut: "pause", etat: { ...etat, proposition }, code: "TO_SCRIPT_A_VALIDER", message: "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite." };
 }
@@ -275,7 +317,9 @@ async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: {
   if (parent && fnv1a64(jsonCanonique({ texte, mots: parent.mots, format: parent.format })) === empreinteEntree) {
     return { statut: "faite", etat: { ...etat, plan: { plan: parent, remarques: [], source: "repris", empreinteEntree, scenesTouchees: [] } } };
   }
-  const r = await genererPlan({ script: texte, mots, format, facecam: false }, outils.claude);
+  const n = { v: 0 };
+  const r = await genererPlan({ script: texte, mots, format, facecam: false }, compterAppels(outils.claude, n));
+  etat = avecAppels(etat, "plan", n.v);
   const plan = parent ? fusionnerAvecParent(r.plan, parent) : r.plan;
   const scenesTouchees = parent ? scenesARerendre(parent, plan) : plan.scenes.map((s) => s.id);
   const reserves = r.source === "repli" ? [...etat.reserves, `À vérifier · Plan de scènes : ${r.remarques[0]?.message ?? "plan simple."}`] : etat.reserves;
@@ -301,7 +345,9 @@ const nomRatio = (r: Ratio) => r.replace(":", "x");
 
 async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<DemandeRendu> {
   const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}.mp4`);
-  const lectures: Record<string, string> = etat.audio?.fichierCle ? { audio: etat.audio.fichierCle } : {};
+  // Voix mixée (T-EXT-31) quand elle existe, sinon la voix brute, comme avant.
+  const voix = etat.sonMixe?.fini && !etat.sonMixe.echec ? etat.sonMixe.fichierCle : etat.audio?.fichierCle;
+  const lectures: Record<string, string> = voix ? { audio: voix } : {};
   const signe = await outils.rendu.signer(lectures, { cle, mime: "video/mp4" });
   return {
     idRendu: `${travailId}-${nomRatio(ratio)}-${essai}`,
@@ -324,7 +370,7 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai: 0 });
   }
   if (courant.sortie) return etat;
-  const e = await suivreRendu(service, courant.demande);
+  const e = await suivreRendu(service, courant.demande!);
   if (e.statut === "echec") {
     const essai = courant.essai + 1;
     if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) throw new ErreurRendu(e.erreur);
@@ -338,14 +384,136 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
   return remplacer({ ...courant, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
 }
 
-async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<PasTutoriel> {
-  let e = etat;
-  for (const ratio of ratios) {
-    if (e.rendus.find((r) => r.ratio === ratio)?.sortie) continue;
-    e = await pasRendu(e, ratio, commande, outils, travailId);
+type SuiteFinition<R> = { f: FinitionTutoriel<R>; fini: boolean };
+
+/** Suit une finition : après un échec passager, une nouvelle demande (au plus `ESSAIS_RENDU_TUTORIEL`) ; sinon échec définitif, jamais une erreur. */
+async function suivreFinition<R>(service: ServiceRendu, f: FinitionTutoriel<R>, refaire: (essai: number) => Promise<DemandeRendu>, lire: (e: Extract<Awaited<ReturnType<typeof suivreRendu>>, { statut: "termine" }>) => R | null): Promise<SuiteFinition<R>> {
+  if (f.resultat !== undefined) return { f, fini: true };
+  let e;
+  try {
+    e = await suivreRendu(service, f.demande!);
+  } catch {
+    return { f: { ...f, resultat: "echec" }, fini: true };
   }
-  const fait = ratios.every((r) => e.rendus.find((x) => x.ratio === r)?.sortie);
-  return { statut: fait ? "faite" : "en-cours", etat: e };
+  if (e.statut === "echec") {
+    const essai = f.essai + 1;
+    if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) return { f: { ...f, resultat: "echec" }, fini: true };
+    try {
+      const demande = await refaire(essai);
+      await service.soumettre(demande);
+      return { f: { demande, essai }, fini: false };
+    } catch {
+      return { f: { ...f, resultat: "echec" }, fini: true };
+    }
+  }
+  if (e.statut !== "termine") return { f, fini: false };
+  return { f: { ...f, resultat: lire(e) ?? "echec" }, fini: true };
+}
+
+const nomFinition = (ratio: Ratio, ext: string) => `tutoriel-${nomRatio(ratio)}${ext}`;
+
+async function demandeMesure(rendu: RenduTutoriel, essai: number, outils: OutilsTutoriel, travailId: string): Promise<DemandeRendu> {
+  const cle = outils.rendu.cle(nomFinition(rendu.ratio, "-son.json"));
+  const signe = await outils.rendu.signer({ media: rendu.sortie!.fichierCle }, { cle, mime: "application/json" });
+  return { idRendu: `${travailId}-${nomRatio(rendu.ratio)}-son-${essai}`, operation: "mesure-son", file: "courte", entrees: signe.lectures, sortie: { urlDepot: signe.urlDepot, cle }, parametres: parametresMesure() };
+}
+
+async function demandeVignette(rendu: RenduTutoriel, essai: number, outils: OutilsTutoriel, travailId: string): Promise<DemandeRendu> {
+  const cle = outils.rendu.cle(nomFinition(rendu.ratio, ".jpg"));
+  const signe = await outils.rendu.signer({ video: rendu.sortie!.fichierCle }, { cle, mime: "image/jpeg" });
+  return { idRendu: `${travailId}-${nomRatio(rendu.ratio)}-vignette-${essai}`, operation: "miniature", file: "courte", entrees: signe.lectures, sortie: { urlDepot: signe.urlDepot, cle }, parametres: parametresVignette(rendu.ratio, rendu.sortie!.dureeSec) };
+}
+
+/** Une finition est finie quand son résultat est là ou en échec définitif. */
+const finitionsFinies = (r: RenduTutoriel | undefined): boolean => !!r?.sortie && r.mesure?.resultat !== undefined && r.vignette?.resultat !== undefined;
+
+/** Un pas des finitions d'un ratio rendu : d'abord la mesure du son, puis la vignette. Jamais un échec de la vidéo. */
+async function pasFinitions(etat: EtatTutoriel, ratio: Ratio, outils: OutilsTutoriel, travailId: string): Promise<EtatTutoriel> {
+  const rendu = etat.rendus.find((r) => r.ratio === ratio)!;
+  const service = outils.rendu.service();
+  const remplacer = (r: RenduTutoriel): EtatTutoriel => ({ ...etat, rendus: etat.rendus.map((x) => (x.ratio === ratio ? r : x)) });
+  try {
+    if (rendu.mesure?.resultat === undefined) {
+      if (!rendu.mesure) {
+        const demande = await demandeMesure(rendu, 0, outils, travailId);
+        await service.soumettre(demande);
+        return remplacer({ ...rendu, mesure: { demande, essai: 0 } });
+      }
+      const s = await suivreFinition(service, rendu.mesure, (essai) => demandeMesure(rendu, essai, outils, travailId), (e) => lireMesure(e.mesures));
+      return remplacer({ ...rendu, mesure: s.f });
+    }
+    if (rendu.vignette?.resultat === undefined) {
+      if (!rendu.vignette) {
+        const demande = await demandeVignette(rendu, 0, outils, travailId);
+        await service.soumettre(demande);
+        return remplacer({ ...rendu, vignette: { demande, essai: 0 } });
+      }
+      const s = await suivreFinition(service, rendu.vignette, (essai) => demandeVignette(rendu, essai, outils, travailId), (e) => ({ cle: e.sortieCle }));
+      return remplacer({ ...rendu, vignette: s.f });
+    }
+  } catch {
+    // Signature ou soumission impossible : réserve (rapport « non mesuré » / « vignette non produite »), la vidéo est livrée.
+    return remplacer({ ...rendu, ...(rendu.mesure?.resultat === undefined ? { mesure: { ...(rendu.mesure ?? { essai: 0 }), resultat: "echec" as const } } : { vignette: { ...(rendu.vignette ?? { essai: 0 }), resultat: "echec" as const } }) });
+  }
+  return etat;
+}
+
+/** Un pas du mixage de la voix (une seule fois pour tous les formats). Rend l'état et `true` quand il est fini (réussi ou en échec). */
+async function pasMixage(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<{ etat: EtatTutoriel; fini: boolean }> {
+  const voix = etat.audio?.fichierCle;
+  if (!outils.finitions?.actif || !voix || commande.briques.son === false) return { etat, fini: true };
+  if (etat.sonMixe?.fini) return { etat, fini: true };
+  const service = outils.rendu.service();
+  const demander = async (essai: number): Promise<DemandeRendu> => {
+    const cle = outils.rendu.cle("tutoriel-voix-mixee.wav");
+    const signe = await outils.rendu.signer({ voix }, { cle, mime: "audio/wav" });
+    return { idRendu: `${travailId}-mixage-${essai}`, operation: "mixage", file: "longue", entrees: signe.lectures, sortie: { urlDepot: signe.urlDepot, cle }, parametres: parametresMixage(cibleSon(commande), etat.audio!.dureeSec) };
+  };
+  const abandon = (): { etat: EtatTutoriel; fini: boolean } => {
+    const c = etat.sonMixe;
+    const reserves = [...etat.reserves, "À vérifier · Son : la chaîne son n'a pas abouti, voix non traitée."];
+    return { etat: { ...etat, reserves, sonMixe: { fichierCle: c?.fichierCle ?? voix, ...(c?.demande ? { demande: c.demande } : {}), essai: c?.essai ?? 0, fini: true, echec: true } }, fini: true };
+  };
+  try {
+    const courant = etat.sonMixe;
+    if (!courant) {
+      const demande = await demander(0);
+      await service.soumettre(demande);
+      return { etat: { ...etat, sonMixe: { fichierCle: demande.sortie.cle, demande, essai: 0, fini: false } }, fini: false };
+    }
+    const e = await suivreRendu(service, courant.demande!);
+    if (e.statut === "echec") {
+      const essai = courant.essai + 1;
+      if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) return abandon();
+      const demande = await demander(essai);
+      await service.soumettre(demande);
+      return { etat: { ...etat, sonMixe: { ...courant, demande, essai } }, fini: false };
+    }
+    if (e.statut !== "termine") return { etat, fini: false };
+    const lufs = lireMesure(e.mesures)?.lufs;
+    return { etat: { ...etat, sonMixe: { ...courant, fichierCle: e.sortieCle, ...(lufs !== undefined ? { lufs } : {}), fini: true } }, fini: true };
+  } catch {
+    return abandon();
+  }
+}
+
+async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string, avecMixage = false): Promise<PasTutoriel> {
+  let e = etat;
+  const finitions = !!outils.finitions?.actif;
+  if (finitions && avecMixage) {
+    const m = await pasMixage(e, commande, outils, travailId);
+    if (!m.fini) return { statut: "en-cours", etat: m.etat };
+    e = m.etat;
+  }
+  const faitRatio = (r: Ratio) => {
+    const x = e.rendus.find((y) => y.ratio === r);
+    return finitions ? finitionsFinies(x) : !!x?.sortie;
+  };
+  for (const ratio of ratios) {
+    if (faitRatio(ratio)) continue;
+    e = e.rendus.find((r) => r.ratio === ratio)?.sortie ? await pasFinitions(e, ratio, outils, travailId) : await pasRendu(e, ratio, commande, outils, travailId);
+  }
+  return { statut: ratios.every(faitRatio) ? "faite" : "en-cours", etat: e };
 }
 
 /** Un pas de l'étape `cle`. Lève `ErreurTutoriel`, une erreur de la voix ou du rendu : le moteur la rend lisible. */
@@ -361,7 +529,7 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
     case "plan":
       return pasPlan(etat, commande, outils);
     case "montage":
-      return pasMontage(etat, etat.ratios.slice(0, 1), commande, outils, travailId);
+      return pasMontage(etat, etat.ratios.slice(0, 1), commande, outils, travailId, true);
     case "exports":
       return pasMontage(etat, etat.ratios.slice(1), commande, outils, travailId);
   }

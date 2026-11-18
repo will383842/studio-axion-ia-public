@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "verifieLe": "2026-11-18",
+  "maquettes": {
+    "ecrans-outils": {
+      "produit": "Espace démo · Boîte de réception",
+      "organisation": "Entreprise exemple",
+      "vues": {
+        "boite": "Espace démo · Boîte de réception",
+        "agenda": "Espace démo · Agenda",
+        "tableur": "Espace démo · Tableur",
+        "crm": "Espace démo · Clients",
+        "messagerie": "Espace démo · Messages"
+      }
+    }
+  },
+  "interdits": ["velora", "calyra", "sylva", "relayo", "noveria", "blueflow", "ordiva", "boreal", "maison alba", "feuille.", "orbis", "rivage"]
+}
