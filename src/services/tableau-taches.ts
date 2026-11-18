@@ -280,7 +280,7 @@ export function phraseErreur(e: unknown): string {
  */
 /** Une écriture ou un découpage qui ne revient pas après ce délai est mis « interrompu » (jamais relancé seul : « Reprendre » redemande le prix). */
 export const DELAI_TACHE_TABLEAU_MS = 30 * 60_000;
-const RAISON_TACHE_BLOQUEE = "L'écriture ne répond plus : reprenez-la.";
+const RAISON_TACHE_BLOQUEE = { ecriture: "L'écriture ne répond plus : reprenez-la.", decoupage: "Le découpage ne répond plus : reprenez-le." } as const;
 
 export async function travaillerTaches(executer: ExecuterTache): Promise<number> {
   const enCours = tachesEnCours();
@@ -310,7 +310,7 @@ export async function travaillerTaches(executer: ExecuterTache): Promise<number>
       // Si le délai gagne, `travail` continue en arrière-plan : son éventuelle erreur tardive est avalée ici.
       travail.catch(() => undefined);
       const issue = await Promise.race([travail, delai]).finally(() => clearTimeout(minuterie));
-      if (issue === bloquee) await marquerInterrompue(suivante.videoId, suivante.tache, RAISON_TACHE_BLOQUEE);
+      if (issue === bloquee) await marquerInterrompue(suivante.videoId, suivante.tache, RAISON_TACHE_BLOQUEE[suivante.tache.type]);
     } catch (e) {
       // Filet : `executer` range lui-même ses erreurs ; une exception ici ne doit jamais laisser la tâche « en cours ».
       console.error(`[tableau] tâche ${suivante.tache.type} de la vidéo ${suivante.videoId} en échec à l'étape « ${suivante.tache.etape} » : ${e instanceof Error ? e.name : "erreur"} — ${phraseErreur(e)}`);
