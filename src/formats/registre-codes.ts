@@ -45,6 +45,7 @@ const REGISTRE: EntreeCodeFormat[] = [
   { code: "DF", formatId: "demo-facecam", creeLe: "2026-11-08" },
   // Décision « lien suivi, version 2 » (12/11) : un seul code pour tous les visuels (ajout en fin de registre, rien renuméroté).
   { code: "VS", formatId: "visuel", creeLe: "2026-11-12" },
+  { code: "VL", formatId: "video-longue", creeLe: "2026-11-18" },
 ];
 
 export const MOTIF_CODE_FORMAT = /^[A-Z]{2,3}$/;

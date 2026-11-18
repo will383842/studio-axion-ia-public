@@ -6,8 +6,10 @@
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { bandeauAuTemps, cssBandeauNom } from "../../../src/briques/sous-titres/bandeau-nom";
 import { pastilleEnManrope } from "../../../src/briques/sous-titres/pastille";
-import { cssBandeFond, cssElement, cssEtiquetteOutil, escalierAuTemps, etiquetteAuTemps, opaciteBandeFond, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { cssBandeFond, cssElement, cssEtiquetteOutil, escalierAuTemps, etiquetteAuTemps, opaciteBandeFond, paveAuTemps, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
 import { geometrieEscalier } from "../../../src/briques/sous-titres/escalier";
+import { geometrieMarque } from "../../../src/briques/sous-titres/marques-mot";
+import { geometriePave } from "../../../src/briques/sous-titres/pave";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
 import { LigneEscalier } from "./LigneEscalier";
 import { chargerPolices, FAMILLES } from "./polices";
@@ -59,16 +61,41 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
   const esc = donnees.escalier ? escalierAuTemps(donnees, t) : null;
   const geo = donnees.escalier && esc ? geometrieEscalier(esc.lignes, donnees.largeur, donnees.hauteur, donnees.escalier.zone, donnees.escalier.taillePx) : null;
   if (geo && esc) return <AbsoluteFill>{bande}{bandeauNom}{etiquetteOutil}<LigneEscalier geometrie={geo} couleur={donnees.couleurs.texte} fond={donnees.couleurs.contour} ligneActive={esc.ligneActive} /></AbsoluteFill>;
+  // BR-PAVE-MARQUES : `paveAnime` exact : la plaque du mot fort est dessinée ici, animée sur l'INSTANT reçu (jamais l'image : ce calque est rendu par instants), et sa marque ; la plaque fixe n'est plus dessinée pour ce mot.
+  const pave = donnees.paveAnime === true ? paveAuTemps(donnees, t) : null;
+  const gp = pave ? geometriePave(pave.boite, pave.taillePx, t - pave.debutS) : null;
+  const gm = pave && gp && pave.marque ? geometrieMarque(pave.marque, gp, pave.taillePx, pave.graine) : null;
+  const contour = gm?.contourSeul === true;
   const css = cssElement(el, donnees, `"${donnees.encre || (donnees.pastille && !pastilleManrope) ? FAMILLE_TITRE : FAMILLES[el.police]}"`);
   return (
     <AbsoluteFill>
       {bande}
       {bandeauNom}
       {etiquetteOutil}
+      {gp && pave && (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: pave.opaciteGroupe, transform: `translateY(${pave.decalageYPx}px)` }}>
+          {gm?.chemin ? (
+            <svg data-marque-mot={pave.marque} width="100%" height="100%" style={{ position: "absolute", left: 0, top: 0, overflow: "visible", opacity: gp.opacite }}>
+              <path d={gm.chemin} fill={donnees.couleurs.accent} style={{ transform: `rotate(${gp.inclinaisonDeg}deg) scale(${gp.echelle})`, transformOrigin: `${gp.x + gp.largeur / 2}px ${gp.y + gp.hauteur / 2}px` }} />
+            </svg>
+          ) : (
+            <div
+              data-pave-anime=""
+              data-marque-mot={gm ? pave.marque : undefined}
+              style={{
+                position: "absolute", left: gp.x, top: gp.y + (gm?.decalageYPx ?? 0), width: gp.largeur, height: gp.hauteur, borderRadius: gp.rayon,
+                background: contour ? "transparent" : donnees.couleurs.accent, opacity: gp.opacite,
+                ...(contour ? { border: `${Math.max(2, pave.taillePx * 0.05)}px solid ${donnees.couleurs.accent}`, boxSizing: "border-box" as const } : {}),
+                transform: `rotate(${gp.inclinaisonDeg}deg) scale(${gp.echelle})`,
+              }}
+            />
+          )}
+        </div>
+      )}
       <div style={css.conteneur}>
         <div style={css.ligne}>
           {el.mots.map((m, i) => (
-            <span key={i} style={css.mot(i)}>
+            <span key={i} style={pave && i === pave.indice ? { ...css.mot(i), background: "transparent", ...(!gp || contour ? { color: donnees.couleurs.texte } : {}) } : css.mot(i)}>
               {m.texte}
               {m.souligne > 0 && <span style={css.trait(i)} />}
             </span>

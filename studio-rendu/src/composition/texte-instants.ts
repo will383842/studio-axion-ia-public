@@ -7,7 +7,8 @@
  * `incrustationsAuTemps`) et on ne fait dessiner au navigateur qu'une image par suite d'états égaux ; FFmpeg la
  * répète ensuite (`concat` + `fps`). Le rendu est identique, image pour image.
  */
-import { etiquetteAuTemps, opaciteBandeFond, sceneAuTemps } from "../../../src/briques/sous-titres/scene.js";
+import { etiquetteAuTemps, opaciteBandeFond, paveAuTemps, sceneAuTemps } from "../../../src/briques/sous-titres/scene.js";
+import { geometriePave } from "../../../src/briques/sous-titres/pave.js";
 import { bandeauAuTemps } from "../../../src/briques/sous-titres/bandeau-nom.js";
 import { encadreVisible, incrustationsAuTemps, type ProprietesTexteComposition } from "../../../src/briques/composition/scene.js";
 
@@ -29,7 +30,10 @@ export function empreinteTexte(p: Pick<ProprietesTexteComposition, "sousTitres" 
   const etiquette = p.sousTitres?.etiquettesOutils ? etiquetteAuTemps(p.sousTitres, t) : null;
   // 18/11 (FIX-BANDE-VIDE-TABLEAU) : l'opacité de la bande change à l'image, donc elle entre dans l'empreinte (sans bandeFond : inchangé).
   const bande = p.sousTitres?.bandeFond ? +opaciteBandeFond(p.sousTitres, t).toFixed(3) : null;
-  return JSON.stringify([sous, encadreVisible(p.encadre, t), inc, ...(bandeau ? [[bandeau.visible, +bandeau.opacite.toFixed(4), +bandeau.decalageXPx.toFixed(2)]] : []), ...(etiquette ? [[etiquette.id, +etiquette.opacite.toFixed(4)]] : []), ...(bande === null ? [] : [["bande", bande]])]);
+  // BR-PAVE-MARQUES : la plaque animée change à l'image pendant son entrée ; elle entre dans l'empreinte (sans `paveAnime` : inchangé).
+  const pave = p.sousTitres?.paveAnime === true ? paveAuTemps(p.sousTitres, t) : null;
+  const gp = pave ? geometriePave(pave.boite, pave.taillePx, t - pave.debutS) : null;
+  return JSON.stringify([sous, encadreVisible(p.encadre, t), inc, ...(bandeau ? [[bandeau.visible, +bandeau.opacite.toFixed(4), +bandeau.decalageXPx.toFixed(2)]] : []), ...(etiquette ? [[etiquette.id, +etiquette.opacite.toFixed(4)]] : []), ...(bande === null ? [] : [["bande", bande]]), ...(gp && pave ? [["pave", +gp.echelle.toFixed(4), +gp.opacite.toFixed(4), pave.marque ?? null]] : [])]);
 }
 
 /** Suites d'images égales : une image rendue par suite, à l'instant de sa première image. */
