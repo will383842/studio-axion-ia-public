@@ -4,6 +4,9 @@
  * Règles : « annuler puis recréer » avec une NOUVELLE clé ; la date ne change qu'après un retrait confirmé ; rien n'est supprimé.
  */
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { FicheEntree, PHRASE_PROGRAMMEE_MODIFIABLE } from "@/components/calendrier/FicheEntree";
 import { describe, expect, it } from "vitest";
 import type { LotEcritures } from "@/domaine/depots";
 import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
@@ -55,7 +58,7 @@ function monde(opts: { creneau?: Record<string, unknown>; envois?: EnvoiPlanifie
     notifier: async (n) => void notifs.push(n),
     maintenant: () => MAINTENANT,
   };
-  return { deps, creneaux, envois, visuels, marques, ordre, retraits, notifs, supprime, creneau: () => creneaux.get("cre_1") as Record<string, any> };
+  return { deps, creneaux, envois, visuels, marques, ordre, retraits, notifs, supprime, creneau: () => creneaux.get("cre_1") as Record<string, never> & { heuresParReseau: Record<string, string>; textes: Record<string, { texte: string }>; decalages: number; statut: string; valideeLe?: string; retireLe?: string; jourVise: string } };
 }
 
 const demande = (sur: Record<string, unknown> = {}) => ({ creneauId: "cre_1", nouveauJour: "2026-12-14", cle: "form-1", ...sur });
@@ -310,8 +313,18 @@ describe("CAL-23 · périmètre, écran et vocabulaire", () => {
     expect(service).not.toMatch(/zernio-client/);
   });
 
-  it("la fiche offre « Modifier le texte » pour une publication programmée, sans bouton orange de plus", () => {
+  const entreeProgrammee = { cle: "creneau:cre_1|linkedin", etat: "programme", jour: "2026-12-11", heure: "09:30", reseau: "linkedin", type: "carrousel", texte: "Le texte", confiee: true } as never;
+  const rendre = (extra: Record<string, unknown>) =>
+    renderToStaticMarkup(createElement(FicheEntree, { entree: entreeProgrammee, aujourdhui: "2026-12-10", action: () => {}, selonStatut: true, surPrincipal: () => {}, ...extra }));
+
+  it("fiche « Programmé » : verrouillée par défaut, modifiable seulement quand l'hôte le permet, et elle le dit", () => {
+    expect(rendre({})).toMatch(/readonly/i);
+    expect(rendre({})).not.toContain(PHRASE_PROGRAMMEE_MODIFIABLE);
+    const ouverte = rendre({ texteProgrammeModifiable: true });
+    expect(ouverte).not.toMatch(/<textarea[^>]*readonly/i);
+    expect(ouverte).toContain(PHRASE_PROGRAMMEE_MODIFIABLE);
     expect(fiche).toContain("Modifier le texte");
+    expect(PHRASE_PROGRAMMEE_MODIFIABLE).toMatch(/vous/);
   });
 
   it("phrases : vouvoiement, aucun prix, aucun nom d'outil", () => {

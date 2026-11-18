@@ -116,6 +116,9 @@ export function verrouFiche(entree: Pick<EntreeFiche, "etat" | "jour" | "confiee
 }
 
 /** La raison d'un verrou, dite à la personne. */
+/** CAL-23 : dite à la place du verrou « confiee » quand le texte d'une publication programmée peut se changer. */
+export const PHRASE_PROGRAMMEE_MODIFIABLE = "Cette publication est déjà programmée. Si vous changez son texte, elle est retirée du diffuseur puis doit être validée de nouveau : rien ne part avant votre clic sur Valider.";
+
 export const PHRASES_VERROU: Readonly<Record<RaisonVerrou, string>> = {
   publiee: "Déjà publiée. Elle n'est plus modifiable.",
   passee: "Ce jour est passé : cette publication n'est plus modifiable.",
@@ -248,6 +251,11 @@ export interface ProprietesFicheEntree {
    * rouvrir, accepter). Ce bouton est en `type="button"` : il n'enregistre jamais le texte. Absent : pas de bouton (jamais un bouton mort).
    */
   surPrincipal?: () => void;
+  /**
+   * CAL-23 : vrai quand l'hôte sait changer le texte d'une publication DÉJÀ programmée (retrait chez le diffuseur, puis nouvelle validation).
+   * La fiche « Programmé » devient alors modifiable et le dit ; faux par défaut : elle reste verrouillée comme avant.
+   */
+  texteProgrammeModifiable?: boolean;
   /** Refus rendu par l'action, à dire à la personne. */
   erreur?: string;
   /** Vrai seulement quand l'envoi est allumé : sinon une entrée programmée dit « envoi éteint ». */
@@ -298,6 +306,7 @@ export function FicheEntree({
   boutonPrincipal: boutonPrincipalDonne = "Enregistrer le texte",
   selonStatut = false,
   surPrincipal,
+  texteProgrammeModifiable = false,
   erreur,
   envoiAllume,
   libellesEtat,
@@ -313,7 +322,9 @@ export function FicheEntree({
   className,
 }: ProprietesFicheEntree) {
   const verrou = verrouFiche(entree, aujourdhui);
-  const modifiable = verrou === null && action !== undefined;
+  // CAL-23 : une publication programmée (déjà confiée, pas passée) se modifie seulement si l'hôte sait la retirer puis la faire revalider.
+  const programmeModifiable = texteProgrammeModifiable && verrou === "confiee" && entree.etat === "programme";
+  const modifiable = (verrou === null || programmeModifiable) && action !== undefined;
   const boutons = selonStatut ? boutonsTiroir(entree.etat, entree.jour, aujourdhui) : null;
   const boutonPrincipal = boutons ? boutons.principal : boutonPrincipalDonne;
   // À valider, À corriger, Programmée, Idée (« Accepter l'idée ») : le bouton principal est un geste de l'hôte, il n'enregistre rien. Sans rappel, pas de bouton.
@@ -452,7 +463,7 @@ export function FicheEntree({
       {verrou && verrou !== "publiee" && (
         <p className="flex items-start gap-1.5 text-sm text-texte-doux">
           <Icone nom="cadenas" size={14} className="mt-0.5 shrink-0" />
-          {PHRASES_VERROU[verrou]}
+          {programmeModifiable ? PHRASE_PROGRAMMEE_MODIFIABLE : PHRASES_VERROU[verrou]}
         </p>
       )}
       {entree.message && <p className={cn("rounded-champ border px-3 py-2 text-sm font-semibold", entree.etat === "a_corriger" ? TONS_ETAT.a_corriger : TONS_ETAT.a_valider)}>{entree.message}</p>}
