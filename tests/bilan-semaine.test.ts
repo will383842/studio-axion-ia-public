@@ -7,8 +7,8 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
-import { preparerMotDePasse } from "../helpers/g1a";
+import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
+import { preparerMotDePasse } from "./helpers/g1a";
 import { interditsTousEcrivains } from "@/domaine/qualite-script/regles/interdits";
 import type { VideoMesuree } from "@/domaine/mesures-rangs";
 import { calculerBilanSemaine, lignesBilan, type BilanSemaine, type ContenuMesure, type PublicationBilan } from "@/domaine/bilan-semaine";
@@ -34,7 +34,7 @@ beforeAll(async () => {
 const pub = (extra: Partial<PublicationBilan> = {}): PublicationBilan => ({ reseau: "instagram", date: "2026-10-21T10:00:00.000Z", statut: "publiee", via: "zernio", ...extra });
 const contenu = (type: "video" | "carrousel", id: string, reseau: VideoMesuree["reseau"], vues: number, date = "2026-10-21T10:00:00.000Z", extra: Partial<VideoMesuree["resultats"]> = {}): ContenuMesure => ({
   type,
-  video: { reseau, formatId: "f", publicationId: `p-${id}`, varianteId: `v-${id}`, code: id, titre: `Titre ${id}`, date, resultats: { vues, ...extra }, commentaires: 0, partages: 0 },
+  video: { reseau, formatId: "f", publicationId: `p-${id}`, varianteId: `v-${id}`, code: id, titre: `Titre ${id}`, date, resultats: { vues, ...extra } },
 });
 const vide = { publications: [], contenus: [] };
 
