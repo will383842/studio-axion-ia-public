@@ -74,7 +74,12 @@ export function TexteParChapitre({
       <ol aria-label="Sommaire" className="flex flex-wrap gap-2">
         {chapitres.map((c, i) => (
           <li key={c.id} className="inline-flex items-center gap-1.5 rounded-full border border-trait bg-surface-1 px-3 py-1.5 text-sm text-texte">
-            {etats[i]?.valide && <Icone nom="coche" size={16} className="text-sauge" aria-label="Validé" />}
+            {etats[i]?.valide && (
+              <>
+                <Icone nom="coche" size={16} className="text-sauge" aria-hidden="true" />
+                <span className="sr-only">Validé : </span>
+              </>
+            )}
             {i + 1}. {c.titre.trim() || `Chapitre ${i + 1}`}
           </li>
         ))}

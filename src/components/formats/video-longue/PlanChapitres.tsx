@@ -155,7 +155,7 @@ export function PlanChapitres({
             <Carte className="space-y-3">
               {i === 0 && <Pastille ton="sauge">Réponse courte : la réponse en deux phrases, tout au début</Pastille>}
               <Champ id={`titre-${c.id}`} libelle={`Titre du chapitre ${i + 1}`} aide="Il deviendra le chapitre YouTube." value={c.titre} onChange={(e) => remplacer(i, { titre: e.target.value })} />
-              <Champ libelle="Ce que ce chapitre explique" value={c.explique} onChange={(e) => remplacer(i, { explique: e.target.value })} />
+              <Champ libelle={`Ce que ce chapitre explique (chapitre ${i + 1})`} value={c.explique} onChange={(e) => remplacer(i, { explique: e.target.value })} />
               <p className="text-sm text-texte-doux">
                 Durée estimée : {formaterDuree(dureeSecDuTexte(c.texte))}
                 {minutes[i] ? ` · commence à ${formaterDuree(minutes[i].debutSec)}` : ""}

@@ -242,3 +242,21 @@ describe("VL-06 : écrans 4 et 6 calculés sur le texte validé", () => {
     expect(src).not.toMatch(/chapitresMinutes\(chapitres\)|dureeTotaleSec\(chapitres\)/);
   });
 });
+
+describe("VL-06 : petits points du verdict Opus (accessibilité, paragraphe vide)", () => {
+  it("chaque champ « Ce que ce chapitre explique » porte le numéro de son chapitre", () => {
+    const chapitres = chapitresDuScript("# Un\nUne phrase ici.\n# Deux\nAlpha bêta gamma.");
+    const t = texteVisible(rendre(createElement(PlanChapitres, { chapitres, onChange: noop, onSuivant: noop })));
+    expect(t).toContain("Ce que ce chapitre explique (chapitre 1)");
+    expect(t).toContain("Ce que ce chapitre explique (chapitre 2)");
+  });
+  it("la coche du sommaire a un texte pour les lecteurs d'écran, et l'icône est décorative", () => {
+    const src = source("src/components/formats/video-longue/TexteParChapitre.tsx");
+    expect(src).toMatch(/sr-only[^>]*>Validé/);
+    expect(src).not.toMatch(/nom="coche"[^>]*aria-label/);
+  });
+  it("un chapitre entièrement vidé ne laisse pas de paragraphe vide dans le texte complet", () => {
+    const src = source("src/components/formats/video-longue/FormulaireVideoLongue.tsx");
+    expect(src).toMatch(/\.filter\(\(t\) => t\.trim\(\) !== ""\)\.join\("\\n\\n"\)/);
+  });
+});

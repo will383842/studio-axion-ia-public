@@ -49,7 +49,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
     () => chapitres.map((c) => ({ id: c.id, titre: c.titre, versions: [{ cle: "colle", phrases: decouperEnPhrases(c.texte) }] })),
     [chapitres],
   );
-  const texteComplet = valide ? valide.map((c) => c.phrases.join(" ")).join("\n\n") : "";
+  const texteComplet = valide ? valide.map((c) => c.phrases.join(" ")).filter((t) => t.trim() !== "").join("\n\n") : "";
   // Écrans 4 et 6 : calculés sur le texte VALIDÉ (une fois posé), pas sur le plan proposé.
   const planFinal = useMemo(() => (valide ? planDepuisValide(valide, chapitres) : chapitres), [valide, chapitres]);
   const chapitresWeb = useMemo(() => chapitresMinutes(planFinal), [planFinal]);
