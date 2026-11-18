@@ -5,6 +5,7 @@
  * le milieu tombe dans la plage.
  *  - `garderUnChapitre` : ne laisse passer que les retouches qui touchent les scènes du chapitre choisi ; une retouche
  *    qui toucherait toute la vidéo est ramenée au chapitre (dynamisme) ou écartée avec une remarque ;
+ *    `decaler-scene` est toujours écartée (le recalage des mots déborde sur les chapitres voisins) ;
  *  - `chapitresTouches` : quels chapitres refaire (le rendu partiel par empreinte ne refait que ceux-là) ;
  *  - `messageChapitre` : phrase de réponse, sans montant ; la voix ne change pas ;
  *  - le texte lu est le script validé : `modifier-script` reste écarté (règle de `generateurs.ts`, `scriptEstValide`).
@@ -74,6 +75,12 @@ export function garderUnChapitre(operations: readonly OperationRetouche[], plan:
   const remarques: string[] = [];
   const gardees: OperationRetouche[] = [];
   for (const o of operations) {
+    // `decaler-scene` recale les mots d'une scène (`mots` ou `decalageMs`) sans borne : le validateur décale ou retire
+    // ensuite les scènes voisines, qui peuvent être d'un autre chapitre. Écartée pour la vidéo longue, jamais de fuite.
+    if (o.type === "decaler-scene") {
+      remarques.push("Une retouche sortait du chapitre choisi : elle n'est pas appliquée, les autres chapitres restent tels quels.");
+      continue;
+    }
     const visees = scenesVisees(o);
     if (visees === null) {
       if (o.type === "ajouter-dynamisme" && siennes.size) gardees.push({ ...o, sceneIds: [...siennes] });

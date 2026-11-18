@@ -85,6 +85,19 @@ describe("chapitre = groupe de scènes", () => {
     expect(r.remarques).toHaveLength(1);
   });
 
+  it("decaler-scene écarté : des mots du chapitre 2 pour une scène du chapitre 1 ne passent pas, et rien n'est marqué à refaire", () => {
+    const dedans = scenesDuChapitre(plan, chapitres[0])[0];
+    const dehors = scenesDuChapitre(plan, chapitres[1])[0];
+    const sortant = { type: "decaler-scene", sceneId: dedans, mots: { premier: 18, dernier: 28 } } as OperationRetouche;
+    const r = garderUnChapitre([sortant], plan, chapitres, "c1");
+    expect(r.operations).toEqual([]);
+    expect(r.remarques).toHaveLength(1);
+    expect(chapitresTouches(r.operations, plan, chapitres)).toEqual([]);
+    // Décalage par durée, même pour une scène du chapitre : écarté aussi (le validateur recale les voisines).
+    const decale = garderUnChapitre([{ type: "decaler-scene", sceneId: dehors, decalageMs: 200 } as OperationRetouche], plan, chapitres, "c2");
+    expect(decale.operations).toEqual([]);
+  });
+
   it("message : voix inchangée, autres chapitres intacts, aucun montant", () => {
     const m = messageChapitre(chapitres, "c2")!;
     expect(m).toBe("Seul le chapitre 2 sera refait. La voix ne change pas. L'autre reste tel quel.");
