@@ -73,6 +73,7 @@ import { MARGE_CREDITS } from "./credits";
 import { exigerSession } from "./auth";
 import { trouverMoi } from "./moi";
 import { TARIF_VOIX_CENTIMES_PAR_CARACTERE } from "./tableau-outils";
+import { historiqueStylesTableau, noterStyleTableau } from "./tableau-variete";
 import { interditsDeLaMarque } from "./tableau-marque";
 import { choisirFinTableau } from "./tableau-fin";
 import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
@@ -615,8 +616,11 @@ export interface DependancesCreationTableau {
   sourcesSujets?: SourcesSujets;
 }
 
+/** Réglage du tirage du style du tableau (BR-TABLEAU-STYLE-a) : seul `true` exact l'allume, absent = éteint. */
+export const PARAM_STYLE_TIRE_TABLEAU = "tableau.styleTire";
+
 /** L'entrée du découpage d'un brouillon (PUR, exporté pour le test « contrat » générateur → découpage). */
-export function entreeDecoupage(donnees: DonneesScriptTableau, videoId: Id, versionId: string, controle: Omit<ContexteTableau, "texteScript">, preuves: readonly PreuveProposee[]): EntreeDecoupage {
+export function entreeDecoupage(donnees: DonneesScriptTableau, videoId: Id, versionId: string, controle: Omit<ContexteTableau, "texteScript">, preuves: readonly PreuveProposee[], tirage?: EntreeDecoupage["tirage"]): EntreeDecoupage {
   const format = trouverFormat(FORMAT_TABLEAU_ANIME);
   const serie = SERIES_TABLEAU.find((s) => s.code === donnees.serieCode) ?? SERIES_TABLEAU[0];
   return {
@@ -638,6 +642,7 @@ export function entreeDecoupage(donnees: DonneesScriptTableau, videoId: Id, vers
     controle: avecMotsDouleur(controle, donnees),
     // Les parties du script (accroche, douleur, solution…), quand le générateur les rend : le découpage les suit.
     ...(partiesDuDecoupage(donnees.parties) ? { parties: partiesDuDecoupage(donnees.parties) } : {}),
+    ...(tirage ? { tirage } : {}),
   };
 }
 
@@ -874,7 +879,8 @@ async function executerDecoupage(videoId: Id, tache: TacheTableau, dependances: 
   const donnees = brouillon.donnees;
   const aujourdhui = tache.aujourdhui ?? aujourdhuiIso();
   const controle = await contexteRegles(aujourdhui);
-  const entree = entreeDecoupage(donnees, videoId, tache.versionId ?? `b${brouillon.versions.length + 1}`, controle, await preuvesProposees(aujourdhui));
+  const tirage = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, false).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
+  const entree = entreeDecoupage(donnees, videoId, tache.versionId ?? `b${brouillon.versions.length + 1}`, controle, await preuvesProposees(aujourdhui), tirage);
   await modifierTache(videoId, tache.id, (t) => t && { ...t, statut: "en-cours", etape: "decoupage" });
   const pireUsd = tache.pireUsd ?? coutPireDecoupageUsd(entree);
   const appeler = appelerRejoue(videoId, tache.id, dependances.appeler ?? appelStudio(videoId, tache.depuis, pireUsd), tache.journal);
@@ -895,6 +901,7 @@ async function executerDecoupage(videoId: Id, tache: TacheTableau, dependances: 
   }
   // La fin choisie par Will est portée par la fiche (la chaîne la lit, jamais une fin non validée).
   await ajouterVersion(videoId, { ...r.fiche, appelId: donnees.finId }, "decoupage", donnees);
+  if (tirage && r.fiche.styleTableau) await noterStyleTableau({ videoId, style: r.fiche.styleTableau as Parameters<typeof noterStyleTableau>[0]["style"] }).catch((e) => console.error("[tableau] style non noté :", e instanceof Error ? e.message : e));
   await modifierTache(videoId, tache.id, (t) => t && { ...t, statut: "terminee", enVol: undefined, message: r.relance ? "Scènes prêtes (après une relance)." : "Scènes prêtes." });
   await journaliser("video", "Tableau animé : script découpé en scènes", { type: "video", id: videoId });
 }
