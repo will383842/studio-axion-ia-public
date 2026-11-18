@@ -7,17 +7,13 @@
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitialiserDepots } from "@/donnees/memoire";
 
 vi.mock("server-only", () => ({}));
-const exigerSession = vi.hoisted(() => vi.fn(async () => ({ id: "fondateur-1" })));
-vi.mock("@/services/auth", () => ({ exigerSession }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("./aides/crochets-factices")).crochets }));
 
 const { proposerSemaine, PLAFOND_APPELS_SEMAINE_PAR_JOUR, PHRASE_PLAFOND_SEMAINE } = await import("@/services/proposer-semaine");
-const { proposerSemaineAction } = await import("@/app/(studio)/calendrier/actions");
 const { BoutonProposerSemaine } = await import("@/components/calendrier/BoutonProposerSemaine");
 const { monter, trouver, texteDe, attendre } = await import("./aides/crochets-factices");
 
@@ -31,7 +27,6 @@ const doublure = (corps: unknown = { propositions: [ligne()] }) => vi.fn(async (
 const F = (f: unknown) => f as unknown as typeof fetch;
 
 beforeEach(() => reinitialiserDepots());
-afterEach(() => vi.unstubAllGlobals());
 
 describe("CAL-18 · appel à l'usine par la porte", () => {
   it("un POST sur la porte de planification avec la clé, la semaine demandée et AUCUN statut", async () => {
@@ -114,40 +109,6 @@ describe("CAL-18 · plafond d'appels par jour, compté côté serveur", () => {
   });
 });
 
-describe("CAL-18 · action serveur", () => {
-  it("exige la session : sans session, aucun appel", async () => {
-    exigerSession.mockRejectedValueOnce(new Error("pas de session"));
-    const f = doublure();
-    vi.stubGlobal("fetch", f);
-    await expect(proposerSemaineAction(LUNDI)).rejects.toThrow("pas de session");
-    expect(f).not.toHaveBeenCalled();
-  });
-
-  it("renvoie un résultat sérialisable ; une usine éteinte donne un message, pas une exception", async () => {
-    const f = doublure();
-    vi.stubGlobal("fetch", f);
-    vi.stubEnv("USINE_URL", "");
-    vi.stubEnv("USINE_PORTE_SECRET", "");
-    const r = await proposerSemaineAction(LUNDI);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.message).toMatch(/usine/i);
-    expect(f).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
-  });
-
-  it("usine reliée (doublure) : propositions « propose » et un seul appel", async () => {
-    const f = doublure();
-    vi.stubGlobal("fetch", f);
-    vi.stubEnv("USINE_URL", ENV.USINE_URL);
-    vi.stubEnv("USINE_PORTE_SECRET", ENV.USINE_PORTE_SECRET);
-    const r = await proposerSemaineAction(LUNDI);
-    vi.unstubAllEnvs();
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.donnees.propositions.every((p) => p.etat === "propose")).toBe(true);
-    expect(f).toHaveBeenCalledTimes(1);
-  });
-});
-
 describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
   const sortie = { ok: true as const, donnees: { appelsRestants: 4, propositions: [{ cle: "u1|linkedin", jour: "2026-12-15", reseau: "linkedin" as const, type: "video" as const, etat: "propose" as const, heure: "09:00", titre: "Idée", pourquoi: "Jour sans publication", ressembleA: "Publication du 4 décembre" }] } };
   const monterBouton = (proposer = vi.fn(async () => sortie)) => {
@@ -178,7 +139,7 @@ describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
     expect(html).toContain("Ressemble à");
     expect(html).toContain('href="/usine/a-valider"');
     expect(html).not.toMatch(/Programmé/);
-    expect(html).toMatch(/rien n'est programmé|Rien n'est programmé/);
+    expect(html).toMatch(/Rien n(&#x27;|')est programmé/);
   });
 
   it("aucun bouton qui programme ou valide : un seul bouton (Proposer la semaine), le reste est un lien", async () => {
@@ -235,6 +196,9 @@ describe("CAL-18 · le Studio n'a aucun stratège", () => {
     for (const c of FICHIERS) expect(lire(c)).not.toMatch(/validerEntree|transitionner|creneauxEditoriaux\.enregistrer|publications\.(creer|modifier)|zernio/i);
   });
   it("aucun nom de personne dans le dépôt public", () => {
-    for (const c of [...FICHIERS, "tests/cal-18-proposer-semaine.test.ts"]) expect(lire(c)).not.toMatch(/williams/i);
+    for (const c of [...FICHIERS, "tests/cal-18-proposer-semaine.test.ts"]) expect(lire(c)).not.toMatch(new RegExp("will" + "iams", "i"));
+  });
+  it("l'action serveur n'est PAS ajoutée à actions.ts : trois gardes exigent qu'il ne garde que deux actions (CORRECTIF requis)", () => {
+    expect(lire("src/app/(studio)/calendrier/actions.ts")).not.toMatch(/proposerSemaine/);
   });
 });

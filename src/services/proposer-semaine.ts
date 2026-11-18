@@ -1,0 +1,94 @@
+/**
+ * CAL-18 · « Proposer la semaine » : le Studio APPELLE l'usine par la porte et AFFICHE ce qu'elle propose.
+ * Le stratège (quoi, pour qui, quel équilibre) vit dans l'usine : ici aucun appel de modèle, aucun choix de sujet.
+ * Les réponses arrivent toujours « propose » : rien n'est programmé ni validé d'ici, la validation se fait dans l'écran « À valider ».
+ * Plafond d'appels par jour compté ICI, côté serveur (jour de Paris) ; au-delà, une phrase sans montant ; l'ajout à la main reste possible.
+ * Rien n'est allumé : sans USINE_URL et clé, aucun appel ne part et l'essai n'est pas compté. SERVEUR UNIQUEMENT.
+ */
+import "server-only";
+import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
+import type { IdReseau } from "@/domaine/types";
+import { cleJour } from "@/lib/dates";
+import { RESEAUX } from "@/reseaux";
+import { creerVerrou, ecrireParametre, ErreurStudio, lireParametre } from "@/services/_commun";
+import { proposerSemaineUsine, usineActive, type Options } from "@/services/usine-porte";
+
+/** Appels permis par jour (jour de Paris) : un compte en quantité, jamais en argent. */
+export const PLAFOND_APPELS_SEMAINE_PAR_JOUR = 5;
+export const PARAM_COMPTEUR_SEMAINE = "calendrier.proposerSemaine.compteur";
+export const PHRASE_PLAFOND_SEMAINE = "Vous avez déjà demandé plusieurs semaines aujourd'hui. Revenez demain pour en demander une autre. En attendant, vous pouvez ajouter vos contenus à la main : rien n'est bloqué.";
+
+export interface PropositionSemaine extends EntreeCarte {
+  etat: "propose";
+  pourquoi?: string;
+  ressembleA?: string;
+}
+export interface SemaineProposee {
+  propositions: PropositionSemaine[];
+  appelsRestants: number;
+}
+export interface OptionsSemaine extends Pick<Options, "env" | "fetchImpl" | "delaiMs"> {
+  /** Instant pris pour « aujourd'hui » (tests). */
+  maintenant?: Date;
+}
+
+const TYPES = new Set(["video", "carrousel", "infographie", "image"]);
+const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+const JOUR_MS = 86_400_000;
+
+function lundiValide(debut: string): number | null {
+  if (!JOUR.test(debut)) return null;
+  const t = Date.parse(`${debut}T12:00:00Z`);
+  if (Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== debut) return null;
+  return new Date(t).getUTCDay() === 1 ? t : null;
+}
+
+/** Un seul compteur à la fois : lecture, contrôle et écriture ne se croisent jamais (rafale de clics ou de sessions). */
+const unALaFois = creerVerrou();
+
+/** Réserve un appel du jour : refuse au-delà du plafond, sinon écrit le compteur AVANT l'appel. Renvoie les appels restants. */
+function reserverAppel(maintenant: Date): Promise<number> {
+  return unALaFois(async () => {
+    const jour = cleJour(maintenant);
+    const brut = await lireParametre<{ jour?: unknown; n?: unknown } | null>(PARAM_COMPTEUR_SEMAINE, null);
+    const deja = brut && brut.jour === jour && typeof brut.n === "number" && Number.isFinite(brut.n) && brut.n > 0 ? Math.floor(brut.n) : 0;
+    if (deja >= PLAFOND_APPELS_SEMAINE_PAR_JOUR) throw new ErreurStudio("SEMAINE_PLAFOND", PHRASE_PLAFOND_SEMAINE);
+    await ecrireParametre(PARAM_COMPTEUR_SEMAINE, { jour, n: deja + 1 });
+    return PLAFOND_APPELS_SEMAINE_PAR_JOUR - (deja + 1);
+  });
+}
+
+/**
+ * Demande la semaine qui commence ce lundi. Ne garde que les lignes lisibles et comprises dans la semaine demandée ;
+ * chaque ligne est mise à l'état « propose », quoi que dise l'usine.
+ */
+export async function proposerSemaine(demande: { debut: string; reseaux?: readonly IdReseau[] }, o: OptionsSemaine = {}): Promise<SemaineProposee> {
+  const lundi = lundiValide(demande.debut);
+  if (lundi === null) throw new ErreurStudio("SEMAINE_DATE", "Choisissez une semaine qui commence un lundi.");
+  const env = o.env ?? (process.env as Parameters<typeof usineActive>[0]);
+  if (!usineActive(env)) throw new ErreurStudio("USINE_ETEINTE", "L'usine n'est pas reliée : la semaine ne peut pas être proposée pour le moment. Vous pouvez ajouter vos contenus à la main.");
+  const appelsRestants = await reserverAppel(o.maintenant ?? new Date());
+  const lignes = await proposerSemaineUsine({ debut: demande.debut, ...(demande.reseaux?.length ? { reseaux: demande.reseaux } : {}) }, { env, ...(o.fetchImpl ? { fetchImpl: o.fetchImpl } : {}), ...(o.delaiMs ? { delaiMs: o.delaiMs } : {}) });
+  const fin = lundi + 7 * JOUR_MS;
+  const reseaux = new Set<string>(RESEAUX.map((r) => r.id));
+  const propositions: PropositionSemaine[] = [];
+  const vues = new Set<string>();
+  for (const l of lignes) {
+    const t = JOUR.test(l.jour) ? Date.parse(`${l.jour}T12:00:00Z`) : Number.NaN;
+    if (!(t >= lundi && t < fin) || !reseaux.has(l.reseau) || !TYPES.has(l.type) || vues.has(l.cle)) continue;
+    vues.add(l.cle);
+    propositions.push({
+      cle: l.cle,
+      jour: l.jour,
+      reseau: l.reseau as IdReseau,
+      type: l.type as EntreeCarte["type"],
+      etat: "propose",
+      ...(l.heure && HEURE.test(l.heure) ? { heure: l.heure } : {}),
+      ...(l.titre ? { titre: l.titre } : {}),
+      ...(l.pourquoi ? { pourquoi: l.pourquoi } : {}),
+      ...(l.ressembleA ? { ressembleA: l.ressembleA } : {}),
+    });
+  }
+  return { propositions, appelsRestants };
+}
