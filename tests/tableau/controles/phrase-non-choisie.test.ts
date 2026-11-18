@@ -20,12 +20,31 @@ vi.mock("../../../src/briques/tableau-scene/reference/animation-3", async (origi
     },
   };
 });
+/** Réglage du test « texte hors cadre » : rallonge la 1re ligne du `tableau` de la mise en page réelle (l'élément touché est noté). */
+const rallonge = vi.hoisted(() => ({ actif: false, cible: null as string | null }));
+vi.mock("../../../src/moteurs/montage-tableau/mise-en-page", async (original) => {
+  const reel = await original<typeof import("../../../src/moteurs/montage-tableau/mise-en-page")>();
+  return {
+    ...reel,
+    mettreEnPage: (...a: Parameters<typeof reel.mettreEnPage>) => {
+      const mise = reel.mettreEnPage(...a);
+      if (!rallonge.actif) return mise;
+      const e = mise.pages.flatMap((p) => p.elements).find((x) => x.tableau && x.lignes.length);
+      if (e) {
+        rallonge.cible = e.elementId;
+        e.lignes[0] = { ...e.lignes[0], texte: `${e.lignes[0].texte} ${"mot ".repeat(40)}`.trim() };
+      }
+      return mise;
+    },
+  };
+});
 import { controlerVideoTableau } from "../../../src/moteurs/montage-tableau/controles";
 import { controlerMiseEnPageTableau } from "../../../src/moteurs/montage-tableau/controles-tableau";
 import { validerFicheTableau, type FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
-import { sortiesDesReseaux } from "../../../src/moteurs/montage-tableau/formats-sortie";
-import { mettreEnPage } from "../../../src/moteurs/montage-tableau/mise-en-page";
-import { finDeLaSortie, relireFicheTableau, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
+import { apercuDesSorties } from "../../../src/moteurs/montage-tableau/apercu-sorties";
+import { sortiesDesReseaux, type IdSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
+import { pagesDuStyle } from "../../../src/moteurs/montage-tableau/densite";
+import { finDeLaSortie, type FinRetenue, relireFicheTableau, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
 import { choisirFinTableau } from "../../../src/services/tableau-fin";
 import { contexteBanc, MOTS_DOULEUR_V6616 } from "../banc/fiches-banc";
 import { ficheVfc3, proprietesVfc3 } from "../titre-seul/fiche-vfc3";
@@ -108,14 +127,27 @@ describe("dessin inachevé : plans réels du calendrier (proprietesVfc3)", () =>
 });
 
 describe("texte hors cadre : le contrôle existant est bloquant sur le témoin de l'essai", () => {
-  it("une ligne plus large que la zone posée → « Texte entier » bloquant (controles.ts) sur la mise en page réelle", async () => {
-    const mise = mettreEnPage(temoin, {});
-    const l = mise.pages.flatMap((p) => p.elements).find((e) => e.tableau && e.lignes.length);
-    if (!l) return expect(controlerMiseEnPageTableau(mise)).toEqual(expect.any(Array));
-    const large = structuredClone(mise);
-    const cible = large.pages.flatMap((p) => p.elements).find((e) => e.elementId === l.elementId)!;
-    cible.lignes[0] = { ...cible.lignes[0], texte: `${cible.lignes[0].texte} ${"mot ".repeat(40)}`.trim() };
-    expect(controlerMiseEnPageTableau(large).some((p) => p.controle === "coupe")).toBe(true);
+  it("une ligne plus large que la zone posée, dans la mise en page réelle du style de l'essai → « Texte entier » bloquant", async () => {
+    // Le style de l'essai : la fiche réparée dans le style de sa série (comme la relecture), dont la mise en page porte `tableau`.
+    const fiche = pagesDuStyle(temoin);
+    rallonge.actif = true;
+    rallonge.cible = null;
+    let r;
+    try {
+      r = await controlerVideoTableau({ fiche, contexte: contexteDe(temoin), historique: [], dejaVu: { coche: true, le: "2026-10-14" } });
+    } finally {
+      rallonge.actif = false;
+    }
+    expect(rallonge.cible).not.toBeNull();
+    const l = r.lignes.find((x) => x.libelle === "Texte entier");
+    expect(l).toBeDefined();
+    expect(l).toMatchObject({ etat: "echoue", bloquant: true });
+    expect(r.bloquants.map((x) => x.libelle)).toContain("Texte entier");
+    expect(r.verdict).toBe("bloque");
+  });
+  it("sans rallonge, la même mise en page : « Texte entier » réussi", async () => {
+    const r = await controlerVideoTableau({ fiche: pagesDuStyle(temoin), contexte: contexteDe(temoin), historique: [], dejaVu: { coche: true, le: "2026-10-14" } });
+    expect(r.lignes.find((x) => x.libelle === "Texte entier")?.etat).toBe("reussi");
   });
 });
 
@@ -125,6 +157,91 @@ describe("phrase non choisie : le mot à commenter choisi par l'utilisateur n'es
     const fiche = ficheFormation();
     const fin = { id: "fin-if-mot-envoi", ecran: "Écrivez GUIDE en commentaire", type: "commentaire", mot: "GUIDE" };
     const { rapport } = await relireFicheTableau({ fiche, contexte: contexteFormation(), historique: [], sorties: ["vertical", "carre"], choisirFin: () => fin });
+    expect(rapport.bloquants.filter((l) => l.libelle === "Phrase non choisie")).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 2e relecture (18/11) : mot admis à l'identique, phrase dite choisie, préfixes resserrés */
+/* ------------------------------------------------------------------ */
+
+const FIN_GUIDE: FinRetenue = { id: "fin-if-mot-envoi", ecran: "Écrivez GUIDE en commentaire", type: "commentaire", mot: "GUIDE" };
+const ligneEcrite = (texte: string) => ({ id: "e-test", type: "ligne" as const, texte, niveau: "texte" as const, role: "regle" as const, bloc: "detail" as const, ancre: 0 });
+
+/**
+ * Les sorties exactes de la fabrication (style « blocs/2 » de la formation, fin au mot choisie : la mise en page reçoit
+ * `appel.mot`), avec une ligne écrite en plus dans la dernière scène de chaque fichier.
+ */
+async function controlerAvecLigne(texte: string, choisirFin: (id: IdSortie) => FinRetenue | undefined, reseaux = ["instagram", "tiktok", "linkedin"]) {
+  const { contexteFormation, ficheFormation } = await import("../style-v2/temoin-formation");
+  const fiche = ficheFormation();
+  const s = sortiesDesReseaux(reseaux);
+  const relues = sortiesRelues(fiche, s, (id) => finDeLaSortie(id, choisirFin(id), fiche));
+  const sortiesRapport = relues.map((x) => ({ id: x.id, libelle: x.libelle, options: x.options, fiche: { ...x.fiche, scenes: x.fiche.scenes.map((sc, i, t) => (i === t.length - 1 ? { ...sc, elements: [...sc.elements, ligneEcrite(texte)] } : sc)) } }));
+  expect(relues.some((x) => (x.options.appel as { mot?: string } | undefined)?.mot === "GUIDE") || !choisirFin("vertical")).toBe(true);
+  return controlerVideoTableau({ fiche, contexte: contexteFormation(), historique: [], sorties: sortiesRapport });
+}
+const phraseNonChoisie = (r: Awaited<ReturnType<typeof controlerAvecLigne>>) => r.bloquants.filter((l) => l.libelle === "Phrase non choisie");
+
+describe("point 1 : le mot choisi n'est admis qu'à l'identique", () => {
+  const fin = (id: IdSortie) => (id === "vertical" ? FIN_GUIDE : undefined);
+  it("fin au mot « GUIDE » + ligne écrite « Guidez vos partages » → bloquant « Phrase non choisie »", async () => {
+    const r = await controlerAvecLigne("Guidez", fin, ["instagram"]);
+    expect(phraseNonChoisie(r)[0]?.raison).toContain("« Guidez »");
+    expect(phraseNonChoisie(await controlerAvecLigne("Guidez vos partages", fin, ["instagram"]))[0]?.raison).toContain("« Guidez vos partages »");
+  });
+  it("« Guides » et « Guidons » : refusés aussi ; « GUIDE » tel quel : admis", async () => {
+    expect(phraseNonChoisie(await controlerAvecLigne("Guides", fin, ["instagram"]))).toHaveLength(1);
+    expect(phraseNonChoisie(await controlerAvecLigne("Guidons", fin, ["instagram"]))).toHaveLength(1);
+    expect(phraseNonChoisie(await controlerAvecLigne("GUIDE", fin, ["instagram"]))).toEqual([]);
+  });
+});
+
+describe("point 2 : seule la phrase dite de la fin choisie de CETTE sortie est permise", () => {
+  it("fin « question » intacte : aucun bloquant ; la phrase choisie REMPLACÉE par une autre → bloquant", async () => {
+    const choisir = choisirFinTableau({}, { sorties, finLiens: "QUESTION" } as never);
+    const relues = sortiesRelues(temoin, sorties, (id) => finDeLaSortie(id, choisir(temoin.appelId ?? null, id), temoin));
+    const choisie = apercuDesSorties(temoin, relues).find((x) => x.sortie === "vertical-liens")!.phrasesAjoutees[0];
+    expect(choisie).toBeTruthy();
+    const avec = (texte: string) =>
+      controlerVideoTableau({
+        fiche: temoin,
+        contexte: contexteDe(temoin),
+        historique: [],
+        dejaVu: { coche: true, le: "2026-10-14" },
+        sorties: relues.map((x) => ({ id: x.id, libelle: x.libelle, options: x.options, fiche: x.id !== "vertical-liens" ? x.fiche : { ...x.fiche, scenes: x.fiche.scenes.map((sc) => ({ ...sc, texteDit: sc.texteDit.replace(choisie, texte) })) } })),
+      });
+    expect(relues.find((x) => x.id === "vertical-liens")!.fiche.scenes.some((sc) => sc.texteDit.includes(choisie))).toBe(true);
+    const intacte = await avec(choisie);
+    expect(intacte.bloquants.filter((l) => l.libelle === "Phrase non choisie")).toEqual([]);
+    const r = await avec("Abonnez-vous et partagez cette vidéo à tous vos collègues.");
+    const l = r.bloquants.find((x) => x.libelle === "Phrase non choisie");
+    expect(l?.raison).toContain("« Abonnez-vous et partagez cette vidéo à tous vos collègues. » (dite");
+    expect(r.verdict).toBe("bloque");
+  });
+});
+
+describe("point 3 : la règle des préfixes est resserrée", () => {
+  it("sur le témoin de l'essai (v-fc3) : « Partagez, commentez, appelez » posée dans la dernière scène, sans mot choisi → bloquant (TikTok et LinkedIn)", async () => {
+    const relues = sortiesRelues(temoin, sorties, (id) => finDeLaSortie(id, undefined, temoin));
+    const r = await controlerVideoTableau({
+      fiche: temoin,
+      contexte: contexteDe(temoin),
+      historique: [],
+      dejaVu: { coche: true, le: "2026-10-14" },
+      sorties: relues.map((x) => ({ id: x.id, libelle: x.libelle, options: x.options, fiche: { ...x.fiche, scenes: x.fiche.scenes.map((sc, i, t) => (i === t.length - 1 ? { ...sc, elements: [...sc.elements, ligneEcrite("Partagez, commentez, appelez")] } : sc)) } })),
+    });
+    const l = r.bloquants.find((x) => x.libelle === "Phrase non choisie");
+    expect(l?.raison).toContain("« Partagez, commentez, appelez »");
+    expect(l?.raison).toMatch(/TikTok|Liens|LinkedIn|Portrait/i);
+  });
+  it("« Partagez, commentez, appelez » écrite sans être choisie → bloquant (TikTok et LinkedIn compris)", async () => {
+    const r = await controlerAvecLigne("Partagez, commentez, appelez", () => undefined);
+    expect(phraseNonChoisie(r)[0]?.raison).toContain("« Partagez, commentez, appelez »");
+    expect(phraseNonChoisie(r)[0]?.raison).toMatch(/Vertical|Liens|TikTok|LinkedIn|Portrait|Carré/i);
+  });
+  it("une abréviation connue reste admise : « 10 MIN par mail » ; une fin choisie sans mot ne change rien", async () => {
+    const { rapport } = await relireFicheTableau({ fiche: temoin, contexte: contexteDe(temoin), dejaVu: { coche: true, le: "2026-10-14" }, sorties, choisirFin: choisirFinTableau({}, { sorties } as never) });
     expect(rapport.bloquants.filter((l) => l.libelle === "Phrase non choisie")).toEqual([]);
   });
 });

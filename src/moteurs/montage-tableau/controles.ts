@@ -25,6 +25,7 @@ import { etiquettesAbsentes3, pagesChargees3, pagesProbleme3, pagesVides3, taill
 import { controlerMiseEnPageTableau } from "./controles-tableau";
 import { sansAppelAuMot, type IdSortie } from "./formats-sortie";
 import { apercuDesSorties } from "./apercu-sorties";
+import { BANQUE_APPELS } from "@/briques/fins/banque";
 import { dessinsInacheves } from "./dessins-finis";
 import { planPage3 } from "@/briques/tableau-scene/reference/animation-3";
 import type { ProprietesTableauScene } from "@/briques/tableau-scene/types";
@@ -523,7 +524,7 @@ const cite = (t: string) => (t.length > 70 ? `${t.slice(0, 67)}…` : t);
 /**
  * Phrase non écrite ni choisie : ce que chaque fichier DIT (hors texte validé) ou ÉCRIT (hors lignes de la fiche, de la
  * fin choisie et des libellés de la mise en page) est refusé. La fin choisie d'une sortie est celle que sa mise en page
- * reçoit (`options.appel.phrase`, relecture.ts:90) : une seule phrase dite en plus lui est permise ; sans fin choisie, aucune.
+ * reçoit (`options.appel.phrase`, relecture.ts:90) : seule SA phrase dite (celle de la banque pour cet écran) est permise ; toute autre, ou sans fin choisie, est refusée.
  */
 function lignesPhraseNonChoisie(fiche: FicheTableau, sorties: readonly SortieRelue[]): LigneControleTableau[] {
   const preparees = sorties.flatMap((s) => (s.fiche ? [{ id: s.id as IdSortie, libelle: s.libelle, fiche: s.fiche, options: s.options ?? {} }] : []));
@@ -534,10 +535,16 @@ function lignesPhraseNonChoisie(fiche: FicheTableau, sorties: readonly SortieRel
   for (const a of apercu) {
     const appel = preparees.find((p) => p.id === a.sortie)?.options.appel as { phrase?: string; mot?: string } | undefined;
     const choisie = appel?.phrase;
-    for (const p of choisie ? a.phrasesAjoutees.slice(1) : a.phrasesAjoutees) fautes.push(`« ${cite(p)} » (dite, fichier ${a.libelle})`);
-    // Le mot à commenter saisi par l'utilisateur à la création (« GUIDE ») est écrit par la mise en page sur la dernière ligne : il est choisi.
-    const permis = new Set([...autorises, ...jetons(choisie ?? ""), ...jetons(appel?.mot ?? ""), ...a.phrasesAjoutees.flatMap(jetons)]);
-    for (const pg of a.pages) for (const l of pg.lignes) if (jetons(l.texte).some((j) => /[a-z]/.test(j) && !permis.has(j) && !(j.length >= 3 && [...permis].some((m) => m.length >= 3 && (m.startsWith(j) || j.startsWith(m)))))) fautes.push(`« ${cite(l.texte)} » (écrite page ${pg.numero}, fichier ${a.libelle})`);
+    // La phrase DITE de la fin choisie de CETTE sortie : celle de la banque dont l'écran est l'écran choisi (texte exact normalisé) ; toute autre est refusée.
+    const dites = new Set(choisie ? BANQUE_APPELS.filter((b) => jetons(b.ecran).join(" ") === jetons(choisie).join(" ")).map((b) => jetons(b.dit).join(" ")) : []);
+    const dite = a.phrasesAjoutees.find((p) => dites.has(jetons(p).join(" ")));
+    for (const p of a.phrasesAjoutees) if (p !== dite) fautes.push(`« ${cite(p)} » (dite, fichier ${a.libelle})`);
+    // Écrit : la fiche, les libellés de la mise en page, l'écran et la phrase dite de la fin choisie ; le mot à commenter saisi (« GUIDE ») seulement tel quel.
+    const base = new Set([...autorises, ...jetons(choisie ?? ""), ...(dite ? jetons(dite) : [])]);
+    const mot = new Set(jetons(appel?.mot ?? ""));
+    // Un mot écrit est aussi admis comme DÉBUT d'un mot permis d'au moins 5 lettres (abréviation « MIN » pour « minutes »), jamais l'inverse ; le mot choisi : à l'identique seulement.
+    const admis = (j: string) => !/[a-z]/.test(j) || base.has(j) || mot.has(j) || (j.length >= 3 && [...base].some((m) => m.length >= 5 && m.startsWith(j)));
+    for (const pg of a.pages) for (const l of pg.lignes) if (jetons(l.texte).some((j) => !admis(j))) fautes.push(`« ${cite(l.texte)} » (écrite page ${pg.numero}, fichier ${a.libelle})`);
   }
   const uniques = [...new Set(fautes)];
   // Aucune ligne « réussi » : une vidéo saine garde exactement le rapport d'avant (éteint = identique).
