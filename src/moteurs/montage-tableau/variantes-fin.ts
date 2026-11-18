@@ -2,8 +2,7 @@
  * FIN PROPRE À CHAQUE SORTIE (décision du propriétaire, 12/10/2026) : aucune vidéo ne part sur TikTok ni sur YouTube
  * Shorts avec la fin « Écrivez MOT en commentaire. Je vous l'envoie. ». Le vertical de TikTok et Shorts
  * (`vertical-liens`) dit donc une AUTRE fin que les autres sorties : la fin validée sans promesse d'envoi du réseau, ou
- * AUCUN appel tant qu'aucune n'est validée (la phrase d'appel n'est ni dite ni écrite ; l'écran de fin montre
- * `axion-ia.com`). Depuis le 14/10 (Will) : UNE demande de la banque commune, choisie selon le type de la fiche
+ * AUCUN appel tant qu'aucune n'est validée (la phrase d'appel n'est ni dite ni écrite ; rien n'est mis à sa place). Depuis le 14/10 (Will) : UNE demande de la banque commune, choisie selon le type de la fiche
  * (`finDesLiens`, règle pure `choisirFinLiens` de `src/briques/fins/fin-liens.ts`) ; « aucun appel » ne reste qu'en repli.
  *
  * Ce fichier est PUR (aucun appel) :
@@ -34,7 +33,7 @@ import { enregistrerDetecteurAppel } from "./appel-dit";
 export const SITE_FIN = "axion-ia.com";
 
 /** Alerte : le vertical de TikTok et Shorts se termine sans appel tant qu'aucune fin n'y est validée. */
-export const FIN_SANS_APPEL_LIENS = "Fin sans appel pour TikTok et Shorts : phrase à valider (« Le lien est dans mon profil. »). Leur vidéo se termine sur axion-ia.com, sans appel ni promesse d'envoi.";
+export const FIN_SANS_APPEL_LIENS = "Fin sans appel pour TikTok et Shorts : phrase à valider (« Le lien est dans mon profil. »). Leur vidéo se termine sur votre dernière phrase, sans appel ni promesse d'envoi.";
 
 /** Fin retenue pour une sortie (même forme que `FinRetenue` de `fabriquer.ts`). */
 export type FinDeSortie = { id: string; ecran: string; type?: string; mot?: string; dit?: string; objectif?: string } | { absente: string };
@@ -51,12 +50,15 @@ export function finAuMot(fin: FinDeSortie | undefined): boolean {
 /**
  * Ce que dit la fin d'une sortie. Le vertical de TikTok et Shorts, et le carré de LinkedIn (`sansAppelAuMot`) : jamais
  * l'appel de la fiche (fin au mot refusée) ;
- * sa fin validée sans promesse d'envoi si elle existe (phrase dite connue), sinon aucun appel. Les autres sorties :
+ * sa fin choisie telle quelle (l'appel de la fiche) ; la phrase de la banque seulement pour le réglage `finLiens`, sinon aucun appel. Les autres sorties :
  * l'appel de la fiche (comportement d'avant).
  */
 export function appelDitDeLaSortie(id: IdSortie, fin: FinDeSortie | undefined): AppelDit {
   if (!sansAppelAuMot(id)) return { sorte: "fiche" };
   if (!fin || !("ecran" in fin) || finAuMot(fin) || !fin.dit?.trim()) return { sorte: "aucun" };
+  // 18/11 (Williams, règle du 17/11) : une fin CHOISIE (sans `objectif`) est dite telle quelle : l'appel de la fiche ; la
+  // phrase de la banque n'est dite que pour le réglage explicite `finLiens` (avec `objectif`).
+  if (!fin.objectif) return { sorte: "fiche" };
   return { sorte: "phrase", dit: fin.dit.trim(), ecran: fin.ecran };
 }
 
@@ -313,6 +315,17 @@ const MOMENT_DU_ROLE: Readonly<Record<SceneTableau["role"], MomentEcran>> = {
 const ligneSite = (sceneId: string): ElementTableau => ({ id: `${sceneId}-site`, type: "ligne", role: "titre", niveau: "titre", texte: SITE_FIN, ancre: 0 }) as ElementTableau;
 
 /**
+ * Ligne de secours d'une scène finale sans élément : sa dernière phrase restante, mot pour mot (jamais un texte neuf).
+ * `role`/`niveau` : ceux de la première ligne de la scène (celle que le retrait a pu emporter). Sans mot : l'adresse.
+ */
+function ligneDeLaScene(s: SceneTableau, texteDit: string): ElementTableau {
+  const derniere = phrasesDe(texteDit).at(-1);
+  if (!derniere) return ligneSite(s.id);
+  const modele = s.elements.find((e): e is Extract<ElementTableau, { type: "ligne" }> => e.type === "ligne");
+  return { id: `${s.id}-fin`, type: "ligne", role: modele?.role ?? "titre", niveau: modele?.niveau ?? "titre", texte: derniere.texte, ancre: derniere.debut } as ElementTableau;
+}
+
+/**
  * La fiche d'une variante : l'appel (mots [debut, fin[ de la dernière scène, et la fin de la scène d'avant quand il y
  * commence) est retiré, ou remplacé par `phrase` dans la dernière scène. Les ancres qui suivent sont décalées ; les
  * éléments de l'écran d'appel (style « blocs/2 » : ancrés à partir de lui) et ceux de l'appel sont retirés, avec les
@@ -345,7 +358,7 @@ export function ficheDeVariante(fiche: FicheTableau, appel: AppelTrouve | null, 
   if (videes && ecranAppel) gardees[gardees.length - 1] = porterLaFin(gardees[gardees.length - 1], ecranAppel);
   // Plus aucun texte écrit sur le commentaire, ni mot à commenter (le vertical de TikTok et Shorts n'en demande pas).
   const nettes = gardees.map((x, i) => nettoyer(x, motAppel, i === gardees.length - 1));
-  return pageAppelParties({ ...fiche, scenes: nettes.map((x, i) => (x === fiche.scenes[i] ? x : motsFortsValides(x))) }, fiche);
+  return pageAppelParties({ ...fiche, scenes: nettes.map((x, i) => (x === fiche.scenes[i] ? x : motsFortsValides(x))) }, fiche, !phrase);
 }
 
 /**
@@ -355,7 +368,7 @@ export function ficheDeVariante(fiche: FicheTableau, appel: AppelTrouve | null, 
  * grand (« bloc » « appel ») quand aucune autre demande n'y reste, au plus une autre phrase en détail, ni visuel ni bloc
  * orange ; elle tourne la page si elle la partageait avec une autre partie. Les autres styles : rien ne change.
  */
-function pageAppelParties(f: FicheTableau, avant: FicheTableau): FicheTableau {
+function pageAppelParties(f: FicheTableau, avant: FicheTableau, sansPhrase = false): FicheTableau {
   if (f.habillage !== "reference/3" || f === avant) return f;
   const scenes = [...f.scenes];
   const k = scenes.length - 1;
@@ -366,6 +379,8 @@ function pageAppelParties(f: FicheTableau, avant: FicheTableau): FicheTableau {
   const lignes = s.elements.filter((e): e is Extract<ElementTableau, { type: "ligne" }> => e.type === "ligne");
   const appel = lignes.find((l) => l.bloc === "appel" && !/commentaire/iu.test(l.texte));
   const site = lignes.find((l) => l.id === `${s.id}-site`);
+  // 18/11 : sans appel ni site restants, rien n'est ajouté (jamais « axion-ia.com ») ; une scène qui n'était pas la page d'appel reste telle quelle.
+  if (sansPhrase && !appel && !site && !etaitAppel) return f;
   const detail = lignes.find((l) => l !== appel && l !== site && l.bloc !== "appel");
   const gardees = new Set([appel, site, detail].filter(Boolean) as ElementTableau[]);
   const elements: ElementTableau[] = s.elements.flatMap((e): ElementTableau[] => {
@@ -375,7 +390,8 @@ function pageAppelParties(f: FicheTableau, avant: FicheTableau): FicheTableau {
     if (e === detail) return [{ ...e, bloc: "detail" } as ElementTableau];
     return [e];
   });
-  if (!appel && !site) elements.push({ ...(ligneSite(s.id) as Extract<ElementTableau, { type: "ligne" }>), bloc: "appel" } as ElementTableau);
+  if (!appel && !site && !sansPhrase) elements.push({ ...(ligneSite(s.id) as Extract<ElementTableau, { type: "ligne" }>), bloc: "appel" } as ElementTableau);
+  if (!appel && !site && sansPhrase && !elements.some(montre)) elements.push({ ...(ligneDeLaScene(s, s.texteDit) as Extract<ElementTableau, { type: "ligne" }>), bloc: "appel" } as ElementTableau);
   const gabarit = { role: "appel" as const };
   scenes[k] = { ...s, page, gabarit, elements };
   return { ...f, scenes };
@@ -435,7 +451,7 @@ function derniereSansAppel(s: SceneTableau, debut: number, fin: number, blocs2: 
   if (blocs2 && !gardes.some(montre)) gardes = s.elements.filter((e) => !montre(e) || ancreDe(e) < debut);
   if (blocs2 && !gardes.some(montre)) gardes = s.elements.filter((e) => !montre(e) || !dansAppel(ancreDe(e)));
   let elements = garderElements(gardes, dansAppel, (a) => Math.min(nouvelle(a), Math.max(0, total - 1)));
-  if (!elements.some(montre) && total > 0) elements = [ligneSite(s.id)];
+  if (!elements.some(montre) && total > 0) elements = [ligneDeLaScene(s, texteDit)];
   let ecransVariante = ecrans;
   if (ecrans) {
     ecransVariante = ecrans.flatMap((e, i) => {
@@ -502,7 +518,7 @@ function nettoyer(s: SceneTableau, mot: string | undefined, derniere: boolean): 
     () => false,
     (a) => a,
   );
-  if (!elements.some(montre)) elements = derniere ? [ligneSite(s.id)] : s.elements;
+  if (!elements.some(montre)) elements = derniere && mots(s.texteDit).length ? [ligneDeLaScene(s, s.texteDit)] : derniere ? [ligneSite(s.id)] : s.elements;
   const ecrans = s.ecrans?.map((e) => {
     const copie = { ...e, ...(e.liste ? { liste: e.liste.filter((it) => !parleDuCommentaire(`${it.texte} ${it.detail ?? ""}`, mot)) } : {}) };
     delete copie.motCommentaire;

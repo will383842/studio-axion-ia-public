@@ -16,6 +16,8 @@ export interface ApercuSortie {
   dit: string;
   /** Phrases dites dans ce fichier et absentes du texte dit de la fiche (ajoutées par le Studio). */
   phrasesAjoutees: string[];
+  /** Fin choisie retirée de ce fichier par une règle du 12/10 (TikTok, Shorts, LinkedIn) : le Studio le dit, rien n'est mis à sa place. */
+  avisFin?: string;
   pages: { numero: number; lignes: { texte: string; ajout: boolean }[] }[];
 }
 
