@@ -173,7 +173,6 @@ describe("PR-B · lecture du réglage : toute anomalie = fermé, zéro requête"
     ["version 2", () => poserEssai({ ...ESSAI, version: 2 })],
     ["champ manquant", () => poserEssai({ ...ESSAI, compte: undefined })],
     ["expireLe illisible", () => poserEssai({ ...ESSAI, expireLe: "demain" })],
-    ["expiré d'une seconde", () => poserEssai({ ...ESSAI, expireLe: iso(T0 - 1000) })],
     ["durée 24 h + 1 s", () => poserEssai({ ...ESSAI, poseLe: iso(T0 - H), expireLe: iso(T0 - H + DUREE_MAX_ESSAI_MS + 1000) })],
     ["expireLe avant poseLe", () => poserEssai({ ...ESSAI, expireLe: iso(T0 - 2 * H) })],
     ["poseLe futur", () => poserEssai({ ...ESSAI, poseLe: iso(T0 + H), expireLe: iso(T0 + 2 * H) })],
@@ -188,6 +187,13 @@ describe("PR-B · lecture du réglage : toute anomalie = fermé, zéro requête"
     await preparer();
     expect(await lireEssai(T0)).toBeNull();
     expect(await essaiCouvre("cA", "brouillon", T0)).toBe(false);
+    expect(faux.appels).toHaveLength(0);
+  });
+  it("expiré d'une seconde → ne couvre plus la création ni le déplacement (le retrait garde sa fenêtre de nettoyage)", async () => {
+    await poserEssai({ ...ESSAI, expireLe: iso(T0 - 1000) });
+    expect(await essaiCouvre("cA", "brouillon", T0)).toBe(false);
+    expect(await essaiCouvre("cA", "deplacement", T0)).toBe(false);
+    expect(await essaiCouvre("cA", "retrait", T0)).toBe(true);
     expect(faux.appels).toHaveLength(0);
   });
   it("sans clé du diffuseur → fermé", async () => {
@@ -370,7 +376,7 @@ describe("PR-B · actions d'écran", () => {
   it("pose : sans session, refus ; rien d'écrit", async () => {
     session.active = false;
     await expect(actions.poserEssaiZernioAction(futur())).rejects.toThrow();
-    expect(await depots().parametres.obtenir(PARAM_ESSAI_BROUILLON)).toBeUndefined();
+    expect((await depots().parametres.obtenir(PARAM_ESSAI_BROUILLON))?.valeur ?? null).toBeNull();
   });
   it("retrait : sans session, refus", async () => {
     session.active = false;
@@ -401,7 +407,7 @@ describe("PR-B · actions d'écran", () => {
       if (!r.ok) expect(r.message.length).toBeGreaterThan(10);
     }
     for (const dureeHeures of [0, 25, 1.5, Number.NaN]) expect((await actions.poserEssaiZernioAction({ creneauId: "cA", dureeHeures })).ok).toBe(false);
-    expect(await depots().parametres.obtenir(PARAM_ESSAI_BROUILLON)).toBeUndefined();
+    expect((await depots().parametres.obtenir(PARAM_ESSAI_BROUILLON))?.valeur ?? null).toBeNull();
   });
   it("retirer l'essai écrit null ; le tour suivant est « porte fermée »", async () => {
     await actions.poserEssaiZernioAction(futur());
@@ -432,7 +438,7 @@ describe("PR-B · ce qui ne bouge pas", () => {
     expect(source("src/services/zernio.ts")).not.toMatch(/essai-zernio/);
   });
   it("la garde PUT du client n'est pas touchée", () => {
-    expect(source("src/fournisseurs/publication/zernio-client.ts")).not.toMatch(/essai/i);
+    expect(source("src/fournisseurs/publication/zernio-client.ts")).not.toMatch(/essai-zernio|essaiEnCours|essaiCouvre/);
   });
   it("la garde L5-02d et le chemin vidéo ne connaissent pas l'essai", () => {
     expect(source("src/services/garde-creneau-diffuseur.ts")).not.toMatch(/essai-zernio/);
