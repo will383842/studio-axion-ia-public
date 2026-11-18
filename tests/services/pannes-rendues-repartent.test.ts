@@ -15,6 +15,8 @@ import { creerFacecamSimule } from "@/fournisseurs/facecam";
 import { versOutils } from "../tableau/moteur/doubles";
 import { doubles } from "../tableau/fabriquer/doubles";
 import { texteScriptDe } from "../tableau/regles/exemples";
+import { doubles as doublesCC } from "../cas-concret/fabriquer/doubles";
+import { commandeCasConcret, versOutils as versOutilsCC } from "../cas-concret/moteur/doubles";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -31,6 +33,7 @@ const { commandeTableau } = await import("@/moteurs/montage-tableau/fabriquer");
 const { creerMoteurMontageFacecam } = await import("@/moteurs/montage-facecam");
 const { creerMoteurMontageFacecamAnimee } = await import("@/moteurs/montage-facecam-animee");
 const { creerMoteurMontageImageVideo } = await import("@/moteurs/montage-image-video");
+const { creerMoteurMontageCasConcret } = await import("@/moteurs/montage-cas-concret");
 const { choisirFinTableau } = await import("@/services/tableau-fin");
 const { sortiesDesReseaux } = await import("@/moteurs/montage-tableau/formats-sortie");
 
@@ -233,22 +236,22 @@ describe("face caméra : FACECAM_NON_RELIE rendu par le moteur réel", () => {
 
 /* --- (c) bis : moteurs AVEC garde « sans avancement » (60 min) : l'attente dure bien 24 h ---------- */
 
-describe("c) bis : un moteur gardé attend 24 h (pas 60 min) puis échoue avec sa phrase", () => {
-  const cas: [string, string, () => MoteurVideo, () => CommandeFabrication][] = [
-    [
-      "face caméra animée v4",
-      "FACECAM_ANIMEE_NON_RELIE",
-      () => creerMoteurMontageFacecamAnimee({ outils: async () => null, statutFormat: "masque" }),
-      () => ({ videoId: "v-03", formatId: "facecam-animee", moteurId: "montage-facecam-animee", ratios: ["9:16"], entrees: { facecamAnimee: { priseCle: "k.mov", fichierId: "f-1", accordEssaiReel: true } }, briques: {}, distribution: [] }) as unknown as CommandeFabrication,
-    ],
-    [
-      "image → vidéo",
-      "IV_NON_RELIE",
-      () => creerMoteurMontageImageVideo({ outils: async () => null, statutFormat: "masque", numeroVersion: async () => 1 }),
-      () => ({ versionContrat: 2, moteurId: "montage-image-video", videoId: "v-03", formatId: "image-video", versionFormat: 1, profilRenduVersion: 1, dureeCibleSec: 50, ratios: ["9:16"], script: { blocs: [], texteComplet: "" }, distribution: [], styles: {}, briques: {}, entrees: { imageVideo: { imageCle: "studio/dev/image.png", empreinte: "e1", plafondCentimes: 500, codeSuivi: "essai", accordEssaiReel: true, reseaux: ["instagram"] } }, reglages: {}, plans: [], prononciations: [], mentionIA: { incrustee: false, position: "haut-droite", dureeSec: 0, texte: "", dansLegende: false }, budgetMax: { centimes: 500, devise: "EUR" }, tauxUsdEur: 0.9, construiteLe: "2026-10-15T08:00:00.000Z" }) as unknown as CommandeFabrication,
-    ],
-  ];
+const cas: [string, string, () => MoteurVideo, () => CommandeFabrication][] = [
+  [
+    "face caméra animée v4",
+    "FACECAM_ANIMEE_NON_RELIE",
+    () => creerMoteurMontageFacecamAnimee({ outils: async () => null, statutFormat: "masque" }),
+    () => ({ videoId: "v-03", formatId: "facecam-animee", moteurId: "montage-facecam-animee", ratios: ["9:16"], entrees: { facecamAnimee: { priseCle: "k.mov", fichierId: "f-1", accordEssaiReel: true } }, briques: {}, distribution: [] }) as unknown as CommandeFabrication,
+  ],
+  [
+    "image → vidéo",
+    "IV_NON_RELIE",
+    () => creerMoteurMontageImageVideo({ outils: async () => null, statutFormat: "masque", numeroVersion: async () => 1 }),
+    () => ({ versionContrat: 2, moteurId: "montage-image-video", videoId: "v-03", formatId: "image-video", versionFormat: 1, profilRenduVersion: 1, dureeCibleSec: 50, ratios: ["9:16"], script: { blocs: [], texteComplet: "" }, distribution: [], styles: {}, briques: {}, entrees: { imageVideo: { imageCle: "studio/dev/image.png", empreinte: "e1", plafondCentimes: 500, codeSuivi: "essai", accordEssaiReel: true, reseaux: ["instagram"] } }, reglages: {}, plans: [], prononciations: [], mentionIA: { incrustee: false, position: "haut-droite", dureeSec: 0, texte: "", dansLegende: false }, budgetMax: { centimes: 500, devise: "EUR" }, tauxUsdEur: 0.9, construiteLe: "2026-10-15T08:00:00.000Z" }) as unknown as CommandeFabrication,
+  ],
+];
 
+describe("c) bis : un moteur gardé attend 24 h (pas 60 min) puis échoue avec sa phrase", () => {
   it.each(cas)("%s : en attente à 2 h, `echec` seulement à ≥ 24 h (%s, phrase du moteur), 1 notification d'échec, réservation libérée, aucune reprise gardée", async (_nom, code, fabriquer, commande) => {
     const moteur = fabriquer();
     const { id, videoId } = await installer(moteur, commande());
@@ -349,5 +352,229 @@ describe("contre-épreuves : comportement de master inchangé", () => {
     expect(ecrit).toEqual({ ...sortie, statut: "echec", reprise: undefined, estDemo: t.estDemo, urgent: t.urgent });
     expect(await reservationsActives(t.id)).toBe(1);
     expect(await notifs("echec")).toHaveLength(0);
+  });
+});
+
+/* --- Reprise bornée (4e correction) : R1 à R7, par la VRAIE boucle -------------------------------- */
+
+const H = 3600_000;
+const PAS = 5 * 60_000;
+type Mode = { relie: boolean; progres?: boolean };
+
+/**
+ * Le moteur RÉEL, sauf quand l'outil « répond » (`mode.relie`) : ce tour-là rend un travail en cours qui n'avance pas
+ * (ou, avec `progres`, qui termine UNE étape de plus). Quand l'outil est absent, c'est le moteur réel qui rend son « non relié ».
+ */
+function intermittent(reel: MoteurVideo, mode: Mode): MoteurVideo {
+  return {
+    ...reel,
+    async avancer(travail, commande, maintenant) {
+      if (!mode.relie) return reel.avancer(travail, commande, maintenant);
+      const etapes = travail.etapes.map((e) => ({ ...e }));
+      const i = etapes.findIndex((e) => e.statut !== "terminee" && e.statut !== "ignoree");
+      if (i >= 0) etapes[i] = mode.progres ? { ...etapes[i], statut: "terminee", progression: 100 } : { ...etapes[i], statut: "en_cours" };
+      if (mode.progres) mode.progres = false;
+      return { travail: { ...travail, statut: "en_cours", erreur: undefined, etapes } };
+    },
+  };
+}
+
+/** Boucle : un tour, puis l'horloge avance d'au moins `PAS` et jamais avant le prochain essai. `regle(instant)` pose l'état de l'outil. */
+async function boucle(moteur: MoteurVideo, id: string, jusqua: number, regle: (instant: number, n: number) => void | Promise<void>): Promise<{ instant: number; finA: number | null; tours: number }> {
+  let instant = T0;
+  let finA: number | null = null;
+  let tours = 0;
+  while (instant <= jusqua && tours < 2000) {
+    await regle(instant, tours++);
+    await tour(moteur, instant);
+    const t = (await depots().travaux.obtenir(id))!;
+    if (t.statut === "echec") finA ??= instant;
+    instant = Math.max(instant + PAS, t.reprise ? new Date(t.reprise.prochainEssai).getTime() : 0);
+  }
+  return { instant, finA, tours };
+}
+
+describe("R1 · outil intermittent 50 h (tableau, moteur réel) : l'attente est bornée à 24 h depuis la 1re panne", () => {
+  it("échec dans [24 h, 24 h + 20 min], 1 notif d'attente, 1 notif d'échec, plus jamais relu, réservation libérée", { timeout: 120_000 }, async () => {
+    const m = montageTableau();
+    const mode: Mode = { relie: false };
+    const moteur = intermittent(m.moteur, mode);
+    const { id, videoId } = await installer(moteur, m.commande);
+    const attendu = await messageDuMoteur(m.moteur, id);
+    const { finA } = await boucle(moteur, id, T0 + 50 * H, (_i, n) => { mode.relie = n % 2 === 1; });
+    const fin = (await depots().travaux.obtenir(id))!;
+    expect(fin.statut).toBe("echec");
+    expect(fin.erreur).toMatchObject({ code: "TABLEAU_NON_RELIE", messagePourWill: attendu.message });
+    expect(finA! - T0).toBeGreaterThanOrEqual(24 * H);
+    expect(finA! - T0).toBeLessThanOrEqual(24 * H + 20 * 60_000);
+    expect(fin.reprise).toBeUndefined();
+    expect(await reservationsActives(id)).toBe(0);
+    expect((await depots().videos.obtenir(videoId))?.statut).toBe("echec");
+    expect(await notifs("echec")).toHaveLength(1);
+    expect(await notifs("info")).toHaveLength(1);
+    expect(fin.tentatives).toBeLessThan(300);
+    expect(await tour(moteur, T0 + 50 * H)).toBe(0);
+  });
+});
+
+describe("R2 · outil intermittent 50 h (face caméra animée v4, moteur gardé)", () => {
+  it("échec avec FACECAM_ANIMEE_NON_RELIE (pas PANNE_SANS_NOUVELLE), même fenêtre, 1 + 1 notifications", { timeout: 120_000 }, async () => {
+    const mode: Mode = { relie: false };
+    const moteur = intermittent(cas[0][2](), mode);
+    const { id, videoId } = await installer(moteur, cas[0][3]());
+    const { finA } = await boucle(moteur, id, T0 + 50 * H, (_i, n) => { mode.relie = n % 2 === 1; });
+    const fin = (await depots().travaux.obtenir(id))!;
+    expect(fin.statut).toBe("echec");
+    expect(fin.erreur?.code).toBe("FACECAM_ANIMEE_NON_RELIE");
+    expect(finA! - T0).toBeGreaterThanOrEqual(24 * H);
+    expect(finA! - T0).toBeLessThanOrEqual(24 * H + 20 * 60_000);
+    expect(fin.reprise).toBeUndefined();
+    expect(await reservationsActives(id)).toBe(0);
+    expect((await depots().videos.obtenir(videoId))?.statut).toBe("echec");
+    expect(await notifs("echec")).toHaveLength(1);
+    expect(await notifs("info")).toHaveLength(1);
+  });
+});
+
+describe("R3 · attente continue : toujours en attente à 2 h, échec à [24 h, 24 h + 10 min] de la 1re panne", () => {
+  it.each(cas)("%s", async (_nom, code, fabriquer, commande) => {
+    const moteur = fabriquer();
+    const { id } = await installer(moteur, commande());
+    let instant = T0;
+    let vu = false;
+    let fin: number | null = null;
+    for (let n = 0; n < 400 && fin === null; n++) {
+      await tour(moteur, instant);
+      const t = (await depots().travaux.obtenir(id))!;
+      if (t.statut === "echec") { fin = instant; break; }
+      if (!vu && instant - T0 >= 2 * H) {
+        vu = true;
+        expect((await travaux.obtenirTravail(id))?.enAttenteFournisseur).toBe(true);
+        expect(await notifs("echec")).toHaveLength(0);
+      }
+      instant = Math.max(instant, new Date(t.reprise!.prochainEssai).getTime());
+    }
+    expect(vu).toBe(true);
+    expect((await depots().travaux.obtenir(id))?.erreur?.code).toBe(code);
+    expect(fin! - T0).toBeGreaterThanOrEqual(24 * H);
+    expect(fin! - T0).toBeLessThanOrEqual(24 * H + 10 * 60_000);
+  });
+});
+
+describe("R4 · un vrai progrès remet la reprise à zéro (tableau)", () => {
+  it("nouvelle attente = nouvelle borne de 24 h et nouvelle notification", { timeout: 120_000 }, async () => {
+    const m = montageTableau();
+    const mode: Mode = { relie: false };
+    const moteur = intermittent(m.moteur, mode);
+    const { id } = await installer(moteur, m.commande);
+    const T1 = T0 + 23 * H; // l'outil répond : UNE étape de plus se termine
+    const T2 = T1 + 30 * 60_000; // puis il retombe pour de bon
+    let progres = false;
+    let aVu25h = false;
+    const fin = await boucle(moteur, id, T0 + 60 * H, async (i) => {
+      mode.relie = i > T0 + 60_000 && i < T2;
+      if (i >= T1 && !progres) {
+        progres = true;
+        mode.progres = true;
+      }
+      if (i >= T0 + 25 * H && !aVu25h) {
+        aVu25h = true;
+        const t = (await depots().travaux.obtenir(id))!;
+        expect(t.statut).toBe("en_cours"); // sans la remise à zéro, l'échec serait tombé à T0 + 24 h
+        expect(new Date(t.reprise!.premiereLe).getTime()).toBeGreaterThanOrEqual(T1);
+        expect(await notifs("info")).toHaveLength(2);
+        expect(await notifs("echec")).toHaveLength(0);
+      }
+    });
+    expect(aVu25h).toBe(true);
+    expect(fin.finA! - T2).toBeGreaterThanOrEqual(24 * H);
+    expect(fin.finA! - T2).toBeLessThanOrEqual(24 * H + 20 * 60_000);
+    expect(await notifs("info")).toHaveLength(2);
+    expect(await notifs("echec")).toHaveLength(1);
+  });
+});
+
+describe("R5 · outil revenu sans progrès : la vidéo ne dit plus « attend un outil », la garde du moteur joue comme sur master", () => {
+  it("face caméra animée : garde 60 min, PANNE_SANS_NOUVELLE, pas de reprise sur l'échec, 1 notif d'échec", async () => {
+    const mode: Mode = { relie: false };
+    const moteur = intermittent(cas[0][2](), mode);
+    const { id } = await installer(moteur, cas[0][3]());
+    await tour(moteur, T0);
+    const premiere = (await depots().travaux.obtenir(id))!.reprise!.premiereLe;
+    mode.relie = true;
+    let instant = T0 + 60_000;
+    await tour(moteur, instant);
+    const t = (await depots().travaux.obtenir(id))!;
+    expect(t.statut).toBe("en_cours");
+    expect((await travaux.obtenirTravail(id))?.enAttenteFournisseur).toBe(false);
+    expect(t.reprise?.premiereLe).toBe(premiere);
+    expect(t.reprise?.attenteDepuis).toBeUndefined();
+    for (let n = 0; n < 40; n++) {
+      instant += PAS;
+      await tour(moteur, instant);
+      if ((await depots().travaux.obtenir(id))!.statut === "echec") break;
+    }
+    const fin = (await depots().travaux.obtenir(id))!;
+    expect(fin.statut).toBe("echec");
+    expect(fin.erreur?.code).toBe("PANNE_SANS_NOUVELLE");
+    expect(fin.reprise).toBeUndefined();
+    expect(await reservationsActives(id)).toBe(0);
+    expect(await notifs("echec")).toHaveLength(1);
+    expect(await notifs("info")).toHaveLength(1);
+  });
+});
+
+describe("R6 · contre-épreuves : une reprise qui n'est pas de S-01 reste remise à zéro comme sur master", () => {
+  it.each([
+    ["panne levée (non marquée)", undefined],
+    ["crédit", "credit"],
+  ] as const)("%s : tour sans progrès → reprise indéfinie", async (_nom, motif) => {
+    const mode: Mode = { relie: true };
+    const moteur = intermittent(cas[0][2](), mode);
+    const { id } = await installer(moteur, cas[0][3]());
+    const t0 = (await depots().travaux.obtenir(id))!;
+    await depots().travaux.enregistrer({ ...t0, reprise: { echecs: 1, premiereLe: new Date(T0 - 60_000).toISOString(), prochainEssai: new Date(T0 - 1_000).toISOString(), derniereErreur: "Panne levée", ...(motif ? { motif } : {}) } });
+    await tour(moteur, T0);
+    const t = (await depots().travaux.obtenir(id))!;
+    expect(t.statut).toBe("en_cours");
+    expect(t.reprise).toBeUndefined();
+  });
+});
+
+describe("R7 · cas concret, moteur RÉEL", () => {
+  it("1er tour sans outil : l'échec tombe sur « ecriture » (payée) → échec immédiat, aucune reprise, réservation libérée", async () => {
+    const d = doublesCC({});
+    const moteur = creerMoteurMontageCasConcret({ outils: async () => null, retouchesAllumees: () => false });
+    const { id } = await installer(moteur, commandeCasConcret(d));
+    await tour(moteur, T0);
+    const t = (await depots().travaux.obtenir(id))!;
+    expect(t.etapes.find((e) => e.statut === "echec")?.cle).toBe("ecriture");
+    expect(t.statut).toBe("echec");
+    expect(t.reprise).toBeUndefined();
+    expect(await reservationsActives(id)).toBe(0);
+  });
+
+  it("écriture faite, puis panne à la voix : repart seul, journal d'écriture inchangé", { timeout: 60_000 }, async () => {
+    const d = doublesCC({});
+    const etat = { relie: true };
+    const moteur = creerMoteurMontageCasConcret({ outils: async () => (etat.relie ? versOutilsCC(d, new Map(), async () => null) : null), retouchesAllumees: () => false });
+    const { id } = await installer(moteur, commandeCasConcret(d));
+    let instant = T0;
+    for (let n = 0; n < 60; n++) {
+      await tour(moteur, instant);
+      instant += 1_000;
+      const t = (await depots().travaux.obtenir(id))!;
+      if (t.etapes.some((e) => e.cle === "ecriture" && e.statut === "terminee") || t.statut !== "en_cours") break;
+    }
+    const avant = (await depots().travaux.obtenir(id))!;
+    expect(avant.etapes.find((e) => e.cle === "ecriture")?.statut).toBe("terminee");
+    const appels = d.appelsEcriture();
+    etat.relie = false;
+    await tour(moteur, instant);
+    const t = (await depots().travaux.obtenir(id))!;
+    expect(t.statut).toBe("en_cours");
+    expect(t.reprise?.echecs).toBe(1);
+    expect(await reservationsActives(id)).toBe(1);
+    expect(d.appelsEcriture()).toBe(appels);
   });
 });
