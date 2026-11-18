@@ -50,13 +50,21 @@ describe("dépendances du style croquis (X1-07)", () => {
     }
   });
 
-  it("éteint : seul le style croquis (X1-08) importe roughjs ; rien n'importe perfect-freehand", () => {
+  it("éteint : seul le style croquis (X1-08) importe roughjs ; seul le trait au feutre (X1-09) importe perfect-freehand", () => {
     const sortie = execSync(
       `grep -rEl "from ['\\"](roughjs|perfect-freehand)" src studio-rendu/compositions studio-rendu/src || true`,
       { cwd: RACINE, encoding: "utf8" },
     );
-    expect(sortie.trim().split("\n").filter(Boolean)).toEqual(["studio-rendu/compositions/petits-objets/croquis/Croquis.tsx"]);
+    // X1-09, 17/11 : liste fermée, égalité exacte conservée ; ajout du seul trait au feutre (non inscrit) qui importe perfect-freehand.
+    expect(sortie.trim().split("\n").filter(Boolean).sort()).toEqual([
+      "studio-rendu/compositions/petits-objets/TraitFeutre.tsx",
+      "studio-rendu/compositions/petits-objets/croquis/Croquis.tsx",
+    ]);
     const freehand = execSync(`grep -rEl "perfect-freehand" src studio-rendu/compositions studio-rendu/src --include=*.ts --include=*.tsx | grep -v "^src/briques/droits/" || true`, { cwd: RACINE, encoding: "utf8" });
-    expect(freehand.trim()).toBe("");
+    // X1-09, 17/11 : seul le trait au feutre, non inscrit, importe perfect-freehand.
+    expect(freehand.trim().split("\n").filter(Boolean)).toEqual(["studio-rendu/compositions/petits-objets/TraitFeutre.tsx"]);
+    // Éteint réel : rien n'importe TraitFeutre (seul TraitFeutre.tsx importe trait-feutre.ts).
+    const importeurs = execSync(`grep -rlE "[/\\"']\\.{0,2}/?(petits-objets/)?(TraitFeutre|trait-feutre)['\\"]" src studio-rendu/compositions studio-rendu/src --include=*.ts --include=*.tsx | grep -v "^studio-rendu/compositions/petits-objets/TraitFeutre.tsx$" || true`, { cwd: RACINE, encoding: "utf8" });
+    expect(importeurs.trim()).toBe("");
   });
 });

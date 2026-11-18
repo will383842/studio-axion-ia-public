@@ -2,8 +2,13 @@
  * C2-U13 : migration 25, cinq styles de texte à l'écran (dont « Pastille Axion »), INACTIVE tant que
  * `STYLES_TEXTE_ECRAN_INSTALLES` vaut `false`. Phrase de référence écrite ici, aucune voix. Aucune dépense.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hash } from "@node-rs/argon2";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { DemandeRendu, EtatRendu, ServiceRendu, StockageFichiers } from "@/fournisseurs/types";
+import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 
+vi.mock("next/headers", () => mockHeaders);
+vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/services/auth", async (original) => ({ ...(await original<typeof import("@/services/auth")>()), exigerSession: async () => ({ id: "s-essai" }) }));
 
@@ -11,6 +16,9 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const donnees = await import("@/donnees/styles-texte-ecran");
 const { etape25StylesTexteEcran } = await import("@/services/migrations/etape-25-styles-texte-ecran");
 const { migrerDonnees } = await import("@/services/migrations");
+const { seConnecter } = await import("@/services/auth");
+const { construireCommande } = await import("@/services/fabrication");
+const { creerMoteurMontageAvocat } = await import("@/moteurs/montage-avocat");
 const sousTitres = await import("@/briques/sous-titres");
 const { controlerSousTitres, donneesCalque } = sousTitres;
 const { modifierValeurAction } = await import("@/app/(studio)/bibliotheque/actions");
@@ -18,6 +26,7 @@ const { sceneAuTemps } = await import("@/briques/sous-titres/scene");
 const { STYLE_SOUS_TITRES_AVOCAT, STYLE_SOUS_TITRES_MINIMAL } = await import("@/donnees/elements-avocat");
 
 const T1 = "2026-11-17T08:00:00.000Z";
+const T0 = Date.UTC(2026, 10, 17, 9, 0, 0);
 const T2 = "2026-11-17T09:00:00.000Z";
 const IDS = ["st-axion-surligne-v1", "st-axion-pave-v1", "st-axion-outils-v1", "st-axion-varie-v1", "st-pastille-axion-v1"];
 
@@ -29,8 +38,9 @@ const instantane = async () => {
 };
 
 describe("C2-U13 · constante et données", () => {
-  it("la constante est fausse dans le code (seul `true` allume)", () => {
-    expect(donnees.STYLES_TEXTE_ECRAN_INSTALLES).toBe(false);
+  it("la constante est vraie dans le code (allumée le 17/11 sur geste de Williams, seul `true` allume)", () => {
+    // MISE À JOUR DE RÉFÉRENCE VOLONTAIRE (17/11, fiche ALLUME-STYLES-TEXTE-ECRAN, décision écrite de Williams) : `false` → `true`.
+    expect(donnees.STYLES_TEXTE_ECRAN_INSTALLES).toBe(true);
   });
 
   it("cinq éléments « style-sous-titres », ids stables, aucun défaut de format, licence de propriété", () => {
@@ -81,15 +91,24 @@ describe("C2-U13 · constante et données", () => {
 });
 
 describe("C2-U13 · migration 25", () => {
-  it("constante fausse (le vrai code) : rend null et n'écrit rien", async () => {
+  // MISE À JOUR DE RÉFÉRENCE VOLONTAIRE (17/11, amendement du pilote 18/11 00:25) : la constante réelle est maintenant `true`.
+  // La garde « installés ≠ true → rien » est GARDÉE intacte, mais par un paramètre explicite (`false`) et non plus par la vraie constante.
+  it("garde : installés = false (paramètre explicite) rend null et n'écrit rien", async () => {
     const avant = await instantane();
-    expect(await etape25StylesTexteEcran(depots(), T1)).toBeNull();
+    expect(await etape25StylesTexteEcran(depots(), T1, false)).toBeNull();
     expect(await instantane()).toBe(avant);
+  });
+
+  it("constante vraie (le vrai code, sans 3ᵉ argument) : installe les cinq styles ; second passage : null", async () => {
+    expect(await etape25StylesTexteEcran(depots(), T1)).toEqual({ stylesAjoutes: IDS });
+    const apres = await instantane();
+    expect(await etape25StylesTexteEcran(depots(), T2)).toBeNull();
+    expect(await instantane()).toBe(apres);
   });
 
   it("seul `true` strict allume (valeurs « vraies » d'un autre type : rien)", async () => {
     const avant = await instantane();
-    for (const v of [1, "true", {}, [], undefined, null] as unknown[]) expect(await etape25StylesTexteEcran(depots(), T1, v as boolean)).toBeNull();
+    for (const v of [1, "true", {}, [], null] as unknown[]) expect(await etape25StylesTexteEcran(depots(), T1, v as boolean)).toBeNull();
     expect(await instantane()).toBe(avant);
   });
 
@@ -134,13 +153,22 @@ describe("C2-U13 · migration 25", () => {
 });
 
 describe("C2-U13 · migrerDonnees (démarrage)", () => {
-  it("éteinte : le démarrage n'installe aucun des cinq styles, ne dit rien de plus, et un second démarrage est identique", async () => {
+  // MISE À JOUR DE RÉFÉRENCE VOLONTAIRE (17/11, amendement du pilote) : « éteinte : rien installé » devient « allumée : installé au démarrage, idempotent ».
+  it("allumée : le démarrage installe les cinq styles, un second démarrage est identique (idempotent)", async () => {
     const r1 = await migrerDonnees(depots(), T1);
-    for (const id of IDS) expect(await depots().elements.obtenir(id)).toBeFalsy();
-    expect(r1.lots?.["styles-texte-ecran"]).toBeUndefined();
+    for (const id of IDS) expect(await depots().elements.obtenir(id)).toBeTruthy();
+    expect(r1.lots?.["styles-texte-ecran"]).toEqual({ stylesAjoutes: IDS });
     const avant = await instantane();
-    await migrerDonnees(depots(), T2);
-    expect(JSON.stringify({ e: await depots().elements.lister(), v: await depots().videos.lister() })).toBe(JSON.stringify({ e: JSON.parse(avant).e, v: JSON.parse(avant).v }));
+    const r2 = await migrerDonnees(depots(), T2);
+    expect(r2.lots?.["styles-texte-ecran"]).toBeUndefined();
+    expect(await instantane()).toBe(avant);
+  });
+
+  it("aucun style existant ne change : même liste de styles par défaut de format avant/après le démarrage", async () => {
+    const parDefaut = async () => (await depots().elements.lister((x) => x.type === "style-sous-titres" && x.formatsParDefaut.length > 0)).map((e) => `${e.id}:${e.formatsParDefaut.join(",")}`).sort();
+    const avant = await parDefaut();
+    await migrerDonnees(depots(), T1);
+    expect(await parDefaut()).toEqual(avant);
   });
 });
 
@@ -157,5 +185,69 @@ describe("C2-U13 · aller-retour par l'action de la Bibliothèque (A2-12)", () =
     // Un type de réglage qui ne correspond pas est refusé, l'élément ne bouge pas.
     expect((await modifierValeurAction(id, { type: "profil-son" } as never)).ok).toBe(false);
     expect((await depots().elements.obtenir(id))!.valeur).toEqual(origine);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+// Preuve par le CHEMIN RÉEL de fabrication (amendement du pilote 18/11) : migration au démarrage → choix du style sur la
+// vidéo → commande de fabrication → moteur avocat → paramètres de composition envoyés à studio-rendu (fournisseurs simulés,
+// aucun appel réel, coût nul). Rien n'est posé à la main sur la commande : seul le choix de style de la vidéo l'est.
+describe("C2-U13 · une vidéo avocat fabriquée avec l'un des cinq styles choisi sort avec ce style", () => {
+  const MDP = "essai-styles-texte-ecran";
+  beforeAll(async () => {
+    process.env.SESSION_SECRET = "s".repeat(48);
+    const empreinte = await hash(MDP, { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 });
+    process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
+  });
+
+  const stockage = (): StockageFichiers => ({
+    id: "r2", type: "stockage", nom: "Stockage", reelPrevu: "R2", mode: "reel", capacites: { asynchrone: false, accordExige: false },
+    preparerDepot: async () => ({ cleStockage: "x", urlDepot: "" }), confirmerDepot: async () => ({ ok: true }),
+    urlLecture: async (cle) => `https://r2.exemple/${cle}?court`, urlLectureDuree: async (cle, sec) => `https://r2.exemple/${cle}?valable=${sec}`, urlDepotDuree: async (cle, sec) => `https://r2.exemple/${cle}?depot=${sec}`,
+  });
+  const MESURES = { largeur: 1080, hauteur: 1920, fps: 25, dureeSec: 30, taille: 52_000_000, debitKbps: 14_050, bt709: 1, plageTv: 1, yuv420p: 1, profilHigh: 1, niveau: 41, faststart: 1, imageNoireTete: 0, lufs: -14.1, lra: 2.2, creteVraieDbtp: -2.0, pauses: 9, pauseMinDb: -44, pauseMaxDb: -41 };
+
+  /** Fabrique la vidéo v-03 (avocat) de bout en bout avec le style choisi ; renvoie le calque de sous-titres de chaque ratio. */
+  async function fabriquerAvec(styleId: string | null) {
+    reinitialiserDepots();
+    await depots().parametres.enregistrer({ id: "avocat.motionCommune", valeur: false, creeLe: "x", modifieLe: "x" } as never);
+    await seConnecter(MDP, false);
+    await migrerDonnees(depots(), T1); // chemin réel : les cinq styles sont installés par le démarrage
+    if (styleId) await depots().videos.modifier("v-03", { styles: { sousTitresId: styleId } });
+    const recues: DemandeRendu[] = [];
+    const etats = new Map<string, EtatRendu>();
+    const service: ServiceRendu = {
+      async soumettre(d) { recues.push(d); etats.set(d.idRendu, { statut: "termine", sortieCle: d.sortie.cle, mesures: d.operation === "composition" ? MESURES : undefined }); return { idRendu: d.idRendu }; },
+      etat: async (id) => etats.get(id) ?? { statut: "inconnu" },
+    };
+    const moteur = creerMoteurMontageAvocat({ rendu: service, stockage });
+    const c = await construireCommande("v-03");
+    let travail = await moteur.lancer(c, { travailId: "t-st", versionId: "ver-st", titre: "Styles", maintenant: T0 });
+    for (let ms = T0; ms < T0 + 600_000 && travail.statut !== "termine" && travail.statut !== "echec"; ms += 500) travail = (await moteur.avancer(travail, c, ms)).travail;
+    expect(travail.statut).toBe("termine");
+    return { c, calques: recues.filter((d) => d.operation === "composition").map((d) => (d.parametres as { texte: { sousTitres?: Record<string, unknown> } }).texte.sousTitres) };
+  }
+
+  it("la commande retient le style choisi (installé par le démarrage), pas un autre", async () => {
+    for (const id of IDS) {
+      const { c } = await fabriquerAvec(id);
+      expect(c.styles.sousTitres?.id).toBe(id);
+    }
+  });
+
+  it("« Pastille Axion » : le calque envoyé au rendu porte la pastille ; « Axion surligné » : le surlignage ; « Axion pavé » : les plaques", async () => {
+    const pastille = await fabriquerAvec("st-pastille-axion-v1");
+    expect(pastille.calques.length).toBeGreaterThan(0);
+    for (const k of pastille.calques) expect(k?.pastille).toBeDefined();
+    const surligne = await fabriquerAvec("st-axion-surligne-v1");
+    for (const k of surligne.calques) { expect(k?.surlignage).toBeDefined(); expect(k?.cibleMarqueur).toBe("expression"); }
+    const pave = await fabriquerAvec("st-axion-pave-v1");
+    for (const k of pave.calques) expect(k?.plaques).toBeDefined();
+  });
+
+  it("sans choix de style (aucun n'est par défaut) : la vidéo sort avec le style Avocat d'avant, sans pastille, surlignage ni plaque", async () => {
+    const { c, calques } = await fabriquerAvec(null);
+    expect(c.styles.sousTitres?.id).toBe("st-avocat-v1");
+    for (const k of calques) for (const cle of ["pastille", "surlignage", "cibleMarqueur", "plaques", "motsOutils"]) expect(k?.[cle], cle).toBeUndefined();
   });
 });

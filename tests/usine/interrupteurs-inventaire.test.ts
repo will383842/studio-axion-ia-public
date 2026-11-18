@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06). */
 const LITTERALES: Record<string, Etat> = {
   afficherExemples: "allume",
   "alignement.voixSynthese": "eteint",
@@ -68,6 +68,7 @@ const LITTERALES: Record<string, Etat> = {
   "taux.usdEur": "valeur",
   "veille.derniereLecture": "valeur",
   "veille.resumeSemaine": "valeur",
+  "zernio.synchro_etape_visuels": "eteint",
 };
 
 /**
@@ -111,6 +112,8 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "zernio.envoi_calendrier_autorise", etat: "eteint", appel: "src/services/zernio.ts", motif: /PARAM_ENVOI_CALENDRIER, false\)\) === true/ },
   { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
   { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },
+  { cle: "tableau.styleTire", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ },
+  { cle: "planScenes.facecamDessin", etat: "eteint", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, false\)\) === true/ },
   {
     cle: "adaptations_reseaux.actif",
     etat: "eteint",
@@ -775,7 +778,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(31);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(32);
   });
 });
