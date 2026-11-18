@@ -465,6 +465,8 @@ export interface OutilsFabricationIV {
   assemblage: OutilsAssemblageIV;
   /** Rendu du fichier final d'une version (opération existante du serveur) ; pas fini : lève une attente. */
   rendre: (d: DemandeRenduIV) => Promise<{ cle: string; empreinte?: string; dureeSec: number; mesures?: MesuresExport }>;
+  /** S-04b : relit les mesures d'un rendu DÉJÀ fait, sans le refaire (absent : rien n'est remesuré). */
+  remesurer?: (d: { id: string; cle: string; dureeSec: number }) => Promise<MesuresExport | undefined>;
   /** Porte unique : tout sauf la réservation et les identifiants d'appel, posés par la machine. */
   controles: Omit<OutilsPorteIV, "budget" | "idAppel">;
   /** Budget réel du studio (pré-vol ou réservation), appelé APRÈS le contrôle du plafond par la caisse. */
@@ -899,23 +901,12 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
   // R1 : une lecture refusée APRÈS les deux lectures payées (carte « incomplète » ou « illisible » d'origine fusion, refus réessayable ; « sans texte » ou « trop chargée » ne relisent pas) donnerait
   // le même refus si on rendait les mêmes lectures : on les efface pour relire vraiment. (« Type à choisir » d'un ancien
   // état : les lectures restent, Will impose le type sans repayer.)
-  // S-04b : un contrôle « non fait » repris : les mesures gardées redonneraient le même « non fait » ; elles sont refaites
-  // (rendu rappelé sous le MÊME identifiant : gratuit, rien de repayé ; transcriptions et relectures gardées dans `e.controles`).
-  const remesurer = etape === "controles" && e.refus.code === "IV_PANNE" && !!e.rendus && Object.keys(e.rendus).length > 0;
   const relireVraiment = etape === "lecture" && e.refus.code === "IV_IMAGE" && e.refus.reessayable !== false && !!e.lectures?.a && !!e.lectures?.b;
   if (relireVraiment) delete e.lectures;
   delete e.refus;
   delete e.attente;
   e.etape = etape;
   e.tentatives[etape] = (e.tentatives[etape] ?? 1) + 1;
-  if (remesurer) {
-    for (const r of Object.values(e.rendus!)) {
-      delete r.mesures;
-      delete r.demande;
-    }
-    e.etape = "rendu";
-    e.journal.push("Reprise : les mesures du fichier sont refaites (rendus, voix et lectures payés gardés).");
-  }
   e.journal.push(relireVraiment ? `Reprise de l'étape « ${etape} » : relecture neuve, comptée dans le prix accordé.` : `Reprise de l'étape « ${etape} ».`);
   return e;
 }
@@ -1830,6 +1821,10 @@ function remarquesDeFinDeVoixIV(e: EtatFabricationIV): string[] {
 }
 
 async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
+  // S-04b : un « non fait » dû à une mesure ABSENTE est remesuré à la reprise (jamais `rendre`, rien de payé ; les autres « non fait » ne sont pas touchés).
+  if (o.remesurer && e.rendus && (e.controles?.verdict?.phrases ?? []).some((p) => p.includes("non mesuré"))) {
+    for (const r of Object.values(e.rendus)) r.mesures = (await o.remesurer({ id: r.demande, cle: r.cle, dureeSec: r.dureeSec }).catch(() => undefined)) ?? r.mesures;
+  }
   const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(
     entree,
@@ -1848,6 +1843,7 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   e.journal.push(verdict.phrase);
   // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
   if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : « Reprendre » la refait.", { phrases: verdict.phrases, reessayable: true });
+  if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.", { phrases: verdict.phrases, reessayable: true });
   // Livraison partielle : une faute propre à certaines versions ne refuse plus toute la vidéo ; les réseaux dont les versions sont bonnes sont livrés.
   const partielle = !verdict.ok && verdict.partielle;
   if (!verdict.ok && !partielle) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });

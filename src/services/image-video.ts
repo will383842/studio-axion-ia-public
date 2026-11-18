@@ -171,26 +171,25 @@ export async function mesurerNoirEtFigeParFfmpeg(octets: Uint8Array, dureeSec: n
   }
 }
 
-/** Lit un fichier EN ENTIER par une adresse signée (`null` : absent (404), vide ou trop gros ; une coupure réseau, un délai ou un 5xx LÈVE une panne réessayable). */
-export async function lireOctets(adresse: string, max = 32 * 1024 * 1024, appeler: typeof fetch = fetch): Promise<Uint8Array | null> {
+/**
+ * Lit un fichier EN ENTIER par une adresse signée (`null` : absent ou refusé (4xx), vide ou trop gros).
+ * `leverSurPanne` (défaut faux = comportement d'avant, `null` partout) : une coupure réseau, un délai ou un 5xx LÈVE alors une
+ * panne réessayable ; les autres 4xx (404, 403 d'adresse expirée…) restent `null`.
+ */
+export async function lireOctets(adresse: string, max = 32 * 1024 * 1024, appeler: typeof fetch = fetch, leverSurPanne = false): Promise<Uint8Array | null> {
   const panne = (raison: string) => Object.assign(new Error(`Lecture du fichier impossible pour l'instant (${raison}).`), { reessayable: true as const });
-  let r: Response;
   try {
-    r = await appeler(adresse, { signal: AbortSignal.timeout(60_000) });
+    const r = await appeler(adresse, { signal: AbortSignal.timeout(60_000) });
+    if (r.status >= 500) throw new Error(`réponse ${r.status}`);
+    if (!r.ok) return null;
+    const annonce = Number(r.headers.get("content-length"));
+    if (Number.isFinite(annonce) && annonce > max) return null;
+    const o = new Uint8Array(await r.arrayBuffer());
+    return o.byteLength && o.byteLength <= max ? o : null;
   } catch (err) {
+    if (!leverSurPanne) return null;
     throw panne(err instanceof Error ? err.message : "réseau");
   }
-  if (r.status === 404) return null;
-  if (!r.ok) throw panne(`réponse ${r.status}`);
-  const annonce = Number(r.headers.get("content-length"));
-  if (Number.isFinite(annonce) && annonce > max) return null;
-  let o: Uint8Array;
-  try {
-    o = new Uint8Array(await r.arrayBuffer());
-  } catch (err) {
-    throw panne(err instanceof Error ? err.message : "réseau");
-  }
-  return o.byteLength && o.byteLength <= max ? o : null;
 }
 
 /** Un passage sur un rendu : soumis s'il est inconnu ; fini : son état ; pas fini : attente ; raté : erreur. */
