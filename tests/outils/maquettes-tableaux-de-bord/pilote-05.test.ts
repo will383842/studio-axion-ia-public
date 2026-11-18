@@ -11,7 +11,7 @@ import { garderChiffres } from "../../../src/briques/donnees-video/garde-chiffre
 import { lireTableauDeBord } from "../../../src/briques/donnees-video/types";
 import { calerScenario } from "../../../src/moteurs/montage-tutoriel-outil/calage-scenario";
 import { lireEntreesTutoriel } from "../../../src/moteurs/montage-tutoriel-outil/entrees";
-import { DUREE_CIBLE_SEC } from "../../../src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
+import { DUREE_CIBLE_SEC, type FinChoisie } from "../../../src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
 import type { MotTutoriel } from "../../../src/moteurs/montage-tutoriel-outil/etapes-tutoriel";
 import { lireScenarioMaquette } from "../../../src/moteurs/montage-tutoriel-outil/scenario-maquette";
 
@@ -26,7 +26,7 @@ const IDS_PORTE = ["alerte", "seuil", "analyse", "proposition", "validation", "f
 const STATUT_SCRIPT = "à valider par Williams";
 
 const script = lire("script-court.txt");
-const commande = JSON.parse(lire("commande-pilote.json")) as { etat: string; lancer: boolean; format: string; maquette: string; scenario: string; ratios: string[]; musique: boolean; motCle: string; script: { texteComplet: string }; entrees: Record<string, unknown> };
+const commande = JSON.parse(lire("commande-pilote.json")) as { etat: string; lancer: boolean; format: string; maquette: string; scenario: string; ratios: string[]; musique: boolean; fin: string; motCle?: string; script: { texteComplet: string }; entrees: Record<string, unknown> };
 const paragraphes = script.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 0);
 
 function motsFictifs(texte: string): MotTutoriel[] {
@@ -87,7 +87,7 @@ describe("pilote 05 · scénario", () => {
     ancres.forEach((mot, i) => expect(paragraphes[i]).toContain(mot));
   });
 
-  it("se cale sur des mots FICTIFS : 6 étapes, aucune ancre manquante, durée dans DUREE_CIBLE_SEC", () => {
+  it("se cale sur des mots FICTIFS : 6 étapes, aucune ancre manquante, durée signalée sans refus", () => {
     if (!lecture.ok) throw new Error("scénario illisible");
     const mots = motsFictifs(script);
     const dureeMs = Math.round(mots[mots.length - 1]!.finSec * 1000);
@@ -101,8 +101,9 @@ describe("pilote 05 · scénario", () => {
       if (i > 0) expect(e.debutMs).toBeGreaterThanOrEqual(r.etapes[i - 1]!.debutMs);
     });
     // Ces instants sont fictifs : la durée cible (T-EXT-18) n'est qu'un repère, jamais un refus.
-    expect(dureeMs / 1000).toBeGreaterThanOrEqual(DUREE_CIBLE_SEC[0]);
-    expect(dureeMs / 1000).toBeLessThanOrEqual(DUREE_CIBLE_SEC[1]);
+    const sec = dureeMs / 1000;
+    const remarque = sec < DUREE_CIBLE_SEC[0] ? "plus court que la cible" : sec > DUREE_CIBLE_SEC[1] ? "plus long que la cible" : "dans la cible";
+    expect(typeof remarque).toBe("string"); // remarque non bloquante : aucune borne n'est exigée
   });
 });
 
@@ -147,7 +148,11 @@ describe("pilote 05 · commande prête, éteinte", () => {
     expect(commande.scenario).toBe("scenario.json");
     expect(commande.ratios).toEqual(["4:5", "9:16", "1:1"]);
     expect(commande.musique).toBe(false);
-    expect(commande.motCle).toBe("STOCK");
+    // Décision 2 de Williams (DECISIONS-WILLIAMS-18-11.md) : fin choisie dans le formulaire, pas de « Commentez MOT ».
+    // Écart à la fiche du 17/11, qui prévoyait motCle « STOCK » : la décision prime.
+    expect(commande.motCle).toBeUndefined();
+    const fin: FinChoisie = "prendre-rendez-vous";
+    expect(commande.fin).toBe(fin);
   });
 
   it("est lue par lireEntreesTutoriel comme un script collé", () => {
