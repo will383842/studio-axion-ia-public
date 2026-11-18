@@ -5,7 +5,7 @@
  * Ce que la fonction lit, et rien d'autre :
  *   - les publications publiées, non simulées, avec média, hors exemples : la lecture est bornée par le filtre du dépôt (publiées, non simulées, hors exemples) ;
  *     toutes les publications filtrées sont notées, et l'affichage est borné par NOMBRE_MAX_AFFICHES ;
- *   - les créneaux dont l'identifiant commence par « republication-<id>- » pour les 10 lignes retenues seulement.
+ *   - les créneaux dont l'identifiant commence par « republication-<id>- » pour les lignes retenues seulement (au plus NOMBRE_MAX_AFFICHES).
  * Le seuil de performance des règles n'est pas lu (question ouverte au fondateur) : on liste les mieux classés.
  */
 import { depots } from "@/donnees/memoire";
@@ -72,11 +72,10 @@ export async function listerContenusARelancer(deps: DepsContenusARelancer = deps
   const t = maintenant.getTime();
   if (!Number.isFinite(t)) return [];
   const exemples = await deps.filtreExemples();
-  const lues = await deps.publications.lister(
+  const publications = await deps.publications.lister(
     (p) => p.statut === "publiee" && p.via !== "simulation" && exemples(p) && mediaDe(p) !== undefined,
     (p) => ({ ...p, retention: undefined }),
   );
-  const publications = lues;
   if (publications.length === 0) return [];
 
   const parId = new Map(publications.map((p) => [p.id, p]));
