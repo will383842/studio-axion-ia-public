@@ -23,6 +23,15 @@ import { attendWillIV, avancerJusquAArretIV, etatInitialIV, reprendreIV, valider
 import { convertirSonEnWavParFfmpeg } from "@/services/image-video";
 import { carteFixe, demandeEssai, enMp3, monde, outilsSimules, type Monde, type OptionsMonde } from "./doubles-fabrication";
 
+/**
+ * 17/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Ce test a pour sujet le son brut et
+ * la reprise après refus, avec les fins dites d'avant : le drapeau est retiré ici, assertions inchangées. La fin vide a ses
+ * preuves dans `fins/fin-non-choisie.test.ts`.
+ */
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => vrai.planDesFinsIV({ ...d, finVide: undefined }) };
+});
 vi.setConfig({ testTimeout: 300_000 });
 
 const FFMPEG_PRESENT = spawnSync("ffmpeg", ["-version"]).status === 0;
