@@ -71,6 +71,13 @@ describe("maquette 02 · Espace démo · Projets", () => {
     const app = fichiers.find((f) => f.chemin === "app.js")!.contenu;
     expect(app).toMatch(/reinitialiser\(\)\{reset\(true\)\}/);
     expect(app).toMatch(/if\(!silent\)notify\('Démo réinitialisée/);
+    expect(app).toMatch(/if\(video\)stopVideo\(silent\)/);
+    expect(app).toMatch(/function stopVideo\(silent\)\{[^}]*if\(!silent\)notify\('Mode vidéo arrêté'\)/);
+  });
+
+  it("aller() efface le toast avant d'afficher l'étape", () => {
+    const app = fichiers.find((f) => f.chemin === "app.js")!.contenu;
+    expect(app).toMatch(/aller\(id\)\{[^}]*clearTimeout\(toastTimer\);\$\('#toast'\)\.classList\.remove\('show'\)/);
   });
 
   it("PROVENANCE.md cite le chemin source et « données fictives »", () => {
