@@ -66,6 +66,21 @@ describe("raccords entre illustrations (calque image FFmpeg)", () => {
     expect(g).toContain("xfade=transition=slideleft:duration=0.300:offset=4.000");
   });
 
+  it("raccord après un `concat` : la base de temps est remise à 1/fps avant chaque `xfade` (sinon FFmpeg refuse le graphe)", () => {
+    const g = graphe(proprietes(TROIS, 6, [{ indexAvant: 1, type: "glissement" }]));
+    expect(g).toContain("[m0][t1]concat=n=2:v=1:a=0,format=gbrp,settb=1/25[c0]");
+    expect(g).toContain("[c0][m2]xfade=transition=slideleft:duration=0.300:offset=4.000");
+    expect(g).toContain("[raccords]trim=end_frame=150,setpts=PTS-STARTPTS[img]");
+  });
+
+  it("« double » puis deux illustrations, raccord entre les deux illustrations (cas de « L'erreur corrigée »)", () => {
+    const plans = [double(0, 2), illu(2, 4, 1), illu(4, 6, 2)];
+    const g = graphe(proprietes(plans, 6, [{ indexAvant: 1, type: "fondu" }]), { ...FICHIERS, illustrations: { 1: FICHIERS.illustrations[1], 2: FICHIERS.illustrations[2] } } as typeof FICHIERS);
+    expect(g).toContain("[m0][t1]concat=n=2:v=1:a=0,format=gbrp,settb=1/25[c0]");
+    expect(g).toContain("[c0][m2]xfade=transition=fade:duration=0.300:offset=4.000");
+    expect(g).toContain("[raccords]trim=end_frame=150,setpts=PTS-STARTPTS[img]");
+  });
+
   it("raccord demandé sur un plan « double » : jamais posé (le double garde la coupe franche)", () => {
     const plans = [illu(0, 2, 0), double(2, 4), illu(4, 6, 2)];
     const p = proprietes(plans, 6, [{ indexAvant: 0, type: "fondu" }, { indexAvant: 1, type: "fondu" }]);

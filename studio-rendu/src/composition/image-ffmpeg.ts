@@ -219,7 +219,9 @@ export function raccordsDesMorceaux(liste: Morceau[], raccords: ProprietesImageC
   const apres = filtresRaccords(entrees.map((e, k) => (d.has(k) ? { ...e, finImage: e.finImage + d.get(k)! * fps } : e)), lies, fps, options);
   if (!apres || JSON.stringify(duree(apres.filtres)) !== JSON.stringify(duree(avant.filtres))) return null;
   const rembourrage = [...d].map(([k, s]) => `[m${k}]tpad=stop_mode=clone:stop_duration=${s.toFixed(3)}[t${k}]`);
-  return [...rembourrage, ...apres.filtres.map((l) => [...d.keys()].reduce((t, k) => t.split(`[m${k}]`).join(`[t${k}]`), l))];
+  // `concat` rend une base de temps 1/1000000 que `xfade` refuse (il attend celle des morceaux) : on la remet à 1/fps.
+  const tb = (l: string) => (/concat=.*\[c\d+\]$/.test(l) ? l.replace(/(\[c\d+\])$/, `,settb=1/${fps}$1`) : l);
+  return [...rembourrage, ...apres.filtres.map((l) => tb([...d.keys()].reduce((t, k) => t.split(`[m${k}]`).join(`[t${k}]`), l)))];
 }
 
 export function argumentsImageFfmpeg(
