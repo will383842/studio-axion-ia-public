@@ -101,6 +101,25 @@ describe("C3-b · réponse publique", () => {
     await passer(T0 + 120_000); // réussi : plus de nouvelle réponse
     expect(port.pub).toHaveLength(2);
   });
+  it.each([
+    [P1, TEXTE_P1],
+    [P2, TEXTE_P2],
+  ])("figée au réessai : %s validée seule au premier essai, puis les deux validées : le réessai envoie exactement le texte figé, pas le texte courant", async (figee, texteFige) => {
+    await validerFormulationsAuParcours(["mp-m1-v4-1", figee]);
+    await deposerCommentaire(depots, { reseau: "instagram" });
+    let n = 0;
+    port.reponses.pub = () => (++n < 2 ? { statut: "a_reessayer", code: "debit", reessayerApresSec: 1 } : { statut: "envoye", idMessage: "msg-pub-fictif" });
+    await passer();
+    expect(port.pub).toHaveLength(1);
+    expect(port.pub[0].texte).toBe(texteFige);
+    expect((await etatDe())?.formulations?.["pub-instagram"]).toBe(figee);
+    // Les textes validés changent entre-temps : les deux sont validés, le choix courant (par rang) peut désormais être l'autre.
+    await validerFormulationsAuParcours(["mp-m1-v4-1", P1, P2]);
+    await passer(T0 + 60_000);
+    expect(port.pub).toHaveLength(2);
+    expect(port.pub[1].texte).toBe(texteFige);
+    expect((await etatDe())?.formulations?.["pub-instagram"]).toBe(figee);
+  });
   it("Facebook inchangé : une formulation pub-instagram validée ne change rien (mp-pub-igfb-v1)", async () => {
     await validerFormulationsAuParcours(["mp-m1-v4-1", P1, P2]);
     await deposerCommentaire(depots, { reseau: "facebook" });
