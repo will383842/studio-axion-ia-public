@@ -116,6 +116,14 @@ describe("calculerBilanSemaine : meilleur et moins bon d'après le rang", () => 
     expect(b.moinsBon).toBeNull();
   });
 
+  it("vidéos anciennes plus nombreuses, carrousels seulement dans la semaine : le meilleur est un carrousel", () => {
+    const vieilles = ["a", "b", "c", "d"].map((i, n) => contenu("video", `old${i}`, "tiktok", 100 - n, "2026-10-05T10:00:00.000Z"));
+    const car = [contenu("carrousel", "x", "instagram", 5), contenu("carrousel", "y", "instagram", 4), contenu("carrousel", "z", "instagram", 3)];
+    const b = calculerBilanSemaine({ publications: [], contenus: [...vieilles, ...car] }, MAINTENANT);
+    expect(b.meilleur).toEqual({ titre: "Titre x", reseau: "instagram", type: "carrousel", rang: "1re sur 3" });
+    expect(b.moinsBon?.type).toBe("carrousel");
+  });
+
   it("carrousels et vidéos ne sont jamais comparés : chacun a son propre rang, jamais mêlés", () => {
     const car = [contenu("carrousel", "x", "instagram", 5), contenu("carrousel", "y", "instagram", 4), contenu("carrousel", "z", "instagram", 3)];
     const b = calculerBilanSemaine({ publications: [], contenus: [...trois, ...car] }, MAINTENANT);

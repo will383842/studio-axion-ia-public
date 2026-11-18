@@ -106,11 +106,16 @@ export function calculerBilanSemaine(entree: EntreeBilan, maintenant: Date): Bil
     return v.length ? v.reduce((s, x) => s + x, 0) : null;
   };
 
-  // Chaque type a son classement ; on lit celui qui a le plus de contenus classés (vidéo à égalité).
+  // Chaque type a son classement ; on lit celui qui a le plus de contenus classés DANS la semaine (vidéo à égalité).
   const classes: Record<TypeContenu, Classe[]> = { video: classer(entree.contenus, "video"), carrousel: classer(entree.contenus, "carrousel") };
-  const type: TypeContenu | null = classes.video.length === 0 && classes.carrousel.length === 0 ? null : classes.carrousel.length > classes.video.length ? "carrousel" : "video";
+  const classesSemaine: Record<TypeContenu, Classe[]> = {
+    video: classes.video.filter((c) => dansLaSemaine(c.rang.video.date)),
+    carrousel: classes.carrousel.filter((c) => dansLaSemaine(c.rang.video.date)),
+  };
+  const type: TypeContenu | null =
+    classesSemaine.video.length === 0 && classesSemaine.carrousel.length === 0 ? null : classesSemaine.carrousel.length > classesSemaine.video.length ? "carrousel" : "video";
   const duType = type ? classes[type] : [];
-  const deLaSemaine = duType.filter((c) => dansLaSemaine(c.rang.video.date));
+  const deLaSemaine = type ? classesSemaine[type] : [];
   const meilleurs = [...deLaSemaine].sort((a, b) => b.rang.position - a.rang.position || a.rang.rang - b.rang.rang || b.rang.video.date.localeCompare(a.rang.video.date) || a.rang.video.code.localeCompare(b.rang.video.code));
   const meilleur = meilleurs[0] ?? null;
   const moins = meilleurs.length > 1 ? meilleurs[meilleurs.length - 1] : null;
@@ -159,7 +164,7 @@ export function lignesBilan(b: BilanSemaine): string[] {
   lignes.push(b.parties.length === 0 ? "Aucune publication n'est partie cette semaine-là." : `Publications parties : ${b.parties.map((p) => `${p.nombre} sur ${nomReseau(p.reseau)}`).join(", ")}.`);
   lignes.push(ligneContenu("Votre meilleur contenu", b.meilleur), ligneContenu("Votre contenu le moins bon", b.moinsBon));
   lignes.push(b.creneau === null ? `Meilleur créneau : ${ND}.` : b.creneau === "trop-tot" ? "Meilleur créneau : trop tôt pour le dire." : `Meilleur créneau : ${b.creneau.libelle}.`);
-  lignes.push(ligneNombre("Visites sur votre site", b.visites), ligneNombre("Rendez-vous demandés", b.rendezVous));
+  lignes.push(ligneNombre("Visites venues de vos contenus de la semaine", b.visites), ligneNombre("Rendez-vous venus de vos contenus de la semaine", b.rendezVous));
   lignes.push(b.echecs === 0 ? "Envois en échec : aucun." : `Envois en échec : ${b.echecs}.`);
   lignes.push(b.aVerifier === 0 ? "Publications à vérifier : aucune." : `Publications à vérifier : ${b.aVerifier}.`);
   return lignes;

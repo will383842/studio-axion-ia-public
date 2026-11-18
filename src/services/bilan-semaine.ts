@@ -9,8 +9,6 @@ import { depots, filtreExemples, lireParametre } from "./_commun";
 import { collecterVideosMesurees } from "./mesures-completes";
 import { ceQuiMarcheVisuels } from "./mesures-visuels";
 
-export const INTERRUPTEUR_BILAN_SEMAINE = "accueil.bilan_semaine";
-
 /** Les lignes de la carte « Votre semaine », ou `null` (interrupteur éteint : aucune autre lecture). */
 export async function bilanSemaineAccueil(maintenant: Date = new Date()): Promise<string[] | null> {
   if ((await lireParametre<boolean>("accueil.bilan_semaine", false)) !== true) return null;
