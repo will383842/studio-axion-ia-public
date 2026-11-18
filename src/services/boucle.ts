@@ -299,6 +299,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   // Audit D, B9 : HORS du tour (jusqu'à 50 lectures de 30 s) ; une seule synchronisation à la fois.
   void lancerAnnexe("synchronisation Buffer", options.synchroBuffer ?? (() => synchroniserEtatsBuffer()), 0);
   void lancerAnnexe("synchronisation Zernio", options.synchroZernio ?? (() => synchroniserEtatsZernio()), 0);
+  void lancerAnnexe("relecture des mesures", async () => (await import("./mesures-automatiques")).relireMesuresDues(), 0);
   // Parcours « mot → e-mail → guide » (PV-2) : outbox du crochet Zernio → site. Éteint par défaut : aucun appel sortant.
   void lancerAnnexe("parcours mot → guide", async () => (await import("./parcours-mot")).traiterOutboxZernio(), 0);
   // Parcours de conversation (lot 4c) : commentaire GUIDE → message privé → adresse ; « stop » transmis au site. Éteint : retour immédiat

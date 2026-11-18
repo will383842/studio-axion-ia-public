@@ -207,7 +207,7 @@ describe("publicationsDues (pure)", () => {
     expect(ma.publicationsDues([{ ...base, via: "buffer" }], T0)).toHaveLength(0);
     expect(ma.publicationsDues([{ ...base, estDemo: true }], T0)).toHaveLength(0);
     expect(ma.publicationsDues([{ ...base, idExterne: undefined }], T0)).toHaveLength(0);
-    const releve = { le: IL_Y_A(0.8), jour: 1, source: "zernio", valeurs: {}, definitions: {} };
+    const releve = { le: IL_Y_A(0.3), jour: 1, source: "zernio", valeurs: {}, definitions: {} };
     expect(ma.publicationsDues([{ ...base, releves: [releve] } as never], T0)).toHaveLength(0);
     expect(ma.publicationsDues([{ ...base, releves: [{ ...releve, le: IL_Y_A(1.2) }] } as never], T0)).toHaveLength(1);
   });
