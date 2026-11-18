@@ -21,16 +21,25 @@ export const PHRASE_VALIDER_GUIDE = "Valider les textes du mot GUIDE ? Ce sont l
 export const PHRASE_PAUSE = "Mettre le mot GUIDE en pause pour ce compte ? Plus aucun message ne partira ; rien n’est supprimé.";
 
 export function creerGestesMotLocal(services: ServicesMotLocal, appui: AppuiMotLocal) {
+  // Appels de service SANS question : l'écran pose la question lui-même, HORS de toute transition React, puis lance seulement ceux-ci.
+  const executerActiver = async (compte: string): Promise<boolean> => {
+    appui.apres(await services.activerLocal(compte));
+    return true;
+  };
+  const executerPause = async (mot: string, compte: string): Promise<boolean> => {
+    appui.apres(await services.mettreEnPauseLocal(mot, compte));
+    return true;
+  };
   return {
+    executerActiver,
+    executerPause,
     async activer(compte: string): Promise<boolean> {
       if (!(await appui.confirmer(PHRASE_ACTIVER))) return false;
-      appui.apres(await services.activerLocal(compte));
-      return true;
+      return executerActiver(compte);
     },
     async pause(mot: string, compte: string): Promise<boolean> {
       if (!(await appui.confirmer(PHRASE_PAUSE))) return false;
-      appui.apres(await services.mettreEnPauseLocal(mot, compte));
-      return true;
+      return executerPause(mot, compte);
     },
   };
 }

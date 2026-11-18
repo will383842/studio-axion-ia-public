@@ -2,7 +2,7 @@
 
 // Confirmation affichée DANS la page (à la place de la fenêtre du navigateur) pour l'écran « Mots ».
 // Même patron que EcranMotsCibles : une question à la fois, « Annuler » d'abord, sans « oui » rien n'est appelé.
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Dialogue } from "@/components/ui/Dialogue";
 import { LIBELLES_ECRAN } from "./fiche-mot-libelles";
@@ -29,6 +29,16 @@ export function useConfirmationDansLaPage(): ConfirmationDansLaPage {
     setPhrase(null);
     resoudre(oui);
   };
+
+  // Au démontage de l'écran, une question encore ouverte est résolue à « non » : rien n'est appelé, rien ne reste en attente.
+  useEffect(
+    () => () => {
+      const resoudre = enAttente.current;
+      enAttente.current = null;
+      resoudre?.(false);
+    },
+    [],
+  );
 
   const demander = (question: string) => {
     // Une question encore ouverte est abandonnée : sa réponse est « non ».

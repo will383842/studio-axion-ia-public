@@ -15,7 +15,7 @@ import type { EtatReglagesParcours, ReglageParcours, ResultatReglage } from "@/s
 import type { TableauSuivi } from "./suivi-affichage";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
 import { useConfirmationDansLaPage } from "./ConfirmationDansLaPage";
-import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
+import { creerGestesMotLocal, PHRASE_ACTIVER, PHRASE_PAUSE, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
 
 const TEXTE_MOTS_MULTIPLES = "Allumé : une même personne peut recevoir plusieurs mots (3 au plus en 24 h) et, si elle redemande un guide déjà envoyé, un renvoi avec un lien neuf. Éteint : un seul mot par personne. Éteindre éteint aussi Instagram.";
 const TEXTE_INSTAGRAM = "Allumé : sur Instagram, un commentaire reçoit UNE réponse privée qui demande de suivre le compte puis d’écrire OK ; le lien part quand la personne suit le compte. Éteint : aucun message Instagram de ce parcours ne part. Demande que le mode plusieurs mots soit allumé.";
@@ -108,33 +108,52 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
   };
   const local = creerGestesMotLocal(services, { confirmer, apres: apresLocal });
   const comptesSansLigne = (comptes ?? []).filter((c) => !vue.lignes.some((l) => l.mot === "GUIDE" && l.compte === c));
+  // Règle commune : la question est posée HORS de toute transition (sinon React suspend le rendu de la boîte jusqu'à la
+  // fin de l'action, qui attend elle-même le clic : rien ne s'afficherait). Seul l'appel au service entre dans `demarrer`.
+  const activerLocal = async (compte: string) => {
+    if (!(await confirmer(PHRASE_ACTIVER))) return;
+    demarrer(async () => void (await local.executerActiver(compte)));
+  };
+  const pauseLocal = async (mot: string, compte: string) => {
+    if (!(await confirmer(PHRASE_PAUSE))) return;
+    demarrer(async () => void (await local.executerPause(mot, compte)));
+  };
   const validerGuide = async () => {
-    if (!services.validerGuide || !(await confirmer(PHRASE_VALIDER_GUIDE))) return;
-    const r = await services.validerGuide();
-    if (r.ok) notifier.succes("Textes du mot GUIDE validés.");
-    else notifier.erreur(phraseRefus(r.raison));
-    onChange?.();
+    const valider = services.validerGuide;
+    if (!valider || !(await confirmer(PHRASE_VALIDER_GUIDE))) return;
+    demarrer(async () => {
+      const r = await valider();
+      if (r.ok) notifier.succes("Textes du mot GUIDE validés.");
+      else notifier.erreur(phraseRefus(r.raison));
+      onChange?.();
+    });
   };
 
   const validerFormulation = async (version: string) => {
-    if (!services.validerFormulation || !(await confirmer("Valider cette formulation ? Rien n’est envoyé."))) return;
-    const r = await services.validerFormulation(version);
-    if (r.ok) notifier.succes("Formulation validée.");
-    else notifier.erreur(phraseRefus(r.raison));
-    onChange?.();
+    const valider = services.validerFormulation;
+    if (!valider || !(await confirmer("Valider cette formulation ? Rien n’est envoyé."))) return;
+    demarrer(async () => {
+      const r = await valider(version);
+      if (r.ok) notifier.succes("Formulation validée.");
+      else notifier.erreur(phraseRefus(r.raison));
+      onChange?.();
+    });
   };
 
   const basculer = async (reglage: ReglageParcours, allume: boolean) => {
-    if (!services.reglerParcours) return;
+    const regler = services.reglerParcours;
+    if (!regler) return;
     if (allume && !(await confirmer(reglage === "mots_multiples" ? PHRASE_ALLUMER_MOTS_MULTIPLES : PHRASE_ALLUMER_INSTAGRAM))) return;
-    try {
-      const r = await services.reglerParcours(reglage, allume);
-      if (r.ok) notifier.succes(allume ? "Allumé." : "Éteint.");
-      else notifier.erreur(r.raison === "plusieurs_mots_eteint" ? "Allumez d’abord le mode plusieurs mots." : "Non modifié.");
-    } catch {
-      notifier.erreur("Non modifié.");
-    }
-    onChange?.();
+    demarrer(async () => {
+      try {
+        const r = await regler(reglage, allume);
+        if (r.ok) notifier.succes(allume ? "Allumé." : "Éteint.");
+        else notifier.erreur(r.raison === "plusieurs_mots_eteint" ? "Allumez d’abord le mode plusieurs mots." : "Non modifié.");
+      } catch {
+        notifier.erreur("Non modifié.");
+      }
+      onChange?.();
+    });
   };
 
   return (
@@ -168,7 +187,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
               <div className="flex flex-wrap items-center gap-3">
                 <span className="min-w-0 flex-1 text-sm font-semibold text-texte">Mode plusieurs mots</span>
                 <Pastille ton={reglages.motsMultiples ? "sauge" : "neutre"}>{reglages.motsMultiples ? "Allumé" : "Éteint"}</Pastille>
-                <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(() => basculer("mots_multiples", !reglages.motsMultiples))}>
+                <Bouton variante="secondaire" chargement={enCours} onClick={() => basculer("mots_multiples", !reglages.motsMultiples)}>
                   {reglages.motsMultiples ? "Éteindre" : "Allumer"}
                 </Bouton>
               </div>
@@ -182,7 +201,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
                   variante="secondaire"
                   chargement={enCours}
                   disabled={!reglages.instagramSuivre && !reglages.motsMultiples}
-                  onClick={() => demarrer(() => basculer("instagram_suivre", !reglages.instagramSuivre))}
+                  onClick={() => basculer("instagram_suivre", !reglages.instagramSuivre)}
                 >
                   {reglages.instagramSuivre ? "Éteindre" : "Allumer"}
                 </Bouton>
@@ -221,7 +240,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
                     <p className="text-sm text-texte">{f.texte}</p>
                     <div className="flex flex-wrap items-center gap-3">
                       <Pastille ton={f.valide ? "sauge" : "neutre"}>{f.valide ? "Validée" : "Non validée"}</Pastille>
-                      <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(() => validerFormulation(f.version))}>
+                      <Bouton variante="secondaire" chargement={enCours} onClick={() => validerFormulation(f.version)}>
                         Valider cette formulation
                       </Bouton>
                     </div>
@@ -237,7 +256,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
         <h3 className="text-base text-texte">Mot GUIDE</h3>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <Pastille ton={vue.guideValide ? "sauge" : vue.guidePerime ? "ambre" : "neutre"}>{vue.guideValide ? "Textes validés" : vue.guidePerime ? "Textes à revalider" : "Textes non validés"}</Pastille>
-          <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(validerGuide)}>
+          <Bouton variante="secondaire" chargement={enCours} onClick={validerGuide}>
             Valider les textes du mot GUIDE
           </Bouton>
         </div>
@@ -246,7 +265,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
             {comptesSansLigne.map((c) => (
               <li key={c} className="flex flex-wrap items-center gap-3" data-compte={c}>
                 <span className="min-w-0 flex-1 text-sm text-texte">{c}</span>
-                <Bouton chargement={enCours} onClick={() => demarrer(async () => void (await local.activer(c)))}>
+                <Bouton chargement={enCours} onClick={() => activerLocal(c)}>
                   Activer le mot GUIDE
                 </Bouton>
               </li>
@@ -271,12 +290,12 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
                   <Pastille ton={e.ton}>{e.libelle}</Pastille>
                   {!l.idWorkflow ? (
                     l.etat === "actif" ? (
-                      <Bouton variante="secondaire" chargement={enCours} onClick={() => demarrer(async () => void (await local.pause(l.mot, l.compte)))}>
+                      <Bouton variante="secondaire" chargement={enCours} onClick={() => pauseLocal(l.mot, l.compte)}>
                         Mettre en pause
                       </Bouton>
                     ) : (
                       l.mot === "GUIDE" && (
-                        <Bouton chargement={enCours} onClick={() => demarrer(async () => void (await local.activer(l.compte)))}>
+                        <Bouton chargement={enCours} onClick={() => activerLocal(l.compte)}>
                           Activer
                         </Bouton>
                       )

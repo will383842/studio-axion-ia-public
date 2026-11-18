@@ -7,10 +7,40 @@ import type { ReactNode } from "react";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
+// Faux `useTransition` : tant qu'une action lancée par `demarrer` n'est pas terminée, le compteur est levé.
+// React 19 suspend le rendu d'une mise à jour d'état faite pendant une telle action : poser la question à ce moment-là
+// n'affiche jamais la boîte. La question ne doit donc JAMAIS être posée compteur levé.
+const suivi = vi.hoisted(() => ({ actionsOuvertes: 0, questionsDansTransition: [] as string[] }));
 vi.mock("react", async (o) => ({
   ...(await o<typeof import("react")>()),
   ...(await import("../aides/crochets-factices")).crochets,
+  useTransition: () =>
+    [
+      false,
+      (f: () => unknown) => {
+        suivi.actionsOuvertes++;
+        void Promise.resolve(f()).finally(() => {
+          suivi.actionsOuvertes--;
+        });
+      },
+    ] as const,
 }));
+vi.mock("@/components/mots/ConfirmationDansLaPage", async (o) => {
+  const reel = await o<typeof import("@/components/mots/ConfirmationDansLaPage")>();
+  return {
+    ...reel,
+    useConfirmationDansLaPage: () => {
+      const c = reel.useConfirmationDansLaPage();
+      return {
+        ...c,
+        demander: (phrase: string) => {
+          if (suivi.actionsOuvertes > 0) suivi.questionsDansTransition.push(phrase);
+          return c.demander(phrase);
+        },
+      };
+    },
+  };
+});
 vi.mock("@/components/ui/Toast", () => ({
   notifier: { succes: vi.fn(), erreur: vi.fn(), essai: vi.fn(), info: vi.fn() },
 }));
@@ -192,6 +222,16 @@ describe("écran /mots : confirmation dans la page", () => {
       await attendre();
       expect(cas.appels(s)).toEqual(cas.attendus);
       expect(dialogues(m.rendre())).toHaveLength(0);
+    });
+
+    it("(e) la question n'est jamais posée à l'intérieur d'une transition (sinon la boîte ne s'afficherait pas)", async () => {
+      suivi.questionsDansTransition.length = 0;
+      const { m } = await poser();
+      expect(dialogues(m.rendre())).toHaveLength(1);
+      cliquer(boutonNomme(pied(dialogues(m.rendre())[0]), "Confirmer"));
+      await attendre();
+      expect(suivi.questionsDansTransition).toEqual([]);
+      expect(suivi.actionsOuvertes).toBe(0);
     });
 
     it("(d) double clic sur Confirmer : un seul appel", async () => {
