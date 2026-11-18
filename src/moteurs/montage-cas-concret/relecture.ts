@@ -26,13 +26,13 @@ export interface FinARelire {
  */
 export function lignesDesEcrans(ecrans: readonly EcranApercu[], fins: readonly FinARelire[] = []): LigneScript[] {
   return [
-    ...ecrans.map((e) => ({
-      id: idEcranAttendu(e.rang - 1),
-      dit: e.texteDit,
-      // Les textes posés par le Studio viennent APRÈS les écrits du script (les index modifiables ne bougent pas) et ne se modifient jamais.
-      ecrits: [...(e.ecrits ?? []).map((texte, k) => ({ texte, modifiable: e.modifiables?.[k] === true })), ...(e.poses ?? []).map((p) => ({ texte: `Ajouté par le Studio : ${p}`, modifiable: false }))],
-      groupe: e.nom,
-    })),
+    ...ecrans.flatMap((e): LigneScript[] => {
+      const id = idEcranAttendu(e.rang - 1);
+      const ligne: LigneScript = { id, dit: e.texteDit, ecrits: (e.ecrits ?? []).map((texte, k) => ({ texte, modifiable: e.modifiables?.[k] === true })), groupe: e.nom };
+      // Les textes posés par le Studio sont sur une ligne VERROUILLÉE à part (`p-eNN`, même groupe) : jamais une modification, et la ligne de l'écran garde ses seuls écrits (le contrôle de `appliquerModifications` ne bouge pas).
+      const poses = (e.poses ?? []).map((p) => ({ texte: `Ajouté par le Studio : ${p}`, modifiable: false }));
+      return poses.length > 0 ? [ligne, { id: `p-${id}`, dit: "", ecrits: poses, verrouille: true, groupe: e.nom }] : [ligne];
+    }),
     ...fins.map((f) => ({ id: `f-${f.reseaux}`, dit: f.dit, ecrits: f.ecrits.map((texte) => ({ texte, modifiable: false })), verrouille: true, groupe: "Fin" })),
   ];
 }
