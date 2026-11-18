@@ -7,7 +7,7 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { notifier } from "@/components/ui/Toast";
 import { compterParOnglet, filtrerParOnglet, LIBELLE_RESEAU_A_TRAITER, ONGLETS_A_TRAITER, type CarteDejaTraitee, type OngletATraiter } from "@/services/a-traiter-onglets";
 import { copiePossible, lienCommentaireSur } from "@/services/a-traiter-kit";
-import { masqueesPourEcran, trierPourEcran } from "@/services/a-traiter-pur";
+import { cartesPourCompteurs, estSpam, masqueesPourEcran, trierPourEcran } from "@/services/a-traiter-pur";
 import { extraitLisible } from "@/services/a-traiter-types";
 import type { ResultatChangement, VueATraiter } from "@/services/a-traiter-types";
 import type { CarteATraiter as TypeCarte } from "@/services/a-traiter-types";
@@ -21,8 +21,6 @@ export interface ServicesATraiter {
   stop(id: string, compte: string): Promise<ResultatChangement>;
 }
 
-/** Conservé pour les appelants existants : `CarteDejaTraitee` porte désormais `faitLe`. */
-export type CarteDejaTraiteeDatee = CarteDejaTraitee;
 
 /** Touche pressée : seules « Flèche droite » et « S » (suivante) et « F » (Fait) agissent. Jamais de raccourci pour STOP ou Ignorer. */
 export function actionClavier(e: { key: string; repeat?: boolean; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; target?: { tagName?: string; isContentEditable?: boolean } | null }): "suivante" | "fait" | null {
@@ -51,14 +49,14 @@ export function libelleFait(iso: string | undefined): string {
 const HEURE_PARIS = formateurDate("en-GB", { timeZone: "Europe/Paris", hourCycle: "h23", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 /** Écran « À traiter à la main » : une carte à la fois, la plus prioritaire d’abord. */
-export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }: { vue: VueATraiter; services: ServicesATraiter; compte: string; onChange?: () => void; dejaTraitees?: readonly CarteDejaTraiteeDatee[] }) {
+export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }: { vue: VueATraiter; services: ServicesATraiter; compte: string; onChange?: () => void; dejaTraitees?: readonly CarteDejaTraitee[] }) {
   const [enCours, demarrer] = useTransition();
-  const [fait, setFait] = useState<readonly string[]>([]);
+  const [fait, setFait] = useState<Readonly<Record<string, "fait" | "ignore">>>({});
   const [onglet, setOnglet] = useState<OngletATraiter>("tous");
   const [post, setPost] = useState("");
   const [rang, setRang] = useState(0);
   const [masquesVus, setMasquesVus] = useState(false);
-  const restantes = vue.cartes.filter((c) => !fait.includes(c.idEvenement));
+  const restantes = vue.cartes.filter((c) => !(c.idEvenement in fait));
   const triees = trierPourEcran(restantes);
   const nombres = compterParOnglet(triees);
   const dansOnglet = filtrerParOnglet(triees, onglet);
@@ -71,15 +69,15 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   const anciennes = (dejaTraitees ?? [])
     .filter((d) => !idsVue.has(d.idEvenement))
     .map((d) => ({ idEvenement: d.idEvenement, reseau: d.reseau, post: d.post, lienPost: null, mot: null, motif: "mot_manuel" as const, extrait: d.extrait, creeLe: d.creeLe, statut: d.statut, kit: null, ...(d.faitLe ? { faitLe: d.faitLe } : {}) }));
-  const pourCompteurs: TypeCarte[] = [...vue.cartes, ...anciennes].map((c) => (fait.includes(c.idEvenement) ? { ...c, statut: "fait" as const } : c));
+  const pourCompteurs: TypeCarte[] = cartesPourCompteurs([...vue.cartes, ...anciennes], fait);
   // Une seule table de noms de posts, calculée sur une source stable : la même pour le filtre et les compteurs.
-  const noms = etiquettesPosts(pourCompteurs);
+  const noms = etiquettesPosts(pourCompteurs.filter((c) => !estSpam(c)));
 
   const carte = visibles.length ? visibles[rang % visibles.length] : undefined;
   const manuel = carte?.reseau === "linkedin" || carte?.reseau === "tiktok";
   const tiktok = carte?.reseau === "tiktok";
   const lienReseau = carte && manuel ? lienCommentaireSur(carte.reseau, carte.lienPost) : null;
-  const agir = (f: () => Promise<ResultatChangement>) =>
+  const agir = (f: () => Promise<ResultatChangement>, issue: "fait" | "ignore" = "ignore") =>
     demarrer(async () => {
       if (!carte) return;
       const r = await f();
@@ -87,7 +85,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
       else {
         if (r.issue === "simule") notifier.essai("rien n’a été envoyé.");
         else notifier.succes("C’est fait.");
-        setFait((l) => [...l, carte.idEvenement]);
+        setFait((l) => ({ ...l, [carte.idEvenement]: issue }));
         onChange?.();
       }
     });
@@ -100,7 +98,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
         setRang((r) => r + 1);
       } else if (d === "fait" && carte) {
         e.preventDefault();
-        agir(() => services.fait(carte.idEvenement));
+        agir(() => services.fait(carte.idEvenement), "fait");
       }
     };
     window.addEventListener("keydown", ecoute);
@@ -175,7 +173,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
             </Bouton>
           ) : null}
           {tiktok && carte.kit && !copiePossible("tiktok", carte.kit) ? <p className="basis-full text-sm text-texte-doux" data-copie-impossible>TikTok : réponse trop longue ou avec un @, écrivez-la vous-même.</p> : null}
-          <Bouton disabled={enCours} onClick={() => agir(() => services.fait(carte.idEvenement))}>Fait</Bouton>
+          <Bouton disabled={enCours} onClick={() => agir(() => services.fait(carte.idEvenement), "fait")}>Fait</Bouton>
           <Bouton variante="fantome" disabled={enCours} onClick={() => agir(() => services.ignorer(carte.idEvenement))}>Ignorer</Bouton>
           <Bouton variante="danger" disabled={enCours} onClick={() => agir(() => services.stop(carte.idEvenement, compte))}>STOP</Bouton>
         </div>
@@ -214,7 +212,7 @@ function dateLisible(iso: string): string {
 }
 
 /** Bloc replié, lecture seule : rien n'est supprimé ni renvoyé. */
-function DejaTraitees({ cartes }: { cartes: readonly CarteDejaTraiteeDatee[] }) {
+function DejaTraitees({ cartes }: { cartes: readonly CarteDejaTraitee[] }) {
   return (
     <details className="rounded-lg border border-surface-3 p-3" data-deja-traitees>
       <summary className="cursor-pointer text-sm font-semibold">Déjà traitées ({cartes.length})</summary>

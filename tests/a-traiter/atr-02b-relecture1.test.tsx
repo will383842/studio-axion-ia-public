@@ -78,3 +78,14 @@ describe("clavier", () => {
     expect(services.stop).not.toHaveBeenCalled();
   });
 });
+
+describe("compteurs : seule l'action « Fait » compte comme répondue", () => {
+  it("Ignorer, Classer et STOP passent la carte à « ignore » ; Fait la passe à « fait »", async () => {
+    const { cartesPourCompteurs, compteurs } = await import("@/services/a-traiter-pur");
+    const cartes = [carte("evt-1"), carte("evt-2"), carte("evt-3")];
+    const l = cartesPourCompteurs(cartes, { "evt-1": "fait", "evt-2": "ignore" });
+    expect(l.map((c) => c.statut)).toEqual(["fait", "ignore", "a_traiter"]);
+    const c = compteurs(l, new Date("2026-11-11T10:30:00.000Z")).parReseau.instagram;
+    expect(c).toEqual({ arrives: 3, repondus: 1, enRetard: 0 });
+  });
+});

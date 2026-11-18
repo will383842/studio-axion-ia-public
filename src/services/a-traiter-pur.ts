@@ -66,6 +66,17 @@ export function trierPourEcran(cartes: readonly CarteATraiter[]): CarteATraiter[
 /** Pour l'écran : une carte opposée n'est JAMAIS masquée, même avec un mot de spam ou deux liens. */
 export const masqueesPourEcran = (cartes: readonly CarteATraiter[]): CarteATraiter[] => cartesMasquees(cartes.filter((c) => c.opposee !== true));
 
+/**
+ * Cartes pour les compteurs de l'écran : une carte traitée dans cette session n'est « fait » (donc « répondue ») que si l'action
+ * était « Fait » ; Ignorer, Classer la carte et STOP la passent à « ignore » (ni répondue, ni en retard).
+ */
+export function cartesPourCompteurs(cartes: readonly CarteATraiter[], traitees: Readonly<Record<string, "fait" | "ignore">>): CarteATraiter[] {
+  return cartes.map((c) => {
+    const s = traitees[c.idEvenement];
+    return s ? { ...c, statut: s } : c;
+  });
+}
+
 /** Minutes entre la création et le « fait », ou null (pas de « fait », ou dates illisibles). */
 export function delaiReponseMinutes(c: Pick<CarteATraiter, "creeLe" | "faitLe">): number | null {
   if (!c.faitLe) return null;
