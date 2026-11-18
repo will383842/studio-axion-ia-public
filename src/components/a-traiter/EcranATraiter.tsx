@@ -28,14 +28,6 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   if (vue.etat === "desactive") return <EtatVide compact icone="envoyer" titre="Désactivé" phrase="Cet écran est éteint pour le moment." />;
   if (vue.etat === "illisible") return <EtatVide compact icone="envoyer" titre="Source non lisible" phrase="Nous n’arrivons pas à lire la liste. Réessayez plus tard." />;
   const carte = visibles[0];
-  if (!restantes.length)
-    return (
-      <div className="flex flex-col gap-4" data-ecran="a-traiter">
-        <EtatVide compact icone="envoyer" titre="Rien à traiter" phrase="Les commentaires à traiter à la main arrivent ici." />
-        {dejaTraitees ? <DejaTraitees cartes={dejaTraitees} /> : null}
-      </div>
-    );
-
   const agir = (f: () => Promise<ResultatChangement>) =>
     demarrer(async () => {
       const r = await f();
@@ -77,7 +69,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
       <p className="text-sm text-texte-doux" data-restantes>{visibles.length} à traiter</p>
       <div role="tabpanel" id="panneau-a-traiter" aria-labelledby={`onglet-a-traiter-${onglet}`} className="flex flex-col gap-4">
       {!carte ? (
-        <EtatVide compact icone="envoyer" titre="Rien à traiter" phrase="Aucun commentaire à traiter pour ce réseau." />
+        <EtatVide compact icone="envoyer" titre="Rien à traiter" phrase={restantes.length ? "Aucun commentaire à traiter pour ce réseau." : "Les commentaires à traiter à la main arrivent ici."} />
       ) : (
       <>
       <CarteATraiter carte={carte} />
@@ -107,6 +99,11 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
 }
 
 const DATE = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+/** Date lisible ; une date mal formée ne doit jamais faire tomber la page. */
+function dateLisible(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso.slice(0, 10) : DATE.format(d);
+}
 
 /** Bloc replié, lecture seule : rien n'est supprimé ni renvoyé. */
 function DejaTraitees({ cartes }: { cartes: readonly CarteDejaTraitee[] }) {
@@ -116,7 +113,7 @@ function DejaTraitees({ cartes }: { cartes: readonly CarteDejaTraitee[] }) {
       <ul className="mt-2 flex flex-col gap-2">
         {cartes.map((c) => (
           <li key={c.idEvenement} className="break-words text-sm text-texte-doux">
-            <span className="font-semibold">{LIBELLE_RESEAU_A_TRAITER[c.reseau]}</span> · {c.statut === "fait" ? "Fait" : "Ignorée"} · {DATE.format(new Date(c.creeLe))}
+            <span className="font-semibold">{LIBELLE_RESEAU_A_TRAITER[c.reseau]}</span> · {c.statut === "fait" ? "Fait" : "Ignorée"} · reçue le {dateLisible(c.creeLe)}
             <br />
             {extraitLisible(c.extrait)}
           </li>

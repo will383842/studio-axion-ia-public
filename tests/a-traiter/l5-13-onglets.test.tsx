@@ -68,6 +68,20 @@ describe("écran", () => {
     const h = rendre({ vue: { etat: "vide", cartes: [], compteur: 0 }, dejaTraitees });
     expect(h).toContain("Rien à traiter");
     expect(h).toContain("Déjà traitées (1)");
+    expect(h).toContain('role="tablist"');
+    expect(h).toContain("Tous (0)");
+  });
+  it("une date mal formée ne fait pas tomber l'écran", () => {
+    const h = rendre({ dejaTraitees: [{ idEvenement: "e9", reseau: "facebook", extrait: "Extrait fictif", creeLe: "pas-une-date", statut: "fait" }] });
+    expect(h).toContain("Déjà traitées (1)");
+    expect(h).toMatch(/reçue le (<!-- -->)?pas-une-date/);
+  });
+  it("le bloc suit l'onglet : seules les cartes du réseau", () => {
+    const l = [
+      { idEvenement: "e1", reseau: "linkedin", extrait: "Extrait un", creeLe: "2026-11-01T10:00:00.000Z", statut: "fait" },
+      { idEvenement: "e2", reseau: "tiktok", extrait: "Extrait deux", creeLe: "2026-11-02T10:00:00.000Z", statut: "fait" },
+    ];
+    expect(O.filtrerParOnglet(l as never, "tiktok")).toHaveLength(1);
   });
   it("libellés conservés", () => {
     const h = rendre({});
@@ -93,8 +107,9 @@ describe("écran", () => {
     expect(bloc).toContain("LinkedIn");
     expect(bloc).not.toContain("<button");
   });
-  it("aucun prix ni bandeau", () => {
+  it("aucun prix ni bandeau d'alerte", () => {
     expect(rendre({})).not.toMatch(/€|\$|\bprix\b/i);
+    expect(rendre({})).not.toContain('role="alert"');
   });
 });
 
@@ -138,5 +153,7 @@ describe("geste « déjà traitées »", () => {
     expect(l.map((c) => c.idEvenement)).toEqual(["evt-fictif-facebook-7"]);
     const vueRelue = await A.lireVueATraiter({ env: { A_TRAITER_ENABLED: "1" }, depot: fabrique() });
     expect(vueRelue.cartes).toEqual([]);
+    stock = [...stock, carte("linkedin", 8)];
+    expect((await A.lireVueATraiter({ env: { A_TRAITER_ENABLED: "1" }, depot: fabrique() })).cartes.map((c) => c.idEvenement)).toEqual(["evt-fictif-linkedin-8"]);
   });
 });
