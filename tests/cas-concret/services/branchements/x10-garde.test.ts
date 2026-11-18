@@ -252,8 +252,7 @@ describe("X10 · 3. de bout en bout : un rendu figé arrête son étape, en clai
   it("le traitement de la voix figé : « La voix » en échec clair après ses nouveaux essais, jamais en cours sans fin", async () => {
     const s = serveur((d) => d.operation === "nettoyage-audio");
     const moteur = moteurAvec(s);
-    // 17/11 (Williams) : sans choix, aucune fin ; LinkedIn seul n'a plus de fin et la fiche des doubles (34,1 s) passe sous la durée minimale : le réseau seul est Facebook, où le mot est branché.
-    const { travail, passages: n } = await passages(moteur, s, commande(["facebook"]));
+    const { travail, passages: n } = await passages(moteur, s, commande(["linkedin"]));
     echecClair(travail, "voix");
     expect(travail.erreur?.messagePourWill).toMatch(/Le (traitement|raccord) de la voix/);
     expect(n).toBeLessThan(200);

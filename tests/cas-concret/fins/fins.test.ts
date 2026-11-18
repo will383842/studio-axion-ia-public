@@ -98,7 +98,7 @@ describe("M2 · plan des fins", () => {
     // 17/11 (Williams) : sans choix, aucune fin ; la suite au mot non validée ne retombe plus sur le diagnostic, sa raison reste dite.
     expect(plan.fins[0].appels.map((a) => a.id)).toEqual([]);
     expect(plan.reduites).toEqual([{ reseaux: ["facebook"], raison: RAISON_SUITE_REDUITE }]);
-    expect(RAISON_SUITE_REDUITE).toBe("La fin au mot n'est pas encore validée : la fin propose le diagnostic.");
+    expect(RAISON_SUITE_REDUITE).toBe("La fin au mot n'est pas encore validée : aucune fin n'est ajoutée.");
   });
 
   it("aucune fin ne dit « réservez » ni « rendez-vous », pour aucune offre, avec ou sans mot", () => {

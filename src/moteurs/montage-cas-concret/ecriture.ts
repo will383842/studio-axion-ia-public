@@ -356,6 +356,8 @@ export function dureeDiteMs(ecrans: readonly { texteDit: string }[], caracteresP
 
 /** Visée de R21 pour la vidéo entière, fin comprise (demande de Will) ; les bornes de refus sont `DUREE_TOTALE_REFUS_MS`. */
 export const DUREE_TOTALE_VISEE_MS = { min: 40_000, max: 60_000 } as const;
+/** 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide garde la place de la plus longue fin retirée (LinkedIn, 6,4 s) : le corps visé ne grandit jamais et la vidéo raccourcit d'autant. */
+export const PLACE_FIN_VIDE_MS = 6_500;
 
 /** Durées des fins prévues : la plus courte et la plus longue, en ms ; `null` sans fin connue. */
 export interface DureesFins {
@@ -365,7 +367,7 @@ export interface DureesFins {
 
 export function dureesDesFins(fins: readonly Pick<FinPlanifiee, "ecrans">[]): DureesFins | null {
   if (!fins.length) return null;
-  const d = fins.map((f) => dureeDiteMs(f.ecrans) + TENUE_FINALE_MS);
+  const d = fins.map((f) => (f.ecrans.length ? dureeDiteMs(f.ecrans) + TENUE_FINALE_MS : PLACE_FIN_VIDE_MS));
   return { plusCourteMs: Math.min(...d), plusLongueMs: Math.max(...d) };
 }
 
@@ -590,16 +592,10 @@ export function ficheParGabarit(cas: CasConcret, fixe: FicheFixe, finsConnues: D
       ...Array.from({ length: REMPLISSAGES + 1 }, (_, remplissage) => gabarit(cas, fixe, cas.etapes.length, true, remplissage, nbScene, court)),
     ].filter((f) => f.ecrans.length <= ECRANS_CORPS.max);
   const vise = corpsVise(fins);
-  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans fin à lire (fin vide), le corps ne grandit pas de la marge : le prix de
-  // la voix ne change que de la fin retirée.
-  const sansFin = fins.plusCourteMs === TENUE_FINALE_MS;
-  const margeVisee = sansFin ? 0 : MARGE_VISEE_MS;
   const tientVise = (f: FicheEcrans) => corpsMs(f) >= vise.minMs && corpsMs(f) <= vise.maxMs;
   // De préférence avec une marge au-dessus du minimum : la voix réelle lit souvent plus vite que le débit de la recette.
-  const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + margeVisee && corpsMs(f) <= vise.maxMs;
-  // R21 compte une fin vide pour 0 (sans la tenue finale) et au débit des mots, plus lent que le nôtre : le corps seul doit
-  // tenir le plancher de refus avec la marge.
-  const tientRefus = (f: FicheEcrans) => corpsMs(f) + (sansFin ? 0 : fins.plusCourteMs) >= DUREE_TOTALE_REFUS_MS.min + (sansFin ? MARGE_VISEE_MS : 0) && corpsMs(f) + fins.plusLongueMs <= DUREE_TOTALE_REFUS_MS.max;
+  const tientAvecMarge = (f: FicheEcrans) => corpsMs(f) >= vise.minMs + MARGE_VISEE_MS && corpsMs(f) <= vise.maxMs;
+  const tientRefus = (f: FicheEcrans) => corpsMs(f) + fins.plusCourteMs >= DUREE_TOTALE_REFUS_MS.min && corpsMs(f) + fins.plusLongueMs <= DUREE_TOTALE_REFUS_MS.max;
   // Un cas qui a un récit (corps plus long, estimé au caractère près) : de préférence un corps qui garde de la place sous le haut de la visée.
   const tientSousLeHaut = (f: FicheEcrans) => tientAvecMarge(f) && corpsMs(f) <= vise.maxMs - MARGE_HAUTE_RECIT_MS;
   const essais: FicheEcrans[] = [];

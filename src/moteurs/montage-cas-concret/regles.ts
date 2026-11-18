@@ -900,12 +900,13 @@ export function regleNombreEcrans(fiche: FicheEcrans): Manquement[] {
 /** Durée estimée d'une fin planifiée (tenue finale comprise quand elle n'est pas calée), au débit donné. */
 export function dureeFinMs(fin: Pick<FinPlanifiee, "ecrans">, debit: number = DEBIT_RECETTE): number {
   const t = tempsEcrans(fin.ecrans, debit);
-  return t.length ? t[t.length - 1].finMs - t[0].debutMs + (estCalee(fin.ecrans) ? 0 : TENUE_FINALE_MS) : 0;
+  return t.length ? t[t.length - 1].finMs - t[0].debutMs + (estCalee(fin.ecrans) ? 0 : TENUE_FINALE_MS) : TENUE_FINALE_MS;
 }
 
 /** Durée estimée de la fin la plus longue : celle des fins planifiées si l'appelant les passe, sinon la suite la plus longue de la table. */
 function dureeFinLaPlusLongueMs(contexte: ContexteCasConcret, debit: number): number {
-  if (contexte.fins?.length) return Math.max(...contexte.fins.map((f) => dureeFinMs(f, debit)));
+  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide compte comme une fin inconnue (le repli ci-dessous) : même seuil pour le corps qu'avant.
+  if (contexte.fins?.length) return Math.max(...contexte.fins.map((f) => (f.ecrans.length ? dureeFinMs(f, debit) : dureeFinParDefautMs(contexte.cas, debit))));
   return dureeFinParDefautMs(contexte.cas, debit);
 }
 

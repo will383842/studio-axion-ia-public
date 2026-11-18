@@ -26,7 +26,7 @@ const { ficheParGabarit } = await import("@/moteurs/montage-cas-concret/ecriture
 const { fabriquerCasConcret } = await import("@/moteurs/montage-cas-concret/fabriquer");
 const { lireEntreesCasConcret } = await import("@/moteurs/montage-cas-concret/etapes");
 const { doubles } = await import("../fabriquer/doubles");
-const { TABLE_FINS_DIAGNOSTIC } = await import("@/briques/fins");
+const { tableFinChoisieDiagnostic, verifierPhrasesDiagnostic } = await import("../fins/plan-diagnostic");
 
 import type { ReseauCas } from "@/formats/cas-concret";
 import type { Doubles } from "../fabriquer/doubles";
@@ -171,13 +171,9 @@ describe("X6 · une vidéo refaite avec l'autre fin", () => {
     // elle-même. La première fabrication pose donc la fin de Facebook « diagnostic + lien » sur les deux lignes de la fin choisie
     // (mêmes phrases, mêmes écrans que l'ancienne fin par défaut) ; la seconde garde la table, avec la fin au mot.
     const d = avecFiche(doubles({ reseaux: ["facebook"], avecMot: true, motSur: ["facebook"] }));
-    const ligne = (id: string) => TABLE_FINS_DIAGNOSTIC.find((l) => l.id === id)!;
-    d.options.outils.contexte = {
-      ...d.options.outils.contexte,
-      tableDesFins: TABLE_FINS_DIAGNOSTIC.map((l) => (l.id === "fin-if-mot" ? { ...ligne("fin-if-diagnostic-gratuit"), id: l.id } : l.id === "fin-if-envoi-structure" ? { ...ligne("fin-fb-lien-commentaire"), id: l.id } : l)),
-    };
+    d.options.outils.contexte = { ...d.options.outils.contexte, tableDesFins: tableFinChoisieDiagnostic() };
     const cr = await fabriquerCasConcret(d.options);
-    expect(cr.plan.fins[0].appels.map((a) => a.dit)).toEqual(["Faites votre diagnostic gratuit en quelques minutes.", "Le lien est en commentaire."]);
+    verifierPhrasesDiagnostic(cr.plan.fins[0].appels);
 
     // Le mot est branché sur Facebook : la même vidéo, refaite avec la fin au mot.
     const d2 = avecFiche(doubles({ partage: d.partage, reseaux: ["facebook"], avecMot: true, motSur: ["facebook"] }));

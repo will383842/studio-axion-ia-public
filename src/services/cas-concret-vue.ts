@@ -80,7 +80,6 @@ export interface DependancesVueCasConcret {
 const NOM_RESEAU: Readonly<Record<ReseauCas, string>> = { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", linkedin: "LinkedIn" };
 const RESEAUX: readonly ReseauCas[] = ["facebook", "instagram", "tiktok", "linkedin"];
 const MOT_DE_LIGNE: Readonly<Record<string, string>> = { commentaire: "mot", cadeau: "envoi", "rendez-vous": "diagnostic", lien: "lien" };
-const RAISON_SANS_MOT = "Fin sans le mot à commenter : la vidéo propose le diagnostic.";
 
 const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -144,7 +143,7 @@ function finsRejouees(entrees: ReturnType<typeof lireEntreesCasConcret>): Map<Re
     const plan = planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC });
     for (const fin of plan.fins) {
       const reduite = plan.reduites.find((r) => fin.reseaux.some((x) => r.reseaux.includes(x)));
-      const raison = reduite ? (reduite.raison || RAISON_SUITE_REDUITE) : !entrees.avecMot ? RAISON_SANS_MOT : undefined;
+      const raison = reduite ? (reduite.raison || RAISON_SUITE_REDUITE) : undefined;
       for (const reseau of fin.reseaux) parReseau.set(reseau, { types: fin.appels.map((a) => a.type), ...(raison ? { raison } : {}) });
     }
   } catch {

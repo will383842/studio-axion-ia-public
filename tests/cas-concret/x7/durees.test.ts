@@ -9,10 +9,10 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
 import { CARACTERES_PAR_SECONDE_ATEMPO_108, MESURES_CALAGE, dureeDiteBrute } from "@/domaine/duree-tableau";
 import type { ReseauCas } from "@/formats/cas-concret";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
-import { CONSIGNE_ECRITURE, DUREE_SORTIE_COURTE_VISEE_MS, dureeDiteMs, dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { CONSIGNE_ECRITURE, DUREE_SORTIE_COURTE_VISEE_MS, dureeDiteMs, dureesDesFins, ficheParGabarit, PLACE_FIN_VIDE_MS } from "@/moteurs/montage-cas-concret/ecriture";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
-import { nombresDe, sansPointsDeSigle, TENUE_FINALE_MS, validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
+import { DUREE_TOTALE_REFUS_MS, nombresDe, sansPointsDeSigle, TENUE_FINALE_MS, validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
 import { texteDuCorps } from "@/moteurs/montage-cas-concret/fiche";
 
 const FIXE = { videoId: "v-x7", versionId: "ver-x7", habillage: "charte-duo/1", origine: "porte-a" } as const;
@@ -23,8 +23,9 @@ function sortie(cas: (typeof CATALOGUE)[number], reseaux: ReseauCas[], avecMot: 
   const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot, motSur: avecMot ? ["instagram", "facebook"] : [], table: TABLE_FINS_DIAGNOSTIC }));
   const fiche = ficheParGabarit(cas, FIXE, dureesDesFins(plan.fins));
   const corps = dureeDiteMs(fiche.ecrans);
-  const durees = plan.fins.map((f) => (corps + dureeDiteMs(f.ecrans) + TENUE_FINALE_MS) / 1000);
-  return { plan, fiche, durees };
+  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide garde la place de la fin retirée dans la visée (PLACE_FIN_VIDE_MS) ; la vidéo réelle sans fin est mesurée à part.
+  const durees = plan.fins.map((f) => (corps + (f.ecrans.length ? dureeDiteMs(f.ecrans) + TENUE_FINALE_MS : PLACE_FIN_VIDE_MS)) / 1000);
+  return { plan, fiche, durees, corps };
 }
 
 describe("X7 · l'estimateur de durée en caractères", () => {
@@ -53,8 +54,10 @@ describe("X7 · 7 cas × réseaux × avec et sans le mot : la visée est tenue, 
   const lignes = CATALOGUE.flatMap((cas) => [true, false].flatMap((avecMot) => CHOIX.map((reseaux) => [`${cas.id} · ${reseaux.join("+")} · ${avecMot ? "avec" : "sans"} le mot`, cas, reseaux, avecMot] as const)));
 
   it.each(lignes)("%s", (_nom, cas, reseaux, avecMot) => {
-    const { plan, fiche, durees } = sortie(cas, reseaux, avecMot);
+    const { plan, fiche, durees, corps } = sortie(cas, reseaux, avecMot);
     expect(plan.sansFin).toEqual([]);
+    // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : la vidéo réelle sans fin (corps + tenue) ne passe jamais sous le plancher de refus.
+    if (plan.fins.some((f) => !f.ecrans.length)) expect(corps + TENUE_FINALE_MS).toBeGreaterThanOrEqual(DUREE_TOTALE_REFUS_MS.min);
     // La sortie la plus courte dans la visée (40 à 47 s depuis V4-2), la plus longue sous la borne de refus (65 s).
     expect(Math.min(...durees)).toBeGreaterThanOrEqual(DUREE_SORTIE_COURTE_VISEE_MS.min / 1000);
     expect(Math.min(...durees)).toBeLessThanOrEqual(DUREE_SORTIE_COURTE_VISEE_MS.max / 1000);

@@ -96,7 +96,7 @@ describe("vueCasConcret", () => {
     const fb = v.fichiers.find((f) => f.reseau === "facebook")!;
     // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
     expect(fb.phraseFin).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
-    expect(fb.raisonFin).toBe("Le mot n'est pas branché sur ce compte : la fin propose le diagnostic.");
+    expect(fb.raisonFin).toBe("Le mot n'est pas branché sur ce compte : aucune fin n'est ajoutée.");
     expect(v.documentAPreparer).toBe(false);
   });
 
@@ -106,7 +106,8 @@ describe("vueCasConcret", () => {
     for (const f of v.fichiers) {
       // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
       expect(f.phraseFin).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
-      expect(f.raisonFin).toMatch(/sans le mot/);
+      // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : « la vidéo propose le diagnostic » (RAISON_SANS_MOT) est supprimée : sans choix, la phrase dit déjà « (votre choix) » ; avant : toMatch(/sans le mot/).
+      expect(f.raisonFin).toBeUndefined();
     }
   });
 

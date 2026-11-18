@@ -32,7 +32,8 @@ const CAS = {
 } as const;
 
 const ETAPES = ["L'écriture", "La relecture", "Les vrais écrans", "La voix", "Le calage", "Les écrans", "Les finitions", "La vérification"];
-const RAISON_SANS_MOT = "Fin sans le mot à commenter : la vidéo propose le diagnostic.";
+// 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans choix, aucune fin : la ligne dit FIN_AUCUNE (avant : « Fin : diagnostic et lien » + RAISON_SANS_MOT, supprimée).
+const FIN_AUCUNE = "Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.";
 const UNE_FABRICATION_MS = 480_000;
 
 async function seConnecter(page: Page) {
@@ -168,7 +169,7 @@ test("E1-01 · Intégration, une automatisation : de la case à la vidéo prête
   const vues = await attendreVideoPrete(page);
   expect(vues.size, `étapes vues en cours : ${[...vues].join(", ")}`).toBeGreaterThanOrEqual(5);
   await expect(vosFichiers(page).locator("ul").first().locator(":scope > li")).toHaveCount(4);
-  await expect(ligneReseau(page, "Facebook")).toContainText("Fin : diagnostic et lien");
+  await expect(ligneReseau(page, "Facebook")).toContainText(FIN_AUCUNE);
   expect(erreurs).toEqual([]);
 });
 
@@ -253,14 +254,13 @@ test("E1-07 · Vos fichiers : « Copier le lien » pose une adresse suivie", asy
   expect(erreurs).toEqual([]);
 });
 
-test("E1-08 · Rien de branché : la fin propose le diagnostic et le lien, avec sa raison", async ({ page }, info) => {
+test("E1-08 · Rien de branché : aucune fin, la ligne le dit", async ({ page }, info) => {
   test.setTimeout(UNE_FABRICATION_MS);
   await seConnecter(page);
   const erreurs = surveiller(page);
   await videoPrete(page, info, "formation", CAS.email, "Formation", "08");
   const facebook = ligneReseau(page, "Facebook");
-  await expect(facebook).toContainText("Fin : diagnostic et lien");
-  await expect(facebook).toContainText(RAISON_SANS_MOT);
+  await expect(facebook).toContainText(FIN_AUCUNE);
   expect(erreurs).toEqual([]);
 });
 

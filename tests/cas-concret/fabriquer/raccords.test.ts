@@ -13,14 +13,14 @@ import { CATALOGUE, trouverCas } from "@/formats/cas-concret/catalogue";
 import { zoneProtegeeCombinee } from "@/reseaux";
 import { calerFiche } from "@/moteurs/montage-cas-concret/calage";
 import { controlerVideoCasConcret, SEUILS_CAS_CONCRET } from "@/moteurs/montage-cas-concret/controles";
-import { ecrireFiche, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { dureeDiteMs, ecrireFiche, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import * as etapes from "@/moteurs/montage-cas-concret/etapes";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
 import { centreBandePct, fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
 import { motsLus, validerSchemaFiche, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import type { OutilsEcriture } from "@/moteurs/montage-cas-concret/outils";
-import { DUREE_TOTALE_REFUS_MS, dureeFinMs, regleDureeTotale, tempsEcrans } from "@/moteurs/montage-cas-concret/regles";
+import { DUREE_TOTALE_REFUS_MS, dureeFinMs, regleDureeTotale, TENUE_FINALE_MS, tempsEcrans } from "@/moteurs/montage-cas-concret/regles";
 import { BANDE_SOUS_TITRES_CAS_CONCRET as BANDE_DES_COMPOSITIONS, exemplesEcrans, ZONE_QUATRE_RESEAUX } from "../../../studio-rendu/compositions/cas-concret/exemples";
 import { doubles } from "./doubles";
 
@@ -137,8 +137,10 @@ describe("M8b · durée totale (R21) avec les vraies fins", () => {
           expect(regleDureeTotale(r.fiche, { cas, texteScript: "", ...controle })).toEqual([]);
           const t = tempsEcrans(r.fiche.ecrans);
           const corps = t[t.length - 1].finMs - t[0].debutMs;
-          const plusCourte = corps + Math.min(...plan.fins.map((f) => dureeFinMs(f)));
-          const plusLongue = corps + Math.max(...plan.fins.map((f) => dureeFinMs(f)));
+          // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans fin, la vidéo réelle = le corps (débit en caractères de l'écriture, X7) + la tenue de la question ; fins à écrans : inchangé.
+          const duree = (f: (typeof plan.fins)[number]) => (f.ecrans.length ? corps + dureeFinMs(f) : dureeDiteMs(r.fiche.ecrans) + TENUE_FINALE_MS);
+          const plusCourte = Math.min(...plan.fins.map(duree));
+          const plusLongue = Math.max(...plan.fins.map(duree));
           expect(plusCourte, `${reseaux.join(", ")}`).toBeGreaterThanOrEqual(DUREE_TOTALE_REFUS_MS.min);
           expect(plusLongue, `${reseaux.join(", ")}`).toBeLessThanOrEqual(DUREE_TOTALE_REFUS_MS.max);
         }

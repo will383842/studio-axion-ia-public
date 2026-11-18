@@ -19,9 +19,7 @@ import {
 } from "@/moteurs/montage-cas-concret/retouches";
 
 const cas = trouverCas("recrutement-apporteurs")!;
-// 17/11 (Williams) : sans choix, aucune fin ; TikTok et LinkedIn n'ont plus de fin (le mot n'y est pas branchable) : ces essais
-// ne gardent que les deux réseaux où une fin existe, pour que la fiche de départ reste celle écrite avec des fins.
-const reseaux = ["facebook", "instagram"] as const;
+const reseaux = ["facebook", "instagram", "tiktok", "linkedin"] as const;
 // P2R : le mot n'est dit que là où il est branché ; ces essais le branchent sur Facebook et Instagram (comme X7).
 const motSur = ["facebook", "instagram"] as const;
 const contexte: ContexteRetoucheCasConcret = { cas, reseaux: [...reseaux], motSur: [...motSur], mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot: true, table: TABLE_FINS_DIAGNOSTIC };
@@ -232,7 +230,8 @@ describe("P2-02 · le mot", () => {
   it("aucune prise gardée : tout est relu", () => {
     const a = apercuRetoucheCasConcret(fiche, [{ type: "changer-mot", mot: "AUTO" }], { ...contexte, voixGardee: null });
     expect(a.corpsRelu).toBe(true);
-    expect(a.finsRelues).toEqual(a.plan.fins.map((f) => f.id));
+    // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide n'a pas de voix à relire (retouches.ts) : seules les fins à écrans sont relues.
+    expect(a.finsRelues).toEqual(a.plan.fins.filter((f) => f.ecrans.length).map((f) => f.id));
   });
 });
 

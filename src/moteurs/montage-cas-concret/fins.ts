@@ -21,11 +21,11 @@ import type { NatureCas, Offre } from "@/formats/cas-concret/cas";
 import { idEcranFinAttendu, type EcranFin, type FinPlanifiee, type PlanDesFins } from "./fiche";
 
 export const MARQUE_FIN = "axion-ia.com";
-export const RAISON_SUITE_REDUITE = "La fin au mot n'est pas encore validée : la fin propose le diagnostic.";
-export const RAISON_SANS_CADEAU = "Cette offre n'a pas encore de document à envoyer : la fin propose le diagnostic.";
+export const RAISON_SUITE_REDUITE = "La fin au mot n'est pas encore validée : aucune fin n'est ajoutée.";
+export const RAISON_SANS_CADEAU = "Cette offre n'a pas encore de document à envoyer : aucune fin n'est ajoutée.";
 /** Fin vide : ce que « Vos fichiers » écrit et ce que l'écran de validation montre quand rien n'est dit après la question. */
 export const FIN_AUCUNE = "Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.";
-export const RAISON_MOT_NON_BRANCHE = "Le mot n'est pas branché sur ce compte : la fin propose le diagnostic.";
+export const RAISON_MOT_NON_BRANCHE = "Le mot n'est pas branché sur ce compte : aucune fin n'est ajoutée.";
 
 export interface DemandePlanDesFins {
   reseaux: readonly ReseauCas[];
@@ -142,7 +142,7 @@ export function phrasesDiagnosticInterchangeables(reseau: ReseauCas, table: read
 }
 
 /** La suite `ids` dont la ligne « rendez-vous » est remplacée par la phrase de rang `rang` (0 : `ids` tels quels). */
-function suiteAuRang(reseau: ReseauCas, ids: string[], table: readonly FinTable[], rang: number): string[] {
+export function suiteAuRang(reseau: ReseauCas, ids: string[], table: readonly FinTable[], rang: number): string[] {
   if (!(Number.isInteger(rang) && rang > 0)) return ids;
   const i = ids.findIndex((id) => table.find((f) => f.id === id)?.type === "rendez-vous");
   if (i < 0) return ids;

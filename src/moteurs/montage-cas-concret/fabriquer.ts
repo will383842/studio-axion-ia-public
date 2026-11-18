@@ -957,7 +957,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       fins: parFin.map(({ r, f }) => ({
         fin: { ...f, ecrans: r.fin!.ecrans.map((e, i) => (i === 0 ? { ...e, debutMs: commun } : e)) as EcranFin[] },
         evenements: r.evenements.filter((ev) => !idsCorps.has(ev.ecranId)),
-        dureeMs: f.ecrans.length ? r.dureeMs : Math.min(r.dureeMs, commun),
+        dureeMs: r.dureeMs,
       })),
     };
   });
@@ -1106,10 +1106,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     tranchesPlan = r.tranches;
   }
   const avecPlan = (groupe: string, ps: ProprietesEcran[]): ProprietesEcran[] => ps.map((p) => (tranchesPlan[cleTranche(groupe, p.id)] ? { ...p, planScenes: tranchesPlan[cleTranche(groupe, p.id)] } : p));
+  // 18/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : plan mixte (fin au mot sur un réseau, fin vide sur les autres) : le fichier de la fin vide dure
+  // jusqu'à la fin de sa voix + la tenue ; le dernier écran du corps est rendu jusque-là (les fins à écrans le coupent à l'instant commun).
+  const commun = calage.fiche.ecrans[calage.fiche.ecrans.length - 1].finMs!;
+  const tenu = Math.max(commun, ...calage.fins.filter((cf) => !cf.fin.ecrans.length).map((cf) => cf.dureeMs));
+  const allonger = (ps: ProprietesEcran[]) => ps.map((p, i) => (i === ps.length - 1 && tenu > p.finMs ? { ...p, finMs: tenu } : p));
   const proprietes = (src: (cle: string) => string) => {
     const caps: Record<string, CaptureEcran> = Object.fromEntries(Object.values(captures.captures).map((c) => [c.cle, { ...c, src: src(c.cle) }]));
     return {
-      corps: avecPlan("corps", proprietesPleineImage({ ecrans: corpsCales, captures: caps })),
+      corps: allonger(avecPlan("corps", proprietesPleineImage({ ecrans: corpsCales, captures: caps }))),
       fins: Object.fromEntries(finsCales.map((f) => [f.id, avecPlan(f.id, proprietesPleineImage({ ecrans: f.cales, captures: caps }))])) as Record<string, ProprietesEcran[]>,
     };
   };
@@ -1202,7 +1207,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const f = cf.fin;
     const son = voix.fins.find((x) => x.id === f.id)!;
     const props = [...brouillon.corps.map((p, i) => ({ p, e: empreintesCorps[i] })), ...brouillon.fins[f.id].map((p, i) => ({ p, e: empreintesFins[f.id][i] }))];
-    const scenes: ScenePosee[] = props.map(({ p, e }, i) => ({ id: i < brouillon.corps.length ? p.id : `${f.id}-${p.id}`, debutSec: p.debutMs / 1000, finSec: p.finMs / 1000, cle: ecrans.cles[e] }));
+    const scenes: ScenePosee[] = props.map(({ p, e }, i) => ({ id: i < brouillon.corps.length ? p.id : `${f.id}-${p.id}`, debutSec: p.debutMs / 1000, finSec: (i === brouillon.corps.length - 1 && f.ecrans.length ? commun : p.finMs) / 1000, cle: ecrans.cles[e] }));
     const dureeSec = +(cf.dureeMs / 1000).toFixed(3);
     const bruitages = poserBruitages({ ecrans: [...calage.fiche.ecrans, ...f.ecrans], cales: [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales], mots: son.mots, dureeSec, valides: ctx.bruitagesValides, ...(mise && mise.tirage.bruitages.depart ? { graine: mise.tirage.bruitages.depart } : {}) });
     bruitagesDe.set(f.id, bruitages);
