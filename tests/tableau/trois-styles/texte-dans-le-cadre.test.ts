@@ -21,6 +21,9 @@ import { mettreEnPage, type OptionsMiseEnPage } from "../../../src/moteurs/monta
 import { IDS_FORMATS_SORTIE, type IdFormatSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { tableDepuis } from "../polices/tables";
 import { lireChasses } from "../polices/lire-ttf";
+import { fichesBanc } from "../banc/fiches-banc";
+import { pagesDuStyle } from "../../../src/moteurs/montage-tableau/densite";
+import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { ficheMaquettes, ficheTemoinV667Corrige } from "./fiches";
 
 const MEDIUM = "src/briques/sous-titres/polices/Manrope-Medium.ttf";
@@ -161,4 +164,121 @@ describe("(e) paperboard : le surligneur couvre exactement ses mots", () => {
         expect(nb, "aucun surligneur testé : le cas serait vide").toBeGreaterThan(0);
         expect(ecarts).toEqual([]);
       });
+});
+
+// ---- FIX-TEXTE-HORS-CADRE-TABLEAU-2a (18/11/2026) : avec la vraie mesure, chaque page du banc tient. ----
+
+/** Les lignes hors de la zone sûre, de leur plaque, carte ou post-it (même garde que le cas (b), mesure indépendante). */
+function lignesHors(m: ReturnType<typeof mettreEnPage>): string[] {
+  const zone = m.zoneSure.px;
+  const hors: string[] = [];
+  for (const p of m.pages)
+    for (const e of p.elements) {
+      const objets = (e.tableau?.objets ?? []).filter((o) => o.sorte === "plaque" || o.sorte === "carte" || o.sorte === "postit");
+      e.lignes.forEach((l, i) => {
+        const tl = e.tableau?.lignes[i];
+        if (!tl) return;
+        const w = largeurReelle(l.texte, tl.police, tl.taille);
+        if (l.px.x < zone.x - 1 || l.px.x + w > zone.x + zone.largeur + 1) hors.push(`p${p.page} « ${l.texte} » hors zone sûre : x ${Math.round(l.px.x)} à ${Math.round(l.px.x + w)}`);
+        const cx = l.px.x + l.px.largeur / 2;
+        const cy = l.px.y + l.px.hauteur / 2;
+        const o = objets.find((q) => cx >= q.x && cx <= q.x + q.l && cy >= q.y && cy <= q.y + q.h);
+        if (o && (l.px.x < o.x - 1 || l.px.x + w > o.x + o.l + 1)) hors.push(`p${p.page} « ${l.texte} » sort de sa ${o.sorte}`);
+      });
+    }
+  return hors;
+}
+
+const luePar = (fiche: FicheTableau, style: StyleTableau) => pagesDuStyle({ ...fiche, styleTableau: style }) as FicheTableau;
+const FINS_BANC: readonly OptionsMiseEnPage["appel"][] = [undefined, { site: true, phrase: "Votre réponse en commentaire" }];
+
+describe("(f) toutes les fiches du banc tiennent, lues comme la fabrication, 3 styles × 4 formats × 2 fins", () => {
+  for (const f of fichesBanc())
+    it(
+      `${f.nom} : 24 mises en page sans refus, rien hors cadre`,
+      () => {
+        const refus: string[] = [];
+        const hors: string[] = [];
+        for (const style of STYLES_TABLEAU) {
+          const lue = luePar(f.fiche, style);
+          for (const format of IDS_FORMATS_SORTIE)
+            for (const appel of FINS_BANC) {
+              const nom = `${style} · ${format} · ${appel ? "TikTok" : "fin de la fiche"}`;
+              try {
+                const m = mettreEnPage(lue, { ...(format === "vertical" ? {} : { format }), ...(appel ? { appel } : {}) });
+                hors.push(...lignesHors(m).map((x) => `${nom} : ${x}`));
+              } catch (e) {
+                refus.push(`${nom} : ${(e as Error).message.slice(0, 120)}`);
+              }
+            }
+        }
+        expect(refus).toEqual([]);
+        expect(hors).toEqual([]);
+      },
+      180_000,
+    );
+});
+
+describe("(g) une case cochée prend 3 lignes en dernier recours, jamais plus petit", () => {
+  const formation = () => fichesBanc().find((f) => f.nom === "fiche-formation-v3-reference-3")!.fiche;
+  for (const style of ["paperboard", "ardoise"] as const)
+    it(
+      `${style} · vertical : « Améliorer le modèle » posée, ≤ 3 lignes, ≥ 54 px, dans la zone sûre`,
+      () => {
+        const m = mettreEnPage(luePar(formation(), style), {});
+        const zone = m.zoneSure.px;
+        const e = m.pages.flatMap((p) => p.elements).find((q) => q.lignes.map((l) => l.texte).join(" ").includes("Améliorer le modèle"));
+        expect(e, "l'élément « Améliorer le modèle » doit être posé").toBeTruthy();
+        expect(e!.lignes.length).toBeLessThanOrEqual(3);
+        e!.lignes.forEach((l, i) => {
+          const tl = e!.tableau!.lignes[i];
+          expect(tl.taille).toBeGreaterThanOrEqual(54);
+          const w = largeurReelle(l.texte, tl.police, tl.taille);
+          expect(l.px.x).toBeGreaterThanOrEqual(zone.x - 1);
+          expect(l.px.x + w).toBeLessThanOrEqual(zone.x + zone.largeur + 1);
+        });
+      },
+      60_000,
+    );
+
+  for (const style of STYLES_TABLEAU)
+    it(
+      `${style} · maquettes vertical : aucune case n'a plus de 2 lignes (le repli ne sert que si 2 ne tiennent pas)`,
+      () => {
+        const m = mise(ficheMaquettes, style, "vertical", undefined);
+        const cases = m.pages.flatMap((p) => p.elements).filter((e) => e.gabarit?.sorte === "case");
+        expect(cases.length).toBeGreaterThan(0);
+        for (const e of cases) expect(e.lignes.length).toBeLessThanOrEqual(2);
+      },
+      60_000,
+    );
+});
+
+describe("(h) la bande libérée des étiquettes n'est prise qu'en repli", () => {
+  for (const style of STYLES_TABLEAU)
+    for (const format of IDS_FORMATS_SORTIE)
+      it(
+        `maquettes · ${style} · ${format} : aucun élément au-dessus de la ligne des anciennes étiquettes`,
+        () => {
+          const m = mise(ficheMaquettes, style, format, undefined);
+          const n = m.styleReference!.nomsChapitres!;
+          const ligne = n.y + n.hauteur;
+          const au_dessus = m.pages.flatMap((p) => p.elements.filter((e) => e.encombrement.px.y < ligne).map((e) => `p${p.page} y ${Math.round(e.encombrement.px.y)} < ${ligne}`));
+          expect(au_dessus).toEqual([]);
+        },
+        60_000,
+      );
+
+  it(
+    "témoin v667 corrigé · ardoise · carré : la page d'appel tient, un élément monte au-dessus de la ligne, tous restent dans la zone sûre",
+    () => {
+      const m = mise(ficheTemoinV667Corrige, "ardoise", "carre", undefined);
+      const n = m.styleReference!.nomsChapitres!;
+      const ligne = n.y + n.hauteur;
+      const els = m.pages.flatMap((p) => p.elements);
+      expect(els.some((e) => e.encombrement.px.y < ligne)).toBe(true);
+      for (const e of els) expect(e.encombrement.px.y).toBeGreaterThanOrEqual(m.zoneSure.px.y);
+    },
+    60_000,
+  );
 });

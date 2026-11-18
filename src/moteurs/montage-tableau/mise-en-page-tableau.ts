@@ -525,7 +525,8 @@ function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
   };
   // Dans les sorties basses, le petit dessin de chaque rangée cède la place au texte (jamais sous 60 px).
   const icMin = Math.round(px(g, g.s.format === "vertical" ? 96 : 64) * (g.repli ?? 1));
-  const textes = surUneLigne(icMin)?.rs ?? essai(icMin);
+  // Une case cochée prend 3 lignes seulement quand 2 ne tiennent pas même aux tailles minimales ; jamais plus petit.
+  const textes = surUneLigne(icMin)?.rs ?? essai(icMin) ?? essai(icMin, 3);
   if (!textes) return null;
   const hTexte = Math.max(...textes.map((r) => r.h));
   // Un peu d'air entre deux rangées (moins dans les sorties basses).
@@ -1362,7 +1363,7 @@ function essayerPageTableau(c: ContenuPage, s: Sortie, style: StyleTableau, haut
 }
 
 /** Géométrie du style : libellés des chapitres, surface d'écriture, bas du support, haut du contenu. */
-export function geometrieTableau(s: Sortie, style: StyleTableau): { chapitres: RectPx[]; tailleChapitre: number; surface: RectPx; basSupport: number; hautContenu: number; contenu: RectPx } {
+export function geometrieTableau(s: Sortie, style: StyleTableau): { chapitres: RectPx[]; tailleChapitre: number; surface: RectPx; basSupport: number; hautContenu: number; hautLibre: number; contenu: RectPx } {
   const k = s.k;
   const S = CHARTES_TABLEAU[style];
   const pol: PoliceTableau = style === "paperboard" ? "caveat" : "kalam";
@@ -1386,5 +1387,6 @@ export function geometrieTableau(s: Sortie, style: StyleTableau): { chapitres: R
   void S;
   const hautContenu = basChapitres + Math.round(20 * k);
   const contenu = { x: s.x0 - Math.round(28 * k), y: hautContenu - Math.round(30 * k), largeur: s.x1 - s.x0 + Math.round(56 * k), hauteur: s.bande.y - Math.round(10 * k) - (hautContenu - Math.round(30 * k)) };
-  return { chapitres, tailleChapitre: taille, surface, basSupport, hautContenu, contenu };
+  // Haut du contenu sans la bande des étiquettes de chapitres (plus dessinée depuis #1077) ; pris seulement en repli.
+  return { chapitres, tailleChapitre: taille, surface, basSupport, hautContenu, hautLibre: y + Math.round(20 * k), contenu };
 }

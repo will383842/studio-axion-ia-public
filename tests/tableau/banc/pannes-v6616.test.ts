@@ -90,11 +90,11 @@ describe("panne 2 : un titre n'est jamais seul (trois styles)", () => {
 });
 
 describe("panne 1 : une page qui ne tient pas dans le style passe d'elle-même à une page de plus", () => {
-  it("la fiche gardée (l'exemple entier en page 7) ne tient pas en carré et 16:9 sur l’ardoise ; lue par la fabrication, sa dernière scène passe à la page 8, « Avant » et « Maintenant » ensemble", () => {
+  it("la fiche gardée (l'exemple entier en page 7) ne tient pas en carré sur l’ardoise ; en 16:9 elle tient depuis que la bande vide des étiquettes est rendue en repli ; lue par la fabrication, sa dernière scène passe à la page 8, « Avant » et « Maintenant » ensemble", () => {
     const gardee = { ...ficheV6616(), styleTableau: "ardoise" as const };
     expect(gardee.scenes.find((x) => x.id === "s08")!.page).toBe(7);
     expect(() => mettreEnPage(gardee, { format: "carre" })).toThrow(/ne tient pas/);
-    expect(() => mettreEnPage(gardee, { format: "horizontal" })).toThrow(/ne tient pas/);
+    expect(() => mettreEnPage(gardee, { format: "horizontal" })).not.toThrow();
     const lue = v6616("ardoise");
     const s07 = lue.scenes.find((x) => x.id === "s07")!;
     const s08 = lue.scenes.find((x) => x.id === "s08")!;
