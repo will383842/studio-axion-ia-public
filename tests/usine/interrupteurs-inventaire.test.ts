@@ -116,6 +116,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "couverture.titreParDefaut", etat: "eteint", appel: "src/services/miniatures.ts", declare: "src/domaine/vignettes.ts", motif: /lireParametre<boolean>\(REGLAGE_TITRE_COUVERTURE, false\)\) !== true/ },
   { cle: "generateur.apprentissage", etat: "eteint", appel: "src/services/apprentissage.ts", declare: "src/domaine/apprentissage.ts", motif: /lireParametre<boolean>\(PARAM_APPRENTISSAGE, false\)\) === true/ },
   { cle: "sujets.garde", etat: "valeur", appel: "src/services/sujets-traites.ts", motif: /lireParametre<unknown>\(REGLAGE_GARDE_SUJETS, "bloquant"\)/ },
+  { cle: "republication.proposition_auto", etat: "eteint", appel: "src/services/republication-auto.ts", motif: /lireParametre<boolean>\(PARAM_PROPOSITION_AUTO, false\)\) === true/ },
   { cle: "zernio.envoi_calendrier_autorise", etat: "eteint", appel: "src/services/zernio.ts", motif: /PARAM_ENVOI_CALENDRIER, false\)\) === true/ },
   { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
   { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },

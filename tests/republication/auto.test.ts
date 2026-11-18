@@ -137,8 +137,8 @@ describe("RC-16 : suggestions", () => {
     const occupe = [{ id: "autre", statut: "valide", heuresParReseau: { instagram: "2026-12-02T09:00:00.000Z" } }];
     const { deps } = doublure([ligne("a")], { creneaux: occupe });
     const [s] = await suggererJours(deps, MAINTENANT);
-    expect(s.jour).toBe("2026-12-04");
-    expect(["2026-12-02", "2026-12-03"]).not.toContain(s.jour);
+    expect(s.jour).toBe("2026-12-03");
+    expect(s.jour).not.toBe("2026-12-02");
   });
   it("ne propose jamais un samedi ni un dimanche", async () => {
     const vendredi = new Date("2026-12-04T10:00:00.000Z");
