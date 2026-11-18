@@ -24,7 +24,7 @@ function scenario(): ScenarioMaquette {
     etapes: [
       { id: "a", role: "accroche", aller: "accueil", ancre: { surMot: "stock" } },
       { id: "b", role: "probleme", aller: "liste", ancre: { surMot: "ECLAIR" } },
-      { id: "c", role: "parcours", aller: "fiche", zone: zone(10), cible: "#fiche", ancre: { surMot: "fiche" } },
+      { id: "c", role: "parcours", aller: "fiche", zone: zone(10), masques: [{ x: 70, y: 70, largeur: 10, hauteur: 10 }], cible: "#fiche", ancre: { surMot: "fiche" } },
       { id: "d", role: "bonne-pratique", aller: "alertes", zone: zone(50), ancre: { apresEtape: "c", delaiMs: 700 } },
       { id: "e", role: "appel", aller: "fin", ancre: { surMot: "demain" } },
     ],
@@ -94,20 +94,26 @@ describe("calerScenario", () => {
     expect(relu.remarques).toEqual([]);
     expect(relu.suivi).toEqual(r.suivi);
     expect(r.suivi).toMatchObject({ origine: "fichier", largeur: 1080, hauteur: 1350, curseur: [] });
-    expect(r.suivi.zones.map((z) => z.motif)).toEqual(["c", "d"]);
+    expect(r.suivi.zones).toEqual([{ debutMs: 6000, finMs: 6700, x: 70, y: 70, largeur: 10, hauteur: 10, motif: "c" }]);
     expect(r.suivi.clics).toEqual([{ tMs: 6000, x: 20, y: 25 }]);
   });
 
-  it("le suivi passé à pistesDepuisSuivi (G15-02) : clics non vides ; les zooms dépendent de la lecture des zones", () => {
+  it("pistesDepuisSuivi (G15-02) : clics ET zooms non vides ; un masque sur le clic supprime le zoom", () => {
     const r = ok(calerScenario(scenario(), VOIX, DUREE));
     const p = pistesDepuisSuivi(r.suivi);
     expect(p.clics).toEqual([{ ms: 6000, x: 20, y: 25 }]);
-    // Constat (voir la PR, HORS PERIMETRE) : G15-02 lit TOUTE `ZoneSuivi` comme une zone privée à ne pas zoomer ;
-    // le clic tombant au centre d'une zone du même suivi, son zoom est écarté. On le fige ici pour que ce soit visible.
-    expect(p.zooms).toEqual([]);
-    // Même clic sans zone : le zoom existe, ce qui prouve que le suivi est bien exploitable par G15-02.
-    const sansZones = pistesDepuisSuivi({ ...r.suivi, zones: [] });
-    expect(sansZones.zooms.length).toBeGreaterThan(0);
+    expect(p.zooms.length).toBeGreaterThan(0);
+    const s = scenario();
+    s.etapes[2]!.masques = [{ x: 15, y: 22, largeur: 10, hauteur: 10 }];
+    const m = ok(calerScenario(s, VOIX, DUREE));
+    expect(pistesDepuisSuivi(m.suivi).zooms).toEqual([]);
+    expect(lireSuiviSourceEcran(JSON.parse(JSON.stringify(m.suivi))).remarques).toEqual([]);
+  });
+
+  it("instant du mot non fini → refus ; cadence 25", () => {
+    const v = VOIX.map((m) => (m.mot === "fiche" ? { ...m, debutSec: Number.NaN } : m));
+    expect(erreurs(calerScenario(scenario(), v, DUREE))[0]).toBe("Étape c : instant du mot illisible.");
+    expect(ok(calerScenario(scenario(), VOIX, DUREE)).suivi.imagesParSeconde).toBe(25);
   });
 
   it("sans ecartMaxMs aucune remarque de durée ; avec, remarque « à vérifier » sans refus", () => {
