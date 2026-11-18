@@ -125,8 +125,9 @@ const VOUVOIEMENT = MOT("vous|votre|vos");
 /** Le trait d'union sépare des mots : « organise-toi » reste du tutoiement. */
 const TUTOIEMENT = /(?<![\p{L}\p{N}_])(?:tu|toi|ton|ta|tes)(?![\p{L}\p{N}_])/u;
 const ETIQUETTE = /^\s*(?:douleur|solution|exemple|a vous)(?![\p{L}\p{N}])/u;
+/** Ces verbes ne sont un appel qu'à l'impératif : après « vous », c'est une phrase de situation. */
 const FIN_DANS_LE_SCRIPT =
-  /prendre\s+rendez-?vous|prenez\s+rendez-?vous|rendez-?vous\s+(?:sur|a|chez|ici)\b|contactez|appelez|reservez|cliquez|abonnez|inscrivez|rejoignez|ecrivez-nous|decouvrez/u;
+  /prendre\s+rendez-?vous|prenez\s+rendez-?vous|rendez-?vous\s+(?:sur|a|chez|ici)\b|ecrivez-nous|(?<!\bvous\s)(?:contactez|appelez|reservez|cliquez|abonnez|inscrivez|rejoignez|decouvrez)/u;
 const NOMBRE = /\d+(?:[  .,]\d{3})*(?:[.,]\d+)?/gu;
 
 const normaliserNombre = (n: string): string => n.replace(/[\s  .]/g, "").replace(",", ".");
