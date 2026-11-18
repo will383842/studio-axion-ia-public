@@ -73,16 +73,24 @@ describe("C2-U20a : géométrie", () => {
 });
 
 describe("C2-U20a : éteint = identique", () => {
-  it("seul LigneEscalier.tsx importe escalier.ts, et rien n'importe LigneEscalier", () => {
+  // BR-ESCALIER-a 17/11 : liste fermée à égalité exacte (le calque des sous-titres monte désormais le dessin).
+  it("importeurs de /escalier = exactement LigneEscalier.tsx, scene.ts (import type) et CalqueSousTitres.tsx ; importeurs de LigneEscalier = exactement CalqueSousTitres.tsx", () => {
     const tous = [...sources("src"), ...sources("studio-rendu/src"), ...sources("studio-rendu/compositions")];
+    const norm = (l: string[]) => l.map((f) => f.replace(/\\/g, "/")).sort();
     const hors = tous.filter(
       (f) => !f.endsWith("sous-titres/escalier.ts") && /(from|import)\s*\(?\s*["'][^"']*\/escalier["']/.test(readFileSync(f, "utf8")),
     );
-    expect(hors.map((f) => f.replace(/\\/g, "/"))).toEqual(["studio-rendu/compositions/sous-titres/LigneEscalier.tsx"]);
+    expect(norm(hors)).toEqual([
+      "src/briques/sous-titres/scene.ts",
+      "studio-rendu/compositions/sous-titres/CalqueSousTitres.tsx",
+      "studio-rendu/compositions/sous-titres/LigneEscalier.tsx",
+    ]);
+    const scene = readFileSync("src/briques/sous-titres/scene.ts", "utf8");
+    expect(scene).toMatch(/import type \{[^}]*\} from "\.\/escalier"/);
     const importeurs = tous.filter(
       (f) => !f.endsWith("sous-titres/LigneEscalier.tsx") && /(from|import)\s*\(?\s*["'][^"']*LigneEscalier["']/.test(readFileSync(f, "utf8")),
     );
-    expect(importeurs).toEqual([]);
+    expect(norm(importeurs)).toEqual(["studio-rendu/compositions/sous-titres/CalqueSousTitres.tsx"]);
   });
   it("escalier.ts : pur (aucun alias @/, ni React, ni Remotion, ni horloge)", () => {
     const s = readFileSync("src/briques/sous-titres/escalier.ts", "utf8");

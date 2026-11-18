@@ -5,7 +5,7 @@
  * met ce test à jour dans sa PR, avec l'accord du relecteur (comme tests/zoom-gratuit/constat-existant.test.ts:1-4).
  */
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ID, etatCapacite } from "@/briques/bibliotheque-video/catalogue";
 import { LIGNES_TEXTE } from "@/briques/bibliotheque-video/catalogue/texte";
@@ -125,7 +125,32 @@ describe("C2-U17a : capacités texte livrées et éteintes", () => {
     expect(PIECES.map((p) => p.id).sort()).toEqual(attendus);
   });
 
-  it("escalier non branché dans scene.ts (C2-U20b-b le branchera ; ce cas sera alors remplacé par le relecteur de C2-U20b-b, pas supprimé)", () => {
-    expect(texteDe("src/briques/sous-titres/scene.ts")).not.toContain("escalier");
+  // BR-ESCALIER-a 17/11 : scene.ts porte désormais le champ facultatif et la fonction pure ; la garde reste stricte
+  // (liste fermée des lignes) et aucun fichier de src/** ne remplit `escalier:` (jamais rempli jusqu'à BR-FACECAM-TEXTE).
+  it("escalier dans scene.ts : seulement le champ facultatif et escalierAuTemps ; jamais rempli dans src/** (BR-FACECAM-TEXTE le remplira, ce cas sera alors remplacé par son relecteur, pas supprimé)", () => {
+    const lignes = texteDe("src/briques/sous-titres/scene.ts")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => /escalier/i.test(l));
+    expect(lignes).toEqual([
+      'import type { ZoneSureEscalier } from "./escalier";',
+      "/** BR-ESCALIER : absent = rien ne change. */",
+      "escalier?: { zone: ZoneSureEscalier; taillePx: number };",
+      "* BR-ESCALIER : lignes de l'escalier à l'instant t (le groupe actif et les précédents de la même phrase, 6 au plus).",
+      "* `null` si le champ `escalier` est absent ou si aucun groupe n'est actif. Pure, ne lève jamais.",
+      "export function escalierAuTemps(d: DonneesCalque, t: number): { lignes: string[]; ligneActive: number } | null {",
+      "if (!d.escalier) return null;",
+    ]);
+    const remplisseurs: string[] = [];
+    const parcourir = (dossier: string) => {
+      for (const e of readdirSync(dossier, { withFileTypes: true })) {
+        const chemin = join(dossier, e.name);
+        if (e.isDirectory()) parcourir(chemin);
+        else if (/\.(ts|tsx)$/.test(e.name) && /\bescalier\s*:/.test(readFileSync(chemin, "utf8"))) remplisseurs.push(chemin.replace(/\\/g, "/"));
+      }
+    };
+    parcourir("src");
+    // la déclaration du champ (`escalier?:`) ne correspond pas : seule une affectation `escalier:` compte, et il n'y en a aucune.
+    expect(remplisseurs).toEqual([]);
   });
 });
