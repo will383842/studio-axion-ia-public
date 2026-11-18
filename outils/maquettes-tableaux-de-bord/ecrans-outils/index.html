@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Espace démo · Boîte de réception</title>
+  <link rel="stylesheet" href="../charte/charte.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="mention-demo">Démonstration · données d'exemple</div>
+  <div class="bureau">
+    <nav class="barre" id="barre">
+      <span class="entree" data-vue="boite"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="12" width="36" height="26" rx="3"/><path d="M6 15l18 13 18-13"/></svg></span>
+      <span class="entree" data-vue="agenda"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="10" width="34" height="30" rx="3"/><path d="M7 20h34M16 6v8M32 6v8"/></svg></span>
+      <span class="entree" data-vue="tableur"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="8" width="34" height="32" rx="2"/><path d="M7 19h34M7 29h34M19 8v32"/></svg></span>
+      <span class="entree" data-vue="crm"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="17" r="7"/><path d="M9 40c1-9 7-13 15-13s14 4 15 13"/></svg></span>
+      <span class="entree" data-vue="messagerie"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M7 11h34v22H22l-9 7v-7H7z"/></svg></span>
+    </nav>
+    <main class="principal">
+      <header class="entete">
+        <h1 id="titre-vue"></h1>
+        <p id="organisation"></p>
+      </header>
+      <section id="vue" class="vue"></section>
+    </main>
+  </div>
+  <script src="etats.js"></script>
+  <script src="demo-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
