@@ -22,6 +22,7 @@ import type { AlerteQualite, CommandeFabrication, EtapeTravail, LigneCout, Ratio
 import { formatFacecamAnimee } from "@/formats/facecam-animee";
 import { ZERO } from "@/lib/montants";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ResultatFabrication, SortieProduite } from "../types";
+import { projetMontageV4 } from "./projet-v4";
 import { segmentsSrtV4 } from "./sous-titres-srt";
 import type { ControleSousTitresV4, EtapeChaineV4, EtatChaineV4, OutilsChaineV4 } from "./chaine-v4";
 
@@ -311,7 +312,7 @@ export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
     noteQualite: { globale: note, alertes },
     lignesReelles: lignes("reel"),
     ...(etat.realisation?.plan.groupes.length ? { sousTitres: segmentsSrtV4(etat.realisation.plan.groupes, etat.realisation.plan.duree) } : {}),
-    projetMontage: { moteur: ID_MOTEUR_FACECAM_ANIMEE, squelette: false, version: etat.realisation?.version ?? "complete", charte: CHARTE_FACECAM_ANIMEE, plaquettes: etat.realisation?.plan.elementsV4?.length ?? 0, essaisClaude: etat.realisation?.essais ?? 0 },
+    projetMontage: { ...projetMontageV4(etat), moteur: ID_MOTEUR_FACECAM_ANIMEE, squelette: false, version: etat.realisation?.version ?? "complete", charte: CHARTE_FACECAM_ANIMEE, plaquettes: etat.realisation?.plan.elementsV4?.length ?? 0, essaisClaude: etat.realisation?.essais ?? 0 },
   };
 }
 
